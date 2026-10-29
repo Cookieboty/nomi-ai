@@ -283,14 +283,14 @@ func (s *Service) ConsentCloud(providerID string) bool {
 	s.settings.CloudConsent = append(s.settings.CloudConsent, providerID)
 	s.saveLocked()
 	s.mu.Unlock()
-	s.audit("kb_cloud_consent", map[string]any{"provider": providerID}, "user", "ok", nil, "", "settings")
+	s.audit("kb_cloud_consent", deps.O("provider", providerID), "user", "ok", nil, "", "settings")
 	return true
 }
 
 // ---------- 来源 ----------
 
 func (s *Service) AddFolder(ctx context.Context) (*KbSource, error) {
-	picked, err := s.d.Ports.PickDirectory(ctx, s.d.T("electron.common.choose-a-folder-to-add-to-the-knowledge"))
+	picked, err := s.d.Ports.PickDirectory(ctx, s.d.T("electron.common.choose-a-folder-to-add-to-the-knowledge"), s.d.T("electron.common.add-to-knowledge-base"))
 	if err != nil || picked == "" {
 		return nil, nil
 	}
@@ -326,7 +326,7 @@ func (s *Service) AddFolderPath(ctx context.Context, picked string) (KbSource, e
 	s.settings.Sources = append(s.settings.Sources, src)
 	s.saveLocked()
 	s.mu.Unlock()
-	s.audit("kb_add_source", map[string]any{"path": g.Real}, "user", "ok", nil, "", "settings")
+	s.audit("kb_add_source", deps.O("path", g.Real), "user", "ok", nil, "", "settings")
 	go s.Reindex(context.Background(), []string{src.ID}, false)
 	return src, nil
 }
@@ -349,7 +349,7 @@ func (s *Service) RemoveSource(id string) bool {
 	_ = s.Index.Save()
 	s.saveLocked()
 	s.mu.Unlock()
-	s.audit("kb_remove_source", map[string]any{"path": src.Path}, "user", "ok", nil, "", "settings")
+	s.audit("kb_remove_source", deps.O("path", src.Path), "user", "ok", nil, "", "settings")
 	return true
 }
 
@@ -444,7 +444,7 @@ func (s *Service) DownloadOcr(ctx context.Context, id string) OkErr {
 		emit("progress", "")
 	})
 	if err == nil {
-		s.audit("kb_ocr_download", map[string]any{"id": id}, "user", "ok", nil, "", "settings")
+		s.audit("kb_ocr_download", deps.O("id", id), "user", "ok", nil, "", "settings")
 		emit("done", "")
 		return OkErr{OK: true}
 	}
@@ -806,7 +806,7 @@ func (s *Service) reindex(parent context.Context, ids []string, force bool, read
 		result = "error"
 	}
 	ms := s.d.Now() - started
-	s.audit("kb_index", map[string]any{"added": fin.Added, "updated": fin.Updated, "removed": fin.Removed, "failed": fin.Failed}, "auto", result, &ms, "", "settings")
+	s.audit("kb_index", deps.O("added", fin.Added, "updated", fin.Updated, "removed", fin.Removed, "failed", fin.Failed), "auto", result, &ms, "", "settings")
 	return s.Progress()
 }
 
@@ -1042,11 +1042,13 @@ func (s *Service) Ask(ctx context.Context, question string, history []deps.Msg) 
 	if len(r.Hits) == 0 {
 		return AskResult{T("electron.common.nothing-relevant-found-in-the-knowledge-base-try"), []SourceRef{}, r.Mode}, nil
 	}
+	var target *deps.SendTarget
 	pid := ""
 	if cp := s.d.ChatProvider(); cp != nil {
+		target = &deps.SendTarget{ID: cp.ID, Name: cp.Name, Local: cp.Local}
 		pid = cp.ID
 	}
-	switch s.broker().CheckSend(ctx, pid) {
+	switch s.broker().CheckSend(ctx, target) {
 	case "local_only":
 		return AskResult{}, &KbError{"local_only", T("electron.common.only-local-models-cloud-chat-no-kb")}
 	case "user_denied":
@@ -1065,7 +1067,7 @@ func (s *Service) Ask(ctx context.Context, question string, history []deps.Msg) 
 		deps.AvatarGesture(s.d.Events, "shakeHead")
 	}
 	ms := s.d.Now() - started
-	s.audit("kb_ask", map[string]any{"question": deps.Slice0(question, 80), "sources": len(sources)}, "auto", "ok", &ms, pid, "agent")
+	s.audit("kb_ask", deps.O("question", deps.Slice0(question, 80), "sources", len(sources)), "auto", "ok", &ms, pid, "agent")
 	return AskResult{answer, sources, r.Mode}, nil
 }
 
@@ -1293,7 +1295,7 @@ func (s *Service) Clear() bool {
 	return true
 }
 
-func (s *Service) audit(tool string, args map[string]any, decision, result string, ms *int64, provider, source string) {
+func (s *Service) audit(tool string, args any, decision, result string, ms *int64, provider, source string) {
 	if s.d.Desktop != nil {
 		s.d.Desktop.Append(deps.AuditEntry{Tool: tool, Args: args, Decision: decision, Result: result, Ms: ms, Provider: provider, Source: source})
 	}

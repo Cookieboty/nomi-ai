@@ -343,7 +343,7 @@ func (s *Service) changed() {
 	s.publish("ext.changed", nil)
 }
 
-func (s *Service) audit(tool string, args map[string]any, decision, result, source string, ms int64) {
+func (s *Service) audit(tool string, args any, decision, result, source string, ms int64) {
 	if s.d.Desktop != nil {
 		s.d.Desktop.Append(deps.AuditEntry{Tool: tool, Args: args, Decision: decision, Result: result, Ms: &ms, Source: source})
 	}
@@ -499,7 +499,7 @@ func (s *Service) Upsert(ctx context.Context, raw map[string]any) (McpServerEntr
 		s.servers = append(s.servers, &ne)
 	}
 	s.saveServers()
-	s.audit("mcp_server_save", map[string]any{"id": e.ID, "transport": e.Transport, "trust": e.Trust}, "user", "ok", "settings", 0)
+	s.audit("mcp_server_save", deps.O("id", e.ID, "transport", e.Transport, "trust", e.Trust), "user", "ok", "settings", 0)
 	s.changed()
 	reconnect := prev != nil && s.live[e.ID].Status == "connected"
 	s.mu.Unlock()
@@ -523,7 +523,7 @@ func (s *Service) Remove(ctx context.Context, id string) bool {
 	s.servers = out
 	delete(s.live, id)
 	s.saveServers()
-	s.audit("mcp_server_remove", map[string]any{"id": id}, "user", "ok", "settings", 0)
+	s.audit("mcp_server_remove", deps.O("id", id), "user", "ok", "settings", 0)
 	s.changed()
 	return len(s.servers) < n
 }
@@ -568,7 +568,7 @@ func (s *Service) ImportJSON(text string) ([]McpServerEntry, error) {
 		out = append(out, MaskServer(e))
 	}
 	s.saveServers()
-	s.audit("mcp_server_import", map[string]any{"n": len(list)}, "user", "ok", "settings", 0)
+	s.audit("mcp_server_import", deps.O("n", len(list)), "user", "ok", "settings", 0)
 	s.changed()
 	return out, nil
 }
@@ -597,7 +597,7 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 	if err != nil {
 		msg := FriendlyError(err)
 		s.live[id] = Live{Status: "error", Error: msg, Tools: []LiveTool{}}
-		s.audit("mcp_connect", map[string]any{"id": id}, "user", "error", "mcp", ms)
+		s.audit("mcp_connect", deps.O("id", id), "user", "error", "mcp", ms)
 		s.changed()
 		return Live{}, &McpConfigError{msg}
 	}
@@ -619,7 +619,7 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 	}
 	l := Live{Status: "connected", Tools: tools, At: time.Now().UnixMilli()}
 	s.live[id] = l
-	s.audit("mcp_connect", map[string]any{"id": id, "tools": len(tools)}, "user", "ok", "mcp", ms)
+	s.audit("mcp_connect", deps.O("id", id, "tools", len(tools)), "user", "ok", "mcp", ms)
 	deps.AvatarGesture(s.d.Events, "nod")
 	s.changed()
 	return l, nil
@@ -692,7 +692,7 @@ func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string) T
 				})
 			}
 			if decision != "auto" && decision != "allowed" {
-				s.audit(def.Name, map[string]any{"server": serverID}, decision, "denied", "mcp", 0)
+				s.audit(def.Name, deps.O("server", serverID), decision, "denied", "mcp", 0)
 				if decision == "blocked" {
 					return nil, &ToolError{"mode_blocked", T("electron.common.the-permission-mode-is-plan-read-only-so")}
 				}
@@ -704,7 +704,7 @@ func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string) T
 		if err != nil {
 			res = "error"
 		}
-		s.audit(def.Name, map[string]any{"server": serverID}, decision, res, "mcp", time.Since(t0).Milliseconds())
+		s.audit(def.Name, deps.O("server", serverID), decision, res, "mcp", time.Since(t0).Milliseconds())
 		return r, err
 	}
 	return out
@@ -913,7 +913,7 @@ func (s *Service) SaveSkill(meta SkillMeta, body, originalName string) (SkillMet
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(BuildSkillMd(meta, body)), 0o644); err != nil {
 		return meta, err
 	}
-	s.audit("skill_save", map[string]any{"name": meta.Name}, "user", "ok", "settings", 0)
+	s.audit("skill_save", deps.O("name", meta.Name), "user", "ok", "settings", 0)
 	s.changed()
 	return meta, nil
 }
@@ -928,7 +928,7 @@ func (s *Service) RemoveSkill(name string) (bool, error) {
 	_ = os.RemoveAll(dir)
 	s.delDisabled(name)
 	s.saveSkillState()
-	s.audit("skill_remove", map[string]any{"name": name}, "user", "ok", "settings", 0)
+	s.audit("skill_remove", deps.O("name", name), "user", "ok", "settings", 0)
 	s.changed()
 	return true, nil
 }
@@ -991,7 +991,7 @@ func (s *Service) ImportSkillDir(src string) (SkillMeta, error) {
 			return meta, err
 		}
 	}
-	s.audit("skill_import", map[string]any{"name": meta.Name}, "user", "ok", "settings", 0)
+	s.audit("skill_import", deps.O("name", meta.Name), "user", "ok", "settings", 0)
 	deps.AvatarGesture(s.d.Events, "clap")
 	s.changed()
 	return meta, nil
@@ -999,7 +999,7 @@ func (s *Service) ImportSkillDir(src string) (SkillMeta, error) {
 
 // ImportSkillDialog：未选择返回 nil
 func (s *Service) ImportSkillDialog(ctx context.Context) (*SkillMeta, error) {
-	dir, err := s.d.Ports.PickDirectory(ctx, T("electron.common.choose-a-skill-folder-containing-skill-md"))
+	dir, err := s.d.Ports.PickDirectory(ctx, T("electron.common.choose-a-skill-folder-containing-skill-md"), "")
 	if err != nil || dir == "" {
 		return nil, err
 	}
@@ -1061,7 +1061,7 @@ func (s *Service) SkillLoad(name string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.audit("skill_load", map[string]any{"name": name}, "auto", "ok", "skill", 0)
+	s.audit("skill_load", deps.O("name", name), "auto", "ok", "skill", 0)
 	deps.AvatarGesture(s.d.Events, "think")
 	return map[string]any{"name": name, "instructions": d.Body, "files": d.Files}, nil
 }
@@ -1097,7 +1097,7 @@ func (s *Service) SkillReadFile(name, rel string) (map[string]any, error) {
 	if bytes.IndexByte(b, 0) >= 0 {
 		return nil, &SkillError{T("electron.common.only-text-files-can-be-read")}
 	}
-	s.audit("skill_read_file", map[string]any{"name": name, "path": rel}, "auto", "ok", "skill", 0)
+	s.audit("skill_read_file", deps.O("name", name, "path", rel), "auto", "ok", "skill", 0)
 	return map[string]any{"content": strings.ToValidUTF8(string(b), "\uFFFD")}, nil
 }
 
@@ -1137,7 +1137,7 @@ func (s *Service) MigrateScan(ctx context.Context, pickProject, clearProject boo
 		s.mu.Unlock()
 	}
 	if pickProject {
-		dir, err := s.d.Ports.PickDirectory(ctx, T("electron.common.choose-a-project-folder-reads-its-mcp-json"))
+		dir, err := s.d.Ports.PickDirectory(ctx, T("electron.common.choose-a-project-folder-reads-its-mcp-json"), "")
 		if err != nil {
 			return nil, err
 		}
@@ -1295,7 +1295,7 @@ func (s *Service) MigrateImport(ctx context.Context, choices []MigrateChoice) Mi
 		result = "partial"
 	}
 	s.mu.Lock()
-	s.audit("ext_migrate_import", map[string]any{"imported": len(res.Imported), "skipped": len(res.Skipped), "failed": len(res.Failed)}, "user", result, "settings", 0)
+	s.audit("ext_migrate_import", deps.O("imported", len(res.Imported), "skipped", len(res.Skipped), "failed", len(res.Failed)), "user", result, "settings", 0)
 	if len(res.Imported) > 0 {
 		s.changed()
 		deps.AvatarGesture(s.d.Events, "clap")

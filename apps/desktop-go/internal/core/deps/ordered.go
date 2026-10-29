@@ -149,3 +149,12 @@ func decodeOrdered(dec *json.Decoder) (any, error) {
 	}
 	return tok, nil
 }
+
+// O：按书写顺序构造有序对象（键值交替），对应 JS 对象字面量的键序
+func O(kv ...any) *OrderedObject {
+	o := NewOrderedObject()
+	for i := 0; i+1 < len(kv); i += 2 {
+		o.Set(kv[i].(string), kv[i+1])
+	}
+	return o
+}

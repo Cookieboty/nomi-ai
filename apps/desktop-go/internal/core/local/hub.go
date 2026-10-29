@@ -183,7 +183,7 @@ func (h *Hub) ExportTo(file string, o ExportOpts) (ExportResult, error) {
 	}
 	ms := int64(0)
 	if h.d.Desktop != nil {
-		h.d.Desktop.Append(deps.AuditEntry{Tool: "data_export", Args: map[string]any{"files": len(names), "bytes": buf.Len()}, Decision: "user", Result: "ok", Ms: &ms, Source: "settings"})
+		h.d.Desktop.Append(deps.AuditEntry{Tool: "data_export", Args: deps.O("files", len(names), "bytes", buf.Len()), Decision: "user", Result: "ok", Ms: &ms, Source: "settings"})
 	}
 	if h.d.Events != nil {
 		deps.AvatarGesture(h.d.Events, "nod")

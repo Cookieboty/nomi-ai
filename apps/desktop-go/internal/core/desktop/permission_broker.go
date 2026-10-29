@@ -63,7 +63,7 @@ type PermissionBroker struct {
 	taint          map[context.Context]bool
 	taintUntil     float64
 	pending        map[string]*pendingConfirm
-	listeners      []func()
+	listeners      []*func()
 
 	UI                  ConfirmUI
 	PermissionMode      func() PermMode
@@ -162,14 +162,21 @@ func (b *PermissionBroker) notify() {
 	ls := slices.Clone(b.listeners)
 	b.mu.Unlock()
 	for _, l := range ls {
-		l()
+		(*l)()
 	}
 }
 
-func (b *PermissionBroker) OnChange(fn func()) {
+// OnChange 对应 onChange：返回取消订阅函数（Node 用 Set.add / Set.delete）
+func (b *PermissionBroker) OnChange(fn func()) func() {
+	h := &fn
 	b.mu.Lock()
-	b.listeners = append(b.listeners, fn)
+	b.listeners = append(b.listeners, h)
 	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		b.listeners = slices.DeleteFunc(b.listeners, func(x *func()) bool { return x == h })
+		b.mu.Unlock()
+	}
 }
 
 func (b *PermissionBroker) scopesLocked() []Scope {

@@ -85,7 +85,7 @@ func (b *FakeBroker) Revoke(p string) {
 	}
 }
 func (b *FakeBroker) LocalOnly() bool { return b.Local }
-func (b *FakeBroker) CheckSend(context.Context, string) string {
+func (b *FakeBroker) CheckSend(context.Context, *SendTarget) string {
 	if b.Send == "" {
 		return "ok"
 	}
@@ -106,7 +106,7 @@ type NoopPorts struct {
 	Idle   int
 }
 
-func (p *NoopPorts) PickDirectory(context.Context, string) (string, error) { return p.Picked, nil }
+func (p *NoopPorts) PickDirectory(context.Context, string, string) (string, error) { return p.Picked, nil }
 func (p *NoopPorts) SaveFile(context.Context, string, string, []FileFilter) (string, error) {
 	return p.Saved, nil
 }

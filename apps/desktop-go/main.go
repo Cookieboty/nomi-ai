@@ -76,20 +76,6 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
-	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
-	// TODO(batch-4/5): Complete / Gateway 接 AI runtime；TODO(batch-6): Desktop / Ports 接 DesktopService 与 HostPorts。
-	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
-		UserData: userData,
-		Router:   router,
-		Secrets:  security.NewSecretBox("extensions"),
-		OpenChat: func() {
-			if sh != nil {
-				sh.Show(shell.Chat)
-			}
-		},
-	})
-	b8.Start()
-	defer b8.Stop()
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
 		if sh == nil {
@@ -115,12 +101,32 @@ func main() {
 	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
 	desktoptr.SetLocale(func() string { return bundle.Locale.Get().Locale })
 	home, _ := os.UserHomeDir()
-	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home}, func(ev string, payload any, _ string) {
+	ports := hostPorts{sh: &sh}
+	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
+		dir, _ := ports.PickDir(title, button, def)
+		return dir
+	}}, func(ev string, payload any, _ string) {
 		router.Emit(ev, payload)
 	})
 	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
+	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
+	// Desktop 用批次 6 的同一个 DesktopService；TODO(batch-4/5): Complete / Gateway 接 AI runtime。
+	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		UserData: userData,
+		Router:   router,
+		Secrets:  security.NewSecretBox("extensions"),
+		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
+		Ports:    ports,
+		OpenChat: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+	})
+	b8.Start()
+	defer b8.Stop()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{

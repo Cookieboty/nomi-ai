@@ -223,7 +223,7 @@ func (s *Service) SetPersona(text string) (bool, error) {
 	if err := os.WriteFile(s.PersonaFile(), []byte(deps.Slice0(text, 8000)), 0o600); err != nil {
 		return false, err
 	}
-	s.audit("memory_persona_save", map[string]any{}, "ok", nil)
+	s.audit("memory_persona_save", deps.O(), "ok", nil)
 	s.broadcast("mem.changed", nil)
 	return true, nil
 }
@@ -322,7 +322,7 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 		s.lastError = err.Error()
 		le := s.lastError
 		s.mu.Unlock()
-		s.audit("memory_summarize", map[string]any{"conversation": conversationID}, "error", nil)
+		s.audit("memory_summarize", deps.O("conversation", conversationID), "error", nil)
 		if me, ok := err.(*MemError); ok {
 			return IngestResult{}, me
 		}
@@ -387,7 +387,7 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 	s.mu.Unlock()
 	s.syncFacade()
 	ms := time.Since(t0).Milliseconds()
-	s.audit("memory_summarize", map[string]any{"conversation": conversationID, "facts": len(newFacts)}, "ok", &ms)
+	s.audit("memory_summarize", deps.O("conversation", conversationID, "facts", len(newFacts)), "ok", &ms)
 	deps.AvatarGesture(s.d.Events, "nod")
 	v := viewEp(ep)
 	return IngestResult{Episode: &v}, nil
@@ -684,7 +684,7 @@ func (s *Service) UpdateEpisode(ctx context.Context, id string, patch any) (Epis
 	s.persistLocked(false)
 	s.mu.Unlock()
 	s.syncFacade()
-	s.audit("memory_edit", map[string]any{"id": id}, "ok", nil)
+	s.audit("memory_edit", deps.O("id", id), "ok", nil)
 	return viewEp(e), nil
 }
 
@@ -733,7 +733,7 @@ func (s *Service) UpsertFact(ctx context.Context, input any) (Fact, error) {
 	s.persistLocked(false)
 	s.mu.Unlock()
 	s.syncFacade()
-	s.audit("memory_fact_save", map[string]any{"id": f.ID}, "ok", nil)
+	s.audit("memory_fact_save", deps.O("id", f.ID), "ok", nil)
 	return viewFact(f), nil
 }
 
@@ -766,7 +766,7 @@ func (s *Service) Remove(kind, id string) bool {
 	}
 	s.mu.Unlock()
 	if ok {
-		s.audit("memory_delete", map[string]any{"kind": kind, "id": id}, "ok", nil)
+		s.audit("memory_delete", deps.O("kind", kind, "id", id), "ok", nil)
 	}
 	return ok
 }
@@ -781,7 +781,7 @@ func (s *Service) ClearAll() bool {
 	s.data = store{V: 1, Episodes: []Episode{}, Facts: []Fact{}}
 	s.persistLocked(true)
 	s.mu.Unlock()
-	s.audit("memory_clear", map[string]any{}, "ok", nil)
+	s.audit("memory_clear", deps.O(), "ok", nil)
 	return true
 }
 
@@ -804,7 +804,7 @@ func (s *Service) ResetProfile(ctx context.Context) (bool, error) {
 			return false, err
 		}
 	}
-	s.audit("memory_profile_reset", map[string]any{}, "ok", nil)
+	s.audit("memory_profile_reset", deps.O(), "ok", nil)
 	s.broadcast("mem.changed", nil)
 	return true, nil
 }
@@ -897,7 +897,7 @@ func (s *Service) ExportToFile(ctx context.Context, format string) (ExportResult
 		return ExportResult{}, err
 	}
 	h := sha1.Sum([]byte(fp))
-	s.audit("memory_export", map[string]any{"format": format, "sha": hex.EncodeToString(h[:])[:8]}, "ok", nil)
+	s.audit("memory_export", deps.O("format", format, "sha", hex.EncodeToString(h[:])[:8]), "ok", nil)
 	return ExportResult{OK: true, Path: fp}, nil
 }
 
@@ -954,7 +954,7 @@ func (s *Service) IngestFromView(ctx context.Context, conversationID string, his
 	return s.Ingest(ctx, conversationID, msgs, force)
 }
 
-func (s *Service) audit(tool string, args map[string]any, result string, ms *int64) {
+func (s *Service) audit(tool string, args any, result string, ms *int64) {
 	if s.d.Desktop == nil {
 		return
 	}

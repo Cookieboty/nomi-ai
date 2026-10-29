@@ -32,13 +32,13 @@ func (f EventsFunc) Publish(event string, payload any) { f(event, payload) }
 
 // AuditEntry 对应 desktop/audit 的 append 入参（字段顺序 = Node 对象字面量顺序）
 type AuditEntry struct {
-	Tool     string         `json:"tool"`
-	Args     map[string]any `json:"args"`
-	Decision string         `json:"decision"`
-	Result   string         `json:"result"`
-	Ms       *int64         `json:"ms,omitempty"`
-	Provider string         `json:"provider,omitempty"`
-	Source   string         `json:"source"`
+	Tool     string `json:"tool"`
+	Args     any    `json:"args"`
+	Decision string `json:"decision"`
+	Result   string `json:"result"`
+	Ms       *int64 `json:"ms,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Source   string `json:"source"`
 }
 
 // Audit：desktop.audit.append（批次 6）
@@ -78,9 +78,16 @@ type Broker interface {
 	// Grant：用户在对话框里选了文件夹 → 记为已授权
 	Grant(path string)
 	LocalOnly() bool
-	// CheckSend：'ok' | 'local_only' | 'user_denied'
-	CheckSend(ctx context.Context, providerID string) string
+	// CheckSend：'ok' | 'local_only' | 'user_denied'；p 为 nil 表示没有对话模型（同 Node 的 undefined）
+	CheckSend(ctx context.Context, p *SendTarget) string
 	OnChange(fn func()) (off func())
+}
+
+// SendTarget：chatProvider() 的 { id, name, local }
+type SendTarget struct {
+	ID    string
+	Name  string
+	Local bool
 }
 
 // Desktop：DesktopService 的切片（批次 6）。TODO(batch-6): main.go 换成真正的 DesktopService。
@@ -96,7 +103,7 @@ type Desktop interface {
 
 // Dialogs / Shell / Power：HostPorts 的切片
 type Ports interface {
-	PickDirectory(ctx context.Context, title string) (string, error)
+	PickDirectory(ctx context.Context, title, buttonLabel string) (string, error)
 	SaveFile(ctx context.Context, title, defaultName string, filters []FileFilter) (string, error)
 	OpenPath(path string) string
 	ShowItemInFolder(path string)

@@ -178,7 +178,7 @@ func (s *Service) pub(ev string, p any) {
 	}
 }
 func (s *Service) changed() { s.pub("local.changed", nil) }
-func (s *Service) audit(tool string, args map[string]any, result string, ms int64) {
+func (s *Service) audit(tool string, args any, result string, ms int64) {
 	if s.d.Desktop != nil {
 		s.d.Desktop.Append(deps.AuditEntry{Tool: tool, Args: args, Decision: "user", Result: result, Ms: &ms, Source: "settings"})
 	}
@@ -374,7 +374,7 @@ func (s *Service) Download(id string) Result {
 		s.d.Logger.Warn("本地模型下载失败", "id", id, "error", err.Error())
 		return Result{false, err.Error()}
 	}
-	s.audit("local_model_download", map[string]any{"id": id}, "ok", time.Since(t0).Milliseconds())
+	s.audit("local_model_download", deps.O("id", id), "ok", time.Since(t0).Milliseconds())
 	deps.AvatarGesture(s.d.Events, "clap")
 	return Result{OK: true}
 }
@@ -434,7 +434,7 @@ func (s *Service) Remove(id string) bool {
 	}
 	s.save()
 	s.mu.Unlock()
-	s.audit("local_model_remove", map[string]any{"id": id}, "ok", 0)
+	s.audit("local_model_remove", deps.O("id", id), "ok", 0)
 	s.changed()
 	return true
 }
@@ -570,7 +570,7 @@ func (s *Service) Start(id string) (StartResult, error) {
 	s.settings.ActiveModel = &aid
 	s.save()
 	s.mu.Unlock()
-	s.audit("local_model_start", map[string]any{"id": id, "port": port}, "ok", time.Since(t0).Milliseconds())
+	s.audit("local_model_start", deps.O("id", id, "port", port), "ok", time.Since(t0).Milliseconds())
 	deps.AvatarGesture(s.d.Events, "nod")
 	if s.d.Desktop != nil {
 		s.d.Desktop.Say(T("electron.common.local-model-is-ready-your-chats-won-t", m.Name))
@@ -685,7 +685,7 @@ func (s *Service) UseAsChat() (bool, error) {
 func (s *Service) SetOffline(on bool) (bool, error) {
 	if s.d.Desktop != nil {
 		s.d.Desktop.SetLocalOnly(on)
-		s.d.Desktop.Append(deps.AuditEntry{Tool: "set_local_only", Args: map[string]any{"v": on}, Decision: "user", Result: "ok", Source: "settings"})
+		s.d.Desktop.Append(deps.AuditEntry{Tool: "set_local_only", Args: deps.O("v", on), Decision: "user", Result: "ok", Source: "settings"})
 	}
 	s.mu.Lock()
 	st := s.status
@@ -695,7 +695,7 @@ func (s *Service) SetOffline(on bool) (bool, error) {
 			return false, err
 		}
 	}
-	s.audit("offline_mode", map[string]any{"on": on}, "ok", 0)
+	s.audit("offline_mode", deps.O("on", on), "ok", 0)
 	s.changed()
 	return s.State().Offline, nil
 }
@@ -827,7 +827,7 @@ func (s *Service) OllamaPull(name string) (bool, error) {
 	if err := sc.Err(); err != nil {
 		return false, err
 	}
-	s.audit("ollama_pull", map[string]any{"name": name}, "ok", 0)
+	s.audit("ollama_pull", deps.O("name", name), "ok", 0)
 	return true, nil
 }
 
@@ -842,7 +842,7 @@ func (s *Service) OllamaDelete(name string) (bool, error) {
 	if r.StatusCode < 200 || r.StatusCode > 299 {
 		return false, errors.New(T("electron.common.delete-failed-http", r.StatusCode))
 	}
-	s.audit("ollama_delete", map[string]any{"name": name}, "ok", 0)
+	s.audit("ollama_delete", deps.O("name", name), "ok", 0)
 	s.changed()
 	return true, nil
 }
