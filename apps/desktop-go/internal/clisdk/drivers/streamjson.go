@@ -269,7 +269,7 @@ func (d *StreamJsonDriver) failControls(e error) {
 	d.controls = map[string]*controlWaiter{}
 }
 
-func (d *StreamJsonDriver) Start(string, *string, *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
+func (d *StreamJsonDriver) Start(clisdk.StartOptions) *jsrt.Promise[StartResult] {
 	return jsrt.Resolved(O("sessionId", nullable(d.sid), "capabilities", O("images", true)))
 }
 
