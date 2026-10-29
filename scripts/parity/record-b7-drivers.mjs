@@ -95,6 +95,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-history.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-host.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-accounts.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-aifacade.mjs')], { stdio: 'inherit', cwd: root });
   // 批次 7s2：delegate（core / worktree / DelegateService）
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-delegate.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-plugins.mjs')], { stdio: 'inherit', cwd: root });
@@ -111,6 +112,10 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-logparsers.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-scanner.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-sniff.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-claudeparser.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-gwreq.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
   // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
   execSync('pnpm --filter @nomi-ai/gateway build', { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-shell.mjs')], { stdio: 'inherit', cwd: root });
