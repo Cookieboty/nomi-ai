@@ -1,0 +1,433 @@
+package providers
+
+import (
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/cand"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
+	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/stream/sse"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+)
+
+var (
+	regMu    sync.RWMutex
+	regOrder = []string{}
+	registry = map[string]*Spec{}
+	// generation invalidates the per-provider caches (specCache = new WeakMap()).
+	generation atomic.Int64
+)
+
+func init() {
+	for _, s := range append([]*Spec{Generic}, BuiltinSpecs...) {
+		put(s)
+	}
+}
+
+func put(s *Spec) {
+	if _, ok := registry[s.ID]; !ok {
+		regOrder = append(regOrder, s.ID)
+	}
+	registry[s.ID] = s
+}
+
+// RegisterProviderSpec is registerProviderSpec.
+func RegisterProviderSpec(s *Spec) {
+	regMu.Lock()
+	put(s)
+	regMu.Unlock()
+	generation.Add(1)
+}
+
+// ProviderSpecByID is providerSpecById.
+func ProviderSpecByID(id string) *Spec {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	return registry[id]
+}
+
+func specs() []*Spec {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	out := make([]*Spec, len(regOrder))
+	for i, id := range regOrder {
+		out[i] = registry[id]
+	}
+	return out
+}
+
+// HostOf is hostOf: new URL(url).hostname.toLowerCase() ("" when invalid).
+// WHATWG keeps the brackets of an IPv6 hostname.
+func HostOf(raw string) string {
+	pu, err := gnet.ParseURL(raw)
+	if err != nil || pu == nil {
+		return ""
+	}
+	h := pu.Host
+	if strings.HasPrefix(h, "[") {
+		if i := strings.Index(h, "]"); i >= 0 {
+			h = h[:i+1]
+		}
+	} else if i := strings.LastIndex(h, ":"); i >= 0 {
+		h = h[:i]
+	}
+	return u.JSLower(h)
+}
+
+func hostMatches(host, pattern string) bool {
+	return host == pattern || strings.HasSuffix(host, "."+pattern)
+}
+
+func cacheKey(kind, wire string) string {
+	return kind + ":" + strconv.FormatInt(generation.Load(), 10) + ":" + wire
+}
+
+// SpecOf is specOf (wire "" = any wire).
+func SpecOf(p *config.RuntimeProvider, wire string) *Spec {
+	m := p.Memo()
+	k := cacheKey("spec", wire)
+	if v, ok := m.Load(k); ok {
+		return v.(*Spec)
+	}
+	s := resolveSpec(p, wire)
+	m.Store(k, s)
+	return s
+}
+
+func resolveSpec(p *config.RuntimeProvider, wire string) *Spec {
+	if p.Spec != "" {
+		if s := ProviderSpecByID(p.Spec); s != nil {
+			return s
+		}
+	}
+	all := specs()
+	if p.Preset != "" {
+		for _, s := range all {
+			for _, x := range s.Presets {
+				if x == p.Preset {
+					return s
+				}
+			}
+		}
+	}
+	var hosts []string
+	if wire != "" {
+		hosts = []string{HostOf(p.URL(wire))}
+	} else {
+		for _, w := range p.URLWires() {
+			hosts = append(hosts, HostOf(u.JSString(p.URLs.Get(w))))
+		}
+	}
+	for _, host := range hosts {
+		if host == "" {
+			continue
+		}
+		for _, s := range all {
+			for _, h := range s.Hosts {
+				if hostMatches(host, h) {
+					return s
+				}
+			}
+		}
+	}
+	return Generic
+}
+
+// MergeQuirks is mergeQuirks.
+func MergeQuirks(base, over *config.ProviderQuirks) *config.ProviderQuirks {
+	b, o := base.Obj(), over.Obj()
+	get := func(x *u.Obj, k string) any {
+		if x == nil {
+			return nil
+		}
+		return x.Get(k)
+	}
+	out := u.NewObj() // { ...defined(base), ...defined(over) }
+	for _, src := range []*u.Obj{b, o} {
+		if src != nil {
+			for _, k := range src.Keys() {
+				out.Set(k, src.Get(k))
+			}
+		}
+	}
+	var drops []any // [...new Set([...(base?.dropParams ?? []), ...(over?.dropParams ?? [])])]
+	seen := map[string]bool{}
+	for _, src := range []*u.Obj{b, o} {
+		for _, d := range spreadAny(get(src, "dropParams")) {
+			k := u.Stringify(d)
+			if _, isS := d.(string); isS {
+				k = "s" + k
+			}
+			if !seen[k] {
+				seen[k] = true
+				drops = append(drops, d)
+			}
+		}
+	}
+	if len(drops) > 0 {
+		out.Set("dropParams", drops)
+	}
+	if u.Truthy(get(b, "fixes")) || u.Truthy(get(o, "fixes")) {
+		f := u.NewObj()
+		for _, src := range []any{get(b, "fixes"), get(o, "fixes")} {
+			if x, ok := src.(*u.Obj); ok && x != nil {
+				f.Assign(x)
+			}
+		}
+		out.Set("fixes", f)
+	}
+	be, _ := get(b, "extraBody").(*u.Obj)
+	oe, _ := get(o, "extraBody").(*u.Obj)
+	if u.Truthy(get(b, "extraBody")) || u.Truthy(get(o, "extraBody")) {
+		eb := u.NewObj()
+		for _, src := range []*u.Obj{be, oe} {
+			if src != nil {
+				for _, w := range src.Keys() {
+					eb.Set(w, nil)
+				}
+			}
+		}
+		for _, w := range eb.Keys() {
+			m := u.NewObj()
+			for _, src := range []*u.Obj{be, oe} {
+				if x, ok := get(src, w).(*u.Obj); ok && x != nil {
+					m.Assign(x)
+				}
+			}
+			eb.Set(w, m)
+		}
+		out.Set("extraBody", eb)
+	}
+	return config.QuirksFromObj(out)
+}
+
+func spreadAny(v any) []any {
+	switch x := v.(type) {
+	case []any:
+		return x
+	case string:
+		var out []any
+		for _, r := range x {
+			out = append(out, string(r))
+		}
+		return out
+	}
+	return nil
+}
+
+// QuirksOf is quirksOf (wire "" = any wire).
+func QuirksOf(p *config.RuntimeProvider, wire string) *config.ProviderQuirks {
+	m := p.Memo()
+	k := cacheKey("quirks", wire)
+	if v, ok := m.Load(k); ok {
+		return v.(*config.ProviderQuirks)
+	}
+	q := MergeQuirks(SpecOf(p, wire).Request, p.Quirks)
+	m.Store(k, q)
+	return q
+}
+
+// ResetProviderCaches is resetProviderCaches.
+func ResetProviderCaches() { generation.Add(1) }
+
+// NativeOf is nativeOf.
+func NativeOf(c *cand.Candidate) string {
+	spec := SpecOf(c.Provider, c.Wire)
+	if spec.Native == "" {
+		return ""
+	}
+	host := HostOf(c.Provider.URL(c.Wire))
+	for _, h := range spec.Hosts {
+		if hostMatches(host, h) {
+			return spec.Native
+		}
+	}
+	return ""
+}
+
+// ProviderRequest is providerRequest.
+func ProviderRequest(c *cand.Candidate, o *u.Obj, notes *[]string) {
+	spec := SpecOf(c.Provider, c.Wire)
+	ctx := &Context{Candidate: c, Spec: spec, Native: NativeOf(c), Quirks: QuirksOf(c.Provider, c.Wire), Notes: notes}
+	GenericRequest(c.Wire, o, ctx)
+	if spec.Hooks != nil && spec.Hooks.Request != nil {
+		spec.Hooks.Request(c.Wire, o, ctx)
+	}
+}
+
+// ServerToolError is serverToolError ("" = none).
+func ServerToolError(c *cand.Candidate, ingress string, body any) string {
+	return ServerToolErrorFor(c, NativeOf(c), ingress, body)
+}
+
+/* ------------------------------- response side ------------------------------- */
+
+func dataOf(block string) *sse.Event {
+	data := ""
+	var event *string
+	any := false
+	for _, line := range splitLines(block) {
+		if strings.HasPrefix(line, "data:") {
+			if any {
+				data += "\n"
+			}
+			data += strings.TrimPrefix(line[5:], " ")
+			any = true
+		} else if strings.HasPrefix(line, "event:") {
+			e := u.JSTrim(line[6:])
+			event = &e
+		}
+	}
+	if !any {
+		return nil
+	}
+	ev := &sse.Event{Data: data}
+	if event != nil && *event != "" {
+		ev.Event = event
+	}
+	return ev
+}
+
+// splitLines is block.split(/\r?\n/).
+func splitLines(s string) []string {
+	parts := strings.Split(s, "\n")
+	for i, p := range parts {
+		if i < len(parts)-1 {
+			parts[i] = strings.TrimSuffix(p, "\r")
+		}
+	}
+	return parts
+}
+
+// jsEq is === between a parsed JSON value and a rule constant.
+func jsEq(a, b any) bool {
+	switch a.(type) {
+	case *u.Obj, []any:
+		return false
+	}
+	switch bv := b.(type) {
+	case int:
+		f, ok := a.(float64)
+		return ok && f == float64(bv)
+	}
+	return a == b
+}
+
+// DeclarativePreEvent is declarativePreEvent.
+func DeclarativePreEvent(spec *Spec, ev *sse.Event) PreResult {
+	r := spec.Resp
+	if r == nil {
+		return PreResult{Event: ev}
+	}
+	var j *u.Obj
+	if v, err := u.ParseString(ev.Data); err == nil {
+		if o, ok := v.(*u.Obj); ok {
+			j = o
+		}
+	}
+	if j != nil {
+		for _, k := range r.KeepAlive {
+			if jsEq(j.Get(k.Field), k.Equals) {
+				return PreResult{Alive: true}
+			}
+		}
+	}
+	typ := ""
+	if j != nil {
+		if s, ok := j.Get("type").(string); ok {
+			typ = s
+		}
+	}
+	has := typ != "" || (j != nil && u.IsStr(j.Get("type")))
+	if !has && ev.Event != nil {
+		typ, has = *ev.Event, true
+	}
+	if !has || typ == "" {
+		return PreResult{Event: ev}
+	}
+	rule, ok := r.Events[typ]
+	if !ok {
+		return PreResult{Event: ev}
+	}
+	if rule.Drop {
+		return PreResult{Drop: true}
+	}
+	if j != nil {
+		data := u.Stringify(j.Clone().Set("type", rule.Rename))
+		var e *string
+		if ev.Event != nil {
+			e = u.Ptr(rule.Rename)
+		}
+		return PreResult{Event: &sse.Event{Event: e, Data: data}}
+	}
+	return PreResult{Event: ev}
+}
+
+// Stage is ProviderStage.
+type Stage struct {
+	split   sse.Splitter
+	spec    *Spec
+	wire    string
+	Alive   int
+	Changed int
+}
+
+// NewStage is new ProviderStage(spec, wire).
+func NewStage(spec *Spec, wire string) *Stage { return &Stage{spec: spec, wire: wire} }
+
+// StageNeeded is ProviderStage.needed.
+func StageNeeded(spec *Spec) bool {
+	return spec.Resp != nil || (spec.Hooks != nil && spec.Hooks.PreEvent != nil)
+}
+
+// Push is push.
+func (s *Stage) Push(text string) string {
+	var b strings.Builder
+	for _, bl := range s.split.Push(text) {
+		b.WriteString(s.block(bl.Body+bl.Sep, bl.Sep))
+	}
+	return b.String()
+}
+
+// End is end.
+func (s *Stage) End() string {
+	if rest := s.split.Take(); rest != "" {
+		return s.block(rest, "")
+	}
+	return ""
+}
+
+func (s *Stage) block(block, sep string) string {
+	ev := dataOf(block)
+	if ev == nil {
+		return block
+	}
+	var r PreResult
+	if s.spec.Hooks != nil && s.spec.Hooks.PreEvent != nil {
+		r = s.spec.Hooks.PreEvent(s.wire, ev, s.spec)
+	} else {
+		r = DeclarativePreEvent(s.spec, ev)
+	}
+	if r.Event == ev && !r.Alive && !r.Drop {
+		return block
+	}
+	if r.Alive {
+		s.Alive++
+		return ""
+	}
+	s.Changed++
+	if r.Drop || r.Event == nil {
+		return ""
+	}
+	head := ""
+	if r.Event.Event != nil && *r.Event.Event != "" {
+		head = "event: " + *r.Event.Event + "\n"
+	}
+	if sep == "" {
+		sep = "\n\n"
+	}
+	return head + "data: " + r.Event.Data + sep
+}

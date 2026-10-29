@@ -8,7 +8,9 @@ import (
 
 // D20 removed: *Obj orders keys like JS (array-index keys ascending first).
 func TestParityObjKeys(t *testing.T) {
-	var fx struct{ Cases []struct{ Input, Parsed, Mutated string } }
+	var fx struct {
+		Cases []struct{ Input, Parsed, Mutated string }
+	}
 	loadFixture(t, "objkeys", &fx)
 	tl := tally{}
 	for _, c := range fx.Cases {
