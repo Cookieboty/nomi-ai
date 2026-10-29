@@ -2,6 +2,18 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const protoSchemas = [
+  '{"$defs":{"a":{"type":"string"}},"properties":{"x":{"$ref":"#/$defs/toString"},"y":{"$ref":"#/$defs/constructor"},"z":{"$ref":"#/$defs/__proto__"},"w":{"$ref":"#/$defs/hasOwnProperty","d":1}},"e":[{"$ref":"#/$defs/valueOf"},{"$ref":"#/$defs/a"}]}',
+  '{"$defs":{"__proto__":{"type":"number"}},"p":{"$ref":"#/$defs/__proto__"},"q":{"$ref":"#/$defs/constructor"}}',
+  '{"$defs":{"a":{"type":"object"}},"__proto__":{"type":"object"},"p":{"__proto__":{"$ref":"#/$defs/a"},"k":1}}',
+  '{"$defs":{"a":1},"p":{"$ref":"#/$defs/a","__proto__":{"type":"x"}}}',
+  '{"__proto__":{"type":"object"},"properties":{"__proto__":{"type":"object"},"n":{"__proto__":{"__proto__":{"type":"object"}}}}}',
+  '{"type":"object","__proto__":{"additionalProperties":true}}',
+  '{"__proto__":[1],"type":"object"}',
+  '{"__proto__":5,"items":{"__proto__":{"type":"object","additionalProperties":7}}}',
+  '{"$defs":{"a":{"$ref":"#/$defs/isPrototypeOf"}},"r":{"$ref":"#/$defs/a"},"s":[{"$ref":"#/$defs/propertyIsEnumerable"}]}',
+];
+
 export async function recordRules({ gw, root }) {
   const cl = await gw('src/clients/index.ts');
   const it = await gw('src/intent.ts');
@@ -148,8 +160,16 @@ export async function recordRules({ gw, root }) {
   }));
   out.fit = [];
   for (const w of ['minimal', 'medium', 'max']) for (const es of [undefined, [], ['high'], ['max', 'low'], ['medium', 'minimal', 'xhigh']]) out.fit.push({ want: w, efforts: es ?? null, out: rq.fitLevel(w, es) });
-  out.inline = [schema, simple, { $ref: '#/$defs/x' }, { $defs: { a: null }, p: { $ref: '#/$defs/a' } }, { definitions: { a: 1 }, $defs: { a: { type: 'x' } }, q: [{ $ref: '#/definitions/a', z: 1 }] }, 5]
+  out.inline = [schema, simple, { $ref: '#/$defs/x' }, { $defs: { a: null }, p: { $ref: '#/$defs/a' } }, { definitions: { a: 1 }, $defs: { a: { type: 'x' } }, q: [{ $ref: '#/definitions/a', z: 1 }] }, 5,
+    // JS prototype edge cases (JSON.parse keeps an own "__proto__"; `out[k] =` does not; refs can hit Object.prototype)
+    ...protoSchemas.map((j) => JSON.parse(j))]
     .map((s) => ({ in: s, out: JSON.stringify(rq.inlineRefs(s)), gemini: rq.geminiExpressible(s) }));
+  out.strictEdge = protoSchemas.map((j) => {
+    const o = { tools: [{ type: 'function', function: { name: 'f', parameters: JSON.parse(j), strict: true } }] };
+    const notes = [];
+    const changed = rq.cleanSchemas('chat', o, { tools: { schema: 'openai-strict' } }, notes);
+    return { in: j, out: JSON.stringify(o), changed, notes };
+  });
   out.dropReasoning = [];
   for (const wire of ['messages', 'chat', 'responses', 'gemini']) for (const b of [{ thinking: 1, reasoning: 2, reasoning_effort: 3 }, { generationConfig: { a: 1, thinkingConfig: {}, b: 2 } }, {}]) {
     const o = { ...b }; const notes = []; content.dropReasoning(o, wire, notes); out.dropReasoning.push({ wire, in: b, out: JSON.stringify(o), notes });
