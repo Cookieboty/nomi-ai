@@ -10,8 +10,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const { checkPlugin } = await import(pathToFileURL(path.join(root, 'packages/cli-sdk/src/testing/index.ts')).href);
-const { BUILTIN_PLUGINS, BUILTIN_CLI_IDS } = await import(pathToFileURL(path.join(root, 'packages/cli-plugins/src/main.ts')).href);
+// TS 源码打包装载（不依赖各包 dist）
+const { importSources } = await import(pathToFileURL(path.join(path.dirname(fileURLToPath(import.meta.url)), 'src-bundle.mjs')).href);
+const { A, B } = await importSources(root, { A: path.join(root, 'packages/cli-sdk/src/testing/index.ts'), B: path.join(root, 'packages/cli-plugins/src/main.ts') });
+const { checkPlugin } = A;
+const { BUILTIN_PLUGINS, BUILTIN_CLI_IDS } = B;
 const FIX = path.join(root, 'packages/cli-plugins/fixtures/history');
 
 function fixturesOf(id) {
