@@ -2,7 +2,7 @@
 # 批次 11 mac 安装包验证：签名信息、与 2.0.4 Info.plist 键对比、dmg 安装 → 启动 → 看板娘窗口出现（只看显示，不触发动作）。
 # 用法：verify-mac.sh <dmg> <输出目录> [electron 2.0.4 dmg]
 set -u
-DMG=$1; OUT=$2; OLD=${3:-}; mkdir -p "$OUT"; R="$OUT/report.md"; ok=1
+DMG=$1; OUT=$2; OLD=${3:-}; mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd); R="$OUT/report.md"; ok=1
 HERE="$(cd "$(dirname "$0")" && pwd)"
 { echo "### mac: $(basename "$DMG") ($(stat -f%z "$DMG") bytes)"; } >> "$R"
 MNT=$(hdiutil attach -nobrowse -readonly "$DMG" | awk -F'\t' '/\/Volumes\//{print $NF}' | tail -1)
@@ -36,14 +36,15 @@ if [ -n "$OLD" ] && [ -f "$OLD" ]; then
   done
 fi
 # 启动（open = Finder 双击同路径）→ 看板娘窗口 330x355
+
 open -a "$APP"; sleep 30
 PID=$(pgrep -x Nomi | head -1)
 screencapture -x "$OUT/mac-launch-fullscreen.png"
-if [ -n "$PID" ] && WID=$(cd "$HERE/.." && swift ci/mac-window.swift id "$PID" 330x355 2>"$OUT/windows.txt"); then
-  screencapture -x -o -l"$WID" "$OUT/mac-mascot.png"; (cd "$HERE/.." && swift ci/mac-window.swift alpha "$OUT/mac-mascot.png") > "$OUT/mac-mascot-alpha.txt"
-  echo "启动：PID $PID，看板娘窗口 $WID 已显示（截图 mac-mascot.png；中心像素 $(tail -1 "$OUT/mac-mascot-alpha.txt")）" >> "$R"
+if [ -n "${PID}" ] && WID=$(cd "$HERE/.." && swift ci/mac-window.swift id "${PID}" 330x355 2>"$OUT/windows.txt"); then
+  screencapture -x -o -l"${WID}" "$OUT/mac-mascot.png"; (cd "$HERE/.." && swift ci/mac-window.swift alpha "$OUT/mac-mascot.png") > "$OUT/mac-mascot-alpha.txt"
+  echo "启动：PID ${PID}，看板娘窗口 ${WID} 已显示（截图 mac-mascot.png；中心像素 $(tail -1 "$OUT/mac-mascot-alpha.txt")）" >> "$R"
 else
-  echo "启动失败或未找到看板娘窗口（pid=$PID）" >> "$R"; cat "$OUT/windows.txt" >> "$R"; ok=0
+  echo "启动失败或未找到看板娘窗口（pid=${PID}）" >> "$R"; cat "$OUT/windows.txt" >> "$R"; ok=0
 fi
 # nomi:// 由 LaunchServices 指向本应用
 swift - >> "$R" 2>&1 <<'SW' || true
