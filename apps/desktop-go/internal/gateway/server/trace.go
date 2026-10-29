@@ -482,11 +482,12 @@ func (t *RequestTrace) Client(chunk string) {
 
 // Finish is finish(result): result is the JS object in its literal key order
 // (status, ms, attempts, usage?, error?, notes?). Returns the file written or "".
-func (t *RequestTrace) Finish(result *u.Obj) string {
+// A non-nil error is the RangeError Node's finish() rejects with (invalid startedAt).
+func (t *RequestTrace) Finish(result *u.Obj) (string, error) {
 	t.mu.Lock()
 	if t.done {
 		t.mu.Unlock()
-		return ""
+		return "", nil
 	}
 	t.done = true
 	s := t.secrets
@@ -498,7 +499,7 @@ func (t *RequestTrace) Finish(result *u.Obj) string {
 	started, ok := u.ToISOString(t.meta.StartedAt)
 	if !ok {
 		t.mu.Unlock()
-		return "" // RangeError escapes finish() in Node (rejected promise)
+		return "", ErrInvalidTime
 	}
 	doc.Set("startedAt", started)
 	for _, k := range result.Keys() {
@@ -562,10 +563,10 @@ func (t *RequestTrace) Finish(result *u.Obj) string {
 		if t.opts.Logger != nil {
 			t.opts.Logger.Warn("gateway trace write failed", u.NewObj("error", err.Error()))
 		}
-		return ""
+		return "", nil
 	}
 	t.maybePrune()
-	return file
+	return file, nil
 }
 
 var unsafeClient = regexp.MustCompile(`[^A-Za-z0-9_-]`)
@@ -625,6 +626,9 @@ func (t *RequestTrace) maybePrune() {
 	lastPruneMu.Unlock()
 	PruneTraces(t.dir, now, TraceMaxAgeMs)
 }
+
+// ErrInvalidTime is Node's RangeError("Invalid time value") from toISOString.
+var ErrInvalidTime = errors.New("Invalid time value")
 
 // StartTrace is startTrace(cfg, meta, logger).
 func StartTrace(cfg *config.GatewayConfig, meta TraceMeta, logger WarnLogger) *RequestTrace {

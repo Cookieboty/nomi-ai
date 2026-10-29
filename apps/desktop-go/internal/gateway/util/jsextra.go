@@ -122,3 +122,20 @@ func ReplaceAllUnits(s, old, repl Units) Units {
 	}
 	return append(out, s[last:]...)
 }
+
+// IndexUnits is s.indexOf(sub) over UTF-16 units.
+func IndexUnits(s, sub Units) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		ok := true
+		for j, c := range sub {
+			if s[i+j] != c {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return i
+		}
+	}
+	return -1
+}

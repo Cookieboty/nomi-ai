@@ -139,11 +139,67 @@ func unescapeJSON(raw string) string {
 	if !strings.Contains(raw, `\`) {
 		return raw
 	}
-	v, err := u.ParseString(`"` + raw + `"`)
-	if s, ok := v.(string); err == nil && ok {
-		return s
+	if v, ok := jsonStringUnits(u.ToUnits(raw)); ok {
+		return u.FromUnits(v)
 	}
 	return raw
+}
+
+// jsonStringUnits is JSON.parse('"' + raw + '"') over UTF-16 units, so lone
+// surrogates (escaped or raw) survive exactly as in V8. ok=false where V8 throws.
+func jsonStringUnits(in u.Units) (u.Units, bool) {
+	out := make(u.Units, 0, len(in))
+	for i := 0; i < len(in); i++ {
+		c := in[i]
+		switch {
+		case c == '"' || c < 0x20:
+			return nil, false
+		case c != '\\':
+			out = append(out, c)
+			continue
+		}
+		i++
+		if i >= len(in) {
+			return nil, false
+		}
+		switch in[i] {
+		case '"', '\\', '/':
+			out = append(out, in[i])
+		case 'b':
+			out = append(out, 8)
+		case 'f':
+			out = append(out, 12)
+		case 'n':
+			out = append(out, 10)
+		case 'r':
+			out = append(out, 13)
+		case 't':
+			out = append(out, 9)
+		case 'u':
+			if i+4 >= len(in) {
+				return nil, false
+			}
+			var v uint16
+			for _, h := range in[i+1 : i+5] {
+				v <<= 4
+				switch {
+				case h >= '0' && h <= '9':
+					v |= h - '0'
+				case h >= 'a' && h <= 'f':
+					v |= h - 'a' + 10
+				case h >= 'A' && h <= 'F':
+					v |= h - 'A' + 10
+				default:
+					return nil, false
+				}
+			}
+			out = append(out, v)
+			i += 4
+		default:
+			return nil, false
+		}
+	}
+	return out, true
 }
 
 type masking struct {
