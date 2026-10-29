@@ -216,6 +216,14 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
 | D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
 | D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
+| D-B9-1 | 豆包（火山引擎）流式 ASR / 一次性识别走 WebSocket 二进制协议 | 设置、密钥（`volc-key.json` 加密）、就绪检查、审计、`voice.volcTest` 的入参校验全部按 Node；真正联网的识别返回 `failed`「Doubao streaming ASR is not available in the Go host」，`voice.streamPush/streamCancel` 返回 `false` | 批次范围排除 Volcengine |
+| D-B9-2 | VAD 在宿主侧加载 silero 模型 | VAD 留在渲染器 WASM；`voice.vad*` 只回 `{kind:"energy"}` / `0` / `null` | 批次约定 |
+| D-B9-3 | 看板娘 `voiceSettings` 原样合并保存（含未知键） | 经类型化 ConfigService 保存，`voiceSettings` 下未知键丢弃 | Go 配置是结构体 |
+| D-B9-4 | `X-Timestamp` 用 V8 `Date#toString()`，括号内时区长名来自 ICU | 同格式；时区长名按 IANA 名查表，查不到回退 ICU 写法 `GMT+08:00` | Go 无 ICU；golden 在 UTC 下逐字节一致 |
+| D-B9-5 | `ws` 客户端握手默认协商 permessage-deflate、Node TLS 指纹 | coder/websocket，请求头顺序与值同 Node；压缩扩展/TLS ClientHello 不同 | 无 vendor SDK 约束下的传输层差异 |
+| D-B9-6 | `fetch` + `FormData`（undici 默认头、`----formdata-undici-` 边界） | net/http multipart，字段顺序/文件名/类型/值与 Node 一致（mock 服务对比），边界串与默认头不同 | 传输层 |
+| D-B9-7 | whisper-cli 失败时 Node `execFile` 的错误文本 | stderr 末尾 300 字符同 Node；无 stderr 时按 `Command failed: …` 近似拼接 | Go exec 错误形态不同 |
+| D-B9-8 | 对话窗刚创建时等待 `did-finish-load` 再注入语音文本 | 新显示时固定延迟 500ms 再发 `voice.inject` | Wails 无同名事件 |
 | D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；nodeproc 的 stdout/stderr/error/exit/close 派发统一经 `jsrt.Dispatch`（EventEmitter 语义）：抛出的监听器之后的监听器跳过本事件、本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
 | D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
 | D-B7-3 | cli-sdk 驱动里 JS `undefined` 值的键（AppServer `finish` 的 `error: undefined`）、非字符串 thread/turn/session id | Go `util.Obj` 不存 undefined：不设该键（JSON 输出与读值完全一致，仅 `'error' in r` 不同，调用方无此用法）；非字符串 id 经 `JSString` 转字符串（真实 CLI 只回字符串） | 无可观察差异；driver golden 10 场景 / 117 条覆盖 |
@@ -229,6 +237,19 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B4d-5 | ~~ProviderStore 只在内存~~ **已消除** | provider 持久化改为与 Node 相同的 GatewayStore：`userData/gateway/store.json`，JSON.stringify(_, null, 2) 同序同排版，`enc`/`encryption`、`tokenEnc`/`tokenEncryption`、`privacyKeyEnc` 语义一致；safeStorage 密文由无状态 SecretBox（54903b2b）产生。`init()`（migrateLegacy → normalizeCliAssignments → ensurePrivacyKey → save → archiveLeftoverLegacy，含 .migrated-<ts> / .corrupt-<ts>）逐步移植，`internal/core/gwstore/testdata/gwstore.json`（Node 真实 GatewayService 录制，8 场景含重启）逐字节比对；Electron 迁移不再改写成 `keyring`，而是就地换成 Go safeStorage 密文（含 cli-providers keyEnc）；2.0.4 迁移+重启测试 `TestProviders204MigrationAndRestart` | runtimeConfig / modelMeta 消费在批次 5 |
 | D-B4d-5b | GatewayStore 读兼容 `encryption:"keyring"` | 批次 3 早期迁移写过 `keyring`（enc=base64(账户名)），Go 读取时经 KeyringGet 解出；Node 无此值。另：Go 运行时 Encrypt 失败回退 `none`（Node createSafeStorageCipher 在不可用时同样是 none） | 无（仅兼容旧 Go 构建写出的文件） |
 | D-B4d-6 | `gateway.upsertProvider` / `gateway.removeProvider` 等供应商写操作 | 属于 GatewayService（批次 5），本批只注册 shell.ts 的 `providers.presets/meta/state/setActive`（替换 procs 占位）。ProviderStore 的 routes/usage 若在文件里是数组，Go 用旁路表保存非下标属性以复现 JS 数组上挂属性的行为（实际文件不会出现） | 无可观察差异 |
+| D-B5-P-1 | 协议适配层不用厂商 SDK（`@ai-sdk/openai-compatible` / `@ai-sdk/openai` / `@ai-sdk/anthropic`） | Go 在 `internal/ai/llm/{compatible,openai,anthropic}` 用 net/http + SSE 自适配，同分层（provider → chatModel → getArgs / convertMessages / prepareTools / doStream / doGenerate）；`openai-go` 已从 core/chat.go、mockllm、go.mod 移除。openai-chat golden `internal/ai/llm/testdata/b5-llm.json` 34 场景逐项比对请求体（逐字节）、请求头、流 part、generate 结果、抛错（`TestGoldenCompatible`），变异 12 例杀死 10（存活：bad-json 后 finish 覆盖 error 的等价变异；`execution-denied` 默认文案未被场景覆盖） | 无行为差异 |
+| D-B5-P-2 | zod 校验失败的 issue 文案（TypeValidationError.cause） | Go schema 自实现，错误类型/name/value 与 SDK 一致，cause 内 zod issue 文本不逐字一致；golden 比对时去掉 `cause` | 仅日志里的校验细节文本 |
+| D-B5-P-3 | User-Agent 的运行时后缀 | Node 为 `runtime/node.js/<ver>`，Go 固定 `node.js/22`（`RuntimeUserAgent`），其余后缀（`ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58`）逐字一致 | 上游只看到不同的运行时版本号 |
+| D-B5-P-4 | 传输层头（host/connection/content-length/accept/accept-encoding/date 等）与响应头里的 `date` | net/http 与 undici 的传输层头不同，golden 两端同样过滤；APICallError.responseHeaders 里 Go 带 `date`（httptest 默认发），比对时按同一集合过滤 | 无语义差异 |
+| D-B5-P-5 | 不提供 Google provider；`provider` 类型工具 | 与 Node ai/runtime 一致：只有 openai-chat / openai-responses / anthropic 三种协议，Google 不移植；openai-compatible 对 provider-defined tool 只发 unsupported warning（同 SDK） | 无（跟随 Node 实现） |
+| D-B5-P-6 | openai-responses / anthropic 适配器 | **未完成**：本轮只交付 openai-compatible（openai-chat）；responses 与 anthropic 的 golden 场景和实现待续 | 选这两种协议的供应商暂不可用于 Go 运行时 |
+| D-B5-1 | ai `streamText` / `generateText` 运行时（`internal/ai/runtime/aisdk/engine.go`）+ AiSdkLlmProvider（`provider.go`） | 自写，不引入框架：prompt 转换、安全 JSON 解析、工具调用修复/NoSuchTool/InvalidToolInput、并行执行（按完成顺序发出 tool-result）、stepCountIs、重试（maxRetries=2、retry-after）、usage 累加、持久化消息（toResponseMessages）均按 dist 逐条移植。golden `scripts/parity/record-b5-aisdk.mjs` 25 场景 / 34 次模型调用 / 80 chunk / 13 次工具执行（`TestB5AiSdkParity`），变异检查（改 golden、改 toolOutputMax）即失败；-race ×10 稳定 | 无行为差异 |
+| D-B5-2 | 工具执行的启动顺序 | 并行工具在 Node 与 Go 中启动顺序都依赖调度；测试按多重集比对 execs，chunk 顺序（含结果完成顺序）逐字比对 | 无 |
+| D-B5-3 | 工具审批（needsApproval） | Node 的工具定义不设 needsApproval，故 Go 未实现审批分支 | 无（Node 不可达） |
+| D-B5-4 | 工具执行中 abort | 与 Node 录制一致：静默结束，无 error/done chunk | 无 |
+| D-B5-5 | 工具 `description` 空串 | Go `Definition.Description` 为 string，空串视同 undefined（Node 空串会作为 `description:""` 发出） | 现有工具均有非空描述 |
+| D-B5-6 | `getToolCallerTabId` 的 AsyncLocalStorage 兜底 | 未移植；callerTabId 只取 request.extra | 待 chat procs 接入时按调用链显式传递 |
+| D-B5-7 | **未完成**（本轮剩余） | registry/RoutedRegistry 与 main.go `GetRegistry` 接线、providers test/testDraft/fetchModels（D-B4d-3）、GatewayService 写操作（D-B4d-6）、chat 流式 procs/事件（替换 UNAVAILABLE）、memory episodes `privacy.RuleSpans`、D-B8-2/3/4 | 下一轮 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

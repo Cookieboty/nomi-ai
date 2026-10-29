@@ -22,14 +22,18 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mediahandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/migrate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/mockllm"
@@ -195,6 +199,35 @@ func main() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
 	}
 	shellhandlers.InstallProviders(router, providerSvc)
+	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
+	mediahandlers.Wire(mediahandlers.WireDeps{
+		UserData:  userData,
+		Router:    router,
+		Config:    bundle.Config,
+		Env:       processEnv(),
+		T:         i18n.T,
+		Logf:      log.Printf,
+		LocalOnly: func() bool { return desktopSvc.Broker.View().LocalOnly },
+		Audit: func(e voice.AuditEvent) {
+			desktopSvc.Audit.Append(desktop.AuditEntry{Tool: e.Tool, Decision: e.Decision, Result: e.Result, Ms: e.Ms,
+				Source: "voice", Provider: e.Provider}, json.RawMessage(util.Stringify(e.Args)))
+		},
+		OpenChat: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+		DefaultWakePhrase: func() string {
+			for _, p := range []*character.Pack{charSvc.Resolved(), charSvc.Builtin()} {
+				if p != nil {
+					if w := util.JSTrim(p.Locales["zh"].WakePhrase); w != "" {
+						return w
+					}
+				}
+			}
+			return ""
+		},
+	})
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{

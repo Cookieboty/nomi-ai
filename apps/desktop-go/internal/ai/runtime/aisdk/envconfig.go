@@ -2,7 +2,10 @@
 // envProviderConfig / ENV_PROTOCOL 与选项类型；适配器本体属批次 5。
 package aisdk
 
-import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+)
 
 // Options：AiSdkLlmProviderOptions 中与配置相关的字段（指针 = 可为 undefined）
 type Options struct {
@@ -17,6 +20,11 @@ type Options struct {
 	Thinking       *bool
 	UserAgent      string
 	Headers        any
+	// 批次 5：工具循环 / 网关字段
+	MaxSteps          *int
+	Receiver          *tools.ToolCallProvider
+	ServedModelHeader string
+	RedactedHeader    string
 }
 
 // EnvProtocol：ENV_PROTOCOL
