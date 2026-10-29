@@ -19,6 +19,7 @@ import (
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/route"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/server"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/upstream"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -41,17 +42,24 @@ type RuntimeDeps struct {
 	OnUsage        func(e *u.Obj)
 	Process        *GatewayProcess
 	Fork           ForkGateway
+	// LongContextPrice = usage.longContextPrice（nil = 不给价格）
+	LongContextPrice func(model string) *u.Obj
+	// Detect = detectImpl ?? detect（nil = detect 未移植，wire-suspect 不学）
+	Detect DetectFunc
 }
 
 type runtimeState struct {
-	d         RuntimeDeps
-	proc      *GatewayProcess
-	lmu       sync.Mutex
-	listeners map[int]func()
-	nextL     int
-	learnGen  map[string]int
-	httpc     *http.Client
-	mu        sync.Mutex // 存储写入串行（Node 单线程）
+	d            RuntimeDeps
+	proc         *GatewayProcess
+	lmu          sync.Mutex
+	listeners    map[int]func()
+	nextL        int
+	learnGen     map[string]int
+	httpc        *http.Client
+	privacyLog   *PrivacyLog
+	tabs         *TabTokens
+	legacyRevoke *u.Obj
+	mu           sync.Mutex // 存储写入串行（Node 单线程）
 }
 
 // AttachRuntime：GatewayService 构造里的 GatewayProcess 接线（init 之前调用）
@@ -70,13 +78,19 @@ func (s *Service) AttachRuntime(d RuntimeDeps) {
 			Lazy:   d.Lazy,
 			Fork:   fork,
 			OnUsage: func(e *u.Obj) {
+				s.NotePrivacy(e)
 				if d.OnUsage != nil {
 					d.OnUsage(e)
 				}
 			},
-			OnStatus: func(GatewayStatus) { s.changed() },
+			OnLearn:     func(e server.LearnEvent) { go s.Learn(e) },
+			OnKeyStatus: func(e upstream.KeyStatusEvent) { s.KeyStatus(e) },
+			OnStatus:    func(GatewayStatus) { s.changed() },
 		})
 	}
+	rt.privacyLog = NewPrivacyLog(filepath.Join(d.Root, "privacy-log.json"), nil)
+	rt.tabs = NewTabTokens(TabTokensDeps{Send: rt.proc.Send, Logger: s.logger})
+	rt.proc.BindTabs(rt.tabs.OnAck, rt.tabs.Replay)
 	rt.httpc = &http.Client{Transport: readyTransport{s}}
 }
 
@@ -103,6 +117,7 @@ func (s *Service) EnsureStarted() { s.rt.proc.EnsureStarted() }
 // Dispose = dispose() 中停网关进程的部分
 func (s *Service) Dispose() {
 	if s.rt != nil {
+		s.rt.privacyLog.Flush()
 		s.rt.proc.Stop()
 	}
 }

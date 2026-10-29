@@ -169,6 +169,7 @@ const reqs = [
   { apiKey: 'sk-1', model: 'whisper-1', language: 'zh', prompt: '提示' },
   { model: 'm', language: 'auto' },
   { apiKey: '', model: 'm', language: '' },
+  { apiKey: 'k', model: 'a\rb', language: 'en', prompt: 'x\r\ny\nz\r' },
 ];
 const seen = [];
 let next = null;
@@ -180,7 +181,19 @@ const server = createServer((req, res) => {
     const fields = [...body.matchAll(/name="([^"]+)"(?:; filename="([^"]+)")?\r\n(?:Content-Type: ([^\r\n]+)\r\n)?\r\n([^\r]*)/g)].map(
       (m) => [m[1], m[2] ?? null, m[3] ?? null, m[2] ? null : Buffer.from(m[4], 'latin1').toString('utf8')],
     );
-    seen.push({ method: req.method, url: req.url, auth: req.headers.authorization ?? null, multipart: /^multipart\/form-data; boundary=/.test(req.headers['content-type'] ?? ''), fields });
+    // D-B9-6：undici 的 boundary 形状、默认请求头（名字小写、按名排序比较；connection 属传输层不比）与 body 原字节
+    const boundary = /boundary=(.*)$/.exec(req.headers['content-type'] ?? '')?.[1] ?? '';
+    const headers = [];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      const k = req.rawHeaders[i].toLowerCase();
+      if (k === 'connection') continue;
+      let v = req.rawHeaders[i + 1];
+      if (k === 'host') v = 'HOST';
+      headers.push([k, boundary ? v.split(boundary).join('BOUNDARY') : v]);
+    }
+    headers.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    const rawBody = boundary ? body.split(boundary).join('BOUNDARY') : body;
+    seen.push({ method: req.method, url: req.url, auth: req.headers.authorization ?? null, multipart: /^multipart\/form-data; boundary=/.test(req.headers['content-type'] ?? ''), fields, boundary: /^----formdata-undici-0\d{11}$/.test(boundary), headers, body: rawBody });
     res.writeHead(next.status, { 'content-type': 'text/plain' });
     res.end(next.body);
   });
@@ -217,6 +230,25 @@ for (const [text, v, rate] of [['你好', undefined, undefined], ['你好', 'bad
   speak.push({ in: { text, voice: v ?? null, rate: rate === undefined ? null : String(rate) }, out: { ok: r.ok, kind: r.kind ?? null, message: r.message ?? null, calls } });
 }
 
+// ---------- D-B9-7：whisper-cli 无 stderr 时的 execFile err.message ----------
+const { execFile } = await import('node:child_process');
+const execCases = [
+  { name: 'exit', file: '/bin/sh', args: ['-c', 'exit 3'] },
+  { name: 'enoent', file: '/nonexistent/whisper-cli', args: ['-m', 'model.bin', '-f', 'in.wav'] },
+  { name: 'timeout', file: '/bin/sh', args: ['-c', 'sleep 5'], timeout: 200 },
+  { name: 'abort', file: '/bin/sh', args: ['-c', 'sleep 5'], abort: 100 },
+];
+const exec = [];
+if (process.platform !== 'win32')
+  for (const c of execCases) {
+    const ac = new AbortController();
+    if (c.abort) setTimeout(() => ac.abort(), c.abort);
+    const msg = await new Promise((r) =>
+      execFile(c.file, c.args, { timeout: c.timeout ?? 0, signal: ac.signal, maxBuffer: 8 << 20 }, (err, _o, stderr) => r(stderr || (err ? err.message : null))),
+    );
+    exec.push({ ...c, out: msg });
+  }
+
 mkdirSync(outDir, { recursive: true });
-writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak }, null, 2) + '\n');
+writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec }, null, 2) + '\n');
 console.log(`wrote ${out}`);

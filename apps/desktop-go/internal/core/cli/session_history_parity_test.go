@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,7 @@ type shFile struct {
 	Zstd  bool    `json:"zstd"`
 	Pad   int     `json:"pad"`
 	Rep   []any   `json:"rep"`
+	Times int     `json:"times"`
 }
 
 type shScenario struct {
@@ -151,7 +153,16 @@ func runHistoryScenario(t *testing.T, sc shScenario) {
 	_ = os.MkdirAll(filepath.Join(SB, "work"), 0o777)
 	_ = os.MkdirAll(filepath.Join(SB, "home"), 0o777)
 	for _, f := range sc.Files {
-		shMaterialize(t, SB, f)
+		if f.Times == 0 {
+			shMaterialize(t, SB, f)
+			continue
+		}
+		for i := 0; i < f.Times; i++ {
+			k := fmt.Sprintf("%03d", i)
+			g := f
+			g.Times, g.P, g.Text, g.Mtime = 0, strings.ReplaceAll(f.P, "{i}", k), strings.ReplaceAll(f.Text, "{i}", k), f.Mtime+float64(i*1000)
+			shMaterialize(t, SB, g)
+		}
 	}
 	var d *shDeps
 	if len(sc.Deps) > 0 && string(sc.Deps) != "null" {
@@ -201,7 +212,7 @@ func runHistoryScenario(t *testing.T, sc shScenario) {
 				}
 				return m
 			},
-			OpenTitle: func(b, id, title string) { calls = append(calls, []any{"openTitle", b, id, title}) },
+			OpenTitle:    func(b, id, title string) { calls = append(calls, []any{"openTitle", b, id, title}) },
 			SessionModel: func(b, id string) string { return d.SessionModel[b+":"+id] },
 			GatewaySession: func(b, id string) bool {
 				for _, k := range d.Gateway {

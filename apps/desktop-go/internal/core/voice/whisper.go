@@ -140,17 +140,19 @@ func RunWhisperCli(ctx context.Context, o WhisperOpts) (string, error) {
 	}
 	cctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, o.Cli, BuildArgs(o.Model, wavPath, o.Language, o.Prompt, 0)...)
+	args := BuildArgs(o.Model, wavPath, o.Language, o.Prompt, 0)
+	cmd := exec.CommandContext(cctx, o.Cli, args...)
 	cmd.Dir = cliDir
 	cmd.Env = env
 	hideWindow(cmd)
 	var stdout, stderr limitedBuf
 	stdout.max, stderr.max = 8<<20, 8<<20
+	stdout.name, stderr.name = "stdout", "stderr"
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		msg := stderr.String()
 		if msg == "" {
-			msg = nodeExecMessage(err, o.Cli, cctx)
+			msg = nodeExecMessage(err, o.Cli, args, ctx)
 		}
 		return "", errors.New(o.T("electron.common.whisper-cpp-failed", util.UTF16Tail(msg, 300)))
 	}
@@ -158,13 +160,14 @@ func RunWhisperCli(ctx context.Context, o WhisperOpts) (string, error) {
 }
 
 type limitedBuf struct {
-	b   []byte
-	max int
+	b    []byte
+	max  int
+	name string
 }
 
 func (l *limitedBuf) Write(p []byte) (int, error) {
 	if len(l.b)+len(p) > l.max {
-		return 0, errors.New("stdout maxBuffer length exceeded")
+		return 0, errMaxBuffer(l.name + " maxBuffer length exceeded")
 	}
 	l.b = append(l.b, p...)
 	return len(p), nil
@@ -172,17 +175,34 @@ func (l *limitedBuf) Write(p []byte) (int, error) {
 
 func (l *limitedBuf) String() string { return strings.ToValidUTF8(string(l.b), "\uFFFD") }
 
-// nodeExecMessage：execFile 的 err.message（`Command failed: <cmd> <args>` 等的近似：D-B9-7）
-func nodeExecMessage(err error, cli string, ctx context.Context) string {
-	if ctx.Err() != nil {
-		return "Command failed: " + cli + " (timeout)"
+type errMaxBuffer string
+
+func (e errMaxBuffer) Error() string { return string(e) }
+
+// nodeExecMessage = execFile 回调里 err.message（stderr 为空时，见 node:child_process exithandler）：
+// 退出码非 0 / 超时被杀 → `Command failed: <file> <args...>\n<stderr>`；spawn 失败 → `spawn <file> <CODE>`；
+// signal 中止 → AbortError 'The operation was aborted'；maxBuffer → '<stdout|stderr> maxBuffer length exceeded'
+func nodeExecMessage(err error, cli string, args []string, parent context.Context) string {
+	var mb errMaxBuffer
+	if errors.As(err, &mb) {
+		return string(mb)
+	}
+	if parent.Err() != nil {
+		return "The operation was aborted"
+	}
+	cmd := cli
+	if len(args) > 0 {
+		cmd += " " + strings.Join(args, " ")
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
-		return "Command failed: " + cli
+		return "Command failed: " + cmd + "\n"
 	}
 	if errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound) {
 		return "spawn " + cli + " ENOENT"
+	}
+	if errors.Is(err, os.ErrPermission) {
+		return "spawn " + cli + " EACCES"
 	}
 	return err.Error()
 }

@@ -233,11 +233,11 @@ func (o *Orchestrator) runClaude(tab *util.Obj, prompt string, signal *jsrt.Abor
 			live.turnUUID = &u
 			live.turnStarted = false
 			live.lastActivityAt = nowMs()
-			o.children[id] = live.child
+			o.children.Set(id, live.child)
 			defer func() {
 				if r := recover(); r != nil {
 					live.turn = nil
-					delete(o.children, id)
+					o.children.Delete(id)
 					// 写失败：拆掉进程，下一轮重拉
 					o.teardownClaudeLive(id)
 					if t, ok := r.(jsrt.JSThrow); ok {
@@ -444,7 +444,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	child.OnError(func(e error) {
 		turn := live.turn
 		live.turn = nil
-		delete(o.children, id)
+		o.children.Delete(id)
 		o.live.delClaude(id)
 		o.clearPermissionTimeouts(id)
 		if turn != nil {
@@ -455,7 +455,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	child.OnClose(func(code *int, signal string) {
 		turn := live.turn
 		live.turn = nil
-		delete(o.children, id)
+		o.children.Delete(id)
 		o.live.delClaude(id)
 		o.clearPermissionTimeouts(id)
 		if turn == nil || turn.settled {
@@ -600,7 +600,7 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 		if typ == "error" && turn != nil && live.turn == turn {
 			live.turn = nil
 			live.turnUUID = nil
-			delete(o.children, tabID)
+			o.children.Delete(tabID)
 			if !turn.settled {
 				turn.settled = true
 				turn.reject(errors.New(jsStr(ev.Get("message"))))
@@ -613,7 +613,7 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 		if typ == "done" && turn != nil && live.turn == turn {
 			live.turn = nil
 			live.turnUUID = nil
-			delete(o.children, tabID)
+			o.children.Delete(tabID)
 			if !turn.settled {
 				turn.settled = true
 				text := turn.text
@@ -833,7 +833,7 @@ func (o *Orchestrator) teardownClaudeLive(tabID string) {
 	}
 	o.clearBackgroundAgents(tabID)
 	o.live.delClaude(tabID)
-	delete(o.children, tabID)
+	o.children.Delete(tabID)
 	o.clearPermissionTimeouts(tabID)
 	turn := live.turn
 	live.turn = nil

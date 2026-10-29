@@ -1,0 +1,1456 @@
+{
+  "scenarios": [
+    {
+      "name": "eager start, ready, soft error, stop",
+      "opts": {},
+      "trace": [
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "running",
+                "port": 18999,
+                "url": "http://127.0.0.1:18999"
+              }
+            },
+            {
+              "log": "info",
+              "msg": "gateway running"
+            },
+            {
+              "ready": true
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [
+            {
+              "ready": true
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "error"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway error"
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "stop"
+          ],
+          "events": [
+            {
+              "post": 0,
+              "type": "stop"
+            },
+            {
+              "kill": 0
+            },
+            {
+              "status": {
+                "state": "stopped"
+              }
+            }
+          ],
+          "status": {
+            "state": "stopped"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [],
+          "status": {
+            "state": "stopped"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 1
+            },
+            {
+              "post": 1,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lazy start, whenReady",
+      "opts": {
+        "lazy": true
+      },
+      "trace": [
+        {
+          "op": [
+            "ensureStarted"
+          ],
+          "events": [],
+          "status": {
+            "state": "stopped"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "running",
+                "port": 18999,
+                "url": "http://127.0.0.1:18999"
+              }
+            },
+            {
+              "log": "info",
+              "msg": "gateway running"
+            },
+            {
+              "ready": true
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "stop"
+          ],
+          "events": [
+            {
+              "post": 0,
+              "type": "stop"
+            },
+            {
+              "kill": 0
+            },
+            {
+              "status": {
+                "state": "stopped"
+              }
+            }
+          ],
+          "status": {
+            "state": "stopped"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [
+            {
+              "ready": false
+            }
+          ],
+          "status": {
+            "state": "stopped"
+          }
+        }
+      ]
+    },
+    {
+      "name": "default backoff + fuse",
+      "opts": {},
+      "trace": [
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "running",
+                "port": 18999,
+                "url": "http://127.0.0.1:18999"
+              }
+            },
+            {
+              "log": "info",
+              "msg": "gateway running"
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "ensureStarted"
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 1
+            },
+            {
+              "post": 1,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            1000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 2000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 2
+            },
+            {
+              "post": 2,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            1000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 4000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 3
+            },
+            {
+              "post": 3,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            1000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 8000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 4
+            },
+            {
+              "post": 4,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            1000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "failed",
+                "error": "网关进程在 60 秒内异常退出 5 次（最近退出码 1），已停止自动重启"
+              }
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 60 秒内异常退出 5 次（最近退出码 1），已停止自动重启"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 60 秒内异常退出 5 次（最近退出码 1），已停止自动重启"
+          }
+        },
+        {
+          "op": [
+            "ensureStarted"
+          ],
+          "events": [],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 60 秒内异常退出 5 次（最近退出码 1），已停止自动重启"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [
+            {
+              "ready": false
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 60 秒内异常退出 5 次（最近退出码 1），已停止自动重启"
+          }
+        },
+        {
+          "op": [
+            "retry"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 5
+            },
+            {
+              "post": 5,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "running",
+                "port": 18999,
+                "url": "http://127.0.0.1:18999"
+              }
+            },
+            {
+              "log": "info",
+              "msg": "gateway running"
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "stop"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "stopped"
+              }
+            }
+          ],
+          "status": {
+            "state": "stopped"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [],
+          "status": {
+            "state": "stopped"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sliding window + listening clears",
+      "opts": {
+        "fuseMax": 3,
+        "fuseWindow": 5000
+      },
+      "trace": [
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 1
+            },
+            {
+              "post": 1,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            6000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 2
+            },
+            {
+              "post": 2,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            1000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 2000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 3
+            },
+            {
+              "post": 3,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "running",
+                "port": 18999,
+                "url": "http://127.0.0.1:18999"
+              }
+            },
+            {
+              "log": "info",
+              "msg": "gateway running"
+            }
+          ],
+          "status": {
+            "state": "running",
+            "port": 18999,
+            "url": "http://127.0.0.1:18999"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 4
+            },
+            {
+              "post": 4,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 2000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 5
+            },
+            {
+              "post": 5,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "failed",
+                "error": "网关进程在 5 秒内异常退出 3 次（最近退出码 1），已停止自动重启"
+              }
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 5 秒内异常退出 3 次（最近退出码 1），已停止自动重启"
+          }
+        }
+      ]
+    },
+    {
+      "name": "fatal error, stale child",
+      "opts": {},
+      "trace": [
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fatal"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway error"
+            },
+            {
+              "status": {
+                "state": "failed",
+                "error": "EADDRINUSE"
+              }
+            },
+            {
+              "kill": 0
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "EADDRINUSE"
+          }
+        },
+        {
+          "op": [
+            "exit",
+            0
+          ],
+          "events": [],
+          "status": {
+            "state": "failed",
+            "error": "EADDRINUSE"
+          }
+        },
+        {
+          "op": [
+            "ensureStarted"
+          ],
+          "events": [],
+          "status": {
+            "state": "failed",
+            "error": "EADDRINUSE"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [
+            {
+              "ready": false
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "EADDRINUSE"
+          }
+        },
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 1
+            },
+            {
+              "post": 1,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "retry"
+          ],
+          "events": [
+            {
+              "kill": 1
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 2
+            },
+            {
+              "post": 2,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening",
+            0
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit",
+            0
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "listening",
+            1
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "whenReady"
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        }
+      ]
+    },
+    {
+      "name": "window boundary + retry clears",
+      "opts": {
+        "fuseMax": 2,
+        "fuseWindow": 5000
+      },
+      "trace": [
+        {
+          "op": [
+            "apply"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 0
+            },
+            {
+              "post": 0,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 1
+            },
+            {
+              "post": 1,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            5000
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "failed",
+                "error": "网关进程在 5 秒内异常退出 2 次（最近退出码 1），已停止自动重启"
+              }
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 5 秒内异常退出 2 次（最近退出码 1），已停止自动重启"
+          }
+        },
+        {
+          "op": [
+            "retry"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 2
+            },
+            {
+              "post": 2,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 3
+            },
+            {
+              "post": 3,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "advance",
+            5001
+          ],
+          "events": [],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "timer": 1000
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "fireTimer"
+          ],
+          "events": [
+            {
+              "status": {
+                "state": "starting"
+              }
+            },
+            {
+              "fork": 4
+            },
+            {
+              "post": 4,
+              "type": "config"
+            }
+          ],
+          "status": {
+            "state": "starting"
+          }
+        },
+        {
+          "op": [
+            "exit"
+          ],
+          "events": [
+            {
+              "log": "warn",
+              "msg": "gateway exited"
+            },
+            {
+              "status": {
+                "state": "failed",
+                "error": "网关进程在 5 秒内异常退出 2 次（最近退出码 1），已停止自动重启"
+              }
+            }
+          ],
+          "status": {
+            "state": "failed",
+            "error": "网关进程在 5 秒内异常退出 2 次（最近退出码 1），已停止自动重启"
+          }
+        }
+      ]
+    }
+  ]
+}
