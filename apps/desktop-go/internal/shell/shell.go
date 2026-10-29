@@ -38,4 +38,7 @@ type Geometry interface {
 	SetBounds(k WindowKind, r Rect)
 	SetAlwaysOnTop(k WindowKind, on bool)
 	WorkAreas() []WorkArea
+	// Recreate 用新 WebView 重建窗口（保留位置/大小/置顶），旧窗口在新窗口出现后销毁；
+	// 用于 Rive → SVG：WebKit/WebView2 不会把 Rive 的 wasm/WebGL 内存还给系统，只能换进程。
+	Recreate(k WindowKind)
 }

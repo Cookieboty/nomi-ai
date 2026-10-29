@@ -44,6 +44,22 @@ type Controller struct {
 	drag  *struct{ dx, dy float64 }
 }
 
+// SetRenderer 写 mascot.renderer 并广播；rive → svg 时重建看板娘窗口，让 Rive 占的内存随旧 WebView 进程一起释放
+// （svg → rive 原地动态加载即可）。
+func (c *Controller) SetRenderer(next string) (string, error) {
+	prev := c.d.Settings.Get().Mascot.Renderer
+	if err := c.d.Settings.SetMascotRenderer(next); err != nil {
+		return "", err
+	}
+	c.d.Router.Emit("mascot.rendererChanged", next)
+	if prev == "rive" && next == "svg" {
+		if g, _, ok := c.geom(); ok {
+			go g.Recreate(shell.Mascot)
+		}
+	}
+	return next, nil
+}
+
 func (c *Controller) geom() (shell.Geometry, shell.Rect, bool) {
 	if c.d.Geometry == nil {
 		return nil, shell.Rect{}, false
@@ -160,11 +176,7 @@ func Install(d Deps) *Controller {
 		if in.Renderer == "rive" {
 			next = "rive"
 		}
-		if err := d.Settings.SetMascotRenderer(next); err != nil {
-			return nil, err
-		}
-		r.Emit("mascot.rendererChanged", next)
-		return next, nil
+		return c.SetRenderer(next)
 	})
 
 	// —— 大小

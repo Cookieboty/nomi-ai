@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -28,10 +29,11 @@ type Wails struct {
 	mu   sync.Mutex
 	wins map[shell.WindowKind]*application.WebviewWindow
 	tray *application.SystemTray
+	aot  map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
 }
 
 func New(cfg Config) *Wails {
-	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}}
+	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}}
 	w.app = application.New(application.Options{
 		Name:    "Nomi",
 		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets)},
@@ -83,6 +85,11 @@ func (w *Wails) Show(k shell.WindowKind) {
 		win.Show()
 		return
 	}
+	w.create(k, nil)
+}
+
+// create 新建窗口；at 非空时先隐藏建好、挪到 at 再显示（重建用，避免先在默认位置闪一下）
+func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewWindow {
 	var opts application.WebviewWindowOptions
 	switch k {
 	case shell.Mascot:
@@ -122,7 +129,15 @@ func (w *Wails) Show(k shell.WindowKind) {
 	case shell.Chat:
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 480, Height: 560, URL: w.page(k)}
 	}
-	win = w.app.Window.NewWithOptions(opts)
+	w.mu.Lock()
+	if on, ok := w.aot[k]; ok {
+		opts.AlwaysOnTop = on
+	}
+	w.mu.Unlock()
+	if at != nil {
+		opts.Hidden = true
+	}
+	win := w.app.Window.NewWithOptions(opts)
 	// 用户点关闭 = 销毁（WebView 一起释放）
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		w.mu.Lock()
@@ -134,7 +149,26 @@ func (w *Wails) Show(k shell.WindowKind) {
 	w.mu.Lock()
 	w.wins[k] = win
 	w.mu.Unlock()
+	if at != nil {
+		win.SetBounds(application.Rect{X: at.X, Y: at.Y, Width: at.Width, Height: at.Height})
+	}
 	win.Show()
+	return win
+}
+
+func (w *Wails) Recreate(k shell.WindowKind) {
+	old := w.win(k)
+	if old == nil {
+		return
+	}
+	b := old.Bounds()
+	r := shell.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}
+	application.InvokeSync(func() { w.create(k, &r) })
+	// 新页面画出来前旧窗口留在原地，之后再关：只有一瞬间的替换，不露空
+	time.AfterFunc(700*time.Millisecond, func() {
+		application.InvokeSync(func() { old.Close() })
+		log.Printf("[shell] %s recreated", k)
+	})
 }
 
 func (w *Wails) Destroy(k shell.WindowKind) {
@@ -179,6 +213,9 @@ func (w *Wails) SetBounds(k shell.WindowKind, r shell.Rect) {
 }
 
 func (w *Wails) SetAlwaysOnTop(k shell.WindowKind, on bool) {
+	w.mu.Lock()
+	w.aot[k] = on
+	w.mu.Unlock()
 	if win := w.win(k); win != nil {
 		win.SetAlwaysOnTop(on)
 	}
