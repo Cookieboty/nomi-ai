@@ -54,13 +54,25 @@ func TestStreamParity(t *testing.T) {
 			t.Fatalf("unknown fn %s", s.Fn)
 		}
 		for i, l := range s.Lines {
-			evs := run(l)
-			arr := make([]any, len(evs))
-			for k, e := range evs {
-				arr[k] = e
-			}
+			got := func() (out string) {
+				defer func() {
+					if r := recover(); r != nil {
+						e, ok := r.(clisdk.JSThrow)
+						if !ok {
+							panic(r)
+						}
+						out = util.Stringify(util.NewObj().Set("throw", e.Name+": "+e.Message))
+					}
+				}()
+				evs := run(l)
+				arr := make([]any, len(evs))
+				for k, e := range evs {
+					arr[k] = e
+				}
+				return util.Stringify(arr)
+			}()
 			want, _ := util.ParseString(string(s.Outputs[i]))
-			if got, w := util.Stringify(arr), util.Stringify(want); got != w {
+			if w := util.Stringify(want); got != w {
 				t.Errorf("%s %s line %d %q\n got %s\nwant %s", s.Fn, s.ID, i, trunc(l), got, w)
 			}
 			n++

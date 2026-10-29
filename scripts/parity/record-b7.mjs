@@ -55,7 +55,7 @@ const edge = {
     J({ type: 'thread.started', thread_id: 'th1' }), J({ type: 'error', message: 'boom' }), J({ type: 'turn.failed', error: { message: 'x' } }),
   ],
   grok: [
-    J({ type: 'text', data: 'hello' }), J({ type: 'thought', text: 'th' }),
+    J({ type: 'text', data: 'hello' }), J({ type: 'thought', text: 'th' }), J({ type: 'thought', text: '思'.repeat(9000) }),
     J({ type: 'tool_call', toolCallId: 'g1', title: 'read_file', rawInput: { path: '/a' } }),
     J({ type: 'tool_call_update', toolCallId: 'g1', status: 'in_progress' }),
     J({ type: 'tool_call_update', toolCallId: 'g1', status: 'completed', rawOutput: 'ok' }),
@@ -65,11 +65,13 @@ const edge = {
   ],
   dsh: [
     J({ type: 'session', sessionId: 'd1' }), J({ type: 'session' }), J({ type: 'text', text: 't' }),
-    J({ type: 'thinking', text: 'z' }),
+    J({ type: 'thinking', text: 'z' }), J({ type: 'thinking', text: 'q'.repeat(9000) }),
     J({ type: 'tool_call', tool: 'subagent', callId: 'k1', input: { description: 'line1\nline2', run_in_background: true } }),
     J({ type: 'status', phase: 'step_end', usage: { inputTokens: 3, outputTokens: 2, cacheReadTokens: 1 } }),
     J({ type: 'tool_result', tool: 'x', callId: 'k1', status: 'error', result: 'r'.repeat(2500) }),
     J({ type: 'tool_call', tool: 'subagent_fork', callId: 'k2', input: 'plain' }),
+    J({ type: 'tool_call', tool: 'subagent', callId: 'k3', input: 'null' }),
+    J({ type: 'tool_result', tool: 'subagent', callId: 'k3', result: 'after throw' }),
     J({ type: 'status', phase: 'step_end', usage: { totalTokens: 50 } }),
     J({ type: 'tool_result', callId: 'k2', result: 'fine' }),
     J({ type: 'final', text: 'all done' }),
@@ -93,7 +95,17 @@ for (const s of streams.values()) {
     const base = P[s.fn.replace('+state', '')];
     run = (l) => base(l, st);
   } else run = P[s.fn.replace('+seq', '')];
-  out.push({ ...s, outputs: s.lines.map((l) => run(l)) });
+  out.push({
+    ...s,
+    // 解析器抛出：记录 {throw}（Node 里会冒泡成 uncaughtException），解析器状态照常延续
+    outputs: s.lines.map((l) => {
+      try {
+        return run(l);
+      } catch (e) {
+        return { throw: `${e.name}: ${e.message}` };
+      }
+    }),
+  });
 }
 mkdirSync(join(root, 'apps/desktop-go/internal/cliplugins/testdata'), { recursive: true });
 writeFileSync(join(root, 'apps/desktop-go/internal/cliplugins/testdata/streams.json'), JSON.stringify(out, null, 1) + '\n');

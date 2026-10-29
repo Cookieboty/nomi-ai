@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	. "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -91,6 +92,10 @@ func agentStart(callID string, input any) Ev {
 	o := util.NewObj()
 	if s, ok := input.(string); ok && s != "" {
 		if v, err := util.ParseString(s); err == nil {
+			if v == nil {
+				// Node: o = JSON.parse('null') → o.description 抛 TypeError，冒泡出解析器（见 clisdk.JSThrow）
+				panic(clisdk.JSThrow{Name: "TypeError", Message: "Cannot read properties of null (reading 'description')"})
+			}
 			if x, ok := v.(*util.Obj); ok {
 				o = x
 			}
