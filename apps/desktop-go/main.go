@@ -319,6 +319,7 @@ func main() {
 			return ""
 		},
 	})
+	defer wireHarness(router, userData, home, ports)()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{

@@ -1,0 +1,76 @@
+{
+  "cases": [
+    { "name": "unavailable", "noHarness": true, "calls": [["harness.tabs", {}], ["harness.state", {}]] },
+    {
+      "name": "main-tab",
+      "calls": [
+        ["harness.state", {}],
+        ["harness.setCwd", { "cwd": "$W" }],
+        ["harness.setBackend", { "backend": "claude" }],
+        ["harness.recentCwds", {}],
+        ["harness.tabs", {}],
+        ["harness.setBackend", { "backend": "nope" }]
+      ]
+    },
+    {
+      "name": "tab-lifecycle",
+      "calls": [
+        ["harness.tabCreate", { "backend": "claude", "cwd": "$W", "title": "A" }],
+        ["harness.tabCreate", { "backend": "gemini", "cwd": "$W" }],
+        ["harness.tabRename", { "id": "$0", "title": "Renamed" }],
+        ["harness.tabActivate", { "id": "$1" }],
+        ["harness.tabBackend", { "id": "$1", "backend": "codex" }],
+        ["harness.tabCwd", { "id": "$0", "cwd": "$T/docs", "carry": true }],
+        ["harness.tabEffort", { "id": "$0", "effort": "high" }],
+        ["harness.tabLongContext", { "id": "$0", "on": true }],
+        ["harness.tabAccount", { "id": "$0", "accountId": "" }],
+        ["harness.tabCarryClear", { "id": "$0" }],
+        ["harness.tabPermissionMode", { "id": "$0", "mode": "plan" }],
+        ["harness.tabPermissionMode", { "id": "$0", "mode": "bypass" }],
+        ["harness.tabPermissionMode", { "id": "$0", "mode": "bypass", "confirmed": true }],
+        ["harness.permissionDefaults", { "autoApprove": false, "codexNetwork": false }],
+        ["harness.permissionDefaults", { "defaultPermissionMode": "bogus" }],
+        ["harness.tabs", {}],
+        ["harness.tabClose", { "id": "$1" }],
+        ["harness.tabClose", { "id": "nope" }],
+        ["harness.tabs", {}]
+      ]
+    },
+    {
+      "name": "messages",
+      "calls": [
+        ["harness.tabCreate", { "backend": "gemini", "cwd": "$W" }],
+        ["harness.tabSeed", { "id": "$0", "messages": [
+          { "id": "u1", "role": "user", "content": "hi", "timestamp": 1 },
+          { "id": "a1", "role": "assistant", "content": "yo", "timestamp": 2 },
+          { "id": "u2", "role": "user", "content": "again", "timestamp": 3 }
+        ] }],
+        ["harness.tabMessages", { "id": "$0" }],
+        ["harness.tabRewind", { "id": "$0", "messageId": "u2" }],
+        ["harness.tabMessages", { "id": "$0" }],
+        ["harness.tabRewind", { "id": "$0", "messageId": "zz" }],
+        ["harness.tabMessages", { "id": "main" }],
+        ["harness.tabMessages", { "id": "nope" }]
+      ]
+    },
+    {
+      "name": "answers-and-misc",
+      "calls": [
+        ["harness.tabCreate", { "backend": "claude", "cwd": "$W" }],
+        ["harness.tabContext", { "id": "$0" }],
+        ["harness.tabContext", { "id": "nope" }],
+        ["harness.stopAgent", { "id": "$0", "agentId": "x" }],
+        ["harness.tabCancel", { "id": "$0" }],
+        ["harness.replyPermission", { "tabId": "$0", "requestId": "r1", "allow": true }],
+        ["harness.replyPermission", { "tabId": "$0", "requestId": "r1", "allow": true, "approvePlan": "manual" }],
+        ["harness.replyApprovePlan", { "tabId": "$0", "requestId": "r1", "choice": "deny" }],
+        ["harness.replyApprovePlan", { "tabId": "$0", "requestId": "r1", "choice": "bogus" }],
+        ["harness.geminiTrustFolder", { "tabId": "$0", "messageId": "m" }],
+        ["harness.geminiTrustFolder", { "tabId": "$0", "messageId": "m", "confirmed": true }],
+        ["harness.tabSend", { "id": "main", "prompt": "x" }],
+        ["harness.workspaceList", { "cwd": "$T/elsewhere" }],
+        ["harness.workspaceRead", { "cwd": "$T/elsewhere", "path": "a" }]
+      ]
+    }
+  ]
+}
