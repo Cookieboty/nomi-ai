@@ -7,6 +7,8 @@ import (
 	"image/jpeg"
 	"image/png"
 	"math"
+	"runtime"
+	"sync"
 )
 
 // decodeNative = electron::util::AddImageSkiaRepFromBuffer（无宽高参数时）：先试 PNG，再试 JPEG
@@ -44,7 +46,7 @@ func lanczos3(src image.Image, w, h int) image.Image {
 	sw, sh := b.Dx(), b.Dy()
 	tmp := make([]float32, w*sh*4)
 	wx := weights(sw, w)
-	for y := 0; y < sh; y++ {
+	parallelRows(sh, func(y int) {
 		row := rgba.Pix[y*rgba.Stride:]
 		for x := 0; x < w; x++ {
 			var acc [4]float32
@@ -56,10 +58,10 @@ func lanczos3(src image.Image, w, h int) image.Image {
 			}
 			copy(tmp[(y*w+x)*4:], acc[:])
 		}
-	}
+	})
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	wy := weights(sh, h)
-	for y := 0; y < h; y++ {
+	parallelRows(h, func(y int) {
 		for x := 0; x < w; x++ {
 			var acc [4]float32
 			for _, c := range wy[y] {
@@ -79,7 +81,7 @@ func lanczos3(src image.Image, w, h int) image.Image {
 			}
 			dst.Pix[o+3] = a
 		}
-	}
+	})
 	return dst
 }
 
@@ -167,4 +169,27 @@ func Process(ext string, data []byte) (out []byte, outExt string, err error) {
 		ext = ".jpg"
 	}
 	return out, ext, nil
+}
+
+// parallelRows 把行分块给 GOMAXPROCS 个 goroutine（各行互不重叠写入，结果与串行逐位相同）
+func parallelRows(n int, f func(y int)) {
+	workers := min(runtime.GOMAXPROCS(0), n)
+	if workers <= 1 {
+		for y := 0; y < n; y++ {
+			f(y)
+		}
+		return
+	}
+	var wg sync.WaitGroup
+	chunk := (n + workers - 1) / workers
+	for s := 0; s < n; s += chunk {
+		wg.Add(1)
+		go func(s, e int) {
+			defer wg.Done()
+			for y := s; y < e; y++ {
+				f(y)
+			}
+		}(s, min(s+chunk, n))
+	}
+	wg.Wait()
 }

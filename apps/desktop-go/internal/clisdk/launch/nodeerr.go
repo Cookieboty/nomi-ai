@@ -47,3 +47,8 @@ func nodeErrMessage(err error, syscallName, path string, dest ...string) string 
 }
 
 var _ = os.ErrExist
+
+// NodeErrMessage = nodeErrMessage（供其它包复刻 Node fs 同步错误文案）。
+func NodeErrMessage(err error, syscallName, path string, dest ...string) string {
+	return nodeErrMessage(err, syscallName, path, dest...)
+}

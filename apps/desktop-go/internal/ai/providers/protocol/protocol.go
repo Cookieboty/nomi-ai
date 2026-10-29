@@ -219,3 +219,6 @@ func urlOrigin(s string) (string, bool) {
 	}
 	return scheme + "://" + host, true
 }
+
+// PathOf：PATH[protocol]（SDK 在 baseURL 后拼接的端点路径）
+func PathOf(p Protocol) string { return pathOf[p] }

@@ -2,6 +2,7 @@ package aisdk
 
 import (
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"regexp"
 	"strings"
 
@@ -19,7 +20,7 @@ func (e *MissingToolResultsError) Error() string {
 	}
 	return fmt.Sprintf("Tool result%s %s missing for tool call%s %s.", s, map[bool]string{true: "are", false: "is"}[len(e.ToolCallIDs) > 1], s, strings.Join(e.ToolCallIDs, ", "))
 }
-func (e *MissingToolResultsError) JSName() string { return "AI_MissingToolResultsError" }
+func (e *MissingToolResultsError) Name() string { return "AI_MissingToolResultsError" }
 
 // convertToLanguageModelPrompt (instructions + ModelMessages → LanguageModelV4Prompt) for the
 // part types this runtime produces (text / image / reasoning / tool-call / tool-result).
@@ -160,11 +161,11 @@ var (
 // secureJSONParse: provider-utils secureJsonParse (JSON.parse + prototype-poisoning scan).
 func secureJSONParse(text string) (any, error) {
 	if _, err := charcontract.ParseJSON(text); err != nil {
-		return nil, &SyntaxError{Message: err.Error()}
+		return nil, &llm.SyntaxError{Message: err.Error()}
 	}
 	v, err := u.ParseString(text)
 	if err != nil {
-		return nil, &SyntaxError{Message: err.Error()}
+		return nil, &llm.SyntaxError{Message: err.Error()}
 	}
 	switch v.(type) {
 	case *u.Obj, []any:
@@ -183,10 +184,10 @@ func secureJSONParse(text string) (any, error) {
 			switch x := n.(type) {
 			case *u.Obj:
 				if x.Has("__proto__") {
-					return nil, &SyntaxError{Message: "Object contains forbidden prototype property"}
+					return nil, &llm.SyntaxError{Message: "Object contains forbidden prototype property"}
 				}
 				if c, ok := x.Get("constructor").(*u.Obj); ok && c.Has("prototype") {
-					return nil, &SyntaxError{Message: "Object contains forbidden prototype property"}
+					return nil, &llm.SyntaxError{Message: "Object contains forbidden prototype property"}
 				}
 				for _, k := range x.Keys() {
 					vals = append(vals, x.Get(k))
@@ -208,7 +209,7 @@ func secureJSONParse(text string) (any, error) {
 func safeParseJSON(text string) (any, error) {
 	v, err := secureJSONParse(text)
 	if err != nil {
-		return nil, &JSONParseError{Message: "JSON parsing failed: Text: " + text + ".\nError message: " + GetErrorMessage(err), Text: text, Cause: err}
+		return nil, &llm.JSONParseError{Text: text, Cause: err}
 	}
 	return v, nil
 }
@@ -223,11 +224,12 @@ type parsedCall struct {
 }
 
 // parseToolCall (no repairToolCall / refineToolInput configured by the runtime).
-func parseToolCall(raw *u.Obj, p *TextParams) parsedCall {
-	id, _ := raw.Get("toolCallId").(string)
-	name, _ := raw.Get("toolName").(string)
-	input, _ := raw.Get("input").(string)
-	c := parsedCall{ToolCallID: id, ToolName: name, ProviderExecuted: raw.Get("providerExecuted")}
+func parseToolCall(raw llm.StreamPart, p *TextParams) parsedCall {
+	id, name, input := raw.ToolCallID, raw.ToolName, raw.Input
+	c := parsedCall{ToolCallID: id, ToolName: name}
+	if raw.ProviderExecuted != nil {
+		c.ProviderExecuted = *raw.ProviderExecuted
+	}
 	var err error
 	if !p.HasTools {
 		err = &NoSuchToolError{Message: "Model tried to call unavailable tool '" + name + "'. No tools are available.", ToolName: name}

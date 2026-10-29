@@ -65,6 +65,9 @@ jobs:
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
           go vet $TAGS ./... && go test $TAGS -race ./...
+      - name: chatbg image parity (no -race; Electron goldens)
+        working-directory: apps/desktop-go
+        run: go test -count=1 -run TestImageParity -v ./internal/core/chatbg/
       - name: frontend
         working-directory: apps/desktop-go/frontend
         run: ../../../node_modules/.bin/vite build --config vite.config.mts
