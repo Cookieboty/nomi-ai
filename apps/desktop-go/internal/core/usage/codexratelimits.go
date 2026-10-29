@@ -36,7 +36,8 @@ var codexPlanLabel = map[string]string{
 	"team": "Team", "business": "Business", "enterprise": "Enterprise", "edu": "Edu",
 }
 
-// Object.prototype 上的键：PLAN_LABEL[k] 取到函数（非 nullish、JSON 序列化时丢弃）——等同不带 plan。
+// Object.prototype 上的方法键：PLAN_LABEL[k] 取到函数（真值，JSON 序列化时丢弃）→ PlanFunction；
+// "__proto__" 取到 Object.prototype → PlanObjectProto。
 var objectProtoKeys = map[string]bool{
 	"constructor": true, "hasOwnProperty": true, "isPrototypeOf": true, "propertyIsEnumerable": true,
 	"toLocaleString": true, "toString": true, "valueOf": true, "__defineGetter__": true,
@@ -99,11 +100,15 @@ func MapCodexRateLimits(result any, now float64, salt string) (reading *QuotaRea
 	if len(windows) == 0 {
 		return nil, nil, false
 	}
-	plan := ""
+	plan, kind := "", PlanString
 	if pr, ok := snap.Get("planType").(string); ok && pr != "" && pr != "unknown" {
 		if l, ok := codexPlanLabel[pr]; ok {
 			plan = l
-		} else if !objectProtoKeys[pr] {
+		} else if pr == "__proto__" {
+			kind = PlanObjectProto
+		} else if objectProtoKeys[pr] {
+			kind = PlanFunction
+		} else {
 			plan = pr
 		}
 	}
@@ -111,7 +116,7 @@ func MapCodexRateLimits(result any, now float64, salt string) (reading *QuotaRea
 	if s, ok := r.Get("accountId").(string); ok {
 		acc = &s
 	}
-	reading = &QuotaReading{Windows: windows, UpdatedAt: now, Origin: "app-server", Plan: plan}
+	reading = &QuotaReading{Windows: windows, UpdatedAt: now, Origin: "app-server", Plan: plan, PlanKind: kind}
 	if fp, ok := Fingerprint(salt, []*string{acc}); ok {
 		identity = &fp
 	}

@@ -35,41 +35,49 @@
  "mapCases": [
   {
    "input": null,
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": 1,
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": "x",
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": [],
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {},
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {
     "rateLimits": null
    },
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {
     "rateLimits": []
    },
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {
     "rateLimits": {}
    },
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {
@@ -88,7 +96,8 @@
     },
     "accountId": "acc-1"
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":100,\"windowMinutes\":10080,\"resetAt\":1760600000000}],\"updatedAt\":1760580000008,\"origin\":\"app-server\",\"plan\":\"Pro\"},\"identity\":\"b52a1ccf17129356\"}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":100,\"windowMinutes\":10080,\"resetAt\":1760600000000}],\"updatedAt\":1760580000008,\"origin\":\"app-server\",\"plan\":\"Pro\"},\"identity\":\"b52a1ccf17129356\"}",
+   "planKind": "string"
   },
   {
    "input": {
@@ -104,7 +113,8 @@
      "planType": "unknown"
     }
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":0}],\"updatedAt\":1760580000009,\"origin\":\"app-server\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":0}],\"updatedAt\":1760580000009,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
   },
   {
    "input": {
@@ -115,7 +125,8 @@
      "secondary": null
     }
    },
-   "out": "null"
+   "out": "null",
+   "planKind": "none"
   },
   {
    "input": {
@@ -129,7 +140,8 @@
     },
     "accountId": "  "
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":99999999999000}],\"updatedAt\":1760580000011,\"origin\":\"app-server\",\"plan\":\"Pro Lite\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":99999999999000}],\"updatedAt\":1760580000011,\"origin\":\"app-server\",\"plan\":\"Pro Lite\"},\"identity\":null}",
+   "planKind": "string"
   },
   {
    "input": {
@@ -142,7 +154,8 @@
     },
     "accountId": 7
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":100000000000}],\"updatedAt\":1760580000012,\"origin\":\"app-server\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":100000000000}],\"updatedAt\":1760580000012,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "function"
   },
   {
    "input": {
@@ -155,7 +168,8 @@
     },
     "accountId": " Acc "
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":1.25}],\"updatedAt\":1760580000013,\"origin\":\"app-server\",\"plan\":\"enterprise-x\"},\"identity\":\"9defae7e52682e7f\"}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":1.25}],\"updatedAt\":1760580000013,\"origin\":\"app-server\",\"plan\":\"enterprise-x\"},\"identity\":\"9defae7e52682e7f\"}",
+   "planKind": "string"
   },
   {
    "input": {
@@ -173,7 +187,8 @@
      }
     }
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":50}],\"updatedAt\":1760580000014,\"origin\":\"app-server\",\"plan\":\"Pro Max\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":50}],\"updatedAt\":1760580000014,\"origin\":\"app-server\",\"plan\":\"Pro Max\"},\"identity\":null}",
+   "planKind": "string"
   },
   {
    "input": {
@@ -187,7 +202,8 @@
      "planType": 7
     }
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":2}],\"updatedAt\":1760580000015,\"origin\":\"app-server\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":2}],\"updatedAt\":1760580000015,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
   },
   {
    "input": {
@@ -199,7 +215,8 @@
      }
     }
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":3}],\"updatedAt\":1760580000016,\"origin\":\"app-server\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":3}],\"updatedAt\":1760580000016,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
   },
   {
    "input": {
@@ -213,7 +230,204 @@
      "planType": ""
     }
    },
-   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":4}],\"updatedAt\":1760580000017,\"origin\":\"app-server\"},\"identity\":null}"
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":4}],\"updatedAt\":1760580000017,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__proto__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000018,\"origin\":\"app-server\",\"plan\":{}},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "Object.prototype"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "constructor"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000019,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "toString"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000020,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "hasOwnProperty"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000021,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "valueOf"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000022,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "toLocaleString"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000023,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "isPrototypeOf"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000024,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "propertyIsEnumerable"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000025,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__defineGetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000026,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__defineSetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000027,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__lookupGetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000028,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__lookupSetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000029,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "prototype"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000030,\"origin\":\"app-server\",\"plan\":\"prototype\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__proto"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000031,\"origin\":\"app-server\",\"plan\":\"__proto\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": {
+     "codex": {
+      "primary": {
+       "usedPercent": 8
+      },
+      "planType": "__proto__"
+     }
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":8}],\"updatedAt\":1760580000032,\"origin\":\"app-server\",\"plan\":{}},\"identity\":null}",
+   "planKind": "Object.prototype"
   }
  ],
  "authCases": [
@@ -941,6 +1155,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
    ],
+   "planKind": "none",
    "log": [],
    "left": []
   },
@@ -950,6 +1165,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
    ],
+   "planKind": "none",
    "log": [],
    "left": []
   },
@@ -969,6 +1185,7 @@
    "outs": [
     "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":\"Plus\"},\"identity\":\"b52a1ccf17129356\"}"
    ],
+   "planKind": "string",
    "log": [
     {
      "argv": [
@@ -1023,6 +1240,7 @@
    "outs": [
     "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":99,\"resetAt\":1760600000123}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1073,6 +1291,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"api-account\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1121,6 +1340,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1169,6 +1389,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1217,6 +1438,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1265,6 +1487,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"api-account\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1313,6 +1536,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"bad-output\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1358,6 +1582,7 @@
    "outs": [
     "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1400,6 +1625,7 @@
    "outs": [
     "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":1}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1448,6 +1674,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1496,6 +1723,7 @@
    "outs": [
     "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":1}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1547,6 +1775,7 @@
    "outs": [
     "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":\"Plus\"},\"identity\":\"b52a1ccf17129356\"}"
    ],
+   "planKind": "string",
    "log": [
     {
      "argv": [
@@ -1588,6 +1817,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"spawn-failed\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1625,6 +1855,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"spawn-failed\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1665,6 +1896,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1700,6 +1932,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"output-limit\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1737,6 +1970,7 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
    ],
+   "planKind": "none",
    "log": [
     {
      "argv": [
@@ -1770,7 +2004,155 @@
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
    ],
+   "planKind": "none",
    "log": [],
+   "left": []
+  },
+  {
+   "name": "ok-proto-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"__proto__\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":{}},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "Object.prototype",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-method-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"constructor\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "function",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-tostring-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"toString\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "function",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
    "left": []
   }
  ],
