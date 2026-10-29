@@ -61,6 +61,7 @@ type Settings struct {
 	ID, Protocol, BaseURL, APIKey string
 	Headers                       map[string]string
 	UserAgent                     string
+	DefaultModel                  string
 }
 
 func Load(t *testing.T, path, protocol string) []Scenario {
@@ -68,9 +69,18 @@ func Load(t *testing.T, path, protocol string) []Scenario {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var g struct{ Scenarios []Scenario }
+	var g struct {
+		Node      string
+		Scenarios []Scenario
+	}
 	if err := json.Unmarshal(b, &g); err != nil {
 		t.Fatal(err)
+	}
+	// The UA runtime suffix is the recording Node's major (D-B5-P-3).
+	if m := strings.SplitN(strings.TrimPrefix(g.Node, "v"), ".", 2); m[0] != "" {
+		prev := llm.RuntimeUserAgent
+		llm.RuntimeUserAgent = "node.js/" + m[0]
+		t.Cleanup(func() { llm.RuntimeUserAgent = prev })
 	}
 	var out []Scenario
 	for _, s := range g.Scenarios {
@@ -211,6 +221,11 @@ func part(v any) llm.Part {
 		r := &llm.ToolResultOutput{Type: str(out.Get("type")), Value: out.Get("value"), ProviderOptions: obj(out.Get("providerOptions"))}
 		if s, ok := out.Get("reason").(string); ok {
 			r.Reason = &s
+		}
+		if r.Type == "content" {
+			for _, x := range anyArr(out.Get("value")) {
+				r.Content = append(r.Content, part(x))
+			}
 		}
 		p.Output = r
 	}
@@ -380,6 +395,19 @@ func PartJSON(p llm.StreamPart) *util.Obj {
 		}
 	case "raw":
 		o.Set("rawValue", p.RawValue)
+	case "source":
+		o.Set("sourceType", p.SourceType).Set("id", p.ID)
+		if p.SourceType == "url" {
+			o.Set("url", p.URL)
+		} else {
+			o.Set("mediaType", p.MediaType)
+		}
+		if p.Title != nil {
+			o.Set("title", *p.Title)
+		}
+		if p.Filename != nil {
+			o.Set("filename", *p.Filename)
+		}
 	case "finish":
 		o.Set("finishReason", FinishJSON(*p.FinishReason)).Set("usage", UsageJSON(*p.Usage))
 	}
@@ -437,11 +465,11 @@ type Run struct {
 
 func ParseSettings(raw json.RawMessage) Settings {
 	var s struct {
-		ID, Protocol, BaseURL, APIKey, UserAgent string
-		Headers                                  map[string]string
+		ID, Protocol, BaseURL, APIKey, UserAgent, DefaultModel string
+		Headers                                                map[string]string
 	}
 	json.Unmarshal(raw, &s)
-	return Settings{ID: s.ID, Protocol: s.Protocol, BaseURL: s.BaseURL, APIKey: s.APIKey, Headers: s.Headers, UserAgent: s.UserAgent}
+	return Settings{ID: s.ID, Protocol: s.Protocol, BaseURL: s.BaseURL, APIKey: s.APIKey, Headers: s.Headers, UserAgent: s.UserAgent, DefaultModel: s.DefaultModel}
 }
 
 // Replay runs every recorded call (one HTTP request each) and compares.
@@ -488,7 +516,7 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 						cancel()
 					}
 				}
-				d.Eq(tag+".parts", c.Parts, parts)
+				d.Eq(tag+".parts", rebaseJSON(srv, c.Parts), parts)
 				if c.StreamError != nil || streamErr != nil {
 					d.Eq(tag+".streamError", rebaseJSON(srv, c.StreamError), ErrJSON(streamErr))
 				}
@@ -507,7 +535,7 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 				resp.Set("headers", filterHeaders(res.ResponseHeaders)).Set("body", res.ResponseBody)
 				r := util.NewObj("content", content, "finishReason", FinishJSON(res.FinishReason),
 					"usage", UsageJSON(res.Usage), "warnings", WarningsJSON(res.Warnings),
-					"requestBody", res.RequestBody, "response", resp)
+					"requestBody", requestBodyAs(c.Result, res.RequestBody), "response", resp)
 				if res.ProviderMetadata != nil {
 					r.Set("providerMetadata", res.ProviderMetadata)
 				}
@@ -523,8 +551,15 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 	srv.mu.Lock()
 	seen := srv.Seen
 	srv.mu.Unlock()
-	if len(seen) != len(sc.Calls) {
-		d.Errors = append(d.Errors, fmt.Sprintf("requests: want %d got %d", len(sc.Calls), len(seen)))
+	// Calls that threw before fetch (no recorded request) send nothing.
+	want := 0
+	for _, c := range sc.Calls {
+		if c.Request != nil {
+			want++
+		}
+	}
+	if len(seen) != want {
+		d.Errors = append(d.Errors, fmt.Sprintf("requests: want %d got %d", want, len(seen)))
 	}
 	for ci, c := range sc.Calls {
 		if c.Request == nil || ci >= len(seen) {
@@ -541,6 +576,19 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 		d.Eq(tag+".headers", toJSON(c.Request.Headers), toJSON(g.Headers))
 	}
 	return d.Errors
+}
+
+// requestBodyAs matches the recorded request.body shape: providers that
+// return the JSON text (openai-compatible) vs the args object (openai responses).
+func requestBodyAs(result json.RawMessage, got string) any {
+	var r struct{ RequestBody json.RawMessage }
+	if json.Unmarshal(result, &r) == nil && len(r.RequestBody) > 0 && r.RequestBody[0] == '{' {
+		var v any
+		if json.Unmarshal([]byte(got), &v) == nil {
+			return v
+		}
+	}
+	return got
 }
 
 func toJSON(v any) string { b, _ := json.Marshal(v); return string(b) }

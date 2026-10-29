@@ -397,7 +397,7 @@ var acceptedGrace = 50 * time.Millisecond
 // until the first output chunk (or the accepted grace elapses), throwing the
 // first error frame seen before that. The returned channel replays the
 // buffered chunks followed by the rest of in.
-func (m *ResponsesModel) peekEarlyError(in <-chan llm.StreamItem, body any, headers map[string]string) (<-chan llm.StreamItem, error) {
+func (m *ResponsesModel) peekEarlyError(in <-chan llm.StreamItem, body any, headers map[string]string) (<-chan llm.StreamItem, int, error) {
 	var buf []llm.StreamItem
 	accepted := false
 	handoff := func() <-chan llm.StreamItem {
@@ -428,28 +428,28 @@ func (m *ResponsesModel) peekEarlyError(in <-chan llm.StreamItem, body any, head
 			case it, ok = <-in:
 				t.Stop()
 			case <-t.C:
-				return handoff(), nil
+				return handoff(), len(buf), nil
 			}
 		} else {
 			it, ok = <-in
 		}
 		if !ok {
-			return handoff(), nil
+			return handoff(), len(buf), nil
 		}
 		if it.Err != nil {
 			drain()
-			return nil, it.Err
+			return nil, 0, it.Err
 		}
 		buf = append(buf, it)
 		if !it.Success {
-			return handoff(), nil
+			return handoff(), len(buf), nil
 		}
 		if isEarlyError(it.Value) {
 			drain()
-			return nil, m.earlyStreamError(it.Value, body, headers)
+			return nil, 0, m.earlyStreamError(it.Value, body, headers)
 		}
 		if isOutputChunk(it.Value) {
-			return handoff(), nil
+			return handoff(), len(buf), nil
 		}
 		if chunkType(it.Value) == "response.in_progress" {
 			accepted = true
@@ -471,12 +471,12 @@ func (m *ResponsesModel) DoStream(ctx context.Context, o llm.CallOptions) (*llm.
 	}
 	// request.body is the args without `stream` (doStream returns `body`).
 	body := util.Stringify(a.body)
-	in, err := m.peekEarlyError(r.EventStream(chunkSchema), a.body, r.Headers)
+	in, pre, err := m.peekEarlyError(r.EventStream(chunkSchema), a.body, r.Headers)
 	if err != nil {
 		return nil, err
 	}
 	out := make(chan llm.StreamPart, 16)
-	go m.transform(ctx, o, a, r.Headers, in, out)
+	go m.transform(ctx, o, a, r.Headers, in, pre, out)
 	return &llm.StreamResult{Stream: out, RequestBody: body, ResponseHeaders: r.Headers}, nil
 }
 
@@ -516,7 +516,10 @@ const chatMismatch = "Received a Chat Completions stream while using the OpenAI 
 	"The default OpenAI provider model uses the Responses API. If your custom baseURL targets a Chat Completions-compatible endpoint, use openai.chat('model-id') or createOpenAI(...).chat('model-id') instead. " +
 	"You can also use @ai-sdk/openai-compatible for OpenAI-compatible providers."
 
-func (m *ResponsesModel) transform(ctx context.Context, o llm.CallOptions, a *args, headers map[string]string, in <-chan llm.StreamItem, out chan<- llm.StreamPart) {
+// pre is the number of chunks the early-error peek already pulled: like
+// Node's replay stream they are transformed even after an abort; the next
+// read then fails with the abort.
+func (m *ResponsesModel) transform(ctx context.Context, o llm.CallOptions, a *args, headers map[string]string, in <-chan llm.StreamItem, pre int, out chan<- llm.StreamPart) {
 	defer close(out)
 	defer func() {
 		if r := recover(); r != nil {
@@ -529,7 +532,15 @@ func (m *ResponsesModel) transform(ctx context.Context, o llm.CallOptions, a *ar
 			}()
 		}
 	}()
+	lenient := false
 	emit := func(p llm.StreamPart) {
+		if lenient && ctx.Err() != nil {
+			select {
+			case out <- p:
+				return
+			default:
+			}
+		}
 		if ctx.Err() != nil {
 			out <- llm.StreamPart{Type: llm.PartStreamError, Err: llm.ErrAborted()}
 			panic(abortPanic{})
@@ -565,7 +576,13 @@ func (m *ResponsesModel) transform(ctx context.Context, o llm.CallOptions, a *ar
 	encounteredErr := false
 
 	emit(llm.StreamPart{Type: "stream-start", Warnings: a.warnings})
+	n := 0
 	for it := range in {
+		lenient = n < pre
+		n++
+		if !lenient && ctx.Err() != nil {
+			emit(llm.StreamPart{})
+		}
 		if it.Err != nil {
 			emit(llm.StreamPart{Type: llm.PartStreamError, Err: it.Err})
 			go func() {
