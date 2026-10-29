@@ -69,7 +69,8 @@ else {
   Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
 }
 $q = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).QuietUninstallString
-if ($q) { Start-Process -Wait cmd.exe -ArgumentList "/c $q"
+if ($q) { # 不用 cmd /c：引号路径 + 参数会被 cmd 剥掉外层引号而什么都不执行
+  if ($q -match '^"([^"]+)"\s*(.*)$') { Start-Process -Wait -FilePath $Matches[1] -ArgumentList $Matches[2] } else { W "- QuietUninstallString 格式异常：$q"; $ok = $false }
   # NSIS 卸载器会把自身复制到 %TEMP% 再运行（Au_.exe），父进程立即返回：轮询等待
   for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep 1 }; Start-Sleep 3
   $c = Snap "after-uninstall"; $txt = (Get-Content $c) -join "`n"
