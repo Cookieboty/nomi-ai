@@ -15,10 +15,13 @@
  *              ± reasoningPassback, plus callIdSeed of the body
  *   stream   – upstream SSE text → downstream SSE, whole and split every 7 chars
  *   json     – upstream JSON → downstream SSE (jsonToSse) and JSON (jsonToJson)
+ *   fixes    – response fixer through converters, same-wire passthrough
+ *              (ChatStreamPatcher / repetition), TerminalWatch, passthroughFail,
+ *              patchChatJson and jsonToJson with fixes
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -153,6 +156,110 @@ if (want('json')) {
     });
   }
   write('json', { opts: { model: 'fallback', customTools: ['apply_patch'] }, cases: out });
+}
+
+/* --------------------------------- fixes -------------------------------- */
+if (want('fixes')) {
+  const fixerMod = await gw('src/models/rules/response/fixer.ts');
+  const pt = await gw('src/stream/passthrough.ts');
+  const cp = await gw('src/stream/chatPatch.ts');
+  const { fixTexts } = await import('./cases.mjs');
+  const mkOpts = () => ({
+    toolNames: new Map([['mapped_weather', 'get_weather']]),
+    textTools: new Set(['get_weather', 'read_file']),
+    repetition: true,
+    notes: [],
+    callIds: new ids.CallIds('seed1'),
+  });
+  const chatSse = (fx) => {
+    const base = { id: 'chatcmpl-1', object: 'chat.completion.chunk', created: 1, model: 'up' };
+    const ch = (delta, finish = null) =>
+      `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+    let s = ch({ role: 'assistant', content: '' });
+    for (const r of splitUnits(fx.think ?? '', 9)) s += ch({ reasoning_content: r });
+    for (const t of splitUnits(fx.text ?? '', 9)) s += ch({ content: t });
+    (fx.tools ?? []).forEach((t, i) => {
+      s += ch({ tool_calls: [{ index: i, id: `call_${i}`, type: 'function', function: { name: t.name, arguments: '' } }] });
+      s += ch({ tool_calls: [{ index: i, function: { arguments: t.args } }] });
+    });
+    s += ch({}, fx.tools?.length ? 'tool_calls' : 'stop');
+    return s + 'data: [DONE]\n\n';
+  };
+  const inputs = {};
+  for (const w of WIRES) {
+    inputs[w] = fixTexts.map((fx) => {
+      const chat = chatSse(fx);
+      if (w === 'chat') return chat;
+      const c = stream.createStreamConverter('chat', w, { model: 'up' });
+      return c.push(chat) + c.end();
+    });
+  }
+  const fixer = [];
+  const passthrough = [];
+  const terminal = [];
+  for (const from of WIRES) {
+    inputs[from].forEach((text, i) => {
+      const inChunks = splitUnits(text, 7);
+      for (const to of WIRES) {
+        const o = mkOpts();
+        const c = stream.createStreamConverter(from, to, { ...convOpts, fixes: o });
+        const chunks = [];
+        for (const piece of inChunks) {
+          chunks.push(c.push(piece));
+          if (c.stopped) break;
+        }
+        chunks.push(c.end());
+        fixer.push({ name: `${from}#${i}→${to}`, from, to, input: text, inChunks, out: chunks, stopped: c.stopped, notes: o.notes });
+      }
+      for (const variant of ['default', 'noChatStream', 'noFixes']) {
+        const o = variant === 'noFixes' ? { notes: [] } : { ...mkOpts(), ...(variant === 'noChatStream' ? { chatStream: false } : {}) };
+        const p = pt.createPassthrough(from, o);
+        if (!p) {
+          passthrough.push({ name: `${from}#${i}/${variant}`, wire: from, variant, input: text, inChunks, nil: true });
+          continue;
+        }
+        const chunks = [];
+        for (const piece of inChunks) {
+          chunks.push(p.push(piece));
+          if (p.stopped) break;
+        }
+        chunks.push(p.end());
+        passthrough.push({ name: `${from}#${i}/${variant}`, wire: from, variant, input: text, inChunks, out: chunks, stopped: p.stopped, notes: o.notes });
+      }
+      const half = text.slice(0, safeCut(text, Math.floor(text.length / 2)));
+      for (const [k, t] of [['whole', text], ['half', half], ['noTail', text.replace(/\n\n$/, '')]]) {
+        const tw = new pt.TerminalWatch(from);
+        for (const piece of splitUnits(t, 7)) tw.push(piece);
+        terminal.push({ name: `${from}#${i}/${k}`, wire: from, input: t, terminated: tw.terminated });
+      }
+    });
+  }
+  const fail = WIRES.map((w) => ({ wire: w, out: pt.passthroughFail(w, 'upstream reset') }));
+  const json = [];
+  fixTexts.forEach((fx, i) => {
+    const msg = { role: 'assistant', content: fx.text ?? '' };
+    if (fx.tools?.length)
+      msg.tool_calls = fx.tools.map((t, k) => ({ id: `call_${k}`, type: 'function', function: { name: t.name, arguments: t.args } }));
+    const body = { id: 'chatcmpl-1', object: 'chat.completion', created: 1, model: 'up', choices: [{ index: 0, message: msg, finish_reason: fx.tools?.length ? 'tool_calls' : 'stop' }] };
+    const input = JSON.stringify(body);
+    const o = mkOpts();
+    const patched = cp.patchChatJson(JSON.parse(input), o);
+    const conv = {};
+    for (const to of WIRES) {
+      const o2 = mkOpts();
+      const r = stream.jsonToJson('chat', to, JSON.parse(input), { ...convOpts, fixes: o2 });
+      conv[to] = { ok: r.ok, status: r.status, body: JSON.stringify(r.body), notes: o2.notes };
+    }
+    json.push({ name: `json#${i}`, input, patched: JSON.stringify(patched), notes: o.notes, conv });
+  });
+  write('fixes', {
+    opts: { toolNames: { mapped_weather: 'get_weather' }, textTools: ['get_weather', 'read_file'], seed: 'seed1' },
+    cases: fixer,
+    passthrough,
+    terminal,
+    fail,
+    json,
+  });
 }
 
 if (want('e2e')) {

@@ -174,6 +174,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D15 | gateway `stream/`、`canonical/`、`spec/` 互相 import（TS 允许循环引用） | Go 拆出叶子包 `stream/sse`、`stream/events`、`spec`、`util`、`ir`；`canonical` 依赖 `sse`，`stream` 依赖 `canonical`；函数与字段顺序不变 | Go 禁止循环 import，只改包边界不改逻辑 |
 | D16 | `createStreamConverter` 内部按 `opts.fixes` 自建 `EventFixer` | Go `ConvertOptions` 直接收 `Seed`、`Fixer`（接口）与 `FixEvents` 钩子，由调用方按 fixes 构造 | fixer 尚未移植（4b），先留接口，语义等价 |
 | D17 | JSON 对象 `Record<string,unknown>` 天然保序 | Go 用自研有序 `util.Obj`，数字按 JS 规则格式化 | 保证与 Node 输出逐字节一致 |
+| D18 | `TerminalWatch` 在 `canonical/terminal.ts` | Go 放在 `stream` 包（`stream.NewTerminalWatch`），`ConvertOptions.fixes` 改为 `stream.WithFixes(opts, fixOptions)` 填充 | Go 包不能互相引用（canonical ← stream ← canonical 会成环）；行为不变 |
+| D19 | 复读检测/正文工具调用按 JS 字符串语义（UTF-16 长度、Unicode `\s`、`trim`） | Go 用 `util.JSTrim/UTF16Len/UTF16Tail` 还原；截取尾部时若正好切在 emoji（代理对）中间，Go 保留整个字符（JS 会留半个） | Go 字符串是 UTF-8，无法表示半个代理对；只影响内部缓冲，输出不变 |
+| D20 | GLM 参数名若是纯数字（如 `"1"`），JS 对象会把它排到最前 | Go 有序对象按出现顺序 | 极少见的边角情况，暂不模拟 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

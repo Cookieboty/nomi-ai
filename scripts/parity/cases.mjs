@@ -176,3 +176,20 @@ export const extraJson = {
   gemini: [{ promptFeedback: { blockReason: 'SAFETY' } }],
   messages: [{ type: 'error', error: { type: 'rate_limit_error', message: 'slow' } }],
 };
+
+/** assistant turns for the response fixer / passthrough / terminal fixtures */
+const rep = (s, n) => Array.from({ length: n }, () => s).join('');
+export const fixTexts = [
+  { text: 'Let me check. <tool_call>{"name":"get_weather","arguments":{"city":"Paris"}}</tool_call>' },
+  { text: 'ok get_weather<arg_key>city</arg_key><arg_value>Paris</arg_value><arg_key>days</arg_key><arg_value>3</arg_value>' },
+  { text: 'Plan:\n<｜DSML｜function_calls>\n<｜DSML｜invoke name="read_file">\n<｜DSML｜parameter name="path" string="true">a&amp;b.txt</｜DSML｜parameter>\n</｜DSML｜invoke>\n</｜DSML｜function_calls>' },
+  { text: 'x <tool_call>{"name":"nope","arguments":{}}</tool_call> tail' },
+  { text: '<tool_call>{"function":{"name":"get_weather","arguments":"{\\"city\\":\\"Rome\\"}"}}</tool_call>   ' },
+  { text: rep('This is the same sentence again. ', 50) },
+  { think: rep('我在想同一件事情。', 50), text: 'never' },
+  { text: 'a < b and <tool' },
+  { text: 'see <tool_call>{"name":"get_weather","arguments":{"city":"Oslo"}}', tools: [{ name: 'mapped_weather', args: '{"city":"Oslo"}' }] },
+  { tools: [{ name: 'mapped_weather', args: '{"city":"Lima"}' }, { name: 'other', args: '{}' }] },
+  { text: '你好😀，世界。Emoji 🎉🎉 test! Done?' },
+  { text: 'cut <tool_call>{"name":"get_weather"' },
+];
