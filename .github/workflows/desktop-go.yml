@@ -11,9 +11,11 @@ on:
       - '.github/workflows/desktop-go.yml'
 permissions:
   contents: read
+# 之前按 ref 分组且 cancel-in-progress，多个 worker 连续 push feat/2.0.5-go 时前一次 run 被取消
+# （表现为“某些 push 没跑 CI”）。push 改为按 commit 分组且不取消；PR 仍只保留最新一次。
 concurrency:
-  group: desktop-go-${{ github.ref }}
-  cancel-in-progress: true
+  group: desktop-go-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   WAIT: '45' # runner 上冷启动后等待秒数（Linux 本机实测用 120s）
 jobs:

@@ -80,7 +80,7 @@ func jsHypot(vals ...float64) float64 {
 	sum, comp := 0.0, 0.0
 	for _, v := range vals {
 		n := math.Abs(v) / max
-		summand := n*n - comp
+		summand := float64(n*n) - comp
 		pre := sum + summand
 		comp = (pre - sum) - summand
 		sum = pre
@@ -116,16 +116,16 @@ func jsExp(x float64) float64 {
 	var k int
 	switch {
 	case x < 0:
-		k = int(log2e*x - 0.5)
+		k = int(float64(log2e*x) - 0.5)
 	case x > 0:
-		k = int(log2e*x + 0.5)
+		k = int(float64(log2e*x) + 0.5)
 	}
-	hi := x - float64(k)*ln2Hi
+	hi := x - float64(float64(k)*ln2Hi)
 	lo := float64(k) * ln2Lo
 	r := hi - lo
 	t := r * r
-	c := r - t*(p1+t*(p2+t*(p3+t*(p4+t*p5))))
-	y := 1 - ((lo - (r*c)/(2-c)) - hi)
+	c := r - float64(t*(p1+float64(t*(p2+float64(t*(p3+float64(t*(p4+float64(t*p5)))))))))
+	y := 1 - ((lo - float64(r*c)/(2-c)) - hi)
 	return math.Ldexp(y, k)
 }
 
@@ -225,7 +225,7 @@ func Step(s BodyState, dt float64, env PhysicsEnv) (BodyState, []PhysicsEvent) {
 		dir := jsSign(target - s.X)
 		s.VX = dir * cfg.WalkSpeed
 		s.VY = 0
-		nx := s.X + s.VX*dt
+		nx := s.X + float64(s.VX*dt)
 		if dir == 0 || (dir > 0 && nx >= target) || (dir < 0 && nx <= target) {
 			s.X = target
 			s.VX = 0
@@ -244,8 +244,8 @@ func Step(s BodyState, dt float64, env PhysicsEnv) (BodyState, []PhysicsEvent) {
 			} else {
 				s.VX *= jsExp(-cfg.GroundFriction * dt)
 				s.VY *= jsExp(-cfg.GroundFriction * dt)
-				s.X += s.VX * dt
-				s.Y += s.VY * dt
+				s.X += float64(s.VX * dt)
+				s.Y += float64(s.VY * dt)
 			}
 		} else if feet() > floor() || (s.Mode == "idle" && feet() < floor()) {
 			s.Y = GroundY(floor(), env.Box.Bottom)
@@ -255,12 +255,12 @@ func Step(s BodyState, dt float64, env PhysicsEnv) (BodyState, []PhysicsEvent) {
 			if math.Abs(s.VX) < 2 {
 				s.VX = 0
 			}
-			s.X += s.VX * dt
+			s.X += float64(s.VX * dt)
 		}
 	}
 
 	if s.Mode == "falling" {
-		s.VY += cfg.Gravity * dt
+		s.VY += float64(cfg.Gravity * dt)
 		drag := jsExp(-cfg.AirDrag * dt)
 		s.VX *= drag
 		sp := jsHypot(s.VX, s.VY)
@@ -268,8 +268,8 @@ func Step(s BodyState, dt float64, env PhysicsEnv) (BodyState, []PhysicsEvent) {
 			s.VX *= cfg.MaxSpeed / sp
 			s.VY *= cfg.MaxSpeed / sp
 		}
-		s.X += s.VX * dt
-		s.Y += s.VY * dt
+		s.X += float64(s.VX * dt)
+		s.Y += float64(s.VY * dt)
 		f := floor()
 		if feet() >= f {
 			s.Y = GroundY(f, env.Box.Bottom)
@@ -354,8 +354,8 @@ func (v *VelocityTracker) Sample(x, y, t float64) {
 		return
 	}
 	k := 1 - jsExp(-dt/v.smoothing)
-	v.VX += ((x-v.last.x)/dt - v.VX) * k
-	v.VY += ((y-v.last.y)/dt - v.VY) * k
+	v.VX += float64(((x-v.last.x)/dt - v.VX) * k)
+	v.VY += float64(((y-v.last.y)/dt - v.VY) * k)
 	v.last = &struct{ x, y, t float64 }{x, y, t}
 }
 
@@ -386,10 +386,10 @@ func PickWanderTarget(s BodyState, env PhysicsEnv, rnd func() float64) float64 {
 	if rnd() < 0.5 {
 		dir = -1
 	}
-	dist := minDist + rnd()*(maxDist-minDist)
-	t := s.X + dir*dist
+	dist := minDist + float64(rnd()*(maxDist-minDist))
+	t := s.X + float64(dir*dist)
 	if t < lo || t > hi {
-		t = s.X - dir*dist
+		t = s.X - float64(dir*dist)
 	}
 	return clampf(t, lo, hi)
 }

@@ -27,6 +27,10 @@ sleep "$WAIT"; shot cold
 for i in 1 2 3; do snap cold-$i; sleep 5; done
 if [ "$MODE" = poc ]; then
   for i in 1 2 3; do ${C}show-chat; sleep 10; [ $i = 1 ] && shot chat-open; snap chat-open-$i; ${C}close-chat; sleep 10; snap chat-closed-$i; done
+  # 渲染器切换：svg（默认）→ rive → svg，各截图 + 三次快照
+  shot mascot-svg; for i in 1 2 3; do snap renderer-svg-start-$i; sleep 5; done
+  ${C}renderer\&v=rive; sleep 15; shot mascot-rive; for i in 1 2 3; do snap renderer-rive-$i; sleep 5; done
+  ${C}renderer\&v=svg; sleep 15; shot mascot-svg-back; for i in 1 2 3; do snap renderer-svg-back-$i; sleep 5; done
   ${C}hide-mascot; for i in 1 2 3; do sleep 10; snap mascot-hidden-$i; done
   ${C}quit
 fi
