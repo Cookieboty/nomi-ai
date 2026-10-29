@@ -25,18 +25,19 @@ function Shot($file, $x = $null) {
   $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; if ($x) { $b = $x }
   $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height; $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); $bmp.Save($file); $g.Dispose(); $bmp.Dispose() }
-$guid = "{b397f92d-158f-5b6d-b066-7aee5a5f3bb7}"
+$guid = "b397f92d-158f-5b6d-b066-7aee5a5f3bb7"
+function InstDir { $l = (Get-ItemProperty "HKCU:\Software\$guid" -ErrorAction SilentlyContinue).InstallLocation; if ($l) { $l } else { "$env:LOCALAPPDATA\Programs\@nomi-aielectron" } }
 function Snap($label) {
   $f = Join-Path $Out "state-$label.txt"
   $un = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid"
   & {
     "## uninstall key $guid"; if (Test-Path $un) { Get-ItemProperty $un | Select-Object DisplayName,DisplayVersion,Publisher,DisplayIcon,InstallLocation,UninstallString,QuietUninstallString,NoModify,NoRepair | Format-List | Out-String } else { "(missing)" }
-    "## other Nomi uninstall keys"; Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "Nomi*" } | ForEach-Object { $_.PSChildName }
-    "## HKCU\Software\$($guid.Trim('{}'))"; Get-ItemProperty "HKCU:\Software\$($guid.Trim('{}'))" -ErrorAction SilentlyContinue | Select-Object InstallLocation | Format-List | Out-String
+    "## all Nomi uninstall keys"; Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "Nomi*" } | ForEach-Object { $_.PSChildName }
+    "## HKCU\Software\$guid"; Get-ItemProperty "HKCU:\Software\$guid" -ErrorAction SilentlyContinue | Select-Object InstallLocation | Format-List | Out-String
     "## nomi protocol"; foreach ($k in "HKCU:\Software\Classes\nomi","HKCU:\Software\Classes\nomi\shell\open\command","HKCU:\Software\Classes\nomi\DefaultIcon") { "$k = " + ((Get-ItemProperty $k -ErrorAction SilentlyContinue).'(default)') }
     "URL Protocol present: " + [bool](Get-ItemProperty HKCU:\Software\Classes\nomi -Name "URL Protocol" -ErrorAction SilentlyContinue)
     "## shortcuts"; foreach ($l in "$env:USERPROFILE\Desktop\Nomi.lnk","$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Nomi.lnk") { if (Test-Path $l) { $s = (New-Object -ComObject WScript.Shell).CreateShortcut($l); "$l -> $($s.TargetPath) [$($s.WorkingDirectory)]" } else { "$l (missing)" } }
-    "## install dir"; $d = "$env:LOCALAPPDATA\Programs\Nomi"; if (Test-Path $d) { Get-ChildItem $d | Select-Object Name,Length | Format-Table -AutoSize | Out-String; "du: " + [math]::Round(((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum)/1MB,1) + " MiB" } else { "(missing)" }
+    "## install dir"; $d = InstDir; "path: $d"; if (Test-Path $d) { Get-ChildItem $d | Select-Object Name,Length | Format-Table -AutoSize | Out-String; "du: " + [math]::Round(((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum)/1MB,1) + " MiB" } else { "(missing)" }
   } | Out-File -Encoding utf8 $f
   return $f }
 W "### windows: $(Split-Path $Setup -Leaf) ($((Get-Item $Setup).Length) bytes)"
@@ -54,7 +55,7 @@ if ($Old -and (Test-Path $Old)) {
   $others = (Get-Content $b) -join "`n"
   if ($others -match "\(missing\)") { W "- 有缺失项（见上）"; $ok = $false }
 }
-$exe = "$env:LOCALAPPDATA\Programs\Nomi\Nomi.exe"
+$exe = Join-Path (InstDir) "Nomi.exe"
 if (-not (Test-Path $exe)) { W "- 安装目录里没有 Nomi.exe"; $ok = $false }
 else {
   $p = Start-Process $exe -PassThru; Start-Sleep 45
@@ -70,7 +71,7 @@ else {
 $q = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).QuietUninstallString
 if ($q) { Start-Process -Wait cmd.exe -ArgumentList "/c $q"; Start-Sleep 5
   $c = Snap "after-uninstall"; $txt = (Get-Content $c) -join "`n"
-  $gone = -not (Test-Path "$env:LOCALAPPDATA\Programs\Nomi\Nomi.exe") -and -not (Test-Path "$env:USERPROFILE\Desktop\Nomi.lnk") -and -not (Test-Path HKCU:\Software\Classes\nomi)
+  $gone = -not (Test-Path $exe) -and -not (Test-Path "$env:USERPROFILE\Desktop\Nomi.lnk") -and -not (Test-Path HKCU:\Software\Classes\nomi)
   W "- 卸载（QuietUninstallString）：程序/快捷方式/协议已清除=$gone；用户数据 %APPDATA%\Nomi 保留=$(Test-Path "$env:APPDATA\Nomi")"
   if (-not $gone) { $ok = $false } }
 else { W "- 无 QuietUninstallString"; $ok = $false }
