@@ -364,6 +364,7 @@ func main() {
 	defer shellP.Quality.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc)
 	wireCoding(router, userData, cliPlugins, desktopSvc)
+	defer wireAgents(router, userData, desktopSvc)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
