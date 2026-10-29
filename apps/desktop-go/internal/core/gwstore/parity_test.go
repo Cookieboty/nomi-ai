@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -72,7 +73,8 @@ func tree(t *testing.T, dir string) map[string]string {
 		b, _ := os.ReadFile(p)
 		s := strings.ReplaceAll(strings.ReplaceAll(string(b), esc, "<UD>"), dir, "<UD>")
 		if runtime.GOOS == "windows" {
-			s = strings.ReplaceAll(s, `<UD>\\`, "<UD>/")
+			// Node 在 Windows 上同样用 path.join（反斜杠）；golden 录自 POSIX，统一成 /
+			s = udPath.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, `\\`, "/") })
 		}
 		out[filepath.ToSlash(rel)] = s
 		return nil
@@ -228,3 +230,5 @@ func must(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+var udPath = regexp.MustCompile(`<UD>[^"]*`)

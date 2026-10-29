@@ -123,3 +123,6 @@ func ReadCopilotRows(file string, lastID float64) []*util.Obj {
      ORDER BY id ASC
      LIMIT `+strconv.Itoa(DBBatch), lastID)
 }
+
+// SelectRows：只读执行一条 SELECT（node:sqlite .all() 语义）；打不开 / 出错返回空切片。供 core/cli 的 codexThreadIndex 复用。
+func SelectRows(file, q string, params ...any) []*util.Obj { return selectRows(file, q, params...) }

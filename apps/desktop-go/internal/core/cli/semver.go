@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 var (
@@ -83,8 +84,16 @@ func comparePre(a, b []string) int {
 	return 0
 }
 
-// utf16Less：JS 字符串比较按 UTF-16 码元（此处只含 ASCII，与字节序一致）。
-func utf16Less(a, b string) bool { return a < b }
+// utf16Less：JS 字符串比较 / 默认 sort（按 UTF-16 码元；与 Go 字节序只在星平面 vs U+E000–U+FFFF 时不同）。
+func utf16Less(a, b string) bool {
+	ua, ub := utf16.Encode([]rune(a)), utf16.Encode([]rune(b))
+	for i := 0; i < len(ua) && i < len(ub); i++ {
+		if ua[i] != ub[i] {
+			return ua[i] < ub[i]
+		}
+	}
+	return len(ua) < len(ub)
+}
 
 // IsNewer = isNewer。
 func IsNewer(latest, current string) bool {
