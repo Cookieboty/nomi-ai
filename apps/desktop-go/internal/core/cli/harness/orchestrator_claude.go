@@ -19,7 +19,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-
 // terminalTaskStatus = TERMINAL_TASK_STATUS。
 var terminalTaskStatus = map[string]bool{"completed": true, "failed": true, "stopped": true, "killed": true, "cancelled": true, "error": true}
 

@@ -14,11 +14,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 )
-
 
 // acpTurn = AcpTurn。
 type acpTurn struct {
