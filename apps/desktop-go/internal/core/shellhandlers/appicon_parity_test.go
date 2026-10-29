@@ -28,8 +28,12 @@ func (f *fakeIconTarget) rel(p string) string {
 	r, _ := filepath.Rel(f.assets, p)
 	return filepath.ToSlash(r)
 }
-func (f *fakeIconTarget) SetDockIcon(p string) { f.applies = append(f.applies, []any{"dock.setIcon", f.rel(p)}) }
-func (f *fakeIconTarget) SetTrayIcon(p string) { f.applies = append(f.applies, []any{"tray", f.rel(p)}) }
+func (f *fakeIconTarget) SetDockIcon(p string) {
+	f.applies = append(f.applies, []any{"dock.setIcon", f.rel(p)})
+}
+func (f *fakeIconTarget) SetTrayIcon(p string) {
+	f.applies = append(f.applies, []any{"tray", f.rel(p)})
+}
 func (f *fakeIconTarget) Windows() []appicon.Window {
 	return []appicon.Window{&fakeIconWin{f, "win0", false}, &fakeIconWin{f, "win1", true}}
 }
@@ -116,4 +120,3 @@ func TestAppIconParity(t *testing.T) {
 	}
 	t.Logf("appIcon parity: %d scenarios, %d steps", len(g.Scenarios), steps)
 }
-
