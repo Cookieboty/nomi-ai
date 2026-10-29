@@ -79,6 +79,7 @@ type Child struct {
 	cmd        *exec.Cmd
 
 	onStdout, onStderr []func(string)
+	onStdoutBytes      []func([]byte)
 	onClose            []func(code *int, signal string)
 	onError            []func(error)
 	onExit             []func(code *int, signal string)
@@ -88,6 +89,8 @@ func (c *Child) ExitCode() *int                           { return c.exitCode }
 func (c *Child) SignalCode() string                       { return c.signalCode }
 func (c *Child) Killed() bool                             { return c.killed }
 func (c *Child) OnStdout(f func(string))                  { c.onStdout = append(c.onStdout, f) }
+// OnStdoutBytes = stdout 'data' 未设编码时收到的 Buffer（原始字节）。
+func (c *Child) OnStdoutBytes(f func([]byte)) { c.onStdoutBytes = append(c.onStdoutBytes, f) }
 func (c *Child) OnStderr(f func(string))                  { c.onStderr = append(c.onStderr, f) }
 func (c *Child) OnClose(f func(code *int, signal string)) { c.onClose = append(c.onClose, f) }
 func (c *Child) OnExit(f func(code *int, signal string))  { c.onExit = append(c.onExit, f) }
@@ -180,17 +183,23 @@ func Spawn(file string, args []string, o Options) *Child {
 		}()
 	}
 	var wg sync.WaitGroup
-	pump := func(r io.Reader, cbs func() []func(string)) {
+	pump := func(r io.Reader, cbs func() []func(string), raw func() []func([]byte)) {
 		defer wg.Done()
 		buf := make([]byte, 65536)
 		for {
 			n, err := r.Read(buf)
 			if n > 0 {
-				chunk := DecodeChunk(buf[:n])
+				rawc := append([]byte(nil), buf[:n]...)
+				chunk := DecodeChunk(rawc)
 				jsrt.Run(func() {
 					jsrt.Dispatch(func() {
 						for _, f := range cbs() {
 							f(chunk)
+						}
+						if raw != nil {
+							for _, f := range raw() {
+								f(rawc)
+							}
 						}
 					})
 				})
@@ -202,11 +211,11 @@ func Spawn(file string, args []string, o Options) *Child {
 	}
 	if stdoutR != nil {
 		wg.Add(1)
-		go pump(stdoutR, func() []func(string) { return c.onStdout })
+		go pump(stdoutR, func() []func(string) { return c.onStdout }, func() []func([]byte) { return c.onStdoutBytes })
 	}
 	if stderrR != nil {
 		wg.Add(1)
-		go pump(stderrR, func() []func(string) { return c.onStderr })
+		go pump(stderrR, func() []func(string) { return c.onStderr }, nil)
 	}
 	go func() {
 		wg.Wait()
