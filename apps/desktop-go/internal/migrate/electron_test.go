@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/aichat"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/settings"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/migrate"
@@ -66,7 +68,10 @@ func TestMigrateElectronFixture(t *testing.T) {
 
 	// encryption none (plaintext base64)
 	nonePayload := base64.StdEncoding.EncodeToString([]byte("sk-plain"))
-	write(t, filepath.Join(electron, "ai-providers.json"), `{"keys":[{"enc":"`+nonePayload+`","encryption":"none"}]}`)
+	nomiSecret := base64.StdEncoding.EncodeToString(security.FakeEncrypt("sk-nomi-1"))
+	write(t, filepath.Join(electron, "ai-providers.json"), `{"version":2,"providers":[{"id":"p","keys":[{"id":"k1","secret":"`+nomiSecret+`","encryption":"safeStorage"},{"id":"k2","secret":"`+nonePayload+`","encryption":"none"}]}]}`)
+	write(t, filepath.Join(electron, "cli-providers", "codex", "store.json"), `{"profiles":[{"id":"a","keyEnc":"`+
+		base64.StdEncoding.EncodeToString(security.FakeEncrypt("sk-cli-1"))+`"},{"id":"b","keyEnc":"`+base64.StdEncoding.EncodeToString([]byte("sk-cli-plain"))+`"}]}`)
 
 	// keys.enc v1
 	entries, _ := json.Marshal(map[string]string{"openai": "sk-from-keys-enc"})
@@ -146,35 +151,34 @@ func TestMigrateElectronFixture(t *testing.T) {
 		}
 	}
 
-	// provider keyring
+	// provider secrets: Node 形态（encryption 仍是 safeStorage，enc = Go safeStorage 密文，无 enc: 前缀）
+	gc := gwstore.NewCipher(box)
 	gs, _ := os.ReadFile(filepath.Join(goRoot, "gateway", "store.json"))
-	var groot map[string]any
-	_ = json.Unmarshal(gs, &groot)
-	found := false
-	var walk func(any)
-	walk = func(v any) {
-		switch node := v.(type) {
-		case map[string]any:
-			if enc, ok := node["encryption"].(string); ok && enc == "keyring" {
-				found = true
-				idBytes, _ := base64.StdEncoding.DecodeString(node["enc"].(string))
-				p, err := security.KeyringGet(string(idBytes))
-				if err != nil || p != "sk-provider-1" {
-					t.Errorf("provider keyring: %q %v", p, err)
-				}
-			}
-			for _, c := range node {
-				walk(c)
-			}
-		case []any:
-			for _, c := range node {
-				walk(c)
-			}
-		}
+	gk := gjson(t, gs)["providers"].([]any)[0].(map[string]any)["keys"].([]any)[0].(map[string]any)
+	if gk["encryption"] != "safeStorage" || strings.HasPrefix(gk["enc"].(string), "enc:") {
+		t.Fatalf("gateway store key: %s", gs)
 	}
-	walk(groot)
-	if !found {
-		t.Fatalf("gateway store not rewritten: %s", gs)
+	if p, err := gc.Decrypt(gk["enc"].(string)); err != nil || p != "sk-provider-1" {
+		t.Fatalf("gateway key decrypt %q %v", p, err)
+	}
+	if !strings.HasPrefix(string(gs), "{\n  \"providers\"") {
+		t.Fatalf("gateway store not JSON.stringify(_, null, 2) ordered: %s", gs)
+	}
+	ap, _ := os.ReadFile(filepath.Join(goRoot, "ai-providers.json"))
+	ak := gjson(t, ap)["providers"].([]any)[0].(map[string]any)["keys"].([]any)
+	if p, err := gc.Decrypt(ak[0].(map[string]any)["secret"].(string)); err != nil || p != "sk-nomi-1" {
+		t.Fatalf("ai-providers secret: %s", ap)
+	}
+	if ak[1].(map[string]any)["encryption"] != "none" {
+		t.Fatalf("none key changed: %s", ap)
+	}
+	cp, _ := os.ReadFile(filepath.Join(goRoot, "cli-providers", "codex", "store.json"))
+	prof := gjson(t, cp)["profiles"].([]any)
+	if got := gwstore.LegacyCliKeyDecryptor(gc)(prof[0].(map[string]any)["keyEnc"].(string)); got != "sk-cli-1" {
+		t.Fatalf("cli keyEnc: %q %s", got, cp)
+	}
+	if got := gwstore.LegacyCliKeyDecryptor(gc)(prof[1].(map[string]any)["keyEnc"].(string)); got != "sk-cli-plain" {
+		t.Fatalf("cli plain keyEnc: %q", got)
 	}
 
 	// keys.enc v2
@@ -257,4 +261,13 @@ func TestSkipWhenGoAlreadyHasData(t *testing.T) {
 	if string(raw) != `{"theme":"ink"}` {
 		t.Fatalf("must not overwrite: %s", raw)
 	}
+}
+
+func gjson(t *testing.T, b []byte) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("%v: %s", err, b)
+	}
+	return m
 }

@@ -118,3 +118,6 @@ func bufferToUTF8(b []byte) string {
 	d := &u.TextDecoder{}
 	return bom + d.Decode(b) + d.Flush()
 }
+
+// NodeBase64Decode 导出给 gateway 存储（Buffer.from(s, 'base64').toString('utf8')）
+func NodeBase64Decode(s string) string { return nodeBase64Decode(s) }

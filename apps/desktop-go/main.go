@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"io/fs"
 	"log"
 	"net/http"
@@ -184,6 +185,11 @@ func main() {
 	defer b8.Stop()
 	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
 	providerBox := security.NewSecretBox("providers")
+	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
+	gatewaySvc := gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
+	if err := gatewaySvc.Init(); err != nil {
+		log.Printf("[gateway] store init failed: %v", err)
+	}
 	providerSvc := shellhandlers.NewProviderService(providerBox, processEnv(), nil)
 	if providerBox == nil || !providerBox.CanEncrypt() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
