@@ -65,7 +65,7 @@ jobs:
           pnpm exec tsx scripts/parity/record-b7-slash.mjs
           pnpm exec tsx scripts/parity/record-b7-ws.mjs
           # desktop.tools() 执行 golden：Windows 路径 / 权限、workspace_run（cmd / sh）、真实 code_run（JS --permission、Python 平台隔离）按平台现场录制
-          TZ=Asia/Shanghai node scripts/parity/record-b7s-desktools.mjs
+          node scripts/parity/record-b7s-desktools.mjs
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs

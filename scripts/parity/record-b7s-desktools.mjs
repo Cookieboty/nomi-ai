@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url';
 
 import { importSources } from './src-bundle.mjs';
 
-if (process.env.TZ !== 'Asia/Shanghai') throw new Error('run with TZ=Asia/Shanghai');
+process.env.TZ = 'Asia/Shanghai'; // Windows runner 的 bash 前缀 TZ= 到不了 node；运行时设置即生效（Node 会重载 ICU 时区）
+if (new Date(0).getHours() !== 8) throw new Error('TZ=Asia/Shanghai did not take effect');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const TD = path.join(root, 'apps/desktop-go/internal/ai/runtime/igtools/testdata');
