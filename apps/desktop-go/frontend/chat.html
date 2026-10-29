@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nomi chat (POC)</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: #f6f7fb; color: #222; }
+      main { padding: 16px; display: flex; flex-direction: column; gap: 8px; height: 100vh; box-sizing: border-box; }
+      #out { flex: 1; white-space: pre-wrap; background: #fff; border: 1px solid #dde; padding: 10px; overflow: auto; }
+      form { display: flex; gap: 6px; } input { flex: 1; padding: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="status">connecting…</div>
+      <div id="out"></div>
+      <form id="f"><input id="q" value="你好，诺米！" /><button>发送</button><button type="button" id="stop">停止</button></form>
+    </main>
+    <script type="module" src="./src/chat.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+build/
+frontend/dist/
+node_modules/
+mem/
+dist-ci/

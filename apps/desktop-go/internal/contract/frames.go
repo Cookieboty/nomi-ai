@@ -1,0 +1,174 @@
+// Package contract 是 packages/contract 线协议（protocol.ts / wire.ts）的 Go 端实现：
+// 帧格式、过程注册表、流式与取消。和传输无关：WebSocket、Wails stream 都只是把帧搬来搬去。
+//
+// POC 里帧类型是手写的；正式迁移时由 contract 的 zod 定义导出 JSON Schema 再生成（见 docs/design/arch-go-wails.md §4）。
+package contract
+
+import (
+	"context"
+	"encoding/json"
+	"sync"
+)
+
+// ProtocolVersion 与 protocol.ts 的 PROTOCOL_VERSION 一致
+const ProtocolVersion = 1
+
+// ContractVersion 与 packages/contract/src/app/index.ts 的 appContract.version 一致
+var ContractVersion = Version{Major: 2, Minor: 2}
+
+type Version struct {
+	Major int `json:"major"`
+	Minor int `json:"minor"`
+}
+
+// ClientFrame：req / abort / sub / unsub
+type ClientFrame struct {
+	T     string          `json:"t"`
+	ID    string          `json:"id,omitempty"`
+	Kind  string          `json:"kind,omitempty"`
+	Name  string          `json:"name,omitempty"`
+	Input json.RawMessage `json:"input,omitempty"`
+	Event string          `json:"event,omitempty"`
+}
+
+// ServerFrame：res / chunk / end / err / event
+type ServerFrame struct {
+	T      string        `json:"t"`
+	ID     string        `json:"id,omitempty"`
+	Output any           `json:"output,omitempty"`
+	Data   any           `json:"data,omitempty"`
+	Error  *ErrorPayload `json:"error,omitempty"`
+	Event  string        `json:"event,omitempty"`
+}
+
+type ErrorPayload struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type Caller struct{ Surface string }
+
+// CallFunc 处理 query / mutation
+type CallFunc func(ctx context.Context, c Caller, input json.RawMessage) (any, error)
+
+// StreamFunc 处理 stream：emit 推一个 chunk；返回值是 end 帧的 output。ctx 在客户端 abort 或断线时取消。
+type StreamFunc func(ctx context.Context, c Caller, input json.RawMessage, emit func(any) error) (any, error)
+
+type Router struct {
+	calls   map[string]CallFunc
+	streams map[string]StreamFunc
+}
+
+func NewRouter() *Router {
+	return &Router{calls: map[string]CallFunc{}, streams: map[string]StreamFunc{}}
+}
+
+func (r *Router) Call(name string, f CallFunc)     { r.calls[name] = f }
+func (r *Router) Stream(name string, f StreamFunc) { r.streams[name] = f }
+
+type Error struct{ Code, Message string }
+
+func (e *Error) Error() string { return e.Code + ": " + e.Message }
+
+// Session 是一条连接上的状态：进行中的请求（用于 abort）。send 必须是并发安全的。
+type Session struct {
+	r      *Router
+	caller Caller
+	send   func(ServerFrame)
+	mu     sync.Mutex
+	active map[string]context.CancelFunc
+	ctx    context.Context
+}
+
+func (r *Router) NewSession(ctx context.Context, caller Caller, send func(ServerFrame)) *Session {
+	return &Session{r: r, caller: caller, send: send, active: map[string]context.CancelFunc{}, ctx: ctx}
+}
+
+func errFrame(id string, err error) ServerFrame {
+	if ce, ok := err.(*Error); ok {
+		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: ce.Code, Message: ce.Message}}
+	}
+	if err == context.Canceled {
+		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: "ABORTED", Message: "aborted"}}
+	}
+	return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: "INTERNAL", Message: err.Error()}}
+}
+
+// Handle 处理一个入站帧（不阻塞：每个请求一个 goroutine）
+func (s *Session) Handle(raw []byte) {
+	var f ClientFrame
+	if err := json.Unmarshal(raw, &f); err != nil || f.T == "" {
+		return // 和 TS 侧一样：非法帧直接丢弃
+	}
+	switch f.T {
+	case "abort":
+		s.mu.Lock()
+		if c := s.active[f.ID]; c != nil {
+			c()
+		}
+		s.mu.Unlock()
+	case "sub", "unsub":
+		// POC 不实现事件
+	case "req":
+		ctx, cancel := context.WithCancel(s.ctx)
+		s.mu.Lock()
+		s.active[f.ID] = cancel
+		s.mu.Unlock()
+		go func() {
+			defer func() {
+				s.mu.Lock()
+				delete(s.active, f.ID)
+				s.mu.Unlock()
+				cancel()
+			}()
+			s.run(ctx, f)
+		}()
+	}
+}
+
+func (s *Session) run(ctx context.Context, f ClientFrame) {
+	if f.Kind == "call" && f.Name == "meta.version" {
+		s.send(ServerFrame{T: "res", ID: f.ID, Output: map[string]any{"version": ContractVersion, "protocol": ProtocolVersion}})
+		return
+	}
+	if f.Kind == "stream" {
+		h := s.r.streams[f.Name]
+		if h == nil {
+			s.send(errFrame(f.ID, &Error{"NOT_FOUND", "unknown stream " + f.Name}))
+			return
+		}
+		out, err := h(ctx, s.caller, f.Input, func(v any) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			s.send(ServerFrame{T: "chunk", ID: f.ID, Data: v})
+			return nil
+		})
+		if err != nil {
+			s.send(errFrame(f.ID, err))
+			return
+		}
+		s.send(ServerFrame{T: "end", ID: f.ID, Output: out})
+		return
+	}
+	h := s.r.calls[f.Name]
+	if h == nil {
+		s.send(errFrame(f.ID, &Error{"NOT_FOUND", "unknown procedure " + f.Name}))
+		return
+	}
+	out, err := h(ctx, s.caller, f.Input)
+	if err != nil {
+		s.send(errFrame(f.ID, err))
+		return
+	}
+	s.send(ServerFrame{T: "res", ID: f.ID, Output: out})
+}
+
+// Close 取消这条连接上所有进行中的请求（断线 = 全部 abort）
+func (s *Session) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.active {
+		c()
+	}
+}

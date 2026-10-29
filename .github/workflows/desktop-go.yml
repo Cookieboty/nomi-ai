@@ -1,0 +1,132 @@
+# 2.0.5 Go + Wails v3 桌面壳：三平台构建、体积与内存实测（迁移期与现有 ci.yml 并行）。
+name: desktop-go
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [feat/2.0.5-go]
+  pull_request:
+    branches: [release/2.0.5]
+    paths:
+      - 'apps/desktop-go/**'
+      - '.github/workflows/desktop-go.yml'
+permissions:
+  contents: read
+concurrency:
+  group: desktop-go-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  WAIT: '45' # runner 上冷启动后等待秒数（Linux 本机实测用 120s）
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - name: linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: frontend
+        working-directory: apps/desktop-go/frontend
+        run: ../../../node_modules/.bin/vite build --config vite.config.mts
+      - name: go build + package
+        working-directory: apps/desktop-go
+        run: |
+          mkdir -p dist-ci
+          case "$RUNNER_OS" in
+            Windows)
+              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-poc.exe .
+              cp build/bin/nomi-poc.exe dist-ci/
+              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-poc-windows-amd64.zip nomi-poc.exe >/dev/null) ;;
+            macOS)
+              go build -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
+              APP="build/Nomi POC.app"; mkdir -p "$APP/Contents/MacOS"
+              cp build/bin/nomi-poc "$APP/Contents/MacOS/nomi-poc"
+              cat > "$APP/Contents/Info.plist" <<PL
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>nomi-poc</string>
+          <key>CFBundleIdentifier</key><string>ai.nomi.poc</string>
+          <key>CFBundleName</key><string>Nomi POC</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>LSUIElement</key><true/>
+          <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          PL
+              codesign --force --deep -s - "$APP" || true
+              (cd build && ditto -c -k --keepParent "Nomi POC.app" ../dist-ci/nomi-poc-macos-arm64.zip) ;;
+            Linux)
+              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
+              tar czf dist-ci/nomi-poc-linux-amd64.tar.gz -C build/bin nomi-poc ;;
+          esac
+          {
+            echo "### ${{ matrix.os }} 体积（字节）"
+            echo '```'
+            ls -l build/bin dist-ci
+            [ -d "build/Nomi POC.app" ] && du -sk "build/Nomi POC.app" | awk '{print ".app du -sk(KiB): "$1}'
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomi-poc-${{ matrix.os }}
+          path: apps/desktop-go/dist-ci/
+
+      # ---------- 内存实测：POC ----------
+      - name: measure poc (macOS)
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop-go
+        run: ci/measure-mac.sh poc "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/mem" || true
+      - name: measure poc (Windows)
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop-go
+        shell: pwsh
+        run: ./ci/measure-win.ps1 -Mode poc -Bin "$PWD\build\bin\nomi-poc.exe" -Out "$PWD\mem"
+
+      # ---------- 内存实测：v2.0.4 打包版（同 runner、同口径，仅冷启动） ----------
+      - name: measure v2.0.4 (macOS)
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop-go
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release download v2.0.4 -R "$GITHUB_REPOSITORY" -p 'Nomi-2.0.4-arm64-mac.zip' -D /tmp/v204
+          ditto -x -k /tmp/v204/Nomi-2.0.4-arm64-mac.zip /tmp/v204/app
+          du -sk /tmp/v204/app/Nomi.app | tee -a mem/v204-size.txt
+          ci/measure-mac.sh electron /tmp/v204/app/Nomi.app/Contents/MacOS/Nomi "$PWD/mem" || true
+      - name: measure v2.0.4 (Windows)
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop-go
+        shell: pwsh
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release download v2.0.4 -R $env:GITHUB_REPOSITORY -p 'Nomi-Setup-2.0.4.exe' -D "$env:RUNNER_TEMP\v204"
+          Start-Process "$env:RUNNER_TEMP\v204\Nomi-Setup-2.0.4.exe" -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          Write-Host "installed: $($exe.FullName)"
+          "{0} bytes (install dir)" -f ((Get-ChildItem $exe.DirectoryName -Recurse | Measure-Object Length -Sum).Sum) | Out-File mem\v204-size.txt
+          ./ci/measure-win.ps1 -Mode electron -Bin $exe.FullName -Out "$PWD\mem"
+      - name: summarize
+        if: runner.os != 'Linux'
+        working-directory: apps/desktop-go
+        run: |
+          { echo "### ${{ matrix.os }} 内存（三次中位数，MiB）"; echo '| 场景 | 进程数 | 合计 | 中位那次各进程 |'; echo '|---|---|---|---|'
+            python3 ci/summarize.py mem || python ci/summarize.py mem
+            echo; echo '```'; grep -h "mark" mem/*app*.log 2>/dev/null; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os != 'Linux'
+        with:
+          name: mem-${{ matrix.os }}
+          path: apps/desktop-go/mem/
