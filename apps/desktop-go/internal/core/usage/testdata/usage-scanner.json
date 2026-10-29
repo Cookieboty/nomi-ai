@@ -706,7 +706,31 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -1215,7 +1239,31 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -1730,7 +1778,31 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -2259,7 +2331,32 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748563200000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":3,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s9\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -2786,7 +2883,32 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748563200000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":3,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s9\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -3327,7 +3449,33 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748563200000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":3,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s9\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:3\",\"ts\":1738454400000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":9,\"output\":9,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    },
    {
@@ -3864,7 +4012,33 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1740000000000:50:7\",\"ts\":1740000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"gpt-4o\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748563200000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":3,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s9\"}",
+      "{\"key\":\"codex:01a13a9b-34b0-7612-ba36-613a55008483:3776\",\"ts\":1791984624039,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":3756,\"output\":2,\"cacheRead\":18,\"cacheWrite\":0,\"session\":\"01a13a9b-34b0-7612-ba36-613a55008483\",\"project\":\"tmp\"}",
+      "{\"key\":\"codex:child-0002:3000\",\"ts\":1791975615000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":400,\"output\":100,\"cacheRead\":100,\"cacheWrite\":0,\"session\":\"child-0002\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:cq:13\",\"ts\":1735862406000,\"source\":\"codex\",\"via\":\"log\",\"model\":\"unknown\",\"input\":10,\"output\":3,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cq\",\"project\":\"q\"}",
+      "{\"key\":\"codex:parent-0001:1100\",\"ts\":1791972005000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":800,\"output\":100,\"cacheRead\":200,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"codex:parent-0001:2400\",\"ts\":1791972060000,\"source\":\"codex\",\"via\":\"log\",\"provider\":\"openai\",\"model\":\"gpt-5-codex\",\"input\":900,\"output\":100,\"cacheRead\":300,\"cacheWrite\":0,\"session\":\"parent-0001\",\"project\":\"proj\"}",
+      "{\"key\":\"copilot:cs:1\",\"ts\":1738368000000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":97,\"output\":20,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1738368001000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"claude-sonnet-4.5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"copilot:cs:3\",\"ts\":1738454400000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":9,\"output\":9,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"cs\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"myproj\"}",
+      "{\"key\":\"grok:g1:p1\",\"ts\":1738461722000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"grok-4\",\"input\":10,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"g1\",\"project\":\"g\"}",
+      "{\"key\":\"grok:uuid-2:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"uuid-2\"}",
+      "{\"key\":\"kimi:msg-code-1\",\"ts\":1792000010000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":200,\"output\":50,\"cacheRead\":1000,\"cacheWrite\":10,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"sess-1\"}",
+      "{\"key\":\"kimi:step-2\",\"ts\":1792000020000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"kimi-for-coding\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0123abcd-0123-4567-89ab-0123456789ab\"}",
+      "{\"key\":\"opencode:m1\",\"ts\":1740000000500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":101,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1740000002500,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"ses1\",\"project\":\"p\"}",
+      "{\"key\":\"qwen:a-1\",\"ts\":1791972005000,\"source\":\"qwen\",\"via\":\"log\",\"model\":\"qwen3-coder-plus\",\"input\":620,\"output\":90,\"cacheRead\":400,\"cacheWrite\":0,\"session\":\"qsess-1\",\"project\":\"qproj\"}"
+     ]
     }
    }
   ]
@@ -3920,7 +4094,10 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}"
+     ]
     }
    },
    {
@@ -3963,7 +4140,10 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}"
+     ]
     }
    },
    {
@@ -4022,7 +4202,11 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    },
    {
@@ -4082,7 +4266,11 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    },
    {
@@ -4138,7 +4326,11 @@
        "fpLen": 256,
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    },
    {
@@ -4194,7 +4386,11 @@
        "fpLen": 256,
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    },
    {
@@ -4250,7 +4446,11 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    },
    {
@@ -4336,7 +4536,12 @@
        },
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}",
+      "{\"key\":\"grok:u:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"u\",\"project\":\"x\"}"
+     ]
     }
    },
    {
@@ -4419,7 +4624,12 @@
        },
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_short\",\"ts\":1748735995000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}",
+      "{\"key\":\"grok:u:1740000000000\",\"ts\":1740000000000,\"source\":\"grok\",\"via\":\"log\",\"provider\":\"xai\",\"model\":\"unknown\",\"input\":0,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"u\",\"project\":\"x\"}"
+     ]
     }
    }
   ]
@@ -4655,6 +4865,84 @@
   ]
  },
  {
+  "name": "claude-stream-merge",
+  "now": 1748736000000,
+  "env": {},
+  "retention": "forever",
+  "clearedAt": 0,
+  "busy": [],
+  "steps": [
+   {
+    "op": "write",
+    "p": ".claude/projects/-w-p/s1.jsonl",
+    "b": "eyJ0eXBlIjoiYXNzaXN0YW50IiwidGltZXN0YW1wIjoiMjAyNS0wNS0zMVQyMzo1OTo1MS4wMDBaIiwic2Vzc2lvbklkIjoicy1iaWciLCJjd2QiOiIvdy9iaWciLCJtZXNzYWdlIjp7ImlkIjoibXNnX20xIiwibW9kZWwiOiJjbGF1ZGUtc29ubmV0LTQtNSIsInVzYWdlIjp7ImlucHV0X3Rva2VucyI6MTAsIm91dHB1dF90b2tlbnMiOjUsImNhY2hlX3JlYWRfaW5wdXRfdG9rZW5zIjowLCJjYWNoZV9jcmVhdGlvbl9pbnB1dF90b2tlbnMiOjB9fSwicmVxdWVzdElkIjoicmVxX21zZ19tMSJ9CnsidHlwZSI6ImFzc2lzdGFudCIsInRpbWVzdGFtcCI6IjIwMjUtMDUtMzFUMjM6NTk6NTIuMDAwWiIsInNlc3Npb25JZCI6InMtYmlnIiwiY3dkIjoiL3cvYmlnIiwibWVzc2FnZSI6eyJpZCI6Im1zZ19tMSIsIm1vZGVsIjoiY2xhdWRlLXNvbm5ldC00LTUiLCJ1c2FnZSI6eyJpbnB1dF90b2tlbnMiOjEwLCJvdXRwdXRfdG9rZW5zIjo3LCJjYWNoZV9yZWFkX2lucHV0X3Rva2VucyI6MCwiY2FjaGVfY3JlYXRpb25faW5wdXRfdG9rZW5zIjo4LCJjYWNoZV9jcmVhdGlvbiI6eyJlcGhlbWVyYWxfMWhfaW5wdXRfdG9rZW5zIjo0fSwic3BlZWQiOiJmYXN0In19LCJyZXF1ZXN0SWQiOiJyZXFfbXNnX20xIn0KeyJ0eXBlIjoiYXNzaXN0YW50IiwidGltZXN0YW1wIjoiMjAyNS0wNS0zMVQyMzo1OTo1My4wMDBaIiwic2Vzc2lvbklkIjoicy1iaWciLCJjd2QiOiIvdy9iaWciLCJtZXNzYWdlIjp7ImlkIjoibXNnX20yIiwibW9kZWwiOiJjbGF1ZGUtc29ubmV0LTQtNSIsInVzYWdlIjp7ImlucHV0X3Rva2VucyI6MTAsIm91dHB1dF90b2tlbnMiOjcsImNhY2hlX3JlYWRfaW5wdXRfdG9rZW5zIjowLCJjYWNoZV9jcmVhdGlvbl9pbnB1dF90b2tlbnMiOjgsImNhY2hlX2NyZWF0aW9uIjp7ImVwaGVtZXJhbF8xaF9pbnB1dF90b2tlbnMiOjR9LCJzcGVlZCI6ImZhc3QifX0sInJlcXVlc3RJZCI6InJlcV9tc2dfbTIifQo=",
+    "m": 1748735990000
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 2,
+      "files": 1
+     },
+     "news": [
+      "claude:msg_m1",
+      "claude:msg_m2"
+     ],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "claude:msg_m1",
+       "ts": 1748735991000,
+       "source": "claude",
+       "via": "log",
+       "model": "claude-sonnet-4-5",
+       "input": 10,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 8,
+       "session": "s-big",
+       "project": "big",
+       "cacheWrite1h": 4,
+       "fast": true
+      },
+      {
+       "key": "claude:msg_m2",
+       "ts": 1748735993000,
+       "source": "claude",
+       "via": "log",
+       "model": "claude-sonnet-4-5",
+       "input": 10,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 8,
+       "cacheWrite1h": 4,
+       "fast": true,
+       "session": "s-big",
+       "project": "big"
+      }
+     ],
+     "curs": {
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 968,
+       "size": 968,
+       "mtimeMs": 1748735990000,
+       "fp": "01882a60a1f4a6593a8dd49a19c3d203c32e567a",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:msg_m1\",\"ts\":1748735991000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":7,\"cacheRead\":0,\"cacheWrite\":8,\"session\":\"s-big\",\"project\":\"big\",\"cacheWrite1h\":4,\"fast\":true}",
+      "{\"key\":\"claude:msg_m2\",\"ts\":1748735993000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":7,\"cacheRead\":0,\"cacheWrite\":8,\"cacheWrite1h\":4,\"fast\":true,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
+    }
+   }
+  ]
+ },
+ {
   "name": "long-line",
   "now": 1748736000000,
   "env": {},
@@ -4687,7 +4975,8 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": []
     }
    },
    {
@@ -4733,7 +5022,10 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:msg_after\",\"ts\":1748735999000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}"
+     ]
     }
    }
   ]
@@ -4839,7 +5131,11 @@
        "state": {},
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"route:1\",\"ts\":1736935200000,\"source\":\"claude\",\"via\":\"route\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"dur\":600000}"
+     ]
     }
    }
   ]
@@ -4924,7 +5220,1110 @@
        },
        "hasId": false
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "edges",
+  "now": 1748736000000,
+  "env": {},
+  "retention": "90d",
+  "clearedAt": 0,
+  "busy": [],
+  "steps": [
+   {
+    "op": "write",
+    "p": ".claude/projects/-w-p/s1.jsonl",
+    "b": "eyJ0eXBlIjogInF1ZXVlLW9wZXJhdGlvbiIsICJvcGVyYXRpb24iOiAiZW5xdWV1ZSIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxOTo0MToxMS45NDFaIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAiY29udGVudCI6ICJVc2UgdGhlIFJlYWQgdG9vbCB0byByZWFkIC90bXAvZTJlL25vdGUudHh0IGFuZCB0ZWxsIG1lIGl0cyBjb250ZW50cy4ifQp7InR5cGUiOiAicXVldWUtb3BlcmF0aW9uIiwgIm9wZXJhdGlvbiI6ICJkZXF1ZXVlIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk0MloiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSJ9CnsicGFyZW50VXVpZCI6IG51bGwsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAicHJvbXB0SWQiOiAiZTgwYzJjY2ItZTA4MS00N2QyLWFiNTktYWE2Zjc0YWUyZmI5IiwgInR5cGUiOiAidXNlciIsICJtZXNzYWdlIjogeyJyb2xlIjogInVzZXIiLCAiY29udGVudCI6ICJVc2UgdGhlIFJlYWQgdG9vbCB0byByZWFkIC90bXAvZTJlL25vdGUudHh0IGFuZCB0ZWxsIG1lIGl0cyBjb250ZW50cy4ifSwgInV1aWQiOiAiODg4MmJiZDItNDQ0OS00YTBjLTllNGMtZjliN2E3N2QwZWI1IiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3N1oiLCAicGVybWlzc2lvbk1vZGUiOiAiYXV0byIsICJwcm9tcHRTb3VyY2UiOiAic2RrIiwgInR1cm5PcmlnaW4iOiAic2RrIiwgInR1cm5Qb3NpdGlvbiI6IHsicHJvbXB0SW5kZXgiOiAwLCAidHVybkluZGV4IjogMX0sICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJwYXJlbnRVdWlkIjogIjg4ODJiYmQyLTQ0NDktNGEwYy05ZTRjLWY5YjdhNzdkMGViNSIsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAiYXR0YWNobWVudCI6IHsidHlwZSI6ICJlbnZpcm9ubWVudCJ9LCAidHlwZSI6ICJhdHRhY2htZW50IiwgInV1aWQiOiAiOGZhZjMxZWQtNTUwOS00ZTBiLTg2MjktOGRiZjU5MWYzZTk5IiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3NloiLCAicmVuZGVyZWRSb2xlIjogInN5c3RlbSIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJwYXJlbnRVdWlkIjogIjhmYWYzMWVkLTU1MDktNGUwYi04NjI5LThkYmY1OTFmM2U5OSIsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAiYXR0YWNobWVudCI6IHsidHlwZSI6ICJlbnZpcm9ubWVudCJ9LCAidHlwZSI6ICJhdHRhY2htZW50IiwgInV1aWQiOiAiMzljYWQxMGEtMzg0Mi00MGUzLWI3MDMtMzZmMmNmMzFlOWE0IiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3NloiLCAicmVuZGVyZWRSb2xlIjogInN5c3RlbSIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJwYXJlbnRVdWlkIjogIjM5Y2FkMTBhLTM4NDItNDBlMy1iNzAzLTM2ZjJjZjMxZTlhNCIsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAiYXR0YWNobWVudCI6IHsidHlwZSI6ICJlbnZpcm9ubWVudCJ9LCAidHlwZSI6ICJhdHRhY2htZW50IiwgInV1aWQiOiAiYjc0ZjczNzgtYTM0MS00NWE0LWE0M2MtNmE3NzczZGE4MDkyIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3NloiLCAicmVuZGVyZWRSb2xlIjogInN5c3RlbSIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJwYXJlbnRVdWlkIjogImI3NGY3Mzc4LWEzNDEtNDVhNC1hNDNjLTZhNzc3M2RhODA5MiIsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAiYXR0YWNobWVudCI6IHsidHlwZSI6ICJlbnZpcm9ubWVudCJ9LCAidHlwZSI6ICJhdHRhY2htZW50IiwgInV1aWQiOiAiYzgzZGYzNDItNWIwZi00NmRjLTkzNjUtNDQ5NTI4NzJjMzA0IiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3NloiLCAicmVuZGVyZWRSb2xlIjogInN5c3RlbSIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJwYXJlbnRVdWlkIjogImM4M2RmMzQyLTViMGYtNDZkYy05MzY1LTQ0OTUyODcyYzMwNCIsICJpc1NpZGVjaGFpbiI6IGZhbHNlLCAiYXR0YWNobWVudCI6IHsidHlwZSI6ICJlbnZpcm9ubWVudCJ9LCAidHlwZSI6ICJhdHRhY2htZW50IiwgInV1aWQiOiAiNTRmMTIwNjAtMGQ2NS00MzY5LTgyM2YtNzdkOTliYzJlZjEwIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDE5OjQxOjExLjk3NloiLCAicmVuZGVyZWRSb2xlIjogInN5c3RlbSIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJ0eXBlIjogImF0aXMtbGF0Y2giLCAiYXRpcyI6ICIiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSJ9CnsicGFyZW50VXVpZCI6ICI1NGYxMjA2MC0wZDY1LTQzNjktODIzZi03N2Q5OWJjMmVmMTAiLCAiaXNTaWRlY2hhaW4iOiBmYWxzZSwgImF0dGFjaG1lbnQiOiB7InR5cGUiOiAiZW52aXJvbm1lbnQifSwgInR5cGUiOiAiYXR0YWNobWVudCIsICJ1dWlkIjogIjFhYmEwNGZmLWM3ZDYtNGY0My1hMWJmLWJjYmNhNzBjYjQzMyIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxOTo0MToxMS45OTVaIiwgInVzZXJUeXBlIjogImV4dGVybmFsIiwgImVudHJ5cG9pbnQiOiAic2RrLWNsaSIsICJjd2QiOiAiL3RtcC9lMmUiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSIsICJ2ZXJzaW9uIjogIjIuMS4yOTkiLCAiZ2l0QnJhbmNoIjogIkhFQUQifQp7InBhcmVudFV1aWQiOiAiMWFiYTA0ZmYtYzdkNi00ZjQzLWExYmYtYmNiY2E3MGNiNDMzIiwgImlzU2lkZWNoYWluIjogZmFsc2UsICJhdHRhY2htZW50IjogeyJ0eXBlIjogImVudmlyb25tZW50In0sICJ0eXBlIjogImF0dGFjaG1lbnQiLCAidXVpZCI6ICI2MDQ0YmM5OS1mZGNkLTQ3NGQtOTMzZi0yN2M3MTg0MzM2NmYiLCAidGltZXN0YW1wIjogIjIwMjYtMTAtMTRUMTk6NDE6MTEuOTk2WiIsICJyZW5kZXJlZFJvbGUiOiAic3lzdGVtIiwgInVzZXJUeXBlIjogImV4dGVybmFsIiwgImVudHJ5cG9pbnQiOiAic2RrLWNsaSIsICJjd2QiOiAiL3RtcC9lMmUiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSIsICJ2ZXJzaW9uIjogIjIuMS4yOTkiLCAiZ2l0QnJhbmNoIjogIkhFQUQifQp7InBhcmVudFV1aWQiOiAiNjA0NGJjOTktZmRjZC00NzRkLTkzM2YtMjdjNzE4NDMzNjZmIiwgImlzU2lkZWNoYWluIjogZmFsc2UsICJhdHRhY2htZW50IjogeyJ0eXBlIjogImVudmlyb25tZW50In0sICJ0eXBlIjogImF0dGFjaG1lbnQiLCAidXVpZCI6ICI3NmNlN2U3Ni1mNThhLTQ4YzYtYjJhOS1lN2EwY2YzOGJiZGIiLCAidGltZXN0YW1wIjogIjIwMjYtMTAtMTRUMTk6NDE6MTEuOTk3WiIsICJyZW5kZXJlZFJvbGUiOiAidXNlciIsICJyZW5kZXJlZEJlc2lkZVRvb2xSZXN1bHQiOiB0cnVlLCAidXNlclR5cGUiOiAiZXh0ZXJuYWwiLCAiZW50cnlwb2ludCI6ICJzZGstY2xpIiwgImN3ZCI6ICIvdG1wL2UyZSIsICJzZXNzaW9uSWQiOiAiMDg5MmQ5MzUtODViMi00NThhLWE2ZGItYjljZDEyYjZmZjg1IiwgInZlcnNpb24iOiAiMi4xLjI5OSIsICJnaXRCcmFuY2giOiAiSEVBRCJ9CnsicGFyZW50VXVpZCI6ICI3NmNlN2U3Ni1mNThhLTQ4YzYtYjJhOS1lN2EwY2YzOGJiZGIiLCAiaXNTaWRlY2hhaW4iOiBmYWxzZSwgImF0dGFjaG1lbnQiOiB7InR5cGUiOiAiZW52aXJvbm1lbnQifSwgInR5cGUiOiAiYXR0YWNobWVudCIsICJ1dWlkIjogIjdhOWJhMTUwLTUyNDYtNGZlMC05NjZiLTdiNTkwYzYyY2M1ZSIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxOTo0MToxMS45OThaIiwgInVzZXJUeXBlIjogImV4dGVybmFsIiwgImVudHJ5cG9pbnQiOiAic2RrLWNsaSIsICJjd2QiOiAiL3RtcC9lMmUiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSIsICJ2ZXJzaW9uIjogIjIuMS4yOTkiLCAiZ2l0QnJhbmNoIjogIkhFQUQifQp7InBhcmVudFV1aWQiOiAiN2E5YmExNTAtNTI0Ni00ZmUwLTk2NmItN2I1OTBjNjJjYzVlIiwgImlzU2lkZWNoYWluIjogZmFsc2UsICJtZXNzYWdlIjogeyJpZCI6ICJjaGF0Y21wbC02NCIsICJ0eXBlIjogIm1lc3NhZ2UiLCAicm9sZSI6ICJhc3Npc3RhbnQiLCAiY29udGVudCI6IFt7InR5cGUiOiAidGV4dCIsICJ0ZXh0IjogIlRoZSBwcm9qZWN0J3MgY29kZWJhc2UgZG9jdW1lbnRhdGlvbiBpcyBpbiB0aGUgY3VycmVudCBDTEFVREUubWQgZmlsZS4gVG8gbGF1bmNoIGFuZCB2aWV3IHRoZSBjaGFuZ2VzIG9uIGEgd29ya2luZyBjb3B5LCBvcGVuIGEgbmV3IENMQVVERS5tZCBmaWxlIHdpdGggdGhlIGArYCBidXR0b24sIGFuZCB1c2UgYGNsYXVkaXRgIHRvIHJldmlldyB0aGUgY29kZS4gVGhhdCB0b29sIHdpbGwgdGVsbCB5b3Ugd2hhdCB0aGUgY2hhbmdlcyBkbyBmb3IgdGhlIGN1cnJlbnQgZmVhdHVyZS4ifV0sICJtb2RlbCI6ICJxd2VuMi41OjAuNWIiLCAic3RvcF9yZWFzb24iOiAiZW5kX3R1cm4iLCAic3RvcF9zZXF1ZW5jZSI6IG51bGwsICJ1c2FnZSI6IHsiaW5wdXRfdG9rZW5zIjogMCwgImNhY2hlX2NyZWF0aW9uX2lucHV0X3Rva2VucyI6IDAsICJjYWNoZV9yZWFkX2lucHV0X3Rva2VucyI6IDAsICJvdXRwdXRfdG9rZW5zIjogNjgsICJvdXRwdXRfdG9rZW5zX2RldGFpbHMiOiB7InRoaW5raW5nX3Rva2VucyI6IDB9LCAic2VydmVyX3Rvb2xfdXNlIjogeyJ3ZWJfc2VhcmNoX3JlcXVlc3RzIjogMCwgIndlYl9mZXRjaF9yZXF1ZXN0cyI6IDB9LCAic2VydmljZV90aWVyIjogInN0YW5kYXJkIiwgImNhY2hlX2NyZWF0aW9uIjogeyJlcGhlbWVyYWxfMWhfaW5wdXRfdG9rZW5zIjogMCwgImVwaGVtZXJhbF81bV9pbnB1dF90b2tlbnMiOiAwfSwgImluZmVyZW5jZV9nZW8iOiAiIiwgIml0ZXJhdGlvbnMiOiBbXSwgInNwZWVkIjogInN0YW5kYXJkIiwgImZhbGxiYWNrX2NyZWRpdCI6IG51bGx9LCAic3RvcF9kZXRhaWxzIjogbnVsbH0sICJzZXJ2ZXJDbGFzc2lmaWVyUmVxdWVzdCI6ICJjMTcxMTk5ZS0yMTMwLTQwYzktYmM5MS03NzA0Y2IyMjljZTQiLCAiYXBpQmxvY2tJbmRleCI6IDAsICJyZXF1ZXN0ZWRNb2RlbCI6ICJxd2VuMi41OjAuNWIiLCAidHlwZSI6ICJhc3Npc3RhbnQiLCAidXVpZCI6ICIwYzcwNmU4YS1lY2YyLTQ3OTUtYTljMS05YTVkNjBmZjk1M2QiLCAidGltZXN0YW1wIjogIjIwMjYtMTAtMTRUMTk6NDI6MDUuMDAwWiIsICJlZmZvcnQiOiAiaGlnaCIsICJwZXJUdXJuRWZmb3J0IjogbnVsbCwgInVzZXJUeXBlIjogImV4dGVybmFsIiwgImVudHJ5cG9pbnQiOiAic2RrLWNsaSIsICJjd2QiOiAiL3RtcC9lMmUiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSIsICJ2ZXJzaW9uIjogIjIuMS4yOTkiLCAiZ2l0QnJhbmNoIjogIkhFQUQifQp7InBhcmVudFV1aWQiOiAiMGM3MDZlOGEtZWNmMi00Nzk1LWE5YzEtOWE1ZDYwZmY5NTNkIiwgImlzU2lkZWNoYWluIjogZmFsc2UsICJhdHRhY2htZW50IjogeyJ0eXBlIjogImVudmlyb25tZW50In0sICJ0eXBlIjogImF0dGFjaG1lbnQiLCAidXVpZCI6ICIzYmJiNTgzZS1hYWI4LTQwOGEtYjAzYy1jNDIwOGE0MDZmNmMiLCAidGltZXN0YW1wIjogIjIwMjYtMTAtMTRUMTk6NDI6MDUuMDIzWiIsICJ1c2VyVHlwZSI6ICJleHRlcm5hbCIsICJlbnRyeXBvaW50IjogInNkay1jbGkiLCAiY3dkIjogIi90bXAvZTJlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidmVyc2lvbiI6ICIyLjEuMjk5IiwgImdpdEJyYW5jaCI6ICJIRUFEIn0KeyJ0eXBlIjogImxhc3QtcHJvbXB0IiwgImxhc3RQcm9tcHQiOiAiVXNlIHRoZSBSZWFkIHRvb2wgdG8gcmVhZCAvdG1wL2UyZS9ub3RlLnR4dCBhbmQgdGVsbCBtZSBpdHMgY29udGVudHMuIiwgImxlYWZVdWlkIjogIjNiYmI1ODNlLWFhYjgtNDA4YS1iMDNjLWM0MjA4YTQwNmY2YyIsICJzZXNzaW9uSWQiOiAiMDg5MmQ5MzUtODViMi00NThhLWE2ZGItYjljZDEyYjZmZjg1In0KeyJ0eXBlIjogImF0aXMtbGF0Y2giLCAiYXRpcyI6ICIiLCAic2Vzc2lvbklkIjogIjA4OTJkOTM1LTg1YjItNDU4YS1hNmRiLWI5Y2QxMmI2ZmY4NSJ9CnsidHlwZSI6ICJjb3N0LXN0YXRlIiwgInNlc3Npb25JZCI6ICIwODkyZDkzNS04NWIyLTQ1OGEtYTZkYi1iOWNkMTJiNmZmODUiLCAidG90YWxDb3N0VVNEIjogMC4wMDEzNiwgInRvdGFsQVBJRHVyYXRpb24iOiA1Mjk5NiwgInRvdGFsQVBJRHVyYXRpb25XaXRob3V0UmV0cmllcyI6IDUyOTkzLCAidG90YWxUb29sRHVyYXRpb24iOiAwLCAidG90YWxMaW5lc0FkZGVkIjogMCwgInRvdGFsTGluZXNSZW1vdmVkIjogMCwgInRvdGFsRHVyYXRpb24iOiA1MzQxMSwgInN0YXJ0VGltZSI6IDE3OTIwMDY4NzE2MzQsICJtb2RlbFVzYWdlIjogeyJxd2VuMi41OjAuNWIiOiB7ImlucHV0VG9rZW5zIjogMCwgIm91dHB1dFRva2VucyI6IDY4LCAidGhpbmtpbmdUb2tlbnMiOiAwLCAiY2FjaGVSZWFkSW5wdXRUb2tlbnMiOiAwLCAiY2FjaGVDcmVhdGlvbklucHV0VG9rZW5zIjogMCwgIndlYlNlYXJjaFJlcXVlc3RzIjogMCwgImNvc3RVU0QiOiAwLjAwMTM2fX0sICJoYXNVbmtub3duTW9kZWxDb3N0IjogdHJ1ZX0K",
+    "m": 1740960000000
+   },
+   {
+    "op": "write",
+    "p": ".aider/analytics.jsonl",
+    "b": "eyJldmVudCI6Im1lc3NhZ2Vfc2VuZCIsInRpbWUiOjE3NDgwMDAwMDAsInByb3BlcnRpZXMiOnsicHJvbXB0X3Rva2VucyI6NSwiY29tcGxldGlvbl90b2tlbnMiOjF9fQo=",
+    "m": 1740960000000
+   },
+   {
+    "op": "write",
+    "p": ".local/share/opencode/opencode.db",
+    "b": "U1FMaXRlIGZvcm1hdCAzABAAAQEAQCAgAAAAAwAAAAIAAAAAAAAAAAAAAAEAAAAEAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAC5+Wg0AAAABD3wAD3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEBAQcXGxsBgVl0YWJsZW1lc3NhZ2VtZXNzYWdlAkNSRUFURSBUQUJMRSBtZXNzYWdlIChpZCBURVhULCBzZXNzaW9uX2lkIFRFWFQsIHRpbWVfY3JlYXRlZCBJTlRFR0VSLCB0aW1lX3VwZGF0ZWQgSU5URUdFUiwgZGF0YSBURVhUKQ0AAAACDjoADx0OOgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIFgAgcRDwkFgy1tMnMBlvzrSAB7InJvbGUiOiJhc3Npc3RhbnQiLCJtb2RlbElEIjoiY2xhdWRlLXNvbm5ldC00LTUiLCJwcm92aWRlcklEIjoiYW50aHJvcGljIiwidGltZSI6eyJjcmVhdGVkIjoxNzQ4MDAwMDAwMDAwfSwidG9rZW5zIjp7ImlucHV0IjoxMDIsIm91dHB1dCI6MTAsInJlYXNvbmluZyI6MiwiY2FjaGUiOnsicmVhZCI6NSwid3JpdGUiOjF9fSwicGF0aCI6eyJjd2QiOiIvdy9wIn19gWABBxEPCQWDLW0xcwGW/OtIAHsicm9sZSI6ImFzc2lzdGFudCIsIm1vZGVsSUQiOiJjbGF1ZGUtc29ubmV0LTQtNSIsInByb3ZpZGVySUQiOiJhbnRocm9waWMiLCJ0aW1lIjp7ImNyZWF0ZWQiOjE3NDAwMDAwMDA1MDB9LCJ0b2tlbnMiOnsiaW5wdXQiOjEwMSwib3V0cHV0IjoxMCwicmVhc29uaW5nIjoyLCJjYWNoZSI6eyJyZWFkIjo1LCJ3cml0ZSI6MX19LCJwYXRoIjp7ImN3ZCI6Ii93L3AifX0=",
+    "m": 1748735990000
+   },
+   {
+    "op": "write",
+    "p": ".copilot/session-store.db",
+    "b": "U1FMaXRlIGZvcm1hdCAzABAAAQEAQCAgAAAAAwAAAAIAAAAAAAAAAAAAAAEAAAAEAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAC5+Wg0AAAABDvYADvYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCBwEHFzk5AYMpdGFibGVhc3Npc3RhbnRfdXNhZ2VfZXZlbnRzYXNzaXN0YW50X3VzYWdlX2V2ZW50cwJDUkVBVEUgVEFCTEUgYXNzaXN0YW50X3VzYWdlX2V2ZW50cyAoaWQgSU5URUdFUiBQUklNQVJZIEtFWSwgc2Vzc2lvbl9pZCBURVhULCBtb2RlbCBURVhULCBpbnB1dF90b2tlbnMgSU5URUdFUiwgb3V0cHV0X3Rva2VucyBJTlRFR0VSLCBjYWNoZV9yZWFkX3Rva2VucyBJTlRFR0VSLCBjYWNoZV93cml0ZV90b2tlbnMgSU5URUdFUiwgY3JlYXRlZF9hdCBURVhUKQ0AAAACD68AD9cPrwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmAgkAERcBAQgJNWNzZ3B0LTUyBTIwMjUtMDUtMDFUMDA6MDA6MDFaJwEJABEXAQEBCDVjc2dwdC01ZBQDMjAyNS0wMS0wMVQwMDowMDowMFo=",
+    "m": 1748735990000
+   },
+   {
+    "op": "write",
+    "p": ".gemini/tmp/p/a/b/chats/session-5.jsonl",
+    "b": "eyJzZXNzaW9uSWQiOiAiZ2VtLXNlc3MtMSIsICJwcm9qZWN0SGFzaCI6ICJhYmMiLCAic3RhcnRUaW1lIjogIjIwMjYtMTAtMTRUMTA6MDA6MDAuMDAwWiIsICJraW5kIjogIm1haW4ifQp7ImlkIjogInUxIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDEwOjAwOjAxLjAwMFoiLCAidHlwZSI6ICJ1c2VyIiwgImNvbnRlbnQiOiAiaGkifQp7ImlkIjogIm0xIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDEwOjAwOjA1LjAwMFoiLCAidHlwZSI6ICJnZW1pbmkiLCAibW9kZWwiOiAiZ2VtaW5pLTIuNS1wcm8iLCAiY29udGVudCI6ICJhIiwgInRva2VucyI6IHsiaW5wdXQiOiAxMDAsICJvdXRwdXQiOiA1LCAiY2FjaGVkIjogNDAsICJ0aG91Z2h0cyI6IDMsICJ0b29sIjogMCwgInRvdGFsIjogMTA4fX0KeyJpZCI6ICJtMSIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxMDowMDowNS4wMDBaIiwgInR5cGUiOiAiZ2VtaW5pIiwgIm1vZGVsIjogImdlbWluaS0yLjUtcHJvIiwgImNvbnRlbnQiOiAiYWIiLCAidG9rZW5zIjogeyJpbnB1dCI6IDEwMCwgIm91dHB1dCI6IDEwLCAiY2FjaGVkIjogNDAsICJ0aG91Z2h0cyI6IDUsICJ0b29sIjogMiwgInRvdGFsIjogMTE3fX0KeyJpZCI6ICJtMiIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxMDowMDoyMC4wMDBaIiwgInR5cGUiOiAiZ2VtaW5pIiwgIm1vZGVsIjogImdlbWluaS0yLjUtZmxhc2giLCAiY29udGVudCI6ICJjIiwgInRva2VucyI6IHsiaW5wdXQiOiA1MCwgIm91dHB1dCI6IDcsICJjYWNoZWQiOiAwLCAidGhvdWdodHMiOiAwLCAidG9vbCI6IDAsICJ0b3RhbCI6IDU3fX0K",
+    "m": 1748735960000
+   },
+   {
+    "op": "write",
+    "p": ".gemini/tmp/p/a/b/c/chats/session-6.jsonl",
+    "b": "eyJzZXNzaW9uSWQiOiAiZ2VtLXNlc3MtMSIsICJwcm9qZWN0SGFzaCI6ICJhYmMiLCAic3RhcnRUaW1lIjogIjIwMjYtMTAtMTRUMTA6MDA6MDAuMDAwWiIsICJraW5kIjogIm1haW4ifQp7ImlkIjogInUxIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDEwOjAwOjAxLjAwMFoiLCAidHlwZSI6ICJ1c2VyIiwgImNvbnRlbnQiOiAiaGkifQp7ImlkIjogIm0xIiwgInRpbWVzdGFtcCI6ICIyMDI2LTEwLTE0VDEwOjAwOjA1LjAwMFoiLCAidHlwZSI6ICJnZW1pbmkiLCAibW9kZWwiOiAiZ2VtaW5pLTIuNS1wcm8iLCAiY29udGVudCI6ICJhIiwgInRva2VucyI6IHsiaW5wdXQiOiAxMDAsICJvdXRwdXQiOiA1LCAiY2FjaGVkIjogNDAsICJ0aG91Z2h0cyI6IDMsICJ0b29sIjogMCwgInRvdGFsIjogMTA4fX0KeyJpZCI6ICJtMSIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxMDowMDowNS4wMDBaIiwgInR5cGUiOiAiZ2VtaW5pIiwgIm1vZGVsIjogImdlbWluaS0yLjUtcHJvIiwgImNvbnRlbnQiOiAiYWIiLCAidG9rZW5zIjogeyJpbnB1dCI6IDEwMCwgIm91dHB1dCI6IDEwLCAiY2FjaGVkIjogNDAsICJ0aG91Z2h0cyI6IDUsICJ0b29sIjogMiwgInRvdGFsIjogMTE3fX0KeyJpZCI6ICJtMiIsICJ0aW1lc3RhbXAiOiAiMjAyNi0xMC0xNFQxMDowMDoyMC4wMDBaIiwgInR5cGUiOiAiZ2VtaW5pIiwgIm1vZGVsIjogImdlbWluaS0yLjUtZmxhc2giLCAiY29udGVudCI6ICJjIiwgInRva2VucyI6IHsiaW5wdXQiOiA1MCwgIm91dHB1dCI6IDcsICJjYWNoZWQiOiAwLCAidGhvdWdodHMiOiAwLCAidG9vbCI6IDAsICJ0b3RhbCI6IDU3fX0K",
+    "m": 1748735959000
+   },
+   {
+    "op": "write",
+    "p": ".claude/projects/-w-p/s4.jsonl",
+    "b": "eyJ0eXBlIjoic3VtbWFyeSIsInN1bW1hcnkiOiJSZWZhY3RvciBsb2dpbiBmbG93IiwibGVhZlV1aWQiOiJ1OSJ9CnsidHlwZSI6InVzZXIiLCJpc1NpZGVjaGFpbiI6ZmFsc2UsImlzTWV0YSI6dHJ1ZSwibWVzc2FnZSI6eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiI8bG9jYWwtY29tbWFuZC1jYXZlYXQ+aWdub3JlIG1lPC9sb2NhbC1jb21tYW5kLWNhdmVhdD4ifSwidGltZXN0YW1wIjoiMjAyNi0xMC0xNFQxMDowMDowMC4wMDBaIiwic2Vzc2lvbklkIjoiY2wtdG9vbHMtMSIsImN3ZCI6Ii93b3JrL2FwcCJ9CnsidHlwZSI6InVzZXIiLCJpc1NpZGVjaGFpbiI6ZmFsc2UsIm1lc3NhZ2UiOnsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiRml4IHRoZSBmYWlsaW5nIGxvZ2luIHRlc3QifSwidGltZXN0YW1wIjoiMjAyNi0xMC0xNFQxMDowMDowMS4wMDBaIiwic2Vzc2lvbklkIjoiY2wtdG9vbHMtMSIsImN3ZCI6Ii93b3JrL2FwcCJ9CnsidHlwZSI6ImFzc2lzdGFudCIsImlzU2lkZWNoYWluIjpmYWxzZSwibWVzc2FnZSI6eyJpZCI6Im0xIiwicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0aGlua2luZyIsInRoaW5raW5nIjoiaG1tIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJMZXQgbWUgbG9vayBhdCB0aGUgdGVzdC4ifV0sInN0b3BfcmVhc29uIjpudWxsfSwidGltZXN0YW1wIjoiMjAyNi0xMC0xNFQxMDowMDowMi4wMDBaIiwic2Vzc2lvbklkIjoiY2wtdG9vbHMtMSIsImN3ZCI6Ii93b3JrL2FwcCJ9CnsidHlwZSI6ImFzc2lzdGFudCIsImlzU2lkZWNoYWluIjpmYWxzZSwibWVzc2FnZSI6eyJpZCI6Im0xIiwicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3VzZSIsImlkIjoidDEiLCJuYW1lIjoiUmVhZCIsImlucHV0Ijp7ImZpbGVfcGF0aCI6Ii93b3JrL2FwcC9sb2dpbi50ZXN0LnRzIn19XSwic3RvcF9yZWFzb24iOiJ0b29sX3VzZSJ9LCJ0aW1lc3RhbXAiOiIyMDI2LTEwLTE0VDEwOjAwOjAzLjAwMFoiLCJzZXNzaW9uSWQiOiJjbC10b29scy0xIiwiY3dkIjoiL3dvcmsvYXBwIn0KeyJ0eXBlIjoidXNlciIsImlzU2lkZWNoYWluIjpmYWxzZSwibWVzc2FnZSI6eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoidDEiLCJjb250ZW50IjoiZmlsZSBjb250ZW50cyJ9XX0sInRpbWVzdGFtcCI6IjIwMjYtMTAtMTRUMTA6MDA6MDQuMDAwWiIsInNlc3Npb25JZCI6ImNsLXRvb2xzLTEiLCJjd2QiOiIvd29yay9hcHAifQp7InR5cGUiOiJhc3Npc3RhbnQiLCJpc1NpZGVjaGFpbiI6dHJ1ZSwibWVzc2FnZSI6eyJpZCI6InMxIiwicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6InN1Yi1hZ2VudCBjaGF0dGVyIn1dLCJzdG9wX3JlYXNvbiI6ImVuZF90dXJuIn0sInRpbWVzdGFtcCI6IjIwMjYtMTAtMTRUMTA6MDA6MDUuMDAwWiIsInNlc3Npb25JZCI6ImNsLXRvb2xzLTEiLCJjd2QiOiIvd29yay9hcHAifQp7InR5cGUiOiJhc3Npc3RhbnQiLCJpc1NpZGVjaGFpbiI6ZmFsc2UsIm1lc3NhZ2UiOnsiaWQiOiJtMiIsInJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJUaGUgdGVzdCBleHBlY3RlZCBhIDQwMTsgZml4ZWQuIn1dLCJzdG9wX3JlYXNvbiI6ImVuZF90dXJuIn0sInRpbWVzdGFtcCI6IjIwMjYtMTAtMTRUMTA6MDA6MDYuMDAwWiIsInNlc3Npb25JZCI6ImNsLXRvb2xzLTEiLCJjd2QiOiIvd29yay9hcHAifQp7InR5cGUiOiJ1c2VyIiwiaXNTaWRlY2hhaW4iOmZhbHNlLCJtZXNzYWdlIjp7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiVGhhbmtzLCBub3cgcnVuIGl0In1dfSwidGltZXN0YW1wIjoiMjAyNi0xMC0xNFQxMDowMTowMC4wMDBaIiwic2Vzc2lvbklkIjoiY2wtdG9vbHMtMSIsImN3ZCI6Ii93b3JrL2FwcCJ9Cg==",
+    "m": 1748735970000
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 6,
+      "files": 7
+     },
+     "news": [
+      "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+      "gemini:gem-sess-1:m1",
+      "gemini:gem-sess-1:m2",
+      "opencode:m2",
+      "copilot:cs:2",
+      "aider:1748000000000:5:1"
+     ],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   },
+   {
+    "op": "cursor",
+    "p": ".claude/projects/-w-p/s4.jsonl",
+    "c": "dropFp"
+   },
+   {
+    "op": "cursor",
+    "p": ".claude/projects/-w-p/s4.jsonl",
+    "c": "badIno"
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 0,
+      "files": 1
+     },
+     "news": [],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   },
+   {
+    "op": "cursor",
+    "p": ".claude/projects/-w-p/s4.jsonl",
+    "c": "dropFp"
+   },
+   {
+    "op": "cursor",
+    "p": ".claude/projects/-w-p/s4.jsonl",
+    "c": "inoOnly"
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 0,
+      "files": 1
+     },
+     "news": [],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   },
+   {
+    "op": "pad",
+    "p": ".claude/projects/-w-p/s5.jsonl",
+    "n": 9437184,
+    "m": 1748735980000
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 0,
+      "files": 1
+     },
+     "news": [],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s5.jsonl": {
+       "offset": 0,
+       "size": 9437184,
+       "mtimeMs": 1748735980000,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   },
+   {
+    "op": "append",
+    "p": ".claude/projects/-w-p/s5.jsonl",
+    "b": "CnsidHlwZSI6ImFzc2lzdGFudCIsInRpbWVzdGFtcCI6IjIwMjUtMDUtMzFUMjM6NTk6NTkuMDAwWiIsInNlc3Npb25JZCI6InMtYmlnIiwiY3dkIjoiL3cvYmlnIiwibWVzc2FnZSI6eyJpZCI6Im1zZ190YWlsIiwibW9kZWwiOiJjbGF1ZGUtc29ubmV0LTQtNSIsInVzYWdlIjp7ImlucHV0X3Rva2VucyI6MTAsIm91dHB1dF90b2tlbnMiOjUsImNhY2hlX3JlYWRfaW5wdXRfdG9rZW5zIjowLCJjYWNoZV9jcmVhdGlvbl9pbnB1dF90b2tlbnMiOjB9fSwicmVxdWVzdElkIjoicmVxX21zZ190YWlsIn0K",
+    "m": 1748735995000
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 1,
+      "files": 1
+     },
+     "news": [
+      "claude:msg_tail"
+     ],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "claude:msg_tail",
+       "ts": 1748735999000,
+       "source": "claude",
+       "via": "log",
+       "model": "claude-sonnet-4-5",
+       "input": 10,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "s-big",
+       "project": "big"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s5.jsonl": {
+       "offset": 9437469,
+       "size": 9437469,
+       "mtimeMs": 1748735995000,
+       "fp": "7e59e940f8c94f05f04690367ec70423c39e1310",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748735999000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
+    }
+   },
+   {
+    "op": "scan",
+    "res": {
+     "r": {
+      "added": 0,
+      "files": 0
+     },
+     "news": [],
+     "quotas": [],
+     "warns": [],
+     "recs": [
+      {
+       "key": "aider:1748000000000:5:1",
+       "ts": 1748000000000,
+       "source": "aider",
+       "via": "log",
+       "model": "unknown",
+       "input": 5,
+       "output": 1,
+       "cacheRead": 0,
+       "cacheWrite": 0
+      },
+      {
+       "key": "claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64",
+       "ts": 1792006925000,
+       "source": "claude",
+       "via": "log",
+       "model": "qwen2.5:0.5b",
+       "input": 0,
+       "output": 68,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "0892d935-85b2-458a-a6db-b9cd12b6ff85",
+       "project": "e2e"
+      },
+      {
+       "key": "claude:msg_tail",
+       "ts": 1748735999000,
+       "source": "claude",
+       "via": "log",
+       "model": "claude-sonnet-4-5",
+       "input": 10,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "s-big",
+       "project": "big"
+      },
+      {
+       "key": "copilot:cs:2",
+       "ts": 1746057601000,
+       "source": "copilot",
+       "via": "log",
+       "model": "gpt-5",
+       "input": 49,
+       "output": 5,
+       "cacheRead": 0,
+       "cacheWrite": 1,
+       "session": "cs"
+      },
+      {
+       "key": "gemini:gem-sess-1:m1",
+       "ts": 1791972005000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-pro",
+       "input": 62,
+       "output": 15,
+       "cacheRead": 40,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "gemini:gem-sess-1:m2",
+       "ts": 1791972020000,
+       "source": "gemini",
+       "via": "log",
+       "model": "gemini-2.5-flash",
+       "input": 50,
+       "output": 7,
+       "cacheRead": 0,
+       "cacheWrite": 0,
+       "session": "gem-sess-1",
+       "project": "b"
+      },
+      {
+       "key": "opencode:m2",
+       "ts": 1748000000000,
+       "source": "opencode",
+       "via": "log",
+       "provider": "anthropic",
+       "model": "claude-sonnet-4-5",
+       "input": 102,
+       "output": 12,
+       "cacheRead": 5,
+       "cacheWrite": 1,
+       "session": "s",
+       "project": "p"
+      }
+     ],
+     "curs": {
+      ".aider/analytics.jsonl": {
+       "offset": 98,
+       "size": 98,
+       "mtimeMs": 1740960000000,
+       "fp": "dbd55f1ab3b54a4185c326357e0f6b4c488a4b7e",
+       "fpLen": 98,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s1.jsonl": {
+       "offset": 7440,
+       "size": 7440,
+       "mtimeMs": 1740960000000,
+       "fp": "62bf3d32a71780302756131d4a9b8719d69a31f7",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s4.jsonl": {
+       "offset": 1975,
+       "size": 1975,
+       "mtimeMs": 1748735970000,
+       "fp": "477527920c721a54ccac5389533d3c9a9d3008c0",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".claude/projects/-w-p/s5.jsonl": {
+       "offset": 9437469,
+       "size": 9437469,
+       "mtimeMs": 1748735995000,
+       "fp": "7e59e940f8c94f05f04690367ec70423c39e1310",
+       "fpLen": 256,
+       "state": {},
+       "hasId": true
+      },
+      ".copilot/session-store.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 2
+       },
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/c/chats/session-6.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735959000,
+       "hasId": false
+      },
+      ".gemini/tmp/p/a/b/chats/session-5.jsonl": {
+       "offset": 819,
+       "size": 819,
+       "mtimeMs": 1748735960000,
+       "hasId": false
+      },
+      ".local/share/opencode/opencode.db": {
+       "offset": 8192,
+       "size": 8192,
+       "mtimeMs": 1748735990000,
+       "state": {
+        "sig": "8192:1748735990000:",
+        "last": 1748000000000
+       },
+       "hasId": false
+      }
+     },
+     "recsRaw": [
+      "{\"key\":\"aider:1748000000000:5:1\",\"ts\":1748000000000,\"source\":\"aider\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":1,\"cacheRead\":0,\"cacheWrite\":0}",
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"claude:msg_tail\",\"ts\":1748735999000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"claude-sonnet-4-5\",\"input\":10,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s-big\",\"project\":\"big\"}",
+      "{\"key\":\"copilot:cs:2\",\"ts\":1746057601000,\"source\":\"copilot\",\"via\":\"log\",\"model\":\"gpt-5\",\"input\":49,\"output\":5,\"cacheRead\":0,\"cacheWrite\":1,\"session\":\"cs\"}",
+      "{\"key\":\"gemini:gem-sess-1:m1\",\"ts\":1791972005000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-pro\",\"input\":62,\"output\":15,\"cacheRead\":40,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"gemini:gem-sess-1:m2\",\"ts\":1791972020000,\"source\":\"gemini\",\"via\":\"log\",\"model\":\"gemini-2.5-flash\",\"input\":50,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"gem-sess-1\",\"project\":\"b\"}",
+      "{\"key\":\"opencode:m2\",\"ts\":1748000000000,\"source\":\"opencode\",\"via\":\"log\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet-4-5\",\"input\":102,\"output\":12,\"cacheRead\":5,\"cacheWrite\":1,\"session\":\"s\",\"project\":\"p\"}"
+     ]
     }
    }
   ]
@@ -5085,7 +6484,14 @@
        },
        "hasId": true
       }
-     }
+     },
+     "recsRaw": [
+      "{\"key\":\"claude:0892d935-85b2-458a-a6db-b9cd12b6ff85:chatcmpl-64\",\"ts\":1792006925000,\"source\":\"claude\",\"via\":\"log\",\"model\":\"qwen2.5:0.5b\",\"input\":0,\"output\":68,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"0892d935-85b2-458a-a6db-b9cd12b6ff85\",\"project\":\"e2e\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:15\",\"ts\":1792012632794,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":4651,\"output\":3,\"cacheRead\":3,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3:25\",\"ts\":1792012634008,\"source\":\"dsh\",\"via\":\"log\",\"provider\":\"nomi\",\"model\":\"qwen2.5:0.5b\",\"input\":13,\"output\":3,\"cacheRead\":4656,\"cacheWrite\":0,\"session\":\"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\",\"project\":\"work\"}",
+      "{\"key\":\"kimi:msg-legacy-1\",\"ts\":1792000010250,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":120,\"output\":30,\"cacheRead\":900,\"cacheWrite\":40,\"session\":\"s\"}",
+      "{\"key\":\"kimi:msg-legacy-2\",\"ts\":1792000030000,\"source\":\"kimi\",\"via\":\"log\",\"model\":\"unknown\",\"input\":5,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0,\"session\":\"s\"}"
+     ]
     }
    }
   ]

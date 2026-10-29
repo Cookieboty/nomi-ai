@@ -144,6 +144,13 @@ func TestUsageScannerParity(t *testing.T) {
 				}
 				var got any = "__none__"
 				switch st.Op {
+				case "pad":
+					_ = os.MkdirAll(filepath.Dir(abs), 0o755)
+					if err := os.WriteFile(abs, bytes.Repeat([]byte{'y'}, st.N), 0o644); err != nil {
+						t.Fatal(err)
+					}
+					mt := time.UnixMilli(int64(st.M))
+					_ = os.Chtimes(abs, mt, mt)
 				case "write", "append", "gen":
 					_ = os.MkdirAll(filepath.Dir(abs), 0o755)
 					var data []byte
@@ -187,6 +194,8 @@ func TestUsageScannerParity(t *testing.T) {
 							next.Fp, next.FpLen = nil, nil
 						case "badIno":
 							next.Ino, next.Dev = f64p(12345), f64p(1)
+						case "inoOnly":
+							next.Ino = f64p(12345)
 						case "rev1":
 							ns := map[string]any{}
 							for k, v := range c.State {
@@ -231,6 +240,13 @@ func TestUsageScannerParity(t *testing.T) {
 					} else {
 						res["news"] = normJSON(t, news)
 						res["recs"] = normJSON(t, recs)
+						raws := []string{}
+						all := l.All()
+						sort.SliceStable(all, func(i, j int) bool { return all[i].Key < all[j].Key })
+						for i := range all {
+							raws = append(raws, stringifyRec(all[i]))
+						}
+						res["recsRaw"] = raws
 					}
 					got = normJSON(t, res)
 				}

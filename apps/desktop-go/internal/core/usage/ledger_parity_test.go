@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,12 @@ func TestUsageLedgerParity(t *testing.T) {
 				switch name {
 				case "upsert":
 					r := un[UsageRecord](t, a[0])
+					for _, f := range recFields { // 录制端的 undefined 自有属性
+						fv := reflect.ValueOf(&r).Elem().Field(f.idx)
+						if f.kind == 'S' && !fv.IsNil() && fv.Elem().String() == "__undef__" {
+							fv.Set(reflect.Zero(fv.Type()))
+						}
+					}
 					v = l.Upsert(&r)
 				case "attribute":
 					p := un[attrArg](t, a[1])
@@ -120,6 +127,16 @@ func TestUsageLedgerParity(t *testing.T) {
 						v = r
 					} else {
 						v = "__undef__"
+					}
+				case "getRaw":
+					if r := l.Get(un[string](t, a[0])); r != nil {
+						v = stringifyRec(r)
+					} else {
+						v = "null"
+					}
+				case "fileRaw":
+					if b := readFile(); b != nil {
+						v = string(b)
 					}
 				case "has":
 					v = l.Has(un[string](t, a[0]))

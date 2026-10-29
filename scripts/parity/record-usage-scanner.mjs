@@ -109,6 +109,8 @@ const scenarios = [
   ] },
   { name: 'big-file', ops: [{ op: 'gen', p: CL, n: 1500, m: M(30) }, S, S, A(CL, '{"partial":', 5), S] },
   { name: 'budget', ops: [{ op: 'gen', p: CL, n: 24000, m: M(30) }, S, S, S] },
+  // 流式重复消息：后到的分档 / fast 追加到对象末尾（键序逐字节比对）
+  { name: 'claude-stream-merge', ops: [W(CL, [J(claudeLine('msg_m1', NOW - 9000)), J(claudeLine('msg_m1', NOW - 8000, { message: { id: 'msg_m1', model: 'claude-sonnet-4-5', usage: { input_tokens: 10, output_tokens: 7, cache_read_input_tokens: 0, cache_creation_input_tokens: 8, cache_creation: { ephemeral_1h_input_tokens: 4 }, speed: 'fast' } } })), J(claudeLine('msg_m2', NOW - 7000, { message: { id: 'msg_m2', model: 'claude-sonnet-4-5', usage: { input_tokens: 10, output_tokens: 7, cache_read_input_tokens: 0, cache_creation_input_tokens: 8, cache_creation: { ephemeral_1h_input_tokens: 4 }, speed: 'fast' } } }))].join(''), 10), S] },
   { name: 'long-line', ops: [W(CL, 'y'.repeat(300 * 1024), 30), S, A(CL, '\n' + JSON.stringify(claudeLine('msg_after', NOW - 1000)) + '\n', 5), S] },
   { name: 'route-dedup', clearedAt: Date.parse('2025-01-01T00:00:00Z'), busy: ['codex'], ops: [
     { op: 'route', r: { key: 'route:1', ts: Date.parse('2025-01-15T10:00:00Z'), source: 'claude', via: 'route', model: 'claude-sonnet-4-5', input: 10, output: 5, cacheRead: 0, cacheWrite: 0, dur: 10 * 60_000 } },
@@ -120,6 +122,18 @@ const scenarios = [
     W('.aider/analytics.jsonl', J({ event: 'message_send', time: 1748000000, properties: { prompt_tokens: 5, completion_tokens: 1 } }), 200 * 86_400),
     W('.local/share/opencode/opencode.db', oc([['m1', 's', 1, 1740000001000, ocMsg(1, 1740000000500)], ['m2', 's', 1, 1748000000000, ocMsg(2, 1748000000000)]]), 10),
     S,
+  ] },
+  // 边界：mtime 恰为 since、旧 DB 行、gemini 深度 5/6、仅 ino 变化、超过单次预算的长行
+  { name: 'edges', retention: '90d', ops: [
+    W(CL, fx('claude-real.jsonl'), 90 * 86_400), W('.aider/analytics.jsonl', J({ event: 'message_send', time: 1748000000, properties: { prompt_tokens: 5, completion_tokens: 1 } }), 90 * 86_400),
+    W('.local/share/opencode/opencode.db', oc([['m1', 's', 1, 1748000000000, ocMsg(1, 1740000000500)], ['m2', 's', 1, 1748000000000, ocMsg(2, 1748000000000)]]), 10),
+    W('.copilot/session-store.db', cp([[1, 'cs', 'gpt-5', 100, 20, 3, 0, '2025-01-01T00:00:00Z'], [2, 'cs', 'gpt-5', 50, 5, 0, 1, '2025-05-01T00:00:01Z']]), 10),
+    W('.gemini/tmp/p/a/b/chats/session-5.jsonl', fx('gemini-session.jsonl'), 40), W('.gemini/tmp/p/a/b/c/chats/session-6.jsonl', fx('gemini-session.jsonl'), 41),
+    W(CL.replace('s1', 's4'), fx('claude-tools.jsonl'), 30), S,
+    { op: 'cursor', p: CL.replace('s1', 's4'), c: 'dropFp' }, { op: 'cursor', p: CL.replace('s1', 's4'), c: 'badIno' }, S,
+    { op: 'cursor', p: CL.replace('s1', 's4'), c: 'dropFp' }, { op: 'cursor', p: CL.replace('s1', 's4'), c: 'inoOnly' }, S,
+    { op: 'pad', p: CL.replace('s1', 's5'), n: 9 * 1024 * 1024, m: M(20) }, S,
+    A(CL.replace('s1', 's5'), '\n' + JSON.stringify(claudeLine('msg_tail', NOW - 1000)) + '\n', 5), S, S,
   ] },
   { name: 'env-homes', env: { CLAUDE_CONFIG_DIR: '~/alt-claude', DSH_HOME: 'DSHROOT', KIMI_HOME: '~/k' }, ops: [
     W('alt-claude/projects/p/a.jsonl', fx('claude-real.jsonl'), 30), W('dsh2/sessions/p/s/session.jsonl', fx('dsh-session.jsonl'), 30),
@@ -155,6 +169,10 @@ for (const sc of scenarios) {
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, genBig(o.n));
       utimesSync(abs, o.m / 1000, o.m / 1000);
+    } else if (o.op === 'pad') {
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, Buffer.alloc(o.n, 0x79));
+      utimesSync(abs, o.m / 1000, o.m / 1000);
     } else if (o.op === 'rewriteSameSize') {
       const b = readFileSync(abs);
       b[b.length - 2] = b[b.length - 2] === 0x7d ? 0x20 : 0x7d;
@@ -166,6 +184,7 @@ for (const sc of scenarios) {
       const c = ledger.cursor(abs);
       const next = o.c === 'dropFp' ? { ...c, fp: undefined, fpLen: undefined }
         : o.c === 'badIno' ? { ...c, ino: 12345, dev: 1 }
+          : o.c === 'inoOnly' ? { ...c, ino: 12345 }
           : o.c === 'rev1' ? { ...c, state: { ...c.state, rev: 1 } } : o.c;
       for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
       ledger.setCursor(abs, next);
@@ -184,6 +203,7 @@ for (const sc of scenarios) {
       const big = recs.length > 200;
       const digest = (a) => ({ n: a.length, keys: createHash('sha1').update(a.map((x) => x.key).join('\n')).digest('hex'), sum: a.reduce((t, x) => t + x.input + x.output + x.cacheRead + x.cacheWrite + x.ts, 0) });
       res = { r, news: big ? digest(ev.news.map((key) => ({ key, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ts: 0 }))) : ev.news, quotas: ev.quotas, warns: ev.warns.map((w) => w[1].file), recs: big ? digest(recs) : recs, curs };
+      if (!big) res.recsRaw = ledger.all().map((x) => JSON.stringify(x)).sort((a, b) => (JSON.parse(a).key < JSON.parse(b).key ? -1 : JSON.parse(a).key > JSON.parse(b).key ? 1 : 0)); // 逐字节：键序 / 原始值
     }
     steps.push({ ...o, res });
   }

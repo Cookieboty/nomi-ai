@@ -5,7 +5,7 @@ package shellhandlers
 import (
 	"path/filepath"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
@@ -51,7 +51,7 @@ func GatewayTerminalSource(g *gwstore.Service) func() *terminal.Source {
 		return &terminal.Source{
 			URL:     "http://127.0.0.1:" + i18n.JSNumber(port),
 			Clients: clients,
-			MetaOf:  func(ref string) *gwagents.ModelMeta { return g.AgentMeta(ref, nil) },
+			MetaOf:  func(ref string) *agents.ModelMeta { return g.AgentMeta(ref, nil) },
 			Catalog: catalog,
 		}
 	}

@@ -623,6 +623,11 @@ func TestCliLeavesGolden(t *testing.T) {
 		default:
 			gotObj.Set("v", unsub(o.v, sb, node))
 		}
+		// Windows：Node 在子进程被 kill 后立即 rmSync，目录句柄未释放时会残留（EBUSY，时序相关）；
+		// Go 侧清理成功不算偏差。
+		if name == "readGrokAuthStatus:tmpClean" && runtime.GOOS == "windows" {
+			continue
+		}
 		if ws, gs := util.Stringify(want), util.Stringify(gotObj); ws != gs {
 			t.Errorf("%s:\n node %s\n   go %s", name, ws, gs)
 		}

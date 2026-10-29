@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"log"
 	"path/filepath"
 	"time"
@@ -101,10 +102,10 @@ var _ delegate.Harness = delegateHarness{}
 
 // wireCoding 对齐 createCore.ts 的 CliUpdateService / DelegateService / SessionHistoryService 构造
 // 与 coding.ts 的 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
-// 网关（harnessGateway / servedSession）与账号（AccountService）尚未接入（gw / b7s），对应依赖为空（Node 侧可选）；
-// history.delete 的 shell.trashItem 端口未落地前按「此处不支持删除」返回。
+// 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关（harnessGateway / servedSession）尚未接入（gw），对应依赖为空（Node 侧可选）；
+// history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
 func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service) {
-	o := harnessOrch
+	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
 	jsrt.Run(func() {
@@ -134,6 +135,9 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	history := jsrt.Call(func() *cli.SessionHistoryService {
 		return cli.NewSessionHistoryService(cli.SessionHistoryDeps{
 			Logger: historyLog{},
+			Trash: func(p string) *jsrt.Promise[struct{}] {
+				return jsrt.Async(func() (struct{}, error) { return struct{}{}, trash.Item(p) })
+			},
 			OpenKeys: func() map[string]bool {
 				m := map[string]bool{}
 				for _, k := range o.OpenSessionKeys() {
@@ -145,6 +149,32 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 			OpenTab: func(x *util.Obj) cli.HistoryOpenTabResult {
 				r := o.OpenHistorySession(x)
 				return cli.HistoryOpenTabResult{Tab: r.Get("tab"), Reused: r.Get("reused") == true}
+			},
+			AccountLabel: func(b, id string) string {
+				if acc == nil {
+					return ""
+				}
+				v, err := acc.HistoryAccountLabel(b, id)
+				if err != nil {
+					panic(rethrow(err))
+				}
+				l, _ := v.(string)
+				return l
+			},
+			SessionAccount: func(b, id string) *cli.HistoryAccount {
+				if acc == nil {
+					return nil
+				}
+				a, err := acc.HistorySessionAccount(b, id)
+				if err != nil {
+					panic(rethrow(err))
+				}
+				if a == nil {
+					return nil
+				}
+				id2, _ := a.Get("id").(string)
+				l, _ := a.Get("label").(string)
+				return &cli.HistoryAccount{ID: id2, Label: l}
 			},
 			SessionModel: func(b, id string) string {
 				m, _ := o.SessionModel(b, id)
@@ -164,4 +194,12 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		},
 	}
 	codinghandlers.RegisterCoding(router, svc)
+}
+
+// rethrow：账号服务的 JS 异常原样抛回（Node 侧依赖直接抛出）
+func rethrow(err error) any {
+	if t, ok := err.(jsrt.JSThrow); ok {
+		return t
+	}
+	return jsrt.JSThrow{Name: "Error", Message: err.Error()}
 }
