@@ -180,3 +180,52 @@ func reclone(v any) any {
 	c, _ := u.ParseString(u.Stringify(v))
 	return c
 }
+
+func TestParityMetrics(t *testing.T) {
+	fx := loadJSFixture(t, "helpers")
+	tl := tally{}
+	for _, mc := range fx.Get("metrics").([]any) {
+		mo := mc.(*u.Obj)
+		var clock float64 = 1000
+		opts := server.MetricsOptions{Now: func() float64 { return clock }}
+		if mo.Get("ci").(float64) == 1 {
+			c, h, r, ms, ws := 5, 3, 4, 3, 4
+			opts.CrossCap, opts.HealthCap, opts.ReservoirSize = &c, &h, &r
+			opts.Adaptive = server.AdaptiveOpts{MinSamples: &ms, WindowSize: &ws}
+		}
+		m := server.NewGatewayMetrics(opts)
+		for i, op := range mo.Get("ops").([]any) {
+			o := op.(*u.Obj)
+			clock = o.Get("now").(float64)
+			e := o.Get("e").(*u.Obj)
+			s := func(k string) string { v, _ := e.Get(k).(string); return v }
+			var losses []string
+			if arr, ok := e.Get("losses").([]any); ok {
+				for _, l := range arr {
+					losses = append(losses, l.(string))
+				}
+			}
+			m.Observe(server.MetricsObserve{Client: s("client"), Ingress: s("ingress"), Upstream: s("upstream"), UpstreamWire: s("upstreamWire"),
+				RouteQuality: s("routeQuality"), Losses: losses, E2eMs: numPtr(e.Get("e2eMs")), TtftMs: numPtr(e.Get("ttftMs")),
+				Provider: s("provider"), KeyID: s("keyId"), Outcome: s("outcome")})
+			if snap, ok := o.Get("snap").(string); ok {
+				got := u.Stringify(m.Snapshot())
+				if got != snap {
+					t.Logf("snapshot %d: got %s\nwant %s", i, got, snap)
+				}
+				tl.add("snapshot", got == snap)
+			}
+			if hs, ok := o.Get("hints").([]any); ok {
+				args := [][3]string{{"p1", "k1", "messages"}, {"p2", "k2", "chat"}, {"p3", "k1", "chat"}, {"p1", "k1", "responses"}}
+				for j, h := range hs {
+					got := u.Stringify(m.DemoteHint(args[j][0], args[j][1], args[j][2]).Obj())
+					if got != h.(string) {
+						t.Logf("hint %d/%d: got %s want %s", i, j, got, h)
+					}
+					tl.add("demoteHint", got == h.(string))
+				}
+			}
+		}
+	}
+	tl.report(t, "metrics")
+}

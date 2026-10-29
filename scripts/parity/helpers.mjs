@@ -95,5 +95,30 @@ export async function recordHelpers({ gw }) {
         for (const c of ['', 'claude', 'codex', 'nomi'])
           for (const hf of [true, false]) sk.push([w, h, b, c, hf, af.sessionKey(w, h, b, c, { hashFallback: hf })]);
 
-  return { estimate, reqTokens, calib, measured, failures, attempts, precommit, streamErr, burst, sealed, rejections, sk };
+  // metrics: scripted observes with small caps (eviction, demotion, snapshots)
+  const mt = await gw('src/metrics.ts');
+  const metrics = [];
+  for (const [ci, opts] of [[0, {}], [1, { crossCap: 5, healthCap: 3, reservoirSize: 4, adaptive: { minSamples: 3, windowSize: 4 } }]]) {
+    let clock = 1000;
+    const m = new mt.GatewayMetrics({ ...opts, now: () => clock });
+    const ops = [];
+    for (let i = 0; i < 300; i++) {
+      clock += Math.floor(rnd() * 20000);
+      const e = {
+        client: pick(['claude', 'codex', '', 'nomi', 'é-client', 'x'.repeat(40)]), ingress: pick(['messages', 'chat', '']),
+        upstream: pick([undefined, 'chat', 'responses', '']), upstreamWire: pick([undefined, 'messages', ' chat ']),
+        routeQuality: pick([undefined, 'lossless', 'good', 'degraded', 'bogus']), losses: pick([undefined, [], ['images', 'bogus'], ['signature', 'images', 'images']]),
+        e2eMs: pick([undefined, 5, 100, rnd() * 1000, -1, NaN]), ttftMs: pick([undefined, 1, rnd() * 300]),
+        provider: pick([undefined, 'p1', 'p2', ' p3 ', '']), keyId: pick([undefined, 'k1', 'k2']), outcome: pick([undefined, 'ok', 'ok', 'auth', 'rate-limit', 'upstream-5xx', 'client-cancel']),
+      };
+      for (const k of Object.keys(e)) if (e[k] === undefined) delete e[k];
+      m.observe(e);
+      const r = { e, now: clock };
+      if (i % 10 === 9) r.snap = JSON.stringify(m.snapshot());
+      if (i % 3 === 0) r.hints = [['p1', 'k1', 'messages'], ['p2', 'k2', 'chat'], ['p3', 'k1', 'chat'], ['p1', 'k1', 'responses']].map(([a, b, c]) => JSON.stringify(m.demoteHint(a, b, c)));
+      ops.push(r);
+    }
+    metrics.push({ ci, ops });
+  }
+  return { metrics, estimate, reqTokens, calib, measured, failures, attempts, precommit, streamErr, burst, sealed, rejections, sk };
 }
