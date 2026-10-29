@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
@@ -50,10 +52,21 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 	if !needsFull() {
 		t.Fatal("needsFull should be true before any catalog sync")
 	}
+	// PriceSync.save writes in the background with no flush API, so its root lives
+	// outside t.TempDir (whose cleanup fails on a racing write) and is removed with retries.
+	usageRoot, err := os.MkdirTemp("", "gw-pricesync-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 50 && os.RemoveAll(usageRoot) != nil; i++ {
+			time.Sleep(20 * time.Millisecond)
+		}
+	})
 	var inm []string
 	body := priceSyncAPI(150)
 	ps := usage.NewPriceSync(usage.PriceSyncDeps{
-		Root:      filepath.Join(ud, "usage"),
+		Root:      usageRoot,
 		OnData:    onData,
 		NeedsFull: needsFull,
 		FetchImpl: func(req *http.Request) (*http.Response, error) {
