@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 const DefaultMascotScale = 0.5
@@ -19,6 +20,59 @@ type VoiceSettings struct {
 	VoicePackPath    string  `json:"voicePackPath"`
 	VoiceMode        string  `json:"voiceMode"`
 	SfxEnabled       *bool   `json:"sfxEnabled,omitempty"`
+	// Raw：Node 里 voiceSettings 是普通对象，原样（含未知键、键序）读写；非 nil 时以它为准序列化（D-B9-3）
+	Raw *util.Obj `json:"-"`
+}
+
+type voiceSettingsJSON VoiceSettings
+
+func (v VoiceSettings) MarshalJSON() ([]byte, error) {
+	if v.Raw != nil {
+		return []byte(util.Stringify(v.Raw)), nil
+	}
+	return json.Marshal(voiceSettingsJSON(v))
+}
+
+func (v *VoiceSettings) UnmarshalJSON(b []byte) error {
+	var t voiceSettingsJSON
+	_ = json.Unmarshal(b, &t)
+	*v = VoiceSettings(t)
+	if pv, err := util.Parse(b); err == nil {
+		if o, ok := pv.(*util.Obj); ok {
+			v.Raw = o
+		}
+	}
+	return nil
+}
+
+// WithRaw：按对象设置（Node config.set('voiceSettings', obj)），类型化字段同步
+func VoiceSettingsFromObj(o *util.Obj) VoiceSettings {
+	var v VoiceSettings
+	_ = v.UnmarshalJSON([]byte(util.Stringify(o)))
+	return v
+}
+
+// mergeConfigs = ConfigService.mergeConfigs（深合并：对象递归，数组 / 标量覆盖；键序 = base 在前、新键追加）
+func mergeConfigs(base any, over *util.Obj) *util.Obj {
+	res := util.NewObj()
+	if b, ok := base.(*util.Obj); ok {
+		for _, k := range b.Keys() {
+			res.Set(k, b.Get(k))
+		}
+	}
+	for _, k := range over.Keys() {
+		v := over.Get(k)
+		if o, ok := v.(*util.Obj); ok {
+			cur := res.Get(k)
+			if !util.Truthy(cur) {
+				cur = nil
+			}
+			res.Set(k, mergeConfigs(cur, o))
+		} else {
+			res.Set(k, v)
+		}
+	}
+	return res
 }
 
 type WindowSettings struct {
@@ -81,7 +135,11 @@ func (s *ConfigService) Load() error {
 	if loaded.MascotScale == 0 {
 		loaded.MascotScale = s.def.MascotScale
 	}
-	if loaded.VoiceSettings.VoiceMode == "" {
+	// voiceSettings 按 Node mergeConfigs 与默认深合并，保留未知键与键序（D-B9-3）
+	if loaded.VoiceSettings.Raw != nil {
+		defObj, _ := util.Parse([]byte(mustJSON(s.def.VoiceSettings)))
+		loaded.VoiceSettings = VoiceSettingsFromObj(mergeConfigs(defObj, loaded.VoiceSettings.Raw))
+	} else {
 		loaded.VoiceSettings = s.def.VoiceSettings
 	}
 	if loaded.Environment == "" {
@@ -126,3 +184,5 @@ func (s *ConfigService) Reset() error {
 	s.mu.Unlock()
 	return s.Save()
 }
+
+func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
