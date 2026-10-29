@@ -346,5 +346,4 @@ func TestHarnessGolden(t *testing.T) {
 	t.Logf("compared %d harness cases (%s)", n, usage.Platform())
 }
 
-
 func b64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }

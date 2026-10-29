@@ -151,7 +151,7 @@ type lastTabSettings = *util.Obj
 
 type partialTurn struct {
 	text    string
-	breaks  []int
+	breaks  []float64
 	events  []*util.Obj
 	context *util.Obj
 	q       *turnQuality
