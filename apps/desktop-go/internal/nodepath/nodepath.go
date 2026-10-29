@@ -157,15 +157,21 @@ func (win32Path) IsAbsolute(p string) bool {
 // split 返回（盘符 "C:" 或 ""，是否从根开始，各段）
 func winSplit(p string) (string, bool, []string) {
 	drive := ""
+	if m := winUNC.FindStringSubmatch(p); m != nil {
+		// UNC：设备根 = \\server\share（同 Node win32 resolve），恒为 rooted
+		return `\\` + m[1] + `\` + m[2], true, splitWinSegs(p[len(m[0]):])
+	}
 	if winDrive.MatchString(p) {
 		drive, p = p[:2], p[2:]
 	}
 	rooted := p != "" && (p[0] == '\\' || p[0] == '/')
-	segs := []string{}
-	for _, s := range strings.FieldsFunc(p, func(r rune) bool { return r == '\\' || r == '/' }) {
-		segs = append(segs, s)
-	}
-	return drive, rooted, segs
+	return drive, rooted, splitWinSegs(p)
+}
+
+var winUNC = regexp.MustCompile(`^[\\/]{2}([^\\/]+)[\\/]+([^\\/]+)`)
+
+func splitWinSegs(p string) []string {
+	return append([]string{}, strings.FieldsFunc(p, func(r rune) bool { return r == '\\' || r == '/' })...)
 }
 
 func winNormSegs(segs []string, rooted bool) []string {
@@ -288,4 +294,39 @@ func (win32Path) Root(p string) string {
 		return drive + "\\"
 	}
 	return drive
+}
+
+// Tmpdir = os.tmpdir()（读环境变量，去掉结尾分隔符）。
+func Tmpdir() string {
+	if Platform() == "win32" {
+		p := os.Getenv("TEMP")
+		if p == "" {
+			p = os.Getenv("TMP")
+		}
+		if p == "" {
+			root := os.Getenv("SystemRoot")
+			if root == "" {
+				root = os.Getenv("windir")
+			}
+			p = root + `\temp`
+		}
+		if len(p) > 1 && strings.HasSuffix(p, `\`) && !strings.HasSuffix(p, `:\`) {
+			p = p[:len(p)-1]
+		}
+		return p
+	}
+	p := os.Getenv("TMPDIR")
+	if p == "" {
+		p = os.Getenv("TMP")
+	}
+	if p == "" {
+		p = os.Getenv("TEMP")
+	}
+	if p == "" {
+		p = "/tmp"
+	}
+	if len(p) > 1 && strings.HasSuffix(p, "/") {
+		p = p[:len(p)-1]
+	}
+	return p
 }
