@@ -12,6 +12,12 @@
   <body>
     <div id="st"></div>
     <div id="app"></div>
+    <script>
+      // 首帧即通知宿主显示窗口（= Electron ready-to-show）；不依赖 Wails runtime（它要到 load 后才注入）
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage('nomi:first-paint'); } catch (e) {}
+      }));
+    </script>
     <script type="module" src="./src/mascot.ts"></script>
   </body>
 </html>

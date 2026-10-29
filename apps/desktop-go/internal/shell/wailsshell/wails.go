@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	goruntime "runtime"
 	"sync"
 	"time"
 
@@ -62,8 +63,19 @@ type pageLoad struct {
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{}}
 	w.app = application.New(application.Options{
-		Name:    "Nomi",
-		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
+		Name:   "Nomi",
+		Assets: application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
+		// 页面首帧（mascot.html 尾部内联脚本发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
+		// 才 Show，这里按 Electron ready-to-show 的语义在首帧就显示（§3.4 D-B11-17）
+		RawMessageHandler: func(win application.Window, msg string, _ *application.OriginInfo) {
+			if msg != "nomi:first-paint" || win == nil {
+				return
+			}
+			hostports.Stage("first-paint " + win.Name())
+			if goruntime.GOOS == "darwin" {
+				application.InvokeAsync(func() { win.Show() })
+			}
+		},
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
