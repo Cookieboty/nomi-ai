@@ -3,6 +3,7 @@ package shellhandlers
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -34,7 +35,9 @@ func (s lineSink) Write(p []byte) (int, error) {
 
 func loadGoldenJSON(t *testing.T, name string, v any) {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", name))
+	// CI 用本平台现场录制（NOMI_LIVE_GOLDENS），本地用提交的 golden
+	p, _ := paritytest.Golden(t, name, filepath.Join("testdata", name))
+	b, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,9 +207,6 @@ func TestCliTraceParity(t *testing.T) {
 					args = append(args, a.(string))
 				}
 				cmd := op[1].(string)
-				if runtime.GOOS != "windows" {
-					// path.basename 在 POSIX 上不认反斜杠：与 filepath.Base 相同
-				}
 				tr.Tap(ch, cmd, args, op[3].(string))
 			case "in":
 				ch.stdin.Write(op[1].(string))

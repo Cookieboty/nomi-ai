@@ -4,7 +4,7 @@
  * 真实 createAiRouter（契约 implement：入参 / 出参 / 事件校验）+ new AIClient(ctx) + 主进程同款插件：
  * FileSessionStorePlugin(rootDir=沙箱) → UserPreferenceMemoryPlugin → AvatarSeamPlugin + MascotIpcHost（avatar.event 记录）。
  * 引导期同 createAiSdkBooter：apply 后 UserProfileKey.export()。Date.now 固定；会话 id 由 Go 侧按出现序替换。
- * 每步记录：输出 / 错误（code + message）、期间的契约事件、可选的画像文件内容。
+ * 每步记录：输出 / 线上错误（toErrorPayload：code + message + data）、期间的契约事件、可选的画像文件内容。
  *
  * Usage: node scripts/parity/record-b7s-aifacade.mjs
  */
@@ -27,6 +27,7 @@ const m = await importSources(root, {
   sdk: P('ai-sdk/src/index.ts'),
   router: P('ai-runtime/src/AiContractRouter.ts'),
   wire: P('contract/src/wire.ts'),
+  errors: P('contract/src/errors.ts'),
   bridge: P('core/src/ai/mascotBridge.ts'),
   ighost: P('ai-runtime/src/IgPluginHost.ts'),
 });
@@ -88,7 +89,8 @@ async function run(sc) {
         if (out === undefined) rec.undef = true;
         for (const id of JSON.stringify(out ?? null).match(/sess_[0-9a-z]+_[0-9a-z]+/g) ?? []) if (!ids.includes(id)) ids.push(id);
       } catch (err) {
-        rec.err = { code: err.code ?? 'INTERNAL', message: err.message };
+        // 线上错误形态（server.ts → toErrorPayload）：非 ContractError（AIClientError / Error）一律 INTERNAL
+        rec.err = JSON.parse(m.wire.encodeWireFrame(m.errors.toErrorPayload(err)));
       }
     }
     await new Promise((r) => setTimeout(r, 0));

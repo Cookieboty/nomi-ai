@@ -91,9 +91,9 @@ const run = (name, files, opts) => {
     importLegacy: opts.noImport ? undefined : (recs) => { if (opts.importThrows) throw new Error('nope'); imported.push(...recs); },
   });
   const res = { name, files, opts, imported: JSON.stringify(imported), warns: warns.length, requestsLeft: existsSync(join(dir, 'requests.json')),
-    traceDir: l.traceDir() === undefined ? null : l.traceDir().slice(dir.length), remaining: existsSync(join(dir, 'trace')) ? readdirSync(join(dir, 'trace')).sort() : null,
+    traceDir: l.traceDir() === undefined ? null : l.traceDir().slice(dir.length).replace(/\\/g, '/'), remaining: existsSync(join(dir, 'trace')) ? readdirSync(join(dir, 'trace')).sort() : null,
     legacyTrace: readLegacyGatewayTrace(dir) };
-  traceOn = !traceOn; res.traceDir2 = l.traceDir() === undefined ? null : l.traceDir().slice(dir.length);
+  traceOn = !traceOn; res.traceDir2 = l.traceDir() === undefined ? null : l.traceDir().slice(dir.length).replace(/\\/g, '/');
   res.prune2 = l.prune();
   l.dispose();
   rmSync(dir, { recursive: true, force: true });

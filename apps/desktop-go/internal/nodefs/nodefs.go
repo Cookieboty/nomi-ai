@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -78,4 +79,24 @@ func RmForce(p string) error {
 		err = os.RemoveAll(p)
 	}
 	return err
+}
+
+// MkdirpMessage = fs.mkdirSync(dir, {recursive:true}) 抛出的 message。
+// Node 的 MKDirpSync 遇到 ENOENT 会逐级向上建目录，父级是已存在的普通文件时报 ENOTDIR（Windows 上
+// Win32 给的是 PATH_NOT_FOUND；POSIX 本就是 ENOTDIR），path 仍是原始 dir。
+func MkdirpMessage(err error, dir string) string {
+	if Code(err) == "ENOENT" {
+		for p := filepath.Dir(dir); ; p = filepath.Dir(p) {
+			if st, e := os.Stat(p); e == nil {
+				if !st.IsDir() {
+					return fmt.Sprintf("ENOTDIR: %s, mkdir '%s'", UvDesc["ENOTDIR"], dir)
+				}
+				break
+			}
+			if filepath.Dir(p) == p {
+				break
+			}
+		}
+	}
+	return Message(err, "mkdir", dir)
 }
