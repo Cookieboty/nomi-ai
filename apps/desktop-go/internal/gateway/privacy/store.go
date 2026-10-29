@@ -125,7 +125,9 @@ func (s *SecretStore) Assign(kind, value string) string {
 }
 
 // ValueOf is valueOf.
-func (s *SecretStore) ValueOf(placeholder string) (string, bool) { return s.byPlaceholder.get(placeholder) }
+func (s *SecretStore) ValueOf(placeholder string) (string, bool) {
+	return s.byPlaceholder.get(placeholder)
+}
 
 // Find is find.
 func (s *SecretStore) Find(str string) []SecretSpan { return s.findUnits(u.ToUnits(str)) }

@@ -94,7 +94,9 @@ type rule struct {
 	notBefore func(c byte) bool
 }
 
-func isAlnum(c byte) bool { return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
+func isAlnum(c byte) bool {
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9'
+}
 func isWord(c byte) bool  { return isAlnum(c) || c == '_' }
 func isBound(c byte) bool { return isWord(c) || c == '-' }
 
@@ -129,8 +131,12 @@ func notDummy(v u.Units) bool {
 	return !dummyRe.MatchString(u.Projection(v)) && !repeated(v)
 }
 
-func hasLetter(p string) bool { return strings.IndexFunc(p, func(r rune) bool { return r < 128 && (r|32) >= 'a' && (r|32) <= 'z' }) >= 0 }
-func hasDigit(p string) bool  { return strings.IndexFunc(p, func(r rune) bool { return r >= '0' && r <= '9' }) >= 0 }
+func hasLetter(p string) bool {
+	return strings.IndexFunc(p, func(r rune) bool { return r < 128 && (r|32) >= 'a' && (r|32) <= 'z' }) >= 0
+}
+func hasDigit(p string) bool {
+	return strings.IndexFunc(p, func(r rune) bool { return r >= '0' && r <= '9' }) >= 0
+}
 
 func secretValue(v u.Units) bool {
 	p := u.Projection(v)
