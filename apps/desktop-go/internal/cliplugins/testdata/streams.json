@@ -1,0 +1,2734 @@
+[
+ {
+  "fn": "createGrokParser",
+  "id": "createGrokParser#1",
+  "lines": [
+   "{\"type\":\"usage\",\"usage\":{\"input_tokens\":12474,\"output_tokens\":139,\"cache_read_input_tokens\":7040}}",
+   "{\"type\":\"usage\",\"usage\":{\"input_tokens\":229,\"output_tokens\":33,\"cache_read_input_tokens\":19456}}",
+   "{\"type\":\"usage\",\"usage\":{\"input_tokens\":149,\"output_tokens\":16,\"cache_read_input_tokens\":19584}}",
+   "{\"type\":\"end\",\"text\":\"OK\",\"usage\":{\"input_tokens\":12852,\"cache_read_input_tokens\":46080,\"output_tokens\":188}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 19653
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 12474,
+      "outputTokens": 139,
+      "cacheReadTokens": 7040,
+      "contextTokens": 19653
+     }
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 19718
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 229,
+      "outputTokens": 33,
+      "cacheReadTokens": 19456,
+      "contextTokens": 19718
+     }
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 19749
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 149,
+      "outputTokens": 16,
+      "cacheReadTokens": 19584,
+      "contextTokens": 19749
+     }
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "OK",
+     "usage": {
+      "inputTokens": 12852,
+      "outputTokens": 188,
+      "cacheReadTokens": 46080
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createDshParser",
+  "id": "createDshParser#2",
+  "lines": [
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"inputTokens\":900,\"outputTokens\":50,\"cacheReadTokens\":100,\"totalTokens\":1050}}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"inputTokens\":200,\"outputTokens\":20,\"cacheReadTokens\":1000,\"totalTokens\":1220}}",
+   "{\"type\":\"final\",\"text\":\"OK\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 1050
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 1220
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "OK",
+     "usage": {
+      "inputTokens": 1100,
+      "outputTokens": 70,
+      "cacheReadTokens": 1100,
+      "contextTokens": 1220
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createGrokParser",
+  "id": "createGrokParser#3",
+  "lines": [
+   "{\"type\":\"usage\",\"usage\":{\"input_tokens\":229,\"output_tokens\":33,\"cache_read_input_tokens\":19456}}",
+   "{\"type\":\"usage\",\"usage\":{\"input_tokens\":3000,\"output_tokens\":10}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 19718
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 229,
+      "outputTokens": 33,
+      "cacheReadTokens": 19456,
+      "contextTokens": 19718
+     }
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 3010
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 3000,
+      "outputTokens": 10,
+      "contextTokens": 3010
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createDshParser",
+  "id": "createDshParser#4",
+  "lines": [
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"totalTokens\":250000}}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"inputTokens\":8000,\"outputTokens\":200}}",
+   "{\"type\":\"final\",\"text\":\"OK\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 250000
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 8200
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "OK",
+     "usage": {
+      "inputTokens": 8000,
+      "outputTokens": 200,
+      "contextTokens": 8200
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#1",
+  "lines": [
+   "{\"type\":\"stream_event\",\"event\":{\"delta\":{\"type\":\"text_delta\",\"text\":\"你好\"}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "你好"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#2",
+  "lines": [
+   "{\"type\":\"result\",\"session_id\":\"s1\",\"result\":\"完\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "完",
+     "sessionId": "s1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "createClaudeParser#3",
+  "lines": [
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"text\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Seg1\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"tool_use\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"sub\"}},\"parent_tool_use_id\":\"toolu_1\"}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"thinking\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"text\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Seg2\"}}}",
+   "{\"type\":\"result\",\"result\":\"Seg2\",\"session_id\":\"s\"}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"text\"}}}",
+   "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Next\"}}}"
+  ],
+  "outputs": [
+   [],
+   [
+    {
+     "type": "text-delta",
+     "text": "Seg1"
+    }
+   ],
+   [],
+   [],
+   [],
+   [
+    {
+     "type": "text-delta",
+     "text": "\n\n"
+    }
+   ],
+   [
+    {
+     "type": "text-delta",
+     "text": "Seg2"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "Seg2",
+     "sessionId": "s"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "text-delta",
+     "text": "Next"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#4",
+  "lines": [
+   "{\"type\":\"result\",\"is_error\":true,\"result\":\"API Error: 429\",\"session_id\":\"s\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "API Error: 429"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#5",
+  "lines": [
+   "{\"type\":\"result\",\"subtype\":\"error_max_turns\",\"session_id\":\"s\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "error_max_turns"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#6",
+  "lines": [
+   "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "ok"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#7",
+  "lines": [
+   "{\"type\":\"control_request\",\"request_id\":\"req-1\",\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"Bash\",\"input\":{\"command\":\"ls -la\"}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "permission",
+     "id": "req-1",
+     "summary": "Bash: ls -la",
+     "toolName": "Bash"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#8",
+  "lines": [
+   "{\"type\":\"control_request\",\"request_id\":\"x\",\"request\":{\"subtype\":\"initialize\"}}"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#9",
+  "lines": [
+   "{\"type\":\"control_request\",\"request_id\":\"exit-1\",\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"ExitPlanMode\",\"input\":{\"plan\":\"ship it\"}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "permission",
+     "id": "exit-1",
+     "summary": "ExitPlanMode: ship it",
+     "toolName": "ExitPlanMode",
+     "kind": "approve-plan"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#10",
+  "lines": [
+   "{\"type\":\"system\",\"subtype\":\"status\",\"status\":\"ok\",\"permissionMode\":\"acceptEdits\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "status",
+     "kind": "clear",
+     "permissionMode": "acceptEdits"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#11",
+  "lines": [
+   "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"tu1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "Bash",
+     "status": "start",
+     "detail": "tu1",
+     "input": "{\"command\":\"ls\"}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#12",
+  "lines": [
+   "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu1\",\"content\":\"ok\",\"is_error\":false}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "tu1",
+     "output": "ok"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#13",
+  "lines": [
+   "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu2\",\"content\":\"fail\",\"is_error\":true}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "error",
+     "detail": "tu2",
+     "output": "fail"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "createClaudeParser#14",
+  "lines": [
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"a\",\"name\":\"Read\"}]}}",
+   "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"a\",\"content\":\"x\"}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "Read",
+     "status": "start",
+     "detail": "a"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Read",
+     "status": "done",
+     "detail": "a",
+     "output": "x"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#15",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"id\":\"1\",\"type\":\"agent_message\",\"text\":\"ok\",\"status\":\"completed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "ok"
+    },
+    {
+     "type": "done",
+     "text": "ok"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#16",
+  "lines": [
+   "{\"type\":\"session\",\"sessionId\":\"session-1\",\"cwd\":\"/w\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "session-1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#17",
+  "lines": [
+   "{\"type\":\"text\",\"text\":\"hi\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "hi"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#18",
+  "lines": [
+   "{\"type\":\"final\",\"text\":\"all\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "all"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#19",
+  "lines": [
+   "{\"type\":\"tool_call\",\"callId\":\"c1\",\"tool\":\"bash\",\"input\":{}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "c1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#20",
+  "lines": [
+   "{\"type\":\"tool_result\",\"callId\":\"c1\",\"status\":\"error\",\"result\":\"x\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "error",
+     "detail": "c1",
+     "output": "x"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#21",
+  "lines": [
+   "{\"type\":\"tool_result\",\"callId\":\"c1\",\"status\":\"completed\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "c1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#22",
+  "lines": [
+   "{\"type\":\"error\",\"message\":\"boom\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "boom"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#23",
+  "lines": [
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"error\",\"error\":{\"message\":\"rate limited\"}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "rate limited"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#24",
+  "lines": [
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"completed\"}}"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#25",
+  "lines": [
+   "{\"type\":\"thinking\",\"text\":\"hmm\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "thinking",
+     "text": "hmm"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#26",
+  "lines": [
+   "not json"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "createDshParser",
+  "id": "createDshParser#27",
+  "lines": [
+   "{\"type\":\"tool_call\",\"callId\":\"a\",\"tool\":\"bash\"}",
+   "{\"type\":\"tool_call\",\"callId\":\"b\",\"tool\":\"edit\"}",
+   "{\"type\":\"tool_result\",\"callId\":\"b\",\"status\":\"completed\"}",
+   "{\"type\":\"tool_result\",\"callId\":\"a\",\"status\":\"error\"}",
+   "{\"type\":\"tool_result\",\"callId\":\"zz\",\"status\":\"completed\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "a"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "edit",
+     "status": "start",
+     "detail": "b"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "edit",
+     "status": "done",
+     "detail": "b"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "error",
+     "detail": "a"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "zz"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#28",
+  "lines": [
+   "{\"type\":\"text\",\"data\":\"hi\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "hi"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#29",
+  "lines": [
+   "{\"type\":\"tool_call\",\"toolCallId\":\"c1\",\"toolName\":\"read_file\",\"status\":\"in_progress\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "read_file",
+     "status": "start",
+     "detail": "c1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#30",
+  "lines": [
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"c1\",\"status\":\"completed\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "c1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#31",
+  "lines": [
+   "{\"type\":\"end\",\"sessionId\":\"s1\",\"stopReason\":\"end_turn\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "s1"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#32",
+  "lines": [
+   "{\"type\":\"error\",\"message\":\"boom\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "boom"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#33",
+  "lines": [
+   "{\"type\":\"thought\",\"data\":\"hmm\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "thinking",
+     "text": "hmm"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#34",
+  "lines": [
+   "{\"type\":\"usage\",\"usage\":{}}"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#35",
+  "lines": [
+   "not json"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#36",
+  "lines": [
+   "{\"type\":\"tool_call\",\"toolCallId\":\"img-1\",\"toolName\":\"image_generation\",\"status\":\"completed\",\"rawOutput\":{\"images\":[{\"b64_json\":\"iVBORw0KGgo=\",\"mime_type\":\"image/png\"}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "image_generation",
+     "status": "done",
+     "detail": "img-1",
+     "output": "{\"images\":[{\"b64_json\":\"iVBORw0KGgo=\",\"mime_type\":\"image/png\"}]}"
+    },
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](data:image/png;base64,iVBORw0KGgo=)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#37",
+  "lines": [
+   "{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/jpeg\",\"data\":\"iVBORw0KGgo=\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](data:image/jpeg;base64,iVBORw0KGgo=)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#38",
+  "lines": [
+   "{\"type\":\"text\",\"data\":\"https://example.com/readme\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "https://example.com/readme"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#39",
+  "lines": [
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"img-2\",\"toolName\":\"generate_image\",\"status\":\"completed\",\"rawOutput\":{\"image_url\":{\"url\":\"https://example.com/generated.png\"}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "generate_image",
+     "status": "done",
+     "detail": "img-2",
+     "output": "{\"image_url\":{\"url\":\"https://example.com/generated.png\"}}"
+    },
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](https://example.com/generated.png)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#40",
+  "lines": [
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Here is the image.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgo=\"}}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "Here is the image."
+    },
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](data:image/png;base64,iVBORw0KGgo=)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#41",
+  "lines": [
+   "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/jpeg\",\"data\":\"iVBORw0KGgo=\"}}]}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "toolu_1"
+    },
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](data:image/jpeg;base64,iVBORw0KGgo=)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#42",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"iVBORw0KGgo=\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "![Generated image 1](data:image/png;base64,iVBORw0KGgo=)\n\n"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#43",
+  "lines": [
+   "{\"type\":\"final\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/webp\",\"data\":\"iVBORw0KGgo=\"}}]}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "![Generated image 1](data:image/webp;base64,iVBORw0KGgo=)"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#44",
+  "lines": [
+   "{\"type\":\"result\",\"result\":[{\"type\":\"text\",\"text\":\"Claude\"},{\"type\":\"image\",\"source\":{\"data\":\"iVBORw0KGgo=\"}}]}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "Claude\n\n![Generated image 1](data:image/png;base64,iVBORw0KGgo=)"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#45",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"Codex\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgo=\"}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "Codex"
+    },
+    {
+     "type": "done",
+     "text": "Codex\n\n![Generated image 1](data:image/png;base64,iVBORw0KGgo=)"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#46",
+  "lines": [
+   "{\"type\":\"end\",\"text\":\"Grok\",\"output\":{\"images\":[{\"b64_json\":\"iVBORw0KGgo=\"}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "Grok\n\n![Generated image 1](data:image/png;base64,iVBORw0KGgo=)"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createGrokParser",
+  "id": "createGrokParser#47",
+  "lines": [
+   "{\"type\":\"tool_call\",\"toolCallId\":\"a\",\"toolName\":\"bash\",\"status\":\"in_progress\"}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"a\",\"status\":\"completed\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "a"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "done",
+     "detail": "a"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "createClaudeParser#48",
+  "lines": [
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"先看看目录\"},{\"type\":\"tool_use\",\"id\":\"a\",\"name\":\"Read\",\"input\":{\"file_path\":\"/w/a.ts\"}}]}}",
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":\"task1\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"b\",\"name\":\"Grep\",\"input\":{\"pattern\":\"x\"}}]}}",
+   "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"a\",\"content\":[{\"type\":\"text\",\"text\":\"line1\"},{\"type\":\"text\",\"text\":\"line2\"}]}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "thinking",
+     "text": "先看看目录"
+    },
+    {
+     "type": "tool",
+     "name": "Read",
+     "status": "start",
+     "detail": "a",
+     "input": "{\"file_path\":\"/w/a.ts\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Grep",
+     "status": "start",
+     "detail": "b",
+     "input": "{\"pattern\":\"x\"}",
+     "parentId": "task1"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Read",
+     "status": "done",
+     "detail": "a",
+     "output": "line1\nline2"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#49",
+  "lines": [
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"a\",\"name\":\"Write\",\"input\":{\"content\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "Write",
+     "status": "start",
+     "detail": "a",
+     "input": "{\"content\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n… (+8000)\"}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#50",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"id\":\"i1\",\"type\":\"command_execution\",\"command\":\"ls\",\"aggregated_output\":\"a\\nb\",\"exit_code\":2,\"status\":\"failed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "error",
+     "detail": "ls",
+     "id": "i1",
+     "input": "{\"command\":\"ls\"}",
+     "output": "a\nb"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#51",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"reasoning\",\"text\":\"想一下\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "thinking",
+     "text": "想一下"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#52",
+  "lines": [
+   "{\"type\":\"item.started\",\"item\":{\"id\":\"f1\",\"type\":\"file_change\",\"changes\":[{\"path\":\"a.ts\",\"kind\":\"update\"}]}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "apply_patch",
+     "status": "start",
+     "id": "f1",
+     "input": "{\"changes\":[{\"path\":\"a.ts\",\"kind\":\"update\"}]}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createGrokParser",
+  "id": "createGrokParser#53",
+  "lines": [
+   "{\"type\":\"tool_call\",\"toolCallId\":\"c\",\"toolName\":\"bash\",\"status\":\"in_progress\",\"rawInput\":{\"command\":\"ls\"}}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"c\",\"status\":\"completed\",\"rawOutput\":\"ok\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "c",
+     "input": "{\"command\":\"ls\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "done",
+     "detail": "c",
+     "output": "ok"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "parseDshLine#54",
+  "lines": [
+   "{\"type\":\"tool_result\",\"callId\":\"c\",\"tool\":\"x\",\"status\":\"error\",\"result\":\"no\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "x",
+     "status": "error",
+     "detail": "c",
+     "output": "no"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#55",
+  "lines": [
+   "{\"type\":\"result\",\"result\":\"ok\",\"session_id\":\"s\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"cache_read_input_tokens\":100},\"total_cost_usd\":0.5,\"duration_ms\":1234}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "ok",
+     "sessionId": "s",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 5,
+      "cacheReadTokens": 100,
+      "costUsd": 0.5,
+      "durationMs": 1234
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#56",
+  "lines": [
+   "{\"type\":\"result\",\"result\":\"x\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "x"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#57",
+  "lines": [
+   "{\"type\":\"system\",\"subtype\":\"api_retry\",\"attempt\":2,\"max_retries\":5}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "status",
+     "kind": "retry",
+     "attempt": 2,
+     "max": 5
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#58",
+  "lines": [
+   "{\"type\":\"system\",\"subtype\":\"status\",\"status\":\"compacting\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "status",
+     "kind": "compact"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#59",
+  "lines": [
+   "{\"type\":\"system\",\"subtype\":\"status\",\"status\":null}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#60",
+  "lines": [
+   "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":10,\"cached_input_tokens\":4,\"output_tokens\":8}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 4
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#61",
+  "lines": [
+   "{\"type\":\"error\",\"message\":\"Reconnecting... 2/5\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "status",
+     "kind": "reconnect",
+     "text": "Reconnecting... 2/5",
+     "attempt": 2,
+     "max": 5
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#62",
+  "lines": [
+   "{\"type\":\"error\",\"message\":\"boom\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "error",
+     "message": "boom"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "parseGrokLine#63",
+  "lines": [
+   "{\"type\":\"usage\",\"usage\":{\"inputTokens\":3,\"outputTokens\":4}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 7
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 3,
+      "outputTokens": 4,
+      "contextTokens": 7
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#64",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_started\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Read a.txt and report\", \"subagent_type\": \"general-purpose\", \"is_backgrounded\": false, \"spawn_depth\": 1, \"task_type\": \"local_agent\", \"uuid\": \"37da62ff-6585-4085-9a0d-32f4c8e790e4\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "running",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "label": "Read a.txt and report",
+     "agentType": "general-purpose",
+     "background": false
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#65",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_progress\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Reading a.txt\", \"subagent_type\": \"general-purpose\", \"usage\": {\"total_tokens\": 17053, \"tool_uses\": 1, \"duration_ms\": 2643}, \"last_tool_name\": \"Read\", \"uuid\": \"c0a8d362-fb02-4dcd-9e6c-11fbc6306e5e\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "progress",
+     "id": "ae8de0d6bf3fbd2d6",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "progress": "Reading a.txt",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 17053,
+      "durationMs": 2643
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#66",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_updated\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"patch\": {\"status\": \"completed\", \"end_time\": 1792387998042}, \"uuid\": \"c2911862-0b54-4482-b796-13e956271590\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#67",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_notification\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"status\": \"completed\", \"summary\": \"The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\\n\\n```\\nhello\\n```\\n\\nIt's a single line, `hello`, followed by a newline.\", \"usage\": {\"total_tokens\": 19148, \"tool_uses\": 1, \"duration_ms\": 5321}, \"uuid\": \"93ed9679-ede2-4ae7-a6e6-7cd37c8939a1\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "summary": "The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\n\n```\nhello\n```\n\nIt's a single line, `hello`, followed by a newline.",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 19148,
+      "durationMs": 5321
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#68",
+  "lines": [
+   "{\"type\":\"system\",\"subtype\":\"task_started\",\"task_id\":\"brn1\",\"description\":\"sleep\",\"task_type\":\"local_bash\",\"is_backgrounded\":false}"
+  ],
+  "outputs": [
+   []
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#69",
+  "lines": [
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_3\", \"type\": \"collab_tool_call\", \"tool\": \"spawn_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [], \"prompt\": \"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\", \"agents_states\": {}, \"status\": \"in_progress\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "spawn_agent",
+     "status": "start",
+     "id": "item_3",
+     "input": "{\"prompt\":\"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\"}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#70",
+  "lines": [
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_3\", \"type\": \"collab_tool_call\", \"tool\": \"spawn_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": \"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\", \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"pending_init\", \"message\": null}}, \"status\": \"completed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "spawn_agent",
+     "status": "done",
+     "id": "item_3",
+     "input": "{\"prompt\":\"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\",\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    },
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "running",
+     "callId": "item_3",
+     "label": "Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.",
+     "background": true
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#71",
+  "lines": [
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_4\", \"type\": \"collab_tool_call\", \"tool\": \"wait\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {}, \"status\": \"in_progress\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "wait_agent",
+     "status": "start",
+     "id": "item_4",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#72",
+  "lines": [
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_4\", \"type\": \"collab_tool_call\", \"tool\": \"wait\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"completed\", \"message\": \"hello\"}}, \"status\": \"completed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "wait_agent",
+     "status": "done",
+     "id": "item_4",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}",
+     "output": "hello"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "completed",
+     "summary": "hello"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#73",
+  "lines": [
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_5\", \"type\": \"collab_tool_call\", \"tool\": \"close_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {}, \"status\": \"in_progress\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "close_agent",
+     "status": "start",
+     "id": "item_5",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "parseCodexLine#74",
+  "lines": [
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_5\", \"type\": \"collab_tool_call\", \"tool\": \"close_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"completed\", \"message\": \"hello\"}}, \"status\": \"completed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "close_agent",
+     "status": "done",
+     "id": "item_5",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}",
+     "output": "hello"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "completed",
+     "summary": "hello"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createDshParser",
+  "id": "createDshParser#75",
+  "lines": [
+   "{\"type\":\"tool_call\",\"callId\":\"c1\",\"tool\":\"subagent\",\"input\":{\"prompt\":\"Audit the auth module\\nthen report\",\"run_in_background\":true}}",
+   "{\"type\":\"tool_result\",\"callId\":\"c1\",\"status\":\"completed\",\"result\":\"all good\"}",
+   "{\"type\":\"tool_call\",\"callId\":\"c2\",\"tool\":\"read_file\",\"input\":{}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "subagent",
+     "status": "start",
+     "detail": "c1",
+     "input": "{\"prompt\":\"Audit the auth module\\nthen report\",\"run_in_background\":true}"
+    },
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "c1",
+     "status": "running",
+     "callId": "c1",
+     "label": "Audit the auth module",
+     "background": true
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent",
+     "status": "done",
+     "detail": "c1",
+     "output": "all good"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "c1",
+     "status": "completed",
+     "summary": "all good"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "read_file",
+     "status": "start",
+     "detail": "c2"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "parseClaudeLine#76",
+  "lines": [
+   "{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"OK\",\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":14201,\"cache_read_input_tokens\":36548,\"output_tokens\":226,\"iterations\":[{\"input_tokens\":2,\"output_tokens\":8},{\"input_tokens\":2,\"cache_read_input_tokens\":25214,\"cache_creation_input_tokens\":321,\"output_tokens\":4}]},\"modelUsage\":{\"claude-haiku-5-5\":{\"inputTokens\":4,\"cacheReadInputTokens\":36548,\"cacheCreationInputTokens\":14201,\"contextWindow\":1000000},\"claude-tiny\":{\"inputTokens\":1,\"contextWindow\":200000}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "OK",
+     "usage": {
+      "inputTokens": 4,
+      "outputTokens": 226,
+      "cacheReadTokens": 36548,
+      "contextTokens": 25541,
+      "contextWindow": 1000000,
+      "model": "claude-haiku-5-5"
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "createClaudeParser#77",
+  "lines": [
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":null,\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":2,\"cache_read_input_tokens\":11334,\"output_tokens\":8}}}",
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":null,\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":2,\"cache_read_input_tokens\":25214,\"cache_creation_input_tokens\":321,\"output_tokens\":4}}}",
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":\"toolu_1\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":9,\"cache_read_input_tokens\":999999}}}",
+   "{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"OK\",\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":14201,\"cache_read_input_tokens\":36548,\"output_tokens\":226},\"modelUsage\":{\"claude-haiku-5-5\":{\"inputTokens\":4,\"cacheReadInputTokens\":36548,\"cacheCreationInputTokens\":14201,\"contextWindow\":1000000},\"claude-tiny\":{\"inputTokens\":1,\"contextWindow\":200000}}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 11344
+    },
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 25541
+    },
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "OK",
+     "usage": {
+      "inputTokens": 4,
+      "outputTokens": 226,
+      "cacheReadTokens": 36548,
+      "contextTokens": 25541,
+      "contextWindow": 1000000,
+      "model": "claude-haiku-5-5"
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "createClaudeParser#78",
+  "lines": [
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":null,\"message\":{\"model\":\"claude-opus-5-5\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":2,\"cache_read_input_tokens\":25214,\"cache_creation_input_tokens\":321,\"output_tokens\":4}}}",
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":null,\"message\":{\"model\":\"claude-opus-5-5\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":2,\"cache_read_input_tokens\":25214,\"cache_creation_input_tokens\":321,\"output_tokens\":4}}}",
+   "{\"type\":\"assistant\",\"parent_tool_use_id\":\"toolu_1\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"x\"}],\"usage\":{\"input_tokens\":9,\"cache_read_input_tokens\":999999}}}",
+   "{\"type\":\"system\",\"subtype\":\"compact_boundary\",\"compact_metadata\":{\"trigger\":\"auto\",\"pre_tokens\":372759,\"post_tokens\":15996}}",
+   "{\"type\":\"system\",\"subtype\":\"compact_boundary\",\"compact_metadata\":{}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "context",
+     "tokens": 25541,
+     "model": "claude-opus-5-5"
+    },
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "text",
+     "text": "x"
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": 15996
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": null
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "fx-claude-createClaudeParser",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_started\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Read a.txt and report\", \"subagent_type\": \"general-purpose\", \"is_backgrounded\": false, \"spawn_depth\": 1, \"task_type\": \"local_agent\", \"uuid\": \"37da62ff-6585-4085-9a0d-32f4c8e790e4\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_progress\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Reading a.txt\", \"subagent_type\": \"general-purpose\", \"usage\": {\"total_tokens\": 17053, \"tool_uses\": 1, \"duration_ms\": 2643}, \"last_tool_name\": \"Read\", \"uuid\": \"c0a8d362-fb02-4dcd-9e6c-11fbc6306e5e\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_updated\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"patch\": {\"status\": \"completed\", \"end_time\": 1792387998042}, \"uuid\": \"c2911862-0b54-4482-b796-13e956271590\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_notification\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"status\": \"completed\", \"summary\": \"The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\\n\\n```\\nhello\\n```\\n\\nIt's a single line, `hello`, followed by a newline.\", \"usage\": {\"total_tokens\": 19148, \"tool_uses\": 1, \"duration_ms\": 5321}, \"uuid\": \"93ed9679-ede2-4ae7-a6e6-7cd37c8939a1\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "running",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "label": "Read a.txt and report",
+     "agentType": "general-purpose",
+     "background": false
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "progress",
+     "id": "ae8de0d6bf3fbd2d6",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "progress": "Reading a.txt",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 17053,
+      "durationMs": 2643
+     }
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed"
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "summary": "The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\n\n```\nhello\n```\n\nIt's a single line, `hello`, followed by a newline.",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 19148,
+      "durationMs": 5321
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine+state",
+  "id": "fx-claude-parseClaudeLine+state",
+  "lines": [
+   "{\"type\": \"system\", \"subtype\": \"task_started\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Read a.txt and report\", \"subagent_type\": \"general-purpose\", \"is_backgrounded\": false, \"spawn_depth\": 1, \"task_type\": \"local_agent\", \"uuid\": \"37da62ff-6585-4085-9a0d-32f4c8e790e4\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_progress\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"description\": \"Reading a.txt\", \"subagent_type\": \"general-purpose\", \"usage\": {\"total_tokens\": 17053, \"tool_uses\": 1, \"duration_ms\": 2643}, \"last_tool_name\": \"Read\", \"uuid\": \"c0a8d362-fb02-4dcd-9e6c-11fbc6306e5e\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_updated\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"patch\": {\"status\": \"completed\", \"end_time\": 1792387998042}, \"uuid\": \"c2911862-0b54-4482-b796-13e956271590\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}",
+   "{\"type\": \"system\", \"subtype\": \"task_notification\", \"task_id\": \"ae8de0d6bf3fbd2d6\", \"run_id\": \"0mvetj6hm-f62fae88\", \"tool_use_id\": \"toolu_01Aa79DxQ2W1zbY5G3aHv4Rk\", \"status\": \"completed\", \"summary\": \"The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\\n\\n```\\nhello\\n```\\n\\nIt's a single line, `hello`, followed by a newline.\", \"usage\": {\"total_tokens\": 19148, \"tool_uses\": 1, \"duration_ms\": 5321}, \"uuid\": \"93ed9679-ede2-4ae7-a6e6-7cd37c8939a1\", \"session_id\": \"f2aac0cf-8c10-4e68-af81-2216b08740c4\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "running",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "label": "Read a.txt and report",
+     "agentType": "general-purpose",
+     "background": false
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "progress",
+     "id": "ae8de0d6bf3fbd2d6",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "progress": "Reading a.txt",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 17053,
+      "durationMs": 2643
+     }
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed"
+    }
+   ],
+   [
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "ae8de0d6bf3fbd2d6",
+     "status": "completed",
+     "callId": "toolu_01Aa79DxQ2W1zbY5G3aHv4Rk",
+     "summary": "The file `/work/a.txt` exists and has content. This is all of it, exactly as written:\n\n```\nhello\n```\n\nIt's a single line, `hello`, followed by a newline.",
+     "usage": {
+      "toolUses": 1,
+      "tokens": 19148,
+      "durationMs": 5321
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine+seq",
+  "id": "fx-codex",
+  "lines": [
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_3\", \"type\": \"collab_tool_call\", \"tool\": \"spawn_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [], \"prompt\": \"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\", \"agents_states\": {}, \"status\": \"in_progress\"}}",
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_3\", \"type\": \"collab_tool_call\", \"tool\": \"spawn_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": \"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\", \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"pending_init\", \"message\": null}}, \"status\": \"completed\"}}",
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_4\", \"type\": \"collab_tool_call\", \"tool\": \"wait\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {}, \"status\": \"in_progress\"}}",
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_4\", \"type\": \"collab_tool_call\", \"tool\": \"wait\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"completed\", \"message\": \"hello\"}}, \"status\": \"completed\"}}",
+   "{\"type\": \"item.started\", \"item\": {\"id\": \"item_5\", \"type\": \"collab_tool_call\", \"tool\": \"close_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {}, \"status\": \"in_progress\"}}",
+   "{\"type\": \"item.completed\", \"item\": {\"id\": \"item_5\", \"type\": \"collab_tool_call\", \"tool\": \"close_agent\", \"sender_thread_id\": \"01a152a6-34d4-78c3-beef-af03a8b9dca4\", \"receiver_thread_ids\": [\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"], \"prompt\": null, \"agents_states\": {\"01a152a6-794f-7ca3-bb0f-6a5d48965971\": {\"status\": \"completed\", \"message\": \"hello\"}}, \"status\": \"completed\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "tool",
+     "name": "spawn_agent",
+     "status": "start",
+     "id": "item_3",
+     "input": "{\"prompt\":\"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "spawn_agent",
+     "status": "done",
+     "id": "item_3",
+     "input": "{\"prompt\":\"Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.\",\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    },
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "running",
+     "callId": "item_3",
+     "label": "Read the file `a.txt` in the current workspace and report its full content exactly as text. Do not modify any files.",
+     "background": true
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "wait_agent",
+     "status": "start",
+     "id": "item_4",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "wait_agent",
+     "status": "done",
+     "id": "item_4",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}",
+     "output": "hello"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "completed",
+     "summary": "hello"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "close_agent",
+     "status": "start",
+     "id": "item_5",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "close_agent",
+     "status": "done",
+     "id": "item_5",
+     "input": "{\"agents\":[\"01a152a6-794f-7ca3-bb0f-6a5d48965971\"]}",
+     "output": "hello"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "01a152a6-794f-7ca3-bb0f-6a5d48965971",
+     "status": "completed",
+     "summary": "hello"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseClaudeLine",
+  "id": "edge-claude-line",
+  "lines": [
+   "not json",
+   "{bad",
+   "  {\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}}  ",
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}",
+   "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"is_error\":true}]}}",
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm 中文 😀\"}]}}",
+   "{\"type\":\"result\",\"result\":\"final\",\"session_id\":\"s1\",\"total_cost_usd\":0.12,\"duration_ms\":5,\"usage\":{\"input_tokens\":10,\"output_tokens\":3,\"cache_read_input_tokens\":2}}",
+   "{\"type\":\"result\",\"is_error\":true,\"subtype\":\"error_max_turns\"}",
+   "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s9\",\"model\":\"opus\"}"
+  ],
+  "outputs": [
+   [],
+   [],
+   [
+    {
+     "type": "text",
+     "text": "hi"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Bash",
+     "status": "start",
+     "detail": "t1",
+     "input": "{\"command\":\"ls\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "error",
+     "detail": "t1",
+     "output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n… (+1000)"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "hmm 中文 😀"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "final",
+     "sessionId": "s1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 3,
+      "cacheReadTokens": 2,
+      "costUsd": 0.12,
+      "durationMs": 5
+     }
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "error_max_turns"
+    }
+   ],
+   []
+  ]
+ },
+ {
+  "fn": "createClaudeParser",
+  "id": "edge-claude-stream",
+  "lines": [
+   "not json",
+   "{bad",
+   "  {\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}}  ",
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}",
+   "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"is_error\":true}]}}",
+   "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm 中文 😀\"}]}}",
+   "{\"type\":\"result\",\"result\":\"final\",\"session_id\":\"s1\",\"total_cost_usd\":0.12,\"duration_ms\":5,\"usage\":{\"input_tokens\":10,\"output_tokens\":3,\"cache_read_input_tokens\":2}}",
+   "{\"type\":\"result\",\"is_error\":true,\"subtype\":\"error_max_turns\"}",
+   "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s9\",\"model\":\"opus\"}"
+  ],
+  "outputs": [
+   [],
+   [],
+   [
+    {
+     "type": "text",
+     "text": "hi"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Bash",
+     "status": "start",
+     "detail": "t1",
+     "input": "{\"command\":\"ls\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "Bash",
+     "status": "error",
+     "detail": "t1",
+     "output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n… (+1000)"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "hmm 中文 😀"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "final",
+     "sessionId": "s1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 3,
+      "cacheReadTokens": 2,
+      "costUsd": 0.12,
+      "durationMs": 5
+     }
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "error_max_turns"
+    }
+   ],
+   []
+  ]
+ },
+ {
+  "fn": "parseCodexLine",
+  "id": "edge-codex-line",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"done\"}}",
+   "{\"type\":\"item.started\",\"item\":{\"type\":\"command_execution\",\"id\":\"c1\",\"command\":\"ls -la\"}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"id\":\"c1\",\"command\":\"ls\",\"aggregated_output\":\"a\\nb\",\"exit_code\":1}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\",\"id\":\"w1\"}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"reasoning\",\"text\":\"think\"}}",
+   "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":5,\"cached_input_tokens\":1,\"output_tokens\":2}}",
+   "{\"type\":\"thread.started\",\"thread_id\":\"th1\"}",
+   "{\"type\":\"error\",\"message\":\"boom\"}",
+   "{\"type\":\"turn.failed\",\"error\":{\"message\":\"x\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "done"
+    },
+    {
+     "type": "done",
+     "text": "done"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "ls -la",
+     "id": "c1",
+     "input": "{\"command\":\"ls -la\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "error",
+     "detail": "ls",
+     "id": "c1",
+     "input": "{\"command\":\"ls\"}",
+     "output": "a\nb"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "web_search",
+     "status": "done",
+     "id": "w1",
+     "input": "{}"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "think"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 5,
+      "outputTokens": 2,
+      "cacheReadTokens": 1
+     }
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "th1"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "boom"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "[object Object]"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseCodexLine+seq",
+  "id": "edge-codex-stream",
+  "lines": [
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"done\"}}",
+   "{\"type\":\"item.started\",\"item\":{\"type\":\"command_execution\",\"id\":\"c1\",\"command\":\"ls -la\"}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"id\":\"c1\",\"command\":\"ls\",\"aggregated_output\":\"a\\nb\",\"exit_code\":1}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\",\"id\":\"w1\"}}",
+   "{\"type\":\"item.completed\",\"item\":{\"type\":\"reasoning\",\"text\":\"think\"}}",
+   "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":5,\"cached_input_tokens\":1,\"output_tokens\":2}}",
+   "{\"type\":\"thread.started\",\"thread_id\":\"th1\"}",
+   "{\"type\":\"error\",\"message\":\"boom\"}",
+   "{\"type\":\"turn.failed\",\"error\":{\"message\":\"x\"}}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text",
+     "text": "done"
+    },
+    {
+     "type": "done",
+     "text": "done"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "start",
+     "detail": "ls -la",
+     "id": "c1",
+     "input": "{\"command\":\"ls -la\"}"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "bash",
+     "status": "error",
+     "detail": "ls",
+     "id": "c1",
+     "input": "{\"command\":\"ls\"}",
+     "output": "a\nb"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "web_search",
+     "status": "done",
+     "id": "w1",
+     "input": "{}"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "think"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 5,
+      "outputTokens": 2,
+      "cacheReadTokens": 1
+     }
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "th1"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "boom"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "[object Object]"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "parseGrokLine",
+  "id": "edge-grok-line",
+  "lines": [
+   "{\"type\":\"text\",\"data\":\"hello\"}",
+   "{\"type\":\"thought\",\"text\":\"th\"}",
+   "{\"type\":\"tool_call\",\"toolCallId\":\"g1\",\"title\":\"read_file\",\"rawInput\":{\"path\":\"/a\"}}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"g1\",\"status\":\"in_progress\"}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"g1\",\"status\":\"completed\",\"rawOutput\":\"ok\"}",
+   "{\"type\":\"tool_call\",\"toolCallId\":\"g2\",\"toolName\":\"generate_image\",\"status\":\"failed\",\"output\":\"nope\"}",
+   "{\"type\":\"usage\",\"usage\":{\"inputTokens\":4,\"outputTokens\":1},\"cost\":0.5}",
+   "{\"type\":\"usage\"}",
+   "{\"type\":\"end\",\"text\":\"bye\",\"sessionId\":\"gs\"}",
+   "{\"type\":\"error\"}",
+   "{\"type\":\"plan\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "hello"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "th"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "read_file",
+     "status": "start",
+     "detail": "g1",
+     "input": "{\"path\":\"/a\"}"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "g1",
+     "output": "ok"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "generate_image",
+     "status": "error",
+     "detail": "g2",
+     "output": "nope"
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 5
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 4,
+      "outputTokens": 1,
+      "costUsd": 0.5,
+      "contextTokens": 5
+     }
+    }
+   ],
+   [],
+   [
+    {
+     "type": "done",
+     "text": "bye",
+     "sessionId": "gs"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.grok-error"
+    }
+   ],
+   []
+  ]
+ },
+ {
+  "fn": "createGrokParser",
+  "id": "edge-grok-stream",
+  "lines": [
+   "{\"type\":\"text\",\"data\":\"hello\"}",
+   "{\"type\":\"thought\",\"text\":\"th\"}",
+   "{\"type\":\"tool_call\",\"toolCallId\":\"g1\",\"title\":\"read_file\",\"rawInput\":{\"path\":\"/a\"}}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"g1\",\"status\":\"in_progress\"}",
+   "{\"type\":\"tool_call_update\",\"toolCallId\":\"g1\",\"status\":\"completed\",\"rawOutput\":\"ok\"}",
+   "{\"type\":\"tool_call\",\"toolCallId\":\"g2\",\"toolName\":\"generate_image\",\"status\":\"failed\",\"output\":\"nope\"}",
+   "{\"type\":\"usage\",\"usage\":{\"inputTokens\":4,\"outputTokens\":1},\"cost\":0.5}",
+   "{\"type\":\"usage\"}",
+   "{\"type\":\"end\",\"text\":\"bye\",\"sessionId\":\"gs\"}",
+   "{\"type\":\"error\"}",
+   "{\"type\":\"plan\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "text-delta",
+     "text": "hello"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "th"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "read_file",
+     "status": "start",
+     "detail": "g1",
+     "input": "{\"path\":\"/a\"}"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "tool",
+     "name": "read_file",
+     "status": "done",
+     "detail": "g1",
+     "output": "ok"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "generate_image",
+     "status": "error",
+     "detail": "g2",
+     "output": "nope"
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 5
+    },
+    {
+     "type": "done",
+     "text": "",
+     "usage": {
+      "inputTokens": 4,
+      "outputTokens": 1,
+      "costUsd": 0.5,
+      "contextTokens": 5
+     }
+    }
+   ],
+   [],
+   [
+    {
+     "type": "done",
+     "text": "bye",
+     "sessionId": "gs"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.grok-error"
+    }
+   ],
+   []
+  ]
+ },
+ {
+  "fn": "parseDshLine",
+  "id": "edge-dsh-line",
+  "lines": [
+   "{\"type\":\"session\",\"sessionId\":\"d1\"}",
+   "{\"type\":\"session\"}",
+   "{\"type\":\"text\",\"text\":\"t\"}",
+   "{\"type\":\"thinking\",\"text\":\"z\"}",
+   "{\"type\":\"tool_call\",\"tool\":\"subagent\",\"callId\":\"k1\",\"input\":{\"description\":\"line1\\nline2\",\"run_in_background\":true}}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"inputTokens\":3,\"outputTokens\":2,\"cacheReadTokens\":1}}",
+   "{\"type\":\"tool_result\",\"tool\":\"x\",\"callId\":\"k1\",\"status\":\"error\",\"result\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"}",
+   "{\"type\":\"tool_call\",\"tool\":\"subagent_fork\",\"callId\":\"k2\",\"input\":\"plain\"}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"totalTokens\":50}}",
+   "{\"type\":\"tool_result\",\"callId\":\"k2\",\"result\":\"fine\"}",
+   "{\"type\":\"final\",\"text\":\"all done\"}",
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"error\",\"error\":{\"message\":\"bad\"}}}",
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"error\"}}",
+   "{\"type\":\"error\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "d1"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "text",
+     "text": "t"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "z"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent",
+     "status": "start",
+     "detail": "k1",
+     "input": "{\"description\":\"line1\\nline2\",\"run_in_background\":true}"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "tool",
+     "name": "x",
+     "status": "error",
+     "detail": "k1",
+     "output": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent_fork",
+     "status": "start",
+     "detail": "k2",
+     "input": "plain"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "tool",
+     "name": "tool",
+     "status": "done",
+     "detail": "k2",
+     "output": "fine"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "all done"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "bad"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.dsh-error"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.dsh-error"
+    }
+   ]
+  ]
+ },
+ {
+  "fn": "createDshParser",
+  "id": "edge-dsh-stream",
+  "lines": [
+   "{\"type\":\"session\",\"sessionId\":\"d1\"}",
+   "{\"type\":\"session\"}",
+   "{\"type\":\"text\",\"text\":\"t\"}",
+   "{\"type\":\"thinking\",\"text\":\"z\"}",
+   "{\"type\":\"tool_call\",\"tool\":\"subagent\",\"callId\":\"k1\",\"input\":{\"description\":\"line1\\nline2\",\"run_in_background\":true}}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"inputTokens\":3,\"outputTokens\":2,\"cacheReadTokens\":1}}",
+   "{\"type\":\"tool_result\",\"tool\":\"x\",\"callId\":\"k1\",\"status\":\"error\",\"result\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"}",
+   "{\"type\":\"tool_call\",\"tool\":\"subagent_fork\",\"callId\":\"k2\",\"input\":\"plain\"}",
+   "{\"type\":\"status\",\"phase\":\"step_end\",\"usage\":{\"totalTokens\":50}}",
+   "{\"type\":\"tool_result\",\"callId\":\"k2\",\"result\":\"fine\"}",
+   "{\"type\":\"final\",\"text\":\"all done\"}",
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"error\",\"error\":{\"message\":\"bad\"}}}",
+   "{\"type\":\"status\",\"phase\":\"turn_end\",\"reason\":{\"kind\":\"error\"}}",
+   "{\"type\":\"error\"}"
+  ],
+  "outputs": [
+   [
+    {
+     "type": "done",
+     "text": "",
+     "sessionId": "d1"
+    }
+   ],
+   [],
+   [
+    {
+     "type": "text",
+     "text": "t"
+    }
+   ],
+   [
+    {
+     "type": "thinking",
+     "text": "z"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent",
+     "status": "start",
+     "detail": "k1",
+     "input": "{\"description\":\"line1\\nline2\",\"run_in_background\":true}"
+    },
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "k1",
+     "status": "running",
+     "callId": "k1",
+     "label": "line1",
+     "background": true
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 6
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent",
+     "status": "error",
+     "detail": "k1",
+     "output": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "k1",
+     "status": "failed",
+     "summary": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent_fork",
+     "status": "start",
+     "detail": "k2",
+     "input": "plain"
+    },
+    {
+     "type": "agent",
+     "op": "start",
+     "id": "k2",
+     "status": "running",
+     "callId": "k2",
+     "background": false
+    }
+   ],
+   [
+    {
+     "type": "context",
+     "tokens": 50
+    }
+   ],
+   [
+    {
+     "type": "tool",
+     "name": "subagent_fork",
+     "status": "done",
+     "detail": "k2",
+     "output": "fine"
+    },
+    {
+     "type": "agent",
+     "op": "end",
+     "id": "k2",
+     "status": "completed",
+     "summary": "fine"
+    }
+   ],
+   [
+    {
+     "type": "done",
+     "text": "all done",
+     "usage": {
+      "inputTokens": 3,
+      "outputTokens": 2,
+      "cacheReadTokens": 1,
+      "contextTokens": 50
+     }
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "bad"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.dsh-error"
+    }
+   ],
+   [
+    {
+     "type": "error",
+     "message": "electron.common.dsh-error"
+    }
+   ]
+  ]
+ }
+]
