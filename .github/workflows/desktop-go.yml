@@ -67,7 +67,13 @@ jobs:
           go vet $TAGS ./... && go test $TAGS -race ./...
       - name: chatbg image parity (no -race; Electron goldens)
         working-directory: apps/desktop-go
-        run: go test -count=1 -run TestImageParity -v ./internal/core/chatbg/
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -count=1 -run '^TestImageParity$' -v ./internal/core/chatbg/ 2>&1 | tee chatbg-parity.log
+          # 严格：必须真正执行并通过（不能 skip / 未匹配到测试）
+          grep -q -- '--- PASS: TestImageParity' chatbg-parity.log
+          ! grep -q -- '--- SKIP: TestImageParity' chatbg-parity.log
       - name: frontend
         working-directory: apps/desktop-go/frontend
         run: ../../../node_modules/.bin/vite build --config vite.config.mts
