@@ -21,6 +21,8 @@ type Deps struct {
 	OpenChat    func()
 	SystemLangs []string
 	IsDark      func() bool
+	// LiveWindows：宿主存活窗口数（= host.liveWindows；onboarding.mascot 据此判断送达）
+	LiveWindows func() int
 }
 
 type Bundle struct {
@@ -32,6 +34,8 @@ type Bundle struct {
 	Settings   *settings.Store
 	// OnLocaleChange：界面语言变化后回调（= i18n.onChange，人设据此重算）
 	OnLocaleChange []func()
+	// OnStartupChange：启动偏好变化后回调（= startup.onChange，宿主据此显隐看板娘）
+	OnStartupChange []func(startup.State)
 }
 
 func Install(d Deps) *Bundle {
@@ -45,6 +49,9 @@ func Install(d Deps) *Bundle {
 	})
 	b.Startup = startup.New(filepath.Join(d.UserData, "startup.json"), func(s startup.State) {
 		r.Emit("startup.changed", s)
+		for _, fn := range b.OnStartupChange {
+			fn(s)
+		}
 	})
 	b.Locale = i18n.New(filepath.Join(d.UserData, "locale.json"), d.SystemLangs, func(s i18n.State) {
 		r.Emit("locale.changed", s)
@@ -57,6 +64,7 @@ func Install(d Deps) *Bundle {
 	}, func(p onboarding.Profile) {
 		r.Emit("onboarding.profileChanged", p)
 	})
+	b.Onboarding.SetMascotPorts(onboarding.MascotPorts{Publish: r.Emit, LiveWindows: d.LiveWindows})
 
 	r.Call("theme.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return b.Theme.Get(), nil

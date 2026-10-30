@@ -40,7 +40,7 @@ type Config struct {
 	// SaveChatBounds：对话窗口移动 / 缩放（防抖）与关闭时记下非最大化时的位置大小（config.chatWindowBounds）
 	SaveChatBounds func(b shell.SavedChatBounds)
 	// OnWindow：窗口生命周期（"created" 新建或重建完成且原生窗口已就位 / "closed" 当前窗口关闭 /
-	// "shown" show·restore / "moved" 窗口移动过）
+	// "user-closed" 用户关掉了当前窗口（紧跟 closed） / "shown" show·restore / "moved" 窗口移动过）
 	OnWindow func(k shell.WindowKind, event string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
 	Middleware func(http.Handler) http.Handler
@@ -309,6 +309,8 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		w.mu.Unlock()
 		if cur {
 			w.notify(k, "closed")
+			// 用户关的（Destroy 主动销毁时 cur 为 false）：= BrowserWindow 'close'（关闭看板娘即退出 / closeMain=quit）
+			w.notify(k, "user-closed")
 		}
 	})
 	for _, ev := range []events.WindowEventType{events.Common.WindowShow, events.Common.WindowRestore} {

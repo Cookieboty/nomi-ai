@@ -34,6 +34,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,6 +49,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mediahandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -107,7 +109,20 @@ func main() {
 			}
 		},
 		SystemLangs: systemLangs(),
-		IsDark:      func() bool { return false },
+		// = host.liveWindows（看板娘与对话窗口；sh 在外壳建好之前为 nil）
+		LiveWindows: func() int {
+			if sh == nil {
+				return 0
+			}
+			n := 0
+			for _, k := range []shell.WindowKind{shell.Mascot, shell.Chat} {
+				if sh.Visible(k) {
+					n++
+				}
+			}
+			return n
+		},
+		IsDark: func() bool { return false },
 	})
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
@@ -391,9 +406,29 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
+	// 窗口生命周期：看板娘控制器；用户关掉看板娘窗口 = 退出（WindowManager mainWindow 'close' → requestQuit）；
+	// 用户关掉主界面且「关闭主界面时：退出 Nomi」= 退出（shouldQuitOnMainClose）
+	var quitting atomic.Bool
+	quit := func() {
+		if quitting.CompareAndSwap(false, true) {
+			sh.Quit()
+		}
+	}
+	onWindow := func(k shell.WindowKind, event string) {
+		mascotCtl.WindowEvent(k, event)
+		if event != "user-closed" || quitting.Load() {
+			return
+		}
+		switch {
+		case k == shell.Mascot:
+			quit()
+		case k == shell.Chat && bundle.Startup.Get().CloseMain == "quit":
+			quit()
+		}
+	}
 	// 视图 = 2.0.4 的 renderer / ai-chat 包（frontend/build.mjs 构建）；灵动岛页由 islandPageMiddleware 生成
 	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: mascotCtl.WindowEvent,
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		OpenProviderPanel: func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
 		// = buildAiChatWindow restoreChatBounds / setupAiChatWindowEvents saveBounds（config.chatWindowBounds）
 		ChatBounds: func(areas []shell.Rect) shell.SavedChatBounds {
@@ -475,10 +510,38 @@ func main() {
 		}))
 	}
 
-	sh.Show(shell.Mascot)
-	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
-	if !sh.TrayAvailable() && ctl == "" {
-		sh.Show(shell.Chat)
+	// 启动偏好（Application.ts）：看板娘按 showMascot 显示；关掉看板娘时保证主界面可达（#55）
+	showMascot := bundle.Startup.Get().ShowMascot
+	var showMascotMu sync.Mutex
+	bundle.OnStartupChange = append(bundle.OnStartupChange, func(st startup.State) {
+		showMascotMu.Lock()
+		changed := st.ShowMascot != showMascot
+		showMascot = st.ShowMascot
+		showMascotMu.Unlock()
+		if !changed {
+			return
+		}
+		if st.ShowMascot {
+			sh.Show(shell.Mascot)
+			return
+		}
+		sh.Destroy(shell.Mascot)
+		if !sh.Visible(shell.Chat) {
+			sh.Show(shell.Chat)
+		}
+	})
+	if showMascot {
+		sh.Show(shell.Mascot)
+	}
+	// 启动后默认界面（planStartup）：首次引导等看板娘先出来再打开（ONBOARDING_OPEN_DELAY_MS）；defaultView=main 直接打开；
+	// 看板娘关着或没有托盘时也打开主界面，避免无界面。测量模式（NOMI_POC_CTL）不自动开，对话由 show-chat 显式打开
+	if ctl == "" {
+		switch {
+		case bundle.Onboarding.ShouldAutoOpen():
+			time.AfterFunc(1500*time.Millisecond, func() { sh.Show(shell.Chat) })
+		case bundle.Startup.Get().DefaultView == "main", !showMascot, !sh.TrayAvailable():
+			sh.Show(shell.Chat)
+		}
 	}
 	// 看板娘窗口的鼠标进出（WindowManager.setupMousePositionTracking）
 	if g, ok := sh.(shell.Geometry); ok {
