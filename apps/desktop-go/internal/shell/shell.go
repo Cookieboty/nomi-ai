@@ -57,3 +57,15 @@ type WindowControl interface {
 	// CursorPosition = screen.getCursorScreenPoint（DIP）
 	CursorPosition() (x, y int)
 }
+
+// MenuItem：托盘菜单项（与具体外壳无关；wailsshell 负责渲染）
+type MenuItem struct {
+	Label string
+	// Separator：分隔线；Radio：单选项（Checked 打勾）
+	Separator bool
+	Radio     bool
+	Checked   bool
+	Disabled  bool
+	Click     func()
+	Submenu   []MenuItem
+}

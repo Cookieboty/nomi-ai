@@ -49,9 +49,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mediahandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tray"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -433,7 +435,46 @@ func main() {
 	// 视图 = 2.0.4 的 renderer / ai-chat 包（frontend/build.mjs 构建）；灵动岛页由 islandPageMiddleware 生成
 	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
-		OpenProviderPanel: func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+		// = TrayManager（Application.ts new TrayManager）
+		TrayMenu: func() []shell.MenuItem {
+			return tray.Menu(tray.Deps{
+				T: i18n.T, TName: i18n.TName,
+				State: func() any { return gatewaySvc.State() },
+				Select: func(ref string) {
+					if err := gatewaySvc.SetAssignment("nomi", util.NewObj("models", util.NewObj("main", ref))); err != nil {
+						log.Printf("[tray] switch model failed: %v", err)
+					}
+				},
+				Locked: func() bool {
+					id, _ := providerSvc.State().Get("overrideId").(string)
+					return id != ""
+				},
+				CharacterName: func() string {
+					p := personaSvc.Get()
+					if p.ShortName != "" {
+						return p.ShortName
+					}
+					return p.DisplayName
+				},
+				OpenChat:          func() { sh.Show(shell.Chat) },
+				OpenProviderPanel: func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+				OpenDesktopPanel: func() {
+					shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "nav.desktopPanelRequested")
+				},
+				Gesture: func(name string) { deps.AvatarGesture(hostEvents{router}, name) },
+				// = sendMascotCommand({ type: 'open-panel', panel: 'interaction' })
+				OpenInteraction: func() {
+					router.Emit("mascot.command", map[string]any{"type": "open-panel", "panel": "interaction"})
+				},
+				Quit: quit,
+			})
+		},
+		// = onActivate: raiseMainOnReactivate（默认界面是主界面时打开主界面）
+		OnTrayActivate: func() {
+			if bundle.Startup.Get().DefaultView == "main" {
+				sh.Show(shell.Chat)
+			}
+		},
 		// = buildAiChatWindow restoreChatBounds / setupAiChatWindowEvents saveBounds（config.chatWindowBounds）
 		ChatBounds: func(areas []shell.Rect) shell.SavedChatBounds {
 			var saved *shell.SavedChatBounds
@@ -500,7 +541,6 @@ func main() {
 				}
 			}
 		},
-		ModelSettingsLabel: i18n.T("electron.common.model-settings"),
 		IslandLayout: func() (shell.Rect, string, bool) {
 			g, ok := isl.Layout()
 			if !ok {
@@ -521,6 +561,13 @@ func main() {
 		}))))})
 
 	shellP.AttachShell()
+	// 托盘菜单随模型（网关 / 供应商锁定）、界面语言、角色变化重建
+	if rt, ok := sh.(interface{ RebuildTray() }); ok {
+		gatewaySvc.OnChange(rt.RebuildTray)
+		providerSvc.OnChange(rt.RebuildTray)
+		bundle.OnLocaleChange = append(bundle.OnLocaleChange, rt.RebuildTray)
+		personaSvc.OnChange(func(persona.Persona) { rt.RebuildTray() })
+	}
 	isl.SetHost(islandHost(sh, desktopSvc))
 
 	if ctl != "" {

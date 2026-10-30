@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
+	"unicode/utf8"
 )
 
 //go:embed locales
@@ -153,4 +155,43 @@ func JSNumber(x float64) string {
 		return s
 	}
 	return strconv.FormatFloat(x, 'f', -1, 64)
+}
+
+// TName = tName：带角色名（{0}）的文案，名字两端按中文排版补空格（SpaceAround）
+func TName(key, name string, rest ...any) string {
+	return SpaceAround(T(key, append([]any{name}, rest...)...), name)
+}
+
+// SpaceAround = @nomi-ai/i18n spaceAround：插进句子里的 word 两端，拉丁字母 / 数字与汉字直接相邻时补一个空格
+// （「打开{0}」+「Ab」→「打开 Ab」）；汉字名、标点旁与已有空格的地方不动，只处理 word 的出现位置
+func SpaceAround(text, word string) string {
+	if word == "" || !strings.Contains(text, word) {
+		return text
+	}
+	w := []rune(word)
+	latin := func(r rune) bool { return r < 128 && (unicode.IsLetter(r) || unicode.IsDigit(r)) }
+	han := func(r rune) bool { return unicode.Is(unicode.Han, r) }
+	head, tail := latin(w[0]), latin(w[len(w)-1])
+	if !head && !tail {
+		return text
+	}
+	var out strings.Builder
+	rest := text
+	for {
+		i := strings.Index(rest, word)
+		if i < 0 {
+			break
+		}
+		out.WriteString(rest[:i])
+		if prev, _ := utf8.DecodeLastRuneInString(out.String()); head && han(prev) {
+			out.WriteByte(' ')
+		}
+		out.WriteString(word)
+		rest = rest[i+len(word):]
+		if next, _ := utf8.DecodeRuneInString(rest); tail && han(next) {
+			out.WriteByte(' ')
+		}
+	}
+	out.WriteString(rest)
+	return out.String()
 }

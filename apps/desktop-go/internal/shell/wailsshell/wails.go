@@ -52,10 +52,10 @@ type Config struct {
 	Middleware func(http.Handler) http.Handler
 	// IslandLayout：灵动岛窗口矩形（islandWindowRect(g, g.height)，屏幕绝对坐标）与页面地址；nil/false 用占位页
 	IslandLayout func() (rect shell.Rect, page string, ok bool)
-	// OpenProviderPanel：托盘「模型设置」（= TrayManager openProviderPanel）；nil 时不显示该项
-	OpenProviderPanel func()
-	// ModelSettingsLabel：该项文案（t('electron.common.model-settings')）
-	ModelSettingsLabel string
+	// TrayMenu：托盘菜单（core/tray.Menu）；nil 时只有「退出」
+	TrayMenu func() []shell.MenuItem
+	// OnTrayActivate：Windows 左键点托盘图标（= TrayManager onActivate：默认界面是主界面时打开主界面）
+	OnTrayActivate func()
 }
 
 type Wails struct {
@@ -142,22 +142,56 @@ func New(cfg Config) *Wails {
 	return w
 }
 
+// setupTray = TrayManager.start：菜单由 cfg.TrayMenu 生成（core/tray），变化时 RebuildTray；Windows 左键 = onActivate
 func (w *Wails) setupTray() {
 	t := w.app.SystemTray.New()
 	setTrayIcon(t)
-	t.SetLabel("Nomi")
-	m := w.app.NewMenu()
-	m.Add("显示 / 隐藏看板娘").OnClick(func(*application.Context) { w.toggle(shell.Mascot) })
-	m.Add("打开 / 关闭对话").OnClick(func(*application.Context) { w.toggle(shell.Chat) })
-	m.Add("显示通知条").OnClick(func(*application.Context) { w.toggle(shell.Island) })
-	if w.cfg.OpenProviderPanel != nil {
-		m.AddSeparator()
-		m.Add(w.cfg.ModelSettingsLabel).OnClick(func(*application.Context) { go w.cfg.OpenProviderPanel() })
+	t.SetTooltip("Nomi")
+	if goruntime.GOOS == "windows" && w.cfg.OnTrayActivate != nil {
+		t.OnClick(func() { go w.cfg.OnTrayActivate() })
 	}
-	m.AddSeparator()
-	m.Add("退出").OnClick(func(*application.Context) { w.Quit() })
-	t.SetMenu(m)
 	w.tray = t
+	w.RebuildTray()
+}
+
+// RebuildTray = TrayManager.rebuild（模型 / 界面语言 / 角色变化后重建菜单）
+func (w *Wails) RebuildTray() {
+	if w.tray == nil {
+		return
+	}
+	var items []shell.MenuItem
+	if w.cfg.TrayMenu != nil {
+		items = w.cfg.TrayMenu()
+	} else {
+		items = []shell.MenuItem{{Label: "Quit", Click: w.Quit}}
+	}
+	m := w.app.NewMenu()
+	fillMenu(m, items)
+	w.tray.SetMenu(m)
+}
+
+func fillMenu(m *application.Menu, items []shell.MenuItem) {
+	for _, it := range items {
+		switch {
+		case it.Separator:
+			m.AddSeparator()
+		case len(it.Submenu) > 0:
+			fillMenu(m.AddSubmenu(it.Label), it.Submenu)
+		default:
+			var mi *application.MenuItem
+			if it.Radio {
+				mi = m.AddRadio(it.Label, it.Checked)
+			} else {
+				mi = m.Add(it.Label)
+			}
+			if it.Disabled {
+				mi.SetEnabled(false)
+			}
+			if click := it.Click; click != nil {
+				mi.OnClick(func(*application.Context) { go click() })
+			}
+		}
+	}
 }
 
 func (w *Wails) TrayAvailable() bool { return w.tray != nil }
