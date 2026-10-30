@@ -16,7 +16,8 @@ import (
 func GatewayTerminalSource(g *gwstore.Service) func() *terminal.Source {
 	return func() *terminal.Source {
 		st := g.Status()
-		snap := g.Store.Snapshot()
+		view := g.Store.View() // 锁外读：已发布的只读快照（#195）
+		snap := view.Snapshot()
 		var port float64
 		if st.State == "running" {
 			port = float64(st.Port)
@@ -30,7 +31,7 @@ func GatewayTerminalSource(g *gwstore.Service) func() *terminal.Source {
 		sc, _ := snap.Get("clients").(*u.Obj)
 		for _, kind := range terminal.Kinds {
 			var tok *string
-			if t, ok := g.Store.ClientToken(kind); ok {
+			if t, ok := view.ClientToken(kind); ok {
 				tok = &t
 			}
 			models := u.NewObj()

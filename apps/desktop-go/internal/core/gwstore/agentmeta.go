@@ -7,9 +7,10 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
+// allProviders：锁外读，取自已发布快照（只读）
 func (s *Service) allProviders() []*u.Obj {
 	out := []*u.Obj{}
-	for _, p := range s.Store.Providers() {
+	for _, p := range s.Store.View().Providers() {
 		if o := asObj(p); o != nil {
 			out = append(out, o)
 		}
@@ -63,15 +64,16 @@ func (s *Service) ModelMetaOf(ref string, longContext *bool) *ResolvedModelMeta 
 		return nil
 	}
 	pid, mid := ref[:i], ref[i+1:]
-	for _, pv := range s.Store.Providers() {
+	st := s.Store.View()
+	for _, pv := range st.Providers() {
 		if p := asObj(pv); p != nil && p.Get("id") == pid {
-			r := s.Store.ModelMeta(p, mid, longContext)
+			r := st.ModelMeta(p, mid, longContext)
 			return &r
 		}
 	}
 	for _, e := range s.envViews() {
 		if e.Get("id") == pid {
-			r := s.Store.ModelMeta(u.NewObj("presetId", pid[4:], "models", e.Get("models")), mid, longContext)
+			r := st.ModelMeta(u.NewObj("presetId", pid[4:], "models", e.Get("models")), mid, longContext)
 			return &r
 		}
 	}

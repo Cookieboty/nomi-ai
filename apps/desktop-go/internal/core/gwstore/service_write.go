@@ -39,9 +39,13 @@ var (
 
 func trErr(key string, args ...any) error { return errors.New(i18n.T(key, args...)) }
 
-// lock：Node 单线程；Go 的修改串行，changed() 在锁外发（监听器可能回读 state）
-func (s *Service) lock()   { s.rt.mu.Lock() }
-func (s *Service) unlock() { s.rt.mu.Unlock() }
+// lock：Node 单线程；Go 的修改串行，changed() 在锁外发（监听器可能回读 state）。
+// unlock 前先发布快照（#195）：锁外读者经 Store.View() 只看到已提交的完整版本
+func (s *Service) lock() { s.rt.mu.Lock() }
+func (s *Service) unlock() {
+	s.Store.Publish()
+	s.rt.mu.Unlock()
+}
 
 // commitLocked：持锁落盘 + 推配置；返回解锁后要做的 changed
 func (s *Service) commitUnlock() error {
@@ -135,8 +139,8 @@ func (s *Service) findProvider(id string) *u.Obj {
 
 // State = state()
 func (s *Service) State() *u.Obj {
-	s.lock()
-	defer s.unlock()
+	s.rt.mu.Lock() // 只读：不用重新发布
+	defer s.rt.mu.Unlock()
 	return s.state()
 }
 
@@ -697,7 +701,7 @@ func (s *Service) PreviewPrivacy(text any) *u.Obj {
 	if t, ok := text.(string); ok {
 		str = u.UTF16Slice0(t, previewMax)
 	}
-	cfg := s.gatewayConfig()
+	cfg := s.gatewayConfig(s.Store.View())
 	pc := config.PrivacyConfig{}
 	if cfg.Privacy != nil {
 		pc = *cfg.Privacy
@@ -847,7 +851,7 @@ func (s *Service) AddPrivacyAllow(input any) (*u.Obj, error) {
 	if v, ok := strOf(o.Get("value")); ok && u.JSTrim(v) != "" {
 		v = u.UTF16Slice0(u.JSTrim(v), 256)
 		n := u.UTF16Len(v)
-		entry = u.NewObj("tag", privacy.AllowTagOf(s.Store.PrivacyKey(), v), "kind", "CUSTOM", "len", float64(n),
+		entry = u.NewObj("tag", privacy.AllowTagOf(s.Store.View().PrivacyKey(), v), "kind", "CUSTOM", "len", float64(n),
 			"head", u.UTF16Slice0(v, int(math.Min(4, math.Floor(float64(n)/4)))))
 	} else if t, ok := strOf(o.Get("tag")); ok && allowTagRe.MatchString(t) {
 		kind := "CUSTOM"
@@ -1039,12 +1043,13 @@ func (s *Service) Learn(e server.LearnEvent) {
 type DetectFunc func(in *u.Obj) (*u.Obj, error)
 
 func (s *Service) learnWireSuspect(p *u.Obj, e server.LearnEvent) {
+	s.lock() // p 是存储里的活对象，读它也要持锁
 	urls := asObj(p.Get("urls"))
 	url, _ := strOf(urls.Get(e.Wire))
 	if url == "" {
+		s.unlock()
 		return
 	}
-	s.lock()
 	pid := idOf(p)
 	keys := []any{}
 	for _, kr := range arr(p.Get("keys")) {

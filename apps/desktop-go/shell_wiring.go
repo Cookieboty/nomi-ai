@@ -171,7 +171,7 @@ func gatewayLabelOf(gw *gwstore.Service) quality.LabelOf {
 		if gw == nil {
 			return nil
 		}
-		for _, p := range gw.Store.Providers() {
+		for _, p := range gw.Store.View().Providers() { // 锁外读：已发布的只读快照（#195）
 			if o, ok := p.(*u.Obj); ok {
 				if id, _ := o.Get("id").(string); id == pid {
 					return o

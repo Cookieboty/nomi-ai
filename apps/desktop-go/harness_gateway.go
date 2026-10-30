@@ -94,7 +94,7 @@ func (h harnessGateway) ReleaseTab(kind, tabID string, generation *float64) {
 func (h harnessGateway) UpdateTab(kind, tabID, model string, effort *string) *jsrt.Promise[bool] {
 	return jsrt.Async(func() (bool, error) {
 		mo := util.NewObj()
-		if cl, _ := h.g.Store.Snapshot().Get("clients").(*util.Obj); cl != nil {
+		if cl, _ := h.g.Store.View().Snapshot().Get("clients").(*util.Obj); cl != nil { // 锁外读：已发布快照（#195）
 			if c, _ := cl.Get(kind).(*util.Obj); c != nil {
 				if m, _ := c.Get("models").(*util.Obj); m != nil {
 					mo = m.Clone()

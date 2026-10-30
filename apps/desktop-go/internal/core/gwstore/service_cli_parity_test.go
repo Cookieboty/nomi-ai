@@ -221,6 +221,7 @@ func TestServiceCliParity(t *testing.T) {
 					}
 				case "storeProvider":
 					s.Store.UpsertProvider(obj(0))
+					s.Store.Publish() // 直接改存储（Node 测试里的 store.upsertProvider）：发布给锁外读者
 				case "confirmPrivateHost":
 					err = s.ConfirmPrivateHost(str(0))
 				case "writeSessions":
