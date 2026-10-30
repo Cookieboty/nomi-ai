@@ -100,6 +100,8 @@ describe.each([
     expect(snap.locales?.zh?.wakePhrase).toBe('你好，小纸');
     expect(snap.locales?.en?.wakePhrase).toBe('Hi, Pip');
     expect(packs.wakePhrase()).toBe('你好，小纸');
+    // 包声明的表情跟着 mapping 一起给视图（运行时判断 2.0.5 旧模板要用，#192）
+    expect(snap.expressions).toEqual(['neutral']);
     expect(JSON.stringify(snap)).not.toMatch(OFFICIAL_NAME);
   });
 

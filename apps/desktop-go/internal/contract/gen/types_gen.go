@@ -1177,6 +1177,7 @@ type CharacterGetActivePackOutput struct {
 	Hitboxes          *CharacterGetActivePackOutputHitboxes               `json:"hitboxes"`
 	Rive              *CharacterGetActivePackOutputRive                   `json:"rive"`
 	Mapping           *CharacterGetActivePackOutputMapping                `json:"mapping,omitempty"`
+	Expressions       []string                                            `json:"expressions,omitempty"`
 	Locales           map[string]CharacterGetActivePackOutputLocalesValue `json:"locales,omitempty"`
 	Reason            *string                                             `json:"reason,omitempty"`
 }

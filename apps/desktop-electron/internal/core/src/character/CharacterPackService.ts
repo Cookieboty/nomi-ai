@@ -53,6 +53,11 @@ export interface CharacterPackActiveSnapshot {
    * 内置包也填，渲染进程以构建时打进去的那份为准。
    */
   mapping: PackMapping | null;
+  /**
+   * 包声明的表情（manifest.capabilities.expressions）；没有声明时为 null。avatar-runtime 判断 mapping 是不是
+   * 2.0.5 旧模板时要用（与 validatePack 相同，见 character-contract `isLegacyMapping`）。旧主进程不发这个字段
+   */
+  expressions: string[] | null;
   reason?: string;
 }
 
@@ -275,6 +280,7 @@ export class CharacterPackService {
       rive: null,
       locales: null,
       mapping: null,
+      expressions: null,
       reason: r.reason,
     };
     if (!r.root || !r.pack) return empty;
@@ -286,6 +292,7 @@ export class CharacterPackService {
       hitboxes: r.hitboxes,
       locales: linesOf(pack),
       mapping: pack.mapping,
+      expressions: pack.manifest.capabilities?.expressions ?? null,
     };
     if (r.source === 'builtin') return { ...empty, ...identity };
     const onboardingDir = `${pack.assets.onboardingDir}/`;

@@ -64,17 +64,19 @@ export const AvatarStage: FC<AvatarStageProps> = ({
     markRef.current = onMark;
   });
 
-  // 当前角色的映射（语义 → 资源）；卸载时回到默认映射。随后报告场景：角色与能表现的语义名
+  // 当前角色的映射（语义 → 资源）；卸载时回到默认映射。随后报告场景：角色与能表现的语义名。
+  // 包声明的表情一起传：旧模板兜底要知道 `sad → tears` 的 tears 是不是这个包自己的表情
   const { id: characterId, mapping } = character;
+  const expressions = character.capabilities?.expressions;
   useEffect(() => {
-    const restore = runtime.mapping.set(mapping);
+    const restore = runtime.mapping.set(mapping, expressions);
     avatarEventRef.current?.({
       type: 'scene',
       characterId,
       ...mappedSemantics(runtime.mapping.current()),
     });
     return restore;
-  }, [characterId, mapping, runtime]);
+  }, [characterId, mapping, expressions, runtime]);
 
   useEffect(() => (events ? driveAvatar(events, runtime) : undefined), [events, runtime]);
   // 卸载时清掉这个运行时的表情回落计时器与冷却
