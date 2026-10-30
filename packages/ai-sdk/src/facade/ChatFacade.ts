@@ -43,7 +43,7 @@ export interface ChatStreamOptions {
    * 传 `false` 关闭裁剪。默认 [DEFAULT_CONTEXT_BUDGET](./chatContext.ts)。
    */
   context?: ContextBudget | false;
-  /** Agent loop max steps when using AI SDK tools (default 5). */
+  /** Agent loop max steps when using AI SDK tools (default 20, ai-runtime DEFAULT_MAX_STEPS). */
   maxSteps?: number;
   /**
    * 任务角色（未显式指定 provider 时用于路由）：sendMessage/stream 默认 `chat`，

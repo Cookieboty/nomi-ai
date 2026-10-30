@@ -25,6 +25,9 @@ type Provider struct {
 	aborts       map[string]context.CancelFunc
 }
 
+// DefaultMaxSteps：工具循环每轮最多几步（= AiSdkLlmProvider.ts DEFAULT_MAX_STEPS）
+const DefaultMaxSteps = 20
+
 // NewProvider：constructor（modelFactory 由协议层注入，见 buildModelFactory）
 func NewProvider(opts Options, factory ModelFactory) (*Provider, error) {
 	if strings.TrimSpace(opts.BaseURL) == "" {
@@ -391,7 +394,7 @@ func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextPar
 	}
 	if hasTools {
 		tp.Tools, tp.HasTools = ts, true
-		tp.StepCount = 5
+		tp.StepCount = DefaultMaxSteps
 		if p.opts.MaxSteps != nil {
 			tp.StepCount = *p.opts.MaxSteps
 		}

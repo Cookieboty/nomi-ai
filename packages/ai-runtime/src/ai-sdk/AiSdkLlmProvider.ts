@@ -43,6 +43,9 @@ import {
 import { toAiSdkToolSet } from './mapTools';
 import { describeStreamError } from './streamError';
 
+/** 工具循环每轮最多几步（一步 = 一次模型调用；读写文件、多步任务需要的余量，Go 版 aisdk/provider.go 同值） */
+export const DEFAULT_MAX_STEPS = 20;
+
 export interface AiSdkLlmProviderOptions {
   id: string;
   /** 上游协议（默认 openai-chat） */
@@ -58,7 +61,7 @@ export interface AiSdkLlmProviderOptions {
   /** 思考 / 推理（anthropic: thinking；openai: reasoningEffort） */
   thinking?: boolean;
   userAgent?: string;
-  /** Max agent loop steps when tools are attached (default 5). */
+  /** Max agent loop steps when tools are attached (default DEFAULT_MAX_STEPS). */
   maxSteps?: number;
   fetchImpl?: typeof fetch;
   /** Extra HTTP headers sent with every request (e.g. gateway routing / org id). */
@@ -346,7 +349,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         maxOutputTokens: request.maxTokens,
         abortSignal: signal,
         ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
-        ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? 5) } : {}),
+        ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS) } : {}),
       });
       const toolCalls =
         result.toolCalls?.length > 0
@@ -384,7 +387,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         maxOutputTokens: request.maxTokens,
         abortSignal: signal,
         ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
-        ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? 5) } : {}),
+        ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS) } : {}),
       });
       let served: string | undefined;
       // 每一步都是一次网关请求，都会带上整段历史：取各步的最大值
