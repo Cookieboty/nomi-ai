@@ -9,6 +9,7 @@ import {
   type ReminderView,
   type RepeatRule,
 } from '../../services/desktopClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 
@@ -143,7 +144,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
           placeholder={tr('ui.foundation.remind-me-to-enter-to-add')}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && void add()}
+          onKeyDown={(e) => e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void add()}
           data-testid="reminder-text"
           style={{ flex: 1, minWidth: 180 }}
         />

@@ -664,22 +664,28 @@ describe('ModelControls（会话的供应商分组）', () => {
       return { r, invoke };
     };
 
-    it('两家不同：两组都列出全部模型，勾在会话上次用的模型上，没有「默认模型」一行', async () => {
+    it('两家不同：按供应商分标签（停在会话原来的供应商），勾在会话上次用的模型上，没有「默认模型」一行', async () => {
       const tab = { ...baseTab, source: 'thirdParty' as const, lastServedRef: 'old/glm-b' };
       const { r, invoke } = await open(tab);
       const chip = await r.findByTestId('model-chip');
       expect(chip.textContent).toContain('OldCo / glm-b');
       fireEvent.click(chip);
       const menu = await r.findByTestId('model-menu');
-      expect(within(menu).getByTestId('model-group-old').textContent).toBe(
-        '本会话原来的供应商 · OldCo',
-      );
-      expect(within(menu).getByTestId('model-group-neu').textContent).toBe('默认供应商 · NewCo');
+      const tabs = within(menu).getAllByRole('tab');
+      expect(tabs.map((x) => x.textContent)).toEqual(['OldCo', 'NewCo']);
+      // 组的说明放在标签的悬停提示里
+      expect(tabs[0]!.getAttribute('title')).toBe('本会话原来的供应商 · OldCo');
+      expect(tabs[1]!.getAttribute('title')).toBe('默认供应商 · NewCo');
+      expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
       expect(within(menu).getByTestId('model-old/glm-a')).toBeTruthy();
       expect(within(menu).getByTestId('model-old/glm-b').getAttribute('aria-selected')).toBe(
         'true',
       );
+      expect(within(menu).queryByTestId('model-neu/ds-x')).toBeNull();
       expect(within(menu).queryByTestId('model-default')).toBeNull();
+      // 换到别的供应商的模型：原地切换
+      fireEvent.click(tabs[1]!);
+      expect(within(menu).queryByTestId('model-old/glm-a')).toBeNull();
       fireEvent.click(within(menu).getByTestId('model-neu/ds-x'));
       await waitFor(() =>
         expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
@@ -690,7 +696,37 @@ describe('ModelControls（会话的供应商分组）', () => {
       );
     });
 
-    it('换到默认供应商并聊过一轮后只剩一组；没聊过的会话照旧只列默认供应商', async () => {
+    it('第三方模型页右侧按厂商筛选；没聊过的会话也能切到别的供应商', async () => {
+      const gw = {
+        ...gatewayState,
+        providers: [
+          ...gatewayState.providers,
+          prov('mix', 'MixCo', ['claude-x', 'gpt-y', 'mystery']),
+        ],
+      };
+      const cat: BackendModelCatalog = {
+        ...gwCatalog,
+        models: [
+          ...gwCatalog.models,
+          { id: 'mix/claude-x', label: 'MixCo / claude-x', reasoning: false, efforts: [] },
+          { id: 'mix/gpt-y', label: 'MixCo / gpt-y', reasoning: false, efforts: [] },
+          { id: 'mix/mystery', label: 'MixCo / mystery', reasoning: false, efforts: [] },
+        ],
+      };
+      const { r } = await open({ ...baseTab, source: 'thirdParty' }, gw, cat);
+      fireEvent.click(await r.findByTestId('model-chip'));
+      const menu = await r.findByTestId('model-menu');
+      expect(within(menu).getAllByRole('tab')).toHaveLength(3);
+      fireEvent.click(within(menu).getByRole('tab', { name: 'MixCo' }));
+      fireEvent.click(within(menu).getByTestId('model-picker-vendor-anthropic'));
+      expect(within(menu).getByTestId('model-mix/claude-x')).toBeTruthy();
+      expect(within(menu).queryByTestId('model-mix/gpt-y')).toBeNull();
+      fireEvent.click(within(menu).getByTestId('model-picker-vendor-'));
+      expect(within(menu).getByTestId('model-mix/mystery')).toBeTruthy();
+      expect(within(menu).queryByTestId('model-mix/claude-x')).toBeNull();
+    });
+
+    it('换到默认供应商并聊过一轮后停在它的标签；没聊过的会话停在默认供应商的标签', async () => {
       const { r } = await open({
         ...baseTab,
         source: 'thirdParty',

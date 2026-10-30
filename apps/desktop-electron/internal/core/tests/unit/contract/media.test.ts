@@ -370,7 +370,14 @@ describe('media handlers', () => {
       expect(t.desktop.snoozeReminder).toHaveBeenCalledWith('r1', 5);
 
       await mascot.desktop.confirmAnswer({ id: 'c1', allow: true, remember: false });
-      expect(t.desktop.answerConfirm).toHaveBeenCalledWith(7, 'c1', true, false);
+      expect(t.desktop.answerConfirm).toHaveBeenCalledWith(
+        7,
+        'c1',
+        true,
+        false,
+        undefined,
+        'mascot',
+      );
       await mascot.desktop.reminderAction({ id: 'r1', action: 'snooze', minutes: 10 });
       expect(t.desktop.reminderAction).toHaveBeenCalledWith(7, 'r1', 'snooze', 10);
       await expect(mascot.desktop.takeMissedReminders()).resolves.toEqual([
@@ -382,13 +389,16 @@ describe('media handlers', () => {
     }
   });
 
-  it('守卫：对话窗口不能答复确认；不可信调用者不能授权 / 改策略 / 确认云端', async () => {
+  it('守卫：对话窗口能答复确认（带上界面），设置窗口不能；不可信调用者不能授权 / 改策略 / 确认云端', async () => {
     const t = setup();
     const chat = t.connect(CHAT);
+    const settings = t.connect({ surface: 'settings', trusted: true, id: '9' });
     const untrusted = t.connect({ surface: 'mascot', trusted: false, id: '7' });
     try {
+      await chat.desktop.confirmAnswer({ id: 'c1', allow: false, remember: false, pick: true });
+      expect(t.desktop.answerConfirm).toHaveBeenCalledWith(8, 'c1', false, false, true, 'chat');
       await expect(
-        chat.desktop.confirmAnswer({ id: 'c1', allow: true, remember: true }),
+        settings.desktop.confirmAnswer({ id: 'c1', allow: true, remember: true }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
       for (const call of [
         () => untrusted.desktop.confirmAnswer({ id: 'c1', allow: true, remember: true }),
@@ -400,7 +410,7 @@ describe('media handlers', () => {
       ]) {
         await expect(call()).rejects.toMatchObject({ code: 'FORBIDDEN' });
       }
-      expect(t.desktop.answerConfirm).not.toHaveBeenCalled();
+      expect(t.desktop.answerConfirm).toHaveBeenCalledTimes(1); // 只有对话窗口那一次
       expect(t.desktop.grantFolder).not.toHaveBeenCalled();
       expect(t.voice.ackCloud).not.toHaveBeenCalled();
     } finally {

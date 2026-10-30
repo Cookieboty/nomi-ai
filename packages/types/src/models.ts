@@ -99,7 +99,7 @@ export interface MascotScaleState {
   window: { width: number; height: number };
 }
 
-/** 桌面能力确认请求（主进程 PermissionBroker → 看板娘窗口） */
+/** 桌面能力确认请求（主进程 PermissionBroker → 对话窗口或看板娘窗口） */
 export interface DesktopConfirmRequest {
   id: string;
   tool: string;
@@ -112,6 +112,10 @@ export interface DesktopConfirmRequest {
   rememberable: boolean;
   reason: string;
   expiresAt: number;
+  /** scope：请用户授权文件夹（对话窗口里的卡片）；scopePath 为模型建议的文件夹 */
+  kind?: 'scope';
+  scopePath?: string;
+  scopeMode?: 'read' | 'read-write';
 }
 
 /**

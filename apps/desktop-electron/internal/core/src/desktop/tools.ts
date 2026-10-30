@@ -37,6 +37,13 @@ export interface DesktopToolDeps {
   describeProvider?: (p: ToolCallProvider) => ProviderInfo;
   /** 打开系统文件夹选择框；用户取消返回 null */
   pickFolder: (suggested?: string) => Promise<string | null>;
+  /** 请用户授权文件夹（对话窗口里问，必要时再打开选择框）；缺省时直接打开选择框 */
+  requestFolder?: (
+    suggested: string | undefined,
+    mode: 'read' | 'read-write',
+    reason?: string,
+    signal?: AbortSignal,
+  ) => Promise<string | null>;
   /** P2：笔记 / 提醒 / 剪贴板（缺省时不注册这些工具） */
   p2?: P2Deps;
   /** P3：沙箱浏览器 / 代码执行（缺省时不注册） */
@@ -477,12 +484,14 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     {
       name: 'desktop_request_scope',
       description:
-        '请用户授权一个文件夹（会弹出系统的文件夹选择框，由用户自己选择）。只有在需要访问未授权的位置时才调用。',
+        '请用户授权一个文件夹（在对话里请用户确认 suggestedPath，用户也可以自己另选）。只有在需要访问未授权的位置时才调用；知道目标位置时一定给 suggestedPath。',
       input: scopeInput,
       async execute(input, ctx) {
         const i = scopeInput.parse(input);
         return run('desktop_request_scope', i, ctx.signal, async () => {
-          const picked = await deps.pickFolder(i.suggestedPath);
+          const picked = deps.requestFolder
+            ? await deps.requestFolder(i.suggestedPath, i.mode, i.reason, ctx.signal)
+            : await deps.pickFolder(i.suggestedPath);
           if (!picked) throw new ToolError('user_denied', '用户取消了授权');
           const s = broker.grant(picked, i.mode);
           return { data: { path: s.path, mode: s.mode }, decision: 'allowed' as const };

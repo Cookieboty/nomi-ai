@@ -118,6 +118,11 @@ describe('输入框里的 /agent 补全', () => {
     // 输入法组合中的 Enter 不选
     fireEvent.keyDown(ta, { key: 'Enter', isComposing: true });
     expect(ta.value).toBe('/agent ');
+    // macOS WebKit：compositionend 先到，上屏的那次回车只剩 keyCode 229，也不选
+    fireEvent.compositionStart(ta);
+    fireEvent.compositionEnd(ta);
+    fireEvent.keyDown(ta, { key: 'Enter', keyCode: 229 });
+    expect(ta.value).toBe('/agent ');
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(ta.value).toBe('/agent grok ');
     expect(r.queryByTestId('slash-agent-menu')).toBeNull();

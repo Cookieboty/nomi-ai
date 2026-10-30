@@ -64,7 +64,7 @@
     },
     {
       "name": "desktop_request_scope",
-      "description": "请用户授权一个文件夹（会弹出系统的文件夹选择框，由用户自己选择）。只有在需要访问未授权的位置时才调用。",
+      "description": "请用户授权一个文件夹（在对话里请用户确认 suggestedPath，用户也可以自己另选）。只有在需要访问未授权的位置时才调用；知道目标位置时一定给 suggestedPath。",
       "parametersJsonSchema": {},
       "enabled": true
     },

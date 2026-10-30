@@ -1464,6 +1464,7 @@ type DesktopConfirmAnswerInput struct {
 	Id       string `json:"id"`
 	Allow    bool   `json:"allow"`
 	Remember bool   `json:"remember"`
+	Pick     *bool  `json:"pick,omitempty"`
 }
 
 // DesktopGrantInputMode 枚举：read | read-write
@@ -1623,17 +1624,28 @@ type DesktopStateOutputToolsItem struct {
 	Locked *bool  `json:"locked,omitempty"`
 }
 
+// DesktopStateOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopStateOutputPendingItemScopeMode = string
+
+const (
+	DesktopStateOutputPendingItemScopeModeRead      DesktopStateOutputPendingItemScopeMode = "read"
+	DesktopStateOutputPendingItemScopeModeReadWrite DesktopStateOutputPendingItemScopeMode = "read-write"
+)
+
 type DesktopStateOutputPendingItem struct {
-	Id           string  `json:"id"`
-	Tool         string  `json:"tool"`
-	Danger       string  `json:"danger"`
-	Summary      string  `json:"summary"`
-	ArgsJson     string  `json:"argsJson"`
-	Preview      *string `json:"preview,omitempty"`
-	Dialog       bool    `json:"dialog"`
-	Rememberable bool    `json:"rememberable"`
-	Reason       string  `json:"reason"`
-	ExpiresAt    float64 `json:"expiresAt"`
+	Id           string                                  `json:"id"`
+	Tool         string                                  `json:"tool"`
+	Danger       string                                  `json:"danger"`
+	Summary      string                                  `json:"summary"`
+	ArgsJson     string                                  `json:"argsJson"`
+	Preview      *string                                 `json:"preview,omitempty"`
+	Dialog       bool                                    `json:"dialog"`
+	Rememberable bool                                    `json:"rememberable"`
+	Reason       string                                  `json:"reason"`
+	ExpiresAt    float64                                 `json:"expiresAt"`
+	Kind         *string                                 `json:"kind,omitempty"`
+	ScopePath    *string                                 `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopStateOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
 }
 
 type DesktopStateOutput struct {
@@ -6005,17 +6017,28 @@ type EventDesktopChangedToolsItem struct {
 	Locked *bool  `json:"locked,omitempty"`
 }
 
+// EventDesktopChangedPendingItemScopeMode 枚举：read | read-write
+type EventDesktopChangedPendingItemScopeMode = string
+
+const (
+	EventDesktopChangedPendingItemScopeModeRead      EventDesktopChangedPendingItemScopeMode = "read"
+	EventDesktopChangedPendingItemScopeModeReadWrite EventDesktopChangedPendingItemScopeMode = "read-write"
+)
+
 type EventDesktopChangedPendingItem struct {
-	Id           string  `json:"id"`
-	Tool         string  `json:"tool"`
-	Danger       string  `json:"danger"`
-	Summary      string  `json:"summary"`
-	ArgsJson     string  `json:"argsJson"`
-	Preview      *string `json:"preview,omitempty"`
-	Dialog       bool    `json:"dialog"`
-	Rememberable bool    `json:"rememberable"`
-	Reason       string  `json:"reason"`
-	ExpiresAt    float64 `json:"expiresAt"`
+	Id           string                                   `json:"id"`
+	Tool         string                                   `json:"tool"`
+	Danger       string                                   `json:"danger"`
+	Summary      string                                   `json:"summary"`
+	ArgsJson     string                                   `json:"argsJson"`
+	Preview      *string                                  `json:"preview,omitempty"`
+	Dialog       bool                                     `json:"dialog"`
+	Rememberable bool                                     `json:"rememberable"`
+	Reason       string                                   `json:"reason"`
+	ExpiresAt    float64                                  `json:"expiresAt"`
+	Kind         *string                                  `json:"kind,omitempty"`
+	ScopePath    *string                                  `json:"scopePath,omitempty"`
+	ScopeMode    *EventDesktopChangedPendingItemScopeMode `json:"scopeMode,omitempty"`
 }
 
 type EventDesktopChanged struct {
@@ -6027,17 +6050,28 @@ type EventDesktopChanged struct {
 	Pending    []EventDesktopChangedPendingItem `json:"pending,omitempty"`
 }
 
+// EventDesktopConfirmRequestScopeMode 枚举：read | read-write
+type EventDesktopConfirmRequestScopeMode = string
+
+const (
+	EventDesktopConfirmRequestScopeModeRead      EventDesktopConfirmRequestScopeMode = "read"
+	EventDesktopConfirmRequestScopeModeReadWrite EventDesktopConfirmRequestScopeMode = "read-write"
+)
+
 type EventDesktopConfirmRequest struct {
-	Id           string  `json:"id"`
-	Tool         string  `json:"tool"`
-	Danger       string  `json:"danger"`
-	Summary      string  `json:"summary"`
-	ArgsJson     string  `json:"argsJson"`
-	Preview      *string `json:"preview,omitempty"`
-	Dialog       bool    `json:"dialog"`
-	Rememberable bool    `json:"rememberable"`
-	Reason       string  `json:"reason"`
-	ExpiresAt    float64 `json:"expiresAt"`
+	Id           string                               `json:"id"`
+	Tool         string                               `json:"tool"`
+	Danger       string                               `json:"danger"`
+	Summary      string                               `json:"summary"`
+	ArgsJson     string                               `json:"argsJson"`
+	Preview      *string                              `json:"preview,omitempty"`
+	Dialog       bool                                 `json:"dialog"`
+	Rememberable bool                                 `json:"rememberable"`
+	Reason       string                               `json:"reason"`
+	ExpiresAt    float64                              `json:"expiresAt"`
+	Kind         *string                              `json:"kind,omitempty"`
+	ScopePath    *string                              `json:"scopePath,omitempty"`
+	ScopeMode    *EventDesktopConfirmRequestScopeMode `json:"scopeMode,omitempty"`
 }
 
 type EventDesktopP2Changed struct {

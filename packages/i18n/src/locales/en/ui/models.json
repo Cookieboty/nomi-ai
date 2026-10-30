@@ -189,5 +189,9 @@
   "ui.models.this-chat-s-provider": "This chat's provider · {0}",
   "ui.models.default-provider-named": "Default provider · {0}",
   "ui.models.default-official": "Default · Official account",
-  "ui.models.switch-to-official": "Switch to the official account"
+  "ui.models.switch-to-official": "Switch to the official account",
+  "ui.models.all-vendors": "All vendors",
+  "ui.models.filter-by-provider": "Filter by provider",
+  "ui.models.filter-by-vendor": "Filter by vendor",
+  "ui.models.other-vendors": "Other"
 }

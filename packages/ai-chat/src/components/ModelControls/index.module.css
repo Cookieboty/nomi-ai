@@ -413,3 +413,18 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
+/* 第三方模型页：左侧厂商筛选 + 模型列表；固定高度，切换标签 / 厂商时不跳动 */
+.browseBody {
+  display: flex;
+  gap: var(--cd-space-1-5);
+  height: 300px;
+  min-height: 0;
+}
+.browseBody > .models {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: none;
+}
+.browseBodyPlain {
+  display: contents;
+}

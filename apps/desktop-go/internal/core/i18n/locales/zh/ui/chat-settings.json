@@ -461,5 +461,9 @@
   "ui.chat-settings.compacting-earlier-messages": "正在把较早的对话压缩成摘要…",
   "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "较早的对话已压缩成摘要（点开查看）",
   "ui.chat-settings.couldn-t-compact-earlier-messages": "没能压缩较早的对话：{0}。这一轮照常发送，最早的消息可能会被截掉。",
-  "ui.chat-settings.the-model-returned-an-empty-summary": "模型返回了空的摘要"
+  "ui.chat-settings.the-model-returned-an-empty-summary": "模型返回了空的摘要",
+  "ui.chat-settings.folder-access-request": "请求访问文件夹",
+  "ui.chat-settings.grant-folder": "授权",
+  "ui.chat-settings.choose-another-folder": "选择其他文件夹…",
+  "ui.chat-settings.suggested-folder-cannot-be-granted": "建议的位置不能直接授权（不存在、不是文件夹，或范围太宽），请自己选择。"
 }

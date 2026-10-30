@@ -252,15 +252,23 @@ export const mediaProcedures = {
     input: z.object({ id: z.string(), minutes: z.number().optional() }),
     output: z.boolean(),
   },
-  // 看板娘窗口专用（preload.ts 的 electronAPI.desktop）；主进程还会核对调用方就是看板娘窗口
-  /** 确认气泡 / 对话框的答复（模型与对话窗口都无法伪造） */
+  /**
+   * 确认请求的答复：对话窗口开着时请求只发给对话窗口（授权卡片），否则发给看板娘（气泡 / 对话框）；
+   * 内核还会核对看板娘的调用方就是看板娘窗口。模型改不了答复。pick：请求文件夹时用户要自己另选
+   */
   'desktop.confirmAnswer': {
     kind: 'mutation',
-    input: z.object({ id: z.string(), allow: z.boolean(), remember: z.boolean() }),
+    input: z.object({
+      id: z.string(),
+      allow: z.boolean(),
+      remember: z.boolean(),
+      pick: z.boolean().optional(),
+    }),
     output: z.void(),
-    surfaces: ['mascot'],
+    surfaces: ['mascot', 'chat'],
     dangerous: true,
   },
+  // 以下看板娘窗口专用（preload.ts 的 electronAPI.desktop）；主进程还会核对调用方就是看板娘窗口
   // 拖到看板娘身上的文件不在契约里：路径必须由 preload 从真实 File 取得并直接提交（window.nomiHost.dropFile，
   // 主进程 host/nomiHostIpc.ts），视图代码选不了路径。做成接收路径的过程会让页面里的任意脚本读任意文件。
   'desktop.reminderAction': {
@@ -329,7 +337,7 @@ export const mediaEvents = {
   'desktop.p2Changed': z.looseObject({ kind: z.string() }),
   /** 拖文件总结完成：对话窗口显示全文 */
   'desktop.summary': DesktopSummaryEvent,
-  /** 看板娘窗口：工具调用确认请求 / 取消（id）/ 气泡 / 提醒到点 */
+  /** 工具调用确认请求 / 取消（id）：对话窗口开着时发给对话窗口，否则发给看板娘；气泡 / 提醒到点只给看板娘 */
   'desktop.confirmRequest': DesktopConfirmRequest,
   'desktop.confirmCancel': z.string(),
   'desktop.bubble': DesktopBubble,
@@ -341,12 +349,12 @@ export const mediaEvents = {
 } as const satisfies EventMap;
 
 /**
- * 事件的订阅白名单（§8）：确认请求 / 气泡只给看板娘窗口，总结全文与面板导航只给对话窗口
+ * 事件的订阅白名单（§8）：确认请求给看板娘与对话窗口（服务按当前开着的窗口只发一边），气泡只给看板娘窗口，总结全文与面板导航只给对话窗口
  * （`settings` 在 Electron 上也是对话窗口）。其它界面的订阅被传输层忽略。
  */
 export const mediaEventSurfaces = {
-  'desktop.confirmRequest': ['mascot'],
-  'desktop.confirmCancel': ['mascot'],
+  'desktop.confirmRequest': ['mascot', 'chat'],
+  'desktop.confirmCancel': ['mascot', 'chat'],
   'desktop.bubble': ['mascot'],
   'desktop.reminder': ['mascot'],
   'desktop.summary': ['chat', 'settings'],

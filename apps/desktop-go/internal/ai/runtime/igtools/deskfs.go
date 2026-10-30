@@ -93,6 +93,8 @@ type DeskDeps struct {
 	DescribeProvider func(p *tools.ToolCallProvider) *desktop.Provider
 	// PickFolder：用户取消返回 ""
 	PickFolder func(suggested string) string
+	// RequestFolder：请用户授权文件夹（对话窗口里问，必要时再打开选择框）；nil 时直接 PickFolder
+	RequestFolder func(ctx context.Context, suggested, mode, reason string) string
 
 	// P2（Reminders 为 nil 时不注册）
 	Reminders      *reminders.Store
@@ -123,6 +125,7 @@ func DeskDepsFor(s *desktop.Service, shellEnv func() []string) DeskDeps {
 			return s.ReceiverOf(p.ID, p.BaseURL)
 		},
 		PickFolder:     s.PickFolder,
+		RequestFolder:  s.RequestFolder,
 		Reminders:      s.Reminders,
 		ClipboardRead:  s.ClipboardRead,
 		ClipboardWrite: s.ClipboardWrite,
@@ -496,14 +499,19 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return o, "", nil
 				}), nil
 			}),
-		deskDef("desktop_request_scope", "请用户授权一个文件夹（会弹出系统的文件夹选择框，由用户自己选择）。只有在需要访问未授权的位置时才调用。",
+		deskDef("desktop_request_scope", "请用户授权一个文件夹（在对话里请用户确认 suggestedPath，用户也可以自己另选）。只有在需要访问未授权的位置时才调用；知道目标位置时一定给 suggestedPath。",
 			func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
 				i, err := parse(scopeIn, in)
 				if err != nil {
 					return nil, err
 				}
 				return k.run("desktop_request_scope", i, func() (any, string, error) {
-					picked := k.d.PickFolder(str0(i, "suggestedPath"))
+					var picked string
+					if k.d.RequestFolder != nil {
+						picked = k.d.RequestFolder(ctx, str0(i, "suggestedPath"), str0(i, "mode"), str0(i, "reason"))
+					} else {
+						picked = k.d.PickFolder(str0(i, "suggestedPath"))
+					}
 					if picked == "" {
 						return nil, "", toolErr("user_denied", "用户取消了授权")
 					}

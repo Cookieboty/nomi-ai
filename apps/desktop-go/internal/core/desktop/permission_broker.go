@@ -33,7 +33,14 @@ type ConfirmRequest struct {
 	Rememberable bool    `json:"rememberable"`
 	Reason       string  `json:"reason"`
 	ExpiresAt    float64 `json:"expiresAt"`
+	// Kind = "scope"：请用户授权文件夹（对话窗口里的卡片）；ScopePath 为校验过的建议文件夹
+	Kind      string `json:"kind,omitempty"`
+	ScopePath string `json:"scopePath,omitempty"`
+	ScopeMode string `json:"scopeMode,omitempty"`
 }
+
+// ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
+type ScopeDecision = string
 
 type ConfirmUI interface {
 	Request(req ConfirmRequest)
@@ -458,19 +465,81 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if args == nil {
 		args = map[string]any{}
 	}
-	req := ConfirmRequest{ID: randomUUID(), Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason, ExpiresAt: b.nowFn() + float64(b.timeout.Milliseconds())}
+	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
 	if i.Preview != nil {
 		p := u16slice(*i.Preview, 0, 4000)
 		req.Preview = &p
 	}
+	decision, remember, req := b.ask(req, i.Signal)
+	if decision == "allowed" && remember && req.Rememberable {
+		b.mu.Lock()
+		b.sessionAllowed[i.Tool] = true
+		b.mu.Unlock()
+	}
+	if decision == "pick" {
+		return "denied"
+	}
+	return decision
+}
+
+// RequestScope：请用户授权一个文件夹（对话窗口里的卡片，不受权限模式与「全部自动」影响）。
+// 建议的文件夹先按工作区根的规则校验（绝对路径、存在、是文件夹、不过宽、不在黑名单），不过的不给
+// 「授权这个」，只能另选。allowed 时 path 为校验后的真实路径；没有界面时按拒绝处理。
+func (b *PermissionBroker) RequestScope(suggested, mode, reason string, signal context.Context) (ScopeDecision, string) {
+	if b.UI == nil || (signal != nil && signal.Err() != nil) {
+		return "denied", ""
+	}
+	real := ""
+	if suggested != "" {
+		real = b.scopeCandidate(suggested)
+	}
+	var path any
+	if suggested != "" {
+		path = suggested
+	}
+	req := ConfirmRequest{Tool: "desktop_request_scope", Danger: "read", Summary: tr.T("electron.common.grant-nomi-access-to-this-folder"),
+		ArgsJSON: prettyJSON(map[string]any{"path": path, "mode": mode}), Reason: "policy", Kind: "scope", ScopePath: real, ScopeMode: mode}
+	if reason != "" {
+		p := u16slice(reason, 0, 200)
+		req.Preview = &p
+	}
+	d, _, _ := b.ask(req, signal)
+	switch d {
+	case "allowed":
+		if real == "" {
+			return "denied", ""
+		}
+		return "allowed", real
+	case "pick", "timeout":
+		return d, ""
+	}
+	return "denied", ""
+}
+
+// scopeCandidate：模型建议授权的文件夹能不能一键授权（工作区根的规则 + 必须是文件夹）
+func (b *PermissionBroker) scopeCandidate(p string) string {
+	r := CheckWorkspaceRoot(p, WorkspaceEnv{Home: b.envBase.Home, Platform: b.envBase.Platform, Realpath: b.envBase.Realpath, DenyRoots: b.envBase.DenyRoots})
+	if !r.OK {
+		return ""
+	}
+	if st, err := os.Stat(r.Real); err != nil || !st.IsDir() {
+		return ""
+	}
+	return r.Real
+}
+
+// ask：发出确认请求并等答复（超时 / 发起方取消都会收起界面上的请求）；返回 decision、remember 与发出的请求
+func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (string, bool, ConfirmRequest) {
+	req.ID = randomUUID()
+	req.ExpiresAt = b.nowFn() + float64(b.timeout.Milliseconds())
 	pc := &pendingConfirm{req: req, done: make(chan [2]any, 1)}
 	b.mu.Lock()
 	b.pending[req.ID] = pc
 	b.mu.Unlock()
 	b.UI.Request(req)
 	var abort <-chan struct{}
-	if i.Signal != nil {
-		abort = i.Signal.Done()
+	if signal != nil {
+		abort = signal.Done()
 	}
 	timer := time.NewTimer(b.timeout)
 	defer timer.Stop()
@@ -496,12 +565,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 			decision, remember = r[0].(string), r[1].(bool)
 		}
 	}
-	if decision == "allowed" && remember && req.Rememberable {
-		b.mu.Lock()
-		b.sessionAllowed[i.Tool] = true
-		b.mu.Unlock()
-	}
-	return decision
+	return decision, remember, req
 }
 
 func (b *PermissionBroker) takePending(id string) bool {
@@ -514,7 +578,13 @@ func (b *PermissionBroker) takePending(id string) bool {
 	return true
 }
 
+// Answer：用户答复（看板娘窗口与对话窗口，见 Service.AnswerConfirm）
 func (b *PermissionBroker) Answer(id string, allow, remember bool) bool {
+	return b.AnswerPick(id, allow, remember, false)
+}
+
+// AnswerPick：pick 只对请求文件夹有效（用户要自己另选一个文件夹）
+func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) bool {
 	b.mu.Lock()
 	p, ok := b.pending[id]
 	if ok {
@@ -525,7 +595,9 @@ func (b *PermissionBroker) Answer(id string, allow, remember bool) bool {
 		return false
 	}
 	d := "denied"
-	if allow {
+	if pick && p.req.Kind == "scope" {
+		d = "pick"
+	} else if allow {
 		d = "allowed"
 	}
 	p.done <- [2]any{d, remember && p.req.Rememberable}

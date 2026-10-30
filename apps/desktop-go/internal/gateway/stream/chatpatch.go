@@ -18,6 +18,8 @@ type ChatStreamPatcher struct {
 	split    sse.Splitter
 	rules    *resp.Rules
 	tools    map[float64]string
+	held     map[float64]*heldCall
+	dropped  bool
 	template *u.Obj
 	norm     *canonical.ChatChunkNormalizer
 	stopped  bool
@@ -28,7 +30,37 @@ func NewChatStreamPatcher(o *resp.FixOptions) *ChatStreamPatcher {
 	if o == nil {
 		o = &resp.FixOptions{}
 	}
-	return &ChatStreamPatcher{o: o, rules: resp.NewRules(o), tools: map[float64]string{}, template: u.NewObj(), norm: canonical.NewChatChunkNormalizer()}
+	return &ChatStreamPatcher{o: o, rules: resp.NewRules(o), tools: map[float64]string{}, held: map[float64]*heldCall{},
+		template: u.NewObj(), norm: canonical.NewChatChunkNormalizer()}
+}
+
+// heldCall is HeldCall: a call whose tool name has not arrived yet.
+type heldCall struct {
+	id   string
+	args string
+}
+
+// hasToolName is hasToolName.
+func hasToolName(tc any) bool {
+	o, ok := tc.(*u.Obj)
+	if !ok {
+		return false
+	}
+	fn, ok := o.Get("function").(*u.Obj)
+	if !ok {
+		return false
+	}
+	name, ok := fn.Get("name").(string)
+	return ok && name != ""
+}
+
+// dropHeld is dropHeld.
+func (p *ChatStreamPatcher) dropHeld() bool {
+	if len(p.held) > 0 {
+		p.dropped = true
+	}
+	clear(p.held)
+	return p.dropped
 }
 
 // Stopped is `stopped`.
@@ -87,6 +119,7 @@ func (p *ChatStreamPatcher) block(raw, sep string) string {
 	}
 	data := u.JSTrim(lines[0][5:])
 	if data == "[DONE]" {
+		p.dropHeld()
 		t, _ := p.flushChunks()
 		return t + raw
 	}
@@ -147,7 +180,9 @@ func (p *ChatStreamPatcher) patch(j *u.Obj) patchRes {
 			return p.trip()
 		}
 		if tcs, ok := delta.Get("tool_calls").([]any); ok {
+			kept := make([]any, 0, len(tcs))
 			for _, x := range tcs {
+				kept = append(kept, x)
 				tc, ok := x.(*u.Obj)
 				if !ok {
 					continue
@@ -165,7 +200,32 @@ func (p *ChatStreamPatcher) patch(j *u.Obj) patchRes {
 				}
 				name, _ := fn.Get("name").(string)
 				if name == "" {
+					kept = kept[:len(kept)-1]
+					h := p.held[idx]
+					if h == nil {
+						h = &heldCall{}
+						p.held[idx] = h
+					}
+					if id, _ := tc.Get("id").(string); h.id == "" && id != "" {
+						h.id = id
+					}
+					if a, ok := fn.Get("arguments").(string); ok {
+						h.args += a
+					}
+					res.changed = true
 					continue
+				}
+				if h := p.held[idx]; h != nil {
+					delete(p.held, idx)
+					if id, _ := tc.Get("id").(string); h.id != "" && id == "" {
+						tc.Set("id", h.id)
+					}
+					if !tc.Has("type") {
+						tc.Set("type", "function")
+					}
+					a, _ := fn.Get("arguments").(string)
+					fn.Set("arguments", h.args+a)
+					res.changed = true
 				}
 				if orig := p.rules.ToolName(name); orig != "" {
 					fn.Set("name", orig)
@@ -176,6 +236,13 @@ func (p *ChatStreamPatcher) patch(j *u.Obj) patchRes {
 					d := u.NewObj()
 					d.Set("content", raw)
 					res.prefix += p.chunk(d)
+				}
+			}
+			if len(kept) != len(tcs) {
+				if len(kept) > 0 {
+					delta.Set("tool_calls", kept)
+				} else {
+					delta.Delete("tool_calls")
 				}
 			}
 		}
@@ -199,6 +266,10 @@ func (p *ChatStreamPatcher) patch(j *u.Obj) patchRes {
 		res.prefix += t
 		if calls > 0 && c.Get("finish_reason") == "stop" {
 			c.Set("finish_reason", "tool_calls")
+			res.changed = true
+		}
+		if p.dropHeld() && len(p.tools) == 0 && c.Get("finish_reason") == "tool_calls" {
+			c.Set("finish_reason", "stop")
 			res.changed = true
 		}
 	}
@@ -301,6 +372,26 @@ func PatchChatJson(body any, o *resp.FixOptions) any {
 		}
 		msgChanged := false
 		finish := c.Get("finish_reason")
+		if tcs, ok := msg.Get("tool_calls").([]any); ok {
+			named := make([]any, 0, len(tcs))
+			for _, x := range tcs {
+				if hasToolName(x) {
+					named = append(named, x)
+				}
+			}
+			if len(named) != len(tcs) {
+				msg = msg.Clone()
+				if len(named) > 0 {
+					msg.Set("tool_calls", named)
+				} else {
+					msg.Delete("tool_calls")
+					if finish == "tool_calls" {
+						finish = "stop"
+					}
+				}
+				msgChanged = true
+			}
+		}
 		if tcs, ok := msg.Get("tool_calls").([]any); ok && len(o.ToolNames) > 0 {
 			calls := make([]any, len(tcs))
 			diff := false

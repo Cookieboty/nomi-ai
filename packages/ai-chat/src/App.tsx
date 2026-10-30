@@ -14,6 +14,7 @@ import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu, type ForkPick } from './components/ForkMenu';
@@ -941,6 +942,8 @@ const AiChatContent: React.FC = () => {
 
             {/* 输入区域 */}
             <footer className="input-container">
+              {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
+              <DesktopConfirmDock />
               <MessageInput
                 {...inputModeProps}
                 contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}

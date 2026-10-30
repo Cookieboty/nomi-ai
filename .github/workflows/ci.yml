@@ -318,6 +318,7 @@ jobs:
   # 不要在 Linux box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会对不上）。
   # 签名/公证：仅 tag 构建经 scripts/release/signing-env.mjs 门控注入 secret；其它事件不签名。
   # ---------------------------------------------------------------
+  # Electron 版发布只接 ≤ v2.0.4 的 tag；v2.0.5 起面向用户的 Go 版由 desktop-go-package.yml 发布（见 docs/RELEASE.md）。
   # Tag 发版准备（#146）：tag 必须等于 v${version}；发版说明 docs/releases/<tag>.md 必须存在；
   # 先建好唯一的草稿 Release，三个平台的 build-electron 都上传到它，避免并发各建一个草稿。
   # ---------------------------------------------------------------

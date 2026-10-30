@@ -330,6 +330,60 @@ export const extraSse = {
       ],
       [null, '[DONE]'],
     ]),
+    // tool calls without a name: index 1 never gets one (dropped), index 2 gets it after its args
+    sse([
+      [null, { id: 'c4', model: 'm', choices: [{ index: 0, delta: { content: 'go' } }] }],
+      [
+        null,
+        {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  { index: 0, id: 'a', type: 'function', function: { name: 'f', arguments: '' } },
+                  { index: 1, function: { arguments: '{"lost":' } },
+                  { index: 2, function: { arguments: '{"y":' } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+      [
+        null,
+        {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  { index: 0, function: { arguments: '{}' } },
+                  { index: 1, function: { arguments: '1}' } },
+                  { index: 2, id: 'c', type: 'function', function: { name: 'h', arguments: '2}' } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+      [null, { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }],
+      [null, '[DONE]'],
+    ]),
+    // the only tool call never gets a name: dropped, finish becomes end_turn
+    sse([
+      [null, { id: 'c5', model: 'm', choices: [{ index: 0, delta: { role: 'assistant' } }] }],
+      [
+        null,
+        {
+          choices: [
+            { index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '{"a":1}' } }] } },
+          ],
+        },
+      ],
+      [null, { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }],
+      [null, '[DONE]'],
+    ]),
   ],
   responses: [
     sse([
@@ -384,6 +438,52 @@ export const extraSse = {
       ],
     ]),
     sse([['error', { type: 'error', code: 'rate_limit_exceeded', message: 'slow down' }]]),
+    // function_call without a name
+    sse([
+      [
+        'response.created',
+        { type: 'response.created', response: { id: 'resp_n', model: 'm', output: [] } },
+      ],
+      [
+        'response.output_item.added',
+        {
+          type: 'response.output_item.added',
+          output_index: 0,
+          item: { type: 'function_call', id: 'fc_1', call_id: 'call_n', arguments: '' },
+        },
+      ],
+      [
+        'response.function_call_arguments.delta',
+        {
+          type: 'response.function_call_arguments.delta',
+          output_index: 0,
+          item_id: 'fc_1',
+          delta: '{"a":1}',
+        },
+      ],
+      [
+        'response.output_item.done',
+        {
+          type: 'response.output_item.done',
+          output_index: 0,
+          item: { type: 'function_call', id: 'fc_1', call_id: 'call_n', arguments: '{"a":1}' },
+        },
+      ],
+      [
+        'response.completed',
+        {
+          type: 'response.completed',
+          response: {
+            id: 'resp_n',
+            status: 'completed',
+            output: [
+              { type: 'function_call', id: 'fc_1', call_id: 'call_n', arguments: '{"a":1}' },
+            ],
+            usage: { input_tokens: 1, output_tokens: 2 },
+          },
+        },
+      ],
+    ]),
   ],
   gemini: [
     sse([
@@ -412,6 +512,25 @@ export const extraSse = {
             },
           ],
           usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 2, thoughtsTokenCount: 3 },
+        },
+      ],
+    ]),
+    // functionCall without a name next to a named one
+    sse([
+      [
+        null,
+        {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { functionCall: { args: { a: 1 } } },
+                  { functionCall: { name: 'g', args: {} } },
+                ],
+              },
+              finishReason: 'STOP',
+            },
+          ],
         },
       ],
     ]),
@@ -477,6 +596,38 @@ export const extraSse = {
       ],
     ]),
     sse([['error', { type: 'error', error: { type: 'overloaded_error', message: 'busy' } }]]),
+    // tool_use without a name: dropped, stop_reason tool_use becomes end_turn
+    sse([
+      [
+        'message_start',
+        {
+          type: 'message_start',
+          message: { id: 'msg_2', model: 'claude', usage: { input_tokens: 3 } },
+        },
+      ],
+      [
+        'content_block_start',
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 'toolu_n', input: {} },
+        },
+      ],
+      [
+        'content_block_delta',
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: '{"a":1}' },
+        },
+      ],
+      ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+      [
+        'message_delta',
+        { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 4 } },
+      ],
+      ['message_stop', { type: 'message_stop' }],
+    ]),
   ],
 };
 export const extraJson = {
@@ -497,7 +648,22 @@ export const extraJson = {
     },
   ],
   gemini: [{ promptFeedback: { blockReason: 'SAFETY' } }],
-  messages: [{ type: 'error', error: { type: 'rate_limit_error', message: 'slow' } }],
+  messages: [
+    { type: 'error', error: { type: 'rate_limit_error', message: 'slow' } },
+    // tool_use without a name
+    {
+      id: 'msg_n',
+      type: 'message',
+      role: 'assistant',
+      model: 'claude',
+      content: [
+        { type: 'text', text: 'hi' },
+        { type: 'tool_use', id: 'toolu_n', input: { a: 1 } },
+      ],
+      stop_reason: 'tool_use',
+      usage: { input_tokens: 1, output_tokens: 2 },
+    },
+  ],
 };
 
 /** assistant turns for the response fixer / passthrough / terminal fixtures */
@@ -536,6 +702,15 @@ export const fixTexts = [
   },
   {
     text: 'ok get_weather<arg_key>10</arg_key><arg_value>x</arg_value><arg_key>01</arg_key><arg_value>y</arg_value><arg_key>4294967295</arg_key><arg_value>z</arg_value><arg_key>0</arg_key><arg_value>w</arg_value>',
+  },
+  // tool calls without a name (nameless: never named; lateName: name after the args)
+  { tools: [{ name: 'other', args: '{"a":1}', nameless: true }] },
+  {
+    tools: [
+      { name: 'other', args: '{}' },
+      { name: 'x', args: '{"b":2}', nameless: true },
+      { name: 'mapped_weather', args: '{"city":"Oslo"}', lateName: true },
+    ],
   },
 ];
 /** JSON texts whose key order exercises JS integer-key ordering */

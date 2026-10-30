@@ -1,9 +1,10 @@
 /**
  * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
- * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮只列**当前供应商**的模型
- * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`，这里按供应商筛选），
- * 直接打开模型列表、没有思考深度；换供应商用 `/model`，新标签默认在侧栏信息卡（CliDefaultSource）。
+ * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮列**所有第三方供应商**的模型
+ * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`）：顶部按供应商分标签、
+ * 左侧按厂商快速筛选（与对话输入栏的模型选择器一致），第三方之间换供应商原地续接（§13 第 5 条）；
+ * 直接打开模型列表、没有思考深度；新标签默认在侧栏信息卡（CliDefaultSource）。
  * 「默认模型」= 这个 CLI 在「模型」页分配的模型（属于当前供应商时）。
  *
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
@@ -16,7 +17,17 @@
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
-import { formatContext, Icon, Input, t } from '@nomi-ai/ui';
+import {
+  formatContext,
+  Icon,
+  Input,
+  ModelProviderTabs,
+  modelVendorId,
+  modelVendors,
+  ModelVendorFilter,
+  t,
+  type ModelProviderTab,
+} from '@nomi-ai/ui';
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Cpu, RefreshCw } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,7 +38,9 @@ import {
   type CliAccount,
 } from '../../services/cliAccountClient';
 import {
+  codingProviders,
   defaultSourceSwitch,
+  providerOfRef,
   scopeCatalogToProvider,
   scopeCatalogToProviders,
   sessionModelGroups,
@@ -342,6 +355,8 @@ const ModelChip: React.FC<{
   groups?: SessionModelGroup[] | null;
   /** 标签来源与「新标签默认用」不同时，切到默认来源的一组（官方账号 / 默认供应商的模型） */
   sourceSwitch?: SourceSwitch | null;
+  /** 第三方：目录里列了几个供应商时按供应商分标签（多于一个才显示） */
+  providerTabs?: ModelProviderTab[] | null;
 }> = ({
   tab,
   catalog,
@@ -351,6 +366,7 @@ const ModelChip: React.FC<{
   sessionRef = null,
   groups = null,
   sourceSwitch = null,
+  providerTabs = null,
 }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
@@ -364,7 +380,12 @@ const ModelChip: React.FC<{
   const menuRef = useRef<HTMLDivElement>(null);
 
   const current = tab.modelOverride?.trim() || sessionRef || null;
-  const grouped = !!groups && groups.length > 1;
+  const tabbed = !!providerTabs && providerTabs.length > 1;
+  // 分了供应商标签就不再按组列标题（组的说明放到标签的悬停提示里）
+  const grouped = !tabbed && !!groups && groups.length > 1;
+  /** 模型页当前的供应商标签与厂商筛选（null = 全部厂商） */
+  const [ptab, setPtab] = useState('');
+  const [vendor, setVendor] = useState<string | null>(null);
   // 第三方来源的目录：直接是模型列表，没有思考深度页
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
   const provider =
@@ -400,7 +421,12 @@ const ModelChip: React.FC<{
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
   // 分组时同名模型可能出现在两家：按钮上带上供应商名
   const groupOf = (id: string) => groups?.find((g) => id.startsWith(`${g.id}/`));
-  const currentGroupName = grouped && current ? (groupOf(current)?.name ?? null) : null;
+  const currentGroupName =
+    current && tabbed
+      ? (providerTabs.find((p) => p.id === providerOfRef(current))?.name ?? null)
+      : grouped && current
+        ? (groupOf(current)?.name ?? null)
+        : null;
   const modelLabel = current
     ? currentGroupName
       ? `${currentGroupName} / ${currentModel?.label ?? current}`
@@ -486,6 +512,18 @@ const ModelChip: React.FC<{
     }
   };
 
+  // 打开模型页时停在当前模型所在的供应商（ptab 为空 = 跟随当前模型），厂商筛选清空
+  const resetBrowse = () => {
+    setPtab('');
+    setVendor(null);
+  };
+  const currentPid = providerOfRef(current ?? catalog.defaultModel?.id);
+  const activeTab = !providerTabs?.length
+    ? ''
+    : providerTabs.some((p) => p.id === (ptab || currentPid))
+      ? ptab || currentPid!
+      : providerTabs[0]!.id;
+
   // `/model` 打开同一个浮层：直接到模型列表，有搜索框时填上参数
   const searchableNow = catalog.models.length > MODEL_SEARCH_THRESHOLD;
   useEffect(
@@ -494,6 +532,7 @@ const ModelChip: React.FC<{
         setView('model');
         setQuery(searchableNow ? q : '');
         setPreview(null);
+        resetBrowse();
         setOpen(true);
       }),
     [tab.id, searchableNow],
@@ -503,6 +542,7 @@ const ModelChip: React.FC<{
     setView(provider ? 'model' : 'effort');
     setQuery('');
     setPreview(null);
+    if (!open) resetBrowse();
     setOpen((o) => !o);
   };
 
@@ -520,11 +560,26 @@ const ModelChip: React.FC<{
     ? sourceSwitch.items.filter((i) => !q || i.label.toLowerCase().includes(q))
     : [];
   const searchable = catalog.models.length > MODEL_SEARCH_THRESHOLD;
-  const shownModels = q
-    ? catalog.models.filter((m) =>
-        `${m.id} ${m.label ?? ''} ${m.description ?? ''}`.toLowerCase().includes(q),
-      )
-    : catalog.models;
+  // 当前供应商标签里的模型（模型 id 是 `供应商/模型`）
+  const tabModels = useMemo(
+    () =>
+      tabbed ? catalog.models.filter((m) => providerOfRef(m.id) === activeTab) : catalog.models,
+    [catalog, tabbed, activeTab],
+  );
+  const modelName = (id: string) => (providerOfRef(id) ? id.slice(id.indexOf('/') + 1) : id);
+  // 厂商筛选只给第三方：官方目录都是同一家
+  const vendors = useMemo(
+    () => (thirdParty ? modelVendors(tabModels.map((m) => modelName(m.id))) : []),
+    [thirdParty, tabModels],
+  );
+  const showVendors = vendors.length > 1;
+  // 切到的标签里没有这个厂商：回到全部
+  const activeVendor = vendor !== null && vendors.some((v) => v.id === vendor) ? vendor : null;
+  const shownModels = tabModels.filter(
+    (m) =>
+      (activeVendor === null || modelVendorId(modelName(m.id)) === activeVendor) &&
+      (!q || `${m.id} ${m.label ?? ''} ${m.description ?? ''}`.toLowerCase().includes(q)),
+  );
 
   const pickEffort = (e: ReasoningEffort | null) => {
     setPreview(null);
@@ -575,7 +630,7 @@ const ModelChip: React.FC<{
               : t('ui.chat-settings.model-and-reasoning-effort-label')
           }
           testId="model-menu"
-          width={300}
+          width={view === 'model' ? (showVendors ? 380 : tabbed ? 340 : 300) : 300}
         >
           {view === 'effort' ? (
             <div className={styles.effortView} data-testid="effort-view">
@@ -720,7 +775,7 @@ const ModelChip: React.FC<{
               <div className={styles.modelHead}>
                 {provider ? (
                   <span className={styles.back} data-testid="model-provider">
-                    {grouped
+                    {grouped || tabbed
                       ? t('ui.models.third-party-models')
                       : t('ui.chat-settings.models', provider.name)}
                   </span>
@@ -805,6 +860,16 @@ const ModelChip: React.FC<{
                   </span>
                 </div>
               )}
+              {tabbed && (
+                <ModelProviderTabs
+                  tabs={providerTabs}
+                  value={activeTab}
+                  onChange={(id) => {
+                    setPtab(id);
+                    setVendor(null);
+                  }}
+                />
+              )}
               {searchable && (
                 <Input
                   autoFocus
@@ -828,101 +893,110 @@ const ModelChip: React.FC<{
                   data-testid="model-search"
                 />
               )}
-              <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
-                {!q && !sessionRef && (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={!current}
-                    className={styles.item}
-                    data-testid="model-default"
-                    title={t('ui.chat-settings.follows-s-own-choice', sourceName)}
-                    onClick={() => pickModel('')}
-                  >
-                    <span className={styles.itemLabel}>
-                      {t('ui.providers-schedule.default-model')}
-                    </span>
-                    <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
-                    {!current && <Icon icon={Check} size={14} />}
-                  </button>
+              <div className={showVendors ? styles.browseBody : styles.browseBodyPlain}>
+                {showVendors && (
+                  <ModelVendorFilter vendors={vendors} value={activeVendor} onChange={setVendor} />
                 )}
-                {q && !shownModels.length && (
-                  <div className={styles.modelError} role="status" data-testid="model-search-empty">
-                    {t('ui.session-workspace.no-models-match', query.trim())}
-                  </div>
-                )}
-                {shownModels.map((m, i) => (
-                  <React.Fragment key={m.id}>
-                    {grouped &&
-                      groupOf(m.id) !== (i ? groupOf(shownModels[i - 1]!.id) : undefined) && (
-                        <div
-                          className={styles.groupLabel}
-                          role="presentation"
-                          data-testid={`model-group-${groupOf(m.id)?.id}`}
-                        >
-                          {groupOf(m.id)?.label}
-                        </div>
-                      )}
+                <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
+                  {!q && !sessionRef && (
                     <button
                       type="button"
                       role="option"
-                      aria-selected={current === m.id}
+                      aria-selected={!current}
                       className={styles.item}
-                      data-testid={`model-${m.id}`}
-                      title={m.description ? `${m.id} · ${m.description}` : m.id}
-                      onClick={() => pickModel(m.id)}
+                      data-testid="model-default"
+                      title={t('ui.chat-settings.follows-s-own-choice', sourceName)}
+                      onClick={() => pickModel('')}
                     >
-                      <span className={styles.itemLabel}>{m.label ?? m.id}</span>
-                      {!m.reasoning && !provider && (
-                        <span className={styles.itemHint}>
-                          {t('ui.chat-settings.no-reasoning-effort')}
-                        </span>
-                      )}
-                      {current === m.id && <Icon icon={Check} size={14} />}
+                      <span className={styles.itemLabel}>
+                        {t('ui.providers-schedule.default-model')}
+                      </span>
+                      <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
+                      {!current && <Icon icon={Check} size={14} />}
                     </button>
-                  </React.Fragment>
-                ))}
-                {current && !currentModel && !q && (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected
-                    className={styles.item}
-                    data-testid="model-current-custom"
-                    onClick={() => pickModel(current)}
-                  >
-                    <span className={styles.itemLabel}>{current}</span>
-                    <span className={styles.itemHint}>{t('ui.providers-schedule.custom')}</span>
-                    <Icon icon={Check} size={14} />
-                  </button>
-                )}
-                {switchItems.length > 0 && (
-                  <>
+                  )}
+                  {q && !shownModels.length && (
                     <div
-                      className={styles.groupLabel}
-                      role="presentation"
-                      data-testid="model-group-switch"
+                      className={styles.modelError}
+                      role="status"
+                      data-testid="model-search-empty"
                     >
-                      {sourceSwitch!.title}
+                      {t('ui.session-workspace.no-models-match', query.trim())}
                     </div>
-                    {switchItems.map((i) => (
+                  )}
+                  {shownModels.map((m, i) => (
+                    <React.Fragment key={m.id}>
+                      {grouped &&
+                        groupOf(m.id) !== (i ? groupOf(shownModels[i - 1]!.id) : undefined) && (
+                          <div
+                            className={styles.groupLabel}
+                            role="presentation"
+                            data-testid={`model-group-${groupOf(m.id)?.id}`}
+                          >
+                            {groupOf(m.id)?.label}
+                          </div>
+                        )}
                       <button
-                        key={i.id}
                         type="button"
                         role="option"
-                        aria-selected={false}
+                        aria-selected={current === m.id}
                         className={styles.item}
-                        data-testid={`model-switch-${i.id}`}
-                        onClick={() => pickSource(i)}
+                        data-testid={`model-${m.id}`}
+                        title={m.description ? `${m.id} · ${m.description}` : m.id}
+                        onClick={() => pickModel(m.id)}
                       >
-                        <span className={styles.itemLabel}>{i.label}</span>
-                        {sourceSwitch!.target === 'official' && defaultAccount && (
-                          <span className={styles.itemHint}>{defaultAccount.label}</span>
+                        <span className={styles.itemLabel}>{m.label ?? m.id}</span>
+                        {!m.reasoning && !provider && (
+                          <span className={styles.itemHint}>
+                            {t('ui.chat-settings.no-reasoning-effort')}
+                          </span>
                         )}
+                        {current === m.id && <Icon icon={Check} size={14} />}
                       </button>
-                    ))}
-                  </>
-                )}
+                    </React.Fragment>
+                  ))}
+                  {current && !currentModel && !q && (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected
+                      className={styles.item}
+                      data-testid="model-current-custom"
+                      onClick={() => pickModel(current)}
+                    >
+                      <span className={styles.itemLabel}>{current}</span>
+                      <span className={styles.itemHint}>{t('ui.providers-schedule.custom')}</span>
+                      <Icon icon={Check} size={14} />
+                    </button>
+                  )}
+                  {switchItems.length > 0 && (
+                    <>
+                      <div
+                        className={styles.groupLabel}
+                        role="presentation"
+                        data-testid="model-group-switch"
+                      >
+                        {sourceSwitch!.title}
+                      </div>
+                      {switchItems.map((i) => (
+                        <button
+                          key={i.id}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          className={styles.item}
+                          data-testid={`model-switch-${i.id}`}
+                          onClick={() => pickSource(i)}
+                        >
+                          <span className={styles.itemLabel}>{i.label}</span>
+                          {sourceSwitch!.target === 'official' && defaultAccount && (
+                            <span className={styles.itemHint}>{defaultAccount.label}</span>
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -979,19 +1053,27 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     [source, tab, gateway],
   );
   const sourceSwitch = useMemo(() => defaultSourceSwitch(tab, gateway), [tab, gateway]);
-  // 第三方：只列当前供应商（或上面几组）的模型
+  // 第三方：列所有供应商的模型，按供应商分标签；组（原来的 / 默认供应商）的说明放到标签上
+  const providerTabs = useMemo(() => {
+    if (!catalog || !thirdRef) return null;
+    const has = new Set(catalog.models.map((m) => providerOfRef(m.id)));
+    const label = new Map(groups?.map((g) => [g.id, g.label]));
+    return codingProviders(gateway)
+      .filter((p) => has.has(p.id))
+      .map((p) => ({ id: p.id, name: p.name, hint: label.get(p.id) }));
+  }, [catalog, thirdRef, groups, gateway]);
   const scoped = useMemo(
     () =>
       catalog && thirdRef
-        ? groups
+        ? providerTabs && providerTabs.length > 1
           ? scopeCatalogToProviders(
               catalog,
-              groups.map((g) => g.id),
+              providerTabs.map((p) => p.id),
               gateway,
             )
           : scopeCatalogToProvider(catalog, thirdRef, gateway)
         : catalog,
-    [catalog, thirdRef, groups, gateway],
+    [catalog, thirdRef, providerTabs, gateway],
   );
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;
@@ -1005,6 +1087,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       sessionRef={groups ? thirdRef : null}
       groups={groups}
       sourceSwitch={sourceSwitch}
+      providerTabs={providerTabs}
     />
   );
 };

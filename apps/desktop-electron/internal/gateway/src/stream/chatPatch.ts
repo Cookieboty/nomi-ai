@@ -5,7 +5,9 @@
  *   缺 index、对象形式的 arguments、数组形式的 content、重复的工具名；
  * - 结构修复（工具名还原、正文里写出的工具调用、复读检测）只调用 models/rules/response 的同一份规则，
  *   这里只负责把 Chat 分片喂进去、把结果写回 Chat 分片：正文里的工具调用从标记起扣住正文，
- *   在 finish_reason 那一块之前补发正文剩余与 tool_calls；复读时发 `data: {"error":…}` 与 [DONE] 后停止。
+ *   在 finish_reason 那一块之前补发正文剩余与 tool_calls；复读时发 `data: {"error":…}` 与 [DONE] 后停止；
+ * - 没有工具名的调用：名字到之前扣住参数，到了补进带名字的那一片；整轮都没等到名字就丢掉
+ *   （原样转下去客户端 SDK 会整轮报错，如 AI SDK 的 Expected 'function.name' to be a string.）。
  */
 import { ChatChunkNormalizer } from '../canonical/chat';
 import { REPETITION_MESSAGE } from '../models/rules/response/repetition';
@@ -24,6 +26,16 @@ type Obj = Record<string, unknown>;
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** 带非空工具名的调用 */
+const hasToolName = (tc: unknown): boolean =>
+  isObj(tc) && isObj(tc.function) && typeof tc.function.name === 'string' && !!tc.function.name;
+
+/** 还没等到工具名的调用：index → 已收到的 id 与参数 */
+interface HeldCall {
+  id?: string;
+  args: string;
+}
+
 export interface ChatPatchOptions extends ResponseFixOptions {
   /** Chat 流修正（默认开） */
   chatStream?: boolean;
@@ -34,6 +46,10 @@ export class ChatStreamPatcher {
   private readonly rules: ResponseRules;
   /** 已开始的工具调用：index → 工具名 */
   private readonly tools = new Map<number, string>();
+  /** 还没等到工具名的调用 */
+  private readonly held = new Map<number, HeldCall>();
+  /** 丢过没有工具名的调用 */
+  private droppedNameless = false;
   /** 合成分片用的 id / model / created */
   private template: Obj = {};
   /** 字段归一（规范化层，§6.4） */
@@ -74,7 +90,10 @@ export class ChatStreamPatcher {
     const lines = raw.split(/\r?\n/).filter((l) => l.startsWith('data:'));
     if (lines.length !== 1) return raw;
     const data = lines[0]!.slice(5).trim();
-    if (data === '[DONE]') return this.flushChunks().text + raw;
+    if (data === '[DONE]') {
+      this.dropHeld();
+      return this.flushChunks().text + raw;
+    }
     let j: unknown;
     try {
       j = JSON.parse(data);
@@ -107,13 +126,31 @@ export class ChatStreamPatcher {
             : '';
       if (reasoning && this.rules.reasoning(reasoning)) return this.trip();
       if (Array.isArray(delta.tool_calls)) {
+        const kept: unknown[] = [];
         for (const tc of delta.tool_calls) {
+          kept.push(tc);
           if (!isObj(tc) || !isObj(tc.function)) continue;
           const fn = tc.function;
           const idx = typeof tc.index === 'number' ? tc.index : 0;
           if (this.tools.has(idx)) continue;
           const name = typeof fn.name === 'string' ? fn.name : '';
-          if (!name) continue;
+          if (!name) {
+            kept.pop();
+            const h = this.held.get(idx) ?? { args: '' };
+            if (!h.id && typeof tc.id === 'string' && tc.id) h.id = tc.id;
+            if (typeof fn.arguments === 'string') h.args += fn.arguments;
+            this.held.set(idx, h);
+            res.changed = true;
+            continue;
+          }
+          const h = this.held.get(idx);
+          if (h) {
+            this.held.delete(idx);
+            if (h.id && !(typeof tc.id === 'string' && tc.id)) tc.id = h.id;
+            if (tc.type === undefined) tc.type = 'function';
+            fn.arguments = h.args + (typeof fn.arguments === 'string' ? fn.arguments : '');
+            res.changed = true;
+          }
           const orig = this.rules.toolName(name);
           if (orig) {
             fn.name = orig;
@@ -123,6 +160,10 @@ export class ChatStreamPatcher {
           // 模型已经在用真正的 tool_calls：扣住的正文原样补发（不再转换，避免和上游的 index 冲突）
           const raw = this.rules.releaseRaw();
           if (raw) res.prefix += this.chunk({ content: raw });
+        }
+        if (kept.length !== delta.tool_calls.length) {
+          if (kept.length) delta.tool_calls = kept;
+          else delete delta.tool_calls;
         }
       }
       if (typeof delta.content === 'string' && delta.content) {
@@ -142,6 +183,10 @@ export class ChatStreamPatcher {
         c.finish_reason = 'tool_calls';
         res.changed = true;
       }
+      if (this.dropHeld() && !this.tools.size && c.finish_reason === 'tool_calls') {
+        c.finish_reason = 'stop';
+        res.changed = true;
+      }
     }
     if (touched) {
       res.changed = true;
@@ -158,6 +203,13 @@ export class ChatStreamPatcher {
     )
       res.drop = true;
     return res;
+  }
+
+  /** 整轮结束还没等到工具名的调用丢掉；返回这一轮是否丢过 */
+  private dropHeld(): boolean {
+    if (this.held.size) this.droppedNameless = true;
+    this.held.clear();
+    return this.droppedNameless;
   }
 
   private trip() {
@@ -197,7 +249,7 @@ export class ChatStreamPatcher {
 }
 
 /**
- * 非流式 Chat 响应（同协议）：工具名还原、正文里的工具调用。返回新对象；没有改动时返回原对象。
+ * 非流式 Chat 响应（同协议）：丢掉没有工具名的调用、工具名还原、正文里的工具调用。返回新对象；没有改动时返回原对象。
  */
 export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
   if (!isObj(body) || !Array.isArray(body.choices)) return body;
@@ -206,6 +258,12 @@ export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
     if (!isObj(c) || !isObj(c.message)) return c;
     let msg: Obj = c.message;
     let finish = c.finish_reason;
+    if (Array.isArray(msg.tool_calls) && !msg.tool_calls.every(hasToolName)) {
+      const named = msg.tool_calls.filter(hasToolName);
+      const { tool_calls: _dropped, ...rest } = msg;
+      msg = named.length ? { ...msg, tool_calls: named } : rest;
+      if (!named.length && finish === 'tool_calls') finish = 'stop';
+    }
     if (Array.isArray(msg.tool_calls) && o.toolNames?.size) {
       const calls = msg.tool_calls.map((tc) => {
         if (!isObj(tc) || !isObj(tc.function) || typeof tc.function.name !== 'string') return tc;

@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -202,4 +203,25 @@ func gatewayPort(gw *gwstore.Service) ports.HarnessGateway {
 		return nil
 	}
 	return harnessGateway{gw}
+}
+
+// wireNomiBroker：createCore.ts 里给 desktop.broker 接的编程助手设置。Nomi 对话的权限模式跟输入栏
+// （「完全放开」不适用）；工作区只认用户选过的目录（标签目录 / 最近列表 / 默认目录）；「全部自动」
+// 跟编程助手设置。broker 的调用方（PrepareChat、工具执行）都在 GIL 外，进编排器要拿 GIL。
+func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
+	b.PermissionMode = func() desktop.PermMode {
+		m := jsrt.Call(o.MainPermissionMode)
+		if m == "bypass" {
+			return "acceptEdits"
+		}
+		return m
+	}
+	b.IsKnownWorkspace = func(dir string) bool {
+		_, err := gilErr(func() string { return o.KnownDir(dir) })
+		return err == nil
+	}
+	b.AutoApprove = func() bool { return jsrt.Call(o.AutoApproveEnabled) }
+	b.OnWorkspaceRejected = func(dir, reason string) {
+		log.Printf("[desktop] WARN Nomi workspace rejected; tools fall back to granted folders dir=%s reason=%s", dir, reason)
+	}
 }

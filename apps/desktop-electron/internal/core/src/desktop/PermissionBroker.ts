@@ -38,7 +38,15 @@ export interface ConfirmRequest {
   rememberable: boolean;
   reason: string;
   expiresAt: number;
+  /** scope：请用户授权文件夹（对话窗口里的卡片：授权建议的文件夹 / 另选 / 拒绝） */
+  kind?: 'scope';
+  /** kind=scope：模型建议的文件夹（没有时卡片只给「选择文件夹…」） */
+  scopePath?: string;
+  scopeMode?: Scope['mode'];
 }
+
+/** 请求文件夹的答复：pick = 用户要自己另选一个文件夹 */
+export type ScopeDecision = 'allowed' | 'pick' | 'denied' | 'timeout';
 
 export interface ConfirmUi {
   request(req: ConfirmRequest): void;
@@ -72,7 +80,7 @@ export class PermissionBroker {
     string,
     {
       req: ConfirmRequest;
-      resolve: (d: { decision: Decision; remember: boolean }) => void;
+      resolve: (d: { decision: Decision | 'pick'; remember: boolean }) => void;
       timer: ReturnType<typeof setTimeout>;
     }
   >();
@@ -335,27 +343,89 @@ export class PermissionBroker {
     if (!this.ui) return 'denied'; // 没有界面可确认 → 拒绝
     // 发起方已取消（如对话已停止）：不再弹出确认，按拒绝处理
     if (i.signal?.aborted) return 'denied';
+    const result = await this.ask(
+      {
+        tool: i.tool,
+        danger: i.danger,
+        summary: i.summary,
+        argsJson: JSON.stringify(i.args ?? {}, null, 2).slice(0, 4000),
+        preview: i.preview?.slice(0, 4000),
+        dialog: d.dialog,
+        rememberable: d.rememberable,
+        reason: d.reason,
+      },
+      i.signal,
+    );
+    if (result.decision === 'allowed' && result.remember && result.req.rememberable)
+      this.sessionAllowed.add(i.tool);
+    return result.decision === 'pick' ? 'denied' : result.decision;
+  }
+
+  /**
+   * 请用户授权一个文件夹（对话窗口里的卡片，不受权限模式与「全部自动」影响：授权本身就是用户的选择）。
+   * 建议的文件夹先按工作区根的规则校验（绝对路径、存在、是文件夹、不过宽、不在黑名单），不过的不给
+   * 「授权这个」，只能另选。allowed 时 path 为校验后的真实路径；pick = 用户要自己另选；没有界面时按拒绝处理。
+   */
+  async requestScope(i: {
+    suggestedPath?: string;
+    mode: Scope['mode'];
+    /** 模型给的理由（卡片里显示） */
+    reason?: string;
+    signal?: AbortSignal;
+  }): Promise<{ decision: ScopeDecision; path?: string }> {
+    if (!this.ui || i.signal?.aborted) return { decision: 'denied' };
+    const real = i.suggestedPath ? await this.scopeCandidate(i.suggestedPath) : null;
+    const r = await this.ask(
+      {
+        tool: 'desktop_request_scope',
+        danger: 'read',
+        summary: t('electron.common.grant-nomi-access-to-this-folder'),
+        argsJson: JSON.stringify({ path: i.suggestedPath ?? null, mode: i.mode }, null, 2),
+        ...(i.reason ? { preview: i.reason.slice(0, 200) } : {}),
+        dialog: false,
+        rememberable: false,
+        reason: 'policy',
+        kind: 'scope',
+        ...(real ? { scopePath: real } : {}),
+        scopeMode: i.mode,
+      },
+      i.signal,
+    );
+    if (r.decision === 'allowed')
+      return real ? { decision: 'allowed', path: real } : { decision: 'denied' };
+    return { decision: r.decision === 'pick' || r.decision === 'timeout' ? r.decision : 'denied' };
+  }
+
+  /** 模型建议授权的文件夹能不能一键授权：按工作区根的规则校验，且必须是文件夹 */
+  private async scopeCandidate(p: string): Promise<string | null> {
+    const r = await checkWorkspaceRoot(p, this.envBase);
+    if (!r.ok) return null;
+    try {
+      return (await fs.promises.stat(r.real)).isDirectory() ? r.real : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 发出确认请求并等答复：超时 / 发起方取消都会收起界面上的请求 */
+  private ask(
+    fields: Omit<ConfirmRequest, 'id' | 'expiresAt'>,
+    signal?: AbortSignal,
+  ): Promise<{ decision: Decision | 'pick'; remember: boolean; req: ConfirmRequest }> {
     const timeoutMs = this.opts.timeoutMs ?? CONFIRM_TIMEOUT_MS;
     const req: ConfirmRequest = {
       id: randomUUID(),
-      tool: i.tool,
-      danger: i.danger,
-      summary: i.summary,
-      argsJson: JSON.stringify(i.args ?? {}, null, 2).slice(0, 4000),
-      preview: i.preview?.slice(0, 4000),
-      dialog: d.dialog,
-      rememberable: d.rememberable,
-      reason: d.reason,
+      ...fields,
       expiresAt: this.now() + timeoutMs,
     };
-    const result = await new Promise<{ decision: Decision; remember: boolean }>((resolve) => {
+    return new Promise<{ decision: Decision | 'pick'; remember: boolean }>((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(req.id);
         this.ui?.cancel(req.id);
         resolve({ decision: 'timeout', remember: false });
       }, timeoutMs);
       this.pending.set(req.id, { req, resolve, timer });
-      i.signal?.addEventListener(
+      signal?.addEventListener(
         'abort',
         () => {
           if (!this.pending.has(req.id)) return;
@@ -367,19 +437,20 @@ export class PermissionBroker {
         { once: true },
       );
       this.ui!.request(req);
-    });
-    if (result.decision === 'allowed' && result.remember && req.rememberable)
-      this.sessionAllowed.add(i.tool);
-    return result.decision;
+    }).then((r) => ({ ...r, req }));
   }
 
-  /** 用户答复（只接受来自看板娘窗口的 IPC，见 DesktopService） */
-  answer(id: string, allow: boolean, remember = false): boolean {
+  /**
+   * 用户答复（只接受看板娘窗口与对话窗口，见 DesktopService）。
+   * pick 只对请求文件夹有效：用户要自己另选一个文件夹。
+   */
+  answer(id: string, allow: boolean, remember = false, pick = false): boolean {
     const p = this.pending.get(id);
     if (!p) return false;
     clearTimeout(p.timer);
     this.pending.delete(id);
-    p.resolve({ decision: allow ? 'allowed' : 'denied', remember: remember && p.req.rememberable });
+    const decision = pick && p.req.kind === 'scope' ? 'pick' : allow ? 'allowed' : 'denied';
+    p.resolve({ decision, remember: remember && p.req.rememberable });
     return true;
   }
 

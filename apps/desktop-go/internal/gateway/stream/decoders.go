@@ -60,6 +60,8 @@ type baseDecoder struct {
 	usage                            events.StreamUsage
 	seed                             string
 	handle                           func(e sse.Event, out *[]ev)
+	// beforeFinish is the subclass part of an overridden finish (after start).
+	beforeFinish func(out *[]ev)
 }
 
 func (d *baseDecoder) fallbackID(prefix, key string) string {
@@ -93,6 +95,9 @@ func (d *baseDecoder) finish(out *[]ev, reason string) {
 		return
 	}
 	d.start(out, nil, nil)
+	if d.beforeFinish != nil {
+		d.beforeFinish(out)
+	}
 	d.done = true
 	r := reason
 	if r == "" {
@@ -165,13 +170,38 @@ type chatDecoder struct {
 	tools     map[string]string
 	toolOrder int
 	slot      map[string]string
+	// unnamed: calls still waiting for a tool name, key → held arguments
+	unnamed      map[string]string
+	unnamedOrder []string
 }
 
 func newChatDecoder(seed string) *chatDecoder {
-	d := &chatDecoder{tools: map[string]string{}, slot: map[string]string{}}
+	d := &chatDecoder{tools: map[string]string{}, slot: map[string]string{}, unnamed: map[string]string{}}
 	d.seed = seed
 	d.handle = d.handleEv
+	d.beforeFinish = d.flushUnnamed
 	return d
+}
+
+// flushUnnamed hands calls that never got a name to NamelessToolGuard (name "").
+func (d *chatDecoder) flushUnnamed(out *[]ev) {
+	for _, key := range d.unnamedOrder {
+		args, ok := d.unnamed[key]
+		if !ok {
+			continue
+		}
+		d.sawTool = true
+		tid := d.tools[key]
+		if tid == "" {
+			tid = d.fallbackID("call", key)
+		}
+		*out = append(*out, ev{Type: events.ToolStart, Key: key, ID: &tid, Name: ""})
+		if args != "" {
+			*out = append(*out, ev{Type: events.ToolArgs, Key: key, Delta: args})
+		}
+	}
+	clear(d.unnamed)
+	d.unnamedOrder = nil
 }
 
 func (d *chatDecoder) handleEv(e sse.Event, out *[]ev) {
@@ -239,16 +269,31 @@ func (d *chatDecoder) handleEv(e sse.Event, out *[]ev) {
 		}
 		if _, ok := d.tools[key]; !ok {
 			d.tools[key] = id
+			d.unnamed[key] = ""
+			d.unnamedOrder = append(d.unnamedOrder, key)
+		} else if _, waiting := d.unnamed[key]; id != "" && d.tools[key] == "" && waiting {
+			d.tools[key] = id
+		}
+		name := jsStringOr(fn.Get("name"), "")
+		if held, waiting := d.unnamed[key]; waiting && name != "" {
+			delete(d.unnamed, key)
 			d.sawTool = true
 			d.thinking = false
-			tid := id
+			tid := d.tools[key]
 			if tid == "" {
 				tid = d.fallbackID("call", key)
 			}
-			*out = append(*out, ev{Type: events.ToolStart, Key: key, ID: &tid, Name: jsStringOr(fn.Get("name"), "")})
+			*out = append(*out, ev{Type: events.ToolStart, Key: key, ID: &tid, Name: name})
+			if held != "" {
+				*out = append(*out, ev{Type: events.ToolArgs, Key: key, Delta: held})
+			}
 		}
 		if a := u.Str(fn.Get("arguments")); a != "" {
-			*out = append(*out, ev{Type: events.ToolArgs, Key: key, Delta: a})
+			if held, waiting := d.unnamed[key]; waiting {
+				d.unnamed[key] = held + a
+			} else {
+				*out = append(*out, ev{Type: events.ToolArgs, Key: key, Delta: a})
+			}
 		}
 	}
 	if r := chatFinish(c.Get("finish_reason")); r != "" {

@@ -19,6 +19,7 @@ import {
   type GitOpResult,
   type GitSyncStatus,
 } from '../../services/harnessClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { confirmDialog } from '../ConfirmDialog';
 
 import pane from './WorkspacePane.module.css';
@@ -418,7 +419,7 @@ export const GitCommitBox: React.FC<{
             data-testid="rail-commit-message"
             onChange={(e) => ops.setMessage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isImeComposing(e.nativeEvent)) {
                 e.preventDefault();
                 submit();
               }

@@ -206,16 +206,14 @@ if (want('fixes')) {
     for (const r of splitUnits(fx.think ?? '', 9)) s += ch({ reasoning_content: r });
     for (const t of splitUnits(fx.text ?? '', 9)) s += ch({ content: t });
     (fx.tools ?? []).forEach((t, i) => {
-      s += ch({
-        tool_calls: [
-          {
-            index: i,
-            id: `call_${i}`,
-            type: 'function',
-            function: { name: t.name, arguments: '' },
-          },
-        ],
-      });
+      const head = { index: i, id: `call_${i}`, type: 'function' };
+      if (t.lateName) {
+        s += ch({ tool_calls: [{ index: i, function: { arguments: t.args } }] });
+        s += ch({ tool_calls: [{ ...head, function: { name: t.name, arguments: '' } }] });
+        return;
+      }
+      const fn = t.nameless ? { arguments: '' } : { name: t.name, arguments: '' };
+      s += ch({ tool_calls: [{ ...head, function: fn }] });
       s += ch({ tool_calls: [{ index: i, function: { arguments: t.args } }] });
     });
     s += ch({}, fx.tools?.length ? 'tool_calls' : 'stop');
@@ -315,7 +313,7 @@ if (want('fixes')) {
       msg.tool_calls = fx.tools.map((t, k) => ({
         id: `call_${k}`,
         type: 'function',
-        function: { name: t.name, arguments: t.args },
+        function: t.nameless ? { arguments: t.args } : { name: t.name, arguments: t.args },
       }));
     const body = {
       id: 'chatcmpl-1',

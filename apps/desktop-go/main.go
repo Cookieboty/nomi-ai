@@ -408,6 +408,7 @@ func main() {
 	gatewayRequests := wireGatewayRequests(userData, shellP)
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
+	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry)
 	defer wireAgents(router, userData, desktopSvc)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
@@ -850,6 +851,19 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 		},
 		ShowInactive: func() { sh().Show(shell.Mascot) },
 		OpenChat:     func() { sh().Show(shell.Chat) },
+		// 工作台（对话窗口）在屏幕上（可见、没最小化）：确认请求只发给它
+		ChatOpen: func() bool {
+			if sh() == nil {
+				return false
+			}
+			if g, ok := sh().(interface {
+				Shown(shell.WindowKind) (bool, bool)
+			}); ok {
+				v, min := g.Shown(shell.Chat)
+				return v && !min
+			}
+			return sh().Visible(shell.Chat)
+		},
 		MascotHidden: func() bool { return !st.Get().ShowMascot },
 		SummonMascot: func() {
 			if sh().Visible(shell.Mascot) {

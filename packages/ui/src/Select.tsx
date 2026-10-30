@@ -49,10 +49,20 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   menuMinWidth?: number;
   /** 触发器上显示的内容（默认与选项的 label 相同；如列表里只写模型名、触发器写「供应商 / 模型」） */
   renderValue?: (option: SelectOption) => React.ReactNode;
+  /** 弹层顶部（搜索框上面）的额外内容，如模型选择器的供应商标签 */
+  menuHeader?: React.ReactNode;
+  /** 弹层列表左侧的额外内容，如模型选择器的厂商筛选栏 */
+  menuAside?: React.ReactNode;
+  /** 只影响弹层里列出哪些选项（触发器照常显示当前值） */
+  filterOption?: (option: SelectOption) => boolean;
+  /** 弹层打开 / 关闭 */
+  onOpenChange?: (open: boolean) => void;
 }
 
 const SEARCH_THRESHOLD = 8;
 const MENU_MAX_H = 296;
+/** 带顶部标签 / 侧栏的弹层更高一些，列表区才不会太挤 */
+const FRAMED_MAX_H = 420;
 const GAP = 4;
 /** 停留多久才出悬停提示（ms） */
 const TIP_DELAY = 350;
@@ -167,6 +177,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     placeholder = tr('ui.mascot-theme.please-select'),
     menuMinWidth,
     renderValue,
+    menuHeader,
+    menuAside,
+    filterOption,
+    onOpenChange,
     value,
     defaultValue,
     disabled,
@@ -217,17 +231,20 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const current = value != null ? String(value) : uncontrolled;
   const selected = all.find((o) => o.value === current);
   const showSearch = searchable ?? all.length > SEARCH_THRESHOLD;
+  // 有顶部 / 侧栏时弹层固定高度：切换筛选时不跳动
+  const framed = Boolean(menuHeader || menuAside);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return all;
+    const base = filterOption ? all.filter(filterOption) : all;
+    if (!q) return base;
     // 选项文案可以是翻译 key：按界面上显示的文字搜，不按 key 搜
-    return all.filter((o) =>
+    return base.filter((o) =>
       `${tr(o.searchText ?? textOf(o.label))} ${o.value} ${tr(o.group ?? '')}`
         .toLowerCase()
         .includes(q),
     );
-  }, [all, query]);
+  }, [all, query, filterOption]);
 
   const place = useCallback(() => {
     const el = triggerRef.current;
@@ -238,12 +255,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     const below = vh - r.bottom - GAP - 8;
     const above = r.top - GAP - 8;
     const placement: MenuPos['placement'] = below < 180 && above > below ? 'top' : 'bottom';
-    const maxHeight = Math.max(120, Math.min(MENU_MAX_H, placement === 'bottom' ? below : above));
+    const limit = framed ? FRAMED_MAX_H : MENU_MAX_H;
+    const maxHeight = Math.max(120, Math.min(limit, placement === 'bottom' ? below : above));
     const width = Math.max(r.width, menuMinWidth ?? 0);
     const left = Math.max(8, Math.min(r.left, vw - width - 8));
     const top = placement === 'bottom' ? r.bottom + GAP : r.top - GAP;
     setPos({ left, top, width, maxHeight, placement });
-  }, [menuMinWidth]);
+  }, [menuMinWidth, framed]);
 
   const openMenu = useCallback(() => {
     if (disabled) return;
@@ -256,16 +274,33 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     setActive(
       Math.max(
         0,
-        all.findIndex((o) => o.value === current),
+        (filterOption ? all.filter(filterOption) : all).findIndex((o) => o.value === current),
       ),
     );
     setOpen(true);
-  }, [all, current, disabled, place]);
+    onOpenChange?.(true);
+  }, [all, current, disabled, place, onOpenChange, filterOption]);
 
-  const close = useCallback((refocus = true) => {
-    setOpen(false);
-    if (refocus) triggerRef.current?.focus();
-  }, []);
+  const close = useCallback(
+    (refocus = true) => {
+      setOpen(false);
+      onOpenChange?.(false);
+      if (refocus) triggerRef.current?.focus();
+    },
+    [onOpenChange],
+  );
+
+  // 外部筛选变了（如切换供应商标签）：高亮回到当前值，不在列表里就回到第一项
+  useEffect(() => {
+    if (!open || !filterOption) return;
+    setActive(
+      Math.max(
+        0,
+        filtered.findIndex((o) => o.value === current),
+      ),
+    );
+    // 只在筛选条件变化时重置，不跟随搜索与当前值
+  }, [filterOption]);
 
   const commit = useCallback(
     (opt: SelectOption | undefined) => {
@@ -429,15 +464,59 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   };
 
   let lastGroup: string | undefined;
+  const list = (
+    <div
+      id={listId}
+      role="listbox"
+      className="cd-dropdown__list"
+      style={framed ? undefined : { maxHeight: (pos?.maxHeight ?? 0) - (showSearch ? 44 : 0) }}
+      onMouseMove={() => !tipArmed && setTipArmed(true)}
+      onMouseLeave={() => setTipArmed(false)}
+      onScroll={() => setTipFor(-1)}
+    >
+      {filtered.length === 0 && (
+        <div className="cd-dropdown__empty">{tr('ui.mascot-theme.no-matches')}</div>
+      )}
+      {filtered.map((o, i) => {
+        const header =
+          o.group && o.group !== lastGroup ? (
+            <div className="cd-dropdown__group" role="presentation">
+              {tr(o.group)}
+            </div>
+          ) : null;
+        lastGroup = o.group;
+        return (
+          <React.Fragment key={`${o.group ?? ''}:${o.value}`}>
+            {header}
+            <MenuOption
+              o={o}
+              index={i}
+              id={`${listId}-${i}`}
+              active={i === active}
+              selected={o.value === current}
+              describedBy={showOptionTip && i === tipFor ? tipId : undefined}
+              setActive={setActive}
+              onPick={commit}
+            />
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
   const menu =
     open && pos
       ? createPortal(
           <div
             ref={menuRef}
-            className={cx('cd-dropdown__menu', `cd-dropdown__menu--${pos.placement}`)}
+            className={cx(
+              'cd-dropdown__menu',
+              `cd-dropdown__menu--${pos.placement}`,
+              framed && 'cd-dropdown__menu--framed',
+            )}
             style={{
               left: pos.left,
               width: pos.width,
+              ...(framed ? { height: pos.maxHeight } : {}),
               ...(pos.placement === 'bottom'
                 ? { top: pos.top }
                 : { bottom: window.innerHeight - pos.top }),
@@ -450,6 +529,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 : undefined
             }
           >
+            {menuHeader}
             {showSearch && (
               <div className="cd-dropdown__search">
                 <input
@@ -466,43 +546,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 />
               </div>
             )}
-            <div
-              id={listId}
-              role="listbox"
-              className="cd-dropdown__list"
-              style={{ maxHeight: pos.maxHeight - (showSearch ? 44 : 0) }}
-              onMouseMove={() => !tipArmed && setTipArmed(true)}
-              onMouseLeave={() => setTipArmed(false)}
-              onScroll={() => setTipFor(-1)}
-            >
-              {filtered.length === 0 && (
-                <div className="cd-dropdown__empty">{tr('ui.mascot-theme.no-matches')}</div>
-              )}
-              {filtered.map((o, i) => {
-                const header =
-                  o.group && o.group !== lastGroup ? (
-                    <div className="cd-dropdown__group" role="presentation">
-                      {tr(o.group)}
-                    </div>
-                  ) : null;
-                lastGroup = o.group;
-                return (
-                  <React.Fragment key={`${o.group ?? ''}:${o.value}`}>
-                    {header}
-                    <MenuOption
-                      o={o}
-                      index={i}
-                      id={`${listId}-${i}`}
-                      active={i === active}
-                      selected={o.value === current}
-                      describedBy={showOptionTip && i === tipFor ? tipId : undefined}
-                      setActive={setActive}
-                      onPick={commit}
-                    />
-                  </React.Fragment>
-                );
-              })}
-            </div>
+            {menuAside ? (
+              <div className="cd-dropdown__body">
+                {menuAside}
+                {list}
+              </div>
+            ) : (
+              list
+            )}
             {optionTip}
           </div>,
           document.body,

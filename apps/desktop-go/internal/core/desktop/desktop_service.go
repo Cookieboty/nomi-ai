@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"math"
@@ -45,7 +46,9 @@ type Windows struct {
 	MascotHidden  func() bool
 	SummonMascot  func()
 	ReleaseMascot func()
-	Island        func(n IslandNotice) bool
+	// ChatOpen：对话窗口在屏幕上（确认请求只发给它，不打扰看板娘）
+	ChatOpen func() bool
+	Island   func(n IslandNotice) bool
 }
 
 // Ports 对应 DesktopPorts 中用到的部分
@@ -163,8 +166,18 @@ type brokerUI struct{ s *Service }
 
 func (u brokerUI) Request(req ConfirmRequest) { u.s.sendConfirm(req) }
 func (u brokerUI) Cancel(id string) {
-	u.s.toMascot("desktop.confirmCancel", id)
+	u.s.cancelConfirm(id)
 	u.s.rehideMascotIfIdle()
+}
+
+func (s *Service) chatOpen() bool {
+	return s.windows != nil && s.windows.ChatOpen != nil && s.windows.ChatOpen()
+}
+
+// cancelConfirm：确认请求收起（答复 / 超时 / 取消），两边都发，没订阅的界面收不到
+func (s *Service) cancelConfirm(id string) {
+	s.emit("desktop.confirmCancel", id, "chat")
+	s.toMascot("desktop.confirmCancel", id)
 }
 
 func (s *Service) AttachRuntime(h *RuntimeHooks) { s.runtime = h }
@@ -210,7 +223,20 @@ func (s *Service) avatarEmotion(name string) {
 // IsMascotSender：调用方是看板娘窗口（D-B6-4：按 Caller.Surface 判断）
 func (s *Service) IsMascotSender(surface string) bool { return s.main() && surface == "mascot" }
 
+// sendConfirm：对话窗口开着 → 只发给对话窗口（授权卡片）；看板娘被关掉了 → 打开对话窗口
+// （窗口挂载后经 desktop.state 补拉）；否则发给看板娘。请求文件夹只走对话窗口（见 RequestFolder）。
 func (s *Service) sendConfirm(req ConfirmRequest) {
+	if s.chatOpen() || req.Kind == "scope" {
+		log.Printf("桌面工具确认请求 tool=%s danger=%s to=chat", req.Tool, req.Danger)
+		s.emit("desktop.confirmRequest", req, "chat")
+		return
+	}
+	if s.mascotHidden() && s.windows != nil && s.windows.OpenChat != nil {
+		log.Printf("桌面工具确认请求 tool=%s danger=%s to=chat-open", req.Tool, req.Danger)
+		s.windows.OpenChat()
+		s.emit("desktop.confirmRequest", req, "chat")
+		return
+	}
 	w := s.main()
 	log.Printf("桌面工具确认请求 tool=%s danger=%s hasWindow=%v", req.Tool, req.Danger, w)
 	if !w {
@@ -442,6 +468,26 @@ type errString string
 func (e errString) Error() string { return string(e) }
 
 var reTilde = regexp.MustCompile(`^~($|[\\/])`)
+
+// RequestFolder：工具请求授权文件夹。对话窗口开着时在对话里问（授权建议的文件夹 / 另选 / 拒绝），
+// 只有用户要另选时才打开系统的选择框；对话窗口没开时照旧直接打开选择框。"" = 没有授权
+func (s *Service) RequestFolder(ctx context.Context, suggested, mode, reason string) string {
+	if !s.chatOpen() {
+		return s.PickFolder(suggested)
+	}
+	abs := ""
+	if suggested != "" {
+		abs = reTilde.ReplaceAllString(suggested, strings.ReplaceAll(s.ports.Home, "$", "$$")+"${1}")
+	}
+	d, real := s.Broker.RequestScope(abs, mode, reason, ctx)
+	switch d {
+	case "allowed":
+		return real
+	case "pick":
+		return s.PickFolder(suggested)
+	}
+	return ""
+}
 
 func (s *Service) PickFolder(suggested string) string {
 	if s.ports.PickDirectory == nil {
@@ -788,13 +834,14 @@ func (s *Service) ReminderAction(surface string, id, action, minutes any) {
 	}
 }
 
-func (s *Service) AnswerConfirm(surface string, id, allow, remember any) {
-	if !s.IsMascotSender(surface) {
+// AnswerConfirm：确认答复，来自对话窗口（契约按界面放行）或看板娘窗口
+func (s *Service) AnswerConfirm(surface string, id, allow, remember, pick any) {
+	if surface != "chat" && !s.IsMascotSender(surface) {
 		log.Printf("忽略来自非 Nomi 窗口的确认答复")
 		return
 	}
-	if sid, ok := id.(string); ok {
-		s.Broker.Answer(sid, allow == true, remember == true)
+	if sid, ok := id.(string); ok && s.Broker.AnswerPick(sid, allow == true, remember == true, pick == true) {
+		s.cancelConfirm(sid)
 	}
 	s.rehideMascotIfIdle()
 }

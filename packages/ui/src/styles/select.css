@@ -264,3 +264,104 @@
 .cd-modal--drawer.cd-modal--lg {
   width: min(720px, 96vw);
 }
+
+/* 带顶部标签 / 侧栏的弹层（模型选择器）：固定高度，列表区撑满剩余空间 */
+.cd-dropdown__menu--framed .cd-dropdown__list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.cd-dropdown__body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: var(--cd-space-1-5);
+}
+.cd-dropdown__body > .cd-dropdown__list {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 模型选择器 browse：顶部供应商标签 */
+.cd-model-picker__tabs {
+  display: flex;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-1-5);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+.cd-model-picker__tabs::-webkit-scrollbar {
+  display: none;
+}
+.cd-model-picker__tab,
+.cd-model-picker__vendor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  height: var(--cd-control-h-xs);
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-model-picker__tab {
+  flex: none;
+  max-width: 160px;
+}
+.cd-model-picker__tab:hover,
+.cd-model-picker__vendor:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.cd-model-picker__tab.is-active,
+.cd-model-picker__vendor.is-active {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+  font-weight: var(--cd-font-weight-medium);
+}
+.cd-model-picker__tab:focus-visible,
+.cd-model-picker__vendor:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+/* 左侧厂商筛选栏：只有图标，名字在悬停提示里 */
+.cd-model-picker__vendors {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-1);
+  flex: none;
+  padding-right: var(--cd-space-1-5);
+  border-right: 1px solid var(--cd-panel-border);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.cd-model-picker__vendors::-webkit-scrollbar {
+  display: none;
+}
+.cd-model-picker__vendor {
+  flex: none;
+  justify-content: center;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  padding: 0;
+}
+.cd-model-picker__vendor .cd-brand {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-model-picker__tab,
+  .cd-model-picker__vendor {
+    transition: none;
+  }
+}

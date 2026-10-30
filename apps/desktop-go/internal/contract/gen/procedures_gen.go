@@ -89,7 +89,7 @@ var Procedures = []Procedure{
 	{Name: "delegate.status", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.audit", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.auditClear", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "desktop.confirmAnswer", Kind: "mutation", Dangerous: true, Surfaces: []string{"mascot"}},
+	{Name: "desktop.confirmAnswer", Kind: "mutation", Dangerous: true, Surfaces: []string{"mascot", "chat"}},
 	{Name: "desktop.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.journal", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.reminderAction", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},

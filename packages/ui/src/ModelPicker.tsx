@@ -2,12 +2,14 @@
  * 统一的模型选择器（docs/design/unified-gateway.md §4.4）：所有选第三方模型的地方都用它。
  * - 按供应商分组，模型旁显示能力（推理、视觉、上下文长度）；可选的「最近使用」分组置顶；
  * - 给编程助手选（purpose="coding"）时，不支持工具调用的模型不出现，参数未知的标出来；
- * - 搜索支持 `provider/` 前缀过滤；键盘与弹层行为沿用 Select。
+ * - 搜索支持 `provider/` 前缀过滤；键盘与弹层行为沿用 Select；
+ * - browse：弹层顶部按供应商分标签、右侧按厂商（OpenAI、Anthropic …）快速筛选（对话输入栏用）。
  * 值的格式是 `providerId/modelId`（模型 id 本身可以含 `/`，供应商 id 不含）。
  */
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 
 import { t } from './i18n';
+import { ModelProviderTabs, modelVendorId, modelVendors, ModelVendorFilter } from './ModelBrowse';
 import { Select, type SelectOption, type SelectProps } from './Select';
 
 export interface PickerModel {
@@ -48,6 +50,8 @@ export interface ModelPickerProps extends Pick<
   /** 放在最前面的特殊选项（如「跟随对话」「未设置」），值不能含 `/` */
   extraOptions?: SelectOption[];
   placeholder?: string;
+  /** 弹层顶部按供应商分标签、右侧按厂商筛选（供应商 / 厂商多于一个时才出现） */
+  browse?: boolean;
   'aria-label'?: string;
   'data-testid'?: string;
 }
@@ -95,14 +99,17 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   showWire = false,
   extraOptions = NO_EXTRA,
   placeholder,
+  browse = false,
   ...rest
 }) => {
-  const { options, display } = useMemo(() => {
+  const { options, display, meta } = useMemo(() => {
     const usable = (m: PickerModel) => purpose !== 'coding' || m.toolCalling !== false;
     const byRef = new Map<string, { p: PickerProvider; m: PickerModel }>();
     for (const p of providers)
       for (const m of p.models) if (usable(m)) byRef.set(`${p.id}/${m.id}`, { p, m });
     const display = new Map<string, string>();
+    /** ref → 供应商 id、模型 id 与厂商 id（browse 筛选用） */
+    const meta = new Map<string, { provider: string; model: string; vendor: string }>();
     const opts: SelectOption[] = [...extraOptions];
     const recentGroup = t('ui.cli-monitor.recent');
     for (const ref of recent.filter((r) => byRef.has(r)).slice(0, RECENT_MAX)) {
@@ -120,6 +127,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         if (!usable(m)) continue;
         const ref = `${p.id}/${m.id}`;
         display.set(ref, `${p.name} / ${m.label ?? m.id}`);
+        meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
         opts.push({
           value: ref,
@@ -132,17 +140,84 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         });
       }
     }
-    return { options: opts, display };
+    return { options: opts, display, meta };
   }, [providers, recent, purpose, showWire, extraOptions]);
+
+  // browse：当前供应商标签（'' = 不按供应商筛，只有一个供应商时）与厂商筛选（null = 全部）
+  const [tab, setTab] = useState('');
+  const [vendor, setVendor] = useState<string | null>(null);
+  const tabs = useMemo(
+    () => providers.filter((p) => [...meta.values()].some((x) => x.provider === p.id)),
+    [providers, meta],
+  );
+  const vendors = useMemo(
+    () =>
+      modelVendors(
+        [...meta.values()].filter((x) => !tab || x.provider === tab).map((x) => x.model),
+      ),
+    [meta, tab],
+  );
+  const showTabs = browse && tabs.length > 1;
+  const showVendors = browse && vendors.length > 1;
+  // 切到的标签里没有这个厂商：回到全部
+  const activeVendor = vendor !== null && vendors.some((v) => v.id === vendor) ? vendor : null;
+
+  const recentGroup = t('ui.cli-monitor.recent');
+  const filterOption = useMemo(() => {
+    if (!browse || (!tab && activeVendor === null)) return undefined;
+    return (o: SelectOption) => {
+      const x = meta.get(o.value);
+      // 特殊选项（跟随对话等）始终在；分了供应商标签时不列最近使用
+      if (!x) return !o.value.includes('/');
+      if (o.group === recentGroup) return false;
+      return (!tab || x.provider === tab) && (activeVendor === null || x.vendor === activeVendor);
+    };
+  }, [browse, tab, activeVendor, meta, recentGroup]);
+
+  // 打开时定位到当前值所在的供应商，厂商筛选清空
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open || !browse) return;
+      const cur = value ? meta.get(value) : undefined;
+      setTab(tabs.length > 1 ? (cur?.provider ?? tabs[0].id) : '');
+      setVendor(null);
+    },
+    [browse, value, meta, tabs],
+  );
+
+  // 分了供应商标签时列表里不再重复供应商分组标题
+  const listOptions = useMemo(
+    () =>
+      showTabs ? options.map((o) => (meta.has(o.value) ? { ...o, group: undefined } : o)) : options,
+    [showTabs, options, meta],
+  );
+
+  const menuHeader = showTabs ? (
+    <ModelProviderTabs
+      tabs={tabs}
+      value={tab}
+      onChange={(id) => {
+        setTab(id);
+        setVendor(null);
+      }}
+    />
+  ) : null;
+  const menuAside = showVendors ? (
+    <ModelVendorFilter vendors={vendors} value={activeVendor} onChange={setVendor} />
+  ) : null;
 
   return (
     <Select
       {...rest}
       searchable
-      options={options}
+      options={listOptions}
       value={value ?? ''}
       placeholder={placeholder ?? t('ui.models.choose-a-model')}
-      menuMinWidth={rest.menuMinWidth ?? 300}
+      menuMinWidth={rest.menuMinWidth ?? (showVendors ? 380 : showTabs ? 340 : 300)}
+      menuHeader={menuHeader}
+      menuAside={menuAside}
+      filterOption={filterOption}
+      onOpenChange={onOpenChange}
       // 特殊选项的 label 可以是翻译 key（与 Select 一致）
       renderValue={(o) => display.get(o.value) ?? t(o.label)}
       onChange={(e) => onChange(e.target.value)}

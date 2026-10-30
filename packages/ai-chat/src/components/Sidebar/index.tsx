@@ -32,6 +32,7 @@ import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
+import { isImeComposing } from '../../utils/keyboard';
 import { ChatModeSwitch } from '../ChatModeSwitch';
 import { confirmDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
@@ -607,7 +608,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+    } else if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
       e.preventDefault();
       openEntry(activeEntry);
     }

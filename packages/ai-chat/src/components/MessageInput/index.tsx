@@ -49,6 +49,7 @@ import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../..
 import type { ModelArgOption, SlashBridge, SlashCommand } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { isImeComposing } from '../../utils/keyboard';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
@@ -387,7 +388,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
-    if (isComposing || e.nativeEvent.isComposing) return;
+    if (isComposing || isImeComposing(e.nativeEvent)) return;
 
     // `/agent ` 后选编程助手：↑↓ 选择，Enter / Tab 选用，Esc 关闭列表
     if (agentOpen) {

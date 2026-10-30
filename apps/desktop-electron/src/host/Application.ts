@@ -135,6 +135,11 @@ export class Application implements IApplication {
           mascotHidden: () => this.windowManager.mascotHidden(),
           summonMascot: () => this.windowManager.summonMascot(),
           releaseMascot: () => this.windowManager.releaseMascot(),
+          // 工作台（对话窗口）在屏幕上：确认请求只发给它
+          chatOpen: () => {
+            const w = this.windowManager.getAiChatWindow();
+            return !!w && !w.isDestroyed() && w.isVisible() && !w.isMinimized();
+          },
           island: (n) => this.island?.notify(n) ?? false,
         },
         voiceChatWindow: () => this.windowManager.createAiChatWindow(),

@@ -115,6 +115,46 @@ describe('ModelPicker', () => {
     expect(optionTexts()[0]).toContain('跟随对话');
   });
 
+  it('browse: provider tabs on top, vendor filter on the side, picks across providers', () => {
+    const onPick = vi.fn();
+    const many: PickerProvider[] = [
+      {
+        id: 'or',
+        name: 'OpenRouter',
+        models: [
+          { id: 'z-ai/glm-5.3-flash' },
+          { id: 'deepseek/deepseek-v4.1-flash' },
+          { id: 'anthropic/claude-opus-5.5' },
+        ],
+      },
+      { id: 'maas', name: 'MAAS', models: [{ id: 'Aerith-opus-5.5' }, { id: 'gpt-6.1' }] },
+    ];
+    render(<Harness providers={many} value="maas/Aerith-opus-5.5" browse onPick={onPick} />);
+    fireEvent.click(screen.getByRole('combobox'));
+    // 打开时停在当前值所在的供应商
+    expect(screen.getByRole('tab', { name: 'MAAS' }).getAttribute('aria-selected')).toBe('true');
+    expect(optionTexts()).toEqual(['Aerith-opus-5.5', 'gpt-6.1']);
+    // 厂商：认出的在前，认不出的归到「其他」
+    fireEvent.click(screen.getByTestId('model-picker-vendor-'));
+    expect(optionTexts()).toEqual(['Aerith-opus-5.5']);
+    // 换供应商：厂商筛选清空，只列这个供应商的模型
+    fireEvent.click(screen.getByRole('tab', { name: 'OpenRouter' }));
+    expect(optionTexts()).toHaveLength(3);
+    fireEvent.click(screen.getByTestId('model-picker-vendor-zai'));
+    expect(optionTexts()).toEqual(['z-ai/glm-5.3-flash']);
+    // 没有「全部」供应商：只有各供应商的标签
+    expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual(['OpenRouter', 'MAAS']);
+    fireEvent.click(screen.getByTestId('model-picker-vendor-all'));
+    fireEvent.click(screen.getAllByRole('option').find((o) => o.textContent?.includes('claude'))!);
+    expect(onPick).toHaveBeenCalledWith('or/anthropic/claude-opus-5.5');
+  });
+
+  it('browse hides tabs with a single provider', () => {
+    render(<Harness providers={[providers[0]]} browse />);
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+
   it('helpers', () => {
     expect(formatContext(128_000)).toBe('128K');
     expect(formatContext(1_000_000)).toBe('1M');

@@ -17,6 +17,7 @@ import { joinFileAttachments, splitFileAttachments } from '../../services/fileAt
 import type { ConvMessage } from '../../types/conversation';
 import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
+import { isImeComposing } from '../../utils/keyboard';
 import { entriesFromLegacyTools, hasRunning, reduceTraceCached } from '../../utils/toolTrace';
 import { FileChipRow } from '../FileAttachment';
 
@@ -245,7 +246,7 @@ export const UserMessage = memo(function UserMessage({
               else if (
                 e.key === 'Enter' &&
                 (e.ctrlKey || e.metaKey) &&
-                !e.nativeEvent.isComposing
+                !isImeComposing(e.nativeEvent)
               ) {
                 e.preventDefault();
                 submit();

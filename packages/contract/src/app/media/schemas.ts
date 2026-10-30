@@ -281,6 +281,10 @@ export const DesktopConfirmRequest = z.looseObject({
   rememberable: z.boolean(),
   reason: z.string(),
   expiresAt: z.number(),
+  /** scope：请用户授权文件夹（只发给对话窗口）；scopePath 为模型建议的文件夹 */
+  kind: z.literal('scope').optional(),
+  scopePath: z.string().optional(),
+  scopeMode: z.enum(['read', 'read-write']).optional(),
 });
 
 export const DesktopState = z.looseObject({

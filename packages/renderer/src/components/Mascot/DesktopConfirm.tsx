@@ -17,10 +17,11 @@ const desktop = {
   onBubble: (cb: (p: DesktopBubble) => void) =>
     api.on('desktop.bubble', (p) => cb(p as DesktopBubble)),
   /** 还在等答复的确认请求：看板娘关闭时窗口是为确认框临时建的，建好前发出的请求要补拉 */
+  // 请求文件夹只在对话窗口里问（看板娘没有「另选」）
   pending: () =>
     api.desktop
       .state()
-      .then((s) => (s.pending ?? []) as DesktopConfirmRequest[])
+      .then((s) => ((s.pending ?? []) as DesktopConfirmRequest[]).filter((r) => r.kind !== 'scope'))
       .catch(() => [] as DesktopConfirmRequest[]),
   answer: (id: string, allow: boolean, remember: boolean) =>
     void api.desktop.confirmAnswer({ id, allow, remember }).catch(() => undefined),

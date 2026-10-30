@@ -143,6 +143,27 @@ export class ChatCompletionsDecoder extends BaseDecoder {
   private tools = new Map<string, string>();
   /** 上游的 index → 当前对应的 key（同一 index 换了新的调用 id 时开新 key） */
   private slot = new Map<string, string>();
+  /** 还没等到工具名的调用：key → 扣住的参数（有的上游先给参数后给名字） */
+  private unnamed = new Map<string, string>();
+
+  /** 整轮都没等到工具名的调用照样交出去（name 为空），由 NamelessToolGuard 统一丢掉、改停止原因 */
+  protected override finish(out: NormEvent[], reason?: StopReason) {
+    if (!this.done && this.unnamed.size) {
+      this.start(out);
+      for (const [key, args] of this.unnamed) {
+        this.sawTool = true;
+        out.push({
+          type: 'tool_start',
+          key,
+          id: this.tools.get(key) || this.fallbackId('call', key),
+          name: '',
+        });
+        if (args) out.push({ type: 'tool_args', key, delta: args });
+      }
+      this.unnamed.clear();
+    }
+    super.finish(out, reason);
+  }
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
     const data = ev.data.trim();
@@ -202,17 +223,27 @@ export class ChatCompletionsDecoder extends BaseDecoder {
       }
       if (!this.tools.has(key)) {
         this.tools.set(key, id);
+        this.unnamed.set(key, '');
+      } else if (id && !this.tools.get(key) && this.unnamed.has(key)) this.tools.set(key, id);
+      const name = String(fn.name ?? '');
+      const held = this.unnamed.get(key);
+      if (held !== undefined && name) {
+        this.unnamed.delete(key);
         this.sawTool = true;
         this.thinking = false;
         out.push({
           type: 'tool_start',
           key,
-          id: id || this.fallbackId('call', key),
-          name: String(fn.name ?? ''),
+          id: this.tools.get(key) || this.fallbackId('call', key),
+          name,
         });
+        if (held) out.push({ type: 'tool_args', key, delta: held });
       }
-      if (typeof fn.arguments === 'string' && fn.arguments)
-        out.push({ type: 'tool_args', key, delta: fn.arguments });
+      if (typeof fn.arguments === 'string' && fn.arguments) {
+        const pending = this.unnamed.get(key);
+        if (pending !== undefined) this.unnamed.set(key, pending + fn.arguments);
+        else out.push({ type: 'tool_args', key, delta: fn.arguments });
+      }
     }
     const r = chatFinish(c.finish_reason);
     if (r) this.pendingReason = r;

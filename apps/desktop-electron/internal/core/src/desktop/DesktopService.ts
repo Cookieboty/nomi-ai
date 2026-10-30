@@ -78,6 +78,8 @@ export interface DesktopWindows {
   summonMascot?(): void;
   /** 临时召回结束（确认框都答完了）：看板娘仍是关闭状态就再次释放窗口 */
   releaseMascot?(): void;
+  /** 对话窗口开着（可见）：确认请求只发给它，不打扰看板娘 */
+  chatOpen?(): boolean;
   /** 灵动岛提醒（宿主的灵动岛窗口）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false */
   island?(n: IslandNotice): boolean;
 }
@@ -154,7 +156,7 @@ export class DesktopService {
     this.broker.ui = {
       request: (req) => this.sendConfirm(req),
       cancel: (id) => {
-        this.toMascot('desktop.confirmCancel', id);
+        this.cancelConfirm(id);
         this.rehideMascotIfIdle();
       },
     };
@@ -199,7 +201,34 @@ export class DesktopService {
     return !!w && webContentsId !== undefined && w.webContents.id === webContentsId;
   }
 
+  private chatOpen(): boolean {
+    return this.windows?.chatOpen?.() ?? false;
+  }
+
+  /** 确认请求收起（答复 / 超时 / 取消）：两边都发，没订阅的界面收不到 */
+  private cancelConfirm(id: string): void {
+    this.events.publish('desktop.confirmCancel', id, { surface: 'chat' });
+    this.toMascot('desktop.confirmCancel', id);
+  }
+
+  /**
+   * 确认请求发到哪：对话窗口开着 → 只发给对话窗口（授权卡片）；看板娘被关掉了 → 打开对话窗口
+   * （窗口挂载后经 desktop.state 补拉）；否则发给看板娘。请求文件夹只走对话窗口（见 requestFolder）。
+   */
   private sendConfirm(req: ConfirmRequest): void {
+    if (this.chatOpen() || req.kind === 'scope') {
+      this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, to: 'chat' });
+      this.events.publish('desktop.confirmRequest', req, { surface: 'chat' });
+      return;
+    }
+    if (this.mascotHidden() && this.windows) {
+      this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, to: 'chat-open' });
+      void this.windows.openChat().then(
+        () => this.events.publish('desktop.confirmRequest', req, { surface: 'chat' }),
+        (e: unknown) => this.logger.warn('打开对话窗口失败', { error: String(e) }),
+      );
+      return;
+    }
     const w = this.main();
     this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
     if (!w) {
@@ -453,6 +482,25 @@ export class DesktopService {
     });
   }
 
+  /**
+   * 工具请求授权文件夹：对话窗口开着时在对话里问（授权建议的文件夹 / 另选 / 拒绝），只有用户要另选、
+   * 或模型没给建议的文件夹时才打开系统的选择框；对话窗口没开时照旧直接打开选择框。
+   */
+  async requestFolder(
+    suggested: string | undefined,
+    mode: 'read' | 'read-write',
+    reason?: string,
+    signal?: AbortSignal,
+  ): Promise<string | null> {
+    if (!this.chatOpen()) return this.pickFolder(suggested);
+    const home = this.ports.paths.home();
+    const abs = suggested?.replace(/^~(?=$|[\\/])/, home);
+    const d = await this.broker.requestScope({ suggestedPath: abs, mode, reason, signal });
+    if (d.decision === 'allowed' && d.path) return d.path;
+    if (d.decision === 'pick') return this.pickFolder(suggested);
+    return null;
+  }
+
   tools(): ToolDefinition[] {
     this.toolDefs ??= createDesktopTools({
       broker: this.broker,
@@ -464,6 +512,7 @@ export class DesktopService {
       providerFor: (r) => this.providerFor(r),
       describeProvider: (p) => this.receiverOf(p),
       pickFolder: (s) => this.pickFolder(s),
+      requestFolder: (s, mode, reason, signal) => this.requestFolder(s, mode, reason, signal),
       p2: {
         reminders: this.reminders,
         clipboard: {
@@ -779,17 +828,24 @@ export class DesktopService {
   }
 
   /** 确认答复：只接受看板娘窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
+  /** 确认答复：对话窗口（契约按界面放行）或看板娘窗口（再核对调用方就是看板娘） */
   answerConfirm(
     senderId: number | undefined,
     id: unknown,
     allow: unknown,
     remember: unknown,
+    pick?: unknown,
+    surface?: string,
   ): void {
-    if (!this.isMascotSender(senderId)) {
+    if (surface !== 'chat' && !this.isMascotSender(senderId)) {
       this.logger.warn('忽略来自非 Nomi 窗口的确认答复');
       return;
     }
-    if (typeof id === 'string') this.broker.answer(id, allow === true, remember === true);
+    if (
+      typeof id === 'string' &&
+      this.broker.answer(id, allow === true, remember === true, pick === true)
+    )
+      this.cancelConfirm(id);
     this.rehideMascotIfIdle();
   }
 

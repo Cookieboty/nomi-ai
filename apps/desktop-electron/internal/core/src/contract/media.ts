@@ -152,8 +152,15 @@ export function createMediaHandlers(
     'desktop.remindersUpdate': ({ id, patch }) => out(desktop().updateReminder(id, patch)),
     'desktop.remindersCancel': ({ id }) => desktop().cancelReminder(id),
     'desktop.remindersSnooze': ({ id, minutes }) => desktop().snoozeReminder(id, minutes),
-    'desktop.confirmAnswer': ({ id, allow, remember }, ctx) =>
-      desktop().answerConfirm(callerWebContentsId(ctx), id, allow, remember),
+    'desktop.confirmAnswer': ({ id, allow, remember, pick }, ctx) =>
+      desktop().answerConfirm(
+        callerWebContentsId(ctx),
+        id,
+        allow,
+        remember,
+        pick,
+        ctx.caller.surface,
+      ),
     'desktop.reminderAction': ({ id, action, minutes }, ctx) =>
       desktop().reminderAction(callerWebContentsId(ctx), id, action, minutes),
     'desktop.takeMissedReminders': (_input, ctx) =>

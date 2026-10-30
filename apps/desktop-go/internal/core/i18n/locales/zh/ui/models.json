@@ -189,5 +189,9 @@
   "ui.models.this-chat-s-provider": "本会话原来的供应商 · {0}",
   "ui.models.default-provider-named": "默认供应商 · {0}",
   "ui.models.default-official": "默认 · 官方账号",
-  "ui.models.switch-to-official": "切换到官方账号"
+  "ui.models.switch-to-official": "切换到官方账号",
+  "ui.models.all-vendors": "全部厂商",
+  "ui.models.filter-by-provider": "按供应商筛选",
+  "ui.models.filter-by-vendor": "按厂商筛选",
+  "ui.models.other-vendors": "其他厂商"
 }

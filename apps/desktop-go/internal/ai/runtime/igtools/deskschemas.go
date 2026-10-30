@@ -36,7 +36,7 @@ var deskSchemas = map[string]string{
 // deskDescs：desktop.tools() 各工具描述原文（tools.ts / p2tools.ts / p3tools.ts / workspaceTools.ts 硬编码中文）
 var deskDescs = map[string]string{
 	"desktop_permissions":   "查看你目前被授权访问的文件夹（只读 / 读写）以及隐私设置。访问文件前如果不确定，先调用这个。",
-	"desktop_request_scope": "请用户授权一个文件夹（会弹出系统的文件夹选择框，由用户自己选择）。只有在需要访问未授权的位置时才调用。",
+	"desktop_request_scope": "请用户授权一个文件夹（在对话里请用户确认 suggestedPath，用户也可以自己另选）。只有在需要访问未授权的位置时才调用；知道目标位置时一定给 suggestedPath。",
 	"fs_list":               "列出已授权文件夹中某个目录的内容（分页）。",
 	"fs_stat":               "查看文件信息：大小、修改时间、类型、是否支持读取文本。",
 	"fs_search":             "在已授权的文件夹里按文件名通配和 / 或文本内容搜索文件。",

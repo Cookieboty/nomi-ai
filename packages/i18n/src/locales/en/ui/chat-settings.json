@@ -461,5 +461,9 @@
   "ui.chat-settings.compacting-earlier-messages": "Compacting earlier messages into a summary…",
   "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "Earlier messages were compacted into a summary (click to view)",
   "ui.chat-settings.couldn-t-compact-earlier-messages": "Couldn't compact earlier messages: {0}. The message is still sent; the oldest messages may be cut off.",
-  "ui.chat-settings.the-model-returned-an-empty-summary": "The model returned an empty summary"
+  "ui.chat-settings.the-model-returned-an-empty-summary": "The model returned an empty summary",
+  "ui.chat-settings.folder-access-request": "Folder access request",
+  "ui.chat-settings.grant-folder": "Grant",
+  "ui.chat-settings.choose-another-folder": "Choose another folder…",
+  "ui.chat-settings.suggested-folder-cannot-be-granted": "The suggested location can't be granted directly (missing, not a folder, or too broad). Please choose one yourself."
 }

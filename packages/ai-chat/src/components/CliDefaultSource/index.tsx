@@ -2,7 +2,7 @@
  * 编程助手的供应商（docs/design/unified-gateway.md §4.3）：侧栏底部信息卡里的「新标签默认」
  * （CliDefaultSource）——这个编程助手以后新开的标签默认用什么：默认（本机登录）/ 官方账号（可指定账号）/ 第三方供应商。
  * 已有会话单独换供应商用 `/model`（services/cliSource 的 switchTabSource，主进程执行切换规则）；
- * 模型在输入栏的模型按钮里换（第三方时只列当前供应商的模型）。
+ * 模型在输入栏的模型按钮里换（第三方时按供应商分标签，也能直接换到别的供应商）。
  */
 import { Select, t } from '@nomi-ai/ui';
 import React, { useState } from 'react';

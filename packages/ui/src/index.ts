@@ -29,6 +29,14 @@ export type { DateTimeFieldProps, DateTimeKind } from './DateTimeField';
 export { installTitleTooltips } from './titleTooltips';
 export { ModelPicker, formatContext, splitModelRef, truncDigits } from './ModelPicker';
 export type { ModelPickerProps, PickerModel, PickerProvider } from './ModelPicker';
+export {
+  ModelProviderTabs,
+  ModelVendorFilter,
+  modelVendorId,
+  modelVendors,
+  OTHER_VENDOR,
+} from './ModelBrowse';
+export type { ModelProviderTab, ModelVendorChip } from './ModelBrowse';
 export type { FloatingTipProps, TooltipProps } from './Tooltip';
 export { Toast, ToastProvider, useToast } from './Toast';
 export type { ToastTone, ToastOptions } from './Toast';

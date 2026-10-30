@@ -40,6 +40,7 @@ type StreamConverter struct {
 	dec    events.Decoder
 	enc    events.Encoder
 	fixer  EventFixer
+	guard  NamelessToolGuard
 }
 
 // CreateStreamConverter is createStreamConverter.
@@ -48,7 +49,11 @@ func CreateStreamConverter(from, to string, opts ConvertOptions) *StreamConverte
 		enc: makeEncoder(to, opts.Model, opts.CustomTools), fixer: opts.Fixer}
 }
 
-func (c *StreamConverter) emit(n events.NormEvent) string {
+func (c *StreamConverter) emit(ev events.NormEvent) string {
+	n, ok := c.guard.Push(ev)
+	if !ok {
+		return ""
+	}
 	if c.fixer == nil {
 		return c.enc.Encode(n)
 	}
@@ -97,7 +102,7 @@ func (c *StreamConverter) Fail(message string) string {
 func (c *StreamConverter) Stopped() bool { return c.fixer != nil && c.fixer.Tripped() }
 
 func jsonEvents(from string, body any, opts ConvertOptions) []events.NormEvent {
-	evs := JsonToEvents(from, body, opts.Seed)
+	evs := DropNamelessTools(JsonToEvents(from, body, opts.Seed))
 	if opts.FixEvents != nil {
 		return opts.FixEvents(evs)
 	}

@@ -18,6 +18,7 @@ import {
 } from './encoders';
 import type { NormEvent, StreamDecoder, StreamEncoder } from './events';
 import { jsonToEvents } from './json';
+import { dropNamelessTools, NamelessToolGuard } from './namelessTools';
 import { SseParser } from './sse';
 
 /** 上游协议（解码方向） */
@@ -72,7 +73,10 @@ export function createStreamConverter(
   const dec = makeDecoder(from, opts);
   const enc = makeEncoder(to, opts.model ?? '', opts.customTools);
   const fixer = opts.fixes && fixesEnabled(opts.fixes) ? new EventFixer(opts.fixes) : null;
-  const emit = (n: NormEvent): string => {
+  const guard = new NamelessToolGuard();
+  const emit = (ev: NormEvent): string => {
+    const n = guard.push(ev);
+    if (!n) return '';
     if (!fixer) return enc.encode(n);
     let s = '';
     for (const f of fixer.push(n)) s += enc.encode(f);
@@ -126,7 +130,7 @@ export function jsonToJson(
 }
 
 function jsonEvents(from: UpstreamStreamFormat, body: unknown, opts: ConvertOptions): NormEvent[] {
-  const evs = jsonToEvents(from, body, opts.fixes?.callIds?.seed);
+  const evs = dropNamelessTools(jsonToEvents(from, body, opts.fixes?.callIds?.seed));
   // 非流式不做复读检测（整段已经生成完）
   return opts.fixes && fixesEnabled(opts.fixes)
     ? fixEvents(evs, { ...opts.fixes, repetition: false })

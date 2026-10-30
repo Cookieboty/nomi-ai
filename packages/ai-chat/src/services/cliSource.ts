@@ -103,7 +103,7 @@ export function providerEntryRef(
 }
 
 /**
- * 第三方标签的模型目录只列当前供应商的模型（换供应商在输入框左下角，换模型在模型按钮）：
+ * 第三方标签只有一个供应商时，模型目录只列它的模型（多个供应商时模型按钮按供应商分标签）：
  * 去掉模型名里的「供应商 / 」前缀，供应商名放到目录的 provider 上。
  */
 export function scopeCatalogToProvider(
@@ -158,7 +158,7 @@ export interface SessionModelGroup {
 /**
  * 聊过的第三方会话在模型按钮里列哪几个供应商：会话原来的供应商（上次用的模型所在）、
  * 当前选中的模型所在的供应商、这个编程助手在「模型」页的默认供应商，去重后按这个顺序。
- * 会话还没聊过（没有 lastServedRef）返回 null，按钮只列当前供应商。
+ * 会话还没聊过（没有 lastServedRef）返回 null。模型按钮用它给供应商标签加说明。
  * 换到默认供应商并聊过一轮后，原来的供应商就是默认供应商，只剩一组。
  */
 export function sessionModelGroups(
