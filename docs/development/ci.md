@@ -29,10 +29,10 @@ Workflow：[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)。
 
 ## Go 版（面向用户的正式版本）
 
-| Workflow                                                                   | 触发                                                                                    | 内容                                                                                    |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [`desktop-go.yml`](../../.github/workflows/desktop-go.yml)                 | push `main` / `feat/2.0.5-go*`；PR → `main`（改到 Go / 视图 / 内核时）；被 tag 发版调用 | 三平台 go vet / go test -race、Node golden 比对、契约漂移检查、构建、内存实测；变异检查 |
-| [`desktop-go-package.yml`](../../.github/workflows/desktop-go-package.yml) | push `main`；PR 带 `ci:full`；push tag `v*`（≥ v2.0.5）；手动                           | 三平台安装包 + 安装/启动/签名验证 + `latest-go.json`；tag 上 draft → 自动发布 Release   |
+| Workflow                                                                   | 触发                                                                   | 内容                                                                                    |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`desktop-go.yml`](../../.github/workflows/desktop-go.yml)                 | push `main` / `feat/2.0.5-go*`；PR → `main`（改到 Go / 视图 / 内核时） | 三平台 go vet / go test -race、Node golden 比对、契约漂移检查、构建、内存实测；变异检查 |
+| [`desktop-go-package.yml`](../../.github/workflows/desktop-go-package.yml) | PR 带 `ci:full`；push tag `v*`（≥ v2.0.5，不重跑测试）；手动           | 三平台安装包 + 安装/启动/签名验证 + `latest-go.json`；tag 上 draft → 自动发布 Release   |
 
 `ci.yml` 照常跑共享 TS 包的 quality / e2e 与 Electron 打包；它的 Release 任务只接 ≤ v2.0.4 的 tag。发布流程见 [RELEASE.md](../RELEASE.md)。
 

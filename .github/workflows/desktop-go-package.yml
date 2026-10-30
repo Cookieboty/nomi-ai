@@ -17,8 +17,8 @@ on:
         description: '额外跑同 runner Go vs 2.0.4 Electron 性能对比（约 60 分钟）'
         type: boolean
         default: false
+  # 只在 tag 上打包发布（main 上不再重复打包：PR 带 ci:full 时已打包并验证安装）
   push:
-    branches: [main]
     # ≤ v2.0.4 是 Electron 版本（ci.yml 发布），这里不接
     tags: ['v*', '!v0.*', '!v1.*', '!v2.0.[0-4]', '!v2.0.[0-4]-*']
   pull_request:
@@ -40,11 +40,6 @@ concurrency:
   group: desktop-go-package-${{ github.event_name }}-${{ github.head_ref || github.ref }}${{ (github.event.action == 'labeled' && github.event.label.name != 'ci:full') && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  # tag 发版前的完整 Go 校验（三平台 go vet / go test -race、Node golden 比对、变异检查）
-  test:
-    if: startsWith(github.ref, 'refs/tags/v')
-    uses: ./.github/workflows/desktop-go.yml
-
   package:
     # PR 上只有带 ci:full 标签才打包；加其它标签不重跑
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
@@ -158,13 +153,25 @@ jobs:
     timeout-minutes: 40
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      # v2.0.4 源码不会再变：构建一次进缓存，之后的 tag 直接取（以前每次都从源码重建）
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            e204/dist/win-unpacked/
+            e204/dist/*Setup*.exe
+          key: electron-204-win-nsis-v1
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
         with: { ref: v2.0.4, path: e204 }
-      - uses: pnpm/action-setup@v4
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: pnpm/action-setup@v4
         with: { version: 9.12.3 }
-      - uses: actions/setup-node@v4
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-node@v4
         with: { node-version: '24' }
       - name: build electron 2.0.4 (win nsis, unsigned)
+        if: steps.cache.outputs.cache-hit != 'true'
         working-directory: e204
         shell: bash
         env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false', HUSKY: '0' }
@@ -240,8 +247,10 @@ jobs:
         with:
           { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - uses: pnpm/action-setup@v4
+      # 只用 electron-updater 校验更新清单：runner 自带的 Node 24 即可，不恢复整仓 pnpm 缓存
+      # （约 190 MB，以前这一步常卡近 10 分钟，真正干活只要几秒）
       - uses: actions/setup-node@v4
-        with: { node-version: 24.22.0, cache: pnpm }
+        with: { node-version: '24' }
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @nomi-ai/host-electron
       - uses: actions/download-artifact@v4
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
@@ -259,8 +268,8 @@ jobs:
 
   # 只在 tag ref 上运行（PR / 分支上永远跳过）：draft → 校验三平台产物 → 发布
   release-draft:
-    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') && needs.test.result == 'success' && needs.package.result == 'success' && needs.manifest.result == 'success' && needs.verify.result == 'success' }}
-    needs: [test, package, manifest, verify]
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') && needs.package.result == 'success' && needs.manifest.result == 'success' && needs.verify.result == 'success' }}
+    needs: [package, manifest, verify]
     runs-on: ubuntu-24.04
     permissions: { contents: write }
     env: { GH_TOKEN: '${{ github.token }}', TAG: '${{ github.ref_name }}' }

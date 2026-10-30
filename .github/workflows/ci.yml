@@ -50,7 +50,7 @@ env:
 jobs:
   # 快速检查：所有事件都跑；普通 PR 只在 Linux 上跑，ci:full / push / 手动触发时三平台
   quality:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && !(github.event_name == 'workflow_dispatch' && inputs.package_only) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: quality (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -134,7 +134,7 @@ jobs:
   # ---------------------------------------------------------------
   e2e-headless:
     # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: e2e-headless (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -182,7 +182,7 @@ jobs:
   # Linux 用 xvfb 虚拟显示；Windows runner 自带交互桌面，可直接跑 headed Electron。
   e2e-headed:
     # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: e2e-headed (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -251,7 +251,7 @@ jobs:
   # 防止开发启动链路（预构建、端口等待、preload 打包、Electron 二进制下载）再次悄悄坏掉。
   dev-smoke:
     # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: dev-smoke (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -371,6 +371,7 @@ jobs:
     name: build-electron (${{ matrix.os }})
     needs: [quality, prepare-release]
     # package_only：quality 被 skip 时仍继续；quality 失败则拦住（非 package_only）
+    # tag：不重跑 quality（打 tag 前 main 上已经全绿），直接打包
     # PR 上只有带 ci:full 标签才打包；push main / tag / 合并队列 / 手动触发照旧
     if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     # Tag builds publish installers to the GitHub Release (electron-updater feed).

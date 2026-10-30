@@ -10,17 +10,18 @@ Go 版**（见下文「2.0.4 → Go 版」）。Electron 版仍随同一个 Rele
 
 ## Go 版发布（v2.0.5+）
 
-| 事件                                 | 做什么                                                                                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| push `main`                          | `desktop-go.yml`（三平台 go vet / go test、golden 比对、构建）+ `desktop-go-package.yml` 打包与安装验证，产物在 artifact `nomi-go-*`                               |
-| PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                                                           |
-| push tag `v*`（≥ v2.0.5）            | 先跑完整 `desktop-go.yml` → 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release；`ci.yml` 同时上传 Electron 安装包 → 两套齐全后**自动发布**并标为 latest |
-| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                                                |
+| 事件                                 | 做什么                                                                                                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| push `main`                          | `desktop-go.yml`（三平台 go vet / go test、golden 比对、构建）+ `ci.yml`（quality、e2e、Electron 打包）；不再打 Go 安装包                                                             |
+| PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                                                                              |
+| push tag `v*`（≥ v2.0.5）            | **不重跑测试**（打 tag 前 main 上必须已全绿）→ 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release；`ci.yml` 同时上传 Electron 安装包 → 两套齐全后**自动发布**并标为 latest |
+| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                                                                   |
+| `workflow_dispatch`（在 `main` 上）  | 打一次 Go 安装包；顺带在 main 上建好 2.0.4 安装器缓存（`electron-204-win`，tag 只能读到 main 的缓存）                                                                                 |
 
 发一版：
 
 1. 同步版本号（`package.json`、`apps/desktop-electron/package.json`，Go 打包读后者），写 `docs/releases/vX.Y.Z.md`。
-2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿。
+2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿（tag 上不再重跑测试，直接打包发布）。
 3. 打 tag 并推送：`git tag -a vX.Y.Z -m "Nomi X.Y.Z" && git push origin vX.Y.Z`。
 4. 等 `desktop-go-package` 与 `CI` 都跑完：Release 应有
    - Go 版：`Nomi-X.Y.Z-arm64.dmg`、`Nomi-X.Y.Z-arm64-mac.zip`、`Nomi-X.Y.Z.dmg`、`Nomi-X.Y.Z-mac.zip`、`Nomi-Setup-X.Y.Z.exe`、
