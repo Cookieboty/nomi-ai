@@ -1,7 +1,8 @@
 /**
  * 设置 →「编程助手」：「全部自动（最高权限）」开关（默认开）。
- * 开着时新的编程助手标签与 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件 / 命令操作不再逐项确认；
- * 关掉后回到逐项询问。工作区外的路径、敏感文件与目录（.ssh、钥匙串、.env、应用数据…）在任何档位都拒绝。
+ * 开着时新的编程助手标签与 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件操作不再逐项确认；
+ * 关掉后回到逐项询问。Nomi 的文件工具在任何档位都拒绝工作区外未授权的路径与敏感文件（.ssh、钥匙串、.env、应用数据…）；
+ * Nomi 跑的命令（workspace_run）不受工作区限制，始终逐条确认。
  */
 import { SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';

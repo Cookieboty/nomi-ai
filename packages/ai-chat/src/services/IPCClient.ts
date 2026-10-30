@@ -217,7 +217,7 @@ export class SdkIPCClient implements IPCClient {
       // 固定会话在准备期间被删了：不发送，更不能落到别的会话上
       if (fixed?.id && !this.store.get(fixed.id))
         throw new Error(t('ui.chat-settings.conversation-deleted-message-not-sent'));
-      // Nomi 对话的工作区：内核校验后才生效（文件 / 命令工具与委派的编程助手都限在这里）
+      // Nomi 对话的工作区：内核校验后才生效（文件工具限在这里，命令与委派的编程助手从这里启动）
       const cwd = fixed
         ? fixed.cwd
         : conversationId

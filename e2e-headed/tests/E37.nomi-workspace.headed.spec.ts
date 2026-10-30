@@ -24,7 +24,8 @@ import { safeRm } from '../fixtures/fsutil';
  *
  * mock OpenAI 兼容服务扮演模型：用户消息 `CALL <tool> <json>` → 返回该工具调用；收到工具结果 → `TOOLRESULT <结果>`。
  * 覆盖：对话顶栏经最近列表选工作区（存在会话上）；工作区里读写不要授权、「全部自动」下不弹确认；
- * 工作区外的路径被拒；workspace_run 只在有工作区时提供、在工作区里执行；系统提示里告诉模型工作区。
+ * 工作区外的路径被拒；workspace_run 只在有工作区时提供、在工作区里启动、「全部自动」下也逐条确认；
+ * 系统提示里告诉模型工作区。
  */
 interface Msg {
   role: string;
@@ -224,13 +225,28 @@ test.describe('E37 · real app · Nomi conversation workspace', () => {
         'OUTSIDESECRET',
       );
 
-      // ---- 4. 命令在工作区里执行 ----
+      // ---- 4. 命令在工作区里执行：不受工作区限制，「全部自动」下也逐条确认（#186） ----
       if (process.platform !== 'win32') {
-        const ran = await send(
-          `CALL workspace_run ${JSON.stringify({ command: 'ls && echo RUN-$((20+17))' })}`,
-        );
+        const card = chat.locator('[data-testid="desktop-confirm-card"]');
+        const command = 'ls && echo RUN-$((20+17))';
+        const ranP = send(`CALL workspace_run ${JSON.stringify({ command })}`);
+        await expect(card).toHaveCount(1, { timeout: 30_000 });
+        // 确认里给出完整命令与工作目录，不能「本次不再询问」
+        await expect(card.locator('[data-testid="desktop-confirm-detail"]')).toContainText(command);
+        await expect(card.locator('[data-testid="desktop-confirm-detail"]')).toContainText(ws);
+        await expect(card.locator('[data-testid="desktop-confirm-remember"]')).toHaveCount(0);
+        await card.locator('[data-testid="desktop-confirm-allow"]').click({ timeout: 10_000 });
+        const ran = await ranP;
         expect(ran).toContain('RUN-37');
         expect(ran).toContain('hello.txt');
+        // 拒绝：什么都不执行
+        const deniedP = send(
+          `CALL workspace_run ${JSON.stringify({ command: 'echo x > denied.txt' })}`,
+        );
+        await expect(card).toHaveCount(1, { timeout: 30_000 });
+        await card.locator('[data-testid="desktop-confirm-deny"]').click();
+        expect(await deniedP).toContain('user_denied');
+        expect(existsSync(join(ws, 'denied.txt'))).toBe(false);
       }
     } catch (e) {
       console.warn(`[E37] diagnostics\n${diag.slice(-80).join('\n')}`);

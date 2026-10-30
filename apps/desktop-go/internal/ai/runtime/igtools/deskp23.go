@@ -473,6 +473,11 @@ func WrapCommandOutput(text string) string {
 	return "<command_output trust=\"untrusted\">\n" + regexp.MustCompile(`(?i)</command_output>`).ReplaceAllString(text, "</command_output_>") + "\n</command_output>"
 }
 
+// runConfirm = workspaceTools RUN_CONFIRM：workspace_run 强制在对话框里确认。工作区只决定工作目录，
+// 命令以用户身份运行、能访问工作区外的任何文件（没有沙箱），所以不受「全部自动」影响、也不能记住；
+// 「计划」档照旧拦下
+func runConfirm() *struct{ Dialog bool } { return &struct{ Dialog bool }{Dialog: true} }
+
 func (k *deskKit) workspaceTools() []tools.Definition {
 	d := deskDef("workspace_run", deskDescs["workspace_run"], func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
 		i, err := parse(runIn, in)
@@ -486,7 +491,7 @@ func (k *deskKit) workspaceTools() []tools.Definition {
 				return nil, "", toolErr("no_workspace", "这次对话没有可用的工作区（没选，或者选的目录不被允许），不能执行命令")
 			}
 			dec, err := k.confirm(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
-				strp("$ "+cmd+"\n（工作目录："+ws+"）"), nil, ws)
+				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws)
 			if err != nil {
 				return nil, "", err
 			}

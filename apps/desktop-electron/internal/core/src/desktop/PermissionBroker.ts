@@ -57,6 +57,8 @@ export interface ConfirmUi {
 export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
 
 export const CONFIRM_TIMEOUT_MS = 120_000;
+/** 确认里预览的上限：workspace_run 的命令最长 8000 字符，要连同工作目录完整展示 */
+export const CONFIRM_PREVIEW_CAP = 16_000;
 const TAINT_FALLBACK_MS = 120_000;
 
 const DEFAULT_SETTINGS: DesktopSettings = {
@@ -93,7 +95,10 @@ export class PermissionBroker {
    * 未注入时一律不认：工具按没有工作区处理（需要授权文件夹，原有行为）。
    */
   isKnownWorkspace: (dir: string) => boolean = () => false;
-  /** 「全部自动」：工作区里的文件 / 命令工具不确认（编程助手服务的设置，组合根注入；默认关） */
+  /**
+   * 「全部自动」：工作区里的文件工具不确认（编程助手服务的设置，组合根注入；默认关）。
+   * workspace_run 不在此列：它带 force 调用，始终确认（见 workspaceTools.ts）。
+   */
   autoApprove: () => boolean = () => false;
   /** 拒绝视图给的工作区时记一条日志（组合根注入） */
   onWorkspaceRejected: (dir: string, reason: string) => void = () => undefined;
@@ -265,7 +270,7 @@ export class PermissionBroker {
 
   /**
    * 工作区里的操作要不要确认：「计划」档照旧拦下写；「全部自动」开着时不确认；
-   * 关着时按原来的规则确认（但不再要求授权文件夹）。
+   * 关着时按原来的规则确认（但不再要求授权文件夹）。带 force 的（如 workspace_run）始终确认。
    */
   async authorizeIn(i: Parameters<PermissionBroker['authorize']>[0]): Promise<Decision> {
     if (this.permissionMode() === 'plan' && i.danger !== 'read') return 'blocked';
@@ -349,7 +354,7 @@ export class PermissionBroker {
         danger: i.danger,
         summary: i.summary,
         argsJson: JSON.stringify(i.args ?? {}, null, 2).slice(0, 4000),
-        preview: i.preview?.slice(0, 4000),
+        preview: i.preview?.slice(0, CONFIRM_PREVIEW_CAP),
         dialog: d.dialog,
         rememberable: d.rememberable,
         reason: d.reason,

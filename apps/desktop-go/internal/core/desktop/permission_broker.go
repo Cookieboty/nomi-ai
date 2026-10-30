@@ -50,6 +50,9 @@ type ConfirmUI interface {
 type Decision = string // auto | allowed | denied | timeout | blocked
 
 const ConfirmTimeoutMs = 120_000
+
+// ConfirmPreviewCap：确认里预览的上限（UTF-16 单位）；workspace_run 的命令最长 8000 字符，要连同工作目录完整展示
+const ConfirmPreviewCap = 16_000
 const taintFallbackMs = 120_000
 
 type pendingConfirm struct {
@@ -335,6 +338,8 @@ type AuthorizeInput struct {
 	IgnoreMode bool
 }
 
+// AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
+// 带 Force 的（如 workspace_run）始终确认
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
 	if b.PermissionMode() == "plan" && i.Danger != "read" {
 		return "blocked"
@@ -467,7 +472,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	}
 	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
 	if i.Preview != nil {
-		p := u16slice(*i.Preview, 0, 4000)
+		p := u16slice(*i.Preview, 0, ConfirmPreviewCap)
 		req.Preview = &p
 	}
 	decision, remember, req := b.ask(req, i.Signal)

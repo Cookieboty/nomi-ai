@@ -253,13 +253,58 @@ describe('workspace_run', () => {
     expect(run.requiresWorkspace).toBe(true);
   });
 
-  posixIt('runs in the workspace without confirmation by default', async () => {
+  // 命令不受工作区限制（#186）：「全部自动」开着也逐条在对话框里确认，展示完整命令与工作目录，不能记住
+  posixIt('asks before every command even with auto-approve on, showing it in full', async () => {
     const s = setup();
     const r = await s.call('workspace_run', { command: 'pwd && echo hi >&2 && exit 3' });
     expect(r.ok).toBe(true);
     expect(String(r.data?.stdout)).toContain(s.ws);
     expect(String(r.data?.stderr)).toContain('hi');
     expect(r.data?.exitCode).toBe(3);
+    expect(s.asks).toHaveLength(1);
+    expect(s.asks[0]).toMatchObject({ tool: 'workspace_run', dialog: true, rememberable: false });
+    expect(s.asks[0]!.preview).toBe(`$ pwd && echo hi >&2 && exit 3\n（工作目录：${s.ws}）`);
+    expect(r.data).toMatchObject({ cwd: s.ws });
+    // 再来一条照样问
+    expect((await s.call('workspace_run', { command: 'true' })).ok).toBe(true);
+    expect(s.asks).toHaveLength(2);
+    // 8000 字符的命令连同工作目录完整展示
+    const long = `echo ${'x'.repeat(7995)}`;
+    expect((await s.call('workspace_run', { command: long })).ok).toBe(true);
+    expect(s.asks[2]!.preview).toBe(`$ ${long}\n（工作目录：${s.ws}）`);
+  });
+
+  it('does nothing until the user allows it; a denial or timeout runs nothing', async () => {
+    const s = setup();
+    const marker = path.join(s.ws, 'ran.txt');
+    const command = process.platform === 'win32' ? 'echo x> ran.txt' : 'echo x > ran.txt';
+    const pending: { id?: string } = {};
+    s.broker.ui = {
+      request: (req) => {
+        s.asks.push(req);
+        pending.id = req.id;
+      },
+      cancel: () => undefined,
+    };
+    const p = s.call('workspace_run', { command });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(s.asks).toHaveLength(1);
+    expect(fs.existsSync(marker)).toBe(false);
+    s.broker.answer(pending.id!, false);
+    expect((await p).error?.code).toBe('user_denied');
+    expect(fs.existsSync(marker)).toBe(false);
+    // 「自动」档 +「全部自动」也要确认：没有界面可确认 → 拒绝，不执行
+    s.broker.permissionMode = () => 'auto';
+    s.broker.ui = null;
+    expect((await s.call('workspace_run', { command })).error?.code).toBe('user_denied');
+    expect(fs.existsSync(marker)).toBe(false);
+  });
+
+  it('plan mode refuses commands without asking', async () => {
+    const s = setup();
+    s.broker.permissionMode = () => 'plan';
+    const r = await s.call('workspace_run', { command: 'pwd' });
+    expect(r.error?.code).toBe('mode_blocked');
     expect(s.asks).toHaveLength(0);
   });
 
@@ -268,7 +313,7 @@ describe('workspace_run', () => {
     const r = await s.call('workspace_run', { command: 'true' });
     expect(r.ok).toBe(true);
     expect(s.asks).toHaveLength(1);
-    expect(s.asks[0]).toMatchObject({ tool: 'workspace_run', dialog: true });
+    expect(s.asks[0]).toMatchObject({ tool: 'workspace_run', dialog: true, rememberable: false });
   });
 
   it('refuses without a usable workspace', async () => {

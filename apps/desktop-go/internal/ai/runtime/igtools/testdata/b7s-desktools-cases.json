@@ -331,5 +331,47 @@
   { "tool": "fs_copy", "in": { "from": "@@H@@/docs/sub", "to": "@@H@@/docs/cp/sub" } },
   { "tool": "fs_copy", "in": { "from": "@@H@@/secret.txt", "to": "@@H@@/docs/cp/s.txt" } },
   { "tool": "undo_last", "in": {} },
-  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/cp/r.txt" } }
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/cp/r.txt" } },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo auto" },
+    "cwd": "@@H@@/ws",
+    "autoApprove": true
+  },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo x > denied.txt" },
+    "cwd": "@@H@@/ws",
+    "autoApprove": true,
+    "answers": [false]
+  },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo x > plan-run.txt" },
+    "cwd": "@@H@@/ws",
+    "autoApprove": true,
+    "mode": "plan"
+  },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo plan" },
+    "cwd": "@@H@@/ws",
+    "mode": "plan"
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "auto.txt", "text": "a", "mode": "create" },
+    "cwd": "@@H@@/ws",
+    "autoApprove": true
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "plan.txt", "text": "a", "mode": "create" },
+    "cwd": "@@H@@/ws",
+    "autoApprove": true,
+    "mode": "plan"
+  },
+  { "tool": "fs_stat", "in": { "path": "denied.txt" }, "cwd": "@@H@@/ws" },
+  { "tool": "fs_stat", "in": { "path": "plan-run.txt" }, "cwd": "@@H@@/ws" },
+  { "tool": "fs_stat", "in": { "path": "plan.txt" }, "cwd": "@@H@@/ws" }
 ]

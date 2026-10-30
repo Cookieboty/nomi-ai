@@ -199,7 +199,7 @@ function useCwdSwitch() {
 }
 
 /**
- * Nomi 对话的工作区：存在当前会话上，选了之后 Nomi 的文件 / 命令工具只能在里面用；
+ * Nomi 对话的工作区：存在当前会话上，选了之后 Nomi 的文件工具只能在里面用、命令在里面启动；
  * 没有 CLI 会话要续接，换工作区不用确认，下一轮起生效。可以「不使用工作区」回到按授权文件夹。
  */
 const NomiWorkspaceControl: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) => {
