@@ -315,7 +315,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		// = buildAiChatWindow：默认 1120×820（小屏收缩）、最小 760×560；上次的位置大小在原生窗口出来后恢复（placeChat）
 		// mac = titleBarOptions('darwin')：隐藏原生标题栏，红绿灯叠在 ai-chat 自绘的 38px 标题栏左侧
 		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
-		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 1120, Height: 820,
+		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi", Width: 1120, Height: 820,
 			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: w.page(k),
 			// 拖入文件取本机路径（= preload nomiHost.pathForFile；ai-chat 给 body 加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
@@ -335,6 +335,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			}
 		}
 	}
+	opts.Permissions = mediaPolicy
 	w.mu.Lock()
 	if on, ok := w.aot[k]; ok {
 		opts.AlwaysOnTop = on
@@ -400,6 +401,16 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		w.notify(k, "created")
 	})
 	return win
+}
+
+// mediaPolicy = Application.setupPermissions：只放行麦克风（语音），摄像头 / 定位 / 网页通知 / 读剪贴板一律拒绝，
+// 不弹 WebView 自己的权限框（Linux 默认会放行摄像头）
+var mediaPolicy = map[application.PermissionType]application.Permission{
+	application.PermissionMicrophone:    application.PermissionAllow,
+	application.PermissionCamera:        application.PermissionDeny,
+	application.PermissionGeolocation:   application.PermissionDeny,
+	application.PermissionNotifications: application.PermissionDeny,
+	application.PermissionClipboardRead: application.PermissionDeny,
 }
 
 // afterNative：原生窗口已存在（Run 之前建的窗口要等应用起来，有时到首次显示）、屏幕信息已就绪后在 goroutine 里执行 fn
