@@ -319,6 +319,35 @@ export const SCENARIOS = [
       ['jobLines', 'claude'],
     ],
   },
+  { name: 'environment', probe: {}, steps: [['environment']] },
+  { name: 'environmentOldNode', probe: { nodeVersion: '20.3.0' }, steps: [['environment']] },
+  { name: 'environmentBadNode', probe: { nodeVersion: 'abc' }, steps: [['environment']] },
+  {
+    name: 'environmentNoNode',
+    probe: { nodeVersion: null, nodeBin: null, npmBin: null },
+    steps: [['environment']],
+  },
+  {
+    // PATH 上已有旧版（全局目录不能写，改装到用户目录）：装好的这一份优先，重启后也是；改用全局安装后回到 PATH
+    name: 'userScopeOverPath',
+    probe: {},
+    pathBins: { gemini: '0.1.0' },
+    runner: [
+      { code: 0, output: 'ok', lines: ['ok'], install: ['gemini', '0.2.0'] },
+      { code: 0, output: 'ok' },
+    ],
+    steps: [
+      ['inspect', false],
+      ['run', 'a', 'gemini', 'user'],
+      ['await', 'a'],
+      ['preferredFile'],
+      ['inspectFresh'],
+      ['run', 'b', 'gemini', 'global'],
+      ['await', 'b'],
+      ['preferredFile'],
+      ['inspectFresh'],
+    ],
+  },
   {
     name: 'inspect',
     bins: {
@@ -474,6 +503,13 @@ async function runScenario(sc, svc, detect) {
     fs.mkdirSync(d, { recursive: true });
     process.env[ENV_BIN[kind]] = verBin(path.join(d, kind), v);
   }
+  // PATH 上的 CLI（不经 NOMI_*_BIN，模拟用户自己装在 PATH 里的旧版本）
+  if (sc.pathBins) {
+    const onPath = path.join(dir, 'onpath');
+    fs.mkdirSync(onPath, { recursive: true });
+    for (const [kind, v] of Object.entries(sc.pathBins)) verBin(path.join(onPath, kind), v);
+    process.env.PATH = [path.join(dir, 'empty'), onPath].join(path.delimiter);
+  }
   const cacheDir = path.join(dir, 'cache');
   fs.mkdirSync(cacheDir, { recursive: true });
   if (sc.cache)
@@ -496,6 +532,7 @@ async function runScenario(sc, svc, detect) {
     );
   const P = {
     nodeVersion: '24.1.0',
+    nodeBin: '/usr/bin/node',
     npmBin: '/usr/bin/npm',
     npmPrefix: path.join(dir, 'prefix'),
     canWrite: true,
@@ -503,6 +540,7 @@ async function runScenario(sc, svc, detect) {
   };
   const probe = {
     nodeVersion: () => P.nodeVersion,
+    nodeBin: () => P.nodeBin,
     npmBin: () => P.npmBin,
     npmPrefix: () => P.npmPrefix,
     canWrite: () => P.canWrite,
@@ -534,7 +572,7 @@ async function runScenario(sc, svc, detect) {
   const warns = [];
   const drainCalls = [];
   const updated = [];
-  const s = new svc.CliUpdateService({
+  const opts = {
     root: cacheDir,
     logger: { info() {}, warn: (m) => warns.push(m) },
     probe,
@@ -560,7 +598,8 @@ async function runScenario(sc, svc, detect) {
           if (sc.onUpdated === 'throw') throw new Error('hook');
         }
       : undefined,
-  });
+  };
+  const s = new svc.CliUpdateService(opts);
   const runs = {};
   const job = (j) =>
     j && {
@@ -682,6 +721,23 @@ async function runScenario(sc, svc, detect) {
       case 'warns':
         v = warns.splice(0);
         break;
+      case 'environment':
+        v = await s.environment();
+        break;
+      case 'inspectFresh': {
+        // 重启：探测缓存清空，新实例从 preferred.json 读回优先路径
+        detect.resetCliBinCache();
+        v = await new svc.CliUpdateService(opts).inspect(false);
+        break;
+      }
+      case 'preferredFile': {
+        try {
+          v = JSON.parse(fs.readFileSync(path.join(cacheDir, 'preferred.json'), 'utf8'));
+        } catch {
+          v = 'missing';
+        }
+        break;
+      }
       case 'cacheFile': {
         try {
           const c = JSON.parse(fs.readFileSync(path.join(cacheDir, 'cache.json'), 'utf8'));

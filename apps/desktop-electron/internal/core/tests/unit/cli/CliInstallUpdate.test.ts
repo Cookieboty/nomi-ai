@@ -58,6 +58,7 @@ afterEach(() => {
 
 const probe = (over: Partial<CliProbe> = {}): CliProbe => ({
   nodeVersion: () => '24.1.0',
+  nodeBin: () => '/usr/bin/node',
   npmBin: () => '/usr/bin/npm',
   npmPrefix: () => '/usr/local',
   canWrite: () => true,
@@ -168,6 +169,31 @@ describe('run with a mock npm', () => {
       expect(res.note).toContain('PATH');
       // 装完再看就是「更新」模式
       expect((await svc.previewUpdate('dsh')).mode).toBe('update');
+    },
+  );
+
+  posix(
+    'a user-directory install wins over an older copy earlier on PATH, also after a restart',
+    async () => {
+      // PATH 上已有旧版（如全局目录没有写权限，只好改装到用户目录）
+      const onPath = path.join(tmp, 'empty');
+      fs.mkdirSync(onPath, { recursive: true });
+      fs.writeFileSync(path.join(onPath, 'dsh'), '#!/bin/sh\necho 0.1.0\n', { mode: 0o755 });
+      const svc = make(probe(), installMock('dsh', '0.2.0'));
+      expect((await svc.inspect()).find((r) => r.kind === 'dsh')?.version).toBe('0.1.0');
+      const res = await svc.run('dsh', 'user');
+      expect(res.path).toBe(path.join(tmp, '.local', 'bin', 'dsh'));
+      expect(res.version).toBe('0.2.0');
+      // 重启：探测缓存清空，记下的路径仍然优先
+      resetCliBinCache();
+      const again = make(probe());
+      expect((await again.inspect()).find((r) => r.kind === 'dsh')?.path).toBe(res.path);
+      // 改用全局安装后回到按 PATH 找
+      await make(probe(), installMock('dsh', '0.3.0')).run('dsh', 'global');
+      resetCliBinCache();
+      expect((await make(probe()).inspect()).find((r) => r.kind === 'dsh')?.path).toBe(
+        path.join(onPath, 'dsh'),
+      );
     },
   );
 
@@ -426,5 +452,31 @@ describe('升级策略（P9.6）', () => {
     const bad = mk(async () => ({ code: 1, output: 'npm ERR!' }));
     expect((await bad.svc.run('codex')).ok).toBe(false);
     expect(bad.updated).toEqual([]);
+  });
+});
+
+describe('environment', () => {
+  it('reports node / npm and which CLIs the node version is enough for', async () => {
+    const env = await make(probe({ nodeVersion: () => '22.14.0' })).environment();
+    expect(env).toMatchObject({
+      nodeVersion: '22.14.0',
+      nodePath: '/usr/bin/node',
+      npmPath: '/usr/bin/npm',
+    });
+    expect(Object.fromEntries(env.requirements.map((r) => [r.kind, [r.minNode, r.ok]]))).toEqual({
+      claude: [22, true],
+      codex: [16, true],
+      dsh: [24, false],
+      grok: [18, true],
+      gemini: [20, true],
+    });
+  });
+
+  it('no node on PATH: nothing is satisfied', async () => {
+    const env = await make(
+      probe({ nodeVersion: () => null, nodeBin: () => null, npmBin: () => null }),
+    ).environment();
+    expect(env.nodeVersion).toBeNull();
+    expect(env.requirements.every((r) => !r.ok)).toBe(true);
   });
 });

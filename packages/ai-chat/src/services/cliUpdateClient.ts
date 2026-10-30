@@ -37,6 +37,14 @@ export interface CliInstallPlan {
   userScopeCommand?: string;
 }
 
+/** 安装 / 更新所需的运行环境（PATH 上的 Node.js / npm，每个 CLI 的最低 Node 主版本与是否满足） */
+export interface CliEnvironment {
+  nodeVersion: string | null;
+  nodePath: string | null;
+  npmPath: string | null;
+  requirements: { kind: CliUpdatableKind; minNode: number; ok: boolean }[];
+}
+
 export interface CliRunResult {
   ok: boolean;
   log: string;
@@ -127,6 +135,7 @@ export const cliUpdateClient = {
       : [];
   },
   dismiss: (kind: CliUpdatableKind) => call<boolean>(() => api.cliUpdate.dismiss({ kind })),
+  environment: () => call<CliEnvironment>(() => api.cliUpdate.environment()),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>
     hasTransport()
       ? api.on('cliUpdate.event', (p) => fn(p as unknown as CliUpdateEvent))

@@ -53,7 +53,32 @@ func MockCliBin(kind string) string {
 var (
 	detMu          sync.Mutex
 	rememberedDirs []string
+	// preferredBins：Nomi 装到用户目录的 CLI（cliUpdate 用户目录安装成功后记下），优先于 PATH，
+	// 免得被 PATH 上更早的旧版本挡住。文件不在了就不算。
+	preferredBins = map[string]string{}
 )
+
+// PreferCliBin = preferCliBin（bin "" = 不再优先）。
+func PreferCliBin(kind, bin string) {
+	detMu.Lock()
+	if bin != "" {
+		preferredBins[kind] = bin
+	} else {
+		delete(preferredBins, kind)
+	}
+	delete(binCache, kind)
+	detMu.Unlock()
+}
+
+func preferredBin(kind string) string {
+	detMu.Lock()
+	p := preferredBins[kind]
+	detMu.Unlock()
+	if p != "" && usage.ExistsSync(p) {
+		return p
+	}
+	return ""
+}
 
 // RememberCliDir = rememberCliDir。
 func RememberCliDir(dir string) {
@@ -516,6 +541,7 @@ func ResetCliBinCache() {
 	defer detMu.Unlock()
 	binCache = map[string]binHit{}
 	rememberedDirs = nil
+	preferredBins = map[string]string{}
 	inflight = map[string]*jsrt.Promise[string]{}
 	nodeBinCache = nil
 }
@@ -549,6 +575,9 @@ func probe(kind string, whichFn func(string) string) string {
 	}
 	if m := MockCliBin(kind); m != "" {
 		return m
+	}
+	if p := preferredBin(kind); p != "" {
+		return p
 	}
 	for _, c := range candidates[kind] {
 		if p := whichFn(c); p != "" {

@@ -3063,6 +3063,512 @@
       ]
     },
     {
+      "name": "environment",
+      "probe": {},
+      "steps": [
+        [
+          "environment"
+        ]
+      ],
+      "log": [
+        [
+          "environment",
+          {
+            "nodeVersion": "24.1.0",
+            "nodePath": "/usr/bin/node",
+            "npmPath": "/usr/bin/npm",
+            "requirements": [
+              {
+                "kind": "claude",
+                "minNode": 22,
+                "ok": true
+              },
+              {
+                "kind": "codex",
+                "minNode": 16,
+                "ok": true
+              },
+              {
+                "kind": "dsh",
+                "minNode": 24,
+                "ok": true
+              },
+              {
+                "kind": "grok",
+                "minNode": 18,
+                "ok": true
+              },
+              {
+                "kind": "gemini",
+                "minNode": 20,
+                "ok": true
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "environmentOldNode",
+      "probe": {
+        "nodeVersion": "20.3.0"
+      },
+      "steps": [
+        [
+          "environment"
+        ]
+      ],
+      "log": [
+        [
+          "environment",
+          {
+            "nodeVersion": "20.3.0",
+            "nodePath": "/usr/bin/node",
+            "npmPath": "/usr/bin/npm",
+            "requirements": [
+              {
+                "kind": "claude",
+                "minNode": 22,
+                "ok": false
+              },
+              {
+                "kind": "codex",
+                "minNode": 16,
+                "ok": true
+              },
+              {
+                "kind": "dsh",
+                "minNode": 24,
+                "ok": false
+              },
+              {
+                "kind": "grok",
+                "minNode": 18,
+                "ok": true
+              },
+              {
+                "kind": "gemini",
+                "minNode": 20,
+                "ok": true
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "environmentBadNode",
+      "probe": {
+        "nodeVersion": "abc"
+      },
+      "steps": [
+        [
+          "environment"
+        ]
+      ],
+      "log": [
+        [
+          "environment",
+          {
+            "nodeVersion": "abc",
+            "nodePath": "/usr/bin/node",
+            "npmPath": "/usr/bin/npm",
+            "requirements": [
+              {
+                "kind": "claude",
+                "minNode": 22,
+                "ok": false
+              },
+              {
+                "kind": "codex",
+                "minNode": 16,
+                "ok": false
+              },
+              {
+                "kind": "dsh",
+                "minNode": 24,
+                "ok": false
+              },
+              {
+                "kind": "grok",
+                "minNode": 18,
+                "ok": false
+              },
+              {
+                "kind": "gemini",
+                "minNode": 20,
+                "ok": false
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "environmentNoNode",
+      "probe": {
+        "nodeVersion": null,
+        "nodeBin": null,
+        "npmBin": null
+      },
+      "steps": [
+        [
+          "environment"
+        ]
+      ],
+      "log": [
+        [
+          "environment",
+          {
+            "nodeVersion": null,
+            "nodePath": null,
+            "npmPath": null,
+            "requirements": [
+              {
+                "kind": "claude",
+                "minNode": 22,
+                "ok": false
+              },
+              {
+                "kind": "codex",
+                "minNode": 16,
+                "ok": false
+              },
+              {
+                "kind": "dsh",
+                "minNode": 24,
+                "ok": false
+              },
+              {
+                "kind": "grok",
+                "minNode": 18,
+                "ok": false
+              },
+              {
+                "kind": "gemini",
+                "minNode": 20,
+                "ok": false
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "userScopeOverPath",
+      "probe": {},
+      "pathBins": {
+        "gemini": "0.1.0"
+      },
+      "runner": [
+        {
+          "code": 0,
+          "output": "ok",
+          "lines": [
+            "ok"
+          ],
+          "install": [
+            "gemini",
+            "0.2.0"
+          ]
+        },
+        {
+          "code": 0,
+          "output": "ok"
+        }
+      ],
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "run",
+          "a",
+          "gemini",
+          "user"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "preferredFile"
+        ],
+        [
+          "inspectFresh"
+        ],
+        [
+          "run",
+          "b",
+          "gemini",
+          "global"
+        ],
+        [
+          "await",
+          "b"
+        ],
+        [
+          "preferredFile"
+        ],
+        [
+          "inspectFresh"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/userScopeOverPath/onpath/gemini",
+              "version": "0.1.0",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/userScopeOverPath/fakenpm install -g @google/gemini-cli@latest --prefix <SB>/userScopeOverPath/home/.local\nok",
+            "version": "0.2.0",
+            "path": "<SB>/userScopeOverPath/home/.local/bin/gemini",
+            "note": "已安装到 <SB>/userScopeOverPath/home/.local/bin；如需在终端直接使用，请把该目录加入 PATH（Nomi 内可直接使用）。"
+          }
+        ],
+        [
+          "preferredFile",
+          {
+            "gemini": "<SB>/userScopeOverPath/home/.local/bin/gemini"
+          }
+        ],
+        [
+          "inspectFresh",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/userScopeOverPath/home/.local/bin/gemini",
+              "version": "0.2.0",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/userScopeOverPath/fakenpm install -g @google/gemini-cli@latest\nok",
+            "version": "0.2.0",
+            "path": "<SB>/userScopeOverPath/home/.local/bin/gemini"
+          }
+        ],
+        [
+          "preferredFile",
+          {}
+        ],
+        [
+          "inspectFresh",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/userScopeOverPath/onpath/gemini",
+              "version": "0.1.0",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ]
+      ]
+    },
+    {
       "name": "inspect",
       "bins": {
         "claude": [

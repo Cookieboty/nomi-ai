@@ -176,5 +176,13 @@
   "ui.cli-monitor.all-turns": "全部轮次",
   "ui.cli-monitor.last-n-turns": "最近 {0} 轮",
   "ui.cli-monitor.fork": "分叉",
-  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "把选中的轮次复制到新对话。"
+  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "把选中的轮次复制到新对话。",
+  "ui.cli-monitor.runtime-environment": "运行环境",
+  "ui.cli-monitor.runtime-environment-description": "安装和更新编程助手要用到本机的 Node.js 与 npm。",
+  "ui.cli-monitor.node-js-not-found-install-it": "没有找到 Node.js。先安装 Node.js（建议 24 或更新），装好后点「重新检测」。",
+  "ui.cli-monitor.needs-node-js-or-newer": "{0} 需要 Node.js {1} 或更新",
+  "ui.cli-monitor.node-js-meets-every-assistant": "满足所有编程助手的要求",
+  "ui.cli-monitor.npm-not-found-ships-with-node": "没有找到 npm（它随 Node.js 一起安装）。",
+  "ui.cli-monitor.download-node-js": "下载 Node.js",
+  "ui.cli-monitor.node-js-too-old": "版本过低"
 }

@@ -176,5 +176,13 @@
   "ui.cli-monitor.all-turns": "All turns",
   "ui.cli-monitor.last-n-turns": "Last {0} turns",
   "ui.cli-monitor.fork": "Fork",
-  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "Copies the chosen turns into a new chat."
+  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "Copies the chosen turns into a new chat.",
+  "ui.cli-monitor.runtime-environment": "Runtime",
+  "ui.cli-monitor.runtime-environment-description": "Installing and updating coding assistants uses Node.js and npm on this computer.",
+  "ui.cli-monitor.node-js-not-found-install-it": "Node.js wasn't found. Install Node.js (24 or newer is recommended), then select Detect again.",
+  "ui.cli-monitor.needs-node-js-or-newer": "{0} needs Node.js {1} or newer",
+  "ui.cli-monitor.node-js-meets-every-assistant": "Meets every coding assistant's requirement",
+  "ui.cli-monitor.npm-not-found-ships-with-node": "npm wasn't found (it comes with Node.js).",
+  "ui.cli-monitor.download-node-js": "Download Node.js",
+  "ui.cli-monitor.node-js-too-old": "Too old"
 }

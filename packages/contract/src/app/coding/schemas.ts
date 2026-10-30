@@ -202,6 +202,14 @@ export const CliInstallPlan = loose({
   blockers: z.array(z.string()),
 });
 
+/** 安装 / 更新编程助手所需的运行环境：PATH 上的 Node.js / npm，每个 CLI 的最低 Node 主版本与是否满足 */
+export const CliEnvironment = loose({
+  nodeVersion: z.string().nullable(),
+  nodePath: z.string().nullable(),
+  npmPath: z.string().nullable(),
+  requirements: z.array(loose({ kind: z.string(), minNode: z.number(), ok: z.boolean() })),
+});
+
 export const CliRunResult = loose({
   ok: z.boolean(),
   log: z.string(),

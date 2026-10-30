@@ -1056,6 +1056,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "cliUpdate.environment",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "cliUpdate.environment",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'cliUpdate.environment' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "cliUpdate.inspect",
   "kind": "call",
   "res": "pass"
@@ -7399,6 +7416,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'cliUpdate.dismiss' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "cliUpdate.environment",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "cliUpdate.environment",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'cliUpdate.environment' is a query; use call"
   }
  },
  {
@@ -13872,6 +13906,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "cliUpdate.environment",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "cliUpdate.environment",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'cliUpdate.environment' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "cliUpdate.inspect",
   "kind": "call",
   "res": "pass"
@@ -20191,6 +20242,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'cliUpdate.dismiss' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "cliUpdate.environment",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "cliUpdate.environment",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'cliUpdate.environment' is a query; use call"
   }
  },
  {

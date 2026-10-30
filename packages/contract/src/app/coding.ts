@@ -25,6 +25,7 @@ import {
   ApprovePlanChoice,
   BackendModelCatalog,
   CliAccount,
+  CliEnvironment,
   CliInstallInfo,
   CliInstallPlan,
   CliInstallScope,
@@ -399,6 +400,8 @@ const cliUpdateProcedures = {
     input: z.object({ kind: cliKind, scope: CliInstallScope.optional() }),
     output: CliInstallPlan,
   },
+  /** 安装 / 更新所需的运行环境（Node.js / npm），编程助手页顶部展示 */
+  'cliUpdate.environment': { kind: 'query', input: z.void(), output: CliEnvironment },
   /** 安装 / 更新；进度经事件 `cliUpdate.event` 推给所有订阅的窗口（任务快照见 `cliUpdate.job`） */
   'cliUpdate.run': {
     kind: 'mutation',

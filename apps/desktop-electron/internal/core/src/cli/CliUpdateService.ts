@@ -26,8 +26,10 @@ import {
   guessInstallMethod,
   npmPrefixBinDir,
   readPathNodeVersionAsync,
+  preferCliBin,
   readVersionAsync,
   rememberCliDir,
+  resolveNodeBin,
   resolveCliBinAsync,
   resolveNpmBinAsync,
   withCliPath,
@@ -38,6 +40,7 @@ import type {
   CliInstallPlan,
   CliInstallScope,
   CliJobSnapshot,
+  CliEnvironment,
   CliKind,
   CliRequirement,
   CliRunResult,
@@ -162,6 +165,8 @@ export const commandLine = (argv: string[]): string => argv.map(quoteArg).join('
 type MaybeAsync<T> = T | Promise<T>;
 export interface CliProbe {
   nodeVersion(): MaybeAsync<string | null>;
+  /** PATH 上 node 的路径 */
+  nodeBin(): MaybeAsync<string | null>;
   npmBin(): MaybeAsync<string | null>;
   /** `npm config get prefix` */
   npmPrefix(): MaybeAsync<string | null>;
@@ -170,6 +175,7 @@ export interface CliProbe {
 
 export const defaultProbe: CliProbe = {
   nodeVersion: () => readPathNodeVersionAsync(),
+  nodeBin: () => resolveNodeBin(),
   npmBin: () => resolveNpmBinAsync(),
   // 异步执行：不阻塞主进程（Windows 上 npm.cmd 经 shell 启动较慢）
   npmPrefix: async () => {
@@ -258,6 +264,9 @@ export class CliUpdateService {
   private probed: { at: number; rows: Promise<LocalProbe[]> } | null = null;
   private latestRefresh: Promise<void> | null = null;
   private readonly cachePath: string;
+  /** 用户目录安装成功的 CLI → 可执行文件（重启后仍优先用它，见 detect.preferCliBin） */
+  private readonly preferredPath: string;
+  private preferred: Partial<Record<UpdatableCli, string>> = {};
   /** 每个端点最近一次任务（运行中 / 已结束，直到用户关闭） */
   private readonly jobs = new Map<UpdatableCli, CliJobSnapshot>();
   private readonly inflight = new Map<UpdatableCli, Promise<CliRunResult>>();
@@ -293,8 +302,63 @@ export class CliUpdateService {
     this.probe = d.probe ?? defaultProbe;
     this.runner = d.runner ?? defaultRunner;
     this.cachePath = path.join(d.root, 'cache.json');
+    this.preferredPath = path.join(d.root, 'preferred.json');
     fs.mkdirSync(d.root, { recursive: true });
     this.load();
+    this.loadPreferred();
+  }
+
+  private loadPreferred() {
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.preferredPath, 'utf8')) as unknown;
+      if (raw && typeof raw === 'object')
+        for (const [k, v] of Object.entries(raw))
+          if (isUpdatable(k as CliKind) && typeof v === 'string' && v)
+            this.preferred[k as UpdatableCli] = v;
+    } catch {
+      this.preferred = {};
+    }
+    for (const [k, v] of Object.entries(this.preferred)) preferCliBin(k as UpdatableCli, v);
+  }
+
+  private setPreferred(kind: UpdatableCli, bin: string | null) {
+    if ((this.preferred[kind] ?? null) === bin) return;
+    if (bin) this.preferred[kind] = bin;
+    else delete this.preferred[kind];
+    preferCliBin(kind, bin);
+    try {
+      fs.writeFileSync(this.preferredPath, JSON.stringify(this.preferred, null, 2), 'utf8');
+    } catch (err) {
+      this.d.logger.warn('cli-update preferred save failed', err);
+    }
+  }
+
+  /** 用户目录前缀里这个 CLI 的可执行文件（有就返回） */
+  private userBin(kind: UpdatableCli): string | null {
+    const platform = this.d.platform ?? process.platform;
+    const dir = npmPrefixBinDir(userPrefix(), platform);
+    const names = platform === 'win32' ? [`${kind}.cmd`, `${kind}.exe`, kind] : [kind];
+    for (const n of names) {
+      const p = path.join(dir, n);
+      if (fs.existsSync(p)) return p;
+    }
+    return null;
+  }
+
+  /** 安装 / 更新所需的运行环境：PATH 上的 Node.js 与 npm，以及每个 CLI 要求的最低 Node 主版本 */
+  async environment(): Promise<CliEnvironment> {
+    const [nodeVersion, nodePath, npmPath] = await Promise.all([
+      this.probe.nodeVersion(),
+      this.probe.nodeBin(),
+      this.probe.npmBin(),
+    ]);
+    const major = nodeVersion ? Number(nodeVersion.split('.')[0]) : NaN;
+    const requirements = (Object.keys(CLI_MIN_NODE_MAJOR) as UpdatableCli[]).map((kind) => ({
+      kind,
+      minNode: CLI_MIN_NODE_MAJOR[kind],
+      ok: Number.isFinite(major) && major >= CLI_MIN_NODE_MAJOR[kind],
+    }));
+    return { nodeVersion, nodePath, npmPath, requirements };
   }
 
   private load() {
@@ -697,6 +761,13 @@ export class CliUpdateService {
           rememberCliDir(npmBinDir);
           bin = await resolveCliBinAsync(kind);
         }
+      }
+      // 用户目录安装：PATH 上可能还有更早的旧版本挡在前面，记下装好的这一份，之后探测与启动都优先用它；
+      // 改用全局安装就回到按 PATH 找
+      if (ok) {
+        const own = scope === 'user' ? this.userBin(kind) : null;
+        this.setPreferred(kind, own);
+        if (own) bin = own;
       }
       const version = bin ? await readVersionAsync(bin) : null;
       if (!ok) {

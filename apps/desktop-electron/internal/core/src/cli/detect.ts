@@ -61,6 +61,23 @@ export function rememberCliDir(dir: string | null | undefined): void {
   forgetMissingCliBins();
 }
 
+/**
+ * Nomi 装到用户目录的 CLI（cliUpdate 用户目录安装成功后记下）：优先于 PATH，
+ * 免得被 PATH 上更早的旧版本挡住。文件不在了就不算。
+ */
+const preferredBins = new Map<CliKind, string>();
+
+export function preferCliBin(kind: CliKind, bin: string | null): void {
+  if (bin) preferredBins.set(kind, bin);
+  else preferredBins.delete(kind);
+  binCache.delete(kind);
+}
+
+function preferredBin(kind: CliKind): string | null {
+  const p = preferredBins.get(kind);
+  return p && fs.existsSync(p) ? p : null;
+}
+
 /** 之前「没找到」的探测结果作废（PATH / 搜索目录变了，新目录里可能就有） */
 export function forgetMissingCliBins(): void {
   for (const [kind, hit] of binCache) if (!hit.bin) binCache.delete(kind);
@@ -329,6 +346,7 @@ export function refreshCliBin(kind: CliKind): Promise<string | null> {
 export function resetCliBinCache(): void {
   binCache.clear();
   rememberedDirs.length = 0;
+  preferredBins.clear();
   inflight.clear();
   nodeBinCache = null;
 }
@@ -346,6 +364,8 @@ export function resolveCliBin(kind: CliKind): string | null {
   if (env) return env;
   const mock = mockCliBin(kind);
   if (mock) return mock;
+  const preferred = preferredBin(kind);
+  if (preferred) return preferred;
   for (const c of CANDIDATES[kind]) {
     const p = which(c);
     if (p) return p;
@@ -505,6 +525,8 @@ async function probeCliBinAsync(kind: CliKind): Promise<string | null> {
   if (env) return env;
   const mock = mockCliBin(kind);
   if (mock) return mock;
+  const preferred = preferredBin(kind);
+  if (preferred) return preferred;
   for (const c of CANDIDATES[kind]) {
     const p = await whichAsync(c);
     if (p) return p;

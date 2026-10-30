@@ -213,6 +213,7 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
     'cliUpdate.run': ({ kind, scope }) => wireP(updates().run(toUpdatable(kind), toScope(scope))),
     'cliUpdate.job': ({ kind }) => wire(updates().job(toUpdatable(kind))),
     'cliUpdate.busy': () => updates().busyKinds(),
+    'cliUpdate.environment': () => wireP(updates().environment()),
     'cliUpdate.dismiss': ({ kind }) => updates().dismissJob(toUpdatable(kind)),
 
     // ── delegate：委派 ──

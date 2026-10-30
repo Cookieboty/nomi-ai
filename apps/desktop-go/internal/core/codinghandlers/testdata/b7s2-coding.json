@@ -803,6 +803,39 @@
   }
  },
  {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "environment",
+    "a": []
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom environment"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
   "name": "cliUpdate.dismiss",
   "input": {
    "kind": "gemini"

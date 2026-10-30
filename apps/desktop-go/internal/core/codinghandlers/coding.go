@@ -31,6 +31,7 @@ type Updates interface {
 	Job(kind string) *util.Obj
 	BusyKinds() []string
 	DismissJob(kind string) bool
+	Environment() *util.Obj
 }
 
 // Delegate = DelegateService 的公开面（Pin 返回 "" = null）
@@ -167,6 +168,7 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	})
 	gil(r, "cliUpdate.job", func(a in) any { return updates().Job(cli.ToUpdatable(a.any("kind"))) })
 	gil(r, "cliUpdate.busy", func(in) any { return updates().BusyKinds() })
+	gil(r, "cliUpdate.environment", func(in) any { return updates().Environment() })
 	gil(r, "cliUpdate.dismiss", func(a in) any { return updates().DismissJob(cli.ToUpdatable(a.any("kind"))) })
 
 	// ── delegate：委派 ──

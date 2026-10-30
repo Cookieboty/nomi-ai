@@ -58,6 +58,7 @@ func (f *fake) Job(k string) *util.Obj {
 }
 func (f *fake) BusyKinds() []string      { f.echo("busyKinds"); return []string{"claude", "grok"} }
 func (f *fake) DismissJob(k string) bool { f.echo("dismissJob", k); return k == "claude" }
+func (f *fake) Environment() *util.Obj   { return f.echo("environment") }
 func (f *fake) Settings() *util.Obj      { return f.echo("settings") }
 func (f *fake) SetSettings(raw any) (*util.Obj, error) {
 	if e := f.err("setSettings"); e != nil {

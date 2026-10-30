@@ -40,6 +40,7 @@ const services = {
     job: (k) => (k === 'codex' ? null : echo('job', k)),
     busyKinds: () => (echo('busyKinds'), ['claude', 'grok']),
     dismissJob: (k) => (echo('dismissJob', k), k === 'claude'),
+    environment: () => aecho('environment'),
   },
   delegate: {
     settings: () => echo('settings'),
@@ -82,6 +83,7 @@ const inputs = {
   'cliUpdate.run': [{ kind: 'dsh', scope: 'user' }, { kind: 'grok' }, { kind: 5, scope: 'user' }],
   'cliUpdate.job': [{ kind: 'codex' }, { kind: 'dsh' }, {}],
   'cliUpdate.busy': [{}],
+  'cliUpdate.environment': [{}],
   'cliUpdate.dismiss': [{ kind: 'gemini' }, { kind: 'nope' }],
   'delegate.settings': [{}],
   'delegate.setSettings': [{ settings: { enabled: true, clis: ['codex'] } }, {}],

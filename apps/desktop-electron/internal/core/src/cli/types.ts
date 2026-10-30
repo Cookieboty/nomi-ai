@@ -218,6 +218,16 @@ export interface CliInstallPlan {
   userScopeCommand?: string;
 }
 
+/** 安装 / 更新编程助手所需的运行环境（编程助手页顶部展示） */
+export interface CliEnvironment {
+  /** PATH 上的 Node.js 版本（不带 v），没找到为 null */
+  nodeVersion: string | null;
+  nodePath: string | null;
+  npmPath: string | null;
+  /** 每个可安装的 CLI 要求的最低 Node 主版本，以及当前是否满足 */
+  requirements: { kind: UpdatableCli; minNode: number; ok: boolean }[];
+}
+
 export interface CliRunResult {
   ok: boolean;
   log: string;

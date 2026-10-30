@@ -1331,6 +1331,19 @@ type CliUpdateDismissInput struct {
 	Kind string `json:"kind"`
 }
 
+type CliUpdateEnvironmentOutputRequirementsItem struct {
+	Kind    string  `json:"kind"`
+	MinNode float64 `json:"minNode"`
+	Ok      bool    `json:"ok"`
+}
+
+type CliUpdateEnvironmentOutput struct {
+	NodeVersion  string                                       `json:"nodeVersion"`
+	NodePath     string                                       `json:"nodePath"`
+	NpmPath      string                                       `json:"npmPath"`
+	Requirements []CliUpdateEnvironmentOutputRequirementsItem `json:"requirements"`
+}
+
 type CliUpdateInspectInput struct {
 	Refresh *bool `json:"refresh,omitempty"`
 }
@@ -6610,6 +6623,10 @@ type CliUpdateBusyOutputT = []string
 // CliUpdateDismissInputT 是 cliUpdate.dismiss 的入参
 type CliUpdateDismissInputT = CliUpdateDismissInput
 type CliUpdateDismissOutputT = bool
+
+// CliUpdateEnvironmentInputT 是 cliUpdate.environment 的入参
+type CliUpdateEnvironmentInputT = any
+type CliUpdateEnvironmentOutputT = CliUpdateEnvironmentOutput
 
 // CliUpdateInspectInputT 是 cliUpdate.inspect 的入参
 type CliUpdateInspectInputT = CliUpdateInspectInput

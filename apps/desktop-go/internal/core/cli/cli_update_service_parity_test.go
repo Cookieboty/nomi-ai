@@ -41,6 +41,7 @@ type cuProbe struct{ p *util.Obj }
 
 func (c cuProbe) s(k string) string    { v, _ := c.p.Get(k).(string); return v }
 func (c cuProbe) NodeVersion() string  { return c.s("nodeVersion") }
+func (c cuProbe) NodeBin() string      { return c.s("nodeBin") }
 func (c cuProbe) NpmBin() string       { return c.s("npmBin") }
 func (c cuProbe) NpmPrefix() string    { return c.s("npmPrefix") }
 func (c cuProbe) CanWrite(string) bool { return c.p.Get("canWrite") == true }
@@ -165,6 +166,15 @@ func runCuScenario(t *testing.T, sc *util.Obj, SB string) []any {
 			os.Setenv(cuEnvBin[kind], cuVerBin(t, filepath.Join(d, kind), a[1].(string)))
 		}
 	}
+	// PATH 上的 CLI（不经 NOMI_*_BIN，模拟用户自己装在 PATH 里的旧版本）
+	if pb, ok := sc.Get("pathBins").(*util.Obj); ok {
+		onPath := filepath.Join(dir, "onpath")
+		_ = os.MkdirAll(onPath, 0o777)
+		for _, kind := range pb.Keys() {
+			cuVerBin(t, filepath.Join(onPath, kind), pb.Get(kind).(string))
+		}
+		os.Setenv("PATH", filepath.Join(dir, "empty")+string(os.PathListSeparator)+onPath)
+	}
 	cacheDir := filepath.Join(dir, "cache")
 	_ = os.MkdirAll(cacheDir, 0o777)
 	cacheFile := filepath.Join(cacheDir, "cache.json")
@@ -180,7 +190,7 @@ func runCuScenario(t *testing.T, sc *util.Obj, SB string) []any {
 	}
 	ResetCliBinCache()
 
-	P := util.NewObj("nodeVersion", "24.1.0", "npmBin", "/usr/bin/npm", "npmPrefix", filepath.Join(dir, "prefix"), "canWrite", true)
+	P := util.NewObj("nodeVersion", "24.1.0", "nodeBin", "/usr/bin/node", "npmBin", "/usr/bin/npm", "npmPrefix", filepath.Join(dir, "prefix"), "canWrite", true)
 	if pr, ok := sc.Get("probe").(*util.Obj); ok {
 		for _, k := range pr.Keys() {
 			P.Set(k, pr.Get(k))
@@ -414,6 +424,37 @@ func runCuScenario(t *testing.T, sc *util.Obj, SB string) []any {
 			v = updated
 		case "warns":
 			jsrt.Run(func() { v = warns; warns = []any{} })
+		case "environment":
+			jsrt.Run(func() { v = s.Environment() })
+		case "inspectFresh":
+			// 重启：探测缓存清空，新实例从 preferred.json 读回优先路径
+			ResetCliBinCache()
+			var pr *jsrt.Promise[[]*util.Obj]
+			jsrt.Run(func() {
+				s2, err := NewCliUpdateService(opts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				pr = s2.Inspect(false)
+			})
+			r, _ := jsrt.Block(pr)
+			out := []any{}
+			for _, o := range r {
+				out = append(out, o)
+			}
+			v = out
+		case "preferredFile":
+			b, err := os.ReadFile(filepath.Join(cacheDir, "preferred.json"))
+			if err != nil {
+				v = "missing"
+				break
+			}
+			c, err := util.ParseString(string(b))
+			if err != nil {
+				v = "unreadable"
+				break
+			}
+			v = c
 		case "cacheFile":
 			b, err := os.ReadFile(cacheFile)
 			if err != nil {

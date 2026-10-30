@@ -138,6 +138,7 @@ func CommandLine(argv []string) string {
 // CliProbe = CliProbe（"" = null）。持锁调用；阻塞部分应释放锁。
 type CliProbe interface {
 	NodeVersion() string
+	NodeBin() string // PATH 上 node 的路径
 	NpmBin() string
 	NpmPrefix() string
 	CanWrite(dir string) bool
@@ -149,6 +150,7 @@ type defaultCliProbe struct{}
 var DefaultCliProbe CliProbe = defaultCliProbe{}
 
 func (defaultCliProbe) NodeVersion() string { return ReadPathNodeVersionAsync() }
+func (defaultCliProbe) NodeBin() string     { return ResolveNodeBin() }
 func (defaultCliProbe) NpmBin() string      { return ResolveNpmBinAsync() }
 func (defaultCliProbe) NpmPrefix() string {
 	npm := ResolveNpmBinAsync()
@@ -288,6 +290,8 @@ type CliUpdateService struct {
 	probed        *probedEntry
 	latestRefresh *jsrt.Promise[struct{}]
 	cachePath     string
+	preferredPath string // 用户目录安装成功的 CLI → 可执行文件（重启后仍优先用它，见 PreferCliBin）
+	preferred     map[string]string
 	jobs          map[string]*cliJob
 	inflight      map[string]*jsrt.Promise[*util.Obj]
 	inflightOrder []string
@@ -313,11 +317,87 @@ func NewCliUpdateService(d CliUpdateOptions) (*CliUpdateService, error) {
 		s.runner = DefaultCliRunner
 	}
 	s.cachePath = filepath.Join(d.Root, "cache.json")
+	s.preferredPath = filepath.Join(d.Root, "preferred.json")
 	if err := os.MkdirAll(d.Root, 0o777); err != nil {
 		return nil, err
 	}
 	s.load()
+	s.loadPreferred()
 	return s, nil
+}
+
+func (s *CliUpdateService) loadPreferred() {
+	s.preferred = map[string]string{}
+	if b, err := os.ReadFile(s.preferredPath); err == nil {
+		if v, err := util.ParseString(string(b)); err == nil {
+			if o, ok := v.(*util.Obj); ok {
+				for _, k := range o.Keys() {
+					if p, ok := o.Get(k).(string); ok && p != "" && IsUpdatable(k) {
+						s.preferred[k] = p
+					}
+				}
+			}
+		}
+	}
+	for k, p := range s.preferred {
+		PreferCliBin(k, p)
+	}
+}
+
+func (s *CliUpdateService) setPreferred(kind, bin string) {
+	if s.preferred[kind] == bin {
+		return
+	}
+	if bin != "" {
+		s.preferred[kind] = bin
+	} else {
+		delete(s.preferred, kind)
+	}
+	PreferCliBin(kind, bin)
+	o := util.NewObj()
+	for _, k := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
+		if p, ok := s.preferred[k]; ok {
+			o.Set(k, p)
+		}
+	}
+	if err := os.WriteFile(s.preferredPath, []byte(util.StringifyIndent(o, "  ")), 0o666); err != nil {
+		s.d.Logger.Warn("cli-update preferred save failed", err)
+	}
+}
+
+// userBin：用户目录前缀里这个 CLI 的可执行文件（"" = 没有）
+func (s *CliUpdateService) userBin(kind string) string {
+	platform := s.d.Platform
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	lib := nodepath.Lib(platform)
+	dir := NpmPrefixBinDir(UserPrefix(), platform)
+	names := []string{kind}
+	if platform == "win32" {
+		names = []string{kind + ".cmd", kind + ".exe", kind}
+	}
+	for _, n := range names {
+		if p := lib.Join(dir, n); usage.ExistsSync(p) {
+			return p
+		}
+	}
+	return ""
+}
+
+// Environment = environment()：PATH 上的 Node.js 与 npm，以及每个 CLI 要求的最低 Node 主版本与是否满足
+func (s *CliUpdateService) Environment() *util.Obj {
+	nodeV, nodeBin, npm := s.probe.NodeVersion(), s.probe.NodeBin(), s.probe.NpmBin()
+	major := util.ToNumber("x")
+	if nodeV != "" {
+		major = util.ToNumber(strings.Split(nodeV, ".")[0])
+	}
+	reqs := []any{}
+	for _, k := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
+		need := CliMinNodeMajor[k]
+		reqs = append(reqs, util.NewObj("kind", k, "minNode", float64(need), "ok", isFinite(major) && major >= float64(need)))
+	}
+	return util.NewObj("nodeVersion", nz(nodeV), "nodePath", nz(nodeBin), "npmPath", nz(npm), "requirements", reqs)
 }
 
 func (s *CliUpdateService) load() {
@@ -903,6 +983,18 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 			npmBinDir = NpmPrefixBinDir(prefix, "")
 			RememberCliDir(npmBinDir)
 			bin = ResolveCliBinAsync(kind)
+		}
+	}
+	// 用户目录安装：PATH 上可能还有更早的旧版本挡在前面，记下装好的这一份，之后探测与启动都优先用它；
+	// 改用全局安装就回到按 PATH 找
+	if ok {
+		own := ""
+		if scope == "user" {
+			own = s.userBin(kind)
+		}
+		s.setPreferred(kind, own)
+		if own != "" {
+			bin = own
 		}
 	}
 	version := ""
