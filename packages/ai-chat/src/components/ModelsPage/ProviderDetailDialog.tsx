@@ -311,6 +311,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     () => JSON.stringify(buildPayload(p, d)) !== initialPayload,
     [p, d, initialPayload],
   );
+  /** 包括输入框里填了、还没点「添加」的 Key（保存时一起存） */
+  const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const picker = useMemo(() => pickerProviders(providers), [providers]);
   const fallbackPicker = useMemo(
@@ -362,16 +364,23 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     if (!ok) return;
     patch({ keys: d.keys.filter((_, n) => n !== i) });
   };
-  const addKeys = () => {
-    const known = new Set(d.keys.map((k) => k.value));
+  /** 输入框里还没点「添加」的 Key 接到草稿末尾 */
+  const withTypedKeys = (cur: Draft): Draft => {
+    const known = new Set(cur.keys.map((k) => k.value));
     const fresh = splitKeys(keysText).filter((v) => !known.has(v));
-    if (!fresh.length) return;
-    patch({
+    if (!fresh.length) return cur;
+    return {
+      ...cur,
       keys: [
-        ...d.keys,
+        ...cur.keys,
         ...fresh.map((value) => ({ id: `new-${++tmpSeq}`, value, name: '', enabled: true })),
       ],
-    });
+    };
+  };
+  const addKeys = () => {
+    const next = withTypedKeys(d);
+    if (next === d) return;
+    patch({ keys: next.keys });
     setKeysText('');
   };
 
@@ -475,7 +484,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     setError(null);
     setBusy('save');
     try {
-      await gatewayClient.upsertProvider(buildPayload(p, d));
+      // 填了 Key 没点「添加」就保存：一起存上，不悄悄丢掉
+      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(d)));
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -496,7 +506,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           {t('ui.models.delete-provider')}
         </Button>
       )}
-      {!readOnly && dirty && <span className={styles.help}>{t('ui.models.unsaved-changes')}</span>}
+      {!readOnly && changed && (
+        <span className={styles.help}>{t('ui.models.unsaved-changes')}</span>
+      )}
       <Button size="sm" variant="secondary" onClick={onClose} data-testid="provider-detail-cancel">
         {readOnly ? t('ui.providers-schedule.close') : t('ui.foundation.cancel')}
       </Button>
@@ -504,7 +516,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         <Button
           size="sm"
           variant="primary"
-          disabled={!dirty || busy !== null}
+          disabled={!changed || busy !== null}
           onClick={() => void save()}
           data-testid="provider-detail-save"
         >

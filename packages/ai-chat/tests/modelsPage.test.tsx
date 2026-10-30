@@ -558,6 +558,25 @@ describe('ModelsPage', () => {
     ]);
   });
 
+  it('keys: a key typed but not added is saved with the provider', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const save = within(dlg).getByTestId('provider-detail-save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
+      target: { value: 'sk-typed-cccc3333' },
+    });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.newKeys).toEqual([
+      { value: 'sk-typed-cccc3333', position: kimi().keys.length, enabled: true },
+    ]);
+  });
+
   it('keys: replace a saved key in place; a key pasted into the name is offered as a replacement', async () => {
     const m = fakeMain();
     m.state.providers = [
