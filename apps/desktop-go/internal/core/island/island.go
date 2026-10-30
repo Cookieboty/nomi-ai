@@ -148,7 +148,6 @@ func (s *Service) set(patch map[string]any) (Settings, error) {
 	return s.s, os.WriteFile(s.file, b, 0o644)
 }
 
-
 // Layout = ensureWindow 里的 islandGeometry(platform, screen.getPrimaryDisplay(), settings.style)
 func (s *Service) Layout() (Geometry, bool) {
 	if s.PrimaryDisplay == nil {

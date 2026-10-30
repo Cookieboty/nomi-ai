@@ -101,6 +101,13 @@ func (s *Service) Set(pref any) (State, error) {
 	return st, nil
 }
 
+// SystemChanged = appearance.onChange：系统外观变了，「跟随系统」时重新广播（主题随之切换）
+func (s *Service) SystemChanged() {
+	if s.pref == "system" && s.emit != nil {
+		s.emit(s.Get())
+	}
+}
+
 func (s *Service) persist() error {
 	b, _ := json.MarshalIndent(map[string]string{"theme": s.pref}, "", "  ")
 	return utils.WritePrivateFileAtomic(s.file, append(b, '\n'))

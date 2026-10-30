@@ -108,7 +108,7 @@ func main() {
 				sh.Show(shell.Chat)
 			}
 		},
-		SystemLangs: systemLangs(),
+		SystemLangs: hostports.SystemLanguages(),
 		// = host.liveWindows（看板娘与对话窗口；sh 在外壳建好之前为 nil）
 		LiveWindows: func() int {
 			if sh == nil {
@@ -122,7 +122,11 @@ func main() {
 			}
 			return n
 		},
-		IsDark: func() bool { return false },
+		// = appearance.isDark（nativeTheme.shouldUseDarkColors）；外壳建好之前按浅色
+		IsDark: func() bool {
+			d, ok := sh.(interface{ IsDarkMode() bool })
+			return ok && d.IsDarkMode()
+		},
 	})
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.PrimaryDisplay = func() (island.Display, bool) {
@@ -436,6 +440,8 @@ func main() {
 			}
 			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
 		},
+		// = ThemeService 订阅 appearance.onChange
+		OnSystemThemeChanged: bundle.Theme.SystemChanged,
 		// 灵动岛页面的收起 / 点击信号（islandPageMiddleware 插入的桥）
 		OnPageMessage: func(msg string) {
 			switch msg {
@@ -560,15 +566,6 @@ func main() {
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func systemLangs() []string {
-	for _, k := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
-		if v := os.Getenv(k); v != "" {
-			return []string{strings.Split(v, ".")[0]}
-		}
-	}
-	return []string{"zh-CN"}
 }
 
 // builtinPackDir：NOMI_CHARACTER_PACK，否则从可执行文件 / 工作目录向上找仓库里的 characters/nomi

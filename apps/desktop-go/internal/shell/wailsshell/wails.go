@@ -42,6 +42,8 @@ type Config struct {
 	// OnWindow：窗口生命周期（"created" 新建或重建完成且原生窗口已就位 / "closed" 当前窗口关闭 /
 	// "user-closed" 用户关掉了当前窗口（紧跟 closed） / "shown" show·restore / "moved" 窗口移动过）
 	OnWindow func(k shell.WindowKind, event string)
+	// OnSystemThemeChanged：系统外观（深浅色）变化（= nativeTheme 'updated'）
+	OnSystemThemeChanged func()
 	// OnPageMessage：页面经 Wails 消息通道发来的 nomi:* 信号（first-paint 与开发态日志除外）
 	OnPageMessage func(msg string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
@@ -120,6 +122,11 @@ func New(cfg Config) *Wails {
 		},
 	})
 	w.hookStarted()
+	if cfg.OnSystemThemeChanged != nil {
+		w.app.Event.OnApplicationEvent(events.Common.ThemeChanged, func(*application.ApplicationEvent) {
+			go cfg.OnSystemThemeChanged()
+		})
+	}
 	if trayHostAvailable() {
 		w.setupTray()
 	} else {
@@ -528,6 +535,9 @@ func (w *Wails) Recreate(k shell.WindowKind) {
 		log.Printf("[shell] %s recreated", k)
 	})
 }
+
+// IsDarkMode = nativeTheme.shouldUseDarkColors（系统当前是否深色）
+func (w *Wails) IsDarkMode() bool { return w.app.Env.IsDarkMode() }
 
 // Hide 隐藏窗口但不销毁（= BrowserWindow.hide()）
 func (w *Wails) Hide(k shell.WindowKind) {
