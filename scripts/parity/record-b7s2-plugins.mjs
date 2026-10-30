@@ -10,12 +10,25 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const src = (p) => path.join(root, 'packages/cli-plugins/src', p);
+const src = (p) => path.join(root, 'apps/desktop-electron/internal/cli-plugins/src', p);
+// 清单、界面信息与根入口的纯数据在 @nomi-ai/cli-catalog
+const cat = (p) => path.join(root, 'packages/cli-catalog/src', p);
 const CLIS = ['claude', 'codex', 'dsh', 'gemini', 'grok'];
 // TS 源码打包装载（不依赖各包 dist；所有模块共享同一份实例，引用关系保持）
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
-const ent = { I: src('index.ts'), G: src('gateways.ts'), GS: src('shared/gatewaySpec.ts'), R: src('shared/renderer.ts'), E: src('shared/exec.ts'), T: src('shared/text.ts') };
-for (const id of CLIS) for (const k of ['manifest', 'renderer', 'gateway']) ent[`${id}/${k}`] = src(`${id}/${k}.ts`);
+const ent = {
+  I: cat('index.ts'),
+  G: src('gateways.ts'),
+  GS: src('shared/gatewaySpec.ts'),
+  R: cat('shared/renderer.ts'),
+  E: src('shared/exec.ts'),
+  T: src('shared/text.ts'),
+};
+for (const id of CLIS) {
+  ent[`${id}/manifest`] = cat(`${id}/manifest.ts`);
+  ent[`${id}/renderer`] = cat(`${id}/renderer.ts`);
+  ent[`${id}/gateway`] = src(`${id}/gateway.ts`);
+}
 const M = await importSources(root, ent);
 const { I, G, GS, R, E, T } = M;
 const per = {};
@@ -24,7 +37,9 @@ for (const id of CLIS) {
   const r = M[`${id}/renderer`];
   const g = M[`${id}/gateway`];
   per[id] = {
-    manifest: m.manifest, renderer: r.renderer, gateway: g.gateway,
+    manifest: m.manifest,
+    renderer: r.renderer,
+    gateway: g.gateway,
     // 引用关系（同一对象）
     sameManifest: I.BUILTIN_MANIFESTS[id] === m.manifest,
     sameRenderer: I.BUILTIN_RENDERER[id] === r.renderer,
@@ -35,22 +50,68 @@ for (const id of CLIS) {
 }
 const synth = [
   { id: 'x', displayName: 'X', icon: 'i', capabilities: {}, modelSwitch: 'restart', extra: 1 },
-  { id: 'y', displayName: 'Y', icon: 'j', capabilities: { permissionModes: [{ mode: 'plan', args: ['a'] }, { mode: 'bypass' }], images: 'none' } },
+  {
+    id: 'y',
+    displayName: 'Y',
+    icon: 'j',
+    capabilities: {
+      permissionModes: [{ mode: 'plan', args: ['a'] }, { mode: 'bypass' }],
+      images: 'none',
+    },
+  },
   { id: 'z', capabilities: { permissionModes: [] } },
 ];
 const fns = [];
 for (const m of synth) fns.push({ fn: 'rendererInfo', args: [m], out: R.rendererInfo(m) });
-const evs = [{ type: 'done', usage: { a: 1 } }, { type: 'done' }, { type: 'done', usage: null }, { type: 'done', usage: 0 }, { type: 'done', usage: '' }, { type: 'done', usage: 'x' }, { type: 'done', usage: [] }, { type: 'text', usage: {} }, {}];
+const evs = [
+  { type: 'done', usage: { a: 1 } },
+  { type: 'done' },
+  { type: 'done', usage: null },
+  { type: 'done', usage: 0 },
+  { type: 'done', usage: '' },
+  { type: 'done', usage: 'x' },
+  { type: 'done', usage: [] },
+  { type: 'text', usage: {} },
+  {},
+];
 for (const ev of evs) fns.push({ fn: 'usageDone', args: [ev], out: E.USAGE_DONE.completes(ev) });
-const titles = [['hello world'], [undefined], [''], ['  a  \n b '], ['x'.repeat(100)], ['x'.repeat(80)], ['x'.repeat(81)], ['abcdef', 3], ['😀'.repeat(50), 10],
-  ['<command-name>/review</command-name><command-args>pr 3</command-args>'], ['<system-reminder>x</system-reminder>'], ['<environment_context>x'], ['  # agents.md hi'], ['<INSTRUCTIONS>'], ['   '], ['a\u00a0\u2028b']];
-for (const a of titles) { const out = T.cleanTitle(...a); fns.push({ fn: 'cleanTitle', args: a, out: out === undefined ? '<undefined>' : out }); }
+const titles = [
+  ['hello world'],
+  [undefined],
+  [''],
+  ['  a  \n b '],
+  ['x'.repeat(100)],
+  ['x'.repeat(80)],
+  ['x'.repeat(81)],
+  ['abcdef', 3],
+  ['😀'.repeat(50), 10],
+  ['<command-name>/review</command-name><command-args>pr 3</command-args>'],
+  ['<system-reminder>x</system-reminder>'],
+  ['<environment_context>x'],
+  ['  # agents.md hi'],
+  ['<INSTRUCTIONS>'],
+  ['   '],
+  ['a\u00a0\u2028b'],
+];
+for (const a of titles) {
+  const out = T.cleanTitle(...a);
+  fns.push({ fn: 'cleanTitle', args: a, out: out === undefined ? '<undefined>' : out });
+}
 const data = {
-  ids: I.BUILTIN_CLI_IDS, manifests: I.BUILTIN_MANIFESTS, renderers: I.BUILTIN_RENDERER, gatewayEntries: G.BUILTIN_GATEWAY_ENTRIES,
-  defaultSessionKey: GS.DEFAULT_SESSION_KEY, per, fns,
+  ids: I.BUILTIN_CLI_IDS,
+  manifests: I.BUILTIN_MANIFESTS,
+  renderers: I.BUILTIN_RENDERER,
+  gatewayEntries: G.BUILTIN_GATEWAY_ENTRIES,
+  defaultSessionKey: GS.DEFAULT_SESSION_KEY,
+  per,
+  fns,
   isBuiltin: ['claude', 'grok', 'x', '', null, 1].map((v) => I.isBuiltinCliId(v)),
 };
-const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/cliplugins/builtin/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR ||
+  path.join(root, 'apps/desktop-go/internal/cliplugins/builtin/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, 'b7s2-plugins.json'), `${JSON.stringify(data, null, 1)}\n`);
-console.log(`b7s2-plugins: ${CLIS.length} plugins, ${G.BUILTIN_GATEWAY_ENTRIES.length} gateway entries, ${fns.length} fns`);
+console.log(
+  `b7s2-plugins: ${CLIS.length} plugins, ${G.BUILTIN_GATEWAY_ENTRIES.length} gateway entries, ${fns.length} fns`,
+);

@@ -130,6 +130,16 @@ export default tseslint.config(
               ],
               message: '视图不能依赖内核与宿主：只经契约客户端（services/api）访问（§11.1）。',
             },
+            {
+              group: [
+                '@nomi-ai/cli-plugins',
+                '@nomi-ai/cli-plugins/*',
+                '@nomi-ai/cli-sdk',
+                '@nomi-ai/cli-sdk/*',
+              ],
+              message:
+                '编程助手插件的实现与驱动只在 Node 版主进程里；视图要的清单、界面信息与 id 从 @nomi-ai/cli-catalog 取。',
+            },
             CHARACTER_PACK_IMPORT,
           ],
         },
@@ -137,16 +147,39 @@ export default tseslint.config(
     },
   },
 
+  // 编程助手的清单与界面信息（@nomi-ai/cli-catalog）：Node 版与 Go 版共用的视图也加载，整个包只能是纯数据与纯函数
+  {
+    files: ['packages/cli-catalog/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: 'cli-catalog 不能依赖 electron。' }],
+          patterns: [
+            CHARACTER_PACK_IMPORT,
+            {
+              group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
+              message: 'cli-catalog 只能是纯数据与纯函数，不能依赖 node。',
+            },
+            {
+              group: ['@nomi-ai/*'],
+              message: 'cli-catalog 不依赖其它包（cli-sdk / cli-plugins 反过来依赖它）。',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // 编程助手插件的入口边界（docs/design/cli-plugin-architecture.md §5.1）：
   // manifest / gateway / renderer 是纯数据，渲染进程与网关进程也会加载，不能依赖 node 与主进程实现；
   // main 是主进程实现，不能依赖渲染进程入口。整个插件包都不能 import electron。
   {
-    files: ['packages/cli-plugins/src/**/*.ts'],
+    files: ['apps/desktop-electron/internal/cli-plugins/src/**/*.ts'],
     ignores: [
-      'packages/cli-plugins/src/*/main.ts',
-      'packages/cli-plugins/src/main.ts',
-      'packages/cli-plugins/src/shared/homes.ts',
-      'packages/cli-plugins/src/shared/scan.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/*/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/shared/homes.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/shared/scan.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -169,7 +202,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/cli-plugins/src/*/main.ts', 'packages/cli-plugins/src/main.ts'],
+    files: [
+      'apps/desktop-electron/internal/cli-plugins/src/*/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/main.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',

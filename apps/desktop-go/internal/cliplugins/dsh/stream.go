@@ -1,4 +1,4 @@
-// Package dsh mirrors packages/cli-plugins/src/dsh.
+// Package dsh mirrors apps/desktop-electron/internal/cli-plugins/src/dsh.
 package dsh
 
 import (

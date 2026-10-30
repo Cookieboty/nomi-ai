@@ -1,4 +1,4 @@
-// Package grok mirrors packages/cli-plugins/src/grok.
+// Package grok mirrors apps/desktop-electron/internal/cli-plugins/src/grok.
 package grok
 
 import (

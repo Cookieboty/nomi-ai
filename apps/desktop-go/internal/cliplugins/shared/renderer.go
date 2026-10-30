@@ -1,4 +1,4 @@
-// renderer.go mirrors packages/cli-plugins/src/shared/renderer.ts：渲染进程用的插件信息。
+// renderer.go mirrors packages/cli-catalog/src/shared/renderer.ts：渲染进程用的插件信息。
 package shared
 
 import (

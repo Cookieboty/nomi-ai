@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const IDS_FILE = path.resolve(here, '../../packages/cli-plugins/src/generated/ids.ts');
+const IDS_FILE = path.resolve(here, '../../packages/cli-catalog/src/generated/ids.ts');
 
 /** @returns {string[]} */
 export function builtinCliIds() {

@@ -1,4 +1,4 @@
-// text.go mirrors packages/cli-plugins/src/shared/text.ts：会话标题等文本的清理。
+// text.go mirrors apps/desktop-electron/internal/cli-plugins/src/shared/text.ts：会话标题等文本的清理。
 package shared
 
 import (

@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import { api, hasTransport } from './api';
 import type { NomiContextInfo } from './compaction';

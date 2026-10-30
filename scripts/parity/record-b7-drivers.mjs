@@ -2,7 +2,7 @@
 /**
  * 批次 7 golden：cli-sdk 会话驱动（AppServerDriver / AcpDriver）对 mock CLI 的完整往返。
  * 场景：b7-driver-scenarios.json；Go 侧 clisdk/drivers/driver_parity_test.go 用同一场景逐条比对。
- * Usage: (先 build packages/cli-sdk) node scripts/parity/record-b7-drivers.mjs
+ * Usage: (先 build apps/desktop-electron/internal/cli-sdk) node scripts/parity/record-b7-drivers.mjs
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';

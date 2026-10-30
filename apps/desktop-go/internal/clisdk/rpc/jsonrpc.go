@@ -1,4 +1,4 @@
-// Package rpc mirrors packages/cli-sdk/src/rpc/jsonrpc.ts。
+// Package rpc mirrors apps/desktop-electron/internal/cli-sdk/src/rpc/jsonrpc.ts。
 package rpc
 
 import (

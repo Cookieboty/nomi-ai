@@ -6,7 +6,7 @@
  * - 新手引导里选了职业与兴趣时按它推荐（services/recommendations）：装哪些编程助手、列哪些功能；
  *   有了第一个对话后，推荐的还没做完就只留「为你推荐」，点过的功能不再列出。
  */
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { hasUserProfile } from '@nomi-ai/types';
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import { CircleCheck, Circle, X } from 'lucide-react';

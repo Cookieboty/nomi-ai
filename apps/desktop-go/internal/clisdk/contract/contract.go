@@ -1,4 +1,4 @@
-// Package contract mirrors packages/cli-sdk/src/testing/index.ts（checkPlugin 插件契约检查）。
+// Package contract mirrors apps/desktop-electron/internal/cli-sdk/src/testing/index.ts（checkPlugin 插件契约检查）。
 package contract
 
 import (

@@ -1,4 +1,4 @@
-// Package claude mirrors packages/cli-plugins/src/claude.
+// Package claude mirrors apps/desktop-electron/internal/cli-plugins/src/claude.
 package claude
 
 import (

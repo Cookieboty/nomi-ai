@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';

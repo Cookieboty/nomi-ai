@@ -1,4 +1,4 @@
-// exec.go mirrors packages/cli-plugins/src/shared/exec.ts：exec 驱动收尾规则的共用部分。
+// exec.go mirrors apps/desktop-electron/internal/cli-plugins/src/shared/exec.ts：exec 驱动收尾规则的共用部分。
 package shared
 
 import (

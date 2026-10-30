@@ -37,7 +37,7 @@ const { CliPluginHost, inRange } = await import(
     .href
 );
 const { BUILTIN_PLUGINS } = await import(
-  pathToFileURL(path.join(root, 'packages/cli-plugins/src/main.ts')).href
+  pathToFileURL(path.join(root, 'apps/desktop-electron/internal/cli-plugins/src/main.ts')).href
 );
 
 const T = '@@SB@@';

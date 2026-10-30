@@ -4,7 +4,7 @@
  * 语料：b7-fn-corpus.jsonl（b7-capture.cjs 以 B7_FN_CAPTURE 在 core 单测中采集）+ 下方手写边界。
  * 输出 apps/desktop-go/internal/cliplugins/testdata/fns.json：[{fn,args,out}]，out 为 JSON.stringify 结果
  * （undefined 记为 null 字段 "undef":true）。Go 侧 fns_parity_test.go 按 fn 名注册回放。
- * Usage: (先 build packages/cli-sdk、cli-plugins) node scripts/parity/record-b7-fns.mjs
+ * Usage: (先 build apps/desktop-electron/internal/cli-sdk、cli-plugins) node scripts/parity/record-b7-fns.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

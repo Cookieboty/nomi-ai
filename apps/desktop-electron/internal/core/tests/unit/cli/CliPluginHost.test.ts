@@ -17,7 +17,7 @@ import { repoPath } from '@nomi-ai/repo-paths';
 import { CliPluginHost, inRange } from '../../../src/cli/CliPluginHost';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
-const FIXTURES = repoPath('packages/cli-plugins/fixtures/history');
+const FIXTURES = repoPath('apps/desktop-electron/internal/cli-plugins/fixtures/history');
 
 function fixturesOf(id: string): HistoryFixture[] {
   const dir = path.join(FIXTURES, id);

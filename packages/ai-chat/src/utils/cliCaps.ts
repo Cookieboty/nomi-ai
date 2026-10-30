@@ -1,8 +1,8 @@
 /**
  * 编程助手的能力位（来自内置插件清单，P9.4）：界面按能力决定显示什么，不按 CLI 名字判断。
- * 只读纯数据（@nomi-ai/cli-plugins 的根入口），不经 IPC。
+ * 只读纯数据（@nomi-ai/cli-catalog），不经 IPC。
  */
-import { BUILTIN_RENDERER, isBuiltinCliId, type CliRendererInfo } from '@nomi-ai/cli-plugins';
+import { BUILTIN_RENDERER, isBuiltinCliId, type CliRendererInfo } from '@nomi-ai/cli-catalog';
 
 import type { AccountKind } from '../services/cliAccountClient';
 

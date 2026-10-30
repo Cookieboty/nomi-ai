@@ -1,4 +1,4 @@
-// Package shared mirrors packages/cli-plugins/src/shared: helpers every CLI's
+// Package shared mirrors apps/desktop-electron/internal/cli-plugins/src/shared: helpers every CLI's
 // stream / transcript parser shares.
 package shared
 

@@ -11,15 +11,15 @@ import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { AcpDriver } from '../../packages/cli-sdk/src/drivers/acp';
-import { probeAcp } from '../../packages/cli-sdk/src/drivers/acpProbe';
+import { AcpDriver } from '../../apps/desktop-electron/internal/cli-sdk/src/drivers/acp';
+import { probeAcp } from '../../apps/desktop-electron/internal/cli-sdk/src/drivers/acpProbe';
 import {
   externalManifest,
   renderExternalArgs,
   validateExternalSpec,
   type ExternalCliSpec,
-} from '../../packages/cli-sdk/src/external';
-import { validateManifest } from '../../packages/cli-sdk/src/manifest';
+} from '../../apps/desktop-electron/internal/cli-sdk/src/external';
+import { validateManifest } from '../../apps/desktop-electron/internal/cli-sdk/src/manifest';
 
 const MOCK = path.resolve(
   __dirname,

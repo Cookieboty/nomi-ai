@@ -1,4 +1,4 @@
-// Package builtin mirrors packages/cli-plugins/src/{index,main,gateways}.ts：
+// Package builtin mirrors apps/desktop-electron/internal/cli-plugins/src/{index,main,gateways}.ts：
 // 内置 CLI 的 id / 清单 / 渲染信息 / 网关条目（各插件 manifest / renderer / gateway 的 Go 移植；golden：b7s2-plugins.json）
 // 与 BUILTIN_PLUGINS（各 CLI 的 CreateMain）。
 package builtin

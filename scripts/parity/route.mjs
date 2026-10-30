@@ -11,7 +11,7 @@ export async function recordRoute({ gw, root }) {
   const bd = await gw('src/route/binding.ts');
   const eff = await gw('src/models/effective.ts');
   const { BUILTIN_GATEWAY_ENTRIES } = await import(
-    pathToFileURL(join(root, 'packages/cli-plugins/src/gateways.ts')).href
+    pathToFileURL(join(root, 'apps/desktop-electron/internal/cli-plugins/src/gateways.ts')).href
   );
   for (const e of BUILTIN_GATEWAY_ENTRIES)
     if (e.clientSpec.id === e.client) cl.registerClientSpec(e.clientSpec);

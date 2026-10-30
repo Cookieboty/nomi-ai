@@ -200,8 +200,8 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
-        "$TURBO_ROOT$/packages/cli-plugins/src/gateways.ts",
-        "$TURBO_ROOT$/packages/cli-plugins/src/**",
+        "$TURBO_ROOT$/apps/desktop-electron/internal/cli-plugins/src/gateways.ts",
+        "$TURBO_ROOT$/apps/desktop-electron/internal/cli-plugins/src/**",
         "$TURBO_ROOT$/apps/desktop-electron/internal/ai-runtime/src/providers/presets.ts"
       ]
     }

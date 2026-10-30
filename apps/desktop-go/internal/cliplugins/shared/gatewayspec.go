@@ -1,4 +1,4 @@
-// gatewayspec.go mirrors packages/cli-plugins/src/shared/gatewaySpec.ts：插件 gateway 入口的客户端规格。
+// gatewayspec.go mirrors apps/desktop-electron/internal/cli-plugins/src/shared/gatewaySpec.ts：插件 gateway 入口的客户端规格。
 package shared
 
 import (

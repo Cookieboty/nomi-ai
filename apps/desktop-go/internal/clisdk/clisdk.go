@@ -1,4 +1,4 @@
-// Package clisdk mirrors packages/cli-sdk (docs/design/cli-plugin-architecture.md §5):
+// Package clisdk mirrors apps/desktop-electron/internal/cli-sdk (docs/design/cli-plugin-architecture.md §5):
 // the coding-assistant plugin contract and the shared session drivers.
 //
 // Events and protocol payloads are JavaScript objects in Node; Go keeps them as

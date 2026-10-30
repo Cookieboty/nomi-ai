@@ -1,4 +1,4 @@
-// Package drivers mirrors packages/cli-sdk/src/drivers。
+// Package drivers mirrors apps/desktop-electron/internal/cli-sdk/src/drivers。
 package drivers
 
 import (

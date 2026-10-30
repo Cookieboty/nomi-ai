@@ -245,7 +245,7 @@ flowchart TB
 契约的写法与仓库已有插件一致（`defineXxx` 工厂函数 + 纯数据清单），但宿主独立：CLI 插件的生命周期是「应用级注册 + 每个进程一个会话」，与 AI 运行时插件（每次对话的钩子链，`bundle-ig-base` 的 `definePlugin`）不同，不复用其 `provide` / `inject`。
 
 ```ts
-// packages/cli-sdk/src/plugin.ts
+// apps/desktop-electron/internal/cli-sdk/src/plugin.ts
 export interface CliPlugin {
   manifest: CliManifest;
   main?: (host: CliMainHost) => CliMainImpl | Promise<CliMainImpl>;
@@ -474,7 +474,7 @@ export interface CliPluginHost {
 }
 ```
 
-- 启动时加载内置插件（`packages/cli-plugins/*`），校验清单，检查 `apiVersion`，调用 `main()` 得到实现。
+- 启动时加载内置插件（`apps/desktop-electron/internal/cli-plugins/*`），校验清单，检查 `apiVersion`，调用 `main()` 得到实现。
 - 用户可以在设置里**停用**某个 CLI 插件：界面隐藏，宿主不探测、不启动、不扫描历史。
 - 插件实现抛错只影响它自己：宿主捕获、记诊断日志、把该插件标为「出错」，其它插件照常工作。
 - 网关配置快照里携带「启用的插件规格」，插件启停时推新快照。
@@ -1349,14 +1349,14 @@ flowchart TD
 ### 7.1 新的包与目录
 
 ```
-packages/cli-sdk/                     纯 TS，无 electron 依赖
+apps/desktop-electron/internal/cli-sdk/                     纯 TS，无 electron 依赖
   src/plugin.ts                       defineCliPlugin、CliManifest、能力接口
   src/drivers/{acp,stream-json,app-server,exec}.ts   共享会话驱动
   src/launch/{privateHome,overlayFiles}.ts           启动注入的通用实现
   src/history/                        通用 jsonl 读取、ACP updates 解析
   src/gateway/                        ClientSpec、钩子类型（网关可 import 的子路径）
   src/testing/                        插件契约测试套件（§9.1）
-packages/cli-plugins/
+apps/desktop-electron/internal/cli-plugins/
   claude/{manifest.ts,main/,gateway/,renderer/,fixtures/}
   codex/  gemini/  grok/  dsh/        同上
   index.ts                            内置插件列表（生成）

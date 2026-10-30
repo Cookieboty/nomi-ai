@@ -147,8 +147,8 @@ const sourceDirs = [
   ['packages/ui/src', sourceKeyMap.ui],
   ['apps/desktop-electron/internal/core/src', sourceKeyMap.electron],
   ['apps/desktop-electron/src', sourceKeyMap.electron],
-  ['packages/cli-sdk/src', sourceKeyMap.electron],
-  ['packages/cli-plugins/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/cli-sdk/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/cli-plugins/src', sourceKeyMap.electron],
 ];
 
 function walk(dir, files = []) {

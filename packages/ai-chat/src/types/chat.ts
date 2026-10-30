@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 
@@ -43,7 +43,7 @@ export interface ChatMessage {
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
-/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 生成） */
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-catalog 生成） */
 /** 'external'：用户添加的外部 CLI（§5.9），具体是哪个插件看标签 / 对话的 pluginId */
 export type ConversationBackend = 'nomi' | BuiltinCliId | 'external';
 

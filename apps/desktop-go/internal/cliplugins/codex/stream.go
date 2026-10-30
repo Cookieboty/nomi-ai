@@ -1,4 +1,4 @@
-// Package codex mirrors packages/cli-plugins/src/codex.
+// Package codex mirrors apps/desktop-electron/internal/cli-plugins/src/codex.
 package codex
 
 import (

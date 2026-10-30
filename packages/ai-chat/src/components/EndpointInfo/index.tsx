@@ -5,7 +5,7 @@
  * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/design/endpoint-info-card.md。
  * 数据都来自本机主进程；Nomi 不读取任何凭据。
  */
-import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';

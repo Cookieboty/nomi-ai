@@ -4,7 +4,7 @@
 
 ## 仓库结构
 
-pnpm 9 + Turborepo monorepo，桌面应用两个版本并存、共用同一套视图（React 19 + Vite）：Node 版（Electron，`apps/desktop-electron`）与 Go 版（Wails v3，`apps/desktop-go`）。两个版本各自的内核放在自己的应用目录里：Node 版在 `apps/desktop-electron/internal/*`（每个子目录是一个工作区包），Go 版在 `apps/desktop-go/internal/*`，一一对应；`packages/` 只放两个版本共用的视图、契约与类型。Node ≥ 22.12（CI 用 24），Go 见 `apps/desktop-go/go.mod`。
+pnpm 9 + Turborepo monorepo，桌面应用两个版本并存、共用同一套视图（React 19 + Vite）：Node 版（Electron，`apps/desktop-electron`）与 Go 版（Wails v3，`apps/desktop-go`）。两个版本各自的内核放在自己的应用目录里：Node 版在 `apps/desktop-electron/internal/*`（每个子目录是一个工作区包），Go 版在 `apps/desktop-go/internal/*`，一一对应；`packages/` 只放两个版本共用的视图、契约、类型与编程助手清单。Node ≥ 22.12（CI 用 24），Go 见 `apps/desktop-go/go.mod`。
 
 | 路径                                                     | 内容                                                                                                                                                                                         |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -15,6 +15,8 @@ pnpm 9 + Turborepo monorepo，桌面应用两个版本并存、共用同一套�
 | `apps/desktop-electron/internal/ai-sdk`                  | 主进程 AI 门面                                                                                                                                                                               |
 | `apps/desktop-electron/internal/host-ports`、`host-node` | 宿主端口接口（路径、密钥、对话框、窗口等）/ 无界面宿主（端口、`/core` 无界面内核、`/websocket` 开发态传输），见 `docs/design/core-host-decoupling.md` §6、§11.3                              |
 | `apps/desktop-electron/internal/bundle-ig-*`             | 插件包：`base`（不得 import electron）、`electron-caps`、`mascot`                                                                                                                            |
+| `apps/desktop-electron/internal/cli-sdk`                 | 编程助手插件契约与共享会话驱动（acp / stream-json / app-server / exec，纯 Node），见 `docs/design/cli-plugin-architecture.md` §5                                                             |
+| `apps/desktop-electron/internal/cli-plugins`             | 内置编程助手插件的主进程实现（claude / codex / grok / gemini / dsh），按 `<cli>/{main,gateway}` 分子路径                                                                                     |
 | `apps/desktop-go`                                        | Go 版：Go 内核（`internal/*`，逐个移植上面的 TS 内核，parity 测试守住一致）+ Wails 壳，内嵌与 Electron 同一份视图构建产物，见 `apps/desktop-go/README.md`、`docs/design/migrate-2.0.5-go.md` |
 | `packages/renderer`                                      | 看板娘窗口壳：透明窗口、气泡、工具栏，`src/avatar` 把契约事件接到 avatar-runtime                                                                                                             |
 | `packages/avatar-runtime`                                | 角色引擎（纯浏览器，不依赖契约 / Electron / ui）：渲染后端、表情动作、命中区与互动，见 `docs/design/core-host-decoupling.md` §10.6                                                           |
@@ -22,8 +24,7 @@ pnpm 9 + Turborepo monorepo，桌面应用两个版本并存、共用同一套�
 | `packages/ai-sdk-client`                                 | 渲染进程 AI 客户端（基于 `@nomi-ai/contract/app`）与 preload 桥（`window.nomiTransport`、`window.nomiHost`）                                                                                 |
 | `packages/contract`                                      | 视图与内核之间的 API 契约（自研 `defineContract`、类型化 client、router 中间件、传输适配），见 `docs/design/core-host-decoupling.md` §4–§5                                                   |
 | `packages/character-contract`                            | 角色包契约：manifest / persona / mapping 的 schema、校验与迁移，见同上 §10                                                                                                                   |
-| `packages/cli-sdk`                                       | 编程助手插件契约与共享会话驱动（acp / stream-json / app-server / exec，纯 Node），见 `docs/design/cli-plugin-architecture.md` §5                                                             |
-| `packages/cli-plugins`                                   | 内置编程助手插件（claude / codex / grok / gemini / dsh），按 `<cli>/{manifest,main,gateway,renderer}` 分子路径；`BuiltinCliId` 由 `gen:ids` 生成                                             |
+| `packages/cli-catalog`                                   | 内置编程助手的清单与界面信息（纯数据，视图也用）；`BuiltinCliId` 由 `gen:ids` 生成                                                                                                           |
 | `packages/ui`                                            | 设计令牌、主题、组件                                                                                                                                                                         |
 | `packages/i18n`、`packages/voice`、`packages/types`      | 界面文案与翻译、语音、共享类型                                                                                                                                                               |
 | `packages/repo-paths`                                    | 测试与脚本里拼仓库内路径（`repoPath('characters/nomi')`），不写跨出所在包的 `../`（`scripts/__tests__/repo-paths.test.ts` 会拦）；Go 测试用 `paritytest.RepoPath`                            |

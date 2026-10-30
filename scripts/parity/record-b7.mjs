@@ -5,7 +5,7 @@
  *      + core 单测 fixtures + 下方手写边界行。每个解析器实例独立回放，逐行记录输出。
  * 不注入宿主翻译：t() 走 cli-sdk 回退（Go clisdk.T 同款）。
  * Go 侧 apps/desktop-go/internal/cliplugins/parity_test.go 逐字节比对（JSON.stringify）。
- * Usage: (先 build packages/cli-sdk、cli-plugins) node scripts/parity/record-b7.mjs
+ * Usage: (先 build apps/desktop-electron/internal/cli-sdk、cli-plugins) node scripts/parity/record-b7.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

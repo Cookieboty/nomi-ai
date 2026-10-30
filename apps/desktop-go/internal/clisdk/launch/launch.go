@@ -1,4 +1,4 @@
-// Package launch mirrors packages/cli-sdk/src/launch/index.ts：启动注入的通用实现——
+// Package launch mirrors apps/desktop-electron/internal/cli-sdk/src/launch/index.ts：启动注入的通用实现——
 // 环境变量叠加与剔除、进程级文件、规范化目录、共享软链（Windows 目录用 junction）、私有 HOME。
 package launch
 

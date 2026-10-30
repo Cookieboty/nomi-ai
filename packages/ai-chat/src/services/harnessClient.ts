@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import type { ReasoningEffort } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
