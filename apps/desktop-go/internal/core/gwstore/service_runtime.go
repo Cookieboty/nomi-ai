@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -46,6 +47,8 @@ type RuntimeDeps struct {
 	LongContextPrice func(model string) *u.Obj
 	// Detect = detectImpl ?? detect（nil = detect 未移植，wire-suspect 不学）
 	Detect DetectFunc
+	// WriteCatalog = writeCatalog（测试注入：模型目录的原子写；nil = utils.WritePrivateFileAtomic）
+	WriteCatalog func(file string, data []byte) error
 }
 
 type runtimeState struct {
@@ -60,6 +63,11 @@ type runtimeState struct {
 	tabs         *TabTokens
 	legacyRevoke *u.Obj
 	mu           sync.Mutex // 存储写入串行（Node 单线程）
+	// 模型目录同步（#185）：catalogMu 串行后台写；catalogSeq 每次同步递增，catalogDone 是已落盘的最大序号
+	catalogMu   sync.Mutex
+	catalogSeq  atomic.Uint64
+	catalogDone uint64
+	disposed    atomic.Bool
 }
 
 // AttachRuntime：GatewayService 构造里的 GatewayProcess 接线（init 之前调用）
@@ -119,6 +127,7 @@ func (s *Service) EnsureStarted() { s.rt.proc.EnsureStarted() }
 // Dispose = dispose() 中停网关进程的部分
 func (s *Service) Dispose() {
 	if s.rt != nil {
+		s.rt.disposed.Store(true)
 		s.rt.privacyLog.Flush()
 		s.rt.proc.Stop()
 	}

@@ -93,6 +93,28 @@ describe('catalog overlay', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(catalogOverlayVersion()).toBe('v2');
     expect(catalogEntry('ov-model-1')?.limits?.context).toBe(222_000);
+    // 修改时间相同、内容不同（粗粒度时间戳的文件系统）：大小变了也重读
+    fs.writeFileSync(file, JSON.stringify(buildCatalog(api(70, 333_000), 'v3')));
+    fs.utimesSync(file, later, later);
+    handler!({ data: { type: 'config', config } });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(catalogOverlayVersion()).toBe('v3');
+    handler!({ data: { type: 'stop' } });
+  });
+
+  it('首次同步：配置到达时文件已落盘就加载；文件还不存在时没有覆盖层（#185）', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cat-first-'));
+    const file = path.join(dir, 'catalog-sync.json');
+    let handler: ((e: { data: WorkerInbound }) => void) | null = null;
+    runGatewayWorker({ on: (_e, fn) => (handler = fn), postMessage: () => {} });
+    const config = { host: '127.0.0.1', port: 0, providers: [], clients: {}, catalogFile: file };
+    handler!({ data: { type: 'config', config } });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(catalogOverlayVersion()).toBeNull();
+    fs.writeFileSync(file, JSON.stringify(buildCatalog(api(60, 111_000), 'first')));
+    handler!({ data: { type: 'config', config } });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(catalogOverlayVersion()).toBe('first');
     handler!({ data: { type: 'stop' } });
   });
 });

@@ -43,11 +43,16 @@ export function runGatewayWorker(
   // 串行处理消息：启动是异步的，后到的配置要等前一次完成
   let chain = Promise.resolve();
 
-  /** 已加载的同步目录（路径 + 修改时间）：变了才重读，配置每次推送都会带上路径 */
+  /**
+   * 已加载的同步目录（路径 + 修改时间 + 大小）：变了才重读，配置每次推送都会带上路径。
+   * 主进程在目录落盘成功后才推配置（#185），这里读到的就是这次同步的内容
+   */
   let catalogKey = '';
   const statKey = (file: string | undefined): string => {
     try {
-      return file ? `${file}:${fs.statSync(file).mtimeMs}` : '';
+      if (!file) return '';
+      const st = fs.statSync(file);
+      return `${file}:${st.mtimeMs}:${st.size}`;
     } catch {
       return '';
     }
