@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/clients"
@@ -176,7 +177,13 @@ type affEnt struct {
 }
 
 // Affinity is Affinity (session → last good provider/key, in-memory LRU).
+//
+// Node 单线程里 Map 的 delete+set 天然是原子的；Go 的 net/http 每个连接一个 goroutine，
+// 不同标签的请求会并发 Get / Set（Get 本身也要删再插来刷新顺序），裸 map + 链表并发读写
+// 会让进程直接 fatal（#199）。mu 让每次 Get / Set / Size 的整段 LRU 事务在锁内完成，
+// 锁只包内存操作，不跨上游请求。
 type Affinity struct {
+	mu         sync.Mutex
 	now        func() float64
 	max, ttlMs int
 	m          *lru[affEnt]
@@ -201,6 +208,8 @@ func NewAffinity(now func() float64, max, ttlMs int) *Affinity {
 
 // Get is get.
 func (a *Affinity) Get(session string) *AffinityTarget {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	e, ok := a.m.get(session)
 	if !ok {
 		return nil
@@ -216,6 +225,8 @@ func (a *Affinity) Get(session string) *AffinityTarget {
 
 // Set is set.
 func (a *Affinity) Set(session string, t AffinityTarget) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.m.del(session)
 	a.m.set(session, affEnt{t, a.now()})
 	for a.m.size() > a.max {
@@ -225,4 +236,8 @@ func (a *Affinity) Set(session string, t AffinityTarget) {
 }
 
 // Size is size.
-func (a *Affinity) Size() int { return a.m.size() }
+func (a *Affinity) Size() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.m.size()
+}
