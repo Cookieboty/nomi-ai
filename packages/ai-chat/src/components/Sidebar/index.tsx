@@ -28,8 +28,7 @@ import {
   type HistorySession,
 } from '../../services/historyClient';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
-import type { ConversationBackend } from '../../types/chat';
-import { CONVERSATION_BACKENDS } from '../../types/chat';
+import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
 import { isImeComposing } from '../../utils/keyboard';

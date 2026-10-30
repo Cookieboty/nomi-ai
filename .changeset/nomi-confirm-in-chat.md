@@ -1,6 +1,4 @@
 ---
-'@nomi-ai/core': minor
-'@nomi-ai/contract': minor
 '@nomi-ai/ai-chat': minor
 '@nomi-ai/renderer': patch
 '@nomi-ai/host-electron': patch
