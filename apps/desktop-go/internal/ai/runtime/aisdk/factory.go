@@ -1,11 +1,11 @@
 package aisdk
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/anthropic"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/compatible"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/openai"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers/protocol"
@@ -51,18 +51,6 @@ func fullURLClient(proto protocol.Protocol, baseURL string, fullURL bool, base *
 	return &http.Client{Transport: &fullURLTransport{inner: inner, sdkEndpoint: ep, target: target}}
 }
 
-// unportedModel：协议适配器尚未移植（D-B5-P-6）时的占位，调用即报错
-type unportedModel struct{ protocol, provider, id string }
-
-func (m unportedModel) Provider() string { return m.provider }
-func (m unportedModel) ModelID() string  { return m.id }
-func (m unportedModel) DoGenerate(context.Context, llm.CallOptions) (*llm.GenerateResult, error) {
-	return nil, llm.NewUnsupported("protocol " + m.protocol)
-}
-func (m unportedModel) DoStream(context.Context, llm.CallOptions) (*llm.StreamResult, error) {
-	return nil, llm.NewUnsupported("protocol " + m.protocol)
-}
-
 // BuildModelFactory：buildModelFactory
 func BuildModelFactory(opts Options) ModelFactory {
 	proto := protocol.Protocol(or(opts.Protocol, "openai-chat"))
@@ -82,7 +70,9 @@ func BuildModelFactory(opts Options) ModelFactory {
 	client := fullURLClient(proto, opts.BaseURL, full, opts.Client)
 	switch proto {
 	case "anthropic":
-		return func(id string) llm.LanguageModel { return unportedModel{string(proto), opts.ID, id} }
+		// createAnthropic({ apiKey: apiKey ?? '', baseURL, headers, fetch }).messages(modelId)
+		p := anthropic.New(anthropic.Settings{APIKey: opts.APIKey, BaseURL: baseURL, Headers: hdrs, Client: client})
+		return p.Messages
 	case "openai-responses":
 		p := openai.New(openai.Settings{APIKey: opts.APIKey, BaseURL: baseURL, Headers: hdrs, Client: client, Name: opts.ID})
 		return func(id string) llm.LanguageModel { return p.Responses(id) }
