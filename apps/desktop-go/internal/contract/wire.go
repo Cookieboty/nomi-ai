@@ -22,4 +22,15 @@ func (b *Bytes) UnmarshalJSON(d []byte) error {
 	return err
 }
 
-func EncodeWire(f ServerFrame) ([]byte, error) { return json.Marshal(f) }
+// EncodeWire：事件帧总带 data——没有载荷的事件（*.changed 等，契约里是 z.null()）发 null，同 TS 事件总线；
+// 省掉的话视图收到 undefined，过不了事件校验被丢弃
+func EncodeWire(f ServerFrame) ([]byte, error) {
+	if f.T == "event" && f.Data == nil {
+		return json.Marshal(struct {
+			T     string `json:"t"`
+			Event string `json:"event"`
+			Data  any    `json:"data"`
+		}{f.T, f.Event, nil})
+	}
+	return json.Marshal(f)
+}
