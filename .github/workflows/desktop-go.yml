@@ -168,7 +168,8 @@ jobs:
         run: |
           { echo "### ${{ matrix.os }} 内存（三次中位数，MiB）"; echo '| 场景 | 进程数 | 合计 | 中位那次各进程 |'; echo '|---|---|---|---|'
             python3 ci/summarize.py mem || python ci/summarize.py mem
-            echo; echo '```'; grep -h "mark" mem/*app*.log 2>/dev/null; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+            # 各启动阶段耗时（[startup] main-enter / window-create / first-paint …）；没有日志时不算失败（bash -eo pipefail）
+            echo; echo '```'; grep -h "\[startup\]" mem/*app*.log 2>/dev/null || true; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always() && runner.os != 'Linux'
         with:

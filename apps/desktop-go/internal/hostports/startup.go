@@ -1,7 +1,8 @@
 package hostports
 
 import (
-	"log"
+	"fmt"
+	"os"
 	"sync"
 	"time"
 )
@@ -13,7 +14,9 @@ var ProcStart = time.Now()
 // Stage 打启动剖析日志：[startup] <name> +<ms since ProcStart> epoch=<unix ms>
 func Stage(name string) {
 	now := time.Now()
-	log.Printf("[startup] %s +%dms epoch=%d", name, now.Sub(ProcStart).Milliseconds(), now.UnixMilli())
+	// 直接写 stderr（不经 log / LoggerService）：打包后 LoggerService 不往控制台输出 INFO，而 ci/bench/bench.py
+	// 要从程序输出里解析这些阶段
+	fmt.Fprintf(os.Stderr, "[startup] %s +%dms epoch=%d\n", name, now.Sub(ProcStart).Milliseconds(), now.UnixMilli())
 	stageMu.Lock()
 	if c, ok := stageCh[name]; ok {
 		select {
