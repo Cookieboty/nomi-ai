@@ -27,7 +27,8 @@ pnpm dev:go              # Vite 开发服务器 + Go 程序；改 renderer / ai-
 pnpm dev:go --skip-deps  # 跳过构建视图依赖的工作区包；改了这些包时另开终端 pnpm dev:libs
 ```
 
-改 Go 代码需要 Ctrl+C 后重新运行。视图的 console 输出与未捕获错误会以 `[view mascot]` / `[view chat]` 打到终端
+改 Go 代码（含内嵌的 locales / json）会自动重新编译并重启 Go 程序（视图服务器不动）；编译失败时旧进程继续跑。
+退出应用即结束开发态。视图的 console 输出与未捕获错误会以 `[view mascot]` / `[view chat]` 打到终端
 （WebView 默认没有检查器）。
 
 按生产方式构建并启动（视图打包后嵌进程序）：

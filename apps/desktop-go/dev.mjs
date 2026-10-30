@@ -6,10 +6,11 @@
 // 3. 编译并启动 Go 程序，NOMI_DEV_VIEWS 让资产服务器把 /mascot/*、/chat/* 代理到这两个开发服务器
 //    （internal/shell/devviews）。WebView 里仍是 wails:// 同源页面，HMR 由 Vite 客户端直连 ws://127.0.0.1:<端口>。
 //
-// 改视图源码：热更新；改 Go 代码：Ctrl+C 后重新运行（视图服务器重启很快）。
+// 改视图源码：热更新；改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
+// 编译失败时旧进程照常跑，修好再存一次即可。关掉应用（退出）= 结束开发态。
 // 参数原样传给 Go 程序；--skip-deps 跳过第 1 步。端口与 Electron 开发态相同（dev-ports.json，可用 CD_*_PORT 覆盖）。
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, watch, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -93,29 +94,111 @@ if (process.platform === 'darwin') {
     CGO_LDFLAGS: '-mmacosx-version-min=11.0',
   });
 }
-const bin = path.join(here, 'build/bin', process.platform === 'win32' ? 'nomi.exe' : 'nomi');
-runSync('go', ['build', ...(tags ? ['-tags', tags] : []), '-o', bin, '.'], {
-  cwd: here,
-  env: goEnv,
-});
+const exe = process.platform === 'win32' ? '.exe' : '';
+const bin = path.join(here, 'build/bin', `nomi${exe}`);
+const nextBin = path.join(here, 'build/bin', `nomi.next${exe}`);
 
-const app = spawn(bin, appArgs, {
-  cwd: here,
-  stdio: 'inherit',
-  env: {
-    ...process.env,
-    NODE_ENV: 'development',
-    NOMI_DEV_VIEWS: views.map((v) => `${v.name}=http://${DEV_HOST}:${v.port}`).join(','),
-  },
-});
+/** 异步编译（编译期间视图服务器照常响应）；返回是否成功 */
+function goBuild(out) {
+  console.info(`== go build${tags ? ` -tags ${tags}` : ''}`);
+  return new Promise((resolve) => {
+    const p = spawn('go', ['build', ...(tags ? ['-tags', tags] : []), '-o', out, '.'], {
+      cwd: here,
+      stdio: 'inherit',
+      env: { ...process.env, ...goEnv },
+    });
+    p.on('error', () => resolve(false));
+    p.on('exit', (code) => resolve(code === 0));
+  });
+}
 
+if (!(await goBuild(bin))) {
+  await Promise.allSettled(servers.map((s) => s.close()));
+  process.exit(1);
+}
+
+let app = null;
 let closing = false;
 async function shutdown(code) {
   if (closing) return;
   closing = true;
-  if (app.exitCode === null) app.kill();
+  watcher?.close();
+  if (app && app.exitCode === null) app.kill();
   await Promise.allSettled(servers.map((s) => s.close()));
   process.exit(code);
 }
-app.on('exit', (code) => void shutdown(code ?? 0));
+
+function startApp() {
+  const child = spawn(bin, appArgs, {
+    cwd: here,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      NOMI_DEV_VIEWS: views.map((v) => `${v.name}=http://${DEV_HOST}:${v.port}`).join(','),
+    },
+  });
+  // 用户退出应用 = 结束开发态；重启时换下来的旧进程退出不算
+  child.on('exit', (code) => {
+    if (child === app) void shutdown(code ?? 0);
+  });
+  app = child;
+}
+
+/** 让旧进程正常退出（SIGTERM → Wails 的 app.Quit，保存窗口位置等）；5 秒没退再强杀 */
+function stopApp() {
+  const child = app;
+  app = null;
+  if (!child || child.exitCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    const force = setTimeout(() => child.kill('SIGKILL'), 5000);
+    child.once('exit', () => {
+      clearTimeout(force);
+      resolve();
+    });
+    child.kill('SIGTERM');
+  });
+}
+
+// 改了 Go 代码：先编译到 nomi.next，成功了才停旧进程、换上新的（单实例锁要求先退旧的）
+let building = false;
+let again = false;
+async function rebuild() {
+  if (building) {
+    again = true;
+    return;
+  }
+  building = true;
+  do {
+    again = false;
+    console.info('== Go 代码有改动，重新编译');
+    if (!(await goBuild(nextBin))) {
+      console.warn('== 编译失败，旧版本继续运行');
+      continue;
+    }
+    if (closing) break;
+    await stopApp();
+    renameSync(nextBin, bin);
+    console.info('== 重启 Go 程序');
+    startApp();
+  } while (again && !closing);
+  building = false;
+}
+
+// 编译输入：Go 源码（不含测试）、go.mod / go.sum，以及 //go:embed 进程序的文件（locales、json、cjs、png）
+const IGNORED_DIRS = /^(build|frontend|packaging|ci|node_modules)([\\/]|$)|[\\/]testdata[\\/]/;
+const isInput = (file) =>
+  !IGNORED_DIRS.test(file) &&
+  (file === 'go.mod' ||
+    file === 'go.sum' ||
+    (file.endsWith('.go') && !file.endsWith('_test.go')) ||
+    (/^internal[\\/]/.test(file) && /\.(json|cjs|png)$/.test(file)));
+let timer = null;
+const watcher = watch(here, { recursive: true }, (_event, file) => {
+  if (!file || !isInput(file)) return;
+  clearTimeout(timer);
+  timer = setTimeout(() => void rebuild(), 300); // 编辑器一次保存会触发好几次事件
+});
+
+startApp();
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => void shutdown(0));

@@ -39,7 +39,7 @@ pnpm format:check
 pnpm test                # 单元测试：core / host-electron 用 Jest（tests/unit），其余包用 Vitest
 pnpm test:e2e            # 无界面 E2E（真实内核跑在 host-node 上，不需要 Electron / xvfb）
 pnpm dev:web             # 内核跑在 Node 里，ai-chat 在浏览器里经 WebSocket 连它（先 pnpm build）
-pnpm dev:go              # Go 版（apps/desktop-go）：Vite 开发服务器 + Go 程序，视图热更新
+pnpm dev:go              # Go 版（apps/desktop-go）：Vite 开发服务器 + Go 程序，视图热更新，改 Go 代码自动重编译重启
 pnpm smoke:web           # 上面这条的 Chromium 冒烟（先 pnpm exec playwright install chromium）
 xvfb-run -a pnpm test:e2e:headed   # 真实应用 E2E，必须在仓库根目录运行
 pnpm check:i18n          # 所有中文文案都有英文翻译
