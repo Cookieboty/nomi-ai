@@ -57,7 +57,9 @@ if ($upgrade) {
   $a = Snap "electron-204"; W "- 已安装并运行过 Electron 2.0.4（state-electron-204.txt）"
   $dataBefore = @(Get-ChildItem "$env:APPDATA\Nomi" -Recurse -File -ErrorAction SilentlyContinue).Count
   # = NsisUpdater.doInstall：quitAndInstall(false, true) → ["--updated", "--force-run"]，非静默
-  $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "--updated","--force-run" }
+  # 只等安装器本身：Start-Process -Wait 会连 --force-run 拉起的 Nomi 一起等（Nomi 一直在跑 → 卡到任务超时）
+  $t = Measure-Command { $script:inst = Start-Process $Setup -ArgumentList "--updated","--force-run" -PassThru; $null = $script:inst.WaitForExit(300000) }
+  if (-not $inst.HasExited) { W "- Go 安装器 5 分钟没有退出"; $ok = $false }
   Start-Sleep 15; $b = Snap "go"; W "- Go 安装器（--updated --force-run，同 2.0.4 应用内升级）用时 $([int]$t.TotalSeconds)s（state-go.txt）"
   $dir = InstDir
   $run = @(Get-Process Nomi -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) })
