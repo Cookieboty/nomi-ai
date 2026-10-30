@@ -2,8 +2,11 @@
 
 <h1 align="center">Nomi·诺米</h1>
 
+<p align="center"><b>One place. Every AI capability.</b></p>
+
 <p align="center">
-  <b>Your desktop AI companion</b> — lives on your desktop, gets what you mean, and gets it done.
+  <b>让每一种 AI 能力，都为你所用。</b><br>
+  Models, coding agents and external tools, connected in one place, with Nomi by your side.
 </p>
 
 <p align="center">macOS · Windows · Linux　|　MIT</p>
@@ -57,16 +60,16 @@ More UI shots live in [docs/screenshots](docs/screenshots/). Full feature docs: 
 
 ## Highlights
 
-Nomi is a desktop AI companion that runs on your computer: an animated, talking Nomi plus a clean chat window. Connect the cloud models you already use, or go fully offline with local models.
+Nomi is your AI work companion: a desktop AI workspace that connects models, coding agents and external tools — with an animated, talking Nomi on your desktop. Use the cloud models you already have, local models, or both.
 
 - **🧸 Desktop companion** — full-body Rive character with expressions and lip-sync; scalable, playful interactions, chat bubbles; drop a file on her for a quick summary
 - **💬 AI chat** — streaming replies, image Q&A, `/` commands and first-run onboarding; themes and chat backgrounds
 - **🧑‍💻 Coding agents** — Claude Code / Codex / Gemini / Grok / dsh in one window; permission modes; three-column workspace for diffs and changes (see [coding workspace](docs/features/coding-workspace.md))
 - **🔑 Multi-model** — presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Tongyi, Doubao, Ollama, and more; multi-key failover; keys stored in the OS keychain
 - **📚 Knowledge & memory** — folder Q&A with clickable citations; chats distilled into long-term memory; profile exportable
-- **🏠 Local models** — one-click small open-source models or Ollama management; fully offline capable
+- **🏠 Local models** — one-click small open-source models or Ollama management; run with local models only
 - **🧩 MCP · skills · automation** — manage MCP / SKILL.md in the UI; controlled file access, browser, and code sandbox with a local audit log
-- **🎙️ Voice · schedule · privacy** — local/cloud speech in and out; reminders and scheduled jobs; data stays on device by default, optional “local models only”
+- **🎙️ Voice · reminders · privacy** — local/cloud speech in and out; reminders and scheduled jobs; data is stored locally by default, secrets are protected before they leave, and you can let only local models read your files
 
 ## Download
 
