@@ -57,4 +57,24 @@ describe('hostPathForFile (Go host)', () => {
     send(['C:\\Users\\me\\c.pdf']);
     await expect(pending).resolves.toBe('C:\\Users\\me\\c.pdf');
   });
+
+  it('asks the host for clipboard paths when files are pasted', async () => {
+    const posted: string[] = [];
+    (window as unknown as Record<string, unknown>).webkit = {
+      messageHandlers: { external: { postMessage: (m: string) => posted.push(m) } },
+    };
+    await loadGoHostApi();
+    const paste = (files: File[]) => {
+      const e = new Event('paste');
+      Object.defineProperty(e, 'clipboardData', { value: { files } });
+      window.dispatchEvent(e);
+    };
+    paste([]);
+    expect(posted).toEqual([]);
+    paste([new File(['x'], 'd.txt')]);
+    // 前面用例 resetModules 留下的监听也挂在同一个 window 上：只看有没有发、发的是不是这条
+    expect(posted.length).toBeGreaterThan(0);
+    expect(new Set(posted)).toEqual(new Set(['nomi:clipboard-files']));
+    delete (window as unknown as Record<string, unknown>).webkit;
+  });
 });

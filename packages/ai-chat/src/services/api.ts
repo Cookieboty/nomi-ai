@@ -118,6 +118,25 @@ if (goHostTransport) {
   const mark = () => document.body?.setAttribute('data-file-drop-target', '');
   if (document.body) mark();
   else document.addEventListener('DOMContentLoaded', mark, { once: true });
+  // 粘贴的文件 WebKit 不给路径：请宿主读系统剪贴板里的文件路径，同样经 nomi:host-files 送回
+  window.addEventListener(
+    'paste',
+    (e) => {
+      if (!e.clipboardData?.files.length) return;
+      const w = window as unknown as {
+        webkit?: { messageHandlers?: { external?: { postMessage(m: string): void } } };
+        chrome?: { webview?: { postMessage(m: string): void } };
+      };
+      try {
+        (w.webkit?.messageHandlers?.external ?? w.chrome?.webview)?.postMessage(
+          'nomi:clipboard-files',
+        );
+      } catch {
+        /* 没有宿主消息通道：粘贴的文件没有路径 */
+      }
+    },
+    true,
+  );
   window.addEventListener(HOST_FILES_EVENT, (e) => {
     const paths = (e as CustomEvent<unknown>).detail;
     if (!Array.isArray(paths)) return;
@@ -145,7 +164,7 @@ function takeHostDropped(name: string): string {
 
 /**
  * 真实 File → 本机绝对路径；浏览器预览 / 测试里没有桥，或文件不在本地（网页拖来的内容）时为空串。
- * Go 宿主只有拖入的文件有路径（粘贴的文件 WebKit 不给路径）
+ * Go 宿主：拖入的文件来自原生拖放事件，粘贴的文件来自系统剪贴板（Linux 读不到，没有路径）
  */
 export async function hostPathForFile(file: File): Promise<string> {
   if (typeof window === 'undefined') return '';

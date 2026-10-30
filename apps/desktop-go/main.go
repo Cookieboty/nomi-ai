@@ -520,6 +520,13 @@ func main() {
 				return
 			}
 			switch msg {
+			case "nomi:clipboard-files":
+				// 对话页粘贴了文件：WebKit 不给路径，从系统剪贴板读（访达 / 资源管理器里复制的文件）
+				if c, ok := sh.(interface{ ClipboardFilePaths() []string }); ok {
+					if paths := c.ClipboardFilePaths(); len(paths) > 0 {
+						sendHostFiles(sh, paths)
+					}
+				}
 			case "nomi:island:hidden":
 				isl.Hidden()
 			case "nomi:island:open":
@@ -533,12 +540,7 @@ func main() {
 				desktopSvc.DropFile("mascot", paths[0])
 			case shell.Chat:
 				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）
-				if x, ok := sh.(interface {
-					ExecJS(shell.WindowKind, string)
-				}); ok {
-					b, _ := json.Marshal(paths)
-					x.ExecJS(shell.Chat, "window.dispatchEvent(new CustomEvent('nomi:host-files',{detail:"+string(b)+"}))")
-				}
+				sendHostFiles(sh, paths)
 			}
 		},
 		IslandLayout: func() (shell.Rect, string, bool) {
@@ -872,4 +874,14 @@ func mergeLoginShellPath() {
 			return struct{}{}, nil
 		})
 	}))
+}
+
+// sendHostFiles：本机文件路径交给对话页（ai-chat services/api.ts 的 nomi:host-files，按文件名配对）
+func sendHostFiles(sh shell.Shell, paths []string) {
+	if x, ok := sh.(interface {
+		ExecJS(shell.WindowKind, string)
+	}); ok {
+		b, _ := json.Marshal(paths)
+		x.ExecJS(shell.Chat, "window.dispatchEvent(new CustomEvent('nomi:host-files',{detail:"+string(b)+"}))")
+	}
 }
