@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console -- CLI 基准脚本 */
 /* global window, document, requestAnimationFrame, MutationObserver -- 在页面里执行的回调 */
-// 切换会话耗时基准：prod 构建（packages/host-electron/dist），全新 userData，
+// 切换会话耗时基准：prod 构建（apps/desktop-electron/dist），全新 userData，
 // 往对话窗 localStorage 灌入若干条长对话（含代码块 / 表格 / 工具轨迹），
 // 然后在侧栏来回切换，记录「点击 → 新会话内容可见并完成一次绘制」的耗时、长任务与主线程脚本 / 布局时间。
 // 用法（Linux 需显示）：
@@ -17,7 +17,7 @@ import { _electron as electron } from 'playwright';
 import { callContract, waitForTransport } from './lib/contractProbe.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const pkg = resolve(root, 'packages/host-electron');
+const pkg = resolve(root, 'apps/desktop-electron');
 const arg = (name, def) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : def;

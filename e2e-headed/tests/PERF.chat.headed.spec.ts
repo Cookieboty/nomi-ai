@@ -22,7 +22,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const RUN = process.env.NOMI_PERF === '1';
 
 // ---------- 预置数据 ----------

@@ -14,8 +14,8 @@ const fs = require('fs');
 const path = require('path');
 
 const VIEWS = [
-  { name: '@nomi-ai/renderer', src: '../../renderer/dist', dest: '../dist/renderer' },
-  { name: '@nomi-ai/ai-chat', src: '../../ai-chat/dist', dest: '../dist/ai-chat' },
+  { name: '@nomi-ai/renderer', src: '../../../packages/renderer/dist', dest: '../dist/renderer' },
+  { name: '@nomi-ai/ai-chat', src: '../../../packages/ai-chat/dist', dest: '../dist/ai-chat' },
 ];
 
 for (const view of VIEWS) {

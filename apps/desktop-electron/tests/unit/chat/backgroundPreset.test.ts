@@ -39,7 +39,7 @@ describe('bundled background preset', () => {
     expect(manifest.assets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          pattern: 'packages/host-electron/assets/backgrounds/nomi-preset.jpg',
+          pattern: 'apps/desktop-electron/assets/backgrounds/nomi-preset.jpg',
         }),
       ]),
     );

@@ -1,5 +1,5 @@
 // Package chatnav 对话窗口的面板导航：ELECTRON_WINDOW_ROUTES + WindowManager.openProviderPanel
-// （packages/host-electron）。打开对话窗口后只向 chat 面发布导航事件；没送达时由
+// （apps/desktop-electron）。打开对话窗口后只向 chat 面发布导航事件；没送达时由
 // pendingevents（Router.Pending，b7s2）留槽，对话窗口挂载后经 nav.takePending 取走。
 package chatnav
 

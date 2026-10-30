@@ -20,4 +20,4 @@
 | `windows`       | 声明式：打开 / 聚焦 / 隐藏界面，不暴露窗口对象                                                   |
 | `capabilities`  | 宿主特有能力声明（透明窗口、托盘、灵动岛等）                                                     |
 
-实现：Electron 在 `packages/host-electron/src/host/electronPorts.ts`，无界面宿主在 `@nomi-ai/host-node`。
+实现：Electron 在 `apps/desktop-electron/src/host/electronPorts.ts`，无界面宿主在 `@nomi-ai/host-node`。

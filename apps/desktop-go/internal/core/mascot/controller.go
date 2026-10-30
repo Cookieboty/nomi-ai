@@ -1,6 +1,6 @@
 package mascot
 
-// MascotWindowController：packages/host-electron/src/mascot/MascotWindowController.ts 与
+// MascotWindowController：apps/desktop-electron/src/mascot/MascotWindowController.ts 与
 // host/windowBounds.ts 的逐行移植。窗口、时钟、定时器、光标、显示器经接口注入，便于回放 Node 录下的轨迹。
 
 import (

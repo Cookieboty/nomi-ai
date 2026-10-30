@@ -148,7 +148,7 @@ export interface BuiltinPackEnv {
   /** development run (renderer from the Vite dev server) */
   dev: boolean;
   resourcesPath: string | undefined;
-  /** app.getAppPath(): packages/host-electron when unpacked */
+  /** app.getAppPath(): apps/desktop-electron when unpacked */
   appPath: string;
   /**
    * The pack the build selected (CHARACTER_PACK, relative to the repository root), unpacked runs only.

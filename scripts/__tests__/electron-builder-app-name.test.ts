@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 // 服务名 / 账户名；electron-builder 的包名决定 electron-updater 缓存目录与 NSIS 的 APP_PACKAGE_NAME。
 // 任何一个变了，已安装的 2.0.x 用户升级后都会看到空配置、解不开已存的 API Key。
 const RUNTIME_APP_NAME = '@nomi-ai/electron';
-const dir = join(__dirname, '../../packages/host-electron');
+const dir = join(__dirname, '../../apps/desktop-electron');
 const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
   name: string;
   productName?: string;

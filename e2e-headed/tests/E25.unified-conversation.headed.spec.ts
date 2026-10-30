@@ -22,7 +22,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.CLI_CONV_SHOTS_DIR;
 
 /** Mock Claude 每次进程启动在这里记一行「pid 参数」（NOMI_MOCK_CLAUDE_BOOT_LOG） */

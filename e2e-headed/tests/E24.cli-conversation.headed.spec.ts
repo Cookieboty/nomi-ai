@@ -20,7 +20,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.CLI_CONV_SHOTS_DIR;
 
 async function launch(

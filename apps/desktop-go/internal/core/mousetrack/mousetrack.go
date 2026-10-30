@@ -1,4 +1,4 @@
-// Package mousetrack = WindowManager.setupMousePositionTracking（packages/host-electron）：
+// Package mousetrack = WindowManager.setupMousePositionTracking（apps/desktop-electron）：
 // 每 100ms 比较光标与看板娘窗口边界（含边），进出时只向 mascot 面发布 window.mouseEnter / window.mouseLeave（null）。
 package mousetrack
 

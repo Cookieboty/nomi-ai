@@ -46,13 +46,13 @@ pnpm package:prod:mac | :win | :linux # 指定平台（需在对应系统上，C
 pnpm package:debug                    # 不打 asar 的调试包
 ```
 
-产物在仓库根目录的 `dist/`，配置见 `packages/host-electron/electron-builder.yml`。安装包从 `packages/renderer/dist`、`packages/ai-chat/dist` 读取界面资源。签名、公证与发布流程见 [RELEASE.md](../RELEASE.md)。
+产物在仓库根目录的 `dist/`，配置见 `apps/desktop-electron/electron-builder.yml`。安装包从 `packages/renderer/dist`、`packages/ai-chat/dist` 读取界面资源。签名、公证与发布流程见 [RELEASE.md](../RELEASE.md)。
 
 不打包、直接运行构建产物：
 
 ```bash
 pnpm build
-pnpm --filter @nomi-ai/host-electron run launch:debug   # 复制界面资源到 packages/host-electron/dist 后启动
+pnpm --filter @nomi-ai/host-electron run launch:debug   # 复制界面资源到 apps/desktop-electron/dist 后启动
 ```
 
 ## 性能测量

@@ -55,7 +55,8 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/packages/host-electron/src/security/csp.ts"
+        "$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts",
+        "$TURBO_ROOT$/rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg"
       ]
     },
     "@nomi-ai/host-electron#build": {
@@ -77,7 +78,7 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/packages/host-electron/src/security/csp.ts"
+        "$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts"
       ]
     },
     "typecheck": {
@@ -113,7 +114,8 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/character/pack.mjs",
-        "$TURBO_ROOT$/packages/core/src/mascot/mascotSize.ts"
+        "$TURBO_ROOT$/packages/core/src/mascot/mascotSize.ts",
+        "$TURBO_ROOT$/rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg"
       ]
     },
     "@nomi-ai/avatar-runtime#test": {

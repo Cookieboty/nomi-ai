@@ -200,7 +200,7 @@ describe('built-in pack location', () => {
   });
 
   it('unpacked: renderer build output first, then the repository pack', () => {
-    const appPath = path.join(REPO, 'packages', 'host-electron');
+    const appPath = path.join(REPO, 'apps', 'desktop-electron');
     expect(
       builtinPackCandidates({ packaged: false, dev: false, resourcesPath: '', appPath }),
     ).toEqual([

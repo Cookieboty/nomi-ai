@@ -1,6 +1,6 @@
 package mascot
 
-// 桌面物理：packages/host-electron/src/mascot/desktopPhysics.ts 的逐行移植（纯函数）。
+// 桌面物理：apps/desktop-electron/src/mascot/desktopPhysics.ts 的逐行移植（纯函数）。
 // 坐标为屏幕像素、y 向下；窗口位置 (x, y) 为左上角；box 为角色在窗口内的包围盒。
 
 import "math"

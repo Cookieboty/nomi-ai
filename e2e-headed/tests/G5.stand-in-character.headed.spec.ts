@@ -26,7 +26,7 @@ import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
  * 不是替身构建时跳过（官方构建跑其它用例）。跑完后用 `pnpm build` 换回官方构建。
  */
 const root = repoRoot();
-const electronPkgDir = resolve(root, 'packages', 'host-electron');
+const electronPkgDir = resolve(root, 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const rendererPack = resolve(root, 'packages', 'renderer', 'dist', 'character', 'manifest.json');
 const chatWelcome = resolve(root, 'packages', 'ai-chat', 'dist', 'character', 'onboarding');

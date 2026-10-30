@@ -340,9 +340,9 @@ jobs:
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
           root_version=$(node -p "require('./package.json').version")
-          app_version=$(node -p "require('./packages/host-electron/package.json').version")
+          app_version=$(node -p "require('./apps/desktop-electron/package.json').version")
           if [ "$tag" != "v$app_version" ] || [ "$tag" != "v$root_version" ]; then
-            echo "::error::Tag $tag does not match version (packages/host-electron: $app_version, root: $root_version); expected v$app_version"
+            echo "::error::Tag $tag does not match version (apps/desktop-electron: $app_version, root: $root_version); expected v$app_version"
             exit 1
           fi
           notes="docs/releases/$tag.md"

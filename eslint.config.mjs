@@ -192,7 +192,7 @@ export default tseslint.config(
   {
     files: [
       'packages/core/src/**/*.ts',
-      'packages/host-electron/src/**/*.ts',
+      'apps/desktop-electron/src/**/*.ts',
       'packages/ai-chat/src/**/*.{ts,tsx}',
     ],
     ignores: ['packages/core/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
@@ -201,10 +201,10 @@ export default tseslint.config(
   },
 
   // Electron 边界（docs/design/core-host-decoupling.md §7.2、§11.1、§12 P0）：
-  // packages/host-electron/src 里只有宿主区域能 import electron；P0 时已有的业务模块列在
+  // apps/desktop-electron/src 里只有宿主区域能 import electron；P0 时已有的业务模块列在
   // scripts/eslint/electron-boundary.mjs 的白名单里（shrink only, see docs/design/core-host-decoupling.md §12）。
   {
-    files: ['packages/host-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    files: ['apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     ignores: [...ELECTRON_HOST_FILES, ...ELECTRON_IMPORT_ALLOWLIST],
     rules: {
       'no-restricted-imports': [
@@ -270,7 +270,7 @@ export default tseslint.config(
                 '@nomi-ai/host-electron/*',
                 '@nomi-ai/bundle-ig-electron-caps',
                 '@nomi-ai/bundle-ig-electron-caps/*',
-                '**/host-electron/src/**',
+                '**/desktop-electron/src/**',
               ],
               message: '内核不能依赖宿主包：宿主能力经 @nomi-ai/host-ports 的端口注入（§3.2）。',
             },
@@ -351,6 +351,7 @@ export default tseslint.config(
   {
     files: [
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
       ...ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
     ],
     ignores: [
@@ -376,7 +377,7 @@ export default tseslint.config(
   // 遗留 electron 主进程代码（P0 之前既存业务代码，P3 搬进 packages/core 后沿用同样的放宽，再逐个清理）
   {
     files: [
-      'packages/host-electron/**/*.{ts,tsx,js,cjs,mjs}',
+      'apps/desktop-electron/**/*.{ts,tsx,js,cjs,mjs}',
       'packages/core/**/*.{ts,tsx,js,cjs,mjs}',
     ],
     rules: {
@@ -479,8 +480,8 @@ export default tseslint.config(
 
   // 主进程只经契约传输（host/contractIpc.ts）接收视图的调用：宿主目录之外不注册 ipcMain 通道（§11.1）。
   {
-    files: ['packages/host-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
-    ignores: ['packages/host-electron/src/host/**'],
+    files: ['apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    ignores: ['apps/desktop-electron/src/host/**'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -497,7 +498,7 @@ export default tseslint.config(
   // 集中日志：产品源码只能用 createLogger / createMainLogger（生产环境静默 debug / info），
   // console.warn / console.error 仍允许（始终输出）。日志实现文件自行 eslint-disable。
   {
-    files: ['packages/*/src/**/*.{ts,tsx}'],
+    files: ['packages/*/src/**/*.{ts,tsx}', 'apps/desktop-electron/src/**/*.{ts,tsx}'],
     ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**'],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
@@ -507,11 +508,11 @@ export default tseslint.config(
   // 不用系统弹窗：macOS / Windows 样式不一、按钮跟系统语言走。
   // 确认 / 输入用 ai-chat 的 confirmDialog / promptDialog（components/ConfirmDialog）。
   {
-    files: ['packages/*/src/**/*.{ts,tsx}'],
+    files: ['packages/*/src/**/*.{ts,tsx}', 'apps/desktop-electron/src/**/*.{ts,tsx}'],
     ignores: [
       '**/*.{test,spec}.{ts,tsx}',
       '**/tests/**',
-      'packages/host-electron/**',
+      'apps/desktop-electron/**',
       'packages/core/**',
     ],
     rules: {

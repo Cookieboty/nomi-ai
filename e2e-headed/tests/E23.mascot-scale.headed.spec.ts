@@ -22,7 +22,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   气泡不压脸，拖拽照常
  * E23_SHOTS=<dir> 保存窗口截图 + 整屏截图（X11 + ffmpeg）。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E23_SHOTS;
 const hasXdo =

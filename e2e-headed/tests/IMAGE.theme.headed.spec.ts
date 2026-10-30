@@ -1,5 +1,5 @@
 /**
- * IMAGE · 图片主题（真实应用：packages/host-electron 的 dist，内核 createCore 里真实的 ThemeService /
+ * IMAGE · 图片主题（真实应用：apps/desktop-electron 的 dist，内核 createCore 里真实的 ThemeService /
  * ChatBackgroundService 与宿主的 chat-asset:// 协议）
  *
  * 选图片主题 → 内置预设图（1920×1080）→ 换成自己的图（系统对话框在主进程里打桩）→ 毛玻璃 / 透明度
@@ -28,7 +28,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS, isolatedHomeEnv } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(electronPkgDir, 'dist', 'ai-chat', 'index.html');
 const isChat = (url: string) => /ai-chat/.test(url);

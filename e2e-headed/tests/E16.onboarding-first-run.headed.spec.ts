@@ -18,7 +18,7 @@ import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
  * 4. 直接发消息，回复来自刚配置的供应商；
  * 5. 重启后不再弹出引导。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shotDir = process.env.ONBOARDING_SHOTS_DIR;
 

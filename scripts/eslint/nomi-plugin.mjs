@@ -118,7 +118,7 @@ const noDynamicElectron = {
     messages: {
       dynamic:
         '非宿主代码不能动态加载 electron：平台能力走宿主端口（docs/design/core-host-decoupling.md §6、§11.1），' +
-        '宿主代码放 packages/host-electron/src/host/',
+        '宿主代码放 apps/desktop-electron/src/host/',
     },
   },
   create(context) {

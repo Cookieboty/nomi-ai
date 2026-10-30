@@ -24,7 +24,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.SLASH_SHOTS_DIR;
 
 const put = (file: string, text: string) => {

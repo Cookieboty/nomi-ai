@@ -4,7 +4,7 @@ import { characterPackPlugin } from '../../scripts/character/vite-plugin.mjs';
 import { devTransportPlugin } from '../../scripts/dev-web/vite-plugin.mjs';
 import { DEV_HOST, PORTS } from '../../scripts/ports.mjs';
 // 与主进程响应头使用同一份策略（纯数据模块，构建期引用）
-import { appCspString } from '../host-electron/src/security/csp';
+import { appCspString } from '../../apps/desktop-electron/src/security/csp';
 
 export default defineConfig(({ mode }) => ({
   plugins: [

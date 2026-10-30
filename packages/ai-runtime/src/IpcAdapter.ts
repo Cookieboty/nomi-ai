@@ -3,7 +3,7 @@
  *
  * 为什么单独抽出：
  * - 允许在 vitest（Node）里注入 fake adapter，无需真的启动 Electron；
- * - 生产环境由宿主注入 Electron 实现（packages/host-electron/src/host/electronIpcAdapter.ts），
+ * - 生产环境由宿主注入 Electron 实现（apps/desktop-electron/src/host/electronIpcAdapter.ts），
  *   本包不认识 Electron（docs/design/core-host-decoupling.md §6.3）。
  */
 

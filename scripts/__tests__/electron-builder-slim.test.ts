@@ -14,10 +14,10 @@ import {
   slimNodeModulesTree,
   dropUnpackedDuplicates,
   collectRelFiles,
-} from '../../packages/host-electron/scripts/after-pack-slim.mjs';
+} from '../../apps/desktop-electron/scripts/after-pack-slim.mjs';
 
 const yml = readFileSync(
-  join(__dirname, '../../packages/host-electron/electron-builder.yml'),
+  join(__dirname, '../../apps/desktop-electron/electron-builder.yml'),
   'utf8',
 );
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 冷启动测量：多次启动 prod 构建（packages/host-electron/dist），全新 userData，统计各打点中位数。
+// 冷启动测量：多次启动 prod 构建（apps/desktop-electron/dist），全新 userData，统计各打点中位数。
 // 用法（Linux 需显示）：xvfb-run -a node scripts/measure-startup.mjs [runs=7] [--json out.json]
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const pkg = resolve(root, 'packages/host-electron');
+const pkg = resolve(root, 'apps/desktop-electron');
 const exe = createRequire(join(pkg, 'package.json'))('electron');
 const runs = Number(process.argv[2] || 7);
 const jsonOut = process.argv.includes('--json')

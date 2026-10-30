@@ -17,7 +17,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 4. 重启：不再自动打开主界面。
  * 只断言窗口存在 / 可见与文件内容，不断言系统焦点（xvfb / Windows 下焦点不可靠）。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const isChat = (url: string) => /ai-chat|6128/.test(url);

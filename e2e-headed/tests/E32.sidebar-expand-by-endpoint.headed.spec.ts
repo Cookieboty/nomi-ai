@@ -18,7 +18,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 
 async function launch(userData: string, home: string) {
   const env: Record<string, string> = {

@@ -38,7 +38,7 @@ module.exports = {
     }),
     // 内核（@nomi-ai/core）在测试里直接用源码：不用先构建，jest.mock('@nomi-ai/core/…') 与内核内部的
     // 相对 import 指向同一个模块
-    '^@nomi-ai/core/(.*)$': '<rootDir>/../core/src/$1',
+    '^@nomi-ai/core/(.*)$': '<rootDir>/../../packages/core/src/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1',
   },

@@ -49,7 +49,7 @@ xvfb-run -a pnpm test:e2e:headed     # macOS / Windows 不用 xvfb-run
 
 `playwright.config.ts` 固定界面语言为中文（`CD_LOCALE=zh-CN`），默认关闭首次引导（`CD_ONBOARDING=off`），并关闭离线语音合成（`CD_TTS=off`）。除下面的替身用例外，所有用例都使用内置角色诺米（Rive，起不来时回退到分层 2D sprite），不下载任何测试模型。
 
-`pnpm build` 之后 `packages/host-electron/dist` 就能直接运行：turbo 的 `@nomi-ai/host-electron#build` 依赖 renderer 与
+`pnpm build` 之后 `apps/desktop-electron/dist` 就能直接运行：turbo 的 `@nomi-ai/host-electron#build` 依赖 renderer 与
 ai-chat 的构建，最后由 `scripts/copy-renderer.js` 把它们复制到 `dist/renderer`、`dist/ai-chat`（缓存命中时一起恢复）。
 只重建了某个视图（例如直接跑它的 Vite）时，再手动 `pnpm --filter @nomi-ai/host-electron copy-renderer`。
 

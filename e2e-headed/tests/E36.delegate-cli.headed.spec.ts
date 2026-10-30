@@ -31,7 +31,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 覆盖：卡片显示与汇报、子任务在后台开标签（不抢焦点）、卡片内审批、单独停止后 Nomi 继续、
  * /agent codex 指定交给 Codex（输入栏 chip、用户消息上的标记）、助手模式下「查看」打开抽屉。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shotDir =

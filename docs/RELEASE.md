@@ -56,7 +56,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
 
 1. **Bump the version** in sync (semver, no leading `v` in the JSON fields):
    - `package.json` (workspace root)
-   - `packages/host-electron/package.json` ← electron-builder / electron-updater read this
+   - `apps/desktop-electron/package.json` ← electron-builder / electron-updater read this
    - Prefer `pnpm changeset` + `pnpm changeset:version` when a changeset exists; otherwise edit both by hand.
    - Root [`CHANGELOG.md`](../CHANGELOG.md) is generated from `.changeset/*.md`: `pnpm changelog`
      refreshes the _Unreleased_ section (CI runs `pnpm changelog:check`); `pnpm changeset:version`
@@ -156,7 +156,7 @@ export COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/corepack}"
 pnpm install --frozen-lockfile
 pnpm turbo run build
 
-# 打包（脚本名见 packages/host-electron/package.json）
+# 打包（脚本名见 apps/desktop-electron/package.json）
 pnpm package:prod:linux   # → dist/*.AppImage
 pnpm package:prod:win     # → dist/Nomi Setup *.exe（须在 Windows）
 pnpm package:prod:mac     # → dist/*.dmg + dist/*-mac.zip（x64/arm64；须在 macOS）
@@ -184,11 +184,11 @@ GH_TOKEN=… pnpm --filter @nomi-ai/host-electron run package:publish:linux   # 
 
 ## Version matrix
 
-| File                                                         | Role                                                                   |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `packages/host-electron/package.json` → `version`            | App version reported by `app.getVersion()` and written into installers |
-| Git tag `vX.Y.Z`                                             | Must match that version (electron-builder / updater convention)        |
-| `packages/host-electron/config/default.json` → `app.version` | Display/config default only — keep in sync when bumping                |
+| File                                                        | Role                                                                   |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `apps/desktop-electron/package.json` → `version`            | App version reported by `app.getVersion()` and written into installers |
+| Git tag `vX.Y.Z`                                            | Must match that version (electron-builder / updater convention)        |
+| `apps/desktop-electron/config/default.json` → `app.version` | Display/config default only — keep in sync when bumping                |
 
 ---
 

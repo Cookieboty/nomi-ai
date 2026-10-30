@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 常量与 packages/host-electron/src/island/geometry.ts 一致
+// 常量与 apps/desktop-electron/src/island/geometry.ts 一致
 const (
 	IslandPadY       = 11
 	IslandRowMin     = 36

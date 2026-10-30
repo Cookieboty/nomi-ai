@@ -13,6 +13,6 @@
 /docs/                          @Cookieboty
 
 # 业务包（后续按 owner 拆分）
-/packages/host-electron/        @Cookieboty
+/apps/desktop-electron/        @Cookieboty
 /packages/renderer/             @Cookieboty
 /packages/ai-chat/              @Cookieboty

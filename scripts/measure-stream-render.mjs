@@ -14,7 +14,7 @@ import { _electron as electron } from 'playwright';
 import { callContract, waitForTransport } from './lib/contractProbe.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const pkg = resolve(root, 'packages/host-electron');
+const pkg = resolve(root, 'apps/desktop-electron');
 const arg = (name, def) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : def;

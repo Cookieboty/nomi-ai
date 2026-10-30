@@ -62,7 +62,7 @@ func TestAppIconParity(t *testing.T) {
 		} `json:"scenarios"`
 	}
 	loadGolden(t, "shell_appicon.json", &g)
-	assets, _ := filepath.Abs("../../../../../packages/host-electron/assets")
+	assets, _ := filepath.Abs("../../../../../apps/desktop-electron/assets")
 	if len(g.Scenarios) == 0 {
 		t.Fatal("empty golden")
 	}

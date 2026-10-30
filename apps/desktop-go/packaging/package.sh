@@ -5,7 +5,7 @@
 #   Nomi-<v>-arm64.dmg  Nomi-<v>-arm64-mac.zip  Nomi-<v>.dmg  Nomi-<v>-mac.zip
 #   Nomi-Setup-<v>.exe  Nomi-<v>.AppImage  nomi_<v>_amd64.deb
 # 环境：
-#   NOMI_VERSION     缺省读 packages/host-electron/package.json 的 version
+#   NOMI_VERSION     缺省读 apps/desktop-electron/package.json 的 version
 #   SKIP_FRONTEND=1  已构建 frontend/dist 时跳过
 #   MAC_SIGN_IDENTITY  非空 → codesign --options runtime --timestamp（Developer ID，不公证）；空 → ad-hoc（-）
 set -euo pipefail
@@ -13,17 +13,17 @@ TARGET="${1:?usage: package.sh mac-arm64|mac-x64|windows|linux}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APP="$(cd "$HERE/.." && pwd)"
 ROOT="$(cd "$APP/../.." && pwd)"
-ASSETS="$ROOT/packages/host-electron/assets"
+ASSETS="$ROOT/apps/desktop-electron/assets"
 OUT="$APP/dist-pkg"
 WORK="$APP/dist-pkg/.work-$TARGET"
-VERSION="${NOMI_VERSION:-$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$ROOT/packages/host-electron/package.json" | head -1)}"
+VERSION="${NOMI_VERSION:-$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$ROOT/apps/desktop-electron/package.json" | head -1)}"
 LDFLAGS="-s -w -X github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports.AppVersion=$VERSION"
 rm -rf "$WORK"; mkdir -p "$OUT" "$WORK"
 log() { echo "::group::$*" 2>/dev/null || true; echo "== $*"; }
 endg() { echo "::endgroup::" 2>/dev/null || true; }
 
 if [ "${SKIP_FRONTEND:-}" != 1 ]; then
-  log "frontend build"; (cd "$APP/frontend" && ../../../node_modules/.bin/vite build --config vite.config.mts); endg
+  log "frontend build"; node "$APP/frontend/build.mjs"; endg
 fi
 
 # 只读资源：= Electron extraResources 里 Go 版仍需要的部分（assets/ 全量、内置角色包、OEM 覆盖占位）
@@ -31,8 +31,8 @@ stage_resources() {
   local dst="$1"; mkdir -p "$dst/characters"
   cp -R "$ASSETS" "$dst/assets"
   cp -R "$ROOT/characters/nomi" "$dst/characters/nomi"
-  if [ -d "$ROOT/packages/host-electron/character-pack-resources" ]; then
-    cp -R "$ROOT/packages/host-electron/character-pack-resources" "$dst/character-pack"
+  if [ -d "$ROOT/apps/desktop-electron/character-pack-resources" ]; then
+    cp -R "$ROOT/apps/desktop-electron/character-pack-resources" "$dst/character-pack"
   fi
   # 打包不带 mac 专用 entitlements / icns 到 win/linux 以外无害，保持与 Electron 相同目录树
 }

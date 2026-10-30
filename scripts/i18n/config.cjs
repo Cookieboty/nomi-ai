@@ -14,7 +14,7 @@ module.exports = {
     { dir: 'packages/voice/src', project: 'ui' },
     { dir: 'packages/ui/src', project: 'ui' },
     { dir: 'packages/core/src', project: 'electron' },
-    { dir: 'packages/host-electron/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/src', project: 'electron' },
     { dir: 'packages/cli-sdk/src', project: 'electron' },
     { dir: 'packages/cli-plugins/src', project: 'electron' },
   ],

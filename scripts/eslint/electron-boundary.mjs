@@ -2,7 +2,7 @@
 /**
  * Electron 依赖边界（docs/design/core-host-decoupling.md §7.2 / §11.1 / §12 P0）。
  *
- * - `ELECTRON_HOST_FILES`：宿主区域（§7.2 右列），可以 import electron。新宿主代码放 `packages/host-electron/src/host/`。
+ * - `ELECTRON_HOST_FILES`：宿主区域（§7.2 右列），可以 import electron。新宿主代码放 `apps/desktop-electron/src/host/`。
  * - `ELECTRON_IMPORT_ALLOWLIST`：P0 时业务模块里已有的 electron import（含 `import type`）。
  * - `ELECTRON_DYNAMIC_ALLOWLIST`：非宿主代码里已有的动态加载（`require('electron')`、
  *   `nodeRequire()('electron')`、`createRequire(...)('electron')`）。
@@ -15,23 +15,23 @@
 
 /** 宿主区域（glob，相对仓库根目录） */
 export const ELECTRON_HOST_FILES = [
-  'packages/host-electron/src/host/**',
-  'packages/host-electron/src/main.ts',
-  'packages/host-electron/src/preload.ts',
-  'packages/host-electron/src/schemePrivileges.ts',
-  'packages/host-electron/src/core/WindowManager.ts',
-  'packages/host-electron/src/core/TrayManager.ts',
-  'packages/host-electron/src/core/titleBar.ts',
-  'packages/host-electron/src/core/appIcon.ts',
-  'packages/host-electron/src/core/chatWindowBounds.ts',
-  'packages/host-electron/src/mascot/**',
-  'packages/host-electron/src/island/**',
-  'packages/host-electron/src/security/windowGuards.ts',
+  'apps/desktop-electron/src/host/**',
+  'apps/desktop-electron/src/main.ts',
+  'apps/desktop-electron/src/preload.ts',
+  'apps/desktop-electron/src/schemePrivileges.ts',
+  'apps/desktop-electron/src/core/WindowManager.ts',
+  'apps/desktop-electron/src/core/TrayManager.ts',
+  'apps/desktop-electron/src/core/titleBar.ts',
+  'apps/desktop-electron/src/core/appIcon.ts',
+  'apps/desktop-electron/src/core/chatWindowBounds.ts',
+  'apps/desktop-electron/src/mascot/**',
+  'apps/desktop-electron/src/island/**',
+  'apps/desktop-electron/src/security/windowGuards.ts',
 ];
 
 /**
  * shrink only, see docs/design/core-host-decoupling.md §12
- * packages/host-electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
+ * apps/desktop-electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
   // P4 清空：组合根拆成内核 createCore（packages/core）与宿主组合根 host/Application.ts（宿主区域）

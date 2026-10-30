@@ -12,17 +12,17 @@ import { safeRm } from '../fixtures/fsutil';
 /**
  * E5 · 真实应用冒烟（非 harness）
  *
- * 直接启动 packages/host-electron/dist/main.js（与 `electron .` 的生产模式一致，从
+ * 直接启动 apps/desktop-electron/dist/main.js（与 `electron .` 的生产模式一致，从
  * dist/renderer/index.html 以 file:// 加载 renderer），断言：
  * - 主窗口 preload 成功：只注入 window.nomiTransport（契约传输）与 window.nomiHost，旧桥
  *   window.electronAPI / window.aiIPC 不再存在
  *   （回归：preload 依赖 workspace 包时，在默认 sandbox 下会 "module not found"）
- * - 内置 2D 看板娘 Nomi 加载完成（MascotBackend = rive，或回退到分层 2D sprite；支持口型），
+ * - 内置 2D 看板娘 Nomi 加载完成：全新安装默认静态立绘（MascotBackend = static；Rive 由设置开启，E22 覆盖），
  *   不再有角色选择 / 切换入口，且没有 preload / 角色加载错误
  *
- * 前置：`pnpm build`（会生成 packages/host-electron/dist 与 packages/renderer/dist）。
+ * 前置：`pnpm build`（会生成 apps/desktop-electron/dist 与 packages/renderer/dist）。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const rendererIndex = resolve(electronPkgDir, 'dist', 'renderer', 'index.html');
 const rendererBuild = resolve(repoRoot(), 'packages', 'renderer', 'dist', 'index.html');
@@ -96,7 +96,7 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
     await page.waitForFunction(
       () => {
         const ds = document.documentElement.dataset;
-        return ds.mascotModel === 'nomi' && /^(rive|sprite)$/.test(ds.mascotBackend ?? '');
+        return ds.mascotModel === 'nomi' && ds.mascotBackend === 'static';
       },
       undefined,
       { timeout: 90_000 },
@@ -122,12 +122,9 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
       nomiHost: 'object',
       legacy: [],
       model: 'nomi',
-      lipSync: 'true',
+      backend: 'static',
       hasCanvas: true,
     });
-    // Rive 是默认渲染器；只有它起不来时才回退到分层 2D sprite（并打上 data-mascot-renderer）
-    expect(state.backend === 'rive' || state.renderer === 'sprite-fallback').toBe(true);
-    expect(state.expressions).toEqual(expect.arrayContaining(['happy']));
 
     // 角色选择已移除：旧的打开选择器事件无响应，工具栏没有「切换角色」
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));

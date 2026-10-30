@@ -7,7 +7,7 @@ import { _electron as electron, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { callContract } from '../fixtures/contract';
-import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
+import { repoRoot, resolveElectronExecutable, useRiveRenderer } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
@@ -16,7 +16,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   ANIM_SHOTS_DIR=/workspace/screenshots/anim-fix/after xvfb-run -a pnpm test:e2e:headed -g "ANIM"
  */
 const dir = process.env.ANIM_SHOTS_DIR;
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 
 test('ANIM capture every clip', async () => {
   test.skip(!dir || !existsSync(resolve(electronPkgDir, 'dist', 'main.js')), 'set ANIM_SHOTS_DIR');
@@ -24,6 +24,7 @@ test('ANIM capture every clip', async () => {
   mkdirSync(dir!, { recursive: true });
   execFileSync(process.execPath, [resolve(electronPkgDir, 'scripts', 'copy-renderer.js')]);
   const userData = mkdtempSync(join(tmpdir(), 'anim-'));
+  useRiveRenderer(userData);
   const env = { ...(process.env as Record<string, string>) };
   delete env.NODE_ENV;
   const app = await electron.launch({

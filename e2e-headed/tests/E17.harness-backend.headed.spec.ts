@@ -16,7 +16,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { callContract, waitForTransport } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const rendererIndex = resolve(electronPkgDir, 'dist', 'renderer', 'index.html');
 const rendererBuild = resolve(repoRoot(), 'packages', 'renderer', 'dist', 'index.html');

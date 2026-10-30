@@ -149,7 +149,7 @@
 | `packages/contract`           | 新建；合并两份 `channels.ts` 与 `electronAPI`                                       |
 | `packages/host-ports`         | 新建                                                                                |
 | `packages/core`               | 从 `packages/electron/src` 搬出业务模块（§12 P3）                                   |
-| `packages/host-electron`      | `packages/electron` 改名，只留窗口、托盘、preload、协议、端口实现、传输适配、组合根 |
+| `apps/desktop-electron`       | `packages/electron` 改名，只留窗口、托盘、preload、协议、端口实现、传输适配、组合根 |
 | `packages/host-node`          | 新建；无界面宿主，用于 e2e 和开发                                                   |
 | `packages/character-contract` | 新建；搬入 `docs/character-pack/contract.json`、`voice-ids.json`、校验与迁移函数    |
 | `packages/avatar-runtime`     | 从 `renderer/src/mascot` 拆出                                                       |
@@ -321,7 +321,7 @@ interface Core {
   stop(): Promise<void>; // 可重入，带超时
 }
 
-// packages/host-electron/src/host/Application.ts（宿主组合根）
+// apps/desktop-electron/src/host/Application.ts（宿主组合根）
 const ports = createElectronPorts({ windows: lazyWindowHost(() => windowManager) });
 const core = createCore({ ports, logger, host: { … }, contract: { hostHandlers } });
 await app.whenReady();
@@ -721,7 +721,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 > - 内核里仍有模块级单例（`getXxxService()`、`eventBus`、`setMascotAppEvents` 等），`createCore` 时收进实例；
 > - e2e-headed（真实 Electron）没有跑，要在 Linux + xvfb 上跑一轮。
 
-> P3 第三步完成（分支 `refactor/p3-core`）：`packages/electron` 改名 `packages/host-electron`，包名
+> P3 第三步完成（分支 `refactor/p3-core`）：`packages/electron` 改名 `apps/desktop-electron`，包名
 > `@nomi-ai/host-electron`（`git mv`）。
 >
 > - 引用全部改到新路径 / 包名：锁文件、`turbo.json`（任务键与 inputs）、根 `package.json`（`dev` / `dev:libs` /
@@ -737,7 +737,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 > - 在 macOS 上从改名后的包启动真实应用跑了 e2e-headed 的 E5（生产模式冒烟）与 E17（契约驱动 harness），
 >   `electron-builder --dir`（macOS arm64）打包通过。
 >
-> **P3 小结**：业务模块在 `packages/core`（纯 Node），宿主在 `packages/host-electron`，ai-runtime 不再认识 Electron；
+> **P3 小结**：业务模块在 `packages/core`（纯 Node），宿主在 `apps/desktop-electron`，ai-runtime 不再认识 Electron；
 > §12 表里的完成标准还差两项，都留给 P4：
 >
 > - P0 白名单没有清空：`core/Application.ts` 仍是组合根（内核服务的创建与窗口、托盘、协议、会话权限在同一个启动流程里），
@@ -806,7 +806,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   进度说明说打包产物不受影响，是错的：已安装的 2.0.x 用户升级后会看到空配置（设置、网关、供应商、会话、记忆、知识库），
 >   已存的 API Key 也解不开；更新缓存目录（`<name>-updater`）与 NSIS 的 `APP_PACKAGE_NAME` 也会变。
 >   `electron-builder --dir` 从全新目录启动，发现不了；
-> - 修正：`packages/host-electron/package.json` 加 `productName: @nomi-ai/electron`（Electron 运行时，开发态与打包后），
+> - 修正：`apps/desktop-electron/package.json` 加 `productName: @nomi-ai/electron`（Electron 运行时，开发态与打包后），
 >   `electron-builder.yml` 的 `extraMetadata` 加 `name: '@nomi-ai/electron'`（electron-builder 自己用的包名）；开发态目录也
 >   不变，`legacyUserData.ts` 去掉上一步加的 `@nomi-ai/electron` 迁移项（复制过去的目录在 macOS 上也解不开钥匙串里的
 >   密钥）；`scripts/__tests__/electron-builder-app-name.test.ts` 守住这两个名字；重新 `electron-builder --dir` 后读 app.asar
@@ -818,7 +818,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >
 > - 组合根拆开：`packages/core/src/createCore.ts` 建配置、界面语言、角色包与人设、各业务服务、AI runtime、应用契约的
 >   router 与事件桥，返回 `{ ports, logger, events, config, container, services, router, start(), startReminders(),
-stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区域，可以 import electron）只建 Electron 端口与日志、
+stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区域，可以 import electron）只建 Electron 端口与日志、
 >   调 `createCore`、挂 IPC 传输与拖入文件通道，管窗口、托盘、灵动岛、`chat-asset://`、CSP、会话权限、应用事件与进程信号；
 >   主题 → 标题栏、启动偏好 → 看板娘显隐与「关闭主界面时退出」、首次引导开窗口在 `core.start()` 之后由宿主接上。启动顺序：
 >   app ready → `core.start()`（含 AI runtime 与 router）→ 挂 IPC → 建窗口 → `core.startReminders()` → 托盘，与原来一致；
@@ -1075,17 +1075,17 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - 角色口吻的正则是列举式的，新写法要在 `scripts/lib/characterLeak.mjs` 补；
 > - core `UpdateService.test.ts` 的 afterEach 与未完成的异步写入有竞争（偶发 ENOTEMPTY），未处理。
 
-| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
-| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                       |
-| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                               |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                             |
-| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                    |
-| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                   |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                       |
-| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                         |
-| C3   | **已完成**（见上方 C3 与 G5 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                          | AI 侧代码中不出现 clip / motion 名（扫描测试守住）；§11.3 替身角色通过（E8 / G5 替身 e2e，`check:character-leak`） |
+| 阶段 | 内容                                                                                                                                                                                                            | 完成标准                                                                                                           |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                 | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
+| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                             | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                       |
+| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                           | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                               |
+| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                        | `packages/electron/src` 中业务模块不再 import electron                                                             |
+| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `apps/desktop-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                    |
+| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                         | §11.3 前两项通过                                                                                                   |
+| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                          | 官方构建与白标构建走同一路径                                                                                       |
+| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                          | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                         |
+| C3   | **已完成**（见上方 C3 与 G5 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                         | AI 侧代码中不出现 clip / motion 名（扫描测试守住）；§11.3 替身角色通过（E8 / G5 替身 e2e，`check:character-leak`） |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
@@ -1169,7 +1169,7 @@ e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.elect
 
 ## 附录 A：耦合点文件清单（2026-10-28）
 
-这是 P2 开始前的快照：P3 之后业务模块在 `packages/core/src`，`packages/electron` 已改名 `packages/host-electron`。
+这是 P2 开始前的快照：P3 之后业务模块在 `packages/core/src`，`packages/electron` 已改名 `apps/desktop-electron`。
 
 统计命令（在仓库根目录运行）：
 

@@ -86,7 +86,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 	qualityRef.Store(sp.Quality)
 	quality.Install(router, func() *quality.Service { return sp.Quality })
 	shellhandlers.InstallDiagnostics(router, func() *diagnostics.Service { return sp.Diagnostics })
-	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 packages/host-electron/assets）
+	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 apps/desktop-electron/assets）
 	assets := filepath.Dir(filepath.Dir(filepath.Dir(chatBgPresetFile())))
 	sp.AppIcon = appicon.New(assets, assets, iconTarget{hp})
 	shellhandlers.InstallAppIcon(router, sp.AppIcon)

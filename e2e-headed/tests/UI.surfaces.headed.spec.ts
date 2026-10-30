@@ -19,7 +19,7 @@ import { revealToolbar } from './toolbarReveal';
  * 配置面板、Provider 面板、Provider 切换器、TTS 配置窗口。
  */
 const shotDir = process.env.UI_SHOTS_DIR;
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 
 test.describe('UI surfaces', () => {

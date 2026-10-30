@@ -5,7 +5,7 @@
  *
  * electron-updater 的 MacUpdater 只会从 latest-mac.yml 的 files 里挑 zip；漏了某个架构的 zip、
  * 文件名 / 大小 / sha512 对不上，已安装的版本就会在「下载」一步失败。这里逐项核对：
- * - latest-mac.yml 存在，version 与 packages/host-electron/package.json 一致；
+ * - latest-mac.yml 存在，version 与 apps/desktop-electron/package.json 一致；
  * - files 里 x64 与 arm64 各有一个 .zip；
  * - 每个列出的文件都在 dist/ 里，大小与 sha512（base64）都对得上。
  * 另外：未签名的 macOS 构建 Squirrel.Mac 不会接受，打印 ::warning::（不让发布失败，与 signing-env 一致）。
@@ -88,7 +88,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   const dist = path.resolve(process.argv[2] ?? path.join(root, 'dist'));
   const { version } = JSON.parse(
-    readFileSync(path.join(root, 'packages/host-electron/package.json'), 'utf8'),
+    readFileSync(path.join(root, 'apps/desktop-electron/package.json'), 'utf8'),
   );
   const { errors, warnings } = checkMacUpdate(dist, version, process.env);
   for (const w of warnings) console.log(`::warning::${w}`);

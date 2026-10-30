@@ -1,5 +1,8 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
   - 'templates/*'
+  - '!apps/**/dist'
   - '!packages/**/dist'
+  - '!apps/**/node_modules'
   - '!packages/**/node_modules'

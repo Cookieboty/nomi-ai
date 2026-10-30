@@ -29,7 +29,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const FIX = resolve(repoRoot(), 'packages', 'core', 'tests', 'fixtures', 'history');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
 

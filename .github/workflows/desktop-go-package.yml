@@ -17,8 +17,10 @@ on:
     branches: [release/2.0.5]
     paths:
       - 'apps/desktop-go/**'
+      # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
+      - 'packages/**'
       - 'characters/nomi/**'
-      - 'packages/host-electron/assets/**'
+      - 'apps/desktop-electron/assets/**'
       - '.github/workflows/desktop-go-package.yml'
 permissions:
   contents: read
@@ -48,7 +50,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24.22.0, cache: pnpm }
       - uses: actions/setup-go@v5
-        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+        with:
+          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - name: linux deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev file
@@ -57,7 +60,7 @@ jobs:
         run: command -v makensis || [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ] || choco install nsis -y --no-progress
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - id: ver
-        run: echo "version=$(node -p "require('./packages/host-electron/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p "require('./apps/desktop-electron/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: mac signing keychain (Developer ID, no notarization)
         if: startsWith(matrix.target, 'mac-')
         env:
@@ -126,7 +129,13 @@ jobs:
           cd packages/electron && pnpm exec electron-builder build --win --dir --publish never
           find . -type d -name win-unpacked -not -path '*/node_modules/*'
       - uses: actions/upload-artifact@v4
-        with: { name: electron-204-win-unpacked, path: 'e204/dist/win-unpacked/', if-no-files-found: error, compression-level: 1 }
+        with:
+          {
+            name: electron-204-win-unpacked,
+            path: 'e204/dist/win-unpacked/',
+            if-no-files-found: error,
+            compression-level: 1,
+          }
 
   verify:
     needs: [package, electron-204-win]
@@ -180,7 +189,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+        with:
+          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - uses: actions/download-artifact@v4
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
       - name: latest-go.json + SHA256SUMS
@@ -251,7 +261,13 @@ jobs:
           find ../../dist -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.AppImage' \) -exec cp {} ../../../e204-out/ \;
           ls -l ../../../e204-out
       - uses: actions/upload-artifact@v4
-        with: { name: 'electron-204-${{ matrix.target }}', path: e204-out/, compression-level: 0, if-no-files-found: error }
+        with:
+          {
+            name: 'electron-204-${{ matrix.target }}',
+            path: e204-out/,
+            compression-level: 0,
+            if-no-files-found: error,
+          }
 
   bench:
     needs: [package, electron-204]

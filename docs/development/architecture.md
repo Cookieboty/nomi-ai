@@ -5,13 +5,13 @@ Nomi 是一个 pnpm + Turborepo monorepo，桌面端基于 Electron，界面为 
 ## 进程与窗口
 
 ```
-Electron 主进程（packages/host-electron）
+Electron 主进程（apps/desktop-electron）
  ├─ 看板娘窗口（packages/renderer）    透明置顶，Nomi 与工具栏
  ├─ 对话窗口（packages/ai-chat）      对话、设置、各功能面板
  └─ 辅助窗口                          截图遮罩、灵动岛、受控浏览器、TTS 配置
 ```
 
-- 入口 `packages/host-electron/src/main.ts` → `host/Application.ts`（宿主组合根：端口、窗口、托盘、协议、IPC 传输），它调用内核的组合根 `createCore`（`packages/core/src/createCore.ts`：服务、AI runtime、应用契约的 router 与事件桥）；窗口由 `WindowManager` 管理。业务模块在 `packages/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §7），平台能力经 `@nomi-ai/host-ports` 的端口由宿主注入；`packages/host-electron` 只留窗口、托盘、协议、preload、端口的 Electron 实现与契约传输。
+- 入口 `apps/desktop-electron/src/main.ts` → `host/Application.ts`（宿主组合根：端口、窗口、托盘、协议、IPC 传输），它调用内核的组合根 `createCore`（`packages/core/src/createCore.ts`：服务、AI runtime、应用契约的 router 与事件桥）；窗口由 `WindowManager` 管理。业务模块在 `packages/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §7），平台能力经 `@nomi-ai/host-ports` 的端口由宿主注入；`apps/desktop-electron` 只留窗口、托盘、协议、preload、端口的 Electron 实现与契约传输。
 - 所有窗口开启上下文隔离与沙箱；preload 只暴露两个对象：`window.nomiTransport`（应用契约 `@nomi-ai/contract/app` 的传输，只有 `contract:request` / `contract:frame` 两个通道，视图对主进程的全部调用与推送都走它）与 `window.nomiHost`（拖入 / 粘贴文件的本机路径；看板娘窗口的拖入总结由 preload 解析路径并经专用通道 `desktop:drop-file` 提交，视图选不了路径）。视图只在各自的 `services/api.ts` 里读它们（eslint 拦下其余位置）。
 - 主进程除 `host/nomiHostIpc.ts` 的 `desktop:drop-file` 外不再注册其它 IPC 通道（宿主目录 `host/` 之外禁止 `ipcMain`）：契约传输经 `host/ipcSenderGuard.ts` 校验发送方并给出调用者的 surface / trusted，过程声明的 `surfaces` 与 `dangerous` 由契约守卫判定。服务的推送经应用事件总线（`events.publish`），由事件桥转成契约事件，只推给订阅了的窗口；只给某个窗口的事件在契约的 `eventSurfaces` 里登记，传输层按调用者的界面过滤订阅。
 
@@ -49,7 +49,7 @@ Electron 主进程（packages/host-electron）
 
 ```mermaid
 flowchart LR
-  subgraph main["主进程（packages/core，由 packages/host-electron 宿主加载）"]
+  subgraph main["主进程（packages/core，由 apps/desktop-electron 宿主加载）"]
     host["CliPluginHost<br/>内置插件 + 外部 ACP 插件"]
     orch["HarnessOrchestrator<br/>标签、来源、账号、回收"]
     drv["cli-sdk 驱动<br/>acp / stream-json / app-server / exec"]

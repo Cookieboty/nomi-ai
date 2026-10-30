@@ -20,7 +20,7 @@ import { safeRm } from '../fixtures/fsutil';
 const REPLY =
   '第一句话在这里。第二句也很短。第三句不应该出现在气泡里，因为气泡只显示开头的一两句话，剩下的去对话窗口看全文吧。';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.BUBBLE_SHOTS;

@@ -2,7 +2,7 @@
   "$comment": "Every shipped static asset must match an entry with an allow-listed open licence. Checked by scripts/check-licenses.mjs. 'LicenseRef-FirstParty' = artwork owned by the project author (Cookieboty), all rights reserved; allowed only for explicitly listed files.",
   "roots": [
     "packages/renderer/public",
-    "packages/host-electron/assets",
+    "apps/desktop-electron/assets",
     "packages/ui/src/brand",
     "characters"
   ],
@@ -11,7 +11,7 @@
   "reviewedLicenses": {},
   "assets": [
     {
-      "pattern": "packages/host-electron/assets/backgrounds/nomi-preset.jpg",
+      "pattern": "apps/desktop-electron/assets/backgrounds/nomi-preset.jpg",
       "license": "MIT",
       "author": "Nomi-ai project owner (Cookieboty) — owner-provided, AI-generated Nomi artwork, licensed by project owner for this open-source repository (confirmed 2026-10-26); recompressed to 1920×1080 JPEG",
       "source": "Nomi image-theme preset (owner-provided)"
@@ -35,13 +35,13 @@
       "source": "generated from rive/nomi-complete/source-nomi-master.png and its deterministic SVG-backed rig in rive/nomi-complete/reference/svg-rig"
     },
     {
-      "pattern": "packages/host-electron/assets/{icon.ico,icon.icns,entitlements.mac.plist,trayTemplate.png,trayTemplate@2x.png,icons/**,app-icons/**}",
+      "pattern": "apps/desktop-electron/assets/{icon.ico,icon.icns,entitlements.mac.plist,trayTemplate.png,trayTemplate@2x.png,icons/**,app-icons/**}",
       "license": "MIT",
       "author": "Nomi-ai project owner (Cookieboty) — owner-provided, AI-generated, licensed by project owner; vector recreation in docs/brand/*.svg; app/tray icons redrawn as original vectors by scripts/brand/build-app-icon.py (docs/brand/icon-variants)",
       "source": "docs/BRAND.md (Nomi brand board)"
     },
     {
-      "pattern": "packages/host-electron/assets/completion/**",
+      "pattern": "apps/desktop-electron/assets/completion/**",
       "license": "CC0-1.0",
       "author": "Nomi contributors (ffmpeg-synthesised chimes)",
       "source": "this repository"

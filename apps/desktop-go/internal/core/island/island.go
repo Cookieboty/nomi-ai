@@ -1,4 +1,4 @@
-// Package island 对应 packages/host-electron/src/island/IslandService.ts 的设置部分（get/set/test）。
+// Package island 对应 apps/desktop-electron/src/island/IslandService.ts 的设置部分（get/set/test）。
 package island
 
 import (

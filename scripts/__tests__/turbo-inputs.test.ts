@@ -20,7 +20,7 @@ describe('turbo.json inputs', () => {
       const inputs = turbo.tasks[t].inputs ?? [];
       expect(inputs).toContain('$TURBO_DEFAULT$');
       expect(inputs).toContain('$TURBO_ROOT$/scripts/ports.mjs');
-      expect(inputs).toContain('$TURBO_ROOT$/packages/host-electron/src/security/csp.ts');
+      expect(inputs).toContain('$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts');
     }
   });
 
@@ -32,7 +32,7 @@ describe('turbo.json inputs', () => {
       expect.arrayContaining(['^build', '@nomi-ai/renderer#build', '@nomi-ai/ai-chat#build']),
     );
     const pkg = JSON.parse(
-      readFileSync(join(__dirname, '../../packages/host-electron/package.json'), 'utf8'),
+      readFileSync(join(__dirname, '../../apps/desktop-electron/package.json'), 'utf8'),
     ) as { scripts: Record<string, string> };
     expect(pkg.scripts.build).toMatch(/copy-renderer\.js$/);
   });

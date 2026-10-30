@@ -11,48 +11,88 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-
-
-
-
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = join(root, 'apps/desktop-go/internal/core/mascothandlers/testdata/parity.json');
 const imp = (p) => import(pathToFileURL(join(root, p)).href);
 
 const size = await imp('packages/core/src/mascot/mascotSize.ts');
-const { sanitizeIsland } = await imp('packages/host-electron/src/island/IslandService.ts').catch(
+const { sanitizeIsland } = await imp('apps/desktop-electron/src/island/IslandService.ts').catch(
   async () => ({ sanitizeIsland: null }),
 );
 const { CharacterPackService } = await imp('packages/core/src/character/CharacterPackService.ts');
 
-const area = (x, y, w, h, sf) => ({ x, y, width: w, height: h, ...(sf ? { scaleFactor: sf } : {}) });
+const area = (x, y, w, h, sf) => ({
+  x,
+  y,
+  width: w,
+  height: h,
+  ...(sf ? { scaleFactor: sf } : {}),
+});
 const scales = [null, 'x', -1, 0, 0.3, 0.42, 0.5, 0.55, 1, 1.49, 1.5, 2, 99];
 const caps = [0.3, 0.8, 1.5, 3];
 const fixture = {
   clamp: scales.map((v) => ({ in: v, out: size.clampMascotScale(v) })),
-  windowSize: scales.filter((v) => typeof v === 'number').map((v) => ({ in: v, out: size.mascotWindowSize(v) })),
-  maxScale: [null, area(0, 0, 1920, 1040), area(0, 0, 1366, 728), area(0, 0, 800, 400), area(0, 0, 0, 0)].map(
-    (a) => ({ in: a, out: size.maxScaleForArea(a) }),
-  ),
+  windowSize: scales
+    .filter((v) => typeof v === 'number')
+    .map((v) => ({ in: v, out: size.mascotWindowSize(v) })),
+  maxScale: [
+    null,
+    area(0, 0, 1920, 1040),
+    area(0, 0, 1366, 728),
+    area(0, 0, 800, 400),
+    area(0, 0, 0, 0),
+  ].map((a) => ({ in: a, out: size.maxScaleForArea(a) })),
   fit: scales.flatMap((v) => caps.map((c) => ({ in: [v, c], out: size.fitMascotScale(v, c) }))),
   step: [0.3, 0.35, 0.5, 0.9, 1.5].flatMap((v) =>
-    [1, -1].flatMap((d) => caps.map((c) => ({ in: [v, d, c], out: size.stepMascotScale(v, d, c) }))),
+    [1, -1].flatMap((d) =>
+      caps.map((c) => ({ in: [v, d, c], out: size.stepMascotScale(v, d, c) })),
+    ),
   ),
   wheel: [0.5, 1].flatMap((v) =>
-    [[0, 0], [-120, 0], [120, 0], [-3, 1], [2, 2], [-1000, 0]].map(([dy, dm]) => ({
+    [
+      [0, 0],
+      [-120, 0],
+      [120, 0],
+      [-3, 1],
+      [2, 2],
+      [-1000, 0],
+    ].map(([dy, dm]) => ({
       in: [v, dy, dm, 1.5],
       out: size.wheelMascotScale(v, dy, dm, 1.5),
     })),
   ),
-  maxTop: [area(0, 0, 1920, 1040), area(0, 0, 1920, 1040, 1.25), area(0, 25, 1366, 743, 1.5)].flatMap((a) =>
-    [355, 357, 401].map((h) => ({ in: [a, h], out: size.maxTopInArea(a, h) })),
-  ),
+  maxTop: [
+    area(0, 0, 1920, 1040),
+    area(0, 0, 1920, 1040, 1.25),
+    area(0, 25, 1366, 743, 1.5),
+  ].flatMap((a) => [355, 357, 401].map((h) => ({ in: [a, h], out: size.maxTopInArea(a, h) }))),
   resize: [
     { bounds: { x: 100, y: 600, width: 330, height: 355 }, fromScale: 0.5, toScale: 1 },
-    { bounds: { x: 100, y: 600, width: 330, height: 355 }, fromScale: 0.5, toScale: 0.3, box: { left: 70, right: 260, top: 140, bottom: 350 } },
-    { bounds: { x: 1700, y: 700, width: 330, height: 355 }, fromScale: 0.5, toScale: 1.5, workAreas: [area(0, 0, 1920, 1040)] },
-    { bounds: { x: -50, y: 0, width: 330, height: 355 }, fromScale: 0.5, toScale: 1, workAreas: [area(0, 0, 1920, 1040), area(1920, 0, 1280, 1000, 1.25)] },
-    { bounds: { x: 2500, y: 900, width: 540, height: 580 }, fromScale: 1, toScale: 0.5, box: { left: 60, right: 480, top: 130, bottom: 580 }, workAreas: [area(0, 0, 1920, 1040), area(1920, 0, 1280, 1000, 1.25)] },
+    {
+      bounds: { x: 100, y: 600, width: 330, height: 355 },
+      fromScale: 0.5,
+      toScale: 0.3,
+      box: { left: 70, right: 260, top: 140, bottom: 350 },
+    },
+    {
+      bounds: { x: 1700, y: 700, width: 330, height: 355 },
+      fromScale: 0.5,
+      toScale: 1.5,
+      workAreas: [area(0, 0, 1920, 1040)],
+    },
+    {
+      bounds: { x: -50, y: 0, width: 330, height: 355 },
+      fromScale: 0.5,
+      toScale: 1,
+      workAreas: [area(0, 0, 1920, 1040), area(1920, 0, 1280, 1000, 1.25)],
+    },
+    {
+      bounds: { x: 2500, y: 900, width: 540, height: 580 },
+      fromScale: 1,
+      toScale: 0.5,
+      box: { left: 60, right: 480, top: 130, bottom: 580 },
+      workAreas: [area(0, 0, 1920, 1040), area(1920, 0, 1280, 1000, 1.25)],
+    },
   ].map((i) => ({ in: i, out: size.resizeMascotBounds(i) })),
 };
 

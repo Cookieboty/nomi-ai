@@ -1,4 +1,4 @@
-// Package appicon = packages/host-electron/src/core/appIcon.ts：应用图标变体（sunset 默认 / cream / ink）的运行时切换。
+// Package appicon = apps/desktop-electron/src/core/appIcon.ts：应用图标变体（sunset 默认 / cream / ink）的运行时切换。
 //
 // 能换的（立即）：所有窗口图标（含之后新建的窗口）、Windows 任务栏 AppUserModel 图标（RelaunchIconResource）、
 // 托盘（非 macOS）、macOS Dock。真正改窗口 / Dock / 托盘的是 Target（wailsshell 实现，原生部分见 appicon_*.go）。

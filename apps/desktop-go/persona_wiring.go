@@ -36,7 +36,7 @@ func newPersona(cs *character.Service, router *contract.Router) *persona.Service
 	return svc
 }
 
-// chatBgPresetFile = getChatBackgroundPresetFile：打包后在 resources/assets，开发时在 packages/host-electron/assets
+// chatBgPresetFile = getChatBackgroundPresetFile：打包后在 resources/assets，开发时在 apps/desktop-electron/assets
 func chatBgPresetFile() string {
 	rel := filepath.Join("assets", "backgrounds", "nomi-preset.jpg")
 	if r := os.Getenv("NOMI_RESOURCES"); r != "" {
@@ -51,7 +51,7 @@ func chatBgPresetFile() string {
 	}
 	for _, d := range starts {
 		for i := 0; i < 6; i++ {
-			for _, c := range []string{filepath.Join(d, rel), filepath.Join(d, "packages", "host-electron", rel)} {
+			for _, c := range []string{filepath.Join(d, rel), filepath.Join(d, "apps", "desktop-electron", rel)} {
 				if _, err := os.Stat(c); err == nil {
 					return c
 				}

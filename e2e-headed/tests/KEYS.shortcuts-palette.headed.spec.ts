@@ -15,7 +15,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 2. ⌘/Ctrl+L 聚焦输入框；⌘/Ctrl+N 新对话（清空当前对话）；⌘/Ctrl+, 打开设置；
  * 3. 设置 → 快捷键：改绑后新组合生效、旧组合失效；改到已占用的组合给出冲突提示；恢复默认。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.SHORTCUT_SHOTS_DIR;
 
 test.describe('Shortcuts and command palette', () => {

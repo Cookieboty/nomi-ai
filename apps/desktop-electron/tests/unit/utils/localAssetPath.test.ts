@@ -13,7 +13,7 @@ import {
   resolveUnpackagedAssetPath,
 } from '../../../src/utils/localAssetPath';
 
-const appPath = path.join('/repo', 'packages', 'host-electron');
+const appPath = path.join('/repo', 'apps', 'desktop-electron');
 
 describe('normalizeRendererRelativePath', () => {
   it('去掉 ./ 与 / 前缀', () => {
@@ -31,7 +31,7 @@ describe('normalizeRendererRelativePath', () => {
 });
 
 describe('getUnpackagedAssetCandidates', () => {
-  it('不再拼出 packages/host-electron/packages/renderer 这种错误路径', () => {
+  it('不再拼出 apps/desktop-electron/packages/renderer 这种错误路径', () => {
     const candidates = getUnpackagedAssetCandidates(appPath, './assets/costume_model_list.json');
     expect(candidates).toEqual([
       path.join(appPath, 'assets', 'costume_model_list.json'),
