@@ -26,7 +26,11 @@ export interface NomiWorkspace {
   clear: () => void;
 }
 
-export function useNomiWorkspace(mainCwd: string | undefined): NomiWorkspace {
+/** syncMain：切会话时把主标签目录跟上；只读工作区的地方（右栏）传 false，避免重复 setCwd */
+export function useNomiWorkspace(
+  mainCwd: string | undefined,
+  { syncMain = true }: { syncMain?: boolean } = {},
+): NomiWorkspace {
   // 没有对话上下文（独立渲染的控件 / 测试）时为空：只显示默认目录
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const messages = useAiChatSelector(selectMessages);
@@ -48,9 +52,9 @@ export function useNomiWorkspace(mainCwd: string | undefined): NomiWorkspace {
 
   // 切到带工作区的会话：主标签目录跟上（内核据此认这个目录）
   useEffect(() => {
-    if (!cwd || !mainCwd || cwd === mainCwd || !harnessClient.available()) return;
+    if (!syncMain || !cwd || !mainCwd || cwd === mainCwd || !harnessClient.available()) return;
     void harnessClient.setCwd(cwd).catch(() => undefined);
-  }, [cwd, mainCwd]);
+  }, [syncMain, cwd, mainCwd]);
 
   const set = useCallback(
     async (next: string) => {

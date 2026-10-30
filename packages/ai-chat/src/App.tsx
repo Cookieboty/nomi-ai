@@ -63,6 +63,7 @@ import {
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
+import { useNomiWorkspace } from './hooks/useNomiWorkspace';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { useUserProfile } from './hooks/useUserProfile';
@@ -277,14 +278,28 @@ const AiChatContent: React.FC = () => {
     () => withLiveContext(cliConvMessages, liveContext),
     [cliConvMessages, liveContext],
   );
+  const harness = useHarnessState();
+  // Nomi 对话（主标签在 Nomi 后端）选了工作区时也有右栏：看的是顶栏显示的那个工作区
+  const nomiOnMain = !tabs.isCliTab && harness?.backend === 'nomi' && harnessClient.available();
+  const nomiWorkspace = useNomiWorkspace(harness?.cwd, { syncMain: false });
+  // 右栏 / 中栏看的目录：编程助手标签用标签目录，Nomi 对话用会话工作区；没有时不显示右栏
+  const railCwd =
+    isDev && tabs.isCliTab
+      ? (tabs.activeTab?.cwd ?? null)
+      : nomiOnMain && nomiWorkspace.cwd
+        ? nomiWorkspace.cwd
+        : null;
+  const railMessages = tabs.isCliTab ? cliConvMessages : nomiMessages;
+  const railBusy = tabs.isCliTab
+    ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
+    : isLoading;
   const sessionChangeCount = useMemo(
-    () => aggregateSessionChanges(cliConvMessages).length,
-    [cliConvMessages],
+    () => aggregateSessionChanges(railMessages).length,
+    [railMessages],
   );
-  const railTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
   // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
-  const centerOpen = !!railTabId && (!!workbench || previewOpen);
-  const railOpen = !!railTabId && railPref;
+  const centerOpen = !!railCwd && (!!workbench || previewOpen);
+  const railOpen = !!railCwd && railPref;
   const setRailOpen = useCallback((open: boolean) => {
     setRailPref(open);
     persistFilesRailOpen(open);
@@ -295,7 +310,7 @@ const AiChatContent: React.FC = () => {
   const [prevWorkbench, setPrevWorkbench] = useState(workbench);
   if (prevWorkbench !== workbench) {
     setPrevWorkbench(workbench);
-    if (workbench && railTabId && !railPref) setRailOpen(true);
+    if (workbench && railCwd && !railPref) setRailOpen(true);
   }
   // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
   const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
@@ -417,7 +432,6 @@ const AiChatContent: React.FC = () => {
     [openSettings],
   );
   // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
-  const harness = useHarnessState();
   const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
   const slashBackend: ConversationBackend = !isDev
     ? 'nomi'
@@ -809,7 +823,7 @@ const AiChatContent: React.FC = () => {
                 <>
                   {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
                   <WorkspaceControl />
-                  {railTabId ? (
+                  {railCwd ? (
                     <FilesRailToggle
                       open={railOpen}
                       count={sessionChangeCount}
@@ -951,7 +965,7 @@ const AiChatContent: React.FC = () => {
             </footer>
           </div>
 
-          {centerOpen && tabs.activeTab ? (
+          {centerOpen && railCwd ? (
             <>
               <div
                 className="center-changes-splitter"
@@ -965,12 +979,12 @@ const AiChatContent: React.FC = () => {
                 onDoubleClick={onChatColSplitterDbl}
                 title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
               />
-              <CenterChangesHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <CenterChangesHost messages={railMessages} cwd={railCwd} />
             </>
           ) : null}
         </div>
 
-        {railOpen && tabs.activeTab ? (
+        {railOpen && railCwd ? (
           <>
             <div
               className="files-rail-splitter"
@@ -996,12 +1010,12 @@ const AiChatContent: React.FC = () => {
             >
               <SessionChangesPanel
                 rail
-                messages={cliConvMessages}
-                cwd={tabs.activeTab.cwd}
-                busy={tabs.activeTab.status === 'running' || tabs.activeTab.status === 'queued'}
+                messages={railMessages}
+                cwd={railCwd}
+                busy={railBusy}
                 onClose={closeRail}
               />
-              <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} />
             </aside>
           </>
         ) : null}
