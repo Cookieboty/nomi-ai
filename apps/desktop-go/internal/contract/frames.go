@@ -8,6 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
+	"runtime/debug"
 	"strings"
 	"sync"
 )
@@ -276,6 +279,17 @@ func (s *Session) Handle(raw []byte) {
 				delete(s.active, f.ID)
 				s.mu.Unlock()
 				cancel()
+			}()
+			// 处理函数 panic = TS 处理函数抛异常：这次调用回 INTERNAL，记日志，进程不受影响
+			defer func() {
+				if x := recover(); x != nil {
+					log.Printf("[contract] %s panicked: %v\n%s", f.Name, x, debug.Stack())
+					err, ok := x.(error)
+					if !ok {
+						err = fmt.Errorf("%v", x)
+					}
+					s.send(errFrame(f.ID, err))
+				}
 			}()
 			s.run(ctx, f)
 		}()

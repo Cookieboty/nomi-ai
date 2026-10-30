@@ -376,3 +376,24 @@ func (l *LoggerService) idleCond() *sync.Cond {
 	}
 	return l.idle
 }
+
+// StdWriter：标准库 log 的输出接到这里（log.SetOutput），让 log.Printf 也进 userData/logs（控制台照常由 Log 输出）。
+// 含 "panicked" 的记 ERROR（契约处理函数的 panic），其余 INFO
+func (l *LoggerService) StdWriter(context string) io.Writer {
+	return stdWriter{l: l, context: context}
+}
+
+type stdWriter struct {
+	l       *LoggerService
+	context string
+}
+
+func (w stdWriter) Write(p []byte) (int, error) {
+	msg := strings.TrimRight(string(p), "\n")
+	level := INFO
+	if strings.Contains(msg, "panicked") {
+		level = ERROR
+	}
+	w.l.Log(level, msg, Undefined, w.context)
+	return len(p), nil
+}

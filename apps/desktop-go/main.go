@@ -33,6 +33,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
@@ -53,6 +55,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/migrate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
@@ -82,6 +85,9 @@ func main() {
 	// LoggerService：最先创建（日志目录 = paths.logs() = userData/logs），各服务共用（deps.Root）
 	rootLog := services.NewLogger(services.LoggerOptions{LogDir: filepath.Join(userData, "logs"), Packaged: hostports.IsPackaged})
 	deps.Root = rootLog
+	// log.Printf（[migrate] / [gateway] / [shell] …）也进日志文件（= 统一用 LoggerService），控制台由 rootLog 输出
+	log.SetFlags(0)
+	log.SetOutput(rootLog.StdWriter("go"))
 	defer rootLog.FlushSync()
 	if os.Getenv("NODE_ENV") == "development" {
 		rootLog.SetLevel(services.DEBUG)
@@ -89,6 +95,9 @@ func main() {
 	// 低优先级启动任务 cleanup-old-logs（delay 1000）
 	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	hostports.Stage("logger-ready")
+	// = main.ts loadLoginShellPath：读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
+	// （自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI；稍后再跑，不和启动抢资源）
+	go mergeLoginShellPath()
 	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在看板娘窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {
 		log.Printf("[migrate] warn: %v", err)
@@ -767,4 +776,24 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 				Endpoint: n.Endpoint, Status: n.Status}, false)
 		},
 	}
+}
+
+func mergeLoginShellPath() {
+	p := jsrt.Call(func() *jsrt.Promise[struct{}] {
+		return cli.LoadLoginShellPath(func(added []string) {
+			cli.ForgetMissingCliBins()
+			log.Printf("[cli] merged login shell PATH (%d new dirs)", len(added))
+		}, cli.LoadLoginShellPathOpts{})
+	})
+	_, _ = jsrt.Block(p)
+	time.Sleep(3 * time.Second)
+	// NpmPrefix 在 jsrt 帧里 Await，RememberCliDir 改的也是 jsrt 里读的状态：都放进 jsrt
+	_, _ = jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
+		return jsrt.Async(func() (struct{}, error) {
+			if prefix := cli.DefaultCliProbe.NpmPrefix(); prefix != "" {
+				cli.RememberCliDir(cli.NpmPrefixBinDir(prefix, goruntime.GOOS))
+			}
+			return struct{}{}, nil
+		})
+	}))
 }
