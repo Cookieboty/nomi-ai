@@ -1,7 +1,7 @@
 /**
  * D2（contract/shell.ts）：theme / locale / startup / onboarding / providers / gateway / usage /
  * quality / updates / diagnostics 的处理函数委派给服务、`appIcon.*` 由宿主片段补上、服务缺失时 UNAVAILABLE、
- * 只在对话窗口的过程拒绝看板娘、dangerous 过程拒绝不可信调用者、服务发布契约事件、
+ * 只在对话窗口的过程拒绝桌面角色、dangerous 过程拒绝不可信调用者、服务发布契约事件、
  * 供应商变化经应用事件总线发出。
  */
 
@@ -299,7 +299,7 @@ describe('host/contract · shell', () => {
     }
   });
 
-  it('看板娘窗口不能调只在对话窗口的过程；更新两个窗口都能调', async () => {
+  it('桌面角色窗口不能调只在对话窗口的过程；更新两个窗口都能调', async () => {
     const { api, f, close } = setup({ surface: 'mascot' });
     try {
       await expect(api.diagnostics.get()).rejects.toMatchObject({ code: 'FORBIDDEN' });

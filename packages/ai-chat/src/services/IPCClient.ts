@@ -24,7 +24,7 @@ const LOCAL_CONFIG_KEY = 'ai-chat:config';
 type SdkChatFacade = {
   sendMessage: (opts: SdkChatOptions) => Promise<{ content?: string } & Record<string, unknown>>;
   stream: (opts: SdkChatOptions) => AsyncIterable<SdkChatChunk>;
-  /** 工具循环（桌面文件工具 / 看板娘工具）；旧主进程没有该通道时退回 stream */
+  /** 工具循环（桌面文件工具 / 桌面角色工具）；旧主进程没有该通道时退回 stream */
   agentStream?: (opts: SdkChatOptions & { role?: string }) => AsyncIterable<SdkChatChunk>;
   abort: (reqId: string) => void;
 };

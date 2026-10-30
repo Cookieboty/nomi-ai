@@ -131,14 +131,14 @@ func (s *Service) SetProfile(role *string, interests []string) Profile {
 	return p
 }
 
-// Mascot：引导里转发给看板娘的指令；本批只返回是否视为送达
-// MascotPorts：对话窗口 → 看板娘的转发（契约事件）与存活窗口数（= deps.events / deps.liveWindows）
+// Mascot：引导里转发给桌面角色的指令；本批只返回是否视为送达
+// MascotPorts：对话窗口 → 桌面角色的转发（契约事件）与存活窗口数（= deps.events / deps.liveWindows）
 type MascotPorts struct {
 	Publish     func(event string, data any)
 	LiveWindows func() int
 }
 
-// SetMascotPorts 注入看板娘转发；不注入时 Mascot 一律未送达
+// SetMascotPorts 注入桌面角色转发；不注入时 Mascot 一律未送达
 func (s *Service) SetMascotPorts(p MascotPorts) { s.mascot = p }
 
 type sayCommand struct {
@@ -160,8 +160,8 @@ func isSemanticGesture(v any) bool {
 	return false
 }
 
-// Mascot = mascot(cmd)：对话窗口 → 看板娘：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
-// 资源名与其它指令一律拒绝。返回是否有看板娘窗口收到。
+// Mascot = mascot(cmd)：对话窗口 → 桌面角色：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
+// 资源名与其它指令一律拒绝。返回是否有桌面角色窗口收到。
 func (s *Service) Mascot(raw json.RawMessage) bool {
 	var c map[string]any
 	if json.Unmarshal(raw, &c) != nil || c == nil || s.mascot.Publish == nil {

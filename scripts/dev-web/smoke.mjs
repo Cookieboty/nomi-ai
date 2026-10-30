@@ -9,7 +9,7 @@
 // - 内核换主题后页面跟着变（事件经 WebSocket 推到页面）；
 // - 能对话：在页面的首次引导里添加一个指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，再发一条
 //   消息，回复经统一网关（Node 子进程）从假上游回到页面；
-// - 看板娘页面（renderer）：没有 preload 桥，以 mascot 界面经 WebSocket 调内核，角色画出来，内核换主题后跟着变；
+// - 桌面角色页面（renderer）：没有 preload 桥，以 mascot 界面经 WebSocket 调内核，角色画出来，内核换主题后跟着变；
 //   浏览器里没有窗口，页面不调要用窗口对象的过程（没有 UNAVAILABLE），没有未捕获的异常。
 //
 // 先 pnpm build；没有浏览器时 `pnpm exec playwright install chromium`。
@@ -239,7 +239,7 @@ try {
     await page.screenshot({ path: screenshot, fullPage: true });
   }
 
-  // 6. 看板娘页面：经 WebSocket（mascot 界面）连同一个内核，角色画出来，没有窗口也不报错
+  // 6. 桌面角色页面：经 WebSocket（mascot 界面）连同一个内核，角色画出来，没有窗口也不报错
   const mascot = await browser.newPage();
   const mascotErrors = [];
   mascot.on('pageerror', (err) => mascotErrors.push(err.message));

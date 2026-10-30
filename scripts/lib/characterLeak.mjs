@@ -39,9 +39,9 @@ export function findBareChineseName(text) {
 export const CHARACTER_NOMI = [
   // 以角色身份自称 / 被称呼
   /(?:我是|你是|叫我|I[’']m|I am|You are|you are|call me)\s*Nomi\b/g,
-  // 指桌面上的那个角色（看板娘窗口）
+  // 指桌面上的那个角色（桌面角色窗口）
   /(?:显示|隐藏|关闭|拖到|桌面)\s*Nomi\b(?!\s*的)/g,
-  /\bNomi\s*(?:大小|工具栏|功能面板|动作|气泡|已隐藏|已关闭|不在桌面|和托盘|仍在桌面|在桌面|从桌面|朗读|说话|提示语音|预录|形象|台词|挥手|互动|看板娘)/g,
+  /\bNomi\s*(?:大小|工具栏|功能面板|动作|气泡|已隐藏|已关闭|不在桌面|和托盘|仍在桌面|在桌面|从桌面|朗读|说话|提示语音|预录|形象|台词|挥手|互动|桌面角色)/g,
   /\b(?:Show|Hide|Close|Desktop|Drop onto|Open with|Interrupt|interrupts)\s+Nomi\b/g,
   /\bNomi\s+(?:size|toolbar|panel|motions|bubble|is hidden|is closed|stays on|waits on|appears|is reading|prompt voice|waves|mascot)\b/g,
   /\bNomi[’']s\s+(?:bubble|voice|prerecorded|lines|replies|motions|size|toolbar)\b/g,

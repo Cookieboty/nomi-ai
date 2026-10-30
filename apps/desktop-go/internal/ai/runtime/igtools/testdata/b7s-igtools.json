@@ -142,7 +142,7 @@
     },
     {
       "name": "reminder_create",
-      "description": "设置提醒：到点时看板娘挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。",
+      "description": "设置提醒：到点时桌面角色挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。",
       "parametersJsonSchema": {},
       "enabled": true
     },

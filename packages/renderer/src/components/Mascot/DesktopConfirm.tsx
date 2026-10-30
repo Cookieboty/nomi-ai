@@ -9,15 +9,15 @@ import styles from './DesktopConfirm.module.css';
 import { placeConfirmBubble, type BubblePlacement } from '@/mascot/bubblePlacement';
 import { api, hasTransport } from '@/services/api';
 
-/** 桌面能力（看板娘窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */
+/** 桌面能力（桌面角色窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */
 const desktop = {
   onConfirmRequest: (cb: (req: DesktopConfirmRequest) => void) =>
     api.on('desktop.confirmRequest', (r) => cb(r as DesktopConfirmRequest)),
   onConfirmCancel: (cb: (id: string) => void) => api.on('desktop.confirmCancel', cb),
   onBubble: (cb: (p: DesktopBubble) => void) =>
     api.on('desktop.bubble', (p) => cb(p as DesktopBubble)),
-  /** 还在等答复的确认请求：看板娘关闭时窗口是为确认框临时建的，建好前发出的请求要补拉 */
-  // 请求文件夹只在对话窗口里问（看板娘没有「另选」）
+  /** 还在等答复的确认请求：桌面角色关闭时窗口是为确认框临时建的，建好前发出的请求要补拉 */
+  // 请求文件夹只在对话窗口里问（桌面角色没有「另选」）
   pending: () =>
     api.desktop
       .state()
@@ -44,7 +44,7 @@ const REASON: Record<string, string> = {
 };
 
 /**
- * 桌面工具确认：先在看板娘气泡里问一句；详情对话框显示工具名、参数 JSON 与干跑预览。
+ * 桌面工具确认：先在桌面角色气泡里问一句；详情对话框显示工具名、参数 JSON 与干跑预览。
  * 破坏性操作只能在对话框里确认，且确认按钮在打开后 1 秒内不可点（防误触）。120 秒未答复由主进程自动拒绝。
  */
 export const DesktopConfirm: React.FC = () => {

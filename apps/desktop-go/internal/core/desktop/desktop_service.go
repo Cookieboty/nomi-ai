@@ -37,7 +37,7 @@ type RuntimeHooks struct {
 	LookupProvider  func(id string) *RuntimeProvider
 }
 
-// Windows 对应 DesktopWindows（Main=看板娘窗口是否存在）
+// Windows 对应 DesktopWindows（Main=桌面角色窗口是否存在）
 type Windows struct {
 	Main          func() bool
 	IsVisible     func() bool
@@ -46,7 +46,7 @@ type Windows struct {
 	MascotHidden  func() bool
 	SummonMascot  func()
 	ReleaseMascot func()
-	// ChatOpen：对话窗口在屏幕上（确认请求只发给它，不打扰看板娘）
+	// ChatOpen：对话窗口在屏幕上（确认请求只发给它，不打扰桌面角色）
 	ChatOpen func() bool
 	Island   func(n IslandNotice) bool
 }
@@ -220,11 +220,11 @@ func (s *Service) avatarEmotion(name string) {
 	s.emit("avatar.event", map[string]string{"type": "emotion", "name": name}, "")
 }
 
-// IsMascotSender：调用方是看板娘窗口（D-B6-4：按 Caller.Surface 判断）
+// IsMascotSender：调用方是桌面角色窗口（D-B6-4：按 Caller.Surface 判断）
 func (s *Service) IsMascotSender(surface string) bool { return s.main() && surface == "mascot" }
 
-// sendConfirm：对话窗口开着 → 只发给对话窗口（授权卡片）；看板娘被关掉了 → 打开对话窗口
-// （窗口挂载后经 desktop.state 补拉）；否则发给看板娘。请求文件夹只走对话窗口（见 RequestFolder）。
+// sendConfirm：对话窗口开着 → 只发给对话窗口（授权卡片）；桌面角色被关掉了 → 打开对话窗口
+// （窗口挂载后经 desktop.state 补拉）；否则发给桌面角色。请求文件夹只走对话窗口（见 RequestFolder）。
 func (s *Service) sendConfirm(req ConfirmRequest) {
 	if s.chatOpen() || req.Kind == "scope" {
 		log.Printf("桌面工具确认请求 tool=%s danger=%s to=chat", req.Tool, req.Danger)
@@ -255,7 +255,7 @@ func (s *Service) sendConfirm(req ConfirmRequest) {
 	}
 }
 
-// Say 在看板娘气泡里说一句
+// Say 在桌面角色气泡里说一句
 func (s *Service) Say(text string) { s.toMascot("desktop.bubble", map[string]string{"text": text}) }
 
 // sayWith = say(text, opts)：{ text, ...opts }。
@@ -391,7 +391,7 @@ func (s *Service) deliverReminderElsewhere(items []reminders.Reminder) {
 	}
 	via := s.Notify(DesktopNotice{Kind: "reminder", Status: "attention", Title: title, Text: body})
 	if via == "none" {
-		log.Printf("提醒没有可用的展示方式（看板娘已隐藏、灵动岛与系统通知都不可用） count=%d", len(items))
+		log.Printf("提醒没有可用的展示方式（桌面角色已隐藏、灵动岛与系统通知都不可用） count=%d", len(items))
 	}
 	for _, r := range items {
 		res := "ok"
@@ -834,7 +834,7 @@ func (s *Service) ReminderAction(surface string, id, action, minutes any) {
 	}
 }
 
-// AnswerConfirm：确认答复，来自对话窗口（契约按界面放行）或看板娘窗口
+// AnswerConfirm：确认答复，来自对话窗口（契约按界面放行）或桌面角色窗口
 func (s *Service) AnswerConfirm(surface string, id, allow, remember, pick any) {
 	if surface != "chat" && !s.IsMascotSender(surface) {
 		log.Printf("忽略来自非 Nomi 窗口的确认答复")

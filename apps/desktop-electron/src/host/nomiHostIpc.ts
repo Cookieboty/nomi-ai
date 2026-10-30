@@ -1,9 +1,9 @@
 /**
  * preload 专用通道（docs/design/core-host-decoupling.md §8）：`window.nomiHost` 里不能做成契约过程的能力。
  *
- * 现在只有 `desktop:drop-file`：看板娘窗口的 preload 从真实拖入的 File 取路径（webUtils）后直接发来，
+ * 现在只有 `desktop:drop-file`：桌面角色窗口的 preload 从真实拖入的 File 取路径（webUtils）后直接发来，
  * 视图代码碰不到这个通道（`window.nomiTransport` 只放行契约的两个通道，视图也没有 ipcRenderer），
- * 所以路径一定来自用户真实拖入的文件。发送方是不是看板娘窗口由 `dropFile` 判定
+ * 所以路径一定来自用户真实拖入的文件。发送方是不是桌面角色窗口由 `dropFile` 判定
  * （DesktopService.isMascotSender），其它窗口发来的直接忽略。
  */
 
@@ -20,7 +20,7 @@ export interface NomiHostIpcMainLike {
 }
 
 export interface ServeNomiHostIpcOptions {
-  /** 拖入文件：senderId = 发送方 webContents id（是不是看板娘窗口由实现判定） */
+  /** 拖入文件：senderId = 发送方 webContents id（是不是桌面角色窗口由实现判定） */
   dropFile(senderId: number, path: string): void;
   ipc?: NomiHostIpcMainLike;
 }

@@ -1,6 +1,6 @@
 /**
  * 编程助手进度监视：只读本机 Codex / Claude Code / dsh / Grok / Gemini CLI
- * 已暴露的日志与会话文件，状态变化时通过看板娘气泡提醒。绝不刮取远端账号。
+ * 已暴露的日志与会话文件，状态变化时通过桌面角色气泡提醒。绝不刮取远端账号。
  * 同时汇总 Nomi 自己的对话标签（实时状态优先于文件推断），在一个列表里展示所有端点。
  */
 import fs from 'node:fs';
@@ -802,7 +802,7 @@ export class AgentProgressService {
 
   /**
    * 接入 Nomi 对话标签：标签列表并入监视视图；任一端点一轮结束 / 出错时
-   * 看板娘说话 + 动作，灵动岛按端点显示事件。
+   * 桌面角色说话 + 动作，灵动岛按端点显示事件。
    */
   attachHarness(h: {
     tabs: () => WatchedTab[];
@@ -834,7 +834,7 @@ export class AgentProgressService {
   }
 
   /**
-   * 工具权限待确认：看板娘在 → 气泡 + 思考动作；不在 → 灵动岛 attention（或系统通知）。
+   * 工具权限待确认：桌面角色在 → 气泡 + 思考动作；不在 → 灵动岛 attention（或系统通知）。
    * 前台也提醒（对话区已有卡片，这里是二次提示）。
    */
   onPermissionNeeded(e: EndpointPermissionNeeded): void {
@@ -912,7 +912,7 @@ export class AgentProgressService {
   }
 
   /**
-   * 发出结束 / 状态提醒（看板娘在 → 气泡，不在 → 灵动岛或系统通知）。消息语音播报开着且能查到
+   * 发出结束 / 状态提醒（桌面角色在 → 气泡，不在 → 灵动岛或系统通知）。消息语音播报开着且能查到
    * 「本次花费」时，在气泡末尾补一句（最多等 3 秒，查不到 / 超时就照常发原文，不让提醒被用量统计拖住）。
    */
   private sayWithCost(

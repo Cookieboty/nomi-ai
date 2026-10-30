@@ -215,9 +215,9 @@ describe('按窗口投递（契约 eventSurfaces，§8）', () => {
     expect(canSubscribe(appContract, event, other)).toBe(false);
   });
 
-  // 对话窗口开着时确认请求只发给它（授权卡片），否则发给看板娘：两边都能订阅，设置窗口不行
+  // 对话窗口开着时确认请求只发给它（授权卡片），否则发给桌面角色：两边都能订阅，设置窗口不行
   it.each(['desktop.confirmRequest', 'desktop.confirmCancel'])(
-    '%s 看板娘与对话窗口能订阅',
+    '%s 桌面角色与对话窗口能订阅',
     (event) => {
       expect(canSubscribe(appContract, event, 'mascot')).toBe(true);
       expect(canSubscribe(appContract, event, 'chat')).toBe(true);

@@ -113,7 +113,7 @@ export const NOMI_TRANSPORT_GLOBAL = 'nomiTransport';
 
 /**
  * preload 暴露的宿主能力桥名：只放不能做成契约调用的能力（`pathForFile(file)`：拖入文件的本机路径，
- * 只能在 preload 里对真实 File 调用；`dropFile(file)`：看板娘窗口拖入文件，路径在 preload 里解析并提交，
+ * 只能在 preload 里对真实 File 调用；`dropFile(file)`：桌面角色窗口拖入文件，路径在 preload 里解析并提交，
  * 视图选不了路径）。视图只在 `services/api.ts` 里读它。
  */
 export const NOMI_HOST_GLOBAL = 'nomiHost';

@@ -1,7 +1,7 @@
 /**
  * 语义事件 → 当前后端（口型、说话姿态、表情、动作）。
  *
- * 原来分散在 renderer 的 MascotDriver（TTS 口型）、MascotAIBridge（对话 / 工具事件）、看板娘指令
+ * 原来分散在 renderer 的 MascotDriver（TTS 口型）、MascotAIBridge（对话 / 工具事件）、桌面角色指令
  * （显式动作 / 表情）与语音桥里；现在宿主只把事件翻译成 `AvatarEvent`，决策都在这里。
  */
 import { isSemanticEmotion } from '@nomi-ai/character-contract';

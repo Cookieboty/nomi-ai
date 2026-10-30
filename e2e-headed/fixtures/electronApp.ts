@@ -128,7 +128,7 @@ export const test = base.extend<HeadedFixture>({
 export const expect = base.expect;
 
 /**
- * 看板娘默认是静态立绘（内核 mascot.renderer 默认 svg，Electron 与 Go 相同）；专测 Rive 的用例在启动前调用，
+ * 桌面角色默认是静态立绘（内核 mascot.renderer 默认 svg，Electron 与 Go 相同）；专测 Rive 的用例在启动前调用，
  * 等同于用户在设置 → 通用里打开「动画（Rive）」。写的是全新 userData 的 settings.json
  */
 export function useRiveRenderer(userData: string): void {

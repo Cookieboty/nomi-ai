@@ -105,7 +105,7 @@
 .cd-voice-status.is-error {
   background: var(--cd-color-danger-soft);
 }
-/* 悬浮在透明窗口（看板娘）上：实底 + 阴影，保证任何桌面背景下都可读；窗口窄时换行而不是截断 */
+/* 悬浮在透明窗口（桌面角色）上：实底 + 阴影，保证任何桌面背景下都可读；窗口窄时换行而不是截断 */
 .cd-voice-status--floating {
   background: var(--cd-chat-popover-bg);
   border: 1px solid var(--cd-color-border-strong);

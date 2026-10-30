@@ -3,9 +3,9 @@
  *
  * 内核（`@nomi-ai/core/createCore`）建服务、AI runtime、应用契约的 router 与事件总线；这里只做宿主的事：
  * - 创建 Electron 端口（`host/electronPorts.ts`）与日志，调用 `createCore`；
- * - 宿主钩子：看板娘 / 对话窗口、灵动岛、自动更新（electron-updater）、受控浏览器、`character-pack://`
+ * - 宿主钩子：桌面角色 / 对话窗口、灵动岛、自动更新（electron-updater）、受控浏览器、`character-pack://`
  *   协议、系统 TTS 与用户画像存储插件（`bundle-ig-electron-caps`）；
- * - 契约的宿主片段（`host/contract`：看板娘窗口、灵动岛、旧窗口通道、应用图标），挂 IPC 传输；
+ * - 契约的宿主片段（`host/contract`：桌面角色窗口、灵动岛、旧窗口通道、应用图标），挂 IPC 传输；
  * - 窗口、托盘、协议（`chat-asset://`）、CSP、会话权限、应用事件（激活、退出）与进程信号。
  */
 
@@ -242,7 +242,7 @@ export class Application implements IApplication {
       // 应用契约（AI 门面 + 各域 + 宿主片段）经 window.nomiTransport 暴露给视图；窗口导航 / 销毁时
       // 传输层断开该窗口的会话（host/contractIpc.ts）
       this.serveContract();
-      // 拖到看板娘身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
+      // 拖到桌面角色身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
       const desktop = services.desktop;
       if (desktop) {
         // 原生 IPC 回调不在内核作用域里：进内核作用域，拖入总结的气泡按用户的界面语言
@@ -255,15 +255,15 @@ export class Application implements IApplication {
       const startupPlan = this.wireWindowsToCore();
       this.setupPermissions();
 
-      // 默认界面为「软件主界面」：对话窗口与看板娘窗口并行创建 / 加载，不再排在看板娘页面加载之后；
-      // 看板娘以 showInactive 出现，不会从主界面抢走焦点。失败只记日志，仍可用看板娘
+      // 默认界面为「软件主界面」：对话窗口与桌面角色窗口并行创建 / 加载，不再排在桌面角色页面加载之后；
+      // 桌面角色以 showInactive 出现，不会从主界面抢走焦点。失败只记日志，仍可用桌面角色
       if (startupPlan.openMain && startupPlan.delayMs === 0) this.openMainInterface(startupPlan);
 
-      // 创建看板娘窗口（默认界面为「软件主界面」时它不抢焦点）。看板娘已关闭时不建：提醒走灵动岛 /
+      // 创建桌面角色窗口（默认界面为「软件主界面」时它不抢焦点）。桌面角色已关闭时不建：提醒走灵动岛 /
       // 系统通知，确认框临时召回（summonMascot），省下一个常驻的渲染进程与 Rive 运行时
       if (!this.windowManager.mascotHidden())
         await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
-      // 提醒调度与定时任务：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
+      // 提醒调度与定时任务：主窗口创建后开始（错过的提醒要在桌面角色气泡里播报）
       this.core.startReminders();
 
       // 托盘：一键切换 AI provider
@@ -278,7 +278,7 @@ export class Application implements IApplication {
   }
 
   /**
-   * 把内核的偏好接到窗口：主题 → 标题栏，启动偏好 → 看板娘显隐与关闭主界面的行为；返回启动计划。
+   * 把内核的偏好接到窗口：主题 → 标题栏，启动偏好 → 桌面角色显隐与关闭主界面的行为；返回启动计划。
    */
   private wireWindowsToCore(): StartupPlan {
     const { theme, startup, onboarding } = this.core.services;
@@ -293,31 +293,31 @@ export class Application implements IApplication {
     }
 
     if (startup) {
-      // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
+      // 桌面角色显示开关（工具栏「关闭桌面角色」/ 设置里重新打开）：立即显隐，隐藏时静音
       this.windowManager.mascotHidden = () => !startup.get().showMascot;
       let showMascot = startup.get().showMascot;
       startup.onChange((st) => {
         if (st.showMascot === showMascot) return;
         showMascot = st.showMascot;
         this.windowManager.setMascotVisible(showMascot);
-        // 关掉看板娘后保证主界面可达（#55）：主界面没开 / 被藏起时把它打开，避免进入无界面状态
+        // 关掉桌面角色后保证主界面可达（#55）：主界面没开 / 被藏起时把它打开，避免进入无界面状态
         if (!showMascot && this.launched) {
           const chat = this.windowManager.getAiChatWindow();
           if (!chat || chat.isDestroyed() || !chat.isVisible()) this.openMainInterface();
         }
       });
-      // 关闭主界面时：quit → 完全退出（看板娘、托盘一起）；hide（默认）→ 只关窗口
+      // 关闭主界面时：quit → 完全退出（桌面角色、托盘一起）；hide（默认）→ 只关窗口
       this.windowManager.shouldQuitOnChatClose = () =>
         shouldQuitOnMainClose(startup.get().closeMain, this.shutdown.isQuitting());
     }
 
-    // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
+    // 启动后默认界面（桌面角色 / 软件主界面）：设置与引导里都能改，默认桌面角色（历史行为）
     const plan = planStartup({
       defaultView: startup?.get().defaultView ?? 'mascot',
       onboardingPending: onboarding?.shouldAutoOpen() ?? false,
     });
     if (plan.openMain && plan.delayMs > 0) {
-      // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）。契约此时已挂上 IPC
+      // 首次引导：等桌面角色窗口先出来，再打开引导（她会在引导中打招呼）。契约此时已挂上 IPC
       openAfterReady(
         Promise.resolve(),
         plan.delayMs,
@@ -366,7 +366,7 @@ export class Application implements IApplication {
     this.windowManager
       .createAiChatWindow({ activate: plan?.activateMain ?? true })
       .catch((error) =>
-        this.logger.warn('启动时打开主界面失败，保留看板娘', { error: errorMessage(error) }),
+        this.logger.warn('启动时打开主界面失败，保留桌面角色', { error: errorMessage(error) }),
       );
   }
 
@@ -515,14 +515,14 @@ export class Application implements IApplication {
   private setupAppEvents(): void {
     // 所有窗口关闭
     app.on('window-all-closed', () => {
-      // 看板娘已关闭（窗口已释放）时关掉主界面只是回到托盘，不算「所有窗口都关了」
+      // 桌面角色已关闭（窗口已释放）时关掉主界面只是回到托盘，不算「所有窗口都关了」
       if (this.windowManager.mascotHidden()) return;
       if (process.platform !== 'darwin') {
         app.quit();
       }
     });
 
-    // 应用激活（macOS 首次启动也会触发：start() 走完之前看板娘窗口由 start() 自己创建，配置那时才加载）
+    // 应用激活（macOS 首次启动也会触发：start() 走完之前桌面角色窗口由 start() 自己创建，配置那时才加载）
     app.on('activate', async () => {
       if (!this.launched) return;
       if (this.windowManager.getMainWindow() === null && !this.windowManager.mascotHidden()) {

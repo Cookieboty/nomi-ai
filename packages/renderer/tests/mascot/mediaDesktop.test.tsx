@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * D1 看板娘窗口一侧：确认气泡、提醒卡片、打开语音设置走契约 `desktop.*` / `nav.*`（原 electronAPI）。
+ * D1 桌面角色窗口一侧：确认气泡、提醒卡片、打开语音设置走契约 `desktop.*` / `nav.*`（原 electronAPI）。
  * 假宿主用 `createTestClient(appContract, …)`（完整线协议、strict 序列化）。
  */
 import type { Handlers } from '@nomi-ai/contract';

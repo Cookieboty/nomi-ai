@@ -2,7 +2,7 @@
  * 主进程的 IPC 面只有契约传输（docs/design/core-host-decoupling.md §8、§11.1、§12 P1b）：
  * - 视图的调用只经 `contract:request`（host/contractIpc.ts，sender 白名单 + surface / dangerous 守卫）；
  * - 推送只经 `contract:frame`（契约事件，由内核的应用事件总线发布）；
- * - 唯一的例外是看板娘 preload 的 `desktop:drop-file`（host/nomiHostIpc.ts）：路径由 preload 从真实 File
+ * - 唯一的例外是桌面角色 preload 的 `desktop:drop-file`（host/nomiHostIpc.ts）：路径由 preload 从真实 File
  *   取得，不能做成视图可以随意传参的契约过程。
  *
  * 静态扫描 src 与内核（apps/desktop-electron/internal/core/src）：宿主目录之外不得注册 ipcMain 通道，任何地方都不得直接 `webContents.send`
@@ -80,7 +80,7 @@ describe('主进程 IPC 面', () => {
     expect(src).toMatch(/mkNomiTransportPreload\(/);
     expect(src).toMatch(/mkNomiHostPreload\(/);
     expect(src).not.toMatch(/exposeInMainWorld|ipcRenderer\s*\.\s*(invoke|send|on)\s*\(/);
-    // dropFile 的提交通道只交给看板娘窗口（窗口类型由主进程经 additionalArguments 给）
+    // dropFile 的提交通道只交给桌面角色窗口（窗口类型由主进程经 additionalArguments 给）
     expect(src).toMatch(/nomiWindowKindFromArgv\(process\.argv\) === 'mascot'/);
     const wm = code(path.join(SRC, 'core/WindowManager.ts'));
     expect(wm).toMatch(/additionalArguments: \[nomiWindowArg\(options\.windowKind\)\]/);

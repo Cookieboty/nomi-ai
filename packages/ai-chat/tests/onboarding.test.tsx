@@ -133,7 +133,7 @@ describe('first-launch onboarding', () => {
   it('walks welcome & preferences → about you → model → privacy (4 steps)', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    // 看板娘打招呼；欢迎页有插画与介绍
+    // 桌面角色打招呼；欢迎页有插画与介绍
     await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', gesture: 'wave' }));
     // 插画是整张卡片的背景（不是横幅 img），人物靠右完整显示
     const bg = screen.getByTestId('onb-art');
@@ -194,7 +194,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 4 隐私：没有模型 →「还差一步」，看板娘也这么说
+    // 4 隐私：没有模型 →「还差一步」，桌面角色也这么说
     await screen.findByTestId('onboarding-step-privacy');
     expect(screen.getByTestId('onb-one-step-left').textContent).toContain('还差一步：接上模型');
     await waitFor(() => expect(mascot().at(-1)?.text).toContain('还差一步'));

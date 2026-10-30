@@ -169,7 +169,7 @@ export const VoiceActivityEvent = z.looseObject({ activity: z.string(), source: 
 
 export const VoiceInjectEvent = z.looseObject({ text: z.string(), autoSend: z.boolean() });
 
-/** 看板娘旧语音设置（config.json 的 voiceSettings：音量、整点报时、音效开关…） */
+/** 桌面角色旧语音设置（config.json 的 voiceSettings：音量、整点报时、音效开关…） */
 export const MascotVoiceSettings = z.looseObject({
   enabled: z.boolean().optional(),
   volume: z.number().optional(),
@@ -247,7 +247,7 @@ export const TtsPreviewInput = z.object({
 
 export const TtsSpeakInput = z.object({ text: z.string(), volume: z.number().optional() });
 
-/** 朗读 AI 回复：say / end / stop（主进程按配置决定是否转发给看板娘） */
+/** 朗读 AI 回复：say / end / stop（主进程按配置决定是否转发给桌面角色） */
 export const TtsReplyInput = z.union([
   z.object({ op: z.literal('say'), id: z.string(), text: z.string() }),
   z.object({ op: z.literal('end'), id: z.string() }),

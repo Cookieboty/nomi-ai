@@ -2,11 +2,11 @@
  * D5 里不碰窗口的处理函数（docs/design/core-host-decoupling.md §7.1、§12「P1b 实施约定」）。
  *
  * 契约声明在 packages/contract/src/app/mascot.ts。这里实现角色包 / 人设、聊天背景、旧的角色模型名与
- * `window.platform`；看板娘窗口互动（`mascot.*` 的光标 / 拖拽 / 大小）、灵动岛（`island.*`）与旧窗口
+ * `window.platform`；桌面角色窗口互动（`mascot.*` 的光标 / 拖拽 / 大小）、灵动岛（`island.*`）与旧窗口
  * 通道（`window.*`）要用宿主的窗口，由宿主的契约片段实现（`MascotHostProcedureName`；Electron：
  * host-electron `host/contract/mascot.ts`）。
  *
- * D5 的事件（看板娘窗口控制器的光标 / 运动 / 物理 / 大小、看板娘指令与窗口鼠标进出）由服务与宿主的窗口
+ * D5 的事件（桌面角色窗口控制器的光标 / 运动 / 物理 / 大小、桌面角色指令与窗口鼠标进出）由服务与宿主的窗口
  * 控制器直接经事件总线发布契约事件（`events.publish('mascot.cursor', …)`）。
  */
 
@@ -34,7 +34,7 @@ type MascotCoreProcedureName =
   | 'mascot.setRenderer'
   | 'window.platform';
 
-/** 宿主实现的 D5 过程：看板娘窗口互动与大小、灵动岛、旧窗口通道 */
+/** 宿主实现的 D5 过程：桌面角色窗口互动与大小、灵动岛、旧窗口通道 */
 export type MascotHostProcedureName = Exclude<MascotProcedureName, MascotCoreProcedureName>;
 
 export type MascotCoreHandlers = DomainHandlers<MascotCoreProcedureName>;
@@ -90,7 +90,7 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'chatBg.pickImage': (_input, ctx) =>
       withChatBgErrors(ctx, () => need(services.chatBg, 'chatBg').pickImage('chat')).then(plain),
 
-    // —— 看板娘渲染器（userData/settings.json 的 mascot.renderer，默认 svg）
+    // —— 桌面角色渲染器（userData/settings.json 的 mascot.renderer，默认 svg）
     'mascot.getRenderer': () => readMascotRenderer(deps.ports.paths.userData()),
     'mascot.setRenderer': ({ renderer }) => {
       const next = writeMascotRenderer(deps.ports.paths.userData(), renderer);

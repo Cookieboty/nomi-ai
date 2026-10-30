@@ -1,5 +1,5 @@
 /**
- * 看板娘渲染器选择（docs/design/migrate-2.0.5-go.md §0、Q5：默认静态 SVG，Rive 由用户在设置里开启）。
+ * 桌面角色渲染器选择（docs/design/migrate-2.0.5-go.md §0、Q5：默认静态 SVG，Rive 由用户在设置里开启）。
  * 设置存在内核的 `mascot.renderer`（Node 与 Go 内核相同），切换时内核广播 `mascot.rendererChanged`。
  *
  * - 有契约传输（Electron / Go 宿主）：按设置；`svg` 时内置角色改用静态立绘（avatar-runtime 的 static 模式），

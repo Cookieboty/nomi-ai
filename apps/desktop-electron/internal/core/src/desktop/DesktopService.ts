@@ -38,7 +38,7 @@ export interface DesktopNotice {
   status?: IslandNotice['status'];
   endpoint?: string;
   bubble?: Omit<DesktopBubble, 'text'>;
-  /** 被动消息（如定时汇总）：看板娘不在且灵动岛显示不了时就不弹系统通知 */
+  /** 被动消息（如定时汇总）：桌面角色不在且灵动岛显示不了时就不弹系统通知 */
   passive?: boolean;
 }
 export type NoticeChannel = 'bubble' | 'island' | 'notification' | 'none';
@@ -56,7 +56,7 @@ export interface DesktopRuntimeHooks {
   lookupProvider?(id: string): { id: string; name: string; baseURL?: string } | null;
 }
 
-/** 看板娘窗口用到的部分（BrowserWindow 结构上满足；确认框要临时显示 / 再藏起，答复要核对发送方） */
+/** 桌面角色窗口用到的部分（BrowserWindow 结构上满足；确认框要临时显示 / 再藏起，答复要核对发送方） */
 export interface DesktopMascotWindow {
   isDestroyed(): boolean;
   isVisible(): boolean;
@@ -72,13 +72,13 @@ export interface DesktopChatWindow {
 export interface DesktopWindows {
   main(): DesktopMascotWindow | null;
   openChat(): Promise<DesktopChatWindow>;
-  /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
+  /** 桌面角色已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
   mascotHidden?(): boolean;
-  /** 看板娘已关闭（窗口已释放）时为确认框临时建出窗口；窗口加载后自己补拉待答复的请求 */
+  /** 桌面角色已关闭（窗口已释放）时为确认框临时建出窗口；窗口加载后自己补拉待答复的请求 */
   summonMascot?(): void;
-  /** 临时召回结束（确认框都答完了）：看板娘仍是关闭状态就再次释放窗口 */
+  /** 临时召回结束（确认框都答完了）：桌面角色仍是关闭状态就再次释放窗口 */
   releaseMascot?(): void;
-  /** 对话窗口开着（可见）：确认请求只发给它，不打扰看板娘 */
+  /** 对话窗口开着（可见）：确认请求只发给它，不打扰桌面角色 */
   chatOpen?(): boolean;
   /** 灵动岛提醒（宿主的灵动岛窗口）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false */
   island?(n: IslandNotice): boolean;
@@ -104,7 +104,7 @@ export interface DesktopServiceOptions {
 
 /**
  * 桌面能力服务（主进程）：组装权限中枢 / 审计 / 撤销 / 回收站 / 解析子进程，
- * 为 AI 工具循环提供 ToolDefinition，并处理设置面板、确认气泡、拖文件到看板娘等 IPC。
+ * 为 AI 工具循环提供 ToolDefinition，并处理设置面板、确认气泡、拖文件到桌面角色等 IPC。
  */
 export class DesktopService {
   readonly broker: PermissionBroker;
@@ -180,7 +180,7 @@ export class DesktopService {
     return this.windows?.mascotHidden?.() ?? false;
   }
 
-  /** 看板娘已关闭时，确认框全部处理完就把临时召回的窗口再释放掉 */
+  /** 桌面角色已关闭时，确认框全部处理完就把临时召回的窗口再释放掉 */
   private rehideMascotIfIdle(): void {
     if (!this.mascotHidden() || this.broker.pendingRequests().length > 0) return;
     this.windows?.releaseMascot?.();
@@ -190,12 +190,12 @@ export class DesktopService {
     this.events.publish(ch, payload);
   }
 
-  /** 只发给看板娘窗口（确认请求 / 气泡 / 提醒）；看板娘窗口不存在时不发 */
+  /** 只发给桌面角色窗口（确认请求 / 气泡 / 提醒）；桌面角色窗口不存在时不发 */
   private toMascot(ch: AppEventName, payload: unknown): void {
     if (this.main()) this.events.publish(ch, payload, { surface: 'mascot' });
   }
 
-  /** 调用方是不是看板娘窗口（确认答复、提醒卡片、拖文件只接受它） */
+  /** 调用方是不是桌面角色窗口（确认答复、提醒卡片、拖文件只接受它） */
   isMascotSender(webContentsId: number | undefined): boolean {
     const w = this.main();
     return !!w && webContentsId !== undefined && w.webContents.id === webContentsId;
@@ -212,8 +212,8 @@ export class DesktopService {
   }
 
   /**
-   * 确认请求发到哪：对话窗口开着 → 只发给对话窗口（授权卡片）；看板娘被关掉了 → 打开对话窗口
-   * （窗口挂载后经 desktop.state 补拉）；否则发给看板娘。请求文件夹只走对话窗口（见 requestFolder）。
+   * 确认请求发到哪：对话窗口开着 → 只发给对话窗口（授权卡片）；桌面角色被关掉了 → 打开对话窗口
+   * （窗口挂载后经 desktop.state 补拉）；否则发给桌面角色。请求文件夹只走对话窗口（见 requestFolder）。
    */
   private sendConfirm(req: ConfirmRequest): void {
     if (this.chatOpen() || req.kind === 'scope') {
@@ -232,7 +232,7 @@ export class DesktopService {
     const w = this.main();
     this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
     if (!w) {
-      // 看板娘已关闭、窗口已释放：临时建出来，页面加载后经 desktop.state 补拉这条请求
+      // 桌面角色已关闭、窗口已释放：临时建出来，页面加载后经 desktop.state 补拉这条请求
       if (this.mascotHidden()) this.windows?.summonMascot?.();
       return;
     }
@@ -248,8 +248,8 @@ export class DesktopService {
 
   /**
    * 统一的提醒出口，一条消息只走一个渠道：
-   * - 看板娘在桌面上 → 只用她的气泡；
-   * - 看板娘已关闭 → 灵动岛；灵动岛关闭 / 不支持 / 不接这一类时退回系统通知（免打扰中不弹）。
+   * - 桌面角色在桌面上 → 只用她的气泡；
+   * - 桌面角色已关闭 → 灵动岛；灵动岛关闭 / 不支持 / 不接这一类时退回系统通知（免打扰中不弹）。
    * 点系统通知打开对话窗口。返回实际用到的渠道。
    */
   notify(n: DesktopNotice): NoticeChannel {
@@ -285,7 +285,7 @@ export class DesktopService {
     }
   }
 
-  /** 到点：看板娘在 → 挥手 + 提醒卡片；看板娘已关闭 → 灵动岛或系统通知 */
+  /** 到点：桌面角色在 → 挥手 + 提醒卡片；桌面角色已关闭 → 灵动岛或系统通知 */
   private fireReminder(r: Reminder): void {
     const pol = this.notifyPolicy;
     if (pol?.quiet()) {
@@ -307,7 +307,7 @@ export class DesktopService {
     this.deliverReminders([r]);
   }
 
-  /** 免打扰结束：一次性补报（看板娘在时多条逐张出卡片并先说一句；不在时合成一条通知） */
+  /** 免打扰结束：一次性补报（桌面角色在时多条逐张出卡片并先说一句；不在时合成一条通知） */
   flushDeferred(): void {
     if (this.deferTimer) clearTimeout(this.deferTimer);
     this.deferTimer = null;
@@ -330,7 +330,7 @@ export class DesktopService {
       hasWindow: !!w,
       mascotHidden: this.mascotHidden(),
     });
-    // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片）
+    // 桌面角色已关闭 / 没有窗口：提醒卡片不发给隐藏的桌面角色（否则看不见，下次打开她时还会冒出过期卡片）
     if (!w || this.mascotHidden()) {
       this.deliverReminderElsewhere(items);
       return;
@@ -354,7 +354,7 @@ export class DesktopService {
     avatarEmotion(this.events, 'happy');
   }
 
-  /** 看板娘不在时的提醒：多条合成一条，走灵动岛或系统通知；都显示不了时只记 via=none 的审计 */
+  /** 桌面角色不在时的提醒：多条合成一条，走灵动岛或系统通知；都显示不了时只记 via=none 的审计 */
   private deliverReminderElsewhere(items: Reminder[]): void {
     if (!items.length) return;
     const title = tr('electron.common.reminder');
@@ -364,7 +364,7 @@ export class DesktopService {
         : tr('electron.common.reminders', items.length, items.map((r) => r.text).join('；'));
     const via = this.notify({ kind: 'reminder', status: 'attention', title, text: body });
     if (via === 'none')
-      this.logger.info('提醒没有可用的展示方式（看板娘已隐藏、灵动岛与系统通知都不可用）', {
+      this.logger.info('提醒没有可用的展示方式（桌面角色已隐藏、灵动岛与系统通知都不可用）', {
         count: items.length,
       });
     for (const r of items) {
@@ -380,21 +380,21 @@ export class DesktopService {
 
   private missedQueue: Reminder[] = [];
 
-  /** 开始调度；关闭期间错过的提醒由看板娘窗口挂载后拉取并播报一次 */
+  /** 开始调度；关闭期间错过的提醒由桌面角色窗口挂载后拉取并播报一次 */
   startReminders(): void {
     if (this.remindersStarted) return;
     this.remindersStarted = true;
     this.missedQueue = this.reminders.start();
   }
 
-  /** 看板娘窗口拉取错过的提醒（拉取即视为已播报） */
+  /** 桌面角色窗口拉取错过的提醒（拉取即视为已播报） */
   takeMissed(): Array<{ id: string; text: string; dueAt: number }> {
     this.startReminders(); // 窗口可能比 startReminders 先就绪
     const items = this.missedQueue;
     this.missedQueue = [];
     if (items.length) {
       this.reminders.markAnnounced(items.map((r) => r.id));
-      // 看板娘已关闭：错过的提醒同样改走灵动岛 / 系统通知，不在隐藏的窗口里攒卡片
+      // 桌面角色已关闭：错过的提醒同样改走灵动岛 / 系统通知，不在隐藏的窗口里攒卡片
       if (this.mascotHidden()) {
         this.deliverReminderElsewhere(items);
         return [];
@@ -545,7 +545,7 @@ export class DesktopService {
     };
   }
 
-  /** 把文件拖到看板娘身上：临时授权该文件（只读、仅本次运行）→ 总结 → 气泡 + 对话窗口 */
+  /** 把文件拖到桌面角色身上：临时授权该文件（只读、仅本次运行）→ 总结 → 气泡 + 对话窗口 */
   async summarizeDropped(raw: string): Promise<{ ok: boolean; code?: string }> {
     const t0 = Date.now();
     const say = (text: string) => this.toMascot('desktop.bubble', { text });
@@ -641,7 +641,7 @@ export class DesktopService {
     return { ok: true };
   }
 
-  // ---- 设置面板 / 看板娘窗口的操作（契约 host/contract/media.ts）----
+  // ---- 设置面板 / 桌面角色窗口的操作（契约 host/contract/media.ts）----
 
   /** 弹出系统选择框授权文件夹；用户取消返回 null */
   async grantFolder(mode: unknown): Promise<Scope | null> {
@@ -800,9 +800,9 @@ export class DesktopService {
     }
   }
 
-  // ---- 只接受看板娘窗口的操作：senderId 是调用方 webContents 的 id ----
+  // ---- 只接受桌面角色窗口的操作：senderId 是调用方 webContents 的 id ----
 
-  /** 拉取错过的提醒；不是看板娘窗口时返回空 */
+  /** 拉取错过的提醒；不是桌面角色窗口时返回空 */
   takeMissedFor(senderId: number | undefined): Array<{ id: string; text: string; dueAt: number }> {
     return this.isMascotSender(senderId) ? this.takeMissed() : [];
   }
@@ -827,8 +827,8 @@ export class DesktopService {
     }
   }
 
-  /** 确认答复：只接受看板娘窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
-  /** 确认答复：对话窗口（契约按界面放行）或看板娘窗口（再核对调用方就是看板娘） */
+  /** 确认答复：只接受桌面角色窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
+  /** 确认答复：对话窗口（契约按界面放行）或桌面角色窗口（再核对调用方就是桌面角色） */
   answerConfirm(
     senderId: number | undefined,
     id: unknown,
@@ -850,7 +850,7 @@ export class DesktopService {
   }
 
   /**
-   * 拖到看板娘身上的文件。路径由看板娘窗口的 preload 从真实 File 取得并经专用通道提交
+   * 拖到桌面角色身上的文件。路径由桌面角色窗口的 preload 从真实 File 取得并经专用通道提交
    * （nomiHost.dropFile → host/nomiHostIpc.ts）；视图代码选不了路径，所以这里不是契约过程。
    */
   dropFile(senderId: number | undefined, p: unknown): void {

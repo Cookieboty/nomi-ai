@@ -16,7 +16,7 @@ import { revealToolbar } from './toolbarReveal';
 
 /**
  * E11 · 真实应用 · 气泡安全 + 工具栏
- * 1. 看板娘窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
+ * 1. 桌面角色窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
  * 2. AI 回复 / mascot:say 里的 HTML / 脚本在气泡里按字面显示，不执行、不生成元素；
  * 3. 工具栏：在角色旁的槽位、不与角色包围盒重叠、命中测试算它、更多菜单 / 收起 / 配色、
  *    窗口贴右侧屏幕边缘时翻到左侧、空闲自动隐藏。
@@ -216,7 +216,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     );
     await expect(bubble).not.toContainText('XSSMARK', { timeout: 10_000 });
 
-    // ---- 2c. 模型输出 → 气泡的真实路由：把文件拖到看板娘身上，摘要（mock 返回 HTML）显示在气泡 ----
+    // ---- 2c. 模型输出 → 气泡的真实路由：把文件拖到桌面角色身上，摘要（mock 返回 HTML）显示在气泡 ----
     await main.evaluate(() => {
       const input = document.createElement('input');
       input.type = 'file';

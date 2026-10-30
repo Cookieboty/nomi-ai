@@ -1,6 +1,6 @@
 # @nomi-ai/ui
 
-**中文：** Nomi 共享 UI：设计 token（CSS 变量）+ 轻量 React 组件。renderer（看板娘窗口）与 ai-chat（对话窗口）共用。
+**中文：** Nomi 共享 UI：设计 token（CSS 变量）+ 轻量 React 组件。renderer（诺米窗口）与 ai-chat（对话窗口）共用。
 
 **English:** Shared UI for Nomi: design tokens (CSS variables) + lightweight React components. Used by both the renderer (mascot window) and ai-chat (chat window).
 

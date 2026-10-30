@@ -2,7 +2,7 @@
  * 把两个视图的构建产物复制进 host-electron 的 dist，供未打包的生产模式加载（`electron .`、e2e-headed、
  * 测量脚本）：
  *
- *   packages/renderer/dist → dist/renderer（看板娘窗口；dist/renderer/character 是构建时选定的内置角色包）
+ *   packages/renderer/dist → dist/renderer（桌面角色窗口；dist/renderer/character 是构建时选定的内置角色包）
  *   packages/ai-chat/dist  → dist/ai-chat（对话窗口，WindowManager 在未打包时从这里加载）
  *
  * `build` 的最后一步就是它（turbo 的 `@nomi-ai/host-electron#build` 依赖两个视图的 build），所以

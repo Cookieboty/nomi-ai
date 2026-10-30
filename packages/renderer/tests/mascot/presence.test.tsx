@@ -14,7 +14,7 @@ import {
 } from '../../src/mascot/presence';
 import * as apiModule from '../../src/services/api';
 
-// 契约替身（D2 `startup.*`）：看板娘窗口的调用者身份，startup 的读写由每个用例给
+// 契约替身（D2 `startup.*`）：桌面角色窗口的调用者身份，startup 的读写由每个用例给
 const h = vi.hoisted(() => ({
   get: (): unknown => ({ defaultView: 'mascot', closeMain: 'hide', showMascot: true }),
   set: (_patch: unknown): unknown => ({
@@ -59,7 +59,7 @@ describe('mascot presence (#55)', () => {
     render(<Probe />);
     expect(screen.getByTestId('shown').textContent).toBe('true');
     await act(tick);
-    // 默认界面为看板娘时关闭：主进程把默认界面改为 main 并广播
+    // 默认界面为桌面角色时关闭：主进程把默认界面改为 main 并广播
     await act(async () => {
       router.events.publish('startup.changed', {
         defaultView: 'main',

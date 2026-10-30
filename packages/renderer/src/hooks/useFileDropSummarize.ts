@@ -7,7 +7,7 @@ import { hasTransport, hostDropFile, isGoHost } from '@/services/api';
 const log = createLogger('FileDrop');
 
 /**
- * 把文件拖到看板娘身上 → 主进程临时授权该文件（只读、仅本次运行）并总结，结果显示在气泡与对话窗口。
+ * 把文件拖到桌面角色身上 → 主进程临时授权该文件（只读、仅本次运行）并总结，结果显示在气泡与对话窗口。
  * 拖到弹窗（如「导入 VRM」）里的不处理。路径的解析与提交都在 preload 里（`hostDropFile` →
  * `window.nomiHost.dropFile`），视图只交出 File，选不了路径。
  */

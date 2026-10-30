@@ -1,5 +1,5 @@
 /**
- * D5 · 看板娘窗口 / 角色 / 灵动岛 / 聊天背景 / 文件 / 窗口（docs/design/core-host-decoupling.md §12 P1b）。
+ * D5 · 桌面角色窗口 / 角色 / 灵动岛 / 聊天背景 / 文件 / 窗口（docs/design/core-host-decoupling.md §12 P1b）。
  *
  * 本文件只属于 D5：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：mascot、character、persona、island、chatBg、files、window、avatar（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -32,7 +32,7 @@ import { AvatarCue, AvatarSemanticName } from './schemas';
 // ---------------------------------------------------------------------------
 
 /** Linux 点击穿透的窗口形状矩形（窗口像素）—— types `ShapeRect` */
-/** 看板娘渲染器：静态 SVG（默认）或 Rive 动画 */
+/** 桌面角色渲染器：静态 SVG（默认）或 Rive 动画 */
 export const MascotRenderer = z.enum(['svg', 'rive']);
 
 export const MascotShapeRect = z.object({
@@ -62,7 +62,7 @@ export const MascotInteractionConfig = z.looseObject({
   bubbleReplies: z.boolean().optional(),
 });
 
-/** 看板娘大小 —— types `MascotScaleState` */
+/** 桌面角色大小 —— types `MascotScaleState` */
 export const MascotScaleState = z.looseObject({
   scale: z.number(),
   min: z.number(),
@@ -97,7 +97,7 @@ export const MascotPhysicsEvent = z.discriminatedUnion('type', [
 ]);
 
 /**
- * 主进程 → 看板娘指令（core `ai/mascotCommand.ts` 的 `MascotCommand`）：打开面板、说一句（可带语义手势）、
+ * 主进程 → 桌面角色指令（core `ai/mascotCommand.ts` 的 `MascotCommand`）：打开面板、说一句（可带语义手势）、
  * 朗读回复。角色的情绪 / 手势 / 活动不走这里，走语义事件 `avatar.event`（§10.5）。
  */
 export const MascotCommand = z.discriminatedUnion('type', [
@@ -257,11 +257,11 @@ export const WindowOpenResult = z.looseObject({
 
 const MASCOT = ['mascot'] as const;
 const CHAT = ['chat'] as const;
-/** 看板娘大小：看板娘窗口自己（滚轮 / 菜单 / 快捷键）与对话窗口的设置页滑块 */
+/** 桌面角色大小：桌面角色窗口自己（滚轮 / 菜单 / 快捷键）与对话窗口的设置页滑块 */
 const MASCOT_OR_CHAT = ['mascot', 'chat'] as const;
 
 export const mascotProcedures = {
-  // —— 看板娘窗口互动（MascotWindowController；原 ipcRenderer.send，只接受看板娘窗口）
+  // —— 桌面角色窗口互动（MascotWindowController；原 ipcRenderer.send，只接受桌面角色窗口）
   'mascot.setShape': {
     kind: 'mutation',
     input: z.object({ rects: z.array(MascotShapeRect) }),
@@ -326,7 +326,7 @@ export const mascotProcedures = {
     description: 'mascot:debug-snapshot — 只读快照（e2e / 调试）',
   },
 
-  // —— 看板娘大小（两个窗口都可调用）
+  // —— 桌面角色大小（两个窗口都可调用）
   'mascot.scaleGet': {
     kind: 'query',
     input: z.void(),
@@ -363,7 +363,7 @@ export const mascotProcedures = {
     description: 'mascot:scale-reset',
   },
 
-  // —— 旧的角色模型名（ConfigIpcHandler：save-model / get-saved-model；只在看板娘 preload）
+  // —— 旧的角色模型名（ConfigIpcHandler：save-model / get-saved-model；只在桌面角色 preload）
   'mascot.saveModel': {
     kind: 'mutation',
     input: z.object({ modelName: z.string() }),
@@ -453,7 +453,7 @@ export const mascotProcedures = {
     description: 'chat-bg:pick-image — 选图并导入；取消时返回当前状态',
   },
 
-  // —— 旧窗口通道（WindowIpcHandler；只在看板娘 preload）
+  // —— 旧窗口通道（WindowIpcHandler；只在桌面角色 preload）
   'window.quit': {
     kind: 'mutation',
     input: z.void(),
@@ -466,21 +466,21 @@ export const mascotProcedures = {
     input: z.object({ flag: z.boolean() }),
     output: z.void(),
     surfaces: MASCOT,
-    description: 'set-always-on-top（看板娘窗口）',
+    description: 'set-always-on-top（桌面角色窗口）',
   },
   'window.move': {
     kind: 'mutation',
     input: z.object({ deltaX: z.number(), deltaY: z.number() }),
     output: z.void(),
     surfaces: MASCOT,
-    description: 'move-window — 看板娘窗口按增量移动',
+    description: 'move-window — 桌面角色窗口按增量移动',
   },
   'window.getPosition': {
     kind: 'query',
     input: z.void(),
     output: z.tuple([z.number(), z.number()]),
     surfaces: MASCOT,
-    description: 'get-position — 看板娘窗口左上角',
+    description: 'get-position — 桌面角色窗口左上角',
   },
   'window.setPosition': {
     kind: 'mutation',
@@ -510,7 +510,7 @@ export const mascotProcedures = {
     surfaces: MASCOT,
     description: 'open-task-board — 打开对话窗口的日程页',
   },
-  // —— 看板娘渲染器（2.0.5 计划 §5：默认静态 SVG，Rive 可选；存 settings.json 的 mascot.renderer）
+  // —— 桌面角色渲染器（2.0.5 计划 §5：默认静态 SVG，Rive 可选；存 settings.json 的 mascot.renderer）
   'mascot.getRenderer': {
     kind: 'query',
     input: z.void(),
@@ -521,7 +521,7 @@ export const mascotProcedures = {
     kind: 'mutation',
     input: z.object({ renderer: MascotRenderer }),
     output: MascotRenderer,
-    description: '写 mascot.renderer 并广播 mascot.rendererChanged（看板娘窗口实时切换）',
+    description: '写 mascot.renderer 并广播 mascot.rendererChanged（桌面角色窗口实时切换）',
   },
   'window.platform': {
     kind: 'query',
@@ -532,9 +532,9 @@ export const mascotProcedures = {
 } as const satisfies ProcedureMap;
 
 export const mascotEvents = {
-  /** mascot:scale-changed（看板娘窗口与对话窗口） */
+  /** mascot:scale-changed（桌面角色窗口与对话窗口） */
   'mascot.scaleChanged': MascotScaleState,
-  /** mascot.renderer 改变（看板娘窗口卸载当前渲染器并挂载另一种） */
+  /** mascot.renderer 改变（桌面角色窗口卸载当前渲染器并挂载另一种） */
   'mascot.rendererChanged': MascotRenderer,
   /** mascot:cursor（~30Hz，只在光标移动时） */
   'mascot.cursor': MascotCursorEvent,
@@ -542,7 +542,7 @@ export const mascotEvents = {
   'mascot.body': MascotBodyEvent,
   /** mascot:physics-event */
   'mascot.physicsEvent': MascotPhysicsEvent,
-  /** mascot:command（托盘 / 服务 → 看板娘：打开面板、说一句、朗读） */
+  /** mascot:command（托盘 / 服务 → 桌面角色：打开面板、说一句、朗读） */
   'mascot.command': MascotCommand,
   /** avatar:event（AI 工具 / 托盘 / 内核服务 → 角色：语义情绪、手势、活动，§10.5） */
   'avatar.event': AvatarCue,
@@ -550,13 +550,13 @@ export const mascotEvents = {
   'persona.changed': Persona,
   /** chat-bg:changed */
   'chatBg.changed': ChatBackgroundState,
-  /** window-mouse-enter（看板娘窗口） */
+  /** window-mouse-enter（桌面角色窗口） */
   'window.mouseEnter': z.null(),
-  /** window-mouse-leave（看板娘窗口） */
+  /** window-mouse-leave（桌面角色窗口） */
   'window.mouseLeave': z.null(),
 } as const satisfies EventMap;
 
-/** 事件的订阅白名单（§8）：光标 / 物理 / 鼠标进出只给看板娘窗口 */
+/** 事件的订阅白名单（§8）：光标 / 物理 / 鼠标进出只给桌面角色窗口 */
 export const mascotEventSurfaces = {
   'mascot.cursor': ['mascot'],
   'mascot.body': ['mascot'],

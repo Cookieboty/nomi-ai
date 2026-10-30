@@ -1,5 +1,5 @@
 /**
- * 看板娘渲染器设置（2.0.5 计划 §5）：userData/settings.json 的 `mascot.renderer`，`'svg' | 'rive'`，
+ * 桌面角色渲染器设置（2.0.5 计划 §5）：userData/settings.json 的 `mascot.renderer`，`'svg' | 'rive'`，
  * 缺省 / 非法值一律 `'svg'`（老用户升级后同样是 svg）。Go 版 core/settings 读写同一文件、同一形状。
  */
 import fs from 'node:fs';

@@ -40,7 +40,7 @@ const ev = (senderUrl?: string, senderFrameUrl?: string): IpcInvokeEvent => ({
 });
 
 describe('resolveAiCaller', () => {
-  it('受信页面：对话窗口为 chat，看板娘窗口为 mascot，trusted', () => {
+  it('受信页面：对话窗口为 chat，桌面角色窗口为 mascot，trusted', () => {
     expect(resolveAiCaller(ev(CHAT))).toEqual({ surface: 'chat', trusted: true });
     expect(resolveAiCaller(ev(MASCOT))).toEqual({ surface: 'mascot', trusted: true });
     expect(resolveAiCaller(ev(CHAT, CHAT))).toEqual({ surface: 'chat', trusted: true });

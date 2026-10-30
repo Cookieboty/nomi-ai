@@ -39,7 +39,7 @@
   "ui.providers-schedule.enabled": "{0} 个启用",
   "ui.providers-schedule.external-cli": "外部 CLI",
   "ui.providers-schedule.frequency": "频率",
-  "ui.providers-schedule.generated-with-the-current-chat-model-when-due": "到点后用当前对话模型生成，结果写进对话窗口，并用看板娘的气泡提醒你（看板娘不在桌面时用灵动岛或系统通知）。Ctrl/⌘ + Enter 保存",
+  "ui.providers-schedule.generated-with-the-current-chat-model-when-due": "到点后用当前对话模型生成，结果写进对话窗口，并用桌面角色的气泡提醒你（桌面角色不在桌面时用灵动岛或系统通知）。Ctrl/⌘ + Enter 保存",
   "ui.providers-schedule.handshake-succeeded-resume-images": "握手成功：{0}{1}。支持续接：{2}；支持图片：{3}。",
   "ui.providers-schedule.have-nomi-give-you-a-briefing-every-morning": "让 Nomi 每天早上给你一份简报，或者每周五提醒你写周报。",
   "ui.providers-schedule.image": "图片",

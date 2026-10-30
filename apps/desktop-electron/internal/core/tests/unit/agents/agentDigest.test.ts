@@ -102,7 +102,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
     expect(DIGEST_INTERVAL_MS).toBe(10 * MIN);
   });
 
-  it('任务开始 / 运行中：看板娘与灵动岛都不主动提示', () => {
+  it('任务开始 / 运行中：桌面角色与灵动岛都不主动提示', () => {
     const svc = make();
     tabs = [tab({ id: 'a' })];
     svc.start();

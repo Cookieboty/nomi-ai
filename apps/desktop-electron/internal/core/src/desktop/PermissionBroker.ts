@@ -241,7 +241,7 @@ export class PermissionBroker {
 
   /**
    * 对话有工作区时的路径守卫：工作区里的按 guardIn；工作区外的只有落在用户单独授权过的文件夹 / 文件
-   * （持久作用域与本次运行的会话作用域，如拖到看板娘身上的文件）里才放行，并且走原来的授权与确认流程
+   * （持久作用域与本次运行的会话作用域，如拖到桌面角色身上的文件）里才放行，并且走原来的授权与确认流程
    * （inWorkspace = false，调用方不能按「全部自动」放行）。其它工作区外的路径照旧拒绝；黑名单在两边都生效。
    */
   async guardWorkspaceOrGranted(
@@ -441,7 +441,7 @@ export class PermissionBroker {
   }
 
   /**
-   * 用户答复（只接受看板娘窗口与对话窗口，见 DesktopService）。
+   * 用户答复（只接受桌面角色窗口与对话窗口，见 DesktopService）。
    * pick 只对请求文件夹有效：用户要自己另选一个文件夹。
    */
   answer(id: string, allow: boolean, remember = false, pick = false): boolean {

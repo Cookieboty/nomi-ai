@@ -1,7 +1,7 @@
 /**
  * 设置 → 通用：「启动与窗口」（语言 + 启动后默认显示 + 关闭主界面时）与「桌面<角色名>」（显示开关 + 大小）两组。
  * 指桌面角色的地方用当前角色名（services/characterName），不写死官方角色名（§10.1）。
- * 默认界面与看板娘开关互相联动，所以两组由同一个组件持有状态；语言行和大小滑块由调用方以插槽传入。
+ * 默认界面与桌面角色开关互相联动，所以两组由同一个组件持有状态；语言行和大小滑块由调用方以插槽传入。
  * 主进程 startup/StartupService（ai:startup:*）持久化，下次启动生效；首次引导里有同一个选项。
  */
 import {
@@ -63,7 +63,7 @@ const CLOSE_OPTIONS: { id: CloseMainAction; label: () => string; hint: () => str
 export const StartupSettings: React.FC<{
   /** 放在「启动与窗口」最上面的行（语言） */
   language?: React.ReactNode;
-  /** 「桌面<角色名>」组里开关下面的行（大小）；参数为看板娘当前是否显示 */
+  /** 「桌面<角色名>」组里开关下面的行（大小）；参数为桌面角色当前是否显示 */
   mascotSize?: (shown: boolean) => React.ReactNode;
 }> = ({ language, mascotSize }) => {
   // 中文句子之间不加空格，英文要
@@ -72,7 +72,7 @@ export const StartupSettings: React.FC<{
   const [view, setView] = useState<StartupView | null>(null);
   const [closeMain, setCloseMain] = useState<CloseMainAction | null>(null);
   const [showMascot, setShowMascot] = useState<boolean | null>(null);
-  /** 关掉看板娘时默认界面被自动改为主界面：给一条提示 */
+  /** 关掉桌面角色时默认界面被自动改为主界面：给一条提示 */
   const [switchedNotice, setSwitchedNotice] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -81,7 +81,7 @@ export const StartupSettings: React.FC<{
       void startupClient.get().then((v) => alive && setView(v));
       void startupClient.getCloseMain().then((v) => alive && setCloseMain(v));
       void startupClient.getShowMascot().then((v) => alive && setShowMascot(v));
-      // 看板娘工具栏里「关闭看板娘」后，这里同步成关闭
+      // 桌面角色工具栏里「关闭桌面角色」后，这里同步成关闭
       off = startupClient.onShowMascotChange((v, dv) => {
         if (!alive) return;
         setShowMascot(v);
@@ -116,7 +116,7 @@ export const StartupSettings: React.FC<{
       }
       setShowMascot(saved.showMascot);
       setView(saved.defaultView);
-      // 默认界面原来是看板娘：主进程已改为主界面，告诉用户
+      // 默认界面原来是桌面角色：主进程已改为主界面，告诉用户
       if (!saved.showMascot && prevView === 'mascot' && saved.defaultView === 'main')
         setSwitchedNotice(true);
     });
@@ -133,7 +133,7 @@ export const StartupSettings: React.FC<{
     if (next === view) return;
     const prev = view;
     setView(next);
-    // 切回看板娘：主进程会自动重新打开她（她是进入主界面的入口）
+    // 切回桌面角色：主进程会自动重新打开她（她是进入主界面的入口）
     if (next === 'mascot') setShowMascot(true);
     setSwitchedNotice(false);
     // 保存失败：回滚到主进程里实际生效的值

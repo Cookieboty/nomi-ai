@@ -775,7 +775,7 @@ export class KnowledgeService {
         'user_denied',
         tr('electron.common.ok-knowledge-base-content-won-t-be-sent'),
       );
-    // 看板娘：翻资料时「思考」，找到答案后点头
+    // 桌面角色：翻资料时「思考」，找到答案后点头
     avatarGesture(this.d.events, 'think');
     const answer = (await this.d.complete(buildAskMessages(question, hits, history))).trim();
     const sources = toSources(hits, answer);

@@ -8,7 +8,7 @@ package wailsshell
 #import <Cocoa/Cocoa.h>
 
 // = Electron ScreenMac::GetCursorScreenPoint：以主屏左上为原点、y 向下。
-// 在 Go 线程上每秒调用几十次（mousetrack、看板娘 tick）：这些线程没有自动释放池，自动释放的对象要靠这里的池回收
+// 在 Go 线程上每秒调用几十次（mousetrack、桌面角色 tick）：这些线程没有自动释放池，自动释放的对象要靠这里的池回收
 static void nomi_cursor(int *x, int *y) {
 	@autoreleasepool {
 		NSPoint p = [NSEvent mouseLocation];

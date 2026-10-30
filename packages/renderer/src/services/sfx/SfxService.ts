@@ -1,5 +1,5 @@
 /**
- * 看板娘动作音效：WebAudio 程序合成，设置开关 + 音量。
+ * 桌面角色动作音效：WebAudio 程序合成，设置开关 + 音量。
  * 静音 / 关闭时不发声；默认开启。
  */
 import { createLogger } from '@nomi-ai/ui';

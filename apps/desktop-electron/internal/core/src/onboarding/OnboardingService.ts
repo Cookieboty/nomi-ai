@@ -1,7 +1,7 @@
 /**
  * 首次启动引导：语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 职业与兴趣 → 供应商 → 隐私说明。
  * 每一步都可跳过；完成 / 跳过后不再自动弹出，可在「设置 → 通用」重新打开。
- * 引导界面在对话窗口里，主进程负责：是否已完成、首次启动时打开窗口、转发看板娘指令（打招呼 / 换角色 / 试听声音），
+ * 引导界面在对话窗口里，主进程负责：是否已完成、首次启动时打开窗口、转发桌面角色指令（打招呼 / 换角色 / 试听声音），
  * 以及保存「职业与兴趣」（渲染进程据此推荐任务；重新引导、完成都保留）。
  */
 import fs from 'node:fs';
@@ -20,7 +20,7 @@ export interface OnboardingState {
   profile?: UserProfile;
 }
 
-/** 引导里允许转发给看板娘的指令（不开放任意指令） */
+/** 引导里允许转发给桌面角色的指令（不开放任意指令） */
 
 export interface OnboardingDeps {
   userData: string;
@@ -28,7 +28,7 @@ export interface OnboardingDeps {
   openChat: () => void | Promise<void>;
   events: AppEvents;
   /**
-   * 宿主当前存活的窗口数（Electron：没销毁的 BrowserWindow）；看板娘指令只在有窗口时算送达。
+   * 宿主当前存活的窗口数（Electron：没销毁的 BrowserWindow）；桌面角色指令只在有窗口时算送达。
    * 缺省（无界面宿主、单测）按 0 算。
    */
   liveWindows?: () => number;
@@ -112,8 +112,8 @@ export class OnboardingService {
   }
 
   /**
-   * 对话窗口 → 看板娘：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
-   * 资源名与其它指令一律拒绝。返回是否有看板娘窗口收到。
+   * 对话窗口 → 桌面角色：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
+   * 资源名与其它指令一律拒绝。返回是否有桌面角色窗口收到。
    */
   mascot(cmd: unknown): boolean {
     if (!cmd || typeof cmd !== 'object') return false;
@@ -148,7 +148,7 @@ export class OnboardingService {
     }
   }
 
-  /** 看板娘指令只在宿主有存活窗口时算送达 */
+  /** 桌面角色指令只在宿主有存活窗口时算送达 */
   private delivered(): boolean {
     return (this.deps.liveWindows?.() ?? 0) > 0;
   }

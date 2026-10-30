@@ -7,7 +7,7 @@ import { nextOccurrence, sanitizeRepeat, type Repeat } from '../../schedule/recu
 
 /**
  * 提醒：持久化在 <root>/reminders.json；调度器在主进程里跑（应用运行时到点触发）。
- * 应用关闭期间到期的提醒，下次启动时标记为 missed 并由看板娘一次性播报。
+ * 应用关闭期间到期的提醒，下次启动时标记为 missed 并由桌面角色一次性播报。
  */
 export type ReminderStatus = 'pending' | 'fired' | 'missed' | 'cancelled' | 'done';
 

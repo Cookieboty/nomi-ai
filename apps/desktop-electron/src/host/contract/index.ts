@@ -4,7 +4,7 @@
  * router 由内核组装（`@nomi-ai/core/createCore` → `contract/router.ts` 的 `createAppRouter`：AI 门面 + 内核
  * 的域处理函数 + 宿主片段，事件总线也在内核）。宿主只提供**片段**：要用窗口的过程。
  *
- * - `createHostHandlers`：看板娘窗口互动与大小、灵动岛、旧窗口通道（`./mascot.ts`）与应用图标
+ * - `createHostHandlers`：桌面角色窗口互动与大小、灵动岛、旧窗口通道（`./mascot.ts`）与应用图标
  *   （`appIcon.*`，窗口 / 任务栏 / Dock / 托盘图标）。组合根把它作为 `contract.hostHandlers` 传给
  *   `createCore`；片段只能补内核没有实现的过程，重名时 `createAppRouter` 报错；
  * - `electronCallerWindows`：按调用方的 webContents id 找回窗口，语音会话随窗口销毁释放；
@@ -31,7 +31,7 @@ export function createHostHandlers(deps: HostContractDeps): Partial<AppHandlers>
   };
 }
 
-/** 调用方窗口（看板娘 / 对话窗口）按 webContents id 找回；辅助窗口与测试调用方找不到 */
+/** 调用方窗口（桌面角色 / 对话窗口）按 webContents id 找回；辅助窗口与测试调用方找不到 */
 export function electronCallerWindows(
   windowManager: () => Pick<WindowManager, 'getMainWindow' | 'getAiChatWindow'> | undefined,
 ): CallerWindows {

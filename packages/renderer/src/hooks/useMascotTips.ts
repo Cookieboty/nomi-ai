@@ -12,7 +12,7 @@ const IDLE_AFTER_MS = 45_000;
 export const GREETING_PRIORITY = 8;
 export const GREETING_DELAY_MS = 1200;
 
-/** 注册看板娘的提示文案：问候、悬停提示、空闲提醒、复制/回到前台。 */
+/** 注册桌面角色的提示文案：问候、悬停提示、空闲提醒、复制/回到前台。 */
 export function useMascotTips(): void {
   const { showMessage } = useCompanionMessage();
   const showRef = useRef(showMessage);

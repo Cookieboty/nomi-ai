@@ -8,7 +8,7 @@ import type { AppEvents } from '../core/appEvents';
 import type { ReplySpeechCommand } from '../tts/replySpeech';
 
 /**
- * 内核 → 看板娘窗口的指令（契约事件 `mascot.command`）：
+ * 内核 → 桌面角色窗口的指令（契约事件 `mascot.command`）：
  * 打开面板、说一句（可带语义手势）、朗读回复。角色的情绪 / 手势 / 活动不是指令，走下面的语义事件。
  */
 export type MascotCommand =
@@ -25,7 +25,7 @@ export type AvatarCue =
   | { type: 'emotion'; name: SemanticEmotion; weight?: number }
   | { type: 'gesture'; name: SemanticGesture }
   | { type: 'activity'; name: SemanticActivity }
-  /** 对话窗口正在等回复 / 等待结束（看板娘保持 / 放下思考的神态） */
+  /** 对话窗口正在等回复 / 等待结束（桌面角色保持 / 放下思考的神态） */
   | { type: 'reply'; phase: 'waiting' | 'settled' };
 
 /** 服务手里的事件总线（只用发布）；没有时（启动早期、单测）指令直接丢弃 */

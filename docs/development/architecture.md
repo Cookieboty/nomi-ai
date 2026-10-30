@@ -6,13 +6,13 @@ Nomi 是一个 pnpm + Turborepo monorepo，桌面端基于 Electron，界面为 
 
 ```
 Electron 主进程（apps/desktop-electron）
- ├─ 看板娘窗口（packages/renderer）    透明置顶，Nomi 与工具栏
+ ├─ 诺米窗口（packages/renderer）    透明置顶，Nomi 与工具栏
  ├─ 对话窗口（packages/ai-chat）      对话、设置、各功能面板
  └─ 辅助窗口                          截图遮罩、灵动岛、受控浏览器、TTS 配置
 ```
 
 - 入口 `apps/desktop-electron/src/main.ts` → `host/Application.ts`（宿主组合根：端口、窗口、托盘、协议、IPC 传输），它调用内核的组合根 `createCore`（`apps/desktop-electron/internal/core/src/createCore.ts`：服务、AI runtime、应用契约的 router 与事件桥）；窗口由 `WindowManager` 管理。业务模块在 `apps/desktop-electron/internal/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §7），平台能力经 `@nomi-ai/host-ports` 的端口由宿主注入；`apps/desktop-electron` 只留窗口、托盘、协议、preload、端口的 Electron 实现与契约传输。
-- 所有窗口开启上下文隔离与沙箱；preload 只暴露两个对象：`window.nomiTransport`（应用契约 `@nomi-ai/contract/app` 的传输，只有 `contract:request` / `contract:frame` 两个通道，视图对主进程的全部调用与推送都走它）与 `window.nomiHost`（拖入 / 粘贴文件的本机路径；看板娘窗口的拖入总结由 preload 解析路径并经专用通道 `desktop:drop-file` 提交，视图选不了路径）。视图只在各自的 `services/api.ts` 里读它们（eslint 拦下其余位置）。
+- 所有窗口开启上下文隔离与沙箱；preload 只暴露两个对象：`window.nomiTransport`（应用契约 `@nomi-ai/contract/app` 的传输，只有 `contract:request` / `contract:frame` 两个通道，视图对主进程的全部调用与推送都走它）与 `window.nomiHost`（拖入 / 粘贴文件的本机路径；诺米窗口的拖入总结由 preload 解析路径并经专用通道 `desktop:drop-file` 提交，视图选不了路径）。视图只在各自的 `services/api.ts` 里读它们（eslint 拦下其余位置）。
 - 主进程除 `host/nomiHostIpc.ts` 的 `desktop:drop-file` 外不再注册其它 IPC 通道（宿主目录 `host/` 之外禁止 `ipcMain`）：契约传输经 `host/ipcSenderGuard.ts` 校验发送方并给出调用者的 surface / trusted，过程声明的 `surfaces` 与 `dangerous` 由契约守卫判定。服务的推送经应用事件总线（`events.publish`），由事件桥转成契约事件，只推给订阅了的窗口；只给某个窗口的事件在契约的 `eventSurfaces` 里登记，传输层按调用者的界面过滤订阅。
 
 - 内核不认识 Electron，同一个 `createCore` 也跑在无界面宿主上（`apps/desktop-electron/internal/host-node`，纯 Node，见 [core-host-decoupling](../design/core-host-decoupling.md) §11.3）：
@@ -25,7 +25,7 @@ Electron 主进程（apps/desktop-electron）
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core`                                                            | 应用内核（纯 Node，不依赖 Electron）：各功能服务（编程助手、用量、网关服务、桌面能力、知识库、记忆、日程、本机管理、扩展、语音、更新的检查与下载……）与不碰窗口的契约处理函数（`src/contract/`）；ESLint 禁止它依赖 electron、宿主包、视图包与 `ui`                                                      |
 | `host-electron`                                                   | 主进程宿主：组合根、窗口、托盘、灵动岛、协议注册、preload、宿主端口的 Electron 实现（`src/host/`）、契约传输与用到窗口的契约处理函数                                                                                                                                                                    |
-| `renderer`                                                        | 看板娘窗口壳：透明窗口、气泡、工具栏、右键菜单，以及把契约事件接到 `avatar-runtime` 的薄适配层（`src/avatar`、`src/ai`）                                                                                                                                                                                |
+| `renderer`                                                        | 诺米窗口壳：透明窗口、气泡、工具栏、右键菜单，以及把契约事件接到 `avatar-runtime` 的薄适配层（`src/avatar`、`src/ai`）                                                                                                                                                                                  |
 | `avatar-runtime`                                                  | 角色引擎（纯浏览器）：Rive / sprite / static 后端、表情与动作驱动、命中区与互动、口型消费；输入角色 manifest + mapping、`resolveAsset` 与语义事件源，不依赖契约 / Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §10.6；独立开发页 `pnpm --filter @nomi-ai/avatar-runtime demo` |
 | `ai-chat`                                                         | 对话窗口：对话、设置、引导与功能面板                                                                                                                                                                                                                                                                    |
 | `ai-runtime`                                                      | AI 运行时：插件宿主、基于 Vercel AI SDK 的 LLM 客户端与 MCP 桥；应用内供应商配置以网关 `GatewayStore` 为准                                                                                                                                                                                              |
@@ -37,7 +37,7 @@ Electron 主进程（apps/desktop-electron）
 | `cli-plugins`                                                     | 内置编程助手插件：清单、启动注入、权限档位、官方账号目录、历史扫描、exec 收尾规则等；`manifest` / `gateway` / `renderer` 子路径是纯数据（ESLint 入口边界），`main` 只给主进程；主进程由 `cli/CliPluginHost.ts` 加载（`ai:cli:registry`）                                                                |
 | `ai-sdk`                                                          | 主进程侧 AI 门面（`AIClient`）                                                                                                                                                                                                                                                                          |
 | `ai-sdk-client`                                                   | 渲染进程侧客户端与 preload 桥                                                                                                                                                                                                                                                                           |
-| `bundle-ig-base` / `bundle-ig-electron-caps` / `bundle-ig-mascot` | 插件包：基础能力（不得依赖 electron）/ Electron 能力 / 看板娘能力                                                                                                                                                                                                                                       |
+| `bundle-ig-base` / `bundle-ig-electron-caps` / `bundle-ig-mascot` | 插件包：基础能力（不得依赖 electron）/ Electron 能力 / 诺米能力                                                                                                                                                                                                                                         |
 | `ui`                                                              | 设计令牌、4 套主题、通用组件与渲染层语言适配                                                                                                                                                                                                                                                            |
 | `i18n`（`@nomi-ai/i18n`）                                         | 统一多语言词典与运行时，按语言 / 项目 / 模块组织（`packages/i18n/src/locales`）；`pnpm check:i18n` + `keepZh` 见 [i18n.md](i18n.md)                                                                                                                                                                     |
 | `voice`                                                           | 语音输入、VAD、唤醒词                                                                                                                                                                                                                                                                                   |
@@ -80,5 +80,5 @@ flowchart LR
 - **数据**：全部保存在 Electron `userData` 下按功能划分的目录；密钥使用 `safeStorage`。
 - **网络**：外部请求经 `netGuard` 拦截本机 / 内网地址；执行命令使用 `shellEscape`；私有文件经 `utils/privateFile` 以 0600 写入。
 - **日志**：主进程使用 `LoggerService` / `createMainLogger`，渲染进程使用 `@nomi-ai/ui` 的 `createLogger`，不直接用 `console.log`。
-- **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；看板娘 Rive 场景按需加载。
+- **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；诺米 Rive 场景按需加载。
 - **i18n**：包名 `@nomi-ai/i18n`；稳定 key 使用 `project.module.message` 格式；中文原文不能当 key。`pnpm check:i18n` 校验；面向模型的源文件可列入 `keepZh`。详见 [i18n.md](i18n.md)。

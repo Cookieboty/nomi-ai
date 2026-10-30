@@ -422,12 +422,12 @@ const AiChatContent: React.FC = () => {
     return () => window.removeEventListener(OPEN_MODELS_EVENT, open);
   }, [openSettings]);
   useEffect(() => watchNomiModel(), []);
-  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
+  // 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
   useEffect(
     () => desktopClient.onOpenVoiceSettings(() => openSettings('general', 'voice')),
     [openSettings],
   );
-  // 看板娘「日程」→ 设置 → 知识与记忆 → 日程
+  // 桌面角色「日程」→ 设置 → 知识与记忆 → 日程
   useEffect(
     () => desktopClient.onOpenSchedule(() => openSettings('knowledge', 'schedule')),
     [openSettings],

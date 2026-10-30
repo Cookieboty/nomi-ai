@@ -126,7 +126,7 @@ export class VoiceService {
   }
 
   /**
-   * 看板娘语音设置保存了（内核在 `voice.saveMascotSettings` 后发布，含自己保存的那一次）→ 同步本地状态与
+   * 桌面角色语音设置保存了（内核在 `voice.saveMascotSettings` 后发布，含自己保存的那一次）→ 同步本地状态与
    * 工具栏，不回写。
    */
   private subscribeMainVoiceSettings() {

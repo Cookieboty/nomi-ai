@@ -210,7 +210,7 @@ describe('Nomi conversation workspace (desktop tools)', () => {
     // 符号链接从工作区指到授权文件夹：按授权文件夹的规则
     fs.symlinkSync(s.outside, path.join(s.ws, 'link'));
     expect((await s.call('fs_read_text', { path: 'link/secret.txt' })).ok).toBe(true);
-    // 本次运行的会话授权（如拖到看板娘身上的单个文件）同样走原流程
+    // 本次运行的会话授权（如拖到桌面角色身上的单个文件）同样走原流程
     const other = path.join(s.home, 'other');
     fs.mkdirSync(other);
     fs.writeFileSync(path.join(other, 'drop.txt'), 'DROPPED');

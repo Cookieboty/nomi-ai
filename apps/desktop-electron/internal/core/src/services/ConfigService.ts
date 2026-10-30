@@ -20,7 +20,7 @@ export interface VoiceSettings {
   timeAnnouncement: boolean;
   voicePackPath: string;
   voiceMode: 'fixed' | 'tts' | 'mixed';
-  /** 看板娘动作音效，默认 true */
+  /** 桌面角色动作音效，默认 true */
   sfxEnabled?: boolean;
 }
 

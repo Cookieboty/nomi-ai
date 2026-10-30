@@ -16,7 +16,7 @@ import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
  * G5 · 替身角色验收（docs/design/core-host-decoupling.md §11.3 第三行）· 真实应用
  *
  * 用替身角色包构建的应用（`pnpm build:stand-in`，即 `CHARACTER_PACK=characters/test-dummy pnpm build`）：
- * - 首次启动的引导、看板娘窗口、对话窗口、设置 → 通用里，界面文本（含 aria-label / title / alt）没有
+ * - 首次启动的引导、桌面角色窗口、对话窗口、设置 → 通用里，界面文本（含 aria-label / title / alt）没有
  *   官方角色名：没有「诺米」，也没有角色语境的「Nomi」（规则见 scripts/lib/characterLeak.mjs；产品名
  *   Nomi 可以出现，例如窗口标题、品牌头、「Nomi 对话」）；该写角色名的地方写的是替身的「小纸」；
  * - 对话发给模型的系统提示是替身的身份，不含 Nomi / 诺米。
@@ -124,7 +124,7 @@ test.describe('G5 · stand-in character build · no official character name', ()
       timeout: 30_000,
     });
 
-    // ---- 看板娘窗口：替身的静图
+    // ---- 桌面角色窗口：替身的静图
     const mascot = await app.firstWindow({ timeout: 20_000 });
     await mascot.waitForFunction(
       () => document.documentElement.dataset.mascotBackend === 'static',
@@ -132,7 +132,7 @@ test.describe('G5 · stand-in character build · no official character name', ()
       { timeout: 60_000 },
     );
 
-    // ---- 首次启动引导（对话窗口自动打开）：标题与看板娘的话用替身的名字
+    // ---- 首次启动引导（对话窗口自动打开）：标题与桌面角色的话用替身的名字
     let chat: Page | undefined;
     for (let i = 0; i < 120 && !chat; i++) {
       chat = app.windows().find((p) => /ai-chat/.test(p.url()));
@@ -205,7 +205,7 @@ test.describe('G5 · stand-in character build · no official character name', ()
     await expect(c.locator('[data-testid="settings-brand"]')).toContainText('Nomi');
     expectNoLeak('settings', await uiText(c));
 
-    // ---- 看板娘窗口的文字（工具栏 aria-label 等）
+    // ---- 桌面角色窗口的文字（工具栏 aria-label 等）
     expectNoLeak('mascot', await uiText(mascot));
   });
 });

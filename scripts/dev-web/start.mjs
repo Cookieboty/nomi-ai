@@ -2,7 +2,7 @@
 // pnpm dev:web —— 视图在普通浏览器里运行（docs/design/core-host-decoupling.md §11.3「视图在普通浏览器运行」）。
 //
 // 在 Node 里用无界面宿主（@nomi-ai/host-node）起一个内核，挂上只监听 127.0.0.1 的 WebSocket 传输，再起 ai-chat
-// （对话窗口）与 renderer（看板娘）的 Vite 开发服务器；开发服务器只把 WebSocket 地址注入页面
+// （对话窗口）与 renderer（桌面角色）的 Vite 开发服务器；开发服务器只把 WebSocket 地址注入页面
 // （scripts/dev-web/vite-plugin.mjs），本次的随机 token 只在打印出来的地址片段里（`#nomi-token=…`）。在 Chrome 里
 // 打开打印出来的完整地址即可（页面把 token 存进 sessionStorage 并从地址栏抹掉），页面经 WebSocket 调内核、收事件。
 //
@@ -13,7 +13,7 @@
 // 注意：无界面宿主的 secrets 只是可逆编码、不是加密，在浏览器里填的 API Key 会以明文存在数据目录里；
 // 指定目录时别放在会被提交的位置，启动时也会打一条警告。
 //
-// 只用于开发：没有窗口、托盘；看板娘页面画角色、收事件，但没有透明窗口（拖拽、点击穿透、窗口大小这些要用窗口
+// 只用于开发：没有窗口、托盘；桌面角色页面画角色、收事件，但没有透明窗口（拖拽、点击穿透、窗口大小这些要用窗口
 // 对象的过程返回 UNAVAILABLE，页面不调）；token 只在日志里露前 4 位。
 // 统一网关在 Node 子进程里跑、监听系统分配的端口（不和本机装着的 Nomi 抢默认端口），对话照常经网关。
 // Ctrl+C 退出。
@@ -82,9 +82,9 @@ function waitForHttp(url, timeoutMs) {
  * @param {object} [opts]
  * @param {string} [opts.dataDir] 数据目录（缺省临时目录，stop 时删除）
  * @param {number} [opts.chatPort] ai-chat 开发服务器端口（缺省 dev-ports.json 的 chat）
- * @param {number} [opts.mascotPort] renderer（看板娘）开发服务器端口（缺省 dev-ports.json 的 renderer）
+ * @param {number} [opts.mascotPort] renderer（桌面角色）开发服务器端口（缺省 dev-ports.json 的 renderer）
  * @param {boolean} [opts.vite] 是否起 Vite（默认 true）
- * @param {boolean} [opts.mascot] 是否也起看板娘页面（默认 true）
+ * @param {boolean} [opts.mascot] 是否也起桌面角色页面（默认 true）
  * @param {'error'|'warn'|'info'|'debug'} [opts.logLevel]
  * @param {'inherit'|'pipe'|'ignore'} [opts.viteStdio]
  * @param {object} [opts.contract] 传给 createCore 的契约选项（冒烟测试用中间件记录调用）

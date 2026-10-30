@@ -151,11 +151,11 @@ export interface TrayManagerOptions {
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
   quit: () => void;
-  /** 内核的应用事件总线：托盘里的看板娘动作 / 互动设置经它发给看板娘窗口；缺省时不发 */
+  /** 内核的应用事件总线：托盘里的桌面角色动作 / 互动设置经它发给桌面角色窗口；缺省时不发 */
   events?: AppEvents;
 }
 
-/** 托盘「看板娘动作」菜单项 */
+/** 托盘「桌面角色动作」菜单项 */
 /** 托盘「动作」菜单：语义手势（§10.5）→ 菜单文案；当前角色包没有映射的手势点了也不动 */
 export const TRAY_MOTIONS: Array<[SemanticGesture, string]> = [
   ['wave', 'electron.common.wave'],

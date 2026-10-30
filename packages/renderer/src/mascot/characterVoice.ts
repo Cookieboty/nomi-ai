@@ -41,7 +41,7 @@ type OverrideMap = Record<string, ModelVoiceConfig>;
 let activeModelName: string | null = null;
 let activeModelConfig: ModelConfig | undefined;
 
-/** 当前看板娘模型名（角色提示语音据此判断是否适用） */
+/** 当前桌面角色模型名（角色提示语音据此判断是否适用） */
 export function getActiveModelName(): string | null {
   return activeModelName;
 }
@@ -135,7 +135,7 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
     opts.onEnd?.();
     return false;
   }
-  // 看板娘已关闭：不再播放语音
+  // 桌面角色已关闭：不再播放语音
   if (isMascotMuted()) {
     opts.onEnd?.();
     return false;

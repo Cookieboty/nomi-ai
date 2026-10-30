@@ -92,14 +92,14 @@ describe('StartupService', () => {
     const s = make(f);
     const seen: Array<[boolean, string]> = [];
     const off = s.onChange((st) => seen.push([st.showMascot, st.defaultView]));
-    // 默认看板娘时也能关：默认界面自动改为主界面，保证下次启动有界面
+    // 默认桌面角色时也能关：默认界面自动改为主界面，保证下次启动有界面
     expect(await s.set({ showMascot: false })).toMatchObject({
       showMascot: false,
       defaultView: 'main',
     });
     expect(make(f).get()).toMatchObject({ showMascot: false, defaultView: 'main' });
     await expect(s.set({ showMascot: 'no' })).rejects.toThrow(/invalid showMascot/);
-    // 同一个补丁里既选看板娘为默认又关掉她：矛盾，拒绝且不落盘
+    // 同一个补丁里既选桌面角色为默认又关掉她：矛盾，拒绝且不落盘
     await expect(s.set({ defaultView: 'mascot', showMascot: false })).rejects.toThrow(/same time/);
     expect(s.get().showMascot).toBe(false);
     // 重新打开：默认界面保持主界面（不擅自改回）
@@ -108,7 +108,7 @@ describe('StartupService', () => {
       defaultView: 'main',
     });
     await s.set({ showMascot: false });
-    // 切回看板娘 → 自动重新打开
+    // 切回桌面角色 → 自动重新打开
     expect((await s.set({ defaultView: 'mascot' })).showMascot).toBe(true);
     off();
     await s.set({ defaultView: 'main' });

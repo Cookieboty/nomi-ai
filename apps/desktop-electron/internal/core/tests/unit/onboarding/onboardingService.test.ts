@@ -14,7 +14,7 @@ const make = (userData: string, openChat = jest.fn()) =>
 
 describe('OnboardingService', () => {
   beforeEach(() => {
-    // 看板娘指令经应用事件总线发布；存活窗口数由宿主报告（make() 里假装有一个窗口）
+    // 桌面角色指令经应用事件总线发布；存活窗口数由宿主报告（make() 里假装有一个窗口）
     events = createRecordingAppEvents();
     delete process.env.CD_ONBOARDING;
   });

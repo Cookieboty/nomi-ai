@@ -4,7 +4,7 @@
  * 语义对齐：
  * - 真实内核跑在无界面宿主上，用户画像是内核插件宿主里真实的 `UserPreferenceMemoryPlugin`（无界面宿主没有
  *   文件存储插件，画像只在内存里）；
- * - 一个看板娘窗口调用 `client.memory.userProfile.set({ patch })`，画像变化经插件事件 `userProfile/changed`
+ * - 一个桌面角色窗口调用 `client.memory.userProfile.set({ patch })`，画像变化经插件事件 `userProfile/changed`
  *   由 AIClient 映射成契约事件 `ai.userProfile.changed`，推给订阅了的窗口；
  * - 断言：
  *   1. 两个窗口都收到变化，payload.profile 与 set 后的 get 一致；

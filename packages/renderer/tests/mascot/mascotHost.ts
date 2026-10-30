@@ -67,7 +67,7 @@ export function mascotApiModule(): {
       },
     },
   );
-  // 测试里的假宿主就是看板娘窗口
+  // 测试里的假宿主就是桌面角色窗口
   const installed = () => state().client !== null;
   // Electron 宿主：资源地址原样用
   return {

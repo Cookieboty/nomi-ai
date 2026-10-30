@@ -44,7 +44,7 @@ type Result struct {
 	FilesCopied     int      `json:"filesCopied"`
 	SecretsMigrated int      `json:"secretsMigrated"`
 	SecretsFailed   []string `json:"secretsFailed,omitempty"`
-	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（D-B11-12：放到看板娘窗口出现之后）
+	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（D-B11-12：放到桌面角色窗口出现之后）
 	SecretsPending    bool   `json:"secretsPending,omitempty"`
 	ChatKeysExtracted int    `json:"chatKeysExtracted"`
 	At                string `json:"at"`

@@ -49,7 +49,7 @@ export const aiProcedures = {
   'ai.chat.stream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
   'ai.chat.abort': { kind: 'mutation', input: z.object({ reqId: z.string() }), output: z.void() },
   'ai.chat.regenerate': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
-  /** 工具循环（AI SDK withTools）：对话窗口用它让模型调用桌面 / 看板娘工具 */
+  /** 工具循环（AI SDK withTools）：对话窗口用它让模型调用桌面 / 桌面角色工具 */
   'ai.chat.agentStream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
 
   // sessions

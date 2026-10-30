@@ -49,7 +49,7 @@ var deskDescs = map[string]string{
 	"fs_copy":               "复制一个文件到读写授权的文件夹（源文件只需可读；目标已存在则失败，上级文件夹不存在会一并新建）。只复制文件，不复制文件夹。可撤销。支持 dryRun。",
 	"fs_trash":              "把文件或文件夹移到应用回收站（不会彻底删除，可撤销）。破坏性操作：用户必须在对话框里确认。支持 dryRun。",
 	"undo_last":             "撤销最近一次文件操作（总是需要用户确认）。",
-	"reminder_create":       "设置提醒：到点时看板娘挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。",
+	"reminder_create":       "设置提醒：到点时桌面角色挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。",
 	"reminder_list":         "列出提醒（默认只列尚未触发的；includeEnded 包含已触发 / 错过 / 取消的）。",
 	"reminder_cancel":       "取消一个尚未触发的提醒（可撤销）。",
 	"reminder_snooze":       "稍后再提醒（默认 10 分钟）。",

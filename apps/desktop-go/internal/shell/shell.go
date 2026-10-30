@@ -14,7 +14,7 @@ const (
 type Shell interface {
 	// Show 创建（如已销毁）并显示窗口
 	Show(k WindowKind)
-	// Destroy 销毁窗口及其 WebView（看板娘隐藏、对话窗关闭都走这里，和 2.0.5 一致）
+	// Destroy 销毁窗口及其 WebView（桌面角色隐藏、对话窗关闭都走这里，和 2.0.5 一致）
 	Destroy(k WindowKind)
 	Visible(k WindowKind) bool
 	// TrayAvailable：托盘是否真的建起来了（Linux 没有 SNI 宿主时为 false，界面需另给入口）
@@ -32,7 +32,7 @@ type WorkArea struct {
 	ScaleFactor float64
 }
 
-// Geometry 是看板娘需要的窗口几何能力（可选：外壳实现了才有缩放 / 拖拽 / 位置）
+// Geometry 是桌面角色需要的窗口几何能力（可选：外壳实现了才有缩放 / 拖拽 / 位置）
 type Geometry interface {
 	Bounds(k WindowKind) (Rect, bool)
 	SetBounds(k WindowKind, r Rect)

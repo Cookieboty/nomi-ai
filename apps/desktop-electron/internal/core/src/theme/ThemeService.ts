@@ -1,5 +1,5 @@
 /**
- * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
+ * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 桌面角色）。
  * 「跟随系统」用宿主的 appearance 端口解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
  * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream` 并写回。
  *

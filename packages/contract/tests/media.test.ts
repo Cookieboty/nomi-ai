@@ -154,7 +154,7 @@ describe('media 契约', () => {
     expect(ev['desktop.bubble'].safeParse({ voice: 'cue' }).success).toBe(false);
   });
 
-  it('往返（strict 序列化）：二进制、流式识别、看板娘专用过程与事件', async () => {
+  it('往返（strict 序列化）：二进制、流式识别、桌面角色专用过程与事件', async () => {
     const { api, router, close } = createTestClient(
       appContract,
       {

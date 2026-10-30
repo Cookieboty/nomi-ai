@@ -1,5 +1,5 @@
 /**
- * 麦克风采集：getUserMedia（开启回声消除 / 降噪 / 自动增益，减少把看板娘自己的 TTS 录进去）
+ * 麦克风采集：getUserMedia（开启回声消除 / 降噪 / 自动增益，减少把桌面角色自己的 TTS 录进去）
  * → ScriptProcessor（不需要额外脚本文件，兼容严格 CSP）→ 16 kHz → 512 样本帧。
  */
 import { t as tr } from '@nomi-ai/ui';

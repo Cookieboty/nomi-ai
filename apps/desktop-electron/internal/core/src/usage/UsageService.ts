@@ -175,7 +175,7 @@ type Deps = {
   /** Nomi 供应商 id → 显示名 */
   providerName?: (id: string) => string | undefined;
   /**
-   * 弹出一条提醒（看板娘气泡 + 灵动岛）。返回 false = 当前不方便（免打扰等），稍后会重试，
+   * 弹出一条提醒（桌面角色气泡 + 灵动岛）。返回 false = 当前不方便（免打扰等），稍后会重试，
    * 且这条提醒不算「已提醒」。
    */
   alert?: (a: UsageAlert) => boolean;

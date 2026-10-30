@@ -1,8 +1,8 @@
 /**
- * 看板娘的旧语音设置（config.json 的 `voiceSettings`：音量、整点报时、音效开关…）。
+ * 桌面角色的旧语音设置（config.json 的 `voiceSettings`：音量、整点报时、音效开关…）。
  *
  * 契约 `voice.getMascotSettings` / `voice.saveMascotSettings`（core/contract/media.ts）用；保存后发契约事件
- * `voice.mascotSettingsChanged`（合并后的完整设置），看板娘窗口的语音服务与工具栏据此同步。
+ * `voice.mascotSettingsChanged`（合并后的完整设置），桌面角色窗口的语音服务与工具栏据此同步。
  */
 import type { VoiceSettings } from '@nomi-ai/types';
 
@@ -28,7 +28,7 @@ export function getMascotVoiceSettings(
 
 /**
  * 与当前设置合并后保存（落盘失败只记日志，与旧的 send 通道一致：调用方不等结果），再把合并后的设置发成
- * `voice.mascotSettingsChanged`。写入方（看板娘窗口）自己也会收到，合并的是同一份设置，不会回写
+ * `voice.mascotSettingsChanged`。写入方（桌面角色窗口）自己也会收到，合并的是同一份设置，不会回写
  */
 export function saveMascotVoiceSettings(
   config: ConfigLike,

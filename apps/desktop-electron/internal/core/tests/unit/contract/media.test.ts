@@ -287,7 +287,7 @@ describe('media handlers', () => {
     }
   });
 
-  it('看板娘旧语音设置：读 / 合并保存 config.voiceSettings 并发 voice.mascotSettingsChanged，只给看板娘窗口', async () => {
+  it('桌面角色旧语音设置：读 / 合并保存 config.voiceSettings 并发 voice.mascotSettingsChanged，只给桌面角色窗口', async () => {
     const t = setup();
     const mascot = t.connect(MASCOT);
     const chat = t.connect(CHAT);
@@ -313,7 +313,7 @@ describe('media handlers', () => {
     }
   });
 
-  it('tts.*：委派给 TtsService；对话窗口的配置过程看板娘调不了，反之亦然', async () => {
+  it('tts.*：委派给 TtsService；对话窗口的配置过程桌面角色调不了，反之亦然', async () => {
     const t = setup();
     const chat = t.connect(CHAT);
     const mascot = t.connect(MASCOT);
@@ -350,7 +350,7 @@ describe('media handlers', () => {
     }
   });
 
-  it('desktop.*：委派给 DesktopService；看板娘专用的操作带上调用方窗口 id', async () => {
+  it('desktop.*：委派给 DesktopService；桌面角色专用的操作带上调用方窗口 id', async () => {
     const t = setup();
     const chat = t.connect(CHAT);
     const mascot = t.connect(MASCOT);
@@ -418,7 +418,7 @@ describe('media handlers', () => {
     }
   });
 
-  it('拖入文件不在契约里：看板娘页面里的脚本不能经契约提交任意路径', async () => {
+  it('拖入文件不在契约里：桌面角色页面里的脚本不能经契约提交任意路径', async () => {
     const t = setup();
     try {
       await expect(

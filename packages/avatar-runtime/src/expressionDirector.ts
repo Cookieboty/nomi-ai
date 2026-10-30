@@ -8,7 +8,7 @@ import { analyzeEmotion, gestureForEmotion, type EmotionResult } from './emotion
 import type { MascotExpression } from './MascotBackend';
 
 /**
- * 根据聊天 / TTS 事件决定看板娘的情绪与手势（纯函数，便于测试）。
+ * 根据聊天 / TTS 事件决定桌面角色的情绪与手势（纯函数，便于测试）。
  * 输出只有语义名（§10.5），由 mapping.ts 按当前角色包翻译成表情与动作。
  */
 

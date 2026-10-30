@@ -1,6 +1,6 @@
 /**
- * 看板娘窗口的宿主操作（契约 `window.*`，见 host/contract/mascot.ts）：退出、置顶、移动 / 定位、
- * 读光标，以及从看板娘打开对话窗口的某个面板（原 `WindowIpcHandler` 的 quit-app、move-window、
+ * 桌面角色窗口的宿主操作（契约 `window.*`，见 host/contract/mascot.ts）：退出、置顶、移动 / 定位、
+ * 读光标，以及从桌面角色打开对话窗口的某个面板（原 `WindowIpcHandler` 的 quit-app、move-window、
  * open-ai-chat 等通道，P1b 起只经契约）。
  */
 
@@ -29,13 +29,13 @@ export class MascotWindowActions {
     app.quit();
   }
 
-  /** 看板娘窗口置顶 */
+  /** 桌面角色窗口置顶 */
   setAlwaysOnTop(flag: boolean): void {
     this.windowManager.setAlwaysOnTop('main', flag);
     this.logger.debug('设置窗口置顶', { flag });
   }
 
-  /** 打开 AI 对话窗口；失败时返回错误信封（看板娘据此提示） */
+  /** 打开 AI 对话窗口；失败时返回错误信封（桌面角色据此提示） */
   async openAiChat(): Promise<OpenResult> {
     try {
       await this.windowManager.createAiChatWindow();
@@ -48,7 +48,7 @@ export class MascotWindowActions {
     }
   }
 
-  /** 看板娘「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页 */
+  /** 桌面角色「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页 */
   async openTaskBoard(): Promise<OpenResult> {
     try {
       await this.windowManager.openProviderPanel('nav.scheduleRequested');
@@ -61,7 +61,7 @@ export class MascotWindowActions {
     }
   }
 
-  /** 看板娘「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」 */
+  /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」 */
   async openVoiceSettings(): Promise<OpenResult> {
     try {
       await this.windowManager.openProviderPanel('nav.voiceSettingsRequested');
@@ -74,7 +74,7 @@ export class MascotWindowActions {
     }
   }
 
-  /** 看板娘窗口按增量移动（取整；0 位移不处理） */
+  /** 桌面角色窗口按增量移动（取整；0 位移不处理） */
   moveWindow(deltaX: number, deltaY: number): void {
     const mainWindow = this.windowManager.getMainWindow();
     if (!mainWindow) {
@@ -96,7 +96,7 @@ export class MascotWindowActions {
     }
   }
 
-  /** 看板娘窗口左上角；窗口不存在时为 [0, 0] */
+  /** 桌面角色窗口左上角；窗口不存在时为 [0, 0] */
   getPosition(): [number, number] {
     const mainWindow = this.windowManager.getMainWindow();
     if (!mainWindow) return [0, 0];
@@ -104,7 +104,7 @@ export class MascotWindowActions {
     return [x ?? 0, y ?? 0];
   }
 
-  /** 设置看板娘窗口位置（取整） */
+  /** 设置桌面角色窗口位置（取整） */
   setPosition(x: number, y: number): void {
     const mainWindow = this.windowManager.getMainWindow();
     if (!mainWindow) {

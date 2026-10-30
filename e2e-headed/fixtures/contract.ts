@@ -2,7 +2,7 @@
  * e2e-headed 经应用契约调内核（docs/design/core-host-decoupling.md §5、§12 P1b）。
  *
  * 真实应用的 preload 只暴露 `window.nomiTransport`（契约传输：`contract:request` / `contract:frame`）
- * 与 `window.nomiHost`。用例里需要直接驱动内核时（建标签、配网关、拖看板娘等），在页面里装一个
+ * 与 `window.nomiHost`。用例里需要直接驱动内核时（建标签、配网关、拖桌面角色等），在页面里装一个
  * 极小的契约客户端（与 `@nomi-ai/contract` 的线协议一致：`{ c, frame }` 信封，`req` / `res` / `err` 帧），
  * 调用者身份与权限由主进程按页面判定，和界面自己的调用完全一样：
  *

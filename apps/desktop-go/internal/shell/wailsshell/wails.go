@@ -28,12 +28,12 @@ type Config struct {
 	Fragment url.Values
 	// Pages：各窗口的页面路径（资产服务器上，如 /mascot/index.html）
 	Pages map[shell.WindowKind]string
-	// OnFilesDropped：从系统拖到看板娘 / 对话窗口（data-file-drop-target 元素）上的文件路径
+	// OnFilesDropped：从系统拖到桌面角色 / 对话窗口（data-file-drop-target 元素）上的文件路径
 	// （= preload nomiHost.dropFile / pathForFile）
 	OnFilesDropped func(k shell.WindowKind, paths []string)
-	// MascotSize 返回看板娘窗口初始大小（按保存的缩放，夹到主屏工作区 = maxScaleForArea）；nil 时用 330×355
+	// MascotSize 返回桌面角色窗口初始大小（按保存的缩放，夹到主屏工作区 = maxScaleForArea）；nil 时用 330×355
 	MascotSize func(work *shell.Rect) (int, int)
-	// MascotPos 返回保存的看板娘窗口位置（config.windowPosition）；无效时按 2.0.4 放到主屏工作区右下角
+	// MascotPos 返回保存的桌面角色窗口位置（config.windowPosition）；无效时按 2.0.4 放到主屏工作区右下角
 	MascotPos func() (int, int)
 	// ChatBounds：对话窗口这次打开用的位置大小（= restoreChatBounds，workAreas[0] 是主屏）；nil 时居中默认尺寸
 	ChatBounds func(workAreas []shell.Rect) shell.SavedChatBounds
@@ -384,7 +384,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		w.mu.Unlock()
 		if cur {
 			w.notify(k, "closed")
-			// 用户关的（Destroy 主动销毁时 cur 为 false）：= BrowserWindow 'close'（关闭看板娘即退出 / closeMain=quit）
+			// 用户关的（Destroy 主动销毁时 cur 为 false）：= BrowserWindow 'close'（关闭桌面角色即退出 / closeMain=quit）
 			w.notify(k, "user-closed")
 		}
 	})
@@ -454,7 +454,7 @@ func (w *Wails) afterNative(win *application.WebviewWindow, f func()) {
 }
 
 // waitScreens：mac 上 Wails 在 ApplicationDidFinishLaunching 才缓存屏幕，晚于 ApplicationStarted（实测约 300ms 内）；
-// 在那之前 Screen.GetAll() 为空，按空屏幕摆窗口 / 启动物理会把看板娘放到 (0,0)。最多等 3s
+// 在那之前 Screen.GetAll() 为空，按空屏幕摆窗口 / 启动物理会把桌面角色放到 (0,0)。最多等 3s
 func (w *Wails) waitScreens() {
 	for i := 0; i < 150 && len(w.app.Screen.GetAll()) == 0; i++ {
 		time.Sleep(20 * time.Millisecond)

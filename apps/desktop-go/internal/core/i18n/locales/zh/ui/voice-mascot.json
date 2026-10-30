@@ -118,7 +118,7 @@
   "ui.voice-mascot.quit-app": "关闭应用",
   "ui.voice-mascot.reach-out": "伸手",
   "ui.voice-mascot.read-ai-replies": "朗读 AI 回复",
-  "ui.voice-mascot.read-ai-replies-hint": "AI 回复时由看板娘边生成边朗读（代码、链接、表格不念，长回复只念开头约 300 字）。发新消息、停止生成、切换会话或按住说话会立即打断；需要实时朗读引擎可用，编程助手对话不朗读。",
+  "ui.voice-mascot.read-ai-replies-hint": "AI 回复时由桌面角色边生成边朗读（代码、链接、表格不念，长回复只念开头约 300 字）。发新消息、停止生成、切换会话或按住说话会立即打断；需要实时朗读引擎可用，编程助手对话不朗读。",
   "ui.voice-mascot.realtime-tts-engine": "实时朗读引擎",
   "ui.voice-mascot.realtime-tts-engine-hint": "没有预录片段的角色台词用它朗读。默认 Edge 在线朗读；没联网或合成失败时保持安静，只显示文字。",
   "ui.voice-mascot.realtime-tts-engine-link-hint": "角色提示语音与实时朗读引擎在主界面的「设置 → 语音与屏幕 → 语音」。",

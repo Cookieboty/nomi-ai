@@ -53,7 +53,7 @@ export interface HostWindow {
 
 /** 窗口端口依赖的最小窗口管理接口（core/WindowManager 结构上满足） */
 export interface WindowHost {
-  /** 看板娘窗口（历史命名 main） */
+  /** 桌面角色窗口（历史命名 main） */
   createMainWindow(opts?: { activate?: boolean }): Promise<unknown>;
   createAiChatWindow(opts?: { activate?: boolean }): Promise<unknown>;
   getMainWindow(): HostWindow | null;
@@ -384,7 +384,7 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
         if (surface === 'mascot') windows.setMascotVisible(false);
         else windowOf(surface)?.hide();
       },
-      // 所有窗口（含看板娘、对话窗口与辅助窗口）里任一获得焦点
+      // 所有窗口（含桌面角色、对话窗口与辅助窗口）里任一获得焦点
       anyFocused: () => BrowserWindow.getAllWindows().some((w) => w.isFocused?.()),
     },
 

@@ -26,7 +26,7 @@
 - 引导插画：`onboarding/*.webp`（welcome / profile / provider / privacy）
 - 语音 clip：`voice/<locale>/`（可缺，缺则回退 TTS / 静音，check 会警告）
 - 身份：`persona.json`（`displayName`、`shortName`、`pronoun`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）——对话的系统提示身份段只从这里来；`pronoun` 是界面里指代角色的代词（「点她的『AI 对话』」），不写时为「它」/ it，英文在 `locales/en.json` 的 persona 里单独给（如 `"pronoun": "he"`）
-- 角色文案（台词、提示语、问候、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典；包里没有的那句提示，看板娘就不说
+- 角色文案（台词、提示语、问候、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典；包里没有的那句提示，诺米就不说
 - 可选语义映射：`mapping.json`（情绪 / 活动 / 手势 → 引擎资源 id）
 - 可选布局：`manifest.layout`（窗口尺寸、命中区、bubbleAnchor；`skirt` 会规范为 `hem`）
 - 可选署名：`manifest.credits`（`author` / `license` / `source`）、`CREDITS.md`、`LICENSE`
@@ -110,7 +110,7 @@ my-character.pack/
 }
 ```
 
-`lines` 的 key 是稳定 clip id（看板娘用到的提示语见 `packages/renderer/src/mascot/tips.ts`）。
+`lines` 的 key 是稳定 clip id（诺米用到的提示语见 `packages/renderer/src/mascot/tips.ts`）。
 
 ---
 

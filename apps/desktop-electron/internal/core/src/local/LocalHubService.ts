@@ -26,7 +26,7 @@ export interface HubDeps {
   desktop: DesktopService;
   /** 导出时选保存位置 */
   ports: Pick<HostPorts, 'dialogs'>;
-  /** 看板娘指令（导出完成点头）经应用事件总线；缺省时不发 */
+  /** 桌面角色指令（导出完成点头）经应用事件总线；缺省时不发 */
   events?: AppEvents;
 }
 

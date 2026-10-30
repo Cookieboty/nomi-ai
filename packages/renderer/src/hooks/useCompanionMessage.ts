@@ -20,7 +20,7 @@ export function playBubbleClip(keyOrText: string, clip: string | null | undefine
   }).catch(() => undefined);
 }
 
-/** 在看板娘气泡中显示消息（带优先级与自动消失）。 */
+/** 在桌面角色气泡中显示消息（带优先级与自动消失）。 */
 export function useCompanionMessage() {
   const { state, dispatch } = useMascot();
 

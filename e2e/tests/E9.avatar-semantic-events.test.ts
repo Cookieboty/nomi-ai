@@ -4,8 +4,8 @@
  * AI 与角色之间只传语义名，角色包的 mapping.json 在角色窗口里把它们翻译成资源；内核这一侧：
  * - AI → 角色：插件里的 `ctx.avatar`、工具 `avatar_gesture`、视图调的 `ai.avatar.*` 与内核服务（首次引导的
  *   `onboarding.mascot`）都经内核实例自己的事件总线发布契约事件 `avatar.event`，
- *   只推给看板娘窗口；资源名（`thumbs_up`）过不了线；
- * - 角色 → AI：看板娘窗口经 `ai.avatar.report` 报被摸 / 被点，插件里 `ctx.avatar.on('touched')` 收到，
+ *   只推给桌面角色窗口；资源名（`thumbs_up`）过不了线；
+ * - 角色 → AI：桌面角色窗口经 `ai.avatar.report` 报被摸 / 被点，插件里 `ctx.avatar.on('touched')` 收到，
  *   订阅了的窗口收到 `ai.avatar.touched`。
  */
 import { ToolRegistryKey } from '@nomi-ai/bundle-ig-base';
@@ -51,7 +51,7 @@ describe('E9 · semantic avatar events on the headless core', () => {
     await tool!.execute({ name: 'thumbsUp' }, {} as never);
     // 视图调 ai.avatar.*（对话窗口）
     await chat.api.ai.avatar.activity({ name: 'thinking' });
-    // 内核服务：首次引导让看板娘做个手势、等回复
+    // 内核服务：首次引导让桌面角色做个手势、等回复
     await chat.api.onboarding.mascot({ type: 'gesture', name: 'nod' });
     await chat.api.onboarding.mascot({ type: 'reply', phase: 'waiting' });
     await core.settle(30);

@@ -68,7 +68,7 @@ function mascotSetup(hidden: { v: boolean }) {
 
 const flush = () => new Promise((r) => setImmediate(r));
 
-describe('看板娘关闭时释放窗口（Rive 随渲染进程一起释放）', () => {
+describe('桌面角色关闭时释放窗口（Rive 随渲染进程一起释放）', () => {
   it('关闭 → 位置落盘并销毁窗口；重新显示 → 按配置重建，多次往返都能重建', async () => {
     const hidden = { v: false };
     const { wm, cfg, wins } = mascotSetup(hidden);
@@ -123,7 +123,7 @@ describe('看板娘关闭时释放窗口（Rive 随渲染进程一起释放）',
     expect(wm.getMainWindow()).toBeNull();
   });
 
-  it('看板娘显示时 releaseMascot 不动窗口', async () => {
+  it('桌面角色显示时 releaseMascot 不动窗口', async () => {
     const { wm, wins } = mascotSetup({ v: false });
     await wm.createMainWindow();
     wm.releaseMascot();

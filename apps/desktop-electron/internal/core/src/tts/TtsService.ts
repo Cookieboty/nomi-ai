@@ -1,6 +1,6 @@
 /**
  * 朗读服务（主进程）：实时朗读配置（userData/tts-config.json）、Edge 在线朗读的合成 / 试听 / 打断 /
- * 健康状态、把 AI 回复转给看板娘朗读。Azure / OpenAI 尚未接入。
+ * 健康状态、把 AI 回复转给桌面角色朗读。Azure / OpenAI 尚未接入。
  *
  * 任何合成失败都静默（渲染层只显示文字），连续失败次数经 `status()` 给设置页显示提示。
  * 契约（host/contract/media.ts 的 `tts.*`）只用这一个实例：打断（stop）要能取消同一个引擎里的请求。
@@ -38,7 +38,7 @@ export interface TtsServiceDeps {
   env?: Record<string, string | undefined>;
   /** 测试注入 */
   edge?: EdgeTtsService;
-  /** 应用事件总线：朗读回复默认经 mascot.command 转给看板娘窗口 */
+  /** 应用事件总线：朗读回复默认经 mascot.command 转给桌面角色窗口 */
   events?: AppEvents;
   /** 测试注入：替代经 events 的 mascot.command */
   sendToMascot?: (cmd: ReplySpeechCommand) => void;
@@ -160,8 +160,8 @@ export class TtsService {
   }
 
   /**
-   * 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot.command → tts:speak 播放链路）。
-   * 停止由看板娘窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词。
+   * 朗读 AI 回复：对话窗口把整句转发到桌面角色窗口（沿用 mascot.command → tts:speak 播放链路）。
+   * 停止由桌面角色窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词。
    */
   reply(msg: unknown): boolean {
     let cfg: TTSConfig | null;
@@ -177,7 +177,7 @@ export class TtsService {
     return true;
   }
 
-  /** 角色提示语音开关：看板娘窗口据此决定是否播放预录提示语 */
+  /** 角色提示语音开关：桌面角色窗口据此决定是否播放预录提示语 */
   promptVoice(): boolean {
     try {
       return this.store.load().promptVoice !== false;

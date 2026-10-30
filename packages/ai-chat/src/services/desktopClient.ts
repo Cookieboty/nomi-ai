@@ -143,9 +143,9 @@ export const desktopClient = {
   // 面板导航与拖入总结：窗口挂载前发出的那一次由内核留着，第一次订阅后拉取（./pendingNav）
   /** 托盘「桌面能力」→ 打开桌面能力面板 */
   onOpenPanel: (fn: () => void) => onChatNav('nav.desktopPanelRequested', fn),
-  /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
+  /** 桌面角色工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
   onOpenSchedule: (fn: () => void) => onChatNav('nav.scheduleRequested', fn),
-  /** 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
+  /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
   onOpenVoiceSettings: (fn: () => void) => onChatNav('nav.voiceSettingsRequested', fn),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) => onDesktopSummary(fn),
 };

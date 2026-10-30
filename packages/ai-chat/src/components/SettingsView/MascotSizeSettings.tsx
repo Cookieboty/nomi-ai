@@ -1,7 +1,7 @@
 /**
- * 设置 → 通用：看板娘大小（滑块 + 重置）。
+ * 设置 → 通用：桌面角色大小（滑块 + 重置）。
  * 主进程 mascot/MascotWindowController.ts（mascot:scale-*）负责夹紧到当前屏幕、调整窗口并保持
- * 脚底中心不动、持久化；看板娘本体上的 Ctrl/⌘+滚轮、右键菜单、工具栏「更多」是另外几个入口，
+ * 脚底中心不动、持久化；桌面角色本体上的 Ctrl/⌘+滚轮、右键菜单、工具栏「更多」是另外几个入口，
  * 它们改动后会广播到这里，滑块同步。
  */
 import type { MascotScaleState } from '@nomi-ai/types';
@@ -18,7 +18,7 @@ const ignore = (): undefined => undefined;
 
 const pct = (v: number) => Math.round(v * 100);
 
-/** 一行设置（放在「桌面<角色名>」分组里）；看板娘隐藏时整行置灰 */
+/** 一行设置（放在「桌面<角色名>」分组里）；桌面角色隐藏时整行置灰 */
 export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled = false }) => {
   const name = useCharacterName();
   const [state, setState] = useState<MascotScaleState | null>(null);

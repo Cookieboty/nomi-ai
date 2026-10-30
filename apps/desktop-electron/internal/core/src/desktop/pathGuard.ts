@@ -20,7 +20,7 @@ export interface Scope {
   mode: 'read' | 'read-write';
   kind: 'folder' | 'file';
   grantedAt: number;
-  /** 拖到看板娘身上的单个文件：仅本次运行有效 */
+  /** 拖到桌面角色身上的单个文件：仅本次运行有效 */
   session?: boolean;
 }
 

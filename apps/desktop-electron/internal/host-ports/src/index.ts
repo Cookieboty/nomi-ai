@@ -289,7 +289,7 @@ export interface SystemNotification {
 /**
  * 系统通知（Electron 下是 `Notification`，图标用应用当前图标）。
  *
- * 什么时候弹（免打扰、看板娘在不在、灵动岛优先）是内核的策略，这里只负责「弹出来」。
+ * 什么时候弹（免打扰、桌面角色在不在、灵动岛优先）是内核的策略，这里只负责「弹出来」。
  */
 export interface NotificationsPort {
   /** 当前系统能否显示通知 */
@@ -382,7 +382,7 @@ export interface WindowsPort {
   focus(surface: Surface): void;
   /** 界面所在窗口是否存在且可见 */
   isVisible(surface: Surface): boolean;
-  /** 隐藏界面（窗口保留，如看板娘隐藏时仍要承载提醒） */
+  /** 隐藏界面（窗口保留，如桌面角色隐藏时仍要承载提醒） */
   hide(surface: Surface): void;
   /** 本应用是否有任一窗口获得焦点（判断「后台完成」：未读、通知） */
   anyFocused(): boolean;
@@ -394,7 +394,7 @@ export interface WindowsPort {
  * 宿主特有能力只做声明，不做抽象；视图按能力降级。
  */
 export interface HostCapabilities {
-  /** 透明无边框窗口（桌面看板娘） */
+  /** 透明无边框窗口（桌面角色） */
   transparentWindow: boolean;
   /** 窗口点击穿透 */
   clickThrough: boolean;

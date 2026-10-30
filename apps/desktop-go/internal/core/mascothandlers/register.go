@@ -1,4 +1,4 @@
-// Package mascothandlers 把批次 10（看板娘 / 角色包 / 灵动岛）的契约过程挂到 Router。
+// Package mascothandlers 把批次 10（桌面角色 / 角色包 / 灵动岛）的契约过程挂到 Router。
 // 对应 apps/desktop-electron/internal/core/src/contract/mascot.ts（内核部分）与 apps/desktop-electron/src/host/contract/mascot.ts（宿主部分）。
 package mascothandlers
 
@@ -44,7 +44,7 @@ type Deps struct {
 
 func bad(err error) error { return &contract.Error{Code: "BAD_INPUT", Message: err.Error()} }
 
-// Controller 持有看板娘窗口的 mascot.Controller（= WindowManager.mascotController）：窗口建好时新建并 start，
+// Controller 持有桌面角色窗口的 mascot.Controller（= WindowManager.mascotController）：窗口建好时新建并 start，
 // 关闭时 dispose；重建窗口（rive → svg）同样换一个新控制器，与 Electron 新窗口一致。
 type Controller struct {
 	mu    sync.Mutex
@@ -57,7 +57,7 @@ type Controller struct {
 	t0      time.Time
 }
 
-// SetRenderer 写 mascot.renderer 并广播；rive → svg 时重建看板娘窗口，让 Rive 占的内存随旧 WebView 进程一起释放
+// SetRenderer 写 mascot.renderer 并广播；rive → svg 时重建桌面角色窗口，让 Rive 占的内存随旧 WebView 进程一起释放
 // （svg → rive 原地动态加载即可）。
 func (c *Controller) SetRenderer(next string) (string, error) {
 	prev := c.d.Settings.Get().Mascot.Renderer
@@ -185,7 +185,7 @@ func (c *Controller) hooks() *mascot.ScaleHooks {
 	}
 }
 
-// WindowSize 返回按保存缩放算出的看板娘窗口大小（外壳建窗口时用）
+// WindowSize 返回按保存缩放算出的桌面角色窗口大小（外壳建窗口时用）
 func (c *Controller) WindowSize(work *shell.Rect) (int, int) {
 	// = buildMainWindow：fitMascotScale(config.mascotScale, maxScaleForArea(primary.workArea))；工作区未知时不夹
 	cap := mascot.MaxMascotScale
@@ -229,7 +229,7 @@ func (c *Controller) WindowPosition() (int, int) {
 	return p.X, p.Y
 }
 
-// winAdapter = BrowserWindow（看板娘窗口）；窗口不存在即 isDestroyed
+// winAdapter = BrowserWindow（桌面角色窗口）；窗口不存在即 isDestroyed
 type winAdapter struct{ c *Controller }
 
 func (w *winAdapter) IsDestroyed() bool { _, _, ok := w.c.geom(); return !ok }
@@ -425,7 +425,7 @@ func Install(d Deps) *Controller {
 	bg("chatBg.reset", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.Reset() })
 	bg("chatBg.pickImage", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.PickImage() })
 
-	// —— 看板娘窗口互动
+	// —— 桌面角色窗口互动
 	report("mascot.setShape", func(m *mascot.Controller, in map[string]any) { m.ReportShape(in["rects"]) })
 	report("mascot.setHit", func(m *mascot.Controller, in map[string]any) { m.ReportHit(in["hit"]) })
 	call("mascot.setGeometry", func(raw json.RawMessage) (any, error) {
@@ -450,7 +450,7 @@ func Install(d Deps) *Controller {
 	report("mascot.wanderNow", func(m *mascot.Controller, _ map[string]any) { m.WanderNow() })
 	need("mascot.debugSnapshot", func(m *mascot.Controller, _ map[string]any) any { return m.Snapshot() })
 
-	// —— 看板娘大小
+	// —— 桌面角色大小
 	need("mascot.scaleGet", func(m *mascot.Controller, _ map[string]any) any { return m.ScaleState() })
 	need("mascot.scaleSet", func(m *mascot.Controller, in map[string]any) any { return m.ScaleSet(in["scale"]) })
 	need("mascot.scaleStep", func(m *mascot.Controller, in map[string]any) any { return m.ScaleStep(in["dir"]) })

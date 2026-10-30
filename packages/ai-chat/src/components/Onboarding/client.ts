@@ -14,7 +14,7 @@ export interface OnboardingState {
   done: boolean;
   skipped?: boolean;
 }
-/** 对话窗口 → 看板娘（只有语义名，§10.5）：说一句（可带语义手势）、语义手势、正在等回复 */
+/** 对话窗口 → 桌面角色（只有语义名，§10.5）：说一句（可带语义手势）、语义手势、正在等回复 */
 export type MascotCmd =
   | { type: 'say'; text: string; gesture?: SemanticGesture }
   | { type: 'gesture'; name: SemanticGesture }

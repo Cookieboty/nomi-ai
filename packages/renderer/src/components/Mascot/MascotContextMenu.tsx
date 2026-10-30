@@ -11,7 +11,7 @@ import { hasTransport } from '@/services/api';
 const MENU_W = 168;
 
 /**
- * 看板娘右键菜单：放大 / 缩小 / 重置大小（Ctrl/⌘+滚轮与设置页滑块是另外两个入口）。
+ * 桌面角色右键菜单：放大 / 缩小 / 重置大小（Ctrl/⌘+滚轮与设置页滑块是另外两个入口）。
  * 只在角色画布上右键时出现（工具栏按钮有自己的右键行为）；带 data-mascot-ui，
  * 点击穿透命中测试（elementFromPoint / Linux setShape）会把菜单算上。
  */

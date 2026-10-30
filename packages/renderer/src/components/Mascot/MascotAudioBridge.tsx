@@ -1,5 +1,5 @@
 /**
- * 订阅已有看板娘/桌面/AI 事件，补语音与动作音效。
+ * 订阅已有桌面角色/桌面/AI 事件，补语音与动作音效。
  * 不修改 mascot/**；互动 SPEAK_KINDS 已由 reactions 朗读，此处只加音效。
  */
 import { useAIEvents } from '@nomi-ai/ai-sdk-client/react';

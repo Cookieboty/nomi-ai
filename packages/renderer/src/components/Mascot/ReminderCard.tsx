@@ -9,7 +9,7 @@ import styles from './DesktopConfirm.module.css';
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
 import { api, hasTransport } from '@/services/api';
 
-/** 提醒（看板娘窗口）：到点事件、错过的提醒、卡片上的好的 / 稍后 */
+/** 提醒（桌面角色窗口）：到点事件、错过的提醒、卡片上的好的 / 稍后 */
 const reminders = {
   onReminder: (cb: (r: DesktopReminderEvent) => void) =>
     api.on('desktop.reminder', (r) => cb(r as DesktopReminderEvent)),
@@ -23,7 +23,7 @@ const time = (t: number) =>
   new Date(t).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
 /**
- * 提醒到点：气泡说一句 + 底部提醒卡片（好的 / 10 分钟后）。看板娘挥手与系统通知由主进程触发。
+ * 提醒到点：气泡说一句 + 底部提醒卡片（好的 / 10 分钟后）。桌面角色挥手与系统通知由主进程触发。
  * 启动时播报关闭期间错过的提醒。卡片放在窗口底部，不压脸、不挡确认气泡。
  */
 export const ReminderCard: React.FC = () => {

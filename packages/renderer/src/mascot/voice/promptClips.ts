@@ -2,7 +2,7 @@
  * 角色提示语音：固定台词的预录音频（public/voice/<id>/<locale>）。
  *
  * 播放顺序：预录片段 → 已配置的实时朗读引擎 → 仅气泡。
- * 只在「当前模型是活动角色 + 界面中文 + 提示语音开启 + 看板娘未静音」时播放。
+ * 只在「当前模型是活动角色 + 界面中文 + 提示语音开启 + 桌面角色未静音」时播放。
  * 口型同步与打断复用 audioPlayback 的播放会话（AnalyserNode RMS → lipSyncStore）。
  *
  * Clip ids are name-agnostic (stable-v1). Manifest entries expose id + i18nKey;

@@ -1,5 +1,5 @@
 /**
- * useTTSLipSync —— 订阅 `tts:chunk`，输出最近一次 rms 值供看板娘驱动嘴型。
+ * useTTSLipSync —— 订阅 `tts:chunk`，输出最近一次 rms 值供桌面角色驱动嘴型。
  *
  * 用 `useSyncExternalStore` + 高频事件的**节流合并**（保留最新值即可，无需队列），
  * 避免每 frame 都触发 React re-render 之后仍卡顿。

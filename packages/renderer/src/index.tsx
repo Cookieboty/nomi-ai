@@ -17,7 +17,7 @@ initTheme();
 initLocale();
 // 原生 title 悬停提示统一换成自绘提示
 installTitleTooltips();
-// 看板娘被关闭时不朗读
+// 桌面角色被关闭时不朗读
 initMascotPresence();
 
 // 创建根元素

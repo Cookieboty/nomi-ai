@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macOS 透明实测：起应用 → 只截看板娘窗口（带 alpha）+ 全屏截图 → 检查窗口四角 alpha=0。
+# macOS 透明实测：起应用 → 只截桌面角色窗口（带 alpha）+ 全屏截图 → 检查窗口四角 alpha=0。
 # 用法：mac-transparency.sh <app 可执行文件> <输出目录>
 set -u
 BIN=$1; OUT=$2; mkdir -p "$OUT"

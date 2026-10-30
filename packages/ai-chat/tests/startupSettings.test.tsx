@@ -28,7 +28,7 @@ const install = () => {
       if (failSet) throw new Error('disk full');
       const patch = input as Record<string, unknown>;
       const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
-      // 与主进程 StartupService 一致：切回看板娘自动打开；默认看板娘时关掉她 → 默认改主界面
+      // 与主进程 StartupService 一致：切回桌面角色自动打开；默认桌面角色时关掉她 → 默认改主界面
       if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
       if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
       stored = next;
@@ -72,7 +72,7 @@ describe('Settings → General → startup default view', () => {
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
     // 没有人设时用通用称呼；指桌面角色的文案不写死官方角色名（§10.1）
-    expect(mascot.textContent).toContain('看板娘');
+    expect(mascot.textContent).toContain('桌面角色');
     expect(mascot.textContent).not.toMatch(/Nomi|诺米/);
     expect(main.textContent).toContain('软件主界面');
   });
@@ -173,7 +173,7 @@ describe('Settings → General → startup default view', () => {
     expect(sw.getAttribute('aria-checked')).toBe('false');
     // 默认界面本来就是主界面：不提示改默认
     expect(screen.queryByTestId('startup-mascot-switched')).toBeNull();
-    // 切回看板娘为默认：开关自动打开
+    // 切回桌面角色为默认：开关自动打开
     fireEvent.click(screen.getByTestId('startup-view-mascot'));
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
   });

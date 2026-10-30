@@ -11,7 +11,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E23 · 看板娘大小（真实应用，Nomi 2D）
+ * E23 · 桌面角色大小（真实应用，Nomi 2D）
  *
  * - Ctrl/⌘ + 滚轮（Playwright 注入 + Linux 上真实 X11 滚轮）、右键菜单、工具栏「更多」、设置页滑块
  *   四个入口都能放大 / 缩小 / 重置
@@ -80,7 +80,7 @@ function grab(name: string, w: number, h: number): void {
 
 const bounds = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => {
-    // 看板娘窗口：置顶，但不是同样置顶的灵动岛
+    // 桌面角色窗口：置顶，但不是同样置顶的灵动岛
     const w = BrowserWindow.getAllWindows().find(
       (b) => b.isAlwaysOnTop() && b.getTitle() !== 'Nomi Island',
     );
@@ -417,7 +417,7 @@ test.describe('E23 · mascot size', () => {
     await expect(chat.getByTestId('mascot-size-value')).toHaveText('90%');
     await shot('05-slider-090');
     if (shots) await chat.screenshot({ path: join(shots, 'E23-05-settings-general.png') });
-    // 看板娘上的操作同步回滑块
+    // 桌面角色上的操作同步回滑块
     await callContract(page, 'mascot.scaleStep', { dir: 1 });
     await expectScaled(page, 1, anchor, wa);
     await expect(chat.getByTestId('mascot-size-value')).toHaveText('100%');
@@ -442,7 +442,7 @@ test.describe('E23 · mascot size', () => {
     await expectScaled(page, 0.5, anchor, wa);
 
     // 5) 放大后：透明区仍点击穿透 / 气泡不压脸 / 拖拽照常
-    // （设置窗口先关掉：真实光标测试里它会盖在看板娘上面）
+    // （设置窗口先关掉：真实光标测试里它会盖在桌面角色上面）
     await chat.close().catch(() => undefined);
     await callContract(page, 'mascot.scaleSet', { scale: 1.1 });
     await expectScaled(page, 1.1, anchor, wa);

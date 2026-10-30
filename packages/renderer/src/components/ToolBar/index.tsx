@@ -51,7 +51,7 @@ import { setCache } from '@/utils/cache';
 const log = createLogger('toolbar');
 
 /**
- * 看板娘工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
+ * 桌面角色工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
  * - 竖向胶囊：AI 对话（主按钮，橙色）/ 语音交互 / 任务看板 / 角色互动 / 声音设置 / 更多；
  *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Lucide（ISC）统一图标。
  * - 提示：深色两行（标题 + 说明，文本里用换行分隔，第一行加粗）。
@@ -73,7 +73,7 @@ import.meta.hot?.dispose(() => {
 const NEAR_PX = 0;
 /** 离开后延迟收起（设计稿：200–300ms） */
 const HIDE_DELAY_MS = 250;
-/** 工具栏与角色的间距：看板娘左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
+/** 工具栏与角色的间距：桌面角色左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
 const BAR_GAP = 8;
 
 /** 工具的标题与一行说明（提示 = 标题\n说明；面板行 = 标题 + 说明） */
@@ -122,7 +122,7 @@ export const ToolBar: React.FC = () => {
     [say],
   );
 
-  // 「关闭看板娘」随时可用（#55）：默认界面为看板娘时主进程会改为主界面并打开它
+  // 「关闭桌面角色」随时可用（#55）：默认界面为桌面角色时主进程会改为主界面并打开它
   const availableTools = configTools;
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceService, setVoiceService] = useState<VoiceService | null>(null);
@@ -205,7 +205,7 @@ export const ToolBar: React.FC = () => {
     initVoiceService();
   }, []);
 
-  // 关闭看板娘：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
+  // 关闭桌面角色：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
   const hideMascot = useCallback(async () => {
     stopAllSpeech();
     if (!(await closeMascot()))
@@ -564,7 +564,7 @@ export const ToolBar: React.FC = () => {
   }, [place, visible]);
 
   // 面板位置：贴着工具栏朝角色一侧展开，整体留在窗口内（过高时内部滚动）。
-  // 看板娘缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
+  // 桌面角色缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
   const menuRef = useRef<HTMLDivElement>(null);
   const [panelBox, setPanelBox] = useState<{
     left: number;

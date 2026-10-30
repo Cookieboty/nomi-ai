@@ -1,7 +1,7 @@
 /**
  * Mascot 渲染后端抽象。
  *
- * 看板娘的所有「驱动」（口型、表情、视线、眨眼）都只面向本接口编程；
+ * 桌面角色的所有「驱动」（口型、表情、视线、眨眼）都只面向本接口编程；
  * 具体渲染器（Rive 见 backends/rive.ts，分层 2D 见 backends/sprite.ts）在加载模型后
  * 通过所在运行时的 `registry.attach()` 挂上来（runtime.ts；页面主运行时的就是 `mascotRegistry`）。
  */

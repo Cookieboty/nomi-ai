@@ -1,5 +1,5 @@
 /**
- * 看板娘事件台词（原创中文，可爱简短）。多条随机；冷却由 MascotCueService 控制。
+ * 桌面角色事件台词（原创中文，可爱简短）。多条随机；冷却由 MascotCueService 控制。
  * MIT with the project.
  */
 

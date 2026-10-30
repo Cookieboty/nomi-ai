@@ -6,7 +6,7 @@
  *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件
  *   （`events.publish('voice.changed', …)`），这里不做转换。
  *
- * 按窗口的会话（VAD、流式识别）与只接受看板娘窗口的操作（确认答复、提醒卡片、拖文件）用
+ * 按窗口的会话（VAD、流式识别）与只接受桌面角色窗口的操作（确认答复、提醒卡片、拖文件）用
  * `callerWebContentsId(ctx)` 代替旧的 `event.sender`，窗口存活由宿主经 `services.callerWindows` 报告，
  * 见 ./media/voiceSenders.ts。打开语音设置走声明式窗口意图（`ports.windows.open('chat', { route: 'voice' })`）。
  */

@@ -5,13 +5,13 @@
 
 ## 1. 量化目标（按平台）
 
-| 指标                               | Linux (x64)                 | macOS (arm64)      | Windows (x64) |
-| ---------------------------------- | --------------------------- | ------------------ | ------------- |
-| 仅看板娘常驻，冷启动 +2min，总 USS | ≤ 200 MiB（2.0.5 实测 356） | ≤ 150 MiB          | ≤ 150 MiB     |
-| 看板娘隐藏后总 USS                 | ≤ 60 MiB                    | ≤ 50 MiB           | ≤ 50 MiB      |
-| 开对话增量 USS                     | ≤ 80 MiB                    | ≤ 80 MiB           | ≤ 80 MiB      |
-| 安装包（压缩后）                   | ≤ 40 MiB                    | ≤ 40 MiB（单架构） | ≤ 40 MiB      |
-| 冷启动到看板娘首帧                 | ≤ 1.5 s                     | ≤ 1.0 s            | ≤ 1.5 s       |
+| 指标                             | Linux (x64)                 | macOS (arm64)      | Windows (x64) |
+| -------------------------------- | --------------------------- | ------------------ | ------------- |
+| 仅诺米常驻，冷启动 +2min，总 USS | ≤ 200 MiB（2.0.5 实测 356） | ≤ 150 MiB          | ≤ 150 MiB     |
+| 诺米隐藏后总 USS                 | ≤ 60 MiB                    | ≤ 50 MiB           | ≤ 50 MiB      |
+| 开对话增量 USS                   | ≤ 80 MiB                    | ≤ 80 MiB           | ≤ 80 MiB      |
+| 安装包（压缩后）                 | ≤ 40 MiB                    | ≤ 40 MiB（单架构） | ≤ 40 MiB      |
+| 冷启动到诺米首帧                 | ≤ 1.5 s                     | ≤ 1.0 s            | ≤ 1.5 s       |
 
 说明：Linux 的 WebView 用系统 WebKitGTK，mac 用 WKWebView，Windows 用 WebView2（Edge 运行时，内存口径与 Chromium 类似，**收益预计最小**）。目标值是需要达到才值得迁移的门槛，不是预测。
 
@@ -21,7 +21,7 @@
 flowchart LR
   subgraph Shell["外壳（可替换）: Wails v3 / 未来可换"]
     Tray[托盘] --> WM[窗口管理]
-    WM --> MW["看板娘 WebView<br/>透明·无边框·置顶<br/>AvatarStage + Rive"]
+    WM --> MW["诺米 WebView<br/>透明·无边框·置顶<br/>AvatarStage + Rive"]
     WM --> CW["对话 WebView<br/>ai-chat UI"]
   end
   subgraph Core["Go 核心（单进程）"]
@@ -109,8 +109,8 @@ flowchart LR
 
 - **Linux 托盘**：Wails v3 用 StatusNotifierItem；无 SNI 宿主（如本测试机 Xfwm4 无插件、GNOME 默认）时托盘注册失败（实测报 `org.kde.StatusNotifierWatcher not provided`）。Electron 有 XEmbed 回退。需要兜底入口（单实例 + 命令行/快捷键）。
 - **Linux 透明窗口**：依赖合成器（本机 picom）；GTK3 构建实测透明可用。GTK4/webkitgtk-6.0（v3 默认）**未测**。Wayland 下置顶/定位受限 **未测**。
-- **鼠标穿透**：看板娘透明区域点击穿透需要 ignore-mouse（v3 有示例），按像素命中测试 **未测**。
-- **WebKitGTK 渲染内存**：本机无 GPU，看板娘 WebProcess USS ≈ 430 MiB，远高于预期，怀疑 WebGL/Rive 走软件渲染 + 合成层缓冲；有 GPU 机器上 **未测**。这是本 POC 最大的未决问题。
+- **鼠标穿透**：诺米透明区域点击穿透需要 ignore-mouse（v3 有示例），按像素命中测试 **未测**。
+- **WebKitGTK 渲染内存**：本机无 GPU，诺米 WebProcess USS ≈ 430 MiB，远高于预期，怀疑 WebGL/Rive 走软件渲染 + 合成层缓冲；有 GPU 机器上 **未测**。这是本 POC 最大的未决问题。
 - **WebView 差异**：三平台三种引擎，Rive WASM/WebGL2、AudioWorklet、onnxruntime-web 的兼容性需逐一回归（mac/Windows **未测**）。
 - Windows WebView2 本身多进程，内存收益可能很小。
 
@@ -129,20 +129,20 @@ flowchart LR
 环境：Linux :2，1920×1200，无 GPU，16 GiB 内存、无 swap；Wails v3.0.0 `-tags gtk3`（webkit2gtk-4.1 2.54.0），Go 1.27.2；mock LLM（无 key）。
 测前 `free -m`：available 9616 MiB。冷启动后等 120 s，每阶段 3 次取中位数；口径 USS = Private_Clean + Private_Dirty（smaps_rollup），整个进程树求和。原始数据 `/workspace/scratch/go-poc/mem/raw-*.json`。
 
-| 场景                       | POC USS   | POC PSS | 2.0.5 USS             | 2.0.5 PSS      |
-| -------------------------- | --------- | ------- | --------------------- | -------------- |
-| 冷启动（仅看板娘）         | **538.8** | 654.6   | 356.5（另一次 287.1） | 515.7（328.1） |
-| 打开对话                   | **583.5** | 754.6   | 376.7                 | 482.7          |
-| 关闭对话                   | **532.4** | 648.6   | 357.7                 | 431.7          |
-| 隐藏看板娘（销毁 WebView） | **163.5** | 212.1   | 315.8                 | 390.0          |
+| 场景                     | POC USS   | POC PSS | 2.0.5 USS             | 2.0.5 PSS      |
+| ------------------------ | --------- | ------- | --------------------- | -------------- |
+| 冷启动（仅诺米）         | **538.8** | 654.6   | 356.5（另一次 287.1） | 515.7（328.1） |
+| 打开对话                 | **583.5** | 754.6   | 376.7                 | 482.7          |
+| 关闭对话                 | **532.4** | 648.6   | 357.7                 | 431.7          |
+| 隐藏诺米（销毁 WebView） | **163.5** | 212.1   | 315.8                 | 390.0          |
 
 单位 MiB。2.0.5 数据为此前单次采样（部分在内存压力下，PSS 偏低），不是三次中位数。
 
-POC 进程拆分（冷启动中位）：nomi-poc 77 / WebKitWebProcess 434 / WebKitNetworkProcess 28 (USS)。开对话新增一个 WebProcess ≈ 102。隐藏看板娘后 WebProcess 回收，但 nomi-poc 主进程从 78 升到 140（原因未查）。
+POC 进程拆分（冷启动中位）：nomi-poc 77 / WebKitWebProcess 434 / WebKitNetworkProcess 28 (USS)。开对话新增一个 WebProcess ≈ 102。隐藏诺米后 WebProcess 回收，但 nomi-poc 主进程从 78 升到 140（原因未查）。
 
 结论（仅限此环境）：
 
-- 在无 GPU 的 Linux 上，WebKitGTK 承载 Rive 看板娘比 Electron **更耗内存**（+51% USS），未达到目标；
+- 在无 GPU 的 Linux 上，WebKitGTK 承载 Rive 诺米比 Electron **更耗内存**（+51% USS），未达到目标；
 - 销毁 WebView 的回收效果明显好于 Electron（163 vs 316）；
 - 开对话增量 ≈ 45–50 MiB，比 2.0.5（≈ 20）大。
 
@@ -158,7 +158,7 @@ POC 进程拆分（冷启动中位）：nomi-poc 77 / WebKitWebProcess 434 / Web
 
 Run：https://github.com/Cookieboty/nomi-ai/actions/runs/40808099424 （commit bd5073af，三平台全部成功；前一组 run 40807152337 数据接近）。
 Runner：macos-14（arm64）、windows-latest（Windows Server 2025）。冷启动后等 **45 s**（WAIT=45），其余场景切换后各等待采样；每场景采 3 次，取合计的中位数。场景用 `NOMI_POC_CTL` 切换，对话用 mock。
-对照组为 **v2.0.4** release 安装包（2.0.5 未发布安装包），同一 runner，**只测了冷启动**；v2.0.4 冷启动显示引导主窗口 + 看板娘，与 POC「仅看板娘」不完全对等。
+对照组为 **v2.0.4** release 安装包（2.0.5 未发布安装包），同一 runner，**只测了冷启动**；v2.0.4 冷启动显示引导主窗口 + 诺米，与 POC「仅诺米」不完全对等。
 
 体积（字节）：
 
@@ -170,36 +170,36 @@ Runner：macos-14（arm64）、windows-latest（Windows Server 2025）。冷启�
 
 macOS 内存（MiB，进程树 + com.apple.WebKit.* 进程合计；footprint = `sudo vmmap -summary` Physical footprint，RSS = ps）：
 
-| 场景       | POC footprint | POC RSS | v2.0.4 footprint | v2.0.4 RSS |
-| ---------- | ------------- | ------- | ---------------- | ---------- |
-| 冷启动     | 268.9         | 499.0   | 580.3            | 942.7      |
-| 打开对话   | 307.0         | 591.1   | 未测             | 未测       |
-| 关闭对话   | 310.8         | 519.2   | 未测             | 未测       |
-| 隐藏看板娘 | 45.9          | 160.9   | 未测             | 未测       |
+| 场景     | POC footprint | POC RSS | v2.0.4 footprint | v2.0.4 RSS |
+| -------- | ------------- | ------- | ---------------- | ---------- |
+| 冷启动   | 268.9         | 499.0   | 580.3            | 942.7      |
+| 打开对话 | 307.0         | 591.1   | 未测             | 未测       |
+| 关闭对话 | 310.8         | 519.2   | 未测             | 未测       |
+| 隐藏诺米 | 45.9          | 160.9   | 未测             | 未测       |
 
-按进程（冷启动中位，footprint）：nomi-poc 22.5 / WebContent 176.1 / Networking 14.1 / GPU 17.2。打开对话多一个 WebContent 35.5；看板娘 WebContent 涨到 ≈314，关闭对话后不回落（≈300）。隐藏看板娘后 WebContent 退出，剩 nomi-poc 25.8 / Networking 6.8 / GPU 13.4。v2.0.4 冷启动：Nomi 91.6 / Helper(GPU) 265.1 / Renderer 141.1 + 52.6 / 其他 Helper 7.5 + 22.6。
+按进程（冷启动中位，footprint）：nomi-poc 22.5 / WebContent 176.1 / Networking 14.1 / GPU 17.2。打开对话多一个 WebContent 35.5；诺米 WebContent 涨到 ≈314，关闭对话后不回落（≈300）。隐藏诺米后 WebContent 退出，剩 nomi-poc 25.8 / Networking 6.8 / GPU 13.4。v2.0.4 冷启动：Nomi 91.6 / Helper(GPU) 265.1 / Renderer 141.1 + 52.6 / 其他 Helper 7.5 + 22.6。
 
 Windows 内存（MiB，Win32_Process 递归进程树合计；privWS = 性能计数器 Working Set - Private，Private = PrivateMemorySize64，WS = WorkingSet64）：
 
-| 场景       | POC privWS | POC Private | POC WS | v2.0.4 privWS | v2.0.4 Private | v2.0.4 WS |
-| ---------- | ---------- | ----------- | ------ | ------------- | -------------- | --------- |
-| 冷启动     | 332.7      | 415.1       | 636.6  | 415.8         | 501.2          | 825.4     |
-| 打开对话   | 402.7      | 473.0       | 747.8  | 未测          | 未测           | 未测      |
-| 关闭对话   | 382.4      | 445.5       | 682.3  | 未测          | 未测           | 未测      |
-| 隐藏看板娘 | 30.3       | 81.8        | 76.9   | 未测          | 未测           | 未测      |
+| 场景     | POC privWS | POC Private | POC WS | v2.0.4 privWS | v2.0.4 Private | v2.0.4 WS |
+| -------- | ---------- | ----------- | ------ | ------------- | -------------- | --------- |
+| 冷启动   | 332.7      | 415.1       | 636.6  | 415.8         | 501.2          | 825.4     |
+| 打开对话 | 402.7      | 473.0       | 747.8  | 未测          | 未测           | 未测      |
+| 关闭对话 | 382.4      | 445.5       | 682.3  | 未测          | 未测           | 未测      |
+| 隐藏诺米 | 30.3       | 81.8        | 76.9   | 未测          | 未测           | 未测      |
 
-按进程（冷启动中位，privWS）：nomi-poc 39.5 / msedgewebview2 主 38.6 / gpu 89.9 / renderer 149.2 / utility 6.0 + 2.7 / crashpad 2.1。打开对话多一个 renderer 20.6。隐藏看板娘后整个 msedgewebview2 树退出，只剩 nomi-poc（需 `DisableQuitOnLastWindowClosed`，否则进程直接退出）。v2.0.4 冷启动：main 84.8 / gpu 100 / renderer 146.2 + 39.5 / utility 7.3 + 25。
+按进程（冷启动中位，privWS）：nomi-poc 39.5 / msedgewebview2 主 38.6 / gpu 89.9 / renderer 149.2 / utility 6.0 + 2.7 / crashpad 2.1。打开对话多一个 renderer 20.6。隐藏诺米后整个 msedgewebview2 树退出，只剩 nomi-poc（需 `DisableQuitOnLastWindowClosed`，否则进程直接退出）。v2.0.4 冷启动：main 84.8 / gpu 100 / renderer 146.2 + 39.5 / utility 7.3 + 25。
 
-Rive 渲染：两平台都上报了 `rive-model-loaded`，截图（artifact `mem-<os>` 中 `poc-cold.png`）可见看板娘。Windows 窗口已透明；**macOS 窗口仍是白底**（MacBackdropTransparent 未生效，待查）。
+Rive 渲染：两平台都上报了 `rive-model-loaded`，截图（artifact `mem-<os>` 中 `poc-cold.png`）可见诺米。Windows 窗口已透明；**macOS 窗口仍是白底**（MacBackdropTransparent 未生效，待查）。
 mock 对话（chat-done）：macOS 首包 39–47 ms、总 ≈2.85 s；Windows 首包 47–70 ms、总 ≈3.2 s（上一组）。
 
-结论（仅 CI runner，无真实 GPU）：冷启动 POC 比 v2.0.4 低——macOS footprint −54%，Windows privWS −20%；隐藏看板娘可回收到 30–46 MiB。安装体积约为 v2.0.4 的 1/6（zip）。
+结论（仅 CI runner，无真实 GPU）：冷启动 POC 比 v2.0.4 低——macOS footprint −54%，Windows privWS −20%；隐藏诺米可回收到 30–46 MiB。安装体积约为 v2.0.4 的 1/6（zip）。
 
-未测：v2.0.4/2.0.5 的打开对话、关闭对话、隐藏看板娘场景（打包版无控制口）；2.0.5 安装包（未发布）；冷启动耗时；Intel Mac；真实 GPU 机器；签名/公证后的体积。
+未测：v2.0.4/2.0.5 的打开对话、关闭对话、隐藏诺米场景（打包版无控制口）；2.0.5 安装包（未发布）；冷启动耗时；Intel Mac；真实 GPU 机器；签名/公证后的体积。
 
-### 8.3 SVG 静态看板娘变体（无 Rive、无动画）
+### 8.3 SVG 静态诺米变体（无 Rive、无动画）
 
-看板娘窗口改为只用 `<img>` 显示一张已有的静态立绘 `rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg`（4,063,576 B，SVG 内嵌一张 1024×1536 透明底 PNG），前端包里不再含 Rive 运行时 / wasm / avatar-runtime / 角色包。默认构建即 SVG 版；`NOMI_POC_MASCOT=rive` 构建前端可恢复 Rive 版。窗口尺寸与透明设置不变。同口径（冷启动后等待 45 s，三次中位数，整个进程树）。CI run 40810089919，提交 983908db。
+诺米窗口改为只用 `<img>` 显示一张已有的静态立绘 `rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg`（4,063,576 B，SVG 内嵌一张 1024×1536 透明底 PNG），前端包里不再含 Rive 运行时 / wasm / avatar-runtime / 角色包。默认构建即 SVG 版；`NOMI_POC_MASCOT=rive` 构建前端可恢复 Rive 版。窗口尺寸与透明设置不变。同口径（冷启动后等待 45 s，三次中位数，整个进程树）。CI run 40810089919，提交 983908db。
 
 体积（字节）：
 
@@ -211,17 +211,17 @@ mock 对话（chat-done）：macOS 首包 39–47 ms、总 ≈2.85 s；Windows �
 
 内存（MiB；macOS = vmmap footprint（括号内 RSS），Windows = privWS，Linux = 本机 USS 合计，等待 120 s）：
 
-| 场景       | macOS SVG    | macOS Rive    | Windows SVG | Windows Rive | Linux SVG | Linux Rive |
-| ---------- | ------------ | ------------- | ----------- | ------------ | --------- | ---------- |
-| 冷启动     | 55.9 (177.6) | 268.9 (499.0) | 80.4        | 332.7        | 216.1     | 539        |
-| 打开对话   | 96.7 (266.7) | 307.0 (591.1) | 106.3       | 402.7        | 289.5     | —          |
-| 关闭对话   | 59.8 (194.7) | 310.8 (519.2) | 83.2        | 382.4        | 219.5     | —          |
-| 隐藏看板娘 | 31.9 (109.8) | 45.9 (160.9)  | 14.5        | 30.3         | 153.9     | —          |
+| 场景     | macOS SVG    | macOS Rive    | Windows SVG | Windows Rive | Linux SVG | Linux Rive |
+| -------- | ------------ | ------------- | ----------- | ------------ | --------- | ---------- |
+| 冷启动   | 55.9 (177.6) | 268.9 (499.0) | 80.4        | 332.7        | 216.1     | 539        |
+| 打开对话 | 96.7 (266.7) | 307.0 (591.1) | 106.3       | 402.7        | 289.5     | —          |
+| 关闭对话 | 59.8 (194.7) | 310.8 (519.2) | 83.2        | 382.4        | 219.5     | —          |
+| 隐藏诺米 | 31.9 (109.8) | 45.9 (160.9)  | 14.5        | 30.3         | 153.9     | —          |
 
 同 runner 的 v2.0.4 冷启动：macOS 582.8 footprint（952.5 RSS），Windows privWS 422.7。
 
-按进程（冷启动中位）：macOS nomi-poc 21.9 / 看板娘 WebContent 28.0（Rive 版 176.1）/ Networking 6.1，**不再出现 GPU 进程**（Rive 版 17.2）；打开对话多一个 WebContent 36.9，看板娘 WebContent 保持 28.0，**Rive 版"打开对话后看板娘 WebContent 涨到 ≈300"不再出现**。Windows nomi-poc 15.1 / webview2 主 28.8 / gpu 5.9（Rive 版 89.9）/ renderer 19.7（Rive 版 149.2）/ utility 6.0 + 2.7 / crashpad 2.2；打开对话多一个 renderer 20.8。Linux nomi-poc 64.5 / WebKitWebProcess 131.2 / NetworkProcess 20.4（本机无 GPU，软件渲染）。
+按进程（冷启动中位）：macOS nomi-poc 21.9 / 诺米 WebContent 28.0（Rive 版 176.1）/ Networking 6.1，**不再出现 GPU 进程**（Rive 版 17.2）；打开对话多一个 WebContent 36.9，诺米 WebContent 保持 28.0，**Rive 版"打开对话后诺米 WebContent 涨到 ≈300"不再出现**。Windows nomi-poc 15.1 / webview2 主 28.8 / gpu 5.9（Rive 版 89.9）/ renderer 19.7（Rive 版 149.2）/ utility 6.0 + 2.7 / crashpad 2.2；打开对话多一个 renderer 20.8。Linux nomi-poc 64.5 / WebKitWebProcess 131.2 / NetworkProcess 20.4（本机无 GPU，软件渲染）。
 
 显示：三平台都上报 `svg-loaded`，截图可见立绘；Windows、Linux 透明，**macOS 仍是白底**（与 8.2 同一问题，与 Rive 无关）。
 
-结论：去掉 Rive 后看板娘窗口成本基本消失——冷启动 macOS footprint 268.9 → 55.9（约为 v2.0.4 的 1/10），Windows privWS 332.7 → 80.4（约 v2.0.4 的 1/5）；包体积再减约 58%（SVG 自带 4 MB，仍在包内）。代价是没有任何动画/表情/口型。
+结论：去掉 Rive 后诺米窗口成本基本消失——冷启动 macOS footprint 268.9 → 55.9（约为 v2.0.4 的 1/10），Windows privWS 332.7 → 80.4（约 v2.0.4 的 1/5）；包体积再减约 58%（SVG 自带 4 MB，仍在包内）。代价是没有任何动画/表情/口型。

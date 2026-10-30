@@ -1,7 +1,7 @@
 /**
- * 看板娘推送经内核的应用事件总线（窗口管理器建控制器时传入）：
+ * 桌面角色推送经内核的应用事件总线（窗口管理器建控制器时传入）：
  * 窗口控制器的大小 / 物理推送经 `events.publish` 发布契约事件；大小变化只发布一次
- * （看板娘 + 对话窗口）。没有事件总线时推送直接丢弃，不再直接发给窗口。
+ * （桌面角色 + 对话窗口）。没有事件总线时推送直接丢弃，不再直接发给窗口。
  */
 import { createRecordingAppEvents, type AppEvents } from '@nomi-ai/core/core/appEvents';
 import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
@@ -78,7 +78,7 @@ describe('MascotWindowController · 应用事件总线', () => {
     s.c.dispose();
   });
 
-  it('经 events.publish：大小变化发布一次（看板娘 + 对话窗口），物理事件只发看板娘', () => {
+  it('经 events.publish：大小变化发布一次（桌面角色 + 对话窗口），物理事件只发桌面角色', () => {
     const events = createRecordingAppEvents();
     const s = setup(events);
     const st = s.c.scaleStep(1);

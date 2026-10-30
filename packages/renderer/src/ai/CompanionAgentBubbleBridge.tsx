@@ -15,7 +15,7 @@ import {
 import { useCompanionMessage } from '@/hooks/useCompanionMessage';
 
 /**
- * AI 门面事件（Agent 步骤、回复完成、工具结果）→ 看板娘气泡。被摸 / 被点的气泡由角色运行时的
+ * AI 门面事件（Agent 步骤、回复完成、工具结果）→ 桌面角色气泡。被摸 / 被点的气泡由角色运行时的
  * 互动反应给出（avatar/interaction.ts），这里不再重复。
  */
 const CompanionAgentBubbleBridge: FC = () => {

@@ -1,5 +1,5 @@
 /**
- * 看板娘语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
+ * 桌面角色语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
  * 驱动 lipSyncStore 口型、支持打断；失败返回 false，调用方保持静默。
  * 实时朗读会先去掉 Markdown / 代码等不该念的内容，再按句切段：边播当前句边请求下一句。
  */

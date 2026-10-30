@@ -105,7 +105,7 @@ describe('MascotWindowController scale', () => {
     expect(Math.abs(s.b.x + s.b.width / 2 - feetBefore.x)).toBeLessThanOrEqual(1);
     expect(s.b.y + s.b.height).toBe(feetBefore.y);
     expect(s.saved).toEqual([0.6]);
-    // 一次发布，看板娘与对话窗口（设置页滑块）都要知道
+    // 一次发布，桌面角色与对话窗口（设置页滑块）都要知道
     expect(s.changed()).toEqual([
       expect.objectContaining({ payload: st, surfaces: ['mascot', 'chat'] }),
     ]);

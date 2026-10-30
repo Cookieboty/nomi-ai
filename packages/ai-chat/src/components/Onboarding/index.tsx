@@ -2,7 +2,7 @@
  * 首次启动引导：欢迎与语言 → 外观与启动 → 关于你（称呼、职业与兴趣）→ 接上模型 → 隐私与完成。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
- * 看板娘在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
+ * 桌面角色在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
  */
 import {
   USER_INTERESTS,
@@ -59,7 +59,7 @@ const STEP_TITLE: Record<Step, () => string> = {
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
-/** 看板娘在每一步说的话（最后一步视模型状态而定，见 lineFor） */
+/** 桌面角色在每一步说的话（最后一步视模型状态而定，见 lineFor） */
 const STEP_LINE: Record<Step, () => string> = {
   welcome: () => tName('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who', characterFullName()),
   profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
@@ -158,7 +158,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const cardRef = useRef<HTMLDivElement>(null);
   useFocusTrap(cardRef, true);
   const step = STEPS[i]!;
-  // 角色名到达 / 变化时重新渲染（标题与看板娘台词里有它）
+  // 角色名到达 / 变化时重新渲染（标题与桌面角色台词里有它）
   useCharacterName();
   const model = useNomiModelStatus();
   const modelReady = model === 'ready';
@@ -167,7 +167,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole | null>(null);
   const [interests, setInterests] = useState<UserInterest[]>([]);
-  // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
+  // 启动方式：默认桌面角色（保持历史行为）；点选即写入设置，跳过 / 不选则不改
   const [startup, setStartup] = useState<StartupView>('mascot');
   /** 「关于我」里引导那一段中认不出的行（手改的、换语言前写的）：重写时原样保留 */
   const keepLines = useRef<string[]>([]);
@@ -197,7 +197,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     });
     loaded.current = Promise.all([profile, persona]).then(() => undefined);
   }, []);
-  // 每进入一步，看板娘说一句；最后一步还没接上模型时提醒「还差一步」
+  // 每进入一步，桌面角色说一句；最后一步还没接上模型时提醒「还差一步」
   const line =
     step === 'privacy' && !modelReady ? t('ui.mascot-theme.one-step-left-line') : STEP_LINE[step]();
   useEffect(() => {

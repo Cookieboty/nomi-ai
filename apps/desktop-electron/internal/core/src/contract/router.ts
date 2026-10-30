@@ -3,7 +3,7 @@
  *
  * - `createAppRouter`：AI 门面（ai-runtime 的 `createAiHandlers`）+ 内核的域处理函数（coding / knowledge /
  *   media / shell，以及 mascot 里不碰窗口的部分）+ 宿主片段（`hostHandlers`：要用窗口的过程，Electron 是
- *   看板娘窗口、灵动岛、旧窗口通道与应用图标）→ `implement(appContract, …)`。
+ *   桌面角色窗口、灵动岛、旧窗口通道与应用图标）→ `implement(appContract, …)`。
  *   - 宿主片段只能**补**内核没有实现的过程，和内核重名时报错（不静默覆盖内核行为）；
  *   - 谁都没实现的过程以 UNAVAILABLE 失败（无界面宿主没有窗口片段；AI runtime 没起来时 `ai.*` 也是这样），
  *     其余过程照常可用；

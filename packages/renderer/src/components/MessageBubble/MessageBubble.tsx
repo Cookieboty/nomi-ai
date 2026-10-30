@@ -19,7 +19,7 @@ import { api, hasTransport } from '@/services/api';
 const PREF_W = 220;
 
 /**
- * 看板娘气泡。
+ * 桌面角色气泡。
  * - 只渲染纯文本（React 文本节点；见 security/bubbleText）。
  * - 位置跟随头部：放在头顶 / 头侧 / 肩下，永不压住脸，避开工具栏槽位，贴屏幕边缘时换边；
  *   尾巴指向头部。长文本在最大高度内滚动。

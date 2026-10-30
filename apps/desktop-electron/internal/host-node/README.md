@@ -22,7 +22,7 @@ control.dispose();
 ## 无界面内核：`@nomi-ai/host-node/core`
 
 `startHeadlessCore(options)` 用上面的端口建一个完整内核（`createCore` + `start()`），并用 in-process 传输接上类型化的
-契约客户端；无界面 E2E（`e2e/`）与 `pnpm dev:web` 用它。没有宿主片段：要用窗口对象的过程（看板娘窗口、灵动岛、应用图标）
+契约客户端；无界面 E2E（`e2e/`）与 `pnpm dev:web` 用它。没有宿主片段：要用窗口对象的过程（诺米窗口、灵动岛、应用图标）
 以 UNAVAILABLE 失败。
 
 ```ts

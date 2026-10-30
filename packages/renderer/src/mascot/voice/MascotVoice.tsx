@@ -1,5 +1,5 @@
 /**
- * 看板娘语音：工具栏「按住说话」麦克风 + 状态桥（表情/动作、语音打断、唤醒词）。
+ * 桌面角色语音：工具栏「按住说话」麦克风 + 状态桥（表情/动作、语音打断、唤醒词）。
  * 识别文本经主进程转交 AI 对话窗口（ai:voice:sendToChat）。
  * 状态胶囊固定在窗口底部，不遮挡角色面部。
  */
@@ -120,8 +120,8 @@ export const MascotVoiceBridge: React.FC = () => {
     [v.api],
   );
 
-  // 唤醒词（默认关闭）：开启后看板娘常驻监听
-  // 看板娘被关闭（窗口隐藏）时停掉唤醒词 / 免按键监听，不在看不见的窗口里继续开麦（#55）
+  // 唤醒词（默认关闭）：开启后桌面角色常驻监听
+  // 桌面角色被关闭（窗口隐藏）时停掉唤醒词 / 免按键监听，不在看不见的窗口里继续开麦（#55）
   const shown = useMascotShown();
   const wake = (v.config?.settings.wakeWord.enabled ?? false) && shown;
   const ready = v.config?.readiness.ok ?? false;

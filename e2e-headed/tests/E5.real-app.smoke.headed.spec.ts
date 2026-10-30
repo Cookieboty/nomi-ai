@@ -17,7 +17,7 @@ import { safeRm } from '../fixtures/fsutil';
  * - 主窗口 preload 成功：只注入 window.nomiTransport（契约传输）与 window.nomiHost，旧桥
  *   window.electronAPI / window.aiIPC 不再存在
  *   （回归：preload 依赖 workspace 包时，在默认 sandbox 下会 "module not found"）
- * - 内置 2D 看板娘 Nomi 加载完成：全新安装默认静态立绘（MascotBackend = static；Rive 由设置开启，E22 覆盖），
+ * - 内置 2D 桌面角色 Nomi 加载完成：全新安装默认静态立绘（MascotBackend = static；Rive 由设置开启，E22 覆盖），
  *   不再有角色选择 / 切换入口，且没有 preload / 角色加载错误
  *
  * 前置：`pnpm build`（会生成 apps/desktop-electron/dist 与 packages/renderer/dist）。
@@ -54,7 +54,7 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
     if (userData) safeRm(userData);
   });
 
-  test('主窗口 preload 注入 nomiTransport / nomiHost，Nomi 看板娘加载成功', async () => {
+  test('主窗口 preload 注入 nomiTransport / nomiHost，Nomi 桌面角色加载成功', async () => {
     test.skip(
       !existsSync(mainJs) || !existsSync(rendererIndex),
       `需要先构建：${mainJs} / ${rendererIndex}`,

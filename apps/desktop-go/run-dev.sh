@@ -20,7 +20,7 @@ fi
 
 case "$(uname -s)" in
 Darwin)
-  TAGS=private_mac_apis # 不加则看板娘窗口不透明（WKWebView drawsBackground）
+  TAGS=private_mac_apis # 不加则桌面角色窗口不透明（WKWebView drawsBackground）
   # 与 packaging/package.sh 同为 11.0，否则链接时满屏 "built for newer macOS" 警告
   export MACOSX_DEPLOYMENT_TARGET=11.0
   export CGO_CFLAGS="-mmacosx-version-min=11.0" CGO_LDFLAGS="-mmacosx-version-min=11.0"

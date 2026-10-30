@@ -27,7 +27,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   收到工具结果（异步默认立刻返回 running）后回「DELEGATE-DONE」；卡片等编程助手真正结束后再变 done；
  * - mock Claude / Codex（NOMI_USE_MOCK_CLI=1）：Claude 按 NOMI_MOCK_CLAUDE_REPLY 回 [nomi-report] 汇报；
  *   目标含 PERMTASK 的一轮先请求权限，含 SLOWTASK 的一轮先等 20 秒（可被停止打断）；
- * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹看板娘确认）。
+ * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹桌面角色确认）。
  * 覆盖：卡片显示与汇报、子任务在后台开标签（不抢焦点）、卡片内审批、单独停止后 Nomi 继续、
  * /agent codex 指定交给 Codex（输入栏 chip、用户消息上的标记）、助手模式下「查看」打开抽屉。
  */
@@ -193,7 +193,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
         usage: {},
       }),
     );
-    // 工作目录已授权；委派不弹看板娘确认（确认流程由单测覆盖）
+    // 工作目录已授权；委派不弹桌面角色确认（确认流程由单测覆盖）
     mkdirSync(join(userData, 'desktop'), { recursive: true });
     writeFileSync(
       join(userData, 'desktop', 'settings.json'),

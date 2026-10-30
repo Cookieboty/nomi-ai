@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * D5 视图经契约访问主进程（docs/design/core-host-decoupling.md §12 P1b）：模型名缓存、互动设置推送、
- * 主进程的看板娘指令。没有传输（浏览器预览）时退回本地行为。
+ * 主进程的桌面角色指令。没有传输（浏览器预览）时退回本地行为。
  */
 import { interactionSettings, setInteractionConfigBackend } from '@nomi-ai/avatar-runtime';
 import { cleanup, render } from '@testing-library/react';
@@ -65,7 +65,7 @@ describe('D5 views · contract', () => {
     expect(await getCache('modelName')).toBe('x');
   });
 
-  it('互动设置推给主进程（mascot.setInteractionConfig，看板娘窗口）', async () => {
+  it('互动设置推给主进程（mascot.setInteractionConfig，桌面角色窗口）', async () => {
     const setConfig = vi.fn();
     installMascotHost({ 'mascot.setInteractionConfig': (cfg) => setConfig(cfg) });
     // 入口的 installHostBackends() 把契约接到 avatar-runtime 的注入点上
@@ -75,7 +75,7 @@ describe('D5 views · contract', () => {
     expect(setConfig.mock.calls.at(-1)![0]).toMatchObject({ gravity: true, clickThrough: true });
   });
 
-  it('主进程的看板娘指令（契约事件 mascot.command）交给 handleMascotCommand', async () => {
+  it('主进程的桌面角色指令（契约事件 mascot.command）交给 handleMascotCommand', async () => {
     installMascotHost({});
     const view = render(<MascotDriver />);
     await publishMascotEvent('mascot.command', { type: 'open-panel', panel: 'motions' });

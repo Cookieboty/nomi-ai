@@ -102,7 +102,7 @@ func main() {
 	// = main.ts loadLoginShellPath：读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
 	// （自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI；稍后再跑，不和启动抢资源）
 	go mergeLoginShellPath()
-	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在看板娘窗口出来后后台跑（secretGate）
+	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在桌面角色窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated && !res.Skipped { // Skipped：标记已在，res 是上次迁移读回来的结果，不是这次复制的
@@ -122,7 +122,7 @@ func main() {
 			}
 		},
 		SystemLangs: hostports.SystemLanguages(),
-		// = host.liveWindows（看板娘与对话窗口；sh 在外壳建好之前为 nil）
+		// = host.liveWindows（桌面角色与对话窗口；sh 在外壳建好之前为 nil）
 		LiveWindows: func() int {
 			if sh == nil {
 				return 0
@@ -205,7 +205,7 @@ func main() {
 				n.ShowNotification(title, body, onClick)
 			}
 		}}, router.EmitTo)
-	// = Application desktopWindows（看板娘窗口、对话窗口、临时召回、灵动岛）；外壳建好后才有窗口
+	// = Application desktopWindows（桌面角色窗口、对话窗口、临时召回、灵动岛）；外壳建好后才有窗口
 	desktopSvc.AttachWindows(desktopWindows(&sh, bundle.Startup, isl))
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
@@ -428,7 +428,7 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	// 窗口生命周期：看板娘控制器；用户关掉看板娘窗口 = 退出（WindowManager mainWindow 'close' → requestQuit）；
+	// 窗口生命周期：桌面角色控制器；用户关掉桌面角色窗口 = 退出（WindowManager mainWindow 'close' → requestQuit）；
 	// 用户关掉主界面且「关闭主界面时：退出 Nomi」= 退出（shouldQuitOnMainClose）
 	var quitting atomic.Bool
 	quit := func() {
@@ -506,7 +506,7 @@ func main() {
 			}
 			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
 		},
-		// = app 'activate' / 'second-instance'：看板娘没关但窗口不在就重建；默认界面是主界面时把主界面带到前台
+		// = app 'activate' / 'second-instance'：桌面角色没关但窗口不在就重建；默认界面是主界面时把主界面带到前台
 		// （shouldRaiseMainOnReactivate），否则聚焦已有窗口
 		OnReactivate: func() {
 			st := bundle.Startup.Get()
@@ -552,7 +552,7 @@ func main() {
 		OnFilesDropped: func(k shell.WindowKind, paths []string) {
 			switch k {
 			case shell.Mascot:
-				// = nomiHostIpc dropFile：只认看板娘窗口，和 Electron 一样只取第一个文件
+				// = nomiHostIpc dropFile：只认桌面角色窗口，和 Electron 一样只取第一个文件
 				desktopSvc.DropFile("mascot", paths[0])
 			case shell.Chat:
 				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）
@@ -622,7 +622,7 @@ func main() {
 		}))
 	}
 
-	// 启动偏好（Application.ts）：看板娘按 showMascot 显示；关掉看板娘时保证主界面可达（#55）
+	// 启动偏好（Application.ts）：桌面角色按 showMascot 显示；关掉桌面角色时保证主界面可达（#55）
 	showMascot := bundle.Startup.Get().ShowMascot
 	var showMascotMu sync.Mutex
 	bundle.OnStartupChange = append(bundle.OnStartupChange, func(st startup.State) {
@@ -645,8 +645,8 @@ func main() {
 	if showMascot {
 		sh.Show(shell.Mascot)
 	}
-	// 启动后默认界面（planStartup）：首次引导等看板娘先出来再打开（ONBOARDING_OPEN_DELAY_MS）；defaultView=main 直接打开；
-	// 看板娘关着或没有托盘时也打开主界面，避免无界面。测量模式（NOMI_POC_CTL）不自动开，对话由 show-chat 显式打开
+	// 启动后默认界面（planStartup）：首次引导等桌面角色先出来再打开（ONBOARDING_OPEN_DELAY_MS）；defaultView=main 直接打开；
+	// 桌面角色关着或没有托盘时也打开主界面，避免无界面。测量模式（NOMI_POC_CTL）不自动开，对话由 show-chat 显式打开
 	if ctl == "" {
 		switch {
 		case bundle.Onboarding.ShouldAutoOpen():
@@ -655,7 +655,7 @@ func main() {
 			sh.Show(shell.Chat)
 		}
 	}
-	// 看板娘窗口的鼠标进出（WindowManager.setupMousePositionTracking）
+	// 桌面角色窗口的鼠标进出（WindowManager.setupMousePositionTracking）
 	if g, ok := sh.(shell.Geometry); ok {
 		if wc, ok := sh.(shell.WindowControl); ok {
 			go mousetrack.New(mousetrack.Deps{
@@ -792,7 +792,7 @@ func (mcpLogger) Error(m string, kv ...any) { log.Println(append([]any{"[mcp] ER
 // 读 / 写密钥（网关 store、供应商 token、语音 key、AI 聊天）的契约过程：2.0.4 密钥迁移完成前先等（D-B11-12）
 var secretGatedPrefixes = []string{"gateway.", "providers.", "ai.", "voice.", "tts.", "usage.", "harness.", "cli.", "cliAccount.", "delegate.", "local."}
 
-// firstWindowShown：任一窗口页面加载完（看板娘被设置隐藏时是主窗口）就关闭
+// firstWindowShown：任一窗口页面加载完（桌面角色被设置隐藏时是主窗口）就关闭
 func firstWindowShown() <-chan struct{} {
 	out := make(chan struct{})
 	go func() {
@@ -866,8 +866,8 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
 	}
 }
 
-// desktopWindows = Application 的 desktopWindows：main = 看板娘窗口；mascotHidden = startup.showMascot 关闭；
-// summon / release = 看板娘关着时临时建出窗口（桌面工具确认框需要宿主），用完仍是关闭状态就再释放
+// desktopWindows = Application 的 desktopWindows：main = 桌面角色窗口；mascotHidden = startup.showMascot 关闭；
+// summon / release = 桌面角色关着时临时建出窗口（桌面工具确认框需要宿主），用完仍是关闭状态就再释放
 func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) *desktop.Windows {
 	var summoned atomic.Bool
 	sh := func() shell.Shell { return *shp }

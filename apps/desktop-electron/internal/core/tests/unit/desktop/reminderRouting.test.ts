@@ -1,5 +1,5 @@
 /**
- * 提醒只走一个渠道：看板娘在 → 她的提醒卡片 / 气泡；看板娘关闭（隐藏）→ 灵动岛，灵动岛显示不了时
+ * 提醒只走一个渠道：桌面角色在 → 她的提醒卡片 / 气泡；桌面角色关闭（隐藏）→ 灵动岛，灵动岛显示不了时
  * 才用系统通知（点通知打开对话窗口）。
  */
 jest.unmock('fs');
@@ -35,7 +35,7 @@ function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
   const ports = fakeHostPorts({ userData: '/tmp', home: '/tmp' });
   shown = ports.calls.notifications;
   const svc = new DesktopService(root, logger as never, { ports, events });
-  // 发给看板娘窗口的事件（经事件总线，surface = mascot）
+  // 发给桌面角色窗口的事件（经事件总线，surface = mascot）
   const send = jest.fn();
   const publish = events.publish.bind(events);
   events.publish = (channel, payload, opts) => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 批次 11 Linux 安装包验证（在 xvfb 会话里跑）：deb 安装/卸载、AppImage 启动、看板娘窗口出现、与 2.0.4 AppImage 的 .desktop 对比。
+# 批次 11 Linux 安装包验证（在 xvfb 会话里跑）：deb 安装/卸载、AppImage 启动、桌面角色窗口出现、与 2.0.4 AppImage 的 .desktop 对比。
 # 用法：verify-linux.sh <deb> <AppImage> <输出目录> [electron 2.0.4 AppImage]
 set -u
 DEB=$(readlink -f "$1"); AI=$(readlink -f "$2"); OUT=$3; OLD=${4:+$(readlink -f "$4")}; mkdir -p "$OUT"; OUT=$(readlink -f "$OUT"); R="$OUT/report.md"; ok=1
@@ -14,8 +14,8 @@ mascot() { # $1=label $2=pid —— xvfb 里只有本应用：找 ~330x355 的�
   done
   import -window root "$OUT/linux-$label-fullscreen.png" 2>/dev/null
   if [ -n "$found" ]; then import -window "$found" "$OUT/linux-$label-mascot.png" 2>/dev/null
-    echo "- $label：看板娘窗口 $found 已显示（linux-$label-mascot.png）" >> "$R"
-  else echo "- $label：未找到看板娘窗口（见 windows.txt）" >> "$R"; ok=0; fi
+    echo "- $label：桌面角色窗口 $found 已显示（linux-$label-mascot.png）" >> "$R"
+  else echo "- $label：未找到桌面角色窗口（见 windows.txt）" >> "$R"; ok=0; fi
 }
 # deb
 { echo '```'; dpkg-deb -I "$DEB" | grep -E 'Package|Version|Depends|Installed-Size'; echo '```'; } >> "$R"

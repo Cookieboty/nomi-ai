@@ -5,7 +5,7 @@
  * `setVoiceBackend` 注入。流式识别（`voice.streamStart`）的第一条
  * chunk 是启动结果，之后的临时结果 / 错误转给 `onStream` 的订阅者（控制器按会话 id 过滤）。
  *
- * 看板娘窗口（renderer）有一份同样的适配：两个视图各自只有自己的 `services/api.ts` 与 hostBackends。
+ * 桌面角色窗口（renderer）有一份同样的适配：两个视图各自只有自己的 `services/api.ts` 与 hostBackends。
  */
 
 import type { AppClient } from '@nomi-ai/ai-sdk-client';

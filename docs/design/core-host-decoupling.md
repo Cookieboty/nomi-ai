@@ -11,7 +11,7 @@
 
 - **内核（core）**：纯 Node 的业务逻辑，不认识 Electron，不认识窗口，不认识任何角色；
 - **宿主（host）**：Electron（以后可能是 Tauri、无界面 Node），只提供平台能力和窗口；
-- **视图（views）**：对话窗口、看板娘窗口、设计系统，只通过**契约**和内核说话；
+- **视图（views）**：对话窗口、诺米窗口、设计系统，只通过**契约**和内核说话；
 - **角色（character）**：纯数据的角色包，由视图侧的角色运行时和内核侧的人设服务读取。
 
 依赖方向只有一条：**视图 → 契约 ← 内核 → 端口 ← 宿主**。视图和内核互不 import，宿主可以整体替换，角色包不含代码。
@@ -278,7 +278,7 @@ export interface HostPorts {
 
 ### 6.2 窗口端口是声明式的
 
-内核偶尔需要「打开对话窗口并跳到某个会话」「让看板娘窗口显示提醒」。它只表达意图，不操作窗口对象：
+内核偶尔需要「打开对话窗口并跳到某个会话」「让诺米窗口显示提醒」。它只表达意图，不操作窗口对象：
 
 ```ts
 interface WindowsPort {
@@ -336,8 +336,8 @@ core.startReminders();
 - 宿主片段**传进** `createCore`（`contract.hostHandlers`），不由宿主在外面合并：router 只 `implement` 一次，片段只能补内核
   没有实现的过程（重名报错），谁都没实现的过程以 UNAVAILABLE 失败，所以无界面宿主不给片段也能拿到完整的 router。
 - 宿主钩子（`CoreHostHooks`，全部可选）：`updater`（自动更新）、`browser`（受控浏览器）、`characterPackProtocol`
-  （`character-pack://` 注册）、`desktopWindows`（桌面服务的看板娘 / 对话窗口与灵动岛）、`voiceChatWindow`（语音投递到
-  对话窗口）、`liveWindows`（引导里的看板娘指令是否送达）、`callerWindows`（语音会话随窗口释放）、`aiPlugins` /
+  （`character-pack://` 注册）、`desktopWindows`（桌面服务的诺米 / 对话窗口与灵动岛）、`voiceChatWindow`（语音投递到
+  对话窗口）、`liveWindows`（引导里的诺米指令是否送达）、`callerWindows`（语音会话随窗口释放）、`aiPlugins` /
   `ttsProviders`（宿主的 AI 插件与系统 TTS）。打开 / 判断界面走 `ports.windows`（声明式，§6.2）。
 - 日志仍是 `LoggerService`（日志文件路径来自 `ports.paths.logs()`）与进程级的 `createMainLogger(scope)`，没有改成
   `LoggerFactory`。
@@ -359,7 +359,7 @@ core.startReminders();
 
 1. **依赖从构造参数（或 `initXxxService(deps)`）进来**，类型写最小子集 `Pick<HostPorts, …>`。服务里不 `import 'electron'`，也不从容器里取（容器只给组合根用）。
 2. **平台调用换端口**：`app.getPath('userData')` → `ports.paths.userData()`，`nativeTheme` → `ports.appearance` 等；端口缺能力就先在 `host-ports` 里加，同时补 `electronPorts` 与 `host-node` 两份实现。
-3. **窗口广播换 `events.publish(channel, payload, { surface? })`**：通道名不变；不指定 `surface` 等于原来的 `BrowserWindow.getAllWindows()` 广播（跳过已销毁的窗口），`surface: 'mascot'` / `'chat'` 对应原来只发给看板娘 / 对话窗口的写法。
+3. **窗口广播换 `events.publish(channel, payload, { surface? })`**：通道名不变；不指定 `surface` 等于原来的 `BrowserWindow.getAllWindows()` 广播（跳过已销毁的窗口），`surface: 'mascot'` / `'chat'` 对应原来只发给诺米 / 对话窗口的写法。
 4. **测试不 mock 平台能力**：传假端口（或 `@nomi-ai/host-node`）和 `createRecordingAppEvents()`，断言 `events.published`；`jest.mock('electron')` 只留给还没迁移的依赖（如 `guardedIpc`）。
 5. **从 `scripts/eslint/electron-boundary.mjs` 的白名单删掉该文件**，lint 保证它不再回退。
 
@@ -423,7 +423,7 @@ interface CallerContext {
 
 - **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。token 是挡住本机其他进程的唯一凭据（本机进程可以伪造 Origin / Host），所以它不进任何本机进程都能请求的页面 HTML：dev:web 只把地址注入页面，token 放在打印给开发者的地址片段 `#nomi-token=…` 里（片段不发给服务器），页面读到后存 sessionStorage 并用 `history.replaceState` 从地址栏抹掉。
 - **router 中间件负责判定**：契约里每个过程可以声明 `surfaces: ['chat']`；`dangerous: true` 的过程只接受 `trusted` 调用者，必要时要求视图内确认。
-- **事件也按界面限定**：契约的 `eventSurfaces` 列出只给某些界面的事件（确认请求、气泡、光标只给看板娘；编程助手会话、拖入总结、面板导航只给对话窗口），传输层在订阅时按调用者的界面过滤，其它界面的订阅被忽略。服务 `events.publish` 时写的 `surface` 只是意图，不决定投递。
+- **事件也按界面限定**：契约的 `eventSurfaces` 列出只给某些界面的事件（确认请求、气泡、光标只给诺米；编程助手会话、拖入总结、面板导航只给对话窗口），传输层在订阅时按调用者的界面过滤，其它界面的订阅被忽略。服务 `events.publish` 时写的 `surface` 只是意图，不决定投递。
 - preload 只暴露 `window.nomiTransport` 与 `window.nomiHost` 两个对象，暴露面比现在更小。
 - **视图能决定的入参都不可信**：契约过程的入参来自视图代码，页面里的任意脚本（XSS、被篡改的依赖）都能填。凡是「入参本身就是授权」的能力（如拖入文件的本机路径，内核会临时授权读取并发给模型），不做成契约过程，由 preload 自己取得并提交（`nomiHost.dropFile`，主进程 `host/nomiHostIpc.ts`）。
 - 外部请求仍走 `netGuard`，命令参数仍用 `shellEscape`，这些都在内核里，与宿主无关。
@@ -442,7 +442,7 @@ interface HostCapabilities {
 }
 ```
 
-- 视图通过契约的 `host.capabilities` 查询，按能力降级（比如没有透明窗口时，看板娘以内嵌模式显示在对话窗口里）。
+- 视图通过契约的 `host.capabilities` 查询，按能力降级（比如没有透明窗口时，诺米以内嵌模式显示在对话窗口里）。
 - 这部分代码留在 `host-electron`，不追求跨宿主复用。
 
 ## 10. 角色解耦
@@ -602,18 +602,18 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > 处理函数在 `electron/src/host/contract/<域>.ts`）。收尾批次：
 >
 > - preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（`pathForFile(file)`：拖入 / 粘贴文件的本机路径，
->   `webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，不能进契约；`dropFile(file)`：看板娘窗口拖入文件，
->   路径在 preload 里解析并经专用通道 `desktop:drop-file` 直接提交（主进程 `host/nomiHostIpc.ts`，再校验发送方是看板娘窗口）。
+>   `webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，不能进契约；`dropFile(file)`：诺米窗口拖入文件，
+>   路径在 preload 里解析并经专用通道 `desktop:drop-file` 直接提交（主进程 `host/nomiHostIpc.ts`，再校验发送方是诺米窗口）。
 >   拖入总结不做成契约过程：过程的入参由视图决定，页面里的任意脚本就能让内核读任意路径并发给模型）；`window.aiIPC` / `window.electronAPI`、
 >   `mkAiPreload`、`packages/types` 的 `IpcApi` / `MascotWindowApi` / `DesktopApi` / `PersonaApi` 已删除；
 >   `WindowManager` 的 preload 守护改为探测这两个全局；
 > - 主进程的旧注册层全部删除：各服务的 `registerIpc()`、`handlers/ipc/*`（`IpcRegistry` / `ConfigIpcHandler` /
 >   `VoiceIpcHandler` / `WindowIpcHandler`，窗口操作留在 `host/mascotWindowActions.ts`）、`security/guardedIpc.ts`、
->   编排器的 `rendererSubscribers`、看板娘控制器里的 `ipcMain` 监听，以及 ai-runtime 的 `ProviderIpcServer` /
+>   编排器的 `rendererSubscribers`、诺米控制器里的 `ipcMain` 监听，以及 ai-runtime 的 `ProviderIpcServer` /
 >   `CapabilityIpcServer` / `AiChatCompat` / `createGuardedIpcAdapter`；`TtsService` 与旧 displayMode 清理改在启动任务
 >   `init-config-services` 里做；
 > - 事件只走契约：`createContractEventBridge` 不再向窗口广播旧通道（`host/electronAppEvents.ts` 已删），桥接表外的通道
->   每个记一次 warn；`WindowManager.openProviderPanel` 与窗口鼠标进出、看板娘指令、窗口控制器推送都经 `events.publish`，
+>   每个记一次 warn；`WindowManager.openProviderPanel` 与窗口鼠标进出、诺米指令、窗口控制器推送都经 `events.publish`，
 >   面板导航（`providers.openPanel`、`nav.*`）因此在契约上生效；
 > - 视图里不再有 `window.aiIPC` / `window.electronAPI` / 原始 IPC；`@nomi-ai/voice` 去掉旧通道适配（`voiceApi(bridge)`），
 >   `VoiceApi` 改为显式接口，只经 `setVoiceBackend` 注入；
@@ -632,7 +632,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 >   （400 / 600 ms）等对话窗口订阅，以后改成对话窗口挂载时拉取待处理的导航与总结；
 > - ai-chat 的部分视图测试仍用旧形状的假 `window.aiIPC`，经 `tests/helpers/{codingApi,shellApi}.ts` 把契约调用转回旧通道名，
 >   以后改成契约层的假实现；
-> - e2e-headed 只在 macOS 上跑过部分用例（E5、E17 等），完整一轮要在 Linux + xvfb 上跑；看板娘拖拽 / 点击上报从单向消息
+> - e2e-headed 只在 macOS 上跑过部分用例（E5、E17 等），完整一轮要在 Linux + xvfb 上跑；诺米拖拽 / 点击上报从单向消息
 >   变成契约往返，拖拽上报已串行化并按帧合并 move（renderer `mascot/interaction/dragReporter.ts`，上一条回应前不发下一条），
 >   发布前仍要在 Windows 真机上确认拖拽手感；
 > - 两个 preload 内容已相同，可以合成一个包；`security/ipcSenderGuard.ts` 仍在 electron import 白名单里（P3 随宿主搬家）；
@@ -698,7 +698,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   `chat/backgroundPreset.ts` 留在宿主；
 > - 契约：不碰窗口的片段进内核 `contract/{types,services,eventBridge,coding,knowledge}.ts`（`CoreContractServices`、
 >   泛型 `ContractDeps<S>`）；宿主 `host/contract/` 留 `media`（`windowManager.openProviderPanel`）、`shell`（`appIcon`、
->   AI runtime 的供应商）、`mascot`（看板娘窗口、灵动岛）与 `index.ts`（`createAppRouter`，组装 AI 门面），宿主的
+>   AI runtime 的供应商）、`mascot`（诺米窗口、灵动岛）与 `index.ts`（`createAppRouter`，组装 AI 门面），宿主的
 >   `ContractServices` 在内核服务表上加 `windowManager` / `windowActions` / `aiRuntime` / `island`；
 > - 守护（§11.1）：ESLint（error）禁止 `apps/desktop-electron/internal/core` import electron、`electron-*` / `@electron/*`、宿主包（含
 >   `bundle-ig-electron-caps` 与 `electron/src` 路径）、视图包与 `ui`；内核单测断言 `package.json` 不含这些依赖；
@@ -767,7 +767,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 > - 单独运行（完成标准；仓库没有 Storybook，不引入）：`pnpm --filter @nomi-ai/avatar-runtime demo` 是 Vite 开发页，
 >   默认加载 `characters/test-dummy`（`AVATAR_DEMO_PACK=characters/nomi` 换官方包），假事件源 + 互动日志；
 >   `tests/runtime.test.tsx` 在 happy-dom 里用替身包和假事件源挂载、驱动、卸载运行时（工作区没有 jsdom，用已有的 happy-dom）；
-> - 行为不变：e2e-headed 的 E1、E5、E9、E11、E12、E15、E22、E23 在 macOS 上通过；看板娘首屏 JS 没有变大。
+> - 行为不变：e2e-headed 的 E1、E5、E9、E11、E12、E15、E22、E23 在 macOS 上通过；诺米首屏 JS 没有变大。
 >
 > 剩下的：
 >
@@ -788,7 +788,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   AGENTS.md 包表加 avatar-runtime 行；e2e-headed 的 E19 改从 `apps/desktop-electron/internal/core/tests/fixtures/history` 读历史样例
 >   （P3 第二步随 CLI 模块搬走，原路径已不存在）；
 > - 验证：构建、typecheck、lint、单测（只有 `changesets.test.ts` 已知的 6 个失败）、无界面 e2e、i18n、许可、格式（只有
->   已知文件）通过；macOS 上 e2e-headed 跑了一整轮，看板娘与启动相关（E1、E4、E5、E9、E11、E12、E15、E22、E23、E30）
+>   已知文件）通过；macOS 上 e2e-headed 跑了一整轮，诺米与启动相关（E1、E4、E5、E9、E11、E12、E15、E22、E23、E30）
 >   与对话（E2、E6、E16、E18、E24、E28）通过。
 >
 > 剩下的：
@@ -820,12 +820,12 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   router 与事件桥，返回 `{ ports, logger, events, config, container, services, router, start(), startReminders(),
 stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区域，可以 import electron）只建 Electron 端口与日志、
 >   调 `createCore`、挂 IPC 传输与拖入文件通道，管窗口、托盘、灵动岛、`chat-asset://`、CSP、会话权限、应用事件与进程信号；
->   主题 → 标题栏、启动偏好 → 看板娘显隐与「关闭主界面时退出」、首次引导开窗口在 `core.start()` 之后由宿主接上。启动顺序：
+>   主题 → 标题栏、启动偏好 → 诺米显隐与「关闭主界面时退出」、首次引导开窗口在 `core.start()` 之后由宿主接上。启动顺序：
 >   app ready → `core.start()`（含 AI runtime 与 router）→ 挂 IPC → 建窗口 → `core.startReminders()` → 托盘，与原来一致；
 >   配置改在 `core.start()` 里加载（原来在 ready 之前），macOS 首次启动的 `activate` 在 `start()` 走完前不再建窗口；
 > - 宿主片段：传进 `createCore` 的 `contract.hostHandlers`，不由宿主在外面合并（理由见 §7.1）。内核实现 coding /
 >   knowledge / media / shell 与 D5 里不碰窗口的部分（角色包、人设、聊天背景、模型名、`window.platform`）；宿主片段只剩
->   看板娘窗口互动与大小（`mascot.*`）、灵动岛（`island.*`）、旧窗口通道（`window.*`）与应用图标（`appIcon.*`）。
+>   诺米窗口互动与大小（`mascot.*`）、灵动岛（`island.*`）、旧窗口通道（`window.*`）与应用图标（`appIcon.*`）。
 >   `nav.openVoiceSettings` 改走 `ports.windows.open('chat', { route: 'voice' })`；语音会话随窗口释放经宿主钩子
 >   `callerWindows`；进行中的流式识别会话表按 router 实例（`createVoiceStreams()`）；
 > - 搬进内核的业务：`ai/AIRuntimeBoot`（按内核实例 `new AIRuntimeService`，不用 ai-runtime 的模块级 `runtime`；网关 /
@@ -835,10 +835,10 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 >   `services/AdvancedTTSEngine`（系统 TTS，读 `process.resourcesPath`、只在宿主有意义）、`utils/ErrorHandler`（装进程级的
 >   `uncaughtException` / `unhandledRejection` 处理、决定退出进程，一个进程只能有一份，不属于内核实例）；
 > - 模块级单例：各服务的 `init*` / `get*Service`、`getDesktopService` / `getVoiceService` / `getUpdateService` /
->   `getCharacterPackService`、`get/setPersonaService`、`eventBus`、`serviceContainer`、看板娘推送出口
+>   `getCharacterPackService`、`get/setPersonaService`、`eventBus`、`serviceContainer`、诺米推送出口
 >   `setMascotAppEvents` 与存活窗口数 `setMascotLiveWindows` 全部删除，没有保留的 `get*()`；宿主灵动岛的
->   `initIslandService` / `notifyIsland` 也删了（组合根持有实例）。服务经自己的 `events` 发看板娘指令
->   （`sendMascotCommand(events, cmd)`），看板娘窗口控制器与托盘由宿主传入内核的事件总线；桌面工具与看板娘的 AI 插件改成
+>   `initIslandService` / `notifyIsland` 也删了（组合根持有实例）。服务经自己的 `events` 发诺米指令
+>   （`sendMascotCommand(events, cmd)`），诺米窗口控制器与托盘由宿主传入内核的事件总线；桌面工具与诺米的 AI 插件改成
 >   工厂（`createDesktopIgPlugins` / `createMascotIgPlugins`）；窗口管理器的退出请求改成 `requestQuit` 回调；
 > - 端口补了 `shell.trashItem`（删除历史会话移到废纸篓；`host-node` 只记录）；ai-runtime 的加载守卫不再要求
 >   `process.versions.electron`，只拒绝渲染进程与页面（内核在纯 Node 里也要能加载它）；
@@ -913,11 +913,11 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 > 剩下的：
 >
 > - 仍是进程级的子进程 / worker 缓存与 `createMainLogger`（见第一步的「剩下的」）E6 不断言；
-> - 只有 ai-chat 接了 WebSocket 开发传输；看板娘窗口（renderer）是透明窗口壳，依赖宿主窗口，没有接。`dev:web` 里要用
->   窗口对象的过程（看板娘大小、灵动岛、应用图标、旧窗口通道）报 UNAVAILABLE，拖入文件（`nomiHost`）不可用；
+> - 只有 ai-chat 接了 WebSocket 开发传输；诺米窗口（renderer）是透明窗口壳，依赖宿主窗口，没有接。`dev:web` 里要用
+>   窗口对象的过程（诺米大小、灵动岛、应用图标、旧窗口通道）报 UNAVAILABLE，拖入文件（`nomiHost`）不可用；
 > - 无界面宿主的资源目录是空的：角色包解析不到内置包（日志「built-in pack not found」，人设为中性），替身角色验收
 >   （§11.3 第三项，G5）仍归 C3；`image` 端口没有实现，背景图不缩放；
-> - e2e-headed 的用例都要 Electron，不能搬到无界面宿主：透明置顶的看板娘窗口与命中区、拖拽与窗口位置、托盘、灵动岛、
+> - e2e-headed 的用例都要 Electron，不能搬到无界面宿主：透明置顶的诺米窗口与命中区、拖拽与窗口位置、托盘、灵动岛、
 >   preload 与 `nomiHost`、系统对话框、全局快捷键、窗口截图（UI、ANIM）、打包产物的生产模式冒烟（E5）；
 > - `ai-runtime` 的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer（源码已不引用）；
 > - WebSocket 传输按开发态设计（一次性 token、没有重连、没有会话恢复），作为 sidecar 宿主的生产传输前要补：重连与
@@ -939,7 +939,7 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 >   `reply(waiting / settled)`（对话窗口等回复，原来的 `think-on` / `think-off`，仍是分层 2D 的引擎控制）；输出 `onAvatarEvent`：
 >   `touched` / `clicked`（摸、点、双击，按互动冷却过滤后）与 `scene`（挂载或换角色时：角色 id 与有映射的语义名）；
 > - 契约（major 升到 2：`ai.avatar.*` 改名，不留旧名）：`ai.avatar.{emotion,gesture,activity,speaking,report}`，事件
->   `ai.avatar.{touched,clicked,scene}`；看板娘域新增事件 `avatar.event`（只给看板娘窗口）；`mascot.command` 只剩 `open-panel` /
+>   `ai.avatar.{touched,clicked,scene}`；诺米域新增事件 `avatar.event`（只给诺米窗口）；`mascot.command` 只剩 `open-panel` /
 >   `say`（带语义 `gesture`）/ `reply-speech`；`onboarding.mascot` 只收 `say` / `gesture` / `reply`；语义名的 schema 只收驼峰，
 >   `thumbs_up`、`think-on` 这类资源名过不了线。`character.getActivePack` 多了 `mapping`，覆盖包的映射传到运行时；
 > - AI 侧：`bundle-ig-mascot` 的 `ctx.avatar` 改成语义接口（`emotion` / `gesture` / `activity` / `speaking` / `report` /
@@ -951,7 +951,7 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 >   `companion`）、AI runtime 缺省 profile `companion`、renderer 的 `Waifu*` 组件与 `useWaifuMessage`、DOM id `waifu-*`，以及 e2e /
 >   e2e-headed 的 E1、E4 文件名与 harness 的缺省 profile。preset id 没有落盘：会话的 `agentPreset` 由内存版 `SessionFacade` 保存，
 >   profile 来自启动参数 / 环境变量 `IG_AI_PROFILE`，没有要迁移的用户配置；renderer 只写不读的 localStorage 键 `waifu-display` 改名；
-> - 三个没装载的插件：`TtsLipSyncPlugin` 删除（口型由看板娘窗口本地的 TTS 包络 → `speaking` → avatar-runtime 驱动，主进程 host 的
+> - 三个没装载的插件：`TtsLipSyncPlugin` 删除（口型由诺米窗口本地的 TTS 包络 → `speaking` → avatar-runtime 驱动，主进程 host 的
 >   `driveLipSync` 本来就是空操作，它的 `tts/end → playMotion('idle')` 也是资源名）；`TouchInjectPlugin` 删除（它发的
 >   `agent/sensory-inject` 全仓库没有订阅者；触摸现在是语义事件 `touched`，经 `ai.avatar.report` 到 `ctx.avatar.on('touched')`）；
 >   `WaifuAgentPresetPlugin` 改名并接入 `mascotIgPlugins`（P0 为它做了 `PersonaIdentityPlugin`，替身验收测试读的也是它的系统提示；
@@ -967,19 +967,19 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 > - `companion` preset 已注册，还没有消费方：对话的默认系统提示由内核拼（`core/src/persona/systemPrompt.ts`，契约 `persona.systemPrompt`，2.0.5 起；原来在 ai-chat 的 `IPCClient`），会话的 `agentPreset` 只是透传字段；
 > - `touched` / `clicked` / `scene` 到了 `ctx.avatar`，还没有 AI 功能订阅（例如把触摸作为感官输入注入会话）；
 > - 互动反应表（`interaction/gestures.ts`：摸头、点击等）仍直接用引擎动作名、不经映射：这是角色对用户操作的反应，不来自 AI；
->   看板娘窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
+>   诺米窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
 
 > G5 完成（分支 `refactor/c3-semantic`，接在 C3 之后）：§10.1 的产品名 / 角色名分拣、§11.2 的名字扫描、§11.3 第三行的替身验收，以及 C1 后续里剩下的几条。
 >
 > - 产品名：`@nomi-ai/types` 的 `brand`（`appName: 'Nomi'`、`appId`）是唯一来源，`host-electron/src/brand.ts` 只转出它，删掉
->   `APP_DISPLAY_NAME_ZH`；窗口 / 灵动岛标题、托盘提示、侧栏 / 标题栏 / 设置页 / 看板娘面板的品牌字样、日程通知标题、各处端点名「Nomi」
+>   `APP_DISPLAY_NAME_ZH`；窗口 / 灵动岛标题、托盘提示、侧栏 / 标题栏 / 设置页 / 诺米面板的品牌字样、日程通知标题、各处端点名「Nomi」
 >   都用 `brand.appName`；`scripts/__tests__/brand.test.ts` 守住 `electron-builder.yml` 的 `productName` / `appId` 与它一致。设置页品牌头
 >   从「Nomi · 诺米」改为「Nomi」。句子里的产品名（「Nomi 对话」「Nomi 网关」「退出 Nomi」）保留字面量：词序由翻译决定，扫描只拦角色语境；
 > - 角色名：指桌面上那个角色的文案（「显示 X」「桌面 X」「X 已隐藏」「X 工具栏」「关闭 X」「你好，我是 X」等约 25 条）改为带 `{0}`，
 >   填当前角色的人设名（当前界面语言）：ai-chat 经 `services/characterName`（契约 `persona.get` / `persona.changed`），renderer 经
 >   `mascot/characterCopy.characterName()`（覆盖包快照的 `displayName`，否则内置包人设），托盘经 `PersonaService`；拿不到时用通用称呼
->   「看板娘 / Mascot」。「她 / her」改成中性写法；
->   不需要名字的改成通用说法（「诺米提示语音」→「角色提示语音」、朗读打断、预算提醒的「看板娘气泡」、活动记录的「拖入文件总结」）；
+>   「诺米 / Mascot」。「她 / her」改成中性写法；
+>   不需要名字的改成通用说法（「诺米提示语音」→「角色提示语音」、朗读打断、预算提醒的「桌面角色气泡」、活动记录的「拖入文件总结」）；
 > - 角色名分全名与简称（修正，docs/BRAND.md）：「Nomi·诺米」是一个完整的名字，界面上不单独写「诺米」。人设加 `shortName`
 >   （官方包 `displayName`「Nomi·诺米」、`shortName`「Nomi」；缺省同 `displayName`，见 `personaNames`）；欢迎语用全名
 >   （`characterFullName`），其余用简称（`characterName`），句子经 `tName` 拼名字、中文里名字与汉字之间补空格（`spaceAround`），
@@ -1000,7 +1000,7 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 >   按 `CHARACTER_PACK` 解析出 `characters/test-dummy`，经内核自己的 `CharacterPackService` → `PersonaService`，ai-chat 真实的
 >   `SdkIPCClient` 经契约取人设、发到内核的 AI 路由，断言模型收到的系统提示、
 >   `companion` preset 的身份段、人设与角色包快照都是替身、没有官方名；`e2e-headed/tests/G5.stand-in-character`（真实应用，只在替身构建上跑，
->   官方构建上跳过）走首次引导每一步、配好本地 mock 供应商后对话、设置 → 通用与看板娘窗口，界面文本（含 aria-label / title / alt）不含
+>   官方构建上跳过）走首次引导每一步、配好本地 mock 供应商后对话、设置 → 通用与诺米窗口，界面文本（含 aria-label / title / alt）不含
 >   官方角色名、该写角色名处是「小纸」，mock 收到的系统提示是替身身份。构建开关：`pnpm build:stand-in`（=
 >   `CHARACTER_PACK=characters/test-dummy pnpm build`，跨平台），见 `docs/development/testing.md`；
 > - `examples/static-demo.pack` 换成新布局（命中区进 `manifest.layout`，`persona.json` + `locales/`），`character:check` 只剩缺语音的警告。
@@ -1037,8 +1037,8 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 >   （`e2eRuntime`，P4 已删除）改跑无界面宿主的真实内核：`CHARACTER_PACK` 给 `characters/test-dummy` 的绝对路径，无界面宿主的应用目录是
 >   临时目录、没有构建产物，内置包就解析成替身（P4「剩下的」里「无界面宿主解析不到内置包、G5 仍归 C3」这一条就此对上）；人设经契约
 >   `persona.get` 取，`companion` preset 从内核插件宿主里真实装好的 `AgentPresetRegistryKey` 取。新增 `E9.avatar-semantic-events`：
->   `ctx.avatar`、工具 `avatar_gesture`、视图的 `ai.avatar.*` 与 `onboarding.mascot` 都经内核事件总线到 `avatar.event`，只有看板娘窗口
->   收到（对话窗口订阅了也收不到）；`thumbs_up` 这类资源名在契约上被拒（`BAD_INPUT`）；看板娘窗口 `ai.avatar.report` 的 `touched` 到
+>   `ctx.avatar`、工具 `avatar_gesture`、视图的 `ai.avatar.*` 与 `onboarding.mascot` 都经内核事件总线到 `avatar.event`，只有诺米窗口
+>   收到（对话窗口订阅了也收不到）；`thumbs_up` 这类资源名在契约上被拒（`BAD_INPUT`）；诺米窗口 `ai.avatar.report` 的 `touched` 到
 >   `ctx.avatar.on('touched')` 与订阅了 `ai.avatar.touched` 的窗口。E1 / E4 按 C3 改名为 `companion`，假的 `AvatarService` 改成语义接口；
 > - 验证见合流提交的说明（构建、typecheck、lint、单测、无界面 e2e、i18n、许可、`check:character-leak`、changelog、格式、浏览器冒烟、
 >   macOS 上整套 e2e-headed）。
@@ -1051,7 +1051,7 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 
 > 合流后的评审修正（`refactor/p4-host-node`）：
 >
-> - G5 把 `ui.usage-tools.nomi-size` 改成「{0}大小」后，看板娘工具栏的大小分组与右键菜单的大小菜单没传参数，读屏读出「{0}大小」：
+> - G5 把 `ui.usage-tools.nomi-size` 改成「{0}大小」后，诺米工具栏的大小分组与右键菜单的大小菜单没传参数，读屏读出「{0}大小」：
 >   两处改传 `characterName()`。`check:i18n` 加一条：`t()` / `tr()` 的参数比文案里的 `{0}` / `{name}` 少就报错（结果再手动
 >   `.replace('{0}', …)` 或当模板交给别的函数的除外），把这次的两处拦下来了；
 > - `pnpm dev:web -- --data .nomi-web` 的数据目录在仓库里，而无界面宿主的 `secrets` 只是可逆编码：`.nomi-web/` 进 `.gitignore`，
@@ -1119,7 +1119,7 @@ stop() }`；宿主 `apps/desktop-electron/src/host/Application.ts`（宿主区�
 3. **kind**：只读用 query，有副作用用 mutation，原来按请求窗口推进度的可以改成 stream；没有同步调用。
 4. **错误**：不再返回 `{ __error }` 信封，处理函数直接抛；需要视图走控制流的业务码在 `<f>Errors` 里声明
    （UPPER_SNAKE_CASE），用 `ctx.fail(code, message)`；服务缺失用 `need()`（`UNAVAILABLE`）。
-5. **安全**：原来只在一个 preload 里暴露的能力写 `surfaces`（看板娘 `['mascot']`、对话窗口 `['chat']`；`aiIPC`
+5. **安全**：原来只在一个 preload 里暴露的能力写 `surfaces`（诺米 `['mascot']`、对话窗口 `['chat']`；`aiIPC`
    两个窗口都有，不写）；回答用户确认、授予权限的过程写 `dangerous: true`（如 `desktop:confirm-answer`、
    `ai:harness:reply-permission`、`ai:desktop:grant`）。判定由契约内置守卫做，审计由 `auditMiddleware` 记。
 6. **处理函数**：`create<F>Handlers(deps)` 每个过程一两行，委派给服务的公开方法；服务在调用时读
@@ -1165,7 +1165,7 @@ e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.elect
 | Q1  | 契约层自研还是用 oRPC / tRPC（§4.4）               | **已定：自研**                                        |
 | Q2  | `core` 是一个包还是按领域拆多个包                  | 先一个包、内部按目录分模块；有独立发布需求再拆        |
 | Q3  | 角色包放 `characters/` 还是 `packages/character-*` | `characters/`：不是 npm 包，不参与 Turborepo 构建任务 |
-| Q4  | 是否需要视图内嵌模式（无透明窗口宿主下的看板娘）   | 等出现第二个宿主再做；本稿只保证能力声明              |
+| Q4  | 是否需要视图内嵌模式（无透明窗口宿主下的诺米）     | 等出现第二个宿主再做；本稿只保证能力声明              |
 
 ## 附录 A：耦合点文件清单（2026-10-28）
 

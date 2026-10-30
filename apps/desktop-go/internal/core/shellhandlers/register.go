@@ -34,7 +34,7 @@ type Bundle struct {
 	Settings   *settings.Store
 	// OnLocaleChange：界面语言变化后回调（= i18n.onChange，人设据此重算）
 	OnLocaleChange []func()
-	// OnStartupChange：启动偏好变化后回调（= startup.onChange，宿主据此显隐看板娘）
+	// OnStartupChange：启动偏好变化后回调（= startup.onChange，宿主据此显隐桌面角色）
 	OnStartupChange []func(startup.State)
 }
 

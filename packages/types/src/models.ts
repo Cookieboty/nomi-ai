@@ -1,5 +1,5 @@
 /**
- * 看板娘（只内置 Nomi 一个角色）与看板娘窗口相关的共享类型。
+ * 桌面角色（只内置 Nomi 一个角色）与桌面角色窗口相关的共享类型。
  */
 
 /** Per-character TTS binding (local/remote TTS voice preference). */
@@ -46,7 +46,7 @@ export interface LicenseTermsView {
   };
 }
 
-/** 看板娘窗口互动（主进程 MascotWindowController ⇄ 渲染进程） */
+/** 桌面角色窗口互动（主进程 MascotWindowController ⇄ 渲染进程） */
 export interface MascotInteractionConfig {
   clickThrough: boolean;
   gravity: boolean;
@@ -88,7 +88,7 @@ export interface ShapeRect {
   height: number;
 }
 
-/** 看板娘大小（主进程按屏幕可用区域夹紧，窗口随之调整，脚底中心不动） */
+/** 桌面角色大小（主进程按屏幕可用区域夹紧，窗口随之调整，脚底中心不动） */
 export interface MascotScaleState {
   scale: number;
   min: number;
@@ -99,7 +99,7 @@ export interface MascotScaleState {
   window: { width: number; height: number };
 }
 
-/** 桌面能力确认请求（主进程 PermissionBroker → 对话窗口或看板娘窗口） */
+/** 桌面能力确认请求（主进程 PermissionBroker → 对话窗口或桌面角色窗口） */
 export interface DesktopConfirmRequest {
   id: string;
   tool: string;
@@ -119,7 +119,7 @@ export interface DesktopConfirmRequest {
 }
 
 /**
- * 主进程推给看板娘的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
+ * 主进程推给桌面角色的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
  * - full：朗读整段气泡文字
  * - cue：只播放事件提示音，不朗读气泡文字
  * - none：只显示气泡，不出声也不放音效

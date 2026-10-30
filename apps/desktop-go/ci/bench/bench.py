@@ -5,12 +5,12 @@
 
 每轮（共 --runs 轮，结果取中位数）：
   1. 杀掉残留进程，删 userData（全新用户）；Linux 上 drop_caches、mac 上 purge（尽量“冷”）
-  2. 冷启动：启动 → 轮询到看板娘窗口（h/w≈355/330 的可见窗口）出现 = cold_s
+  2. 冷启动：启动 → 轮询到桌面角色窗口（h/w≈355/330 的可见窗口）出现 = cold_s
   3. 静置 30s → 采样 idle（进程树 USS/RSS 之和、进程数），再采 30s CPU 平均（idle CPU%）
   4. 再启动一次同一可执行文件（单实例 → 把主界面/对话窗带到前台，两版语义相同）→ 15s 后采样 main
   5. 等到启动后 --idle5 秒 → 采样 after5m
-  6. 退出 → 立即再启动 → 看板娘窗口出现 = warm_s（userData 保留，文件缓存热）→ 退出
-“对话中”需要模型凭据，CI 不测（报告标 N/A）。不点击看板娘、不触发任何动作。
+  6. 退出 → 立即再启动 → 桌面角色窗口出现 = warm_s（userData 保留，文件缓存热）→ 退出
+“对话中”需要模型凭据，CI 不测（报告标 N/A）。不点击桌面角色、不触发任何动作。
 输出 <out>/<label>.json（每轮原始值 + 中位数）。
 """
 import re
@@ -107,7 +107,7 @@ def launch(exe, logf=None):
 
 
 def shot(path):
-    """整屏截图（看板娘 idle 时）：verify/bench 产物里对比 Go 与 2.0.4 的角色大小 / 位置"""
+    """整屏截图（桌面角色 idle 时）：verify/bench 产物里对比 Go 与 2.0.4 的角色大小 / 位置"""
     try:
         if SYS == "Darwin":
             subprocess.run(["screencapture", "-x", path], timeout=30)

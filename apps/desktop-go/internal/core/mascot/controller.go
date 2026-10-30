@@ -438,7 +438,7 @@ func (c *Controller) SetConfig(raw any) {
 		c.body.Mode = "idle"
 		c.body.VX = 0
 	}
-	c.host.Info("看板娘互动设置", c.cfg)
+	c.host.Info("桌面角色互动设置", c.cfg)
 }
 
 func (c *Controller) capNow() float64 {

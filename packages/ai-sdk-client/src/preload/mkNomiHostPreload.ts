@@ -4,7 +4,7 @@
  *
  * - `pathForFile(file)`：拖入 / 粘贴的 `File` → 本机绝对路径（`webUtils.getPathForFile`）。它只能在 preload
  *   里对真实的 File 对象调用，File 也不能跨进程序列化，所以不进契约。对话窗口拿路径做附件。
- * - `dropFile(file)`（只有传了 `ipcRenderer` 的 preload 才会提交，即看板娘窗口）：拖到看板娘身上的文件。
+ * - `dropFile(file)`（只有传了 `ipcRenderer` 的 preload 才会提交，即桌面角色窗口）：拖到桌面角色身上的文件。
  *   路径的解析与提交**都在 preload 里**完成，经专用通道 `desktop:drop-file` 直接发给主进程
  *   （host/nomiHostIpc.ts）。视图只交出 File，选不了路径：页面里的脚本（XSS、被篡改的依赖）就算拿到
  *   这个对象，也只能提交用户真实拖进来的文件。所以它不是契约过程——契约过程的入参由视图决定。
@@ -17,7 +17,7 @@ import type { PreloadContextBridgeLike, PreloadWebUtilsLike } from './types';
 /** = 视图侧读取的全局名（`services/api.ts` 的 `hostPathForFile`） */
 export const NOMI_HOST_BRIDGE_NAME = 'nomiHost';
 
-/** preload → 主进程：看板娘窗口拖入文件的本机路径（主进程 host/nomiHostIpc.ts 校验发送方） */
+/** preload → 主进程：桌面角色窗口拖入文件的本机路径（主进程 host/nomiHostIpc.ts 校验发送方） */
 export const NOMI_HOST_DROP_FILE_CHANNEL = 'desktop:drop-file';
 
 export interface NomiHostBridge {
@@ -35,7 +35,7 @@ export interface PreloadIpcSendLike {
 export interface MkNomiHostPreloadOptions {
   contextBridge: PreloadContextBridgeLike;
   webUtils: PreloadWebUtilsLike;
-  /** 只有看板娘窗口的 preload 传：`dropFile` 经它提交；不传时 `dropFile` 恒为 false */
+  /** 只有桌面角色窗口的 preload 传：`dropFile` 经它提交；不传时 `dropFile` 恒为 false */
   ipcRenderer?: PreloadIpcSendLike;
   /** 挂到 window 上的 key，默认 `nomiHost` */
   bridgeName?: string;

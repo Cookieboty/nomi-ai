@@ -167,7 +167,7 @@ describe('shell · schema', () => {
     ).toBe(false);
   });
 
-  it('引导转发给看板娘的指令只开放 say / gesture / reply，且只有语义名', () => {
+  it('引导转发给桌面角色的指令只开放 say / gesture / reply，且只有语义名', () => {
     expect(
       S.OnboardingMascotCmd.safeParse({ type: 'say', text: 'hi', gesture: 'wave' }).success,
     ).toBe(true);
@@ -291,7 +291,7 @@ describe('shell · 端到端（strict 序列化）', () => {
     }
   });
 
-  it('只在对话窗口的过程：看板娘窗口调用 FORBIDDEN', async () => {
+  it('只在对话窗口的过程：桌面角色窗口调用 FORBIDDEN', async () => {
     const handlers = {
       'diagnostics.get': () => ({
         enabled: true,

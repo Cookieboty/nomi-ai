@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { api, hasWindowHost } from '../services/api';
 
 /**
- * 看板娘大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
+ * 桌面角色大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
  * 调整并保持脚底中心不动、持久化到配置），这里只缓存最近一次状态并转发操作。
  * 滚轮事件会很密：同一帧内的 deltaY 先累加，每帧最多向主进程发一次。
  */
@@ -27,7 +27,7 @@ function setState(s: MascotScaleState | null | undefined): void {
 
 function start(): void {
   if (started) return;
-  // 窗口缩放只在宿主的看板娘窗口里有（dev:web 的浏览器页面没有窗口）
+  // 窗口缩放只在宿主的桌面角色窗口里有（dev:web 的浏览器页面没有窗口）
   if (!hasWindowHost()) return;
   started = true;
   void api.mascot.scaleGet().then(setState, ignore);

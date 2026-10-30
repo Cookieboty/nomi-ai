@@ -28,7 +28,7 @@ const MascotAIBridge = lazy(() => import('@/mascot/MascotAIBridge'));
 const MascotVoiceBridge = lazy(() => import('@/mascot/voice/MascotVoice'));
 
 /**
- * 看板娘宿主：气泡 + 工具栏 + Nomi 画布（Rive，失败时回退分层 2D）。
+ * 桌面角色宿主：气泡 + 工具栏 + Nomi 画布（Rive，失败时回退分层 2D）。
  * 必须位于 MascotProvider 内。
  */
 export const MascotHost: React.FC = () => {

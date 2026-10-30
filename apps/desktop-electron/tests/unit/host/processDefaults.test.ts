@@ -1,6 +1,6 @@
 /**
  * 主进程的模块级宿主设置：日志按 `app.isPackaged` 静默，私有文件的根目录是 userData；
- * 存活窗口数（引导里的看板娘指令是否送达）由组合根经 `createCore` 传给内核（host/liveWindows.ts）。
+ * 存活窗口数（引导里的桌面角色指令是否送达）由组合根经 `createCore` 传给内核（host/liveWindows.ts）。
  */
 const mockApp = { isPackaged: true, getPath: jest.fn(() => '/user-data') };
 const live = { isDestroyed: () => false, webContents: { isDestroyed: () => false } };

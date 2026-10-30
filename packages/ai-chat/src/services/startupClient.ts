@@ -6,7 +6,7 @@ import { api, hasTransport } from './api';
 
 export type StartupView = 'mascot' | 'main';
 export const DEFAULT_STARTUP_VIEW: StartupView = 'mascot';
-/** 关闭主界面时：hide（默认，看板娘与托盘继续运行）/ quit（完全退出 Nomi） */
+/** 关闭主界面时：hide（默认，桌面角色与托盘继续运行）/ quit（完全退出 Nomi） */
 export type CloseMainAction = 'hide' | 'quit';
 export const DEFAULT_CLOSE_MAIN: CloseMainAction = 'hide';
 
@@ -37,7 +37,7 @@ const pickClose = (r: unknown): CloseMainAction | null => {
 
 export const startupClient = {
   available: () => hasTransport(),
-  /** 读取失败 / 值异常时回落到默认（看板娘） */
+  /** 读取失败 / 值异常时回落到默认（桌面角色） */
   async get(): Promise<StartupView> {
     const r = await read();
     return pick(r) ?? DEFAULT_STARTUP_VIEW;
@@ -52,14 +52,14 @@ export const startupClient = {
     const r = await write({ closeMain });
     return pickClose(r);
   },
-  /** 是否显示桌面看板娘；读取失败 / 老配置回落到显示 */
+  /** 是否显示桌面角色；读取失败 / 老配置回落到显示 */
   async getShowMascot(): Promise<boolean> {
     const r = await read();
     return pickShowMascot(r) ?? true;
   },
   /**
-   * 立即显示 / 关闭看板娘；返回主进程确认后的 { showMascot, defaultView }，失败时返回 null。
-   * 默认界面为看板娘时关闭她，主进程会把默认界面改为「软件主界面」（#55），defaultView 随之变化。
+   * 立即显示 / 关闭桌面角色；返回主进程确认后的 { showMascot, defaultView }，失败时返回 null。
+   * 默认界面为桌面角色时关闭她，主进程会把默认界面改为「软件主界面」（#55），defaultView 随之变化。
    */
   async setShowMascot(
     showMascot: boolean,
@@ -69,7 +69,7 @@ export const startupClient = {
     const v = pick(r);
     return s === null || v === null ? null : { showMascot: s, defaultView: v };
   },
-  /** 看板娘工具栏「关闭看板娘」等外部改动；返回取消订阅 */
+  /** 桌面角色工具栏「关闭桌面角色」等外部改动；返回取消订阅 */
   onShowMascotChange(
     fn: (showMascot: boolean, defaultView: StartupView | null) => void,
   ): () => void {

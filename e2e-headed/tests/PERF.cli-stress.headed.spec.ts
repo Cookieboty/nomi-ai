@@ -2,7 +2,7 @@
  * PERF · 编程助手会话压测（真实 dist 应用 + Mock Claude 的 stress 场景）
  *
  * 默认跳过；`NOMI_PERF=1 xvfb-run -a npx playwright test PERF` 运行。
- * 流程：持续输出数千个工具调用与数百 KB 流式 Markdown → 采样渲染进程 / 主进程 / 看板娘窗口内存、
+ * 流程：持续输出数千个工具调用与数百 KB 流式 Markdown → 采样渲染进程 / 主进程 / 桌面角色窗口内存、
  * 长任务（>50ms）、DOM 节点与监听器数量 → 完成后重开历史渲染耗时 → 在两个标签间切换 50 次 → GC 后内存应回落。
  * 报告写到 PERF_REPORT（默认 /workspace/accept-shots/cli-conversation/perf-report.json）。
  * 环境：PERF_N（每轮工具调用数，默认 1000）、PERF_TURNS（轮数，默认 12）、PERF_TEXT_KB（默认 200）、PERF_ASSERT=1 时启用阈值断言。

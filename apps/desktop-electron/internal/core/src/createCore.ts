@@ -17,11 +17,11 @@
  *   （`core/scope.ts`，AsyncLocalStorage）读到「当前内核」的状态；建服务、start / stop / startReminders
  *   与每次契约调用都在作用域里执行，宿主自己的代码用 `core.i18n` / `core.run()`。进程级的只剩按路径
  *   记录的文件权限缓存与子进程 / worker 的缓存；
- * - **宿主片段**：要用窗口的契约过程（Electron：看板娘窗口互动、灵动岛、旧窗口通道、应用图标）由宿主在
+ * - **宿主片段**：要用窗口的契约过程（Electron：桌面角色窗口互动、灵动岛、旧窗口通道、应用图标）由宿主在
  *   `contract.hostHandlers` 里传进来，与内核的处理函数在同一次 `implement` 里组装；宿主片段只能补内核
  *   没有实现的过程，谁都没实现的以 UNAVAILABLE 失败（无界面宿主没有窗口片段）；
  * - **宿主钩子**（`host`）：内核不认识窗口，打开 / 判断界面走 `ports.windows`；只有少数地方要宿主的窗口对象
- *   或宿主的插件（桌面服务的看板娘窗口、语音投递到对话窗口、自动更新、受控浏览器、系统 TTS、用户画像存储），
+ *   或宿主的插件（桌面服务的桌面角色窗口、语音投递到对话窗口、自动更新、受控浏览器、系统 TTS、用户画像存储），
  *   都是可选的，缺省时对应能力报不可用或不做。
  */
 
@@ -159,11 +159,11 @@ export interface CoreHostHooks {
   browser?: () => unknown;
   /** 注册 `character-pack://` 协议的宿主对象（Electron：`protocol`）；缺省只解析角色包 */
   characterPackProtocol?: CharacterPackProtocolHost;
-  /** 桌面服务用到的看板娘 / 对话窗口与灵动岛（确认框、提醒、拖入总结） */
+  /** 桌面服务用到的桌面角色 / 对话窗口与灵动岛（确认框、提醒、拖入总结） */
   desktopWindows?: DesktopWindows;
   /** 把语音识别结果投递到对话窗口时要等页面加载（Electron：打开对话窗口并返回它） */
   voiceChatWindow?: () => Promise<VoiceChatWindow>;
-  /** 宿主当前存活的窗口数（引导里的看板娘指令据此判断是否送达）；缺省按 0 */
+  /** 宿主当前存活的窗口数（引导里的桌面角色指令据此判断是否送达）；缺省按 0 */
   liveWindows?: () => number;
   /** 调用方窗口的存活（语音会话随窗口释放）；缺省时会话只随契约连接断开释放 */
   callerWindows?: CallerWindows;
@@ -215,7 +215,7 @@ export interface Core {
   readonly started: boolean;
   /** 建服务、启动 AI runtime、组装 router；宿主就绪（Electron：app ready）之后调用 */
   start(): Promise<void>;
-  /** 提醒与定时任务：能播报的界面就绪（Electron：看板娘窗口建好）后调用；无界面宿主在 start() 后调用 */
+  /** 提醒与定时任务：能播报的界面就绪（Electron：桌面角色窗口建好）后调用；无界面宿主在 start() 后调用 */
   startReminders(): void;
   /** 停止后台服务、落盘；重入安全，带总超时 */
   stop(): Promise<void>;
@@ -347,7 +347,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
   };
 
   const doStart = async (): Promise<void> => {
-    // 配置先加载（窗口位置、看板娘大小等由宿主在建窗口时读）
+    // 配置先加载（窗口位置、桌面角色大小等由宿主在建窗口时读）
     await config.load();
     // 朗读配置服务（契约 `tts.*`）与旧配置清理
     services.tts = new TtsService({ paths: ports.paths, logger, events });
@@ -476,7 +476,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     services.localModels = localLlm;
     stoppers.push(() => void localLlm.stop());
 
-    // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
+    // 界面主题（设置 → 通用 → 主题），对话窗口与桌面角色同步
     services.theme = new ThemeService({ file: userData('theme.json'), ports, events });
     // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
     services.chatBg = new ChatBackgroundService({
@@ -497,7 +497,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       liveWindows: host.liveWindows,
     });
 
-    // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改；怎么开窗口是宿主的事
+    // 启动后默认界面（桌面角色 / 软件主界面）：设置与引导里都能改；怎么开窗口是宿主的事
     services.startup = new StartupService({ file: userData('startup.json'), events });
 
     // 用量与计费：Nomi 对话 / 本地路由 / 编程工具会话日志，全部只存本机
@@ -520,7 +520,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         const l = accounts.officialLaunch(kind, null);
         return { dir: l.dir, args: l.args };
       },
-      // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）或灵动岛 / 系统通知；免打扰中不弹，稍后重试
+      // 预算 / 单任务提醒：桌面角色气泡（只显示，不朗读）或灵动岛 / 系统通知；免打扰中不弹，稍后重试
       alert: (a) => {
         if (desktop.notifyPolicy?.quiet() ?? false) return false;
         desktop.notify({
@@ -875,7 +875,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         return accounts.list(backend).length > 1 ? a : { id: a.id };
       },
     });
-    // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
+    // 监视器汇总 Nomi 标签；任一标签一轮结束 → 桌面角色 / 灵动岛
     agents.attachHarness({
       // 外部插件（§5.9）没有进度监视能力：不进监视器
       tabs: () =>
@@ -929,7 +929,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       defaultWakePhrase: () => services.characterPack?.wakePhrase(),
     });
 
-    // 知识库 / 记忆不依赖看板娘窗口：先于窗口启动，对话窗口并行打开时召回与授权变化即刻可用
+    // 知识库 / 记忆不依赖桌面角色窗口：先于窗口启动，对话窗口并行打开时召回与授权变化即刻可用
     kb.start();
     mem.start();
   };

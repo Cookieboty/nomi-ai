@@ -2,7 +2,7 @@
 // Go 宿主的视图：与 Electron 同一份构建产物（packages/renderer、packages/ai-chat 的 dist），原样复制后嵌进 Go 程序
 // （main.go 的 //go:embed all:frontend/dist）。
 //
-//   dist/mascot/  ← packages/renderer/dist（看板娘窗口）
+//   dist/mascot/  ← packages/renderer/dist（桌面角色窗口）
 //   dist/chat/    ← packages/ai-chat/dist（对话窗口）
 //
 // 宿主差异不靠构建开关：视图运行时识别 Go 宿主（services/api.ts 读页面地址片段里的 WebSocket 配置），Go 提供页面时

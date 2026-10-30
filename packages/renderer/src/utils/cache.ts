@@ -112,7 +112,7 @@ export async function removeCache(key: string): Promise<boolean> {
 }
 
 /**
- * 清除所有看板娘相关的缓存
+ * 清除所有桌面角色相关的缓存
  * @returns 是否成功
  */
 export async function clearAllCache(): Promise<boolean> {
@@ -129,7 +129,7 @@ export async function clearAllCache(): Promise<boolean> {
     success = false;
   }
 
-  // 清除localStorage中的所有看板娘数据
+  // 清除localStorage中的所有桌面角色数据
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);

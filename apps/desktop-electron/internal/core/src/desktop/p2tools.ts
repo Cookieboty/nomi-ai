@@ -15,7 +15,7 @@ import type { UndoJournal } from './UndoJournal';
 
 /**
  * P2 工具：提醒 / 剪贴板。复用 P0 的同意（broker.authorize）、审计（run）与撤销日志。
- * - 提醒持久化，应用运行时到点触发（看板娘挥手 + 气泡 + 系统通知）
+ * - 提醒持久化，应用运行时到点触发（桌面角色挥手 + 气泡 + 系统通知）
  * - 剪贴板读取：每次运行首次需要确认（可在设置里改为每次询问）；内容按不可信数据包裹
  */
 export const P2_DANGER: Record<string, Danger> = {
@@ -34,7 +34,7 @@ export interface P2Deps {
     /** 写入失败（宿主剪贴板不可用等）要抛回来，算这次工具调用失败 */
     writeText(t: string): void | Promise<void>;
   };
-  /** 在看板娘气泡里说一句 */
+  /** 在桌面角色气泡里说一句 */
   say: (text: string) => void;
   now?: () => number;
 }
@@ -163,7 +163,7 @@ export function createP2Tools(
     // ---------------- 提醒 ----------------
     tool(
       'reminder_create',
-      '设置提醒：到点时看板娘挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。',
+      '设置提醒：到点时桌面角色挥手 + 气泡 + 系统通知（应用需在运行）。用 at（ISO 时间）或 inMinutes / inSeconds。',
       remCreate,
       async (i: z.infer<typeof remCreate>, signal) => {
         const due = resolveDue(i, now());

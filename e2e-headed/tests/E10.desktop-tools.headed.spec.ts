@@ -26,7 +26,7 @@ import { safeRm } from '../fixtures/fsutil';
  * mock OpenAI 兼容服务扮演模型：用户消息 `CALL <tool> <json>` → 返回该工具调用；
  * 收到工具结果 → 回显 `TOOLRESULT <结果>`；总结请求（system 提示含「你在总结用户的本地文件」）→ `SUMMARY[<文件里的 TOKEN>]`。
  * 覆盖：设置面板授权文件夹（系统选择框被桩替换）、总结 md / pdf、黑名单 / 越界路径被拒、
- * 破坏性操作必须在对话框确认 + 撤销、把文件拖到看板娘身上总结、审计日志。
+ * 破坏性操作必须在对话框确认 + 撤销、把文件拖到桌面角色身上总结、审计日志。
  */
 interface Msg {
   role: string;
@@ -299,7 +299,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       await chat.screenshot(shot('06-settings-audit-log.png'));
       await chat.keyboard.press('Escape');
 
-      // ---- 5. 拖文件到看板娘身上 → 总结显示在气泡 + 对话窗口 ----
+      // ---- 5. 拖文件到桌面角色身上 → 总结显示在气泡 + 对话窗口 ----
       await main.evaluate(() => {
         const input = document.createElement('input');
         input.type = 'file';

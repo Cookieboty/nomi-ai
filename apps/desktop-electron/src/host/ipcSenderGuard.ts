@@ -45,7 +45,7 @@ export function isTrustedSenderUrl(raw: string | undefined | null): boolean {
 
 /**
  * 受信页面属于哪个界面（docs/design/core-host-decoupling.md §8）：
- * 对话窗口（打包后 `…/ai-chat/index.html`，开发态 chat dev server）为 `chat`，其余为看板娘 `mascot`。
+ * 对话窗口（打包后 `…/ai-chat/index.html`，开发态 chat dev server）为 `chat`，其余为桌面角色 `mascot`。
  * 只在 URL 已判定受信之后调用。
  */
 export function aiSurfaceForUrl(raw: string): Surface {

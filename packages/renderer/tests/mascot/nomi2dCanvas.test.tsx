@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 看板娘窗口 → avatar-runtime 的适配（Nomi2DCanvas）：等 Scheme B 覆盖包就绪后，把当前角色
+ * 桌面角色窗口 → avatar-runtime 的适配（Nomi2DCanvas）：等 Scheme B 覆盖包就绪后，把当前角色
  * （模式、资源、Rive 画板、命中区）、事件中枢、窗口宿主与互动输出交给 AvatarStage。
  * 渲染器的选择与 Rive 失败回退在 avatar-runtime 的 avatarCanvas 测试里。
  */

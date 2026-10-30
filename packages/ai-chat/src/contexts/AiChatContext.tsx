@@ -457,7 +457,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  // 把文件拖到看板娘身上 → 主进程总结完成后推送到对话窗口
+  // 把文件拖到桌面角色身上 → 主进程总结完成后推送到对话窗口
   useEffect(
     () =>
       desktopClient.onSummary((e) => {

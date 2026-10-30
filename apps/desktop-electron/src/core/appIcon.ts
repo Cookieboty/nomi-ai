@@ -148,7 +148,7 @@ export function initAppIcon(configFile: string): void {
   }
   // 启动即应用：dev 下也不再显示默认 Electron 图标（Dock / 窗口）
   apply();
-  // 之后新建的窗口（看板娘 / 灵动岛 / 截图等）也跟随当前变体，而不是只有主窗口
+  // 之后新建的窗口（桌面角色 / 灵动岛 / 截图等）也跟随当前变体，而不是只有主窗口
   app.on?.('browser-window-created', (_e, w) =>
     applyToWindow(w, { platform: process.platform, image: iconImage('window'), ico: currentIco() }),
   );

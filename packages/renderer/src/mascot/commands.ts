@@ -1,7 +1,7 @@
 import { avatarEvents } from '../avatar/events';
 
 /**
- * 主进程（托盘 / 服务）发来的看板娘指令：打开面板、说一句（可带语义手势）、朗读回复。
+ * 主进程（托盘 / 服务）发来的桌面角色指令：打开面板、说一句（可带语义手势）、朗读回复。
  * 角色的情绪 / 手势 / 活动不是指令，走语义事件 `avatar.event`（MascotDriver 直接转给运行时）。
  */
 export type MascotCommand =

@@ -20,11 +20,11 @@ pnpm dev:smoke    # 启动开发环境并确认窗口正常（CI 也会跑）
 
 开发端口见根目录 `dev-ports.json`：
 
-| 用途                   | 端口 | 覆盖变量           |
-| ---------------------- | ---- | ------------------ |
-| 看板娘窗口（renderer） | 6127 | `CD_RENDERER_PORT` |
-| 对话窗口（ai-chat）    | 6128 | `CD_CHAT_PORT`     |
-| demo                   | 6129 | `CD_DEMO_PORT`     |
+| 用途                 | 端口 | 覆盖变量           |
+| -------------------- | ---- | ------------------ |
+| 诺米窗口（renderer） | 6127 | `CD_RENDERER_PORT` |
+| 对话窗口（ai-chat）  | 6128 | `CD_CHAT_PORT`     |
+| demo                 | 6129 | `CD_DEMO_PORT`     |
 
 ## 检查
 

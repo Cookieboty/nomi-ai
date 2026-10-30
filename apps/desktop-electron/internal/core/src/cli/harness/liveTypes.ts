@@ -100,7 +100,7 @@ export const PERMISSION_TIMEOUT_MS = 120_000;
 /** Nomi 委派开的标签：用户多半把活交出去就离开了，审批多等一会（docs/design/nomi-delegate-cli.md §5.1） */
 export const DELEGATED_PERMISSION_TIMEOUT_MS = 600_000;
 
-/** 标签结束一轮 / 出错时发给主进程订阅者（看板娘、灵动岛、监视器） */
+/** 标签结束一轮 / 出错时发给主进程订阅者（桌面角色、灵动岛、监视器） */
 export interface HarnessTabFinished {
   tabId: string;
   title: string;

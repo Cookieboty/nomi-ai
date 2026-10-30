@@ -7,7 +7,7 @@
  * 名字放进句子用 `tName`（`@nomi-ai/ui`），中文里名字与汉字之间按排版补空格。
  *
  * 来源是内核的人设（契约 `persona.get` / `persona.changed`，已按界面语言取好），跟着角色包与语言变化。
- * 还没拿到（或没有契约传输，例如测试与浏览器预览）时用通用称呼「看板娘」。
+ * 还没拿到（或没有契约传输，例如测试与浏览器预览）时用通用称呼「桌面角色」。
  */
 import { pronounForms } from '@nomi-ai/character-contract';
 import { getLocale, t } from '@nomi-ai/ui';

@@ -85,7 +85,7 @@ test('image theme persists custom overrides and restores the bundled preset', as
   writeFileSync(source, stripesPng(640, 400));
   mkdirSync(userData, { recursive: true });
   writeFileSync(themeFile, JSON.stringify({ theme: 'graphite' }));
-  // 启动直接开主界面、不显示看板娘
+  // 启动直接开主界面、不显示桌面角色
   writeFileSync(
     join(userData, 'startup.json'),
     JSON.stringify({ defaultView: 'main', showMascot: false }),

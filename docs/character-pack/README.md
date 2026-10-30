@@ -34,7 +34,7 @@ CHARACTER_PACK=../my-character.pack pnpm build
 3. **运行时**：`CharacterPackService` 按 `userData/character-pack` → `resources/character-pack` → 内置包解析，第一个
    通过 `validatePack`（`@nomi-ai/character-contract`）的包生效。内置包在安装包里是 `resources/renderer/character`，
    开发态是仓库里的 `CHARACTER_PACK` 或 `characters/nomi`。
-4. **人设与角色文案跟着包走**：`persona.json` + `locales/{zh,en}.json`。系统提示的身份段、问候、看板娘的提示语都从
+4. **人设与角色文案跟着包走**：`persona.json` + `locales/{zh,en}.json`。系统提示的身份段、问候、诺米的提示语都从
    当前包读；`pnpm check:i18n` 检查每个包的 zh / en 一致。
 5. 单角色；无商店 / 切换 UI；UI 主题、`appId`、产品名不进包。
 6. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见

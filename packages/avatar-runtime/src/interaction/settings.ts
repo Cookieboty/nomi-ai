@@ -22,7 +22,7 @@ export const DEFAULT_INTERACTION: MascotInteractionConfig = {
 
 type Listener = (cfg: MascotInteractionConfig) => void;
 
-/** 设置推给宿主（桌面版：主进程的看板娘窗口控制器）；宿主启动时注入，没有就只存本地 */
+/** 设置推给宿主（桌面版：主进程的桌面角色窗口控制器）；宿主启动时注入，没有就只存本地 */
 export type InteractionConfigBackend = (cfg: MascotInteractionConfig) => Promise<unknown> | void;
 
 function load(key: string): MascotInteractionConfig {

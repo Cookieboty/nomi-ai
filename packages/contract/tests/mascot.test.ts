@@ -87,10 +87,10 @@ describe('mascot 契约', () => {
     // 只在对话窗口 preload：灵动岛 / 聊天背景
     for (const n of ['island.get', 'island.set', 'island.test', 'chatBg.get', 'chatBg.pickImage'])
       expect(p[n]!.surfaces).toEqual(['chat']);
-    // 大小：看板娘窗口 + 对话窗口设置页（原 trusted 钩子）
+    // 大小：桌面角色窗口 + 对话窗口设置页（原 trusted 钩子）
     for (const n of ['mascot.scaleGet', 'mascot.scaleSet', 'mascot.scaleReset'])
       expect(p[n]!.surfaces).toEqual(['mascot', 'chat']);
-    // 其余看板娘互动与旧窗口通道只在看板娘 preload
+    // 其余桌面角色互动与旧窗口通道只在桌面角色 preload
     for (const n of ['mascot.setHit', 'mascot.dragMove', 'window.quit', 'window.openAiChat'])
       expect(p[n]!.surfaces).toEqual(['mascot']);
   });
@@ -198,7 +198,7 @@ describe('mascot 契约', () => {
       expect(await api.persona.get()).toEqual(persona);
       expect(await api.window.getPosition()).toEqual([10, 20]);
       expect(await api.window.platform()).toBe('linux');
-      // 看板娘窗口不能调对话窗口专属的过程
+      // 桌面角色窗口不能调对话窗口专属的过程
       await expect(api.chatBg.pickImage()).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
       const got: unknown[] = [];

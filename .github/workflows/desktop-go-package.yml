@@ -151,7 +151,7 @@ jobs:
 
   # 从 v2.0.4 源码构建 Windows 安装器 + win-unpacked（不下载 Release 资产，D-B11-9）：
   # verify 用它先装 2.0.4，再按 electron-updater 的方式跑 Go 安装器（2.0.4 → 新版的应用内升级路径），
-  # win-unpacked 顺带做同 runner 的看板娘尺寸基线。PR 上不跑（约 40 分钟）
+  # win-unpacked 顺带做同 runner 的桌面角色尺寸基线。PR 上不跑（约 40 分钟）
   electron-204-win:
     if: github.event_name != 'pull_request'
     runs-on: windows-latest

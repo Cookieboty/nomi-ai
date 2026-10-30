@@ -32,7 +32,7 @@ function install() {
     scaleSet: vi.fn(async (v: number) => state((cur = v))),
     scaleReset: vi.fn(async () => state((cur = 0.5))),
   };
-  // 契约 mascot.scale*（看板娘窗口调用）→ 记录成原来的位置参数，断言不变
+  // 契约 mascot.scale*（桌面角色窗口调用）→ 记录成原来的位置参数，断言不变
   installMascotHost({
     'mascot.scaleGet': () => api.scaleGet(),
     'mascot.scaleWheel': ({ deltaY, deltaMode }) => api.scaleWheel(deltaY, deltaMode),

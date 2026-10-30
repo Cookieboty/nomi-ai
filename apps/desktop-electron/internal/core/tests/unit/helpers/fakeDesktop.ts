@@ -1,7 +1,7 @@
 import type { DesktopNotice, NoticeChannel } from '../../../src/desktop/DesktopService';
 
 /**
- * 测试用的 DesktopService 替身：notify 与真实实现同一套路由——看板娘在 → 只走 say（气泡）；
+ * 测试用的 DesktopService 替身：notify 与真实实现同一套路由——桌面角色在 → 只走 say（气泡）；
  * 不在（hidden() 为 true）→ 只走 island（灵动岛）。
  */
 export function fakeDesktop(

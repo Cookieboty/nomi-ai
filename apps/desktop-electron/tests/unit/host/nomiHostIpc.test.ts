@@ -1,6 +1,6 @@
 /**
  * preload 专用通道 desktop:drop-file（host/nomiHostIpc.ts）：只收一个非空字符串路径，带上发送方 id 交给
- * dropFile（DesktopService 再判定是不是看板娘窗口）；多余参数 / 非字符串一律忽略；停止后不再接收。
+ * dropFile（DesktopService 再判定是不是桌面角色窗口）；多余参数 / 非字符串一律忽略；停止后不再接收。
  */
 
 jest.mock('electron', () => ({ ipcMain: {} }));

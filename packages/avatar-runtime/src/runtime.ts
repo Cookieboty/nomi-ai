@@ -4,7 +4,7 @@
  * 互动反应冷却。同一页面挂两个角色时各用一个实例，互不影响。
  *
  * `defaultAvatarRuntime` 是页面的主运行时：模块级出口（`mascotRegistry`、`layoutStore`、
- * `interactionSettings`、`applyDirective`、`react`……）都是它的成员，桌面看板娘窗口只挂一个角色，
+ * `interactionSettings`、`applyDirective`、`react`……）都是它的成员，桌面角色窗口只挂一个角色，
  * 宿主的工具栏、气泡直接读它们。再挂一个角色时传 `runtime={createAvatarRuntime()}`。
  */
 import { AvatarReactions, avatarReactions } from './interaction/reactions';

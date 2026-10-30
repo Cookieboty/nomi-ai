@@ -11,7 +11,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E9 · 看板娘桌面互动（真实应用 + 真实系统光标）
+ * E9 · 桌面角色桌面互动（真实应用 + 真实系统光标）
  *
  * - 开启重力后落到工作区底部（默认重力关闭=自由摆放；本测显式打开重力）
  * - 逐像素点击穿透：光标在透明区 → setIgnoreMouseEvents(true)；在角色身上 → false

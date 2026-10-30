@@ -2,7 +2,7 @@
  * D5：宿主片段（host/contract/mascot.ts：mascot 窗口互动与大小 / island / window）与内核的 D5
  * （@nomi-ai/core/contract/mascot：character / persona / chatBg / 模型名 / 平台）在内核的
  * createAppRouter 里组装：委派给窗口控制器与服务、surfaces 按原 preload 拒绝别的窗口、背景图错误换成
- * 契约码、看板娘指令经内核的事件总线发布契约事件。
+ * 契约码、桌面角色指令经内核的事件总线发布契约事件。
  */
 
 import { createClient, type Surface } from '@nomi-ai/contract';
@@ -161,7 +161,7 @@ function setup(surface: Surface = 'mascot', trusted = true) {
 describe('D5：内核 + 宿主片段', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('看板娘窗口：互动上报与大小委派给窗口控制器（原位置参数）', async () => {
+  it('桌面角色窗口：互动上报与大小委派给窗口控制器（原位置参数）', async () => {
     const { f, api, close } = setup('mascot');
     try {
       await api.mascot.setHit({ hit: true });
@@ -203,7 +203,7 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('看板娘窗口：不等回应连发的拖拽上报按发出顺序到达窗口控制器', async () => {
+  it('桌面角色窗口：不等回应连发的拖拽上报按发出顺序到达窗口控制器', async () => {
     const { f, api, close } = setup('mascot');
     const order: string[] = [];
     f.controller.beginDrag.mockImplementation(() => void order.push('start'));
@@ -220,7 +220,7 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('看板娘窗口：窗口操作、模型名、角色包、人设、平台', async () => {
+  it('桌面角色窗口：窗口操作、模型名、角色包、人设、平台', async () => {
     const { f, api, close } = setup('mascot');
     try {
       await api.window.quit();
@@ -287,7 +287,7 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('surfaces：看板娘专属的过程拒绝对话窗口，对话窗口专属的拒绝看板娘窗口', async () => {
+  it('surfaces：桌面角色专属的过程拒绝对话窗口，对话窗口专属的拒绝桌面角色窗口', async () => {
     const chat = setup('chat');
     try {
       await expect(chat.api.mascot.setHit({ hit: true })).rejects.toMatchObject({
@@ -322,7 +322,7 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('看板娘窗口还没建好：上报直接丢弃，大小以 UNAVAILABLE 失败', async () => {
+  it('桌面角色窗口还没建好：上报直接丢弃，大小以 UNAVAILABLE 失败', async () => {
     const { f, api, close } = setup('mascot');
     try {
       f.windowManager.mascotController = null;
@@ -333,7 +333,7 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('看板娘指令与语义事件经内核实例的事件总线发给所有窗口（没有模块级出口）', () => {
+  it('桌面角色指令与语义事件经内核实例的事件总线发给所有窗口（没有模块级出口）', () => {
     const events = createRecordingAppEvents();
     sendMascotCommand(events, { type: 'open-panel', panel: 'motions' });
     // 角色的手势 / 情绪是语义事件（§10.5）：契约事件 avatar.event

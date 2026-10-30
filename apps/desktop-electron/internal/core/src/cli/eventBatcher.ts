@@ -1,6 +1,6 @@
 /**
  * 把高频的 harness 实时事件（流式 text-delta / 工具事件）按帧合批后再发给渲染进程：
- * 一轮里可能有上万个事件，逐个 `webContents.send` 会让每个窗口（含看板娘）都做一遍结构化克隆与调度。
+ * 一轮里可能有上万个事件，逐个 `webContents.send` 会让每个窗口（含桌面角色）都做一遍结构化克隆与调度。
  * 相邻的同标签 text-delta / thinking 片段在队列里直接拼接；其它事件保持原有顺序。
  */
 export interface BatchableEvent {

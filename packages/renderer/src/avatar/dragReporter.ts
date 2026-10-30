@@ -1,5 +1,5 @@
 /**
- * 看板娘拖拽上报（契约 `mascot.dragStart` / `dragMove` / `dragEnd`）。
+ * 桌面角色拖拽上报（契约 `mascot.dragStart` / `dragMove` / `dragEnd`）。
  *
  * 原来是单向 IPC 消息；现在每次上报是一次完整的契约往返（请求帧、入参校验、中间件、响应帧）。
  * 指针事件的频率可以远高于屏幕刷新，这里把它们收敛：

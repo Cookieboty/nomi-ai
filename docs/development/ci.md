@@ -21,7 +21,7 @@ Workflow：[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)。
 
 ## 什么时候加 `ci:full`
 
-改动涉及 Windows / macOS 平台差异、Electron 主进程、窗口 / 看板娘、打包脚本，或想在合并前看到 headed e2e 和安装包时。合并进 `main` 后 push 也会跑一次完整 CI。
+改动涉及 Windows / macOS 平台差异、Electron 主进程、窗口 / 诺米、打包脚本，或想在合并前看到 headed e2e 和安装包时。合并进 `main` 后 push 也会跑一次完整 CI。
 
 ## 分支保护
 

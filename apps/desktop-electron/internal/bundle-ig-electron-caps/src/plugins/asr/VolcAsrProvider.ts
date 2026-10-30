@@ -48,7 +48,7 @@ export interface VolcAsrProviderOptions {
  * - 音频：16 kHz / 16 bit / 单声道 PCM，按 200 ms 分包；最后一包标志 0b0010
  * - 结果：全量文本，partial 会被修订；最后一包的结果作为 final
  *
- * 生产入口（聊天 / 看板娘语音输入）在 electron 主进程 VoiceService 里，这里是 ASR seam 的同规格实现。
+ * 生产入口（聊天 / 桌面角色语音输入）在 electron 主进程 VoiceService 里，这里是 ASR seam 的同规格实现。
  * 只用假传输测试过，没有连过真实接口。
  */
 export class VolcAsrProvider implements AsrProvider {

@@ -39,10 +39,10 @@ export interface WindowOptions {
   alwaysOnTop?: boolean;
   resizable?: boolean;
   show?: boolean;
-  /** 窗口准备好后显示但不抢占焦点（开机自启 / 看板娘让位给主界面） */
+  /** 窗口准备好后显示但不抢占焦点（开机自启 / 桌面角色让位给主界面） */
   showInactive?: boolean;
   title?: string;
-  /** preload 侧的窗口类型（`--nomi-window=<kind>`）：只有看板娘窗口的 `nomiHost.dropFile` 会提交 */
+  /** preload 侧的窗口类型（`--nomi-window=<kind>`）：只有桌面角色窗口的 `nomiHost.dropFile` 会提交 */
   windowKind: NomiWindowKind;
   /** 额外的 BrowserWindow 选项（标题栏样式等） */
   chrome?: Partial<BrowserWindowConstructorOptions>;
@@ -54,7 +54,7 @@ export interface ShowOptions {
 }
 
 export interface IWindowManager {
-  /** 创建看板娘窗口（历史命名 main） */
+  /** 创建桌面角色窗口（历史命名 main） */
   createMainWindow(opts?: ShowOptions): Promise<BrowserWindow>;
   /** 创建 / 聚焦软件主界面（对话窗口） */
   createAiChatWindow(opts?: ShowOptions): Promise<BrowserWindow>;
@@ -63,13 +63,13 @@ export interface IWindowManager {
   closeAllWindows(): void;
   setAlwaysOnTop(windowType: 'main' | 'aiChat', flag: boolean): void;
   /**
-   * 显示 / 关闭桌面看板娘。关闭时销毁窗口（连同渲染进程与 Rive 的 WASM / 画布一起释放），
+   * 显示 / 关闭桌面角色。关闭时销毁窗口（连同渲染进程与 Rive 的 WASM / 画布一起释放），
    * 位置先落盘，重新显示时按配置重建；提醒改走灵动岛 / 系统通知，确认框临时召回（summonMascot）
    */
   setMascotVisible(visible: boolean): void;
-  /** 看板娘已关闭时临时建出窗口（桌面工具确认框需要宿主）；已有窗口时直接显示 */
+  /** 桌面角色已关闭时临时建出窗口（桌面工具确认框需要宿主）；已有窗口时直接显示 */
   summonMascot(): void;
-  /** 临时召回结束：看板娘仍是关闭状态就再次释放窗口 */
+  /** 临时召回结束：桌面角色仍是关闭状态就再次释放窗口 */
   releaseMascot(): void;
   /** 打开对话窗口并发送面板通道（默认「供应商设置」） */
   openProviderPanel(event?: ChatNavEvent): Promise<void>;
@@ -89,9 +89,9 @@ export class WindowManager implements IWindowManager {
   chromeTheme: () => ChromeTheme = () => 'sunset';
   /** 主界面关闭后是否退出整个应用（「关闭主界面时：退出 Nomi」；Application 注入，默认不退出） */
   shouldQuitOnChatClose: () => boolean = () => false;
-  /** 关闭看板娘窗口 / 「关闭主界面时退出」：走宿主的统一退出（组合根设置；缺省 app.quit → before-quit） */
+  /** 关闭桌面角色窗口 / 「关闭主界面时退出」：走宿主的统一退出（组合根设置；缺省 app.quit → before-quit） */
   requestQuit: () => void = () => app.quit();
-  /** 看板娘是否被关闭（「关闭看板娘」/ 设置；Application 注入，默认显示） */
+  /** 桌面角色是否被关闭（「关闭桌面角色」/ 设置；Application 注入，默认显示） */
   mascotHidden: () => boolean = () => false;
   /**
    * 某个 webContents 上是否还有进行中的契约调用 / 流（Application 按 IPC 传输注入）。
@@ -101,9 +101,9 @@ export class WindowManager implements IWindowManager {
   /** 隐藏的对话窗口空闲多久后回收（测试可调） */
   chatIdleDestroyMs = CHAT_IDLE_DESTROY_MS;
   private mainWindow: BrowserWindow | null = null;
-  /** 正在创建中的看板娘窗口（并发 createMainWindow 共用） */
+  /** 正在创建中的桌面角色窗口（并发 createMainWindow 共用） */
   private mainWindowPromise?: Promise<BrowserWindow>;
-  /** 看板娘关闭期间被临时召回（确认框）：ready-to-show 时要显示出来 */
+  /** 桌面角色关闭期间被临时召回（确认框）：ready-to-show 时要显示出来 */
   private mascotSummoned = false;
   /** 正在回收隐藏的对话窗口（'closed' 里不当作用户关闭主界面） */
   private chatRecycling = false;
@@ -136,7 +136,7 @@ export class WindowManager implements IWindowManager {
     return this.mainWindowPromise;
   }
 
-  /** 看板娘窗口应保持隐藏：已关闭且没有被临时召回 */
+  /** 桌面角色窗口应保持隐藏：已关闭且没有被临时召回 */
   private mascotStaysHidden(): boolean {
     return this.mascotHidden() && !this.mascotSummoned;
   }
@@ -179,7 +179,7 @@ export class WindowManager implements IWindowManager {
       const win = await this.createWindow(windowOptions, 'main');
       this.mainWindow = win;
       if (process.platform === 'win32') setWindowBounds(this.mainWindow, { x, y, ...size });
-      // 看板娘已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
+      // 桌面角色已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
       this.mainWindow.webContents.setAudioMuted(this.mascotHidden());
 
       // 设置窗口事件监听
@@ -189,7 +189,7 @@ export class WindowManager implements IWindowManager {
       await this.loadMainWindowContent(win);
 
       this.logger.info('主窗口创建成功');
-      // 创建期间看板娘被关闭：直接释放，不留一个隐藏的渲染进程
+      // 创建期间桌面角色被关闭：直接释放，不留一个隐藏的渲染进程
       if (this.mascotStaysHidden()) this.releaseMascotWindow();
 
       return win;
@@ -284,7 +284,7 @@ export class WindowManager implements IWindowManager {
   }
 
   /**
-   * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 看板娘入口）。`event` 是面板导航的契约事件
+   * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 桌面角色入口）。`event` 是面板导航的契约事件
    * （`providers.openPanel` / `nav.*`），只发给对话窗口。窗口已经开着并订阅了就直接收到；刚建的窗口还没订阅时
    * 由内核留着，页面挂载后经 `nav.takePending` 拉取（不再固定等 400 ms）。
    */
@@ -296,7 +296,7 @@ export class WindowManager implements IWindowManager {
   /**
    * 获取主窗口
    */
-  /** 看板娘窗口控制器（托盘 / 测试读取状态） */
+  /** 桌面角色窗口控制器（托盘 / 测试读取状态） */
   mascotController: MascotWindowController | null = null;
 
   getMainWindow(): BrowserWindow | null {
@@ -326,19 +326,19 @@ export class WindowManager implements IWindowManager {
     if (!visible) {
       this.mascotSummoned = false;
       this.releaseMascotWindow();
-      this.logger.info('看板娘已关闭，窗口已释放');
+      this.logger.info('桌面角色已关闭，窗口已释放');
       return;
     }
     const win = this.mainWindow;
     if (!win || win.isDestroyed()) {
       void this.createMainWindow({ activate: false }).catch((error) =>
-        this.logger.error('重新显示看板娘失败', { error: String(error) }),
+        this.logger.error('重新显示桌面角色失败', { error: String(error) }),
       );
       return;
     }
     win.webContents.setAudioMuted(false);
     win.showInactive();
-    this.logger.info('看板娘已显示');
+    this.logger.info('桌面角色已显示');
   }
 
   summonMascot(): void {
@@ -349,7 +349,7 @@ export class WindowManager implements IWindowManager {
     }
     this.mascotSummoned = true;
     void this.createMainWindow({ activate: false }).catch((error) =>
-      this.logger.error('临时召回看板娘失败', { error: String(error) }),
+      this.logger.error('临时召回桌面角色失败', { error: String(error) }),
     );
   }
 
@@ -359,7 +359,7 @@ export class WindowManager implements IWindowManager {
   }
 
   /**
-   * 销毁看板娘窗口：先把位置落盘（防抖的保存可能还没跑），再 destroy()。
+   * 销毁桌面角色窗口：先把位置落盘（防抖的保存可能还没跑），再 destroy()。
    * destroy() 不触发 'close'（那里接的是退出应用），只触发 'closed'。
    */
   private releaseMascotWindow(): void {
@@ -375,7 +375,7 @@ export class WindowManager implements IWindowManager {
         this.logger.error('保存窗口位置失败', { error: String(error) });
       });
     } catch (error) {
-      this.logger.warn('读取看板娘位置失败', { error: String(error) });
+      this.logger.warn('读取桌面角色位置失败', { error: String(error) });
     }
     this.mascotController?.dispose();
     this.mascotController = null;
@@ -419,7 +419,7 @@ export class WindowManager implements IWindowManager {
       title: options.title,
       icon: windowIconPath(),
       skipTaskbar: type === 'main',
-      // macOS 对话窗口使用系统原生阴影；透明看板娘不绘制整窗阴影。
+      // macOS 对话窗口使用系统原生阴影；透明桌面角色不绘制整窗阴影。
       hasShadow: process.platform === 'darwin' && type === 'aiChat',
       backgroundColor: type === 'main' ? '#00000000' : undefined,
       ...(options.chrome ?? {}),
@@ -468,9 +468,9 @@ export class WindowManager implements IWindowManager {
     // 通用窗口事件
     window.once('ready-to-show', () => {
       perfMark(`${type}-shown`);
-      // 看板娘已关闭：窗口保持隐藏（已静音），设置里重新打开时再显示
+      // 桌面角色已关闭：窗口保持隐藏（已静音），设置里重新打开时再显示
       const keepHidden = type === 'main' && this.mascotStaysHidden();
-      if (keepHidden) this.logger.info('看板娘已关闭，窗口保持隐藏');
+      if (keepHidden) this.logger.info('桌面角色已关闭，窗口保持隐藏');
       else if (options.showInactive) window.showInactive();
       else window.show();
       if (type === 'main' && process.platform === 'win32') {
@@ -540,7 +540,7 @@ export class WindowManager implements IWindowManager {
             this.configService.set('windowPosition.x', px);
             this.configService.set('windowPosition.y', py);
             this.configService.save().catch((error) => {
-              this.logger.error('保存看板娘大小失败', { error: error.message });
+              this.logger.error('保存桌面角色大小失败', { error: error.message });
             });
           }, 400);
         },
@@ -629,7 +629,7 @@ export class WindowManager implements IWindowManager {
         return;
       }
       this.logger.info('AI对话窗口已关闭');
-      // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）
+      // 「关闭主界面时：退出 Nomi」：走统一退出流程（桌面角色、托盘、后台服务一起收尾）
       if (this.shouldQuitOnChatClose()) {
         this.logger.info('关闭主界面 → 退出 Nomi');
         this.requestQuit();

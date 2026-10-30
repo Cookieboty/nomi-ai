@@ -162,7 +162,7 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
 
   /**
    * 流式回复结束后发出 `session/assistant-message`（AIClient 桥接为 `message:complete`），
-   * 看板娘气泡据此显示回复摘要。只对 stream / agentStream / regenerate（用户对话）发出；
+   * 桌面角色气泡据此显示回复摘要。只对 stream / agentStream / regenerate（用户对话）发出；
    * sendMessage（后台摘要等）不发。中途出错 / 中止且没有文本时不发。
    */
   const tap = (

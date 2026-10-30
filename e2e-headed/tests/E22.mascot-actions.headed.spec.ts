@@ -10,7 +10,7 @@ import { repoRoot, resolveElectronExecutable, useRiveRenderer } from '../fixture
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E22 · 诺米 2D 看板娘动作库（真实应用，渲染器设为 Rive；默认是静态立绘）
+ * E22 · 诺米 2D 桌面角色动作库（真实应用，渲染器设为 Rive；默认是静态立绘）
  *
  * - 切到 Nomi 模型（Rive 后端），能力列表里有全部命名动作（至少 30 个）
  * - 逐个触发 mascot:motion，探针 data-mascot-action（Rive 状态机 `full.<动作>` 状态）报出正在播放的动作；

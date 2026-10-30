@@ -135,7 +135,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     await expect(chat.locator('body')).toContainText('剩下的去对话窗口看全文吧', {
       timeout: 30_000,
     });
-    // AI 事件经契约推到看板娘窗口；慢机器（Windows runner）上可能迟到，给足时间
+    // AI 事件经契约推到桌面角色窗口；慢机器（Windows runner）上可能迟到，给足时间
     await expect(bubble).toContainText('第一句话在这里。第二句也很短。', { timeout: 45_000 });
     await expect(bubble).not.toContainText('第三句');
     const more = main.locator('[data-testid="bubble-see-more"]');

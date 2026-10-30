@@ -20,13 +20,13 @@ export default defineConfig({
     // pnpm dev:web：把开发态内核的 WebSocket 地址注入页面；生产构建里不允许出现这条传输
     ...devTransportPlugin(),
     {
-      // 生产构建：给看板娘窗口注入 CSP（开发模式 HMR 需要内联脚本，不注入）
+      // 生产构建：给桌面角色窗口注入 CSP（开发模式 HMR 需要内联脚本，不注入）
       name: 'mascot-csp',
       apply: 'build',
       transformIndexHtml: {
         order: 'pre',
         handler(html: string, ctx: { filename: string }) {
-          // 看板娘页面经 file:// 加载，需要 meta CSP
+          // 桌面角色页面经 file:// 加载，需要 meta CSP
           if (!/\.html$/.test(ctx.filename)) return html;
           const anchor = /<meta charset="UTF-8"\s*\/?>/i;
           // 找不到锚点时宁可构建失败，也不能静默产出没有 CSP 的页面

@@ -1,5 +1,5 @@
 /**
- * 主进程 i18n（托盘、原生对话框、系统通知、看板娘主动消息、返回给界面的错误提示）。
+ * 主进程 i18n（托盘、原生对话框、系统通知、桌面角色主动消息、返回给界面的错误提示）。
  * 词典和稳定 key 由 @nomi-ai/i18n 统一管理；这里负责偏好持久化与广播。
  * 语言状态属于内核实例（LocaleService，经 core/scope.ts 的作用域查到），没有模块级的可变状态。
  * 不依赖 Electron：系统语言经宿主端口（app.preferredLanguages / app.locale），广播经 AppEvents。

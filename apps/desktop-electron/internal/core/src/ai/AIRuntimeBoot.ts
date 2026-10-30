@@ -77,7 +77,7 @@ export interface AIRuntimeBootOptions {
   services: AIRuntimeServices;
   /** 桌面工具插件读取的服务（桌面 / 知识库 / 记忆 / 委派 / 扩展） */
   desktopTools: DesktopToolSources;
-  /** 看板娘指令（avatar_gesture / avatar_emotion）经这个事件总线发给看板娘窗口 */
+  /** 桌面角色指令（avatar_gesture / avatar_emotion）经这个事件总线发给桌面角色窗口 */
   events: AppEvents;
   /** 宿主插件，装在内置插件之前（Electron：FileSessionStorePlugin 提供用户画像存储） */
   hostPlugins?: IgPluginEntry[];

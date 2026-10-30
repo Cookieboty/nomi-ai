@@ -211,7 +211,7 @@ describe('WindowManager 关闭主界面时', () => {
 });
 
 describe('WindowManager 启动时两个窗口并行', () => {
-  it('看板娘页面还在加载时，对话窗口可以并行创建并加载完成', async () => {
+  it('桌面角色页面还在加载时，对话窗口可以并行创建并加载完成', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const config = {
       getConfig: () => ({ windowPosition: { x: 0, y: 0 }, mascotScale: 1 }),
@@ -242,7 +242,7 @@ describe('WindowManager 启动时两个窗口并行', () => {
     internals.loadMainWindowContent = jest.fn(() => new Promise<void>((r) => (releaseMascot = r)));
     internals.loadAiChatWindowContent = jest.fn(async () => undefined);
 
-    // 与 Application.start 的顺序一致：先发起对话窗口，再等看板娘
+    // 与 Application.start 的顺序一致：先发起对话窗口，再等桌面角色
     const chatP = wm.createAiChatWindow({ activate: true });
     const mascotP = wm.createMainWindow({ activate: false });
     await expect(chatP).resolves.toBe(chat);
@@ -252,7 +252,7 @@ describe('WindowManager 启动时两个窗口并行', () => {
     releaseMascot();
     await expect(mascotP).resolves.toBe(mascot);
     expect(wm.getMainWindow()).toBe(mascot);
-    // 看板娘以不抢焦点的方式出现，对话窗口照常聚焦
+    // 桌面角色以不抢焦点的方式出现，对话窗口照常聚焦
     const calls = (internals.createWindow as jest.Mock).mock.calls;
     expect(calls.find((c) => c[1] === 'main')![0]).toMatchObject({ showInactive: true });
     expect(calls.find((c) => c[1] === 'aiChat')![0]).toMatchObject({ showInactive: false });

@@ -37,7 +37,7 @@ var (
 	stageCh = map[string]chan struct{}{}
 )
 
-// Reached：Stage(name) 打过之后关闭的 channel（D-B11-12：看板娘窗口出来后再跑密钥迁移）
+// Reached：Stage(name) 打过之后关闭的 channel（D-B11-12：桌面角色窗口出来后再跑密钥迁移）
 func Reached(name string) <-chan struct{} {
 	stageMu.Lock()
 	defer stageMu.Unlock()

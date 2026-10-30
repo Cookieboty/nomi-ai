@@ -1,7 +1,7 @@
 # Nomi · Go 版（apps/desktop-go）
 
 Nomi 桌面应用的 Go 版：Go 内核 + [Wails v3](https://v3.wails.io) 外壳。与 Node 版（Electron，`apps/desktop-electron`）**并存**，
-两个版本共用同一套视图（`packages/renderer` 看板娘窗口、`packages/ai-chat` 对话窗口），功能保持一致。
+两个版本共用同一套视图（`packages/renderer` 诺米窗口、`packages/ai-chat` 对话窗口），功能保持一致。
 
 - 内核由 TS 内核（`apps/desktop-electron/internal/core`、`ai-runtime`、`gateway`、`cli-sdk` 等）逐模块移植，分层与模块边界一一对应；
   行为一致由 parity 测试守住（Node 现场录制 golden，Go 回放比对）。
@@ -16,7 +16,7 @@ Nomi 桌面应用的 Go 版：Go 内核 + [Wails v3](https://v3.wails.io) 外壳
   - macOS：Xcode Command Line Tools
   - Windows：PATH 里有 gcc（如 MSYS2 mingw-w64）
   - Linux：GTK3 与 WebKitGTK 4.1 开发包（Debian / Ubuntu：`libgtk-3-dev libwebkit2gtk-4.1-dev`）
-- 构建标签：macOS 必须加 `-tags private_mac_apis`（否则看板娘窗口不透明），Linux 加 `-tags gtk3`；下面的脚本已经带上
+- 构建标签：macOS 必须加 `-tags private_mac_apis`（否则诺米窗口不透明），Linux 加 `-tags gtk3`；下面的脚本已经带上
 
 ## 开发
 

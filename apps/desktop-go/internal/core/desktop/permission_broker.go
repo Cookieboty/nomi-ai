@@ -578,7 +578,7 @@ func (b *PermissionBroker) takePending(id string) bool {
 	return true
 }
 
-// Answer：用户答复（看板娘窗口与对话窗口，见 Service.AnswerConfirm）
+// Answer：用户答复（桌面角色窗口与对话窗口，见 Service.AnswerConfirm）
 func (b *PermissionBroker) Answer(id string, allow, remember bool) bool {
 	return b.AnswerPick(id, allow, remember, false)
 }

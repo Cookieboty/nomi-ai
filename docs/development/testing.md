@@ -22,7 +22,7 @@
 - `E6.core-twice`：同一进程里两个内核互不相干（服务、事件、router、AI runtime、主题 / 用户画像 / 网关供应商 / 记忆的数据与目录）；没有宿主片段时窗口过程 UNAVAILABLE
 - `E7.websocket-transport`：WebSocket 传输对真实内核的握手、查询、修改与事件订阅；错 token 与外站 Origin 被拒绝
 - `E8.stand-in-character`：替身角色验收（[内核宿主分离 §11.3](../design/core-host-decoupling.md)）的无界面部分：无界面宿主上的真实内核经内核选项 `builtinCharacterPack` 用 `characters/test-dummy` 作内置包（不靠 `CHARACTER_PACK` 环境变量），ai-chat 的真实 `SdkIPCClient` 经契约发给模型的系统提示、角色 preset 的身份段、发给界面的人设与角色包快照里都没有官方角色名
-- `E9.avatar-semantic-events`：语义事件协议（[§10.5](../design/core-host-decoupling.md)）在真实内核上：`ctx.avatar`、工具 `avatar_gesture`、`ai.avatar.*` 与首次引导经内核事件总线发 `avatar.event`，只有看板娘窗口收到；资源名过不了线；看板娘窗口报的 `touched` 到 `ctx.avatar` 与订阅了的窗口
+- `E9.avatar-semantic-events`：语义事件协议（[§10.5](../design/core-host-decoupling.md)）在真实内核上：`ctx.avatar`、工具 `avatar_gesture`、`ai.avatar.*` 与首次引导经内核事件总线发 `avatar.event`，只有诺米窗口收到；资源名过不了线；诺米窗口报的 `touched` 到 `ctx.avatar` 与订阅了的窗口
 
 ## 浏览器里的视图（`pnpm dev:web` / `pnpm smoke:web`）
 
@@ -34,13 +34,13 @@ pnpm exec playwright install chromium   # 第一次跑冒烟前
 pnpm smoke:web [-- --screenshot test-results/dev-web.png]
 ```
 
-- `dev:web`（`scripts/dev-web/start.mjs`）用无界面宿主起内核（统一网关在 Node 子进程里跑，监听系统分配的端口，不和本机装着的 Nomi 抢 18721），WebSocket 传输只监听 `127.0.0.1`、每次启动一个随机 token（日志只露前 4 位）、只接受开发服务器的 Origin；开发服务器只把 WebSocket 地址以 `window.nomiDevTransport` 注入页面（任何本机进程都能请求页面，token 放进去就等于公开），token 只在终端打印的地址片段里（`http://127.0.0.1:6128/#nomi-token=…`），页面读到后存 sessionStorage 并从地址栏抹掉，所以要打开打印出来的完整地址；开发服务器的 CORS 收紧到自己的地址。`smoke:web` 断言页面 HTML 里没有 token、片段被抹掉。没有窗口、托盘与看板娘，要用窗口对象的过程（看板娘大小、灵动岛、应用图标）报不可用。
+- `dev:web`（`scripts/dev-web/start.mjs`）用无界面宿主起内核（统一网关在 Node 子进程里跑，监听系统分配的端口，不和本机装着的 Nomi 抢 18721），WebSocket 传输只监听 `127.0.0.1`、每次启动一个随机 token（日志只露前 4 位）、只接受开发服务器的 Origin；开发服务器只把 WebSocket 地址以 `window.nomiDevTransport` 注入页面（任何本机进程都能请求页面，token 放进去就等于公开），token 只在终端打印的地址片段里（`http://127.0.0.1:6128/#nomi-token=…`），页面读到后存 sessionStorage 并从地址栏抹掉，所以要打开打印出来的完整地址；开发服务器的 CORS 收紧到自己的地址。`smoke:web` 断言页面 HTML 里没有 token、片段被抹掉。没有窗口、托盘与诺米，要用窗口对象的过程（诺米大小、灵动岛、应用图标）报不可用。
 - `smoke:web` 起同样的环境（空闲端口，不和正在跑的开发服务器冲突），用 Playwright 的 Chromium（不是 Electron）打开页面，断言页面渲染、没有未捕获异常、调用经 WebSocket 到了内核、内核里预设的主题与语言出现在页面上、内核换主题后页面跟着变；最后在页面的首次引导里添加指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，发一条消息，回复经统一网关回到页面。
 - 生产构建不含 WebSocket 传输：ai-chat 只在 `import.meta.env.DEV` 时读注入的全局，Vite 插件在构建产物里发现 WebSocket 传输就让构建失败。
 
 ## 真实应用 E2E（`e2e-headed/`，Playwright，45 个文件 / 56 个用例）
 
-看板娘与内置角色诺米（E1、E4、E15、E22、E23）、对话与历史（E2、E6、E19）、MCP（E3）、整机冒烟（E5）、供应商与网关（E7、E26、E34）、互动（E9）、桌面能力（E10）、气泡安全与工具栏（E11、E12）、提醒 / 剪贴板（E13）、引导与语言（E14、E16）、编程助手（E17、E18、E20、E24、E25、E27、E29、E32、E33、E35、E36）、灵动岛（E21）、输入栏与启动视图（E28、E30）、图片主题（IMAGE）、设置布局（V111）、无障碍（A11Y）、快捷键与命令面板（KEYS）、英文界面（I18N）、性能（PERF）、界面截图（UI、ANIM）、替身角色（G5）。用 `pnpm exec playwright test --config playwright.config.ts --list` 看完整清单。
+诺米与内置角色诺米（E1、E4、E15、E22、E23）、对话与历史（E2、E6、E19）、MCP（E3）、整机冒烟（E5）、供应商与网关（E7、E26、E34）、互动（E9）、桌面能力（E10）、气泡安全与工具栏（E11、E12）、提醒 / 剪贴板（E13）、引导与语言（E14、E16）、编程助手（E17、E18、E20、E24、E25、E27、E29、E32、E33、E35、E36）、灵动岛（E21）、输入栏与启动视图（E28、E30）、图片主题（IMAGE）、设置布局（V111）、无障碍（A11Y）、快捷键与命令面板（KEYS）、英文界面（I18N）、性能（PERF）、界面截图（UI、ANIM）、替身角色（G5）。用 `pnpm exec playwright test --config playwright.config.ts --list` 看完整清单。
 
 ```bash
 # 在仓库根目录运行，先 pnpm build（host-electron 的构建最后一步把两个视图复制进它的 dist）
@@ -56,7 +56,7 @@ ai-chat 的构建，最后由 `scripts/copy-renderer.js` 把它们复制到 `dis
 ### 替身角色构建（G5）
 
 `G5.stand-in-character` 只在**替身构建**上跑（官方构建上自动跳过）：用 `characters/test-dummy`（static 模式、
-占位图、名字「小纸」/ Pip）构建整个应用，走一遍首次引导、对话、设置 → 通用与看板娘窗口，断言界面文本
+占位图、名字「小纸」/ Pip）构建整个应用，走一遍首次引导、对话、设置 → 通用与诺米窗口，断言界面文本
 （含 aria-label / title）没有官方角色名、该写角色名的地方是「小纸」，发给模型的系统提示是替身的身份。
 判定规则与 `pnpm check:character-leak` 共用（`scripts/lib/characterLeak.mjs`）。
 
@@ -75,7 +75,7 @@ pnpm build               # 换回官方构建再跑其它用例（turbo 按 CHAR
 两套测的是不同层，没有可以删掉的重复：
 
 - `e2e/` 在进程内跑真实内核，用假的 LLM 与工具验证契约（事件名、推送范围、拒绝路径的错误码、多内核隔离、WebSocket 传输），结果确定、不需要网络与 Electron。这些断言在真实应用里拿不到（没有可控的模型输出），真实应用 E2E 也没有覆盖 `write_file` 拒绝路径和 TTS 分片广播。
-- `e2e-headed/` 验证用户真正看到和操作的界面，需要 Electron 与显示环境，不能搬到无界面宿主：透明置顶的看板娘窗口与命中区、拖拽与窗口位置、托盘、灵动岛、preload 与 `nomiHost`（拖入文件）、系统对话框、全局快捷键、窗口截图（UI、ANIM）、打包产物的生产模式冒烟（E5）。
+- `e2e-headed/` 验证用户真正看到和操作的界面，需要 Electron 与显示环境，不能搬到无界面宿主：透明置顶的诺米窗口与命中区、拖拽与窗口位置、托盘、灵动岛、preload 与 `nomiHost`（拖入文件）、系统对话框、全局快捷键、窗口截图（UI、ANIM）、打包产物的生产模式冒烟（E5）。
 - 合并到同一个 Playwright 配置需要把 Vitest 用例改写为 Playwright 的 test/expect，收益只是少一个配置文件。
 - CI 里无界面 E2E 每个平台 1–2 分钟，真实应用 E2E 5–9 分钟；分成两个 job 可以并行，先给出快速信号。
 

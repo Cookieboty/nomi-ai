@@ -96,7 +96,7 @@ export function isStaleGeometry(
 }
 
 /**
- * 看板娘窗口控制器（主进程）：
+ * 桌面角色窗口控制器（主进程）：
  * - 全局光标轮询 → 渲染进程（视线跟随 + 逐像素命中测试；Linux 下 forward 不可用也能工作）
  * - 点击穿透：渲染进程回报命中结果后切换 setIgnoreMouseEvents(…, { forward: true })
  * - 拖拽：按住角色移动窗口，速度估计 → 松手抛出
@@ -339,7 +339,7 @@ export class MascotWindowController {
     }
     if (!this.cfg.wander && this.body.mode === 'walking')
       this.body = { ...this.body, mode: 'idle', vx: 0 };
-    this.logger.info('看板娘互动设置', this.cfg);
+    this.logger.info('桌面角色互动设置', this.cfg);
   }
 
   /** 角色脚底所在显示器允许的最大缩放 */
@@ -384,7 +384,7 @@ export class MascotWindowController {
       try {
         setWindowBounds(this.win, nb);
       } catch (err) {
-        this.logger.warn('缩放看板娘窗口失败', { error: String(err) });
+        this.logger.warn('缩放桌面角色窗口失败', { error: String(err) });
         return this.scaleState();
       }
       this.staleSize = { width: b.width, height: b.height };
@@ -411,7 +411,7 @@ export class MascotWindowController {
     const state = this.scaleState();
     if (userPref) this.scaleHooks?.save(this.pref);
     if (notify) {
-      // 看板娘与对话窗口（设置页的大小滑块）都要知道：契约事件 mascot.scaleChanged
+      // 桌面角色与对话窗口（设置页的大小滑块）都要知道：契约事件 mascot.scaleChanged
       this.events?.publish('mascot.scaleChanged', state, { surface: ['mascot', 'chat'] });
     }
     return state;
@@ -720,7 +720,7 @@ export class MascotWindowController {
     this.schedule(busy ? TICK_MS : IDLE_TICK_MS);
   }
 
-  /** 推给看板娘窗口：经应用事件总线发布契约事件；没有事件总线时丢弃 */
+  /** 推给桌面角色窗口：经应用事件总线发布契约事件；没有事件总线时丢弃 */
   private send(ch: AppEventName, payload: unknown): void {
     if (this.win.isDestroyed()) return;
     this.events?.publish(ch, payload, { surface: 'mascot' });

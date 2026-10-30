@@ -3,11 +3,11 @@
  *
  * 契约声明在 packages/contract/src/app/mascot.ts。角色包 / 人设、聊天背景、旧的角色模型名、
  * `window.platform` 在内核（`@nomi-ai/core/contract/mascot`）；这里只实现：
- * - 看板娘窗口互动与大小（`mascot.*`，`MascotWindowController` 的公开方法）；
+ * - 桌面角色窗口互动与大小（`mascot.*`，`MascotWindowController` 的公开方法）；
  * - 灵动岛（`island.*`，宿主的灵动岛窗口）；
  * - 旧窗口通道（`window.*`，`host/mascotWindowActions.ts`）。
  *
- * 看板娘窗口控制器的推送经内核的应用事件总线发布契约事件（窗口管理器建控制器时传入）。
+ * 桌面角色窗口控制器的推送经内核的应用事件总线发布契约事件（窗口管理器建控制器时传入）。
  * `files.pathFor` 不能过线（只能在 preload 里对真实 File 调用），不在契约里。
  */
 
@@ -30,7 +30,7 @@ export interface MascotHostDeps {
 }
 
 export function createMascotHostHandlers(deps: MascotHostDeps): MascotHostHandlers {
-  /** 看板娘窗口还没建好时为 null：上报直接丢弃 */
+  /** 桌面角色窗口还没建好时为 null：上报直接丢弃 */
   const controller = (): MascotWindowController | null =>
     deps.windowManager()?.mascotController ?? null;
   const ctl = (): MascotWindowController => need(controller(), 'mascotController');
@@ -38,7 +38,7 @@ export function createMascotHostHandlers(deps: MascotHostDeps): MascotHostHandle
   const island = () => need(deps.island(), 'island');
 
   return {
-    // —— 看板娘窗口互动
+    // —— 桌面角色窗口互动
     'mascot.setShape': ({ rects }) => controller()?.reportShape(rects),
     'mascot.setHit': ({ hit }) => controller()?.reportHit(hit),
     'mascot.setGeometry': (box) => controller()?.reportGeometry(box),
@@ -49,7 +49,7 @@ export function createMascotHostHandlers(deps: MascotHostDeps): MascotHostHandle
     'mascot.wanderNow': () => controller()?.wanderNow(),
     'mascot.debugSnapshot': () => plain(ctl().snapshot()),
 
-    // —— 看板娘大小
+    // —— 桌面角色大小
     'mascot.scaleGet': () => plain(ctl().scaleState()),
     'mascot.scaleSet': ({ scale }) => plain(ctl().scaleSet(scale)),
     'mascot.scaleStep': ({ dir }) => plain(ctl().scaleStep(dir)),
