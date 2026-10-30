@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,5 +77,39 @@ func assertNoTmp(t *testing.T, dir string) {
 		if strings.Contains(e.Name(), ".tmp") {
 			t.Fatalf("临时文件残留: %s", e.Name())
 		}
+	}
+}
+
+// Windows 上替换时目标被短暂占用（ACCESS_DENIED）：退避重试直到成功；非瞬时错误直接返回（同 Node renameWithRetry）
+func TestRenameWithRetry(t *testing.T) {
+	origRename, origWin := renameFile, isWindows
+	t.Cleanup(func() { renameFile, isWindows = origRename, origWin })
+	isWindows = true
+	calls := 0
+	renameFile = func(from, to string) error {
+		calls++
+		if calls < 3 {
+			return &os.LinkError{Op: "rename", Old: from, New: to, Err: fs.ErrPermission}
+		}
+		return nil
+	}
+	if err := renameWithRetry("a", "b"); err != nil || calls != 3 {
+		t.Fatalf("transient: err=%v calls=%d", err, calls)
+	}
+	calls = 0
+	renameFile = func(from, to string) error {
+		calls++
+		return &os.LinkError{Op: "rename", Old: from, New: to, Err: fs.ErrNotExist}
+	}
+	if err := renameWithRetry("a", "b"); err == nil || calls != 1 {
+		t.Fatalf("non-transient: err=%v calls=%d", err, calls)
+	}
+	isWindows, calls = false, 0
+	renameFile = func(from, to string) error {
+		calls++
+		return &os.LinkError{Op: "rename", Old: from, New: to, Err: fs.ErrPermission}
+	}
+	if err := renameWithRetry("a", "b"); err == nil || calls != 1 {
+		t.Fatalf("non-windows: err=%v calls=%d", err, calls)
 	}
 }

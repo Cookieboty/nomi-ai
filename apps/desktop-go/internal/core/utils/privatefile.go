@@ -2,10 +2,15 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // WritePrivateFileAtomic：写临时文件再 rename，权限 0600（对齐 writePrivateFileAtomic）。
@@ -36,7 +41,39 @@ func WritePrivateFileAtomic(path string, data []byte) (err error) {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	return renameWithRetry(tmp, path)
+}
+
+// rename 的重试参数与 Node 版相同（privateFile.ts renameWithRetry）
+const renameRetryBudget = 2 * time.Second
+
+var (
+	renameFile = os.Rename                 // 单测注入
+	isWindows  = runtime.GOOS == "windows" // 单测注入
+)
+
+// renameWithRetry = renameWithRetry：Windows 上目标文件正被别处短暂打开（杀软 / 索引器扫描、另一次替换同一路径）
+// 时 MoveFileEx 会报 ACCESS_DENIED / SHARING_VIOLATION。这是瞬时占用：退避重试（10ms 起、单次最多 100ms、
+// 总共 2 秒），超时仍失败才返回；正常写入一次成功，完全不等。其它平台与其它错误直接返回。
+func renameWithRetry(from, to string) error {
+	deadline := time.Now().Add(renameRetryBudget)
+	for delay := 10 * time.Millisecond; ; delay = min(delay*2, 100*time.Millisecond) {
+		err := renameFile(from, to)
+		if err == nil || !isWindows || !transientRenameError(err) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(delay)
+	}
+}
+
+// transientRenameError：Windows 的 ERROR_ACCESS_DENIED（映射为 fs.ErrPermission）、ERROR_SHARING_VIOLATION (32)、
+// ERROR_LOCK_VIOLATION (33)，对应 Node 的 EPERM / EACCES / EBUSY
+func transientRenameError(err error) bool {
+	if errors.Is(err, fs.ErrPermission) {
+		return true
+	}
+	var errno syscall.Errno
+	return errors.As(err, &errno) && (errno == 32 || errno == 33)
 }
 
 // CoalescedWriter：同一时刻最多一个写入在跑、一个在排队（对齐 ConfigService 的 inflight/queued）。
