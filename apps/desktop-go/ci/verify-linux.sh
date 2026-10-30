@@ -17,6 +17,8 @@ mascot() { # $1=label $2=pid —— xvfb 里只有本应用：找 ~330x355 的�
     echo "- $label：桌面角色窗口 $found 已显示（linux-$label-mascot.png）" >> "$R"
   else echo "- $label：未找到桌面角色窗口（见 windows.txt）" >> "$R"; ok=0; fi
 }
+# CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json / latest.yml，2.0.4 还会自动下载整个安装包，算进下载量（deb 与 AppImage 共用 ~/.config/Nomi）
+mkdir -p "$HOME/.config/Nomi" && echo '{"version":1,"autoCheck":false}' > "$HOME/.config/Nomi/update-settings.json"
 # deb
 { echo '```'; dpkg-deb -I "$DEB" | grep -E 'Package|Version|Depends|Installed-Size'; echo '```'; } >> "$R"
 sudo apt-get install -y "$(readlink -f "$DEB")" > "$OUT/apt-install.log" 2>&1 || { echo "- deb 安装失败" >> "$R"; ok=0; }
