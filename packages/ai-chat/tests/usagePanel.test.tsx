@@ -7,6 +7,12 @@ import { UsagePanel } from '../src/components/UsagePanel';
 import { priceSyncMessage } from '../src/components/UsagePanel/Pricing';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 // findBy* / waitFor default to a 1s budget. The panel renders after several mocked IPC round-trips
 // plus happy-dom layout of the charts, which exceeds 1s on the slower macOS / Windows runners
 // ("cannot find usage-quota-card"). Same assertions, just a patient timeout for async lookups.
@@ -181,6 +187,7 @@ const ROWS = {
 };
 
 let calls: Array<[string, ...unknown[]]>;
+let invoke: ReturnType<typeof vi.fn<(ch: string, input?: unknown) => Promise<unknown>>>;
 let state: typeof STATE;
 let emptyData = false;
 let quota: unknown[] = [];
@@ -198,65 +205,66 @@ let hook: Record<string, unknown> = {
 function install() {
   calls = [];
   state = JSON.parse(JSON.stringify(STATE));
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      switch (ch) {
-        case 'ai:usage:state':
-          return emptyData ? { ...state, records: 0 } : state;
-        case 'ai:usage:query':
-          return emptyData
-            ? {
-                ...QUERY,
-                summary: summary({ calls: 0, unpriced: [], estimatedCalls: 0 }),
-                series: [],
-              }
-            : { ...QUERY, range: { ...QUERY.range, id: a[0] } };
-        case 'ai:usage:heatmap':
-          return { days: HEAT, today: dayKey(today) };
-        case 'ai:usage:details':
-          return ROWS;
-        case 'ai:usage:csv':
-          return 'a,b\n1,2\n';
-        case 'ai:usage:set-settings':
-          state = { ...state, settings: { ...state.settings, ...(a[0] as object) } };
-          return state.settings;
-        case 'ai:usage:quota':
-          return quota;
-        case 'ai:usage:quota-refresh':
-          if (refreshEntries) quota = refreshEntries;
-          if (refreshGate && a[0] === refreshGate.tool) await refreshGate.promise;
-          if (refreshFail && a[0] === refreshFail) throw new Error('boom');
-          return {
-            entries: quota,
-            tools: a[0]
-              ? Object.fromEntries(Object.entries(refreshTools).filter(([k]) => k === a[0]))
-              : refreshTools,
-          };
-        case 'ai:usage:quota-hook':
-          return hook;
-        case 'ai:usage:quota-hook-set':
-          hook = { ...hook, enabled: a[0] === true };
-          return hook;
-        case 'ai:usage:clear':
-          state = { ...state, records: 0 };
-          return state;
-        case 'ai:usage:scan':
-          return { ...state, added: 0, files: 0 };
-        case 'ai:usage:price-sync':
-          state = {
-            ...state,
-            pricing: {
-              ...state.pricing,
-              sync: { count: 321, fetchedAt: NOW, checkedAt: NOW, tableDate: '2026-10-16' },
-            },
-          };
-          return { ...state, result: { ok: true, status: 'updated', count: 321, skipped: 2 } };
-      }
-      return null;
-    }),
-    on: vi.fn(() => () => undefined),
-  };
+  invoke = vi.fn(async (ch: string, input?: unknown) => {
+    calls.push(input === undefined ? [ch] : [ch, input]);
+    const i = (input ?? {}) as Record<string, unknown>;
+    switch (ch) {
+      case 'usage.state':
+        return emptyData ? { ...state, records: 0 } : state;
+      case 'usage.query':
+        return emptyData
+          ? {
+              ...QUERY,
+              summary: summary({ calls: 0, unpriced: [], estimatedCalls: 0 }),
+              series: [],
+            }
+          : { ...QUERY, range: { ...QUERY.range, id: i.range } };
+      case 'usage.heatmap':
+        return { days: HEAT, today: dayKey(today) };
+      case 'usage.details':
+        return ROWS;
+      case 'usage.csv':
+        return 'a,b\n1,2\n';
+      case 'usage.setSettings':
+        state = { ...state, settings: { ...state.settings, ...i } };
+        return state.settings;
+      case 'usage.quota':
+        return quota;
+      case 'usage.quotaRefresh':
+        if (refreshEntries) quota = refreshEntries;
+        if (refreshGate && i.tool === refreshGate.tool) await refreshGate.promise;
+        if (refreshFail && i.tool === refreshFail) throw new Error('boom');
+        return {
+          entries: quota,
+          tools: i.tool
+            ? Object.fromEntries(Object.entries(refreshTools).filter(([k]) => k === i.tool))
+            : refreshTools,
+        };
+      case 'usage.quotaHook':
+        return hook;
+      case 'usage.quotaHookSet':
+        hook = { ...hook, enabled: i.enabled === true };
+        return hook;
+      case 'usage.clear':
+        state = { ...state, records: 0 };
+        return state;
+      case 'usage.scan':
+        return { ...state, added: 0, files: 0 };
+      case 'usage.priceSync':
+        state = {
+          ...state,
+          pricing: {
+            ...state.pricing,
+            sync: { count: 321, fetchedAt: NOW, checkedAt: NOW, tableDate: '2026-10-16' },
+          },
+        };
+        return { ...state, result: { ok: true, status: 'updated', count: 321, skipped: 2 } };
+    }
+    return null;
+  });
+  installFakeApi((ch: string, input?: unknown) =>
+    input === undefined ? invoke(ch) : invoke(ch, input),
+  );
 }
 
 beforeEach(() => {
@@ -276,10 +284,11 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
-const queries = () => calls.filter((c) => c[0] === 'ai:usage:query').map((c) => c[1]);
+const queries = () =>
+  calls.filter((c) => c[0] === 'usage.query').map((c) => (c[1] as { range: string }).range);
 
 describe('UsagePanel 概览', () => {
   it('四张摘要卡片 + 未定价提示 + 估算提示 + 趋势 / 分布 / 排行 / 热力图', async () => {
@@ -315,8 +324,7 @@ describe('UsagePanel 概览', () => {
     await waitFor(() =>
       expect(
         calls.some(
-          (c) =>
-            c[0] === 'ai:usage:set-settings' && (c[1] as { currency?: string }).currency === 'CNY',
+          (c) => c[0] === 'usage.setSettings' && (c[1] as { currency?: string }).currency === 'CNY',
         ),
       ).toBe(true),
     );
@@ -361,11 +369,11 @@ describe('UsagePanel 概览', () => {
     const e = await findByTestId('usage-empty');
     expect(e.className).toContain('cd-empty');
     fireEvent.click(getByText('立即扫描本机日志'));
-    await waitFor(() => expect(calls.some((c) => c[0] === 'ai:usage:scan')).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c[0] === 'usage.scan')).toBe(true));
   });
 
   it('不在桌面环境：显示占位而不是报错', () => {
-    delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
     const { getByText } = render(<UsagePanel />);
     expect(getByText('用量统计仅在桌面应用中提供')).toBeTruthy();
   });
@@ -382,7 +390,7 @@ describe('UsagePanel 概览', () => {
     fireEvent.click(getByTestId('usage-day-details'));
     await findByTestId('usage-details');
     await waitFor(() => {
-      const q = calls.filter((c) => c[0] === 'ai:usage:details').at(-1)![1] as {
+      const q = calls.filter((c) => c[0] === 'usage.details').at(-1)![1] as {
         from: number;
         to: number;
       };
@@ -413,7 +421,7 @@ describe('UsagePanel 明细 / 价格', () => {
 
     fireEvent.click(getByTestId('usage-sort-cost'));
     await waitFor(() => {
-      const q = calls.filter((c) => c[0] === 'ai:usage:details').at(-1)![1] as {
+      const q = calls.filter((c) => c[0] === 'usage.details').at(-1)![1] as {
         sort: string;
         dir: string;
       };
@@ -422,7 +430,7 @@ describe('UsagePanel 明细 / 价格', () => {
     });
     fireEvent.click(getByTestId('usage-sort-cost'));
     await waitFor(() => {
-      const q = calls.filter((c) => c[0] === 'ai:usage:details').at(-1)![1] as { dir: string };
+      const q = calls.filter((c) => c[0] === 'usage.details').at(-1)![1] as { dir: string };
       expect(q.dir).toBe('asc');
     });
 
@@ -431,7 +439,7 @@ describe('UsagePanel 明细 / 价格', () => {
     const bytes = new Uint8Array(await new Response(created[0]).arrayBuffer());
     // UTF-8 BOM：Excel 直接打开不乱码
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
-    const csvCall = calls.find((c) => c[0] === 'ai:usage:csv')![1] as {
+    const csvCall = calls.find((c) => c[0] === 'usage.csv')![1] as {
       limit: number;
       sort: string;
     };
@@ -453,8 +461,7 @@ describe('UsagePanel 明细 / 价格', () => {
     fireEvent.click(getByTestId('usage-save-prices'));
     await waitFor(() => {
       const c = calls.find(
-        (x) =>
-          x[0] === 'ai:usage:set-settings' && (x[1] as { customPrices?: unknown }).customPrices,
+        (x) => x[0] === 'usage.setSettings' && (x[1] as { customPrices?: unknown }).customPrices,
       );
       expect((c![1] as { customPrices: unknown }).customPrices).toEqual([
         { model: 'mystery-1', input: 1.5, output: 0 },
@@ -470,11 +477,9 @@ describe('UsagePanel 明细 / 价格', () => {
     await findByTestId('usage-pricing');
     expect(getByTestId('usage-price-sync').textContent).toContain('不上传任何用量');
     expect(getByTestId('usage-sync-status').textContent).toContain('尚未同步');
-    expect(calls.some((c) => c[0] === 'ai:usage:price-sync')).toBe(false);
+    expect(calls.some((c) => c[0] === 'usage.priceSync')).toBe(false);
     fireEvent.click(getByTestId('usage-sync-prices'));
-    await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:usage:price-sync')).toHaveLength(1),
-    );
+    await waitFor(() => expect(calls.filter((c) => c[0] === 'usage.priceSync')).toHaveLength(1));
     await waitFor(() => expect(getByTestId('usage-sync-result').textContent).toContain('321'));
     expect(getByTestId('usage-sync-status').textContent).toContain('2026-10-16');
     expect(getByTestId('usage-sync-status').textContent).toContain('321');
@@ -500,8 +505,7 @@ describe('UsagePanel 明细 / 价格', () => {
     expect(await findByText(/价格需要是不小于 0 的数字/)).toBeTruthy();
     expect(
       calls.some(
-        (c) =>
-          c[0] === 'ai:usage:set-settings' && (c[1] as { customPrices?: unknown }).customPrices,
+        (c) => c[0] === 'usage.setSettings' && (c[1] as { customPrices?: unknown }).customPrices,
       ),
     ).toBe(false);
   });
@@ -516,9 +520,7 @@ describe('UsagePanel 预算与隐私', () => {
     return r;
   };
   const patches = () =>
-    calls
-      .filter((c) => c[0] === 'ai:usage:set-settings')
-      .map((c) => c[1] as Record<string, unknown>);
+    calls.filter((c) => c[0] === 'usage.setSettings').map((c) => c[1] as Record<string, unknown>);
 
   it('填预算：失焦保存；留空 = 0；非法值提示且不保存', async () => {
     const { getByTestId, findByText } = await open();
@@ -570,10 +572,10 @@ describe('UsagePanel 预算与隐私', () => {
     expect(getByTestId('usage-budget').textContent).toContain('不上传、不做云同步');
     confirm.mockReturnValueOnce(false);
     fireEvent.click(getByTestId('usage-clear'));
-    expect(calls.some((c) => c[0] === 'ai:usage:clear')).toBe(false);
+    expect(calls.some((c) => c[0] === 'usage.clear')).toBe(false);
     confirm.mockReturnValueOnce(true);
     fireEvent.click(getByTestId('usage-clear'));
-    await waitFor(() => expect(calls.some((c) => c[0] === 'ai:usage:clear')).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c[0] === 'usage.clear')).toBe(true));
     await waitFor(() =>
       expect((getByTestId('usage-clear') as HTMLButtonElement).disabled).toBe(true),
     );
@@ -623,11 +625,9 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     expect(priv).toContain('auth.json');
     expect(priv).toContain('Codex 会因此向 OpenAI 发一次请求');
     expect(priv).toContain('不会自动轮询');
-    expect(calls.some((c) => c[0] === 'ai:usage:quota-refresh')).toBe(false);
+    expect(calls.some((c) => c[0] === 'usage.quotaRefresh')).toBe(false);
     fireEvent.click(getByTestId('usage-quota-refresh'));
-    await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:usage:quota-refresh')).toHaveLength(1),
-    );
+    await waitFor(() => expect(calls.filter((c) => c[0] === 'usage.quotaRefresh')).toHaveLength(1));
   });
 
   it('刷新结果：显示来源、「上次读取」标记，以及每个工具的结果说明', async () => {
@@ -684,11 +684,12 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
-      expect(getByTestId('usage-tool-status-claude').textContent).toContain('已清除旧额度'),
+      expect(getByTestId('usage-tool-status-codex').textContent).toContain('42 秒后可再次刷新'),
     );
-    expect(getByTestId('usage-tool-status-claude').getAttribute('role')).toBe('status');
-    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('error');
-    expect(getByTestId('usage-tool-status-codex').textContent).toContain('42 秒后可再次刷新');
+    // 没登录不算错误：不出红字提示
+    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('ok');
+    expect(getByTestId('usage-tool-status-claude').textContent).not.toContain('登录');
+    expect(getByTestId('usage-tool-status-claude').querySelector('svg')).toBeNull();
 
     refreshTools = {
       claude: { state: 'transient', reason: 'unsupported', stale: false },
@@ -718,7 +719,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
       expect(
         calls.some(
           (c) =>
-            c[0] === 'ai:usage:set-settings' &&
+            c[0] === 'usage.setSettings' &&
             (c[1] as { activeQuotaRefresh?: boolean }).activeQuotaRefresh === false,
         ),
       ).toBe(true),
@@ -845,13 +846,21 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
     expect(queryByTestId('usage-hook-off')).toBeNull();
     fireEvent.click(getByTestId('usage-hook-on'));
     await waitFor(() =>
-      expect(calls.some((c) => c[0] === 'ai:usage:quota-hook-set' && c[1] === true)).toBe(true),
+      expect(
+        calls.some(
+          (c) => c[0] === 'usage.quotaHookSet' && (c[1] as { enabled: boolean }).enabled === true,
+        ),
+      ).toBe(true),
     );
     const off = await findByTestId('usage-hook-off');
     expect(getByTestId('usage-quota-hook').textContent).toContain('等 Claude Code 完成一次回复');
     fireEvent.click(off);
     await waitFor(() =>
-      expect(calls.some((c) => c[0] === 'ai:usage:quota-hook-set' && c[1] === false)).toBe(true),
+      expect(
+        calls.some(
+          (c) => c[0] === 'usage.quotaHookSet' && (c[1] as { enabled: boolean }).enabled === false,
+        ),
+      ).toBe(true),
     );
     await findByTestId('usage-hook-on');
   });
@@ -927,7 +936,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
       { id: 'seven_day', usedPercent: 75, windowMinutes: 10080, resetAt: now + 86_400_000 },
     ],
   });
-  const refreshCalls = () => calls.filter((c) => c[0] === 'ai:usage:quota-refresh');
+  const refreshCalls = () => calls.filter((c) => c[0] === 'usage.quotaRefresh');
 
   beforeEach(() => {
     quota = [OK('claude', 20), OK('codex', 95), OK('grok', 5)];
@@ -962,7 +971,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
     await waitFor(() =>
       expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('loading'),
     );
-    expect(refreshCalls()).toEqual([['ai:usage:quota-refresh', 'codex']]);
+    expect(refreshCalls()).toEqual([['usage.quotaRefresh', { tool: 'codex' }]]);
     expect((getByTestId('usage-quota-refresh-codex') as HTMLButtonElement).disabled).toBe(true);
     expect(getByTestId('usage-tool-status-codex').textContent).toContain('正在刷新');
     // 其他卡片不受影响：按钮可点、不在加载态
@@ -978,7 +987,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
     await waitFor(() =>
       expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('ok'),
     );
-    expect(refreshCalls().map((c) => c[1])).toEqual(['codex', 'claude']);
+    expect(refreshCalls().map((c) => (c[1] as { tool: string }).tool)).toEqual(['codex', 'claude']);
   });
 
   it('单卡失败：只有这张卡显示错误与最后更新时间，其他卡片保持原样', async () => {
@@ -1013,7 +1022,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
       expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('loading'),
     );
     expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('loading');
-    expect(refreshCalls()).toEqual([['ai:usage:quota-refresh']]);
+    expect(refreshCalls()).toEqual([['usage.quotaRefresh', {}]]);
     release();
     await waitFor(() =>
       expect(getByTestId('usage-quota-grok').getAttribute('data-phase')).toBe('ok'),
@@ -1050,15 +1059,11 @@ describe('UsagePanel 订阅额度：再次打开先显示上一次的结果', ()
     // 第二次打开时，主进程这次很慢：界面也不应该先空着
     let release: () => void = () => undefined;
     const slow = new Promise<void>((r) => (release = r));
-    const orig = (window as unknown as { aiIPC: { invoke: (...a: unknown[]) => unknown } }).aiIPC
-      .invoke;
-    (window as unknown as { aiIPC: { invoke: unknown } }).aiIPC.invoke = async (
-      ch: string,
-      ...a: unknown[]
-    ) => {
-      if (ch === 'ai:usage:quota') await slow;
-      return orig(ch, ...a);
-    };
+    const orig = invoke.getMockImplementation()!;
+    invoke.mockImplementation(async (ch: string, input?: unknown) => {
+      if (ch === 'usage.quota') await slow;
+      return orig(ch, input);
+    });
     const second = render(<UsagePanel />);
     fireEvent.click(second.getByRole('tab', { name: '订阅额度' }));
     expect(await second.findByTestId('usage-quota-codex', {}, { timeout: 200 })).toBeTruthy();

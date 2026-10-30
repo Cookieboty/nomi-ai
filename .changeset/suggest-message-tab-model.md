@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 右栏「生成提交信息」在 Nomi 自己还没选模型时，改用当前编程助手标签的第三方模型（优先用这个编程助手在「模型」页设的辅助档 / Haiku 档），同样经网关、受外发保护；以前会退到本机 Ollama 并报连接失败。两边都没有可用模型时明确提示去「设置 → 模型」选一个。

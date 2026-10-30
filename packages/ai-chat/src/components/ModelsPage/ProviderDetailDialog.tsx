@@ -10,6 +10,7 @@
  */
 import {
   Button,
+  Checkbox,
   formatContext,
   Icon,
   IconButton,
@@ -52,6 +53,7 @@ import {
 } from '../../services/gatewayClient';
 import { pickerProviders } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 import { metaSourceLabel, ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
@@ -243,8 +245,7 @@ const ModelRow = memo(function ModelRow({
   return (
     <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
       <label className={styles.modelCheck}>
-        <input
-          type="checkbox"
+        <Checkbox
           disabled={readOnly}
           checked={m.enabled}
           onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
@@ -310,6 +311,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     () => JSON.stringify(buildPayload(p, d)) !== initialPayload,
     [p, d, initialPayload],
   );
+  /** 包括输入框里填了、还没点「添加」的 Key（保存时一起存） */
+  const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const picker = useMemo(() => pickerProviders(providers), [providers]);
   const fallbackPicker = useMemo(
@@ -351,22 +354,33 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     const atEdge = j === 0 || j === d.keys.length - 1;
     refocus.current = `key-${id}-${atEdge ? (dir < 0 ? 'down' : 'up') : dir < 0 ? 'up' : 'down'}`;
   };
-  const deleteKey = (i: number) => {
+  const deleteKey = async (i: number) => {
     const k = d.keys[i]!;
     const label = keyName({ name: k.name || p.keys.find((x) => x.id === k.id)?.name }, i);
-    if (!window.confirm(t('ui.models.delete-this-takes-effect-when-you-save', label))) return;
+    const ok = await confirmDialog({
+      message: t('ui.models.delete-this-takes-effect-when-you-save', label),
+      danger: true,
+    });
+    if (!ok) return;
     patch({ keys: d.keys.filter((_, n) => n !== i) });
   };
-  const addKeys = () => {
-    const known = new Set(d.keys.map((k) => k.value));
+  /** 输入框里还没点「添加」的 Key 接到草稿末尾 */
+  const withTypedKeys = (cur: Draft): Draft => {
+    const known = new Set(cur.keys.map((k) => k.value));
     const fresh = splitKeys(keysText).filter((v) => !known.has(v));
-    if (!fresh.length) return;
-    patch({
+    if (!fresh.length) return cur;
+    return {
+      ...cur,
       keys: [
-        ...d.keys,
+        ...cur.keys,
         ...fresh.map((value) => ({ id: `new-${++tmpSeq}`, value, name: '', enabled: true })),
       ],
-    });
+    };
+  };
+  const addKeys = () => {
+    const next = withTypedKeys(d);
+    if (next === d) return;
+    patch({ keys: next.keys });
     setKeysText('');
   };
 
@@ -402,7 +416,10 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
       const u = d.urls[w].trim();
       const hp = isPrivateUrl(u) ? hostPortOf(u) : null;
       if (!hp || allowedPrivateHosts.includes(hp)) continue;
-      if (!window.confirm(t('ui.models.is-a-local-or-lan-address-allow-nomi', hp))) return false;
+      const ok = await confirmDialog({
+        message: t('ui.models.is-a-local-or-lan-address-allow-nomi', hp),
+      });
+      if (!ok) return false;
       await gatewayClient.confirmPrivateHost(hp);
     }
     return true;
@@ -467,7 +484,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     setError(null);
     setBusy('save');
     try {
-      await gatewayClient.upsertProvider(buildPayload(p, d));
+      // 填了 Key 没点「添加」就保存：一起存上，不悄悄丢掉
+      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(d)));
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -488,7 +506,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           {t('ui.models.delete-provider')}
         </Button>
       )}
-      {!readOnly && dirty && <span className={styles.help}>{t('ui.models.unsaved-changes')}</span>}
+      {!readOnly && changed && (
+        <span className={styles.help}>{t('ui.models.unsaved-changes')}</span>
+      )}
       <Button size="sm" variant="secondary" onClick={onClose} data-testid="provider-detail-cancel">
         {readOnly ? t('ui.providers-schedule.close') : t('ui.foundation.cancel')}
       </Button>
@@ -496,7 +516,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         <Button
           size="sm"
           variant="primary"
-          disabled={!dirty || busy !== null}
+          disabled={!changed || busy !== null}
           onClick={() => void save()}
           data-testid="provider-detail-save"
         >
@@ -901,8 +921,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                             <span className={styles.keyName}>{m.id}</span>
                             {urlWires.map((w) => (
                               <label key={w} className={styles.modelCheck}>
-                                <input
-                                  type="checkbox"
+                                <Checkbox
                                   checked={m.wires?.includes(w) ?? false}
                                   onChange={(e) => toggleModelWire(m, w, e.target.checked)}
                                   aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}

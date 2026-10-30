@@ -1,5 +1,5 @@
 /**
- * 看板娘事件台词编排：多条随机、冷却、优先级打断、尊重语音开关与音量。
+ * 桌面角色事件台词编排：多条随机、冷却、优先级打断、尊重语音开关与音量。
  * 不修改 mascot 源文件；由桥接订阅已有事件后调用。
  */
 import { createLogger, t } from '@nomi-ai/ui';
@@ -17,7 +17,7 @@ const log = createLogger('mascot-cue');
 export interface CueSpeakOpts {
   /** 覆盖默认台词 */
   text?: string;
-  /** 诺米提示语音片段 key（变量台词播固定句）；null 表示不播预录片段 */
+  /** 角色提示语音片段 key（变量台词播固定句）；null 表示不播预录片段 */
   clip?: string | null;
   /** 是否同时播音效（默认 true） */
   sfx?: boolean;

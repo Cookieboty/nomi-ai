@@ -1,7 +1,7 @@
 /**
  * SchedulePanel —— 主动日程：提醒（含重复）、定时任务（每日简报等）、主动聊天、免打扰与通知。
  */
-import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, tName, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -19,6 +19,7 @@ import {
 import { ListChecks, Bell, MessageCircle, Moon, Plus, Sun } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
+import { characterName } from '../../services/characterName';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
 import {
   BRIEFING_PROMPT,
@@ -192,6 +193,7 @@ const TimeRange: React.FC<{
     <Input
       size="sm"
       type="time"
+      className={styles.timeInput}
       value={start}
       disabled={disabled}
       onChange={(e) => onStart(e.target.value)}
@@ -202,6 +204,7 @@ const TimeRange: React.FC<{
     <Input
       size="sm"
       type="time"
+      className={styles.timeInput}
       value={end}
       disabled={disabled}
       onChange={(e) => onEnd(e.target.value)}
@@ -602,7 +605,9 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       setBusy(true);
                       void schedClient
                         .proactiveNow()
-                        .then((t) => setMsg(tr('ui.providers-schedule.nomi-says', t)))
+                        .then((t) =>
+                          setMsg(tName('ui.providers-schedule.nomi-says', characterName(), t)),
+                        )
                         .catch((e) => setMsg(errText(e)))
                         .finally(() => setBusy(false));
                     }}

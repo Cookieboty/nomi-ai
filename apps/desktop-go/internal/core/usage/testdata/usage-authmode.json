@@ -1,0 +1,2777 @@
+{
+ "parse": [
+  {
+   "t": "",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "x",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "null",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "[]",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "5",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{}",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":5}",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"claude.ai\"}",
+   "claude": "subscription",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"oauth_token\",\"apiProvider\":\"firstParty\"}",
+   "claude": "subscription",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"claude.ai\",\"apiProvider\":\"bedrock\"}",
+   "claude": "api",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"claude.ai\",\"apiProvider\":5}",
+   "claude": "subscription",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"api_key\"}",
+   "claude": "api",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"api_key_helper\"}",
+   "claude": "api",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"third_party\"}",
+   "claude": "api",
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"none\"}",
+   "claude": "unknown",
+   "ident": "{\"fp\":null}",
+   "soClaude": true,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"other\"}",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b.c\",\"orgId\":\"o1\",\"subscriptionType\":\"max\"}",
+   "claude": "subscription",
+   "ident": "{\"fp\":\"45f3a0142c0f0b9f\",\"plan\":\"Max\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"authMethod\":\"claude.ai\",\"email\":\" a@b.c \",\"organizationId\":\"o2\",\"subscriptionType\":\"PRO\"}",
+   "claude": "subscription",
+   "ident": "{\"fp\":\"ca3d18294c13453b\",\"plan\":\"Pro\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"email\":\"a@b.c\",\"orgId\":\"\",\"organizationId\":\"o3\",\"subscriptionType\":\"ßtier\"}",
+   "claude": null,
+   "ident": "{\"fp\":\"0fbf37aafc2a1563\",\"plan\":\"SStier\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"email\":\"\",\"subscriptionType\":\"max\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"Max\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"   \"}",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"aaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"aaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"Aaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"email\":5,\"subscriptionType\":\"éclair\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"Éclair\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"email\":\"x@y\",\"orgId\":\"ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo\"}",
+   "claude": null,
+   "ident": "{\"fp\":\"1ab30acaaefe8710\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"email\":\"x@y\",\"orgId\":\"oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo\"}",
+   "claude": null,
+   "ident": "{\"fp\":\"40b0e15afb5d41ae\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"ǆx\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"Ǆx\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"İSTANBUL\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"İstanbul\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "{\"subscriptionType\":\"ŉo\"}",
+   "claude": null,
+   "ident": "{\"fp\":null,\"plan\":\"ʼNo\"}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "Logged in using ChatGPT",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": "subscription"
+  },
+  {
+   "t": "Logged in using an API key - sk-***",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": "api"
+  },
+  {
+   "t": "logged in using a api key",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": "api"
+  },
+  {
+   "t": "Not logged in",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": true,
+   "codex": "unknown"
+  },
+  {
+   "t": "NOT LOGGED IN\nusing chatgpt",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": true,
+   "codex": "unknown"
+  },
+  {
+   "t": "Logged in using CHATGPT",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": "subscription"
+  },
+  {
+   "t": "not  logged in",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "Logged in using API key",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "Kot logged in",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  },
+  {
+   "t": "not logged İn",
+   "claude": null,
+   "ident": "{\"fp\":null}",
+   "soClaude": false,
+   "soCodex": false,
+   "codex": null
+  }
+ ],
+ "cfg": [
+  {
+   "files": {},
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "{\"apiKeyHelper\":\"x\"}"
+   },
+   "env": {},
+   "docs": "[{\"apiKeyHelper\":\"x\"}]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "{\"apiKeyHelper\":\"false\"}",
+    ".claude/settings.local.json": "{\"env\":{\"ANTHROPIC_BASE_URL\":\"http://x\"}}"
+   },
+   "env": {},
+   "docs": "[{\"apiKeyHelper\":\"false\"},{\"env\":{\"ANTHROPIC_BASE_URL\":\"http://x\"}}]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "[1]",
+    ".claude/settings.local.json": "nope"
+   },
+   "env": {},
+   "docs": "[[1]]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "{\"apiKeyHelper\":0,\"env\":[1]}"
+   },
+   "env": {},
+   "docs": "[{\"apiKeyHelper\":0,\"env\":[1]}]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "{\"apiKeyHelper\":null,\"env\":{\"CLAUDE_CODE_USE_VERTEX\":true}}"
+   },
+   "env": {},
+   "docs": "[{\"apiKeyHelper\":null,\"env\":{\"CLAUDE_CODE_USE_VERTEX\":true}}]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude/settings.json": "{\"env\":{\"CLAUDE_CODE_USE_VERTEX\":false,\"ANTHROPIC_API_KEY\":\" 0 \"}}"
+   },
+   "env": {},
+   "docs": "[{\"env\":{\"CLAUDE_CODE_USE_VERTEX\":false,\"ANTHROPIC_API_KEY\":\" 0 \"}}]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    "cc/settings.json": "{\"apiKeyHelper\":\"h\"}"
+   },
+   "env": {
+    "CLAUDE_CONFIG_DIR": "~/cc"
+   },
+   "docs": "[{\"apiKeyHelper\":\"h\"}]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {},
+   "env": {
+    "ANTHROPIC_API_KEY": "FALSE"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {},
+   "env": {
+    "ANTHROPIC_AUTH_TOKEN": "tok"
+   },
+   "docs": "[]",
+   "custom": true,
+   "oauth": null,
+   "claude": "api",
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {},
+   "env": {
+    "CLAUDE_CODE_OAUTH_TOKEN": "1"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": true,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "{\"oauthAccount\":{\"a\":1}}"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": true,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "{\"oauthAccount\":{}}"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": false,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "{\"x\":1}"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": false,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "[]"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "bad"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    "cc/.claude.json": "{\"oauthAccount\":{\"a\":1}}",
+    ".claude.json": "{}"
+   },
+   "env": {
+    "CLAUDE_CONFIG_DIR": "~/cc"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": true,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".claude.json": "{\"oauthAccount\":{\"a\":1}}"
+   },
+   "env": {
+    "CLAUDE_CONFIG_DIR": "~/cc"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "forced_login_method = \"api\"\n"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "  forced_login_method=\"chatgpt\"\nmodel_provider = \"x\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "subscription",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "forced_login_method = \"other\"\nmodel_provider = \"azure\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"openai\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "[profiles.x]\nforced_login_method = \"api\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "a=1\n\n  [t]\nmodel_provider = \"z\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"z\"\r[t]"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "x = 1 # forced_login_method = \"api\"\nmodel_provider\n=\n\"multi\nline\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": " model_provider = \"ls\"\n[x]"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "a = \"[x\"\nmodel_provider = \"q\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "[t]\nforced_login_method = \"api\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "\n\n  [t]\nmodel_provider = \"z\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "forced_login_method = \"chatgpt\"\r\n\r\n[t]\nforced_login_method = \"api\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "subscription",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"z\"\n[a]\n[b]"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"openai\"\n  [p]\nmodel_provider = \"z\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"ab[c\"\n[p]"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "model_provider = \"a\n[p]\n\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".codex/config.toml": "forced_login_method = \"api\n[t]\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    "cx": {
+     "dir": true
+    },
+    "cx/config.toml": "forced_login_method = \"api\""
+   },
+   "env": {
+    "CODEX_HOME": "~/cx"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": "api",
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  },
+  {
+   "files": {
+    ".grok/config.toml": "# >>> nomi managed (grok provider) >>>\n"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": true,
+   "grokCustom": true,
+   "grok": "api",
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/config.toml": "env_key = \"XAI_API_KEY\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": true,
+   "grokCustom": true,
+   "grok": "api",
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/config.toml": "x=1\n  ENV_KEY = \"nomi_grok_api_key\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": true,
+   "grokCustom": true,
+   "grok": "api",
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/config.toml": "x=1 env_key = \"XAI_API_KEY\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/config.toml": "env_Key = \"XAI_API_KEY\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/config.toml": "env_key = \"OTHER\""
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": true
+  },
+  {
+   "files": {
+    ".grok/sessions/a": "x"
+   },
+   "env": {},
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": true
+  },
+  {
+   "files": {},
+   "env": {
+    "XAI_API_KEY": "k"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": true,
+   "grok": "api",
+   "grokPresence": false
+  },
+  {
+   "files": {},
+   "env": {
+    "GROK_DEPLOYMENT_KEY": "0"
+   },
+   "docs": "[]",
+   "custom": false,
+   "oauth": null,
+   "claude": null,
+   "codex": null,
+   "grokManaged": false,
+   "grokCustom": false,
+   "grok": null,
+   "grokPresence": false
+  }
+ ],
+ "scen": [
+  {
+   "name": "nomi-dsh-other",
+   "files": {},
+   "env": {},
+   "run": {},
+   "ops": [
+    [
+     "full",
+     "nomi"
+    ],
+    [
+     "full",
+     "dsh"
+    ],
+    [
+     "full",
+     "x"
+    ],
+    [
+     "passive",
+     "nomi"
+    ],
+    [
+     "passive",
+     "dsh"
+    ],
+    [
+     "passive",
+     "zz"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0
+   ],
+   "calls": []
+  },
+  {
+   "name": "claude-sub",
+   "files": {
+    ".claude.json": "{\"oauthAccount\":{\"a\":1}}"
+   },
+   "env": {},
+   "salt": "s",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"max\"}"
+   },
+   "ops": [
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "tick",
+     100000
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "tick",
+     300000
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate",
+     "claude"
+    ],
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\",\"fromCli\":true}",
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\"}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\",\"fromCli\":true}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\"}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\"}",
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"c676dc4c1a5790f9\",\"plan\":\"Max\",\"fromCli\":true}",
+    1
+   ],
+   "calls": [
+    "claude",
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-signedout-local",
+   "files": {
+    ".claude.json": "{}"
+   },
+   "env": {},
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "f"
+    }
+   },
+   "ops": [
+    [
+     "snap"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "full",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"f\"}}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1,
+    "{\"mode\":\"unknown\",\"fp\":null,\"signedOut\":true}",
+    2,
+    "{}",
+    2,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    3
+   ],
+   "calls": [
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-none",
+   "files": {},
+   "env": {},
+   "run": {
+    "claude": "{\"authMethod\":\"none\"}"
+   },
+   "sub": [
+    "claude"
+   ],
+   "restore": {
+    "claude": {
+     "mode": "api",
+     "fp": null
+    },
+    "codex": {
+     "mode": "subscription",
+     "fp": null,
+     "plan": "Plus"
+    }
+   },
+   "ops": [
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "forget",
+     "codex"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null,\"signedOut\":true}",
+    1,
+    "{\"codex\":{\"mode\":\"subscription\",\"fp\":null,\"plan\":\"Plus\"}}",
+    1,
+    null,
+    2,
+    "{}",
+    2
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-none-env-api",
+   "files": {},
+   "env": {
+    "ANTHROPIC_API_KEY": "k"
+   },
+   "run": {
+    "claude": "{\"authMethod\":\"none\"}"
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "passive",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0
+   ],
+   "calls": []
+  },
+  {
+   "name": "claude-throw-sub",
+   "files": {},
+   "env": {},
+   "run": {
+    "claude": "THROW"
+   },
+   "sub": [
+    "claude"
+   ],
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    0,
+    "{}",
+    0
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-null",
+   "files": {},
+   "env": {},
+   "run": {
+    "claude": null
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-garbage",
+   "files": {},
+   "env": {},
+   "run": {
+    "claude": "garbage"
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-api-cfg",
+   "files": {
+    ".claude/settings.json": "{\"apiKeyHelper\":\"x\"}"
+   },
+   "env": {},
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\"}"
+   },
+   "ops": [
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{}",
+    0
+   ],
+   "calls": []
+  },
+  {
+   "name": "claude-nosalt",
+   "files": {},
+   "env": {},
+   "run": {
+    "claude": "{\"authMethod\":\"oauth_token\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}"
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1
+   ],
+   "calls": [
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "claude-plan-change",
+   "files": {},
+   "env": {},
+   "salt": "s2",
+   "runs": {
+    "claude": [
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"max\"}",
+     "{\"authMethod\":\"api_key\"}"
+    ]
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "invalidate",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "forget"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"5fecde8e330c45f5\",\"plan\":\"Pro\",\"fromCli\":true}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"60691da35c2e9bc8\",\"plan\":\"Max\",\"fromCli\":true}",
+    2,
+    null,
+    2,
+    "{\"mode\":\"api\",\"fp\":null,\"fromCli\":true}",
+    3,
+    "{\"claude\":{\"mode\":\"api\",\"fp\":null}}",
+    3,
+    null,
+    4,
+    "{}",
+    4
+   ],
+   "calls": [
+    "claude",
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "codex",
+   "files": {
+    ".codex/config.toml": "model_provider = \"azure\""
+   },
+   "env": {},
+   "runs": {
+    "codex": [
+     "Logged in using ChatGPT",
+     "Not logged in",
+     "Logged in using an API key",
+     "weird"
+    ]
+   },
+   "ops": [
+    [
+     "passive",
+     "codex"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "passive",
+     "codex"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"codex\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"api\",\"fp\":null}",
+    1,
+    "{\"codex\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"api\",\"fp\":null,\"fromCli\":true}",
+    2,
+    null,
+    2,
+    "{\"mode\":\"api\",\"fp\":null}",
+    2,
+    "{\"codex\":{\"mode\":\"api\",\"fp\":null}}",
+    2
+   ],
+   "calls": [
+    "codex",
+    "codex",
+    "codex",
+    "codex"
+   ]
+  },
+  {
+   "name": "codex-signedout",
+   "files": {},
+   "env": {},
+   "sub": [
+    "codex"
+   ],
+   "runs": {
+    "codex": [
+     "Not logged in",
+     "oops"
+    ]
+   },
+   "restore": {
+    "codex": {
+     "mode": "subscription",
+     "fp": null
+    }
+   },
+   "ops": [
+    [
+     "passive",
+     "codex"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "codex"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null,\"signedOut\":true}",
+    1,
+    "{}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    1
+   ],
+   "calls": [
+    "codex",
+    "codex"
+   ]
+  },
+  {
+   "name": "grok-absent",
+   "files": {},
+   "env": {},
+   "run": {
+    "grok": "THROW"
+   },
+   "ops": [
+    [
+     "passive",
+     "grok"
+    ],
+    [
+     "full",
+     "grok"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0
+   ],
+   "calls": []
+  },
+  {
+   "name": "grok-managed",
+   "files": {
+    ".grok/config.toml": "# >>> nomi managed (grok provider) >>>"
+   },
+   "env": {},
+   "run": {
+    "grok": "x"
+   },
+   "ops": [
+    [
+     "passive",
+     "grok"
+    ],
+    [
+     "full",
+     "grok"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0
+   ],
+   "calls": []
+  },
+  {
+   "name": "grok-env",
+   "files": {},
+   "env": {
+    "XAI_API_KEY": "k"
+   },
+   "run": {
+    "grok": null
+   },
+   "ops": [
+    [
+     "passive",
+     "grok"
+    ],
+    [
+     "full",
+     "grok"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0
+   ],
+   "calls": [
+    "grok"
+   ]
+  },
+  {
+   "name": "grok-present",
+   "files": {
+    ".grok/sessions/x": ""
+   },
+   "env": {},
+   "sub": [
+    "grok"
+   ],
+   "run": {
+    "grok": null
+   },
+   "ops": [
+    [
+     "passive",
+     "grok"
+    ],
+    [
+     "full",
+     "grok"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    0,
+    "{}",
+    0
+   ],
+   "calls": [
+    "grok"
+   ]
+  },
+  {
+   "name": "ttl-boundary",
+   "files": {},
+   "env": {},
+   "runs": {
+    "codex": [
+     "Logged in using ChatGPT",
+     "Logged in using an API key"
+    ]
+   },
+   "ops": [
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "tick",
+     299999
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "tick",
+     299999
+    ],
+    [
+     "full",
+     "codex"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"api\",\"fp\":null,\"fromCli\":true}",
+    2,
+    null,
+    2,
+    "{\"mode\":\"api\",\"fp\":null,\"fromCli\":true}",
+    2
+   ],
+   "calls": [
+    "codex",
+    "codex"
+   ]
+  },
+  {
+   "name": "plan-only",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "runs": {
+    "claude": [
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"max\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+    ]
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "full",
+     "claude"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\"}}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\",\"fromCli\":true}",
+    1,
+    null,
+    1,
+    "{\"mode\":\"subscription\",\"fp\":\"ccdc1db9408f9a5d\",\"plan\":\"Max\",\"fromCli\":true}",
+    2,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"ccdc1db9408f9a5d\",\"plan\":\"Max\"}}",
+    2,
+    null,
+    2,
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    3,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"}}",
+    3,
+    null,
+    3,
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    3
+   ],
+   "calls": [
+    "claude",
+    "claude",
+    "claude",
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "plan-only-same-fp",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": "Team"
+    }
+   },
+   "ops": [
+    [
+     "snap"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Team\"}}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "restored-empty-plan",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": ""
+    },
+    "codex": {
+     "mode": "api",
+     "fp": null,
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "snap"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"\"},\"codex\":{\"mode\":\"api\",\"fp\":null,\"plan\":\"\"}}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"},\"codex\":{\"mode\":\"api\",\"fp\":null,\"plan\":\"\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "restored-empty-plan-same",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "restored-empty-plan-same-fp",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "2d648b571179f3df",
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "plan-drop-same-fp",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"pro\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": "Pro"
+    }
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\",\"fromCli\":true}",
+    0,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"Pro\"}}",
+    0
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "inflight-share",
+   "files": {},
+   "env": {},
+   "sub": [
+    "codex"
+   ],
+   "run": {
+    "codex": "Logged in using ChatGPT"
+   },
+   "ops": [
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "same"
+    ],
+    [
+     "passive",
+     "codex"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "awaitAll"
+    ],
+    [
+     "passive",
+     "codex"
+    ],
+    [
+     "snap"
+    ],
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "same"
+    ],
+    [
+     "awaitAll"
+    ]
+   ],
+   "out": [
+    null,
+    0,
+    null,
+    0,
+    true,
+    0,
+    "{\"mode\":\"subscription\",\"fp\":null}",
+    0,
+    "{}",
+    0,
+    [
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}"
+    ],
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"codex\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1,
+    null,
+    1,
+    null,
+    1,
+    false,
+    1,
+    [
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}"
+    ],
+    1
+   ],
+   "calls": [
+    "codex"
+   ]
+  },
+  {
+   "name": "inflight-invalidate",
+   "files": {},
+   "env": {},
+   "runs": {
+    "codex": [
+     "Logged in using ChatGPT",
+     "Not logged in"
+    ]
+   },
+   "ops": [
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "same"
+    ],
+    [
+     "awaitAll"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "invalidate"
+    ],
+    [
+     "start",
+     "codex"
+    ],
+    [
+     "awaitAll"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    null,
+    0,
+    null,
+    0,
+    null,
+    0,
+    true,
+    0,
+    [
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+     "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}"
+    ],
+    1,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    null,
+    1,
+    null,
+    1,
+    [
+     "{\"mode\":\"unknown\",\"fp\":null,\"signedOut\":true}"
+    ],
+    2,
+    "{}",
+    2
+   ],
+   "calls": [
+    "codex",
+    "codex"
+   ]
+  },
+  {
+   "name": "inflight-reject",
+   "files": {},
+   "env": {},
+   "salt": "THROW",
+   "runs": {
+    "claude": [
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}",
+     "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+    ]
+   },
+   "ops": [
+    [
+     "start",
+     "claude"
+    ],
+    [
+     "start",
+     "claude"
+    ],
+    [
+     "same"
+    ],
+    [
+     "awaitAll"
+    ],
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    null,
+    0,
+    null,
+    0,
+    true,
+    0,
+    [
+     "REJECT:salt boom",
+     "REJECT:salt boom"
+    ],
+    0,
+    "{\"mode\":\"unknown\",\"fp\":null}",
+    0,
+    "REJECT:salt boom",
+    0,
+    "{}",
+    0
+   ],
+   "calls": [
+    "claude",
+    "claude"
+   ]
+  },
+  {
+   "name": "envfor",
+   "files": {
+    "acct/settings.json": "{\"apiKeyHelper\":\"x\"}"
+   },
+   "env": {},
+   "envFor": {
+    "claude": {
+     "CLAUDE_CONFIG_DIR": "~/acct"
+    }
+   },
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\"}",
+    "codex": "Logged in using ChatGPT"
+   },
+   "ops": [
+    [
+     "passive",
+     "claude"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "full",
+     "codex"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"api\",\"fp\":null}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":null,\"fromCli\":true}",
+    1,
+    "{\"codex\":{\"mode\":\"subscription\",\"fp\":null}}",
+    1
+   ],
+   "calls": [
+    "codex"
+   ]
+  }
+ ],
+ "apply": [
+  {
+   "entries": [
+    {
+     "id": "nomi",
+     "label": "NOMI",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ]
+    },
+    {
+     "id": "claude",
+     "label": "CLAUDE",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "updatedAt": 5,
+     "plan": "Max"
+    },
+    {
+     "id": "codex",
+     "label": "CODEX",
+     "status": "unavailable",
+     "windows": []
+    },
+    {
+     "id": "grok",
+     "label": "GROK",
+     "status": "unavailable",
+     "windows": []
+    },
+    {
+     "id": "dsh",
+     "label": "DSH",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ]
+    },
+    {
+     "id": "qwen",
+     "label": "QWEN",
+     "status": "unavailable",
+     "windows": []
+    }
+   ],
+   "modes": {
+    "claude": "api",
+    "codex": "subscription",
+    "grok": "unknown",
+    "dsh": "unknown"
+   },
+   "detected": [
+    "grok",
+    "qwen"
+   ]
+  },
+  {
+   "entries": [
+    {
+     "id": "claude",
+     "label": "CLAUDE",
+     "status": "unavailable",
+     "windows": []
+    },
+    {
+     "id": "codex",
+     "label": "CODEX",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "origin": "session-log",
+     "stale": true
+    },
+    {
+     "id": "grok",
+     "label": "GROK",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ]
+    }
+   ],
+   "modes": {
+    "claude": "api",
+    "codex": "api",
+    "grok": "subscription"
+   },
+   "detected": []
+  },
+  {
+   "entries": [
+    {
+     "id": "claude",
+     "label": "CLAUDE",
+     "status": "unavailable",
+     "windows": []
+    },
+    {
+     "id": "codex",
+     "label": "CODEX",
+     "status": "unavailable",
+     "windows": []
+    }
+   ],
+   "modes": {},
+   "detected": [
+    "claude"
+   ]
+  },
+  {
+   "entries": [],
+   "modes": {},
+   "detected": []
+  },
+  {
+   "entries": [
+    {
+     "id": "p0",
+     "label": "P0",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p1",
+     "label": "P1",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p2",
+     "label": "P2",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p3",
+     "label": "P3",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p4",
+     "label": "P4",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p5",
+     "label": "P5",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p6",
+     "label": "P6",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p7",
+     "label": "P7",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p8",
+     "label": "P8",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p9",
+     "label": "P9",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p10",
+     "label": "P10",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p11",
+     "label": "P11",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p12",
+     "label": "P12",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p13",
+     "label": "P13",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p14",
+     "label": "P14",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p15",
+     "label": "P15",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p16",
+     "label": "P16",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p17",
+     "label": "P17",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p18",
+     "label": "P18",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p19",
+     "label": "P19",
+     "status": "ok",
+     "windows": [
+      {
+       "id": "w",
+       "usedPercent": 10
+      }
+     ],
+     "plan": "X"
+    },
+    {
+     "id": "p20",
+     "label": "P20",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p21",
+     "label": "P21",
+     "status": "unavailable",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p22",
+     "label": "P22",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    },
+    {
+     "id": "p23",
+     "label": "P23",
+     "status": "error",
+     "windows": [],
+     "plan": "X"
+    }
+   ],
+   "modes": {
+    "p0": "api",
+    "p1": "api",
+    "p2": "api",
+    "p3": "api",
+    "p4": "api",
+    "p5": "api",
+    "p6": "subscription",
+    "p7": "subscription",
+    "p8": "subscription",
+    "p9": "subscription",
+    "p10": "subscription",
+    "p11": "subscription",
+    "p12": "unknown",
+    "p13": "unknown",
+    "p14": "unknown",
+    "p15": "unknown",
+    "p16": "unknown",
+    "p17": "unknown"
+   },
+   "detected": [
+    "p0",
+    "p2",
+    "p4",
+    "p6",
+    "p8",
+    "p10",
+    "p12",
+    "p14",
+    "p16",
+    "p18",
+    "p20",
+    "p22"
+   ]
+  }
+ ],
+ "applyOut": [
+  "[{\"id\":\"claude\",\"label\":\"CLAUDE\",\"status\":\"api\",\"windows\":[],\"updatedAt\":5,\"plan\":\"Max\",\"auth\":\"api\"},{\"id\":\"codex\",\"label\":\"CODEX\",\"status\":\"unavailable\",\"windows\":[],\"auth\":\"subscription\"},{\"id\":\"dsh\",\"label\":\"DSH\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"auth\":\"unknown\"}]",
+  "[{\"id\":\"codex\",\"label\":\"CODEX\",\"status\":\"api\",\"windows\":[],\"origin\":\"session-log\",\"stale\":true,\"auth\":\"api\"},{\"id\":\"grok\",\"label\":\"GROK\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"auth\":\"subscription\"}]",
+  "[]",
+  "[]",
+  "[{\"id\":\"p0\",\"label\":\"P0\",\"status\":\"api\",\"windows\":[],\"plan\":\"X\",\"auth\":\"api\"},{\"id\":\"p1\",\"label\":\"P1\",\"status\":\"api\",\"windows\":[],\"plan\":\"X\",\"auth\":\"api\"},{\"id\":\"p2\",\"label\":\"P2\",\"status\":\"api\",\"windows\":[],\"plan\":\"X\",\"auth\":\"api\"},{\"id\":\"p4\",\"label\":\"P4\",\"status\":\"api\",\"windows\":[],\"plan\":\"X\",\"auth\":\"api\"},{\"id\":\"p6\",\"label\":\"P6\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p7\",\"label\":\"P7\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p8\",\"label\":\"P8\",\"status\":\"unavailable\",\"windows\":[],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p9\",\"label\":\"P9\",\"status\":\"unavailable\",\"windows\":[],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p10\",\"label\":\"P10\",\"status\":\"error\",\"windows\":[],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p11\",\"label\":\"P11\",\"status\":\"error\",\"windows\":[],\"plan\":\"X\",\"auth\":\"subscription\"},{\"id\":\"p12\",\"label\":\"P12\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"unknown\"},{\"id\":\"p13\",\"label\":\"P13\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"unknown\"},{\"id\":\"p18\",\"label\":\"P18\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"unknown\"},{\"id\":\"p19\",\"label\":\"P19\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":10}],\"plan\":\"X\",\"auth\":\"unknown\"}]"
+ ]
+}

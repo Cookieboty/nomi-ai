@@ -2,7 +2,7 @@
  * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/design/changes-panel-git.md）。
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
-import { Button, t } from '@nomi-ai/ui';
+import { Button, Checkbox, Disclosure, t } from '@nomi-ai/ui';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -19,6 +19,8 @@ import {
   type GitOpResult,
   type GitSyncStatus,
 } from '../../services/harnessClient';
+import { isImeComposing } from '../../utils/keyboard';
+import { confirmDialog } from '../ConfirmDialog';
 
 import pane from './WorkspacePane.module.css';
 
@@ -186,7 +188,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
       paths.length === 1
         ? t('ui.session-workspace.discard-unstaged-changes-in', paths[0]!)
         : t('ui.session-workspace.discard-unstaged-changes-in-n-files', String(paths.length));
-    if (!window.confirm(ask)) return;
+    if (!(await confirmDialog({ message: ask, danger: true }))) return;
     const r = await exec('discard', () => harnessClient.gitDiscard(cwd, paths));
     if (r?.ok && r.stashes?.length && here(cwd))
       setNotice({
@@ -365,10 +367,13 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
         </button>
       </div>
       {n.output ? (
-        <details className={pane.gitOutput}>
-          <summary>{t('ui.session-workspace.git-output')}</summary>
+        <Disclosure
+          className={pane.gitOutput}
+          summaryClassName={pane.gitOutputSummary}
+          summary={t('ui.session-workspace.git-output')}
+        >
           <pre data-testid="git-notice-output">{n.output}</pre>
-        </details>
+        </Disclosure>
       ) : null}
     </div>
   );
@@ -414,7 +419,7 @@ export const GitCommitBox: React.FC<{
             data-testid="rail-commit-message"
             onChange={(e) => ops.setMessage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isImeComposing(e.nativeEvent)) {
                 e.preventDefault();
                 submit();
               }
@@ -437,8 +442,7 @@ export const GitCommitBox: React.FC<{
               className={pane.commitCheck}
               title={t('ui.session-workspace.commit-then-git-push-never-force-push')}
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={ops.pushAfter && canPush}
                 disabled={!canPush || busy}
                 data-testid="rail-commit-push-after"

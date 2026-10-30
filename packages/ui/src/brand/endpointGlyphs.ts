@@ -6,7 +6,7 @@
  *   （MIT © 2023 LobeHub），与 brand/icons.ts 同源；Logo 商标归各自所有者，仅作指示性使用。
  * - gemini：项目自绘的通用四角星（不用 Google 商标）。
  * - external：用户添加的外部 CLI（§5.9），项目自绘的通用终端提示符 `>_`。
- * 灵动岛页面（packages/electron/src/island/islandPage.ts）内嵌了同一份数据，改这里请同步。
+ * 灵动岛页面（apps/desktop-electron/src/island/islandPage.ts）内嵌了同一份数据，改这里请同步。
  */
 export type EndpointGlyphKey = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'external';
 

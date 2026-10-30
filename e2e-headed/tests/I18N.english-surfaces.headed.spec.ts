@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -15,7 +16,7 @@ import { revealToolbar } from './toolbarReveal';
  * 断言界面上不再出现中文（漏翻 / 未经 t() 的硬编码文案）。
  * 失败时把各界面的残留中文列出来；SHOTS_DIR 设置时顺便截图。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.I18N_SHOTS_DIR;
 /** 允许出现的中文：语言选项本身的名字、用户输入 */
 const ALLOWED = [/简体中文/, /^中文$/, /诺米/, /日本語/, /한국어/, /繁體中文/];
@@ -71,7 +72,7 @@ test.describe('English UI has no untranslated Chinese', () => {
     };
 
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
     );
@@ -91,11 +92,7 @@ test.describe('English UI has no untranslated Chinese', () => {
     }
 
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1100, height: 800 }).catch(() => undefined);
     await chat.waitForSelector('textarea', { timeout: 20_000 });

@@ -1,6 +1,9 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
+
+import { api, hasTransport } from './api';
+import type { NomiContextInfo } from './compaction';
 /**
- * 统一网关（主进程 GatewayService，见 docs/design/unified-gateway.md §5、§6）。
+ * 统一网关（主进程 GatewayService，见 docs/design/unified-gateway.md §5、§6；应用契约 `gateway.*`）。
  * 返回的数据里 Key 只有掩码、没有客户端令牌；明文 Key 只在 upsertProvider / detect 的参数里单向发出。
  */
 export type Wire = 'messages' | 'responses' | 'chat' | 'gemini';
@@ -257,27 +260,12 @@ export interface DetectInput {
   fallbackModel?: string;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on?: (channel: string, fn: (p: unknown) => void) => () => void;
-}
+export const gatewayClientAvailable = (): boolean => hasTransport();
 
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-
-export const gatewayClientAvailable = (): boolean => Boolean(bridge());
-
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error('aiIPC unavailable');
-  const r = (await b.invoke(`ai:gateway:${method}`, ...args)) as T & {
-    __error?: { message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+/** 没有契约传输时抛错，调用方按「网关不可用」处理；主进程的错误原样抛出（message 不变） */
+async function call<T>(fn: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport()) throw new Error('desktop app connection unavailable');
+  return (await fn()) as T;
 }
 
 /** 上游地址的 host:port（与网关 upstreamGuard 的写法一致），用于确认本机 / 局域网地址 */
@@ -315,14 +303,30 @@ export function isPrivateUrl(url: string): boolean {
 export const gatewayClient = {
   /** 形状不对（旧主进程 / 测试桩）时抛错，调用方按「网关不可用」处理 */
   state: async () => {
-    const s = await call<GatewayState>('state');
+    const s = await call<GatewayState>(() => api.gateway.state());
     if (!s || !Array.isArray(s.providers) || typeof s.clients !== 'object' || !s.status)
       throw new Error('invalid gateway state');
     return s;
   },
-  upsertProvider: (input: ProviderInput) => call<ProviderView>('upsert-provider', input),
-  removeProvider: (id: string) => call<void>('remove-provider', id),
-  detect: (input: DetectInput) => call<DetectResult>('detect', input),
+  /**
+   * Nomi 对话某个角色的上下文预算（按路由到的模型的窗口算）。没配模型 / 旧主进程 / 没有传输时 null，
+   * 调用方按「不知道窗口」处理（不自动压缩，内核用默认预算）。
+   */
+  nomiContext: async (
+    role: 'chat' | 'agent-tools' | 'summary' = 'chat',
+  ): Promise<NomiContextInfo | null> => {
+    if (!hasTransport()) return null;
+    try {
+      const r = await call<NomiContextInfo | null>(() => api.gateway.nomiContext({ role }));
+      return r && r.budget > 0 && r.compactAt > 0 ? r : null;
+    } catch {
+      return null;
+    }
+  },
+  upsertProvider: (input: ProviderInput) =>
+    call<ProviderView>(() => api.gateway.upsertProvider(input)),
+  removeProvider: (id: string) => call<void>(() => api.gateway.removeProvider({ id })),
+  detect: (input: DetectInput) => call<DetectResult>(() => api.gateway.detect(input)),
   setAssignment: (
     client: ClientId,
     patch: {
@@ -330,11 +334,12 @@ export const gatewayClient = {
       newTabSource?: 'official' | 'thirdParty';
       newTabAccountId?: string | null;
     },
-  ) => call<void>('set-assignment', client, patch),
-  resetToken: (client: ClientId) => call<void>('reset-token', client),
-  clearLearned: (providerId: string) => call<void>('clear-learned', providerId),
-  confirmPrivateHost: (hostPort: string) => call<void>('confirm-private-host', hostPort),
-  retry: () => call<void>('retry'),
+  ) => call<void>(() => api.gateway.setAssignment({ client, patch })),
+  resetToken: (client: ClientId) => call<void>(() => api.gateway.resetToken({ client })),
+  clearLearned: (providerId: string) => call<void>(() => api.gateway.clearLearned({ providerId })),
+  confirmPrivateHost: (hostPort: string) =>
+    call<void>(() => api.gateway.confirmPrivateHost({ hostPort })),
+  retry: () => call<void>(() => api.gateway.retry()),
   setOptions: (patch: {
     strictParams?: boolean;
     maxRequestBodyBytes?: number;
@@ -342,25 +347,27 @@ export const gatewayClient = {
     privacyStrict?: boolean;
     privacyLocal?: boolean;
     privacyShape?: boolean;
-  }) => call<GatewayState>('set-options', patch),
+  }) => call<GatewayState>(() => api.gateway.setOptions(patch)),
   privacySetAction: (kind: string, action: PrivacyAction) =>
-    call<GatewayState>('privacy-set-action', kind, action),
+    call<GatewayState>(() => api.gateway.privacySetAction({ kind, action })),
   privacyAddSecret: (name: string, value: string) =>
-    call<GatewayState>('privacy-add-secret', { name, value }),
-  privacyRemoveSecret: (id: string) => call<GatewayState>('privacy-remove-secret', id),
+    call<GatewayState>(() => api.gateway.privacyAddSecret({ name, value })),
+  privacyRemoveSecret: (id: string) =>
+    call<GatewayState>(() => api.gateway.privacyRemoveSecret({ id })),
   /** 从最近记录放行给标记；手动放行给原文（主进程算出标记后丢掉原文） */
   privacyAddAllow: (
     input: { value: string } | { tag: string; kind: string; len: number; head: string },
-  ) => call<GatewayState>('privacy-add-allow', input),
-  privacyRemoveAllow: (tag: string) => call<GatewayState>('privacy-remove-allow', tag),
-  privacyLog: () => call<PrivacyLogEntry[]>('privacy-log'),
-  privacyClearLog: () => call<void>('privacy-clear-log'),
+  ) => call<GatewayState>(() => api.gateway.privacyAddAllow(input)),
+  privacyRemoveAllow: (tag: string) =>
+    call<GatewayState>(() => api.gateway.privacyRemoveAllow({ tag })),
+  privacyLog: () => call<PrivacyLogEntry[]>(() => api.gateway.privacyLog()),
+  privacyClearLog: () => call<void>(() => api.gateway.privacyClearLog()),
   /** 「试一试」：一段文字按现在的设置会变成什么（不影响网关里的占位符） */
   privacyPreview: (text: string) =>
     call<{
       text: string;
       hits: Array<{ kind: string; action: string; len: number; head: string }>;
-    }>('privacy-preview', text),
+    }>(() => api.gateway.privacyPreview({ text })),
   onChanged: (fn: () => void) =>
-    bridge()?.on?.('ai:gateway:changed', () => fn()) ?? (() => undefined),
+    hasTransport() ? api.on('gateway.changed', () => fn()) : () => undefined,
 };

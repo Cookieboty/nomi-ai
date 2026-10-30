@@ -1,5 +1,5 @@
 /**
- * 看板娘（只内置 Nomi 一个角色）与看板娘窗口相关的共享类型。
+ * 桌面角色（只内置 Nomi 一个角色）与桌面角色窗口相关的共享类型。
  */
 
 /** Per-character TTS binding (local/remote TTS voice preference). */
@@ -46,7 +46,7 @@ export interface LicenseTermsView {
   };
 }
 
-/** 看板娘窗口互动（主进程 MascotWindowController ⇄ 渲染进程） */
+/** 桌面角色窗口互动（主进程 MascotWindowController ⇄ 渲染进程） */
 export interface MascotInteractionConfig {
   clickThrough: boolean;
   gravity: boolean;
@@ -88,7 +88,7 @@ export interface ShapeRect {
   height: number;
 }
 
-/** 看板娘大小（主进程按屏幕可用区域夹紧，窗口随之调整，脚底中心不动） */
+/** 桌面角色大小（主进程按屏幕可用区域夹紧，窗口随之调整，脚底中心不动） */
 export interface MascotScaleState {
   scale: number;
   min: number;
@@ -99,48 +99,7 @@ export interface MascotScaleState {
   window: { width: number; height: number };
 }
 
-export interface MascotWindowApi {
-  /** process.platform（Linux 用窗口形状实现点击穿透） */
-  platform: string;
-  /** Linux：可交互区域（窗口像素）；空数组 = 整个窗口 */
-  setShape(rects: ShapeRect[]): void;
-  setHit(hit: boolean): void;
-  /** 角色包围盒（窗口像素）；vw / vh = 测量时的视口尺寸，主进程据此丢弃缩放前的旧测量 */
-  setGeometry(box: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-    vw?: number;
-    vh?: number;
-  }): void;
-  /** 屏幕坐标（screenX/Y）；省略时主进程读取系统光标 */
-  dragStart(screenX?: number, screenY?: number): void;
-  dragMove(screenX: number, screenY: number): void;
-  dragEnd(): void;
-  setConfig(cfg: Partial<MascotInteractionConfig>): void;
-  wanderNow(): void;
-  scaleGet(): Promise<MascotScaleState>;
-  scaleSet(scale: number): Promise<MascotScaleState>;
-  scaleStep(dir: 1 | -1): Promise<MascotScaleState>;
-  /** Ctrl/⌘+滚轮：累计的 deltaY（向上滚 = 放大） */
-  scaleWheel(deltaY: number, deltaMode?: number): Promise<MascotScaleState>;
-  scaleReset(): Promise<MascotScaleState>;
-  onScale(cb: (s: MascotScaleState) => void): () => void;
-  snapshot(): Promise<{
-    body: { x: number; y: number; vx: number; vy: number; mode: string };
-    ignoring: boolean;
-    shapeRects: number;
-    clickThroughMode: 'ignore' | 'shape';
-    box: { left: number; right: number; top: number; bottom: number } | null;
-    cfg: MascotInteractionConfig;
-  }>;
-  onCursor(cb: (p: MascotCursorEvent) => void): () => void;
-  onBody(cb: (p: MascotBodyEvent) => void): () => void;
-  onPhysicsEvent(cb: (p: MascotPhysicsEvent) => void): () => void;
-}
-
-/** 桌面能力确认请求（主进程 PermissionBroker → 看板娘窗口） */
+/** 桌面能力确认请求（主进程 PermissionBroker → 对话窗口或桌面角色窗口） */
 export interface DesktopConfirmRequest {
   id: string;
   tool: string;
@@ -153,10 +112,14 @@ export interface DesktopConfirmRequest {
   rememberable: boolean;
   reason: string;
   expiresAt: number;
+  /** scope：请用户授权文件夹（对话窗口里的卡片）；scopePath 为模型建议的文件夹 */
+  kind?: 'scope';
+  scopePath?: string;
+  scopeMode?: 'read' | 'read-write';
 }
 
 /**
- * 主进程推给看板娘的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
+ * 主进程推给桌面角色的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
  * - full：朗读整段气泡文字
  * - cue：只播放事件提示音，不朗读气泡文字
  * - none：只显示气泡，不出声也不放音效
@@ -166,17 +129,6 @@ export interface DesktopBubble {
   text: string;
   voice?: 'full' | 'cue' | 'none';
   kind?: 'digest' | 'done' | 'fail';
-}
-
-export interface DesktopApi {
-  onConfirmRequest(cb: (req: DesktopConfirmRequest) => void): () => void;
-  onConfirmCancel(cb: (id: string) => void): () => void;
-  onBubble(cb: (p: DesktopBubble) => void): () => void;
-  answer(id: string, allow: boolean, remember: boolean): void;
-  dropFile(file: File): boolean;
-  onReminder(cb: (p: DesktopReminderEvent) => void): () => void;
-  takeMissedReminders(): Promise<DesktopReminderEvent[]>;
-  reminderAction(id: string, action: 'dismiss' | 'snooze', minutes?: number): void;
 }
 
 export interface DesktopReminderEvent {

@@ -259,7 +259,7 @@ export function pairDefs() {
       add('status', `${c} on ${soft} over ${s}`, c, [...STACKS[s], soft], TEXT);
   }
 
-  // 看板娘气泡
+  // 桌面角色气泡
   add('bubble', 'bubble-text on bubble-bg', '--cd-bubble-text', ['--cd-bubble-bg-base'], TEXT, {
     bubble: true,
   });

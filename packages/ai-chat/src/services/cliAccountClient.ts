@@ -1,4 +1,6 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
+
+import { api, hasTransport } from './api';
 /**
  * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/design/cli-plugin-architecture.md §5.10）：
  * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（邮箱 / 套餐），Nomi 不保存凭据。
@@ -50,55 +52,55 @@ export interface LoginEvent {
   account?: CliAccount;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on?: (channel: string, fn: (p: unknown) => void) => () => void;
-}
-
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
+/** 契约的账号错误码 → 原来的 kebab code（调用方按 `e.code === 'unknown-live'` 走控制流） */
+const ACCOUNT_CODES: Record<string, string> = {
+  ACCOUNT_NOT_FOUND: 'not-found',
+  ACCOUNT_IN_USE: 'in-use',
+  ACCOUNT_LOCAL: 'local',
+  ACCOUNT_UNSUPPORTED: 'unsupported',
+  ACCOUNT_UNKNOWN_LIVE: 'unknown-live',
 };
 
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error('aiIPC unavailable');
-  const r = (await b.invoke(`ai:cli-account:${method}`, ...args)) as T & {
-    __error?: { message: string; code?: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error)
-    throw Object.assign(
-      new Error(r.__error.message),
-      r.__error.code ? { code: r.__error.code } : {},
-    );
-  return r;
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport()) throw new Error('desktop app connection unavailable');
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    if (!(e instanceof Error)) throw e;
+    const code = ACCOUNT_CODES[String((e as { code?: unknown }).code)];
+    throw Object.assign(new Error(e.message), code ? { code } : {});
+  }
 }
+
+const on = (subscribe: () => () => void): (() => void) =>
+  hasTransport() ? subscribe() : () => undefined;
 
 export const cliAccountClient = {
   list: async (kind?: AccountKind) => {
-    const r = await call<unknown>('list', kind);
+    const r = await call<unknown>(() => api.cliAccount.list({ kind }));
     return Array.isArray(r) ? (r as CliAccount[]) : [];
   },
   /** 用 CLI 自己的状态命令重新读各账号的身份（不读凭据） */
   refresh: async (kind: AccountKind) => {
-    const r = await call<unknown>('refresh', kind);
+    const r = await call<unknown>(() => api.cliAccount.refresh({ kind }));
     return Array.isArray(r) ? (r as CliAccount[]) : [];
   },
   /** 设为默认账号：新标签与「跟随默认」的标签用它 */
-  setDefault: (kind: AccountKind, id: string) => call<CliAccount>('set-default', kind, id),
-  rename: (id: string, label: string) => call<CliAccount>('rename', id, label),
+  setDefault: (kind: AccountKind, id: string) =>
+    call<CliAccount>(() => api.cliAccount.setDefault({ kind, id })),
+  rename: (id: string, label: string) =>
+    call<CliAccount>(() => api.cliAccount.rename({ id, label })),
   remove: (id: string, opts?: { force?: boolean }) =>
-    call<void>('remove', id, opts?.force === true),
+    call<void>(() => api.cliAccount.remove({ id, force: opts?.force === true })),
   /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
   loginStart: (kind: AccountKind, accountId?: string) =>
-    call<LoginEvent>('login-start', kind, accountId),
-  loginInput: (id: string, text: string) => call<boolean>('login-input', id, text),
-  loginCancel: (id: string) => call<boolean>('login-cancel', id),
+    call<LoginEvent>(() => api.cliAccount.loginStart({ kind, accountId })),
+  loginInput: (id: string, text: string) =>
+    call<boolean>(() => api.cliAccount.loginInput({ id, text })),
+  loginCancel: (id: string) => call<boolean>(() => api.cliAccount.loginCancel({ id })),
   /** 只能打开官方登录页（主进程校验） */
-  openUrl: (url: string) => call<boolean>('open-url', url),
-  onChanged: (fn: () => void) =>
-    bridge()?.on?.('ai:cli-account:changed', () => fn()) ?? (() => undefined),
+  openUrl: (url: string) => call<boolean>(() => api.cliAccount.openUrl({ url })),
+  onChanged: (fn: () => void) => on(() => api.on('cliAccount.changed', () => fn())),
   onLogin: (fn: (e: LoginEvent) => void) =>
-    bridge()?.on?.('ai:cli-account:login', (p) => fn(p as LoginEvent)) ?? (() => undefined),
+    on(() => api.on('cliAccount.login', (p) => fn(p as unknown as LoginEvent))),
 };

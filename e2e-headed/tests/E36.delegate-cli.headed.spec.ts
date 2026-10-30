@@ -15,6 +15,8 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -25,11 +27,11 @@ import { safeRm } from '../fixtures/fsutil';
  *   收到工具结果（异步默认立刻返回 running）后回「DELEGATE-DONE」；卡片等编程助手真正结束后再变 done；
  * - mock Claude / Codex（NOMI_USE_MOCK_CLI=1）：Claude 按 NOMI_MOCK_CLAUDE_REPLY 回 [nomi-report] 汇报；
  *   目标含 PERMTASK 的一轮先请求权限，含 SLOWTASK 的一轮先等 20 秒（可被停止打断）；
- * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹看板娘确认）。
+ * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹桌面角色确认）。
  * 覆盖：卡片显示与汇报、子任务在后台开标签（不抢焦点）、卡片内审批、单独停止后 Nomi 继续、
  * /agent codex 指定交给 Codex（输入栏 chip、用户消息上的标记）、助手模式下「查看」打开抽屉。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shotDir =
@@ -191,7 +193,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
         usage: {},
       }),
     );
-    // 工作目录已授权；委派不弹看板娘确认（确认流程由单测覆盖）
+    // 工作目录已授权；委派不弹桌面角色确认（确认流程由单测覆盖）
     mkdirSync(join(userData, 'desktop'), { recursive: true });
     writeFileSync(
       join(userData, 'desktop', 'settings.json'),
@@ -264,34 +266,31 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
 
     try {
       const main = await app.firstWindow({ timeout: 20_000 });
-      await main.waitForFunction(
-        () => typeof (window as unknown as { electronAPI?: unknown }).electronAPI !== 'undefined',
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window);
       const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat: Page = await chatWindow;
       await chat.setViewportSize({ width: 1100, height: 860 }).catch(() => undefined);
-      chat.on('dialog', (d) => void d.accept());
-      const invoke = <T>(channel: string) =>
-        chat.evaluate(
-          async (c) =>
-            (await (
-              window as unknown as { aiIPC: { invoke(ch: string): Promise<unknown> } }
-            ).aiIPC.invoke(c)) as T,
-          channel,
-        );
+      await autoAcceptConfirms(chat);
       await expect
         .poll(
           async () =>
-            (await invoke<{ status: { state: string } }>('ai:gateway:state')).status.state,
+            (await callContract<{ status: { state: string } }>(chat, 'gateway.state')).status.state,
           { timeout: 30_000 },
         )
         .toBe('running');
       await chat.waitForSelector('textarea', { timeout: 20_000 });
+
+      // 「全部自动」关掉：这里要看卡片里的审批（全部自动时委派的编程助手完全放开，不再请求权限）
+      await callContract(chat, 'harness.permissionDefaults', { autoApprove: false });
+      // 对话工作区选已授权的仓库（经最近列表）：委派的编程助手在工作区里开工
+      await callContract(chat, 'harness.setCwd', { cwd: work });
+      await chat.click('[data-testid="nomi-workspace-button"]');
+      await chat.locator('[data-testid="workspace-recent-item"]', { hasText: 'e36-work' }).click();
+      await expect(chat.locator('[data-testid="nomi-workspace-button"]')).toHaveAttribute(
+        'title',
+        new RegExp(work.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      );
 
       const send = async (text: string) => {
         await chat.fill('textarea', text);
@@ -299,7 +298,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       };
       const cards = chat.locator('[data-testid="delegate-card"]');
       const delegated = async () =>
-        (await invoke<TabsState>('ai:harness:tabs')).tabs.filter((x) => x.delegation);
+        (await callContract<TabsState>(chat, 'harness.tabs')).tabs.filter((x) => x.delegation);
 
       // ── 1. 正常委派：后台开 Claude 标签，卡片显示汇报，Nomi 接着回复 ─────────────
       await send('DELEGATE 帮我修一下登录');
@@ -315,7 +314,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       expect(t1).toHaveLength(1);
       expect(t1[0]).toMatchObject({ backend: 'claude', delegation: { goal: '修复登录 bug' } });
       // 后台创建：当前仍是 Nomi 主对话
-      expect((await invoke<TabsState>('ai:harness:tabs')).activeTabId).toBe('main');
+      expect((await callContract<TabsState>(chat, 'harness.tabs')).activeTabId).toBe('main');
       // 发给编程助手的是任务说明模板
       const prompts = readFileSync(promptLog, 'utf8');
       expect(prompts).toContain('目标：修复登录 bug');

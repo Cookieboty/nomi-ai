@@ -1,7 +1,7 @@
 import type { LicenseTermsView, ModelConfig } from '@nomi-ai/types';
 
 /**
- * 看板娘角色。只内置 Nomi 一个角色（不再提供角色商店、导入与切换），
+ * 桌面角色角色。只内置 Nomi 一个角色（不再提供角色商店、导入与切换），
  * 列表读打包进应用的 model-list.json。
  */
 export interface MascotModel {

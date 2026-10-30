@@ -1,3 +1,4 @@
+import { interactionSettings } from '@nomi-ai/avatar-runtime';
 import type { MascotInteractionConfig } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { Button, Modal, Switch } from '@nomi-ai/ui';
@@ -6,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
-import { interactionSettings } from '@/mascot/interaction/settings';
+import { api, hasTransport } from '@/services/api';
 
 const ITEMS: Array<{ key: keyof MascotInteractionConfig; label: string; hint: string }> = [
   {
@@ -72,7 +73,9 @@ export const InteractionSettings: React.FC = () => {
           size="sm"
           variant="ghost"
           data-testid="interaction-wander-now"
-          onClick={() => window.electronAPI?.mascotWindow?.wanderNow()}
+          onClick={() => {
+            if (hasTransport()) void api.mascot.wanderNow().catch(() => undefined);
+          }}
         >
           {t('ui.chat-settings.take-a-walk-now')}
         </Button>

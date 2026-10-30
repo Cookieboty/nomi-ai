@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const uiSource = path.join(root, 'packages/ui/src/locales/en');
-const electronSource = path.join(root, 'packages/electron/src/i18n/en.json');
+const electronSource = path.join(root, 'apps/desktop-electron/src/i18n/en.json');
 const outRoot = path.join(root, 'packages/i18n');
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -145,9 +145,10 @@ const sourceDirs = [
   ['packages/renderer/src', sourceKeyMap.ui],
   ['packages/voice/src', sourceKeyMap.ui],
   ['packages/ui/src', sourceKeyMap.ui],
-  ['packages/electron/src', sourceKeyMap.electron],
-  ['packages/cli-sdk/src', sourceKeyMap.electron],
-  ['packages/cli-plugins/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/core/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/cli-sdk/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/cli-plugins/src', sourceKeyMap.electron],
 ];
 
 function walk(dir, files = []) {

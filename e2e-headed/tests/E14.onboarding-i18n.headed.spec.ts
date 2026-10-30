@@ -11,11 +11,11 @@ import { safeRm } from '../fixtures/fsutil';
 
 /**
  * E14 · 首次启动引导 + 中英文切换（真实应用、全新 userData）：
- * 系统语言为英文 → 界面默认 English；引导自动打开、看板娘打招呼；
+ * 系统语言为英文 → 界面默认 English；引导自动打开、桌面角色打招呼；
  * 每一步可跳过；语言切换即时生效；完成后写入 onboarding.json；设置里可重新打开。
  * SHOTS_DIR 设置时保存截图。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.SHOTS_DIR;

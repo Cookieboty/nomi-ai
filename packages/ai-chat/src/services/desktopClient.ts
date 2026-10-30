@@ -1,7 +1,10 @@
 import { t } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
+import { onChatNav, onDesktopSummary } from './pendingNav';
 /**
- * 桌面能力（文件授权 / 工具权限 / 审计 / 撤销）客户端：`ai:desktop:*` IPC（经 preload 的 window.aiIPC）。
- * 授权文件夹一律由主进程弹出系统选择框，渲染层无法直接传入路径授权。
+ * 桌面能力（文件授权 / 工具权限 / 审计 / 撤销）客户端：契约 `desktop.*`（docs/design/core-host-decoupling.md
+ * §12 P1b，原 `ai:desktop:*`）。授权文件夹一律由主进程弹出系统选择框，渲染层无法直接传入路径授权。
  */
 export type Danger = 'read' | 'write' | 'destructive';
 export type Policy = 'always' | 'session' | 'ask';
@@ -100,56 +103,51 @@ export function describeRepeat(r?: RepeatRule): string {
   }
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
+/** 没有契约传输（浏览器预览 / 测试）时与原来一样报「需要桌面应用」 */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.chat-settings.desktop-abilities-require-the-desktop-app'));
+  return (await run()) as T;
 }
 
-function bridge(): AiBridge | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-}
-
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.desktop-abilities-require-the-desktop-app'));
-  return (await b.invoke(`ai:desktop:${method}`, ...args)) as T;
-}
-
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
+const noop = () => undefined;
+const on = (subscribe: () => () => void): (() => void) => (hasTransport() ? subscribe() : noop);
 
 export const desktopClient = {
-  available: () => !!bridge(),
-  state: () => call<DesktopState>('state'),
-  grant: (mode: 'read' | 'read-write') => call<ScopeView | null>('grant', mode),
-  revoke: (id: string) => call<boolean>('revoke', id),
-  setPolicy: (tool: string, policy: Policy) => call<boolean>('set-policy', tool, policy),
-  setLocalOnly: (v: boolean) => call<boolean>('set-local-only', v),
-  resetCloudAcks: () => call<boolean>('reset-cloud-acks'),
-  audit: (limit = 200) => call<AuditEntryView[]>('audit', limit),
-  clearAudit: () => call<boolean>('audit-clear'),
-  journal: () => call<JournalView[]>('journal'),
-  undoLast: () => call<{ ok: boolean; undone?: string; error?: string }>('undo-last'),
-  resetAll: () => call<boolean>('reset-all'),
+  available: () => hasTransport(),
+  state: () => call<DesktopState>(() => api.desktop.state()),
+  grant: (mode: 'read' | 'read-write') => call<ScopeView | null>(() => api.desktop.grant({ mode })),
+  revoke: (id: string) => call<boolean>(() => api.desktop.revoke({ id })),
+  setPolicy: (tool: string, policy: Policy) =>
+    call<boolean>(() => api.desktop.setPolicy({ tool, policy })),
+  setLocalOnly: (v: boolean) => call<boolean>(() => api.desktop.setLocalOnly({ value: v })),
+  resetCloudAcks: () => call<boolean>(() => api.desktop.resetCloudAcks()),
+  audit: (limit = 200) => call<AuditEntryView[]>(() => api.desktop.audit({ limit })),
+  clearAudit: () => call<boolean>(() => api.desktop.auditClear()),
+  journal: () => call<JournalView[]>(() => api.desktop.journal()),
+  undoLast: () =>
+    call<{ ok: boolean; undone?: string; error?: string }>(() => api.desktop.undoLast()),
+  resetAll: () => call<boolean>(() => api.desktop.resetAll()),
   onChanged: (fn: (s: DesktopState) => void) =>
-    on('ai:desktop:changed', (p) => fn(p as DesktopState)),
-  reminders: (all = false) => call<ReminderView[]>('reminders-list', all),
+    on(() => api.on('desktop.changed', (p) => fn(p as DesktopState))),
+  reminders: (all = false) => call<ReminderView[]>(() => api.desktop.remindersList({ all })),
   createReminder: (r: { text: string; at?: string; inMinutes?: number; repeat?: RepeatRule }) =>
-    call<ReminderView | null>('reminders-create', r),
+    call<ReminderView | null>(() => api.desktop.remindersCreate(r)),
   updateReminder: (id: string, p: { text?: string; at?: string; repeat?: RepeatRule | null }) =>
-    call<ReminderView | null>('reminders-update', id, p),
-  cancelReminder: (id: string) => call<boolean>('reminders-cancel', id),
-  snoozeReminder: (id: string, minutes = 10) => call<boolean>('reminders-snooze', id, minutes),
+    call<ReminderView | null>(() => api.desktop.remindersUpdate({ id, patch: p })),
+  cancelReminder: (id: string) => call<boolean>(() => api.desktop.remindersCancel({ id })),
+  snoozeReminder: (id: string, minutes = 10) =>
+    call<boolean>(() => api.desktop.remindersSnooze({ id, minutes })),
   onP2Changed: (fn: (kind: 'reminders') => void) =>
-    on('ai:desktop:p2-changed', (p) => fn((p as { kind: 'reminders' }).kind)),
-  onOpenPanel: (fn: () => void) => on('ai:desktop:open-panel', () => fn()),
-  /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
-  onOpenSchedule: (fn: () => void) => on('ai:hub:open-schedule', () => fn()),
-  /** 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
-  onOpenVoiceSettings: (fn: () => void) => on('ai:settings:open-voice', () => fn()),
-  onSummary: (fn: (e: DesktopSummaryEvent) => void) =>
-    on('ai:desktop:summary', (p) => fn(p as DesktopSummaryEvent)),
+    on(() => api.on('desktop.p2Changed', (p) => fn(p.kind as 'reminders'))),
+  // 面板导航与拖入总结：窗口挂载前发出的那一次由内核留着，第一次订阅后拉取（./pendingNav）
+  /** 托盘「桌面能力」→ 打开桌面能力面板 */
+  onOpenPanel: (fn: () => void) => onChatNav('nav.desktopPanelRequested', fn),
+  /** 桌面角色工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
+  onOpenSchedule: (fn: () => void) => onChatNav('nav.scheduleRequested', fn),
+  /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
+  onOpenVoiceSettings: (fn: () => void) => onChatNav('nav.voiceSettingsRequested', fn),
+  onSummary: (fn: (e: DesktopSummaryEvent) => void) => onDesktopSummary(fn),
 };
 
 export const TOOL_LABELS: Record<string, string> = {
@@ -160,6 +158,10 @@ export const TOOL_LABELS: Record<string, string> = {
   fs_read_text: 'ui.chat-settings.read-file-text',
   fs_summarize: 'ui.chat-settings.summarize-file-label',
   fs_write_text: 'ui.chat-settings.write-text-file',
+  fs_edit: 'ui.chat-settings.edit-text-file',
+  fs_mkdir: 'ui.chat-settings.create-folder',
+  fs_move: 'ui.chat-settings.move-or-rename',
+  fs_copy: 'ui.chat-settings.copy-file',
   fs_trash: 'ui.chat-settings.move-to-trash',
   undo_last: 'ui.chat-settings.undo-last-step',
   grant_scope: 'ui.foundation.granted-folders',

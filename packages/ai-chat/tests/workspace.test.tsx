@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { t } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,12 +11,19 @@ import {
 import { WorkspacePicker } from '../src/components/WorkspacePicker';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
+import { ConversationStore } from '../src/services/conversationStore';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { shortenPath } from '../src/utils/workspacePath';
 
+import { installFakeApi, resetFakeApi, type FakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
+/** Nomi 对话的会话存储（Nomi 工作区用）；缺省没有 */
+let chatIpc: unknown;
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
-    state: { messages: [] },
+    state: { messages: [], ipcClient: chatIpc },
     actions: { newConversation: async () => undefined },
   }),
 }));
@@ -39,19 +47,20 @@ function mockIpc(
   messages: unknown[] = [],
 ) {
   const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:harness:tabs') return tabs;
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.tabs') return tabs;
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: '/d' } };
-    if (ch === 'ai:providers:state')
+    if (ch === 'providers.state')
       return { providers: [], envProviders: [], routes: {}, roles: [], encryption: 'none' };
-    if (ch === 'ai:harness:recent-cwds') return ['/recent/one', '/recent/two'];
-    if (ch === 'ai:harness:pick-dir') return picked;
-    if (ch === 'ai:harness:tab-messages') return messages;
+    if (ch === 'harness.recentCwds') return ['/recent/one', '/recent/two'];
+    if (ch === 'harness.pickDir') return picked;
+    if (ch === 'harness.tabMessages') return messages;
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  fake = installFakeApi(invoke);
   return invoke;
 }
+let fake: FakeApi;
 const state = (cli: Partial<HarnessTabMeta> = {}): HarnessTabsState => ({
   tabs: [tab({ id: 'main', backend: 'nomi', cwd: '/docs' }), tab({ id: 'cx', ...cli })],
   activeTabId: 'cx',
@@ -70,7 +79,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('shortenPath', () => {
@@ -98,7 +107,7 @@ describe('WorkspacePicker', () => {
     fireEvent.click(btn);
     fireEvent.click(r.getByTestId('workspace-browse'));
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('/picked/dir'));
-    expect(invoke).toHaveBeenCalledWith('ai:harness:pick-dir', '/Users/me/code/app');
+    expect(invoke).toHaveBeenCalledWith('harness.pickDir', { defaultPath: '/Users/me/code/app' });
   });
 });
 
@@ -124,11 +133,65 @@ describe('EndpointControls workspace for CLI tabs', () => {
     );
   });
 
-  it('is not shown for the Nomi main tab', async () => {
+  it('shows the Nomi conversation workspace (not the CLI one) on the Nomi main tab', async () => {
     const invoke = mockIpc({ ...state(), activeTabId: 'main' });
     const r = mount();
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabs'));
     expect(r.queryByTestId('cli-workspace')).toBeNull();
+    // 还没有会话：显示新会话会用的默认工作区（主标签目录）
+    await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+  });
+
+  describe('Nomi conversation workspace', () => {
+    const nomiStore = () => {
+      const store = new ConversationStore();
+      chatIpc = {
+        conversationStore: () => store,
+        currentConversationId: () => store.currentId(),
+        ensureConversationId: () => store.nomiTarget(),
+      };
+      return store;
+    };
+    afterEach(() => {
+      chatIpc = undefined;
+    });
+
+    it('is stored per conversation; picking one also moves the main tab there', async () => {
+      const store = nomiStore();
+      const c = store.create({ cwd: '/w' });
+      const invoke = mockIpc({ ...state(), activeTabId: 'main' });
+      const r = mount();
+      await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+      fireEvent.click(r.getByTestId('nomi-workspace-button'));
+      await waitFor(() => r.getAllByTestId('workspace-recent-item'));
+      fireEvent.click(r.getAllByTestId('workspace-recent-item')[1]!);
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/recent/two' }),
+      );
+      expect(store.get(c.id)?.cwd).toBe('/recent/two');
+      // 没有 CLI 会话要续接：不弹换目录确认
+      expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
+    });
+
+    it('can be cleared (back to granted folders) and syncs the main tab when switching', async () => {
+      const store = nomiStore();
+      store.create({ cwd: '/w' });
+      const other = store.create({ cwd: '/elsewhere' });
+      const invoke = mockIpc({ ...state(), activeTabId: 'main' });
+      const r = mount();
+      // 当前会话的工作区与主标签目录不同：主标签跟上
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/elsewhere' }),
+      );
+      fireEvent.click(r.getByTestId('nomi-workspace-button'));
+      fireEvent.click(await r.findByTestId('workspace-clear'));
+      await waitFor(() => expect(store.get(other.id)?.cwd).toBeUndefined());
+      await waitFor(() =>
+        expect(r.getByTestId('nomi-workspace-path').textContent).toBe(
+          t('ui.cli-monitor.no-workspace'),
+        ),
+      );
+    });
   });
 
   const history = [
@@ -152,12 +215,14 @@ describe('EndpointControls workspace for CLI tabs', () => {
     expect(dlg.textContent).toContain('/recent/one');
     fireEvent.click(r.getByTestId('cli-cwd-cancel'));
     await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-cwd')).toBe(false);
+    expect(invoke.mock.calls.some((c) => c[0] === 'harness.tabCwd')).toBe(false);
 
     await pick(r, 0);
     fireEvent.click(await r.findByTestId('cli-cwd-fresh'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/one', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+        id: 'cx',
+        cwd: '/recent/one',
         carry: false,
       }),
     );
@@ -165,7 +230,9 @@ describe('EndpointControls workspace for CLI tabs', () => {
     await pick(r, 1);
     fireEvent.click(await r.findByTestId('cli-cwd-carry'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/two', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+        id: 'cx',
+        cwd: '/recent/two',
         carry: true,
       }),
     );
@@ -187,14 +254,16 @@ describe('EndpointControls workspace for CLI tabs', () => {
     await pick(r, 1);
     expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/two', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+        id: 'cx',
+        cwd: '/recent/two',
         carry: false,
       }),
     );
   });
 
   describe('确认框绑定发起换目录的标签（#68）', () => {
-    // 同后端两个标签 A / B，各有会话与对话；推送 ai:harness:tabs 模拟切标签
+    // 同后端两个标签 A / B，各有会话与对话；推送 harness.tabsChanged 模拟切标签
     const a = tab({ id: 'ta', title: 'A', cwd: '/repo-a', cliSessionId: 'sess-a' });
     const b = tab({ id: 'tb', title: 'B', cwd: '/repo-b', cliSessionId: 'sess-b' });
     const st = (activeTabId: string, list = [a, b]): HarnessTabsState => ({
@@ -205,20 +274,13 @@ describe('EndpointControls workspace for CLI tabs', () => {
     });
     function mockTwo() {
       const invoke = mockIpc(st('ta'), '/picked/dir', history);
-      let push: (s: HarnessTabsState) => void = () => undefined;
-      (window as unknown as { aiIPC: { on: unknown } }).aiIPC.on = (
-        ch: string,
-        fn: (p: unknown) => void,
-      ) => {
-        if (ch === 'ai:harness:tabs') push = fn as typeof push;
-        return () => undefined;
+      return {
+        invoke,
+        push: (s: HarnessTabsState) => act(() => fake.emit('harness.tabsChanged', s)),
       };
-      return { invoke, push: (s: HarnessTabsState) => act(() => push(s)) };
     }
     const cwdWrites = (invoke: ReturnType<typeof vi.fn>) =>
-      invoke.mock.calls.filter(
-        (c) => c[0] === 'ai:harness:tab-cwd' || c[0] === 'ai:harness:set-cwd',
-      );
+      invoke.mock.calls.filter((c) => c[0] === 'harness.tabCwd' || c[0] === 'harness.setCwd');
     const openSwitch = async (r: ReturnType<typeof mount>) => {
       await waitFor(() => r.getByTestId('cli-workspace'));
       await pick(r, 0);
@@ -229,9 +291,9 @@ describe('EndpointControls workspace for CLI tabs', () => {
       const m = mockTwo();
       const r = mount();
       await openSwitch(r);
-      m.push(st('tb'));
+      await m.push(st('tb'));
       await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-      m.push(st('ta'));
+      await m.push(st('ta'));
       await new Promise((res) => setTimeout(res, 20));
       expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
       expect(cwdWrites(m.invoke)).toHaveLength(0);
@@ -241,17 +303,17 @@ describe('EndpointControls workspace for CLI tabs', () => {
       const m = mockTwo();
       const r = mount();
       await openSwitch(r);
-      m.push(st('main'));
+      await m.push(st('main'));
       await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
 
-      m.push(st('ta'));
+      await m.push(st('ta'));
       await openSwitch(r);
-      m.push(st('ta', [{ ...a, cwd: '/moved' }, b]));
+      await m.push(st('ta', [{ ...a, cwd: '/moved' }, b]));
       await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
 
-      m.push(st('ta'));
+      await m.push(st('ta'));
       await openSwitch(r);
-      m.push(st('tb', [b]));
+      await m.push(st('tb', [b]));
       await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
       expect(cwdWrites(m.invoke)).toHaveLength(0);
     });
@@ -264,10 +326,8 @@ describe('EndpointControls workspace for CLI tabs', () => {
       fireEvent.click(r.getByTestId('cli-cwd-carry'));
       await waitFor(() => expect(cwdWrites(m.invoke)).toHaveLength(1));
       expect(cwdWrites(m.invoke)[0]).toEqual([
-        'ai:harness:tab-cwd',
-        'ta',
-        '/recent/one',
-        { carry: true },
+        'harness.tabCwd',
+        { id: 'ta', cwd: '/recent/one', carry: true },
       ]);
     });
   });
@@ -278,6 +338,6 @@ describe('EndpointControls workspace for CLI tabs', () => {
     const chip = await r.findByTestId('cli-carry-chip');
     expect(chip.textContent).toContain('3');
     fireEvent.click(r.getByTestId('cli-carry-clear'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-carry-clear', 'cx'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabCarryClear', { id: 'cx' }));
   });
 });

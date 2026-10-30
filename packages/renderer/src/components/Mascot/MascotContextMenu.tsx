@@ -1,15 +1,17 @@
-import { t } from '@nomi-ai/ui';
+import { t, tName } from '@nomi-ai/ui';
 import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import styles from './ContextMenu.module.css';
 
+import { characterName } from '@/mascot/characterCopy';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
+import { hasTransport } from '@/services/api';
 
 const MENU_W = 168;
 
 /**
- * 看板娘右键菜单：放大 / 缩小 / 重置大小（Ctrl/⌘+滚轮与设置页滑块是另外两个入口）。
+ * 桌面角色右键菜单：放大 / 缩小 / 重置大小（Ctrl/⌘+滚轮与设置页滑块是另外两个入口）。
  * 只在角色画布上右键时出现（工具栏按钮有自己的右键行为）；带 data-mascot-ui，
  * 点击穿透命中测试（elementFromPoint / Linux setShape）会把菜单算上。
  */
@@ -20,7 +22,7 @@ export const MascotContextMenu: React.FC = () => {
   const close = useCallback(() => setPos(null), []);
 
   useEffect(() => {
-    if (!window.electronAPI?.mascotWindow?.scaleGet) return undefined;
+    if (!hasTransport()) return undefined;
     const onCtx = (e: MouseEvent) => {
       const el = e.target as HTMLElement | null;
       if (!el || !el.closest('#mascot-canvas') || el.closest('[data-mascot-ui]')) return;
@@ -73,7 +75,7 @@ export const MascotContextMenu: React.FC = () => {
       ref={ref}
       className={styles.menu}
       role="menu"
-      aria-label={t('ui.usage-tools.nomi-size')}
+      aria-label={tName('ui.usage-tools.nomi-size', characterName())}
       data-mascot-ui=""
       data-testid="mascot-context-menu"
       style={{ left: pos.x, top: pos.y, width: MENU_W }}

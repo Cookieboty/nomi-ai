@@ -16,11 +16,12 @@ import {
   _electron as electron,
 } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { resolveElectronExecutable } from '../fixtures/electronApp';
 import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const electronPkgDir = resolve(__dirname, '..', '..', 'packages', 'electron');
+const electronPkgDir = resolve(__dirname, '..', '..', 'apps', 'desktop-electron');
 
 async function launch(
   userData: string,
@@ -49,13 +50,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   return { app, chat: await chatWin };
 }
 
@@ -68,15 +65,6 @@ async function close(app: ElectronApplication | null) {
   ]);
   if (proc.exitCode === null) proc.kill('SIGKILL');
 }
-
-const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
-  chat.evaluate(
-    ([c, a]) =>
-      (
-        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
-      ).aiIPC.invoke(c as string, ...(a as unknown[])),
-    [channel, args] as const,
-  );
 
 interface StateView {
   status: { state: string; port?: number; url?: string };
@@ -132,12 +120,17 @@ test.describe('E34 unified gateway', () => {
     );
     const r = await launch(userData, home);
     app = r.app;
+    // 网关按需启动：启动后不拉起子进程，直到第一次请求（这里用 retry 显式拉起）
+    expect(((await callContract(r.chat, 'gateway.state')) as StateView).status.state).toBe(
+      'stopped',
+    );
+    await callContract(r.chat, 'gateway.retry');
     await expect
-      .poll(async () => ((await invoke(r.chat, 'ai:gateway:state')) as StateView).status.state, {
+      .poll(async () => ((await callContract(r.chat, 'gateway.state')) as StateView).status.state, {
         timeout: 30_000,
       })
       .toBe('running');
-    const state = (await invoke(r.chat, 'ai:gateway:state')) as StateView;
+    const state = (await callContract(r.chat, 'gateway.state')) as StateView;
     expect(state.providers.map((p) => p.id)).toEqual(['deepseek']);
     expect(state.providers[0]!.keys[0]!.masked).toBe('sk-…test');
     expect(state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro');

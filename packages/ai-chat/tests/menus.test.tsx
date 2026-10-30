@@ -1,12 +1,17 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
+
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const updateMeta = vi.fn();
 const loadChatHistory = vi.fn(async () => undefined);
@@ -81,17 +86,17 @@ const tabsState: HarnessTabsState = {
 };
 
 function mockIpc() {
-  const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:harness:tabs') return tabsState;
-    if (ch === 'ai:harness:state')
+  const invoke = vi.fn(async (ch: string, _input?: unknown) => {
+    if (ch === 'harness.tabs') return tabsState;
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:harness:tab-rename') return tab({ title: '新名字' });
-    if (ch === 'ai:harness:tab-close') return tabsState;
-    if (ch === 'ai:history:list') return { items: [], nextOffset: null, hasMore: false };
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'harness.tabRename') return tab({ title: '新名字' });
+    if (ch === 'harness.tabClose') return tabsState;
+    if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -120,8 +125,9 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetConfirmDialogForTest();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const mountSidebar = () =>
@@ -132,16 +138,49 @@ const mountSidebar = () =>
   );
 
 describe('one conversation context menu', () => {
-  it('CLI conversation: rename / fork / fork-cross / close, no delete', async () => {
+  it('CLI conversation: rename / fork / fork-cross / close / delete', async () => {
     mockIpc();
     const r = mountSidebar();
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     const m = r.getByTestId('conversation-context-menu');
-    expect(m.querySelectorAll('[role=menuitem]').length).toBe(4);
-    for (const id of ['conversation-rename', 'fork-same', 'fork-cross', 'conversation-close'])
+    expect(m.querySelectorAll('[role=menuitem]').length).toBe(5);
+    for (const id of [
+      'conversation-rename',
+      'fork-same',
+      'fork-cross',
+      'conversation-close',
+      'conversation-delete',
+    ])
       expect(r.getByTestId(id)).toBeTruthy();
-    expect(r.queryByTestId('conversation-delete')).toBeNull();
+  });
+
+  it('deleting a CLI conversation confirms in-app, closes the tab, then trashes the CLI session record', async () => {
+    const invoke = mockIpc();
+    list[0]!.cliSessionId = 'sess-1';
+    const r = mountSidebar();
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
+    const chans = () => invoke.mock.calls.map((c) => c[0]);
+    fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    // 应用内确认框（不是 window.confirm）；取消：什么都不动
+    const dialog = await screen.findByTestId('confirm-dialog');
+    expect(dialog.textContent).toContain('修复登录');
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(chans()).not.toContain('harness.tabClose');
+    expect(chans()).not.toContain('history.delete');
+
+    fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+    await waitFor(() => expect(chans()).toContain('history.delete'));
+    const closeAt = chans().indexOf('harness.tabClose');
+    const delAt = chans().indexOf('history.delete');
+    expect(closeAt).toBeGreaterThanOrEqual(0);
+    expect(closeAt).toBeLessThan(delAt);
+    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual([{ backend: 'codex', sessionId: 'sess-1' }]);
+    expect(deleteConversation).not.toHaveBeenCalled();
   });
 
   it('Nomi conversation: rename / fork / fork-cross / delete, no close', async () => {
@@ -221,6 +260,33 @@ describe('one conversation context menu', () => {
     ).toBeTruthy();
   });
 
+  it('新建 Nomi 对话带上新建菜单里选的工作区；没选时交给默认（主标签目录）', async () => {
+    const invoke = mockIpc();
+    invoke.mockImplementation(async (ch: string) => {
+      if (ch === 'harness.tabs') return tabsState;
+      if (ch === 'harness.state')
+        return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
+      if (ch === 'harness.recentCwds') return ['/proj/one'];
+      if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
+      return {};
+    });
+    const onNewChat = vi.fn(async () => undefined);
+    const r = render(
+      <HarnessTabsProvider>
+        <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={onNewChat} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
+    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(r.getByTestId('new-chat-nomi'));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith(undefined));
+    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(r.getByTestId('new-chat-workspace-button'));
+    fireEvent.click(await r.findByTestId('workspace-recent-item'));
+    fireEvent.click(r.getByTestId('new-chat-nomi'));
+    await waitFor(() => expect(onNewChat).toHaveBeenLastCalledWith({ cwd: '/proj/one' }));
+  });
+
   it('deleting the last Nomi conversation clears the pane without creating a new one', async () => {
     mockIpc();
     const onNewChat = vi.fn();
@@ -257,7 +323,7 @@ describe('one conversation context menu', () => {
     fireEvent.change(input2, { target: { value: '新名字' } });
     fireEvent.keyDown(input2, { key: 'Enter' });
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-rename', 't1', '新名字'),
+      expect(invoke).toHaveBeenCalledWith('harness.tabRename', { id: 't1', title: '新名字' }),
     );
   });
 

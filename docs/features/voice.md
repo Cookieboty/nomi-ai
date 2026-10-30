@@ -10,17 +10,17 @@
 
 ## 唤醒词（默认关闭）
 
-开启后说出唤醒词（默认「你好，诺米」，可修改），Nomi 会开始听你说话；唤醒词后面紧跟的话会直接作为指令。
+开启后说出唤醒词（默认是当前角色包里的唤醒词，官方角色为「你好，诺米」；可修改，改过的以你的为准），Nomi 会开始听你说话；唤醒词后面紧跟的话会直接作为指令。
 
 ## 语音播报
 
 自 2.0.3 起不再内置离线语音引擎，也不再使用系统朗读（speechSynthesis）。Nomi 的声音分两部分：预录提示语音 + 实时朗读引擎（默认 Edge 在线朗读）。
 
-### 诺米提示语音（预录，默认开启）
+### 角色提示语音（预录，默认开启）
 
-- 诺米的常用中文提示语（问候、提醒、开关语音等，共 96 段）随安装包内置为预录语音，约 1.6 MB，位于 `packages/renderer/public/voice/nomi/zh/`（`<key>.mp3` + `manifest.json`）。
+- 诺米的常用中文提示语（问候、提醒、开关语音等，共 96 段）随安装包内置为预录语音，约 1.6 MB，位于 `characters/nomi/voice/zh/`（`<key>.mp3` + `manifest.json`）。
 - 音色：微软晓伊（`zh-CN-XiaoyiNeural`，语速 -5%，音调 +0Hz）。
-- 只在**同时满足**以下条件时播放：当前角色是诺米、界面语言为中文、看板娘未静音、「设置 → 通用 → 语音 → 诺米提示语音」开启（IPC `tts:prompt-voice`）。
+- 只在**同时满足**以下条件时播放：当前角色带预录片段（官方角色诺米）、界面语言为中文、诺米未静音、「设置 → 通用 → 语音 → 角色提示语音」开启（IPC `tts:prompt-voice`）。
 - 播放顺序：**预录片段 → 实时朗读引擎 → 静音**。台词有对应片段就播片段；没有则交给实时朗读引擎（默认 Edge）；引擎为「无」、未接入或合成失败时只显示文字。
 - 带变量的台词（如「已切换到 xx 模式」「你不在的时候错过了 N 条提醒」）气泡显示完整文字，语音念一句固定说法。
 - 同一句 1.5 秒内只播一次（气泡和事件语音同时触发时不会重复）。口型、音量、语音打断沿用原有播放逻辑（`packages/renderer/src/mascot/tts/audioPlayback.ts` 的 `playAudioClip`）。
@@ -56,18 +56,18 @@
 
 - **开关**：「设置 → 语音 → 朗读 AI 回复」（配置项 `readReplies`，新装默认开）；只有实时朗读引擎可用（已启用且引擎为 Edge）时才生效，否则开关置灰、只显示文字。
 - **只念普通诺米对话**：主对话切到编程助手 / CLI 代理、编程助手标签、`/agent` 委派的那一轮都不念。
-- **边生成边念**：回复流按句切分（`ReplySpeechStream`：句号 / 问号 / 感叹号 / 分号 / 省略号 / 换行），凑够一句就发给看板娘朗读，播当前句时预取下一句，口型同步。
+- **边生成边念**：回复流按句切分（`ReplySpeechStream`：句号 / 问号 / 感叹号 / 分号 / 省略号 / 换行），凑够一句就发给诺米朗读，播当前句时预取下一句，口型同步。
 - **不念的内容**：代码块（未闭合时先不念，等闭合后跳过）、行内代码、思考过程（`<think>` 等）、工具调用（不在文本流里）、表格行、链接地址（保留链接文字）、图片、Markdown 符号。
 - **长度上限**：每条回复约前 **300 字**（按整句，越过 300 字的那一句念完即止），剩下的只显示文字。
 - **立即打断**：发送新消息、停止生成、切换 / 新建会话、按住说话（以及语音打断、其它台词抢占）。
 - **失败**：静默，只显示文字。`CD_TTS=off`（e2e）时主进程直接丢弃，不朗读、不联网。
-- **链路**（复用原有台词朗读链路）：对话窗口 `ReplySpeechStream` → IPC `tts:reply`（主进程按配置把关）→ `mascot:command`（`reply-speech`）→ 看板娘窗口队列 → `tts:speak` → `ttsRouter` / Edge → `playSynthesized`（口型同步、打断与其它语音共用）。
+- **链路**（复用原有台词朗读链路）：对话窗口 `ReplySpeechStream` → IPC `tts:reply`（主进程按配置把关）→ `mascot:command`（`reply-speech`）→ 诺米窗口队列 → `tts:speak` → `ttsRouter` / Edge → `playSynthesized`（口型同步、打断与其它语音共用）。
 
 ## 技术说明
 
 - 本地识别使用 whisper.cpp（MIT）；语音活动检测使用 Silero VAD（MIT，ONNX Runtime 运行），未下载时退回能量检测。
 - 录音只在内存或临时文件中，识别后立即删除，不写日志。在线识别每次调用都记入审计日志。
 - 唤醒词通过「语音分段 → 本地识别 → 模糊匹配」实现。
-- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
-- Edge 客户端：`packages/electron/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
+- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `apps/desktop-electron/internal/core/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
+- Edge 客户端：`apps/desktop-electron/internal/core/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
 - 渲染播放 `packages/renderer/src/mascot/tts/audioPlayback.ts`（预录片段与引擎返回的音频通用）。

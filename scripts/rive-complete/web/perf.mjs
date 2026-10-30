@@ -1,6 +1,8 @@
 /* eslint-disable -- evaluation harness. Usage: node perf.mjs <rive|canvas> <wave|cheer|celebrate> <cpuThrottle> [secs]
    Measures requestAnimationFrame rate + main-thread time per frame in headless Chromium (software GL). */
-const { chromium } = await import(process.env.PW_CORE || '/workspace/nomi-2d-polish/node_modules/playwright-core/index.mjs');
+const { chromium } = await import(
+  process.env.PW_CORE || '/workspace/nomi-2d-polish/node_modules/playwright-core/index.mjs'
+);
 
 const [, , kind, action, thr = '4', secs = '10'] = process.argv;
 process.env.EXTRA_MOUNTS = JSON.stringify({

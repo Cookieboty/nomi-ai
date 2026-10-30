@@ -2,11 +2,9 @@
  * 拖入 / 粘贴的非图片文件附件：小文本文件连内容一起发，其余只发本机路径（模型 / 编程助手用工具去读）。
  * 附件按 <attached-file> 块拼在消息正文末尾，随正文走完所有通道（Nomi / 编程助手 / 持久化），
  * 显示时再从正文里拆出来画成卡片，所以不需要在消息结构里另加字段。
- * 路径经 window.electronAPI.files 取；浏览器预览等没有桥的环境拿不到路径。
+ * 路径经 `services/api` 的 hostPathForFile（preload 的 nomiHost）取；浏览器预览等没有桥的环境拿不到路径。
  */
-interface FilesApi {
-  pathFor: (file: File) => string;
-}
+import { hostPathForFile } from './api';
 
 export interface FileAttachment {
   id: string;
@@ -24,19 +22,10 @@ export const MAX_TEXT_BYTES = 200 * 1024;
 
 const TAG = 'attached-file';
 
-const api = (): FilesApi | null =>
-  (window as unknown as { electronAPI?: { files?: FilesApi } }).electronAPI?.files ?? null;
-
 const newId = () => `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-function pathOf(f: File): string {
-  try {
-    return api()?.pathFor(f) ?? '';
-  } catch {
-    /* 非本地文件（如网页拖来的内容）没有路径 */
-    return '';
-  }
-}
+/** 非本地文件（如网页拖来的内容）没有路径 */
+const pathOf = (f: File): Promise<string> => hostPathForFile(f);
 
 /** 能按 UTF-8 解码且不含 NUL 的才算文本 */
 async function readText(f: File): Promise<string | undefined> {
@@ -52,8 +41,7 @@ async function readText(f: File): Promise<string | undefined> {
 
 /** 既没路径也读不出文本的文件（浏览器里拖入的二进制）发了也没用，返回 null */
 export async function fileAttachmentFrom(f: File): Promise<FileAttachment | null> {
-  const path = pathOf(f);
-  const text = await readText(f);
+  const [path, text] = await Promise.all([pathOf(f), readText(f)]);
   if (!path && text === undefined) return null;
   return { id: newId(), name: f.name, path, size: f.size, ...(text !== undefined && { text }) };
 }

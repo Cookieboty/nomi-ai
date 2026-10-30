@@ -2,7 +2,7 @@
 import { applyLocale, currentTheme, getLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingHost } from '../src/components/Onboarding';
 import {
@@ -11,6 +11,11 @@ import {
   mergePersona,
   personaBlockLines,
 } from '../src/components/Onboarding/client';
+import { setCharacterNameForTest } from '../src/services/characterName';
+
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -55,6 +60,8 @@ const gatewayState = () => ({
 });
 
 beforeEach(() => {
+  // 角色名来自当前角色的人设（persona.get）；这里用替身角色的名字，断言界面不写死官方角色名
+  setCharacterNameForTest('小纸');
   calls = [];
   persona = '我喜欢猫';
   done = false;
@@ -62,61 +69,60 @@ beforeEach(() => {
   profile = { role: null, interests: [] };
   model = 'none';
   nomiMain = 'p1/m1';
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      if (ch === 'ai:onboarding:get') return { done };
-      if (ch === 'ai:onboarding:complete') {
-        done = true;
-        return { done };
-      }
-      if (ch === 'ai:onboarding:profile') return profile;
-      if (ch === 'ai:onboarding:set-profile') {
-        profile = a[0];
-        return profile;
-      }
-      if (ch === 'ai:startup:get') return { defaultView: startupView };
-      if (ch === 'ai:startup:set') {
-        startupView = (a[0] as { defaultView: 'mascot' | 'main' }).defaultView;
-        return { defaultView: startupView };
-      }
-      if (ch === 'ai:mem:persona') return persona;
-      if (ch === 'ai:mem:set-persona') {
-        persona = String(a[0]);
-        return true;
-      }
-      if (ch === 'ai:gateway:state') return gatewayState();
-      if (ch === 'ai:gateway:set-assignment') {
-        model = 'ready';
-        nomiMain = (a[1] as { models: { main: string } }).models.main;
-        return undefined;
-      }
-      if (ch === 'ai:providers:presets') return [PRESET];
-      if (ch === 'ai:gateway:detect')
-        return {
-          wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
-          byKey: {},
-          models: ['deepseek-chat', 'deepseek-reasoner', 'text-embedding-x'],
-          urls: { chat: 'https://api.deepseek.com' },
-        };
-      if (ch === 'ai:gateway:upsert-provider') {
-        model = 'unassigned';
-        return gatewayState().providers[0];
-      }
-      return null;
-    },
-    on: () => () => undefined,
-  };
+  // 「关于我」属于记忆域（memClient → mem.*），与引导、网关的过程同一个假内核
+  installFakeApi(async (ch: string, input?: unknown) => {
+    calls.push(input === undefined ? [ch] : [ch, input]);
+    const i = (input ?? {}) as Record<string, unknown>;
+    if (ch === 'onboarding.get') return { done };
+    if (ch === 'onboarding.complete') {
+      done = true;
+      return { done };
+    }
+    if (ch === 'onboarding.profile') return profile;
+    if (ch === 'onboarding.setProfile') {
+      profile = input;
+      return profile;
+    }
+    if (ch === 'startup.get') return { defaultView: startupView };
+    if (ch === 'startup.set') {
+      startupView = i.defaultView as 'mascot' | 'main';
+      return { defaultView: startupView };
+    }
+    if (ch === 'mem.persona') return persona;
+    if (ch === 'mem.setPersona') {
+      persona = String(i.text);
+      return true;
+    }
+    if (ch === 'gateway.state') return gatewayState();
+    if (ch === 'gateway.setAssignment') {
+      model = 'ready';
+      nomiMain = (i.patch as { models: { main: string } }).models.main;
+      return undefined;
+    }
+    if (ch === 'providers.presets') return [PRESET];
+    if (ch === 'gateway.detect')
+      return {
+        wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
+        byKey: {},
+        models: ['deepseek-chat', 'deepseek-reasoner', 'text-embedding-x'],
+        urls: { chat: 'https://api.deepseek.com' },
+      };
+    if (ch === 'gateway.upsertProvider') {
+      model = 'unassigned';
+      return gatewayState().providers[0];
+    }
+    return null;
+  });
 });
 afterEach(() => {
   cleanup();
   applyLocale('zh-CN');
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const mascot = () =>
   calls
-    .filter((c) => c[0] === 'ai:onboarding:mascot')
+    .filter((c) => c[0] === 'onboarding.mascot')
     .map((c) => c[1] as { type: string; text?: string });
 const skipTo = async (id: string, n: number) => {
   for (let k = 0; k < n; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
@@ -127,15 +133,16 @@ describe('first-launch onboarding', () => {
   it('walks welcome & preferences → about you → model → privacy (4 steps)', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    // 看板娘打招呼；欢迎页有插画与介绍
-    await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', motion: 'wave' }));
+    // 桌面角色打招呼；欢迎页有插画与介绍
+    await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', gesture: 'wave' }));
     // 插画是整张卡片的背景（不是横幅 img），人物靠右完整显示
     const bg = screen.getByTestId('onb-art');
     expect(bg.tagName).toBe('DIV');
     expect(bg.getAttribute('data-art')).toBe('welcome');
     expect(bg.style.backgroundImage).toMatch(/welcome/);
     expect(screen.getByTestId('onboarding').querySelector('img')).toBeNull();
-    expect(screen.getByText('你好，我是 Nomi·诺米')).toBeTruthy();
+    expect(screen.getByText('你好，我是小纸')).toBeTruthy();
+    expect(screen.getByTestId('onboarding').textContent).not.toMatch(/诺米/);
     expect(screen.getByText('第 1 步，共 4 步')).toBeTruthy();
     expect(screen.queryByTestId('onboarding-step-appearance')).toBeNull();
 
@@ -149,7 +156,7 @@ describe('first-launch onboarding', () => {
     expect(currentTheme().pref).toBe('system');
     expect(screen.getByTestId('onb-startup-mascot').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByTestId('onboarding-next'));
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
 
     // 2 关于你：称呼 + 职业（单选）+ 兴趣（多选，再点取消）→ 存进主进程，并写进 persona
     // 不再有声音、说话语气
@@ -187,13 +194,13 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 4 隐私：没有模型 →「还差一步」，看板娘也这么说
+    // 4 隐私：没有模型 →「还差一步」，桌面角色也这么说
     await screen.findByTestId('onboarding-step-privacy');
     expect(screen.getByTestId('onb-one-step-left').textContent).toContain('还差一步：接上模型');
     await waitFor(() => expect(mascot().at(-1)?.text).toContain('还差一步'));
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: false }]);
     expect(mascot().at(-1)?.text).toContain('还差一步');
   });
 
@@ -211,9 +218,9 @@ describe('first-launch onboarding', () => {
         'configured',
       ),
     );
-    const detect = calls.find((c) => c[0] === 'ai:gateway:detect')![1] as Record<string, unknown>;
+    const detect = calls.find((c) => c[0] === 'gateway.detect')![1] as Record<string, unknown>;
     expect(detect).toMatchObject({ keys: ['sk-test'], fallbackModel: 'deepseek-chat' });
-    const saved = calls.find((c) => c[0] === 'ai:gateway:upsert-provider')![1] as {
+    const saved = calls.find((c) => c[0] === 'gateway.upsertProvider')![1] as {
       presetId: string;
       newKeys: unknown;
       models: { id: string; enabled: boolean }[];
@@ -225,15 +232,14 @@ describe('first-launch onboarding', () => {
     await waitFor(() =>
       expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('choose'),
     );
-    expect(calls.some((c) => c[0] === 'ai:gateway:set-assignment')).toBe(false);
+    expect(calls.some((c) => c[0] === 'gateway.setAssignment')).toBe(false);
     fireEvent.click(screen.getByTestId('onb-model-m2'));
     await waitFor(() =>
       expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('ready'),
     );
     expect(calls).toContainEqual([
-      'ai:gateway:set-assignment',
-      'nomi',
-      { models: { main: 'p1/m2' } },
+      'gateway.setAssignment',
+      { client: 'nomi', patch: { models: { main: 'p1/m2' } } },
     ]);
     fireEvent.click(screen.getByTestId('onboarding-next'));
     await screen.findByTestId('onboarding-step-privacy');
@@ -241,7 +247,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('onb-one-step-left')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(mascot().at(-1)).toMatchObject({ motion: 'cheer' });
+    expect(mascot().at(-1)).toMatchObject({ gesture: 'cheer' });
   });
 
   it('"connect a model" ends the guide and asks the chat window to open Settings → Models', async () => {
@@ -254,14 +260,14 @@ describe('first-launch onboarding', () => {
     fireEvent.click(screen.getByTestId('onb-go-models'));
     await waitFor(() => expect(opened).toBe(1));
     expect(screen.queryByTestId('onboarding')).toBeNull();
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: false }]);
     window.removeEventListener(OPEN_MODELS_EVENT, onOpen);
   });
 
   it('lets the user open with the main window; choice is saved immediately and survives skipping', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以 Nomi 方式打开');
+    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以小纸方式打开');
     expect(screen.getByTestId('onb-startup-main').textContent).toContain(
       '以控制台（主界面）方式打开',
     );
@@ -269,7 +275,7 @@ describe('first-launch onboarding', () => {
     await waitFor(() =>
       expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { defaultView: 'main' }]);
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
     expect(startupView).toBe('main');
     // 跳过整个引导：已选的启动方式不回滚
     fireEvent.click(screen.getByTestId('onboarding-skip-all'));
@@ -282,7 +288,7 @@ describe('first-launch onboarding', () => {
     await screen.findByTestId('onboarding-step-welcome');
     await skipTo('profile', 1);
     expect(startupView).toBe('mascot');
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
   });
 
   it('reopened onboarding preselects the currently saved startup mode', async () => {
@@ -298,7 +304,7 @@ describe('first-launch onboarding', () => {
     const { unmount } = render(<OnboardingHost />);
     fireEvent.click(await screen.findByTestId('onboarding-skip-all'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: true }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: true }]);
     unmount();
     render(<OnboardingHost />);
     await act(async () => undefined);
@@ -321,7 +327,7 @@ describe('first-launch onboarding', () => {
     expect(screen.getByTestId('onb-interest-learning').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
     await screen.findByTestId('onboarding-step-provider');
-    expect(calls.some((c) => c[0] === 'ai:onboarding:set-profile')).toBe(false);
+    expect(calls.some((c) => c[0] === 'onboarding.setProfile')).toBe(false);
   });
 
   it('re-run backfills the name and drops the removed reply-tone line on rewrite', async () => {
@@ -367,7 +373,7 @@ describe('first-launch onboarding', () => {
     await screen.findByTestId('onboarding-step-provider');
     await act(async () => undefined);
     expect(screen.queryByTestId('onboarding-step-privacy')).toBeNull();
-    expect(calls.filter((c) => c[0] === 'ai:onboarding:set-profile')).toHaveLength(1);
+    expect(calls.filter((c) => c[0] === 'onboarding.setProfile')).toHaveLength(1);
   });
 
   it('persona block is replaced, not duplicated, on re-run', () => {

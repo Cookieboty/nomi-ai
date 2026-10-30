@@ -1,0 +1,1661 @@
+[
+ {
+  "name": "cli.registry",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "snapshot",
+    "a": []
+   }
+  }
+ },
+ {
+  "name": "cli.registry",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom snapshot"
+   }
+  }
+ },
+ {
+  "name": "cli.registry",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliPlugins' is not available"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {
+   "spec": {
+    "id": "x",
+    "command": "x"
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "addExternal",
+    "a": [
+     {
+      "id": "x",
+      "command": "x"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {
+   "spec": {
+    "id": "x",
+    "command": "x"
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom addExternal"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {
+   "spec": "raw"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "addExternal",
+    "a": [
+     "raw"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {
+   "spec": "raw"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom addExternal"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "addExternal",
+    "a": [
+     null
+    ]
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom addExternal"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginAdd",
+  "input": {
+   "spec": {
+    "id": "x",
+    "command": "x"
+   }
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliPlugins' is not available"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginRemove",
+  "input": {
+   "id": "yes"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": true
+  }
+ },
+ {
+  "name": "cli.pluginRemove",
+  "input": {
+   "id": "yes"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom removeExternal"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginRemove",
+  "input": {
+   "id": "no"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": false
+  }
+ },
+ {
+  "name": "cli.pluginRemove",
+  "input": {
+   "id": "no"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom removeExternal"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginRemove",
+  "input": {
+   "id": "yes"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliPlugins' is not available"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginTest",
+  "input": {
+   "spec": {
+    "id": "t",
+    "args": [
+     1,
+     2
+    ]
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "testExternalInTemp",
+    "a": [
+     {
+      "id": "t",
+      "args": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "cli.pluginTest",
+  "input": {
+   "spec": {
+    "id": "t",
+    "args": [
+     1,
+     2
+    ]
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom testExternalInTemp"
+   }
+  }
+ },
+ {
+  "name": "cli.pluginTest",
+  "input": {
+   "spec": {
+    "id": "t",
+    "args": [
+     1,
+     2
+    ]
+   }
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliPlugins' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": [
+    {
+     "m": "inspect",
+     "a": [
+      false
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom inspect"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": true
+  },
+  "mode": "ok",
+  "out": {
+   "ok": [
+    {
+     "m": "inspect",
+     "a": [
+      true
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": true
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom inspect"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": false
+  },
+  "mode": "ok",
+  "out": {
+   "ok": [
+    {
+     "m": "inspect",
+     "a": [
+      false
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": false
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom inspect"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": "true"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": [
+    {
+     "m": "inspect",
+     "a": [
+      false
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": "true"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom inspect"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": 1
+  },
+  "mode": "ok",
+  "out": {
+   "ok": [
+    {
+     "m": "inspect",
+     "a": [
+      false
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {
+   "refresh": 1
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom inspect"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.inspect",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "codex",
+   "scope": "user"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "previewUpdate",
+    "a": [
+     "codex",
+     "user"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "codex",
+   "scope": "user"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom previewUpdate"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "bogus",
+   "scope": "global"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "previewUpdate",
+    "a": [
+     "claude",
+     "global"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "bogus",
+   "scope": "global"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom previewUpdate"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "previewUpdate",
+    "a": [
+     "claude",
+     "global"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom previewUpdate"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "gemini",
+   "scope": "x"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "previewUpdate",
+    "a": [
+     "gemini",
+     "global"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "gemini",
+   "scope": "x"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom previewUpdate"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "claude"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "previewUpdate",
+    "a": [
+     "claude",
+     "global"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "claude"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom previewUpdate"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.preview",
+  "input": {
+   "kind": "codex",
+   "scope": "user"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": "dsh",
+   "scope": "user"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "run",
+    "a": [
+     "dsh",
+     "user"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": "dsh",
+   "scope": "user"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom run"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": "grok"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "run",
+    "a": [
+     "grok",
+     "global"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": "grok"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom run"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": 5,
+   "scope": "user"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "run",
+    "a": [
+     "claude",
+     "user"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": 5,
+   "scope": "user"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom run"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.run",
+  "input": {
+   "kind": "dsh",
+   "scope": "user"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {
+   "kind": "codex"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {
+   "kind": "codex"
+  },
+  "mode": "fail",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {
+   "kind": "dsh"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "job",
+    "a": [
+     "dsh"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {
+   "kind": "dsh"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom job"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "job",
+    "a": [
+     "claude"
+    ]
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom job"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.job",
+  "input": {
+   "kind": "codex"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.busy",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": [
+    "claude",
+    "grok"
+   ]
+  }
+ },
+ {
+  "name": "cliUpdate.busy",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom busyKinds"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.busy",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "environment",
+    "a": []
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom environment"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.environment",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.dismiss",
+  "input": {
+   "kind": "gemini"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": false
+  }
+ },
+ {
+  "name": "cliUpdate.dismiss",
+  "input": {
+   "kind": "gemini"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom dismissJob"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.dismiss",
+  "input": {
+   "kind": "nope"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": true
+  }
+ },
+ {
+  "name": "cliUpdate.dismiss",
+  "input": {
+   "kind": "nope"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom dismissJob"
+   }
+  }
+ },
+ {
+  "name": "cliUpdate.dismiss",
+  "input": {
+   "kind": "gemini"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'cliUpdate' is not available"
+   }
+  }
+ },
+ {
+  "name": "delegate.settings",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "settings",
+    "a": []
+   }
+  }
+ },
+ {
+  "name": "delegate.settings",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom settings"
+   }
+  }
+ },
+ {
+  "name": "delegate.settings",
+  "input": {},
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'delegate' is not available"
+   }
+  }
+ },
+ {
+  "name": "delegate.setSettings",
+  "input": {
+   "settings": {
+    "enabled": true,
+    "clis": [
+     "codex"
+    ]
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "setSettings",
+    "a": [
+     {
+      "enabled": true,
+      "clis": [
+       "codex"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "delegate.setSettings",
+  "input": {
+   "settings": {
+    "enabled": true,
+    "clis": [
+     "codex"
+    ]
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom setSettings"
+   }
+  }
+ },
+ {
+  "name": "delegate.setSettings",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "setSettings",
+    "a": [
+     null
+    ]
+   }
+  }
+ },
+ {
+  "name": "delegate.setSettings",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom setSettings"
+   }
+  }
+ },
+ {
+  "name": "delegate.setSettings",
+  "input": {
+   "settings": {
+    "enabled": true,
+    "clis": [
+     "codex"
+    ]
+   }
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'delegate' is not available"
+   }
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": "codex",
+   "turnId": "t1"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": "codex"
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": "codex",
+   "turnId": "t1"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom pin"
+   }
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": "none",
+   "turnId": "t2"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": "none",
+   "turnId": "t2"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom pin"
+   }
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": 3,
+   "turnId": "t3"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": 3,
+   "turnId": "t3"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom pin"
+   }
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom pin"
+   }
+  }
+ },
+ {
+  "name": "delegate.pin",
+  "input": {
+   "cli": "codex",
+   "turnId": "t1"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'delegate' is not available"
+   }
+  }
+ },
+ {
+  "name": "delegate.clearPin",
+  "input": {
+   "turnId": "t1"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": true
+  }
+ },
+ {
+  "name": "delegate.clearPin",
+  "input": {
+   "turnId": "t1"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom clearPin"
+   }
+  }
+ },
+ {
+  "name": "delegate.clearPin",
+  "input": {},
+  "mode": "ok",
+  "out": {
+   "ok": true
+  }
+ },
+ {
+  "name": "delegate.clearPin",
+  "input": {},
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom clearPin"
+   }
+  }
+ },
+ {
+  "name": "delegate.clearPin",
+  "input": {
+   "turnId": "t1"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'delegate' is not available"
+   }
+  }
+ },
+ {
+  "name": "delegate.status",
+  "input": {
+   "taskId": "k1"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "statusOf",
+    "a": [
+     "k1"
+    ]
+   }
+  }
+ },
+ {
+  "name": "delegate.status",
+  "input": {
+   "taskId": "k1"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom statusOf"
+   }
+  }
+ },
+ {
+  "name": "delegate.status",
+  "input": {
+   "taskId": "missing"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "delegate.status",
+  "input": {
+   "taskId": "missing"
+  },
+  "mode": "fail",
+  "out": {
+   "ok": null
+  }
+ },
+ {
+  "name": "delegate.status",
+  "input": {
+   "taskId": "k1"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'delegate' is not available"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "claude"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "claude",
+     {
+      "offset": null,
+      "limit": null,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "claude"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "codex",
+   "options": {
+    "offset": 20,
+    "limit": 10
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "codex",
+     {
+      "offset": 20,
+      "limit": 10,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "codex",
+   "options": {
+    "offset": 20,
+    "limit": 10
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "grok",
+   "options": {
+    "force": true
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "grok",
+     {
+      "offset": null,
+      "limit": null,
+      "force": true
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "grok",
+   "options": {
+    "force": true
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "dsh",
+   "options": {
+    "force": 1,
+    "limit": 2.6
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "dsh",
+     {
+      "offset": null,
+      "limit": 2.6,
+      "force": true
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "dsh",
+   "options": {
+    "force": 1,
+    "limit": 2.6
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "gemini",
+   "options": null
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "gemini",
+     {
+      "offset": null,
+      "limit": null,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "gemini",
+   "options": null
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "claude",
+   "options": {
+    "force": ""
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "list",
+    "a": [
+     "claude",
+     {
+      "offset": null,
+      "limit": null,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "claude",
+   "options": {
+    "force": ""
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom list"
+   }
+  }
+ },
+ {
+  "name": "history.list",
+  "input": {
+   "backend": "claude"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'history' is not available"
+   }
+  }
+ },
+ {
+  "name": "history.index",
+  "input": {
+   "backend": "codex",
+   "options": {
+    "offset": 0,
+    "force": false
+   }
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "index",
+    "a": [
+     "codex",
+     {
+      "offset": 0,
+      "limit": null,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.index",
+  "input": {
+   "backend": "codex",
+   "options": {
+    "offset": 0,
+    "force": false
+   }
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom index"
+   }
+  }
+ },
+ {
+  "name": "history.index",
+  "input": {
+   "backend": "dsh"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "index",
+    "a": [
+     "dsh",
+     {
+      "offset": null,
+      "limit": null,
+      "force": false
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.index",
+  "input": {
+   "backend": "dsh"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom index"
+   }
+  }
+ },
+ {
+  "name": "history.index",
+  "input": {
+   "backend": "codex",
+   "options": {
+    "offset": 0,
+    "force": false
+   }
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'history' is not available"
+   }
+  }
+ },
+ {
+  "name": "history.open",
+  "input": {
+   "backend": "claude",
+   "sessionId": "s1"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "open",
+    "a": [
+     "claude",
+     "s1"
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.open",
+  "input": {
+   "backend": "claude",
+   "sessionId": "s1"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom open"
+   }
+  }
+ },
+ {
+  "name": "history.open",
+  "input": {
+   "backend": "claude",
+   "sessionId": "s1"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'history' is not available"
+   }
+  }
+ },
+ {
+  "name": "history.delete",
+  "input": {
+   "backend": "codex",
+   "sessionId": "s2"
+  },
+  "mode": "ok",
+  "out": {
+   "ok": {
+    "m": "remove",
+    "a": [
+     "codex",
+     "s2"
+    ]
+   }
+  }
+ },
+ {
+  "name": "history.delete",
+  "input": {
+   "backend": "codex",
+   "sessionId": "s2"
+  },
+  "mode": "fail",
+  "out": {
+   "err": {
+    "code": "INTERNAL",
+    "message": "boom remove"
+   }
+  }
+ },
+ {
+  "name": "history.delete",
+  "input": {
+   "backend": "codex",
+   "sessionId": "s2"
+  },
+  "mode": "missing",
+  "out": {
+   "err": {
+    "code": "UNAVAILABLE",
+    "message": "Service 'history' is not available"
+   }
+  }
+ }
+]

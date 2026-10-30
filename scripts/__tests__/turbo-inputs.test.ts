@@ -20,8 +20,21 @@ describe('turbo.json inputs', () => {
       const inputs = turbo.tasks[t].inputs ?? [];
       expect(inputs).toContain('$TURBO_DEFAULT$');
       expect(inputs).toContain('$TURBO_ROOT$/scripts/ports.mjs');
-      expect(inputs).toContain('$TURBO_ROOT$/packages/electron/src/security/csp.ts');
+      expect(inputs).toContain('$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts');
     }
+  });
+
+  // pnpm build 之后 host-electron 的 dist 要能直接跑（e2e-headed、`electron .`）：两个视图先构建，
+  // host-electron 的 build 最后把它们复制进 dist/renderer 与 dist/ai-chat
+  it('host-electron 的 build 依赖两个视图并复制它们', () => {
+    const t = turbo.tasks['@nomi-ai/host-electron#build'] as { dependsOn?: string[] };
+    expect(t.dependsOn).toEqual(
+      expect.arrayContaining(['^build', '@nomi-ai/renderer#build', '@nomi-ai/ai-chat#build']),
+    );
+    const pkg = JSON.parse(
+      readFileSync(join(__dirname, '../../apps/desktop-electron/package.json'), 'utf8'),
+    ) as { scripts: Record<string, string> };
+    expect(pkg.scripts.build).toMatch(/copy-renderer\.js$/);
   });
 
   it('根 run-bin 脚本参与所有任务的 hash', () => {
@@ -50,8 +63,10 @@ describe('turbo.json inputs', () => {
     };
     type Pkg = { name: string; dependencies?: object; devDependencies?: object };
     const pkgs = new Map<string, { dir: string; json: Pkg }>();
-    for (const pkgDir of readdirSync(join(root, 'packages'))) {
-      const dir = join(root, 'packages', pkgDir);
+    const pkgDirs = ['packages', 'apps/desktop-electron/internal'].flatMap((g) =>
+      readdirSync(join(root, g)).map((d) => join(root, g, d)),
+    );
+    for (const dir of pkgDirs) {
       try {
         const json = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Pkg;
         pkgs.set(json.name, { dir, json });

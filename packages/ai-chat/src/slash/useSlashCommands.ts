@@ -12,13 +12,14 @@ import {
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
+import { NOMI_MODEL_MENU, openModelMenu } from '../services/modelMenu';
 import { setNomiModel } from '../services/nomiModel';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 
 import { adapterFor, scopeOrderFor } from './adapters';
-import { notice } from './cards';
+import { modelArgOptions, notice } from './cards';
 import { loadSlashData } from './data';
 import { buildRegistry, executeSlash } from './registry';
 import type {
@@ -55,6 +56,8 @@ export interface SlashHookParams {
   /** 目标标签是否还存在；不存在时迟到的结果只记日志，不再留提示卡 */
   tabExists?: (tabId: string) => boolean;
   newSession: () => void | Promise<void>;
+  /** Nomi 主对话的 `/compact`（AiChatContext.compactConversation）；没有时报「没有可压缩的」 */
+  compactNomi?: () => Promise<{ status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string }>;
   onOpenPlugins: () => void;
   onOpenProviders: () => void;
   onOpenSettings: () => void;
@@ -244,6 +247,12 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       },
       openPlugins: () => latest.current.onOpenPlugins(),
       openProviders: () => latest.current.onOpenProviders(),
+      openModelMenu: (query) => {
+        // 浮层属于当前显示的会话：命令发出后用户切走了就不开
+        if (target.scopeKey !== latest.current.scopeKey) return false;
+        const key = target.backend === 'nomi' ? NOMI_MODEL_MENU : target.tabId;
+        return key ? openModelMenu(key, query) : false;
+      },
       openSettings: () => latest.current.onOpenSettings(),
       switchNomiModel: async (ref) => {
         await setNomiModel(ref);
@@ -271,7 +280,12 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
             source === 'thirdParty' ? { source } : {},
           )
           .catch(() => null);
-        return { catalog, current: tab?.modelOverride?.trim() || null, source };
+        return {
+          catalog,
+          current: tab?.modelOverride?.trim() || null,
+          source,
+          ...(tab?.lastServedRef ? { lastServedRef: tab.lastServedRef } : {}),
+        };
       },
       setTabModel: async (model, expectSource) => {
         if (!target.tabId) throw new Error(t('ui.slash-commands.the-session-was-closed-or-reset'));
@@ -300,6 +314,11 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         }
       },
       sendPlain: (text) => void deliver(target, text, text),
+      compactNomi: async () => {
+        // 只压缩发起命令时显示的那个 Nomi 对话
+        if (target.scopeKey !== latest.current.scopeKey) return { status: 'nothing' as const };
+        return (await latest.current.compactNomi?.()) ?? { status: 'nothing' as const };
+      },
     }),
     [deliver],
   );
@@ -331,34 +350,42 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
           );
       }
     };
+    /** 入口固定归属：之后无论用户切到哪个标签，这条命令的一切产出都回到这里 */
+    const contextFor = (all: SlashCommand[]): { target: SlashTarget; ctx: SlashContext } => {
+      const L = latest.current;
+      const target: SlashTarget = {
+        scopeKey: L.scopeKey,
+        backend: L.backend,
+        cwd: L.cwd,
+        tabId: L.tabId ?? null,
+        startedAt: Date.now(),
+      };
+      const ctx: SlashContext = {
+        backend: target.backend,
+        cwd: target.cwd,
+        messages: L.messages,
+        session: L.session,
+        commands: () => all,
+        load: () => loadSlashData(target.backend, target.tabId),
+        actions: makeActions(target),
+      };
+      return { target, ctx };
+    };
     return {
       compose: (extra) => buildRegistry([...raw, ...extra], order),
       refresh,
       scope: () => latest.current.scopeKey,
       run: async (text, all) => {
-        const L = latest.current;
-        // 入口固定归属：之后无论用户切到哪个标签，这条命令的一切产出都回到这里
-        const target: SlashTarget = {
-          scopeKey: L.scopeKey,
-          backend: L.backend,
-          cwd: L.cwd,
-          tabId: L.tabId ?? null,
-          startedAt: Date.now(),
-        };
-        const ctx: SlashContext = {
-          backend: target.backend,
-          cwd: target.cwd,
-          messages: L.messages,
-          session: L.session,
-          commands: () => all,
-          load: () => loadSlashData(target.backend, target.tabId),
-          actions: makeActions(target),
-        };
+        const { target, ctx } = contextFor(all);
         const r = await executeSlash(text, all, ctx);
         if (!r.handled)
           return { handled: false, ...(r.text !== undefined ? { text: r.text } : {}) };
         await apply(target, r.command, r.kind, r.outcome);
         return { handled: true };
+      },
+      modelOptions: async () => {
+        const { ctx } = contextFor([]);
+        return modelArgOptions(ctx, await ctx.load());
       },
     };
   }, [raw, order, refresh, addCard, deliver, makeActions]);

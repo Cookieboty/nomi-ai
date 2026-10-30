@@ -1,0 +1,137 @@
+{
+  "name": "@nomi-ai/cli-plugins",
+  "version": "0.0.1",
+  "private": true,
+  "description": "内置编程助手插件的主进程实现（claude / codex / grok / gemini / dsh）：启动、权限、账号、历史等；清单与界面信息在 @nomi-ai/cli-catalog",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./gateways": {
+      "types": "./dist/gateways.d.ts",
+      "import": "./dist/gateways.js",
+      "require": "./dist/gateways.cjs"
+    },
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js",
+      "require": "./dist/main.cjs"
+    },
+    "./claude/main": {
+      "types": "./dist/claude/main.d.ts",
+      "import": "./dist/claude/main.js",
+      "require": "./dist/claude/main.cjs"
+    },
+    "./claude/gateway": {
+      "types": "./dist/claude/gateway.d.ts",
+      "import": "./dist/claude/gateway.js",
+      "require": "./dist/claude/gateway.cjs"
+    },
+    "./codex/main": {
+      "types": "./dist/codex/main.d.ts",
+      "import": "./dist/codex/main.js",
+      "require": "./dist/codex/main.cjs"
+    },
+    "./codex/gateway": {
+      "types": "./dist/codex/gateway.d.ts",
+      "import": "./dist/codex/gateway.js",
+      "require": "./dist/codex/gateway.cjs"
+    },
+    "./dsh/main": {
+      "types": "./dist/dsh/main.d.ts",
+      "import": "./dist/dsh/main.js",
+      "require": "./dist/dsh/main.cjs"
+    },
+    "./dsh/gateway": {
+      "types": "./dist/dsh/gateway.d.ts",
+      "import": "./dist/dsh/gateway.js",
+      "require": "./dist/dsh/gateway.cjs"
+    },
+    "./gemini/main": {
+      "types": "./dist/gemini/main.d.ts",
+      "import": "./dist/gemini/main.js",
+      "require": "./dist/gemini/main.cjs"
+    },
+    "./gemini/gateway": {
+      "types": "./dist/gemini/gateway.d.ts",
+      "import": "./dist/gemini/gateway.js",
+      "require": "./dist/gemini/gateway.cjs"
+    },
+    "./grok/main": {
+      "types": "./dist/grok/main.d.ts",
+      "import": "./dist/grok/main.js",
+      "require": "./dist/grok/main.cjs"
+    },
+    "./grok/gateway": {
+      "types": "./dist/grok/gateway.d.ts",
+      "import": "./dist/grok/gateway.js",
+      "require": "./dist/grok/gateway.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "main": [
+        "./dist/main.d.ts"
+      ],
+      "claude/main": [
+        "./dist/claude/main.d.ts"
+      ],
+      "claude/gateway": [
+        "./dist/claude/gateway.d.ts"
+      ],
+      "codex/main": [
+        "./dist/codex/main.d.ts"
+      ],
+      "codex/gateway": [
+        "./dist/codex/gateway.d.ts"
+      ],
+      "dsh/main": [
+        "./dist/dsh/main.d.ts"
+      ],
+      "dsh/gateway": [
+        "./dist/dsh/gateway.d.ts"
+      ],
+      "gemini/main": [
+        "./dist/gemini/main.d.ts"
+      ],
+      "gemini/gateway": [
+        "./dist/gemini/gateway.d.ts"
+      ],
+      "grok/main": [
+        "./dist/grok/main.d.ts"
+      ],
+      "grok/gateway": [
+        "./dist/grok/gateway.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../../../scripts/run-bin.mjs tsup",
+    "dev": "node ../../../../scripts/run-bin.mjs tsup --watch",
+    "typecheck": "node ../../../../scripts/run-bin.mjs tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node ../../../../scripts/run-bin.mjs vitest run",
+    "clean": "node ../../../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@nomi-ai/cli-catalog": "workspace:*",
+    "@nomi-ai/cli-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3",
+    "tsup": "^8.3.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

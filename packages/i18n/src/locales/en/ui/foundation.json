@@ -261,5 +261,15 @@
   "ui.foundation.quick-weekly": "Weekly report",
   "ui.foundation.quick-weekly-prompt": "Build me a weekly report template (done this week, blockers, next week) and tell me how to fill each part",
   "ui.foundation.quick-spec": "Draft a spec",
-  "ui.foundation.quick-spec-prompt": "Help me scope a new feature: ask me a few key questions first, then outline a spec"
+  "ui.foundation.quick-spec-prompt": "Help me scope a new feature: ask me a few key questions first, then outline a spec",
+  "ui.foundation.ok": "OK",
+  "ui.foundation.please-confirm": "Please confirm",
+  "ui.foundation.pick-date": "Pick a date",
+  "ui.foundation.pick-time": "Pick a time",
+  "ui.foundation.pick-datetime": "Pick a date and time",
+  "ui.foundation.prev-month": "Previous month",
+  "ui.foundation.next-month": "Next month",
+  "ui.foundation.now": "Now",
+  "ui.foundation.hour": "Hour",
+  "ui.foundation.minute": "Minute"
 }

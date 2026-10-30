@@ -5,10 +5,15 @@ import { resolve } from 'node:path';
 import { applyLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StartupSettings } from '../src/components/SettingsView/StartupSettings';
+import { setCharacterNameForTest } from '../src/services/characterName';
 import { startupClient } from '../src/services/startupClient';
+
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -16,24 +21,21 @@ let stored: Record<string, unknown> | null = { defaultView: 'mascot', closeMain:
 let failSet = false;
 
 const install = () => {
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      if (ch === 'ai:startup:get') return stored;
-      if (ch === 'ai:startup:set') {
-        if (failSet) throw new Error('disk full');
-        const patch = a[0] as Record<string, unknown>;
-        const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
-        // 与主进程 StartupService 一致：切回看板娘自动打开；默认看板娘时关掉她 → 默认改主界面
-        if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
-        if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
-        stored = next;
-        return stored;
-      }
-      return null;
-    },
-    on: () => () => undefined,
-  };
+  installFakeApi((ch: string, input?: unknown) => {
+    calls.push(input === undefined ? [ch] : [ch, input]);
+    if (ch === 'startup.get') return stored;
+    if (ch === 'startup.set') {
+      if (failSet) throw new Error('disk full');
+      const patch = input as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
+      // 与主进程 StartupService 一致：切回桌面角色自动打开；默认桌面角色时关掉她 → 默认改主界面
+      if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
+      if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
+      stored = next;
+      return stored;
+    }
+    return null;
+  });
 };
 
 beforeEach(() => {
@@ -45,7 +47,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   applyLocale('zh-CN');
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('startupClient', () => {
@@ -54,7 +56,7 @@ describe('startupClient', () => {
     expect(await startupClient.get()).toBe('mascot');
     stored = null;
     expect(await startupClient.get()).toBe('mascot');
-    delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
     expect(startupClient.available()).toBe(false);
     expect(await startupClient.get()).toBe('mascot');
     expect(await startupClient.set('main')).toBeNull();
@@ -69,7 +71,9 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    expect(mascot.textContent).toContain('诺米');
+    // 没有人设时用通用称呼；指桌面角色的文案不写死官方角色名（§10.1）
+    expect(mascot.textContent).toContain('桌面角色');
+    expect(mascot.textContent).not.toMatch(/Nomi|诺米/);
     expect(main.textContent).toContain('软件主界面');
   });
 
@@ -79,7 +83,7 @@ describe('Settings → General → startup default view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('startup-view-main').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { defaultView: 'main' }]);
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
     expect(stored).toMatchObject({ defaultView: 'main' });
     fireEvent.click(screen.getByTestId('startup-view-mascot'));
     await waitFor(() => expect(stored).toMatchObject({ defaultView: 'mascot' }));
@@ -90,7 +94,7 @@ describe('Settings → General → startup default view', () => {
     render(<StartupSettings />);
     fireEvent.click(await screen.findByTestId('startup-view-mascot'));
     await act(async () => undefined);
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
   });
 
   it('rolls back the selection when saving fails', async () => {
@@ -111,7 +115,7 @@ describe('Settings → General → startup default view', () => {
     expect(main.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radiogroup', { name: 'Show on startup' })).toBeTruthy();
     expect(main.textContent).toContain('Main window');
-    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Nomi');
+    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Mascot');
   });
 
   it('close main window: defaults to hide to tray, can switch to quit and persists', async () => {
@@ -124,7 +128,7 @@ describe('Settings → General → startup default view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('close-main-quit').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { closeMain: 'quit' }]);
+    expect(calls).toContainEqual(['startup.set', { closeMain: 'quit' }]);
     expect(stored).toEqual({ defaultView: 'mascot', closeMain: 'quit' });
   });
 
@@ -148,7 +152,7 @@ describe('Settings → General → startup default view', () => {
     expect((sw as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false, defaultView: 'main' }));
-    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    expect(calls).toContainEqual(['startup.set', { showMascot: false }]);
     await screen.findByTestId('startup-mascot-switched');
     expect(screen.getByTestId('startup-view-main').getAttribute('aria-checked')).toBe('true');
     expect(sw.getAttribute('aria-checked')).toBe('false');
@@ -156,22 +160,26 @@ describe('Settings → General → startup default view', () => {
 
   it('desktop mascot switch: closes / reopens with the main window as default view', async () => {
     stored = { defaultView: 'main', closeMain: 'hide', showMascot: true };
+    // 角色名来自当前角色的人设（persona.get）
+    setCharacterNameForTest('小纸');
     render(<StartupSettings />);
     const sw = await screen.findByTestId('startup-show-mascot');
-    expect(sw.getAttribute('aria-label')).toBe('显示 Nomi');
+    expect(sw.getAttribute('aria-label')).toBe('显示小纸');
+    expect(screen.getByTestId('settings-mascot-group').textContent).toContain('桌面小纸');
+    setCharacterNameForTest('');
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
-    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    expect(calls).toContainEqual(['startup.set', { showMascot: false }]);
     expect(sw.getAttribute('aria-checked')).toBe('false');
     // 默认界面本来就是主界面：不提示改默认
     expect(screen.queryByTestId('startup-mascot-switched')).toBeNull();
-    // 切回看板娘为默认：开关自动打开
+    // 切回桌面角色为默认：开关自动打开
     fireEvent.click(screen.getByTestId('startup-view-mascot'));
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
   });
 
   it('renders nothing without the desktop bridge (browser preview)', () => {
-    delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
     const { container } = render(<StartupSettings />);
     expect(container.innerHTML).toBe('');
   });

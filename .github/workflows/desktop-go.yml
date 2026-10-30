@@ -1,0 +1,208 @@
+# Go + Wails v3 桌面版（2.0.5 起面向用户的正式版本）：三平台 go vet / go test、Node golden 比对、构建、体积与内存实测。
+# 安装包与 Release 见 desktop-go-package.yml（tag 发版时经 workflow_call 先跑本 workflow）。
+name: desktop-go
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+  push:
+    branches: [main, feat/2.0.5-go, 'feat/2.0.5-go-**']
+  pull_request:
+    branches: [main, release/2.0.5]
+    paths:
+      - 'apps/desktop-go/**'
+      # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
+      - 'packages/**'
+      - 'apps/desktop-electron/internal/**'
+      - 'scripts/parity/**'
+      - 'scripts/go-contract/**'
+      - '.github/workflows/desktop-go.yml'
+permissions:
+  contents: read
+# 之前按 ref 分组且 cancel-in-progress，多个 worker 连续 push feat/2.0.5-go 时前一次 run 被取消
+# （表现为“某些 push 没跑 CI”）。现按分支分组且不取消：同分支一个在跑 + 只保留最新一个排队，旧排队被替换。
+# PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
+# worker 分支 feat/2.0.5-go-** 也触发 push：各自独立分组（按 ref），不会取消集成分支的 run。
+concurrency:
+  group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+env:
+  WAIT: '45' # runner 上冷启动后等待秒数（Linux 本机实测用 120s）
+jobs:
+  build:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24.22.0, cache: pnpm }
+      - uses: actions/setup-go@v5
+        with:
+          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - name: linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: contract → go (drift check)
+        if: runner.os == 'Linux'
+        run: |
+          pnpm --filter @nomi-ai/contract build
+          node scripts/go-contract/gen.mjs --check
+      - name: live Node goldens (per platform)
+        # 平台相关用例（大小写不敏感 FS、path.win32、符号链接、进程派生）不跳过：每个平台现场用 Node 录制，Go 测试比对本平台录制
+        run: |
+          pnpm --filter "@nomi-ai/cli-sdk..." build
+          # 录制脚本经 tsx 引用这些包的 dist：所有录制之前先构建（contract 在三平台都要，b5-batch 用）
+          pnpm --filter "@nomi-ai/core^..." --filter @nomi-ai/contract build
+          export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
+          pnpm exec tsx scripts/parity/record-asset-protocols.mjs
+          node scripts/parity/record-b7-drivers.mjs
+          pnpm exec tsx scripts/parity/record-b7-harness.mjs
+          pnpm exec tsx scripts/parity/record-b7-orch.mjs
+          pnpm exec tsx scripts/parity/record-b7-tabs.mjs
+          pnpm exec tsx scripts/parity/record-b7-coding.mjs
+          pnpm exec tsx scripts/parity/record-b7-slash.mjs
+          pnpm exec tsx scripts/parity/record-b7-ws.mjs
+          # desktop.tools() 执行 golden：Windows 路径 / 权限、workspace_run（cmd / sh）、真实 code_run（JS --permission、Python 平台隔离）按平台现场录制
+          node scripts/parity/record-b7s-desktools.mjs
+          pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
+          pnpm exec tsx scripts/parity/record-b9.mjs
+          pnpm exec tsx scripts/parity/check-scheme-url.mjs
+          pnpm exec tsx scripts/parity/record-gwservice.mjs
+          pnpm exec tsx scripts/parity/record-gwprocess.mjs
+          pnpm exec tsx scripts/parity/record-gwcli.mjs
+          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
+          (cd scripts/parity && node --import tsx record-quality.mjs)
+          diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"
+          echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi
+          if [ "$RUNNER_OS" = Linux ]; then for g in gwservice gwprocess gwcli; do diff -u "apps/desktop-go/internal/core/gwstore/testdata/$g.json" "$NOMI_GOLDEN_DIR/$g.json"; done; fi
+      - name: go test
+        working-directory: apps/desktop-go
+        run: |
+          mkdir -p frontend/dist && touch frontend/dist/.keep
+          TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
+          go vet $TAGS ./... && go test $TAGS -race ./...
+      - name: chatbg image parity (no -race; Electron goldens)
+        working-directory: apps/desktop-go
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -count=1 -run '^TestImageParity$' -v ./internal/core/chatbg/ 2>&1 | tee chatbg-parity.log
+          # 严格：必须真正执行并通过（不能 skip / 未匹配到测试）
+          grep -q -- '--- PASS: TestImageParity' chatbg-parity.log
+          ! grep -q -- '--- SKIP: TestImageParity' chatbg-parity.log
+      - name: frontend
+        run: node apps/desktop-go/frontend/build.mjs
+      - name: go build + package
+        working-directory: apps/desktop-go
+        run: |
+          mkdir -p dist-ci
+          case "$RUNNER_OS" in
+            Windows)
+              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-poc.exe .
+              cp build/bin/nomi-poc.exe dist-ci/
+              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-poc-windows-amd64.zip nomi-poc.exe >/dev/null) ;;
+            macOS)
+              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
+              APP="build/Nomi POC.app"; mkdir -p "$APP/Contents/MacOS"
+              cp build/bin/nomi-poc "$APP/Contents/MacOS/nomi-poc"
+              cat > "$APP/Contents/Info.plist" <<PL
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>nomi-poc</string>
+          <key>CFBundleIdentifier</key><string>ai.nomi.poc</string>
+          <key>CFBundleName</key><string>Nomi POC</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>LSUIElement</key><true/>
+          <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          PL
+              codesign --force --deep -s - "$APP" || true
+              (cd build && ditto -c -k --keepParent "Nomi POC.app" ../dist-ci/nomi-poc-macos-arm64.zip) ;;
+            Linux)
+              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
+              tar czf dist-ci/nomi-poc-linux-amd64.tar.gz -C build/bin nomi-poc ;;
+          esac
+          {
+            echo "### ${{ matrix.os }} 体积（字节）"
+            echo '```'
+            ls -l build/bin dist-ci
+            [ -d "build/Nomi POC.app" ] && du -sk "build/Nomi POC.app" | awk '{print ".app du -sk(KiB): "$1}'
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomi-poc-${{ matrix.os }}
+          path: apps/desktop-go/dist-ci/
+
+      - name: mac transparency proof
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop-go
+        run: ci/mac-transparency.sh "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/shots"
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'macOS'
+        with:
+          name: mac-transparency
+          path: apps/desktop-go/shots/
+
+      # ---------- 内存实测：POC ----------
+      - name: measure poc (macOS)
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop-go
+        run: ci/measure-mac.sh poc "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/mem" || true
+      - name: measure poc (Windows)
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop-go
+        shell: pwsh
+        run: ./ci/measure-win.ps1 -Mode poc -Bin "$PWD\build\bin\nomi-poc.exe" -Out "$PWD\mem"
+
+      - name: summarize
+        if: runner.os != 'Linux'
+        working-directory: apps/desktop-go
+        run: |
+          { echo "### ${{ matrix.os }} 内存（三次中位数，MiB）"; echo '| 场景 | 进程数 | 合计 | 中位那次各进程 |'; echo '|---|---|---|---|'
+            python3 ci/summarize.py mem || python ci/summarize.py mem
+            # 各启动阶段耗时（[startup] main-enter / window-create / first-paint …）；没有日志时不算失败（bash -eo pipefail）
+            echo; echo '```'; grep -h "\[startup\]" mem/*app*.log 2>/dev/null || true; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os != 'Linux'
+        with:
+          name: mem-${{ matrix.os }}
+          path: apps/desktop-go/mem/
+
+  # shell / quality 变异检查单独成 job（与 build 并行，避免拖长 build、受其 runner 中断影响）；用提交的 golden
+  shell-mutants:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/setup-go@v5
+        with:
+          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: mutate-shell
+        run: |
+          set -o pipefail
+          mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
+          MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
+          tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"

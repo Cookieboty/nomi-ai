@@ -2,7 +2,7 @@
  * 「从其他工具导入」（#58）：扫描 Claude Code / Codex 的 MCP 服务器与技能，预览、勾选后导入。
  * 同名冲突逐项选择 跳过 / 重命名 / 覆盖。路径与密钥都只在主进程里，这里只拿到脱敏预览和 key。
  */
-import { Badge, Button, LoadingState, Modal, Notice, Select, t as tr } from '@nomi-ai/ui';
+import { Badge, Button, Checkbox, LoadingState, Modal, Notice, Select, t as tr } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -92,8 +92,7 @@ export const MigrateDialog: React.FC<{
   const row = (it: Item) => (
     <div key={it.key} className={styles.card} data-testid={`migrate-item-${it.key}`}>
       <div className={styles.cardHead}>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={!!picked[it.key] && !it.error}
           disabled={!!it.error}
           onChange={(e) => setPicked({ ...picked, [it.key]: e.target.checked })}

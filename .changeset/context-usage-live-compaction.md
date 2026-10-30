@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 fix(context): 上下文环在一轮进行中实时更新，自动压缩、重启后都不再停在压缩前的旧值。

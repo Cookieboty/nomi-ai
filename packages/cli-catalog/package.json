@@ -1,0 +1,88 @@
+{
+  "name": "@nomi-ai/cli-catalog",
+  "version": "0.0.1",
+  "private": true,
+  "description": "内置编程助手的清单与界面信息（纯数据与纯函数）：Node 版与 Go 版共用的视图也会 import；主进程实现在 apps/desktop-electron/internal/cli-plugins",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js",
+      "require": "./dist/manifest.cjs"
+    },
+    "./claude/manifest": {
+      "types": "./dist/claude/manifest.d.ts",
+      "import": "./dist/claude/manifest.js",
+      "require": "./dist/claude/manifest.cjs"
+    },
+    "./codex/manifest": {
+      "types": "./dist/codex/manifest.d.ts",
+      "import": "./dist/codex/manifest.js",
+      "require": "./dist/codex/manifest.cjs"
+    },
+    "./dsh/manifest": {
+      "types": "./dist/dsh/manifest.d.ts",
+      "import": "./dist/dsh/manifest.js",
+      "require": "./dist/dsh/manifest.cjs"
+    },
+    "./gemini/manifest": {
+      "types": "./dist/gemini/manifest.d.ts",
+      "import": "./dist/gemini/manifest.js",
+      "require": "./dist/gemini/manifest.cjs"
+    },
+    "./grok/manifest": {
+      "types": "./dist/grok/manifest.d.ts",
+      "import": "./dist/grok/manifest.js",
+      "require": "./dist/grok/manifest.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs tsup",
+    "dev": "node ../../scripts/run-bin.mjs tsup --watch",
+    "gen:ids": "node scripts/gen-ids.mjs",
+    "typecheck": "node scripts/gen-ids.mjs --check && node ../../scripts/run-bin.mjs tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node ../../scripts/run-bin.mjs vitest run",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3",
+    "tsup": "^8.3.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  },
+  "typesVersions": {
+    "*": {
+      "manifest": [
+        "./dist/manifest.d.ts"
+      ],
+      "claude/manifest": [
+        "./dist/claude/manifest.d.ts"
+      ],
+      "codex/manifest": [
+        "./dist/codex/manifest.d.ts"
+      ],
+      "dsh/manifest": [
+        "./dist/dsh/manifest.d.ts"
+      ],
+      "gemini/manifest": [
+        "./dist/gemini/manifest.d.ts"
+      ],
+      "grok/manifest": [
+        "./dist/grok/manifest.d.ts"
+      ]
+    }
+  }
+}

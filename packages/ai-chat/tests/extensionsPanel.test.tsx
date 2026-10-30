@@ -5,9 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExtensionsPanel } from '../src/components/ExtensionsPanel';
 import { parseKv, splitArgs } from '../src/services/extClient';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
+
+// ext.* 走契约（services/api）：调用记进 mockIpc 返回的 invoke（过程名 + 具名入参）
+const mock = vi.hoisted(() => ({ transport: true }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(mock),
+);
+
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  mock.invoke = undefined;
 });
 
 const presets = [
@@ -22,8 +30,8 @@ const presets = [
 
 function mockIpc(servers: unknown[] = []) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
-    if (ch === 'ai:ext:mcp-list') return { servers, env: [], presets, ready: true };
-    if (ch === 'ai:ext:skills-list')
+    if (ch === 'ext.mcpList') return { servers, env: [], presets, ready: true };
+    if (ch === 'ext.skillsList')
       return [
         {
           name: 'weekly-report',
@@ -34,10 +42,10 @@ function mockIpc(servers: unknown[] = []) {
           dir: 'weekly-report',
         },
       ];
-    if (ch === 'ai:ext:mcp-upsert') return { id: 'mcp', ...(_a[0] as object) };
+    if (ch === 'ext.mcpUpsert') return { id: 'mcp', ...(_a[0] as object) };
     return true;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  mock.invoke = (name, input) => (input === undefined ? invoke(name) : invoke(name, input));
   return invoke;
 }
 
@@ -53,7 +61,7 @@ describe('ExtensionsPanel', () => {
     fireEvent.click(r.getByTestId('mcp-save'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
-        'ai:ext:mcp-upsert',
+        'ext.mcpUpsert',
         expect.objectContaining({
           name: '知识图谱记忆',
           command: 'npx',

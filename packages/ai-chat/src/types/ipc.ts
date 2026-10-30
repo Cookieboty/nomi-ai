@@ -23,6 +23,10 @@ export interface StreamSendOptions {
 export interface IPCClient {
   // 消息相关：history 为本轮之前的会话消息，与本轮输入一起发给模型（多轮上下文）
   sendMessage(message: string, history?: ChatMessage[], extraSystem?: string): Promise<string>;
+  /** 上下文压缩：用 summary 角色的模型生成摘要（可选：测试桩 / 旧实现没有时不压缩） */
+  summarize?(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  ): Promise<string>;
   /** extraSystem：追加在 system prompt 后的上下文（长期记忆召回等） */
   sendStreamMessage(
     message: string,
@@ -54,13 +58,16 @@ export interface IPCClient {
   listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>>;
   newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string },
+    /** cwd：Nomi 对话的工作区；缺省时 Nomi 对话用主标签当前的目录（默认 文稿/nomi） */
+    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string },
   ): Promise<string>;
   switchConversation(id: string): Promise<void>;
   /** 更新会话元信息（标题 / 后端 / tabId / CLI session id） */
   updateConversation?(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
+    patch: Partial<
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+    >,
   ): Promise<Omit<ChatSession, 'messages'>>;
   /** 同端或跨端分叉（复制可见消息） */
   forkConversation?(
@@ -69,6 +76,7 @@ export interface IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
+      cwd?: string;
       messages?: ChatMessage[];
     },
   ): Promise<Omit<ChatSession, 'messages'>>;
@@ -92,15 +100,4 @@ export interface UpdateStateView {
   error?: string;
   checkedAt?: number;
   autoCheck: boolean;
-}
-
-export interface ElectronAPI {
-  updates?: {
-    get: () => Promise<UpdateStateView>;
-    check: () => Promise<UpdateStateView>;
-    download: () => Promise<UpdateStateView>;
-    install: () => Promise<UpdateStateView>;
-    setAutoCheck: (on: boolean) => Promise<UpdateStateView>;
-    onChanged: (cb: (s: UpdateStateView) => void) => () => void;
-  };
 }

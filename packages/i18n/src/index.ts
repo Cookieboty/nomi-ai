@@ -36,6 +36,31 @@ export function format(value: string, args: unknown[]): string {
   });
 }
 
+const HAN = /\p{Script=Han}/u;
+const LATIN = /[A-Za-z0-9]/;
+
+/**
+ * 中文排版：插进句子里的 `word`（例如角色名）两端，拉丁字母 / 数字与汉字直接相邻时补一个空格
+ * （「打开{0}」+「Ab」→「打开 Ab」，「{0}已就绪」→「Ab 已就绪」）；汉字名（「打开小纸」）、
+ * 标点旁（「，Ab 和」「打开 Ab（」）和已有空格的地方不动。只处理 `word` 的出现位置。
+ */
+export function spaceAround(text: string, word: string): string {
+  if (!word || !text.includes(word)) return text;
+  const head = LATIN.test(word[0] ?? '');
+  const tail = LATIN.test(word[word.length - 1] ?? '');
+  if (!head && !tail) return text;
+  let out = '';
+  let from = 0;
+  for (let i = text.indexOf(word); i >= 0; i = text.indexOf(word, from)) {
+    out += text.slice(from, i);
+    if (head && HAN.test(text[i - 1] ?? '')) out += ' ';
+    out += word;
+    from = i + word.length;
+    if (tail && HAN.test(text[from] ?? '')) out += ' ';
+  }
+  return out + text.slice(from);
+}
+
 export type Translate = (key: unknown, ...args: unknown[]) => unknown;
 
 /**

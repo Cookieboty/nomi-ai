@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -19,7 +20,7 @@ import { safeRm } from '../fixtures/fsutil';
 const REPLY =
   '第一句话在这里。第二句也很短。第三句不应该出现在气泡里，因为气泡只显示开头的一两句话，剩下的去对话窗口看全文吧。';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.BUBBLE_SHOTS;
@@ -110,16 +111,12 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     const bubble = main.locator('[data-testid="mascot-bubble"]');
 
     // ---- 1. 先开对话窗（Windows 上先等角色就绪再开窗易拖垮/拖慢渲染进程）----
     const chatWindow = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWindow;
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
     const input = chat.locator('[data-testid="chat-input"], textarea').first();
@@ -138,7 +135,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     await expect(chat.locator('body')).toContainText('剩下的去对话窗口看全文吧', {
       timeout: 30_000,
     });
-    // ai:event 经主进程广播到看板娘窗口；慢机器（Windows runner）上可能迟到，给足时间
+    // AI 事件经契约推到桌面角色窗口；慢机器（Windows runner）上可能迟到，给足时间
     await expect(bubble).toContainText('第一句话在这里。第二句也很短。', { timeout: 45_000 });
     await expect(bubble).not.toContainText('第三句');
     const more = main.locator('[data-testid="bubble-see-more"]');

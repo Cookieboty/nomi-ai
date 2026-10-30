@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 编程进度轮询按 mtime + 大小缓存 dsh 会话索引的解析结果，文件不变时不再每 8 秒重读；同一会话在一轮里只读一次（原来每轮读两次）。

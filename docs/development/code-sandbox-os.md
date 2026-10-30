@@ -1,6 +1,6 @@
 # 代码沙箱 OS 隔离（CodeSandbox）
 
-实现：`packages/electron/src/sandbox/platformSandbox.ts`，由 `CodeSandbox.run` 的 Python 路径调用。
+实现：`apps/desktop-electron/internal/core/src/sandbox/platformSandbox.ts`，由 `CodeSandbox.run` 的 Python 路径调用。
 
 | 平台    | 真实隔离                                                  | 回落                                            |
 | ------- | --------------------------------------------------------- | ----------------------------------------------- |

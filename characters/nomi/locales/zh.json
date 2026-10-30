@@ -1,0 +1,29 @@
+{
+  "wakePhrase": "你好，诺米",
+  "lines": {
+    "tip-want-to-chat-about-something": "要聊点什么吗？",
+    "tip-open-the-chat-window-and-talk-to-me": "打开聊天窗口，和我说说话吧。",
+    "tip-ask-me-anything": "有问题尽管问我！",
+    "tip-voice-settings-are-here-right-click-to-fine": "语音设置在这里，右键可以细调。",
+    "tip-want-to-see-me-do-a-move-right": "想看我做个动作吗？右键可以挑一个。",
+    "tip-want-me-to-step-away-you-can-bring": "想让我先退下吗？设置里随时能叫我回来。",
+    "tip-time-for-a-break-see-you-next-time": "要休息了吗？下次见～",
+    "tip-come-back-soon-okay": "记得早点回来哦。",
+    "tip-rest-your-eyes-look-at-something-far-away": "休息一下眼睛吧，看看远处～",
+    "tip-have-some-water-and-stay-hydrated": "喝口水吧，补充一下水分。",
+    "tip-you-ve-been-sitting-a-while-get-up": "坐久了记得起来活动活动。",
+    "tip-if-something-s-puzzling-you-toss-it-my": "有想不通的问题，可以丢给我试试。",
+    "tip-thanks-for-your-hard-work-today": "今天也辛苦啦。",
+    "time-good-morning-a-new-day-begins": "早上好！新的一天开始啦。",
+    "time-good-morning-time-to-focus": "上午好，专注的时间到了。",
+    "time-it-s-noon-remember-to-have-lunch": "中午了，记得吃午饭哦。",
+    "time-good-afternoon-a-cup-of-tea-to-perk": "下午好，来杯茶提提神？",
+    "time-good-evening-how-was-your-day": "晚上好，今天过得怎么样？",
+    "time-it-s-late-get-some-rest-soon": "已经很晚了，早点休息吧。",
+    "time-still-up-this-late-your-health-comes-first": "这么晚还没睡？身体要紧哦。",
+    "greet-companion": "你好，我是你的桌面伙伴～",
+    "greet-welcome-back": "欢迎回来！",
+    "greet-hello": "你好，我是 Nomi～",
+    "greet-lets-go": "你好，我是 Nomi。今天也一起加油吧。"
+  }
+}

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,9 +43,20 @@ function Harness(
 }
 
 const optionTexts = () => screen.getAllByRole('option').map((o) => o.textContent ?? '');
+/** 悬停某一行，等自绘提示出现（完整名称 + 能力说明），返回提示文字 */
+async function tipOf(name: string): Promise<string> {
+  const row = screen.getAllByRole('option').find((o) => o.textContent?.includes(name))!;
+  fireEvent.mouseMove(row);
+  const tip = await screen.findByRole('tooltip');
+  expect(row.getAttribute('aria-describedby')).toBe(tip.id);
+  const text = tip.textContent ?? '';
+  fireEvent.mouseLeave(screen.getByRole('listbox'));
+  await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  return text;
+}
 
 describe('ModelPicker', () => {
-  it('shows "provider / model" on the trigger and groups models by provider with capabilities', () => {
+  it('shows "provider / model" on the trigger, groups by provider, capabilities only on hover', async () => {
     render(<Harness />);
     const trigger = screen.getByRole('combobox');
     expect(trigger.textContent).toContain('DeepSeek / deepseek-v4-pro');
@@ -53,18 +64,22 @@ describe('ModelPicker', () => {
     expect(screen.getByText('DeepSeek')).toBeTruthy();
     expect(screen.getByText('Relay')).toBeTruthy();
     const texts = optionTexts();
-    expect(texts.find((x) => x.includes('deepseek-v4-pro'))).toContain('128K');
-    expect(texts.find((x) => x.includes('vendor/model-x'))).toContain('1M');
+    // 不用系统 title，改用自绘提示
+    expect(screen.getAllByRole('option').every((o) => !o.hasAttribute('title'))).toBe(true);
+    expect(await tipOf('deepseek-v4-pro')).toContain('128K');
+    expect(await tipOf('vendor/model-x')).toContain('1M');
+    // 能力说明不占选项行（避免模型名被截断）
+    expect(texts.find((x) => x.includes('deepseek-v4-pro'))).not.toContain('128K');
     // 协议标签默认不显示
     expect(texts.join('|')).not.toContain('Anthropic');
   });
 
-  it('for coding assistants hides models without tool calling and flags unknown limits', () => {
+  it('for coding assistants hides models without tool calling and flags unknown limits', async () => {
     render(<Harness purpose="coding" />);
     fireEvent.click(screen.getByRole('combobox'));
     const texts = optionTexts();
     expect(texts.some((x) => x.includes('deepseek-embed'))).toBe(false);
-    expect(texts.find((x) => x.includes('mystery'))).toContain('参数未知');
+    expect(await tipOf('mystery')).toContain('参数未知');
   });
 
   it('puts recent models first, filters by provider/ prefix, and returns provider/model refs', () => {
@@ -98,6 +113,46 @@ describe('ModelPicker', () => {
     expect(screen.getByRole('combobox').textContent).toContain('跟随对话');
     fireEvent.click(screen.getByRole('combobox'));
     expect(optionTexts()[0]).toContain('跟随对话');
+  });
+
+  it('browse: provider tabs on top, vendor filter on the side, picks across providers', () => {
+    const onPick = vi.fn();
+    const many: PickerProvider[] = [
+      {
+        id: 'or',
+        name: 'OpenRouter',
+        models: [
+          { id: 'z-ai/glm-5.3-flash' },
+          { id: 'deepseek/deepseek-v4.1-flash' },
+          { id: 'anthropic/claude-opus-5.5' },
+        ],
+      },
+      { id: 'maas', name: 'MAAS', models: [{ id: 'Aerith-opus-5.5' }, { id: 'gpt-6.1' }] },
+    ];
+    render(<Harness providers={many} value="maas/Aerith-opus-5.5" browse onPick={onPick} />);
+    fireEvent.click(screen.getByRole('combobox'));
+    // 打开时停在当前值所在的供应商
+    expect(screen.getByRole('tab', { name: 'MAAS' }).getAttribute('aria-selected')).toBe('true');
+    expect(optionTexts()).toEqual(['Aerith-opus-5.5', 'gpt-6.1']);
+    // 厂商：认出的在前，认不出的归到「其他」
+    fireEvent.click(screen.getByTestId('model-picker-vendor-'));
+    expect(optionTexts()).toEqual(['Aerith-opus-5.5']);
+    // 换供应商：厂商筛选清空，只列这个供应商的模型
+    fireEvent.click(screen.getByRole('tab', { name: 'OpenRouter' }));
+    expect(optionTexts()).toHaveLength(3);
+    fireEvent.click(screen.getByTestId('model-picker-vendor-zai'));
+    expect(optionTexts()).toEqual(['z-ai/glm-5.3-flash']);
+    // 没有「全部」供应商：只有各供应商的标签
+    expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual(['OpenRouter', 'MAAS']);
+    fireEvent.click(screen.getByTestId('model-picker-vendor-all'));
+    fireEvent.click(screen.getAllByRole('option').find((o) => o.textContent?.includes('claude'))!);
+    expect(onPick).toHaveBeenCalledWith('or/anthropic/claude-opus-5.5');
+  });
+
+  it('browse hides tabs with a single provider', () => {
+    render(<Harness providers={[providers[0]]} browse />);
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(screen.queryByRole('tablist')).toBeNull();
   });
 
   it('helpers', () => {

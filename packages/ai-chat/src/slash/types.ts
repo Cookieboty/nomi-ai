@@ -200,6 +200,11 @@ export interface SlashActions {
   newSession: () => void | Promise<void>;
   openPlugins: () => void;
   openProviders: () => void;
+  /**
+   * 打开输入框上方的模型浮层（当前显示的会话）；query 预填搜索框。
+   * 返回 false = 没有可打开的浮层（会话已不在前台、按钮还没就绪），调用方退回卡片
+   */
+  openModelMenu: (query: string) => boolean;
   openSettings: () => void;
   /** Nomi：切换对话模型（`供应商/模型`，写网关的分配） */
   switchNomiModel: (ref: string) => Promise<void>;
@@ -216,6 +221,8 @@ export interface SlashActions {
     catalog: BackendModelCatalog | null;
     current: string | null;
     source: TabSource;
+    /** 第三方会话上次用的模型（主进程记的；没手动选模型时下发的就是它） */
+    lastServedRef?: string;
   }>;
   /** CLI 标签：切换这个标签的模型（空串 = 默认模型），下一条消息起生效 */
   setTabModel: (model: string, expectSource?: TabSource) => Promise<void>;
@@ -226,6 +233,11 @@ export interface SlashActions {
   nomiSkillBody: (name: string) => Promise<string | null>;
   /** 把一段文本当作普通消息发出（卡片里的「作为普通文字发送」） */
   sendPlain: (text: string) => void;
+  /** Nomi：`/compact` 把当前对话较早的部分压缩成摘要 */
+  compactNomi: () => Promise<{
+    status: 'done' | 'nothing' | 'busy' | 'failed';
+    error?: string;
+  }>;
 }
 
 export interface AdapterInput {
@@ -237,6 +249,15 @@ export interface AdapterInput {
 }
 
 /** MessageInput 与会话层之间的桥：输入框只管弹面板与回车，命令怎么跑由会话层决定 */
+/** `/model ` 参数补全的一项：value 是 `/model <value>` 能唯一命中的值 */
+export interface ModelArgOption {
+  value: string;
+  label: string;
+  /** 右侧说明（供应商 / 来源） */
+  hint?: string;
+  active: boolean;
+}
+
 export interface SlashBridge {
   /** 当前端命令 + 输入框自带的界面命令 → 合并去重后的注册表 */
   compose: (extra: SlashCommand[]) => SlashCommand[];
@@ -246,4 +267,6 @@ export interface SlashBridge {
   scope?: () => string;
   /** 执行一条输入。handled=false 表示不是命令（text 存在时为去掉 `//` 转义后的文字） */
   run: (text: string, all: SlashCommand[]) => Promise<{ handled: boolean; text?: string }>;
+  /** `/model ` 参数补全的候选（当前显示的会话） */
+  modelOptions?: () => Promise<ModelArgOption[]>;
 }

@@ -1,5 +1,9 @@
-/** 新手引导与主进程的通信（`ai:onboarding:*`）；没有 IPC（浏览器预览 / 测试）时退化为本地状态 */
+/** 新手引导与主进程的通信（应用契约 `onboarding.*`）；没有契约传输（浏览器预览 / 测试）时退化为本地状态 */
+import type { SemanticGesture } from '@nomi-ai/character-contract';
 import { EMPTY_USER_PROFILE, normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
+
+import { api, hasTransport } from '../../services/api';
+import { memClient } from '../../services/memClient';
 
 /** 同一窗口内广播职业与兴趣的变化 */
 const PROFILE_EVENT = 'cd:onboarding-profile';
@@ -10,42 +14,37 @@ export interface OnboardingState {
   done: boolean;
   skipped?: boolean;
 }
+/** 对话窗口 → 桌面角色（只有语义名，§10.5）：说一句（可带语义手势）、语义手势、正在等回复 */
 export type MascotCmd =
-  { type: 'say'; text: string; motion?: string } | { type: 'motion'; name: string };
-
-interface Bridge {
-  invoke(ch: string, ...a: unknown[]): Promise<unknown>;
-  on?(ch: string, fn: (p: unknown) => void): () => void;
-}
-const bridge = (): Bridge | undefined => (window as unknown as { aiIPC?: Bridge }).aiIPC;
+  | { type: 'say'; text: string; gesture?: SemanticGesture }
+  | { type: 'gesture'; name: SemanticGesture }
+  | { type: 'reply'; phase: 'waiting' | 'settled' };
 
 export const onboardingClient = {
-  available: () => Boolean(bridge()),
+  available: () => hasTransport(),
   async get(): Promise<OnboardingState> {
-    const b = bridge();
-    if (!b) return { done: true };
+    if (!hasTransport()) return { done: true };
     return (
-      ((await b.invoke('ai:onboarding:get').catch(() => null)) as OnboardingState) ?? { done: true }
+      ((await api.onboarding.get().catch(() => null)) as OnboardingState | null) ?? {
+        done: true,
+      }
     );
   },
   async complete(skipped: boolean): Promise<void> {
-    await bridge()
-      ?.invoke('ai:onboarding:complete', { skipped })
-      .catch(() => undefined);
+    if (!hasTransport()) return;
+    await api.onboarding.complete({ skipped }).catch(() => undefined);
   },
   async reopen(): Promise<void> {
-    const b = bridge();
-    if (b) await b.invoke('ai:onboarding:reopen').catch(() => undefined);
-    // 同一窗口内立即显示（主进程也会广播 ai:onboarding:show）
+    if (hasTransport()) await api.onboarding.reopen().catch(() => undefined);
+    // 同一窗口内立即显示（主进程也会广播 onboarding.show）
     window.dispatchEvent(new CustomEvent('cd:onboarding-show'));
   },
   mascot(cmd: MascotCmd): void {
-    void bridge()
-      ?.invoke('ai:onboarding:mascot', cmd)
-      .catch(() => undefined);
+    if (!hasTransport()) return;
+    void api.onboarding.mascot(cmd).catch(() => undefined);
   },
   onShow(fn: () => void): () => void {
-    const off = bridge()?.on?.('ai:onboarding:show', () => fn());
+    const off = hasTransport() ? api.on('onboarding.show', () => fn()) : undefined;
     window.addEventListener('cd:onboarding-show', fn);
     return () => {
       off?.();
@@ -54,22 +53,21 @@ export const onboardingClient = {
   },
   /** 职业与兴趣（没选过为空） */
   async profile(): Promise<UserProfile> {
-    const b = bridge();
-    if (!b) return EMPTY_USER_PROFILE;
-    return normalizeUserProfile(await b.invoke('ai:onboarding:profile').catch(() => null));
+    if (!hasTransport()) return EMPTY_USER_PROFILE;
+    return normalizeUserProfile(await api.onboarding.profile().catch(() => null));
   },
   async setProfile(p: UserProfile): Promise<UserProfile> {
     const saved = normalizeUserProfile(
-      (await bridge()
-        ?.invoke('ai:onboarding:set-profile', p)
-        .catch(() => null)) ?? p,
+      (hasTransport() ? await api.onboarding.setProfile(p).catch(() => null) : null) ?? p,
     );
-    // 同一窗口立即生效（主进程也会广播 ai:onboarding:profile-changed）
+    // 同一窗口立即生效（主进程也会广播 onboarding.profileChanged）
     window.dispatchEvent(new CustomEvent<UserProfile>(PROFILE_EVENT, { detail: saved }));
     return saved;
   },
   onProfile(fn: (p: UserProfile) => void): () => void {
-    const off = bridge()?.on?.('ai:onboarding:profile-changed', (p) => fn(normalizeUserProfile(p)));
+    const off = hasTransport()
+      ? api.on('onboarding.profileChanged', (p) => fn(normalizeUserProfile(p)))
+      : undefined;
     const local = (e: Event) => fn(normalizeUserProfile((e as CustomEvent<unknown>).detail));
     window.addEventListener(PROFILE_EVENT, local);
     return () => {
@@ -77,18 +75,17 @@ export const onboardingClient = {
       window.removeEventListener(PROFILE_EVENT, local);
     };
   },
+  // 「关于我」（persona.md）属于记忆域：经它的客户端模块读写，失败按空 / 忽略处理
   async persona(): Promise<string> {
-    const r = await bridge()
-      ?.invoke('ai:mem:persona')
-      .catch(() => '');
+    if (!memClient.available()) return '';
+    const r: unknown = await memClient.persona().catch(() => '');
     if (typeof r === 'string') return r;
     const o = r as { text?: string; content?: string } | null;
     return o?.text ?? o?.content ?? '';
   },
   async setPersona(text: string): Promise<void> {
-    await bridge()
-      ?.invoke('ai:mem:set-persona', text)
-      .catch(() => undefined);
+    if (!memClient.available()) return;
+    await memClient.setPersona(text).catch(() => undefined);
   },
 };
 

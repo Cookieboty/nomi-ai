@@ -1,0 +1,3902 @@
+{
+ "platform": "linux",
+ "delimiter": ":",
+ "sep": "/",
+ "fixtures": [
+  {
+   "p": "bin/claude",
+   "c": "#!/bin/sh\necho claude\n",
+   "mode": 493
+  },
+  {
+   "p": "bin/claude.cmd",
+   "c": "@echo off\r\n"
+  },
+  {
+   "p": "bin/codex.exe",
+   "c": "MZ"
+  },
+  {
+   "p": "bin/Dsh.CMD",
+   "c": "@echo off\r\n"
+  },
+  {
+   "p": "bin2/grok",
+   "c": "#!/bin/sh\n",
+   "mode": 493
+  },
+  {
+   "p": "bin2/node.exe",
+   "c": "MZ"
+  },
+  {
+   "p": "npm/pkg/cli.js",
+   "c": "console.log(1)\n"
+  },
+  {
+   "p": "npm/claude.cmd",
+   "c": "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n\r\nIF EXIST \"%dp0%\\node.exe\" (\r\n  SET \"_prog=%dp0%\\node.exe\"\r\n) ELSE (\r\n  SET \"_prog=node\"\r\n  SET PATHEXT=%PATHEXT:;.JS;=;%\r\n)\r\n\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & \"%_prog%\"  \"%dp0%\\pkg\\cli.js\" %*\r\n"
+  },
+  {
+   "p": "npm/nojs.cmd",
+   "c": "@echo off\r\necho hi %1\r\n"
+  },
+  {
+   "p": "npm/missing.cmd",
+   "c": "\"%~dp0\\pkg\\gone.js\" %*\r\n"
+  },
+  {
+   "p": "npm/bad%.cmd",
+   "c": "\"%~dp0\\pkg\\cli.js\"\r\n"
+  },
+  {
+   "p": "npm2/node.exe",
+   "c": "MZ"
+  },
+  {
+   "p": "npm2/pkg/main.mjs",
+   "c": ""
+  },
+  {
+   "p": "npm2/tool.bat",
+   "c": "\"%dp0%\\pkg\\main.mjs\" \"%~dp0\\node.exe\" %*"
+  },
+  {
+   "p": "npm3/x.cmd",
+   "c": "\"C:/abs/node\" \"%~dp0/pkg/z.cjs\"\r\n"
+  },
+  {
+   "p": "npm3/pkg/z.cjs",
+   "c": ""
+  },
+  {
+   "p": "home/.nvm/versions/node/v18.2.0/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.nvm/versions/node/v20.11.1/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.nvm/versions/node/v20.9.0/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.nvm/versions/node/v9.0.0/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.nvm/versions/node/system/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.local/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/.grok/bin/.keep",
+   "c": ""
+  },
+  {
+   "p": "home/AppData/Roaming/npm/.keep",
+   "c": ""
+  },
+  {
+   "p": "mock/grok-agent.js",
+   "c": "process.stdin.setEncoding('utf8');let b='';process.stdin.on('data',(d)=>{b+=d;const i=b.indexOf('\\n');if(i<0)return;const m=JSON.parse(b.slice(0,i));process.stdout.write('log line\\n');process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{protocolVersion:1,authMethods:[{id:'cached_token',name:'x'}],_meta:{cwdBase:require('path').basename(process.cwd()).slice(0,15),noColor:process.env.NO_COLOR,args:process.argv.slice(2)}}})+'\\n');setTimeout(()=>{},60000);});"
+  },
+  {
+   "p": "mock/grok.cmd",
+   "c": "@\"%~dp0\\missing\\node.exe\" \"%~dp0\\grok-agent.js\" %*\r\n"
+  },
+  {
+   "p": "mock/grok",
+   "c": "#!/bin/sh\nexec \"$NOMI_TEST_NODE\" \"$(dirname \"$0\")/grok-agent.js\" \"$@\"\n",
+   "mode": 493
+  },
+  {
+   "p": "mock/echo.js",
+   "c": "process.stdout.write(JSON.stringify({argv:process.argv.slice(2),cwd:require('path').basename(process.cwd()),nc:process.env.NOMI_X??null}));"
+  },
+  {
+   "p": "mock/big.js",
+   "c": "process.stdout.write('x'.repeat(5000));setTimeout(()=>{},2000);"
+  },
+  {
+   "p": "mock/hang.js",
+   "c": "setTimeout(()=>{},60000);"
+  },
+  {
+   "p": "mock/exit3.js",
+   "c": "process.stdout.write('partial');process.exit(3);"
+  },
+  {
+   "p": "mock/shim.cmd",
+   "c": "@echo off\r\necho shim:%~1:%~2:\r\n"
+  },
+  {
+   "p": "cwd/.keep",
+   "c": ""
+  }
+ ],
+ "cases": [
+  {
+   "name": "parseSemver:1.0.0",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-rc.2",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-rc.10",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-rc.2.1",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-alpha",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-1",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-a.b",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:2.0.0",
+   "out": {
+    "v": [
+     2,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:v1.2.3",
+   "out": {
+    "v": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:x",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseSemver:0.2.0-rc.1",
+   "out": {
+    "v": [
+     0,
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:0.2.0-rc.1a",
+   "out": {
+    "v": [
+     0,
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:10.0.0",
+   "out": {
+    "v": [
+     10,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0-rc.02",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:1.0.0+build",
+   "out": {
+    "v": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "parseSemver:",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-rc.10",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.10|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.2.1|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-alpha|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-1|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-a.b|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-rc.10",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|v1.2.3",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|1.0.0+build",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:2.0.0|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-rc.10",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|1.0.0+build",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:v1.2.3|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|0.2.0-rc.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|0.2.0-rc.1a",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:x|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|0.2.0-rc.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|0.2.0-rc.1a",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|0.2.0-rc.1a",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:0.2.0-rc.1a|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-rc.10",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|2.0.0",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|v1.2.3",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|1.0.0+build",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:10.0.0|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0-rc.02|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-rc.2",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-rc.10",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-rc.2.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-alpha",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-a.b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|0.2.0-rc.1",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|0.2.0-rc.1a",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0-rc.02",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:1.0.0+build|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-rc.2",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-rc.10",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-rc.2.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-alpha",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-a.b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|2.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|v1.2.3",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|0.2.0-rc.1",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|0.2.0-rc.1a",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|10.0.0",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0-rc.02",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|1.0.0+build",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNewer:|",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "mergeAssistantText:0",
+   "out": {
+    "v": {
+     "text": "hi",
+     "breaks": []
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:1",
+   "out": {
+    "v": {
+     "text": "hi",
+     "breaks": [
+      3
+     ]
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:2",
+   "out": {
+    "v": {
+     "text": "hello",
+     "breaks": []
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:3",
+   "out": {
+    "v": {
+     "text": "hello world",
+     "breaks": [
+      1
+     ]
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:4",
+   "out": {
+    "v": {
+     "text": "abc\n\nxyz",
+     "breaks": [
+      5
+     ]
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:5",
+   "out": {
+    "v": {
+     "text": "abc def",
+     "breaks": []
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:6",
+   "out": {
+    "v": {
+     "text": "abc def\n\n def ",
+     "breaks": [
+      9
+     ]
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:7",
+   "out": {
+    "v": {
+     "text": "你好\n\n世界",
+     "breaks": [
+      0,
+      4
+     ]
+    }
+   }
+  },
+  {
+   "name": "mergeAssistantText:8",
+   "out": {
+    "v": {
+     "text": "😀a\n\nb",
+     "breaks": [
+      5
+     ]
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:0",
+   "out": {
+    "v": {
+     "text": "pre😀!",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "text-delta",
+      "text": "!"
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:1",
+   "out": {
+    "v": {
+     "text": "pre😀\n\nnew",
+     "breaks": [
+      2,
+      7
+     ],
+     "ev": {
+      "type": "text",
+      "text": "new"
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:2",
+   "out": {
+    "v": {
+     "text": "pre😀",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "done",
+      "text": "pre"
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:3",
+   "out": {
+    "v": {
+     "text": "pre😀",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "tool",
+      "id": "t",
+      "textAt": 5
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:4",
+   "out": {
+    "v": {
+     "text": "pre😀",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "thinking",
+      "text": "x",
+      "textAt": 1
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:5",
+   "out": {
+    "v": {
+     "text": "pre😀",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "thinking",
+      "textAt": null
+     }
+    }
+   }
+  },
+  {
+   "name": "foldAssistantEvent:6",
+   "out": {
+    "v": {
+     "text": "pre😀",
+     "breaks": [
+      2
+     ],
+     "ev": {
+      "type": "error",
+      "message": "m"
+     }
+    }
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:NOMI_X",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:NOMI_MOCK_Y",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:COMPANION_A",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:IG_B",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:CD_",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:MCP_SERVERS",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:MCP_SERVERS_X",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:PATH",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:nomi_x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isNomiInternalEnv:ANTHROPIC_API_KEY",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "buildCliEnv",
+   "out": {
+    "v": {
+     "PATH": "/c",
+     "NOMI_MOCK_B": "2",
+     "NO_COLOR": "1",
+     "Z": "",
+     "NOMI_DSH_API_KEY": "k"
+    }
+   }
+  },
+  {
+   "name": "buildCliEnv:noextra",
+   "out": {
+    "v": {
+     "B": "1",
+     "A": "2",
+     "NO_COLOR": "1"
+    }
+   }
+  },
+  {
+   "name": "legacyCliKey:on:",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "legacyCliKey:on:aGVsbG8=",
+   "out": {
+    "v": "dec(68656c6c6f)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:aGVsbG8",
+   "out": {
+    "v": "dec(68656c6c6f)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:aGV sbG8=",
+   "out": {
+    "v": "dec(68656c6c6f)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:YQ==YQ==",
+   "out": {
+    "v": "dec(61)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:a-_b",
+   "out": {
+    "v": "dec(6befdb)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:5L2g5aW9",
+   "out": {
+    "v": "dec(e4bda0e5a5bd)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:/w==",
+   "out": {
+    "v": "dec(ff)"
+   }
+  },
+  {
+   "name": "legacyCliKey:on:Zg",
+   "out": {
+    "v": "dec(66)"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "legacyCliKey:off:aGVsbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:aGVsbG8",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:aGV sbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:YQ==YQ==",
+   "out": {
+    "v": "a"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:a-_b",
+   "out": {
+    "v": "k��"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:5L2g5aW9",
+   "out": {
+    "v": "你好"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:/w==",
+   "out": {
+    "v": "�"
+   }
+  },
+  {
+   "name": "legacyCliKey:off:Zg",
+   "out": {
+    "v": "f"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:aGVsbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:aGVsbG8",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:aGV sbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:YQ==YQ==",
+   "out": {
+    "v": "a"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:a-_b",
+   "out": {
+    "v": "k��"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:5L2g5aW9",
+   "out": {
+    "v": "你好"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:/w==",
+   "out": {
+    "v": "�"
+   }
+  },
+  {
+   "name": "legacyCliKey:throw:Zg",
+   "out": {
+    "v": "f"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:aGVsbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:aGVsbG8",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:aGV sbG8=",
+   "out": {
+    "v": "hello"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:YQ==YQ==",
+   "out": {
+    "v": "a"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:a-_b",
+   "out": {
+    "v": "k��"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:5L2g5aW9",
+   "out": {
+    "v": "你好"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:/w==",
+   "out": {
+    "v": "�"
+   }
+  },
+  {
+   "name": "legacyCliKey:throwAvail:Zg",
+   "out": {
+    "v": "f"
+   }
+  },
+  {
+   "name": "killProcessTree:nopid",
+   "out": {
+    "v": {
+     "calls": [],
+     "kills": [],
+     "childKill": [
+      "SIGKILL"
+     ]
+    }
+   }
+  },
+  {
+   "name": "killProcessTree:leaf",
+   "out": {
+    "v": {
+     "calls": [
+      [
+       "pgrep",
+       [
+        "-P",
+        "10"
+       ]
+      ]
+     ],
+     "kills": [],
+     "childKill": [
+      "SIGKILL"
+     ]
+    }
+   }
+  },
+  {
+   "name": "killProcessTree:tree",
+   "out": {
+    "v": {
+     "calls": [
+      [
+       "pgrep",
+       [
+        "-P",
+        "10"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "11"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "13"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "12"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "14"
+       ]
+      ]
+     ],
+     "kills": [
+      [
+       13,
+       "SIGKILL"
+      ],
+      [
+       11,
+       "SIGKILL"
+      ],
+      [
+       14,
+       "SIGKILL"
+      ],
+      [
+       12,
+       "SIGKILL"
+      ]
+     ],
+     "childKill": [
+      "SIGKILL"
+     ]
+    }
+   }
+  },
+  {
+   "name": "killProcessTree:throwing",
+   "out": {
+    "v": {
+     "calls": [
+      [
+       "pgrep",
+       [
+        "-P",
+        "99"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "13"
+       ]
+      ]
+     ],
+     "kills": [
+      [
+       13,
+       "SIGKILL"
+      ]
+     ],
+     "childKill": [
+      "SIGKILL"
+     ]
+    }
+   }
+  },
+  {
+   "name": "listDescendants:depth2",
+   "out": {
+    "v": {
+     "out": [
+      4,
+      3,
+      2
+     ],
+     "calls": [
+      [
+       "pgrep",
+       [
+        "-P",
+        "1"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "2"
+       ]
+      ],
+      [
+       "pgrep",
+       [
+        "-P",
+        "3"
+       ]
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "parseShellPath:0",
+   "out": {
+    "v": "/a:/b"
+   }
+  },
+  {
+   "name": "parseShellPath:1",
+   "out": {
+    "v": "/z"
+   }
+  },
+  {
+   "name": "parseShellPath:2",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseShellPath:3",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseShellPath:4",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseShellPath:5",
+   "out": {
+    "v": "q"
+   }
+  },
+  {
+   "name": "mergePath:colon",
+   "out": {
+    "v": "/a:/b:/c:/d"
+   }
+  },
+  {
+   "name": "mergePath:semi",
+   "out": {
+    "v": "C:\\a;C:\\b;C:\\c"
+   }
+  },
+  {
+   "name": "mergePath:default",
+   "out": {
+    "v": "a:b:c"
+   }
+  },
+  {
+   "name": "LOGIN_SHELL_ARGS",
+   "out": {
+    "v": [
+     "-ilc",
+     "printf '%s' \"__NOMI_PATH_START__${PATH}__NOMI_PATH_END__\""
+    ]
+   }
+  },
+  {
+   "name": "loadLoginShellPath",
+   "out": {
+    "v": {
+     "added": [
+      "/x/new1",
+      "/x/new2"
+     ],
+     "changed": true
+    }
+   }
+  },
+  {
+   "name": "cliHomes:0",
+   "out": {
+    "v": {
+     "claude": "/home/u/.claude",
+     "codex": "/home/u/.codex",
+     "gemini": "/home/u/.gemini",
+     "qwen": "/home/u/.qwen",
+     "opencode": "/home/u/.local/share/opencode",
+     "copilot": "/home/u/.copilot",
+     "kimi": [
+      "/home/u/.kimi",
+      "/home/u/.kimi-code"
+     ],
+     "grok": "/home/u/.grok"
+    }
+   }
+  },
+  {
+   "name": "cliHomes:1",
+   "out": {
+    "v": {
+     "claude": "/home/u",
+     "codex": "/home/u/cx",
+     "gemini": "/home/u/g/.gemini",
+     "qwen": "/abs/q",
+     "opencode": "/home/u/xdg/opencode",
+     "copilot": "/home/u/.copilot",
+     "kimi": [
+      "/home/u/k",
+      "/kc"
+     ],
+     "grok": "/g"
+    }
+   }
+  },
+  {
+   "name": "cliHomes:2",
+   "out": {
+    "v": {
+     "claude": "/home/u/.claude",
+     "codex": "/home/u/.codex",
+     "gemini": "/home/u/.gemini",
+     "qwen": "/home/u/.qwen",
+     "opencode": "/home/u/oc",
+     "copilot": "/home/u/.copilot",
+     "kimi": [
+      "/home/u/.kimi",
+      "/home/u/.kimi-code"
+     ],
+     "grok": "/home/u/.grok"
+    }
+   }
+  },
+  {
+   "name": "qualityLedgerInput:codex:{\"inputTokens\":10,\"cacheReadTokens\":3}",
+   "out": {
+    "v": 7
+   }
+  },
+  {
+   "name": "qualityLedgerInput:codex:{\"inputTokens\":1,\"cacheReadTokens\":3}",
+   "out": {
+    "v": 0
+   }
+  },
+  {
+   "name": "qualityLedgerInput:codex:{\"inputTokens\":5}",
+   "out": {
+    "v": 5
+   }
+  },
+  {
+   "name": "qualityLedgerInput:claude:{\"inputTokens\":10,\"cacheReadTokens\":3}",
+   "out": {
+    "v": 10
+   }
+  },
+  {
+   "name": "qualityLedgerInput:codex:{}",
+   "out": {
+    "undef": true
+   }
+  },
+  {
+   "name": "windowsShimLaunch:plain",
+   "out": {
+    "v": {
+     "file": "cmd.exe",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"C:\\x\\a.cmd\" \"--tools\" \"\" \"a b\"\""
+     ]
+    }
+   }
+  },
+  {
+   "name": "windowsShimLaunch:comspec",
+   "out": {
+    "v": {
+     "file": "C:\\W\\cmd.exe",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"a.cmd\"\""
+     ]
+    }
+   }
+  },
+  {
+   "name": "windowsShimLaunch:bad:\"a\\\"b\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "windowsShimLaunch:bad:\"a%b\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "windowsShimLaunch:bad:\"a\\nb\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "windowsShimLaunch:bad:\"a\\rb\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/claude.cmd",
+   "out": {
+    "v": {
+     "node": "node.exe",
+     "script": "<SB>/npm/pkg/cli.js"
+    }
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/nojs.cmd",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/missing.cmd",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/bad%.cmd",
+   "out": {
+    "v": {
+     "node": "node.exe",
+     "script": "<SB>/npm/pkg/cli.js"
+    }
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm2/tool.bat",
+   "out": {
+    "v": {
+     "node": "<SB>/npm2/node.exe",
+     "script": "<SB>/npm2/pkg/main.mjs"
+    }
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm3/x.cmd",
+   "out": {
+    "v": {
+     "node": "node.exe",
+     "script": "<SB>/npm3/pkg/z.cjs"
+    }
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/none.cmd",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:bin/claude",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "unwrapWindowsCmdShim:npm/CLAUDE.CMD",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "resolveCliLaunch:win32:npm/claude.cmd",
+   "out": {
+    "v": {
+     "file": "node.exe",
+     "args": [
+      "<SB>/npm/pkg/cli.js",
+      "-p",
+      ""
+     ],
+     "via": "node-script"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:win32:npm/nojs.cmd",
+   "out": {
+    "v": {
+     "file": "CS",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"<SB>/npm/nojs.cmd\" \"-p\" \"\"\""
+     ],
+     "via": "cmd-shim"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:win32:npm/missing.cmd",
+   "out": {
+    "v": {
+     "file": "CS",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"<SB>/npm/missing.cmd\" \"-p\" \"\"\""
+     ],
+     "via": "cmd-shim"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:win32:bin/codex.exe",
+   "out": {
+    "v": {
+     "file": "<SB>/bin/codex.exe",
+     "args": [
+      "-p",
+      ""
+     ],
+     "via": "direct"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:linux:npm/claude.cmd",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/claude.cmd",
+     "args": [
+      "-p",
+      ""
+     ],
+     "via": "direct"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:linux:npm/nojs.cmd",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/nojs.cmd",
+     "args": [
+      "-p",
+      ""
+     ],
+     "via": "direct"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:linux:npm/missing.cmd",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/missing.cmd",
+     "args": [
+      "-p",
+      ""
+     ],
+     "via": "direct"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:linux:bin/codex.exe",
+   "out": {
+    "v": {
+     "file": "<SB>/bin/codex.exe",
+     "args": [
+      "-p",
+      ""
+     ],
+     "via": "direct"
+    }
+   }
+  },
+  {
+   "name": "resolveCliLaunch:win32:quote",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin/claude",
+   "out": {
+    "v": "<SB>/bin/claude.cmd"
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin/codex",
+   "out": {
+    "v": "<SB>/bin/codex.exe"
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin/dsh",
+   "out": {
+    "v": "<SB>/bin/dsh"
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin/claude.CMD",
+   "out": {
+    "v": "<SB>/bin/claude.CMD"
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin2/grok",
+   "out": {
+    "v": "<SB>/bin2/grok"
+   }
+  },
+  {
+   "name": "windowsExecutable:win32:bin/none",
+   "out": {
+    "v": "<SB>/bin/none"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin/claude",
+   "out": {
+    "v": "<SB>/bin/claude"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin/codex",
+   "out": {
+    "v": "<SB>/bin/codex"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin/dsh",
+   "out": {
+    "v": "<SB>/bin/dsh"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin/claude.CMD",
+   "out": {
+    "v": "<SB>/bin/claude.CMD"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin2/grok",
+   "out": {
+    "v": "<SB>/bin2/grok"
+   }
+  },
+  {
+   "name": "windowsExecutable:linux:bin/none",
+   "out": {
+    "v": "<SB>/bin/none"
+   }
+  },
+  {
+   "name": "npmPrefixBinDir:win32",
+   "out": {
+    "v": "/p"
+   }
+  },
+  {
+   "name": "npmPrefixBinDir:darwin",
+   "out": {
+    "v": "/p/bin"
+   }
+  },
+  {
+   "name": "findOnPath:win32:claude",
+   "out": {
+    "v": "<SB>/bin/claude.cmd"
+   }
+  },
+  {
+   "name": "findOnPath:win32:codex",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:win32:dsh",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:win32:grok",
+   "out": {
+    "v": "<SB>/bin2/grok"
+   }
+  },
+  {
+   "name": "findOnPath:win32:node",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:win32:claude.cmd",
+   "out": {
+    "v": "<SB>/bin/claude.cmd"
+   }
+  },
+  {
+   "name": "findOnPath:win32:none",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:win32:cli.js",
+   "out": {
+    "v": "<SB>/npm/pkg/cli.js"
+   }
+  },
+  {
+   "name": "findOnPath:win32:pathext",
+   "out": {
+    "v": "<SB>/bin/claude.cmd"
+   }
+  },
+  {
+   "name": "findOnPath:win32:empty",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:linux:claude",
+   "out": {
+    "v": "<SB>/bin/claude"
+   }
+  },
+  {
+   "name": "findOnPath:linux:codex",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:linux:dsh",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:linux:grok",
+   "out": {
+    "v": "<SB>/bin2/grok"
+   }
+  },
+  {
+   "name": "findOnPath:linux:node",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:linux:claude.cmd",
+   "out": {
+    "v": "<SB>/bin/claude.cmd"
+   }
+  },
+  {
+   "name": "findOnPath:linux:none",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "findOnPath:linux:cli.js",
+   "out": {
+    "v": "<SB>/npm/pkg/cli.js"
+   }
+  },
+  {
+   "name": "findOnPath:linux:pathext",
+   "out": {
+    "v": "<SB>/bin/claude"
+   }
+  },
+  {
+   "name": "findOnPath:linux:empty",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "cliSearchDirs:win32:bare",
+   "out": {
+    "v": [
+     "<SB>/home/.grok/bin",
+     "<SB>/home/AppData/Roaming/npm",
+     "<SB>/home/.local",
+     "<SB>/home/AppData/Local/pnpm",
+     "<SB>/home/AppData/Local/Volta/bin",
+     "<SB>/home/.bun/bin"
+    ]
+   }
+  },
+  {
+   "name": "cliSearchDirs:win32:env",
+   "out": {
+    "v": [
+     "/np",
+     "<SB>/home/.grok/bin",
+     "<SB>/home/AppData/Roaming/npm",
+     "<SB>/home/.local",
+     "/pn",
+     "<SB>/lad/pnpm",
+     "/vo/bin",
+     "<SB>/home/.bun/bin"
+    ]
+   }
+  },
+  {
+   "name": "cliSearchDirs:linux:bare",
+   "out": {
+    "v": [
+     "<SB>/home/.grok/bin",
+     "<SB>/home/.local/bin",
+     "<SB>/home/.npm-global/bin",
+     "<SB>/home/.local/npm-global/bin",
+     "<SB>/home/.npm-packages/bin",
+     "/opt/homebrew/bin",
+     "/usr/local/bin",
+     "<SB>/home/.nvm/versions/node/v20.11.1/bin",
+     "<SB>/home/.nvm/versions/node/v20.9.0/bin",
+     "<SB>/home/.nvm/versions/node/v18.2.0/bin",
+     "<SB>/home/.nvm/versions/node/v9.0.0/bin",
+     "<SB>/home/.volta/bin",
+     "<SB>/home/Library/pnpm",
+     "<SB>/home/.local/share/pnpm",
+     "<SB>/home/.bun/bin",
+     "<SB>/home/.asdf/shims",
+     "<SB>/home/.local/share/mise/shims",
+     "<SB>/home/.claude/local"
+    ]
+   }
+  },
+  {
+   "name": "cliSearchDirs:linux:env",
+   "out": {
+    "v": [
+     "/np/bin",
+     "<SB>/home/.grok/bin",
+     "<SB>/home/.local/bin",
+     "<SB>/home/.npm-global/bin",
+     "<SB>/home/.local/npm-global/bin",
+     "<SB>/home/.npm-packages/bin",
+     "/opt/homebrew/bin",
+     "/usr/local/bin",
+     "/nvm/bin",
+     "<SB>/home/.nvm/versions/node/v20.11.1/bin",
+     "<SB>/home/.nvm/versions/node/v20.9.0/bin",
+     "<SB>/home/.nvm/versions/node/v18.2.0/bin",
+     "<SB>/home/.nvm/versions/node/v9.0.0/bin",
+     "/vo/bin",
+     "/pn",
+     "<SB>/home/Library/pnpm",
+     "<SB>/home/.local/share/pnpm",
+     "<SB>/home/.bun/bin",
+     "<SB>/home/.asdf/shims",
+     "<SB>/home/.local/share/mise/shims",
+     "<SB>/home/.claude/local"
+    ]
+   }
+  },
+  {
+   "name": "withCliPath",
+   "out": {
+    "v": {
+     "HOME": "<SB>/home",
+     "USERPROFILE": "<SB>/home",
+     "APPDATA": "<SB>/home/AppData/Roaming",
+     "path": "<SB>/home/.local/bin:/zz:<SB>/home/.grok/bin:/usr/local/bin:<SB>/home/.nvm/versions/node/v20.11.1/bin:<SB>/home/.nvm/versions/node/v20.9.0/bin:<SB>/home/.nvm/versions/node/v18.2.0/bin:<SB>/home/.nvm/versions/node/v9.0.0/bin",
+     "X": "1"
+    }
+   }
+  },
+  {
+   "name": "withCliPath:nopath",
+   "out": {
+    "v": {
+     "HOME": "<SB>/home",
+     "USERPROFILE": "<SB>/home",
+     "PATH": "<SB>/home/.grok/bin:<SB>/home/.local/bin:/usr/local/bin:<SB>/home/.nvm/versions/node/v20.11.1/bin:<SB>/home/.nvm/versions/node/v20.9.0/bin:<SB>/home/.nvm/versions/node/v18.2.0/bin:<SB>/home/.nvm/versions/node/v9.0.0/bin"
+    }
+   }
+  },
+  {
+   "name": "guessInstallMethod:null",
+   "out": {
+    "v": "unknown"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/usr/lib/node_modules/x",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:C:\\Users\\u\\AppData\\Roaming\\npm-global\\claude",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.nvm/versions/node/v20/bin/claude",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.local/share/claude/versions/1/claude",
+   "out": {
+    "v": "native"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.volta/bin/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/opt/fnm/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.asdf/shims/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/mise/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/pnpm/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.bun/bin/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/h/.npm-packages/c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/x/versions/c",
+   "out": {
+    "v": "native"
+   }
+  },
+  {
+   "name": "guessInstallMethod:/usr/local/bin/claude",
+   "out": {
+    "v": "unknown"
+   }
+  },
+  {
+   "name": "guessInstallMethod:C:\\X\\PNPM\\c",
+   "out": {
+    "v": "npm"
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:24.0.0",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:23.9.9",
+   "out": {
+    "v": {
+     "nodeVersion": "23.9.9",
+     "required": 24
+    }
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:",
+   "out": {
+    "v": {
+     "nodeVersion": "",
+     "required": 24
+    }
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:x.1",
+   "out": {
+    "v": {
+     "nodeVersion": "x.1",
+     "required": 24
+    }
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:100.0.0",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "dshRuntimeProblem:null",
+   "out": {
+    "v": {
+     "nodeVersion": null,
+     "required": 24
+    }
+   }
+  },
+  {
+   "name": "NPM_PKG",
+   "out": {
+    "v": {
+     "claude": "@anthropic-ai/claude-code",
+     "codex": "@openai/codex",
+     "dsh": "@deepseek-ai/dsh",
+     "grok": "@xai-official/grok",
+     "gemini": "@google/gemini-cli"
+    }
+   }
+  },
+  {
+   "name": "CLI_MIN_NODE_MAJOR",
+   "out": {
+    "v": {
+     "claude": 22,
+     "codex": 16,
+     "dsh": 24,
+     "grok": 18,
+     "gemini": 20
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:npm/claude:/n/node",
+   "out": {
+    "v": {
+     "file": "/n/node",
+     "args": [
+      "<SB>/npm/pkg/cli.js",
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p:<SB>/home/.grok/bin:<SB>/home/.local/bin:/usr/local/bin:<SB>/home/.nvm/versions/node/v20.11.1/bin:<SB>/home/.nvm/versions/node/v20.9.0/bin:<SB>/home/.nvm/versions/node/v18.2.0/bin:<SB>/home/.nvm/versions/node/v9.0.0/bin"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:npm/claude.cmd:null",
+   "out": {
+    "v": {
+     "file": "node.exe",
+     "args": [
+      "<SB>/npm/pkg/cli.js",
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p:<SB>/home/.grok/bin:<SB>/home/.local/bin:/usr/local/bin:<SB>/home/.nvm/versions/node/v20.11.1/bin:<SB>/home/.nvm/versions/node/v20.9.0/bin:<SB>/home/.nvm/versions/node/v18.2.0/bin:<SB>/home/.nvm/versions/node/v9.0.0/bin"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:npm/nojs:/n/node",
+   "out": {
+    "v": {
+     "file": "cmd.exe",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"<SB>/npm/nojs.cmd\" \"a\"\""
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": true
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:npm3/x.cmd:/n/node",
+   "out": {
+    "v": {
+     "file": "/n/node",
+     "args": [
+      "<SB>/npm3/pkg/z.cjs",
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p:<SB>/home/.grok/bin:<SB>/home/.local/bin:/usr/local/bin:<SB>/home/.nvm/versions/node/v20.11.1/bin:<SB>/home/.nvm/versions/node/v20.9.0/bin:<SB>/home/.nvm/versions/node/v18.2.0/bin:<SB>/home/.nvm/versions/node/v9.0.0/bin"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:bin/codex:null",
+   "out": {
+    "v": {
+     "file": "<SB>/bin/codex.exe",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:win32:npm/missing.cmd:/n/node",
+   "out": {
+    "v": {
+     "file": "cmd.exe",
+     "args": [
+      "/d",
+      "/s",
+      "/c",
+      "\"\"<SB>/npm/missing.cmd\" \"a\"\""
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": true
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:npm/claude:/n/node",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/claude",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:npm/claude.cmd:null",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/claude.cmd",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:npm/nojs:/n/node",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/nojs",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:npm3/x.cmd:/n/node",
+   "out": {
+    "v": {
+     "file": "<SB>/npm3/x.cmd",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:bin/codex:null",
+   "out": {
+    "v": {
+     "file": "<SB>/bin/codex",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "resolveHarnessLaunch:linux:npm/missing.cmd:/n/node",
+   "out": {
+    "v": {
+     "file": "<SB>/npm/missing.cmd",
+     "args": [
+      "a"
+     ],
+     "env": {
+      "HOME": "<SB>/home",
+      "USERPROFILE": "<SB>/home",
+      "PATH": "/p"
+     },
+     "verbatim": false
+    }
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:0",
+   "out": {
+    "v": "subscription"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:1",
+   "out": {
+    "v": "subscription"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:2",
+   "out": {
+    "v": "api"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:3",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:4",
+   "out": {
+    "v": "api"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:6",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:7",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:8",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:9",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:10",
+   "out": {
+    "v": "subscription"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:11",
+   "out": {
+    "v": "subscription"
+   }
+  },
+  {
+   "name": "parseGrokAuthStatus:12",
+   "out": {
+    "v": "api"
+   }
+  },
+  {
+   "name": "runLimited:ok",
+   "out": {
+    "v": {
+     "stdout": "{\"argv\":[\"a b\",\"\",\"c\\\"d\"],\"cwd\":\"cwd\",\"nc\":\"v\"}",
+     "code": 0
+    }
+   }
+  },
+  {
+   "name": "runLimited:exit3",
+   "out": {
+    "v": {
+     "stdout": "partial",
+     "code": 3
+    }
+   }
+  },
+  {
+   "name": "runLimited:limit",
+   "out": {
+    "err": "output-limit",
+    "kind": "output-limit"
+   }
+  },
+  {
+   "name": "runLimited:timeout",
+   "out": {
+    "err": "timeout",
+    "kind": "timeout"
+   }
+  },
+  {
+   "name": "runLimited:missing",
+   "out": {
+    "err": "not-installed",
+    "kind": "not-installed"
+   }
+  },
+  {
+   "name": "runLimited:badcwd",
+   "out": {
+    "err": "not-installed",
+    "kind": "not-installed"
+   }
+  },
+  {
+   "name": "readGrokAuthStatus:ok",
+   "out": {
+    "v": "{\"protocolVersion\":1,\"authMethods\":[{\"id\":\"cached_token\",\"name\":\"x\"}],\"_meta\":{\"cwdBase\":\"nomi-grok-auth-\",\"noColor\":\"1\",\"args\":[\"agent\",\"stdio\"]}}"
+   }
+  },
+  {
+   "name": "readGrokAuthStatus:nobin",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "readGrokAuthStatus:throwbin",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "readGrokAuthStatus:timeout",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "readGrokAuthStatus:tmpClean",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "sqlite:available",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "readOpencodeRows:200",
+   "out": {
+    "v": [
+     {
+      "id": "m1",
+      "session_id": "s1",
+      "updated": 200,
+      "created": 150,
+      "model": "gpt",
+      "provider": "oa",
+      "input": 1,
+      "output": 2,
+      "reasoning": 0.5,
+      "cache_read": 3,
+      "cache_write": 4,
+      "cwd": "/w"
+     },
+     {
+      "id": "m2",
+      "session_id": "s1",
+      "updated": 300,
+      "created": 101,
+      "model": null,
+      "provider": null,
+      "input": null,
+      "output": null,
+      "reasoning": null,
+      "cache_read": null,
+      "cache_write": null,
+      "cwd": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "readOpencodeRows:0",
+   "out": {
+    "v": [
+     {
+      "id": "m4",
+      "session_id": "s2",
+      "updated": 199,
+      "created": 103,
+      "model": null,
+      "provider": null,
+      "input": null,
+      "output": null,
+      "reasoning": null,
+      "cache_read": null,
+      "cache_write": null,
+      "cwd": null
+     },
+     {
+      "id": "m1",
+      "session_id": "s1",
+      "updated": 200,
+      "created": 150,
+      "model": "gpt",
+      "provider": "oa",
+      "input": 1,
+      "output": 2,
+      "reasoning": 0.5,
+      "cache_read": 3,
+      "cache_write": 4,
+      "cwd": "/w"
+     },
+     {
+      "id": "m2",
+      "session_id": "s1",
+      "updated": 300,
+      "created": 101,
+      "model": null,
+      "provider": null,
+      "input": null,
+      "output": null,
+      "reasoning": null,
+      "cache_read": null,
+      "cache_write": null,
+      "cwd": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "readCopilotRows:1",
+   "out": {
+    "v": [
+     {
+      "id": 2,
+      "session_id": "s",
+      "model": null,
+      "input_tokens": 10,
+      "output_tokens": 20,
+      "cache_read_tokens": null,
+      "cache_write_tokens": null,
+      "created_at": null
+     },
+     {
+      "id": 5,
+      "session_id": "t",
+      "model": "m2",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "created_at": "x"
+     }
+    ]
+   }
+  },
+  {
+   "name": "readCopilotRows:0.5",
+   "out": {
+    "v": [
+     {
+      "id": 1,
+      "session_id": "s",
+      "model": "m",
+      "input_tokens": 1,
+      "output_tokens": 2,
+      "cache_read_tokens": 3,
+      "cache_write_tokens": 4,
+      "created_at": "2025-01-01"
+     },
+     {
+      "id": 2,
+      "session_id": "s",
+      "model": null,
+      "input_tokens": 10,
+      "output_tokens": 20,
+      "cache_read_tokens": null,
+      "cache_write_tokens": null,
+      "created_at": null
+     },
+     {
+      "id": 5,
+      "session_id": "t",
+      "model": "m2",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "created_at": "x"
+     }
+    ]
+   }
+  },
+  {
+   "name": "readOpencodeRows:missing",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "readCopilotRows:wrongSchema",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "dbSignature:missing",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "DB_BATCH",
+   "out": {
+    "v": 20000
+   }
+  }
+ ]
+}

@@ -3,7 +3,7 @@
  * + 活跃会话列表（按端点筛选；Nomi 标签可直接打开）。
  * 只读本地日志与进程列表，不登录、不抓取任何账号。通知样式与灵动岛在「通知 / 灵动岛」里设置。
  */
-import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import {
   Badge,
   Button,

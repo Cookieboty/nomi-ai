@@ -17,8 +17,8 @@
   - full server response：标志 `0b0001` 带序号，`0b0010` / 负序号 = 最后一包结果；`result.text` 为全量文本。
   - error：错误码 + 消息。已知码：45000001 参数无效、45000002 空音频、45000081 等包超时、45000151 音频格式、55000031 繁忙、550xxxxx 服务内部错误。
 
-实现：`packages/electron/src/voice/volcAsr.ts`（生产路径，基于 `ws`）；
-`packages/bundle-ig-electron-caps/src/plugins/asr/VolcAsrProvider.ts`（ASR seam，同规格，传输由宿主注入）。
+实现：`apps/desktop-electron/internal/core/src/voice/volcAsr.ts`（生产路径，基于 `ws`）；
+`apps/desktop-electron/internal/bundle-ig-electron-caps/src/plugins/asr/VolcAsrProvider.ts`（ASR seam，同规格，传输由宿主注入）。
 
 ## 流程
 

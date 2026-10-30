@@ -9,7 +9,7 @@
  *    运行中排队与停止。
  * 截图目录：CLI_CONV_SHOTS_DIR（可选）。
  */
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -18,11 +18,16 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.CLI_CONV_SHOTS_DIR;
+
+/** Mock Claude 每次进程启动在这里记一行「pid 参数」（NOMI_MOCK_CLAUDE_BOOT_LOG） */
+const bootLines = (file: string): string[] =>
+  existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean) : [];
 
 async function launch(
   userData: string,
@@ -46,13 +51,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 700 }).catch(() => undefined);
   if (dev) {
@@ -120,10 +121,14 @@ test.describe('E25 · unified conversation view', () => {
     test.setTimeout(420_000);
     userData = mkdtempSync(join(tmpdir(), 'e25-a-'));
     let chat: Page;
+    const bootLog = join(userData, 'claude-boot.log');
     ({ app, chat } = await launch(userData, {
       ...mock,
       NOMI_MOCK_FIRST_TOKEN_MS: '2500',
       NOMI_MOCK_STEP_MS: '900',
+      NOMI_MOCK_CLAUDE_BOOT_LOG: bootLog,
+      // 排队的第二条（及之后重发的它）挂起到点停止：负载下 rich 场景的一整轮可能在测试点停止之前就跑完
+      NOMI_MOCK_HOLD_PROMPT: '顺便跑一下测试',
     }));
     await newClaudeTab(chat);
     // 重试 / 压缩 / 思考中都是 mock 按 STEP_MS 依次发出的瞬时态：Windows runner 上
@@ -209,7 +214,9 @@ test.describe('E25 · unified conversation view', () => {
     await expect(done).toHaveAttribute('data-open', 'false');
     await expect(done).toContainText(/已思考 \d+ 秒/);
     // 每轮摘要：耗时 + token + 费用
-    const summary = chat.locator('[data-testid="msg-assistant"] [data-testid="conv-turn-summary"]');
+    const summary = chat
+      .locator('[data-testid="msg-assistant"] [data-testid="conv-turn-summary"]')
+      .first();
     await expect(summary).toContainText('用时');
     await expect(summary).toContainText('输入 1.2k');
     await expect(summary).toContainText('$0.012');
@@ -238,39 +245,64 @@ test.describe('E25 · unified conversation view', () => {
     await expect(last.locator('[data-testid="msg-copy"]')).toBeVisible();
     await expect(last.locator('[data-testid="msg-retry"]')).toBeVisible();
     await shot(chat, '28-message-actions');
-    const before = await chat.locator('[data-testid="msg-user"]').count();
+    // 重新生成先回退会话（81bdc7d9）：删掉触发这条回复的用户消息及之后的内容，再把它重发一次，
+    // 所以用户消息数不变。Claude 能在会话记录里找到这一轮时带 --resume-session-at 原地回退；
+    // mock 不写会话记录，走的是另一条路：丢掉 CLI 会话、带着剩下的对话开新进程
+    const users = chat.locator('[data-testid="msg-user"]');
+    const before = await users.count();
+    // 行里还带时间标签：只取正文第一行
+    const lastPrompt = (await users.last().innerText()).split('\n')[0]!;
+    const boots = bootLines(bootLog).length;
     await last.locator('[data-testid="msg-retry"]').click();
-    await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(before + 1, {
-      timeout: 20_000,
-    });
+    await expect.poll(() => bootLines(bootLog).length, { timeout: 30_000 }).toBeGreaterThan(boots);
+    await expect(users).toHaveCount(before);
+    await expect(users.last()).toContainText(lastPrompt);
+    await expect(chat.locator('[data-testid="conv-status"]')).toBeVisible({ timeout: 30_000 });
     await chat.locator(STOP).first().click();
     await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 30_000 });
 
     // 编辑并重新发送
     await chat.locator('[data-testid="msg-user"]').first().hover();
     await chat.locator('[data-testid="msg-edit"]').first().click();
-    await chat.locator('[data-testid="msg-edit-input"]').fill('编辑后的任务');
+    // 带上挂起标记：这一轮停在首字前，下面的「停止」一定点在进行中的回合上
+    await chat.locator('[data-testid="msg-edit-input"]').fill('编辑后的任务，顺便跑一下测试');
     await shot(chat, '29-edit-message');
     await chat.locator('[data-testid="msg-edit-send"]').click();
-    await expect(chat.locator('[data-testid="msg-user"]').last()).toContainText('编辑后的任务', {
-      timeout: 20_000,
-    });
+    // 编辑第一条：它之后的内容都删掉，只剩改过的这一条
+    await expect(users).toHaveCount(1, { timeout: 20_000 });
+    await expect(users.last()).toContainText('编辑后的任务', { timeout: 20_000 });
+    await expect(chat.locator('[data-testid="conv-status"]')).toBeVisible({ timeout: 30_000 });
     await chat.locator(STOP).first().click();
+    await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 30_000 });
   });
 
   test('B · failure shows an error card with retry', async () => {
     test.setTimeout(120_000);
     userData = mkdtempSync(join(tmpdir(), 'e25-b-'));
     let chat: Page;
-    ({ app, chat } = await launch(userData, { ...mock, NOMI_MOCK_FAIL: '1' }));
+    const bootLog = join(userData, 'claude-boot.log');
+    ({ app, chat } = await launch(userData, {
+      ...mock,
+      NOMI_MOCK_FAIL: '1',
+      NOMI_MOCK_CLAUDE_BOOT_LOG: bootLog,
+      // 排队的第二条（及之后重发的它）挂起到点停止：负载下 rich 场景的一整轮可能在测试点停止之前就跑完
+      NOMI_MOCK_HOLD_PROMPT: '顺便跑一下测试',
+    }));
     await newClaudeTab(chat);
     await type(chat, '会失败的任务');
     const card = chat.locator('[data-testid="conv-error-card"]');
     await expect(card).toBeVisible({ timeout: 40_000 });
     await expect(card).toContainText('429');
     await shot(chat, '30-error-card');
+    await expect.poll(() => bootLines(bootLog).length, { timeout: 20_000 }).toBeGreaterThan(0);
+    const boots = bootLines(bootLog).length;
+    // 重试先回退：失败的是会话第一轮，回退不了，就开新会话重发同一条消息（81bdc7d9）——
+    // 用户消息仍只有一条，mock 又起了一个进程，这一轮照样失败、错误卡片还在
     await chat.locator('[data-testid="conv-error-retry"]').click();
-    await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(2, { timeout: 20_000 });
+    await expect.poll(() => bootLines(bootLog).length, { timeout: 30_000 }).toBeGreaterThan(boots);
+    await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
+    await expect(chat.locator('[data-testid="msg-user"]')).toContainText('会失败的任务');
+    await expect(card).toBeVisible({ timeout: 40_000 });
   });
 
   test.describe('C · nomi conversation', () => {

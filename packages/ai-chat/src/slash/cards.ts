@@ -2,11 +2,13 @@
  * 原生命令的结果卡片构造（纯函数：输入数据 → 卡片内容）。
  * 卡片显示在会话流里，不发给模型。
  */
+import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import {
   codingModelChoices,
   refSlashLabel,
+  sessionRefOf,
   tabSourceOf,
   thirdPartyRefOf,
 } from '../services/cliSource';
@@ -27,6 +29,7 @@ import type {
   CardAction,
   CardListItem,
   CardRow,
+  ModelArgOption,
   SlashCardInput,
   SlashCommand,
   SlashContext,
@@ -259,8 +262,19 @@ interface ModelChoice {
   label: string;
   provider: string;
   model: string;
+  /** `供应商/模型`（Nomi 的候选：不同供应商可能有同名模型，补全时填它才能唯一命中） */
+  ref?: string;
   active: boolean;
   run: () => Promise<void>;
+}
+
+/**
+ * `/model <参数>` 完全一致才算唯一命中：模型 id、`供应商/模型`、显示名都认。
+ * 模型 id 与显示名都可能带空格（如「Qwen 3 Max」「Opus 5.5」），整个参数当一个名字比较。
+ */
+function exactChoice(c: ModelChoice, q: string): boolean {
+  const want = q.toLowerCase();
+  return [c.model, c.ref, c.label].some((v) => !!v && v.toLowerCase() === want);
 }
 
 function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
@@ -268,6 +282,7 @@ function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
     label: c.label,
     provider: c.provider,
     model: c.model,
+    ref: c.ref,
     active: c.current,
     run: () => ctx.actions.switchNomiModel(c.ref),
   }));
@@ -307,13 +322,10 @@ function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource
   }));
 }
 
-/** 与输入框模型按钮、主进程同一套模型 id 字符集（自定义模型 id 用） */
-const MODEL_ID = /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]{0,127}$/;
-
 /**
  * CLI 标签的 `/model`：与输入框的模型按钮一致——列这个标签的模型目录（官方来源读 CLI 自己，
  * 第三方来源是网关的模型），再附上另一种来源的候选（切换来源）。只作用于当前标签、下一条消息起生效；
- * 官方来源时参数可以是自定义模型 id。
+ * 参数只能命中列表里的模型（不接受目录外的自定义模型 id）。
  */
 async function tabModelCard(
   ctx: SlashContext,
@@ -323,6 +335,11 @@ async function tabModelCard(
   tabSource: TabSource,
   /** 另一种来源的候选（官方标签列第三方模型，第三方标签列「官方」） */
   others: ModelChoice[],
+  /**
+   * 聊过的第三方会话：不列「默认模型」——清掉选择回到的是会话上次用的模型，不是「模型」页的默认
+   * （current 已经是实际下发的那个）
+   */
+  sessionStarted = false,
 ): Promise<SlashCardInput> {
   const thirdParty = tabSource === 'thirdParty';
   const source =
@@ -331,15 +348,19 @@ async function tabModelCard(
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   const pick = (model: string) => ctx.actions.setTabModel(model, tabSource);
   const choices: ModelChoice[] = [
-    {
-      label: defaultLabel
-        ? t('ui.slash-commands.default-model', defaultLabel)
-        : t('ui.providers-schedule.default-model'),
-      provider: source,
-      model: '',
-      active: !current,
-      run: () => pick(''),
-    },
+    ...(sessionStarted
+      ? []
+      : [
+          {
+            label: defaultLabel
+              ? t('ui.slash-commands.default-model', defaultLabel)
+              : t('ui.providers-schedule.default-model'),
+            provider: source,
+            model: '',
+            active: !current,
+            run: () => pick(''),
+          },
+        ]),
     ...catalog.models.map((m) => ({
       label: m.label ?? m.id,
       provider: source,
@@ -373,7 +394,7 @@ async function tabModelCard(
       { text: c.model, weight: 3 },
       { text: c.label, weight: 1 },
     ]);
-    const exact = ranked.filter((r) => r.item.model.toLowerCase() === q.toLowerCase());
+    const exact = choices.filter((c) => exactChoice(c, q)).map((item) => ({ item }));
     const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
     try {
       if (hit) {
@@ -382,11 +403,6 @@ async function tabModelCard(
           return notice(t('ui.foundation.model'), t('ui.slash-commands.already-using', c.label));
         await c.run();
         return done(c.label);
-      }
-      // 目录里没有：和模型按钮的「自定义模型 id」一样直接用（第三方只能从网关的模型里选）
-      if (!thirdParty && !ranked.length && MODEL_ID.test(q)) {
-        await pick(q);
-        return done(t('ui.slash-commands.custom', q));
       }
     } catch (e) {
       return notice(
@@ -411,9 +427,7 @@ async function tabModelCard(
         },
       },
     })),
-    empty: thirdParty
-      ? t('ui.slash-commands.no-matching-models')
-      : t('ui.slash-commands.no-matching-models-you-can-also-enter-a'),
+    empty: t('ui.slash-commands.no-matching-models'),
     actions: [
       {
         id: 'open-models',
@@ -433,6 +447,42 @@ async function tabModelCard(
   };
 }
 
+/**
+ * `/model ` 参数补全的候选：与 `/model <参数>` 匹配的是同一份列表——这个标签的模型目录
+ * （第三方是网关的模型）+ 另一种来源的候选；Nomi 对话是网关里启用的模型。不含「默认模型」。
+ */
+export async function modelArgOptions(
+  ctx: SlashContext,
+  data: SlashData,
+): Promise<ModelArgOption[]> {
+  if (ctx.backend === 'nomi')
+    return nomiChoices(ctx, data).map((c) => ({
+      value: c.ref ?? c.model,
+      label: c.label,
+      hint: c.provider,
+      active: c.active,
+    }));
+  const tm = await ctx.actions.tabModels();
+  const session =
+    tm.source === 'thirdParty'
+      ? sessionRefOf({ lastServedRef: tm.lastServedRef }, data.nomiGateway)
+      : null;
+  const current = tm.current ?? session;
+  const own = (tm.catalog?.models ?? []).map((m) => ({
+    value: m.id,
+    label: m.label ?? m.id,
+    active: current === m.id,
+  }));
+  const others =
+    tm.source === 'thirdParty'
+      ? [officialChoice(ctx, data, tm.source)]
+      : thirdPartyChoices(ctx, data, tm.source);
+  return [
+    ...own,
+    ...others.map((c) => ({ value: c.model, label: c.label, hint: c.provider, active: c.active })),
+  ];
+}
+
 /** `/model` 的结果：无参数 = 列表；有参数且唯一命中 = 直接切换 */
 export async function modelCard(
   ctx: SlashContext,
@@ -444,14 +494,19 @@ export async function modelCard(
     const tm = await ctx.actions.tabModels();
     const official = officialChoice(ctx, data, tm.source);
     const third = thirdPartyChoices(ctx, data, tm.source);
+    const session =
+      tm.source === 'thirdParty'
+        ? sessionRefOf({ lastServedRef: tm.lastServedRef }, data.nomiGateway)
+        : null;
     if (tm.catalog)
       return tabModelCard(
         ctx,
         tm.catalog,
-        tm.current,
+        tm.current ?? session,
         args,
         tm.source,
         tm.source === 'thirdParty' ? [official] : third,
+        !!session,
       );
     // 不能按标签切模型的 CLI（如 Gemini / dsh 官方）：只列来源
     choices = [official, ...third];
@@ -479,7 +534,7 @@ export async function modelCard(
       { text: c.provider, weight: 2 },
       { text: c.label, weight: 1 },
     ]);
-    const exact = ranked.filter((r) => r.item.model.toLowerCase() === q.toLowerCase());
+    const exact = choices.filter((c) => exactChoice(c, q)).map((item) => ({ item }));
     const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
     if (hit) {
       const c = hit[0]!.item;
@@ -535,7 +590,7 @@ const KIND_LABEL: Record<SlashKind, () => string> = {
 export const kindLabel = (k: SlashKind): string => KIND_LABEL[k]();
 
 const SOURCE_LABEL: Record<string, () => string> = {
-  builtin: () => 'Nomi',
+  builtin: () => brand.appName,
   endpoint: () => t('ui.slash-commands.this-endpoint'),
   project: () => t('ui.slash-commands.project-commands'),
   user: () => t('ui.slash-commands.user-commands'),

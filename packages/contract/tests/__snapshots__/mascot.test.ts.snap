@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
+[
+  "mascot.setShape mutation mascot",
+  "mascot.setHit mutation mascot",
+  "mascot.setGeometry mutation mascot",
+  "mascot.dragStart mutation mascot",
+  "mascot.dragMove mutation mascot",
+  "mascot.dragEnd mutation mascot",
+  "mascot.setInteractionConfig mutation mascot",
+  "mascot.wanderNow mutation mascot",
+  "mascot.debugSnapshot query mascot",
+  "mascot.scaleGet query mascot|chat",
+  "mascot.scaleSet mutation mascot|chat",
+  "mascot.scaleStep mutation mascot|chat",
+  "mascot.scaleWheel mutation mascot|chat",
+  "mascot.scaleReset mutation mascot|chat",
+  "mascot.saveModel mutation mascot",
+  "mascot.getSavedModel query mascot",
+  "character.getActivePack query *",
+  "persona.get query *",
+  "persona.systemPrompt query chat",
+  "island.get query chat",
+  "island.set mutation chat",
+  "island.test mutation chat",
+  "chatBg.get query chat",
+  "chatBg.set mutation chat",
+  "chatBg.reset mutation chat",
+  "chatBg.pickImage mutation chat",
+  "window.quit mutation mascot",
+  "window.setAlwaysOnTop mutation mascot",
+  "window.move mutation mascot",
+  "window.getPosition query mascot",
+  "window.setPosition mutation mascot",
+  "window.getCursorPosition query mascot",
+  "window.openAiChat mutation mascot",
+  "window.openTaskBoard mutation mascot",
+  "mascot.getRenderer query *",
+  "mascot.setRenderer mutation *",
+  "window.platform query *",
+]
+`;
+
+exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 2`] = `
+[
+  "mascot.scaleChanged",
+  "mascot.rendererChanged",
+  "mascot.cursor",
+  "mascot.body",
+  "mascot.physicsEvent",
+  "mascot.command",
+  "avatar.event",
+  "persona.changed",
+  "chatBg.changed",
+  "window.mouseEnter",
+  "window.mouseLeave",
+]
+`;

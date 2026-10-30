@@ -1,0 +1,61 @@
+{
+ "chars.pdf": [
+  "Hello x"
+ ],
+ "cid.pdf": [
+  "ABC 中文"
+ ],
+ "cols.pdf": [
+  "Left Right\nL2 R2"
+ ],
+ "crop.pdf": [
+  "corner"
+ ],
+ "form.pdf": [
+  "BeforeIn form\nAfter"
+ ],
+ "gaps.pdf": [
+  "Name: Value\nKerned word"
+ ],
+ "gsfont.pdf": [
+  "via gs\nnormal timesbig"
+ ],
+ "lines.pdf": [
+  "First line\nSecond line\nThird"
+ ],
+ "missing.pdf": [
+  "fallback\nafter unknown"
+ ],
+ "neg.pdf": [
+  "rightleft\nAB C"
+ ],
+ "offpage.pdf": [
+  "Visible\nAgain"
+ ],
+ "pages.pdf": [
+  "Page one",
+  "Page two textnext",
+  ""
+ ],
+ "para.pdf": [
+  "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nNew paragraph here."
+ ],
+ "quote.pdf": [
+  "a\nb\nc"
+ ],
+ "rise.pdf": [
+  "E=mc2 ok"
+ ],
+ "rotated.pdf": [
+  "Rotated text\nline2\nDiagonal"
+ ],
+ "simple.pdf": [
+  "Hello World"
+ ],
+ "spacing.pdf": [
+  "S p a c e d\nword space test"
+ ],
+ "tstar.pdf": [
+  "one\ntwo\nthree\nfour"
+ ]
+}

@@ -178,20 +178,25 @@ export const PermissionModeChip: React.FC<{
     else void apply(m);
   };
 
-  // 输入框 Shift+Tab：循环切换（不经过「完全放开」）
-  useEffect(() => {
+  // 输入框 Shift+Tab：循环切换（不经过「完全放开」）。
+  // 监听只在挂载时注册一次、在 commit 阶段（layout effect）就绪，处理函数从 ref 读最新档位：
+  // 若跟着档位 / 标签重注册，标签状态刷新的那次渲染与被动 effect 之间会有没有监听的窗口，
+  // 此时按下的 Shift+Tab 无人处理（慢机器上稳定复现）。
+  const cycleRef = useRef<() => boolean>(() => false);
+  cycleRef.current = () => {
+    const next = nextMode(backend, mode === 'bypass' ? 'acceptEdits' : mode);
+    if (!next) return false;
+    void apply(next);
+    return true;
+  };
+  useLayoutEffect(() => {
     const onCycle = (e: Event) => {
       const detail = (e as CustomEvent<CyclePermissionDetail>).detail;
-      const next = nextMode(backend, mode === 'bypass' ? 'acceptEdits' : mode);
-      if (!next) return;
-      detail.handled = true;
-      void apply(next);
+      if (cycleRef.current()) detail.handled = true;
     };
     window.addEventListener(CYCLE_PERMISSION_EVENT, onCycle);
     return () => window.removeEventListener(CYCLE_PERMISSION_EVENT, onCycle);
-    // apply 每次渲染都是新函数；只需要跟着档位 / 标签变化
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, mode, tab.id]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;

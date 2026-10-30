@@ -13,6 +13,8 @@
   "license": "MIT",
   "dependencies": {
     "@nomi-ai/ai-sdk-client": "workspace:*",
+    "@nomi-ai/avatar-runtime": "workspace:*",
+    "@nomi-ai/contract": "workspace:*",
     "@nomi-ai/ui": "workspace:*",
     "@nomi-ai/voice": "workspace:*",
     "@rive-app/canvas-lite": "2.44.2",
@@ -21,6 +23,8 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@nomi-ai/character-contract": "workspace:*",
+    "@nomi-ai/repo-paths": "workspace:*",
     "@nomi-ai/types": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

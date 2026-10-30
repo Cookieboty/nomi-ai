@@ -1,6 +1,6 @@
-# @nomi-ai/renderer — 看板娘渲染进程 / Mascot renderer
+# @nomi-ai/renderer — 诺米渲染进程 / Mascot renderer
 
-**中文：** 桌面看板娘窗口（React + Vite）。应用只内置 2D 看板娘 Nomi：默认用 Rive 播放动画，
+**中文：** 桌面诺米窗口（React + Vite）。应用只内置 2D 诺米 Nomi：默认用 Rive 播放动画，
 Rive 起不来时回退到 Canvas2D 分层立绘（见 `public/assets/models/CREDITS.md`）。
 
 **English:** Desktop mascot window (React + Vite). The app ships only the built-in 2D mascot **Nomi**:
@@ -9,14 +9,16 @@ animated with Rive by default, falling back to the Canvas2D layered rig if Rive 
 
 ## 结构 / Structure
 
-- `src/mascot/MascotBackend.ts` — 渲染后端抽象（表情 / 口型 / 视线 / 眨眼）与 `mascotRegistry` / backend abstraction (expression / lip / gaze / blink) + `mascotRegistry`
-- `src/mascot/backends/rive.ts`、`backends/sprite.ts` — Rive 与分层 2D 实现
-- `src/mascot/catalog.ts` — 读取 `model-list.json`（每个模型必须有 `license` / `author` / `source`）
-- `src/mascot/expressionDirector.ts` — 聊天 / Agent / 工具事件 → 表情（纯函数）
-- `src/mascot/MascotDriver.tsx` — TTS 音量 → 口型、鼠标 → 视线
-- `src/mascot/MascotAIBridge.tsx` — AI 事件 → 表情
-- `src/mascot/tips.ts` — 原创提示文案（MIT）
-- `src/components/Mascot/` — 宿主组件（气泡、工具栏、动作菜单、致谢等）
+角色引擎（渲染后端、表情 / 动作驱动、命中区与互动、口型消费）在 [`@nomi-ai/avatar-runtime`](../avatar-runtime/README.md)；
+这里只剩窗口壳与适配层。 / The character engine lives in `@nomi-ai/avatar-runtime`; this package is the window shell
+plus a thin adapter.
+
+- `src/components/Mascot/` — 宿主组件（气泡、工具栏、右键菜单、动作菜单、致谢等）；`Nomi2DCanvas.tsx` 等角色包就绪后挂 `AvatarStage`
+- `src/avatar/` — 适配层：事件中枢 `avatarEvents`（`AvatarEventSource`）、契约窗口宿主（命中 / 拖拽 / 形状）、互动输出 → 气泡与朗读、当前角色 → `AvatarCharacter`
+- `src/mascot/MascotDriver.tsx` — TTS 口型、主进程光标 / 物理事件、诺米指令 → 语义事件
+- `src/mascot/MascotAIBridge.tsx` — AI 事件（契约）→ 语义事件
+- `src/mascot/characterConfig.ts` — 内置包 + Scheme B 覆盖包；`catalog.ts` 读取 `model-list.json`
+- `src/mascot/tips.ts`、`characterCopy.ts`、`characterVoice.ts`、`tts/`、`voice/` — 台词、角色语音偏好、朗读与语音输入
 
 ## 素材 / Assets
 
@@ -26,4 +28,4 @@ animated with Rive by default, falling back to the Canvas2D layered rig if Rive 
 Only Nomi is bundled; there is no character switching, store or import. `pnpm check:licenses` rejects assets without an
 allowlisted open license (CC0 / CC-BY / MIT, etc.) or missing from `assets-licenses.json`.
 
-> 历史 / History：v1 曾使用 Live2D Cubism 2 运行时与第三方模型；因许可原因已整体移除。之后的 VRM 3D 渲染器也已移除。 / v1 used Live2D Cubism 2 runtime and third-party models; removed for licensing reasons. The later VRM 3D renderer has been removed as well.
+> 历史 / History：v1 曾使用第三方 2D 模型运行时与模型；因许可原因已整体移除。之后的 VRM 3D 渲染器也已移除。 / v1 used a third-party 2D model runtime and models; removed for licensing reasons. The later VRM 3D renderer has been removed as well.

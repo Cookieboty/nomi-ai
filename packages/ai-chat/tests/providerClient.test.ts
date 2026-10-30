@@ -2,24 +2,26 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { providerClient } from '../src/services/providerClient';
 
-describe('providerClient', () => {
-  afterEach(() => {
-    delete (globalThis as { window?: unknown }).window;
-  });
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-  it('invokes ai:providers:* and strips Electron error prefix', async () => {
-    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-      if (ch === 'ai:providers:setActive' && a[0] === 'x')
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
+describe('providerClient', () => {
+  afterEach(() => resetFakeApi());
+
+  it('invokes providers.* and strips Electron error prefix', async () => {
+    const invoke = vi.fn(async (name: string, i: { id?: string }) => {
+      if (name === 'providers.setActive' && i.id === 'x')
         throw new Error(
           "Error invoking remote method 'ai:providers:setActive': Error: provider 'x' 不存在",
         );
       return { providers: [], envProviders: [] };
     });
-    (globalThis as { window?: unknown }).window = { aiIPC: { invoke, on: vi.fn() } };
+    installFakeApi(invoke);
     await providerClient.setActive('p-1');
-    expect(invoke).toHaveBeenCalledWith('ai:providers:setActive', 'p-1', undefined);
+    expect(invoke).toHaveBeenCalledWith('providers.setActive', { id: 'p-1' });
     await providerClient.setActive('p-1', 'm-2');
-    expect(invoke).toHaveBeenLastCalledWith('ai:providers:setActive', 'p-1', 'm-2');
+    expect(invoke).toHaveBeenLastCalledWith('providers.setActive', { id: 'p-1', model: 'm-2' });
     await expect(providerClient.setActive('x')).rejects.toThrow("provider 'x' 不存在");
   });
 

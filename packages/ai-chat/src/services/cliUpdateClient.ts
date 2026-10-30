@@ -1,5 +1,7 @@
-import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
 
 export interface CliInstallInfo {
   kind: 'claude' | 'codex' | 'dsh' | 'grok' | 'cursor';
@@ -35,6 +37,14 @@ export interface CliInstallPlan {
   userScopeCommand?: string;
 }
 
+/** 安装 / 更新所需的运行环境（PATH 上的 Node.js / npm，每个 CLI 的最低 Node 主版本与是否满足） */
+export interface CliEnvironment {
+  nodeVersion: string | null;
+  nodePath: string | null;
+  npmPath: string | null;
+  requirements: { kind: CliUpdatableKind; minNode: number; ok: boolean }[];
+}
+
 export interface CliRunResult {
   ok: boolean;
   log: string;
@@ -63,23 +73,15 @@ export type CliUpdateEvent =
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'done'; version: string | null }
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'error'; message: string };
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
-  const r = (await b.invoke(`ai:cli-update:${method}`, ...args)) as T & {
-    __error?: { message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
 
 /**
@@ -90,7 +92,7 @@ let lastInspect: CliInstallInfo[] | null = null;
 let inspecting: Promise<CliInstallInfo[]> | null = null;
 function inspect(refresh = false): Promise<CliInstallInfo[]> {
   if (!refresh && inspecting) return inspecting;
-  const p = call<CliInstallInfo[]>('inspect', refresh).then((rows) => {
+  const p = call<CliInstallInfo[]>(() => api.cliUpdate.inspect({ refresh })).then((rows) => {
     if (Array.isArray(rows)) lastInspect = rows;
     return rows;
   });
@@ -106,7 +108,7 @@ function inspect(refresh = false): Promise<CliInstallInfo[]> {
 }
 
 export const cliUpdateClient = {
-  available: () => !!bridge(),
+  available: () => hasTransport(),
   inspect,
   /** 上次 inspect 的结果（还没查过为 null），用于先渲染再校验 */
   cached: (): CliInstallInfo[] | null => lastInspect,
@@ -116,23 +118,26 @@ export const cliUpdateClient = {
     inspecting = null;
   },
   preview: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
-    call<CliInstallPlan>('preview', kind, scope),
+    call<CliInstallPlan>(() => api.cliUpdate.preview({ kind, scope })),
   run: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
-    call<CliRunResult>('run', kind, scope),
+    call<CliRunResult>(() => api.cliUpdate.run({ kind, scope })),
   job: async (kind: CliUpdatableKind): Promise<CliJob | null> => {
-    const j = await call<CliJob | null>('job', kind);
+    const j = await call<CliJob | null>(() => api.cliUpdate.job({ kind }));
     return j && typeof j === 'object' && typeof j.status === 'string' && Array.isArray(j.lines)
       ? j
       : null;
   },
   /** 正在安装 / 更新的端点（不同端点可以同时进行） */
   busy: async (): Promise<CliUpdatableKind[]> => {
-    const b = await call<unknown>('busy');
+    const b = await call<unknown>(() => api.cliUpdate.busy());
     return Array.isArray(b)
       ? b.filter((k): k is CliUpdatableKind => typeof k === 'string' && isBuiltinCliId(k))
       : [];
   },
-  dismiss: (kind: CliUpdatableKind) => call<boolean>('dismiss', kind),
+  dismiss: (kind: CliUpdatableKind) => call<boolean>(() => api.cliUpdate.dismiss({ kind })),
+  environment: () => call<CliEnvironment>(() => api.cliUpdate.environment()),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>
-    bridge()?.on('ai:cli-update:event', (p) => fn(p as CliUpdateEvent)) ?? (() => undefined),
+    hasTransport()
+      ? api.on('cliUpdate.event', (p) => fn(p as unknown as CliUpdateEvent))
+      : () => undefined,
 };

@@ -1,13 +1,18 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HistorySession } from '../src/services/historyClient';
+
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
@@ -67,43 +72,65 @@ const hist = {
   cwdMissing: false,
   updatedAt: now - 60 * 60_000,
 } as HistorySession;
-let calls: Array<[string, unknown[]]> = [];
+type Input = {
+  id?: string;
+  backend?: string;
+  sessionId?: string;
+  options?: { offset?: number; limit?: number };
+};
+let calls: Array<[string, Input]> = [];
 
 function mockIpc() {
   calls = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
+  const invoke = vi.fn(async (ch: string, input?: Input) => {
+    calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabs')
       return {
         tabs: [{ id: 't1', backend: 'claude', cwd: '/w', status: tabStatus, unread: 0 }],
         activeTabId: 'main',
         running: 0,
         queued: 0,
       };
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:history:list') {
-      const [b] = args as [string];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'history.list') {
+      const b = input?.backend;
       return { items: b === 'codex' ? [hist] : [], nextOffset: null, hasMore: false };
     }
-    if (ch === 'ai:history:open') return { ok: true };
+    if (ch === 'history.open') return { ok: true };
+    if (ch === 'history.delete') return { ok: true, removed: 1 };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 }
 
-const mount = () =>
+const mount = (collapsed = false, onToggle: () => void = () => undefined) =>
   render(
     <HarnessTabsProvider>
       <Sidebar
-        collapsed={false}
-        onToggle={() => undefined}
+        collapsed={collapsed}
+        onToggle={onToggle}
         onNewChat={() => undefined}
         onForkRequest={onForkRequest}
       />
     </HarnessTabsProvider>,
   );
+
+/** 自管 collapsed，便于测「折叠态重命名先展开」（#163） */
+function MountCollapsed() {
+  const [collapsed, setCollapsed] = React.useState(true);
+  return (
+    <HarnessTabsProvider>
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        onNewChat={() => undefined}
+        onForkRequest={onForkRequest}
+      />
+    </HarnessTabsProvider>
+  );
+}
 const row = (r: ReturnType<typeof mount>, id: string) =>
   r.container
     .querySelector(`[data-conversation-id="${id}"]`)!
@@ -124,8 +151,9 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetConfirmDialogForTest();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
   vi.restoreAllMocks();
 });
 
@@ -207,32 +235,31 @@ describe('sidebar row actions', () => {
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n2'));
   });
 
-  it('cli tab: trash closes the tab; a running tab keeps the close confirmation', async () => {
+  it('cli tab: trash closes the tab; a running tab keeps the close confirmation (in-app)', async () => {
     tabStatus = 'running';
-    const confirm = vi.fn(() => false);
-    window.confirm = confirm;
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await waitFor(() => expect(within(row(r, 'c1')).getByTestId('row-delete')).toBeTruthy());
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    expect(confirm).toHaveBeenCalledWith('该标签仍在运行，关闭会中止它。确定关闭？');
-    await new Promise((x) => setTimeout(x, 20));
-    expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(false);
-    confirm.mockImplementation(() => true);
+    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
+      '该标签仍在运行，关闭会中止它。确定关闭？',
+    );
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(false);
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'ai:harness:tab-close' && a[0] === 't1')).toBe(true),
+      expect(calls.some(([ch, a]) => ch === 'harness.tabClose' && a.id === 't1')).toBe(true),
     );
   });
 
   it('idle cli tab closes without asking', async () => {
-    const confirm = vi.fn(() => false);
-    window.confirm = confirm;
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    await waitFor(() => expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(true));
-    expect(confirm).not.toHaveBeenCalled();
+    await waitFor(() => expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(true));
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
   });
 
   it('"more" opens the shared conversation menu on demand (same as right click)', async () => {
@@ -253,21 +280,44 @@ describe('sidebar row actions', () => {
     ).toBeTruthy();
   });
 
-  it('disk history rows are read-only: only "more" with an open-in-tab item', async () => {
+  it('disk history rows: no rename / fork; "more" opens in a tab or deletes', async () => {
     const r = mount();
     const item = await waitFor(() => r.getByTestId('history-session-item'));
     const hrow = item.closest('[data-testid="history-session-row"]') as HTMLElement;
     const w = within(hrow);
     expect(w.queryByTestId('row-rename')).toBeNull();
-    expect(w.queryByTestId('row-delete')).toBeNull();
+    expect(w.getByTestId('row-delete')).toBeTruthy();
     fireEvent.click(w.getByTestId('row-more'));
     const menu = r.getByTestId('conversation-context-menu');
     expect(within(menu).queryByTestId('conversation-rename')).toBeNull();
-    expect(within(menu).queryByTestId('conversation-delete')).toBeNull();
+    expect(within(menu).getByTestId('conversation-delete')).toBeTruthy();
     expect(within(menu).queryByTestId('fork-same')).toBeNull();
     fireEvent.click(within(menu).getByTestId('conversation-open'));
     await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'ai:history:open' && a[1] === 's9')).toBe(true),
+      expect(calls.some(([ch, a]) => ch === 'history.open' && a.sessionId === 's9')).toBe(true),
+    );
+  });
+
+  it('deleting a disk history row asks in-app first, then trashes it and refreshes the list', async () => {
+    const r = mount();
+    const item = await waitFor(() => r.getByTestId('history-session-item'));
+    const w = within(item.closest('[data-testid="history-session-row"]') as HTMLElement);
+    fireEvent.click(w.getByTestId('row-delete'));
+    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
+      'disk codex session',
+    );
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(calls.some(([ch]) => ch === 'history.delete')).toBe(false);
+
+    const listsBefore = calls.filter(([ch]) => ch === 'history.list').length;
+    fireEvent.click(w.getByTestId('row-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+    await waitFor(() =>
+      expect(calls.some(([ch, a]) => ch === 'history.delete' && a.sessionId === 's9')).toBe(true),
+    );
+    await waitFor(() =>
+      expect(calls.filter(([ch]) => ch === 'history.list').length).toBeGreaterThan(listsBefore),
     );
   });
 

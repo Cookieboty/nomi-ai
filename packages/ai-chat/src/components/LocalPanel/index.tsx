@@ -35,6 +35,7 @@ import {
   type OllamaModel,
   type Progress,
 } from '../../services/localClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 
@@ -401,15 +402,16 @@ export const LocalPanel: React.FC<{
                       size="sm"
                       variant="danger"
                       disabled={!!busy}
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          window.confirm(
-                            t(
+                          await confirmDialog({
+                            message: t(
                               'ui.knowledge-local.delete-the-model-file-for',
                               m.name,
                               fmtBytes(m.bytes),
                             ),
-                          )
+                            danger: true,
+                          })
                         )
                           void run(`r:${m.id}`, () => localClient.remove(m.id));
                       }}
@@ -506,8 +508,13 @@ export const LocalPanel: React.FC<{
                   size="sm"
                   label={t('ui.knowledge-local.delete-from-ollama-action', m.name)}
                   icon={<Icon icon={Trash2} size={14} />}
-                  onClick={() => {
-                    if (window.confirm(t('ui.knowledge-local.delete-from-ollama', m.name)))
+                  onClick={async () => {
+                    if (
+                      await confirmDialog({
+                        message: t('ui.knowledge-local.delete-from-ollama', m.name),
+                        danger: true,
+                      })
+                    )
                       void run(`od:${m.name}`, () => localClient.ollamaDelete(m.name), loadOllama);
                   }}
                 />

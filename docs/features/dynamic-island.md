@@ -31,7 +31,7 @@
 
 ## 技术说明
 
-- 实现：`packages/electron/src/island/`。窗口透明、无边框、不抢焦点，层级高于菜单栏，在所有桌面空间可见；内容只以纯文本渲染。
+- 实现：`apps/desktop-electron/src/island/`。窗口透明、无边框、不抢焦点，层级高于菜单栏，在所有桌面空间可见；内容只以纯文本渲染。
 - 是否有刘海按「内建屏 + 菜单栏高度」推断，判断不准时退回胶囊样式。macOS 的专注模式没有公开接口，无法自动感知。
 - 调试：`CD_ISLAND_SIMULATE_NOTCH=1` 可在任意平台模拟刘海。
 - 岛窗口使用独立的内存会话（`partition: 'nomi-island'`）：默认会话上的统一 CSP 响应头（`script-src 'self'`）会拦掉这个 `data:` 页面的内联脚本，岛就只剩一个不会展开的黑块；页面自带更严的 meta CSP（`default-src 'none'`）。

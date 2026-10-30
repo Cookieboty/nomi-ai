@@ -1,0 +1,94 @@
+{
+  "behaviors": {
+    "k-bad401": { "chat": { "throw": { "message": "Incorrect API key provided", "statusCode": 401 } }, "stream": [{ "type": "error", "error": "401 Unauthorized: invalid api key" }] },
+    "k-bad429": { "chat": { "throw": { "message": "Rate limit reached", "statusCode": 429 } }, "stream": [{ "type": "error", "error": "429 rate limit" }] },
+    "k-500": { "chat": { "throw": { "message": "upstream exploded", "statusCode": 500 } }, "stream": [{ "type": "error", "error": "upstream exploded 500" }] },
+    "k-plain": { "chat": { "throw": { "message": "quota exceeded for billing", "plain": true } }, "stream": [{ "type": "delta", "content": "par" }, { "type": "error", "error": "401 Unauthorized" }] },
+    "k-ok": { "chat": { "res": { "model": "served-1", "content": "hello there", "finishReason": "stop", "usage": { "promptTokens": 12, "completionTokens": 5, "totalTokens": 17, "cacheReadTokens": 3 } } },
+              "stream": [{ "type": "delta", "content": "hel" }, { "type": "delta", "content": "lo" }, { "type": "usage", "usage": { "promptTokens": 9, "completionTokens": 2, "totalTokens": 11 }, "model": "served-s" }, { "type": "done", "finishReason": "stop" }] },
+    "k-nousage": { "chat": { "res": { "model": "", "content": "一些中文 and words", "finishReason": "stop" } },
+              "stream": [{ "type": "reasoning", "content": "hmm" }, { "type": "delta", "content": "plain text answer" }, { "type": "done", "finishReason": "stop" }] },
+    "k-throw": { "chat": { "throw": { "message": "socket hang up", "plain": true } }, "stream": [{ "type": "delta", "content": "x" }], "streamThrow": "stream broke" },
+    "env-a": { "chat": { "res": { "model": "env-model", "content": "from env a", "finishReason": "stop" } }, "stream": [{ "type": "delta", "content": "env a" }, { "type": "done", "finishReason": "stop" }] },
+    "env-b": { "chat": { "res": { "model": "env-b-model", "content": "from env b", "finishReason": "length", "usage": { "promptTokens": 1, "completionTokens": 1, "totalTokens": 2 } } }, "stream": [{ "type": "delta", "content": "env b" }, { "type": "done", "finishReason": "stop" }] },
+    "gw-tok": { "chat": { "res": { "model": "openai/gpt-x", "content": "via gateway", "finishReason": "stop", "usage": { "promptTokens": 4, "completionTokens": 6, "totalTokens": 10, "cacheWriteTokens": 2 } } }, "stream": [{ "type": "delta", "content": "gw" }, { "type": "usage", "usage": { "promptTokens": 1, "completionTokens": 1, "totalTokens": 2 } }, { "type": "done", "finishReason": "stop" }] },
+    "gw-tok2": { "chat": { "throw": { "message": "Unauthorized", "statusCode": 401 } }, "stream": [{ "type": "error", "error": "401" }] }
+  },
+  "scenarios": [
+    {
+      "name": "chat-key-fallback",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "defaultModel": "gpt-a", "keys": ["k-bad401", "k-bad429", "k-ok"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "resolve" }, { "op": "chat", "req": { "reqId": "r1", "messages": [{ "role": "user", "content": "hi" }] } }, { "op": "chat", "req": { "reqId": "r2", "model": "default", "messages": [{ "role": "user", "content": "again" }] } }]
+    },
+    {
+      "name": "chat-nonkey-error-no-fallback",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "defaultModel": "gpt-a", "keys": ["k-500", "k-ok"] }, { "id": "p-b", "presetId": "deepseek", "protocol": "openai-chat", "baseURL": "https://b.example", "keys": ["k-throw", "k-ok"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "chat", "req": { "reqId": "r1", "model": "m1", "messages": [{ "role": "user", "content": "hi" }] } }, { "op": "chatId", "id": "p-b", "req": { "reqId": "r2", "messages": [{ "role": "user", "content": "x" }] } }, { "op": "chatId", "id": "p-b", "req": { "reqId": "r3", "model": "m3", "messages": [] } }]
+    },
+    {
+      "name": "chat-last-key-fails",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-bad401", "k-bad429"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "chat", "req": { "reqId": "r1", "model": "alias", "messages": [{ "role": "user", "content": "hi" }] } }, { "op": "stream", "req": { "reqId": "r2", "messages": [{ "role": "user", "content": "hi" }] } }]
+    },
+    {
+      "name": "chat-plain-message-key-error",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "defaultModel": "d", "modelMap": [{ "from": "d", "to": "mapped-d" }], "keys": ["k-plain", "k-nousage"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "chat", "req": { "reqId": "r1", "messages": [{ "role": "system", "content": "sys prompt" }, { "role": "user", "content": "hello world, 你好" }] } }]
+    },
+    {
+      "name": "stream-key-fallback",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "defaultModel": "gpt-a", "keys": ["k-bad401", "k-bad429", "k-ok"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "stream", "req": { "reqId": "s1", "messages": [{ "role": "user", "content": "go" }] } }]
+    },
+    {
+      "name": "stream-error-after-output-no-fallback",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-plain", "k-ok"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "stream", "req": { "reqId": "s1", "model": "mm", "messages": [{ "role": "user", "content": "go" }] } }]
+    },
+    {
+      "name": "stream-estimated-and-throw",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-nousage"] }, { "id": "p-b", "presetId": "x", "protocol": "openai-chat", "baseURL": "https://b.example/v1", "keys": ["k-throw", "k-ok"] }], "activeProviderId": "p-a" },
+      "ops": [{ "op": "stream", "req": { "reqId": "s1", "messages": [{ "role": "user", "content": "estimate me please" }] } }, { "op": "streamId", "id": "p-b", "req": { "reqId": "s2", "messages": [{ "role": "user", "content": "x" }] } }, { "op": "stream", "req": { "reqId": "s3", "messages": [{ "role": "user", "content": "tail" }] } }]
+    },
+    {
+      "name": "resolve-order",
+      "env": ["env-a", "env-b"],
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-ok"] }, { "id": "p-b", "presetId": "x", "protocol": "openai-chat", "baseURL": "https://b.example/v1", "keys": ["k-ok"] }, { "id": "p-off", "presetId": "x", "enabled": false, "protocol": "openai-chat", "baseURL": "https://c.example/v1", "keys": ["k-ok"] }], "routes": { "summary": { "providerId": "p-b", "model": "sum-model" }, "agent-tools": { "providerId": "p-off" } } },
+      "ops": [{ "op": "resolve" }, { "op": "resolve", "role": "summary" }, { "op": "resolve", "role": "agent-tools" }, { "op": "list" }, { "op": "setActive", "id": "p-b" }, { "op": "resolve" }, { "op": "list" }, { "op": "chat", "role": "summary", "req": { "reqId": "r1", "messages": [{ "role": "user", "content": "s" }] } }, { "op": "setActive", "id": null }, { "op": "resolve" }, { "op": "chatId", "id": "env-b", "req": { "reqId": "r2", "messages": [{ "role": "user", "content": "e" }] } }, { "op": "streamId", "id": "env-a", "req": { "reqId": "r3", "messages": [{ "role": "user", "content": "e" }] } }]
+    },
+    {
+      "name": "override",
+      "env": ["env-a", "env-b"],
+      "override": "env-b",
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-ok"] }], "activeProviderId": "p-a" },
+      "gateway": { "default": { "baseURL": "http://127.0.0.1:9/v1", "token": "gw-tok", "model": "openai/gpt-x", "protocol": "openai-chat", "receiver": { "id": "openai", "baseURL": "https://api.openai.com/v1" } } },
+      "ops": [{ "op": "resolve" }, { "op": "resolve", "role": "summary" }, { "op": "list" }]
+    },
+    {
+      "name": "gateway-only-and-cache",
+      "env": ["env-a"],
+      "store": { "providers": [{ "id": "p-a", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://a.example/v1", "keys": ["k-ok"] }], "activeProviderId": "p-a" },
+      "gateway": { "default": { "baseURL": "http://127.0.0.1:9/v1", "token": "gw-tok", "model": "openai/gpt-x", "protocol": "openai-chat", "receiver": { "id": "openai", "baseURL": "https://api.openai.com/v1" } }, "summary": null },
+      "ops": [{ "op": "resolve" }, { "op": "resolve" }, { "op": "resolve", "role": "summary" }, { "op": "list" }, { "op": "chat", "req": { "reqId": "g1", "messages": [{ "role": "user", "content": "hi" }] } }, { "op": "stream", "req": { "reqId": "g2", "model": "default", "messages": [{ "role": "user", "content": "hi" }] } },
+              { "op": "setGateway", "role": "default", "value": { "baseURL": "http://127.0.0.1:9/v1", "token": "gw-tok", "model": "anthropic/claude", "protocol": "openai-chat", "receiver": { "id": "openai", "baseURL": "https://api.openai.com/v1" } } }, { "op": "resolve" },
+              { "op": "setGateway", "role": "default", "value": { "baseURL": "http://127.0.0.1:9/v1", "token": "gw-tok2", "model": "anthropic/claude", "protocol": "openai-chat", "receiver": { "id": "anthropic", "baseURL": "https://api.anthropic.com" } } }, { "op": "resolve" }, { "op": "chat", "req": { "reqId": "g3", "messages": [{ "role": "user", "content": "x" }] } },
+              { "op": "setGateway", "role": "default", "value": null }, { "op": "resolve" }, { "op": "list" }]
+    },
+    {
+      "name": "no-key-provider",
+      "store": { "providers": [{ "id": "p-local", "presetId": "ollama", "protocol": "openai-chat", "baseURL": "http://localhost:11434/v1", "defaultModel": "llama3", "keys": [] }], "activeProviderId": "p-local" },
+      "ops": [{ "op": "resolve" }, { "op": "chat", "req": { "reqId": "n1", "messages": [{ "role": "user", "content": "local" }] } }]
+    },
+    {
+      "name": "no-store-env-only",
+      "noStore": true,
+      "env": ["env-a", "env-b"],
+      "ops": [{ "op": "resolve" }, { "op": "list" }, { "op": "chat", "req": { "reqId": "e1", "messages": [{ "role": "user", "content": "x" }] } }]
+    },
+    {
+      "name": "empty",
+      "noStore": true,
+      "ops": [{ "op": "resolve" }, { "op": "list" }]
+    }
+  ]
+}

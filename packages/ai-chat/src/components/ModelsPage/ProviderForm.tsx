@@ -6,7 +6,7 @@
  */
 import { BrandIcon, Icon, t } from '@nomi-ai/ui';
 import { Globe, Loader2 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   gatewayClient,
@@ -21,6 +21,7 @@ import {
   providerClientAvailable,
   type ProviderPreset,
 } from '../../services/providerClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './ProviderForm.module.css';
 import {
@@ -46,9 +47,15 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
   const [preset, setPreset] = useState<ProviderPreset | null | undefined>(undefined);
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
+  /** 自定义地址的显示名；空着用「自定义供应商」 */
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reasons, setReasons] = useState<string[]>([]);
+  /** 可选：/models 失败时用于探测与待保存模型（#161） */
+  const [testModel, setTestModel] = useState('');
+  /** 取消 / 卸载时递增，作废进行中的 detect（#162） */
+  const opGen = useRef(0);
 
   useEffect(() => {
     if (!providerClientAvailable()) return;
@@ -59,6 +66,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       .catch(() => undefined);
     return () => {
       alive = false;
+      opGen.current += 1;
     };
   }, []);
 
@@ -80,8 +88,13 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
     setReasons([]);
   };
 
+  const abortOp = () => {
+    opGen.current += 1;
+  };
+
   const save = async () => {
     if (preset === undefined) return;
+    const gen = ++opGen.current;
     setBusy(true);
     setError(null);
     setReasons([]);
@@ -89,16 +102,24 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       if (isPrivateUrl(baseUrl)) {
         const hp = hostPortOf(baseUrl);
         if (hp) {
-          if (custom && !window.confirm(t('ui.models.is-a-local-or-lan-address-allow-nomi', hp)))
+          if (
+            custom &&
+            !(await confirmDialog({
+              message: t('ui.models.is-a-local-or-lan-address-allow-nomi', hp),
+            }))
+          )
             return;
           await gatewayClient.confirmPrivateHost(hp);
         }
       }
+      if (gen !== opGen.current) return;
+      const hand = testModel.trim();
       const result = await gatewayClient.detect({
         ...(preset ? { urls: presetUrls(preset) } : { url: baseUrl }),
         keys,
-        fallbackModel: recommendedOf(preset)[0] || undefined,
+        fallbackModel: recommendedOf(preset)[0] || hand || undefined,
       });
+      if (gen !== opGen.current) return;
       if (!WIRES.some((w) => result.wires[w]?.ok)) {
         setError(t('ui.models.no-api-is-available-so-this-can-t'));
         setReasons(
@@ -109,7 +130,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
         );
         return;
       }
-      const rows = modelRows(result, preset);
+      const rows = modelRows(result, preset, hand);
       if (!rows.some((r) => r.chat)) {
         setError(t('ui.models.no-model-list-was-returned-go-back-and'));
         return;
@@ -117,19 +138,23 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       const saved = await saveDetectedProvider({
         result,
         preset,
-        name: preset?.name ?? '',
+        name: preset?.name ?? name,
         keys,
         models: rows,
         enabled: defaultEnabled(rows),
       });
+      if (gen !== opGen.current) return;
       setPreset(undefined);
       setKey('');
       setUrl('');
+      setName('');
+      setTestModel('');
       onSaved(saved);
     } catch (e) {
+      if (gen !== opGen.current) return;
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (gen === opGen.current) setBusy(false);
     }
   };
 
@@ -174,6 +199,17 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
               onChange={(e) => setUrl(e.target.value)}
             />
           )}
+          {custom && (
+            <input
+              className={styles.input}
+              data-testid={`${idPrefix}-provider-name`}
+              value={name}
+              placeholder={t('ui.models.provider-name-optional')}
+              aria-label={t('ui.models.provider-name-optional')}
+              maxLength={64}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
           {needsKey ? (
             <input
               className={styles.input}
@@ -189,6 +225,15 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
           ) : (
             <p className={styles.note}>{t('ui.models.local-services-don-t-need-a-key')}</p>
           )}
+          <input
+            className={styles.input}
+            data-testid={`${idPrefix}-provider-test-model`}
+            value={testModel}
+            placeholder={t('ui.models.test-model-optional')}
+            aria-label={t('ui.models.test-model-optional')}
+            onChange={(e) => setTestModel(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && canSave && void save()}
+          />
           <div className={styles.actions}>
             <button
               type="button"
@@ -208,6 +253,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
                 className={styles.link}
                 data-testid={`${idPrefix}-provider-cancel`}
                 onClick={() => {
+                  abortOp();
                   choose(undefined);
                   onCancel();
                 }}
@@ -224,7 +270,10 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
             type="button"
             className={styles.link}
             data-testid={`${idPrefix}-provider-cancel`}
-            onClick={onCancel}
+            onClick={() => {
+              abortOp();
+              onCancel();
+            }}
           >
             {t('ui.foundation.cancel')}
           </button>

@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': minor
+'@nomi-ai/host-electron': minor
 ---
 
 Claude Code 会话更快：回复逐字流式显示；点「停止」只中断当前一轮、不再重启进程；只换模型时原地切换，

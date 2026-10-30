@@ -11,6 +11,10 @@ import { parseSlashInput } from '../src/slash/parse';
 import { buildRegistry, executeSlash, findCommand, searchCommands } from '../src/slash/registry';
 import { useSlashCommands } from '../src/slash/useSlashCommands';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
     state: { messages: [], isLoading: false, streaming: false },
@@ -20,15 +24,12 @@ vi.mock('../src/contexts/AiChatContext', () => ({
 
 const settings = { enabled: true, defaults: {}, installed: ['codex', 'grok'], pinned: null };
 beforeEach(() => {
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string) => (ch === 'ai:delegate:settings' ? settings : undefined)),
-    on: () => () => undefined,
-  };
+  installFakeApi((ch: string) => (ch === 'delegate.settings' ? settings : undefined));
   setNextDelegate(null);
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const registry = () => buildRegistry(nomiAdapter({} as never));
@@ -116,6 +117,11 @@ describe('输入框里的 /agent 补全', () => {
     fireEvent.keyDown(ta, { key: 'ArrowDown' });
     // 输入法组合中的 Enter 不选
     fireEvent.keyDown(ta, { key: 'Enter', isComposing: true });
+    expect(ta.value).toBe('/agent ');
+    // macOS WebKit：compositionend 先到，上屏的那次回车只剩 keyCode 229，也不选
+    fireEvent.compositionStart(ta);
+    fireEvent.compositionEnd(ta);
+    fireEvent.keyDown(ta, { key: 'Enter', keyCode: 229 });
     expect(ta.value).toBe('/agent ');
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(ta.value).toBe('/agent grok ');

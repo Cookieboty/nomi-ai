@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复对话里代码块和消息的复制按钮点了没反应：放行剪贴板写入权限（读取仍然拒绝）。

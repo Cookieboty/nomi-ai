@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useWaifuMessage } from './useWaifuMessage';
+import { useCompanionMessage } from './useCompanionMessage';
 
 import { IDLE_TIPS, MESSAGES, MOUSEOVER_TIPS, greetingFor } from '@/mascot/tips';
 
@@ -12,9 +12,9 @@ const IDLE_AFTER_MS = 45_000;
 export const GREETING_PRIORITY = 8;
 export const GREETING_DELAY_MS = 1200;
 
-/** 注册看板娘的提示文案：问候、悬停提示、空闲提醒、复制/回到前台。 */
+/** 注册桌面角色的提示文案：问候、悬停提示、空闲提醒、复制/回到前台。 */
 export function useMascotTips(): void {
-  const { showMessage } = useWaifuMessage();
+  const { showMessage } = useCompanionMessage();
   const showRef = useRef(showMessage);
   // 渲染期不写 ref：通过 effect 同步最新 showMessage，供 window 事件回调读取
   useEffect(() => {

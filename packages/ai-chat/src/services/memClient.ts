@@ -1,6 +1,9 @@
 import { createLogger, t as tr } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
+import { contractErrorCode } from './hostBackends/knowledge';
 /**
- * 长期记忆客户端：`ai:mem:*` IPC（经 preload 的 window.aiIPC）。数据只在主进程 userData/memory。
+ * 长期记忆客户端：契约 `mem.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:mem:*`）。数据只在主进程 userData/memory。
  */
 
 const log = createLogger('memory');
@@ -61,17 +64,6 @@ export interface MemUsed {
   title: string;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-
-function bridge(): AiBridge | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-}
-
 export class MemCallError extends Error {
   constructor(
     readonly code: string,
@@ -81,47 +73,63 @@ export class MemCallError extends Error {
   }
 }
 
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b)
+/** 契约错误码 → 旧码（`MEM_NOT_FOUND` → `not-found`，`UNAVAILABLE` → `unavailable`），调用方照旧判断 */
+const LEGACY_CODE: Record<string, string> = {
+  UNAVAILABLE: 'unavailable',
+  MEM_BAD_SUMMARY: 'bad-summary',
+  MEM_SUMMARIZE_FAILED: 'summarize-failed',
+  MEM_NOT_FOUND: 'not-found',
+  MEM_EMPTY: 'empty',
+};
+
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
     throw new MemCallError(
       'unavailable',
       tr('ui.chat-settings.long-term-memory-requires-the-desktop-app'),
     );
-  const r = (await b.invoke(`ai:mem:${method}`, ...args)) as T & {
-    __error?: { code: string; message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error)
-    throw new MemCallError(r.__error.code, r.__error.message);
-  return r;
+  try {
+    return (await run()) as T;
+  } catch (err) {
+    const code = contractErrorCode(err);
+    if (code !== undefined)
+      throw new MemCallError(LEGACY_CODE[code] ?? code, (err as Error).message);
+    throw err;
+  }
 }
 
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
+const on = (subscribe: () => () => void): (() => void) =>
+  hasTransport() ? subscribe() : () => undefined;
 
 type Turn = { role: string; content: string };
 
 export const memClient = {
-  available: () => !!bridge(),
-  state: () => call<MemState>('state'),
-  list: (filter = '') => call<{ episodes: MemEpisode[]; facts: MemFact[] }>('list', filter),
-  setSettings: (p: Partial<MemSettings>) => call<MemSettings>('set-settings', p),
-  persona: () => call<string>('persona'),
-  setPersona: (t: string) => call<boolean>('set-persona', t),
-  openPersona: () => call<boolean>('open-persona'),
+  available: () => hasTransport(),
+  state: () => call<MemState>(() => api.mem.state()),
+  list: (filter = '') =>
+    call<{ episodes: MemEpisode[]; facts: MemFact[] }>(() => api.mem.list({ filter })),
+  setSettings: (p: Partial<MemSettings>) => call<MemSettings>(() => api.mem.setSettings(p)),
+  persona: () => call<string>(() => api.mem.persona()),
+  setPersona: (t: string) => call<boolean>(() => api.mem.setPersona({ text: t })),
+  openPersona: () => call<boolean>(() => api.mem.openPersona()),
   ingest: (conversationId: string, msgs: Turn[], force = false) =>
-    call<{ episode?: MemEpisode; skipped?: string }>('ingest', conversationId, msgs, force),
-  context: (q: string) => call<{ text: string; used: MemUsed[] }>('context', q),
-  updateEpisode: (id: string, p: Partial<MemEpisode>) => call<MemEpisode>('update-episode', id, p),
-  upsertFact: (p: Partial<MemFact>) => call<MemFact>('upsert-fact', p),
-  remove: (kind: 'episode' | 'fact', id: string) => call<boolean>('remove', kind, id),
-  clear: () => call<boolean>('clear'),
-  backfill: () => call<number>('backfill'),
-  profile: () => call<Record<string, unknown> | null>('profile'),
-  resetProfile: () => call<boolean>('reset-profile'),
-  export: (fmt: 'json' | 'md') => call<{ ok: boolean; path?: string }>('export', fmt),
-  onChanged: (fn: () => void) => on('ai:mem:changed', () => fn()),
-  onStatus: (fn: (p: { busy: string[] }) => void) =>
-    on('ai:mem:status', (p) => fn(p as { busy: string[] })),
+    call<{ episode?: MemEpisode; skipped?: string }>(() =>
+      api.mem.ingest({ conversationId, messages: msgs, force }),
+    ),
+  context: (q: string) => call<{ text: string; used: MemUsed[] }>(() => api.mem.context({ q })),
+  updateEpisode: (id: string, p: Partial<MemEpisode>) =>
+    call<MemEpisode>(() => api.mem.updateEpisode({ id, patch: p })),
+  upsertFact: (p: Partial<MemFact>) => call<MemFact>(() => api.mem.upsertFact(p)),
+  remove: (kind: 'episode' | 'fact', id: string) =>
+    call<boolean>(() => api.mem.remove({ kind, id })),
+  clear: () => call<boolean>(() => api.mem.clear()),
+  backfill: () => call<number>(() => api.mem.backfill()),
+  profile: () => call<Record<string, unknown> | null>(() => api.mem.profile()),
+  resetProfile: () => call<boolean>(() => api.mem.resetProfile()),
+  export: (fmt: 'json' | 'md') =>
+    call<{ ok: boolean; path?: string }>(() => api.mem.export({ format: fmt })),
+  onChanged: (fn: () => void) => on(() => api.on('mem.changed', () => fn())),
+  onStatus: (fn: (p: { busy: string[] }) => void) => on(() => api.on('mem.status', (p) => fn(p))),
 };
 
 /** 取召回片段；失败（未开启 / 主进程旧版本）时静默返回空，不影响对话 */

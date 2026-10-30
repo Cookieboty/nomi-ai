@@ -14,7 +14,7 @@
 | 用量日志 | `sessions/**/updates.jsonl` 中 `sessionUpdate == "turn_completed"` + `usage`（input 含缓存）                              | 社区 ccusage / 公开会话布局；**字段名未用真机二进制逐条核对**        |
 | 订阅额度 | 官方 CLI ACP：`grok agent stdio` → `initialize` / `_x.ai/billing`（CLI 自带登录态；Nomi 不读凭据）                        | 账号登录显示额度卡（可单卡刷新）；API Key 只统计用量与费用           |
 
-硬约束：不读凭据、不调未文档接口、不碰看板娘 rig 动画内部。
+硬约束：不读凭据、不调未文档接口、不碰诺米 rig 动画内部。
 
 ## Nomi 实现对照
 

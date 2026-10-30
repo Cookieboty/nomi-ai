@@ -1,0 +1,1617 @@
+[
+ {
+  "name": "text-basic",
+  "mode": "stream",
+  "request": {
+   "reqId": "r1",
+   "model": "m-1",
+   "messages": [
+    {
+     "role": "system",
+     "content": "sys A"
+    },
+    {
+     "role": "system",
+     "content": "sys B"
+    },
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ],
+   "temperature": 0.3,
+   "maxTokens": 100
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "stream-start",
+      "warnings": []
+     },
+     {
+      "type": "response-metadata",
+      "id": "resp-1",
+      "modelId": "up-model"
+     },
+     {
+      "type": "text-start",
+      "id": "t1"
+     },
+     {
+      "type": "text-delta",
+      "id": "t1",
+      "delta": "Hel"
+     },
+     {
+      "type": "text-delta",
+      "id": "t1",
+      "delta": ""
+     },
+     {
+      "type": "text-delta",
+      "id": "t1",
+      "delta": "lo"
+     },
+     {
+      "type": "text-end",
+      "id": "t1"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop",
+       "raw": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 10,
+        "noCache": 10
+       },
+       "outputTokens": {
+        "total": 5,
+        "text": 5
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "reasoning-thinking-anthropic",
+  "mode": "stream",
+  "opts": {
+   "protocol": "anthropic",
+   "thinking": true
+  },
+  "request": {
+   "reqId": "r2",
+   "messages": [
+    {
+     "role": "user",
+     "content": "q"
+    },
+    {
+     "role": "assistant",
+     "content": "a"
+    },
+    {
+     "role": "user",
+     "content": "q2"
+    }
+   ],
+   "topP": 0.9
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "stream-start",
+      "warnings": []
+     },
+     {
+      "type": "reasoning-start",
+      "id": "r"
+     },
+     {
+      "type": "reasoning-delta",
+      "id": "r",
+      "delta": "think"
+     },
+     {
+      "type": "reasoning-delta",
+      "id": "r",
+      "delta": ""
+     },
+     {
+      "type": "reasoning-end",
+      "id": "r"
+     },
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "ok"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "length",
+       "raw": "max_tokens"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 7,
+        "cacheRead": 3,
+        "cacheWrite": 0
+       },
+       "outputTokens": {
+        "total": 2
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "thinking-responses",
+  "mode": "stream",
+  "opts": {
+   "protocol": "openai-responses",
+   "thinking": true
+  },
+  "request": {
+   "reqId": "r3",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "y"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "content-filter"
+      },
+      "usage": {
+       "inputTokens": {},
+       "outputTokens": {}
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "thinking-chat",
+  "mode": "stream",
+  "opts": {
+   "thinking": true
+  },
+  "request": {
+   "reqId": "r4",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "y"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "other"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "tool-loop-parallel",
+  "mode": "stream",
+  "opts": {
+   "servedModelHeader": "X-Served-Model",
+   "redactedHeader": "X-Redacted"
+  },
+  "request": {
+   "reqId": "r5",
+   "model": "asked",
+   "messages": [
+    {
+     "role": "system",
+     "content": "S"
+    },
+    {
+     "role": "user",
+     "content": "use tools"
+    }
+   ],
+   "extra": {
+    "callerTabId": "tab1",
+    "conversationId": "c1",
+    "cwd": "/w"
+   }
+  },
+  "tools": [
+   {
+    "name": "echo",
+    "description": "Echo input",
+    "input": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ]
+    },
+    "behavior": {
+     "kind": "echo",
+     "delayMs": 50
+    }
+   },
+   {
+    "name": "upper",
+    "description": "Upper",
+    "input": {
+     "type": "object",
+     "properties": {
+      "s": {
+       "type": "string"
+      }
+     }
+    },
+    "behavior": {
+     "kind": "return",
+     "value": "DONE",
+     "delayMs": 20
+    }
+   },
+   {
+    "name": "ws",
+    "description": "needs ws",
+    "requiresWorkspace": true,
+    "behavior": {
+     "kind": "return",
+     "value": {
+      "b": 1,
+      "a": [
+       1,
+       2.5,
+       "x"
+      ]
+     }
+    }
+   },
+   {
+    "name": "noschema",
+    "behavior": {
+     "kind": "return",
+     "value": null
+    }
+   }
+  ],
+  "steps": [
+   {
+    "headers": {
+     "x-served-model": "served-1",
+     "x-redacted": "2"
+    },
+    "parts": [
+     {
+      "type": "stream-start",
+      "warnings": []
+     },
+     {
+      "type": "reasoning-start",
+      "id": "r"
+     },
+     {
+      "type": "reasoning-delta",
+      "id": "r",
+      "delta": "plan"
+     },
+     {
+      "type": "reasoning-delta",
+      "id": "r",
+      "delta": ""
+     },
+     {
+      "type": "reasoning-end",
+      "id": "r"
+     },
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "calling"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "tool-input-start",
+      "id": "c1",
+      "toolName": "echo"
+     },
+     {
+      "type": "tool-input-delta",
+      "id": "c1",
+      "delta": "{\"text\""
+     },
+     {
+      "type": "tool-input-end",
+      "id": "c1"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "c1",
+      "toolName": "echo",
+      "input": "{\"text\":\"hi\",\"z\":1,\"a\":2}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "c2",
+      "toolName": "upper",
+      "input": "{\"s\":\"q\"}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "c3",
+      "toolName": "noschema",
+      "input": ""
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls",
+       "raw": "tool_calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 20
+       },
+       "outputTokens": {
+        "total": 4,
+        "reasoning": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "headers": {
+     "x-served-model": "served-2",
+     "x-redacted": "1"
+    },
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "c4",
+      "toolName": "ws",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 30,
+        "cacheRead": 5
+       },
+       "outputTokens": {
+        "total": 3
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "final"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 40
+       },
+       "outputTokens": {
+        "total": 6
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "tool-errors",
+  "mode": "stream",
+  "request": {
+   "reqId": "r6",
+   "messages": [
+    {
+     "role": "user",
+     "content": "go"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "boom",
+    "description": "throws",
+    "input": {
+     "type": "object",
+     "properties": {}
+    },
+    "behavior": {
+     "kind": "throw",
+     "message": "kaboom"
+    }
+   },
+   {
+    "name": "ws",
+    "requiresWorkspace": true,
+    "behavior": {
+     "kind": "return",
+     "value": 1
+    }
+   },
+   {
+    "name": "undef",
+    "behavior": {
+     "kind": "undefined",
+     "delayMs": 20
+    }
+   },
+   {
+    "name": "big",
+    "behavior": {
+     "kind": "bigstring",
+     "size": 6100,
+     "delayMs": 40
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "e1",
+      "toolName": "boom",
+      "input": "{}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e2",
+      "toolName": "nope",
+      "input": "{\"a\":1}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e3",
+      "toolName": "boom",
+      "input": "{not json"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e4",
+      "toolName": "ws",
+      "input": "{}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e5",
+      "toolName": "undef",
+      "input": "  "
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e6",
+      "toolName": "big",
+      "input": "{}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "e7",
+      "toolName": "boom",
+      "input": "{\"a\":{\"__proto__\":{\"x\":1}}}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "recovered"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 2
+       },
+       "outputTokens": {
+        "total": 2
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "max-steps",
+  "mode": "stream",
+  "opts": {
+   "maxSteps": 2
+  },
+  "request": {
+   "reqId": "r7",
+   "messages": [
+    {
+     "role": "user",
+     "content": "loop"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "t",
+    "behavior": {
+     "kind": "return",
+     "value": {
+      "ok": true
+     }
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "a1",
+      "toolName": "t",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "a2",
+      "toolName": "t",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 2
+       },
+       "outputTokens": {
+        "total": 2
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "never"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "tool-calls-finish-length-no-exec",
+  "mode": "stream",
+  "request": {
+   "reqId": "r8",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "t",
+    "behavior": {
+     "kind": "return",
+     "value": "x"
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "a1",
+      "toolName": "t",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "length"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "stream-error-part",
+  "mode": "stream",
+  "request": {
+   "reqId": "r9",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "par"
+     },
+     {
+      "type": "error",
+      "error": {
+       "type": "error",
+       "error": {
+        "type": "overloaded_error",
+        "message": "Overloaded"
+       }
+      }
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "error"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "stream-error-plain",
+  "mode": "stream",
+  "request": {
+   "reqId": "r10",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "error",
+      "error": {
+       "message": "internal server error",
+       "code": "server_error"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "no-finish",
+  "mode": "stream",
+  "request": {
+   "reqId": "r11",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "stream-start",
+      "warnings": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "api-error-400",
+  "mode": "stream",
+  "request": {
+   "reqId": "r12",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "message": "Bad Request",
+     "statusCode": 400,
+     "data": {
+      "error": {
+       "code": "invalid_request",
+       "message": "model not found"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "api-error-retry-then-ok",
+  "mode": "stream",
+  "request": {
+   "reqId": "r13",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "message": "Server busy",
+     "statusCode": 503,
+     "headers": {
+      "retry-after-ms": "0"
+     }
+    }
+   },
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "ok"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "api-error-retry-exhausted",
+  "mode": "stream",
+  "request": {
+   "reqId": "r14",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "message": "Too many",
+     "statusCode": 429,
+     "headers": {
+      "retry-after-ms": "0"
+     }
+    }
+   },
+   {
+    "throw": {
+     "message": "Too many",
+     "statusCode": 429,
+     "headers": {
+      "retry-after": "0"
+     }
+    }
+   },
+   {
+    "throw": {
+     "message": "Too many again",
+     "statusCode": 429,
+     "headers": {
+      "retry-after-ms": "0"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "api-error-retry-then-400",
+  "mode": "stream",
+  "request": {
+   "reqId": "r15",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "message": "busy",
+     "statusCode": 500,
+     "headers": {
+      "retry-after-ms": "0"
+     }
+    }
+   },
+   {
+    "throw": {
+     "message": "nope",
+     "statusCode": 401
+    }
+   }
+  ]
+ },
+ {
+  "name": "plain-error-throw",
+  "mode": "stream",
+  "request": {
+   "reqId": "r16",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "plain": true,
+     "message": "socket hang up"
+    }
+   }
+  ]
+ },
+ {
+  "name": "no-api-key",
+  "mode": "stream",
+  "opts": {
+   "apiKey": ""
+  },
+  "request": {
+   "reqId": "r17",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": []
+ },
+ {
+  "name": "no-api-key-ok",
+  "mode": "stream",
+  "opts": {
+   "apiKey": "",
+   "requiresApiKey": false,
+   "defaultModel": "dm",
+   "modelMap": [
+    {
+     "from": "dm",
+     "to": "mapped"
+    }
+   ]
+  },
+  "request": {
+   "reqId": "r18",
+   "model": "default",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "k"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "history-tools-images",
+  "mode": "stream",
+  "request": {
+   "reqId": "r19",
+   "messages": [
+    {
+     "role": "user",
+     "content": "look",
+     "images": [
+      {
+       "mime": "image/png",
+       "data": "AAAA"
+      },
+      {
+       "mime": "image/bmp",
+       "data": "BBBB"
+      },
+      {
+       "mime": "image/jpeg",
+       "data": "CCCC"
+      }
+     ]
+    },
+    {
+     "role": "assistant",
+     "content": ""
+    },
+    {
+     "role": "tool",
+     "content": "res1",
+     "toolCallId": "tc1",
+     "name": "echo"
+    },
+    {
+     "role": "tool",
+     "content": "res2"
+    },
+    {
+     "role": "user",
+     "content": "again"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "k"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "abort-during-tool",
+  "mode": "stream",
+  "request": {
+   "reqId": "r20",
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "slow",
+    "behavior": {
+     "kind": "wait-abort"
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "a"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "s1",
+      "toolName": "slow",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "chat-text",
+  "mode": "chat",
+  "opts": {
+   "servedModelHeader": "X-Served-Model",
+   "redactedHeader": "X-Redacted"
+  },
+  "request": {
+   "reqId": "c1",
+   "model": "m",
+   "messages": [
+    {
+     "role": "system",
+     "content": "s"
+    },
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ],
+   "maxTokens": 5
+  },
+  "steps": [
+   {
+    "headers": {
+     "x-served-model": "sv",
+     "x-redacted": "3"
+    },
+    "parts": [
+     {
+      "type": "reasoning-start",
+      "id": "r"
+     },
+     {
+      "type": "reasoning-delta",
+      "id": "r",
+      "delta": "hm"
+     },
+     {
+      "type": "reasoning-end",
+      "id": "r"
+     },
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "he"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "llo"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 3,
+        "cacheWrite": 2
+       },
+       "outputTokens": {
+        "total": 2
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "chat-tools",
+  "mode": "chat",
+  "request": {
+   "reqId": "c2",
+   "messages": [
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "echo",
+    "input": {
+     "type": "object"
+    },
+    "behavior": {
+     "kind": "echo"
+    }
+   },
+   {
+    "name": "boom",
+    "behavior": {
+     "kind": "throw",
+     "message": "bad"
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "pre"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "k1",
+      "toolName": "echo",
+      "input": "{\"q\":1}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "k2",
+      "toolName": "boom",
+      "input": "{}"
+     },
+     {
+      "type": "tool-call",
+      "toolCallId": "k3",
+      "toolName": "zzz",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 4
+       },
+       "outputTokens": {
+        "total": 4
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "text-start",
+      "id": "t"
+     },
+     {
+      "type": "text-delta",
+      "id": "t",
+      "delta": "post"
+     },
+     {
+      "type": "text-end",
+      "id": "t"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 5
+       },
+       "outputTokens": {
+        "total": 5
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "chat-max-steps",
+  "mode": "chat",
+  "opts": {
+   "maxSteps": 1
+  },
+  "request": {
+   "reqId": "c3",
+   "messages": [
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "echo",
+    "behavior": {
+     "kind": "echo"
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "k1",
+      "toolName": "echo",
+      "input": "{\"b\":2,\"a\":1}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 4
+       },
+       "outputTokens": {}
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "chat-api-error",
+  "mode": "chat",
+  "request": {
+   "reqId": "c4",
+   "messages": [
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ]
+  },
+  "steps": [
+   {
+    "throw": {
+     "message": "Unauthorized",
+     "statusCode": 401
+    }
+   }
+  ]
+ },
+ {
+  "name": "tools-all-filtered",
+  "mode": "stream",
+  "request": {
+   "reqId": "r20",
+   "messages": [
+    {
+     "role": "user",
+     "content": ""
+    }
+   ]
+  },
+  "tools": [
+   {
+    "name": "ws",
+    "requiresWorkspace": true,
+    "behavior": {
+     "kind": "return",
+     "value": 1
+    }
+   }
+  ],
+  "steps": [
+   {
+    "parts": [
+     {
+      "type": "tool-call",
+      "toolCallId": "f1",
+      "toolName": "ws",
+      "input": "{}"
+     },
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "tool-calls"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "parts": [
+     {
+      "type": "finish",
+      "finishReason": {
+       "unified": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 1
+       },
+       "outputTokens": {
+        "total": 1
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+]

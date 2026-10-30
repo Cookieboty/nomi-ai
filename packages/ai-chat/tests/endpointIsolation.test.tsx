@@ -8,6 +8,10 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
     state: { messages: [] },
@@ -94,30 +98,29 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
 });
 
 function mockIpc(opts: { tabs: HarnessTabsState; backend?: string; accounts?: unknown[] }) {
-  const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
-    if (ch === 'ai:cli-account:list') return opts.accounts ?? [];
-    if (ch === 'ai:cli-account:activate') return {};
-    if (ch === 'ai:providers:state') return NOMI_STATE;
-    if (ch === 'ai:gateway:state') return GATEWAY_STATE;
-    if (ch === 'ai:harness:tab-source') return tab({ id: String(_a[0]), source: _a[1] as never });
-    if (ch === 'ai:harness:tabs') return opts.tabs;
-    if (ch === 'ai:harness:state')
+  const invoke = vi.fn(async (ch: string, i?: { id?: string; source?: unknown }) => {
+    if (ch === 'cliAccount.list') return opts.accounts ?? [];
+    if (ch === 'providers.state') return NOMI_STATE;
+    if (ch === 'gateway.state') return GATEWAY_STATE;
+    if (ch === 'harness.tabSource') return tab({ id: String(i?.id), source: i?.source as never });
+    if (ch === 'harness.tabs') return opts.tabs;
+    if (ch === 'harness.state')
       return {
         backend: opts.backend ?? 'nomi',
         cwd: '/w',
         bins: { claude: '/c', codex: '/x', dsh: '/d' },
       };
-    if (ch === 'ai:harness:tab-messages') return [];
+    if (ch === 'harness.tabMessages') return [];
     return opts.tabs;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
   localStorage.clear();
 });
 
@@ -135,10 +138,13 @@ describe('CliDefaultSource · 侧栏信息卡「新标签默认」', () => {
     fireEvent.click(r.getByRole('combobox'));
     fireEvent.click(document.querySelector('[data-value="provider:deep"]')!);
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:gateway:set-assignment', 'codex', {
-        newTabSource: 'thirdParty',
-        newTabAccountId: null,
-        models: { main: 'deep/ds-v4' },
+      expect(invoke).toHaveBeenCalledWith('gateway.setAssignment', {
+        client: 'codex',
+        patch: {
+          newTabSource: 'thirdParty',
+          newTabAccountId: null,
+          models: { main: 'deep/ds-v4' },
+        },
       }),
     );
   });

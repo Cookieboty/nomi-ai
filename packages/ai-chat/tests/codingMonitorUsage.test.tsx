@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CodingMonitor } from '../src/components/CodingMonitor';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 const session = (over: Record<string, unknown>) => ({
   id: 'x',
   kind: 'claude',
@@ -43,26 +47,23 @@ const install = (currency: 'USD' | 'CNY') => {
       session({ id: 'codex:c', kind: 'codex', label: 'Codex', title: 'No usage' }),
     ],
   };
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string) => {
-      if (ch === 'ai:agents:state') return agents;
-      if (ch === 'ai:usage:state')
-        return {
-          settings: { currency, cnyPerUsd: 7 },
-          detected: [],
-          records: 1,
-          lastScanAt: 0,
-          pricing: { date: '', builtin: [] },
-        };
-      return null;
-    }),
-    on: vi.fn(() => () => undefined),
-  };
+  installFakeApi((ch: string) => {
+    if (ch === 'agents.state') return agents;
+    if (ch === 'usage.state')
+      return {
+        settings: { currency, cnyPerUsd: 7 },
+        detected: [],
+        records: 1,
+        lastScanAt: 0,
+        pricing: { date: '', builtin: [] },
+      };
+    return null;
+  });
 };
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('CodingMonitor：会话累计 Token / 费用', () => {

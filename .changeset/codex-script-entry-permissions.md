@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 Codex 以 `.js` / `.mjs` 入口（如 `NOMI_CODEX_BIN` 指向的脚本）启动时也带上权限模式对应的沙箱 / 审批 / 联网参数和工作目录（#73）：新建与续接都与普通可执行入口用同一份参数，标签选的「计划」「自动改文件」等不再因入口形式不同而失效。

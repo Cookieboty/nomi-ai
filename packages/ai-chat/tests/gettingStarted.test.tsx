@@ -5,9 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GettingStarted } from '../src/components/GettingStarted';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 beforeEach(() => {
   cliUpdateClient.resetCache();
@@ -23,9 +27,9 @@ function mockIpc(opts: {
   /** 安装命令一直不结束（测试并发） */
   hangRun?: boolean;
 }) {
-  const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
+  const invoke = vi.fn(async (ch: string, i?: { kind?: string }) => {
     // Nomi 对话的模型以网关为准：clients.nomi.models.main
-    if (ch === 'ai:gateway:state')
+    if (ch === 'gateway.state')
       return {
         status: { running: true },
         providers: opts.model
@@ -42,7 +46,7 @@ function mockIpc(opts: {
           : [],
         clients: opts.model === true ? { nomi: { models: { main: 'p1/m1' } } } : {},
       };
-    if (ch === 'ai:cli-update:inspect')
+    if (ch === 'cliUpdate.inspect')
       return (['claude', 'codex', 'gemini'] as const).map((kind) => ({
         kind,
         path: opts.installed.includes(kind) ? `/usr/local/bin/${kind}` : null,
@@ -52,13 +56,12 @@ function mockIpc(opts: {
         updateAvailable: false,
         updateSupported: true,
       }));
-    if (ch === 'ai:cli-update:busy') return [];
-    if (ch === 'ai:onboarding:profile') return opts.profile ?? null;
-    if (ch === 'ai:cli-update:run')
-      return opts.hangRun ? new Promise(() => undefined) : { ok: true };
-    if (ch === 'ai:cli-update:preview')
+    if (ch === 'cliUpdate.busy') return [];
+    if (ch === 'onboarding.profile') return opts.profile ?? null;
+    if (ch === 'cliUpdate.run') return opts.hangRun ? new Promise(() => undefined) : { ok: true };
+    if (ch === 'cliUpdate.preview')
       return {
-        kind: _a[0] ?? 'claude',
+        kind: i?.kind ?? 'claude',
         scope: 'global',
         argv: ['npm', 'i'],
         blockers: [],
@@ -66,7 +69,7 @@ function mockIpc(opts: {
       };
     return null;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -106,7 +109,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
   });
 
   it('工作台模式先装编程助手；只列出还没装的；点安装弹出确认框', async () => {
-    const invoke = mockIpc({ model: false, installed: ['codex'] });
+    mockIpc({ model: false, installed: ['codex'] });
     const { r } = renderIt({ mode: 'workbench' });
     await waitFor(() => r.getByTestId('getting-started'));
     expect(
@@ -120,14 +123,15 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(r.getByTestId('getting-started-step-model').textContent).toContain('可选');
     expect(r.getByTestId('getting-started-start')).toHaveProperty('disabled', false);
     cleanup();
-    mockIpc({ model: false, installed: [] });
+    const invokeAgain = mockIpc({ model: false, installed: [] });
     const again = renderIt({ mode: 'workbench' }).r;
     await waitFor(() => again.getByTestId('getting-started-install-claude'));
     fireEvent.click(again.getByTestId('getting-started-install-claude'));
     await waitFor(() =>
-      expect(
-        (window as unknown as { aiIPC: { invoke: typeof invoke } }).aiIPC.invoke,
-      ).toHaveBeenCalledWith('ai:cli-update:preview', 'claude', 'global'),
+      expect(invokeAgain).toHaveBeenCalledWith('cliUpdate.preview', {
+        kind: 'claude',
+        scope: 'global',
+      }),
     );
   });
 
@@ -157,7 +161,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
   it('能用且已有对话：不再显示', async () => {
     const invoke = mockIpc({ model: true, installed: ['claude'] });
     const { r } = renderIt({ hasChats: true });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await new Promise((x) => setTimeout(x, 20));
     expect(r.queryByTestId('getting-started')).toBeNull();
   });
@@ -192,7 +196,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     fireEvent.click(r.getByTestId('getting-started-install-claude'));
     fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:cli-update:run', 'claude', 'global'),
+      expect(invoke).toHaveBeenCalledWith('cliUpdate.run', { kind: 'claude', scope: 'global' }),
     );
     // Claude Code 还在装：它的按钮显示「安装中」，Codex 照样可以点
     expect(r.getByTestId('getting-started-install-claude')).toHaveProperty('disabled', true);
@@ -200,7 +204,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     fireEvent.click(r.getByTestId('getting-started-install-codex'));
     fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:cli-update:run', 'codex', 'global'),
+      expect(invoke).toHaveBeenCalledWith('cliUpdate.run', { kind: 'codex', scope: 'global' }),
     );
     expect(r.getByTestId('getting-started-install-codex')).toHaveProperty('disabled', true);
   });

@@ -130,7 +130,7 @@ body.backfill → leg skins → socks → arm skins → arm-under
 1. 选定衣槽 → 按上表列出 Images + Assets + 关联骨  
 2. 准备同尺寸（或可重蒙皮）PNG；`ai_generated:false` 时写清 deterministic method  
 3. 更新 `parts/DETAIL_LICENSE.json` sha/bytes/method  
-4. `rive rive/nomi-complete --verify` + `--once`；拷贝 `.riv` 到 `packages/renderer/.../nomi-complete.riv`  
+4. `rive rive/nomi-complete --verify` + `--once`；拷贝 `.riv` 到 `characters/nomi/rive/character.riv`  
 5. `brand-check.py`；`COREPACK_HOME=/tmp npx vitest run tests/mascot/rive.test.ts`  
 6. 对 `idle/wave/walk/run` 做「隐该槽」空洞扫描
 

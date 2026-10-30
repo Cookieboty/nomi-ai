@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -15,7 +16,7 @@ import { revealToolbar } from './toolbarReveal';
 
 /**
  * E11 · 真实应用 · 气泡安全 + 工具栏
- * 1. 看板娘窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
+ * 1. 桌面角色窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
  * 2. AI 回复 / mascot:say 里的 HTML / 脚本在气泡里按字面显示，不执行、不生成元素；
  * 3. 工具栏：在角色旁的槽位、不与角色包围盒重叠、命中测试算它、更多菜单 / 收起 / 配色、
  *    窗口贴右侧屏幕边缘时翻到左侧、空闲自动隐藏。
@@ -23,7 +24,7 @@ import { revealToolbar } from './toolbarReveal';
 const XSS =
   '<img src=x onerror="window.__pwned=1">XSSMARK<script>window.__pwned=2</script><b>bold</b>';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.TOOLBAR_SHOTS;
@@ -122,7 +123,7 @@ test.describe('E11 · bubble security + toolbar', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await main
       .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
@@ -169,11 +170,7 @@ test.describe('E11 · bubble security + toolbar', () => {
 
     // ---- 2b. 真实 AI 回复（mock 模型返回 HTML）----
     const chatWindow = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWindow;
     // Windows runner 上对话窗冷启动可能很慢（swiftshader + 双渲染进程），给足时间
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
@@ -219,7 +216,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     );
     await expect(bubble).not.toContainText('XSSMARK', { timeout: 10_000 });
 
-    // ---- 2c. 模型输出 → 气泡的真实路由：把文件拖到看板娘身上，摘要（mock 返回 HTML）显示在气泡 ----
+    // ---- 2c. 模型输出 → 气泡的真实路由：把文件拖到桌面角色身上，摘要（mock 返回 HTML）显示在气泡 ----
     await main.evaluate(() => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -359,13 +356,7 @@ test.describe('E11 · bubble security + toolbar', () => {
 
     // 贴近右侧屏幕边缘 → 翻到左侧
     // Free-place so physics does not pull the window back after we pin it.
-    await main.evaluate(() =>
-      (
-        window as unknown as {
-          electronAPI: { mascotWindow: { setConfig(c: { gravity: boolean }): void } };
-        }
-      ).electronAPI.mascotWindow.setConfig({ gravity: false }),
-    );
+    await callContract(main, 'mascot.setInteractionConfig', { gravity: false });
     await app.evaluate(({ BrowserWindow, screen }) => {
       const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop())!;
       const wa = screen.getPrimaryDisplay().workArea;

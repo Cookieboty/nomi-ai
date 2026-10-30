@@ -1,0 +1,335 @@
+[
+  { "tool": "desktop_permissions", "in": {} },
+  { "tool": "fs_list", "in": { "path": "@@H@@/docs" } },
+  { "tool": "fs_list", "in": { "path": "@@H@@/docs", "offset": 1, "limit": 1 } },
+  { "tool": "fs_list", "in": { "path": "@@H@@/elsewhere" } },
+  { "tool": "fs_list", "in": { "path": "~/docs" } },
+  { "tool": "fs_list", "in": { "path": "relative/x" } },
+  { "tool": "fs_list", "in": {} },
+  { "tool": "fs_list", "in": { "path": "@@H@@/docs", "limit": 0 } },
+  { "tool": "fs_list", "in": { "path": "@@H@@/docs/a.txt" } },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/a.txt" } },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/sub" } },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/missing.txt" } },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/secret.txt" } },
+  { "tool": "fs_stat", "in": { "path": "@@UD@@/desktop/settings.json" } },
+  { "tool": "fs_search", "in": { "root": "@@H@@/docs", "name": "txt" } },
+  { "tool": "fs_search", "in": { "root": "@@H@@/docs", "contains": "needle" } },
+  {
+    "tool": "fs_search",
+    "in": { "root": "@@H@@/docs", "name": "b", "contains": "needle", "limit": 1 }
+  },
+  { "tool": "fs_search", "in": { "root": "@@H@@/docs" } },
+  { "tool": "fs_search", "in": { "name": "a" } },
+  { "tool": "fs_search", "in": { "root": "@@H@@/secret.txt", "name": "a" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/a.txt" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/a.txt", "offset": 6, "maxChars": 256 } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/long.txt", "maxChars": 256 } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/data.json" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/sub" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/a.txt", "pages": "1-2" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/missing.txt" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/bin.dat" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/a.txt", "maxChars": 10 } },
+  { "tool": "fs_summarize", "in": { "path": "@@H@@/docs/a.txt" } },
+  {
+    "tool": "fs_summarize",
+    "in": { "path": "@@H@@/docs/a.txt", "style": "tldr", "language": "zh", "maxWords": 30 }
+  },
+  {
+    "tool": "fs_summarize",
+    "in": { "path": "@@H@@/docs/a.txt", "style": "action-items", "language": "en" }
+  },
+  { "tool": "fs_summarize", "in": { "path": "@@H@@/docs/a.txt", "style": "weird" } },
+  { "tool": "fs_summarize", "in": { "path": "@@H@@/secret.txt" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/new.txt", "text": "n1\n" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/new.txt", "text": "again\n" } },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/new.txt", "text": "n2\n", "mode": "append" }
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/new.txt", "text": "OVER\n", "mode": "overwrite", "dryRun": true }
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/new.txt", "text": "OVER\n", "mode": "overwrite" },
+    "answers": [false]
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/new.txt", "text": "OVER\n", "mode": "overwrite" }
+  },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/new.txt" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/new.txt" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/sub/deeper/z.txt", "text": "z" } },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/nope/z.txt", "text": "z", "mode": "append" }
+  },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/ro/x.txt", "text": "x" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/other.txt", "text": "x" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/sub", "text": "x", "mode": "overwrite" } },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/docs/b.md", "dryRun": true } },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/docs/b.md" }, "answers": [false] },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/docs/b.md" } },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/b.md" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/b.md" } },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/docs" } },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/docs/missing" } },
+  { "tool": "fs_trash", "in": { "path": "@@H@@/ro/r.txt" } },
+  {
+    "tool": "desktop_request_scope",
+    "in": { "suggestedPath": "@@H@@/ro", "mode": "read-write", "reason": "need it" },
+    "pick": "@@H@@/ro"
+  },
+  { "tool": "desktop_request_scope", "in": {}, "pick": null },
+  { "tool": "desktop_request_scope", "in": { "mode": "bogus" } },
+  { "tool": "desktop_permissions", "in": {} },
+  { "tool": "reminder_create", "in": { "text": "喝水", "inMinutes": 30 } },
+  { "tool": "reminder_create", "in": { "text": "开会", "at": "2030-03-17T10:00:00" } },
+  { "tool": "reminder_create", "in": { "text": "秒", "inSeconds": 90 } },
+  { "tool": "reminder_create", "in": { "text": "x" } },
+  { "tool": "reminder_create", "in": { "text": "y", "inSeconds": 0 } },
+  { "tool": "reminder_create", "in": { "text": "bad", "at": "not a date" } },
+  { "tool": "reminder_create", "in": { "text": "past", "at": "2001-01-01T00:00:00" } },
+  { "tool": "reminder_create", "in": { "text": "no", "inMinutes": 5 }, "answers": [false] },
+  { "tool": "reminder_create", "in": { "text": "" } },
+  { "tool": "reminder_list", "in": {} },
+  { "tool": "reminder_snooze", "in": { "id": "@@RID0@@", "minutes": 15 } },
+  { "tool": "reminder_snooze", "in": { "id": "rnope000" } },
+  { "tool": "reminder_cancel", "in": { "id": "@@RID1@@" } },
+  { "tool": "reminder_list", "in": { "includeEnded": true } },
+  { "tool": "reminder_cancel", "in": { "id": "bad id" } },
+  { "tool": "reminder_cancel", "in": { "id": "rnope000" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "reminder_list", "in": {} },
+  { "tool": "clipboard_read", "in": {}, "clip": "secret clip" },
+  { "tool": "clipboard_read", "in": {}, "clip": "" },
+  { "tool": "clipboard_read", "in": {}, "clip": "x", "answers": [false] },
+  { "tool": "clipboard_write", "in": { "text": "hi there" } },
+  { "tool": "clipboard_write", "in": { "text": "no" }, "answers": [false] },
+  { "tool": "clipboard_write", "in": { "text": "" } },
+  { "tool": "browser_open", "in": { "url": "https://example.com/a?b=1" } },
+  { "tool": "browser_open", "in": { "url": "http://127.0.0.1/" } },
+  { "tool": "browser_open", "in": { "url": "file:///etc/passwd" } },
+  { "tool": "browser_open", "in": { "url": "not a url" } },
+  { "tool": "browser_open", "in": { "url": "http://localhost:8080/x" } },
+  { "tool": "browser_open", "in": { "url": "https://10.0.0.1/" } },
+  { "tool": "browser_read", "in": {} },
+  { "tool": "browser_click", "in": { "selector": "a.b" } },
+  { "tool": "browser_type", "in": { "selector": "#q", "text": "hello", "submit": true } },
+  { "tool": "browser_close", "in": {} },
+  { "tool": "code_run", "in": { "code": "console.log(1+1)\nx" } },
+  { "tool": "code_run", "in": { "code": "print(1)", "language": "python" } },
+  { "tool": "code_run", "in": { "code": "1" }, "answers": [false] },
+  { "tool": "code_run", "in": { "code": "" } },
+  { "tool": "code_run", "in": { "code": "1", "timeoutSec": 99 } },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo hi; echo err 1>&2" },
+    "cwd": "@@H@@/ws",
+    "posix": true
+  },
+  { "tool": "workspace_run", "in": { "command": "exit 3" }, "cwd": "@@H@@/ws", "posix": true },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo hi & echo err 1>&2" },
+    "cwd": "@@H@@/ws",
+    "win": true
+  },
+  { "tool": "workspace_run", "in": { "command": "exit 3" }, "cwd": "@@H@@/ws", "win": true },
+  { "tool": "workspace_run", "in": { "command": "cd" }, "cwd": "@@H@@/ws", "win": true },
+  { "tool": "workspace_run", "in": { "command": "pwd" }, "cwd": "@@H@@/ws", "posix": true },
+  { "tool": "workspace_run", "in": { "command": "echo x" } },
+  { "tool": "workspace_run", "in": { "command": "echo x" }, "cwd": "@@H@@/docs" },
+  {
+    "tool": "workspace_run",
+    "in": { "command": "echo no" },
+    "cwd": "@@H@@/ws",
+    "answers": [false]
+  },
+  { "tool": "workspace_run", "in": { "command": "" }, "cwd": "@@H@@/ws" },
+  {
+    "tool": "fs_read_text",
+    "in": { "path": "@@H@@/docs/a.txt" },
+    "provider": { "id": "openai", "baseURL": "https://api.openai.com/v1" }
+  },
+  {
+    "tool": "fs_read_text",
+    "in": { "path": "@@H@@/docs/a.txt" },
+    "provider": { "id": "cloud2", "baseURL": "https://x.example.com" },
+    "answers": [false]
+  },
+  {
+    "tool": "fs_read_text",
+    "in": { "path": "@@H@@/docs/a.txt" },
+    "provider": { "id": "ollama", "baseURL": "http://127.0.0.1:11434" }
+  },
+  {
+    "tool": "clipboard_read",
+    "in": {},
+    "clip": "c",
+    "provider": { "id": "openai", "baseURL": "https://api.openai.com/v1" }
+  },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "code_run", "in": { "code": "console.log(6*7)" }, "real": true },
+  { "tool": "code_run", "in": { "code": "console.error('e'); process.exit(2)" }, "real": true },
+  {
+    "tool": "code_run",
+    "in": {
+      "code": "process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()))",
+      "stdin": "abc"
+    },
+    "real": true
+  },
+  {
+    "tool": "code_run",
+    "in": {
+      "code": "require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')"
+    },
+    "real": true
+  },
+  {
+    "tool": "code_run",
+    "in": { "code": "require('child_process').execSync('echo x')" },
+    "real": true
+  },
+  { "tool": "code_run", "in": { "code": "while(true){}", "timeoutSec": 1 }, "real": true },
+  { "tool": "code_run", "in": { "code": "print(6*7)", "language": "python" }, "real": true },
+  {
+    "tool": "code_run",
+    "in": {
+      "code": "import sys; sys.stdout.write(sys.stdin.read()[::-1]); sys.exit(4)",
+      "language": "python",
+      "stdin": "abc"
+    },
+    "real": true
+  },
+  {
+    "tool": "code_run",
+    "in": { "code": "print(1)", "language": "python" },
+    "answers": [true, false],
+    "real": true
+  },
+  {
+    "tool": "code_run",
+    "in": { "code": "print(1)", "language": "python" },
+    "answers": [false],
+    "real": true
+  },
+  {
+    "tool": "code_run",
+    "in": {
+      "code": "import os; print(sorted(k for k in os.environ if k in ('HOME','PYTHONIOENCODING','TMPDIR')))",
+      "language": "python"
+    },
+    "real": true
+  },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/gen/a/b/r.md", "text": "# r\n", "dryRun": true }
+  },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/gen/a/b/r.md", "text": "# r\n" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/elsewhere/new/x.txt", "text": "x" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/ro/new/x.txt", "text": "x" } },
+  { "tool": "fs_write_text", "in": { "path": "@@H@@/docs/a.txt/x.txt", "text": "x" } },
+  { "tool": "fs_write_text", "in": { "path": "out/n/w2.txt", "text": "w2" }, "cwd": "@@H@@/ws" },
+  {
+    "tool": "fs_write_text",
+    "in": { "path": "@@H@@/docs/ed.txt", "text": "one $1 two\none two\n€ 中文\n" }
+  },
+  {
+    "tool": "fs_edit",
+    "in": { "path": "@@H@@/docs/ed.txt", "edits": [{ "oldText": "one", "newText": "1" }] }
+  },
+  {
+    "tool": "fs_edit",
+    "in": { "path": "@@H@@/docs/ed.txt", "edits": [{ "oldText": "zzz", "newText": "1" }] }
+  },
+  {
+    "tool": "fs_edit",
+    "in": {
+      "path": "@@H@@/docs/ed.txt",
+      "edits": [
+        { "oldText": "one $1 two", "newText": "ONE $& TWO" },
+        { "oldText": "two", "newText": "2", "replaceAll": true },
+        { "oldText": "中文", "newText": "文字" }
+      ],
+      "dryRun": true
+    }
+  },
+  {
+    "tool": "fs_edit",
+    "in": {
+      "path": "@@H@@/docs/ed.txt",
+      "edits": [
+        { "oldText": "one $1 two", "newText": "ONE $& TWO" },
+        { "oldText": "two", "newText": "2", "replaceAll": true },
+        { "oldText": "中文", "newText": "文字" }
+      ]
+    },
+    "answers": [false]
+  },
+  {
+    "tool": "fs_edit",
+    "in": {
+      "path": "@@H@@/docs/ed.txt",
+      "edits": [
+        { "oldText": "one $1 two", "newText": "ONE $& TWO" },
+        { "oldText": "two", "newText": "2", "replaceAll": true },
+        { "oldText": "中文", "newText": "文字" }
+      ]
+    }
+  },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/ed.txt" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/ed.txt" } },
+  {
+    "tool": "fs_edit",
+    "in": { "path": "@@H@@/docs/bin.dat", "edits": [{ "oldText": "x", "newText": "y" }] }
+  },
+  {
+    "tool": "fs_edit",
+    "in": { "path": "@@H@@/docs/sub", "edits": [{ "oldText": "x", "newText": "y" }] }
+  },
+  {
+    "tool": "fs_edit",
+    "in": { "path": "@@H@@/ro/r.txt", "edits": [{ "oldText": "read", "newText": "y" }] }
+  },
+  { "tool": "fs_edit", "in": { "path": "@@H@@/docs/ed.txt", "edits": [] } },
+  { "tool": "fs_mkdir", "in": { "path": "@@H@@/docs/mk/1/2", "dryRun": true } },
+  { "tool": "fs_mkdir", "in": { "path": "@@H@@/docs/mk/1/2" } },
+  { "tool": "fs_mkdir", "in": { "path": "@@H@@/docs/mk/1/2" } },
+  { "tool": "fs_mkdir", "in": { "path": "@@H@@/docs/a.txt" } },
+  { "tool": "fs_mkdir", "in": { "path": "@@H@@/mk" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/mk" } },
+  {
+    "tool": "fs_move",
+    "in": { "from": "@@H@@/docs/ed.txt", "to": "@@H@@/docs/mv/ed2.txt", "dryRun": true }
+  },
+  { "tool": "fs_move", "in": { "from": "@@H@@/docs/ed.txt", "to": "@@H@@/docs/mv/ed2.txt" } },
+  { "tool": "fs_move", "in": { "from": "@@H@@/docs/data.json", "to": "@@H@@/docs/a.txt" } },
+  { "tool": "fs_move", "in": { "from": "@@H@@/docs/gen", "to": "@@H@@/docs/gen/a/inner" } },
+  { "tool": "fs_move", "in": { "from": "@@H@@/docs", "to": "@@H@@/docs2" } },
+  { "tool": "fs_move", "in": { "from": "@@H@@/ro/r.txt", "to": "@@H@@/docs/r.txt" } },
+  { "tool": "fs_move", "in": { "from": "@@H@@/docs/a.txt", "to": "@@H@@/elsewhere.txt" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/ed.txt" } },
+  {
+    "tool": "fs_copy",
+    "in": { "from": "@@H@@/ro/r.txt", "to": "@@H@@/docs/cp/r.txt", "dryRun": true }
+  },
+  { "tool": "fs_copy", "in": { "from": "@@H@@/ro/r.txt", "to": "@@H@@/docs/cp/r.txt" } },
+  { "tool": "fs_read_text", "in": { "path": "@@H@@/docs/cp/r.txt" } },
+  { "tool": "fs_copy", "in": { "from": "@@H@@/ro/r.txt", "to": "@@H@@/docs/cp/r.txt" } },
+  { "tool": "fs_copy", "in": { "from": "@@H@@/docs/sub", "to": "@@H@@/docs/cp/sub" } },
+  { "tool": "fs_copy", "in": { "from": "@@H@@/secret.txt", "to": "@@H@@/docs/cp/s.txt" } },
+  { "tool": "undo_last", "in": {} },
+  { "tool": "fs_stat", "in": { "path": "@@H@@/docs/cp/r.txt" } }
+]

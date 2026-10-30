@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -14,7 +15,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 快捷键页「应用内 / 全局」标签；编程助手页顶部为助手卡片。
  * 设 V111_SHOTS_DIR 时把每个分区截图存进去。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.V111_SHOTS_DIR;
 const SECTIONS = [
   ['general', '通用'],
@@ -65,13 +66,9 @@ test.describe('v1.1.1 settings layout', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1280, height: 860 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-input"]').waitFor({ timeout: 20_000 });
@@ -79,7 +76,7 @@ test.describe('v1.1.1 settings layout', () => {
     await chat.locator('body').click({ position: { x: 5, y: 300 } });
     await chat.keyboard.press(`${mod}+Comma`);
     await expect(chat.locator('[data-testid="settings-view"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="settings-brand"]')).toContainText('Nomi · 诺米');
+    await expect(chat.locator('[data-testid="settings-brand"]')).toContainText('Nomi');
     await expect(chat.locator('[data-testid="settings-sidebar-foot"]')).toHaveCount(0);
 
     const shot = async (name: string) => {

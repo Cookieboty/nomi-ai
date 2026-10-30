@@ -9,28 +9,32 @@ module.exports = {
   sources: [
     { dir: 'packages/ai-chat/src', project: 'ui' },
     { dir: 'packages/renderer/src', project: 'ui' },
+    // 角色引擎把动作名 / 反应台词的界面 key 作为数据交给 renderer 显示
+    { dir: 'packages/avatar-runtime/src', project: 'ui' },
     { dir: 'packages/voice/src', project: 'ui' },
     { dir: 'packages/ui/src', project: 'ui' },
-    { dir: 'packages/electron/src', project: 'electron' },
-    { dir: 'packages/cli-sdk/src', project: 'electron' },
-    { dir: 'packages/cli-plugins/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/internal/core/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/internal/cli-sdk/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/internal/cli-plugins/src', project: 'electron' },
   ],
   // 这些模块把稳定 key 作为数据返回给 UI，虽然调用点不在 t()/tr() 里，也要纳入未知 / 死 key 检查。
-  keySources: ['packages/ai-runtime/src/providers'],
+  keySources: ['apps/desktop-electron/internal/ai-runtime/src/providers'],
   // keepZh: intentional Chinese that must NOT be extracted as UI keys.
   // Prefer model-facing tool schemas / prompt fragments / parsers the agent reads
   // (DelegateService, p2/p3 tools, knowledge answer, schedule recurrence, episodes…).
   // Do NOT list user-visible UI strings here — localize those instead.
   keepZh: [
     /voice[\\/]src[\\/]wake\.ts$/,
-    /electron[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools)\.ts$/,
-    /electron[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService)\.ts$/,
-    /electron[\\/]src[\\/]tts[\\/]legacy[\\/]/,
-    /electron[\\/]src[\\/]knowledge[\\/](tokenize|answer)\.ts$/,
-    /electron[\\/]src[\\/]schedule[\\/]recurrence\.ts$/,
-    /electron[\\/]src[\\/]agents[\\/]parsers\.ts$/,
-    /electron[\\/]src[\\/]memory[\\/]episodes\.ts$/,
-    /electron[\\/]src[\\/]sandbox[\\/]/,
-    /electron[\\/]src[\\/]desktop[\\/]parse[\\/]/,
+    /core[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools|workspaceTools)\.ts$/,
+    /core[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService)\.ts$/,
+    /core[\\/]src[\\/]tts[\\/]legacy[\\/]/,
+    /core[\\/]src[\\/]knowledge[\\/](tokenize|answer)\.ts$/,
+    /core[\\/]src[\\/]schedule[\\/]recurrence\.ts$/,
+    /core[\\/]src[\\/]agents[\\/]parsers\.ts$/,
+    /core[\\/]src[\\/]memory[\\/]episodes\.ts$/,
+    /core[\\/]src[\\/]sandbox[\\/]/,
+    /electron[\\/]src[\\/]host[\\/]AgentBrowser\.ts$/,
+    /core[\\/]src[\\/]desktop[\\/]parse[\\/]/,
   ],
 };

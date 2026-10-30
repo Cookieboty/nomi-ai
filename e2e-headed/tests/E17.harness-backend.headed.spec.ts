@@ -2,7 +2,7 @@
  * E17 · 编程助手接入 P0（真实 dist 应用）
  *
  * - NOMI_USE_MOCK_CLI=1：不依赖 cloud API Key
- * - 通过 window.aiIPC 验证 harness / cli-update 通道
+ * - 经应用契约（fixtures/contract.ts）验证 harness / cliUpdate 过程
  * - 切换到 Claude 后 toolsDisabled，Mock 转发返回文本
  */
 import { execFileSync } from 'node:child_process';
@@ -13,14 +13,13 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract, waitForTransport } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const rendererIndex = resolve(electronPkgDir, 'dist', 'renderer', 'index.html');
 const rendererBuild = resolve(repoRoot(), 'packages', 'renderer', 'dist', 'index.html');
-
-type AiIpc = { invoke: (c: string, ...a: unknown[]) => Promise<unknown> };
 
 test.describe('E17 · harness backend · mock CLI', () => {
   let app: ElectronApplication | null = null;
@@ -45,7 +44,7 @@ test.describe('E17 · harness backend · mock CLI', () => {
     }
   });
 
-  test('aiIPC harness: setBackend claude → toolsDisabled + mock send', async () => {
+  test('contract harness: setBackend claude → toolsDisabled + mock send', async () => {
     test.skip(
       !existsSync(mainJs) || !existsSync(rendererIndex),
       `需要先构建：${mainJs} / ${rendererIndex}`,
@@ -68,60 +67,38 @@ test.describe('E17 · harness backend · mock CLI', () => {
     });
 
     const page: Page = await app.firstWindow({ timeout: 30_000 });
-    await page.waitForFunction(
-      () =>
-        typeof (window as unknown as { aiIPC?: { invoke: unknown } }).aiIPC?.invoke === 'function',
-      null,
-      { timeout: 30_000 },
-    );
+    await waitForTransport(page);
 
     // 保证干净起点（避免同机残留 harness session）
-    await page.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      await ipc.invoke('ai:harness:set-backend', 'nomi');
-    });
+    await callContract(page, 'harness.setBackend', { backend: 'nomi' });
 
-    const state0 = await page.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      return (await ipc.invoke('ai:harness:state')) as {
-        backend: string;
-        toolsDisabled: boolean;
-        bins: Record<string, string | null>;
-      };
-    });
+    const state0 = await callContract<{
+      backend: string;
+      toolsDisabled: boolean;
+      bins: Record<string, string | null>;
+    }>(page, 'harness.state');
     expect(state0.backend).toBe('nomi');
     expect(state0.toolsDisabled).toBe(false);
     expect(state0.bins.claude).toBeTruthy();
     expect(state0.bins.codex).toBeTruthy();
 
-    const state1 = await page.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      return (await ipc.invoke('ai:harness:set-backend', 'claude')) as {
-        backend: string;
-        toolsDisabled: boolean;
-      };
-    });
+    const state1 = await callContract<{ backend: string; toolsDisabled: boolean }>(
+      page,
+      'harness.setBackend',
+      { backend: 'claude' },
+    );
     expect(state1.backend).toBe('claude');
     expect(state1.toolsDisabled).toBe(true);
 
-    const send = await page.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      return (await ipc.invoke('ai:harness:send', 'ping from E17')) as {
-        text: string;
-        sessionId: string | null;
-        __error?: { message: string };
-      };
-    });
-    expect(send.__error).toBeUndefined();
+    // 失败时 callContract 直接 reject（契约不再返回 __error 信封）
+    const send = await callContract<{ text: string; sessionId: string | null }>(
+      page,
+      'harness.send',
+      { prompt: 'ping from E17' },
+    );
     expect(send.text).toMatch(/Mock Claude/);
 
-    const inspect = await page.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      return await ipc.invoke('ai:cli-update:inspect', false);
-    });
-    expect(inspect && typeof inspect === 'object' && !('__error' in (inspect as object))).toBe(
-      true,
-    );
+    const inspect = await callContract(page, 'cliUpdate.inspect', { refresh: false });
     expect(Array.isArray(inspect)).toBe(true);
     const kinds = (inspect as Array<{ kind: string }>).map((r) => r.kind);
     expect(kinds).toEqual(expect.arrayContaining(['claude', 'codex', 'cursor']));

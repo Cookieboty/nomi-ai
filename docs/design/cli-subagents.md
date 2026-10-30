@@ -82,7 +82,7 @@ Claude 的 `task_started` 也会为子代理内部的后台 Bash 等发出（`ta
 - 进程维护**轮次队列**：用户发送 = 入队一个「用户轮次」；它的回显到达后，之后的输出才归它。
 - 没有进行中的轮次、却来了内容事件（assistant 文本 / 工具 / agent 事件）：开一个**自发轮次**
   （`origin: 'background'`）。它的 `result` 到达时落盘一条助手消息（带 `origin`，界面标注
-  「后台任务完成后的跟进」），计入用量，发 `tab-finished`（看板娘 / 系统通知）。
+  「后台任务完成后的跟进」），计入用量，发 `tab-finished`（诺米 / 系统通知）。
 - `result` 只结束**当前归属**的轮次；用户消息在自发轮次进行中发送时，等回显到了再切换归属，
   不会把自发轮次的 `result` 错算给用户。
 - 后台任务计数：`task_started`（`is_backgrounded`）+1，对应 `task_notification / task_updated` 终态 -1；
@@ -99,7 +99,7 @@ Claude 的 `task_started` 也会为子代理内部的后台 Bash 等发出（`ta
    （「Read · 3 次工具 · 12s」）；Codex / dsh 卡片显示交给它的任务与最终结果，注明「该 CLI 不提供子代理内部步骤」。
 3. **后台任务条**：输入框上方「后台任务 N」chip，展开列表；每项「停止」（Claude）或置灰说明。
 4. **标签状态**：`background > 0` 且空闲时，圆点显示「后台运行中」样式（aria-label 同步）。
-5. **提醒**：子代理结束 / 自发轮次结束走现有 `AgentProgressService`（看板娘气泡 + 系统通知；macOS 另有灵动岛）。
+5. **提醒**：子代理结束 / 自发轮次结束走现有 `AgentProgressService`（诺米气泡 + 系统通知；macOS 另有灵动岛）。
 6. 无障碍：权限队列与后台任务列表可键盘操作，`Esc` 收起；状态变化用 `aria-live="polite"`。
 
 ## 6. 跨平台（macOS / Linux / Windows）

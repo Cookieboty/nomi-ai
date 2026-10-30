@@ -20,12 +20,12 @@ export interface AIProviderProps extends ClientAIClientOptions {
 const AIClientContext = createContext<ClientAIClient | null>(null);
 
 export function AIProvider(props: PropsWithChildren<AIProviderProps>) {
-  const { client: external, bridge, bridgeName, live2dAvailable, children } = props;
+  const { client: external, transport, bridge, bridgeName, avatarAvailable, children } = props;
 
   const owned = useMemo(() => {
     if (external) return null;
-    return new ClientAIClient({ bridge, bridgeName, live2dAvailable });
-  }, [external, bridge, bridgeName, live2dAvailable]);
+    return new ClientAIClient({ transport, bridge, bridgeName, avatarAvailable });
+  }, [external, transport, bridge, bridgeName, avatarAvailable]);
 
   // 只有 Provider 自建的 client 才需要 dispose。
   // dispose 推迟一个 tick：React StrictMode（dev）会「挂载 → 卸载 → 再挂载」同一个 useMemo 实例，

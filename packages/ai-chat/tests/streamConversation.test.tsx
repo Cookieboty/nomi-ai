@@ -7,6 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { type SdkIPCClient } from '../src/services/IPCClient';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
+
+// 契约客户端（services/api）的替身：默认没有传输（与没有 window.aiIPC 时一致），用到的用例再打开
+const apiMock = vi.hoisted(() => ({ transport: false }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(apiMock),
+);
+
 type Api = ReturnType<typeof useAiChat>;
 
 /** 可手动推送 chunk 的假流；abort(reqId) 会触发 AbortController，并让流以 abort 错误收尾 */
@@ -401,15 +409,14 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     it('kb 标记的用户消息重新生成 / 编辑重发：走 kbClient.ask，不走 agentStream', async () => {
       const f = fakeClient();
       const asks: unknown[][] = [];
-      (window as unknown as { aiIPC: unknown }).aiIPC = {
-        invoke: vi.fn(async (ch: string, ...a: unknown[]) => {
-          if (ch === 'ai:kb:ask') {
-            asks.push(a);
-            return { answer: '带引用的回答', sources: [], mode: 'hybrid' };
-          }
-          return null;
-        }),
-        on: () => () => undefined,
+      apiMock.transport = true;
+      apiMock.invoke = async (name, input) => {
+        if (name === 'kb.ask') {
+          const { q, history } = input as { q: string; history: unknown };
+          asks.push([q, history]);
+          return { answer: '带引用的回答', sources: [], mode: 'hybrid' };
+        }
+        return null;
       };
       const ref = mount(f.client);
       await flush();
@@ -432,7 +439,8 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
       expect(msgs.map((m) => m.content)).toEqual(['改过的问题', '带引用的回答']);
       expect(msgs.every((m) => m.kb)).toBe(true);
       expect(store.getMessages(A).length).toBeGreaterThan(0);
-      delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+      apiMock.transport = false;
+      apiMock.invoke = undefined;
     });
   });
 });

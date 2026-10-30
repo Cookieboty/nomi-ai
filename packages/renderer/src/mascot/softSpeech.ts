@@ -64,7 +64,7 @@ export interface SpeakSoftOptions {
   cancel?: boolean;
   onEnd?: () => void;
   /**
-   * 诺米提示语音片段 key（变量台词用固定句）；null 表示不播预录片段。
+   * 角色提示语音片段 key（变量台词用固定句）；null 表示不播预录片段。
    * 未提供时按台词 key / 文本自动匹配。
    */
   clip?: string | null;

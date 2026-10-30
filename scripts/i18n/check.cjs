@@ -37,6 +37,19 @@ function jsonFiles(dir) {
     .map((name) => path.join(dir, name));
 }
 
+/**
+ * How many arguments a catalog text needs: `{0}`/`{1}` are positional (highest index + 1), any
+ * named `{name}` needs one object argument. Without them format() leaves the literal `{0}` in the UI.
+ */
+function requiredArgs(value) {
+  if (typeof value !== 'string') return 0;
+  let required = 0;
+  for (const [, name] of value.matchAll(/\{(\w+)\}/g)) {
+    required = Math.max(required, /^\d+$/.test(name) ? Number(name) + 1 : 1);
+  }
+  return required;
+}
+
 function placeholders(value) {
   if (typeof value !== 'string') return '';
   return [...value.matchAll(/\{(\w+)\}/g)]
@@ -131,6 +144,20 @@ function isLog(node) {
   return false;
 }
 
+/**
+ * A t() result that is filled in by hand (`t(k).replace('{0}', v)`) or handed to another function
+ * as a template (`matchTemplate(t(k), line)`) is meant to keep its placeholders.
+ */
+function usedAsTemplate(call) {
+  let node = call;
+  while (ts.isParenthesizedExpression(node.parent) || ts.isConditionalExpression(node.parent))
+    node = node.parent;
+  const parent = node.parent;
+  if (ts.isPropertyAccessExpression(parent) && parent.expression === node)
+    return /^(replace|replaceAll)$/.test(parent.name.text);
+  return ts.isCallExpression(parent) && parent.arguments.includes(node);
+}
+
 function sourceEntries(file, project) {
   const text = fs.readFileSync(file, 'utf8');
   const lines = text.split('\n');
@@ -167,10 +194,14 @@ function sourceEntries(file, project) {
         (parent.expression.text === 't' || parent.expression.text === 'tr') &&
         parent.arguments[0] === node;
       const value = rawValue;
+      const args = inTranslate ? parent.arguments.slice(1) : [];
       if (value)
         entries.push({
           value,
           inTranslate,
+          argCount: args.length,
+          spreadArgs: args.some((arg) => ts.isSpreadElement(arg)),
+          rawTemplate: inTranslate && usedAsTemplate(parent),
           where: `${path.relative(root, file)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`,
           project,
         });
@@ -197,6 +228,19 @@ for (const sourceConfig of cfg.sources) {
         !Object.prototype.hasOwnProperty.call(dictionaries[baseLanguage], entry.value)
       )
         errors.push(`${entry.where}: unknown i18n key ${JSON.stringify(entry.value)}`);
+      else if (
+        entry.inTranslate &&
+        KEY.test(entry.value) &&
+        !entry.spreadArgs &&
+        !entry.rawTemplate
+      ) {
+        const required = requiredArgs(dictionaries[baseLanguage][entry.value]);
+        if (entry.argCount < required)
+          errors.push(
+            `${entry.where}: ${entry.value} has placeholders that need ${required} argument(s), ` +
+              `got ${entry.argCount}`,
+          );
+      }
       if (!entry.inTranslate && !KEY.test(entry.value))
         errors.push(
           `${entry.where}: Chinese text is not in the unified catalog: ${JSON.stringify(entry.value)}`,
@@ -219,6 +263,62 @@ for (const dir of cfg.keySources) {
   }
 }
 
+// Character copy lives in the character packs (characters/<id>/locales/{zh,en}.json), not in the
+// UI catalog: every pack needs both languages with the same lines, placeholders and persona fields.
+const charactersRoot = path.join(root, cfg.characters || 'characters');
+let characterPacks = 0;
+for (const id of fs.existsSync(charactersRoot) ? fs.readdirSync(charactersRoot).sort() : []) {
+  const packDir = path.join(charactersRoot, id);
+  if (!fs.statSync(packDir).isDirectory()) continue;
+  if (!fs.existsSync(path.join(packDir, 'manifest.json'))) continue;
+  characterPacks += 1;
+  const where = (lang) => path.relative(root, path.join(packDir, 'locales', `${lang}.json`));
+  const read = (lang) => {
+    const file = path.join(packDir, 'locales', `${lang}.json`);
+    if (!fs.existsSync(file)) {
+      errors.push(`${where(lang)}: missing (character packs need zh and en copy)`);
+      return null;
+    }
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (error) {
+      errors.push(`${where(lang)}: invalid JSON (${error.message})`);
+      return null;
+    }
+  };
+  const zh = read('zh');
+  const en = read('en');
+  if (!zh || !en) continue;
+  const zhLines = zh.lines || {};
+  const enLines = en.lines || {};
+  for (const [key, value] of Object.entries(zhLines)) {
+    if (!(key in enLines)) errors.push(`${where('en')}: missing line ${key}`);
+    else if (placeholders(value) !== placeholders(enLines[key]))
+      errors.push(`${where('en')}: placeholder mismatch for line ${key}`);
+  }
+  for (const key of Object.keys(enLines)) {
+    if (!(key in zhLines)) errors.push(`${where('en')}: extra line not present in zh: ${key}`);
+  }
+  for (const [lang, data] of [
+    ['zh', zh],
+    ['en', en],
+  ]) {
+    for (const [key, value] of Object.entries(data.lines || {})) {
+      if (typeof value !== 'string' || !value.trim())
+        errors.push(`${where(lang)}: line ${key} must be a non-empty string`);
+    }
+  }
+  if (!!zh.wakePhrase !== !!en.wakePhrase)
+    errors.push(`${where('en')}: wakePhrase must be given in both zh and en`);
+  // zh persona is persona.json itself; en must override the identity fields
+  if (fs.existsSync(path.join(packDir, 'persona.json'))) {
+    for (const field of ['displayName', 'systemPromptIdentity']) {
+      if (!en.persona || typeof en.persona[field] !== 'string' || !en.persona[field].trim())
+        errors.push(`${where('en')}: persona.${field} is required (persona.json is zh)`);
+    }
+  }
+}
+
 const dead = Object.keys(dictionaries[baseLanguage] || {}).filter((key) => !used.has(key));
 if (dead.length) errors.push(`dead i18n keys (${dead.length}): ${dead.join(', ')}`);
 
@@ -228,5 +328,5 @@ if (errors.length) {
 }
 
 console.log(
-  `i18n: ${Object.keys(dictionaries[baseLanguage] || {}).length} stable keys, ${languages.join('/') || 'no languages'} complete, no duplicate or dead keys`,
+  `i18n: ${Object.keys(dictionaries[baseLanguage] || {}).length} stable keys, ${languages.join('/') || 'no languages'} complete, no duplicate or dead keys; ${characterPacks} character pack(s) with zh/en copy`,
 );

@@ -177,7 +177,7 @@
   align-items: center;
   gap: var(--cd-space-2);
 }
-.timeRange input {
+.timeInput {
   width: 110px;
 }
 /* 列表上方的小开关（显示已结束等）：右对齐，弱化 */

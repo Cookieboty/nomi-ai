@@ -14,7 +14,7 @@
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
-import { createGateway } from '../packages/gateway/dist/index.js';
+import { createGateway } from '../apps/desktop-electron/internal/gateway/dist/index.js';
 
 const KEY = process.env.MATRIX_KEY;
 const CHAT = process.env.MATRIX_CHAT;

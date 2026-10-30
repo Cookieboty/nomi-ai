@@ -27,6 +27,7 @@ import {
   type ExternalTestResult,
 } from '../../services/cliPluginClient';
 import { harnessClient } from '../../services/harnessClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 
@@ -146,9 +147,10 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
 
   const remove = async (p: CliRegistryEntry) => {
     if (
-      !window.confirm(
-        t('ui.providers-schedule.delete-the-external-cli-tabs-that-use-it', p.displayName),
-      )
+      !(await confirmDialog({
+        message: t('ui.providers-schedule.delete-the-external-cli-tabs-that-use-it', p.displayName),
+        danger: true,
+      }))
     )
       return;
     setActionError(null);

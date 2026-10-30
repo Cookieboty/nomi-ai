@@ -1,16 +1,12 @@
 /**
- * 看板娘显示开关（主进程 startup/StartupService 的 `showMascot`）。
+ * 桌面角色显示开关（主进程 startup/StartupService 的 `showMascot`，应用契约 `startup.*`）。
  * 关闭后窗口隐藏、整窗静音；这里再让朗读入口直接跳过（预录音频 / 实时朗读都在这里统一拦截），
  * 并让唤醒词等常驻监听停下（MascotVoice 订阅 useMascotShown），不在看不见的窗口里继续开麦。
- * 随时可以关闭（#55）：默认界面为看板娘时，主进程会把默认界面改为「软件主界面」并打开它。
+ * 随时可以关闭（#55）：默认界面为桌面角色时，主进程会把默认界面改为「软件主界面」并打开它。
  */
 import { useSyncExternalStore } from 'react';
 
-interface Bridge {
-  invoke(ch: string, ...a: unknown[]): Promise<unknown>;
-  on(ch: string, fn: (payload: unknown) => void): () => void;
-}
-const bridge = (): Bridge | undefined => (window as unknown as { aiIPC?: Bridge }).aiIPC;
+import { api, hasTransport } from '../services/api';
 
 const pick = (r: unknown): boolean | null => {
   const v = (r as { showMascot?: unknown } | null)?.showMascot;
@@ -35,25 +31,26 @@ const subscribe = (fn: () => void) => {
   };
 };
 
-/** 看板娘已关闭：不朗读 */
+/** 桌面角色已关闭：不朗读 */
 export function isMascotMuted(): boolean {
   return !shown;
 }
 
-/** 看板娘当前是否显示（关闭后停掉常驻监听等） */
+/** 桌面角色当前是否显示（关闭后停掉常驻监听等） */
 export function useMascotShown(): boolean {
   return useSyncExternalStore(subscribe, () => shown);
 }
 
 export function initMascotPresence(): void {
-  const b = bridge();
-  if (started || !b) return;
+  if (started || !hasTransport()) return;
   started = true;
-  void b
-    .invoke('ai:startup:get')
+  void api.startup
+    .get()
     .then(apply)
     .catch(() => undefined);
-  b.on('ai:startup:changed', apply);
+  const off = api.on('startup.changed', apply);
+  // 开发态热更新重新执行本模块时摘掉旧订阅
+  import.meta.hot?.dispose(off);
 }
 
 /** 测试用 */
@@ -61,10 +58,9 @@ export function __setMascotShownForTest(v: boolean): void {
   apply({ showMascot: v });
 }
 
-/** 关闭看板娘（工具栏）：持久化后由主进程隐藏窗口；设置 → 通用里可重新打开 */
+/** 关闭桌面角色（工具栏）：持久化后由主进程隐藏窗口；设置 → 通用里可重新打开 */
 export async function closeMascot(): Promise<boolean> {
-  const r = await bridge()
-    ?.invoke('ai:startup:set', { showMascot: false })
-    .catch(() => null);
+  if (!hasTransport()) return false;
+  const r = await api.startup.set({ showMascot: false }).catch(() => null);
   return pick(r) === false;
 }

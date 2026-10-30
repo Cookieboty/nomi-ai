@@ -465,6 +465,7 @@ html[data-platform] .app-titlebar {
   border-bottom: 1px solid var(--cd-panel-border);
   -webkit-app-region: drag;
   app-region: drag;
+  --wails-draggable: drag; /* Go 宿主（Wails）认这个，不认 app-region */
   user-select: none;
   /* Windows / Linux：右侧是原生按钮（宽度由 WCO 提供，回退 140px） */
   padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)));
@@ -501,6 +502,44 @@ html[data-platform='darwin'] .app-titlebar-toggle {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
+/* Go 宿主（Windows / Linux）自绘的窗口按钮：占右侧给原生 overlay 留的 140px（3 × 46） */
+.app-window-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  --wails-draggable: no-drag;
+}
+html[data-platform='darwin'] .app-window-controls {
+  display: none;
+}
+.app-window-controls button {
+  width: 46px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: default;
+}
+.app-window-controls button:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.app-window-controls .app-window-close:hover {
+  background: var(--cd-color-danger);
+  color: var(--cd-color-text-on-danger);
+}
+.app-window-controls button:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
 .app-titlebar-title {
   font: var(--cd-text-label);
   color: var(--cd-color-text-muted);
@@ -520,6 +559,7 @@ html[data-platform] [role='dialog'] button,
 html[data-platform] .app-titlebar button {
   -webkit-app-region: no-drag;
   app-region: no-drag;
+  --wails-draggable: no-drag;
 }
 
 /* ---------- Windows：中文字体 + 字号 ----------

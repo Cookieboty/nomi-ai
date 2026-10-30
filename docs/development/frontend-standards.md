@@ -50,4 +50,4 @@
 
 ## 自动检查与例外
 
-运行 `pnpm check:frontend` 检查前端源文件行数预算。当前登记的唯一例外是 `packages/renderer/src/mascot/layeredRig.ts`：它是 Canvas2D 动画与绘制的紧耦合引擎，拆分会改变渲染时序；后续只有在引入明确的动画/绘制模块边界时再拆解。所有其他超过 1,200 行的文件都必须拆分。
+运行 `pnpm check:frontend` 检查前端源文件行数预算。当前登记的唯一例外是 `packages/avatar-runtime/src/layeredRig.ts`：它是 Canvas2D 动画与绘制的紧耦合引擎，拆分会改变渲染时序；后续只有在引入明确的动画/绘制模块边界时再拆解。所有其他超过 1,200 行的文件都必须拆分。

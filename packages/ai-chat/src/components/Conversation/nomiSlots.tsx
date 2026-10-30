@@ -2,8 +2,7 @@
  * Nomi 普通对话在统一会话视图里的扩展内容：参考记忆、图片、知识库引用 / 来源、知识库标签。
  * 这些是 Nomi 独有的数据（ChatMessage.raw），视图本身只认统一的 ConvMessage。
  */
-import { Icon, t } from '@nomi-ai/ui';
-import { ChevronRight } from 'lucide-react';
+import { Disclosure, t } from '@nomi-ai/ui';
 import React, { useState } from 'react';
 
 import type { KbSource } from '../../services/kbClient';
@@ -32,14 +31,19 @@ const CitedBody: React.FC<{ message: ChatMessage }> = ({ message }) => {
       <CiteProvider sources={sources} onPick={setPick}>
         <Markdown text={message.content} settled citations />
       </CiteProvider>
-      <details className={styles.stepRow} open>
-        <summary>
-          <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />
-          {message.kb ? t('ui.foundation.knowledge-base') : t('ui.knowledge-local.sources')} ·{' '}
-          {sources.length} {t('ui.providers-schedule.sources-count-suffix')}
-        </summary>
+      <Disclosure
+        className={styles.stepRow}
+        summaryClassName={styles.stepSummary}
+        defaultOpen
+        summary={
+          <>
+            {message.kb ? t('ui.foundation.knowledge-base') : t('ui.knowledge-local.sources')} ·{' '}
+            {sources.length} {t('ui.providers-schedule.sources-count-suffix')}
+          </>
+        }
+      >
         <SourceList sources={sources} onPick={setPick} />
-      </details>
+      </Disclosure>
       <SourcePreview source={pick} onClose={() => setPick(null)} />
     </>
   );
@@ -57,18 +61,23 @@ export const nomiSlots: ConvSlots = {
           </span>
         )}
         {m.role === 'assistant' && !!raw.memories?.length && (
-          <details className={styles.stepRow} data-testid="memory-tag">
-            <summary>
-              <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />
-              {t('ui.providers-schedule.used')} {raw.memories.length}{' '}
-              {t('ui.providers-schedule.memories')}
-            </summary>
+          <Disclosure
+            className={styles.stepRow}
+            summaryClassName={styles.stepSummary}
+            data-testid="memory-tag"
+            summary={
+              <>
+                {t('ui.providers-schedule.used')} {raw.memories.length}{' '}
+                {t('ui.providers-schedule.memories')}
+              </>
+            }
+          >
             <ul className={styles.stepBody}>
               {raw.memories.map((mem) => (
                 <li key={mem.id}>{t(mem.title)}</li>
               ))}
             </ul>
-          </details>
+          </Disclosure>
         )}
         {!!raw.images?.length && (
           <div className={styles.imageRow} data-testid="message-images">

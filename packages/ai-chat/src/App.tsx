@@ -14,9 +14,10 @@ import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ForkTargetMenu } from './components/ForkMenu';
+import { ForkTargetMenu, type ForkPick } from './components/ForkMenu';
 import {
   DesktopPanel,
   ExtensionsPanel,
@@ -28,6 +29,7 @@ import { OnboardingHost } from './components/Onboarding';
 import { OPEN_MODELS_EVENT } from './components/Onboarding/client';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
+import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
@@ -62,6 +64,7 @@ import {
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
+import { useNomiWorkspace } from './hooks/useNomiWorkspace';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { useUserProfile } from './hooks/useUserProfile';
@@ -276,14 +279,28 @@ const AiChatContent: React.FC = () => {
     () => withLiveContext(cliConvMessages, liveContext),
     [cliConvMessages, liveContext],
   );
+  const harness = useHarnessState();
+  // Nomi 对话（主标签在 Nomi 后端）选了工作区时也有右栏：看的是顶栏显示的那个工作区
+  const nomiOnMain = !tabs.isCliTab && harness?.backend === 'nomi' && harnessClient.available();
+  const nomiWorkspace = useNomiWorkspace(harness?.cwd, { syncMain: false });
+  // 右栏 / 中栏看的目录：编程助手标签用标签目录，Nomi 对话用会话工作区；没有时不显示右栏
+  const railCwd =
+    isDev && tabs.isCliTab
+      ? (tabs.activeTab?.cwd ?? null)
+      : nomiOnMain && nomiWorkspace.cwd
+        ? nomiWorkspace.cwd
+        : null;
+  const railMessages = tabs.isCliTab ? cliConvMessages : nomiMessages;
+  const railBusy = tabs.isCliTab
+    ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
+    : isLoading;
   const sessionChangeCount = useMemo(
-    () => aggregateSessionChanges(cliConvMessages).length,
-    [cliConvMessages],
+    () => aggregateSessionChanges(railMessages).length,
+    [railMessages],
   );
-  const railTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
   // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
-  const centerOpen = !!railTabId && (!!workbench || previewOpen);
-  const railOpen = !!railTabId && railPref;
+  const centerOpen = !!railCwd && (!!workbench || previewOpen);
+  const railOpen = !!railCwd && railPref;
   const setRailOpen = useCallback((open: boolean) => {
     setRailPref(open);
     persistFilesRailOpen(open);
@@ -294,7 +311,7 @@ const AiChatContent: React.FC = () => {
   const [prevWorkbench, setPrevWorkbench] = useState(workbench);
   if (prevWorkbench !== workbench) {
     setPrevWorkbench(workbench);
-    if (workbench && railTabId && !railPref) setRailOpen(true);
+    if (workbench && railCwd && !railPref) setRailOpen(true);
   }
   // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
   const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
@@ -337,13 +354,14 @@ const AiChatContent: React.FC = () => {
   const [forkCross, setForkCross] = useState<{
     id: string;
     backend: ConversationBackend;
+    mode: 'same' | 'cross';
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // 切到普通模式时关掉已打开的「分叉到其他端」选择框（渲染期根据 isDev 变化重置，避免 effect 内 setState 触发级联渲染）
   const [prevIsDev, setPrevIsDev] = useState(isDev);
   if (prevIsDev !== isDev) {
     setPrevIsDev(isDev);
-    if (!isDev && forkCross !== null) setForkCross(null);
+    if (!isDev && forkCross?.mode === 'cross') setForkCross(null);
   }
   useEffect(() => {
     if (!toast) return;
@@ -363,11 +381,11 @@ const AiChatContent: React.FC = () => {
       else window.clearTimeout(id);
     };
   }, []);
-  // mascot holds a thinking pose while a reply is being generated
+  // mascot holds a thinking pose while a reply is being generated (semantic event, §10.5)
   useEffect(() => {
     if (!isLoading) return;
-    onboardingClient.mascot({ type: 'motion', name: 'think-on' });
-    return () => onboardingClient.mascot({ type: 'motion', name: 'think-off' });
+    onboardingClient.mascot({ type: 'reply', phase: 'waiting' });
+    return () => onboardingClient.mascot({ type: 'reply', phase: 'settled' });
   }, [isLoading]);
   const [showDesktop, setShowDesktop] = useState(false);
   // 托盘「桌面能力…」→ 打开桌面能力面板
@@ -404,18 +422,17 @@ const AiChatContent: React.FC = () => {
     return () => window.removeEventListener(OPEN_MODELS_EVENT, open);
   }, [openSettings]);
   useEffect(() => watchNomiModel(), []);
-  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
+  // 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
   useEffect(
     () => desktopClient.onOpenVoiceSettings(() => openSettings('general', 'voice')),
     [openSettings],
   );
-  // 看板娘「日程」→ 设置 → 知识与记忆 → 日程
+  // 桌面角色「日程」→ 设置 → 知识与记忆 → 日程
   useEffect(
     () => desktopClient.onOpenSchedule(() => openSettings('knowledge', 'schedule')),
     [openSettings],
   );
   // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
-  const harness = useHarnessState();
   const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
   const slashBackend: ConversationBackend = !isDev
     ? 'nomi'
@@ -462,6 +479,7 @@ const AiChatContent: React.FC = () => {
       if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
       else void actions.newConversation();
     },
+    compactNomi: () => actions.compactConversation(),
     onOpenPlugins: () => setShowPlugins(true),
     onOpenProviders: () => openSettings('models'),
     onOpenSettings: () => {
@@ -486,11 +504,12 @@ const AiChatContent: React.FC = () => {
   }, [actions, focusInput]);
 
   const runForkSame = useCallback(
-    async (id: string) => {
+    async (id: string, pick: ForkPick = {}) => {
       const store = ipcClient.conversationStore?.();
       if (!store) return;
+      setForkCross(null);
       try {
-        const r = await forkSameBackend(store, id);
+        const r = await forkSameBackend(store, id, { turns: pick.turns });
         if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
@@ -508,12 +527,12 @@ const AiChatContent: React.FC = () => {
   );
 
   const runForkCross = useCallback(
-    async (id: string, target: ConversationBackend, cwd?: string) => {
+    async (id: string, target: ConversationBackend, pick: ForkPick) => {
       const store = ipcClient.conversationStore?.();
       if (!store) return;
       setForkCross(null);
       try {
-        const r = await forkCrossBackend(store, id, target, { cwd });
+        const r = await forkCrossBackend(store, id, target, pick);
         if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
@@ -534,10 +553,10 @@ const AiChatContent: React.FC = () => {
       const store = ipcClient.conversationStore?.();
       const meta = store?.get(id);
       if (!meta) return;
-      if (mode === 'same') void runForkSame(id);
-      else if (isDev) setForkCross({ id, backend: meta.backend }); // 普通模式不允许分叉到其他端
+      // 都先选带入几轮；普通模式不允许分叉到其他端
+      if (mode === 'same' || isDev) setForkCross({ id, backend: meta.backend, mode });
     },
-    [ipcClient, runForkSame, isDev],
+    [ipcClient, isDev],
   );
 
   useEffect(() => {
@@ -645,7 +664,10 @@ const AiChatContent: React.FC = () => {
     };
   }, [openSettings]);
 
-  const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
+  const handleNewChat = useCallback(
+    (opts?: { cwd?: string }) => actions.newConversation(opts),
+    [actions],
+  );
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
   // 欢迎页的示例问题按新手引导里选的职业与兴趣推荐
@@ -802,7 +824,7 @@ const AiChatContent: React.FC = () => {
                 <>
                   {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
                   <WorkspaceControl />
-                  {railTabId ? (
+                  {railCwd ? (
                     <FilesRailToggle
                       open={railOpen}
                       count={sessionChangeCount}
@@ -920,6 +942,8 @@ const AiChatContent: React.FC = () => {
 
             {/* 输入区域 */}
             <footer className="input-container">
+              {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
+              <DesktopConfirmDock />
               <MessageInput
                 {...inputModeProps}
                 contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
@@ -944,7 +968,7 @@ const AiChatContent: React.FC = () => {
             </footer>
           </div>
 
-          {centerOpen && tabs.activeTab ? (
+          {centerOpen && railCwd ? (
             <>
               <div
                 className="center-changes-splitter"
@@ -958,12 +982,12 @@ const AiChatContent: React.FC = () => {
                 onDoubleClick={onChatColSplitterDbl}
                 title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
               />
-              <CenterChangesHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <CenterChangesHost messages={railMessages} cwd={railCwd} />
             </>
           ) : null}
         </div>
 
-        {railOpen && tabs.activeTab ? (
+        {railOpen && railCwd ? (
           <>
             <div
               className="files-rail-splitter"
@@ -989,12 +1013,12 @@ const AiChatContent: React.FC = () => {
             >
               <SessionChangesPanel
                 rail
-                messages={cliConvMessages}
-                cwd={tabs.activeTab.cwd}
-                busy={tabs.activeTab.status === 'running' || tabs.activeTab.status === 'queued'}
+                messages={railMessages}
+                cwd={railCwd}
+                busy={railBusy}
                 onClose={closeRail}
               />
-              <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} />
             </aside>
           </>
         ) : null}
@@ -1035,9 +1059,14 @@ const AiChatContent: React.FC = () => {
       </ModalHostContext.Provider>
       <ForkTargetMenu
         open={!!forkCross}
+        mode={forkCross?.mode}
         current={forkCross?.backend ?? 'nomi'}
         onClose={() => setForkCross(null)}
-        onPick={(b, cwd) => forkCross && void runForkCross(forkCross.id, b, cwd)}
+        onPick={(b, pick) => {
+          if (!forkCross) return;
+          if (forkCross.mode === 'same') void runForkSame(forkCross.id, pick);
+          else void runForkCross(forkCross.id, b, pick);
+        }}
       />
       {toast && (
         <div
@@ -1088,6 +1117,7 @@ function App() {
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />
+        <ReleaseNotesHost />
       </AiChatContextProvider>
     </ErrorBoundary>
   );

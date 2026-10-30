@@ -24,12 +24,13 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
-const FIX = resolve(electronPkgDir, 'tests', 'fixtures', 'history');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
+const FIX = resolve(repoRoot(), 'apps/desktop-electron/internal/core/tests/fixtures/history');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
 
 async function launch(
@@ -73,13 +74,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1180, height: 780 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
@@ -166,15 +163,6 @@ function utimes(p: string, t: Date) {
   utimesSync(p, t, t);
 }
 
-const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
-  chat.evaluate(
-    ([c, a]) =>
-      (
-        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
-      ).aiIPC.invoke(c as string, ...(a as unknown[])),
-    [channel, args] as const,
-  );
-
 test.describe('E19 · endpoints · history sessions · provider page', () => {
   let app: ElectronApplication | null = null;
   let userData = '';
@@ -250,18 +238,26 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(sq).toHaveCount(0);
     await expect(rows.first()).toBeVisible();
 
-    // 行尾操作：悬浮 / 键盘焦点 / 选中行显示；磁盘历史只读，只有「更多」
+    // 行尾操作：悬浮 / 键盘焦点 / 选中行显示；磁盘历史不能改名，可以删除（移到废纸篓，74a98755）
     const histRow = chat.locator('[data-testid="history-session-row"]').first();
     const histActions = histRow.locator('[data-testid="row-actions"]');
     await expect(histActions).toHaveCSS('opacity', '0');
     await histRow.hover();
     await expect(histActions).toHaveCSS('opacity', '1');
     await expect(histRow.locator('[data-testid="row-rename"]')).toHaveCount(0);
-    await expect(histRow.locator('[data-testid="row-delete"]')).toHaveCount(0);
+    await expect(histRow.locator('[data-testid="row-delete"]')).toBeVisible();
     await shot(chat, '02d-row-actions-hover');
+    // 删除先弹应用内确认框；这里取消（确定会把文件移到用户真实的废纸篓），历史不变
+    await histRow.locator('[data-testid="row-delete"]').click();
+    await expect(chat.locator('[data-testid="confirm-dialog"]')).toBeVisible();
+    await chat.locator('[data-testid="confirm-dialog-cancel"]').click();
+    await expect(chat.locator('[data-testid="confirm-dialog"]')).toHaveCount(0);
+    await expect(rows).toHaveCount(seeded.dsh ? 4 : 3);
+    await histRow.hover();
     await histRow.locator('[data-testid="row-more"]').click();
     const hmenu = chat.locator('[data-testid="conversation-context-menu"]');
     await expect(hmenu.locator('[data-testid="conversation-open"]')).toBeVisible();
+    await expect(hmenu.locator('[data-testid="conversation-delete"]')).toBeVisible();
     await expect(hmenu.locator('[data-testid="conversation-rename"]')).toHaveCount(0);
     await shot(chat, '02e-row-more-menu-history');
     await chat.keyboard.press('Escape');
@@ -393,14 +389,15 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     // 「在模型页设置第三方模型」直达「模型」页；加一个第三方供应商（检测流程由 E7 覆盖），给 Claude 分配模型
     await chat.click('[data-testid="cli-open-models"]');
     await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
-    const relay = (await invoke(chat, 'ai:gateway:upsert-provider', {
+    const relay = (await callContract(chat, 'gateway.upsertProvider', {
       name: '本地中转',
       urls: { chat: upstreamUrl },
       newKeys: [{ value: 'sk-test-123456' }],
       models: [{ id: 'claude-x', enabled: true }],
     })) as { id: string };
-    await invoke(chat, 'ai:gateway:set-assignment', 'claude', {
-      models: { main: `${relay.id}/claude-x` },
+    await callContract(chat, 'gateway.setAssignment', {
+      client: 'claude',
+      patch: { models: { main: `${relay.id}/claude-x` } },
     });
     // Mock CLI 计为已安装；等网关状态推到模型页后再断言
     await expect(chat.locator('[data-testid="cli-main-claude"]')).toBeVisible({ timeout: 20_000 });

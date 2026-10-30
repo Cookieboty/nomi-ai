@@ -6,11 +6,12 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E23 · 看板娘大小（真实应用，Nomi 2D）
+ * E23 · 桌面角色大小（真实应用，Nomi 2D）
  *
  * - Ctrl/⌘ + 滚轮（Playwright 注入 + Linux 上真实 X11 滚轮）、右键菜单、工具栏「更多」、设置页滑块
  *   四个入口都能放大 / 缩小 / 重置
@@ -21,7 +22,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   气泡不压脸，拖拽照常
  * E23_SHOTS=<dir> 保存窗口截图 + 整屏截图（X11 + ffmpeg）。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E23_SHOTS;
 const hasXdo =
@@ -38,7 +39,7 @@ const ANCHOR_TOL = 6;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const xdo = (...a: string[]) => execFileSync('xdotool', a);
 
-// 与 packages/electron/src/mascot/mascotSize.ts 保持一致（测试里独立重算，防止实现与测试一起错）
+// 与 apps/desktop-electron/internal/core/src/mascot/mascotSize.ts 保持一致（测试里独立重算，防止实现与测试一起错）
 const BASE = { w: 420, h: 450 };
 const PAD = { x: 60, top: 130 };
 const winSize = (s: number) => ({
@@ -79,7 +80,7 @@ function grab(name: string, w: number, h: number): void {
 
 const bounds = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => {
-    // 看板娘窗口：置顶，但不是同样置顶的灵动岛
+    // 桌面角色窗口：置顶，但不是同样置顶的灵动岛
     const w = BrowserWindow.getAllWindows().find(
       (b) => b.isAlwaysOnTop() && b.getTitle() !== 'Nomi Island',
     );
@@ -88,21 +89,19 @@ const bounds = (app: ElectronApplication) =>
 /** 脚底中心（屏幕坐标）：窗口位置 + 渲染进程上报的角色包围盒（底边中点） */
 const feetNow = async (app: ElectronApplication, page: Page) => {
   const b = await bounds(app);
-  const box = (
-    (await page.evaluate(() => window.electronAPI!.mascotWindow!.snapshot())) as { box: B | null }
-  ).box;
+  const box = ((await callContract(page, 'mascot.debugSnapshot')) as { box: B | null }).box;
   return box
     ? { x: b.x + (box.left + box.right) / 2, y: b.y + box.bottom }
     : { x: b.x + b.width / 2, y: b.y + b.height };
 };
-const scaleOf = (page: Page) => page.evaluate(() => window.electronAPI!.mascotWindow!.scaleGet());
+const scaleOf = (page: Page) => callContract(page, 'mascot.scaleGet');
 const headBox = (page: Page) =>
   page.evaluate(() => {
     const v = document.documentElement.dataset.mascotHead?.split(',').map(Number);
     return v ? { left: v[0], right: v[1], top: v[2], bottom: v[3] } : null;
   });
 const snap = (page: Page) =>
-  page.evaluate(() => window.electronAPI!.mascotWindow!.snapshot()) as Promise<{
+  callContract(page, 'mascot.debugSnapshot') as Promise<{
     shapeRects: number;
     clickThroughMode: 'ignore' | 'shape';
     ignoring: boolean;
@@ -139,7 +138,7 @@ test.describe('E23 · mascot size', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    await page.waitForFunction(() => !!window.electronAPI?.mascotWindow?.scaleGet, undefined, {
+    await page.waitForFunction(() => 'nomiTransport' in window, undefined, {
       timeout: 20_000,
     });
     await page.waitForFunction(
@@ -188,15 +187,15 @@ test.describe('E23 · mascot size', () => {
       }, pt);
     try {
       if (fake) await setCursor(start);
-      await page.evaluate(([sx, sy]) => window.electronAPI!.mascotWindow!.dragStart(sx, sy), start);
+      await callContract(page, 'mascot.dragStart', { screenX: start[0], screenY: start[1] });
       for (const pt of points) {
         if (fake) await setCursor(pt);
-        await page.evaluate(([x, y]) => window.electronAPI!.mascotWindow!.dragMove(x, y), pt);
+        await callContract(page, 'mascot.dragMove', { screenX: pt[0], screenY: pt[1] });
         await sleep(stepMs);
       }
       await sleep(settleMs);
     } finally {
-      await page.evaluate(() => window.electronAPI!.mascotWindow!.dragEnd());
+      await callContract(page, 'mascot.dragEnd');
       if (fake) await setCursor(null);
     }
   }
@@ -221,9 +220,7 @@ test.describe('E23 · mascot size', () => {
     expect(b.y).toBeGreaterThanOrEqual(wa.y);
     expect(b.y + b.height).toBeLessThanOrEqual(wa.y + wa.height);
     // 可见的角色（包围盒）在工作区内；透明的工具栏边距允许悬在屏幕外
-    const box = (
-      (await page.evaluate(() => window.electronAPI!.mascotWindow!.snapshot())) as { box: B | null }
-    ).box!;
+    const box = ((await callContract(page, 'mascot.debugSnapshot')) as { box: B | null }).box!;
     expect(b.x + box.left).toBeGreaterThanOrEqual(wa.x - 2);
     expect(b.x + box.right).toBeLessThanOrEqual(wa.x + wa.width + 2);
   }
@@ -248,7 +245,7 @@ test.describe('E23 · mascot size', () => {
     expect(st).toMatchObject({ scale: 0.5, min: 0.3, hardMax: 1.5, default: 0.5 });
     expect(st.max).toBe(cap);
     expect(await bounds(app!)).toMatchObject({ width: 330, height: 355 });
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: false }));
+    await callContract(page, 'mascot.setInteractionConfig', { gravity: false });
     // 站稳后再记锚点（启动时可能刚落地）
     await sleep(800);
     // 先拖到屏幕中间（默认停在右下角，贴着屏幕边缘时放大会被夹住，夹紧单独在后面验证）
@@ -351,7 +348,7 @@ test.describe('E23 · mascot size', () => {
     }
 
     // 2) 右键菜单：放大 / 缩小 / 重置
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleReset());
+    await callContract(page, 'mascot.scaleReset');
     await expectScaled(page, 0.5, anchor, wa);
     await sleep(600);
     p = await bodyPoint();
@@ -406,9 +403,7 @@ test.describe('E23 · mascot size', () => {
 
     // 4) 设置页滑块（对话窗口 → 设置 → 通用）
     const chatWindow = app!.waitForEvent('window', { timeout: 20_000 });
-    await page.evaluate(() =>
-      (window.electronAPI as unknown as { openAiChat(): Promise<unknown> }).openAiChat(),
-    );
+    await callContract(page, 'window.openAiChat');
     const chat: Page = await chatWindow;
     await chat.waitForSelector('textarea', { timeout: 20_000 });
     await chat.click('[data-testid="open-settings"]');
@@ -422,8 +417,8 @@ test.describe('E23 · mascot size', () => {
     await expect(chat.getByTestId('mascot-size-value')).toHaveText('90%');
     await shot('05-slider-090');
     if (shots) await chat.screenshot({ path: join(shots, 'E23-05-settings-general.png') });
-    // 看板娘上的操作同步回滑块
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleStep(1));
+    // 桌面角色上的操作同步回滑块
+    await callContract(page, 'mascot.scaleStep', { dir: 1 });
     await expectScaled(page, 1, anchor, wa);
     await expect(chat.getByTestId('mascot-size-value')).toHaveText('100%');
     await expect(slider).toHaveValue('1');
@@ -433,7 +428,7 @@ test.describe('E23 · mascot size', () => {
     await chat.getByTestId('mascot-size-plus').isDisabled();
     await shot('06-max');
     // 超过上限的请求被夹紧
-    const over = await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleSet(9));
+    const over = await callContract(page, 'mascot.scaleSet', { scale: 9 });
     expect(over.scale).toBe(cap);
     expect((await bounds(app!)).height).toBeLessThanOrEqual(wa.height);
     await chat.getByTestId('mascot-size-minus').click();
@@ -447,9 +442,9 @@ test.describe('E23 · mascot size', () => {
     await expectScaled(page, 0.5, anchor, wa);
 
     // 5) 放大后：透明区仍点击穿透 / 气泡不压脸 / 拖拽照常
-    // （设置窗口先关掉：真实光标测试里它会盖在看板娘上面）
+    // （设置窗口先关掉：真实光标测试里它会盖在桌面角色上面）
     await chat.close().catch(() => undefined);
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleSet(1.1));
+    await callContract(page, 'mascot.scaleSet', { scale: 1.1 });
     await expectScaled(page, 1.1, anchor, wa);
     await sleep(1_200); // 包围盒与形状重新上报
     const s1 = await snap(page);
@@ -522,7 +517,7 @@ test.describe('E23 · mascot size', () => {
     await shot('09-toolbar-at-110');
 
     // 拖拽：按住身体拖动 → 窗口移动、大小不变
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: false }));
+    await callContract(page, 'mascot.setInteractionConfig', { gravity: false });
     const b0 = await bounds(app!);
     let bRef = b0;
     // 躯干上第一个真正落在画布上的点（气泡 / 工具栏盖住的点不算）
@@ -591,14 +586,14 @@ test.describe('E23 · mascot size', () => {
     // 拖到新位置后继续缩放：以新的脚底中心为锚点
     await sleep(800);
     const anchor2 = await feetNow(app!, page);
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleSet(0.7));
+    await callContract(page, 'mascot.scaleSet', { scale: 0.7 });
     await expectScaled(page, 0.7, anchor2, wa);
 
     // 5b) 贴着屏幕右边缘放大：可见角色被夹在工作区内，不会跑出屏幕
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleReset());
+    await callContract(page, 'mascot.scaleReset');
     await sleep(600);
     await moveFeetTo(wa.x + wa.width - 30);
-    await page.evaluate((c) => window.electronAPI!.mascotWindow!.scaleSet(c), cap);
+    await callContract(page, 'mascot.scaleSet', { scale: cap });
     await expect.poll(async () => (await scaleOf(page)).scale).toBe(cap);
     await sleep(800);
     {
@@ -611,7 +606,7 @@ test.describe('E23 · mascot size', () => {
       await shot('11-clamped-at-right-edge');
     }
     await moveFeetTo(wa.x + wa.width / 2);
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.scaleSet(0.7));
+    await callContract(page, 'mascot.scaleSet', { scale: 0.7 });
     await sleep(600);
     {
       const b = await bounds(app!);

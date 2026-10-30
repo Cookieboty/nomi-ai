@@ -7,7 +7,7 @@
  *   免按键（handsfree）：VAD 分段，每句话说完自动识别
  *   唤醒词（wake）：VAD 分段 → 本地 whisper 转写 → 匹配唤醒词 → 进入「已唤醒」窗口接收下一句指令
  *
- * 每次状态变化都上报主进程（ai:voice:activity），由主进程广播给看板娘（表情）并处理打断 TTS。
+ * 每次状态变化都上报主进程（ai:voice:activity），由主进程广播给桌面角色（表情）并处理打断 TTS。
  */
 import { t } from '@nomi-ai/ui';
 

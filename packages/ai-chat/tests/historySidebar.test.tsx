@@ -8,6 +8,10 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 // 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
 vi.mock('../src/contexts/AiChatContext', () => {
   const api = {
@@ -39,15 +43,16 @@ const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySess
   }) as HistorySession;
 
 function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } = {}) {
-  const calls: Array<[string, unknown[]]> = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
-    if (ch === 'ai:harness:state')
+  const calls: Array<[string, Record<string, unknown>]> = [];
+  const invoke = vi.fn(async (ch: string, input?: Record<string, unknown>) => {
+    calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:history:list') {
-      const [b, o] = args as [HistorySession['backend'], { offset?: number }];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'history.list') {
+      const b = input?.backend as HistorySession['backend'];
+      const o = (input?.options ?? {}) as { offset?: number };
       if (b === 'claude') {
         return (o.offset ?? 0) === 0
           ? { items: [h('claude', 1), h('claude', 3)], nextOffset: 50, hasMore: true }
@@ -61,10 +66,10 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
         };
       return { items: [], nextOffset: null, hasMore: false };
     }
-    if (ch === 'ai:history:open') return opts.openResult ?? { ok: true };
+    if (ch === 'history.open') return opts.openResult ?? { ok: true };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return calls;
 }
 
@@ -84,7 +89,7 @@ beforeEach(() => setChatMode('dev'));
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('CLI history in the sidebar', () => {
@@ -141,7 +146,7 @@ describe('CLI history in the sidebar', () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     expect(r.queryByTestId('cli-history')).toBeNull();
-    expect(calls.some(([c]) => c === 'ai:history:list')).toBe(false);
+    expect(calls.some(([c]) => c === 'history.list')).toBe(false);
   });
 
   it('by-endpoint view scopes to one endpoint and loads the next page for it', async () => {
@@ -157,7 +162,8 @@ describe('CLI history in the sidebar', () => {
     await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
     expect(
       calls.filter(
-        ([c, a]) => c === 'ai:history:list' && (a[1] as { offset?: number }).offset === 50,
+        ([c, a]) =>
+          c === 'history.list' && (a.options as { offset?: number } | undefined)?.offset === 50,
       ),
     ).toHaveLength(1);
     expect(r.queryByTestId('cli-history-more')).toBeNull();
@@ -240,7 +246,9 @@ describe('CLI history in the sidebar', () => {
     fireEvent.click(r.getAllByTestId('history-session-item')[0]!);
     await waitFor(() =>
       expect(
-        calls.some(([c, a]) => c === 'ai:history:open' && a[0] === 'claude' && a[1] === 'claude-1'),
+        calls.some(
+          ([c, a]) => c === 'history.open' && a.backend === 'claude' && a.sessionId === 'claude-1',
+        ),
       ).toBe(true),
     );
     await waitFor(() => expect(onNotice).toHaveBeenCalledWith('原工作目录已不存在：/work/app'));

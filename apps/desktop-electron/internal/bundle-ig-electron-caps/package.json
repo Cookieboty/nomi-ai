@@ -1,0 +1,50 @@
+{
+  "name": "@nomi-ai/bundle-ig-electron-caps",
+  "version": "0.0.1",
+  "private": true,
+  "description": "插件包：Electron 主进程独占能力（safeStorage 密钥 / 文件会话 & UserProfile 存储 / Screen / Clipboard / ASR / TTS / WakeWord / Shortcut）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./seams": {
+      "types": "./dist/seams/index.d.ts",
+      "import": "./dist/seams/index.js",
+      "require": "./dist/seams/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../../../scripts/run-bin.mjs tsup",
+    "dev": "node ../../../../scripts/run-bin.mjs tsup --watch",
+    "typecheck": "node ../../../../scripts/run-bin.mjs tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node ../../../../scripts/run-bin.mjs vitest run",
+    "clean": "node ../../../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "peerDependencies": {
+    "@nomi-ai/bundle-ig-base": "workspace:*",
+    "electron": ">=28"
+  },
+  "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nomi-ai/bundle-ig-base": "workspace:*",
+    "rimraf": "^6.1.3",
+    "tsup": "^8.3.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

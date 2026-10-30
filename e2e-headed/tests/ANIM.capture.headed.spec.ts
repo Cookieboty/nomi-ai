@@ -6,7 +6,8 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
+import { callContract } from '../fixtures/contract';
+import { repoRoot, resolveElectronExecutable, useRiveRenderer } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
@@ -15,7 +16,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   ANIM_SHOTS_DIR=/workspace/screenshots/anim-fix/after xvfb-run -a pnpm test:e2e:headed -g "ANIM"
  */
 const dir = process.env.ANIM_SHOTS_DIR;
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 
 test('ANIM capture every clip', async () => {
   test.skip(!dir || !existsSync(resolve(electronPkgDir, 'dist', 'main.js')), 'set ANIM_SHOTS_DIR');
@@ -23,6 +24,7 @@ test('ANIM capture every clip', async () => {
   mkdirSync(dir!, { recursive: true });
   execFileSync(process.execPath, [resolve(electronPkgDir, 'scripts', 'copy-renderer.js')]);
   const userData = mkdtempSync(join(tmpdir(), 'anim-'));
+  useRiveRenderer(userData);
   const env = { ...(process.env as Record<string, string>) };
   delete env.NODE_ENV;
   const app = await electron.launch({
@@ -77,23 +79,13 @@ test('ANIM capture every clip', async () => {
       await main.waitForTimeout(900);
     }
     // 被拎起（真实拖拽状态）
-    await main.evaluate(() => {
-      const api = (
-        window as unknown as {
-          electronAPI: { mascotWindow: { dragStart(x: number, y: number): void } };
-        }
-      ).electronAPI.mascotWindow;
-      api.dragStart(window.screenX + 200, window.screenY + 300);
-    });
+    const [wx, wy] = await main.evaluate(() => [window.screenX, window.screenY]);
+    await callContract(main, 'mascot.dragStart', { screenX: wx + 200, screenY: wy + 300 });
     for (let k = 0; k < 3; k += 1) {
       await main.waitForTimeout(500);
       await shot(main, `held-${k}`);
     }
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { mascotWindow: { dragEnd(): void } } }
-      ).electronAPI.mascotWindow.dragEnd(),
-    );
+    await callContract(main, 'mascot.dragEnd');
     await main.waitForTimeout(2500);
   } finally {
     await Promise.race([

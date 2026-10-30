@@ -1,25 +1,29 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
-
-import {
-  DEFAULT_MASCOT_SCALE,
-  MASCOT_PAD as MAIN_PAD,
-  mascotWindowSize,
-  migrateMascotSize,
-} from '../../../electron/src/mascot/mascotSize';
-import { intersects, placeBubble } from '../../src/mascot/bubblePlacement';
 import {
   rigBodyBox,
   rigHeadBox,
   rigTransform,
   type RigImages,
   type RigManifest,
-} from '../../src/mascot/layeredRig';
-import { regionInSprite } from '../../src/mascot/spriteInteraction';
-import { characterBox, MASCOT_PAD } from '../../src/mascot/spriteLayout';
+  regionInSprite,
+  characterBox,
+  MASCOT_PAD,
+} from '@nomi-ai/avatar-runtime';
+import { repoPath } from '@nomi-ai/repo-paths';
+import { describe, expect, it } from 'vitest';
 
-const dir = new URL('../../public/assets/models/sprite/nomi/', import.meta.url);
+// eslint-disable-next-line no-restricted-imports -- 一致性测试：断言渲染侧的窗口留白与内核算的窗口尺寸相同，只在测试里读内核源码
+import {
+  DEFAULT_MASCOT_SCALE,
+  MASCOT_PAD as MAIN_PAD,
+  mascotWindowSize,
+  migrateMascotSize,
+} from '../../../../apps/desktop-electron/internal/core/src/mascot/mascotSize';
+import { intersects, placeBubble } from '../../src/mascot/bubblePlacement';
+
+const dir = pathToFileURL(repoPath('characters/nomi/sprite') + '/');
 const rig = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8')).rig as RigManifest;
 const imgs: RigImages = new Map();
 for (const f of readdirSync(new URL('layers/', dir))) {
@@ -111,7 +115,7 @@ describe('sprite geometry + bubble', () => {
     expect(regionInSprite(cx, head.bottom - 4, head, body)).toBe('face');
     expect(regionInSprite(cx, head.bottom + 10, head, body)).toBe('body');
     expect(regionInSprite(body.left + 2, head.bottom + 30, head, body)).toBe('hands');
-    expect(regionInSprite(cx, body.bottom - 2, head, body)).toBe('skirt');
+    expect(regionInSprite(cx, body.bottom - 2, head, body)).toBe('hem');
   });
 });
 

@@ -20,10 +20,12 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 
+import { AutoApproveSetting } from './AutoApproveSetting';
 import { CliEndpointSection } from './CliEndpointSection';
 import { DelegateSettings } from './DelegateSettings';
 import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
+import { RuntimeEnvironment } from './RuntimeEnvironment';
 
 /** 助手选择条的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
 const CLIS = CONVERSATION_BACKENDS.filter((b): b is CliKind => b !== 'nomi');
@@ -121,6 +123,8 @@ export const ProvidersPage: React.FC<{
           </div>
         ) : (
           <>
+            <RuntimeEnvironment />
+            <AutoApproveSetting />
             <div
               role="tablist"
               aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}

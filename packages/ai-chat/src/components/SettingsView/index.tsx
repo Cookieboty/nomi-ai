@@ -2,6 +2,7 @@
  * 统一设置页（参考 Codex app 的 Settings：左侧分区导航，右侧内容）。
  * 各分区直接复用原有面板，通过 ModalHostContext 以「内嵌」方式渲染，功能与 test id 不变。
  */
+import { brand } from '@nomi-ai/types';
 import { Button, Icon, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft, Lightbulb } from 'lucide-react';
@@ -12,6 +13,7 @@ import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, QualityPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
+import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AppIconSettings } from './AppIconSettings';
 import { GeneralHero } from './GeneralHero';
@@ -19,6 +21,7 @@ import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
+import { MascotRendererSettings } from './MascotRendererSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
 import { PrivacySection } from './PrivacySection';
@@ -131,7 +134,12 @@ export const SettingsView: React.FC<Props> = ({
                 </SettingsGroup>
                 <StartupSettings
                   language={<LanguageSettings />}
-                  mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
+                  mascotSize={(shown) => (
+                    <>
+                      <MascotSizeSettings disabled={!shown} />
+                      <MascotRendererSettings disabled={!shown} />
+                    </>
+                  )}
                 />
                 <UpdateSettings>
                   <SettingRow
@@ -237,7 +245,7 @@ export const SettingsView: React.FC<Props> = ({
         <div className={styles.brand} data-testid="settings-brand">
           <NomiMark className={styles.brandMark} size={collapsed ? 24 : 36} />
           <span className={styles.brandText}>
-            <span className={styles.brandName}>{t('ui.chat-settings.nomi')}</span>
+            <span className={styles.brandName}>{brand.appName}</span>
             <span className={styles.brandSub}>
               {t('ui.chat-settings.your-desktop-ai-assistant')}
             </span>
@@ -277,6 +285,7 @@ export const SettingsView: React.FC<Props> = ({
               ))}
           </div>
         ))}
+        <RestartUpdateButton placement="settings-nav" collapsed={collapsed} />
       </nav>
       <main
         className={

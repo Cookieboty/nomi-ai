@@ -54,18 +54,25 @@ export function makeCtx(
     openPlugins: vi.fn(),
     openProviders: vi.fn(),
     openSettings: vi.fn(),
+    // 默认没有可打开的模型浮层：/model 退回卡片
+    openModelMenu: vi.fn((_query: string) => false),
     switchNomiModel: vi.fn(async () => undefined),
     setTabSource: vi.fn(async (_source: TabSource, _model?: string) => true),
     tabModels: vi.fn(async () => ({
       catalog: null as BackendModelCatalog | null,
       current: null as string | null,
       source: 'official' as TabSource,
+      lastServedRef: undefined as string | undefined,
     })),
     setTabModel: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => ({ ok: true, status: '', stat: '', diff: '', truncated: false })),
     expand: vi.fn(async () => null as { text: string; shellInjection: boolean } | null),
     nomiSkillBody: vi.fn(async () => null as string | null),
     sendPlain: vi.fn(),
+    compactNomi: vi.fn(
+      async () =>
+        ({ status: 'done' }) as { status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string },
+    ),
   };
   const commands = buildRegistry(
     adapterFor(backend, { backend, discovered: over.discovered ?? null }),

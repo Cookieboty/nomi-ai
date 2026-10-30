@@ -18,6 +18,10 @@ import { QualityPanel, type QualityTab } from '../src/components/QualityPanel';
 import { MAX_COMPARE } from '../src/components/QualityPanel/CompareTable';
 import { PAGE_SIZE } from '../src/components/QualityPanel/RequestDetails';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 configure({ asyncUtilTimeout: 10_000 });
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
@@ -149,105 +153,103 @@ let cliHasData = true;
 let total = 120;
 let seriesPoints = 3;
 
+let invoke: ReturnType<typeof vi.fn<(ch: string, arg?: unknown) => Promise<unknown>>>;
+
 function install() {
   calls = [];
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string, arg?: unknown) => {
-      calls.push([ch, arg]);
-      switch (ch) {
-        case 'ai:quality:query': {
-          const q = arg as QualityQuery;
-          const empty =
-            (q.layer ?? 'gateway') === 'gateway'
-              ? gatewayEmpty || !!q.filters?.provider?.includes('none')
-              : !cliHasData;
-          if (empty)
-            return { total: stats('*', { requests: 0, total: 0 }), groups: [], minSamples: 20 };
-          return {
-            total: stats('*'),
-            groups: q.groupPath ? tree(q.groupPath) : [],
-            minSamples: 20,
-            ...(q.withPrevious ? { previous: stats('*', { successRate: 0.95, total: 80 }) } : {}),
-          };
-        }
-        case 'ai:quality:facets':
-          return {
-            client: [
-              { key: 'claude', label: 'claude', count: 80 },
-              { key: 'codex', label: 'codex', count: 20 },
-            ],
-            provider: [
-              { key: 'amux', label: 'Amux Special', count: 70 },
-              { key: 'azure', label: 'Microsoft Azure', count: 30 },
-            ],
-            modelFamily: [
-              { key: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', count: 90, vendor: 'OpenAI' },
-            ],
-            key: [{ key: 'amux\u0000k1', label: 'Amux Special · k1', count: 70 }],
-          };
-        case 'ai:quality:series': {
-          const q = arg as QualitySeriesQuery;
-          const buckets = [0, 1, 2].map((i) => NOW - (2 - i) * 86_400_000);
-          const vals = [0.9, 0.92, 0.95].map((v, i) => (i < seriesPoints ? v : null));
-          return {
-            buckets,
-            series: Array.from({ length: q.groupBy ? 2 : 1 }, (_, i) => ({
-              key: `s${i}`,
-              label: `Series ${i}`,
-              values: vals,
-            })),
-          };
-        }
-        case 'ai:quality:requests': {
-          const q = arg as QualityRequestsQuery;
-          const off = q.offset ?? 0;
-          const n = Math.max(0, Math.min(q.limit, total - off));
-          return {
-            total,
-            items: Array.from({ length: n }, (_, i) =>
-              i === 0 && off === 0
-                ? record(0, {
-                    vendor: 'OpenAI',
-                    display: 'GPT-6.1 Sol',
-                    providerName: 'Amux',
-                    outcome: 'stream-break',
-                    errorKind: 'upstream closed without terminal event',
-                    attempts: [
-                      {
-                        provider: 'ds',
-                        keyId: 'k9',
-                        model: 'ds/v4',
-                        outcome: 'rate-limit',
-                        status: 429,
-                        ms: 120,
-                      },
-                      {
-                        provider: 'amux',
-                        keyId: 'k1',
-                        model: 'amux/openai/gpt-6.1-sol',
-                        outcome: 'stream-break',
-                        status: 200,
-                        ms: 4100,
-                      },
-                    ],
-                  })
-                : record(off + i),
-            ),
-          };
-        }
-        case 'ai:quality:settings-get':
-          return { retentionDays: 30 };
-        case 'ai:quality:settings-set':
-          return { retentionDays: (arg as { retentionDays: number }).retentionDays };
-        case 'ai:quality:export':
-          return { ok: true, path: '/tmp/quality.csv', rows: 3 };
-        case 'ai:quality:clear':
-          return undefined;
+  invoke = vi.fn(async (ch: string, arg?: unknown) => {
+    calls.push([ch, arg]);
+    switch (ch) {
+      case 'quality.query': {
+        const q = arg as QualityQuery;
+        const empty =
+          (q.layer ?? 'gateway') === 'gateway'
+            ? gatewayEmpty || !!q.filters?.provider?.includes('none')
+            : !cliHasData;
+        if (empty)
+          return { total: stats('*', { requests: 0, total: 0 }), groups: [], minSamples: 20 };
+        return {
+          total: stats('*'),
+          groups: q.groupPath ? tree(q.groupPath) : [],
+          minSamples: 20,
+          ...(q.withPrevious ? { previous: stats('*', { successRate: 0.95, total: 80 }) } : {}),
+        };
       }
-      return null;
-    }),
-    on: vi.fn(() => () => undefined),
-  };
+      case 'quality.facets':
+        return {
+          client: [
+            { key: 'claude', label: 'claude', count: 80 },
+            { key: 'codex', label: 'codex', count: 20 },
+          ],
+          provider: [
+            { key: 'amux', label: 'Amux Special', count: 70 },
+            { key: 'azure', label: 'Microsoft Azure', count: 30 },
+          ],
+          modelFamily: [{ key: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', count: 90, vendor: 'OpenAI' }],
+          key: [{ key: 'amux\u0000k1', label: 'Amux Special · k1', count: 70 }],
+        };
+      case 'quality.series': {
+        const q = arg as QualitySeriesQuery;
+        const buckets = [0, 1, 2].map((i) => NOW - (2 - i) * 86_400_000);
+        const vals = [0.9, 0.92, 0.95].map((v, i) => (i < seriesPoints ? v : null));
+        return {
+          buckets,
+          series: Array.from({ length: q.groupBy ? 2 : 1 }, (_, i) => ({
+            key: `s${i}`,
+            label: `Series ${i}`,
+            values: vals,
+          })),
+        };
+      }
+      case 'quality.requests': {
+        const q = arg as QualityRequestsQuery;
+        const off = q.offset ?? 0;
+        const n = Math.max(0, Math.min(q.limit, total - off));
+        return {
+          total,
+          items: Array.from({ length: n }, (_, i) =>
+            i === 0 && off === 0
+              ? record(0, {
+                  vendor: 'OpenAI',
+                  display: 'GPT-6.1 Sol',
+                  providerName: 'Amux',
+                  outcome: 'stream-break',
+                  errorKind: 'upstream closed without terminal event',
+                  attempts: [
+                    {
+                      provider: 'ds',
+                      keyId: 'k9',
+                      model: 'ds/v4',
+                      outcome: 'rate-limit',
+                      status: 429,
+                      ms: 120,
+                    },
+                    {
+                      provider: 'amux',
+                      keyId: 'k1',
+                      model: 'amux/openai/gpt-6.1-sol',
+                      outcome: 'stream-break',
+                      status: 200,
+                      ms: 4100,
+                    },
+                  ],
+                })
+              : record(off + i),
+          ),
+        };
+      }
+      case 'quality.getSettings':
+        return { retentionDays: 30 };
+      case 'quality.setSettings':
+        return { retentionDays: (arg as { retentionDays: number }).retentionDays };
+      case 'quality.exportCsv':
+        return { ok: true, path: '/tmp/quality.csv', rows: 3 };
+      case 'quality.clear':
+        return undefined;
+    }
+    return null;
+  });
+  installFakeApi(invoke);
 }
 
 beforeEach(() => {
@@ -259,7 +261,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const last = <T,>(ch: string): T => calls.filter((c) => c[0] === ch).at(-1)![1] as T;
@@ -283,7 +285,7 @@ describe('对比（默认）', () => {
     expect(r.getByTestId('quality-range-note').textContent).toMatch(
       /统计区间 10\/\d+ \d\d:\d\d – 10\/24 15:00/,
     );
-    const q = last<QualityQuery>('ai:quality:query');
+    const q = last<QualityQuery>('quality.query');
     expect(q).toMatchObject({
       groupPath: ['modelFamily', 'provider', 'key'],
       countBy: 'attempt',
@@ -331,7 +333,7 @@ describe('对比（默认）', () => {
     openChip(r, 'quality-hierarchy');
     fireEvent.click(r.getByTestId('quality-hierarchy-menu-model-client-provider'));
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query').groupPath).toEqual([
+      expect(last<QualityQuery>('quality.query').groupPath).toEqual([
         'modelFamily',
         'client',
         'provider',
@@ -342,7 +344,7 @@ describe('对比（默认）', () => {
     fireEvent.click(r.getByTestId('quality-hierarchy-menu-model-provider-key'));
     fireEvent.click(r.getByTestId('quality-layer-cli'));
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query')).toMatchObject({
+      expect(last<QualityQuery>('quality.query')).toMatchObject({
         layer: 'cli',
         groupPath: ['modelFamily', 'provider'],
         countBy: 'request',
@@ -406,7 +408,7 @@ describe('对比（默认）', () => {
     await r.findByTestId('quality-tree');
     fireEvent.click(r.getAllByTestId('quality-drill-failed')[0]!);
     await r.findByTestId('quality-requests');
-    const q = last<QualityRequestsQuery>('ai:quality:requests');
+    const q = last<QualityRequestsQuery>('quality.requests');
     expect(q.filters?.modelFamily).toEqual(['gpt-6.1-sol']);
     expect(q.filters?.outcome).toContain('stream-break');
     expect(q.filters?.outcome).not.toContain('ok');
@@ -434,12 +436,12 @@ describe('工具栏', () => {
     const opts = within(panel).getAllByTestId('quality-filter-client-list-opt');
     fireEvent.click(opts[0]!);
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query').filters?.client).toEqual(['claude']),
+      expect(last<QualityQuery>('quality.query').filters?.client).toEqual(['claude']),
     );
     expect(r.getByTestId('quality-filter-client').textContent).toContain('客户端：Claude Code');
     fireEvent.click(opts[1]!);
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query').filters?.client).toEqual(['claude', 'codex']),
+      expect(last<QualityQuery>('quality.query').filters?.client).toEqual(['claude', 'codex']),
     );
     expect(r.getByTestId('quality-filter-client').textContent).toContain('+1');
     const provider = openChip(r, 'quality-filter-provider');
@@ -447,10 +449,10 @@ describe('工具栏', () => {
     expect(r.getByTestId('quality-active-filters').textContent).toContain('Amux Special');
     fireEvent.click(r.getByTestId('quality-remove-provider'));
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query').filters?.provider).toBeUndefined(),
+      expect(last<QualityQuery>('quality.query').filters?.provider).toBeUndefined(),
     );
     fireEvent.click(r.getByTestId('quality-clear-filters'));
-    await waitFor(() => expect(last<QualityQuery>('ai:quality:query').filters).toBeUndefined());
+    await waitFor(() => expect(last<QualityQuery>('quality.query').filters).toBeUndefined());
     expect(r.queryByTestId('quality-active-filters')).toBeNull();
     expect(r.getByTestId('quality-filter-client').textContent).toBe('客户端');
   });
@@ -474,7 +476,7 @@ describe('工具栏', () => {
     fireEvent.click(r.getByTestId('quality-cancel-denom'));
     fireEvent.click(r.getByTestId('quality-include-rejected'));
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query')).toMatchObject({
+      expect(last<QualityQuery>('quality.query')).toMatchObject({
         countBy: 'request',
         cancelInDenominator: true,
         includeRejected: true,
@@ -492,7 +494,7 @@ describe('工具栏', () => {
       target: { value: '2026-10-20' },
     });
     await waitFor(() =>
-      expect(last<QualityQuery>('ai:quality:query').from).toBe(new Date(2026, 9, 20).getTime()),
+      expect(last<QualityQuery>('quality.query').from).toBe(new Date(2026, 9, 20).getTime()),
     );
   });
 
@@ -501,7 +503,7 @@ describe('工具栏', () => {
     await r.findByTestId('quality-tree');
     fireEvent.click(r.getByTestId('quality-export'));
     await waitFor(() =>
-      expect(last<{ kind: string; query: QualityQuery }>('ai:quality:export')).toMatchObject({
+      expect(last<{ kind: string; query: QualityQuery }>('quality.exportCsv')).toMatchObject({
         kind: 'table',
         query: { groupPath: ['modelFamily', 'provider', 'key'] },
       }),
@@ -520,12 +522,12 @@ describe('工具栏', () => {
     );
     fireEvent.click(within(panel).getByRole('radio', { name: '90 天' }));
     await waitFor(() =>
-      expect(last<{ retentionDays: number }>('ai:quality:settings-set').retentionDays).toBe(90),
+      expect(last<{ retentionDays: number }>('quality.setSettings').retentionDays).toBe(90),
     );
     fireEvent.click(within(panel).getByTestId('quality-clear'));
-    expect(calls.some((c) => c[0] === 'ai:quality:clear')).toBe(false);
+    expect(calls.some((c) => c[0] === 'quality.clear')).toBe(false);
     fireEvent.click(within(panel).getByTestId('quality-clear-confirm'));
-    await waitFor(() => expect(calls.some((c) => c[0] === 'ai:quality:clear')).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c[0] === 'quality.clear')).toBe(true));
   });
 });
 
@@ -536,7 +538,7 @@ describe('空状态', () => {
     const notice = await r.findByTestId('quality-empty-official');
     expect(notice.textContent).toContain('CLI 层有记录');
     fireEvent.click(r.getByTestId('quality-switch-cli'));
-    await waitFor(() => expect(last<QualityQuery>('ai:quality:query').layer).toBe('cli'));
+    await waitFor(() => expect(last<QualityQuery>('quality.query').layer).toBe('cli'));
   });
 
   it('两层都没数据：按口径说明（网关层包含 Nomi 对话）', async () => {
@@ -552,9 +554,7 @@ describe('空状态', () => {
     const r = render(<Harness />);
     await r.findByTestId('quality-tree');
     // 选一个不存在的供应商（测试桩对 provider=none 返回空）
-    (
-      window as unknown as { aiIPC: { invoke: ReturnType<typeof vi.fn> } }
-    ).aiIPC.invoke.mockImplementationOnce(async () => ({
+    invoke.mockImplementationOnce(async () => ({
       client: [],
       provider: [{ key: 'none', label: 'none', count: 1 }],
     }));
@@ -573,10 +573,8 @@ describe('趋势', () => {
     const r = render(<Harness start="trend" />);
     await r.findByTestId('quality-line-chart');
     fireEvent.change(r.getByTestId('quality-trend-metric'), { target: { value: 'ttft.p95' } });
-    await waitFor(() =>
-      expect(last<QualitySeriesQuery>('ai:quality:series').metric).toBe('ttft.p95'),
-    );
-    expect(last<QualitySeriesQuery>('ai:quality:series').groupBy).toBe('modelFamily');
+    await waitFor(() => expect(last<QualitySeriesQuery>('quality.series').metric).toBe('ttft.p95'));
+    expect(last<QualitySeriesQuery>('quality.series').groupBy).toBe('modelFamily');
     fireEvent.click(r.getByTestId('quality-trend-view-table'));
     expect(r.getByTestId('quality-series-table')).toBeTruthy();
   });
@@ -625,16 +623,16 @@ describe('请求明细', () => {
     await r.findAllByTestId('quality-request');
     expect(r.getByTestId('quality-page').textContent).toBe('显示第 1–50 条，共 120 条');
     fireEvent.click(r.getByTestId('quality-page-next'));
-    await waitFor(() => expect(last<QualityRequestsQuery>('ai:quality:requests').offset).toBe(50));
+    await waitFor(() => expect(last<QualityRequestsQuery>('quality.requests').offset).toBe(50));
     fireEvent.change(r.getByTestId('quality-filter-outcome'), { target: { value: 'rate-limit' } });
     await waitFor(() =>
-      expect(last<QualityRequestsQuery>('ai:quality:requests').filters?.outcome).toEqual([
+      expect(last<QualityRequestsQuery>('quality.requests').filters?.outcome).toEqual([
         'rate-limit',
       ]),
     );
     expect(r.getByTestId('quality-active-filters').textContent).toContain('限流');
     fireEvent.click(r.getByTestId('quality-export'));
-    await waitFor(() => expect(last<{ kind: string }>('ai:quality:export').kind).toBe('requests'));
+    await waitFor(() => expect(last<{ kind: string }>('quality.exportCsv').kind).toBe('requests'));
   });
 
   it('没有请求：紧凑的空状态', async () => {
@@ -646,7 +644,7 @@ describe('请求明细', () => {
 });
 
 it('不在桌面环境：显示占位而不是报错', () => {
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
   const r = render(<Harness />);
   expect(r.getByText('模型质量仅在桌面应用中提供')).toBeTruthy();
 });

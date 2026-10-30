@@ -1,0 +1,444 @@
+{
+ "cases": [
+  {
+   "env": {},
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {},
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "http_proxy": "",
+    "HTTP_PROXY": "http://{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "http_proxy": "",
+    "HTTP_PROXY": "http://{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTPS_PROXY": "http://{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTPS_PROXY": "http://{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "https_proxy": "http://{PROXY}",
+    "HTTPS_PROXY": "http://127.0.0.1:1"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "https_proxy": "http://{PROXY}",
+    "HTTPS_PROXY": "http://127.0.0.1:1"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "ALL_PROXY": "http://{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "ALL_PROXY": "http://{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "all_proxy": "socks5://{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "all_proxy": "socks5://{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://user:pa%40ss@{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-authorization: Basic dXNlcjpwYUBzcw==",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://user:pa%40ss@{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-authorization: Basic dXNlcjpwYUBzcw==",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://user@{PROXY}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://user@{PROXY}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "api.example.com"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "api.example.com"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": ".example.com"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": ".example.com"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "*.example.com"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "*.example.com"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "*"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "*"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "example.com:{DIRECT}"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "example.com:{DIRECT}"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "example.com:1"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "example.com:1"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "foo, other.com"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "foo, other.com"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "xample.com"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "xample.com"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "no_proxy": "",
+    "NO_PROXY": "*"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "no_proxy": "",
+    "NO_PROXY": "*"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "proxy",
+   "proxySaw": [
+    [
+     "CONNECT api.example.com:{DIRECT} HTTP/1.1",
+     "host: api.example.com:{DIRECT}",
+     "connection: close",
+     "proxy-connection: keep-alive"
+    ]
+   ]
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "API.EXAMPLE.COM"
+   },
+   "target": "http://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  },
+  {
+   "env": {
+    "HTTP_PROXY": "http://{PROXY}",
+    "NO_PROXY": "API.EXAMPLE.COM"
+   },
+   "target": "https://api.example.com:{DIRECT}/v1",
+   "via": "direct",
+   "proxySaw": []
+  }
+ ]
+}

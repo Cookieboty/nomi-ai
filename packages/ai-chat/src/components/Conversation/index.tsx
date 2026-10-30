@@ -18,7 +18,13 @@ import { SystemCardView } from '../SystemCards';
 import { AgentsByCallContext, agentsByCall } from './agentContext';
 import { ApprovePlanCard } from './ApprovePlanCard';
 import styles from './index.module.css';
-import { AssistantBody, AssistantMessage, type ConvSlots, UserMessage } from './Messages';
+import {
+  AssistantBody,
+  AssistantMessage,
+  CompactionNote,
+  type ConvSlots,
+  UserMessage,
+} from './Messages';
 import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
 
@@ -448,7 +454,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const idle = phase === 'idle';
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--)
-      if (messages[i]!.role === 'assistant') return messages[i]!.id;
+      if (messages[i]!.role === 'assistant' && messages[i]!.origin !== 'compaction')
+        return messages[i]!.id;
     return undefined;
   }, [messages]);
   // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
@@ -489,7 +496,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               >
                 {turn.messages.map((m) => (
                   <React.Fragment key={m.id}>
-                    {m.role === 'user' ? (
+                    {m.origin === 'compaction' ? (
+                      <CompactionNote message={m} />
+                    ) : m.role === 'user' ? (
                       <UserMessage
                         message={m}
                         timeLabel={labels.get(m.id)}

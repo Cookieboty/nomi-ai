@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console -- CLI 基准脚本 */
 /* global window, document, requestAnimationFrame, MutationObserver -- 在页面里执行的回调 */
-// 切换会话耗时基准：prod 构建（packages/electron/dist），全新 userData，
+// 切换会话耗时基准：prod 构建（apps/desktop-electron/dist），全新 userData，
 // 往对话窗 localStorage 灌入若干条长对话（含代码块 / 表格 / 工具轨迹），
 // 然后在侧栏来回切换，记录「点击 → 新会话内容可见并完成一次绘制」的耗时、长任务与主线程脚本 / 布局时间。
 // 用法（Linux 需显示）：
@@ -14,8 +14,10 @@ import { join, resolve } from 'node:path';
 
 import { _electron as electron } from 'playwright';
 
+import { callContract, waitForTransport } from './lib/contractProbe.mjs';
+
 const root = resolve(import.meta.dirname, '..');
-const pkg = resolve(root, 'packages/electron');
+const pkg = resolve(root, 'apps/desktop-electron');
 const arg = (name, def) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : def;
@@ -152,9 +154,9 @@ const app = await electron.launch({
 try {
   app.process().stderr?.on('data', (d) => process.env.PERF_DEBUG && console.error(String(d)));
   const main = await app.firstWindow();
-  await main.waitForFunction(() => !!window.electronAPI, null, { timeout: 30_000 });
+  await waitForTransport(main);
   const w = app.waitForEvent('window');
-  await main.evaluate(() => window.electronAPI.openAiChat());
+  await callContract(main, 'window.openAiChat');
   const chat = await w;
   await chat.setViewportSize({ width: 1100, height: 760 }).catch(() => undefined);
   await chat.waitForSelector('textarea', { state: 'visible', timeout: 30_000 });
@@ -183,18 +185,11 @@ try {
     for (let c = 1; c < CONVS; c++) {
       const msgs = Array.from({ length: pairs }, (_, i) => cliPair(c, i)).flat();
       bytes += JSON.stringify(msgs).length;
-      await chat.evaluate(
-        async ({ c, msgs }) => {
-          const call = async (m, ...a) => {
-            const r = await window.aiIPC.invoke(`ai:harness:${m}`, ...a);
-            if (r && r.__error) throw new Error(r.__error.message);
-            return r;
-          };
-          const tab = await call('tab-create', { backend: 'claude', title: `TABX${c}` });
-          await call('tab-seed', tab.id, msgs);
-        },
-        { c, msgs },
-      );
+      const tab = await callContract(chat, 'harness.tabCreate', {
+        backend: 'claude',
+        title: `TABX${c}`,
+      });
+      await callContract(chat, 'harness.tabSeed', { id: tab.id, messages: msgs });
     }
     await chat.waitForSelector(`[data-testid="chat-tab-${CONVS - 1}"]`, { timeout: 30_000 });
     // 先把每个标签打开一遍，预热（消息读取 / 迁移），再回到第 1 个标签

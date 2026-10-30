@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 按「Nomi 视觉色彩系统规范 v1.0」重做五套主题：日落橙（默认）、奶油、冷雾为浅色，暖墨、石墨为深色。

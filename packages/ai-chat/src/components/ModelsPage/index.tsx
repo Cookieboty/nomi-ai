@@ -40,6 +40,7 @@ import {
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 
 import styles from './index.module.css';
@@ -404,8 +405,12 @@ export const ModelsPage: React.FC = () => {
         allowedPrivateHosts={state?.allowedPrivateHosts ?? []}
         showWire={showWire}
         onClose={() => setEditing(null)}
-        onRemove={(p) => {
-          if (!window.confirm(t('ui.models.delete-provider-and-all-its-keys', p.name))) return;
+        onRemove={async (p) => {
+          const ok = await confirmDialog({
+            message: t('ui.models.delete-provider-and-all-its-keys', p.name),
+            danger: true,
+          });
+          if (!ok) return;
           setEditing(null);
           run(gatewayClient.removeProvider(p.id));
         }}

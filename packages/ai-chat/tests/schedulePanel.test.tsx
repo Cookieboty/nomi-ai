@@ -5,9 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SchedulePanel } from '../src/components/SchedulePanel';
 import { describeRepeat } from '../src/services/desktopClient';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
+
+// sched.* / desktop.*（提醒）走契约（services/api）：调用记进 mockIpc 返回的 invoke
+const mock = vi.hoisted(() => ({ transport: true }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(mock),
+);
+
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  mock.invoke = undefined;
 });
 
 const state = (over: Record<string, unknown> = {}) => ({
@@ -32,11 +40,11 @@ const state = (over: Record<string, unknown> = {}) => ({
 function mockIpc(extra: Record<string, unknown> = {}) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
     if (ch in extra) return extra[ch];
-    if (ch === 'ai:sched:state') return state();
-    if (ch === 'ai:sched:results') return [];
-    if (ch === 'ai:desktop:reminders-list') return [];
-    if (ch === 'ai:sched:upsert-task') return { id: 't1', nextRunAt: Date.now() + 1000 };
-    if (ch === 'ai:desktop:reminders-create')
+    if (ch === 'sched.state') return state();
+    if (ch === 'sched.results') return [];
+    if (ch === 'desktop.remindersList') return [];
+    if (ch === 'sched.upsertTask') return { id: 't1', nextRunAt: Date.now() + 1000 };
+    if (ch === 'desktop.remindersCreate')
       return {
         id: 'r1',
         text: '喝水',
@@ -47,7 +55,7 @@ function mockIpc(extra: Record<string, unknown> = {}) {
       };
     return true;
   });
-  (window as { aiIPC?: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  mock.invoke = (name, input) => invoke(name, input);
   return invoke;
 }
 
@@ -66,7 +74,7 @@ describe('schedule panel', () => {
     fireEvent.click(r.getByTestId('reminder-add'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
-        'ai:desktop:reminders-create',
+        'desktop.remindersCreate',
         expect.objectContaining({ text: '喝水', inMinutes: 10 }),
       ),
     );
@@ -81,7 +89,7 @@ describe('schedule panel', () => {
     fireEvent.click(await waitFor(() => r.getByTestId('task-add-briefing')));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
-        'ai:sched:upsert-task',
+        'sched.upsertTask',
         expect.objectContaining({
           name: '每日简报',
           template: 'briefing',
@@ -95,7 +103,7 @@ describe('schedule panel', () => {
     fireEvent.click(r.getByTestId('task-save'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
-        'ai:sched:upsert-task',
+        'sched.upsertTask',
         expect.objectContaining({ name: '周报', prompt: '提醒我写周报', time: '08:00' }),
       ),
     );
@@ -108,7 +116,7 @@ describe('schedule panel', () => {
     fireEvent.click(r.getByRole('tab', { name: '主动聊天' }));
     fireEvent.click(r.getByRole('switch', { name: '允许主动聊天' }));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:sched:set-settings', {
+      expect(invoke).toHaveBeenCalledWith('sched.setSettings', {
         proactive: { enabled: true },
       }),
     );

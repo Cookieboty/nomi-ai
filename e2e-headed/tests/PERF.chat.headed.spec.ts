@@ -6,7 +6,7 @@
  *      掉帧（相邻两帧间隔 > 50ms）与输入框打字延迟（Event Timing）。
  * 结果打印到控制台，并写到 NOMI_PERF_OUT（JSON）便于前后对比。
  *
- *   pnpm build && pnpm --filter @nomi-ai/electron run copy-renderer
+ *   pnpm build && pnpm --filter @nomi-ai/host-electron run copy-renderer
  *   NOMI_PERF=1 NOMI_PERF_OUT=/tmp/perf.json pnpm exec playwright test PERF.chat
  */
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -18,10 +18,11 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const RUN = process.env.NOMI_PERF === '1';
 
 // ---------- 预置数据 ----------
@@ -317,16 +318,12 @@ test.describe('PERF · chat', () => {
       env,
     });
     const main = await app.firstWindow();
-    await main.waitForFunction(() => 'electronAPI' in window);
+    await main.waitForFunction(() => 'nomiTransport' in window);
     const chatP = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatP;
     await chat.setViewportSize({ width: 1280, height: 860 }).catch(() => undefined);
-    await chat.waitForFunction(() => 'aiIPC' in window, undefined, { timeout: 30_000 });
+    await chat.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
 
     // 预置会话后重新加载
     const CONVS = Number(process.env.NOMI_PERF_CONVS ?? 10);
@@ -337,7 +334,7 @@ test.describe('PERF · chat', () => {
       for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
     }, seed);
     await chat.reload();
-    await chat.waitForFunction(() => 'aiIPC' in window, undefined, { timeout: 30_000 });
+    await chat.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
     await expect(chat.locator('[data-testid="history-item"]').first()).toBeVisible({
       timeout: 30_000,
     });

@@ -31,7 +31,7 @@ describe('placeConfirmBubble', () => {
   });
 
   it('flips to the other side near the left screen edge', () => {
-    // 看板娘贴在屏幕左边缘，工具栏在左：左侧不可用 → 必须放到右边 / 上下且仍不压工具栏
+    // 桌面角色贴在屏幕左边缘，工具栏在左：左侧不可用 → 必须放到右边 / 上下且仍不压工具栏
     const g = box(6, 6, 52, 312);
     const h = box(100, 150, 64, 64);
     const p = placeConfirmBubble({

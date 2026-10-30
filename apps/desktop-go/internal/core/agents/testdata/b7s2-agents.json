@@ -1,0 +1,3455 @@
+{
+ "pure": {
+  "classify": {
+   "in": [
+    {
+     "pid": 1,
+     "name": "claude",
+     "cmd": "claude --resume"
+    },
+    {
+     "pid": 2,
+     "name": "node",
+     "cmd": "node /usr/lib/node_modules/@anthropic-ai/claude-code/cli.js"
+    },
+    {
+     "pid": 3,
+     "name": "codex",
+     "cmd": "codex exec"
+    },
+    {
+     "pid": 4,
+     "name": "grep",
+     "cmd": "grep claude"
+    },
+    {
+     "pid": 5,
+     "name": "node",
+     "cmd": "node /x/@google/gemini-cli/dist/index.js"
+    },
+    {
+     "pid": 6,
+     "name": "dsh",
+     "cmd": "dsh run"
+    },
+    {
+     "pid": 7,
+     "name": "grok.exe",
+     "cmd": "C:\\bin\\grok.exe chat"
+    },
+    {
+     "pid": 8,
+     "name": "node",
+     "cmd": "node /x/@xai-official/grok/bin.js"
+    },
+    {
+     "pid": 9,
+     "name": "vim",
+     "cmd": "vim claude.md"
+    },
+    {
+     "pid": 10,
+     "name": "Codex",
+     "cmd": "/Applications/Codex.app/Contents/MacOS/Codex"
+    },
+    {
+     "pid": 11,
+     "name": "rg.EXE",
+     "cmd": "rg codex"
+    },
+    {
+     "pid": 12,
+     "name": "gemini",
+     "cmd": "gemini"
+    },
+    {
+     "pid": 13,
+     "name": "node",
+     "cmd": "node /x/@anthropic-ai/claude-code/cli.js /x/@google/gemini-cli/a.js codex"
+    },
+    {
+     "pid": 99,
+     "name": "claude",
+     "cmd": "claude"
+    }
+   ],
+   "self": 99,
+   "out": [
+    {
+     "pid": 1,
+     "kind": "claude"
+    },
+    {
+     "pid": 2,
+     "kind": "claude"
+    },
+    {
+     "pid": 3,
+     "kind": "codex"
+    },
+    {
+     "pid": 5,
+     "kind": "gemini"
+    },
+    {
+     "pid": 6,
+     "kind": "dsh"
+    },
+    {
+     "pid": 7,
+     "kind": "grok"
+    },
+    {
+     "pid": 8,
+     "kind": "grok"
+    },
+    {
+     "pid": 12,
+     "kind": "gemini"
+    },
+    {
+     "pid": 13,
+     "kind": "claude"
+    }
+   ]
+  },
+  "parsePs": {
+   "in": "  PID COMM ARGS\n  101 /usr/local/bin/claude claude --print hi\n102 codex\n  103   /opt/x/node   node /x/@google/gemini-cli/a.js  \nabc def\n104\tdsh\tdsh  -v\n",
+   "out": [
+    {
+     "pid": 101,
+     "name": "claude",
+     "cmd": "claude --print hi"
+    },
+    {
+     "pid": 102,
+     "name": "codex",
+     "cmd": "codex"
+    },
+    {
+     "pid": 103,
+     "name": "node",
+     "cmd": "node /x/@google/gemini-cli/a.js  "
+    },
+    {
+     "pid": 104,
+     "name": "dsh",
+     "cmd": "dsh  -v"
+    }
+   ]
+  },
+  "parseWinJson": [
+   {
+    "in": "[{\"ProcessId\":5,\"Name\":\"claude.exe\",\"CommandLine\":\"claude.exe -p\"},{\"ProcessId\":\"6\",\"Name\":\"x\"},null,{\"ProcessId\":7,\"Name\":\"Codex.EXE\"},{\"ProcessId\":8}]",
+    "out": [
+     {
+      "pid": 5,
+      "name": "claude",
+      "cmd": "claude.exe -p"
+     },
+     {
+      "pid": 7,
+      "name": "Codex",
+      "cmd": "Codex.EXE"
+     },
+     {
+      "pid": 8,
+      "name": "",
+      "cmd": ""
+     }
+    ]
+   },
+   {
+    "in": "{\"ProcessId\":9,\"Name\":\"grok.exe\",\"CommandLine\":null}",
+    "out": [
+     {
+      "pid": 9,
+      "name": "grok",
+      "cmd": "grok.exe"
+     }
+    ]
+   },
+   {
+    "in": "not json",
+    "out": []
+   },
+   {
+    "in": "null",
+    "out": []
+   },
+   {
+    "in": "[]",
+    "out": []
+   },
+   {
+    "in": "[5,\"s\",[1],true,{\"ProcessId\":7,\"Name\":\"a.exe\"}]",
+    "out": [
+     {
+      "pid": 7,
+      "name": "a",
+      "cmd": "a.exe"
+     }
+    ]
+   }
+  ],
+  "parseProcLocks": {
+   "in": "1: FLOCK  ADVISORY  WRITE 103198 00:2f:1680557 0 EOF\n2: POSIX  ADVISORY  READ 1 fd:01:42 0 EOF\n3: LEASE  ACTIVE  READ 1 fd:01:43 0 EOF\n4: OFDLCK ADVISORY WRITE -1 08:0A:99 0 EOF\n5: FLOCK ADVISORY WRITE 1 zz:01:5 0 EOF",
+   "out": [
+    1680557,
+    42,
+    99
+   ]
+  },
+  "sanitize": [
+   {
+    "in": "__undef",
+    "out": {
+     "enabled": true,
+     "stallMs": 300000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": null,
+    "out": {
+     "enabled": true,
+     "stallMs": 300000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": "x",
+    "out": {
+     "enabled": true,
+     "stallMs": 300000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {},
+    "out": {
+     "enabled": true,
+     "stallMs": 300000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {
+     "enabled": false,
+     "stallMs": 1000,
+     "cooldownMs": 5,
+     "summaryEnabled": 1
+    },
+    "out": {
+     "enabled": false,
+     "stallMs": 1000,
+     "cooldownMs": 5,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {
+     "enabled": "yes",
+     "stallMs": 10000,
+     "cooldownMs": 0,
+     "summaryEnabled": true,
+     "tools": {
+      "codex": false,
+      "bogus": false,
+      "grok": "no"
+     }
+    },
+    "out": {
+     "enabled": true,
+     "stallMs": 10000,
+     "cooldownMs": 90000,
+     "summaryEnabled": true,
+     "tools": {
+      "codex": false,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {
+     "stallMs": 1000000000000,
+     "cooldownMs": -1,
+     "tools": null
+    },
+    "out": {
+     "enabled": true,
+     "stallMs": 1000000000000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {
+     "stallMs": 60000.5,
+     "cooldownMs": 600000,
+     "tools": []
+    },
+    "out": {
+     "enabled": true,
+     "stallMs": 60000.5,
+     "cooldownMs": 600000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   },
+   {
+    "in": {
+     "stallMs": "NaN",
+     "tools": {
+      "claude": false,
+      "dsh": false,
+      "gemini": 0
+     }
+    },
+    "out": {
+     "enabled": true,
+     "stallMs": 300000,
+     "cooldownMs": 90000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": false,
+      "dsh": false,
+      "grok": true,
+      "gemini": true
+     }
+    }
+   }
+  ],
+  "withCost": [
+   {
+    "text": "short",
+    "cost": null,
+    "out": "short"
+   },
+   {
+    "text": "short",
+    "cost": "本次花费 ¥0.12",
+    "out": "short 本次花费 ¥0.12"
+   },
+   {
+    "text": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。",
+    "cost": null,
+    "out": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任"
+   },
+   {
+    "text": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。",
+    "cost": "本次花费 ¥1.50",
+    "out": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任… 本次花费 ¥1.50"
+   },
+   {
+    "text": "x",
+    "cost": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "out": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+   },
+   {
+    "text": "x",
+    "cost": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "out": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+   },
+   {
+    "text": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。   ",
+    "cost": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "out": "这是一段很长的任务描述。这是一段很长的任务描述。这是一段很长的任务描述。这是… cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+   },
+   {
+    "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+    "cost": "cost",
+    "out": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀… cost"
+   },
+   {
+    "text": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+    "cost": "cccccccccccccccccc",
+    "out": "word word word word word word word word word word word word word word word word word word word word word word word word… cccccccccccccccccc"
+   },
+   {
+    "text": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ",
+    "cost": "cccccccccccccccccccccccccccccc",
+    "out": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab… cccccccccccccccccccccccccccccc"
+   }
+  ],
+  "tabView": [
+   {
+    "in": {
+     "id": "t1",
+     "backend": "claude",
+     "title": "Tab",
+     "status": "running",
+     "unread": 0,
+     "cwd": "/w/app",
+     "updatedAt": 5
+    },
+    "out": {
+     "id": "tab:t1",
+     "kind": "claude",
+     "source": "tab",
+     "tabId": "t1",
+     "unread": 0,
+     "label": "Nomi · Claude Code",
+     "project": "app",
+     "cwd": "/w/app",
+     "title": "Tab",
+     "status": "running",
+     "alive": true,
+     "path": "",
+     "mtime": 5,
+     "updatedAt": 5
+    }
+   },
+   {
+    "in": {
+     "id": "t2",
+     "backend": "nomi",
+     "title": "Q",
+     "status": "queued",
+     "unread": 3,
+     "cwd": "",
+     "updatedAt": 6,
+     "lastError": "e"
+    },
+    "out": {
+     "id": "tab:t2",
+     "kind": "nomi",
+     "source": "tab",
+     "tabId": "t2",
+     "unread": 3,
+     "label": "Nomi · Nomi",
+     "cwd": "",
+     "title": "Q",
+     "status": "running",
+     "summary": "排队中",
+     "alive": true,
+     "path": "",
+     "mtime": 6,
+     "updatedAt": 6
+    }
+   },
+   {
+    "in": {
+     "id": "t3",
+     "backend": "codex",
+     "title": "E",
+     "status": "error",
+     "unread": 1,
+     "cwd": "/w/svc/",
+     "updatedAt": 7,
+     "lastError": "boom"
+    },
+    "out": {
+     "id": "tab:t3",
+     "kind": "codex",
+     "source": "tab",
+     "tabId": "t3",
+     "unread": 1,
+     "label": "Nomi · Codex",
+     "project": "svc",
+     "cwd": "/w/svc/",
+     "title": "E",
+     "status": "failed",
+     "summary": "boom",
+     "alive": false,
+     "path": "",
+     "mtime": 7,
+     "updatedAt": 7
+    }
+   },
+   {
+    "in": {
+     "id": "t4",
+     "backend": "gemini",
+     "title": "D",
+     "status": "idle",
+     "unread": 2,
+     "updatedAt": 8
+    },
+    "out": {
+     "id": "tab:t4",
+     "kind": "gemini",
+     "source": "tab",
+     "tabId": "t4",
+     "unread": 2,
+     "label": "Nomi · Gemini",
+     "title": "D",
+     "status": "completed",
+     "alive": false,
+     "path": "",
+     "mtime": 8,
+     "updatedAt": 8
+    }
+   },
+   {
+    "in": {
+     "id": "t5",
+     "backend": "grok",
+     "title": "W",
+     "status": "idle",
+     "unread": 0,
+     "cwd": "rel/dir",
+     "updatedAt": 9
+    },
+    "out": {
+     "id": "tab:t5",
+     "kind": "grok",
+     "source": "tab",
+     "tabId": "t5",
+     "unread": 0,
+     "label": "Nomi · Grok",
+     "project": "dir",
+     "cwd": "rel/dir",
+     "title": "W",
+     "status": "waiting",
+     "alive": false,
+     "path": "",
+     "mtime": 9,
+     "updatedAt": 9
+    }
+   }
+  ]
+ },
+ "scenario": {
+  "now0": 1800000000000,
+  "fixture": [
+   {
+    "rel": ".claude/projects/-w-app/c1.jsonl",
+    "age": 10000,
+    "content": [
+     {
+      "type": "user",
+      "cwd": "/w/app",
+      "sessionId": "c1",
+      "timestamp": "2027-01-15T07:59:00.000Z",
+      "message": {
+       "role": "user",
+       "content": "Fix the login bug"
+      }
+     },
+     {
+      "type": "assistant",
+      "cwd": "/w/app",
+      "sessionId": "c1",
+      "timestamp": "2027-01-15T07:59:50.000Z",
+      "message": {
+       "role": "assistant",
+       "content": [
+        {
+         "type": "tool_use",
+         "name": "Bash",
+         "input": {
+          "command": "npm test"
+         }
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "rel": ".claude/projects/-w-app/c1/subagents/agent-1.jsonl",
+    "age": 5000,
+    "content": [
+     {
+      "type": "user",
+      "cwd": "/w/app",
+      "sessionId": "sub1",
+      "isSidechain": true,
+      "timestamp": "2027-01-15T07:59:55.000Z",
+      "message": {
+       "role": "user",
+       "content": "sub task"
+      }
+     }
+    ]
+   },
+   {
+    "rel": ".claude/projects/-w-old/old.jsonl",
+    "age": 345600000,
+    "content": [
+     {
+      "type": "user",
+      "cwd": "/w/old",
+      "sessionId": "old",
+      "message": {
+       "role": "user",
+       "content": "old"
+      }
+     }
+    ]
+   },
+   {
+    "rel": ".claude/projects/-w-x/nc.jsonl",
+    "age": 15000,
+    "content": [
+     {
+      "type": "user",
+      "sessionId": "nc",
+      "timestamp": "2027-01-15T07:59:45.000Z",
+      "message": {
+       "role": "user",
+       "content": "no cwd"
+      }
+     }
+    ]
+   },
+   {
+    "rel": ".codex/sessions/2027/01/15/rollout-2027-01-15T00-00-00-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+    "age": 1200000,
+    "content": [
+     {
+      "type": "session_meta",
+      "payload": {
+       "id": "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+       "cwd": "/w/svc"
+      },
+      "timestamp": "2027-01-15T07:30:00.000Z"
+     },
+     {
+      "type": "event_msg",
+      "payload": {
+       "type": "user_message",
+       "message": "Add pagination"
+      },
+      "timestamp": "2027-01-15T07:35:00.000Z"
+     },
+     {
+      "type": "event_msg",
+      "payload": {
+       "type": "task_complete",
+       "last_agent_message": "Added pagination to /users"
+      },
+      "timestamp": "2027-01-15T07:40:00.000Z"
+     }
+    ]
+   },
+   {
+    "rel": ".gemini/tmp/abc/chats/session-2027-01-15.json",
+    "age": 7200000,
+    "raw": "{\"sessionId\":\"g1\",\"messages\":[{\"type\":\"user\",\"content\":\"Explain repo\"},{\"type\":\"gemini\",\"content\":\"It is a monorepo.\"}]}"
+   },
+   {
+    "rel": ".gemini/tmp/abc/notes/session-x.json",
+    "age": 1000,
+    "raw": "{}"
+   },
+   {
+    "rel": ".grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+    "age": 60000,
+    "raw": "{\"x\":1}\n"
+   },
+   {
+    "rel": ".dsh/sessions/d1/session.v2.jsonl",
+    "age": 30000,
+    "raw": "{\"t\":1}\n"
+   },
+   {
+    "rel": ".dsh/sessions/d1/session.lock",
+    "age": 35000,
+    "raw": ""
+   },
+   {
+    "rel": ".dsh/storages/session_projcache/sessions/d1.json",
+    "age": 30000,
+    "raw": "{\"cwd\":\"/w/dsh\",\"title\":\"dsh task\",\"permissionMode\":\"auto\"}"
+   },
+   {
+    "rel": ".dsh/sessions/d2/session.v1.jsonl",
+    "age": 40000,
+    "raw": "{\"t\":1}\n"
+   }
+  ],
+  "appendClaude": {
+   "type": "assistant",
+   "cwd": "/w/app",
+   "sessionId": "c1",
+   "timestamp": "2027-01-15T08:10:00.000Z",
+   "message": {
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "content": [
+     {
+      "type": "text",
+      "text": "Fixed: the ```js\nx\n``` token check   was wrong."
+     }
+    ]
+   }
+  },
+  "appendTool": {
+   "type": "assistant",
+   "cwd": "/w/app",
+   "sessionId": "c1",
+   "timestamp": "2027-01-15T08:15:00.000Z",
+   "message": {
+    "role": "assistant",
+    "content": [
+     {
+      "type": "tool_use",
+      "name": "Bash",
+      "input": {
+       "command": "make"
+      }
+     }
+    ]
+   }
+  },
+  "appendDone": {
+   "type": "assistant",
+   "cwd": "/w/app",
+   "sessionId": "c1",
+   "timestamp": "2027-01-15T08:20:00.000Z",
+   "message": {
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "content": [
+     {
+      "type": "text",
+      "text": "Need your input."
+     }
+    ]
+   }
+  },
+  "steps": [
+   {
+    "name": "initial",
+    "now": 1800000000000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 300000,
+      "cooldownMs": 90000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 0
+    },
+    "log": []
+   },
+   {
+    "name": "setSettings",
+    "now": 1800000000000,
+    "ret": {
+     "enabled": true,
+     "stallMs": 120000,
+     "cooldownMs": 30000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    },
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "running",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1799999995000,
+       "updatedAt": 1800000000000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "running",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "running",
+       "summary": "运行中",
+       "alive": true,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      },
+      {
+       "id": "codex:0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+       "kind": "codex",
+       "label": "Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Add pagination",
+       "status": "waiting",
+       "summary": "Added pagination to /users",
+       "alive": true,
+       "path": "<H>/.codex/sessions/2027/01/15/rollout-2027-01-15T00-00-00-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+       "mtime": 1799998800000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000000000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 0
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "stalled",
+    "now": 1800000600000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "codex:0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+       "kind": "codex",
+       "label": "Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Add pagination",
+       "status": "waiting",
+       "summary": "Added pagination to /users",
+       "alive": true,
+       "path": "<H>/.codex/sessions/2027/01/15/rollout-2027-01-15T00-00-00-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+       "mtime": 1799998800000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "idle",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1799999995000,
+       "updatedAt": 1800000600000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "summary": "运行中",
+       "alive": true,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 0
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "stalled-again",
+    "now": 1800000600000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "codex:0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+       "kind": "codex",
+       "label": "Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Add pagination",
+       "status": "waiting",
+       "summary": "Added pagination to /users",
+       "alive": true,
+       "path": "<H>/.codex/sessions/2027/01/15/rollout-2027-01-15T00-00-00-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+       "mtime": 1799998800000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "idle",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1799999995000,
+       "updatedAt": 1800000600000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "summary": "运行中",
+       "alive": true,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000600000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 0
+    },
+    "log": []
+   },
+   {
+    "name": "done",
+    "now": 1800000605000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "completed",
+       "summary": "Fixed: the ```js x ``` token check was wrong.",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1800000600000,
+       "updatedAt": 1800000605000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000605000
+    },
+    "log": [
+     [
+      "notice",
+      {
+       "body": "Fix the login bug",
+       "bubble": {
+        "kind": "done",
+        "voice": "cue"
+       },
+       "endpoint": "claude",
+       "kind": "agent",
+       "status": "done",
+       "text": "Claude Code（app） 做完啦～ Fixed: the ```js x ``` token check was wrong.",
+       "title": "Claude Code（app）"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "thumbsUp"
+      }
+     ],
+     [
+      "info",
+      "agent-progress remind",
+      {
+       "kind": "claude",
+       "status": "completed"
+      }
+     ],
+     [
+      "notice",
+      {
+       "body": "dsh",
+       "bubble": {
+        "kind": "done",
+        "voice": "cue"
+       },
+       "endpoint": "dsh",
+       "kind": "agent",
+       "status": "done",
+       "text": "dsh 做完啦～",
+       "title": "dsh"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "thumbsUp"
+      }
+     ],
+     [
+      "info",
+      "agent-progress remind",
+      {
+       "kind": "dsh",
+       "status": "completed"
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "summary-on",
+    "now": 1800000605000,
+    "ret": {
+     "enabled": true,
+     "stallMs": 120000,
+     "cooldownMs": 30000,
+     "summaryEnabled": true,
+     "tools": {
+      "codex": true,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": true
+     }
+    },
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "completed",
+       "summary": "Fixed: the ```js x ``` token check was wrong.",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1800000600000,
+       "updatedAt": 1800000605000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000605000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "tabs",
+    "now": 1800000605000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000605000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "digest-1",
+    "now": 1800000675000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000605000
+    },
+    "log": [
+     [
+      "notice",
+      {
+       "body": "「Tab one」running tests now；「Grok」",
+       "bubble": {
+        "kind": "digest",
+        "voice": "full"
+       },
+       "kind": "agent",
+       "passive": true,
+       "status": "running",
+       "text": "还有 2 个编程任务进行中（Claude Code 1 · Grok 1）：「Tab one」running tests now；「Grok」",
+       "title": "2 个编程任务进行中"
+      }
+     ],
+     [
+      "info",
+      "agent-progress digest",
+      {
+       "running": 2,
+       "summary": true
+      }
+     ]
+    ]
+   },
+   {
+    "name": "finished",
+    "now": 1800000675000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "thumbsUp"
+      }
+     ],
+     [
+      "info",
+      "agent-progress endpoint finished",
+      {
+       "backend": "nomi",
+       "ok": true
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "notice",
+      {
+       "body": "crashed hard",
+       "bubble": {
+        "kind": "fail",
+        "voice": "full"
+       },
+       "endpoint": "codex",
+       "kind": "agent",
+       "status": "failed",
+       "text": "Codex 的任务「Svc」失败了：crashed hard",
+       "title": "Codex（Svc）"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "apologize"
+      }
+     ],
+     [
+      "info",
+      "agent-progress endpoint finished",
+      {
+       "backend": "codex",
+       "ok": false
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "notice",
+      {
+       "body": "All ```code``` done well",
+       "bubble": {
+        "kind": "done",
+        "voice": "full"
+       },
+       "endpoint": "nomi",
+       "kind": "agent",
+       "status": "done",
+       "text": "Nomi 完成了任务「Chat」，结果：All done well cost:nomi:-:1800000605000",
+       "title": "Nomi（Chat）"
+      }
+     ]
+    ]
+   },
+   {
+    "name": "permission",
+    "now": 1800000675000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "notice",
+      {
+       "body": "run rm -rf build",
+       "bubble": {
+        "voice": "full"
+       },
+       "endpoint": "claude",
+       "kind": "agent",
+       "status": "attention",
+       "text": "Claude Code（Tab one） 需要确认工具权限：run rm -rf build",
+       "title": "Claude Code（Tab one）"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "think"
+      }
+     ],
+     [
+      "info",
+      "agent-progress permission needed",
+      {
+       "backend": "claude",
+       "background": false
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "notice",
+      {
+       "body": "需要确认工具权限",
+       "bubble": {
+        "voice": "full"
+       },
+       "endpoint": "gemini",
+       "kind": "agent",
+       "status": "attention",
+       "text": "Gemini（Tab one） 需要确认工具权限：请到对话里允许或拒绝",
+       "title": "Gemini（Tab one）"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "think"
+      }
+     ],
+     [
+      "info",
+      "agent-progress permission needed",
+      {
+       "backend": "gemini",
+       "background": true
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "digest-2",
+    "now": 1800000736000,
+    "d1": false,
+    "d2": true,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": true,
+      "tools": {
+       "codex": true,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000605000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "notice",
+      {
+       "body": "「Tab one」running tests now；「Grok」",
+       "bubble": {
+        "kind": "digest",
+        "voice": "full"
+       },
+       "kind": "agent",
+       "passive": true,
+       "status": "running",
+       "text": "还有 2 个编程任务进行中（Claude Code 1 · Grok 1）：「Tab one」running tests now；「Grok」",
+       "title": "2 个编程任务进行中"
+      }
+     ],
+     [
+      "info",
+      "agent-progress digest",
+      {
+       "running": 2,
+       "summary": true
+      }
+     ]
+    ]
+   },
+   {
+    "name": "claude-off",
+    "now": 1800000797000,
+    "d3": true,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": false,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "gemini:g1",
+       "kind": "gemini",
+       "label": "Gemini CLI",
+       "title": "Explain repo",
+       "status": "waiting",
+       "summary": "It is a monorepo.",
+       "alive": true,
+       "path": "<H>/.gemini/tmp/abc/chats/session-2027-01-15.json",
+       "mtime": 1799992800000,
+       "updatedAt": 1800000736000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000736000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000736000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000736000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "notice",
+      {
+       "body": "Grok 1",
+       "bubble": {
+        "kind": "digest",
+        "voice": "none"
+       },
+       "endpoint": "grok",
+       "kind": "agent",
+       "passive": true,
+       "status": "running",
+       "text": "还有 1 个编程任务进行中（Grok 1）",
+       "title": "1 个编程任务进行中"
+      }
+     ],
+     [
+      "info",
+      "agent-progress digest",
+      {
+       "running": 1,
+       "summary": false
+      }
+     ]
+    ]
+   },
+   {
+    "name": "no-procs",
+    "now": 1800000797000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": true,
+       "claude": false,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000797000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "c1-running",
+    "now": 1800000900000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": false,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800000900000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800000900000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800000900000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800000900000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800000675000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "c1-stalled",
+    "now": 1800001100000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": false,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800001100000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800001100000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800001100000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800001100000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800001100000
+    },
+    "log": [
+     [
+      "notice",
+      {
+       "body": "Fix the login bug",
+       "bubble": {
+        "voice": "cue"
+       },
+       "endpoint": "claude",
+       "kind": "agent",
+       "status": "attention",
+       "text": "Claude Code（app） 好像卡住了，要不要去看看？",
+       "title": "Claude Code（app）"
+      }
+     ],
+     [
+      "event",
+      "avatar.event",
+      {
+       "type": "gesture",
+       "name": "apologize"
+      }
+     ],
+     [
+      "info",
+      "agent-progress remind",
+      {
+       "kind": "claude",
+       "status": "stalled"
+      }
+     ],
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "c1-waiting",
+    "now": 1800001200000,
+    "state": {
+     "settings": {
+      "enabled": true,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": false,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": true
+      }
+     },
+     "sessions": [
+      {
+       "id": "tab:t3",
+       "kind": "codex",
+       "source": "tab",
+       "tabId": "t3",
+       "unread": 1,
+       "label": "Nomi · Codex",
+       "project": "svc",
+       "cwd": "/w/svc",
+       "title": "Svc",
+       "status": "failed",
+       "summary": "boom",
+       "alive": false,
+       "path": "",
+       "mtime": 1800000602000,
+       "updatedAt": 1800000602000
+      },
+      {
+       "id": "tab:t1",
+       "kind": "claude",
+       "source": "tab",
+       "tabId": "t1",
+       "unread": 0,
+       "label": "Nomi · Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Tab one",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000604000,
+       "updatedAt": 1800000604000,
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "tab:t2",
+       "kind": "nomi",
+       "source": "tab",
+       "tabId": "t2",
+       "unread": 0,
+       "label": "Nomi · Nomi",
+       "cwd": "",
+       "title": "Chat",
+       "status": "running",
+       "summary": "排队中",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000603000,
+       "updatedAt": 1800000603000
+      },
+      {
+       "id": "tab:t4",
+       "kind": "grok",
+       "source": "tab",
+       "tabId": "t4",
+       "unread": 0,
+       "label": "Nomi · Grok",
+       "project": "g",
+       "cwd": "/w/g",
+       "title": "Grok",
+       "status": "running",
+       "alive": true,
+       "path": "",
+       "mtime": 1800000601000,
+       "updatedAt": 1800000601000
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800001100000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   },
+   {
+    "name": "disabled",
+    "now": 1800001200000,
+    "d4": false,
+    "settingsFile": {
+     "enabled": false,
+     "stallMs": 120000,
+     "cooldownMs": 30000,
+     "summaryEnabled": false,
+     "tools": {
+      "codex": false,
+      "claude": true,
+      "dsh": true,
+      "grok": true,
+      "gemini": false
+     }
+    },
+    "state": {
+     "settings": {
+      "enabled": false,
+      "stallMs": 120000,
+      "cooldownMs": 30000,
+      "summaryEnabled": false,
+      "tools": {
+       "codex": false,
+       "claude": true,
+       "dsh": true,
+       "grok": true,
+       "gemini": false
+      }
+     },
+     "sessions": [
+      {
+       "id": "claude:c1",
+       "kind": "claude",
+       "label": "Claude Code",
+       "project": "app",
+       "cwd": "/w/app",
+       "title": "Fix the login bug",
+       "status": "waiting",
+       "summary": "Need your input.",
+       "alive": true,
+       "path": "<H>/.claude/projects/-w-app/c1.jsonl",
+       "mtime": 1800001200000,
+       "updatedAt": 1800001200000,
+       "source": "file",
+       "usage": {
+        "tokens": 42,
+        "cost": 0.5
+       }
+      },
+      {
+       "id": "dsh:d1",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "completed",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d1/session.lock",
+       "mtime": 1799999970000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "claude:nc",
+       "kind": "claude",
+       "label": "Claude Code",
+       "title": "no cwd",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.claude/projects/-w-x/nc.jsonl",
+       "mtime": 1799999985000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "dsh:d2",
+       "kind": "dsh",
+       "label": "dsh",
+       "title": "dsh",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.dsh/sessions/d2/session.v1.jsonl",
+       "mtime": 1799999960000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      },
+      {
+       "id": "grok:gs1",
+       "kind": "grok",
+       "label": "Grok",
+       "project": "grok proj",
+       "cwd": "/w/grok proj",
+       "title": "grok proj",
+       "status": "idle",
+       "alive": false,
+       "path": "<H>/.grok/sessions/%2Fw%2Fgrok%20proj/gs1/updates.jsonl",
+       "mtime": 1799999940000,
+       "updatedAt": 1800001200000,
+       "source": "file"
+      }
+     ],
+     "detected": [
+      "codex",
+      "claude",
+      "dsh",
+      "grok",
+      "gemini"
+     ],
+     "lastRemindAt": 1800001100000
+    },
+    "log": [
+     [
+      "event",
+      "agents.changed",
+      null
+     ]
+    ]
+   }
+  ]
+ }
+}

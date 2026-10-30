@@ -54,7 +54,7 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 
 ## 4. Logo
 
-文件：[`brand/nomi-mark.svg`](brand/nomi-mark.svg)（浅色底）、[`brand/nomi-mark-light.svg`](brand/nomi-mark-light.svg)（深色底）、[`brand/nomi-wordmark.svg`](brand/nomi-wordmark.svg)、[`brand/nomi-app-icon.svg`](brand/nomi-app-icon.svg)、[`brand/nomi-tray.svg`](brand/nomi-tray.svg)（单色 / 模板）。应用图标：`packages/electron/assets/icon.{png,ico,icns}`、`icons/16–1024`。
+文件：[`brand/nomi-mark.svg`](brand/nomi-mark.svg)（浅色底）、[`brand/nomi-mark-light.svg`](brand/nomi-mark-light.svg)（深色底）、[`brand/nomi-wordmark.svg`](brand/nomi-wordmark.svg)、[`brand/nomi-app-icon.svg`](brand/nomi-app-icon.svg)、[`brand/nomi-tray.svg`](brand/nomi-tray.svg)（单色 / 模板）。应用图标：`apps/desktop-electron/assets/icon.{png,ico,icns}`、`icons/16–1024`。
 
 寓意：流畅曲线组成 **N，代表 Nomi**；四角**星光**代表灵感；**流畅曲线**代表轻松与陪伴。
 
@@ -84,7 +84,7 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 - 字标 / 标题：圆润几何无衬线（Nunito、Quicksand、Poppins），粗体，字距略紧。
 - 数字与代码：系统等宽字体。
 
-## 7. 看板娘使用规范
+## 7. 诺米使用规范
 
 - 默认角色：**Nomi·诺米**（2D 伪 3D 分层立绘，`sprite/nomi`）。这是唯一内置角色；3D 渲染器仅用于用户导入/商店模型。
 - 始终使用透明背景；不要从脸部裁切；保持半身构图和底部柔和渐隐。
@@ -105,13 +105,13 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 
 ## 9. 品牌锁
 
-Nomi 的造型是品牌资产。看板娘有 43 个动作，但**每一帧里，除了动作 / 姿态，其余都必须和认可的原画完全一致**。
+Nomi 的造型是品牌资产。诺米有 43 个动作，但**每一帧里，除了动作 / 姿态，其余都必须和认可的原画完全一致**。
 
 **锁定的部件**：棕色短发与两缕橙色挑染、N 字发夹与橙色蝴蝶结、两根橙色发卡、耳坠、黑色颈带与星形挂饰、外套（白 / 橙配色与各处细节）、胸前 N 标志、工牌、腰带、眼睛与脸、全部颜色。
 
 **怎么保证**
 
-- 主图层只来自官方原画的裁切：`packages/renderer/public/assets/models/sprite/nomi/layers/`；官方参考图在 `docs/brand/reference/`（特写 `nomi-closeup.png`、半身 `nomi-clean-halfbody.jpg`）与 `docs/brand/nomi-brand-board.jpg`。
+- 主图层只来自官方原画的裁切：`characters/nomi/sprite/layers/`；官方参考图在 `docs/brand/reference/`（特写 `nomi-closeup.png`、半身 `nomi-clean-halfbody.jpg`）与 `docs/brand/nomi-brand-board.jpg`。
 - `brand-lock.json`（由 `node scripts/brand/update-brand-lock.mjs` 生成）记录每个图层 PNG 的 sha256 和图层摆放（偏移 / 锚点 / 支点）。`tests/mascot/brandLock.test.ts` 在 CI 里逐个校验；任何改动都会让测试失败，必须有意识地更新。
 - 同一个测试还对每个动作的每一帧检查：品牌图层都被绘制、完全不透明、只做旋转 + 等比缩放（无剪切、无挤压）、发夹 / 蝴蝶结 / 耳坠留在画布内，头上的部件一起刚性运动（蝴蝶结可在发夹处小幅摆动）。
 - 动作只移动 / 旋转原图层，把袖子切成肩 / 上臂 / 前臂三段刚性部件（只改透明度蒙版），叠加品牌色的矢量表情符号；**不重绘任何品牌部件**。手持物之类自然的遮挡（手挡住一部分胸前标志）是允许的，变形不允许。
@@ -121,6 +121,6 @@ Nomi 的造型是品牌资产。看板娘有 43 个动作，但**每一帧里，
 - 禁止用 AI 生图重绘 / 重新生成整张全身图、头部图或任何带品牌细节的部件：生成的姿势图会漂移（发夹位置翻转、标志大小变化、皮肤色变化）。
 - 唯一允许的 AI 生成素材是**手 / 前臂部件**（`layers/hands/`：挥手、握拳、点赞、食指、放松、剪刀手、合十、OK、手放胸前）。它们只是一截中性的袖口加一只手，不含任何品牌细节；抠图后做了肤色 / 袖色匹配，并在肘部与原袖子融合（袖口硬边、袖子在末端收窄并叠在袖口上，无半透明渐隐；合十为双臂对称抬起，只在胸前中线绘制一个合十手部件）。授权说明见 [CREDITS](../CREDITS.md) 与 `assets-licenses.json`。
 
-- 例外：新手引导的 4 张场景插画（`packages/ai-chat/src/components/Onboarding/art/`）是所有者要求的 AI 生成装饰图，只用于引导页顶部，不是品牌原画，不进看板娘图层，也不能作为重绘参考；授权见 [CREDITS](../CREDITS.md)。窗口高度不超过 640px 时自动隐藏。
+- 例外：新手引导的 4 张场景插画（`characters/nomi/onboarding/`）是所有者要求的 AI 生成装饰图，只用于引导页顶部，不是品牌原画，不进诺米图层，也不能作为重绘参考；授权见 [CREDITS](../CREDITS.md)。窗口高度不超过 640px 时自动隐藏。
 
 **要改品牌图层时**：先拿到所有者批准的新原画 → 用官方图裁切 → 更新 `brand-lock.json` → 在 PR 里说明为什么。

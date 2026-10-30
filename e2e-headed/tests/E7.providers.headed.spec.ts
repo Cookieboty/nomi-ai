@@ -6,6 +6,8 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { startMockLlm, type MockLlm, type MockProtocol } from '../fixtures/mockLlm';
@@ -20,7 +22,7 @@ import { startMockLlm, type MockLlm, type MockProtocol } from '../fixtures/mockL
  * - 右上角模型选择器逐个切换 → 下一条请求的 path / model / 鉴权头都对（网关同协议透传，无需重启）；
  * - 渲染进程拿到的状态与磁盘文件里没有明文 Key。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shotDir =
@@ -161,30 +163,18 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
 
     try {
       const main = await app.firstWindow({ timeout: 20_000 });
-      await main.waitForFunction(
-        () => typeof (window as unknown as { electronAPI?: unknown }).electronAPI !== 'undefined',
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window);
       const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat: Page = await chatWindow;
       await chat.setViewportSize({ width: 1100, height: 860 }).catch(() => undefined);
       // 自定义的本机地址：确认允许访问
-      chat.on('dialog', (d) => void d.accept());
+      await autoAcceptConfirms(chat);
 
-      const invoke = <T>(channel: string) =>
-        chat.evaluate(
-          async (c) =>
-            (await (
-              window as unknown as { aiIPC: { invoke(ch: string): Promise<unknown> } }
-            ).aiIPC.invoke(c)) as T,
-          channel,
-        );
+      // 网关按需启动：显式拉起，后面直接读它的状态
+      await callContract(chat, 'gateway.retry');
       await expect
-        .poll(async () => (await invoke<GwState>('ai:gateway:state')).status.state, {
+        .poll(async () => (await callContract<GwState>(chat, 'gateway.state')).status.state, {
           timeout: 30_000,
         })
         .toBe('running');
@@ -192,7 +182,7 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
 
       // ---- 迁移：旧存储照旧升级 v1 → v2；网关里有同一个供应商，本机地址已确认，main 指向它
       expect(existsSync(join(userData, 'ai-providers.json.migrated'))).toBe(true);
-      const g0 = await invoke<GwState>('ai:gateway:state');
+      const g0 = await callContract<GwState>(chat, 'gateway.state');
       const legacyProvider = g0.providers.find((p) => p.name === 'Legacy v1')!;
       expect(legacyProvider.urls.chat).toBe(`http://127.0.0.1:${legacy.port}/v1`);
       expect(g0.clients.nomi!.models.main).toBe(`${legacyProvider.id}/legacy-1`);
@@ -222,7 +212,7 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       for (const [i, spec] of SPECS.entries()) {
         const mock = mocks[i]!;
         const before = new Set(
-          (await invoke<GwState>('ai:gateway:state')).providers.map((p) => p.id),
+          (await callContract<GwState>(chat, 'gateway.state')).providers.map((p) => p.id),
         );
         await chat.click('[data-testid="add-provider"]');
         const form = chat.locator('[data-testid="models-provider-picker"]');
@@ -237,13 +227,13 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
         const listed = mock.seen.find((r) => r.method === 'GET' && r.path === '/v1/models');
         expect(listed?.auth ?? listed?.apiKey).toContain(spec.key);
         expect(mock.seen.some((r) => r.method === 'POST' && r.path === spec.endpoint)).toBe(true);
-        const added = (await invoke<GwState>('ai:gateway:state')).providers.filter(
+        const added = (await callContract<GwState>(chat, 'gateway.state')).providers.filter(
           (p) => !before.has(p.id),
         );
         expect(added).toHaveLength(1);
         ids.push(added[0]!.id);
       }
-      const g1 = await invoke<GwState>('ai:gateway:state');
+      const g1 = await callContract<GwState>(chat, 'gateway.state');
       for (const id of ids)
         await expect(chat.locator(`[data-testid="provider-${id}"]`)).toContainText('1 个 Key');
       await chat.screenshot({ path: join(shotDir, '04-models-providers.png'), fullPage: true });
@@ -277,7 +267,7 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
           await expect(listbox).toHaveCount(0);
         }
       }
-      const g2 = await invoke<GwState>('ai:gateway:state');
+      const g2 = await callContract<GwState>(chat, 'gateway.state');
       expect(g2.clients.nomi!.models.main).toBe(`${ids[2]}/${SPECS[2]!.models[1]}`);
 
       // 磁盘上没有明文 Key

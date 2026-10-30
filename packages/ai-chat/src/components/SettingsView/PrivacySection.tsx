@@ -9,6 +9,7 @@ import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';
+import { confirmDialog } from '../ConfirmDialog';
 import { DesktopPanel, LocalPanel } from '../lazyPanels';
 
 import { DiagnosticsSettings } from './DiagnosticsSettings';
@@ -96,13 +97,14 @@ export const PrivacySection: React.FC<{
                 size="sm"
                 variant="danger"
                 data-testid="privacy-clear-chat"
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      t(
+                    await confirmDialog({
+                      message: t(
                         'ui.chat-settings.clear-messages-in-the-current-conversation-other-conversations',
                       ),
-                    )
+                      danger: true,
+                    })
                   )
                     void actions.clearChatHistory();
                 }}

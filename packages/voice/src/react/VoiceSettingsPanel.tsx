@@ -14,6 +14,7 @@ import {
   Select,
   SettingRow,
   SettingsGroup,
+  Slider,
   Switch,
 } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -619,8 +620,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
           )}
           description={t('ui.mascot-theme.further-right-less-likely-to-be-triggered-by')}
         >
-          <input
-            type="range"
+          <Slider
             min={0.3}
             max={0.9}
             step={0.05}

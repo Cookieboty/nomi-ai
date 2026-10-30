@@ -6,11 +6,11 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication } from '@playwright/test';
 
-import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
+import { repoRoot, resolveElectronExecutable, useRiveRenderer } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E22 · 诺米 2D 看板娘动作库（真实应用，默认渲染器 Rive）
+ * E22 · 诺米 2D 桌面角色动作库（真实应用，渲染器设为 Rive；默认是静态立绘）
  *
  * - 切到 Nomi 模型（Rive 后端），能力列表里有全部命名动作（至少 30 个）
  * - 逐个触发 mascot:motion，探针 data-mascot-action（Rive 状态机 `full.<动作>` 状态）报出正在播放的动作；
@@ -18,11 +18,11 @@ import { safeRm } from '../fixtures/fsutil';
  * - 全程帧间隔不退化（软件渲染 CI 的宽松预算；原来的 Canvas2D 绘制耗时探针只属于旧 sprite 渲染器）
  * - 设置 E22_SHOTS=<dir> 时，每个动作在中段截一张图
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E22_SHOTS;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-// 别名 → 原生动作，与 packages/renderer/src/mascot/backends/rive.ts 的 RIVE_MOTION_ALIASES 一致
+// 别名 → 原生动作，与 packages/avatar-runtime/src/backends/rive.ts 的 RIVE_MOTION_ALIASES 一致
 // （测试里独立列出，防止实现与测试一起错）
 const RIVE_MOTION_ALIASES: Record<string, string> = {
   greet: 'hello',
@@ -63,6 +63,7 @@ test.describe('E22 · mascot action library', () => {
     test.skip(!existsSync(mainJs), `需要先构建：${mainJs}`);
     execFileSync(process.execPath, [resolve(electronPkgDir, 'scripts', 'copy-renderer.js')]);
     userData = mkdtempSync(join(tmpdir(), 'e22-userdata-'));
+    useRiveRenderer(userData);
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
@@ -77,7 +78,7 @@ test.describe('E22 · mascot action library', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    // Nomi is the only character: it loads on its own with the Rive renderer
+    // Nomi is the only character; settings.json selects the Rive renderer (default is the static image)
     await page.waitForFunction(
       () =>
         document.documentElement.dataset.mascotModel === 'nomi' &&

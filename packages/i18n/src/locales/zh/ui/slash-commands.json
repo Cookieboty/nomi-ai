@@ -86,9 +86,7 @@
   "ui.slash-commands.no-commands-available": "没有可用命令。",
   "ui.slash-commands.no-matching-coding-agent": "没有匹配的编程助手",
   "ui.slash-commands.no-matching-models": "没有匹配的模型。",
-  "ui.slash-commands.no-matching-models-you-can-also-enter-a": "没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>",
   "ui.slash-commands.no-uncommitted-changes": "没有未提交的更改。",
-  "ui.slash-commands.nomi-chat-has-no-compact-context-feature-yet": "Nomi 对话暂时没有「压缩上下文」功能。可以用 /clear 开新对话。",
   "ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type": "Nomi 自带的 Skills 和 MCP 服务器。输入 / 可直接使用 Skills。",
   "ui.slash-commands.nomi-skill": "Nomi 技能",
   "ui.slash-commands.not-detected": "未检测到",
@@ -175,5 +173,9 @@
   "ui.slash-commands.user-commands": "用户命令",
   "ui.slash-commands.when-names-clash-the-cli-only-runs-the": "同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。",
   "ui.slash-commands.workflow": "工作流",
-  "ui.slash-commands.your-messages": "你的消息"
+  "ui.slash-commands.your-messages": "你的消息",
+  "ui.slash-commands.no-matching-model": "没有匹配的模型",
+  "ui.slash-commands.summarize-earlier-messages-to-free-up-context": "把较早的对话总结成摘要，腾出上下文（快满时也会自动压缩）",
+  "ui.slash-commands.wait-for-the-current-reply-to-finish-then": "等当前回复结束后再压缩。",
+  "ui.slash-commands.nothing-to-compact-yet": "还没有可以压缩的对话。"
 }

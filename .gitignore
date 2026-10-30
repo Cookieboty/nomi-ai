@@ -78,3 +78,10 @@ task
 AppData/
 **/__pycache__/
 *.pyc
+
+# pnpm dev:web -- --data .nomi-web：无界面宿主的数据目录，secrets 未加密（scripts/dev-web/start.mjs）
+.nomi-web/
+
+# Go 打包产物（packaging/package.sh）
+apps/desktop-go/dist-pkg/
+apps/desktop-go/rsrc_windows_*.syso

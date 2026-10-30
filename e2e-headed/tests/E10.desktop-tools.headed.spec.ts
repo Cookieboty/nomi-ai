@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { makePdf } from '../fixtures/docs';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
@@ -25,7 +26,7 @@ import { safeRm } from '../fixtures/fsutil';
  * mock OpenAI 兼容服务扮演模型：用户消息 `CALL <tool> <json>` → 返回该工具调用；
  * 收到工具结果 → 回显 `TOOLRESULT <结果>`；总结请求（system 提示含「你在总结用户的本地文件」）→ `SUMMARY[<文件里的 TOKEN>]`。
  * 覆盖：设置面板授权文件夹（系统选择框被桩替换）、总结 md / pdf、黑名单 / 越界路径被拒、
- * 破坏性操作必须在对话框确认 + 撤销、把文件拖到看板娘身上总结、审计日志。
+ * 破坏性操作必须在对话框确认 + 撤销、把文件拖到桌面角色身上总结、审计日志。
  */
 interface Msg {
   role: string;
@@ -37,7 +38,7 @@ interface MockBody {
   tools?: unknown[];
 }
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.DESKTOP_TOOLS_SHOTS;
@@ -188,13 +189,7 @@ test.describe('E10 · real app · desktop file tools', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     main.on('console', (m) => diag.push(`[main:${m.type()}] ${m.text()}`));
     try {
-      await main.waitForFunction(
-        () =>
-          typeof (window as unknown as { electronAPI?: { desktop?: unknown } }).electronAPI
-            ?.desktop !== 'undefined',
-        undefined,
-        { timeout: 20_000 },
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
 
       // 系统文件夹选择框无法在 CI 里操作：用桩替换（返回 Docs）
       await app.evaluate(({ dialog }, dir) => {
@@ -205,11 +200,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       }, docs);
 
       const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat: Page = await chatWindow;
       chat.on('console', (m) => diag.push(`[chat:${m.type()}] ${m.text()}`));
       await chat.waitForSelector('textarea', { timeout: 20_000 });
@@ -228,6 +219,12 @@ test.describe('E10 · real app · desktop file tools', () => {
       await chat.screenshot(shot('02-settings-tools.png'));
       await chat.keyboard.press('Escape');
       await expect(chat.locator('[data-testid="desktop-panel"]')).toHaveCount(0);
+
+      // 新的 Nomi 对话默认带工作区（文稿/nomi），工作区里只认工作区；这里测的是「授权文件夹」流程，
+      // 先在对话顶栏改成「不使用工作区」（工作区流程见 E37）
+      await chat.click('[data-testid="nomi-workspace-button"]');
+      await chat.click('[data-testid="workspace-clear"]');
+      await expect(chat.locator('[data-testid="nomi-workspace-path"]')).toHaveText('不使用工作区');
 
       const send = async (msg: string, expectText: string | RegExp) => {
         await chat.fill('textarea', msg);
@@ -302,7 +299,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       await chat.screenshot(shot('06-settings-audit-log.png'));
       await chat.keyboard.press('Escape');
 
-      // ---- 5. 拖文件到看板娘身上 → 总结显示在气泡 + 对话窗口 ----
+      // ---- 5. 拖文件到桌面角色身上 → 总结显示在气泡 + 对话窗口 ----
       await main.evaluate(() => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -331,7 +328,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       expect(dropped).toBe('note.md');
       await expect(main.locator('body')).toContainText('SUMMARY[TOKENMD42]', { timeout: 20_000 });
       await main.waitForTimeout(800); // 气泡淡入
-      await expect(main.locator('#waifu-tips-independent')).toHaveCSS('opacity', '1');
+      await expect(main.locator('#companion-tips-independent')).toHaveCSS('opacity', '1');
       await main.screenshot(shot('07-mascot-drop-summary-bubble.png'));
       await expect(chat.locator('body')).toContainText('总结文件：note.md', { timeout: 15_000 });
       await scrollChat(chat);

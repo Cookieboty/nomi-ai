@@ -62,3 +62,17 @@ export function buildCliContextPreface(messages: ChatMessage[], sourceLabel: str
     t('ui.cli-monitor.please-continue-from-the-context-above'),
   ].join('\n');
 }
+
+/** 分叉时可选带入的轮数（undefined = 全部） */
+export const FORK_TURN_CHOICES = [20, 10, 5, 3, 1] as const;
+/** 分叉弹窗默认带入的轮数 */
+export const DEFAULT_FORK_TURNS = 20;
+
+/** 只留最近 turns 轮：从倒数第 turns 条用户消息开始；turns 不是正整数时全留 */
+export function keepLastTurns(messages: ChatMessage[], turns?: number): ChatMessage[] {
+  if (!turns || !Number.isInteger(turns) || turns < 1) return messages;
+  let seen = 0;
+  for (let i = messages.length - 1; i >= 0; i--)
+    if (messages[i]!.role === 'user' && ++seen === turns) return messages.slice(i);
+  return messages;
+}

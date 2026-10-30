@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
@@ -17,7 +18,7 @@ import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
  * 4. 直接发消息，回复来自刚配置的供应商；
  * 5. 重启后不再弹出引导。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shotDir = process.env.ONBOARDING_SHOTS_DIR;
 
@@ -107,7 +108,7 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await shot(chat, 'onboarding-2-provider');
 
     // 引导里内嵌供应商表单：自定义地址 → 填 Key → 检测并保存 → 选 Nomi 对话的模型
-    chat.on('dialog', (d) => void d.accept()); // 本机地址确认
+    await autoAcceptConfirms(chat); // 本机地址确认（应用内确认框）
     await expect(step.locator('[data-testid="onb-model-section"]')).toHaveAttribute(
       'data-state',
       'disabled',
@@ -155,7 +156,7 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await closeApp(app);
     app = await launch();
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await main.waitForTimeout(3_000);
     expect(app.windows().some((p) => /ai-chat/.test(p.url()))).toBe(false);
   });

@@ -1,22 +1,20 @@
 /**
- * 朗读 AI 回复（对话窗口一侧）：只用于普通的诺米对话（不含编程助手 / CLI 代理标签、`/agent` 委派）。
+ * 朗读 AI 回复（对话窗口一侧）：只用于普通的 Nomi 对话（不含编程助手 / CLI 代理标签、`/agent` 委派）。
  * 流式回复按句切分（ReplySpeechStream：去掉代码块、思考过程、表格、链接地址等，约前 300 字），
- * 每凑够一句就经主进程 tts:reply 转给看板娘窗口播放（口型同步、预取下一句都在那边）。
+ * 每凑够一句就经主进程 tts.reply（契约）转给桌面角色窗口播放（口型同步、预取下一句都在那边）。
  * 是否真的朗读由主进程按配置决定（实时朗读引擎可用 + 「朗读 AI 回复」开关）；失败静默。
  */
 import { ReplySpeechStream } from '@nomi-ai/types';
+
+import { api, hasTransport } from './api';
 
 type ReplyMsg =
   { op: 'say'; id: string; text: string } | { op: 'end'; id: string } | { op: 'stop'; id?: string };
 
 const send = (msg: ReplyMsg): void => {
+  if (!hasTransport()) return;
   try {
-    const tts = (
-      window as unknown as {
-        electronAPI?: { tts?: { reply?: (m: ReplyMsg) => Promise<unknown> } };
-      }
-    ).electronAPI?.tts;
-    void tts?.reply?.(msg)?.catch?.(() => undefined);
+    void api.tts.reply(msg).catch(() => undefined);
   } catch {
     /* 朗读失败不影响对话 */
   }

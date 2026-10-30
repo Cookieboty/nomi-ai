@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console -- CLI 基准脚本 */
 /* global window -- 在页面里执行的回调 */
-// 对话窗打开耗时：prod 构建（packages/electron/dist），全新 userData，测量从 openAiChat()
+// 对话窗打开耗时：prod 构建（apps/desktop-electron/dist），全新 userData，测量从 openAiChat()
 // 到输入框可见、以及打开设置页的耗时，多次取中位数。
 // 用法（Linux 需显示）：xvfb-run -a node scripts/measure-chat-open.mjs [runs=7] [--json out.json]
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,8 +10,10 @@ import { join, resolve } from 'node:path';
 
 import { _electron as electron } from 'playwright';
 
+import { installContractProbe, waitForTransport } from './lib/contractProbe.mjs';
+
 const root = resolve(import.meta.dirname, '..');
-const pkg = resolve(root, 'packages/electron');
+const pkg = resolve(root, 'apps/desktop-electron');
 const runs = Number(process.argv[2] || 7);
 const jsonOut = process.argv.includes('--json')
   ? process.argv[process.argv.indexOf('--json') + 1]
@@ -28,11 +30,12 @@ async function once() {
   });
   try {
     const main = await app.firstWindow();
-    await main.waitForFunction(() => !!window.electronAPI, null, { timeout: 30_000 });
+    await waitForTransport(main);
+    await installContractProbe(main);
     await main.waitForTimeout(1500);
     const t0 = Date.now();
     const w = app.waitForEvent('window');
-    await main.evaluate(() => window.electronAPI.openAiChat());
+    await main.evaluate(() => window.__e2eContract.call('window.openAiChat'));
     const chat = await w;
     await chat.waitForSelector('textarea', { state: 'visible', timeout: 30_000 });
     const chatReady = Date.now() - t0;

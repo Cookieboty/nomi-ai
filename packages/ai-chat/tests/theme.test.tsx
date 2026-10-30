@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { appContract } from '@nomi-ai/contract/app';
+import { createTestClient } from '@nomi-ai/contract/testing';
 import {
   DEFAULT_THEME,
   THEMES,
@@ -7,19 +9,21 @@ import {
   initTheme,
   normalizeThemePref,
   resolveTheme,
+  setLocaleBackend,
+  setThemeBackend,
 } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeSettings } from '../src/components/SettingsView/ThemeSettings';
 import { CHAT_BG_PRESET_URL, setChatBackground } from '../src/services/chatBackground';
+import { installShellBackends } from '../src/services/hostBackends/shell';
 
 afterEach(() => {
   cleanup();
   applyTheme(DEFAULT_THEME);
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
-  delete (window as { aiIPC?: unknown }).aiIPC;
 });
 
 describe('themes', () => {
@@ -77,17 +81,33 @@ describe('themes', () => {
     act(() => applyTheme('image'));
     expect(view.getByTestId('chat-bg-pick')).toBeTruthy();
   });
-  it('picker applies theme and persists via IPC', async () => {
-    const invoke = vi.fn().mockResolvedValue({ pref: 'cream', resolved: 'cream' });
-    (window as { aiIPC?: unknown }).aiIPC = { invoke, on: () => () => undefined };
-    const r = render(<ThemeSettings />);
-    fireEvent.click(r.getByTestId('theme-cream'));
-    expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
-    expect(invoke).toHaveBeenCalledWith('ai:theme:set', 'cream');
-    expect(r.getByTestId('theme-cream').getAttribute('aria-checked')).toBe('true');
-    fireEvent.click(r.getByTestId('theme-system'));
-    expect(invoke).toHaveBeenCalledWith('ai:theme:set', 'system');
-    applyTheme('mist');
-    expect(currentTheme().resolved).toBe('mist');
+  it('picker applies theme and persists via the contract (theme.set)', async () => {
+    const set = vi.fn(({ pref }: { pref: string }) =>
+      pref === 'system'
+        ? { pref: 'system' as const, resolved: 'cream' as const }
+        : { pref: 'cream' as const, resolved: 'cream' as const },
+    );
+    const { api, close } = createTestClient(
+      appContract,
+      { 'theme.set': set },
+      { caller: { surface: 'chat', trusted: true } },
+    );
+    installShellBackends(api);
+    try {
+      const r = render(<ThemeSettings />);
+      fireEvent.click(r.getByTestId('theme-cream'));
+      expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
+      await waitFor(() => expect(set).toHaveBeenCalledWith({ pref: 'cream' }, expect.anything()));
+      expect(r.getByTestId('theme-cream').getAttribute('aria-checked')).toBe('true');
+      fireEvent.click(r.getByTestId('theme-system'));
+      await waitFor(() => expect(set).toHaveBeenCalledWith({ pref: 'system' }, expect.anything()));
+      await waitFor(() => expect(currentTheme()).toEqual({ pref: 'system', resolved: 'cream' }));
+      applyTheme('mist');
+      expect(currentTheme().resolved).toBe('mist');
+    } finally {
+      setThemeBackend(null);
+      setLocaleBackend(null);
+      close();
+    }
   });
 });

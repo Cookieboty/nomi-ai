@@ -52,8 +52,8 @@ Grok / Gemini / dsh / 外部 CLI）只能由用户在标签里直接使用。
 
 ### 4.1 工具
 
-注册位置：`electron/src/desktop/plugin.ts`（与桌面工具一起进 ToolRegistry）。实现放在新的
-`electron/src/cli/delegate/`，只依赖 `CliHarnessService` 的公开方法。
+注册位置：`core/src/desktop/plugin.ts`（与桌面工具一起进 ToolRegistry）。实现放在新的
+`core/src/cli/delegate/`，只依赖 `CliHarnessService` 的公开方法。
 
 ```ts
 delegate_to_cli({
@@ -222,7 +222,7 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
    - Nomi 对话里，审批提到任务组最上面（§7.2），写明路径（如「Claude Code › 子代理 reviewer › 运行 npm install」）、
      完整的命令或改动内容、「允许 / 拒绝」和倒计时；
    - 工作台模式下标签里同时显示，两边答哪边都行，答完另一边自动消失；
-   - 看板娘 / 灵动岛提醒，并**一定发系统通知**（用户可能已经离开屏幕），点通知回到卡片。
+   - 诺米 / 灵动岛提醒，并**一定发系统通知**（用户可能已经离开屏幕），点通知回到卡片。
 3. **只能用户批**：Nomi 的模型拿不到答复审批的通道；工具里不提供任何「允许」能力。
 4. **多久问一次**：由子任务的权限档位决定（上表）。
 5. **等待时间**：委派开的标签，审批等待 **10 分钟**（`DELEGATED_PERMISSION_TIMEOUT_MS = 600_000`）；
@@ -273,7 +273,7 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
   - Nomi 这一轮的「停止」会连带停掉它派出的、还在运行的子任务（`cancelledBy: 'nomi'`）。
   - 在编程助手标签里点停止，效果和卡片上的「停止」一样。
   - 第三期并行时每个子任务一张卡片，各自停止。
-- **看板娘 / 灵动岛**：子任务完成、出错、等审批时照常提醒（编程助手服务已有的 `tab-finished` /
+- **诺米 / 灵动岛**：子任务完成、出错、等审批时照常提醒（编程助手服务已有的 `tab-finished` /
   `permission-needed` 通知），提醒文案带上「Nomi 派出的」。
 
 ### 7.1 助手模式与工作台模式
@@ -330,7 +330,7 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
   「不提供内部步骤」只在组里说明一次。子代理多时只显示运行中和等确认的，已完成的折叠成「另有 N 个已完成」。
 - **停止分三级**：全部停止 → 单个编程助手 → 单个子代理（仅 Claude）。都不中断 Nomi 这一轮，Nomi 收到哪些被停了。
 - **交回 Nomi 的内容**：不含子代理细节，汇报里只多一句「用了 N 个子代理」。
-- **提醒**：看板娘 / 灵动岛按编程助手（第二层）提醒完成、出错、等确认，不按子代理提醒，避免并行时刷屏。
+- **提醒**：诺米 / 灵动岛按编程助手（第二层）提醒完成、出错、等确认，不按子代理提醒，避免并行时刷屏。
 - **无障碍**：整组是 `role="tree"`，方向键展开 / 收起；`aria-live="polite"` 只播报第二层的状态变化。
 
 数据来源：第二层来自标签状态，第三层来自标签的 `LiveAgent`（`cli-subagents.md` P1 / P2 已实现），
@@ -367,7 +367,7 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 | 环节                  | 现状                                                                                                                                                              | 对委派的影响                                                                 |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Nomi 工具循环         | `AiSdkLlmProvider` 用 AI SDK 的 `streamText`，工具执行没有超时，只受 `abortSignal`（用户停止）控制；`GuardrailsPlugin` 的 15 秒工具超时没有装配（`igPlugins.ts`） | 可以无限等；停止能传到工具（`ctx.signal`）                                   |
-| 工具循环步数          | `stopWhen: stepCountIs(maxSteps ?? 5)`，Nomi 对话没有另外设置                                                                                                     | 一轮里委派 + 追问 + 回复要在 5 步内；P2 的多次追问可能要放宽                 |
+| 工具循环步数          | `stopWhen: stepCountIs(maxSteps ?? 20)`（`DEFAULT_MAX_STEPS`），Nomi 对话没有另外设置                                                                             | 一轮里委派 + 追问 + 回复要在 20 步内                                         |
 | 网关                  | 首字节超时只管到响应头；流的空闲超时 180 秒（`gateway/src/timeouts.ts`）                                                                                          | 不影响：工具执行时，上一步的模型请求已经结束，没有挂着的请求；下一步是新请求 |
 | 主进程 → 对话窗口的流 | `IPCTransportServer` 只按帧合并文本，没有空闲超时；窗口关闭才停上游                                                                                               | 不影响；关掉对话窗口会停掉 Nomi 这一轮，进而停掉子任务（符合预期）           |
 | 对话窗口              | 没有「多久没收到数据就报错」的看门狗                                                                                                                              | 不影响                                                                       |
@@ -386,7 +386,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 
 ## 12. 实现记录与偏差（P1）
 
-实现：主进程 `electron/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/agent` 钉住），
+实现：主进程 `core/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/agent` 钉住），
 编程助手服务加了 `createTab({ activate, delegation })`、委派标签的审批等待与统计、`HarnessStoppedError`；
 渲染层 `Conversation/DelegateCard.tsx`（卡片 / 任务组 / 抽屉）、`ProvidersPage/DelegateSettings.tsx`、
 `slash/adapters/nomi.ts`（`/agent`，`/cli` 隐藏别名）、`services/delegateClient.ts`。工具调用 id 经 `ToolExecContext.toolCallId` 传到工具。
@@ -396,7 +396,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 - **总开关关闭时工具仍注册**（§4.7 写的是不注册）：工具在 AI 运行时启动时一次注册，运行中改开关不重建工具表；
   关闭时调用直接返回 `delegate_disabled`。
 - **审批在每张子任务卡片里**，没有提到任务组最上面（§7.2）；任务组头部只汇总「N 等你确认」。
-- **系统通知**沿用编程助手进度监视的设置（委派标签在后台创建，按后台标签处理；关了系统通知就只有看板娘 / 灵动岛）。
+- **系统通知**沿用编程助手进度监视的设置（委派标签在后台创建，按后台标签处理；关了系统通知就只有诺米 / 灵动岛）。
 - **外部 CLI 暂不能委派**，只有内置的 Claude Code / Codex / Grok / Gemini / dsh。
 - **改动文件**：开工前后各取一次 `git status`，只算这次新出现的（开工前已改过的文件，只有编程助手汇报里提到才算）。
 - **停止子任务时未答复的审批**随这一轮一起作废（CLI 被中断、计时器清除），不单独回一个「拒绝」。
@@ -432,7 +432,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 
 ### 12.2 P3 worktree 隔离（已实现）
 
-- 实现：`electron/src/cli/delegate/worktree.ts`；`DelegateService.delegate` 在 `createTab` 前 `prepareIsolation`。
+- 实现：`core/src/cli/delegate/worktree.ts`；`DelegateService.delegate` 在 `createTab` 前 `prepareIsolation`。
 - **git 仓库内**：`git worktree add --detach <sourceCwd>/.nomi-delegate/<id> HEAD`；`createTab` 的 cwd 指向 worktree。
   结束后（非 cancel）`applyWorktreeToMain` 把改动拷回仓库根，**保留** worktree 供 `delegate_followup`；cancel / 授权失败则 `releaseIsolation`。
 - **非 git**：`shared-cwd`，结果带 `isolationNote` 提醒并行会互相改文件。

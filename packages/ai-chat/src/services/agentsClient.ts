@@ -1,5 +1,8 @@
 import { t } from '@nomi-ai/ui';
-/** 编程助手进度客户端：`ai:agents:*` IPC（经 preload 的 window.aiIPC） */
+
+import { api, hasTransport } from './api';
+
+/** 编程助手进度客户端：契约 `agents.*`（services/api） */
 export type AgentKind = 'codex' | 'claude' | 'dsh' | 'grok' | 'gemini';
 export type AgentStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'stalled' | 'idle';
 
@@ -65,37 +68,28 @@ export const STATUS_LABEL: Record<AgentStatus, string> = {
   idle: 'ui.mascot-theme.ended',
 };
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.chat-settings.coding-agent-watching-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.coding-agent-watching-requires-the-desktop-app'));
-  const r = (await b.invoke(`ai:agents:${method}`, ...args)) as T & {
-    __error?: { message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
-}
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
 
 export const agentsClient = {
-  available: () => !!bridge(),
-  state: () => call<AgentWatchState>('state'),
+  available: () => hasTransport(),
+  state: () => call<AgentWatchState>(() => api.agents.state()),
   setSettings: (
     p: Omit<Partial<AgentWatchSettings>, 'tools'> & {
       tools?: Partial<Record<AgentKind, boolean>>;
     },
-  ) => call<AgentWatchSettings>('set-settings', p),
-  scan: () => call<AgentWatchState>('scan'),
-  onChanged: (fn: () => void) => on('ai:agents:changed', () => fn()),
+  ) => call<AgentWatchSettings>(() => api.agents.setSettings(p as never)),
+  scan: () => call<AgentWatchState>(() => api.agents.scan()),
+  onChanged: (fn: () => void) =>
+    hasTransport() ? api.on('agents.changed', () => fn()) : () => undefined,
 };
 
 /** 监视视图按端点过滤：全部 / 各 CLI / Nomi 标签 */

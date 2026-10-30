@@ -4,6 +4,7 @@
  */
 import { t, type SelectOption } from '@nomi-ai/ui';
 
+import { confirmDialog } from '../components/ConfirmDialog';
 import { hasOfficialAccount } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
@@ -102,7 +103,7 @@ export function providerEntryRef(
 }
 
 /**
- * 第三方标签的模型目录只列当前供应商的模型（换供应商在输入框左下角，换模型在模型按钮）：
+ * 第三方标签只有一个供应商时，模型目录只列它的模型（多个供应商时模型按钮按供应商分标签）：
  * 去掉模型名里的「供应商 / 」前缀，供应商名放到目录的 provider 上。
  */
 export function scopeCatalogToProvider(
@@ -111,8 +112,17 @@ export function scopeCatalogToProvider(
   s: GatewayState | null,
 ): BackendModelCatalog {
   const pid = providerOfRef(ref);
-  if (!pid) return catalog;
-  const prefix = `${pid}/`;
+  return pid ? scopeCatalogToProviders(catalog, [pid], s) : catalog;
+}
+
+/** 同上，列几个供应商的模型（按 pids 的顺序）；目录的 provider 是第一个 */
+export function scopeCatalogToProviders(
+  catalog: BackendModelCatalog,
+  pids: readonly string[],
+  s: GatewayState | null,
+): BackendModelCatalog {
+  if (!pids.length) return catalog;
+  const owner = (id: string) => pids.find((p) => id.startsWith(`${p}/`));
   type Model = BackendModelCatalog['models'][number];
   const strip = (m: Model): Model => {
     const cut = m.label?.indexOf(' / ') ?? -1;
@@ -121,9 +131,111 @@ export function scopeCatalogToProvider(
   const def = catalog.defaultModel;
   return {
     ...catalog,
-    models: catalog.models.filter((m) => m.id.startsWith(prefix)).map(strip),
-    defaultModel: def && def.id.startsWith(prefix) ? strip(def) : null,
-    provider: { id: catalog.provider?.id ?? 'gateway', name: providerLabel(s, pid) },
+    models: pids.flatMap((p) => catalog.models.filter((m) => owner(m.id) === p).map(strip)),
+    defaultModel: def && owner(def.id) ? strip(def) : null,
+    provider: { id: catalog.provider?.id ?? 'gateway', name: providerLabel(s, pids[0]!) },
+  };
+}
+
+/** 会话上次用的第三方模型（主进程记的 lastServedRef），已不在网关里时为 null */
+export function sessionRefOf(
+  tab: Pick<HarnessTabMeta, 'lastServedRef'> | null | undefined,
+  s: GatewayState | null,
+): string | null {
+  const last = tab?.lastServedRef;
+  return last && codingModelChoices(s).some((m) => m.ref === last) ? last : null;
+}
+
+export interface SessionModelGroup {
+  /** 供应商 id */
+  id: string;
+  /** 供应商显示名 */
+  name: string;
+  /** 分组标题：「本会话原来的供应商 · A」/「默认供应商 · B」 */
+  label: string;
+}
+
+/**
+ * 聊过的第三方会话在模型按钮里列哪几个供应商：会话原来的供应商（上次用的模型所在）、
+ * 当前选中的模型所在的供应商、这个编程助手在「模型」页的默认供应商，去重后按这个顺序。
+ * 会话还没聊过（没有 lastServedRef）返回 null。模型按钮用它给供应商标签加说明。
+ * 换到默认供应商并聊过一轮后，原来的供应商就是默认供应商，只剩一组。
+ */
+export function sessionModelGroups(
+  tab: Pick<HarnessTabMeta, 'modelOverride' | 'lastServedRef'>,
+  kind: string,
+  s: GatewayState | null,
+): SessionModelGroup[] | null {
+  const session = providerOfRef(sessionRefOf(tab, s));
+  if (!session) return null;
+  const current = providerOfRef(thirdPartyRefOf(tab, kind, s));
+  const main = isCliKind(kind) ? s?.clients[kind]?.models.main : null;
+  const def = codingModelChoices(s).some((m) => m.ref === main) ? providerOfRef(main) : null;
+  const ids = [...new Set([session, current, def].filter((x): x is string => !!x))];
+  return ids.map((id) => {
+    const name = providerLabel(s, id);
+    return {
+      id,
+      name,
+      label:
+        id === session
+          ? t('ui.models.this-chat-s-provider', name)
+          : id === def
+            ? t('ui.models.default-provider-named', name)
+            : name,
+    };
+  });
+}
+
+/** 模型按钮里「切到默认来源」的一组（标签来源与「新标签默认用」不同时） */
+export interface SourceSwitch {
+  target: TabSource;
+  /** 分组标题：「默认 · 官方账号」/「默认供应商 · B」 */
+  title: string;
+  /** 官方：一项（切到官方账号）；第三方：默认供应商的全部模型（model = `供应商/模型`） */
+  items: Array<{ id: string; label: string; model?: string }>;
+}
+
+/**
+ * 标签的来源（官方 / 第三方）与这个编程助手的「新标签默认用」不同时，模型按钮里多一组，
+ * 一步切到默认来源：默认是官方 → 「切换到官方账号」；默认是第三方 → 默认供应商的全部模型。
+ * 来源相同（或网关状态还没到、外部 CLI）返回 null。
+ */
+export function defaultSourceSwitch(
+  tab: Pick<HarnessTabMeta, 'backend' | 'source'>,
+  s: GatewayState | null,
+): SourceSwitch | null {
+  const kind = tab.backend;
+  if (!isCliKind(kind)) return null;
+  const client = s?.clients[kind];
+  if (!client) return null;
+  const main = client.models.main ?? null;
+  const choices = codingModelChoices(s);
+  const target: TabSource =
+    client.newTabSource === 'thirdParty' && choices.some((m) => m.ref === main)
+      ? 'thirdParty'
+      : 'official';
+  if (target === tabSourceOf(tab)) return null;
+  if (target === 'official')
+    return {
+      target,
+      title: t('ui.models.default-official'),
+      items: [
+        {
+          id: 'official',
+          label: hasOfficialAccount(kind)
+            ? t('ui.models.switch-to-official')
+            : t('ui.models.dsh-built-in-config'),
+        },
+      ],
+    };
+  const pid = providerOfRef(main)!;
+  return {
+    target,
+    title: t('ui.models.default-provider-named', providerLabel(s, pid)),
+    items: choices
+      .filter((m) => m.providerId === pid)
+      .map((m) => ({ id: m.ref, label: m.label.slice(m.provider.length + 3), model: m.ref })),
   };
 }
 
@@ -136,14 +248,17 @@ export function refSlashLabel(s: GatewayState | null, ref: string): string {
   return `${providerDisplayName(p.name)} / ${m?.label ?? r.model}`;
 }
 
-/** 第三方标签实际用的模型：标签自己的选择，没有就用这个 CLI 在「模型」页分配的默认模型 */
+/** 第三方标签实际用的模型：标签自己的选择 → 会话上次用的模型 → 这个 CLI 在「模型」页分配的默认模型 */
 export function thirdPartyRefOf(
-  tab: Pick<HarnessTabMeta, 'modelOverride'> | null | undefined,
+  tab: Pick<HarnessTabMeta, 'modelOverride' | 'lastServedRef'> | null | undefined,
   kind: string,
   s: GatewayState | null,
 ): string | null {
   const own = tab?.modelOverride?.trim();
   if (own) return own;
+  // 与主进程 effectiveOverrides 同规则：聊过的会话留在上次用的模型上（还在网关里时）
+  const last = sessionRefOf(tab, s);
+  if (last) return last;
   return isCliKind(kind) ? (s?.clients[kind]?.models.main ?? null) : null;
 }
 
@@ -316,7 +431,7 @@ export async function switchTabSource(
     tabSourceOf(tab) === 'thirdParty' &&
     source === 'official' &&
     opts.hasMessages &&
-    !window.confirm(THIRD_PARTY_TO_OFFICIAL())
+    !(await confirmDialog({ message: THIRD_PARTY_TO_OFFICIAL() }))
   )
     return null;
   return harnessClient.setTabSource(tab.id, source, opts.model);

@@ -19,11 +19,12 @@ import { dirname, join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.SLASH_SHOTS_DIR;
 
 const put = (file: string, text: string) => {
@@ -105,13 +106,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 760 }).catch(() => undefined);
   if (dev) {
@@ -144,15 +141,6 @@ const shot = async (p: Page, name: string) => {
   );
   await p.screenshot({ path: join(shotDir, `${name}.png`) });
 };
-
-const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
-  chat.evaluate(
-    ([c, a]) =>
-      (
-        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
-      ).aiIPC.invoke(c as string, ...(a as unknown[])),
-    [channel, args] as const,
-  );
 
 async function newTab(chat: Page, backend: 'claude' | 'codex' | 'grok') {
   await chat.click('[data-testid="new-chat"]');
@@ -200,7 +188,7 @@ test.describe('E27 · slash commands', () => {
     app = r.app;
     const chat = r.chat;
     // 让新标签继承项目目录
-    await invoke(chat, 'ai:harness:set-cwd', fx.project);
+    await callContract(chat, 'harness.setCwd', { cwd: fx.project });
     await newTab(chat, 'claude');
 
     // 1) `/` → 分组面板（含项目 / 用户 / skill 自定义命令）
@@ -256,34 +244,41 @@ test.describe('E27 · slash commands', () => {
     // 只有 "hello" 一条用户消息：命令没有发给 CLI
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
 
-    // 5) /model：与输入框的模型按钮一致——列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    // 5) /model 不带参数：打开输入框的模型浮层（与模型按钮同一个界面，79641ead），不往对话里插卡片；
+    // 列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    const cardsBefore = await cards(chat).count();
     await run(chat, '/model');
-    const list = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(list).toContainText('Sonnet Mock', SLOW);
-    await expect(list).toContainText('默认模型');
+    const menu = chat.locator('[data-testid="model-menu"]');
+    await expect(menu).toBeVisible(SLOW);
+    await expect(menu).toContainText('Sonnet Mock', SLOW);
+    await expect(menu).toContainText('默认模型');
+    await expect(cards(chat)).toHaveCount(cardsBefore);
     await shot(chat, '06-model-list');
+    await chat.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    // 参数唯一命中：直接切换，留一条结果卡片
     await run(chat, '/model sonnet');
     await expect(cards(chat).last()).toContainText('已切换到 Sonnet Mock', SLOW);
     await expect(chat.locator('[data-testid="model-chip"]')).toContainText('Sonnet Mock', SLOW);
     // 标签改用第三方（统一网关）后 /model 列网关里的模型，/status 显示第三方来源
-    const glm = (await invoke(chat, 'ai:gateway:upsert-provider', {
+    const glm = (await callContract(chat, 'gateway.upsertProvider', {
       name: 'MockGLM',
       urls: { messages: 'http://127.0.0.1:9/anthropic' },
       newKeys: [{ value: 'e27-fake-key' }],
       models: [{ id: 'glm-4.6', enabled: true }],
     })) as { id: string };
-    const tabs = (await invoke(chat, 'ai:harness:tabs')) as { activeTabId: string };
-    await invoke(
-      chat,
-      'ai:harness:tab-source',
-      tabs.activeTabId,
-      'thirdParty',
-      `${glm.id}/glm-4.6`,
-    );
+    const tabs = (await callContract(chat, 'harness.tabs')) as { activeTabId: string };
+    await callContract(chat, 'harness.tabSource', {
+      id: tabs.activeTabId,
+      source: 'thirdParty',
+      model: `${glm.id}/glm-4.6`,
+    });
     await run(chat, '/model');
-    const provList = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(provList).toContainText('glm-4.6', SLOW);
-    await expect(provList).toContainText('MockGLM');
+    await expect(menu).toBeVisible(SLOW);
+    await expect(menu).toContainText('glm-4.6', SLOW);
+    await expect(menu).toContainText('MockGLM');
+    await chat.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
       'MockGLM / glm-4.6（第三方）',
@@ -357,7 +352,7 @@ test.describe('E27 · slash commands', () => {
     const r = await launch(join(root, 'user-data'), fx.home);
     app = r.app;
     const chat = r.chat;
-    await invoke(chat, 'ai:harness:set-cwd', fx.project);
+    await callContract(chat, 'harness.setCwd', { cwd: fx.project });
 
     await newTab(chat, 'grok');
     await input(chat).fill('/');

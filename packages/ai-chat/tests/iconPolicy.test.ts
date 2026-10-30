@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { repoPath } from '@nomi-ai/repo-paths';
 import { describe, expect, it } from 'vitest';
 
 import { SETTINGS_ICONS } from '../src/components/AppIcons';
 import { SETTINGS_SECTIONS } from '../src/components/SettingsView/sections';
 
 const SRC = path.resolve(__dirname, '../src');
-const UI_SRC = path.resolve(__dirname, '../../ui/src');
+const UI_SRC = repoPath('packages/ui/src');
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

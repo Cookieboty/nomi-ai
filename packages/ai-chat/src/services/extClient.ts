@@ -1,5 +1,8 @@
 import { t } from '@nomi-ai/ui';
-/** 扩展客户端：MCP 服务器 + 技能包（`ai:ext:*` IPC） */
+
+import { api, hasTransport } from './api';
+import { plainError } from './hostBackends/knowledge';
+/** 扩展客户端：MCP 服务器 + 技能包——契约 `ext.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:ext:*`） */
 export type Transport = 'stdio' | 'http' | 'sse';
 export type Trust = 'ask' | 'read-auto' | 'auto';
 export type McpStatus = 'off' | 'connecting' | 'connected' | 'error';
@@ -117,57 +120,49 @@ export const STATUS_LABEL: Record<McpStatus, string> = {
   error: 'ui.chat-settings.connection-failed',
 };
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.extensions-require-the-desktop-app'));
-  const r = (await b.invoke(`ai:ext:${method}`, ...args)) as T & {
-    __error?: { code: string; message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport()) throw new Error(t('ui.chat-settings.extensions-require-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (err) {
+    throw plainError(err);
+  }
 }
 
 export const extClient = {
-  available: () => !!bridge(),
-  mcpList: () => call<McpList>('mcp-list'),
-  mcpUpsert: (s: Partial<McpServer>) => call<McpServer>('mcp-upsert', s),
-  mcpRemove: (id: string) => call<boolean>('mcp-remove', id),
-  mcpToggle: (id: string, v: boolean) => call<boolean>('mcp-toggle', id, v),
-  mcpConnect: (id: string) => call('mcp-connect', id),
-  mcpDisconnect: (id: string) => call('mcp-disconnect', id),
-  mcpImport: (text: string) => call<McpServer[]>('mcp-import', text),
-  skills: () => call<SkillInfo[]>('skills-list'),
-  skillGet: (n: string) => call<SkillDoc>('skill-get', n),
+  available: () => hasTransport(),
+  mcpList: () => call<McpList>(() => api.ext.mcpList()),
+  mcpUpsert: (s: Partial<McpServer>) => call<McpServer>(() => api.ext.mcpUpsert(s)),
+  mcpRemove: (id: string) => call<boolean>(() => api.ext.mcpRemove({ id })),
+  mcpToggle: (id: string, v: boolean) => call<boolean>(() => api.ext.mcpToggle({ id, enabled: v })),
+  mcpConnect: (id: string) => call(() => api.ext.mcpConnect({ id })),
+  mcpDisconnect: (id: string) => call(() => api.ext.mcpDisconnect({ id })),
+  mcpImport: (text: string) => call<McpServer[]>(() => api.ext.mcpImport({ text })),
+  skills: () => call<SkillInfo[]>(() => api.ext.skillsList()),
+  skillGet: (n: string) => call<SkillDoc>(() => api.ext.skillGet({ name: n })),
   skillSave: (p: { meta: SkillDoc['meta']; body: string; originalName?: string }) =>
-    call('skill-save', p),
-  skillRemove: (n: string) => call<boolean>('skill-remove', n),
-  skillToggle: (n: string, v: boolean) => call<boolean>('skill-toggle', n, v),
-  skillImport: () => call<SkillDoc['meta'] | null>('skill-import'),
-  skillOpen: (n?: string) => call('skill-open', n),
+    call(() => api.ext.skillSave(p)),
+  skillRemove: (n: string) => call<boolean>(() => api.ext.skillRemove({ name: n })),
+  skillToggle: (n: string, v: boolean) =>
+    call<boolean>(() => api.ext.skillToggle({ name: n, enabled: v })),
+  skillImport: () => call<SkillDoc['meta'] | null>(() => api.ext.skillImport()),
+  skillOpen: (n?: string) => call(() => api.ext.skillOpen({ name: n })),
   /** 从 Claude Code / Codex 扫描可导入的 MCP 与技能（#58）；pickProject 时主进程弹出选择文件夹 */
   migrateScan: (o: { pickProject?: boolean; clearProject?: boolean } = {}) =>
-    call<MigrateScanResult>('migrate-scan', o),
+    call<MigrateScanResult>(() => api.ext.migrateScan(o)),
   migrateImport: (items: Array<{ key: string; action?: MigrateAction }>) =>
-    call<MigrateImportResult>('migrate-import', items),
+    call<MigrateImportResult>(() => api.ext.migrateImport({ items })),
   /** 注入对话 system 的技能目录（失败时为空串） */
   context: async (): Promise<string> => {
-    if (!bridge()) return '';
+    if (!hasTransport()) return '';
     try {
-      return (await call<string>('skills-context')) || '';
+      return (await call<string>(() => api.ext.skillsContext())) || '';
     } catch {
       return '';
     }
   },
-  onChanged: (fn: () => void) => bridge()?.on('ai:ext:changed', () => fn()) ?? (() => undefined),
+  onChanged: (fn: () => void) =>
+    hasTransport() ? api.on('ext.changed', () => fn()) : () => undefined,
 };
 
 /** 「KEY=VALUE」多行文本 ↔ 对象 */

@@ -1,8 +1,7 @@
-/** 与主进程 `ai:voice:*` 的契约（渲染进程视角）。 */
-export interface VoiceBridge {
-  invoke(channel: string, ...args: unknown[]): Promise<unknown>;
-  on(channel: string, fn: (payload: unknown) => void): () => void;
-}
+/**
+ * 与主进程语音服务的接口（渲染进程视角）。本包不 import 契约：视图在 `services/hostBackends/media.ts`
+ * 里把契约 `voice.*` 包成 `VoiceApi`，经 `setVoiceBackend` 注入。
+ */
 
 export type AsrErrorCode =
   'no_engine' | 'no_model' | 'no_provider' | 'cloud_not_acked' | 'local_only' | 'empty' | 'failed';
@@ -80,57 +79,52 @@ export interface StreamEvent {
   error?: string;
 }
 
-export function voiceApi(b: VoiceBridge) {
-  return {
-    state: () => b.invoke('ai:voice:state') as Promise<VoiceStateView>,
-    setSettings: (p: Partial<VoiceSettingsView>) =>
-      b.invoke('ai:voice:setSettings', p) as Promise<VoiceSettingsView>,
-    ackCloud: () => b.invoke('ai:voice:ackCloud') as Promise<VoiceSettingsView>,
-    download: (id: string) =>
-      b.invoke('ai:voice:download', id) as Promise<{ ok: boolean; error?: string }>,
-    cancel: (id: string) => b.invoke('ai:voice:cancel', id) as Promise<boolean>,
-    remove: (id: string) => b.invoke('ai:voice:remove', id) as Promise<boolean>,
-    vadOpen: () =>
-      b.invoke('ai:voice:vadOpen') as Promise<{
-        kind: 'silero' | 'energy';
-        handle?: string;
-        error?: string;
-      }>,
-    vadProb: (handle: string, frame: Float32Array) =>
-      b.invoke('ai:voice:vadProb', handle, frame) as Promise<number>,
-    vadClose: (handle: string) => b.invoke('ai:voice:vadClose', handle),
-    transcribe: (wav: Uint8Array, source: string, purpose: 'command' | 'wake' = 'command') =>
-      b.invoke('ai:voice:transcribe', wav, { source, purpose }) as Promise<TranscribeResult>,
-    activity: (a: string, source: string) => b.invoke('ai:voice:activity', a, source),
-    sendToChat: (text: string) => b.invoke('ai:voice:sendToChat', text),
-    // 豆包流式语音识别 2.0（#61）
-    volcSetKey: (key: string) =>
-      b.invoke('ai:voice:volcSetKey', key) as Promise<{ ok: boolean; error?: string }>,
-    volcClearKey: () => b.invoke('ai:voice:volcClearKey') as Promise<boolean>,
-    volcTest: () => b.invoke('ai:voice:volcTest') as Promise<{ ok: boolean; message: string }>,
-    streamStart: (source: string) =>
-      b.invoke('ai:voice:streamStart', { source }) as Promise<StreamStartResult>,
-    streamPush: (id: string, pcm: Uint8Array) =>
-      b.invoke('ai:voice:streamPush', id, pcm) as Promise<boolean>,
-    streamStop: (id: string) => b.invoke('ai:voice:streamStop', id) as Promise<TranscribeResult>,
-    streamCancel: (id: string) => b.invoke('ai:voice:streamCancel', id) as Promise<boolean>,
-    onStream: (fn: (e: StreamEvent) => void) =>
-      b.on('ai:voice:stream', (p) => fn(p as StreamEvent)),
-    onProgress: (fn: (e: ProgressEvent) => void) =>
-      b.on('ai:voice:progress', (p) => fn(p as ProgressEvent)),
-    onChanged: (fn: () => void) => b.on('ai:voice:changed', () => fn()),
-    onActivity: (fn: (e: { activity: string; source: string }) => void) =>
-      b.on('ai:voice:activity', (p) => fn(p as { activity: string; source: string })),
-    onBargeIn: (fn: (e: { source: string }) => void) =>
-      b.on('ai:voice:bargeIn', (p) => fn(p as { source: string })),
-    onInject: (fn: (e: { text: string; autoSend: boolean }) => void) =>
-      b.on('ai:voice:inject', (p) => fn(p as { text: string; autoSend: boolean })),
-  };
-}
-export type VoiceApi = ReturnType<typeof voiceApi>;
+export type VadOpenResult = { kind: 'silero' | 'energy'; handle?: string; error?: string };
 
-/** window.aiIPC（preload 注入）→ VoiceBridge；不可用时返回 null（浏览器预览 / 测试） */
-export function defaultBridge(): VoiceBridge | null {
-  const w = globalThis as unknown as { aiIPC?: VoiceBridge };
-  return w.aiIPC && typeof w.aiIPC.invoke === 'function' ? w.aiIPC : null;
+export interface VoiceApi {
+  state(): Promise<VoiceStateView>;
+  setSettings(p: Partial<VoiceSettingsView>): Promise<VoiceSettingsView>;
+  ackCloud(): Promise<VoiceSettingsView>;
+  download(id: string): Promise<{ ok: boolean; error?: string }>;
+  cancel(id: string): Promise<boolean>;
+  remove(id: string): Promise<boolean>;
+  vadOpen(): Promise<VadOpenResult>;
+  vadProb(handle: string, frame: Float32Array): Promise<number>;
+  vadClose(handle: string): Promise<unknown>;
+  transcribe(
+    wav: Uint8Array,
+    source: string,
+    purpose?: 'command' | 'wake',
+  ): Promise<TranscribeResult>;
+  activity(a: string, source: string): Promise<unknown>;
+  sendToChat(text: string): Promise<unknown>;
+  // 豆包流式语音识别 2.0（#61）
+  volcSetKey(key: string): Promise<{ ok: boolean; error?: string }>;
+  volcClearKey(): Promise<boolean>;
+  volcTest(): Promise<{ ok: boolean; message: string }>;
+  streamStart(source: string): Promise<StreamStartResult>;
+  streamPush(id: string, pcm: Uint8Array): Promise<boolean>;
+  streamStop(id: string): Promise<TranscribeResult>;
+  streamCancel(id: string): Promise<boolean>;
+  onStream(fn: (e: StreamEvent) => void): () => void;
+  onProgress(fn: (e: ProgressEvent) => void): () => void;
+  onChanged(fn: () => void): () => void;
+  onActivity(fn: (e: { activity: string; source: string }) => void): () => void;
+  onBargeIn(fn: (e: { source: string }) => void): () => void;
+  onInject(fn: (e: { text: string; autoSend: boolean }) => void): () => void;
+}
+
+/**
+ * 注入点（docs/design/core-host-decoupling.md §12「P1b 实施约定」）：宿主（视图的
+ * `services/hostBackends/media.ts`）把契约客户端包成 VoiceApi 交给本包；本包不 import 契约。
+ * 没有注入时为 null（浏览器预览 / 测试）。
+ */
+let backend: VoiceApi | null = null;
+
+export function setVoiceBackend(api: VoiceApi | null): void {
+  backend = api;
+}
+
+export function defaultVoiceApi(): VoiceApi | null {
+  return backend;
 }

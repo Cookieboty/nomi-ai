@@ -1,5 +1,5 @@
 /**
- * 看板娘语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
+ * 桌面角色语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
  * 驱动 lipSyncStore 口型、支持打断；失败返回 false，调用方保持静默。
  * 实时朗读会先去掉 Markdown / 代码等不该念的内容，再按句切段：边播当前句边请求下一句。
  */
@@ -8,6 +8,7 @@ import { cleanTextForSpeech, splitSpeechSegments, type TTSSpeakResult } from '@n
 import { createLogger } from '@nomi-ai/ui';
 
 import { lipSyncStore } from '../../ai/lipSyncStore';
+import { api, hasTransport } from '../../services/api';
 import { stopSoftSpeech } from '../softSpeech';
 import { registerSpeechStopper } from '../speechStop';
 
@@ -113,7 +114,7 @@ export function stopSpeaking(): void {
   cleanupActive();
   // 取消主进程里还在合成的句子（不等待；失败无所谓）
   try {
-    void window.electronAPI?.ttsStop?.()?.catch?.(() => undefined);
+    if (hasTransport()) void api.tts.stop().catch(() => undefined);
   } catch {
     /* ignore */
   }
@@ -286,8 +287,7 @@ async function startSegment(
 export async function speakRealtime(text: string, opts: SpeakOptions = {}): Promise<boolean> {
   ensureStopper();
   const segments = splitSpeechSegments(cleanTextForSpeech(text ?? ''));
-  const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-  if (!segments.length || !api?.ttsSpeak) {
+  if (!segments.length || !hasTransport()) {
     opts.onEnd?.();
     return false;
   }
@@ -297,7 +297,9 @@ export async function speakRealtime(text: string, opts: SpeakOptions = {}): Prom
   cleanupActive();
 
   const fetchSegment = (i: number): Promise<TTSSpeakResult | null> =>
-    api.ttsSpeak!({ text: segments[i]!, volume: opts.volume }).catch(() => null);
+    (api.tts.speak({ text: segments[i]!, volume: opts.volume }) as Promise<TTSSpeakResult>).catch(
+      () => null,
+    );
   const playable = (r: TTSSpeakResult | null): r is TTSSpeakResult =>
     !!r?.success && !!r.audioBase64;
 

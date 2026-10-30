@@ -22,6 +22,10 @@ import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessCl
 import { nomiAdapter } from '../src/slash/adapters/nomi';
 import type { ToolCall } from '../src/utils/toolTrace';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 // Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md §4.6、§4.7、§7）
 
 const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
@@ -68,18 +72,17 @@ const done = (data: Record<string, unknown>) =>
   });
 
 function mockIpc(tabs: HarnessTabMeta[], settings?: Record<string, unknown>) {
-  const listeners: Record<string, Array<(p: unknown) => void>> = {};
   const state: HarnessTabsState = { tabs, activeTabId: 'main', running: 1, queued: 0 };
   const pins = new Map<string, unknown>();
-  const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-    if (ch === 'ai:harness:tabs') return state;
-    if (ch === 'ai:delegate:settings')
+  const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+    if (ch === 'harness.tabs') return state;
+    if (ch === 'delegate.settings')
       return (
         settings ?? { enabled: true, defaults: {}, installed: ['claude', 'codex'], pinned: null }
       );
-    if (ch === 'ai:delegate:set-settings') return a[0];
-    if (ch === 'ai:delegate:pin') {
-      const [cli, turnId] = a;
+    if (ch === 'delegate.setSettings') return i?.settings;
+    if (ch === 'delegate.pin') {
+      const { cli, turnId } = i ?? {};
       if (!turnId) throw new Error('turnId required');
       if (cli === null || cli === undefined || cli === '' || cli === 'off') {
         pins.delete(String(turnId));
@@ -88,23 +91,16 @@ function mockIpc(tabs: HarnessTabMeta[], settings?: Record<string, unknown>) {
       pins.set(String(turnId), cli);
       return cli;
     }
-    if (ch === 'ai:delegate:clear-pin') {
-      pins.delete(String(a[0]));
+    if (ch === 'delegate.clearPin') {
+      pins.delete(String(i?.turnId));
       return true;
     }
     return true;
   });
-  const on = (ch: string, fn: (p: unknown) => void) => {
-    (listeners[ch] ??= []).push(fn);
-    return () => undefined;
-  };
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
+  const fake = installFakeApi(invoke);
   return {
     invoke,
-    emit: (events: unknown[]) =>
-      act(() => {
-        listeners['ai:harness:events']?.forEach((f) => f(events));
-      }),
+    emit: (events: unknown[]) => act(() => fake.emit('harness.events', events)),
   };
 }
 
@@ -118,7 +114,7 @@ afterEach(() => {
   bindNextDelegateConversation('');
   setNextDelegate(null);
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('delegateView', () => {
@@ -172,7 +168,7 @@ describe('子任务卡片', () => {
     const ipc = mockIpc([tab()]);
     const r = mount(call());
     await waitFor(() => expect(r.getByTestId('delegate-card').dataset.phase).toBe('running'));
-    ipc.emit([
+    await ipc.emit([
       { tabId: 'd1', type: 'agent', op: 'start', id: 'a1', label: 'explorer', at: 1 },
       { tabId: 'd1', type: 'agent', op: 'progress', id: 'a1', progress: 'Bash · npm test' },
       { tabId: 'd1', type: 'permission', id: 'p1', summary: 'npm install', agent: 'reviewer' },
@@ -180,12 +176,21 @@ describe('子任务卡片', () => {
     await waitFor(() => expect(r.getByTestId('delegate-card').dataset.phase).toBe('waiting'));
     expect(r.getByTestId('delegate-step').textContent).toContain('explorer · Bash · npm test');
     const card = r.getByTestId('delegate-card');
+    // 调用经契约传输异步到达假桥
     fireEvent.click(within(card).getByTestId('conv-permission-allow'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:reply-permission', 'd1', 'p1', true);
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.replyPermission', {
+        tabId: 'd1',
+        requestId: 'p1',
+        allow: true,
+      }),
+    );
     fireEvent.click(within(card).getByTestId('delegate-agent-stop'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:stop-agent', 'd1', 'a1');
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.stopAgent', { id: 'd1', agentId: 'a1' }),
+    );
     fireEvent.click(r.getByTestId('delegate-stop'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-cancel', 'd1');
+    await waitFor(() => expect(ipc.invoke).toHaveBeenCalledWith('harness.tabCancel', { id: 'd1' }));
   });
 
   it('历史消息（标签已不在）：按工具输出显示汇报与审批统计', () => {
@@ -254,11 +259,13 @@ describe('设置 →「编程助手」→「委派」', () => {
     await r.findByTestId('providers-section-delegate');
     fireEvent.click(r.getByTestId('delegate-enabled'));
     await waitFor(() =>
-      expect(ipc.invoke).toHaveBeenCalledWith('ai:delegate:set-settings', {
-        enabled: false,
-        defaults: { coding: 'codex' },
-        // 委派档位（agent profile）没选过时按 default 保存
-        defaultProfileId: 'default',
+      expect(ipc.invoke).toHaveBeenCalledWith('delegate.setSettings', {
+        settings: {
+          enabled: false,
+          defaults: { coding: 'codex' },
+          // 委派档位（agent profile）没选过时按 default 保存
+          defaultProfileId: 'default',
+        },
       }),
     );
   });
@@ -281,7 +288,7 @@ describe('委派 pin 按会话 + turn', () => {
   it('consumeNextDelegate：IPC 钉住失败则抛错且 chip 仍在（调用方应中止发送）', async () => {
     const ipc = mockIpc([]);
     ipc.invoke.mockImplementation(async (ch: string) => {
-      if (ch === 'ai:delegate:pin') throw new Error('not installed: gemini');
+      if (ch === 'delegate.pin') throw new Error('not installed: gemini');
       return true;
     });
     bindNextDelegateConversation('convo-fail');
@@ -296,9 +303,9 @@ describe('委派 pin 按会话 + turn', () => {
     setNextDelegate('codex');
     await expect(consumeNextDelegate('turn-9')).resolves.toBe('codex');
     expect(getNextDelegate()).toBeNull();
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:delegate:pin', 'codex', 'turn-9');
+    expect(ipc.invoke).toHaveBeenCalledWith('delegate.pin', { cli: 'codex', turnId: 'turn-9' });
     await clearTurnPin('turn-9');
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:delegate:clear-pin', 'turn-9');
+    expect(ipc.invoke).toHaveBeenCalledWith('delegate.clearPin', { turnId: 'turn-9' });
   });
 });
 

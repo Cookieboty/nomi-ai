@@ -23,6 +23,10 @@ import {
   supportedModes,
 } from '../src/utils/permissionModes';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
     state: { messages: [] },
@@ -47,8 +51,8 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
 
 function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
   let current = tab(cli);
-  const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-    if (ch === 'ai:harness:tabs')
+  const invoke = vi.fn(async (ch: string, i?: { mode?: string }) => {
+    if (ch === 'harness.tabs')
       return {
         tabs: [tab({ id: 'main', backend: 'nomi' }), current],
         activeTabId: 'cx',
@@ -56,19 +60,19 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
         queued: 0,
         defaultPermissionMode: 'acceptEdits',
       } satisfies HarnessTabsState;
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', permissionMode: 'manual', bins: { claude: '/c' } };
-    if (ch === 'ai:harness:tab-permission-mode') {
-      const mode = a[1] as string;
+    if (ch === 'harness.tabPermissionMode') {
+      const mode = i?.mode as string;
       const degraded = current.backend === 'dsh' && mode === 'manual';
       current = { ...current, permissionMode: degraded ? 'plan' : (mode as never) };
       return { ...current, degraded };
     }
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:harness:tab-messages') return [];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'harness.tabMessages') return [];
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -87,7 +91,7 @@ beforeEach(() => setChatMode('dev'));
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('权限模式表', () => {
@@ -118,7 +122,9 @@ describe('输入栏的权限模式按钮', () => {
     expect(r.getByTestId('permission-mode-plan')).toBeTruthy();
     fireEvent.click(r.getByTestId('permission-mode-plan'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'plan', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', {
+        id: 'cx',
+        mode: 'plan',
         confirmed: false,
       }),
     );
@@ -163,7 +169,9 @@ describe('输入栏的权限模式按钮', () => {
     fireEvent.click(await r.findByTestId('permission-mode-chip'));
     fireEvent.click(r.getByTestId('permission-mode-bypass'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'bypass', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', {
+        id: 'cx',
+        mode: 'bypass',
         confirmed: true,
         expect: { backend: 'claude', cwd: '/w' },
       }),
@@ -176,7 +184,9 @@ describe('输入栏的权限模式按钮', () => {
     const r = mount();
     fireEvent.click(await r.findByTestId('permission-bypass-exit'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'acceptEdits', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', {
+        id: 'cx',
+        mode: 'acceptEdits',
         confirmed: false,
       }),
     );
@@ -199,7 +209,9 @@ describe('输入栏的权限模式按钮', () => {
     window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));
     expect(detail.handled).toBe(true);
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'manual', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', {
+        id: 'cx',
+        mode: 'manual',
         confirmed: false,
       }),
     );
@@ -211,7 +223,7 @@ describe('输入栏的权限模式按钮', () => {
     fireEvent.click(await r.findByTestId('permission-mode-chip'));
     fireEvent.click(r.getByTestId('permission-mode-make-default'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:permission-defaults', {
+      expect(invoke).toHaveBeenCalledWith('harness.permissionDefaults', {
         defaultPermissionMode: 'plan',
       }),
     );
@@ -233,7 +245,9 @@ describe('输入栏的权限模式按钮', () => {
     expect(r.queryByTestId('permission-mode-make-default')).toBeNull();
     fireEvent.click(r.getByTestId('permission-mode-plan'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'main', 'plan', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', {
+        id: 'main',
+        mode: 'plan',
         confirmed: false,
       }),
     );
@@ -248,7 +262,7 @@ describe('/mode 斜杠命令', () => {
   it('切到指定档位；不支持时说明降级；不能用命令进入「完全放开」', async () => {
     const invoke = mockIpc();
     const r = await mode('claude').run('auto', ctx('claude'));
-    expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'auto', {});
+    expect(invoke).toHaveBeenCalledWith('harness.tabPermissionMode', { id: 'cx', mode: 'auto' });
     expect(JSON.stringify(r)).toContain('自动');
 
     mockIpc({ backend: 'dsh' });
@@ -258,7 +272,7 @@ describe('/mode 斜杠命令', () => {
     const inv2 = mockIpc();
     const b = await mode('claude').run('bypass', ctx('claude'));
     expect(JSON.stringify(b)).toContain('不能用命令切换');
-    expect(inv2.mock.calls.some((c) => c[0] === 'ai:harness:tab-permission-mode')).toBe(false);
+    expect(inv2.mock.calls.some((c) => c[0] === 'harness.tabPermissionMode')).toBe(false);
   });
 
   it('不带参数列出当前端支持的档位（dsh 没有逐项确认）', async () => {

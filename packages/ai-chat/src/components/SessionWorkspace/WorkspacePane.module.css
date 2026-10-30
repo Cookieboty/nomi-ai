@@ -344,9 +344,8 @@
   min-width: 0;
   color: var(--cd-color-text);
 }
-.gitOutput summary {
+.gitOutputSummary {
   color: var(--cd-color-text-muted);
-  cursor: pointer;
 }
 .gitOutput pre {
   max-height: 160px;

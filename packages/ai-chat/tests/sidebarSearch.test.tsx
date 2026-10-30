@@ -9,6 +9,10 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import { HISTORY_MAX_ITEMS, type HistorySession } from '../src/services/historyClient';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
   id,
@@ -72,13 +76,19 @@ const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySess
   }) as HistorySession;
 
 let indexPages: Record<string, HistorySession[][]> = {};
-let calls: Array<[string, unknown[]]> = [];
+type Input = {
+  id?: string;
+  backend?: string;
+  sessionId?: string;
+  options?: { offset?: number; limit?: number };
+};
+let calls: Array<[string, Input]> = [];
 
 function mockIpc() {
   calls = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
+  const invoke = vi.fn(async (ch: string, input?: Input) => {
+    calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabs')
       return {
         tabs: [
           { id: 't1', backend: 'claude', cwd: '/work/pay-service', status: 'idle', unread: 0 },
@@ -87,19 +97,20 @@ function mockIpc() {
         running: 0,
         queued: 0,
       };
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:history:list') {
-      const [b] = args as [string];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'history.list') {
+      const b = input?.backend;
       return {
         items: b === 'claude' ? [h('claude', 1)] : b === 'codex' ? [h('codex', 2)] : [],
         nextOffset: null,
         hasMore: false,
       };
     }
-    if (ch === 'ai:history:index') {
-      const [b, o] = args as [string, { offset?: number; limit?: number }];
+    if (ch === 'history.index') {
+      const b = String(input?.backend);
+      const o = input?.options ?? {};
       const pages = indexPages[b] ?? [[]];
       // offset 是文件游标：每页 20 条（与后端 HISTORY_PAGE_SIZE 一致）
       const pi = (o.offset ?? 0) / 20;
@@ -107,10 +118,10 @@ function mockIpc() {
       const more = pi + 1 < pages.length;
       return { items, nextOffset: more ? (o.offset ?? 0) + 20 : null, hasMore: more };
     }
-    if (ch === 'ai:history:open') return { ok: true };
+    if (ch === 'history.open') return { ok: true };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 }
 
 const mount = (onNewChat = vi.fn()) =>
@@ -149,7 +160,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('sidebar search', () => {
@@ -167,9 +178,21 @@ describe('sidebar search', () => {
 
   it('settles after mount instead of refreshing the list in a loop', async () => {
     const r = mount();
-    await waitFor(() => r.getAllByTestId('history-session-item'));
+    // 全量并行（尤其 Windows runner）时首批行可能晚于默认的 1s 才出现
+    await waitFor(() => r.getAllByTestId('history-session-item'), { timeout: 5_000 });
+    // 挂载时几路数据（会话、标签、磁盘历史）各自到达，各自可能触发一次刷新；全量并行时它们会晚于首批行出现，
+    // 落进下面的观察窗口。先等调用数停下来（100ms 内不再增长）：真在循环刷新时它永远停不下来，这一步就会超时失败
+    const sleep = (ms: number) => act(() => new Promise<void>((res) => setTimeout(res, ms)));
+    await waitFor(
+      async () => {
+        const n = listConversations.mock.calls.length;
+        await sleep(100);
+        expect(listConversations.mock.calls.length).toBe(n);
+      },
+      { timeout: 5_000 },
+    );
     const settled = listConversations.mock.calls.length;
-    await act(() => new Promise((res) => setTimeout(res, 300)));
+    await sleep(300);
     expect(listConversations.mock.calls.length - settled).toBeLessThanOrEqual(2);
   });
 
@@ -230,7 +253,7 @@ describe('sidebar search', () => {
     await waitFor(() => r.getByTestId('search-result'));
     fireEvent.click(r.getByTestId('search-result'));
     await waitFor(() =>
-      expect(calls.some(([c, a]) => c === 'ai:history:open' && a[1] === 'claude-5')).toBe(true),
+      expect(calls.some(([c, a]) => c === 'history.open' && a.sessionId === 'claude-5')).toBe(true),
     );
   });
 
@@ -313,9 +336,9 @@ describe('large history', () => {
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
     // 空态可能先于索引请求渲染（慢机器上更明显），等请求记录到再断言
     await waitFor(() =>
-      expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
-        1,
-      ),
+      expect(
+        calls.filter(([c, a]) => c === 'history.index' && a.backend === 'claude'),
+      ).toHaveLength(1),
     );
     // 逐页点到最后一页为止：累计到硬上限后前端主动收尾，按钮消失。
     // loading 期间按钮是 disabled，需要等它恢复可用再点
@@ -330,14 +353,12 @@ describe('large history', () => {
       await clickMoreWhenEnabled();
       await waitFor(() =>
         expect(
-          calls.filter(
-            ([c, a]) => c === 'ai:history:index' && (a[1] as { offset?: number }).offset === off,
-          ),
+          calls.filter(([c, a]) => c === 'history.index' && a.options?.offset === off),
         ).toHaveLength(1),
       );
     }
     // 到硬上限；多出来的那一页不会再被请求
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
+    expect(calls.filter(([c, a]) => c === 'history.index' && a.backend === 'claude')).toHaveLength(
       pages,
     );
     await waitFor(() => expect(r.queryByTestId('sidebar-search-more')).toBeNull());
@@ -384,7 +405,7 @@ describe('normal mode: Nomi only', () => {
     fireEvent.click(r.getByTestId('new-chat'));
     await waitFor(() => expect(onNewChat).toHaveBeenCalled());
     expect(r.queryByTestId('new-chat-menu')).toBeNull();
-    expect(calls.some(([c]) => c === 'ai:history:list' || c === 'ai:history:index')).toBe(false);
+    expect(calls.some(([c]) => c === 'history.list' || c === 'history.index')).toBe(false);
   });
 
   it('search only covers Nomi conversations', async () => {
@@ -395,7 +416,7 @@ describe('normal mode: Nomi only', () => {
     expect(
       r.getAllByTestId('search-result').every((x) => x.getAttribute('data-backend') === 'nomi'),
     ).toBe(true);
-    expect(calls.some(([c]) => c === 'ai:history:index')).toBe(false);
+    expect(calls.some(([c]) => c === 'history.index')).toBe(false);
   });
 
   it('switching back to dev mode restores the saved view (by-endpoint) and the switch', async () => {

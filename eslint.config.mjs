@@ -8,7 +8,20 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 import { CLI_LITERAL_ALLOWLIST } from './scripts/eslint/cli-literal-allowlist.mjs';
+import {
+  ELECTRON_DYNAMIC_ALLOWLIST,
+  ELECTRON_FREE_PACKAGES,
+  ELECTRON_HOST_FILES,
+  ELECTRON_IMPORT_ALLOWLIST,
+} from './scripts/eslint/electron-boundary.mjs';
 import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
+
+// 任何包都不 import 角色包目录：角色包只经包解析（CharacterPackService / validatePack）读取（§11.1）。
+const CHARACTER_PACK_IMPORT = {
+  group: ['**/characters/*', '**/characters/**'],
+  message:
+    '不能直接 import characters/*：角色包只经包解析读取（docs/design/core-host-decoupling.md §11.1）。',
+};
 
 export default tseslint.config(
   {
@@ -63,6 +76,7 @@ export default tseslint.config(
       'packages/renderer/**/*.{ts,tsx}',
       'packages/ai-chat/**/*.{ts,tsx}',
       'packages/ai-sdk-client/**/*.{ts,tsx}',
+      'packages/avatar-runtime/**/*.{ts,tsx}',
     ],
     languageOptions: {
       globals: { ...globals.browser, ...globals.es2022 },
@@ -91,6 +105,8 @@ export default tseslint.config(
       'packages/renderer/**/*.{ts,tsx}',
       'packages/ai-chat/**/*.{ts,tsx}',
       'packages/ai-sdk-client/**/*.{ts,tsx}',
+      'packages/ui/**/*.{ts,tsx}',
+      'packages/voice/**/*.{ts,tsx}',
     ],
     rules: {
       'no-restricted-imports': [
@@ -102,21 +118,68 @@ export default tseslint.config(
               message: '渲染进程禁止直接引入 electron，请通过 preload / IPC / ai-sdk-client。',
             },
           ],
+          patterns: [
+            {
+              group: [
+                '@nomi-ai/core',
+                '@nomi-ai/core/*',
+                '@nomi-ai/host-*',
+                '@nomi-ai/host-*/*',
+                '**/core/src/**',
+                '**/host-*/src/**',
+              ],
+              message: '视图不能依赖内核与宿主：只经契约客户端（services/api）访问（§11.1）。',
+            },
+            {
+              group: [
+                '@nomi-ai/cli-plugins',
+                '@nomi-ai/cli-plugins/*',
+                '@nomi-ai/cli-sdk',
+                '@nomi-ai/cli-sdk/*',
+              ],
+              message:
+                '编程助手插件的实现与驱动只在 Node 版主进程里；视图要的清单、界面信息与 id 从 @nomi-ai/cli-catalog 取。',
+            },
+            CHARACTER_PACK_IMPORT,
+          ],
         },
       ],
     },
   },
 
+  // 编程助手的清单与界面信息（@nomi-ai/cli-catalog）：Node 版与 Go 版共用的视图也加载，整个包只能是纯数据与纯函数
+  {
+    files: ['packages/cli-catalog/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: 'cli-catalog 不能依赖 electron。' }],
+          patterns: [
+            CHARACTER_PACK_IMPORT,
+            {
+              group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
+              message: 'cli-catalog 只能是纯数据与纯函数，不能依赖 node。',
+            },
+            {
+              group: ['@nomi-ai/*'],
+              message: 'cli-catalog 不依赖其它包（cli-sdk / cli-plugins 反过来依赖它）。',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // 编程助手插件的入口边界（docs/design/cli-plugin-architecture.md §5.1）：
   // manifest / gateway / renderer 是纯数据，渲染进程与网关进程也会加载，不能依赖 node 与主进程实现；
   // main 是主进程实现，不能依赖渲染进程入口。整个插件包都不能 import electron。
   {
-    files: ['packages/cli-plugins/src/**/*.ts'],
+    files: ['apps/desktop-electron/internal/cli-plugins/src/**/*.ts'],
     ignores: [
-      'packages/cli-plugins/src/*/main.ts',
-      'packages/cli-plugins/src/main.ts',
-      'packages/cli-plugins/src/shared/homes.ts',
-      'packages/cli-plugins/src/shared/scan.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/*/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/shared/homes.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/shared/scan.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -124,6 +187,7 @@ export default tseslint.config(
         {
           paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
               message: 'manifest / gateway / renderer 入口只能是纯数据，不能依赖 node。',
@@ -138,13 +202,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/cli-plugins/src/*/main.ts', 'packages/cli-plugins/src/main.ts'],
+    files: [
+      'apps/desktop-electron/internal/cli-plugins/src/*/main.ts',
+      'apps/desktop-electron/internal/cli-plugins/src/main.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: ['**/renderer', './renderer', '../*/renderer', '../shared/renderer'],
               message: '主进程实现不能依赖渲染进程入口。',
@@ -156,12 +224,182 @@ export default tseslint.config(
   },
 
   // 核心目录不按内置编程助手名字分支（§7.3）：差异放进插件，核心按能力位判断。
-  // electron/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
+  // core/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
   {
-    files: ['packages/electron/src/**/*.ts', 'packages/ai-chat/src/**/*.{ts,tsx}'],
-    ignores: ['packages/electron/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
+    files: [
+      'apps/desktop-electron/internal/core/src/**/*.ts',
+      'apps/desktop-electron/src/**/*.ts',
+      'packages/ai-chat/src/**/*.{ts,tsx}',
+    ],
+    ignores: ['apps/desktop-electron/internal/core/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
     plugins: { nomi: nomiPlugin },
     rules: { 'nomi/no-cli-literal': 'error' },
+  },
+
+  // Electron 边界（docs/design/core-host-decoupling.md §7.2、§11.1、§12 P0）：
+  // apps/desktop-electron/src 里只有宿主区域能 import electron；P0 时已有的业务模块列在
+  // scripts/eslint/electron-boundary.mjs 的白名单里（shrink only, see docs/design/core-host-decoupling.md §12）。
+  {
+    files: ['apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    ignores: [...ELECTRON_HOST_FILES, ...ELECTRON_IMPORT_ALLOWLIST],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '业务模块不能直接依赖 electron：平台能力走宿主端口，窗口广播走事件（docs/design/core-host-decoupling.md §6）；宿主代码放 src/host/。',
+            },
+          ],
+          patterns: [CHARACTER_PACK_IMPORT],
+        },
+      ],
+    },
+  },
+  // 内核 / 契约 / 端口 / 角色契约等包整个都不能依赖 electron（§3.2、§11.1）
+  {
+    files: ELECTRON_FREE_PACKAGES.map((p) => `${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '这个包不能依赖 electron（docs/design/core-host-decoupling.md §3.2、§11.1）。',
+            },
+          ],
+          patterns: [CHARACTER_PACK_IMPORT],
+        },
+      ],
+    },
+  },
+  // 内核（@nomi-ai/core）的依赖方向（docs/design/core-host-decoupling.md §3.2、§11.1）：不依赖 electron
+  // （包括 electron-updater 这类只能在 Electron 里跑的包），也不依赖宿主包、视图包与 ui。
+  // 宿主能力经 @nomi-ai/host-ports 的端口注入，视图只经契约访问内核。
+  {
+    files: ['apps/desktop-electron/internal/core/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '内核不能依赖 electron：平台能力走宿主端口（docs/design/core-host-decoupling.md §3.2、§6）。',
+            },
+          ],
+          patterns: [
+            CHARACTER_PACK_IMPORT,
+            {
+              group: ['electron/*', 'electron-*', '@electron/*'],
+              message:
+                '内核不能依赖 Electron 专用的包：由宿主实现后注入（docs/design/core-host-decoupling.md §3.2）。',
+            },
+            {
+              group: [
+                '@nomi-ai/host-electron',
+                '@nomi-ai/host-electron/*',
+                '@nomi-ai/bundle-ig-electron-caps',
+                '@nomi-ai/bundle-ig-electron-caps/*',
+                '**/desktop-electron/src/**',
+              ],
+              message: '内核不能依赖宿主包：宿主能力经 @nomi-ai/host-ports 的端口注入（§3.2）。',
+            },
+            {
+              group: [
+                '@nomi-ai/ui',
+                '@nomi-ai/ui/*',
+                '@nomi-ai/ai-chat',
+                '@nomi-ai/ai-chat/*',
+                '@nomi-ai/renderer',
+                '@nomi-ai/renderer/*',
+                '@nomi-ai/ai-sdk-client',
+                '@nomi-ai/ai-sdk-client/*',
+                '@nomi-ai/voice',
+                '@nomi-ai/voice/*',
+                '@nomi-ai/avatar-runtime',
+                '@nomi-ai/avatar-runtime/*',
+              ],
+              message: '内核不能依赖视图包与 ui：视图只经契约访问内核（§3.2）。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // avatar-runtime 是纯浏览器的角色引擎（§3.2、§10.6、§11.1）：经注入的 AvatarEventSource 接 AI，
+  // 不依赖契约、electron、AI SDK 客户端或任何视图包（renderer 的 services/api 等）；也不用 ui。
+  // 这条放在 ELECTRON_FREE_PACKAGES 之后，覆盖那里的 no-restricted-imports（electron 也在下面）。
+  {
+    files: ['packages/avatar-runtime/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'electron', message: 'avatar-runtime 不能依赖 electron（§3.2、§11.1）。' },
+          ],
+          patterns: [
+            CHARACTER_PACK_IMPORT,
+            {
+              group: [
+                '@nomi-ai/contract',
+                '@nomi-ai/contract/*',
+                '@nomi-ai/ai-sdk',
+                '@nomi-ai/ai-sdk/*',
+                '@nomi-ai/ai-sdk-client',
+                '@nomi-ai/ai-sdk-client/*',
+                '@nomi-ai/host-*',
+                '@nomi-ai/core',
+                '@nomi-ai/core/*',
+                '@nomi-ai/renderer',
+                '@nomi-ai/renderer/*',
+                '@nomi-ai/ai-chat',
+                '@nomi-ai/ai-chat/*',
+                '@nomi-ai/ui',
+                '@nomi-ai/ui/*',
+                '**/services/api',
+                '**/renderer/src/**',
+              ],
+              message:
+                'avatar-runtime 只依赖 character-contract 与浏览器 API：AI 与宿主能力经注入的 AvatarEventSource / AvatarWindowHost / 回调接入（§10.6）。',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
+          message: 'avatar-runtime 不访问宿主全局：宿主能力经注入的接口传进来（§10.6）。',
+        },
+      ],
+    },
+  },
+  // 动态加载 electron（require / nodeRequire()(…) / createRequire(…)(…) / import()）绕过了静态 import 检查：
+  // 宿主区域之外一律禁止；既有用法在 ELECTRON_DYNAMIC_ALLOWLIST（shrink only）。
+  {
+    files: [
+      'packages/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      ...ELECTRON_FREE_PACKAGES.map((p) => `${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+    ],
+    ignores: [
+      ...ELECTRON_HOST_FILES,
+      ...ELECTRON_DYNAMIC_ALLOWLIST,
+      '**/*.{test,spec}.{ts,tsx}',
+      '**/tests/**',
+      '**/__tests__/**',
+    ],
+    plugins: { nomi: nomiPlugin },
+    rules: { 'nomi/no-dynamic-electron': 'error' },
   },
 
   // 测试文件放宽
@@ -173,9 +411,13 @@ export default tseslint.config(
     },
   },
 
-  // 遗留 electron 主进程代码（P0 之前既存业务代码，待 P3 迁移时再逐个清理）
+  // 遗留 electron 主进程代码（P0 之前既存业务代码，P3 搬进 apps/desktop-electron/internal/core 后沿用同样的放宽，再逐个清理）
   {
-    files: ['packages/electron/**/*.{ts,tsx,js,cjs,mjs}'],
+    files: [
+      'apps/desktop-electron/{src,tests,scripts}/**/*.{ts,tsx,js,cjs,mjs}',
+      'apps/desktop-electron/*.{ts,js,cjs,mjs}',
+      'apps/desktop-electron/internal/core/**/*.{ts,tsx,js,cjs,mjs}',
+    ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-namespace': 'warn',
@@ -234,13 +476,109 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  // 视图只经契约访问内核（docs/design/core-host-decoupling.md §8、§11.1）：preload 只暴露
+  // `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），开发服务器（pnpm dev:web）注入
+  // `window.nomiDevTransport`（WebSocket 传输的地址与 token），三者都只能在每个视图包唯一的 `services/api.ts`
+  // 里读，传输也只在那里选；旧桥 `window.aiIPC` / `window.electronAPI` 已删除，也不许再声明或访问。
+  {
+    files: [
+      'packages/ai-chat/src/**/*.{ts,tsx}',
+      'packages/renderer/src/**/*.{ts,tsx}',
+      'packages/ui/src/**/*.{ts,tsx}',
+      'packages/voice/src/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/src/services/api.ts', '**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
+          message:
+            '视图不直接访问 preload 全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
+        },
+        {
+          selector: 'Identifier[name=/^(aiIPC|electronAPI)$/]',
+          message:
+            'window.aiIPC / window.electronAPI 已删除：改用 services/api 的契约客户端（§11.1）。',
+        },
+        {
+          selector:
+            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|NOMI_DEV_TRANSPORT_GLOBAL|getGlobalBridge|getSharedTransport|installSharedTransport|lazyGlobalTransport|createAppClient|createWebSocketClientTransport|createIpcClientTransport)$/]',
+          message:
+            '契约客户端只在 services/api.ts 里建一次，其余代码 import { api } from services/api（§11.1）。',
+        },
+        {
+          selector: "ImportSpecifier[imported.name='ipcRenderer']",
+          message: '视图不发原始 IPC：调用内核用 services/api 的 api.*（§11.1）。',
+        },
+      ],
+    },
+  },
+
+  // 主进程只经契约传输（host/contractIpc.ts）接收视图的调用：宿主目录之外不注册 ipcMain 通道（§11.1）。
+  {
+    files: ['apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    ignores: ['apps/desktop-electron/src/host/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ImportSpecifier[imported.name='ipcMain'], MemberExpression[property.name='ipcMain']",
+          message:
+            '不注册 ipcMain 通道：视图的调用经契约（contract/src/app/<域>.ts + host/contract/<域>.ts），推送经 events.publish（§11.1）。',
+        },
+      ],
+    },
+  },
+
   // 集中日志：产品源码只能用 createLogger / createMainLogger（生产环境静默 debug / info），
   // console.warn / console.error 仍允许（始终输出）。日志实现文件自行 eslint-disable。
   {
-    files: ['packages/*/src/**/*.{ts,tsx}'],
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/src/**/*.{ts,tsx}',
+    ],
     ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**'],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  // 不用系统弹窗：macOS / Windows 样式不一、按钮跟系统语言走。
+  // 确认 / 输入用 ai-chat 的 confirmDialog / promptDialog（components/ConfirmDialog）。
+  {
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/src/**/*.{ts,tsx}',
+    ],
+    ignores: [
+      '**/*.{test,spec}.{ts,tsx}',
+      '**/tests/**',
+      'apps/desktop-electron/src/**',
+      'apps/desktop-electron/internal/core/**',
+    ],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['alert', 'confirm', 'prompt'].map((name) => ({
+          name,
+          message:
+            '不用系统弹窗：确认 / 输入用 confirmDialog / promptDialog（ai-chat/components/ConfirmDialog）',
+        })),
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['alert', 'confirm', 'prompt'].map((property) => ({
+          object: 'window',
+          property,
+          message:
+            '不用系统弹窗：确认 / 输入用 confirmDialog / promptDialog（ai-chat/components/ConfirmDialog）',
+        })),
+      ],
     },
   },
 );

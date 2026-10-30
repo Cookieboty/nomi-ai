@@ -120,10 +120,10 @@ describe('deriveBubble', () => {
   it('maps tool:executed ok to success bubble', () => {
     const bubble = deriveBubble({
       kind: 'tool:executed',
-      payload: { toolName: 'live2d_play_motion', ok: true, reqId: 'r1' },
+      payload: { toolName: 'avatar_gesture', ok: true, reqId: 'r1' },
     });
     expect(bubble).not.toBeNull();
-    expect(bubble!.text).toContain('live2d_play_motion');
+    expect(bubble!.text).toContain('avatar_gesture');
     expect(bubble!.text.startsWith('✅')).toBe(true);
     expect(bubble!.priority).toBe(BUBBLE_PRIORITY.toolExecuted);
   });
@@ -131,21 +131,11 @@ describe('deriveBubble', () => {
   it('maps tool:executed failure to warning bubble', () => {
     const bubble = deriveBubble({
       kind: 'tool:executed',
-      payload: { toolName: 'live2d_set_expression', ok: false, error: 'not found' },
+      payload: { toolName: 'avatar_emotion', ok: false, error: 'not found' },
     });
     expect(bubble).not.toBeNull();
     expect(bubble!.text.startsWith('⚠️')).toBe(true);
     expect(bubble!.text).toContain('not found');
-  });
-
-  it('maps live2d:touch to bubble with hit area', () => {
-    const bubble = deriveBubble({
-      kind: 'live2d:touch',
-      payload: { hitArea: 'head' },
-    });
-    expect(bubble).not.toBeNull();
-    expect(bubble!.text).toContain('head');
-    expect(bubble!.priority).toBe(BUBBLE_PRIORITY.touch);
   });
 });
 

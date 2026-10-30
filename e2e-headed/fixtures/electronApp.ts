@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ElectronApplication, Page } from '@playwright/test';
@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export interface HeadedLaunchOptions {
-  profile?: 'waifu' | 'chat-only' | 'mcp-headless';
+  profile?: 'companion' | 'chat-only' | 'mcp-headless';
   noWindow?: boolean;
 }
 
@@ -32,19 +32,19 @@ export function repoRoot(): string {
 /**
  * 定位 electron 可执行文件的**绝对路径**。
  *
- * 以 packages/electron 为起点做模块解析（pnpm 可能把 electron 提升到根 node_modules），
- * 拿到 `@nomi-ai/electron` 声明的那份 electron。Electron >= 44 不再在 postinstall 中
+ * 以 apps/desktop-electron 为起点做模块解析（pnpm 可能把 electron 提升到根 node_modules），
+ * 拿到 `@nomi-ai/host-electron` 声明的那份 electron。Electron >= 44 不再在 postinstall 中
  * 下载二进制：`require('electron')` 会在缺少 path.txt 时按需下载并返回可执行文件路径，
  * 因此直接用它（同时兼容 Windows 的 electron.exe 路径）。
  */
 export function resolveElectronExecutable(): string {
-  const req = createRequire(resolve(repoRoot(), 'packages', 'electron', 'package.json'));
+  const req = createRequire(resolve(repoRoot(), 'apps', 'desktop-electron', 'package.json'));
   let abs: unknown;
   try {
     abs = req('electron');
   } catch (err) {
     throw new Error(
-      `[e2e-headed] 无法从 packages/electron 解析/下载 electron；请先运行 pnpm install（${String(err)}）`,
+      `[e2e-headed] 无法从 apps/desktop-electron 解析/下载 electron；请先运行 pnpm install（${String(err)}）`,
       { cause: err },
     );
   }
@@ -85,7 +85,8 @@ export async function launchHeadedApp(opts: HeadedLaunchOptions = {}): Promise<{
     page = await app.firstWindow({ timeout: 20_000 });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForFunction(
-      () => typeof (globalThis as unknown as { aiIPC?: unknown }).aiIPC !== 'undefined',
+      () =>
+        typeof (globalThis as unknown as { nomiTransport?: unknown }).nomiTransport !== 'undefined',
       { timeout: 10_000 },
     );
   }
@@ -125,3 +126,14 @@ export const test = base.extend<HeadedFixture>({
 });
 
 export const expect = base.expect;
+
+/**
+ * 桌面角色默认是静态立绘（内核 mascot.renderer 默认 svg，Electron 与 Go 相同）；专测 Rive 的用例在启动前调用，
+ * 等同于用户在设置 → 通用里打开「动画（Rive）」。写的是全新 userData 的 settings.json
+ */
+export function useRiveRenderer(userData: string): void {
+  writeFileSync(
+    join(userData, 'settings.json'),
+    `${JSON.stringify({ mascot: { renderer: 'rive' } })}\n`,
+  );
+}

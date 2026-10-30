@@ -4,8 +4,9 @@
  * Overrides persist in localStorage.
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
 
+import { BUNDLED_PACK, isActivePackModel } from './characterConfig';
+import { bubbleText } from './characterCopy';
 import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
@@ -18,12 +19,16 @@ import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
-/** Built-in softer defaults by model id / tag family. */
+/**
+ * Built-in softer defaults keyed by the bundled pack id (manifest.defaults). Keyed statically —
+ * the Scheme B overlay settles asynchronously; lookups go through isActivePackModel instead.
+ */
+const PACK_ID = BUNDLED_PACK.id;
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
-  nomi: {
-    voiceHint: 'nomi',
-    rate: 0.92,
-    pitch: 1.1,
+  [PACK_ID]: {
+    voiceHint: BUNDLED_PACK.defaults.voiceHint || 'xiaoxiao',
+    rate: BUNDLED_PACK.defaults.voiceRate ?? 0.92,
+    pitch: BUNDLED_PACK.defaults.voicePitch ?? 1.1,
   },
 };
 
@@ -36,7 +41,7 @@ type OverrideMap = Record<string, ModelVoiceConfig>;
 let activeModelName: string | null = null;
 let activeModelConfig: ModelConfig | undefined;
 
-/** 当前看板娘模型名（诺米提示语音据此判断是否适用） */
+/** 当前桌面角色模型名（角色提示语音据此判断是否适用） */
 export function getActiveModelName(): string | null {
   return activeModelName;
 }
@@ -83,6 +88,7 @@ export function defaultsForCharacter(
 ): ModelVoiceConfig {
   if (modelName && CHARACTER_VOICE_DEFAULTS[modelName])
     return { ...CHARACTER_VOICE_DEFAULTS[modelName] };
+  if (isActivePackModel(modelName)) return { ...CHARACTER_VOICE_DEFAULTS[PACK_ID] };
   if (tags?.includes('sprite') || tags?.includes('soft') || tags?.includes('2d'))
     return { ...SOFT_2D_VOICE };
   return { ...GENERIC_VOICE };
@@ -124,8 +130,12 @@ export function resolvePrefsForCharacter(
 
 export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}): boolean {
   // 模块常量里的台词（提示音 / 触摸反应 / 整点报时）存的是 key，朗读前晚翻译；普通文本原样返回
-  const text = t(key);
-  // 看板娘已关闭：不再播放语音
+  const text = bubbleText(key);
+  if (!text) {
+    opts.onEnd?.();
+    return false;
+  }
+  // 桌面角色已关闭：不再播放语音
   if (isMascotMuted()) {
     opts.onEnd?.();
     return false;
@@ -139,7 +149,7 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
     return false;
   }
 
-  // 顺序：诺米预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
+  // 顺序：角色预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
   void (async () => {
     try {
       const clip = await playPromptClip(key, {

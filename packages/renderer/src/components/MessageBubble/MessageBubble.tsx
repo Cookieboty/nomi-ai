@@ -1,3 +1,4 @@
+import { bubbleAnchorBox, layoutStore } from '@nomi-ai/avatar-runtime';
 import { t as tr } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -11,13 +12,14 @@ import {
   placeBubble,
   type BubblePlacement,
 } from '@/mascot/bubblePlacement';
-import { layoutStore } from '@/mascot/layoutStore';
+import { getHitboxes } from '@/mascot/characterConfig';
 import { toBubbleText } from '@/security/bubbleText';
+import { api, hasTransport } from '@/services/api';
 
 const PREF_W = 220;
 
 /**
- * 看板娘气泡。
+ * 桌面角色气泡。
  * - 只渲染纯文本（React 文本节点；见 security/bubbleText）。
  * - 位置跟随头部：放在头顶 / 头侧 / 肩下，永不压住脸，避开工具栏槽位，贴屏幕边缘时换边；
  *   尾巴指向头部。长文本在最大高度内滚动。
@@ -50,7 +52,10 @@ export const MessageBubble: React.FC = () => {
   }, [incoming, incomingMore]);
 
   const compute = useCallback(() => {
-    const { head, gutter } = layoutStore.get();
+    // bubbleAnchor is a ratio of the whole character box (same base as hitboxes), not the body box
+    const { head: measuredHead, gutter, charBox } = layoutStore.get();
+    const anchored = charBox ? bubbleAnchorBox(charBox, getHitboxes()) : null;
+    const head = anchored || measuredHead;
     const el = measureRef.current;
     if (!head || !el) {
       setPlace(null);
@@ -118,7 +123,7 @@ export const MessageBubble: React.FC = () => {
   }, [place]);
 
   const openChat = () => {
-    void window.electronAPI?.openAiChat?.();
+    if (hasTransport()) void api.window.openAiChat().catch(() => undefined);
   };
 
   const style: React.CSSProperties & Record<string, string | number> = place
@@ -153,7 +158,7 @@ export const MessageBubble: React.FC = () => {
     <>
       <div
         ref={bubbleRef}
-        id="waifu-tips-independent"
+        id="companion-tips-independent"
         data-mascot-ui={active && (scrolls || more) ? '' : undefined}
         data-scroll={scrolls ? '' : undefined}
         data-testid="mascot-bubble"

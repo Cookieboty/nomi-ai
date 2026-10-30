@@ -18,3 +18,12 @@ export function shouldIgnoreEscape(
   if (e.defaultPrevented || e.isComposing) return true;
   return isEditableTarget(e.target) && !owns?.(e.target);
 }
+
+/**
+ * 输入法正在组词（这次按键是给输入法的，不是给输入框的）。macOS 的 WebKit（Go 版的 WKWebView、Safari）
+ * 在确认上屏的那次回车之前就发出 compositionend，keydown 里 isComposing 已是 false，只有 keyCode 仍是 229；
+ * 所以「回车发送」等都要用它判断，不能只看 isComposing。
+ */
+export function isImeComposing(e: { isComposing?: boolean; keyCode?: number }): boolean {
+  return e.isComposing === true || e.keyCode === 229;
+}

@@ -1,0 +1,12 @@
+{
+  "wakePhrase": "你好，小纸",
+  "lines": {
+    "greet-companion": "哔！小纸开机了。",
+    "greet-welcome-back": "哔哔，欢迎回来。",
+    "tip-want-to-chat-about-something": "小纸在纸箱里待命。",
+    "tip-have-some-water-and-stay-hydrated": "记得喝水，小纸只需要充电。",
+    "time-good-morning-a-new-day-begins": "早上好，小纸已充满电。",
+    "greet-hello": "哔，我是小纸。",
+    "greet-lets-go": "哔，我是小纸，今天也一起加油。"
+  }
+}

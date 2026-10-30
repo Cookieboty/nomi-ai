@@ -8,7 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import type { AgentOption } from '../../slash/agentComplete';
 import { kindLabel, sourceLabel } from '../../slash/cards';
 import type { SlashGroup } from '../../slash/registry';
-import type { SlashCommand } from '../../slash/types';
+import type { ModelArgOption, SlashCommand } from '../../slash/types';
 import type { Range } from '../../utils/fuzzy';
 import { EndpointIcon } from '../EndpointIcon';
 
@@ -161,6 +161,61 @@ export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, on
             {!o.installed && (
               <span className={styles.kind}>{t('ui.mascot-theme.not-installed')}</span>
             )}
+          </button>
+        );
+      })}
+      <div className={styles.foot} aria-hidden="true">
+        {t('ui.slash-commands.select-enter-tab-choose-esc-close')}
+      </div>
+    </div>
+  );
+};
+
+interface ModelProps {
+  /** null = 还在读模型列表 */
+  options: readonly ModelArgOption[] | null;
+  active: number;
+  onPick: (o: ModelArgOption) => void;
+  onHover: (i: number) => void;
+}
+
+/** `/model ` 后的模型列表：沿用命令面板的样式；当前在用的标「当前」 */
+export const ModelArgPalette: React.FC<ModelProps> = ({ options, active, onPick, onHover }) => {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [active, options]);
+  return (
+    <div
+      className={styles.menu}
+      role="menu"
+      data-testid="slash-model-menu"
+      aria-label={t('ui.foundation.model')}
+    >
+      <div className={styles.group}>{t('ui.foundation.model')}</div>
+      {options?.length === 0 && (
+        <div className={styles.empty} data-testid="slash-model-empty">
+          {t('ui.slash-commands.no-matching-model')}
+        </div>
+      )}
+      {options?.map((o, i) => {
+        const on = i === active;
+        return (
+          <button
+            key={o.value}
+            ref={on ? activeRef : undefined}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${on ? styles.on : ''}`}
+            data-testid={`slash-model-${o.value}`}
+            aria-current={on ? 'true' : undefined}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseMove={() => !on && onHover(i)}
+            onClick={() => onPick(o)}
+          >
+            <span className={styles.name}>{o.label}</span>
+            {o.hint && <span className={styles.desc}>{o.hint}</span>}
+            {o.active && <span className={styles.kind}>{t('ui.providers-schedule.current')}</span>}
           </button>
         );
       })}

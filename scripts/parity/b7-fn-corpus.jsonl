@@ -1,0 +1,647 @@
+{"fn":"cleanTitle","args":[""]}
+{"fn":"cleanTitle","args":["<command-name>/clear</command-name>"]}
+{"fn":"cleanTitle","args":["<environment_context>\n  <cwd>/tmp</cwd>\n  <shell>bash</shell>\n  <current_date>2026-10-14</current_date>\n  <timezone>Asia/Shanghai</timezone>\n  <filesystem><workspace_roots><root>/tmp</root></workspace_roots><permission_profile type=\"managed\"><file_system type=\"restricted\"><entry access=\"read\"><special>:root</special></entry></file_system></permission_profile></filesystem>\n</environment_context>"]}
+{"fn":"cleanTitle","args":["Reply with exactly: pong"]}
+{"fn":"cleanTitle","args":["Reply with just the word PONG"]}
+{"fn":"cleanTitle","args":["[Nomi] 以下是这个对话之前在 /a 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\n<previous_conversation>\nUser: old q\n</previous_conversation>\n\n---\n\n新问题"]}
+{"fn":"cleanTitle","args":["compressed one"]}
+{"fn":"cleanTitle","args":["custom chat"]}
+{"fn":"cleanTitle","args":["custom dir task"]}
+{"fn":"cleanTitle","args":["first prompt"]}
+{"fn":"cleanTitle","args":["from nomi"]}
+{"fn":"cleanTitle","args":["from rollout"]}
+{"fn":"cleanTitle","args":["guardian"]}
+{"fn":"cleanTitle","args":["hi"]}
+{"fn":"cleanTitle","args":["indexed title"]}
+{"fn":"cleanTitle","args":["indexed"]}
+{"fn":"cleanTitle","args":["local task"]}
+{"fn":"cleanTitle","args":["main task"]}
+{"fn":"cleanTitle","args":["new indexed title"]}
+{"fn":"cleanTitle","args":["newer task"]}
+{"fn":"cleanTitle","args":["official chat"]}
+{"fn":"cleanTitle","args":["official"]}
+{"fn":"cleanTitle","args":["old project"]}
+{"fn":"cleanTitle","args":["old prompt"]}
+{"fn":"cleanTitle","args":["older task"]}
+{"fn":"cleanTitle","args":["plain cli"]}
+{"fn":"cleanTitle","args":["renamed by user"]}
+{"fn":"cleanTitle","args":["renamed"]}
+{"fn":"cleanTitle","args":["resumed"]}
+{"fn":"cleanTitle","args":["task 0"]}
+{"fn":"cleanTitle","args":["task 1"]}
+{"fn":"cleanTitle","args":["task 10"]}
+{"fn":"cleanTitle","args":["task 100"]}
+{"fn":"cleanTitle","args":["task 101"]}
+{"fn":"cleanTitle","args":["task 102"]}
+{"fn":"cleanTitle","args":["task 103"]}
+{"fn":"cleanTitle","args":["task 104"]}
+{"fn":"cleanTitle","args":["task 105"]}
+{"fn":"cleanTitle","args":["task 106"]}
+{"fn":"cleanTitle","args":["task 107"]}
+{"fn":"cleanTitle","args":["task 108"]}
+{"fn":"cleanTitle","args":["task 109"]}
+{"fn":"cleanTitle","args":["task 11"]}
+{"fn":"cleanTitle","args":["task 110"]}
+{"fn":"cleanTitle","args":["task 111"]}
+{"fn":"cleanTitle","args":["task 112"]}
+{"fn":"cleanTitle","args":["task 113"]}
+{"fn":"cleanTitle","args":["task 114"]}
+{"fn":"cleanTitle","args":["task 115"]}
+{"fn":"cleanTitle","args":["task 116"]}
+{"fn":"cleanTitle","args":["task 117"]}
+{"fn":"cleanTitle","args":["task 118"]}
+{"fn":"cleanTitle","args":["task 119"]}
+{"fn":"cleanTitle","args":["task 12"]}
+{"fn":"cleanTitle","args":["task 120"]}
+{"fn":"cleanTitle","args":["task 121"]}
+{"fn":"cleanTitle","args":["task 122"]}
+{"fn":"cleanTitle","args":["task 123"]}
+{"fn":"cleanTitle","args":["task 124"]}
+{"fn":"cleanTitle","args":["task 125"]}
+{"fn":"cleanTitle","args":["task 126"]}
+{"fn":"cleanTitle","args":["task 127"]}
+{"fn":"cleanTitle","args":["task 128"]}
+{"fn":"cleanTitle","args":["task 129"]}
+{"fn":"cleanTitle","args":["task 13"]}
+{"fn":"cleanTitle","args":["task 130"]}
+{"fn":"cleanTitle","args":["task 131"]}
+{"fn":"cleanTitle","args":["task 132"]}
+{"fn":"cleanTitle","args":["task 133"]}
+{"fn":"cleanTitle","args":["task 134"]}
+{"fn":"cleanTitle","args":["task 135"]}
+{"fn":"cleanTitle","args":["task 136"]}
+{"fn":"cleanTitle","args":["task 137"]}
+{"fn":"cleanTitle","args":["task 138"]}
+{"fn":"cleanTitle","args":["task 139"]}
+{"fn":"cleanTitle","args":["task 14"]}
+{"fn":"cleanTitle","args":["task 140"]}
+{"fn":"cleanTitle","args":["task 141"]}
+{"fn":"cleanTitle","args":["task 142"]}
+{"fn":"cleanTitle","args":["task 143"]}
+{"fn":"cleanTitle","args":["task 144"]}
+{"fn":"cleanTitle","args":["task 145"]}
+{"fn":"cleanTitle","args":["task 146"]}
+{"fn":"cleanTitle","args":["task 147"]}
+{"fn":"cleanTitle","args":["task 148"]}
+{"fn":"cleanTitle","args":["task 149"]}
+{"fn":"cleanTitle","args":["task 15"]}
+{"fn":"cleanTitle","args":["task 150"]}
+{"fn":"cleanTitle","args":["task 151"]}
+{"fn":"cleanTitle","args":["task 152"]}
+{"fn":"cleanTitle","args":["task 153"]}
+{"fn":"cleanTitle","args":["task 154"]}
+{"fn":"cleanTitle","args":["task 155"]}
+{"fn":"cleanTitle","args":["task 156"]}
+{"fn":"cleanTitle","args":["task 157"]}
+{"fn":"cleanTitle","args":["task 158"]}
+{"fn":"cleanTitle","args":["task 159"]}
+{"fn":"cleanTitle","args":["task 16"]}
+{"fn":"cleanTitle","args":["task 160"]}
+{"fn":"cleanTitle","args":["task 161"]}
+{"fn":"cleanTitle","args":["task 162"]}
+{"fn":"cleanTitle","args":["task 163"]}
+{"fn":"cleanTitle","args":["task 164"]}
+{"fn":"cleanTitle","args":["task 165"]}
+{"fn":"cleanTitle","args":["task 166"]}
+{"fn":"cleanTitle","args":["task 167"]}
+{"fn":"cleanTitle","args":["task 168"]}
+{"fn":"cleanTitle","args":["task 169"]}
+{"fn":"cleanTitle","args":["task 17"]}
+{"fn":"cleanTitle","args":["task 170"]}
+{"fn":"cleanTitle","args":["task 171"]}
+{"fn":"cleanTitle","args":["task 172"]}
+{"fn":"cleanTitle","args":["task 173"]}
+{"fn":"cleanTitle","args":["task 174"]}
+{"fn":"cleanTitle","args":["task 175"]}
+{"fn":"cleanTitle","args":["task 176"]}
+{"fn":"cleanTitle","args":["task 177"]}
+{"fn":"cleanTitle","args":["task 178"]}
+{"fn":"cleanTitle","args":["task 179"]}
+{"fn":"cleanTitle","args":["task 18"]}
+{"fn":"cleanTitle","args":["task 180"]}
+{"fn":"cleanTitle","args":["task 181"]}
+{"fn":"cleanTitle","args":["task 182"]}
+{"fn":"cleanTitle","args":["task 183"]}
+{"fn":"cleanTitle","args":["task 184"]}
+{"fn":"cleanTitle","args":["task 185"]}
+{"fn":"cleanTitle","args":["task 186"]}
+{"fn":"cleanTitle","args":["task 187"]}
+{"fn":"cleanTitle","args":["task 188"]}
+{"fn":"cleanTitle","args":["task 189"]}
+{"fn":"cleanTitle","args":["task 19"]}
+{"fn":"cleanTitle","args":["task 190"]}
+{"fn":"cleanTitle","args":["task 191"]}
+{"fn":"cleanTitle","args":["task 192"]}
+{"fn":"cleanTitle","args":["task 193"]}
+{"fn":"cleanTitle","args":["task 194"]}
+{"fn":"cleanTitle","args":["task 195"]}
+{"fn":"cleanTitle","args":["task 196"]}
+{"fn":"cleanTitle","args":["task 197"]}
+{"fn":"cleanTitle","args":["task 198"]}
+{"fn":"cleanTitle","args":["task 199"]}
+{"fn":"cleanTitle","args":["task 2"]}
+{"fn":"cleanTitle","args":["task 20"]}
+{"fn":"cleanTitle","args":["task 200"]}
+{"fn":"cleanTitle","args":["task 201"]}
+{"fn":"cleanTitle","args":["task 202"]}
+{"fn":"cleanTitle","args":["task 203"]}
+{"fn":"cleanTitle","args":["task 204"]}
+{"fn":"cleanTitle","args":["task 205"]}
+{"fn":"cleanTitle","args":["task 206"]}
+{"fn":"cleanTitle","args":["task 207"]}
+{"fn":"cleanTitle","args":["task 208"]}
+{"fn":"cleanTitle","args":["task 209"]}
+{"fn":"cleanTitle","args":["task 21"]}
+{"fn":"cleanTitle","args":["task 210"]}
+{"fn":"cleanTitle","args":["task 211"]}
+{"fn":"cleanTitle","args":["task 212"]}
+{"fn":"cleanTitle","args":["task 213"]}
+{"fn":"cleanTitle","args":["task 214"]}
+{"fn":"cleanTitle","args":["task 215"]}
+{"fn":"cleanTitle","args":["task 216"]}
+{"fn":"cleanTitle","args":["task 217"]}
+{"fn":"cleanTitle","args":["task 218"]}
+{"fn":"cleanTitle","args":["task 219"]}
+{"fn":"cleanTitle","args":["task 22"]}
+{"fn":"cleanTitle","args":["task 220"]}
+{"fn":"cleanTitle","args":["task 221"]}
+{"fn":"cleanTitle","args":["task 222"]}
+{"fn":"cleanTitle","args":["task 223"]}
+{"fn":"cleanTitle","args":["task 224"]}
+{"fn":"cleanTitle","args":["task 225"]}
+{"fn":"cleanTitle","args":["task 226"]}
+{"fn":"cleanTitle","args":["task 227"]}
+{"fn":"cleanTitle","args":["task 228"]}
+{"fn":"cleanTitle","args":["task 229"]}
+{"fn":"cleanTitle","args":["task 23"]}
+{"fn":"cleanTitle","args":["task 230"]}
+{"fn":"cleanTitle","args":["task 231"]}
+{"fn":"cleanTitle","args":["task 232"]}
+{"fn":"cleanTitle","args":["task 233"]}
+{"fn":"cleanTitle","args":["task 234"]}
+{"fn":"cleanTitle","args":["task 235"]}
+{"fn":"cleanTitle","args":["task 236"]}
+{"fn":"cleanTitle","args":["task 237"]}
+{"fn":"cleanTitle","args":["task 238"]}
+{"fn":"cleanTitle","args":["task 239"]}
+{"fn":"cleanTitle","args":["task 24"]}
+{"fn":"cleanTitle","args":["task 240"]}
+{"fn":"cleanTitle","args":["task 241"]}
+{"fn":"cleanTitle","args":["task 242"]}
+{"fn":"cleanTitle","args":["task 243"]}
+{"fn":"cleanTitle","args":["task 244"]}
+{"fn":"cleanTitle","args":["task 245"]}
+{"fn":"cleanTitle","args":["task 246"]}
+{"fn":"cleanTitle","args":["task 247"]}
+{"fn":"cleanTitle","args":["task 248"]}
+{"fn":"cleanTitle","args":["task 249"]}
+{"fn":"cleanTitle","args":["task 25"]}
+{"fn":"cleanTitle","args":["task 250"]}
+{"fn":"cleanTitle","args":["task 251"]}
+{"fn":"cleanTitle","args":["task 252"]}
+{"fn":"cleanTitle","args":["task 253"]}
+{"fn":"cleanTitle","args":["task 254"]}
+{"fn":"cleanTitle","args":["task 255"]}
+{"fn":"cleanTitle","args":["task 256"]}
+{"fn":"cleanTitle","args":["task 257"]}
+{"fn":"cleanTitle","args":["task 258"]}
+{"fn":"cleanTitle","args":["task 259"]}
+{"fn":"cleanTitle","args":["task 26"]}
+{"fn":"cleanTitle","args":["task 260"]}
+{"fn":"cleanTitle","args":["task 261"]}
+{"fn":"cleanTitle","args":["task 262"]}
+{"fn":"cleanTitle","args":["task 263"]}
+{"fn":"cleanTitle","args":["task 264"]}
+{"fn":"cleanTitle","args":["task 265"]}
+{"fn":"cleanTitle","args":["task 266"]}
+{"fn":"cleanTitle","args":["task 267"]}
+{"fn":"cleanTitle","args":["task 268"]}
+{"fn":"cleanTitle","args":["task 269"]}
+{"fn":"cleanTitle","args":["task 27"]}
+{"fn":"cleanTitle","args":["task 270"]}
+{"fn":"cleanTitle","args":["task 271"]}
+{"fn":"cleanTitle","args":["task 272"]}
+{"fn":"cleanTitle","args":["task 273"]}
+{"fn":"cleanTitle","args":["task 274"]}
+{"fn":"cleanTitle","args":["task 275"]}
+{"fn":"cleanTitle","args":["task 276"]}
+{"fn":"cleanTitle","args":["task 277"]}
+{"fn":"cleanTitle","args":["task 278"]}
+{"fn":"cleanTitle","args":["task 279"]}
+{"fn":"cleanTitle","args":["task 28"]}
+{"fn":"cleanTitle","args":["task 280"]}
+{"fn":"cleanTitle","args":["task 281"]}
+{"fn":"cleanTitle","args":["task 282"]}
+{"fn":"cleanTitle","args":["task 283"]}
+{"fn":"cleanTitle","args":["task 284"]}
+{"fn":"cleanTitle","args":["task 285"]}
+{"fn":"cleanTitle","args":["task 286"]}
+{"fn":"cleanTitle","args":["task 287"]}
+{"fn":"cleanTitle","args":["task 288"]}
+{"fn":"cleanTitle","args":["task 289"]}
+{"fn":"cleanTitle","args":["task 29"]}
+{"fn":"cleanTitle","args":["task 290"]}
+{"fn":"cleanTitle","args":["task 291"]}
+{"fn":"cleanTitle","args":["task 292"]}
+{"fn":"cleanTitle","args":["task 293"]}
+{"fn":"cleanTitle","args":["task 294"]}
+{"fn":"cleanTitle","args":["task 295"]}
+{"fn":"cleanTitle","args":["task 296"]}
+{"fn":"cleanTitle","args":["task 297"]}
+{"fn":"cleanTitle","args":["task 298"]}
+{"fn":"cleanTitle","args":["task 299"]}
+{"fn":"cleanTitle","args":["task 3"]}
+{"fn":"cleanTitle","args":["task 30"]}
+{"fn":"cleanTitle","args":["task 300"]}
+{"fn":"cleanTitle","args":["task 301"]}
+{"fn":"cleanTitle","args":["task 302"]}
+{"fn":"cleanTitle","args":["task 303"]}
+{"fn":"cleanTitle","args":["task 304"]}
+{"fn":"cleanTitle","args":["task 305"]}
+{"fn":"cleanTitle","args":["task 306"]}
+{"fn":"cleanTitle","args":["task 307"]}
+{"fn":"cleanTitle","args":["task 308"]}
+{"fn":"cleanTitle","args":["task 309"]}
+{"fn":"cleanTitle","args":["task 31"]}
+{"fn":"cleanTitle","args":["task 310"]}
+{"fn":"cleanTitle","args":["task 311"]}
+{"fn":"cleanTitle","args":["task 312"]}
+{"fn":"cleanTitle","args":["task 313"]}
+{"fn":"cleanTitle","args":["task 314"]}
+{"fn":"cleanTitle","args":["task 315"]}
+{"fn":"cleanTitle","args":["task 316"]}
+{"fn":"cleanTitle","args":["task 317"]}
+{"fn":"cleanTitle","args":["task 318"]}
+{"fn":"cleanTitle","args":["task 319"]}
+{"fn":"cleanTitle","args":["task 32"]}
+{"fn":"cleanTitle","args":["task 320"]}
+{"fn":"cleanTitle","args":["task 321"]}
+{"fn":"cleanTitle","args":["task 322"]}
+{"fn":"cleanTitle","args":["task 323"]}
+{"fn":"cleanTitle","args":["task 324"]}
+{"fn":"cleanTitle","args":["task 325"]}
+{"fn":"cleanTitle","args":["task 326"]}
+{"fn":"cleanTitle","args":["task 327"]}
+{"fn":"cleanTitle","args":["task 328"]}
+{"fn":"cleanTitle","args":["task 329"]}
+{"fn":"cleanTitle","args":["task 33"]}
+{"fn":"cleanTitle","args":["task 330"]}
+{"fn":"cleanTitle","args":["task 331"]}
+{"fn":"cleanTitle","args":["task 332"]}
+{"fn":"cleanTitle","args":["task 333"]}
+{"fn":"cleanTitle","args":["task 334"]}
+{"fn":"cleanTitle","args":["task 335"]}
+{"fn":"cleanTitle","args":["task 336"]}
+{"fn":"cleanTitle","args":["task 337"]}
+{"fn":"cleanTitle","args":["task 338"]}
+{"fn":"cleanTitle","args":["task 339"]}
+{"fn":"cleanTitle","args":["task 34"]}
+{"fn":"cleanTitle","args":["task 340"]}
+{"fn":"cleanTitle","args":["task 341"]}
+{"fn":"cleanTitle","args":["task 342"]}
+{"fn":"cleanTitle","args":["task 343"]}
+{"fn":"cleanTitle","args":["task 344"]}
+{"fn":"cleanTitle","args":["task 345"]}
+{"fn":"cleanTitle","args":["task 346"]}
+{"fn":"cleanTitle","args":["task 347"]}
+{"fn":"cleanTitle","args":["task 348"]}
+{"fn":"cleanTitle","args":["task 349"]}
+{"fn":"cleanTitle","args":["task 35"]}
+{"fn":"cleanTitle","args":["task 350"]}
+{"fn":"cleanTitle","args":["task 351"]}
+{"fn":"cleanTitle","args":["task 352"]}
+{"fn":"cleanTitle","args":["task 353"]}
+{"fn":"cleanTitle","args":["task 354"]}
+{"fn":"cleanTitle","args":["task 355"]}
+{"fn":"cleanTitle","args":["task 356"]}
+{"fn":"cleanTitle","args":["task 357"]}
+{"fn":"cleanTitle","args":["task 358"]}
+{"fn":"cleanTitle","args":["task 359"]}
+{"fn":"cleanTitle","args":["task 36"]}
+{"fn":"cleanTitle","args":["task 360"]}
+{"fn":"cleanTitle","args":["task 361"]}
+{"fn":"cleanTitle","args":["task 362"]}
+{"fn":"cleanTitle","args":["task 363"]}
+{"fn":"cleanTitle","args":["task 364"]}
+{"fn":"cleanTitle","args":["task 365"]}
+{"fn":"cleanTitle","args":["task 366"]}
+{"fn":"cleanTitle","args":["task 367"]}
+{"fn":"cleanTitle","args":["task 368"]}
+{"fn":"cleanTitle","args":["task 369"]}
+{"fn":"cleanTitle","args":["task 37"]}
+{"fn":"cleanTitle","args":["task 370"]}
+{"fn":"cleanTitle","args":["task 371"]}
+{"fn":"cleanTitle","args":["task 372"]}
+{"fn":"cleanTitle","args":["task 373"]}
+{"fn":"cleanTitle","args":["task 374"]}
+{"fn":"cleanTitle","args":["task 375"]}
+{"fn":"cleanTitle","args":["task 376"]}
+{"fn":"cleanTitle","args":["task 377"]}
+{"fn":"cleanTitle","args":["task 378"]}
+{"fn":"cleanTitle","args":["task 379"]}
+{"fn":"cleanTitle","args":["task 38"]}
+{"fn":"cleanTitle","args":["task 380"]}
+{"fn":"cleanTitle","args":["task 381"]}
+{"fn":"cleanTitle","args":["task 382"]}
+{"fn":"cleanTitle","args":["task 383"]}
+{"fn":"cleanTitle","args":["task 384"]}
+{"fn":"cleanTitle","args":["task 385"]}
+{"fn":"cleanTitle","args":["task 386"]}
+{"fn":"cleanTitle","args":["task 387"]}
+{"fn":"cleanTitle","args":["task 388"]}
+{"fn":"cleanTitle","args":["task 389"]}
+{"fn":"cleanTitle","args":["task 39"]}
+{"fn":"cleanTitle","args":["task 390"]}
+{"fn":"cleanTitle","args":["task 391"]}
+{"fn":"cleanTitle","args":["task 392"]}
+{"fn":"cleanTitle","args":["task 393"]}
+{"fn":"cleanTitle","args":["task 394"]}
+{"fn":"cleanTitle","args":["task 395"]}
+{"fn":"cleanTitle","args":["task 396"]}
+{"fn":"cleanTitle","args":["task 397"]}
+{"fn":"cleanTitle","args":["task 398"]}
+{"fn":"cleanTitle","args":["task 399"]}
+{"fn":"cleanTitle","args":["task 4"]}
+{"fn":"cleanTitle","args":["task 40"]}
+{"fn":"cleanTitle","args":["task 400"]}
+{"fn":"cleanTitle","args":["task 401"]}
+{"fn":"cleanTitle","args":["task 402"]}
+{"fn":"cleanTitle","args":["task 403"]}
+{"fn":"cleanTitle","args":["task 404"]}
+{"fn":"cleanTitle","args":["task 405"]}
+{"fn":"cleanTitle","args":["task 406"]}
+{"fn":"cleanTitle","args":["task 407"]}
+{"fn":"cleanTitle","args":["task 408"]}
+{"fn":"cleanTitle","args":["task 409"]}
+{"fn":"cleanTitle","args":["task 41"]}
+{"fn":"cleanTitle","args":["task 410"]}
+{"fn":"cleanTitle","args":["task 411"]}
+{"fn":"cleanTitle","args":["task 412"]}
+{"fn":"cleanTitle","args":["task 413"]}
+{"fn":"cleanTitle","args":["task 414"]}
+{"fn":"cleanTitle","args":["task 415"]}
+{"fn":"cleanTitle","args":["task 416"]}
+{"fn":"cleanTitle","args":["task 417"]}
+{"fn":"cleanTitle","args":["task 418"]}
+{"fn":"cleanTitle","args":["task 419"]}
+{"fn":"cleanTitle","args":["task 42"]}
+{"fn":"cleanTitle","args":["task 420"]}
+{"fn":"cleanTitle","args":["task 421"]}
+{"fn":"cleanTitle","args":["task 422"]}
+{"fn":"cleanTitle","args":["task 423"]}
+{"fn":"cleanTitle","args":["task 424"]}
+{"fn":"cleanTitle","args":["task 425"]}
+{"fn":"cleanTitle","args":["task 426"]}
+{"fn":"cleanTitle","args":["task 427"]}
+{"fn":"cleanTitle","args":["task 428"]}
+{"fn":"cleanTitle","args":["task 429"]}
+{"fn":"cleanTitle","args":["task 43"]}
+{"fn":"cleanTitle","args":["task 430"]}
+{"fn":"cleanTitle","args":["task 431"]}
+{"fn":"cleanTitle","args":["task 432"]}
+{"fn":"cleanTitle","args":["task 433"]}
+{"fn":"cleanTitle","args":["task 434"]}
+{"fn":"cleanTitle","args":["task 435"]}
+{"fn":"cleanTitle","args":["task 436"]}
+{"fn":"cleanTitle","args":["task 437"]}
+{"fn":"cleanTitle","args":["task 438"]}
+{"fn":"cleanTitle","args":["task 439"]}
+{"fn":"cleanTitle","args":["task 44"]}
+{"fn":"cleanTitle","args":["task 440"]}
+{"fn":"cleanTitle","args":["task 441"]}
+{"fn":"cleanTitle","args":["task 442"]}
+{"fn":"cleanTitle","args":["task 443"]}
+{"fn":"cleanTitle","args":["task 444"]}
+{"fn":"cleanTitle","args":["task 445"]}
+{"fn":"cleanTitle","args":["task 446"]}
+{"fn":"cleanTitle","args":["task 447"]}
+{"fn":"cleanTitle","args":["task 448"]}
+{"fn":"cleanTitle","args":["task 449"]}
+{"fn":"cleanTitle","args":["task 45"]}
+{"fn":"cleanTitle","args":["task 450"]}
+{"fn":"cleanTitle","args":["task 451"]}
+{"fn":"cleanTitle","args":["task 452"]}
+{"fn":"cleanTitle","args":["task 453"]}
+{"fn":"cleanTitle","args":["task 454"]}
+{"fn":"cleanTitle","args":["task 455"]}
+{"fn":"cleanTitle","args":["task 456"]}
+{"fn":"cleanTitle","args":["task 457"]}
+{"fn":"cleanTitle","args":["task 458"]}
+{"fn":"cleanTitle","args":["task 459"]}
+{"fn":"cleanTitle","args":["task 46"]}
+{"fn":"cleanTitle","args":["task 460"]}
+{"fn":"cleanTitle","args":["task 461"]}
+{"fn":"cleanTitle","args":["task 462"]}
+{"fn":"cleanTitle","args":["task 463"]}
+{"fn":"cleanTitle","args":["task 464"]}
+{"fn":"cleanTitle","args":["task 465"]}
+{"fn":"cleanTitle","args":["task 466"]}
+{"fn":"cleanTitle","args":["task 467"]}
+{"fn":"cleanTitle","args":["task 468"]}
+{"fn":"cleanTitle","args":["task 469"]}
+{"fn":"cleanTitle","args":["task 47"]}
+{"fn":"cleanTitle","args":["task 470"]}
+{"fn":"cleanTitle","args":["task 471"]}
+{"fn":"cleanTitle","args":["task 472"]}
+{"fn":"cleanTitle","args":["task 473"]}
+{"fn":"cleanTitle","args":["task 474"]}
+{"fn":"cleanTitle","args":["task 475"]}
+{"fn":"cleanTitle","args":["task 476"]}
+{"fn":"cleanTitle","args":["task 477"]}
+{"fn":"cleanTitle","args":["task 478"]}
+{"fn":"cleanTitle","args":["task 479"]}
+{"fn":"cleanTitle","args":["task 48"]}
+{"fn":"cleanTitle","args":["task 480"]}
+{"fn":"cleanTitle","args":["task 481"]}
+{"fn":"cleanTitle","args":["task 482"]}
+{"fn":"cleanTitle","args":["task 483"]}
+{"fn":"cleanTitle","args":["task 484"]}
+{"fn":"cleanTitle","args":["task 485"]}
+{"fn":"cleanTitle","args":["task 486"]}
+{"fn":"cleanTitle","args":["task 487"]}
+{"fn":"cleanTitle","args":["task 488"]}
+{"fn":"cleanTitle","args":["task 489"]}
+{"fn":"cleanTitle","args":["task 49"]}
+{"fn":"cleanTitle","args":["task 490"]}
+{"fn":"cleanTitle","args":["task 491"]}
+{"fn":"cleanTitle","args":["task 492"]}
+{"fn":"cleanTitle","args":["task 493"]}
+{"fn":"cleanTitle","args":["task 494"]}
+{"fn":"cleanTitle","args":["task 495"]}
+{"fn":"cleanTitle","args":["task 496"]}
+{"fn":"cleanTitle","args":["task 497"]}
+{"fn":"cleanTitle","args":["task 498"]}
+{"fn":"cleanTitle","args":["task 499"]}
+{"fn":"cleanTitle","args":["task 5"]}
+{"fn":"cleanTitle","args":["task 50"]}
+{"fn":"cleanTitle","args":["task 500"]}
+{"fn":"cleanTitle","args":["task 501"]}
+{"fn":"cleanTitle","args":["task 502"]}
+{"fn":"cleanTitle","args":["task 503"]}
+{"fn":"cleanTitle","args":["task 504"]}
+{"fn":"cleanTitle","args":["task 505"]}
+{"fn":"cleanTitle","args":["task 506"]}
+{"fn":"cleanTitle","args":["task 507"]}
+{"fn":"cleanTitle","args":["task 508"]}
+{"fn":"cleanTitle","args":["task 509"]}
+{"fn":"cleanTitle","args":["task 51"]}
+{"fn":"cleanTitle","args":["task 510"]}
+{"fn":"cleanTitle","args":["task 511"]}
+{"fn":"cleanTitle","args":["task 512"]}
+{"fn":"cleanTitle","args":["task 513"]}
+{"fn":"cleanTitle","args":["task 514"]}
+{"fn":"cleanTitle","args":["task 515"]}
+{"fn":"cleanTitle","args":["task 516"]}
+{"fn":"cleanTitle","args":["task 517"]}
+{"fn":"cleanTitle","args":["task 518"]}
+{"fn":"cleanTitle","args":["task 519"]}
+{"fn":"cleanTitle","args":["task 52"]}
+{"fn":"cleanTitle","args":["task 520"]}
+{"fn":"cleanTitle","args":["task 521"]}
+{"fn":"cleanTitle","args":["task 522"]}
+{"fn":"cleanTitle","args":["task 523"]}
+{"fn":"cleanTitle","args":["task 524"]}
+{"fn":"cleanTitle","args":["task 525"]}
+{"fn":"cleanTitle","args":["task 526"]}
+{"fn":"cleanTitle","args":["task 527"]}
+{"fn":"cleanTitle","args":["task 528"]}
+{"fn":"cleanTitle","args":["task 529"]}
+{"fn":"cleanTitle","args":["task 53"]}
+{"fn":"cleanTitle","args":["task 54"]}
+{"fn":"cleanTitle","args":["task 55"]}
+{"fn":"cleanTitle","args":["task 56"]}
+{"fn":"cleanTitle","args":["task 57"]}
+{"fn":"cleanTitle","args":["task 58"]}
+{"fn":"cleanTitle","args":["task 59"]}
+{"fn":"cleanTitle","args":["task 6"]}
+{"fn":"cleanTitle","args":["task 60"]}
+{"fn":"cleanTitle","args":["task 61"]}
+{"fn":"cleanTitle","args":["task 62"]}
+{"fn":"cleanTitle","args":["task 63"]}
+{"fn":"cleanTitle","args":["task 64"]}
+{"fn":"cleanTitle","args":["task 65"]}
+{"fn":"cleanTitle","args":["task 66"]}
+{"fn":"cleanTitle","args":["task 67"]}
+{"fn":"cleanTitle","args":["task 68"]}
+{"fn":"cleanTitle","args":["task 69"]}
+{"fn":"cleanTitle","args":["task 7"]}
+{"fn":"cleanTitle","args":["task 70"]}
+{"fn":"cleanTitle","args":["task 71"]}
+{"fn":"cleanTitle","args":["task 72"]}
+{"fn":"cleanTitle","args":["task 73"]}
+{"fn":"cleanTitle","args":["task 74"]}
+{"fn":"cleanTitle","args":["task 75"]}
+{"fn":"cleanTitle","args":["task 76"]}
+{"fn":"cleanTitle","args":["task 77"]}
+{"fn":"cleanTitle","args":["task 78"]}
+{"fn":"cleanTitle","args":["task 79"]}
+{"fn":"cleanTitle","args":["task 8"]}
+{"fn":"cleanTitle","args":["task 80"]}
+{"fn":"cleanTitle","args":["task 81"]}
+{"fn":"cleanTitle","args":["task 82"]}
+{"fn":"cleanTitle","args":["task 83"]}
+{"fn":"cleanTitle","args":["task 84"]}
+{"fn":"cleanTitle","args":["task 85"]}
+{"fn":"cleanTitle","args":["task 86"]}
+{"fn":"cleanTitle","args":["task 87"]}
+{"fn":"cleanTitle","args":["task 88"]}
+{"fn":"cleanTitle","args":["task 89"]}
+{"fn":"cleanTitle","args":["task 9"]}
+{"fn":"cleanTitle","args":["task 90"]}
+{"fn":"cleanTitle","args":["task 91"]}
+{"fn":"cleanTitle","args":["task 92"]}
+{"fn":"cleanTitle","args":["task 93"]}
+{"fn":"cleanTitle","args":["task 94"]}
+{"fn":"cleanTitle","args":["task 95"]}
+{"fn":"cleanTitle","args":["task 96"]}
+{"fn":"cleanTitle","args":["task 97"]}
+{"fn":"cleanTitle","args":["task 98"]}
+{"fn":"cleanTitle","args":["task 99"]}
+{"fn":"cleanTitle","args":["task a (edited)"]}
+{"fn":"cleanTitle","args":["task a"]}
+{"fn":"cleanTitle","args":["task b"]}
+{"fn":"cleanTitle","args":["third party chat"]}
+{"fn":"cleanTitle","args":["unknown"]}
+{"fn":"cleanTitle","args":["via cc-switch"]}
+{"fn":"cleanTitle","args":["via gateway"]}
+{"fn":"cleanTitle","args":["work task"]}
+{"fn":"cleanTitle","args":["修 bug"]}
+{"fn":"cleanTitle","args":["修复监视器"]}
+{"fn":"cleanTitle","args":["修复编程助手监视"]}
+{"fn":"cleanTitle","args":["修好了",120]}
+{"fn":"cleanTitle","args":["写测试"]}
+{"fn":"cleanTitle","args":["别的项目"]}
+{"fn":"cleanTitle","args":["好",120]}
+{"fn":"cleanTitle","args":["好了",120]}
+{"fn":"cleanTitle","args":["完成",120]}
+{"fn":"cleanTitle","args":["日志里没有错误",120]}
+{"fn":"cleanTitle","args":["旧任务 0"]}
+{"fn":"cleanTitle","args":["旧任务 1"]}
+{"fn":"cleanTitle","args":["旧任务 2"]}
+{"fn":"cleanTitle","args":["旧任务 3"]}
+{"fn":"cleanTitle","args":["旧任务 4"]}
+{"fn":"cleanTitle","args":["旧任务 5"]}
+{"fn":"cleanTitle","args":["测试都过了",120]}
+{"fn":"cleanTitle","args":["看看日志"]}
+{"fn":"cleanTitle","args":["跑测试"]}
+{"fn":"cleanTitle","args":[null,120]}
+{"fn":"cleanTitle","args":[null]}
+{"fn":"parseClaudeModels","args":[null]}
+{"fn":"parseClaudeModels","args":[{"commands":[],"models":[{"value":"default","resolvedModel":"claude-opus-mock","displayName":"Default (recommended)","description":"Default (recommended) (mock)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"opus","resolvedModel":"claude-opus-mock","displayName":"Opus Mock","description":"Opus Mock (mock)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"sonnet","resolvedModel":"claude-sonnet-mock","displayName":"Sonnet Mock","description":"Sonnet Mock (mock)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-old","resolvedModel":"claude-haiku-old","displayName":"Haiku Old","description":"Haiku Old (mock)"},{"value":"claude-opus-old","resolvedModel":"claude-opus-old","displayName":"Opus Old","description":"Opus Old (mock)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]},{"effort":null}]}
+{"fn":"parseClaudeModels","args":[{"models":[{"value":"default","resolvedModel":"claude-opus-5-5","displayName":"Default (recommended)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"],"defaultEffort":"high"},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-4-5-20251001","resolvedModel":"claude-haiku-4-5-20251001","displayName":"Haiku 4.5"},{"value":"claude-opus-4-6","resolvedModel":"claude-opus-4-6","displayName":"Opus 4.6","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]},{"effort":"low"}]}
+{"fn":"parseClaudeModels","args":[{"models":[{"value":"default","resolvedModel":"claude-opus-5-5","displayName":"Default (recommended)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"],"defaultEffort":"high"},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-4-5-20251001","resolvedModel":"claude-haiku-4-5-20251001","displayName":"Haiku 4.5"},{"value":"claude-opus-4-6","resolvedModel":"claude-opus-4-6","displayName":"Opus 4.6","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]}]}
+{"fn":"parseClaudeModels","args":[{"models":[{"value":"default","resolvedModel":"claude-opus-5-5","displayName":"Default (recommended)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-4-5-20251001","resolvedModel":"claude-haiku-4-5-20251001","displayName":"Haiku 4.5"},{"value":"claude-opus-4-6","resolvedModel":"claude-opus-4-6","displayName":"Opus 4.6","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]},{"effort":"auto"}]}
+{"fn":"parseClaudeModels","args":[{"models":[{"value":"default","resolvedModel":"claude-opus-5-5","displayName":"Default (recommended)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-4-5-20251001","resolvedModel":"claude-haiku-4-5-20251001","displayName":"Haiku 4.5"},{"value":"claude-opus-4-6","resolvedModel":"claude-opus-4-6","displayName":"Opus 4.6","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]},{"effort":"xhigh"}]}
+{"fn":"parseClaudeModels","args":[{"models":[{"value":"default","resolvedModel":"claude-opus-5-5","displayName":"Default (recommended)","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"]},{"value":"claude-haiku-4-5-20251001","resolvedModel":"claude-haiku-4-5-20251001","displayName":"Haiku 4.5"},{"value":"claude-opus-4-6","resolvedModel":"claude-opus-4-6","displayName":"Opus 4.6","supportsEffort":true,"supportedEffortLevels":["low","medium","high","max"]}]}]}
+{"fn":"parseClaudeModels","args":[{}]}
+{"fn":"parseClaudeTranscript","args":["###\n",1000000]}
+{"fn":"parseClaudeTranscript","args":["not json\n{\"type\":\"user\""]}
+{"fn":"parseClaudeTranscript","args":["{\"type\": \"queue-operation\", \"operation\": \"enqueue\", \"timestamp\": \"2026-10-14T19:41:11.941Z\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"content\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\"}\n{\"type\": \"queue-operation\", \"operation\": \"dequeue\", \"timestamp\": \"2026-10-14T19:41:11.942Z\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"parentUuid\": null, \"isSidechain\": false, \"promptId\": \"e80c2ccb-e081-47d2-ab59-aa6f74ae2fb9\", \"type\": \"user\", \"message\": {\"role\": \"user\", \"content\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\"}, \"uuid\": \"8882bbd2-4449-4a0c-9e4c-f9b7a77d0eb5\", \"timestamp\": \"2026-10-14T19:41:11.977Z\", \"permissionMode\": \"auto\", \"promptSource\": \"sdk\", \"turnOrigin\": \"sdk\", \"turnPosition\": {\"promptIndex\": 0, \"turnIndex\": 1}, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"8882bbd2-4449-4a0c-9e4c-f9b7a77d0eb5\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"8faf31ed-5509-4e0b-8629-8dbf591f3e99\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"8faf31ed-5509-4e0b-8629-8dbf591f3e99\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"39cad10a-3842-40e3-b703-36f2cf31e9a4\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"39cad10a-3842-40e3-b703-36f2cf31e9a4\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"b74f7378-a341-45a4-a43c-6a7773da8092\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"b74f7378-a341-45a4-a43c-6a7773da8092\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"c83df342-5b0f-46dc-9365-44952872c304\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"c83df342-5b0f-46dc-9365-44952872c304\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"54f12060-0d65-4369-823f-77d99bc2ef10\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"type\": \"atis-latch\", \"atis\": \"\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"parentUuid\": \"54f12060-0d65-4369-823f-77d99bc2ef10\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"1aba04ff-c7d6-4f43-a1bf-bcbca70cb433\", \"timestamp\": \"2026-10-14T19:41:11.995Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"1aba04ff-c7d6-4f43-a1bf-bcbca70cb433\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"6044bc99-fdcd-474d-933f-27c71843366f\", \"timestamp\": \"2026-10-14T19:41:11.996Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"6044bc99-fdcd-474d-933f-27c71843366f\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"76ce7e76-f58a-48c6-b2a9-e7a0cf38bbdb\", \"timestamp\": \"2026-10-14T19:41:11.997Z\", \"renderedRole\": \"user\", \"renderedBesideToolResult\": true, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"76ce7e76-f58a-48c6-b2a9-e7a0cf38bbdb\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"7a9ba150-5246-4fe0-966b-7b590c62cc5e\", \"timestamp\": \"2026-10-14T19:41:11.998Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"7a9ba150-5246-4fe0-966b-7b590c62cc5e\", \"isSidechain\": false, \"message\": {\"id\": \"chatcmpl-64\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"The project's codebase documentation is in the current CLAUDE.md file. To launch and view the changes on a working copy, open a new CLAUDE.md file with the `+` button, and use `claudit` to review the code. That tool will tell you what the changes do for the current feature.\"}], \"model\": \"qwen2.5:0.5b\", \"stop_reason\": \"end_turn\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"cache_creation_input_tokens\": 0, \"cache_read_input_tokens\": 0, \"output_tokens\": 68, \"output_tokens_details\": {\"thinking_tokens\": 0}, \"server_tool_use\": {\"web_search_requests\": 0, \"web_fetch_requests\": 0}, \"service_tier\": \"standard\", \"cache_creation\": {\"ephemeral_1h_input_tokens\": 0, \"ephemeral_5m_input_tokens\": 0}, \"inference_geo\": \"\", \"iterations\": [], \"speed\": \"standard\", \"fallback_credit\": null}, \"stop_details\": null}, \"serverClassifierRequest\": \"c171199e-2130-40c9-bc91-7704cb229ce4\", \"apiBlockIndex\": 0, \"requestedModel\": \"qwen2.5:0.5b\", \"type\": \"assistant\", \"uuid\": \"0c706e8a-ecf2-4795-a9c1-9a5d60ff953d\", \"timestamp\": \"2026-10-14T19:42:05.000Z\", \"effort\": \"high\", \"perTurnEffort\": null, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"0c706e8a-ecf2-4795-a9c1-9a5d60ff953d\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"3bbb583e-aab8-408a-b03c-c4208a406f6c\", \"timestamp\": \"2026-10-14T19:42:05.023Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"type\": \"last-prompt\", \"lastPrompt\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\", \"leafUuid\": \"3bbb583e-aab8-408a-b03c-c4208a406f6c\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"type\": \"atis-latch\", \"atis\": \"\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"type\": \"cost-state\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"totalCostUSD\": 0.00136, \"totalAPIDuration\": 52996, \"totalAPIDurationWithoutRetries\": 52993, \"totalToolDuration\": 0, \"totalLinesAdded\": 0, \"totalLinesRemoved\": 0, \"totalDuration\": 53411, \"startTime\": 1792006871634, \"modelUsage\": {\"qwen2.5:0.5b\": {\"inputTokens\": 0, \"outputTokens\": 68, \"thinkingTokens\": 0, \"cacheReadInputTokens\": 0, \"cacheCreationInputTokens\": 0, \"webSearchRequests\": 0, \"costUSD\": 0.00136}}, \"hasUnknownModelCost\": true}\n"]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"summary\",\"summary\":\"Refactor login flow\",\"leafUuid\":\"u9\"}\n{\"type\":\"user\",\"isSidechain\":false,\"isMeta\":true,\"message\":{\"role\":\"user\",\"content\":\"<local-command-caveat>ignore me</local-command-caveat>\"},\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":\"Fix the failing login test\"},\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m1\",\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\"},{\"type\":\"text\",\"text\":\"Let me look at the test.\"}],\"stop_reason\":null},\"timestamp\":\"2026-10-14T10:00:02.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m1\",\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Read\",\"input\":{\"file_path\":\"/work/app/login.test.ts\"}}],\"stop_reason\":\"tool_use\"},\"timestamp\":\"2026-10-14T10:00:03.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":\"file contents\"}]},\"timestamp\":\"2026-10-14T10:00:04.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":true,\"message\":{\"id\":\"s1\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"sub-agent chatter\"}],\"stop_reason\":\"end_turn\"},\"timestamp\":\"2026-10-14T10:00:05.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m2\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"The test expected a 401; fixed.\"}],\"stop_reason\":\"end_turn\"},\"timestamp\":\"2026-10-14T10:00:06.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks, now run it\"}]},\"timestamp\":\"2026-10-14T10:01:00.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n"]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"run it\"},\"timestamp\":\"2026-10-14T10:00:00.000Z\"}\n{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"b1\",\"name\":\"Bash\",\"input\":{\"command\":\"false\"}}],\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"cache_read_input_tokens\":100}},\"timestamp\":\"2026-10-14T10:00:01.000Z\"}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"b1\",\"content\":[{\"type\":\"text\",\"text\":\"exit 1\"}],\"is_error\":true}]},\"timestamp\":\"2026-10-14T10:00:02.000Z\"}\n{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"failed\"}],\"usage\":{\"input_tokens\":20,\"output_tokens\":7}},\"timestamp\":\"2026-10-14T10:00:03.000Z\"}"]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-04NBeZ\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task a\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-04NBeZ\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",1000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"via gateway\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",2000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"via gateway\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",2000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"work task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",2000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"unknown\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",1000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"official\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",1000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"local task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",1000000]}
+{"fn":"parseClaudeTranscript","args":["{\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"[Nomi] 以下是这个对话之前在 /a 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\\n<previous_conversation>\\nUser: old q\\n</previous_conversation>\\n\\n---\\n\\n新问题\"}}"]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"b","display_name":"B","visibility":"list","priority":2,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low"},{"effort":"ultra"},{"effort":"max"}]},{"slug":"a","display_name":"A","visibility":"list","priority":1,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium"},{"effort":"xhigh"}]},{"slug":"hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[]}]},{"model":"a","effort":"xhigh"}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"b","display_name":"B","visibility":"list","priority":2,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low"},{"effort":"ultra"},{"effort":"max"}]},{"slug":"a","display_name":"A","visibility":"list","priority":1,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium"},{"effort":"xhigh"}]},{"slug":"hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[]}]},{"model":"nope"}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"b","display_name":"B","visibility":"list","priority":2,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low"},{"effort":"ultra"},{"effort":"max"}]},{"slug":"a","display_name":"A","visibility":"list","priority":1,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium"},{"effort":"xhigh"}]},{"slug":"hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[]}]}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"mock-pro","display_name":"Mock Pro","visibility":"list","priority":2,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"},{"effort":"xhigh","description":"xhigh"},{"effort":"max","description":"max"},{"effort":"ultra","description":"ultra"}]},{"slug":"mock-mini","display_name":"Mock Mini","visibility":"list","priority":1,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"}]},{"slug":"mock-plain","display_name":"Mock Plain","visibility":"list","priority":3,"supported_reasoning_levels":[]},{"slug":"mock-hidden","display_name":"Mock Hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[{"effort":"low","description":"low"}]}]},{"model":"mock-pro","effort":"medium"}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"mock-pro","display_name":"Mock Pro","visibility":"list","priority":2,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"},{"effort":"xhigh","description":"xhigh"},{"effort":"max","description":"max"},{"effort":"ultra","description":"ultra"}]},{"slug":"mock-mini","display_name":"Mock Mini","visibility":"list","priority":1,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"}]},{"slug":"mock-plain","display_name":"Mock Plain","visibility":"list","priority":3,"supported_reasoning_levels":[]},{"slug":"mock-hidden","display_name":"Mock Hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[{"effort":"low","description":"low"}]}]},{"model":"mock-pro","effort":"ultra"}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"mock-pro","display_name":"Mock Pro","visibility":"list","priority":2,"default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"},{"effort":"xhigh","description":"xhigh"},{"effort":"max","description":"max"},{"effort":"ultra","description":"ultra"}]},{"slug":"mock-mini","display_name":"Mock Mini","visibility":"list","priority":1,"default_reasoning_level":"low","supported_reasoning_levels":[{"effort":"low","description":"low"},{"effort":"medium","description":"medium"},{"effort":"high","description":"high"}]},{"slug":"mock-plain","display_name":"Mock Plain","visibility":"list","priority":3,"supported_reasoning_levels":[]},{"slug":"mock-hidden","display_name":"Mock Hidden","visibility":"hide","priority":0,"supported_reasoning_levels":[{"effort":"low","description":"low"}]}]},{}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"r","visibility":"list","supported_reasoning_levels":[{"effort":"low"},{"effort":"high"}]},{"slug":"plain","visibility":"list","supported_reasoning_levels":[]}]},{"model":"r"}]}
+{"fn":"parseCodexModels","args":[{"models":[{"slug":"see","visibility":"list","input_modalities":["text","image"]},{"slug":"blind","visibility":"list","input_modalities":["text"]},{"slug":"unknown","visibility":"list"}]}]}
+{"fn":"parseCodexTranscript","args":[""]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\": \"2026-10-14T13:30:12.603Z\", \"ordinal\": 0, \"type\": \"session_meta\", \"payload\": {\"session_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"timestamp\": \"2026-10-14T13:30:12.547Z\", \"cwd\": \"/tmp\", \"originator\": \"codex_exec\", \"cli_version\": \"0.162.1\", \"source\": \"exec\", \"base_instructions\": {\"text\": \"(trimmed)\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.604Z\", \"ordinal\": 1, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_started\", \"turn_attribution\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_trigger\": \"exec\", \"parent_turn_id\": null, \"initiating_agent_path\": null, \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\"}, \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"started_at\": 1791984612, \"model_context_window\": 258400, \"collaboration_mode_kind\": \"default\"}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 2, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e2472b258af4\", \"role\": \"developer\", \"content\": [{\"type\": \"input_text\", \"text\": \"<skills_instructions>(trimmed)</skills_instructions>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6311965, \"content_item_kinds\": [\"host_skills.instructions\", \"permissions.instructions\"]}}, \"metadata\": {\"client_authored\": false, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 3, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e25ce6b2223f\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"<environment_context>\\n  <cwd>/tmp</cwd>\\n  <shell>bash</shell>\\n  <current_date>2026-10-14</current_date>\\n  <timezone>Asia/Shanghai</timezone>\\n  <filesystem><workspace_roots><root>/tmp</root></workspace_roots><permission_profile type=\\\"managed\\\"><file_system type=\\\"restricted\\\"><entry access=\\\"read\\\"><special>:root</special></entry></file_system></permission_profile></filesystem>\\n</environment_context>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6312072, \"content_item_kinds\": [\"environments.environment_context\"]}}}\n{\"timestamp\": \"2026-10-14T13:30:12.640Z\", \"ordinal\": 6, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"Reply with exactly: pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.639928, \"content_item_kinds\": [\"user.text\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"user\"}, \"revision\": \"retained_01a13a9b-3520-70a1-a124-396645fd0c32\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 0, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.641Z\", \"ordinal\": 7, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"UserMessage\", \"id\": \"01a13a9b-351f-79f2-9d70-91ccd153fb2b\", \"content\": [{\"type\": \"text\", \"text\": \"Reply with exactly: pong\", \"text_elements\": []}]}, \"started_at_ms\": 1791984612641, \"completed_at_ms\": 1791984612641}}\n{\"timestamp\": \"2026-10-14T13:30:24.027Z\", \"ordinal\": 8, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"AgentMessage\", \"id\": \"msg_843727\", \"content\": [{\"type\": \"Text\", \"text\": \"pong\"}]}, \"started_at_ms\": 1791984624000, \"completed_at_ms\": 1791984624027}}\n{\"timestamp\": \"2026-10-14T13:30:24.038Z\", \"ordinal\": 9, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_843727\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"content_item_kinds\": [\"unknown\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_843727\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"assistant\"}, \"revision\": \"retained_01a13a9b-61a6-79b3-b555-d5f9626435dc\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 1}}\n{\"timestamp\": \"2026-10-14T13:30:24.039Z\", \"ordinal\": 11, \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"total_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"last_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"model_context_window\": 258400}, \"rate_limits\": {\"limit_id\": \"codex\", \"limit_name\": null, \"primary\": null, \"secondary\": null, \"credits\": null, \"individual_limit\": null, \"spend_control_reached\": null, \"plan_type\": null, \"rate_limit_reached_type\": null}}}\n{\"timestamp\": \"2026-10-14T13:30:24.054Z\", \"ordinal\": 12, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_complete\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"last_agent_message\": \"pong\", \"started_at\": 1791984612, \"completed_at\": 1791984624, \"duration_ms\": 11454, \"time_to_first_token_ms\": 11401}}\n{\"timestamp\": \"2026-10-14T13:31:00.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"# AGENTS.md instructions for /tmp\\n\\n<INSTRUCTIONS>\\nbe nice\\n</INSTRUCTIONS>\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:01.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"List the files\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:02.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call\", \"name\": \"shell\", \"arguments\": \"{\\\"command\\\":[\\\"ls\\\"]}\", \"call_id\": \"c1\"}}\n{\"timestamp\": \"2026-10-14T13:31:03.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call_output\", \"call_id\": \"c1\", \"output\": \"a.txt\\nb.txt\"}}\n{\"timestamp\": \"2026-10-14T13:31:04.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"There are two files: a.txt and b.txt.\"}]}}\n"]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}}\n{\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"plan it\"}]}}\n{\"timestamp\":\"2026-10-14T10:00:02.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell\",\"arguments\":\"{\\\"command\\\":[\\\"false\\\"]}\",\"call_id\":\"x\"}}\n{\"timestamp\":\"2026-10-14T10:00:03.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"x\",\"output\":\"{\\\"output\\\":\\\"boom\\\",\\\"metadata\\\":{\\\"exit_code\\\":1,\\\"duration_seconds\\\":0.5}}\"}}"]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"/tmp/hist-work-JGEMJC\",\"source\":\"vscode\",\"originator\":\"Codex Desktop\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"compressed one\"}]}}\n",5000]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"vscode\",\"model_provider\":\"nomi_gateway\",\"originator\":\"nomi\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"third party chat\"}]}}\n",3000]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000001\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"cli\",\"model_provider\":\"openai\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"official chat\"}]}}\n",2000]}
+{"fn":"parseCodexTranscript","args":["{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000002\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"cli\",\"model_provider\":\"my_proxy\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"custom chat\"}]}}\n",1000]}
+{"fn":"parseDshTranscript","args":["{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",1793261423615.1213]}
+{"fn":"parseDshTranscript","args":["{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n"]}
+{"fn":"parseDshTranscript","args":["{\"type\":\"user/message\"}"]}
+{"fn":"parseGeminiTranscript","args":["{\"sessionId\":\"g\",\"kind\":\"main\"}\n{\"id\":\"u\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"ls\"}]}\n{\"id\":\"i\",\"type\":\"info\",\"content\":\"Request cancelled.\"}\n{\"id\":\"m\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:02Z\",\"content\":\"\",\"toolCalls\":[{\"id\":\"t1\",\"name\":\"run_shell_command\",\"args\":{\"command\":\"ls\"}}]}\n{\"id\":\"m\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:03Z\",\"content\":\"\",\"thoughts\":[{\"subject\":\"Listing\",\"description\":\"run ls\"}],\"toolCalls\":[{\"id\":\"t1\",\"name\":\"run_shell_command\",\"args\":{\"command\":\"ls\"},\"status\":\"success\",\"result\":[],\"resultDisplay\":\"a.txt\"}]}\n{\"id\":\"m2\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:04Z\",\"content\":\"a.txt\"}"]}
+{"fn":"parseGeminiTranscript","args":["{\"sessionId\":\"gem-11111111\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n{\"id\":\"m1\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:02Z\",\"model\":\"gemini-2.5-pro\",\"reasoningEffort\":\"high\",\"permissionMode\":\"autoEdit\",\"content\":\"日志里没有错误\",\"tokens\":{\"input\":10,\"output\":4,\"cached\":2}}\n",2000000]}
+{"fn":"parseGrokModels","args":[{"default_model":"grok-4.7","models":{"grok-4.7":{"info":{"id":"grok-4.7","name":"Grok 4.7","supports_reasoning_effort":true,"reasoning_efforts":[{"id":"xhigh","value":"xhigh","default":false},{"id":"high","value":"high","default":true},{"id":"low","value":"low","default":false}],"reasoning_effort":"high"}},"grok-4.7-build-fast":{"info":{"id":"grok-4.7-build-fast","name":"Grok 4.7 Fast"}}}}]}
+{"fn":"parseGrokModels","args":[{"sessionId":"s","models":{"currentModelId":"grok-4.7","availableModels":[{"modelId":"grok-4.7","name":"Grok 4.7","_meta":{"supportsReasoningEffort":true,"reasoningEfforts":[{"value":"xhigh","default":false},{"value":"high","default":true},{"value":"medium","default":false},{"value":"low","default":false}]}},{"modelId":"grok-x","name":"X","_meta":{"supportsReasoningEffort":false}}]}}]}
+{"fn":"parseGrokModels","args":[{"sessionId":"session-mock-grok-1","models":{"currentModelId":"grok-mock","availableModels":[{"modelId":"grok-mock","name":"Grok Mock","_meta":{"supportsReasoningEffort":true,"reasoningEfforts":[{"id":"xhigh","value":"xhigh","label":"xhigh","default":false},{"id":"high","value":"high","label":"high","default":true},{"id":"medium","value":"medium","label":"medium","default":false},{"id":"low","value":"low","label":"low","default":false}]}},{"modelId":"grok-mock-old","name":"Grok Mock Old","_meta":{"supportsReasoningEffort":true,"reasoningEfforts":[{"id":"high","value":"high","label":"high","default":true},{"id":"medium","value":"medium","label":"medium","default":false},{"id":"low","value":"low","label":"low","default":false}]}}]},"modes":{"availableModes":[{"id":"plan","name":"plan"},{"id":"default","name":"default"},{"id":"acceptEdits","name":"acceptEdits"},{"id":"bypassPermissions","name":"bypassPermissions"},{"id":"dontAsk","name":"dontAsk"}]}}]}
+{"fn":"parseGrokTranscript","args":["{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-6jD11i\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"inspect project\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"current_mode_update\",\"currentModeId\":\"acceptEdits\"}\n{\"sessionId\":\"grok-session-1\",\"usage\":{\"modelUsage\":{\"grok-4.7-build\":{\"inputTokens\":1}}},\"reasoningEffort\":\"high\"}\n",0]}
+{"fn":"parseGrokTranscript","args":["{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-6jD11i\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"inspect project\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"current_mode_update\",\"currentModeId\":\"acceptEdits\"}\n{\"sessionId\":\"grok-session-1\",\"usage\":{\"modelUsage\":{\"grok-4.7-build\":{\"inputTokens\":1}}},\"reasoningEffort\":\"high\"}\n",3000000]}
+{"fn":"parseGrokTranscript","args":["{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-KCbXCg\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}\n",0]}
+{"fn":"parseGrokTranscript","args":["{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"user_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"你是什么模型\"}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"agent_thought_chunk\",\"content\":{\"type\":\"text\",\"text\":\"想一想\"}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"tool_call\",\"toolCallId\":\"c1\",\"title\":\"run_terminal_command\",\"rawInput\":{\"command\":\"ls\"},\"_meta\":{\"x.ai/tool\":{\"name\":\"run_terminal_command\"}}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"c1\",\"status\":\"completed\"}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"我是 Grok\"}}}}\n",0]}
+{"fn":"readClaudeEffortSetting","args":["{ broken"]}
+{"fn":"readClaudeEffortSetting","args":["{\"effortLevel\":\"medium\",\"model\":\"opus\"}"]}
+{"fn":"readClaudeEffortSetting","args":["{\"effortLevel\":\"medium\"}"]}
+{"fn":"readClaudeEffortSetting","args":["{\"model\":\"opus\"}"]}
+{"fn":"readCodexConfigDefaults","args":["[x]\nmodel = \"y\""]}
+{"fn":"readCodexConfigDefaults","args":["model = \"mock-pro\"\nmodel_reasoning_effort = \"medium\"\n"]}
+{"fn":"readCodexConfigDefaults","args":["model = \"mock-pro\"\nmodel_reasoning_effort = \"ultra\"\n"]}
+{"fn":"readCodexConfigDefaults","args":["model_provider = \"custom\"\nmodel_reasoning_effort = 'xhigh'\nmodel = \"Tifa-6-astra\"\n[model_providers.custom]\nmodel = \"inner\""]}
+{"fn":"titleFromMessages","args":[[{"id":"hist-0","role":"user","content":"hi","timestamp":0}]]}
+{"fn":"titleFromMessages","args":[[{"id":"hist-0","role":"user","content":"inspect project","timestamp":0},{"id":"hist-1","role":"assistant","content":"done","timestamp":0}]]}
+{"fn":"titleFromMessages","args":[[{"id":"hist-0","role":"user","content":"你是什么模型","timestamp":1792763438000},{"id":"hist-1","role":"assistant","content":"我是 Grok","timestamp":1792763438000,"trace":[{"type":"thinking","text":"想一想","at":1792763438000,"textAt":0},{"type":"tool","name":"run_terminal_command","status":"start","id":"c1","input":"{\"command\":\"ls\"}","at":1792763438000,"textAt":0},{"type":"tool","name":"run_terminal_command","status":"done","id":"c1","at":1792763438000}]}]]}

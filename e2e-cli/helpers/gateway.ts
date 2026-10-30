@@ -1,11 +1,17 @@
 /**
  * 进程内启动网关（直接用源码，不依赖 dist），上游指向假上游。
  */
-import { BUILTIN_GATEWAY_ENTRIES } from '../../packages/cli-plugins/src/gateways';
-import { registerClientSpec } from '../../packages/gateway/src/clients/index';
-import type { GatewayConfig, RuntimeModel } from '../../packages/gateway/src/config';
-import type { Wire } from '../../packages/gateway/src/ir';
-import { createGateway, type GatewayServer } from '../../packages/gateway/src/server';
+import { BUILTIN_GATEWAY_ENTRIES } from '../../apps/desktop-electron/internal/cli-plugins/src/gateways';
+import { registerClientSpec } from '../../apps/desktop-electron/internal/gateway/src/clients/index';
+import type {
+  GatewayConfig,
+  RuntimeModel,
+} from '../../apps/desktop-electron/internal/gateway/src/config';
+import type { Wire } from '../../apps/desktop-electron/internal/gateway/src/ir';
+import {
+  createGateway,
+  type GatewayServer,
+} from '../../apps/desktop-electron/internal/gateway/src/server';
 
 import type { FakeUpstream } from './upstream';
 

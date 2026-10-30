@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -18,7 +19,7 @@ import { revealToolbar } from './toolbarReveal';
  * 配置面板、Provider 面板、Provider 切换器、TTS 配置窗口。
  */
 const shotDir = process.env.UI_SHOTS_DIR;
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 
 test.describe('UI surfaces', () => {
@@ -59,7 +60,7 @@ test.describe('UI surfaces', () => {
     });
     const shot = (p: Page, name: string) => p.screenshot({ path: join(shotDir!, `${name}.png`) });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await main
       .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
@@ -137,11 +138,7 @@ test.describe('UI surfaces', () => {
 
     // AI 对话窗口
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1000, height: 760 }).catch(() => undefined);
     await chat.waitForSelector('textarea', { timeout: 20_000 });

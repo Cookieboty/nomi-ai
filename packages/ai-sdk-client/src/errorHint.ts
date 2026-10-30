@@ -60,10 +60,6 @@ const HINT_TEXT: Partial<Record<SDKErrorCode, { title: string; description: stri
     title: 'Profile 缺失',
     description: '未找到当前会话对应的 Profile 配置，请在 profile 管理中检查或重新指定。',
   },
-  [SDKErrorCodes.LIVE2D_NOT_AVAILABLE]: {
-    title: 'Nomi 形象不可用',
-    description: '当前环境未加载 Nomi 形象渲染器，相关能力已跳过。',
-  },
   [SDKErrorCodes.SEAM_NOT_INJECTED]: {
     title: '依赖未注入',
     description: '缺少对应的运行时依赖（如 ASR / TTS），请确认 Provider 挂载或稍后再试。',

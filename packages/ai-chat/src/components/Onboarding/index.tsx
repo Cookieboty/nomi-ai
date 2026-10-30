@@ -2,7 +2,7 @@
  * 首次启动引导：欢迎与语言 → 外观与启动 → 关于你（称呼、职业与兴趣）→ 接上模型 → 隐私与完成。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
- * 看板娘在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
+ * 桌面角色在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
  */
 import {
   USER_INTERESTS,
@@ -19,6 +19,7 @@ import {
   setLocalePref,
   setTheme,
   t,
+  tName,
   useFocusTrap,
   useLocale,
   type LocalePref,
@@ -29,13 +30,16 @@ import { CheckCircle2, Cloud, FolderLock, KeyRound, Lock, PlugZap } from 'lucide
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
+import {
+  characterFullName,
+  characterName,
+  characterPronoun,
+  useCharacterName,
+} from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
-import privacyArt from './art/privacy.webp';
-import profileArt from './art/profile.webp';
-import providerArt from './art/provider.webp';
-import welcomeArt from './art/welcome.webp';
+import { BUILTIN_ONBOARDING_ART, resolveOnboardingArt } from './artUrls';
 import {
   OPEN_MODELS_EVENT,
   matchTemplate,
@@ -50,24 +54,24 @@ const STEPS = ['welcome', 'profile', 'provider', 'privacy'] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
-  welcome: () => t('ui.mascot-theme.welcome-title'),
+  welcome: () => tName('ui.mascot-theme.welcome-title', characterFullName()),
   profile: () => t('ui.mascot-theme.about-you'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
-/** 看板娘在每一步说的话（最后一步视模型状态而定，见 lineFor） */
+/** 桌面角色在每一步说的话（最后一步视模型状态而定，见 lineFor） */
 const STEP_LINE: Record<Step, () => string> = {
-  welcome: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
+  welcome: () => tName('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who', characterFullName()),
   profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
 };
 /** 带插画的步骤：插画 + 一句介绍（窗口很矮时插画隐藏） */
-const STEP_ART: Record<Step, { src: string; intro?: () => string }> = {
-  welcome: { src: welcomeArt, intro: () => t('ui.mascot-theme.intro-welcome') },
-  profile: { src: profileArt, intro: () => t('ui.mascot-theme.intro-profile') },
-  provider: { src: providerArt, intro: () => t('ui.mascot-theme.intro-provider') },
-  privacy: { src: privacyArt },
+const STEP_ART_META: Record<Step, { intro?: () => string }> = {
+  welcome: { intro: () => t('ui.mascot-theme.intro-welcome') },
+  profile: { intro: () => t('ui.mascot-theme.intro-profile') },
+  provider: { intro: () => t('ui.mascot-theme.intro-provider') },
+  privacy: {},
 };
 
 const LANGS: { id: LocalePref; label: () => string }[] = [
@@ -80,13 +84,19 @@ const LANGS: { id: LocalePref; label: () => string }[] = [
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('ui.mascot-theme.open-with-nomi'),
-    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her'),
+    label: () => tName('ui.mascot-theme.open-with-nomi', characterName()),
+    hint: () =>
+      tName(
+        'ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her',
+        characterName(),
+        characterPronoun('possessive'),
+      ),
   },
   {
     id: 'main',
     label: () => t('ui.mascot-theme.open-with-the-console-main-window'),
-    hint: () => t('ui.mascot-theme.open-the-main-window-right-away-nomi-waits'),
+    hint: () =>
+      tName('ui.mascot-theme.open-the-main-window-right-away-nomi-waits', characterName()),
   },
 ];
 
@@ -131,11 +141,25 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
+  // 等角色包 overlay 解析完再出插画，避免先闪一下内置插画再换成角色包的
+  const [stepArt, setStepArt] = useState<Record<Step, string> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void resolveOnboardingArt().then((art) => {
+      if (alive) setStepArt(art);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const [i, setI] = useState(0);
   // 引导是阻断式对话框：焦点留在卡片内（Esc 不关闭，需点「跳过引导」）
   const cardRef = useRef<HTMLDivElement>(null);
   useFocusTrap(cardRef, true);
   const step = STEPS[i]!;
+  // 角色名到达 / 变化时重新渲染（标题与桌面角色台词里有它）
+  useCharacterName();
   const model = useNomiModelStatus();
   const modelReady = model === 'ready';
   const [lang, setLang] = useState<LocalePref>(getLocalePref);
@@ -143,7 +167,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole | null>(null);
   const [interests, setInterests] = useState<UserInterest[]>([]);
-  // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
+  // 启动方式：默认桌面角色（保持历史行为）；点选即写入设置，跳过 / 不选则不改
   const [startup, setStartup] = useState<StartupView>('mascot');
   /** 「关于我」里引导那一段中认不出的行（手改的、换语言前写的）：重写时原样保留 */
   const keepLines = useRef<string[]>([]);
@@ -173,14 +197,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     });
     loaded.current = Promise.all([profile, persona]).then(() => undefined);
   }, []);
-  // 每进入一步，看板娘说一句；最后一步还没接上模型时提醒「还差一步」
+  // 每进入一步，桌面角色说一句；最后一步还没接上模型时提醒「还差一步」
   const line =
     step === 'privacy' && !modelReady ? t('ui.mascot-theme.one-step-left-line') : STEP_LINE[step]();
   useEffect(() => {
     onboardingClient.mascot({
       type: 'say',
       text: line,
-      motion: step === 'welcome' ? 'wave' : undefined,
+      gesture: step === 'welcome' ? 'wave' : undefined,
     });
   }, [step, line]);
 
@@ -226,7 +250,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           : modelReady
             ? t('ui.mascot-theme.all-set-i-m-here-to-help-turn')
             : t('ui.mascot-theme.one-step-left-line'),
-        motion: skipped || !modelReady ? undefined : 'cheer',
+        gesture: skipped || !modelReady ? undefined : 'cheer',
       });
       onDone(skipped);
     },
@@ -485,7 +509,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   })();
 
   const last = i === STEPS.length - 1;
-  const art = STEP_ART[step];
+  const artSrc = stepArt ? (stepArt[step] ?? BUILTIN_ONBOARDING_ART[step]) : null;
+  const artIntro = STEP_ART_META[step]?.intro;
   return (
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
       <div
@@ -498,7 +523,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
         <div
           className={styles.bg}
-          style={{ backgroundImage: `url(${art.src})` }}
+          style={artSrc ? { backgroundImage: `url(${artSrc})` } : undefined}
           aria-hidden
           data-testid="onb-art"
           data-art={step}
@@ -529,7 +554,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}
           </h1>
-          {art.intro && <p className={styles.intro}>{art.intro()}</p>}
+          {artIntro && <p className={styles.intro}>{artIntro()}</p>}
           <div className={styles.body}>{body}</div>
         </div>
         <footer className={styles.foot}>

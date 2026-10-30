@@ -2,7 +2,7 @@
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
  * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
  */
-import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
@@ -16,6 +16,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 
+import { confirmDialog } from '../components/ConfirmDialog';
 import {
   MAIN_TAB_ID,
   harnessClient,
@@ -67,6 +68,11 @@ interface HarnessTabsCore {
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
   hasTab: (tabId: string) => boolean;
+  /**
+   * 从当前标签的某条用户消息重新发送（重试 / 编辑）：它和之后的消息全部删除，
+   * CLI 会话丢弃、剩余对话作为前文开新会话，再发 text
+   */
+  resendFrom: (messageId: string, text: string) => Promise<void>;
   /** 各标签排队中的待发消息 */
   queues: Record<string, string[]>;
   removeQueued: (index: number) => void;
@@ -123,12 +129,13 @@ const EMPTY_MESSAGES: HarnessTabMessage[] = [];
 const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
 
 /** 还有后台子代理 / 后台任务时，停止或关闭前确认（它们会随进程一起结束） */
-function confirmStopBackground(tab: HarnessTabMeta | undefined): boolean {
+async function confirmStopBackground(tab: HarnessTabMeta | undefined): Promise<boolean> {
   const n = tab?.background ?? 0;
   if (!n) return true;
-  return window.confirm(
-    t('ui.chat-settings.background-tasks-are-still-running-and-will-be', String(n)),
-  );
+  return confirmDialog({
+    message: t('ui.chat-settings.background-tasks-are-still-running-and-will-be', String(n)),
+    danger: true,
+  });
 }
 
 export function HarnessTabsProvider({ children }: { children: React.ReactNode }) {
@@ -313,7 +320,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const close = useCallback(async (id: string) => {
     if (id === MAIN_TAB_ID) return;
     // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/design/cli-subagents.md §5）
-    if (!confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id))) return;
+    if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
     await harnessClient.closeTab(id);
     dispatching.current.delete(id);
     setQueues((cur) => {
@@ -413,6 +420,16 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [isCliTab, activeId, sendToTab],
   );
+  const resendFrom = useCallback(
+    async (messageId: string, text: string) => {
+      if (!isCliTab) return;
+      const tabId = activeId;
+      const kept = await harnessClient.rewindTab(tabId, messageId);
+      setCache((cur) => ({ ...cur, [tabId]: kept }));
+      await sendToTab(tabId, text);
+    },
+    [isCliTab, activeId, sendToTab],
+  );
   const removeQueued = useCallback(
     (index: number) =>
       setQueues((cur) => {
@@ -444,7 +461,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   }, [state, queues, tick, dispatchSend]);
   const cancel = useCallback(async () => {
     if (!isCliTab) return;
-    if (!confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === activeId))) return;
+    if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === activeId))))
+      return;
     await harnessClient.cancelTab(activeId);
   }, [isCliTab, activeId]);
   const replyPermission = useCallback(
@@ -485,6 +503,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       send,
       sendToTab,
       hasTab,
+      resendFrom,
       queues,
       removeQueued,
       cancel,
@@ -506,6 +525,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       send,
       sendToTab,
       hasTab,
+      resendFrom,
       queues,
       removeQueued,
       cancel,
@@ -539,6 +559,7 @@ const EMPTY: HarnessTabsValue = {
   send: async () => undefined,
   sendToTab: async () => false,
   hasTab: () => false,
+  resendFrom: async () => undefined,
   queues: {},
   removeQueued: () => undefined,
   cancel: async () => undefined,

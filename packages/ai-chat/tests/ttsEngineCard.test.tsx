@@ -1,17 +1,46 @@
 // @vitest-environment happy-dom
+import type { Handlers } from '@nomi-ai/contract';
+import { appContract, type AppContract } from '@nomi-ai/contract/app';
+import { createTestClient, type TestClient } from '@nomi-ai/contract/testing';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// 朗读配置经契约 tts.*（D1，原 electronAPI.tts）：假宿主走 createTestClient 的完整线协议
+const host = vi.hoisted(() => ({ client: null as null | { api: unknown } }));
+vi.mock('../src/services/api', () => ({
+  api: new Proxy(
+    {},
+    {
+      get(_t, key) {
+        if (!host.client) throw new Error('no fake host');
+        const v = (host.client.api as Record<PropertyKey, unknown>)[key];
+        return typeof v === 'function'
+          ? (v as (...a: unknown[]) => unknown).bind(host.client.api)
+          : v;
+      },
+    },
+  ),
+  hasTransport: () => host.client !== null,
+}));
 
 import { TtsEngineCard } from '../src/components/SettingsView/TtsEngineCard';
 
 afterEach(() => {
   cleanup();
-  delete (window as { electronAPI?: unknown }).electronAPI;
+  (host.client as TestClient<AppContract> | null)?.close();
+  host.client = null;
 });
+
+type Fn = (...a: never[]) => unknown;
 
 function mockTts(initial: Record<string, unknown>) {
   let stored = { ...initial };
-  const tts = {
+  const tts: Record<string, ReturnType<typeof vi.fn> | undefined> & {
+    get: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    test: ReturnType<typeof vi.fn>;
+    reset: ReturnType<typeof vi.fn>;
+  } = {
     get: vi.fn(async () => ({ ...stored })),
     save: vi.fn(async (cfg: Record<string, unknown>) => {
       stored = { ...stored, ...cfg };
@@ -20,7 +49,34 @@ function mockTts(initial: Record<string, unknown>) {
     test: vi.fn(async () => ({ success: true, message: '可达', latency: 12 })),
     reset: vi.fn(async () => ({ success: true })),
   };
-  (window as { electronAPI?: unknown }).electronAPI = { tts };
+  // 没有给的过程（voices / status / preview）与旧 bridge 缺方法一样：调用失败，客户端退回 null
+  const optional = (key: string) => (input: unknown) => {
+    const fn = tts[key] as Fn | undefined;
+    if (!fn) throw new Error(`${key} not provided`);
+    return fn(input as never);
+  };
+  const handlers: Partial<Handlers<AppContract>> = {
+    // 主进程读配置时会补齐默认值（TtsService.getConfig → TtsConfigStore.load）
+    'tts.getConfig': async () => ({
+      enabled: true,
+      provider: 'edge',
+      lastModified: 0,
+      ...((await tts.get()) as Record<string, unknown>),
+    }),
+    'tts.saveConfig': async (cfg) => {
+      await tts.save(cfg);
+    },
+    'tts.testConnection': (cfg) => tts.test(cfg) as never,
+    'tts.resetConfig': async () => {
+      await tts.reset();
+    },
+    'tts.voices': optional('voices') as never,
+    'tts.status': optional('status') as never,
+    'tts.preview': optional('preview') as never,
+  };
+  host.client = createTestClient(appContract, handlers, {
+    caller: { surface: 'chat', trusted: true },
+  });
   return {
     tts,
     setEnabled: (on: boolean) => {

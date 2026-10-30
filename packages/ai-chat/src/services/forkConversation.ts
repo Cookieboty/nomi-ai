@@ -5,7 +5,7 @@ import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage, ConversationBackend } from '../types/chat';
 import { ENDPOINT_FULL, isCliBackend } from '../utils/endpointBadge';
-import { buildCliContextPreface, compactTranscript } from '../utils/forkTranscript';
+import { buildCliContextPreface, compactTranscript, keepLastTurns } from '../utils/forkTranscript';
 
 import { notifyConversationsChanged, type ConversationStore } from './conversationStore';
 import {
@@ -42,8 +42,19 @@ async function loadSourceMessages(
   return { meta, messages: store.getMessages(sourceId) };
 }
 
+export interface ForkOptions {
+  cwd?: string;
+  /** 只带最近几轮（undefined = 全部） */
+  turns?: number;
+}
+
+/** 新会话里要显示 / 带入的消息：整理后再按轮数裁 */
+function forkedMessages(messages: ChatMessage[], turns?: number): ChatMessage[] {
+  return keepLastTurns(compactTranscript(messages), turns);
+}
+
 function toTabMessages(messages: ChatMessage[]): HarnessTabMessage[] {
-  return compactTranscript(messages).map((m) => ({
+  return messages.map((m) => ({
     id: m.id,
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: m.content,
@@ -55,10 +66,11 @@ function toTabMessages(messages: ChatMessage[]): HarnessTabMessage[] {
 export async function forkSameBackend(
   store: ConversationStore,
   sourceId: string,
-  opts: { cwd?: string } = {},
+  opts: ForkOptions = {},
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   const title = t('ui.cli-monitor.copy', meta.name);
+  const kept = forkedMessages(messages, opts.turns);
 
   if (isCliBackend(meta.backend)) {
     // 副本默认沿用源标签的工作目录
@@ -70,7 +82,7 @@ export async function forkSameBackend(
     const tab = await harnessClient.createTab({
       backend: meta.backend as Exclude<HarnessBackend, 'nomi'>,
       title,
-      messages: toTabMessages(messages),
+      messages: toTabMessages(kept),
       ...(cwd ? { cwd } : {}),
     });
     const created = store.upsertFromTab({
@@ -94,7 +106,8 @@ export async function forkSameBackend(
   const forked = store.fork(sourceId, {
     name: title,
     backend: 'nomi',
-    messages: compactTranscript(messages),
+    messages: kept,
+    ...(opts.cwd ? { cwd: opts.cwd } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
@@ -113,12 +126,12 @@ export async function forkCrossBackend(
   store: ConversationStore,
   sourceId: string,
   target: ConversationBackend,
-  opts: { cwd?: string } = {},
+  opts: ForkOptions = {},
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   if (target === meta.backend) return forkSameBackend(store, sourceId, opts);
   const title = `${meta.name} → ${ENDPOINT_FULL[target]()}`;
-  const compact = compactTranscript(messages);
+  const compact = forkedMessages(messages, opts.turns);
 
   if (isCliBackend(target)) {
     let seeded = toTabMessages(compact);
@@ -156,10 +169,17 @@ export async function forkCrossBackend(
     };
   }
 
+  // 分到 Nomi：工作区用菜单里选的，否则沿用源编程助手标签的目录
+  let cwd = opts.cwd;
+  if (!cwd && meta.tabId) {
+    const st = await harnessClient.tabs().catch(() => null);
+    cwd = st?.tabs.find((x) => x.id === meta.tabId)?.cwd;
+  }
   const forked = store.fork(sourceId, {
     name: title,
     backend: 'nomi',
     messages: compact,
+    ...(cwd ? { cwd } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);

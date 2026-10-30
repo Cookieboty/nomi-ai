@@ -150,10 +150,6 @@
 .opt:focus-visible,
 .headHint:focus-visible,
 .burstMark:focus-visible,
-.rowCheck:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 1px;
-}
 .chipText {
   max-width: 240px;
   overflow: hidden;
@@ -711,10 +707,6 @@
 }
 .rowCheck {
   flex: none;
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--cd-color-accent);
 }
 .expand {
   display: inline-flex;

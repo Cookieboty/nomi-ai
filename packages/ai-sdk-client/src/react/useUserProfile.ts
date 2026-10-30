@@ -2,6 +2,7 @@
  * useUserProfile —— 读取 + 订阅 UserProfile；set/reset 直接透传到 IPC。
  *
  * 首次挂载：立即 `get()` 一次并渲染；之后订阅 `userProfile:changed` 事件更新。
+ * `set(patch)` 是用户在界面上的改动：包成 `ProfilePatch`（`{ patch, source: 'user' }`）再发。
  * 加载失败或未准备好时返回 `profile: undefined`。
  */
 
@@ -15,7 +16,8 @@ export interface UseUserProfileResult<P = unknown> {
   profile: P | undefined;
   loading: boolean;
   error?: SDKError;
-  set: (patch: Partial<P>) => Promise<P | undefined>;
+  /** 以用户身份（`source: 'user'`）合并补丁；`reason` 可选，记入画像服务日志 */
+  set: (patch: Partial<P>, opts?: { reason?: string }) => Promise<P | undefined>;
   reset: () => Promise<P | undefined>;
   refresh: () => Promise<void>;
 }
@@ -38,7 +40,7 @@ export function useUserProfile<P = unknown>(): UseUserProfileResult<P> {
 
   const userProfile = client.memory.userProfile as {
     get: () => Promise<P>;
-    set: (patch: Partial<P>) => Promise<P>;
+    set: (input: { patch: Partial<P>; source: 'user'; reason?: string }) => Promise<P>;
     reset: () => Promise<P>;
     subscribe: (fn: (p: P) => void) => () => void;
   };
@@ -78,9 +80,13 @@ export function useUserProfile<P = unknown>(): UseUserProfileResult<P> {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const set = useCallback(
-    async (patch: Partial<P>) => {
+    async (patch: Partial<P>, opts?: { reason?: string }) => {
       try {
-        const p = await userProfile.set(patch);
+        const p = await userProfile.set({
+          patch,
+          source: 'user',
+          ...(opts?.reason ? { reason: opts.reason } : {}),
+        });
         stateRef.current = { profile: p, loading: false };
         notify();
         return p;

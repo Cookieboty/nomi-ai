@@ -21,11 +21,20 @@ Workflow：[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)。
 
 ## 什么时候加 `ci:full`
 
-改动涉及 Windows / macOS 平台差异、Electron 主进程、窗口 / 看板娘、打包脚本，或想在合并前看到 headed e2e 和安装包时。合并进 `main` 后 push 也会跑一次完整 CI。
+改动涉及 Windows / macOS 平台差异、Electron 主进程、窗口 / 诺米、打包脚本，或想在合并前看到 headed e2e 和安装包时。合并进 `main` 后 push 也会跑一次完整 CI。
 
 ## 分支保护
 
 目前 `main` 没有分支保护 / 必需检查（`gh api repos/Cookieboty/nomi-ai/branches/main/protection` → 404，也没有 ruleset），所以 `paths-ignore` 跳过整个 workflow 不会卡住合并。以后若给 `main` 加必需检查，要把 `paths-ignore` 改成 paths-filter job（让必需的 job 以 success / skipped 结束），否则只改文档的 PR 会一直等待必需检查。
+
+## Go 版（面向用户的正式版本）
+
+| Workflow                                                                   | 触发                                                                                    | 内容                                                                                    |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`desktop-go.yml`](../../.github/workflows/desktop-go.yml)                 | push `main` / `feat/2.0.5-go*`；PR → `main`（改到 Go / 视图 / 内核时）；被 tag 发版调用 | 三平台 go vet / go test -race、Node golden 比对、契约漂移检查、构建、内存实测；变异检查 |
+| [`desktop-go-package.yml`](../../.github/workflows/desktop-go-package.yml) | push `main`；PR 带 `ci:full`；push tag `v*`（≥ v2.0.5）；手动                           | 三平台安装包 + 安装/启动/签名验证 + `latest-go.json`；tag 上 draft → 自动发布 Release   |
+
+`ci.yml` 照常跑共享 TS 包的 quality / e2e 与 Electron 打包；它的 Release 任务只接 ≤ v2.0.4 的 tag。发布流程见 [RELEASE.md](../RELEASE.md)。
 
 ---
 

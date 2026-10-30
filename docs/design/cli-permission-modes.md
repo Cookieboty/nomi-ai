@@ -2,7 +2,7 @@
 
 > 状态：**PR 1（主进程）、PR 2（界面）、PR 3（计划审批流）已实现**。
 > 查证日期 2026-10-19：Claude Code 2.1.303、Codex CLI 0.163.0、dsh 0.2.0-rc.2、Grok Build 1.0.62（macOS）。
-> 代码：`packages/electron/src/cli/permissionMode.ts`、`CliHarnessService.ts`。
+> 代码：`apps/desktop-electron/internal/core/src/cli/permissionMode.ts`、`CliHarnessService.ts`。
 
 ## 1. 背景：为什么要做
 
@@ -71,6 +71,7 @@ Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实
   - 标签已是 `bypass` 而 CLI 仍发来确认请求（Codex 的审批策略在开轮时定下，本轮还按旧策略问；或切换生效前的竞态）：直接放行，不弹卡片、不发通知。Claude / Codex / Gemini / Grok 都走这条；dsh 没有审批通道。
   - 确认框带 `expect: { backend, cwd }`（发起确认时的标签后端 / 目录）；与标签当前值不一致（期间换了后端或目录、会话已重置）即拒绝，要求重新确认。
   - `bypass` 不能设为默认、不能经 `tab-create` 继承、**不跨重启保留**（重启后回到默认档）。
+- **全部自动（v2.0.5 起，默认开）**：`tabs.json` 的 `autoApprove`。开着时新标签默认 `bypass`（`effectiveMode` 按后端降级，外部插件仍是逐项确认）、不沿用 `lastSettings` 里的档位、`bypass` 跨重启保留；Nomi 委派的编程助手同样从 `bypass` 开始（Nomi 在计划 / 逐项确认时仍取更严的）。关掉后回到下面的规则。旧数据没有 `autoApprove` 字段时迁移一次：停在旧默认档（`defaultPermissionMode`，默认 `acceptEdits`）上的标签与 `lastSettings` 改成新默认，其它档位不动（分不出「默认」和「特意选的 acceptEdits」，按默认处理）。设置页「全部自动」开关走 `ai:harness:permission-defaults({ autoApprove })`。
 - **迁移**：旧数据没有 `permissionMode` 时，Claude 标签还原为 `manual`（保持原来的逐项确认），其它后端用默认档 `acceptEdits`。行为变化只有 Grok：从全部放开降到「自动改文件」（见 changeset）。
 - **持久化**：主标签档位存 `session.json`；其它标签与默认档 / 联网开关存 `tabs.json`。
 
@@ -106,6 +107,11 @@ Nomi 对话（主标签）也有权限按钮，档位存在主标签的 `permiss
 | 自动改文件 | 按每个工具的策略（原有行为，默认）                                         |
 | 自动       | 写默认不确认；用户单独设过或工具自带的策略仍生效                           |
 | 完全放开   | 不提供（`supportedModes('nomi')` 不含 bypass）：破坏性操作永远要对话框确认 |
+
+对话选了工作区（`ChatSession.cwd` → `ChatOptions.extra.cwd`，内核 `PermissionBroker.workspaceOf` 校验）时，
+工作区里的文件 / 命令工具走 `authorizeIn`：「计划」档照旧拦写，「全部自动」开着时不确认（含破坏性与受污染轮次），
+关着时按上表。工作区外只认用户单独授权过的作用域（持久与会话作用域，`guardWorkspaceOrGranted`），
+按原来的确认流程走、不受「全部自动」影响；其它工作区外的路径拒绝，路径黑名单照旧。
 
 硬规则在所有档位保留：破坏性永远确认；受污染轮次（本轮读过文件内容）的写要确认。
 云端首次发送提示（`checkSend`）确认的是「发给谁」，不受档位影响。

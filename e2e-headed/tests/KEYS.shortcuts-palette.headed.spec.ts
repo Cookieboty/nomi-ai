@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -14,7 +15,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 2. ⌘/Ctrl+L 聚焦输入框；⌘/Ctrl+N 新对话（清空当前对话）；⌘/Ctrl+, 打开设置；
  * 3. 设置 → 快捷键：改绑后新组合生效、旧组合失效；改到已占用的组合给出冲突提示；恢复默认。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.SHORTCUT_SHOTS_DIR;
 
 test.describe('Shortcuts and command palette', () => {
@@ -66,13 +67,9 @@ test.describe('Shortcuts and command palette', () => {
       await p.screenshot({ path: join(shotDir, `${name}.png`) });
     };
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1100, height: 800 }).catch(() => undefined);
     const input = chat.locator('[data-testid="chat-input"]');

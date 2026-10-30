@@ -1,0 +1,1204 @@
+{
+ "parse": [
+  {
+   "raw": "",
+   "updatedAt": 1700000000000,
+   "out": "null"
+  },
+  {
+   "raw": "not json",
+   "updatedAt": 1700000000001,
+   "out": "null"
+  },
+  {
+   "raw": "null",
+   "updatedAt": 1700000000002,
+   "out": "null"
+  },
+  {
+   "raw": "[]",
+   "updatedAt": 1700000000003,
+   "out": "null"
+  },
+  {
+   "raw": "1",
+   "updatedAt": 1700000000004,
+   "out": "null"
+  },
+  {
+   "raw": "\"x\"",
+   "updatedAt": 1700000000005,
+   "out": "null"
+  },
+  {
+   "raw": "{}",
+   "updatedAt": 1700000000006,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":null}",
+   "updatedAt": 1700000000007,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":\"x\"}",
+   "updatedAt": 1700000000008,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":[]}",
+   "updatedAt": 1700000000009,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":{}}",
+   "updatedAt": 1700000000010,
+   "out": "null"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":12.5,\"resets_at\":1760000000}}}",
+   "updatedAt": 1700000000011,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760000000000}],\"updatedAt\":1700000000011}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":12.5,\"resets_at\":1760000000000},\"seven_day\":{\"used_percentage\":140,\"resets_at\":\"2026-01-02T03:04:05Z\"}}}",
+   "updatedAt": 1700000000012,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760000000000},{\"id\":\"seven_day\",\"usedPercent\":100,\"windowMinutes\":10080,\"resetAt\":1767323045000}],\"updatedAt\":1700000000012}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"seven_day\":{\"used_percentage\":0,\"resets_at\":\"garbage\"},\"five_hour\":{\"used_percentage\":-1}}}",
+   "updatedAt": 1700000000013,
+   "out": "{\"windows\":[{\"id\":\"seven_day\",\"usedPercent\":0,\"windowMinutes\":10080}],\"updatedAt\":1700000000013}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":\"50\"},\"seven_day\":{\"used_percentage\":3,\"resets_at\":0}}}",
+   "updatedAt": 1700000000014,
+   "out": "{\"windows\":[{\"id\":\"seven_day\",\"usedPercent\":3,\"windowMinutes\":10080}],\"updatedAt\":1700000000014}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":3,\"resets_at\":-5},\"seven_day\":{\"used_percentage\":3,\"resets_at\":99999999999}}}",
+   "updatedAt": 1700000000015,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":3,\"windowMinutes\":300},{\"id\":\"seven_day\",\"usedPercent\":3,\"windowMinutes\":10080,\"resetAt\":99999999999000}],\"updatedAt\":1700000000015}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":3,\"resets_at\":100000000000},\"seven_day\":{\"used_percentage\":3,\"resets_at\":\"2026-03-08 02:30\"}}}",
+   "updatedAt": 1700000000016,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":3,\"windowMinutes\":300,\"resetAt\":100000000000},{\"id\":\"seven_day\",\"usedPercent\":3,\"windowMinutes\":10080,\"resetAt\":1772908200000}],\"updatedAt\":1700000000016}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":null,\"seven_day\":[]}}",
+   "updatedAt": 1700000000017,
+   "out": "null"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":null}}}",
+   "updatedAt": 1700000000018,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":{\"five_hour\":{\"used_percentage\":1e400}}}",
+   "updatedAt": 1700000000019,
+   "out": "null"
+  },
+  {
+   "raw": "{\"rate_limits\":{\"five_hour\":{\"used_percentage\":-0,\"resets_at\":1.5}},\"rate_limits\":{\"seven_day\":{\"used_percentage\":7,\"resets_at\":\"Thu, 01 Jan 2026 00:00:00 GMT\"}}}",
+   "updatedAt": 1700000000020,
+   "out": "{\"windows\":[{\"id\":\"seven_day\",\"usedPercent\":7,\"windowMinutes\":10080,\"resetAt\":1767225600000}],\"updatedAt\":1700000000020}"
+  },
+  {
+   "raw": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":33,\"resets_at\":true},\"seven_day\":{\"used_percentage\":99.99,\"resets_at\":\"1760000000\"}}}",
+   "updatedAt": 1700000000021,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":33,\"windowMinutes\":300},{\"id\":\"seven_day\",\"usedPercent\":99.99,\"windowMinutes\":10080}],\"updatedAt\":1700000000021}"
+  }
+ ],
+ "snaps": [
+  {
+   "name": "missing",
+   "out": "null"
+  },
+  {
+   "name": "ok",
+   "text": "{\"session_id\":\"s\",\"rate_limits\":{\"five_hour\":{\"used_percentage\":7,\"resets_at\":1760000000}}}",
+   "mtime": 1700000000.25,
+   "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":7,\"windowMinutes\":300,\"resetAt\":1760000000000}],\"updatedAt\":1700000000250}"
+  },
+  {
+   "name": "no-limits",
+   "text": "{\"session_id\":\"x\"}",
+   "mtime": 1700000100,
+   "out": "null"
+  },
+  {
+   "name": "bad",
+   "text": "{",
+   "mtime": 1700000200,
+   "out": "null"
+  },
+  {
+   "name": "dir",
+   "out": "null"
+  }
+ ],
+ "scripts": [
+  {
+   "root": "/u/data/usage",
+   "out": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='/u/data/usage/claude-statusline.json'\nORIGCMD='/u/data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+  },
+  {
+   "root": "/it's/a 'quoted' dir",
+   "out": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='/it'\\''s/a '\\''quoted'\\'' dir/claude-statusline.json'\nORIGCMD='/it'\\''s/a '\\''quoted'\\'' dir/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+  },
+  {
+   "root": "/a/$HOME/`x`/\"q\"",
+   "out": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='/a/$HOME/`x`/\"q\"/claude-statusline.json'\nORIGCMD='/a/$HOME/`x`/\"q\"/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+  }
+ ],
+ "hooks": [
+  {
+   "name": "fresh",
+   "settings": null,
+   "ops": [
+    "status",
+    "enable",
+    "status",
+    "enable",
+    "disable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": []
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "fresh/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/fresh/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "fresh/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/fresh/user data/usage/claude-statusline.json'\nORIGCMD='<T>/fresh/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "fresh/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/fresh/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "fresh/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/fresh/user data/usage/claude-statusline.json'\nORIGCMD='<T>/fresh/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "fresh/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/fresh/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "fresh/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/fresh/user data/usage/claude-statusline.json'\nORIGCMD='<T>/fresh/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "fresh/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{}\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "fresh/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{}\n"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "own-command",
+   "settings": "{\n    \"10\": \"num\",\n    \"model\": \"opus\",\n    \"statusLine\": {\n        \"type\": \"command\",\n        \"command\": \"echo 'hi'\",\n        \"padding\": 2,\n        \"refreshInterval\": 1.5,\n        \"extra\": true\n    },\n    \"hooks\": {\n        \"a\": [\n            1,\n            2\n        ]\n    },\n    \"z\": null\n}",
+   "mode": 420,
+   "ops": [
+    "status",
+    "enable",
+    "status",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "own-command/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n    \"10\": \"num\",\n    \"model\": \"opus\",\n    \"statusLine\": {\n        \"type\": \"command\",\n        \"command\": \"echo 'hi'\",\n        \"padding\": 2,\n        \"refreshInterval\": 1.5,\n        \"extra\": true\n    },\n    \"hooks\": {\n        \"a\": [\n            1,\n            2\n        ]\n    },\n    \"z\": null\n}"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "own-command/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"10\": \"num\",\n  \"model\": \"opus\",\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/own-command/user data/usage/claude-statusline.sh'\",\n    \"padding\": 2,\n    \"refreshInterval\": 1.5\n  },\n  \"hooks\": {\n    \"a\": [\n      1,\n      2\n    ]\n  },\n  \"z\": null\n}\n"
+      },
+      {
+       "path": "own-command/user data/usage/backups/claude-settings.1700000000000.json",
+       "mode": 384,
+       "text": "{\n    \"10\": \"num\",\n    \"model\": \"opus\",\n    \"statusLine\": {\n        \"type\": \"command\",\n        \"command\": \"echo 'hi'\",\n        \"padding\": 2,\n        \"refreshInterval\": 1.5,\n        \"extra\": true\n    },\n    \"hooks\": {\n        \"a\": [\n            1,\n            2\n        ]\n    },\n    \"z\": null\n}"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "echo 'hi'"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\",\"command\":\"echo 'hi'\",\"padding\":2,\"refreshInterval\":1.5,\"extra\":true}"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/own-command/user data/usage/claude-statusline.json'\nORIGCMD='<T>/own-command/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "own-command/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"10\": \"num\",\n  \"model\": \"opus\",\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/own-command/user data/usage/claude-statusline.sh'\",\n    \"padding\": 2,\n    \"refreshInterval\": 1.5\n  },\n  \"hooks\": {\n    \"a\": [\n      1,\n      2\n    ]\n  },\n  \"z\": null\n}\n"
+      },
+      {
+       "path": "own-command/user data/usage/backups/claude-settings.1700000000000.json",
+       "mode": 384,
+       "text": "{\n    \"10\": \"num\",\n    \"model\": \"opus\",\n    \"statusLine\": {\n        \"type\": \"command\",\n        \"command\": \"echo 'hi'\",\n        \"padding\": 2,\n        \"refreshInterval\": 1.5,\n        \"extra\": true\n    },\n    \"hooks\": {\n        \"a\": [\n            1,\n            2\n        ]\n    },\n    \"z\": null\n}"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "echo 'hi'"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\",\"command\":\"echo 'hi'\",\"padding\":2,\"refreshInterval\":1.5,\"extra\":true}"
+      },
+      {
+       "path": "own-command/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/own-command/user data/usage/claude-statusline.json'\nORIGCMD='<T>/own-command/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "own-command/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"10\": \"num\",\n  \"model\": \"opus\",\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"echo 'hi'\",\n    \"padding\": 2,\n    \"refreshInterval\": 1.5,\n    \"extra\": true\n  },\n  \"hooks\": {\n    \"a\": [\n      1,\n      2\n    ]\n  },\n  \"z\": null\n}\n"
+      },
+      {
+       "path": "own-command/user data/usage/backups/claude-settings.1700000000000.json",
+       "mode": 384,
+       "text": "{\n    \"10\": \"num\",\n    \"model\": \"opus\",\n    \"statusLine\": {\n        \"type\": \"command\",\n        \"command\": \"echo 'hi'\",\n        \"padding\": 2,\n        \"refreshInterval\": 1.5,\n        \"extra\": true\n    },\n    \"hooks\": {\n        \"a\": [\n            1,\n            2\n        ]\n    },\n    \"z\": null\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-json",
+   "settings": "{ nope",
+   "ops": [
+    "status",
+    "enable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false,\"problem\":\"invalid-settings\"}",
+     "tree": [
+      {
+       "path": "invalid-json/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{ nope"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "throw:invalid-settings",
+     "tree": [
+      {
+       "path": "invalid-json/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{ nope"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false,\"problem\":\"invalid-settings\"}",
+     "tree": [
+      {
+       "path": "invalid-json/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{ nope"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "array-settings",
+   "settings": "[1]",
+   "ops": [
+    "status",
+    "enable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false,\"problem\":\"invalid-settings\"}",
+     "tree": [
+      {
+       "path": "array-settings/home/.claude/settings.json",
+       "mode": 420,
+       "text": "[1]"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "throw:invalid-settings",
+     "tree": [
+      {
+       "path": "array-settings/home/.claude/settings.json",
+       "mode": 420,
+       "text": "[1]"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "null-settings",
+   "settings": "null",
+   "ops": [
+    "status",
+    "enable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false,\"problem\":\"invalid-settings\"}",
+     "tree": [
+      {
+       "path": "null-settings/home/.claude/settings.json",
+       "mode": 420,
+       "text": "null"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "throw:invalid-settings",
+     "tree": [
+      {
+       "path": "null-settings/home/.claude/settings.json",
+       "mode": 420,
+       "text": "null"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "static",
+   "settings": "{\"statusLine\":{\"type\":\"static\",\"text\":\"x\"}}",
+   "ops": [
+    "status",
+    "enable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true,\"problem\":\"unsupported-statusline\"}",
+     "tree": [
+      {
+       "path": "static/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"static\",\"text\":\"x\"}}"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "throw:unsupported-statusline",
+     "tree": [
+      {
+       "path": "static/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"static\",\"text\":\"x\"}}"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true,\"problem\":\"unsupported-statusline\"}",
+     "tree": [
+      {
+       "path": "static/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"static\",\"text\":\"x\"}}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "array-statusline",
+   "settings": "{\"statusLine\":[]}",
+   "ops": [
+    "status",
+    "enable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true,\"problem\":\"unsupported-statusline\"}",
+     "tree": [
+      {
+       "path": "array-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":[]}"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "throw:unsupported-statusline",
+     "tree": [
+      {
+       "path": "array-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":[]}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "string-statusline",
+   "settings": "{\"statusLine\":\"echo\",\"a\":1}",
+   "snapshot": true,
+   "ops": [
+    "status",
+    "enable",
+    "status",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":true,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "string-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":\"echo\",\"a\":1}"
+      },
+      {
+       "path": "string-statusline/user data/usage/claude-statusline.json",
+       "mode": 420,
+       "text": "{}"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":true,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "string-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/string-statusline/user data/usage/claude-statusline.sh'\"\n  },\n  \"a\": 1\n}\n"
+      },
+      {
+       "path": "string-statusline/user data/usage/backups/claude-settings.1700000000001.json",
+       "mode": 384,
+       "text": "{\"statusLine\":\"echo\",\"a\":1}"
+      },
+      {
+       "path": "string-statusline/user data/usage/claude-statusline.json",
+       "mode": 420,
+       "text": "{}"
+      },
+      {
+       "path": "string-statusline/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/string-statusline/user data/usage/claude-statusline.json'\nORIGCMD='<T>/string-statusline/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":true,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "string-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/string-statusline/user data/usage/claude-statusline.sh'\"\n  },\n  \"a\": 1\n}\n"
+      },
+      {
+       "path": "string-statusline/user data/usage/backups/claude-settings.1700000000001.json",
+       "mode": 384,
+       "text": "{\"statusLine\":\"echo\",\"a\":1}"
+      },
+      {
+       "path": "string-statusline/user data/usage/claude-statusline.json",
+       "mode": 420,
+       "text": "{}"
+      },
+      {
+       "path": "string-statusline/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/string-statusline/user data/usage/claude-statusline.json'\nORIGCMD='<T>/string-statusline/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "string-statusline/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"a\": 1\n}\n"
+      },
+      {
+       "path": "string-statusline/user data/usage/backups/claude-settings.1700000000001.json",
+       "mode": 384,
+       "text": "{\"statusLine\":\"echo\",\"a\":1}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "whitespace",
+   "settings": " \n\t",
+   "mode": 384,
+   "ops": [
+    "enable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "whitespace/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/whitespace/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "whitespace/user data/usage/backups/claude-settings.1700000000002.json",
+       "mode": 384,
+       "text": " \n\t"
+      },
+      {
+       "path": "whitespace/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/whitespace/user data/usage/claude-statusline.json'\nORIGCMD='<T>/whitespace/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "whitespace/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{}\n"
+      },
+      {
+       "path": "whitespace/user data/usage/backups/claude-settings.1700000000002.json",
+       "mode": 384,
+       "text": " \n\t"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "win32",
+   "settings": null,
+   "platform": "win32",
+   "ops": [
+    "status",
+    "enable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":false,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": []
+    },
+    {
+     "op": "enable",
+     "out": "throw:unsupported-platform",
+     "tree": []
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":false,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": []
+    }
+   ]
+  },
+  {
+   "name": "config-dir",
+   "settings": "{\"statusLine\":{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}}",
+   "configDir": true,
+   "ops": [
+    "status",
+    "enable",
+    "status",
+    "disable"
+   ],
+   "env": {
+    "CLAUDE_CONFIG_DIR": "<T>/config-dir/cfg"
+   },
+   "steps": [
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "config-dir/cfg/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}}"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "config-dir/cfg/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/config-dir/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "config-dir/user data/usage/backups/claude-settings.1700000000003.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}}"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "x"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/config-dir/user data/usage/claude-statusline.json'\nORIGCMD='<T>/config-dir/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "config-dir/cfg/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/config-dir/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "config-dir/user data/usage/backups/claude-settings.1700000000003.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}}"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "x"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}"
+      },
+      {
+       "path": "config-dir/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/config-dir/user data/usage/claude-statusline.json'\nORIGCMD='<T>/config-dir/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "config-dir/cfg/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"x\",\n    \"padding\": \"2\"\n  }\n}\n"
+      },
+      {
+       "path": "config-dir/user data/usage/backups/claude-settings.1700000000003.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"x\",\"padding\":\"2\"}}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orig-lost",
+   "settings": "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine\"}}",
+   "ops": [
+    "enable",
+    "rm-orig",
+    "status",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "orig-lost/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/orig-lost/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "orig-lost/user data/usage/backups/claude-settings.1700000000004.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine\"}}"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "mine"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\",\"command\":\"mine\"}"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/orig-lost/user data/usage/claude-statusline.json'\nORIGCMD='<T>/orig-lost/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "rm-orig",
+     "out": "__undef__",
+     "tree": [
+      {
+       "path": "orig-lost/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/orig-lost/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "orig-lost/user data/usage/backups/claude-settings.1700000000004.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine\"}}"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "mine"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/orig-lost/user data/usage/claude-statusline.json'\nORIGCMD='<T>/orig-lost/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "orig-lost/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/orig-lost/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "orig-lost/user data/usage/backups/claude-settings.1700000000004.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine\"}}"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": "mine"
+      },
+      {
+       "path": "orig-lost/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/orig-lost/user data/usage/claude-statusline.json'\nORIGCMD='<T>/orig-lost/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "orig-lost/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{}\n"
+      },
+      {
+       "path": "orig-lost/user data/usage/backups/claude-settings.1700000000004.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine\"}}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orig-garbage",
+   "settings": "{\"statusLine\":{\"type\":\"command\"}}",
+   "ops": [
+    "enable",
+    "orig-garbage",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "orig-garbage/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/orig-garbage/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "orig-garbage/user data/usage/backups/claude-settings.1700000000005.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\"}}"
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": ""
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "{\"type\":\"command\"}"
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/orig-garbage/user data/usage/claude-statusline.json'\nORIGCMD='<T>/orig-garbage/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "orig-garbage",
+     "out": "__undef__",
+     "tree": [
+      {
+       "path": "orig-garbage/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/orig-garbage/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "orig-garbage/user data/usage/backups/claude-settings.1700000000005.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\"}}"
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.orig.cmd",
+       "mode": 384,
+       "text": ""
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.orig.json",
+       "mode": 384,
+       "text": "\"str\""
+      },
+      {
+       "path": "orig-garbage/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/orig-garbage/user data/usage/claude-statusline.json'\nORIGCMD='<T>/orig-garbage/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "orig-garbage/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{}\n"
+      },
+      {
+       "path": "orig-garbage/user data/usage/backups/claude-settings.1700000000005.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"type\":\"command\"}}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "foreign-after-enable",
+   "settings": "{}",
+   "ops": [
+    "enable",
+    "replace-foreign",
+    "status",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "foreign-after-enable/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/foreign-after-enable/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/backups/claude-settings.1700000000006.json",
+       "mode": 384,
+       "text": "{}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/foreign-after-enable/user data/usage/claude-statusline.json'\nORIGCMD='<T>/foreign-after-enable/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "replace-foreign",
+     "out": "__undef__",
+     "tree": [
+      {
+       "path": "foreign-after-enable/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"other\"}}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/backups/claude-settings.1700000000006.json",
+       "mode": 384,
+       "text": "{}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/foreign-after-enable/user data/usage/claude-statusline.json'\nORIGCMD='<T>/foreign-after-enable/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "foreign-after-enable/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"other\"}}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/backups/claude-settings.1700000000006.json",
+       "mode": 384,
+       "text": "{}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/foreign-after-enable/user data/usage/claude-statusline.json'\nORIGCMD='<T>/foreign-after-enable/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":true}",
+     "tree": [
+      {
+       "path": "foreign-after-enable/home/.claude/settings.json",
+       "mode": 420,
+       "text": "{\"statusLine\":{\"type\":\"command\",\"command\":\"other\"}}"
+      },
+      {
+       "path": "foreign-after-enable/user data/usage/backups/claude-settings.1700000000006.json",
+       "mode": 384,
+       "text": "{}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ours-no-type",
+   "settings": null,
+   "ops": [
+    "enable",
+    "strip-type",
+    "status",
+    "enable",
+    "disable"
+   ],
+   "env": {},
+   "steps": [
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "ours-no-type/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\n  \"statusLine\": {\n    \"type\": \"command\",\n    \"command\": \"'<T>/ours-no-type/user data/usage/claude-statusline.sh'\"\n  }\n}\n"
+      },
+      {
+       "path": "ours-no-type/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/ours-no-type/user data/usage/claude-statusline.json'\nORIGCMD='<T>/ours-no-type/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "strip-type",
+     "out": "__undef__",
+     "tree": [
+      {
+       "path": "ours-no-type/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"command\":\"'<T>/ours-no-type/user data/usage/claude-statusline.sh'\"}}"
+      },
+      {
+       "path": "ours-no-type/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/ours-no-type/user data/usage/claude-statusline.json'\nORIGCMD='<T>/ours-no-type/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "status",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "ours-no-type/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"command\":\"'<T>/ours-no-type/user data/usage/claude-statusline.sh'\"}}"
+      },
+      {
+       "path": "ours-no-type/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/ours-no-type/user data/usage/claude-statusline.json'\nORIGCMD='<T>/ours-no-type/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "enable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":true,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "ours-no-type/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{\"statusLine\":{\"command\":\"'<T>/ours-no-type/user data/usage/claude-statusline.sh'\"}}"
+      },
+      {
+       "path": "ours-no-type/user data/usage/claude-statusline.sh",
+       "mode": 448,
+       "text": "#!/bin/sh\n# nomi-usage-statusline: saves Claude Code's statusline JSON next to Nomi's usage data (local only, 0600),\n# then runs your previous statusLine command, if any. Undo it in Nomi: Settings > Usage & cost.\nSNAP='<T>/ours-no-type/user data/usage/claude-statusline.json'\nORIGCMD='<T>/ours-no-type/user data/usage/claude-statusline.orig.cmd'\numask 077\ntmp=\"$SNAP.$$\"\ncat > \"$tmp\" && mv \"$tmp\" \"$SNAP\" || exit 0\nif [ -s \"$ORIGCMD\" ]; then\n  sh -c \"$(cat \"$ORIGCMD\")\" < \"$SNAP\"\nfi\nexit 0\n"
+      }
+     ]
+    },
+    {
+     "op": "disable",
+     "out": "{\"supported\":true,\"hasSnapshot\":false,\"enabled\":false,\"hadOwnStatusLine\":false}",
+     "tree": [
+      {
+       "path": "ours-no-type/home/.claude/settings.json",
+       "mode": 384,
+       "text": "{}\n"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "startNow": 1700000000000
+}

@@ -511,6 +511,43 @@
   transform: translateY(-50%);
 }
 
+/* 自绘悬停提示（FloatingTip）：fixed 定位，替代原生 title */
+.cd-floating-tip {
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-chat-popover-bg);
+  box-shadow: var(--cd-shadow-md);
+  color: var(--cd-color-text);
+  font: var(--cd-text-caption);
+  letter-spacing: var(--cd-tracking-wide);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  animation: cd-floating-tip-in var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-floating-tip--title {
+  /* 原生 title 里的换行照样换行 */
+  white-space: pre-line;
+}
+.cd-floating-tip__meta {
+  display: block;
+  color: var(--cd-color-text-subtle);
+}
+@keyframes cd-floating-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cd-floating-tip {
+    animation: none;
+  }
+}
+
 /* ---------- Toast ---------- */
 .cd-toast-stack {
   position: fixed;

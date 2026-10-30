@@ -1,0 +1,7 @@
+{
+  "wakePhrase": "你好",
+  "lines": {
+    "greet-companion": "你好，我是静图示范。",
+    "greet-welcome-back": "欢迎回来。"
+  }
+}

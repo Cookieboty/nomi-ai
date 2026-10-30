@@ -9,6 +9,7 @@ import {
   type ReminderView,
   type RepeatRule,
 } from '../../services/desktopClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 
@@ -69,7 +70,7 @@ const fmtDue = (t: number) =>
   });
 
 /**
- * 提醒：应用运行时到点提醒（看板娘挥手 + 气泡 + 系统通知）；支持重复；免打扰时段内的提醒在结束后补报；
+ * 提醒：应用运行时到点提醒（桌面角色挥手 + 气泡 + 系统通知）；支持重复；免打扰时段内的提醒在结束后补报；
  * 关闭期间错过的下次启动时播报（重复提醒只补报一次）。
  */
 export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
@@ -143,7 +144,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
           placeholder={tr('ui.foundation.remind-me-to-enter-to-add')}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && void add()}
+          onKeyDown={(e) => e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void add()}
           data-testid="reminder-text"
           style={{ flex: 1, minWidth: 180 }}
         />

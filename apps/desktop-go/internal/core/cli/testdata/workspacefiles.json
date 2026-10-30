@@ -1,0 +1,732 @@
+{"platform":"linux","cases":[
+ {
+  "step": [
+   "resolve",
+   "w",
+   ""
+  ],
+  "out": {
+   "ok": false,
+   "error": "invalid path",
+   "code": "invalid"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "  "
+  ],
+  "out": {
+   "ok": false,
+   "error": "invalid path",
+   "code": "invalid"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "a\u0000b"
+  ],
+  "out": {
+   "ok": false,
+   "error": "invalid path",
+   "code": "invalid"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   ".."
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "../x"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "..x"
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w/..x",
+   "rel": "..x"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "./sub/../a.txt"
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w/a.txt",
+   "rel": "a.txt"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "."
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w",
+   "rel": "w"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "$SB/w/a.txt"
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w/a.txt",
+   "rel": "a.txt"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "$SB/outside/secret.txt"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "esc/secret.txt"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "esc.txt"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "subl/b.md"
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w/subl/b.md",
+   "rel": "subl/b.md"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "new/deep/f.txt"
+  ],
+  "out": {
+   "ok": true,
+   "abs": "<SB>/w/new/deep/f.txt",
+   "rel": "new/deep/f.txt"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "nope",
+   "a"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "resolve",
+   "w",
+   "/etc/passwd"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "a.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt",
+   "content": "hello\n",
+   "truncated": false,
+   "size": 6,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "missing"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/missing",
+   "rel": "missing",
+   "error": "not found",
+   "code": "not-found"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "sub"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/sub",
+   "rel": "sub",
+   "error": "is a directory",
+   "code": "is-dir"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "bin.dat"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/bin.dat",
+   "rel": "bin.dat",
+   "binary": true,
+   "size": 5,
+   "mtimeMs": "<T>",
+   "content": ""
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "bad.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/bad.txt",
+   "rel": "bad.txt",
+   "content": "x��y",
+   "truncated": false,
+   "size": 4,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "../outside/secret.txt"
+  ],
+  "out": {
+   "ok": false,
+   "error": "path outside workspace",
+   "code": "outside"
+  }
+ },
+ {
+  "step": [
+   "tree",
+   "w"
+  ],
+  "out": {
+   "ok": true,
+   "entries": [
+    {
+     "kind": "dir",
+     "name": ".git-keep",
+     "path": ".git-keep",
+     "children": [
+      {
+       "kind": "file",
+       "name": "c",
+       "path": ".git-keep/c"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": ".nextx",
+     "path": ".nextx",
+     "children": [
+      {
+       "kind": "file",
+       "name": "c",
+       "path": ".nextx/c"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "dist",
+     "path": "dist",
+     "children": [
+      {
+       "kind": "file",
+       "name": "out.js",
+       "path": "dist/out.js"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "logs",
+     "path": "logs",
+     "children": [
+      {
+       "kind": "file",
+       "name": "l.log",
+       "path": "logs/l.log"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "sub",
+     "path": "sub",
+     "children": [
+      {
+       "kind": "file",
+       "name": "b.md",
+       "path": "sub/b.md"
+      }
+     ]
+    },
+    {
+     "kind": "file",
+     "name": "_u.txt",
+     "path": "_u.txt"
+    },
+    {
+     "kind": "file",
+     "name": ".gitignore",
+     "path": ".gitignore"
+    },
+    {
+     "kind": "file",
+     "name": "a.txt",
+     "path": "a.txt"
+    },
+    {
+     "kind": "file",
+     "name": "alpha.txt",
+     "path": "alpha.txt"
+    },
+    {
+     "kind": "file",
+     "name": "bad.txt",
+     "path": "bad.txt"
+    },
+    {
+     "kind": "file",
+     "name": "bin.dat",
+     "path": "bin.dat"
+    },
+    {
+     "kind": "file",
+     "name": "keep.log",
+     "path": "keep.log"
+    },
+    {
+     "kind": "file",
+     "name": "Zeta.txt",
+     "path": "Zeta.txt"
+    }
+   ]
+  }
+ },
+ {
+  "step": [
+   "tree",
+   "nope"
+  ],
+  "out": {
+   "ok": false,
+   "error": "invalid cwd",
+   "code": "invalid"
+  }
+ },
+ {
+  "step": [
+   "write",
+   "w",
+   "new/deep/f.txt",
+   "content é"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/new/deep/f.txt",
+   "rel": "new/deep/f.txt",
+   "content": "content é",
+   "size": 10,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "write",
+   "w",
+   "sub",
+   "x"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/sub",
+   "rel": "sub",
+   "error": "is a directory",
+   "code": "is-dir"
+  }
+ },
+ {
+  "step": [
+   "write",
+   "w",
+   "a.txt",
+   5
+  ],
+  "out": {
+   "ok": false,
+   "error": "invalid content",
+   "code": "invalid"
+  }
+ },
+ {
+  "step": [
+   "write",
+   "w",
+   "a.txt",
+   "changed"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt",
+   "content": "changed",
+   "size": 7,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "new/deep/f.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/new/deep/f.txt",
+   "rel": "new/deep/f.txt",
+   "content": "content é",
+   "truncated": false,
+   "size": 10,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "delete",
+   "w",
+   "missing"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/missing",
+   "rel": "missing"
+  }
+ },
+ {
+  "step": [
+   "delete",
+   "w",
+   "sub"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/sub",
+   "rel": "sub",
+   "error": "is a directory",
+   "code": "is-dir"
+  }
+ },
+ {
+  "step": [
+   "delete",
+   "w",
+   "new/deep/f.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/new/deep/f.txt",
+   "rel": "new/deep/f.txt"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "new/deep/f.txt"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/new/deep/f.txt",
+   "rel": "new/deep/f.txt",
+   "error": "not found",
+   "code": "not-found"
+  }
+ },
+ {
+  "step": [
+   "checkout",
+   "w",
+   "a.txt"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt",
+   "error": "not a git repository",
+   "code": "not-git"
+  }
+ },
+ {
+  "step": [
+   "tree",
+   "w"
+  ],
+  "out": {
+   "ok": true,
+   "entries": [
+    {
+     "kind": "dir",
+     "name": ".git-keep",
+     "path": ".git-keep",
+     "children": [
+      {
+       "kind": "file",
+       "name": "c",
+       "path": ".git-keep/c"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": ".nextx",
+     "path": ".nextx",
+     "children": [
+      {
+       "kind": "file",
+       "name": "c",
+       "path": ".nextx/c"
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "dist",
+     "path": "dist",
+     "ignored": true,
+     "children": [
+      {
+       "kind": "file",
+       "name": "out.js",
+       "path": "dist/out.js",
+       "ignored": true
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "logs",
+     "path": "logs",
+     "ignored": true,
+     "children": [
+      {
+       "kind": "file",
+       "name": "l.log",
+       "path": "logs/l.log",
+       "ignored": true
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "new",
+     "path": "new",
+     "children": [
+      {
+       "kind": "dir",
+       "name": "deep",
+       "path": "new/deep",
+       "children": []
+      }
+     ]
+    },
+    {
+     "kind": "dir",
+     "name": "sub",
+     "path": "sub",
+     "children": [
+      {
+       "kind": "file",
+       "name": "b.md",
+       "path": "sub/b.md"
+      }
+     ]
+    },
+    {
+     "kind": "file",
+     "name": "_u.txt",
+     "path": "_u.txt"
+    },
+    {
+     "kind": "file",
+     "name": ".gitignore",
+     "path": ".gitignore"
+    },
+    {
+     "kind": "file",
+     "name": "a.txt",
+     "path": "a.txt"
+    },
+    {
+     "kind": "file",
+     "name": "alpha.txt",
+     "path": "alpha.txt"
+    },
+    {
+     "kind": "file",
+     "name": "bad.txt",
+     "path": "bad.txt"
+    },
+    {
+     "kind": "file",
+     "name": "bin.dat",
+     "path": "bin.dat"
+    },
+    {
+     "kind": "file",
+     "name": "keep.log",
+     "path": "keep.log"
+    },
+    {
+     "kind": "file",
+     "name": "Zeta.txt",
+     "path": "Zeta.txt"
+    }
+   ]
+  }
+ },
+ {
+  "step": [
+   "write",
+   "w",
+   "a.txt",
+   "dirty"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt",
+   "content": "dirty",
+   "size": 5,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "checkout",
+   "w",
+   "a.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt"
+  }
+ },
+ {
+  "step": [
+   "read",
+   "w",
+   "a.txt"
+  ],
+  "out": {
+   "ok": true,
+   "path": "<SB>/w/a.txt",
+   "rel": "a.txt",
+   "content": "changed",
+   "truncated": false,
+   "size": 7,
+   "mtimeMs": "<T>"
+  }
+ },
+ {
+  "step": [
+   "checkout",
+   "w",
+   "untracked.txt"
+  ],
+  "out": {
+   "ok": false,
+   "path": "<SB>/w/untracked.txt",
+   "rel": "untracked.txt",
+   "error": "error: pathspec 'untracked.txt' did not match any file(s) known to git",
+   "code": "io"
+  }
+ }
+]}

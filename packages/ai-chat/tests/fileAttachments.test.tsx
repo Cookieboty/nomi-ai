@@ -20,14 +20,14 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   }),
 }));
 
-const w = window as unknown as { electronAPI?: unknown };
+const w = window as unknown as { nomiHost?: unknown };
 const bridge = () => {
-  w.electronAPI = { files: { pathFor: (f: File) => `/tmp/${f.name}` } };
+  w.nomiHost = { pathForFile: (f: File) => `/tmp/${f.name}` };
 };
 
 afterEach(() => {
   cleanup();
-  delete w.electronAPI;
+  delete w.nomiHost;
 });
 
 const att = (over: Partial<FileAttachment>): FileAttachment => ({

@@ -1,45 +1,119 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+/**
+ * 桌面角色窗口 → avatar-runtime 的适配（Nomi2DCanvas）：等 Scheme B 覆盖包就绪后，把当前角色
+ * （模式、资源、Rive 画板、命中区）、事件中枢、窗口宿主与互动输出交给 AvatarStage。
+ * 渲染器的选择与 Rive 失败回退在 avatar-runtime 的 avatarCanvas 测试里。
+ */
+import type { AvatarRuntimeOptions } from '@nomi-ai/avatar-runtime';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-let riveFailure: ((reason: string) => void) | undefined;
+import { avatarEvents } from '../../src/avatar/events';
+import { Nomi2DCanvas } from '../../src/components/Mascot/Nomi2DCanvas';
+import { BUNDLED_PACK, resetCharacterPackOverlayForTest } from '../../src/mascot/characterConfig';
 
-vi.mock('../../src/components/RiveMascot/RiveCanvas', () => ({
-  default: ({ onFailure }: { onFailure?: (reason: string) => void }) => {
-    riveFailure = onFailure;
-    return <div data-testid="rive-canvas" />;
+import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
+
+vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+
+const h = vi.hoisted(() => ({ last: null as AvatarRuntimeOptions | null }));
+
+vi.mock('@nomi-ai/avatar-runtime', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  AvatarStage: (props: AvatarRuntimeOptions) => {
+    h.last = props;
+    return <div data-testid="avatar-stage" data-mode={props.character.mode} />;
   },
 }));
-vi.mock('../../src/components/SpriteMascot/SpriteCanvas', () => ({
-  default: ({ manifestPath }: { manifestPath: string }) => (
-    <div data-testid="sprite-canvas" data-manifest={manifestPath} />
-  ),
-}));
 
-import { Nomi2DCanvas } from '../../src/components/Mascot/Nomi2DCanvas';
+const url = (path: string | null | undefined): string => {
+  const p = h.last;
+  if (!p || !path) return '';
+  return /^(?:[a-z][a-z0-9+.-]*:|\.{0,2}\/)/i.test(path) ? path : p.resolveAsset(path);
+};
 
 afterEach(() => {
   cleanup();
-  riveFailure = undefined;
-  delete document.documentElement.dataset.mascotRenderer;
+  h.last = null;
+  resetCharacterPackOverlayForTest();
+  resetMascotHost();
 });
 
-describe('Nomi2DCanvas', () => {
-  it('renders Rive by default', async () => {
-    render(<Nomi2DCanvas manifestPath="./assets/models/sprite/nomi/manifest.json" />);
-    await screen.findByTestId('rive-canvas');
-    expect(screen.queryByTestId('sprite-canvas')).toBeNull();
-    expect(document.documentElement.dataset.mascotRenderer).toBeUndefined();
+beforeEach(() => {
+  resetCharacterPackOverlayForTest();
+});
+
+describe('Nomi2DCanvas → AvatarStage', () => {
+  it('without a transport: the bundled pack, the window event hub, no window host', async () => {
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(p.character.id).toBe(BUNDLED_PACK.id);
+    expect(p.character.mode).toBe(BUNDLED_PACK.mode);
+    expect(url(p.character.assets.rive)).toBe(
+      BUNDLED_PACK.assets.rive ? `${BUNDLED_PACK.base}${BUNDLED_PACK.assets.rive}` : '',
+    );
+    expect(p.character.assets.spriteManifest).toBe('./character/sprite/manifest.json');
+    expect(p.events).toBe(avatarEvents);
+    expect(p.windowHost).toBeNull();
+    expect(typeof p.onInteraction).toBe('function');
+    expect(p.riveWasmUrl).toBeTruthy();
   });
 
-  it('falls back to the layered 2D renderer when Rive reports a failure', async () => {
-    render(<Nomi2DCanvas manifestPath="./assets/models/sprite/nomi/manifest.json" />);
-    await screen.findByTestId('rive-canvas');
-    React.act(() => riveFailure?.('Rive load failed'));
-    const sprite = await screen.findByTestId('sprite-canvas');
-    expect(sprite.getAttribute('data-manifest')).toBe('./assets/models/sprite/nomi/manifest.json');
-    await waitFor(() => expect(screen.queryByTestId('rive-canvas')).toBeNull());
-    expect(document.documentElement.dataset.mascotRenderer).toBe('sprite-fallback');
+  it('waits for the overlay, then passes the overlay static image', async () => {
+    let resolveActive!: (v: unknown) => void;
+    const pending = new Promise((r) => {
+      resolveActive = r;
+    });
+    installMascotHost({
+      'character.getActivePack': async () =>
+        packSnapshot((await pending) as Record<string, unknown>),
+    });
+
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    expect(screen.queryByTestId('avatar-stage')).toBeNull();
+
+    await act(async () => {
+      resolveActive({
+        source: 'userData',
+        id: 'static-demo',
+        mode: 'static',
+        staticUrl: 'character-pack://pack/static/character.webp',
+        hitboxes: { regions: { head: { top: 0, bottom: 0.4, left: 0.2, right: 0.8 } } },
+      });
+      await pending;
+    });
+
+    const el = await screen.findByTestId('avatar-stage');
+    expect(el.getAttribute('data-mode')).toBe('static');
+    const p = h.last!;
+    expect(p.character.id).toBe('static-demo');
+    expect(url(p.character.assets.static)).toBe('character-pack://pack/static/character.webp');
+    expect(p.character.layout).toEqual({
+      hitboxes: { head: { top: 0, bottom: 0.4, left: 0.2, right: 0.8 } },
+    });
+    // 有契约传输：窗口宿主经契约报告命中 / 拖拽
+    expect(p.windowHost).not.toBeNull();
+  });
+
+  it('passes the overlay .riv and its artboard / state machine', async () => {
+    const riv = 'character-pack://pack/rive/pack.riv';
+    installMascotHost({
+      'character.getActivePack': () =>
+        packSnapshot({
+          source: 'resources',
+          id: 'alt',
+          mode: 'rive',
+          riveUrl: riv,
+          rive: { artboard: 'Alt', stateMachine: 'AltSM' },
+        }),
+    });
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(url(p.character.assets.rive)).toBe(riv);
+    expect(p.character.rive).toEqual({ artboard: 'Alt', stateMachine: 'AltSM' });
+    expect(p.character.layout).toBeNull();
   });
 });

@@ -6,21 +6,22 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract, installContractProbe } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
  * E15 · Nomi-only bundle + 2D sprite desktop interaction (real app, runs on Linux + Windows CI)
  *
- * - Nomi is the only character: no model service (`electronAPI.models`), no character picker,
+ * - Nomi is the only character: no model service (no `models.*` contract procedure), no character picker,
  *   no "switch character" toolbar button
  * - default window is half-size (330×355) and Nomi fills the character box
  * - the speech bubble never intersects the head box and stays inside the window
- * - press + drag on Nomi moves the window through the main process (mascot:drag-* IPC);
+ * - press + drag on Nomi moves the window through the main process (mascot.drag* contract calls);
  *   a plain click / double-click still reacts and does not move the window
  * E15_SHOTS=<dir> saves window screenshots (+ full-screen grabs on X11 with ffmpeg).
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E15_SHOTS;
 const hasFfmpeg =
@@ -90,7 +91,7 @@ test.describe('E15 · Nomi only', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    await page.waitForFunction(() => !!window.electronAPI?.mascotWindow, undefined, {
+    await page.waitForFunction(() => 'nomiTransport' in window, undefined, {
       timeout: 20_000,
     });
     await page.waitForFunction(
@@ -104,9 +105,9 @@ test.describe('E15 · Nomi only', () => {
       timeout: 20_000,
     });
 
-    // 1) Nomi only: the model service is gone from the preload bridge, Nomi is drawn in 2D
-    expect(await page.evaluate(() => 'models' in ((window.electronAPI ?? {}) as object))).toBe(
-      false,
+    // 1) Nomi only: no model service (the preload exposes only the contract transport), Nomi is drawn in 2D
+    expect(await page.evaluate(() => ['electronAPI', 'aiIPC'].filter((k) => k in window))).toEqual(
+      [],
     );
     expect(
       await page.evaluate(() => document.documentElement.dataset.mascotBackend ?? ''),
@@ -165,7 +166,7 @@ test.describe('E15 · Nomi only', () => {
         const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop());
         return w ? w.getPosition() : [0, 0];
       });
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: false }));
+    await callContract(page, 'mascot.setInteractionConfig', { gravity: false });
     await sleep(300);
     const before = await pos();
     grab('04-drag-before', screen.width, screen.height);
@@ -210,13 +211,15 @@ test.describe('E15 · Nomi only', () => {
       pointerDrag = true;
     } catch {
       // Windows Playwright Electron can still swallow pointer buttons; fall back to the
-      // same IPC path E9 uses so we still prove the window moves via mascot:drag-*.
+      // same contract path E9 uses so we still prove the window moves via mascot.drag*.
+      await installContractProbe(page);
       await page.evaluate(
-        ([sx, sy, dx, dy]) => {
-          const api = window.electronAPI!.mascotWindow!;
-          api.dragStart(sx, sy);
-          for (let i = 1; i <= 8; i++) api.dragMove(sx + dx * i, sy + dy * i);
-          api.dragEnd();
+        async ([sx, sy, dx, dy]) => {
+          const api = window.__e2eContract!;
+          void api.call('mascot.dragStart', { screenX: sx, screenY: sy });
+          for (let i = 1; i <= 8; i++)
+            void api.call('mascot.dragMove', { screenX: sx + dx * i, screenY: sy + dy * i });
+          await api.call('mascot.dragEnd');
         },
         [before[0] + hit.x, before[1] + hit.y, -12, -8] as [number, number, number, number],
       );

@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 性能：切换会话时首帧只渲染最后 3 条消息（其余随后分批补上），慢机器上新会话出现得更快；

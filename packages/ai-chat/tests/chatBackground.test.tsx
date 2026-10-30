@@ -19,6 +19,36 @@ import {
   setChatBackground,
 } from '../src/services/chatBackground';
 
+import { installMascotHost, publishMascotEvent, resetMascotHost } from './helpers/mascotHost';
+
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/mascotHost')).mascotApiModule(),
+);
+
+type ChatBgFake = Partial<{
+  get: () => Promise<unknown>;
+  set: (patch: object) => Promise<unknown>;
+  reset: () => Promise<unknown>;
+  pickImage: () => Promise<unknown>;
+}>;
+
+/** 主进程的 chatBg.*（契约，对话窗口调用）；没给的过程以 NOT_FOUND 失败 */
+function stubChatBg(fake: ChatBgFake): void {
+  const call = (fn: (() => Promise<unknown>) | undefined) => {
+    if (!fn) throw new Error('not stubbed');
+    return fn() as never;
+  };
+  installMascotHost({
+    ...(fake.get && { 'chatBg.get': () => call(fake.get) }),
+    ...(fake.set && { 'chatBg.set': (patch: object) => fake.set!(patch) as never }),
+    ...(fake.reset && { 'chatBg.reset': () => call(fake.reset) }),
+    ...(fake.pickImage && { 'chatBg.pickImage': () => call(fake.pickImage) }),
+  });
+}
+
+/** 主进程广播 chat-bg:changed（契约事件 chatBg.changed） */
+const pushChanged = (value: unknown) => act(() => publishMascotEvent('chatBg.changed', value));
+
 const PRESET = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
 
 beforeEach(async () => {
@@ -29,7 +59,7 @@ beforeEach(async () => {
 afterEach(async () => {
   cleanup();
   vi.useRealTimers();
-  delete (window as { electronAPI?: unknown }).electronAPI;
+  resetMascotHost();
   await resetChatBackground();
   localStorage.clear();
   applyTheme(DEFAULT_THEME);
@@ -138,7 +168,7 @@ describe('chatBackground', () => {
 
   it('revalidate asks the main process when IPC is present', async () => {
     const set = vi.fn().mockResolvedValue(PRESET);
-    (window as { electronAPI?: unknown }).electronAPI = { chatBg: { set } };
+    stubChatBg({ set });
     await expect(revalidateChatBackground()).resolves.toEqual(PRESET);
     expect(set).toHaveBeenCalledWith({});
   });
@@ -157,15 +187,12 @@ describe('chatBackground', () => {
   it('debounces slider writes into one IPC call with the latest value', async () => {
     vi.useFakeTimers();
     const set = vi.fn().mockImplementation(async (p: object) => ({ ...PRESET, ...p }));
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        get: async () => PRESET,
-        set,
-        reset: async () => PRESET,
-        pickImage: async () => PRESET,
-        onChanged: () => () => undefined,
-      },
-    };
+    stubChatBg({
+      get: async () => PRESET,
+      set,
+      reset: async () => PRESET,
+      pickImage: async () => PRESET,
+    });
     for (const blur of [3, 6, 9, 12]) void setChatBackground({ blur });
     expect(getChatBackground().blur).toBe(12);
     expect(set).not.toHaveBeenCalled();
@@ -177,30 +204,25 @@ describe('chatBackground', () => {
   });
 
   it('keeps the latest slider value while older IPC updates are in flight', async () => {
-    let onChanged: (value: unknown) => void = () => undefined;
     const finish: Array<() => void> = [];
-    const set = vi.fn(() => new Promise<void>((resolve) => finish.push(resolve)));
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        get: async () => PRESET,
-        set,
-        reset: async () => PRESET,
-        pickImage: async () => PRESET,
-        onChanged: (callback: (value: unknown) => void) => {
-          onChanged = callback;
-          return () => undefined;
-        },
-      },
-    };
+    const set = vi.fn(
+      () => new Promise<unknown>((resolve) => finish.push(() => resolve({ ...PRESET }))),
+    );
+    stubChatBg({
+      get: async () => PRESET,
+      set,
+      reset: async () => PRESET,
+      pickImage: async () => PRESET,
+    });
     const unsubscribe = initChatBackground();
     void setChatBackground({ blur: 6 });
     await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     void setChatBackground({ blur: 20 });
-    act(() => onChanged({ ...PRESET, blur: 6 }));
+    await pushChanged({ ...PRESET, blur: 6 });
     expect(getChatBackground().blur).toBe(20);
     await act(async () => finish[0]!());
     await waitFor(() => expect(set).toHaveBeenCalledTimes(2));
-    act(() => onChanged({ ...PRESET, blur: 20 }));
+    await pushChanged({ ...PRESET, blur: 20 });
     await act(async () => finish[1]!());
     expect(getChatBackground().blur).toBe(20);
     unsubscribe();
@@ -208,16 +230,13 @@ describe('chatBackground', () => {
 
   it('replaces the preset while preserving custom settings and restores it on reset', async () => {
     let saved = { ...PRESET };
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        get: async () => saved,
-        onChanged: () => () => undefined,
-        set: async (patch: object) => (saved = { ...saved, ...patch }),
-        pickImage: async () =>
-          (saved = { ...saved, imageUrl: 'chat-asset://images/panel-bg.custom.png' }),
-        reset: async () => (saved = { ...PRESET }),
-      },
-    };
+    stubChatBg({
+      get: async () => saved,
+      set: async (patch: object) => (saved = { ...saved, ...patch }),
+      pickImage: async () =>
+        (saved = { ...saved, imageUrl: 'chat-asset://images/panel-bg.custom.png' }),
+      reset: async () => (saved = { ...PRESET }),
+    });
     const unsubscribe = initChatBackground();
     const view = render(
       <>
@@ -252,7 +271,7 @@ describe('chatBackground', () => {
       .fn()
       .mockResolvedValueOnce(DEFAULT_CHAT_BG)
       .mockResolvedValueOnce({ ...DEFAULT_CHAT_BG, imageUrl: 'chat-asset://images/new.png' });
-    (window as { electronAPI?: unknown }).electronAPI = { chatBg: { pickImage } };
+    stubChatBg({ pickImage });
     const view = render(<ThemeSettings />);
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(pickImage).toHaveBeenCalledTimes(1));
@@ -273,13 +292,11 @@ describe('chatBackground', () => {
   });
 
   it('shows the picker error instead of failing silently', async () => {
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        pickImage: async () => {
-          throw new Error('CHAT_BG_TOO_LARGE: image too large');
-        },
+    stubChatBg({
+      pickImage: async () => {
+        throw new Error('CHAT_BG_TOO_LARGE: image too large');
       },
-    };
+    });
     applyTheme('image');
     const view = render(<ThemeSettings />);
     fireEvent.click(view.getByTestId('chat-bg-pick'));
@@ -290,13 +307,11 @@ describe('chatBackground', () => {
 
   it('empty image theme reports a picker error and stays on the current theme', async () => {
     await resetChatBackground();
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        pickImage: async () => {
-          throw new Error('CHAT_BG_UNSUPPORTED: unsupported image type: .bmp');
-        },
+    stubChatBg({
+      pickImage: async () => {
+        throw new Error('CHAT_BG_UNSUPPORTED: unsupported image type: .bmp');
       },
-    };
+    });
     const view = render(<ThemeSettings />);
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getByTestId('theme-image-error').textContent).toContain('PNG'));
@@ -305,17 +320,14 @@ describe('chatBackground', () => {
 
   it('resyncs from the main process when a debounced write fails', async () => {
     vi.useFakeTimers();
-    (window as { electronAPI?: unknown }).electronAPI = {
-      chatBg: {
-        get: async () => ({ ...PRESET, blur: 4 }),
-        set: async () => {
-          throw new Error('disk full');
-        },
-        reset: async () => PRESET,
-        pickImage: async () => PRESET,
-        onChanged: () => () => undefined,
+    stubChatBg({
+      get: async () => ({ ...PRESET, blur: 4 }),
+      set: async () => {
+        throw new Error('disk full');
       },
-    };
+      reset: async () => PRESET,
+      pickImage: async () => PRESET,
+    });
     const done = setChatBackground({ blur: 30 });
     expect(getChatBackground().blur).toBe(30);
     await vi.advanceTimersByTimeAsync(CHAT_BG_WRITE_DEBOUNCE_MS);

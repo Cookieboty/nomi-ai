@@ -16,10 +16,11 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.CLI_CONV_SHOTS_DIR;
 
 async function launch(
@@ -47,13 +48,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 660 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
@@ -249,6 +246,8 @@ test.describe('E24 · coding-agent conversation view · mock CLI', () => {
         NOMI_MOCK_ASK_PERMISSION: '1',
         NOMI_MOCK_STEP_MS: '0',
       }));
+      // 「全部自动」开着时新标签完全放开、不弹确认：这里看确认卡片，先关掉
+      await callContract(chat, 'harness.permissionDefaults', { autoApprove: false });
       await newTabAndSend(chat, 'claude', '删除临时文件');
       const card = chat.locator('[data-testid="conv-permission-card"]');
       await expect(card).toBeVisible({ timeout: 30_000 });

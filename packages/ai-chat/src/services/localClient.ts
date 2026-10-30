@@ -1,5 +1,11 @@
 import { t } from '@nomi-ai/ui';
-/** 本机管理客户端：本机模型（llama.cpp / Ollama）、数据导出（`ai:local:*` / `ai:hub:*`） */
+
+import { api, hasTransport } from './api';
+import { plainError } from './hostBackends/knowledge';
+/**
+ * 本机管理客户端：本机模型（llama.cpp / Ollama）、数据导出——契约 `local.*` / `hub.*`
+ * （docs/design/core-host-decoupling.md §12 P1b，原 `ai:local:*` / `ai:hub:*`）
+ */
 export type Fit = 'ok' | 'tight' | 'too-big';
 export interface Progress {
   received: number;
@@ -63,50 +69,43 @@ export interface OllamaModel {
   quant?: string;
   family?: string;
 }
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.chat-settings.the-local-hub-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (err) {
+    throw plainError(err);
+  }
 }
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-async function call<T>(ch: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.the-local-hub-requires-the-desktop-app'));
-  const r = (await b.invoke(ch, ...args)) as T & { __error?: { code: string; message: string } };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
-}
-const L = <T>(m: string, ...a: unknown[]) => call<T>(`ai:local:${m}`, ...a);
-const H = <T>(m: string, ...a: unknown[]) => call<T>(`ai:hub:${m}`, ...a);
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
+const on = (subscribe: () => () => void): (() => void) =>
+  hasTransport() ? subscribe() : () => undefined;
 
 export const localClient = {
-  available: () => !!bridge(),
-  state: () => L<LocalState>('state'),
-  setSettings: (p: Partial<LocalState['settings']>) => L('set-settings', p),
-  download: (id: string) => L<{ ok: boolean; error?: string }>('download', id),
-  downloadRuntime: () => L<{ ok: boolean; error?: string }>('download-runtime'),
-  cancel: (id: string) => L('cancel', id),
-  remove: (id: string) => L('remove', id),
-  removeRuntime: () => L('remove-runtime'),
-  start: (id: string) => L<{ baseURL: string; providerId: string }>('start', id),
-  stop: () => L('stop'),
-  use: () => L('use'),
-  offline: (v: boolean) => L('offline', v),
-  ollamaList: () => L<OllamaModel[]>('ollama-list'),
-  ollamaPull: (n: string) => L('ollama-pull', n),
-  ollamaDelete: (n: string) => L('ollama-delete', n),
-  onChanged: (fn: () => void) => on('ai:local:changed', () => fn()),
+  available: () => hasTransport(),
+  state: () => call<LocalState>(() => api.local.state()),
+  setSettings: (p: Partial<LocalState['settings']>) => call(() => api.local.setSettings(p)),
+  download: (id: string) => call<{ ok: boolean; error?: string }>(() => api.local.download({ id })),
+  downloadRuntime: () => call<{ ok: boolean; error?: string }>(() => api.local.downloadRuntime()),
+  cancel: (id: string) => call(() => api.local.cancel({ id })),
+  remove: (id: string) => call(() => api.local.remove({ id })),
+  removeRuntime: () => call(() => api.local.removeRuntime()),
+  start: (id: string) =>
+    call<{ baseURL: string; providerId: string }>(() => api.local.start({ id })),
+  stop: () => call(() => api.local.stop()),
+  use: () => call(() => api.local.use()),
+  offline: (v: boolean) => call(() => api.local.offline({ enabled: v })),
+  ollamaList: () => call<OllamaModel[]>(() => api.local.ollamaList()),
+  ollamaPull: (n: string) => call(() => api.local.ollamaPull({ name: n })),
+  ollamaDelete: (n: string) => call(() => api.local.ollamaDelete({ name: n })),
+  onChanged: (fn: () => void) => on(() => api.on('local.changed', () => fn())),
   onProgress: (fn: (p: Progress & { id: string }) => void) =>
-    on('ai:local:progress', (p) => fn(p as Progress & { id: string })),
+    on(() => api.on('local.progress', (p) => fn(p))),
 };
 
 export const hubClient = {
   exportAll: (include: string[], conversations?: unknown) =>
-    H<{ file: string; bytes: number } | null>('export', { include, conversations }),
+    call<{ file: string; bytes: number } | null>(() => api.hub.export({ include, conversations })),
 };
 
 export function fmtBytes(n: number): string {

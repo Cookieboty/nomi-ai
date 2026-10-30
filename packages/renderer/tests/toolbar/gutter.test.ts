@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { placeGutter } from '../../src/mascot/layoutStore';
+import { placeGutter } from '../../src/components/ToolBar/gutter';
 
 const view = { width: 420, height: 450 };
 const bar = { width: 46, height: 230 };

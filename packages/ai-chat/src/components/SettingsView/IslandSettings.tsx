@@ -1,8 +1,11 @@
 /**
  * 设置 → 通知：灵动岛式通知开关 / 样式 / 类型，测试按钮。主进程 IslandService（island:*）。
  */
-import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { Button, SettingRow, SettingsGroup, Switch, t, tName } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
+
+import { api, hasTransport } from '../../services/api';
+import { useCharacterName } from '../../services/characterName';
 
 import styles from './index.module.css';
 
@@ -14,32 +17,16 @@ interface IslandState {
   platform: string;
 }
 
-type Invoke = (ch: string, ...a: unknown[]) => Promise<unknown>;
-type NamedApi = Record<string, (...a: unknown[]) => Promise<unknown>>;
-/** preload 只暴露命名白名单（electronAPI.island.*），这里把通道名映射到具名方法 */
-const CHANNELS: Record<string, string> = {
-  'island:get': 'get',
-  'island:set': 'set',
-  'island:test': 'test',
-};
-const invoke = (): Invoke | null => {
-  const api = (window as unknown as { electronAPI?: { island?: NamedApi } }).electronAPI?.island;
-  if (!api) return null;
-  return (ch, ...a) => {
-    const fn = api[CHANNELS[ch] ?? ''];
-    return fn ? fn(...a) : Promise.reject(new Error(`unknown channel ${ch}`));
-  };
-};
-
 export const IslandSettings: React.FC = () => {
+  const name = useCharacterName();
   const [s, setS] = useState<IslandState | null>(null);
   const load = useCallback(() => {
-    void invoke()?.('island:get').then((v) => setS(v as IslandState));
+    if (hasTransport()) void api.island.get().then(setS, () => undefined);
   }, []);
   useEffect(load, [load]);
-  const set = (p: Partial<IslandState>) => void invoke()?.('island:set', p).then(load);
+  const set = (p: Partial<IslandState>) => void api.island.set(p).then(load, () => undefined);
 
-  if (!invoke())
+  if (!hasTransport())
     return (
       <section className={styles.block} data-testid="settings-island">
         <p className={styles.muted}>{t('ui.mascot-theme.available-in-the-desktop-app-only')}</p>
@@ -73,7 +60,7 @@ export const IslandSettings: React.FC = () => {
             ? s.mode === 'notch'
               ? t('ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the')
               : t('ui.mascot-theme.no-notch-on-this-display-notifications-appear-as')
-            : t('ui.mascot-theme.on-windows-linux-this-is-an-optional-top')
+            : tName('ui.mascot-theme.on-windows-linux-this-is-an-optional-top', name)
         }
         actions={
           <Button
@@ -82,7 +69,7 @@ export const IslandSettings: React.FC = () => {
             size="sm"
             disabled={!s.enabled}
             data-testid="island-test"
-            onClick={() => void invoke()?.('island:test')}
+            onClick={() => void api.island.test().catch(() => undefined)}
           >
             {t('ui.mascot-theme.preview-a-notification')}
           </Button>
@@ -90,7 +77,10 @@ export const IslandSettings: React.FC = () => {
       >
         <SettingRow
           title={t('ui.mascot-theme.enable-dynamic-island-notifications')}
-          description={t('ui.chat-settings.when-off-system-notifications-are-used-while-nomi')}
+          description={tName(
+            'ui.chat-settings.when-off-system-notifications-are-used-while-nomi',
+            name,
+          )}
         >
           <Switch
             checked={s.enabled}

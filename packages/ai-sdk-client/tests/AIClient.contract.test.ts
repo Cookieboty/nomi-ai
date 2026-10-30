@@ -6,28 +6,26 @@
  *
  * 双重保障：
  * 1. **compile-time**：`expectTypeOf<ClientKeys>().toEqualTypeOf<SdkKeys>()`——
- *    直接靠 TS 的键集比较，任何顶层 facade（chat/sessions/tools/memory/asr/tts/live2d）
+ *    直接靠 TS 的键集比较，任何顶层 facade（chat/sessions/tools/memory/asr/tts/avatar）
  *    在两侧命名漂移都会编译失败。
  * 2. **runtime**：把 P5 每个 facade 的 method key 汇总，逐一在 `ClientAIClient`
- *    的 Proxy facade 上取值，断言得到 `function`。用 IPC_METHODS 白名单反查通道
- *    是否也覆盖了对应的 (facade, method)，避免通道表与门面漂移。
+ *    的 Proxy facade 上取值，断言得到 `function`。用应用契约的 `AI_METHODS` 反查
+ *    是否也覆盖了对应的 (facade, method)，避免契约与门面漂移。
  *
  * 说明：`register` 系列（`tools.register` / `asr.register` / `tts.register`）在 P5
- * 是「主进程 SDK 才允许的注册操作」，不应在渲染进程 IPC 白名单中出现；
- * 因此测试白名单里把这三条剔除。
+ * 是「主进程 SDK 才允许的注册操作」，不应出现在应用契约里；因此测试白名单里把这三条剔除。
  */
 
+import type { AIClient, MemoryFacade } from '@nomi-ai/ai-sdk';
+import { AI_METHODS } from '@nomi-ai/contract/app';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { AIClient } from '../../ai-sdk/src/AIClient';
-import type { MemoryFacade } from '../../ai-sdk/src/facade/MemoryFacade';
-import { IPC_METHOD_INDEX } from '../src/channels';
 import { ClientAIClient } from '../src/ClientAIClient';
 
-import { FakeBridge } from './FakeBridge';
+import { createFakeServer } from './fakeServer';
 
-type SdkTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'live2d';
-type ClientTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'live2d';
+type SdkTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'avatar';
+type ClientTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'avatar';
 
 describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
   it('顶层 facade 键集完全一致（compile-time）', () => {
@@ -48,7 +46,7 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
   });
 
   /**
-   * P5 每个 facade 允许出现在渲染进程 IPC 白名单中的方法名（等同于 IPC_METHODS 的期望值）。
+   * P5 每个 facade 允许经应用契约暴露给渲染进程的方法名（等同于 AI_METHODS 的期望值）。
    * 变更 P5 门面时同步维护本表，做为「主进程 → 渲染进程可暴露」的白名单快照。
    */
   const expectedFacadeMethods: Record<string, string[]> = {
@@ -60,13 +58,14 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
     summaries: ['get', 'put'],
     asr: ['list', 'transcribe'],
     tts: ['list', 'listVoices', 'synth', 'stream', 'stop'],
-    live2d: ['isAvailable', 'playMotion', 'setExpression', 'driveLipSync', 'setParameter'],
+    avatar: ['isAvailable', 'emotion', 'gesture', 'activity', 'speaking', 'report'],
   };
 
-  it('IPC_METHODS 覆盖所有可暴露方法且不多不少', () => {
+  it('AI_METHODS 覆盖所有可暴露方法且不多不少', () => {
     const actual = new Map<string, Set<string>>();
-    for (const [key] of IPC_METHOD_INDEX) {
-      const [facade, method] = key.split('.') as [string, string];
+    for (const spec of AI_METHODS) {
+      const facade = spec.facade.replace(/^memory\./, '');
+      const method = spec.method;
       let bucket = actual.get(facade);
       if (!bucket) {
         bucket = new Set();
@@ -82,14 +81,14 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
   });
 
   it('ClientAIClient 的每个 facade Proxy 均能路由到对应的方法', () => {
-    const client = new ClientAIClient({ bridge: new FakeBridge() });
+    const client = new ClientAIClient({ transport: createFakeServer().connect() });
     const topLevel: Record<string, Record<string, unknown>> = {
       chat: client.chat,
       sessions: client.sessions,
       tools: client.tools,
       asr: client.asr,
       tts: client.tts,
-      live2d: client.live2d,
+      avatar: client.avatar,
       userProfile: client.memory.userProfile,
       facts: client.memory.facts,
       summaries: client.memory.summaries,

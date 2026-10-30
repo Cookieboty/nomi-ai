@@ -1,60 +1,105 @@
 /**
- * 诺米提示语音：Nomi 固定台词的预录音频（public/voice/nomi/zh，Edge zh-CN-XiaoyiNeural 生成）。
+ * 角色提示语音：固定台词的预录音频（public/voice/<id>/<locale>）。
  *
  * 播放顺序：预录片段 → 已配置的实时朗读引擎 → 仅气泡。
- * 只在「当前模型是 Nomi + 界面中文 + 提示语音开启 + 看板娘未静音」时播放。
+ * 只在「当前模型是活动角色 + 界面中文 + 提示语音开启 + 桌面角色未静音」时播放。
  * 口型同步与打断复用 audioPlayback 的播放会话（AnalyserNode RMS → lipSyncStore）。
+ *
+ * Clip ids are name-agnostic (stable-v1). Manifest entries expose id + i18nKey;
+ * legacy i18n keys resolve for one release via legacyClipIds.json.
  */
 import { createLogger, getLocale, t } from '@nomi-ai/ui';
 
+import { api, hasTransport } from '../../services/api';
+import {
+  ensureCharacterPackOverlay,
+  getCharacterId,
+  getPromptClipBase,
+  isActivePackModel,
+} from '../characterConfig';
 import { isMascotMuted } from '../presence';
+
+import legacyMap from './legacyClipIds.json';
 
 const log = createLogger('prompt-clips');
 
-export const PROMPT_CLIP_BASE = './voice/nomi/zh/';
-export const PROMPT_CLIP_MODEL = 'nomi';
+/** @deprecated Prefer getPromptClipBase(); kept for tests / callers. */
+export const PROMPT_CLIP_BASE = getPromptClipBase();
+/** @deprecated Prefer getCharacterId(); default remains nomi for official builds. */
+export const PROMPT_CLIP_MODEL = getCharacterId();
 
-/** 保留文字气泡、但不播放任何音频的台词 */
+/** 保留文字气泡、但不播放任何音频的台词（i18n keys） */
 export const NO_AUDIO_KEYS: ReadonlySet<string> = new Set([
   'ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot',
   'ui.voice-mascot.ai-chat-requires-the-electron-environment',
 ]);
 
-/** 带变量的台词：气泡显示完整文字，语音改播固定句 */
+/** 带变量的台词：气泡显示完整文字，语音改播固定句（stable clip ids） */
 export const CLIP_HINTS = {
-  modeFixed: 'ui.voice-mascot.switched-to-mode.fixed',
-  modeTts: 'ui.voice-mascot.switched-to-mode.tts',
-  openFailed: 'ui.voice-mascot.couldn-t-open',
-  micFailed: 'ui.voice-mascot.couldn-t-open-the-microphone',
-  reminder: 'ui.cli-monitor.reminder-time',
-  missedReminders: 'ui.voice-mascot.you-missed-reminders-while-away',
+  modeFixed: 'mode-fixed',
+  modeTts: 'mode-tts',
+  openFailed: 'err-couldnt-open',
+  micFailed: 'err-mic-open',
+  reminder: 'remind-time',
+  missedReminders: 'remind-missed',
 } as const;
 
 export interface PromptClipEntry {
+  /** Stable name-agnostic id (preferred lookup key). */
+  id?: string;
+  /** Manifest primary key; equals id under stable-v1. */
   key: string;
+  /** Original i18n key for bubble text / legacy callers. */
+  i18nKey?: string;
   text: string;
   file: string;
   duration_s?: number;
 }
 
 interface Manifest {
+  idSchema?: string;
   clips: PromptClipEntry[];
 }
 
-let manifest: Promise<Map<string, PromptClipEntry> | null> | null = null;
+type ClipIndex = Map<string, PromptClipEntry>;
+
+let manifest: Promise<ClipIndex | null> | null = null;
 let promptVoiceCache: { value: boolean; at: number } | null = null;
 const PROMPT_VOICE_TTL_MS = 3000;
 const DEDUPE_MS = 1500;
 let last: { key: string; at: number } | null = null;
 
-function loadManifest(): Promise<Map<string, PromptClipEntry> | null> {
+const LEGACY_TO_ID = (legacyMap as { byLegacyKey: Record<string, string> }).byLegacyKey;
+
+function indexClips(clips: PromptClipEntry[]): ClipIndex {
+  const map: ClipIndex = new Map();
+  const add = (k: string | undefined, c: PromptClipEntry) => {
+    if (k && !map.has(k)) map.set(k, c);
+  };
+  for (const c of clips) {
+    const id = c.id || c.key;
+    add(id, c);
+    add(c.key, c);
+    add(c.i18nKey, c);
+  }
+  // One-release legacy aliases → same entry
+  for (const [legacy, id] of Object.entries(LEGACY_TO_ID)) {
+    const entry = map.get(id);
+    if (entry) add(legacy, entry);
+  }
+  return map;
+}
+
+function loadManifest(): Promise<ClipIndex | null> {
   if (!manifest) {
     manifest = (async () => {
       try {
-        const res = await fetch(`${PROMPT_CLIP_BASE}manifest.json`);
+        // The cached index must match the base clips are played from — wait for the overlay.
+        await ensureCharacterPackOverlay();
+        const res = await fetch(`${getPromptClipBase()}manifest.json`);
         if (!res.ok) return null;
         const m = (await res.json()) as Manifest;
-        return new Map((m.clips ?? []).map((c) => [c.key, c]));
+        return indexClips(m.clips ?? []);
       } catch (e) {
         log.warn('prompt clip manifest unavailable', e);
         return null;
@@ -71,8 +116,7 @@ async function promptVoiceOn(): Promise<boolean> {
   }
   let value = true; // 默认开
   try {
-    const fn = typeof window !== 'undefined' ? window.electronAPI?.ttsPromptVoice : undefined;
-    if (fn) value = (await fn()) !== false;
+    if (hasTransport()) value = (await api.tts.promptVoice()) !== false;
   } catch {
     /* keep default */
   }
@@ -82,27 +126,24 @@ async function promptVoiceOn(): Promise<boolean> {
 
 /** 预录片段是否适用于当前模型与界面语言（同步部分）。 */
 export function promptClipsApplicable(modelName: string | null | undefined): boolean {
-  return (
-    (modelName ?? '').toLowerCase() === PROMPT_CLIP_MODEL &&
-    getLocale() === 'zh-CN' &&
-    !isMascotMuted()
-  );
+  return isActivePackModel(modelName) && getLocale() === 'zh-CN' && !isMascotMuted();
 }
 
 /**
- * 把 key 或已翻译的中文文本解析成清单里的片段 key。
+ * 把 key / stable id / 已翻译的中文文本解析成清单里的片段 id。
  * 返回 null 表示没有片段（交给实时朗读或保持静默）。
  */
-export function resolveClipKey(
-  keyOrText: string,
-  clips: Map<string, PromptClipEntry>,
-): string | null {
+export function resolveClipKey(keyOrText: string, clips: ClipIndex): string | null {
   const s = keyOrText.trim();
   if (!s || NO_AUDIO_KEYS.has(s)) return null;
-  if (clips.has(s)) return s;
+  const direct = clips.get(s);
+  if (direct) return direct.id || direct.key;
+  const viaLegacy = LEGACY_TO_ID[s];
+  if (viaLegacy && clips.has(viaLegacy)) return viaLegacy;
   for (const k of NO_AUDIO_KEYS) if (t(k) === s) return null;
   for (const c of clips.values()) {
-    if (c.text === s || t(c.key) === s) return c.key;
+    const i18n = c.i18nKey || c.key;
+    if (c.text === s || t(i18n) === s) return c.id || c.key;
   }
   return null;
 }
@@ -119,7 +160,7 @@ export type PromptClipResult = 'played' | 'duplicate' | 'none';
 
 export interface PlayPromptClipOptions {
   modelName: string | null | undefined;
-  /** 优先使用的片段 key（变量台词） */
+  /** 优先使用的片段 id / key（变量台词） */
   clip?: string | null;
   volume?: number;
   onEnd?: () => void;
@@ -137,7 +178,12 @@ export async function playPromptClip(
   if (!promptClipsApplicable(opts.modelName)) return 'none';
   const clips = await loadManifest();
   if (!clips) return 'none';
-  const key = opts.clip && clips.has(opts.clip) ? opts.clip : resolveClipKey(keyOrText, clips);
+  let key: string | null = null;
+  if (opts.clip) {
+    const hinted = clips.get(opts.clip) || clips.get(LEGACY_TO_ID[opts.clip] || '');
+    if (hinted) key = hinted.id || hinted.key;
+  }
+  if (!key) key = resolveClipKey(keyOrText, clips);
   if (!key) return 'none';
   if (!(await promptVoiceOn())) return 'none';
   if (!promptClipsApplicable(opts.modelName)) return 'none';
@@ -149,7 +195,7 @@ export async function playPromptClip(
   last = { key, at: now };
   const entry = clips.get(key)!;
   const { playAudioClip } = await import('../tts/audioPlayback');
-  const ok = await playAudioClip(`${PROMPT_CLIP_BASE}${entry.file}`, {
+  const ok = await playAudioClip(`${getPromptClipBase()}${entry.file}`, {
     volume: opts.volume,
     onEnd: opts.onEnd,
   });

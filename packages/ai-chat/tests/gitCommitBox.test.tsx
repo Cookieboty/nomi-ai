@@ -12,6 +12,8 @@ import {
 } from '../src/services/harnessClient';
 import type { ConvMessage } from '../src/types/conversation';
 
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
     workspaceList: vi.fn(async () => ({ ok: true, entries: [] })),

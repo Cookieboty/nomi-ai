@@ -3,14 +3,30 @@
 /**
  * e2e-headed preload
  *
- * 1. 通过 mkAiPreload 暴露 `window.aiIPC`（走 `ai:` 白名单校验）；
- * 2. 挂 `window.__e2eProbe`：Playwright 从这里拿到事件采集器。
+ * 1. 暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），与真实 preload 一致；
+ * 2. preload 自己建一个契约客户端，订阅全部 AI 事件写进采集器；
+ * 3. 挂 `window.__e2eProbe`：Playwright 从这里拿事件，也可以 `call(过程名, 入参)` 调内核。
  */
 
-const { contextBridge, ipcRenderer } = require('electron');
-const { mkAiPreload } = require('@nomi-ai/ai-sdk-client/preload');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { mkNomiHostPreload, mkNomiTransportPreload } = require('@nomi-ai/ai-sdk-client/preload');
+const { createClient, createIpcClientTransport } = require('@nomi-ai/contract');
+const { AI_EVENTS, appContract } = require('@nomi-ai/contract/app');
 
-mkAiPreload({ contextBridge, ipcRenderer });
+mkNomiTransportPreload({ contextBridge, ipcRenderer });
+mkNomiHostPreload({ contextBridge, webUtils });
+
+const api = createClient(
+  appContract,
+  createIpcClientTransport({
+    invoke: (channel, payload) => ipcRenderer.invoke(channel, payload),
+    on(channel, fn) {
+      const listener = (_event, payload) => fn(payload);
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.removeListener(channel, listener);
+    },
+  }),
+);
 
 const buffer = {
   ttsChunks: [],
@@ -20,19 +36,27 @@ const buffer = {
   events: [],
 };
 
-const AI_EVENT_CHANNEL = 'ai:event';
-
-ipcRenderer.on(AI_EVENT_CHANNEL, (_evt, payload) => {
-  if (!payload || typeof payload !== 'object') return;
-  const { evt, data } = payload;
+const record = (evt, data) => {
   buffer.events.push({ evt, data });
   if (evt === 'tts:chunk') buffer.ttsChunks.push(data);
   else if (evt === 'agent:turn-end') buffer.turnEnds.push(data);
   else if (evt === 'tool:executed') buffer.toolExecuted.push(data);
   else if (evt === 'userProfile:changed') buffer.profileChanged.push(data);
-});
+};
+for (const [evt, event] of Object.entries(AI_EVENTS)) {
+  api.on(event, (data) => record(evt, data));
+}
+
+/** `ai.tools.list` → api.ai.tools.list */
+const procedure = (name) => name.split('.').reduce((node, seg) => node && node[seg], api);
 
 contextBridge.exposeInMainWorld('__e2eProbe', {
+  /** 经契约调用一个 query / mutation 过程 */
+  call(name, input) {
+    const fn = procedure(name);
+    if (typeof fn !== 'function') return Promise.reject(new Error(`unknown procedure ${name}`));
+    return fn(input);
+  },
   getEvents() {
     return JSON.parse(JSON.stringify(buffer.events));
   },

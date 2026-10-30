@@ -22,17 +22,18 @@ import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
-  historyClient,
+  isHistoryBackend,
   type HistoryBackend,
   type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
-import { formatCombo, useShortcutBindings, useShortcutEvent } from '../../services/shortcuts';
-import type { ConversationBackend } from '../../types/chat';
-import { CONVERSATION_BACKENDS } from '../../types/chat';
+import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
+import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
+import { isImeComposing } from '../../utils/keyboard';
 import { ChatModeSwitch } from '../ChatModeSwitch';
+import { confirmDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
@@ -57,11 +58,13 @@ import {
 } from './searchSupport';
 import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
+import { useSessionActions } from './useSessionActions';
+import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  onNewChat: () => void | Promise<void>;
+  onNewChat: (opts?: { cwd?: string }) => void | Promise<void>; // cwd：新建菜单里选的工作区
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -205,6 +208,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   // 左下角信息卡跟随当前会话所在的端（CLI 标签 / Nomi 对话）；点了顶部端点图标就先看那个端，
   // 直到切换会话。还没有当前会话时退回筛选的端
   const [cardPick, setCardPick] = useState<ConversationBackend | null>(null);
+  const startRename = useSidebarRename(collapsed, onToggle, highlightId, setRenamingId);
   const [cardPickFor, setCardPickFor] = useState(highlightId);
   if (cardPickFor !== highlightId) {
     setCardPickFor(highlightId);
@@ -283,7 +287,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
       // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
       // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-      await onNewChat();
+      await onNewChat(ws.chosen ? { cwd: ws.chosen } : undefined);
       refresh();
       return;
     }
@@ -314,7 +318,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       const st = tabById.get(meta.tabId)?.status;
       if (
         (st === 'running' || st === 'queued') &&
-        !window.confirm(t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'))
+        !(await confirmDialog({
+          message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
+        }))
       )
         return;
       await tabs.close(meta.tabId);
@@ -383,6 +389,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const histBackends = useMemo(() => HISTORY_BACKENDS.filter((b) => Boolean(bins[b])), [bins]);
   const tabsKey = (tabs.state?.tabs ?? []).map((x) => `${x.id}:${x.cliSessionId ?? ''}`).join('|');
   const history = useCliHistory(isDev, histBackends, tabsKey);
+  const { openingKey, openHistory, deleteHistory, deleteTab } = useSessionActions({
+    tabs,
+    onNotice,
+    refresh,
+    refreshHistory: history.refresh,
+  });
   // 镜像条目与本机历史使用同一个稳定键：CLI 后端 + 原生会话 id。
   // 主进程会尽量提前排除已打开的会话，但这里还要防住历史扫描与标签同步的竞态，
   // 也要覆盖搜索索引返回得比侧栏列表更早的情况。
@@ -412,7 +424,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
       ? []
       : historyItems(histScope);
-  const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
   const endpointActivity = useMemo(() => {
@@ -465,21 +476,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     !(view === 'by-endpoint' && endpointFilter === 'nomi');
   const histScanning = histVisible && histItems.length === 0 && history.loading && !history.loaded;
 
-  const openHistory = async (h: HistorySession) => {
-    if (openingKey) return;
-    setOpeningKey(h.key);
-    try {
-      const r = await historyClient.open(h.backend, h.sessionId);
-      if (!r.ok) onNotice?.(r.error || t('ui.cli-monitor.could-not-open-the-history-session'));
-      else if (r.notice) onNotice?.(r.notice);
-    } catch (e) {
-      onNotice?.(e instanceof Error ? e.message : String(e));
-    } finally {
-      setOpeningKey(null);
-      history.refresh();
-    }
-  };
-
   // ── 模式切换：普通模式下当前会话若是 CLI 会话，自动换到最近的 Nomi 会话（没有则新建）；
   //    切回开发模式时回到离开前选中的会话。CLI 标签一直在后台运行。
   const leftDevOn = useRef<string | null>(null);
@@ -514,11 +510,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
 
-  useShortcutEvent('searchChats', () => {
-    setSearchOpen(true);
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-  });
-  useShortcutEvent('renameTab', () => highlightId && setRenamingId(highlightId));
+  useSidebarSearchShortcut(setSearchOpen, inputRef);
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
@@ -615,7 +607,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+    } else if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
       e.preventDefault();
       openEntry(activeEntry);
     }
@@ -716,7 +708,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             size={collapsed ? 24 : 28}
             testId="sidebar-brand-mark"
           />
-          {!collapsed && <span className={styles.brand}>Nomi</span>}
+          {!collapsed && <span className={styles.brand}>{ENDPOINT_FULL.nomi()}</span>}
         </button>
         {!collapsed && (
           <>
@@ -1087,9 +1079,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                     </span>
                     <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
                   </button>
-                  {/* 磁盘历史是只读的：没有重命名 / 删除，「更多」里只有「在标签中打开」 */}
+                  {/* 磁盘历史：没有重命名；删除 = 把 CLI 的会话记录移到废纸篓 */}
                   <RowActions
                     kind="hist"
+                    onDelete={() => void deleteHistory(h)}
                     onMore={(a) => {
                       setCtx(null);
                       setHistMenu({ h, x: a.right - 184, y: a.bottom + 2 });
@@ -1138,12 +1131,19 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
               onDismiss={() => setCtx(null)}
-              onRename={() => setRenamingId(ctx.id)}
+              onRename={() => startRename(ctx.id)}
               onFork={() => onForkRequest?.(ctx.id, 'same')}
               // 跨端分叉只在开发模式提供；普通模式只有「分叉为新对话」（同端 Nomi）
               onForkCross={isDev ? () => onForkRequest?.(ctx.id, 'cross') : undefined}
               onClose={meta?.tabId ? () => void removeItem(ctx.id) : undefined}
-              onDelete={meta?.tabId ? undefined : () => void removeItem(ctx.id)}
+              // CLI 标签：删除 = 关标签 + 把 CLI 的会话记录移到废纸篓（外部 CLI 没有本机历史，只能关闭）
+              onDelete={
+                !meta?.tabId
+                  ? () => void removeItem(ctx.id)
+                  : isHistoryBackend(meta.backend)
+                    ? () => void deleteTab(meta)
+                    : undefined
+              }
             />
           );
         })()}
@@ -1155,6 +1155,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           isTab={false}
           onDismiss={() => setHistMenu(null)}
           onOpen={() => void openHistory(histMenu.h)}
+          onDelete={() => void deleteHistory(histMenu.h)}
         />
       )}
     </aside>
@@ -1169,7 +1170,7 @@ const CLIENT_LABELS: Record<HistoryClient, string> = {
   desktop: 'Desktop',
   ide: 'IDE',
   exec: 'exec',
-  nomi: 'Nomi',
+  nomi: ENDPOINT_FULL.nomi(),
 };
 
 /** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */

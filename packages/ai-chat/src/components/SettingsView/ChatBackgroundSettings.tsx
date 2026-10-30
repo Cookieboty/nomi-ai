@@ -1,8 +1,9 @@
 /** 图片主题的图片选择、全局毛玻璃模糊与透明度。 */
-import { Button, SettingRow, t } from '@nomi-ai/ui';
+import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';
 
+import { hostAssetUrl } from '../../services/api';
 import {
   DEFAULT_CHAT_BG,
   CHAT_BG_PRESET_URL,
@@ -60,7 +61,9 @@ export const ChatBackgroundSettings: React.FC = () => {
         {state.imageUrl && (
           <span
             className={styles.bgThumb}
-            style={{ backgroundImage: `url("${state.imageUrl.replace(/"/g, '\\"')}")` }}
+            style={{
+              backgroundImage: `url("${hostAssetUrl(state.imageUrl).replace(/"/g, '\\"')}")`,
+            }}
             aria-hidden
           />
         )}
@@ -88,8 +91,7 @@ export const ChatBackgroundSettings: React.FC = () => {
         )}
       </SettingRow>
       <SettingRow title={t('ui.voice-mascot.frosted-glass')}>
-        <input
-          type="range"
+        <Slider
           className={styles.range}
           min={0}
           max={40}
@@ -102,8 +104,7 @@ export const ChatBackgroundSettings: React.FC = () => {
         <span className={styles.sizeValue}>{state.blur}px</span>
       </SettingRow>
       <SettingRow title={t('ui.chat-settings.opacity')}>
-        <input
-          type="range"
+        <Slider
           className={styles.range}
           min={5}
           max={100}

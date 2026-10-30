@@ -5,10 +5,15 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const maxLines = 1200;
-const sourceRoots = ['packages/ui/src', 'packages/ai-chat/src', 'packages/renderer/src'];
+const sourceRoots = [
+  'packages/ui/src',
+  'packages/ai-chat/src',
+  'packages/renderer/src',
+  'packages/avatar-runtime/src',
+];
 const allowed = new Map([
   [
-    'packages/renderer/src/mascot/layeredRig.ts',
+    'packages/avatar-runtime/src/layeredRig.ts',
     'Canvas2D rig engine: tightly coupled animation and painting pipeline; split only with a rendering design change.',
   ],
 ]);

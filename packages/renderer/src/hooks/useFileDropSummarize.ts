@@ -1,17 +1,22 @@
+import { createLogger } from '@nomi-ai/ui';
 import { useEffect } from 'react';
 
-import { directiveForEvent } from '@/mascot/expressionDirector';
-import { applyDirective } from '@/mascot/mood';
+import { avatarEvents } from '@/avatar/events';
+import { hasTransport, hostDropFile, isGoHost } from '@/services/api';
+
+const log = createLogger('FileDrop');
 
 /**
- * 把文件拖到看板娘身上 → 主进程临时授权该文件（只读、仅本次运行）并总结，结果显示在气泡与对话窗口。
- * 拖到弹窗（如「导入 VRM」）里的不处理。
+ * 把文件拖到桌面角色身上 → 主进程临时授权该文件（只读、仅本次运行）并总结，结果显示在气泡与对话窗口。
+ * 拖到弹窗（如「导入 VRM」）里的不处理。路径的解析与提交都在 preload 里（`hostDropFile` →
+ * `window.nomiHost.dropFile`），视图只交出 File，选不了路径。
  */
 export function useFileDropSummarize(elementId = 'mascot-canvas'): void {
   useEffect(() => {
-    const api = window.electronAPI?.desktop;
     const el = document.getElementById(elementId);
-    if (!api || !el) return;
+    if (!hasTransport() || !el) return;
+    // Go 宿主：Wails 只把落在 data-file-drop-target 元素上的文件交给宿主（宿主拿到路径直接提交，见 hostDropFile）
+    if (isGoHost()) el.setAttribute('data-file-drop-target', '');
     const isFiles = (e: DragEvent) =>
       !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
     const over = (e: DragEvent) => {
@@ -29,9 +34,13 @@ export function useFileDropSummarize(elementId = 'mascot-canvas'): void {
       e.preventDefault();
       const file = e.dataTransfer?.files?.[0];
       if (!file) return;
-      const ok = api.dropFile(file);
-      document.documentElement.dataset.mascotDrop = ok ? file.name : 'no-path';
-      if (ok) applyDirective(directiveForEvent({ kind: 'file:drop' }));
+      const sent = hostDropFile(file);
+      document.documentElement.dataset.mascotDrop = sent ? file.name : 'no-path';
+      if (!sent) {
+        log.debug('拖入的文件没有本机路径，忽略');
+        return;
+      }
+      avatarEvents.emit({ type: 'cue', cue: { kind: 'file:drop' } });
     };
     el.addEventListener('dragover', over);
     el.addEventListener('dragleave', leave);

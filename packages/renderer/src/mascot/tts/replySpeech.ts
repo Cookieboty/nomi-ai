@@ -1,5 +1,5 @@
 /**
- * 朗读 AI 回复（看板娘窗口一侧）：对话窗口边生成边把整句经主进程（tts:reply → mascot:command）发过来，
+ * 朗读 AI 回复（桌面角色窗口一侧）：对话窗口边生成边把整句经主进程（tts:reply → mascot:command）发过来，
  * 这里按到达顺序排队，经 tts:speak 合成（预取下一句）后用 playSynthesized 播放，口型同步与打断
  * 跟其它语音共用。新回复（id 变了）/ stop / 按住说话 / 别的语音抢占 → 立即停止并清空队列。
  * 被 stop / 按住说话 / 抢占停下的回复记为已取消：文字生成还在继续，同一回复后来的分句不再朗读（#148）。
@@ -7,6 +7,7 @@
  */
 import type { TTSSpeakResult } from '@nomi-ai/types';
 
+import { api, hasTransport } from '../../services/api';
 import { resolvePrefsForCharacter } from '../characterVoice';
 import { isMascotMuted } from '../presence';
 import { registerSpeechStopper } from '../speechStop';
@@ -146,9 +147,8 @@ function getQueue(): ReplySpeechQueue {
   if (queue) return queue;
   queue = new ReplySpeechQueue({
     synth: async (text) => {
-      const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-      if (!api?.ttsSpeak) return null;
-      return api.ttsSpeak({ text });
+      if (!hasTransport()) return null;
+      return (await api.tts.speak({ text })) as TTSSpeakResult;
     },
     play: playSynthesized,
     stopAudio: stopSpeaking,

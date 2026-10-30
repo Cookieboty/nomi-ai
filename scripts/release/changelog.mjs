@@ -5,7 +5,7 @@
  *
  *   node scripts/release/changelog.mjs            重写 CHANGELOG.md 的 “Unreleased” 段
  *   node scripts/release/changelog.mjs --check    CHANGELOG 与 changesets 不一致时退出 1（CI）
- *   node scripts/release/changelog.mjs --release  把 Unreleased 定版为 packages/electron 的版本号 + 日期
+ *   node scripts/release/changelog.mjs --release  把 Unreleased 定版为 apps/desktop-electron 的版本号 + 日期
  *                                                 （由 `pnpm changeset:version` 在 changesets 消费前调用）
  *
  * 每条 changeset 的正文首行按 Conventional Commit 前缀归类（feat / fix / perf / …）。
@@ -117,7 +117,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     console.log('CHANGELOG.md is up to date.');
   } else if (args.includes('--release')) {
     const v = JSON.parse(
-      readFileSync(join(ROOT, 'packages/electron/package.json'), 'utf8'),
+      readFileSync(join(ROOT, 'apps/desktop-electron/package.json'), 'utf8'),
     ).version;
     writeFileSync(file, release(next, v, new Date().toISOString().slice(0, 10)));
     console.log(`CHANGELOG.md: Unreleased → ${v}`);

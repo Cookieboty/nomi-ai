@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -16,7 +17,7 @@ import { revealToolbar } from './toolbarReveal';
  * 2. 弹窗：打开后焦点进入对话框，Tab / Shift+Tab 不会跑出对话框，Esc 关闭并把焦点还给触发按钮；
  * 3. prefers-reduced-motion：桌宠工具栏 / 气泡等 CSS 动画被关闭。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'apps', 'desktop-electron');
 const shotDir = process.env.A11Y_SHOTS_DIR;
 
 async function unnamed(page: Page): Promise<string[]> {
@@ -111,7 +112,7 @@ test.describe('A11y: names, focus trap, Esc, reduced motion', () => {
     };
 
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
     );
@@ -170,11 +171,7 @@ test.describe('A11y: names, focus trap, Esc, reduced motion', () => {
         return existing;
       }
       const chatWin = app!.waitForEvent('window', { timeout: 30_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat = await chatWin;
       await waitChatReady(chat);
       return chat;

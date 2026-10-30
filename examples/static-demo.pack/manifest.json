@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "id": "static-demo",
+  "contractVersion": 1,
+  "version": "1.1.0",
+  "credits": {
+    "author": "repository contributors (generated placeholder)",
+    "license": "CC0-1.0",
+    "source": "this repository"
+  },
+  "assets": {
+    "mode": "static",
+    "static": "static/character.webp",
+    "onboarding": "onboarding"
+  },
+  "defaults": {
+    "primaryLocale": "zh",
+    "voiceHint": "xiaoxiao",
+    "voiceRate": 0.9,
+    "voicePitch": 1.08
+  },
+  "capabilities": {
+    "expressions": ["neutral"],
+    "lipSync": false,
+    "blink": false
+  },
+  "layout": {
+    "hitboxes": {
+      "head": { "top": 0.05, "bottom": 0.32, "left": 0.2, "right": 0.8 },
+      "face": { "top": 0.12, "bottom": 0.3, "left": 0.28, "right": 0.72 },
+      "body": { "top": 0.3, "bottom": 0.7, "left": 0.25, "right": 0.75 },
+      "hand": { "top": 0.5, "bottom": 0.75, "left": 0.1, "right": 0.9 },
+      "hem": { "top": 0.7, "bottom": 1.0, "left": 0.2, "right": 0.8 }
+    },
+    "bubbleAnchor": { "x": 0.72, "y": 0.18 }
+  }
+}

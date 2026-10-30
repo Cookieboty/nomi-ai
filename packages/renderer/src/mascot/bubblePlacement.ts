@@ -1,4 +1,4 @@
-import type { Box } from './layoutStore';
+import type { Box } from '@nomi-ai/avatar-runtime';
 
 /**
  * 气泡摆放（纯函数）：永远不压住脸 / 头部，也避开工具栏槽位。

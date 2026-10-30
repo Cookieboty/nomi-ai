@@ -1,0 +1,3519 @@
+{
+ "platform": "linux",
+ "scenarios": [
+  {
+   "name": "crud",
+   "out": [
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Work",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U3>",
+      "kind": "gemini",
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U3>' gemini",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U4>",
+      "kind": "grok",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GROK_HOME='<SB>/root/homes/grok/<U4>' grok",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "err": "TypeError: Cannot read properties of undefined (reading 'shared')"
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "Work",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": "local-claude"
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Work",
+      "identity": null,
+      "active": true,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000,
+      "lastUsedAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Work",
+      "identity": null,
+      "active": true,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000,
+      "lastUsedAt": 1700000000000
+     }
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "v": "<U1>"
+    },
+    {
+     "v": "<SB>/root/homes/claude/<U1>"
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "dir": "<SB>/root/homes/claude/<U1>",
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<SB>/root/homes/claude/<U1>",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1"
+      },
+      "strip": [
+       "ANTHROPIC_BASE_URL",
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_AUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CONFIG_DIR"
+      ],
+      "args": [],
+      "sig": "official:<U1>",
+      "problems": []
+     }
+    },
+    {
+     "v": {
+      "dir": null,
+      "env": {},
+      "strip": [
+       "ANTHROPIC_BASE_URL",
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_AUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY"
+      ],
+      "args": [],
+      "sig": "official:local-claude",
+      "problems": []
+     }
+    },
+    {
+     "v": {
+      "dir": null,
+      "env": {},
+      "strip": [
+       "OPENAI_API_KEY",
+       "OPENAI_BASE_URL",
+       "CODEX_API_KEY"
+      ],
+      "args": [],
+      "sig": "official:local-codex",
+      "problems": []
+     }
+    },
+    {
+     "v": {
+      "dir": "<SB>/root/homes/gemini/<U3>",
+      "env": {
+       "GEMINI_CLI_HOME": "<SB>/root/homes/gemini/<U3>"
+      },
+      "strip": [
+       "GEMINI_API_KEY",
+       "GOOGLE_API_KEY",
+       "GOOGLE_GEMINI_BASE_URL",
+       "GOOGLE_GENAI_USE_VERTEXAI",
+       "GOOGLE_APPLICATION_CREDENTIALS",
+       "GEMINI_CLI_HOME",
+       "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+       "GEMINI_FORCE_ENCRYPTED_FILE"
+      ],
+      "args": [],
+      "sig": "official:<U3>",
+      "problems": []
+     }
+    },
+    {
+     "v": {
+      "dir": null,
+      "env": {},
+      "strip": [
+       "XAI_API_KEY",
+       "GROK_API_KEY"
+      ],
+      "args": [],
+      "sig": "official:local-grok",
+      "problems": []
+     }
+    },
+    {
+     "v": "<U1>"
+    },
+    {
+     "v": "<U2>"
+    },
+    {
+     "v": "local-codex"
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "New",
+      "identity": null,
+      "active": true,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000,
+      "lastUsedAt": 1700000000000
+     }
+    },
+    {
+     "err": "Error: 标题不能为空"
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "v": {
+      "id": "local-codex",
+      "kind": "codex",
+      "label": "Mine",
+      "identity": null,
+      "active": true,
+      "local": true,
+      "loggedIn": false,
+      "inUse": 0,
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": null
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "kind": "codex",
+      "dir": "<SB>/root/homes/codex/<U2>",
+      "env": {
+       "CODEX_HOME": "<SB>/root/homes/codex/<U2>",
+       "HOME": "<SB>/home",
+       "CLAUDE_CONFIG_DIR": null
+      }
+     }
+    },
+    {
+     "v": {
+      "kind": "gemini",
+      "dir": null,
+      "env": {
+       "GEMINI_CLI_HOME": null,
+       "HOME": "<SB>/home"
+      }
+     }
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "defaultChanged",
+       "claude"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    },
+    {
+     "v": "{\n  \"version\": 2,\n  \"accounts\": [\n    {\n      \"id\": \"local-gemini\",\n      \"kind\": \"gemini\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-grok\",\n      \"kind\": \"grok\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-codex\",\n      \"kind\": \"codex\",\n      \"label\": \"Mine\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-claude\",\n      \"kind\": \"claude\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U1>\",\n      \"kind\": \"claude\",\n      \"label\": \"New\",\n      \"dir\": \"<SB>/root/homes/claude/<U1>\",\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000,\n      \"lastUsedAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U2>\",\n      \"kind\": \"codex\",\n      \"label\": \"官方账号\",\n      \"dir\": \"<SB>/root/homes/codex/<U2>\",\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U3>\",\n      \"kind\": \"gemini\",\n      \"label\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n      \"dir\": \"<SB>/root/homes/gemini/<U3>\",\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U4>\",\n      \"kind\": \"grok\",\n      \"label\": \"官方账号\",\n      \"dir\": \"<SB>/root/homes/grok/<U4>\",\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    }\n  ],\n  \"defaults\": {\n    \"claude\": \"<U1>\"\n  }\n}"
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "Mine",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": false,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "New",
+       "identity": null,
+       "active": true,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000,
+       "lastUsedAt": 1700000000000
+      },
+      {
+       "id": "<U2>",
+       "kind": "codex",
+       "label": "官方账号",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U3>",
+       "kind": "gemini",
+       "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U3>' gemini",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U4>",
+       "kind": "grok",
+       "label": "官方账号",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "GROK_HOME='<SB>/root/homes/grok/<U4>' grok",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "err": "AccountError: 「本机登录」是这台电脑上 CLI 自己的登录，不能在这里删除"
+    },
+    {
+     "undef": true
+    },
+    {
+     "err": "AccountError: 这个账号还有 2 个标签在用，请先关闭或换成别的账号"
+    },
+    {
+     "err": "AccountError: 这个账号还有 2 个标签在用，请先关闭或换成别的账号"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "err": "AccountError: 还有 7 个 Nomi 之外的 CLI 进程在用这个账号（进程号 1, 2, 3, 4, 5），请先在终端里退出它们"
+    },
+    {
+     "undef": true
+    },
+    {
+     "err": "AccountError: 无法确认是否还有 CLI 在用这个账号（常见于 Windows）。请先在终端退出相关 CLI，或确认后强制删除。"
+    },
+    {
+     "undef": true
+    },
+    {
+     "err": "AccountError: 无法确认是否还有 CLI 在用这个账号（常见于 Windows）。请先在终端退出相关 CLI，或确认后强制删除。"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "v": null
+    },
+    {
+     "v": "local-claude"
+    },
+    {
+     "v": [
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "defaultChanged",
+       "claude"
+      ]
+     ]
+    },
+    {
+     "v": "claude"
+    },
+    {
+     "err": "Error: 未知的编程助手"
+    },
+    {
+     "err": "Error: 未知的编程助手"
+    },
+    {
+     "v": "not-installed"
+    },
+    {
+     "v": "whatever"
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "publish",
+       "cliAccount.changed",
+       null
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "identity",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Me@X.io",
+      "identity": {
+       "key": "me@x.io",
+       "email": "Me@X.io",
+       "plan": "max",
+       "org": "Org"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "local-claude",
+      "kind": "claude",
+      "label": "本机登录",
+      "identity": {
+       "key": "me@x.io",
+       "email": "Me@X.io",
+       "plan": "max",
+       "org": "Org"
+      },
+      "active": true,
+      "local": true,
+      "loggedIn": true,
+      "inUse": 0,
+      "duplicateOf": "Me@X.io",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "auth",
+        "status",
+        "--json"
+       ],
+       "home": "<SB>/root/homes/claude/<U1>",
+       "cwd": "nomi-acct-status-<R>",
+       "node": null,
+       "trust": null
+      },
+      {
+       "argv": [
+        "auth",
+        "status",
+        "--json"
+       ],
+       "home": null,
+       "cwd": "nomi-acct-status-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": {
+        "key": "me@x.io",
+        "email": "Me@X.io",
+        "plan": "max",
+        "org": "Org"
+       },
+       "active": true,
+       "local": true,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "Me@X.io",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "Me@X.io",
+       "identity": {
+        "key": "me@x.io",
+        "email": "Me@X.io",
+        "plan": "max",
+        "org": "Org"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "本机登录",
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Me@X.io",
+      "identity": {
+       "key": "f@x.io",
+       "email": "f@x.io",
+       "org": "O2"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Me@X.io",
+      "identity": {
+       "key": "f@x.io",
+       "email": "f@x.io",
+       "org": "O2"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": "f@x.io"
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "C@X.io",
+      "identity": {
+       "key": "c@x.io|acc-1",
+       "email": "C@X.io",
+       "plan": "plus",
+       "accountIdChecked": true
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "C@X.io",
+      "identity": {
+       "key": "c@x.io|acc-1",
+       "email": "C@X.io",
+       "plan": "plus",
+       "accountIdChecked": true
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "-c",
+        "cli_auth_credentials_store=\"file\"",
+        "-s",
+        "read-only",
+        "-a",
+        "never",
+        "-c",
+        "analytics.enabled=false",
+        "app-server"
+       ],
+       "home": "<SB>/root/homes/codex/<U2>",
+       "cwd": "nomi-codex-account-<R>",
+       "node": null,
+       "trust": null
+      },
+      {
+       "argv": [
+        "-c",
+        "cli_auth_credentials_store=\"file\"",
+        "-s",
+        "read-only",
+        "-a",
+        "never",
+        "-c",
+        "analytics.enabled=false",
+        "app-server"
+       ],
+       "home": "<SB>/root/homes/codex/<U2>",
+       "cwd": "nomi-codex-account-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "C@X.io",
+      "identity": {
+       "key": "c@x.io|acc-1",
+       "email": "C@X.io",
+       "plan": "plus",
+       "accountIdChecked": true
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": "C@X.io"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "C@X.io",
+      "identity": {
+       "key": "c@x.io|acc-1"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "C@X.io",
+      "identity": {
+       "key": "c@x.io|acc-1"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U3>",
+      "kind": "grok",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GROK_HOME='<SB>/root/homes/grok/<U3>' grok",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U3>",
+      "kind": "grok",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GROK_HOME='<SB>/root/homes/grok/<U3>' grok",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U4>",
+      "kind": "gemini",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U4>",
+      "kind": "gemini",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U4>",
+      "kind": "gemini",
+      "label": "G@X.io",
+      "identity": {
+       "key": "g@x.io",
+       "email": "G@X.io"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U5>",
+      "kind": "codex",
+      "label": "NoMail",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U5>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U5>",
+      "kind": "codex",
+      "label": "NoMail",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U5>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U6>",
+      "kind": "gemini",
+      "label": "Two",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U6>' gemini",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U4>",
+       "kind": "gemini",
+       "label": "G@X.io",
+       "identity": {
+        "key": "g@x.io",
+        "email": "G@X.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "Two",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U6>",
+       "kind": "gemini",
+       "label": "Two",
+       "identity": {
+        "key": "g@x.io",
+        "email": "g@x.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "G@X.io",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U6>' gemini",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U4>",
+       "kind": "gemini",
+       "label": "G@X.io",
+       "identity": {
+        "key": "g@x.io",
+        "email": "G@X.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "Two",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U6>",
+       "kind": "gemini",
+       "label": "Two",
+       "identity": {
+        "key": "g@x.io",
+        "email": "g@x.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "G@X.io",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U6>' gemini",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": {
+        "key": "me@x.io",
+        "email": "Me@X.io",
+        "plan": "max",
+        "org": "Org"
+       },
+       "active": true,
+       "local": true,
+       "loggedIn": true,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "Me@X.io",
+       "identity": {
+        "key": "f@x.io",
+        "email": "f@x.io",
+        "org": "O2"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U2>",
+       "kind": "codex",
+       "label": "C@X.io",
+       "identity": {
+        "key": "c@x.io|acc-1"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U3>",
+       "kind": "grok",
+       "label": "官方账号",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "GROK_HOME='<SB>/root/homes/grok/<U3>' grok",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U4>",
+       "kind": "gemini",
+       "label": "G@X.io",
+       "identity": {
+        "key": "g@x.io",
+        "email": "G@X.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "Two",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U4>' gemini",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U5>",
+       "kind": "codex",
+       "label": "NoMail",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U5>' codex",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U6>",
+       "kind": "gemini",
+       "label": "Two",
+       "identity": {
+        "key": "g@x.io",
+        "email": "g@x.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "duplicateOf": "G@X.io",
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U6>' gemini",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sessions",
+   "out": [
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "A",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": "{\"version\":1,\"sessions\":[[\"claude:s1\",\"<U1>\"],[\"claude:s2\",\"local-claude\"],[\"codex:s1\",\"local-codex\"]]}"
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "label": "A"
+     }
+    },
+    {
+     "v": {
+      "id": "local-claude",
+      "label": "本机登录"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "local-codex",
+      "label": "本机登录"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": "{\"version\":1,\"sessions\":[[\"claude:s2\",\"local-claude\"],[\"codex:s1\",\"local-codex\"],[\"claude:s1\",\"<U1>\"]]}"
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "label": "A"
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "label": "A"
+     }
+    },
+    {
+     "v": {
+      "id": "local-codex"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sessions-evict",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "keys": [
+       "version",
+       "sessions"
+      ],
+      "n": 5000,
+      "first": [
+       "claude:m4",
+       "local-claude"
+      ],
+      "last": [
+       "claude:m1",
+       "local-claude"
+      ]
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "local-claude",
+      "label": "本机登录"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": []
+    }
+   ]
+  },
+  {
+   "name": "sessions-corrupt",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": "{\"version\":1,\"sessions\":[[\"codex:q\",\"local-codex\"]]}"
+    },
+    {
+     "v": []
+    }
+   ]
+  },
+  {
+   "name": "logout-real",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "z@x.io",
+      "identity": {
+       "key": "z@x.io",
+       "email": "z@x.io"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "auth",
+        "status",
+        "--json"
+       ],
+       "home": "<SB>/root/homes/claude/<U1>",
+       "cwd": "nomi-acct-status-<R>",
+       "node": null,
+       "trust": null
+      },
+      {
+       "argv": [
+        "auth",
+        "logout"
+       ],
+       "home": "<SB>/root/homes/claude/<U1>",
+       "cwd": "nomi-acct-logout-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "codex",
+      "label": "c@x.io",
+      "identity": {
+       "key": "c@x.io",
+       "email": "c@x.io",
+       "accountIdChecked": true
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U2>' codex",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "-c",
+        "cli_auth_credentials_store=\"file\"",
+        "-s",
+        "read-only",
+        "-a",
+        "never",
+        "-c",
+        "analytics.enabled=false",
+        "app-server"
+       ],
+       "home": "<SB>/root/homes/codex/<U2>",
+       "cwd": "nomi-codex-account-<R>",
+       "node": null,
+       "trust": null
+      },
+      {
+       "argv": [
+        "logout"
+       ],
+       "home": "<SB>/root/homes/codex/<U2>",
+       "cwd": "nomi-acct-logout-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "codex",
+       "<SB>/root/homes/codex/<U2>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "logout-injected-darwin",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "z@x.io",
+      "identity": {
+       "key": "z@x.io",
+       "email": "z@x.io"
+      },
+      "active": false,
+      "local": false,
+      "loggedIn": true,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "claude",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U2>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "logout",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "warn",
+       "account logout failed",
+       "Error: logout boom"
+      ],
+      [
+       "keychain.remove",
+       "Claude Code-credentials-<H>",
+       "tester"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "keychain.remove",
+       "Claude Code-credentials-<H>",
+       "tester"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U2>"
+      ],
+      [
+       "keychain.remove",
+       "Claude Code-credentials-<H>",
+       "tester"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "migrate",
+   "out": [
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "A",
+       "identity": {
+        "key": "k",
+        "email": "a@x"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 5
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "label": "b@x",
+       "identity": {
+        "email": "b@x"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U2>' claude",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U3>",
+       "kind": "claude",
+       "label": "官方账号",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U3>' claude",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U4>",
+       "kind": "claude",
+       "label": "A",
+       "identity": {
+        "key": "a@x",
+        "email": "a@x"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U4>' claude",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U5>",
+       "kind": "claude",
+       "label": "b@x",
+       "identity": {
+        "key": "b@x",
+        "email": "b@x"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U5>' claude",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U6>",
+       "kind": "codex",
+       "label": "L1",
+       "identity": {
+        "key": "e1@x",
+        "email": "e1@x"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U6>' codex",
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U7>",
+       "kind": "codex",
+       "label": "e2@y",
+       "identity": {
+        "key": "e2@y",
+        "email": "e2@y"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "needsLogin": true,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U7>' codex",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      "accounts.json",
+      "homes",
+      "vault-unreadable"
+     ]
+    },
+    {
+     "v": null
+    },
+    {
+     "v": "{\n  \"version\": 2,\n  \"accounts\": [\n    {\n      \"id\": \"local-gemini\",\n      \"kind\": \"gemini\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-grok\",\n      \"kind\": \"grok\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-codex\",\n      \"kind\": \"codex\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-claude\",\n      \"kind\": \"claude\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U1>\",\n      \"kind\": \"claude\",\n      \"label\": \"A\",\n      \"dir\": \"<SB>/root/homes/claude/<U1>\",\n      \"identity\": {\n        \"key\": \"k\",\n        \"email\": \"a@x\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 5\n    },\n    {\n      \"id\": \"<U2>\",\n      \"kind\": \"claude\",\n      \"label\": \"b@x\",\n      \"dir\": \"<SB>/root/homes/claude/<U2>\",\n      \"identity\": {\n        \"email\": \"b@x\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U3>\",\n      \"kind\": \"claude\",\n      \"label\": \"官方账号\",\n      \"dir\": \"<SB>/root/homes/claude/<U3>\",\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U4>\",\n      \"kind\": \"claude\",\n      \"label\": \"A\",\n      \"dir\": \"<SB>/root/homes/claude/<U4>\",\n      \"identity\": {\n        \"key\": \"a@x\",\n        \"email\": \"a@x\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U5>\",\n      \"kind\": \"claude\",\n      \"label\": \"b@x\",\n      \"dir\": \"<SB>/root/homes/claude/<U5>\",\n      \"identity\": {\n        \"key\": \"b@x\",\n        \"email\": \"b@x\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U6>\",\n      \"kind\": \"codex\",\n      \"label\": \"L1\",\n      \"dir\": \"<SB>/root/homes/codex/<U6>\",\n      \"identity\": {\n        \"key\": \"e1@x\",\n        \"email\": \"e1@x\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"<U7>\",\n      \"kind\": \"codex\",\n      \"label\": \"e2@y\",\n      \"dir\": \"<SB>/root/homes/codex/<U7>\",\n      \"identity\": {\n        \"key\": \"e2@y\",\n        \"email\": \"e2@y\"\n      },\n      \"loggedIn\": false,\n      \"needsLogin\": true,\n      \"createdAt\": 1700000000000\n    }\n  ],\n  \"defaults\": {}\n}"
+    },
+    {
+     "v": [
+      [
+       "warn",
+       "legacy account vault unreadable; will archive after stubs",
+       {
+        "kind": "claude",
+        "error": "TypeError: Cannot read properties of null (reading 'label')"
+       }
+      ],
+      [
+       "warn",
+       "legacy account vault unreadable; will archive after stubs",
+       {
+        "kind": "codex",
+        "error": "SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+       }
+      ],
+      [
+       "warn",
+       "legacy account vault unreadable; will archive after stubs",
+       {
+        "kind": "grok",
+        "error": "TypeError: number 5 is not iterable (cannot read property Symbol(Symbol.iterator))"
+       }
+      ],
+      [
+       "warn",
+       "legacy vault archived (unreadable, not deleted)",
+       {
+        "archive": "<SB>/root/vault-unreadable/claude-1700000000000.json"
+       }
+      ],
+      [
+       "warn",
+       "legacy vault archived (unreadable, not deleted)",
+       {
+        "archive": "<SB>/root/vault-unreadable/codex-1700000000000.json"
+       }
+      ],
+      [
+       "warn",
+       "legacy vault archived (unreadable, not deleted)",
+       {
+        "archive": "<SB>/root/vault-unreadable/grok-1700000000000.json"
+       }
+      ],
+      [
+       "info",
+       "legacy account vault migrated (credentials removed)",
+       {
+        "migrated": 7
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "migrate-write-fail",
+   "out": [
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      "accounts.json",
+      "accounts.json.tmp",
+      "claude.json"
+     ]
+    },
+    {
+     "err": "Error: EISDIR: illegal operation on a directory, rename '<SB>/root/accounts.json.tmp' -> '<SB>/root/accounts.json'"
+    },
+    {
+     "v": [
+      [
+       "warn",
+       "legacy vault migration write failed; vault kept",
+       "Error: EISDIR: illegal operation on a directory, rename '<SB>/root/accounts.json.tmp' -> '<SB>/root/accounts.json'"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "defaults-shapes",
+   "out": [
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "x1",
+       "kind": "claude",
+       "label": "L",
+       "active": false,
+       "local": false,
+       "inUse": 0,
+       "createdAt": 1
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "active": true,
+       "local": false,
+       "inUse": 0
+      },
+      {
+       "active": false,
+       "local": false,
+       "inUse": 0
+      }
+     ]
+    },
+    {
+     "v": "local-claude"
+    },
+    {
+     "err": "TypeError: Cannot create property 'claude' on string 'str'"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "local-claude",
+      "kind": "claude",
+      "label": "本机登录",
+      "identity": null,
+      "active": true,
+      "local": true,
+      "loggedIn": false,
+      "inUse": 0,
+      "createdAt": 1700000000000,
+      "lastUsedAt": 1700000000000
+     }
+    },
+    {
+     "v": "{\n  \"version\": 2,\n  \"accounts\": [\n    {\n      \"id\": \"local-gemini\",\n      \"kind\": \"gemini\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-grok\",\n      \"kind\": \"grok\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-codex\",\n      \"kind\": \"codex\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000\n    },\n    {\n      \"id\": \"local-claude\",\n      \"kind\": \"claude\",\n      \"label\": \"本机登录\",\n      \"dir\": null,\n      \"identity\": null,\n      \"loggedIn\": false,\n      \"createdAt\": 1700000000000,\n      \"lastUsedAt\": 1700000000000\n    }\n  ],\n  \"defaults\": []\n}"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-paste",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "waiting",
+       "needsCode": true
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "verifying",
+       "needsCode": false
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "done",
+       "account": {
+        "id": "<U1>",
+        "kind": "claude",
+        "label": "P@x.io",
+        "identity": {
+         "key": "p@x.io",
+         "email": "P@x.io"
+        },
+        "active": false,
+        "local": false,
+        "loggedIn": true,
+        "inUse": 0,
+        "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+        "createdAt": 1700000000000
+       }
+      }
+     ]
+    },
+    {
+     "v": "\"code123\""
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "auth",
+        "login",
+        "--claudeai"
+       ],
+       "home": "<SB>/root/homes/claude/<U1>",
+       "cwd": "<U1>",
+       "node": "1",
+       "trust": null
+      },
+      {
+       "argv": [
+        "auth",
+        "status",
+        "--json"
+       ],
+       "home": "<SB>/root/homes/claude/<U1>",
+       "cwd": "nomi-acct-status-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "P@x.io",
+       "identity": {
+        "key": "p@x.io",
+        "email": "P@x.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-fail",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "error",
+       "message": "two\nthree\nfour"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "error",
+       "message": "登录没有完成（退出码 2）"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U2>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-cancel",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "waiting",
+       "url": "https://claude.ai/oauth/authorize?x=1",
+       "needsCode": false
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "cancelled"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "claude",
+      "label": "官方账号",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U2>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "waiting",
+       "url": "https://claude.ai/oauth/authorize?x=1",
+       "needsCode": false
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "cancelled"
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "waiting",
+       "url": "https://claude.ai/oauth/authorize?x=1",
+       "needsCode": false
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "state": "cancelled"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U2>",
+       "kind": "claude",
+       "label": "官方账号",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U2>' claude",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-timeout",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "error",
+       "message": "登录超时，请重试"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "claude",
+       "<SB>/root/homes/claude/<U1>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-relogin",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "label": "Keep",
+      "identity": null,
+      "active": false,
+      "local": false,
+      "loggedIn": false,
+      "inUse": 0,
+      "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+      "createdAt": 1700000000000
+     }
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "claude",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "state": "error",
+       "message": "登录完成了，但 CLI 仍显示未登录"
+      }
+     ]
+    },
+    {
+     "err": "Error: 账号不存在"
+    },
+    {
+     "err": "AccountError: 账号不存在"
+    },
+    {
+     "err": "TypeError: CANDIDATES[kind] is not iterable"
+    },
+    {
+     "v": [
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "claude",
+       "label": "Keep",
+       "identity": null,
+       "active": false,
+       "local": false,
+       "loggedIn": false,
+       "inUse": 0,
+       "terminalCommand": "CLAUDE_CONFIG_DIR='<SB>/root/homes/claude/<U1>' claude",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-device",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "codex",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "codex",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "codex",
+       "state": "waiting",
+       "url": "https://auth.openai.com/codex/device",
+       "code": "ABCD-EFGH1",
+       "needsCode": false
+      },
+      {
+       "id": "<U1>",
+       "kind": "codex",
+       "state": "done",
+       "account": {
+        "id": "<U1>",
+        "kind": "codex",
+        "label": "d@x.io",
+        "identity": {
+         "key": "d@x.io",
+         "email": "d@x.io",
+         "accountIdChecked": true
+        },
+        "active": false,
+        "local": false,
+        "loggedIn": true,
+        "inUse": 0,
+        "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U1>' codex",
+        "createdAt": 1700000000000
+       }
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "login",
+        "--device-auth",
+        "-c",
+        "cli_auth_credentials_store=\"file\""
+       ],
+       "home": "<SB>/root/homes/codex/<U1>",
+       "cwd": "<U1>",
+       "node": "1",
+       "trust": null
+      },
+      {
+       "argv": [
+        "-c",
+        "cli_auth_credentials_store=\"file\"",
+        "-s",
+        "read-only",
+        "-a",
+        "never",
+        "-c",
+        "analytics.enabled=false",
+        "app-server"
+       ],
+       "home": "<SB>/root/homes/codex/<U1>",
+       "cwd": "nomi-codex-account-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "grok",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U2>",
+       "kind": "grok",
+       "state": "starting"
+      },
+      {
+       "id": "<U2>",
+       "kind": "grok",
+       "state": "waiting",
+       "url": "https://accounts.x.ai/device?user_code=WXYZ",
+       "code": "WXYZ-1234",
+       "needsCode": false
+      },
+      {
+       "id": "<U2>",
+       "kind": "grok",
+       "state": "error",
+       "message": "登录完成了，但 CLI 仍显示未登录"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "login",
+        "--device-auth"
+       ],
+       "home": "<SB>/root/homes/grok/<U2>",
+       "cwd": "<U2>",
+       "node": "1",
+       "trust": null
+      },
+      {
+       "argv": [
+        "agent",
+        "stdio"
+       ],
+       "home": "<SB>/root/homes/grok/<U2>",
+       "cwd": "nomi-grok-auth-<R>",
+       "node": null,
+       "trust": null
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-grok",
+       "kind": "grok",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-codex",
+       "kind": "codex",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "local-claude",
+       "kind": "claude",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "codex",
+       "label": "d@x.io",
+       "identity": {
+        "key": "d@x.io",
+        "email": "d@x.io",
+        "accountIdChecked": true
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "terminalCommand": "CODEX_HOME='<SB>/root/homes/codex/<U1>' codex",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "grok",
+       "<SB>/root/homes/grok/<U2>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-gemini",
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U1>",
+      "kind": "gemini",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U1>",
+       "kind": "gemini",
+       "state": "starting"
+      },
+      {
+       "id": "<U1>",
+       "kind": "gemini",
+       "state": "waiting",
+       "message": "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。"
+      },
+      {
+       "id": "<U1>",
+       "kind": "gemini",
+       "state": "verifying"
+      },
+      {
+       "id": "<U1>",
+       "kind": "gemini",
+       "state": "done",
+       "account": {
+        "id": "<U1>",
+        "kind": "gemini",
+        "label": "Gm@x.io",
+        "identity": {
+         "key": "gm@x.io",
+         "email": "Gm@x.io"
+        },
+        "active": false,
+        "local": false,
+        "loggedIn": true,
+        "inUse": 0,
+        "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U1>' gemini",
+        "createdAt": 1700000000000
+       }
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "argv": [
+        "--acp"
+       ],
+       "home": "<SB>/root/homes/gemini/<U1>",
+       "cwd": "<U1>",
+       "node": "1",
+       "trust": "true"
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U2>",
+      "kind": "gemini",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U2>",
+       "kind": "gemini",
+       "state": "starting"
+      },
+      {
+       "id": "<U2>",
+       "kind": "gemini",
+       "state": "waiting",
+       "message": "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。"
+      },
+      {
+       "id": "<U2>",
+       "kind": "gemini",
+       "state": "error",
+       "message": "auth failed"
+      }
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "id": "<U3>",
+      "kind": "gemini",
+      "state": "starting"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      {
+       "id": "<U3>",
+       "kind": "gemini",
+       "state": "starting"
+      },
+      {
+       "id": "<U3>",
+       "kind": "gemini",
+       "state": "waiting",
+       "message": "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。"
+      },
+      {
+       "id": "<U3>",
+       "kind": "gemini",
+       "state": "error",
+       "message": "gemini crashed\nbadly"
+      }
+     ]
+    },
+    {
+     "v": [
+      {
+       "id": "local-gemini",
+       "kind": "gemini",
+       "label": "本机登录",
+       "identity": null,
+       "active": true,
+       "local": true,
+       "loggedIn": false,
+       "inUse": 0,
+       "createdAt": 1700000000000
+      },
+      {
+       "id": "<U1>",
+       "kind": "gemini",
+       "label": "Gm@x.io",
+       "identity": {
+        "key": "gm@x.io",
+        "email": "Gm@x.io"
+       },
+       "active": false,
+       "local": false,
+       "loggedIn": true,
+       "inUse": 0,
+       "terminalCommand": "GEMINI_CLI_HOME='<SB>/root/homes/gemini/<U1>' gemini",
+       "createdAt": 1700000000000
+      }
+     ]
+    },
+    {
+     "v": [
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "gemini",
+       "<SB>/root/homes/gemini/<U2>"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "changed"
+      ],
+      [
+       "live",
+       "gemini",
+       "<SB>/root/homes/gemini/<U3>"
+      ],
+      [
+       "changed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "login-pure",
+   "out": [
+    {
+     "v": [
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    {
+     "v": [
+      "Claude Code-credentials-<H>",
+      "bob"
+     ]
+    },
+    {
+     "v": [
+      "Claude Code-credentials-<H>",
+      "x"
+     ]
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": [
+      {
+       "needsCode": false
+      },
+      {
+       "url": "https://a.b/c?d=1.",
+       "needsCode": false
+      },
+      {
+       "url": "https://a.b/x)",
+       "needsCode": false
+      },
+      {
+       "needsCode": true
+      },
+      {
+       "code": "ABCD-EFGH",
+       "needsCode": false
+      },
+      {
+       "code": "WXYZ-1234",
+       "needsCode": false
+      },
+      {
+       "needsCode": false
+      }
+     ]
+    },
+    {
+     "v": [
+      "red",
+      "ab",
+      "x\r\ny\rz",
+      "\u001b(Bq"
+     ]
+    },
+    {
+     "v": [
+      [
+       "open",
+       "https://claude.ai/ok"
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -3,15 +3,16 @@
 /**
  * e2e-headed 测试专用主进程（P9-11 Polish C）
  *
- * 不复用 packages/electron/src/core/Application.ts —— 那条链路会拉真实 AI runtime boot、
+ * 不复用 apps/desktop-electron/src/host/Application.ts（内核 createCore）—— 那条链路会拉真实 AI runtime boot、
  * SafeKey、ScreenCapture 等重量级依赖，headed E2E 里不需要。
  *
  * 本文件只保留 headed 复跑所必需的最小片段：
  * 1. 通过 `AIRuntimeService.configure({ booter: FakeBooter, ... })` 启动一个
  *    完全内存化的 插件环境（LLM/Tool/UserProfile seams 全部用 fake）；
- * 2. 挂 `IPCTransportServer + EventBroadcaster + CapabilityIpcServer`；
- * 3. 打开 1 个 BrowserWindow 载入 renderer.html，用 mkAiPreload 暴露 `window.aiIPC`；
- * 4. `--profile=xxx` CLI 参数切换 waifu / chat-only / mcp-headless；
+ * 2. 挂应用契约（`createAiRouter` + `@nomi-ai/contract` 的 IPC 传输）；
+ * 3. 打开 1 个 BrowserWindow 载入 renderer.html，preload 暴露 `window.nomiTransport`
+ *    （契约传输）与 `window.nomiHost`，与真实 preload 一致；
+ * 4. `--profile=xxx` CLI 参数切换 companion / chat-only / mcp-headless；
  *    `--no-window` 时不开窗口（供 E3 用）。
  */
 
@@ -44,13 +45,8 @@ try {
   console.error('[main] failed to redirect userData:', err && err.stack ? err.stack : err);
 }
 
-const {
-  IPCTransportServer,
-  EventBroadcaster,
-  CapabilityIpcServer,
-  runtime,
-  NoopRuntimeLogger,
-} = require('@nomi-ai/ai-runtime');
+const { createAiRouter, runtime, NoopRuntimeLogger } = require('@nomi-ai/ai-runtime');
+const { createIpcServerTransport } = require('@nomi-ai/contract');
 
 const { AIClient, toSdkContext } = require('@nomi-ai/ai-sdk');
 const bundleBase = require('@nomi-ai/bundle-ig-base');
@@ -91,7 +87,7 @@ const { LLMRegistryKey, ToolRegistryKey, UserProfileKey, makeDefaultUserProfile 
 // CLI 参数解析
 // ---------------------------------------------------------------------------
 function parseArgs() {
-  const out = { profile: 'waifu', noWindow: false };
+  const out = { profile: 'companion', noWindow: false };
   for (const raw of process.argv.slice(1)) {
     if (raw.startsWith('--profile=')) out.profile = raw.slice('--profile='.length);
     if (raw === '--no-window') out.noWindow = true;
@@ -350,21 +346,15 @@ async function main() {
 
   // 2) 挂 IPC 通道
   const adapter = makeAdapter();
-  const transport = new IPCTransportServer({ client, adapter, logger: NoopRuntimeLogger });
-  transport.start();
-  const broadcaster = new EventBroadcaster({ adapter, logger: NoopRuntimeLogger });
-  broadcaster.start(client);
-  const capability = new CapabilityIpcServer({
-    adapter,
-    logger: NoopRuntimeLogger,
-    injector: {
-      getScreen: () => undefined,
-      getClipboard: () => undefined,
-    },
+  // AI 门面：应用契约（ai.* 过程 + 事件），经 contract:request / contract:frame 两个通道
+  const ai = createAiRouter({ client, logger: NoopRuntimeLogger });
+  const contractTransport = createIpcServerTransport(adapter, {
+    // harness 只加载自家的 renderer.html
+    resolveCaller: () => ({ surface: 'test', trusted: true }),
   });
-  capability.start();
+  contractTransport.serve(ai.router);
 
-  logger.info(`AI runtime ready (channels=${transport.channels.length})`);
+  logger.info(`AI runtime ready (procedures=${Object.keys(ai.router.contract.procedures).length})`);
 
   // 3) 暴露 ctx / seams 到全局，供 E1 从主进程 side triggerEvent
   //    Playwright 通过 `electronApp.evaluate(({ app }) => globalThis.__aiE2eProbe.emitTts(...))` 触发
@@ -373,7 +363,9 @@ async function main() {
   //    （hook），因此这里必须调 `runHooks` 而不是 `triggerEvent`（后者是 event bus）。
   globalThis.__aiE2eProbe = {
     async emitTts(payload) {
-      await fakeCtx.runHooks('tts/chunk', payload);
+      // app.evaluate 只能传 JSON：音频字节在这里还原成 Uint8Array（契约事件要求二进制）
+      const data = Array.isArray(payload.data) ? Uint8Array.from(payload.data) : payload.data;
+      await fakeCtx.runHooks('tts/chunk', { ...payload, data });
     },
     async emitTurnEnd(payload) {
       await fakeCtx.runHooks('agent/turn-end', payload);

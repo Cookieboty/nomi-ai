@@ -1,14 +1,16 @@
 /**
- * 订阅已有看板娘/桌面/AI 事件，补语音与动作音效。
+ * 订阅已有桌面角色/桌面/AI 事件，补语音与动作音效。
  * 不修改 mascot/**；互动 SPEAK_KINDS 已由 reactions 朗读，此处只加音效。
  */
 import { useAIEvents } from '@nomi-ai/ai-sdk-client/react';
-import type { DesktopBubble } from '@nomi-ai/types';
+import { gestureTarget } from '@nomi-ai/avatar-runtime';
+import type { DesktopBubble, DesktopReminderEvent } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { useEffect, useRef } from 'react';
 import type { FC } from 'react';
 
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { api, hasTransport } from '@/services/api';
 import { REACTION_SPEAK_KINDS, type CueEvent } from '@/services/cues/lines';
 import { mascotCueService } from '@/services/cues/MascotCueService';
 import { sfxService } from '@/services/sfx/SfxService';
@@ -19,7 +21,7 @@ const log = createLogger('mascot-audio-bridge');
 /** data-mascot-reaction → CueEvent（仅尚未朗读的种类） */
 const REACTION_CUE: Record<string, CueEvent> = {
   'hover:face': 'hover:face',
-  'hover:skirt': 'hover:skirt',
+  'hover:hem': 'hover:hem',
   'hover:hands': 'hover:hands',
   'wall:any': 'wall',
   'release:any': 'release',
@@ -30,15 +32,15 @@ const REACTION_SFX: Record<string, SfxId> = {
   'click:face': 'pop',
   'click:body': 'pop',
   'click:hands': 'wave',
-  'click:skirt': 'hum',
+  'click:hem': 'hum',
   'click:legs': 'hum',
   'double:any': 'pop',
-  'double:skirt': 'hum',
+  'double:hem': 'hum',
   'pat:head': 'hum',
   'land:any': 'land',
   'grab:any': 'swoosh',
   'hover:face': 'hum',
-  'hover:skirt': 'hum',
+  'hover:hem': 'hum',
   'hover:hands': 'pop',
   'wall:any': 'land',
   'release:any': 'pop',
@@ -105,7 +107,7 @@ export const MascotAudioBridge: FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const s = await window.electronAPI?.getVoiceSettings?.();
+        const s = hasTransport() ? await api.voice.getMascotSettings() : null;
         syncGateFromSettings(s ?? null);
       } catch (e) {
         log.warn('load voice settings failed', e);
@@ -163,19 +165,25 @@ export const MascotAudioBridge: FC = () => {
   }, []);
 
   useEffect(() => {
-    const off = window.electronAPI?.onMascotCommand?.((cmd) => {
-      const c = cmd as { type?: string; name?: string } | null;
-      if (!c || c.type !== 'motion' || typeof c.name !== 'string') return;
-      // 仅音效；完整台词等 desktop:bubble，避免双读
-      mascotCueService.motionSfx(c.name);
+    if (!hasTransport()) return;
+    const off = api.on('avatar.event', (e) => {
+      // 对话窗口开始 / 结束等回复：与以前的 think-on / think-off 指令一样只有一声轻响
+      if (e.type === 'reply') {
+        sfxService.play('pop', { cooldownMs: 150 });
+        return;
+      }
+      if (e.type !== 'gesture') return;
+      // 仅音效（按当前角色映射到的动作挑）；完整台词等 desktop:bubble，避免双读
+      const motion = gestureTarget(e.name);
+      if (motion) mascotCueService.motionSfx(motion);
     });
-    return () => off?.();
+    return off;
   }, []);
 
   useEffect(() => {
-    const api = window.electronAPI?.desktop;
-    if (!api?.onBubble) return;
-    const off = api.onBubble((p) => {
+    if (!hasTransport()) return;
+    const off = api.on('desktop.bubble', (raw) => {
+      const p = raw as DesktopBubble;
       const text = typeof p?.text === 'string' ? p.text : '';
       if (!text) return;
       // voice=none：只显示气泡；编程助手的定时汇总关闭语音播报时使用此模式。
@@ -202,9 +210,9 @@ export const MascotAudioBridge: FC = () => {
   }, []);
 
   useEffect(() => {
-    const api = window.electronAPI?.desktop;
-    if (!api?.onReminder) return;
-    const off = api.onReminder((r) => {
+    if (!hasTransport()) return;
+    const off = api.on('desktop.reminder', (raw) => {
+      const r = raw as DesktopReminderEvent;
       const text = typeof r?.text === 'string' ? r.text : '';
       mascotCueService.trigger('reminder', {
         text: text ? tr('ui.usage-tools.reminder', text.slice(0, 80)) : undefined,

@@ -55,26 +55,11 @@
   color: var(--cd-color-text-subtle);
   margin: var(--cd-space-0-5) 0;
 }
-.stepRow > summary {
-  list-style: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1-5);
+.stepSummary {
   padding: var(--cd-space-0-5) 0;
 }
-.stepRow > summary::-webkit-details-marker {
-  display: none;
-}
-.stepRow > summary:hover {
+.stepSummary:hover {
   color: var(--cd-color-text-muted);
-}
-.stepIcon {
-  display: inline-block;
-  transition: transform 0.15s;
-}
-.stepRow[open] .stepIcon {
-  transform: rotate(90deg);
 }
 .stepBody {
   margin: var(--cd-space-1) 0 var(--cd-space-1) 14px;

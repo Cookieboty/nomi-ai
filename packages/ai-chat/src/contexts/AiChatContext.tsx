@@ -1,5 +1,5 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
-import { t } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 import React, {
   createContext,
   useCallback,
@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { canCompact, compactionRequest, isCompaction, shouldCompact } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
   bindNextDelegateConversation,
@@ -24,6 +25,7 @@ import {
 } from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
+import { gatewayClient } from '../services/gatewayClient';
 import {
   harnessClient,
   MAIN_TAB_ID,
@@ -72,10 +74,16 @@ export type AiChatAction =
   | { type: 'SET_IPC_CLIENT'; payload: IPCClient }
   | { type: 'CLEAR_MESSAGES' };
 
+const logger = createLogger('AiChat');
+
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-const buildInitialState = (): AiChatState => ({
+/**
+ * 首屏状态。有外层 <AIProvider> 的 client 时直接绑定它：不再另建一个自带 ClientAIClient 的
+ * IPCClient（那会在同一窗口多开一个契约会话，见 contract 的 maxSessionsPerSender）。
+ */
+const buildInitialState = (client?: ClientAIClient): AiChatState => ({
   messages: [],
   config: {
     theme: 'light',
@@ -86,7 +94,7 @@ const buildInitialState = (): AiChatState => ({
   },
   isLoading: false,
   streaming: false,
-  ipcClient: createIPCClient(),
+  ipcClient: createIPCClient(client),
 });
 
 /** Every field of `patch` is already identical on `cur`. */
@@ -159,6 +167,14 @@ export interface AiChatActions {
    * 用原文（或 newText）重新发送；运行中无操作。
    */
   resendFrom: (userMessageId: string, newText?: string) => Promise<void>;
+  /**
+   * `/compact`：把当前 Nomi 对话较早的部分压缩成摘要。
+   * 返回 done / nothing（没有可压缩的）/ busy（正在回复）/ failed（附原因）
+   */
+  compactConversation: () => Promise<{
+    status: 'done' | 'nothing' | 'busy' | 'failed';
+    error?: string;
+  }>;
   /** 停止当前流式生成：中止上游请求，已生成的内容落盘；没有进行中的流时无操作 */
   stopGeneration: () => void;
   /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
@@ -166,7 +182,8 @@ export interface AiChatActions {
   askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
   loadChatHistory: () => Promise<void>;
   clearChatHistory: () => Promise<void>;
-  newConversation: () => Promise<void>;
+  /** cwd：新 Nomi 对话的工作区；缺省用主标签当前的目录 */
+  newConversation: (opts?: { cwd?: string }) => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
 }
@@ -211,6 +228,57 @@ export function openTurn(client: IPCClient): ConversationTurn {
   };
 }
 
+/** 摘要模型的预算查不到时（旧主进程）按这个算摘要请求的大小 */
+const FALLBACK_SUMMARY_BUDGET = 96_000;
+
+export type CompactResult =
+  { next: ChatMessage[]; error?: undefined } | { next: null; error?: string };
+
+/**
+ * 上下文压缩（services/compaction.ts）：把最近一次摘要之后的对话总结成摘要，作为一条
+ * origin: 'compaction' 的消息存进这一轮的会话。force = `/compact`（不看阈值）。
+ * 压缩了返回新的历史（含摘要消息）；不需要 / 不能压缩返回 next: null。
+ * 失败只留一条提示（不保存），这一轮照常发送，由内核按预算裁掉最早的历史。
+ */
+export async function compactHistory(
+  client: IPCClient,
+  history: ChatMessage[],
+  nextContent: string,
+  turn: ConversationTurn,
+  force: boolean,
+  dispatch: React.Dispatch<AiChatAction>,
+): Promise<CompactResult> {
+  if (!client.summarize) return { next: null };
+  const [chatCtx, sumCtx] = await Promise.all([
+    gatewayClient.nomiContext('chat'),
+    gatewayClient.nomiContext('summary'),
+  ]);
+  if (force ? !canCompact(history) : !chatCtx || !shouldCompact(history, nextContent, chatCtx))
+    return { next: null };
+  const pending: ChatMessage = {
+    id: `compact-${Date.now().toString(36)}`,
+    role: 'assistant',
+    origin: 'compaction',
+    content: '',
+    timestamp: Date.now(),
+  };
+  if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: pending });
+  try {
+    const budget = (sumCtx ?? chatCtx)?.budget ?? FALLBACK_SUMMARY_BUDGET;
+    const summary = await client.summarize(compactionRequest(history, budget));
+    if (!summary) throw new Error(t('ui.chat-settings.the-model-returned-an-empty-summary'));
+    const done: ChatMessage = { ...pending, content: summary, timestamp: Date.now() };
+    if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [done] });
+    await turn.save(done);
+    return { next: [...history, done] };
+  } catch (e) {
+    const error = errorMessage(e);
+    logger.warn('compaction failed', { error });
+    if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [{ ...pending, error }] });
+    return { next: null, error };
+  }
+}
+
 const newReqId = (): string =>
   `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -221,7 +289,9 @@ interface ActiveStream {
 }
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
-  const [state, dispatch] = useReducer(aiChatReducer, undefined, buildInitialState);
+  const [state, dispatch] = useReducer(aiChatReducer, client, buildInitialState);
+  /** 首屏绑定的 client 与 IPCClient：client 未变时复用，不重复构造 */
+  const [initial] = useState(() => ({ client, ipcClient: state.ipcClient }));
   // actions 保持引用稳定（useCallback）：读最新 state 一律走 ref，避免每次渲染重建 value
   const stateRef = useRef(state);
   useLayoutEffect(() => {
@@ -231,10 +301,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
 
-  // 当外部提供 ClientAIClient 时，构造一个绑定该 client 的 IPCClient；
+  // 当外部提供 ClientAIClient 时，使用绑定该 client 的 IPCClient（首屏已绑定的直接复用）；
   // 否则沿用初始化时通过工厂函数产出的实例（可能是 Mock）。
   const ipcClient = useMemo(() => {
     if (!client) return state.ipcClient;
+    if (client === initial.client) return initial.ipcClient;
     return createIPCClient(client);
     // 只在 client 引用变化时重新绑定；state.ipcClient 用作首屏兜底。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -386,7 +457,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  // 把文件拖到看板娘身上 → 主进程总结完成后推送到对话窗口
+  // 把文件拖到桌面角色身上 → 主进程总结完成后推送到对话窗口
   useEffect(
     () =>
       desktopClient.onSummary((e) => {
@@ -573,12 +644,17 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               }
             : {}),
         };
-        const history = override?.history ?? s.messages;
+        let history = override?.history ?? s.messages;
+        const hs = harnessClient.available() ? await harnessClient.state() : null;
+        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要
+        if (!hs || hs.backend === 'nomi') {
+          const c = await compactHistory(client, history, content, turn, false, dispatch);
+          if (c.next) history = c.next;
+        }
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         schedClient.activity();
 
-        if (harnessClient.available()) {
-          const hs = await harnessClient.state();
+        if (hs) {
           if (hs.backend !== 'nomi') {
             // 主对话标签切到编程助手：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
             const r = images?.length
@@ -627,7 +703,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
         activeStream.current = { reqId, convoId: turn.convoId, controller };
         owned = true;
-        // 朗读 AI 回复：只念普通诺米对话（`/agent` 委派给编程助手的这一轮不念）
+        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
         if (!delegateTo) speaker = startReplySpeech(reqId);
         dispatch({ type: 'SET_STREAMING', payload: true });
 
@@ -734,7 +810,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         await turn.save(userMessage);
         await turn.save(finalAiMessage);
         if (!stopped && turn.exists())
-          maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
+          maybeIngest(
+            [...history.filter((m) => !isCompaction(m)), userMessage, finalAiMessage],
+            turn.convoId,
+          );
       } catch (error) {
         speaker?.stop();
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
@@ -767,6 +846,20 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     },
     [sendStreamMessage, askKnowledge],
   );
+
+  const compactConversation = useCallback(async () => {
+    const s = stateRef.current;
+    if (s.isLoading) return { status: 'busy' as const };
+    const turn = openTurn(s.ipcClient);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const r = await compactHistory(s.ipcClient, s.messages, '', turn, true, dispatch);
+      if (r.error) return { status: 'failed' as const, error: r.error };
+      return { status: r.next ? ('done' as const) : ('nothing' as const) };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
 
   const stopGeneration = useCallback(() => {
     const a = activeStream.current;
@@ -815,20 +908,26 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   }, []);
 
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
-  const newConversation = useCallback(async () => {
-    historySeq.current++;
-    stopReplySpeech();
-    dispatch({ type: 'SET_ERROR', payload: undefined });
-    try {
-      ingestCurrent();
-      await stateRef.current.ipcClient.newConversation();
+  const newConversation = useCallback(
+    async (opts?: { cwd?: string }) => {
       historySeq.current++;
-      dispatch({ type: 'CLEAR_MESSAGES' });
-      notifyConversationsChanged();
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-    }
-  }, [ingestCurrent]);
+      stopReplySpeech();
+      dispatch({ type: 'SET_ERROR', payload: undefined });
+      try {
+        ingestCurrent();
+        await stateRef.current.ipcClient.newConversation(
+          undefined,
+          opts?.cwd ? { cwd: opts.cwd } : undefined,
+        );
+        historySeq.current++;
+        dispatch({ type: 'CLEAR_MESSAGES' });
+        notifyConversationsChanged();
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      }
+    },
+    [ingestCurrent],
+  );
 
   // 加载配置
   const loadConfig = useCallback(async () => {
@@ -861,6 +960,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendMessage,
       sendStreamMessage,
       resendFrom,
+      compactConversation,
       stopGeneration,
       abortConversation,
       askKnowledge,
@@ -874,6 +974,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendMessage,
       sendStreamMessage,
       resendFrom,
+      compactConversation,
       stopGeneration,
       abortConversation,
       askKnowledge,

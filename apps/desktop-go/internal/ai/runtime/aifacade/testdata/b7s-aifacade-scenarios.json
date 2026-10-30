@@ -1,0 +1,2203 @@
+[
+ {
+  "name": "sessions",
+  "steps": [
+   {
+    "p": "ai.sessions.list"
+   },
+   {
+    "p": "ai.sessions.create"
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "title": "A",
+     "agentPreset": "companion",
+     "meta": {
+      "k": 1,
+      "b": true,
+      "s": "x"
+     },
+     "extra": 1
+    },
+    "tick": 5
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {}
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": null
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "title": 3
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "meta": {
+      "k": {
+       "x": 1
+      }
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "meta": {
+      "k": null
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.list"
+   },
+   {
+    "p": "ai.sessions.get",
+    "in": {
+     "id": "nope"
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "in": {}
+   },
+   {
+    "p": "ai.sessions.get"
+   },
+   {
+    "p": "ai.sessions.fork",
+    "in": {
+     "id": "nope"
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "in": {
+     "id": "nope",
+     "title": "t"
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "in": {
+     "id": "nope"
+    }
+   },
+   {
+    "p": "ai.sessions.delete",
+    "in": {
+     "id": "nope"
+    }
+   },
+   {
+    "p": "ai.sessions.list",
+    "in": {}
+   },
+   {
+    "p": "ai.sessions.list",
+    "in": null
+   }
+  ]
+ },
+ {
+  "name": "sessionsFlow",
+  "steps": [
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "title": "Root",
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "in": {
+     "id": "$s1"
+    },
+    "tick": 7
+   },
+   {
+    "p": "ai.sessions.fork",
+    "in": {
+     "id": "$s1"
+    },
+    "tick": 3
+   },
+   {
+    "p": "ai.sessions.fork",
+    "in": {
+     "id": "$s1",
+     "overrides": {
+      "title": "F2",
+      "meta": {
+       "z": 2
+      }
+     }
+    },
+    "tick": 3
+   },
+   {
+    "p": "ai.sessions.fork",
+    "in": {
+     "id": "$s1",
+     "overrides": {
+      "agentPreset": "p2"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "in": {
+     "id": "$s1",
+     "overrides": {
+      "title": 1
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "in": {
+     "id": "$s1",
+     "title": "Renamed",
+     "x": 1
+    },
+    "tick": 11
+   },
+   {
+    "p": "ai.sessions.get",
+    "in": {
+     "id": "$s1"
+    }
+   },
+   {
+    "p": "ai.sessions.list"
+   },
+   {
+    "p": "ai.sessions.delete",
+    "in": {
+     "id": "$s1"
+    }
+   },
+   {
+    "p": "ai.sessions.delete",
+    "in": {
+     "id": "$s1"
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "in": {
+     "id": "$s1"
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "in": {
+     "title": ""
+    }
+   },
+   {
+    "p": "ai.sessions.list"
+   }
+  ]
+ },
+ {
+  "name": "tools",
+  "tools": [
+   {
+    "name": "echo",
+    "description": "Echo back",
+    "dangerous": false
+   },
+   {
+    "name": "rm",
+    "description": "remove",
+    "dangerous": true
+   },
+   {
+    "name": "nod",
+    "description": ""
+   },
+   {
+    "name": "echo",
+    "description": "Echo v2"
+   }
+  ],
+  "steps": [
+   {
+    "p": "ai.tools.list"
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "echo",
+     "enabled": false
+    }
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "ghost",
+     "enabled": true
+    }
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "echo"
+    }
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "echo",
+     "enabled": "no"
+    }
+   },
+   {
+    "p": "ai.tools.list"
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "echo",
+     "enabled": true,
+     "x": 1
+    }
+   },
+   {
+    "p": "ai.tools.list"
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "r1",
+     "ok": true
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "",
+     "ok": false,
+     "reason": "no"
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "r1",
+     "ok": true
+    },
+    "untrusted": true
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "r1"
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "r1",
+     "ok": true,
+     "reason": 5
+    }
+   },
+   {
+    "p": "ai.tools.list",
+    "in": {
+     "x": 1
+    }
+   }
+  ]
+ },
+ {
+  "name": "toolsNoRegistry",
+  "registry": false,
+  "steps": [
+   {
+    "p": "ai.tools.list"
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "in": {
+     "name": "x",
+     "enabled": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "memory",
+  "steps": [
+   {
+    "p": "ai.memory.facts.list"
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f1",
+     "kind": "note",
+     "text": "t",
+     "source": "user",
+     "at": 1
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "confidence": 0.5,
+     "at": 2,
+     "source": "system",
+     "text": "t2",
+     "kind": "goal",
+     "id": "f2",
+     "junk": true
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f1",
+     "kind": "habit",
+     "text": "t3",
+     "source": "inferred",
+     "at": 3
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f3",
+     "kind": "bogus",
+     "text": "t",
+     "source": "user",
+     "at": 1
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f3",
+     "kind": "note",
+     "text": "t",
+     "source": "other",
+     "at": 1
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f3",
+     "kind": "note",
+     "text": "t",
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "in": {
+     "id": "f3",
+     "kind": "note",
+     "text": "t",
+     "source": "user",
+     "at": "1"
+    }
+   },
+   {
+    "p": "ai.memory.facts.list"
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "in": {
+     "id": "f1"
+    }
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "in": {
+     "id": "f1"
+    }
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "in": {
+     "id": 1
+    }
+   },
+   {
+    "p": "ai.memory.facts.list"
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "in": {
+     "sessionId": "s"
+    }
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "in": {
+     "stepCount": 2,
+     "updatedAt": 5,
+     "summary": "sum",
+     "sessionId": "s",
+     "x": 0
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "in": {
+     "sessionId": "s"
+    }
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "in": {
+     "sessionId": "s",
+     "summary": "sum2",
+     "updatedAt": 6,
+     "stepCount": 3
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "in": {
+     "sessionId": "s"
+    }
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "in": {
+     "sessionId": "s",
+     "summary": "sum2",
+     "updatedAt": 6
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "in": {}
+   }
+  ]
+ },
+ {
+  "name": "profileDefault",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.export"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "Bo",
+       "displayName": "B"
+      }
+     },
+     "source": "user",
+     "reason": "r",
+     "extra": 1
+    },
+    "tick": 10,
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "tone": {
+        "value": "cute",
+        "source": "user",
+        "updatedAt": 5
+       },
+       "autoAcceptTools": [
+        "a",
+        "b"
+       ]
+      },
+      "dislikes": [
+       "x"
+      ]
+     },
+     "source": "inferred"
+    },
+    "tick": 10,
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "autoAcceptTools": [
+        "c"
+       ]
+      },
+      "dislikes": []
+     },
+     "source": "user"
+    },
+    "tick": 1
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": null
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "bogus": "x"
+      }
+     },
+     "source": "user"
+    },
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "locale": "xxxxxxxxxxxxxxxxx"
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": 5
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "version": 2
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "tone": {
+        "value": "loud",
+        "source": "user",
+        "updatedAt": 1.5
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "codeStyle": {
+        "indent": 3,
+        "quotes": "back"
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "codeStyle": {
+        "indent": "tab",
+        "language": [
+         "go"
+        ]
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "habits": {
+       "activeHours": [
+        1,
+        2
+       ],
+       "regenRate": 2,
+       "avgSessionLen": -1
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "habits": {
+       "topTools": [
+        {
+         "tool": "a",
+         "count": 1,
+         "z": 1
+        }
+       ],
+       "updatedAt": -3
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "dislikes": "x"
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "dislikes": [
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      ]
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "privacy": {
+        "allowFileWrite": "yes"
+       }
+      },
+      "extraTop": 1
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "replyLanguage": {
+        "value": "zh",
+        "source": "guess",
+        "updatedAt": 1,
+        "confidence": 2
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": "x"
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {}
+     },
+     "source": "bogus"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": [
+      1
+     ],
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "tick": 100,
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": {
+      "version": 1,
+      "identity": {
+       "timezone": "UTC"
+      },
+      "preferences": {},
+      "habits": {
+       "activeHours": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ]
+      },
+      "dislikes": [
+       "a"
+      ],
+      "createdAt": 1,
+      "updatedAt": 2
+     }
+    },
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": {
+      "version": 1
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": null
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {}
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": "str"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": {
+      "version": 1,
+      "identity": {},
+      "preferences": {},
+      "habits": {},
+      "dislikes": [],
+      "createdAt": 1,
+      "updatedAt": 2,
+      "x": 1,
+      "y": 2
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.get",
+    "in": {}
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "in": {}
+   }
+  ]
+ },
+ {
+  "name": "profileFile",
+  "file": "{\"updatedAt\": 9, \"createdAt\": 8, \"dislikes\": [\"q\"], \"habits\": {\"regenRate\": 0.5, \"zz\": 1}, \"preferences\": {\"tone\": {\"source\": \"user\", \"value\": \"weird\", \"updatedAt\": 3, \"q\": 1}, \"codeStyle\": {\"indent\": \"spaces\"}}, \"identity\": {\"nickname\": \"N\", \"foo\": \"bar\"}, \"version\": 1, \"chat\": {\"x\": 1}}",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.export"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "M"
+      }
+     },
+     "source": "user"
+    },
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "chat": null,
+      "identity": {
+       "foo": null
+      }
+     },
+     "source": "user"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileBadOutput",
+  "file": "{\"version\": \"1\", \"identity\": {}}",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.export"
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.get"
+   }
+  ]
+ },
+ {
+  "name": "profileFileBroken",
+  "file": "{not json",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "dump": true
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {},
+     "source": "distilled"
+    },
+    "tick": 1,
+    "dump": true
+   }
+  ]
+ },
+ {
+  "name": "profileFileArray",
+  "file": "[1,2]",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   }
+  ]
+ },
+ {
+  "name": "profileFileNull",
+  "file": "null",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {},
+     "source": "user"
+    }
+   }
+  ]
+ },
+ {
+  "name": "noProfile",
+  "profile": false,
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {},
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.reset"
+   },
+   {
+    "p": "ai.memory.userProfile.export"
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "in": {
+     "data": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "asrTts",
+  "steps": [
+   {
+    "p": "ai.asr.list"
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "in": {
+     "pcm": {
+      "sampleRate": 16000,
+      "bitDepth": 16,
+      "channels": 1,
+      "data": {
+       "$u8": "AAEC"
+      }
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "in": {
+     "pcm": {
+      "sampleRate": 16000,
+      "bitDepth": 16,
+      "channels": 1,
+      "data": {
+       "$u8": "AAEC"
+      }
+     },
+     "opts": {
+      "language": "zh",
+      "signal": 1
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "in": {
+     "pcm": {
+      "sampleRate": 8000,
+      "bitDepth": 16,
+      "channels": 1,
+      "data": {
+       "$u8": "AAEC"
+      }
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "in": {
+     "pcm": {
+      "sampleRate": 16000,
+      "bitDepth": 16,
+      "channels": 1,
+      "data": "AAEC"
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "in": {
+     "pcm": {
+      "sampleRate": 16000,
+      "bitDepth": 16,
+      "channels": 1,
+      "data": {
+       "$u8": "AAEC"
+      }
+     },
+     "opts": {
+      "language": 1
+     }
+    }
+   },
+   {
+    "p": "ai.tts.list"
+   },
+   {
+    "p": "ai.tts.listVoices"
+   },
+   {
+    "p": "ai.tts.synth",
+    "in": {
+     "text": "hi"
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "in": {
+     "text": "hi",
+     "opts": {
+      "format": "mp3",
+      "rate": 1
+     }
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "in": {
+     "text": "hi",
+     "opts": {
+      "format": "flac"
+     }
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "in": {}
+   },
+   {
+    "p": "ai.tts.stop",
+    "in": {
+     "reqId": "r"
+    }
+   },
+   {
+    "p": "ai.tts.stop",
+    "in": {}
+   },
+   {
+    "p": "ai.tts.list",
+    "in": {}
+   }
+  ]
+ },
+ {
+  "name": "avatar",
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable"
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy"
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy",
+     "weight": 0.25
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy",
+     "weight": 0
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy",
+     "weight": 1
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "notAnEmotion",
+     "weight": 1
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy",
+     "weight": 1.5
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "thumbs_up"
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "Happy"
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {}
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "in": {
+     "name": "wave"
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "in": {
+     "name": "happy"
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "in": {
+     "name": "think-on"
+    }
+   },
+   {
+    "p": "ai.avatar.activity",
+    "in": {
+     "name": "thinking"
+    }
+   },
+   {
+    "p": "ai.avatar.activity",
+    "in": {
+     "name": "sleeping"
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "in": {
+     "level": 0.5
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "in": {
+     "level": 2
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "in": {}
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "touched",
+     "hitbox": "head",
+     "x": 1
+    },
+    "tick": 4
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "clicked",
+     "hitbox": "face"
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "clicked",
+     "hitbox": "face",
+     "double": true
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "clicked",
+     "hitbox": "face",
+     "double": false
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "clicked",
+     "hitbox": "nose"
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "scene",
+     "characterId": "nomi",
+     "emotions": [
+      "happy"
+     ],
+     "activities": [],
+     "gestures": [
+      "wave",
+      "x"
+     ],
+     "extra": 1
+    },
+    "tick": 2
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "scene",
+     "characterId": "",
+     "emotions": [],
+     "activities": [],
+     "gestures": []
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "scene",
+     "characterId": "c",
+     "emotions": [
+      "bad_name"
+     ],
+     "activities": [],
+     "gestures": []
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "scene",
+     "characterId": "c",
+     "emotions": [],
+     "activities": []
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "wave"
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {}
+   },
+   {
+    "p": "ai.avatar.isAvailable",
+    "in": {}
+   }
+  ]
+ },
+ {
+  "name": "avatarNoHost",
+  "host": false,
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable"
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy"
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "in": {
+     "name": "wave"
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "in": {
+     "level": 0.5
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "touched",
+     "hitbox": "any"
+    }
+   }
+  ]
+ },
+ {
+  "name": "noAvatar",
+  "avatar": false,
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable"
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "in": {
+     "name": "happy"
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "in": {
+     "name": "wave"
+    }
+   },
+   {
+    "p": "ai.avatar.activity",
+    "in": {
+     "name": "idle"
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "in": {
+     "level": 0.5
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "in": {
+     "type": "touched",
+     "hitbox": "any"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileZodEdges",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "dislikes": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80,
+       81,
+       82,
+       83,
+       84,
+       85,
+       86,
+       87,
+       88,
+       89,
+       90,
+       91,
+       92,
+       93,
+       94,
+       95,
+       96,
+       97,
+       98,
+       99,
+       100,
+       101,
+       102,
+       103,
+       104,
+       105,
+       106,
+       107,
+       108,
+       109,
+       110,
+       111,
+       112,
+       113,
+       114,
+       115,
+       116,
+       117,
+       118,
+       119,
+       120,
+       121,
+       122,
+       123,
+       124,
+       125,
+       126,
+       127,
+       128
+      ]
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "dislikes": [
+       0,
+       1,
+       2
+      ]
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "tone": {
+        "value": "cute",
+        "source": "user",
+        "updatedAt": -1.5
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "tone": {
+        "value": "cute",
+        "source": "user",
+        "updatedAt": -2
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": [
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x",
+        "x"
+       ]
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": [
+        "x",
+        "x",
+        "x"
+       ]
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "habits": {
+       "activeHours": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ]
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "habits": {
+       "activeHours": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ]
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "habits": {
+       "activeHours": [
+        "a",
+        "a"
+       ],
+       "regenRate": 2,
+       "topTools": [
+        {
+         "tool": 1,
+         "count": -1,
+         "z": 0
+        }
+       ]
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "codeStyle": {
+        "indent": 3,
+        "quotes": "back"
+       },
+       "privacy": {
+        "allowFileWrite": 1,
+        "q": 0
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "preferences": {
+       "tone": {
+        "value": "cute",
+        "source": "user",
+        "updatedAt": 1,
+        "confidence": 1.5
+       }
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+      }
+     },
+     "source": "user"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileZero",
+  "file": "0",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "z"
+      }
+     },
+     "source": "user"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileNumber",
+  "file": "5",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {
+      "identity": {
+       "nickname": "z"
+      }
+     },
+     "source": "user"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "in": {
+     "patch": {},
+     "source": "user"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hooks",
+  "steps": [
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "sessionId": "s1",
+      "turnId": "t1",
+      "ok": true
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "sessionId": "s1",
+      "turnId": "t2",
+      "ok": false,
+      "reason": "aborted",
+      "extra": {
+       "k": 1
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "ok": "yes"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {}
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end"
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": null
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": [
+      1
+     ]
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/stopped-by-user",
+     "payload": {
+      "sessionId": "s1",
+      "reqId": "r1"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/stopped-by-user",
+     "payload": {
+      "sessionId": 1
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "reqId": "r2",
+      "toolName": "echo",
+      "argumentsJson": "{}",
+      "reason": "dangerous",
+      "createdAt": 5
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "tool": "echo",
+      "args": {}
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "createdAt": "5"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "toolName": "echo",
+      "reqId": "r3",
+      "ok": true,
+      "durationMs": 3
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "tool": "echo",
+      "ok": true,
+      "result": {
+       "echoed": "x"
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "ok": true,
+      "error": 7
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute"
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": {
+       "role": "assistant",
+       "content": "hi"
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": 0
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": ""
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {}
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message"
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/chunk",
+     "payload": {
+      "reqId": "t",
+      "seq": 0,
+      "mime": "audio/pcm",
+      "data": {
+       "$u8": "AAEC"
+      },
+      "rms": 0.5,
+      "atMs": 0,
+      "isFinal": false
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/chunk",
+     "payload": {
+      "reqId": "t",
+      "data": "AAEC"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/end",
+     "payload": {
+      "reqId": "t",
+      "ok": true,
+      "durationMs": 12
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/end",
+     "payload": {
+      "durationMs": "12"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "userProfile/changed",
+     "payload": {
+      "profile": {
+       "a": 1
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "userProfile/changed",
+     "payload": 7
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/step",
+     "payload": {
+      "sessionId": "s1",
+      "step": 1,
+      "reason": "tool-calls"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent:step",
+     "payload": {
+      "sessionId": "s1",
+      "step": 1,
+      "reason": "tool-calls"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "message/delta",
+     "payload": {
+      "sessionId": "s1",
+      "messageId": "m",
+      "deltaText": "x"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/wrap",
+     "payload": {
+      "reqId": "x",
+      "ok": true
+     }
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "c1",
+     "ok": true
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "c2",
+     "ok": false,
+     "reason": "nope"
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "",
+     "ok": true
+    }
+   }
+  ]
+ }
+]

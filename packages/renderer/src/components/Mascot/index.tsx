@@ -13,14 +13,13 @@ import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
 import styles from './style.module.css';
 
-import { isAiIpcReady } from '@/ai/env';
-import WaifuAgentBubbleBridge from '@/ai/WaifuAgentBubbleBridge';
-import WaifuMascotSceneReporter from '@/ai/WaifuMascotSceneReporter';
+import CompanionAgentBubbleBridge from '@/ai/CompanionAgentBubbleBridge';
 import { useMascot } from '@/contexts/MascotContext';
 import { useFileDropSummarize } from '@/hooks/useFileDropSummarize';
 import { useMascotTips } from '@/hooks/useMascotTips';
 import MascotDriver from '@/mascot/MascotDriver';
 import { useMascotZoomInput } from '@/mascot/scaleStore';
+import { hasTransport } from '@/services/api';
 
 // Rive is the default 2D mascot renderer (with the layered 2D rig as fallback if it cannot start).
 // The scene embeds the locked Nomi art layers and is loaded lazily to keep the first paint light.
@@ -29,19 +28,19 @@ const MascotAIBridge = lazy(() => import('@/mascot/MascotAIBridge'));
 const MascotVoiceBridge = lazy(() => import('@/mascot/voice/MascotVoice'));
 
 /**
- * 看板娘宿主：气泡 + 工具栏 + Nomi 画布（Rive，失败时回退分层 2D）。
+ * 桌面角色宿主：气泡 + 工具栏 + Nomi 画布（Rive，失败时回退分层 2D）。
  * 必须位于 MascotProvider 内。
  */
 export const MascotHost: React.FC = () => {
   const { currentModel } = useMascot();
-  const aiReady = useMemo(() => isAiIpcReady(), []);
+  const aiReady = useMemo(() => hasTransport(), []);
   useMascotTips();
   useMascotZoomInput();
   useFileDropSummarize('mascot-canvas');
 
   return (
     <div className={styles.root}>
-      {aiReady && <WaifuAgentBubbleBridge />}
+      {aiReady && <CompanionAgentBubbleBridge />}
       {aiReady && (
         <Suspense fallback={null}>
           <MascotAIBridge />
@@ -55,7 +54,6 @@ export const MascotHost: React.FC = () => {
           <MascotAiCueBridge />
         </Suspense>
       )}
-      <WaifuMascotSceneReporter />
       <MessageBubble />
       <ToolBar />
       <MotionMenu />

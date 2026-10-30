@@ -15,10 +15,29 @@ export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl'
 export type { TabsProps, TabItem } from './Tabs';
 export { Badge, Tag } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
-export { Tooltip } from './Tooltip';
+export { FloatingTip, Tooltip } from './Tooltip';
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+export { DateTimeField } from './DateTimeField';
+export { Disclosure } from './Disclosure';
+export type { DisclosureProps } from './Disclosure';
+export { NumberField } from './NumberField';
+export type { NumberFieldProps } from './NumberField';
+export { Slider } from './Slider';
+export type { SliderProps } from './Slider';
+export type { DateTimeFieldProps, DateTimeKind } from './DateTimeField';
+export { installTitleTooltips } from './titleTooltips';
 export { ModelPicker, formatContext, splitModelRef, truncDigits } from './ModelPicker';
 export type { ModelPickerProps, PickerModel, PickerProvider } from './ModelPicker';
-export type { TooltipProps } from './Tooltip';
+export {
+  ModelProviderTabs,
+  ModelVendorFilter,
+  modelVendorId,
+  modelVendors,
+  OTHER_VENDOR,
+} from './ModelBrowse';
+export type { ModelProviderTab, ModelVendorChip } from './ModelBrowse';
+export type { FloatingTipProps, TooltipProps } from './Tooltip';
 export { Toast, ToastProvider, useToast } from './Toast';
 export type { ToastTone, ToastOptions } from './Toast';
 export { Icon, ICON_SIZE, ICON_STROKE } from './icons';

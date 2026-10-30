@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Nomi
+Exec=@EXEC@ %U
+Terminal=false
+Type=Application
+Icon=nomi
+StartupWMClass=nomi
+X-AppImage-Version=@VERSION@
+Comment=Nomi desktop AI assistant
+MimeType=x-scheme-handler/nomi;
+Categories=Utility;

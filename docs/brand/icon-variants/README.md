@@ -1,7 +1,7 @@
 # Nomi 应用图标变体
 
 原创矢量（MIT，与仓库同许可），由 `scripts/brand/build-app-icon.py` 生成，
-`scripts/brand/build-icon-assets.py`（headless Chrome 栅格化 + Pillow 打包）产出 `packages/electron/assets` 下的位图 / ico / icns
+`scripts/brand/build-icon-assets.py`（headless Chrome 栅格化 + Pillow 打包）产出 `apps/desktop-electron/assets` 下的位图 / ico / icns
 （也可用 `scripts/brand/render-icons.mjs` 以 Electron 自带 Chromium 栅格化）。依据品牌板与
 `docs/brand/nomi-app-icon.svg` / `nomi-mark.svg`：**双色**流畅曲线 N（主笔画 + 画在下层的橙色次笔画 `#F7A67C`，
 形成橙色阴影 / 衬底）+ 橙色四角星光，配色 `#FB9466` / 奶油 `#FFF6EC` / 深棕 `#33291F`。N 与星光的几何直接取自品牌 svg。
@@ -33,7 +33,7 @@ python3 scripts/brand/build-icon-assets.py   # 需要 Pillow + headless Chrome�
 
 ## 运行时切换的 Windows .ico（#56）
 
-`packages/electron/assets/app-icons/<变体>/app.ico`（16 / 24 / 32 / 48 用 `-flat-small.svg`，64 / 128 / 256 用 `-flat.svg`）
+`apps/desktop-electron/assets/app-icons/<变体>/app.ico`（16 / 24 / 32 / 48 用 `-flat-small.svg`，64 / 128 / 256 用 `-flat.svg`）
 供运行时 `win.setAppDetails({ appId, appIconPath })` 设置任务栏按钮图标（System.AppUserModel.RelaunchIconResource）。
 打包后随 `extraResources` 复制到 `resources/assets`，在磁盘上（Windows Shell 读不了 asar）。重新生成：
 

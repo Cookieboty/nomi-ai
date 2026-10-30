@@ -323,7 +323,10 @@ describe('SdkIPCClient · multi-turn', () => {
 
   it('sends system prompt + prior turns for both non-stream and stream', async () => {
     const { client, calls } = fakeClient();
-    const ipc = new SdkIPCClient(client as never);
+    // 默认系统提示由内核拼装（契约 persona.systemPrompt）；这里替身直接给出
+    const ipc = new SdkIPCClient(client as never, {
+      defaultSystemPrompt: async () => 'You are Pip, a paper robot.',
+    });
     const history = [msg('1', 'user', 'q1'), msg('2', 'assistant', 'a1')];
 
     await expect(ipc.sendMessage('q2', history)).resolves.toBe('reply');
@@ -337,7 +340,7 @@ describe('SdkIPCClient · multi-turn', () => {
     expect(chunks).toEqual(['str']);
     const [send, stream] = calls;
     expect(send!.opts.messages).toEqual([
-      { role: 'system', content: expect.stringContaining('Nomi') },
+      { role: 'system', content: expect.stringContaining('You are Pip, a paper robot.') },
       { role: 'user', content: 'q1' },
       { role: 'assistant', content: 'a1' },
       { role: 'user', content: 'q2' },

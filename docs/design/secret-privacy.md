@@ -2,7 +2,7 @@
 
 > 状态：P1–P3 已实现（2.0.2，`feat/v2.0.2`）；请求对照决定不做（§12）。范围只含**第三方供应商**（经统一网关的流量）；官方账号登录的会话直连官方、不经网关，不在本稿范围。
 >
-> 相关代码：`packages/gateway/src/server.ts`（入口、候选循环与响应写出）、`src/upstream.ts`（`upstreamBody`）、`src/trace.ts`（现有 `redactText` / `redactJson`）、`packages/electron/src/memory/episodes.ts`（`SECRET` 正则）、`packages/electron/src/desktop/pathGuard.ts`（文件拒绝名单）、`packages/electron/src/gateway/GatewayService.ts` / `GatewayStore.ts`（配置快照与选项）。
+> 相关代码：`apps/desktop-electron/internal/gateway/src/server.ts`（入口、候选循环与响应写出）、`src/upstream.ts`（`upstreamBody`）、`src/trace.ts`（现有 `redactText` / `redactJson`）、`apps/desktop-electron/internal/core/src/memory/episodes.ts`（`SECRET` 正则）、`apps/desktop-electron/internal/core/src/desktop/pathGuard.ts`（文件拒绝名单）、`apps/desktop-electron/internal/core/src/gateway/GatewayService.ts` / `GatewayStore.ts`（配置快照与选项）。
 >
 > 参考：[magpie](https://github.com/yetone/magpie)（MIT）的隐私脱敏（`internal/redact`、`internal/masking`、`internal/gwmw`、`LESSONS.md`）。占位符、回程还原、已见值匹配、跳过规则、出错不发都借鉴自它；移植它的规则或测试用例时在 `CREDITS.md` 登记。
 
@@ -78,7 +78,7 @@
                      用量事件带上 hits 摘要 ──MessagePort──▶ 主进程（审计、界面提示）
 ```
 
-- 新建 `packages/gateway/src/privacy/`（纯 Node）：
+- 新建 `apps/desktop-electron/internal/gateway/src/privacy/`（纯 Node）：
   - `rules.ts`：检测规则（§5），从 `trace.ts` 的 `SECRET_PATTERNS` 迁过来扩充；
   - `known.ts`：已知原文与已见值的多模式匹配（§5.2）；
   - `table.ts`：占位符 → 原值的内存表（§7.2）；
@@ -263,7 +263,7 @@ privacy?: {
   每条命中还带 `allowTag`（`allowTagOf(key, 原文)`，HMAC，反推不出原文），界面点「这不是密钥」时主进程直接存它。
 
   主进程（P2 实现）：
-  - **最近隐藏的密钥**（`packages/electron/src/gateway/PrivacyLog.ts`）：按占位符汇总（同一个值每一轮随历史再遮一次，按请求记会刷屏），记类型、长度、开头几个字符、例外标记、出现在几个请求、哪些客户端、遮了 / 还原了几处；最多 200 个值，`userData/gateway/privacy-log.json`（0600，攒 2 秒写一次，退出时写盘）。这份记录同时充当审计；原先设想的「请求列表」已不存在（网关事件只进模型质量账本），桌面工具的 `AuditLog` 格式也不适用，所以单独做。
+  - **最近隐藏的密钥**（`apps/desktop-electron/internal/core/src/gateway/PrivacyLog.ts`）：按占位符汇总（同一个值每一轮随历史再遮一次，按请求记会刷屏），记类型、长度、开头几个字符、例外标记、出现在几个请求、哪些客户端、遮了 / 还原了几处；最多 200 个值，`userData/gateway/privacy-log.json`（0600，攒 2 秒写一次，退出时写盘）。这份记录同时充当审计；原先设想的「请求列表」已不存在（网关事件只进模型质量账本），桌面工具的 `AuditLog` 格式也不适用，所以单独做。
   - **Nomi 对话的提示**：网关在发了脱敏请求体的响应上带 `x-nomi-redacted: N`（这次请求里遮掉的不同值个数），ai-runtime 只认可信网关的这个头（`redactedHeader`，与 `servedModelHeader` 同样的做法），多步工具循环取各步最大值，写进用量的 `redacted`；对话摘要里显示「已隐藏 N 个密钥」，悬停说明包括历史消息里的、回复里已换回原值。编程助手的会话不显示（它们的消息来自 CLI 自己的会话记录）。
   - IPC：`ai:gateway:privacy-set-action`、`privacy-add-secret`、`privacy-remove-secret`、`privacy-add-allow`（给标记与辨认信息，或给原文由主进程算标记后丢弃）、`privacy-remove-allow`、`privacy-log`、`privacy-clear-log`。存储字段 `privacyActions` / `privacySecrets`（加密）/ `privacyAllow`（只有标记）。
 

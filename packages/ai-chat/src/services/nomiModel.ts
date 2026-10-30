@@ -22,12 +22,8 @@ import {
 
 let cached: GatewayState | null = null;
 const listeners = new Set<(s: GatewayState) => void>();
-/** 已订阅的桥（窗口重载 / 测试换桥后要重新订阅） */
-let watched: unknown = null;
-let unwatch: (() => void) | null = null;
-
-const currentBridge = (): unknown =>
-  typeof window === 'undefined' ? null : (window as unknown as { aiIPC?: unknown }).aiIPC;
+/** 是否已订阅 `gateway.changed`（窗口共享一个契约客户端，订阅一次即可） */
+let watched = false;
 
 function publish(s: GatewayState): GatewayState {
   cached = s;
@@ -44,14 +40,12 @@ export function refreshNomiModel(): void {
     .catch(() => undefined);
 }
 
-/** 拉一次网关状态并订阅变化（同一个桥只订阅一次；每次调用都会刷新） */
+/** 拉一次网关状态并订阅变化（只订阅一次；每次调用都会刷新） */
 export function watchNomiModel(): void {
   if (!gatewayClientAvailable()) return;
-  const b = currentBridge();
-  if (watched !== b) {
-    unwatch?.();
-    watched = b;
-    unwatch = gatewayClient.onChanged(refreshNomiModel);
+  if (!watched) {
+    watched = true;
+    gatewayClient.onChanged(refreshNomiModel);
   }
   refreshNomiModel();
 }

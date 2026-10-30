@@ -1,8 +1,8 @@
 /**
  * 主题：用户选择（ThemePref，含「跟随系统」）→ 实际主题（ThemeId）写到 <html data-theme>。
  * :root 为日落橙（默认）令牌，每个主题都写 data-theme（含 sunset）。
- * 桌面端由主进程 `ai:theme:*` 持久化、解析「跟随系统」（nativeTheme）并广播给所有窗口；
- * 无 IPC 时退回 localStorage + prefers-color-scheme。
+ * 桌面端由主进程（主题服务）持久化、解析「跟随系统」并广播给所有窗口：视图入口经 `setThemeBackend`
+ * 接上（应用契约 `theme.*`，本包不依赖契约）；没有后端时退回 localStorage + prefers-color-scheme。
  *
  * 历史 id `paper`（纸白）读入时映射为 `cream`（奶油）。
  */
@@ -90,14 +90,20 @@ export interface ThemeState {
   resolved: ThemeId;
 }
 
-interface Bridge {
-  invoke(ch: string, ...a: unknown[]): Promise<unknown>;
-  on(ch: string, fn: (p: unknown) => void): () => void;
+/** 主进程主题服务的注入点（视图入口在 initTheme 之前接上；返回值形状同 ThemeState） */
+export interface ThemeBackend {
+  get(): Promise<unknown>;
+  set(pref: ThemePref): Promise<unknown>;
+  /** 订阅主题变化；返回取消订阅 */
+  onChanged(fn: (state: unknown) => void): () => void;
 }
-const bridge = (): Bridge | undefined => {
-  const b = (globalThis as { aiIPC?: Bridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
+
+let backend: ThemeBackend | null = null;
+
+/** 接上 / 拿掉主进程主题服务（null = 只用本地状态） */
+export function setThemeBackend(b: ThemeBackend | null): void {
+  backend = b;
+}
 const systemDark = () =>
   typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)').matches : true;
 
@@ -145,7 +151,7 @@ export function initTheme(): () => void {
     /* ignore */
   }
   applyTheme(normalizeThemePref(cached) ?? DEFAULT_THEME);
-  const b = bridge();
+  const b = backend;
   if (!b) {
     // 浏览器 / 测试：跟随 prefers-color-scheme 实时变化
     if (typeof matchMedia !== 'function') return () => undefined;
@@ -155,13 +161,13 @@ export function initTheme(): () => void {
     return () => mq.removeEventListener?.('change', on);
   }
   void b
-    .invoke('ai:theme:get')
+    .get()
     .then((v) => {
       const s = fromPayload(v);
       if (s) apply(s);
     })
     .catch(() => undefined);
-  return b.on('ai:theme:changed', (v) => {
+  return b.onChanged((v) => {
     const s = fromPayload(v);
     if (s) apply(s);
   });
@@ -170,8 +176,8 @@ export function initTheme(): () => void {
 /** 用户在设置里选择主题 */
 export async function setTheme(pref: ThemePref): Promise<void> {
   applyTheme(pref);
-  const b = bridge();
+  const b = backend;
   if (!b) return;
-  const s = fromPayload(await b.invoke('ai:theme:set', pref).catch(() => null));
+  const s = fromPayload(await b.set(pref).catch(() => null));
   if (s) apply(s);
 }

@@ -22,4 +22,4 @@
 ## 技术说明
 
 - 推理服务是 llama.cpp 的 `llama-server`（MIT），只监听 `127.0.0.1` 的随机端口，以 OpenAI 兼容接口提供服务。
-- 模型目录在 `packages/electron/src/local/llmCatalog.ts`，每项都固定文件与 SHA-256。
+- 模型目录在 `apps/desktop-electron/internal/core/src/local/llmCatalog.ts`，每项都固定文件与 SHA-256。

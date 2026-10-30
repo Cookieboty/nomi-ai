@@ -1,11 +1,11 @@
 /**
- * 看板娘事件台词（原创中文，可爱简短）。多条随机；冷却由 MascotCueService 控制。
+ * 桌面角色事件台词（原创中文，可爱简短）。多条随机；冷却由 MascotCueService 控制。
  * MIT with the project.
  */
 
 export type CueEvent =
   | 'hover:face'
-  | 'hover:skirt'
+  | 'hover:hem'
   | 'hover:hands'
   | 'wall'
   | 'release'
@@ -37,7 +37,7 @@ export type CueEvent =
 
 export const CUE_LINES: Record<CueEvent, string[]> = {
   'hover:face': [],
-  'hover:skirt': [],
+  'hover:hem': [],
   'hover:hands': [],
   wall: [],
   release: [],
@@ -48,7 +48,8 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
   greet: [
     'ui.cli-monitor.i-m-here',
     'ui.cli-monitor.let-s-do-our-best-today',
-    'ui.cli-monitor.hi-i-m-nomi',
+    // 自我介绍带角色名：角色台词，来自角色包（没有这句的包就不说）
+    'greet-hello',
   ],
   sleep: ['ui.cli-monitor.rest-early-okay'],
   'agent:done': [
@@ -119,7 +120,7 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
 /** 事件默认冷却（ms）与语音优先级（高可打断低） */
 export const CUE_META: Record<CueEvent, { cooldownMs: number; priority: number; sfx?: string }> = {
   'hover:face': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
-  'hover:skirt': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
+  'hover:hem': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
   'hover:hands': { cooldownMs: 8000, priority: 1, sfx: 'pop' },
   wall: { cooldownMs: 4000, priority: 2, sfx: 'land' },
   release: { cooldownMs: 2500, priority: 2, sfx: 'pop' },

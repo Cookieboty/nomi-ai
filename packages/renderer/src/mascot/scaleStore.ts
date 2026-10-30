@@ -1,8 +1,10 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { useEffect, useSyncExternalStore } from 'react';
 
+import { api, hasWindowHost } from '../services/api';
+
 /**
- * Nomi 大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
+ * 桌面角色大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
  * 调整并保持脚底中心不动、持久化到配置），这里只缓存最近一次状态并转发操作。
  * 滚轮事件会很密：同一帧内的 deltaY 先累加，每帧最多向主进程发一次。
  */
@@ -14,7 +16,8 @@ let pendingWheel = 0;
 let wheelRaf = 0;
 const listeners = new Set<Listener>();
 
-const api = () => (typeof window === 'undefined' ? undefined : window.electronAPI?.mascotWindow);
+/** 主进程不可用（浏览器预览 / 测试）或调用失败：保持上一次状态 */
+const ignore = (): undefined => undefined;
 
 function setState(s: MascotScaleState | null | undefined): void {
   if (!s || typeof s.scale !== 'number') return;
@@ -24,18 +27,21 @@ function setState(s: MascotScaleState | null | undefined): void {
 
 function start(): void {
   if (started) return;
-  const a = api();
-  if (!a?.scaleGet) return;
+  // 窗口缩放只在宿主的桌面角色窗口里有（dev:web 的浏览器页面没有窗口）
+  if (!hasWindowHost()) return;
   started = true;
-  void a.scaleGet().then(setState);
-  a.onScale?.(setState);
+  void api.mascot.scaleGet().then(setState, ignore);
+  const off = api.on('mascot.scaleChanged', setState);
+  // 开发态热更新重新执行本模块时摘掉旧订阅（否则每次热更新多一个监听，并留住旧模块）
+  import.meta.hot?.dispose(off);
 }
 
 function flushWheel(): void {
   wheelRaf = 0;
   const dy = pendingWheel;
   pendingWheel = 0;
-  if (dy !== 0) void api()?.scaleWheel(dy, 0).then(setState);
+  if (dy !== 0 && hasWindowHost())
+    void api.mascot.scaleWheel({ deltaY: dy, deltaMode: 0 }).then(setState, ignore);
 }
 
 export const scaleStore = {
@@ -53,13 +59,13 @@ export const scaleStore = {
     if (!wheelRaf) wheelRaf = requestAnimationFrame(flushWheel);
   },
   step(dir: 1 | -1): void {
-    void api()?.scaleStep(dir).then(setState);
+    if (hasWindowHost()) void api.mascot.scaleStep({ dir }).then(setState, ignore);
   },
   set(scale: number): void {
-    void api()?.scaleSet(scale).then(setState);
+    if (hasWindowHost()) void api.mascot.scaleSet({ scale }).then(setState, ignore);
   },
   reset(): void {
-    void api()?.scaleReset().then(setState);
+    if (hasWindowHost()) void api.mascot.scaleReset().then(setState, ignore);
   },
 };
 
@@ -82,7 +88,7 @@ const editable = (t: EventTarget | null): boolean => {
  */
 export function useMascotZoomInput(): void {
   useEffect(() => {
-    if (!api()?.scaleWheel) return undefined;
+    if (!hasWindowHost()) return undefined;
     start();
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;

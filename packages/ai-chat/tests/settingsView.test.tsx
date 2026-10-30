@@ -141,7 +141,9 @@ describe('SettingsView 合并后的标签页分区', () => {
 
   it('侧栏品牌头；「通用」顶部是横幅且无可见页头；其余分区有标题 + 说明、无横幅', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
-    expect(r.getByTestId('settings-brand').textContent).toContain('Nomi · 诺米');
+    // 品牌头只写产品名（brand.appName），不带角色名（§10.1）
+    expect(r.getByTestId('settings-brand').textContent).toContain('Nomi');
+    expect(r.getByTestId('settings-brand').textContent).not.toMatch(/诺米|·/);
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
     const banner = r.getByTestId('settings-banner');
     expect(banner.tagName).toBe('IMG');

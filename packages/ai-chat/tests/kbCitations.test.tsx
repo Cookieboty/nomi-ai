@@ -9,11 +9,18 @@ import { splitCiteText } from '../src/components/Conversation/citeRefs';
 import { shortPath } from '../src/services/kbClient';
 import type { ChatMessage } from '../src/types/chat';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
 import { NomiConversation } from './nomiRender';
+
+// kb.* 走契约（services/api）
+const mock = vi.hoisted(() => ({ transport: true }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(mock),
+);
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  mock.invoke = undefined;
 });
 
 const src = (n: number, path: string, page?: number) => ({
@@ -45,8 +52,8 @@ describe('knowledge citations', () => {
   });
 
   it('renders clickable citations and opens a source through IPC', async () => {
-    const invoke = vi.fn(async () => ({ ok: true }));
-    (window as { aiIPC?: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const invoke = vi.fn(async (_name: string, _input: unknown) => ({ ok: true }));
+    mock.invoke = invoke;
     const m: ChatMessage = {
       id: 'a',
       role: 'assistant',
@@ -63,11 +70,13 @@ describe('knowledge citations', () => {
     expect(getByTestId('kb-source-preview')).toBeTruthy();
     expect(getByText('snippet 2')).toBeTruthy();
     fireEvent.click(getByTestId('kb-open-file'));
-    await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:kb:open', 'd2', 'open'));
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('kb.open', { docId: 'd2', how: 'open' }),
+    );
   });
 
   it('renders KB answers through the Markdown renderer with clickable citations', () => {
-    (window as { aiIPC?: unknown }).aiIPC = { invoke: vi.fn(), on: () => () => undefined };
+    mock.invoke = vi.fn();
     const m: ChatMessage = {
       id: 'a',
       role: 'assistant',

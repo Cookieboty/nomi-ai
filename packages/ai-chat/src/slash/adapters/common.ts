@@ -106,7 +106,14 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
       source: 'builtin',
       kind: 'native',
       hint: t('ui.slash-commands.model'),
-      run: async (a, ctx) => card(await modelCard(ctx, await ctx.load(), a)),
+      run: async (a, ctx) => {
+        // 不带参数：打开输入框上方的模型浮层（与模型按钮同一个界面），不往对话里插卡片
+        if (!a.trim() && ctx.actions.openModelMenu('')) return { type: 'noop' };
+        const c = await modelCard(ctx, await ctx.load(), a);
+        // 参数命中多个：同样打开浮层，搜索框里填上参数；唯一命中已直接切换，留一条结果
+        if (c.kind === 'list' && ctx.actions.openModelMenu(a.trim())) return { type: 'noop' };
+        return card(c);
+      },
     }),
     cmd({
       name: 'clear',

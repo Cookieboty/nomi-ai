@@ -8,28 +8,23 @@ import {
   type ChatSession,
   type ConversationBackend,
 } from '../types/chat';
-import { type IPCClient, type ElectronAPI, type StreamSendOptions } from '../types/ipc';
+import { type IPCClient, type StreamSendOptions } from '../types/ipc';
 import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
+import { api, hasTransport } from './api';
 import { ConversationStore } from './conversationStore';
-import { buildProviderMessages } from './history';
+import { harnessClient } from './harnessClient';
+import { buildProviderMessages, type ProviderMessage } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
 
 const log = createLogger('IPC');
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-    aiIPC?: unknown;
-  }
-}
 
 const LOCAL_CONFIG_KEY = 'ai-chat:config';
 
 type SdkChatFacade = {
   sendMessage: (opts: SdkChatOptions) => Promise<{ content?: string } & Record<string, unknown>>;
   stream: (opts: SdkChatOptions) => AsyncIterable<SdkChatChunk>;
-  /** 工具循环（桌面文件工具 / 看板娘工具）；旧主进程没有该通道时退回 stream */
+  /** 工具循环（桌面文件工具 / 桌面角色工具）；旧主进程没有该通道时退回 stream */
   agentStream?: (opts: SdkChatOptions & { role?: string }) => AsyncIterable<SdkChatChunk>;
   abort: (reqId: string) => void;
 };
@@ -41,6 +36,8 @@ interface SdkChatOptions {
   messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>;
   /** 透传至 ChatRequest.extra（如 conversationId，#116） */
   extra?: Record<string, unknown>;
+  /** 按角色路由（chat / agent-tools / summary） */
+  role?: string;
 }
 
 type SdkChatChunk =
@@ -74,21 +71,62 @@ const writeStorage = (key: string, value: unknown): void => {
   }
 };
 
+/**
+ * systemPrompt 没有默认值：未自定义时用内核拼装的默认系统提示（契约 `persona.systemPrompt`：当前角色的
+ * 身份段 + 与角色无关的对话要求，docs/design/core-host-decoupling.md §10.4）。界面包里不写任何角色人设。
+ */
 const DEFAULT_CONFIG: ChatConfig = {
   theme: 'light',
   language: 'zh-CN',
   fontSize: 14,
   autoSave: true,
   maxHistoryLength: 1000,
-  systemPrompt: 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives',
+};
+
+/**
+ * 旧版本把默认人设存成这个翻译 key（会随 updateConfig 写进本地配置 / 用户画像），词典里已删除。
+ * 读到它等同于「没有自定义」，改用当前角色的人设。
+ */
+const LEGACY_DEFAULT_SYSTEM_PROMPT = 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives'; // i18n-ignore
+
+const withDefaults = (cfg: Partial<ChatConfig>): ChatConfig => {
+  const merged: ChatConfig = { ...DEFAULT_CONFIG, ...cfg };
+  if (merged.systemPrompt === LEGACY_DEFAULT_SYSTEM_PROMPT) delete merged.systemPrompt;
+  return merged;
+};
+
+/** 内核拼装的默认系统提示；取不到（没有内核连接）时返回 undefined，不发系统提示 */
+export type SystemPromptGetter = () => Promise<string | undefined>;
+
+const systemPromptFromCore: SystemPromptGetter = async () => {
+  try {
+    if (!hasTransport()) return undefined;
+    return await api.persona.systemPrompt();
+  } catch (e) {
+    log.warn('default system prompt unavailable', e);
+    return undefined;
+  }
 };
 
 export class SdkIPCClient implements IPCClient {
   private readonly client: ClientAIClient;
   private readonly owned: boolean;
   private readonly store = new ConversationStore();
+  private readonly defaultSystemPrompt: SystemPromptGetter;
+  /** 主标签（Nomi 对话）当前的目录：新 Nomi 对话的默认工作区（默认 文稿/nomi） */
+  private mainCwd: string | undefined;
+  private offHarness: (() => void) | undefined;
 
-  constructor(client?: ClientAIClient) {
+  constructor(client?: ClientAIClient, opts: { defaultSystemPrompt?: SystemPromptGetter } = {}) {
+    this.defaultSystemPrompt = opts.defaultSystemPrompt ?? systemPromptFromCore;
+    this.store.defaultNomiCwd = () => this.mainCwd;
+    if (harnessClient.available()) {
+      void harnessClient
+        .state()
+        .then((s) => (this.mainCwd = s.cwd || undefined))
+        .catch(() => undefined);
+      this.offHarness = harnessClient.onChanged((s) => (this.mainCwd = s.cwd || this.mainCwd));
+    }
     if (client) {
       this.client = client;
       this.owned = false;
@@ -99,6 +137,10 @@ export class SdkIPCClient implements IPCClient {
   }
 
   async dispose(): Promise<void> {
+    this.offHarness?.();
+    // 会话存储的 storage 监听与消息缓存也随之释放
+    this.store.dispose();
+    this.store.invalidate();
     if (this.owned) await this.client.dispose();
   }
 
@@ -117,8 +159,9 @@ export class SdkIPCClient implements IPCClient {
     images?: Array<{ mime: string; data: string }>,
   ) {
     const { systemPrompt } = await this.getConfig();
-    // 默认人设存的是翻译 key（也可能已随配置存下）：发送前按当前语言翻成正文；用户自填的原样保留
-    const sys = [systemPrompt && t(systemPrompt), extra].filter((s) => s && s.trim()).join('\n\n');
+    // 没有自定义时每轮现取内核的默认系统提示（换角色包 / 换界面语言即时生效）；用户自填的原样保留（含清空）
+    const base = systemPrompt === undefined ? await this.defaultSystemPrompt() : systemPrompt;
+    const sys = [base, extra].filter((s) => s && s.trim()).join('\n\n');
     return buildProviderMessages(history, message, sys, images);
   }
 
@@ -128,6 +171,12 @@ export class SdkIPCClient implements IPCClient {
     } catch {
       return undefined;
     }
+  }
+
+  /** 上下文压缩：用 summary 角色的模型生成摘要（单次请求，不走工具循环） */
+  async summarize(messages: ProviderMessage[]): Promise<string> {
+    const resp = await this.chat.sendMessage({ messages, role: 'summary' });
+    return typeof resp?.content === 'string' ? resp.content.trim() : '';
   }
 
   async sendMessage(
@@ -164,10 +213,12 @@ export class SdkIPCClient implements IPCClient {
     const signal = streamOpts?.signal;
     try {
       const conversationId = this.currentConversationId();
+      // Nomi 对话的工作区：内核校验后才生效（文件 / 命令工具与委派的编程助手都限在这里）
+      const cwd = conversationId ? this.store.get(conversationId)?.cwd : undefined;
       const opts = {
         messages: await this.buildMessages(message, history, extraSystem, images),
         ...(reqId ? { reqId } : {}),
-        ...(conversationId ? { extra: { conversationId } } : {}),
+        ...(conversationId ? { extra: { conversationId, ...(cwd ? { cwd } : {}) } } : {}),
       };
       if (signal?.aborted) return;
       // 对话走工具循环（role 仍是 chat，按 chat 路由选 provider）
@@ -268,9 +319,15 @@ export class SdkIPCClient implements IPCClient {
 
   async newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string },
+    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string },
   ): Promise<string> {
-    return this.store.create({ name, backend: opts?.backend, tabId: opts?.tabId }).id;
+    // 新的 Nomi 对话没给工作区时由 store 用主标签当前的目录（defaultNomiCwd）
+    return this.store.create({
+      name,
+      backend: opts?.backend,
+      tabId: opts?.tabId,
+      ...(opts?.cwd ? { cwd: opts.cwd } : {}),
+    }).id;
   }
 
   async switchConversation(id: string): Promise<void> {
@@ -279,7 +336,9 @@ export class SdkIPCClient implements IPCClient {
 
   async updateConversation(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
+    patch: Partial<
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+    >,
   ) {
     return this.store.updateMeta(id, patch);
   }
@@ -290,6 +349,7 @@ export class SdkIPCClient implements IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
+      cwd?: string;
       messages?: ChatMessage[];
     },
   ) {
@@ -306,15 +366,15 @@ export class SdkIPCClient implements IPCClient {
 
   async getConfig(): Promise<ChatConfig> {
     const local = readStorage<ChatConfig>(LOCAL_CONFIG_KEY);
-    if (local) return { ...DEFAULT_CONFIG, ...local };
+    if (local) return withDefaults(local);
     try {
-      const profile = this.userProfile.get();
+      const profile = await this.userProfile.get();
       const chatCfg = (profile as { chat?: Partial<ChatConfig> } | undefined)?.chat;
-      if (chatCfg) return { ...DEFAULT_CONFIG, ...chatCfg };
+      if (chatCfg) return withDefaults(chatCfg);
     } catch {
       /* ignore */
     }
-    return { ...DEFAULT_CONFIG };
+    return withDefaults({});
   }
 
   async updateConfig(config: Partial<ChatConfig>): Promise<void> {
@@ -407,9 +467,7 @@ export class MockIPCClient implements IPCClient {
 
 export const createIPCClient = (client?: ClientAIClient): IPCClient => {
   if (client) return new SdkIPCClient(client);
-  if (typeof window !== 'undefined' && (window as { aiIPC?: unknown }).aiIPC) {
-    return new SdkIPCClient();
-  }
-  log.warn('window.aiIPC 未就绪，使用 Mock 客户端（开发/测试模式）');
+  if (hasTransport()) return new SdkIPCClient();
+  log.warn('契约传输未就绪，使用 Mock 客户端（开发/测试模式）');
   return new MockIPCClient();
 };

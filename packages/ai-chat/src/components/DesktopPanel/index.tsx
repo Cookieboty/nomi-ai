@@ -28,6 +28,7 @@ import {
   type JournalView,
   type Policy,
 } from '../../services/desktopClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 
@@ -300,13 +301,14 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      !window.confirm(
-                        tr(
+                      !(await confirmDialog({
+                        message: tr(
                           'ui.knowledge-local.clear-all-authorizations-permission-settings-and-activity-records',
                         ),
-                      )
+                        danger: true,
+                      }))
                     )
                       return;
                     void desktopClient

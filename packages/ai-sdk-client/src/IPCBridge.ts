@@ -2,14 +2,16 @@
  * IPCBridge —— 渲染进程可用的极简 IPC 抽象。
  *
  * 之所以自己抽一层：
- * - preload 里 `contextBridge.exposeInMainWorld('aiIPC', ...)` 暴露的对象要能被
- *   React 侧的 `ClientAIClient` 消费；
+ * - preload 暴露的 `window.nomiTransport`（契约传输，见 `mkNomiTransportPreload`）要能被
+ *   `ClientAIClient` 消费（形状与 `@nomi-ai/contract` 的 `IpcBridgeLike` 一致）；
  * - 抽象成 interface 后，测试里可以直接 mock，无需拉起 Electron；
  * - 允许业务侧自定义 bridge（例如 WebWorker / iframe postMessage）。
  *
- * 与 preload 的对齐：`mkAiPreload` 会创建一个实现本接口的对象，通过 contextBridge
- * 暴露到 `window[bridgeName]`。
+ * 与 preload 的对齐：`mkNomiTransportPreload` 创建实现本接口的对象，通过 contextBridge 暴露到
+ * `window[bridgeName]`。
  */
+
+import { SDKError, SDKErrorCodes } from './errors';
 
 /** IPC unsubscribe */
 export type IpcUnsubscribe = () => void;
@@ -27,15 +29,15 @@ export interface IPCBridge {
 }
 
 /**
- * 从全局 window 获取 bridge。默认从 `window.aiIPC` 读取；允许自定义 key
- * 以便 renderer / ai-chat 各挂各的（例如 waifu 侧用 `waifuAiIPC`）。
+ * 从全局 window 获取 bridge。默认读 `window.nomiTransport`（契约传输）；允许自定义 key。
  */
-export function getGlobalBridge(bridgeName = 'aiIPC'): IPCBridge {
+export function getGlobalBridge(bridgeName = 'nomiTransport'): IPCBridge {
   const g = globalThis as unknown as Record<string, unknown>;
   const bridge = g[bridgeName] as IPCBridge | undefined;
   if (!bridge) {
-    throw new Error(
-      `[ai-sdk-client] window.${bridgeName} 未就绪；请确认 preload 已执行 mkAiPreload('${bridgeName}')`,
+    throw new SDKError(
+      SDKErrorCodes.BRIDGE_MISSING,
+      `[ai-sdk-client] window.${bridgeName} 未就绪；请确认 preload 已暴露该桥（mkNomiTransportPreload）`,
     );
   }
   return bridge;

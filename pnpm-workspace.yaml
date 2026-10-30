@@ -1,5 +1,10 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
+  # 只有 Node 版用的内核包，和 Go 版的 apps/desktop-go/internal 对应
+  - 'apps/desktop-electron/internal/*'
   - 'templates/*'
+  - '!apps/**/dist'
   - '!packages/**/dist'
+  - '!apps/**/node_modules'
   - '!packages/**/node_modules'

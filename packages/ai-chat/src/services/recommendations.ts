@@ -2,7 +2,7 @@
  * 按新手引导里选的职业与兴趣推荐任务：先装哪个编程助手、「开始使用」里列哪些功能、欢迎页给哪些示例问题。
  * 只是规则表（纯函数，便于单测）；没选过职业与兴趣时保持原来的默认推荐。
  */
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { hasUserProfile, type UserInterest, type UserProfile, type UserRole } from '@nomi-ai/types';
 
 /** 「开始使用」里推荐的功能（点击跳到对应设置页） */

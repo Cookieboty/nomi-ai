@@ -21,7 +21,6 @@
 
 .range input {
   width: 100%;
-  accent-color: var(--cd-color-accent);
 }
 
 .help {

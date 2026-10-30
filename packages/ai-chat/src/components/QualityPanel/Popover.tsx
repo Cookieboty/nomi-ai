@@ -67,7 +67,7 @@ export const Popover: React.FC<PopoverProps> = ({
     if (!open) return;
     // 打开后焦点进弹层：第一个可聚焦元素
     const first = panel.current?.querySelector<HTMLElement>(
-      'input, button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      'input:not([tabindex="-1"]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
     first?.focus();
     const onDown = (e: MouseEvent) => {

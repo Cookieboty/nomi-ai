@@ -5,7 +5,7 @@
 
 ## 1. 产品一句话
 
-把 Nomi 的对话窗口做成 **Claude Code / Codex（及后续同类 CLI）的 UI 外壳**：消息、工具确认、权限与进度都转发到本机真实 CLI；同时提供 **版本检查与看板娘一键更新**，以及 **按工具独立切换 API 供应商**（含可选本机协议路由）。Nomi 自己的 AI 运行时仍保留为「Nomi 原生」后端，可随时切回。
+把 Nomi 的对话窗口做成 **Claude Code / Codex（及后续同类 CLI）的 UI 外壳**：消息、工具确认、权限与进度都转发到本机真实 CLI；同时提供 **版本检查与诺米一键更新**，以及 **按工具独立切换 API 供应商**（含可选本机协议路由）。Nomi 自己的 AI 运行时仍保留为「Nomi 原生」后端，可随时切回。
 
 ## 2. 历史基线（v1.x 起草时的代码事实，已过时）
 
@@ -66,7 +66,7 @@
 | Direct               | CLI 直连上游（原生协议） | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`    |
 | 本地路由             | 本机代理做协议转换       | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商   |
 | Aggregation          | 多上游模型列表合并       | **P2**                                                                                 |
-| Apps 页升级          | 检测版本、安装、升级     | 对标「版本与更新」章节，由看板娘执行                                                   |
+| Apps 页升级          | 检测版本、安装、升级     | 对标「版本与更新」章节，由诺米执行                                                     |
 
 **上游格式（按 CLI 不同）：**
 
@@ -99,9 +99,9 @@
 - **接管已有会话**：从监视器列表选一条 Claude/Codex 会话 → `--resume` / `exec resume`，聊天区加载只读历史摘要 + 可续写。
 - **CLI 供应商**：仅在 Claude/Codex 后端显示；切换即写对应配置（见 §5）。
 
-看板娘：切换后端时短提示；CLI 报错 / 等待权限时气泡同步。
+诺米：切换后端时短提示；CLI 报错 / 等待权限时气泡同步。
 
-### 4.2 版本检查与更新（看板娘）
+### 4.2 版本检查与更新（诺米）
 
 入口：设置 → 编程助手 → 对应端点（Claude Code / Codex / dsh）顶部的「版本」卡片；托盘「编程助手」；Nomi 气泡「发现更新」。
 
@@ -178,7 +178,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 - `codex exec --json` 的 NDJSON 事件为 `thread.*` / `turn.*` / `item.*` 等，**没有**可回写的交互式 approval / permission 事件；`--approve-for-me` 为自动审批，`--dangerously-bypass-approvals-and-sandbox` 为跳过，均非 UI 桥。
 - 当前主路径是 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），这些请求会进入 Nomi 权限卡片；起不来 app-server 时才退回 `exec`，退路没有可回写的逐项审批通道，会按只读沙箱运行。
-- **结论：** Codex 的交互权限只在 app-server 路径提供；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。
+- **结论：** Codex 的交互权限只在 app-server 路径提供；dsh headless 同样自行决策。诺米气泡提醒仍走监视器完成/失败通道。
 
 **权限模式（2026-10-19）：** 内置编程助手按能力统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。不支持某档位的 CLI 会降级到更安全的档位。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
 
@@ -219,7 +219,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 ### P0 —— 可演示的「外壳 + 更新」（约 1.5–2.5 周）
 
-1. `CliUpdateService`：检测 Claude Code / Codex / Cursor（能 which 到的）版本与 latest；面板 + 看板娘「更新」白名单命令。
+1. `CliUpdateService`：检测 Claude Code / Codex / Cursor（能 which 到的）版本与 latest；面板 + 诺米「更新」白名单命令。
 2. 对话 **后端切换器**：Nomi | Claude Code | Codex。
 3. Claude / Codex **新会话** 转发（Mock CLI 保证 CI；真实 CLI 手册验收）。
 4. 权限/工具事件的最小 UI（列表 + 允许/拒绝）。
@@ -267,7 +267,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 ---
 
-_调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code headless/CLI 文档、OpenAI Codex CLI reference、Cursor headless CLI 文档（2026-10）。_
+_调研来源：本仓库 `apps/desktop-electron/internal/core/src/agents/*`、官方 Claude Code headless/CLI 文档、OpenAI Codex CLI reference、Cursor headless CLI 文档（2026-10）。_
 
 ## 12. 第三个接管端点：dsh + 多标签并发后端（设计稿，2026-10-15）
 
@@ -339,13 +339,13 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
   换端点新建用侧栏的「新对话」菜单；关闭也可以在侧栏行的右键菜单里。
 
 - **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、标签元数据）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
-- **看板娘监视器**：一个列表聚合所有端点，按最近活动排序：
+- **诺米监视器**：一个列表聚合所有端点，按最近活动排序：
   - Claude Code：`~/.claude/projects/*/*.jsonl`
   - Codex：`~/.codex/sessions/**/rollout-*.jsonl`
   - dsh：`$DSH_HOME/storages/session_projcache/sessions/<id>.json` 取标题与 cwd；`session.lock` 运行结束后仍存在，所以「运行中」以内核 flock 是否被持有判断（Linux 读 `/proc/locks`，其它平台退回进程扫描 + 修改时间）。
   - Nomi 标签：实时状态优先于文件推断；由标签驱动的 CLI 会话不会在文件来源里重复出现。
   - 顶部按端点筛选（全部 / Nomi 标签 / dsh / Codex / Claude Code），标签条目有「打开标签」按钮直达。
-- **提醒**：后台端点完成或需要处理时，看板娘说一句并做动作（成功挥手、失败思考），灵动岛显示带端点徽标与状态图标（完成 / 失败 / 需要处理 / 运行中）的事件。
+- **提醒**：后台端点完成或需要处理时，诺米说一句并做动作（成功挥手、失败思考），灵动岛显示带端点徽标与状态图标（完成 / 失败 / 需要处理 / 运行中）的事件。
 
 ### 12.5 普通 / 开发模式、端点隔离与分叉（HIGHLIGHT）
 
@@ -381,9 +381,9 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 ### 13.2 端点命名、图标、工作目录（反馈 1 / 4 / 5）
 
-- 端点统一名称 **Nomi / Claude Code / Codex / dsh**（专有名词，不翻译；不再出现 `CC`、`CX`、「Codex CLI」之类缩写）。下拉、侧栏、标签、分叉菜单、看板娘监视器使用同一份 `ENDPOINT_NAME`。
+- 端点统一名称 **Nomi / Claude Code / Codex / dsh**（专有名词，不翻译；不再出现 `CC`、`CX`、「Codex CLI」之类缩写）。下拉、侧栏、标签、分叉菜单、诺米监视器使用同一份 `ENDPOINT_NAME`。
 - 端点下拉：选项只有名称，菜单宽度按内容撑开（最小 200px），不再被截断；CLI 未安装时整项置灰并标「未安装」。
-- 端点图标（`EndpointIcon`，自绘 SVG，不依赖外部品牌素材）取代文字徽标：侧栏条目、「按端」筛选、标签、新建菜单、分叉菜单、看板娘监视器与灵动岛都用同一套图标和配色。图标带 `aria-label`，不靠颜色单独表意。
+- 端点图标（`EndpointIcon`，自绘 SVG，不依赖外部品牌素材）取代文字徽标：侧栏条目、「按端」筛选、标签、新建菜单、分叉菜单、诺米监视器与灵动岛都用同一套图标和配色。图标带 `aria-label`，不靠颜色单独表意。
 - **工作目录**：所有 CLI 端点（不止 Codex）在输入栏有统一的目录选择器；新建对话 / 标签 / 分叉时也能先选目录。含「最近使用」（最多 8 个，已不存在的自动过滤）与「选择其它文件夹…」。已有会话的标签切换目录时会确认并丢弃旧会话（CLI 会话与目录绑定）。悬停显示完整路径，界面只显示缩短后的路径。
 
 ### 13.3 菜单审计与重整方案（反馈 6）
@@ -448,7 +448,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 - **去重**：已经绑定在某个标签上的会话（`backend + cliSessionId` 相同，含主标签）不会再出现在历史里；同一会话再次打开会直接切到那个标签，不会新建重复标签。
 - **打开**：`ai:history:open` → 检查原工作目录仍存在（续接要求同目录，否则提示「原工作目录已不存在」，条目也会置灰）→ 读出**可见转录**（用户 / 助手文本，工具只记名字，最近 300 条）→ 新建标签并绑定 `cliSessionId` 与原 cwd，转录预填；之后发送的第一条消息就用上表的续接命令。
 - **转录是尽力而为**：Claude 合并同一次回复的多个片段，跳过 `tool_result`、`isMeta`、子代理；Codex 只取 `response_item` 里的 `user` / `assistant` 消息并跳过环境 / 指令注入，函数调用记为工具名；dsh 只取 `source.kind = user` 的提问与 `assistant/message`（`.zstd` 用 Node 内置 `zlib.zstdDecompressSync`，不可用时回退系统 `zstd`）。解析不出来时标签是空的，并提示「没有解析到可显示的历史消息，仍可继续该会话」——续接本身不依赖转录。文件超过 12MB 时只读尾部并提示。
-- **测试**：夹具来自真实会话文件（`packages/electron/tests/fixtures/history/`，已裁掉超长指令）；覆盖三种解析器、分页（120 条 → 50/50/20）、增量、去重、cwd 缺失、转录失败、以及 mock CLI 的续接参数（`--resume` / `exec resume` / `--session-id`）。
+- **测试**：夹具来自真实会话文件（`apps/desktop-electron/tests/fixtures/history/`，已裁掉超长指令）；覆盖三种解析器、分页（120 条 → 50/50/20）、增量、去重、cwd 缺失、转录失败、以及 mock CLI 的续接参数（`--resume` / `exec resume` / `--session-id`）。
 - **已知限制**：只支持这三个端点；没有对话内容搜索；dsh 的转录格式是内部格式（v4），升级后可能需要跟进解析器；Claude Code 的会话如果在终端里仍在运行，续接会和它同时写同一个文件。
 
 ## 14. 验收反馈（2026-10-15，macOS 开发模式）
@@ -474,7 +474,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 - **不阻塞主进程**：检测（`which` / `--version` / `npm config get prefix` / `node --version`）全部走异步 `execFile`；`run` 在做前置检查前先占位，防止连点两次同时通过。（Windows 上 `where` / `npm.cmd` 启动较慢，同步调用会让整个应用的输入停顿——CI 里 E19 的点击曾因此超时。）
 - **任务状态由主进程按端点持有**（`CliUpdateService.jobs`）：运行中 / 进度日志（最多 400 行）/ 结果 / 错误都在主进程，不再放在设置页的 React 局部状态里。页面挂载时先 `ai:cli-update:job` 取快照，再订阅 `ai:cli-update:event` 的增量；切换端点、退出设置、关闭再打开都不影响任务，回来后继续显示。同一端点重复点更新会复用当前任务；结束后保留最近一次结果（含失败原因），直到点「关闭结果」（`ai:cli-update:dismiss`）。测试：`CliInstallUpdate.test.ts`（快照 / 复用 / 保留 / 关闭）、`cliVersionCard.test.tsx`（挂载→开始→卸载→重新挂载仍显示）、e2e E20（假 codex / npm）。
 - 已移除日程里的 `CliToolsBlock`。
-- 测试：`packages/electron/tests/unit/cli/CliInstallUpdate.test.ts`（注入 mock npm / CLI 的 probe 与 runner，覆盖计划、Node 过旧、只读前缀、流式事件、失败）与 `packages/ai-chat/tests/cliVersionCard.test.tsx`。
+- 测试：`apps/desktop-electron/internal/core/tests/unit/cli/CliInstallUpdate.test.ts`（注入 mock npm / CLI 的 probe 与 runner，覆盖计划、Node 过旧、只读前缀、流式事件、失败）与 `packages/ai-chat/tests/cliVersionCard.test.tsx`。
 
 ### 14.3 监视与会话
 
@@ -489,7 +489,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 **根因**：灵动岛窗口在 macOS 上调用了 `setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })`。Electron 的这个调用默认会**切换进程类型**（普通应用 ↔ 菜单栏代理应用）：为了让窗口出现在全屏空间上，应用会短暂变成「没有 Dock / 菜单栏」的代理应用，再变回去，这一来一回就把状态栏图标和应用菜单弄丢了。而灵动岛窗口会在每次有编程助手事件（完成 / 失败）或几何变化时被创建、显示，所以「互动之后」才出现。
 
 **修复**（`IslandService.applyIslandWorkspaceBehavior`）：传 `skipTransformProcessType: true`，不再切换进程类型。同时加固托盘（`TrayManager`）：模块级强引用防回收、图标永远非空（缺图时用兜底图）、`activate` / `browser-window-focus` 时检查托盘是否还在，不在就重建（`ensureAlive`），`dispose` 幂等。
-**回归测试**：`packages/electron/tests/unit/core/trayLifecycle.test.ts`（断言灵动岛始终带 `skipTransformProcessType`、托盘被销毁后能重建、空图标不会被设置）。
+**回归测试**：`apps/desktop-electron/tests/unit/core/trayLifecycle.test.ts`（断言灵动岛始终带 `skipTransformProcessType`、托盘被销毁后能重建、空图标不会被设置）。
 **已知限制**：根因来自代码与 Electron 行为分析，没有在真实 macOS 上复现过；需要在 macOS 开发模式上验收。
 
 ### 14.5 端点图标
@@ -550,7 +550,7 @@ Nomi 用 Nomi 应用标志；Codex 用 OpenAI 标志；dsh 用 DeepSeek 鲸鱼�
 
 设置 → 编程助手 →「监视与会话」。
 
-**1. 只在结束 / 需要你时提示。** 编程工具（Claude Code / Codex / dsh 及其它被监视的工具）任务**开始 / 进行中**时，看板娘不弹气泡、不出声、不放音效，灵动岛也不弹；运行中的状态只在「监视与会话」列表里被动展示。以下提示保持不变：任务完成 / 失败、这一轮做完在等你回复、疑似卡住、**工具权限请求**（需要你操作，仍然弹出）。
+**1. 只在结束 / 需要你时提示。** 编程工具（Claude Code / Codex / dsh 及其它被监视的工具）任务**开始 / 进行中**时，诺米不弹气泡、不出声、不放音效，灵动岛也不弹；运行中的状态只在「监视与会话」列表里被动展示。以下提示保持不变：任务完成 / 失败、这一轮做完在等你回复、疑似卡住、**工具权限请求**（需要你操作，仍然弹出）。
 
 **2. 每 10 分钟汇总一次。** 打开「监视编程助手进度」后，主进程每 10 分钟（常量 `DIGEST_INTERVAL_MS`）重新扫描一次；若有进行中的编程任务，发一条汇总：「还有 N 个编程任务进行中（Claude Code 2 · Codex 1）」，被动告知：Nomi 在桌面上时只用气泡，关着时用灵动岛，不会退回成系统通知。规则：
 
@@ -567,10 +567,10 @@ Nomi 用 Nomi 应用标志；Codex 用 OpenAI 标志；dsh 用 DeepSeek 鲸鱼�
 | 任务结束 | 气泡 / 灵动岛的简短提示，只播一句固定台词和音效，不朗读结果 | 朗读完成总结：做了什么（任务标题）、成败、结果摘要 |
 
 - 进度摘要不新增任何模型调用：Nomi 标签取该轮最近的文本 / 工具步骤（`CliHarnessService.progressHint`，仅内存），文件会话取已有的「最后一步」摘要（`SessionInfo.detail`）。
-- 朗读走现有的看板娘语音通道（`MascotCueService` → `speakForActiveCharacter` → `tts:speak`），遵守语音开关、音量与勿扰静音；e2e 下 `CD_TTS=off` 照常生效。
+- 朗读走现有的诺米语音通道（`MascotCueService` → `speakForActiveCharacter` → `tts:speak`），遵守语音开关、音量与勿扰静音；e2e 下 `CD_TTS=off` 照常生效。
 - 实现：主进程 `desktop:bubble` 载荷新增 `voice`（`full` / `cue` / `none`）与 `kind`（`digest` / `done` / `fail`），渲染进程 `MascotAudioBridge` 据此决定出声方式；未带 `voice` 的旧气泡沿用原有行为。
 
-**测试**：`packages/electron/tests/unit/agents/agentDigest.test.ts`（fake timers：开始不提示、10 分钟汇总与分组、0 个不提示、总结播报开 / 关、与结束提示去重、免打扰、关闭监听 / `stop` 清理定时器）、`agentProgress.test.ts` / `agentEndpoints.test.ts`、`HarnessTabs.test.ts`（`progressHint`）、`packages/renderer/tests/mascot/audioBridgeBubble.test.tsx`（三种出声方式）、`packages/ai-chat/tests/providersPage.test.tsx`（开关）。**未验证**：真实语音听感，以及 Windows / macOS 真机上的气泡、灵动岛与定时行为。
+**测试**：`apps/desktop-electron/internal/core/tests/unit/agents/agentDigest.test.ts`（fake timers：开始不提示、10 分钟汇总与分组、0 个不提示、总结播报开 / 关、与结束提示去重、免打扰、关闭监听 / `stop` 清理定时器）、`agentProgress.test.ts` / `agentEndpoints.test.ts`、`HarnessTabs.test.ts`（`progressHint`）、`packages/renderer/tests/mascot/audioBridgeBubble.test.tsx`（三种出声方式）、`packages/ai-chat/tests/providersPage.test.tsx`（开关）。**未验证**：真实语音听感，以及 Windows / macOS 真机上的气泡、灵动岛与定时行为。
 
 ## 14. 会话视图改版（2026-10-16，工具调用不再是纯文本流）
 
@@ -636,9 +636,9 @@ ai-chat/src/
 根因：① 每个流式 delta 都 `setState` 并复制整个轨迹数组 → 主进程 `EventBatcher` 合并 + 渲染端 `requestAnimationFrame` 合批（`applyLiveEvents`，实时轨迹封顶 3000）；
 ② 每次渲染都重算 `reduceTrace` / `buildTimeline` / Markdown / diff → 行 / 组 `memo`、增量 Markdown 分块（`splitMarkdownChunks`）、diff LRU 缓存；
 ③ CLI 会话整段渲染、不分页 → 消息 / 时间线窗口化；④ 持久化的旧轨迹保留完整输入输出 → `compactOldTraces`（仅保留最近 20 条完整，文件 ≤6 MB）；
-⑤ 切标签缓存无限增长 → LRU 只留最近 4 个标签。看板娘窗口堆内存稳定在 10–12 MB，没有随会话增长。
+⑤ 切标签缓存无限增长 → LRU 只留最近 4 个标签。诺米窗口堆内存稳定在 10–12 MB，没有随会话增长。
 
-**测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`electron/tests/unit/cli/*`；
+**测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`core/tests/unit/cli/*`；
 e2e：E24（工具时间线）、E25（统一视图：等待态 / 思考计时 / 队列 / 摘要 / 停止 / 重新生成 / 编辑 / 错误卡片 / Nomi 对话）、PERF（压测，默认跳过）。
 
 ## 插件化（v2.0.0）

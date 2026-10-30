@@ -1,4 +1,4 @@
-import { createLogger, t, Icon } from '@nomi-ai/ui';
+import { createLogger, Disclosure, t, Icon } from '@nomi-ai/ui';
 import { TriangleAlert } from 'lucide-react';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 
@@ -49,13 +49,16 @@ export class ErrorBoundary extends Component<Props, State> {
             </p>
 
             {this.state.error && (
-              <details className={styles.errorDetails}>
-                <summary>{t('ui.foundation.error-details')}</summary>
+              <Disclosure
+                className={styles.errorDetails}
+                summaryClassName={styles.errorSummary}
+                summary={t('ui.foundation.error-details')}
+              >
                 <pre className={styles.errorStack}>
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
-              </details>
+              </Disclosure>
             )}
 
             <div className={styles.errorActions}>

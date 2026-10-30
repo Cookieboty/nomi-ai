@@ -162,7 +162,7 @@ components/SlashPalette      命令面板（分组、高亮、参数提示、接
 components/SystemCards       会话流里的卡片渲染（context / cost / status / list / notice / diff）
 components/PluginPanel       「插件 / 命令」只读面板（Modal 抽屉形态）
 components/MessageInput      接入：面板键盘 / 参数提示条 / 回车拦截（slash 桥）
-electron/src/cli/slashDiscovery.ts   主进程只读发现 + 按 id 展开 + git diff（IPC ai:harness:slash-* / git-diff）
+core/src/cli/slashDiscovery.ts   主进程只读发现 + 按 id 展开 + git diff（IPC ai:harness:slash-* / git-diff）
 ```
 
 展开（`$ARGUMENTS` / `$N` / 命名参数）**在主进程**（`slashDiscovery.expandSlash`），渲染进程只传 id 与参数，拿不到也传不了路径。
@@ -238,7 +238,7 @@ sequenceDiagram
 
 ### 4.8 实现与验证状态
 
-单测：`packages/ai-chat/tests/slash*.test.ts(x)`、`pluginPanel.test.tsx`（解析 / 注册 / 模糊搜索 / 各 adapter / token 估算 / 面板与卡片 UI）与 `packages/electron/tests/unit/cli/slashDiscovery.test.ts`；有头 e2e：`e2e-headed/tests/E27.slash-commands.headed.spec.ts`（Claude / Grok / Codex / Nomi，mock CLI）。截图见验收目录 `accept-shots/slash-commands/`。
+单测：`packages/ai-chat/tests/slash*.test.ts(x)`、`pluginPanel.test.tsx`（解析 / 注册 / 模糊搜索 / 各 adapter / token 估算 / 面板与卡片 UI）与 `apps/desktop-electron/internal/core/tests/unit/cli/slashDiscovery.test.ts`；有头 e2e：`e2e-headed/tests/E27.slash-commands.headed.spec.ts`（Claude / Grok / Codex / Nomi，mock CLI）。截图见验收目录 `accept-shots/slash-commands/`。
 
 ## 5. 不做 / 未验证（诚实清单）
 

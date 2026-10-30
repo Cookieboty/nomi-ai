@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- legacy untyped window.electronAPI bridge */
 import { type VoiceConfig, type VoiceSettings, type VoiceContribute } from '@nomi-ai/types';
 import { createLogger, t } from '@nomi-ai/ui';
 
 import { HOURLY_LINES } from '../mascot/tips';
+
+import { api, hasTransport } from './api';
 
 const log = createLogger('voice');
 
@@ -41,6 +42,7 @@ export class VoiceService {
   private currentAudio: HTMLAudioElement | null = null;
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
+  private offSettings: (() => void) | null = null;
 
   constructor() {
     this.initPromise = this.init();
@@ -67,8 +69,8 @@ export class VoiceService {
    */
   private async init() {
     try {
-      // 0. 等待electronAPI准备就绪
-      await this.waitForElectronAPI();
+      // 0. 等待契约传输就绪
+      await this.waitForTransport();
 
       // 1. 加载语音配置
       await this.loadVoiceConfig();
@@ -88,21 +90,20 @@ export class VoiceService {
   }
 
   /**
-   * 等待electronAPI准备就绪
+   * 等待契约传输（preload 的 window.nomiTransport）就绪
    */
-  private async waitForElectronAPI(): Promise<void> {
+  private async waitForTransport(): Promise<void> {
     return new Promise((resolve, reject) => {
       let attempts = 0;
       const maxAttempts = 50; // 最多等待5秒
 
       const checkAPI = () => {
         attempts++;
-        const electronAPI = (window as any).electronAPI;
 
-        if (electronAPI) {
+        if (hasTransport()) {
           resolve();
         } else if (attempts >= maxAttempts) {
-          log.error('等待electronAPI超时');
+          log.error('等待契约传输超时');
           reject(new Error(t('ui.voice-mascot.electronapi-ready-timeout')));
         } else {
           setTimeout(checkAPI, 100);
@@ -125,11 +126,13 @@ export class VoiceService {
   }
 
   /**
-   * 主进程改了语音开关（设置页开启 / 模型下载失败回滚 / 删除模型）→ 同步本地状态与工具栏，不回写。
+   * 桌面角色语音设置保存了（内核在 `voice.saveMascotSettings` 后发布，含自己保存的那一次）→ 同步本地状态与
+   * 工具栏，不回写。
    */
   private subscribeMainVoiceSettings() {
-    const api = (window as any).electronAPI;
-    api?.onVoiceSettingsChanged?.((s: Partial<VoiceSettings>) => {
+    if (!hasTransport()) return;
+    this.offSettings?.();
+    this.offSettings = api.on('voice.mascotSettingsChanged', (s) => {
       this.voiceSettings = { ...this.voiceSettings, ...s } as VoiceSettings;
       window.dispatchEvent(
         new CustomEvent('mascot:voice-settings', { detail: { ...this.voiceSettings } }),
@@ -142,11 +145,10 @@ export class VoiceService {
    */
   private async loadVoiceSettings() {
     try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI) {
-        this.voiceSettings = await electronAPI.getVoiceSettings();
+      if (hasTransport()) {
+        this.voiceSettings = (await api.voice.getMascotSettings()) as VoiceSettings | null;
       } else {
-        log.error('electronAPI 不可用，无法加载语音设置');
+        log.error('契约传输不可用，无法加载语音设置');
       }
     } catch (error) {
       log.error('加载语音设置失败:', error);
@@ -248,14 +250,15 @@ export class VoiceService {
    */
   public async updateSettings(newSettings: Partial<VoiceSettings>) {
     try {
-      const electronAPI = (window as any).electronAPI;
-      if (!electronAPI) return;
+      if (!hasTransport()) return;
 
       // 合并设置
       this.voiceSettings = { ...this.voiceSettings, ...newSettings } as VoiceSettings;
 
-      // 保存设置
-      electronAPI.saveVoiceSettings(this.voiceSettings);
+      // 保存设置（不等结果，与原来的 send 通道一致）
+      void api.voice
+        .saveMascotSettings(this.voiceSettings)
+        .catch((error: unknown) => log.error('保存语音设置失败:', error));
       window.dispatchEvent(
         new CustomEvent('mascot:voice-settings', { detail: { ...this.voiceSettings } }),
       );
@@ -286,15 +289,11 @@ export class VoiceService {
    * 销毁服务
    */
   public destroy() {
-    const electronAPI = (window as any).electronAPI;
-
-    if (electronAPI) {
-      electronAPI.removeAudioListeners?.();
-    }
-
     if (this.timeAnnouncementInterval) {
       clearInterval(this.timeAnnouncementInterval);
     }
+    this.offSettings?.();
+    this.offSettings = null;
 
     // 停止当前音频
     if (this.currentAudio) {

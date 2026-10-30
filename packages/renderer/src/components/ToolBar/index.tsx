@@ -1,4 +1,6 @@
-import { createLogger, t as tr } from '@nomi-ai/ui';
+import { layoutStore } from '@nomi-ai/avatar-runtime';
+import { brand } from '@nomi-ai/types';
+import { createLogger, t as tr, tName } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
@@ -25,6 +27,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { VoiceService } from '../../services/VoiceService';
 import { VoiceSettings } from '../VoiceSettings';
 
+import { placeGutter, type GutterPlacement } from './gutter';
 import {
   loadToolbarPrefs,
   saveToolbarPrefs,
@@ -35,19 +38,20 @@ import {
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
-import { useWaifuMessage } from '@/hooks/useWaifuMessage';
-import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
+import { useCompanionMessage } from '@/hooks/useCompanionMessage';
+import { characterName } from '@/mascot/characterCopy';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { api, hasTransport } from '@/services/api';
 import { setCache } from '@/utils/cache';
 
 const log = createLogger('toolbar');
 
 /**
- * 看板娘工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
+ * 桌面角色工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
  * - 竖向胶囊：AI 对话（主按钮，橙色）/ 语音交互 / 任务看板 / 角色互动 / 声音设置 / 更多；
  *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Lucide（ISC）统一图标。
  * - 提示：深色两行（标题 + 说明，文本里用换行分隔，第一行加粗）。
@@ -58,19 +62,25 @@ const log = createLogger('toolbar');
  */
 
 let globalVoiceService: VoiceService | null = null;
+let offVoiceStopper: (() => void) | null = null;
+// 开发态热更新会重新执行本模块（globalVoiceService 归零）：先销毁旧实例，否则每改一次就多一个常驻的 VoiceService
+import.meta.hot?.dispose(() => {
+  offVoiceStopper?.();
+  globalVoiceService?.destroy();
+});
 
 /** 光标在角色包围盒外多远（px）仍算悬停：只是靠近不展开（设计稿 01），悬停到角色上才展开（03） */
 const NEAR_PX = 0;
 /** 离开后延迟收起（设计稿：200–300ms） */
 const HIDE_DELAY_MS = 250;
-/** 工具栏与角色的间距：Nomi 左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
+/** 工具栏与角色的间距：桌面角色左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
 const BAR_GAP = 8;
 
 /** 工具的标题与一行说明（提示 = 标题\n说明；面板行 = 标题 + 说明） */
 const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
   'ai-chat': {
     title: () => tr('ui.voice-mascot.ai-chat'),
-    desc: () => tr('ui.voice-mascot.chat-with-nomi'),
+    desc: () => tName('ui.voice-mascot.chat-with-nomi', characterName()),
   },
   'voice-input': {
     title: () => tr('ui.voice-mascot.voice'),
@@ -105,14 +115,14 @@ export const ToolBar: React.FC = () => {
     config: { tools: configTools = [] },
     dispatch: mascotDispatch,
   } = useMascot();
-  const { showMessage: say } = useWaifuMessage();
+  const { showMessage: say } = useCompanionMessage();
   const showMessage = useCallback(
     (message: string, timeout: number = 4000, clip?: string) =>
       say(message, timeout, 9, false, clip ? { clip } : {}),
     [say],
   );
 
-  // 「关闭看板娘」随时可用（#55）：默认界面为看板娘时主进程会改为主界面并打开它
+  // 「关闭桌面角色」随时可用（#55）：默认界面为桌面角色时主进程会改为主界面并打开它
   const availableTools = configTools;
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceService, setVoiceService] = useState<VoiceService | null>(null);
@@ -142,12 +152,11 @@ export const ToolBar: React.FC = () => {
   // 初始化语音服务
   useEffect(() => {
     const initVoiceService = async () => {
-      // 等待electronAPI准备就绪
+      // 等待主进程桥（契约传输）准备就绪
       const waitForElectronAPI = () => {
         return new Promise<void>((resolve) => {
           const checkAPI = () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-            if ((window as any).electronAPI) {
+            if (hasTransport()) {
               resolve();
             } else {
               setTimeout(checkAPI, 100);
@@ -158,7 +167,7 @@ export const ToolBar: React.FC = () => {
       };
 
       try {
-        // 等待electronAPI准备就绪
+        // 等待主进程桥准备就绪
         await waitForElectronAPI();
 
         // 延迟一点时间确保所有API都完全加载
@@ -168,7 +177,7 @@ export const ToolBar: React.FC = () => {
         if (!globalVoiceService) {
           globalVoiceService = new VoiceService();
           const svc = globalVoiceService;
-          registerSpeechStopper(() => svc.stop());
+          offVoiceStopper = registerSpeechStopper(() => svc.stop());
 
           // 等待VoiceService初始化完成
           await globalVoiceService.waitForInit();
@@ -196,11 +205,13 @@ export const ToolBar: React.FC = () => {
     initVoiceService();
   }, []);
 
-  // 关闭看板娘：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
+  // 关闭桌面角色：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
   const hideMascot = useCallback(async () => {
     stopAllSpeech();
     if (!(await closeMascot()))
-      showMessage(tr('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later'));
+      showMessage(
+        tName('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later', characterName()),
+      );
   }, [showMessage]);
 
   // 拍照功能
@@ -237,14 +248,12 @@ export const ToolBar: React.FC = () => {
 
   // 关闭应用
   const quitApp = useCallback(async () => {
-    await setCache('waifu-display', Date.now());
+    await setCache('companion-display', Date.now());
     showMessage(tr('ui.voice-mascot.bye-see-you-next-time'), 2000);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.quit) {
+    if (hasTransport()) {
       setTimeout(() => {
-        electronAPI.quit();
+        void api.window.quit().catch((error: unknown) => log.error('退出应用失败:', error));
       }, 2000);
     }
   }, [showMessage]);
@@ -353,13 +362,10 @@ export const ToolBar: React.FC = () => {
         return toggleVoiceMode;
       case 'ai-chat':
         return () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-          const electronAPI = (window as any).electronAPI;
-          if (electronAPI?.openAiChat) {
-            electronAPI
+          if (hasTransport()) {
+            api.window
               .openAiChat()
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .then((result: any) => {
+              .then((result) => {
                 if (result?.success) {
                   showMessage(tr('ui.voice-mascot.ai-chat-window-opened'));
                 } else {
@@ -373,8 +379,7 @@ export const ToolBar: React.FC = () => {
                   );
                 }
               })
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .catch((error: any) => {
+              .catch((error: unknown) => {
                 log.error('打开AI对话窗口失败:', error);
                 showMessage(tr('ui.voice-mascot.couldn-t-open-the-ai-chat-window-please'));
               });
@@ -387,13 +392,11 @@ export const ToolBar: React.FC = () => {
         return playRandomMotion;
       case 'task-board':
         return () => {
-          const api = window.electronAPI as
-            { openTaskBoard?: () => Promise<{ success: boolean; error?: string }> } | undefined;
-          if (!api?.openTaskBoard) {
+          if (!hasTransport()) {
             showMessage(tr('ui.voice-mascot.the-task-board-opens-in-the-desktop-app'));
             return;
           }
-          void api
+          void api.window
             .openTaskBoard()
             .then((r) => {
               if (!r?.success)
@@ -418,17 +421,13 @@ export const ToolBar: React.FC = () => {
 
   // ---------- 显示 / 隐藏 ----------
   useEffect(() => {
-    const api = window.electronAPI as
-      | {
-          onWindowMouseEnter?: (cb: () => void) => void;
-          onWindowMouseLeave?: (cb: () => void) => void;
-          removeWindowMouseListeners?: () => void;
-        }
-      | undefined;
-    if (api?.onWindowMouseEnter) {
-      api.onWindowMouseEnter(() => setHoverWin(true));
-      api.onWindowMouseLeave?.(() => setHoverWin(false));
-      return () => api.removeWindowMouseListeners?.();
+    if (hasTransport()) {
+      const offEnter = api.on('window.mouseEnter', () => setHoverWin(true));
+      const offLeave = api.on('window.mouseLeave', () => setHoverWin(false));
+      return () => {
+        offEnter();
+        offLeave();
+      };
     }
     const on = () => setHoverWin(true);
     const off = () => setHoverWin(false);
@@ -464,7 +463,7 @@ export const ToolBar: React.FC = () => {
   // 全局光标轮询：点击穿透状态下收不到 DOM 事件时也有效
   useEffect(
     () =>
-      layoutStore.subscribe(({ cursor }) => {
+      layoutStore.subscribeCursor(({ cursor }) => {
         setNear(!!cursor?.inside && hitTest(cursor.x, cursor.y));
       }),
     [hitTest],
@@ -565,7 +564,7 @@ export const ToolBar: React.FC = () => {
   }, [place, visible]);
 
   // 面板位置：贴着工具栏朝角色一侧展开，整体留在窗口内（过高时内部滚动）。
-  // 看板娘缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
+  // 桌面角色缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
   const menuRef = useRef<HTMLDivElement>(null);
   const [panelBox, setPanelBox] = useState<{
     left: number;
@@ -633,7 +632,7 @@ export const ToolBar: React.FC = () => {
       case 'quit':
         return tr('ui.voice-mascot.quit-app');
       case 'close-mascot':
-        return tr('ui.voice-mascot.close-nomi-reopen-it-in-settings');
+        return tName('ui.voice-mascot.close-nomi-reopen-it-in-settings', characterName());
       case 'voice-settings':
         return voiceEnabled
           ? [
@@ -702,7 +701,7 @@ export const ToolBar: React.FC = () => {
         <button
           type="button"
           className={`${styles.btn} ${toolId === 'ai-chat' ? styles.primary : ''} ${toolId === 'quit' ? styles.danger : ''}`}
-          id={`waifu-tool-${toolId}`}
+          id={`companion-tool-${toolId}`}
           data-testid={`tool-${toolId}`}
           aria-label={label.split('\n')[0]}
           aria-pressed={pressed(toolId)}
@@ -726,7 +725,7 @@ export const ToolBar: React.FC = () => {
         type="button"
         role="menuitem"
         className={`${styles.subItem} ${toolId === 'quit' ? styles.danger : ''}`}
-        id={`waifu-tool-${toolId}`}
+        id={`companion-tool-${toolId}`}
         data-testid={`tool-${toolId}`}
         aria-pressed={pressed(toolId)}
         title={label}
@@ -827,7 +826,7 @@ export const ToolBar: React.FC = () => {
           ref={barRef}
           className={styles.bar}
           role="toolbar"
-          aria-label={tr('ui.voice-mascot.nomi-toolbar')}
+          aria-label={tName('ui.voice-mascot.nomi-toolbar', characterName())}
           aria-orientation="vertical"
         >
           {primary.map(iconButton)}
@@ -843,7 +842,7 @@ export const ToolBar: React.FC = () => {
           <div
             className={styles.panel}
             role="menu"
-            aria-label={tr('ui.voice-mascot.nomi-panel')}
+            aria-label={tName('ui.voice-mascot.nomi-panel', characterName())}
             data-testid="toolbar-menu"
             ref={menuRef}
             data-dense={panelBox?.dense ? '' : undefined}
@@ -860,7 +859,7 @@ export const ToolBar: React.FC = () => {
           >
             <div className={styles.panelHead}>
               <span className={styles.brand}>
-                Nomi
+                {brand.appName}
                 <Sparkle size={11} strokeWidth={2.2} className={styles.brandMark} aria-hidden />
               </span>
               <button
@@ -922,7 +921,7 @@ export const ToolBar: React.FC = () => {
                   <div
                     className={styles.menuRow}
                     role="group"
-                    aria-label={tr('ui.usage-tools.nomi-size')}
+                    aria-label={tName('ui.usage-tools.nomi-size', characterName())}
                   >
                     <span>{tr('ui.usage-tools.size')}</span>
                     <div className={styles.sizeCtl}>

@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { repoPath, repoRoot } from '@nomi-ai/repo-paths';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -129,12 +130,11 @@ describe('theme.ts swatches stay in sync with tokens.css', () => {
  * 文字、链接、图标一律用 --cd-color-accent-strong；选中态用 selected-bg + selected-text。
  */
 describe('no raw accent as text colour in component CSS', () => {
-  const root = path.join(here, '../..');
   const files = execFileSync(
     'git',
     ['ls-files', '--', 'packages/*/src/**/*.css', 'packages/*/src/*.css'],
     {
-      cwd: path.join(root, '..'),
+      cwd: repoRoot(),
       encoding: 'utf8',
     },
   )
@@ -149,7 +149,7 @@ describe('no raw accent as text colour in component CSS', () => {
     const bad: string[] = [];
     const re = /^\s*color:\s*var\(--cd-color-accent(?:-2)?(?![\w-])/;
     for (const f of files) {
-      fs.readFileSync(path.join(root, '..', f), 'utf8')
+      fs.readFileSync(repoPath(f), 'utf8')
         .split('\n')
         .forEach((line, i) => {
           if (re.test(line)) bad.push(`${f}:${i + 1}: ${line.trim()}`);

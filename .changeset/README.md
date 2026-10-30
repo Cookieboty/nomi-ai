@@ -17,7 +17,7 @@
 
 以下包目前**不对外发布**，因此从版本流程中 ignore：
 
-- `@nomi-ai/electron`（应用主进程，走 electron-builder 发布通道）
+- `@nomi-ai/host-electron`（应用主进程，走 electron-builder 发布通道）
 - `@nomi-ai/renderer`
 - `@nomi-ai/ai-chat`
 - `@nomi-ai/types`

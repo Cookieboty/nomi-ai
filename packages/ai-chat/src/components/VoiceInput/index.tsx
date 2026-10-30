@@ -2,7 +2,7 @@
  * 对话窗口的语音输入（hook + 小组件），由 MessageInput 摆放：
  * 按住说话按钮、免按键开关、状态条、语音设置弹窗。
  * 快捷键：按住 F2 说话（Esc 取消）；Ctrl/⌘+Shift+H 开关免按键。
- * 看板娘那边说的话（ai:voice:inject）也从这里进入输入框 / 直接发送。
+ * 桌面角色那边说的话（ai:voice:inject）也从这里进入输入框 / 直接发送。
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { Modal, Tooltip } from '@nomi-ai/ui';

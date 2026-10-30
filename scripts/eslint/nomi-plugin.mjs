@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const IDS_FILE = path.resolve(here, '../../packages/cli-plugins/src/generated/ids.ts');
+const IDS_FILE = path.resolve(here, '../../packages/cli-catalog/src/generated/ids.ts');
 
 /** @returns {string[]} */
 export function builtinCliIds() {
@@ -61,7 +61,84 @@ const noCliLiteral = {
   },
 };
 
+/** @param {any} node */
+const isElectronLiteral = (node) =>
+  !!node &&
+  ((node.type === 'Literal' && node.value === 'electron') ||
+    (node.type === 'TemplateLiteral' &&
+      node.expressions.length === 0 &&
+      node.quasis[0]?.value.cooked === 'electron'));
+
+const REQUIRE_LIKE = /require/i;
+
+/**
+ * 一个表达式是不是「require 函数」：
+ * - 名字里带 require 的标识符（require / nodeRequire / requireFn …）；
+ * - 调用 require 类函数得到的结果（createRequire(url)、nodeRequire()）；
+ * - 用上面两种初始化的 const 变量（`const req = nodeRequire(); req('electron')`）。
+ * @param {any} node
+ * @param {any} scope
+ * @param {number} depth
+ * @returns {boolean}
+ */
+function isRequireLike(node, scope, depth = 0) {
+  if (!node || depth > 3) return false;
+  if (node.type === 'Identifier') {
+    if (REQUIRE_LIKE.test(node.name)) return true;
+    // 沿作用域找变量定义：初始化表达式是 require 类调用时同样算
+    for (let s = scope; s; s = s.upper) {
+      const v = s.set.get(node.name);
+      if (!v) continue;
+      for (const def of v.defs) {
+        if (def.type === 'Variable' && def.node.init && def.node.init.type === 'CallExpression') {
+          if (isRequireLike(def.node.init.callee, s, depth + 1)) return true;
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+  if (node.type === 'CallExpression') return isRequireLike(node.callee, scope, depth + 1);
+  if (node.type === 'TSAsExpression' || node.type === 'TSNonNullExpression')
+    return isRequireLike(node.expression, scope, depth + 1);
+  return false;
+}
+
+/**
+ * nomi/no-dynamic-electron：非宿主代码里不能动态加载 electron（docs/design/core-host-decoupling.md §11.1）。
+ * 只看 require 类调用（见 isRequireLike）与 `import('electron')`，不误报 `set.has('electron')`、
+ * `jest.mock('electron')` 这类普通方法调用。既有用法登记在 scripts/eslint/electron-boundary.mjs。
+ * @type {import('eslint').Rule.RuleModule}
+ */
+const noDynamicElectron = {
+  meta: {
+    type: 'problem',
+    docs: { description: '非宿主代码不能用 require / createRequire / import() 动态加载 electron' },
+    schema: [],
+    messages: {
+      dynamic:
+        '非宿主代码不能动态加载 electron：平台能力走宿主端口（docs/design/core-host-decoupling.md §6、§11.1），' +
+        '宿主代码放 apps/desktop-electron/src/host/',
+    },
+  },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    return {
+      /** @param {any} node */
+      CallExpression(node) {
+        if (!isElectronLiteral(node.arguments[0])) return;
+        if (isRequireLike(node.callee, sourceCode.getScope(node)))
+          context.report({ node, messageId: 'dynamic' });
+      },
+      /** @param {any} node */
+      ImportExpression(node) {
+        if (isElectronLiteral(node.source)) context.report({ node, messageId: 'dynamic' });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: 'nomi' },
-  rules: { 'no-cli-literal': noCliLiteral },
+  rules: { 'no-cli-literal': noCliLiteral, 'no-dynamic-electron': noDynamicElectron },
 };

@@ -9,6 +9,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelsDataSyncCard } from '../src/components/ModelsPage/ModelsDataSyncCard';
 import type { GatewayState } from '../src/services/gatewayClient';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 const usageState = (over: { auto?: boolean; checkedAt?: number } = {}) => ({
   settings: { modelsSyncAuto: over.auto ?? true },
   pricing: {
@@ -23,26 +27,29 @@ const gateway = (synced: boolean) =>
     catalog: { models: 318, version: synced ? '2026-10-26' : '2026-10-25', synced },
   }) as unknown as GatewayState;
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetFakeApi();
+});
 
 describe('模型数据同步卡片', () => {
   it('显示目录来源；立即同步后提示结果', async () => {
     const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:usage:state') return usageState();
-      if (ch === 'ai:usage:price-sync')
+      if (ch === 'usage.state') return usageState();
+      if (ch === 'usage.priceSync')
         return {
           ...usageState({ checkedAt: Date.now() }),
           result: { ok: true, status: 'updated', count: 300, skipped: 0 },
         };
       return undefined;
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelsDataSyncCard gateway={gateway(false)} />);
     expect((await r.findByTestId('models-data-status')).textContent).toContain(
       '使用内置模型目录（2026-10-25）· 收录 318 个模型',
     );
     fireEvent.click(r.getByTestId('models-data-sync-now'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:usage:price-sync'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('usage.priceSync'));
     expect((await r.findByTestId('models-data-result')).textContent).toBe(
       '已同步最新的模型参数与价格',
     );
@@ -55,30 +62,30 @@ describe('模型数据同步卡片', () => {
 
   it('失败时说明原因，并继续用现有数据', async () => {
     const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:usage:state') return usageState();
-      if (ch === 'ai:usage:price-sync')
+      if (ch === 'usage.state') return usageState();
+      if (ch === 'usage.priceSync')
         return { ...usageState(), result: { ok: false, reason: 'network' } };
       return undefined;
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelsDataSyncCard gateway={gateway(false)} />);
     fireEvent.click(await r.findByTestId('models-data-sync-now'));
     expect((await r.findByTestId('models-data-result')).textContent).toContain('继续使用现有数据');
   });
 
   it('启动时自动同步开关', async () => {
-    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-      if (ch === 'ai:usage:state') return usageState();
-      if (ch === 'ai:usage:set-settings')
-        return { modelsSyncAuto: (a[0] as { modelsSyncAuto: boolean }).modelsSyncAuto };
+    const invoke = vi.fn(async (ch: string, i?: unknown) => {
+      if (ch === 'usage.state') return usageState();
+      if (ch === 'usage.setSettings')
+        return { modelsSyncAuto: (i as { modelsSyncAuto: boolean }).modelsSyncAuto };
       return undefined;
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelsDataSyncCard gateway={gateway(false)} />);
     const sw = await r.findByTestId('models-data-auto');
     fireEvent.click(sw);
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:usage:set-settings', { modelsSyncAuto: false }),
+      expect(invoke).toHaveBeenCalledWith('usage.setSettings', { modelsSyncAuto: false }),
     );
   });
 });

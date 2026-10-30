@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DiagnosticsSettings } from '../src/components/SettingsView/DiagnosticsSettings';
 
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
 configure({ asyncUtilTimeout: 10_000 });
 
 const base = { enabled: false, forced: false, saveLogs: false, dir: '/u/logs', bodyTrace: false };
@@ -19,20 +23,25 @@ function mount(
   let cur = { ...view };
   const api = {
     get: vi.fn(async () => cur),
-    set: vi.fn(async (on: boolean) => {
+    set: vi.fn(async ({ on }: { on: boolean }) => {
       cur = { ...cur, saveLogs: on, enabled: cur.forced || on, bodyTrace: cur.forced || on };
       return cur;
     }),
     openFolder: vi.fn(async () => true),
     export: vi.fn(async () => exportResult),
   };
-  (window as unknown as { electronAPI?: unknown }).electronAPI = { diagnostics: api };
+  installFakeApi({
+    'diagnostics.get': api.get,
+    'diagnostics.set': api.set,
+    'diagnostics.openFolder': api.openFolder,
+    'diagnostics.export': api.export,
+  });
   return { api, r: render(<DiagnosticsSettings />) };
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  resetFakeApi();
 });
 
 describe('DiagnosticsSettings', () => {
@@ -43,7 +52,7 @@ describe('DiagnosticsSettings', () => {
     expect(sw.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(sw);
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
-    expect(api.set).toHaveBeenCalledWith(true);
+    expect(api.set).toHaveBeenCalledWith({ on: true });
   });
 
   it('开发版：显示为开且不可关，注明「开发版始终记录」', async () => {

@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 
@@ -23,8 +23,11 @@ export interface ChatMessage {
   kb?: boolean;
   /** 用户点了「停止生成」：content 为中止前已生成的部分（可为空），界面追加灰色提示 */
   stopped?: boolean;
-  /** 编程助手自发的一轮（后台子代理完成后主代理的跟进），不是对某条用户消息的回复 */
-  origin?: 'background';
+  /**
+   * background：编程助手自发的一轮（后台子代理完成后主代理的跟进），不是对某条用户消息的回复；
+   * compaction：Nomi 对话的上下文压缩，content 是较早对话的摘要（services/compaction.ts）
+   */
+  origin?: 'background' | 'compaction';
   /** 回答时参考了哪些长期记忆 */
   memories?: Array<{ id: string; kind: 'episode' | 'fact'; title: string }>;
   /** 本轮的工具调用 / 思考轨迹（与编程助手同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
@@ -40,7 +43,7 @@ export interface ChatMessage {
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
-/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 生成） */
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-catalog 生成） */
 /** 'external'：用户添加的外部 CLI（§5.9），具体是哪个插件看标签 / 对话的 pluginId */
 export type ConversationBackend = 'nomi' | BuiltinCliId | 'external';
 
@@ -74,6 +77,11 @@ export interface ChatSession {
   tabId?: string;
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
   cliSessionId?: string;
+  /**
+   * Nomi 对话的工作区（只用于 backend 'nomi'）：选了之后 Nomi 的文件 / 命令工具只能在这里面用，
+   * 委派的编程助手也在这里开工。缺省 = 没有工作区（按已授权文件夹，原有行为）。
+   */
+  cwd?: string;
 }
 
 export interface StreamResponse {

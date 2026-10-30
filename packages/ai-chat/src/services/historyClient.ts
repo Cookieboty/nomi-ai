@@ -1,6 +1,7 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
+import { api, hasTransport } from './api';
 import type { HarnessTabMeta } from './harnessClient';
 
 export type HistoryBackend = BuiltinCliId;
@@ -56,30 +57,37 @@ export interface HistoryOpenResult {
   error?: string;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+export interface HistoryDeleteResult {
+  ok: boolean;
+  /** 移到废纸篓的文件 / 目录数 */
+  removed?: number;
+  error?: string;
 }
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
 
-async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
-  const r = (await b.invoke(channel, ...args)) as T & { __error?: { message: string } };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
 
 export const historyClient = {
-  available: () => !!bridge(),
+  available: () => hasTransport(),
   list: (backend: HistoryBackend, o: { offset?: number; limit?: number; force?: boolean } = {}) =>
-    call<HistoryPage>('ai:history:list', backend, o),
+    call<HistoryPage>(() => api.history.list({ backend, options: o })),
   /** 搜索用的紧凑索引（主进程增量解析，分块返回） */
   index: (backend: HistoryBackend, o: { offset?: number; limit?: number; force?: boolean } = {}) =>
-    call<HistoryPage>('ai:history:index', backend, o),
+    call<HistoryPage>(() => api.history.index({ backend, options: o })),
   open: (backend: HistoryBackend, sessionId: string) =>
-    call<HistoryOpenResult>('ai:history:open', backend, sessionId),
+    call<HistoryOpenResult>(() => api.history.open({ backend, sessionId })),
+  /** 把 CLI 的会话记录移到系统废纸篓；会话还开在标签里时主进程拒绝，调用方先关标签 */
+  delete: (backend: HistoryBackend, sessionId: string) =>
+    call<HistoryDeleteResult>(() => api.history.delete({ backend, sessionId })),
 };
+
+export const isHistoryBackend = (b: string): b is HistoryBackend =>
+  (HISTORY_BACKENDS as readonly string[]).includes(b);
