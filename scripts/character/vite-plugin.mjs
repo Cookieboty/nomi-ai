@@ -80,8 +80,11 @@ export function characterPackPlugin(opts = {}) {
       return `export default ${JSON.stringify(packModuleData(pack))};\n`;
     },
     configureServer(server) {
+      // 开发服务器带 base 时（Go 宿主开发态 /mascot/、/chat/）请求路径带前缀；Electron 开发态 base 为 /
+      const base = server.config.base || '/';
       server.middlewares.use(async (req, res, next) => {
-        const url = decodeURIComponent((req.url ?? '').split('?')[0] ?? '');
+        let url = decodeURIComponent((req.url ?? '').split('?')[0] ?? '');
+        if (base !== '/' && url.startsWith(base)) url = `/${url.slice(base.length)}`;
         try {
           const { pack } = await load();
           if (scope === 'all' && url === `/${MODEL_LIST}`) {

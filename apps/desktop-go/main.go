@@ -1,8 +1,9 @@
-// Nomi Go + Wails v3 架构 POC（docs/design/arch-go-wails.md）。
+// Nomi 的 Go 版（Go 内核 + Wails v3 外壳），与 apps/desktop-electron 共用同一套视图。说明见 README.md，
+// 与 Electron 版的偏差见 docs/design/migrate-2.0.5-go.md。
 //
-//	NOMI_LLM_BASE_URL / NOMI_LLM_API_KEY / NOMI_LLM_MODEL：OpenAI 兼容接口；没有 key 时起本地 mock。
-//	NOMI_POC_CTL=127.0.0.1:PORT：测量用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|renderer&v=svg|rive|quit）。
+//	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|renderer&v=svg|rive|quit）。
 //	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
+//	NOMI_DEV_VIEWS：开发态视图改由 Vite 开发服务器提供（pnpm dev:go 设置，见 internal/shell/devviews）。
 package main
 
 import (
@@ -37,7 +38,6 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -52,9 +52,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/migrate"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/mockllm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/devviews"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
 )
 
@@ -71,19 +72,6 @@ func main() {
 	if exe, err := os.Executable(); err == nil {
 		parse.EnableWorker(exe)
 	}
-	cfg := core.LLMConfig{BaseURL: os.Getenv("NOMI_LLM_BASE_URL"), APIKey: os.Getenv("NOMI_LLM_API_KEY"), Model: os.Getenv("NOMI_LLM_MODEL")}
-	if cfg.APIKey == "" {
-		base, err := mockllm.Start()
-		if err != nil {
-			log.Fatal(err)
-		}
-		cfg = core.LLMConfig{BaseURL: base, APIKey: "mock", Model: "mock"}
-		log.Printf("[poc] no API key, using mock LLM at %s", base)
-	}
-	if cfg.Model == "" {
-		cfg.Model = "gpt-4o-mini"
-	}
-
 	paths := hostports.Paths{UserDataDir: os.Getenv("NOMI_USER_DATA")}
 	userData := paths.UserData()
 	if err := os.MkdirAll(userData, 0o700); err != nil {
@@ -102,13 +90,12 @@ func main() {
 	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在看板娘窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {
 		log.Printf("[migrate] warn: %v", err)
-	} else if res.Migrated {
+	} else if res.Migrated && !res.Skipped { // Skipped：标记已在，res 是上次迁移读回来的结果，不是这次复制的
 		log.Printf("[migrate] copied %d files from %s (chatKeys=%d, secrets pending)", res.FilesCopied, res.From, res.ChatKeysExtracted)
 	}
 
 	hostports.Stage("migrate-done")
 	router := contract.NewRouter()
-	core.New(cfg).Register(router)
 
 	var sh shell.Shell
 	bundle := shellhandlers.Install(shellhandlers.Deps{
@@ -305,7 +292,7 @@ func main() {
 	}, mcpLog)
 	defer mcpSvc.Dispose()
 	b8.Ext.Attach(func() extensions.McpRuntime { return mcpbridge.ExtRuntime{S: mcpSvc} }, mcpbridge.ExtRegistry{R: toolRegistry})
-	// ChatFacade + AiContractRouter 的 ai.chat.*（覆盖 core.Core 的演示 ai.chat.stream）
+	// ChatFacade + AiContractRouter 的 ai.chat.*
 	chatFacade := facade.NewChat(facade.Deps{
 		LLM:   func() facade.Registry { return airouter.Routed{R: llmRegistry} },
 		Tools: func() tools.Registry { return toolRegistry },
@@ -404,8 +391,31 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: mascotCtl.WindowEvent,
-		OpenProviderPanel:  func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+	// 视图 = 2.0.4 的 renderer / ai-chat 包（frontend/build.mjs 构建）；灵动岛页由 islandPageMiddleware 生成
+	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: mascotCtl.WindowEvent,
+		OpenProviderPanel: func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+		// = buildAiChatWindow restoreChatBounds / setupAiChatWindowEvents saveBounds（config.chatWindowBounds）
+		ChatBounds: func(areas []shell.Rect) shell.SavedChatBounds {
+			var saved *shell.SavedChatBounds
+			if b := bundle.Config.GetConfig().ChatWindowBounds; b != nil {
+				saved = &shell.SavedChatBounds{Rect: shell.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}, Maximized: b.Maximized != nil && *b.Maximized}
+			}
+			return shell.ChatWindowBounds(saved, areas)
+		},
+		SaveChatBounds: func(b shell.SavedChatBounds) {
+			v := map[string]any{"x": b.X, "y": b.Y, "width": b.Width, "height": b.Height}
+			if b.Maximized {
+				v["maximized"] = true
+			}
+			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
+		},
+		// = nomiHostIpc dropFile：只认看板娘窗口，和 Electron 一样只取第一个文件
+		OnFilesDropped: func(k shell.WindowKind, paths []string) {
+			if k == shell.Mascot {
+				desktopSvc.DropFile("mascot", paths[0])
+			}
+		},
 		ModelSettingsLabel: i18n.T("electron.common.model-settings"),
 		IslandLayout: func() (shell.Rect, string, bool) {
 			g, ok := isl.Layout()
@@ -415,7 +425,7 @@ func main() {
 			r := island.IslandWindowRect(g, g.Height)
 			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
 		},
-		Middleware: islandPageMiddleware(isl, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		Middleware: devViewsMiddleware(viewPageMiddleware(assets, islandPageMiddleware(isl, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -424,7 +434,7 @@ func main() {
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
 			},
-		}))})
+		}))))})
 
 	shellP.AttachShell()
 
@@ -524,6 +534,27 @@ func processEnv() map[string]string {
 // islandPagePath：Electron 用 data: URL 装 islandHtml(g)；Wails 窗口只能加载资产服务器上的页面，
 // 这里按当前几何现场生成同一份 HTML（页面自带 meta CSP）
 const islandPagePath = "/__island.html"
+
+// viewPageMiddleware：视图页面（与 Electron 同一份构建产物）按 Go 宿主改写 CSP、插入 Wails 运行时（viewpage）
+func viewPageMiddleware(assets fs.FS, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	page := viewpage.Middleware(assets, "/mascot/index.html", "/chat/index.html")
+	return func(h http.Handler) http.Handler { return page(next(h)) }
+}
+
+// devViewsMiddleware：设置了 NOMI_DEV_VIEWS（dev.mjs）时，视图页改由 Vite 开发服务器提供（热更新）
+func devViewsMiddleware(next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	v := os.Getenv(devviews.Env)
+	if v == "" {
+		return next
+	}
+	targets, err := devviews.Parse(v)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("[dev] views from %s", v)
+	dev := devviews.Middleware(targets)
+	return func(h http.Handler) http.Handler { return dev(next(h)) }
+}
 
 func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
