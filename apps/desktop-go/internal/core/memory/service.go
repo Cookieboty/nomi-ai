@@ -17,7 +17,7 @@ import (
 )
 
 // Facade：主进程 AIClient.memory（MemoryFacade）的切片。
-// TODO(batch-4/5): Go 侧 AIClient 落地后在 main.go 注入；nil 时跳过同步（与 Node facade() 返回 null 一致）。
+// main.go 注入 aifacade；nil 时跳过同步（与 Node facade() 返回 null 一致）。
 type Facade interface {
 	PutFact(f map[string]any)
 	DeleteFact(id string) bool

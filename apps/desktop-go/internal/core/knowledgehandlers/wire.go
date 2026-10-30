@@ -46,11 +46,18 @@ type WireDeps struct {
 	Router   *contract.Router
 	T        i18n.Translate
 	Desktop  deps.Desktop // main.go 传 DesktopAdapter{desktopSvc}；nil → NoopDesktop（仅测试）
-	Ports    deps.Ports   // nil → NoopPorts（TODO batch-6）
+	Ports    deps.Ports   // nil → NoopPorts（仅测试）
 	Complete deps.CompleteFunc
 	OpenChat func()
-	Gateway  func() local.GatewayLike // TODO(batch-4/5)
+	Gateway  func() local.GatewayLike
 	Secrets  security.SecretBox
+	// 知识库的云端供应商（向量、云端同意）：aiRuntime.listProviders / providerCredentials、desktop.providerFor('chat')
+	Providers    func() []knowledge.Provider
+	Credentials  func(id string) *knowledge.Credentials
+	ChatProvider func() *knowledge.ChatProvider
+	// 记忆同步到 AI 客户端（client.memory）；扩展的 MCP 工具确认（desktop.broker）
+	MemoryFacade func() memory.Facade
+	Confirm      extensions.ConfirmBroker
 }
 
 type Bundle struct {
@@ -72,7 +79,7 @@ func Wire(d WireDeps) *Bundle {
 		d.Ports = &deps.NoopPorts{}
 	}
 	if d.Complete == nil {
-		d.Complete = deps.UnavailableComplete // TODO(batch-4/5)
+		d.Complete = deps.UnavailableComplete
 	}
 	if d.T == nil {
 		d.T = i18n.Identity
@@ -82,14 +89,16 @@ func Wire(d WireDeps) *Bundle {
 	extensions.SetTranslator(d.T)
 	local.SetTranslator(d.T)
 	b := &Bundle{}
-	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T})
+	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
+		ListProviders: d.Providers, Credentials: d.Credentials, ChatProvider: d.ChatProvider})
 	b.Mem = memory.New(memory.Deps{Root: ud("memory"), Logger: deps.StdLogger{Prefix: "[mem]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
+		Facade: d.MemoryFacade,
 		Embed: func(ctx context.Context, texts []string) ([][]float32, error) {
 			return b.KB.EmbedTexts(ctx, texts), nil
 		}})
 	b.Sched = schedule.New(schedule.Deps{Root: ud("schedule"), Logger: deps.StdLogger{Prefix: "[sched]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T, OpenChat: d.OpenChat,
 		Memory: func(ctx context.Context, q string) (string, error) { return b.Mem.Context(ctx, q).Text, nil }})
-	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets})
+	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
 	b.N = Install(d.Router, Services{

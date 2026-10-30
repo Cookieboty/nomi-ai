@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 )
 
@@ -112,7 +113,7 @@ func ReadConfigFile(file string, maxBytes int64, allowRoots []string) readResult
 		return readResult{Err: "ENOENT: no such file or directory, realpath '" + file + "'"}
 	}
 	skip := T("electron.common.skipped-a-symbolic-link-points-somewhere-that-may")
-	if filepath.Base(real) != filepath.Base(file) || DenyDir.MatchString(normSlash(real)) {
+	if filepath.Base(real) != filepath.Base(file) || cli.SlashDenyDir(normSlash(real)) {
 		return readResult{Err: skip}
 	}
 	ok := false
@@ -468,7 +469,7 @@ func walkSkill(root string) walkResult {
 			case e.IsDir():
 				rec(r, depth+1)
 			case e.Type().IsRegular():
-				if Deny.MatchString(r) || Deny.MatchString(e.Name()) {
+				if cli.SlashDeny(r) || cli.SlashDeny(e.Name()) {
 					w.denied = append(w.denied, r)
 				} else {
 					w.files = append(w.files, r)
@@ -518,6 +519,7 @@ func nomiReadable(text, name string) bool {
 }
 
 var wsAny = regexp.MustCompile(`\s+`)
+var blockInd = regexp.MustCompile(`^[>|][+-]?$`)
 var scriptRe = regexp.MustCompile(`(?i)\.(sh|py|js|ts|mjs|cjs|ps1|bat|rb)$`)
 
 func skillCandidate(tool, scope, sub, dirName, where string, allow func(string) bool) *SkillCandidate {
@@ -529,7 +531,7 @@ func skillCandidate(tool, scope, sub, dirName, where string, allow func(string) 
 	if st, err := os.Stat(real); err != nil || !st.IsDir() {
 		return nil
 	}
-	if DenyDir.MatchString(normSlash(real)) || !allow(real) {
+	if cli.SlashDenyDir(normSlash(real)) || !allow(real) {
 		c.Error = T("electron.common.skipped-a-symbolic-link-points-somewhere-that-may")
 		return c
 	}
@@ -552,7 +554,7 @@ func skillCandidate(tool, scope, sub, dirName, where string, allow func(string) 
 		return nil
 	}
 	text := strings.ToValidUTF8(string(b), "\uFFFD")
-	meta, body := ParseFrontmatter(text)
+	meta, body := frontmatter(text)
 	rawName := jsTrim(meta["name"])
 	if rawName == "" {
 		rawName = dirName
@@ -850,4 +852,16 @@ func DiscoverMigrations(e MigrateEnv) MigrateScan {
 		uniq(&c.Key)
 	}
 	return scan
+}
+
+// frontmatter：cli 的 ParseFrontmatter（同 Node 引用 cli/slashDiscovery 的 parseFrontmatter / DENY_DIR），转成按键取值的 map
+func frontmatter(text string) (map[string]string, string) {
+	o, body := cli.ParseFrontmatter(text)
+	meta := map[string]string{}
+	for _, k := range o.Keys() {
+		if v, ok := o.Get(k).(string); ok {
+			meta[k] = v
+		}
+	}
+	return meta, body
 }

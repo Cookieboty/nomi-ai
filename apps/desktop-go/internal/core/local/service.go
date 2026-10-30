@@ -22,6 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledge"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 )
 
 var T i18n.Translate = i18n.Identity
@@ -32,7 +33,7 @@ func SetTranslator(t i18n.Translate) {
 	}
 }
 
-// GatewayLike：GatewayService 的最小子集。TODO(batch-4/5): main.go 接真正的 GatewayService。
+// GatewayLike：GatewayService 的最小子集
 type GatewayProvider struct {
 	ID       string `json:"id"`
 	PresetID string `json:"presetId,omitempty"`
@@ -55,7 +56,7 @@ type GatewayLike interface {
 	ConfirmPrivateHost(hostPort string) error
 }
 
-// LocalDesktop：desktop.say + broker.localOnly / setLocalOnly。TODO(batch-6)
+// LocalDesktop：desktop.say + broker.localOnly / setLocalOnly
 type LocalDesktop interface {
 	deps.Audit
 	Say(text string)
@@ -386,9 +387,9 @@ func (s *Service) installRuntime(dest, archive string) error {
 	}
 	_ = os.RemoveAll(s.runtimeDir())
 	if archive == "zip" {
-		err = ExtractZip(buf, s.runtimeDir())
+		_, err = voice.ExtractZip(buf, s.runtimeDir())
 	} else {
-		err = ExtractTarGz(buf, s.runtimeDir())
+		_, err = voice.ExtractTarGz(buf, s.runtimeDir())
 	}
 	if err != nil {
 		return err

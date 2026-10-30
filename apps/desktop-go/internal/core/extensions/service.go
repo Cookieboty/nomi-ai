@@ -36,7 +36,7 @@ type McpConnectConfig struct {
 	Env, Headers                      map[string]string
 }
 
-// McpRuntime：@nomi-ai/bundle-ig-base 的 McpService。TODO(batch-4/5): ig 插件装载时 Attach 真实实现。
+// McpRuntime：@nomi-ai/bundle-ig-base 的 McpService（main.go 经 Attach 接 mcpbridge）
 type McpRuntime interface {
 	ListServers() []McpServerInfo
 	Connect(ctx context.Context, cfg McpConnectConfig) error
@@ -52,7 +52,7 @@ type ToolDef struct {
 	Execute     func(ctx context.Context, input any) (any, error)
 }
 
-// ToolRegistry：TODO(batch-4/5)
+// ToolRegistry：ig 的工具注册表（main.go 经 Attach 接上）
 type ToolRegistry interface {
 	Get(name string) (ToolDef, bool)
 	Register(def ToolDef)
@@ -66,7 +66,7 @@ type AuthorizeReq struct {
 	ForceDialog                    *bool
 }
 
-// ConfirmBroker：PermissionBroker 的 permissionMode/authorize（批次 6）。TODO(batch-6)
+// ConfirmBroker：PermissionBroker 的 permissionMode / authorize（同 Node desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
 type ConfirmBroker interface {
 	PermissionMode() string
 	Authorize(ctx context.Context, r AuthorizeReq) string
@@ -1049,8 +1049,7 @@ func (s *Service) enabledSkill(name string) error {
 	return &SkillError{T("electron.common.no-skill-named", name)}
 }
 
-// SkillLoad / SkillReadFile：skill_load / skill_read_file 工具的执行体（zod 校验在注册处）。
-// TODO(batch-4/5): 由 ToolRegistry 注册为 ToolDefinition。
+// SkillLoad / SkillReadFile：skill_load / skill_read_file 工具的执行体（zod 校验与注册在 igtools）。
 func (s *Service) SkillLoad(name string) (map[string]any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

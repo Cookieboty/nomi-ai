@@ -5,6 +5,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 )
 
 // DesktopAdapter 把批次 6 的 *desktop.Service 暴露成批次 8 的 deps.Desktop /
@@ -76,3 +77,19 @@ func (b brokerAdapter) CheckSend(ctx context.Context, p *deps.SendTarget) string
 }
 
 func (b brokerAdapter) OnChange(fn func()) func() { return b.b.OnChange(fn) }
+
+// ConfirmAdapter：扩展 MCP 工具的确认走桌面的 PermissionBroker（同 Node 的 desktop.broker）
+type ConfirmAdapter struct{ B *desktop.PermissionBroker }
+
+var _ extensions.ConfirmBroker = ConfirmAdapter{}
+
+func (c ConfirmAdapter) PermissionMode() string { return c.B.PermissionMode() }
+
+func (c ConfirmAdapter) Authorize(ctx context.Context, r extensions.AuthorizeReq) string {
+	preview := r.Preview
+	in := desktop.AuthorizeInput{Tool: r.Tool, Danger: r.Danger, Summary: r.Summary, Args: r.Args, Preview: &preview, Signal: ctx}
+	if r.ForceDialog != nil {
+		in.Force = &struct{ Dialog bool }{*r.ForceDialog}
+	}
+	return c.B.Authorize(in)
+}

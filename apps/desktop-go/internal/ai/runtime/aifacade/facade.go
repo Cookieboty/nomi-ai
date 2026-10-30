@@ -457,6 +457,16 @@ func (f *Facade) summariesPut(in any) (any, error) {
 	return o, nil
 }
 
+// PutFact / DeleteFact / PutSummary：主进程的记忆服务直接写（同 Node client.memory.facts.put / delete、summaries.put）
+func (f *Facade) PutFact(o *u.Obj) { _, _ = f.factsPut(o) }
+
+func (f *Facade) DeleteFact(id string) bool {
+	ok, _ := f.factsDelete(u.NewObj("id", id))
+	return ok.(bool)
+}
+
+func (f *Facade) PutSummary(o *u.Obj) { _, _ = f.summariesPut(o) }
+
 // ---- avatar（SemanticAvatarService）----
 
 func inVocab(name string, vocab []string) bool {

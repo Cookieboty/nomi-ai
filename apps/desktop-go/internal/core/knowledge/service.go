@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
+	dparse "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"golang.org/x/text/collate"
@@ -87,7 +88,7 @@ type ChatProvider struct {
 	Local bool
 }
 
-// ParseResult / ParseFunc：desktop/parse/runParse（批次 6 的受限子进程）
+// ParseResult / ParseFunc：desktop/parse 的 parseFile（受限子进程解析），默认就用它（同 Node）
 type ParseResult struct {
 	OK        bool
 	Text      string
@@ -97,22 +98,22 @@ type ParseResult struct {
 
 type ParseFunc func(ctx context.Context, path string) ParseResult
 
-// OcrFunc：Q4 起 OCR 在渲染进程 WASM（tesseract.js）里跑；主进程只提供语言数据目录。
+// OcrFunc：图片 OCR。Node 版在主进程跑 tesseract.js；Go 版还没有 OCR 实现，不注入时图片索引失败（OCR unavailable）。
 type OcrFunc func(ctx context.Context, path string, langs []string, langDir string) (string, error)
 
 type Deps struct {
 	Root          string
 	Logger        deps.Logger
 	Desktop       deps.Desktop
-	ListProviders func() []Provider            // TODO(batch-4): aiRuntime.listProviders
-	Credentials   func(id string) *Credentials // TODO(batch-4): aiRuntime.credentials
-	Complete      deps.CompleteFunc            // TODO(batch-4/5)
-	ChatProvider  func() *ChatProvider         // TODO(batch-4)
+	ListProviders func() []Provider            // aiRuntime.listProviders
+	Credentials   func(id string) *Credentials // aiRuntime.providerCredentials
+	Complete      deps.CompleteFunc
+	ChatProvider  func() *ChatProvider // desktop.providerFor('chat')
 	Ports         deps.Ports
 	Events        deps.Events
 	T             i18n.Translate
-	Parse         ParseFunc // TODO(batch-6)
-	Ocr           OcrFunc   // TODO(renderer-wasm)
+	Parse         ParseFunc
+	Ocr           OcrFunc
 	Download      Downloader
 	Now           func() int64
 	NewID         func() string
@@ -186,6 +187,9 @@ func New(d Deps) *Service {
 	}
 	if d.Download == nil {
 		d.Download = DownloadVerified
+	}
+	if d.Parse == nil {
+		d.Parse = parseFile
 	}
 	s := &Service{d: d, downloads: map[string]*dl{}, last: KbProgress{Phase: "idle"}}
 	s.settings = s.load()
@@ -877,9 +881,6 @@ func (s *Service) indexFile(ctx context.Context, src KbSource, file, embedModel 
 		}
 		chunks, ocr = ChunkText(text, 800, 120, 0), true
 	} else {
-		if s.d.Parse == nil {
-			return "", errors.New("parse unavailable")
-		}
 		r := s.d.Parse(ctx, g.Real)
 		if !r.OK {
 			d := base
@@ -1308,3 +1309,9 @@ func (s *Service) broadcast(ch string, payload any) {
 }
 
 func itoa(i int) string { return strconvItoa(i) }
+
+// parseFile = desktop/parse/runParse 的 parseFile（受限子进程里解析）
+func parseFile(_ context.Context, path string) ParseResult {
+	r := dparse.ParseFile(path, dparse.ParseOptions{})
+	return ParseResult{OK: r.OK, Text: r.Text, PageTexts: r.PageTexts, Message: r.Message}
+}

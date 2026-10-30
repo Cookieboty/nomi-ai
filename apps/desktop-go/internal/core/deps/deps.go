@@ -16,8 +16,7 @@ type Msg struct {
 	Content string `json:"content"`
 }
 
-// CompleteFunc：对话模型补全（Node createCore 的 complete()，批次 4/5 的 AI runtime 提供）。
-// TODO(batch-4/5): main.go 接到 AI runtime 的 complete；未接时返回 ErrAIUnavailable。
+// CompleteFunc：对话模型补全（Node createCore 的 complete()，main.go 接到 ChatFacade）
 type CompleteFunc func(ctx context.Context, messages []Msg) (string, error)
 
 // Events 对应 core/appEvents 的 publish（契约事件推给订阅窗口）
@@ -90,7 +89,7 @@ type SendTarget struct {
 	Local bool
 }
 
-// Desktop：DesktopService 的切片（批次 6）。TODO(batch-6): main.go 换成真正的 DesktopService。
+// Desktop：DesktopService 的切片（main.go 传 knowledgehandlers.DesktopAdapter）
 type Desktop interface {
 	Audit
 	Notify(n Notice)

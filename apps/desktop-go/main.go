@@ -209,8 +209,7 @@ func main() {
 	desktopSvc.AttachWindows(desktopWindows(&sh, bundle.Startup, isl))
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
-	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
-	// Desktop 用批次 6 的同一个 DesktopService；TODO(batch-4/5): Complete / Gateway 接 AI runtime。
+	// 知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展；Desktop 与桌面工具共用同一个 DesktopService。
 	// createCore complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
 	var chatFacadeRef atomic.Pointer[facade.Chat]
 	complete := func(ctx context.Context, msgs []deps.Msg) (string, error) {
@@ -231,6 +230,15 @@ func main() {
 	}
 	// D-B8-2：LocalModelService 的 gateway()（createCore: services.gateway ?? null）；网关服务稍后创建，延迟取
 	var gatewaySvc *gwstore.Service
+	// aiRuntime 的 listProviders / providerCredentials 走网关；知识库与语音共用
+	aiGateway := func() mediahandlers.GatewayLike {
+		if gatewaySvc == nil {
+			return nil
+		}
+		return gatewaySvc
+	}
+	// AIClient 门面（client.memory）稍后创建，记忆服务用时再取
+	var aiFacade *aifacade.Facade
 	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
 		Gateway: func() local.GatewayLike {
 			if gatewaySvc == nil {
@@ -250,9 +258,12 @@ func main() {
 				sh.Show(shell.Chat)
 			}
 		},
+		Providers:    kbProviders(aiGateway),
+		Credentials:  kbCredentials(aiGateway),
+		ChatProvider: kbChatProvider(desktopSvc),
+		MemoryFacade: aiMemory(&aiFacade),
+		Confirm:      knowledgehandlers.ConfirmAdapter{B: desktopSvc.Broker},
 	})
-	b8.Start()
-	defer b8.Stop()
 	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
 	providerBox := security.NewSecretBox("providers")
 	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
@@ -301,7 +312,6 @@ func main() {
 	userProfile.Export()
 	// 非 MCP 的 ig 工具（parity b7s-igtools）：builtin → preference → companion → kb → mem → delegate → ext；
 	// Node 的 MCP 工具在异步 connect 后才注册，排在这些之后
-	var aiFacade *aifacade.Facade
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
@@ -345,18 +355,15 @@ func main() {
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
 	aiFacade.Register(router)
+	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
+	b8.Start()
+	defer b8.Stop()
 	shellhandlers.InstallGateway(router, gatewaySvc)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
-	voiceGateway := func() mediahandlers.GatewayLike {
-		if gatewaySvc == nil {
-			return nil
-		}
-		return gatewaySvc
-	}
 	mediahandlers.Wire(mediahandlers.WireDeps{
-		Providers:   mediahandlers.GatewayProviders(voiceGateway),
-		Credentials: mediahandlers.GatewayCredentials(voiceGateway),
+		Providers:   mediahandlers.GatewayProviders(aiGateway),
+		Credentials: mediahandlers.GatewayCredentials(aiGateway),
 		UserData:    userData,
 		Router:      router,
 		Config:      bundle.Config,
