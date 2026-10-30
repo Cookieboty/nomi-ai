@@ -47,8 +47,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: mac-arm64, os: macos-14 }
-          - { target: mac-x64, os: macos-14 }
+          - { target: mac-arm64, os: macos-15 }
+          - { target: mac-x64, os: macos-15 }
           - { target: windows, os: windows-latest }
           - { target: linux, os: ubuntu-24.04 }
     runs-on: ${{ matrix.os }}
@@ -196,7 +196,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: mac-arm64, os: macos-14 }
+          - { target: mac-arm64, os: macos-15 }
           - { target: windows, os: windows-latest }
           - { target: linux, os: ubuntu-24.04 }
     runs-on: ${{ matrix.os }}
@@ -302,7 +302,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: mac-arm64, os: macos-14, args: '--mac dmg zip --arm64' }
+          - { target: mac-arm64, os: macos-15, args: '--mac dmg zip --arm64' }
           - { target: windows, os: windows-latest, args: '--win nsis --x64' }
           - { target: linux, os: ubuntu-24.04, args: '--linux AppImage --x64' }
     runs-on: ${{ matrix.os }}
@@ -342,7 +342,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: mac-arm64, os: macos-14 }
+          - { target: mac-arm64, os: macos-15 }
           - { target: windows, os: windows-latest }
           - { target: linux, os: ubuntu-24.04 }
     runs-on: ${{ matrix.os }}
