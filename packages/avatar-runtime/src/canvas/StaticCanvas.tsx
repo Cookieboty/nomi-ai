@@ -109,12 +109,14 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
-      // contain + bottom-center (match previous <img> objectFit)
-      const scale = Math.min(cssW / img.naturalWidth, cssH / img.naturalHeight);
+      // contain + bottom-center inside the character box (same box as RiveCanvas and the hit
+      // geometry above; the window's side / top padding is reserved for the toolbar and bubble)
+      const b = characterBox(cssW, cssH);
+      const scale = Math.min(b.w / img.naturalWidth, b.h / img.naturalHeight);
       const dw = img.naturalWidth * scale;
       const dh = img.naturalHeight * scale;
-      const dx = (cssW - dw) / 2;
-      const dy = cssH - dh;
+      const dx = b.x + (b.w - dw) / 2;
+      const dy = b.y + b.h - dh;
       ctx.drawImage(img, dx, dy, dw, dh);
     };
     img.src = url;

@@ -465,6 +465,7 @@ html[data-platform] .app-titlebar {
   border-bottom: 1px solid var(--cd-panel-border);
   -webkit-app-region: drag;
   app-region: drag;
+  --wails-draggable: drag; /* Go 宿主（Wails）认这个，不认 app-region */
   user-select: none;
   /* Windows / Linux：右侧是原生按钮（宽度由 WCO 提供，回退 140px） */
   padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)));
@@ -520,6 +521,7 @@ html[data-platform] [role='dialog'] button,
 html[data-platform] .app-titlebar button {
   -webkit-app-region: no-drag;
   app-region: no-drag;
+  --wails-draggable: no-drag;
 }
 
 /* ---------- Windows：中文字体 + 字号 ----------

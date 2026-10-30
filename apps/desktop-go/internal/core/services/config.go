@@ -76,23 +76,35 @@ func mergeConfigs(base any, over *util.Obj) *util.Obj {
 }
 
 type WindowSettings struct {
-	Position    struct{ X, Y int } `json:"position"`
-	AlwaysOnTop bool               `json:"alwaysOnTop"`
-	Transparent bool               `json:"transparent"`
+	Position    XY   `json:"position"`
+	AlwaysOnTop bool `json:"alwaysOnTop"`
+	Transparent bool `json:"transparent"`
+}
+
+// XY = config.json 的 {x, y}（键与 Electron 一致，小写）
+type XY struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+// ChatWindowBounds = config.chatWindowBounds（host-electron SavedChatBounds）
+type ChatWindowBounds struct {
+	X         int   `json:"x"`
+	Y         int   `json:"y"`
+	Width     int   `json:"width"`
+	Height    int   `json:"height"`
+	Maximized *bool `json:"maximized,omitempty"`
 }
 
 type AppConfig struct {
-	WindowPosition   struct{ X, Y int } `json:"windowPosition"`
-	ChatWindowBounds *struct {
-		X, Y, Width, Height int
-		Maximized           *bool `json:"maximized,omitempty"`
-	} `json:"chatWindowBounds,omitempty"`
-	MascotScale   float64        `json:"mascotScale"`
-	ModelName     string         `json:"modelName"`
-	VoiceSettings VoiceSettings  `json:"voiceSettings"`
-	Window        WindowSettings `json:"window"`
-	Debug         bool           `json:"debug"`
-	Environment   string         `json:"environment"`
+	WindowPosition   XY                `json:"windowPosition"`
+	ChatWindowBounds *ChatWindowBounds `json:"chatWindowBounds,omitempty"`
+	MascotScale      float64           `json:"mascotScale"`
+	ModelName        string            `json:"modelName"`
+	VoiceSettings    VoiceSettings     `json:"voiceSettings"`
+	Window           WindowSettings    `json:"window"`
+	Debug            bool              `json:"debug"`
+	Environment      string            `json:"environment"`
 }
 
 type ConfigService struct {

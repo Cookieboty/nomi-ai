@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	goruntime "runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 )
 
 // AppID 与 Electron appId 一致（electron-builder.yml），单实例锁 / 打包元数据共用
@@ -24,11 +26,20 @@ type Config struct {
 	Assets fs.FS
 	// Fragment 附在页面地址后（WS 地址与 token，片段不发给服务器）
 	Fragment url.Values
-	// MascotSize 返回看板娘窗口初始大小（按保存的缩放）；nil 时用 330×355
-	MascotSize func() (int, int)
+	// Pages：各窗口的页面路径（资产服务器上，如 /mascot/index.html）
+	Pages map[shell.WindowKind]string
+	// OnFilesDropped：从系统拖到看板娘窗口（data-file-drop-target 元素）上的文件路径（= preload nomiHost.dropFile）
+	OnFilesDropped func(k shell.WindowKind, paths []string)
+	// MascotSize 返回看板娘窗口初始大小（按保存的缩放，夹到主屏工作区 = maxScaleForArea）；nil 时用 330×355
+	MascotSize func(work *shell.Rect) (int, int)
 	// MascotPos 返回保存的看板娘窗口位置（config.windowPosition）；无效时按 2.0.4 放到主屏工作区右下角
 	MascotPos func() (int, int)
-	// OnWindow：窗口生命周期（"created" 新建或重建完成 / "closed" 当前窗口关闭 / "shown" show·restore）
+	// ChatBounds：对话窗口这次打开用的位置大小（= restoreChatBounds，workAreas[0] 是主屏）；nil 时居中默认尺寸
+	ChatBounds func(workAreas []shell.Rect) shell.SavedChatBounds
+	// SaveChatBounds：对话窗口移动 / 缩放（防抖）与关闭时记下非最大化时的位置大小（config.chatWindowBounds）
+	SaveChatBounds func(b shell.SavedChatBounds)
+	// OnWindow：窗口生命周期（"created" 新建或重建完成且原生窗口已就位 / "closed" 当前窗口关闭 /
+	// "shown" show·restore / "moved" 窗口移动过）
 	OnWindow func(k shell.WindowKind, event string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
 	Middleware func(http.Handler) http.Handler
@@ -63,11 +74,17 @@ type pageLoad struct {
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{}}
 	w.app = application.New(application.Options{
-		Name:   "Nomi",
-		Assets: application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
-		// 页面首帧（mascot.html 尾部内联脚本发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
+		Name: "Nomi",
+		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
+		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
+		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
 		// 才 Show，这里按 Electron ready-to-show 的语义在首帧就显示（§3.4 D-B11-17）
 		RawMessageHandler: func(win application.Window, msg string, _ *application.OriginInfo) {
+			// 开发态（devviews → viewpage）页面转来的 console 与报错
+			if rest, ok := strings.CutPrefix(msg, viewpage.LogPrefix); ok && win != nil {
+				log.Printf("[view %s] %s", win.Name(), rest)
+				return
+			}
 			if msg != "nomi:first-paint" || win == nil {
 				return
 			}
@@ -126,7 +143,7 @@ func (w *Wails) toggle(k shell.WindowKind) {
 }
 
 func (w *Wails) page(k shell.WindowKind) string {
-	return "/" + string(k) + ".html#" + w.cfg.Fragment.Encode()
+	return w.cfg.Pages[k] + "#" + w.cfg.Fragment.Encode()
 }
 
 func (w *Wails) Show(k shell.WindowKind) {
@@ -183,6 +200,7 @@ func (w *Wails) pageLoaded(win *application.WebviewWindow) {
 // create 新建窗口；at 非空时先隐藏建好、挪到 at 再显示（重建用，避免先在默认位置闪一下）
 func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewWindow {
 	var opts application.WebviewWindowOptions
+	var place func(win *application.WebviewWindow)
 	switch k {
 	case shell.Mascot:
 		// 2.0.5 默认缩放 0.5：420×450 的一半 + 透明边距（60, 130）→ 330×355
@@ -197,15 +215,16 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent},
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     w.page(k),
+			// 拖文件到角色身上 → 总结（renderer useFileDropSummarize 给画布加 data-file-drop-target）
+			EnableFileDrop: w.cfg.OnFilesDropped != nil,
 		}
 		if w.cfg.MascotSize != nil {
-			opts.Width, opts.Height = w.cfg.MascotSize()
+			opts.Width, opts.Height = w.cfg.MascotSize(nil)
 		}
-		// 建窗选项里给位置：Run 之前 impl 为空，事后 SetPosition 会被 Wails 忽略
-		if sc := w.app.Screen.GetPrimary(); sc != nil {
-			p := mascotInitialPos(w.cfg.MascotPos, sc.WorkArea.Width, sc.WorkArea.Height, opts.Width, opts.Height)
-			opts.Screen, opts.InitialPosition = sc, application.WindowXY
-			opts.X, opts.Y = p[0]-sc.WorkArea.X, p[1]-sc.WorkArea.Y // WindowXY 相对 WorkArea 原点
+		// 位置与按工作区夹紧的尺寸在原生窗口出来后再定（placeMascot）：第一个窗口建在 Run 之前，这时 Wails
+		// 拿不到屏幕信息；建窗选项里的 Screen + WindowXY 在 mac 上还会把坐标再除一次缩放倍数（windowSetPositionOnScreen）
+		if at == nil {
+			place = func(win *application.WebviewWindow) { w.placeMascot(win) }
 		}
 	case shell.Island:
 		opts = application.WebviewWindowOptions{
@@ -231,7 +250,26 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			opts.Y = 8
 		}
 	case shell.Chat:
-		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 480, Height: 560, URL: w.page(k)}
+		// = buildAiChatWindow：默认 1120×820（小屏收缩）、最小 760×560；上次的位置大小在原生窗口出来后恢复（placeChat）
+		// mac = titleBarOptions('darwin')：隐藏原生标题栏，红绿灯叠在 ai-chat 自绘的 38px 标题栏左侧
+		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
+		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 1120, Height: 820,
+			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: w.page(k),
+			Mac: application.MacWindow{TitleBar: application.MacTitleBarHidden}}
+		if at == nil {
+			// 应用已起来（通常如此：对话窗口按需打开）：位置大小直接放进建窗选项。mac 上全尺寸内容的窗口建好后再
+			// SetBounds 改大小，WKWebView 不重新布局（整页空白），所以不能事后摆
+			if areas := w.primaryFirst(); len(areas) > 0 {
+				b := w.chatBounds(areas)
+				opts.Width, opts.Height = b.Width, b.Height
+				w.initialXY(&opts, b.X, b.Y)
+				if b.Maximized {
+					opts.StartState = application.WindowStateMaximised
+				}
+			} else {
+				place = w.placeChat // 启动前建的（没有托盘时的兜底窗口）：等屏幕信息出来再摆
+			}
+		}
 	}
 	w.mu.Lock()
 	if on, ok := w.aot[k]; ok {
@@ -250,6 +288,13 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	for _, ev := range []events.WindowEventType{events.Linux.WindowLoadFinished, events.Mac.WebViewDidFinishNavigation, events.Windows.WebViewNavigationCompleted} {
 		win.OnWindowEvent(ev, func(*application.WindowEvent) { w.pageLoaded(win) })
 	}
+	if w.cfg.OnFilesDropped != nil {
+		win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+			if files := e.Context().DroppedFiles(); len(files) > 0 {
+				w.cfg.OnFilesDropped(k, files)
+			}
+		})
+	}
 	// 用户点关闭 = 销毁（WebView 一起释放）
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		w.mu.Lock()
@@ -266,6 +311,13 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	for _, ev := range []events.WindowEventType{events.Common.WindowShow, events.Common.WindowRestore} {
 		win.OnWindowEvent(ev, func(*application.WindowEvent) { w.notify(k, "shown") })
 	}
+	switch k {
+	case shell.Mascot:
+		// = setupMainWindowEvents onGeometryChange → 防抖保存 windowPosition（mascothandlers）
+		win.OnWindowEvent(events.Common.WindowDidMove, func(*application.WindowEvent) { w.notify(k, "moved") })
+	case shell.Chat:
+		w.trackChatBounds(win)
+	}
 	w.mu.Lock()
 	w.wins[k] = win
 	w.mu.Unlock()
@@ -274,8 +326,167 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	}
 	w.fireCreated(win)
 	win.Show()
-	w.notify(k, "created")
+	// 控制器（物理 / 拖拽）在 created 时读窗口位置与工作区：要等原生窗口出来、摆好位置之后再通知
+	w.afterNative(win, func() {
+		if place != nil {
+			place(win)
+		}
+		w.notify(k, "created")
+	})
 	return win
+}
+
+// afterNative：原生窗口已存在（Run 之前建的窗口要等应用起来，有时到首次显示）、屏幕信息已就绪后在 goroutine 里执行 fn
+func (w *Wails) afterNative(win *application.WebviewWindow, f func()) {
+	fn := func() {
+		w.waitScreens()
+		f()
+	}
+	w.whenStarted(func() {
+		if win.NativeWindow() != nil {
+			go fn()
+			return
+		}
+		var once sync.Once
+		var off func()
+		off = win.OnWindowEvent(events.Common.WindowShow, func(*application.WindowEvent) {
+			once.Do(func() {
+				if off != nil {
+					off()
+				}
+				go fn()
+			})
+		})
+	})
+}
+
+// waitScreens：mac 上 Wails 在 ApplicationDidFinishLaunching 才缓存屏幕，晚于 ApplicationStarted（实测约 300ms 内）；
+// 在那之前 Screen.GetAll() 为空，按空屏幕摆窗口 / 启动物理会把看板娘放到 (0,0)。最多等 3s
+func (w *Wails) waitScreens() {
+	for i := 0; i < 150 && len(w.app.Screen.GetAll()) == 0; i++ {
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// primaryFirst：所有工作区，主屏排第一（= [primaryDisplay, ...others].map(d => d.workArea)）
+func (w *Wails) primaryFirst() []shell.Rect {
+	var out []shell.Rect
+	p := w.app.Screen.GetPrimary()
+	if p != nil {
+		out = append(out, shell.Rect{X: p.WorkArea.X, Y: p.WorkArea.Y, Width: p.WorkArea.Width, Height: p.WorkArea.Height})
+	}
+	for _, s := range w.app.Screen.GetAll() {
+		if p != nil && s.ID == p.ID {
+			continue
+		}
+		out = append(out, shell.Rect{X: s.WorkArea.X, Y: s.WorkArea.Y, Width: s.WorkArea.Width, Height: s.WorkArea.Height})
+	}
+	return out
+}
+
+// placeMascot = buildMainWindow：尺寸按保存的缩放夹到主屏工作区，位置用保存的 windowPosition，无效时主屏右下角
+func (w *Wails) placeMascot(win *application.WebviewWindow) {
+	areas := w.primaryFirst()
+	if len(areas) == 0 {
+		return
+	}
+	work := areas[0]
+	b := win.Bounds()
+	width, height := b.Width, b.Height
+	if w.cfg.MascotSize != nil {
+		width, height = w.cfg.MascotSize(&work)
+	}
+	p := mascotInitialPos(w.cfg.MascotPos, work.Width, work.Height, width, height)
+	win.SetBounds(application.Rect{X: p[0], Y: p[1], Width: width, Height: height})
+}
+
+// chatBounds = buildAiChatWindow：恢复上次的位置大小（按现在的显示器校正）与最大化，没有记录时居中默认尺寸
+func (w *Wails) chatBounds(areas []shell.Rect) shell.SavedChatBounds {
+	if w.cfg.ChatBounds != nil {
+		return w.cfg.ChatBounds(areas)
+	}
+	return shell.ChatWindowBounds(nil, areas)
+}
+
+// initialXY：建窗选项里的屏幕绝对坐标。mac / Windows 不带 Screen 时按绝对坐标摆（mac 带 Screen 会把坐标再除一次
+// 缩放倍数）；Linux 不带 Screen 时是相对工作区的，所以带上主屏并换成相对坐标
+func (w *Wails) initialXY(opts *application.WebviewWindowOptions, x, y int) {
+	opts.InitialPosition = application.WindowXY
+	opts.X, opts.Y = x, y
+	if goruntime.GOOS == "linux" {
+		if sc := w.app.Screen.GetPrimary(); sc != nil {
+			opts.Screen = sc
+			opts.X, opts.Y = x-sc.WorkArea.X, y-sc.WorkArea.Y
+		}
+	}
+}
+
+// placeChat：启动前建的对话窗口，屏幕信息出来后再摆
+func (w *Wails) placeChat(win *application.WebviewWindow) {
+	areas := w.primaryFirst()
+	if len(areas) == 0 {
+		return
+	}
+	b := w.chatBounds(areas)
+	win.SetBounds(application.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height})
+	if b.Maximized {
+		win.Maximise()
+	}
+}
+
+// trackChatBounds = setupAiChatWindowEvents：移动 / 缩放后 500ms 防抖保存，关闭时立即保存；
+// 最大化时记的是最大化之前的位置大小（= getNormalBounds）。几何在事件里（goroutine 中）读好缓存，
+// 关闭时窗口可能已经销毁，只存缓存，不再查询窗口
+func (w *Wails) trackChatBounds(win *application.WebviewWindow) {
+	if w.cfg.SaveChatBounds == nil {
+		return
+	}
+	var mu sync.Mutex
+	var last *shell.SavedChatBounds
+	var timer *time.Timer
+	save := func() {
+		mu.Lock()
+		b := last
+		mu.Unlock()
+		if b != nil {
+			w.cfg.SaveChatBounds(*b)
+		}
+	}
+	refresh := func() {
+		if win.IsMinimised() || win.IsFullscreen() {
+			return // = saveBounds：最小化 / 全屏时不记
+		}
+		maxed := win.IsMaximised()
+		r := win.Bounds()
+		mu.Lock()
+		defer mu.Unlock()
+		next := shell.SavedChatBounds{Maximized: maxed}
+		switch {
+		case !maxed && r.Width > 0 && r.Height > 0:
+			next.Rect = shell.Rect{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height}
+		case last != nil:
+			next.Rect = last.Rect // 最大化中：沿用最大化前的位置大小
+		default:
+			return
+		}
+		last = &next
+		if timer != nil {
+			timer.Stop()
+		}
+		timer = time.AfterFunc(500*time.Millisecond, save)
+	}
+	for _, ev := range []events.WindowEventType{events.Common.WindowDidMove, events.Common.WindowDidResize,
+		events.Common.WindowMaximise, events.Common.WindowUnMaximise} {
+		win.OnWindowEvent(ev, func(*application.WindowEvent) { go refresh() })
+	}
+	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
+		mu.Lock()
+		if timer != nil {
+			timer.Stop()
+		}
+		mu.Unlock()
+		go save()
+	})
 }
 
 // notify 异步回调（回调里会同步读窗口状态，不能占着主线程）

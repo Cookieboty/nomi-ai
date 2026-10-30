@@ -1,5 +1,5 @@
 // Package mascothandlers 把批次 10（看板娘 / 角色包 / 灵动岛）的契约过程挂到 Router。
-// 对应 packages/core/src/contract/mascot.ts（内核部分）与 packages/host-electron/src/host/contract/mascot.ts（宿主部分）。
+// 对应 packages/core/src/contract/mascot.ts（内核部分）与 apps/desktop-electron/src/host/contract/mascot.ts（宿主部分）。
 package mascothandlers
 
 import (
@@ -51,7 +51,10 @@ type Controller struct {
 	d     Deps
 	ctl   *mascot.Controller
 	saveT *time.Timer
-	t0    time.Time
+	// posT / lastPos：窗口移动后防抖保存 windowPosition（= setupMainWindowEvents，800ms）；关闭时立即落盘
+	posT    *time.Timer
+	lastPos *shell.Rect
+	t0      time.Time
 }
 
 // SetRenderer 写 mascot.renderer 并广播；rive → svg 时重建看板娘窗口，让 Rive 占的内存随旧 WebView 进程一起释放
@@ -103,6 +106,10 @@ func (c *Controller) WindowEvent(k shell.WindowKind, event string) {
 	if k != shell.Mascot {
 		return
 	}
+	if event == "moved" {
+		c.windowMoved()
+		return
+	}
 	c.mu.Lock()
 	cur := c.ctl
 	switch event {
@@ -117,6 +124,15 @@ func (c *Controller) WindowEvent(k shell.WindowKind, event string) {
 		return
 	case "closed":
 		c.ctl = nil
+		// = releaseMascotWindow：销毁前把位置落盘（防抖的保存可能还没跑）
+		if c.posT != nil {
+			c.posT.Stop()
+			c.posT = nil
+		}
+		if p := c.lastPos; p != nil {
+			c.lastPos = nil
+			go c.savePosition(p.X, p.Y)
+		}
 	}
 	c.mu.Unlock()
 	if cur == nil {
@@ -162,7 +178,7 @@ func (c *Controller) hooks() *mascot.ScaleHooks {
 			}
 			c.saveT = time.AfterFunc(400*time.Millisecond, func() {
 				if _, b, ok := c.geom(); ok {
-					_ = c.d.Config.UpdateConfig(map[string]any{"windowPosition": map[string]any{"x": b.X, "y": b.Y}})
+					c.savePosition(b.X, b.Y)
 				}
 			})
 		},
@@ -170,9 +186,41 @@ func (c *Controller) hooks() *mascot.ScaleHooks {
 }
 
 // WindowSize 返回按保存缩放算出的看板娘窗口大小（外壳建窗口时用）
-func (c *Controller) WindowSize() (int, int) {
-	s := mascot.MascotWindowSize(mascot.FitMascotScale(c.d.Config.GetConfig().MascotScale, mascot.MaxMascotScale))
+func (c *Controller) WindowSize(work *shell.Rect) (int, int) {
+	// = buildMainWindow：fitMascotScale(config.mascotScale, maxScaleForArea(primary.workArea))；工作区未知时不夹
+	cap := mascot.MaxMascotScale
+	if work != nil {
+		cap = mascot.MaxScaleForArea(&mascot.AreaRect{X: float64(work.X), Y: float64(work.Y),
+			Width: float64(work.Width), Height: float64(work.Height)})
+	}
+	s := mascot.MascotWindowSize(mascot.FitMascotScale(c.d.Config.GetConfig().MascotScale, cap))
 	return int(s.Width), int(s.Height)
+}
+
+// windowMoved = onGeometryChange → 800ms 防抖保存 windowPosition；几何在锁外读（Bounds 要等主线程）
+func (c *Controller) windowMoved() {
+	_, b, ok := c.geom()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ok {
+		c.lastPos = &b
+	}
+	if c.posT != nil {
+		c.posT.Stop()
+	}
+	c.posT = time.AfterFunc(800*time.Millisecond, func() {
+		c.mu.Lock()
+		p := c.lastPos
+		c.mu.Unlock()
+		if p != nil {
+			c.savePosition(p.X, p.Y)
+		}
+	})
+}
+
+// savePosition = configService.set('windowPosition.x/y') + save
+func (c *Controller) savePosition(x, y int) {
+	_ = c.d.Config.UpdateConfig(map[string]any{"windowPosition": map[string]any{"x": x, "y": y}})
 }
 
 // WindowPosition：config.windowPosition（拖动结束时保存），供建窗时恢复
