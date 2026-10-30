@@ -9,20 +9,34 @@ import (
 )
 
 // WritePrivateFileAtomic：写临时文件再 rename，权限 0600（对齐 writePrivateFileAtomic）。
+// 临时文件名每次唯一（同进程并发保存同一路径也不会写进同一个临时文件），任何失败都删掉它。
+// 同一路径多次保存的先后顺序由调用方保证（如 ConfigService 的 saveMu）。
 // Windows 上不做 icacls（偏差 D12：Go 版跳过逐文件 ACL，依赖目录权限；userData 本身已是用户目录）。
-func WritePrivateFileAtomic(path string, data []byte) error {
+func WritePrivateFileAtomic(path string, data []byte) (err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmp := fmt.Sprintf("%s.tmp-%d", path, os.Getpid())
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(path), fmt.Sprintf("%s.tmp-%d-*", filepath.Base(path), os.Getpid()))
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	tmp := f.Name()
+	defer func() {
+		if err != nil {
+			_ = f.Close()
+			_ = os.Remove(tmp)
+		}
+	}()
+	if err = f.Chmod(0o600); err != nil {
 		return err
 	}
-	return nil
+	if _, err = f.Write(data); err != nil {
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // CoalescedWriter：同一时刻最多一个写入在跑、一个在排队（对齐 ConfigService 的 inflight/queued）。
