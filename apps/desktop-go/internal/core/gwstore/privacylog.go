@@ -154,17 +154,13 @@ func (l *PrivacyLog) Clear() {
 	l.loaded = true
 	l.entries = map[string]*u.Obj{}
 	l.order = nil
-	data := l.snapshotLocked()
-	l.mu.Unlock()
-	l.write(data)
+	l.writeSnapshotUnlock()
 }
 
 // Flush = flush()（退出时，同步写完）
 func (l *PrivacyLog) Flush() {
 	l.mu.Lock()
-	data := l.snapshotLocked()
-	l.mu.Unlock()
-	l.write(data)
+	l.writeSnapshotUnlock()
 }
 
 func (l *PrivacyLog) snapshotLocked() []byte {
@@ -179,8 +175,16 @@ func (l *PrivacyLog) snapshotLocked() []byte {
 	return []byte(u.Stringify(arr))
 }
 
-func (l *PrivacyLog) write(data []byte) {
+// afterPrivacySnapshot：拍完快照、拿写锁之前调用（测试在这里卡住，复现 #164 的时间窗）
+var afterPrivacySnapshot = func() {}
+
+// writeSnapshotUnlock：调用方持有 mu。先拿到写锁再放开 mu，落盘顺序与快照顺序一致：
+// 清空之前拍的快照不会在清空写盘之后才落盘、把旧记录写回去（= Node 的写队列，#164）
+func (l *PrivacyLog) writeSnapshotUnlock() {
+	data := l.snapshotLocked()
+	afterPrivacySnapshot()
 	l.wmu.Lock()
+	l.mu.Unlock()
 	defer l.wmu.Unlock()
 	_ = os.MkdirAll(filepath.Dir(l.file), 0o755)
 	_ = utils.WritePrivateFileAtomic(l.file, data)
@@ -193,9 +197,7 @@ func (l *PrivacyLog) schedule() {
 	l.timer = time.AfterFunc(privacyFlushDur, func() {
 		l.mu.Lock()
 		l.timer = nil
-		data := l.snapshotLocked()
-		l.mu.Unlock()
-		l.write(data)
+		l.writeSnapshotUnlock()
 	})
 }
 
