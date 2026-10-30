@@ -40,6 +40,9 @@ const { GatewayProcess } = await imp(
   'apps/desktop-electron/internal/core/src/gateway/GatewayProcess.ts',
 );
 const { BindingTable } = await imp('apps/desktop-electron/internal/gateway/src/route/binding.ts');
+const { whenPrivateWritesIdle } = await imp(
+  'apps/desktop-electron/internal/core/src/utils/privateFile.ts',
+);
 
 const enc = (p) => Buffer.from('ss:' + p).toString('base64');
 const dec = (s) => {
@@ -248,6 +251,8 @@ async function scenario(name, ops) {
     steps.push(clean(rec, ud));
   }
   s.dispose();
+  // dispose 时隐私日志等是异步落盘：等写队列清空再采集文件（Windows runner 上 50 ms 不够，录出的 golden 会缺文件）
+  await whenPrivateWritesIdle();
   await new Promise((r) => setTimeout(r, 50));
   for (const k of CLI_ENV) {
     if (saved[k] === undefined) delete process.env[k];
