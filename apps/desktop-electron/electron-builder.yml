@@ -69,11 +69,14 @@ files:
   # mock CLI 不进 asar
   - '!**/node_modules/@nomi-ai/core/{src,tests,scripts,coverage,.turbo}/**'
   - '!**/node_modules/@nomi-ai/core/jest.config.js'
-  # bare-*：移动端 prebuilds 永远不需要（当前平台桌面 arch 由 afterPack 再裁）
+  # bare-*：只保留当前平台 + 架构的 prebuilds（${platform}-${arch} 由 electron-builder 按每次打包的
+  # 目标展开，如 darwin-arm64、win32-x64）；移动端永远不需要。在输入阶段裁，不碰打好的 app.asar（#188）
   - '!**/node_modules/bare-*/prebuilds/android-*/**'
   - '!**/node_modules/bare-*/prebuilds/ios-*/**'
+  - '!**/node_modules/bare-*/prebuilds/!(${platform}-${arch})/**'
 
-# asarUnpack 会在 app.asar 内留下重复副本；after-pack-slim 删掉 asar 内副本，并裁掉非当前平台的 bare-* prebuilds
+# afterPack 只校验不改包：app.asar.unpacked 下的文件在 header 里都还标着 unpacked（#188）。
+# asarUnpack 的文件只在 .unpacked 目录有一份，asar 里只有 header 记录，不要解包「去重」再重建 asar
 afterPack: ./scripts/after-pack-slim.mjs
 
 # 默认 normal：maximum 对已压缩的模型纹理收益极小、但显著拖慢打包
