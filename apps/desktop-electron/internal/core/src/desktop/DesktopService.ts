@@ -476,10 +476,13 @@ export class DesktopService {
       createDirectory: true,
       // 挂到当前焦点窗口（窗口还没接上时独立弹出）
       parent: this.windows ? 'focused' : 'none',
-      ...(suggested
-        ? { defaultPath: suggested.replace(/^~(?=$|[\\/])/, this.ports.paths.home()) }
-        : {}),
+      ...(suggested ? { defaultPath: this.expandHome(suggested) } : {}),
     });
+  }
+
+  /** `~` / `~/…` / `~\\…` → 用户目录下的路径；用 path.join，Windows 上不会混进 `/` */
+  private expandHome(p: string): string {
+    return /^~(?=$|[\\/])/.test(p) ? path.join(this.ports.paths.home(), p.slice(1)) : p;
   }
 
   /**
@@ -493,8 +496,7 @@ export class DesktopService {
     signal?: AbortSignal,
   ): Promise<string | null> {
     if (!this.chatOpen()) return this.pickFolder(suggested);
-    const home = this.ports.paths.home();
-    const abs = suggested?.replace(/^~(?=$|[\\/])/, home);
+    const abs = suggested === undefined ? undefined : this.expandHome(suggested);
     const d = await this.broker.requestScope({ suggestedPath: abs, mode, reason, signal });
     if (d.decision === 'allowed' && d.path) return d.path;
     if (d.decision === 'pick') return this.pickFolder(suggested);

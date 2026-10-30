@@ -469,6 +469,14 @@ func (e errString) Error() string { return string(e) }
 
 var reTilde = regexp.MustCompile(`^~($|[\\/])`)
 
+// expandHome = expandHome：`~` / `~/…` / `~\…` → 用户目录下的路径；filepath.Join，Windows 上不会混进 `/`
+func (s *Service) expandHome(p string) string {
+	if reTilde.MatchString(p) {
+		return filepath.Join(s.ports.Home, p[1:])
+	}
+	return p
+}
+
 // RequestFolder：工具请求授权文件夹。对话窗口开着时在对话里问（授权建议的文件夹 / 另选 / 拒绝），
 // 只有用户要另选时才打开系统的选择框；对话窗口没开时照旧直接打开选择框。"" = 没有授权
 func (s *Service) RequestFolder(ctx context.Context, suggested, mode, reason string) string {
@@ -477,7 +485,7 @@ func (s *Service) RequestFolder(ctx context.Context, suggested, mode, reason str
 	}
 	abs := ""
 	if suggested != "" {
-		abs = reTilde.ReplaceAllString(suggested, strings.ReplaceAll(s.ports.Home, "$", "$$")+"${1}")
+		abs = s.expandHome(suggested)
 	}
 	d, real := s.Broker.RequestScope(abs, mode, reason, ctx)
 	switch d {
@@ -495,7 +503,7 @@ func (s *Service) PickFolder(suggested string) string {
 	}
 	def := ""
 	if suggested != "" {
-		def = reTilde.ReplaceAllString(suggested, strings.ReplaceAll(s.ports.Home, "$", "$$")+"${1}")
+		def = s.expandHome(suggested)
 	}
 	return s.ports.PickDirectory(tr.T("electron.common.grant-nomi-access-to-this-folder"), tr.T("electron.common.grant"), def)
 }

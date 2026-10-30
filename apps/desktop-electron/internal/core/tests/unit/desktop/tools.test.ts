@@ -19,7 +19,7 @@ import { makeDocx, makePdf } from '../../fixtures/docs';
 type R = { ok: boolean; data?: Record<string, unknown>; error?: { code: string } };
 
 function setup() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tools-')));
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'tools-')));
   const docs = path.join(root, 'docs');
   fs.mkdirSync(docs);
   fs.writeFileSync(

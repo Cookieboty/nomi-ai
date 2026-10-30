@@ -28,7 +28,7 @@ const live: AbortController[] = [];
 
 function setup(opts: { chat: boolean; hidden: boolean }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'confirm-route-'));
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'confirm-home-')));
+  const home = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'confirm-home-')));
   const events = createRecordingAppEvents();
   const ports = fakeHostPorts({ userData: root, home });
   const picks: Array<string | undefined> = [];
