@@ -76,7 +76,12 @@ function setup(opts: { chat: boolean; hidden: boolean }) {
   return { svc, home, sent, requests, ask, openChat, summonMascot, picks };
 }
 
-const tick = () => new Promise((r) => setTimeout(r, 0));
+/** 等到某个窗口收到确认请求：慢机器（Windows CI）上要不止一两轮事件循环，最多等约 2 s */
+const requestsOn = async (t: ReturnType<typeof setup>, surface: 'chat' | 'mascot') => {
+  for (let i = 0; i < 200 && t.requests(surface).length === 0; i++)
+    await new Promise((r) => setTimeout(r, 10));
+  return t.requests(surface);
+};
 afterEach(() => {
   for (const c of live.splice(0)) c.abort();
 });
@@ -85,8 +90,7 @@ describe('confirm routing', () => {
   it('chat window open: only the chat window gets the request; its answer settles it', async () => {
     const t = setup({ chat: true, hidden: false });
     const p = t.ask();
-    await tick();
-    expect(t.requests('chat')).toHaveLength(1);
+    expect(await requestsOn(t, 'chat')).toHaveLength(1);
     expect(t.requests('mascot')).toHaveLength(0);
     t.svc.answerConfirm(8, t.requests('chat')[0]!.id, true, false, false, 'chat');
     expect(await p).toBe('allowed');
@@ -98,19 +102,16 @@ describe('confirm routing', () => {
   it('chat closed, mascot on the desktop: the mascot gets it', async () => {
     const t = setup({ chat: false, hidden: false });
     void t.ask();
-    await tick();
-    expect(t.requests('mascot')).toHaveLength(1);
+    expect(await requestsOn(t, 'mascot')).toHaveLength(1);
     expect(t.requests('chat')).toHaveLength(0);
   });
 
   it('chat closed, mascot hidden: opens the chat window instead of summoning the mascot', async () => {
     const t = setup({ chat: false, hidden: true });
     void t.ask();
-    await tick();
-    await tick();
+    expect(await requestsOn(t, 'chat')).toHaveLength(1);
     expect(t.openChat).toHaveBeenCalled();
     expect(t.summonMascot).not.toHaveBeenCalled();
-    expect(t.requests('chat')).toHaveLength(1);
   });
 
   it('answers from neither the chat window nor the mascot window are ignored', async () => {
@@ -122,8 +123,8 @@ describe('confirm routing', () => {
       args: {},
       signal: AbortSignal.timeout(200),
     });
-    await tick();
-    t.svc.answerConfirm(99, t.requests('chat')[0]!.id, true, false, false, 'settings');
+    const [req] = await requestsOn(t, 'chat');
+    t.svc.answerConfirm(99, req!.id, true, false, false, 'settings');
     expect(await p).toBe('denied');
   });
 });
@@ -134,9 +135,7 @@ describe('requestFolder', () => {
     const dir = path.join(t.home, 'proj');
     fs.mkdirSync(dir);
     const p = t.svc.requestFolder(dir, 'read-write', 'need the repo');
-    await tick();
-    await tick();
-    const req = t.requests('chat')[0]!;
+    const req = (await requestsOn(t, 'chat'))[0]!;
     expect(req).toMatchObject({ kind: 'scope', scopePath: dir, scopeMode: 'read-write' });
     expect(req.preview).toBe('need the repo');
     t.svc.answerConfirm(8, req.id, true, false, false, 'chat');
@@ -147,9 +146,7 @@ describe('requestFolder', () => {
   it('pick opens the system picker; a too-broad suggestion (home) is not offered for one-click grant', async () => {
     const t = setup({ chat: true, hidden: false });
     const p = t.svc.requestFolder(t.home, 'read');
-    await tick();
-    await tick();
-    const req = t.requests('chat')[0]!;
+    const req = (await requestsOn(t, 'chat'))[0]!;
     expect(req.kind).toBe('scope');
     expect(req.scopePath).toBeUndefined();
     t.svc.answerConfirm(8, req.id, false, false, true, 'chat');

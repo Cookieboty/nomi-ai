@@ -66,7 +66,8 @@ module.exports = {
   },
 
   // 测试设置
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  // ciStability 先加载：Windows 长路径 TEMP、用例间等写队列、文件结束清定时器（见该文件）
+  setupFilesAfterEnv: ['<rootDir>/internal/core/tests/ciStability.ts', '<rootDir>/tests/setup.ts'],
 
   // 模块文件扩展名
   moduleFileExtensions: ['ts', 'js', 'json'],
@@ -75,8 +76,8 @@ module.exports = {
   clearMocks: true,
   restoreMocks: true,
 
-  // 测试超时
-  testTimeout: 10000,
+  // 测试超时：Windows runner 上真实 git / 文件操作慢 2~5 倍
+  testTimeout: process.platform === 'win32' ? 30_000 : 10_000,
 
   // 详细输出
   verbose: true,

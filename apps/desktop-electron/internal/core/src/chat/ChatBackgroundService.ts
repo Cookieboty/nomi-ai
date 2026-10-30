@@ -21,7 +21,10 @@ import {
 
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
+import { createMainLogger } from '../utils/log';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
+
+const log = createMainLogger('chat-background');
 
 export {
   CHAT_BG_PRESET_URL,
@@ -71,7 +74,10 @@ export class ChatBackgroundService {
     }
     this.state = this.withValidImage(sanitizeChatBg(saved));
     // 启动落盘进同一串行队列，便于测试 await flush，也避免与 set/import 抢写（#154）
-    void this.serial(() => this.persistAsync());
+    // 启动落盘失败不影响内存态（下次 set 会重写）；必须接住，否则成为未处理的 rejection
+    void this.serial(() => this.persistAsync()).catch((error: unknown) => {
+      log.warn('initial persist failed', error);
+    });
   }
 
   /** 等到队列里的 persist / import 都结束（单测在 mock rename 前调用） */

@@ -454,6 +454,14 @@ export async function whenPrivateWritesIdle(): Promise<void> {
   while (writeQueues.size) await Promise.all(writeQueues.values());
 }
 
+// 测试框架在每个用例结束时等写队列清空（core/tests/ciStability.ts）。Jest 每个测试文件一个 globalThis，
+// 同一文件可能加载多份本模块（isolateModules / resetModules），都登记上；运行时只是一个 Set
+(
+  ((
+    globalThis as { __nomiPrivateWritesIdle?: Set<() => Promise<void>> }
+  ).__nomiPrivateWritesIdle ??= new Set()) as Set<() => Promise<void>>
+).add(whenPrivateWritesIdle);
+
 async function writeAtomicNow(file: string, data: string): Promise<void> {
   const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
   const win = process.platform === 'win32';
