@@ -398,6 +398,9 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		if place != nil {
 			place(win)
 		}
+		if k == shell.Chat {
+			placeTrafficLights(win)
+		}
 		w.notify(k, "created")
 	})
 	return win
