@@ -1975,6 +1975,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "gateway.nomiContext",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "gateway.nomiContext",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.nomiContext' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "gateway.privacyAddAllow",
   "kind": "call",
   "res": "pass"
@@ -8349,6 +8366,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.detect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.nomiContext",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.nomiContext",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.nomiContext' is a query; use call"
   }
  },
  {
@@ -14769,6 +14803,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "gateway.nomiContext",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "gateway.nomiContext",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.nomiContext' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "gateway.privacyAddAllow",
   "kind": "call",
   "res": "pass"
@@ -21125,6 +21176,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.detect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.nomiContext",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.nomiContext",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.nomiContext' is a query; use call"
   }
  },
  {
