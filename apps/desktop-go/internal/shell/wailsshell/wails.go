@@ -42,6 +42,8 @@ type Config struct {
 	// OnWindow：窗口生命周期（"created" 新建或重建完成且原生窗口已就位 / "closed" 当前窗口关闭 /
 	// "user-closed" 用户关掉了当前窗口（紧跟 closed） / "shown" show·restore / "moved" 窗口移动过）
 	OnWindow func(k shell.WindowKind, event string)
+	// OnReactivate：重新激活（mac 点 Dock 图标 = app 'activate'；第二次启动 = 'second-instance'）；nil 时打开对话窗口
+	OnReactivate func()
 	// OnSystemThemeChanged：系统外观（深浅色）变化（= nativeTheme 'updated'）
 	OnSystemThemeChanged func()
 	// OnPageMessage：页面经 Wails 消息通道发来的 nomi:* 信号（first-paint 与开发态日志除外）
@@ -109,7 +111,8 @@ func New(cfg Config) *Wails {
 				application.InvokeAsync(func() { win.Show() })
 			}
 		},
-		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory, ApplicationShouldTerminateAfterLastWindowClosed: false},
+		// 普通应用（Dock 图标、⌘Tab），与 Electron 相同
+		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyRegular, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
 		// = Electron requestSingleInstanceLock + second-instance：第二次启动（含 nomi:// deep link，
@@ -117,11 +120,15 @@ func New(cfg Config) *Wails {
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: AppID,
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
-				w.Show(shell.Chat)
+				w.reactivate()
 			},
 		},
 	})
 	w.hookStarted()
+	// mac 点 Dock 图标 = app 'activate'
+	w.app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) {
+		go w.reactivate()
+	})
 	if cfg.OnSystemThemeChanged != nil {
 		w.app.Event.OnApplicationEvent(events.Common.ThemeChanged, func(*application.ApplicationEvent) {
 			go cfg.OnSystemThemeChanged()
@@ -534,6 +541,14 @@ func (w *Wails) Recreate(k shell.WindowKind) {
 		application.InvokeSync(func() { old.Close() })
 		log.Printf("[shell] %s recreated", k)
 	})
+}
+
+func (w *Wails) reactivate() {
+	if w.cfg.OnReactivate != nil {
+		w.cfg.OnReactivate()
+		return
+	}
+	w.Show(shell.Chat)
 }
 
 // IsDarkMode = nativeTheme.shouldUseDarkColors（系统当前是否深色）

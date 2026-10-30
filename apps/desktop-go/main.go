@@ -449,6 +449,22 @@ func main() {
 			}
 			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
 		},
+		// = app 'activate' / 'second-instance'：看板娘没关但窗口不在就重建；默认界面是主界面时把主界面带到前台
+		// （shouldRaiseMainOnReactivate），否则聚焦已有窗口
+		OnReactivate: func() {
+			st := bundle.Startup.Get()
+			if st.ShowMascot && !sh.Visible(shell.Mascot) {
+				sh.Show(shell.Mascot)
+			}
+			switch {
+			case st.DefaultView == "main" || !st.ShowMascot:
+				sh.Show(shell.Chat)
+			case sh.Visible(shell.Chat):
+				sh.Show(shell.Chat)
+			default:
+				sh.Show(shell.Mascot)
+			}
+		},
 		// = ThemeService 订阅 appearance.onChange
 		OnSystemThemeChanged: bundle.Theme.SystemChanged,
 		// 灵动岛页面的收起 / 点击信号（islandPageMiddleware 插入的桥）
