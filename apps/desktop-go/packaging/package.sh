@@ -81,7 +81,12 @@ mac-arm64|mac-x64)
   ( cd "$WORK" && ditto -c -k --sequesterRsrc --keepParent Nomi.app "$OUT/$ZIP" )
   DMGSRC="$WORK/dmg"; mkdir -p "$DMGSRC"; ditto "$BUNDLE" "$DMGSRC/Nomi.app"; ln -s /Applications "$DMGSRC/Applications"
   rm -f "$OUT/$DMG"
-  hdiutil create -volname "Nomi $VERSION" -srcfolder "$DMGSRC" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$OUT/$DMG"
+  # macOS runner 上 hdiutil 偶尔报「Resource busy」（磁盘镜像服务被占用）：间隔 10 s 重试，最多 5 次
+  for i in 1 2 3 4 5; do
+    hdiutil create -volname "Nomi $VERSION" -srcfolder "$DMGSRC" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$OUT/$DMG" && break
+    [ "$i" = 5 ] && exit 1
+    echo "hdiutil create failed (attempt $i), retrying"; sleep 10
+  done
   if [ -n "${MAC_SIGN_IDENTITY:-}" ]; then
     codesign --force --timestamp --sign "$MAC_SIGN_IDENTITY" ${MAC_KEYCHAIN:+--keychain "$MAC_KEYCHAIN"} "$OUT/$DMG"
   fi
