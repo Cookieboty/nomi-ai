@@ -2,6 +2,7 @@
 // 视图与 Electron 共用同一份构建产物，宿主差异在这里补：
 //   - CSP 的 connect-src 放行 ws://127.0.0.1:*（契约传输是连本机内核的 WebSocket；Electron 走 preload，构建产物里没有）；
 //   - 插入 Wails 完整运行时 /wails/runtime.js（--wails-draggable 拖动窗口、文件拖放；Wails 加载完页面只注入核心桥）；
+//   - 插入宿主脚本 /__nomi/host.js（同源，CSP 'self' 放行）：外链交给系统浏览器（= security/windowGuards.ts）；
 //   - 开发态再插入报错转发：页面的 console 与未捕获错误经 Wails 消息通道打到宿主日志（WebView 默认没有检查器）。
 package viewpage
 
@@ -14,6 +15,32 @@ import (
 
 // RuntimeTag：Wails 完整运行时（BundledAssetFileServer 在 /wails/runtime.js 提供）
 const RuntimeTag = `<script type="module" src="/wails/runtime.js"></script>`
+
+// HostScriptPath：宿主脚本的路径（Middleware 提供）
+const HostScriptPath = "/__nomi/host.js"
+
+// OpenExternalPrefix：页面请宿主用系统浏览器打开外链的消息前缀（后接网址；宿主只认 http / https）
+const OpenExternalPrefix = "nomi:open-external:"
+
+const hostTag = `<script src="` + HostScriptPath + `"></script>`
+
+// hostScript = windowGuards.ts 的视图侧：Wails 的 WebView 不会把 target=_blank / window.open 交给系统浏览器
+// （mac 没有 createWebView 委托，点了没反应；Windows 会在应用内弹窗），也不拦跨文档跳转。这里把跨源链接的点击
+// 与 window.open 都转给宿主（宿主只放行 http / https），同源链接照常
+const hostScript = `(() => {
+  const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
+  const external = (href) => { try { const u = new URL(href, location.href); return u.origin !== location.origin ? u.href : null; } catch (e) { return null; } };
+  addEventListener('click', (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href]');
+    if (!a || e.defaultPrevented) return;
+    const url = external(a.getAttribute('href'));
+    if (!url) return;
+    e.preventDefault();
+    post('` + OpenExternalPrefix + `' + url);
+  }, true);
+  window.open = (href) => { const url = external(String(href)); if (url) post('` + OpenExternalPrefix + `' + url); return null; };
+})();
+`
 
 // LogPrefix：开发态页面转给宿主的日志消息前缀（wailsshell 的 RawMessageHandler 打到日志）
 const LogPrefix = "nomi:log:"
@@ -40,6 +67,8 @@ func Patch(html []byte, dev bool) []byte {
 		return html
 	}
 	var add []byte
+	add = append(add, hostTag...)
+	add = append(add, '\n')
 	if dev {
 		add = append(add, consoleTag...)
 		add = append(add, '\n')
@@ -84,6 +113,11 @@ func Middleware(assets fs.FS, pages ...string) func(http.Handler) http.Handler {
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == HostScriptPath {
+				w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+				_, _ = w.Write([]byte(hostScript))
+				return
+			}
 			if !want[r.URL.Path] {
 				next.ServeHTTP(w, r)
 				return

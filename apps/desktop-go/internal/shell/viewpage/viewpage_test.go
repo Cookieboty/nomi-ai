@@ -63,3 +63,16 @@ func TestMiddleware(t *testing.T) {
 		t.Fatalf("other paths should fall through: %q", rec.Body.String())
 	}
 }
+
+func TestHostScript(t *testing.T) {
+	if got := string(Patch([]byte(page), false)); !strings.Contains(got, hostTag) {
+		t.Fatalf("host script tag missing:\n%s", got)
+	}
+	h := Middleware(fstest.MapFS{})(http.NotFoundHandler())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", HostScriptPath, nil))
+	if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/javascript") ||
+		!strings.Contains(rec.Body.String(), OpenExternalPrefix) {
+		t.Fatalf("host script not served: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+}

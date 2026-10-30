@@ -453,6 +453,15 @@ func main() {
 		OnSystemThemeChanged: bundle.Theme.SystemChanged,
 		// 灵动岛页面的收起 / 点击信号（islandPageMiddleware 插入的桥）
 		OnPageMessage: func(msg string) {
+			// = windowGuards setWindowOpenHandler：http(s) 交给系统浏览器，其余拒绝
+			if raw, ok := strings.CutPrefix(msg, viewpage.OpenExternalPrefix); ok {
+				if u, err := url.Parse(raw); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" {
+					if err := ports.OpenExternal(u.String()); err != nil {
+						log.Printf("[shell] open external failed: %v", err)
+					}
+				}
+				return
+			}
 			switch msg {
 			case "nomi:island:hidden":
 				isl.Hidden()
