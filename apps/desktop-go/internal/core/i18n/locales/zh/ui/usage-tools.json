@@ -166,7 +166,6 @@
   "ui.usage-tools.nomi-chat": "Nomi 对话",
   "ui.usage-tools.nomi-s-configuration-is-managed-in-settings": "Nomi 的配置在设置里管理。",
   "ui.usage-tools.nomi-size": "{0}大小",
-  "ui.usage-tools.not-signed-in-or-the-sign-in-has": "{0}：没有登录或登录已失效，已清除旧额度。请在终端里重新登录该工具。",
   "ui.usage-tools.not-synced-yet-using-the-built-in-price": "尚未同步，正在使用内置价格表（{0}）",
   "ui.usage-tools.note-this-is-a-very-broad-folder-such": "注意：这是一个范围很大的文件夹（例如主目录或「文稿」），信任它等于信任里面的所有项目。更稳妥的做法是给这个对话换成具体的项目文件夹。",
   "ui.usage-tools.official-cli-not-found-you-can-install-it": "没有找到官方 CLI，可在设置 → 编程助手里安装。",

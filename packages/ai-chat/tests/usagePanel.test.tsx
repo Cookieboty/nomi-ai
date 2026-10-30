@@ -684,11 +684,12 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
-      expect(getByTestId('usage-tool-status-claude').textContent).toContain('已清除旧额度'),
+      expect(getByTestId('usage-tool-status-codex').textContent).toContain('42 秒后可再次刷新'),
     );
-    expect(getByTestId('usage-tool-status-claude').getAttribute('role')).toBe('status');
-    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('error');
-    expect(getByTestId('usage-tool-status-codex').textContent).toContain('42 秒后可再次刷新');
+    // 没登录不算错误：不出红字提示
+    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('ok');
+    expect(getByTestId('usage-tool-status-claude').textContent).not.toContain('登录');
+    expect(getByTestId('usage-tool-status-claude').querySelector('svg')).toBeNull();
 
     refreshTools = {
       claude: { state: 'transient', reason: 'unsupported', stale: false },

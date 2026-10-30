@@ -48,11 +48,9 @@ export function refreshNote(id: string, r: UsageToolRefresh): Note | null {
             text: t('ui.usage-tools.active-quota-refresh-is-off-so-only-data', name),
           }
         : null;
+    // 没登录 / 登录失效：不算错误，不提示（卡片照常显示，只是没有额度）
     case 'auth':
-      return {
-        tone: 'err',
-        text: t('ui.usage-tools.not-signed-in-or-the-sign-in-has', name),
-      };
+      return null;
     case 'transient': {
       if (r.reason === 'unsupported')
         return {

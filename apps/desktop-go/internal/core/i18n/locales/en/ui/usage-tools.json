@@ -166,7 +166,6 @@
   "ui.usage-tools.nomi-chat": "Nomi chat",
   "ui.usage-tools.nomi-s-configuration-is-managed-in-settings": "Nomi's configuration is managed in Settings.",
   "ui.usage-tools.nomi-size": "{0} size",
-  "ui.usage-tools.not-signed-in-or-the-sign-in-has": "{0}: not signed in or the sign-in has expired; the old quota was cleared. Sign in to the tool again in a terminal.",
   "ui.usage-tools.not-synced-yet-using-the-built-in-price": "Not synced yet; using the built-in price table ({0})",
   "ui.usage-tools.note-this-is-a-very-broad-folder-such": "Note: this is a very broad folder (such as your home folder or Documents). Trusting it trusts every project inside it. A safer choice is to switch this conversation to a specific project folder.",
   "ui.usage-tools.official-cli-not-found-you-can-install-it": "Official CLI not found. You can install it in Settings → Coding assistants.",

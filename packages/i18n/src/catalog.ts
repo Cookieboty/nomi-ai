@@ -3161,7 +3161,6 @@ export type TranslationKey =
   | 'ui.usage-tools.nomi-chat'
   | 'ui.usage-tools.nomi-s-configuration-is-managed-in-settings'
   | 'ui.usage-tools.nomi-size'
-  | 'ui.usage-tools.not-signed-in-or-the-sign-in-has'
   | 'ui.usage-tools.not-synced-yet-using-the-built-in-price'
   | 'ui.usage-tools.note-this-is-a-very-broad-folder-such'
   | 'ui.usage-tools.official-cli-not-found-you-can-install-it'
