@@ -10,7 +10,7 @@ import (
 
 // ToolDangerKeys 保持 TOOL_DANGER 的插入顺序（基础 → P2 → P3 → WORKSPACE）
 var ToolDangerKeys = []string{
-	"desktop_permissions", "desktop_request_scope", "fs_list", "fs_stat", "fs_search", "fs_read_text", "fs_summarize", "fs_write_text", "fs_trash", "undo_last",
+	"desktop_permissions", "desktop_request_scope", "fs_list", "fs_stat", "fs_search", "fs_read_text", "fs_summarize", "fs_write_text", "fs_edit", "fs_mkdir", "fs_move", "fs_copy", "fs_trash", "undo_last",
 	"reminder_create", "reminder_list", "reminder_cancel", "reminder_snooze", "clipboard_read", "clipboard_write",
 	"browser_open", "browser_read", "browser_click", "browser_type", "browser_close", "code_run",
 	"workspace_run",
@@ -18,7 +18,7 @@ var ToolDangerKeys = []string{
 
 var ToolDanger = map[string]Danger{
 	"desktop_permissions": "read", "desktop_request_scope": "read", "fs_list": "read", "fs_stat": "read", "fs_search": "read",
-	"fs_read_text": "read", "fs_summarize": "read", "fs_write_text": "write", "fs_trash": "destructive", "undo_last": "write",
+	"fs_read_text": "read", "fs_summarize": "read", "fs_write_text": "write", "fs_edit": "write", "fs_mkdir": "write", "fs_move": "write", "fs_copy": "write", "fs_trash": "destructive", "undo_last": "write",
 	"reminder_create": "write", "reminder_list": "read", "reminder_cancel": "write", "reminder_snooze": "write",
 	"clipboard_read": "read", "clipboard_write": "write",
 	"browser_open": "write", "browser_read": "read", "browser_click": "write", "browser_type": "write", "browser_close": "read", "code_run": "destructive",

@@ -222,6 +222,101 @@ describe('desktop tools', () => {
     expect((await t.call('fs_trash', { path: t.docs })).error?.code).toBe('denied');
   });
 
+  it('create makes missing parent folders inside the scope; undo removes only the file', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'out', 'deep', 'r.md');
+    const r = await t.call('fs_write_text', { path: f, text: '# r' });
+    expect(r.ok).toBe(true);
+    expect(t.asks).toHaveLength(1);
+    expect(t.asks[0].preview).toContain(path.join(t.docs, 'out', 'deep'));
+    expect(fs.readFileSync(f, 'utf8')).toBe('# r');
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.existsSync(f)).toBe(false);
+    // 授权范围外不补建
+    const out = path.join(t.root, 'other', 'x.txt');
+    const o = await t.call('fs_write_text', { path: out, text: 'x' });
+    expect(o.error?.code).toBe('outside_scope');
+    expect(fs.existsSync(path.join(t.root, 'other'))).toBe(false);
+  });
+
+  it('outside_scope / read_only errors tell the model to request a scope', async () => {
+    const t = setup();
+    const r = (await t.call('fs_write_text', { path: path.join(t.docs, 'a.txt'), text: 'a' })) as {
+      error?: { code: string; message: string };
+    };
+    expect(r.error?.code).toBe('outside_scope');
+    expect(r.error?.message).toContain('desktop_request_scope');
+    expect(r.error?.message).toContain('read-write');
+  });
+
+  it('fs_edit replaces exact text, rejects missing / ambiguous matches, is undoable', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'e.txt');
+    fs.writeFileSync(f, 'a $1 b\na b\n');
+    const amb = await t.call('fs_edit', { path: f, edits: [{ oldText: 'a', newText: 'x' }] });
+    expect(amb.error?.code).toBe('ambiguous');
+    const miss = await t.call('fs_edit', { path: f, edits: [{ oldText: 'zzz', newText: 'x' }] });
+    expect(miss.error?.code).toBe('no_match');
+    const ok = await t.call('fs_edit', {
+      path: f,
+      edits: [
+        { oldText: 'a $1 b', newText: 'A $& B' },
+        { oldText: 'b', newText: 'c', replaceAll: true },
+      ],
+    });
+    expect(ok.ok).toBe(true);
+    expect(ok.data).toMatchObject({ replacements: 2 });
+    expect(fs.readFileSync(f, 'utf8')).toBe('A $& B\na c\n');
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('a $1 b\na b\n');
+    fs.writeFileSync(path.join(t.docs, 'bin.dat'), Buffer.from([1, 0, 2]));
+    expect(
+      (
+        await t.call('fs_edit', {
+          path: path.join(t.docs, 'bin.dat'),
+          edits: [{ oldText: 'x', newText: 'y' }],
+        })
+      ).error?.code,
+    ).toBe('unsupported');
+  });
+
+  it('fs_mkdir / fs_move / fs_copy work inside the scope and are undoable', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const d = path.join(t.docs, 'a', 'b');
+    const mk = await t.call('fs_mkdir', { path: d });
+    expect(mk.data).toMatchObject({ created: [path.join(t.docs, 'a'), d] });
+    expect((await t.call('fs_mkdir', { path: d })).data).toMatchObject({ created: [] });
+
+    const to = path.join(t.docs, 'moved', 'todo2.txt');
+    const mv = await t.call('fs_move', { from: path.join(t.docs, 'todo.txt'), to });
+    expect(mv.ok).toBe(true);
+    expect(fs.readFileSync(to, 'utf8')).toBe('buy milk');
+    expect(
+      (await t.call('fs_move', { from: path.join(t.docs, 'a'), to: path.join(d, 'x') })).error
+        ?.code,
+    ).toBe('invalid');
+    expect(
+      (await t.call('fs_move', { from: t.docs, to: path.join(t.root, 'z') })).error?.code,
+    ).toBe('denied');
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.readFileSync(path.join(t.docs, 'todo.txt'), 'utf8')).toBe('buy milk');
+
+    const cp = path.join(d, 'note-copy.md');
+    expect((await t.call('fs_copy', { from: path.join(t.docs, 'note.md'), to: cp })).ok).toBe(true);
+    expect(fs.readFileSync(cp, 'utf8')).toContain('# Plan');
+    expect(
+      (await t.call('fs_copy', { from: path.join(t.docs, 'note.md'), to: cp })).error?.code,
+    ).toBe('exists');
+    expect((await t.call('fs_copy', { from: t.docs, to: path.join(d, 'x') })).error?.code).toBe(
+      'not_file',
+    );
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.existsSync(cp)).toBe(false);
+  });
+
   it('local-only blocks reads with cloud providers', async () => {
     const t = setup();
     t.broker.grant(t.docs, 'read');

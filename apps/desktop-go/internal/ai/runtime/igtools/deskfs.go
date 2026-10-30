@@ -217,7 +217,7 @@ func (k *deskKit) guard(p any, need string, allowMissing bool, ws string) (guard
 		g = k.d.Broker.Guard(p, need, allowMissing)
 	}
 	if !g.OK {
-		return guarded{}, toolErr(string(g.Code), g.Message)
+		return guarded{}, toolErr(string(g.Code), g.Message+scopeHint(string(g.Code), need))
 	}
 	return guarded{g, in}, nil
 }
@@ -411,6 +411,13 @@ func DesktopTools(d DeskDeps) []tools.Definition {
 		k.d.Platform = desktop.Platform()
 	}
 	out := k.baseTools()
+	// 补充的文件工具排在 fs_trash 前（同 tools.ts）
+	for j, t := range out {
+		if t.Name == "fs_trash" {
+			out = append(out[:j], append(k.extraFsTools(), out[j:]...)...)
+			break
+		}
+	}
 	if d.Reminders != nil {
 		out = append(out, k.p2Tools()...)
 	}
@@ -799,10 +806,17 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 		tool = "fs_trash"
 	}
 	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
-	g, err := k.guard(i.Get("path"), "write", true, ws)
+	var t target
+	var err error
+	if mode == "create" {
+		t, err = k.guardTarget(str0(i, "path"), ws)
+	} else {
+		t.g, err = k.guard(i.Get("path"), "write", true, ws)
+	}
 	if err != nil {
 		return nil, "", err
 	}
+	g := t.g
 	if g.Exists && mode == "create" {
 		return nil, "", toolErr("exists", "文件已存在；如需覆盖请使用 overwrite")
 	}
@@ -815,7 +829,7 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 	if n > 600 {
 		more = "\n…"
 	}
-	preview := fmt.Sprintf("%s %s\n%d 个字符：\n\n%s%s", verb, g.Real, n, u.UTF16Slice0(text, 600), more)
+	preview := fmt.Sprintf("%s %s%s\n%d 个字符：\n\n%s%s", verb, g.Real, dirsNote(t.newDirs), n, u.UTF16Slice0(text, 600), more)
 	if i.Get("dryRun") == true {
 		return u.NewObj("dryRun", true, "plan", preview), "", nil
 	}
@@ -824,6 +838,14 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 		strp(preview), nil, wsFor(ws, g))
 	if err != nil {
 		return nil, "", err
+	}
+	if len(t.newDirs) > 0 {
+		if _, err := k.makeDirs(t.plan, ws); err != nil {
+			return nil, "", err
+		}
+		if g, err = k.guard(i.Get("path"), "write", true, ws); err != nil {
+			return nil, "", err
+		}
 	}
 	var inverse []desktop.InverseOp
 	switch mode {
@@ -898,23 +920,8 @@ func (k *deskKit) trash(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 	if err != nil {
 		return nil, "", nodeFSErr(err, "stat", g.Real)
 	}
-	var roots []string
-	if ws != "" {
-		roots = append(roots, ws)
-	}
-	for _, s := range b.Scopes() {
-		roots = append(roots, s.Path)
-	}
-	for _, root := range roots {
-		rootReal := root
-		if r, err := filepath.EvalSymlinks(root); err == nil {
-			if a, err := filepath.Abs(r); err == nil {
-				rootReal = a
-			}
-		}
-		if desktop.IsInside(rootReal, g.Real, k.d.Platform) {
-			return nil, "", toolErr("denied", "不能删除已授权的根文件夹本身")
-		}
+	if err := k.assertNotRoot(g.Real, ws, "删除"); err != nil {
+		return nil, "", err
 	}
 	count := 1
 	if st.IsDir() {

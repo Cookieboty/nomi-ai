@@ -4,7 +4,7 @@ import * as path from 'path';
 import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
-import type { AppTrash } from './AppTrash';
+import { moveNoOverwrite, type AppTrash } from './AppTrash';
 import type { AuditLog } from './AuditLog';
 import { isLocalBaseURL, type Danger } from './consent';
 import { createP2Tools, P2_DANGER, type P2Deps } from './p2tools';
@@ -64,6 +64,10 @@ export const TOOL_DANGER: Record<string, Danger> = {
   fs_read_text: 'read',
   fs_summarize: 'read',
   fs_write_text: 'write',
+  fs_edit: 'write',
+  fs_mkdir: 'write',
+  fs_move: 'write',
+  fs_copy: 'write',
   fs_trash: 'destructive',
   undo_last: 'write',
   ...P2_DANGER,
@@ -72,6 +76,10 @@ export const TOOL_DANGER: Record<string, Danger> = {
 };
 
 const MAX_TEXT_PER_CALL = 60_000;
+/** fs_write_text / fs_mkdir / fs_move / fs_copy 一次最多补建的上级文件夹层数 */
+const MAX_NEW_DIRS = 16;
+/** fs_edit 只改这么大以内的文本文件 */
+const MAX_EDIT_BYTES = 2 * 1024 * 1024;
 const SUMMARY_CHUNK = 12_000;
 const SUMMARY_MAX_CHUNKS = 8;
 
@@ -154,9 +162,98 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     const { g, inWorkspace } = ws
       ? await broker.guardWorkspaceOrGranted(ws, p, need, allowMissing)
       : { g: await broker.guard(p, need, allowMissing), inWorkspace: false };
-    if (!g.ok) throw new ToolError(g.code, g.message);
+    if (!g.ok) throw new ToolError(g.code, g.message + scopeHint(g.code, need));
     return { ...g, inWorkspace };
   }
+
+  /** 没有授权时告诉模型怎么办（不然它常常直接回答「我不能创建文件」） */
+  function scopeHint(code: string, need: 'read' | 'write'): string {
+    if (code === 'outside_scope')
+      return `（需要访问这个位置时，先用 desktop_request_scope 请用户授权它所在的文件夹${need === 'write' ? '，mode 用 read-write' : ''}）`;
+    if (code === 'read_only')
+      return '（需要写入时，用 desktop_request_scope 请用户把这个文件夹授权为 read-write）';
+    return '';
+  }
+
+  /**
+   * 目标的上级文件夹不存在时：自下而上找到第一个已存在的祖先，返回要补建的文件夹（自上而下，原始写法）
+   * 与第一级的守卫结果。上级都在时返回 null。建的时候每一级都再过一次守卫（黑名单 / 作用域 / 符号链接）。
+   */
+  async function missingParents(p: string, ws: string | null) {
+    const dirs: string[] = [];
+    let cur = path.dirname(path.normalize(p));
+    for (;;) {
+      if (dirs.length >= MAX_NEW_DIRS)
+        throw new ToolError('too_deep', `一次最多新建 ${MAX_NEW_DIRS} 层文件夹`);
+      try {
+        const g = await guard(cur, 'write', true, ws);
+        if (g.exists) {
+          if (!(await fs.promises.stat(g.real)).isDirectory())
+            throw new ToolError('not_directory', `「${path.basename(g.real)}」不是文件夹`);
+          return dirs.length ? { dirs: dirs.reverse(), top: null } : null;
+        }
+        dirs.push(cur);
+        return { dirs: dirs.reverse(), top: g };
+      } catch (e) {
+        if (!(e instanceof ToolError) || e.code !== 'not_found') throw e;
+        const up = path.dirname(cur);
+        if (up === cur) throw e;
+        dirs.push(cur);
+        cur = up;
+      }
+    }
+  }
+
+  /**
+   * 写入目标的守卫：上级文件夹不存在时也放行（只做规划），返回目标的真实路径与要补建的文件夹。
+   * 实际建文件夹在确认之后（makeDirs）。
+   */
+  async function guardTarget(p: string, ws: string | null) {
+    try {
+      return {
+        g: await guard(p, 'write', true, ws),
+        newDirs: [] as string[],
+        plan: undefined as string[] | undefined,
+      };
+    } catch (e) {
+      if (!(e instanceof ToolError) || e.code !== 'not_found') throw e;
+      const m = await missingParents(p, ws);
+      if (!m?.top) throw e;
+      const rel = path.relative(path.dirname(path.normalize(m.dirs[0])), path.normalize(p));
+      const real = path.join(path.dirname(m.top.real), rel);
+      const newDirs = m.dirs.map((d) =>
+        path.join(path.dirname(m.top!.real), path.relative(path.dirname(m.dirs[0]), d)),
+      );
+      return {
+        g: { ...m.top, real, exists: false },
+        newDirs,
+        plan: m.dirs,
+      };
+    }
+  }
+
+  /** 按规划逐级建文件夹（每一级重新守卫）；返回实际新建的真实路径 */
+  async function makeDirs(plan: string[] | undefined, ws: string | null): Promise<string[]> {
+    const made: string[] = [];
+    for (const d of plan ?? []) {
+      const g = await guard(d, 'write', true, ws);
+      if (g.exists) continue;
+      await fs.promises.mkdir(g.real);
+      made.push(g.real);
+    }
+    return made;
+  }
+
+  /** 不能动授权根 / 工作区本身或包含它的上级 */
+  async function assertNotRoot(real: string, ws: string | null, what: string) {
+    for (const root of [...(ws ? [ws] : []), ...broker.scopes().map((s) => s.path)]) {
+      const rootReal = await fs.promises.realpath(root).catch(() => root);
+      if (isInside(rootReal, real, process.platform))
+        throw new ToolError('denied', `不能${what}已授权的根文件夹本身`);
+    }
+  }
+
+  const dirsNote = (dirs: string[]) => (dirs.length ? `\n并新建文件夹：${dirs.join('、')}` : '');
   /** 确认时传给 confirm 的工作区：只有目标在工作区里才按工作区规则（授权文件夹走原流程） */
   const wsFor = (ws: string | null, g: { inWorkspace: boolean }) => (g.inWorkspace ? ws : null);
 
@@ -297,6 +394,42 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         .enum(['create', 'append', 'overwrite'])
         .default('create')
         .describe('overwrite 会先把旧文件移到回收站（破坏性操作，需要确认）'),
+      dryRun: z.boolean().default(false),
+    })
+    .strict();
+  const editInput = z
+    .object({
+      path: pathSchema,
+      edits: z
+        .array(
+          z
+            .object({
+              oldText: z
+                .string()
+                .min(1)
+                .max(100_000)
+                .describe('要替换的原文，必须与文件内容逐字一致'),
+              newText: z.string().max(100_000),
+              replaceAll: z
+                .boolean()
+                .default(false)
+                .describe('false 时 oldText 必须在文件里恰好出现一次'),
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(50)
+        .describe('按顺序应用的替换；后一处在前一处改完的结果上查找'),
+      dryRun: z.boolean().default(false),
+    })
+    .strict();
+  const mkdirInput = z.object({ path: pathSchema, dryRun: z.boolean().default(false) }).strict();
+  const moveInput = z
+    .object({
+      from: pathSchema,
+      to: pathSchema.describe(
+        '目标的完整路径（含新名字）；已存在则失败，上级文件夹不存在会一并新建',
+      ),
       dryRun: z.boolean().default(false),
     })
     .strict();
@@ -528,19 +661,21 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     {
       name: 'fs_write_text',
       description:
-        '在读写授权的文件夹里写文本文件：create 新建（已存在则失败）、append 追加、overwrite 覆盖（旧文件先进回收站，需要确认）。支持 dryRun 预览。',
+        '在读写授权的文件夹里写文本文件：create 新建（已存在则失败；上级文件夹不存在会一并新建）、append 追加、overwrite 覆盖整个文件（旧文件先进回收站，需要确认）。只改其中几处时用 fs_edit。支持 dryRun 预览。',
       input: writeInput,
       async execute(input, ctx) {
         const i = writeInput.parse(input);
         const tool = i.mode === 'overwrite' ? 'fs_trash' : 'fs_write_text';
         return run<Record<string, unknown>>('fs_write_text', i, ctx.signal, async () => {
           const ws = await broker.workspaceOf(ctx.cwd);
-          const g = await guard(i.path, 'write', true, ws);
+          const tg = i.mode === 'create' ? await guardTarget(i.path, ws) : null;
+          let g = tg?.g ?? (await guard(i.path, 'write', true, ws));
+          const newDirs = tg?.newDirs ?? [];
           if (g.exists && i.mode === 'create')
             throw new ToolError('exists', '文件已存在；如需覆盖请使用 overwrite');
           if (!g.exists && i.mode !== 'create')
             throw new ToolError('not_found', '文件不存在；新建请使用 create');
-          const preview = `${i.mode === 'append' ? '追加到' : i.mode === 'overwrite' ? '覆盖' : '新建'} ${g.real}\n${i.text.length} 个字符：\n\n${i.text.slice(0, 600)}${i.text.length > 600 ? '\n…' : ''}`;
+          const preview = `${i.mode === 'append' ? '追加到' : i.mode === 'overwrite' ? '覆盖' : '新建'} ${g.real}${dirsNote(newDirs)}\n${i.text.length} 个字符：\n\n${i.text.slice(0, 600)}${i.text.length > 600 ? '\n…' : ''}`;
           if (i.dryRun) return { data: { dryRun: true, plan: preview } };
           const decision = await confirm(
             tool,
@@ -551,6 +686,10 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             undefined,
             wsFor(ws, g),
           );
+          if (newDirs.length) {
+            await makeDirs(tg?.plan, ws);
+            g = await guard(i.path, 'write', true, ws);
+          }
           const inverse: InverseOp[] = [];
           if (i.mode === 'create') {
             await fs.promises.writeFile(g.real, i.text, { flag: 'wx' });
@@ -586,6 +725,191 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       },
     },
     {
+      name: 'fs_edit',
+      description:
+        '修改授权文件夹里的文本文件（UTF-8）：按 oldText → newText 逐处替换，不用重写整个文件。oldText 要与文件内容逐字一致（含缩进与换行），改之前先用 fs_read_text 看原文。旧版本先进回收站，可撤销。支持 dryRun 预览。',
+      input: editInput,
+      async execute(input, ctx) {
+        const i = editInput.parse(input);
+        return run<Record<string, unknown>>('fs_edit', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const g = await guard(i.path, 'write', false, ws);
+          const st = await fs.promises.stat(g.real);
+          if (!st.isFile()) throw new ToolError('not_file', '不是文件');
+          if (st.size > MAX_EDIT_BYTES)
+            throw new ToolError('too_large', '文件超过 2MB，不能用 fs_edit 修改');
+          const buf = await fs.promises.readFile(g.real);
+          let text: string;
+          try {
+            if (buf.includes(0)) throw new Error('binary');
+            // 保留 BOM：写回时原样带上
+            text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buf);
+          } catch {
+            throw new ToolError('unsupported', '不是 UTF-8 文本文件，不能用 fs_edit 修改');
+          }
+          let replacements = 0;
+          for (const [n, e] of i.edits.entries()) {
+            const count = text.split(e.oldText).length - 1;
+            if (count === 0)
+              throw new ToolError(
+                'no_match',
+                `第 ${n + 1} 处：文件里找不到 oldText（要逐字一致，含空白与换行；先用 fs_read_text 看原文）`,
+              );
+            if (count > 1 && !e.replaceAll)
+              throw new ToolError(
+                'ambiguous',
+                `第 ${n + 1} 处：oldText 出现了 ${count} 次；多带一些上下文让它唯一，或者设 replaceAll`,
+              );
+            if (e.replaceAll) {
+              text = text.split(e.oldText).join(e.newText);
+              replacements += count;
+            } else {
+              const at = text.indexOf(e.oldText);
+              text = text.slice(0, at) + e.newText + text.slice(at + e.oldText.length);
+              replacements += 1;
+            }
+          }
+          const clip = (s: string) => (s.length > 300 ? `${s.slice(0, 300)}…` : s);
+          const preview =
+            `修改 ${g.real}\n${i.edits.length} 处，共替换 ${replacements} 次：\n\n` +
+            i.edits.map((e) => `- ${clip(e.oldText)}\n+ ${clip(e.newText)}`).join('\n\n');
+          if (i.dryRun) return { data: { dryRun: true, plan: preview } };
+          const decision = await confirm(
+            'fs_edit',
+            `修改「${path.basename(g.real)}」？`,
+            { path: g.real, edits: i.edits.length, replacements },
+            ctx.signal,
+            preview,
+            undefined,
+            wsFor(ws, g),
+          );
+          const rec = await trash.trash(g.real);
+          await fs.promises.writeFile(g.real, text, { flag: 'wx' });
+          await fs.promises.chmod(g.real, st.mode & 0o777);
+          // 撤销同 overwrite：新版本进回收站、恢复旧版本；之后被改过就拒绝撤销
+          const written = await fs.promises.stat(g.real);
+          const e = journal.record('fs_edit', `edit ${path.basename(g.real)}`, [
+            { op: 'trash', path: g.real, expectSize: written.size, expectMtimeMs: written.mtimeMs },
+            { op: 'restore', stored: rec.stored, original: rec.original },
+          ]);
+          return { data: { path: g.real, replacements, undoId: e.id }, decision };
+        });
+      },
+    },
+    {
+      name: 'fs_mkdir',
+      description:
+        '在读写授权的文件夹里新建文件夹（上级不存在会逐级新建）；已经存在就直接返回。可撤销。支持 dryRun。',
+      input: mkdirInput,
+      async execute(input, ctx) {
+        const i = mkdirInput.parse(input);
+        return run<Record<string, unknown>>('fs_mkdir', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const tg = await guardTarget(i.path, ws);
+          if (tg.g.exists) {
+            if (!(await fs.promises.stat(tg.g.real)).isDirectory())
+              throw new ToolError('exists', '同名文件已存在');
+            return { data: { path: tg.g.real, created: [] } };
+          }
+          const preview = `新建文件夹：${[...tg.newDirs, tg.g.real].join('、')}`;
+          if (i.dryRun) return { data: { dryRun: true, plan: preview } };
+          const decision = await confirm(
+            'fs_mkdir',
+            `新建文件夹「${path.basename(tg.g.real)}」？`,
+            { path: tg.g.real },
+            ctx.signal,
+            preview,
+            undefined,
+            wsFor(ws, tg.g),
+          );
+          const made = await makeDirs([...(tg.plan ?? []), i.path], ws);
+          if (!made.length) return { data: { path: tg.g.real, created: [] }, decision };
+          // 撤销：把最上层新建的文件夹移到回收站
+          const e = journal.record('fs_mkdir', `mkdir ${path.basename(tg.g.real)}`, [
+            { op: 'trash', path: made[0] },
+          ]);
+          return { data: { path: tg.g.real, created: made, undoId: e.id }, decision };
+        });
+      },
+    },
+    {
+      name: 'fs_move',
+      description:
+        '在读写授权的文件夹里移动或重命名文件 / 文件夹（目标已存在则失败；目标的上级文件夹不存在会一并新建）。可撤销。支持 dryRun。',
+      input: moveInput,
+      async execute(input, ctx) {
+        const i = moveInput.parse(input);
+        return run<Record<string, unknown>>('fs_move', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const src = await guard(i.from, 'write', false, ws);
+          await assertNotRoot(src.real, ws, '移动');
+          const tg = await guardTarget(i.to, ws);
+          if (tg.g.exists) throw new ToolError('exists', '目标已存在');
+          if (isInside(tg.g.real, src.real, process.platform))
+            throw new ToolError('invalid', '不能把文件夹移到它自己里面');
+          const preview = `移动：${src.real}\n到：${tg.g.real}${dirsNote(tg.newDirs)}`;
+          if (i.dryRun) return { data: { dryRun: true, plan: preview } };
+          const decision = await confirm(
+            'fs_move',
+            `移动「${path.basename(src.real)}」到「${path.basename(tg.g.real)}」？`,
+            { from: src.real, to: tg.g.real },
+            ctx.signal,
+            preview,
+            undefined,
+            src.inWorkspace && tg.g.inWorkspace ? ws : null,
+          );
+          await makeDirs(tg.plan, ws);
+          const dst = tg.newDirs.length ? await guard(i.to, 'write', true, ws) : tg.g;
+          if (dst.exists) throw new ToolError('exists', '目标已存在');
+          await moveNoOverwrite(src.real, dst.real);
+          const e = journal.record(
+            'fs_move',
+            `move ${path.basename(src.real)} → ${path.basename(dst.real)}`,
+            [{ op: 'move', from: dst.real, to: src.real }],
+          );
+          return { data: { from: src.real, to: dst.real, undoId: e.id }, decision };
+        });
+      },
+    },
+    {
+      name: 'fs_copy',
+      description:
+        '复制一个文件到读写授权的文件夹（源文件只需可读；目标已存在则失败，上级文件夹不存在会一并新建）。只复制文件，不复制文件夹。可撤销。支持 dryRun。',
+      input: moveInput,
+      async execute(input, ctx) {
+        const i = moveInput.parse(input);
+        return run<Record<string, unknown>>('fs_copy', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const src = await guard(i.from, 'read', false, ws);
+          const st = await fs.promises.stat(src.real);
+          if (!st.isFile())
+            throw new ToolError('not_file', '只能复制文件；文件夹请先 fs_mkdir 再逐个 fs_copy');
+          const tg = await guardTarget(i.to, ws);
+          if (tg.g.exists) throw new ToolError('exists', '目标已存在');
+          const preview = `复制：${src.real}\n到：${tg.g.real}${dirsNote(tg.newDirs)}\n${st.size} 字节`;
+          if (i.dryRun) return { data: { dryRun: true, plan: preview } };
+          const decision = await confirm(
+            'fs_copy',
+            `复制「${path.basename(src.real)}」到「${path.basename(tg.g.real)}」？`,
+            { from: src.real, to: tg.g.real },
+            ctx.signal,
+            preview,
+            undefined,
+            wsFor(ws, tg.g),
+          );
+          await makeDirs(tg.plan, ws);
+          const dst = tg.newDirs.length ? await guard(i.to, 'write', true, ws) : tg.g;
+          if (dst.exists) throw new ToolError('exists', '目标已存在');
+          await fs.promises.copyFile(src.real, dst.real, fs.constants.COPYFILE_EXCL);
+          const w = await fs.promises.stat(dst.real);
+          const e = journal.record('fs_copy', `copy ${path.basename(dst.real)}`, [
+            { op: 'trash', path: dst.real, expectSize: w.size, expectMtimeMs: w.mtimeMs },
+          ]);
+          return { data: { from: src.real, to: dst.real, undoId: e.id }, decision };
+        });
+      },
+    },
+    {
       name: 'fs_trash',
       description:
         '把文件或文件夹移到应用回收站（不会彻底删除，可撤销）。破坏性操作：用户必须在对话框里确认。支持 dryRun。',
@@ -597,12 +921,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
           const g = await guard(i.path, 'write', false, ws);
           const st = await fs.promises.stat(g.real);
           // 不能删除授权根目录 / 工作区本身或包含它的上级（比较 realpath；Windows 短文件名 / 大小写）
-          for (const root of [...(ws ? [ws] : []), ...broker.scopes().map((s) => s.path)]) {
-            const rootReal = await fs.promises.realpath(root).catch(() => root);
-            if (isInside(rootReal, g.real, process.platform)) {
-              throw new ToolError('denied', '不能删除已授权的根文件夹本身');
-            }
-          }
+          await assertNotRoot(g.real, ws, '删除');
           let count = 1;
           if (st.isDirectory())
             count = (await fs.promises.readdir(g.real, { recursive: true })).length;

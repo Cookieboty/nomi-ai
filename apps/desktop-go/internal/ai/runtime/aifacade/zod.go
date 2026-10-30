@@ -383,11 +383,12 @@ var Bytes Schema = bytesS{}
 // ArrS = z.array(el) [.max] [.length]
 type ArrS struct {
 	El     Schema
+	Min    int // -1
 	Max    int // -1
 	Length int // -1
 }
 
-func Arr(el Schema) *ArrS { return &ArrS{El: el, Max: -1, Length: -1} }
+func Arr(el Schema) *ArrS { return &ArrS{El: el, Min: -1, Max: -1, Length: -1} }
 
 func (s *ArrS) run(v any) (any, []*issue) {
 	if a, ok := v.([]any); ok {
@@ -416,6 +417,9 @@ func (s *ArrS) run(v any) (any, []*issue) {
 		iss = append(iss, invalidType("array", v))
 	}
 	var checks []lenCheck
+	if s.Min >= 0 {
+		checks = append(checks, lenCheck{'m', s.Min})
+	}
 	if s.Max >= 0 {
 		checks = append(checks, lenCheck{'M', s.Max})
 	}
