@@ -319,7 +319,11 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: w.page(k),
 			// 拖入文件取本机路径（= preload nomiHost.pathForFile；ai-chat 给 body 加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
-			Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden}}
+			Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden},
+			// Windows / Linux = titleBarOptions 的无边框一体化标题栏：Wails 没有 Window Controls Overlay，
+			// 最小化 / 最大化 / 关闭由 ai-chat 标题栏自绘（TitleBar WindowControls），边缘缩放由 Wails 运行时处理；
+			// Windows 保留无边框装饰（系统阴影、Win11 圆角、贴边分屏）
+			Frameless: goruntime.GOOS != "darwin"}
 		if at == nil {
 			// 应用已起来（通常如此：对话窗口按需打开）：位置大小直接放进建窗选项。mac 上全尺寸内容的窗口建好后再
 			// SetBounds 改大小，WKWebView 不重新布局（整页空白），所以不能事后摆

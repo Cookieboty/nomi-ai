@@ -96,6 +96,11 @@ if (goHostConfig) {
 
 export const api: AppClient = createAppClient();
 
+/** 是不是 Go 宿主（Wails）里的页面：Windows / Linux 上对话窗口无边框，窗口按钮由标题栏自绘 */
+export function isGoHost(): boolean {
+  return goHostTransport;
+}
+
 export function hasTransport(): boolean {
   return devTransport || goHostTransport || hasPreloadBridge();
 }

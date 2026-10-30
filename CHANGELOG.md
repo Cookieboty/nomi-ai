@@ -10,6 +10,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **a11y:** dialogs trap focus, Esc closes only the top-most dialog and focus returns to the opener; reduced motion calms the VRM rig and the island.
 - **agents:** coding tools (Claude Code / Codex / dsh …) no longer pop a bubble, voice, sound or island notice when a task starts; only finish / failure / waiting / stalled / permission requests notify. While monitoring is on, a digest ("N coding tasks still running", grouped by tool) is shown every 10 minutes. New "Spoken summaries" switch (off by default) adds progress to the digest and reads a completion summary aloud through the existing TTS path; when off, only short bubble / island notices are shown.
 - **ai-chat:** name a custom-address provider when adding it (optional; empty keeps 「自定义供应商」). (`@nomi-ai/ai-chat` patch)
+- **ai-chat:** window buttons (minimize / maximize / close) drawn in the chat title bar for the Go version on Windows / Linux, whose chat window is now frameless like Electron's; double-click the title bar to maximize. (`@nomi-ai/ai-chat` patch)
 - **brand:** every user-visible 看板娘 / Live2D / Companion Desk string is now Nomi.
 - **brand:** 用户可见的「AI 助手」「看板娘」统一为 Nomi·诺米 / Nomi（设置、引导、工具栏、README、package 描述）；聊天模式名「助手/工作台」不变。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch, `@nomi-ai/host-electron` patch)
 - **brand:** 用户可见的「AI 助手」「看板娘」统一为 Nomi·诺米 / Nomi（设置、引导、工具栏、README、package 描述）；聊天模式名「助手/工作台」不变。 (`@nomi-ai/ui` patch)
