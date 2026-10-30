@@ -1377,6 +1377,8 @@ describe('CliHarnessService Claude background subagents (docs/design/cli-subagen
     return h;
   };
   it('persists the follow-up turn the CLI starts on its own after a background subagent', async () => {
+    // 默认 300 ms 后子代理就收尾：CI 负载高时 sendTab 返回前它已结束，background 计数读不到 1
+    process.env.NOMI_MOCK_BG_MS = '1500';
     const h = mk();
     const finished: string[] = [];
     h.events.on('tab-finished', (e: { text: string }) => finished.push(e.text));

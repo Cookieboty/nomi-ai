@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, normalize } from 'node:path';
 
 import {
   createPackage,
@@ -118,8 +118,8 @@ describe('after-pack-slim on a real asar (#188)', () => {
         const e = headerEntry(header, rel);
         expect(e, rel).toBeDefined();
         expect(e.unpacked, rel).toBe(true);
-        // unpacked 条目的内容只在 .unpacked 目录里：按原路径读得到
-        expect(extractFile(t.asarPath, rel).toString()).toBe(
+        // unpacked 条目的内容只在 .unpacked 目录里：按原路径读得到（extractFile 按本平台分隔符切路径）
+        expect(extractFile(t.asarPath, normalize(rel)).toString()).toBe(
           readFileSync(join(t.unpackedDir, rel), 'utf8'),
         );
       }
