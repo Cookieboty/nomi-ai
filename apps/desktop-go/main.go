@@ -567,7 +567,7 @@ func main() {
 			r := island.IslandWindowRect(g, g.Height)
 			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
 		},
-		Middleware: devViewsMiddleware(viewPageMiddleware(assets, islandPageMiddleware(isl, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		Middleware: devViewsMiddleware(viewPageMiddleware(assets, islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -576,7 +576,7 @@ func main() {
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
 			},
-		}))))})
+		})))))})
 
 	shellP.AttachShell()
 	// = ThemeService.syncAppearance（mac：外观跟随固定主题）
@@ -729,6 +729,39 @@ func devViewsMiddleware(next func(http.Handler) http.Handler) func(http.Handler)
 	log.Printf("[dev] views from %s", v)
 	dev := devviews.Middleware(targets)
 	return func(h http.Handler) http.Handler { return dev(next(h)) }
+}
+
+// 视图里内置角色包的地址：renderer 的 ./character/…（整包）、ai-chat 的 ./character/onboarding/…（引导插画，
+// 对应包内 assets.onboardingDir）。frontend/build.mjs 不把它们嵌进程序，这里从内核读的同一份内置包目录提供
+const (
+	mascotPackPrefix     = "/mascot/character/"
+	chatOnboardingPrefix = "/chat/character/onboarding/"
+)
+
+func builtinPackMiddleware(charSvc *character.Service, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		inner := next(h)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := r.URL.EscapedPath()
+			rel, onboarding := strings.CutPrefix(p, chatOnboardingPrefix)
+			if !onboarding {
+				var ok bool
+				if rel, ok = strings.CutPrefix(p, mascotPackPrefix); !ok {
+					inner.ServeHTTP(w, r)
+					return
+				}
+			}
+			pack := charSvc.Builtin()
+			if pack == nil {
+				assetproto.ServeBuiltinPack(w, r, "", rel) // 404
+				return
+			}
+			if onboarding {
+				rel = pack.OnboardingDir + "/" + rel
+			}
+			assetproto.ServeBuiltinPack(w, r, pack.Root, rel)
+		})
+	}
 }
 
 func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {

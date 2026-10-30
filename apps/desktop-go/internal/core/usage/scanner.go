@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -30,6 +31,9 @@ const (
 	maxWalkEntries  = 50_000
 	dirCacheRacyMs  = 2000
 	fpBytes         = 256
+	// 一轮扫描读入超过这么多日志（首次 / 长时间未运行后的追赶扫描）就在结束时立刻把空闲堆还给系统：
+	// 会话日志逐行解析成 util.Obj 的峰值堆是读入量的数倍，扫描完即成垃圾，Go 的 scavenger 要几分钟才归还（同 D-B11-18）
+	freeOSMemoryAfterRead = 8 * 1024 * 1024
 )
 
 // ScannerDeps = ScannerDeps。ZstdDecode 由装配处注入 cli.ZstdDecode（Go 包 core/cli 依赖本包，不能反向 import）。
@@ -269,6 +273,8 @@ type UsageLogScanner struct {
 	mu       sync.Mutex
 	running  bool
 	dirCache map[string]*dirListing
+	// readBytes：本轮 Scan 读入的日志字节数（running 保证同时只有一轮）
+	readBytes float64
 }
 
 func NewUsageLogScanner(d ScannerDeps) *UsageLogScanner {
@@ -429,6 +435,12 @@ func (s *UsageLogScanner) Scan() ScanResult {
 	s.running = true
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.running = false; s.mu.Unlock() }()
+	s.readBytes = 0
+	defer func() {
+		if s.readBytes >= freeOSMemoryAfterRead {
+			debug.FreeOSMemory()
+		}
+	}()
 	var added, files float64
 	s.d.Ledger.WhenReady()
 	for _, f := range s.find() {
@@ -609,17 +621,19 @@ func (s *UsageLogScanner) readJsonl(f found) (float64, error) {
 		return 0, err
 	}
 	budget := float64(maxReadPerPass)
+	// 读缓冲复用；pending 原地追加（JS 的 Buffer.concat([pending, buf]) 每块都整段复制，
+	// 单行几 MB 的会话日志会变成平方级分配）。切出完整行后剩余部分复制成小切片，不拽着大数组
+	buf := make([]byte, int(math.Min(readChunk, size-readPos)))
 	for readPos < size && (budget > 0 || offset == startOffset) {
 		ln := math.Min(readChunk, size-readPos)
-		buf := make([]byte, int(ln))
-		n, _ := fh.ReadAt(buf, int64(readPos))
+		n, _ := fh.ReadAt(buf[:int(ln)], int64(readPos))
 		if n <= 0 {
 			break
 		}
 		readPos += float64(n)
 		budget -= float64(n)
-		data := append(append([]byte{}, pending...), buf[:n]...)
-		nl := lastNL(data)
+		data := append(pending, buf[:n]...)
+		nl := lastNL(data[len(pending):])
 		if nl < 0 {
 			pending = data
 			if len(pending) > maxWholeFile {
@@ -628,12 +642,14 @@ func (s *UsageLogScanner) readJsonl(f found) (float64, error) {
 			}
 			continue
 		}
+		nl += len(pending)
 		complete := data[:nl+1]
-		pending = data[nl+1:]
 		offset += float64(len(complete))
 		added += s.ingest(s.parseChunk(f.source, charcontract.DecodeUTF8(complete), state))
+		pending = append([]byte(nil), data[nl+1:]...)
 		tick()
 	}
+	s.readBytes += readPos - startOffset
 	id := fingerprintAt(fh, offset)
 	fh.Close()
 	next := &FileCursor{Offset: offset, Size: size, MtimeMs: mt, State: state}
@@ -680,6 +696,7 @@ func (s *UsageLogScanner) readWhole(f found) (float64, error) {
 		l.SetCursor(f.path, &FileCursor{Offset: size, Size: size, MtimeMs: mt})
 		return -1, nil
 	}
+	s.readBytes += size
 	var recs []UsageRecord
 	if f.source == "gemini" {
 		b, err := os.ReadFile(f.path)

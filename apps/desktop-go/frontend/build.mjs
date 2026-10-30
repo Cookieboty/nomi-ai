@@ -46,6 +46,9 @@ for (const [pkg, out] of [
     process.exit(1);
   }
   cpSync(from, path.join(dist, out), { recursive: true });
+  // 内置角色包（dist/character，renderer 整包 ~22MB、ai-chat 引导插画）不嵌进程序：安装包里已有
+  // resources/characters/nomi（内核读它），Go 资产服务器从那里提供 ./character/…（main.go builtinPackMiddleware）
+  rmSync(path.join(dist, out, 'character'), { recursive: true, force: true });
 }
 
 // Wails 的资产服务器以「第一个含 index.html 的目录」为根（assetserver findPathToFile）：根目录没有 index.html 时

@@ -180,3 +180,25 @@ func ServeChatAsset(w http.ResponseWriter, root, presetFile, rawURL string) {
 func ServeCharacterPack(w http.ResponseWriter, root, rawURL string) {
 	serve(w, ResolveCharacterPackURL(root, rawURL), CharacterPackMimeFor)
 }
+
+// ServeBuiltinPack：视图里的内置角色包（./character/…）从磁盘上的内置包目录提供，不嵌进程序
+// （= Electron 的 resources/renderer/character，同样是磁盘文件）。escapedRel 为包内相对路径（未解码），
+// 越界与路径校验同 character-pack://。支持 Range / 条件请求：rive 文件十几 MB，不整读进内存
+func ServeBuiltinPack(w http.ResponseWriter, r *http.Request, root, escapedRel string) {
+	file := ResolveCharacterPackURL(root, CharacterPackScheme+"://pack/"+escapedRel)
+	var f *os.File
+	var st os.FileInfo
+	var err error
+	if file != "" {
+		if f, err = os.Open(file); err == nil {
+			defer f.Close()
+			st, err = f.Stat()
+		}
+	}
+	if file == "" || err != nil || st.IsDir() {
+		serve(w, "", CharacterPackMimeFor)
+		return
+	}
+	w.Header().Set("Content-Type", CharacterPackMimeFor(file))
+	http.ServeContent(w, r, file, st.ModTime(), f)
+}
