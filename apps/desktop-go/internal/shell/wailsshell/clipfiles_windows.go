@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	clipUser32        = windows.NewLazySystemDLL("clipUser32.dll")
-	clipShell32       = windows.NewLazySystemDLL("clipShell32.dll")
+	clipUser32        = windows.NewLazySystemDLL("user32.dll")
+	clipShell32       = windows.NewLazySystemDLL("shell32.dll")
 	procOpenClipboard = clipUser32.NewProc("OpenClipboard")
 	procCloseClip     = clipUser32.NewProc("CloseClipboard")
 	procGetClipData   = clipUser32.NewProc("GetClipboardData")
