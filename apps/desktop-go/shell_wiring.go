@@ -87,7 +87,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 	quality.Install(router, func() *quality.Service { return sp.Quality })
 	shellhandlers.InstallDiagnostics(router, func() *diagnostics.Service { return sp.Diagnostics })
 	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 apps/desktop-electron/assets）
-	assets := filepath.Dir(filepath.Dir(filepath.Dir(chatBgPresetFile())))
+	assets := assetsDir()
 	sp.AppIcon = appicon.New(assets, assets, iconTarget{hp})
 	shellhandlers.InstallAppIcon(router, sp.AppIcon)
 	// updates.*：electron-updater 换成读 latest-go.json 的 GitHubUpdater（D3 / D-SH-3）

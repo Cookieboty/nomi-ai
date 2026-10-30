@@ -37,6 +37,10 @@ func newPersona(cs *character.Service, router *contract.Router) *persona.Service
 }
 
 // chatBgPresetFile = getChatBackgroundPresetFile：打包后在 resources/assets，开发时在 apps/desktop-electron/assets
+// assetsDir：只读资源的 assets 目录（打包后 resources/assets，开发时 apps/desktop-electron/assets）；
+// 应用图标从 assets/app-icons/<变体>/ 读
+func assetsDir() string { return filepath.Dir(filepath.Dir(chatBgPresetFile())) }
+
 func chatBgPresetFile() string {
 	rel := filepath.Join("assets", "backgrounds", "nomi-preset.jpg")
 	if r := os.Getenv("NOMI_RESOURCES"); r != "" {
