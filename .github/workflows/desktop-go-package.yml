@@ -280,10 +280,11 @@ jobs:
           V=${TAG#v}; have=$(gh release view "$TAG" --json assets -q '.assets[].name')
           for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS latest.yml latest-mac.yml latest-linux.yml; do
             grep -qx "$f" <<<"$have" || { echo "::error::draft 缺少 $f"; exit 1; }; done
-      # tag push：三平台产物齐全后自动发布；手动重跑时 publish=true 才发布
-      - name: publish
+      # tag push：Go 与 Electron（ci.yml build-electron 上传的 Nomi-Electron-*）都齐了才发布，后完成的一方发布；
+      # 手动重跑时 publish=true 才发布
+      - name: publish (when Electron installers are attached too)
         if: github.event_name == 'push' || inputs.publish
-        run: gh release edit "$TAG" --draft=false --latest
+        run: bash scripts/release/publish-when-complete.sh "$TAG"
 
   # 可选（dispatch bench=true）：同 runner 2.0.5 Go vs 2.0.4 Electron 基准；2.0.4 从 v2.0.4 源码构建（绝不下载 Release 资产），每项 3 轮中位数
   electron-204:

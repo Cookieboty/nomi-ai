@@ -5,26 +5,35 @@
 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases)。Go 版自己读 Release 里的
 `latest-go.json`，检查到新版后提示用户下载（不自动替换，见 [迁移文档 §3.4 D-B11-3](design/migrate-2.0.5-go.md)）；
 同一个 Release 还附 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`，让已装的 **2.0.4（Electron）照常在应用内升级到
-Go 版**（见下文「2.0.4 → Go 版」）。≤ v2.0.4 的 Electron 版发布流程见下文「Electron（≤ v2.0.4）」。
+Go 版**（见下文「2.0.4 → Go 版」）。Electron 版仍随同一个 Release 发布（安装包名 `Nomi-Electron-*`，不进自动更新源）；
+≤ v2.0.4 的 Electron 版发布流程见下文「Electron（≤ v2.0.4）」。
 
 ## Go 版发布（v2.0.5+）
 
-| 事件                                 | 做什么                                                                                                                               |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| push `main`                          | `desktop-go.yml`（三平台 go vet / go test、golden 比对、构建）+ `desktop-go-package.yml` 打包与安装验证，产物在 artifact `nomi-go-*` |
-| PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                             |
-| push tag `v*`（≥ v2.0.5）            | 先跑完整 `desktop-go.yml` → 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release → 产物齐全后**自动发布**并标为 latest      |
-| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                  |
+| 事件                                 | 做什么                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| push `main`                          | `desktop-go.yml`（三平台 go vet / go test、golden 比对、构建）+ `desktop-go-package.yml` 打包与安装验证，产物在 artifact `nomi-go-*`                               |
+| PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                                                           |
+| push tag `v*`（≥ v2.0.5）            | 先跑完整 `desktop-go.yml` → 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release；`ci.yml` 同时上传 Electron 安装包 → 两套齐全后**自动发布**并标为 latest |
+| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                                                |
 
 发一版：
 
 1. 同步版本号（`package.json`、`apps/desktop-electron/package.json`，Go 打包读后者），写 `docs/releases/vX.Y.Z.md`。
 2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿。
 3. 打 tag 并推送：`git tag -a vX.Y.Z -m "Nomi X.Y.Z" && git push origin vX.Y.Z`。
-4. 等 `desktop-go-package` 跑完：Release 应有 `Nomi-X.Y.Z-arm64.dmg`、`Nomi-X.Y.Z-arm64-mac.zip`、`Nomi-X.Y.Z.dmg`、
-   `Nomi-X.Y.Z-mac.zip`、`Nomi-Setup-X.Y.Z.exe`、`Nomi-X.Y.Z.AppImage`、`nomi_X.Y.Z_amd64.deb`、`latest-go.json`、`SHA256SUMS`、
-   `latest.yml`、`latest-mac.yml`、`latest-linux.yml`（release-draft 逐个核对，缺一个都不发布）。
-   任一平台失败时 Release 停在 draft：修好后在该 tag 上手动触发并勾选 `publish`。
+4. 等 `desktop-go-package` 与 `CI` 都跑完：Release 应有
+   - Go 版：`Nomi-X.Y.Z-arm64.dmg`、`Nomi-X.Y.Z-arm64-mac.zip`、`Nomi-X.Y.Z.dmg`、`Nomi-X.Y.Z-mac.zip`、`Nomi-Setup-X.Y.Z.exe`、
+     `Nomi-X.Y.Z.AppImage`、`nomi_X.Y.Z_amd64.deb`、`latest-go.json`、`SHA256SUMS`、`latest.yml`、`latest-mac.yml`、`latest-linux.yml`；
+   - Electron 版（`ci.yml` 的 `build-electron`）：`Nomi-Electron-X.Y.Z-{arm64,x64}.{dmg,zip}`、`Nomi-Electron-Setup-X.Y.Z.exe`、
+     `Nomi-Electron-X.Y.Z.AppImage`。
+
+   两条管线上传到同一个草稿，都调用 `scripts/release/publish-when-complete.sh`：上面的文件全部到齐才发布，后完成的一方发布。
+   任一平台失败时 Release 停在 draft：修好后在该 tag 上重跑失败的那条（Go 管线手动触发时勾选 `publish`）。
+
+**两个版本同一个 Release**：自动更新源只来自 Go 管线（`latest*.yml` 指向 Go 安装包，`latest-go.json` 给 Go 版自己用），所以 2.0.4
+与 Electron 2.0.5 的用户在应用内都会升级到 Go 版。Electron 安装包改名 `Nomi-Electron-*`（与 Go 版同名会互相覆盖），
+electron-builder 以 `--publish never` 打包、不上传它生成的 `latest*.yml`。
 
 签名：mac 只做 Developer ID 签名（`MAC_CSC_LINK` / `MAC_CSC_KEY_PASSWORD`），不公证；Windows 用 `WIN_CSC_LINK` /
 `WIN_CSC_KEY_PASSWORD` 签 `Nomi.exe` 与安装器。两者都与 2.0.4 用同一组 secret（同一证书）。mac 证书缺失时，分支构建退化为
