@@ -1,18 +1,72 @@
 # Releasing Nomi · 发布指南
 
+**v2.0.5 起，面向用户的正式版本是 Go 版**（`apps/desktop-go`，Go 内核 + Wails v3），安装包由
+[`.github/workflows/desktop-go-package.yml`](../.github/workflows/desktop-go-package.yml) 构建并发布到
+[GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases)。Go 版自己读 Release 里的
+`latest-go.json`，检查到新版后提示用户下载（不自动替换，见 [迁移文档 §3.4 D-B11-3](design/migrate-2.0.5-go.md)）；
+同一个 Release 还附 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`，让已装的 **2.0.4（Electron）照常在应用内升级到
+Go 版**（见下文「2.0.4 → Go 版」）。≤ v2.0.4 的 Electron 版发布流程见下文「Electron（≤ v2.0.4）」。
+
+## Go 版发布（v2.0.5+）
+
+| 事件                                 | 做什么                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| push `main`                          | `desktop-go.yml`（三平台 go vet / go test、golden 比对、构建）+ `desktop-go-package.yml` 打包与安装验证，产物在 artifact `nomi-go-*` |
+| PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                             |
+| push tag `v*`（≥ v2.0.5）            | 先跑完整 `desktop-go.yml` → 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release → 产物齐全后**自动发布**并标为 latest      |
+| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                  |
+
+发一版：
+
+1. 同步版本号（`package.json`、`apps/desktop-electron/package.json`，Go 打包读后者），写 `docs/releases/vX.Y.Z.md`。
+2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿。
+3. 打 tag 并推送：`git tag -a vX.Y.Z -m "Nomi X.Y.Z" && git push origin vX.Y.Z`。
+4. 等 `desktop-go-package` 跑完：Release 应有 `Nomi-X.Y.Z-arm64.dmg`、`Nomi-X.Y.Z-arm64-mac.zip`、`Nomi-X.Y.Z.dmg`、
+   `Nomi-X.Y.Z-mac.zip`、`Nomi-Setup-X.Y.Z.exe`、`Nomi-X.Y.Z.AppImage`、`nomi_X.Y.Z_amd64.deb`、`latest-go.json`、`SHA256SUMS`、
+   `latest.yml`、`latest-mac.yml`、`latest-linux.yml`（release-draft 逐个核对，缺一个都不发布）。
+   任一平台失败时 Release 停在 draft：修好后在该 tag 上手动触发并勾选 `publish`。
+
+签名：mac 只做 Developer ID 签名（`MAC_CSC_LINK` / `MAC_CSC_KEY_PASSWORD`），不公证；Windows 用 `WIN_CSC_LINK` /
+`WIN_CSC_KEY_PASSWORD` 签 `Nomi.exe` 与安装器。两者都与 2.0.4 用同一组 secret（同一证书）。mac 证书缺失时，分支构建退化为
+ad-hoc 并告警，**tag 发版直接失败**（2.0.4 不接受 ad-hoc 签名的更新）；Windows 证书缺失时不签名（2.0.4 若也没签名就不校验发布者）。
+
+### 2.0.4 → Go 版（应用内升级）
+
+2.0.4 用 electron-updater 6.8.9：读最新 Release 的 `latest*.yml` → 下载 → 校验 sha512 → 用户点「重启并安装」。
+`packaging/update-manifest.py` 按 electron-builder 的格式生成这三个文件，指向 Go 版安装包：
+
+| 平台    | 2.0.4 下载                   | 安装方式                                                                                                                                      |
+| ------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows | `Nomi-Setup-X.Y.Z.exe`       | 以 `--updated --force-run` 运行 Go 安装器：沿用 2.0.4 的目录与卸载项，先静默跑 2.0.4 卸载器（保留数据），装完自动启动；签过名时要求同一发布者 |
+| macOS   | `Nomi-X.Y.Z[-arm64]-mac.zip` | Squirrel.Mac 替换 `Nomi.app`，要求新包满足 2.0.4 的签名要求（`com.cookieboty.nomi` + 同一 Team ID）                                           |
+| Linux   | `Nomi-X.Y.Z.AppImage`        | 替换原 AppImage 文件后启动                                                                                                                    |
+
+不出 blockmap：electron-updater 取不到 blockmap 时整包下载。用户数据由 Go 版首次启动时迁移（`internal/migrate`）。CI 守住这条路径：
+
+- `manifest` 任务用 2.0.4 自带的 electron-updater 解析生成的 yml（`scripts/release/check-update-feed.mjs`），确认每个平台
+  （Windows、mac arm64 / x64、Linux）都挑中 Go 版安装包且 sha512 / size 一致；
+- `verify (windows)` 先装从 v2.0.4 源码构建的安装器并运行一次，再以 `--updated --force-run` 跑 Go 安装器，检查自动启动、
+  旧 Electron 文件已清、只剩一个卸载项、用户数据还在；tag 上缺 2.0.4 安装器即失败；
+- `package (mac)` 检查 `Nomi.app` 的签名标识是 `com.cookieboty.nomi`。
+
+## Electron（≤ v2.0.4）
+
+Electron 版（`apps/desktop-electron`）仍在 `ci.yml` 里构建（push main 出未签名 artifact），但只有 ≤ v2.0.4 的 tag
+会经它发布 Release；下面是这条旧流程的说明。
+
 Nomi ships installers for **Windows (NSIS)**, **macOS (DMG, x64+arm64)** and **Linux (AppImage)** via
 [electron-builder](https://www.electron.build/), published to
 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases). Installed apps update through
 `electron-updater` (same feed).
 
-## Formal installers · 正式安装包以 CI 为准
+### Formal installers · 正式安装包以 CI 为准
 
-**品牌官 / 用户拿到的 Win NSIS、Mac DMG、Linux AppImage，一律以 GitHub Actions artifact 或 tag 触发的 GitHub Release 为准。**
+**Electron 版的 Win NSIS、Mac DMG、Linux AppImage，以 GitHub Actions artifact 或 tag 触发的 GitHub Release 为准。**
 
-| 来源                                                                     | 用途                                                                            |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>` | push main / 带 `ci:full` 的 PR / `workflow_dispatch` 的可安装包（未签名也可测） |
-| tag `v*` → 同 job + `package:publish:*` → job `publish-release`          | 先传到草稿 Release，三平台齐了再发布，供 `electron-updater` 使用                |
+| 来源                                                                       | 用途                                                                            |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>`   | push main / 带 `ci:full` 的 PR / `workflow_dispatch` 的可安装包（未签名也可测） |
+| tag `v*`（≤ v2.0.4）→ 同 job + `package:publish:*` → job `publish-release` | 先传到草稿 Release，三平台齐了再发布，供 `electron-updater` 使用                |
 
 - Runner：**ubuntu-latest** → AppImage；**windows-latest** → NSIS `Nomi Setup *.exe`；**macos-latest** → DMG（x64+arm64）。
 - **不要**在 Linux 开发机 / box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会打成错误平台）。

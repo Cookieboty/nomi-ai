@@ -86,6 +86,8 @@ jobs:
           MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
         run: |
           if [ -z "$MAC_CSC_LINK" ] || [ -z "$MAC_CSC_KEY_PASSWORD" ]; then
+            # 发版必须用 Developer ID：2.0.4 经 Squirrel.Mac 升级时要求新 Nomi.app 满足旧版的签名要求（同一 Team ID），ad-hoc 会被拒
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "::error::tag 发版缺 MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD（2.0.4 无法升级到 ad-hoc 签名的版本）"; exit 1; fi
             echo "::warning::MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD 不可用 → ad-hoc 签名"; exit 0; fi
           P12="$RUNNER_TEMP/cert.p12"
           case "$MAC_CSC_LINK" in
@@ -105,6 +107,23 @@ jobs:
           [ -n "$ID" ] || { echo "::error::p12 里没有 Developer ID Application 证书"; security find-identity -v -p codesigning "$KC"; exit 1; }
           echo "MAC_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"; echo "MAC_KEYCHAIN=$KC" >> "$GITHUB_ENV"
           echo "签名身份：$ID" >> "$GITHUB_STEP_SUMMARY"
+      # 与 2.0.4（ci.yml → electron-builder）同一张证书：2.0.4 签过名时，它的 electron-updater 只接受同一发布者签的安装器
+      - name: windows signing cert
+        if: runner.os == 'Windows'
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "$WIN_CSC_LINK" ] || [ -z "$WIN_CSC_KEY_PASSWORD" ]; then
+            echo "::warning::WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD 不可用 → Windows 安装包不签名"; exit 0; fi
+          PFX="$RUNNER_TEMP/win-sign.pfx"
+          case "$WIN_CSC_LINK" in
+            https://*) curl -fsSL -o "$PFX" "$WIN_CSC_LINK" ;;
+            file://*) cp "${WIN_CSC_LINK#file://}" "$PFX" ;;
+            *) printf '%s' "$WIN_CSC_LINK" | base64 --decode > "$PFX" ;;
+          esac
+          echo "::add-mask::$WIN_CSC_KEY_PASSWORD"
+          { echo "WIN_SIGN_PFX=$PFX"; echo "WIN_SIGN_PASSWORD=$WIN_CSC_KEY_PASSWORD"; } >> "$GITHUB_ENV"
       - name: package
         run: apps/desktop-go/packaging/package.sh ${{ matrix.target }}
       - name: sizes
@@ -114,10 +133,15 @@ jobs:
         if: startsWith(matrix.target, 'mac-')
         run: |
           D=$(ls apps/desktop-go/dist-pkg/*.zip); T=$(mktemp -d); ditto -x -k "$D" "$T"
-          { echo '```'; codesign -dv --verbose=4 "$T/Nomi.app" 2>&1 | grep -v 'Hash'; lipo -archs "$T/Nomi.app/Contents/MacOS/Nomi"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          # designated requirement：2.0.4 的 Squirrel.Mac 用它校验更新包（identifier com.cookieboty.nomi + 同一 Team ID）
+          { echo '```'; codesign -dv --verbose=4 "$T/Nomi.app" 2>&1 | grep -v 'Hash'; codesign -d -r- "$T/Nomi.app" 2>&1; lipo -archs "$T/Nomi.app/Contents/MacOS/Nomi"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          codesign -d -r- "$T/Nomi.app" 2>&1 | grep -q 'identifier "com.cookieboty.nomi"' || { echo "::error::Nomi.app 的签名标识不是 com.cookieboty.nomi，2.0.4 无法升级"; exit 1; }
       - name: cleanup keychain
         if: always() && env.MAC_KEYCHAIN != ''
         run: security delete-keychain "$MAC_KEYCHAIN" || true
+      - name: cleanup windows cert
+        if: always() && env.WIN_SIGN_PFX != ''
+        run: rm -f "$WIN_SIGN_PFX"
       - uses: actions/upload-artifact@v4
         with:
           name: nomi-go-${{ matrix.target }}
@@ -125,10 +149,11 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  # 同一 runner 上的 2.0.4 尺寸基线：从 v2.0.4 源码构建 win-unpacked（不下载 Release 资产）。
-  # 只在手动触发时跑（迁移期对比用）；verify-win.ps1 没有基线时跳过对比
+  # 从 v2.0.4 源码构建 Windows 安装器 + win-unpacked（不下载 Release 资产，D-B11-9）：
+  # verify 用它先装 2.0.4，再按 electron-updater 的方式跑 Go 安装器（2.0.4 → 新版的应用内升级路径），
+  # win-unpacked 顺带做同 runner 的看板娘尺寸基线。PR 上不跑（约 40 分钟）
   electron-204-win:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 40
     continue-on-error: true
@@ -139,23 +164,23 @@ jobs:
         with: { version: 9.12.3 }
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - name: build electron 2.0.4 (win --dir, unsigned)
+      - name: build electron 2.0.4 (win nsis, unsigned)
         working-directory: e204
         shell: bash
         env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false', HUSKY: '0' }
         run: |
           pnpm install --frozen-lockfile
           pnpm turbo run build
-          cd packages/electron && pnpm exec electron-builder build --win --dir --publish never
-          find . -type d -name win-unpacked -not -path '*/node_modules/*'
+          cd packages/electron && pnpm exec electron-builder build --win nsis --x64 --publish never
+          ls ../../dist
       - uses: actions/upload-artifact@v4
         with:
-          {
-            name: electron-204-win-unpacked,
-            path: 'e204/dist/win-unpacked/',
-            if-no-files-found: error,
-            compression-level: 1,
-          }
+          name: electron-204-win
+          path: |
+            e204/dist/win-unpacked/
+            e204/dist/*Setup*.exe
+          if-no-files-found: error
+          compression-level: 1
 
   verify:
     needs: [package, electron-204-win]
@@ -181,15 +206,18 @@ jobs:
       - uses: actions/download-artifact@v4
         if: runner.os == 'Windows'
         continue-on-error: true
-        with: { name: electron-204-win-unpacked, path: e204 }
+        with: { name: electron-204-win, path: e204 }
       - name: verify mac
         if: runner.os == 'macOS'
         run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots apps/desktop-go/ci/baseline-2.0.4/mac-info-plist.txt
       - name: verify windows
         if: runner.os == 'Windows'
         shell: pwsh
+        # -Old：先装 2.0.4，再按 electron-updater quitAndInstall 的参数跑 Go 安装器；tag 上缺 2.0.4 安装器直接失败
         run: |
-          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -ElectronExe "$((Get-ChildItem e204 -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
+          $old = (Get-ChildItem e204 -Filter '*Setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          $exe = (Get-ChildItem e204 -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -Old "$old" -ElectronExe "$exe" -RequireOld:$($env:GITHUB_REF -like 'refs/tags/v*')
       - name: verify linux
         if: runner.os == 'Linux'
         run: |
@@ -211,13 +239,20 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24.22.0, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @nomi-ai/host-electron
       - uses: actions/download-artifact@v4
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
-      - name: latest-go.json + SHA256SUMS
+      - name: latest-go.json + latest*.yml + SHA256SUMS
         run: |
           python3 apps/desktop-go/packaging/update-manifest.py "$V" out --tag "v$V" --repo "$GITHUB_REPOSITORY"
           # 真实 latest-go.json 必须能被 Go 更新器（internal/core/updates）解析，且每个平台都可选中
           (cd apps/desktop-go && CGO_ENABLED=0 NOMI_LATEST_GO_JSON="$GITHUB_WORKSPACE/out/latest-go.json" go test ./internal/core/updates/ -run TestUpdateManifest -v)
+          # 2.0.4 → 新版：用 2.0.4 自带的 electron-updater 解析 latest*.yml，每个平台都要挑中 Go 版安装包且 sha512 / size 对得上
+          node scripts/release/check-update-feed.mjs out "$V"
+          node scripts/release/check-mac-update.mjs out
           { echo "### 全部产物（字节）"; echo '```'; ls -l out | grep -v '^total'; echo '```'; echo '```json'; cat out/latest-go.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with: { name: nomi-go-release, path: out/, compression-level: 0 }
@@ -243,7 +278,7 @@ jobs:
       - name: check assets (3 platforms)
         run: |
           V=${TAG#v}; have=$(gh release view "$TAG" --json assets -q '.assets[].name')
-          for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS; do
+          for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS latest.yml latest-mac.yml latest-linux.yml; do
             grep -qx "$f" <<<"$have" || { echo "::error::draft 缺少 $f"; exit 1; }; done
       # tag push：三平台产物齐全后自动发布；手动重跑时 publish=true 才发布
       - name: publish

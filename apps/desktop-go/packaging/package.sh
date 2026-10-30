@@ -8,6 +8,8 @@
 #   NOMI_VERSION     缺省读 apps/desktop-electron/package.json 的 version
 #   SKIP_FRONTEND=1  已构建 frontend/dist 时跳过
 #   MAC_SIGN_IDENTITY  非空 → codesign --options runtime --timestamp（Developer ID，不公证）；空 → ad-hoc（-）
+#   WIN_SIGN_PFX / WIN_SIGN_PASSWORD  非空 → signtool 签 Nomi.exe 与安装器（与 2.0.4 同一证书：2.0.4 签过名时
+#                      electron-updater 会校验新安装器的发布者，不一致就拒绝更新）；空 → 不签
 set -euo pipefail
 TARGET="${1:?usage: package.sh mac-arm64|mac-x64|windows|linux}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -35,6 +37,16 @@ stage_resources() {
     cp -R "$ROOT/apps/desktop-electron/character-pack-resources" "$dst/character-pack"
   fi
   # 打包不带 mac 专用 entitlements / icns 到 win/linux 以外无害，保持与 Electron 相同目录树
+}
+
+# Windows Authenticode（SHA-256 + RFC 3161 时间戳）；没有证书时跳过
+win_sign() {
+  [ -n "${WIN_SIGN_PFX:-}" ] || { echo "::warning::WIN_SIGN_PFX 为空 → $(basename "$1") 不签名"; return 0; }
+  local tool
+  tool="$(command -v signtool || ls -1 "/c/Program Files (x86)/Windows Kits/10/bin/"*/x64/signtool.exe 2>/dev/null | sort -V | tail -1)"
+  [ -n "$tool" ] || { echo "::error::找不到 signtool.exe"; exit 1; }
+  "$tool" sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f "$(cygpath -w "$WIN_SIGN_PFX" 2>/dev/null || echo "$WIN_SIGN_PFX")" /p "$WIN_SIGN_PASSWORD" "$(cygpath -w "$1" 2>/dev/null || echo "$1")"
+  "$tool" verify /pa "$(cygpath -w "$1" 2>/dev/null || echo "$1")"
 }
 
 case "$TARGET" in
@@ -85,6 +97,7 @@ windows)
      --file-version "$VERSION.0" --file-description Nomi --original-filename Nomi.exe --copyright "Copyright © 2026 Cookieboty")
   (cd "$APP" && CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS -H windowsgui" -o "$STAGE/Nomi.exe" .)
   rm -f "$APP"/rsrc_windows_*.syso
+  win_sign "$STAGE/Nomi.exe"
   stage_resources "$STAGE/resources"
   if [ ! -f "$STAGE/MicrosoftEdgeWebview2Setup.exe" ]; then
     curl -fsSL -o "$STAGE/MicrosoftEdgeWebview2Setup.exe" "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
@@ -94,6 +107,7 @@ windows)
   MAKENSIS="$(command -v makensis || echo "/c/Program Files (x86)/NSIS/makensis.exe")"
   w() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
   "$MAKENSIS" -V3 -DVERSION="$VERSION" -DSTAGE="$(w "$STAGE")" -DOUTFILE="$(w "$OUT/Nomi-Setup-$VERSION.exe")" "$(w "$HERE/windows/installer.nsi")"
+  win_sign "$OUT/Nomi-Setup-$VERSION.exe"
   endg
   ;;
 linux)
