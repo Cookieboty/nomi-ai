@@ -53,6 +53,8 @@ export function mascotApiModule(): {
   api: unknown;
   hasTransport: () => boolean;
   hasWindowHost: () => boolean;
+  isGoHost: () => boolean;
+  hostAssetUrl: (url: string) => string;
 } {
   const api = new Proxy(
     {},
@@ -67,7 +69,14 @@ export function mascotApiModule(): {
   );
   // 测试里的假宿主就是看板娘窗口
   const installed = () => state().client !== null;
-  return { api, hasTransport: installed, hasWindowHost: installed };
+  // Electron 宿主：资源地址原样用
+  return {
+    api,
+    hasTransport: installed,
+    hasWindowHost: installed,
+    isGoHost: () => false,
+    hostAssetUrl: (url: string) => url,
+  };
 }
 
 /** 角色包快照（`character.getActivePack` 的返回）：测试只写关心的字段，其余按内置包的空值补齐 */

@@ -4,6 +4,7 @@ import { THEMES, currentTheme, setTheme, type ThemePref, type ThemeState } from 
 import { Check, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import { hostAssetUrl } from '../../services/api';
 import {
   chatBgErrorMessage,
   getChatBackground,
@@ -113,7 +114,7 @@ export const ThemeSettings: React.FC = () => {
                   backgroundImage: sys
                     ? `linear-gradient(110deg, ${t.swatch[0]} 50%, ${t.swatch[2]} 50%)`
                     : image && background.imageUrl
-                      ? `url("${background.imageUrl.replace(/"/g, '\\"')}")`
+                      ? `url("${hostAssetUrl(background.imageUrl).replace(/"/g, '\\"')}")`
                       : 'none',
                 }}
                 aria-hidden

@@ -7,6 +7,8 @@
  *   注入了 `window.nomiDevTransport`（`pnpm dev:web`，只有地址；token 在打印的地址片段里）时，经 WebSocket 连开发态
  *   内核（§5.2、§11.3）。生产构建里
  *   `import.meta.env.DEV` 为 false，这段代码与 WebSocket 传输一起被摇掉；
+ * - Go 宿主（apps/desktop-go，Wails 没有 preload）：同一份构建产物，运行时识别——没有 preload 桥、页面地址片段里有
+ *   宿主给的 WebSocket 地址与 token（`resolveHostTransport`，只认 127.0.0.1）时经 WebSocket 连 Go 内核，视同在宿主窗口里；
  * - `hasTransport()`：有没有可用的契约传输（浏览器预览 / 测试里为 false，调用方据此退回本地状态）；
  * - `hostPathForFile(file)`：拖入 / 粘贴文件的本机路径（preload 的 `window.nomiHost`，唯一不走契约的宿主能力）；
  * - `installHostBackends()`：入口最先调用一次，把契约接到共享包（`@nomi-ai/ui`、`@nomi-ai/voice`）
@@ -23,6 +25,8 @@ import {
   NOMI_HOST_GLOBAL,
   NOMI_TRANSPORT_GLOBAL,
   resolveDevTransport,
+  resolveHostTransport,
+  resolveHostAssetUrl,
   type DevTransportConfig,
 } from '@nomi-ai/contract/app';
 
@@ -72,8 +76,17 @@ function devTransportConfig(): DevTransportConfig | null {
 }
 
 let devTransport = false;
+let goHostTransport = false;
+// Go 宿主（运行时识别）：没有 preload 桥，页面地址片段里有宿主给的 WebSocket 配置
+const goHostConfig =
+  typeof window !== 'undefined' && !hasPreloadBridge()
+    ? resolveHostTransport(window.location.hash)
+    : null;
 // 必须在 createAppClient() 之前：模块加载时建的客户端从此走 WebSocket
-if (import.meta.env.DEV && !hasPreloadBridge()) {
+if (goHostConfig) {
+  installSharedTransport(createWebSocketClientTransport({ ...goHostConfig, surface: 'chat' }));
+  goHostTransport = true;
+} else if (import.meta.env.DEV && !hasPreloadBridge()) {
   const config = devTransportConfig();
   if (config) {
     installSharedTransport(createWebSocketClientTransport({ ...config, surface: 'chat' }));
@@ -84,7 +97,7 @@ if (import.meta.env.DEV && !hasPreloadBridge()) {
 export const api: AppClient = createAppClient();
 
 export function hasTransport(): boolean {
-  return devTransport || hasPreloadBridge();
+  return devTransport || goHostTransport || hasPreloadBridge();
 }
 
 interface NomiHost {
@@ -100,6 +113,14 @@ export function hostPathForFile(file: File): string {
   } catch {
     return '';
   }
+}
+
+/**
+ * 内核给的资源地址 → 本页能加载的地址：Go 宿主里 `chat-asset://` / `character-pack://` 换成资产服务器网关，
+ * 其余情况原样返回
+ */
+export function hostAssetUrl(url: string): string {
+  return goHostTransport ? resolveHostAssetUrl(url) : url;
 }
 
 let installed = false;

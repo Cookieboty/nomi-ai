@@ -13,7 +13,7 @@ import {
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import type { CSSProperties } from 'react';
 
-import { api, hasTransport } from './api';
+import { api, hasTransport, hostAssetUrl } from './api';
 
 export { CHAT_BG_PRESET_URL, DEFAULT_CHAT_BG, sanitizeChatBg, type ChatBackgroundState };
 
@@ -196,7 +196,7 @@ export function chatBgErrorMessage(error: unknown): string {
 export function chatBgStyle(s: ChatBackgroundState): CSSProperties {
   return {
     ['--cd-chat-bg-image' as string]: s.imageUrl
-      ? `url("${s.imageUrl.replace(/"/g, '\\"')}")`
+      ? `url("${hostAssetUrl(s.imageUrl).replace(/"/g, '\\"')}")`
       : 'none',
     ['--cd-chat-bg-opacity' as string]: String(s.opacity),
   };

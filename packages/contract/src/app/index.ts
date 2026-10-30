@@ -199,6 +199,57 @@ export function resolveDevTransport(
   return token && DEV_TOKEN_PATTERN.test(token) ? { url, token } : null;
 }
 
+/**
+ * Go 宿主（`apps/desktop-go`，Wails 没有 preload）给视图的 WebSocket 配置：宿主把内核地址与本次启动的随机 token
+ * 放在页面地址片段里（`#ws=ws://127.0.0.1:<port>&token=<hex>`，片段不发给服务器）。视图（与 Electron 同一份构建产物）
+ * 在没有 preload 桥时读它，据此识别 Go 宿主（services/api.ts）。地址只认本机回环。
+ */
+export const NOMI_HOST_WS_FRAGMENT = 'ws';
+export const NOMI_HOST_TOKEN_FRAGMENT = 'token';
+
+export function resolveHostTransport(hash: string): DevTransportConfig | null {
+  try {
+    const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const url = params.get(NOMI_HOST_WS_FRAGMENT);
+    const token = params.get(NOMI_HOST_TOKEN_FRAGMENT);
+    if (!url || !/^ws:\/\/127\.0\.0\.1:\d{1,5}$/.test(url)) return null;
+    return token && DEV_TOKEN_PATTERN.test(token) ? { url, token } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 视图里要换址的本应用协议（Electron 注册的自定义协议） */
+export const HOST_ASSET_SCHEMES = ['chat-asset', 'character-pack'] as const;
+/** Go 宿主的资产服务器网关前缀（与 Go `assetproto.GatewayURL` 一致，见 docs D-B10-5） */
+export const HOST_ASSET_GATEWAY_PREFIX = '/__scheme/';
+
+/** `<scheme>://rest` → `/__scheme/<scheme>/rest`（`\` 编成 %5C，免得浏览器当分隔符）；不是 `x://` 形式的原样返回 */
+export function toHostGatewayUrl(raw: string): string {
+  const i = raw.indexOf('://');
+  if (i <= 0) return raw;
+  return (
+    HOST_ASSET_GATEWAY_PREFIX +
+    raw.slice(0, i) +
+    '/' +
+    raw
+      .slice(i + 3)
+      .split('\\')
+      .join('%5C')
+  );
+}
+
+/**
+ * Go 宿主下 `chat-asset://` / `character-pack://` 的换址：Wails 只接管硬编码的 `wails` scheme，自定义协议
+ * 改走资产服务器网关（见 docs D-B10-5）。其它地址（http / data / blob / 相对路径）原样返回。
+ * 与 Go `assetproto.GatewayURL` 共用 `apps/desktop-go/internal/core/assetproto/testdata/gateway_urls.json`。
+ */
+export function resolveHostAssetUrl(raw: string): string {
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(raw.trim());
+  if (!m || !(HOST_ASSET_SCHEMES as readonly string[]).includes(m[1]!.toLowerCase())) return raw;
+  return toHostGatewayUrl(raw);
+}
+
 export {
   AI_EVENTS,
   AI_METHODS,

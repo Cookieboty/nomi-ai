@@ -684,6 +684,8 @@ export type TranslationKey =
   | 'ui.chat-settings.also-catch-values-by-their-name-may-misfire'
   | 'ui.chat-settings.always-allow'
   | 'ui.chat-settings.always-use-the-top-pill'
+  | 'ui.chat-settings.animated-nomi'
+  | 'ui.chat-settings.animated-nomi-desc'
   | 'ui.chat-settings.app-icon'
   | 'ui.chat-settings.appearance'
   | 'ui.chat-settings.appearance-theme-icon-and-chat-background'

@@ -18,6 +18,8 @@
   "ui.chat-settings.also-catch-values-by-their-name-may-misfire": "也按键名认密钥（如 DB_PASSWORD=…、api_token: …），够长够乱的值才算；可能误判。",
   "ui.chat-settings.always-allow": "总是允许",
   "ui.chat-settings.always-use-the-top-pill": "始终用顶部胶囊",
+  "ui.chat-settings.animated-nomi": "{0}动画（Rive）",
+  "ui.chat-settings.animated-nomi-desc": "开启后{0}用 Rive 动画显示，会多占一些内存和显卡；关闭时显示静态立绘",
   "ui.chat-settings.app-icon": "应用图标",
   "ui.chat-settings.appearance": "外观",
   "ui.chat-settings.appearance-theme-icon-and-chat-background": "外观 · 主题与图标",

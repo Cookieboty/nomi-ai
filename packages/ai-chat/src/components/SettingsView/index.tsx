@@ -21,6 +21,7 @@ import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
+import { MascotRendererSettings } from './MascotRendererSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
 import { PrivacySection } from './PrivacySection';
@@ -133,7 +134,12 @@ export const SettingsView: React.FC<Props> = ({
                 </SettingsGroup>
                 <StartupSettings
                   language={<LanguageSettings />}
-                  mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
+                  mascotSize={(shown) => (
+                    <>
+                      <MascotSizeSettings disabled={!shown} />
+                      <MascotRendererSettings disabled={!shown} />
+                    </>
+                  )}
                 />
                 <UpdateSettings>
                   <SettingRow

@@ -2,13 +2,16 @@
 import { Modal, t, useLocale } from '@nomi-ai/ui';
 import React, { memo, useState } from 'react';
 
+import { hostAssetUrl } from '../../services/api';
+
 import { sanitizeImgSrc } from './Markdown.helpers';
 import styles from './MarkdownImage.module.css';
 
 export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ src, alt }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
-  const safe = sanitizeImgSrc(src);
+  // 白名单过了再换址（Go 宿主里 chat-asset:// 走资产网关）
+  const safe = hostAssetUrl(sanitizeImgSrc(src));
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   if (!safe) {

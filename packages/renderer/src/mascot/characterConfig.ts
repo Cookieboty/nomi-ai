@@ -11,7 +11,7 @@ import type { PackMapping } from '@nomi-ai/character-contract';
 import { useSyncExternalStore } from 'react';
 import bundledPack from 'virtual:character-pack';
 
-import { api, hasTransport } from '../services/api';
+import { api, hasTransport, hostAssetUrl } from '../services/api';
 
 export type CharacterPackMode = 'rive' | 'sprite' | 'static';
 
@@ -86,9 +86,21 @@ function notifyOverlayListeners(): void {
 function apiGetActive(): Promise<CharacterPackOverlay | null> {
   if (!hasTransport()) return Promise.resolve(null);
   return api.character.getActivePack().then(
-    (snap): CharacterPackOverlay => snap,
+    (snap): CharacterPackOverlay => withHostUrls(snap),
     () => null,
   );
+}
+
+/** 覆盖包的 `character-pack://` 地址换成本页能加载的地址（Go 宿主走资产网关；Electron 原样） */
+function withHostUrls(snap: CharacterPackOverlay): CharacterPackOverlay {
+  const u = (v: string | null): string | null => (v ? hostAssetUrl(v) : v);
+  return {
+    ...snap,
+    riveUrl: u(snap.riveUrl),
+    staticUrl: u(snap.staticUrl),
+    voiceBaseUrl: u(snap.voiceBaseUrl),
+    spriteManifestUrl: u(snap.spriteManifestUrl),
+  };
 }
 
 /** Fetch Scheme B overlay once (no-op outside Electron). Safe to call repeatedly. */

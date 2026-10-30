@@ -7,6 +7,8 @@
  *   并且开发服务器注入了 `window.nomiDevTransport`（`pnpm dev:web`，token 在打印的地址片段里）时，以看板娘界面（`mascot`）经 WebSocket 连开发态
  *   内核。浏览器里没有透明窗口，要用窗口对象的过程返回 UNAVAILABLE，调用方按「没有窗口」处理。生产构建里
  *   `import.meta.env.DEV` 为 false，这段代码与 WebSocket 传输一起被摇掉；
+ * - Go 宿主（apps/desktop-go，Wails 没有 preload）：同一份构建产物，运行时识别——没有 preload 桥、页面地址片段里有
+ *   宿主给的 WebSocket 地址与 token（`resolveHostTransport`，只认 127.0.0.1）时经 WebSocket 连 Go 内核，视同在宿主窗口里；
  * - `hasTransport()`：有没有可用的契约传输（浏览器预览 / 测试里为 false，调用方据此退回本地状态）；
  * - `hasWindowHost()`：是不是在宿主的看板娘窗口里（有 preload 桥）。WebSocket 开发页里为 false：窗口相关的调用
  *   （拖拽、点击穿透、窗口大小）不发；
@@ -25,6 +27,8 @@ import {
   NOMI_HOST_GLOBAL,
   NOMI_TRANSPORT_GLOBAL,
   resolveDevTransport,
+  resolveHostTransport,
+  resolveHostAssetUrl,
   type DevTransportConfig,
 } from '@nomi-ai/contract/app';
 
@@ -74,8 +78,17 @@ function devTransportConfig(): DevTransportConfig | null {
 }
 
 let devTransport = false;
+let goHostTransport = false;
+// Go 宿主（运行时识别）：没有 preload 桥，页面地址片段里有宿主给的 WebSocket 配置
+const goHostConfig =
+  typeof window !== 'undefined' && !hasPreloadBridge()
+    ? resolveHostTransport(window.location.hash)
+    : null;
 // 必须在 createAppClient() 之前：模块加载时建的客户端从此走 WebSocket
-if (import.meta.env.DEV && !hasPreloadBridge()) {
+if (goHostConfig) {
+  installSharedTransport(createWebSocketClientTransport({ ...goHostConfig, surface: 'mascot' }));
+  goHostTransport = true;
+} else if (import.meta.env.DEV && !hasPreloadBridge()) {
   const config = devTransportConfig();
   if (config) {
     installSharedTransport(createWebSocketClientTransport({ ...config, surface: 'mascot' }));
@@ -86,12 +99,17 @@ if (import.meta.env.DEV && !hasPreloadBridge()) {
 export const api: AppClient = createAppClient();
 
 export function hasTransport(): boolean {
-  return devTransport || hasPreloadBridge();
+  return devTransport || goHostTransport || hasPreloadBridge();
 }
 
-/** 在宿主的看板娘窗口里（有 preload 桥）；浏览器开发页里没有窗口可拖、可穿透 */
+/** 在宿主的看板娘窗口里（有 preload 桥，或 Go 宿主）；浏览器开发页里没有窗口可拖、可穿透 */
 export function hasWindowHost(): boolean {
-  return hasPreloadBridge();
+  return goHostTransport || hasPreloadBridge();
+}
+
+/** 是不是 Go 宿主（Wails）里的页面 */
+export function isGoHost(): boolean {
+  return goHostTransport;
 }
 
 interface NomiHost {
@@ -104,12 +122,22 @@ interface NomiHost {
  */
 export function hostDropFile(file: File): boolean {
   if (typeof window === 'undefined') return false;
+  // Go 宿主：路径由宿主从原生拖放事件里拿（WindowFilesDropped），视图这里只确认已交出
+  if (goHostTransport) return true;
   const host = (window as unknown as Record<string, NomiHost | undefined>)[NOMI_HOST_GLOBAL];
   try {
     return host?.dropFile(file) ?? false;
   } catch {
     return false;
   }
+}
+
+/**
+ * 内核给的资源地址 → 本页能加载的地址：Go 宿主里 `chat-asset://` / `character-pack://` 换成资产服务器网关，
+ * 其余情况原样返回
+ */
+export function hostAssetUrl(url: string): string {
+  return goHostTransport ? resolveHostAssetUrl(url) : url;
 }
 
 let installed = false;

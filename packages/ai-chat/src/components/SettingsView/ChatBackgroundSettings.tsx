@@ -3,6 +3,7 @@ import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';
 
+import { hostAssetUrl } from '../../services/api';
 import {
   DEFAULT_CHAT_BG,
   CHAT_BG_PRESET_URL,
@@ -60,7 +61,9 @@ export const ChatBackgroundSettings: React.FC = () => {
         {state.imageUrl && (
           <span
             className={styles.bgThumb}
-            style={{ backgroundImage: `url("${state.imageUrl.replace(/"/g, '\\"')}")` }}
+            style={{
+              backgroundImage: `url("${hostAssetUrl(state.imageUrl).replace(/"/g, '\\"')}")`,
+            }}
             aria-hidden
           />
         )}

@@ -4,7 +4,7 @@
  * `./character/onboarding/`. A Scheme B overlay swaps in character-pack:// URLs when the active
  * pack ships its own.
  */
-import { api, hasTransport } from '../../services/api';
+import { api, hasTransport, hostAssetUrl } from '../../services/api';
 
 export type OnboardingStep = 'welcome' | 'profile' | 'provider' | 'privacy';
 
@@ -22,7 +22,10 @@ export async function resolveOnboardingArt(): Promise<Record<OnboardingStep, str
   try {
     const snap = await api.character.getActivePack();
     if (snap.source !== 'builtin' && snap.onboarding) {
-      return { ...BUILTIN_ONBOARDING_ART, ...snap.onboarding };
+      const own = Object.fromEntries(
+        Object.entries(snap.onboarding).map(([k, v]) => [k, v ? hostAssetUrl(v) : v]),
+      );
+      return { ...BUILTIN_ONBOARDING_ART, ...own };
     }
   } catch {
     /* browser / tests */

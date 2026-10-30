@@ -2,7 +2,7 @@ import { createLogger } from '@nomi-ai/ui';
 import { useEffect } from 'react';
 
 import { avatarEvents } from '@/avatar/events';
-import { hasTransport, hostDropFile } from '@/services/api';
+import { hasTransport, hostDropFile, isGoHost } from '@/services/api';
 
 const log = createLogger('FileDrop');
 
@@ -15,6 +15,8 @@ export function useFileDropSummarize(elementId = 'mascot-canvas'): void {
   useEffect(() => {
     const el = document.getElementById(elementId);
     if (!hasTransport() || !el) return;
+    // Go 宿主：Wails 只把落在 data-file-drop-target 元素上的文件交给宿主（宿主拿到路径直接提交，见 hostDropFile）
+    if (isGoHost()) el.setAttribute('data-file-drop-target', '');
     const isFiles = (e: DragEvent) =>
       !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
     const over = (e: DragEvent) => {

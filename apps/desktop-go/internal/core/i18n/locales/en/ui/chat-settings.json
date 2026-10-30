@@ -18,6 +18,8 @@
   "ui.chat-settings.also-catch-values-by-their-name-may-misfire": "Also catch values by their name (DB_PASSWORD=…, api_token: …) when long and random enough; may misfire.",
   "ui.chat-settings.always-allow": "Always allow",
   "ui.chat-settings.always-use-the-top-pill": "Always use the top pill",
+  "ui.chat-settings.animated-nomi": "Animated {0} (Rive)",
+  "ui.chat-settings.animated-nomi-desc": "Shows {0} with Rive animation, which uses more memory and GPU. When off, a static illustration is shown.",
   "ui.chat-settings.app-icon": "App icon",
   "ui.chat-settings.appearance": "Appearance",
   "ui.chat-settings.appearance-theme-icon-and-chat-background": "Appearance · theme and icon",
