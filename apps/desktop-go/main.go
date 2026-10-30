@@ -561,6 +561,10 @@ func main() {
 		}))))})
 
 	shellP.AttachShell()
+	// = ThemeService.syncAppearance（mac：外观跟随固定主题）
+	if a, ok := sh.(interface{ SetAppearance(string) }); ok {
+		bundle.Theme.SetAppearanceHook(a.SetAppearance)
+	}
 	// 托盘菜单随模型（网关 / 供应商锁定）、界面语言、角色变化重建
 	if rt, ok := sh.(interface{ RebuildTray() }); ok {
 		gatewaySvc.OnChange(rt.RebuildTray)

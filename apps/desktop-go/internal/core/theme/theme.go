@@ -24,7 +24,9 @@ type Service struct {
 	file   string
 	pref   string
 	isDark func() bool
-	emit   func(State)
+	// appearance：原生外观钩子（SetAppearanceHook）
+	appearance func(mode string)
+	emit       func(State)
 }
 
 func New(file string, isDark func() bool, emit func(State)) *Service {
@@ -67,6 +69,33 @@ func Normalize(v any) string {
 	return ""
 }
 
+// darkThemes = DARK_THEMES
+var darkThemes = map[string]bool{"graphite": true, "ink": true}
+
+// AppearanceFor = appearanceFor：所选主题对应的原生窗口外观；「跟随系统」交还给系统
+func AppearanceFor(pref string) string {
+	if pref == "system" {
+		return "system"
+	}
+	if darkThemes[Resolve(pref, true)] {
+		return "dark"
+	}
+	return "light"
+}
+
+// SetAppearanceHook = ports.appearance.setWindowAppearance（宿主注入，mac 上设整个应用的外观）；注入后立即同步一次
+func (s *Service) SetAppearanceHook(fn func(mode string)) {
+	s.appearance = fn
+	s.syncAppearance()
+}
+
+// syncAppearance = syncAppearance：外观跟随固定主题（深色主题配深色外观，失焦窗口的红绿灯才看得清）
+func (s *Service) syncAppearance() {
+	if s.appearance != nil {
+		s.appearance(AppearanceFor(s.pref))
+	}
+}
+
 func Resolve(pref string, dark bool) string {
 	switch pref {
 	case "image":
@@ -91,6 +120,8 @@ func (s *Service) Set(pref any) (State, error) {
 		return State{}, fmt.Errorf("unknown theme: %v", pref)
 	}
 	s.pref = n
+	// 先切外观再解析：从固定主题切回「跟随系统」时，isDark() 要按系统重新算
+	s.syncAppearance()
 	if err := s.persist(); err != nil {
 		return State{}, err
 	}
