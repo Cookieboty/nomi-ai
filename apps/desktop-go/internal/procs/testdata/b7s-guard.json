@@ -1262,13 +1262,7 @@
   "trusted": true,
   "name": "desktop.confirmAnswer",
   "kind": "call",
-  "res": {
-   "code": "FORBIDDEN",
-   "message": "Surface 'chat' may not call 'desktop.confirmAnswer'",
-   "data": {
-    "surface": "chat"
-   }
-  }
+  "res": "pass"
  },
  {
   "surface": "chat",
@@ -7629,9 +7623,9 @@
   "kind": "call",
   "res": {
    "code": "FORBIDDEN",
-   "message": "Surface 'chat' may not call 'desktop.confirmAnswer'",
+   "message": "Untrusted caller may not call dangerous 'desktop.confirmAnswer'",
    "data": {
-    "surface": "chat"
+    "dangerous": true
    }
   }
  },

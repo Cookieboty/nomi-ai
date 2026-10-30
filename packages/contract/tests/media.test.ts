@@ -51,7 +51,6 @@ describe('media 契约', () => {
         .map(([n]) => n)
         .sort();
     expect(only('mascot')).toEqual([
-      'desktop.confirmAnswer',
       'desktop.reminderAction',
       'desktop.takeMissedReminders',
       'nav.openVoiceSettings',

@@ -40,6 +40,13 @@ function setup() {
         { kind: 'claude', path: '/usr/bin/claude', version: '2.1.0' },
         { kind: 'codex', path: null, version: null },
       ];
+    if (ch === 'cliUpdate.environment')
+      return {
+        nodeVersion: '22.12.0',
+        nodePath: '/usr/bin/node',
+        npmPath: '/usr/bin/npm',
+        requirements: [{ kind: 'claude', minNode: 18, ok: true }],
+      };
     return {};
   });
   installFakeApi(invoke);

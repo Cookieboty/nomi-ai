@@ -827,7 +827,6 @@ export class DesktopService {
     }
   }
 
-  /** 确认答复：只接受桌面角色窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
   /** 确认答复：对话窗口（契约按界面放行）或桌面角色窗口（再核对调用方就是桌面角色） */
   answerConfirm(
     senderId: number | undefined,
