@@ -4,3 +4,4 @@ node_modules/
 mem/
 dist-ci/
 /desktop-go
+dist-pkg/
