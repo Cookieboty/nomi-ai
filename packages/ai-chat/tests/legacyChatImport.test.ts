@@ -61,7 +61,7 @@ describe('旧 Electron 对话导入 → 渲染入口可见', () => {
   it('全新的 Go 存储：会话、名称、工作区、消息、当前 / 最近 Nomi 会话都在', async () => {
     const fetch = vi.fn(async () => ready());
     const res = await importLegacyChatHistory({ fetch, storage: window.localStorage });
-    expect(res).toEqual({ status: 'imported', conversations: 3 });
+    expect(res).toEqual({ status: 'imported', conversations: 3, skipped: 0 });
 
     const ipc = openChat();
     const list = await ipc.listConversations();
@@ -148,7 +148,7 @@ describe('再次启动', () => {
 
     expect(
       await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage }),
-    ).toEqual({ status: 'imported', conversations: 0 });
+    ).toEqual({ status: 'imported', conversations: 0, skipped: 0 });
     const again = openChat();
     expect((await again.getChatHistory()).map((x) => x.id)).toEqual(['c', 'after']);
     expect((await again.listConversations()).length).toBe(3);
@@ -178,7 +178,7 @@ describe('失败与重试（抽取失败、导入失败、完成三者分开）'
     expect(storage.getItem(LEGACY_IMPORT_MARKER)).toBeNull();
 
     const ok = await importLegacyChatHistory({ fetch: async () => ready(), storage });
-    expect(ok).toEqual({ status: 'imported', conversations: 3 });
+    expect(ok).toEqual({ status: 'imported', conversations: 3, skipped: 0 });
     expect(JSON.parse(storage.getItem(LEGACY_IMPORT_MARKER)!)).toMatchObject({
       status: 'imported',
       conversations: 3,
@@ -210,8 +210,39 @@ describe('失败与重试（抽取失败、导入失败、完成三者分开）'
     expect(await importLegacyChatHistory({ fetch: async () => ready(), storage })).toEqual({
       status: 'imported',
       conversations: 3,
+      skipped: 0,
     });
     expect(JSON.parse(base.getItem('ai-chat:conversation:old1')!)).toEqual(OLD1);
+  });
+
+  it('存储只放得下一部分：按最近更新从新到旧导入，放不下的较旧会话跳过，并记完成', async () => {
+    const base = createMemoryStorage();
+    // 模拟 WebKit 配额：放下最新的 old2 之后就满了
+    const storage: KeyValueStorage = {
+      getItem: (k) => base.getItem(k),
+      setItem: (k, v) => {
+        if (k === 'ai-chat:conversation:old1' || k === 'ai-chat:conversation:old3')
+          throw new Error('QuotaExceededError');
+        base.setItem(k, v);
+      },
+      removeItem: (k) => base.removeItem(k),
+    };
+    const res = await importLegacyChatHistory({ fetch: async () => ready(), storage });
+    expect(res).toEqual({ status: 'imported', conversations: 1, skipped: 2 });
+    // 索引只含已写进消息的会话，与消息一致
+    expect(
+      JSON.parse(base.getItem('ai-chat:conversations')!).map((c: { id: string }) => c.id),
+    ).toEqual(['old2']);
+    expect(JSON.parse(base.getItem('ai-chat:conversation:old2')!)).toEqual(OLD2);
+    expect(base.getItem('ai-chat:conversation:old1')).toBeNull();
+    // 指针只补指向已导入会话的：current → old2 补上，lastNomi → old1（没导入）不补
+    expect(base.getItem('ai-chat:currentConversation')).toBe('"old2"');
+    expect(base.getItem('ai-chat:lastNomiConversation')).toBeNull();
+    // 已记完成：下次启动不再重试
+    expect(base.getItem(LEGACY_IMPORT_MARKER)).not.toBeNull();
+    const fetch = vi.fn(async () => ready());
+    expect(await importLegacyChatHistory({ fetch, storage })).toEqual({ status: 'done-before' });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('问不到内核 / 超时：不记完成', async () => {

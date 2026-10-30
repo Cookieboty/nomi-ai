@@ -5,7 +5,9 @@
  * 经契约 `migration.chatHistory` 交给对话窗口。这里在会话存储（ConversationStore）第一次构造之前取一次，
  * 幂等合并进本窗口的存储：
  * - 只补没有的：已有的会话（Go 版里新建 / 上次已导入的）一条不覆盖，当前会话指针也只在空着时才补；
- * - 先写各会话的消息、最后写索引；索引写不进（多半是存储配额）就删掉这次写的消息，不留半截；
+ * - 按最近更新从新到旧一条一条导入：先写这条会话的消息，再把它加进索引，索引与已写的消息始终一致；
+ *   存储满了（WebKit 的 localStorage 配额比 Chromium 小，聊天很多时放不下）就撤掉写不进的那条、停下，
+ *   已导入的保留并记完成——只导入最新的一部分；一条都放不进才算失败，下次启动再试；
  * - 完成标记（`LEGACY_IMPORT_MARKER`，不以 `ai-chat:` 开头，免得被下一次抽取带上）只在导入成功 /
  *   确认没有可导入的之后才写；抽取失败、导入失败、内核不可用都不写，下次启动再试；
  * - 只读契约返回的副本，Electron 原数据不动。
@@ -37,8 +39,8 @@ export type LegacyImportResult =
   | { status: 'done-before' }
   /** 没有可导入的（已记完成） */
   | { status: 'none' }
-  /** 导入完成（已记完成）；conversations = 新补进来的会话数 */
-  | { status: 'imported'; conversations: number }
+  /** 导入完成（已记完成）；conversations = 新补进来的会话数，skipped = 存储放不下、没导入的较旧会话数 */
+  | { status: 'imported'; conversations: number; skipped: number }
   /** 内核抽取失败（未记完成，下次再试） */
   | { status: 'extract-failed'; error: string }
   /** 写进本窗口存储失败（未记完成，已回滚，下次再试） */
@@ -111,41 +113,65 @@ function markDone(
   }
 }
 
-/** 把抽出的键幂等合并进 storage；返回新补进来的会话数。写索引失败时回滚并抛出。 */
+/** 合并结果：added = 新补进来的会话数；skipped = 存储放不下、没导入的较旧会话数 */
+export interface LegacyMergeResult {
+  added: number;
+  skipped: number;
+}
+
+/**
+ * 把抽出的键幂等合并进 storage。按最近更新从新到旧逐条导入（消息 → 索引），存储写满就停下，较旧的会话不导入；
+ * 一条都写不进时回滚并抛出（导入失败，下次再试）。
+ */
 export function mergeLegacyChatEntries(
   storage: KeyValueStorage,
   entries: Record<string, string>,
-): number {
+): LegacyMergeResult {
   const current = metaList(storage.getItem(INDEX_KEY));
   const have = new Set(current.map((c) => c.id));
   const seen = new Set<string>();
-  const added = metaList(entries[INDEX_KEY]).filter((c) => {
+  const candidates = metaList(entries[INDEX_KEY]).filter((c) => {
     if (have.has(c.id) || seen.has(c.id)) return false;
     seen.add(c.id);
     return true;
   });
+  const updatedAt = (c: MetaLike) => (typeof c.updatedAt === 'number' ? c.updatedAt : 0);
+  const newestFirst = [...candidates].sort((a, b) => updatedAt(b) - updatedAt(a));
 
-  // 1) 新会话的消息；2) 索引。任何一步失败：删掉这次写的消息，索引保持原样
-  const written: string[] = [];
-  try {
-    for (const meta of added) {
-      const key = MESSAGES_PREFIX + meta.id;
-      const raw = entries[key];
+  // 1) 逐条：这条会话的消息 → 带上它的索引。写不进就撤掉这条的消息并停下（索引仍是上一条成功后的样子）
+  const added: MetaLike[] = [];
+  let lastError: unknown;
+  for (const meta of newestFirst) {
+    const key = MESSAGES_PREFIX + meta.id;
+    const raw = entries[key];
+    try {
       // 不在索引里的消息键只可能是上次失败留下的残片（或旧数据里的孤儿），直接覆盖
       storage.setItem(key, raw !== undefined && Array.isArray(parse(raw)) ? raw : '[]');
-      written.push(key);
-    }
-    if (added.length > 0) storage.setItem(INDEX_KEY, JSON.stringify([...current, ...added]));
-  } catch (e) {
-    for (const key of written) {
+      storage.setItem(INDEX_KEY, JSON.stringify([...current, ...added, meta]));
+      added.push(meta);
+    } catch (e) {
+      lastError = e;
       try {
         storage.removeItem(key);
       } catch {
         /* */
       }
+      break;
     }
-    throw e;
   }
+  if (candidates.length > 0 && added.length === 0) throw lastError;
+  const skipped = candidates.length - added.length;
+  // 2) 索引按旧数据原来的顺序排好（上面是从新到旧逐条追加的）；同样大小，写不进就保留逐条写的那份
+  if (added.length > 1) {
+    const ok = new Set(added.map((c) => c.id));
+    trySet(
+      storage,
+      INDEX_KEY,
+      JSON.stringify([...current, ...candidates.filter((c) => ok.has(c.id))]),
+    );
+  }
+  if (skipped > 0)
+    log.warn('legacy chat import: storage full, older conversations not imported', skipped);
 
   // 3) 会话指针：只在空着 / 指向已不存在的会话时补上旧的
   const ids = new Set([...current, ...added].map((c) => c.id));
@@ -164,7 +190,7 @@ export function mergeLegacyChatEntries(
     if (storage.getItem(key) !== null) continue;
     trySet(storage, key, value);
   }
-  return added.length;
+  return { added: added.length, skipped };
 }
 
 function trySet(storage: KeyValueStorage, key: string, value: string): void {
@@ -201,14 +227,14 @@ export async function importLegacyChatHistory(
     return { status: 'none' };
   }
 
-  let conversations: number;
+  let merged: LegacyMergeResult;
   try {
-    conversations = mergeLegacyChatEntries(storage, res.entries);
+    merged = mergeLegacyChatEntries(storage, res.entries);
   } catch (e) {
     return { status: 'import-failed', error: errText(e) };
   }
-  markDone(storage, 'imported', now(), conversations);
-  return { status: 'imported', conversations };
+  markDone(storage, 'imported', now(), merged.added);
+  return { status: 'imported', conversations: merged.added, skipped: merged.skipped };
 }
 
 /** 入口用：结果写日志；失败只记日志（不挡对话窗口），下次启动再试 */
@@ -216,7 +242,7 @@ export async function runLegacyChatImport(opts: LegacyImportOptions): Promise<Le
   const result = await importLegacyChatHistory(opts);
   switch (result.status) {
     case 'imported':
-      log.info('legacy chat history imported', result.conversations);
+      log.info('legacy chat history imported', result.conversations, 'skipped', result.skipped);
       break;
     case 'extract-failed':
     case 'import-failed':
