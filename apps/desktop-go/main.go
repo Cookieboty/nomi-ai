@@ -330,7 +330,13 @@ func main() {
 			return resp.Content, nil
 		}))
 	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
-		PrepareChat: desktopSvc.ChatPrep().PrepareChat})
+		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
+			// 上下文预算：按路由到的模型的窗口算（gateway/nomiContext.ts），不再用固定的 8K
+			if gatewaySvc != nil {
+				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
+			}
+			return desktopSvc.ChatPrep().PrepareChat(options, method, signal)
+		}})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 过程，parity b7s-aifacade）。

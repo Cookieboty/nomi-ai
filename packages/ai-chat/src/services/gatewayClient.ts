@@ -1,6 +1,7 @@
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 
 import { api, hasTransport } from './api';
+import type { NomiContextInfo } from './compaction';
 /**
  * 统一网关（主进程 GatewayService，见 docs/design/unified-gateway.md §5、§6；应用契约 `gateway.*`）。
  * 返回的数据里 Key 只有掩码、没有客户端令牌；明文 Key 只在 upsertProvider / detect 的参数里单向发出。
@@ -306,6 +307,21 @@ export const gatewayClient = {
     if (!s || !Array.isArray(s.providers) || typeof s.clients !== 'object' || !s.status)
       throw new Error('invalid gateway state');
     return s;
+  },
+  /**
+   * Nomi 对话某个角色的上下文预算（按路由到的模型的窗口算）。没配模型 / 旧主进程 / 没有传输时 null，
+   * 调用方按「不知道窗口」处理（不自动压缩，内核用默认预算）。
+   */
+  nomiContext: async (
+    role: 'chat' | 'agent-tools' | 'summary' = 'chat',
+  ): Promise<NomiContextInfo | null> => {
+    if (!hasTransport()) return null;
+    try {
+      const r = await call<NomiContextInfo | null>(() => api.gateway.nomiContext({ role }));
+      return r && r.budget > 0 && r.compactAt > 0 ? r : null;
+    } catch {
+      return null;
+    }
   },
   upsertProvider: (input: ProviderInput) =>
     call<ProviderView>(() => api.gateway.upsertProvider(input)),

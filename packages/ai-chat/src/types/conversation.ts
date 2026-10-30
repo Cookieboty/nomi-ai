@@ -23,8 +23,8 @@ export interface ConvMessage {
   stopped?: boolean;
   /** Gemini 因为不信任这个文件夹而拒绝运行 */
   geminiTrust?: { folder: string; broad?: boolean };
-  /** CLI 自发的一轮（后台子代理完成后的跟进） */
-  origin?: 'background';
+  /** background：CLI 自发的一轮（后台子代理完成后的跟进）；compaction：Nomi 对话的上下文压缩 */
+  origin?: 'background' | 'compaction';
   /** 本轮耗时（ms） */
   durationMs?: number;
   usage?: HarnessUsage;

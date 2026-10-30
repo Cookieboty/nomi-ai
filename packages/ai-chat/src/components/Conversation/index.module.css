@@ -325,6 +325,40 @@
   color: var(--cd-color-text-subtle);
 }
 
+.compaction {
+  align-self: stretch;
+  border-top: 1px dashed var(--cd-color-border);
+  padding-top: var(--cd-space-2);
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-subtle);
+}
+
+.compactionLine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  cursor: default;
+}
+
+.compaction summary.compactionLine {
+  cursor: pointer;
+  border-radius: var(--cd-radius-sm);
+}
+
+.compaction summary.compactionLine:hover {
+  color: var(--cd-color-text);
+}
+
+.compaction summary.compactionLine:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+
+.compactionBody {
+  margin-top: var(--cd-space-2);
+  color: var(--cd-color-text-muted);
+}
+
 .editBox {
   display: flex;
   flex-direction: column;

@@ -48,6 +48,7 @@ describe('shell · 过程表', () => {
       'providers.state': 'query',
       'providers.setActive': 'mutation',
       'gateway.state': 'query',
+      'gateway.nomiContext': 'query',
       'gateway.detect': 'mutation',
       'gateway.retry': 'mutation',
       'gateway.upsertProvider': 'mutation',

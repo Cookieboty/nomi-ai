@@ -149,6 +149,16 @@ export const GatewayState = loose({
   port: z.number(),
 });
 
+/** Nomi 对话的上下文预算（core gateway/nomiContext.ts） */
+export const NomiContextInfo = loose({
+  model: z.string(),
+  window: z.number(),
+  outputReserve: z.number(),
+  budget: z.number(),
+  compactAt: z.number(),
+  source: z.string(),
+});
+
 const KeyLimit = z.number().nullable().optional();
 export const GatewayProviderInput = loose({
   id: z.string().optional(),

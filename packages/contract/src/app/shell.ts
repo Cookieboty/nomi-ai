@@ -134,6 +134,12 @@ export const shellProcedures = {
   },
   'gateway.terminalState': { kind: 'query', input: v, output: S.TerminalState },
   'gateway.terminalSet': { kind: 'mutation', input: S.TerminalSetInput, output: S.TerminalState },
+  /** Nomi 对话某个角色的上下文预算（按路由到的模型的窗口算）；没配模型时 null */
+  'gateway.nomiContext': {
+    kind: 'query',
+    input: z.object({ role: z.enum(['chat', 'agent-tools', 'summary']).optional() }),
+    output: S.NomiContextInfo.nullable(),
+  },
 
   // ---- usage（UsageService）----
   'usage.state': { kind: 'query', input: v, output: S.UsageState },

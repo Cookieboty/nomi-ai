@@ -84,6 +84,8 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
       withProviders((p) => p.setActive(id, model ?? undefined)),
 
     'gateway.state': () => gateway().state(),
+    // 网关服务还没起来时当作没配模型（视图按默认预算）
+    'gateway.nomiContext': ({ role }) => s.gateway?.nomiContext(role ?? 'chat') ?? null,
     'gateway.detect': (input) => gateway().detect(input),
     'gateway.retry': () => gateway().retry(),
     'gateway.upsertProvider': (input) => gateway().upsertProvider(input as ProviderInput),

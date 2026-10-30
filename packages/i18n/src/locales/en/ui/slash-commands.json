@@ -87,7 +87,6 @@
   "ui.slash-commands.no-matching-coding-agent": "No matching coding agent",
   "ui.slash-commands.no-matching-models": "No matching models.",
   "ui.slash-commands.no-uncommitted-changes": "No uncommitted changes.",
-  "ui.slash-commands.nomi-chat-has-no-compact-context-feature-yet": "Nomi chat has no “compact context” feature yet. Use /clear to start a new conversation.",
   "ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type": "Nomi's own Skills and MCP servers. Type / to use a Skill directly.",
   "ui.slash-commands.nomi-skill": "Nomi skill",
   "ui.slash-commands.not-detected": "Not detected",
@@ -175,5 +174,8 @@
   "ui.slash-commands.when-names-clash-the-cli-only-runs-the": "When names clash, the CLI only runs the {0} version of /{1} and has no syntax to target another version, so Nomi will not send this one, to avoid running a different command.",
   "ui.slash-commands.workflow": "Workflow",
   "ui.slash-commands.your-messages": "Your messages",
-  "ui.slash-commands.no-matching-model": "No matching model"
+  "ui.slash-commands.no-matching-model": "No matching model",
+  "ui.slash-commands.summarize-earlier-messages-to-free-up-context": "Summarize earlier messages to free up context (also happens automatically when it's nearly full)",
+  "ui.slash-commands.wait-for-the-current-reply-to-finish-then": "Wait for the current reply to finish, then compact.",
+  "ui.slash-commands.nothing-to-compact-yet": "There's nothing to compact yet."
 }

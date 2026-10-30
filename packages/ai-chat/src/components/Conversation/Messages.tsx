@@ -1,6 +1,15 @@
 /** 会话里的消息：用户气泡、助手消息（时间线 + 正文 + 元信息）、错误卡片、消息操作 */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Check, CircleAlert, Copy, Layers, OctagonX, Pencil, RefreshCw } from 'lucide-react';
+import {
+  Check,
+  CircleAlert,
+  Copy,
+  FoldVertical,
+  Layers,
+  OctagonX,
+  Pencil,
+  RefreshCw,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -283,6 +292,32 @@ export const UserMessage = memo(function UserMessage({
             )}
           </div>
         </>
+      )}
+    </div>
+  );
+});
+
+/** Nomi 对话的上下文压缩：一条分隔线，展开看摘要（压缩中 / 失败时显示状态） */
+export const CompactionNote = memo(function CompactionNote({ message }: { message: ConvMessage }) {
+  useLocale();
+  const state = message.error ? 'failed' : message.text ? 'done' : 'running';
+  return (
+    <div className={styles.compaction} data-testid="compaction-note" data-state={state}>
+      {state === 'done' ? (
+        <details>
+          <summary className={styles.compactionLine}>
+            <Icon icon={FoldVertical} size={13} />
+            {t('ui.chat-settings.earlier-messages-were-compacted-into-a-summary')}
+          </summary>
+          <Markdown className={styles.compactionBody} text={message.text} settled />
+        </details>
+      ) : (
+        <div className={styles.compactionLine} role="status">
+          <Icon icon={state === 'failed' ? CircleAlert : FoldVertical} size={13} />
+          {state === 'failed'
+            ? t('ui.chat-settings.couldn-t-compact-earlier-messages', message.error ?? '')
+            : t('ui.chat-settings.compacting-earlier-messages')}
+        </div>
       )}
     </div>
   );

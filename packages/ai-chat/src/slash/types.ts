@@ -233,6 +233,11 @@ export interface SlashActions {
   nomiSkillBody: (name: string) => Promise<string | null>;
   /** 把一段文本当作普通消息发出（卡片里的「作为普通文字发送」） */
   sendPlain: (text: string) => void;
+  /** Nomi：`/compact` 把当前对话较早的部分压缩成摘要 */
+  compactNomi: () => Promise<{
+    status: 'done' | 'nothing' | 'busy' | 'failed';
+    error?: string;
+  }>;
 }
 
 export interface AdapterInput {

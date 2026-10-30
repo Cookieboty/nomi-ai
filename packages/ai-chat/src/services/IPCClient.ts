@@ -14,7 +14,7 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 import { api, hasTransport } from './api';
 import { ConversationStore } from './conversationStore';
 import { harnessClient } from './harnessClient';
-import { buildProviderMessages } from './history';
+import { buildProviderMessages, type ProviderMessage } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
 
 const log = createLogger('IPC');
@@ -36,6 +36,8 @@ interface SdkChatOptions {
   messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>;
   /** 透传至 ChatRequest.extra（如 conversationId，#116） */
   extra?: Record<string, unknown>;
+  /** 按角色路由（chat / agent-tools / summary） */
+  role?: string;
 }
 
 type SdkChatChunk =
@@ -166,6 +168,12 @@ export class SdkIPCClient implements IPCClient {
     } catch {
       return undefined;
     }
+  }
+
+  /** 上下文压缩：用 summary 角色的模型生成摘要（单次请求，不走工具循环） */
+  async summarize(messages: ProviderMessage[]): Promise<string> {
+    const resp = await this.chat.sendMessage({ messages, role: 'summary' });
+    return typeof resp?.content === 'string' ? resp.content.trim() : '';
   }
 
   async sendMessage(

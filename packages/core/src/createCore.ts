@@ -84,6 +84,7 @@ import { DiagnosticsService } from './diagnostics/DiagnosticsService';
 import { ExtensionsService } from './extensions/ExtensionsService';
 import { GatewayService } from './gateway/GatewayService';
 import { harnessGateway } from './gateway/harnessGateway';
+import { applyNomiContext, chatRoleOf } from './gateway/nomiContext';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
 import { LocaleService, t as tr, type CoreI18n } from './i18n';
@@ -959,17 +960,14 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
         // 对话工作区：视图带来的 extra.cwd 先经内核校验，不认的去掉（工具不再看到它）
+        // 上下文预算：按路由到的模型的窗口算（gateway/nomiContext.ts），不再用固定的 8K
         prepareChat: async (options, method, signal) => {
           if (services.desktop) await applyConversationWorkspace(options, services.desktop.broker);
+          const gw = services.gateway;
+          if (gw) applyNomiContext(options, method, (r) => gw.nomiContext(r));
           return guardOutboundMessages(options.messages, (what) => {
             const desktop = services.desktop!;
-            const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
-            const role =
-              options.role === 'chat' ||
-              options.role === 'agent-tools' ||
-              options.role === 'summary'
-                ? options.role
-                : fallback;
+            const role = chatRoleOf(options.role, method);
             return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
           });
         },

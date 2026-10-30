@@ -9,9 +9,9 @@ import {
 } from '../../services/delegateClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { notice } from '../cards';
-import type { AdapterInput, SlashCommand, SlashOutcome } from '../types';
+import type { AdapterInput, SlashActions, SlashCommand, SlashOutcome } from '../types';
 
-import { cmd, nativeCommands, unsupportedCommands, U } from './common';
+import { cmd, nativeCommands } from './common';
 
 const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
@@ -66,6 +66,20 @@ async function runAgent(raw: string): Promise<SlashOutcome> {
   return task ? { type: 'send', text: task } : { type: 'noop' };
 }
 
+/** `/compact`：把较早的对话压缩成摘要（到 95% 时发送前也会自动压缩，见 services/compaction.ts） */
+async function runCompact(actions: SlashActions): Promise<SlashOutcome> {
+  const title = t('ui.slash-commands.compact-context');
+  const r = await actions.compactNomi();
+  if (r.status === 'done') return { type: 'noop' };
+  const text =
+    r.status === 'busy'
+      ? t('ui.slash-commands.wait-for-the-current-reply-to-finish-then')
+      : r.status === 'nothing'
+        ? t('ui.slash-commands.nothing-to-compact-yet')
+        : t('ui.chat-settings.couldn-t-compact-earlier-messages', r.error ?? '');
+  return { type: 'card', card: notice(title, text, r.status === 'failed' ? 'warn' : 'info') };
+}
+
 export function nomiAdapter(input: AdapterInput): SlashCommand[] {
   const skills = (input.nomiSkills ?? []).map((s) =>
     cmd({
@@ -105,9 +119,14 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
       hint: t('ui.slash-commands.name-request'),
       run: (a) => runAgent(a),
     }),
-    ...unsupportedCommands('nomi', [
-      U.compact(() => t('ui.slash-commands.nomi-chat-has-no-compact-context-feature-yet')),
-    ]),
+    cmd({
+      name: 'compact',
+      label: t('ui.slash-commands.compact-context'),
+      description: t('ui.slash-commands.summarize-earlier-messages-to-free-up-context'),
+      source: 'builtin',
+      kind: 'native',
+      run: (_a, ctx) => runCompact(ctx.actions),
+    }),
     ...skills,
   ];
 }

@@ -464,6 +464,7 @@ const AiChatContent: React.FC = () => {
       if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
       else void actions.newConversation();
     },
+    compactNomi: () => actions.compactConversation(),
     onOpenPlugins: () => setShowPlugins(true),
     onOpenProviders: () => openSettings('models'),
     onOpenSettings: () => {

@@ -457,5 +457,9 @@
   "ui.chat-settings.auto-approve-everything": "Auto-approve everything (full access)",
   "ui.chat-settings.auto-approve-description": "When on, new coding agent tabs and the agents Nomi hands work to start in Full access, and file and command actions inside a Nomi conversation's workspace run without asking. Paths outside the workspace and sensitive files (.ssh, keychains, .env, …) are still refused. Turn it off to be asked again.",
   "ui.chat-settings.turn-on-auto-approve": "Turn on auto-approve?",
-  "ui.chat-settings.auto-approve-confirm-body": "Coding agents will run with full access, and Nomi will edit files and run commands in the conversation workspace without asking. Only use this with folders you trust."
+  "ui.chat-settings.auto-approve-confirm-body": "Coding agents will run with full access, and Nomi will edit files and run commands in the conversation workspace without asking. Only use this with folders you trust.",
+  "ui.chat-settings.compacting-earlier-messages": "Compacting earlier messages into a summary…",
+  "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "Earlier messages were compacted into a summary (click to view)",
+  "ui.chat-settings.couldn-t-compact-earlier-messages": "Couldn't compact earlier messages: {0}. The message is still sent; the oldest messages may be cut off.",
+  "ui.chat-settings.the-model-returned-an-empty-summary": "The model returned an empty summary"
 }

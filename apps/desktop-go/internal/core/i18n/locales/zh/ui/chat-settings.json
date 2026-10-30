@@ -457,5 +457,9 @@
   "ui.chat-settings.auto-approve-everything": "全部自动（最高权限）",
   "ui.chat-settings.auto-approve-description": "开着时：新的编程助手标签和 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件和命令操作不再逐项确认。工作区外的路径、敏感文件（.ssh、钥匙串、.env 等）仍然拒绝。关掉后改回逐项询问。",
   "ui.chat-settings.turn-on-auto-approve": "打开「全部自动」？",
-  "ui.chat-settings.auto-approve-confirm-body": "编程助手会以最高权限运行，Nomi 在对话工作区里改文件、跑命令都不再问你。只在你信任的文件夹里这样用。"
+  "ui.chat-settings.auto-approve-confirm-body": "编程助手会以最高权限运行，Nomi 在对话工作区里改文件、跑命令都不再问你。只在你信任的文件夹里这样用。",
+  "ui.chat-settings.compacting-earlier-messages": "正在把较早的对话压缩成摘要…",
+  "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "较早的对话已压缩成摘要（点开查看）",
+  "ui.chat-settings.couldn-t-compact-earlier-messages": "没能压缩较早的对话：{0}。这一轮照常发送，最早的消息可能会被截掉。",
+  "ui.chat-settings.the-model-returned-an-empty-summary": "模型返回了空的摘要"
 }

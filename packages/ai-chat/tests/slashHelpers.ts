@@ -69,6 +69,10 @@ export function makeCtx(
     expand: vi.fn(async () => null as { text: string; shellInjection: boolean } | null),
     nomiSkillBody: vi.fn(async () => null as string | null),
     sendPlain: vi.fn(),
+    compactNomi: vi.fn(
+      async () =>
+        ({ status: 'done' }) as { status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string },
+    ),
   };
   const commands = buildRegistry(
     adapterFor(backend, { backend, discovered: over.discovered ?? null }),

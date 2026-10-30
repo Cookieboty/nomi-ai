@@ -2103,6 +2103,28 @@ type GatewayDetectOutput struct {
 	Urls   map[string]string                                        `json:"urls"`
 }
 
+// GatewayNomiContextInputRole 枚举：chat | agent-tools | summary
+type GatewayNomiContextInputRole = string
+
+const (
+	GatewayNomiContextInputRoleChat       GatewayNomiContextInputRole = "chat"
+	GatewayNomiContextInputRoleAgentTools GatewayNomiContextInputRole = "agent-tools"
+	GatewayNomiContextInputRoleSummary    GatewayNomiContextInputRole = "summary"
+)
+
+type GatewayNomiContextInput struct {
+	Role *GatewayNomiContextInputRole `json:"role,omitempty"`
+}
+
+type GatewayNomiContextOutput struct {
+	Model         string  `json:"model"`
+	Window        float64 `json:"window"`
+	OutputReserve float64 `json:"outputReserve"`
+	Budget        float64 `json:"budget"`
+	CompactAt     float64 `json:"compactAt"`
+	Source        string  `json:"source"`
+}
+
 type GatewayPrivacyAddAllowOutputProvidersItemKeysItem struct {
 	Id string `json:"id"`
 }
@@ -6800,6 +6822,10 @@ type GatewayConfirmPrivateHostOutputT = any
 // GatewayDetectInputT 是 gateway.detect 的入参
 type GatewayDetectInputT = GatewayDetectInput
 type GatewayDetectOutputT = GatewayDetectOutput
+
+// GatewayNomiContextInputT 是 gateway.nomiContext 的入参
+type GatewayNomiContextInputT = GatewayNomiContextInput
+type GatewayNomiContextOutputT = *GatewayNomiContextOutput
 
 // GatewayPrivacyAddAllowInputT 是 gateway.privacyAddAllow 的入参
 type GatewayPrivacyAddAllowInputT = json.RawMessage

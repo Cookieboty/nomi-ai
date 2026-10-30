@@ -197,12 +197,24 @@ describe('各端命令集', () => {
       ['codex', 'compact'],
       ['codex', 'permissions'],
       ['grok', 'mention'],
-      ['nomi', 'compact'],
     ] as const) {
       const { r } = await run(b, `/${n}`);
       const c = cardOf(r);
       expect(c.kind, `${b}:${n}`).toBe('notice');
       expect(c.kind === 'notice' && c.tone).toBe('warn');
+    }
+  });
+  it('Nomi /compact：压缩当前对话，没有可压缩的 / 正在回复时给提示', async () => {
+    const a = await run('nomi', '/compact');
+    expect(a.actions.compactNomi).toHaveBeenCalledTimes(1);
+    expect(a.r.handled && a.r.outcome.type).toBe('noop');
+    for (const status of ['nothing', 'busy', 'failed'] as const) {
+      const { ctx, commands, actions } = makeCtx('nomi');
+      actions.compactNomi.mockResolvedValueOnce({ status, error: 'boom' });
+      const r = await executeSlash('/compact', commands, ctx);
+      const c = cardOf(r);
+      expect(c.kind).toBe('notice');
+      expect(c.kind === 'notice' && c.tone).toBe(status === 'failed' ? 'warn' : 'info');
     }
   });
   it('/clear 与 /new 都触发新会话，不发给模型', async () => {

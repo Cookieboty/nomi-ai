@@ -30,7 +30,7 @@ func parseObj(raw json.RawMessage) (*u.Obj, error) {
 
 // GatewayProcedures：本文件注册的过程（测试 / 文档用）
 var GatewayProcedures = []string{
-	"gateway.state", "gateway.detect", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider",
+	"gateway.state", "gateway.nomiContext", "gateway.detect", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider",
 	"gateway.setAssignment", "gateway.setOptions", "gateway.resetToken", "gateway.clearLearned",
 	"gateway.confirmPrivateHost", "gateway.privacyPreview", "gateway.privacyLog", "gateway.privacyClearLog",
 	"gateway.privacyAddAllow", "gateway.privacyRemoveAllow", "gateway.privacyAddSecret",
@@ -54,6 +54,24 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 	}
 	str := func(in *u.Obj, k string) string { s, _ := in.Get(k).(string); return s }
 	call("gateway.state", func(g *gwstore.Service, _ *u.Obj) (any, error) { return g.State(), nil })
+	// 网关服务还没起来时当作没配模型（视图按默认预算），同 shell.ts
+	r.Call("gateway.nomiContext", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		in, err := parseObj(raw)
+		if err != nil {
+			return nil, err
+		}
+		if svc == nil {
+			return nil, nil
+		}
+		role, _ := in.Get("role").(string)
+		if role == "" {
+			role = "chat"
+		}
+		if o := svc.NomiContext(role); o != nil {
+			return o, nil
+		}
+		return nil, nil
+	})
 	call("gateway.detect", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.Detect(in) })
 	call("gateway.retry", func(g *gwstore.Service, _ *u.Obj) (any, error) { g.Retry(); return nil, nil })
 	call("gateway.upsertProvider", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.UpsertProvider(in) })

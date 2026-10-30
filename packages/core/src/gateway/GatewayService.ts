@@ -58,7 +58,14 @@ import {
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
 import { archiveLegacyFiles, legacyFileCandidates, migrateLegacy } from './migrate';
-import type { MetaSource, PresetModelMeta, ResolvedModelMeta } from './modelMeta';
+import {
+  DEFAULT_CTX,
+  DEFAULT_MAX_OUTPUT,
+  type MetaSource,
+  type PresetModelMeta,
+  type ResolvedModelMeta,
+} from './modelMeta';
+import { nomiContextBudget, type NomiContextInfo, type NomiRole } from './nomiContext';
 import { PrivacyLog, type PrivacyLogEntry } from './PrivacyLog';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
@@ -82,7 +89,6 @@ function withLimits(
 }
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
-type NomiRole = 'chat' | 'agent-tools' | 'summary';
 
 const WIRE_LABEL: Record<Wire, string> = {
   messages: 'Anthropic',
@@ -861,6 +867,18 @@ export class GatewayService {
       baseURL: picked.receiver.url,
       model: picked.publicModel.slice(head.providerId.length + 1),
     };
+  }
+
+  /**
+   * Nomi 对话这个角色的上下文预算（按实际路由到的模型的窗口算，见 nomiContext.ts）。
+   * 没配模型时 null（调用方用 ai-sdk 的默认预算）。不要求网关在运行。
+   */
+  nomiContext(role: NomiRole): NomiContextInfo | null {
+    const picked = this.nomiPick(role);
+    if (!picked) return null;
+    const meta = this.modelMetaOf(picked.publicModel);
+    const ctx = meta ?? { ctx: DEFAULT_CTX, maxOutput: DEFAULT_MAX_OUTPUT, source: 'default' };
+    return { model: picked.publicModel, ...nomiContextBudget(ctx), source: ctx.source };
   }
 
   /** 按网关供应商 id 查名字与地址（不含 Key）；地址里有云端的就报云端 */

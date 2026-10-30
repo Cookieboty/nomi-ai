@@ -56,6 +56,8 @@ export interface SlashHookParams {
   /** 目标标签是否还存在；不存在时迟到的结果只记日志，不再留提示卡 */
   tabExists?: (tabId: string) => boolean;
   newSession: () => void | Promise<void>;
+  /** Nomi 主对话的 `/compact`（AiChatContext.compactConversation）；没有时报「没有可压缩的」 */
+  compactNomi?: () => Promise<{ status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string }>;
   onOpenPlugins: () => void;
   onOpenProviders: () => void;
   onOpenSettings: () => void;
@@ -312,6 +314,11 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         }
       },
       sendPlain: (text) => void deliver(target, text, text),
+      compactNomi: async () => {
+        // 只压缩发起命令时显示的那个 Nomi 对话
+        if (target.scopeKey !== latest.current.scopeKey) return { status: 'nothing' as const };
+        return (await latest.current.compactNomi?.()) ?? { status: 'nothing' as const };
+      },
     }),
     [deliver],
   );
