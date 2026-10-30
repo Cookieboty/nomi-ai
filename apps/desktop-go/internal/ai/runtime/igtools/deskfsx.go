@@ -5,6 +5,7 @@ package igtools
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -213,6 +214,39 @@ func clip300(s string) string {
 	return s
 }
 
+const editConflict = "文件在等待确认期间被其他程序改过（例如在编辑器里保存了），这次修改没有写入，文件保持对方保存的版本；先用 fs_read_text 重新读取最新内容再改"
+
+// editBeforeTrash 只给测试用：模拟「重读比对之后、移入回收站之前」的外部写入
+var editBeforeTrash func(path string)
+
+// commitEditSource 是 fs_edit 的提交前版本核对（同 tools.ts 的 commitEditSource）：
+// 确认可能等很久，期间用户可能在编辑器里保存了同一文件。
+//  1. 重读比对内容哈希，与确认前读到的不同就报 conflict，什么都不动；
+//  2. 把文件移入应用回收站（同盘 rename，原子），再核对被移走的正是比对过的版本——
+//     这样「重读之后、移走之前」的窗口也被覆盖：不一致就原样放回并报 conflict。
+//
+// 剩余窗口只有：移走之后仍持有旧文件句柄原地写入的程序，其写入落在回收站里的旧版本上
+// （撤销可取回）；移走之后有人在原路径新建文件则由写回的 O_EXCL 拒绝（见调用处）。
+func (k *deskKit) commitEditSource(real string, expected [32]byte) (desktop.TrashRecord, error) {
+	cur, err := os.ReadFile(real)
+	if err != nil || sha256.Sum256(cur) != expected {
+		return desktop.TrashRecord{}, toolErr("conflict", editConflict)
+	}
+	if editBeforeTrash != nil {
+		editBeforeTrash(real)
+	}
+	rec, err := k.d.Trash.Trash(real)
+	if err != nil {
+		return rec, err
+	}
+	if moved, err := os.ReadFile(rec.Stored); err == nil && sha256.Sum256(moved) == expected {
+		return rec, nil
+	}
+	// 放回失败（原路径已被新建）时较新的那份留在原处，被移走的留在应用回收站，都不丢
+	_ = k.d.Trash.Restore(rec.Stored, rec.Original)
+	return desktop.TrashRecord{}, toolErr("conflict", editConflict)
+}
+
 func (k *deskKit) edit(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
 	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
 	g, err := k.guard(i.Get("path"), "write", false, ws)
@@ -269,11 +303,15 @@ func (k *deskKit) edit(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any
 	if err != nil {
 		return nil, "", err
 	}
-	rec, err := k.d.Trash.Trash(g.Real)
+	rec, err := k.commitEditSource(g.Real, sha256.Sum256(buf))
 	if err != nil {
 		return nil, "", err
 	}
 	if err := writeExcl(g.Real, text); err != nil {
+		// 移走之后、写回之前有人在原路径新建了文件：保留对方的文件，旧版本留在应用回收站
+		if _, serr := os.Lstat(g.Real); serr == nil {
+			return nil, "", toolErr("conflict", editConflict)
+		}
 		return nil, "", err
 	}
 	_ = os.Chmod(g.Real, st.Mode().Perm())
