@@ -56,6 +56,34 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v205">
+          <header class="release-head">
+            <h2 data-i18n="cl.v205.title">v2.0.5 — Go 版成为正式版、Nomi 对话工作区、编程助手账号管理</h2>
+            <time datetime="2026-10-30">2026-10-30</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v205.feat">新功能</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v205.feat.1">正式版改为 Go 版：界面与功能不变，安装包约为原来的 1/4，内存和空闲 CPU 更低；同时继续提供 Electron 版安装包。</li>
+            <li data-i18n="cl.v205.feat.2">Nomi 对话可以选择工作区：文件工具与命令在工作区内运行，工作区外仍需要你授权。</li>
+            <li data-i18n="cl.v205.feat.3">编程助手页显示本机 Node.js / npm 环境，并可管理 Claude Code、Codex、Grok 的官方账号。</li>
+            <li data-i18n="cl.v205.feat.4">Nomi 与编程助手共用同一套对话视图：显示思考过程、工具调用、耗时与用量。</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v205.imp">改进</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v205.imp.1">从 2.0.4 应用内升级会切换到 Go 版，聊天记录、设置与 API Key 在首次启动时自动迁移。</li>
+            <li data-i18n="cl.v205.imp.2">模型选择按供应商分组；需要确认的桌面操作可以直接在对话里回答。</li>
+            <li data-i18n="cl.v205.imp.3">多处写盘改为异步，Windows 上不再因为保存而卡住界面。</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v205.fix">修复</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v205.fix.1">自定义供应商没有 /models 列表时，也能用测试模型探测并保存。</li>
+            <li data-i18n="cl.v205.fix.2">取消添加供应商后，迟到的检测结果不再被写入。</li>
+            <li data-i18n="cl.v205.fix.3">折叠侧栏时重命名会话会先展开，再显示输入框。</li>
+            <li data-i18n="cl.v205.fix.4">清空隐私日志不会被迟到的写入覆盖回去。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.5" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v204">
           <header class="release-head">
             <h2 data-i18n="cl.v204.title">v2.0.4 — 设置重组、外发保护加固、安装包瘦身</h2>
