@@ -11,6 +11,12 @@ import { UsageService, type UsageAlert } from '../../../src/usage/UsageService';
 /** gpt-4o：输入 2.5 USD / 百万。1M 输入 token = 2.5 USD */
 const M = (n: number) => n * 1_000_000;
 
+// 每个用例结束都停掉建过的服务：账本的落盘定时器留着会在后面别的测试文件里触发（同一 worker）
+const services: UsageService[] = [];
+afterEach(() => {
+  for (const s of services.splice(0)) s.stop();
+});
+
 function mk(opts: { root?: string; deliver?: () => boolean } = {}) {
   const root = opts.root ?? fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-bud-'));
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-bud-home-'));
@@ -31,6 +37,7 @@ function mk(opts: { root?: string; deliver?: () => boolean } = {}) {
       return true;
     },
   });
+  services.push(svc);
   const rec = (
     usd: number,
     over: Partial<Parameters<UsageService['record']>[0]> = {},

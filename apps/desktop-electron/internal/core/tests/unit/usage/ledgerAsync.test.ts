@@ -221,7 +221,8 @@ describe('UsageLedger：异步压缩与游标写入', () => {
     for (let i = 0; i < 50 && l.persistState().cursorDirty; i++)
       await new Promise((r) => setTimeout(r, 10));
     expect(l.persistState().cursorDirty).toBe(false);
-    expect(spy).not.toHaveBeenCalled();
+    // 只看本账本目录：同一 worker 里别的测试文件留下的定时器也可能在这段时间同步写盘
+    expect(spy.mock.calls.filter(([p]) => String(p).startsWith(root))).toEqual([]);
     expect(new UsageLedger({ root }).cursor('/log')?.offset).toBe(9);
   });
 });
