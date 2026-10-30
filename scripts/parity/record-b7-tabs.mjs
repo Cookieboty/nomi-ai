@@ -20,13 +20,26 @@ process.env.NOMI_USE_MOCK_CLI = '1';
 process.env.NOMI_LOCALE = process.env.NOMI_LOCALE || 'en';
 const scen = JSON.parse(fs.readFileSync(path.join(here, 'b7-tabs-scenarios.json'), 'utf8'));
 const { HarnessOrchestrator } = await import(
-  pathToFileURL(path.join(root, 'packages/core/src/cli/harness/Orchestrator.ts')).href
+  pathToFileURL(
+    path.join(root, 'apps/desktop-electron/internal/core/src/cli/harness/Orchestrator.ts'),
+  ).href
 );
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
-const TIMEKEYS = new Set(['ts', 'at', 'expiresAt', 'startedAt', 'durationMs', 'updatedAt', 'createdAt', 'timestamp', 'lastActiveAt']);
+const TIMEKEYS = new Set([
+  'ts',
+  'at',
+  'expiresAt',
+  'startedAt',
+  'durationMs',
+  'updatedAt',
+  'createdAt',
+  'timestamp',
+  'lastActiveAt',
+]);
 function norm(v, tmp) {
-  if (typeof v === 'string') return v.split(tmp).join('<T>').split(root).join('<R>').replace(UUID, '<U>');
+  if (typeof v === 'string')
+    return v.split(tmp).join('<T>').split(root).join('<R>').replace(UUID, '<U>');
   if (Array.isArray(v)) return v.map((x) => norm(x, tmp));
   if (v && typeof v === 'object') {
     const o = {};
@@ -81,7 +94,8 @@ for (const c of scen.cases) {
       return v.split('$W').join(work).split('$T').join(tmp);
     }
     if (Array.isArray(v)) return v.map(sub);
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]));
+    if (v && typeof v === 'object')
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]));
     return v;
   };
   for (const [rel, body] of Object.entries(c.files ?? {})) {
@@ -143,7 +157,12 @@ for (const c of scen.cases) {
       } catch (e) {
         p = Promise.reject(e);
       }
-      pending.push(p.then((v) => ({ ok: snapv(v) }), (e) => ({ err: String(e?.message ?? e) })));
+      pending.push(
+        p.then(
+          (v) => ({ ok: snapv(v) }),
+          (e) => ({ err: String(e?.message ?? e) }),
+        ),
+      );
       steps.push([m, 'started']);
       continue;
     }
@@ -164,8 +183,12 @@ for (const c of scen.cases) {
 }
 
 const dir =
-  process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/cli/harness/testdata');
+  process.env.NOMI_GOLDEN_DIR ??
+  path.join(root, 'apps/desktop-go/internal/core/cli/harness/testdata');
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'b7_orch_tabs.json'), JSON.stringify({ cases: out }, null, 2) + '\n');
+fs.writeFileSync(
+  path.join(dir, 'b7_orch_tabs.json'),
+  JSON.stringify({ cases: out }, null, 2) + '\n',
+);
 console.log(`b7 orch tabs: ${out.length} cases -> ${dir}`);
 process.exit(0);

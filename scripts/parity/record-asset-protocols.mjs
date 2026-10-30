@@ -22,7 +22,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pp = await import(
-  pathToFileURL(join(root, 'packages/core/src/character/packProtocol.ts')).href
+  pathToFileURL(join(root, 'apps/desktop-electron/internal/core/src/character/packProtocol.ts'))
+    .href
 );
 const { CHAT_BG_PRESET_URL } = await import(
   pathToFileURL(join(root, 'packages/types/src/chatBackground.ts')).href

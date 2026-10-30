@@ -1,6 +1,6 @@
 package usage
 
-// codexratelimits.go = packages/core/src/usage/codexRateLimits.ts
+// codexratelimits.go = apps/desktop-electron/internal/core/src/usage/codexRateLimits.ts
 //
 // Codex 额度：拉起官方 `codex app-server`，通过官方 JSON-RPC `account/rateLimits/read` 读取。
 // 登录凭据始终留在 Codex 自己手里，Nomi 不读 auth.json、不经手任何 token。

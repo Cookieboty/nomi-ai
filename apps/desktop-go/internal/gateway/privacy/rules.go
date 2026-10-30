@@ -1,4 +1,4 @@
-// Package privacy ports packages/gateway/src/privacy (secret masking).
+// Package privacy ports apps/desktop-electron/internal/gateway/src/privacy (secret masking).
 //
 // All offsets are JS (UTF-16) indices. Regexes run over u.Projection of the
 // text (one byte per UTF-16 unit, ASCII kept, non-ASCII whitespace → \v, other

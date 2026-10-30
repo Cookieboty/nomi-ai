@@ -1,6 +1,6 @@
 package usage
 
-// groksubscription.go = packages/core/src/usage/grokSubscription.ts
+// groksubscription.go = apps/desktop-electron/internal/core/src/usage/grokSubscription.ts
 //
 // Grok 账户额度：官方 Grok CLI 在 ACP 中提供 `_x.ai/billing` 扩展。让 CLI 自己读取登录态，
 // 只保留账户周期的百分比、周期时间和套餐名；Nomi 不读 auth.json，也不把 billing 原始响应写入日志或磁盘。

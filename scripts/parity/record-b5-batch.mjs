@@ -11,8 +11,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { mock } from 'node:test';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setImmediate as realImmediate } from 'node:timers/promises';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { register } from 'tsx/esm/api';
 
 register();
@@ -20,13 +21,21 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 // 从源码逐字截取 mergeableText / FLUSH / batchTextChunks，用 esbuild 去类型后加载：
 // 不 import AiContractRouter.ts（它依赖需先构建的 @nomi-ai/contract dist）
 const { transformSync } = await import('esbuild');
-const routerSrc = readFileSync(join(root, 'packages/ai-runtime/src/AiContractRouter.ts'), 'utf8');
+const routerSrc = readFileSync(
+  join(root, 'apps/desktop-electron/internal/ai-runtime/src/AiContractRouter.ts'),
+  'utf8',
+);
 const startIdx = routerSrc.indexOf('function mergeableText(');
 const fnIdx = routerSrc.indexOf('export async function* batchTextChunks<');
 const endIdx = routerSrc.indexOf('\n}\n', fnIdx) + 3;
 if (startIdx < 0 || fnIdx < 0 || endIdx < 3) throw new Error('batchTextChunks source not found');
-const { code: batchJs } = transformSync(routerSrc.slice(startIdx, endIdx), { loader: 'ts', format: 'esm' });
-const { batchTextChunks } = await import('data:text/javascript;base64,' + Buffer.from(batchJs).toString('base64'));
+const { code: batchJs } = transformSync(routerSrc.slice(startIdx, endIdx), {
+  loader: 'ts',
+  format: 'esm',
+});
+const { batchTextChunks } = await import(
+  'data:text/javascript;base64,' + Buffer.from(batchJs).toString('base64')
+);
 const spec = JSON.parse(readFileSync(join(root, 'scripts/parity/b5-batch-scenarios.json'), 'utf8'));
 
 const drain = async () => {
@@ -49,7 +58,8 @@ for (const sc of spec.scenarios) {
   }
   const run = (async () => {
     try {
-      for await (const c of batchTextChunks(source(), spec.ms)) emitted.push({ at: Date.now(), chunk: JSON.parse(JSON.stringify(c)) });
+      for await (const c of batchTextChunks(source(), spec.ms))
+        emitted.push({ at: Date.now(), chunk: JSON.parse(JSON.stringify(c)) });
       outcome = { at: Date.now(), end: 'done' };
     } catch (e) {
       outcome = { at: Date.now(), end: 'error', message: e.message };
@@ -66,7 +76,9 @@ for (const sc of spec.scenarios) {
   out.push({ name: sc.name, emitted, outcome });
 }
 
-const outDir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/ai/runtime/airouter/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR ||
+  join(root, 'apps/desktop-go/internal/ai/runtime/airouter/testdata');
 mkdirSync(outDir, { recursive: true });
 const file = join(outDir, 'b5_batch.json');
 writeFileSync(file, JSON.stringify(out, null, 1) + '\n');

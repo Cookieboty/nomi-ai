@@ -1,4 +1,4 @@
-// Package terminal ports packages/core/src/gateway/TerminalCommands.ts (+ windowsPath.ts /
+// Package terminal ports apps/desktop-electron/internal/core/src/gateway/TerminalCommands.ts (+ windowsPath.ts /
 // windowsTerminal.ts): nomi-<cli> commands in ~/.nomi/bin that launch CLIs through the gateway.
 package terminal
 

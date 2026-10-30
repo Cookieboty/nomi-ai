@@ -4,6 +4,7 @@
 //	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|island-test|renderer&v=svg|rive|quit）。
 //	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
 //	NOMI_DEV_VIEWS：开发态视图改由 Vite 开发服务器提供（pnpm dev:go 设置，见 internal/shell/devviews）。
+//	NOMI_PPROF=127.0.0.1:PORT：在回环地址提供 /debug/pprof/（排查内存 / CPU，见 pprof.go）。
 package main
 
 import (
@@ -94,6 +95,7 @@ func main() {
 	if os.Getenv("NODE_ENV") == "development" {
 		rootLog.SetLevel(services.DEBUG)
 	}
+	startPprof()
 	// 低优先级启动任务 cleanup-old-logs（delay 1000）
 	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	hostports.Stage("logger-ready")

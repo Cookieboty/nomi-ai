@@ -10,9 +10,12 @@ export const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { transformSync } = await import('esbuild');
 const toUrl = (js) => 'data:text/javascript;base64,' + Buffer.from(js).toString('base64');
 
-/** rel：相对 packages/core/src 的路径（不带 .ts）；deps：import 说明符 → data URL */
+/** rel：相对 apps/desktop-electron/internal/core/src 的路径（不带 .ts）；deps：import 说明符 → data URL */
 export async function loadSrc(rel, deps = {}) {
-  const src = readFileSync(join(root, 'packages/core/src', `${rel}.ts`), 'utf8');
+  const src = readFileSync(
+    join(root, 'apps/desktop-electron/internal/core/src', `${rel}.ts`),
+    'utf8',
+  );
   let { code } = transformSync(src, { loader: 'ts', format: 'esm' });
   code = code.replace(/from\s+"([^"]+)"/g, (m, spec) => {
     if (spec in deps) return `from "${deps[spec]}"`;

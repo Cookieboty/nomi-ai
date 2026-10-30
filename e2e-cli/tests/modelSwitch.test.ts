@@ -16,9 +16,9 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { CliHarnessService } from '../../packages/core/src/cli/CliHarnessService';
-import type { GatewayChild } from '../../packages/core/src/gateway/GatewayProcess';
-import type { GatewayService } from '../../packages/core/src/gateway/GatewayService';
+import type { CliHarnessService } from '../../apps/desktop-electron/internal/core/src/cli/CliHarnessService';
+import type { GatewayChild } from '../../apps/desktop-electron/internal/core/src/gateway/GatewayProcess';
+import type { GatewayService } from '../../apps/desktop-electron/internal/core/src/gateway/GatewayService';
 import { hasCli, type CliName } from '../helpers/cli';
 import { messagesStream, responsesStream } from '../helpers/upstream';
 
@@ -97,7 +97,7 @@ async function inProcessFork() {
         for (const fn of toMain) (fn as (m: unknown) => void)(m);
       }),
   };
-  await import('../../packages/core/src/gateway/worker');
+  await import('../../apps/desktop-electron/internal/core/src/gateway/worker');
   return (): GatewayChild => ({
     postMessage: (m) => {
       const msg =
@@ -165,10 +165,14 @@ beforeAll(async () => {
   process.env.GEMINI_CLI_TRUST_WORKSPACE = 'true';
 
   const fork = await inProcessFork();
-  const { GatewayProcess } = await import('../../packages/core/src/gateway/GatewayProcess');
-  const { GatewayService } = await import('../../packages/core/src/gateway/GatewayService');
-  const { harnessGateway } = await import('../../packages/core/src/gateway/harnessGateway');
-  const { CliHarnessService } = await import('../../packages/core/src/cli/CliHarnessService');
+  const { GatewayProcess } =
+    await import('../../apps/desktop-electron/internal/core/src/gateway/GatewayProcess');
+  const { GatewayService } =
+    await import('../../apps/desktop-electron/internal/core/src/gateway/GatewayService');
+  const { harnessGateway } =
+    await import('../../apps/desktop-electron/internal/core/src/gateway/harnessGateway');
+  const { CliHarnessService } =
+    await import('../../apps/desktop-electron/internal/core/src/cli/CliHarnessService');
   const logger = { info() {}, warn() {}, error() {}, debug() {} } as never;
   const proc = new GatewayProcess({
     logger,

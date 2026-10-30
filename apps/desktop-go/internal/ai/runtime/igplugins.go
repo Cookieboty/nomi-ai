@@ -1,4 +1,4 @@
-// Package runtime 对应 packages/ai-runtime/src 的运行时装配层。本批只有 igPlugins.ts 的
+// Package runtime 对应 apps/desktop-electron/internal/ai-runtime/src 的运行时装配层。本批只有 igPlugins.ts 的
 // 环境变量推导（llmProvidersFromEnv / providerOverrideFromEnv）。
 package runtime
 

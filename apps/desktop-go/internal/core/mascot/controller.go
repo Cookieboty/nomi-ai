@@ -159,6 +159,7 @@ type Controller struct {
 	staleSize      *Size
 	workAreas      []Rect
 	cancel         func()
+	gen            uint64 // schedule 的代号：过期的定时回调直接丢弃
 	lastActivityAt float64
 	last           float64
 	acc            float64
@@ -265,9 +266,16 @@ func (c *Controller) schedule(delay float64) {
 	if c.cancel != nil {
 		c.cancel()
 	}
+	// 已触发的回调可能正排队等锁，期间被 cancel / 重新 schedule / Dispose：按代号丢弃过期回调
+	// （否则 Dispose 后或重建窗口后旧的 tick 链会一直跑下去，与新的叠在一起）
+	c.gen++
+	gen := c.gen
 	c.cancel = c.host.After(delay, func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
+		if gen != c.gen || !c.started {
+			return
+		}
 		c.tick()
 	})
 }
@@ -283,6 +291,7 @@ func (c *Controller) dispose() {
 		c.cancel()
 	}
 	c.cancel = nil
+	c.gen++
 	c.started = false
 	if c.dragUnlocked && !c.win.IsDestroyed() {
 		c.win.SetResizable(false)

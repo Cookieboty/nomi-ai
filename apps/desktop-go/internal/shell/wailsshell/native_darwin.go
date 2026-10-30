@@ -7,13 +7,16 @@ package wailsshell
 #cgo LDFLAGS: -framework Cocoa
 #import <Cocoa/Cocoa.h>
 
-// = Electron ScreenMac::GetCursorScreenPoint：以主屏左上为原点、y 向下
+// = Electron ScreenMac::GetCursorScreenPoint：以主屏左上为原点、y 向下。
+// 在 Go 线程上每秒调用几十次（mousetrack、看板娘 tick）：这些线程没有自动释放池，自动释放的对象要靠这里的池回收
 static void nomi_cursor(int *x, int *y) {
-	NSPoint p = [NSEvent mouseLocation];
-	NSArray *ss = [NSScreen screens];
-	CGFloat h = ss.count ? NSMaxY([(NSScreen *)ss[0] frame]) : 0;
-	*x = (int)p.x;
-	*y = (int)(h - p.y);
+	@autoreleasepool {
+		NSPoint p = [NSEvent mouseLocation];
+		NSArray *ss = [NSScreen screens];
+		CGFloat h = ss.count ? NSMaxY([(NSScreen *)ss[0] frame]) : 0;
+		*x = (int)p.x;
+		*y = (int)(h - p.y);
+	}
 }
 */
 import "C"

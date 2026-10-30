@@ -123,7 +123,7 @@ func runBatch(t *testing.T, ms int, events [][2]json.RawMessage, mutate func(*ba
 
 func loadBatch(t *testing.T) (batchSpec, []map[string]any) {
 	var spec batchSpec
-	b, err := os.ReadFile("../../../../../../scripts/parity/b5-batch-scenarios.json")
+	b, err := os.ReadFile(paritytest.RepoPath("scripts/parity/b5-batch-scenarios.json"))
 	if err != nil {
 		paritytest.SkipOrFail(t, "scenarios:", err)
 	}

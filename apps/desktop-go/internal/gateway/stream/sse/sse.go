@@ -1,4 +1,4 @@
-// Package sse mirrors packages/gateway/src/stream/sse.ts: a byte-exact SSE
+// Package sse mirrors apps/desktop-electron/internal/gateway/src/stream/sse.ts: a byte-exact SSE
 // block splitter and an event parser. It is a leaf package so canonical/ can
 // use it without importing stream/ (deviation D15: Go forbids the import cycle
 // Node has between stream/ and canonical/).

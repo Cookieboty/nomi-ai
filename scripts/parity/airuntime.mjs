@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * AI runtime provider-management parity recorder (batch 4d item 3,
- * docs/design/migrate-2.0.5-go.md). Loads packages/ai-runtime/src/providers through
+ * docs/design/migrate-2.0.5-go.md). Loads apps/desktop-electron/internal/ai-runtime/src/providers through
  * tsx and records:
  *   presets_gen.json – PROVIDER_PRESETS verbatim (embedded by internal/ai/providers)
  *   providers.json.gz – protocol helpers, maskSecret, presets search, env shims,
@@ -11,7 +11,15 @@
  *
  * Usage: TZ=Asia/Shanghai node scripts/parity/airuntime.mjs
  */
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -24,7 +32,8 @@ register();
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pkgDir = join(root, 'apps/desktop-go/internal/ai/providers');
 const outDir = join(pkgDir, 'testdata/parity');
-const rt = (p) => import(pathToFileURL(join(root, 'packages/ai-runtime/src', p)).href);
+const rt = (p) =>
+  import(pathToFileURL(join(root, 'apps/desktop-electron/internal/ai-runtime/src', p)).href);
 
 const presets = await rt('providers/presets.ts');
 const protocol = await rt('providers/protocol.ts');
@@ -33,7 +42,10 @@ const storeMod = await rt('providers/ProviderStore.ts');
 const svcMod = await rt('providers/ProviderService.ts');
 const ig = await rt('igPlugins.ts');
 
-writeFileSync(join(pkgDir, 'presets_gen.json'), JSON.stringify(presets.PROVIDER_PRESETS, null, 2) + '\n');
+writeFileSync(
+  join(pkgDir, 'presets_gen.json'),
+  JSON.stringify(presets.PROVIDER_PRESETS, null, 2) + '\n',
+);
 console.log('wrote presets_gen.json');
 
 const err = (fn) => {
@@ -76,7 +88,12 @@ const headers = [];
 for (const p of protocol.PROTOCOLS)
   for (const k of [undefined, 'sk-1'])
     for (const extra of [undefined, { 'User-Agent': 'ua', accept: 'x' }])
-      headers.push({ protocol: p, key: k ?? null, extra: extra ?? null, out: protocol.modelsRequestHeaders(p, k, extra) });
+      headers.push({
+        protocol: p,
+        key: k ?? null,
+        extra: extra ?? null,
+        out: protocol.modelsRequestHeaders(p, k, extra),
+      });
 const lists = [
   { object: 'list', data: [{ id: 'gpt-b', owned_by: 'openai' }, { id: 'gpt-a' }, { id: 'gpt-a' }] },
   { data: [{ id: 'claude-x', display_name: 'Claude X', type: 'model' }], has_more: false },
@@ -84,47 +101,115 @@ const lists = [
   ['b', 'a', 'B', 'ä', '_z', '10', '9'],
   null,
   { data: 'x' },
-  [{ id: '' , model: 'm1' }, 5, null],
+  [{ id: '', model: 'm1' }, 5, null],
 ];
 const parsed = lists.map((l) => ({ in: l, out: err(() => protocol.parseModelList(l)) }));
 const maps = [
   ['a', undefined],
   ['a', []],
   ['a', [{ from: 'a', to: ' b ' }]],
-  ['c', [{ from: '*', to: 'z' }, { from: 'c', to: 'y' }]],
-  ['c', [{ from: 'c', to: '  ' }, { from: '*', to: 'z' }]],
+  [
+    'c',
+    [
+      { from: '*', to: 'z' },
+      { from: 'c', to: 'y' },
+    ],
+  ],
+  [
+    'c',
+    [
+      { from: 'c', to: '  ' },
+      { from: '*', to: 'z' },
+    ],
+  ],
 ].map(([m, mp]) => ({ model: m, map: mp ?? null, out: protocol.mapModel(m, mp) }));
 
 // ---------------------------------------------------------------- secrets / presets / env
-const masks = ['', ' a ', 'ab', 'abcdefgh', 'abcdefghi', 'sk-abcdefghijklmnop', '😀😀😀😀😀', 'sk-😀abcdef😀'].map(
-  (s) => ({ in: s, out: cipherMod.maskSecret(s) }),
+const masks = [
+  '',
+  ' a ',
+  'ab',
+  'abcdefgh',
+  'abcdefghi',
+  'sk-abcdefghijklmnop',
+  '😀😀😀😀😀',
+  'sk-😀abcdef😀',
+].map((s) => ({ in: s, out: cipherMod.maskSecret(s) }));
+const searches = ['', '  ', 'OPENAI', 'deepseek', 'api', '中', 'gpt', 'zzz', 'https://'].map(
+  (q) => ({
+    q,
+    ids: presets.searchPresets(q).map((p) => p.id),
+  }),
 );
-const searches = ['', '  ', 'OPENAI', 'deepseek', 'api', '中', 'gpt', 'zzz', 'https://'].map((q) => ({
-  q,
-  ids: presets.searchPresets(q).map((p) => p.id),
-}));
 const envs = [
   {},
   { OPENAI_API_KEY: ' sk-o ', DEEPSEEK_MODEL: 'dm', OLLAMA_BASE_URL: 'http://o' },
-  { CLAUDE_API_KEY: 'c', ANTHROPIC_API_KEY: '  ', GEMINI_API_KEY: 'g', GEMINI_MODEL: ' gm ', NOMI_PROVIDER: ' claude ' },
-  { DEEPSEEK_API_KEY: 'd', GOOGLE_GENERATIVE_AI_API_KEY: 'gg', GOOGLE_GENERATIVE_AI_BASE_URL: 'http://g', NOMI_PROVIDER: '' },
-].map((env) => ({ env, entries: ig.llmProvidersFromEnv(env), override: ig.providerOverrideFromEnv(env) ?? null }));
+  {
+    CLAUDE_API_KEY: 'c',
+    ANTHROPIC_API_KEY: '  ',
+    GEMINI_API_KEY: 'g',
+    GEMINI_MODEL: ' gm ',
+    NOMI_PROVIDER: ' claude ',
+  },
+  {
+    DEEPSEEK_API_KEY: 'd',
+    GOOGLE_GENERATIVE_AI_API_KEY: 'gg',
+    GOOGLE_GENERATIVE_AI_BASE_URL: 'http://g',
+    NOMI_PROVIDER: '',
+  },
+].map((env) => ({
+  env,
+  entries: ig.llmProvidersFromEnv(env),
+  override: ig.providerOverrideFromEnv(env) ?? null,
+}));
 
 // ---------------------------------------------------------------- migrate
 const raws = [
   {},
-  { version: 2, providers: [], routes: { summary: { providerId: 'x' } }, usage: { x: { requests: 1 } }, activeProviderId: 'x' },
+  {
+    version: 2,
+    providers: [],
+    routes: { summary: { providerId: 'x' } },
+    usage: { x: { requests: 1 } },
+    activeProviderId: 'x',
+  },
   {
     providers: [
-      { id: 'a', name: 'A', backend: 'google', baseURL: 'https://g/v1beta/', defaultModel: ' gm ', keys: [{ id: 'k1' }] },
-      { id: 'b', backend: 'anthropic', presetId: 'claude', models: ['m2', 'm2', ' m3 '], defaultModel: 'm1', enabled: false },
-      { id: 'c', protocol: 'openai-responses', backend: 'google', baseURL: 'https://g/openai', presetId: 'moonshot', fullUrl: 1 },
+      {
+        id: 'a',
+        name: 'A',
+        backend: 'google',
+        baseURL: 'https://g/v1beta/',
+        defaultModel: ' gm ',
+        keys: [{ id: 'k1' }],
+      },
+      {
+        id: 'b',
+        backend: 'anthropic',
+        presetId: 'claude',
+        models: ['m2', 'm2', ' m3 '],
+        defaultModel: 'm1',
+        enabled: false,
+      },
+      {
+        id: 'c',
+        protocol: 'openai-responses',
+        backend: 'google',
+        baseURL: 'https://g/openai',
+        presetId: 'moonshot',
+        fullUrl: 1,
+      },
       { id: 'd', baseURL: 'https://g/openai/', websiteUrl: 'https://w', backend: 'google' },
     ],
     routes: { chat: { providerId: 'b', model: 'mx' }, summary: { providerId: 'a' } },
     usage: [],
   },
-  { version: '1', routes: { chat: { providerId: 'zz' } }, activeProviderId: 'y', providers: 'nope' },
+  {
+    version: '1',
+    routes: { chat: { providerId: 'zz' } },
+    activeProviderId: 'y',
+    providers: 'nope',
+  },
   { version: 3, routes: 'r', usage: 5 },
 ];
 const migrate = raws.map((raw) => ({ raw, out: storeMod.migrateStoreData(structuredClone(raw)) }));
@@ -138,7 +223,8 @@ function resolveRefs(v, store) {
     return p?.keys[Number(ki)]?.id ?? `missing-${v}`;
   }
   if (Array.isArray(v)) return v.map((x) => resolveRefs(x, store));
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveRefs(x, store)]));
+  if (v && typeof v === 'object')
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveRefs(x, store)]));
   return v;
 }
 
@@ -175,34 +261,69 @@ function runScript(sc) {
     const before = changes;
     const r = err(() => {
       switch (op) {
-        case 'upsert': return svc.upsert(args[0]);
-        case 'remove': return svc.remove(args[0]);
-        case 'setActive': return svc.setActive(args[0], args[1]);
-        case 'setModels': return svc.setModels(args[0], args[1]);
-        case 'storeSetModels': return store.setModels(args[0], args[1]);
-        case 'setRoute': return svc.setRoute(args[0], args[1]);
-        case 'addKey': return svc.addKey(args[0], args[1], args[2]);
-        case 'rotateKey': return svc.rotateKey(args[0], args[1], args[2]);
-        case 'removeKey': return svc.removeKey(args[0], args[1]);
-        case 'promoteKey': return svc.promoteKey(args[0], args[1]);
-        case 'resetUsage': return svc.resetUsage(args[0]);
-        case 'markKey': return store.markKey(args[0], args[1], args[2]);
-        case 'recordUsage': return store.recordUsage(args[0], args[1], args[2]);
-        case 'recordCall': return store.recordCall(args[0]);
-        case 'resolveKeys': return store.resolveKeys(args[0]);
-        case 'usage': return store.usage();
-        case 'routes': return store.routes();
-        case 'has': return store.has(args[0]);
-        case 'flush': return store.flush();
-        case 'state': return svc.state();
-        case 'meta': return svc.meta();
-        case 'presets': return svc.presets().map((p) => p.id);
+        case 'upsert':
+          return svc.upsert(args[0]);
+        case 'remove':
+          return svc.remove(args[0]);
+        case 'setActive':
+          return svc.setActive(args[0], args[1]);
+        case 'setModels':
+          return svc.setModels(args[0], args[1]);
+        case 'storeSetModels':
+          return store.setModels(args[0], args[1]);
+        case 'setRoute':
+          return svc.setRoute(args[0], args[1]);
+        case 'addKey':
+          return svc.addKey(args[0], args[1], args[2]);
+        case 'rotateKey':
+          return svc.rotateKey(args[0], args[1], args[2]);
+        case 'removeKey':
+          return svc.removeKey(args[0], args[1]);
+        case 'promoteKey':
+          return svc.promoteKey(args[0], args[1]);
+        case 'resetUsage':
+          return svc.resetUsage(args[0]);
+        case 'markKey':
+          return store.markKey(args[0], args[1], args[2]);
+        case 'recordUsage':
+          return store.recordUsage(args[0], args[1], args[2]);
+        case 'recordCall':
+          return store.recordCall(args[0]);
+        case 'resolveKeys':
+          return store.resolveKeys(args[0]);
+        case 'usage':
+          return store.usage();
+        case 'routes':
+          return store.routes();
+        case 'has':
+          return store.has(args[0]);
+        case 'flush':
+          return store.flush();
+        case 'state':
+          return svc.state();
+        case 'meta':
+          return svc.meta();
+        case 'presets':
+          return svc.presets().map((p) => p.id);
         case 'reload':
-          return new storeMod.ProviderStore({ filePath: file, cipher: cipherMod.plaintextCipher, now: () => (t += 1000) }).list();
-        default: throw new Error(`bad op ${op}`);
+          return new storeMod.ProviderStore({
+            filePath: file,
+            cipher: cipherMod.plaintextCipher,
+            now: () => (t += 1000),
+          }).list();
+        default:
+          throw new Error(`bad op ${op}`);
       }
     });
-    steps.push({ op, args, ...r, v: r.v === undefined ? null : r.v, changed: changes - before, files: files(), state: svc.state() });
+    steps.push({
+      op,
+      args,
+      ...r,
+      v: r.v === undefined ? null : r.v,
+      changed: changes - before,
+      files: files(),
+      state: svc.state(),
+    });
   }
   steps.push({ op: 'calls', v: calls });
   rmSync(dir, { recursive: true, force: true });
@@ -222,10 +343,41 @@ const scripts = [
       ['upsert', { presetId: 'custom' }],
       ['upsert', { presetId: 'custom', baseURL: 'ftp://x' }],
       ['upsert', { presetId: 'openai', apiKey: 'has space' }],
-      ['upsert', { presetId: 'anthropic', defaultModel: ' cm ', models: ['a', ' a ', '', 'b'], note: ' n ', headers: { 'X-A': '1', 'X-B': 2 }, userAgent: ' ua ', thinking: true, modelMap: [{ from: 'x', to: 'y' }, { from: '', to: 'z' }], enabled: false }],
+      [
+        'upsert',
+        {
+          presetId: 'anthropic',
+          defaultModel: ' cm ',
+          models: ['a', ' a ', '', 'b'],
+          note: ' n ',
+          headers: { 'X-A': '1', 'X-B': 2 },
+          userAgent: ' ua ',
+          thinking: true,
+          modelMap: [
+            { from: 'x', to: 'y' },
+            { from: '', to: 'z' },
+          ],
+          enabled: false,
+        },
+      ],
       ['upsert', { presetId: 'custom', baseURL: 'https://h', headers: { 'bad name': 'x' } }],
       ['upsert', { id: '$p0', name: ' renamed ', note: '', websiteUrl: 'ftp://w' }],
-      ['upsert', { id: '$p0', websiteUrl: ' https://w ', protocol: 'anthropic', fullUrl: 1, defaultModel: '', models: ['x'], thinking: false, headers: {}, userAgent: '', apiKey: 'sk-second-key-000000', enabled: 0 }],
+      [
+        'upsert',
+        {
+          id: '$p0',
+          websiteUrl: ' https://w ',
+          protocol: 'anthropic',
+          fullUrl: 1,
+          defaultModel: '',
+          models: ['x'],
+          thinking: false,
+          headers: {},
+          userAgent: '',
+          apiKey: 'sk-second-key-000000',
+          enabled: 0,
+        },
+      ],
       ['upsert', { id: '$p0', protocol: 'grpc' }],
       ['upsert', { id: '$p0', modelMap: 'x' }],
       ['setModels', '$p0', ['m1', ' m1', 'm2']],
@@ -263,7 +415,18 @@ const scripts = [
       ['usage'],
       ['state'],
       ['flush'],
-      ['recordCall', { providerId: 'p', model: 'm', at: 1, durationMs: 2, inputTokens: 1, outputTokens: 2, estimated: false }],
+      [
+        'recordCall',
+        {
+          providerId: 'p',
+          model: 'm',
+          at: 1,
+          durationMs: 2,
+          inputTokens: 1,
+          outputTokens: 2,
+          estimated: false,
+        },
+      ],
       ['resetUsage', '$p0'],
       ['resetUsage'],
       ['has', '$p1'],
@@ -293,9 +456,24 @@ const scripts = [
     ops: [['state'], ['setActive', 'a'], ['reload']],
   },
   { name: 'corrupt', file: true, initial: '{not json', ops: [['state']] },
-  { name: 'v2', file: true, initial: JSON.stringify(raws[1], null, 1), ops: [['setActive', 'x'], ['upsert', { presetId: 'custom', baseURL: 'http://a' }]] },
+  {
+    name: 'v2',
+    file: true,
+    initial: JSON.stringify(raws[1], null, 1),
+    ops: [
+      ['setActive', 'x'],
+      ['upsert', { presetId: 'custom', baseURL: 'http://a' }],
+    ],
+  },
 ];
-const runs = scripts.map((sc) => ({ name: sc.name, env: sc.env ?? {}, file: sc.file, initial: sc.initial ?? null, ops: sc.ops.map((o) => o.map((x) => (x === undefined ? '__undefined__' : x))), steps: runScript(sc) }));
+const runs = scripts.map((sc) => ({
+  name: sc.name,
+  env: sc.env ?? {},
+  file: sc.file,
+  initial: sc.initial ?? null,
+  ops: sc.ops.map((o) => o.map((x) => (x === undefined ? '__undefined__' : x))),
+  steps: runScript(sc),
+}));
 
 // Mask generated ids in order of first appearance.
 function maskIds(s) {
@@ -316,5 +494,8 @@ const data = {
   migrate,
   runs: runs.map((r) => ({ ...r, steps: JSON.parse(maskIds(JSON.stringify(r.steps))) })),
 };
-writeFileSync(join(outDir, 'providers.json.gz'), gzipSync(JSON.stringify(data) + '\n', { level: 9 }));
+writeFileSync(
+  join(outDir, 'providers.json.gz'),
+  gzipSync(JSON.stringify(data) + '\n', { level: 9 }),
+);
 console.log('wrote providers.json.gz', existsSync(outDir));

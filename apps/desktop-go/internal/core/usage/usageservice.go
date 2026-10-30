@@ -1,6 +1,6 @@
 package usage
 
-// UsageService = packages/core/src/usage/UsageService.ts（逐行移植）。
+// UsageService = apps/desktop-electron/internal/core/src/usage/UsageService.ts（逐行移植）。
 // 线程模型：除标注外，所有方法须在 jsrt 线程（持 GIL）内调用；CostOf / Enabled / LongContextPrice /
 // SessionUsage / RouteBegin 可在任意 goroutine 调用（设置走 smu 快照）。
 

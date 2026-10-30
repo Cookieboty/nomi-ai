@@ -191,11 +191,11 @@ export default tseslint.config(
   // core/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
   {
     files: [
-      'packages/core/src/**/*.ts',
+      'apps/desktop-electron/internal/core/src/**/*.ts',
       'apps/desktop-electron/src/**/*.ts',
       'packages/ai-chat/src/**/*.{ts,tsx}',
     ],
-    ignores: ['packages/core/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
+    ignores: ['apps/desktop-electron/internal/core/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
     plugins: { nomi: nomiPlugin },
     rules: { 'nomi/no-cli-literal': 'error' },
   },
@@ -224,7 +224,7 @@ export default tseslint.config(
   },
   // 内核 / 契约 / 端口 / 角色契约等包整个都不能依赖 electron（§3.2、§11.1）
   {
-    files: ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+    files: ELECTRON_FREE_PACKAGES.map((p) => `${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
     rules: {
       'no-restricted-imports': [
         'error',
@@ -245,7 +245,7 @@ export default tseslint.config(
   // （包括 electron-updater 这类只能在 Electron 里跑的包），也不依赖宿主包、视图包与 ui。
   // 宿主能力经 @nomi-ai/host-ports 的端口注入，视图只经契约访问内核。
   {
-    files: ['packages/core/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    files: ['apps/desktop-electron/internal/core/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -351,8 +351,9 @@ export default tseslint.config(
   {
     files: [
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
       'apps/desktop-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
-      ...ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+      ...ELECTRON_FREE_PACKAGES.map((p) => `${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
     ],
     ignores: [
       ...ELECTRON_HOST_FILES,
@@ -374,11 +375,12 @@ export default tseslint.config(
     },
   },
 
-  // 遗留 electron 主进程代码（P0 之前既存业务代码，P3 搬进 packages/core 后沿用同样的放宽，再逐个清理）
+  // 遗留 electron 主进程代码（P0 之前既存业务代码，P3 搬进 apps/desktop-electron/internal/core 后沿用同样的放宽，再逐个清理）
   {
     files: [
-      'apps/desktop-electron/**/*.{ts,tsx,js,cjs,mjs}',
-      'packages/core/**/*.{ts,tsx,js,cjs,mjs}',
+      'apps/desktop-electron/{src,tests,scripts}/**/*.{ts,tsx,js,cjs,mjs}',
+      'apps/desktop-electron/*.{ts,js,cjs,mjs}',
+      'apps/desktop-electron/internal/core/**/*.{ts,tsx,js,cjs,mjs}',
     ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -498,7 +500,11 @@ export default tseslint.config(
   // 集中日志：产品源码只能用 createLogger / createMainLogger（生产环境静默 debug / info），
   // console.warn / console.error 仍允许（始终输出）。日志实现文件自行 eslint-disable。
   {
-    files: ['packages/*/src/**/*.{ts,tsx}', 'apps/desktop-electron/src/**/*.{ts,tsx}'],
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/src/**/*.{ts,tsx}',
+    ],
     ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**'],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
@@ -508,12 +514,16 @@ export default tseslint.config(
   // 不用系统弹窗：macOS / Windows 样式不一、按钮跟系统语言走。
   // 确认 / 输入用 ai-chat 的 confirmDialog / promptDialog（components/ConfirmDialog）。
   {
-    files: ['packages/*/src/**/*.{ts,tsx}', 'apps/desktop-electron/src/**/*.{ts,tsx}'],
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/internal/*/src/**/*.{ts,tsx}',
+      'apps/desktop-electron/src/**/*.{ts,tsx}',
+    ],
     ignores: [
       '**/*.{test,spec}.{ts,tsx}',
       '**/tests/**',
-      'apps/desktop-electron/**',
-      'packages/core/**',
+      'apps/desktop-electron/src/**',
+      'apps/desktop-electron/internal/core/**',
     ],
     rules: {
       'no-restricted-globals': [

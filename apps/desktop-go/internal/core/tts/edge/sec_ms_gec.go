@@ -1,4 +1,4 @@
-// Package edge 对应 packages/core/src/tts/edge：Edge 在线朗读（Sec-MS-GEC、线格式、websocket 客户端、服务、音色表）。
+// Package edge 对应 apps/desktop-electron/internal/core/src/tts/edge：Edge 在线朗读（Sec-MS-GEC、线格式、websocket 客户端、服务、音色表）。
 package edge
 
 import (

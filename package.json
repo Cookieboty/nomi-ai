@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/doctor.mjs --quick && node scripts/run-bin.mjs turbo run dev --filter=@nomi-ai/core --filter=@nomi-ai/host-electron --filter=@nomi-ai/renderer --filter=@nomi-ai/ai-chat --ui=stream --log-order=stream",
-    "dev:libs": "node scripts/run-bin.mjs turbo run dev --filter=./packages/* --filter=!@nomi-ai/core --filter=!@nomi-ai/host-electron --filter=!@nomi-ai/renderer --filter=!@nomi-ai/ai-chat --concurrency=20",
+    "dev:libs": "node scripts/run-bin.mjs turbo run dev --filter=./packages/* --filter=./apps/desktop-electron/internal/* --filter=!@nomi-ai/core --filter=!@nomi-ai/host-electron --filter=!@nomi-ai/renderer --filter=!@nomi-ai/ai-chat --concurrency=20",
     "dev:web": "node scripts/dev-web/start.mjs",
     "dev:go": "node apps/desktop-go/dev.mjs",
     "build": "node scripts/run-bin.mjs turbo run build",
@@ -64,6 +64,7 @@
     "@nomi-ai/core": "workspace:*",
     "@nomi-ai/host-node": "workspace:*",
     "@nomi-ai/host-ports": "workspace:*",
+    "@nomi-ai/repo-paths": "workspace:*",
     "@playwright/test": "^1.64.0",
     "@types/node": "^24.13.3",
     "@vitest/coverage-v8": "^5.0.3",

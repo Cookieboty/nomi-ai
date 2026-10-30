@@ -24,6 +24,28 @@ func Golden(t testing.TB, name, committed string) (path string, live bool) {
 	return committed, false
 }
 
+// RepoRoot 返回仓库根目录：从当前目录（go test 时是包目录）往上找 pnpm-workspace.yaml。
+// 测试里通往 TS 源码、scripts/parity、characters 等的路径都从这里拼，不数 ".."：目录挪了也不会悄悄指错。
+func RepoRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	for d := wd; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, "pnpm-workspace.yaml")); err == nil {
+			return d
+		}
+		if filepath.Dir(d) == d {
+			panic("paritytest: pnpm-workspace.yaml not found above " + wd)
+		}
+	}
+}
+
+// RepoPath 返回仓库根目录下的路径，如 RepoPath("scripts/parity/b5-chat-scenarios.json")
+func RepoPath(elem ...string) string {
+	return filepath.Join(append([]string{RepoRoot()}, elem...)...)
+}
+
 // SkipOrFail：本地缺环境时跳过；CI（CI=true）中失败
 func SkipOrFail(t testing.TB, args ...any) {
 	t.Helper()

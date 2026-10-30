@@ -14,7 +14,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shell-')));
-const core = (p) => import(pathToFileURL(path.join(root, 'packages/core/src', p)).href);
+const core = (p) =>
+  import(pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src', p)).href);
 const NOW = Date.UTC(2026, 9, 29, 10, 0, 0, 123);
 const H = 3600_000;
 
@@ -1053,7 +1054,7 @@ async function recordTerminal() {
   // 用来发现 windowsTerminal.ts 改了而 Go 内嵌副本没重新生成
   const esbuild = createRequire(import.meta.url)('esbuild');
   const ts = fs.readFileSync(
-    path.join(root, 'packages/core/src/gateway/windowsTerminal.ts'),
+    path.join(root, 'apps/desktop-electron/internal/core/src/gateway/windowsTerminal.ts'),
     'utf8',
   );
   const js = esbuild.transformSync(ts, { loader: 'ts', format: 'cjs', target: 'node18' }).code;
@@ -1195,7 +1196,8 @@ function authOf(h) {
 }
 async function recordDetect() {
   const { detect, normalizeBases } = await import(
-    pathToFileURL(path.join(root, 'packages/gateway/src/probe/detect.ts')).href
+    pathToFileURL(path.join(root, 'apps/desktop-electron/internal/gateway/src/probe/detect.ts'))
+      .href
   );
   const RealNow = Date.now;
   const scenarios = [];

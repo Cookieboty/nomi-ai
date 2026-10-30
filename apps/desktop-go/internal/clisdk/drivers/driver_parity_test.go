@@ -53,7 +53,7 @@ func TestDriverParity(t *testing.T) {
 	if err != nil {
 		paritytest.SkipOrFail(t, "node not found")
 	}
-	root, _ := filepath.Abs("../../../../..")
+	root := paritytest.RepoRoot()
 	var scs []driverScenario
 	b, err := os.ReadFile(filepath.Join(root, "scripts/parity/b7-driver-scenarios.json"))
 	if err != nil {
@@ -105,7 +105,7 @@ func runDriverScenario(t *testing.T, node, root string, sc driverScenario) []str
 	jsrt.Run(func() {
 		n := 0
 		newID := func() string { n++; return "id-" + util.FormatNumber(float64(n)) }
-		pc := nodeproc.Spawn(node, append([]string{filepath.Join(root, "packages/core/scripts/mock-cli", sc.Bin)}, sc.Args...), nodeproc.Options{Cwd: root, Env: env})
+		pc := nodeproc.Spawn(node, append([]string{filepath.Join(root, "apps/desktop-electron/internal/core/scripts/mock-cli", sc.Bin)}, sc.Args...), nodeproc.Options{Cwd: root, Env: env})
 		child := clisdk.ProcChild{Child: pc}
 		exited := jsrt.NewPromise[struct{}]()
 		pc.OnClose(func(*int, string) { exited.Resolve(struct{}{}) })

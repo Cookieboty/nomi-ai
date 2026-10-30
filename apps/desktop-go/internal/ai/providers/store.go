@@ -1,6 +1,6 @@
 package providers
 
-// ProviderStore —— 对应 packages/ai-runtime/src/providers/ProviderStore.ts。
+// ProviderStore —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderStore.ts。
 //
 // 数据保持 JSON 形状的动态对象（与 Node 的 ProviderStoreData 同构），这样持久化的
 // `JSON.stringify(data, null, 2)`、视图键序与 undefined 槽位都与 Node 逐字节一致。

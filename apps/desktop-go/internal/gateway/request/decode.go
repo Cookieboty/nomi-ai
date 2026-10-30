@@ -1,4 +1,4 @@
-// Package request mirrors packages/gateway/src/request (decode.ts, encode.ts, index.ts).
+// Package request mirrors apps/desktop-electron/internal/gateway/src/request (decode.ts, encode.ts, index.ts).
 package request
 
 import (

@@ -1,4 +1,4 @@
-// Package net mirrors packages/gateway/src/net/*: address classification,
+// Package net mirrors apps/desktop-electron/internal/gateway/src/net/*: address classification,
 // loopback Host checks, the upstream guard and the pinned-IP upstream fetch.
 package net
 

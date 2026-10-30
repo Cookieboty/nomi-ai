@@ -1,4 +1,4 @@
-// Package mascot 对应 packages/core/src/mascot（mascotSize.ts）：看板娘窗口大小的纯函数，逐行照抄。
+// Package mascot 对应 apps/desktop-electron/internal/core/src/mascot（mascotSize.ts）：看板娘窗口大小的纯函数，逐行照抄。
 package mascot
 
 import "math"

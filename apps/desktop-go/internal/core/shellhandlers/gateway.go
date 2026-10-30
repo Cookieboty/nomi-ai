@@ -1,6 +1,6 @@
 package shellhandlers
 
-// gateway.* —— packages/core/src/contract/shell.ts 的 gateway() 部分（GatewayService）。
+// gateway.* —— apps/desktop-electron/internal/core/src/contract/shell.ts 的 gateway() 部分（GatewayService）。
 // gateway.detect = probe/detect.ts 移植（gwstore.Service.Detect）；gateway.terminal* = TerminalCommands（InstallTerminal）。
 
 import (

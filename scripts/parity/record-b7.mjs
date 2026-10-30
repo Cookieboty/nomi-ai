@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
-const req = createRequire(join(root, 'packages/core/package.json'));
+const req = createRequire(join(root, 'apps/desktop-electron/internal/core/package.json'));
 const P = req('@nomi-ai/cli-plugins/main');
 
 const streams = new Map();
@@ -28,7 +28,9 @@ for (const l of readFileSync(join(here, 'b7-stream-corpus.jsonl'), 'utf8').split
   add(o.fn, o.id, o.line);
 }
 const fx = (f) =>
-  readFileSync(join(root, 'packages/core/tests/unit/cli/fixtures', f), 'utf8').split('\n').filter(Boolean);
+  readFileSync(join(root, 'apps/desktop-electron/internal/core/tests/unit/cli/fixtures', f), 'utf8')
+    .split('\n')
+    .filter(Boolean);
 for (const fn of ['createClaudeParser', 'parseClaudeLine+state']) {
   for (const l of fx('claude-tasks.jsonl')) add(fn, `fx-claude-${fn}`, l);
 }
@@ -37,37 +39,95 @@ for (const l of fx('codex-collab.jsonl')) add('parseCodexLine+seq', 'fx-codex', 
 const J = JSON.stringify;
 const edge = {
   claude: [
-    'not json', '{bad', '  {"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]}}  ',
-    J({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }] } }),
-    J({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'x'.repeat(7000), is_error: true }] } }),
+    'not json',
+    '{bad',
+    '  {"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]}}  ',
+    J({
+      type: 'assistant',
+      message: {
+        content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }],
+      },
+    }),
+    J({
+      type: 'user',
+      message: {
+        content: [
+          { type: 'tool_result', tool_use_id: 't1', content: 'x'.repeat(7000), is_error: true },
+        ],
+      },
+    }),
     J({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'hmm 中文 😀' }] } }),
-    J({ type: 'result', result: 'final', session_id: 's1', total_cost_usd: 0.12, duration_ms: 5, usage: { input_tokens: 10, output_tokens: 3, cache_read_input_tokens: 2 } }),
+    J({
+      type: 'result',
+      result: 'final',
+      session_id: 's1',
+      total_cost_usd: 0.12,
+      duration_ms: 5,
+      usage: { input_tokens: 10, output_tokens: 3, cache_read_input_tokens: 2 },
+    }),
     J({ type: 'result', is_error: true, subtype: 'error_max_turns' }),
     J({ type: 'system', subtype: 'init', session_id: 's9', model: 'opus' }),
   ],
   codex: [
     J({ type: 'item.completed', item: { type: 'agent_message', text: 'done' } }),
     J({ type: 'item.started', item: { type: 'command_execution', id: 'c1', command: 'ls -la' } }),
-    J({ type: 'item.completed', item: { type: 'command_execution', id: 'c1', command: 'ls', aggregated_output: 'a\nb', exit_code: 1 } }),
+    J({
+      type: 'item.completed',
+      item: {
+        type: 'command_execution',
+        id: 'c1',
+        command: 'ls',
+        aggregated_output: 'a\nb',
+        exit_code: 1,
+      },
+    }),
     J({ type: 'item.completed', item: { type: 'web_search', id: 'w1' } }),
     J({ type: 'item.completed', item: { type: 'reasoning', text: 'think' } }),
-    J({ type: 'turn.completed', usage: { input_tokens: 5, cached_input_tokens: 1, output_tokens: 2 } }),
-    J({ type: 'thread.started', thread_id: 'th1' }), J({ type: 'error', message: 'boom' }), J({ type: 'turn.failed', error: { message: 'x' } }),
+    J({
+      type: 'turn.completed',
+      usage: { input_tokens: 5, cached_input_tokens: 1, output_tokens: 2 },
+    }),
+    J({ type: 'thread.started', thread_id: 'th1' }),
+    J({ type: 'error', message: 'boom' }),
+    J({ type: 'turn.failed', error: { message: 'x' } }),
   ],
   grok: [
-    J({ type: 'text', data: 'hello' }), J({ type: 'thought', text: 'th' }), J({ type: 'thought', text: '思'.repeat(9000) }),
+    J({ type: 'text', data: 'hello' }),
+    J({ type: 'thought', text: 'th' }),
+    J({ type: 'thought', text: '思'.repeat(9000) }),
     J({ type: 'tool_call', toolCallId: 'g1', title: 'read_file', rawInput: { path: '/a' } }),
     J({ type: 'tool_call_update', toolCallId: 'g1', status: 'in_progress' }),
     J({ type: 'tool_call_update', toolCallId: 'g1', status: 'completed', rawOutput: 'ok' }),
-    J({ type: 'tool_call', toolCallId: 'g2', toolName: 'generate_image', status: 'failed', output: 'nope' }),
-    J({ type: 'usage', usage: { inputTokens: 4, outputTokens: 1 }, cost: 0.5 }), J({ type: 'usage' }),
-    J({ type: 'end', text: 'bye', sessionId: 'gs' }), J({ type: 'error' }), J({ type: 'plan' }),
+    J({
+      type: 'tool_call',
+      toolCallId: 'g2',
+      toolName: 'generate_image',
+      status: 'failed',
+      output: 'nope',
+    }),
+    J({ type: 'usage', usage: { inputTokens: 4, outputTokens: 1 }, cost: 0.5 }),
+    J({ type: 'usage' }),
+    J({ type: 'end', text: 'bye', sessionId: 'gs' }),
+    J({ type: 'error' }),
+    J({ type: 'plan' }),
   ],
   dsh: [
-    J({ type: 'session', sessionId: 'd1' }), J({ type: 'session' }), J({ type: 'text', text: 't' }),
-    J({ type: 'thinking', text: 'z' }), J({ type: 'thinking', text: 'q'.repeat(9000) }),
-    J({ type: 'tool_call', tool: 'subagent', callId: 'k1', input: { description: 'line1\nline2', run_in_background: true } }),
-    J({ type: 'status', phase: 'step_end', usage: { inputTokens: 3, outputTokens: 2, cacheReadTokens: 1 } }),
+    J({ type: 'session', sessionId: 'd1' }),
+    J({ type: 'session' }),
+    J({ type: 'text', text: 't' }),
+    J({ type: 'thinking', text: 'z' }),
+    J({ type: 'thinking', text: 'q'.repeat(9000) }),
+    J({
+      type: 'tool_call',
+      tool: 'subagent',
+      callId: 'k1',
+      input: { description: 'line1\nline2', run_in_background: true },
+    }),
+    J({
+      type: 'status',
+      phase: 'step_end',
+      usage: { inputTokens: 3, outputTokens: 2, cacheReadTokens: 1 },
+    }),
     J({ type: 'tool_result', tool: 'x', callId: 'k1', status: 'error', result: 'r'.repeat(2500) }),
     J({ type: 'tool_call', tool: 'subagent_fork', callId: 'k2', input: 'plain' }),
     J({ type: 'tool_call', tool: 'subagent', callId: 'k3', input: 'null' }),
@@ -76,7 +136,8 @@ const edge = {
     J({ type: 'tool_result', callId: 'k2', result: 'fine' }),
     J({ type: 'final', text: 'all done' }),
     J({ type: 'status', phase: 'turn_end', reason: { kind: 'error', error: { message: 'bad' } } }),
-    J({ type: 'status', phase: 'turn_end', reason: { kind: 'error' } }), J({ type: 'error' }),
+    J({ type: 'status', phase: 'turn_end', reason: { kind: 'error' } }),
+    J({ type: 'error' }),
   ],
 };
 for (const [cli, lines] of Object.entries(edge)) {
@@ -108,5 +169,8 @@ for (const s of streams.values()) {
   });
 }
 mkdirSync(join(root, 'apps/desktop-go/internal/cliplugins/testdata'), { recursive: true });
-writeFileSync(join(root, 'apps/desktop-go/internal/cliplugins/testdata/streams.json'), JSON.stringify(out, null, 1) + '\n');
+writeFileSync(
+  join(root, 'apps/desktop-go/internal/cliplugins/testdata/streams.json'),
+  JSON.stringify(out, null, 1) + '\n',
+);
 console.log(`streams=${out.length} lines=${out.reduce((n, s) => n + s.lines.length, 0)}`);

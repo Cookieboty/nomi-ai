@@ -1,6 +1,6 @@
 package mediahandlers
 
-// 对应 packages/core/src/contract/media/voiceSenders.ts：调用方 → VoiceSender，'ai:voice:stream' 的推送
+// 对应 apps/desktop-electron/internal/core/src/contract/media/voiceSenders.ts：调用方 → VoiceSender，'ai:voice:stream' 的推送
 // 按会话 id 投到对应 voice.streamStart 的流里。调用方窗口的销毁 = 契约连接断开（caller.Done）。
 
 import (

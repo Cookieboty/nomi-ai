@@ -15,13 +15,13 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(__dirname, '../..');
 
 const AI_SIDE = [
-  'packages/core/src',
-  'packages/ai-runtime/src',
-  'packages/ai-sdk/src',
+  'apps/desktop-electron/internal/core/src',
+  'apps/desktop-electron/internal/ai-runtime/src',
+  'apps/desktop-electron/internal/ai-sdk/src',
   'packages/ai-sdk-client/src',
-  'packages/bundle-ig-base/src',
-  'packages/bundle-ig-mascot/src',
-  'packages/bundle-ig-electron-caps/src',
+  'apps/desktop-electron/internal/bundle-ig-base/src',
+  'apps/desktop-electron/internal/bundle-ig-mascot/src',
+  'apps/desktop-electron/internal/bundle-ig-electron-caps/src',
   'packages/contract/src',
 ];
 

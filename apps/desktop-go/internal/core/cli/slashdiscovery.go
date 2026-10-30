@@ -1,6 +1,6 @@
 package cli
 
-// slashdiscovery.go = packages/core/src/cli/slashDiscovery.ts（斜杠命令/技能/代理/插件/MCP 发现与展开 + gitBranch/gitDiff）。
+// slashdiscovery.go = apps/desktop-electron/internal/core/src/cli/slashDiscovery.ts（斜杠命令/技能/代理/插件/MCP 发现与展开 + gitBranch/gitDiff）。
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-// Package reminders 移植 packages/core/src/desktop/reminders/ReminderStore.ts：
+// Package reminders 移植 apps/desktop-electron/internal/core/src/desktop/reminders/ReminderStore.ts：
 // 持久化在 <root>/reminders.json，应用运行时到点触发，关闭期间到期的标记为 missed。
 package reminders
 

@@ -2,7 +2,7 @@ package usage
 
 import "encoding/json"
 
-// 对应 packages/core/src/usage/types.ts
+// 对应 apps/desktop-electron/internal/core/src/usage/types.ts
 
 type UsageSource = string
 type UsageVia = string

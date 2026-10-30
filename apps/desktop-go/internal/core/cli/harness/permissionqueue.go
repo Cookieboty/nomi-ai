@@ -1,4 +1,4 @@
-// Package harness 是 packages/core/src/cli/harness（Orchestrator 及其辅助）的 Go 移植。
+// Package harness 是 apps/desktop-electron/internal/core/src/cli/harness（Orchestrator 及其辅助）的 Go 移植。
 package harness
 
 import (

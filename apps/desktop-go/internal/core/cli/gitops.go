@@ -1,6 +1,6 @@
 package cli
 
-// gitops.go = packages/core/src/cli/gitOps.ts（变更面板的 git 写操作）。
+// gitops.go = apps/desktop-electron/internal/core/src/cli/gitOps.ts（变更面板的 git 写操作）。
 // 所有导出函数须在 jsrt.Run 内调用（async 语义）：git 子进程期间释放 GIL。
 
 import (

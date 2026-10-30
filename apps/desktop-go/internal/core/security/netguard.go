@@ -11,7 +11,7 @@ import (
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 )
 
-// 对应 packages/core/src/security/netGuard.ts：出站 URL 只允许公网 http(s)，拒绝内嵌凭据与保留地址。
+// 对应 apps/desktop-electron/internal/core/src/security/netGuard.ts：出站 URL 只允许公网 http(s)，拒绝内嵌凭据与保留地址。
 
 // LookupAddress 是 dns.LookupAddress。
 type LookupAddress struct {

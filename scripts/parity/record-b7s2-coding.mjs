@@ -14,7 +14,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
-const { C } = await importSources(root, { C: path.join(root, 'packages/core/src/contract/coding.ts') });
+const { C } = await importSources(root, {
+  C: path.join(root, 'apps/desktop-electron/internal/core/src/contract/coding.ts'),
+});
 
 // 假服务：fail = 该次调用抛错（同步方法 throw，异步方法 reject）
 let fail = false;
@@ -42,7 +44,10 @@ const services = {
   delegate: {
     settings: () => echo('settings'),
     setSettings: (s) => aecho('setSettings', s ?? null),
-    pin: (c, t) => (echo('pin', c ?? null, t ?? null), typeof c === 'string' && c !== 'none' ? c : null),
+    pin: (c, t) => (
+      echo('pin', c ?? null, t ?? null),
+      typeof c === 'string' && c !== 'none' ? c : null
+    ),
     clearPin: (t) => void echo('clearPin', t ?? null),
     statusOf: (id) => (id === 'missing' ? null : echo('statusOf', id)),
   },
@@ -60,18 +65,42 @@ const inputs = {
   'cli.pluginAdd': [{ spec: { id: 'x', command: 'x' } }, { spec: 'raw' }, {}],
   'cli.pluginRemove': [{ id: 'yes' }, { id: 'no' }],
   'cli.pluginTest': [{ spec: { id: 't', args: [1, 2] } }],
-  'cliUpdate.inspect': [{}, { refresh: true }, { refresh: false }, { refresh: 'true' }, { refresh: 1 }],
-  'cliUpdate.preview': [{ kind: 'codex', scope: 'user' }, { kind: 'bogus', scope: 'global' }, {}, { kind: 'gemini', scope: 'x' }, { kind: 'claude' }],
+  'cliUpdate.inspect': [
+    {},
+    { refresh: true },
+    { refresh: false },
+    { refresh: 'true' },
+    { refresh: 1 },
+  ],
+  'cliUpdate.preview': [
+    { kind: 'codex', scope: 'user' },
+    { kind: 'bogus', scope: 'global' },
+    {},
+    { kind: 'gemini', scope: 'x' },
+    { kind: 'claude' },
+  ],
   'cliUpdate.run': [{ kind: 'dsh', scope: 'user' }, { kind: 'grok' }, { kind: 5, scope: 'user' }],
   'cliUpdate.job': [{ kind: 'codex' }, { kind: 'dsh' }, {}],
   'cliUpdate.busy': [{}],
   'cliUpdate.dismiss': [{ kind: 'gemini' }, { kind: 'nope' }],
   'delegate.settings': [{}],
   'delegate.setSettings': [{ settings: { enabled: true, clis: ['codex'] } }, {}],
-  'delegate.pin': [{ cli: 'codex', turnId: 't1' }, { cli: 'none', turnId: 't2' }, { cli: 3, turnId: 't3' }, {}],
+  'delegate.pin': [
+    { cli: 'codex', turnId: 't1' },
+    { cli: 'none', turnId: 't2' },
+    { cli: 3, turnId: 't3' },
+    {},
+  ],
   'delegate.clearPin': [{ turnId: 't1' }, {}],
   'delegate.status': [{ taskId: 'k1' }, { taskId: 'missing' }],
-  'history.list': [{ backend: 'claude' }, { backend: 'codex', options: { offset: 20, limit: 10 } }, { backend: 'grok', options: { force: true } }, { backend: 'dsh', options: { force: 1, limit: 2.6 } }, { backend: 'gemini', options: null }, { backend: 'claude', options: { force: '' } }],
+  'history.list': [
+    { backend: 'claude' },
+    { backend: 'codex', options: { offset: 20, limit: 10 } },
+    { backend: 'grok', options: { force: true } },
+    { backend: 'dsh', options: { force: 1, limit: 2.6 } },
+    { backend: 'gemini', options: null },
+    { backend: 'claude', options: { force: '' } },
+  ],
   'history.index': [{ backend: 'codex', options: { offset: 0, force: false } }, { backend: 'dsh' }],
   'history.open': [{ backend: 'claude', sessionId: 's1' }],
   'history.delete': [{ backend: 'codex', sessionId: 's2' }],
@@ -99,7 +128,9 @@ for (const [name, list] of Object.entries(inputs)) {
   fail = false;
   cases.push({ name, input: list[0], mode: 'missing', out: await run({}, name, list[0]) });
 }
-const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/codinghandlers/testdata');
+const dir =
+  process.env.NOMI_GOLDEN_DIR ||
+  path.join(root, 'apps/desktop-go/internal/core/codinghandlers/testdata');
 fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, 'b7s2-coding.json'), JSON.stringify(cases, null, 1) + '\n');
 console.log(`b7s2-coding: ${cases.length} cases`);

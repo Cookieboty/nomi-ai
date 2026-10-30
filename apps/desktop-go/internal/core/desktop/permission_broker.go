@@ -399,7 +399,8 @@ func (b *PermissionBroker) ResetCloudAcks() {
 func (b *PermissionBroker) MarkRead(signal context.Context) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if signal == nil {
+	// 永远不会结束的 context（Background 派生）按没有 signal 处理：否则等它 Done 的 goroutine 和 taint 表项永远不释放
+	if signal == nil || signal.Done() == nil {
 		b.taintUntil = b.nowFn() + taintFallbackMs
 		return
 	}
@@ -417,7 +418,7 @@ func (b *PermissionBroker) MarkRead(signal context.Context) {
 func (b *PermissionBroker) IsTainted(signal context.Context) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if signal != nil {
+	if signal != nil && signal.Done() != nil {
 		return b.taint[signal]
 	}
 	return b.nowFn() < b.taintUntil

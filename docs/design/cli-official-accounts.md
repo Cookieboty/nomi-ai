@@ -16,7 +16,7 @@
 | Nomi 读钥匙串 / 凭据文件做切换                  | Nomi **不** get/set 凭据（S7）；删除账号时仅 `keychain.remove` / CLI logout |
 | 切换时改写全局凭据                              | 换账号 = 换 `CLAUDE_CONFIG_DIR` / `CODEX_HOME` 等，不碰其它账号目录         |
 
-实现入口：`packages/core/src/cli/accounts/AccountService.ts`、界面「编程助手 → 官方账号」。
+实现入口：`apps/desktop-electron/internal/core/src/cli/accounts/AccountService.ts`、界面「编程助手 → 官方账号」。
 
 迁移（§5.10.9）：启动时把旧保险箱转成 `needsLogin` 记录并写出 `accounts.json` **之后**才删除 / 归档保险箱与 backups/staging；解析失败则尽量 stub + 归档到 `vault-unreadable/`，写盘失败则保留原文件。
 

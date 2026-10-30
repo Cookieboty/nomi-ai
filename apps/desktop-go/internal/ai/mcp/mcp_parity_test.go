@@ -22,7 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
-// Golden parity：scripts/parity/record-mcp.mjs 用 Node（@ai-sdk/mcp 2.0.73，与 packages/ai-runtime mcpBridge 同一份）
+// Golden parity：scripts/parity/record-mcp.mjs 用 Node（@ai-sdk/mcp 2.0.73，与 apps/desktop-electron/internal/ai-runtime mcpBridge 同一份）
 // 对 mcp-mock-server.mjs 录制客户端可见结果 + 完整双向 wire；本测试用 Go 客户端对同一 mock 跑同一组场景，逐字比对。
 // 有 node + node_modules 时（CI 各平台均有）先现场录制本平台 golden；否则 Linux 本地回落到提交的 testdata。
 
@@ -46,7 +46,7 @@ type scenario struct {
 	} `json:"steps"`
 }
 
-func repoRoot() string { return filepath.Join("..", "..", "..", "..", "..") }
+func repoRoot() string { return paritytest.RepoRoot() }
 
 var uaRe = regexp.MustCompile(`node\.js/[0-9.v]+`)
 

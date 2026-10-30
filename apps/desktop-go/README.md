@@ -3,7 +3,7 @@
 Nomi 桌面应用的 Go 版：Go 内核 + [Wails v3](https://v3.wails.io) 外壳。与 Node 版（Electron，`apps/desktop-electron`）**并存**，
 两个版本共用同一套视图（`packages/renderer` 看板娘窗口、`packages/ai-chat` 对话窗口），功能保持一致。
 
-- 内核由 TS 内核（`packages/core`、`ai-runtime`、`gateway`、`cli-sdk` 等）逐模块移植，分层与模块边界一一对应；
+- 内核由 TS 内核（`apps/desktop-electron/internal/core`、`ai-runtime`、`gateway`、`cli-sdk` 等）逐模块移植，分层与模块边界一一对应；
   行为一致由 parity 测试守住（Node 现场录制 golden，Go 回放比对）。
 - 视图经契约（`@nomi-ai/contract`）调用内核，Go 的契约过程表由 TS 契约生成。
 - 与 Node 版的全部差异（平台限制、尚未实现的能力）登记在
@@ -58,7 +58,7 @@ apps\desktop-go\run-dev.cmd   # Windows（不加 -H windowsgui，保留控制台
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `main.go`、`*_wiring.go`                                                    | 组合根：创建各服务、注册契约过程、启动外壳（对应 Node 版的 `createCore` + 宿主 `Application`）   |
 | `internal/contract`                                                         | 契约路由、WebSocket 传输；`gen/` 是由 TS 契约生成的过程表与类型（勿手改）                        |
-| `internal/core`                                                             | 业务模块（不依赖 Wails），与 `packages/core` 一一对应                                            |
+| `internal/core`                                                             | 业务模块（不依赖 Wails），与 `apps/desktop-electron/internal/core` 一一对应                      |
 | `internal/ai`、`internal/gateway`、`internal/clisdk`、`internal/cliplugins` | AI 运行时、统一网关、编程助手驱动与插件                                                          |
 | `internal/shell`                                                            | 外壳接口；`wailsshell/` 是唯一依赖 Wails 的包；`viewpage/`、`devviews/` 是视图页面改写与开发代理 |
 | `internal/migrate`                                                          | 首次启动从 Node 版迁移用户数据（文件、聊天记录、密钥）                                           |

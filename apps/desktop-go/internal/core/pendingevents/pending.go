@@ -1,4 +1,4 @@
-// Package pendingevents = packages/core/src/core/pendingEvents.ts（+ core/chatNav.ts 的 CHAT_NAV_EVENTS / isChatNavEvent）。
+// Package pendingevents = apps/desktop-electron/internal/core/src/core/pendingEvents.ts（+ core/chatNav.ts 的 CHAT_NAV_EVENTS / isChatNavEvent）。
 // 发布时没有订阅者的一次性事件留下（每组只留最近一次），对话窗口挂载时经契约拉取，拉取即取走；
 // 留下的事件 ttl 后过期。
 package pendingevents

@@ -1,6 +1,6 @@
 package main
 
-// harnessGateway：packages/core/src/gateway/harnessGateway.ts 的 1:1 移植（unified-gateway.md §12）。
+// harnessGateway：apps/desktop-electron/internal/core/src/gateway/harnessGateway.ts 的 1:1 移植（unified-gateway.md §12）。
 
 import (
 	"encoding/json"

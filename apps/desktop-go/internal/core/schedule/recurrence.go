@@ -1,4 +1,4 @@
-// Package schedule 移植 packages/core/src/schedule：重复规则 / 免打扰（recurrence.ts）与
+// Package schedule 移植 apps/desktop-electron/internal/core/src/schedule：重复规则 / 免打扰（recurrence.ts）与
 // SchedulerService（定时任务、补跑、主动聊天）。时间一律按本地时区（time.Local），与 Node 的 Date 一致。
 package schedule
 

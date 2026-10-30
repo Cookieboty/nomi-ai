@@ -10,17 +10,17 @@
  * Usage: node scripts/parity/record-b7s-igtools.mjs
  */
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { importSources } from './src-bundle.mjs';
+import { importSources, pkgPath } from './src-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const TD = path.join(root, 'apps/desktop-go/internal/ai/runtime/igtools/testdata');
-const P = (p) => path.join(root, 'packages', p);
+const P = (p) => pkgPath(root, p);
 const m = await importSources(root, {
   base: P('bundle-ig-base/src/index.ts'),
   caps: P('bundle-ig-electron-caps/src/plugins/FileSessionStorePlugin.ts'),
@@ -37,10 +37,16 @@ const m = await importSources(root, {
   ighost: P('ai-runtime/src/IgPluginHost.ts'),
   dsvc: P('core/src/desktop/DesktopService.ts'),
 });
-const req = createRequire(path.join(root, 'packages/core/package.json'));
+const req = createRequire(path.join(root, 'apps/desktop-electron/internal/core/package.json'));
 const { asSchema } = await import(pathToFileURL(req.resolve('ai')).href);
 const { createIgPluginHost } = m.ighost;
-const { UserPreferenceMemoryPlugin, UserProfileKey, ToolsBuiltinPlugin, ToolRegistryKey, definePlugin } = m.base;
+const {
+  UserPreferenceMemoryPlugin,
+  UserProfileKey,
+  ToolsBuiltinPlugin,
+  ToolRegistryKey,
+  definePlugin,
+} = m.base;
 const { AIClient, toSdkContext } = m.sdk;
 
 const NOW = 1_700_000_000_000;
@@ -49,7 +55,17 @@ Date.now = () => clock;
 const RealDate = Date;
 let rnd = [];
 Math.random = () => (rnd.length ? rnd.shift() : 0.5);
-const quiet = { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {}, child() { return quiet; } };
+const quiet = {
+  trace() {},
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  fatal() {},
+  child() {
+    return quiet;
+  },
+};
 const J = (v) => (v === undefined ? '@@undef@@' : JSON.parse(JSON.stringify(v)));
 
 // ---- 假宿主（kb / mem / ext 的 this）----
@@ -67,10 +83,14 @@ const kbThis = {
   search: async (q, l) => (calls.push(['search', q, l]), { hits: st.hits, mode: st.mode }),
 };
 const memThis = {
-  get settings() { return { enabled: st.memEnabled }; },
+  get settings() {
+    return { enabled: st.memEnabled };
+  },
   context: async (q) => (calls.push(['context', q]), { text: st.memText }),
   audit: (tool, args, result) => calls.push(['audit', tool, args, result ?? 'ok']),
-  get data() { return { facts: st.facts.map((text) => ({ text })) }; },
+  get data() {
+    return { facts: st.facts.map((text) => ({ text })) };
+  },
   upsertFact: async (i) => (calls.push(['upsert', i]), { id: 'fact_1' }),
   d: { events: { publish: (ch, p) => calls.push(['publish', ch, p]) } },
 };
@@ -84,10 +104,12 @@ fs.mkdirSync(path.join(SB, 'alpha', 'sub'), { recursive: true });
 fs.writeFileSync(path.join(SB, 'alpha', 'ref.md'), 'reference text ✓');
 fs.writeFileSync(path.join(SB, 'alpha', 'bin.dat'), Buffer.from([1, 0, 2]));
 const extThis = {
-  listSkills: () => skills.map(({ name, enabled, error }) => ({ name, enabled, ...(error ? { error } : {}) })),
+  listSkills: () =>
+    skills.map(({ name, enabled, error }) => ({ name, enabled, ...(error ? { error } : {}) })),
   getSkill: (n) => skills.find((s) => s.name === n),
   skillDir: (n) => path.join(SB, n),
-  audit: (tool, args, decision, result, source) => calls.push(['audit', tool, args, decision, result, source]),
+  audit: (tool, args, decision, result, source) =>
+    calls.push(['audit', tool, args, decision, result, source]),
   d: { events: { publish: (ch, p) => calls.push(['publish', ch, p]) } },
 };
 const dlgThis = {};
@@ -110,7 +132,9 @@ async function boot(withHost = true) {
   const avatarHost = definePlugin({
     name: 'MascotIpcHostPlugin',
     apply(ctx) {
-      ctx.inject(m.seams.AvatarKey).attachHost(m.bridge.createIpcMascotHost((cue) => cues.push(cue)));
+      ctx
+        .inject(m.seams.AvatarKey)
+        .attachHost(m.bridge.createIpcMascotHost((cue) => cues.push(cue)));
     },
   });
   const plugins = [
@@ -125,28 +149,48 @@ async function boot(withHost = true) {
       kb: () => ({ tools: () => m.kb.KnowledgeService.prototype.tools.call(kbThis) }),
       mem: () => ({ tools: () => m.mem.MemoryService.prototype.tools.call(memThis) }),
       delegate: () => ({ tools: () => m.dlg.DelegateService.prototype.tools.call(dlgThis) }),
-      ext: () => ({ tools: () => m.ext.ExtensionsService.prototype.tools.call(extThis), attach: () => {} }),
+      ext: () => ({
+        tools: () => m.ext.ExtensionsService.prototype.tools.call(extThis),
+        attach: () => {},
+      }),
     }),
   ];
   const host = createIgPluginHost({ logger: quiet });
   await host.apply(plugins);
   await host.ctx.inject(UserProfileKey)?.export();
   const client = new AIClient(toSdkContext(host.ctx), {});
-  return { host, client, cues, SBP, reg: host.ctx.inject(ToolRegistryKey), profile: host.ctx.inject(UserProfileKey) };
+  return {
+    host,
+    client,
+    cues,
+    SBP,
+    reg: host.ctx.inject(ToolRegistryKey),
+    profile: host.ctx.inject(UserProfileKey),
+  };
 }
 
 const b = await boot();
 const list = J(await b.client.tools.list());
 const schemas = {};
 for (const t of b.reg.list()) schemas[t.name] = J(await asSchema(t.input).jsonSchema);
-const meta = b.reg.list().map((t) => ({ name: t.name, ...(t.readOnly !== undefined ? { readOnly: t.readOnly } : {}), ...(t.requiresWorkspace !== undefined ? { requiresWorkspace: t.requiresWorkspace } : {}) }));
+const meta = b.reg
+  .list()
+  .map((t) => ({
+    name: t.name,
+    ...(t.readOnly !== undefined ? { readOnly: t.readOnly } : {}),
+    ...(t.requiresWorkspace !== undefined ? { requiresWorkspace: t.requiresWorkspace } : {}),
+  }));
 
 const cases = JSON.parse(fs.readFileSync(path.join(TD, 'b7s-igtools-cases.json'), 'utf8'));
 const exec = [];
 for (const c of cases) {
   clock = NOW + (c.tick ?? 0);
   rnd = [...(c.rnd ?? [])];
-  Object.assign(st, { send: 'ok', hits: [], mode: 'bm25', memEnabled: true, memText: '', facts: [] }, c.st ?? {});
+  Object.assign(
+    st,
+    { send: 'ok', hits: [], mode: 'bm25', memEnabled: true, memText: '', facts: [] },
+    c.st ?? {},
+  );
   calls = [];
   b.cues.length = 0;
   if (c.reset) await b.profile.reset();
@@ -161,7 +205,9 @@ for (const c of cases) {
   const t = b.reg.get(c.tool);
   const rec = { tool: c.tool };
   try {
-    rec.out = J(await t.execute(c.in, { toolCallId: 'tc1', ...(c.provider ? { provider: c.provider } : {}) }));
+    rec.out = J(
+      await t.execute(c.in, { toolCallId: 'tc1', ...(c.provider ? { provider: c.provider } : {}) }),
+    );
   } catch (e) {
     rec.err = String(e?.message ?? e);
   }
@@ -177,7 +223,14 @@ await b.host.dispose();
 fs.rmSync(b.SBP, { recursive: true, force: true });
 
 const out = { list, schemas, meta, exec };
-fs.writeFileSync(path.join(TD, 'b7s-igtools.json'), JSON.stringify(out, null, 1).split(JSON.stringify(SB).slice(1, -1)).join('@@SB@@').split(SB).join('@@SB@@') + '\n'); // Windows：JSON 文本里路径反斜杠被转义
+fs.writeFileSync(
+  path.join(TD, 'b7s-igtools.json'),
+  JSON.stringify(out, null, 1)
+    .split(JSON.stringify(SB).slice(1, -1))
+    .join('@@SB@@')
+    .split(SB)
+    .join('@@SB@@') + '\n',
+); // Windows：JSON 文本里路径反斜杠被转义
 fs.rmSync(SB, { recursive: true, force: true });
 fs.rmSync(UD, { recursive: true, force: true });
 console.log(`b7s-igtools: ${list.length} tools, ${exec.length} exec cases`);

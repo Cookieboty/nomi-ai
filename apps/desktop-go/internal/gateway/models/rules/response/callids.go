@@ -1,4 +1,4 @@
-// Package response mirrors packages/gateway/src/models/rules/response.
+// Package response mirrors apps/desktop-electron/internal/gateway/src/models/rules/response.
 // callids.go mirrors callIds.ts (deterministic call ids, wire-safe escaping).
 package response
 

@@ -1,4 +1,4 @@
-// Package facade = packages/ai-sdk/src/facade（ChatFacade + chatContext）
+// Package facade = apps/desktop-electron/internal/ai-sdk/src/facade（ChatFacade + chatContext）
 package facade
 
 import (

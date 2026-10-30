@@ -1,4 +1,4 @@
-// Package theme 对应 packages/core/src/theme/ThemeService.ts
+// Package theme 对应 apps/desktop-electron/internal/core/src/theme/ThemeService.ts
 package theme
 
 import (

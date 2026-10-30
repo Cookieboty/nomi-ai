@@ -62,6 +62,12 @@ const log = createLogger('toolbar');
  */
 
 let globalVoiceService: VoiceService | null = null;
+let offVoiceStopper: (() => void) | null = null;
+// 开发态热更新会重新执行本模块（globalVoiceService 归零）：先销毁旧实例，否则每改一次就多一个常驻的 VoiceService
+import.meta.hot?.dispose(() => {
+  offVoiceStopper?.();
+  globalVoiceService?.destroy();
+});
 
 /** 光标在角色包围盒外多远（px）仍算悬停：只是靠近不展开（设计稿 01），悬停到角色上才展开（03） */
 const NEAR_PX = 0;
@@ -171,7 +177,7 @@ export const ToolBar: React.FC = () => {
         if (!globalVoiceService) {
           globalVoiceService = new VoiceService();
           const svc = globalVoiceService;
-          registerSpeechStopper(() => svc.stop());
+          offVoiceStopper = registerSpeechStopper(() => svc.stop());
 
           // 等待VoiceService初始化完成
           await globalVoiceService.waitForInit();
@@ -457,7 +463,7 @@ export const ToolBar: React.FC = () => {
   // 全局光标轮询：点击穿透状态下收不到 DOM 事件时也有效
   useEffect(
     () =>
-      layoutStore.subscribe(({ cursor }) => {
+      layoutStore.subscribeCursor(({ cursor }) => {
         setNear(!!cursor?.inside && hitTest(cursor.x, cursor.y));
       }),
     [hitTest],

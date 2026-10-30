@@ -1,5 +1,5 @@
 // Package mascothandlers 把批次 10（看板娘 / 角色包 / 灵动岛）的契约过程挂到 Router。
-// 对应 packages/core/src/contract/mascot.ts（内核部分）与 apps/desktop-electron/src/host/contract/mascot.ts（宿主部分）。
+// 对应 apps/desktop-electron/internal/core/src/contract/mascot.ts（内核部分）与 apps/desktop-electron/src/host/contract/mascot.ts（宿主部分）。
 package mascothandlers
 
 import (

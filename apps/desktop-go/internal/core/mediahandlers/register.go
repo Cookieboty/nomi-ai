@@ -1,4 +1,4 @@
-// Package mediahandlers = packages/core/src/contract/media.ts 的语音输入 / 朗读部分（批次 9）：
+// Package mediahandlers = apps/desktop-electron/internal/core/src/contract/media.ts 的语音输入 / 朗读部分（批次 9）：
 // voice.* / tts.* / nav.openVoiceSettings。每个过程委派给服务的公开方法，事件由服务直接发布。
 package mediahandlers
 

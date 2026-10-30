@@ -1,6 +1,6 @@
 package usage
 
-// authmode.go = packages/core/src/usage/authMode.ts（不读取任何凭据内容；只看官方登录状态命令的结论与配置里「是否配了」）。
+// authmode.go = apps/desktop-electron/internal/core/src/usage/authMode.ts（不读取任何凭据内容；只看官方登录状态命令的结论与配置里「是否配了」）。
 
 import (
 	"os"

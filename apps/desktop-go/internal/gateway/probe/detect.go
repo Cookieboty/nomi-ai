@@ -1,4 +1,4 @@
-// Package probe = packages/gateway/src/probe/detect.ts（unified-gateway §8 协议探测）：
+// Package probe = apps/desktop-electron/internal/gateway/src/probe/detect.ts（unified-gateway §8 协议探测）：
 // 地址规范化 → 拉模型列表（顺带判断鉴权方式）→ 各协议并行发最小请求 → 按 Key 记录结果。
 package probe
 

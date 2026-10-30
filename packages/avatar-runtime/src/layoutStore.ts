@@ -38,16 +38,21 @@ export interface LayoutStore {
   setCharBox(charBox: Box | null): void;
   setGutter(gutter: Box | null): void;
   setCursor(c: { x: number; y: number; inside: boolean }): void;
+  /** 布局变化（box / head / charBox / gutter）；光标移动不通知（宿主推光标约 30 Hz，订阅方多是要量 DOM 的） */
   subscribe(l: Listener): () => void;
+  /** 光标或布局任一变化都通知（“靠近才显示”这类要看光标的订阅方） */
+  subscribeCursor(l: Listener): () => void;
 }
 
 /** 每个运行时一份（runtime.ts）；页面主运行时的就是 `layoutStore` */
 export function createLayoutStore(): LayoutStore {
   let snap: LayoutSnapshot = { box: null, cursor: null, head: null, gutter: null, charBox: null };
   const listeners = new Set<Listener>();
-  const set = (next: LayoutSnapshot) => {
+  const cursorListeners = new Set<Listener>();
+  const set = (next: LayoutSnapshot, layout = true) => {
     snap = next;
-    listeners.forEach((l) => l(snap));
+    if (layout) listeners.forEach((l) => l(snap));
+    cursorListeners.forEach((l) => l(snap));
   };
   return {
     get: () => snap,
@@ -76,11 +81,17 @@ export function createLayoutStore(): LayoutStore {
       set({ ...snap, gutter });
     },
     setCursor(c) {
-      set({ ...snap, cursor: c });
+      const p = snap.cursor;
+      if (p && p.x === c.x && p.y === c.y && p.inside === c.inside) return;
+      set({ ...snap, cursor: c }, false);
     },
     subscribe(l) {
       listeners.add(l);
       return () => listeners.delete(l);
+    },
+    subscribeCursor(l) {
+      cursorListeners.add(l);
+      return () => cursorListeners.delete(l);
     },
   };
 }

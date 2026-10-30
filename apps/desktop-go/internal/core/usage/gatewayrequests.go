@@ -1,6 +1,6 @@
 package usage
 
-// 对应 packages/core/src/usage/gatewayRequests.ts：网关用量事件 → 旧「最近请求」条目、读回校验。纯函数。
+// 对应 apps/desktop-electron/internal/core/src/usage/gatewayRequests.ts：网关用量事件 → 旧「最近请求」条目、读回校验。纯函数。
 // 事件 / 磁盘条目按 JS 值（*util.Obj）处理，保持 typeof 校验与键序。
 
 import (

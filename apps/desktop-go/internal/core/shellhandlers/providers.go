@@ -1,6 +1,6 @@
 package shellhandlers
 
-// providers.* —— packages/core/src/contract/shell.ts 的 withProviders / bindProviderEvents 部分。
+// providers.* —— apps/desktop-electron/internal/core/src/contract/shell.ts 的 withProviders / bindProviderEvents 部分。
 // 服务是 AI runtime 的 ProviderService（internal/ai/providers）；生产路径与 AIRuntimeBoot 一致：
 // 内存 ProviderStore（无 filePath）+ createSafeStorageCipher(secrets) + 环境变量 provider。
 

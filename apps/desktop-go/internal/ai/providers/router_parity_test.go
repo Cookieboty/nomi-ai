@@ -21,6 +21,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 const routerNowMs = 1_700_000_000_000
@@ -309,7 +311,7 @@ func runRouterGolden(t *testing.T) (scenarios, events, mismatched int, diffs []s
 	old := routerNow
 	routerNow = func() time.Time { return time.UnixMilli(routerNowMs) }
 	defer func() { routerNow = old }()
-	spec := obj(readJSON(t, "../../../../../scripts/parity/b5-router-scenarios.json", false))
+	spec := obj(readJSON(t, paritytest.RepoPath("scripts/parity/b5-router-scenarios.json"), false))
 	recs := arr(readJSON(t, "testdata/parity/b5_router.json.gz", true))
 	scs := arr(spec.Get("scenarios"))
 	if len(scs) != len(recs) {
@@ -353,7 +355,7 @@ func TestRouterParityGolden(t *testing.T) {
 
 // TestRouterParityMutation：比对必须能抓到被改动的 golden 与被改动的运行时
 func TestRouterParityMutation(t *testing.T) {
-	spec := obj(readJSON(t, "../../../../../scripts/parity/b5-router-scenarios.json", false))
+	spec := obj(readJSON(t, paritytest.RepoPath("scripts/parity/b5-router-scenarios.json"), false))
 	recs := arr(readJSON(t, "testdata/parity/b5_router.json.gz", true))
 	old := routerNow
 	routerNow = func() time.Time { return time.UnixMilli(routerNowMs) }

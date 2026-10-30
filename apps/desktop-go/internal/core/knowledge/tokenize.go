@@ -1,4 +1,4 @@
-// Package knowledge 移植 packages/core/src/knowledge：分词、BM25、分块、向量客户端、索引与 KnowledgeService。
+// Package knowledge 移植 apps/desktop-electron/internal/core/src/knowledge：分词、BM25、分块、向量客户端、索引与 KnowledgeService。
 package knowledge
 
 import (

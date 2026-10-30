@@ -1,4 +1,4 @@
-// Package agents = packages/core/src/gateway/agents/index.ts：第三方会话的进程级注入。
+// Package agents = apps/desktop-electron/internal/core/src/gateway/agents/index.ts：第三方会话的进程级注入。
 package agents
 
 import (

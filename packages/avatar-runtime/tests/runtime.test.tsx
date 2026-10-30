@@ -5,10 +5,10 @@
  * 一个假的事件源和互动回调把运行时挂到页面上，驱动它并收它的输出，最后完整卸载。
  */
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { mappingSchema, type PackMapping } from '@nomi-ai/character-contract';
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
+import { repoPath } from '@nomi-ai/repo-paths';
 import { act } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -24,9 +24,9 @@ import {
   type MascotBackend,
 } from '../src';
 
-const DUMMY = path.join(__dirname, '../../../characters/test-dummy');
+const DUMMY = repoPath('characters/test-dummy');
 const NOMI_MAPPING: PackMapping = mappingSchema.parse(
-  JSON.parse(readFileSync(path.join(__dirname, '../../../characters/nomi/mapping.json'), 'utf8')),
+  JSON.parse(readFileSync(repoPath('characters/nomi/mapping.json'), 'utf8')),
 );
 
 function dummyCharacter() {

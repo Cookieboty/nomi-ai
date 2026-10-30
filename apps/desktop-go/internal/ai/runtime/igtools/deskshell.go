@@ -107,6 +107,8 @@ func RunShellCommand(command string, o RunShellOpts) RunOutcome {
 		out.Ms = time.Since(t0).Milliseconds()
 		return out
 	}
+	// 命令把子进程放进新会话（setsid / 守护化）时 killTree 杀不到，它仍占着输出管道：超时 / 中止后最多再等 2 秒
+	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Start(); err != nil {
 		return finish(spawnErr(err, sh.File))
 	}

@@ -1,6 +1,6 @@
 package cli
 
-// workspacefiles.go = packages/core/src/cli/workspaceFiles.ts（会话工作区内的文本文件读写 / 删除 / git checkout / 文件树）。
+// workspacefiles.go = apps/desktop-electron/internal/core/src/cli/workspaceFiles.ts（会话工作区内的文本文件读写 / 删除 / git checkout / 文件树）。
 
 import (
 	"os"

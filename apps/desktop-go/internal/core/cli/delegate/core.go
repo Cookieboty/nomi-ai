@@ -1,4 +1,4 @@
-// Package delegate：packages/core/src/cli/delegate（core.ts / worktree.ts / DelegateService.ts）的 1:1 移植。
+// Package delegate：apps/desktop-electron/internal/core/src/cli/delegate（core.ts / worktree.ts / DelegateService.ts）的 1:1 移植。
 // Nomi 委派编程助手：选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
 //
 // 数据形状与 Node 一致：档位 / 设置 / 结果都是有序 *util.Obj（键顺序 = Node 对象字面量顺序），

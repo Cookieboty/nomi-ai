@@ -16,6 +16,7 @@ import {
   SEMANTIC_GESTURES,
   type PackMapping,
 } from '@nomi-ai/character-contract';
+import { repoPath } from '@nomi-ai/repo-paths';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RIVE_MOTION_ALIASES, RIVE_NATIVE_MOTIONS } from '../src/backends/rive';
@@ -33,7 +34,7 @@ import {
 import { MASCOT_EXPRESSIONS, mascotRegistry, type MascotBackend } from '../src/MascotBackend';
 import { playGesture, resetMoodForTests } from '../src/mood';
 
-const CHARACTERS = path.join(__dirname, '../../../characters');
+const CHARACTERS = repoPath('characters');
 
 function packMapping(id: string): PackMapping {
   const raw: unknown = JSON.parse(readFileSync(path.join(CHARACTERS, id, 'mapping.json'), 'utf8'));

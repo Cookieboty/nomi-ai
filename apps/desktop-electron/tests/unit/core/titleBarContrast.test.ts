@@ -5,11 +5,12 @@ jest.unmock('path');
  * 且 fg 在 bg 上对比度 ≥ 4.5:1（窗口控制按钮的符号色）。
  */
 import fs from 'node:fs';
-import path from 'node:path';
+
+import { repoPath } from '@nomi-ai/repo-paths';
 
 import { THEME_CHROME, type ChromeTheme } from '../../../src/core/titleBar';
 
-const tokens = fs.readFileSync(path.resolve(__dirname, '../../../../ui/src/tokens.css'), 'utf8');
+const tokens = fs.readFileSync(repoPath('packages/ui/src/tokens.css'), 'utf8');
 
 /** 每个主题取 [data-theme='x'] 块（sunset 与 :root 写在同一块：`:root,\n[data-theme='sunset'] {`） */
 const block = (theme: ChromeTheme): string => {

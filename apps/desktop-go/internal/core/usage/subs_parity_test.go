@@ -203,7 +203,7 @@ func newSubsHarness(t *testing.T) *subsHarness {
 		paritytest.SkipOrFail(t, "node not found")
 	}
 	g := loadSubsGolden(t)
-	dir, _ := filepath.Abs("../../../../../scripts/parity")
+	dir := paritytest.RepoPath("scripts/parity")
 	bin := filepath.Join(dir, "usage-mock-cli")
 	if runtime.GOOS == "windows" {
 		bin += ".cmd"

@@ -1,4 +1,4 @@
-// Package events mirrors packages/gateway/src/stream/events.ts (NormEvent and
+// Package events mirrors apps/desktop-electron/internal/gateway/src/stream/events.ts (NormEvent and
 // the decoder / encoder contracts). Leaf package, see deviation D15.
 package events
 

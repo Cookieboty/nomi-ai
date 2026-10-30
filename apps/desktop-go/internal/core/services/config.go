@@ -1,4 +1,4 @@
-// Package services 对应 packages/core/src/services（ConfigService）
+// Package services 对应 apps/desktop-electron/internal/core/src/services（ConfigService）
 package services
 
 import (

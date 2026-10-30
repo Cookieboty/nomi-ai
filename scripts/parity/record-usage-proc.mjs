@@ -14,8 +14,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
-const src = (f) => path.join(root, 'packages/core/src/usage', f);
-const { GA, LP } = await importSources(root, { GA: src('grokAuth.ts'), LP: src('limitedProcess.ts') });
+const src = (f) => path.join(root, 'apps/desktop-electron/internal/core/src/usage', f);
+const { GA, LP } = await importSources(root, {
+  GA: src('grokAuth.ts'),
+  LP: src('limitedProcess.ts'),
+});
 const J = (v) => (v === undefined ? '__undef__' : JSON.stringify(v));
 // 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
 // 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
@@ -32,19 +35,32 @@ const alive = (pid) => {
 const waitChildrenExit = async (logDir, ms = 30_000) => {
   let pids = [];
   try {
-    for (const f of fs.readdirSync(logDir)) if (f.endsWith('.pid')) pids.push(...fs.readFileSync(path.join(logDir, f), 'utf8').split('\n').filter(Boolean).map(Number));
-  } catch {}
+    for (const f of fs.readdirSync(logDir))
+      if (f.endsWith('.pid'))
+        pids.push(
+          ...fs.readFileSync(path.join(logDir, f), 'utf8').split('\n').filter(Boolean).map(Number),
+        );
+  } catch {
+    /* ignore */
+  }
   const end = Date.now() + ms;
-  while ((pids = pids.filter(alive)).length && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
+  while ((pids = pids.filter(alive)).length && Date.now() < end)
+    await new Promise((r) => setTimeout(r, 100));
   for (const p of pids) {
     console.error(`waitChildrenExit: pid ${p} still alive after ${ms}ms, killing`);
-    try { process.kill(p, 'SIGKILL'); } catch {}
+    try {
+      process.kill(p, 'SIGKILL');
+    } catch {
+      /* ignore */
+    }
   }
 };
 const rmQuiet = (p) => {
   try {
     fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 };
 const leftovers = async () => {
   await waitChildrenExit(L, 2_000);
@@ -57,7 +73,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* ---------------- parseGrokAuthStatus ---------------- */
 const init = (r) => JSON.stringify({ jsonrpc: '2.0', id: 1, result: r });
 const authText = [
-  '', '   \n\n', 'not json', '{"a":1}', '[1,2]', 'null', '"x"',
+  '',
+  '   \n\n',
+  'not json',
+  '{"a":1}',
+  '[1,2]',
+  'null',
+  '"x"',
   init({ authMethods: [{ id: 'cached_token' }] }),
   init({ authMethods: [{ id: 'cached_token' }], _meta: { defaultAuthMethodId: 'grok.com' } }),
   init({ authMethods: [{ id: 'grok.com' }], _meta: { defaultAuthMethodId: 'grok.com' } }),
@@ -71,7 +93,10 @@ const authText = [
   init({ authMethods: {} }),
   JSON.stringify({ result: { result: { authMethods: [{ id: 'cached_token' }] } } }),
   JSON.stringify({ authMethods: [], defaultAuthMethodId: 'apikey' }),
-  'log line\r\n' + init({ authMethods: [] }) + '\r\n' + init({ authMethods: [{ id: 'cached-token' }] }),
+  'log line\r\n' +
+    init({ authMethods: [] }) +
+    '\r\n' +
+    init({ authMethods: [{ id: 'cached-token' }] }),
   JSON.stringify({ authMethods: [{ id: 'cached_token' }] }, null, 2),
   '{"authMethods":[{"id":"cached_token"}]}\n{bad',
   init({ authMethods: [], _meta: { defaultAuthMethodId: 'cachedtoken' } }),
@@ -90,8 +115,12 @@ const S = path.sep;
 const P = (...xs) => xs.join(S);
 const shimText = (body) => `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\n${body}\r\n`;
 const files = {
-  [P('', 'n', 'npm', 'grok.cmd')]: shimText('"%_prog%" "%dp0%\\node_modules\\@x\\grok\\bin\\grok.js" %*\r\nIF EXIST "%dp0%\\node.exe" ( SET "_prog=%dp0%\\node.exe" )'),
-  [P('', 'n', 'pnpm', 'grok.CMD')]: shimText('"%~dp0\\..\\store\\node.exe" "%~dp0\\..\\store\\grok\\dist\\cli.mjs" %*'),
+  [P('', 'n', 'npm', 'grok.cmd')]: shimText(
+    '"%_prog%" "%dp0%\\node_modules\\@x\\grok\\bin\\grok.js" %*\r\nIF EXIST "%dp0%\\node.exe" ( SET "_prog=%dp0%\\node.exe" )',
+  ),
+  [P('', 'n', 'pnpm', 'grok.CMD')]: shimText(
+    '"%~dp0\\..\\store\\node.exe" "%~dp0\\..\\store\\grok\\dist\\cli.mjs" %*',
+  ),
   [P('', 'n', 'pnpm', 'other.bat')]: shimText('"C:/tools/node" "%~dp0/a.cjs" "%~dp0/b.txt"'),
   [P('', 'n', 'x', 'nojs.cmd')]: shimText('"%dp0%\\bin\\grok" %*'),
   [P('', 'n', 'x', 'pct.cmd')]: shimText('"%dp0%\\%weird%\\g.js"'),
@@ -101,16 +130,27 @@ const files = {
 const existsAll = new Set([
   P('', 'n', 'npm', 'node_modules', '@x', 'grok', 'bin', 'grok.js'),
   P('', 'n', 'npm', 'node.exe'),
-  P('', 'store', 'node.exe'), P('', 'n', 'store', 'node.exe'),
+  P('', 'store', 'node.exe'),
+  P('', 'n', 'store', 'node.exe'),
   P('', 'n', 'store', 'grok', 'dist', 'cli.mjs'),
   P('', 'n', 'pnpm', 'a.cjs'),
   P('', 'n', 'x', 'g.js'),
-  'node', P('', 'node'),
+  'node',
+  P('', 'node'),
 ]);
 const unwrapCases = [];
-for (const cmd of [...Object.keys(files), P('', 'n', 'x', 'missing.cmd'), P('', 'n', 'x', 'grok.exe')]) {
+for (const cmd of [
+  ...Object.keys(files),
+  P('', 'n', 'x', 'missing.cmd'),
+  P('', 'n', 'x', 'grok.exe'),
+]) {
   for (const ex of ['all', 'none', 'noNodeExe']) {
-    const exists = (p) => (ex === 'all' ? existsAll.has(p) : ex === 'none' ? false : existsAll.has(p) && !/node\.exe$/.test(p));
+    const exists = (p) =>
+      ex === 'all'
+        ? existsAll.has(p)
+        : ex === 'none'
+          ? false
+          : existsAll.has(p) && !/node\.exe$/.test(p);
     const deps = {
       readFile: (p) => {
         if (!(p in files)) throw new Error('ENOENT');
@@ -120,11 +160,20 @@ for (const cmd of [...Object.keys(files), P('', 'n', 'x', 'missing.cmd'), P('', 
     };
     const calls = [];
     const trace = { readFile: deps.readFile, exists: (p) => (calls.push(p), exists(p)) };
-    unwrapCases.push({ command: cmd, exists: ex, out: J(LP.unwrapWindowsCmdShim(cmd, trace)), calls });
+    unwrapCases.push({
+      command: cmd,
+      exists: ex,
+      out: J(LP.unwrapWindowsCmdShim(cmd, trace)),
+      calls,
+    });
     for (const platform of ['win32', 'linux']) {
       unwrapCases.push({
-        command: cmd, exists: ex, platform,
-        launch: J(LP.resolveCliLaunch(cmd, ['agent', 'stdio'], { ComSpec: 'cmd.exe' }, platform, deps)),
+        command: cmd,
+        exists: ex,
+        platform,
+        launch: J(
+          LP.resolveCliLaunch(cmd, ['agent', 'stdio'], { ComSpec: 'cmd.exe' }, platform, deps),
+        ),
       });
     }
   }
@@ -141,7 +190,8 @@ for (const sc of [
 ]) {
   const calls = [];
   const child = {
-    exitCode: null, signalCode: null,
+    exitCode: null,
+    signalCode: null,
     kill(sig) {
       calls.push(sig);
       if (sig === 'SIGTERM') {
@@ -164,18 +214,30 @@ const BIN = path.join(here, process.platform === 'win32' ? 'usage-mock-cli.cmd' 
 const MISSING = path.join(here, 'no-such-usage-cli');
 const T = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-proc-')));
 const L = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-proc-log-')));
-const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(NO_COLOR|DISABLE_|MOCK_)/.test(k)));
+const baseEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([k]) => !/^(NO_COLOR|DISABLE_|MOCK_)/.test(k)),
+);
 let logN = 0;
 const readLog = (f) =>
   fs.existsSync(f)
-    ? fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => {
-        const o = JSON.parse(l);
-        if (o.cwdParent !== undefined) o.cwdParent = o.cwdParent === path.basename(T) ? '<T>' : o.cwdParent;
-        if (o.cwd !== undefined && o.cwd === 'run') o.cwd = 'run';
-        return o;
-      })
+    ? fs
+        .readFileSync(f, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => {
+          const o = JSON.parse(l);
+          if (o.cwdParent !== undefined)
+            o.cwdParent = o.cwdParent === path.basename(T) ? '<T>' : o.cwdParent;
+          if (o.cwd !== undefined && o.cwd === 'run') o.cwd = 'run';
+          return o;
+        })
     : [];
-const env = (plan, logf) => ({ ...baseEnv, MOCK_PLAN: JSON.stringify(plan), MOCK_LOG: logf, MOCK_X: 'x1' });
+const env = (plan, logf) => ({
+  ...baseEnv,
+  MOCK_PLAN: JSON.stringify(plan),
+  MOCK_LOG: logf,
+  MOCK_X: 'x1',
+});
 
 const runScenarios = [
   { name: 'ok', plan: { onStart: ['hello ', 'wörld\n'], exit: 'start' } },
@@ -195,7 +257,10 @@ for (const sc of runScenarios) {
   let out;
   try {
     const r = await LP.runLimited(sc.bin ?? BIN, ['a', '', 'b c'], {
-      cwd, env: env(sc.plan ?? {}, logf), timeoutMs: sc.timeoutMs ?? 10_000, maxBytes: sc.maxBytes ?? LP.STDOUT_LIMIT,
+      cwd,
+      env: env(sc.plan ?? {}, logf),
+      timeoutMs: sc.timeoutMs ?? 10_000,
+      maxBytes: sc.maxBytes ?? LP.STDOUT_LIMIT,
     });
     out = { stdout: r.stdout, code: r.code };
   } catch (e) {
@@ -211,8 +276,30 @@ const auth = [];
 const authScenarios = [
   { name: 'not-installed', bin: null },
   { name: 'resolve-throws', bin: 'throw' },
-  { name: 'subscription', plan: { onLine: { 0: ['log\n', '{"id":2,"result":{}}\n', init({ authMethods: [{ id: 'cached_token' }] }) + '\n'] } } },
-  { name: 'falsy-result', plan: { onLine: { 0: ['{"id":1,"result":0}\n', '{"id":"1","result":{}}\n', '{"id":1,"result":{"z":1,"a":[2]}}\n'] } } },
+  {
+    name: 'subscription',
+    plan: {
+      onLine: {
+        0: [
+          'log\n',
+          '{"id":2,"result":{}}\n',
+          init({ authMethods: [{ id: 'cached_token' }] }) + '\n',
+        ],
+      },
+    },
+  },
+  {
+    name: 'falsy-result',
+    plan: {
+      onLine: {
+        0: [
+          '{"id":1,"result":0}\n',
+          '{"id":"1","result":{}}\n',
+          '{"id":1,"result":{"z":1,"a":[2]}}\n',
+        ],
+      },
+    },
+  },
   { name: 'closed', plan: { exit: 'start' } },
   { name: 'closed-after-line', plan: { onLine: { 0: ['{"id":1,"result":null}\n'] }, exit: 0 } },
   { name: 'split', plan: { onLine: { 0: ['{"id":1,"res', 'ult":{"ok":true}}', '\n'] } } },
@@ -238,14 +325,28 @@ await waitChildrenExit(L);
 rmQuiet(T);
 rmQuiet(L);
 
-const outDir = process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/usage/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/usage/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(
   path.join(outDir, 'usage-proc.json'),
-  JSON.stringify({
-    consts: { agentArgs: GA.GROK_AGENT_ARGS, authTimeout: GA.GROK_AUTH_TIMEOUT_MS, stdoutLimit: LP.STDOUT_LIMIT },
-    authText, shim, unwrapCases, killCases, run, auth,
-  }, null, 1) + '\n',
+  JSON.stringify(
+    {
+      consts: {
+        agentArgs: GA.GROK_AGENT_ARGS,
+        authTimeout: GA.GROK_AUTH_TIMEOUT_MS,
+        stdoutLimit: LP.STDOUT_LIMIT,
+      },
+      authText,
+      shim,
+      unwrapCases,
+      killCases,
+      run,
+      auth,
+    },
+    null,
+    1,
+  ) + '\n',
 );
 console.log(
   `usage-proc: authText ${authText.length}, shim ${shim.length}, unwrap ${unwrapCases.length}, kill ${killCases.length}, run ${run.length}, auth ${auth.length}`,

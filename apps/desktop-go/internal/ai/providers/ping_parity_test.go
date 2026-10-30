@@ -20,6 +20,8 @@ import (
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 type pingFetch struct {
@@ -196,7 +198,7 @@ func replayPing(t *testing.T, spec *u.Obj) []string {
 }
 
 func runPingGolden(t *testing.T) (events, bad int, diffs []string) {
-	spec := obj(readJSON(t, "../../../../../scripts/parity/b5-ping-scenarios.json", false))
+	spec := obj(readJSON(t, paritytest.RepoPath("scripts/parity/b5-ping-scenarios.json"), false))
 	want := arr(obj(readJSON(t, "testdata/parity/b5_ping.json.gz", true)).Get("events"))
 	old := serviceNow
 	serviceNow = func() time.Time { return time.UnixMilli(routerNowMs) }

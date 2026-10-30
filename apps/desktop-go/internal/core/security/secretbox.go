@@ -1,4 +1,4 @@
-// Package security 对应 packages/core/src/security（secretStorage）。
+// Package security 对应 apps/desktop-electron/internal/core/src/security（secretStorage）。
 // 字节级机密走 go-keyring（OS 钥匙串）；磁盘上的 `enc:` 前缀、失败关闭、旧明文兼容与 Node 一致。
 package security
 

@@ -21,7 +21,10 @@ import {
 } from '../../packages/cli-sdk/src/external';
 import { validateManifest } from '../../packages/cli-sdk/src/manifest';
 
-const MOCK = path.resolve(__dirname, '../../packages/core/scripts/mock-cli/mock-acp.mjs');
+const MOCK = path.resolve(
+  __dirname,
+  '../../apps/desktop-electron/internal/core/scripts/mock-cli/mock-acp.mjs',
+);
 const RESERVED = ['claude', 'codex', 'dsh', 'gemini', 'grok', 'nomi'];
 const dirs: string[] = [];
 const tmp = (p: string) => {

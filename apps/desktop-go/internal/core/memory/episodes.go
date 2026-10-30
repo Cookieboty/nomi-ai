@@ -1,4 +1,4 @@
-// Package memory 移植 packages/core/src/memory：情节记忆（episodes.ts，纯逻辑）与 MemoryService。
+// Package memory 移植 apps/desktop-electron/internal/core/src/memory：情节记忆（episodes.ts，纯逻辑）与 MemoryService。
 package memory
 
 import (
@@ -147,7 +147,7 @@ type ParsedSummary struct {
 
 var secretRe = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{12,}|password|密码|口令|身份证|银行卡|\b\d{15,19}\b)`)
 
-// HasSecret：网关 privacy 的共用密钥规则（packages/gateway/src/privacy/rules.ts hasSecret(s) = ruleSpans(s, {}).length > 0）。
+// HasSecret：网关 privacy 的共用密钥规则（apps/desktop-electron/internal/gateway/src/privacy/rules.ts hasSecret(s) = ruleSpans(s, {}).length > 0）。
 var HasSecret = func(s string) bool { return privacy.HasSecret(s, false) }
 
 func ParseSummary(raw string) *ParsedSummary {

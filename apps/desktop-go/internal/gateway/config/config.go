@@ -1,4 +1,4 @@
-// Package config mirrors packages/gateway/src/config.ts: the runtime snapshot
+// Package config mirrors apps/desktop-electron/internal/gateway/src/config.ts: the runtime snapshot
 // the host builds from store.json (keys decrypted, memory only).
 package config
 

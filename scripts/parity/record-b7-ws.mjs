@@ -11,11 +11,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const w = await import(pathToFileURL(path.join(root, 'packages/core/src/cli/workspaceFiles.ts')).href);
+const w = await import(
+  pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src/cli/workspaceFiles.ts'))
+    .href
+);
 const fx = JSON.parse(fs.readFileSync(path.join(here, 'b7-ws-scenarios.json'), 'utf8'));
 
 const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-b7w-')));
-fs.writeFileSync(path.join(SB, 'gitconfig'), '[user]\n\tname = T\n\temail = t@x\n[core]\n\tautocrlf = false\n');
+fs.writeFileSync(
+  path.join(SB, 'gitconfig'),
+  '[user]\n\tname = T\n\temail = t@x\n[core]\n\tautocrlf = false\n',
+);
 Object.assign(process.env, {
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_CONFIG_GLOBAL: path.join(SB, 'gitconfig'),
@@ -29,7 +35,8 @@ for (const [rel, body] of Object.entries(fx.files)) {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, Buffer.from(body, 'latin1'));
 }
-if (process.platform !== 'win32') for (const [t, l] of fx.links) fs.symlinkSync(t, path.join(SB, l));
+if (process.platform !== 'win32')
+  for (const [t, l] of fx.links) fs.symlinkSync(t, path.join(SB, l));
 const at = (r) => path.join(SB, r);
 const sub = (s) => (typeof s === 'string' ? s.replaceAll('$SB', SB) : s);
 const cases = [];
@@ -50,9 +57,11 @@ for (const st of fx.steps) {
 }
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 let json = JSON.stringify(cases, null, 1);
-for (const form of [JSON.stringify(SB).slice(1, -1), SB.replace(/\\/g, '/')]) json = json.replace(new RegExp(esc(form), 'g'), '<SB>');
+for (const form of [JSON.stringify(SB).slice(1, -1), SB.replace(/\\/g, '/')])
+  json = json.replace(new RegExp(esc(form), 'g'), '<SB>');
 json = json.replace(/"mtimeMs": [0-9.e+]+/g, '"mtimeMs": "<T>"');
-const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, 'workspacefiles.json');
 fs.writeFileSync(out, `{"platform":${JSON.stringify(process.platform)},"cases":${json}}\n`);

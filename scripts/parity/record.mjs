@@ -2,7 +2,7 @@
 /**
  * Golden parity recorder for the Go migration (docs/design/migrate-2.0.5-go.md §parity).
  *
- * Runs the Node gateway (packages/gateway/src, loaded through tsx) on a fixed set
+ * Runs the Node gateway (apps/desktop-electron/internal/gateway/src, loaded through tsx) on a fixed set
  * of inputs and writes every input + output to JSON fixtures. The Go side
  * (apps/desktop-go/internal/gateway/parity_test.go) replays the same inputs and
  * diffs the outputs after normalisation (scripts/parity/normalize.mjs rules, also
@@ -34,7 +34,8 @@ register();
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = join(root, 'apps/desktop-go/internal/gateway/testdata/parity');
-const gw = (p) => import(pathToFileURL(join(root, 'packages/gateway', p)).href);
+const gw = (p) =>
+  import(pathToFileURL(join(root, 'apps/desktop-electron/internal/gateway', p)).href);
 
 const only = (() => {
   const i = process.argv.indexOf('--only');
@@ -53,7 +54,10 @@ const stream = await gw('src/stream/index.ts');
 // Fixtures full of synthetic secrets are stored gzipped so push protection does not flag them.
 function writeGz(name, data) {
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, `${name}.json.gz`), gzipSync(JSON.stringify(data) + '\n', { level: 9 }));
+  writeFileSync(
+    join(outDir, `${name}.json.gz`),
+    gzipSync(JSON.stringify(data) + '\n', { level: 9 }),
+  );
   console.log(`wrote ${name}.json.gz`);
 }
 
@@ -92,7 +96,12 @@ if (want('request')) {
               from,
               to,
               input,
-              opts: { upstreamModel: model ?? null, reasoningPassback, model: opts.model ?? null, stream: !!opts.stream },
+              opts: {
+                upstreamModel: model ?? null,
+                reasoningPassback,
+                model: opts.model ?? null,
+                stream: !!opts.stream,
+              },
               seed,
               output: JSON.stringify(req.convertRequest(from, to, JSON.parse(input), opts)),
             });
@@ -112,7 +121,7 @@ const safeCut = (t, k) => {
 };
 function splitUnits(t, n) {
   const out = [];
-  for (let k = 0; k < t.length; ) {
+  for (let k = 0; k < t.length;) {
     const e = Math.min(t.length, safeCut(t, k + n));
     out.push(t.slice(k, e));
     k = e;
@@ -136,7 +145,17 @@ if (want('stream')) {
         const f = stream.createStreamConverter(from, to, convOpts);
         const half = text.slice(0, safeCut(text, Math.floor(text.length / 2)));
         const failed = [f.push(half), f.fail('socket hang up')];
-        out.push({ name: `${from}#${i}→${to}`, from, to, input: text, inChunks, half, whole, split7: chunks, failHalf: failed });
+        out.push({
+          name: `${from}#${i}→${to}`,
+          from,
+          to,
+          input: text,
+          inChunks,
+          half,
+          whole,
+          split7: chunks,
+          failHalf: failed,
+        });
       }
     });
   }
@@ -187,7 +206,16 @@ if (want('fixes')) {
     for (const r of splitUnits(fx.think ?? '', 9)) s += ch({ reasoning_content: r });
     for (const t of splitUnits(fx.text ?? '', 9)) s += ch({ content: t });
     (fx.tools ?? []).forEach((t, i) => {
-      s += ch({ tool_calls: [{ index: i, id: `call_${i}`, type: 'function', function: { name: t.name, arguments: '' } }] });
+      s += ch({
+        tool_calls: [
+          {
+            index: i,
+            id: `call_${i}`,
+            type: 'function',
+            function: { name: t.name, arguments: '' },
+          },
+        ],
+      });
       s += ch({ tool_calls: [{ index: i, function: { arguments: t.args } }] });
     });
     s += ch({}, fx.tools?.length ? 'tool_calls' : 'stop');
@@ -217,13 +245,32 @@ if (want('fixes')) {
           if (c.stopped) break;
         }
         chunks.push(c.end());
-        fixer.push({ name: `${from}#${i}→${to}`, from, to, input: text, inChunks, out: chunks, stopped: c.stopped, notes: o.notes });
+        fixer.push({
+          name: `${from}#${i}→${to}`,
+          from,
+          to,
+          input: text,
+          inChunks,
+          out: chunks,
+          stopped: c.stopped,
+          notes: o.notes,
+        });
       }
       for (const variant of ['default', 'noChatStream', 'noFixes']) {
-        const o = variant === 'noFixes' ? { notes: [] } : { ...mkOpts(), ...(variant === 'noChatStream' ? { chatStream: false } : {}) };
+        const o =
+          variant === 'noFixes'
+            ? { notes: [] }
+            : { ...mkOpts(), ...(variant === 'noChatStream' ? { chatStream: false } : {}) };
         const p = pt.createPassthrough(from, o);
         if (!p) {
-          passthrough.push({ name: `${from}#${i}/${variant}`, wire: from, variant, input: text, inChunks, nil: true });
+          passthrough.push({
+            name: `${from}#${i}/${variant}`,
+            wire: from,
+            variant,
+            input: text,
+            inChunks,
+            nil: true,
+          });
           continue;
         }
         const chunks = [];
@@ -232,13 +279,31 @@ if (want('fixes')) {
           if (p.stopped) break;
         }
         chunks.push(p.end());
-        passthrough.push({ name: `${from}#${i}/${variant}`, wire: from, variant, input: text, inChunks, out: chunks, stopped: p.stopped, notes: o.notes });
+        passthrough.push({
+          name: `${from}#${i}/${variant}`,
+          wire: from,
+          variant,
+          input: text,
+          inChunks,
+          out: chunks,
+          stopped: p.stopped,
+          notes: o.notes,
+        });
       }
       const half = text.slice(0, safeCut(text, Math.floor(text.length / 2)));
-      for (const [k, t] of [['whole', text], ['half', half], ['noTail', text.replace(/\n\n$/, '')]]) {
+      for (const [k, t] of [
+        ['whole', text],
+        ['half', half],
+        ['noTail', text.replace(/\n\n$/, '')],
+      ]) {
         const tw = new pt.TerminalWatch(from);
         for (const piece of splitUnits(t, 7)) tw.push(piece);
-        terminal.push({ name: `${from}#${i}/${k}`, wire: from, input: t, terminated: tw.terminated });
+        terminal.push({
+          name: `${from}#${i}/${k}`,
+          wire: from,
+          input: t,
+          terminated: tw.terminated,
+        });
       }
     });
   }
@@ -247,8 +312,20 @@ if (want('fixes')) {
   fixTexts.forEach((fx, i) => {
     const msg = { role: 'assistant', content: fx.text ?? '' };
     if (fx.tools?.length)
-      msg.tool_calls = fx.tools.map((t, k) => ({ id: `call_${k}`, type: 'function', function: { name: t.name, arguments: t.args } }));
-    const body = { id: 'chatcmpl-1', object: 'chat.completion', created: 1, model: 'up', choices: [{ index: 0, message: msg, finish_reason: fx.tools?.length ? 'tool_calls' : 'stop' }] };
+      msg.tool_calls = fx.tools.map((t, k) => ({
+        id: `call_${k}`,
+        type: 'function',
+        function: { name: t.name, arguments: t.args },
+      }));
+    const body = {
+      id: 'chatcmpl-1',
+      object: 'chat.completion',
+      created: 1,
+      model: 'up',
+      choices: [
+        { index: 0, message: msg, finish_reason: fx.tools?.length ? 'tool_calls' : 'stop' },
+      ],
+    };
     const input = JSON.stringify(body);
     const o = mkOpts();
     const patched = cp.patchChatJson(JSON.parse(input), o);
@@ -261,7 +338,11 @@ if (want('fixes')) {
     json.push({ name: `json#${i}`, input, patched: JSON.stringify(patched), notes: o.notes, conv });
   });
   write('fixes', {
-    opts: { toolNames: { mapped_weather: 'get_weather' }, textTools: ['get_weather', 'read_file'], seed: 'seed1' },
+    opts: {
+      toolNames: { mapped_weather: 'get_weather' },
+      textTools: ['get_weather', 'read_file'],
+      seed: 'seed1',
+    },
     cases: fixer,
     passthrough,
     terminal,
@@ -283,14 +364,30 @@ if (want('spec')) {
         texts.push([to, out]);
         texts.push([to, out.slice(0, safeCut(out, Math.floor(out.length / 2)))]);
         const f = stream.createStreamConverter(from, to, convOpts);
-        texts.push([to, f.push(text.slice(0, safeCut(text, Math.floor(text.length / 3)))) + f.fail('boom')]);
+        texts.push([
+          to,
+          f.push(text.slice(0, safeCut(text, Math.floor(text.length / 3)))) + f.fail('boom'),
+        ]);
       }
     }
   const broken = {
-    chat: ['data: {"choices":[{"delta":{"content":[1]},"finish_reason":""}]}\n\n', 'data: nope\n\ndata: {"x":1}\n\n', 'data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":{}}}]},"finish_reason":"weird"}]}\n\ndata: {"choices":[]}\n\ndata: {"choices":[{}]}\n\n'],
-    messages: ['event: content_block_delta\ndata: {"index":3}\n\n', 'data: {"type":"message_start","message":{"id":"m"}}\n\ndata: {"type":"content_block_start","index":1}\n\ndata: {"type":"content_block_stop","index":0}\n\ndata: {"type":"bogus"}\n\ndata: {"type":"message_stop"}\n\ndata: {"type":"ping"}\n\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n'],
-    responses: ['data: {"type":"response.output_text.delta","item_id":"x"}\n\ndata: {"type":"response.output_item.done","sequence_number":1,"item":{"type":"message","id":"y","content":[{"type":"output_text"}]}}\n\ndata: {"type":"response.completed","sequence_number":2,"response":{"output":[{"type":"function_call"},{"type":7}]}}\n\ndata: {"type":"x"}\n\n'],
-    gemini: ['data: {"candidates":[{"finishReason":"MALFORMED_FUNCTION_CALL"}]}\n\ndata: {"candidates":[]}\n\ndata: {"usageMetadata":{}}\n\n', 'data: {"promptFeedback":{"blockReason":"SAFETY"}}\n\n', 'data: {"foo":1}\n\n'],
+    chat: [
+      'data: {"choices":[{"delta":{"content":[1]},"finish_reason":""}]}\n\n',
+      'data: nope\n\ndata: {"x":1}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":{}}}]},"finish_reason":"weird"}]}\n\ndata: {"choices":[]}\n\ndata: {"choices":[{}]}\n\n',
+    ],
+    messages: [
+      'event: content_block_delta\ndata: {"index":3}\n\n',
+      'data: {"type":"message_start","message":{"id":"m"}}\n\ndata: {"type":"content_block_start","index":1}\n\ndata: {"type":"content_block_stop","index":0}\n\ndata: {"type":"bogus"}\n\ndata: {"type":"message_stop"}\n\ndata: {"type":"ping"}\n\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+    ],
+    responses: [
+      'data: {"type":"response.output_text.delta","item_id":"x"}\n\ndata: {"type":"response.output_item.done","sequence_number":1,"item":{"type":"message","id":"y","content":[{"type":"output_text"}]}}\n\ndata: {"type":"response.completed","sequence_number":2,"response":{"output":[{"type":"function_call"},{"type":7}]}}\n\ndata: {"type":"x"}\n\n',
+    ],
+    gemini: [
+      'data: {"candidates":[{"finishReason":"MALFORMED_FUNCTION_CALL"}]}\n\ndata: {"candidates":[]}\n\ndata: {"usageMetadata":{}}\n\n',
+      'data: {"promptFeedback":{"blockReason":"SAFETY"}}\n\n',
+      'data: {"foo":1}\n\n',
+    ],
   };
   for (const [w, list] of Object.entries(broken)) for (const t of list) texts.push([w, t]);
   const out = texts.map(([wire, text], i) => {
@@ -313,39 +410,124 @@ if (want('net')) {
   const guard = await gw('src/net/upstreamGuard.ts');
   const errs = await gw('src/errors.ts');
   const hosts = [
-    '127.0.0.1', '127.1', '0x7f.1', '0177.0.0.1', '2130706433', '10.0.0.1', '172.16.5.4', '172.32.0.1',
-    '192.168.1.1', '192.0.0.8', '100.64.0.1', '100.128.0.1', '169.254.1.1', '198.18.0.1', '224.0.0.1',
-    '8.8.8.8', '1.1.1.1', '256.1.1.1', '1.2.3.4.5', '0x', '00', '09', '1..1', '', 'localhost', 'a.localhost',
-    'printer.local', 'example.com', 'LOCALHOST.', '[::1]', '::', '::1', '::ffff:127.0.0.1', '::ffff:8.8.8.8',
-    '::127.0.0.1', '64:ff9b::10.0.0.1', '64:ff9b::8.8.8.8', 'fc00::1', 'fd12:3456::1', 'fe80::1%eth0',
-    'ff02::1', '2001:db8::1', '2606:4700::1111', '1:2:3:4:5:6:7:8', '1:2:3:4:5:6:7:8:9', '1::2::3',
-    '::ffff:1.2.3', 'gggg::1', '0xffffffff', '4294967296', '1.16777215', '1.16777216',
+    '127.0.0.1',
+    '127.1',
+    '0x7f.1',
+    '0177.0.0.1',
+    '2130706433',
+    '10.0.0.1',
+    '172.16.5.4',
+    '172.32.0.1',
+    '192.168.1.1',
+    '192.0.0.8',
+    '100.64.0.1',
+    '100.128.0.1',
+    '169.254.1.1',
+    '198.18.0.1',
+    '224.0.0.1',
+    '8.8.8.8',
+    '1.1.1.1',
+    '256.1.1.1',
+    '1.2.3.4.5',
+    '0x',
+    '00',
+    '09',
+    '1..1',
+    '',
+    'localhost',
+    'a.localhost',
+    'printer.local',
+    'example.com',
+    'LOCALHOST.',
+    '[::1]',
+    '::',
+    '::1',
+    '::ffff:127.0.0.1',
+    '::ffff:8.8.8.8',
+    '::127.0.0.1',
+    '64:ff9b::10.0.0.1',
+    '64:ff9b::8.8.8.8',
+    'fc00::1',
+    'fd12:3456::1',
+    'fe80::1%eth0',
+    'ff02::1',
+    '2001:db8::1',
+    '2606:4700::1111',
+    '1:2:3:4:5:6:7:8',
+    '1:2:3:4:5:6:7:8:9',
+    '1::2::3',
+    '::ffff:1.2.3',
+    'gggg::1',
+    '0xffffffff',
+    '4294967296',
+    '1.16777215',
+    '1.16777216',
   ];
   const headers = [
-    ['127.0.0.1:8080', 8080], ['127.0.0.1:8081', 8080], ['localhost', 80], ['localhost', 8080],
-    ['[::1]:8080', 8080], ['LOCALHOST:8080', 8080], ['evil.com:8080', 8080], [' 127.0.0.1:8080 ', 8080],
-    ['', 8080], ['127.0.0.1:08080', 8080], ['::1:8080', 8080], ['127.0.0.1:', 8080],
+    ['127.0.0.1:8080', 8080],
+    ['127.0.0.1:8081', 8080],
+    ['localhost', 80],
+    ['localhost', 8080],
+    ['[::1]:8080', 8080],
+    ['LOCALHOST:8080', 8080],
+    ['evil.com:8080', 8080],
+    [' 127.0.0.1:8080 ', 8080],
+    ['', 8080],
+    ['127.0.0.1:08080', 8080],
+    ['::1:8080', 8080],
+    ['127.0.0.1:', 8080],
   ];
   const guardCases = [
-    ['https://api.example.com/v1', {}], ['ftp://x.com/', {}], ['https://u:p@x.com/', {}], ['not a url', {}],
-    ['http://127.0.0.1:11434/v1', {}], ['http://127.0.0.1:11434/v1', { allowedPrivateHosts: ['127.0.0.1:11434'] }],
+    ['https://api.example.com/v1', {}],
+    ['ftp://x.com/', {}],
+    ['https://u:p@x.com/', {}],
+    ['not a url', {}],
+    ['http://127.0.0.1:11434/v1', {}],
+    ['http://127.0.0.1:11434/v1', { allowedPrivateHosts: ['127.0.0.1:11434'] }],
     ['http://localhost:9000/', { selfPort: 9000, allowedPrivateHosts: ['localhost:9000'] }],
-    ['http://[::1]:1234/', { allowedPrivateHosts: ['::1:1234'] }], ['https://8.8.8.8/', {}],
-    ['https://lan.example/', {}, [['10.0.0.5', 4]]], ['https://lan.example/', { allowedPrivateHosts: ['lan.example:443'] }, [['10.0.0.5', 4]]],
-    ['https://fake.example/', {}, [['198.18.0.7', 4]]], ['https://mix.example/', {}, [['10.0.0.5', 4], ['8.8.8.8', 4]]],
-    ['https://none.example/', {}, []], ['http://localhost:3000/', { allowedPrivateHosts: ['localhost:3000'] }, [['127.0.0.1', 4]]],
+    ['http://[::1]:1234/', { allowedPrivateHosts: ['::1:1234'] }],
+    ['https://8.8.8.8/', {}],
+    ['https://lan.example/', {}, [['10.0.0.5', 4]]],
+    ['https://lan.example/', { allowedPrivateHosts: ['lan.example:443'] }, [['10.0.0.5', 4]]],
+    ['https://fake.example/', {}, [['198.18.0.7', 4]]],
+    [
+      'https://mix.example/',
+      {},
+      [
+        ['10.0.0.5', 4],
+        ['8.8.8.8', 4],
+      ],
+    ],
+    ['https://none.example/', {}, []],
+    ['http://localhost:3000/', { allowedPrivateHosts: ['localhost:3000'] }, [['127.0.0.1', 4]]],
   ];
   const guardOut = [];
   for (const [url, o, look] of guardCases) {
-    const lookupAll = async () => (look ?? [['93.184.216.34', 4]]).map(([address, family]) => ({ address, family }));
+    const lookupAll = async () =>
+      (look ?? [['93.184.216.34', 4]]).map(([address, family]) => ({ address, family }));
     try {
       const r = await guard.resolveUpstreamAddresses(url, { ...o, lookupAll });
-      guardOut.push({ url, opts: o, lookup: look ?? null, addresses: r.addresses.map((a) => [a.address, a.family]) });
+      guardOut.push({
+        url,
+        opts: o,
+        lookup: look ?? null,
+        addresses: r.addresses.map((a) => [a.address, a.family]),
+      });
     } catch (e) {
       guardOut.push({ url, opts: o, lookup: look ?? null, error: e.message });
     }
   }
-  const kinds = ['rate_limit', 'overloaded', 'auth', 'invalid', 'not_found', 'context', 'payload_too_large', 'upstream', 'timeout'];
+  const kinds = [
+    'rate_limit',
+    'overloaded',
+    'auth',
+    'invalid',
+    'not_found',
+    'context',
+    'payload_too_large',
+    'upstream',
+    'timeout',
+  ];
   const errOut = [];
   for (const w of ['messages', 'gemini', 'chat', 'responses'])
     for (const k of kinds)
@@ -354,15 +536,50 @@ if (want('net')) {
         errOut.push({ wire: w, kind: k, message: m, status: r.status, body: r.body });
       }
   const statuses = [200, 301, 400, 401, 403, 404, 413, 429, 500, 502, 503, 504, 529, 418];
-  const upstreamTexts = ['{"error":"x"}', '{"error":{"message":"y"}}', '{"message":"z"}', '{"error":{}}', 'plain', '', '[1]', 'é'.repeat(600)];
+  const upstreamTexts = [
+    '{"error":"x"}',
+    '{"error":{"message":"y"}}',
+    '{"message":"z"}',
+    '{"error":{}}',
+    'plain',
+    '',
+    '[1]',
+    'é'.repeat(600),
+  ];
   const urls = [
-    'http://LOCALHOST:11434/v1', 'http://0x7f.1:8080/', 'http://0177.0.0.1/', 'http://2130706433:9/', 'http://127.1/',
-    'http://127.0.0.1./', 'http://Example.COM./v1', 'https://bücher.example/', 'https://xn--bcher-kva.example/',
-    'https://ＥＸＡＭＰＬＥ.com/', 'http://[0:0::1]:3000/', 'http://[::FFFF:7f00:1]/', 'http://[fe80::1%25eth0]/',
-    'https://api.example.com:443/v1', 'http://api.example.com:80/', 'http://api.example.com:0080/', 'http://x.com:99999/',
-    'http://256.0.0.1/', 'http://1.2.3.4.5/', 'http://0x100000000/', 'http://ex%41mple.com/', 'http://a b.com/',
-    'http://a_b.com/', 'http://10.0.0.1.:8000/', 'http://192.168.0.1/', 'http://foo.0x/', 'http://foo.09/', 'http://1.2.3.09/',
-    'http:example.com/', 'HTTP://Example.com/', 'http://-x-.com/', 'http://\u00e9.local/', 'http://a..b/',
+    'http://LOCALHOST:11434/v1',
+    'http://0x7f.1:8080/',
+    'http://0177.0.0.1/',
+    'http://2130706433:9/',
+    'http://127.1/',
+    'http://127.0.0.1./',
+    'http://Example.COM./v1',
+    'https://bücher.example/',
+    'https://xn--bcher-kva.example/',
+    'https://ＥＸＡＭＰＬＥ.com/',
+    'http://[0:0::1]:3000/',
+    'http://[::FFFF:7f00:1]/',
+    'http://[fe80::1%25eth0]/',
+    'https://api.example.com:443/v1',
+    'http://api.example.com:80/',
+    'http://api.example.com:0080/',
+    'http://x.com:99999/',
+    'http://256.0.0.1/',
+    'http://1.2.3.4.5/',
+    'http://0x100000000/',
+    'http://ex%41mple.com/',
+    'http://a b.com/',
+    'http://a_b.com/',
+    'http://10.0.0.1.:8000/',
+    'http://192.168.0.1/',
+    'http://foo.0x/',
+    'http://foo.09/',
+    'http://1.2.3.09/',
+    'http:example.com/',
+    'HTTP://Example.com/',
+    'http://-x-.com/',
+    'http://\u00e9.local/',
+    'http://a..b/',
   ];
   const urlOut = [];
   for (const raw of urls) {
@@ -375,7 +592,10 @@ if (want('net')) {
     }
     let guardRes;
     try {
-      const r = await guard.resolveUpstreamAddresses(raw, { allowedPrivateHosts: ['10.0.0.1:8000'], lookupAll: async () => [{ address: '93.184.216.34', family: 4 }] });
+      const r = await guard.resolveUpstreamAddresses(raw, {
+        allowedPrivateHosts: ['10.0.0.1:8000'],
+        lookupAll: async () => [{ address: '93.184.216.34', family: 4 }],
+      });
       guardRes = { addresses: r.addresses.map((a) => [a.address, a.family]) };
     } catch (e) {
       guardRes = { error: e.message };
@@ -384,11 +604,24 @@ if (want('net')) {
   }
   write('net', {
     urls: urlOut,
-    hosts: hosts.map((h) => ({ host: h, private: addr.isPrivateHost(h), v4: addr.parseIPv4(h), v6: addr.parseIPv6(h), fake: guard.isFakeIp(h) })),
+    hosts: hosts.map((h) => ({
+      host: h,
+      private: addr.isPrivateHost(h),
+      v4: addr.parseIPv4(h),
+      v6: addr.parseIPv6(h),
+      fake: guard.isFakeIp(h),
+    })),
     headers: headers.map(([h, p]) => ({ header: h, port: p, ok: lb.isAllowedHostHeader(h, p) })),
     guard: guardOut,
     errors: errOut,
-    statuses: statuses.flatMap((st) => ['', 'context too long'].map((m) => ({ status: st, message: m, client: errs.clientStatusOf(st), kind: errs.kindOfStatus(st, m) }))),
+    statuses: statuses.flatMap((st) =>
+      ['', 'context too long'].map((m) => ({
+        status: st,
+        message: m,
+        client: errs.clientStatusOf(st),
+        kind: errs.kindOfStatus(st, m),
+      })),
+    ),
     upstream: upstreamTexts.map((t) => ({ text: t, message: errs.upstreamMessage(t) })),
   });
 }
@@ -444,15 +677,22 @@ if (want('collate')) {
   const xs = [];
   for (let i = 0; i < 3000; i++) {
     let s = '';
-    for (let j = 0, n = 1 + Math.floor(rnd() * 5); j < n; j++) s += al[Math.floor(rnd() * al.length)];
+    for (let j = 0, n = 1 + Math.floor(rnd() * 5); j < n; j++)
+      s += al[Math.floor(rnd() * al.length)];
     xs.push(s);
   }
-  write('collate', { pairs: xs.slice(1).map((b, i) => [xs[i], b, Math.sign(xs[i].localeCompare(b))]), sorted: [...xs].sort((a, b) => a.localeCompare(b)) });
+  write('collate', {
+    pairs: xs.slice(1).map((b, i) => [xs[i], b, Math.sign(xs[i].localeCompare(b))]),
+    sorted: [...xs].sort((a, b) => a.localeCompare(b)),
+  });
 }
 
 if (want('textdecoder')) {
   // new TextDecoder() streamed: decode(chunk, {stream:true}) per chunk, then decode().
-  const pool = [0x00, 0x41, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xc2, 0xdf, 0xe0, 0xe2, 0xed, 0xef, 0xbb, 0xf0, 0xf4, 0xf5, 0xff];
+  const pool = [
+    0x00, 0x41, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xc2, 0xdf, 0xe0, 0xe2, 0xed, 0xef,
+    0xbb, 0xf0, 0xf4, 0xf5, 0xff,
+  ];
   let seed = 11;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   const cases = [];
@@ -460,7 +700,8 @@ if (want('textdecoder')) {
     const chunks = [];
     for (let c = 0, n = 1 + Math.floor(rnd() * 4); c < n; c++) {
       const ch = [];
-      for (let j = 0, m = Math.floor(rnd() * 6); j < m; j++) ch.push(pool[Math.floor(rnd() * pool.length)]);
+      for (let j = 0, m = Math.floor(rnd() * 6); j < m; j++)
+        ch.push(pool[Math.floor(rnd() * pool.length)]);
       chunks.push(ch);
     }
     if (i % 7 === 0) chunks[0].unshift(0xef, 0xbb, 0xbf);
@@ -483,10 +724,17 @@ if (want('bridge')) {
   const mkOpts = (variant) =>
     variant === 'noFixes'
       ? { notes: [] }
-      : { toolNames: new Map([['mapped_weather', 'get_weather']]), textTools: new Set(['get_weather', 'read_file']), repetition: true, notes: [], callIds: new ids.CallIds('seed1') };
+      : {
+          toolNames: new Map([['mapped_weather', 'get_weather']]),
+          textTools: new Set(['get_weather', 'read_file']),
+          repetition: true,
+          notes: [],
+          callIds: new ids.CallIds('seed1'),
+        };
   const chatOf = (fx) => {
     const base = { id: 'chatcmpl-1', object: 'chat.completion.chunk', created: 1, model: 'up' };
-    const ch = (delta, finish = null) => `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+    const ch = (delta, finish = null) =>
+      `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
     let s = ch({ role: 'assistant', content: '' });
     for (const t of splitUnits(fx.text ?? '', 9)) s += ch({ content: t });
     s += ch({}, 'stop');
@@ -498,7 +746,10 @@ if (want('bridge')) {
     for (const fx of fixTexts.slice(0, 4)) {
       const chat = chatOf(fx);
       if (w === 'chat') inputs[w].push(chat);
-      else { const c = stream.createStreamConverter('chat', w, { model: 'up' }); inputs[w].push(c.push(chat) + c.end()); }
+      else {
+        const c = stream.createStreamConverter('chat', w, { model: 'up' });
+        inputs[w].push(c.push(chat) + c.end());
+      }
     }
   }
   const out = [];
@@ -509,7 +760,15 @@ if (want('bridge')) {
           for (const variant of ['default', 'noFixes'])
             for (const ending of ['end', 'endNoTail', 'fail', 'half']) {
               const fixes = mkOpts(variant);
-              const plan = { from, to, mode: br.bridgeMode(from, to, needs), model: 'fallback', customTools: new Set(['apply_patch']), fixes, ...(i % 2 ? { heartbeat: 'comment' } : {}) };
+              const plan = {
+                from,
+                to,
+                mode: br.bridgeMode(from, to, needs),
+                model: 'fallback',
+                customTools: new Set(['apply_patch']),
+                fixes,
+                ...(i % 2 ? { heartbeat: 'comment' } : {}),
+              };
               const b = br.createBridge(plan);
               let t = text;
               if (ending === 'endNoTail') t = text.replace(/\n\n$/, '');
@@ -524,24 +783,72 @@ if (want('bridge')) {
               }
               if (ending === 'fail') ops.push(['fail', 'socket hang up', b.fail('socket hang up')]);
               else ops.push(['end', pieces[restAt] ?? '', b.end(pieces[restAt] ?? '')]);
-              out.push({ name: `${from}#${i}→${to}/${needs}/${variant}/${ending}`, from, to, needs, variant, heartbeat: plan.heartbeat ?? '', mode: b.mode, ops, stopped: b.stopped, notes: fixes.notes });
+              out.push({
+                name: `${from}#${i}→${to}/${needs}/${variant}/${ending}`,
+                from,
+                to,
+                needs,
+                variant,
+                heartbeat: plan.heartbeat ?? '',
+                mode: b.mode,
+                ops,
+                stopped: b.stopped,
+                notes: fixes.notes,
+              });
             }
     });
   const json = [];
   for (const from of WIRES) {
-    const bodies = [...cases.upstreamJson[from].map((b) => JSON.stringify(b)), 'not json', '"str"', '[1,2]'];
+    const bodies = [
+      ...cases.upstreamJson[from].map((b) => JSON.stringify(b)),
+      'not json',
+      '"str"',
+      '[1,2]',
+    ];
     bodies.forEach((text, i) => {
       let parsed = null;
-      try { parsed = JSON.parse(text); } catch {}
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
       for (const to of WIRES)
         for (const needs of from === to ? [false, true] : [false])
           for (const wantsStream of [false, true])
             for (const variant of ['default', 'noFixes']) {
               const fixes = mkOpts(variant);
-              const plan = { from, to, mode: br.bridgeMode(from, to, needs), model: 'fallback', customTools: new Set(['apply_patch']), fixes };
+              const plan = {
+                from,
+                to,
+                mode: br.bridgeMode(from, to, needs),
+                model: 'fallback',
+                customTools: new Set(['apply_patch']),
+                fixes,
+              };
               const ct = i % 2 ? null : 'application/json; charset=utf-8';
-              const r = br.bridgeJson(plan, { status: 200 + i, contentType: ct, text, parsed: parsed === null ? null : JSON.parse(text) }, wantsStream);
-              json.push({ from, to, needs, wantsStream, variant, text, ct, upStatus: 200 + i, parsed: parsed !== null, out: r.kind === 'json' ? { ...r, body: JSON.stringify(r.body) } : r, notes: fixes.notes });
+              const r = br.bridgeJson(
+                plan,
+                {
+                  status: 200 + i,
+                  contentType: ct,
+                  text,
+                  parsed: parsed === null ? null : JSON.parse(text),
+                },
+                wantsStream,
+              );
+              json.push({
+                from,
+                to,
+                needs,
+                wantsStream,
+                variant,
+                text,
+                ct,
+                upStatus: 200 + i,
+                parsed: parsed !== null,
+                out: r.kind === 'json' ? { ...r, body: JSON.stringify(r.body) } : r,
+                notes: fixes.notes,
+              });
             }
     });
   }

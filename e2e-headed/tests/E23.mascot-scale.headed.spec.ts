@@ -39,7 +39,7 @@ const ANCHOR_TOL = 6;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const xdo = (...a: string[]) => execFileSync('xdotool', a);
 
-// 与 packages/core/src/mascot/mascotSize.ts 保持一致（测试里独立重算，防止实现与测试一起错）
+// 与 apps/desktop-electron/internal/core/src/mascot/mascotSize.ts 保持一致（测试里独立重算，防止实现与测试一起错）
 const BASE = { w: 420, h: 450 };
 const PAD = { x: 60, top: 130 };
 const winSize = (s: number) => ({

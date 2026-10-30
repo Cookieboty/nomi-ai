@@ -1,6 +1,6 @@
 package usage
 
-// 对应 packages/core/src/usage/GatewayRequestLog.ts：网关正文追踪目录、过期清理、旧 requests.json 迁移。
+// 对应 apps/desktop-electron/internal/core/src/usage/GatewayRequestLog.ts：网关正文追踪目录、过期清理、旧 requests.json 迁移。
 
 import (
 	"os"

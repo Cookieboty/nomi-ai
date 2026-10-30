@@ -64,7 +64,7 @@ func TestB7sGolden(t *testing.T) {
 		t.Skipf("golden recorded on %s", pl)
 	}
 	node := findNode(t)
-	root, _ := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	root := paritytest.RepoRoot()
 	SB, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestB7sGolden(t *testing.T) {
 			}
 			file := script
 			if file == "" {
-				file = filepath.Join(root, "packages/core/scripts/mock-cli", "mock-"+backend+".mjs")
+				file = filepath.Join(root, "apps/desktop-electron/internal/core/scripts/mock-cli", "mock-"+backend+".mjs")
 			}
 			e := []string{"PATH=" + os.Getenv("PATH")}
 			for k, v := range env {

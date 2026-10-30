@@ -38,6 +38,8 @@ func RunSync(file string, args []string, o Options, timeout time.Duration) ([]by
 	cmd.Dir = o.Cwd
 	cmd.Env = env
 	setSysProcAttr(cmd, file, path, args, o)
+	// 孙进程继承了输出管道时，子进程退出后 Wait 也会一直等管道关闭：最多再等 pipeWaitDelay
+	cmd.WaitDelay = pipeWaitDelay
 	var out bytes.Buffer
 	if !o.IgnoreStdout {
 		cmd.Stdout = &out
@@ -60,8 +62,26 @@ func RunSync(file string, args []string, o Options, timeout time.Duration) ([]by
 		return out.Bytes(), nil
 	case <-timer:
 		_ = killProcess(cmd.Process, "SIGTERM")
-		<-done
+		awaitOrKill(cmd, done)
 		return out.Bytes(), ErrTimedOut
+	}
+}
+
+// pipeWaitDelay：子进程退出（或被结束）后等输出管道关闭的上限；killGrace：SIGTERM 后多久仍未退出就 SIGKILL
+const (
+	pipeWaitDelay = 2 * time.Second
+	killGrace     = 3 * time.Second
+)
+
+// awaitOrKill：已发 SIGTERM，等 Wait 返回；子进程忽略 SIGTERM 时 killGrace 后强杀，避免调用方永远阻塞
+func awaitOrKill(cmd *exec.Cmd, done <-chan error) {
+	t := time.NewTimer(killGrace)
+	defer t.Stop()
+	select {
+	case <-done:
+	case <-t.C:
+		_ = cmd.Process.Kill()
+		<-done
 	}
 }
 
@@ -102,6 +122,8 @@ func ExecFile(file string, args []string, o Options, timeout time.Duration, maxB
 	cmd.Dir = o.Cwd
 	cmd.Env = env
 	setSysProcAttr(cmd, file, path, args, o)
+	// 孙进程继承了输出管道时，子进程退出后 Wait 也会一直等管道关闭：最多再等 pipeWaitDelay
+	cmd.WaitDelay = pipeWaitDelay
 	over := make(chan struct{})
 	once := &sync.Once{}
 	so := &capWriter{max: maxBuffer, over: over, once: once}
@@ -125,11 +147,11 @@ func ExecFile(file string, args []string, o Options, timeout time.Duration, maxB
 		return so.buf.Bytes(), se.buf.Bytes(), nil
 	case <-over:
 		_ = killProcess(cmd.Process, "SIGTERM")
-		<-done
+		awaitOrKill(cmd, done)
 		return so.buf.Bytes(), se.buf.Bytes(), ErrMaxBuffer
 	case <-timer:
 		_ = killProcess(cmd.Process, "SIGTERM")
-		<-done
+		awaitOrKill(cmd, done)
 		return so.buf.Bytes(), se.buf.Bytes(), ErrTimedOut
 	}
 }

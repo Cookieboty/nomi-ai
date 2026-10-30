@@ -73,7 +73,7 @@ func canon(t *testing.T, v any) map[string]any {
 
 func loadPrep(t *testing.T) ([]prepScenario, []map[string]any) {
 	var spec struct{ Scenarios []prepScenario }
-	b, err := os.ReadFile("../../../../../scripts/parity/b5-prepchat-scenarios.json")
+	b, err := os.ReadFile(paritytest.RepoPath("scripts/parity/b5-prepchat-scenarios.json"))
 	if err != nil {
 		paritytest.SkipOrFail(t, "scenarios:", err)
 	}

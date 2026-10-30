@@ -1,4 +1,4 @@
-// Package mcpbridge 移植 packages/ai-runtime/src/ai-sdk/mcpBridge.ts（AiSdkMcpService）+ AiSdkMcpPlugin /
+// Package mcpbridge 移植 apps/desktop-electron/internal/ai-runtime/src/ai-sdk/mcpBridge.ts（AiSdkMcpService）+ AiSdkMcpPlugin /
 // McpBridgePlugin 的装配语义 + igPlugins.mcpServersFromEnv / mcpAutoConnectFromEnv。
 //
 // connect：buildTransport → mcp.CreateClient（internal/ai/mcp，手写 @ai-sdk/mcp 2.0.73）→ listTools →

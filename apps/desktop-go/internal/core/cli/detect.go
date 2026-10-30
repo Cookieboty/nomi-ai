@@ -31,7 +31,7 @@ var candidates = map[string][]string{
 var MockCliRoots = func() []string {
 	cwd, _ := os.Getwd()
 	return []string{
-		filepath.Join(cwd, "packages/core/scripts/mock-cli"),
+		filepath.Join(cwd, "apps/desktop-electron/internal/core/scripts/mock-cli"),
 		filepath.Join(cwd, "scripts/mock-cli"),
 	}
 }

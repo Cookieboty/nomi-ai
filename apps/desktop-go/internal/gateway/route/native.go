@@ -1,4 +1,4 @@
-// Package route mirrors packages/gateway/src/route/*.
+// Package route mirrors apps/desktop-electron/internal/gateway/src/route/*.
 package route
 
 import (

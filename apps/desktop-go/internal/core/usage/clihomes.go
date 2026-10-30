@@ -1,4 +1,4 @@
-// Package usage ports the leaves of packages/core/src/usage used by core/cli（cliHomes / limitedProcess /
+// Package usage ports the leaves of apps/desktop-electron/internal/core/src/usage used by core/cli（cliHomes / limitedProcess /
 // grokAuth / sqliteRead / quality/cliTokens）。
 package usage
 

@@ -1,4 +1,4 @@
-// Package accounts mirrors packages/core/src/cli/accounts (official CLI accounts:
+// Package accounts mirrors apps/desktop-electron/internal/core/src/cli/accounts (official CLI accounts:
 // per-account CLI homes, identity probes, sign-in, session → account map).
 //
 // Records and the store are kept as ordered JS values (*util.Obj / []any) so

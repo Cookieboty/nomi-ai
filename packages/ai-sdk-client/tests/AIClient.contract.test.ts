@@ -16,11 +16,10 @@
  * 是「主进程 SDK 才允许的注册操作」，不应出现在应用契约里；因此测试白名单里把这三条剔除。
  */
 
+import type { AIClient, MemoryFacade } from '@nomi-ai/ai-sdk';
 import { AI_METHODS } from '@nomi-ai/contract/app';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { AIClient } from '../../ai-sdk/src/AIClient';
-import type { MemoryFacade } from '../../ai-sdk/src/facade/MemoryFacade';
 import { ClientAIClient } from '../src/ClientAIClient';
 
 import { createFakeServer } from './fakeServer';

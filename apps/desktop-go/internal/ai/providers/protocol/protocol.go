@@ -1,4 +1,4 @@
-// Package protocol 对应 packages/ai-runtime/src/providers/protocol.ts：三种上游协议、
+// Package protocol 对应 apps/desktop-electron/internal/ai-runtime/src/providers/protocol.ts：三种上游协议、
 // 端点拼接与模型列表解析。单独成包是因为 Node 里 AiSdkLlmProvider 与 ProviderService
 // 互相引用（Go 不允许包循环），协议这一层两边都要用。
 package protocol

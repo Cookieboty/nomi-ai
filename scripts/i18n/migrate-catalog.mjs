@@ -145,7 +145,7 @@ const sourceDirs = [
   ['packages/renderer/src', sourceKeyMap.ui],
   ['packages/voice/src', sourceKeyMap.ui],
   ['packages/ui/src', sourceKeyMap.ui],
-  ['packages/core/src', sourceKeyMap.electron],
+  ['apps/desktop-electron/internal/core/src', sourceKeyMap.electron],
   ['apps/desktop-electron/src', sourceKeyMap.electron],
   ['packages/cli-sdk/src', sourceKeyMap.electron],
   ['packages/cli-plugins/src', sourceKeyMap.electron],

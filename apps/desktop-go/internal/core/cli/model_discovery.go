@@ -1,6 +1,6 @@
 package cli
 
-// model_discovery.go mirrors packages/core/src/cli/modelDiscovery.ts：从各 CLI 自己读取模型目录。
+// model_discovery.go mirrors apps/desktop-electron/internal/core/src/cli/modelDiscovery.ts：从各 CLI 自己读取模型目录。
 // 所有函数持 jsrt 锁调用（与 Node 单线程一致）。
 
 import (

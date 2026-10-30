@@ -13,6 +13,8 @@ import (
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // 回放 scripts/parity/record-b5-chat.mjs（Node chatContext.ts + ChatFacade.ts）录制的 golden。
@@ -316,7 +318,7 @@ func replayChat(t *testing.T, spec *chatSpec) map[string]any {
 
 func loadChatGolden(t *testing.T) (*chatSpec, map[string]any) {
 	var spec chatSpec
-	loadJSON(t, "../../../../../../scripts/parity/b5-chat-scenarios.json", false, &spec)
+	loadJSON(t, paritytest.RepoPath("scripts/parity/b5-chat-scenarios.json"), false, &spec)
 	var want map[string]any
 	loadJSON(t, "testdata/parity/b5_chat.json.gz", true, &want)
 	return &spec, want

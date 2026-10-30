@@ -107,9 +107,11 @@ func anySignal(a, b Signal) Signal {
 		cancel(reason(b))
 		return ctx
 	}
-	ctx, cancel := newController()
-	context.AfterFunc(a, func() { cancel(reason(a)) })
-	context.AfterFunc(b, func() { cancel(reason(b)) })
+	// 从 b 派生（b 结束时自动跟着结束，Cause 相同），a 上只挂一个回调，派生的 ctx 结束就摘掉：
+	// a 是长寿的传输信号、b 是每次请求的信号时，不会每个请求都在 a 上留一个回调直到断开
+	ctx, cancel := context.WithCancelCause(b)
+	stop := context.AfterFunc(a, func() { cancel(reason(a)) })
+	context.AfterFunc(ctx, func() { stop() })
 	return ctx
 }
 

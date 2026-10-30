@@ -5,7 +5,7 @@
  * - 唯一的例外是看板娘 preload 的 `desktop:drop-file`（host/nomiHostIpc.ts）：路径由 preload 从真实 File
  *   取得，不能做成视图可以随意传参的契约过程。
  *
- * 静态扫描 src 与内核（packages/core/src）：宿主目录之外不得注册 ipcMain 通道，任何地方都不得直接 `webContents.send`
+ * 静态扫描 src 与内核（apps/desktop-electron/internal/core/src）：宿主目录之外不得注册 ipcMain 通道，任何地方都不得直接 `webContents.send`
  * （绕过契约的推送，preload 也收不到）。lint 规则拦新代码，这里再兜一层，覆盖 lint 抓不到的写法。
  */
 jest.unmock('fs');
@@ -18,7 +18,7 @@ import path from 'node:path';
 
 const SRC = path.resolve(__dirname, '../../../src');
 /** 内核（@nomi-ai/core）：业务模块搬出去以后也要扫 */
-const CORE_SRC = path.resolve(__dirname, '../../../../core/src');
+const CORE_SRC = path.resolve(__dirname, '../../../internal/core/src');
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of fs.readdirSync(dir)) {

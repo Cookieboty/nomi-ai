@@ -230,7 +230,9 @@ async function recordController(platform) {
   const { MascotWindowController } = await imp(
     'apps/desktop-electron/src/mascot/MascotWindowController.ts',
   );
-  const { mascotWindowSize } = await imp('packages/core/src/mascot/mascotSize.ts');
+  const { mascotWindowSize } = await imp(
+    'apps/desktop-electron/internal/core/src/mascot/mascotSize.ts',
+  );
   const traces = [];
   for (const sc of SCENARIOS) {
     let now = 1000;

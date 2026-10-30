@@ -64,7 +64,9 @@ type Wails struct {
 	mu   sync.Mutex
 	wins map[shell.WindowKind]*application.WebviewWindow
 	tray *application.SystemTray
-	aot  map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
+	// trayMenu：当前托盘菜单（重建后销毁旧的：Wails 的全局菜单项表与原生菜单项不会自己释放）
+	trayMenu *application.Menu
+	aot      map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
 	// 应用图标（appicon.go）：新建窗口回调、启动前排队的操作
 	created []func(IconWindow)
 	started bool
@@ -167,7 +169,14 @@ func (w *Wails) RebuildTray() {
 	}
 	m := w.app.NewMenu()
 	fillMenu(m, items)
+	w.mu.Lock()
+	old := w.trayMenu
+	w.trayMenu = m
+	w.mu.Unlock()
 	w.tray.SetMenu(m)
+	if old != nil {
+		application.InvokeAsync(old.Destroy)
+	}
 }
 
 func fillMenu(m *application.Menu, items []shell.MenuItem) {

@@ -42,9 +42,11 @@ describe('character pack scripts', () => {
     expect(existsSync(join(root, 'packages/renderer/src/mascot/character.generated.json'))).toBe(
       false,
     );
-    expect(existsSync(join(root, 'packages/core/src/character/character.generated.json'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(
+        join(root, 'apps/desktop-electron/internal/core/src/character/character.generated.json'),
+      ),
+    ).toBe(false);
   });
 
   it('init scaffolds a valid pack from the test-dummy template', () => {

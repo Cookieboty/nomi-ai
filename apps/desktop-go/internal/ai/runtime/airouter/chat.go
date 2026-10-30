@@ -1,4 +1,4 @@
-// Package airouter = packages/ai-runtime/src/AiContractRouter.ts 的 chat 部分（ai.chat.*）
+// Package airouter = apps/desktop-electron/internal/ai-runtime/src/AiContractRouter.ts 的 chat 部分（ai.chat.*）
 package airouter
 
 import (

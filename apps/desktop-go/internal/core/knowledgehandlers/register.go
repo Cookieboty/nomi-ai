@@ -1,5 +1,5 @@
 // Package knowledgehandlers 把批次 8（知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展）的 77 个契约过程
-// 挂到 Router；对应 packages/core/src/contract/knowledge.ts。
+// 挂到 Router；对应 apps/desktop-electron/internal/core/src/contract/knowledge.ts。
 package knowledgehandlers
 
 import (

@@ -34,7 +34,7 @@ export const ELECTRON_HOST_FILES = [
  * apps/desktop-electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
-  // P4 清空：组合根拆成内核 createCore（packages/core）与宿主组合根 host/Application.ts（宿主区域）
+  // P4 清空：组合根拆成内核 createCore（apps/desktop-electron/internal/core）与宿主组合根 host/Application.ts（宿主区域）
 ];
 
 /**
@@ -45,12 +45,12 @@ export const ELECTRON_DYNAMIC_ALLOWLIST = [
   // P4 清空：electron-caps 的插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储）改由宿主在插件配置里注入
 ];
 
-/** 不得依赖 electron 的包（§3.2、§11.1）；尚未建立的包也先列上 */
+/** 不得依赖 electron 的包（§3.2、§11.1），写包目录（相对仓库根）；尚未建立的包也先列上 */
 export const ELECTRON_FREE_PACKAGES = [
-  'contract',
-  'host-ports',
-  'host-node',
-  'character-contract',
-  'core',
-  'avatar-runtime',
+  'packages/contract',
+  'apps/desktop-electron/internal/host-ports',
+  'apps/desktop-electron/internal/host-node',
+  'packages/character-contract',
+  'apps/desktop-electron/internal/core',
+  'packages/avatar-runtime',
 ];

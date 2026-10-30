@@ -3,9 +3,9 @@
  * InteractionLite 在 window 上以捕获方式监听 blur：只有窗口自己失焦才取消这次按下；页面里某个元素失焦
  * （例如先点了别的按钮，焦点离开它）的 blur 也会经过 window 的捕获阶段，不能把按下当成取消。
  */
-import path from 'node:path';
 
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
+import { repoPath } from '@nomi-ai/repo-paths';
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +17,7 @@ import {
   type AvatarInteractionEvent,
 } from '../src';
 
-const DUMMY = path.join(__dirname, '../../../characters/test-dummy');
+const DUMMY = repoPath('characters/test-dummy');
 
 let handle: AvatarHandle | null = null;
 let host: HTMLElement | null = null;

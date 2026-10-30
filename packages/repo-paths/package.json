@@ -1,0 +1,16 @@
+{
+  "name": "@nomi-ai/repo-paths",
+  "version": "0.0.1",
+  "private": true,
+  "description": "仓库根目录与仓库内路径（测试与脚本用，不数 ../）",
+  "license": "MIT",
+  "main": "./index.cjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// 以下三项移植自 packages/core/src/cli/slashDiscovery.ts（DENY / DENY_DIR / parseFrontmatter）。
+// 以下三项移植自 apps/desktop-electron/internal/core/src/cli/slashDiscovery.ts（DENY / DENY_DIR / parseFrontmatter）。
 // TODO(cli-batch): cli 包移植后改为引用那边的实现，避免两份。
 
 var Deny = regexp.MustCompile(`(?i)(^|/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|.*\.(p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.netrc|_netrc|\.npmrc|\.pypirc|\.git-credentials|\.dockercfg|kubeconfig|credentials(\.json)?|settings(\.local)?\.json|config\.toml|\.claude\.json|service[-_]?account.*\.json|.*\.tfvars(\.json)?|secrets?(\.[\w-]+)?\.(json|ya?ml|toml|env|txt)|\.htpasswd|.*\.kdbx|history\.jsonl|\.[\w-]*_history)$`)

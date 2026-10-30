@@ -148,6 +148,15 @@ func finishReasonOf(f *llm.FinishReason) string {
 
 /* -------------------------------- streamText -------------------------------- */
 
+// abandon drains a provider stream that is no longer read: its producers send without watching ctx,
+// so leaving the channel unread would block them (and the HTTP body they hold) forever
+func abandon(s <-chan llm.StreamPart) {
+	go func() {
+		for range s {
+		}
+	}()
+}
+
 // StreamText runs streamText and delivers its fullStream parts (the subset the runtime consumes)
 // to emit, synchronously. An abort (ctx done) ends the stream silently, like the Node provider.
 func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
@@ -190,6 +199,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			var ok bool
 			select {
 			case <-ctx.Done():
+				abandon(resp.Stream)
 				return
 			case chunk, ok = <-resp.Stream:
 			}
@@ -254,12 +264,14 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 								for range results {
 								}
 							}()
+							abandon(resp.Stream)
 							return
 						}
 						outcomes = append(outcomes, o)
 						emit(o.part())
 					}
 					if ctx.Err() != nil {
+						abandon(resp.Stream)
 						return
 					}
 				}
@@ -274,9 +286,11 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			case llm.PartStreamError:
 				// the ReadableStream itself errored: streamText's fullStream rejects with that error
 				if ctx.Err() != nil || llm.IsAbortError(chunk.Err) {
+					abandon(resp.Stream)
 					return
 				}
 				emit(Part{Type: "error", Error: chunk.Err})
+				abandon(resp.Stream)
 				return
 			}
 		}

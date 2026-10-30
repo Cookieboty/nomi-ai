@@ -1,4 +1,4 @@
-// Package tts 对应 packages/core/src/tts：配置（tts-config.json）、路由、朗读回复、TtsService。
+// Package tts 对应 apps/desktop-electron/internal/core/src/tts：配置（tts-config.json）、路由、朗读回复、TtsService。
 // Edge 引擎在 ./edge；Azure / OpenAI 与 Node 一样「尚未实现」，静默。
 package tts
 

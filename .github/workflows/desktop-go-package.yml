@@ -1,6 +1,10 @@
-# 2.0.5 Go + Wails 版安装包流水线（批次 11）：三平台打包 → 安装/启动/签名验证 → 更新元数据；tag 上才建 draft release。
-# 发布语义对齐 ci.yml 的 Electron 流程：draft → 校验三平台产物 → 人工 publish（本 workflow 不打 tag、不 publish，
-# publish 需 workflow_dispatch 显式 publish=true 且在 tag ref 上）。详见 docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
+# Go + Wails 版安装包流水线（2.0.5 起面向用户的正式版本）：三平台打包 → 安装/启动/签名验证 → 更新元数据 → Release。
+# - push main：打包 + 验证，产物留在 artifact（不建 Release）；
+# - PR → main / release/2.0.5：带 `ci:full` 标签才打包（与 ci.yml 相同），只改 Go / 视图 / 内核时才触发；
+# - push tag v*（≥ v2.0.5）：先跑完整的 desktop-go.yml（go test、parity、变异检查），再打包 + 验证 → draft Release
+#   → 三平台产物齐全后自动发布（对齐 ci.yml 以前的 Electron 流程）；≤ v2.0.4 的 tag 仍由 ci.yml 的 Electron 任务发布；
+# - workflow_dispatch：在 tag ref 上手动重跑时，publish=true 才发布（失败后补跑用）。
+# 详见 docs/RELEASE.md、docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
 name: desktop-go-package
 on:
   workflow_dispatch:
@@ -10,26 +14,40 @@ on:
         type: boolean
         default: false
       bench:
-        description: '额外跑同 runner 2.0.5 Go vs 2.0.4 Electron 性能对比（约 60 分钟）'
+        description: '额外跑同 runner Go vs 2.0.4 Electron 性能对比（约 60 分钟）'
         type: boolean
         default: false
+  push:
+    branches: [main]
+    # ≤ v2.0.4 是 Electron 版本（ci.yml 发布），这里不接
+    tags: ['v*', '!v0.*', '!v1.*', '!v2.0.[0-4]', '!v2.0.[0-4]-*']
   pull_request:
-    branches: [release/2.0.5]
+    branches: [main, release/2.0.5]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
     paths:
       - 'apps/desktop-go/**'
       # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
       - 'packages/**'
+      - 'apps/desktop-electron/internal/**'
       - 'characters/nomi/**'
       - 'apps/desktop-electron/assets/**'
       - '.github/workflows/desktop-go-package.yml'
 permissions:
   contents: read
-# 与 desktop-go.yml 相同：按分支分组且不取消（一个在跑 + 最新一个排队）。本 workflow 无 push 触发，PR 事件不跳过
+# 按分支 / tag 分组且不取消（一个在跑 + 最新一个排队）；PR 上新提交取消旧 run。
+# 加 ci:full 以外的标签触发的 run 什么都不跑：给它独立的 group，免得把正在跑的 PR run 挤掉
 concurrency:
-  group: desktop-go-package-${{ github.event_name }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: false
+  group: desktop-go-package-${{ github.event_name }}-${{ github.head_ref || github.ref }}${{ (github.event.action == 'labeled' && github.event.label.name != 'ci:full') && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  # tag 发版前的完整 Go 校验（三平台 go vet / go test -race、Node golden 比对、变异检查）
+  test:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/desktop-go.yml
+
   package:
+    # PR 上只有带 ci:full 标签才打包；加其它标签不重跑
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     strategy:
       fail-fast: false
       matrix:
@@ -107,8 +125,10 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  # 同一 runner 上的 2.0.4 尺寸基线：从 v2.0.4 源码构建 win-unpacked（不下载 Release 资产）
+  # 同一 runner 上的 2.0.4 尺寸基线：从 v2.0.4 源码构建 win-unpacked（不下载 Release 资产）。
+  # 只在手动触发时跑（迁移期对比用）；verify-win.ps1 没有基线时跳过对比
   electron-204-win:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 40
     continue-on-error: true
@@ -202,10 +222,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: nomi-go-release, path: out/, compression-level: 0 }
 
-  # 只在 tag ref 上手动触发时运行（PR / 分支上永远跳过）：对齐 ci.yml prepare-release → build → publish-release
+  # 只在 tag ref 上运行（PR / 分支上永远跳过）：draft → 校验三平台产物 → 发布
   release-draft:
-    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
-    needs: [package, manifest, verify]
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') && needs.test.result == 'success' && needs.package.result == 'success' && needs.manifest.result == 'success' && needs.verify.result == 'success' }}
+    needs: [test, package, manifest, verify]
     runs-on: ubuntu-24.04
     permissions: { contents: write }
     env: { GH_TOKEN: '${{ github.token }}', TAG: '${{ github.ref_name }}' }
@@ -217,7 +237,7 @@ jobs:
         run: |
           [ "$TAG" = "v${{ needs.package.outputs.version }}" ] || { echo "::error::tag $TAG ≠ package.json 版本"; exit 1; }
           NOTES="docs/releases/$TAG.md"; [ -f "$NOTES" ] || { echo "::error::缺 $NOTES"; exit 1; }
-          if ! gh release view "$TAG" >/dev/null 2>&1; then gh release create "$TAG" --draft --verify-tag -t "$TAG" -F "$NOTES"; fi
+          if ! gh release view "$TAG" >/dev/null 2>&1; then gh release create "$TAG" --draft --verify-tag -t "Nomi ${TAG#v}" -F "$NOTES"; fi
           [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true ] || { echo "::error::$TAG 已发布，拒绝覆盖"; exit 1; }
           gh release upload "$TAG" out/* --clobber
       - name: check assets (3 platforms)
@@ -225,8 +245,9 @@ jobs:
           V=${TAG#v}; have=$(gh release view "$TAG" --json assets -q '.assets[].name')
           for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS; do
             grep -qx "$f" <<<"$have" || { echo "::error::draft 缺少 $f"; exit 1; }; done
-      - name: publish (opt-in)
-        if: inputs.publish
+      # tag push：三平台产物齐全后自动发布；手动重跑时 publish=true 才发布
+      - name: publish
+        if: github.event_name == 'push' || inputs.publish
         run: gh release edit "$TAG" --draft=false --latest
 
   # 可选（dispatch bench=true）：同 runner 2.0.5 Go vs 2.0.4 Electron 基准；2.0.4 从 v2.0.4 源码构建（绝不下载 Release 资产），每项 3 轮中位数

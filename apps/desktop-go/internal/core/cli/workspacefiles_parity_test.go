@@ -25,7 +25,7 @@ func TestWorkspaceFilesGolden(t *testing.T) {
 	if pl := g.Get("platform").(string); pl != usage.Platform() {
 		t.Skipf("golden recorded on %s", pl)
 	}
-	fx := readJSON(t, filepath.Join("..", "..", "..", "..", "..", "scripts", "parity", "b7-ws-scenarios.json")).(*util.Obj)
+	fx := readJSON(t, paritytest.RepoPath("scripts/parity/b7-ws-scenarios.json")).(*util.Obj)
 	tmp, err := os.MkdirTemp("", "nomi-b7w-")
 	if err != nil {
 		t.Fatal(err)

@@ -1,6 +1,6 @@
 package harness
 
-// Orchestrator = packages/core/src/cli/harness/Orchestrator.ts（HarnessOrchestrator）。
+// Orchestrator = apps/desktop-electron/internal/core/src/cli/harness/Orchestrator.ts（HarnessOrchestrator）。
 // 分块移植：本文件是状态、构造、持久化、工作目录与 git / 工作区 / 斜杠命令的转发；
 // 标签管理、各后端会话、权限队列在 orchestrator_*.go。所有方法须在 jsrt 线程上调用（与 Node 单线程一致）。
 // 标签元数据、消息都用 *util.Obj：键序与 Node 对象字面量 / 展开一致，落盘 JSON 逐字节可比。

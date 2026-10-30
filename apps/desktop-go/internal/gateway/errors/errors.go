@@ -1,4 +1,4 @@
-// Package errors mirrors packages/gateway/src/errors.ts: errors encoded per
+// Package errors mirrors apps/desktop-electron/internal/gateway/src/errors.ts: errors encoded per
 // ingress wire so each CLI's own retry logic recognises them.
 package errors
 

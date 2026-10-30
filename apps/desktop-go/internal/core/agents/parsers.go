@@ -1,4 +1,4 @@
-// Package agents ports packages/core/src/agents。
+// Package agents ports apps/desktop-electron/internal/core/src/agents。
 //
 // parsers.go 1:1 移植 agents/parsers.ts：解析各编程助手本地会话文件，推断会话身份
 // （id / cwd / 标题）与最后状态。字符串字段 "" 即 TS 的 undefined（str() 永不产出空串）。

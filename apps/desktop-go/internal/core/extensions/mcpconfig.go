@@ -1,4 +1,4 @@
-// Package extensions 移植 packages/core/src/extensions：MCP 服务器配置、技能包、从其它工具迁移与 ExtensionsService。
+// Package extensions 移植 apps/desktop-electron/internal/core/src/extensions：MCP 服务器配置、技能包、从其它工具迁移与 ExtensionsService。
 package extensions
 
 import (

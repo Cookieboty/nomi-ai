@@ -208,34 +208,38 @@ func (t *StdioTransport) Send(msg *u.Obj, _ *SendOptions) <-chan error {
 	return resolved(nil)
 }
 
-// eventQueue：按序执行回调的单 goroutine 队列（替代 Node 事件循环，避免在 jsrt 锁内调用客户端）
+// eventQueue：按序执行回调的队列（替代 Node 事件循环，避免在 jsrt 锁内调用客户端）。
+// 有回调时才起一个 goroutine，排空就退出（同一时刻最多一个，保证顺序）；不常驻，传输关掉后不留 goroutine
 type eventQueue struct {
-	mu   sync.Mutex
-	list []func()
-	cond *sync.Cond
+	mu      sync.Mutex
+	list    []func()
+	running bool
 }
 
-func newEventQueue() *eventQueue {
-	q := &eventQueue{}
-	q.cond = sync.NewCond(&q.mu)
-	go q.loop()
-	return q
-}
+func newEventQueue() *eventQueue { return &eventQueue{} }
 
 func (q *eventQueue) push(f func()) {
 	q.mu.Lock()
 	q.list = append(q.list, f)
+	start := !q.running
+	q.running = true
 	q.mu.Unlock()
-	q.cond.Signal()
+	if start {
+		go q.loop()
+	}
 }
 
 func (q *eventQueue) loop() {
 	for {
 		q.mu.Lock()
-		for len(q.list) == 0 {
-			q.cond.Wait()
+		if len(q.list) == 0 {
+			q.running = false
+			q.list = nil
+			q.mu.Unlock()
+			return
 		}
 		f := q.list[0]
+		q.list[0] = nil
 		q.list = q.list[1:]
 		q.mu.Unlock()
 		f()

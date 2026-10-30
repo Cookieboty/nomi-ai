@@ -1,5 +1,5 @@
 // Package assetproto 是 chat-asset:// 与 character-pack:// 两个本地协议的 1:1 移植
-// （apps/desktop-electron/src/host/assetProtocol.ts、packages/core/src/character/packProtocol.ts）。
+// （apps/desktop-electron/src/host/assetProtocol.ts、apps/desktop-electron/internal/core/src/character/packProtocol.ts）。
 package assetproto
 
 import (

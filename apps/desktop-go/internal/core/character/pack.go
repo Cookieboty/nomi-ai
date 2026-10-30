@@ -1,4 +1,4 @@
-// Package character 对应 packages/core/src/character（packResolve + CharacterPackService.getActive）。
+// Package character 对应 apps/desktop-electron/internal/core/src/character（packResolve + CharacterPackService.getActive）。
 // 校验是 charcontract.ValidatePack（packages/character-contract validatePack 的 1:1 移植，金样见
 // charcontract/testdata），覆盖包 lenient、内置包严格，与 Node 相同。
 package character

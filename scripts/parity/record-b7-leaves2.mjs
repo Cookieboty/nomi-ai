@@ -11,7 +11,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const core = (p) => import(pathToFileURL(path.join(root, 'packages/core/src', p)).href);
+const core = (p) =>
+  import(pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src', p)).href);
 const pm = await core('cli/permissionMode.ts');
 const mc = await core('cli/modelCatalog.ts');
 const ep = await core('cli/externalPlugins.ts');
@@ -34,7 +35,8 @@ const ALL = [...CLI, 'nomi'];
 const MODES = [...pm.PERMISSION_MODES];
 add('modes', () => MODES);
 add('default', () => pm.DEFAULT_PERMISSION_MODE);
-for (const v of [...MODES, 'x', '', 5, null]) add(`isMode:${JSON.stringify(v)}`, () => pm.isPermissionMode(v));
+for (const v of [...MODES, 'x', '', 5, null])
+  add(`isMode:${JSON.stringify(v)}`, () => pm.isPermissionMode(v));
 for (const b of ALL) {
   add(`supported:${b}`, () => pm.supportedModes(b));
   for (const m of MODES) add(`effective:${b}:${m}`, () => pm.effectiveMode(b, m));
@@ -42,10 +44,30 @@ for (const b of ALL) {
 for (const b of CLI) {
   for (const m of MODES)
     for (const n of [undefined, true, false])
-      add(`launch:${b}:${m}:${n}`, () => pm.permissionLaunch(b, m, n === undefined ? {} : { codexNetwork: n }));
+      add(`launch:${b}:${m}:${n}`, () =>
+        pm.permissionLaunch(b, m, n === undefined ? {} : { codexNetwork: n }),
+      );
   add(`planPrefix:${b}`, () => pm.planPromptPrefix(b));
-  for (const raw of ['default', 'acceptEdits', 'plan', 'bypassPermissions', 'auto', 'auto_edit', 'yolo', 'read-only',
-    'workspace-write', 'danger-full-access', 'full-auto', 'manual', 'ask', 'agent', '', 'x', 5, null])
+  for (const raw of [
+    'default',
+    'acceptEdits',
+    'plan',
+    'bypassPermissions',
+    'auto',
+    'auto_edit',
+    'yolo',
+    'read-only',
+    'workspace-write',
+    'danger-full-access',
+    'full-auto',
+    'manual',
+    'ask',
+    'agent',
+    '',
+    'x',
+    5,
+    null,
+  ])
     add(`fromCli:${b}:${JSON.stringify(raw)}`, () => pm.fromCliPermissionMode(b, raw));
 }
 for (const m of MODES) {
@@ -55,19 +77,46 @@ for (const m of MODES) {
   add(`acpId:external:${m}`, () => pm.acpModeId('external', m));
 }
 
-const MODELS = ['gpt-5', 'opus', 'claude-sonnet-4-5[1m]', '', ' x', 'a b', '-rf', 'a/b:c.d_e', 'x'.repeat(200)];
+const MODELS = [
+  'gpt-5',
+  'opus',
+  'claude-sonnet-4-5[1m]',
+  '',
+  ' x',
+  'a b',
+  '-rf',
+  'a/b:c.d_e',
+  'x'.repeat(200),
+];
 for (const b of [...CLI, 'nomi', 'zzz']) {
   add(`supportsModel:${b}`, () => mc.supportsModelOverride(b));
   for (const m of MODELS) add(`allowed:${b}:${m}`, () => mc.isAllowedModelId(b, m));
 }
 for (const b of CLI)
   for (const model of [undefined, null, '', 'gpt-5', 'opus'])
-    for (const effort of [undefined, null, 'low', 'medium', 'high', 'xhigh', 'minimal', 'max', 'bogus'])
+    for (const effort of [
+      undefined,
+      null,
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'minimal',
+      'max',
+      'bogus',
+    ])
       add(`override:${b}:${model}:${effort}`, () => mc.overrideArgs(b, { model, effort }));
 
 // externalPlugins
 const dir = path.join(SB, 'ext');
-const base = { version: 1, id: 'my-agent', displayName: 'My Agent', command: '/usr/local/bin/my-agent', args: ['acp', '--cwd', '{cwd}'], env: ['MY_AGENT_HOME'] };
+const base = {
+  version: 1,
+  id: 'my-agent',
+  displayName: 'My Agent',
+  command: '/usr/local/bin/my-agent',
+  args: ['acp', '--cwd', '{cwd}'],
+  env: ['MY_AGENT_HOME'],
+};
 const store = new ep.ExternalPluginStore(dir, ['claude', 'codex']);
 add('ext:load:missing', () => store.load());
 fs.mkdirSync(dir, { recursive: true });
@@ -83,7 +132,10 @@ w('Zed.json', JSON.stringify({ ...base, id: 'Zed' }));
 w('notes.txt', 'x');
 fs.mkdirSync(path.join(dir, 'dir.json'));
 add('ext:load', () => store.load());
-const save = (raw) => { const r = store.save(raw); return r; };
+const save = (raw) => {
+  const r = store.save(raw);
+  return r;
+};
 add('ext:save:extra', () => save({ ...base, id: 'saved', extra: 1 }));
 add('ext:save:ok', () => save({ ...base, id: 'saved', env: undefined }));
 add('ext:save:file', () => fs.readFileSync(path.join(dir, 'saved.json'), 'utf8'));
@@ -94,8 +146,12 @@ for (const [i, id] of ['saved', 'saved', 'dir', '../x', 'Bad', 'a'.repeat(41), '
   add(`ext:remove:${i}:${id}`, () => store.remove(id));
 add('ext:load:after', () => store.load());
 
-const out = { platform: process.platform, cases: JSON.parse(JSON.stringify(cases).replaceAll(JSON.stringify(SB).slice(1, -1), '<SB>')) };
-const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
+const out = {
+  platform: process.platform,
+  cases: JSON.parse(JSON.stringify(cases).replaceAll(JSON.stringify(SB).slice(1, -1), '<SB>')),
+};
+const outDir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, 'leaves2.json'), `${JSON.stringify(out, null, 1)}\n`);
 fs.rmSync(SB, { recursive: true, force: true });

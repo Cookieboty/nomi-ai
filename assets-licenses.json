@@ -87,10 +87,10 @@
       "source": "this repository (stand-in pack for tests, docs/design/core-host-decoupling.md §11.3)"
     },
     {
-      "pattern": "packages/gateway/src/models/catalog.json",
+      "pattern": "apps/desktop-electron/internal/gateway/src/models/catalog.json",
       "license": "MIT",
       "author": "SST / models.dev contributors (trimmed by Nomi contributors)",
-      "source": "https://models.dev/api.json via packages/gateway/scripts/build-catalog.mjs"
+      "source": "https://models.dev/api.json via apps/desktop-electron/internal/gateway/scripts/build-catalog.mjs"
     }
   ],
   "firstPartyLicense": "LicenseRef-FirstParty"

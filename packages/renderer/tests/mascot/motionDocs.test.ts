@@ -1,7 +1,7 @@
 import fs from 'node:fs';
-import path from 'node:path';
 
 import { ACTIONS } from '@nomi-ai/avatar-runtime';
+import { repoPath } from '@nomi-ai/repo-paths';
 import { t } from '@nomi-ai/ui';
 import { describe, expect, it } from 'vitest';
 
@@ -14,10 +14,7 @@ describe('action labels', () => {
 
 describe('docs', () => {
   it('docs/features/mascot.md lists every action with its label and the right count', () => {
-    const doc = fs.readFileSync(
-      path.join(__dirname, '../../../../docs/features/mascot.md'),
-      'utf8',
-    );
+    const doc = fs.readFileSync(repoPath('docs/features/mascot.md'), 'utf8');
     for (const a of ACTIONS) {
       expect(doc, a.id).toContain(`\`${a.id}\``);
       expect(doc, a.id).toContain(t(a.label));

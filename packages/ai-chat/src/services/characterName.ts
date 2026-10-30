@@ -48,7 +48,9 @@ function start(): void {
     .get()
     .then((p) => set(p))
     .catch(() => undefined);
-  api.on('persona.changed', (p) => set(p));
+  const off = api.on('persona.changed', (p) => set(p));
+  // 开发态热更新重新执行本模块时摘掉旧订阅
+  import.meta.hot?.dispose(off);
 }
 
 /** 当前角色的简称（当前界面语言）；拿不到时为通用称呼 */

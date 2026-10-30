@@ -1,12 +1,12 @@
 # 测试
 
-| 层级         | 位置                                       | 运行                   | 跑什么                                                                                                                                                        |
-| ------------ | ------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `host-electron` 用 Jest（`packages/{core,host-electron}/tests/unit`），其余包用 Vitest；跑完各包再跑脚本测试                              |
-| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | 仓库级规则：changelog / changeset、发布与签名、electron-builder 配置、turbo 输入、品牌名、角色名扫描、语义事件名、体积预算                                    |
-| 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主 |
-| 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
-| 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
+| 层级         | 位置                                                                           | 运行                   | 跑什么                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 单元测试     | `packages/*/{src,tests}/**`、`apps/desktop-electron/internal/*/{src,tests}/**` | `pnpm test`            | 各包逻辑；`core` 与 `host-electron` 用 Jest（`apps/desktop-electron/internal/core/tests/unit`、`apps/desktop-electron/tests/unit`），其余包用 Vitest；跑完各包再跑脚本测试 |
+| 脚本测试     | `scripts/__tests__`                                                            | `pnpm test:root`       | 仓库级规则：changelog / changeset、发布与签名、electron-builder 配置、turbo 输入、品牌名、角色名扫描、语义事件名、体积预算                                                 |
+| 无界面 E2E   | `e2e/tests`                                                                    | `pnpm test:e2e`        | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主              |
+| 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                                                    | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                                      |
+| 真实应用 E2E | `e2e-headed/tests`                                                             | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                                     |
 
 ## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 23 个用例）
 
@@ -88,7 +88,7 @@ pnpm build               # 换回官方构建再跑其它用例（turbo 按 CHAR
 - `probe.test.ts`（`NOMI_E2E_PROBE=1` 才跑，很慢）：直接对着 CLI 逐个删字段、注入未知事件，得出「这个版本要求什么」，与 `snapshots/<cli>-<版本>.json` 比对。本机版本没有快照时跳过比对并说明；`NOMI_E2E_PROBE_UPDATE=1` 写入快照（人工看过差异再提交）。Grok 按它报的 `missing field` 读必填字段；其余 CLI 看删掉字段后还能不能答出（删掉正文本身的字段必然「必填」，快照只用来发现变化）。
 - 夜间 CI：`.github/workflows/e2e-cli-nightly.yml` 每天从 npm 装最新版 CLI 跑一遍（不需要 secret）；手动触发可打开探测，`update_snapshots` 会把新版本的快照作为 artifact 上传。
 
-## 网关回放夹具（`packages/gateway/tests/fixtures/replay/`）
+## 网关回放夹具（`apps/desktop-electron/internal/gateway/tests/fixtures/replay/`）
 
 把真实遇到的第三方上游问题固化成回归测试：诊断日志打开时网关会写追踪文件（`userData/gateway/trace/*.json`，含入口请求体、上游原始响应全文、给客户端输出的差异），用脚本转成脱敏夹具：
 
@@ -125,4 +125,4 @@ node scripts/check-bundle-budget.mjs [--strict]                           # 首�
 
 `.github/workflows/e2e-cli-nightly.yml`：定时 + 手动，真实 CLI 一致性测试（见上），不在 push / PR 上跑。
 
-编程助手编排的单测（`packages/core/tests/unit/cli/CliHarness.*.test.ts`）每个用例都起假 CLI 进程：等进程里发生的事要用 `tests/helpers/wait.ts` 的 `until`（按条件等，带说明的超时），不要数固定次数的轮询或断言墙钟耗时；轮询读假 CLI 的日志时容忍写到一半的末行。全量测试并行负载下进程启动可能要好几秒。
+编程助手编排的单测（`apps/desktop-electron/internal/core/tests/unit/cli/CliHarness.*.test.ts`）每个用例都起假 CLI 进程：等进程里发生的事要用 `tests/helpers/wait.ts` 的 `until`（按条件等，带说明的超时），不要数固定次数的轮询或断言墙钟耗时；轮询读假 CLI 的日志时容忍写到一半的末行。全量测试并行负载下进程启动可能要好几秒。

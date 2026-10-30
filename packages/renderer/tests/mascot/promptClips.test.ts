@@ -1,3 +1,4 @@
+import { repoPath } from '@nomi-ai/repo-paths';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
@@ -131,7 +132,7 @@ describe('bundled manifest', () => {
   it('has a file for every clip and covers the variable-line hints', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const dir = path.resolve(__dirname, '../../../../characters/nomi/voice/zh');
+    const dir = repoPath('characters/nomi/voice/zh');
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
       voice: string;
       idSchema?: string;
@@ -154,7 +155,7 @@ describe('legacyClipIds rename mapping', () => {
     const legacy = JSON.parse(
       fs.readFileSync(path.resolve(__dirname, '../../src/mascot/voice/legacyClipIds.json'), 'utf8'),
     ) as { byLegacyKey: Record<string, string> };
-    const dir = path.resolve(__dirname, '../../../../characters/nomi/voice/zh');
+    const dir = repoPath('characters/nomi/voice/zh');
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
       clips: Array<{ id?: string; key: string }>;
     };

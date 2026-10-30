@@ -6,7 +6,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 同一组数值见 packages/core/tests/unit/gateway/nomiContext.test.ts
+// 同一组数值见 apps/desktop-electron/internal/core/tests/unit/gateway/nomiContext.test.ts
 func TestNomiContextBudget(t *testing.T) {
 	for _, c := range [][5]float64{
 		{200_000, 64_000, 32_000, 168_000, 159_600},

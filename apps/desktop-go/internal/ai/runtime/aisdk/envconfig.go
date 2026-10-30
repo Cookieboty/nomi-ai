@@ -1,4 +1,4 @@
-// Package aisdk 对应 packages/ai-runtime/src/ai-sdk。本批只有 AiSdkLlmProvider.ts 的
+// Package aisdk 对应 apps/desktop-electron/internal/ai-runtime/src/ai-sdk。本批只有 AiSdkLlmProvider.ts 的
 // envProviderConfig / ENV_PROTOCOL 与选项类型；适配器本体属批次 5。
 package aisdk
 

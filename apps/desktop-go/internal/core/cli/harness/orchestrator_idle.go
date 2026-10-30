@@ -30,7 +30,8 @@ func (o *Orchestrator) stopIdleSweep() {
 func (o *Orchestrator) SetIdleReclaimMs(ms float64) {
 	o.idleReclaimMs = cli.ResolveIdleReclaimMs(&ms, nil)
 	o.stopIdleSweep()
-	if len(o.live.claude) > 0 {
+	// 任一种长驻会话在就重开（只看 claude 时，只有 codex / acp 会话的进程改设置后就不再回收）
+	if len(o.live.claude) > 0 || len(o.live.acp) > 0 || len(o.live.codex) > 0 {
 		o.startIdleSweep()
 	}
 }

@@ -74,16 +74,7 @@ type nopPorts struct{}
 func (nopPorts) PickDirectory(string, bool, string) *string { return nil }
 func (nopPorts) AnyFocused() bool                           { return false }
 
-func repoRoot(t *testing.T) string {
-	wd, _ := os.Getwd()
-	for d := wd; d != filepath.Dir(d); d = filepath.Dir(d) {
-		if _, err := os.Stat(filepath.Join(d, "packages/core/scripts/mock-cli")); err == nil {
-			return d
-		}
-	}
-	t.Fatal("repo root not found")
-	return ""
-}
+func repoRoot(*testing.T) string { return paritytest.RepoRoot() }
 
 func loadOrchGolden(t *testing.T, live bool) []any {
 	p := filepath.Join("testdata", "b7_orch_sessions.json")

@@ -1,6 +1,6 @@
 package providers
 
-// ProviderService —— 对应 packages/ai-runtime/src/providers/ProviderService.ts 的 CRUD / 状态部分。
+// ProviderService —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderService.ts 的 CRUD / 状态部分。
 // test / testDraft / fetchModels / fetchModelsDraft 见 service_ping.go。
 
 import (

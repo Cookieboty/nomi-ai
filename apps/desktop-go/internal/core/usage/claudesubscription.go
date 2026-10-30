@@ -1,6 +1,6 @@
 package usage
 
-// claudesubscription.go = packages/core/src/usage/claudeSubscription.ts
+// claudesubscription.go = apps/desktop-electron/internal/core/src/usage/claudeSubscription.ts
 //
 // Claude Code 额度兜底：用户点「刷新」且状态栏快照缺失 / 过期时，运行官方
 // `claude -p /usage --output-format json`，由 Claude Code 自己用自己的登录态去取，Nomi 不接触任何凭据。

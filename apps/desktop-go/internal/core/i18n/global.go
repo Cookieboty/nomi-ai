@@ -1,6 +1,6 @@
 package i18n
 
-// 包级 t()：packages/core/src/i18n 的 t + @nomi-ai/i18n createTranslator（DICTIONARIES 全部命名空间，
+// 包级 t()：apps/desktop-electron/internal/core/src/i18n 的 t + @nomi-ai/i18n createTranslator（DICTIONARIES 全部命名空间，
 // 按 catalog.ts 的 Object.assign 顺序合并）。词典是 packages/i18n/src/locales 的原样副本（dict_test.go 校验）。
 
 import (

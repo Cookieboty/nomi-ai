@@ -82,8 +82,8 @@ function walk(dir, out) {
 /** 要扫的文件（绝对路径） */
 export function scanTargets(root) {
   const files = [];
-  // 共享包（packages/*）与两个宿主应用（apps/desktop-electron、apps/desktop-go）
-  for (const group of ['packages', 'apps']) {
+  // 共享包（packages/*）、两个宿主应用（apps/desktop-electron、apps/desktop-go）与 Node 版内核包
+  for (const group of ['packages', 'apps', 'apps/desktop-electron/internal']) {
     const pkgs = path.join(root, group);
     if (!fs.existsSync(pkgs)) continue;
     for (const pkg of fs.readdirSync(pkgs).sort()) {

@@ -1,6 +1,6 @@
 package usage
 
-// 对应 packages/core/src/usage/sniff.ts：从本地路由经过的上游响应里取 usage（非流式 JSON / 流式 SSE）
+// 对应 apps/desktop-electron/internal/core/src/usage/sniff.ts：从本地路由经过的上游响应里取 usage（非流式 JSON / 流式 SSE）
 
 import (
 	"math"

@@ -1,4 +1,4 @@
-// Package i18n 对应 packages/core/src/i18n（LocaleService 持久化部分；词典仍由渲染侧 / 后续批次接）
+// Package i18n 对应 apps/desktop-electron/internal/core/src/i18n（LocaleService 持久化部分；词典仍由渲染侧 / 后续批次接）
 package i18n
 
 import (

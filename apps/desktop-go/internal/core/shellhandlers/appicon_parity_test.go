@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/appicon"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 type iconStep struct {
@@ -62,7 +64,7 @@ func TestAppIconParity(t *testing.T) {
 		} `json:"scenarios"`
 	}
 	loadGolden(t, "shell_appicon.json", &g)
-	assets, _ := filepath.Abs("../../../../../apps/desktop-electron/assets")
+	assets := paritytest.RepoPath("apps/desktop-electron/assets")
 	if len(g.Scenarios) == 0 {
 		t.Fatal("empty golden")
 	}

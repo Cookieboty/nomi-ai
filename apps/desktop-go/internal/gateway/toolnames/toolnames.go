@@ -1,4 +1,4 @@
-// Package toolnames mirrors packages/gateway/src/toolNames.ts.
+// Package toolnames mirrors apps/desktop-electron/internal/gateway/src/toolNames.ts.
 package toolnames
 
 import (

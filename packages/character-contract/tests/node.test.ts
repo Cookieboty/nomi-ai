@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { repoRoot } from '@nomi-ai/repo-paths';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { readPackDir, validatePackDir, validatePackDirSync } from '../src/node';
@@ -65,7 +66,7 @@ describe('node entry', () => {
 });
 
 describe('packs in the repository', () => {
-  const repo = join(__dirname, '../../..');
+  const repo = repoRoot();
 
   it('official characters/nomi is a valid pack with complete voice', async () => {
     const res = await validatePackDir(join(repo, 'characters/nomi'), {

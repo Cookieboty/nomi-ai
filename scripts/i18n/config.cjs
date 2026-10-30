@@ -13,13 +13,13 @@ module.exports = {
     { dir: 'packages/avatar-runtime/src', project: 'ui' },
     { dir: 'packages/voice/src', project: 'ui' },
     { dir: 'packages/ui/src', project: 'ui' },
-    { dir: 'packages/core/src', project: 'electron' },
+    { dir: 'apps/desktop-electron/internal/core/src', project: 'electron' },
     { dir: 'apps/desktop-electron/src', project: 'electron' },
     { dir: 'packages/cli-sdk/src', project: 'electron' },
     { dir: 'packages/cli-plugins/src', project: 'electron' },
   ],
   // 这些模块把稳定 key 作为数据返回给 UI，虽然调用点不在 t()/tr() 里，也要纳入未知 / 死 key 检查。
-  keySources: ['packages/ai-runtime/src/providers'],
+  keySources: ['apps/desktop-electron/internal/ai-runtime/src/providers'],
   // keepZh: intentional Chinese that must NOT be extracted as UI keys.
   // Prefer model-facing tool schemas / prompt fragments / parsers the agent reads
   // (DelegateService, p2/p3 tools, knowledge answer, schedule recurrence, episodes…).

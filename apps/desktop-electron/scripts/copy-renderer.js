@@ -13,13 +13,15 @@
 const fs = require('fs');
 const path = require('path');
 
+const { repoPath } = require('@nomi-ai/repo-paths');
+
 const VIEWS = [
-  { name: '@nomi-ai/renderer', src: '../../../packages/renderer/dist', dest: '../dist/renderer' },
-  { name: '@nomi-ai/ai-chat', src: '../../../packages/ai-chat/dist', dest: '../dist/ai-chat' },
+  { name: '@nomi-ai/renderer', src: repoPath('packages/renderer/dist'), dest: '../dist/renderer' },
+  { name: '@nomi-ai/ai-chat', src: repoPath('packages/ai-chat/dist'), dest: '../dist/ai-chat' },
 ];
 
 for (const view of VIEWS) {
-  const src = path.join(__dirname, view.src);
+  const { src } = view;
   const dest = path.join(__dirname, view.dest);
   if (!fs.existsSync(path.join(src, 'index.html'))) {
     console.error(`错误: ${view.name} 的构建产物不存在 (${src})，先构建它（pnpm build）`);

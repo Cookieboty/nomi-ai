@@ -1,4 +1,4 @@
-// Package utils 对应 packages/core/src/utils（privateFile / coalescedWriter）。
+// Package utils 对应 apps/desktop-electron/internal/core/src/utils（privateFile / coalescedWriter）。
 package utils
 
 import (

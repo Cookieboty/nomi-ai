@@ -12,7 +12,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
-const { D } = await importSources(root, { D: path.join(root, 'packages/core/src/desktop/DesktopService.ts') });
+const { D } = await importSources(root, {
+  D: path.join(root, 'apps/desktop-electron/internal/core/src/desktop/DesktopService.ts'),
+});
 const receiverOf = D.DesktopService.prototype.receiverOf;
 
 const registry = {
@@ -22,16 +24,28 @@ const registry = {
   nourl: { name: 'No URL' },
 };
 const providers = [
-  { id: 'cloud' }, { id: 'ollama' }, { id: 'lan' }, { id: 'nourl' }, { id: 'ghost' },
-  { id: 'cloud', baseURL: 'http://localhost:1234' }, { id: 'ollama', baseURL: 'https://x.com' },
-  { id: 'ghost', baseURL: 'http://[::1]:9/' }, { id: 'ghost', baseURL: 'http://0.0.0.0' }, { id: 'ghost', baseURL: 'not a url' },
+  { id: 'cloud' },
+  { id: 'ollama' },
+  { id: 'lan' },
+  { id: 'nourl' },
+  { id: 'ghost' },
+  { id: 'cloud', baseURL: 'http://localhost:1234' },
+  { id: 'ollama', baseURL: 'https://x.com' },
+  { id: 'ghost', baseURL: 'http://[::1]:9/' },
+  { id: 'ghost', baseURL: 'http://0.0.0.0' },
+  { id: 'ghost', baseURL: 'not a url' },
 ];
 const cases = [];
 for (const withRuntime of [true, false]) {
   const self = withRuntime ? { runtime: { lookupProvider: (id) => registry[id] } } : {};
-  for (const p of providers) cases.push({ withRuntime, provider: p, out: receiverOf.call(self, p) });
+  for (const p of providers)
+    cases.push({ withRuntime, provider: p, out: receiverOf.call(self, p) });
 }
-const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/desktop/testdata');
+const dir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/desktop/testdata');
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'b7s2-receiver.json'), JSON.stringify({ registry, cases }, null, 1) + '\n');
+fs.writeFileSync(
+  path.join(dir, 'b7s2-receiver.json'),
+  JSON.stringify({ registry, cases }, null, 1) + '\n',
+);
 console.log(`b7s2-receiver: ${cases.length} cases`);

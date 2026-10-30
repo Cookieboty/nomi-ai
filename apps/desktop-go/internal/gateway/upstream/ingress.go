@@ -1,4 +1,4 @@
-// Package upstream mirrors packages/gateway/src/{ingress,fixes,customTools,
+// Package upstream mirrors apps/desktop-electron/internal/gateway/src/{ingress,fixes,customTools,
 // responseFixes,upstream,timeouts,cooldown,limits}.ts.
 package upstream
 

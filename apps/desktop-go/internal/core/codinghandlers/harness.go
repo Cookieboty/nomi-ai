@@ -1,4 +1,4 @@
-// Package codinghandlers = packages/core/src/contract/coding.ts 中编排器（harness.*）一节：
+// Package codinghandlers = apps/desktop-electron/internal/core/src/contract/coding.ts 中编排器（harness.*）一节：
 // 每个过程委派给 HarnessOrchestrator 的公开方法。编排器不在时报 UNAVAILABLE（= need()）。
 // 编排器代码跑在 jsrt 的 GIL 下：每次调用在一个 jsrt.Async 帧里执行（异步方法在帧内 Await），
 // 路由的 goroutine 用 jsrt.Block 等结果——同 Node 里 handler 返回 Promise。

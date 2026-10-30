@@ -138,6 +138,9 @@ export class SdkIPCClient implements IPCClient {
 
   async dispose(): Promise<void> {
     this.offHarness?.();
+    // 会话存储的 storage 监听与消息缓存也随之释放
+    this.store.dispose();
+    this.store.invalidate();
     if (this.owned) await this.client.dispose();
   }
 

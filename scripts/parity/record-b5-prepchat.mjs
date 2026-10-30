@@ -13,17 +13,22 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { register } from 'tsx/esm/api';
 
 register();
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const core = (p) => import(pathToFileURL(join(root, 'packages/core/src', p)).href);
+const core = (p) =>
+  import(pathToFileURL(join(root, 'apps/desktop-electron/internal/core/src', p)).href);
 const { applyConversationWorkspace } = await core('desktop/workspaceTools.ts');
 const { guardOutboundMessages } = await core('desktop/outboundGuard.ts');
 // DesktopService.ts 依赖 @nomi-ai/gateway 构建产物（CI 录制步骤不构建）：从源码原样截取 receiversFor / checkSendAll 两个方法，
 // 用 esbuild 去类型后挂到最小类上（方法体不改一字）
 const { transformSync } = await import('esbuild');
-const dsSrc = readFileSync(join(root, 'packages/core/src/desktop/DesktopService.ts'), 'utf8');
+const dsSrc = readFileSync(
+  join(root, 'apps/desktop-electron/internal/core/src/desktop/DesktopService.ts'),
+  'utf8',
+);
 const method = (head) => {
   const i = dsSrc.indexOf(head);
   if (i < 0) throw new Error(`DesktopService.${head} not found`);
@@ -36,8 +41,12 @@ const method = (head) => {
 };
 const cls = `class DS {\n${method('  receiversFor(')}\n${method('  async checkSendAll(')}\n}\nexport default DS;`;
 const js = transformSync(cls, { loader: 'ts', format: 'esm' }).code;
-const DesktopService = (await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'))).default;
-const spec = JSON.parse(readFileSync(join(root, 'scripts/parity/b5-prepchat-scenarios.json'), 'utf8'));
+const DesktopService = (
+  await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'))
+).default;
+const spec = JSON.parse(
+  readFileSync(join(root, 'scripts/parity/b5-prepchat-scenarios.json'), 'utf8'),
+);
 
 const out = [];
 for (const sc of spec.scenarios) {
@@ -68,7 +77,9 @@ for (const sc of spec.scenarios) {
       const desktop = services.desktop;
       const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
       const role =
-        options.role === 'chat' || options.role === 'agent-tools' || options.role === 'summary' ? options.role : fallback;
+        options.role === 'chat' || options.role === 'agent-tools' || options.role === 'summary'
+          ? options.role
+          : fallback;
       return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
     });
   };
@@ -82,7 +93,8 @@ for (const sc of spec.scenarios) {
   out.push({ name: sc.name, options, error, calls });
 }
 
-const outDir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/desktop/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/desktop/testdata');
 mkdirSync(outDir, { recursive: true });
 const file = join(outDir, 'b5_prepchat.json');
 writeFileSync(file, JSON.stringify(out, null, 1) + '\n');

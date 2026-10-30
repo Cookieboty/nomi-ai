@@ -1,4 +1,4 @@
-// Package cli ports packages/core/src/cli（batch 7）。
+// Package cli ports apps/desktop-electron/internal/core/src/cli（batch 7）。
 package cli
 
 import (

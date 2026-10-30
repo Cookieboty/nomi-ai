@@ -13,11 +13,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+
 import { register } from 'tsx/esm/api';
 
 register();
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const rt = (p) => import(pathToFileURL(join(root, 'packages/ai-runtime/src', p)).href);
+const rt = (p) =>
+  import(pathToFileURL(join(root, 'apps/desktop-electron/internal/ai-runtime/src', p)).href);
 const { ProviderService } = await rt('providers/ProviderService.ts');
 const { ProviderStore } = await rt('providers/ProviderStore.ts');
 const { plaintextCipher } = await rt('providers/secretCipher.ts');
@@ -28,20 +30,41 @@ Date.now = () => NOW;
 
 const ev = [];
 const log = (k, v) => ev.push(k + ':' + (v === undefined ? 'undefined' : JSON.stringify(v)));
-const hdrs = (h) => Object.fromEntries(Object.entries(h).map(([k, v]) => [k.toLowerCase(), v]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+const hdrs = (h) =>
+  Object.fromEntries(
+    Object.entries(h)
+      .map(([k, v]) => [k.toLowerCase(), v])
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
 
 const fetchImpl = async (url, init) => {
   log('fetch', { url, headers: hdrs(init.headers) });
   const b = spec.fetch[url];
   if (!b || b.network) throw new TypeError('fetch failed');
   if (b.hang)
-    return new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new DOMException('This operation was aborted', 'AbortError'))));
+    return new Promise((_, rej) =>
+      init.signal.addEventListener('abort', () =>
+        rej(new DOMException('This operation was aborted', 'AbortError')),
+      ),
+    );
   return new Response(b.body, { status: b.status });
 };
 
 const pick = (o) => {
   const out = {};
-  for (const k of ['id', 'protocol', 'baseURL', 'fullUrl', 'defaultModel', 'modelMap', 'headers', 'userAgent', 'thinking', 'apiKey', 'requiresApiKey'])
+  for (const k of [
+    'id',
+    'protocol',
+    'baseURL',
+    'fullUrl',
+    'defaultModel',
+    'modelMap',
+    'headers',
+    'userAgent',
+    'thinking',
+    'apiKey',
+    'requiresApiKey',
+  ])
     if (o[k] !== undefined) out[k] = o[k];
   return out;
 };
@@ -65,25 +88,51 @@ const fake = (key) => {
 
 const dir = mkdtempSync(join(tmpdir(), 'b5p-'));
 const file = join(dir, 'p.json');
-writeFileSync(file, JSON.stringify({
-  version: 2,
-  providers: spec.providers.map((p) => ({
-    id: p.id, presetId: p.presetId, name: p.id, protocol: p.protocol, baseURL: p.baseURL,
-    fullUrl: false, defaultModel: p.defaultModel ?? '', models: [],
-    ...(p.headers ? { headers: p.headers } : {}), ...(p.userAgent ? { userAgent: p.userAgent } : {}),
-    enabled: true,
-    keys: p.keys.map((k, i) => ({ id: `k${i}`, secret: Buffer.from(k).toString('base64'), encryption: 'none', masked: '****', createdAt: 1 })),
-    createdAt: 1, updatedAt: 1,
-  })),
-  routes: {}, usage: {},
-}));
-const store = new ProviderStore({ filePath: file, cipher: plaintextCipher, now: () => NOW, usageFlushMs: 3_600_000 });
+writeFileSync(
+  file,
+  JSON.stringify({
+    version: 2,
+    providers: spec.providers.map((p) => ({
+      id: p.id,
+      presetId: p.presetId,
+      name: p.id,
+      protocol: p.protocol,
+      baseURL: p.baseURL,
+      fullUrl: false,
+      defaultModel: p.defaultModel ?? '',
+      models: [],
+      ...(p.headers ? { headers: p.headers } : {}),
+      ...(p.userAgent ? { userAgent: p.userAgent } : {}),
+      enabled: true,
+      keys: p.keys.map((k, i) => ({
+        id: `k${i}`,
+        secret: Buffer.from(k).toString('base64'),
+        encryption: 'none',
+        masked: '****',
+        createdAt: 1,
+      })),
+      createdAt: 1,
+      updatedAt: 1,
+    })),
+    routes: {},
+    usage: {},
+  }),
+);
+const store = new ProviderStore({
+  filePath: file,
+  cipher: plaintextCipher,
+  now: () => NOW,
+  usageFlushMs: 3_600_000,
+});
 const envFakes = { openai: fake('env:openai') };
 const svc = new ProviderService({
   store,
   envEntries: [],
   getRegistry: () => ({ get: (id) => envFakes[id] }),
-  factory: (o) => { log('factory', pick(o)); return fake(o.apiKey); },
+  factory: (o) => {
+    log('factory', pick(o));
+    return fake(o.apiKey);
+  },
   testTimeoutMs: 50,
   fetchImpl,
 });

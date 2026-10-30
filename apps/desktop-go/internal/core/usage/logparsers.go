@@ -1,6 +1,6 @@
 package usage
 
-// 逐行移植 packages/core/src/usage/logParsers.ts：编程工具会话日志 → 用量记录（纯函数，不碰文件系统）。
+// 逐行移植 apps/desktop-electron/internal/core/src/usage/logParsers.ts：编程工具会话日志 → 用量记录（纯函数，不碰文件系统）。
 
 import (
 	"math"

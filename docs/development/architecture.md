@@ -11,11 +11,11 @@ Electron 主进程（apps/desktop-electron）
  └─ 辅助窗口                          截图遮罩、灵动岛、受控浏览器、TTS 配置
 ```
 
-- 入口 `apps/desktop-electron/src/main.ts` → `host/Application.ts`（宿主组合根：端口、窗口、托盘、协议、IPC 传输），它调用内核的组合根 `createCore`（`packages/core/src/createCore.ts`：服务、AI runtime、应用契约的 router 与事件桥）；窗口由 `WindowManager` 管理。业务模块在 `packages/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §7），平台能力经 `@nomi-ai/host-ports` 的端口由宿主注入；`apps/desktop-electron` 只留窗口、托盘、协议、preload、端口的 Electron 实现与契约传输。
+- 入口 `apps/desktop-electron/src/main.ts` → `host/Application.ts`（宿主组合根：端口、窗口、托盘、协议、IPC 传输），它调用内核的组合根 `createCore`（`apps/desktop-electron/internal/core/src/createCore.ts`：服务、AI runtime、应用契约的 router 与事件桥）；窗口由 `WindowManager` 管理。业务模块在 `apps/desktop-electron/internal/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron，见 [core-host-decoupling](../design/core-host-decoupling.md) §7），平台能力经 `@nomi-ai/host-ports` 的端口由宿主注入；`apps/desktop-electron` 只留窗口、托盘、协议、preload、端口的 Electron 实现与契约传输。
 - 所有窗口开启上下文隔离与沙箱；preload 只暴露两个对象：`window.nomiTransport`（应用契约 `@nomi-ai/contract/app` 的传输，只有 `contract:request` / `contract:frame` 两个通道，视图对主进程的全部调用与推送都走它）与 `window.nomiHost`（拖入 / 粘贴文件的本机路径；看板娘窗口的拖入总结由 preload 解析路径并经专用通道 `desktop:drop-file` 提交，视图选不了路径）。视图只在各自的 `services/api.ts` 里读它们（eslint 拦下其余位置）。
 - 主进程除 `host/nomiHostIpc.ts` 的 `desktop:drop-file` 外不再注册其它 IPC 通道（宿主目录 `host/` 之外禁止 `ipcMain`）：契约传输经 `host/ipcSenderGuard.ts` 校验发送方并给出调用者的 surface / trusted，过程声明的 `surfaces` 与 `dangerous` 由契约守卫判定。服务的推送经应用事件总线（`events.publish`），由事件桥转成契约事件，只推给订阅了的窗口；只给某个窗口的事件在契约的 `eventSurfaces` 里登记，传输层按调用者的界面过滤订阅。
 
-- 内核不认识 Electron，同一个 `createCore` 也跑在无界面宿主上（`packages/host-node`，纯 Node，见 [core-host-decoupling](../design/core-host-decoupling.md) §11.3）：
+- 内核不认识 Electron，同一个 `createCore` 也跑在无界面宿主上（`apps/desktop-electron/internal/host-node`，纯 Node，见 [core-host-decoupling](../design/core-host-decoupling.md) §11.3）：
   - `pnpm test:e2e`：无界面 E2E 在 Vitest 里用 `startHeadlessCore()`（`@nomi-ai/host-node/core`）起真实内核，视图侧客户端经 in-process 传输连进来，不需要 Electron 与显示环境；
   - `pnpm dev:web`：在 Node 里起内核，挂只监听 `127.0.0.1` 的 WebSocket 传输（`@nomi-ai/host-node/websocket`，每次启动一个随机 token，校验 Origin），再起 ai-chat 的开发服务器；在 Chrome 打开终端打印的地址（`http://127.0.0.1:6128/#nomi-token=…`）即可，页面经 WebSocket 调内核，对话经统一网关（Node 子进程，端口由系统分配）。开发服务器只把地址以 `window.nomiDevTransport` 注入页面（token 在地址片段里，页面存 sessionStorage 后从地址栏抹掉），ai-chat 的 `services/api.ts` 只在开发构建、且没有 preload 桥时用它；生产构建里出现 WebSocket 传输会让构建失败（`scripts/dev-web/vite-plugin.mjs`）。`pnpm smoke:web` 用 Playwright 的 Chromium 跑一遍冒烟。
 
@@ -49,14 +49,14 @@ Electron 主进程（apps/desktop-electron）
 
 ```mermaid
 flowchart LR
-  subgraph main["主进程（packages/core，由 apps/desktop-electron 宿主加载）"]
+  subgraph main["主进程（apps/desktop-electron/internal/core，由 apps/desktop-electron 宿主加载）"]
     host["CliPluginHost<br/>内置插件 + 外部 ACP 插件"]
     orch["HarnessOrchestrator<br/>标签、来源、账号、回收"]
     drv["cli-sdk 驱动<br/>acp / stream-json / app-server / exec"]
     tokens["TabTokens<br/>nomi-tab- 令牌"]
   end
   cli["CLI 子进程"]
-  subgraph gw["网关进程（packages/gateway）"]
+  subgraph gw["网关进程（apps/desktop-electron/internal/gateway）"]
     pa["供应商适配器"] --> canon["规范化"] --> ma["模型适配器"] --> bridge["协议桥"] --> ca["客户端适配器"]
   end
   up["上游供应商"]
@@ -73,7 +73,7 @@ flowchart LR
 - **可靠性与观测**：`GET /metrics`（回环 + Host 校验、无需令牌）暴露 RoutePlan 质量/损失实时快照；A2 自适应降权按 (供应商, Key, wire) 滚动健康样本把差候选排到队尾（`NOMI_ADAPTIVE_ROUTE=0` 关闭）；出站 **DNS 钉 IP**（`net/upstreamFetch.ts`）防 TOCTOU 重绑定；入站 **请求体上限** 默认 32 MiB（1–256 MiB 可配）；utilityProcess **崩溃熔断**（默认 60s 内 5 次异常退出后停止自动重启）。详见 [unified-gateway](../design/unified-gateway.md) §11 / §15 与 [model-quality](../design/model-quality.md)。
 - **委派**：Nomi 可把任务异步交给编程助手标签（`delegate_to_cli`，默认后台）；git 仓库内用 worktree 隔离，AgentProfile 可覆盖委派模型。见 [nomi-delegate-cli](../design/nomi-delegate-cli.md)、[delegate-isolation](delegate-isolation.md)、[code-sandbox-os](code-sandbox-os.md)（Python OS 沙箱：macOS `sandbox-exec` / Linux `bwrap`）。
 - **标签绑定**：第三方标签每启动一个 CLI 进程，主进程先签一个 `nomi-tab-` 令牌并向网关登记绑定（标签、代次、模型、思考深度），收到确认才启动；网关按绑定解析模型，请求日志带标签 id；进程退出或标签关闭时作废。
-- **诊断**：`diagnostics/` 管开关（开发版必开）、CLI 子进程收发记录（只经 `spawnHarness`，登录进程不记录）与诊断包导出；网关追踪按请求生成追踪 id（响应头 `x-nomi-trace-id`），存上游原文与给客户端输出的差异；`packages/gateway/scripts/trace-to-fixture.ts` 把追踪转成回放夹具。
+- **诊断**：`diagnostics/` 管开关（开发版必开）、CLI 子进程收发记录（只经 `spawnHarness`，登录进程不记录）与诊断包导出；网关追踪按请求生成追踪 id（响应头 `x-nomi-trace-id`），存上游原文与给客户端输出的差异；`apps/desktop-electron/internal/gateway/scripts/trace-to-fixture.ts` 把追踪转成回放夹具。
 
 ## 关键约定
 

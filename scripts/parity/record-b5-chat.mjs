@@ -13,15 +13,18 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+
 import { register } from 'tsx/esm/api';
 
 register();
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const sdk = (p) => import(pathToFileURL(join(root, 'packages/ai-sdk/src', p)).href);
+const sdk = (p) =>
+  import(pathToFileURL(join(root, 'apps/desktop-electron/internal/ai-sdk/src', p)).href);
 const { estimateTokens, fitMessagesToBudget } = await sdk('facade/chatContext.ts');
 const { createChatFacade } = await sdk('facade/ChatFacade.ts');
 // ServiceKey 身份随模块实例不同；按 defineService 的名字匹配（'ctx.llm' / 'ctx.tools'）
-const keyName = (k) => (typeof k === 'symbol' ? k.description : (k?.id ?? k?.name ?? k?.key ?? String(k)));
+const keyName = (k) =>
+  typeof k === 'symbol' ? k.description : (k?.id ?? k?.name ?? k?.key ?? String(k));
 const spec = JSON.parse(readFileSync(join(root, 'scripts/parity/b5-chat-scenarios.json'), 'utf8'));
 Date.now = () => 1_700_000_000_000;
 
@@ -40,7 +43,13 @@ async function runScenario(sc) {
       id: p.id,
       async chat(req) {
         log.push({ ev: 'chat', id: p.id, req: norm(req) });
-        return { reqId: req.reqId, provider: p.id, model: req.model, content: 'ok:' + p.id, finishReason: 'stop' };
+        return {
+          reqId: req.reqId,
+          provider: p.id,
+          model: req.model,
+          content: 'ok:' + p.id,
+          finishReason: 'stop',
+        };
       },
       async *stream(req) {
         log.push({ ev: 'stream', id: p.id, req: norm(req) });
@@ -60,7 +69,13 @@ async function runScenario(sc) {
         return {
           chat: async (req) => {
             log.push({ ev: 'tools.chat', id: p.id, req: norm(req) });
-            return { reqId: req.reqId, provider: p.id, model: req.model, content: 'tools:' + p.id, finishReason: 'stop' };
+            return {
+              reqId: req.reqId,
+              provider: p.id,
+              model: req.model,
+              content: 'tools:' + p.id,
+              finishReason: 'stop',
+            };
           },
           stream: (req) => {
             log.push({ ev: 'tools.stream', id: p.id });
@@ -82,9 +97,20 @@ async function runScenario(sc) {
       return { provider: byId.get(r.id), ...(r.model !== undefined ? { model: r.model } : {}) };
     },
   };
-  const toolReg = { list: () => (sc.tools ?? []).map((name) => ({ name, description: name, parameters: {} })) };
+  const toolReg = {
+    list: () => (sc.tools ?? []).map((name) => ({ name, description: name, parameters: {} })),
+  };
   const ctx = {
-    inject: (key) => (String(keyName(key)).includes('ctx.llm') ? (sc.noRegistry ? undefined : reg) : String(keyName(key)).includes('ctx.tools') ? (sc.tools ? toolReg : undefined) : undefined),
+    inject: (key) =>
+      String(keyName(key)).includes('ctx.llm')
+        ? sc.noRegistry
+          ? undefined
+          : reg
+        : String(keyName(key)).includes('ctx.tools')
+          ? sc.tools
+            ? toolReg
+            : undefined
+          : undefined,
     on: () => () => {},
     emit: (event, payload) => {
       const p = JSON.parse(JSON.stringify(payload));
@@ -124,4 +150,6 @@ const out = {
 for (const sc of spec.facade) out.facade.push(await runScenario(sc));
 const dst = join(root, 'apps/desktop-go/internal/ai/sdk/facade/testdata/parity/b5_chat.json.gz');
 writeFileSync(dst, gzipSync(JSON.stringify(out)));
-console.log(`b5-chat: ${out.tokens.length} tokens, ${out.fit.length} fit, ${out.facade.length} facade scenarios -> ${dst}`);
+console.log(
+  `b5-chat: ${out.tokens.length} tokens, ${out.fit.length} fit, ${out.facade.length} facade scenarios -> ${dst}`,
+);

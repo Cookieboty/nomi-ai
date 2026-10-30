@@ -11,44 +11,113 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const { CodexThreadReader } = await import(
-  pathToFileURL(path.join(root, 'packages/core/src/cli/codexThreadReader.ts')).href
+  pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src/cli/codexThreadReader.ts'))
+    .href
 );
-const logMod = await import(pathToFileURL(path.join(root, 'packages/core/src/utils/log.ts')).href);
+const logMod = await import(
+  pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src/utils/log.ts')).href
+);
 void logMod;
 
 const R = (id) => [{ id, title: `t-${id}` }];
 const S = (name, opts, steps) => ({ name, opts, steps });
 const scenarios = [
-  S('noSpawn', { spawn: 'null' }, [{ op: 'read', tag: 'a' }, { op: 'state' }, { op: 'read', tag: 'b' }]),
-  S('noSpawnLocalErr', { spawn: 'null', localErr: 'boom' }, [{ op: 'read', tag: 'a' }, { op: 'state' }]),
+  S('noSpawn', { spawn: 'null' }, [
+    { op: 'read', tag: 'a' },
+    { op: 'state' },
+    { op: 'read', tag: 'b' },
+  ]),
+  S('noSpawnLocalErr', { spawn: 'null', localErr: 'boom' }, [
+    { op: 'read', tag: 'a' },
+    { op: 'state' },
+  ]),
   S('spawnThrows', { spawn: 'throw' }, [{ op: 'read', tag: 'a' }, { op: 'state' }]),
   S('ok', { spawn: 'fake', idleMs: 60 }, [
-    { op: 'read', tag: 'a' }, { op: 'state' }, { op: 'msg', id: 1, ok: true, rows: R('x') }, { op: 'state' },
-    { op: 'read', tag: 'b' }, { op: 'msg', id: 2, ok: true, rows: [] }, { op: 'wait', ms: 250 }, { op: 'state' },
-    { op: 'read', tag: 'c' }, { op: 'msg', id: 3, ok: true, rows: R('y') }, { op: 'shutdown' }, { op: 'state' },
+    { op: 'read', tag: 'a' },
+    { op: 'state' },
+    { op: 'msg', id: 1, ok: true, rows: R('x') },
+    { op: 'state' },
+    { op: 'read', tag: 'b' },
+    { op: 'msg', id: 2, ok: true, rows: [] },
+    { op: 'wait', ms: 250 },
+    { op: 'state' },
+    { op: 'read', tag: 'c' },
+    { op: 'msg', id: 3, ok: true, rows: R('y') },
+    { op: 'shutdown' },
+    { op: 'state' },
   ]),
-  S('errReply', { spawn: 'fake' }, [{ op: 'read', tag: 'a' }, { op: 'msg', id: 1, ok: false, message: 'no db' }, { op: 'msg', id: 9, ok: true, rows: [] }, { op: 'state' }, { op: 'shutdown' }]),
+  S('errReply', { spawn: 'fake' }, [
+    { op: 'read', tag: 'a' },
+    { op: 'msg', id: 1, ok: false, message: 'no db' },
+    { op: 'msg', id: 9, ok: true, rows: [] },
+    { op: 'state' },
+    { op: 'shutdown' },
+  ]),
   S('errorEvent', { spawn: 'fake' }, [
-    { op: 'read', tag: 'a' }, { op: 'read', tag: 'b' }, { op: 'error', message: 'kaboom' }, { op: 'state' },
-    { op: 'msg', id: 1, ok: true, rows: [] }, { op: 'read', tag: 'c' }, { op: 'msg', id: 3, ok: true, rows: R('z') }, { op: 'shutdown' },
+    { op: 'read', tag: 'a' },
+    { op: 'read', tag: 'b' },
+    { op: 'error', message: 'kaboom' },
+    { op: 'state' },
+    { op: 'msg', id: 1, ok: true, rows: [] },
+    { op: 'read', tag: 'c' },
+    { op: 'msg', id: 3, ok: true, rows: R('z') },
+    { op: 'shutdown' },
   ]),
   S('threeExits', { spawn: 'fake' }, [
-    { op: 'read', tag: 'a' }, { op: 'exit', code: 1 }, { op: 'read', tag: 'b' }, { op: 'exit', code: 2 },
-    { op: 'read', tag: 'c' }, { op: 'exit', code: 3 }, { op: 'state' }, { op: 'read', tag: 'd' }, { op: 'state' },
+    { op: 'read', tag: 'a' },
+    { op: 'exit', code: 1 },
+    { op: 'read', tag: 'b' },
+    { op: 'exit', code: 2 },
+    { op: 'read', tag: 'c' },
+    { op: 'exit', code: 3 },
+    { op: 'state' },
+    { op: 'read', tag: 'd' },
+    { op: 'state' },
   ]),
   S('resetCrashes', { spawn: 'fake', maxCrashes: 2 }, [
-    { op: 'read', tag: 'a' }, { op: 'exit', code: 1 }, { op: 'read', tag: 'b' }, { op: 'msg', id: 2, ok: true, rows: [] },
-    { op: 'read', tag: 'c' }, { op: 'exit', code: 1 }, { op: 'state' }, { op: 'read', tag: 'd' }, { op: 'error', message: 'e2' }, { op: 'state' },
+    { op: 'read', tag: 'a' },
+    { op: 'exit', code: 1 },
+    { op: 'read', tag: 'b' },
+    { op: 'msg', id: 2, ok: true, rows: [] },
+    { op: 'read', tag: 'c' },
+    { op: 'exit', code: 1 },
+    { op: 'state' },
+    { op: 'read', tag: 'd' },
+    { op: 'error', message: 'e2' },
+    { op: 'state' },
   ]),
   S('timeouts', { spawn: 'fake', timeoutMs: 40, maxCrashes: 1 }, [
-    { op: 'read', tag: 'a' }, { op: 'wait', ms: 200 }, { op: 'state' }, { op: 'read', tag: 'b' }, { op: 'wait', ms: 200 }, { op: 'state' },
-    { op: 'msg', id: 2, ok: true, rows: [] }, { op: 'shutdown' },
+    { op: 'read', tag: 'a' },
+    { op: 'wait', ms: 200 },
+    { op: 'state' },
+    { op: 'read', tag: 'b' },
+    { op: 'wait', ms: 200 },
+    { op: 'state' },
+    { op: 'msg', id: 2, ok: true, rows: [] },
+    { op: 'shutdown' },
   ]),
-  S('postThrows', { spawn: 'fakeThrowPost' }, [{ op: 'read', tag: 'a' }, { op: 'state' }, { op: 'wait', ms: 120 }, { op: 'state' }]),
-  S('shutdownPending', { spawn: 'fake' }, [{ op: 'read', tag: 'a' }, { op: 'read', tag: 'b' }, { op: 'shutdown' }, { op: 'state' }, { op: 'shutdown' }]),
+  S('postThrows', { spawn: 'fakeThrowPost' }, [
+    { op: 'read', tag: 'a' },
+    { op: 'state' },
+    { op: 'wait', ms: 120 },
+    { op: 'state' },
+  ]),
+  S('shutdownPending', { spawn: 'fake' }, [
+    { op: 'read', tag: 'a' },
+    { op: 'read', tag: 'b' },
+    { op: 'shutdown' },
+    { op: 'state' },
+    { op: 'shutdown' },
+  ]),
   S('idleCancelled', { spawn: 'fake', idleMs: 120 }, [
-    { op: 'read', tag: 'a' }, { op: 'msg', id: 1, ok: true, rows: [] }, { op: 'wait', ms: 30 }, { op: 'read', tag: 'b' },
-    { op: 'wait', ms: 200 }, { op: 'state' }, { op: 'msg', id: 2, ok: true, rows: [] }, { op: 'shutdown' },
+    { op: 'read', tag: 'a' },
+    { op: 'msg', id: 1, ok: true, rows: [] },
+    { op: 'wait', ms: 30 },
+    { op: 'read', tag: 'b' },
+    { op: 'wait', ms: 200 },
+    { op: 'state' },
+    { op: 'msg', id: 2, ok: true, rows: [] },
+    { op: 'shutdown' },
   ]),
 ];
 
@@ -126,7 +195,11 @@ async function run(sc) {
         break;
       }
       case 'msg':
-        cur.h.message(st.ok ? { id: st.id, ok: true, rows: st.rows } : { id: st.id, ok: false, message: st.message });
+        cur.h.message(
+          st.ok
+            ? { id: st.id, ok: true, rows: st.rows }
+            : { id: st.id, ok: false, message: st.message },
+        );
         break;
       case 'error':
         cur.h.error(new Error(st.message));
@@ -153,7 +226,11 @@ async function run(sc) {
 console.warn = () => {};
 const out = [];
 for (const sc of scenarios) out.push({ ...sc, log: await run(sc) });
-const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
 fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(path.join(outDir, 'b7s_reader.json'), JSON.stringify({ platform: process.platform, scenarios: out }, null, 1) + '\n');
+fs.writeFileSync(
+  path.join(outDir, 'b7s_reader.json'),
+  JSON.stringify({ platform: process.platform, scenarios: out }, null, 1) + '\n',
+);
 console.log(`b7s_reader: ${out.length} scenarios`);

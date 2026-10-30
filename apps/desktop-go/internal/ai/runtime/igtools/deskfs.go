@@ -1,6 +1,6 @@
 package igtools
 
-// desktop.tools() = createDesktopTools（packages/core/src/desktop/tools.ts + p2tools / p3tools / workspaceTools）1:1：
+// desktop.tools() = createDesktopTools（apps/desktop-electron/internal/core/src/desktop/tools.ts + p2tools / p3tools / workspaceTools）1:1：
 // 基础 fs_* / desktop_* / undo_last → P2 提醒 / 剪贴板 → P3 受控浏览器 / code_run → workspace_run。
 // 顺序、入参 schema、描述、错误码 / 文案、审计、确认、撤销日志与 Node 相同；Node 的 AbortSignal 用 ctx 代替。
 

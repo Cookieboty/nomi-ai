@@ -1,4 +1,4 @@
-// Package ir mirrors packages/gateway/src/ir.ts: the protocol-neutral request
+// Package ir mirrors apps/desktop-electron/internal/gateway/src/ir.ts: the protocol-neutral request
 // form every wire decodes into and encodes from. Optional TS fields are
 // pointers (nil = undefined) so "absent" and "empty" stay distinct.
 package ir

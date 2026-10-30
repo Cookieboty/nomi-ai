@@ -1,7 +1,7 @@
 package providers
 
 // ProviderService 的 test / testDraft / fetchModels / fetchModelsDraft
-// —— 对应 packages/ai-runtime/src/providers/ProviderService.ts 同名方法。
+// —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderService.ts 同名方法。
 
 import (
 	"context"
@@ -341,13 +341,16 @@ func (s *Service) ping(run func(ctx context.Context) (*blm.ChatResponse, error),
 		err error
 	}
 	ch := make(chan out, 1)
+	// 超时后取消请求：否则上游一直不回时，请求和它的 goroutine 在界面报超时后还挂着
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				ch <- out{err: fmt.Errorf("%v", r)}
 			}
 		}()
-		r, e := run(context.Background())
+		r, e := run(ctx)
 		ch <- out{r, e}
 	}()
 	timer := time.NewTimer(timeout)

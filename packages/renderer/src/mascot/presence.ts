@@ -48,7 +48,9 @@ export function initMascotPresence(): void {
     .get()
     .then(apply)
     .catch(() => undefined);
-  api.on('startup.changed', apply);
+  const off = api.on('startup.changed', apply);
+  // 开发态热更新重新执行本模块时摘掉旧订阅
+  import.meta.hot?.dispose(off);
 }
 
 /** 测试用 */

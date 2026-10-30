@@ -63,8 +63,10 @@ describe('turbo.json inputs', () => {
     };
     type Pkg = { name: string; dependencies?: object; devDependencies?: object };
     const pkgs = new Map<string, { dir: string; json: Pkg }>();
-    for (const pkgDir of readdirSync(join(root, 'packages'))) {
-      const dir = join(root, 'packages', pkgDir);
+    const pkgDirs = ['packages', 'apps/desktop-electron/internal'].flatMap((g) =>
+      readdirSync(join(root, g)).map((d) => join(root, g, d)),
+    );
+    for (const dir of pkgDirs) {
       try {
         const json = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Pkg;
         pkgs.set(json.name, { dir, json });

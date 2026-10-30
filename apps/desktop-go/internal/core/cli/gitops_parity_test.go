@@ -37,7 +37,7 @@ func TestGitOpsGolden(t *testing.T) {
 	if pl := g.Get("platform").(string); pl != usage.Platform() {
 		t.Skipf("golden recorded on %s", pl)
 	}
-	steps := readJSON(t, filepath.Join("..", "..", "..", "..", "..", "scripts", "parity", "b7-git-scenarios.json")).([]any)
+	steps := readJSON(t, paritytest.RepoPath("scripts/parity/b7-git-scenarios.json")).([]any)
 
 	tmp, err := os.MkdirTemp("", "nomi-b7g-")
 	if err != nil {

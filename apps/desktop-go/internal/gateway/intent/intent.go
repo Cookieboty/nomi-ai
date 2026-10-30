@@ -1,4 +1,4 @@
-// Package intent mirrors packages/gateway/src/intent.ts (reasoning intent).
+// Package intent mirrors apps/desktop-electron/internal/gateway/src/intent.ts (reasoning intent).
 package intent
 
 import (

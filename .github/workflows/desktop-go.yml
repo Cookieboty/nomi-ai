@@ -1,15 +1,20 @@
-# 2.0.5 Go + Wails v3 桌面壳：三平台构建、体积与内存实测（迁移期与现有 ci.yml 并行）。
+# Go + Wails v3 桌面版（2.0.5 起面向用户的正式版本）：三平台 go vet / go test、Node golden 比对、构建、体积与内存实测。
+# 安装包与 Release 见 desktop-go-package.yml（tag 发版时经 workflow_call 先跑本 workflow）。
 name: desktop-go
 on:
   workflow_dispatch: {}
+  workflow_call: {}
   push:
-    branches: [feat/2.0.5-go, 'feat/2.0.5-go-**']
+    branches: [main, feat/2.0.5-go, 'feat/2.0.5-go-**']
   pull_request:
-    branches: [release/2.0.5]
+    branches: [main, release/2.0.5]
     paths:
       - 'apps/desktop-go/**'
       # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
       - 'packages/**'
+      - 'apps/desktop-electron/internal/**'
+      - 'scripts/parity/**'
+      - 'scripts/go-contract/**'
       - '.github/workflows/desktop-go.yml'
 permissions:
   contents: read

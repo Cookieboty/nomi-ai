@@ -31,9 +31,9 @@ import { DEV_WS_URL_ENV, devPageUrl } from './vite-plugin.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const REQUIRED_BUILDS = [
-  'packages/host-node/dist/core.js',
-  'packages/host-node/dist/websocket.js',
-  'packages/core/dist/createCore.js',
+  'apps/desktop-electron/internal/host-node/dist/core.js',
+  'apps/desktop-electron/internal/host-node/dist/websocket.js',
+  'apps/desktop-electron/internal/core/dist/createCore.js',
   'packages/contract/dist/index.js',
 ];
 
@@ -96,10 +96,11 @@ export async function startDevWeb(opts = {}) {
     throw new Error(`[dev-web] missing build output (${missing.join(', ')}); run pnpm build first`);
   }
   const { startHeadlessCore } = await import(
-    pathToFileURL(path.join(ROOT, 'packages/host-node/dist/core.js')).href
+    pathToFileURL(path.join(ROOT, 'apps/desktop-electron/internal/host-node/dist/core.js')).href
   );
   const ws = await import(
-    pathToFileURL(path.join(ROOT, 'packages/host-node/dist/websocket.js')).href
+    pathToFileURL(path.join(ROOT, 'apps/desktop-electron/internal/host-node/dist/websocket.js'))
+      .href
   );
 
   const chatPort = opts.chatPort ?? PORTS.chat;

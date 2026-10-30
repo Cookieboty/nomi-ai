@@ -1,4 +1,4 @@
-// Package updates = packages/core/src/services/UpdateService.ts：检查 / 下载状态、重试、卡住检测、自动检查开关。
+// Package updates = apps/desktop-electron/internal/core/src/services/UpdateService.ts：检查 / 下载状态、重试、卡住检测、自动检查开关。
 // 真正的更新器（= electron-updater 的 autoUpdater）由组合根注入（Updater）；Go 版的实现见 github.go（latest-go.json）。
 package updates
 

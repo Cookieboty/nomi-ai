@@ -1,4 +1,4 @@
-// Package stream mirrors packages/gateway/src/stream: SSE decoders (upstream
+// Package stream mirrors apps/desktop-electron/internal/gateway/src/stream: SSE decoders (upstream
 // wire → NormEvent), encoders (NormEvent → downstream wire), the non-streaming
 // JSON paths and the converter that ties them together.
 package stream

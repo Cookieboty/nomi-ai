@@ -1,4 +1,4 @@
-// Package screen = packages/core/src/screen/ScreenService.ts：
+// Package screen = apps/desktop-electron/internal/core/src/screen/ScreenService.ts：
 // 图片发送前的检查（契约 screen.checkSend，走 PermissionBroker 的云端告知 / 仅本地模式），
 // 以及启动时清掉旧版本留下的屏幕记忆目录。
 package screen

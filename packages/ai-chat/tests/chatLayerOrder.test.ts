@@ -6,11 +6,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { repoPath } from '@nomi-ai/repo-paths';
 import { describe, expect, it } from 'vitest';
 
 const read = (rel: string) => readFileSync(resolve(__dirname, '..', rel), 'utf8');
 const app = read('src/App.css');
-const tokens = readFileSync(resolve(__dirname, '../../ui/src/tokens.css'), 'utf8');
+const tokens = readFileSync(repoPath('packages/ui/src/tokens.css'), 'utf8');
 
 /** 取某个选择器（精确匹配整段选择器）的最后一个规则体 */
 function ruleBody(css: string, selector: string): string {
@@ -133,7 +134,7 @@ describe('全局背景层', () => {
     expect(ruleBody(workspace, '.wbFrame')).toContain('--cd-panel-surface');
     const pane = read('src/components/SessionWorkspace/WorkspacePane.module.css');
     expect(ruleBody(pane, '.wbTreePane')).toContain('--cd-chat-files-bg');
-    const shared = readFileSync(resolve(__dirname, '../../ui/src/styles/base.css'), 'utf8');
+    const shared = readFileSync(repoPath('packages/ui/src/styles/base.css'), 'utf8');
     expect(ruleBody(shared, '.cd-modal')).toContain('--cd-panel-surface-raised');
     expect(ruleBody(shared, '.cd-sgroup')).toContain('--cd-settings-card-bg');
     const customTokens = ruleBody(tokens, 'html[data-chat-bg]');
@@ -336,10 +337,10 @@ describe('全局背景层', () => {
     expect(custom).toMatch(/--cd-settings-card-bg:\s*var\(--cd-panel-bg-subtle\)/);
     expect(custom).toMatch(/--cd-color-input-bg:\s*var\(--cd-panel-bg-subtle\)/);
     expect(custom).toMatch(/--cd-color-btn-secondary-bg:\s*var\(--cd-panel-bg-subtle\)/);
-    const select = readFileSync(resolve(__dirname, '../../ui/src/styles/select.css'), 'utf8');
+    const select = readFileSync(repoPath('packages/ui/src/styles/select.css'), 'utf8');
     expect(ruleBody(select, '.cd-dropdown__menu')).toContain('--cd-chat-popover-bg');
     expect(select).toContain('@media (prefers-reduced-motion: reduce)');
-    const voice = readFileSync(resolve(__dirname, '../../voice/src/voice.css'), 'utf8');
+    const voice = readFileSync(repoPath('packages/voice/src/voice.css'), 'utf8');
     expect(ruleBody(voice, '.cd-voice-asset')).toContain('--cd-panel-surface-sunken');
   });
 
@@ -371,7 +372,7 @@ describe('全局背景层', () => {
     expect(custom).toContain(
       '--cd-modal-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 94%, transparent)',
     );
-    const shared = readFileSync(resolve(__dirname, '../../ui/src/styles/base.css'), 'utf8');
+    const shared = readFileSync(repoPath('packages/ui/src/styles/base.css'), 'utf8');
     const modal = ruleBody(shared, '.cd-modal:not(.cd-modal--inline):not(.cd-modal--drawer)');
     expect(modal).toContain('background: var(--cd-modal-bg)');
     expect(modal).not.toMatch(/backdrop-filter|opacity:/);

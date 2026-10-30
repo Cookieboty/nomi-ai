@@ -15,11 +15,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = join(root, 'apps/desktop-go/internal/core/mascothandlers/testdata/parity.json');
 const imp = (p) => import(pathToFileURL(join(root, p)).href);
 
-const size = await imp('packages/core/src/mascot/mascotSize.ts');
+const size = await imp('apps/desktop-electron/internal/core/src/mascot/mascotSize.ts');
 const { sanitizeIsland } = await imp('apps/desktop-electron/src/island/IslandService.ts').catch(
   async () => ({ sanitizeIsland: null }),
 );
-const { CharacterPackService } = await imp('packages/core/src/character/CharacterPackService.ts');
+const { CharacterPackService } = await imp(
+  'apps/desktop-electron/internal/core/src/character/CharacterPackService.ts',
+);
 
 const area = (x, y, w, h, sf) => ({
   x,

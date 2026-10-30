@@ -11,11 +11,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const s = await import(pathToFileURL(path.join(root, 'packages/core/src/cli/slashDiscovery.ts')).href);
+const s = await import(
+  pathToFileURL(path.join(root, 'apps/desktop-electron/internal/core/src/cli/slashDiscovery.ts'))
+    .href
+);
 const fx = JSON.parse(fs.readFileSync(path.join(here, 'b7-slash-fixture.json'), 'utf8'));
 
 const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-b7s-')));
-fs.writeFileSync(path.join(SB, 'gitconfig'), '[user]\n\tname = T\n\temail = t@x\n[core]\n\tautocrlf = false\n');
+fs.writeFileSync(
+  path.join(SB, 'gitconfig'),
+  '[user]\n\tname = T\n\temail = t@x\n[core]\n\tautocrlf = false\n',
+);
 Object.assign(process.env, {
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_CONFIG_GLOBAL: path.join(SB, 'gitconfig'),
@@ -35,12 +41,19 @@ if (process.platform !== 'win32')
 const HOME = path.join(SB, 'home');
 const at = (rel) => path.join(SB, rel);
 const cases = [];
-for (const [b, cwd] of fx.discover) cases.push({ op: 'discover', args: [b, cwd], out: s.discoverSlash(b, at(cwd), HOME) });
+for (const [b, cwd] of fx.discover)
+  cases.push({ op: 'discover', args: [b, cwd], out: s.discoverSlash(b, at(cwd), HOME) });
 for (const [b, cwd, id, args] of fx.expand)
-  cases.push({ op: 'expand', args: [b, cwd, id, args], out: s.expandSlash(b, at(cwd), id, args, HOME) });
-for (const t of fx.frontmatter) cases.push({ op: 'frontmatter', args: [t], out: s.parseFrontmatter(t) });
+  cases.push({
+    op: 'expand',
+    args: [b, cwd, id, args],
+    out: s.expandSlash(b, at(cwd), id, args, HOME),
+  });
+for (const t of fx.frontmatter)
+  cases.push({ op: 'frontmatter', args: [t], out: s.parseFrontmatter(t) });
 for (const t of fx.splitArgs) cases.push({ op: 'splitArgs', args: [t], out: s.splitArgs(t) });
-for (const [b, a, n] of fx.template) cases.push({ op: 'template', args: [b, a, n], out: s.expandTemplate(b, a, n) });
+for (const [b, a, n] of fx.template)
+  cases.push({ op: 'template', args: [b, a, n], out: s.expandTemplate(b, a, n) });
 for (const t of fx.numstat) cases.push({ op: 'numstat', args: [t], out: s.parseNumstat(t) });
 const R = path.join(SB, 'repo');
 fs.mkdirSync(R);
@@ -57,9 +70,11 @@ for (const st of fx.git) {
 }
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 let json = JSON.stringify(cases, null, 1);
-for (const form of [JSON.stringify(SB).slice(1, -1), SB.replace(/\\/g, '/')]) json = json.replace(new RegExp(esc(form), 'g'), '<SB>');
+for (const form of [JSON.stringify(SB).slice(1, -1), SB.replace(/\\/g, '/')])
+  json = json.replace(new RegExp(esc(form), 'g'), '<SB>');
 json = json.replace(/\b[0-9a-f]{7,64}\b/g, '<H>');
-const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
+const outDir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, 'slashdiscovery.json');
 fs.writeFileSync(out, `{"platform":${JSON.stringify(process.platform)},"cases":${json}}\n`);

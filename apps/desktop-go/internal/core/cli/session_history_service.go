@@ -1,6 +1,6 @@
 package cli
 
-// SessionHistoryService = packages/core/src/cli/SessionHistoryService.ts（1:1 移植）。
+// SessionHistoryService = apps/desktop-electron/internal/core/src/cli/SessionHistoryService.ts（1:1 移植）。
 // 编程助手历史会话（读本机磁盘）：Claude / Codex / dsh / Gemini / Grok 的会话文件扫描、
 // 增量解析、分页、读转录、打开（交给标签层续接）、删除（移到废纸篓）。
 

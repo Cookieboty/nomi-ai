@@ -1,7 +1,7 @@
 package gwstore
 
 // service_helper.go = GatewayService 的 servedSession / servedSessionRef / sessionOwner / helperRoute / helperComplete
-// （packages/core/src/gateway/GatewayService.ts）。golden：scripts/parity/record-gwcli.mjs「helpers」场景。
+// （apps/desktop-electron/internal/core/src/gateway/GatewayService.ts）。golden：scripts/parity/record-gwcli.mjs「helpers」场景。
 
 import (
 	"bytes"

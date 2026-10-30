@@ -1,4 +1,4 @@
-// Package gemini mirrors packages/core/src/cli/gemini（acp.ts / trust.ts / trustedFolders.ts）。
+// Package gemini mirrors apps/desktop-electron/internal/core/src/cli/gemini（acp.ts / trust.ts / trustedFolders.ts）。
 package gemini
 
 import (

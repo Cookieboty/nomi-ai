@@ -1,4 +1,4 @@
-// Package llm 对应 packages/bundle-ig-base/src/plugins/llm 中主进程需要的部分（envEndpoints.ts）。
+// Package llm 对应 apps/desktop-electron/internal/bundle-ig-base/src/plugins/llm 中主进程需要的部分（envEndpoints.ts）。
 package llm
 
 // EnvEndpointDefaults：环境变量 provider id → OpenAI 兼容端点默认值（仅预填）

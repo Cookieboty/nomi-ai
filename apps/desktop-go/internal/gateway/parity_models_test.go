@@ -16,12 +16,12 @@ import (
 
 func TestCatalogJSONMatchesTS(t *testing.T) {
 	a, err1 := os.ReadFile(filepath.Join("models", "catalog.json"))
-	b, err2 := os.ReadFile(filepath.Join("..", "..", "..", "..", "packages", "gateway", "src", "models", "catalog.json"))
+	b, err2 := os.ReadFile(paritytest.RepoPath("apps/desktop-electron/internal/gateway/src/models/catalog.json"))
 	if err1 != nil || err2 != nil {
 		paritytest.SkipOrFail(t, "TS tree not present")
 	}
 	if string(a) != string(b) {
-		t.Fatal("internal/gateway/models/catalog.json differs from packages/gateway/src/models/catalog.json; copy it over")
+		t.Fatal("internal/gateway/models/catalog.json differs from apps/desktop-electron/internal/gateway/src/models/catalog.json; copy it over")
 	}
 }
 

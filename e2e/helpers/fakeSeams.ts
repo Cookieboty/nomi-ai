@@ -176,7 +176,7 @@ export interface ToolDenial {
 }
 
 /**
- * 复刻 [GuardrailsPlugin](../../packages/bundle-ig-base/src/plugins/GuardrailsPlugin.ts)
+ * 复刻 [GuardrailsPlugin](../../apps/desktop-electron/internal/bundle-ig-base/src/plugins/GuardrailsPlugin.ts)
  * 的 danger-tool 分支，装在真实内核的插件宿主里（`aiPluginsAfter`）：命中 dangerTools 且
  * `confirmed !== true` 时发 `tool/confirm-required`（AIClient 桥接成契约事件 `ai.tool.confirmRequired`），
  * 记一条拒绝并 reject。插件宿主吞掉 hook 的 reject（只记 warn），所以拒绝结果从 `denials` 读。

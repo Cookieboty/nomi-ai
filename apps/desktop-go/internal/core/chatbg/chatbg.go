@@ -1,4 +1,4 @@
-// Package chatbg = packages/core/src/chat/ChatBackgroundService.ts + @nomi-ai/types chatBackground：
+// Package chatbg = apps/desktop-electron/internal/core/src/chat/ChatBackgroundService.ts + @nomi-ai/types chatBackground：
 // 图片主题背景的图片、模糊与透明度（userData/chat-background.json + userData/chat/images）。
 package chatbg
 

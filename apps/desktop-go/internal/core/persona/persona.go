@@ -1,4 +1,4 @@
-// Package persona = packages/core/src/persona（PersonaService / systemPrompt）：角色人设的唯一来源。
+// Package persona = apps/desktop-electron/internal/core/src/persona（PersonaService / systemPrompt）：角色人设的唯一来源。
 // 来源依次为当前角色包 → 内置角色包 → 中性兜底；按界面语言取文案（zh 为主语言，其他语言用 locales/<lang>.json 覆盖）。
 package persona
 

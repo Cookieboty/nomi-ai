@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 批次 7（b7o）：Orchestrator 各 CLI 会话段（Claude stream-json / ACP / Codex app-server+exec / dsh / grok）
- * 驱动 packages/core/scripts/mock-cli 的 mock CLI，录事件、结果与标签状态。
+ * 驱动 apps/desktop-electron/internal/core/scripts/mock-cli 的 mock CLI，录事件、结果与标签状态。
  * Go 侧 orchestrator_session_parity_test.go 回放同一组场景逐项比对。
  * 输出目录：NOMI_GOLDEN_DIR（各平台各录一份），缺省 apps/desktop-go/internal/core/cli/harness/testdata。
  * Usage: node --import tsx scripts/parity/record-b7-orch.mjs
@@ -17,11 +17,22 @@ process.env.NOMI_USE_MOCK_CLI = '1';
 process.env.NOMI_LOCALE = process.env.NOMI_LOCALE || 'en';
 const scen = JSON.parse(fs.readFileSync(path.join(here, 'b7-orch-scenarios.json'), 'utf8'));
 const { HarnessOrchestrator } = await import(
-  pathToFileURL(path.join(root, 'packages/core/src/cli/harness/Orchestrator.ts')).href
+  pathToFileURL(
+    path.join(root, 'apps/desktop-electron/internal/core/src/cli/harness/Orchestrator.ts'),
+  ).href
 );
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
-const TIMEKEYS = new Set(['ts', 'at', 'expiresAt', 'startedAt', 'durationMs', 'updatedAt', 'createdAt', 'timestamp']);
+const TIMEKEYS = new Set([
+  'ts',
+  'at',
+  'expiresAt',
+  'startedAt',
+  'durationMs',
+  'updatedAt',
+  'createdAt',
+  'timestamp',
+]);
 function norm(v, tmp) {
   if (typeof v === 'string') {
     let s = v.split(tmp).join('<T>').split(root).join('<R>').replace(UUID, '<U>');
@@ -80,14 +91,14 @@ for (const c of scen.cases) {
   const tab = viaSend
     ? orch.createTab({ backend: c.backend, cwd, permissionMode: c.permissionMode })
     : {
-    id: 't1',
-    title: 'T',
-    backend: c.backend,
-    cwd,
-    permissionMode: c.permissionMode ?? 'default',
-    cliSessionId: null,
-    messages: [],
-  };
+        id: 't1',
+        title: 'T',
+        backend: c.backend,
+        cwd,
+        permissionMode: c.permissionMode ?? 'default',
+        cliSessionId: null,
+        messages: [],
+      };
   if (!viaSend) orch.tabs.set(tab.id, tab);
   // createTab 不继承「完全放开」以外的档位时按默认档：显式切到场景指定档（手动应答需非 bypass）
   else if (c.permissionMode) orch.setTabPermissionMode(tab.id, c.permissionMode);
@@ -108,18 +119,22 @@ for (const c of scen.cases) {
     }
     let r;
     try {
-      const run = viaSend ? () => orch.sendTab(tab.id, prompt) : {
-        claude: () => orch.runClaude(tab, prompt, ac.signal),
-        gemini: () => orch.runAcp(tab, prompt, ac.signal),
-        grok: () => orch.runGrokTurn(tab, prompt, ac.signal),
-        codex: () => orch.runCodexTurn(tab, prompt, ac.signal, []),
-        dsh: () => orch.runDsh(tab, prompt),
-      }[c.backend];
+      const run = viaSend
+        ? () => orch.sendTab(tab.id, prompt)
+        : {
+            claude: () => orch.runClaude(tab, prompt, ac.signal),
+            gemini: () => orch.runAcp(tab, prompt, ac.signal),
+            grok: () => orch.runGrokTurn(tab, prompt, ac.signal),
+            codex: () => orch.runCodexTurn(tab, prompt, ac.signal, []),
+            dsh: () => orch.runDsh(tab, prompt),
+          }[c.backend];
       const v = await Promise.race([
         run(),
         new Promise((_, rej) => setTimeout(() => rej(new Error('<recorder-timeout>')), 15000)),
       ]);
-      r = { ok: { text: v.text, sessionId: v.sessionId, events: v.events, textBreaks: v.textBreaks } };
+      r = {
+        ok: { text: v.text, sessionId: v.sessionId, events: v.events, textBreaks: v.textBreaks },
+      };
       if (v.sessionId && !viaSend) tab.cliSessionId = v.sessionId;
     } catch (e) {
       r = { err: String(e?.message ?? e), name: e?.name === 'Error' ? undefined : e?.name };
@@ -179,8 +194,12 @@ for (const c of scen.cases) {
 }
 
 const dir =
-  process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/cli/harness/testdata');
+  process.env.NOMI_GOLDEN_DIR ??
+  path.join(root, 'apps/desktop-go/internal/core/cli/harness/testdata');
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'b7_orch_sessions.json'), JSON.stringify({ cases: out }, null, 2) + '\n');
+fs.writeFileSync(
+  path.join(dir, 'b7_orch_sessions.json'),
+  JSON.stringify({ cases: out }, null, 2) + '\n',
+);
 console.log(`b7 orch sessions: ${out.length} cases -> ${dir}`);
 process.exit(0);

@@ -1,4 +1,4 @@
-// Package parse 对应 packages/core/src/desktop/parse：把本地文档抽成纯文本。
+// Package parse 对应 apps/desktop-electron/internal/core/src/desktop/parse：把本地文档抽成纯文本。
 package parse
 
 import (

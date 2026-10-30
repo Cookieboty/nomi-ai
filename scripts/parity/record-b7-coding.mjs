@@ -17,13 +17,28 @@ process.env.NOMI_USE_MOCK_CLI = '1';
 process.env.NOMI_LOCALE = process.env.NOMI_LOCALE || 'en';
 const scen = JSON.parse(fs.readFileSync(path.join(here, 'b7-coding-scenarios.json'), 'utf8'));
 const imp = (p) => import(pathToFileURL(path.join(root, p)).href);
-const { HarnessOrchestrator } = await imp('packages/core/src/cli/harness/Orchestrator.ts');
-const { createCodingHandlers } = await imp('packages/core/src/contract/coding.ts');
+const { HarnessOrchestrator } = await imp(
+  'apps/desktop-electron/internal/core/src/cli/harness/Orchestrator.ts',
+);
+const { createCodingHandlers } = await imp(
+  'apps/desktop-electron/internal/core/src/contract/coding.ts',
+);
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
-const TIMEKEYS = new Set(['ts', 'at', 'expiresAt', 'startedAt', 'durationMs', 'updatedAt', 'createdAt', 'timestamp', 'lastActiveAt']);
+const TIMEKEYS = new Set([
+  'ts',
+  'at',
+  'expiresAt',
+  'startedAt',
+  'durationMs',
+  'updatedAt',
+  'createdAt',
+  'timestamp',
+  'lastActiveAt',
+]);
 function norm(v, tmp) {
-  if (typeof v === 'string') return v.split(tmp).join('<T>').split(root).join('<R>').replace(UUID, '<U>');
+  if (typeof v === 'string')
+    return v.split(tmp).join('<T>').split(root).join('<R>').replace(UUID, '<U>');
   if (Array.isArray(v)) return v.map((x) => norm(x, tmp));
   if (v && typeof v === 'object') {
     const o = {};
@@ -51,7 +66,8 @@ for (const c of scen.cases) {
       return v.split('$W').join(work).split('$T').join(tmp);
     }
     if (Array.isArray(v)) return v.map(sub);
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]));
+    if (v && typeof v === 'object')
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]));
     return v;
   };
   const harness = c.noHarness
@@ -62,7 +78,10 @@ for (const c of scen.cases) {
         defaultCwd: path.join(tmp, 'docs', 'nomi'),
         legacyDefaultCwd: path.join(tmp, 'docs'),
         logger: { info() {}, warn() {}, error() {}, debug() {} },
-        ports: { dialogs: { pickDirectory: async () => null }, windows: { anyFocused: () => false } },
+        ports: {
+          dialogs: { pickDirectory: async () => null },
+          windows: { anyFocused: () => false },
+        },
         idleReclaimMs: 0,
       });
   const events = { publish() {} };
@@ -86,8 +105,13 @@ for (const c of scen.cases) {
   fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5 });
 }
 
-const dir = process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/codinghandlers/testdata');
+const dir =
+  process.env.NOMI_GOLDEN_DIR ??
+  path.join(root, 'apps/desktop-go/internal/core/codinghandlers/testdata');
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'b7_coding_harness.json'), JSON.stringify({ cases: out }, null, 2) + '\n');
+fs.writeFileSync(
+  path.join(dir, 'b7_coding_harness.json'),
+  JSON.stringify({ cases: out }, null, 2) + '\n',
+);
 console.log(`b7 coding harness: ${out.length} cases -> ${dir}`);
 process.exit(0);

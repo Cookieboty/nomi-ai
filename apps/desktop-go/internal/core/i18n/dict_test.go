@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 func TestDictionaryCopiesMatchPackages(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "..", "..", "packages", "i18n", "src", "locales")
+	root := paritytest.RepoPath("packages/i18n/src/locales")
 	n := 0
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".json") {

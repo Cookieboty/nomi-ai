@@ -1,4 +1,4 @@
-// Package hostports 对应 packages/host-ports：宿主给内核的路径端口。
+// Package hostports 对应 apps/desktop-electron/internal/host-ports：宿主给内核的路径端口。
 // Go 版 userData 目录名是 Nomi（与安装包 productName 一致）；Electron 仍是 @nomi-ai/electron。
 package hostports
 

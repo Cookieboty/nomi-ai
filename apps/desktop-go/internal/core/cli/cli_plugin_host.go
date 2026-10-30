@@ -1,4 +1,4 @@
-// cli_plugin_host.go mirrors packages/core/src/cli/CliPluginHost.ts：
+// cli_plugin_host.go mirrors apps/desktop-electron/internal/core/src/cli/CliPluginHost.ts：
 // 加载插件、校验清单、算有效能力（清单 ∩ 版本开关 ∩ 握手）、启停、出错隔离，
 // 并给界面一份注册表快照（cli.registryChanged）。
 package cli

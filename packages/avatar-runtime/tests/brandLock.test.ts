@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { repoPath } from '@nomi-ai/repo-paths';
 import { describe, expect, it } from 'vitest';
 
 import { RigAnimator, drawRig, type RigImages, type RigManifest } from '../src/layeredRig';
@@ -16,7 +17,7 @@ import { ACTIONS } from '../src/rig/actions';
  */
 const MODEL = process.env.CHARACTER_PACK_SPRITE_DIR
   ? path.resolve(process.env.CHARACTER_PACK_SPRITE_DIR)
-  : path.join(__dirname, '../../../characters/nomi/sprite');
+  : repoPath('characters/nomi/sprite');
 
 const SKIP_BRAND = process.env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
 const describeBrand = SKIP_BRAND ? describe.skip : describe;

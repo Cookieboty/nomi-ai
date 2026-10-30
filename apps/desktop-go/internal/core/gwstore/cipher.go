@@ -1,4 +1,4 @@
-// Package gwstore 对应 packages/core/src/gateway 的 GatewayStore.ts + migrate.ts：
+// Package gwstore 对应 apps/desktop-electron/internal/core/src/gateway 的 GatewayStore.ts + migrate.ts：
 // userData/gateway/store.json（同路径、同 JSON 形态、同 enc/encryption 字段语义），
 // 以及 2.0.4 的 ai-providers.json / cli-providers/<kind>/store.json 一次性迁移。
 package gwstore

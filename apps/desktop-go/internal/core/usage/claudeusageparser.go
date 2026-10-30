@@ -1,6 +1,6 @@
 package usage
 
-// 对应 packages/core/src/usage/claudeUsageParser.ts：解析 `claude -p /usage --output-format json`。
+// 对应 apps/desktop-electron/internal/core/src/usage/claudeUsageParser.ts：解析 `claude -p /usage --output-format json`。
 // 注：JS 正则的 /i 只做 ASCII 等价折叠（ſ / K 不等于 s / k），这里用显式字符类而非 RE2 (?i)。
 
 import (

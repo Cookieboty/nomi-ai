@@ -1,7 +1,8 @@
 jest.unmock('fs');
 jest.unmock('path');
 import fs from 'node:fs';
-import path from 'node:path';
+
+import { repoPath } from '@nomi-ai/repo-paths';
 
 import { THEME_CHROME, applyTitleBarTheme, titleBarOptions } from '../../../src/core/titleBar';
 
@@ -45,7 +46,7 @@ describe('integrated title bar', () => {
   });
 
   it('chrome colours match the UI theme tokens', () => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../../../../ui/src/tokens.css'), 'utf8');
+    const css = fs.readFileSync(repoPath('packages/ui/src/tokens.css'), 'utf8');
     const block = (sel: string) => {
       const i = css.indexOf(sel);
       return css.slice(i, css.indexOf('}', i));

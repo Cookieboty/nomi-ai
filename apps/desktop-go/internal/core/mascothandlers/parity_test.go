@@ -10,6 +10,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascot"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // 回放 scripts/parity/record-mascot.mjs 录下的 Node 输出（testdata/parity.json）
@@ -136,7 +138,7 @@ func copyDir(t *testing.T, src, dst string) {
 }
 
 func TestCharacterPackParity(t *testing.T) {
-	nomi, _ := filepath.Abs("../../../../../characters/nomi")
+	nomi := paritytest.RepoPath("characters/nomi")
 	var cs map[string]struct {
 		Manifest json.RawMessage `json:"manifest"`
 		Out      json.RawMessage `json:"out"`

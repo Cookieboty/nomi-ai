@@ -15,10 +15,11 @@
  *
  * Usage: node scripts/parity/record-b5-llm.mjs
  */
-import { createServer } from 'node:http';
 import { writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { register } from 'tsx/esm/api';
 
 register();
@@ -34,13 +35,25 @@ const outDir = join(root, 'apps/desktop-go/internal/ai/llm/testdata');
 // Each scenario list writes its own golden file; B5_ONLY=<file> re-records just one.
 const only = process.env.B5_ONLY;
 const { AiSdkLlmProvider } = await import(
-  pathToFileURL(join(root, 'packages/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts')).href
+  pathToFileURL(
+    join(root, 'apps/desktop-electron/internal/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts'),
+  ).href
 );
 const ai = await import('ai');
 
 // ---------- serialization ----------
-const TRANSPORT = new Set(['host', 'connection', 'content-length', 'accept', 'accept-language',
-  'sec-fetch-mode', 'accept-encoding', 'transfer-encoding', 'keep-alive', 'date']);
+const TRANSPORT = new Set([
+  'host',
+  'connection',
+  'content-length',
+  'accept',
+  'accept-language',
+  'sec-fetch-mode',
+  'accept-encoding',
+  'transfer-encoding',
+  'keep-alive',
+  'date',
+]);
 const filterHeaders = (h) => {
   if (!h) return h;
   const o = {};
@@ -67,23 +80,31 @@ function errJSON(e) {
     if (e.data !== undefined) o.data = plain(e.data);
     return o;
   }
-  if (n === 'AI_RetryError') return { name: n, message: e.message, reason: e.reason, errors: e.errors.map(errJSON) };
+  if (n === 'AI_RetryError')
+    return { name: n, message: e.message, reason: e.reason, errors: e.errors.map(errJSON) };
   return { name: n, message: e.message };
 }
 function plain(v) {
-  return JSON.parse(JSON.stringify(v, function (k, x) {
-    const orig = this[k];
-    if (orig instanceof Error || (orig && orig.name === 'AbortError' && typeof orig.message === 'string' && orig !== v)) return errJSON(orig);
-    if (orig instanceof Uint8Array) return { __bytes: Buffer.from(orig).toString('base64') };
-    if (orig instanceof URL) return { __url: orig.href };
-    if (orig instanceof Date) return { __date: orig.getTime() };
-    return x;
-  }) ?? 'null');
+  return JSON.parse(
+    JSON.stringify(v, function (k, x) {
+      const orig = this[k];
+      if (
+        orig instanceof Error ||
+        (orig && orig.name === 'AbortError' && typeof orig.message === 'string' && orig !== v)
+      )
+        return errJSON(orig);
+      if (orig instanceof Uint8Array) return { __bytes: Buffer.from(orig).toString('base64') };
+      if (orig instanceof URL) return { __url: orig.href };
+      if (orig instanceof Date) return { __date: orig.getTime() };
+      return x;
+    }) ?? 'null',
+  );
 }
 function optionsJSON(o) {
   const { abortSignal, headers, ...rest } = o;
   const out = plain(rest);
-  if (headers !== undefined) out.headers = Object.entries(headers).map(([k, v]) => [k, v === undefined ? null : v]);
+  if (headers !== undefined)
+    out.headers = Object.entries(headers).map(([k, v]) => [k, v === undefined ? null : v]);
   return out;
 }
 
@@ -103,8 +124,9 @@ const server = createServer((req, res) => {
       await new Promise((r) => setTimeout(r, 2));
     }
     if (step.end === 'destroy') res.socket.destroy();
-    else if (step.end === 'hang') { /* keep open; client aborts */ res.on('close', () => res.destroy()); }
-    else res.end();
+    else if (step.end === 'hang') {
+      /* keep open; client aborts */ res.on('close', () => res.destroy());
+    } else res.end();
   });
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -114,70 +136,85 @@ const base = `http://127.0.0.1:${server.address().port}`;
 function wrap(model, calls, sc) {
   return new Proxy(model, {
     get(t, p, r) {
-      if (p === 'doStream') return async (o) => {
-        const call = { kind: 'stream', options: optionsJSON(o) };
-        calls.push(call);
-        try {
-          const res = await t.doStream(o);
-          call.requestBody = res.request?.body;
-          call.responseHeaders = filterHeaders(res.response?.headers);
-          const parts = [];
-          call.parts = parts;
-          const reader = res.stream.getReader();
-          const pass = new ReadableStream({
-            async pull(c) {
-              try {
-                const { done, value } = await reader.read();
-                if (done) return c.close();
-                parts.push(plain(value));
-                if (sc.abortAfterParts && parts.length === sc.abortAfterParts) {
-                  // Abort, then observe what the provider stream does next.
-                  sc.abort();
-                  try {
-                    for (;;) {
-                      const n = await reader.read();
-                      if (n.done) break;
-                      parts.push(plain(n.value));
+      if (p === 'doStream')
+        return async (o) => {
+          const call = { kind: 'stream', options: optionsJSON(o) };
+          calls.push(call);
+          try {
+            const res = await t.doStream(o);
+            call.requestBody = res.request?.body;
+            call.responseHeaders = filterHeaders(res.response?.headers);
+            const parts = [];
+            call.parts = parts;
+            const reader = res.stream.getReader();
+            const pass = new ReadableStream({
+              async pull(c) {
+                try {
+                  const { done, value } = await reader.read();
+                  if (done) return c.close();
+                  parts.push(plain(value));
+                  if (sc.abortAfterParts && parts.length === sc.abortAfterParts) {
+                    // Abort, then observe what the provider stream does next.
+                    sc.abort();
+                    try {
+                      for (;;) {
+                        const n = await reader.read();
+                        if (n.done) break;
+                        parts.push(plain(n.value));
+                      }
+                    } catch (e) {
+                      call.streamError = errJSON(e);
                     }
-                  } catch (e) {
-                    call.streamError = errJSON(e);
+                    try {
+                      c.enqueue(value);
+                      c.close();
+                    } catch {
+                      /* consumer already cancelled */
+                    }
+                    return;
                   }
-                  try { c.enqueue(value); c.close(); } catch { /* consumer already cancelled */ }
-                  return;
+                  c.enqueue(value);
+                } catch (e) {
+                  call.streamError = errJSON(e);
+                  c.error(e);
                 }
-                c.enqueue(value);
-              } catch (e) {
-                call.streamError = errJSON(e);
-                c.error(e);
-              }
-            },
-          });
-          return { ...res, stream: pass };
-        } catch (e) {
-          call.thrown = errJSON(e);
-          throw e;
-        }
-      };
-      if (p === 'doGenerate') return async (o) => {
-        const call = { kind: 'generate', options: optionsJSON(o) };
-        calls.push(call);
-        if (sc.abortBeforeGenerate) setTimeout(() => sc.abort(), 50);
-        let res;
-        try {
-          res = await t.doGenerate(o);
-          call.result = plain({
-            content: res.content, finishReason: res.finishReason, usage: res.usage,
-            providerMetadata: res.providerMetadata, warnings: res.warnings,
-            requestBody: res.request?.body,
-            response: { id: res.response?.id, timestamp: res.response?.timestamp, modelId: res.response?.modelId,
-              headers: filterHeaders(res.response?.headers), body: res.response?.body },
-          });
-        } catch (e) {
-          call.thrown = errJSON(e);
-          throw e;
-        }
-        return res;
-      };
+              },
+            });
+            return { ...res, stream: pass };
+          } catch (e) {
+            call.thrown = errJSON(e);
+            throw e;
+          }
+        };
+      if (p === 'doGenerate')
+        return async (o) => {
+          const call = { kind: 'generate', options: optionsJSON(o) };
+          calls.push(call);
+          if (sc.abortBeforeGenerate) setTimeout(() => sc.abort(), 50);
+          let res;
+          try {
+            res = await t.doGenerate(o);
+            call.result = plain({
+              content: res.content,
+              finishReason: res.finishReason,
+              usage: res.usage,
+              providerMetadata: res.providerMetadata,
+              warnings: res.warnings,
+              requestBody: res.request?.body,
+              response: {
+                id: res.response?.id,
+                timestamp: res.response?.timestamp,
+                modelId: res.response?.modelId,
+                headers: filterHeaders(res.response?.headers),
+                body: res.response?.body,
+              },
+            });
+          } catch (e) {
+            call.thrown = errJSON(e);
+            throw e;
+          }
+          return res;
+        };
       return Reflect.get(t, p, r);
     },
   });
@@ -187,16 +224,22 @@ function wrap(model, calls, sc) {
 const sse = (evs) => evs.map((e) => (typeof e === 'string' ? e : `data: ${JSON.stringify(e)}\n\n`));
 const SSE_H = { 'content-type': 'text/event-stream' };
 const JSON_H = { 'content-type': 'application/json' };
-const json = (status, v, h = {}) => ({ status, headers: { ...JSON_H, ...h }, body: typeof v === 'string' ? v : JSON.stringify(v) });
+const json = (status, v, h = {}) => ({
+  status,
+  headers: { ...JSON_H, ...h },
+  body: typeof v === 'string' ? v : JSON.stringify(v),
+});
 
 const scenarios = [];
 const add = (s) => scenarios.push(s);
 import { compatibleScenarios } from './b5-llm-scenarios.mjs';
 for (const s of compatibleScenarios({ sse, SSE_H, json })) add(s);
 import { responsesScenarios } from './b5-llm-openai-scenarios.mjs';
-for (const s of responsesScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-openai-responses.json' });
+for (const s of responsesScenarios({ sse, SSE_H, json }))
+  add({ ...s, outFile: 'b5-llm-openai-responses.json' });
 import { anthropicScenarios } from './b5-llm-anthropic-scenarios.mjs';
-for (const s of anthropicScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-anthropic.json' });
+for (const s of anthropicScenarios({ sse, SSE_H, json }))
+  add({ ...s, outFile: 'b5-llm-anthropic.json' });
 
 // ---------- run ----------
 const results = {};
@@ -219,8 +262,15 @@ for (const sc of scenarios) {
   const prov = new AiSdkLlmProvider(opts);
   const orig = prov.modelFactory;
   prov.modelFactory = (id) => wrap(orig(id), calls, sc);
-  const out = { name: sc.name, protocol: sc.protocol, settings: opts, responses: sc.responses,
-    abortAfterParts: sc.abortAfterParts, abortBeforeGenerate: sc.abortBeforeGenerate, maxRetries: sc.maxRetries };
+  const out = {
+    name: sc.name,
+    protocol: sc.protocol,
+    settings: opts,
+    responses: sc.responses,
+    abortAfterParts: sc.abortAfterParts,
+    abortBeforeGenerate: sc.abortBeforeGenerate,
+    maxRetries: sc.maxRetries,
+  };
   const ac = new AbortController();
   sc.abort = () => ac.abort();
   const model = prov.modelFactory(prov.resolveModel({ model: sc.model ?? 'm-1' }));
@@ -233,7 +283,16 @@ for (const sc of scenarios) {
     ...(sc.maxRetries !== undefined ? { maxRetries: sc.maxRetries } : {}),
     ...(sc.thinking ? { providerOptions: prov.opts && thinkingFor(sc.protocol, opts.id) } : {}),
     ...(sc.providerOptions ? { providerOptions: sc.providerOptions } : {}),
-    ...(sc.tools ? { tools: Object.fromEntries(sc.tools.map((t) => [t.name, ai.tool({ description: t.description, inputSchema: ai.jsonSchema(t.inputSchema) })])) } : {}),
+    ...(sc.tools
+      ? {
+          tools: Object.fromEntries(
+            sc.tools.map((t) => [
+              t.name,
+              ai.tool({ description: t.description, inputSchema: ai.jsonSchema(t.inputSchema) }),
+            ]),
+          ),
+        }
+      : {}),
     ...(sc.toolChoice ? { toolChoice: sc.toolChoice } : {}),
   };
   try {
@@ -255,13 +314,17 @@ for (const sc of scenarios) {
   console.log(sc.name, calls.length, 'calls');
 }
 function thinkingFor(protocol, id) {
-  if (protocol === 'anthropic') return { anthropic: { thinking: { type: 'enabled', budgetTokens: 2048 } } };
+  if (protocol === 'anthropic')
+    return { anthropic: { thinking: { type: 'enabled', budgetTokens: 2048 } } };
   if (protocol === 'openai-responses') return { openai: { reasoningEffort: 'medium' } };
   return { [id]: { reasoningEffort: 'medium' } };
 }
 server.close();
 for (const [file, rs] of Object.entries(results)) {
   const outFile = join(outDir, file);
-  writeFileSync(outFile, JSON.stringify({ node: process.version, ai: '7.0.136', scenarios: rs }, null, 1) + '\n');
+  writeFileSync(
+    outFile,
+    JSON.stringify({ node: process.version, ai: '7.0.136', scenarios: rs }, null, 1) + '\n',
+  );
   console.log('wrote', rs.length, 'scenarios →', outFile);
 }

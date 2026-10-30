@@ -1,4 +1,4 @@
-// Package voice 对应 packages/core/src/voice（不含豆包 volcAsr 与主进程 Silero：见 D-B9）。
+// Package voice 对应 apps/desktop-electron/internal/core/src/voice（不含豆包 volcAsr 与主进程 Silero：见 D-B9）。
 package voice
 
 import (

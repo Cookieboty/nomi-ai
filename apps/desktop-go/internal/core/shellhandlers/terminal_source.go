@@ -1,6 +1,6 @@
 package shellhandlers
 
-// gatewayTerminalSource（packages/core/src/gateway/TerminalCommands.ts）+ createCore.ts:728 的接线。
+// gatewayTerminalSource（apps/desktop-electron/internal/core/src/gateway/TerminalCommands.ts）+ createCore.ts:728 的接线。
 
 import (
 	"path/filepath"

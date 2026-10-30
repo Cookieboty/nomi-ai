@@ -42,6 +42,7 @@ export class VoiceService {
   private currentAudio: HTMLAudioElement | null = null;
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
+  private offSettings: (() => void) | null = null;
 
   constructor() {
     this.initPromise = this.init();
@@ -130,7 +131,8 @@ export class VoiceService {
    */
   private subscribeMainVoiceSettings() {
     if (!hasTransport()) return;
-    api.on('voice.mascotSettingsChanged', (s) => {
+    this.offSettings?.();
+    this.offSettings = api.on('voice.mascotSettingsChanged', (s) => {
       this.voiceSettings = { ...this.voiceSettings, ...s } as VoiceSettings;
       window.dispatchEvent(
         new CustomEvent('mascot:voice-settings', { detail: { ...this.voiceSettings } }),
@@ -290,6 +292,8 @@ export class VoiceService {
     if (this.timeAnnouncementInterval) {
       clearInterval(this.timeAnnouncementInterval);
     }
+    this.offSettings?.();
+    this.offSettings = null;
 
     // 停止当前音频
     if (this.currentAudio) {

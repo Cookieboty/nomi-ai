@@ -31,7 +31,9 @@ function start(): void {
   if (!hasWindowHost()) return;
   started = true;
   void api.mascot.scaleGet().then(setState, ignore);
-  api.on('mascot.scaleChanged', setState);
+  const off = api.on('mascot.scaleChanged', setState);
+  // 开发态热更新重新执行本模块时摘掉旧订阅（否则每次热更新多一个监听，并留住旧模块）
+  import.meta.hot?.dispose(off);
 }
 
 function flushWheel(): void {

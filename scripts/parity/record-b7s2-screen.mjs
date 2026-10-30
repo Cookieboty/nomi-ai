@@ -14,12 +14,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
-const src = (p) => path.join(root, 'packages/core/src', p);
+const src = (p) => path.join(root, 'apps/desktop-electron/internal/core/src', p);
 const { S, M } = await importSources(root, {
-  S: src('screen/ScreenService.ts'), M: src('contract/media.ts'),
+  S: src('screen/ScreenService.ts'),
+  M: src('contract/media.ts'),
 });
 
-const providers = [null, { id: 'p1', name: 'Cloud', local: false }, { id: 'l', name: 'Local', local: true }];
+const providers = [
+  null,
+  { id: 'p1', name: 'Cloud', local: false },
+  { id: 'l', name: 'Local', local: true },
+];
 const answers = [null, 'local_only', 'user_denied', 'ok'];
 const cases = [];
 for (const locale of ['zh-CN', 'en']) {
@@ -30,9 +35,18 @@ for (const locale of ['zh-CN', 'en']) {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'b7s2-scr-'));
       const desktop = {
         providerFor: (role) => (calls.push(['providerFor', role]), p),
-        broker: { checkSend: async (prov, signal, what) => (calls.push(['checkSend', prov, signal ?? null, what]), a) },
+        broker: {
+          checkSend: async (prov, signal, what) => (
+            calls.push(['checkSend', prov, signal ?? null, what]),
+            a
+          ),
+        },
       };
-      const svc = new S.ScreenService({ root: path.join(tmp, 'gone'), logger: { info() {}, warn() {} }, desktop });
+      const svc = new S.ScreenService({
+        root: path.join(tmp, 'gone'),
+        logger: { info() {}, warn() {} },
+        desktop,
+      });
       await svc.legacyPurged;
       const h = M.createMediaHandlers({ services: { screen: svc } });
       const out = await h['screen.checkSend']();
@@ -59,12 +73,20 @@ for (const kind of ['tree', 'missing', 'file']) {
     fs.writeFileSync(path.join(r, 'index.json'), '{}');
   } else if (kind === 'file') fs.writeFileSync(r, 'f');
   const warns = [];
-  const svc = new S.ScreenService({ root: r, logger: { info() {}, warn: (m) => warns.push(m) }, desktop: {} });
+  const svc = new S.ScreenService({
+    root: r,
+    logger: { info() {}, warn: (m) => warns.push(m) },
+    desktop: {},
+  });
   await svc.legacyPurged;
   purge.push({ kind, exists: fs.existsSync(r), warns, siblings: fs.readdirSync(tmp) });
   fs.rmSync(tmp, { recursive: true, force: true });
 }
-const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/screen/testdata');
+const dir =
+  process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/screen/testdata');
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'b7s2-screen.json'), JSON.stringify({ cases, unavailable, purge }, null, 1) + '\n');
+fs.writeFileSync(
+  path.join(dir, 'b7s2-screen.json'),
+  JSON.stringify({ cases, unavailable, purge }, null, 1) + '\n',
+);
 console.log(`b7s2-screen: ${cases.length} cases, ${purge.length} purge`);

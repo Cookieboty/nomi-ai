@@ -1,4 +1,4 @@
-// cli_update_service.go = packages/core/src/cli/CliUpdateService.ts（CLI 版本检测、安装与白名单更新）。
+// cli_update_service.go = apps/desktop-electron/internal/core/src/cli/CliUpdateService.ts（CLI 版本检测、安装与白名单更新）。
 //
 // 安装 / 更新只执行固定 argv 的白名单命令；Windows 的 npm.cmd 例外地经 shell 执行，参数同样来自白名单。
 // 所有方法持 jsrt 锁调用；返回 Promise 的方法与 Node 的 async 方法一一对应。

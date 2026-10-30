@@ -54,6 +54,7 @@
     "unbzip2-stream": "1.4.3"
   },
   "devDependencies": {
+    "@nomi-ai/repo-paths": "workspace:*",
     "@types/jest": "^30.0.0",
     "@types/tar-stream": "3.1.5",
     "cross-env": "^10.1.0",

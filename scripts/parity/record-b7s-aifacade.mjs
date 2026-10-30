@@ -13,12 +13,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { importSources } from './src-bundle.mjs';
+import { importSources, pkgPath } from './src-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
 const TD = path.join(root, 'apps/desktop-go/internal/ai/runtime/aifacade/testdata');
-const P = (p) => path.join(root, 'packages', p);
+const P = (p) => pkgPath(root, p);
 const m = await importSources(root, {
   base: P('bundle-ig-base/src/index.ts'),
   caps: P('bundle-ig-electron-caps/src/plugins/FileSessionStorePlugin.ts'),
@@ -32,13 +32,29 @@ const m = await importSources(root, {
   ighost: P('ai-runtime/src/IgPluginHost.ts'),
 });
 const { createIgPluginHost } = m.ighost;
-const { UserPreferenceMemoryPlugin, UserProfileKey, ToolsBuiltinPlugin, ToolRegistryKey, definePlugin } = m.base;
+const {
+  UserPreferenceMemoryPlugin,
+  UserProfileKey,
+  ToolsBuiltinPlugin,
+  ToolRegistryKey,
+  definePlugin,
+} = m.base;
 const { AIClient, toSdkContext } = m.sdk;
 
 const NOW = 1_700_000_000_000;
 let clock = NOW;
 Date.now = () => clock;
-const quiet = { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {}, child() { return quiet; } };
+const quiet = {
+  trace() {},
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  fatal() {},
+  child() {
+    return quiet;
+  },
+};
 
 const scenarios = JSON.parse(fs.readFileSync(path.join(TD, 'b7s-aifacade-scenarios.json'), 'utf8'));
 const PROFILE = ['ai-chat', 'memory', 'user_profile.json'];
@@ -56,7 +72,9 @@ async function run(sc) {
     name: 'MascotIpcHostPlugin',
     apply(ctx) {
       const svc = ctx.inject(m.seams.AvatarKey);
-      svc.attachHost(m.bridge.createIpcMascotHost((cue) => events.push({ event: 'avatar.event', data: cue })));
+      svc.attachHost(
+        m.bridge.createIpcMascotHost((cue) => events.push({ event: 'avatar.event', data: cue })),
+      );
     },
   });
   // tools/wrap 观察者（生产装配里无人监听；只记录 ToolsFacade.confirm 发出的载荷）
@@ -66,9 +84,13 @@ async function run(sc) {
       ctx.on('tools/wrap', (h) => events.push({ event: 'hook:tools/wrap', data: h.payload }));
     },
   });
-  const plugins = [{ plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } }, { plugin: wrapSpy, config: {} }];
+  const plugins = [
+    { plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } },
+    { plugin: wrapSpy, config: {} },
+  ];
   if (sc.registry !== false) plugins.push({ plugin: ToolsBuiltinPlugin, config: { enable: [] } });
-  if (sc.profile !== false) plugins.push({ plugin: UserPreferenceMemoryPlugin, config: { exposeAsTools: false } });
+  if (sc.profile !== false)
+    plugins.push({ plugin: UserPreferenceMemoryPlugin, config: { exposeAsTools: false } });
   if (sc.avatar !== false) {
     plugins.push({ plugin: m.mascot.AvatarSeamPlugin, config: {} });
     if (sc.host !== false) plugins.push({ plugin: avatarHost, config: {} });
@@ -76,9 +98,15 @@ async function run(sc) {
   const host = createIgPluginHost({ logger: quiet });
   await host.apply(plugins);
   await host.ctx.inject(UserProfileKey)?.export();
-  for (const t of sc.tools ?? []) host.ctx.inject(ToolRegistryKey).register({ ...t, input: undefined, execute: async () => null });
+  for (const t of sc.tools ?? [])
+    host.ctx
+      .inject(ToolRegistryKey)
+      .register({ ...t, input: undefined, execute: async () => null });
   const client = new AIClient(toSdkContext(host.ctx), {});
-  const { router, dispose } = m.router.createAiRouter({ client, logger: { warn() {}, info() {}, error() {}, debug() {} } });
+  const { router, dispose } = m.router.createAiRouter({
+    client,
+    logger: { warn() {}, info() {}, error() {}, debug() {} },
+  });
   for (const e of Object.keys(router.contract.events ?? {})) {
     if (!e.startsWith('ai.')) continue;
     router.events.subscribe(e, (data) => events.push({ event: e, data }));
@@ -90,16 +118,25 @@ async function run(sc) {
     const rec = { p: st.p ?? null };
     if (st.hook) {
       // 插件事件（ctx.emit）：经 AIClient 桥 → 契约事件
-      const payload = 'payload' in st.hook ? m.wire.decodeWireFrame(JSON.stringify(st.hook.payload)) : undefined;
+      const payload =
+        'payload' in st.hook ? m.wire.decodeWireFrame(JSON.stringify(st.hook.payload)) : undefined;
       host.ctx.emit(st.hook.event, payload);
     }
     if (st.p) {
-      const input = 'in' in st ? m.wire.decodeWireFrame(JSON.stringify(st.in).replace(/"\$s(\d+)"/g, (_, n) => JSON.stringify(ids[n - 1]))) : undefined;
+      const input =
+        'in' in st
+          ? m.wire.decodeWireFrame(
+              JSON.stringify(st.in).replace(/"\$s(\d+)"/g, (_, n) => JSON.stringify(ids[n - 1])),
+            )
+          : undefined;
       try {
-        const out = await router.call(st.p, input, { caller: { trusted: st.untrusted !== true, surface: 'chat' } });
+        const out = await router.call(st.p, input, {
+          caller: { trusted: st.untrusted !== true, surface: 'chat' },
+        });
         rec.out = out === undefined ? null : JSON.parse(m.wire.encodeWireFrame(out));
         if (out === undefined) rec.undef = true;
-        for (const id of JSON.stringify(out ?? null).match(/sess_[0-9a-z]+_[0-9a-z]+/g) ?? []) if (!ids.includes(id)) ids.push(id);
+        for (const id of JSON.stringify(out ?? null).match(/sess_[0-9a-z]+_[0-9a-z]+/g) ?? [])
+          if (!ids.includes(id)) ids.push(id);
       } catch (err) {
         // 线上错误形态（server.ts → toErrorPayload）：非 ContractError（AIClientError / Error）一律 INTERNAL
         rec.err = JSON.parse(m.wire.encodeWireFrame(m.errors.toErrorPayload(err)));
@@ -119,4 +156,6 @@ async function run(sc) {
 const out = [];
 for (const sc of scenarios) out.push(await run(sc));
 fs.writeFileSync(path.join(TD, 'b7s-aifacade.json'), JSON.stringify(out, null, 1) + '\n');
-console.log(`b7s-aifacade: ${out.length} scenarios, ${out.reduce((n, s) => n + s.steps.length, 0)} steps`);
+console.log(
+  `b7s-aifacade: ${out.length} scenarios, ${out.reduce((n, s) => n + s.steps.length, 0)} steps`,
+);

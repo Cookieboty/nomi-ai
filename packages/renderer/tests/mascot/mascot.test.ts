@@ -6,6 +6,7 @@ import {
   mascotRegistry,
   type MascotBackend,
 } from '@nomi-ai/avatar-runtime';
+import { repoPath } from '@nomi-ai/repo-paths';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
@@ -40,12 +41,12 @@ describe('catalog', () => {
   });
 
   it('bundles only the selected pack (generated from characters/nomi, no VRM)', async () => {
-    // @ts-expect-error -- plain .mjs build helper without type declarations
-    const { loadPack, modelListFor } = await import('../../../../scripts/character/pack.mjs');
-    const { fileURLToPath } = await import('node:url');
-    const { pack } = await loadPack(
-      fileURLToPath(new URL('../../../../characters/nomi', import.meta.url)),
+    const { pathToFileURL } = await import('node:url');
+    // 普通 .mjs 构建脚本，没有类型声明
+    const { loadPack, modelListFor } = await import(
+      pathToFileURL(repoPath('scripts/character/pack.mjs')).href
     );
+    const { pack } = await loadPack(repoPath('characters/nomi'));
     const list = parseCatalog(modelListFor(pack));
     expect(list.map((m) => m.name)).toEqual(['nomi']);
     expect(list[0].license).toBe('MIT'); // owner-provided, AI-generated

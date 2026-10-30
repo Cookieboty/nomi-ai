@@ -14,7 +14,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 process.env.TZ = 'Asia/Shanghai';
 if (new Date(0).getTimezoneOffset() !== -480) throw new Error('TZ=Asia/Shanghai not applied');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { GatewayProcess } = await import(pathToFileURL(join(root, 'packages/core/src/gateway/GatewayProcess.ts')).href);
+const { GatewayProcess } = await import(
+  pathToFileURL(join(root, 'apps/desktop-electron/internal/core/src/gateway/GatewayProcess.ts'))
+    .href
+);
 
 const READY_TIMEOUT = 12345; // whenReady 的超时走真定时器，不进 trace
 const realSetTimeout = globalThis.setTimeout;
@@ -29,7 +32,11 @@ async function run(name, opts, ops) {
   const children = [];
   const timers = [];
   globalThis.setTimeout = (fn, ms) => {
-    if (ms === READY_TIMEOUT) { const h = realSetTimeout(fn, 2e9); h.unref?.(); return h; }
+    if (ms === READY_TIMEOUT) {
+      const h = realSetTimeout(fn, 2e9);
+      h.unref?.();
+      return h;
+    }
     const t = { fn, cleared: false };
     timers.push(t);
     ev.push({ timer: ms });
@@ -46,12 +53,18 @@ async function run(name, opts, ops) {
     ev.push({ fork: idx });
     return {
       postMessage: (m) => ev.push({ post: idx, type: m.type }),
-      on: (e, fn) => { if (e === 'message') c.msg = fn; else c.exit = fn; },
+      on: (e, fn) => {
+        if (e === 'message') c.msg = fn;
+        else c.exit = fn;
+      },
       kill: () => ev.push({ kill: idx }),
     };
   };
   const p = new GatewayProcess({
-    logger: { info: (m) => ev.push({ log: 'info', msg: m }), warn: (m) => ev.push({ log: 'warn', msg: m }) },
+    logger: {
+      info: (m) => ev.push({ log: 'info', msg: m }),
+      warn: (m) => ev.push({ log: 'warn', msg: m }),
+    },
     onStatus: (s) => ev.push({ status: s }),
     fork,
     now: () => clock,
@@ -66,13 +79,20 @@ async function run(name, opts, ops) {
     if (kind === 'apply') p.apply(CFG);
     else if (kind === 'ensureStarted') p.ensureStarted();
     else if (kind === 'whenReady') p.whenReady(READY_TIMEOUT).then((ok) => ev.push({ ready: ok }));
-    else if (kind === 'listening') child(a)?.msg?.({ type: 'listening', port: 18999, url: 'http://127.0.0.1:18999' });
-    else if (kind === 'fatal') child(a)?.msg?.({ type: 'error', message: 'EADDRINUSE', fatal: true });
+    else if (kind === 'listening')
+      child(a)?.msg?.({ type: 'listening', port: 18999, url: 'http://127.0.0.1:18999' });
+    else if (kind === 'fatal')
+      child(a)?.msg?.({ type: 'error', message: 'EADDRINUSE', fatal: true });
     else if (kind === 'error') child(a)?.msg?.({ type: 'error', message: 'soft' });
     else if (kind === 'exit') child(a)?.exit?.(1);
     else if (kind === 'advance') clock += a;
-    else if (kind === 'fireTimer') { const t = timers[timers.length - 1]; if (t && !t.cleared) { t.cleared = true; t.fn(); } }
-    else if (kind === 'retry') p.retry();
+    else if (kind === 'fireTimer') {
+      const t = timers[timers.length - 1];
+      if (t && !t.cleared) {
+        t.cleared = true;
+        t.fn();
+      }
+    } else if (kind === 'retry') p.retry();
     else if (kind === 'stop') p.stop();
     else throw new Error('op ' + kind);
     await new Promise((r) => setImmediate(r));
@@ -84,36 +104,113 @@ async function run(name, opts, ops) {
 }
 
 const scenarios = [];
-scenarios.push(await run('eager start, ready, soft error, stop', {}, [
-  ['apply'], ['whenReady'], ['listening'], ['whenReady'], ['error'], ['apply'], ['stop'], ['exit'], ['apply'],
-]));
-scenarios.push(await run('lazy start, whenReady', { lazy: true }, [
-  ['ensureStarted'], ['apply'], ['apply'], ['whenReady'], ['listening'], ['stop'], ['whenReady'],
-]));
-scenarios.push(await run('default backoff + fuse', {}, [
-  ['apply'], ['listening'],
-  ['exit'], ['ensureStarted'], ['apply'], ['fireTimer'],
-  ['advance', 1000], ['exit'], ['fireTimer'],
-  ['advance', 1000], ['exit'], ['fireTimer'],
-  ['advance', 1000], ['exit'], ['fireTimer'],
-  ['advance', 1000], ['exit'], ['fireTimer'],
-  ['ensureStarted'], ['whenReady'], ['retry'], ['listening'], ['exit'], ['stop'], ['fireTimer'],
-]));
-scenarios.push(await run('sliding window + listening clears', { fuseMax: 3, fuseWindow: 5000 }, [
-  ['apply'], ['exit'], ['fireTimer'], ['advance', 6000], ['exit'], ['fireTimer'], ['advance', 1000], ['exit'], ['fireTimer'],
-  ['listening'], ['exit'], ['fireTimer'], ['exit'], ['fireTimer'], ['exit'],
-]));
-scenarios.push(await run('fatal error, stale child', {}, [
-  ['apply'], ['fatal'], ['exit', 0], ['ensureStarted'], ['whenReady'], ['apply'], ['retry'], ['listening', 0], ['exit', 0], ['listening', 1],
-  ['whenReady'],
-]));
+scenarios.push(
+  await run('eager start, ready, soft error, stop', {}, [
+    ['apply'],
+    ['whenReady'],
+    ['listening'],
+    ['whenReady'],
+    ['error'],
+    ['apply'],
+    ['stop'],
+    ['exit'],
+    ['apply'],
+  ]),
+);
+scenarios.push(
+  await run('lazy start, whenReady', { lazy: true }, [
+    ['ensureStarted'],
+    ['apply'],
+    ['apply'],
+    ['whenReady'],
+    ['listening'],
+    ['stop'],
+    ['whenReady'],
+  ]),
+);
+scenarios.push(
+  await run('default backoff + fuse', {}, [
+    ['apply'],
+    ['listening'],
+    ['exit'],
+    ['ensureStarted'],
+    ['apply'],
+    ['fireTimer'],
+    ['advance', 1000],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 1000],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 1000],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 1000],
+    ['exit'],
+    ['fireTimer'],
+    ['ensureStarted'],
+    ['whenReady'],
+    ['retry'],
+    ['listening'],
+    ['exit'],
+    ['stop'],
+    ['fireTimer'],
+  ]),
+);
+scenarios.push(
+  await run('sliding window + listening clears', { fuseMax: 3, fuseWindow: 5000 }, [
+    ['apply'],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 6000],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 1000],
+    ['exit'],
+    ['fireTimer'],
+    ['listening'],
+    ['exit'],
+    ['fireTimer'],
+    ['exit'],
+    ['fireTimer'],
+    ['exit'],
+  ]),
+);
+scenarios.push(
+  await run('fatal error, stale child', {}, [
+    ['apply'],
+    ['fatal'],
+    ['exit', 0],
+    ['ensureStarted'],
+    ['whenReady'],
+    ['apply'],
+    ['retry'],
+    ['listening', 0],
+    ['exit', 0],
+    ['listening', 1],
+    ['whenReady'],
+  ]),
+);
 
-scenarios.push(await run('window boundary + retry clears', { fuseMax: 2, fuseWindow: 5000 }, [
-  ['apply'], ['exit'], ['fireTimer'], ['advance', 5000], ['exit'],
-  ['retry'], ['exit'], ['fireTimer'], ['advance', 5001], ['exit'], ['fireTimer'], ['exit'],
-]));
+scenarios.push(
+  await run('window boundary + retry clears', { fuseMax: 2, fuseWindow: 5000 }, [
+    ['apply'],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 5000],
+    ['exit'],
+    ['retry'],
+    ['exit'],
+    ['fireTimer'],
+    ['advance', 5001],
+    ['exit'],
+    ['fireTimer'],
+    ['exit'],
+  ]),
+);
 
-const out = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/gwstore/testdata');
+const out =
+  process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/gwstore/testdata');
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(join(out, 'gwprocess.json'), JSON.stringify({ scenarios }, null, 2) + '\n');
 console.log('wrote', join(out, 'gwprocess.json'), scenarios.length);

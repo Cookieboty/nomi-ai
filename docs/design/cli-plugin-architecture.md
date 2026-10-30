@@ -435,7 +435,7 @@ export interface ClientAdapterHooks {
 
 网关里所有 `client === 'claude'` 之类的分支（`route/resolve.ts` 的 `mapBuiltinModel`、`affinity.ts` 的会话键、`server.ts` 的 `legacyClient`）改成读规格。
 
-插件的 `gateway` 入口**不进 `packages/gateway`**：网关内核只定义钩子接口，在 Electron 侧的网关进程入口（`core/src/gateway/worker.ts`）把内置插件的钩子组装进去，内核保持不依赖任何插件。
+插件的 `gateway` 入口**不进 `apps/desktop-electron/internal/gateway`**：网关内核只定义钩子接口，在 Electron 侧的网关进程入口（`core/src/gateway/worker.ts`）把内置插件的钩子组装进去，内核保持不依赖任何插件。
 
 ### 5.6 界面侧
 
@@ -1360,7 +1360,7 @@ packages/cli-plugins/
   claude/{manifest.ts,main/,gateway/,renderer/,fixtures/}
   codex/  gemini/  grok/  dsh/        同上
   index.ts                            内置插件列表（生成）
-packages/gateway/src/
+apps/desktop-electron/internal/gateway/src/
   spec/{responses,chat,messages,gemini}.ts           规范表
   canonical/{responses,chat,messages,gemini}.ts      规范化
   providers/{generic,amux,openrouter,…}.ts            供应商规格与适配器钩子
@@ -1405,7 +1405,7 @@ packages/gateway/src/
 
 ### 7.3 依赖规则（ESLint 强制）
 
-- `packages/gateway` 不得 import `cli-plugins/*/main`、`electron`。
+- `apps/desktop-electron/internal/gateway` 不得 import `cli-plugins/*/main`、`electron`。
 - `cli-plugins/*/gateway` 只能 import `@nomi-ai/cli-sdk/gateway`。
 - `cli-plugins/*/renderer` 只能 import `@nomi-ai/ui`、`react`、`@nomi-ai/cli-sdk/renderer`。
 - 核心目录（`core/src/cli`、`gateway/src` 除 `providers/`、`ai-chat/src` 除插件生成索引）禁止出现 CLI 名字字面量：加一条自定义 lint 规则，白名单之外命中即报错。

@@ -125,6 +125,7 @@ jobs:
           name: coverage-${{ github.sha }}
           path: |
             packages/**/coverage/**
+            apps/desktop-electron/internal/**/coverage/**
           if-no-files-found: ignore
           retention-days: 7
 

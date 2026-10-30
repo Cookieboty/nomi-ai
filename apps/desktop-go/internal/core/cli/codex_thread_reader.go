@@ -1,6 +1,6 @@
 package cli
 
-// codex_thread_reader.go mirrors packages/core/src/cli/codexThreadReader.ts + codexThreadWorker.ts。
+// codex_thread_reader.go mirrors apps/desktop-electron/internal/core/src/cli/codexThreadReader.ts + codexThreadWorker.ts。
 // Node 把同步的 node:sqlite 整表 SELECT 放到 worker_threads，只为不阻塞主进程事件循环；
 // Go 的"worker"是一个 goroutine（D-B7-S-2）：读库在 jsrt 锁外执行，回复经 jsrt.Run 派发（等价 'message' 事件）。
 // 状态机（懒启动、复用、空闲回收、超时/崩溃失败所有请求、连续崩溃回退主线程读取）逐行同 Node。

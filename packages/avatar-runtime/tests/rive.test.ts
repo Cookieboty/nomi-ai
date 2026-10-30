@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { repoPath, repoRoot } from '@nomi-ai/repo-paths';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -64,9 +65,7 @@ describe('rive backend', () => {
   it('exposes the authored leg clips (ROUND18 step/squat, ROUND26 walk/run) as native triggers baked into the .riv', () => {
     const fire = vi.fn();
     const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
-    const riv = fs.readFileSync(
-      path.join(__dirname, '../../../characters/nomi/rive/character.riv'),
-    );
+    const riv = fs.readFileSync(repoPath('characters/nomi/rive/character.riv'));
     for (const clip of ['squat', 'step', 'walk', 'run']) {
       expect(b.playMotion(clip), clip).toBe(true);
       expect(fire).toHaveBeenLastCalledWith(clip);
@@ -124,8 +123,8 @@ describe('rive backend', () => {
   });
 });
 
-const RIV = path.join(__dirname, '../../../characters/nomi/rive/character.riv');
-const REPO = path.join(__dirname, '../../..');
+const RIV = repoPath('characters/nomi/rive/character.riv');
+const REPO = repoRoot();
 const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const IEND = Buffer.from('IEND');
 

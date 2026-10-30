@@ -1,6 +1,6 @@
 // Package llm mirrors the parts of @ai-sdk/provider (LanguageModelV4 spec,
 // errors) and @ai-sdk/provider-utils (postJsonToApi, SSE parsing, headers)
-// that Node's AI runtime (packages/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts)
+// that Node's AI runtime (apps/desktop-electron/internal/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts)
 // reaches through the Vercel AI SDK. Protocol adapters live in subpackages:
 //
 //	llm/compatible  ← @ai-sdk/openai-compatible chatModel   (protocol openai-chat)

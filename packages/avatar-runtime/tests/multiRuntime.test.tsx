@@ -8,6 +8,7 @@
 import path from 'node:path';
 
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
+import { repoRoot } from '@nomi-ai/repo-paths';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,7 +28,7 @@ import {
   type MascotBackend,
 } from '../src';
 
-const ROOT = path.join(__dirname, '../../..');
+const ROOT = repoRoot();
 
 function character(dir: string) {
   const { pack } = validatePackDirSync(path.join(ROOT, dir));
