@@ -13,7 +13,7 @@ export class FakeChild extends EventEmitter implements ChildLike {
   onLine: (msg: Json, raw: string) => void = () => undefined;
   readonly stdout = new EventEmitter();
   readonly stderr = new EventEmitter();
-  readonly stdin = {
+  readonly stdin = Object.assign(new EventEmitter(), {
     writable: true,
     write: (chunk: string) => {
       for (const raw of chunk.split('\n').filter(Boolean)) {
@@ -31,7 +31,7 @@ export class FakeChild extends EventEmitter implements ChildLike {
     end: () => {
       this.stdin.writable = false;
     },
-  };
+  });
 
   send(obj: unknown): void {
     this.stdout.emit(

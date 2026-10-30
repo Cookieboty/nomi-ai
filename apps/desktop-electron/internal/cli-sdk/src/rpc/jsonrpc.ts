@@ -109,6 +109,8 @@ export class JsonRpcConnection {
     child.stdout.on('data', (c: Buffer | string) => this.onData(c));
     child.on('close', () => this.fail(new Error(RPC_EXITED)));
     child.on('error', (e: Error) => this.fail(e));
+    // 写管道断了（EPIPE 等）就是对端已退出：和 close 同一个原因，调用方据此判断「起不来」并回退
+    child.stdin.on('error', (e: Error) => this.fail(new Error(RPC_EXITED, { cause: e })));
   }
 
   private arm(id: number, p: Pending) {
