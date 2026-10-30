@@ -7,17 +7,20 @@
  *     resources/renderer, so the packaged app's built-in pack is resources/renderer/character).
  *
  * `scope: 'all'` (renderer) ships the whole pack, exposes `virtual:character-pack` (the normalized
- * pack data) and the bundled `assets/models/model-list.json`. `scope: 'onboarding'` (ai-chat)
- * ships only the onboarding illustrations, at `character/onboarding/<file>`.
+ * pack data), `virtual:character-static-art` (the selected pack's low-resource static art, see
+ * `staticArtModule`) and the bundled `assets/models/model-list.json`. `scope: 'onboarding'`
+ * (ai-chat) ships only the onboarding illustrations, at `character/onboarding/<file>`.
  */
 import { createReadStream, readFileSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { extname, join, sep } from 'node:path';
 
-import { listPackFiles, loadPack, modelListFor } from './pack.mjs';
-import { selectedPackDir } from './paths.mjs';
+import { isOfficialPack, listPackFiles, loadPack, modelListFor } from './pack.mjs';
+import { DEFAULT_PACK_STATIC_ART, selectedPackDir } from './paths.mjs';
 
 export const VIRTUAL_ID = 'virtual:character-pack';
 const RESOLVED_ID = `\0${VIRTUAL_ID}`;
+export const STATIC_ART_ID = 'virtual:character-static-art';
+const RESOLVED_STATIC_ART_ID = `\0${STATIC_ART_ID}`;
 export const PACK_URL_PREFIX = 'character/';
 const MODEL_LIST = 'assets/models/model-list.json';
 const ONBOARDING = ['welcome.webp', 'profile.webp', 'provider.webp', 'privacy.webp'];
@@ -51,6 +54,25 @@ export function packModuleData(pack) {
   };
 }
 
+/**
+ * `virtual:character-static-art`: the static art the desktop character shows when the renderer
+ * setting is `svg` (the default), as a URL — or null when the selected pack has none, in which case
+ * the view keeps the pack's own mode. It always belongs to the selected pack, never to another one:
+ *   - a static pack: its own static image (`./character/<assets.static>`);
+ *   - the official pack (Rive): its SVG static art, emitted as a separate asset (`?url`);
+ *   - any other pack: null.
+ */
+export function staticArtModule(dir, pack) {
+  if (pack.assets.static) {
+    return `export default ${JSON.stringify(`./${PACK_URL_PREFIX}${pack.assets.static}`)};\n`;
+  }
+  if (isOfficialPack(dir)) {
+    const file = DEFAULT_PACK_STATIC_ART.split(sep).join('/');
+    return `export { default } from ${JSON.stringify(`${file}?url`)};\n`;
+  }
+  return 'export default null;\n';
+}
+
 /** pack-relative path → published path (under `character/`), or null when not shipped. */
 export function publishedFiles(dir, pack, scope) {
   if (scope === 'onboarding') {
@@ -69,9 +91,16 @@ export function characterPackPlugin(opts = {}) {
   return {
     name: 'nomi-character-pack',
     resolveId(id) {
-      return id === VIRTUAL_ID ? RESOLVED_ID : null;
+      if (id === VIRTUAL_ID) return RESOLVED_ID;
+      if (id === STATIC_ART_ID && scope === 'all') return RESOLVED_STATIC_ART_ID;
+      return null;
     },
     async load(id) {
+      if (id === RESOLVED_STATIC_ART_ID) {
+        const { pack } = await load();
+        this.addWatchFile(join(dir, 'manifest.json'));
+        return staticArtModule(dir, pack);
+      }
       if (id !== RESOLVED_ID) return null;
       const { pack } = await load();
       for (const f of ['manifest.json', 'persona.json', 'mapping.json']) {

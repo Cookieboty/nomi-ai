@@ -1,14 +1,19 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
 import { loadPack, modelListFor } from '../character/pack.mjs';
-import { brandLockModelDir, DEFAULT_PACK_DIR, selectedPackDir } from '../character/paths.mjs';
-import { packModuleData, publishedFiles } from '../character/vite-plugin.mjs';
+import {
+  brandLockModelDir,
+  DEFAULT_PACK_DIR,
+  DEFAULT_PACK_STATIC_ART,
+  selectedPackDir,
+} from '../character/paths.mjs';
+import { packModuleData, publishedFiles, staticArtModule } from '../character/vite-plugin.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..', '..');
 
@@ -111,6 +116,25 @@ describe('pack selection and build data', () => {
       lastUpdated: '2026-10-13T00:00:00Z',
       version: '3.0.0',
     });
+  });
+
+  it('the svg renderer’s static art belongs to the selected pack only (#193)', async () => {
+    // 静态包：它自己的立绘
+    const dummyDir = join(root, 'characters/test-dummy');
+    const { pack: dummy } = await loadPack(dummyDir);
+    expect(staticArtModule(dummyDir, dummy)).toBe(
+      'export default "./character/static/character.webp";\n',
+    );
+    // 官方包：它的 SVG 立绘（单独的资源）
+    const { pack: official } = await loadPack(DEFAULT_PACK_DIR);
+    expect(existsSync(DEFAULT_PACK_STATIC_ART)).toBe(true);
+    expect(staticArtModule(DEFAULT_PACK_DIR, official)).toBe(
+      `export { default } from ${JSON.stringify(`${DEFAULT_PACK_STATIC_ART.split(sep).join('/')}?url`)};\n`,
+    );
+    // 其它没有静态立绘的包（这里是官方包的内容放在别的目录）：没有，按包自己的模式渲染
+    expect(staticArtModule(join(root, 'characters/other'), official)).toBe(
+      'export default null;\n',
+    );
   });
 
   it('the official pack declares no hitboxes (Rive touch uses the geometry heuristic)', async () => {
