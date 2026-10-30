@@ -410,10 +410,19 @@ func main() {
 			}
 			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
 		},
-		// = nomiHostIpc dropFile：只认看板娘窗口，和 Electron 一样只取第一个文件
 		OnFilesDropped: func(k shell.WindowKind, paths []string) {
-			if k == shell.Mascot {
+			switch k {
+			case shell.Mascot:
+				// = nomiHostIpc dropFile：只认看板娘窗口，和 Electron 一样只取第一个文件
 				desktopSvc.DropFile("mascot", paths[0])
+			case shell.Chat:
+				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）
+				if x, ok := sh.(interface {
+					ExecJS(shell.WindowKind, string)
+				}); ok {
+					b, _ := json.Marshal(paths)
+					x.ExecJS(shell.Chat, "window.dispatchEvent(new CustomEvent('nomi:host-files',{detail:"+string(b)+"}))")
+				}
 			}
 		},
 		ModelSettingsLabel: i18n.T("electron.common.model-settings"),

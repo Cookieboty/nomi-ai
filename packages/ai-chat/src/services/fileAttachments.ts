@@ -25,7 +25,7 @@ const TAG = 'attached-file';
 const newId = () => `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 /** 非本地文件（如网页拖来的内容）没有路径 */
-const pathOf = (f: File): string => hostPathForFile(f);
+const pathOf = (f: File): Promise<string> => hostPathForFile(f);
 
 /** 能按 UTF-8 解码且不含 NUL 的才算文本 */
 async function readText(f: File): Promise<string | undefined> {
@@ -41,8 +41,7 @@ async function readText(f: File): Promise<string | undefined> {
 
 /** 既没路径也读不出文本的文件（浏览器里拖入的二进制）发了也没用，返回 null */
 export async function fileAttachmentFrom(f: File): Promise<FileAttachment | null> {
-  const path = pathOf(f);
-  const text = await readText(f);
+  const [path, text] = await Promise.all([pathOf(f), readText(f)]);
   if (!path && text === undefined) return null;
   return { id: newId(), name: f.name, path, size: f.size, ...(text !== undefined && { text }) };
 }

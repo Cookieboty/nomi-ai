@@ -104,9 +104,69 @@ interface NomiHost {
   pathForFile(file: File): string;
 }
 
-/** 真实 File → 本机绝对路径；浏览器预览 / 测试里没有桥，或文件不在本地（网页拖来的内容）时为空串 */
-export function hostPathForFile(file: File): string {
+/**
+ * Go 宿主：Wails 没有 preload，路径来自原生拖放事件——宿主收到 WindowFilesDropped 后往页面派发
+ * `nomi:host-files`（detail = 路径数组），这里按文件名配对。DOM 的 drop 与原生回调谁先到不固定，所以先缓存、取时稍等
+ */
+const HOST_FILES_EVENT = 'nomi:host-files';
+const HOST_FILES_TTL_MS = 5_000;
+const HOST_FILES_WAIT_MS = 500;
+let hostDropped: { path: string; at: number }[] = [];
+const hostDropWaiters = new Set<() => void>();
+if (goHostTransport) {
+  // 拖放目标：Wails 只把落在 data-file-drop-target 元素上的文件交给宿主
+  const mark = () => document.body?.setAttribute('data-file-drop-target', '');
+  if (document.body) mark();
+  else document.addEventListener('DOMContentLoaded', mark, { once: true });
+  window.addEventListener(HOST_FILES_EVENT, (e) => {
+    const paths = (e as CustomEvent<unknown>).detail;
+    if (!Array.isArray(paths)) return;
+    const now = Date.now();
+    hostDropped = [
+      ...hostDropped.filter((d) => now - d.at < HOST_FILES_TTL_MS),
+      ...paths.filter((p): p is string => typeof p === 'string').map((path) => ({ path, at: now })),
+    ];
+    for (const w of [...hostDropWaiters]) w();
+  });
+}
+
+const baseName = (p: string) => p.split(/[\\/]/).pop() ?? '';
+
+/** 取出（并消费）一个文件名相同、还没过期的宿主路径 */
+function takeHostDropped(name: string): string {
+  const now = Date.now();
+  const i = hostDropped.findIndex(
+    (d) => now - d.at < HOST_FILES_TTL_MS && baseName(d.path) === name,
+  );
+  if (i < 0) return '';
+  const [hit] = hostDropped.splice(i, 1);
+  return hit!.path;
+}
+
+/**
+ * 真实 File → 本机绝对路径；浏览器预览 / 测试里没有桥，或文件不在本地（网页拖来的内容）时为空串。
+ * Go 宿主只有拖入的文件有路径（粘贴的文件 WebKit 不给路径）
+ */
+export async function hostPathForFile(file: File): Promise<string> {
   if (typeof window === 'undefined') return '';
+  if (goHostTransport) {
+    const hit = takeHostDropped(file.name);
+    if (hit) return hit;
+    return new Promise<string>((resolve) => {
+      const done = () => {
+        const p = takeHostDropped(file.name);
+        if (!p) return;
+        hostDropWaiters.delete(done);
+        clearTimeout(timer);
+        resolve(p);
+      };
+      const timer = setTimeout(() => {
+        hostDropWaiters.delete(done);
+        resolve('');
+      }, HOST_FILES_WAIT_MS);
+      hostDropWaiters.add(done);
+    });
+  }
   const host = (window as unknown as Record<string, NomiHost | undefined>)[NOMI_HOST_GLOBAL];
   try {
     return host?.pathForFile(file) ?? '';

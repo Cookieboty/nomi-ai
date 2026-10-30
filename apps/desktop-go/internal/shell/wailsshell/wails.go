@@ -28,7 +28,8 @@ type Config struct {
 	Fragment url.Values
 	// Pages：各窗口的页面路径（资产服务器上，如 /mascot/index.html）
 	Pages map[shell.WindowKind]string
-	// OnFilesDropped：从系统拖到看板娘窗口（data-file-drop-target 元素）上的文件路径（= preload nomiHost.dropFile）
+	// OnFilesDropped：从系统拖到看板娘 / 对话窗口（data-file-drop-target 元素）上的文件路径
+	// （= preload nomiHost.dropFile / pathForFile）
 	OnFilesDropped func(k shell.WindowKind, paths []string)
 	// MascotSize 返回看板娘窗口初始大小（按保存的缩放，夹到主屏工作区 = maxScaleForArea）；nil 时用 330×355
 	MascotSize func(work *shell.Rect) (int, int)
@@ -255,7 +256,9 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 1120, Height: 820,
 			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: w.page(k),
-			Mac: application.MacWindow{TitleBar: application.MacTitleBarHidden}}
+			// 拖入文件取本机路径（= preload nomiHost.pathForFile；ai-chat 给 body 加 data-file-drop-target）
+			EnableFileDrop: w.cfg.OnFilesDropped != nil,
+			Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden}}
 		if at == nil {
 			// 应用已起来（通常如此：对话窗口按需打开）：位置大小直接放进建窗选项。mac 上全尺寸内容的窗口建好后再
 			// SetBounds 改大小，WKWebView 不重新布局（整页空白），所以不能事后摆
