@@ -421,7 +421,7 @@ interface CallerContext {
 }
 ```
 
-- **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。token 是挡住本机其他进程的唯一凭据（本机进程可以伪造 Origin / Host），所以它不进任何本机进程都能请求的页面 HTML：dev:web 只把地址注入页面，token 放在打印给开发者的地址片段 `#nomi-token=…` 里（片段不发给服务器），页面读到后存 sessionStorage 并用 `history.replaceState` 从地址栏抹掉。
+- **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。token 是挡住本机其他进程的唯一凭据（本机进程可以伪造 Origin / Host），所以它不进任何本机进程都能请求的页面 HTML：dev:web 只把地址注入页面，token 放在打印给开发者的地址片段 `#nomi-token=…` 里（片段不发给服务器），页面读到后存 sessionStorage 并用 `history.replaceState` 从地址栏抹掉。Go 宿主（`apps/desktop-go`）给每个窗口发一份 token、在服务端记 token → 界面，caller 的界面按 token 定，子协议里自报的界面只用来核对（不符即拒绝握手），窗口关闭时撤销。
 - **router 中间件负责判定**：契约里每个过程可以声明 `surfaces: ['chat']`；`dangerous: true` 的过程只接受 `trusted` 调用者，必要时要求视图内确认。
 - **事件也按界面限定**：契约的 `eventSurfaces` 列出只给某些界面的事件（确认请求、气泡、光标只给诺米；编程助手会话、拖入总结、面板导航只给对话窗口），传输层在订阅时按调用者的界面过滤，其它界面的订阅被忽略。服务 `events.publish` 时写的 `surface` 只是意图，不决定投递。
 - preload 只暴露 `window.nomiTransport` 与 `window.nomiHost` 两个对象，暴露面比现在更小。
