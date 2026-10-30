@@ -130,7 +130,7 @@ describe('aggregateTurnChanges / tree / undo', () => {
   it('builds nested file tree and path display', () => {
     const entries = [
       {
-        file: 'apps/desktop-electron/src/a.ts',
+        file: 'packages/host-electron/src/a.ts',
         added: 1,
         removed: 0,
         status: 'modified' as const,
@@ -138,7 +138,7 @@ describe('aggregateTurnChanges / tree / undo', () => {
         messageId: 'm',
       },
       {
-        file: 'apps/desktop-electron/src/b.ts',
+        file: 'packages/host-electron/src/b.ts',
         added: 2,
         removed: 1,
         status: 'modified' as const,
