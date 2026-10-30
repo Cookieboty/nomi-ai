@@ -1048,10 +1048,9 @@ func (o *Orchestrator) GitStageIn(cwd, paths any) *util.Obj {
 func (o *Orchestrator) GitUnstageIn(cwd, paths any) *util.Obj {
 	return cli.GitUnstage(o.KnownDir(cwd), paths)
 }
+
+// GitCommitIn：paths 为 null / 缺省 = 只提交已暂存的（界面有已暂存内容时传 null），原样交给 GitCommit
 func (o *Orchestrator) GitCommitIn(cwd, message, paths any) *util.Obj {
-	if paths == nil {
-		paths = util.Undefined
-	}
 	return cli.GitCommit(o.KnownDir(cwd), message, paths)
 }
 func (o *Orchestrator) GitCommitUndoIn(cwd, sha any) *util.Obj {
