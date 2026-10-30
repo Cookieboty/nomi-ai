@@ -353,6 +353,9 @@ describe('ModelsPage', () => {
       target: { value: 'https://relay.example.com/v1' },
     });
     fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-xyz' } });
+    fireEvent.change(screen.getByTestId('models-provider-name'), {
+      target: { value: ' My Relay ' },
+    });
     expect(screen.getByTestId('models-provider-test-model')).toBeTruthy();
     fireEvent.change(screen.getByTestId('models-provider-test-model'), {
       target: { value: 'my-synth-model' },
@@ -362,6 +365,7 @@ describe('ModelsPage', () => {
     const detect = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
     expect(detect.fallbackModel).toBe('my-synth-model');
     expect(upserts(m)[0]!.models.map((x) => x.id)).toContain('my-synth-model');
+    expect(upserts(m)[0]!.name).toBe('My Relay');
   });
 
   it('custom address with empty /models and no test model shows an actionable error (#161)', async () => {

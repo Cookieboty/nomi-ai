@@ -155,6 +155,7 @@
   "ui.models.switching-restarts-this-tab-s-assistant": "切换后从下一条消息起重启这个标签的助手，对话保留",
   "ui.models.sync-now": "立即同步",
   "ui.models.sync-on-startup": "启动时自动同步（距上次核对超过 12 小时）",
+  "ui.models.provider-name-optional": "名称（可选）",
   "ui.models.test-model-optional": "测试模型（可选）",
   "ui.models.temporarily-unavailable": "{0} 暂时不可用：{1}",
   "ui.models.terminal-commands": "终端启动命令",

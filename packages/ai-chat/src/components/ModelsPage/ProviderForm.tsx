@@ -47,6 +47,8 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
   const [preset, setPreset] = useState<ProviderPreset | null | undefined>(undefined);
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
+  /** 自定义地址的显示名；空着用「自定义供应商」 */
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reasons, setReasons] = useState<string[]>([]);
@@ -136,7 +138,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       const saved = await saveDetectedProvider({
         result,
         preset,
-        name: preset?.name ?? '',
+        name: preset?.name ?? name,
         keys,
         models: rows,
         enabled: defaultEnabled(rows),
@@ -145,6 +147,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       setPreset(undefined);
       setKey('');
       setUrl('');
+      setName('');
       setTestModel('');
       onSaved(saved);
     } catch (e) {
@@ -194,6 +197,17 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
               placeholder="https://api.example.com/v1"
               aria-label={t('ui.models.address')}
               onChange={(e) => setUrl(e.target.value)}
+            />
+          )}
+          {custom && (
+            <input
+              className={styles.input}
+              data-testid={`${idPrefix}-provider-name`}
+              value={name}
+              placeholder={t('ui.models.provider-name-optional')}
+              aria-label={t('ui.models.provider-name-optional')}
+              maxLength={64}
+              onChange={(e) => setName(e.target.value)}
             />
           )}
           {needsKey ? (

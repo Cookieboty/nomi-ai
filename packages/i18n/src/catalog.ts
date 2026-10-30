@@ -2437,6 +2437,7 @@ export type TranslationKey =
   | 'ui.models.switching-restarts-this-tab-s-assistant'
   | 'ui.models.sync-now'
   | 'ui.models.sync-on-startup'
+  | 'ui.models.provider-name-optional'
   | 'ui.models.test-model-optional'
   | 'ui.models.temporarily-unavailable'
   | 'ui.models.terminal-commands'
