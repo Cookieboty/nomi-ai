@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -51,6 +52,14 @@ func (p hostPorts) OpenPath(path string) string {
 		return w.OpenPath(path)
 	}
 	return "no shell"
+}
+
+// OpenExternal = ports.shell.openExternal
+func (p hostPorts) OpenExternal(url string) error {
+	if w := p.w(); w != nil {
+		return w.OpenExternal(url)
+	}
+	return errors.New("no shell")
 }
 
 func (p hostPorts) ShowItemInFolder(path string) {

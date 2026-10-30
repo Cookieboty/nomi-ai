@@ -53,6 +53,9 @@ func (w *Wails) OpenPath(p string) string {
 	return ""
 }
 
+// OpenExternal = shell.openExternal（系统默认浏览器打开网址）
+func (w *Wails) OpenExternal(url string) error { return w.app.Browser.OpenURL(url) }
+
 // ShowItemInFolder = shell.showItemInFolder
 func (w *Wails) ShowItemInFolder(p string) { _ = w.app.Env.OpenFileManager(p, true) }
 

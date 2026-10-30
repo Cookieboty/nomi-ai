@@ -143,9 +143,32 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		harnessAccounts = a  // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
 	})
 	var accPort ports.HarnessOfficialAccounts
+	// AccountLogin（createCore.ts new AccountLogin：emit = loginBroadcaster → cliAccount.login）
+	var login *accounts.AccountLogin
 	if acc != nil {
 		accPort = accounts.HarnessAdapter{S: acc}
+		login = accounts.NewAccountLogin(accounts.LoginDeps{
+			Accounts:     acc,
+			Emit:         func(e *util.Obj) { router.Emit("cliAccount.login", e) },
+			OpenExternal: hp.OpenExternal,
+			Logger:       deps.StdLogger{Prefix: "[cli-accounts]"},
+		})
 	}
+	// cliAccount.*（coding.ts 的 cliAccount 段）
+	codinghandlers.RegisterAccounts(router, codinghandlers.AccountServices{
+		Accounts: func() codinghandlers.Accounts {
+			if acc == nil {
+				return nil
+			}
+			return acc
+		},
+		Login: func() codinghandlers.AccountLogin {
+			if login == nil {
+				return nil
+			}
+			return login
+		},
+	})
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
 			Externals: externals{plugins}, Accounts: accPort,
@@ -162,7 +185,15 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	jsrt.Go(func() { plugins.Start() })
-	return plugins, func() { jsrt.Run(func() { o.Dispose() }) }
+	return plugins, func() {
+		jsrt.Run(func() {
+			// lifecycle 'cli-account-login'：退出时结束还在进行的登录
+			if login != nil {
+				login.Dispose()
+			}
+			o.Dispose()
+		})
+	}
 }
 
 // gatewayPort：nil 网关 = Node 未传 gateway（可选依赖）
