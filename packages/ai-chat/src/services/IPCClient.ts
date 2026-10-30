@@ -212,9 +212,17 @@ export class SdkIPCClient implements IPCClient {
     const reqId = streamOpts?.reqId;
     const signal = streamOpts?.signal;
     try {
-      const conversationId = this.currentConversationId();
+      const fixed = streamOpts?.conversation;
+      const conversationId = fixed ? fixed.id : this.currentConversationId();
+      // 固定会话在准备期间被删了：不发送，更不能落到别的会话上
+      if (fixed?.id && !this.store.get(fixed.id))
+        throw new Error(t('ui.chat-settings.conversation-deleted-message-not-sent'));
       // Nomi 对话的工作区：内核校验后才生效（文件 / 命令工具与委派的编程助手都限在这里）
-      const cwd = conversationId ? this.store.get(conversationId)?.cwd : undefined;
+      const cwd = fixed
+        ? fixed.cwd
+        : conversationId
+          ? this.store.get(conversationId)?.cwd
+          : undefined;
       const opts = {
         messages: await this.buildMessages(message, history, extraSystem, images),
         ...(reqId ? { reqId } : {}),

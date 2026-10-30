@@ -465,5 +465,6 @@
   "ui.chat-settings.folder-access-request": "Folder access request",
   "ui.chat-settings.grant-folder": "Grant",
   "ui.chat-settings.choose-another-folder": "Choose another folder…",
-  "ui.chat-settings.suggested-folder-cannot-be-granted": "The suggested location can't be granted directly (missing, not a folder, or too broad). Please choose one yourself."
+  "ui.chat-settings.suggested-folder-cannot-be-granted": "The suggested location can't be granted directly (missing, not a folder, or too broad). Please choose one yourself.",
+  "ui.chat-settings.conversation-deleted-message-not-sent": "This conversation was deleted, so the message was not sent"
 }

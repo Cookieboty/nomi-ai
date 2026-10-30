@@ -18,6 +18,12 @@ export interface StreamSendOptions {
   onTrace?: (event: HarnessTraceEvent) => void;
   /** 本轮 token 用量（上游返回时） */
   onUsage?: (usage: StreamUsage) => void;
+  /**
+   * 这一轮所属的会话与工作区，发起时（openTurn）就固定下来。给了就只用它，不再读「当前会话」：
+   * 发送前的准备（压缩 / 记忆召回等）期间用户可能切到别的会话，请求不能带上那个会话的 id 与工作区。
+   * 会话已被删除则拒绝发送。缺省时沿用当前会话（旧调用方）。
+   */
+  conversation?: { id: string | undefined; cwd?: string };
 }
 
 export interface IPCClient {

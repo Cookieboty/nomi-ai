@@ -68,6 +68,7 @@ describe('compaction helpers', () => {
 describe('compactHistory', () => {
   const turn = (saved: ChatMessage[]): ConversationTurn => ({
     convoId: 'c',
+    cwd: undefined,
     isActive: () => true,
     exists: () => true,
     save: async (m) => void saved.push(m),
