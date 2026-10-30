@@ -535,6 +535,10 @@ func (b *PermissionBroker) scopeCandidate(p string) string {
 
 // ask：发出确认请求并等答复（超时 / 发起方取消都会收起界面上的请求）；返回 decision、remember 与发出的请求
 func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (string, bool, ConfirmRequest) {
+	// 发起方在登记之前就取消了（例如停止发生在 RequestScope 的目录校验期间）：不发卡片，直接拒绝（#203）
+	if signal != nil && signal.Err() != nil {
+		return "denied", false, req
+	}
 	req.ID = randomUUID()
 	req.ExpiresAt = b.nowFn() + float64(b.timeout.Milliseconds())
 	pc := &pendingConfirm{req: req, done: make(chan [2]any, 1)}

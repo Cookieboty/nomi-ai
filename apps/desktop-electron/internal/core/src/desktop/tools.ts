@@ -518,6 +518,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             ? await deps.requestFolder(i.suggestedPath, i.mode, i.reason, ctx.signal)
             : await deps.pickFolder(i.suggestedPath);
           if (!picked) throw new ToolError('user_denied', '用户取消了授权');
+          // 等授权期间这一轮被停止了：不再写入授权（#203）
+          if (ctx.signal?.aborted) throw new ToolError('aborted', '授权请求已随对话停止而取消');
           const s = broker.grant(picked, i.mode);
           return { data: { path: s.path, mode: s.mode }, decision: 'allowed' as const };
         });

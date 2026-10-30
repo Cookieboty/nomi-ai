@@ -166,3 +166,25 @@ func TestRequestFolder(t *testing.T) {
 		t.Fatalf("closed chat: %q %v", p, c.picks)
 	}
 }
+
+// #203：停止发生在目录校验期间（登记确认之前）：不发卡片，按拒绝返回，不授权
+func TestRequestFolderStoppedBeforeCard(t *testing.T) {
+	e := newRouteEnv(t, true, false)
+	dir := filepath.Join(e.home, "proj")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if p := e.s.RequestFolder(ctx, dir, "read-write", "need the repo"); p != "" {
+		t.Fatalf("stopped request granted %q", p)
+	}
+	if n := len(e.requests(t, "chat", 0)); n != 0 {
+		t.Fatalf("stopped request still raised %d card(s)", n)
+	}
+	for _, s := range e.s.Broker.Scopes() {
+		if s.Path == dir {
+			t.Fatalf("stopped request granted the folder")
+		}
+	}
+}

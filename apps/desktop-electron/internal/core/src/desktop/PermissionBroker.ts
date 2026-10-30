@@ -424,6 +424,12 @@ export class PermissionBroker {
       expiresAt: this.now() + timeoutMs,
     };
     return new Promise<{ decision: Decision | 'pick'; remember: boolean }>((resolve) => {
+      // 发起方在登记之前就取消了（例如停止发生在 requestScope 的异步目录校验期间）：不弹卡片，直接拒绝。
+      // 下面的 abort 监听只管登记之后的取消（#203）
+      if (signal?.aborted) {
+        resolve({ decision: 'denied', remember: false });
+        return;
+      }
       const timer = setTimeout(() => {
         this.pending.delete(req.id);
         this.ui?.cancel(req.id);
