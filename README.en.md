@@ -62,7 +62,7 @@ More UI shots live in [docs/screenshots](docs/screenshots/). Full feature docs: 
 
 Nomi is your AI work companion: a desktop AI workspace that connects models, coding agents and external tools — with an animated, talking Nomi on your desktop. Use the cloud models you already have, local models, or both.
 
-- **🧸 Desktop companion** — full-body Rive character with expressions and lip-sync; scalable, playful interactions, chat bubbles; drop a file on her for a quick summary
+- **🧸 Desktop companion** — full-body 2D character (Rive animation optional) with expressions and lip-sync; scalable, playful interactions, chat bubbles; drop a file on her for a quick summary
 - **💬 AI chat** — streaming replies, image Q&A, `/` commands and first-run onboarding; themes and chat backgrounds
 - **🧑‍💻 Coding agents** — Claude Code / Codex / Gemini / Grok / dsh in one window; permission modes; three-column workspace for diffs and changes (see [coding workspace](docs/features/coding-workspace.md))
 - **🔑 Multi-model** — presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Tongyi, Doubao, Ollama, and more; multi-key failover; keys stored in the OS keychain
@@ -130,7 +130,7 @@ Bugs and ideas → [GitHub Issues](https://github.com/Cookieboty/nomi-ai/issues)
 
 [MIT](LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Design credits (e.g. gateway): [CREDITS.md](CREDITS.md).
 
-Built on Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive, and other open-source projects.
+Built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive, and other open-source projects.
 
 ## Links
 

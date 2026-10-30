@@ -62,7 +62,7 @@
 
 Nomi·诺米 是你的 AI 工作伙伴：一个运行在你电脑上的桌面 AI 工作台，把模型、编程助手和外部工具接到一处；还有一位会动、会说话的 Nomi 陪在桌面上。云端大模型和本地模型都可以接。
 
-- **🧸 桌面伙伴** — 全身 Rive 角色，表情与口型同步；可缩放、拖拽互动、气泡回复；拖文件给她直接总结
+- **🧸 桌面伙伴** — 全身 2D 立绘（也可切换 Rive 动画），表情与口型同步；可缩放、拖拽互动、气泡回复；拖文件给她直接总结
 - **💬 AI 对话** — 流式输出、图片提问、`/` 命令与首次引导；主题与聊天背景可定制
 - **🧑‍💻 编程助手** — 一个窗口并行 Claude Code / Codex / Gemini / Grok / dsh；权限模式一键切换；三栏工作区看 Diff 与改动（详见 [编程工作台](docs/features/coding-workspace.md)）
 - **🔑 多模型** — OpenAI、Anthropic、DeepSeek、Kimi、智谱、通义、豆包、Ollama 等预设；多 Key 自动切换；密钥存系统钥匙串
@@ -130,7 +130,7 @@ pnpm package      # 打包到 dist/
 
 [MIT](LICENSE)。第三方组件清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；网关等设计参考致谢见 [CREDITS.md](CREDITS.md)。
 
-构建于 Electron、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上。
+构建于 Go、Wails、Electron、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上。
 
 ## 链接
 
