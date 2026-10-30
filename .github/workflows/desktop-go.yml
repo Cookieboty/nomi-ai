@@ -204,5 +204,15 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
-          MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
-          tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"
+          MUTATE_LOG_DIR=$RUNNER_TEMP/mutants MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 \
+            bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
+      - name: mutate-shell summary
+        if: always()
+        run: grep -E '^(mutants:|BLOCKED)' mutate-shell.log >> "$GITHUB_STEP_SUMMARY" || true
+      # 每个变异体（与基线）的完整 go test 输出：失败时判断是测试抓到、超时还是构建 / 环境问题（#205）
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mutate-shell-logs-${{ matrix.shard }}
+          path: ${{ runner.temp }}/mutants/
+          retention-days: 7
