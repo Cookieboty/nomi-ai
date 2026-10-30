@@ -9,6 +9,7 @@ import App from './App';
 import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
+import { runLegacyChatImport } from './services/legacyChatImport';
 
 const log = createLogger('main');
 
@@ -53,17 +54,36 @@ if (!hasHost) {
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
+/**
+ * 旧 Electron 对话（Go 版首启抽出，#181）要在会话存储第一次构造之前并进本窗口的 localStorage：
+ * 会话存储在 App 渲染时随 IPC 客户端构造，所以先导入再渲染。导入失败只记日志、照常渲染，下次启动再试
+ */
+async function importLegacyChats(): Promise<void> {
+  let storage: Storage;
+  try {
+    storage = window.localStorage;
+  } catch {
+    return;
+  }
+  if (!storage) return;
+  await runLegacyChatImport({ fetch: () => api.migration.chatHistory(), storage }).catch(
+    (error: unknown) => log.warn('导入旧对话失败', error),
+  );
+}
+
 if (hasHost) {
-  root.render(
-    <React.StrictMode>
-      <LocaleRoot
-        render={() => (
-          <AIProvider>
-            <App />
-          </AIProvider>
-        )}
-      />
-    </React.StrictMode>,
+  void importLegacyChats().finally(() =>
+    root.render(
+      <React.StrictMode>
+        <LocaleRoot
+          render={() => (
+            <AIProvider>
+              <App />
+            </AIProvider>
+          )}
+        />
+      </React.StrictMode>,
+    ),
   );
 } else {
   // 开发/预览模式下不构造 ClientAIClient，避免其在契约传输缺失时抛错

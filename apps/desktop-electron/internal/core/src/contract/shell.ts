@@ -147,5 +147,8 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'diagnostics.set': ({ on }) => diagnostics().set(on),
     'diagnostics.openFolder': () => diagnostics().openLogFolder(),
     'diagnostics.export': () => diagnostics().exportBundle(),
+
+    // Electron 版的对话本来就在这个窗口的 localStorage 里，没有要迁移的（Go 版见 internal/migrate）
+    'migration.chatHistory': () => ({ status: 'none', entries: {} }),
   };
 }

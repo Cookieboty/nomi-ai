@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/aichat"
@@ -45,9 +46,38 @@ type Result struct {
 	SecretsMigrated int      `json:"secretsMigrated"`
 	SecretsFailed   []string `json:"secretsFailed,omitempty"`
 	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（D-B11-12：放到桌面角色窗口出现之后）
-	SecretsPending    bool   `json:"secretsPending,omitempty"`
-	ChatKeysExtracted int    `json:"chatKeysExtracted"`
-	At                string `json:"at"`
+	SecretsPending    bool `json:"secretsPending,omitempty"`
+	ChatKeysExtracted int  `json:"chatKeysExtracted"`
+	// ChatExtractError：抽 Electron localStorage 失败的原因（空 = 没失败）；migration.chatHistory 会重试（#181）
+	ChatExtractError string `json:"chatExtractError,omitempty"`
+	At               string `json:"at"`
+}
+
+// markerMu：首启之后标记还会被两处改写（RunSecrets 在后台、ChatHistory 在对话窗口打开时），
+// 各自只改自己的字段，改之前在锁里重读一次，互不覆盖
+var markerMu sync.Mutex
+
+// updateMarker 在锁里读标记、改、写回；标记不在时返回 false
+func updateMarker(path string, fn func(*Result)) (Result, bool) {
+	markerMu.Lock()
+	defer markerMu.Unlock()
+	res, ok := loadMarker(path)
+	if !ok {
+		return res, false
+	}
+	fn(&res)
+	_ = writeMarker(path, res)
+	return res, true
+}
+
+func loadMarker(path string) (Result, bool) {
+	var res Result
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return res, false
+	}
+	_ = json.Unmarshal(raw, &res)
+	return res, true
 }
 
 // Run：RunFiles + RunSecrets（同步一次做完）。幂等。
@@ -72,9 +102,12 @@ func RunSecrets(goUserData string, box security.SecretBox, ss security.ElectronS
 	if !res.SecretsPending {
 		return res
 	}
-	res.SecretsMigrated, res.SecretsFailed = migrateSecrets(goUserData, box, ss)
-	res.SecretsPending = false
-	_ = writeMarker(marker, res)
+	migrated, failed := migrateSecrets(goUserData, box, ss)
+	if cur, ok := updateMarker(marker, func(r *Result) {
+		r.SecretsMigrated, r.SecretsFailed, r.SecretsPending = migrated, failed, false
+	}); ok {
+		res = cur
+	}
 	log.Printf("[migrate] secrets=%d failed=%v", res.SecretsMigrated, res.SecretsFailed)
 	return res
 }
@@ -113,7 +146,13 @@ func RunFiles(goUserData string) (Result, error) {
 	res.SecretsPending = true
 
 	// 聊天：从 Electron Local Storage LevelDB 抽 ai-chat:* 键
-	res.ChatKeysExtracted = aichat.ExtractLocalStorage(from, goUserData)
+	// 抽取失败不挡首启：记下原因，对话窗口取 migration.chatHistory 时再抽（#181）
+	if n, err := aichat.ExtractLocalStorage(from, goUserData); err != nil {
+		res.ChatExtractError = err.Error()
+		log.Printf("[migrate] chat history extract failed (will retry): %v", err)
+	} else {
+		res.ChatKeysExtracted = n
+	}
 
 	// Q5：升级用户也默认 SVG
 	st := settings.New(filepath.Join(goUserData, "settings.json"))

@@ -409,6 +409,7 @@ electron-updater 不能用。需自建：GitHub Releases 清单 + sha256/签名�
 - userData 路径：Electron 在 Mac `~/Library/Application Support/<productName>`、Win `%APPDATA%\<productName>`、Linux `~/.config/<productName>`；**已改（D10）**：Go 版目录名 `Nomi`，首启从 Electron 目录复制，不再共用同一目录；
 - safeStorage 密文（API Key 等 7 处）：Electron 用 Keychain 中 “<App> Safe Storage” 密钥 + AES（Mac/Linux）或 DPAPI（Win）。Go 可解（Mac 读 Keychain 项、Win `CryptUnprotectData`），首次启动解密后转存 go-keyring；失败则提示重填；
 - Electron 自身的 localStorage/IndexedDB（渲染进程存的数据）在 Chromium LevelDB 里，WebView 换了读不到——批次 3 需普查渲染进程是否有持久化在 localStorage 的东西，有则改走契约存储并一次性导出。
+  - 对话（`ai-chat:*`，#181）：首启 `aichat.ExtractLocalStorage` 把旧库复制到临时目录再读（原库不动），按来源取一份写到 `userData/ai-chat/localstorage-export.json`；对话窗口在会话存储第一次构造前调契约 `migration.chatHistory`（`none` / `ready` / `failed`，只在 chat 窗口），把键值幂等并进 WebView 的 localStorage（只补没有的会话与偏好，不覆盖 Go 版里的），成功或确认没有才写完成标记 `nomi:legacyChatImport`；抽取失败记在迁移标记的 `chatExtractError` 里，下次调用重抽；导入失败（如配额）回滚这次写的消息、不记完成，下次启动再试。Node 版恒为 `none`。
 - 迁移前做一次备份目录（`<userData>/backup-2.0.4/`）。
 
 ### 4.6 其它

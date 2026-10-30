@@ -17570,6 +17570,47 @@
     "additionalProperties": {}
    }
   },
+  "migration.chatHistory": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "none",
+       "ready",
+       "failed"
+      ]
+     },
+     "entries": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "error": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "entries"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "nav.openVoiceSettings": {
    "kind": "mutation",
    "dangerous": false,

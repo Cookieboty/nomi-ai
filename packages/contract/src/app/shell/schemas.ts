@@ -470,3 +470,16 @@ export const AppIconState = loose({
   /** 每个变体的预览（data URL） */
   previews: z.record(z.string(), z.string()),
 });
+
+/**
+ * Go 版首启从 Electron 2.0.4 的 Chromium localStorage 抽出的 `ai-chat:*` 键（#181）：
+ * - `none`：没有可导入的（Node 版、全新安装、旧版本本来就没有会话）——视图可记为已完成；
+ * - `ready`：`entries` 是原样的键值（值是旧 localStorage 里的 JSON 字符串），视图幂等合并进自己的存储；
+ * - `failed`：抽取失败（`error` 说明原因），视图不能记为完成，下次启动再试（内核也会重新抽取）。
+ */
+export const ChatHistoryMigrationStatus = z.enum(['none', 'ready', 'failed']);
+export const ChatHistoryMigration = loose({
+  status: ChatHistoryMigrationStatus,
+  entries: z.record(z.string(), z.string()),
+  error: z.string().optional(),
+});
