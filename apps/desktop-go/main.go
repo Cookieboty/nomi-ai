@@ -1,7 +1,7 @@
 // Nomi 的 Go 版（Go 内核 + Wails v3 外壳），与 apps/desktop-electron 共用同一套视图。说明见 README.md，
 // 与 Electron 版的偏差见 docs/design/migrate-2.0.5-go.md。
 //
-//	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|renderer&v=svg|rive|quit）。
+//	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|island-test|renderer&v=svg|rive|quit）。
 //	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
 //	NOMI_DEV_VIEWS：开发态视图改由 Vite 开发服务器提供（pnpm dev:go 设置，见 internal/shell/devviews）。
 package main
@@ -125,26 +125,6 @@ func main() {
 		IsDark: func() bool { return false },
 	})
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
-	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
-		if sh == nil {
-			return false
-		}
-		fresh := !sh.Visible(shell.Island)
-		sh.Show(shell.Island)
-		// = pump(): __island.prepare + play（show 两步合一）；新建的窗口给页面留装载时间
-		if ex, ok := sh.(interface {
-			ExecJS(shell.WindowKind, string)
-		}); ok {
-			n, _ := json.Marshal(map[string]any{"kind": kind, "title": title, "body": body, "durationMs": durationMs})
-			js := "window.__island && window.__island.show(" + string(n) + ")"
-			if fresh {
-				time.AfterFunc(400*time.Millisecond, func() { ex.ExecJS(shell.Island, js) })
-			} else {
-				ex.ExecJS(shell.Island, js)
-			}
-		}
-		return true
-	}
 	isl.PrimaryDisplay = func() (island.Display, bool) {
 		pd, ok := sh.(interface {
 			PrimaryDisplay() (shell.Rect, shell.Rect, bool)
@@ -197,8 +177,19 @@ func main() {
 	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
 		dir, _ := ports.PickDir(title, button, def)
 		return dir
-	}, ClipboardRead: ports.ClipboardRead, ClipboardWrite: ports.ClipboardWrite}, router.EmitTo)
-	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
+	}, ClipboardRead: ports.ClipboardRead, ClipboardWrite: ports.ClipboardWrite,
+		// = electronPorts.notifications（系统通知；mac 开发态不在 .app 里时不可用，桌面服务退回岛 / 气泡）
+		NotifySupported: func() bool {
+			n, ok := sh.(shellNotifier)
+			return ok && n.NotifySupported()
+		},
+		ShowNotification: func(title, body string, onClick func()) {
+			if n, ok := sh.(shellNotifier); ok {
+				n.ShowNotification(title, body, onClick)
+			}
+		}}, router.EmitTo)
+	// = Application desktopWindows（看板娘窗口、对话窗口、临时召回、灵动岛）；外壳建好后才有窗口
+	desktopSvc.AttachWindows(desktopWindows(&sh, bundle.Startup, isl))
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
 	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
@@ -445,6 +436,15 @@ func main() {
 			}
 			_ = bundle.Config.UpdateConfig(map[string]any{"chatWindowBounds": v})
 		},
+		// 灵动岛页面的收起 / 点击信号（islandPageMiddleware 插入的桥）
+		OnPageMessage: func(msg string) {
+			switch msg {
+			case "nomi:island:hidden":
+				isl.Hidden()
+			case "nomi:island:open":
+				isl.Opened()
+			}
+		},
 		OnFilesDropped: func(k shell.WindowKind, paths []string) {
 			switch k {
 			case shell.Mascot:
@@ -481,6 +481,7 @@ func main() {
 		}))))})
 
 	shellP.AttachShell()
+	isl.SetHost(islandHost(sh, desktopSvc))
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -497,6 +498,8 @@ func main() {
 				sh.Show(shell.Mascot)
 			case "show-island":
 				sh.Show(shell.Island)
+			case "island-test": // = island.test（设置页「测试」）：走完整的通知管线
+				isl.Test("Nomi", i18n.T("electron.common.this-is-what-an-island-notification-looks-like"))
 			case "hide-mascot":
 				sh.Destroy(shell.Mascot)
 			case "renderer": // 测量用：等同 mascot.setRenderer（写设置 + 广播）
@@ -641,7 +644,7 @@ func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Hand
 				g = island.IslandGeometry("", island.Display{}, "pill")
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(island.IslandHTML(g)))
+			_, _ = w.Write([]byte(strings.Replace(island.IslandHTML(g), "</body>", islandBridge+"</body>", 1)))
 		})
 	}
 }
@@ -668,4 +671,103 @@ func firstWindowShown() <-chan struct{} {
 		close(out)
 	}()
 	return out
+}
+
+// islandBridge：灵动岛页面（Electron 版逐字移植）收起时设 document.title = 'hidden:…'、点击时设 location.hash =
+// '#open-…'，Electron 靠 page-title-updated / did-navigate-in-page 收到；Wails 没有这两个事件，这里转成消息。
+// 插在 </body> 前，执行时页面自己的脚本已经跑完
+const islandBridge = `<script>(() => {
+  const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
+  let last = document.title;
+  new MutationObserver(() => {
+    const t = document.title;
+    if (t !== last && t.startsWith('hidden:')) post('nomi:island:hidden');
+    last = t;
+  }).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+  addEventListener('hashchange', () => { if (/^#open-/.test(location.hash)) post('nomi:island:open'); });
+  // Wails 的 ExecJS 要等页面报 wails:runtime:ready 才执行（平时由 /wails/runtime.js 发）；岛页面的 CSP 是
+  // default-src 'none'，不加载运行时，这里在页面脚本（__island）就绪后自己报，否则 show 永远排在队列里
+  post('wails:runtime:ready');
+})();</script>`
+
+// shellNotifier：外壳的系统通知（wailsshell notify.go）
+type shellNotifier interface {
+	NotifySupported() bool
+	ShowNotification(title, body string, onClick func())
+}
+
+// islandHost = IslandService 的窗口操作：显示 / 隐藏 / 释放岛窗口，点击打开对话，免打扰来自日程
+func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
+	execJS, _ := sh.(interface {
+		ExecJS(shell.WindowKind, string)
+	})
+	hider, _ := sh.(interface{ Hide(shell.WindowKind) })
+	return island.Host{
+		// = ensureWindow（await loadURL）+ prepare / showInactive / play（页面的 show 两步合一）：
+		// 新建的窗口等页面加载完再填内容，否则调用落空、岛一直是空的
+		Present: func(n island.Notice) error {
+			loader, ok := sh.(interface {
+				ShowOnceLoaded(shell.WindowKind) func(func())
+			})
+			if execJS == nil || !ok {
+				return errors.New("no ExecJS")
+			}
+			b, _ := json.Marshal(n)
+			run := func() { execJS.ExecJS(shell.Island, "window.__island && window.__island.show("+string(b)+")") }
+			if after := loader.ShowOnceLoaded(shell.Island); after != nil {
+				after(run)
+			} else {
+				run()
+			}
+			return nil
+		},
+		Hide: func() {
+			if hider != nil {
+				hider.Hide(shell.Island)
+			}
+		},
+		Destroy:  func() { sh.Destroy(shell.Island) },
+		OpenChat: func() { sh.Show(shell.Chat) },
+		IsQuiet:  func() bool { return desktopSvc.NotifyPolicy != nil && desktopSvc.NotifyPolicy.Quiet() },
+		Warn:     func(msg string, err error) { log.Printf("[island] %s: %v", msg, err) },
+	}
+}
+
+// desktopWindows = Application 的 desktopWindows：main = 看板娘窗口；mascotHidden = startup.showMascot 关闭；
+// summon / release = 看板娘关着时临时建出窗口（桌面工具确认框需要宿主），用完仍是关闭状态就再释放
+func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) *desktop.Windows {
+	var summoned atomic.Bool
+	sh := func() shell.Shell { return *shp }
+	return &desktop.Windows{
+		Main: func() bool { return sh() != nil && sh().Visible(shell.Mascot) },
+		IsVisible: func() bool {
+			if g, ok := sh().(interface {
+				Shown(shell.WindowKind) (bool, bool)
+			}); ok {
+				v, _ := g.Shown(shell.Mascot)
+				return v
+			}
+			return sh().Visible(shell.Mascot)
+		},
+		ShowInactive: func() { sh().Show(shell.Mascot) },
+		OpenChat:     func() { sh().Show(shell.Chat) },
+		MascotHidden: func() bool { return !st.Get().ShowMascot },
+		SummonMascot: func() {
+			if sh().Visible(shell.Mascot) {
+				sh().Show(shell.Mascot)
+				return
+			}
+			summoned.Store(true)
+			sh().Show(shell.Mascot)
+		},
+		ReleaseMascot: func() {
+			if summoned.CompareAndSwap(true, false) && !st.Get().ShowMascot {
+				sh().Destroy(shell.Mascot)
+			}
+		},
+		Island: func(n desktop.IslandNotice) bool {
+			return isl.Notify(island.Notice{Kind: n.Kind, Title: n.Title, Body: n.Body, DurationMs: n.DurationMs,
+				Endpoint: n.Endpoint, Status: n.Status}, false)
+		},
+	}
 }

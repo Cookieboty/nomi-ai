@@ -1,4 +1,4 @@
-// Package island 对应 apps/desktop-electron/src/island/IslandService.ts 的设置部分（get/set/test）。
+// Package island 对应 apps/desktop-electron/src/island/IslandService.ts：设置（get / set）与通知管线（notify.go）。
 package island
 
 import (
@@ -80,8 +80,10 @@ type Service struct {
 	file     string
 	platform string
 	s        Settings
-	// Notify 弹一条通知（test 用）；返回是否显示
-	Notify func(kind, title, body string, durationMs int, force bool) bool
+	// 通知管线（notify.go）：宿主能力、排队中的通知、是否正在显示
+	host    Host
+	queue   []Notice
+	showing bool
 	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill（= Node 的 try/catch 退化）
 	PrimaryDisplay func() (Display, bool)
 }
@@ -115,7 +117,16 @@ func toMap(v any) map[string]any {
 	return m
 }
 
+// Set = set(patch)：合并、校正、落盘；关掉开关时释放岛窗口
 func (s *Service) Set(patch map[string]any) (Settings, error) {
+	st, err := s.set(patch)
+	if !st.Enabled {
+		s.destroyWindow()
+	}
+	return st, err
+}
+
+func (s *Service) set(patch map[string]any) (Settings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	merged := toMap(s.s)
@@ -137,12 +148,6 @@ func (s *Service) Set(patch map[string]any) (Settings, error) {
 	return s.s, os.WriteFile(s.file, b, 0o644)
 }
 
-func (s *Service) Test(title, body string) bool {
-	if s.Notify == nil {
-		return false
-	}
-	return s.Notify("message", title, body, 4000, true)
-}
 
 // Layout = ensureWindow 里的 islandGeometry(platform, screen.getPrimaryDisplay(), settings.style)
 func (s *Service) Layout() (Geometry, bool) {

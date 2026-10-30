@@ -42,6 +42,8 @@ type Config struct {
 	// OnWindow：窗口生命周期（"created" 新建或重建完成且原生窗口已就位 / "closed" 当前窗口关闭 /
 	// "user-closed" 用户关掉了当前窗口（紧跟 closed） / "shown" show·restore / "moved" 窗口移动过）
 	OnWindow func(k shell.WindowKind, event string)
+	// OnPageMessage：页面经 Wails 消息通道发来的 nomi:* 信号（first-paint 与开发态日志除外）
+	OnPageMessage func(msg string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
 	Middleware func(http.Handler) http.Handler
 	// IslandLayout：灵动岛窗口矩形（islandWindowRect(g, g.height)，屏幕绝对坐标）与页面地址；nil/false 用占位页
@@ -65,6 +67,8 @@ type Wails struct {
 	pending []func()
 	// loads：窗口页面还在加载（= webContents.isLoading()）时，等 did-finish-load 的回调
 	loads map[*application.WebviewWindow]*pageLoad
+	// notes：系统通知（notify.go）
+	notes *notifier
 }
 
 type pageLoad struct {
@@ -73,9 +77,11 @@ type pageLoad struct {
 }
 
 func New(cfg Config) *Wails {
-	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{}}
+	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{},
+		notes: newNotifier()}
 	w.app = application.New(application.Options{
-		Name: "Nomi",
+		Name:     "Nomi",
+		Services: w.notes.services(),
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
 		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
@@ -84,6 +90,13 @@ func New(cfg Config) *Wails {
 			// 开发态（devviews → viewpage）页面转来的 console 与报错
 			if rest, ok := strings.CutPrefix(msg, viewpage.LogPrefix); ok && win != nil {
 				log.Printf("[view %s] %s", win.Name(), rest)
+				return
+			}
+			// 页面发给宿主的信号（如灵动岛的 nomi:island:hidden / open，见 main.go islandPageMiddleware）
+			if strings.HasPrefix(msg, "nomi:") && msg != "nomi:first-paint" {
+				if cfg.OnPageMessage != nil {
+					go cfg.OnPageMessage(msg)
+				}
 				return
 			}
 			if msg != "nomi:first-paint" || win == nil {
@@ -514,6 +527,13 @@ func (w *Wails) Recreate(k shell.WindowKind) {
 		application.InvokeSync(func() { old.Close() })
 		log.Printf("[shell] %s recreated", k)
 	})
+}
+
+// Hide 隐藏窗口但不销毁（= BrowserWindow.hide()）
+func (w *Wails) Hide(k shell.WindowKind) {
+	if win := w.win(k); win != nil {
+		win.Hide()
+	}
 }
 
 func (w *Wails) Destroy(k shell.WindowKind) {
