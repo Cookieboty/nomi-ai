@@ -66,6 +66,8 @@ func Install(d Deps) *Bundle {
 	})
 	b.Onboarding.SetMascotPorts(onboarding.MascotPorts{Publish: r.Emit, LiveWindows: d.LiveWindows})
 
+	InstallMigration(r, d.UserData)
+
 	r.Call("theme.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return b.Theme.Get(), nil
 	})

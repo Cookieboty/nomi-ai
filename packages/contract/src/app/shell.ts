@@ -2,7 +2,8 @@
  * D2 · 应用外壳（docs/design/core-host-decoupling.md §12 P1b）。
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
- * 命名空间：theme、locale、startup、onboarding、providers、gateway、usage、quality、updates、diagnostics、appIcon（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * 命名空间：theme、locale、startup、onboarding、providers、gateway、usage、quality、updates、diagnostics、appIcon、
+ * migration（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:theme:*`、`ai:locale:*`（packages/ui 的 theme.ts / i18n.ts）、`ai:startup:*`、`ai:onboarding:*`
@@ -243,6 +244,18 @@ export const shellProcedures = {
     kind: 'mutation',
     input: z.object({ variant: z.string() }),
     output: S.IconVariant,
+    surfaces: CHAT,
+  },
+
+  // ---- migration（旧版本数据迁移；只在对话窗口）----
+  /**
+   * Go 版首启抽出的旧 Electron 对话（localStorage 的 `ai-chat:*`，#181）。只读、可重复调用：
+   * 视图在会话存储第一次构造前取一次、幂等合并并自己记完成标记；Node 版没有可迁移的，恒为 `none`。
+   */
+  'migration.chatHistory': {
+    kind: 'query',
+    input: v,
+    output: S.ChatHistoryMigration,
     surfaces: CHAT,
   },
 } as const satisfies ProcedureMap;

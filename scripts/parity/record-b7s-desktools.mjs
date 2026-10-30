@@ -244,6 +244,9 @@ for (const c of cases) {
     continue;
   }
   realCode = !!c.real;
+  // 用例可设「全部自动」与权限模式（缺省：关 / acceptEdits，与 broker 默认一致）
+  broker.autoApprove = () => c.autoApprove === true;
+  broker.permissionMode = () => c.mode ?? 'acceptEdits';
   answers = [...(c.answers ?? [])];
   confirms = [];
   says = [];

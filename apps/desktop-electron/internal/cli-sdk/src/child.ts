@@ -11,6 +11,8 @@ export interface ChildLike {
     readonly writable: boolean;
     write(chunk: string): boolean;
     end(): void;
+    /** 对端先退出时写入会异步报 EPIPE：必须有监听，否则成了进程级未捕获错误 */
+    on(event: 'error', fn: (e: Error) => void): unknown;
   };
   stdout: { on(event: 'data', fn: (c: Buffer | string) => void): unknown };
   stderr: { on(event: 'data', fn: (c: Buffer | string) => void): unknown };

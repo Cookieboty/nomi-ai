@@ -201,8 +201,10 @@ func sortByLenDesc(xs []string) {
 // SecretsOf is secretsOf(cfg).
 func SecretsOf(cfg *config.GatewayConfig) []string {
 	var out []string
-	for _, p := range cfg.Providers {
-		for _, k := range p.Keys {
+	// 按下标取，不按值拷贝 RuntimeProvider（同 privacy.KnownSecrets：拷贝会读 memo 指针，
+	// 与并发请求在 Memo() 里的写竞争）。
+	for i := range cfg.Providers {
+		for _, k := range cfg.Providers[i].Keys {
 			if k.Value != "" {
 				out = append(out, k.Value)
 			}

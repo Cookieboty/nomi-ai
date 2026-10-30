@@ -415,7 +415,7 @@ func main() {
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
-	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
+	ws := &contract.WSServer{Router: router, Origins: map[string]bool{
 		"wails://localhost": true, "wails://wails": true, "http://wails.localhost": true, "wails://wails.localhost": true,
 	}}
 	if err := ws.Start(); err != nil {
@@ -423,10 +423,27 @@ func main() {
 	}
 
 	assets, _ := fs.Sub(dist, "frontend/dist")
-	frag := url.Values{"ws": {ws.URL}, "token": {ws.Token}}
 	ctl := os.Getenv("NOMI_POC_CTL")
-	if ctl != "" {
-		frag.Set("ctl", ctl)
+	// 每个窗口（每次新建 / 重建）一份 token，绑定窗口的界面：内核按 token 认调用方，不信页面自报的界面；
+	// 窗口关闭时撤销。灵动岛页不连内核，不发 token
+	frag := func(k shell.WindowKind) (url.Values, func()) {
+		v := url.Values{}
+		if ctl != "" {
+			v.Set("ctl", ctl)
+		}
+		var surface string
+		switch k {
+		case shell.Mascot:
+			surface = "mascot"
+		case shell.Chat:
+			surface = "chat"
+		default:
+			return v, nil
+		}
+		token, revoke := ws.Issue(surface)
+		v.Set("ws", ws.URL)
+		v.Set("token", token)
+		return v, revoke
 	}
 	// 窗口生命周期：桌面角色控制器；用户关掉桌面角色窗口 = 退出（WindowManager mainWindow 'close' → requestQuit）；
 	// 用户关掉主界面且「关闭主界面时：退出 Nomi」= 退出（shouldQuitOnMainClose）

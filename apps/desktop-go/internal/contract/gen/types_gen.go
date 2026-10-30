@@ -1177,6 +1177,7 @@ type CharacterGetActivePackOutput struct {
 	Hitboxes          *CharacterGetActivePackOutputHitboxes               `json:"hitboxes"`
 	Rive              *CharacterGetActivePackOutputRive                   `json:"rive"`
 	Mapping           *CharacterGetActivePackOutputMapping                `json:"mapping,omitempty"`
+	Expressions       []string                                            `json:"expressions,omitempty"`
 	Locales           map[string]CharacterGetActivePackOutputLocalesValue `json:"locales,omitempty"`
 	Reason            *string                                             `json:"reason,omitempty"`
 }
@@ -4400,6 +4401,21 @@ type MemUpsertFactOutput struct {
 	Vec       *string                   `json:"vec,omitempty"`
 }
 
+// MigrationChatHistoryOutputStatus 枚举：none | ready | failed
+type MigrationChatHistoryOutputStatus = string
+
+const (
+	MigrationChatHistoryOutputStatusNone   MigrationChatHistoryOutputStatus = "none"
+	MigrationChatHistoryOutputStatusReady  MigrationChatHistoryOutputStatus = "ready"
+	MigrationChatHistoryOutputStatusFailed MigrationChatHistoryOutputStatus = "failed"
+)
+
+type MigrationChatHistoryOutput struct {
+	Status  MigrationChatHistoryOutputStatus `json:"status"`
+	Entries map[string]string                `json:"entries"`
+	Error   *string                          `json:"error,omitempty"`
+}
+
 // NavTakePendingOutputEvent 枚举：providers.openPanel | nav.desktopPanelRequested | nav.scheduleRequested | nav.voiceSettingsRequested
 type NavTakePendingOutputEvent = string
 
@@ -7469,6 +7485,10 @@ type MemUpdateEpisodeOutputT = MemUpdateEpisodeOutput
 // MemUpsertFactInputT 是 mem.upsertFact 的入参
 type MemUpsertFactInputT = MemUpsertFactInput
 type MemUpsertFactOutputT = MemUpsertFactOutput
+
+// MigrationChatHistoryInputT 是 migration.chatHistory 的入参
+type MigrationChatHistoryInputT = any
+type MigrationChatHistoryOutputT = MigrationChatHistoryOutput
 
 // NavOpenVoiceSettingsInputT 是 nav.openVoiceSettings 的入参
 type NavOpenVoiceSettingsInputT = any

@@ -11,6 +11,7 @@ import path from 'node:path';
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 import {
   allowTagOf,
+  readCatalogFile,
   setCatalogOverlay,
   type detect,
   type GatewayConfig,
@@ -20,6 +21,7 @@ import {
 
 import { GatewayProcess } from '../../../src/gateway/GatewayProcess';
 import { GatewayService } from '../../../src/gateway/GatewayService';
+import { writePrivateFileAtomicAsync } from '../../../src/utils/privateFile';
 
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 const cipher: SecretCipher = {
@@ -879,6 +881,180 @@ describe('GatewayService', () => {
     const again = make();
     expect(again.modelMetaOf('relay/acme/sync-model-7')?.ctx).toBe(333_000);
     setCatalogOverlay(null);
+  });
+
+  describe('models data sync ordering (#185): the worker is told only after the file landed', () => {
+    const api = (n: number, ctx: number) => ({
+      openai: {
+        models: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [
+            `order-model-${i}`,
+            { id: `order-model-${i}`, limit: { context: ctx, output: 9_000 } },
+          ]),
+        ),
+      },
+    });
+    const flush = () => new Promise((r) => setImmediate(r));
+
+    /** 可控的异步写：每次写都挂起，由测试决定何时落盘 / 失败 */
+    function delayedWriter() {
+      const pending: Array<{ data: string; land: () => void; fail: (e: Error) => void }> = [];
+      const write = (file: string, data: string) =>
+        new Promise<void>((resolve, reject) => {
+          const entry = {
+            data,
+            land: () => {
+              fs.writeFileSync(file, entry.data);
+              resolve();
+            },
+            fail: reject,
+          };
+          pending.push(entry);
+        });
+      return { pending, write };
+    }
+
+    /** 假网关进程：收到配置时像 worker 一样按 catalogFile 读磁盘，记下读到的目录 */
+    function make(write: (file: string, data: string) => Promise<void>) {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-catalog-order-'));
+      const seen: Array<number | undefined> = [];
+      const warns: string[] = [];
+      const broadcasts: string[] = [];
+      const child = new FakeChild();
+      child.postMessage = (m: WorkerInbound) => {
+        child.sent.push(m);
+        if (m.type !== 'config') return;
+        const file = m.config.catalogFile;
+        const doc = file ? readCatalogFile(file) : null;
+        seen.push(doc?.models['order-model-1']?.limits?.context);
+      };
+      const svc = new GatewayService({
+        root,
+        cipher,
+        logger: { info() {}, warn: (msg: string) => warns.push(msg) },
+        process: new GatewayProcess({
+          logger: { info() {}, warn() {} },
+          fork: () => child as never,
+        }),
+        broadcast: (ch) => broadcasts.push(ch),
+        writeCatalog: write,
+      });
+      svc.init();
+      svc.ensureStarted();
+      child.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+      svc.upsertProvider({
+        name: 'Relay',
+        urls: { chat: 'https://relay/v1' },
+        models: [{ id: 'openai/order-model-1', enabled: true }],
+      });
+      const meta = () => svc.modelMetaOf('relay/openai/order-model-1')?.ctx;
+      return { svc, seen, warns, broadcasts, meta, file: path.join(root, 'catalog-sync.json') };
+    }
+
+    afterEach(() => setCatalogOverlay(null));
+
+    it('first sync: nothing is pushed or announced until the write resolves', async () => {
+      const w = delayedWriter();
+      const t = make(w.write);
+      const before = t.seen.length;
+      expect(before).toBeGreaterThan(0);
+      t.broadcasts.length = 0;
+      const done = t.svc.applyModelsData(api(150, 111_000));
+      await flush();
+      // 写还没完成：主进程不生效、不推配置、不通知界面
+      expect(w.pending).toHaveLength(1);
+      expect(t.seen).toHaveLength(before);
+      expect(t.broadcasts).toEqual([]);
+      expect(t.svc.hasCatalogSync()).toBe(false);
+      w.pending[0]!.land();
+      await done;
+      // 落盘后推的配置带上了路径，网关进程此时读到的就是新目录
+      expect(t.seen.at(-1)).toBe(111_000);
+      expect(t.broadcasts).toEqual(['gateway.changed']);
+      expect(t.svc.hasCatalogSync()).toBe(true);
+      expect(t.meta()).toBe(111_000);
+      t.svc.dispose();
+    });
+
+    it('updating an existing catalog: main and worker switch together after the write', async () => {
+      const w = delayedWriter();
+      const t = make(w.write);
+      const first = t.svc.applyModelsData(api(150, 111_000));
+      w.pending[0]!.land();
+      await first;
+      const before = t.seen.length;
+      const second = t.svc.applyModelsData(api(150, 222_000));
+      await flush();
+      expect(t.seen).toHaveLength(before);
+      // 落盘前主进程仍是旧目录，与网关进程一致
+      expect(t.meta()).toBe(111_000);
+      w.pending[1]!.land();
+      await second;
+      expect(t.seen.at(-1)).toBe(222_000);
+      expect(t.meta()).toBe(222_000);
+      t.svc.dispose();
+    });
+
+    it('write failure: logs, keeps the previous state, pushes and announces nothing', async () => {
+      const w = delayedWriter();
+      const t = make(w.write);
+      const before = t.seen.length;
+      t.broadcasts.length = 0;
+      const done = t.svc.applyModelsData(api(150, 111_000));
+      w.pending[0]!.fail(new Error('EBUSY'));
+      await expect(done).resolves.toBeUndefined();
+      expect(t.warns).toContain('models catalog write failed');
+      expect(t.seen).toHaveLength(before);
+      expect(t.broadcasts).toEqual([]);
+      // 没同步成功：下次仍强制完整下载
+      expect(t.svc.hasCatalogSync()).toBe(false);
+      expect(fs.existsSync(t.file)).toBe(false);
+      t.svc.dispose();
+    });
+
+    it('two concurrent syncs: the later one wins even if its write finishes first', async () => {
+      const w = delayedWriter();
+      const t = make(w.write);
+      const a = t.svc.applyModelsData(api(150, 111_000));
+      const b = t.svc.applyModelsData(api(150, 222_000));
+      await flush();
+      expect(w.pending).toHaveLength(2);
+      // 后一次先落盘并生效
+      w.pending[1]!.land();
+      await b;
+      expect(t.seen.at(-1)).toBe(222_000);
+      const after = t.seen.length;
+      // 前一次后完成：不再覆盖主进程目录，也不再推配置
+      w.pending[0]!.data = fs.readFileSync(t.file, 'utf8');
+      w.pending[0]!.land();
+      await a;
+      expect(t.seen).toHaveLength(after);
+      expect(t.meta()).toBe(222_000);
+      t.svc.dispose();
+    });
+
+    it('two concurrent syncs through the real queued writer land in call order', async () => {
+      const t = make(writePrivateFileAtomicAsync);
+      await Promise.all([
+        t.svc.applyModelsData(api(150, 111_000)),
+        t.svc.applyModelsData(api(150, 222_000)),
+      ]);
+      expect(t.seen.at(-1)).toBe(222_000);
+      expect(readCatalogFile(t.file)?.models['order-model-1']?.limits?.context).toBe(222_000);
+      expect(t.meta()).toBe(222_000);
+      t.svc.dispose();
+    });
+
+    it('a write that lands after dispose does not restart the gateway process', async () => {
+      const w = delayedWriter();
+      const t = make(w.write);
+      const done = t.svc.applyModelsData(api(150, 111_000));
+      t.svc.dispose();
+      const before = t.seen.length;
+      w.pending[0]!.land();
+      await done;
+      expect(t.seen).toHaveLength(before);
+    });
   });
 
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {

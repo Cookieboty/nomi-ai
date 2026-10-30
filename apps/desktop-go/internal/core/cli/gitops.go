@@ -407,7 +407,7 @@ func GitUnstage(cwd string, paths any) *util.Obj {
 	})
 }
 
-// GitCommit = gitCommit（paths nil = 未传）。
+// GitCommit = gitCommit（paths nil / util.Undefined = 未传，同 TS 的 paths != null：只提交已暂存的）。
 func GitCommit(cwd string, message any, paths any) *util.Obj {
 	msg := ""
 	if s, ok := message.(string); ok {
@@ -417,7 +417,7 @@ func GitCommit(cwd string, message any, paths any) *util.Obj {
 		return gitFail("invalid")
 	}
 	return gitLocked(cwd, func() *util.Obj {
-		if paths != nil {
+		if _, undef := paths.(util.JSUndefined); paths != nil && !undef {
 			list := gitCheckPaths(cwd, paths)
 			if list == nil {
 				return gitFail("invalid")

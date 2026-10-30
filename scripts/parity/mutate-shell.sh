@@ -49,9 +49,9 @@ MUTANTS=(
   "$D/chatnav/chatnav.go|s/map\\[string\\]any\\{\\}, \"chat\"\\)/map[string]any{}, \"\")/"
   "$D/mousetrack/mousetrack.go|s/x <= b.X\+b.Width/x < b.X+b.Width/"
   "$D/mousetrack/mousetrack.go|s/if in != t.in \{/if true {/"
-  "$D/mousetrack/mousetrack.go|s/if !ok \{\n\t\treturn/if false {\n\t\treturn/"
+  "$D/mousetrack/mousetrack.go|s/if !ok \{\n\t\treturn/if !ok \&\& false {\n\t\treturn/"
   "internal/shell/trash/trash_linux.go|s/run\(\"gio\", \"trash\", p\)/run(\"gio\", \"remove\", p)/"
-  "internal/shell/trash/trash.go|s/if _, err := os.Lstat\(abs\); err != nil \{/if false {/"
+  "internal/shell/trash/trash.go|s/if _, err := os.Lstat\(abs\); err != nil \{/if _, err := os.Lstat(abs); false \&\& err != nil {/"
   "$D/quality/ledger.go|s/t \\+ dayMs \\+ 3_600_000/t + dayMs/"
   "$D/quality/ledger.go|s/\\(retentionDays-1\\)\\*dayMs/retentionDays*dayMs/"
   "$D/quality/ledger.go|s/ts >= from && ts < to/ts >= from \\&\\& ts <= to/"
@@ -74,7 +74,24 @@ MUTANTS=(
   "$D/quality/handlers.go|s/isNum\\(o, \"limit\"\\) &&/true \\&\\&/"
   "$D/quality/fromgateway.go|s/\\b300\\b/301/"
 )
-killed=0; survived=0
+# 每个变异体跑的测试（基线用同一条命令）
+run_tests() {
+  # 子 shell 限制虚拟内存 6GB + 超时：会死循环吃内存的变异体（如 ledger 日循环）不拖垮 runner
+  (ulimit -v 6000000; exec go test -count=1 -p 1 -timeout 120s -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ ./internal/core/quality/ -run 'Parity|Golden|TestQuality|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem')
+}
+LOGS=${MUTATE_LOG_DIR:-$(mktemp -d)}; mkdir -p "$LOGS"
+# 中途退出（Ctrl-C、CI 取消）也把改过的源文件恢复
+restore() { for b in $(find internal -name '*.mutbak' 2>/dev/null); do mv "$b" "${b%.mutbak}"; done; }
+trap restore EXIT
+
+# 基线：没变异时同一条命令必须通过，否则后面任何失败都不能算「测试抓到了变异」（#205）
+if ! run_tests > "$LOGS/baseline.log" 2>&1; then
+  echo "BLOCKED: baseline (no mutant) fails, see $LOGS/baseline.log"; tail -n 40 "$LOGS/baseline.log"; exit 3
+fi
+
+# 分类：killed = 测试断言失败；killed-timeout = 超时 / 内存超限（ledger 日循环这类变异体本来就会这样）；
+# blocked = 编译失败或其它与测试无关的失败（不算抓到）；survived = 测试全过
+killed=0; timeouts=0; survived=0; blocked=0; blocked_logs=()
 # Optional sharding for CI: MUTATE_SHARD=i MUTATE_SHARDS=n runs every n-th mutant starting at i.
 shard=${MUTATE_SHARD:-0}; shards=${MUTATE_SHARDS:-1}; idx=-1
 for m in "${MUTANTS[@]}"; do
@@ -85,13 +102,24 @@ for m in "${MUTANTS[@]}"; do
   if cmp -s "$f" "$f.mutbak"; then
     mv "$f.mutbak" "$f"; echo "MUTANT NOT APPLIED: $m"; exit 2
   fi
-  # 子 shell 限制虚拟内存 6GB + 超时：会死循环吃内存的变异体（如 ledger 日循环）直接判 killed，不拖垮 runner
-  if (ulimit -v 6000000; exec go test -count=1 -p 1 -timeout 120s -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ ./internal/core/quality/ -run 'Parity|Golden|TestQuality|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem') >/dev/null 2>&1; then
-    survived=$((survived+1)); echo "SURVIVED: $m"
+  log="$LOGS/mutant-$idx.log"
+  if run_tests > "$log" 2>&1; then
+    survived=$((survived+1)); echo "SURVIVED:       $m"
+  elif grep -qE '\[(build|setup) failed\]' "$log"; then
+    blocked=$((blocked+1)); blocked_logs+=("$log"); echo "BLOCKED build:  $m ($log)"
+  elif grep -qE 'panic: test timed out|out of memory|cannot allocate memory|signal: killed' "$log"; then
+    timeouts=$((timeouts+1)); echo "killed-timeout: $m"
+  elif grep -q -- '--- FAIL' "$log"; then
+    killed=$((killed+1)); echo "killed:         $m"
   else
-    killed=$((killed+1)); echo "killed:   $m"
+    blocked=$((blocked+1)); blocked_logs+=("$log"); echo "BLOCKED other:  $m ($log)"
   fi
   mv "$f.mutbak" "$f"
 done
-echo "mutants: $killed killed, $survived survived"
+echo "mutants: $killed killed, $timeouts killed by timeout/memory, $survived survived, $blocked blocked (logs: $LOGS)"
+# blocked 说明这一轮证明不了测试的敏感度：打出日志结尾，CI 失败
+if [ "$blocked" -gt 0 ]; then
+  for l in "${blocked_logs[@]}"; do echo "== $l"; tail -n 20 "$l"; done
+  exit 3
+fi
 [ "$survived" -eq 0 ]

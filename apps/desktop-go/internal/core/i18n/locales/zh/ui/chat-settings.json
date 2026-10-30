@@ -455,9 +455,9 @@
   "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，{0}不在桌面时改用系统通知。",
   "ui.chat-settings.permissions": "权限",
   "ui.chat-settings.auto-approve-everything": "全部自动（最高权限）",
-  "ui.chat-settings.auto-approve-description": "开着时：新的编程助手标签和 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件和命令操作不再逐项确认。工作区外的路径、敏感文件（.ssh、钥匙串、.env 等）仍然拒绝。关掉后改回逐项询问。",
+  "ui.chat-settings.auto-approve-description": "开着时：新的编程助手标签和 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件操作不再逐项确认。Nomi 的文件工具仍然拒绝工作区外未授权的路径和敏感文件（.ssh、钥匙串、.env 等）。Nomi 要跑的命令不受工作区限制，所以每条都会先问你。关掉后改回逐项询问。",
   "ui.chat-settings.turn-on-auto-approve": "打开「全部自动」？",
-  "ui.chat-settings.auto-approve-confirm-body": "编程助手会以最高权限运行，Nomi 在对话工作区里改文件、跑命令都不再问你。只在你信任的文件夹里这样用。",
+  "ui.chat-settings.auto-approve-confirm-body": "编程助手会以最高权限运行，Nomi 在对话工作区里改文件不再问你。Nomi 要跑的命令不受工作区限制，仍会每次先问你。只在你信任的文件夹里这样用。",
   "ui.chat-settings.compacting-earlier-messages": "正在把较早的对话压缩成摘要…",
   "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "较早的对话已压缩成摘要（点开查看）",
   "ui.chat-settings.couldn-t-compact-earlier-messages": "没能压缩较早的对话：{0}。这一轮照常发送，最早的消息可能会被截掉。",
@@ -465,5 +465,6 @@
   "ui.chat-settings.folder-access-request": "请求访问文件夹",
   "ui.chat-settings.grant-folder": "授权",
   "ui.chat-settings.choose-another-folder": "选择其他文件夹…",
-  "ui.chat-settings.suggested-folder-cannot-be-granted": "建议的位置不能直接授权（不存在、不是文件夹，或范围太宽），请自己选择。"
+  "ui.chat-settings.suggested-folder-cannot-be-granted": "建议的位置不能直接授权（不存在、不是文件夹，或范围太宽），请自己选择。",
+  "ui.chat-settings.conversation-deleted-message-not-sent": "这个会话已被删除，消息没有发送"
 }

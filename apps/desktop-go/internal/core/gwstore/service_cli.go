@@ -16,7 +16,7 @@ import (
 )
 
 func (s *Service) clientObj(kind string) *u.Obj {
-	cl, _ := s.Store.Snapshot().Get("clients").(*u.Obj)
+	cl, _ := s.Store.View().Snapshot().Get("clients").(*u.Obj)
 	if cl == nil {
 		return nil
 	}
@@ -209,8 +209,9 @@ func (s *Service) OfficialEnv(env *u.Obj) *u.Obj {
 		return env
 	}
 	tokens := []string{}
+	view := s.Store.View()
 	for _, c := range config.ClientIDs {
-		if t, ok := s.Store.ClientToken(c); ok && t != "" {
+		if t, ok := view.ClientToken(c); ok && t != "" {
 			tokens = append(tokens, t)
 		}
 	}

@@ -4585,6 +4585,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "migration.chatHistory",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "migration.chatHistory",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'migration.chatHistory' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "nav.openVoiceSettings",
   "kind": "call",
   "res": {
@@ -11034,6 +11051,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "migration.chatHistory",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "migration.chatHistory",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'migration.chatHistory' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "nav.openVoiceSettings",
   "kind": "call",
   "res": {
@@ -17394,6 +17428,29 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'mem.upsertFact' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "migration.chatHistory",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'migration.chatHistory'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "migration.chatHistory",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'migration.chatHistory' is a query; use call"
   }
  },
  {
@@ -23825,6 +23882,29 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'mem.upsertFact' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "migration.chatHistory",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'migration.chatHistory'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "migration.chatHistory",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'migration.chatHistory' is a query; use call"
   }
  },
  {

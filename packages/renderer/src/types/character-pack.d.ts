@@ -31,3 +31,12 @@ declare module 'virtual:character-pack' {
   };
   export default pack;
 }
+
+/**
+ * `virtual:character-static-art` — the selected pack's static art for the default `svg` renderer
+ * (scripts/character/vite-plugin.mjs `staticArtModule`): a URL, or null when the pack has none.
+ */
+declare module 'virtual:character-static-art' {
+  const url: string | null;
+  export default url;
+}

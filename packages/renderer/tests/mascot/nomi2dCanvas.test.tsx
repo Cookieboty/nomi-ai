@@ -97,6 +97,82 @@ describe('Nomi2DCanvas → AvatarStage', () => {
     expect(p.windowHost).not.toBeNull();
   });
 
+  it('official pack, renderer svg (default): static mode with the official pack’s own SVG art', async () => {
+    installMascotHost({
+      'mascot.getRenderer': () => 'svg',
+      'character.getActivePack': () =>
+        packSnapshot({ source: 'builtin', id: BUNDLED_PACK.id, mode: BUNDLED_PACK.mode }),
+    });
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(p.character.id).toBe(BUNDLED_PACK.id);
+    expect(p.character.mode).toBe('static');
+    // 测试按官方包构建（CHARACTER_PACK 未设置）：立绘来自构建插件给官方包的 SVG
+    const art = (await import('virtual:character-static-art')).default;
+    expect(art).toMatch(/nomi-fullbody-mother\.svg/);
+    expect(url(p.character.assets.static)).toBe(art);
+  });
+
+  it('official pack, renderer rive: the bundled .riv, no static art', async () => {
+    installMascotHost({
+      'mascot.getRenderer': () => 'rive',
+      'character.getActivePack': () =>
+        packSnapshot({ source: 'builtin', id: BUNDLED_PACK.id, mode: BUNDLED_PACK.mode }),
+    });
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(p.character.mode).toBe(BUNDLED_PACK.mode);
+    expect(url(p.character.assets.rive)).toBe(`${BUNDLED_PACK.base}${BUNDLED_PACK.assets.rive}`);
+    expect(p.character.assets.static).toBeNull();
+  });
+
+  it('Scheme B overlay on svg: the overlay’s own image, never the bundled pack’s art', async () => {
+    installMascotHost({
+      'mascot.getRenderer': () => 'svg',
+      'character.getActivePack': () =>
+        packSnapshot({
+          source: 'userData',
+          id: 'static-demo',
+          mode: 'static',
+          staticUrl: 'character-pack://pack/static/character.webp',
+        }),
+    });
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(p.character.mode).toBe('static');
+    expect(url(p.character.assets.static)).toBe('character-pack://pack/static/character.webp');
+  });
+
+  it('overlay: passes its declared expressions with its mapping (2.0.5-template check, #192)', async () => {
+    const mapping = { emotions: { neutral: 'neutral', sad: 'tears' }, gestures: { wave: 'w2' } };
+    installMascotHost({
+      'character.getActivePack': () =>
+        packSnapshot({
+          source: 'userData',
+          id: 'tears-pack',
+          mode: 'static',
+          staticUrl: 'character-pack://pack/static/character.webp',
+          mapping,
+          expressions: ['neutral', 'tears'],
+        }),
+    });
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    const p = h.last!;
+    expect(p.character.mapping).toEqual(mapping);
+    expect(p.character.capabilities).toEqual({ expressions: ['neutral', 'tears'] });
+  });
+
+  it('bundled pack: passes the pack’s capabilities with its mapping', async () => {
+    render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
+    await screen.findByTestId('avatar-stage');
+    expect(h.last!.character.capabilities).toBe(BUNDLED_PACK.capabilities);
+    expect(h.last!.character.mapping).toBe(BUNDLED_PACK.mapping);
+  });
+
   it('passes the overlay .riv and its artboard / state machine', async () => {
     const riv = 'character-pack://pack/rive/pack.riv';
     installMascotHost({

@@ -270,6 +270,8 @@ describe('host/contract · shell', () => {
       expect(await api.appIcon.get()).toMatchObject({ variant: 'sunset', platform: 'darwin' });
       expect(await api.appIcon.set({ variant: 'ink' })).toBe('ink');
       expect(appIcon.setIconVariant).toHaveBeenCalledWith('ink');
+      // Node 版没有要迁移的旧对话
+      expect(await api.migration.chatHistory()).toEqual({ status: 'none', entries: {} });
     } finally {
       close();
     }

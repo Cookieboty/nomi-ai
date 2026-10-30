@@ -101,6 +101,7 @@ describe('shell · 过程表', () => {
       'diagnostics.export': 'mutation surfaces=chat',
       'appIcon.get': 'query surfaces=chat',
       'appIcon.set': 'mutation surfaces=chat',
+      'migration.chatHistory': 'query surfaces=chat',
     });
   });
 
@@ -133,6 +134,7 @@ describe('shell · 过程表', () => {
       'updates',
       'diagnostics',
       'appIcon',
+      'migration',
     ]);
     for (const name of [...Object.keys(shellProcedures), ...Object.keys(shellEvents)]) {
       expect(ns.has(name.split('.')[0]!)).toBe(true);
@@ -302,6 +304,10 @@ describe('shell · 端到端（strict 序列化）', () => {
       }),
       'appIcon.set': () => 'ink' as const,
       'updates.get': () => ({ status: 'idle' as const, currentVersion: '1', autoCheck: true }),
+      'migration.chatHistory': () => ({
+        status: 'ready' as const,
+        entries: { 'ai-chat:conversations': '[]' },
+      }),
     };
     const mascot = createTestClient(appContract, handlers, {
       caller: { surface: 'mascot', trusted: true },
@@ -318,6 +324,14 @@ describe('shell · 端到端（strict 序列化）', () => {
       expect(await mascot.api.updates.get()).toMatchObject({ status: 'idle' });
       expect(await chat.api.diagnostics.get()).toMatchObject({ dir: '/tmp' });
       expect(await chat.api.appIcon.set({ variant: 'ink' })).toBe('ink');
+      // 旧对话只交给对话窗口
+      await expect(mascot.api.migration.chatHistory()).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      expect(await chat.api.migration.chatHistory()).toEqual({
+        status: 'ready',
+        entries: { 'ai-chat:conversations': '[]' },
+      });
     } finally {
       mascot.close();
       chat.close();

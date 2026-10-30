@@ -203,6 +203,11 @@ export interface AiChatContextProviderProps {
 export interface ConversationTurn {
   convoId: string | undefined;
   /**
+   * 发起时该会话的工作区（Nomi 对话的 cwd）：和 convoId 一起固定，随请求显式带给内核，
+   * 不在准备结束后再按「当前会话」重新读取（期间用户可能已切到另一个工作区的会话）
+   */
+  cwd: string | undefined;
+  /**
    * 发起这一轮的会话是否仍是当前展示的会话（且仍存在）。
    * 会话被删除后 store 的 current 可能变成 undefined 或另一个会话，二者都不算 active。
    */
@@ -214,8 +219,10 @@ export interface ConversationTurn {
 
 export function openTurn(client: IPCClient): ConversationTurn {
   const convoId = client.ensureConversationId?.() ?? client.currentConversationId?.();
+  const meta = convoId ? client.conversationStore?.()?.get(convoId) : undefined;
   return {
     convoId,
+    cwd: typeof meta?.cwd === 'string' && meta.cwd ? meta.cwd : undefined,
     // 有 convoId 时必须 cur === convoId：current 为 undefined 说明会话刚被删光，不能当作仍在显示。
     // 只有完全没有会话 id 接口的旧实现（convoId 为空）才走无 id 的兜底。
     isActive: () => !convoId || client.currentConversationId?.() === convoId,
@@ -651,7 +658,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           const c = await compactHistory(client, history, content, turn, false, dispatch);
           if (c.next) history = c.next;
         }
-        dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏
+        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         schedClient.activity();
 
         if (hs) {
@@ -690,6 +698,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         }
 
         const [mem, skills] = await Promise.all([memoryContext(content), extClient.context()]);
+        // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
+        if (!turn.exists()) return;
         const aiMessageId = (Date.now() + 1).toString();
         const aiMessage: ChatMessage = {
           id: aiMessageId,
@@ -699,7 +709,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           modelId: nomiModelLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
-        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
+        // 用户消息一并 upsert：准备期间切走又切回时，用户消息还没上屏（顺序保持「问在前、答在后」）
+        if (turn.isActive())
+          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, aiMessage] });
 
         activeStream.current = { reqId, convoId: turn.convoId, controller };
         owned = true;
@@ -765,6 +777,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             {
               reqId,
               signal: controller.signal,
+              // 显式带上发起时固定的会话与工作区：IPCClient 不再按当前会话替换
+              conversation: { id: turn.convoId, cwd: turn.cwd },
               onTrace: (ev) => {
                 trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
                 scheduleUi();

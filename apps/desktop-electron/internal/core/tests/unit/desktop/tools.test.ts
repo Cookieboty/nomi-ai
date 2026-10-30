@@ -282,6 +282,72 @@ describe('desktop tools', () => {
     ).toBe('unsupported');
   });
 
+  it('fs_edit keeps the BOM and survives undo', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'bom.txt');
+    fs.writeFileSync(f, '\uFEFFhello world\n');
+    const r = await t.call('fs_edit', { path: f, edits: [{ oldText: 'world', newText: 'there' }] });
+    expect(r.ok).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('\uFEFFhello there\n');
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('\uFEFFhello world\n');
+  });
+
+  it('fs_edit refuses to commit when the file changed while waiting for confirmation', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'race.txt');
+    fs.writeFileSync(f, 'alpha\nbeta\n');
+    t.setAnswer(() => null);
+    const pending = t.call('fs_edit', { path: f, edits: [{ oldText: 'alpha', newText: 'ALPHA' }] });
+    for (let n = 0; n < 200 && !t.asks.length; n += 1) await new Promise((r) => setTimeout(r, 5));
+    expect(t.asks).toHaveLength(1);
+    // 确认挂起期间，用户在编辑器里改了另一段并保存
+    fs.writeFileSync(f, 'alpha\nbeta (saved by user)\n');
+    t.broker.answer(t.asks[0].id, true);
+    const r = (await pending) as R & { error?: { message: string } };
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe('conflict');
+    expect(r.error?.message).toContain('fs_read_text');
+    expect(fs.readFileSync(f, 'utf8')).toBe('alpha\nbeta (saved by user)\n');
+    // 没有记撤销，undo_last 不会动这个文件
+    expect(t.journal.list()).toEqual([]);
+    // 重新读取后再改就正常
+    t.setAnswer(() => true);
+    const ok = await t.call('fs_edit', {
+      path: f,
+      edits: [{ oldText: 'alpha', newText: 'ALPHA' }],
+    });
+    expect(ok.ok).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('ALPHA\nbeta (saved by user)\n');
+  });
+
+  it('fs_edit puts the file back when it changed between the re-check and the move', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    t.broker.autoApprove = () => true;
+    const f = path.join(t.docs, 'race2.txt');
+    fs.writeFileSync(f, 'one\ntwo\n');
+    const orig = AppTrash.prototype.trash;
+    const spy = jest.spyOn(AppTrash.prototype, 'trash').mockImplementation(async function (
+      this: AppTrash,
+      target: string,
+    ) {
+      // 模拟「重读比对之后、移入回收站之前」外部写入
+      fs.writeFileSync(target, 'one\ntwo (late save)\n');
+      return orig.call(this, target);
+    });
+    try {
+      const r = await t.call('fs_edit', { path: f, edits: [{ oldText: 'one', newText: 'ONE' }] });
+      expect(r.error?.code).toBe('conflict');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(fs.readFileSync(f, 'utf8')).toBe('one\ntwo (late save)\n');
+    expect(fs.readdirSync(t.docs)).toContain('race2.txt');
+  });
+
   it('fs_mkdir / fs_move / fs_copy work inside the scope and are undoable', async () => {
     const t = setup();
     t.broker.grant(t.docs, 'read-write');

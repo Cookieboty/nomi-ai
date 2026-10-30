@@ -262,6 +262,17 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 			paritytest.SkipOrFail(t, "node not on PATH")
 			return
 		}
+		// 用例可设「全部自动」与权限模式（缺省：关 / acceptEdits，与录制脚本一致）
+		var autoOn bool
+		if raw, ok := c["autoApprove"]; ok {
+			_ = json.Unmarshal(raw, &autoOn)
+		}
+		mode := "acceptEdits"
+		if raw, ok := c["mode"]; ok {
+			_ = json.Unmarshal(raw, &mode)
+		}
+		b.AutoApprove = func() bool { return autoOn }
+		b.PermissionMode = func() desktop.PermMode { return mode }
 		ui.answers, ui.confirms, says = nil, nil, nil
 		if raw, ok := c["answers"]; ok {
 			_ = json.Unmarshal(raw, &ui.answers)

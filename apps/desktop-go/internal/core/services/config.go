@@ -108,7 +108,10 @@ type AppConfig struct {
 }
 
 type ConfigService struct {
-	mu     sync.Mutex
+	mu sync.Mutex
+	// saveMu：串行化 Save 的「取快照 → 写临时文件 → rename」全程，后取快照的一定后落盘，
+	// 最新一次已接受的更新不会被更早的快照覆盖；与 mu 分开，慢盘写入时不阻塞读配置
+	saveMu sync.Mutex
 	path   string
 	config AppConfig
 	def    AppConfig
@@ -183,11 +186,16 @@ func (s *ConfigService) UpdateConfig(patch map[string]any) error {
 	return s.Save()
 }
 
+// writeConfigFile：落盘实现（测试注入写入屏障）
+var writeConfigFile = utils.WritePrivateFileAtomic
+
 func (s *ConfigService) Save() error {
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
 	s.mu.Lock()
 	b, _ := json.MarshalIndent(s.config, "", "  ")
 	s.mu.Unlock()
-	return utils.WritePrivateFileAtomic(s.path, append(b, '\n'))
+	return writeConfigFile(s.path, append(b, '\n'))
 }
 
 func (s *ConfigService) Reset() error {

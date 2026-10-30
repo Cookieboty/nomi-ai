@@ -131,6 +131,11 @@ test.describe('G5 · stand-in character build · no official character name', ()
       undefined,
       { timeout: 60_000 },
     );
+    // 画的是替身包自己的静图（默认渲染器 svg 不能换成官方包的立绘，#193）
+    const staticSrc = await mascot
+      .locator('[data-testid="static-canvas"]')
+      .getAttribute('data-static-src', { timeout: 20_000 });
+    expect(staticSrc).toMatch(/(?:^|\/)character\/static\/character\.webp$/);
 
     // ---- 首次启动引导（对话窗口自动打开）：标题与桌面角色的话用替身的名字
     let chat: Page | undefined;

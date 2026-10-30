@@ -1132,6 +1132,7 @@ export type TranslationKey =
   | 'ui.chat-settings.grant-folder'
   | 'ui.chat-settings.choose-another-folder'
   | 'ui.chat-settings.suggested-folder-cannot-be-granted'
+  | 'ui.chat-settings.conversation-deleted-message-not-sent'
   | 'ui.cli-monitor.account'
   | 'ui.cli-monitor.act-cute'
   | 'ui.cli-monitor.action-sound-effects'

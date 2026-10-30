@@ -78,7 +78,7 @@ export interface ChatSession {
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
   cliSessionId?: string;
   /**
-   * Nomi 对话的工作区（只用于 backend 'nomi'）：选了之后 Nomi 的文件 / 命令工具只能在这里面用，
+   * Nomi 对话的工作区（只用于 backend 'nomi'）：选了之后 Nomi 的文件工具只能在这里面用、命令在这里启动，
    * 委派的编程助手也在这里开工。缺省 = 没有工作区（按已授权文件夹，原有行为）。
    */
   cwd?: string;

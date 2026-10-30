@@ -19,7 +19,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / 'docs' / 'brand' / 'icon-variants'
-OUT = ROOT / 'packages' / 'electron' / 'assets' / 'app-icons'
+OUT = ROOT / 'apps' / 'desktop-electron' / 'assets' / 'app-icons'
 VARIANTS = ['ink', 'cream', 'sunset']
 SMALL = [16, 24, 32, 48]
 LARGE = [64, 128, 256]
@@ -51,6 +51,9 @@ def render(svg: Path, tmp: Path) -> Image.Image:
 
 
 def main() -> None:
+    # 目录不存在时直接报错，不在过时的位置悄悄新建（宿主目录迁移后漏改过一次，#204）
+    if not OUT.is_dir():
+        sys.exit(f'output directory not found: {OUT}')
     with tempfile.TemporaryDirectory() as d:
         tmp = Path(d)
         for v in VARIANTS:

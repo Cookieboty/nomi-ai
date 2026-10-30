@@ -92,7 +92,7 @@ export interface HarnessTabsState {
   codexNetwork?: boolean;
   /**
    * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
-   * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
+   * Nomi 对话工作区里的文件操作不确认（命令始终确认）；关掉后回到逐项询问
    */
   autoApprove?: boolean;
 }

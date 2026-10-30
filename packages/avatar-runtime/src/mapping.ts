@@ -101,10 +101,13 @@ export class AvatarMapping {
   /**
    * 设置当前角色的映射；`null` / `undefined`（包没有 mapping.json）用引擎默认映射。2.0.5 模板形状的
    * 映射（情绪指向动作名，见 character-contract `isLegacyMapping`）validatePack 已经丢掉，这里再兜一次底，
-   * 防止没经过 validatePack 的宿主把它传进来。返回值恢复成默认映射（卸载时调用）。
+   * 防止没经过 validatePack 的宿主把它传进来。`expressions` 是包声明的表情
+   * （manifest.capabilities.expressions），与 validatePack 的判断相同：声明成表情的名字（如 `tears`）
+   * 不算旧模板的证据，不传时合法包会被误判、整表换成默认映射。返回值恢复成默认映射（卸载时调用）。
    */
-  set(mapping: PackMapping | null | undefined): () => void {
-    const next = mapping && !isLegacyMapping(mapping) ? mapping : DEFAULT_AVATAR_MAPPING;
+  set(mapping: PackMapping | null | undefined, expressions?: readonly string[]): () => void {
+    const next =
+      mapping && !isLegacyMapping(mapping, expressions) ? mapping : DEFAULT_AVATAR_MAPPING;
     this.active = next;
     return () => {
       if (this.active === next) this.active = DEFAULT_AVATAR_MAPPING;
@@ -134,8 +137,11 @@ export class AvatarMapping {
 /** 页面主运行时（`defaultAvatarRuntime`）的映射 */
 export const avatarMapping = new AvatarMapping();
 
-export function setAvatarMapping(mapping: PackMapping | null | undefined): () => void {
-  return avatarMapping.set(mapping);
+export function setAvatarMapping(
+  mapping: PackMapping | null | undefined,
+  expressions?: readonly string[],
+): () => void {
+  return avatarMapping.set(mapping, expressions);
 }
 
 export function currentAvatarMapping(): PackMapping {

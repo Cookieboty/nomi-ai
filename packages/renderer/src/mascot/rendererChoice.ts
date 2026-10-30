@@ -2,8 +2,9 @@
  * 桌面角色渲染器选择（docs/design/migrate-2.0.5-go.md §0、Q5：默认静态 SVG，Rive 由用户在设置里开启）。
  * 设置存在内核的 `mascot.renderer`（Node 与 Go 内核相同），切换时内核广播 `mascot.rendererChanged`。
  *
- * - 有契约传输（Electron / Go 宿主）：按设置；`svg` 时内置角色改用静态立绘（avatar-runtime 的 static 模式），
- *   Rive 包与 wasm 不加载；覆盖包（Scheme B）按自己的 manifest 渲染；
+ * - 有契约传输（Electron / Go 宿主）：按设置；`svg` 时内置包改用它自己的静态立绘（avatar-runtime 的 static
+ *   模式，见 loadStaticArtUrl），Rive 包与 wasm 不加载；包没有静态立绘时按包自己的模式；覆盖包（Scheme B）
+ *   按自己的 manifest 渲染；
  * - 没有传输（浏览器预览 / 测试）：Rive。
  */
 import { useEffect, useState } from 'react';
@@ -35,10 +36,13 @@ export function useMascotRenderer(): MascotRenderer | null {
   return renderer;
 }
 
-let staticArt: Promise<string> | null = null;
+let staticArt: Promise<string | null> | null = null;
 
-/** 内置角色的静态立绘地址（约 4 MB 的 SVG，独立资源，只在选了静态时才请求） */
-export function loadStaticArtUrl(): Promise<string> {
+/**
+ * 内置包（构建时选中的包）的静态立绘地址：静态包是它自己的立绘，官方包是它的 SVG 立绘（约 4 MB，独立资源，
+ * 只在选了静态时才请求）；包没有静态立绘时为 null，调用方按包自己的模式渲染。不会给出别的包的立绘。
+ */
+export function loadStaticArtUrl(): Promise<string | null> {
   staticArt ??= import('./staticArt').then((m) => m.default);
   return staticArt;
 }

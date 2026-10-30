@@ -31,8 +31,9 @@ export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
   const character = useMemo(() => {
     if (!overlayReady || !renderer) return null;
     const base = currentAvatarCharacter(manifestPath);
-    // 设置为静态（默认）时内置角色用静态立绘（覆盖包按自己的 manifest）；立绘地址到位前不挂角色
-    if (renderer === 'svg' && !getOverlay() && staticArt !== 'failed') {
+    // 设置为静态（默认）时内置包用它自己的静态立绘（覆盖包按自己的 manifest）；立绘地址到位前不挂角色。
+    // 包没有静态立绘（'none'）或加载失败时按包自己的模式，不换成别的包的立绘
+    if (renderer === 'svg' && !getOverlay() && staticArt !== 'failed' && staticArt !== 'none') {
       if (!staticArt) return null;
       return { ...base, mode: 'static' as const, assets: { ...base.assets, static: staticArt } };
     }
@@ -59,14 +60,17 @@ export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
   );
 };
 
-/** 静态立绘地址（只在需要时加载）；加载失败为 'failed'，调用方改用 Rive */
-function useStaticArt(wanted: boolean): string | 'failed' | null {
-  const [url, setUrl] = useState<string | 'failed' | null>(null);
+/**
+ * 内置包的静态立绘地址（只在需要时加载）；包没有静态立绘为 'none'，加载失败为 'failed'，
+ * 这两种情况调用方都按包自己的模式渲染
+ */
+function useStaticArt(wanted: boolean): string | 'none' | 'failed' | null {
+  const [url, setUrl] = useState<string | 'none' | 'failed' | null>(null);
   useEffect(() => {
     if (!wanted || url) return;
     let alive = true;
     loadStaticArtUrl()
-      .then((u) => alive && setUrl(u))
+      .then((u) => alive && setUrl(u ?? 'none'))
       .catch(() => alive && setUrl('failed'));
     return () => {
       alive = false;

@@ -2745,7 +2745,7 @@
         "preview": "$ echo hi; echo err 1>&2\n（工作目录：@@R@@/home/ws）",
         "dialog": true,
         "rememberable": false,
-        "reason": "destructive"
+        "reason": "policy"
       }
     ],
     "audit": [
@@ -2783,7 +2783,7 @@
         "preview": "$ exit 3\n（工作目录：@@R@@/home/ws）",
         "dialog": true,
         "rememberable": false,
-        "reason": "destructive"
+        "reason": "policy"
       }
     ],
     "audit": [
@@ -2833,7 +2833,7 @@
         "preview": "$ pwd\n（工作目录：@@R@@/home/ws）",
         "dialog": true,
         "rememberable": false,
-        "reason": "destructive"
+        "reason": "policy"
       }
     ],
     "audit": [
@@ -2911,7 +2911,7 @@
         "preview": "$ echo no\n（工作目录：@@R@@/home/ws）",
         "dialog": true,
         "rememberable": false,
-        "reason": "destructive"
+        "reason": "policy"
       }
     ],
     "audit": [
@@ -4786,6 +4786,240 @@
         },
         "decision": "auto",
         "result": "ok",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "workspace_run",
+    "out": {
+      "ok": true,
+      "data": {
+        "cwd": "@@R@@/home/ws",
+        "exitCode": 0,
+        "timedOut": false,
+        "truncated": false,
+        "stdout": "<command_output trust=\"untrusted\">\nauto\n\n</command_output>",
+        "stderr": "<command_output trust=\"untrusted\">\n\n</command_output>"
+      }
+    },
+    "confirms": [
+      {
+        "tool": "workspace_run",
+        "danger": "destructive",
+        "summary": "在 @@R@@/home/ws 里执行命令？",
+        "argsJson": "{\n  \"cwd\": \"@@R@@/home/ws\",\n  \"command\": \"echo auto\"\n}",
+        "preview": "$ echo auto\n（工作目录：@@R@@/home/ws）",
+        "dialog": true,
+        "rememberable": false,
+        "reason": "policy"
+      }
+    ],
+    "audit": [
+      {
+        "tool": "workspace_run",
+        "args": {
+          "command": "echo auto",
+          "timeoutSec": 120
+        },
+        "decision": "allowed",
+        "result": "ok",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "workspace_run",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "user_denied",
+        "message": "用户拒绝了这个操作，不要重试同一个调用"
+      }
+    },
+    "confirms": [
+      {
+        "tool": "workspace_run",
+        "danger": "destructive",
+        "summary": "在 @@R@@/home/ws 里执行命令？",
+        "argsJson": "{\n  \"cwd\": \"@@R@@/home/ws\",\n  \"command\": \"echo x > denied.txt\"\n}",
+        "preview": "$ echo x > denied.txt\n（工作目录：@@R@@/home/ws）",
+        "dialog": true,
+        "rememberable": false,
+        "reason": "policy"
+      }
+    ],
+    "audit": [
+      {
+        "tool": "workspace_run",
+        "args": {
+          "command": "echo x > denied.txt",
+          "timeoutSec": 120
+        },
+        "decision": "denied",
+        "result": "user_denied",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "workspace_run",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "mode_blocked",
+        "message": "当前是「计划」（只读）权限模式，不能执行会修改内容的操作；先给出方案，等用户切换权限模式后再做"
+      }
+    },
+    "audit": [
+      {
+        "tool": "workspace_run",
+        "args": {
+          "command": "echo x > plan-run.txt",
+          "timeoutSec": 120
+        },
+        "decision": "denied",
+        "result": "mode_blocked",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "workspace_run",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "mode_blocked",
+        "message": "当前是「计划」（只读）权限模式，不能执行会修改内容的操作；先给出方案，等用户切换权限模式后再做"
+      }
+    },
+    "audit": [
+      {
+        "tool": "workspace_run",
+        "args": {
+          "command": "echo plan",
+          "timeoutSec": 120
+        },
+        "decision": "denied",
+        "result": "mode_blocked",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "fs_write_text",
+    "out": {
+      "ok": true,
+      "data": {
+        "path": "@@R@@/home/ws/auto.txt",
+        "mode": "create",
+        "undoId": "@@U@@"
+      }
+    },
+    "audit": [
+      {
+        "tool": "fs_write_text",
+        "args": {
+          "path": "auto.txt",
+          "text": {
+            "sha256": "ca978112ca1b",
+            "length": 1
+          },
+          "mode": "create",
+          "dryRun": false
+        },
+        "decision": "auto",
+        "result": "ok",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "fs_write_text",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "mode_blocked",
+        "message": "当前是「计划」（只读）权限模式，不能执行会修改内容的操作；先给出方案，等用户切换权限模式后再做"
+      }
+    },
+    "audit": [
+      {
+        "tool": "fs_write_text",
+        "args": {
+          "path": "plan.txt",
+          "text": {
+            "sha256": "ca978112ca1b",
+            "length": 1
+          },
+          "mode": "create",
+          "dryRun": false
+        },
+        "decision": "denied",
+        "result": "mode_blocked",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "fs_stat",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "not_found",
+        "message": "文件不存在"
+      }
+    },
+    "audit": [
+      {
+        "tool": "fs_stat",
+        "args": {
+          "path": "denied.txt"
+        },
+        "decision": "error",
+        "result": "not_found",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "fs_stat",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "not_found",
+        "message": "文件不存在"
+      }
+    },
+    "audit": [
+      {
+        "tool": "fs_stat",
+        "args": {
+          "path": "plan-run.txt"
+        },
+        "decision": "error",
+        "result": "not_found",
+        "source": "agent"
+      }
+    ]
+  },
+  {
+    "tool": "fs_stat",
+    "out": {
+      "ok": false,
+      "error": {
+        "code": "not_found",
+        "message": "文件不存在"
+      }
+    },
+    "audit": [
+      {
+        "tool": "fs_stat",
+        "args": {
+          "path": "plan.txt"
+        },
+        "decision": "error",
+        "result": "not_found",
         "source": "agent"
       }
     ]

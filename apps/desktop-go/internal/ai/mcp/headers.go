@@ -129,7 +129,9 @@ func createMCPToolHeaders(bindings []headerBinding, args *u.Obj) ([][2]string, e
 		bad := false
 		switch b.valueType {
 		case "string":
-			s, bad = v.(string), !u.IsStr(v)
+			// 双值断言：模型把字符串参数给成数字 / 布尔时返回下面的类型错误，不能在这里 panic（#202）
+			str, iss := v.(string)
+			s, bad = str, !iss
 		case "boolean":
 			bv, isb := v.(bool)
 			bad = !isb

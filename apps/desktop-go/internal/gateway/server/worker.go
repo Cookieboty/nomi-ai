@@ -52,6 +52,7 @@ func RunGatewayWorker(port WorkerPort, hooks GatewayHooks) {
 	// Serial message handling (the Node promise chain).
 	chain := make(chan WorkerInbound, 64)
 
+	// Loaded catalog key (path + mtime + size); the core pushes config only after the file landed (#185).
 	catalogKey := ""
 	statKey := func(file string) string {
 		if file == "" {
@@ -61,7 +62,7 @@ func RunGatewayWorker(port WorkerPort, hooks GatewayHooks) {
 		if err != nil {
 			return ""
 		}
-		return file + ":" + strconv.FormatFloat(float64(st.ModTime().UnixNano())/1e6, 'f', -1, 64)
+		return file + ":" + strconv.FormatFloat(float64(st.ModTime().UnixNano())/1e6, 'f', -1, 64) + ":" + strconv.FormatInt(st.Size(), 10)
 	}
 	loadCatalog := func(file string) {
 		key := statKey(file)

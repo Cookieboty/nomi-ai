@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -46,6 +47,8 @@ type RuntimeDeps struct {
 	LongContextPrice func(model string) *u.Obj
 	// Detect = detectImpl ?? detect（nil = detect 未移植，wire-suspect 不学）
 	Detect DetectFunc
+	// WriteCatalog = writeCatalog（测试注入：模型目录的原子写；nil = utils.WritePrivateFileAtomic）
+	WriteCatalog func(file string, data []byte) error
 }
 
 type runtimeState struct {
@@ -60,6 +63,11 @@ type runtimeState struct {
 	tabs         *TabTokens
 	legacyRevoke *u.Obj
 	mu           sync.Mutex // 存储写入串行（Node 单线程）
+	// 模型目录同步（#185）：catalogMu 串行后台写；catalogSeq 每次同步递增，catalogDone 是已落盘的最大序号
+	catalogMu   sync.Mutex
+	catalogSeq  atomic.Uint64
+	catalogDone uint64
+	disposed    atomic.Bool
 }
 
 // AttachRuntime：GatewayService 构造里的 GatewayProcess 接线（init 之前调用）
@@ -100,7 +108,9 @@ func (s *Service) Start() {
 		return
 	}
 	models.SetCatalogOverlay(models.ReadCatalogFile(s.catalogFile()))
+	s.lock()
 	s.push()
+	s.unlock()
 	if s.configuredURL() == "" {
 		s.rt.proc.EnsureStarted()
 	}
@@ -117,6 +127,7 @@ func (s *Service) EnsureStarted() { s.rt.proc.EnsureStarted() }
 // Dispose = dispose() 中停网关进程的部分
 func (s *Service) Dispose() {
 	if s.rt != nil {
+		s.rt.disposed.Store(true)
 		s.rt.privacyLog.Flush()
 		s.rt.proc.Stop()
 	}
@@ -132,7 +143,7 @@ func (s *Service) configuredURL() string {
 		if s.rt.d.Port != nil {
 			port = *s.rt.d.Port
 		} else {
-			port = int(s.Store.Port())
+			port = int(s.Store.View().Port())
 		}
 	}
 	if port == 0 {
@@ -160,7 +171,7 @@ func (s *Service) liveURL(start bool) string {
 type Endpoint struct{ URL, Token string }
 
 func (s *Service) address(client string, start bool) *Endpoint {
-	token, ok := s.Store.ClientToken(client)
+	token, ok := s.Store.View().ClientToken(client)
 	if !ok || token == "" {
 		return nil
 	}
@@ -188,9 +199,9 @@ func (t readyTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 // ReadyClient：readyFetch 对应的 http.Client
 func (s *Service) ReadyClient() *http.Client { return s.rt.httpc }
 
-// RuntimeConfig = runtimeConfig()
+// RuntimeConfig = runtimeConfig()：基于已发布的快照（结果里引用的对象不可变，可交给网关 goroutine 序列化）
 func (s *Service) RuntimeConfig() *u.Obj {
-	cfg := s.config()
+	cfg := s.config(s.Store.View())
 	cfg.Set("sessionsFile", filepath.Join(s.rt.d.Root, "sessions.json"))
 	if s.HasCatalogSync() {
 		cfg.Set("catalogFile", s.catalogFile())
@@ -243,13 +254,14 @@ func privateURL(raw string) bool {
 	return gwnet.IsPrivateHost(h)
 }
 
-func (s *Service) config() *u.Obj {
+// config：st 为只读视图（Store.View()），整次读取用同一个版本
+func (s *Service) config(st *Store) *u.Obj {
 	env := s.envRuntime()
 	legacy := ""
 	if s.legacy != nil && s.rt.d.LegacyToken != nil {
 		legacy = s.rt.d.LegacyToken()
 	}
-	cfg := s.Store.RuntimeConfig(RuntimeExtra{LegacyToken: legacy, EnvProviders: env})
+	cfg := st.RuntimeConfig(RuntimeExtra{LegacyToken: legacy, EnvProviders: env})
 	hosts := []any{}
 	seen := map[string]bool{}
 	add := func(h string) {
@@ -303,16 +315,17 @@ func (s *Service) envRuntime() []any {
 	return out
 }
 
-func (s *Service) push() { s.rt.proc.Apply(s.RuntimeConfig()) }
+// push：须持写锁；先发布再从快照生成配置（Apply 可能在别的 goroutine 里序列化它，不能引用活数据）
+func (s *Service) push() {
+	s.Store.Publish()
+	s.rt.proc.Apply(s.RuntimeConfig())
+}
 
 // Refresh = refresh()
-func (s *Service) Refresh() { s.push() }
-
-func (s *Service) commit() error {
-	err := s.Store.Save()
+func (s *Service) Refresh() {
+	s.lock()
 	s.push()
-	s.changed()
-	return err
+	s.unlock()
 }
 
 // OnChange = onChange(fn)：返回取消订阅
@@ -375,8 +388,8 @@ type nomiPicked struct {
 	receiver route.Upstream
 }
 
-func (s *Service) gatewayConfig() *config.GatewayConfig {
-	c, err := ToGatewayConfig(s.config())
+func (s *Service) gatewayConfig(st *Store) *config.GatewayConfig {
+	c, err := ToGatewayConfig(s.config(st))
 	if err != nil {
 		return &config.GatewayConfig{}
 	}
@@ -384,8 +397,10 @@ func (s *Service) gatewayConfig() *config.GatewayConfig {
 }
 
 func (s *Service) nomiPick(role string) *nomiPicked {
-	ms := asObj(objGet(s.Store.Snapshot(), "clients", "nomi", "models"))
-	cfg := s.gatewayConfig()
+	// 锁外读（#195）：分配与运行配置取自同一个已发布快照，不与 setAssignment / resetToken 并发读写 map
+	st := s.Store.View()
+	ms := asObj(objGet(st.Snapshot(), "clients", "nomi", "models"))
+	cfg := s.gatewayConfig(st)
 	main, _ := ms.Get("main").(string)
 	if main == "" {
 		for _, p := range cfg.Providers {
@@ -455,7 +470,7 @@ func (s *Service) NomiProvider(role string) *u.Obj {
 
 // ProviderInfo = providerInfo(id)
 func (s *Service) ProviderInfo(id string) *u.Obj {
-	for _, raw := range s.Store.Providers() {
+	for _, raw := range s.Store.View().Providers() {
 		p := asObj(raw)
 		match := p.Get("id") == id
 		if al, ok := p.Get("aliases").([]any); ok && !match {
@@ -492,7 +507,8 @@ func (s *Service) ProviderInfo(id string) *u.Obj {
 
 // Credentials = credentials(id)：只在主进程内使用
 func (s *Service) Credentials(id string) *u.Obj {
-	for _, raw := range s.Store.Providers() {
+	st := s.Store.View()
+	for _, raw := range st.Providers() {
 		p := asObj(raw)
 		if p.Get("id") != id || !u.Truthy(p.Get("enabled")) {
 			continue
@@ -509,7 +525,7 @@ func (s *Service) Credentials(id string) *u.Obj {
 			if !u.Truthy(k.Get("enabled")) || (u.Truthy(w) && w != "chat") {
 				continue
 			}
-			if v, ok := s.Store.Decrypt(k.Get("enc"), k.Get("encryption")); ok && v != "" {
+			if v, ok := st.Decrypt(k.Get("enc"), k.Get("encryption")); ok && v != "" {
 				o.Set("apiKey", v)
 				break
 			}
@@ -522,7 +538,7 @@ func (s *Service) Credentials(id string) *u.Obj {
 // ListOpenAiCompatible = listOpenAiCompatible()
 func (s *Service) ListOpenAiCompatible() []any {
 	out := []any{}
-	for _, raw := range s.Store.Providers() {
+	for _, raw := range s.Store.View().Providers() {
 		p := asObj(raw)
 		chat, _ := objGet(p, "urls", "chat").(string)
 		if u.Truthy(p.Get("enabled")) && chat != "" {

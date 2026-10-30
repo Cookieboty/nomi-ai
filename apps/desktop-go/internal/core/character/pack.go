@@ -246,7 +246,9 @@ type ActiveSnapshot struct {
 	Rive              *RiveInfo            `json:"rive"`
 	Locales           map[string]LocaleOut `json:"locales"`
 	Mapping           json.RawMessage      `json:"mapping"`
-	Reason            string               `json:"reason,omitempty"`
+	// Expressions：包声明的表情（manifest.capabilities.expressions），没有声明时为 null
+	Expressions []string `json:"expressions"`
+	Reason      string   `json:"reason,omitempty"`
 }
 
 type RiveInfo struct {
@@ -369,6 +371,9 @@ func (r Resolved) Snapshot() ActiveSnapshot {
 	s := empty
 	s.ID, s.Mode, s.DisplayName, s.ShortName = sp(p.Manifest.ID), sp(p.Mode), &dn, &sn
 	s.Hitboxes, s.Locales, s.Mapping = p.Hitboxes, linesOf(p), p.Mapping
+	if p.Manifest.Capabilities != nil && p.Manifest.Capabilities.Expressions != nil {
+		s.Expressions = p.Manifest.Capabilities.Expressions
+	}
 	if r.Source == "builtin" {
 		return s
 	}

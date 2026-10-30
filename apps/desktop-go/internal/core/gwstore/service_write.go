@@ -39,9 +39,13 @@ var (
 
 func trErr(key string, args ...any) error { return errors.New(i18n.T(key, args...)) }
 
-// lock：Node 单线程；Go 的修改串行，changed() 在锁外发（监听器可能回读 state）
-func (s *Service) lock()   { s.rt.mu.Lock() }
-func (s *Service) unlock() { s.rt.mu.Unlock() }
+// lock：Node 单线程；Go 的修改串行，changed() 在锁外发（监听器可能回读 state）。
+// unlock 前先发布快照（#195）：锁外读者经 Store.View() 只看到已提交的完整版本
+func (s *Service) lock() { s.rt.mu.Lock() }
+func (s *Service) unlock() {
+	s.Store.Publish()
+	s.rt.mu.Unlock()
+}
 
 // commitLocked：持锁落盘 + 推配置；返回解锁后要做的 changed
 func (s *Service) commitUnlock() error {
@@ -135,8 +139,8 @@ func (s *Service) findProvider(id string) *u.Obj {
 
 // State = state()
 func (s *Service) State() *u.Obj {
-	s.lock()
-	defer s.unlock()
+	s.rt.mu.Lock() // 只读：不用重新发布
+	defer s.rt.mu.Unlock()
 	return s.state()
 }
 
@@ -697,7 +701,7 @@ func (s *Service) PreviewPrivacy(text any) *u.Obj {
 	if t, ok := text.(string); ok {
 		str = u.UTF16Slice0(t, previewMax)
 	}
-	cfg := s.gatewayConfig()
+	cfg := s.gatewayConfig(s.Store.View())
 	pc := config.PrivacyConfig{}
 	if cfg.Privacy != nil {
 		pc = *cfg.Privacy
@@ -847,7 +851,7 @@ func (s *Service) AddPrivacyAllow(input any) (*u.Obj, error) {
 	if v, ok := strOf(o.Get("value")); ok && u.JSTrim(v) != "" {
 		v = u.UTF16Slice0(u.JSTrim(v), 256)
 		n := u.UTF16Len(v)
-		entry = u.NewObj("tag", privacy.AllowTagOf(s.Store.PrivacyKey(), v), "kind", "CUSTOM", "len", float64(n),
+		entry = u.NewObj("tag", privacy.AllowTagOf(s.Store.View().PrivacyKey(), v), "kind", "CUSTOM", "len", float64(n),
 			"head", u.UTF16Slice0(v, int(math.Min(4, math.Floor(float64(n)/4)))))
 	} else if t, ok := strOf(o.Get("tag")); ok && allowTagRe.MatchString(t) {
 		kind := "CUSTOM"
@@ -1039,12 +1043,13 @@ func (s *Service) Learn(e server.LearnEvent) {
 type DetectFunc func(in *u.Obj) (*u.Obj, error)
 
 func (s *Service) learnWireSuspect(p *u.Obj, e server.LearnEvent) {
+	s.lock() // p 是存储里的活对象，读它也要持锁
 	urls := asObj(p.Get("urls"))
 	url, _ := strOf(urls.Get(e.Wire))
 	if url == "" {
+		s.unlock()
 		return
 	}
-	s.lock()
 	pid := idOf(p)
 	keys := []any{}
 	for _, kr := range arr(p.Get("keys")) {
@@ -1181,7 +1186,9 @@ func (s *Service) ConfirmPrivateHost(hostPort string) error {
 // Retry = retry()
 func (s *Service) Retry() { s.rt.proc.Retry() }
 
-// ApplyModelsData = applyModelsData(api)：返回在后台写盘完成时关闭的 channel
+// ApplyModelsData = applyModelsData(api)：返回在后台写盘（及随后的生效、推配置）完成时关闭的 channel。
+// 落盘成功后才生效、推配置并通知界面：网关只在收到配置时按文件路径 / 修改时间重读，先推后写会让运行中的
+// 网关读到旧目录（#185）。写失败时不生效、不推送，主进程与网关都保持原目录。
 func (s *Service) ApplyModelsData(api any) <-chan struct{} {
 	done := make(chan struct{})
 	date := time.UnixMilli(int64(Now())).UTC().Format("2006-01-02")
@@ -1193,20 +1200,44 @@ func (s *Service) ApplyModelsData(api any) <-chan struct{} {
 		return done
 	}
 	_ = os.MkdirAll(s.rt.d.Root, 0o755)
-	models.SetCatalogOverlay(&doc)
-	s.lock()
-	s.push()
-	s.unlock()
-	s.changed()
 	data := []byte(u.Stringify(doc.JSON()))
 	file := s.catalogFile()
+	seq := s.rt.catalogSeq.Add(1)
+	write := s.rt.d.WriteCatalog
+	if write == nil {
+		write = utils.WritePrivateFileAtomic
+	}
 	go func() {
 		defer close(done)
-		if err := utils.WritePrivateFileAtomic(file, data); err != nil {
-			s.logger.Warn("models catalog write failed", map[string]any{"error": err.Error()})
+		if s.writeCatalog(seq, write, file, &doc, data) {
+			s.changed()
 		}
 	}()
 	return done
+}
+
+// writeCatalog：串行落盘模型目录，成功后生效并推配置（持 catalogMu，两次同步的生效顺序与落盘顺序一致）。
+// 后一次同步已先落盘时跳过：goroutine 不保证先来先写，Node 的写队列按调用顺序。返回是否要通知界面
+func (s *Service) writeCatalog(seq uint64, write func(string, []byte) error, file string, doc *models.CatalogDoc, data []byte) bool {
+	s.rt.catalogMu.Lock()
+	defer s.rt.catalogMu.Unlock()
+	if seq < s.rt.catalogDone {
+		return false
+	}
+	if err := write(file, data); err != nil {
+		s.logger.Warn("models catalog write failed", map[string]any{"error": err.Error()})
+		return false
+	}
+	s.rt.catalogDone = seq
+	// 已退出：Apply 会把停掉的网关重新拉起
+	if s.rt.disposed.Load() {
+		return false
+	}
+	s.lock()
+	models.SetCatalogOverlay(doc)
+	s.push()
+	s.unlock()
+	return true
 }
 
 // LegacyRevokeFailure = setLegacyRevoke 的 failed 条目

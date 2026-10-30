@@ -46,7 +46,9 @@ apps\desktop-go\run-dev.cmd   # Windows（不加 -H windowsgui，保留控制台
 - `frontend/build.mjs` 跑与 Node 版相同的 turbo build，把 `packages/renderer/dist`、`packages/ai-chat/dist` 原样复制到
   `frontend/dist/{mascot,chat}`，由 `main.go` 的 `//go:embed` 嵌进程序。没有任何 Go 专用的构建开关。
 - 视图运行时识别宿主：没有 preload 桥、页面地址片段里有宿主给的 WebSocket 地址与一次性 token 时，经 WebSocket 连 Go 内核
-  （`services/api.ts`，只认 `ws://127.0.0.1`）。
+  （`services/api.ts`，只认 `ws://127.0.0.1`）。token 每个窗口一份（每次新建 / 重建都换新的），内核记 token → 界面，
+  调用方的界面按 token 认（同 Electron 按发送方窗口认，`ipcSenderGuard.ts`），子协议里自报的界面与之不符直接拒绝握手；
+  窗口关闭时撤销它的 token 并断开连接（`internal/contract/websocket.go` `WSServer.Issue`）。
 - Go 提供页面时（`internal/shell/viewpage`）给 CSP 的 connect-src 加上 `ws://127.0.0.1:*`，并插入 Wails 运行时
   `/wails/runtime.js`（标题栏拖动、文件拖放依赖它）。
 - `chat-asset://`、`character-pack://` 经资产服务器网关 `/__scheme/<scheme>/…` 提供（Wails 只接管 `wails` scheme）。

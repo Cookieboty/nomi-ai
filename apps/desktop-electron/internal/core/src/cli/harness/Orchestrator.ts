@@ -383,7 +383,8 @@ export class HarnessOrchestrator {
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
   /**
    * 「全部自动」（默认开）：新的编程助手标签默认「完全放开」、Nomi 委派的编程助手同样，
-   * Nomi 对话选了工作区时工作区里的文件 / 命令工具不再确认（desktop/PermissionBroker.authorizeIn）。
+   * Nomi 对话选了工作区时工作区里的文件工具不再确认（desktop/PermissionBroker.authorizeIn；
+   * workspace_run 不受工作区限制，始终确认）。
    * 关掉后回到逐项询问：新标签用 defaultPermissionMode，Nomi 的工具按原来的确认规则。
    */
   private autoApprove = true;

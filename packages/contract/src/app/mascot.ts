@@ -176,6 +176,11 @@ export const CharacterPackSnapshot = z.looseObject({
     })
     .nullable()
     .optional(),
+  /**
+   * 包声明的表情（manifest.capabilities.expressions，§10.5）；没有声明时为 null。运行时判断 mapping 是不是
+   * 2.0.5 旧模板时要用。旧主进程不发这个字段
+   */
+  expressions: z.array(z.string()).nullable().optional(),
   /** 角色文案（`locales/<lang>.json` 的 lines 与唤醒词 wakePhrase）；旧主进程只发 lines */
   locales: z
     .record(

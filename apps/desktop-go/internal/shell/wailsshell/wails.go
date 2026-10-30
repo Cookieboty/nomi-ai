@@ -24,8 +24,9 @@ const AppID = "com.cookieboty.nomi"
 
 type Config struct {
 	Assets fs.FS
-	// Fragment 附在页面地址后（WS 地址与 token，片段不发给服务器）
-	Fragment url.Values
+	// Fragment：新建（含重建）k 窗口时附在页面地址后的片段（WS 地址与这个窗口独有的 token，片段不发给服务器）；
+	// release 在这个窗口关闭 / 销毁时调用（撤销它的 token），可为 nil
+	Fragment func(k shell.WindowKind) (frag url.Values, release func())
 	// Pages：各窗口的页面路径（资产服务器上，如 /mascot/index.html）
 	Pages map[shell.WindowKind]string
 	// OnFilesDropped：从系统拖到桌面角色 / 对话窗口（data-file-drop-target 元素）上的文件路径
@@ -71,6 +72,8 @@ type Wails struct {
 	created []func(IconWindow)
 	started bool
 	pending []func()
+	// releases：各窗口关闭时要调的 Fragment release（撤销窗口的 token）
+	releases map[*application.WebviewWindow]func()
 	// loads：窗口页面还在加载（= webContents.isLoading()）时，等 did-finish-load 的回调
 	loads map[*application.WebviewWindow]*pageLoad
 	// notes：系统通知（notify.go）
@@ -84,7 +87,8 @@ type pageLoad struct {
 
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{},
-		notes: newNotifier()}
+		releases: map[*application.WebviewWindow]func(){},
+		notes:    newNotifier()}
 	w.app = application.New(application.Options{
 		Name:     "Nomi",
 		Services: w.notes.services(),
@@ -213,8 +217,27 @@ func (w *Wails) toggle(k shell.WindowKind) {
 	}
 }
 
-func (w *Wails) page(k shell.WindowKind) string {
-	return w.cfg.Pages[k] + "#" + w.cfg.Fragment.Encode()
+// page：k 窗口这次新建用的页面地址与片段的 release
+func (w *Wails) page(k shell.WindowKind) (string, func()) {
+	if w.cfg.Fragment == nil {
+		return w.cfg.Pages[k], nil
+	}
+	frag, release := w.cfg.Fragment(k)
+	if len(frag) == 0 {
+		return w.cfg.Pages[k], release
+	}
+	return w.cfg.Pages[k] + "#" + frag.Encode(), release
+}
+
+// release 撤销窗口的片段凭据（可重复调用：只有第一次生效）
+func (w *Wails) release(win *application.WebviewWindow) {
+	w.mu.Lock()
+	fn := w.releases[win]
+	delete(w.releases, win)
+	w.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 func (w *Wails) Show(k shell.WindowKind) {
@@ -272,6 +295,7 @@ func (w *Wails) pageLoaded(win *application.WebviewWindow) {
 func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewWindow {
 	var opts application.WebviewWindowOptions
 	var place func(win *application.WebviewWindow)
+	pageURL, release := w.page(k)
 	switch k {
 	case shell.Mascot:
 		// 2.0.5 默认缩放 0.5：420×450 的一半 + 透明边距（60, 130）→ 330×355
@@ -285,7 +309,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			// Wails v3.0.0 只在 -tags private_mac_apis 下编进去（否则是空实现 → 白底），见 macflags_darwin.go。
 			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent},
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
-			URL:     w.page(k),
+			URL:     pageURL,
 			// 拖文件到角色身上 → 总结（renderer useFileDropSummarize 给画布加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
 		}
@@ -307,7 +331,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			Linux:            application.LinuxWindow{WindowIsTranslucent: true},
 			Mac:              application.MacWindow{Backdrop: application.MacBackdropTransparent, WindowLevel: application.MacWindowLevelStatus},
 			Windows:          application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
-			URL:              w.page(k),
+			URL:              pageURL,
 		}
 		if w.cfg.IslandLayout != nil {
 			if r, page, ok := w.cfg.IslandLayout(); ok {
@@ -325,7 +349,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		// mac = titleBarOptions('darwin')：隐藏原生标题栏，红绿灯叠在 ai-chat 自绘的 38px 标题栏左侧
 		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi", Width: 1120, Height: 820,
-			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: w.page(k),
+			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: pageURL,
 			// 拖入文件取本机路径（= preload nomiHost.pathForFile；ai-chat 给 body 加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
 			Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden},
@@ -361,6 +385,9 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	win := w.app.Window.NewWithOptions(opts)
 	w.mu.Lock()
 	w.loads[win] = &pageLoad{}
+	if release != nil {
+		w.releases[win] = release
+	}
 	w.mu.Unlock()
 	// did-finish-load：各平台 WebView 的页面加载完成事件（只有本平台的会触发）
 	for _, ev := range []events.WindowEventType{events.Linux.WindowLoadFinished, events.Mac.WebViewDidFinishNavigation, events.Windows.WebViewNavigationCompleted} {
@@ -382,6 +409,8 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		}
 		delete(w.loads, win)
 		w.mu.Unlock()
+		// 关闭 = 销毁（Close 也走这里，含 Destroy 与重建时关旧窗口）：撤销它的 token，断开它的连接
+		w.release(win)
 		if cur {
 			w.notify(k, "closed")
 			// 用户关的（Destroy 主动销毁时 cur 为 false）：= BrowserWindow 'close'（关闭桌面角色即退出 / closeMain=quit）
@@ -631,6 +660,7 @@ func (w *Wails) Destroy(k shell.WindowKind) {
 	if win != nil {
 		w.notify(k, "closed")
 		win.Close()
+		w.release(win) // 原生窗口还没出来时 Close 不发 WindowClosing
 		log.Printf("[shell] %s destroyed", k)
 	}
 }

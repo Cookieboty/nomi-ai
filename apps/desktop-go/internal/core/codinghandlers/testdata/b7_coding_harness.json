@@ -860,6 +860,49 @@
           }
         ]
       ]
+    },
+    {
+      "name": "git-commit-paths",
+      "steps": [
+        [
+          "harness.gitCommit",
+          {
+            "ok": {
+              "ok": false,
+              "code": "hook",
+              "output": "fatal: not a git repository (or any of the parent directories): .git"
+            }
+          }
+        ],
+        [
+          "harness.gitCommit",
+          {
+            "ok": {
+              "ok": false,
+              "code": "hook",
+              "output": "fatal: not a git repository (or any of the parent directories): .git"
+            }
+          }
+        ],
+        [
+          "harness.gitCommit",
+          {
+            "ok": {
+              "ok": false,
+              "code": "invalid"
+            }
+          }
+        ],
+        [
+          "harness.gitCommit",
+          {
+            "ok": {
+              "ok": false,
+              "code": "invalid"
+            }
+          }
+        ]
+      ]
     }
   ]
 }

@@ -307,6 +307,8 @@ export interface GatewayServiceDeps {
   detectImpl?: typeof detect;
   /** 测试注入：环境变量（NOMI_ROUTE_PLAN）；默认 process.env */
   env?: NodeJS.ProcessEnv;
+  /** 测试注入：模型目录的异步原子写；默认 writePrivateFileAtomicAsync */
+  writeCatalog?: (file: string, data: string) => Promise<void>;
   broadcast?: (event: 'gateway.changed', payload: null) => void;
 }
 
@@ -432,9 +434,15 @@ export class GatewayService {
     return catalogOverlayVersion() !== null;
   }
 
+  /** 模型目录同步的序号：每次 applyModelsData 递增；已生效的最大序号，旧的写完不再覆盖新的 */
+  private catalogSeq = 0;
+  private catalogApplied = 0;
+
   /**
    * 模型数据同步下载到的 models.dev api.json（用量服务的 PriceSync 转交）→ 生成模型目录覆盖层：
-   * 写进 userData、主进程立即生效、推配置让网关进程重读，并通知界面刷新生效值。
+   * 先异步写进 userData，落盘成功后主进程才生效、推配置让网关进程按路径重读，并通知界面刷新生效值。
+   * 网关进程只在收到配置时按文件路径 / 修改时间重读，先推后写会让运行中的网关进程读到旧目录（#185）。
+   * 写失败时不生效、不推送，主进程与网关进程都保持原目录（没有同步过的下次仍强制完整下载）。
    * 条目明显过少（异常响应）时不采用，保留原有目录。
    */
   applyModelsData(api: unknown): Promise<void> {
@@ -447,13 +455,23 @@ export class GatewayService {
       return Promise.resolve();
     }
     fs.mkdirSync(this.d.root, { recursive: true });
-    // 内存先更新；磁盘异步落盘，避免 Windows 占用重试卡住主进程（#154）
-    setCatalogOverlay(doc);
-    this.push();
-    this.changed();
-    return writePrivateFileAtomicAsync(this.catalogFile, JSON.stringify(doc)).catch((e) => {
-      this.d.logger.warn('models catalog write failed', { error: String(e) });
-    });
+    const seq = ++this.catalogSeq;
+    // 异步落盘，避免 Windows 占用重试卡住主进程（#154）；同一文件的写按调用顺序排队
+    const write = this.d.writeCatalog ?? writePrivateFileAtomicAsync;
+    return write(this.catalogFile, JSON.stringify(doc)).then(
+      () => {
+        // 后一次同步已先生效（写入不按调用顺序完成时）：不再用旧目录覆盖它
+        // 已退出：apply 会把停掉的网关进程重新拉起
+        if (seq < this.catalogApplied || this.disposed) return;
+        this.catalogApplied = seq;
+        setCatalogOverlay(doc);
+        this.push();
+        this.changed();
+      },
+      (e) => {
+        this.d.logger.warn('models catalog write failed', { error: String(e) });
+      },
+    );
   }
 
   /**
@@ -1572,7 +1590,10 @@ export class GatewayService {
     return this.privacyLog.clear();
   }
 
+  private disposed = false;
+
   dispose(): void {
+    this.disposed = true;
     this.privacyLog.flush();
     this.proc.stop();
   }

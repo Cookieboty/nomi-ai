@@ -1,19 +1,21 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-import { describe, expect, it } from 'vitest';
+import { join, normalize } from 'node:path';
 
 import {
-  archToName,
-  barePrebuildKeepName,
-  shouldDropBarePrebuildDir,
-  shouldDropZlibjsBin,
-  shouldDropI18nPath,
-  slimNodeModulesTree,
-  dropUnpackedDuplicates,
+  createPackage,
+  createPackageWithOptions,
+  extractFile,
+  getRawHeader,
+  uncache,
+} from '@electron/asar';
+import { minimatch } from 'minimatch';
+import { describe, expect, it } from 'vitest';
+
+import afterPack, {
   collectRelFiles,
+  headerEntry,
+  missingUnpackedEntries,
 } from '../../apps/desktop-electron/scripts/after-pack-slim.mjs';
 
 const yml = readFileSync(
@@ -38,9 +40,19 @@ describe('electron-builder slim (2.0.5 easy wins)', () => {
     expect(yml).toMatch(/@nomi-ai\/i18n\/dist/);
   });
 
-  it('excludes mobile bare-* prebuilds in files filter', () => {
+  it('excludes mobile and other-platform bare-* prebuilds in files filter', () => {
     expect(yml).toMatch(/bare-\*\/prebuilds\/android-\*\/\*\*/);
     expect(yml).toMatch(/bare-\*\/prebuilds\/ios-\*\/\*\*/);
+    const line =
+      /'(!\*\*\/node_modules\/bare-\*\/prebuilds\/!\(\$\{platform\}-\$\{arch\}\)\/\*\*)'/.exec(yml);
+    expect(line).not.toBeNull();
+    // electron-builder 按目标展开宏后，用 minimatch（extglob）判断：只留下当前平台 + 架构
+    const pattern = line![1]!.slice(1).replace('${platform}', 'darwin').replace('${arch}', 'arm64');
+    const dropped = (p: string) => minimatch(p, pattern, { dot: true });
+    expect(dropped('node_modules/bare-fs/prebuilds/darwin-x64/bare-fs.bare')).toBe(true);
+    expect(dropped('node_modules/bare-fs/prebuilds/win32-x64/bare-fs.bare')).toBe(true);
+    expect(dropped('node_modules/bare-fs/prebuilds/darwin-arm64/bare-fs.bare')).toBe(false);
+    expect(dropped('node_modules/bare-fs/index.js')).toBe(false);
   });
 
   it('keeps asarUnpack for onnx + tesseract (disk load)', () => {
@@ -49,87 +61,90 @@ describe('electron-builder slim (2.0.5 easy wins)', () => {
   });
 });
 
-describe('after-pack-slim helpers', () => {
-  it('archToName maps builder-util Arch enums', () => {
-    expect(archToName(1)).toBe('x64');
-    expect(archToName(3)).toBe('arm64');
-    expect(archToName('x64')).toBe('x64');
-  });
+describe('after-pack-slim on a real asar (#188)', () => {
+  /** 用 @electron/asar 打一个带 unpacked 条目的小包，形状同 electron-builder 的 asarUnpack */
+  async function buildApp() {
+    const dir = mkdtempSync(join(tmpdir(), 'nomi-afterpack-'));
+    const src = join(dir, 'src');
+    const files: Record<string, string> = {
+      'package.json': '{"name":"app","main":"dist/main.js"}',
+      'dist/main.js': 'module.exports = 1',
+      'node_modules/tesseract.js/package.json': '{"name":"tesseract.js","main":"src/index.js"}',
+      'node_modules/tesseract.js/src/index.js': 'module.exports = "ocr"',
+      'node_modules/tesseract.js-core/tesseract-core-relaxedsimd.wasm': 'wasm',
+      'node_modules/onnxruntime-web/package.json': '{"name":"onnxruntime-web"}',
+      'node_modules/onnxruntime-web/dist/ort.node.min.js': 'module.exports = "ort"',
+      'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm': 'wasm',
+      'node_modules/bare-fs/prebuilds/darwin-arm64/bare-fs.bare': 'bin',
+    };
+    for (const [rel, body] of Object.entries(files)) {
+      mkdirSync(join(src, rel, '..'), { recursive: true });
+      writeFileSync(join(src, rel), body);
+    }
+    const resources = join(dir, 'Resources');
+    mkdirSync(resources);
+    const asarPath = join(resources, 'app.asar');
+    await createPackageWithOptions(src, asarPath, {
+      unpack: '**/node_modules/onnxruntime-web/dist/**',
+      unpackDir: '**/node_modules/{tesseract.js,tesseract.js-core}',
+    });
+    uncache(asarPath);
+    const context = {
+      appOutDir: dir,
+      packager: { getResourcesDir: () => resources },
+    } as unknown as Parameters<typeof afterPack>[0];
+    return { dir, resources, asarPath, unpackedDir: `${asarPath}.unpacked`, context };
+  }
 
-  it('bare prebuild keep / drop', () => {
-    expect(barePrebuildKeepName('linux', 'x64')).toBe('linux-x64');
-    expect(shouldDropBarePrebuildDir('linux-x64', 'linux', 'x64')).toBe(false);
-    expect(shouldDropBarePrebuildDir('darwin-arm64', 'linux', 'x64')).toBe(true);
-    expect(shouldDropBarePrebuildDir('android-arm64', 'linux', 'x64')).toBe(true);
-  });
+  const UNPACKED = [
+    'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
+    'node_modules/onnxruntime-web/dist/ort.node.min.js',
+    'node_modules/tesseract.js-core/tesseract-core-relaxedsimd.wasm',
+    'node_modules/tesseract.js/package.json',
+    'node_modules/tesseract.js/src/index.js',
+  ];
 
-  it('zlibjs keeps only node-zlib.js', () => {
-    expect(shouldDropZlibjsBin('node-zlib.js')).toBe(false);
-    expect(shouldDropZlibjsBin('gunzip.dev.min.js')).toBe(true);
-    expect(shouldDropZlibjsBin('gunzip.min.js')).toBe(true);
-  });
-
-  it('i18n drops src and dist but not dist-cjs', () => {
-    expect(shouldDropI18nPath('node_modules/@nomi-ai/i18n/src/index.ts')).toBe(true);
-    expect(shouldDropI18nPath('node_modules/@nomi-ai/i18n/dist/index.js')).toBe(true);
-    expect(shouldDropI18nPath('node_modules/@nomi-ai/i18n/dist-cjs/index.js')).toBe(false);
-    expect(shouldDropI18nPath('node_modules/other/dist/x.js')).toBe(false);
-  });
-
-  it('slimNodeModulesTree removes foreign bare + zlib extras + i18n src/dist', () => {
-    const root = mkdtempSync(join(tmpdir(), 'nomi-slim-'));
+  it('leaves the archive untouched and the unpacked entries flagged in the header', async () => {
+    const t = await buildApp();
     try {
-      const pre = join(root, 'node_modules', 'bare-fs', 'prebuilds');
-      mkdirSync(join(pre, 'linux-x64'), { recursive: true });
-      mkdirSync(join(pre, 'darwin-arm64'), { recursive: true });
-      writeFileSync(join(pre, 'linux-x64', 'a.node'), 'x');
-      writeFileSync(join(pre, 'darwin-arm64', 'a.node'), 'x');
-
-      const zbin = join(root, 'node_modules', 'zlibjs', 'bin');
-      mkdirSync(zbin, { recursive: true });
-      writeFileSync(join(zbin, 'node-zlib.js'), 'main');
-      writeFileSync(join(zbin, 'gunzip.dev.min.js'), 'dev');
-      writeFileSync(join(zbin, 'gunzip.min.js'), 'min');
-
-      const i18n = join(root, 'node_modules', '@nomi-ai', 'i18n');
-      mkdirSync(join(i18n, 'src'), { recursive: true });
-      mkdirSync(join(i18n, 'dist'), { recursive: true });
-      mkdirSync(join(i18n, 'dist-cjs'), { recursive: true });
-      writeFileSync(join(i18n, 'src', 'a.ts'), 's');
-      writeFileSync(join(i18n, 'dist', 'a.js'), 'e');
-      writeFileSync(join(i18n, 'dist-cjs', 'a.js'), 'c');
-
-      const r = slimNodeModulesTree(root, 'linux', 'x64');
-      expect(r.droppedBare).toBe(1);
-      expect(existsSync(join(pre, 'linux-x64'))).toBe(true);
-      expect(existsSync(join(pre, 'darwin-arm64'))).toBe(false);
-      expect(existsSync(join(zbin, 'node-zlib.js'))).toBe(true);
-      expect(existsSync(join(zbin, 'gunzip.dev.min.js'))).toBe(false);
-      expect(existsSync(join(zbin, 'gunzip.min.js'))).toBe(false);
-      expect(existsSync(join(i18n, 'dist-cjs', 'a.js'))).toBe(true);
-      expect(existsSync(join(i18n, 'src'))).toBe(false);
-      expect(existsSync(join(i18n, 'dist'))).toBe(false);
+      const before = readFileSync(t.asarPath);
+      expect([...collectRelFiles(t.unpackedDir)].sort()).toEqual(UNPACKED);
+      await afterPack(t.context);
+      // 不重建：字节完全一致
+      expect(readFileSync(t.asarPath).equals(before)).toBe(true);
+      uncache(t.asarPath);
+      const { header } = getRawHeader(t.asarPath);
+      for (const rel of UNPACKED) {
+        const e = headerEntry(header, rel);
+        expect(e, rel).toBeDefined();
+        expect(e.unpacked, rel).toBe(true);
+        // unpacked 条目的内容只在 .unpacked 目录里：按原路径读得到（extractFile 按本平台分隔符切路径）
+        expect(extractFile(t.asarPath, normalize(rel)).toString()).toBe(
+          readFileSync(join(t.unpackedDir, rel), 'utf8'),
+        );
+      }
+      // 普通文件仍在 asar 数据区
+      expect(headerEntry(header, 'dist/main.js').unpacked).toBeUndefined();
+      expect(missingUnpackedEntries(t.asarPath, t.unpackedDir)).toEqual([]);
     } finally {
-      rmSync(root, { recursive: true, force: true });
+      rmSync(t.dir, { recursive: true, force: true });
     }
   });
 
-  it('dropUnpackedDuplicates removes overlapping asar files', () => {
-    const root = mkdtempSync(join(tmpdir(), 'nomi-dedupe-'));
+  it('fails the build when the header lost unpacked entries (the old dedupe-and-rebuild)', async () => {
+    const t = await buildApp();
     try {
-      const f = join(root, 'node_modules', 'onnxruntime-web', 'dist');
-      mkdirSync(f, { recursive: true });
-      writeFileSync(join(f, 'ort.wasm'), 'wasm');
-      writeFileSync(join(root, 'keep.js'), 'k');
-      const n = dropUnpackedDuplicates(root, [
-        'node_modules/onnxruntime-web/dist/ort.wasm',
-        'missing.js',
-      ]);
-      expect(n).toBe(1);
-      expect(existsSync(join(f, 'ort.wasm'))).toBe(false);
-      expect(existsSync(join(root, 'keep.js'))).toBe(true);
+      // 复现旧做法：从去掉 unpacked 文件的树不带 unpack 选项重建，header 里就没有这些条目了
+      const tree = join(t.dir, 'rebuilt');
+      mkdirSync(join(tree, 'dist'), { recursive: true });
+      writeFileSync(join(tree, 'package.json'), '{}');
+      writeFileSync(join(tree, 'dist', 'main.js'), 'module.exports = 1');
+      rmSync(t.asarPath);
+      await createPackage(tree, t.asarPath);
+      expect(missingUnpackedEntries(t.asarPath, t.unpackedDir)).toEqual(UNPACKED);
+      await expect(afterPack(t.context)).rejects.toThrow(/lacks 5 unpacked entries/);
     } finally {
-      rmSync(root, { recursive: true, force: true });
+      rmSync(t.dir, { recursive: true, force: true });
     }
   });
 

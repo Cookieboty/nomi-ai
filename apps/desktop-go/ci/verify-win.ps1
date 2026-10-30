@@ -47,6 +47,11 @@ function Snap($label) {
   return $f }
 W "### windows: $(Split-Path $Setup -Leaf) ($((Get-Item $Setup).Length) bytes)"
 $sig = Get-AuthenticodeSignature $Setup; W "- Authenticode：$($sig.Status)（Electron 2.0.4 同样未签名）"
+# CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json / latest.yml，2.0.4 还会自动下载整个安装包，算进下载量。Go 版 userData = %APPDATA%\Nomi；2.0.4 没有 productName，userData = %APPDATA%\@nomi-ai\electron
+foreach ($d in "$env:APPDATA\Nomi", "$env:APPDATA\@nomi-ai\electron") {
+  New-Item -ItemType Directory -Force $d | Out-Null
+  Set-Content -Encoding ascii (Join-Path $d 'update-settings.json') '{"version":1,"autoCheck":false}'
+}
 $upgrade = $Old -and (Test-Path $Old)
 if (-not $upgrade -and $RequireOld) { W "- 缺 Electron 2.0.4 安装器，无法验证 2.0.4 → 新版升级"; $ok = $false }
 if ($upgrade) {
@@ -55,7 +60,8 @@ if ($upgrade) {
   $e = Join-Path (InstDir) "Nomi.exe"; if (Test-Path $e) { Start-Process $e; Start-Sleep 30 }
   Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
   $a = Snap "electron-204"; W "- 已安装并运行过 Electron 2.0.4（state-electron-204.txt）"
-  $dataBefore = @(Get-ChildItem "$env:APPDATA\Nomi" -Recurse -File -ErrorAction SilentlyContinue).Count
+  $old204 = "$env:APPDATA\@nomi-ai\electron"  # 2.0.4 没有 productName，userData 不在 %APPDATA%\Nomi
+  $dataBefore = @(Get-ChildItem $old204 -Recurse -File -ErrorAction SilentlyContinue).Count
   # = NsisUpdater.doInstall：quitAndInstall(false, true) → ["--updated", "--force-run"]，非静默
   # 只等安装器本身：Start-Process -Wait 会连 --force-run 拉起的 Nomi 一起等（Nomi 一直在跑 → 卡到任务超时）
   $t = Measure-Command { $script:inst = Start-Process $Setup -ArgumentList "--updated","--force-run" -PassThru; $null = $script:inst.WaitForExit(300000) }
@@ -70,8 +76,8 @@ if ($upgrade) {
   $keys = @(Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "Nomi*" })
   $ver = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).DisplayVersion
   W "- 卸载项：$($keys.Count) 个，DisplayVersion=$ver"; if ($keys.Count -ne 1 -or $ver -eq "2.0.4") { $ok = $false }
-  $dataAfter = @(Get-ChildItem "$env:APPDATA\Nomi" -Recurse -File -ErrorAction SilentlyContinue).Count
-  W "- 2.0.4 用户数据（%APPDATA%\Nomi）：升级前 $dataBefore 个文件，升级后 $dataAfter 个"; if ($dataBefore -gt 0 -and $dataAfter -eq 0) { $ok = $false }
+  $dataAfter = @(Get-ChildItem $old204 -Recurse -File -ErrorAction SilentlyContinue).Count
+  W "- 2.0.4 用户数据（%APPDATA%\@nomi-ai\electron）：升级前 $dataBefore 个文件，升级后 $dataAfter 个"; if ($dataBefore -gt 0 -and $dataAfter -eq 0) { $ok = $false }
 } else {
   $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
   Start-Sleep 3; $b = Snap "go"; W "- Go 安装器 /S 用时 $([int]$t.TotalSeconds)s（state-go.txt）"

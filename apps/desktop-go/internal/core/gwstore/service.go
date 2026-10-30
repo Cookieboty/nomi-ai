@@ -74,6 +74,7 @@ func (s *Service) Init() error {
 		err = s.Store.Save()
 	}
 	s.archiveLeftoverLegacy()
+	s.Store.Publish()
 	return err
 }
 

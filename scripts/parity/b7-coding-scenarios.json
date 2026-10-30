@@ -1,6 +1,13 @@
 {
   "cases": [
-    { "name": "unavailable", "noHarness": true, "calls": [["harness.tabs", {}], ["harness.state", {}]] },
+    {
+      "name": "unavailable",
+      "noHarness": true,
+      "calls": [
+        ["harness.tabs", {}],
+        ["harness.state", {}]
+      ]
+    },
     {
       "name": "main-tab",
       "calls": [
@@ -40,11 +47,17 @@
       "name": "messages",
       "calls": [
         ["harness.tabCreate", { "backend": "gemini", "cwd": "$W" }],
-        ["harness.tabSeed", { "id": "$0", "messages": [
-          { "id": "u1", "role": "user", "content": "hi", "timestamp": 1 },
-          { "id": "a1", "role": "assistant", "content": "yo", "timestamp": 2 },
-          { "id": "u2", "role": "user", "content": "again", "timestamp": 3 }
-        ] }],
+        [
+          "harness.tabSeed",
+          {
+            "id": "$0",
+            "messages": [
+              { "id": "u1", "role": "user", "content": "hi", "timestamp": 1 },
+              { "id": "a1", "role": "assistant", "content": "yo", "timestamp": 2 },
+              { "id": "u2", "role": "user", "content": "again", "timestamp": 3 }
+            ]
+          }
+        ],
         ["harness.tabMessages", { "id": "$0" }],
         ["harness.tabRewind", { "id": "$0", "messageId": "u2" }],
         ["harness.tabMessages", { "id": "$0" }],
@@ -62,7 +75,10 @@
         ["harness.stopAgent", { "id": "$0", "agentId": "x" }],
         ["harness.tabCancel", { "id": "$0" }],
         ["harness.replyPermission", { "tabId": "$0", "requestId": "r1", "allow": true }],
-        ["harness.replyPermission", { "tabId": "$0", "requestId": "r1", "allow": true, "approvePlan": "manual" }],
+        [
+          "harness.replyPermission",
+          { "tabId": "$0", "requestId": "r1", "allow": true, "approvePlan": "manual" }
+        ],
         ["harness.replyApprovePlan", { "tabId": "$0", "requestId": "r1", "choice": "deny" }],
         ["harness.replyApprovePlan", { "tabId": "$0", "requestId": "r1", "choice": "bogus" }],
         ["harness.geminiTrustFolder", { "tabId": "$0", "messageId": "m" }],
@@ -70,6 +86,15 @@
         ["harness.tabSend", { "id": "main", "prompt": "x" }],
         ["harness.workspaceList", { "cwd": "$T/elsewhere" }],
         ["harness.workspaceRead", { "cwd": "$T/elsewhere", "path": "a" }]
+      ]
+    },
+    {
+      "name": "git-commit-paths",
+      "calls": [
+        ["harness.gitCommit", { "cwd": "$T/docs/nomi", "message": "m", "paths": null }],
+        ["harness.gitCommit", { "cwd": "$T/docs/nomi", "message": "m" }],
+        ["harness.gitCommit", { "cwd": "$T/docs/nomi", "message": "m", "paths": [] }],
+        ["harness.gitCommit", { "cwd": "$T/docs/nomi", "message": "  ", "paths": null }]
       ]
     }
   ]

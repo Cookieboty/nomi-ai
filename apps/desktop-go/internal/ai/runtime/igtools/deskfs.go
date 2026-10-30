@@ -515,6 +515,10 @@ func (k *deskKit) baseTools() []tools.Definition {
 					if picked == "" {
 						return nil, "", toolErr("user_denied", "用户取消了授权")
 					}
+					// 等授权期间这一轮被停止了：不再写入授权（#203）
+					if ctx.Err() != nil {
+						return nil, "", toolErr("aborted", "授权请求已随对话停止而取消")
+					}
 					s := b.Grant(picked, str0(i, "mode"), "folder", false)
 					return u.NewObj("path", s.Path, "mode", s.Mode), "allowed", nil
 				}), nil

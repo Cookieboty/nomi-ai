@@ -228,7 +228,17 @@ func (g *GatewayProcess) WhenReady(timeout time.Duration) bool {
 	}
 	g.EnsureStarted()
 	g.mu.Lock()
+	// 判定与注册须在同一把锁内：Node 里 listening 是异步消息，不会插在 ensureStarted 与 push(waiter) 之间；
+	// 这里网关在别的 goroutine 上，可能在上面读状态之后、注册之前就已 setStatus(running) 并清空 waiter（#196）
 	if g.stopping {
+		g.mu.Unlock()
+		return false
+	}
+	switch g.status.State {
+	case "running":
+		g.mu.Unlock()
+		return true
+	case "failed":
 		g.mu.Unlock()
 		return false
 	}

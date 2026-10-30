@@ -1375,6 +1375,14 @@
             "random": "random"
           }
         },
+        "expressions": [
+          "neutral",
+          "happy",
+          "angry",
+          "sad",
+          "relaxed",
+          "surprised"
+        ],
         "reason": "no overlay present"
       }
     },
@@ -1789,6 +1797,14 @@
             "random": "random"
           }
         },
+        "expressions": [
+          "neutral",
+          "happy",
+          "angry",
+          "sad",
+          "relaxed",
+          "surprised"
+        ],
         "assetBaseUrl": "character-pack://pack/",
         "onboarding": {
           "welcome": "character-pack://pack/onboarding/welcome.webp",

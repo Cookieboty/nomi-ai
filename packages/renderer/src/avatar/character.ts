@@ -44,7 +44,12 @@ export function currentAvatarCharacter(manifestPath: string): AvatarCharacter {
           ...(hitboxes.bubbleAnchor ? { bubbleAnchor: hitboxes.bubbleAnchor } : {}),
         }
       : null,
-    capabilities: overlay ? undefined : BUNDLED_PACK.capabilities,
+    // 覆盖包只带声明的表情（运行时判断 mapping 是不是 2.0.5 旧模板时要用，见 AvatarMapping.set）
+    capabilities: overlay
+      ? overlay.expressions
+        ? { expressions: overlay.expressions }
+        : undefined
+      : BUNDLED_PACK.capabilities,
     // 覆盖包带自己的 mapping.json；没有时为 null（运行时用引擎默认映射）
     mapping: overlay ? (overlay.mapping ?? null) : BUNDLED_PACK.mapping,
   };

@@ -50,6 +50,9 @@ type ConfirmUI interface {
 type Decision = string // auto | allowed | denied | timeout | blocked
 
 const ConfirmTimeoutMs = 120_000
+
+// ConfirmPreviewCap：确认里预览的上限（UTF-16 单位）；workspace_run 的命令最长 8000 字符，要连同工作目录完整展示
+const ConfirmPreviewCap = 16_000
 const taintFallbackMs = 120_000
 
 type pendingConfirm struct {
@@ -335,6 +338,8 @@ type AuthorizeInput struct {
 	IgnoreMode bool
 }
 
+// AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
+// 带 Force 的（如 workspace_run）始终确认
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
 	if b.PermissionMode() == "plan" && i.Danger != "read" {
 		return "blocked"
@@ -467,7 +472,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	}
 	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
 	if i.Preview != nil {
-		p := u16slice(*i.Preview, 0, 4000)
+		p := u16slice(*i.Preview, 0, ConfirmPreviewCap)
 		req.Preview = &p
 	}
 	decision, remember, req := b.ask(req, i.Signal)
@@ -530,6 +535,10 @@ func (b *PermissionBroker) scopeCandidate(p string) string {
 
 // ask：发出确认请求并等答复（超时 / 发起方取消都会收起界面上的请求）；返回 decision、remember 与发出的请求
 func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (string, bool, ConfirmRequest) {
+	// 发起方在登记之前就取消了（例如停止发生在 RequestScope 的目录校验期间）：不发卡片，直接拒绝（#203）
+	if signal != nil && signal.Err() != nil {
+		return "denied", false, req
+	}
 	req.ID = randomUUID()
 	req.ExpiresAt = b.nowFn() + float64(b.timeout.Milliseconds())
 	pc := &pendingConfirm{req: req, done: make(chan [2]any, 1)}

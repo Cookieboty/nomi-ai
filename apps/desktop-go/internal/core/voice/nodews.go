@@ -36,6 +36,9 @@ import (
 
 const wsGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
+// wsDialContext：建 TCP 连接（测试换成可控的连接）
+var wsDialContext = (&net.Dialer{}).DialContext
+
 // WsHeader：有序的请求头（Node 对象字面量的插入顺序）
 type WsHeader [][2]string
 
@@ -57,20 +60,36 @@ type WsHooks struct {
 	Error   func(err error)
 }
 
-// WsConn：建立好的连接
+// WsConn：建立好的连接。
+//
+// 写出（#194）：Send / Close / pong 只把编好的帧放进出站队列，不在调用方的 goroutine 里等网络
+// （同 ws：send 写进 socket 缓冲即返回，背压不阻塞调用方）。单个写 goroutine 按入队顺序写出，
+// 所以 full request → 音频包 → close 的顺序与 permessage-deflate 上下文（入队时压缩）不变。
+// close 帧入队后给剩余写入设截止期，对端停读造成的背压也能在有限时间内解除（写超时 = 断开连接）。
 type WsConn struct {
-	c        net.Conn
-	br       *bufio.Reader
-	wmu      sync.Mutex
-	hooks    WsHooks
-	maxPay   int64
-	deflate  *pmd
-	closeMu  sync.Mutex
-	sentCls  bool
-	closed   bool
-	closeErr error
-	done     chan struct{}
+	c       net.Conn
+	br      *bufio.Reader
+	hooks   WsHooks
+	maxPay  int64
+	deflate *pmd
+	closeMu sync.Mutex
+	sentCls bool
+	closed  bool
+	done    chan struct{}
+
+	qmu      sync.Mutex
+	qcond    *sync.Cond
+	queue    [][]byte // 待写出的帧（已加掩码）
+	qFinal   bool     // close 帧已入队 / 读循环已结束：不再收新帧，写完队列即停
+	qStopped bool     // 写 goroutine 已退出（写错误 / 断开）
+	wdone    chan struct{}
 }
+
+// wsCloseWriteGrace：close 之后剩余帧（含 close 帧）的写截止期；对端停读时到点断开（测试可调）
+var wsCloseWriteGrace = 2 * time.Second
+
+// wsCloseTimeout = ws 的 closeTimeout：发出 close 后等对端 close 的时间
+var wsCloseTimeout = 30 * time.Second
 
 // nodeNetError：把 Go 的拨号错误写成 Node 的 err.message（`connect ECONNREFUSED 127.0.0.1:1`、
 // `getaddrinfo ENOTFOUND host` 等）；其他错误原样
@@ -131,8 +150,7 @@ func DialNodeWs(ctx context.Context, rawURL string, headers WsHeader, maxPayload
 	if port == "" {
 		port = defPort
 	}
-	var d net.Dialer
-	c, err := d.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
+	c, err := wsDialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -227,7 +245,8 @@ func DialNodeWs(ctx context.Context, rawURL string, headers WsHeader, maxPayload
 	if _, ok := res.Header["Sec-Websocket-Protocol"]; ok {
 		return fail("Server sent a subprotocol but none was requested")
 	}
-	conn := &WsConn{c: c, br: br, hooks: hooks, maxPay: maxPayload, done: make(chan struct{})}
+	conn := &WsConn{c: c, br: br, hooks: hooks, maxPay: maxPayload, done: make(chan struct{}), wdone: make(chan struct{})}
+	conn.qcond = sync.NewCond(&conn.qmu)
 	if ext, ok := res.Header["Sec-Websocket-Extensions"]; ok {
 		p, err := parsePMD(strings.Join(ext, ", "))
 		if err != nil {
@@ -235,6 +254,7 @@ func DialNodeWs(ctx context.Context, rawURL string, headers WsHeader, maxPayload
 		}
 		conn.deflate = p
 	}
+	go conn.writeLoop()
 	return conn, nil
 }
 
@@ -345,7 +365,8 @@ func (p *pmd) decompress(data []byte, max int64) ([]byte, error) {
 
 var errMaxPayload = errors.New("Max payload size exceeded")
 
-func (w *WsConn) writeFrame(op byte, rsv1 bool, payload []byte) error {
+// encodeFrame：客户端帧（FIN、掩码）
+func encodeFrame(op byte, rsv1 bool, payload []byte) []byte {
 	var h [14]byte
 	h[0] = 0x80 | op
 	if rsv1 {
@@ -374,13 +395,73 @@ func (w *WsConn) writeFrame(op byte, rsv1 bool, payload []byte) error {
 	for i := 0; i < l; i++ {
 		buf[n+i] = payload[i] ^ mask[i%4]
 	}
-	w.wmu.Lock()
-	defer w.wmu.Unlock()
-	_, err := w.c.Write(buf)
-	return err
+	return buf
 }
 
-// Send = ws.send(buffer)（二进制；协商了压缩且 ≥1024 字节时压缩，同 ws 的 threshold）
+var errWsNotWritable = errors.New("WebSocket is not open: readyState 3 (CLOSED)")
+
+// enqueueLocked：须持 qmu；final = 这是最后一帧（close），之后不再收帧
+func (w *WsConn) enqueueLocked(frame []byte, final bool) error {
+	if w.qFinal || w.qStopped {
+		return errWsNotWritable
+	}
+	w.queue = append(w.queue, frame)
+	if final {
+		w.finalLocked()
+	}
+	w.qcond.Signal()
+	return nil
+}
+
+// finalLocked：须持 qmu；不再收新帧，剩余写入限时（背压时到点写失败并断开）
+func (w *WsConn) finalLocked() {
+	if w.qFinal {
+		return
+	}
+	w.qFinal = true
+	_ = w.c.SetWriteDeadline(time.Now().Add(wsCloseWriteGrace))
+	w.qcond.Broadcast()
+}
+
+// writeLoop：唯一的写者，按入队顺序写出；写失败即断开（读循环随之结束并回调 Close）
+func (w *WsConn) writeLoop() {
+	defer close(w.wdone)
+	for {
+		w.qmu.Lock()
+		for len(w.queue) == 0 && !w.qFinal && !w.qStopped {
+			w.qcond.Wait()
+		}
+		if len(w.queue) == 0 || w.qStopped {
+			w.qStopped = true
+			w.queue = nil
+			w.qmu.Unlock()
+			return
+		}
+		f := w.queue[0]
+		w.queue[0] = nil
+		w.queue = w.queue[1:]
+		w.qmu.Unlock()
+		if _, err := w.c.Write(f); err != nil {
+			w.qmu.Lock()
+			w.qStopped = true
+			w.queue = nil
+			w.qmu.Unlock()
+			_ = w.c.Close()
+			return
+		}
+	}
+}
+
+// writeFrame：入队一帧（控制帧 / 不压缩的数据帧）
+func (w *WsConn) writeFrame(op byte, rsv1 bool, payload []byte) error {
+	frame := encodeFrame(op, rsv1, payload)
+	w.qmu.Lock()
+	defer w.qmu.Unlock()
+	return w.enqueueLocked(frame, op == 0x8)
+}
+
+// Send = ws.send(buffer)（二进制；协商了压缩且 ≥1024 字节时压缩，同 ws 的 threshold）。
+// 只入队、不等网络；写失败经读循环的 close 回调报告（同 ws 的 'error' / 'close'）
 func (w *WsConn) Send(data []byte) error {
 	w.closeMu.Lock()
 	sent := w.sentCls
@@ -388,16 +469,20 @@ func (w *WsConn) Send(data []byte) error {
 	if sent {
 		return errors.New("WebSocket is not open: readyState 2 (CLOSING)")
 	}
+	w.qmu.Lock()
+	defer w.qmu.Unlock()
 	if w.deflate != nil && len(data) >= 1024 && w.deflate.clientBits == 15 {
-		w.wmu.Lock()
-		z := w.deflate.compress(data)
-		w.wmu.Unlock()
-		return w.writeFrame(0x2, true, z)
+		// 压缩与入队在同一把锁内：上下文接管的历史顺序 = 帧的写出顺序
+		if w.qFinal || w.qStopped {
+			return errWsNotWritable
+		}
+		return w.enqueueLocked(encodeFrame(0x2, true, w.deflate.compress(data)), false)
 	}
-	return w.writeFrame(0x2, false, data)
+	return w.enqueueLocked(encodeFrame(0x2, false, data), false)
 }
 
-// Close = ws.close(code)：发 close 帧，等对端的 close 或 30s 后断开
+// Close = ws.close(code)：close 帧排在已入队的帧之后，不阻塞调用方；
+// 同 ws 立即起 closeTimeout（30s）计时，等不到对端的 close 就断开
 func (w *WsConn) Close(code int) {
 	w.closeMu.Lock()
 	if w.sentCls || w.closed {
@@ -410,16 +495,30 @@ func (w *WsConn) Close(code int) {
 	binary.BigEndian.PutUint16(p[:], uint16(code))
 	_ = w.writeFrame(0x8, false, p[:])
 	go func() {
+		t := time.NewTimer(wsCloseTimeout)
+		defer t.Stop()
 		select {
 		case <-w.done:
-		case <-time.After(30 * time.Second):
+		case <-t.C:
 			_ = w.c.Close()
 		}
 	}()
 }
 
-// Terminate = ws.terminate()
-func (w *WsConn) Terminate() { _ = w.c.Close() }
+// Terminate = ws.terminate()：立即断开，在途写入随之返回错误
+func (w *WsConn) Terminate() {
+	w.stopWriter()
+	_ = w.c.Close()
+}
+
+// stopWriter：丢弃未写出的帧，写 goroutine 退出
+func (w *WsConn) stopWriter() {
+	w.qmu.Lock()
+	w.qStopped = true
+	w.queue = nil
+	w.qcond.Broadcast()
+	w.qmu.Unlock()
+}
 
 // Run：读循环（ws 的 receiver）；返回时已回调 Close
 func (w *WsConn) Run() {
@@ -523,6 +622,11 @@ loop:
 	w.closeMu.Lock()
 	w.closed = true
 	w.closeMu.Unlock()
+	// 先让已入队的帧（如回给对端的 close）限时写完，再断开
+	w.qmu.Lock()
+	w.finalLocked()
+	w.qmu.Unlock()
+	<-w.wdone
 	_ = w.c.Close()
 	if w.hooks.Close != nil {
 		w.hooks.Close(code)

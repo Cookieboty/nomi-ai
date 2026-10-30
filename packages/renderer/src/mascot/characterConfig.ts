@@ -53,6 +53,12 @@ export interface CharacterPackOverlay {
   locales?: Partial<Record<string, CharacterLocaleLines>> | null;
   /** Semantic → resource mapping (mapping.json); null when the pack has none. */
   mapping?: PackMapping | null;
+  /**
+   * Expressions the pack declares (manifest.capabilities.expressions); null when it declares none,
+   * absent on older main processes. avatar-runtime needs them to tell a valid mapping from the
+   * 2.0.5 template (`sad → tears` is fine when `tears` is one of the pack's expressions).
+   */
+  expressions?: string[] | null;
 }
 
 /** The pack bundled with this build. */

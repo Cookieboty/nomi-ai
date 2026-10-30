@@ -28,7 +28,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'docs' / 'brand' / 'icon-variants'
-OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'packages' / 'electron' / 'assets'
+# 默认写到 Electron 宿主的打包资源目录（electron-builder buildResources / extraResources）
+OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'apps' / 'desktop-electron' / 'assets'
 VARIANTS = ['ink', 'cream', 'sunset']
 SMALL = [16, 24, 32, 48]
 LARGE = [64, 128, 256]
@@ -109,6 +110,9 @@ def save_png(im: Image.Image, path: Path) -> None:
 
 
 def main() -> None:
+    # 目录不存在时直接报错，不在过时的位置悄悄新建（宿主目录迁移后漏改过一次，#204）
+    if not OUT.is_dir():
+        sys.exit(f'output directory not found: {OUT}')
     write_icns('ink', OUT / 'icon.icns')
     write_ico('ink', OUT / 'icon.ico')
     for s in SMALL + LARGE + [512, 1024]:

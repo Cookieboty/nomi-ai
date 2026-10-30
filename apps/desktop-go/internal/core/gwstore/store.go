@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/text/unicode/norm"
@@ -92,13 +94,25 @@ func ProviderSlug(name string) string {
 }
 
 // Store = GatewayStore（数据保持为有序 JSON 对象，落盘与 JSON.stringify(data, null, 2) 逐字节一致）
+//
+// 并发（#195）：Node 单线程，读与写天然不交错；Go 里 IPC 每请求一个 goroutine。data 是写端的活数据，
+// 只能在 Service 的写锁（rt.mu）内读写；锁外的读一律走 View()：它读 Publish() 发布的不可变深拷贝
+// （写锁释放前发布，copy-on-write + atomic.Pointer），同一次读取看到的是同一个版本，不会与写端并发读写 map。
 type Store struct {
-	file           string
-	cipher         Cipher
-	logger         Logger
-	data           *u.Obj
-	ephemeralPrivK string
-	preset         PresetDeps
+	file   string
+	cipher Cipher
+	logger Logger
+	data   *u.Obj
+	pub    *atomic.Pointer[u.Obj] // 已发布的只读快照（View 与原 Store 共用）
+	eph    *ephemeralKey
+	preset PresetDeps
+	ro     bool // View()：只读，数据是已发布的快照
+}
+
+// ephemeralKey：读不出隐私密钥时本次运行用的临时密钥（View 与原 Store 共用，锁外也可能生成）
+type ephemeralKey struct {
+	mu sync.Mutex
+	v  string
 }
 
 // NewStore = new GatewayStore({ file, cipher, logger })
@@ -106,9 +120,26 @@ func NewStore(file string, cipher Cipher, logger Logger) *Store {
 	if cipher == nil {
 		cipher = providers.PlaintextCipher
 	}
-	s := &Store{file: file, cipher: cipher, logger: logger}
+	s := &Store{file: file, cipher: cipher, logger: logger, pub: &atomic.Pointer[u.Obj]{}, eph: &ephemeralKey{}}
 	s.data = s.load()
+	s.Publish()
 	return s
+}
+
+// Publish：把当前数据的深拷贝发布给锁外读者（须在写锁内、或还没有并发读者时调用）
+func (s *Store) Publish() {
+	if s.ro {
+		return
+	}
+	s.pub.Store(deepClone(s.data).(*u.Obj))
+}
+
+// View：最近一次 Publish 的只读视图，锁外读取用；不得在它上面修改或 Save
+func (s *Store) View() *Store {
+	if s.ro {
+		return s
+	}
+	return &Store{file: s.file, cipher: s.cipher, logger: s.logger, data: s.pub.Load(), pub: s.pub, eph: s.eph, preset: s.preset, ro: true}
 }
 
 func (s *Store) File() string { return s.file }
@@ -149,6 +180,9 @@ func (s *Store) load() *u.Obj {
 
 // Save = save()
 func (s *Store) Save() error {
+	if s.ro {
+		return fmt.Errorf("gateway store view is read-only")
+	}
 	if err := os.MkdirAll(filepath.Dir(s.file), 0o755); err != nil {
 		return err
 	}
@@ -158,10 +192,10 @@ func (s *Store) Save() error {
 // Snapshot = structuredClone(data)
 func (s *Store) Snapshot() *u.Obj { return deepClone(s.data).(*u.Obj) }
 
-// Replace = replace(data)
+// Replace = replace(data)（写锁内；锁外的读者在 Publish 后才看到）
 func (s *Store) Replace(d *u.Obj) { s.data = d }
 
-// Reload：重新读盘（D-B11-12：2.0.4 密钥迁移改写 store.json 之后、Init 之前）
+// Reload：重新读盘（D-B11-12：2.0.4 密钥迁移改写 store.json 之后、Init 之前；写锁内）
 func (s *Store) Reload() { s.data = s.load() }
 
 func deepClone(v any) any {
@@ -250,7 +284,9 @@ func (s *Store) clients() *u.Obj {
 	c, ok := s.data.Get("clients").(*u.Obj)
 	if !ok {
 		c = u.NewObj()
-		s.data.Set("clients", c)
+		if !s.ro { // 只读视图不补字段
+			s.data.Set("clients", c)
+		}
 	}
 	return c
 }
@@ -301,10 +337,12 @@ func (s *Store) PrivacyKey() string {
 			return p
 		}
 	}
-	if s.ephemeralPrivK == "" {
-		s.ephemeralPrivK = hex.EncodeToString(RandomBytes(32))
+	s.eph.mu.Lock()
+	defer s.eph.mu.Unlock()
+	if s.eph.v == "" {
+		s.eph.v = hex.EncodeToString(RandomBytes(32))
 	}
-	return s.ephemeralPrivK
+	return s.eph.v
 }
 
 // Port = port()

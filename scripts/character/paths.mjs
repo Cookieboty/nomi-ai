@@ -17,6 +17,15 @@ export const CHARACTERS_DIR = join(ROOT, 'characters');
 export const DEFAULT_PACK_ID = 'nomi';
 export const DEFAULT_PACK_DIR = join(CHARACTERS_DIR, DEFAULT_PACK_ID);
 export const TEST_DUMMY_PACK_DIR = join(CHARACTERS_DIR, 'test-dummy');
+/**
+ * The official pack's low-resource static art (the desktop character's default `svg` renderer).
+ * It is the SVG rig's mother image, so it lives with the Rive sources rather than in the pack;
+ * only builds of the official pack ship it (vite-plugin.mjs `staticArtModule`).
+ */
+export const DEFAULT_PACK_STATIC_ART = join(
+  ROOT,
+  'rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg',
+);
 export const EXAMPLES_STATIC = join(ROOT, 'examples/static-demo.pack');
 
 /** Contract data: @nomi-ai/character-contract is the only source. */

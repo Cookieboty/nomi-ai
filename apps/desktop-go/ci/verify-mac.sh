@@ -36,6 +36,8 @@ if [ -n "$OLD" ] && [ -f "$OLD" ]; then
     [ "$a" = "$b" ] || { echo "plist mismatch $k: [$a] vs [$b]" | tee -a "$R"; ok=0; }
   done
 fi
+# CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json / latest.yml，2.0.4 还会自动下载整个安装包，算进下载量
+mkdir -p "$HOME/Library/Application Support/Nomi" && echo '{"version":1,"autoCheck":false}' > "$HOME/Library/Application Support/Nomi/update-settings.json"
 # 启动（open = Finder 双击同路径）→ 桌面角色窗口 330x355
 
 open -a "$APP"; sleep 30

@@ -40,11 +40,13 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	var writes []<-chan struct{}
-	t.Cleanup(func() {
+	// 目录落盘后才生效（#185）：检查生效值前等后台写完
+	drain := func() {
 		for _, w := range writes {
 			<-w
 		}
-	})
+	}
+	t.Cleanup(drain)
 	onData, needsFull := s.modelsDataHooks(func(w <-chan struct{}) { writes = append(writes, w) })
 	if pOD, pNF := s.ModelsDataHooks(); pOD == nil || pNF == nil || !pNF() {
 		t.Fatal("public hooks")
@@ -78,6 +80,7 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 	if r := ps.Sync(); !r.OK {
 		t.Fatalf("first sync: %+v", r)
 	}
+	drain()
 	if !s.HasCatalogSync() || needsFull() {
 		t.Fatal("gateway catalog overlay not applied by PriceSync onData")
 	}
@@ -91,6 +94,7 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 	// catalog lost → force full download again
 	models.SetCatalogOverlay(nil)
 	ps.Sync()
+	drain()
 	if !s.HasCatalogSync() {
 		t.Fatal("full re-download did not restore the catalog")
 	}

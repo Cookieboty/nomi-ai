@@ -455,9 +455,9 @@
   "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed.",
   "ui.chat-settings.permissions": "Permissions",
   "ui.chat-settings.auto-approve-everything": "Auto-approve everything (full access)",
-  "ui.chat-settings.auto-approve-description": "When on, new coding agent tabs and the agents Nomi hands work to start in Full access, and file and command actions inside a Nomi conversation's workspace run without asking. Paths outside the workspace and sensitive files (.ssh, keychains, .env, …) are still refused. Turn it off to be asked again.",
+  "ui.chat-settings.auto-approve-description": "When on, new coding agent tabs and the agents Nomi hands work to start in Full access, and file actions inside a Nomi conversation's workspace run without asking. Nomi's file tools still refuse paths outside the workspace you haven't granted and sensitive files (.ssh, keychains, .env, …). Commands Nomi runs aren't confined to the workspace, so each one is always confirmed. Turn it off to be asked again.",
   "ui.chat-settings.turn-on-auto-approve": "Turn on auto-approve?",
-  "ui.chat-settings.auto-approve-confirm-body": "Coding agents will run with full access, and Nomi will edit files and run commands in the conversation workspace without asking. Only use this with folders you trust.",
+  "ui.chat-settings.auto-approve-confirm-body": "Coding agents will run with full access, and Nomi will edit files in the conversation workspace without asking. Commands Nomi runs aren't confined to the workspace, so they're still confirmed every time. Only use this with folders you trust.",
   "ui.chat-settings.compacting-earlier-messages": "Compacting earlier messages into a summary…",
   "ui.chat-settings.earlier-messages-were-compacted-into-a-summary": "Earlier messages were compacted into a summary (click to view)",
   "ui.chat-settings.couldn-t-compact-earlier-messages": "Couldn't compact earlier messages: {0}. The message is still sent; the oldest messages may be cut off.",
@@ -465,5 +465,6 @@
   "ui.chat-settings.folder-access-request": "Folder access request",
   "ui.chat-settings.grant-folder": "Grant",
   "ui.chat-settings.choose-another-folder": "Choose another folder…",
-  "ui.chat-settings.suggested-folder-cannot-be-granted": "The suggested location can't be granted directly (missing, not a folder, or too broad). Please choose one yourself."
+  "ui.chat-settings.suggested-folder-cannot-be-granted": "The suggested location can't be granted directly (missing, not a folder, or too broad). Please choose one yourself.",
+  "ui.chat-settings.conversation-deleted-message-not-sent": "This conversation was deleted, so the message was not sent"
 }

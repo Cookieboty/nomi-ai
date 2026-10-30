@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -113,8 +114,32 @@ export function chunkText(text: string, size = SUMMARY_CHUNK, max = SUMMARY_MAX_
   return out;
 }
 
+const digest = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
+
+const EDIT_CONFLICT =
+  '文件在等待确认期间被其他程序改过（例如在编辑器里保存了），这次修改没有写入，文件保持对方保存的版本；先用 fs_read_text 重新读取最新内容再改';
+
 export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
   const { broker, audit, journal, trash } = deps;
+
+  /**
+   * fs_edit 的提交前版本核对（确认可能等很久，期间用户可能在编辑器里保存了同一文件）：
+   * 1. 重读比对内容哈希，与确认前读到的不同就报 conflict，什么都不动；
+   * 2. 把文件移入应用回收站（同盘 rename，原子），再核对被移走的正是比对过的版本——
+   *    这样「重读之后、移走之前」的窗口也被覆盖：不一致就原样放回并报 conflict。
+   * 剩余窗口只有：移走之后仍持有旧文件句柄原地写入的程序，其写入落在回收站里的旧版本上
+   * （撤销可取回）；移走之后有人在原路径新建文件则由写回的 wx 拒绝（见调用处）。
+   */
+  async function commitEditSource(real: string, expected: string) {
+    const current = await fs.promises.readFile(real).catch(() => null);
+    if (!current || digest(current) !== expected) throw new ToolError('conflict', EDIT_CONFLICT);
+    const rec = await trash.trash(real);
+    const moved = await fs.promises.readFile(rec.stored).catch(() => null);
+    if (moved && digest(moved) === expected) return rec;
+    // 放回失败（原路径已被新建）时较新的那份留在原处，被移走的留在应用回收站，都不丢
+    await trash.restore(rec).catch(() => undefined);
+    throw new ToolError('conflict', EDIT_CONFLICT);
+  }
 
   async function run<T>(
     tool: string,
@@ -493,6 +518,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             ? await deps.requestFolder(i.suggestedPath, i.mode, i.reason, ctx.signal)
             : await deps.pickFolder(i.suggestedPath);
           if (!picked) throw new ToolError('user_denied', '用户取消了授权');
+          // 等授权期间这一轮被停止了：不再写入授权（#203）
+          if (ctx.signal?.aborted) throw new ToolError('aborted', '授权请求已随对话停止而取消');
           const s = broker.grant(picked, i.mode);
           return { data: { path: s.path, mode: s.mode }, decision: 'allowed' as const };
         });
@@ -792,8 +819,13 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             undefined,
             wsFor(ws, g),
           );
-          const rec = await trash.trash(g.real);
-          await fs.promises.writeFile(g.real, text, { flag: 'wx' });
+          const rec = await commitEditSource(g.real, digest(buf));
+          await fs.promises.writeFile(g.real, text, { flag: 'wx' }).catch((err: unknown) => {
+            // 移走之后、写回之前有人在原路径新建了文件：保留对方的文件，旧版本留在应用回收站
+            if ((err as NodeJS.ErrnoException).code === 'EEXIST')
+              throw new ToolError('conflict', EDIT_CONFLICT);
+            throw err;
+          });
           await fs.promises.chmod(g.real, st.mode & 0o777);
           // 撤销同 overwrite：新版本进回收站、恢复旧版本；之后被改过就拒绝撤销
           const written = await fs.promises.stat(g.real);

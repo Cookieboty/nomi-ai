@@ -162,3 +162,36 @@ describe('requestFolder', () => {
     expect(t.requests('mascot')).toHaveLength(0);
   });
 });
+
+describe('stop while a folder request is pending (#203)', () => {
+  const within = <T>(p: Promise<T>, ms = 2000) =>
+    Promise.race([p, new Promise<'pending'>((r) => setTimeout(() => r('pending'), ms))]);
+
+  it('stopped during the folder check: no card is raised and nothing is granted', async () => {
+    const t = setup({ chat: true, hidden: false });
+    const dir = path.join(t.home, 'proj');
+    fs.mkdirSync(dir);
+    const ac = new AbortController();
+    const p = t.svc.requestFolder(dir, 'read-write', 'need the repo', ac.signal);
+    ac.abort(); // 目录校验（异步）还没结束
+    expect(await within(p)).toBeNull();
+    expect(t.requests('chat')).toHaveLength(0);
+    expect(t.svc.broker.scopes().map((s) => s.path)).not.toContain(dir);
+  });
+
+  it('allowed and stopped at the same moment: the tool does not grant the folder', async () => {
+    const t = setup({ chat: true, hidden: false });
+    const dir = path.join(t.home, 'proj');
+    fs.mkdirSync(dir);
+    const tool = t.svc.tools().find((d) => d.name === 'desktop_request_scope')!;
+    const ac = new AbortController();
+    const run = tool.execute({ suggestedPath: dir, mode: 'read' }, { signal: ac.signal } as never);
+    const [req] = await requestsOn(t, 'chat');
+    t.svc.answerConfirm(8, req!.id, true, false, false, 'chat');
+    ac.abort(); // 答复已到、工具还没写入授权
+    const r = (await run) as { ok: boolean; error?: { code: string } };
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe('aborted');
+    expect(t.svc.broker.scopes().map((s) => s.path)).not.toContain(dir);
+  });
+});
