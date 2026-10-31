@@ -351,7 +351,21 @@ export function writePrivateFile(file: string, data: string): void {
   // 目录检查放在写之前：目录此刻收紧的话，接下来新建的文件直接继承私有 ACL
   const dirPrivate = win && dirIsPrivate(path.dirname(file));
   const before = win ? identity(file) : null;
-  fs.writeFileSync(file, data, { mode: 0o600 });
+  // Windows 上杀软/索引器短暂占用目标文件时 writeFileSync 会抛 EPERM/EACCES/EBUSY；
+  // 退避重试，与原子写的 rename 策略保持一致（2 秒预算，10ms 起步）
+  const deadline = win ? Date.now() + RENAME_RETRY_MS : 0;
+  let delay = 10;
+  for (;;) {
+    try {
+      fs.writeFileSync(file, data, { mode: 0o600 });
+      break;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!win || !code || !RENAME_RETRY_CODES.has(code) || Date.now() >= deadline) throw error;
+      __renameDeps.sleep(delay);
+      delay = Math.min(delay * 2, 100);
+    }
+  }
   try {
     fs.chmodSync(file, 0o600);
   } catch {

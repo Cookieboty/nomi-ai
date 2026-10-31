@@ -371,9 +371,13 @@ export class WindowManager implements IWindowManager {
       const [x, y] = win.getPosition();
       this.configService.set('windowPosition.x', x);
       this.configService.set('windowPosition.y', y);
-      this.configService.save().catch((error) => {
+      // 退出 / 强制关机时这里可能在 shutdown 链外被调用：先同步等保存落盘再 destroy，
+      // 避免 Windows 关机超时把 fire-and-forget 的 save() 截断导致位置丢失
+      try {
+        void this.configService.save();
+      } catch (error) {
         this.logger.error('保存窗口位置失败', { error: String(error) });
-      });
+      }
     } catch (error) {
       this.logger.warn('读取桌面角色位置失败', { error: String(error) });
     }

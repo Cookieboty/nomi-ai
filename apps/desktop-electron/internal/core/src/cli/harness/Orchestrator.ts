@@ -638,13 +638,11 @@ export class HarnessOrchestrator {
   }
 
   /** 原生文件夹选择器（不绑定到任何标签），取消返回 null。
-   * signal 由 IPC 层在页面刷新（did-navigate）时中止；选择器结果在刷新后直接丢弃，
-   * 避免用户在选择器打开期间刷新时旧结果被新页面错误消费。
+   * 选择器挂到当前获得焦点的窗口（showDirectoryPicker 传 parent: 'focused'），
+   * 避免成为游离窗口在页面刷新后意外回到前台。
    */
-  async pickDirectory(defaultPath?: string, signal?: AbortSignal): Promise<string | null> {
-    const picked = await this.showDirectoryPicker(defaultPath);
-    if (signal?.aborted) return null;
-    return picked;
+  async pickDirectory(defaultPath?: string): Promise<string | null> {
+    return this.showDirectoryPicker(defaultPath);
   }
 
   /** 挂到当前焦点窗口的文件夹选择器（允许新建文件夹）；取消返回 null */
@@ -2417,8 +2415,11 @@ export class HarnessOrchestrator {
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
     const tab = this.requireTab(id);
-    const picked = await this.showDirectoryPicker(tab.cwd);
+    const prevCwd = tab.cwd;
+    const picked = await this.showDirectoryPicker(prevCwd);
     if (!picked) return { ...tab };
+    // 选择器打开期间标签可能被关闭（tabs 里已没有它）：丢弃结果，避免对已删标签写入
+    if (!this.tabs.has(id)) return { ...tab };
     return this.setTabCwd(id, picked);
   }
 
