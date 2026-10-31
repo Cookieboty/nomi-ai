@@ -112,6 +112,41 @@ func withTimeout[T any](ctx context.Context, fn func() (T, error), ms int64, lab
 	}
 }
 
+// createClient：建立 MCP client，最多等 ms。调用方取消或超时后不再等，但工厂迟到返回的 client 没有别人
+// 持有（不在 servers 里，Disconnect / Dispose 都找不到）：由这里接住并关闭，保证恰好关闭一次（#213）。
+// 不依赖工厂遵守 ctx：工厂忽略取消、之后握手成功时同样会被关掉。
+func createClient(ctx context.Context, create func() (Client, error), ms int64, label string) (Client, error) {
+	type res struct {
+		c   Client
+		err error
+	}
+	ch := make(chan res, 1)
+	go func() { c, err := create(); ch <- res{c, err} }()
+	t := time.NewTimer(time.Duration(ms) * time.Millisecond)
+	defer t.Stop()
+	var done <-chan struct{}
+	if ctx != nil {
+		done = ctx.Done()
+	}
+	abandon := func() {
+		go func() {
+			if r := <-ch; r.c != nil {
+				_ = r.c.Close()
+			}
+		}()
+	}
+	select {
+	case r := <-ch:
+		return r.c, r.err
+	case <-done:
+		abandon()
+		return nil, ctx.Err()
+	case <-t.C:
+		abandon()
+		return nil, fmt.Errorf("%s timed out after %dms", label, ms)
+	}
+}
+
 type liveServer struct {
 	info      ServerInfo
 	client    Client
@@ -336,13 +371,18 @@ func (s *Service) Connect(ctx context.Context, cfg ServerConfig) error {
 		if err != nil {
 			return err
 		}
-		ccfg := mcp.ClientConfig{InitializationOptions: &mcp.RequestOptions{Timeout: &timeoutMs}}
+		initOpts := &mcp.RequestOptions{Timeout: &timeoutMs}
+		// 调用方取消时握手本身也中止（迟到成功的 client 由 createClient 关闭）
+		if ctx != nil && ctx.Done() != nil {
+			initOpts.Signal = ctx
+		}
+		ccfg := mcp.ClientConfig{InitializationOptions: initOpts}
 		if built.Stdio != nil {
 			ccfg.Transport = built.Stdio
 		} else {
 			ccfg.TransportConfig = built.Config
 		}
-		client, err = withTimeout(ctx, func() (Client, error) { return create(ccfg) }, timeoutMs+1_000, "mcp connect ("+cfg.ID+")")
+		client, err = createClient(ctx, func() (Client, error) { return create(ccfg) }, timeoutMs+1_000, "mcp connect ("+cfg.ID+")")
 		if err != nil {
 			return err
 		}
