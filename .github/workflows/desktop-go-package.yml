@@ -256,7 +256,8 @@ jobs:
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
       - name: latest-go.json + latest*.yml + SHA256SUMS
         run: |
-          python3 apps/desktop-go/packaging/update-manifest.py "$V" out --tag "v$V" --repo "$GITHUB_REPOSITORY"
+          python3 apps/desktop-go/packaging/update-manifest.py "$V" out --tag "v$V" --repo "$GITHUB_REPOSITORY" \
+            --notes "docs/releases/v$V.md"
           # 真实 latest-go.json 必须能被 Go 更新器（internal/core/updates）解析，且每个平台都可选中
           (cd apps/desktop-go && CGO_ENABLED=0 NOMI_LATEST_GO_JSON="$GITHUB_WORKSPACE/out/latest-go.json" go test ./internal/core/updates/ -run TestUpdateManifest -v)
           # 2.0.4 → 新版：用 2.0.4 自带的 electron-updater 解析 latest*.yml，每个平台都要挑中 Go 版安装包且 sha512 / size 对得上

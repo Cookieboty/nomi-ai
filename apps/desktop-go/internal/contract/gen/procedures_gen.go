@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 364：mutation 253 / query 106 / stream 5
+// 合计 365：mutation 253 / query 107 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -334,6 +334,7 @@ var Procedures = []Procedure{
 	{Name: "updates.download", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "updates.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "updates.install", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "updates.releaseNotes", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "updates.setAutoCheck", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "usage.clear", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "usage.csv", Kind: "query", Dangerous: false, Surfaces: nil},

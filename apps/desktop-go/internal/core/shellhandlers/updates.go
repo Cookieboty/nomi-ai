@@ -9,7 +9,7 @@ import (
 )
 
 // InstallUpdates：shell.ts 的 updates.*（updates.changed 由服务自己发布）
-func InstallUpdates(r *contract.Router, svc func() *updates.Service) {
+func InstallUpdates(r *contract.Router, svc func() *updates.Service, notes *updates.Notes) {
 	get := func() (*updates.Service, error) {
 		if s := svc(); s != nil {
 			return s, nil
@@ -29,6 +29,24 @@ func InstallUpdates(r *contract.Router, svc func() *updates.Service) {
 	q("updates.check", (*updates.Service).Check)
 	q("updates.download", (*updates.Service).Download)
 	q("updates.install", (*updates.Service).Install)
+	r.Call("updates.releaseNotes", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			Version *string `json:"version"`
+		}
+		if len(raw) > 0 && string(raw) != "null" {
+			if err := json.Unmarshal(raw, &in); err != nil || (in.Version != nil && len(*in.Version) > 64) {
+				return nil, &contract.Error{Code: "BAD_INPUT", Message: "Invalid input"}
+			}
+		}
+		v := ""
+		if in.Version != nil {
+			v = *in.Version
+		}
+		if notes == nil {
+			return updates.NotesResult{Version: v}, nil
+		}
+		return notes.Get(v), nil
+	})
 	r.Call("updates.setAutoCheck", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &in); err != nil || in == nil {

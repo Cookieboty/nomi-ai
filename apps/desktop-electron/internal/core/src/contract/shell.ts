@@ -138,6 +138,7 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'updates.check': () => updates().check(),
     'updates.download': () => updates().download(),
     'updates.install': () => updates().install(),
+    'updates.releaseNotes': ({ version }) => updates().releaseNotes(version),
     'updates.setAutoCheck': ({ on }) => {
       updates().setAutoCheck(on);
       return updates().getState();

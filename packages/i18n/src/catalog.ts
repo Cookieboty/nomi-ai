@@ -8,7 +8,6 @@ import ui_mascot_theme_en from './locales/en/ui/mascot-theme.json';
 import ui_model_quality_en from './locales/en/ui/model-quality.json';
 import ui_models_en from './locales/en/ui/models.json';
 import ui_providers_schedule_en from './locales/en/ui/providers-schedule.json';
-import ui_release_notes_en from './locales/en/ui/release-notes.json';
 import ui_session_workspace_en from './locales/en/ui/session-workspace.json';
 import ui_slash_commands_en from './locales/en/ui/slash-commands.json';
 import ui_usage_tools_en from './locales/en/ui/usage-tools.json';
@@ -23,7 +22,6 @@ import ui_mascot_theme_zh from './locales/zh/ui/mascot-theme.json';
 import ui_model_quality_zh from './locales/zh/ui/model-quality.json';
 import ui_models_zh from './locales/zh/ui/models.json';
 import ui_providers_schedule_zh from './locales/zh/ui/providers-schedule.json';
-import ui_release_notes_zh from './locales/zh/ui/release-notes.json';
 import ui_session_workspace_zh from './locales/zh/ui/session-workspace.json';
 import ui_slash_commands_zh from './locales/zh/ui/slash-commands.json';
 import ui_usage_tools_zh from './locales/zh/ui/usage-tools.json';
@@ -41,7 +39,6 @@ export const DICTIONARIES = {
     ui_model_quality: ui_model_quality_zh,
     ui_models: ui_models_zh,
     ui_providers_schedule: ui_providers_schedule_zh,
-    ui_release_notes: ui_release_notes_zh,
     ui_session_workspace: ui_session_workspace_zh,
     ui_slash_commands: ui_slash_commands_zh,
     ui_usage_tools: ui_usage_tools_zh,
@@ -58,7 +55,6 @@ export const DICTIONARIES = {
     ui_model_quality: ui_model_quality_en,
     ui_models: ui_models_en,
     ui_providers_schedule: ui_providers_schedule_en,
-    ui_release_notes: ui_release_notes_en,
     ui_session_workspace: ui_session_workspace_en,
     ui_slash_commands: ui_slash_commands_en,
     ui_usage_tools: ui_usage_tools_en,
@@ -2020,6 +2016,7 @@ export type TranslationKey =
   | 'ui.mascot-theme.redistribution-forbidden'
   | 'ui.mascot-theme.redo'
   | 'ui.mascot-theme.release-notes'
+  | 'ui.mascot-theme.release-notes-unavailable'
   | 'ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'
   | 'ui.mascot-theme.restart-and-install'
   | 'ui.mascot-theme.restart-to-update'
@@ -2089,9 +2086,6 @@ export type TranslationKey =
   | 'ui.mascot-theme.warm-cream-with-sunset-orange-the-signature-theme'
   | 'ui.mascot-theme.warm-ink'
   | 'ui.mascot-theme.welcome-title'
-  | 'ui.mascot-theme.whats-new-fixes'
-  | 'ui.mascot-theme.whats-new-improvements'
-  | 'ui.mascot-theme.whats-new-new'
   | 'ui.mascot-theme.when-closing-the-main-window'
   | 'ui.mascot-theme.when-off-mascot-hidden-island-ok'
   | 'ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop'
@@ -2649,14 +2643,6 @@ export type TranslationKey =
   | 'ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while'
   | 'ui.providers-schedule.write-environment-variable-names-only-such-as-my'
   | 'ui.providers-schedule.yes'
-  | 'ui.release-notes.v205-new-restart'
-  | 'ui.release-notes.v205-new-whats-new'
-  | 'ui.release-notes.v205-new-character-pack'
-  | 'ui.release-notes.v205-improvements-installer'
-  | 'ui.release-notes.v205-fixes-providers'
-  | 'ui.release-notes.v205-fixes-sidebar-rename'
-  | 'ui.release-notes.v205-fixes-privacy-log'
-  | 'ui.release-notes.v205-fixes-windows-writes'
   | 'ui.session-workspace.after-committing-run-a-plain-git-push-use'
   | 'ui.session-workspace.approval-requests-denied-timed-out'
   | 'ui.session-workspace.ask-assistant-to-commit'

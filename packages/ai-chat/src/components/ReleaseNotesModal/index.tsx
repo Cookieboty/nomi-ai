@@ -1,18 +1,13 @@
 /**
- * Post-update「更新日志」弹层（TRAE-style）：日期、可勾选关闭的「更新后显示更新日志」、
- * 新增 / 优化 / 修复、历史链接。取消勾选持久化；设置里可重新打开偏好或手动查看。
+ * Post-update「更新日志」弹层（TRAE-style）：日期、可勾选关闭的「更新后显示更新日志」、本版本的更新说明、历史链接。
+ * 说明由内核按版本号取（updates.releaseNotes：该版本 Release 的 docs/releases/vX.Y.Z.md），界面不内置任何版本的文案。
+ * 取消勾选持久化；设置里可重新打开偏好或手动查看。
  */
 import { Checkbox, Modal, getLocale, t, useLocale } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  RELEASE_HISTORY_URL,
-  latestReleaseNotes,
-  releaseNotesFor,
-  type ReleaseNotesEntry,
-  type ReleaseNotesSectionId,
-} from '../../releaseNotes';
-import { api, hasTransport } from '../../services/api';
+import { RELEASE_HISTORY_URL, localizeReleaseNotes } from '../../releaseNotes';
+import { api, hasTransport, type AppClient } from '../../services/api';
 import {
   acknowledgeReleaseNotesVersion,
   getAckedReleaseNotesVersion,
@@ -20,14 +15,11 @@ import {
   onOpenReleaseNotes,
   setShowReleaseNotesAfterUpdate,
 } from '../../services/releaseNotesPrefs';
+import { Markdown } from '../Conversation/Markdown';
 
 import styles from './index.module.css';
 
-const SECTION_TITLE: Record<ReleaseNotesSectionId, () => string> = {
-  new: () => t('ui.mascot-theme.whats-new-new'),
-  improvements: () => t('ui.mascot-theme.whats-new-improvements'),
-  fixes: () => t('ui.mascot-theme.whats-new-fixes'),
-};
+type ReleaseNotesResult = Awaited<ReturnType<AppClient['updates']['releaseNotes']>>;
 
 function updatesCurrentVersion(): Promise<string | null> {
   if (!hasTransport()) return Promise.resolve(null);
@@ -37,14 +29,20 @@ function updatesCurrentVersion(): Promise<string | null> {
     .catch(() => null);
 }
 
+function fetchReleaseNotes(version: string): Promise<ReleaseNotesResult> {
+  if (!hasTransport()) return Promise.resolve({ version, notes: null });
+  return api.updates
+    .releaseNotes({ version })
+    .catch((): ReleaseNotesResult => ({ version, notes: null }));
+}
+
+/** releaseDate 是 ISO 时间（清单生成时刻，UTC）；按 UTC 日历日显示 */
 function formatReleaseDate(iso: string, locale: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  if (locale === 'zh-CN') return `${y} 年 ${mo} 月 ${d} 日`;
-  const dt = new Date(Date.UTC(y, mo - 1, d));
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return iso;
+  if (locale === 'zh-CN') {
+    return `${dt.getUTCFullYear()} 年 ${dt.getUTCMonth() + 1} 月 ${dt.getUTCDate()} 日`;
+  }
   return dt.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -55,16 +53,17 @@ function formatReleaseDate(iso: string, locale: string): string {
 
 export interface ReleaseNotesModalProps {
   open: boolean;
-  notes: ReleaseNotesEntry;
-  /** App version to acknowledge on close (usually notes.version / currentVersion). */
+  /** App version the notes are for (also acknowledged on close). */
   version: string;
+  /** null while loading */
+  result: ReleaseNotesResult | null;
   onClose: () => void;
 }
 
 export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   open,
-  notes,
   version,
+  result,
   onClose,
 }) => {
   useLocale();
@@ -87,7 +86,9 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
     onClose();
   }, [onClose, version]);
 
-  const intro = t('ui.mascot-theme.nomi-version-is-now-available').replace('{0}', notes.version);
+  const notes = result?.notes;
+  const body = useMemo(() => (notes ? localizeReleaseNotes(notes, locale) : ''), [notes, locale]);
+  const intro = t('ui.mascot-theme.nomi-version-is-now-available').replace('{0}', version);
 
   return (
     <Modal
@@ -98,9 +99,11 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       data-testid="release-notes-modal"
       bodyClassName={styles.body}
     >
-      <h3 className={styles.date} data-testid="release-notes-date">
-        {formatReleaseDate(notes.date, locale)}
-      </h3>
+      {result?.releaseDate ? (
+        <h3 className={styles.date} data-testid="release-notes-date">
+          {formatReleaseDate(result.releaseDate, locale)}
+        </h3>
+      ) : null}
       <label className={styles.prefRow} data-testid="release-notes-show-after-label">
         <Checkbox
           checked={showAfter}
@@ -112,17 +115,18 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       <p className={styles.intro} data-testid="release-notes-intro">
         {intro}
       </p>
-      {notes.sections.map((sec) =>
-        sec.itemKeys.length === 0 ? null : (
-          <section key={sec.id} className={styles.section} data-testid={`release-notes-${sec.id}`}>
-            <h4 className={styles.sectionTitle}>{SECTION_TITLE[sec.id]()}</h4>
-            <ul className={styles.list}>
-              {sec.itemKeys.map((key) => (
-                <li key={key}>{t(key)}</li>
-              ))}
-            </ul>
-          </section>
-        ),
+      {result === null ? (
+        <p className={styles.status} role="status" data-testid="release-notes-loading">
+          {t('ui.mascot-theme.loading')}
+        </p>
+      ) : body ? (
+        <div className={styles.notes} data-testid="release-notes-body">
+          <Markdown text={body} settled />
+        </div>
+      ) : (
+        <p className={styles.status} data-testid="release-notes-unavailable">
+          {t('ui.mascot-theme.release-notes-unavailable')}
+        </p>
       )}
       <p className={styles.footer}>
         <span>{t('ui.mascot-theme.for-more-release-history-see')}</span>
@@ -142,20 +146,26 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
 /** Decides when to auto-open after upgrade; listens for Settings → view. */
 export const ReleaseNotesHost: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [notes, setNotes] = useState<ReleaseNotesEntry>(() => latestReleaseNotes());
-  const [version, setVersion] = useState(notes.version);
+  const [version, setVersion] = useState('');
+  const [result, setResult] = useState<ReleaseNotesResult | null>(null);
+  /** 只认最后一次打开的请求：连点两次时旧的结果不覆盖新的 */
+  const seq = useRef(0);
 
-  const show = useCallback((entry: ReleaseNotesEntry, ver: string) => {
-    setNotes(entry);
+  const show = useCallback((ver: string) => {
+    const mine = ++seq.current;
     setVersion(ver);
+    setResult(null);
     setOpen(true);
+    void fetchReleaseNotes(ver).then((r) => {
+      if (seq.current === mine) setResult(r);
+    });
   }, []);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const current = (await updatesCurrentVersion()) ?? latestReleaseNotes().version;
-      if (!alive) return;
+      const current = await updatesCurrentVersion();
+      if (!alive || !current) return;
       const acked = getAckedReleaseNotesVersion();
       if (!acked) {
         // First launch: seed without popup (onboarding covers first-run).
@@ -164,7 +174,7 @@ export const ReleaseNotesHost: React.FC = () => {
       }
       if (acked === current) return;
       if (getShowReleaseNotesAfterUpdate()) {
-        show(releaseNotesFor(current), current);
+        show(current);
       } else {
         // Pref off: still mark seen so re-enabling mid-version does not surprise-pop.
         acknowledgeReleaseNotesVersion(current);
@@ -172,8 +182,7 @@ export const ReleaseNotesHost: React.FC = () => {
     })();
     const off = onOpenReleaseNotes(() => {
       void updatesCurrentVersion().then((v) => {
-        const ver = v ?? latestReleaseNotes().version;
-        show(releaseNotesFor(ver), ver);
+        if (alive && v) show(v);
       });
     });
     return () => {
@@ -183,6 +192,11 @@ export const ReleaseNotesHost: React.FC = () => {
   }, [show]);
 
   return (
-    <ReleaseNotesModal open={open} notes={notes} version={version} onClose={() => setOpen(false)} />
+    <ReleaseNotesModal
+      open={open}
+      version={version}
+      result={result}
+      onClose={() => setOpen(false)}
+    />
   );
 };

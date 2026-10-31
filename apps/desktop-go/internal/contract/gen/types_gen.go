@@ -5201,6 +5201,16 @@ type UpdatesInstallOutput struct {
 	ReleasePending   *bool                           `json:"releasePending,omitempty"`
 }
 
+type UpdatesReleaseNotesInput struct {
+	Version *string `json:"version,omitempty"`
+}
+
+type UpdatesReleaseNotesOutput struct {
+	Version     string  `json:"version"`
+	Notes       string  `json:"notes"`
+	ReleaseDate *string `json:"releaseDate,omitempty"`
+}
+
 type UpdatesSetAutoCheckInput struct {
 	On bool `json:"on"`
 }
@@ -7701,6 +7711,10 @@ type UpdatesGetOutputT = UpdatesGetOutput
 // UpdatesInstallInputT 是 updates.install 的入参
 type UpdatesInstallInputT = any
 type UpdatesInstallOutputT = UpdatesInstallOutput
+
+// UpdatesReleaseNotesInputT 是 updates.releaseNotes 的入参
+type UpdatesReleaseNotesInputT = UpdatesReleaseNotesInput
+type UpdatesReleaseNotesOutputT = UpdatesReleaseNotesOutput
 
 // UpdatesSetAutoCheckInputT 是 updates.setAutoCheck 的入参
 type UpdatesSetAutoCheckInputT = UpdatesSetAutoCheckInput

@@ -29,11 +29,13 @@ type manifestEntry struct {
 }
 
 type manifest struct {
-	SchemaVersion int                      `json:"schemaVersion"`
-	Version       string                   `json:"version"`
-	Tag           string                   `json:"tag"`
-	ReleaseURL    string                   `json:"releaseUrl"`
-	Platforms     map[string]manifestEntry `json:"platforms"`
+	SchemaVersion int    `json:"schemaVersion"`
+	Version       string `json:"version"`
+	Tag           string `json:"tag"`
+	ReleaseURL    string `json:"releaseUrl"`
+	// ReleaseNotes：docs/releases/vX.Y.Z.md 原文（2.0.8 起）
+	ReleaseNotes string                   `json:"releaseNotes"`
+	Platforms    map[string]manifestEntry `json:"platforms"`
 }
 
 // GitHubUpdater：Updater 的 Go 实现（替代 electron-updater，D3 / D-SH-3）——读 latest-go.json，
@@ -120,6 +122,9 @@ func (g *GitHubUpdater) CheckForUpdates() (*CheckResult, error) {
 		return nil, notFound(g.key() + " entry of latest-go.json")
 	}
 	info := UpdateInfo{Version: m.Version, ReleaseName: OptStr(m.Tag)}
+	if m.ReleaseNotes != "" {
+		info.ReleaseNotes = m.ReleaseNotes
+	}
 	if CompareVersions(m.Version, g.Version()) <= 0 {
 		if ev := g.events(); ev.UpdateNotAvailable != nil {
 			ev.UpdateNotAvailable()

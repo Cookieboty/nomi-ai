@@ -20490,6 +20490,47 @@
     "additionalProperties": {}
    }
   },
+  "updates.releaseNotes": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string",
+      "maxLength": 64
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string"
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "releaseDate": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "version",
+     "notes"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "updates.setAutoCheck": {
    "kind": "mutation",
    "dangerous": false,

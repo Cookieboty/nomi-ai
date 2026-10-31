@@ -33,28 +33,14 @@
   line-height: 1.5;
 }
 
-.section {
+.notes {
   margin: 0;
-}
-
-.sectionTitle {
-  margin: 0 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-md);
-  font-weight: 600;
-  color: var(--cd-color-text);
-}
-
-.list {
-  margin: 0;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-}
-
-.list li {
   font-size: var(--cd-font-size-sm);
-  line-height: 1.55;
+}
+
+.status {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
 }
 

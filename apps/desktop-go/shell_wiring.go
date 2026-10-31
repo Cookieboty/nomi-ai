@@ -110,7 +110,11 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 			},
 		},
 	})
-	shellhandlers.InstallUpdates(router, func() *updates.Service { return sp.Updates })
+	shellhandlers.InstallUpdates(router, func() *updates.Service { return sp.Updates }, &updates.Notes{
+		Version:  func() string { return hostports.AppVersion },
+		UserData: userData,
+		Log:      deps.StdLogger{Prefix: "[updates]"},
+	})
 	return sp
 }
 
