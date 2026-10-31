@@ -1,0 +1,443 @@
+# Go 端契约过程能力矩阵（由 internal/procs/matrix_test.go 生成并校验，请勿手改）。
+# 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
+# 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
+# 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
+# 合计 364：已实现 364，桩 0。
+
+[agents] 已实现 3 / 桩 0
+IMPL	mutation	agents.scan
+IMPL	mutation	agents.setSettings
+IMPL	query	agents.state
+
+[ai] 已实现 37 / 桩 0
+IMPL	query	ai.asr.list
+IMPL	mutation	ai.asr.transcribe
+IMPL	mutation	ai.avatar.activity
+IMPL	mutation	ai.avatar.emotion
+IMPL	mutation	ai.avatar.gesture
+IMPL	query	ai.avatar.isAvailable
+IMPL	mutation	ai.avatar.report
+IMPL	mutation	ai.avatar.speaking
+IMPL	mutation	ai.chat.abort
+IMPL	stream	ai.chat.agentStream
+IMPL	stream	ai.chat.regenerate
+IMPL	mutation	ai.chat.sendMessage
+IMPL	stream	ai.chat.stream
+IMPL	mutation	ai.memory.facts.delete
+IMPL	query	ai.memory.facts.list
+IMPL	mutation	ai.memory.facts.put
+IMPL	query	ai.memory.summaries.get
+IMPL	mutation	ai.memory.summaries.put
+IMPL	query	ai.memory.userProfile.export
+IMPL	query	ai.memory.userProfile.get
+IMPL	mutation	ai.memory.userProfile.import
+IMPL	mutation	ai.memory.userProfile.reset
+IMPL	mutation	ai.memory.userProfile.set
+IMPL	mutation	ai.sessions.create
+IMPL	mutation	ai.sessions.delete
+IMPL	mutation	ai.sessions.fork
+IMPL	query	ai.sessions.get
+IMPL	query	ai.sessions.list
+IMPL	mutation	ai.sessions.rename
+IMPL	mutation	ai.tools.confirm
+IMPL	query	ai.tools.list
+IMPL	mutation	ai.tools.setEnabled
+IMPL	query	ai.tts.list
+IMPL	query	ai.tts.listVoices
+IMPL	mutation	ai.tts.stop
+IMPL	stream	ai.tts.stream
+IMPL	mutation	ai.tts.synth
+
+[appIcon] 已实现 2 / 桩 0
+IMPL	query	appIcon.get
+IMPL	mutation	appIcon.set
+
+[character] 已实现 1 / 桩 0
+IMPL	query	character.getActivePack
+
+[chatBg] 已实现 4 / 桩 0
+IMPL	query	chatBg.get
+IMPL	mutation	chatBg.pickImage
+IMPL	mutation	chatBg.reset
+IMPL	mutation	chatBg.set
+
+[cli] 已实现 4 / 桩 0
+IMPL	mutation	cli.pluginAdd
+IMPL	mutation	cli.pluginRemove
+IMPL	mutation	cli.pluginTest
+IMPL	query	cli.registry
+
+[cliAccount] 已实现 9 / 桩 0
+IMPL	query	cliAccount.list
+IMPL	mutation	cliAccount.loginCancel
+IMPL	mutation	cliAccount.loginInput
+IMPL	mutation	cliAccount.loginStart
+IMPL	mutation	cliAccount.openUrl
+IMPL	mutation	cliAccount.refresh
+IMPL	mutation	cliAccount.remove
+IMPL	mutation	cliAccount.rename
+IMPL	mutation	cliAccount.setDefault
+
+[cliUpdate] 已实现 7 / 桩 0
+IMPL	query	cliUpdate.busy
+IMPL	mutation	cliUpdate.dismiss
+IMPL	query	cliUpdate.environment
+IMPL	query	cliUpdate.inspect
+IMPL	query	cliUpdate.job
+IMPL	query	cliUpdate.preview
+IMPL	mutation	cliUpdate.run
+
+[delegate] 已实现 5 / 桩 0
+IMPL	mutation	delegate.clearPin
+IMPL	mutation	delegate.pin
+IMPL	mutation	delegate.setSettings
+IMPL	query	delegate.settings
+IMPL	query	delegate.status
+
+[desktop] 已实现 20 / 桩 0
+IMPL	query	desktop.audit
+IMPL	mutation	desktop.auditClear
+IMPL	mutation	desktop.confirmAnswer
+IMPL	mutation	desktop.grant
+IMPL	query	desktop.journal
+IMPL	mutation	desktop.reminderAction
+IMPL	mutation	desktop.remindersCancel
+IMPL	mutation	desktop.remindersCreate
+IMPL	query	desktop.remindersList
+IMPL	mutation	desktop.remindersSnooze
+IMPL	mutation	desktop.remindersUpdate
+IMPL	mutation	desktop.resetAll
+IMPL	mutation	desktop.resetCloudAcks
+IMPL	mutation	desktop.revoke
+IMPL	mutation	desktop.setLocalOnly
+IMPL	mutation	desktop.setPolicy
+IMPL	query	desktop.state
+IMPL	mutation	desktop.takeMissedReminders
+IMPL	mutation	desktop.takePendingSummary
+IMPL	mutation	desktop.undoLast
+
+[diagnostics] 已实现 4 / 桩 0
+IMPL	mutation	diagnostics.export
+IMPL	query	diagnostics.get
+IMPL	mutation	diagnostics.openFolder
+IMPL	mutation	diagnostics.set
+
+[ext] 已实现 17 / 桩 0
+IMPL	mutation	ext.mcpConnect
+IMPL	mutation	ext.mcpDisconnect
+IMPL	mutation	ext.mcpImport
+IMPL	query	ext.mcpList
+IMPL	mutation	ext.mcpRemove
+IMPL	mutation	ext.mcpToggle
+IMPL	mutation	ext.mcpUpsert
+IMPL	mutation	ext.migrateImport
+IMPL	mutation	ext.migrateScan
+IMPL	query	ext.skillGet
+IMPL	mutation	ext.skillImport
+IMPL	mutation	ext.skillOpen
+IMPL	mutation	ext.skillRemove
+IMPL	mutation	ext.skillSave
+IMPL	mutation	ext.skillToggle
+IMPL	query	ext.skillsContext
+IMPL	query	ext.skillsList
+
+[gateway] 已实现 21 / 桩 0
+IMPL	mutation	gateway.clearLearned
+IMPL	mutation	gateway.confirmPrivateHost
+IMPL	mutation	gateway.detect
+IMPL	query	gateway.nomiContext
+IMPL	mutation	gateway.privacyAddAllow
+IMPL	mutation	gateway.privacyAddSecret
+IMPL	mutation	gateway.privacyClearLog
+IMPL	query	gateway.privacyLog
+IMPL	query	gateway.privacyPreview
+IMPL	mutation	gateway.privacyRemoveAllow
+IMPL	mutation	gateway.privacyRemoveSecret
+IMPL	mutation	gateway.privacySetAction
+IMPL	mutation	gateway.removeProvider
+IMPL	mutation	gateway.resetToken
+IMPL	mutation	gateway.retry
+IMPL	mutation	gateway.setAssignment
+IMPL	mutation	gateway.setOptions
+IMPL	query	gateway.state
+IMPL	mutation	gateway.terminalSet
+IMPL	query	gateway.terminalState
+IMPL	mutation	gateway.upsertProvider
+
+[harness] 已实现 55 / 桩 0
+IMPL	mutation	harness.geminiTrustFolder
+IMPL	query	harness.gitBranch
+IMPL	mutation	harness.gitCommit
+IMPL	mutation	harness.gitCommitUndo
+IMPL	query	harness.gitDiff
+IMPL	mutation	harness.gitDiscard
+IMPL	mutation	harness.gitDiscardUndo
+IMPL	mutation	harness.gitFetch
+IMPL	mutation	harness.gitPull
+IMPL	mutation	harness.gitPush
+IMPL	mutation	harness.gitStage
+IMPL	mutation	harness.gitSuggestMessage
+IMPL	query	harness.gitSyncStatus
+IMPL	mutation	harness.gitUnstage
+IMPL	mutation	harness.gitWorktrees
+IMPL	query	harness.modelCatalog
+IMPL	mutation	harness.permissionDefaults
+IMPL	mutation	harness.pickCwd
+IMPL	mutation	harness.pickDir
+IMPL	query	harness.recentCwds
+IMPL	mutation	harness.replyApprovePlan
+IMPL	mutation	harness.replyPermission
+IMPL	mutation	harness.send
+IMPL	mutation	harness.setBackend
+IMPL	mutation	harness.setCwd
+IMPL	query	harness.slashDiscover
+IMPL	query	harness.slashExpand
+IMPL	query	harness.state
+IMPL	mutation	harness.stopAgent
+IMPL	mutation	harness.tabAccount
+IMPL	mutation	harness.tabActivate
+IMPL	mutation	harness.tabBackend
+IMPL	mutation	harness.tabCancel
+IMPL	mutation	harness.tabCarryClear
+IMPL	mutation	harness.tabClose
+IMPL	query	harness.tabContext
+IMPL	mutation	harness.tabCreate
+IMPL	mutation	harness.tabCwd
+IMPL	mutation	harness.tabEffort
+IMPL	mutation	harness.tabLongContext
+IMPL	query	harness.tabMessages
+IMPL	mutation	harness.tabModel
+IMPL	mutation	harness.tabPermissionMode
+IMPL	mutation	harness.tabPickCwd
+IMPL	mutation	harness.tabRename
+IMPL	mutation	harness.tabRewind
+IMPL	mutation	harness.tabSeed
+IMPL	mutation	harness.tabSend
+IMPL	mutation	harness.tabSource
+IMPL	query	harness.tabs
+IMPL	mutation	harness.workspaceDelete
+IMPL	mutation	harness.workspaceGitCheckout
+IMPL	query	harness.workspaceList
+IMPL	query	harness.workspaceRead
+IMPL	mutation	harness.workspaceWrite
+
+[history] 已实现 4 / 桩 0
+IMPL	mutation	history.delete
+IMPL	query	history.index
+IMPL	query	history.list
+IMPL	mutation	history.open
+
+[hub] 已实现 1 / 桩 0
+IMPL	mutation	hub.export
+
+[island] 已实现 3 / 桩 0
+IMPL	query	island.get
+IMPL	mutation	island.set
+IMPL	mutation	island.test
+
+[kb] 已实现 17 / 桩 0
+IMPL	mutation	kb.addFolder
+IMPL	mutation	kb.ask
+IMPL	mutation	kb.cancel
+IMPL	mutation	kb.clear
+IMPL	mutation	kb.consentCloud
+IMPL	query	kb.docs
+IMPL	mutation	kb.ocrCancel
+IMPL	mutation	kb.ocrDownload
+IMPL	mutation	kb.ocrRemove
+IMPL	mutation	kb.open
+IMPL	mutation	kb.reindex
+IMPL	mutation	kb.removeSource
+IMPL	query	kb.search
+IMPL	mutation	kb.setSettings
+IMPL	query	kb.state
+IMPL	mutation	kb.test
+IMPL	mutation	kb.toggleSource
+
+[local] 已实现 14 / 桩 0
+IMPL	mutation	local.cancel
+IMPL	mutation	local.download
+IMPL	mutation	local.downloadRuntime
+IMPL	mutation	local.offline
+IMPL	mutation	local.ollamaDelete
+IMPL	query	local.ollamaList
+IMPL	mutation	local.ollamaPull
+IMPL	mutation	local.remove
+IMPL	mutation	local.removeRuntime
+IMPL	mutation	local.setSettings
+IMPL	mutation	local.start
+IMPL	query	local.state
+IMPL	mutation	local.stop
+IMPL	mutation	local.use
+
+[locale] 已实现 3 / 桩 0
+IMPL	query	locale.dict
+IMPL	query	locale.get
+IMPL	mutation	locale.set
+
+[mascot] 已实现 18 / 桩 0
+IMPL	query	mascot.debugSnapshot
+IMPL	mutation	mascot.dragEnd
+IMPL	mutation	mascot.dragMove
+IMPL	mutation	mascot.dragStart
+IMPL	query	mascot.getRenderer
+IMPL	query	mascot.getSavedModel
+IMPL	mutation	mascot.saveModel
+IMPL	query	mascot.scaleGet
+IMPL	mutation	mascot.scaleReset
+IMPL	mutation	mascot.scaleSet
+IMPL	mutation	mascot.scaleStep
+IMPL	mutation	mascot.scaleWheel
+IMPL	mutation	mascot.setGeometry
+IMPL	mutation	mascot.setHit
+IMPL	mutation	mascot.setInteractionConfig
+IMPL	mutation	mascot.setRenderer
+IMPL	mutation	mascot.setShape
+IMPL	mutation	mascot.wanderNow
+
+[mem] 已实现 16 / 桩 0
+IMPL	mutation	mem.backfill
+IMPL	mutation	mem.clear
+IMPL	query	mem.context
+IMPL	mutation	mem.export
+IMPL	mutation	mem.ingest
+IMPL	query	mem.list
+IMPL	mutation	mem.openPersona
+IMPL	query	mem.persona
+IMPL	query	mem.profile
+IMPL	mutation	mem.remove
+IMPL	mutation	mem.resetProfile
+IMPL	mutation	mem.setPersona
+IMPL	mutation	mem.setSettings
+IMPL	query	mem.state
+IMPL	mutation	mem.updateEpisode
+IMPL	mutation	mem.upsertFact
+
+[migration] 已实现 1 / 桩 0
+IMPL	query	migration.chatHistory
+
+[nav] 已实现 2 / 桩 0
+IMPL	mutation	nav.openVoiceSettings
+IMPL	mutation	nav.takePending
+
+[onboarding] 已实现 6 / 桩 0
+IMPL	mutation	onboarding.complete
+IMPL	query	onboarding.get
+IMPL	mutation	onboarding.mascot
+IMPL	query	onboarding.profile
+IMPL	mutation	onboarding.reopen
+IMPL	mutation	onboarding.setProfile
+
+[persona] 已实现 2 / 桩 0
+IMPL	query	persona.get
+IMPL	query	persona.systemPrompt
+
+[providers] 已实现 4 / 桩 0
+IMPL	query	providers.meta
+IMPL	query	providers.presets
+IMPL	mutation	providers.setActive
+IMPL	query	providers.state
+
+[quality] 已实现 8 / 桩 0
+IMPL	mutation	quality.clear
+IMPL	mutation	quality.exportCsv
+IMPL	query	quality.facets
+IMPL	query	quality.getSettings
+IMPL	query	quality.query
+IMPL	query	quality.requests
+IMPL	query	quality.series
+IMPL	mutation	quality.setSettings
+
+[sched] 已实现 10 / 桩 0
+IMPL	mutation	sched.activity
+IMPL	mutation	sched.clearResults
+IMPL	mutation	sched.proactiveNow
+IMPL	mutation	sched.removeTask
+IMPL	query	sched.results
+IMPL	mutation	sched.runTask
+IMPL	mutation	sched.setSettings
+IMPL	query	sched.state
+IMPL	mutation	sched.toggleTask
+IMPL	mutation	sched.upsertTask
+
+[screen] 已实现 1 / 桩 0
+IMPL	mutation	screen.checkSend
+
+[startup] 已实现 2 / 桩 0
+IMPL	query	startup.get
+IMPL	mutation	startup.set
+
+[theme] 已实现 2 / 桩 0
+IMPL	query	theme.get
+IMPL	mutation	theme.set
+
+[tts] 已实现 12 / 桩 0
+IMPL	query	tts.getConfig
+IMPL	query	tts.health
+IMPL	mutation	tts.preview
+IMPL	query	tts.promptVoice
+IMPL	mutation	tts.reply
+IMPL	mutation	tts.resetConfig
+IMPL	mutation	tts.saveConfig
+IMPL	mutation	tts.speak
+IMPL	query	tts.status
+IMPL	mutation	tts.stop
+IMPL	mutation	tts.testConnection
+IMPL	query	tts.voices
+
+[updates] 已实现 5 / 桩 0
+IMPL	mutation	updates.check
+IMPL	mutation	updates.download
+IMPL	query	updates.get
+IMPL	mutation	updates.install
+IMPL	mutation	updates.setAutoCheck
+
+[usage] 已实现 14 / 桩 0
+IMPL	mutation	usage.clear
+IMPL	query	usage.csv
+IMPL	query	usage.details
+IMPL	query	usage.endpoint
+IMPL	query	usage.heatmap
+IMPL	mutation	usage.priceSync
+IMPL	query	usage.query
+IMPL	query	usage.quota
+IMPL	query	usage.quotaHook
+IMPL	mutation	usage.quotaHookSet
+IMPL	mutation	usage.quotaRefresh
+IMPL	mutation	usage.scan
+IMPL	mutation	usage.setSettings
+IMPL	query	usage.state
+
+[voice] 已实现 21 / 桩 0
+IMPL	mutation	voice.ackCloud
+IMPL	mutation	voice.activity
+IMPL	mutation	voice.cancel
+IMPL	mutation	voice.download
+IMPL	query	voice.getMascotSettings
+IMPL	mutation	voice.remove
+IMPL	mutation	voice.saveMascotSettings
+IMPL	mutation	voice.sendToChat
+IMPL	mutation	voice.setSettings
+IMPL	query	voice.state
+IMPL	mutation	voice.streamCancel
+IMPL	mutation	voice.streamPush
+IMPL	stream	voice.streamStart
+IMPL	mutation	voice.streamStop
+IMPL	mutation	voice.transcribe
+IMPL	mutation	voice.vadClose
+IMPL	mutation	voice.vadOpen
+IMPL	mutation	voice.vadProb
+IMPL	mutation	voice.volcClearKey
+IMPL	mutation	voice.volcSetKey
+IMPL	mutation	voice.volcTest
+
+[window] 已实现 9 / 桩 0
+IMPL	query	window.getCursorPosition
+IMPL	query	window.getPosition
+IMPL	mutation	window.move
+IMPL	mutation	window.openAiChat
+IMPL	mutation	window.openTaskBoard
+IMPL	query	window.platform
+IMPL	mutation	window.quit
+IMPL	mutation	window.setAlwaysOnTop
+IMPL	mutation	window.setPosition
