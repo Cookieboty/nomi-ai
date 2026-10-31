@@ -14,6 +14,9 @@ snap() {
   done
   echo "$LABEL $((t/1024))$parts"
 }
+# 官方角色的 .riv 是远程素材（不随构建发）：测 Rive 前把仓库里的文件按内核缓存格式放进 userData，不依赖外网
+node "$(git rev-parse --show-toplevel)/scripts/character/seed-remote-cache.mjs" "${XDG_CONFIG_HOME:-$HOME/.config}/Nomi" >/dev/null ||
+  echo "::warning::seed rive cache failed"
 "$BIN" > "/tmp/measure-$LABEL.log" 2>&1 & ROOT=$!
 sleep "$WAIT"; snap
 if [ -n "${STEPS:-}" ]; then # STEPS="renderer=rive renderer=svg ..."，每步后等 15 s 测一次

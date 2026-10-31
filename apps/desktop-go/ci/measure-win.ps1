@@ -30,7 +30,13 @@ function Snap($label) {
   Write-Host "== $label"; $rows | Format-Table -AutoSize | Out-String | Write-Host
 }
 Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | Out-File "$Out\$Mode-mem-before.txt"
-if ($Mode -eq 'poc') { $env:NOMI_POC_CTL = $ctl }
+if ($Mode -eq 'poc') {
+  $env:NOMI_POC_CTL = $ctl
+  # 官方角色的 .riv 是远程素材（不随构建发）：测 Rive 前把仓库里的文件按内核缓存格式放进 userData，不依赖外网
+  $repo = (git rev-parse --show-toplevel)
+  node (Join-Path $repo 'scripts/character/seed-remote-cache.mjs') (Join-Path $env:APPDATA 'Nomi')
+  if ($LASTEXITCODE -ne 0) { Write-Host '::warning::seed rive cache failed' }
+}
 $proc = Start-Process -FilePath $Bin -PassThru -RedirectStandardOutput "$Out\$Mode-app.log" -RedirectStandardError "$Out\$Mode-app.err.log"
 $script:root = $proc.Id; Write-Host "root=$($proc.Id) wait=${wait}s"
 Start-Sleep $wait; Shot cold
