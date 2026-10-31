@@ -94,6 +94,7 @@ describe('shell · 过程表', () => {
       'updates.check': 'mutation',
       'updates.download': 'mutation',
       'updates.install': 'mutation',
+      'updates.releaseNotes': 'query',
       'updates.setAutoCheck': 'mutation',
       'diagnostics.get': 'query surfaces=chat',
       'diagnostics.set': 'mutation surfaces=chat',

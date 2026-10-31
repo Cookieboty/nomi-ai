@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 
-import { HITBOX_IDS, PACK_MODES } from './contract';
+import { HITBOX_IDS, PACK_MODES, REMOTE_ASSET_KINDS } from './contract';
 import { normalizePackPath } from './paths';
 
 const nonEmpty = z.string().trim().min(1);
@@ -55,6 +55,8 @@ export const assetsSchema = z.looseObject({
   layout: packPathSchema.optional(),
   /** 旧版 copy/ 目录 */
   copy: packPathSchema.optional(),
+  /** 声明为远程的素材（按需下载，本地可以没有） */
+  remote: z.array(z.enum(REMOTE_ASSET_KINDS)).optional(),
 });
 export type PackAssets = z.infer<typeof assetsSchema>;
 

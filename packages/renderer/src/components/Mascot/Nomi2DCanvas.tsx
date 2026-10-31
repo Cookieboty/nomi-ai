@@ -8,7 +8,12 @@ import { avatarEvents } from '../../avatar/events';
 import { handleAvatarInteraction, reportAvatarEvent } from '../../avatar/interaction';
 import { createMascotWindowHost } from '../../avatar/windowHost';
 import { getOverlay, useCharacterPackReady } from '../../mascot/characterConfig';
-import { loadStaticArtUrl, useMascotRenderer } from '../../mascot/rendererChoice';
+import {
+  bundledRiveIsRemote,
+  loadStaticArtUrl,
+  useMascotRenderer,
+  useRemoteRiveUrl,
+} from '../../mascot/rendererChoice';
 import { hasWindowHost } from '../../services/api';
 
 export interface Nomi2DCanvasProps {
@@ -27,18 +32,32 @@ const DEV = process.env.NODE_ENV === 'development';
 export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
   const overlayReady = useCharacterPackReady();
   const renderer = useMascotRenderer();
-  const staticArt = useStaticArt(overlayReady && renderer === 'svg' && !getOverlay());
+  // 内置包的 .riv 是远程素材时：选了 Rive 也要等内核下载好（就绪前按静态立绘显示）
+  const remoteRive = overlayReady && !getOverlay() && bundledRiveIsRemote();
+  const riveUrl = useRemoteRiveUrl(remoteRive && renderer === 'rive');
+  const wantStatic = renderer === 'svg' || (renderer === 'rive' && remoteRive && !riveUrl);
+  // 内置包的静态立绘：静态显示用它，Rive 加载失败时也回到它（avatar-runtime AvatarCanvas）
+  const staticArt = useStaticArt(overlayReady && !getOverlay());
   const character = useMemo(() => {
     if (!overlayReady || !renderer) return null;
     const base = currentAvatarCharacter(manifestPath);
-    // 设置为静态（默认）时内置包用它自己的静态立绘（覆盖包按自己的 manifest）；立绘地址到位前不挂角色。
-    // 包没有静态立绘（'none'）或加载失败时按包自己的模式，不换成别的包的立绘
-    if (renderer === 'svg' && !getOverlay() && staticArt !== 'failed' && staticArt !== 'none') {
-      if (!staticArt) return null;
-      return { ...base, mode: 'static' as const, assets: { ...base.assets, static: staticArt } };
+    if (getOverlay()) return base;
+    // 立绘地址到位前不挂角色（免得角色中途换素材、Rive 重新加载）。包没有静态立绘（'none'）或加载失败时
+    // 按包自己的模式，不换成别的包的立绘
+    const art = staticArt === 'failed' || staticArt === 'none' ? null : staticArt;
+    if (art === null && staticArt !== 'failed' && staticArt !== 'none') return null;
+    if (wantStatic && art) {
+      return { ...base, mode: 'static' as const, assets: { ...base.assets, static: art } };
     }
-    return base;
-  }, [overlayReady, renderer, staticArt, manifestPath]);
+    return {
+      ...base,
+      assets: {
+        ...base.assets,
+        ...(riveUrl ? { rive: riveUrl } : {}),
+        ...(art ? { static: art } : {}),
+      },
+    };
+  }, [overlayReady, renderer, wantStatic, riveUrl, staticArt, manifestPath]);
   const windowHost = useMemo<AvatarWindowHost | null>(
     () => (hasWindowHost() ? createMascotWindowHost() : null),
     [],

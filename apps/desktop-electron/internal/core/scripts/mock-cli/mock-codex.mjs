@@ -91,6 +91,8 @@ if (args.includes('update')) {
  * Env: NOMI_MOCK_CODEX_APP_LOG=<file>（逐条记下请求）, NOMI_MOCK_CODEX_PERM=1（逐项确认档下先请求执行命令的审批）,
  *      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 turn/interrupt）, NOMI_MOCK_CODEX_FAIL=1（这一轮 failed）,
  *      NOMI_MOCK_CODEX_NO_APP=1（像旧版 CLI 一样不认识 app-server）
+ * 内容包含 compact 的一轮先自动压缩：contextCompaction 条目 + 已弃用的 thread/compacted；
+ * thread/compact/start 手动压缩（作为一轮：turn/started → contextCompaction → turn/completed）。
  */
 if (args[0] === 'app-server') {
   if (process.env.NOMI_MOCK_CODEX_NO_APP === '1') {
@@ -184,6 +186,12 @@ if (args[0] === 'app-server') {
     const answer =
       process.env.NOMI_MOCK_CODEX_REPLY ||
       (foreign ? `【Mock Codex】已续接会话 ${threadId}` : '【Mock Codex】任务完成。');
+    if (text.includes('compact')) {
+      const cc = { type: 'contextCompaction', id: `cc-${turnId}` };
+      item('started', cc);
+      item('completed', cc);
+      notify('thread/compacted', { threadId, turnId });
+    }
     const msgId = `msg-${turnId}`;
     item('started', { type: 'agentMessage', id: msgId, text: '' });
     for (const delta of [answer.slice(0, 5), answer.slice(5)])
@@ -244,6 +252,22 @@ if (args[0] === 'app-server') {
         });
         void runTurn(p.threadId, turnId, p);
         return;
+      }
+      case 'thread/compact/start': {
+        // 手动压缩（形状按 0.164.0 的协议定义）：应答为空，压缩作为一轮跑完
+        const turnId = `turn-${seq++}`;
+        reply(j.id, {});
+        notify('turn/started', {
+          threadId: p.threadId,
+          turn: { id: turnId, status: 'inProgress' },
+        });
+        const cc = { type: 'contextCompaction', id: `cc-${turnId}` };
+        notify('item/started', { threadId: p.threadId, turnId, item: cc });
+        notify('item/completed', { threadId: p.threadId, turnId, item: cc });
+        return notify('turn/completed', {
+          threadId: p.threadId,
+          turn: { id: turnId, items: [], status: 'completed', error: null },
+        });
       }
       case 'thread/revert':
         reply(j.id, { thread: { id: p.threadId, turns: [] } });

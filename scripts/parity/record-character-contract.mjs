@@ -190,6 +190,7 @@ const templates = {
       onboarding: 'onboarding',
       layout: 'layout',
       copy: 'copy',
+      remote: ['rive'],
       extra: 1,
     },
     rive: { artboard: 'Main', stateMachine: 'SM' },
@@ -242,7 +243,6 @@ const templates = {
   layout: () => templates.manifest().layout,
 };
 const atoms = [
-  // eslint-disable-next-line no-loss-of-precision -- 故意放一个超出双精度的整数，录制精度丢失后的行为
   undefined,
   null,
   true,
@@ -257,6 +257,8 @@ const atoms = [
   4097,
   -0.1,
   1e308,
+  // 故意超出安全整数：Go 与 Node 对它的解析要一致
+  // eslint-disable-next-line no-loss-of-precision
   9007199254740993,
   1e21,
   1e-7,
@@ -464,6 +466,20 @@ console.log(`schemas: ${schemaCases.length} (${schemaCases.filter((c) => c.ok).l
       Object.assign(set, legacyExtras());
     }
     packCases.push({ base, del, set });
+  }
+  // 远程素材（assets.remote）：声明了的 .riv 本地可以没有；没声明照旧报缺失；声明了但本地也有照常校验大小
+  {
+    const m = parsed(bases.nomi['manifest.json']);
+    const withRemote = (remote) => txt(JSON.stringify({ ...m, assets: { ...m.assets, remote } }));
+    const riv = Object.keys(bases.nomi).filter((p) => p.endsWith('.riv'));
+    packCases.push({ base: 'nomi', del: riv, set: { 'manifest.json': withRemote(['rive']) } });
+    packCases.push({ base: 'nomi', del: riv, set: { 'manifest.json': withRemote([]) } });
+    packCases.push({ base: 'nomi', del: riv, set: { 'manifest.json': withRemote(['sprite']) } });
+    packCases.push({
+      base: 'nomi',
+      del: [],
+      set: { 'manifest.json': withRemote(['rive']), 'rive/character.riv': { size: 10 } },
+    });
   }
   packCases.push({ base: 'nomi', del: Object.keys(bases.nomi), set: {} }); // 空目录
   packCases.push({ base: null, del: [], set: {} }); // 目录不存在

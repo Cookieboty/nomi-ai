@@ -46,17 +46,6 @@ export function selectedPackDir(env = process.env) {
   return fromEnv ? resolvePackDir(fromEnv) : DEFAULT_PACK_DIR;
 }
 
-/** Brand-lock sprite dir: the official pack's sprite (overridable for forks). */
-export function brandLockModelDir(env = process.env) {
-  return resolve(
-    env.CHARACTER_PACK_SPRITE_DIR || env.BRAND_LOCK_MODEL_DIR || join(DEFAULT_PACK_DIR, 'sprite'),
-  );
-}
-
-export function skipBrandLock(env = process.env) {
-  return env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
-}
-
 export function rel(path) {
   return relative(ROOT, path).split('\\').join('/') || '.';
 }

@@ -154,7 +154,9 @@ type Pack struct {
 	Static         string
 	OnboardingDir  string
 	VoiceDir       string
-	Downgraded     []string
+	// Remote：声明为远程、按需下载的素材（manifest assets.remote，见 characterassets）
+	Remote     []string
+	Downgraded []string
 	// ManifestObj：归一化后的 manifest（JS 形状，= ResolvedPack.manifest），供人设来源读取
 	ManifestObj any
 }
@@ -179,11 +181,12 @@ type normalizedPack struct {
 	Mapping json.RawMessage       `json:"mapping"`
 	Locales map[string]LocaleData `json:"locales"`
 	Assets  struct {
-		Rive           *string `json:"rive"`
-		SpriteManifest *string `json:"spriteManifest"`
-		Static         *string `json:"static"`
-		OnboardingDir  string  `json:"onboardingDir"`
-		VoiceDir       string  `json:"voiceDir"`
+		Rive           *string  `json:"rive"`
+		SpriteManifest *string  `json:"spriteManifest"`
+		Static         *string  `json:"static"`
+		OnboardingDir  string   `json:"onboardingDir"`
+		VoiceDir       string   `json:"voiceDir"`
+		Remote         []string `json:"remote"`
 	} `json:"assets"`
 }
 
@@ -209,7 +212,7 @@ func LoadPackAt(root string, lenient bool) (*Pack, error) {
 	p := &Pack{
 		Root: root, Manifest: n.Manifest, Mode: n.Mode, Persona: n.Persona, Locales: n.Locales,
 		Rive: deref(n.Assets.Rive), SpriteManifest: deref(n.Assets.SpriteManifest), Static: deref(n.Assets.Static),
-		OnboardingDir: n.Assets.OnboardingDir, VoiceDir: n.Assets.VoiceDir, Downgraded: r.Downgraded,
+		OnboardingDir: n.Assets.OnboardingDir, VoiceDir: n.Assets.VoiceDir, Remote: n.Assets.Remote, Downgraded: r.Downgraded,
 		ManifestObj: r.Pack.Get("manifest"),
 	}
 	if string(n.Mapping) != "null" {

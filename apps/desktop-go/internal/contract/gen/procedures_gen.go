@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 364：mutation 253 / query 106 / stream 5
+// 合计 367：mutation 254 / query 108 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -57,6 +57,8 @@ var Procedures = []Procedure{
 	{Name: "ai.tts.synth", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "appIcon.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "appIcon.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "character.assets", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "character.ensureAssets", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "character.getActivePack", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "chatBg.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -334,6 +336,7 @@ var Procedures = []Procedure{
 	{Name: "updates.download", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "updates.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "updates.install", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "updates.releaseNotes", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "updates.setAutoCheck", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "usage.clear", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "usage.csv", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -398,6 +401,7 @@ var Events = []string{
 	"ai.tts.end",
 	"ai.userProfile.changed",
 	"avatar.event",
+	"character.assetsChanged",
 	"chatBg.changed",
 	"cli.registryChanged",
 	"cliAccount.changed",

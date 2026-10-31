@@ -118,12 +118,20 @@ func ResolveChatAssetURL(root, rawURL, presetFile string) string {
 }
 
 // ResolveCharacterPackURL 对应 resolveCharacterPackUrl（root 为空即 null）
-func ResolveCharacterPackURL(root, rawURL string) string {
+func ResolveCharacterPackURL(root, rawURL string) string { return resolveUnder(root, rawURL, "pack") }
+
+// ResolveCharacterAssetURL 对应 resolveCharacterAssetUrl：character-pack://assets/<packId>/<file>
+// 指向下载好的远程角色素材（<userData>/character-assets，见 characterassets）
+func ResolveCharacterAssetURL(assetsRoot, rawURL string) string {
+	return resolveUnder(assetsRoot, rawURL, "assets")
+}
+
+func resolveUnder(root, rawURL, host string) string {
 	if root == "" {
 		return ""
 	}
 	u, ok := parseURL(rawURL)
-	if !ok || u.Protocol != CharacterPackScheme+":" || u.Hostname != "pack" {
+	if !ok || u.Protocol != CharacterPackScheme+":" || u.Hostname != host {
 		return ""
 	}
 	rel, ok := decodeRel(u.Pathname)
@@ -179,6 +187,15 @@ func ServeChatAsset(w http.ResponseWriter, root, presetFile, rawURL string) {
 // ServeCharacterPack：registerCharacterPackProtocol 的处理体
 func ServeCharacterPack(w http.ResponseWriter, root, rawURL string) {
 	serve(w, ResolveCharacterPackURL(root, rawURL), CharacterPackMimeFor)
+}
+
+// ServeCharacterPackOrAssets：覆盖包（pack 主机）或下载好的远程素材（assets 主机）
+func ServeCharacterPackOrAssets(w http.ResponseWriter, root, assetsRoot, rawURL string) {
+	file := ResolveCharacterPackURL(root, rawURL)
+	if file == "" {
+		file = ResolveCharacterAssetURL(assetsRoot, rawURL)
+	}
+	serve(w, file, CharacterPackMimeFor)
 }
 
 // ServeBuiltinPack：视图里的内置角色包（./character/…）从磁盘上的内置包目录提供，不嵌进程序

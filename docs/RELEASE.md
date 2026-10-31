@@ -21,6 +21,10 @@ Go 版**（见下文「2.0.4 → Go 版」）。Electron 版仍随同一个 Rele
 发一版：
 
 1. 同步版本号（`package.json`、`apps/desktop-electron/package.json`，Go 打包读后者），写 `docs/releases/vX.Y.Z.md`。
+   这份文件是更新说明的唯一来源：它是 GitHub Release 正文，也由 `update-manifest.py --notes` 写进该版本的
+   `latest-go.json`（`releaseNotes`）。应用内「更新日志」弹层经 `updates.releaseNotes` 按版本号取
+   `releases/download/vX.Y.Z/latest-go.json` 并缓存，界面里不内置任何版本的文案，发版不用改代码。
+   每行写成「中文 / English」，弹层按界面语言取一半；只写给用户看的内容。
 2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿（tag 上不再重跑测试，直接打包发布）。
 
    发版分支（`release/X.Y.Z` → PR → `main`）怎么少等一轮：

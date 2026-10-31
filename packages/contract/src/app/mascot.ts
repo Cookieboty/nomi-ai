@@ -137,6 +137,23 @@ const HitboxRegion = z.object({
   right: z.number(),
 });
 
+/**
+ * 当前角色包的远程素材（manifest `assets.remote`，如官方角色的 .riv）：切到 Rive 时由内核按远程角色目录
+ * 下载到用户数据目录，就绪后 riveUrl 指向 character-pack://assets/…（见 docs/design/remote-character-assets.md）。
+ * remote 为 false 时当前包没有远程素材，视图照旧用包自己的资源。
+ */
+export const CharacterAssetsState = z.looseObject({
+  packId: z.string().nullable(),
+  remote: z.boolean(),
+  status: z.enum(['idle', 'checking', 'downloading', 'ready', 'error']),
+  /** 就绪的素材版本（角色目录里的 sha256 前 12 位） */
+  version: z.string().nullish(),
+  /** 下载进度 0–100 */
+  percent: z.number().nullish(),
+  riveUrl: z.string().nullish(),
+  error: z.string().nullish(),
+});
+
 /** 当前角色包快照 —— electron `CharacterPackActiveSnapshot`（随角色包契约演进，未知字段透传） */
 export const CharacterPackSnapshot = z.looseObject({
   source: z.enum(['userData', 'resources', 'builtin']),
@@ -526,7 +543,20 @@ export const mascotProcedures = {
     kind: 'mutation',
     input: z.object({ renderer: MascotRenderer }),
     output: MascotRenderer,
-    description: '写 mascot.renderer 并广播 mascot.rendererChanged（桌面角色窗口实时切换）',
+    description:
+      '写 mascot.renderer 并广播 mascot.rendererChanged（桌面角色窗口实时切换）；切到 rive 时开始准备远程素材',
+  },
+  'character.assets': {
+    kind: 'query',
+    input: z.void(),
+    output: CharacterAssetsState,
+    description: '当前角色包远程素材的状态（就绪时带 riveUrl）',
+  },
+  'character.ensureAssets': {
+    kind: 'mutation',
+    input: z.void(),
+    output: CharacterAssetsState,
+    description: '检查远程角色目录，缺少或有新版本时下载（失败后重试也用它）',
   },
   'window.platform': {
     kind: 'query',
@@ -541,6 +571,8 @@ export const mascotEvents = {
   'mascot.scaleChanged': MascotScaleState,
   /** mascot.renderer 改变（桌面角色窗口卸载当前渲染器并挂载另一种） */
   'mascot.rendererChanged': MascotRenderer,
+  /** 远程素材状态变化（下载进度、就绪、失败） */
+  'character.assetsChanged': CharacterAssetsState,
   /** mascot:cursor（~30Hz，只在光标移动时） */
   'mascot.cursor': MascotCursorEvent,
   /** mascot:body（运动中每帧，静止时 ~2Hz） */

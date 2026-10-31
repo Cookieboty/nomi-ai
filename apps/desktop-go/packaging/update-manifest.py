@@ -2,6 +2,7 @@
 """生成 Go 版更新元数据（替代 electron-builder 的 latest*.yml + blockmap）。
 
   python3 update-manifest.py <version> <artifact-dir> [--tag v2.0.5] [--repo Cookieboty/nomi-ai]
+                             [--notes docs/releases/v2.0.5.md]
 
 写出 <artifact-dir>/latest-go.json、SHA256SUMS，以及给 2.0.4（Electron，electron-updater 6.8.9）用的
 latest.yml / latest-mac.yml / latest-linux.yml：格式与 electron-builder 生成的相同（url 相对 Release、sha512 为
@@ -11,7 +12,8 @@ Squirrel.Mac 替换 Nomi.app，要求与 2.0.4 同一签名身份；Linux 替换
 https://github.com/<repo>/releases/latest/download/latest-go.json，比较 version，按当前平台挑出
 platforms[<os>-<arch>] 的安装包，弹窗引导下载（不自动替换，见 docs/design/migrate-2.0.5-go.md 批次 11）。
 schema（schemaVersion=1）：
-  {schemaVersion, version, tag, releaseDate, releaseUrl,
+  {schemaVersion, version, tag, releaseDate, releaseUrl, releaseNotes?（--notes 文件原文，2.0.8 起；
+   Go / Node 内核的 updates.releaseNotes 按版本取 releases/download/v<version>/latest-go.json 读它）,
    platforms: {"darwin-arm64"|"darwin-amd64"|"windows-amd64"|"linux-amd64"|"linux-amd64-deb":
                {file, url, size, sha256}}}
 """
@@ -45,6 +47,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("version"); ap.add_argument("dir")
     ap.add_argument("--tag"); ap.add_argument("--repo", default="Cookieboty/nomi-ai")
+    ap.add_argument("--notes", help="更新说明 markdown（docs/releases/v<version>.md）；给了但文件不存在就失败")
     a = ap.parse_args()
     v, tag = a.version, a.tag or f"v{a.version}"
     want = {
@@ -76,6 +79,12 @@ def main():
         "releaseUrl": f"https://github.com/{a.repo}/releases/tag/{tag}",
         "platforms": plats,
     }
+    if a.notes:
+        with open(a.notes, encoding="utf-8") as f:
+            notes = f.read().strip()
+        if not notes:
+            print(f"empty release notes: {a.notes}", file=sys.stderr); sys.exit(1)
+        out["releaseNotes"] = notes
     # 2.0.4 → 2.0.5：electron-updater 的更新元数据。mac 的 zip 排在前面（MacUpdater 只挑 zip，按文件名里的 arm64 分架构）
     rd = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     write_yml(os.path.join(a.dir, "latest.yml"), v, [want["windows-amd64"]], a.dir, rd)

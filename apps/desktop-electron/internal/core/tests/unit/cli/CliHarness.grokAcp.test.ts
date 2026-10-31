@@ -28,6 +28,7 @@ describe('CliHarnessService Grok over ACP', () => {
     'NOMI_MOCK_FIRST_TOKEN_MS',
     'NOMI_MOCK_SLOW_PROMPT',
     'NOMI_MOCK_ARGV_LOG',
+    'NOMI_MOCK_GROK_NO_COMPACT',
   ];
   let saved: Record<string, string | undefined> = {};
   const made: CliHarnessService[] = [];
@@ -238,6 +239,36 @@ describe('CliHarnessService Grok over ACP', () => {
     h.setTabModel(tab.id, 'grok-mock-old');
     await expect(h.sendTab(tab.id, 'one')).rejects.toThrow(/unknown model/);
     expect(count('session/prompt')).toBe(0);
+  }, 15_000);
+
+  it('/compact：改发 _x.ai/compact_conversation（不当消息发给模型），压缩后的占用写进用量', async () => {
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'grok' });
+    // 新会话还没发过消息：没有可压缩的内容
+    await expect(h.sendTab(tab.id, '/compact')).rejects.toThrow('会话还没有内容');
+    await h.sendTab(tab.id, 'hello');
+    const r = await h.sendTab(tab.id, '/compact');
+    expect(r.text).toBe('已压缩上下文');
+    expect(r.usage).toMatchObject({ contextTokens: 40 });
+    expect(calls().find((c) => c.method === '_x.ai/compact_conversation')?.params).toEqual({
+      sessionId: 'session-mock-grok-1',
+    });
+    expect(count('session/prompt')).toBe(1);
+    expect(events.filter((e) => e.type === 'status').map((e) => e.kind)).toEqual(
+      expect.arrayContaining(['compact', 'clear']),
+    );
+    expect(events).toContainEqual({ type: 'context', tokens: 40 });
+  }, 15_000);
+
+  it('/compact：这个版本没有压缩扩展方法时退回原样发送（Grok 自己的命令）', async () => {
+    process.env.NOMI_MOCK_GROK_NO_COMPACT = '1';
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'grok' });
+    await h.sendTab(tab.id, 'hello');
+    const r = await h.sendTab(tab.id, '/compact');
+    expect(r.text).toBe('【Mock Grok】acp new nokey: /compact');
+    expect(count('_x.ai/compact_conversation')).toBe(1);
+    expect(count('session/prompt')).toBe(2);
   }, 15_000);
 
   it('停止：session/cancel 结束这一轮、进程保留，下一轮直接复用', async () => {

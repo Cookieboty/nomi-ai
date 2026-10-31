@@ -123,7 +123,7 @@ pnpm character:init -- ../my-character.pack my-character
 # 编辑 ../my-character.pack 内的立绘、onboarding、persona.json、locales/、manifest
 ```
 
-需要 rive / sprite / 语音的完整示例，参考官方包 `characters/nomi`（其品牌图层受 brand-lock 保护，只能参考不能改）。
+需要 rive / 语音的完整示例，参考官方包 `characters/nomi`（品牌素材只能参考不能改，见 [品牌规范](../BRAND.md#9-品牌锁)）。
 
 ### 2. 校验
 
@@ -174,17 +174,10 @@ CHARACTER_PACK=../my-character.pack pnpm build
 
 ---
 
-## Brand-lock / SKIP
+## 远程素材
 
-官方 CI 用 `characters/nomi/sprite/brand-lock.json` 锁定 Nomi 品牌图层；选别的包构建不影响这项检查。
-自有素材 fork 如果改了官方包本身：
-
-```bash
-CHARACTER_PACK_SKIP_BRAND_LOCK=1 node scripts/brand/update-brand-lock.mjs --check
-# 或在 CI / 本地测试环境导出该变量
-```
-
-也可参数化锁目录：`CHARACTER_PACK_SPRITE_DIR` / `BRAND_LOCK_MODEL_DIR` → 指向你的 sprite 目录。
+体积大的素材可以声明为远程（manifest `assets.remote`，目前支持 `rive`）：不随安装包发，用户开启动画时由应用下载。
+官方包的 `.riv` 就是这样，见 [远程角色素材](../design/remote-character-assets.md)。
 
 ---
 

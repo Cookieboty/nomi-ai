@@ -283,6 +283,21 @@ describe('parseGrokLine', () => {
     expect(parseGrokLine('not json')).toEqual([]);
   });
 
+  it('maps auto-compaction: compact → clear + post-compaction context', () => {
+    expect(p({ type: 'auto_compact_started', tokens_used: 900, percentage: 90 })).toEqual([
+      { type: 'status', kind: 'compact' },
+    ]);
+    expect(p({ type: 'auto_compact_completed', tokens_before: 900, tokens_after: 300 })).toEqual([
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: 300 },
+    ]);
+    expect(p({ type: 'auto_compact_completed' })).toEqual([
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: null },
+    ]);
+    expect(p({ type: 'auto_compact_cancelled' })).toEqual([{ type: 'status', kind: 'clear' }]);
+  });
+
   it('converts generated image payloads to renderable Markdown data URLs', () => {
     const b64 = 'iVBORw0KGgo=';
     expect(

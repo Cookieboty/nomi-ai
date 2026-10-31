@@ -277,7 +277,12 @@ func (s zenum) run(v any) zres {
 		for i, x := range s.values {
 			q[i] = `"` + x + `"`
 		}
-		r.issues = append(r.issues, Issue{Code: "invalid_value", Message: "Invalid option: expected one of " + strings.Join(q, "|")})
+		// zod 4：只有一个取值的 enum 报「expected "x"」
+		msg := "Invalid option: expected one of " + strings.Join(q, "|")
+		if len(q) == 1 {
+			msg = "Invalid input: expected " + q[0]
+		}
+		r.issues = append(r.issues, Issue{Code: "invalid_value", Message: msg})
 	}
 	return r
 }

@@ -9,7 +9,9 @@
  */
 import { useEffect, useState } from 'react';
 
-import { api, hasTransport } from '../services/api';
+import { api, hasTransport, hostAssetUrl } from '../services/api';
+
+import { BUNDLED_PACK } from './characterConfig';
 
 export type MascotRenderer = 'svg' | 'rive';
 
@@ -34,6 +36,37 @@ export function useMascotRenderer(): MascotRenderer | null {
     };
   }, []);
   return renderer;
+}
+
+/**
+ * 内置包的 .riv 是远程素材（manifest `assets.remote`）：不随安装包发，切到 Rive 时由内核下载
+ * （docs/design/remote-character-assets.md）。
+ */
+export function bundledRiveIsRemote(): boolean {
+  return BUNDLED_PACK.assets.remote?.includes('rive') ?? false;
+}
+
+/**
+ * 内核下载好的远程 .riv 地址（character-pack://assets/…，Go 宿主上换成本地地址）；还没就绪 / 下载失败 /
+ * 不需要时为 null，调用方先显示静态立绘。内核更新到新版本时地址会变，角色随之重新加载。
+ */
+export function useRemoteRiveUrl(wanted: boolean): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!wanted || !hasTransport()) return;
+    let alive = true;
+    const apply = (s: { remote: boolean; status: string; riveUrl?: string | null }) => {
+      if (!alive) return;
+      setUrl(s.remote && s.status === 'ready' && s.riveUrl ? hostAssetUrl(s.riveUrl) : null);
+    };
+    const off = api.on('character.assetsChanged', apply);
+    api.character.assets().then(apply, () => undefined);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [wanted]);
+  return wanted ? url : null;
 }
 
 let staticArt: Promise<string | null> | null = null;

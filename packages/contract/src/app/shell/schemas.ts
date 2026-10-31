@@ -449,6 +449,13 @@ export const UpdateState = loose({
   releasePending: z.boolean().optional(),
 });
 
+/** updates.releaseNotes：notes 为 markdown（中英双语，每行「中文 / English」）；取不到为 null */
+export const ReleaseNotesResult = loose({
+  version: z.string(),
+  notes: z.string().nullable(),
+  releaseDate: z.string().nullish(),
+});
+
 export const DiagnosticsView = loose({
   enabled: z.boolean(),
   forced: z.boolean(),

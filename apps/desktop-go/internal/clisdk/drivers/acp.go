@@ -2,6 +2,8 @@ package drivers
 
 import (
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -11,6 +13,9 @@ import (
 )
 
 const AcpPromptIdleMs = 10 * 60_000
+
+// xaiSessionNotify mirrors XAI_SESSION_NOTIFY：Grok 的会话扩展通知（x.ai/session_notification 带 auto-compact）。
+var xaiSessionNotify = regexp.MustCompile(`^_?x\.ai/session(?:_notification|/update)$`)
 
 var _ = time.Millisecond
 
@@ -124,13 +129,19 @@ func (d *AcpDriver) TurnDenied() bool                { return d.turn != nil && d
 func (d *AcpDriver) InTurn() bool                    { return d.turn != nil }
 
 func (d *AcpDriver) onNotification(method string, params Json) {
-	if method != "session/update" {
+	// Grok 的自动压缩走 x.ai 扩展通知（x.ai/session_notification；线上可能带 ACP 扩展前缀 _）。
+	// 扩展通知里只取 auto_compact_*，其它内容与标准 session/update 重复
+	ext := xaiSessionNotify.MatchString(method)
+	if method != "session/update" && !ext {
 		return
 	}
 	u, _ := params.Get("update").(*util.Obj)
 	if u == nil {
 		// (params.update ?? {})：非对象原始值读属性均为 undefined
 		u = O()
+	}
+	if ext && !strings.HasPrefix(strQ(u.Get("sessionUpdate")), "auto_compact_") {
+		return
 	}
 	if u.Get("sessionUpdate") == "available_commands_update" {
 		d.hub.Emit(O("kind", "commands", "commands", parseCommands(u.Get("availableCommands"))))
@@ -378,6 +389,25 @@ func (d *AcpDriver) SetModel(model, effort *string) *jsrt.Promise[string] {
 }
 
 func (d *AcpDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
+	return d.runTurn("session/prompt", func(sessionID string) Json {
+		var prompt any
+		if input.Blocks != nil {
+			prompt = input.Blocks
+		} else {
+			prompt = []any{O("type", "text", "text", input.Text)}
+		}
+		return O("sessionId", sessionID, "prompt", prompt)
+	}, input, false)
+}
+
+// Compact mirrors compact：手动压缩上下文（扩展方法，如 Grok 的 `_x.ai/compact_conversation`，参数 {sessionId}）。
+// 按一轮处理：期间的更新带这一轮的 id；自己补上「压缩中 / 清状态」，CLI 另发不发 auto_compact_* 都一样。
+// 方法不存在等 RPC 错误照常 reject（*rpc.RpcError），由调用方决定退回什么。
+func (d *AcpDriver) Compact(method string, input TurnInput) *jsrt.Promise[TurnResult] {
+	return d.runTurn(method, func(sessionID string) Json { return O("sessionId", sessionID) }, input, true)
+}
+
+func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, input TurnInput, compacting bool) *jsrt.Promise[TurnResult] {
 	return jsrt.Async(func() (TurnResult, error) {
 		sessionID, err := d.requireSession()
 		if err != nil {
@@ -392,22 +422,26 @@ func (d *AcpDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 		}
 		turn := &acpTurn{id: pick(d.o.NewID)(), mapper: mk()}
 		d.turn = turn
+		emit := func(ev Ev) {
+			turn.text = clisdk.AppendText(turn.text, ev)
+			d.hub.Emit(O("kind", "harness", "event", ev, "turnId", turn.id))
+		}
+		if compacting {
+			emit(O("type", "status", "kind", "compact"))
+		}
 		defer func() {
+			if compacting {
+				emit(O("type", "status", "kind", "clear"))
+			}
 			if d.turn == turn {
 				d.turn = nil
 			}
 		}()
-		var prompt any
-		if input.Blocks != nil {
-			prompt = input.Blocks
-		} else {
-			prompt = []any{O("type", "text", "text", input.Text)}
-		}
 		ms := AcpPromptIdleMs
 		if d.o.PromptIdleMs != nil {
 			ms = *d.o.PromptIdleMs
 		}
-		r, err := jsrt.Await(d.Conn.Request("session/prompt", O("sessionId", sessionID, "prompt", prompt), rpc.RequestOptions{
+		r, err := jsrt.Await(d.Conn.Request(method, params(sessionID), rpc.RequestOptions{
 			Idle: true, TimeoutMs: &ms, Signal: input.Signal,
 			OnTimeout: func() {
 				d.Interrupt()
@@ -420,8 +454,7 @@ func (d *AcpDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 			return nil, err
 		}
 		for _, ev := range turn.mapper.Flush() {
-			turn.text = clisdk.AppendText(turn.text, ev)
-			d.hub.Emit(O("kind", "harness", "event", ev, "turnId", turn.id))
+			emit(ev)
 		}
 		ctx := turn.mapper.Context()
 		var stop any = "end_turn"

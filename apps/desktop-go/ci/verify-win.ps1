@@ -52,6 +52,11 @@ foreach ($d in "$env:APPDATA\Nomi", "$env:APPDATA\@nomi-ai\electron") {
   New-Item -ItemType Directory -Force $d | Out-Null
   Set-Content -Encoding ascii (Join-Path $d 'update-settings.json') '{"version":1,"autoCheck":false}'
 }
+# 安装器把每一步的耗时写在 %TEMP%\nomi-install.log（installer.nsi 的 StepLog）
+function InstallLog($title) {
+  $f = Join-Path $env:TEMP "nomi-install.log"
+  if (Test-Path $f) { W $title; W '```'; Get-Content $f | ForEach-Object { W $_ }; W '```' } else { W "- $title：没有 nomi-install.log" }
+}
 $upgrade = $Old -and (Test-Path $Old)
 if (-not $upgrade -and $RequireOld) { W "- 缺 Electron 2.0.4 安装器，无法验证 2.0.4 → 新版升级"; $ok = $false }
 if ($upgrade) {
@@ -78,9 +83,16 @@ if ($upgrade) {
   W "- 卸载项：$($keys.Count) 个，DisplayVersion=$ver"; if ($keys.Count -ne 1 -or $ver -eq "2.0.4") { $ok = $false }
   $dataAfter = @(Get-ChildItem $old204 -Recurse -File -ErrorAction SilentlyContinue).Count
   W "- 2.0.4 用户数据（%APPDATA%\@nomi-ai\electron）：升级前 $dataBefore 个文件，升级后 $dataAfter 个"; if ($dataBefore -gt 0 -and $dataAfter -eq 0) { $ok = $false }
+  InstallLog "安装器各步耗时（Electron 2.0.4 → Go）"
+  # Go → Go 覆盖安装：已装 Go 版的用户应用内更新走的就是这条路径
+  $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
+  W "- Go → Go 覆盖安装（/S）用时 $([int]$t.TotalSeconds)s"
+  InstallLog "安装器各步耗时（Go → Go）"
+  if (Test-Path (Join-Path $dir "resources\app.asar")) { W "- Go → Go 后出现 Electron 文件"; $ok = $false }
 } else {
   $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
   Start-Sleep 3; $b = Snap "go"; W "- Go 安装器 /S 用时 $([int]$t.TotalSeconds)s（state-go.txt）"
+  InstallLog "安装器各步耗时（全新安装）"
 }
 if ($upgrade) {
   W "安装状态对比（Electron 2.0.4 → Go 覆盖升级后）"; W '```diff'

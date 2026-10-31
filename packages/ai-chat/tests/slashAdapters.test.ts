@@ -104,7 +104,10 @@ describe('各端命令集', () => {
     for (const b of ['codex', 'dsh'] as const) {
       const { commands } = makeCtx(b);
       const shown = flattenGroups(searchCommands(commands, '')).map((h) => h.command.name);
-      for (const n of ['review', 'init', 'compact'] as const) {
+      // Codex 的 /compact 交给主进程改发 thread/compact/start，见下一条
+      for (const n of b === 'codex'
+        ? (['review', 'init'] as const)
+        : (['review', 'init', 'compact'] as const)) {
         expect(shown, `${b}:${n}`).not.toContain(n);
         expect(findCommand(commands, n)!.kind).toBe('unsupported');
       }
@@ -113,6 +116,14 @@ describe('各端命令集', () => {
       expect(c.kind).toBe('notice');
       expect(c.kind === 'notice' && c.title).toContain('review');
     }
+  });
+  it('Codex 的 /compact 是 CLI 自己的压缩：原样交给主进程（改发 thread/compact/start）', async () => {
+    const { commands } = makeCtx('codex');
+    const c = findCommand(commands, 'compact')!;
+    expect(c.kind).toBe('passthrough');
+    expect(c.source).toBe('endpoint');
+    const { r } = await run('codex', '/compact keep notes');
+    expect(r.handled && r.outcome).toEqual({ type: 'send', text: '/compact' });
   });
   it('Grok：无头模式能跑的命令原样发送，分页器命令仍然拦下', async () => {
     const { commands } = makeCtx('grok');
@@ -194,7 +205,6 @@ describe('各端命令集', () => {
     for (const [b, n] of [
       ['claude', 'memory'],
       ['claude', 'login'],
-      ['codex', 'compact'],
       ['codex', 'permissions'],
       ['grok', 'mention'],
     ] as const) {

@@ -30,11 +30,22 @@ func TestUpdateManifestScriptParses(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	notes := filepath.Join(t.TempDir(), "v"+v+".md")
+	if err := os.WriteFile(notes, []byte("# Nomi "+v+"\n\n- 修复 / Fixed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	script := paritytest.RepoPath("apps/desktop-go/packaging/update-manifest.py")
-	if out, err := exec.Command(py, script, v, dir).CombinedOutput(); err != nil {
+	if out, err := exec.Command(py, script, v, dir, "--notes", notes).CombinedOutput(); err != nil {
 		t.Fatalf("update-manifest.py: %v\n%s", err, out)
 	}
-	checkManifest(t, filepath.Join(dir, "latest-go.json"), dir)
+	m := checkManifest(t, filepath.Join(dir, "latest-go.json"), dir)
+	if m.ReleaseNotes != "# Nomi "+v+"\n\n- 修复 / Fixed" {
+		t.Fatalf("releaseNotes = %q", m.ReleaseNotes)
+	}
+	// 给了 --notes 但文件不存在：失败，不能发出没有说明的清单
+	if err := exec.Command(py, script, v, dir, "--notes", filepath.Join(dir, "missing.md")).Run(); err == nil {
+		t.Fatal("missing notes file should fail")
+	}
 }
 
 // CI manifest 任务：NOMI_LATEST_GO_JSON 指向真实产物生成的 latest-go.json（同目录有安装包）。
@@ -43,10 +54,12 @@ func TestUpdateManifestReleaseFile(t *testing.T) {
 	if p == "" {
 		t.Skip("NOMI_LATEST_GO_JSON not set")
 	}
-	checkManifest(t, p, filepath.Dir(p))
+	if m := checkManifest(t, p, filepath.Dir(p)); m.ReleaseNotes == "" {
+		t.Fatal("release latest-go.json has no releaseNotes (docs/releases/v<version>.md)")
+	}
 }
 
-func checkManifest(t *testing.T, path, dir string) {
+func checkManifest(t *testing.T, path, dir string) manifest {
 	t.Helper()
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -83,10 +96,14 @@ func checkManifest(t *testing.T, path, dir string) {
 			t.Fatalf("%s: CheckForUpdates: %v", key, err)
 		}
 		g.mu.Lock()
-		p := g.pending
+		p, info := g.pending, g.info
 		g.mu.Unlock()
 		if p == nil || p.File != e.File {
 			t.Fatalf("%s: pending = %+v", key, p)
 		}
+		if m.ReleaseNotes != "" && info.ReleaseNotes != m.ReleaseNotes {
+			t.Fatalf("%s: releaseNotes not passed to UpdateInfo: %v", key, info.ReleaseNotes)
+		}
 	}
+	return m
 }

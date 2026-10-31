@@ -69,7 +69,28 @@ describe('AvatarCanvas', () => {
     });
   });
 
-  it('falls back to the layered 2D renderer when Rive reports a failure', async () => {
+  it('falls back to the static image when Rive reports a failure and the pack has one', async () => {
+    render(
+      <AvatarCanvas
+        character={character({
+          assets: {
+            rive: 'rive/character.riv',
+            spriteManifest: null,
+            static: 'character-pack://pack/static/character.svg',
+          },
+        })}
+        resolveAsset={resolveAsset}
+      />,
+    );
+    await screen.findByTestId('rive-canvas');
+    React.act(() => riveFailure?.('Rive load failed'));
+    const el = await screen.findByTestId('static-canvas');
+    expect(el.getAttribute('data-static-src')).toBe('character-pack://pack/static/character.svg');
+    expect(screen.queryByTestId('sprite-canvas')).toBeNull();
+    expect(document.documentElement.dataset.mascotRenderer).toBe('static-fallback');
+  });
+
+  it('without a static image falls back to the layered 2D renderer', async () => {
     render(<AvatarCanvas character={character()} resolveAsset={resolveAsset} />);
     await screen.findByTestId('rive-canvas');
     React.act(() => riveFailure?.('Rive load failed'));

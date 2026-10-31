@@ -163,3 +163,69 @@ describe('TrayManager lifecycle', () => {
     expect(off).toHaveBeenCalled();
   });
 });
+
+describe('tray menu cache keeps model actions current (#212)', () => {
+  beforeEach(() => {
+    trayInstances.length = 0;
+  });
+
+  // 两个供应商同名、模型显示名也相同：菜单上是两行一样的文字，只有 ref 不同
+  const provider = (id: string) => ({
+    id,
+    name: 'Same',
+    enabled: true,
+    models: [{ id: 'm', label: 'M', enabled: true }],
+  });
+
+  it('swapping the current model between same-label entries rebuilds the menu with the new refs', () => {
+    let main = 'A/m';
+    let recent = ['A/m', 'B/m'];
+    let notify: (() => void) | null = null;
+    const select = jest.fn();
+    const m = new TrayManager({
+      providers: providers as never,
+      models: {
+        state: () => ({
+          providers: [provider('A'), provider('B')],
+          clients: { nomi: { models: { main } } },
+          recentNomi: recent,
+        }),
+        select,
+        onChange: (fn: () => void) => {
+          notify = fn;
+          return () => undefined;
+        },
+      } as never,
+      i18n,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      openChat: jest.fn(),
+      openProviderPanel: jest.fn(),
+      quit: jest.fn(),
+    });
+    m.start();
+    const tray = trayInstances[0]!;
+    const radios = () =>
+      (
+        tray.setContextMenu.mock.calls.at(-1)![0] as Array<{
+          type?: string;
+          checked?: boolean;
+          click?: () => void;
+        }>
+      ).filter((i) => i.type === 'radio');
+    expect(radios().map((r) => r.checked)).toEqual([true, false]);
+
+    // 在设置里把当前模型改成 B/m：文字与勾选和之前一模一样，但两行对应的模型换了
+    main = 'B/m';
+    recent = ['B/m', 'A/m'];
+    notify!();
+    expect(radios().map((r) => r.checked)).toEqual([true, false]);
+    radios()[1]!.click!();
+    expect(select).toHaveBeenLastCalledWith('A/m');
+
+    // 真的什么都没变：不重建（防闪烁的优化仍然有效）
+    const calls = tray.setContextMenu.mock.calls.length;
+    notify!();
+    expect(tray.setContextMenu.mock.calls.length).toBe(calls);
+    m.dispose();
+  });
+});

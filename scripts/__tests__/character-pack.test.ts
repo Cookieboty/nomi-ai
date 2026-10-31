@@ -7,12 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { loadPack, modelListFor } from '../character/pack.mjs';
-import {
-  brandLockModelDir,
-  DEFAULT_PACK_DIR,
-  DEFAULT_PACK_STATIC_ART,
-  selectedPackDir,
-} from '../character/paths.mjs';
+import { DEFAULT_PACK_DIR, DEFAULT_PACK_STATIC_ART, selectedPackDir } from '../character/paths.mjs';
 import { packModuleData, publishedFiles, staticArtModule } from '../character/vite-plugin.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..', '..');
@@ -74,7 +69,6 @@ describe('pack selection and build data', () => {
       join(root, 'characters/test-dummy'),
     );
     expect(() => selectedPackDir({ CHARACTER_PACK: 'characters/nope' })).toThrow(/not found/);
-    expect(brandLockModelDir({})).toBe(join(DEFAULT_PACK_DIR, 'sprite'));
   });
 
   it('the official persona is read from the pack (identity only, one per language)', async () => {
@@ -95,7 +89,7 @@ describe('pack selection and build data', () => {
     expect(JSON.stringify(list)).not.toMatch(/Nomi|诺米/);
   });
 
-  it('the official model list matches the one 2.0.5 shipped (only the asset paths moved)', async () => {
+  it('the official model list: 2.0.5’s entry without the layered sprite (removed in 2.0.8)', async () => {
     const { pack } = await loadPack(DEFAULT_PACK_DIR);
     expect(modelListFor(pack)).toEqual({
       models: [
@@ -103,13 +97,12 @@ describe('pack selection and build data', () => {
           name: 'nomi',
           displayName: 'Nomi·诺米',
           description: 'Nomi·诺米（默认角色，2D 表情立绘）',
-          // 2.0.5: ./assets/models/sprite/nomi/{manifest.json,thumb.png}
-          path: './character/sprite/manifest.json',
-          thumbnail: './character/sprite/thumb.png',
+          // 2.0.8 起官方包不带分层 sprite（Rive 失败时回到静态立绘）：没有缩略图，path 退回包的 manifest
+          path: './character/manifest.json',
           author: 'Nomi-ai project owner (AI-generated)',
           license: 'MIT',
           source: 'https://github.com/Cookieboty/nomi-ai/blob/main/docs/BRAND.md',
-          tags: ['default', 'sprite', '2d', 'soft', 'brand'],
+          tags: ['default', '2d', 'soft', 'brand'],
           config: { voice: { voiceHint: 'xiaoxiao', rate: 0.92, pitch: 1.1 } },
         },
       ],
@@ -153,6 +146,10 @@ describe('pack selection and build data', () => {
       ['onboarding/privacy.webp', 'onboarding/privacy.webp'],
     ]);
     const all = publishedFiles(DEFAULT_PACK_DIR, pack, 'all').map(([src]) => src);
-    expect(all).toEqual(expect.arrayContaining(['manifest.json', 'rive/character.riv']));
+    expect(all).toEqual(expect.arrayContaining(['manifest.json', 'mapping.json']));
+    expect(all.some((f) => f.startsWith('sprite/'))).toBe(false);
+    // 远程素材（manifest assets.remote）不进构建：内核按远程角色目录下载
+    expect(pack.assets.remote).toEqual(['rive']);
+    expect(all).not.toContain('rive/character.riv');
   });
 });

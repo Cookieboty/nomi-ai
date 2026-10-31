@@ -2311,7 +2311,13 @@
    "{\"type\":\"usage\"}",
    "{\"type\":\"end\",\"text\":\"bye\",\"sessionId\":\"gs\"}",
    "{\"type\":\"error\"}",
-   "{\"type\":\"plan\"}"
+   "{\"type\":\"plan\"}",
+   "{\"type\":\"auto_compact_started\",\"tokens_used\":900,\"context_window\":1000,\"percentage\":90}",
+   "{\"type\":\"auto_compact_completed\",\"tokens_before\":900,\"tokens_after\":300}",
+   "{\"type\":\"auto_compact_completed\",\"tokensAfter\":0}",
+   "{\"type\":\"auto_compact_completed\",\"tokens_after\":-1}",
+   "{\"type\":\"auto_compact_failed\"}",
+   "{\"type\":\"auto_compact_cancelled\"}"
   ],
   "outputs": [
    [
@@ -2390,7 +2396,55 @@
      "message": "electron.common.grok-error"
     }
    ],
-   []
+   [],
+   [
+    {
+     "type": "status",
+     "kind": "compact"
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": 300
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": 0
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": null
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    }
+   ]
   ]
  },
  {
@@ -2408,7 +2462,13 @@
    "{\"type\":\"usage\"}",
    "{\"type\":\"end\",\"text\":\"bye\",\"sessionId\":\"gs\"}",
    "{\"type\":\"error\"}",
-   "{\"type\":\"plan\"}"
+   "{\"type\":\"plan\"}",
+   "{\"type\":\"auto_compact_started\",\"tokens_used\":900,\"context_window\":1000,\"percentage\":90}",
+   "{\"type\":\"auto_compact_completed\",\"tokens_before\":900,\"tokens_after\":300}",
+   "{\"type\":\"auto_compact_completed\",\"tokensAfter\":0}",
+   "{\"type\":\"auto_compact_completed\",\"tokens_after\":-1}",
+   "{\"type\":\"auto_compact_failed\"}",
+   "{\"type\":\"auto_compact_cancelled\"}"
   ],
   "outputs": [
    [
@@ -2487,7 +2547,55 @@
      "message": "electron.common.grok-error"
     }
    ],
-   []
+   [],
+   [
+    {
+     "type": "status",
+     "kind": "compact"
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": 300
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": 0
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    },
+    {
+     "type": "context",
+     "tokens": null
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    }
+   ],
+   [
+    {
+     "type": "status",
+     "kind": "clear"
+    }
+   ]
   ]
  },
  {

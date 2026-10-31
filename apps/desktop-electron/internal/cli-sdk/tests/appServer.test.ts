@@ -15,7 +15,7 @@ const usage = (input: number, output: number) => ({
 /** 假的 codex app-server */
 function server(
   child: FakeChild,
-  o: { status?: string; approval?: boolean; slowStart?: boolean } = {},
+  o: { status?: string; approval?: boolean; slowStart?: boolean; compact?: boolean } = {},
 ) {
   let turnStarts = 0;
   child.onLine = (msg) => {
@@ -44,6 +44,12 @@ function server(
           note('item/agentMessage/delta', { threadId: 'th1', itemId: 'b', delta: 'Two' });
           note('item/completed', { threadId: 'th1', item: { type: 'commandExecution', id: 'c1' } });
           note('item/agentMessage/delta', { threadId: 'other', itemId: 'x', delta: 'IGNORED' });
+          if (o.compact) {
+            const item = { type: 'contextCompaction', id: 'cc1' };
+            note('item/started', { threadId: 'th1', turnId: 'tu1', item });
+            note('item/completed', { threadId: 'th1', turnId: 'tu1', item });
+            note('thread/compacted', { threadId: 'th1', turnId: 'tu1' });
+          }
           if (o.approval) {
             child.send({
               jsonrpc: '2.0',
@@ -63,6 +69,16 @@ function server(
           });
         };
         return o.slowStart ? setTimeout(go, 20) : go();
+      }
+      case 'thread/compact/start': {
+        // 应答为空；服务端把压缩当作一轮，轮次 id 只在 turn/started 里
+        reply({});
+        const item = { type: 'contextCompaction', id: 'cc1' };
+        note('turn/started', { threadId: 'th1', turn: { id: 'tc1', status: 'inProgress' } });
+        note('item/started', { threadId: 'th1', turnId: 'tc1', item });
+        note('item/completed', { threadId: 'th1', turnId: 'tc1', item });
+        note('turn/completed', { threadId: 'th1', turn: { id: 'tc1', status: 'completed' } });
+        return undefined;
       }
       default:
         return undefined;
@@ -114,6 +130,60 @@ describe('AppServerDriver', () => {
     expect(mapped).toEqual(['completed:commandExecution']);
     const start = child.messages().find((m) => m.method === 'turn/start')?.params as Json;
     expect(start).toMatchObject({ threadId: 'th1', cwd: '/w', model: 'gpt' });
+  });
+
+  it('context compaction items become compact / clear status, not mapped items', async () => {
+    const child = new FakeChild();
+    server(child, { compact: true });
+    const mapped: string[] = [];
+    const d = new AppServerDriver({
+      child,
+      mapItem: (phase, item) => {
+        mapped.push(`${phase}:${String(item.type)}`);
+        return [];
+      },
+    });
+    await d.start({ cwd: '/w' });
+    await d.ensureThread('/w');
+    const seen: SessionEvent[] = [];
+    d.on((e) => seen.push(e));
+    await d.send({ text: 'hi', params: { cwd: '/w' } });
+    expect(mapped).toEqual(['completed:commandExecution']);
+    const evs = seen.flatMap((e) => (e.kind === 'harness' ? [e.event] : []));
+    expect(
+      evs.filter((e) => e.type === 'status' || (e.type === 'context' && e.tokens === null)),
+    ).toEqual([
+      { type: 'status', kind: 'compact' },
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: null },
+      { type: 'status', kind: 'clear' },
+    ]);
+  });
+
+  it('compact: thread/compact/start runs as a turn whose id comes from turn/started', async () => {
+    const child = new FakeChild();
+    server(child);
+    const d = new AppServerDriver({ child, newId: () => 'L' });
+    await d.start({ cwd: '/w' });
+    await expect(d.compact()).rejects.toThrow('app-server thread not started');
+    await d.ensureThread('/w');
+    const seen: SessionEvent[] = [];
+    d.on((e) => seen.push(e));
+    expect(await d.compact()).toMatchObject({
+      turnId: 'L',
+      stopReason: 'completed',
+      sessionId: 'th1',
+      cliTurnId: 'tc1',
+    });
+    expect(child.messages().find((m) => m.method === 'thread/compact/start')?.params).toEqual({
+      threadId: 'th1',
+    });
+    expect(seen.flatMap((e) => (e.kind === 'harness' ? [e.event] : []))).toEqual([
+      { type: 'status', kind: 'compact' },
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: null },
+    ]);
+    expect(d.inTurn).toBe(false);
   });
 
   it('failed / interrupted turns resolve with the status instead of throwing', async () => {

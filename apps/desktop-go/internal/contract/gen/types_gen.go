@@ -1103,6 +1103,48 @@ const (
 	AppIconSetOutputSunset AppIconSetOutput = "sunset"
 )
 
+// CharacterAssetsOutputStatus 枚举：idle | checking | downloading | ready | error
+type CharacterAssetsOutputStatus = string
+
+const (
+	CharacterAssetsOutputStatusIdle        CharacterAssetsOutputStatus = "idle"
+	CharacterAssetsOutputStatusChecking    CharacterAssetsOutputStatus = "checking"
+	CharacterAssetsOutputStatusDownloading CharacterAssetsOutputStatus = "downloading"
+	CharacterAssetsOutputStatusReady       CharacterAssetsOutputStatus = "ready"
+	CharacterAssetsOutputStatusError       CharacterAssetsOutputStatus = "error"
+)
+
+type CharacterAssetsOutput struct {
+	PackId  string                      `json:"packId"`
+	Remote  bool                        `json:"remote"`
+	Status  CharacterAssetsOutputStatus `json:"status"`
+	Version *string                     `json:"version,omitempty"`
+	Percent *float64                    `json:"percent,omitempty"`
+	RiveUrl *string                     `json:"riveUrl,omitempty"`
+	Error   *string                     `json:"error,omitempty"`
+}
+
+// CharacterEnsureAssetsOutputStatus 枚举：idle | checking | downloading | ready | error
+type CharacterEnsureAssetsOutputStatus = string
+
+const (
+	CharacterEnsureAssetsOutputStatusIdle        CharacterEnsureAssetsOutputStatus = "idle"
+	CharacterEnsureAssetsOutputStatusChecking    CharacterEnsureAssetsOutputStatus = "checking"
+	CharacterEnsureAssetsOutputStatusDownloading CharacterEnsureAssetsOutputStatus = "downloading"
+	CharacterEnsureAssetsOutputStatusReady       CharacterEnsureAssetsOutputStatus = "ready"
+	CharacterEnsureAssetsOutputStatusError       CharacterEnsureAssetsOutputStatus = "error"
+)
+
+type CharacterEnsureAssetsOutput struct {
+	PackId  string                            `json:"packId"`
+	Remote  bool                              `json:"remote"`
+	Status  CharacterEnsureAssetsOutputStatus `json:"status"`
+	Version *string                           `json:"version,omitempty"`
+	Percent *float64                          `json:"percent,omitempty"`
+	RiveUrl *string                           `json:"riveUrl,omitempty"`
+	Error   *string                           `json:"error,omitempty"`
+}
+
 // CharacterGetActivePackOutputSource 枚举：userData | resources | builtin
 type CharacterGetActivePackOutputSource = string
 
@@ -5201,6 +5243,16 @@ type UpdatesInstallOutput struct {
 	ReleasePending   *bool                           `json:"releasePending,omitempty"`
 }
 
+type UpdatesReleaseNotesInput struct {
+	Version *string `json:"version,omitempty"`
+}
+
+type UpdatesReleaseNotesOutput struct {
+	Version     string  `json:"version"`
+	Notes       string  `json:"notes"`
+	ReleaseDate *string `json:"releaseDate,omitempty"`
+}
+
 type UpdatesSetAutoCheckInput struct {
 	On bool `json:"on"`
 }
@@ -5974,6 +6026,27 @@ type EventAiUserProfileChanged struct {
 	Profile any `json:"profile,omitempty"`
 }
 
+// EventCharacterAssetsChangedStatus 枚举：idle | checking | downloading | ready | error
+type EventCharacterAssetsChangedStatus = string
+
+const (
+	EventCharacterAssetsChangedStatusIdle        EventCharacterAssetsChangedStatus = "idle"
+	EventCharacterAssetsChangedStatusChecking    EventCharacterAssetsChangedStatus = "checking"
+	EventCharacterAssetsChangedStatusDownloading EventCharacterAssetsChangedStatus = "downloading"
+	EventCharacterAssetsChangedStatusReady       EventCharacterAssetsChangedStatus = "ready"
+	EventCharacterAssetsChangedStatusError       EventCharacterAssetsChangedStatus = "error"
+)
+
+type EventCharacterAssetsChanged struct {
+	PackId  string                            `json:"packId"`
+	Remote  bool                              `json:"remote"`
+	Status  EventCharacterAssetsChangedStatus `json:"status"`
+	Version *string                           `json:"version,omitempty"`
+	Percent *float64                          `json:"percent,omitempty"`
+	RiveUrl *string                           `json:"riveUrl,omitempty"`
+	Error   *string                           `json:"error,omitempty"`
+}
+
 type EventChatBgChanged struct {
 	ImageUrl string  `json:"imageUrl"`
 	Blur     float64 `json:"blur"`
@@ -6593,6 +6666,14 @@ type AppIconGetOutputT = AppIconGetOutput
 // AppIconSetInputT 是 appIcon.set 的入参
 type AppIconSetInputT = AppIconSetInput
 type AppIconSetOutputT = AppIconSetOutput
+
+// CharacterAssetsInputT 是 character.assets 的入参
+type CharacterAssetsInputT = any
+type CharacterAssetsOutputT = CharacterAssetsOutput
+
+// CharacterEnsureAssetsInputT 是 character.ensureAssets 的入参
+type CharacterEnsureAssetsInputT = any
+type CharacterEnsureAssetsOutputT = CharacterEnsureAssetsOutput
 
 // CharacterGetActivePackInputT 是 character.getActivePack 的入参
 type CharacterGetActivePackInputT = any
@@ -7702,6 +7783,10 @@ type UpdatesGetOutputT = UpdatesGetOutput
 type UpdatesInstallInputT = any
 type UpdatesInstallOutputT = UpdatesInstallOutput
 
+// UpdatesReleaseNotesInputT 是 updates.releaseNotes 的入参
+type UpdatesReleaseNotesInputT = UpdatesReleaseNotesInput
+type UpdatesReleaseNotesOutputT = UpdatesReleaseNotesOutput
+
 // UpdatesSetAutoCheckInputT 是 updates.setAutoCheck 的入参
 type UpdatesSetAutoCheckInputT = UpdatesSetAutoCheckInput
 type UpdatesSetAutoCheckOutputT = UpdatesSetAutoCheckOutput
@@ -7896,6 +7981,7 @@ type EventAiTtsChunkT = EventAiTtsChunk
 type EventAiTtsEndT = EventAiTtsEnd
 type EventAiUserProfileChangedT = EventAiUserProfileChanged
 type EventAvatarEventT = json.RawMessage
+type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatBgChangedT = EventChatBgChanged
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any

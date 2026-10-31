@@ -22,6 +22,7 @@ import type { AppEvents } from '../core/appEvents';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { type ILoggerService } from './LoggerService';
+import { ReleaseNotes, type ReleaseNotesResult } from './ReleaseNotes';
 
 export type UpdateStatus =
   | 'idle'
@@ -120,6 +121,8 @@ export interface UpdateServiceOptions {
    * `<userData>/update-settings.json`; `null` disables persistence.
    */
   settingsFile?: string | null;
+  /** 按版本取更新说明（测试注入）；缺省缓存到 `<userData>/release-notes.json` */
+  releaseNotes?: ReleaseNotes;
 }
 
 interface StoredUpdateSettings {
@@ -130,6 +133,14 @@ interface StoredUpdateSettings {
 function defaultSettingsFile(paths: HostPorts['paths']): string | null {
   try {
     return path.join(paths.userData(), 'update-settings.json');
+  } catch {
+    return null;
+  }
+}
+
+function notesFile(paths: HostPorts['paths']): string | null {
+  try {
+    return path.join(paths.userData(), 'release-notes.json');
   } catch {
     return null;
   }
@@ -173,6 +184,7 @@ export class UpdateService {
   private checkPromise: Promise<UpdateState> | null = null;
   private readonly appInfo: HostPorts['app'];
   private readonly events: AppEvents;
+  private readonly notes: ReleaseNotes;
 
   constructor(
     private readonly logger: ILoggerService,
@@ -189,11 +201,25 @@ export class UpdateService {
     this.settingsFile =
       opts.settingsFile === undefined ? defaultSettingsFile(opts.ports.paths) : opts.settingsFile;
     this.autoCheck = loadAutoCheck(this.settingsFile);
+    this.notes =
+      opts.releaseNotes ??
+      new ReleaseNotes({
+        version: () => this.appInfo.version(),
+        file: notesFile(opts.ports.paths),
+        logger: {
+          warn: (...a) => this.logger.warn(String(a[0]), { detail: a.slice(1).map(String) }),
+        },
+      });
     this.state = {
       status: this.packaged ? 'idle' : 'unavailable',
       currentVersion: this.appInfo.version(),
       autoCheck: this.autoCheck,
     };
+  }
+
+  /** 某个版本的更新说明（缺省当前版本），给「更新日志」弹层 */
+  releaseNotes(version?: string): Promise<ReleaseNotesResult> {
+    return this.notes.get(version);
   }
 
   getState(): UpdateState {

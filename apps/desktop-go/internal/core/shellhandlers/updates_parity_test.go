@@ -327,7 +327,7 @@ func TestUpdatesParity(t *testing.T) {
 			Publish: func(e string, p any) { evMu.Lock(); events = append(events, []any{e, p}); evMu.Unlock() },
 		})
 		r := contract.NewRouter()
-		InstallUpdates(r, func() *updates.Service { return svc })
+		InstallUpdates(r, func() *updates.Service { return svc }, nil)
 		for i, st := range sc.Log {
 			events, fu.calls, lg.logs = []any{}, nil, nil
 			var res any

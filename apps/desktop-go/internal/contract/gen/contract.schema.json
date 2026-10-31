@@ -4746,6 +4746,132 @@
     ]
    }
   },
+  "character.assets": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "packId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "remote": {
+      "type": "boolean"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "checking",
+       "downloading",
+       "ready",
+       "error"
+      ]
+     },
+     "version": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "percent": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "riveUrl": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "error": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "packId",
+     "remote",
+     "status"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "character.ensureAssets": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "packId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "remote": {
+      "type": "boolean"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "checking",
+       "downloading",
+       "ready",
+       "error"
+      ]
+     },
+     "version": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "percent": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "riveUrl": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "error": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "packId",
+     "remote",
+     "status"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "character.getActivePack": {
    "kind": "query",
    "dangerous": false,
@@ -20490,6 +20616,47 @@
     "additionalProperties": {}
    }
   },
+  "updates.releaseNotes": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string",
+      "maxLength": 64
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string"
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "releaseDate": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "version",
+     "notes"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "updates.setAutoCheck": {
    "kind": "mutation",
    "dangerous": false,
@@ -23337,6 +23504,61 @@
      "additionalProperties": false
     }
    ]
+  },
+  "character.assetsChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "packId": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "remote": {
+     "type": "boolean"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "idle",
+      "checking",
+      "downloading",
+      "ready",
+      "error"
+     ]
+    },
+    "version": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "percent": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "riveUrl": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "error": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "packId",
+    "remote",
+    "status"
+   ],
+   "additionalProperties": {}
   },
   "chatBg.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -21,6 +21,7 @@ import {
   SEMANTIC_EMOTIONS,
   SEMANTIC_GESTURES,
   type PackMode,
+  type RemoteAssetKind,
 } from './contract';
 import {
   isContractVersionSupported,
@@ -106,11 +107,14 @@ export interface NormalizedPack {
   mapping: PackMapping | null;
   locales: Partial<Record<string, CharacterLocaleData>>;
   assets: {
+    /** rive 素材的包内路径；声明为远程时是声明的路径（本地可能还没有） */
     rive: string | null;
     spriteManifest: string | null;
     static: string | null;
     onboardingDir: string;
     voiceDir: string;
+    /** 声明为远程、需要按需下载的素材 */
+    remote: RemoteAssetKind[];
   };
 }
 
@@ -417,7 +421,10 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
     if (mode === 'rive' || assets.rive) {
       const riveRel =
         normalizePackPath(assets.rive ?? 'rive/character.riv') ?? 'rive/character.riv';
-      if (!files.has(riveRel)) {
+      if (!files.has(riveRel) && assets.remote?.includes('rive')) {
+        // 远程素材：按需下载，本地没有不算错
+        rive = riveRel;
+      } else if (!files.has(riveRel)) {
         // 主模式不是 rive 时，rive 只是可选资源
         sink(
           'error',
@@ -684,7 +691,14 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
     personaSource,
     mapping,
     locales,
-    assets: { rive, spriteManifest, static: staticRel, onboardingDir, voiceDir },
+    assets: {
+      rive,
+      spriteManifest,
+      static: staticRel,
+      onboardingDir,
+      voiceDir,
+      remote: rive && assets.remote?.includes('rive') ? ['rive'] : [],
+    },
   });
 }
 

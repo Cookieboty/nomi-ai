@@ -144,11 +144,20 @@ export class CharacterPackService {
   private readonly listeners = new Set<(resolved: ResolvedPack) => void>();
   private protocolRegistered = false;
 
+  /** Downloaded remote character assets (CharacterAssets), served as character-pack://assets/… */
+  assetsRoot(): string {
+    return path.join(this.paths.userData(), 'character-assets');
+  }
+
   /** Call once after the host is ready (paths resolved, protocol registrar usable). */
   init(protocol: CharacterPackProtocolHost, logger?: PackLogger): void {
     this.reload(logger);
     if (!this.protocolRegistered) {
-      registerCharacterPackProtocol(protocol, () => this.resolved.root);
+      registerCharacterPackProtocol(
+        protocol,
+        () => this.resolved.root,
+        () => this.assetsRoot(),
+      );
       this.protocolRegistered = true;
     }
   }

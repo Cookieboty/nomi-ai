@@ -33,6 +33,19 @@ export async function loadPack(dir) {
   return { dir, result, pack: result.pack };
 }
 
+/**
+ * Assets the pack declares remote (manifest `assets.remote`): not shipped with the app, downloaded on
+ * demand from the remote character catalog (remote-catalog.mjs). Pack-relative paths, `/`-separated.
+ * @returns {Array<{ kind: string, rel: string }>}
+ */
+export function remoteFilesOf(pack) {
+  const out = [];
+  for (const kind of pack.assets.remote ?? []) {
+    if (kind === 'rive' && pack.assets.rive) out.push({ kind, rel: pack.assets.rive });
+  }
+  return out;
+}
+
 /** Every file in the pack, as `/`-separated paths relative to the pack root. */
 export function listPackFiles(dir) {
   const out = [];

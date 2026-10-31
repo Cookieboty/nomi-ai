@@ -139,6 +139,11 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 		return
 	}
 	switch method {
+	case "turn/started":
+		// thread/compact/start 的应答不带轮次 id：从 turn/started 取（停止、匹配 turn/completed 要用）
+		if id, ok := getp(params.Get("turn"), "id").(string); ok && (turn.serverID == nil || *turn.serverID == "") {
+			turn.serverID = &id
+		}
 	case "item/agentMessage/delta":
 		var itemID *string
 		if s, ok := params.Get("itemId").(string); ok {
@@ -157,6 +162,17 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 		if params.Get("item") == nil {
 			item = O()
 		}
+		// 上下文压缩（v2 ThreadItem contextCompaction）：开始 → 压缩中；完成 → 清状态，旧占用作废，
+		// 等下一次 thread/tokenUsage/updated 带上压缩后的占用
+		if item != nil && item.Get("type") == "contextCompaction" {
+			if method == "item/started" {
+				d.emit(O("type", "status", "kind", "compact"))
+			} else {
+				d.emit(O("type", "status", "kind", "clear"))
+				d.emit(O("type", "context", "tokens", nil))
+			}
+			return
+		}
 		if d.o.MapItem != nil {
 			phase := "completed"
 			if method == "item/started" {
@@ -166,6 +182,9 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 				d.emit(ev)
 			}
 		}
+	case "thread/compacted":
+		// 旧版只发 thread/compacted（已弃用，新版改发 contextCompaction 条目）：只清状态
+		d.emit(O("type", "status", "kind", "clear"))
 	case "error":
 		err := params.Get("error")
 		message, ok := getp(err, "message").(string)
@@ -387,23 +406,35 @@ func (d *AppServerDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 	if d.ThreadID == nil || *d.ThreadID == "" {
 		return jsrt.Rejected[TurnResult](errors.New("app-server thread not started"))
 	}
-	threadID := *d.ThreadID
-	if d.turn != nil {
-		return jsrt.Rejected[TurnResult](errors.New("previous turn still running"))
-	}
-	turn := &appTurn{localID: pick(d.o.NewID)(), started: jsrt.NewPromise[struct{}](), totalsBefore: d.Totals, p: jsrt.NewPromise[TurnResult]()}
-	d.turn = turn
 	var in any
 	if input.Blocks != nil {
 		in = input.Blocks
 	} else {
 		in = []any{O("type", "text", "text", input.Text, "text_elements", []any{})}
 	}
-	params := O("threadId", threadID, "input", in)
+	params := O("threadId", *d.ThreadID, "input", in)
 	if input.Params != nil {
 		params.Assign(input.Params)
 	}
-	req := d.Conn.Request("turn/start", params, rpc.RequestOptions{})
+	return d.startTurn("turn/start", params)
+}
+
+// Compact mirrors compact：手动压缩上下文（thread/compact/start，应答为空对象）。服务端把它当作一轮
+// （turn/started → contextCompaction 条目 → turn/completed），结束方式与 Send 相同；轮次 id 从 turn/started 取。
+func (d *AppServerDriver) Compact() *jsrt.Promise[TurnResult] {
+	if d.ThreadID == nil || *d.ThreadID == "" {
+		return jsrt.Rejected[TurnResult](errors.New("app-server thread not started"))
+	}
+	return d.startTurn("thread/compact/start", O("threadId", *d.ThreadID))
+}
+
+func (d *AppServerDriver) startTurn(method string, params Json) *jsrt.Promise[TurnResult] {
+	if d.turn != nil {
+		return jsrt.Rejected[TurnResult](errors.New("previous turn still running"))
+	}
+	turn := &appTurn{localID: pick(d.o.NewID)(), started: jsrt.NewPromise[struct{}](), totalsBefore: d.Totals, p: jsrt.NewPromise[TurnResult]()}
+	d.turn = turn
+	req := d.Conn.Request(method, params, rpc.RequestOptions{})
 	jsrt.Go(func() {
 		r, err := jsrt.Await(req)
 		if err == nil {

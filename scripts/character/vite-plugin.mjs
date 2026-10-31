@@ -14,7 +14,7 @@
 import { createReadStream, readFileSync } from 'node:fs';
 import { extname, join, sep } from 'node:path';
 
-import { isOfficialPack, listPackFiles, loadPack, modelListFor } from './pack.mjs';
+import { isOfficialPack, listPackFiles, loadPack, modelListFor, remoteFilesOf } from './pack.mjs';
 import { DEFAULT_PACK_STATIC_ART, selectedPackDir } from './paths.mjs';
 
 export const VIRTUAL_ID = 'virtual:character-pack';
@@ -73,12 +73,18 @@ export function staticArtModule(dir, pack) {
   return 'export default null;\n';
 }
 
-/** pack-relative path → published path (under `character/`), or null when not shipped. */
+/**
+ * pack-relative path → published path (under `character/`). Remote assets (manifest
+ * `assets.remote`, e.g. the official .riv) are not shipped: the kernel downloads them on demand.
+ */
 export function publishedFiles(dir, pack, scope) {
   if (scope === 'onboarding') {
     return ONBOARDING.map((f) => [`${pack.assets.onboardingDir}/${f}`, `onboarding/${f}`]);
   }
-  return listPackFiles(dir).map((f) => [f, f]);
+  const remote = new Set(remoteFilesOf(pack).map((r) => r.rel));
+  return listPackFiles(dir)
+    .filter((f) => !remote.has(f))
+    .map((f) => [f, f]);
 }
 
 /** @param {{ scope?: 'all' | 'onboarding', packDir?: string }} [opts] */

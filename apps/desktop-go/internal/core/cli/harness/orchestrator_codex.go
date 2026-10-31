@@ -5,6 +5,8 @@ package harness
 import (
 	"errors"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -17,6 +19,14 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
+// compactCommand mirrors isCompactCommand：用户输入的 `/compact`，Codex（app-server）与 Grok（ACP）改发各自的
+// 压缩请求，不当作消息发给模型。两家的压缩请求都不带压缩说明，`/compact` 后面的参数忽略。
+var compactCommand = regexp.MustCompile(`^/compact(?:\s|$)`)
+
+func isCompactCommand(prompt string) bool {
+	return compactCommand.MatchString(strings.TrimSpace(prompt))
+}
+
 // codexTurn = CodexTurn。
 type codexTurn struct {
 	events       []*util.Obj
@@ -28,6 +38,8 @@ type codexTurn struct {
 	reject       func(error)
 	chatRoot     string
 	imageAliases ImageAliases
+	// compact：手动压缩（thread/compact/start），没有正文时显示「已压缩上下文」
+	compact bool
 }
 
 // codexLiveSession = CodexLiveSession。
@@ -280,6 +292,11 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		if live.turn != nil {
 			return nil, errors.New(i18n.T("electron.common.previous-turn-still-running"))
 		}
+		compact := isCompactCommand(prompt) && len(staged) == 0
+		// 还没有线程：没有可压缩的内容（不为它新建空线程）
+		if compact && (live.threadID == nil || *live.threadID == "") {
+			return nil, errors.New(i18n.T("electron.common.nothing-to-compact-yet"))
+		}
 		if live.threadID == nil || *live.threadID == "" {
 			tid, e := jsrt.Await(live.driver.EnsureThread(str(tab, "cwd")))
 			if e != nil {
@@ -304,7 +321,7 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		p := jsrt.NewPromise[*util.Obj]()
 		turn := &codexTurn{
 			events: []*util.Obj{}, breaks: []float64{}, resolve: p.Resolve, reject: p.Reject,
-			chatRoot: chatRoot, imageAliases: LoadImageAliases(chatRoot),
+			chatRoot: chatRoot, imageAliases: LoadImageAliases(chatRoot), compact: compact,
 		}
 		live.turn = turn
 		params := util.NewObj("cwd", str(tab, "cwd"))
@@ -319,12 +336,21 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		if len(staged) > 0 {
 			in.Blocks = cli.CodexTurnInput(text, staged)
 		}
-		sent := live.driver.Send(in)
+		// 手动压缩：thread/compact/start 也是一轮（turn/started → contextCompaction → turn/completed）
+		var sent *jsrt.Promise[clisdk.TurnResult]
+		if compact {
+			sent = live.driver.Compact()
+		} else {
+			sent = live.driver.Send(in)
+		}
 		jsrt.Async(func() (struct{}, error) {
 			r, e := jsrt.Await(sent)
 			if e == nil {
-				live.model = want.model
-				live.effort = want.effort
+				// turn/start 已被接受：覆盖已下发（压缩请求不带模型 / 档位，留到下一轮下发）
+				if !compact {
+					live.model = want.model
+					live.effort = want.effort
+				}
 				if tid, ok := r.Get("cliTurnId").(string); ok && tid != "" && live.threadID != nil && *live.threadID != "" && onTurn != nil {
 					onTurn(CodexTurnRef{SessionID: *live.threadID, TurnID: tid})
 				}
@@ -443,7 +469,11 @@ func (o *Orchestrator) finishCodexTurn(tabID string, live *codexLiveSession, tur
 		o.emitEvent(tabID, ev)
 		text := RewriteGeneratedImageLinks(turn.text, turn.imageAliases)
 		if text == "" {
-			text = i18n.T("electron.common.no-text-output")
+			if turn.compact {
+				text = i18n.T("electron.common.context-compacted")
+			} else {
+				text = i18n.T("electron.common.no-text-output")
+			}
 		}
 		res := util.NewObj("text", text, "sessionId", ptrAny(live.threadID), "events", evsAny(turn.events))
 		if len(turn.breaks) > 0 {
@@ -494,6 +524,10 @@ func (o *Orchestrator) teardownCodexLive(tabID string) {
 func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.NormalizedImage) *jsrt.Promise[*util.Obj] {
 	// Node 为同步函数返回 rejected Promise；Async 同步执行到首个 await，JSThrow 即 rejection
 	return jsrt.Async(func() (*util.Obj, error) {
+		// exec 每轮一个进程，没有压缩请求；不把 /compact 当消息发给模型
+		if isCompactCommand(prompt) {
+			return nil, errors.New(i18n.T("electron.common.codex-compact-needs-app-server"))
+		}
 		bin := ResolveHarnessBin("codex")
 		if bin == "" {
 			return nil, errors.New(i18n.T("electron.common.codex-not-found-set-nomi-use-mock-cli"))

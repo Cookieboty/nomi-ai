@@ -147,6 +147,12 @@ export class AppServerDriver implements SessionDriver {
     const turn = this.turn;
     // 只认主线程：子代理线程的条目另有 collab 事件概括
     if (!turn || (params.threadId !== undefined && params.threadId !== this.threadId)) return;
+    if (method === 'turn/started') {
+      // thread/compact/start 的应答不带轮次 id：从 turn/started 取（停止、匹配 turn/completed 要用）
+      const id = ((params.turn ?? {}) as { id?: unknown }).id;
+      if (!turn.serverId && typeof id === 'string') turn.serverId = id;
+      return;
+    }
     if (method === 'item/agentMessage/delta') {
       const itemId = typeof params.itemId === 'string' ? params.itemId : null;
       const delta = typeof params.delta === 'string' ? params.delta : '';
@@ -159,8 +165,23 @@ export class AppServerDriver implements SessionDriver {
     }
     if (method === 'item/started' || method === 'item/completed') {
       const item = (params.item ?? {}) as Json;
+      // 上下文压缩（v2 ThreadItem contextCompaction）：开始 → 压缩中；完成 → 清状态，旧占用作废，
+      // 等下一次 thread/tokenUsage/updated 带上压缩后的占用
+      if (item.type === 'contextCompaction') {
+        if (method === 'item/started') this.emit({ type: 'status', kind: 'compact' });
+        else {
+          this.emit({ type: 'status', kind: 'clear' });
+          this.emit({ type: 'context', tokens: null });
+        }
+        return;
+      }
       const evs = this.o.mapItem?.(method === 'item/started' ? 'started' : 'completed', item) ?? [];
       for (const ev of evs) this.emit(ev);
+      return;
+    }
+    // 旧版只发 thread/compacted（已弃用，新版改发 contextCompaction 条目）：只清状态
+    if (method === 'thread/compacted') {
+      this.emit({ type: 'status', kind: 'clear' });
       return;
     }
     if (method === 'error') {
@@ -294,6 +315,24 @@ export class AppServerDriver implements SessionDriver {
   send(input: TurnInput): Promise<TurnResult> {
     const threadId = this.threadId;
     if (!threadId) return Promise.reject(new Error('app-server thread not started'));
+    return this.startTurn('turn/start', {
+      threadId,
+      input: input.blocks ?? [{ type: 'text', text: input.text, text_elements: [] }],
+      ...(input.params ?? {}),
+    });
+  }
+
+  /**
+   * 手动压缩上下文：thread/compact/start（应答为空对象）。服务端把它当作一轮（turn/started →
+   * contextCompaction 条目 → turn/completed），结束方式与 send 相同；轮次 id 从 turn/started 取。
+   */
+  compact(): Promise<TurnResult> {
+    const threadId = this.threadId;
+    if (!threadId) return Promise.reject(new Error('app-server thread not started'));
+    return this.startTurn('thread/compact/start', { threadId });
+  }
+
+  private startTurn(method: string, params: Json): Promise<TurnResult> {
     if (this.turn) return Promise.reject(new Error('previous turn still running'));
     let markStarted: () => void = () => undefined;
     const started = new Promise<void>((r) => (markStarted = r));
@@ -311,25 +350,19 @@ export class AppServerDriver implements SessionDriver {
         reject,
       };
       this.turn = turn;
-      this.conn
-        .request<{ turn?: { id?: string } } | null>('turn/start', {
-          threadId,
-          input: input.blocks ?? [{ type: 'text', text: input.text, text_elements: [] }],
-          ...(input.params ?? {}),
-        })
-        .then(
-          (r) => {
-            turn.serverId = r?.turn?.id ?? null;
-            markStarted();
-          },
-          (e: unknown) => {
-            markStarted();
-            if (this.turn === turn) this.turn = null;
-            if (turn.settled) return;
-            turn.settled = true;
-            reject(new Error(innermostMessage(e instanceof Error ? e.message : String(e))));
-          },
-        );
+      this.conn.request<{ turn?: { id?: string } } | null>(method, params).then(
+        (r) => {
+          turn.serverId = r?.turn?.id ?? turn.serverId;
+          markStarted();
+        },
+        (e: unknown) => {
+          markStarted();
+          if (this.turn === turn) this.turn = null;
+          if (turn.settled) return;
+          turn.settled = true;
+          reject(new Error(innermostMessage(e instanceof Error ? e.message : String(e))));
+        },
+      );
     });
   }
 

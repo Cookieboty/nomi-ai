@@ -221,6 +221,12 @@ export const shellProcedures = {
     input: z.object({ on: z.boolean() }),
     output: S.UpdateState,
   },
+  /** 某个版本的更新说明（Release 的 docs/releases/vX.Y.Z.md，经该版本的 latest-go.json 下发）；缺省 = 当前版本 */
+  'updates.releaseNotes': {
+    kind: 'query',
+    input: z.object({ version: z.string().max(64).optional() }),
+    output: S.ReleaseNotesResult,
+  },
 
   // ---- diagnostics（DiagnosticsService；只在对话窗口）----
   'diagnostics.get': { kind: 'query', input: v, output: S.DiagnosticsView, surfaces: CHAT },

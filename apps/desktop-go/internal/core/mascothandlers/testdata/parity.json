@@ -1403,7 +1403,6 @@
           "author": "Nomi-ai project owner (AI-generated)",
           "tags": [
             "default",
-            "sprite",
             "2d",
             "soft",
             "brand"
@@ -1414,9 +1413,11 @@
         "assets": {
           "mode": "rive",
           "rive": "rive/character.riv",
-          "sprite": "sprite",
           "voice": "voice",
-          "onboarding": "onboarding"
+          "onboarding": "onboarding",
+          "remote": [
+            "rive"
+          ]
         },
         "defaults": {
           "primaryLocale": "zh",
@@ -1480,51 +1481,17 @@
             "squat",
             "step",
             "walk",
-            "run"
-          ],
-          "spriteActions": [
-            "wave",
-            "hello",
-            "nod",
-            "shake_head",
-            "bow",
-            "salute",
+            "run",
             "pray",
             "ok_hand",
-            "think",
-            "explain",
-            "eureka",
-            "puzzled",
-            "look_around",
-            "look_lr",
-            "peek",
-            "heart",
-            "blow_kiss",
-            "shy",
+            "listen",
             "cover_face",
             "sorry",
-            "surprise",
             "sigh",
-            "smug",
-            "aggrieved",
-            "tears",
-            "angry",
-            "cold_sweat",
-            "daze",
-            "cheer",
-            "thumbs_up",
-            "peace",
-            "celebrate",
-            "clap",
-            "hop",
             "wink",
-            "tongue",
             "cute",
-            "work",
-            "yawn",
-            "stretch",
+            "interact",
             "goodnight",
-            "listen",
             "peek_note"
           ],
           "voiceClipIds": [
@@ -1815,7 +1782,7 @@
         "voiceBaseUrl": "character-pack://pack/voice/zh/",
         "riveUrl": "character-pack://pack/rive/character.riv",
         "staticUrl": null,
-        "spriteManifestUrl": "character-pack://pack/sprite/manifest.json",
+        "spriteManifestUrl": null,
         "rive": {
           "artboard": "Nomi-full",
           "stateMachine": "NomiFull"

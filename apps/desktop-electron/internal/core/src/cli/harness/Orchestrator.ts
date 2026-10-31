@@ -42,6 +42,7 @@ import {
   stampEvent,
   ExecDriver,
   RPC_EXITED,
+  RpcError,
   StreamJsonDriver,
   missingExternalEnv,
   renderExternalArgs,
@@ -223,6 +224,14 @@ interface TabLaunch {
 
 /** 有官方账号的后端（类型见 liveTypes） */
 const ACCOUNT_BACKENDS: readonly string[] = ['claude', 'codex', 'grok', 'gemini'];
+
+/**
+ * 用户输入的 `/compact`：Codex（app-server）与 Grok（ACP）改发各自的压缩请求，不当作消息发给模型。
+ * 两家的压缩请求都不带压缩说明，`/compact` 后面的参数忽略。
+ */
+const isCompactCommand = (prompt: string) => /^\/compact(?:\s|$)/.test(prompt.trim());
+/** Grok 的手动压缩：ACP 扩展方法 x.ai/compact_conversation（1.0.70 内置文档；线上带扩展前缀 _） */
+const GROK_COMPACT_METHOD = '_x.ai/compact_conversation';
 const isAccountBackend = (b: string): b is AccountBackend => ACCOUNT_BACKENDS.includes(b);
 
 /** 官方来源、没有账号服务时的启动注入（见 launchFor） */
@@ -3585,23 +3594,34 @@ export class HarnessOrchestrator {
     // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
     if (signal?.aborted) throw new Error(t('electron.common.aborted'));
     if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
+    const compact = live.backend === 'grok' && isCompactCommand(prompt) && !images?.length;
+    // 新会话还没发过消息：没有可压缩的内容
+    if (compact && !tab.cliSessionId && !live.used)
+      throw new Error(t('electron.common.nothing-to-compact-yet'));
     const turn: AcpTurn = { events: [], text: '', breaks: [] };
     live.turn = turn;
     live.used = true;
     live.lastActivityAt = Date.now();
+    const onTimeout = () => {
+      // 驱动已发 session/cancel；挂起的权限按取消处理
+      for (const done of [...live.perms.values()]) done(null);
+      // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
+      live.recycleAfterTurn = true;
+    };
     try {
       // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）。
       // 本轮增量经 driver.on 进 onAcpEvents；思考的尾巴在 send 返回前已发出
-      const sent = await live.driver.send({
-        text: prompt,
-        ...(images?.length ? { blocks: acpPromptParts(prompt, images) } : {}),
-        onTimeout: () => {
-          // 驱动已发 session/cancel；挂起的权限按取消处理
-          for (const done of [...live.perms.values()]) done(null);
-          // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
-          live.recycleAfterTurn = true;
-        },
-      });
+      const sent = compact
+        ? await live.driver.compact(GROK_COMPACT_METHOD, { onTimeout }).catch((e: unknown) => {
+            // 这个版本没有压缩扩展方法：退回原样发 /compact（Grok 自己的命令）
+            if (!(e instanceof RpcError) || e.code !== -32601) throw e;
+            return live.driver.send({ text: prompt, onTimeout });
+          })
+        : await live.driver.send({
+            text: prompt,
+            ...(images?.length ? { blocks: acpPromptParts(prompt, images) } : {}),
+            onTimeout,
+          });
       const r = sent.raw as {
         stopReason?: string;
         _meta?: {
@@ -3635,7 +3655,9 @@ export class HarnessOrchestrator {
       turn.events.push(done);
       this.emitEvent(tab.id, done);
       return {
-        text: turn.text || t('electron.common.no-text-output'),
+        text:
+          turn.text ||
+          t(compact ? 'electron.common.context-compacted' : 'electron.common.no-text-output'),
         sessionId: live.sessionId,
         events: turn.events,
         ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
@@ -4240,6 +4262,9 @@ export class HarnessOrchestrator {
     await this.syncTabBinding(tab);
     if (signal.aborted) throw new Error(t('electron.common.aborted'));
     if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
+    const compact = isCompactCommand(prompt) && !staged.length;
+    // 还没有线程：没有可压缩的内容（不为它新建空线程）
+    if (compact && !live.threadId) throw new Error(t('electron.common.nothing-to-compact-yet'));
     if (!live.threadId) {
       live.threadId = await live.driver.ensureThread(tab.cwd).catch((e: unknown) => {
         if (e instanceof Error && e.message === 'app-server returned no thread')
@@ -4263,44 +4288,49 @@ export class HarnessOrchestrator {
         reject,
         chatRoot,
         imageAliases: loadImageAliases(chatRoot),
+        ...(compact ? { compact } : {}),
       };
       live.turn = turn;
-      live.driver
-        .send({
-          text,
-          ...(staged.length ? { blocks: codexTurnInput(text, staged) } : {}),
-          params: {
-            cwd: tab.cwd,
-            ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
-            ...(model ? { model } : {}),
-            ...(effort ? { effort } : {}),
-          },
-        })
-        .then(
-          (r) => {
-            // turn/start 已被接受：覆盖已下发
+      // 手动压缩：thread/compact/start 也是一轮（turn/started → contextCompaction → turn/completed）
+      (compact
+        ? live.driver.compact()
+        : live.driver.send({
+            text,
+            ...(staged.length ? { blocks: codexTurnInput(text, staged) } : {}),
+            params: {
+              cwd: tab.cwd,
+              ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
+              ...(model ? { model } : {}),
+              ...(effort ? { effort } : {}),
+            },
+          })
+      ).then(
+        (r) => {
+          // turn/start 已被接受：覆盖已下发（压缩请求不带模型 / 档位，留到下一轮下发）
+          if (!compact) {
             live.model = want.model;
             live.effort = want.effort;
-            // 完成 / 中断 / 失败的轮次都在线程里：都记下，重试时按它回退
-            if (r.cliTurnId && live.threadId)
-              onTurn?.({ sessionId: live.threadId, turnId: r.cliTurnId });
-            this.finishCodexTurn(tab.id, live, turn, r);
-          },
-          (e: unknown) => {
-            if (live.turn === turn) live.turn = null;
-            if (turn.settled) return;
-            turn.settled = true;
-            const msg = e instanceof Error ? e.message : String(e);
-            if (msg === 'app-server process exited') this.turnExits.add(tab.id);
-            reject(
-              new Error(
-                msg === 'app-server process exited'
-                  ? (turn.lastError ?? t('electron.common.the-codex-process-exited'))
-                  : innermostMessage(msg),
-              ),
-            );
-          },
-        );
+          }
+          // 完成 / 中断 / 失败的轮次都在线程里：都记下，重试时按它回退
+          if (r.cliTurnId && live.threadId)
+            onTurn?.({ sessionId: live.threadId, turnId: r.cliTurnId });
+          this.finishCodexTurn(tab.id, live, turn, r);
+        },
+        (e: unknown) => {
+          if (live.turn === turn) live.turn = null;
+          if (turn.settled) return;
+          turn.settled = true;
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg === 'app-server process exited') this.turnExits.add(tab.id);
+          reject(
+            new Error(
+              msg === 'app-server process exited'
+                ? (turn.lastError ?? t('electron.common.the-codex-process-exited'))
+                : innermostMessage(msg),
+            ),
+          );
+        },
+      );
     });
   }
 
@@ -4365,7 +4395,7 @@ export class HarnessOrchestrator {
       turn.resolve({
         text:
           rewriteGeneratedImageLinks(turn.text, turn.imageAliases) ||
-          t('electron.common.no-text-output'),
+          t(turn.compact ? 'electron.common.context-compacted' : 'electron.common.no-text-output'),
         sessionId: live.threadId,
         events: turn.events,
         ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
@@ -4412,6 +4442,9 @@ export class HarnessOrchestrator {
     prompt: string,
     staged: StagedImage[] = [],
   ): Promise<HarnessSendResult> {
+    // exec 每轮一个进程，没有压缩请求；不把 /compact 当消息发给模型
+    if (isCompactCommand(prompt))
+      return Promise.reject(new Error(t('electron.common.codex-compact-needs-app-server')));
     const bin = resolveHarnessBin('codex');
     if (!bin)
       return Promise.reject(new Error(t('electron.common.codex-not-found-set-nomi-use-mock-cli')));
@@ -5238,6 +5271,8 @@ type CodexTurn = {
   reject: (e: Error) => void;
   chatRoot: string;
   imageAliases: Map<string, string>;
+  /** 手动压缩（thread/compact/start）：没有正文时显示「已压缩上下文」 */
+  compact?: boolean;
 };
 
 /** `codex app-server` 长驻进程：一个标签一个线程 */

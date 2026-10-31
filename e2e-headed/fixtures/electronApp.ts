@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -129,11 +130,18 @@ export const expect = base.expect;
 
 /**
  * 桌面角色默认是静态立绘（内核 mascot.renderer 默认 svg，Electron 与 Go 相同）；专测 Rive 的用例在启动前调用，
- * 等同于用户在设置 → 通用里打开「动画（Rive）」。写的是全新 userData 的 settings.json
+ * 等同于用户在设置 → 通用里打开「动画（Rive）」并且已经下载过动画素材：写全新 userData 的 settings.json，
+ * 再把仓库里的 .riv 按内核缓存格式放进去（官方角色的 .riv 是远程素材，不随构建发，见
+ * docs/design/remote-character-assets.md），测试不依赖外网
  */
 export function useRiveRenderer(userData: string): void {
   writeFileSync(
     join(userData, 'settings.json'),
     `${JSON.stringify({ mascot: { renderer: 'rive' } })}\n`,
+  );
+  execFileSync(
+    process.execPath,
+    [join(repoRoot(), 'scripts/character/seed-remote-cache.mjs'), userData],
+    { stdio: 'ignore' },
   );
 }

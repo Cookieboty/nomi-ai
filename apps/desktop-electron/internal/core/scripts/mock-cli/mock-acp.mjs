@@ -7,6 +7,7 @@
  *                                    (default: <tmp>/nomi-mock-acp)
  *      NOMI_MOCK_ACP_NO_IMAGES=1     report promptCapabilities.image = false
  * A prompt containing "perm" asks for a permission (allow / reject) before answering.
+ * A prompt containing "compact" auto-compacts first, Grok style (x.ai/session_notification auto_compact_*).
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -86,6 +87,25 @@ async function onPrompt(msg) {
       title: 'touch ok.txt',
       kind: 'edit',
       status: ok ? 'completed' : 'failed',
+    });
+  }
+  if (text.includes('compact')) {
+    const xai = (method, u) => send({ method, params: { sessionId, update: u } });
+    xai('_x.ai/session_notification', {
+      sessionUpdate: 'auto_compact_started',
+      tokens_used: 900,
+      context_window: 1000,
+      percentage: 90,
+    });
+    // 扩展通知里的普通更新与标准 session/update 重复：驱动应忽略
+    xai('x.ai/session/update', {
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'DUP' },
+    });
+    xai('x.ai/session_notification', {
+      sessionUpdate: 'auto_compact_completed',
+      tokens_before: 900,
+      tokens_after: 300,
     });
   }
   if (cancelled.delete(sessionId)) {

@@ -1,0 +1,40 @@
+name: characters-publish
+
+# 远程角色素材（manifest assets.remote，如官方角色的 .riv）发布到 GitHub Release `characters`：
+# 客户端切到 Rive 时读 releases/download/characters/catalog.json，按 sha256 下载 / 更新素材。
+# 手动触发：角色素材有变化时、以及第一次上线时跑一次。素材按内容命名，旧文件保留，已下载的客户端不受影响。
+# `characters` 必须是预发布、不能是 latest：Go 更新器读 releases/latest/download/latest-go.json。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: characters-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24.22.0, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter "@nomi-ai/character-contract" build
+      - name: catalog.json + assets
+        run: node scripts/character/remote-catalog.mjs --out out
+      - name: upload to the characters release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view characters >/dev/null 2>&1; then
+            gh release create characters --prerelease --latest=false --title "Character assets" \
+              --notes "Remote character assets (catalog.json + files). Not an app release."
+          fi
+          # 先传素材、最后传目录：目录指向的文件一定已经在了
+          gh release upload characters out/*.riv --clobber
+          gh release upload characters out/catalog.json --clobber
+          gh release view characters --json isPrerelease,assets --jq '"prerelease=\(.isPrerelease)", (.assets[].name)'

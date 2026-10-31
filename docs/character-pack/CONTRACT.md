@@ -192,11 +192,12 @@ Without hitboxes the renderer classifies touches with its geometry heuristic (th
 Legacy `layout/hitboxes.json` is still read and merged; packs that still ship `skirt` are
 normalized to `hem` on load (`migrateHitboxIds()`).
 
-## Brand lock
+## Remote assets
 
-Official CI locks the sprite layers of `characters/nomi/sprite` via `brand-lock.json`.
-Forks / white-label builds may set `CHARACTER_PACK_SKIP_BRAND_LOCK=1`.
-The brand-lock script paths are parameterized (see `scripts/brand/update-brand-lock.mjs`).
+`assets.remote` lists asset kinds that are not shipped with the app and are downloaded on demand
+(currently `"rive"`). A declared remote asset may be missing from the pack directory; the
+normalized pack reports it in `assets.remote`. See
+[remote character assets](../design/remote-character-assets.md).
 
 ## Loading
 
