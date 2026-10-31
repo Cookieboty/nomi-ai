@@ -78,9 +78,20 @@ LangString StUninstalling ${LANG_SIMPCHINESE} "正在移除 ${PRODUCT}…"
 
 !macro KillApp
   DetailPrint "$(StClosing)"
-  ; 与 electron-builder 的 CHECK_APP_RUNNING 一样：只结束当前用户的 Nomi.exe
+  ; 与 electron-builder 的 CHECK_APP_RUNNING 一样：只结束当前用户的 Nomi.exe。
+  ; taskkill 结束了进程才返回 0（没有匹配的进程是 128）：只在真的结束了进程时等它释放文件
   nsExec::Exec `"$SYSDIR\cmd.exe" /c taskkill /F /T /IM "${EXE}" /FI "USERNAME eq %USERNAME%"`
-  Sleep 500
+  Pop $R2
+  ${If} $R2 == 0
+    Sleep 500
+  ${EndIf}
+!macroend
+
+; 每一步的耗时写进 %TEMP%\nomi-install.log（排查「安装慢」用；CI 验收会打印出来）
+!macro StepLog MSG
+  System::Call "kernel32::GetTickCount() i .R9"
+  IntOp $R8 $R9 - $R7
+  FileWrite $R6 "$R8 ms	${MSG}$\r$\n"
 !macroend
 
 Function .onInit
@@ -94,18 +105,28 @@ FunctionEnd
 
 Section "Install"
   SetShellVarContext current
+  System::Call "kernel32::GetTickCount() i .R7"
+  FileOpen $R6 "$TEMP\nomi-install.log" w
+  FileWrite $R6 "${PRODUCT} ${VERSION} setup$\r$\n"
   !insertmacro ProgressMarquee 1
   !insertmacro KillApp
+  !insertmacro StepLog "close running app"
   DetailPrint "$(StRemoveOld)"
+  ; 旧版本是 Electron（2.0.4 及更早）才跑它的卸载器：它清理的东西比本安装器多（自己的注册项、更新缓存）。
+  ; 旧版本是 Go 版时它的卸载器做的事（结束进程、删快捷方式 / 注册项 / 安装目录）下面都会重做或覆盖，
+  ; 不再把它拷到临时目录再启动一次（新拷出来的未签名 exe 还要被杀软完整扫一遍）
   ReadRegStr $1 HKCU "${UNKEY}" "UninstallString"
   ${If} $1 != ""
   ${AndIf} ${FileExists} "$INSTDIR\${UNINST}"
+  ${AndIf} ${FileExists} "$INSTDIR\resources\app.asar"
     CopyFiles /SILENT "$INSTDIR\${UNINST}" "$PLUGINSDIR\old-uninstaller.exe"
     ExecWait '"$PLUGINSDIR\old-uninstaller.exe" /S /KEEP_APP_DATA --updated _?=$INSTDIR' $2
     DetailPrint "old uninstaller exit=$2"
+    !insertmacro StepLog "old Electron uninstaller (exit $2)"
   ${EndIf}
-  ; 旧 Electron 文件可能残留（卸载器被跳过时）：只清本应用目录
+  ; 旧文件（Go 版，或卸载器被跳过时的 Electron 残留）：只清本应用目录
   RMDir /r "$INSTDIR"
+  !insertmacro StepLog "remove old files"
   !insertmacro ProgressMarquee 0
 
   ; File 会逐个把「解压：…」写到进度条上方
@@ -113,10 +134,19 @@ Section "Install"
   File "${STAGE}\${EXE}"
   File /r "${STAGE}\resources"
   WriteUninstaller "$INSTDIR\${UNINST}"
+  !insertmacro StepLog "extract files"
 
-  ; WebView2 运行时（Win10 旧机器可能缺）：没有则跑随包的 Evergreen bootstrapper（静默）
-  ReadRegStr $3 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-  ReadRegStr $4 HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ; WebView2 运行时（Win10 旧机器可能缺）：没有则跑随包的 Evergreen bootstrapper（静默，要从微软下载上百 MB）。
+  ; 按微软的检测方式查三处，任一处有版本号就算装了，免得误判后每次安装都去下载：
+  ; 64 位系统的 HKLM\...\WOW6432Node\...、32 位视图下的 HKLM\SOFTWARE\Microsoft\...（64 位系统上会重定向到同一处，
+  ; 32 位系统上就是本体）、按用户安装的 HKCU
+  !define WV2_KEY "Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+  ReadRegStr $3 HKLM "SOFTWARE\WOW6432Node\${WV2_KEY}" "pv"
+  ${If} $3 == ""
+  ${OrIf} $3 == "0.0.0.0"
+    ReadRegStr $3 HKLM "SOFTWARE\${WV2_KEY}" "pv"
+  ${EndIf}
+  ReadRegStr $4 HKCU "Software\${WV2_KEY}" "pv"
   ; 微软文档：pv 为空或 0.0.0.0 都算没装
   ${If} $3 == "0.0.0.0"
     StrCpy $3 ""
@@ -124,6 +154,7 @@ Section "Install"
   ${If} $4 == "0.0.0.0"
     StrCpy $4 ""
   ${EndIf}
+  FileWrite $R6 "webview2: hklm=$3 hkcu=$4$\r$\n"
   ${If} $3 == ""
   ${AndIf} $4 == ""
     SetOutPath "$PLUGINSDIR"
@@ -131,6 +162,7 @@ Section "Install"
     DetailPrint "$(StWebView2)"
     !insertmacro ProgressMarquee 1
     ExecWait '"$PLUGINSDIR\MicrosoftEdgeWebview2Setup.exe" /silent /install'
+    !insertmacro StepLog "install WebView2 runtime"
     !insertmacro ProgressMarquee 0
     SetOutPath "$INSTDIR"
   ${EndIf}
@@ -158,6 +190,7 @@ Section "Install"
   ${GetSize} "$INSTDIR" "/S=0K" $5 $6 $7
   IntFmt $5 "0x%08X" $5
   WriteRegDWORD HKCU "${UNKEY}" "EstimatedSize" "$5"
+  !insertmacro StepLog "shortcuts + registry"
 
   ; electron-builder oneClick：交互安装完成后启动应用；静默安装只有带 --force-run 才启动
   ${GetParameters} $8
@@ -167,6 +200,8 @@ Section "Install"
   ${OrIfNot} ${Errors}
     Exec '"$INSTDIR\${EXE}"'
   ${EndIf}
+  !insertmacro StepLog "done"
+  FileClose $R6
 SectionEnd
 
 Function un.onInit

@@ -150,6 +150,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **desktop-go:** Messages 协议（Anthropic）的模型可以正常回复了。之前 Go 版这类模型一发消息就报「不支持」，现在和 Node 版一样经本地网关走 Messages 适配器，自定义地址、完整地址、请求头与 API Key 都照常生效（#187）。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Windows 上保存设置等私有文件时，如果目标文件正被杀毒软件、索引程序或另一次保存短暂占用，会稍等重试，不再直接保存失败（与 Node 版一致）。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Windows 上往对话窗口粘贴从资源管理器复制的文件能拿到文件路径了（之前剪贴板读取用错了系统 DLL 名，粘贴文件时读不到路径）。 (`@nomi-ai/ai-chat` patch)
+- **desktop-go:** Windows 上覆盖安装 Go 版（包括应用内更新）不再先跑一遍旧版本的卸载器；没有在运行的 Nomi 时不再固定等待；WebView2 运行时按微软的方式检查三处注册表，已经装了就不会再去下载。安装器把每一步的耗时写到 `%TEMP%\nomi-install.log`，方便排查安装慢的问题。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Windows 安装器在关闭旧进程、移除旧版本、下载 WebView2 时显示当前步骤，进度条改为走动画，不再像卡住；安装界面跟随系统语言显示中文或英文。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** closing or recreating a window while its connection drops no longer risks crashing the app on a concurrent map access (#208). (`@nomi-ai/host-electron` patch)
 - **desktop-go:** 从 2.0.4（Electron）升级到 Go 版后，旧对话（会话列表、名称、工作区、消息、当前与最近的 Nomi 对话）重新出现在对话窗口里（#181）。首次打开对话窗口时导入一次，只补新版本里没有的，不覆盖升级后新建或续写的对话；聊天记录太多、新版本的本地存储放不下时，按最近更新优先导入能放下的部分，较旧的不导入；抽取或导入失败时下次启动自动重试；Electron 原数据不动。同时修正旧数据抽取时 emoji 与部分西文字符的解码。 (`@nomi-ai/ai-chat` patch)
