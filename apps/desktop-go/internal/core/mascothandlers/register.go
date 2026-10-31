@@ -14,6 +14,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/characterassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatnav"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
@@ -33,6 +34,8 @@ type Deps struct {
 	// Persona / ChatBg：persona.* 与 chatBg.*（nil = UNAVAILABLE，同 need(services.x)）
 	Persona *persona.Service
 	ChatBg  *chatbg.Service
+	// Assets：当前角色包的远程素材（character.assets / ensureAssets；切到 rive 时开始准备）
+	Assets *characterassets.Service
 	// Geometry 返回外壳几何能力（外壳在 Install 之后才建，故用函数）；nil = 尚不可用
 	Geometry func() shell.Geometry
 	Quit     func()
@@ -65,6 +68,10 @@ func (c *Controller) SetRenderer(next string) (string, error) {
 		return "", err
 	}
 	c.d.Router.Emit("mascot.rendererChanged", next)
+	// 切到 Rive：准备远程素材（缺少或有新版本时下载；就绪前视图继续显示 SVG）
+	if next == "rive" && c.d.Assets != nil {
+		go c.d.Assets.Ensure()
+	}
 	if prev == "rive" && next == "svg" {
 		if g := c.geomOnly(); g != nil {
 			go g.Recreate(shell.Mascot)
@@ -473,6 +480,18 @@ func Install(d Deps) *Controller {
 
 	// —— 角色包
 	call("character.getActivePack", func(json.RawMessage) (any, error) { return d.Character.Active(), nil })
+	call("character.assets", func(json.RawMessage) (any, error) {
+		if d.Assets == nil {
+			return nil, unavailableSvc("characterAssets")
+		}
+		return d.Assets.State(), nil
+	})
+	call("character.ensureAssets", func(json.RawMessage) (any, error) {
+		if d.Assets == nil {
+			return nil, unavailableSvc("characterAssets")
+		}
+		return d.Assets.Ensure(), nil
+	})
 
 	// —— 灵动岛
 	call("island.get", func(json.RawMessage) (any, error) { return d.Island.Get(), nil })

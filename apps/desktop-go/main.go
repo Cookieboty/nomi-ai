@@ -42,6 +42,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/characterassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -171,7 +172,26 @@ func main() {
 			}
 			return w.PickFiles(title, wf)
 		}}, func(k string) string { return i18n.T(k) }, func(st chatbg.State) { router.Emit("chatBg.changed", st) })
+	// 角色包的远程素材（官方角色的 .riv 不随安装包发）：选了 Rive 才下载，见 characterassets
+	assetsRoot := filepath.Join(userData, "character-assets")
+	assetsSvc := characterassets.New(characterassets.Options{
+		Root: assetsRoot,
+		Active: func() *characterassets.ActivePack {
+			p := charSvc.Resolved()
+			if p == nil {
+				return nil
+			}
+			return &characterassets.ActivePack{ID: p.Manifest.ID, Rive: p.Rive, Remote: p.Remote}
+		},
+		Publish: func(s characterassets.State) { router.Emit("character.assetsChanged", s) },
+		Log:     deps.StdLogger{Prefix: "[character-assets]"},
+	})
+	charSvc.OnChange(assetsSvc.Refresh)
+	if bundle.Settings.Get().Mascot.Renderer == "rive" {
+		go assetsSvc.Ensure()
+	}
 	mascotCtl := mascothandlers.Install(mascothandlers.Deps{
+		Assets:    assetsSvc,
 		Persona:   personaSvc,
 		T:         func(k string) string { return i18n.T(k) },
 		ChatBg:    chatBgSvc,
@@ -591,7 +611,7 @@ func main() {
 			},
 			// registerCharacterPackProtocol(protocol, () => this.resolved.root)
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
-				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
+				assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
 			},
 		})))))})
 
