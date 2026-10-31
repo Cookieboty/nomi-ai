@@ -5,7 +5,7 @@
  * 渲染器的选择与 Rive 失败回退在 avatar-runtime 的 avatarCanvas 测试里。
  */
 import type { AvatarRuntimeOptions } from '@nomi-ai/avatar-runtime';
-import { act, cleanup, configure, render, screen } from '@testing-library/react';
+import { act, cleanup, configure, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ import { avatarEvents } from '../../src/avatar/events';
 import { Nomi2DCanvas } from '../../src/components/Mascot/Nomi2DCanvas';
 import { BUNDLED_PACK, resetCharacterPackOverlayForTest } from '../../src/mascot/characterConfig';
 
-import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
+import { installMascotHost, packSnapshot, publishMascotEvent, resetMascotHost } from './mascotHost';
 
 vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
 
@@ -53,10 +53,9 @@ describe('Nomi2DCanvas → AvatarStage', () => {
     await screen.findByTestId('avatar-stage');
     const p = h.last!;
     expect(p.character.id).toBe(BUNDLED_PACK.id);
-    expect(p.character.mode).toBe(BUNDLED_PACK.mode);
-    expect(url(p.character.assets.rive)).toBe(
-      BUNDLED_PACK.assets.rive ? `${BUNDLED_PACK.base}${BUNDLED_PACK.assets.rive}` : '',
-    );
+    // 官方包的 .riv 是远程素材，没有内核就下不来：显示静态立绘
+    expect(BUNDLED_PACK.assets.remote).toEqual(['rive']);
+    expect(p.character.mode).toBe('static');
     expect(p.character.assets.spriteManifest).toBe('./character/sprite/manifest.json');
     expect(p.events).toBe(avatarEvents);
     expect(p.windowHost).toBeNull();
@@ -117,18 +116,35 @@ describe('Nomi2DCanvas → AvatarStage', () => {
     expect(url(p.character.assets.static)).toBe(art);
   });
 
-  it('official pack, renderer rive: the bundled .riv, no static art', async () => {
+  it('official pack, renderer rive: static art until the kernel has the remote .riv, then Rive', async () => {
+    const riveUrl = 'character-pack://assets/nomi/nomi-rive-4a51213a963b.riv';
     installMascotHost({
       'mascot.getRenderer': () => 'rive',
       'character.getActivePack': () =>
         packSnapshot({ source: 'builtin', id: BUNDLED_PACK.id, mode: BUNDLED_PACK.mode }),
+      'character.assets': () => ({
+        packId: BUNDLED_PACK.id,
+        remote: true,
+        status: 'downloading',
+        percent: 40,
+      }),
     });
     render(<Nomi2DCanvas manifestPath="./character/sprite/manifest.json" />);
     await screen.findByTestId('avatar-stage');
-    const p = h.last!;
-    expect(p.character.mode).toBe(BUNDLED_PACK.mode);
-    expect(url(p.character.assets.rive)).toBe(`${BUNDLED_PACK.base}${BUNDLED_PACK.assets.rive}`);
-    expect(p.character.assets.static).toBeNull();
+    expect(h.last!.character.mode).toBe('static');
+
+    await act(() =>
+      publishMascotEvent('character.assetsChanged', {
+        packId: BUNDLED_PACK.id,
+        remote: true,
+        status: 'ready',
+        version: '4a51213a963b',
+        riveUrl,
+      }),
+    );
+    await waitFor(() => expect(h.last!.character.mode).toBe(BUNDLED_PACK.mode));
+    expect(h.last!.character.assets.rive).toBe(riveUrl);
+    expect(h.last!.character.assets.static).toBeNull();
   });
 
   it('Scheme B overlay on svg: the overlay’s own image, never the bundled pack’s art', async () => {

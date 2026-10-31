@@ -153,6 +153,9 @@ describe('pack selection and build data', () => {
       ['onboarding/privacy.webp', 'onboarding/privacy.webp'],
     ]);
     const all = publishedFiles(DEFAULT_PACK_DIR, pack, 'all').map(([src]) => src);
-    expect(all).toEqual(expect.arrayContaining(['manifest.json', 'rive/character.riv']));
+    expect(all).toEqual(expect.arrayContaining(['manifest.json', 'sprite/manifest.json']));
+    // 远程素材（manifest assets.remote）不进构建：内核按远程角色目录下载
+    expect(pack.assets.remote).toEqual(['rive']);
+    expect(all).not.toContain('rive/character.riv');
   });
 });
