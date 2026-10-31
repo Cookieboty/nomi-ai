@@ -3,6 +3,7 @@ package facade
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -238,7 +239,11 @@ func (c *Chat) tap(ctx context.Context, run func(emit func(blm.ChatChunk)) error
 		msg := u.NewObj("id", req.ReqID, "sessionId", req.ReqID, "role", "assistant",
 			"parts", []any{u.NewObj("type", "text", "text", text)}, "createdAt", float64(c.d.Now()), "meta", meta)
 		func() {
-			defer func() { _ = recover() }()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("[chat] session/assistant-message emit panicked: %v", r)
+				}
+			}()
 			c.d.Emit("session/assistant-message", u.NewObj("message", msg))
 		}()
 	}()
