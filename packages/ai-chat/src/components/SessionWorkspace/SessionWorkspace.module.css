@@ -33,14 +33,14 @@
   stroke: color-mix(in srgb, var(--cd-color-text-muted, #888) 55%, transparent);
 }
 .contextRingProg {
-  stroke: #f5a623;
+  stroke: var(--cd-color-warning);
   transition: stroke-dasharray 0.25s ease;
 }
 .contextRingProg[data-level='mid'] {
-  stroke: #e8920b;
+  stroke: color-mix(in srgb, var(--cd-color-warning) 75%, var(--cd-color-danger));
 }
 .contextRingProg[data-level='high'] {
-  stroke: #e35d6a;
+  stroke: var(--cd-color-danger);
 }
 .contextRingTip {
   position: absolute;
@@ -289,10 +289,10 @@
   color: var(--cd-color-warning, #d4a017);
 }
 .letter[data-letter='A'] {
-  color: #3fb950;
+  color: var(--cd-color-success);
 }
 .letter[data-letter='D'] {
-  color: #f85149;
+  color: var(--cd-color-danger);
 }
 .letter[data-letter='?'] {
   color: var(--cd-color-text-muted, #888);
@@ -308,10 +308,10 @@
   flex-shrink: 0;
 }
 .add {
-  color: #3fb950;
+  color: var(--cd-color-success);
 }
 .del {
-  color: #f85149;
+  color: var(--cd-color-danger);
 }
 .badge {
   font-size: var(--cd-font-size-xs);
@@ -640,7 +640,7 @@
 .turnConfirmOk {
   background: var(--cd-color-accent, #5b8def);
   border-color: transparent;
-  color: #fff;
+  color: var(--cd-color-text-on-accent);
 }
 .turnPrimary {
   background: color-mix(in srgb, var(--cd-color-border, #444) 80%, #222);
@@ -854,7 +854,7 @@
 }
 .wbTreeFile[data-active] {
   background: color-mix(in srgb, var(--cd-color-danger, #e35d6a) 16%, transparent);
-  color: #ffb4b4;
+  color: var(--cd-color-danger);
 }
 .wbFileIcon {
   flex-shrink: 0;

@@ -17,6 +17,8 @@ export interface MicButtonProps {
   size?: 'sm' | 'ms' | 'md';
   tooltip?: string;
   tooltipPlacement?: 'top' | 'top-end' | 'bottom' | 'left' | 'right';
+  /** 追加到 Tooltip 气泡上的额外 class（透传给 Tooltip 的 bubbleClassName） */
+  tooltipBubbleClassName?: string;
   className?: string;
   'data-testid'?: string;
 }
@@ -47,6 +49,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
   size = 'md',
   tooltip,
   tooltipPlacement,
+  tooltipBubbleClassName,
   className,
   ...rest
 }) => {
@@ -78,7 +81,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
       : (tooltip ?? t('ui.voice-mascot.hold-to-talk-hold-space-when-focused'));
 
   return (
-    <Tooltip content={label} placement={tooltipPlacement}>
+    <Tooltip content={label} placement={tooltipPlacement} bubbleClassName={tooltipBubbleClassName}>
       <button
         type="button"
         className={cx(

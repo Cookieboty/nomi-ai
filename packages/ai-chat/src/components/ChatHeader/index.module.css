@@ -15,7 +15,7 @@
   align-items: center;
   gap: var(--cd-space-0-5);
 }
-.actions :global(.cd-tooltip__bubble--bottom) {
+.actions .actionsTipBubble {
   left: auto;
   right: 0;
   transform: none;

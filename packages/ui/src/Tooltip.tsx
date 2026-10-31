@@ -12,6 +12,8 @@ export interface TooltipProps {
    */
   placement?: 'top' | 'top-end' | 'bottom' | 'bottom-start' | 'left' | 'right';
   className?: string;
+  /** 追加到气泡元素（cd-tooltip__bubble）上的额外 CSS class，用于调整气泡外观（如宽度、对齐） */
+  bubbleClassName?: string;
   children: React.ReactElement;
 }
 
@@ -20,6 +22,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   content,
   placement = 'top',
   className,
+  bubbleClassName,
   children,
 }) => {
   const id = useId();
@@ -35,7 +38,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       <span
         role="tooltip"
         id={id}
-        className={cx('cd-tooltip__bubble', `cd-tooltip__bubble--${placement}`)}
+        className={cx('cd-tooltip__bubble', `cd-tooltip__bubble--${placement}`, bubbleClassName)}
       >
         {content}
       </span>

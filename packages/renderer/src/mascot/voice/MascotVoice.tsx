@@ -27,7 +27,8 @@ export function toggleMascotHandsfree(): Promise<void> {
 export const MascotMicTool: React.FC<{
   className?: string;
   tipSide?: 'top' | 'bottom' | 'left' | 'right';
-}> = ({ className, tipSide }) => {
+  tipBubbleClassName?: string;
+}> = ({ className, tipSide, tipBubbleClassName }) => {
   const v = useVoice('mascot');
   if (!v.available) return null;
   const continuous = v.state.mode === 'handsfree';
@@ -54,6 +55,7 @@ export const MascotMicTool: React.FC<{
             : t('ui.voice-mascot.voice-hold-to-talk-right-click-for-hands')
         }
         tooltipPlacement={tipSide}
+        tooltipBubbleClassName={tipBubbleClassName}
       />
     </span>
   );
