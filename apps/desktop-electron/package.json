@@ -1,7 +1,7 @@
 {
   "name": "@nomi-ai/host-electron",
   "productName": "@nomi-ai/electron",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Electron主进程和预加载脚本",
   "main": "dist/main.js",
   "scripts": {
