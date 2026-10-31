@@ -110,6 +110,12 @@ const edge = {
     J({ type: 'end', text: 'bye', sessionId: 'gs' }),
     J({ type: 'error' }),
     J({ type: 'plan' }),
+    J({ type: 'auto_compact_started', tokens_used: 900, context_window: 1000, percentage: 90 }),
+    J({ type: 'auto_compact_completed', tokens_before: 900, tokens_after: 300 }),
+    J({ type: 'auto_compact_completed', tokensAfter: 0 }),
+    J({ type: 'auto_compact_completed', tokens_after: -1 }),
+    J({ type: 'auto_compact_failed' }),
+    J({ type: 'auto_compact_cancelled' }),
   ],
   dsh: [
     J({ type: 'session', sessionId: 'd1' }),

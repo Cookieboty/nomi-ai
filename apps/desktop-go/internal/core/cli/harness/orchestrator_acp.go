@@ -405,6 +405,10 @@ func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*ut
 	}
 }
 
+// grokCompactMethod mirrors GROK_COMPACT_METHOD：Grok 的手动压缩，ACP 扩展方法 x.ai/compact_conversation
+// （1.0.70 内置文档；线上带扩展前缀 _）。
+const grokCompactMethod = "_x.ai/compact_conversation"
+
 func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSignal, images []cli.NormalizedImage) *jsrt.Promise[*util.Obj] {
 	return jsrt.Async(func() (*util.Obj, error) {
 		id := str(tab, "id")
@@ -428,6 +432,11 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		if live.turn != nil {
 			return nil, errors.New(i18n.T("electron.common.previous-turn-still-running"))
 		}
+		compact := live.backend == "grok" && isCompactCommand(prompt) && len(images) == 0
+		// 新会话还没发过消息：没有可压缩的内容
+		if compact && str(tab, "cliSessionId") == "" && !live.used {
+			return nil, errors.New(i18n.T("electron.common.nothing-to-compact-yet"))
+		}
 		turn := &acpTurn{events: []*util.Obj{}, breaks: []float64{}}
 		live.turn = turn
 		live.used = true
@@ -446,7 +455,17 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		if len(images) > 0 {
 			in.Blocks = cli.AcpPromptParts(prompt, images)
 		}
-		sent, err := jsrt.Await(live.driver.Send(in))
+		var sent clisdk.TurnResult
+		if compact {
+			sent, err = jsrt.Await(live.driver.Compact(grokCompactMethod, clisdk.TurnInput{OnTimeout: in.OnTimeout}))
+			// 这个版本没有压缩扩展方法：退回原样发 /compact（Grok 自己的命令）
+			var re *rpc.Error
+			if errors.As(err, &re) && util.JSString(re.Code) == "-32601" {
+				sent, err = jsrt.Await(live.driver.Send(in))
+			}
+		} else {
+			sent, err = jsrt.Await(live.driver.Send(in))
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -505,7 +524,11 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		o.emitEvent(id, done)
 		text := turn.text
 		if text == "" {
-			text = i18n.T("electron.common.no-text-output")
+			if compact {
+				text = i18n.T("electron.common.context-compacted")
+			} else {
+				text = i18n.T("electron.common.no-text-output")
+			}
 		}
 		res := util.NewObj("text", text, "sessionId", ptrAny(live.sessionID), "events", evsAny(turn.events))
 		if len(turn.breaks) > 0 {

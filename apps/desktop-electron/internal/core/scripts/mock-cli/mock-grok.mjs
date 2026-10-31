@@ -65,7 +65,8 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
 // Env: NOMI_MOCK_GROK_ACP_LOG=<file>（逐条记下请求，initialize 带 argv 与 XAI_API_KEY 状态）,
 //      NOMI_MOCK_GROK_PERM=1（先请求执行命令的权限；拒绝则像真实 CLI 一样以 cancelled 结束整轮）,
 //      NOMI_MOCK_GROK_SET_MODE=error / NOMI_MOCK_GROK_SET_MODEL=error（对应请求失败）,
-//      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 session/cancel）, NOMI_MOCK_GROK_NO_ACP=1（立即退出）
+//      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 session/cancel）, NOMI_MOCK_GROK_NO_ACP=1（立即退出）,
+//      NOMI_MOCK_GROK_NO_COMPACT=1（没有 _x.ai/compact_conversation，像旧版一样）
 if (args[0] === 'agent' && args[1] === 'stdio') {
   if (process.env.NOMI_MOCK_GROK_NO_ACP === '1') {
     process.stderr.write('error: unrecognized subcommand stdio\n');
@@ -301,6 +302,22 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
         return;
       case 'session/close':
         return reply(j.id, {});
+      case '_x.ai/compact_conversation': {
+        // 手动压缩（1.0.70 内置文档的扩展方法）；NOMI_MOCK_GROK_NO_COMPACT=1 像旧版一样没有这个方法
+        if (process.env.NOMI_MOCK_GROK_NO_COMPACT === '1')
+          return send({
+            id: j.id,
+            error: { code: -32601, message: `Method not found: ${j.method}` },
+          });
+        const notice = (update) =>
+          send({
+            method: 'x.ai/session_notification',
+            params: { sessionId: p.sessionId, update },
+          });
+        notice({ sessionUpdate: 'auto_compact_started', tokens_used: 900, context_window: 1000 });
+        notice({ sessionUpdate: 'auto_compact_completed', tokens_before: 900, tokens_after: 40 });
+        return reply(j.id, {});
+      }
       default:
         if (j.id !== undefined)
           send({ id: j.id, error: { code: -32601, message: `Method not found: ${j.method}` } });

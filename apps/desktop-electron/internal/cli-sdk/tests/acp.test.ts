@@ -7,7 +7,10 @@ import { FakeChild, tick } from './fakeChild';
 type Json = Record<string, unknown>;
 
 /** 一个最小的 ACP 代理：按方法应答，session/prompt 先推几条更新再结束 */
-function agent(child: FakeChild, o: { loadFails?: boolean; permission?: boolean } = {}) {
+function agent(
+  child: FakeChild,
+  o: { loadFails?: boolean; permission?: boolean; compact?: boolean } = {},
+) {
   const prompts: Json[] = [];
   child.onLine = (msg) => {
     const reply = (result: unknown) => child.send({ jsonrpc: '2.0', id: msg.id, result });
@@ -29,11 +32,48 @@ function agent(child: FakeChild, o: { loadFails?: boolean; permission?: boolean 
       case 'session/set_model':
       case 'session/set_config_option':
         return reply(null);
+      case '_x.ai/compact_conversation':
+        child.send({
+          jsonrpc: '2.0',
+          method: 'x.ai/session_notification',
+          params: {
+            sessionId: 's1',
+            update: { sessionUpdate: 'auto_compact_completed', tokens_after: 50 },
+          },
+        });
+        return reply({});
+      case '_unknown/compact':
+        return child.send({
+          jsonrpc: '2.0',
+          id: msg.id,
+          error: { code: -32601, message: 'Method not found' },
+        });
       case 'session/prompt':
         prompts.push(msg.params as Json);
         up({ sessionUpdate: 'agent_thought_chunk', content: { text: 'hmm' } });
         up({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hello' } });
         up({ sessionUpdate: 'usage_update', used: 120, size: 1000 });
+        if (o.compact) {
+          // Grok：自动压缩走 x.ai 扩展通知；扩展通知里的普通更新不重复处理
+          const ext = (method: string, update: Json) =>
+            child.send({ jsonrpc: '2.0', method, params: { sessionId: 's1', update } });
+          ext('_x.ai/session_notification', {
+            sessionUpdate: 'auto_compact_started',
+            tokens_used: 900,
+            context_window: 1000,
+            percentage: 90,
+          });
+          ext('x.ai/session/update', {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: 'DUP' },
+          });
+          ext('x.ai/session_notification', {
+            sessionUpdate: 'auto_compact_completed',
+            tokens_before: 900,
+            tokens_after: 300,
+          });
+          ext('x.ai/session_notification', { sessionUpdate: 'auto_compact_failed' });
+        }
         if (o.permission) {
           child.send({
             jsonrpc: '2.0',
@@ -109,6 +149,57 @@ describe('AcpDriver', () => {
       .map((e) => (e.kind === 'harness' ? e.event : null));
     expect(evs.map((e) => e?.type)).toEqual(['thinking', 'text-delta', 'context']);
     expect(seen.every((e) => e.kind !== 'harness' || e.turnId === 'T')).toBe(true);
+  });
+
+  it('auto-compact from x.ai notifications: compact → clear + post-compaction context', async () => {
+    const child = new FakeChild();
+    agent(child, { compact: true });
+    const d = new AcpDriver({ child, newId: () => 'T' });
+    await d.start({ cwd: '/w' });
+    const seen: SessionEvent[] = [];
+    d.on((e) => seen.push(e));
+    const r = await d.send({ text: 'hi' });
+    expect(r).toMatchObject({ text: 'Hello', usage: { contextTokens: 300, contextWindow: 1000 } });
+    const evs = seen.flatMap((e) => (e.kind === 'harness' ? [e.event] : []));
+    expect(evs.slice(2)).toEqual([
+      { type: 'context', tokens: 120, window: 1000 },
+      { type: 'status', kind: 'compact' },
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: 300 },
+      { type: 'status', kind: 'clear' },
+    ]);
+  });
+
+  it('compact: an extension request run as a turn, with its own compact / clear status', async () => {
+    const child = new FakeChild();
+    agent(child);
+    const d = new AcpDriver({ child, newId: () => 'C' });
+    await d.start({ cwd: '/w' });
+    const seen: SessionEvent[] = [];
+    d.on((e) => seen.push(e));
+    expect(await d.compact('_x.ai/compact_conversation')).toMatchObject({
+      turnId: 'C',
+      stopReason: 'end_turn',
+      text: '',
+      usage: { contextTokens: 50 },
+    });
+    expect(child.messages().find((m) => m.method === '_x.ai/compact_conversation')?.params).toEqual(
+      { sessionId: 's1' },
+    );
+    expect(seen.flatMap((e) => (e.kind === 'harness' ? [e.event] : []))).toEqual([
+      { type: 'status', kind: 'compact' },
+      { type: 'status', kind: 'clear' },
+      { type: 'context', tokens: 50 },
+      { type: 'status', kind: 'clear' },
+    ]);
+    // 方法不存在：RpcError 原样抛出，状态照样清掉，之后还能正常发消息
+    await expect(d.compact('_unknown/compact')).rejects.toMatchObject({ code: -32601 });
+    expect(seen.at(-1)).toMatchObject({
+      kind: 'harness',
+      event: { type: 'status', kind: 'clear' },
+    });
+    expect(d.inTurn).toBe(false);
+    expect((await d.send({ text: 'hi' })).text).toBe('Hello');
   });
 
   it('permissions: decision picks the option, optionId passes through, deny marks the turn', async () => {

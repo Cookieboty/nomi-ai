@@ -125,8 +125,43 @@ func posNum(v any) (float64, bool) {
 	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f > 0
 }
 
+// compactTokensAfter mirrors compactTokensAfter：auto_compact_completed 的 tokens_after（兼容驼峰）。
+func compactTokensAfter(u Json) (float64, bool) {
+	v := u.Get("tokens_after")
+	if v == nil {
+		v = u.Get("tokensAfter")
+	}
+	f, ok := v.(float64)
+	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f >= 0
+}
+
 func (m *acpMapper) Update(u Json) []Ev {
 	kind := strQ(u.Get("sessionUpdate"))
+	// Grok 自动压缩（x.ai 扩展通知）：started → 压缩中；completed → 清状态 + 压缩后的占用；
+	// failed / cancelled → 只清状态
+	if strings.HasPrefix(kind, "auto_compact_") {
+		if kind == "auto_compact_started" {
+			return []Ev{O("type", "status", "kind", "compact")}
+		}
+		if kind != "auto_compact_completed" {
+			return []Ev{O("type", "status", "kind", "clear")}
+		}
+		after, ok := compactTokensAfter(u)
+		next := O()
+		if ok {
+			next = m.context.Clone()
+			next.Set("contextTokens", after)
+		} else if w := m.context.Get("contextWindow"); w != nil {
+			// 没给压缩后的大小：旧占用作废，只留窗口
+			next.Set("contextWindow", w)
+		}
+		m.context = next
+		var tok any
+		if ok {
+			tok = after
+		}
+		return []Ev{O("type", "status", "kind", "clear"), O("type", "context", "tokens", tok)}
+	}
 	if kind == "agent_thought_chunk" {
 		if t, ok := getp(u.Get("content"), "text").(string); ok {
 			m.thought += t

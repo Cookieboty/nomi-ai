@@ -380,6 +380,37 @@ describe('CliHarnessService Codex over app-server', () => {
     expect(count('initialize')).toBe(1);
   }, 15_000);
 
+  it('/compact：改发 thread/compact/start（不当消息发给模型），显示压缩中，结束后提示已压缩', async () => {
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    // 还没有线程：没有可压缩的内容，也不为它建空线程
+    await expect(h.sendTab(tab.id, '/compact')).rejects.toThrow('会话还没有内容');
+    expect(count('thread/start')).toBe(0);
+    await h.sendTab(tab.id, 'hello');
+    const r = await h.sendTab(tab.id, '/compact keep the API notes');
+    expect(r.text).toBe('已压缩上下文');
+    expect(calls().find((c) => c.method === 'thread/compact/start')?.params).toEqual({
+      threadId: 'mock-codex-thread-1',
+    });
+    expect(turnStarts()).toHaveLength(1);
+    expect(events.filter((e) => e.type === 'status').map((e) => e.kind)).toEqual(
+      expect.arrayContaining(['compact', 'clear']),
+    );
+    // 压缩之后照常对话，复用同一个进程
+    expect((await h.sendTab(tab.id, 'again')).text).toBe('【Mock Codex】任务完成。');
+    expect(count('initialize')).toBe(1);
+  }, 15_000);
+
+  it('/compact 前刚换的模型：压缩请求不带模型，留到下一条 turn/start 下发', async () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabModel(tab.id, 'mock-mini');
+    await h.sendTab(tab.id, '/compact');
+    await h.sendTab(tab.id, 'two');
+    expect(turnStarts()[1]!.params).toMatchObject({ model: 'mock-mini' });
+  }, 15_000);
+
   it('这一轮失败：报出 Codex 给的原因', async () => {
     process.env.NOMI_MOCK_CODEX_FAIL = '1';
     const { h } = mk();
@@ -401,6 +432,9 @@ describe('CliHarnessService Codex over app-server', () => {
       .split('\n')
       .map((l) => JSON.parse(l) as string[]);
     expect(argv.map((a) => a.slice(0, 2).join(' '))).toEqual(['exec --json', 'exec resume']);
+    // exec 没有压缩请求：/compact 不当消息发给模型
+    await expect(h.sendTab(tab.id, '/compact')).rejects.toThrow('app-server');
+    expect(fs.readFileSync(argvLog, 'utf8').trim().split('\n')).toHaveLength(2);
   }, 15_000);
 
   it('预热：新建 Codex 会话即拉起 app-server，但不提前建空线程', async () => {

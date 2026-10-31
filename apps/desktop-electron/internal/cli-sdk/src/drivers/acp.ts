@@ -17,13 +17,22 @@ import {
   type TurnInput,
   type TurnResult,
 } from '../driver';
-import type { PermissionAnswer, PermissionOption, SessionEvent, SlashCommand } from '../events';
+import type {
+  HarnessEvent,
+  PermissionAnswer,
+  PermissionOption,
+  SessionEvent,
+  SlashCommand,
+} from '../events';
 import { JsonRpcConnection, type Json, type RpcConnectionOptions } from '../rpc/jsonrpc';
 
 import { createAcpMapper, permissionSummary, pickPermissionOption } from './acpEvents';
 
 /** 一轮 prompt 多久没有任何动静算卡住（默认 10 分钟；等权限确认不计时） */
 export const ACP_PROMPT_IDLE_MS = 10 * 60_000;
+
+/** Grok 的会话扩展通知（官方 ACP 文档：x.ai/session_notification 带 auto-compact；x.ai/session/update） */
+const XAI_SESSION_NOTIFY = /^_?x\.ai\/session(?:_notification|\/update)$/;
 
 type AcpMapper = ReturnType<typeof createAcpMapper>;
 
@@ -134,8 +143,12 @@ export class AcpDriver implements SessionDriver {
   }
 
   private onNotification(method: string, params: Json) {
-    if (method !== 'session/update') return;
+    // Grok 的自动压缩走 x.ai 扩展通知（x.ai/session_notification；线上可能带 ACP 扩展前缀 _）。
+    // 扩展通知里只取 auto_compact_*，其它内容与标准 session/update 重复
+    const ext = XAI_SESSION_NOTIFY.test(method);
+    if (method !== 'session/update' && !ext) return;
     const u = (params.update ?? {}) as Json;
+    if (ext && !String(u.sessionUpdate ?? '').startsWith('auto_compact_')) return;
     if (u.sessionUpdate === 'available_commands_update') {
       this.hub.emit({ kind: 'commands', commands: parseCommands(u.availableCommands) });
       return;
@@ -310,6 +323,30 @@ export class AcpDriver implements SessionDriver {
 
   async send(input: TurnInput & { onTimeout?: () => void }): Promise<TurnResult> {
     const sessionId = this.requireSession();
+    return this.runTurn(
+      'session/prompt',
+      { sessionId, prompt: input.blocks ?? [{ type: 'text', text: input.text }] },
+      input,
+    );
+  }
+
+  /**
+   * 手动压缩上下文（扩展方法，如 Grok 的 `_x.ai/compact_conversation`，参数 {sessionId}）。
+   * 按一轮处理：期间的更新带这一轮的 id；自己补上「压缩中 / 清状态」，CLI 另发不发 auto_compact_* 都一样。
+   * 方法不存在等 RPC 错误照常 reject（RpcError），由调用方决定退回什么。
+   */
+  async compact(method: string, input: { onTimeout?: () => void } = {}): Promise<TurnResult> {
+    const sessionId = this.requireSession();
+    return this.runTurn(method, { sessionId }, input, true);
+  }
+
+  private async runTurn(
+    method: string,
+    params: Json,
+    input: { signal?: AbortSignal; onTimeout?: () => void },
+    compacting = false,
+  ): Promise<TurnResult> {
+    const sessionId = this.requireSession();
     if (this.turn) throw new Error('previous turn still running');
     const turn: AcpTurnState = {
       id: (this.o.newId ?? randomUUID)(),
@@ -318,10 +355,15 @@ export class AcpDriver implements SessionDriver {
       denied: false,
     };
     this.turn = turn;
+    const emit = (event: HarnessEvent) => {
+      turn.text = appendText(turn.text, event);
+      this.hub.emit({ kind: 'harness', event, turnId: turn.id });
+    };
+    if (compacting) emit({ type: 'status', kind: 'compact' });
     try {
       const r = await this.conn.request<{ stopReason?: string; _meta?: unknown } | null>(
-        'session/prompt',
-        { sessionId, prompt: input.blocks ?? [{ type: 'text', text: input.text }] },
+        method,
+        params,
         {
           // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
           idle: true,
@@ -333,10 +375,7 @@ export class AcpDriver implements SessionDriver {
           ...(input.signal ? { signal: input.signal } : {}),
         },
       );
-      for (const event of turn.mapper.flush()) {
-        turn.text = appendText(turn.text, event);
-        this.hub.emit({ kind: 'harness', event, turnId: turn.id });
-      }
+      for (const event of turn.mapper.flush()) emit(event);
       const context = turn.mapper.context();
       return {
         turnId: turn.id,
@@ -348,6 +387,7 @@ export class AcpDriver implements SessionDriver {
         raw: r,
       };
     } finally {
+      if (compacting) emit({ type: 'status', kind: 'clear' });
       if (this.turn === turn) this.turn = null;
     }
   }

@@ -2,6 +2,7 @@
 package grok
 
 import (
+	"math"
 	"regexp"
 	"strings"
 
@@ -108,6 +109,18 @@ func ParseLine(line string) []Ev {
 			return []Ev{O("type", "thinking", "text", sh.Clip(data, sh.MaxThinking))}
 		}
 		return []Ev{}
+	// 自动压缩（1.0.70 内置文档：streaming-json 也会发 auto_compact_* 事件）
+	case "auto_compact_started":
+		return []Ev{O("type", "status", "kind", "compact")}
+	case "auto_compact_completed":
+		after := Coalesce(j.Get("tokens_after"), j.Get("tokensAfter"))
+		var tok any
+		if f, ok := after.(float64); ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f >= 0 {
+			tok = f
+		}
+		return []Ev{O("type", "status", "kind", "clear"), O("type", "context", "tokens", tok)}
+	case "auto_compact_failed", "auto_compact_cancelled":
+		return []Ev{O("type", "status", "kind", "clear")}
 	case "usage":
 		raw := Coalesce(j.Get("usage"), j.Get("data"), j)
 		base := sh.ParseUsage(raw, Coalesce(j.Get("costUsd"), j.Get("cost")), nil)

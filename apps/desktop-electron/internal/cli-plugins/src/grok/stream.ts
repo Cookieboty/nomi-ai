@@ -17,7 +17,8 @@ import {
 /**
  * Grok Build `--output-format streaming-json`（官方 headless 文档，2026-10）：
  * NDJSON，每行一个 type 字段：text / thought / tool_call / tool_call_update /
- * image / image_generation / generated_image / usage / plan / end / error（其它类型静默跳过）。
+ * image / image_generation / generated_image / usage / plan / end / error / auto_compact_*
+ * （其它类型静默跳过）。
  * 字段名按文档：text.data、tool_call.toolName / toolCallId / status、
  * end.sessionId、error.message。无法识别的行静默跳过，不编造格式。
  */
@@ -141,6 +142,22 @@ export function parseGrokLine(line: string): HarnessEvent[] {
           ]
         : [{ type: 'done', text: '', usage }];
     }
+    // 自动压缩（1.0.70 内置文档：streaming-json 也会发 auto_compact_* 事件）
+    case 'auto_compact_started':
+      return [{ type: 'status', kind: 'compact' }];
+    case 'auto_compact_completed': {
+      const after = j.tokens_after ?? j.tokensAfter;
+      return [
+        { type: 'status', kind: 'clear' },
+        {
+          type: 'context',
+          tokens: typeof after === 'number' && Number.isFinite(after) && after >= 0 ? after : null,
+        },
+      ];
+    }
+    case 'auto_compact_failed':
+    case 'auto_compact_cancelled':
+      return [{ type: 'status', kind: 'clear' }];
     case 'plan':
     case 'available_commands':
       return [];

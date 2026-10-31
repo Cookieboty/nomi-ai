@@ -7,6 +7,9 @@
  *   ACP 不带原始工具名，只有 kind（read / edit / execute / search / fetch / think / …）和 title；
  *   子代理（invoke_agent）的 kind 为 think，按 title 识别为 invoke_agent 以便归为子代理卡片。
  *   Grok 另在 `_meta["x.ai/tool"].name` 给出原始工具名、`rawInput` 给出参数，有就优先用。
+ * - Grok 自动压缩（x.ai 扩展通知，1.0.70 内置文档）：auto_compact_started → status compact；
+ *   auto_compact_completed（tokens_after）→ status clear + context；failed / cancelled → status clear。
+ *   Gemini（0.65.0）的 ACP 不转发压缩事件，只能从 usage_update 的占用看出来。
  */
 import type { HarnessEvent } from '../events';
 
@@ -24,6 +27,12 @@ const KIND_TOOL: Record<string, string> = {
 };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+/** auto_compact_completed 的压缩后占用（tokens_after；兼容驼峰） */
+function compactTokensAfter(u: Json): number | undefined {
+  const v = u.tokens_after ?? u.tokensAfter;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
+}
 
 function contentText(content: unknown): string {
   if (!Array.isArray(content)) return '';
@@ -77,6 +86,24 @@ export function createAcpMapper() {
         return used !== undefined
           ? [{ type: 'context', tokens: used, ...(size !== undefined ? { window: size } : {}) }]
           : [];
+      }
+      // Grok 自动压缩（x.ai 扩展通知）：started → 压缩中；completed → 清状态 + 压缩后的占用；
+      // failed / cancelled → 只清状态
+      if (kind.startsWith('auto_compact_')) {
+        if (kind === 'auto_compact_started') return [{ type: 'status', kind: 'compact' }];
+        if (kind !== 'auto_compact_completed') return [{ type: 'status', kind: 'clear' }];
+        const after = compactTokensAfter(u);
+        // 没给压缩后的大小：旧占用作废，只留窗口
+        context =
+          after !== undefined
+            ? { ...context, contextTokens: after }
+            : context.contextWindow !== undefined
+              ? { contextWindow: context.contextWindow }
+              : {};
+        return [
+          { type: 'status', kind: 'clear' },
+          { type: 'context', tokens: after ?? null },
+        ];
       }
       const out = flushThought();
       if (kind === 'agent_message_chunk') {
