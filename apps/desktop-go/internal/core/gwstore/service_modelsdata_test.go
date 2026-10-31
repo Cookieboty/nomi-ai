@@ -91,6 +91,8 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 	if len(inm) != 2 || inm[0] != "" || inm[1] != `"v1"` {
 		t.Fatalf("If-None-Match sequence %q", inm)
 	}
+	// 第二次 200 也排了一次后台写，等它落完再模拟丢失，否则它会把覆盖层写回来（#209）
+	drain()
 	// catalog lost → force full download again
 	models.SetCatalogOverlay(nil)
 	ps.Sync()
