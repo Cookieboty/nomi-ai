@@ -32,6 +32,8 @@ type MascotCoreProcedureName =
   | 'chatBg.pickImage'
   | 'mascot.getRenderer'
   | 'mascot.setRenderer'
+  | 'character.assets'
+  | 'character.ensureAssets'
   | 'window.platform';
 
 /** 宿主实现的 D5 过程：桌面角色窗口互动与大小、灵动岛、旧窗口通道 */
@@ -95,8 +97,13 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'mascot.setRenderer': ({ renderer }) => {
       const next = writeMascotRenderer(deps.ports.paths.userData(), renderer);
       deps.events.publish('mascot.rendererChanged', next);
+      // 切到 Rive：准备远程素材（缺少或有新版本时下载；就绪前视图继续显示 SVG）
+      if (next === 'rive') void services.characterAssets?.ensure();
       return next;
     },
+    'character.assets': () => plain(need(services.characterAssets, 'characterAssets').state()),
+    'character.ensureAssets': () =>
+      need(services.characterAssets, 'characterAssets').ensure().then(plain),
 
     'window.platform': () => deps.ports.app.platform(),
   };

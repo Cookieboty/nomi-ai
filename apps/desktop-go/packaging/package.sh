@@ -33,6 +33,10 @@ stage_resources() {
   local dst="$1"; mkdir -p "$dst/characters"
   cp -R "$ASSETS" "$dst/assets"
   cp -R "$ROOT/characters/nomi" "$dst/characters/nomi"
+  # 声明为远程的素材（manifest assets.remote，如 .riv）不随安装包发：内核按远程角色目录下载
+  node "$ROOT/scripts/character/remote-catalog.mjs" --list-remote "$ROOT/characters/nomi" |
+    while IFS= read -r rel; do [ -n "$rel" ] && rm -f "$dst/characters/nomi/$rel"; done
+  find "$dst/characters/nomi" -type d -empty -delete
   if [ -d "$ROOT/apps/desktop-electron/character-pack-resources" ]; then
     cp -R "$ROOT/apps/desktop-electron/character-pack-resources" "$dst/character-pack"
   fi

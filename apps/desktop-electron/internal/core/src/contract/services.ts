@@ -12,6 +12,7 @@
 
 import type { AgentProgressService } from '../agents/AgentProgressService';
 import type { AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
+import type { CharacterAssets } from '../character/CharacterAssets';
 import type { CharacterPackService } from '../character/CharacterPackService';
 import type { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import type { AccountLogin } from '../cli/accounts/AccountLogin';
@@ -96,5 +97,6 @@ export interface CoreContractServices {
   // D5 mascot
   chatBg?: ChatBackgroundService;
   characterPack?: CharacterPackService;
+  characterAssets?: CharacterAssets;
   persona?: PersonaService;
 }

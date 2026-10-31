@@ -1,6 +1,8 @@
 /**
- * character-pack:// protocol — serves files from the active Scheme B overlay root.
- * URL shape: character-pack://pack/<relpath>  (hostname must be "pack")
+ * character-pack:// protocol:
+ *   - character-pack://pack/<relpath>  — files of the active Scheme B overlay root;
+ *   - character-pack://assets/<packId>/<file>  — downloaded remote character assets
+ *     (<userData>/character-assets, see CharacterAssets.ts).
  */
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
@@ -45,9 +47,25 @@ export function characterPackMimeFor(file: string): string {
 }
 
 /** Resolve character-pack://pack/<rel> against an overlay root. Returns absolute path or null. */
-export async function resolveCharacterPackUrl(
+export function resolveCharacterPackUrl(
   root: string | null,
   rawUrl: string,
+): Promise<string | null> {
+  return resolveUnder(root, rawUrl, 'pack');
+}
+
+/** Resolve character-pack://assets/<packId>/<file> against the remote-asset cache root. */
+export function resolveCharacterAssetUrl(
+  assetsRoot: string | null,
+  rawUrl: string,
+): Promise<string | null> {
+  return resolveUnder(assetsRoot, rawUrl, 'assets');
+}
+
+async function resolveUnder(
+  root: string | null,
+  rawUrl: string,
+  host: 'pack' | 'assets',
 ): Promise<string | null> {
   if (!root) return null;
   let u: URL;
@@ -56,7 +74,7 @@ export async function resolveCharacterPackUrl(
   } catch {
     return null;
   }
-  if (u.protocol !== `${CHARACTER_PACK_SCHEME}:` || u.hostname !== 'pack') return null;
+  if (u.protocol !== `${CHARACTER_PACK_SCHEME}:` || u.hostname !== host) return null;
   let rel: string;
   try {
     rel = decodeURIComponent(u.pathname).replace(/^\/+/, '');
@@ -107,9 +125,12 @@ export function registerCharacterPackProtocol(
     handle: (scheme: string, handler: (req: Request) => Promise<Response> | Response) => void;
   },
   getRoot: () => string | null,
+  getAssetsRoot: () => string | null = () => null,
 ): void {
   protocol.handle(CHARACTER_PACK_SCHEME, async (req) => {
-    const file = await resolveCharacterPackUrl(getRoot(), req.url);
+    const file =
+      (await resolveCharacterPackUrl(getRoot(), req.url)) ??
+      (await resolveCharacterAssetUrl(getAssetsRoot(), req.url));
     if (!file) return new Response('not found', { status: 404 });
     let body: Buffer;
     try {

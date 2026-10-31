@@ -45,6 +45,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { AgentProgressService } from './agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle, type TtsProviderLike } from './ai/AIRuntimeBoot';
+import { CharacterAssets } from './character/CharacterAssets';
 import {
   CharacterPackService,
   type CharacterPackProtocolHost,
@@ -91,6 +92,7 @@ import { LocaleService, t as tr, type CoreI18n } from './i18n';
 import { KnowledgeService } from './knowledge/KnowledgeService';
 import { LocalHubService } from './local/LocalHubService';
 import { LocalModelService } from './local/LocalModelService';
+import { readMascotRenderer } from './mascot/mascotRenderer';
 import { MemoryService } from './memory/MemoryService';
 import { OnboardingService } from './onboarding/OnboardingService';
 import { forwardPersonaChanges } from './persona/events';
@@ -373,6 +375,16 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     if (host.characterPackProtocol) characterPack.init(host.characterPackProtocol, logger);
     else characterPack.reload(logger);
     services.characterPack = characterPack;
+    // 角色包的远程素材（官方角色的 .riv 不随安装包发）：选了 Rive 才下载，见 CharacterAssets
+    const characterAssets = new CharacterAssets({
+      root: characterPack.assetsRoot(),
+      activePack: () => characterPack.getResolved().pack,
+      publish: (s) => events.publish('character.assetsChanged', s),
+      logger,
+    });
+    services.characterAssets = characterAssets;
+    characterPack.onChange(() => characterAssets.refresh());
+    if (readMascotRenderer(ports.paths.userData()) === 'rive') void characterAssets.ensure();
     // 角色人设唯一来源（当前角色包 → 内置角色包），须早于 AI runtime 与界面窗口
     services.persona = startPersona(characterPack);
 
