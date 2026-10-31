@@ -568,8 +568,8 @@ export class Application implements IApplication {
     // 处理未捕获的异常
     process.on('uncaughtException', (error) => {
       this.logger.error('未捕获的异常', { error: error.message, stack: error.stack });
-      // 在生产环境中，可能需要重启应用
-      if (process.env.NODE_ENV === 'production') {
+      // 打包版发生未捕获异常时尝试正常退出（走 before-quit 收尾流程）
+      if (app.isPackaged) {
         app.quit();
       }
     });
@@ -586,22 +586,5 @@ export class Application implements IApplication {
         this.shutdown.requestQuit();
       });
     }
-  }
-
-  /**
-   * 获取应用状态
-   */
-  getStatus() {
-    return {
-      isInitialized: this.isInitialized,
-      launched: this.launched,
-      mainWindow: !!this.windowManager.getMainWindow(),
-      aiChatWindow: !!this.windowManager.getAiChatWindow(),
-      config: this.core.config.getConfig(),
-      bootstrap: {
-        taskStatus: this.bootstrapManager.getTaskStatus(),
-        performanceReport: this.bootstrapManager.getPerformanceReport(),
-      },
-    };
   }
 }
