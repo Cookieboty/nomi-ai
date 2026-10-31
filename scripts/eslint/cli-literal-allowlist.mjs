@@ -8,8 +8,8 @@ export const CLI_LITERAL_ALLOWLIST = [
   // 用量与额度：每个 CLI 的会话日志格式、额度来源（状态栏 / app-server / ACP 计费）、登录方式探测各不相同。
   // 待迁入插件的 usage 能力（plugin.usage）后移出白名单。
   'apps/desktop-electron/internal/core/src/usage/UsageService.ts',
-  'apps/desktop-electron/internal/core/src/usage/authMode.ts',
   'apps/desktop-electron/internal/core/src/usage/UsageLogScanner.ts',
+  'apps/desktop-electron/internal/core/src/usage/authMode.ts',
   'apps/desktop-electron/internal/core/src/usage/logParsers.ts',
   'packages/ai-chat/src/components/UsagePanel/Quota.tsx',
   // 进度监视：读本机各 CLI 自己的会话 / 状态文件（不经 Nomi 标签），格式按 CLI 区分。待迁入 plugin.progress。
