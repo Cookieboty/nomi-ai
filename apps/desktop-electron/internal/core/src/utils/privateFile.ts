@@ -6,6 +6,10 @@ import path from 'node:path';
 
 import { currentCoreScope } from '../core/scope';
 
+import { createMainLogger } from './log';
+
+const log = createMainLogger('private-file');
+
 /**
  * 写入含敏感信息的配置文件并强制仅当前用户可读写。
  * - POSIX：0600（writeFileSync 的 mode 只在新建时生效，故对已存在文件再 chmod 一次）
@@ -79,7 +83,7 @@ export function __setSpawnAsyncForTest(fn: SpawnAsync | null): void {
 function icaclsArgs(targetPath: string, kind: 'file' | 'dir'): string[] | null {
   const user = windowsAclUser();
   if (!user) {
-    console.warn('[privateFile] win32 ACL: 无法确定当前用户，跳过', targetPath);
+    log.warn('win32 ACL: 无法确定当前用户，跳过', targetPath);
     return null;
   }
   const grant = kind === 'dir' ? `${user}:(OI)(CI)F` : `${user}:(F)`;
@@ -88,12 +92,7 @@ function icaclsArgs(targetPath: string, kind: 'file' | 'dir'): string[] | null {
 
 function aclOk(targetPath: string, r: AclRun): boolean {
   if (r.error || (typeof r.status === 'number' && r.status !== 0) || r.status === null) {
-    console.warn(
-      '[privateFile] icacls 收紧 ACL 失败',
-      targetPath,
-      r.status,
-      r.stderr || r.error?.message,
-    );
+    log.warn('icacls 收紧 ACL 失败', targetPath, r.status, r.stderr || r.error?.message);
     return false;
   }
   return true;
@@ -117,7 +116,7 @@ export function tightenWindowsAcl(targetPath: string, kind: 'file' | 'dir' = 'fi
     });
     return aclOk(targetPath, { status: r.status, stderr: String(r.stderr ?? ''), error: r.error });
   } catch (e) {
-    console.warn('[privateFile] icacls 收紧 ACL 异常', targetPath, e);
+    log.warn('icacls 收紧 ACL 异常', targetPath, e);
     return false;
   }
 }
@@ -133,7 +132,7 @@ export async function tightenWindowsAclAsync(
   try {
     return aclOk(targetPath, await spawnAsyncImpl('icacls', args));
   } catch (e) {
-    console.warn('[privateFile] icacls 收紧 ACL 异常', targetPath, e);
+    log.warn('icacls 收紧 ACL 异常', targetPath, e);
     return false;
   }
 }
@@ -351,7 +350,21 @@ export function writePrivateFile(file: string, data: string): void {
   // 目录检查放在写之前：目录此刻收紧的话，接下来新建的文件直接继承私有 ACL
   const dirPrivate = win && dirIsPrivate(path.dirname(file));
   const before = win ? identity(file) : null;
-  fs.writeFileSync(file, data, { mode: 0o600 });
+  // Windows 上杀软/索引器短暂占用目标文件时 writeFileSync 会抛 EPERM/EACCES/EBUSY；
+  // 退避重试，与原子写的 rename 策略保持一致（2 秒预算，10ms 起步）
+  const deadline = win ? Date.now() + RENAME_RETRY_MS : 0;
+  let delay = 10;
+  for (;;) {
+    try {
+      fs.writeFileSync(file, data, { mode: 0o600 });
+      break;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!win || !code || !RENAME_RETRY_CODES.has(code) || Date.now() >= deadline) throw error;
+      __renameDeps.sleep(delay);
+      delay = Math.min(delay * 2, 100);
+    }
+  }
   try {
     fs.chmodSync(file, 0o600);
   } catch {

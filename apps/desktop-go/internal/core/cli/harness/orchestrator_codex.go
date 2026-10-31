@@ -176,7 +176,7 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 				summary = req.Get("summary")
 			}
 			o.onCodexEvents(id, live, []*util.Obj{
-				WithPermissionExpiry(util.NewObj("type", "permission", "id", pid, "summary", summary), o.permissionTimeoutMs(id)),
+				WithPermissionExpiry(util.NewObj("type", "permission", "id", pid, "summary", summary), o.PermissionTimeoutMs(id)),
 			})
 		})
 		child.OnClose(func(*int, string) {
@@ -358,7 +358,7 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 func (o *Orchestrator) onCodexEvents(tabID string, live *codexLiveSession, evs []*util.Obj) {
 	turn := live.turn
 	for _, raw := range evs {
-		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.permissionTimeoutMs(tabID))
+		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
 		if turn != nil {
 			if ev.Get("type") == "tool" && truthy(ev.Get("output")) {
 				MaterializeGeneratedImages(jsStr(ev.Get("output")), o.home, turn.chatRoot, turn.imageAliases)

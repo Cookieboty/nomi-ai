@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -184,6 +185,37 @@ func TestWSRevokeAndRecreate(t *testing.T) {
 			t.Fatalf("reconnect %d surface: %+v", i, f)
 		}
 		c.Close(websocket.StatusNormalClosure, "")
+	}
+}
+
+// 同一 token 多条连接：撤销与连接自行断开同时发生（#208，配合 -race）
+func TestWSRevokeRacesConnClose(t *testing.T) {
+	s := wsServer(t)
+	for round := 0; round < 5; round++ {
+		tok, revoke := s.Issue("chat")
+		var conns []*websocket.Conn
+		for i := 0; i < 8; i++ {
+			c, code := dial(t, s, testOrigin, tok, "chat")
+			if c == nil {
+				t.Fatalf("dial %d: %d", i, code)
+			}
+			conns = append(conns, c)
+		}
+		var wg sync.WaitGroup
+		for _, c := range conns[:4] {
+			wg.Add(1)
+			go func(c *websocket.Conn) {
+				defer wg.Done()
+				c.Close(websocket.StatusNormalClosure, "")
+			}(c)
+		}
+		revoke()
+		wg.Wait()
+		for _, c := range conns[4:] {
+			if _, err := recv(t, c, 5*time.Second); err == nil {
+				t.Fatal("connection should be closed after revoke")
+			}
+		}
 	}
 }
 

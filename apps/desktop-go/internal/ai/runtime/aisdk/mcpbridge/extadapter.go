@@ -22,8 +22,8 @@ func (r ExtRuntime) ListServers() []extensions.McpServerInfo {
 	return out
 }
 
-func (r ExtRuntime) Connect(_ context.Context, c extensions.McpConnectConfig) error {
-	return r.S.Connect(ServerConfig{ID: c.ID, Name: c.Name, Transport: c.Transport, Command: c.Command, Args: c.Args, URL: c.URL, Env: sortedPairs(c.Env), Headers: sortedPairs(c.Headers)})
+func (r ExtRuntime) Connect(ctx context.Context, c extensions.McpConnectConfig) error {
+	return r.S.Connect(ctx, ServerConfig{ID: c.ID, Name: c.Name, Transport: c.Transport, Command: c.Command, Args: c.Args, URL: c.URL, Env: sortedPairs(c.Env), Headers: sortedPairs(c.Headers)})
 }
 
 func (r ExtRuntime) Disconnect(_ context.Context, id string) error { r.S.Disconnect(id); return nil }
@@ -110,7 +110,7 @@ func Apply(svc *Service, cfg PluginConfig, log Logger) {
 	if cfg.AutoConnect {
 		for _, s := range cfg.Servers {
 			go func(s ServerConfig) {
-				if err := svc.Connect(s); err != nil {
+				if err := svc.Connect(context.Background(), s); err != nil {
 					if log != nil {
 						log.Error("mcp connect failed: "+s.ID, err)
 					}

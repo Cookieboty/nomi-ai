@@ -46,7 +46,7 @@ func TestConnectRegistersAndDisconnectUnregisters(t *testing.T) {
 	var ev []string
 	s.On(EventServerUp, func(i ServerInfo) { ev = append(ev, "up:"+i.ID+":"+i.URL) })
 	s.On(EventServerDown, func(i ServerInfo) { ev = append(ev, "down:"+i.ID) })
-	if err := s.Connect(ServerConfig{ID: "srv", Name: "S", Transport: "http", URL: " http://x/mcp "}); err != nil {
+	if err := s.Connect(context.Background(), ServerConfig{ID: "srv", Name: "S", Transport: "http", URL: " http://x/mcp "}); err != nil {
 		t.Fatal(err)
 	}
 	if gotCfg.TransportConfig.URL != "http://x/mcp" || *gotCfg.InitializationOptions.Timeout != 30000 {
@@ -85,7 +85,7 @@ func TestConnectFailureCleansUp(t *testing.T) {
 	reg := tools.NewInMemory()
 	fc := &fakeClient{listErr: errors.New("boom")}
 	s := New(Options{GetRegistry: func() tools.Registry { return reg }, CreateClient: func(mcp.ClientConfig) (Client, error) { return fc, nil }})
-	if err := s.Connect(ServerConfig{ID: "a", Transport: "sse", URL: "http://x"}); err == nil || err.Error() != "boom" {
+	if err := s.Connect(context.Background(), ServerConfig{ID: "a", Transport: "sse", URL: "http://x"}); err == nil || err.Error() != "boom" {
 		t.Fatal(err)
 	}
 	if fc.closed != 1 || len(s.ListServers()) != 0 {
@@ -95,9 +95,23 @@ func TestConnectFailureCleansUp(t *testing.T) {
 
 func TestConnectTimeout(t *testing.T) {
 	s := New(Options{ConnectTimeoutMs: 20, CreateClient: func(mcp.ClientConfig) (Client, error) { time.Sleep(3 * time.Second); return nil, nil }})
-	err := s.Connect(ServerConfig{ID: "a", Transport: "http", URL: "http://x"})
+	err := s.Connect(context.Background(), ServerConfig{ID: "a", Transport: "http", URL: "http://x"})
 	if err == nil || err.Error() != "mcp connect (a) timed out after 1020ms" {
 		t.Fatal(err)
+	}
+}
+
+func TestConnectContextCancel(t *testing.T) {
+	s := New(Options{ConnectTimeoutMs: 30_000, CreateClient: func(mcp.ClientConfig) (Client, error) { time.Sleep(3 * time.Second); return nil, nil }})
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	err := s.Connect(ctx, ServerConfig{ID: "a", Transport: "http", URL: "http://x"})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want context.DeadlineExceeded, got %v", err)
+	}
+	if time.Since(start) > time.Second {
+		t.Fatal("connect did not return promptly on ctx cancel")
 	}
 }
 

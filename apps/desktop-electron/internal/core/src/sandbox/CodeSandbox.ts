@@ -4,8 +4,11 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { CodeLanguage, CodeRunResult, CodeSandboxApi } from '../desktop/p3tools';
+import { createMainLogger } from '../utils/log';
 
 import { planPythonSandbox } from './platformSandbox';
+
+const log = createMainLogger('code-sandbox');
 
 const MAX_OUT = 20_000;
 
@@ -89,7 +92,7 @@ export class CodeSandbox implements CodeSandboxApi {
         sandbox = plan.isolation;
         if (plan.reason) {
           // 便于主进程日志排查；不进结果正文以免污染模型上下文
-          console.warn(`[CodeSandbox] python isolation=${plan.isolation}: ${plan.reason}`);
+          log.warn(`python isolation=${plan.isolation}: ${plan.reason}`);
         }
       }
       return await new Promise<CodeRunResult>((resolve) => {

@@ -10,12 +10,14 @@ export const FilesRailToggle: React.FC<{
   /** 本会话改过的文件数 */
   count: number;
   onToggle: () => void;
-}> = ({ open, count, onToggle }) => {
+  /** 传给 Tooltip 气泡的额外 class（如顶栏右对齐时修正定位） */
+  bubbleClassName?: string;
+}> = ({ open, count, onToggle, bubbleClassName }) => {
   const label = open
     ? t('ui.session-workspace.hide-changes-panel')
     : t('ui.session-workspace.show-changes-panel');
   return (
-    <Tooltip placement="bottom" content={label}>
+    <Tooltip placement="bottom" content={label} bubbleClassName={bubbleClassName}>
       <button
         type="button"
         className={styles.toggle}

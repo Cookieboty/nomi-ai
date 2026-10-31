@@ -4,7 +4,8 @@
   gap: var(--cd-space-1);
 }
 
-.picker {
+.switch .picker {
   width: auto;
   max-width: 260px;
+  min-width: 48px;
 }

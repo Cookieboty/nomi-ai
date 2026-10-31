@@ -692,12 +692,24 @@ export const ToolBar: React.FC = () => {
 
   const iconButton = (toolId: string) => {
     if (toolId === 'voice-input')
-      return <MascotMicTool key={toolId} className={styles.btn} tipSide={tipSide} />;
+      return (
+        <MascotMicTool
+          key={toolId}
+          className={styles.btn}
+          tipSide={tipSide}
+          tipBubbleClassName={styles.tooltipBubble}
+        />
+      );
     const Icon = toolIcon(toolId);
     const label = toolLabel(toolId);
     const handler = getToolHandler(toolId);
     return (
-      <Tooltip key={toolId} content={label} placement={tipSide}>
+      <Tooltip
+        key={toolId}
+        content={label}
+        placement={tipSide}
+        bubbleClassName={styles.tooltipBubble}
+      >
         <button
           type="button"
           className={`${styles.btn} ${toolId === 'ai-chat' ? styles.primary : ''} ${toolId === 'quit' ? styles.danger : ''}`}
@@ -833,6 +845,7 @@ export const ToolBar: React.FC = () => {
           <Tooltip
             content={`${TOOL_META.more!.title()}\n${TOOL_META.more!.desc()}`}
             placement={tipSide}
+            bubbleClassName={styles.tooltipBubble}
           >
             {moreButton}
           </Tooltip>

@@ -361,8 +361,10 @@ describe('全局背景层', () => {
       'border-top-color: var(--cd-chat-popover-bg)',
     );
     expect(ruleBody(workspace, '.contextRingOfferBtn')).toContain('--cd-color-text-on-accent');
-    expect(ruleBody(workspace, '.contextRingProg')).toContain('stroke: #f5a623');
-    expect(ruleBody(workspace, ".contextRingProg[data-level='high']")).toContain('stroke: #e35d6a');
+    expect(ruleBody(workspace, '.contextRingProg')).toContain('stroke: var(--cd-color-warning)');
+    expect(ruleBody(workspace, ".contextRingProg[data-level='high']")).toContain(
+      'stroke: var(--cd-color-danger)',
+    );
   });
 
   it('中央弹窗使用更深的透明底色，不影响设置内嵌或侧抽屉，不新增局部模糊', () => {

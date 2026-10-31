@@ -246,13 +246,13 @@ func (o *Orchestrator) armPermissionTimeout(tabID, requestID string) {
 		o.countDelegatedApproval(tabID, "asked")
 		o.pendingPermOrder[tabID] = append(o.pendingPermOrder[tabID], requestID)
 	}
-	m[requestID] = jsrt.SetTimeout(time.Duration(o.permissionTimeoutMs(tabID))*time.Millisecond, func() {
+	m[requestID] = jsrt.SetTimeout(time.Duration(o.PermissionTimeoutMs(tabID))*time.Millisecond, func() {
 		o.ReplyPermission(tabID, requestID, false, "timeout", "")
 	})
 }
 
-// permissionTimeoutMs = permissionTimeoutMs。
-func (o *Orchestrator) permissionTimeoutMs(tabID string) float64 {
+// PermissionTimeoutMs = permissionTimeoutMs（Node 版为公开方法，这里同样导出）。
+func (o *Orchestrator) PermissionTimeoutMs(tabID string) float64 {
 	if d, _ := o.tab(tabID).Get("delegation").(*util.Obj); d != nil && !truthy(d.Get("takenOver")) {
 		return DelegatedPermissionTimeoutMs
 	}

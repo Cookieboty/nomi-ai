@@ -532,7 +532,7 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 // offerExecutePlan = offerExecutePlan。
 func (o *Orchestrator) offerExecutePlan(tab *util.Obj) {
 	id := str(tab, "id")
-	timeoutMs := o.permissionTimeoutMs(id)
+	timeoutMs := o.PermissionTimeoutMs(id)
 	ev := ExecutePlanEvent(id+":"+util.JSString(nowMs()), i18n.T("electron.common.execute-this-plan-switch-to-auto-edit-and"), timeoutMs)
 	o.armPermissionTimeout(id, str(ev, "id"))
 	o.emitEvent(id, ev)
@@ -581,6 +581,38 @@ func (o *Orchestrator) ProgressHint(tabID string) string {
 		return i18n.T("electron.common.running-named", v)
 	}
 	return v
+}
+
+// slimResult = slimResult：返回给渲染层的结果不含逐条事件。
+func slimResult(r *util.Obj) *util.Obj {
+	if r == nil {
+		return nil
+	}
+	c := r.Clone()
+	c.Delete("events")
+	return c
+}
+
+// SendReply = sendReply（async）：主标签发送，结果去掉逐条事件。
+func (o *Orchestrator) SendReply(prompt string) *jsrt.Promise[*util.Obj] {
+	return jsrt.Async(func() (*util.Obj, error) {
+		r, err := jsrt.Await(o.Send(prompt))
+		if err != nil {
+			return nil, err
+		}
+		return slimResult(r), nil
+	})
+}
+
+// SendTabReply = sendTabReply（async）：用户在标签里发送（userInitiated：接管委派标签）。
+func (o *Orchestrator) SendTabReply(id, prompt string, images []any) *jsrt.Promise[*util.Obj] {
+	return jsrt.Async(func() (*util.Obj, error) {
+		r, err := jsrt.Await(o.SendTab(id, prompt, images, true))
+		if err != nil {
+			return nil, err
+		}
+		return slimResult(r), nil
+	})
 }
 
 var wsRunRe = util.JSRe(`\s+`)

@@ -14,21 +14,19 @@
  * - `installHostBackends()`：入口最先调用一次，把契约接到共享包（`@nomi-ai/ui`、`@nomi-ai/voice`）
  *   留的注入点上；每个域一个文件（`./hostBackends/<域>.ts`），域代理只改自己的那个。
  *
- * 视图里只有本文件可以读 `window.nomiTransport` / `window.nomiHost` / `window.nomiDevTransport`
- *（eslint 拦下其余位置，见 §11.1）。
+ * 视图里只有本文件决定走哪条传输（判定函数收口在 `@nomi-ai/ai-sdk-client` 的 hostTransport，两个窗口共用），
+ * 也只有本文件读 `window.nomiHost`（eslint 拦下其余位置，见 §11.1）。
  */
 
-import { createAppClient, installSharedTransport, type AppClient } from '@nomi-ai/ai-sdk-client';
-import { createWebSocketClientTransport } from '@nomi-ai/contract';
 import {
-  NOMI_DEV_TRANSPORT_GLOBAL,
-  NOMI_HOST_GLOBAL,
-  NOMI_TRANSPORT_GLOBAL,
-  resolveDevTransport,
-  resolveHostTransport,
-  resolveHostAssetUrl,
-  type DevTransportConfig,
-} from '@nomi-ai/contract/app';
+  createAppClient,
+  hasPreloadBridge,
+  hasTransport as hasAnyTransport,
+  installDevTransport,
+  installGoHostTransport,
+  type AppClient,
+} from '@nomi-ai/ai-sdk-client';
+import { NOMI_HOST_GLOBAL, resolveHostAssetUrl } from '@nomi-ai/contract/app';
 
 import { installCodingBackends } from './hostBackends/coding';
 import { installKnowledgeBackends } from './hostBackends/knowledge';
@@ -38,61 +36,13 @@ import { installShellBackends } from './hostBackends/shell';
 
 export type { AppClient };
 
-function hasPreloadBridge(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof (window as unknown as Record<string, unknown>)[NOMI_TRANSPORT_GLOBAL] === 'object'
-  );
-}
-
-/**
- * 开发态 WebSocket 配置（只在开发构建里读）：地址来自开发服务器注入的全局；token 来自 dev:web 打印的地址里的
- * `#nomi-token=…` 片段（读到后存 sessionStorage 并从地址栏抹掉），页面 HTML 里没有 token
- */
-function devTransportConfig(): DevTransportConfig | null {
-  if (typeof window === 'undefined') return null;
-  const storage = ((): Storage | null => {
-    try {
-      return window.sessionStorage;
-    } catch {
-      return null;
-    }
-  })();
-  return resolveDevTransport(
-    (window as unknown as Record<string, unknown>)[NOMI_DEV_TRANSPORT_GLOBAL],
-    {
-      hash: window.location.hash,
-      storage,
-      replaceFragment: (rest) => {
-        const { pathname, search } = window.location;
-        window.history.replaceState(
-          window.history.state,
-          '',
-          `${pathname}${search}${rest ? `#${rest}` : ''}`,
-        );
-      },
-    },
-  );
-}
-
-let devTransport = false;
-let goHostTransport = false;
-// Go 宿主（运行时识别）：没有 preload 桥，页面地址片段里有宿主给的 WebSocket 配置
-const goHostConfig =
-  typeof window !== 'undefined' && !hasPreloadBridge()
-    ? resolveHostTransport(window.location.hash)
-    : null;
-// 必须在 createAppClient() 之前：模块加载时建的客户端从此走 WebSocket
-if (goHostConfig) {
-  installSharedTransport(createWebSocketClientTransport({ ...goHostConfig, surface: 'chat' }));
-  goHostTransport = true;
-} else if (import.meta.env.DEV && !hasPreloadBridge()) {
-  const config = devTransportConfig();
-  if (config) {
-    installSharedTransport(createWebSocketClientTransport({ ...config, surface: 'chat' }));
-    devTransport = true;
-  }
-}
+// 传输只在这里选（判定收口在 @nomi-ai/ai-sdk-client 的 hostTransport，与桌面角色窗口同一份）：
+// preload 桥（Electron）→ Go 宿主回环 WebSocket（生产也要识别）→ 开发态 WebSocket（仅 DEV 构建，
+// 生产构建里 installDevTransport 随这个分支一起被摇掉）。必须在 createAppClient() 之前。
+const preloadBridge = hasPreloadBridge();
+const goHostTransport = !preloadBridge && installGoHostTransport('chat');
+const devTransport =
+  !preloadBridge && !goHostTransport && import.meta.env.DEV && installDevTransport('chat');
 
 export const api: AppClient = createAppClient();
 
@@ -102,7 +52,11 @@ export function isGoHost(): boolean {
 }
 
 export function hasTransport(): boolean {
-  return devTransport || goHostTransport || hasPreloadBridge();
+  return hasAnyTransport({
+    hasPreload: preloadBridge,
+    isGoHost: goHostTransport,
+    isDev: devTransport,
+  });
 }
 
 interface NomiHost {

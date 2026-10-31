@@ -371,6 +371,7 @@ export class WindowManager implements IWindowManager {
       const [x, y] = win.getPosition();
       this.configService.set('windowPosition.x', x);
       this.configService.set('windowPosition.y', y);
+      // 只在关闭桌面角色时走这里；退出路径由 ConfigService.flushOnQuit 同步落盘
       this.configService.save().catch((error) => {
         this.logger.error('保存窗口位置失败', { error: String(error) });
       });
@@ -520,6 +521,28 @@ export class WindowManager implements IWindowManager {
         });
       }, 800);
     });
+
+    // Windows DPI 变化（切换分辨率 / 缩放比例）时把窗口夹紧到它所在显示器的工作区内
+    if (process.platform === 'win32') {
+      const onDisplayMetricsChanged = () => {
+        if (window.isDestroyed()) return;
+        const [x, y] = window.getPosition();
+        const [width, height] = window.getSize();
+        const wa = screen.getDisplayMatching(window.getBounds()).workArea;
+        const cx = Math.max(wa.x, Math.min(x, wa.x + wa.width - width));
+        const cy = Math.max(wa.y, Math.min(y, wa.y + wa.height - height));
+        setWindowBounds(window, { x: cx, y: cy, width, height });
+        this.configService.set('windowPosition.x', cx);
+        this.configService.set('windowPosition.y', cy);
+        this.configService.save().catch((error) => {
+          this.logger.warn('DPI 变化后保存窗口位置失败', { error: String(error) });
+        });
+      };
+      screen.on('display-metrics-changed', onDisplayMetricsChanged);
+      window.on('closed', () =>
+        screen.removeListener('display-metrics-changed', onDisplayMetricsChanged),
+      );
+    }
 
     // 桌面互动：点击穿透 / 拖拽 / 重力 / 漫步 / 全局光标
     this.mascotController?.dispose();
@@ -727,7 +750,6 @@ export class WindowManager implements IWindowManager {
    */
   private getRendererPath(): string {
     const isDev = isDevMode();
-    const isDebugBuild = process.env.DEBUG === 'true';
 
     if (isDev) {
       // 开发环境
@@ -735,13 +757,9 @@ export class WindowManager implements IWindowManager {
     }
 
     if (app.isPackaged) {
-      if (isDebugBuild) {
-        // Debug构建：asar被禁用，文件在Resources目录下
-        return path.join(process.resourcesPath, 'renderer', 'index.html');
-      } else {
-        // 生产构建：文件在asar中
-        return path.join(process.resourcesPath, 'renderer', 'index.html');
-      }
+      // 打包后：electron-builder 的 extraResources 把 renderer/dist 放到 resources/renderer
+      // （asar 是否禁用都走同一目录，asar 路径会被透明展开到 resources/renderer）
+      return path.join(process.resourcesPath, 'renderer', 'index.html');
     }
 
     // 本地构建

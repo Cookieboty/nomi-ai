@@ -2,6 +2,7 @@ package aichat
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,7 +86,10 @@ func (s *SessionStore) ReadProfile() (map[string]any, error) {
 		return nil, nil
 	}
 	var m map[string]any
-	_ = json.Unmarshal(raw, &m)
+	if err := json.Unmarshal(raw, &m); err != nil {
+		log.Printf("[profile] read failed: %v", err)
+		return nil, nil
+	}
 	return m, nil
 }
 

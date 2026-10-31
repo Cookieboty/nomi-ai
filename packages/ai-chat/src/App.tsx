@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppEntries } from './components/AppEntries';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
+import chatHeaderStyles from './components/ChatHeader/index.module.css';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
 import { CliConversation } from './components/Conversation/CliConversation';
@@ -829,6 +830,7 @@ const AiChatContent: React.FC = () => {
                       open={railOpen}
                       count={sessionChangeCount}
                       onToggle={toggleRail}
+                      bubbleClassName={chatHeaderStyles.actionsTipBubble}
                     />
                   ) : null}
                 </>

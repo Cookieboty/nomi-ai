@@ -504,9 +504,9 @@ export default tseslint.config(
         },
         {
           selector:
-            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|NOMI_DEV_TRANSPORT_GLOBAL|getGlobalBridge|getSharedTransport|installSharedTransport|lazyGlobalTransport|createAppClient|createWebSocketClientTransport|createIpcClientTransport)$/]',
+            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|NOMI_DEV_TRANSPORT_GLOBAL|getGlobalBridge|getSharedTransport|installSharedTransport|lazyGlobalTransport|createAppClient|createWebSocketClientTransport|createIpcClientTransport|hasPreloadBridge|installGoHostTransport|installDevTransport)$/]',
           message:
-            '契约客户端只在 services/api.ts 里建一次，其余代码 import { api } from services/api（§11.1）。',
+            '契约客户端只在 services/api.ts 里建一次、传输只在那里选，其余代码 import { api } from services/api（§11.1）。',
         },
         {
           selector: "ImportSpecifier[imported.name='ipcRenderer']",

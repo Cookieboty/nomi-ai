@@ -85,8 +85,9 @@ const DefaultConnectTimeoutMs = 30_000
 
 var errTimeoutSentinel = errors.New("timeout")
 
-// withTimeout：给不一定守时的调用加硬超时（Promise.race；超时后原调用继续运行、结果被丢弃）
-func withTimeout[T any](fn func() (T, error), ms int64, label string) (T, error) {
+// withTimeout：给不一定守时的调用加硬超时（Promise.race；超时后原调用继续运行、结果被丢弃）。
+// ctx 非 nil 时，其取消 / 到期也会让本次等待立即结束（原调用同样不被强制中断）。
+func withTimeout[T any](ctx context.Context, fn func() (T, error), ms int64, label string) (T, error) {
 	type res struct {
 		v   T
 		err error
@@ -95,9 +96,16 @@ func withTimeout[T any](fn func() (T, error), ms int64, label string) (T, error)
 	go func() { v, err := fn(); ch <- res{v, err} }()
 	t := time.NewTimer(time.Duration(ms) * time.Millisecond)
 	defer t.Stop()
+	var done <-chan struct{}
+	if ctx != nil {
+		done = ctx.Done()
+	}
 	select {
 	case r := <-ch:
 		return r.v, r.err
+	case <-done:
+		var zero T
+		return zero, ctx.Err()
 	case <-t.C:
 		var zero T
 		return zero, fmt.Errorf("%s timed out after %dms", label, ms)
@@ -296,8 +304,12 @@ func defaultFactory(cfg mcp.ClientConfig) (Client, error) {
 	return c, nil
 }
 
-// Connect：connect(cfg)
-func (s *Service) Connect(cfg ServerConfig) error {
+// Connect：connect(cfg)。ctx 取消 / 到期会让连接握手与工具列举立即失败（超时清理已建资源）；
+// 底层传输本身的关闭由错误分支里的 client.Close / Stdio.Close 负责。
+func (s *Service) Connect(ctx context.Context, cfg ServerConfig) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	s.mu.Lock()
 	_, exists := s.servers[cfg.ID]
 	s.mu.Unlock()
@@ -330,12 +342,16 @@ func (s *Service) Connect(cfg ServerConfig) error {
 		} else {
 			ccfg.TransportConfig = built.Config
 		}
-		client, err = withTimeout(func() (Client, error) { return create(ccfg) }, timeoutMs+1_000, "mcp connect ("+cfg.ID+")")
+		client, err = withTimeout(ctx, func() (Client, error) { return create(ccfg) }, timeoutMs+1_000, "mcp connect ("+cfg.ID+")")
 		if err != nil {
 			return err
 		}
-		listed, err := withTimeout(func() (*u.Obj, error) {
-			return client.ListTools(nil, &mcp.RequestOptions{Timeout: &timeoutMs})
+		listOpts := &mcp.RequestOptions{Timeout: &timeoutMs}
+		if ctx.Done() != nil {
+			listOpts.Signal = ctx
+		}
+		listed, err := withTimeout(ctx, func() (*u.Obj, error) {
+			return client.ListTools(nil, listOpts)
 		}, timeoutMs, "mcp listTools ("+cfg.ID+")")
 		if err != nil {
 			return err

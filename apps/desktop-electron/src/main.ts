@@ -63,6 +63,12 @@ if (!isPrimaryInstance) {
   // 第二实例：立即退出，且不得继续执行 userData 迁移 / 应用启动（见下方守卫）
   app.quit();
 } else {
+  // 打包版注册 nomi:// 协议：Windows 通过第二实例 argv 传入，macOS 通过 open-url 事件
+  // 开发版跳过，避免覆盖已安装的生产版的协议注册
+  if (app.isPackaged) {
+    app.setAsDefaultProtocolClient('nomi');
+  }
+
   app.on('second-instance', (_event, argv) => {
     consumeDeepLink(argv.find((a) => /^nomi:/i.test(a)));
     focusExistingWindow();

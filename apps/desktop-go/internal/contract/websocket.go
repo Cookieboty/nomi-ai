@@ -63,15 +63,18 @@ func (s *WSServer) Issue(surface string) (token string, revoke func()) {
 }
 
 func (s *WSServer) revoke(token string) {
+	// g.conns 也会被 serve 退出时并发删除，锁内拷出来再锁外取消（#208）
 	s.mu.Lock()
-	g := s.grants[token]
+	var cancels []context.CancelFunc
+	if g := s.grants[token]; g != nil {
+		for c := range g.conns {
+			cancels = append(cancels, *c)
+		}
+	}
 	delete(s.grants, token)
 	s.mu.Unlock()
-	if g == nil {
-		return
-	}
-	for c := range g.conns {
-		(*c)()
+	for _, c := range cancels {
+		c()
 	}
 }
 

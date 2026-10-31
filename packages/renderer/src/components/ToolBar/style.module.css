@@ -74,7 +74,7 @@
 }
 
 /* 工具提示（设计稿 04）：深色圆角两行，第一行标题、其余说明（文本里用换行分隔） */
-.root :global(.cd-tooltip__bubble) {
+.root .tooltipBubble {
   width: max-content;
   max-width: var(--tb-tip-max, 200px);
   padding: var(--cd-space-1-5) var(--cd-space-3);
@@ -88,13 +88,13 @@
   white-space: pre-line;
   text-align: left;
 }
-.root :global(.cd-tooltip__bubble)::first-line {
-  color: #fff;
+.root .tooltipBubble::first-line {
+  color: #fff; /* 与上面固定的深灰底配对，不随主题变 */
   font-weight: var(--cd-font-weight-bold);
   font-size: var(--cd-font-size-sm);
 }
 
-.tipOff :global(.cd-tooltip__bubble) {
+.tipOff .tooltipBubble {
   display: none;
 }
 

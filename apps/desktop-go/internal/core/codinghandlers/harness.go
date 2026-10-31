@@ -49,16 +49,6 @@ func (a in) list(k string) []any {
 	return l
 }
 
-// slim = slimResult：去掉逐条事件。
-func slim(r *util.Obj) any {
-	if r == nil {
-		return nil
-	}
-	c := r.Clone()
-	c.Delete("events")
-	return c
-}
-
 func await[T any](p *jsrt.Promise[T]) T {
 	v, err := jsrt.Await(p)
 	if err != nil {
@@ -126,7 +116,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.setBackend", func(a in) any { return h().SetBackend(a.any("backend")) })
 	call("harness.setCwd", func(a in) any { return h().SetCwd(a.str("cwd"), a.is("carry")) })
 	call("harness.pickCwd", func(in) any { return await(h().PickCwd()) })
-	call("harness.send", func(a in) any { return slim(await(h().Send(a.str("prompt")))) })
+	call("harness.send", func(a in) any { return await(h().SendReply(a.str("prompt"))) })
 
 	// ── 标签 ──
 	call("harness.tabs", func(in) any { return h().ListTabs() })
@@ -179,7 +169,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.recentCwds", func(in) any { return h().RecentCwds() })
 	call("harness.tabMessages", func(a in) any { return h().TabMessages(a.str("id")) })
 	call("harness.tabSend", func(a in) any {
-		return slim(await(h().SendTab(a.str("id"), a.str("prompt"), a.list("images"), true)))
+		return await(h().SendTabReply(a.str("id"), a.str("prompt"), a.list("images")))
 	})
 	call("harness.tabCancel", func(a in) any { return h().CancelTab(a.str("id")) })
 	call("harness.stopAgent", func(a in) any { return h().StopAgent(a.str("id"), a.str("agentId")) })

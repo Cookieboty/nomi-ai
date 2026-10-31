@@ -169,6 +169,8 @@ export class UpdateService {
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
   /** 正在进行的自动下载的取消令牌（来自 checkForUpdates 的返回） */
   private downloadToken: { cancel(): void } | null = null;
+  /** 正在进行的检查 Promise；并发调用共用同一次检查，避免多个触发源同时广播多条更新通知 */
+  private checkPromise: Promise<UpdateState> | null = null;
   private readonly appInfo: HostPorts['app'];
   private readonly events: AppEvents;
 
@@ -305,6 +307,14 @@ export class UpdateService {
   }
 
   async check(): Promise<UpdateState> {
+    // 若已有检查在进行，复用同一个 Promise，不重复发起（启动延迟 / 定时器 / 用户手动点击并发时）
+    this.checkPromise ??= this.doCheck().finally(() => {
+      this.checkPromise = null;
+    });
+    return this.checkPromise;
+  }
+
+  private async doCheck(): Promise<UpdateState> {
     if (!this.packaged) {
       this.patch({
         status: 'unavailable',

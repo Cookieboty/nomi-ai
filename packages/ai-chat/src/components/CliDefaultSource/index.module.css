@@ -19,7 +19,7 @@
 }
 
 .defaultError {
-  color: var(--danger, #c44);
+  color: var(--cd-color-danger);
   font-size: 12px;
   margin-left: 6px;
 }

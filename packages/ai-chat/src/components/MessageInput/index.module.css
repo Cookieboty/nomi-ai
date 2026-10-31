@@ -406,9 +406,6 @@
   flex: 0 1 auto;
   min-width: 0;
 }
-.composerBar .modelStatus :global(.cd-dropdown) {
-  min-width: 48px;
-}
 .composerBar .modelStatus [data-testid='cli-workspace'] {
   flex: 0 1 auto;
   min-width: 0;
