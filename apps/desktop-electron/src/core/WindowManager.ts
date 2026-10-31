@@ -371,13 +371,10 @@ export class WindowManager implements IWindowManager {
       const [x, y] = win.getPosition();
       this.configService.set('windowPosition.x', x);
       this.configService.set('windowPosition.y', y);
-      // 退出 / 强制关机时这里可能在 shutdown 链外被调用：先同步等保存落盘再 destroy，
-      // 避免 Windows 关机超时把 fire-and-forget 的 save() 截断导致位置丢失
-      try {
-        void this.configService.save();
-      } catch (error) {
+      // 只在关闭桌面角色时走这里；退出路径由 ConfigService.flushOnQuit 同步落盘
+      this.configService.save().catch((error) => {
         this.logger.error('保存窗口位置失败', { error: String(error) });
-      }
+      });
     } catch (error) {
       this.logger.warn('读取桌面角色位置失败', { error: String(error) });
     }
@@ -525,13 +522,13 @@ export class WindowManager implements IWindowManager {
       }, 800);
     });
 
-    // Windows DPI 变化（切换分辨率 / 缩放比例）时重新校正窗口位置和大小，并夹紧到工作区内
+    // Windows DPI 变化（切换分辨率 / 缩放比例）时把窗口夹紧到它所在显示器的工作区内
     if (process.platform === 'win32') {
       const onDisplayMetricsChanged = () => {
         if (window.isDestroyed()) return;
         const [x, y] = window.getPosition();
         const [width, height] = window.getSize();
-        const wa = screen.getPrimaryDisplay().workArea;
+        const wa = screen.getDisplayMatching(window.getBounds()).workArea;
         const cx = Math.max(wa.x, Math.min(x, wa.x + wa.width - width));
         const cy = Math.max(wa.y, Math.min(y, wa.y + wa.height - height));
         setWindowBounds(window, { x: cx, y: cy, width, height });

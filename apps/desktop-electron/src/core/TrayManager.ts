@@ -221,6 +221,7 @@ export class TrayManager {
     if (process.env.IG_DISABLE_TRAY === '1' || this.tray) return;
     try {
       this.tray = new Tray(this.trayImage());
+      this.lastMenuHash = null;
       liveTrays.add(this.tray);
       // 非 macOS 跟随图标变体；永远不把空图设给托盘（空图 = 图标消失）
       this.unsubscribeIcon = onTrayIcon((img) => {
@@ -273,14 +274,6 @@ export class TrayManager {
     // GatewayStore 是唯一来源：有 models API 就用网关菜单（可为空，引导去「模型」页）
     const entries = gw ? gatewayMenuEntries(gw, t) : providerMenuEntries(state, t);
 
-    // 菜单内容摘要：条目标签 + 选中状态 + 是否有 overrideId；相同则跳过，避免无意义重建
-    const menuHash =
-      JSON.stringify(
-        entries.map((e) => ({ label: e.label, checked: e.checked, enabled: e.enabled })),
-      ) + String(!!state.overrideId);
-    if (menuHash === this.lastMenuHash) return;
-    this.lastMenuHash = menuHash;
-
     const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',
@@ -331,6 +324,12 @@ export class TrayManager {
       { type: 'separator' },
       { label: t('electron.common.quit'), click: () => this.opts.quit() },
     ];
+    // 菜单内容摘要（整份模板的文字与状态，含角色名、语言）：相同则跳过，避免 Windows 11 托盘菜单闪烁
+    const menuHash = JSON.stringify(template, (key, value) =>
+      typeof value === 'function' ? undefined : value,
+    );
+    if (menuHash === this.lastMenuHash) return;
+    this.lastMenuHash = menuHash;
     this.tray.setContextMenu(Menu.buildFromTemplate(template));
   }
 
