@@ -21,7 +21,8 @@
     "rive": "rive/character.riv",
     "sprite": "sprite",
     "voice": "voice",
-    "onboarding": "onboarding"
+    "onboarding": "onboarding",
+    "remote": ["rive"]
   },
   "rive": {
     "artboard": "Nomi-full",

@@ -255,4 +255,31 @@ describe('validatePack — legacy rive pack', () => {
     ]);
     expect(codes(res.warnings)).toContain('sprite-fallback-recommended');
   });
+
+  it('accepts a missing rive file declared as a remote asset', () => {
+    const entries = legacyRivePack();
+    delete entries['rive/character.riv'];
+    const base = entries['manifest.json'] as Record<string, unknown>;
+    entries['manifest.json'] = { ...base, assets: { mode: 'rive', remote: ['rive'] } };
+    const res = validatePack(createPackSource(entries));
+    expect(res.errors).toEqual([]);
+    expect(res.pack!.assets.rive).toBe('rive/character.riv');
+    expect(res.pack!.assets.remote).toEqual(['rive']);
+  });
+
+  it('a pack that ships its rive file has no remote assets unless declared', () => {
+    const res = validatePack(createPackSource(legacyRivePack(), { 'rive/character.riv': 50_000 }));
+    expect(res.pack!.assets.remote).toEqual([]);
+  });
+
+  it('rejects unknown remote asset kinds', () => {
+    const entries = legacyRivePack();
+    const base = entries['manifest.json'] as Record<string, unknown>;
+    entries['manifest.json'] = { ...base, assets: { mode: 'rive', remote: ['sprite'] } };
+    const res = validatePack(createPackSource(entries, { 'rive/character.riv': 50_000 }));
+    expect(res.errors.map((e) => [e.code, e.path.join('.')])).toContainEqual([
+      'schema-invalid',
+      'assets.remote.0',
+    ]);
+  });
 });

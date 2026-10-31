@@ -440,7 +440,10 @@ func ValidatePack(src PackSource, opts ValidateOptions) ValidateResult {
 			if !ok {
 				riveRel = "rive/character.riv"
 			}
-			if !files[riveRel] {
+			if !files[riveRel] && remoteHas(assets, "rive") {
+				// 远程素材：按需下载，本地没有不算错
+				rive = riveRel
+			} else if !files[riveRel] {
 				code := "fallback-asset-missing"
 				if mode == "rive" {
 					code = "asset-missing"
@@ -746,6 +749,22 @@ func ValidatePack(src PackSource, opts ValidateOptions) ValidateResult {
 	a.Set("static", staticRel)
 	a.Set("onboardingDir", onboardingDir)
 	a.Set("voiceDir", voiceDir)
+	remote := []any{}
+	if rive != nil && remoteHas(assets, "rive") {
+		remote = append(remote, "rive")
+	}
+	a.Set("remote", remote)
 	pack.Set("assets", a)
 	return done(pack)
+}
+
+// remoteHas：manifest assets.remote 是否声明了这种素材（= TS assets.remote?.includes(kind)）
+func remoteHas(assets *Obj, kind string) bool {
+	arr, _ := assets.Get("remote").([]any)
+	for _, v := range arr {
+		if v == kind {
+			return true
+		}
+	}
+	return false
 }

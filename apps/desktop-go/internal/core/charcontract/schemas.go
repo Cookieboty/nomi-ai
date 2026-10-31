@@ -9,7 +9,9 @@ import (
 
 var (
 	PackModes = []string{"rive", "sprite", "static"}
-	HitboxIDs = []string{"head", "face", "body", "hand", "hem"}
+	// RemoteAssetKinds：可以声明为远程（manifest assets.remote，按需下载）的素材
+	RemoteAssetKinds = []string{"rive"}
+	HitboxIDs        = []string{"head", "face", "body", "hand", "hem"}
 )
 
 var driveRe = regexp.MustCompile(`^[a-zA-Z]:`)
@@ -75,6 +77,7 @@ var (
 		{"mode", zdefault{packModeSchema, "rive"}},
 		{"rive", opt(packPath)}, {"sprite", opt(packPath)}, {"static", opt(packPath)},
 		{"voice", opt(packPath)}, {"onboarding", opt(packPath)}, {"layout", opt(packPath)}, {"copy", opt(packPath)},
+		{"remote", opt(zarray{elem: zenum{values: RemoteAssetKinds}})},
 	}}
 	nonEmptyArr  = zarray{elem: nonEmpty}
 	capabilities = zobject{loose: true, shape: []field{

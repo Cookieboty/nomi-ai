@@ -11,6 +11,13 @@ export const CHARACTER_CONTRACT_VERSION = 1 as const;
 export const PACK_MODES = ['rive', 'sprite', 'static'] as const;
 export type PackMode = (typeof PACK_MODES)[number];
 
+/**
+ * 可以声明为远程的素材（manifest `assets.remote`）：不随安装包发，由内核按远程角色目录下载到用户数据目录
+ * （见 docs/design/remote-character-assets.md）。声明为远程的素材本地可以没有。
+ */
+export const REMOTE_ASSET_KINDS = ['rive'] as const;
+export type RemoteAssetKind = (typeof REMOTE_ASSET_KINDS)[number];
+
 export const HITBOX_IDS = ['head', 'face', 'body', 'hand', 'hem'] as const;
 export type HitboxId = (typeof HITBOX_IDS)[number];
 
