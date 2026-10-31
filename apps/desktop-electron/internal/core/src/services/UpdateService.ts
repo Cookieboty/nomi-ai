@@ -308,9 +308,13 @@ export class UpdateService {
 
   async check(): Promise<UpdateState> {
     // 若已有检查在进行，复用同一个 Promise，不重复发起（启动延迟 / 定时器 / 用户手动点击并发时）
-    this.checkPromise ??= this.doCheck().finally(() => {
-      this.checkPromise = null;
-    });
+    // 卡住超时后 watchStall 会放掉这个 Promise：旧的那次即使后来返回，也不能清掉新的
+    if (!this.checkPromise) {
+      const p = this.doCheck().finally(() => {
+        if (this.checkPromise === p) this.checkPromise = null;
+      });
+      this.checkPromise = p;
+    }
     return this.checkPromise;
   }
 
@@ -435,6 +439,8 @@ export class UpdateService {
         secs,
       });
       this.cancelDownload();
+      // 卡住的 checkForUpdates 永远不返回：不放掉它，之后的检查都会复用它而再也检查不了
+      if (checking) this.checkPromise = null;
       this.fail(
         checking
           ? `update check stalled: no response for ${secs}s`

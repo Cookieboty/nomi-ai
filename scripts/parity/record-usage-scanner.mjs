@@ -26,7 +26,8 @@ globalThis.require = createRequire(import.meta.url); // sqliteRead 用 require('
 const { DatabaseSync } = globalThis.require('node:sqlite');
 
 const scope = jsModule('export function currentCoreScope() { return undefined; }');
-const pf = await loadSrc('utils/privateFile', { '../core/scope': scope });
+const log = await loadSrc('utils/log', { '../core/scope': scope });
+const pf = await loadSrc('utils/privateFile', { '../core/scope': scope, './log': log.url });
 const ledgerM = await loadSrc('usage/UsageLedger', { '../utils/privateFile': pf.url });
 const homes = await loadSrc('usage/cliHomes');
 const lp = await loadSrc('usage/logParsers');

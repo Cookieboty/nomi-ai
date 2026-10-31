@@ -44,7 +44,7 @@ describe('HarnessOrchestrator · 宿主端口', () => {
     for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
   });
 
-  it('pickDirectory：不挂父窗口、允许新建文件夹，传入初始目录', async () => {
+  it('pickDirectory：挂到当前焦点窗口、允许新建文件夹，传入初始目录', async () => {
     const picked = tmp('harness-picked-');
     const { dialogs, pickDirectory } = fakeDialogs(picked);
     const h = make({ ports: { dialogs, windows: windows() } });
@@ -53,7 +53,7 @@ describe('HarnessOrchestrator · 宿主端口', () => {
     const opts = pickDirectory.mock.calls[0]![0]!;
     expect(opts).toMatchObject({ createDirectory: true, defaultPath: '/start/here' });
     expect(typeof opts.title).toBe('string');
-    expect(opts.parent).toBeUndefined();
+    expect(opts.parent).toBe('focused');
   });
 
   it('pickDirectory：取消返回 null；没有初始目录时不传 defaultPath', async () => {

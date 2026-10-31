@@ -5,7 +5,7 @@
  * 渲染器的选择与 Rive 失败回退在 avatar-runtime 的 avatarCanvas 测试里。
  */
 import type { AvatarRuntimeOptions } from '@nomi-ai/avatar-runtime';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, configure, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,6 +16,9 @@ import { BUNDLED_PACK, resetCharacterPackOverlayForTest } from '../../src/mascot
 import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
 
 vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+
+// Windows CI 上首次渲染要等懒加载的角色资源，偶尔超过 findBy* 默认的 1 s（本机约 10 ms）
+configure({ asyncUtilTimeout: 5000 });
 
 const h = vi.hoisted(() => ({ last: null as AvatarRuntimeOptions | null }));
 
