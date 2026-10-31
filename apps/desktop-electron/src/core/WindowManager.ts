@@ -753,7 +753,6 @@ export class WindowManager implements IWindowManager {
    */
   private getRendererPath(): string {
     const isDev = isDevMode();
-    const isDebugBuild = process.env.DEBUG === 'true';
 
     if (isDev) {
       // 开发环境
@@ -761,13 +760,9 @@ export class WindowManager implements IWindowManager {
     }
 
     if (app.isPackaged) {
-      if (isDebugBuild) {
-        // Debug构建：asar被禁用，文件在Resources目录下
-        return path.join(process.resourcesPath, 'renderer', 'index.html');
-      } else {
-        // 生产构建：文件在asar中
-        return path.join(process.resourcesPath, 'renderer', 'index.html');
-      }
+      // 打包后：electron-builder 的 extraResources 把 renderer/dist 放到 resources/renderer
+      // （asar 是否禁用都走同一目录，asar 路径会被透明展开到 resources/renderer）
+      return path.join(process.resourcesPath, 'renderer', 'index.html');
     }
 
     // 本地构建
