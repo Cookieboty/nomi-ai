@@ -12,6 +12,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { loadPack, remoteFilesOf } from './pack.mjs';
 import { DEFAULT_PACK_DIR } from './paths.mjs';
@@ -36,7 +37,8 @@ export async function seedRemoteCache(userData, packDir = DEFAULT_PACK_DIR) {
   return current;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Windows 上 argv[1] 是 D:\\… 形式，要转成 file:///D:/… 再比
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [userData, packDir] = process.argv.slice(2);
   if (!userData) {
     console.error('usage: seed-remote-cache.mjs <userData> [packDir]');

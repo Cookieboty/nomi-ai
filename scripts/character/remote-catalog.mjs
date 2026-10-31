@@ -24,6 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { extname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { loadPack, remoteFilesOf } from './pack.mjs';
@@ -98,4 +99,5 @@ async function main() {
   console.info(JSON.stringify(catalog, null, 2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await main();
+// Windows 上 argv[1] 是 D:\\… 形式，要转成 file:///D:/… 再比
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

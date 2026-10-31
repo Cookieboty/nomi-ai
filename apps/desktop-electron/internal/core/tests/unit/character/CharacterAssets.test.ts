@@ -199,7 +199,8 @@ describe('CharacterAssets', () => {
   it('protocol: character-pack://assets/… resolves inside the cache root only', async () => {
     fs.mkdirSync(path.join(root, 'nomi'));
     fs.writeFileSync(path.join(root, 'nomi', 'a.riv'), 'x');
-    const real = fs.realpathSync(path.join(root, 'nomi', 'a.riv'));
+    // native：与 fsp.realpath 一致（Windows 上展开短文件名，如 RUNNER~1）
+    const real = fs.realpathSync.native(path.join(root, 'nomi', 'a.riv'));
     expect(await resolveCharacterAssetUrl(root, 'character-pack://assets/nomi/a.riv')).toBe(real);
     expect(await resolveCharacterAssetUrl(root, 'character-pack://pack/nomi/a.riv')).toBeNull();
     expect(
