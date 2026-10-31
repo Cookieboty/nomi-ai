@@ -56,6 +56,29 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v206">
+          <header class="release-head">
+            <h2 data-i18n="cl.v206.title">v2.0.6 — 修复版：2.0.4 聊天记录迁移、Go 版网关稳定性、工作区操作更安全</h2>
+            <time datetime="2026-10-31">2026-10-31</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v206.imp">改进</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v206.imp.1">从 2.0.4 升级后，旧的聊天记录（会话、名称、工作区、消息）会出现在对话窗口里；存储放不下时优先导入最近的会话。</li>
+            <li data-i18n="cl.v206.imp.2">Windows 上把资源管理器里复制的文件粘贴到对话窗口，能拿到文件路径。</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v206.fix">修复</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v206.fix.1">Go 版里 Anthropic Messages 协议的模型能正常回复；网关在并发请求下不再可能崩溃。</li>
+            <li data-i18n="cl.v206.fix.2">MCP 工具参数类型不对时返回错误，不再让 Go 后端退出。</li>
+            <li data-i18n="cl.v206.fix.3">发送准备期间切换会话，这一轮仍属于原来的会话和工作区；停止生成后迟到的授权卡片不再生效。</li>
+            <li data-i18n="cl.v206.fix.4">workspace_run 每次执行命令都会先确认；fs_edit 不会再覆盖你在确认期间保存的改动。</li>
+            <li data-i18n="cl.v206.fix.5">Go 版跨磁盘移动、删除到回收站和只提交已暂存的改动都正常了。</li>
+            <li data-i18n="cl.v206.fix.6">自定义角色包的表情映射与静态形象按角色包显示；Go 版配置保存改为按顺序原子写入。</li>
+            <li data-i18n="cl.v206.fix.7">Electron 版的知识库 OCR 与语音检测依赖能正常加载。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.6" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v205">
           <header class="release-head">
             <h2 data-i18n="cl.v205.title">v2.0.5 — Go 版成为正式版、Nomi 对话工作区、编程助手账号管理</h2>
