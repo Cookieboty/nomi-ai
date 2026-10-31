@@ -14,6 +14,7 @@
 
 export * from './ClientAIClient';
 export * from './sharedTransport';
+export * from './hostTransport';
 export * from './IPCBridge';
 export * from './errors';
 export * from './errorHint';
