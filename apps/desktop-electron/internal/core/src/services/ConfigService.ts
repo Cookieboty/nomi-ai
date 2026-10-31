@@ -41,6 +41,8 @@ export interface AppConfig {
   window: WindowSettings;
   debug: boolean;
   environment: 'development' | 'production';
+  /** Windows：开机时自动启动（静默启动，只出现在托盘区），默认 false */
+  openAtLogin?: boolean;
 }
 
 export interface IConfigService {
@@ -54,6 +56,8 @@ export interface IConfigService {
   reset(): void;
   backup(): Promise<string>;
   validateConfig(config: any): { isValid: boolean; errors: string[]; warnings: string[] };
+  /** 配置被 set / updateConfig 修改时的订阅；返回取消订阅函数 */
+  onChange(listener: (config: AppConfig) => void): () => void;
 }
 
 export interface ConfigServiceDeps {
@@ -75,6 +79,28 @@ export class ConfigService implements IConfigService {
    */
   private inflight: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
+  /** 配置被 set / updateConfig 修改时的回调列表（宿主用于同步系统级设置，如开机自启动） */
+  private readonly changeListeners: Array<(config: AppConfig) => void> = [];
+
+  /** 订阅配置变更；返回取消订阅函数 */
+  onChange(listener: (config: AppConfig) => void): () => void {
+    this.changeListeners.push(listener);
+    return () => {
+      const idx = this.changeListeners.indexOf(listener);
+      if (idx !== -1) this.changeListeners.splice(idx, 1);
+    };
+  }
+
+  private notifyChange(): void {
+    const cfg = this.getConfig();
+    for (const fn of this.changeListeners) {
+      try {
+        fn(cfg);
+      } catch {
+        /* 回调错误不影响主流程 */
+      }
+    }
+  }
 
   constructor(deps: ConfigServiceDeps) {
     this.logger = deps.logger;
@@ -177,6 +203,7 @@ export class ConfigService implements IConfigService {
 
     target[keys[keys.length - 1]] = value;
     this.logger?.debug('配置更新', { key, value });
+    this.notifyChange();
   }
 
   /**
@@ -280,6 +307,7 @@ export class ConfigService implements IConfigService {
   updateConfig(updates: Partial<AppConfig>): void {
     this.config = this.mergeConfigs(this.config, updates);
     this.logger?.info('配置已更新', { updates });
+    this.notifyChange();
   }
 
   /**

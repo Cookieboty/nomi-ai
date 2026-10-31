@@ -16,3 +16,9 @@ import { app } from 'electron';
 
 setMainLogPackaged(() => app.isPackaged);
 setPrivateRoot(() => app.getPath('userData'));
+
+// 部分 Windows 集显驱动在硬件加速下渲染异常（白屏 / 闪烁）：通过环境变量显式关闭，
+// 必须在 app.ready 之前调用才生效。仅 Windows 生效，其它平台不受影响。
+if (process.platform === 'win32' && process.env.NOMI_DISABLE_GPU === '1') {
+  app.disableHardwareAcceleration();
+}

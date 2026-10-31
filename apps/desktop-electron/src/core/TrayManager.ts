@@ -258,6 +258,8 @@ export class TrayManager {
   private unsubscribeCharacter?: () => void;
   private unsubscribeModels?: () => void;
   private unsubscribeIcon?: () => void;
+  /** 上一次 rebuild 时的菜单内容摘要；相同时跳过，避免 Windows 11 托盘菜单无意义闪烁 */
+  private lastMenuHash: string | null = null;
   /** 仅测试用：当前是否持有存活的托盘 */
   isAlive(): boolean {
     return !!this.tray && !this.tray.isDestroyed();
@@ -270,6 +272,15 @@ export class TrayManager {
     const gw = this.opts.models?.state();
     // GatewayStore 是唯一来源：有 models API 就用网关菜单（可为空，引导去「模型」页）
     const entries = gw ? gatewayMenuEntries(gw, t) : providerMenuEntries(state, t);
+
+    // 菜单内容摘要：条目标签 + 选中状态 + 是否有 overrideId；相同则跳过，避免无意义重建
+    const menuHash =
+      JSON.stringify(
+        entries.map((e) => ({ label: e.label, checked: e.checked, enabled: e.enabled })),
+      ) + String(!!state.overrideId);
+    if (menuHash === this.lastMenuHash) return;
+    this.lastMenuHash = menuHash;
+
     const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',

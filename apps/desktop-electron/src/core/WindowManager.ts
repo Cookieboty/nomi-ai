@@ -521,6 +521,28 @@ export class WindowManager implements IWindowManager {
       }, 800);
     });
 
+    // Windows DPI 变化（切换分辨率 / 缩放比例）时重新校正窗口位置和大小，并夹紧到工作区内
+    if (process.platform === 'win32') {
+      const onDisplayMetricsChanged = () => {
+        if (window.isDestroyed()) return;
+        const [x, y] = window.getPosition();
+        const [width, height] = window.getSize();
+        const wa = screen.getPrimaryDisplay().workArea;
+        const cx = Math.max(wa.x, Math.min(x, wa.x + wa.width - width));
+        const cy = Math.max(wa.y, Math.min(y, wa.y + wa.height - height));
+        setWindowBounds(window, { x: cx, y: cy, width, height });
+        this.configService.set('windowPosition.x', cx);
+        this.configService.set('windowPosition.y', cy);
+        this.configService.save().catch((error) => {
+          this.logger.warn('DPI 变化后保存窗口位置失败', { error: String(error) });
+        });
+      };
+      screen.on('display-metrics-changed', onDisplayMetricsChanged);
+      window.on('closed', () =>
+        screen.removeListener('display-metrics-changed', onDisplayMetricsChanged),
+      );
+    }
+
     // 桌面互动：点击穿透 / 拖拽 / 重力 / 漫步 / 全局光标
     this.mascotController?.dispose();
     let scaleSaveTimer: ReturnType<typeof setTimeout> | null = null;

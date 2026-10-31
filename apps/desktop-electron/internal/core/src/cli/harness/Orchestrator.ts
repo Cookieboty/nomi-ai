@@ -637,16 +637,23 @@ export class HarnessOrchestrator {
     }
   }
 
-  /** 原生文件夹选择器（不绑定到任何标签），取消返回 null */
-  async pickDirectory(defaultPath?: string): Promise<string | null> {
-    return this.showDirectoryPicker(defaultPath);
+  /** 原生文件夹选择器（不绑定到任何标签），取消返回 null。
+   * signal 由 IPC 层在页面刷新（did-navigate）时中止；选择器结果在刷新后直接丢弃，
+   * 避免用户在选择器打开期间刷新时旧结果被新页面错误消费。
+   */
+  async pickDirectory(defaultPath?: string, signal?: AbortSignal): Promise<string | null> {
+    const picked = await this.showDirectoryPicker(defaultPath);
+    if (signal?.aborted) return null;
+    return picked;
   }
 
-  /** 不挂父窗口的文件夹选择器（允许新建文件夹）；取消返回 null */
+  /** 挂到当前焦点窗口的文件夹选择器（允许新建文件夹）；取消返回 null */
   private async showDirectoryPicker(defaultPath?: string): Promise<string | null> {
     return this.d.ports.dialogs.pickDirectory({
       title: t('electron.common.choose-coding-assistant-working-directory'),
       createDirectory: true,
+      // 挂到当前获得焦点的窗口，避免选择器变成游离窗口在刷新后意外出现
+      parent: 'focused',
       ...(defaultPath ? { defaultPath } : {}),
     });
   }
