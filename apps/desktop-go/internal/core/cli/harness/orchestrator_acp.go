@@ -237,7 +237,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				summary = req.Get("summary")
 			}
 			o.onAcpEvents(id, live, []*util.Obj{
-				WithPermissionExpiry(util.NewObj("type", "permission", "id", pid, "summary", summary), o.permissionTimeoutMs(id)),
+				WithPermissionExpiry(util.NewObj("type", "permission", "id", pid, "summary", summary), o.PermissionTimeoutMs(id)),
 			})
 		})
 		child.OnClose(func(*int, string) {
@@ -369,7 +369,7 @@ func (o *Orchestrator) confirmAcpMode(tab *util.Obj, live *acpLiveSession) *jsrt
 
 func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*util.Obj) {
 	for _, raw := range evs {
-		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.permissionTimeoutMs(tabID))
+		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
 		if turn := live.turn; turn != nil {
 			turn.text, turn.breaks, ev = cli.FoldAssistantEvent(turn.text, turn.breaks, ev)
 			if ev.Get("type") != "text-delta" {

@@ -534,7 +534,7 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 	}
 	dropAfter := false
 	for _, raw := range live.parseLine(line) {
-		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.permissionTimeoutMs(tabID))
+		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
 		if turn == nil && isTurnContent(ev) {
 			turn = o.startAutoTurn(tabID, live)
 		}

@@ -205,7 +205,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 					ev.Set("text", nt)
 				}
 			}
-			ev = WithPermissionExpiry(clisdk.StampEvent(ev, nowMs()), o.permissionTimeoutMs(id))
+			ev = WithPermissionExpiry(clisdk.StampEvent(ev, nowMs()), o.PermissionTimeoutMs(id))
 			text, breaks, ev = cli.FoldAssistantEvent(text, breaks, ev)
 			if ev.Get("type") != "text-delta" {
 				events = append(events, ev)
