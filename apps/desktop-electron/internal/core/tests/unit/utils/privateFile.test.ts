@@ -25,6 +25,7 @@ import {
   tightenWindowsAcl,
   windowsAclUser,
   setPrivateRoot,
+  whenPrivateWritesIdle,
   writePrivateFile,
   writePrivateFileAtomic,
 } from '../../../src/utils/privateFile';
@@ -364,26 +365,68 @@ describe('writePrivateFileAtomic rename 重试', () => {
   });
   const busy = (code: string) => Object.assign(new Error(code), { code });
 
-  it('Windows 上目标被短暂占用（EPERM）时退避重试直到成功', () => {
+  it('同步版本：Windows 上目标被短暂占用（EPERM）时不在当前线程等，转到后台定时器重试（#154）', async () => {
     const file = path.join(dir, 'a.json');
-    let failures = 2;
-    const sleeps: number[] = [];
     __renameDeps.platform = () => 'darwin';
-    __renameDeps.rename = (from, to) => {
-      if (failures-- > 0) throw busy('EPERM');
-      fs.renameSync(from, to);
-    };
-    __renameDeps.sleep = (ms) => {
-      sleeps.push(ms);
-      return 'ok';
+    __renameDeps.rename = () => {
+      throw busy('EPERM');
     };
     expect(() => writePrivateFileAtomic(file, '{}')).toThrow('EPERM');
 
-    failures = 2;
     __renameDeps.platform = () => 'win32';
+    let failures = 2;
+    const sleeps: number[] = [];
+    __renameDeps.renameAsync = async (from, to) => {
+      if (failures-- > 0) throw busy('EPERM');
+      fs.renameSync(from, to);
+    };
+    __renameDeps.sleepAsync = (ms) => {
+      sleeps.push(ms);
+      return new Promise((r) => setTimeout(r, 1));
+    };
     writePrivateFileAtomic(file, '{"x":1}');
+    // 立即返回：还没落盘，同步写留下的 .tmp 已清掉
+    expect(fs.existsSync(file)).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual([]);
+    await whenPrivateWritesIdle();
     expect(fs.readFileSync(file, 'utf8')).toBe('{"x":1}');
     expect(sleeps).toEqual([10, 20]);
+    expect(fs.readdirSync(dir)).toEqual(['a.json']);
+  });
+
+  it('同步版本：同一路径还有后台写入时，之后的同步写排在它后面，最后一次调用的内容最后落盘', async () => {
+    const file = path.join(dir, 'e.json');
+    __renameDeps.platform = () => 'win32';
+    __renameDeps.writeFile = () => {
+      throw busy('EBUSY');
+    };
+    let failures = 1;
+    __renameDeps.writeFileAsync = async (f, data) => {
+      if (failures-- > 0) throw busy('EBUSY');
+      fs.writeFileSync(f, data);
+    };
+    __renameDeps.sleepAsync = () => new Promise((r) => setTimeout(r, 1));
+    writePrivateFile(file, 'old');
+    __renameDeps.writeFile = original.writeFile;
+    writePrivateFileAtomic(file, 'new');
+    expect(fs.existsSync(file)).toBe(false);
+    await whenPrivateWritesIdle();
+    expect(fs.readFileSync(file, 'utf8')).toBe('new');
+  });
+
+  it('同步版本：后台重试超时仍失败只记日志，不抛到调用方', async () => {
+    const file = path.join(dir, 'f.json');
+    fs.writeFileSync(file, 'keep');
+    __renameDeps.platform = () => 'win32';
+    __renameDeps.writeFile = () => {
+      throw busy('EACCES');
+    };
+    __renameDeps.writeFileAsync = async () => {
+      throw busy('ENOSPC');
+    };
+    expect(() => writePrivateFile(file, 'lost')).not.toThrow();
+    await whenPrivateWritesIdle();
+    expect(fs.readFileSync(file, 'utf8')).toBe('keep');
   });
 
   it('非瞬时错误不重试', () => {
@@ -409,8 +452,6 @@ describe('writePrivateFileAtomic rename 重试', () => {
       sleeps.push(ms);
       return new Promise((r) => setTimeout(r, 1));
     };
-    const sync = jest.fn();
-    __renameDeps.sleep = sync;
     let ticks = 0;
     const timer = setInterval(() => ticks++, 0);
     try {
@@ -420,7 +461,6 @@ describe('writePrivateFileAtomic rename 重试', () => {
     }
     expect(fs.readFileSync(file, 'utf8')).toBe('{"y":2}');
     expect(sleeps).toEqual([10, 20, 40]);
-    expect(sync).not.toHaveBeenCalled();
     expect(ticks).toBeGreaterThan(0);
     expect(fs.readdirSync(dir)).toEqual(['c.json']);
   });

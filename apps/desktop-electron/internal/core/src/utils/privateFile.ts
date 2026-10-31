@@ -324,6 +324,20 @@ function secureOverwrittenFile(file: string, dirPrivate: boolean, before: string
   if (tightenWindowsAcl(file, 'file')) rememberPrivateFile(file, identity(file));
 }
 
+async function secureOverwrittenFileAsync(
+  file: string,
+  dirPrivate: boolean,
+  before: string | null,
+): Promise<void> {
+  if (before === null && dirPrivate) {
+    rememberPrivateFile(file, await identityAsync(file));
+    return;
+  }
+  if (before !== null && privateFiles.get(keyOf(file)) === before) return;
+  if (await tightenWindowsAclAsync(file, 'file'))
+    rememberPrivateFile(file, await identityAsync(file));
+}
+
 /** 记下「本进程确认是私有的」文件身份，之后对同一文件的覆盖写跳过 icacls */
 function rememberPrivateFile(file: string, id: string | null): void {
   if (id) privateFiles.set(keyOf(file), id);
@@ -345,25 +359,23 @@ export function ensurePrivateDir(dir: string): void {
   else if (tightenDirSync(dir, k, id, false)) fallbackDirs.delete(k);
 }
 
+/**
+ * 普通覆盖写（保留文件身份：软链、硬链、外部程序盯着的配置文件照旧）。
+ * Windows 上目标被杀软 / 索引器短暂占用时不在当前线程等：这次写入转到按路径串行的异步队列里
+ * 用定时器退避重试（约 2 秒预算），当前调用立即返回，失败只记日志（#154）。
+ */
 export function writePrivateFile(file: string, data: string): void {
+  // 同一路径还有转到后台的写入：这次也排进去，落盘顺序与调用顺序一致
+  if (deferred.has(file)) return deferWrite(file, () => writePlainNow(file, data));
   const win = process.platform === 'win32';
   // 目录检查放在写之前：目录此刻收紧的话，接下来新建的文件直接继承私有 ACL
   const dirPrivate = win && dirIsPrivate(path.dirname(file));
   const before = win ? identity(file) : null;
-  // Windows 上杀软/索引器短暂占用目标文件时 writeFileSync 会抛 EPERM/EACCES/EBUSY；
-  // 退避重试，与原子写的 rename 策略保持一致（2 秒预算，10ms 起步）
-  const deadline = win ? Date.now() + RENAME_RETRY_MS : 0;
-  let delay = 10;
-  for (;;) {
-    try {
-      fs.writeFileSync(file, data, { mode: 0o600 });
-      break;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (!win || !code || !RENAME_RETRY_CODES.has(code) || Date.now() >= deadline) throw error;
-      __renameDeps.sleep(delay);
-      delay = Math.min(delay * 2, 100);
-    }
+  try {
+    __renameDeps.writeFile(file, data);
+  } catch (error) {
+    if (!isTransientRenameError(error)) throw error;
+    return deferWrite(file, () => writePlainNow(file, data), error);
   }
   try {
     fs.chmodSync(file, 0o600);
@@ -379,9 +391,10 @@ const RENAME_RETRY_MS = 2_000;
 /** @internal 单测注入 */
 export const __renameDeps = {
   rename: (from: string, to: string) => fs.renameSync(from, to),
+  writeFile: (file: string, data: string) => fs.writeFileSync(file, data, { mode: 0o600 }),
   platform: () => process.platform,
-  sleep: (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
   renameAsync: (from: string, to: string) => fsp.rename(from, to),
+  writeFileAsync: (file: string, data: string) => fsp.writeFile(file, data, { mode: 0o600 }),
   sleepAsync: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
 };
 
@@ -391,30 +404,47 @@ const isTransientRenameError = (error: unknown) =>
 
 /**
  * Windows 上目标文件正被别的进程短暂打开（杀软 / 索引器扫描刚写的文件、其他进程读取）时
- * MoveFileEx 会报 EPERM/EACCES/EBUSY；这是瞬时占用，退避重试，超时仍失败才抛出。
- * 同步版本只能用 Atomics.wait 原地等待（会挡住当前线程），但只在真的遇到瞬时占用时才等：
- * 退避从 10ms 起、单次最多 100ms，正常写入一次 rename 成功、完全不等。总预算保留 2 秒——杀软扫描
- * 常见占用就是几百毫秒，再缩短会把可恢复的占用变成保存失败；不想等的调用方用异步版本（定时器退避）。
+ * 写入 / MoveFileEx 会报 EPERM/EACCES/EBUSY。这是瞬时占用：异步写用定时器退避重试（10ms 起、
+ * 单次最多 100ms、总预算 2 秒——杀软扫描常见占用就是几百毫秒），超时仍失败才抛出。
+ * 同步写不在当前线程里睡眠等待（主进程会卡住所有窗口与 IPC，#154），而是把这次写入转给异步队列。
  */
-function renameWithRetry(from: string, to: string): void {
+async function retryTransient(op: () => Promise<void>): Promise<void> {
   const deadline = Date.now() + RENAME_RETRY_MS;
   for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
     try {
-      __renameDeps.rename(from, to);
+      await op();
       return;
     } catch (error) {
       if (!isTransientRenameError(error) || Date.now() >= deadline) throw error;
-      __renameDeps.sleep(delay);
+      await __renameDeps.sleepAsync(delay);
     }
   }
 }
 
+/** 由同步写转到后台、还没结束的写入数（按路径）；同一路径之后的同步写排在它们后面 */
+const deferred = new Map<string, number>();
+
+/** 同步写遇到瞬时占用（或同一路径已有转到后台的写入）：排进异步队列，当前调用立即返回；最终失败记日志 */
+function deferWrite(file: string, job: () => Promise<void>, busy?: unknown): void {
+  deferred.set(file, (deferred.get(file) ?? 0) + 1);
+  if (busy)
+    log.warn('目标文件被占用，改为后台重试写入', file, (busy as NodeJS.ErrnoException).code);
+  void enqueueWrite(file, job)
+    .catch((error) => log.error('后台重试写入仍失败', file, error))
+    .finally(() => {
+      const n = (deferred.get(file) ?? 1) - 1;
+      if (n > 0) deferred.set(file, n);
+      else deferred.delete(file);
+    });
+}
+
 /**
  * 原子写：先写 0600 的 .tmp，再 rename；目录不是私有目录时最后逐文件收紧目标权限。
- * 同步版本在 Windows 文件被占用时会在当前线程里等待重试；主进程里响应界面操作（IPC）的写入用
- * writePrivateFileAtomicAsync，等待期间不挡事件循环（#154）。
+ * Windows 上目标被短暂占用时同 writePrivateFile：转到异步队列重试，当前调用立即返回（#154）；
+ * 需要知道是否写成功的调用方用 writePrivateFileAtomicAsync。
  */
 export function writePrivateFileAtomic(file: string, data: string): void {
+  if (deferred.has(file)) return deferWrite(file, () => writeAtomicNow(file, data));
   const tmp = `${file}.tmp`;
   const win = process.platform === 'win32';
   // 先确定目录是否私有，再建临时文件：rename 后目标带的是临时文件的 ACL
@@ -431,7 +461,17 @@ export function writePrivateFileAtomic(file: string, data: string): void {
   // 逐文件兜底在 rename 之前收紧临时文件：显式 ACE 随文件一起 rename，目标出现时就已私有；
   // 失败时 rename 后再对目标补一次
   const tmpPrivate = win && !dirPrivate && tightenWindowsAcl(tmp, 'file');
-  renameWithRetry(tmp, file);
+  try {
+    __renameDeps.rename(tmp, file);
+  } catch (error) {
+    if (!isTransientRenameError(error)) throw error;
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      /* 残留的 .tmp 下次同步写会覆盖 */
+    }
+    return deferWrite(file, () => writeAtomicNow(file, data), error);
+  }
   try {
     fs.chmodSync(file, 0o600);
   } catch {
@@ -452,8 +492,12 @@ let tmpSeq = 0;
  * 等待期间主进程照常处理其他事件 / IPC。同一路径串行，各次写入用各自的临时文件，失败时清掉临时文件再抛出。
  */
 export function writePrivateFileAtomicAsync(file: string, data: string): Promise<void> {
+  return enqueueWrite(file, () => writeAtomicNow(file, data));
+}
+
+function enqueueWrite(file: string, job: () => Promise<void>): Promise<void> {
   const prev = writeQueues.get(file) ?? Promise.resolve();
-  const run = prev.catch(() => undefined).then(() => writeAtomicNow(file, data));
+  const run = prev.catch(() => undefined).then(job);
   const tail = run.catch(() => undefined);
   writeQueues.set(file, tail);
   void tail.then(() => {
@@ -484,16 +528,7 @@ async function writeAtomicNow(file: string, data: string): Promise<void> {
     await fsp.writeFile(tmp, data, { mode: 0o600 });
     // 同步版本的说明：兜底时先收紧临时文件，rename 后目标即私有，没有非私有的窗口期
     tmpPrivate = win && !dirPrivate && (await tightenWindowsAclAsync(tmp, 'file'));
-    const deadline = Date.now() + RENAME_RETRY_MS;
-    for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
-      try {
-        await __renameDeps.renameAsync(tmp, file);
-        break;
-      } catch (error) {
-        if (!isTransientRenameError(error) || Date.now() >= deadline) throw error;
-        await __renameDeps.sleepAsync(delay);
-      }
-    }
+    await retryTransient(() => __renameDeps.renameAsync(tmp, file));
   } catch (error) {
     await fsp.rm(tmp, { force: true }).catch(() => undefined);
     throw error;
@@ -507,4 +542,18 @@ async function writeAtomicNow(file: string, data: string): Promise<void> {
   if (dirPrivate || tmpPrivate || (await tightenWindowsAclAsync(file, 'file'))) {
     rememberPrivateFile(file, await identityAsync(file));
   }
+}
+
+/** writePrivateFile 的异步版本（只由同步写转过来）：覆盖写，占用时定时器退避重试 */
+async function writePlainNow(file: string, data: string): Promise<void> {
+  const win = process.platform === 'win32';
+  const dirPrivate = win && (await dirIsPrivateAsync(path.dirname(file)));
+  const before = win ? await identityAsync(file) : null;
+  await retryTransient(() => __renameDeps.writeFileAsync(file, data));
+  try {
+    await fsp.chmod(file, 0o600);
+  } catch {
+    /* Windows 等平台忽略 */
+  }
+  if (win) await secureOverwrittenFileAsync(file, dirPrivate, before);
 }
