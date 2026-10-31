@@ -22,6 +22,17 @@ Go 版**（见下文「2.0.4 → Go 版」）。Electron 版仍随同一个 Rele
 
 1. 同步版本号（`package.json`、`apps/desktop-electron/package.json`，Go 打包读后者），写 `docs/releases/vX.Y.Z.md`。
 2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿（tag 上不再重跑测试，直接打包发布）。
+
+   发版分支（`release/X.Y.Z` → PR → `main`）怎么少等一轮：
+   - 普通 PR 上 `CI` 只跑 Linux `quality` 与 `changeset status`；三平台 `quality`、e2e、dev-smoke、Electron 打包要到 push `main`
+     才跑。`desktop-go` 在 PR 与 `main` 上跑的是同一组任务。
+   - 发版 PR 加 `ci:full` 标签：完整矩阵（含安装包打包与安装验证）在合并前就跑完。
+   - 合并后先比较代码树：`git rev-parse <合并提交>^{tree}` 与 `git rev-parse <PR 最后一个提交>^{tree}` 相同（发版分支从当时的
+     `main` 拉出、期间 `main` 没有新提交），说明合并后的代码就是 PR 测过的那份，PR 带 `ci:full` 全绿即可直接打 tag；
+     树不同，或 PR 没带 `ci:full`，就等 `main` 上的 `CI` 与 `desktop-go` 跑完再打 tag。
+   - 同一个提交上可能有两次 `CI`（push `main` 与 push tag）。看 `main` 的结果时按事件区分，
+     `gh run list --commit <sha>` 默认先列出最新的（tag 那次，quality / e2e 都跳过）。
+
 3. 打 tag 并推送：`git tag -a vX.Y.Z -m "Nomi X.Y.Z" && git push origin vX.Y.Z`。
 4. 等 `desktop-go-package` 与 `CI` 都跑完：Release 应有
    - Go 版：`Nomi-X.Y.Z-arm64.dmg`、`Nomi-X.Y.Z-arm64-mac.zip`、`Nomi-X.Y.Z.dmg`、`Nomi-X.Y.Z-mac.zip`、`Nomi-Setup-X.Y.Z.exe`、
