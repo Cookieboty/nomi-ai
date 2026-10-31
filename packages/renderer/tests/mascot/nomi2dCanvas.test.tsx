@@ -144,7 +144,8 @@ describe('Nomi2DCanvas → AvatarStage', () => {
     );
     await waitFor(() => expect(h.last!.character.mode).toBe(BUNDLED_PACK.mode));
     expect(h.last!.character.assets.rive).toBe(riveUrl);
-    expect(h.last!.character.assets.static).toBeNull();
+    // Rive 加载失败时回到静态立绘（avatar-runtime 的回退）
+    expect(h.last!.character.assets.static).toBeTruthy();
   });
 
   it('Scheme B overlay on svg: the overlay’s own image, never the bundled pack’s art', async () => {

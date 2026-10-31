@@ -73,6 +73,8 @@ Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`�
 
 ### 工作方式（参数驱动的 2D 分层骨架）
 
+> 分层骨架用于 `sprite` 模式的角色包。2.0.8 起官方 Nomi 不再带分层立绘：默认显示静态 SVG 立绘，开启动画后用 Rive，Rive 无法启动时回到静态立绘。
+
 - 每个动作是一组**关键帧轨道**，驱动命名参数（头 / 身体 / 左右臂的肩角、肘角、手形 / 眼 / 眉 / 嘴 / 脸红 / 特效），带缓入缓出、回弹（约 200–350 ms）与淡入淡出；空闲层（呼吸、眨眼、视线、摆动、口型）始终叠加在上面。
 - **手臂**：原始袖子图层只做一次透明度切分（上臂、前臂、肩缝，颜色全部来自原图），上臂与前臂在肘部各带一个圆形袖口帽，所以弯肘时袖子轮廓始终圆润、口袋 / 束带随袖子刚性转动而不被拉伸；抬手过程中前臂按速度做透视缩短（朝向镜头），末端接**手部件**（`layers/hands/`，6 种手形：挥手、握拳、点赞、食指、放松、剪刀手；左手由右手镜像）。
 - **表情**：眼睛（睁 / 半闭 / 闭 / ^^ / 惊讶 / 难过 / 坚定 / 犯困）与嘴（微笑 / 张嘴 / o / 撇嘴 / 波浪 / 猫嘴 / 吐舌 / 大笑 / 哈欠 / 嘟嘴）由原图层 + 矢量笔画派生；眉毛、脸红、汗滴、泪、怒气、爱心、星星、?、!、ZZZ、音符都是品牌色矢量叠加。
@@ -81,16 +83,12 @@ Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`�
 
 ### 品牌锁
 
-**除动作 / 姿态外，一切都必须与认可的原画完全一致**：发夹（N 发夹 + 橙色蝴蝶结、两根橙色发卡）、耳坠、颈带与星形挂饰、外套细节、胸前 N 标志、工牌、腰带、颜色、脸。因此：
-
-- 绝不用图像生成重绘整张图或头部；品牌部件只来自官方原画的裁切（`scripts/brand/fix-nomi-brand-parts.py`；头发下摆与领口见 `scripts/brand/fix-nomi-hair-collar.py`，取自 `docs/brand/reference/nomi-clean-halfbody.jpg`）。
-- `brand-lock.json` 记录所有图层 PNG 的 sha256 与图层位置；单元测试 `tests/mascot/brandLock.test.ts` 在 CI 里校验，并对**每个动作的每一帧**检查品牌图层：都被绘制、不透明、只有旋转 + 等比缩放（无剪切 / 挤压）、留在画布内。
-- 只有手 / 前臂部件是 AI 生成的（非品牌、无品牌细节）。详见 [品牌规范](../BRAND.md#9-品牌锁) 与 [CREDITS](../../CREDITS.md)。
+除动作 / 姿态外，一切都必须与认可的原画完全一致。规则与素材来源见 [品牌规范](../BRAND.md#9-品牌锁)。
 
 ### 新增一个动作
 
 1. 在 `actions.ts` 的 `ACTIONS` 里加一项：`id`（英文小写下划线）、`label`（中文名）、`category`、`dur`、`trigger` 与轨道。手臂用 `arm()` / `both()`，姿态取 `P` 里已经解过的肩 / 肘 / 腕角度（保证手落在头周围的空地、不出画布）。
-2. 只改**动作与姿态参数**，不要改任何图层、锚点或布局；否则 `brandLock` 测试会失败。
+2. 只改**动作与姿态参数**，不要改任何图层、锚点或布局。
 3. 在本页的表里补一行；`rigActions.test.ts` 会检查 id / 中文名 / 参数范围；如需新的界面文案，在 `packages/i18n/src/locales/<language>/ui/mascot-theme.json` 同步增加稳定 key。
 4. 想让它自动触发：在 `expressionDirector.ts`（事件 → 动作）或 `idleBehavior.ts`（空闲池，给动作加 `idle: true`）接线。
 5. 运行 `pnpm --filter @nomi-ai/renderer test`，并在真实应用里目测：头不乱跳、手与袖子接缝自然、四肢不被画布边缘截断、品牌部件不变形。
@@ -127,11 +125,11 @@ Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`�
 
 ## 角色
 
-只内置 Nomi 一个角色（2D，Rive 动画，不可用时退回分层立绘），不提供角色切换、模型商店或导入自己的模型。旧版本里记住的其它角色会在升级后自动换回 Nomi。
+只内置 Nomi 一个角色（2D：默认静态立绘；开启动画后用 Rive，动画素材首次开启时下载，Rive 不可用时退回静态立绘），不提供角色切换、模型商店或导入自己的模型。旧版本里记住的其它角色会在升级后自动换回 Nomi。
 
 - **致谢**：工具栏「更多」→「致谢 / Credits」，列出角色与图标的作者与许可。
 
 ## 技术说明
 
-- Nomi 由透明 PNG 图层在 Canvas2D 上合成（`packages/avatar-runtime/src/layeredRig.ts`），不依赖 WebGL；动作系统见上文「动作」。
+- Nomi 默认是一张静态 SVG 立绘；开启动画后由 Rive 渲染（`.riv` 是远程素材，见 [远程角色素材](../design/remote-character-assets.md)）。分层骨架（`packages/avatar-runtime/src/layeredRig.ts`，Canvas2D，不依赖 WebGL）只给 `sprite` 模式的角色包用。
 - Linux 的点击穿透用窗口形状实现；Wayland 下全局光标位置不可用。

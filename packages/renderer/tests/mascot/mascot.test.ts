@@ -50,7 +50,8 @@ describe('catalog', () => {
     const list = parseCatalog(modelListFor(pack));
     expect(list.map((m) => m.name)).toEqual(['nomi']);
     expect(list[0].license).toBe('MIT'); // owner-provided, AI-generated
-    expect(list[0].path).toBe('./character/sprite/manifest.json');
+    // 2.0.8 起官方包不带分层 sprite：path 退回包的 manifest（Rive 失败时回到静态立绘）
+    expect(list[0].path).toBe('./character/manifest.json');
     expect(list.some((m) => m.path.endsWith('.vrm'))).toBe(false);
   });
 });

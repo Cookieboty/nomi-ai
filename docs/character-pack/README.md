@@ -3,7 +3,7 @@
 产品一次只带 **一套** 完整角色。官方角色 Nomi 也只是一个普通角色包：[`characters/nomi`](../../characters/nomi)。
 换肤 = 构建时选另一个包（`CHARACTER_PACK=<dir>`），或运行时放一个覆盖包；仓库里的文件不会被改写。
 
-> **第三方 / fork 请先读 → [REPLACING.md](./REPLACING.md)**（新建包、校验、构建、运行时覆盖、brand-lock）。
+> **第三方 / fork 请先读 → [REPLACING.md](./REPLACING.md)**（新建包、校验、构建、运行时覆盖、远程素材）。
 
 ## 快速开始
 
@@ -39,7 +39,7 @@ CHARACTER_PACK=../my-character.pack pnpm build
 5. 单角色；无商店 / 切换 UI；UI 主题、`appId`、产品名不进包。
 6. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见
    [`voice-ids.json`](../../packages/character-contract/voice-ids.json)），旧 key 别名保留一版。
-7. 官方 CI 锁定 `characters/nomi/sprite` 的品牌图层；fork 可用 `CHARACTER_PACK_SKIP_BRAND_LOCK=1`。
+7. 体积大的素材可以声明为远程（`assets.remote`），用到时由应用下载；官方包的 `.riv` 就是远程素材（[远程角色素材](../design/remote-character-assets.md)）。
 8. `static` 模式为一等公民；替身包 [`characters/test-dummy`](../../characters/test-dummy) 用它验证「换了角色就不再出现 Nomi」。
 
 ## 文档

@@ -546,7 +546,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 - 视图禁止 import `core`、`host-*`；内核禁止 import 任何视图包与 `ui`。
 - 任何包禁止 import `characters/*`，只能经包解析读取。
 
-工具：ESLint `no-restricted-imports` + `no-restricted-syntax` / `no-restricted-globals` 与自定义规则 `nomi/no-dynamic-electron`，全部 error 级（`eslint.config.mjs`）：第一条由 `ELECTRON_FREE_PACKAGES` 与动态加载规则守住（白名单为空）；第二条禁止视图访问上述全局；第三条是视图（`renderer`、`ai-chat`、`ai-sdk-client`、`ui`、`voice`）不 import `@nomi-ai/core` / `@nomi-ai/host-*`，内核不 import 视图包与 `ui`；第四条是所有包的 `CHARACTER_PACK_IMPORT`（`**/characters/**`）。唯一的例外是 renderer 的 `spriteLayout.test.ts` 读内核的窗口尺寸做一致性断言，行内注明理由。
+工具：ESLint `no-restricted-imports` + `no-restricted-syntax` / `no-restricted-globals` 与自定义规则 `nomi/no-dynamic-electron`，全部 error 级（`eslint.config.mjs`）：第一条由 `ELECTRON_FREE_PACKAGES` 与动态加载规则守住（白名单为空）；第二条禁止视图访问上述全局；第三条是视图（`renderer`、`ai-chat`、`ai-sdk-client`、`ui`、`voice`）不 import `@nomi-ai/core` / `@nomi-ai/host-*`，内核不 import 视图包与 `ui`；第四条是所有包的 `CHARACTER_PACK_IMPORT`（`**/characters/**`）。
 
 ### 11.2 名字扫描
 

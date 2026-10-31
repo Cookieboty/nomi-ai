@@ -202,7 +202,7 @@ func JSNumber(f float64) string {
 		return "0"
 	}
 	a := math.Abs(f)
-	if a >= 1e-7 && a < 1e21 {
+	if a >= 1e-6 && a < 1e21 { // ECMAScript Number::toString：小于 1e-6 用指数形式
 		return strconv.FormatFloat(f, 'f', -1, 64)
 	}
 	s := strconv.FormatFloat(f, 'e', -1, 64) // 1.5e+21 / 1e-07
