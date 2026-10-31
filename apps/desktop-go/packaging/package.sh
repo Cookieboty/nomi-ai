@@ -111,7 +111,7 @@ windows)
   log "makensis"
   MAKENSIS="$(command -v makensis || echo "/c/Program Files (x86)/NSIS/makensis.exe")"
   w() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
-  "$MAKENSIS" -V3 -DVERSION="$VERSION" -DSTAGE="$(w "$STAGE")" -DOUTFILE="$(w "$OUT/Nomi-Setup-$VERSION.exe")" "$(w "$HERE/windows/installer.nsi")"
+  "$MAKENSIS" -V3 -INPUTCHARSET UTF8 -DVERSION="$VERSION" -DSTAGE="$(w "$STAGE")" -DOUTFILE="$(w "$OUT/Nomi-Setup-$VERSION.exe")" "$(w "$HERE/windows/installer.nsi")"
   win_sign "$OUT/Nomi-Setup-$VERSION.exe"
   endg
   ;;
