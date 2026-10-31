@@ -221,26 +221,6 @@ export class Application implements IApplication {
       }
       this.logger.info('Electron应用准备就绪');
 
-      // Windows 开机自启动：仅打包版生效；静默启动只在托盘显示，不弹出窗口
-      if (process.platform === 'win32' && app.isPackaged) {
-        const configService = this.core.services.config;
-        const applyLoginItem = () => {
-          const openAtLogin = configService?.getConfig().openAtLogin ?? false;
-          app.setLoginItemSettings({
-            openAtLogin,
-            openAsHidden: true,
-            args: ['--silent-start'],
-          });
-        };
-        applyLoginItem();
-        // 用户在设置里切换开机自启动时实时同步到系统
-        if (configService)
-          this.lifecycle.register({
-            name: 'login-item-sync',
-            stop: configService.onChange(() => applyLoginItem()),
-          });
-      }
-
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
       registerChatAssetProtocol(this.ports);
 
