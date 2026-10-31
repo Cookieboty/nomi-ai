@@ -19,6 +19,7 @@ import { z } from 'zod';
 import type { AppEventName, AppEvents } from '../../core/appEvents';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
+import { createMainLogger } from '../../utils/log';
 import { writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { HarnessStoppedError, type HarnessOrchestrator } from '../CliHarnessService';
 import type { HarnessGateway } from '../harness/liveTypes';
@@ -52,6 +53,8 @@ import {
   releaseIsolation,
   type IsolationHandle,
 } from './worktree';
+
+const log = createMainLogger('delegate');
 
 const CLI_NAME: Record<DelegateCli, string> = {
   claude: 'Claude Code',
@@ -856,7 +859,7 @@ export class DelegateService {
       const takenOver = this.d.harness.listTabs().tabs.find((x) => x.id === task.taskId)
         ?.delegation?.takenOver;
       if (!takenOver) {
-        await releaseIsolation(task.isolation, (m) => console.warn(`[delegate] ${m}`));
+        await releaseIsolation(task.isolation, (m) => log.warn(m));
       }
     }
     if (report) {

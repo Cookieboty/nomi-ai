@@ -2,6 +2,9 @@
  * 事件总线 - 用于模块间解耦通信
  * 实现发布-订阅模式。没有模块级实例：谁需要谁 new 一个（一个进程可以有多个内核，§7.1）。
  */
+import { createMainLogger } from '../utils/log';
+
+const log = createMainLogger('event-bus');
 
 export interface IEventBus {
   emit(event: string, data?: any): void;
@@ -24,7 +27,7 @@ export class EventBus implements IEventBus {
         try {
           handler(data);
         } catch (error) {
-          console.error(`EventBus: Error in handler for event '${event}':`, error);
+          log.error(`Error in handler for event '${event}':`, error);
         }
       });
     }

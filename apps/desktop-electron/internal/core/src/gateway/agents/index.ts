@@ -13,7 +13,10 @@ import type { ClientModels } from '@nomi-ai/gateway';
 
 import { ensureAccountHome, userCliHome } from '../../cli/accounts/homes';
 import { patchDshYaml } from '../../cli/configPatch';
+import { createMainLogger } from '../../utils/log';
 import { DEFAULT_CTX, DEFAULT_MAX_OUTPUT } from '../modelMeta';
+
+const log = createMainLogger('gateway/agents');
 
 export { DEFAULT_CTX, DEFAULT_MAX_OUTPUT };
 
@@ -282,9 +285,9 @@ function grok(c: LaunchContext): AgentLaunch {
     platform: process.platform,
   });
   if (problems.length) {
-    // LaunchContext 无 logger：写 stderr，主进程日志仍能看见（Windows 无特权时常见）
-    console.warn(
-      '[gateway/agents] grok private home softlink problems',
+    // LaunchContext 无 logger：走模块 logger，主进程日志仍能看见（Windows 无特权时常见）
+    log.warn(
+      'grok private home softlink problems',
       problems.map((p) => `${p.entry}: ${p.reason}`).join('; '),
     );
   }
