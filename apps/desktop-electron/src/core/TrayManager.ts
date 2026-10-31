@@ -324,10 +324,15 @@ export class TrayManager {
       { type: 'separator' },
       { label: t('electron.common.quit'), click: () => this.opts.quit() },
     ];
-    // 菜单内容摘要（整份模板的文字与状态，含角色名、语言）：相同则跳过，避免 Windows 11 托盘菜单闪烁
-    const menuHash = JSON.stringify(template, (key, value) =>
-      typeof value === 'function' ? undefined : value,
-    );
+    // 菜单摘要：整份模板的文字与状态（含角色名、语言），加上每个模型项点击时选的 id / ref。
+    // 相同则跳过，避免 Windows 11 托盘菜单闪烁。点击回调本身不进 JSON，同名模型（不同供应商、同样的
+    // 显示名）换了顺序时只看文字会漏掉，旧回调就会选错模型（#212）
+    const menuHash = JSON.stringify({
+      template: JSON.stringify(template, (key, value) =>
+        typeof value === 'function' ? undefined : value,
+      ),
+      actions: entries.map((e) => [e.id, e.ref ?? null]),
+    });
     if (menuHash === this.lastMenuHash) return;
     this.lastMenuHash = menuHash;
     this.tray.setContextMenu(Menu.buildFromTemplate(template));
