@@ -137,6 +137,23 @@ describe('CharacterAssets', () => {
     expect(fs.readdirSync(path.join(root, 'nomi'))).toEqual([]);
   });
 
+  it('a local write error fails the download instead of escaping as an uncaught error (#216)', async () => {
+    const r = remote({ 'nomi-rive-aaa.riv': v1 }, 'nomi-rive-aaa.riv');
+    // .part 是个目录：打开写入流失败（EISDIR），与磁盘满 / 权限 / 被占用同一条路径
+    fs.mkdirSync(path.join(root, 'nomi', 'nomi-rive-aaa.riv.part'), { recursive: true });
+    const uncaught = jest.fn();
+    process.on('uncaughtException', uncaught);
+    try {
+      const s = await make(r).ensure();
+      await new Promise((res) => setTimeout(res, 20));
+      expect(s).toMatchObject({ status: 'error', remote: true });
+      expect(s.error).toMatch(/EISDIR|illegal operation/i);
+      expect(uncaught).not.toHaveBeenCalled();
+    } finally {
+      process.off('uncaughtException', uncaught);
+    }
+  });
+
   it('offline: keeps the cached asset; without a cache reports an error to retry', async () => {
     const r = remote({ 'nomi-rive-aaa.riv': v1 }, 'nomi-rive-aaa.riv');
     await make(r).ensure();
