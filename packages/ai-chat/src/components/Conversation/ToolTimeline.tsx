@@ -342,9 +342,8 @@ export function generatedImageModel(
 const GeneratedImageCaption: React.FC<{ call: ToolCall }> = ({ call }) => {
   const m = generatedImageModel(call);
   if (!m) return null;
-  const full = m.provider ? `${m.provider}/${m.model}` : m.model;
   return (
-    <div className={styles.generatedCaption} title={full} data-testid="tool-generated-model">
+    <div className={styles.generatedCaption} data-testid="tool-generated-model">
       {t('ui.media.generated-by', m.model.slice(m.model.lastIndexOf('/') + 1))}
       {m.auto && <span className={styles.generatedAuto}>{t('ui.media.auto-matched')}</span>}
     </div>

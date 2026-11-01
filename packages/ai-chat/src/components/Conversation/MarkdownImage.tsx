@@ -29,7 +29,6 @@ export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ sr
         className={styles.imgBtn}
         onClick={() => setOpen(true)}
         aria-label={t('ui.usage-tools.view-full-image')}
-        title={t('ui.usage-tools.view-full-image')}
         data-testid="md-img"
       >
         <img

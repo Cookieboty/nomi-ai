@@ -34,7 +34,6 @@ describe('生图结果', () => {
     const cap = r.getByTestId('tool-generated-model');
     expect(cap.textContent).toContain('由 gpt-image-2 生成');
     expect(cap.textContent).toContain('自动匹配');
-    expect(cap.getAttribute('title')).toBe('amux/openai/gpt-image-2');
   });
 
   it('运行中 / 失败 / 别的工具：不显示', () => {
