@@ -56,6 +56,80 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v209">
+          <header class="release-head">
+            <h2 data-i18n="cl.v209.title">v2.0.9 — Nomi 能画图、素材库、命令自动审核、设置新增「Nomi」分区</h2>
+            <time datetime="2026-11-01">2026-11-01</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v209.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v209.feat.1">Nomi 对话可以画图：在「设置 → 模型」里给 Nomi 选一个图片模型，没选时按当前对话模型自动匹配同一家的图片模型（图片下面会注明「自动匹配」）；匹配不到时不会画图。图片直接显示在对话里，下面注明由哪个模型生成；支持改图与参考图生成。图片模型不再出现在对话和编程助手的模型选择里</li>
+            <li data-i18n="cl.v209.feat.2">素材库：侧栏会话列表上方新增入口，整页浏览所有生成的图片（Nomi 画的、编程助手生成的），可按来源筛选；查看器里能看提示词、模型、尺寸与生成时间，可以重新生成、以此修改、作为参考、下载、在文件夹中显示和删除（移到废纸篓）</li>
+            <li data-i18n="cl.v209.feat.3">命令自动审核（设置 →「Nomi」→「权限」，默认开）：Nomi 跑命令前先让辅助模型按风险分低 / 中 / 高 / 极高；低风险直接执行，中风险在这一轮没读过外部内容时直接执行，高 / 极高风险、读过外部内容的中风险、审核出错或超时时交给你确认，卡片上写明风险等级与理由。这改变了 2.0.8 的「每条命令都要确认」：想回到每条都确认，关掉这个开关即可</li>
+            <li data-i18n="cl.v209.feat.4">设置新增「Nomi」分区：权限、委派、桌面权限集中在这里，和编程助手分开</li>
+            <li data-i18n="cl.v209.feat.5">Nomi 派给编程助手的子任务，点「查看」会在右侧抽屉里打开它的完整对话，运行中可以直接停止</li>
+            <li data-i18n="cl.v209.feat.6">输入栏的上下文环按实际路由到的模型窗口显示；模型菜单按供应商分标签、按厂商筛选与分组，模型名更短、右侧显示上下文长度</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v209.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v209.imp.1">闲聊时发给模型的工具定义从约 8.5K token 降到约 2K：提醒、浏览器、文件、生图等工具只在对话提到相关的事时才提供</li>
+            <li data-i18n="cl.v209.imp.2">用量按每次上游请求记账，多步工具调用不再只记最后一步</li>
+            <li data-i18n="cl.v209.imp.3">长期记忆合并说法几乎一样的重复条目，对话里同一件事只引用一次</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v209.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v209.fix.1">Nomi 正在回复时切到别的会话再切回来，这一轮的内容和用时都还在；停止对话时进行中的生图也一起中止</li>
+            <li data-i18n="cl.v209.fix.2">Windows 上 Nomi 委派编程助手、跑命令时不再闪出黑色控制台窗口；macOS 上移到废纸篓不再弹「控制 Finder」授权</li>
+            <li data-i18n="cl.v209.fix.3">新手引导里填本机 / 局域网地址时，「允许访问吗？」确认框不再被引导页挡住</li>
+            <li data-i18n="cl.v209.fix.4">被拒绝或被拦下的工具调用在时间线上显示为失败，不再打 ✓</li>
+            <li data-i18n="cl.v209.fix.5">素材库查看器里删除、下载、在文件夹中显示失败时会提示原因；日期按界面语言显示，模型显示供应商名称</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.9" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
+        <article class="release" id="v208">
+          <header class="release-head">
+            <h2 data-i18n="cl.v208.title">v2.0.8 — 角色动画按需下载、Codex / Grok 上下文压缩、Windows 更新更快</h2>
+            <time datetime="2026-10-31">2026-10-31</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v208.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v208.feat.1">桌面角色的 Rive 动画改为按需下载：安装包不再自带约 16 MB 的动画素材，默认显示静态立绘；在设置里打开动画时才下载，设置页显示下载进度，失败可以重试，下载过一次后离线也能用</li>
+            <li data-i18n="cl.v208.feat.2">安装包不再带 2D 分层立绘：Rive 动画无法启动时直接回到静态立绘</li>
+            <li data-i18n="cl.v208.feat.3">Codex 和 Grok 标签页支持上下文压缩：命令行工具自己压缩时标签页会显示「正在压缩上下文」，完成后上下文用量随之归零；在这两种标签页里输入 /compact 会让命令行工具真正压缩当前会话</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v208.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v208.fix.1">更新后弹出的「更新日志」显示当前版本的内容，不再一直是 2.0.5；说明随版本发布，看过一次后离线也能打开</li>
+            <li data-i18n="cl.v208.fix.2">覆盖安装和应用内更新更快：不再先跑一遍旧版本的卸载器，没有运行中的 Nomi 时不再额外等待</li>
+            <li data-i18n="cl.v208.fix.3">已经装有 WebView2 运行时的电脑，安装时不会再去重新下载</li>
+            <li data-i18n="cl.v208.fix.4">托盘菜单里有两个同名模型（比如两个供应商下的同一个模型）时，在设置里切换模型后，点托盘菜单不会再选错模型（#212）</li>
+            <li data-i18n="cl.v208.fix.5">Go 版连接 MCP 服务器时取消，不会再在后台留下一个没人管的连接（#213）</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.8" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
+        <article class="release" id="v207">
+          <header class="release-head">
+            <h2 data-i18n="cl.v207.title">v2.0.7 — 修复版：Go 版窗口稳定性、Windows 安装进度与托盘</h2>
+            <time datetime="2026-10-31">2026-10-31</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v207.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v207.fix.1">Go 版关闭或重建窗口时，如果连接恰好同时断开，应用不会再有崩溃风险（#208）</li>
+            <li data-i18n="cl.v207.fix.2">桌面角色工具栏和对话窗口顶栏的提示气泡不会再超出窗口</li>
+            <li data-i18n="cl.v207.fix.3">部分颜色改为跟随主题：工具调用行悬停时变亮，上下文用量圆环使用警告 / 危险色</li>
+            <li data-i18n="cl.v207.fix.4">安装器在关闭旧进程、移除旧版本、下载 WebView2 运行时时会显示当前步骤，进度条保持走动，不再像卡住；安装界面跟随系统语言显示中文或英文</li>
+            <li data-i18n="cl.v207.fix.5">文件夹选择器挂在当前窗口上，刷新页面后不会再单独冒出来；选择期间关掉了标签，选择结果会被丢弃</li>
+            <li data-i18n="cl.v207.fix.6">启动、定时和手动检查更新同时触发时只检查一次，不会弹出重复的更新提示</li>
+            <li data-i18n="cl.v207.fix.7">托盘菜单内容没有变化时不再重建，Windows 11 上不再闪烁</li>
+            <li data-i18n="cl.v207.fix.8">切换分辨率或缩放比例后，桌面角色窗口会被拉回工作区内</li>
+            <li data-i18n="cl.v207.fix.9">安装版会注册 nomi:// 链接</li>
+            <li data-i18n="cl.v207.fix.10">安装版遇到未捕获的错误时会正常退出</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.7" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v206">
           <header class="release-head">
             <h2 data-i18n="cl.v206.title">v2.0.6 — 修复版：2.0.4 聊天记录迁移、Go 版网关稳定性、工作区操作更安全</h2>

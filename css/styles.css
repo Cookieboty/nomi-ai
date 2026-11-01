@@ -2560,6 +2560,11 @@ body[data-page="download"] footer.site-footer {
   margin: 0 0 1.35rem;
   max-width: 28em;
 }
+.home-download-stats {
+  margin: -0.4rem 0 1.1rem;
+  font-size: 0.85rem;
+  color: rgba(255, 248, 241, 0.62);
+}
 .home-download-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
