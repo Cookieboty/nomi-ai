@@ -162,6 +162,7 @@ export interface WorkspaceToolHelpers {
     preview?: string,
     force?: { dialog: boolean },
     ws?: string | null,
+    userText?: string,
   ): Promise<'auto' | 'allowed'>;
   beforeSend(signal?: AbortSignal, provider?: ToolCallProvider): Promise<void>;
   markRead(signal?: AbortSignal): void;
@@ -219,6 +220,7 @@ export function createWorkspaceTools(
               `$ ${i.command}\n（工作目录：${ws}）`,
               { ...RUN_CONFIRM },
               ws,
+              ctx.userText,
             );
             const r = await runShellCommand(i.command, {
               cwd: ws,

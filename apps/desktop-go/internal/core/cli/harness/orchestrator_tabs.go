@@ -76,8 +76,15 @@ func (o *Orchestrator) ListTabs() *util.Obj {
 		}
 		tabs = append(tabs, e)
 	}
-	return util.NewObj("tabs", tabs, "activeTabId", o.activeTabID, "running", running, "queued", queued,
+	st := util.NewObj("tabs", tabs, "activeTabId", o.activeTabID, "running", running, "queued", queued,
 		"defaultPermissionMode", o.defaultPermMode, "codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove)
+	if o.aiReviewOff {
+		st.Set("aiReview", false)
+	}
+	if o.nomiAutoApprove != nil {
+		st.Set("nomiAutoApprove", *o.nomiAutoApprove)
+	}
+	return st
 }
 
 // changed = changed()：落盘 + 'tabs' 事件 + 微任务里广播一次。

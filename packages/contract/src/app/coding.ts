@@ -151,6 +151,8 @@ const harnessProcedures = {
       defaultPermissionMode: PermissionMode.optional(),
       codexNetwork: z.boolean().optional(),
       autoApprove: z.boolean().optional(),
+      aiReview: z.boolean().optional(),
+      nomiAutoApprove: z.boolean().optional(),
     }),
     output: HarnessTabsState,
   },

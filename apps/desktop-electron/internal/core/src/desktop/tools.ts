@@ -297,6 +297,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     preview?: string,
     force?: { dialog: boolean },
     ws: string | null = null,
+    /** 本轮用户说的话（命令自动审核判断授权用） */
+    userText?: string,
   ): Promise<'auto' | 'allowed'> {
     const req = {
       tool,
@@ -306,6 +308,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       preview,
       signal,
       force,
+      ...(userText ? { userText } : {}),
     };
     // 工作区里：「全部自动」开着时不确认（计划档仍拦写）
     const d = ws ? await broker.authorizeIn(req) : await broker.authorize(req);

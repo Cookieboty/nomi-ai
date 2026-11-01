@@ -191,6 +191,10 @@ export interface HarnessTabsState {
    * Nomi 对话工作区里的文件工具不确认（workspace_run 始终确认）；关掉后按 defaultPermissionMode 逐项询问
    */
   autoApprove: boolean;
+  /** 命令自动审核；缺省 = 开（只在关掉时出现） */
+  aiReview?: boolean;
+  /** Nomi 工作区文件操作免确认；缺省 = 跟随 autoApprove（只在单独设过时出现） */
+  nomiAutoApprove?: boolean;
 }
 
 /** 安装 / 更新位置：global = npm 全局目录；user = 用户目录（~/.local，不需要管理员权限） */

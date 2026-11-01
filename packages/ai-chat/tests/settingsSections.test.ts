@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('7 个分区；快捷键、语音、截图、通知并进「通用」，模型质量并进「用量与质量」', () => {
+  it('8 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
+      'nomi',
       'models',
-      'coding',
       'usage',
+      'coding',
       'knowledge',
       'ext',
       'privacy',
@@ -17,9 +18,10 @@ describe('设置分区：合并后的菜单', () => {
     expect(SETTINGS_SECTIONS.some((s) => (s.id as string) === 'shortcuts')).toBe(false);
     expect(SETTINGS_SECTIONS.map((s) => s.label)).toEqual([
       'ui.chat-settings.general',
+      'ui.chat-settings.nomi-section',
       'ui.chat-settings.models-and-providers',
-      'ui.providers-schedule.coding-agents',
       'ui.chat-settings.usage-and-quality',
+      'ui.providers-schedule.coding-agents',
       'ui.chat-settings.knowledge-memory',
       'ui.foundation.extensions-mcp',
       'ui.chat-settings.privacy-permissions',
@@ -41,12 +43,9 @@ describe('设置分区：合并后的菜单', () => {
     expect(SECTION_TABS.models.map((t) => t.id)).toEqual(['providers', 'local']);
     expect(SECTION_TABS.usage.map((t) => t.id)).toEqual(['cost', 'compare', 'trend', 'requests']);
     expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'schedule']);
-    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual([
-      'data',
-      'outbound',
-      'desktop',
-      'export',
-    ]);
+    // 桌面权限从「隐私与权限」挪到「Nomi」（Nomi 自己的工具权限）
+    expect(SECTION_TABS.nomi.map((t) => t.id)).toEqual(['permissions', 'delegate', 'tools']);
+    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'outbound', 'export']);
     expect(tabOf('usage', 'requests')).toBe('requests');
     expect(tabOf('knowledge', 'schedule')).toBe('schedule');
     expect(tabOf('knowledge', 'notes')).toBeUndefined();

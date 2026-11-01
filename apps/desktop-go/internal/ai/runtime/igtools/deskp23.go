@@ -490,8 +490,8 @@ func (k *deskKit) workspaceTools() []tools.Definition {
 			if ws == "" {
 				return nil, "", toolErr("no_workspace", "这次对话没有可用的工作区（没选，或者选的目录不被允许），不能执行命令")
 			}
-			dec, err := k.confirm(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
-				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws)
+			dec, err := k.confirmFor(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
+				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws, ec.UserText)
 			if err != nil {
 				return nil, "", err
 			}

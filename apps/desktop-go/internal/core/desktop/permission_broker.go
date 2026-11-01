@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +38,8 @@ type ConfirmRequest struct {
 	Kind      string `json:"kind,omitempty"`
 	ScopePath string `json:"scopePath,omitempty"`
 	ScopeMode string `json:"scopeMode,omitempty"`
+	// Review：辅助模型审核过但没放行（高风险 / 读过外部内容）时的风险等级与理由
+	Review *ConfirmReview `json:"review,omitempty"`
 }
 
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
@@ -81,6 +84,12 @@ type PermissionBroker struct {
 	IsKnownWorkspace    func(dir string) bool
 	AutoApprove         func() bool
 	OnWorkspaceRejected func(dir, reason string)
+	// AIReview：命令自动审核开关（编程助手服务的权限设置）
+	AIReview func() bool
+	// Reviewer：辅助模型审核命令；nil 结果 = 审不了（交给人）
+	Reviewer func(ctx context.Context, i CommandReviewInput) *CommandReview
+	// OnReviewed：每次审核的结果（日志）
+	OnReviewed func(tool string, r *CommandReview)
 }
 
 type BrokerOpts struct {
@@ -101,6 +110,8 @@ func NewPermissionBroker(file string, envBase GuardEnv, opts BrokerOpts) *Permis
 	b.PermissionMode = func() PermMode { return "acceptEdits" }
 	b.IsKnownWorkspace = func(string) bool { return false }
 	b.AutoApprove = func() bool { return false }
+	b.AIReview = func() bool { return false }
+	b.OnReviewed = func(string, *CommandReview) {}
 	b.OnWorkspaceRejected = func(string, string) {}
 	b.load()
 	return b
@@ -336,6 +347,8 @@ type AuthorizeInput struct {
 	Signal     context.Context
 	Force      *struct{ Dialog bool }
 	IgnoreMode bool
+	// UserText：本轮用户说的话（命令审核判断授权用）
+	UserText string
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
@@ -466,11 +479,25 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if i.Signal != nil && i.Signal.Err() != nil {
 		return "denied"
 	}
+	// 命令先交给辅助模型审核：低风险直接放行，其余带着风险等级与理由交给人
+	var review *CommandReview
+	if cmd, cwd, ok := b.reviewable(i); ok {
+		review = b.review(i, cmd, cwd)
+		if review != nil && review.Outcome == "allow" {
+			return "auto"
+		}
+		if review != nil && i.Signal != nil && i.Signal.Err() != nil {
+			return "denied"
+		}
+	}
 	args := i.Args
 	if args == nil {
 		args = map[string]any{}
 	}
 	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
+	if review != nil {
+		req.Review = &ConfirmReview{Risk: review.Risk, Rationale: review.Rationale}
+	}
 	if i.Preview != nil {
 		p := u16slice(*i.Preview, 0, ConfirmPreviewCap)
 		req.Preview = &p
@@ -485,6 +512,57 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		return "denied"
 	}
 	return decision
+}
+
+// reviewable：只审跑命令的工具；开关关着 / 没有审核器 / 计划档 / 没有命令不审
+func (b *PermissionBroker) reviewable(i AuthorizeInput) (cmd, cwd string, ok bool) {
+	if !ReviewedTools[i.Tool] || b.Reviewer == nil || b.AIReview == nil || !b.AIReview() {
+		return "", "", false
+	}
+	if b.PermissionMode() == "plan" {
+		return "", "", false
+	}
+	raw, err := json.Marshal(i.Args)
+	if err != nil {
+		return "", "", false
+	}
+	var a struct {
+		Command string `json:"command"`
+		Cwd     string `json:"cwd"`
+	}
+	if json.Unmarshal(raw, &a) != nil || strings.TrimSpace(a.Command) == "" {
+		return "", "", false
+	}
+	return a.Command, a.Cwd, true
+}
+
+func (b *PermissionBroker) review(i AuthorizeInput, cmd, cwd string) (r *CommandReview) {
+	defer func() {
+		if recover() != nil {
+			r = nil
+		}
+	}()
+	r = b.Reviewer(i.Signal, CommandReviewInput{Tool: i.Tool, Command: cmd, Cwd: cwd, UserText: i.UserText, Tainted: b.IsTainted(i.Signal)})
+	if r != nil && b.OnReviewed != nil {
+		b.OnReviewed(i.Tool, r)
+	}
+	return r
+}
+
+// CanSendQuietly：发给这个模型要不要先问用户（云端首次发送）；不弹窗，本地 / 已同意过的返回 true
+func (b *PermissionBroker) CanSendQuietly(p *Provider) bool {
+	if p == nil {
+		return false
+	}
+	if p.Local {
+		return true
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.settings.LocalOnly {
+		return false
+	}
+	return slices.Contains(b.settings.CloudAcked, p.ID)
 }
 
 // RequestScope：请用户授权一个文件夹（对话窗口里的卡片，不受权限模式与「全部自动」影响）。

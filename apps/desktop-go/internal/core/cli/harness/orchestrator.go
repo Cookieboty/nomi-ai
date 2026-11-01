@@ -209,6 +209,10 @@ type Orchestrator struct {
 	activeTabID     string
 	defaultPermMode string
 	autoApprove     bool
+	// aiReviewOff：命令自动审核关掉了（缺省 = 开；只在关掉时落盘 / 出现在状态里，与 Node 一致）
+	aiReviewOff bool
+	// nomiAutoApprove：Nomi 工作区文件操作免确认；nil = 跟随 autoApprove（只在单独设过时落盘 / 出现在状态里）
+	nomiAutoApprove *bool
 	lastSettings    *util.Obj // backend → LastTabSettings
 	codexNetwork    bool
 
@@ -528,6 +532,17 @@ func (o *Orchestrator) newTabMode() string {
 // AutoApproveEnabled = autoApproveEnabled()。
 func (o *Orchestrator) AutoApproveEnabled() bool { return o.autoApprove }
 
+// AiReviewEnabled = aiReviewEnabled()：命令自动审核是否开着
+func (o *Orchestrator) AiReviewEnabled() bool { return !o.aiReviewOff }
+
+// NomiAutoApproveEnabled = nomiAutoApproveEnabled()：没单独设过时跟随「全部自动」
+func (o *Orchestrator) NomiAutoApproveEnabled() bool {
+	if o.nomiAutoApprove != nil {
+		return *o.nomiAutoApprove
+	}
+	return o.autoApprove
+}
+
 // EnsureDefaultDir = ensureDefaultDir(dir)。
 func (o *Orchestrator) EnsureDefaultDir(dir string) string {
 	def := o.d.DefaultCwd
@@ -642,6 +657,12 @@ func (o *Orchestrator) load() {
 			migrateAuto = !has || raw.Get("autoApprove") == util.Undefined
 			if b, ok := raw.Get("autoApprove").(bool); ok {
 				o.autoApprove = b
+			}
+			if raw.Get("aiReview") == false {
+				o.aiReviewOff = true
+			}
+			if b, ok := raw.Get("nomiAutoApprove").(bool); ok {
+				o.nomiAutoApprove = &b
 			}
 			o.restoreLastSettings(raw.Get("lastSettings"))
 			if migrateAuto && o.autoApprove {
@@ -763,8 +784,17 @@ func (o *Orchestrator) tabsSnapshot() *util.Obj {
 			tabs = append(tabs, o.tab(k))
 		}
 	}
-	return util.NewObj("activeTabId", o.activeTabID, "defaultPermissionMode", o.defaultPermMode,
-		"codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove, "lastSettings", o.lastSettings, "tabs", tabs)
+	snap := util.NewObj("activeTabId", o.activeTabID, "defaultPermissionMode", o.defaultPermMode,
+		"codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove)
+	if o.aiReviewOff {
+		snap.Set("aiReview", false)
+	}
+	if o.nomiAutoApprove != nil {
+		snap.Set("nomiAutoApprove", *o.nomiAutoApprove)
+	}
+	snap.Set("lastSettings", o.lastSettings)
+	snap.Set("tabs", tabs)
+	return snap
 }
 
 func msgsAsEv(list []*util.Obj) []clisdk.Ev {

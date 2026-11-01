@@ -102,5 +102,27 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: var(--cd-space-2);
+}
+/* 「详情」靠左，其余靠右 */
+.actionsLead {
+  margin-right: auto;
+}
+/* 辅助模型审核结果：风险等级 + 理由 */
+.review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.reviewLabel {
+  font-weight: var(--cd-font-weight-medium);
+}
+.reviewText {
+  flex-basis: 100%;
+  color: var(--cd-color-text);
 }

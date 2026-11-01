@@ -6,7 +6,7 @@
  */
 import type { DesktopConfirmRequest } from '@nomi-ai/types';
 import { Badge, Button, Checkbox, Icon, t } from '@nomi-ai/ui';
-import { FolderLock, ShieldAlert } from 'lucide-react';
+import { FolderLock, ShieldAlert, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
@@ -26,6 +26,32 @@ const REASON: Record<string, string> = {
   tainted: 'ui.chat-settings.file-contents-were-just-read-this-turn-to',
   destructive: 'ui.chat-settings.destructive-actions-must-be-confirmed-here-moved-to',
   'first-use': 'ui.chat-settings.first-use-of-this-tool-this-session',
+};
+
+/** 辅助模型审核给出的风险等级 */
+const RISK: Record<
+  NonNullable<DesktopConfirmRequest['review']>['risk'],
+  { label: string; tone: 'neutral' | 'warning' | 'danger' }
+> = {
+  low: { label: 'ui.chat-settings.risk-low', tone: 'neutral' },
+  medium: { label: 'ui.chat-settings.risk-medium', tone: 'warning' },
+  high: { label: 'ui.chat-settings.risk-high', tone: 'danger' },
+  critical: { label: 'ui.chat-settings.risk-critical', tone: 'danger' },
+};
+
+/** 辅助模型审核过但没放行：为什么还要你确认 */
+const ReviewNote: React.FC<{ review: NonNullable<DesktopConfirmRequest['review']> }> = ({
+  review,
+}) => {
+  const r = RISK[review.risk] ?? RISK.high;
+  return (
+    <div className={styles.review} data-testid="desktop-confirm-review" data-risk={review.risk}>
+      <Icon icon={Sparkles} size={13} />
+      <span className={styles.reviewLabel}>{t('ui.chat-settings.ai-review')}</span>
+      <Badge tone={r.tone}>{t(r.label)}</Badge>
+      {review.rationale && <span className={styles.reviewText}>{review.rationale}</span>}
+    </div>
+  );
 };
 
 /** 必须看过详情的确认：卡片出现 1 秒后才能点确认（防误触） */
@@ -101,17 +127,16 @@ const ScopeCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         <p className={styles.hint}>{t('ui.chat-settings.suggested-folder-cannot-be-granted')}</p>
       )}
       {req.preview && <p className={styles.reason}>{req.preview}</p>}
+      {/* 按钮靠右，主操作在最右（与系统对话框一致） */}
       <div className={styles.actions}>
-        {req.scopePath && (
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => answer(req.id, true)}
-            data-testid="desktop-scope-grant"
-          >
-            {t('ui.chat-settings.grant-folder')}
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => answer(req.id, false)}
+          data-testid="desktop-scope-deny"
+        >
+          {t('ui.chat-settings.deny')}
+        </Button>
         <Button
           size="sm"
           variant={req.scopePath ? 'secondary' : 'primary'}
@@ -122,14 +147,16 @@ const ScopeCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
             ? t('ui.chat-settings.choose-another-folder')
             : t('ui.cli-monitor.choose-folder-ellipsis')}
         </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => answer(req.id, false)}
-          data-testid="desktop-scope-deny"
-        >
-          {t('ui.chat-settings.deny')}
-        </Button>
+        {req.scopePath && (
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => answer(req.id, true)}
+            data-testid="desktop-scope-grant"
+          >
+            {t('ui.chat-settings.grant-folder')}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -161,6 +188,7 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         <Badge tone={d.tone}>{t(d.label)}</Badge>
         <Timer req={req} />
       </div>
+      {req.review && <ReviewNote review={req.review} />}
       {REASON[req.reason] && <p className={styles.hint}>{t(REASON[req.reason]!)}</p>}
       {detail && (
         <div className={styles.detail} data-testid="desktop-confirm-detail">
@@ -185,17 +213,17 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
           {t('ui.chat-settings.don-t-ask-again-for-this-tool-this')}
         </label>
       )}
+      {/* 「详情」在左；拒绝 / 允许靠右，主操作在最右（与系统对话框一致） */}
       <div className={styles.actions}>
         <Button
           size="sm"
-          variant={req.danger === 'destructive' ? 'danger' : 'primary'}
-          disabled={!canAllow}
-          onClick={() => answer(req.id, true, remember)}
-          data-testid="desktop-confirm-allow"
+          variant="ghost"
+          className={styles.actionsLead}
+          aria-expanded={detail}
+          onClick={() => setDetail((v) => !v)}
+          data-testid="desktop-confirm-details"
         >
-          {req.danger === 'destructive'
-            ? t('ui.chat-settings.confirm')
-            : t('ui.chat-settings.allow')}
+          {detail ? t('ui.model-quality.hide-details') : t('ui.chat-settings.view-details')}
         </Button>
         <Button
           size="sm"
@@ -207,12 +235,14 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         </Button>
         <Button
           size="sm"
-          variant="ghost"
-          aria-expanded={detail}
-          onClick={() => setDetail((v) => !v)}
-          data-testid="desktop-confirm-details"
+          variant={req.danger === 'destructive' ? 'danger' : 'primary'}
+          disabled={!canAllow}
+          onClick={() => answer(req.id, true, remember)}
+          data-testid="desktop-confirm-allow"
         >
-          {detail ? t('ui.model-quality.hide-details') : t('ui.chat-settings.view-details')}
+          {req.danger === 'destructive'
+            ? t('ui.chat-settings.confirm')
+            : t('ui.chat-settings.allow')}
         </Button>
       </div>
     </div>

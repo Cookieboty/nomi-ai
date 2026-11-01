@@ -5,6 +5,12 @@ import * as path from 'path';
 import { t } from '../i18n';
 
 import {
+  REVIEWED_TOOLS,
+  type CommandReview,
+  type CommandReviewInput,
+  type RiskLevel,
+} from './commandReview';
+import {
   decide,
   sanitizePolicy,
   TOOL_DEFAULT_POLICY,
@@ -43,6 +49,8 @@ export interface ConfirmRequest {
   /** kind=scope：模型建议的文件夹（没有时卡片只给「选择文件夹…」） */
   scopePath?: string;
   scopeMode?: Scope['mode'];
+  /** 辅助模型审核过但没放行（高风险 / 读过外部内容）：卡片上显示风险等级与理由 */
+  review?: { risk: RiskLevel; rationale?: string };
 }
 
 /** 请求文件夹的答复：pick = 用户要自己另选一个文件夹 */
@@ -100,6 +108,16 @@ export class PermissionBroker {
    * workspace_run 不在此列：它带 force 调用，始终确认（见 workspaceTools.ts）。
    */
   autoApprove: () => boolean = () => false;
+  /** 命令自动审核开关（编程助手服务的权限设置，组合根注入；未注入时关） */
+  aiReview: () => boolean = () => false;
+  /**
+   * 辅助模型审核命令（commandReview.ts，组合根注入）：返回 null = 这次审不了（没配辅助模型、
+   * 要先征得云端发送同意、出错 / 超时），交给人确认
+   */
+  reviewer:
+    ((i: CommandReviewInput, signal?: AbortSignal) => Promise<CommandReview | null>) | null = null;
+  /** 每次审核的结果（日志 / 审计，组合根注入） */
+  onReviewed: (tool: string, r: CommandReview) => void = () => undefined;
   /** 拒绝视图给的工作区时记一条日志（组合根注入） */
   onWorkspaceRejected: (dir: string, reason: string) => void = () => undefined;
 
@@ -330,6 +348,8 @@ export class PermissionBroker {
     force?: { dialog: boolean };
     /** 不受权限模式影响（云端首次发送提示：它确认的是「发给谁」，不是改动） */
     ignoreMode?: boolean;
+    /** 本轮用户说的话（命令审核判断授权用） */
+    userText?: string;
   }): Promise<Decision> {
     const mode = i.ignoreMode ? 'acceptEdits' : this.permissionMode();
     if (mode === 'plan' && i.danger !== 'read') return 'blocked';
@@ -348,6 +368,11 @@ export class PermissionBroker {
     if (!this.ui) return 'denied'; // 没有界面可确认 → 拒绝
     // 发起方已取消（如对话已停止）：不再弹出确认，按拒绝处理
     if (i.signal?.aborted) return 'denied';
+    // 命令先交给辅助模型审核：低风险直接放行，其余带着风险等级与理由交给人
+    // 不审的工具不多等一拍：确认照旧同步弹出（停止对话时能立刻撤掉）
+    const review = this.reviewable(i) ? await this.review(i) : null;
+    if (review?.outcome === 'allow') return 'auto';
+    if (review && i.signal?.aborted) return 'denied';
     const result = await this.ask(
       {
         tool: i.tool,
@@ -358,12 +383,62 @@ export class PermissionBroker {
         dialog: d.dialog,
         rememberable: d.rememberable,
         reason: d.reason,
+        ...(review
+          ? {
+              review: {
+                risk: review.risk,
+                ...(review.rationale ? { rationale: review.rationale } : {}),
+              },
+            }
+          : {}),
       },
       i.signal,
     );
     if (result.decision === 'allowed' && result.remember && result.req.rememberable)
       this.sessionAllowed.add(i.tool);
     return result.decision === 'pick' ? 'denied' : result.decision;
+  }
+
+  /** 只审跑命令的工具；开关关着 / 没有审核器 / 计划档 / 没有命令不审 */
+  private reviewable(i: { tool: string; args: unknown }): boolean {
+    if (!REVIEWED_TOOLS.has(i.tool) || !this.reviewer || !this.aiReview()) return false;
+    if (this.permissionMode() === 'plan') return false;
+    const a = (i.args ?? {}) as { command?: unknown };
+    return typeof a.command === 'string' && !!a.command.trim();
+  }
+
+  private async review(i: {
+    tool: string;
+    args: unknown;
+    signal?: AbortSignal;
+    userText?: string;
+  }): Promise<CommandReview | null> {
+    const a = (i.args ?? {}) as { command?: unknown; cwd?: unknown };
+    if (!this.reviewer || typeof a.command !== 'string') return null;
+    try {
+      const r = await this.reviewer(
+        {
+          tool: i.tool,
+          command: a.command,
+          ...(typeof a.cwd === 'string' ? { cwd: a.cwd } : {}),
+          ...(i.userText ? { userText: i.userText } : {}),
+          tainted: this.isTainted(i.signal),
+        },
+        i.signal,
+      );
+      if (r) this.onReviewed(i.tool, r);
+      return r;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 发给这个模型要不要先问用户（云端首次发送）：不弹窗，只判断；本地 / 已同意过的返回 true */
+  canSendQuietly(provider: { id: string; local: boolean } | null): boolean {
+    if (!provider) return false;
+    if (provider.local) return true;
+    if (this.settings.localOnly) return false;
+    return this.settings.cloudAcked.includes(provider.id);
   }
 
   /**

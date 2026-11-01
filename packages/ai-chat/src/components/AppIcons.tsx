@@ -10,9 +10,10 @@ import { Icon, type ICON_SIZE } from '@nomi-ai/ui';
 import {
   AudioLines,
   Bell,
+  Blocks,
   BookOpen,
   Bot,
-  Blocks,
+  Boxes,
   Brain,
   Coins,
   Cpu,
@@ -20,7 +21,7 @@ import {
   Settings,
   ShieldCheck,
   SlidersHorizontal,
-  Boxes,
+  Sparkles,
   SquareTerminal,
   type LucideIcon,
   type LucideProps,
@@ -45,6 +46,8 @@ export function AppIcon({
 export const SETTINGS_ICONS = {
   /** 通用：偏好调节 */
   general: SlidersHorizontal,
+  /** Nomi：Nomi 自己怎么做事（权限、委派、工具） */
+  nomi: Sparkles,
   /** 模型与供应商：第三方供应商、模型分配与本机模型 */
   models: Boxes,
   /** 编程助手：终端 */

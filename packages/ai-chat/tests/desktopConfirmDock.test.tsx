@@ -115,4 +115,32 @@ describe('DesktopConfirmDock', () => {
       { id: 's2', allow: false, remember: false, pick: true },
     ]);
   });
+
+  it('按钮靠右：「详情」在最左，「允许」在最右', async () => {
+    pending = [req()];
+    await mount();
+    const ids = [...screen.getByTestId('desktop-confirm-card').querySelectorAll('button')]
+      .map((b) => b.getAttribute('data-testid'))
+      .filter(Boolean);
+    expect(ids.slice(-3)).toEqual([
+      'desktop-confirm-details',
+      'desktop-confirm-deny',
+      'desktop-confirm-allow',
+    ]);
+  });
+
+  it('辅助模型审核过但没放行：显示风险等级与理由', async () => {
+    pending = [
+      req({
+        tool: 'workspace_run',
+        danger: 'destructive',
+        review: { risk: 'high', rationale: '会删掉整个 build 目录' },
+      }),
+    ];
+    await mount();
+    const note = screen.getByTestId('desktop-confirm-review');
+    expect(note.getAttribute('data-risk')).toBe('high');
+    expect(note.textContent).toContain('高风险');
+    expect(note.textContent).toContain('会删掉整个 build 目录');
+  });
 });
