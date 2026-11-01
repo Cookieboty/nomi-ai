@@ -51,6 +51,9 @@ type AppServerDriver struct {
 	ThreadID  *string
 	Totals    *CodexTokenTotals
 	Context   Json // nil = null
+	// 压缩完成后还没收到新占用：旧 contextTokens 已作废。结束这一轮时在 usage 里写 contextTokens = 0，
+	// 落盘的消息就带着「压缩后大小未知」的边界，视图不会回扫到压缩前的值（#217）
+	contextStale bool
 }
 
 func NewAppServerDriver(o AppServerDriverOptions) *AppServerDriver {
@@ -124,6 +127,9 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 		ctx := CodexLastContext(params.Get("tokenUsage"))
 		if ctx != nil {
 			d.Context = ctx
+			if util.Truthy(ctx.Get("contextTokens")) {
+				d.contextStale = false
+			}
 		}
 		if d.turn != nil && ctx != nil && util.Truthy(ctx.Get("contextTokens")) {
 			ev := O("type", "context", "tokens", ctx.Get("contextTokens"))
@@ -170,6 +176,15 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 			} else {
 				d.emit(O("type", "status", "kind", "clear"))
 				d.emit(O("type", "context", "tokens", nil))
+				var window any
+				if d.Context != nil {
+					window = d.Context.Get("contextWindow")
+				}
+				d.Context = nil
+				if util.Truthy(window) {
+					d.Context = O("contextWindow", window)
+				}
+				d.contextStale = true
 			}
 			return
 		}
@@ -236,6 +251,15 @@ func (d *AppServerDriver) finish(turn *appTurn, done any) {
 		usage = O()
 		usage.Assign(turnUsage)
 		usage.Assign(d.Context)
+	}
+	if d.contextStale && status == "completed" {
+		next := O()
+		if usage != nil {
+			next.Assign(usage)
+		}
+		next.Set("contextTokens", 0)
+		usage = next
+		d.contextStale = false
 	}
 	var tid any
 	if d.ThreadID != nil {

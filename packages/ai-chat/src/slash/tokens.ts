@@ -170,8 +170,8 @@ export function estimateContext(
     if (m.role === 'assistant' && ctx && ctx > 0) {
       lastActualIdx = i;
       actual = ctx;
-    } else if (m.id === LIVE_CONTEXT_ID) {
-      // 刚压缩、新大小未知：之前的真实值已经作废
+    } else if (m.id === LIVE_CONTEXT_ID || (m.role === 'assistant' && ctx === 0)) {
+      // 刚压缩、新大小未知（运行中的占位，或压缩后落盘的 contextTokens = 0）：之前的真实值已经作废
       lastActualIdx = -1;
       actual = 0;
     }
