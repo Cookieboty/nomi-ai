@@ -1,19 +1,16 @@
 <p align="center"><img src="docs/brand/nomi-wordmark.svg" alt="Nomi" width="320"></p>
 
-<h1 align="center">Nomi·诺米</h1>
-
-<p align="center"><b>One place. Every AI capability.</b></p>
+<h1 align="center">Nomi</h1>
 
 <p align="center">
-  <b>让每一种 AI 能力，都为你所用。</b><br>
-  Models, coding agents and external tools, connected in one place, with Nomi by your side.
+  <b>An AI companion on your desktop: bring any model, let it do the work, and let it hand specialist jobs to specialist AIs.</b><br>
+  Models, coding agents, MCP and local tools in one place, coordinated by Nomi.
 </p>
 
-<p align="center">macOS · Windows · Linux　|　MIT</p>
+<p align="center">macOS · Windows · Linux　|　Go + Wails core, 39 MB installer　|　MIT</p>
 
 <p align="center">
   <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
-  <a href="https://github.com/Cookieboty/nomi-ai/issues"><img src="https://img.shields.io/github/issues/Cookieboty/nomi-ai?style=flat" alt="Open issues"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/github/downloads/Cookieboty/nomi-ai/total?style=flat" alt="Total downloads"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/releases/latest"><img src="https://img.shields.io/github/v/release/Cookieboty/nomi-ai?style=flat" alt="Latest release"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/commits/main"><img src="https://img.shields.io/github/last-commit/Cookieboty/nomi-ai?style=flat" alt="Last commit"></a>
@@ -21,101 +18,154 @@
 </p>
 
 <p align="center">
-  <a href="https://withnomi.app">Website</a> ·
   <a href="https://github.com/Cookieboty/nomi-ai/releases/latest">Download</a> ·
-  <a href="https://withnomi.app/features">Features</a> ·
+  <a href="https://withnomi.app">Website</a> ·
   <a href="docs/README.md">Docs</a> ·
-  <a href="https://withnomi.app/changelog">Changelog</a> ·
-  <a href="https://withnomi.app/privacy">Privacy</a>
+  <a href="docs/development/architecture.md">Architecture</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center"><a href="README.md">中文</a> · <b>English</b></p>
 
-## Screenshots
+<p align="center">
+  <img src="docs/screenshots/chat.webp" alt="Chatting with Nomi" width="44%">
+  <img src="docs/screenshots/v1.2.0-workspace.webp" alt="Three-column coding workspace" width="54%">
+</p>
+
+## Why Nomi
+
+### 1. Connect a model once, every AI can use it
+
+Add a provider once (pick a preset or enter a URL, paste a key) and Nomi itself plus Claude Code, Codex, Gemini CLI, Grok and dsh can all use any of its models, or switch everything to local models.
+The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**; streaming, tool calls, reasoning, images and context compaction keep working, so you can use DeepSeek, GLM, Kimi or Qwen right inside Claude Code.
+Third-party routing applies only to the process Nomi launches; it never edits the CLI's global config or touches official sign-ins.
+→ [Unified gateway design](docs/design/unified-gateway.md)
+
+### 2. Nomi is an agent itself
+
+It reads and writes files, runs commands, drives a browser, calls MCP servers and skills, remembers what you've told it (long-term memory), answers from your folders with clickable citations, and draws, edits images and sets reminders.
+Tools are offered on demand: small talk sends about 2K tokens of tool definitions, and more open up only when the chat needs them.
+→ [Docs](docs/README.md)
+
+### 3. Specialist jobs go to specialist AIs
+
+For coding, Nomi delegates to Claude Code, Codex and other coding agents, and you can open or stop each subtask's full conversation. You can also open a coding-agent session directly: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo; sessions started in a terminal or IDE carry on here too.
+Coding agents are the strongest kind of specialist today; the connection layer is a plugin system, so more can join.
+→ [Coding workspace](docs/features/coding-workspace.md) · [CLI plugin architecture](docs/design/cli-plugin-architecture.md)
+
+### 4. Let it work, keep the boundaries
+
+Before a command runs, a helper model rates its risk: low risk runs, high risk asks you, and **once a turn has read external content (web pages, MCP results, skill files), medium-risk commands ask you too**, so a prompt injection can't use Nomi to run commands.
+Chats, memory and the knowledge base stay on your machine by default; secrets are hidden before anything reaches a third-party model; API keys live in the system keychain.
+→ [Privacy and security](docs/features/privacy-security.md)
+
+### 5. Light: a Go core on the native WebView
+
+The main build is a Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium; the same UI also ships as an Electron build, and parity golden tests keep both behaving the same. Measured on macOS, Apple silicon (v2.0.5):
+
+|                                 | Go build    | Electron build |
+| ------------------------------- | ----------- | -------------- |
+| DMG                             | **38.8 MB** | 153.0 MB       |
+| Installed size                  | **69 MiB**  | 334 MiB        |
+| Memory 30 s after launch        | **177 MiB** | 284 MiB        |
+| Idle CPU (one core)             | **3.2%**    | 8.2%           |
+| Launch until the window appears | **0.55 s**  | 0.82 s         |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph View["View (React 19, shared by both builds)"]
+    Chat["Chat / coding workspace"]
+    Mascot["Desktop character"]
+  end
+  subgraph Core["Core (Go; Node in the Electron build)"]
+    Contract["Typed contract<br/>(surfaces / dangerous checks)"]
+    Agents["Coding-agent drivers<br/>ACP · stream-json · app-server · exec"]
+    Tools["Tools: files · commands · browser · MCP · skills<br/>command risk review + external-content taint"]
+    Mem["Memory · knowledge base · schedule · images"]
+    GW["Unified gateway<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
+  end
+  CLI["Claude Code · Codex · Gemini CLI · Grok · dsh"]
+  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· relays · Ollama / local models"]
+  View -- "loopback WebSocket + one-time token" --> Contract
+  Contract --> Agents & Tools & Mem
+  Agents --> CLI
+  CLI -- "third-party requests" --> GW
+  Tools -- "delegates subtasks" --> Agents
+  Tools & Mem --> GW
+  GW --> Up
+```
+
+The view talks to the core through one typed contract instead of ad-hoc IPC channels; which windows may call which procedures, and which ones are dangerous, is declared in the contract. See [Architecture](docs/development/architecture.md) and [Core / host decoupling](docs/design/core-host-decoupling.md).
+
+## Features at a glance
+
+- **Models**: presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Qwen, Doubao, Ollama and more; automatic multi-key rotation; usage and cost recorded per upstream request
+- **Local models**: one-click open-source models (llama.cpp) or Ollama; run local-only, or let only local models read your files
+- **Images**: draw, edit and use reference images right in a Nomi chat, with an image model matched to the chat model's vendor; an asset library keeps every generated image
+- **Knowledge base and memory**: ask questions over a folder with clickable citations; chats turn into exportable long-term memory
+- **MCP and skills**: manage MCP servers and `SKILL.md` skills in the UI; tool calls are audit-logged
+- **Voice and reminders**: local whisper.cpp or cloud speech input, read-aloud replies; reminders and scheduled tasks
+- **Desktop character**: Nomi lives on your desktop as 2D art or a Rive animation with expressions and lip sync; drop a file on it to get a summary; swap the character with a [character pack](docs/character-pack/README.md)
 
 <table>
   <tr>
-    <td align="center" colspan="2">
-      <img src="docs/screenshots/v1.2.0-workspace.webp" alt="Three-column workspace" width="49%">
-      <img src="docs/screenshots/coding-agent.webp" alt="Coding agent chat" width="49%"><br>
-      <sub>Three-column workspace · Coding agents</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="Desktop companion"><br><sub>Desktop companion</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>AI chat</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/knowledge.webp" alt="Knowledge base"><br><sub>Knowledge base</sub></td>
-  </tr>
-  <tr>
-    <td align="center" colspan="3">
-      <img src="docs/screenshots/settings-providers.webp" alt="Providers & models" width="32%">
-      <img src="docs/screenshots/local-models.webp" alt="Local models" width="32%">
-      <img src="docs/screenshots/permission-modes.webp" alt="Permission modes" width="32%"><br>
-      <sub>Providers & models · Local models · Permission modes</sub>
-    </td>
+    <td align="center" width="33%"><img src="docs/screenshots/coding-agent.webp" alt="Coding agent chat"><br><sub>Coding agents</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/settings-providers.webp" alt="Providers and models"><br><sub>Providers and models</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="Desktop character"><br><sub>Desktop character</sub></td>
   </tr>
 </table>
 
-More UI shots live in [docs/screenshots](docs/screenshots/). Full feature docs: [docs/README.md](docs/README.md) and the [website features page](https://withnomi.app/features).
-
-## Highlights
-
-Nomi is your AI work companion: a desktop AI workspace that connects models, coding agents and external tools — with an animated, talking Nomi on your desktop. Use the cloud models you already have, local models, or both.
-
-- **🧸 Desktop companion** — full-body 2D character (Rive animation optional) with expressions and lip-sync; scalable, playful interactions, chat bubbles; drop a file on her for a quick summary
-- **💬 AI chat** — streaming replies, image Q&A, `/` commands and first-run onboarding; themes and chat backgrounds
-- **🧑‍💻 Coding agents** — Claude Code / Codex / Gemini / Grok / dsh in one window; permission modes; three-column workspace for diffs and changes (see [coding workspace](docs/features/coding-workspace.md))
-- **🔑 Multi-model** — presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Tongyi, Doubao, Ollama, and more; multi-key failover; keys stored in the OS keychain
-- **📚 Knowledge & memory** — folder Q&A with clickable citations; chats distilled into long-term memory; profile exportable
-- **🏠 Local models** — one-click small open-source models or Ollama management; run with local models only
-- **🧩 MCP · skills · automation** — manage MCP / SKILL.md in the UI; controlled file access, browser, and code sandbox with a local audit log
-- **🎙️ Voice · reminders · privacy** — local/cloud speech in and out; reminders and scheduled jobs; data is stored locally by default, secrets are protected before they leave, and you can let only local models read your files
+More screenshots in [docs/screenshots](docs/screenshots/).
 
 ## Download
 
-Grab an installer from [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest):
+From [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest):
 
-| System                | Installer                  | Notes                  |
-| --------------------- | -------------------------- | ---------------------- |
-| macOS · Apple Silicon | `Nomi-<version>-arm64.dmg` | Drag into Applications |
-| macOS · Intel         | `Nomi-<version>.dmg`       | Same as above          |
-| Windows 10+ (x64)     | `Nomi-Setup-<version>.exe` | Run the installer      |
-| Linux (x64)           | `Nomi-<version>.AppImage`  | `chmod +x`, then run   |
+| System                | Installer                                              | Notes                                                  |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| macOS · Apple silicon | `Nomi-<version>-arm64.dmg`                             | Drag into Applications                                 |
+| macOS · Intel         | `Nomi-<version>.dmg`                                   | Same                                                   |
+| Windows 10+ (x64)     | `Nomi-Setup-<version>.exe`                             | Needs WebView2 (usually preinstalled on Windows 10/11) |
+| Linux (x64)           | `Nomi-<version>.AppImage` / `nomi_<version>_amd64.deb` | `chmod +x` the AppImage                                |
 
-> **macOS says Nomi “is damaged”?** Builds are not Apple-notarized yet. Move Nomi into Applications, then:
+Files named `Nomi-Electron-…` are the Electron build. Installed copies offer updates in-app.
+
+> **macOS says the app is damaged?** The app is signed but not notarized yet. After moving it to Applications, run:
 >
 > ```bash
 > sudo xattr -dr com.apple.quarantine /Applications/Nomi.app
 > ```
 >
-> **Windows SmartScreen?** Installers are not code-signed yet. After confirming the download is from this repo’s Releases, choose “More info → Run anyway”.
+> **Windows SmartScreen?** Once you've confirmed the installer came from this repo's Releases, choose "More info → Run anyway".
 
-## Quick start
+## Get started in 3 minutes
 
-1. Install and open Nomi; finish onboarding (language, theme, character).
-2. Under Settings → Models & providers, add a provider and API key — or download a local model in the Local models tab.
-3. Click Nomi or press `Ctrl/⌘+N` to chat; `Ctrl/⌘+K` opens the command palette.
+1. Open Nomi and finish onboarding (language, theme, character).
+2. Add a provider and API key in Settings → Models & providers, or download a local model under Local models if you'd rather not use a key.
+3. Chat with Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette.
+4. Use a coding agent: open a Claude Code / Codex session, pick a working folder, and use your official account or the third-party model from step 2.
 
-More detail: [Getting started](docs/getting-started.md).
+More detail in [Getting started](docs/getting-started.md).
 
 ## Build from source
 
-Requires Node.js ≥ 22.12 and pnpm 9 (`corepack enable`).
+Needs Node.js ≥ 22.12 and pnpm 9 (`corepack enable`); the Go build also needs Go (see `apps/desktop-go/go.mod`) and a cgo toolchain (plus GTK3 and WebKitGTK 4.1 dev packages on Linux).
 
 ```bash
 git clone https://github.com/Cookieboty/nomi-ai.git && cd nomi-ai
-corepack enable
-pnpm install
-pnpm dev          # development
-pnpm test         # tests
-pnpm package      # package → dist/
+corepack enable && pnpm install
+pnpm dev:go       # Go build: hot-reloads the UI, rebuilds on Go changes
+pnpm dev          # Electron build
+pnpm test         # unit tests; pnpm test:e2e for headless end-to-end tests
 ```
 
-Run `pnpm run doctor` to check your environment. Packaging: [docs/RELEASE.md](docs/RELEASE.md). Dev guides: [docs/development](docs/development/).
+`pnpm run doctor` checks your setup. Go details are in [apps/desktop-go](apps/desktop-go/README.md), packaging and releases in [docs/RELEASE.md](docs/RELEASE.md), and the developer guide in [docs/development](docs/development/). PRs welcome; see the conventions in [AGENTS.md](AGENTS.md) first.
 
 ## Contact
 
-Scan with WeChat to add the authors:
+Questions and ideas go to [GitHub Issues](https://github.com/Cookieboty/nomi-ai/issues). To reach the authors on WeChat:
 
 <table>
   <tr>
@@ -124,16 +174,8 @@ Scan with WeChat to add the authors:
   </tr>
 </table>
 
-Bugs and ideas → [GitHub Issues](https://github.com/Cookieboty/nomi-ai/issues). PRs welcome.
+## License and credits
 
-## License & acknowledgments
+[MIT](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); design credits in [CREDITS.md](CREDITS.md).
 
-[MIT](LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Design credits (e.g. gateway): [CREDITS.md](CREDITS.md).
-
-Built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive, and other open-source projects.
-
-## Links
-
-- [Website](https://withnomi.app) · [Features](https://withnomi.app/features) · [Privacy](https://withnomi.app/privacy)
-- [Docs](docs/README.md) · [Changelog](CHANGELOG.md) · [Website changelog](https://withnomi.app/changelog)
-- [中文 README](README.md)
+Built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive and other open-source projects.
