@@ -35,6 +35,21 @@ describe('chunkToTrace (Nomi tool calls use the same trace model)', () => {
     expect(done).toMatchObject({ status: 'done', id: 'c1', output: '3 hits', at: 900 });
     expect(failed).toMatchObject({ status: 'error', output: 'timeout' });
     expect(think).toEqual({ type: 'thinking', text: '想一想', at: 50 });
+    // 工具自己返回的失败（用户拒绝等）不打 ✓；成功结果里嵌套的 ok:false 不算
+    const denied = chunkToTrace({
+      type: 'tool_call.result',
+      id: 'c3',
+      name: 'workspace_run',
+      output: '{"ok":false,"error":{"code":"user_denied","message":"no"}}',
+    });
+    expect(denied).toMatchObject({ status: 'error' });
+    const nested = chunkToTrace({
+      type: 'tool_call.result',
+      id: 'c4',
+      name: 'x',
+      output: '{"ok":true,"data":{"ok":false}}',
+    });
+    expect(nested).toMatchObject({ status: 'done' });
     expect(chunkToTrace({ type: 'delta', content: 'x' })).toBeNull();
     expect(chunkToTrace({ type: 'tool_call.delta', index: 0 })).toBeNull();
   });

@@ -146,6 +146,11 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
         ...state,
         isLoading: action.payload,
         busyConvoId: action.payload ? action.convoId : undefined,
+        // 一轮总是从当前展示的会话发起：新对话的 id 在发送时才生成（ensureConversationId），
+        // 这时 viewConvoId 还没有，认领它，否则首个对话被当成「别的会话在回复」（没有状态行）
+        ...(action.payload && action.convoId && state.viewConvoId === undefined
+          ? { viewConvoId: action.convoId }
+          : {}),
       };
     case 'SET_ERROR':
       // 同值不换引用：切换会话时每次都会清一次错误，新 state 会让所有选择器重跑

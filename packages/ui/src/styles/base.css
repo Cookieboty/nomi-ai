@@ -289,6 +289,10 @@
   /* 无模糊、无淡入：纯半透明遮罩（弹窗不做动画，见 tests/popupMotion.test.ts） */
   background: var(--cd-color-overlay);
 }
+/* 确认 / 输入框（layer="top"）：盖在引导等整页浮层之上，否则确认框被挡住、调用方一直等它返回 */
+.cd-modal-overlay--top {
+  z-index: var(--cd-z-modal-top);
+}
 .cd-modal {
   display: flex;
   flex-direction: column;

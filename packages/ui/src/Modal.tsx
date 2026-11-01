@@ -17,6 +17,8 @@ export interface ModalProps {
   closeLabel?: string;
   className?: string;
   bodyClassName?: string;
+  /** top：确认 / 输入框这类必须盖在所有浮层（如新手引导）之上的弹窗 */
+  layer?: 'default' | 'top';
   children?: React.ReactNode;
   'data-testid'?: string;
 }
@@ -47,6 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
   closeLabel = t('ui.providers-schedule.close'),
   className,
   bodyClassName,
+  layer = 'default',
   children,
   'data-testid': testId,
 }) => {
@@ -85,7 +88,11 @@ export const Modal: React.FC<ModalProps> = ({
   const drawer = host?.mode === 'drawer';
   const overlay = (
     <div
-      className={cx('cd-modal-overlay', drawer && 'cd-modal-overlay--drawer')}
+      className={cx(
+        'cd-modal-overlay',
+        drawer && 'cd-modal-overlay--drawer',
+        layer === 'top' && 'cd-modal-overlay--top',
+      )}
       data-testid={testId ? `${testId}-overlay` : undefined}
       onClick={closeOnOverlay ? onClose : undefined}
     >

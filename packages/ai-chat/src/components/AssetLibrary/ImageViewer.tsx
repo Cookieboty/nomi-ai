@@ -6,11 +6,12 @@
  * 「以此修改 / 作为参考」回到对话，把带图片链接的一句话填进输入框：用户写完要求发出去，
  * Nomi 才会带着这张图调 image_generate（edit_image / reference_images）。图片只发给图片模型，不进对话上下文。
  */
-import { Button, Icon, Modal, t } from '@nomi-ai/ui';
+import { Button, Icon, Modal, getLocale, t } from '@nomi-ai/ui';
 import { Copy, Download, FolderOpen, ImagePlus, PencilLine, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { api, hostAssetUrl } from '../../services/api';
+import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import type { ConversationBackend } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
@@ -47,8 +48,9 @@ export const SourceBadge: React.FC<{ source: string }> = ({ source }) => (
   </span>
 );
 
+/** 按界面语言格式化（不跟系统 / WebView 的默认语言：Go 版 WebKit 默认是 en-US） */
 export const fmtTime = (ms: number) =>
-  new Date(ms).toLocaleString(undefined, {
+  new Date(ms).toLocaleString(getLocale(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -84,6 +86,26 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
     setErr(null);
   }, [item.file]);
   const nomi = item.source === 'nomi';
+  // 模型记成「供应商 id/模型」：供应商 id 是内部 id，显示时换成供应商名称（取不到就原样显示）
+  const [providerNames, setProviderNames] = useState<Map<string, string> | null>(null);
+  useEffect(() => {
+    if (!item.model?.includes('/') || !gatewayClientAvailable()) return;
+    let live = true;
+    gatewayClient
+      .state()
+      .then((s) => live && setProviderNames(new Map(s.providers.map((p) => [p.id, p.name]))))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [item.model]);
+  const modelLabel = (() => {
+    const m = item.model;
+    if (!m) return m;
+    const i = m.indexOf('/');
+    const name = i > 0 ? providerNames?.get(m.slice(0, i)) : undefined;
+    return name ? `${name} / ${m.slice(i + 1)}` : m;
+  })();
 
   const regenerate = async () => {
     // 会再调一次图片接口（按次计费）：先确认
@@ -108,6 +130,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
       setBusy(false);
     }
   };
+  const showErr = (e: unknown) => setErr(e instanceof Error ? e.message : String(e));
   const remove = async () => {
     if (
       !(await confirmDialog({
@@ -118,7 +141,12 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
       }))
     )
       return;
-    await api.chatAssets.remove({ files: [item.file] }).catch(() => undefined);
+    try {
+      await api.chatAssets.remove({ files: [item.file] });
+    } catch (e) {
+      showErr(e); // 删除失败：留在查看器里说明原因，不当成已删除
+      return;
+    }
     onChange?.(null);
     onClose();
   };
@@ -174,7 +202,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
             {item.model && (
               <>
                 <dt>{t('ui.foundation.model')}</dt>
-                <dd className={styles.mono}>{item.model}</dd>
+                <dd className={styles.mono}>{modelLabel}</dd>
               </>
             )}
             {size && (
@@ -253,7 +281,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
           <div className={styles.row}>
             <Button
               variant="secondary"
-              onClick={() => void api.chatAssets.saveAs({ file: item.file }).catch(() => undefined)}
+              onClick={() => void api.chatAssets.saveAs({ file: item.file }).catch(showErr)}
               data-testid="viewer-download"
             >
               <Icon icon={Download} size={14} />
@@ -263,7 +291,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
               variant="ghost"
               aria-label={t('ui.providers-schedule.show-in-folder')}
               title={t('ui.providers-schedule.show-in-folder')}
-              onClick={() => void api.chatAssets.reveal({ file: item.file }).catch(() => undefined)}
+              onClick={() => void api.chatAssets.reveal({ file: item.file }).catch(showErr)}
               data-testid="asset-reveal"
             >
               <Icon icon={FolderOpen} size={14} />
