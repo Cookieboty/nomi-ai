@@ -3,6 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
@@ -16,6 +17,8 @@ func TestServiceNotifyTaskAndDeliveries(t *testing.T) {
 	}{}
 	notices := []string{}
 	events := 0
+	// 事件 hub 在自己的 goroutine 上读时钟、设定时器：假时钟要加锁
+	var mu sync.Mutex
 	s := NewService(ServiceDeps{
 		Root:   t.TempDir(),
 		Log:    &nopLog{},
@@ -28,8 +31,10 @@ func TestServiceNotifyTaskAndDeliveries(t *testing.T) {
 			}
 			return strings.Join(parts, ":")
 		},
-		Now: func() int64 { return now },
+		Now: func() int64 { mu.Lock(); defer mu.Unlock(); return now },
 		SetTimer: func(fn func(), ms int64) func() {
+			mu.Lock()
+			defer mu.Unlock()
 			timers = append(timers, struct {
 				at int64
 				fn func()
@@ -42,11 +47,17 @@ func TestServiceNotifyTaskAndDeliveries(t *testing.T) {
 	text := "该站起来走走了"
 	task, _ := s.Create(CreateRequest{Title: "站起来走走", Goal: "g", Trigger: Trigger{Kind: "schedule", At: &at},
 		Executor: ExecutorSpec{Kind: "notify", Text: &text}}, "user")
+	mu.Lock()
 	now += 60_000
+	due := []func(){}
 	for _, tm := range timers {
 		if tm.at <= now {
-			tm.fn()
+			due = append(due, tm.fn)
 		}
+	}
+	mu.Unlock()
+	for _, fn := range due {
+		fn()
 	}
 	if len(notices) != 1 || notices[0] != "站起来走走|该站起来走走了" {
 		t.Fatalf("notices %v", notices)
