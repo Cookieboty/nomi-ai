@@ -186,3 +186,158 @@ describe('PermissionBroker', () => {
     expect(await p).toBe('denied');
   });
 });
+
+describe('PermissionBroker 后台任务（persistent-tasks §8.4）', () => {
+  const ask = () => {
+    const asked: string[] = [];
+    let answer = true;
+    return {
+      asked,
+      setAnswer: (v: boolean) => (answer = v),
+      run: (level: 0 | 1 | 2 | 3 | 4) => ({
+        level,
+        ask: async (r: { tool: string }) => {
+          asked.push(r.tool);
+          return answer;
+        },
+      }),
+    };
+  };
+
+  it('读直接放行；等级不够直接拒绝；不弹确认、不看前台档位', async () => {
+    const { b, seen } = mk();
+    b.permissionMode = () => 'plan';
+    const a = ask();
+    const ctrl = new AbortController();
+    b.registerBackground(ctrl.signal, a.run(1));
+    expect(
+      await b.authorize({
+        tool: 'fs_read_text',
+        danger: 'read',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('auto');
+    expect(
+      await b.authorize({
+        tool: 'fs_write_text',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('denied');
+    expect(
+      await b.authorize({
+        tool: 'workspace_run',
+        danger: 'destructive',
+        summary: 's',
+        args: { command: 'ls' },
+        signal: ctrl.signal,
+        force: { dialog: true },
+      }),
+    ).toBe('denied');
+    expect(seen).toEqual([]);
+    expect(a.asked).toEqual([]);
+  });
+
+  it('L2 写：未读过外部内容直接写；读过之后停下来问；破坏性一律问', async () => {
+    const { b, seen } = mk();
+    const a = ask();
+    const ctrl = new AbortController();
+    b.registerBackground(ctrl.signal, a.run(2));
+    expect(
+      await b.authorize({
+        tool: 'fs_write_text',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('auto');
+    b.markRead(ctrl.signal);
+    expect(
+      await b.authorize({
+        tool: 'fs_write_text',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('allowed');
+    a.setAnswer(false);
+    expect(
+      await b.authorize({
+        tool: 'fs_trash',
+        danger: 'destructive',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('denied');
+    expect(a.asked).toEqual(['fs_write_text', 'fs_trash']);
+    expect(seen).toEqual([]);
+  });
+
+  it('L3 命令：审核放行就跑，否则问；MCP 工具需要 L4；工具拿到的派生 signal 也认得', async () => {
+    const { b } = mk();
+    b.aiReview = () => true;
+    let risk: 'low' | 'medium' = 'low';
+    b.reviewer = async () =>
+      ({ risk, outcome: risk === 'low' ? 'allow' : 'ask', rationale: 'r' }) as never;
+    const a = ask();
+    const ctrl = new AbortController();
+    b.registerBackground(ctrl.signal, a.run(3));
+    // 模拟 AiSdkLlmProvider 派生给工具的 signal
+    const local = new AbortController().signal;
+    Object.defineProperty(local, Symbol.for('nomi.abortParent'), { value: ctrl.signal });
+    const run = {
+      tool: 'workspace_run',
+      danger: 'destructive' as const,
+      summary: 's',
+      args: { command: 'npm test' },
+      force: { dialog: true },
+    };
+    expect(await b.authorize({ ...run, signal: local })).toBe('auto');
+    risk = 'medium';
+    expect(await b.authorize({ ...run, signal: local })).toBe('allowed');
+    expect(
+      await b.authorize({
+        tool: 'mail__send',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: local,
+      }),
+    ).toBe('denied');
+    expect(a.asked).toEqual(['workspace_run']);
+    expect(
+      await b.authorizeIn({
+        tool: 'fs_write_text',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: local,
+      }),
+    ).toBe('auto');
+  });
+
+  it('注销后恢复前台规则；执行已中止时一律拒绝', async () => {
+    const { b } = mk();
+    const ctrl = new AbortController();
+    const off = b.registerBackground(ctrl.signal, ask().run(4));
+    ctrl.abort();
+    expect(
+      await b.authorize({
+        tool: 'fs_write_text',
+        danger: 'write',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('denied');
+    off();
+    expect(b.isBackground(ctrl.signal)).toBe(false);
+  });
+});

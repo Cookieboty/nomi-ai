@@ -75,15 +75,16 @@ type StoreLike interface {
 }
 
 type RuntimeDeps struct {
-	Store               StoreLike
-	Executors           map[string]Executor
-	Now                 func() int64
-	SetTimer            func(fn func(), ms int64) (cancel func())
-	NewID               func(prefix string) string
-	Log                 Logger
-	Deliver             func(t Task, what string, a *Attempt)
-	OnChange            func(t Task)
-	DailyBudgetExceeded func(t Task, now int64) bool
+	Store     StoreLike
+	Executors map[string]Executor
+	Now       func() int64
+	SetTimer  func(fn func(), ms int64) (cancel func())
+	NewID     func(prefix string) string
+	Log       Logger
+	Deliver   func(t Task, what string, a *Attempt)
+	OnChange  func(t Task)
+	// DailyBudgetExceeded：每日费用预算是否已用完；在持有者里调用，直接给出执行记录（不要回调 Runtime）
+	DailyBudgetExceeded func(t Task, attempts []Attempt, now int64) bool
 	MaxConcurrent       int
 	HeartbeatTimeoutMs  int64
 	MaxStartsPerHour    int
@@ -488,7 +489,7 @@ func (r *Runtime) trigger(id, cause, eventKey string) CmdResult {
 	if eventKey != "" {
 		ev.EventKey = ptr(eventKey)
 	}
-	if r.d.DailyBudgetExceeded != nil && r.d.DailyBudgetExceeded(task, at) {
+	if r.d.DailyBudgetExceeded != nil && r.d.DailyBudgetExceeded(task, r.recs[id].Attempts, at) {
 		ev.BudgetExceeded = true
 	}
 	return r.dispatch(id, ev)

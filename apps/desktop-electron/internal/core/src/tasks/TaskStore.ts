@@ -209,9 +209,31 @@ export class TaskStore {
     return open.size > 0;
   }
 
-  /** 删除任务的全部文件（快照、日志、归档） */
+  /** 一次执行的运行轨迹（工具调用与结果摘要），一行一个步骤 */
+  appendTrace(id: string, attemptId: string, line: Record<string, unknown>): void {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(attemptId))
+      throw new Error(`invalid attempt id: ${attemptId}`);
+    ensurePrivateDir(this.dir);
+    appendLines(this.file(id, `.${attemptId}.trace.jsonl`), `${JSON.stringify(line)}\n`);
+  }
+
+  trace(id: string, attemptId: string): Record<string, unknown>[] {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(attemptId)) return [];
+    return readJsonl(this.file(id, `.${attemptId}.trace.jsonl`));
+  }
+
+  /** 删除任务的全部文件（快照、日志、归档、运行轨迹） */
   remove(id: string): void {
     for (const s of ['.json', '.events.jsonl', '.attempts.jsonl'])
       fs.rmSync(this.file(id, s), { force: true });
+    let names: string[];
+    try {
+      names = fs.readdirSync(this.dir);
+    } catch {
+      return;
+    }
+    for (const n of names)
+      if (n.startsWith(`${id}.`) && n.endsWith('.trace.jsonl'))
+        fs.rmSync(path.join(this.dir, n), { force: true });
   }
 }

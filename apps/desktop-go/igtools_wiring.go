@@ -16,6 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledge"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/memory"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -89,7 +90,7 @@ var delegateToolNames = []string{"delegate_to_cli", "delegate_status", "delegate
 // registerIgTools = createIgPluginHost 的插件顺序：ToolsBuiltin → UserPreferenceMemory → CompanionTools → DesktopTools
 func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aifacade.Facade,
 	kb *knowledge.Service, mem *memory.Service, ext *extensions.Service, d *desktop.Service,
-	image igtools.ImageDeps) {
+	image igtools.ImageDeps, ts *tasks.Service) {
 	defs := igtools.BuiltinTools(igtools.Env{})
 	defs = append(defs, igtools.PreferenceTools(profile, igtools.Env{})...)
 	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true)...)
@@ -106,6 +107,13 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	}
 	// 生图（image_generate，没设置图片模型时不提供给模型）：与 Node plugin.ts 同位（delegate 之后、ext 之前）
 	defs = append(defs, igtools.ImageTools(image)...)
+	// 持续任务（task_propose 过授权卡片 / task_recall）：与 Node plugin.ts 同位（生图之后、扩展之前）
+	if ts != nil && d != nil && d.Broker != nil {
+		defs = append(defs, tasks.CreateTaskTools(ts, func(ctx context.Context, tool, summary string, args any, preview string) string {
+			return string(d.Broker.Authorize(desktop.AuthorizeInput{Tool: tool, Danger: "write", Summary: summary, Args: args,
+				Preview: &preview, Signal: ctx, Force: &struct{ Dialog bool }{true}}))
+		})...)
+	}
 	defs = append(defs, igtools.SkillTools(ext)...)
 	// 记忆检索、技能说明与参考文件都是外部内容：本轮标为读过外部内容（Node plugin.ts markExternalReads）
 	if d != nil && d.Broker != nil {
@@ -119,7 +127,7 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 
 // externalReadTools：输出来自用户以外来源（过往对话摘要、第三方技能包）的工具。kb_search、文件 / 浏览器工具
 // 自己在工具体里标记；MCP 工具在 extensions.withConfirm 里标记。
-var externalReadTools = map[string]bool{"memory_search": true, "skill_load": true, "skill_read_file": true}
+var externalReadTools = map[string]bool{"memory_search": true, "skill_load": true, "skill_read_file": true, "task_recall": true}
 
 // markExternalReads：这些工具成功返回后把本轮标为读过外部内容（命令自动审核据此不放行中风险命令）
 func markExternalReads(defs []tools.Definition, mark func(context.Context)) []tools.Definition {

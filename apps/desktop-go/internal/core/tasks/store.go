@@ -260,7 +260,39 @@ func (s *Store) UnconfirmedExternal(id, attemptID string) bool {
 	return len(open) > 0
 }
 
-// Remove：删除任务的全部文件
+var attemptIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
+
+// AppendTrace：一次执行的运行轨迹（工具调用与结果摘要），一行一个步骤
+func (s *Store) AppendTrace(id, attemptID string, line map[string]any) error {
+	if !attemptIDRE.MatchString(attemptID) {
+		return errors.New("invalid attempt id: " + attemptID)
+	}
+	if err := s.ensureDir(); err != nil {
+		return err
+	}
+	f, err := s.file(id, "."+attemptID+".trace.jsonl")
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(line)
+	if err != nil {
+		return err
+	}
+	return appendLines(f, append(b, '\n'))
+}
+
+func (s *Store) Trace(id, attemptID string) []map[string]any {
+	if !attemptIDRE.MatchString(attemptID) {
+		return []map[string]any{}
+	}
+	f, err := s.file(id, "."+attemptID+".trace.jsonl")
+	if err != nil {
+		return []map[string]any{}
+	}
+	return readJsonl[map[string]any](f)
+}
+
+// Remove：删除任务的全部文件（快照、日志、归档、运行轨迹）
 func (s *Store) Remove(id string) error {
 	for _, suf := range []string{".json", ".events.jsonl", ".attempts.jsonl"} {
 		f, err := s.file(id, suf)
@@ -269,6 +301,12 @@ func (s *Store) Remove(id string) error {
 		}
 		if err := os.Remove(f); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
+		}
+	}
+	ents, _ := os.ReadDir(s.dir)
+	for _, e := range ents {
+		if n := e.Name(); strings.HasPrefix(n, id+".") && strings.HasSuffix(n, ".trace.jsonl") {
+			_ = os.Remove(filepath.Join(s.dir, n))
 		}
 	}
 	return nil

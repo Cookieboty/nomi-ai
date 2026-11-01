@@ -150,6 +150,9 @@ func splitGatewayUsage(providerID, model string) (string, string) {
 }
 
 // wireUsage = createCore 的 new UsageService({...}) + usage.start()；网关 init 之后 autoSync。返回 stop。
+// usageSvcRef：用量服务（持续任务按模型价格算费用）
+var usageSvcRef atomic.Pointer[usage.UsageService]
+
 func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Service, gw *gwstore.Service) func() {
 	onData, needsFull := gw.ModelsDataHooks()
 	logger := qualityLogger{deps.StdLogger{Prefix: "[usage]"}}
@@ -218,6 +221,7 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 			AccountEnv:  accounts.OfficialAccountEnv,
 			ZstdDecode:  func(b []byte) (string, error) { return cli.ZstdDecode(b, cli.ZstdMaxOutputBytes) },
 		})
+		usageSvcRef.Store(s)
 		usageRef.Store(s)
 		s.Start()
 		// 启动时自动同步模型数据（cfg.autoSyncModels 缺省 = 开）

@@ -64,6 +64,25 @@ export interface ConfirmUi {
 /** blocked：当前权限模式不允许（「计划」档下的写 / 破坏性），没有弹确认 */
 export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
 
+/**
+ * 后台任务的一次执行（docs/design/persistent-tasks.md §8.4）：以这次执行的 AbortSignal 为键登记。
+ * 后台执行不继承前台的权限档位与「全部自动」，只认任务授权等级；需要人时不弹确认，而是让任务停到
+ * 「等你批准」（ask 返回用户的回答）。
+ */
+export interface BackgroundRun {
+  /** 任务授权等级（L0–L4） */
+  level: 0 | 1 | 2 | 3 | 4;
+  /** 需要人：暂停执行，等用户批准 / 拒绝 */
+  ask(req: { tool: string; summary: string; detail: string }): Promise<boolean>;
+}
+
+/** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
+const BACKGROUND_LEVEL: Record<Danger, number> = { read: 1, write: 2, destructive: 2 };
+const COMMAND_LEVEL = 3;
+/** MCP 工具（`<服务器>__<工具>`）默认算对外动作：后台需要 L4（connections.md §2） */
+const EXTERNAL_LEVEL = 4;
+const ABORT_PARENT = Symbol.for('nomi.abortParent');
+
 export const CONFIRM_TIMEOUT_MS = 120_000;
 /** 确认里预览的上限：workspace_run 的命令最长 8000 字符，要连同工作目录完整展示 */
 export const CONFIRM_PREVIEW_CAP = 16_000;
@@ -85,6 +104,7 @@ export class PermissionBroker {
   private readonly sessionScopes: Scope[] = [];
   private readonly sessionAllowed = new Set<string>();
   private readonly taintBySignal = new WeakMap<AbortSignal, true>();
+  private readonly backgroundBySignal = new WeakMap<AbortSignal, BackgroundRun>();
   private taintFallbackUntil = 0;
   private readonly pending = new Map<
     string,
@@ -291,6 +311,8 @@ export class PermissionBroker {
    * 关着时按原来的规则确认（但不再要求授权文件夹）。带 force 的（如 workspace_run）始终确认。
    */
   async authorizeIn(i: Parameters<PermissionBroker['authorize']>[0]): Promise<Decision> {
+    // 后台任务不看前台的档位与「全部自动」（§8.1）
+    if (this.isBackground(i.signal)) return this.authorize(i);
     if (this.permissionMode() === 'plan' && i.danger !== 'read') return 'blocked';
     if (!i.force && this.autoApprove()) return 'auto';
     return this.authorize(i);
@@ -336,6 +358,66 @@ export class PermissionBroker {
     return this.now() < this.taintFallbackUntil;
   }
 
+  // ---------- 后台任务 ----------
+  /** 登记一次后台任务执行；返回注销函数 */
+  registerBackground(signal: AbortSignal, run: BackgroundRun): () => void {
+    this.backgroundBySignal.set(signal, run);
+    return () => this.backgroundBySignal.delete(signal);
+  }
+
+  isBackground(signal?: AbortSignal): boolean {
+    return !!this.backgroundOf(signal);
+  }
+
+  /** 沿派生链（AiSdkLlmProvider 记下的上级）找登记的后台执行 */
+  private backgroundOf(signal?: AbortSignal): BackgroundRun | undefined {
+    for (let s = signal, depth = 0; s && depth < 8; depth++) {
+      const run = this.backgroundBySignal.get(s);
+      if (run) return run;
+      s = (s as unknown as Record<symbol, AbortSignal | undefined>)[ABORT_PARENT];
+    }
+    return undefined;
+  }
+
+  /**
+   * 后台审批（§8.4）：读直接放行；授权等级不够直接拒绝（授权外的动作不扩权）；
+   * 跑命令先经命令审核，低风险放行；读过外部内容后的写、破坏性动作、审核不放行的命令都停下来等人。
+   */
+  private async authorizeBackground(
+    run: BackgroundRun,
+    i: Parameters<PermissionBroker['authorize']>[0] & { signal: AbortSignal },
+  ): Promise<Decision> {
+    if (i.signal.aborted) return 'denied';
+    if (i.danger === 'read' && !i.force) return 'auto';
+    const command = REVIEWED_TOOLS.has(i.tool);
+    const need = command
+      ? COMMAND_LEVEL
+      : i.tool.includes('__')
+        ? EXTERNAL_LEVEL
+        : BACKGROUND_LEVEL[i.danger];
+    if (run.level < need) return 'denied';
+    const tainted = this.isTainted(i.signal);
+    let detail = i.preview ?? i.summary;
+    if (command) {
+      const review = this.reviewer && this.aiReview() ? await this.review(i) : null;
+      // 与前台一致：审核放行就直接跑（workspace_run 总带 force，审核结果优先）
+      if (review?.outcome === 'allow') return 'auto';
+      if (review)
+        detail = `${review.risk}${review.rationale ? `: ${review.rationale}` : ''}\n${detail}`;
+    } else if (i.danger === 'write' && !tainted && !i.force) {
+      const policy = this.policy(i.tool, i.danger);
+      if (policy !== 'ask') return 'auto';
+    }
+    if (i.signal.aborted) return 'denied';
+    const ok = await run.ask({
+      tool: i.tool,
+      summary: i.summary,
+      detail: detail.slice(0, CONFIRM_PREVIEW_CAP),
+    });
+    if (i.signal.aborted) return 'denied';
+    return ok ? 'allowed' : 'denied';
+  }
+
   // ---------- 确认 ----------
   async authorize(i: {
     tool: string;
@@ -351,6 +433,9 @@ export class PermissionBroker {
     /** 本轮用户说的话（命令审核判断授权用） */
     userText?: string;
   }): Promise<Decision> {
+    const bg = this.backgroundOf(i.signal);
+    if (bg && i.signal && !i.ignoreMode)
+      return this.authorizeBackground(bg, { ...i, signal: i.signal });
     const mode = i.ignoreMode ? 'acceptEdits' : this.permissionMode();
     if (mode === 'plan' && i.danger !== 'read') return 'blocked';
     const d = i.force

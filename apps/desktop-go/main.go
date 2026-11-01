@@ -369,7 +369,7 @@ func main() {
 		return r.File, err
 	})
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
-		imgDeps)
+		imgDeps, b8.Tasks)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
 		GetRegistry: func() tools.Registry { return toolRegistry },
@@ -412,6 +412,33 @@ func main() {
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
 	aiFacade.Register(router)
+	// 持续任务的 Nomi 无界面执行（persistent-tasks §7.1）：工具白名单 + 不冒气泡；审批走 broker 的后台模式
+	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
+		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
+			role := "agent-tools"
+			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
+				Tools: toolNames, Quiet: true, Extra: extra}, emit)
+		},
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool) context.Context {
+			return desktop.WithBackground(ctx, &desktop.BackgroundRun{Level: level, Ask: ask})
+		},
+		Ready: func() bool {
+			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
+			return ok
+		},
+		CostOf: func(model string, in, out int64) (float64, bool) {
+			s := usageSvcRef.Load()
+			if s == nil {
+				return 0, false
+			}
+			return s.CostOf(model, util.NewObj("input", float64(in), "output", float64(out)))
+		},
+		Trace: func(taskID, attemptID string, line map[string]any) {
+			if err := b8.Tasks.Store.AppendTrace(taskID, attemptID, line); err != nil {
+				log.Printf("[tasks] trace: %v", err)
+			}
+		},
+	}))
 	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()

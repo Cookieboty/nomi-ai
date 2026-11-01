@@ -79,6 +79,9 @@ func NewService(d ServiceDeps) *Service {
 		NewID:     newID,
 		Log:       d.Log,
 		Deliver:   s.deliver,
+		DailyBudgetExceeded: func(t Task, attempts []Attempt, now int64) bool {
+			return t.Budget.MaxCostUsdPerDay != nil && SpentToday(attempts, now) >= *t.Budget.MaxCostUsdPerDay
+		},
 		OnChange: func(t Task) {
 			if d.Emit != nil {
 				d.Emit("tasks.changed", map[string]string{"id": t.ID})
@@ -154,6 +157,19 @@ func (s *Service) Update(id string, p Patch) *Task { return s.Runtime.Patch(id, 
 func (s *Service) Command(id string, c Command) CmdResult { return s.Runtime.Command(id, c) }
 
 func (s *Service) Remove(id string) bool { return s.Runtime.Remove(id) }
+
+// SpentToday：今天（本机时区）各次执行的已知费用合计；费用未知的不计入（§9）
+func SpentToday(attempts []Attempt, now int64) float64 {
+	d := time.UnixMilli(now)
+	start := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.Local).UnixMilli()
+	sum := 0.0
+	for _, a := range attempts {
+		if a.StartedAt >= start && a.Usage.CostUsd != nil {
+			sum += *a.Usage.CostUsd
+		}
+	}
+	return sum
+}
 
 func (s *Service) deliver(t Task, what string, a *Attempt) {
 	if what == "result" && t.Executor.Kind == "notify" {

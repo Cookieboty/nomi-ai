@@ -85,6 +85,8 @@ export class TaskService {
       logger: d.logger,
       deliver: (task, what, attempt) => this.deliver(task, what, attempt),
       onChange: (task) => d.events.publish('tasks.changed', { id: task.id }),
+      dailyBudgetExceeded: (task, at) =>
+        this.spentToday(task.id, at) >= (task.budget.maxCostUsdPerDay ?? Infinity),
     });
   }
 
@@ -164,6 +166,17 @@ export class TaskService {
 
   remove(id: string): boolean {
     return this.runtime.remove(id);
+  }
+
+  /** 这个任务今天（本机时区）各次执行的已知费用合计；费用未知的不计入（§9：不编造费用） */
+  spentToday(id: string, at: number): number {
+    const rec = this.runtime.get(id);
+    if (!rec) return 0;
+    const day = new Date(at);
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    return rec.attempts
+      .filter((a) => a.startedAt >= start)
+      .reduce((sum, a) => sum + (a.usage.costUsd ?? 0), 0);
   }
 
   // ---------- 投递 ----------

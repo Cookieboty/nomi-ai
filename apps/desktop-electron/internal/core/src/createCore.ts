@@ -108,7 +108,9 @@ import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
 import { UpdateService, type UpdaterLike } from './services/UpdateService';
 import { StartupService } from './startup/StartupService';
+import { createNomiExecutor } from './tasks/executors/nomi';
 import { TaskService } from './tasks/TaskService';
+import { createTaskTools } from './tasks/tools';
 import { ThemeService } from './theme/ThemeService';
 import { TtsService } from './tts/TtsService';
 import { GatewayRequestLog, readLegacyGatewayTrace } from './usage/GatewayRequestLog';
@@ -478,6 +480,27 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     });
     services.tasks = tasks;
     stoppers.push(() => tasks.stop());
+    // Nomi 无界面执行（§7.1）：AI runtime 在 start() 里才起来，这里按需取用；工具审批走 broker 的后台模式
+    tasks.registerExecutor(
+      'nomi',
+      createNomiExecutor({
+        agentStream: (opts) => {
+          const rt = services.aiRuntime;
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
+          return rt.client.chat.agentStream(opts as never) as never;
+        },
+        ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
+        registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),
+        trace: (id, attemptId, line) => {
+          try {
+            tasks.store.appendTrace(id, attemptId, line);
+          } catch (error) {
+            logger.warn('写任务运行轨迹失败', String(error));
+          }
+        },
+      }),
+    );
 
     // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
     services.screen = new ScreenService({
@@ -1032,6 +1055,13 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           delegate: () => services.delegate,
           ext: () => services.ext,
           extra: () => createImageTools(imageToolDeps()),
+          tasks: () =>
+            services.tasks && services.desktop
+              ? createTaskTools({
+                  tasks: services.tasks,
+                  authorize: (i) => services.desktop!.broker.authorize(i),
+                })
+              : [],
         },
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
