@@ -193,5 +193,10 @@
   "ui.models.all-vendors": "全部厂商",
   "ui.models.filter-by-provider": "按供应商筛选",
   "ui.models.filter-by-vendor": "按厂商筛选",
-  "ui.models.other-vendors": "其他厂商"
+  "ui.models.other-vendors": "其他厂商",
+  "ui.models.image-generation": "图片生成",
+  "ui.models.model-for-image-generation": "生成图片的模型",
+  "ui.models.no-image-models": "供应商里还没有图片模型",
+  "ui.models.image-auto": "自动（按对话模型匹配）",
+  "ui.models.image-auto-hint": "没指定时按 Nomi 对话的模型挑同一家的图片模型（gpt → gpt-image，gemini → Gemini 生图）；没有同家的就依次用 gpt、gemini 的图片模型"
 }

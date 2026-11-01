@@ -21,6 +21,7 @@ import {
   formatContext,
   Icon,
   Input,
+  isImageModel,
   ModelProviderTabs,
   modelVendorId,
   modelVendors,
@@ -40,6 +41,7 @@ import {
 import {
   codingProviders,
   defaultSourceSwitch,
+  isCliKind,
   providerOfRef,
   scopeCatalogToProvider,
   scopeCatalogToProviders,
@@ -47,6 +49,7 @@ import {
   switchTabSource,
   tabSourceOf,
   thirdPartyRefOf,
+  type CodingProvider,
   type SessionModelGroup,
   type SourceSwitch,
 } from '../../services/cliSource';
@@ -61,13 +64,21 @@ import {
 } from '../../services/harnessClient';
 import { longContextFor, type LongContextInfo } from '../../services/longContext';
 import { registerModelMenu } from '../../services/modelMenu';
-import { useGatewayState } from '../../services/nomiModel';
+import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
+import { effortLabel } from './effortLabel';
+import { EffortSlider } from './EffortSlider';
 import styles from './index.module.css';
+
+export { effortLabel };
 
 /** 模型多于这个数时模型页显示搜索框（与 @nomi-ai/ui 的 Select 一致） */
 const MODEL_SEARCH_THRESHOLD = 8;
+/** 官方来源标签的模型页里，CLI 自己那一页的标签 id（不会和网关供应商 id 撞上） */
+const OWN_TAB = '__cli';
+/** 第三方模型名去掉厂商前缀（anthropic/claude-fable-5 → claude-fable-5）：左侧已有厂商筛选与分组标题 */
+const shortName = (s: string) => s.slice(s.lastIndexOf('/') + 1);
 
 /** 有官方账号的编程助手 */
 const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
@@ -88,25 +99,6 @@ const EFFORT_ORDER: ReasoningEffort[] = [
   'max',
   'ultra',
 ];
-
-export function effortLabel(e: ReasoningEffort): string {
-  switch (e) {
-    case 'minimal':
-      return t('ui.chat-settings.minimal');
-    case 'low':
-      return t('ui.chat-settings.low');
-    case 'medium':
-      return t('ui.chat-settings.medium');
-    case 'high':
-      return t('ui.chat-settings.high');
-    case 'xhigh':
-      return t('ui.chat-settings.extra-high');
-    case 'max':
-      return t('ui.chat-settings.max');
-    case 'ultra':
-      return t('ui.chat-settings.ultra');
-  }
-}
 
 /** 主进程返回的目录做结构校验：无效 / 空后端一律当作「不支持」 */
 function validCatalog(c: unknown): BackendModelCatalog | null {
@@ -234,110 +226,6 @@ const ChipMenu: React.FC<{
   );
 };
 
-/** 滑块直径（与 CSS 的 .slider --thumb 一致） */
-const THUMB = 18;
-
-/**
- * 分档滑杆（参考 Codex 的推理强度滑杆）：细轨道上每档一个点，下方是档位名；
- * 点击 / 拖动吸附到最近一档，点档位名直接选，键盘 ← → Home End 调档。
- * value = null（沿用 CLI 默认）时不显示滑块与填充。
- * 拖动中只预览，松手才提交，避免每移一格就重启一次 Claude 长驻进程。
- */
-const EffortSlider: React.FC<{
-  levels: ReasoningEffort[];
-  value: ReasoningEffort | null;
-  onPreview: (e: ReasoningEffort | null) => void;
-  onCommit: (e: ReasoningEffort) => void;
-}> = ({ levels, value, onPreview, onCommit }) => {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-  const idx = value ? levels.indexOf(value) : -1;
-  const last = Math.max(levels.length - 1, 1);
-  // 第 i 档在「轨道宽 - 滑块宽」区间里的偏移（两端各留半个滑块）
-  const at = (i: number, plus = 0) => `calc((100% - ${THUMB}px) * ${i / last} + ${plus}px)`;
-
-  const levelAt = (clientX: number): ReasoningEffort => {
-    const r = trackRef.current?.getBoundingClientRect();
-    if (!r || r.width <= THUMB) return levels[Math.max(idx, 0)];
-    const ratio = (clientX - r.left - THUMB / 2) / (r.width - THUMB);
-    return levels[Math.round(Math.min(1, Math.max(0, ratio)) * last)];
-  };
-
-  const step = (to: number) => {
-    const e = levels[Math.min(levels.length - 1, Math.max(0, to))];
-    if (e !== value) onCommit(e);
-  };
-
-  return (
-    <div className={styles.sliderWrap}>
-      <div
-        ref={trackRef}
-        className={styles.slider}
-        role="slider"
-        tabIndex={0}
-        aria-label={t('ui.chat-settings.reasoning-effort')}
-        aria-valuemin={0}
-        aria-valuemax={levels.length - 1}
-        aria-valuenow={idx < 0 ? undefined : idx}
-        aria-valuetext={value ? effortLabel(value) : t('ui.providers-schedule.default')}
-        data-testid="effort-slider"
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') step(idx < 0 ? 0 : idx + 1);
-          else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') step(idx < 0 ? 0 : idx - 1);
-          else if (e.key === 'Home') step(0);
-          else if (e.key === 'End') step(levels.length - 1);
-          else return;
-          e.preventDefault();
-        }}
-        onPointerDown={(e) => {
-          dragging.current = true;
-          e.currentTarget.setPointerCapture?.(e.pointerId);
-          onPreview(levelAt(e.clientX));
-        }}
-        onPointerMove={(e) => {
-          if (dragging.current) onPreview(levelAt(e.clientX));
-        }}
-        onPointerUp={(e) => {
-          if (!dragging.current) return;
-          dragging.current = false;
-          onCommit(levelAt(e.clientX));
-        }}
-        onPointerCancel={() => {
-          dragging.current = false;
-          onPreview(null);
-        }}
-      >
-        <span className={styles.sliderTrack} />
-        {idx >= 0 && <span className={styles.sliderFill} style={{ width: at(idx) }} />}
-        {levels.map((l, i) => (
-          <span
-            key={l}
-            className={`${styles.sliderStop} ${i <= idx ? styles.sliderStopOn : ''}`}
-            style={{ left: at(i, THUMB / 2) }}
-            data-testid={`effort-${l}`}
-          />
-        ))}
-        {idx >= 0 && <span className={styles.sliderThumb} style={{ left: at(idx) }} />}
-      </div>
-      {/* 档位名：鼠标直接点选（键盘走滑杆本身，这里不进 Tab 顺序） */}
-      <div className={styles.sliderLabels} aria-hidden="true">
-        {levels.map((l, i) => (
-          <span
-            key={l}
-            className={`${styles.sliderLabel} ${i === idx ? styles.sliderLabelOn : ''}`}
-            style={{ left: at(i, THUMB / 2) }}
-            onClick={() => {
-              if (l !== value) onCommit(l);
-            }}
-          >
-            {effortLabel(l)}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 /** 模型 · 思考深度按钮（一个按钮 + 一个浮层，参考 Codex） */
 const ModelChip: React.FC<{
   tab: HarnessTabMeta;
@@ -357,6 +245,16 @@ const ModelChip: React.FC<{
   sourceSwitch?: SourceSwitch | null;
   /** 第三方：目录里列了几个供应商时按供应商分标签（多于一个才显示） */
   providerTabs?: ModelProviderTab[] | null;
+  /**
+   * 官方来源（CLI 自己的配置 / 官方账号）的标签：网关里能给编程助手用的供应商。
+   * 有的话模型页与 Nomi 的模型选择器同形：第一个标签是 CLI 自己的模型，后面每个供应商一个标签，
+   * 选供应商的模型 = 把标签切到第三方并用这个模型（原地续接）
+   */
+  switchProviders?: CodingProvider[] | null;
+  /** 「模型」页给这个编程助手分配的默认供应商（标签上标「默认供应商」） */
+  defaultProviderId?: string | null;
+  /** 网关模型（`供应商/模型`）的上下文窗口，模型行右侧显示 */
+  modelCtx?: ReadonlyMap<string, number> | null;
 }> = ({
   tab,
   catalog,
@@ -366,7 +264,10 @@ const ModelChip: React.FC<{
   sessionRef = null,
   groups = null,
   sourceSwitch = null,
-  providerTabs = null,
+  providerTabs: thirdPartyTabs = null,
+  switchProviders = null,
+  defaultProviderId = null,
+  modelCtx = null,
 }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
@@ -378,8 +279,28 @@ const ModelChip: React.FC<{
   const [preview, setPreview] = useState<ReasoningEffort | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const current = tab.modelOverride?.trim() || sessionRef || null;
+  const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
+  // 官方来源 + 网关里有供应商：第一个标签是 CLI 自己的模型，其余是网关供应商（与 Nomi 的选择器同形）
+  const officialTabs = useMemo<ModelProviderTab[] | null>(
+    () =>
+      switchProviders?.length && tabSourceOf(tab) !== 'thirdParty'
+        ? [
+            { id: OWN_TAB, name: backendName || tab.backend },
+            ...switchProviders.map((p) => ({
+              id: p.id,
+              name: p.name,
+              ...(p.id === defaultProviderId
+                ? { hint: t('ui.models.default-provider-named', p.name) }
+                : {}),
+            })),
+          ]
+        : null,
+    [switchProviders, tab, backendName, defaultProviderId],
+  );
+  const providerTabs = thirdPartyTabs ?? officialTabs;
   const tabbed = !!providerTabs && providerTabs.length > 1;
   // 分了供应商标签就不再按组列标题（组的说明放到标签的悬停提示里）
   const grouped = !tabbed && !!groups && groups.length > 1;
@@ -440,7 +361,6 @@ const ModelChip: React.FC<{
     if (!long || on === long.on) return;
     void run(() => harnessClient.setTabLongContext(tab.id, on === long.modelDefault ? null : on));
   };
-  const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
   // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
   // 官方来源的标签可以单独选官方账号（多个账号并行，§5.10.8）
@@ -517,15 +437,27 @@ const ModelChip: React.FC<{
     setPtab('');
     setVendor(null);
   };
-  const currentPid = providerOfRef(current ?? catalog.defaultModel?.id);
+  // 官方来源：当前模型总在 CLI 自己那一页（它的模型名里可能也带 `/`，不能按供应商前缀判断）
+  const currentPid = officialTabs ? OWN_TAB : providerOfRef(current ?? catalog.defaultModel?.id);
   const activeTab = !providerTabs?.length
     ? ''
     : providerTabs.some((p) => p.id === (ptab || currentPid))
       ? ptab || currentPid!
       : providerTabs[0]!.id;
 
+  /** 官方来源的标签正停在某个网关供应商上：列的是它的模型，选了就切到第三方 */
+  const onSwitchTab = !!officialTabs && activeTab !== OWN_TAB;
+  const switchModels = useMemo<ModelCatalogModel[]>(
+    () =>
+      (switchProviders ?? []).flatMap((p) =>
+        p.models.map((m) => ({ id: m.ref, label: m.model, reasoning: true, efforts: [] })),
+      ),
+    [switchProviders],
+  );
+  const modelCount = catalog.models.length + (officialTabs ? switchModels.length : 0);
+
   // `/model` 打开同一个浮层：直接到模型列表，有搜索框时填上参数
-  const searchableNow = catalog.models.length > MODEL_SEARCH_THRESHOLD;
+  const searchableNow = modelCount > MODEL_SEARCH_THRESHOLD;
   useEffect(
     () =>
       registerModelMenu(tab.id, (q) => {
@@ -555,31 +487,78 @@ const ModelChip: React.FC<{
     void run(() => harnessClient.setTabModel(tab.id, model, { expectSource: tabSourceOf(tab) }));
   };
 
+  /** 官方来源的标签选了网关供应商的模型：切到第三方并用这个模型（原地续接，同「切到默认来源」） */
+  const pickSwitchModel = (ref: string) => {
+    setQuery('');
+    setView('effort');
+    setOpen(false);
+    void run(() =>
+      switchTabSource(tab, 'thirdParty', {
+        model: ref,
+        hasMessages: !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0,
+      }),
+    );
+  };
+  const choose = (id: string) => (onSwitchTab ? pickSwitchModel(id) : pickModel(id));
+
   const q = query.trim().toLowerCase();
-  const switchItems = sourceSwitch
-    ? sourceSwitch.items.filter((i) => !q || i.label.toLowerCase().includes(q))
-    : [];
-  const searchable = catalog.models.length > MODEL_SEARCH_THRESHOLD;
+  // 官方来源已经按供应商分标签列出网关模型时，不再另列「默认供应商」一组
+  const switchItems =
+    sourceSwitch && !(officialTabs && sourceSwitch.target === 'thirdParty')
+      ? sourceSwitch.items.filter((i) => !q || i.label.toLowerCase().includes(q))
+      : [];
+  const searchable = modelCount > MODEL_SEARCH_THRESHOLD;
   // 当前供应商标签里的模型（模型 id 是 `供应商/模型`）
   const tabModels = useMemo(
     () =>
-      tabbed ? catalog.models.filter((m) => providerOfRef(m.id) === activeTab) : catalog.models,
-    [catalog, tabbed, activeTab],
+      officialTabs
+        ? activeTab === OWN_TAB
+          ? catalog.models
+          : switchModels.filter((m) => providerOfRef(m.id) === activeTab)
+        : tabbed
+          ? catalog.models.filter((m) => providerOfRef(m.id) === activeTab)
+          : catalog.models,
+    [catalog, tabbed, activeTab, officialTabs, switchModels],
   );
   const modelName = (id: string) => (providerOfRef(id) ? id.slice(id.indexOf('/') + 1) : id);
-  // 厂商筛选只给第三方：官方目录都是同一家
+  // 厂商筛选只给第三方模型：官方目录都是同一家
+  const vendorsOn = thirdParty || onSwitchTab;
   const vendors = useMemo(
-    () => (thirdParty ? modelVendors(tabModels.map((m) => modelName(m.id))) : []),
-    [thirdParty, tabModels],
+    () => (vendorsOn ? modelVendors(tabModels.map((m) => modelName(m.id))) : []),
+    [vendorsOn, tabModels],
   );
   const showVendors = vendors.length > 1;
   // 切到的标签里没有这个厂商：回到全部
   const activeVendor = vendor !== null && vendors.some((v) => v.id === vendor) ? vendor : null;
-  const shownModels = tabModels.filter(
+  const vendorOf = (id: string) => modelVendorId(modelName(id));
+  const filtered = tabModels.filter(
     (m) =>
-      (activeVendor === null || modelVendorId(modelName(m.id)) === activeVendor) &&
+      (activeVendor === null || vendorOf(m.id) === activeVendor) &&
       (!q || `${m.id} ${m.label ?? ''} ${m.description ?? ''}`.toLowerCase().includes(q)),
   );
+  // 「全部厂商」时按厂商分组（顺序与左侧图标栏一致），每组一个小标题；已按会话供应商分组时不再叠一层
+  const vendorGrouped = showVendors && activeVendor === null && !grouped;
+  const vendorRank = new Map(vendors.map((v, i) => [v.id, i]));
+  const shownModels = vendorGrouped
+    ? [...filtered].sort(
+        (a, b) =>
+          (vendorRank.get(vendorOf(a.id)) ?? vendors.length) -
+          (vendorRank.get(vendorOf(b.id)) ?? vendors.length),
+      )
+    : filtered;
+  /** 模型行显示的名字：第三方去掉厂商前缀，完整 id 在悬停提示里 */
+  const rowLabel = (m: ModelCatalogModel) =>
+    vendorsOn ? shortName(m.label ?? modelName(m.id)) : (m.label ?? m.id);
+
+  // 打开模型页 / 切供应商标签时把当前模型滚到视野里
+  useEffect(() => {
+    if (!open || view !== 'model') return;
+    const id = requestAnimationFrame(() => {
+      const el = listRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+      el?.scrollIntoView?.({ block: 'center' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, view, activeTab]);
 
   const pickEffort = (e: ReasoningEffort | null) => {
     setPreview(null);
@@ -587,6 +566,22 @@ const ModelChip: React.FC<{
     if (e === effort || (effort === null && e === defaultEffort)) return;
     void run(() => harnessClient.setTabEffort(tab.id, e));
   };
+
+  const refreshButton = (
+    <button
+      type="button"
+      className={styles.back}
+      data-testid="model-refresh"
+      disabled={refreshing}
+      aria-label={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
+      title={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
+      onClick={onRefresh}
+    >
+      <span className={refreshing ? styles.spin : undefined}>
+        <Icon icon={RefreshCw} size={13} />
+      </span>
+    </button>
+  );
 
   return (
     <div className={styles.wrap}>
@@ -772,38 +767,28 @@ const ModelChip: React.FC<{
             </>
           ) : (
             <>
-              <div className={styles.modelHead}>
-                {provider ? (
-                  <span className={styles.back} data-testid="model-provider">
-                    {grouped || tabbed
-                      ? t('ui.models.third-party-models')
-                      : t('ui.chat-settings.models', provider.name)}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.back}
-                    data-testid="model-back"
-                    onClick={() => setView('effort')}
-                  >
-                    <Icon icon={ChevronLeft} size={14} />
-                    {t('ui.foundation.model')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={styles.back}
-                  data-testid="model-refresh"
-                  disabled={refreshing}
-                  aria-label={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
-                  title={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
-                  onClick={onRefresh}
-                >
-                  <span className={refreshing ? styles.spin : undefined}>
-                    <Icon icon={RefreshCw} size={13} />
-                  </span>
-                </button>
-              </div>
+              {!(provider && tabbed) && (
+                <div className={styles.modelHead}>
+                  {provider ? (
+                    <span className={styles.back} data-testid="model-provider">
+                      {grouped || tabbed
+                        ? t('ui.models.third-party-models')
+                        : t('ui.chat-settings.models', provider.name)}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.back}
+                      data-testid="model-back"
+                      onClick={() => setView('effort')}
+                    >
+                      <Icon icon={ChevronLeft} size={14} />
+                      {t('ui.foundation.model')}
+                    </button>
+                  )}
+                  {refreshButton}
+                </div>
+              )}
               {catalog.error && (
                 <div className={styles.modelError} role="status" data-testid="model-error">
                   {t(
@@ -821,54 +806,18 @@ const ModelChip: React.FC<{
                   )}
                 </div>
               )}
-              {long && (
-                <div
-                  className={styles.contextGroup}
-                  role="radiogroup"
-                  aria-label={t('ui.models.context-window')}
-                  data-testid="long-context-group"
-                >
-                  <span className={styles.contextGroupLabel}>{t('ui.models.context-window')}</span>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={!long.on}
-                    className={styles.item}
-                    data-testid="long-context-standard"
-                    onClick={() => pickLong(false)}
-                  >
-                    <span className={styles.itemLabel}>{t('ui.models.standard-context')}</span>
-                    <span className={styles.itemHint}>{formatContext(long.standard)}</span>
-                    {!long.on && <Icon icon={Check} size={14} />}
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={long.on}
-                    className={styles.item}
-                    data-testid="long-context-long"
-                    onClick={() => pickLong(true)}
-                  >
-                    <span className={styles.itemLabel}>{t('ui.models.long-context')}</span>
-                    <span className={styles.itemHint}>{formatContext(long.full)}</span>
-                    {long.on && <Icon icon={Check} size={14} />}
-                  </button>
-                  <span className={styles.contextGroupNote}>
-                    {long.priceNote ?? t('ui.models.long-context-costs-more')}
-                    {' · '}
-                    {t('ui.models.switching-restarts-this-tab-s-assistant')}
-                  </span>
-                </div>
-              )}
               {tabbed && (
-                <ModelProviderTabs
-                  tabs={providerTabs}
-                  value={activeTab}
-                  onChange={(id) => {
-                    setPtab(id);
-                    setVendor(null);
-                  }}
-                />
+                <div className={styles.tabsRow}>
+                  <ModelProviderTabs
+                    tabs={providerTabs}
+                    value={activeTab}
+                    onChange={(id) => {
+                      setPtab(id);
+                      setVendor(null);
+                    }}
+                  />
+                  {provider && refreshButton}
+                </div>
               )}
               {searchable && (
                 <Input
@@ -881,7 +830,7 @@ const ModelChip: React.FC<{
                     // 回车选第一个匹配的；Esc 先清空搜索词，再按一次才关菜单
                     if (e.key === 'Enter' && shownModels[0]) {
                       e.preventDefault();
-                      pickModel(shownModels[0].id);
+                      choose(shownModels[0].id);
                     } else if (e.key === 'Escape' && query) {
                       e.preventDefault();
                       e.stopPropagation();
@@ -897,8 +846,13 @@ const ModelChip: React.FC<{
                 {showVendors && (
                   <ModelVendorFilter vendors={vendors} value={activeVendor} onChange={setVendor} />
                 )}
-                <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
-                  {!q && !sessionRef && (
+                <div
+                  ref={listRef}
+                  className={styles.models}
+                  role="listbox"
+                  aria-label={t('ui.foundation.model')}
+                >
+                  {!q && !sessionRef && !onSwitchTab && (
                     <button
                       type="button"
                       role="option"
@@ -911,7 +865,10 @@ const ModelChip: React.FC<{
                       <span className={styles.itemLabel}>
                         {t('ui.providers-schedule.default-model')}
                       </span>
-                      <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
+                      <span className={styles.itemHint}>
+                        {(defaultLabel && thirdParty ? shortName(defaultLabel) : defaultLabel) ??
+                          sourceName}
+                      </span>
                       {!current && <Icon icon={Check} size={14} />}
                     </button>
                   )}
@@ -926,6 +883,16 @@ const ModelChip: React.FC<{
                   )}
                   {shownModels.map((m, i) => (
                     <React.Fragment key={m.id}>
+                      {vendorGrouped &&
+                        vendorOf(m.id) !== (i ? vendorOf(shownModels[i - 1]!.id) : undefined) && (
+                          <div
+                            className={styles.vendorLabel}
+                            role="presentation"
+                            data-testid={`model-vendor-group-${vendorOf(m.id) || 'other'}`}
+                          >
+                            {vendors.find((v) => v.id === vendorOf(m.id))?.name}
+                          </div>
+                        )}
                       {grouped &&
                         groupOf(m.id) !== (i ? groupOf(shownModels[i - 1]!.id) : undefined) && (
                           <div
@@ -939,23 +906,28 @@ const ModelChip: React.FC<{
                       <button
                         type="button"
                         role="option"
-                        aria-selected={current === m.id}
+                        aria-selected={!onSwitchTab && current === m.id}
                         className={styles.item}
                         data-testid={`model-${m.id}`}
                         title={m.description ? `${m.id} · ${m.description}` : m.id}
-                        onClick={() => pickModel(m.id)}
+                        onClick={() => choose(m.id)}
                       >
-                        <span className={styles.itemLabel}>{m.label ?? m.id}</span>
+                        <span className={styles.itemLabel}>{rowLabel(m)}</span>
+                        {modelCtx?.get(m.id) ? (
+                          <span className={styles.itemMeta}>
+                            {formatContext(modelCtx.get(m.id)!)}
+                          </span>
+                        ) : null}
                         {!m.reasoning && !provider && (
                           <span className={styles.itemHint}>
                             {t('ui.chat-settings.no-reasoning-effort')}
                           </span>
                         )}
-                        {current === m.id && <Icon icon={Check} size={14} />}
+                        {!onSwitchTab && current === m.id && <Icon icon={Check} size={14} />}
                       </button>
                     </React.Fragment>
                   ))}
-                  {current && !currentModel && !q && (
+                  {current && !currentModel && !q && !onSwitchTab && (
                     <button
                       type="button"
                       role="option"
@@ -998,6 +970,43 @@ const ModelChip: React.FC<{
                   )}
                 </div>
               </div>
+              {long && (
+                <div
+                  className={styles.contextBar}
+                  title={t('ui.models.switching-restarts-this-tab-s-assistant')}
+                  data-testid="long-context-group"
+                >
+                  <div className={styles.contextBarRow}>
+                    <span className={styles.contextBarLabel}>{t('ui.models.context-window')}</span>
+                    <div
+                      className={styles.segment}
+                      role="radiogroup"
+                      aria-label={t('ui.models.context-window')}
+                    >
+                      {[
+                        { on: false, label: t('ui.models.standard-context'), size: long.standard },
+                        { on: true, label: t('ui.models.long-context'), size: long.full },
+                      ].map((o) => (
+                        <button
+                          key={String(o.on)}
+                          type="button"
+                          role="radio"
+                          aria-checked={long.on === o.on}
+                          className={styles.segmentItem}
+                          data-testid={o.on ? 'long-context-long' : 'long-context-standard'}
+                          onClick={() => pickLong(o.on)}
+                        >
+                          {o.label}
+                          <span className={styles.segmentSize}>{formatContext(o.size)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <span className={styles.contextBarNote}>
+                    {long.priceNote ?? t('ui.models.long-context-costs-more')}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </ChipMenu>
@@ -1053,6 +1062,24 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     [source, tab, gateway],
   );
   const sourceSwitch = useMemo(() => defaultSourceSwitch(tab, gateway), [tab, gateway]);
+  // 官方来源：网关里的供应商也按标签列出来，可以直接换过去（与 Nomi 的模型选择器同形）
+  const switchProviders = useMemo(
+    () =>
+      source !== 'thirdParty' && isCliKind(tab.backend) && gateway?.clients[tab.backend]
+        ? codingProviders(gateway)
+        : null,
+    [source, tab.backend, gateway],
+  );
+  // 网关模型的上下文窗口（模型行右侧显示）
+  const modelCtx = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const p of pickerProviders(gateway?.providers ?? []))
+      for (const m of p.models) if (m.ctx) out.set(`${p.id}/${m.id}`, m.ctx);
+    return out;
+  }, [gateway]);
+  const defaultProviderId = isCliKind(tab.backend)
+    ? providerOfRef(gateway?.clients[tab.backend]?.models.main)
+    : null;
   // 第三方：列所有供应商的模型，按供应商分标签；组（原来的 / 默认供应商）的说明放到标签上
   const providerTabs = useMemo(() => {
     if (!catalog || !thirdRef) return null;
@@ -1062,18 +1089,26 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       .filter((p) => has.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, hint: label.get(p.id) }));
   }, [catalog, thirdRef, groups, gateway]);
-  const scoped = useMemo(
+  // 第三方目录来自网关：生图模型不能给编程助手用，不列
+  const chatCatalog = useMemo(
     () =>
       catalog && thirdRef
+        ? { ...catalog, models: catalog.models.filter((m) => !isImageModel(m.id)) }
+        : catalog,
+    [catalog, thirdRef],
+  );
+  const scoped = useMemo(
+    () =>
+      chatCatalog && thirdRef
         ? providerTabs && providerTabs.length > 1
           ? scopeCatalogToProviders(
-              catalog,
+              chatCatalog,
               providerTabs.map((p) => p.id),
               gateway,
             )
-          : scopeCatalogToProvider(catalog, thirdRef, gateway)
-        : catalog,
-    [catalog, thirdRef, providerTabs, gateway],
+          : scopeCatalogToProvider(chatCatalog, thirdRef, gateway)
+        : chatCatalog,
+    [chatCatalog, thirdRef, providerTabs, gateway],
   );
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;
@@ -1088,6 +1123,9 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       groups={groups}
       sourceSwitch={sourceSwitch}
       providerTabs={providerTabs}
+      switchProviders={switchProviders}
+      defaultProviderId={defaultProviderId}
+      modelCtx={modelCtx}
     />
   );
 };

@@ -4,9 +4,10 @@
  * 用量优先取 CLI 最近一轮真实 usage，否则本地估算（界面标明）。
  */
 import { formatContext, t } from '@nomi-ai/ui';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
+import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { harnessClient } from '../../services/harnessClient';
 import {
   injectedWindowFor,
@@ -29,6 +30,25 @@ import styles from './SessionWorkspace.module.css';
 const R = 9;
 const C = 2 * Math.PI * R;
 
+/**
+ * Nomi 对话实际路由到的模型的上下文窗口；网关状态变化（换模型、改模型元数据）时重新取。
+ * 网关也不认识这个模型（source = default）或取不到时为 null，交给经验表 / 默认值。
+ */
+function useNomiContextWindow(enabled: boolean, gateway: GatewayState | null): number | null {
+  const [win, setWin] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    void gatewayClient.nomiContext('chat').then((r) => {
+      if (alive) setWin(r && r.window > 0 && r.source !== 'default' ? r.window : null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, gateway]);
+  return enabled ? win : null;
+}
+
 export const ContextUsageBar: React.FC<{
   messages: readonly ConvMessage[];
   model?: string | null;
@@ -41,14 +61,18 @@ export const ContextUsageBar: React.FC<{
   const gateway = useGatewayState();
   const long = tab ? longContextFor(tab, gateway) : null;
   const injected = tab ? injectedWindowFor(tab, gateway) : null;
+  // Nomi 对话：窗口取内核按路由到的模型算的预算（与自动压缩同一份，gateway.nomiContext），
+  // 不再走按模型名猜的经验表——网关模型名（如 openai/gpt-6-astra）经验表认不出会落到 128K
+  const nomiWin = useNomiContextWindow(!tabs.isCliTab, gateway);
   const baseWin = useMemo(() => {
     const reported = reportedContextWindow(messages);
     // 第三方标签：上报的窗口来自换模型 / 切长上下文之前（与这次要注入的对不上）时已过期，
     // 显示下一次启动会注入的窗口，而不是上一个模型的
     if (injected && !(reported && reportedMatchesInjected(reported, injected)))
       return { size: injected, source: 'reported' as const };
+    if (nomiWin && !reported) return { size: nomiWin, source: 'reported' as const };
     return contextWindowFor(model ?? undefined, reported);
-  }, [model, messages, injected]);
+  }, [model, messages, injected, nomiWin]);
   const est = useMemo(
     () =>
       estimateContext(

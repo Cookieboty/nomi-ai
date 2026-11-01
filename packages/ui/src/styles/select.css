@@ -339,8 +339,7 @@
   align-items: center;
   gap: var(--cd-space-1);
   flex: none;
-  padding-right: var(--cd-space-1-5);
-  border-right: 1px solid var(--cd-panel-border);
+  padding-right: var(--cd-space-1);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -357,6 +356,17 @@
 }
 .cd-model-picker__vendor .cd-brand {
   flex: none;
+  /* 厂商栏里统一透明底：单色图标跟随文字颜色，彩色图标原样；选中态由按钮底色表示 */
+  background: transparent;
+  box-shadow: none;
+  color: currentColor;
+}
+.cd-model-picker__vendor {
+  color: var(--cd-color-text-muted);
+}
+.cd-model-picker__vendor:hover,
+.cd-model-picker__vendor.is-active {
+  color: var(--cd-color-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

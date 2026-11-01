@@ -43,6 +43,8 @@ function Harness(
 }
 
 const optionTexts = () => screen.getAllByRole('option').map((o) => o.textContent ?? '');
+const groupTexts = () =>
+  [...document.querySelectorAll('.cd-dropdown__group')].map((g) => g.textContent ?? '');
 /** 悬停某一行，等自绘提示出现（完整名称 + 能力说明），返回提示文字 */
 async function tipOf(name: string): Promise<string> {
   const row = screen.getAllByRole('option').find((o) => o.textContent?.includes(name))!;
@@ -133,15 +135,19 @@ describe('ModelPicker', () => {
     fireEvent.click(screen.getByRole('combobox'));
     // 打开时停在当前值所在的供应商
     expect(screen.getByRole('tab', { name: 'MAAS' }).getAttribute('aria-selected')).toBe('true');
-    expect(optionTexts()).toEqual(['Aerith-opus-5.5', 'gpt-6.1']);
-    // 厂商：认出的在前，认不出的归到「其他」
+    // 「全部厂商」时按厂商分组，顺序与左侧图标栏一致：认出的在前，认不出的归到「其他」
+    expect(optionTexts()).toEqual(['gpt-6.1', 'Aerith-opus-5.5']);
+    expect(groupTexts()).toEqual(['OpenAI', '其他厂商']);
     fireEvent.click(screen.getByTestId('model-picker-vendor-'));
     expect(optionTexts()).toEqual(['Aerith-opus-5.5']);
+    // 选了厂商就不再分组
+    expect(groupTexts()).toEqual([]);
     // 换供应商：厂商筛选清空，只列这个供应商的模型
     fireEvent.click(screen.getByRole('tab', { name: 'OpenRouter' }));
     expect(optionTexts()).toHaveLength(3);
     fireEvent.click(screen.getByTestId('model-picker-vendor-zai'));
-    expect(optionTexts()).toEqual(['z-ai/glm-5.3-flash']);
+    // 去掉厂商前缀：左侧已有厂商筛选
+    expect(optionTexts()).toEqual(['glm-5.3-flash']);
     // 没有「全部」供应商：只有各供应商的标签
     expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual(['OpenRouter', 'MAAS']);
     fireEvent.click(screen.getByTestId('model-picker-vendor-all'));

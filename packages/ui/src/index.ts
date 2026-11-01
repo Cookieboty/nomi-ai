@@ -37,6 +37,7 @@ export {
   OTHER_VENDOR,
 } from './ModelBrowse';
 export type { ModelProviderTab, ModelVendorChip } from './ModelBrowse';
+export { isImageModel } from './modelKind';
 export type { FloatingTipProps, TooltipProps } from './Tooltip';
 export { Toast, ToastProvider, useToast } from './Toast';
 export type { ToastTone, ToastOptions } from './Toast';
