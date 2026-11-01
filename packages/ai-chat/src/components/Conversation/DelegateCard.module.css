@@ -214,19 +214,58 @@
   list-style: none;
   font-size: var(--cd-font-size-xs);
 }
-.drawer {
+/* 抽屉：头部状态 + 目标固定在上，下面是与工作台标签同一套的对话视图，自己滚动 */
+.drawerBody {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-3);
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
 }
-.drawerUser {
+.drawerMeta {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-4) var(--cd-space-6);
+  border-bottom: 1px solid var(--cd-panel-border);
+}
+.drawerStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.drawerGoal {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
   white-space: pre-wrap;
-  padding: var(--cd-space-2) var(--cd-space-3);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-hover);
+  overflow-wrap: anywhere;
 }
-.drawerAssistant {
-  min-width: 0;
+.drawerError {
+  margin: 0;
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+  overflow-wrap: anywhere;
+}
+.drawerConv {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.drawerEmpty {
+  margin: auto;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
 }
 @media (prefers-reduced-motion: reduce) {
   .card {

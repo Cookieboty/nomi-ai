@@ -31,6 +31,8 @@ export interface ModalHost {
   hideTitle?: boolean;
   /** 抽屉头部「在设置中打开」 */
   onOpenSettings?: () => void;
+  /** 抽屉头部、「关闭」左侧的额外按钮 */
+  actions?: React.ReactNode;
 }
 export const ModalHostContext = createContext<ModalHost | null>(null);
 
@@ -115,6 +117,7 @@ export const Modal: React.FC<ModalProps> = ({
               {t('ui.mascot-theme.open-in-settings')}
             </button>
           )}
+          {drawer && host?.actions}
           <button
             type="button"
             className="cd-btn cd-btn--ghost cd-btn--sm cd-modal__close"

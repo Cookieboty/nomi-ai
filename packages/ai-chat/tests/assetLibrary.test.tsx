@@ -119,6 +119,14 @@ describe('素材库', () => {
     render(<AssetLibraryPage active onBack={onBack} onCompose={onCompose} />);
     await act(() => fake.settle());
     fireEvent.click(screen.getByTestId('asset-nomi-b.png'));
+    // 重新生成会再调一次付费接口：先确认，取消就不生成
+    const confirm = vi.fn(() => false);
+    (window as unknown as { confirm: unknown }).confirm = confirm;
+    fireEvent.click(screen.getByTestId('viewer-regenerate'));
+    await act(() => fake.settle());
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(fake.inputs('chatAssets.regenerate')).toEqual([]);
+    confirm.mockReturnValue(true);
     fireEvent.click(screen.getByTestId('viewer-regenerate'));
     await waitFor(() =>
       expect(fake.inputs('chatAssets.regenerate')).toEqual([{ file: 'nomi-b.png' }]),

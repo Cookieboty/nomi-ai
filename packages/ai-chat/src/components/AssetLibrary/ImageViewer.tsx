@@ -86,6 +86,17 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
   const nomi = item.source === 'nomi';
 
   const regenerate = async () => {
+    // 会再调一次图片接口（按次计费）：先确认
+    if (
+      !(await confirmDialog({
+        title: t('ui.media.regenerate-image-title'),
+        message: item.model
+          ? t('ui.media.regenerate-image-body-model', item.model)
+          : t('ui.media.regenerate-image-body'),
+        confirmLabel: t('ui.usage-tools.regenerate'),
+      }))
+    )
+      return;
     setBusy(true);
     setErr(null);
     try {

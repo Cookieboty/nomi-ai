@@ -215,6 +215,32 @@ describe('子任务卡片', () => {
     expect(rep.textContent).toContain('审批 1 次，拒绝 1 次');
     expect(r.queryByTestId('delegate-stop')).toBeNull();
   });
+
+  it('「查看」在右侧抽屉里用会话视图显示子任务对话；工作台模式可切到该标签', async () => {
+    const ipc = mockIpc([tab({ status: 'idle' })]);
+    ipc.invoke.mockImplementation(async (ch: string) => {
+      if (ch === 'harness.tabs')
+        return { tabs: [tab({ status: 'idle' })], activeTabId: 'main', running: 0, queued: 0 };
+      if (ch === 'harness.tabMessages')
+        return [
+          { id: 'u1', role: 'user', content: '任务说明', timestamp: 1 },
+          { id: 'a1', role: 'assistant', content: '登录已经**修好**', timestamp: 2 },
+        ];
+      return true;
+    });
+    const r = mount(call({ status: 'done', endedAt: Date.now(), output: done({}) }));
+    fireEvent.click(await r.findByTestId('delegate-view'));
+    const drawer = await r.findByTestId('delegate-drawer');
+    await waitFor(() => expect(within(drawer).getByTestId('conversation')).toBeTruthy());
+    await waitFor(() => expect(drawer.textContent).toContain('登录已经修好'));
+    expect(drawer.textContent).toContain('修复登录 bug');
+    expect(within(drawer).queryByTestId('delegate-drawer-stop')).toBeNull();
+    fireEvent.click(within(drawer).getByTestId('delegate-drawer-tab'));
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.tabActivate', { id: 'd1' }),
+    );
+    expect(r.queryByTestId('delegate-drawer')).toBeNull();
+  });
 });
 
 describe('/agent 命令', () => {

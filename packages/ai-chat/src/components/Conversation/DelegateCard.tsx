@@ -7,9 +7,9 @@
  * - 结束后：编程助手的汇报（做了什么、改动的文件、没做完的、需要用户决定的）。
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
-import { Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
+import { Button, Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
 import { ChevronDown, ChevronRight, ExternalLink, Square } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
@@ -21,15 +21,19 @@ import {
   type HarnessTabMeta,
 } from '../../services/harnessClient';
 import { canStopSubagent } from '../../utils/cliCaps';
+import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
 import { parseInput, type ToolCall } from '../../utils/toolTrace';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { ApprovePlanCard } from './ApprovePlanCard';
+import { buildCliSlots } from './cliSlots';
 import styles from './DelegateCard.module.css';
 import { Markdown } from './Markdown';
 import { PermissionCard } from './PermissionCard';
+
+import { ConversationView } from './index';
 
 type Phase = 'confirming' | 'running' | 'waiting' | 'done' | 'error' | 'cancelled';
 
@@ -329,8 +333,19 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
   );
 };
 
-/** 助手模式下「查看」：在右侧抽屉里看子任务的对话记录（不切换模式；要接手就去工作台） */
-const DelegateDrawer: React.FC<{ v: DelegateView; onClose: () => void }> = ({ v, onClose }) => {
+/**
+ * 「查看」：在右侧抽屉里看子任务的完整对话（与工作台标签同一套渲染：思考、工具轨迹、改动），
+ * 不切换模式；工作台模式下头部可一键切到这个标签接手。权限请求在抽屉里也能直接答复。
+ */
+const DelegateDrawer: React.FC<{
+  v: DelegateView;
+  elapsed: string | null;
+  running: boolean;
+  stopping: boolean;
+  onStop: () => void;
+  onOpenTab?: () => void;
+  onClose: () => void;
+}> = ({ v, elapsed, running, stopping, onStop, onOpenTab, onClose }) => {
   const [messages, setMessages] = useState<HarnessTabMessage[] | null>(null);
   const tabId = v.tab?.id;
   const updatedAt = v.tab?.updatedAt;
@@ -344,29 +359,84 @@ const DelegateDrawer: React.FC<{ v: DelegateView; onClose: () => void }> = ({ v,
     return () => {
       alive = false;
     };
-  }, [tabId, updatedAt]);
-  const host = useMemo(() => ({ mode: 'drawer' as const }), []);
-  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : '';
+  }, [tabId, updatedAt, running]);
+  const backend = v.backend ?? 'claude';
+  const conv = useMemo(
+    () => (messages ?? []).map((m) => fromHarnessMessage(m, backend)),
+    [messages, backend],
+  );
+  const live = useMemo(() => tabLiveToConv(v.live), [v.live]);
+  const cwd = v.tab?.cwd ?? null;
+  const slots = useMemo(() => buildCliSlots({ cwd }), [cwd]);
+  const onPermission = useCallback(
+    (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
+      if (tabId) void harnessClient.replyPermission(tabId, id, allow, opts).catch(() => undefined);
+    },
+    [tabId],
+  );
+  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
+  const host = useMemo(
+    () => ({
+      mode: 'drawer' as const,
+      actions: (
+        <>
+          {running && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={stopping}
+              onClick={onStop}
+              data-testid="delegate-drawer-stop"
+            >
+              {t('ui.session-workspace.stop-this-subtask')}
+            </Button>
+          )}
+          {onOpenTab && (
+            <Button variant="ghost" size="sm" onClick={onOpenTab} data-testid="delegate-drawer-tab">
+              {t('ui.session-workspace.open-in-workbench')}
+            </Button>
+          )}
+        </>
+      ),
+    }),
+    [running, stopping, onStop, onOpenTab],
+  );
+  const empty = messages !== null && !conv.length && !live;
   return (
     <ModalHostContext.Provider value={host}>
-      <Modal open onClose={onClose} title={`${name} · ${v.goal}`} data-testid="delegate-drawer">
-        <div className={styles.drawer}>
-          {(messages ?? []).map((m) => (
-            // 用户消息（任务说明）按原样换行显示；Markdown 会把单个换行合并成空格
-            <div
-              key={m.id}
-              className={m.role === 'user' ? styles.drawerUser : styles.drawerAssistant}
-            >
-              {m.role === 'user' ? m.content : <Markdown text={m.content} settled />}
-            </div>
-          ))}
-          {v.live?.text && (
-            <div className={styles.drawerAssistant}>
-              <Markdown text={v.live.text} />
-            </div>
-          )}
-          {messages !== null && !messages.length && !v.live?.text && (
-            <div className={styles.muted}>{t('ui.session-workspace.no-output-yet')}</div>
+      <Modal
+        open
+        onClose={onClose}
+        size="lg"
+        title={name}
+        bodyClassName={styles.drawerBody}
+        data-testid="delegate-drawer"
+      >
+        <div className={styles.drawerMeta}>
+          <div className={styles.drawerStatus}>
+            {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
+            <span className={styles.phase} data-phase={v.phase} aria-live="polite">
+              {phaseLabel(v.phase)}
+            </span>
+            {elapsed && <span className={styles.muted}>{elapsed}</span>}
+          </div>
+          <p className={styles.drawerGoal} title={v.goal}>
+            {v.goal}
+          </p>
+          {v.error && <p className={styles.drawerError}>{v.error.message}</p>}
+        </div>
+        <div className={styles.drawerConv}>
+          {empty ? (
+            <div className={styles.drawerEmpty}>{t('ui.session-workspace.no-output-yet')}</div>
+          ) : (
+            <ConversationView
+              scopeId={`delegate:${tabId ?? v.call.id}`}
+              messages={conv}
+              live={live ?? null}
+              phase={running ? 'running' : 'idle'}
+              onPermission={onPermission}
+              slots={slots}
+            />
           )}
         </div>
       </Modal>
@@ -429,10 +499,15 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   const step = running ? currentStep(v.live) : null;
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
-  const view = () => {
+  const stop = () => {
     if (!tab) return;
-    if (isDev) void tabs.activate(tab.id);
-    else setDrawer(true);
+    setStopping(true);
+    void harnessClient.cancelTab(tab.id).catch(() => setStopping(false));
+  };
+  const openTab = () => {
+    if (!tab) return;
+    setDrawer(false);
+    void tabs.activate(tab.id);
   };
   return (
     <section
@@ -467,10 +542,7 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
             aria-label={t('ui.session-workspace.stop-this-subtask')}
             title={t('ui.session-workspace.stop-this-subtask-nomi-keeps-going')}
             data-testid="delegate-stop"
-            onClick={() => {
-              setStopping(true);
-              void harnessClient.cancelTab(tab.id).catch(() => setStopping(false));
-            }}
+            onClick={stop}
           >
             <Icon icon={Square} size={12} />
           </button>
@@ -480,13 +552,9 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
             type="button"
             className={styles.iconBtn}
             aria-label={t('ui.session-workspace.view-subtask')}
-            title={
-              isDev
-                ? t('ui.session-workspace.switch-to-this-coding-assistant-tab')
-                : t('ui.session-workspace.view-the-subtask-s-conversation')
-            }
+            title={t('ui.session-workspace.view-the-subtask-s-conversation')}
             data-testid="delegate-view"
-            onClick={view}
+            onClick={() => setDrawer(true)}
           >
             <Icon icon={ExternalLink} size={13} />
           </button>
@@ -528,7 +596,17 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
           {!running && <Report v={v} />}
         </div>
       )}
-      {drawer && <DelegateDrawer v={v} onClose={() => setDrawer(false)} />}
+      {drawer && (
+        <DelegateDrawer
+          v={v}
+          elapsed={elapsed}
+          running={running}
+          stopping={stopping}
+          onStop={stop}
+          onOpenTab={isDev ? openTab : undefined}
+          onClose={() => setDrawer(false)}
+        />
+      )}
     </section>
   );
 };
