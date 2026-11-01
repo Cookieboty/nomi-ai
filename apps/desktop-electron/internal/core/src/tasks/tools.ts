@@ -66,6 +66,11 @@ const proposeInput = z.object({
     .describe(
       '执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的',
     ),
+  github_repos: z
+    .array(z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/))
+    .max(20)
+    .optional()
+    .describe('需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用'),
 });
 
 const recallInput = z.object({
@@ -109,6 +114,8 @@ export function triggerOf(w: z.infer<typeof proposeInput>['when'], now: number):
 
 export interface TaskToolDeps {
   tasks: TaskService;
+  /** 可用的 GitHub 连接（取第一个可用的）；没有时 github_repos 不可用 */
+  githubConnection?: () => { id: string; label: string } | null;
   authorize(i: {
     tool: string;
     danger: 'write';
@@ -149,6 +156,13 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
           i.executor === 'notify'
             ? 0
             : (Math.max(1, ...i.tools.map((x) => TOOL_LEVEL[x])) as GrantLevel);
+        const repos = i.github_repos ?? [];
+        const gh = repos.length ? (d.githubConnection?.() ?? null) : null;
+        if (repos.length && !gh)
+          return {
+            ok: false,
+            error: { code: 'no_connection', message: '用户还没有在设置 → 外部连接里连 GitHub' },
+          };
         let trigger: Trigger;
         try {
           trigger = triggerOf(i.when, now());
@@ -161,6 +175,7 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
           when: i.when,
           notify: i.executor === 'notify',
           level,
+          ...(gh ? { github: { label: gh.label, repos } } : {}),
         });
         const decision = await d.authorize({
           tool: 'task_propose',
@@ -183,7 +198,13 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
               i.executor === 'notify'
                 ? { kind: 'notify', text: i.goal }
                 : { kind: 'nomi', tools: [...i.tools] as ToolClass[] },
-            grant: { level, paths: [], connections: [] },
+            grant: {
+              level,
+              paths: [],
+              connections: gh
+                ? [{ connectionId: gh.id, capabilities: ['github.read'], resources: repos }]
+                : [],
+            },
           },
           'nomi',
         );

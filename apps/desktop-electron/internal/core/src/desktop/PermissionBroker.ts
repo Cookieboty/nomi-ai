@@ -74,6 +74,8 @@ export interface BackgroundRun {
   level: 0 | 1 | 2 | 3 | 4;
   /** 需要人：暂停执行，等用户批准 / 拒绝 */
   ask(req: { tool: string; summary: string; detail: string }): Promise<boolean>;
+  /** 任务授权里的连接（connections.md §2）：经连接的工具据此收窄到授权的能力与资源 */
+  connections?: { connectionId: string; capabilities: string[]; resources: string[] }[];
 }
 
 /** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
@@ -367,6 +369,14 @@ export class PermissionBroker {
 
   isBackground(signal?: AbortSignal): boolean {
     return !!this.backgroundOf(signal);
+  }
+
+  /** 后台执行的连接授权；前台对话返回 null（经连接的工具按前台规则只读） */
+  backgroundConnections(
+    signal?: AbortSignal,
+  ): { connectionId: string; capabilities: string[]; resources: string[] }[] | null {
+    const run = this.backgroundOf(signal);
+    return run ? (run.connections ?? []) : null;
   }
 
   /** 沿派生链（AiSdkLlmProvider 记下的上级）找登记的后台执行 */

@@ -426,6 +426,7 @@
   "electron.common.tab-s-still-use-this-account-close-them": "{0} tab(s) still use this account. Close them or switch them to another account first",
   "electron.common.tab-was-closed": "Tab was closed",
   "electron.common.target-already-exists": "Target already exists: {0}",
+  "electron.common.task-card-github": "GitHub read-only: {0} (repos: {1})",
   "electron.common.task-card-goal": "Goal: {0}",
   "electron.common.task-card-level": "Capabilities: {0}",
   "electron.common.task-card-summary": "Create the task “{0}”",

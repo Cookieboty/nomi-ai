@@ -75,6 +75,9 @@ import {
   TaskRecordView,
   TaskTrigger,
   TaskView,
+  ConnectionAddGithubInput,
+  ConnectionDetectResult,
+  ConnectionView,
 } from './knowledge/taskSchemas';
 
 const none = z.void();
@@ -280,6 +283,26 @@ export const knowledgeProcedures = {
   /** 删除（只有结束的任务可以删） */
   'tasks.remove': { kind: 'mutation', input: id, output: ok },
 
+  // ---------- connections：外部账号 / 本机软件（ConnectionService，docs/design/connections.md） ----------
+  /** 全部连接（不含任何密钥） */
+  'connections.list': { kind: 'query', input: none, output: z.array(ConnectionView) },
+  /** 检测本机可复用的登录（gh）：账号、权限范围、宽权限提示（不含令牌） */
+  'connections.detect': {
+    kind: 'query',
+    input: z.object({ host: z.string().optional() }),
+    output: ConnectionDetectResult,
+  },
+  /** 添加 GitHub 连接：复用本机 gh 登录，或粘贴令牌 */
+  'connections.addGithub': {
+    kind: 'mutation',
+    input: ConnectionAddGithubInput,
+    output: ConnectionView,
+    dangerous: true,
+  },
+  /** 复核账号与权限（换了账号 / 登出了 → needs_login） */
+  'connections.check': { kind: 'mutation', input: id, output: ConnectionView },
+  'connections.remove': { kind: 'mutation', input: id, output: ok },
+
   // ---------- local：本机模型（LocalModelService） ----------
   'local.state': { kind: 'query', input: none, output: LocalState },
   'local.setSettings': { kind: 'mutation', input: LocalSettingsPatch, output: LocalSettings },
@@ -402,6 +425,7 @@ export const knowledgeEvents = {
   'sched.proactive': z.looseObject({ text: z.string(), at: z.number() }),
   /** 任务或它的执行变了 */
   'tasks.changed': z.object({ id: z.string() }),
+  'connections.changed': z.null(),
   'local.changed': z.null(),
   /** 模型 / 运行时下载、Ollama 拉取的进度 */
   'local.progress': LocalProgressEvent,
@@ -427,6 +451,11 @@ export const knowledgeErrors = [
   'SCHED_BUSY',
   'SCHED_EMPTY',
   'TASKS_NOT_FOUND',
+  'CONNECTIONS_NOT_FOUND',
+  'CONNECTIONS_NEEDS_LOGIN',
+  'CONNECTIONS_UNAVAILABLE',
+  'CONNECTIONS_BAD_PARAMS',
+  'CONNECTIONS_FAILED',
 ] as const satisfies readonly string[];
 
 export type KnowledgeProcedureName = keyof typeof knowledgeProcedures & string;

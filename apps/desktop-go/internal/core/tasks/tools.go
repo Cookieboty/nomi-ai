@@ -17,6 +17,8 @@ import (
 
 var toolLevel = map[string]int{"read": 1, "web": 1, "knowledge_write": 2, "memory_write": 2, "file_write": 2, "shell": 3}
 
+var repoNameRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
 var hhmmRE = regexp.MustCompile(`^([01]?\d|2[0-3]):([0-5]\d)$`)
 
 const proposeSchema = `{"type":"object","properties":{
@@ -29,7 +31,8 @@ const proposeSchema = `{"type":"object","properties":{
 "minutes":{"type":"integer","minimum":5,"maximum":10080}},"required":["kind"]},
 "executor":{"type":"string","enum":["nomi","notify"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知"},
 "tools":{"type":"array","items":{"type":"string","enum":["read","web","knowledge_write","memory_write","file_write","shell"]},
-"description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"}},
+"description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},
+"github_repos":{"type":"array","maxItems":20,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},"description":"需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用"}},
 "required":["title","goal","when"],"additionalProperties":false}`
 
 const recallSchema = `{"type":"object","properties":{"id":{"type":"string","description":"任务 id（task_…）；不填列出最近的任务"}},"additionalProperties":false}`
@@ -43,11 +46,12 @@ type ProposeWhen struct {
 }
 
 type proposeIn struct {
-	Title    string      `json:"title"`
-	Goal     string      `json:"goal"`
-	When     ProposeWhen `json:"when"`
-	Executor string      `json:"executor"`
-	Tools    []string    `json:"tools"`
+	Title       string      `json:"title"`
+	Goal        string      `json:"goal"`
+	When        ProposeWhen `json:"when"`
+	Executor    string      `json:"executor"`
+	Tools       []string    `json:"tools"`
+	GithubRepos []string    `json:"github_repos"`
 }
 
 // TriggerOf：「何时」→ 触发器（本机时区）
@@ -149,8 +153,11 @@ func decodeInput(in any, v any) error {
 	return json.Unmarshal(b, v)
 }
 
+// GithubConn：可用的 GitHub 连接（取第一个可用的）；没有时 nil
+type GithubConn func() (id, label string, ok bool)
+
 // CreateTaskTools：task_propose / task_recall
-func CreateTaskTools(s *Service, authorize Authorizer) []tools.Definition {
+func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn) []tools.Definition {
 	mustSchema := func(js string) *u.Obj {
 		v, err := u.ParseString(js)
 		if err != nil {
@@ -192,6 +199,21 @@ func CreateTaskTools(s *Service, authorize Authorizer) []tools.Definition {
 						}
 					}
 				}
+				var ghID, ghLabel string
+				if len(in.GithubRepos) > 0 {
+					ok := false
+					if github != nil {
+						ghID, ghLabel, ok = github()
+					}
+					if !ok {
+						return fail("no_connection", "用户还没有在设置 → 外部连接里连 GitHub"), nil
+					}
+					for _, r := range in.GithubRepos {
+						if !repoNameRE.MatchString(r) {
+							return fail("bad_input", "invalid repo: "+r), nil
+						}
+					}
+				}
 				trigger, err := TriggerOf(in.When, s.d.Now())
 				if err != nil {
 					return fail("bad_time", err.Error()), nil
@@ -207,13 +229,19 @@ func CreateTaskTools(s *Service, authorize Authorizer) []tools.Definition {
 					T("electron.common.task-card-when", describeWhen(T, in.When)),
 					T("electron.common.task-card-who", who),
 					T("electron.common.task-card-level", T(fmt.Sprintf("electron.common.task-level-%d", level))),
-					T("electron.common.task-card-terms"),
 				}, "\n")
+				if ghID != "" {
+					card += "\n" + T("electron.common.task-card-github", ghLabel, strings.Join(in.GithubRepos, ", "))
+				}
+				card += "\n" + T("electron.common.task-card-terms")
 				d := authorize(ctx, "task_propose", T("electron.common.task-card-summary", in.Title), in, card)
 				if d != "allowed" && d != "auto" {
 					return fail("user_denied", "用户没有授权这个任务"), nil
 				}
 				req := CreateRequest{Title: in.Title, Goal: in.Goal, Trigger: trigger, Grant: Grant{Level: level}}
+				if ghID != "" {
+					req.Grant.Connections = []ConnectionGrant{{ConnectionID: ghID, Capabilities: []string{"github.read"}, Resources: in.GithubRepos}}
+				}
 				if ec.ConversationID != "" {
 					c := ec.ConversationID
 					req.ConversationID = &c

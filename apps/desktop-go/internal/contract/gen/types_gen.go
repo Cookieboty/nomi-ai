@@ -1500,6 +1500,160 @@ type CliUpdateRunOutput struct {
 	Version string `json:"version"`
 }
 
+// ConnectionsAddGithubOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsAddGithubOutputAuthKind = string
+
+const (
+	ConnectionsAddGithubOutputAuthKindCliLogin ConnectionsAddGithubOutputAuthKind = "cli-login"
+	ConnectionsAddGithubOutputAuthKindKeychain ConnectionsAddGithubOutputAuthKind = "keychain"
+)
+
+type ConnectionsAddGithubOutputAuth struct {
+	Kind ConnectionsAddGithubOutputAuthKind `json:"kind"`
+	Host string                             `json:"host"`
+}
+
+type ConnectionsAddGithubOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsAddGithubOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsAddGithubOutputStatus = string
+
+const (
+	ConnectionsAddGithubOutputStatusOk         ConnectionsAddGithubOutputStatus = "ok"
+	ConnectionsAddGithubOutputStatusNeedsLogin ConnectionsAddGithubOutputStatus = "needs_login"
+	ConnectionsAddGithubOutputStatusError      ConnectionsAddGithubOutputStatus = "error"
+	ConnectionsAddGithubOutputStatusDisabled   ConnectionsAddGithubOutputStatus = "disabled"
+)
+
+type ConnectionsAddGithubOutput struct {
+	Id             string                             `json:"id"`
+	Provider       string                             `json:"provider"`
+	Label          string                             `json:"label"`
+	Auth           ConnectionsAddGithubOutputAuth     `json:"auth"`
+	Account        *ConnectionsAddGithubOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                           `json:"observedScopes,omitempty"`
+	WideScopes     []string                           `json:"wideScopes,omitempty"`
+	Status         ConnectionsAddGithubOutputStatus   `json:"status"`
+	CheckedAt      *float64                           `json:"checkedAt,omitempty"`
+	CreatedAt      float64                            `json:"createdAt"`
+}
+
+type ConnectionsCheckInput struct {
+	Id string `json:"id"`
+}
+
+// ConnectionsCheckOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsCheckOutputAuthKind = string
+
+const (
+	ConnectionsCheckOutputAuthKindCliLogin ConnectionsCheckOutputAuthKind = "cli-login"
+	ConnectionsCheckOutputAuthKindKeychain ConnectionsCheckOutputAuthKind = "keychain"
+)
+
+type ConnectionsCheckOutputAuth struct {
+	Kind ConnectionsCheckOutputAuthKind `json:"kind"`
+	Host string                         `json:"host"`
+}
+
+type ConnectionsCheckOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsCheckOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsCheckOutputStatus = string
+
+const (
+	ConnectionsCheckOutputStatusOk         ConnectionsCheckOutputStatus = "ok"
+	ConnectionsCheckOutputStatusNeedsLogin ConnectionsCheckOutputStatus = "needs_login"
+	ConnectionsCheckOutputStatusError      ConnectionsCheckOutputStatus = "error"
+	ConnectionsCheckOutputStatusDisabled   ConnectionsCheckOutputStatus = "disabled"
+)
+
+type ConnectionsCheckOutput struct {
+	Id             string                         `json:"id"`
+	Provider       string                         `json:"provider"`
+	Label          string                         `json:"label"`
+	Auth           ConnectionsCheckOutputAuth     `json:"auth"`
+	Account        *ConnectionsCheckOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                       `json:"observedScopes,omitempty"`
+	WideScopes     []string                       `json:"wideScopes,omitempty"`
+	Status         ConnectionsCheckOutputStatus   `json:"status"`
+	CheckedAt      *float64                       `json:"checkedAt,omitempty"`
+	CreatedAt      float64                        `json:"createdAt"`
+}
+
+type ConnectionsDetectInput struct {
+	Host *string `json:"host,omitempty"`
+}
+
+type ConnectionsDetectOutputGhAccountsItem struct {
+	Host        string   `json:"host"`
+	Login       string   `json:"login"`
+	Scopes      []string `json:"scopes"`
+	WideScopes  []string `json:"wideScopes"`
+	TokenSource string   `json:"tokenSource"`
+	Active      bool     `json:"active"`
+	State       string   `json:"state"`
+}
+
+type ConnectionsDetectOutputGh struct {
+	Installed bool                                    `json:"installed"`
+	Accounts  []ConnectionsDetectOutputGhAccountsItem `json:"accounts"`
+}
+
+type ConnectionsDetectOutput struct {
+	Gh ConnectionsDetectOutputGh `json:"gh"`
+}
+
+// ConnectionsListOutputItemAuthKind 枚举：cli-login | keychain
+type ConnectionsListOutputItemAuthKind = string
+
+const (
+	ConnectionsListOutputItemAuthKindCliLogin ConnectionsListOutputItemAuthKind = "cli-login"
+	ConnectionsListOutputItemAuthKindKeychain ConnectionsListOutputItemAuthKind = "keychain"
+)
+
+type ConnectionsListOutputItemAuth struct {
+	Kind ConnectionsListOutputItemAuthKind `json:"kind"`
+	Host string                            `json:"host"`
+}
+
+type ConnectionsListOutputItemAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsListOutputItemStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsListOutputItemStatus = string
+
+const (
+	ConnectionsListOutputItemStatusOk         ConnectionsListOutputItemStatus = "ok"
+	ConnectionsListOutputItemStatusNeedsLogin ConnectionsListOutputItemStatus = "needs_login"
+	ConnectionsListOutputItemStatusError      ConnectionsListOutputItemStatus = "error"
+	ConnectionsListOutputItemStatusDisabled   ConnectionsListOutputItemStatus = "disabled"
+)
+
+type ConnectionsListOutputItem struct {
+	Id             string                            `json:"id"`
+	Provider       string                            `json:"provider"`
+	Label          string                            `json:"label"`
+	Auth           ConnectionsListOutputItemAuth     `json:"auth"`
+	Account        *ConnectionsListOutputItemAccount `json:"account,omitempty"`
+	ObservedScopes []string                          `json:"observedScopes,omitempty"`
+	WideScopes     []string                          `json:"wideScopes,omitempty"`
+	Status         ConnectionsListOutputItemStatus   `json:"status"`
+	CheckedAt      *float64                          `json:"checkedAt,omitempty"`
+	CreatedAt      float64                           `json:"createdAt"`
+}
+
+type ConnectionsRemoveInput struct {
+	Id string `json:"id"`
+}
+
 type DelegateClearPinInput struct {
 	TurnId string `json:"turnId"`
 }
@@ -7343,6 +7497,26 @@ type CliUpdatePreviewOutputT = CliUpdatePreviewOutput
 type CliUpdateRunInputT = CliUpdateRunInput
 type CliUpdateRunOutputT = CliUpdateRunOutput
 
+// ConnectionsAddGithubInputT 是 connections.addGithub 的入参
+type ConnectionsAddGithubInputT = json.RawMessage
+type ConnectionsAddGithubOutputT = ConnectionsAddGithubOutput
+
+// ConnectionsCheckInputT 是 connections.check 的入参
+type ConnectionsCheckInputT = ConnectionsCheckInput
+type ConnectionsCheckOutputT = ConnectionsCheckOutput
+
+// ConnectionsDetectInputT 是 connections.detect 的入参
+type ConnectionsDetectInputT = ConnectionsDetectInput
+type ConnectionsDetectOutputT = ConnectionsDetectOutput
+
+// ConnectionsListInputT 是 connections.list 的入参
+type ConnectionsListInputT = any
+type ConnectionsListOutputT = []ConnectionsListOutputItem
+
+// ConnectionsRemoveInputT 是 connections.remove 的入参
+type ConnectionsRemoveInputT = ConnectionsRemoveInput
+type ConnectionsRemoveOutputT = bool
+
 // DelegateClearPinInputT 是 delegate.clearPin 的入参
 type DelegateClearPinInputT = DelegateClearPinInput
 type DelegateClearPinOutputT = bool
@@ -8624,6 +8798,7 @@ type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin
 type EventCliUpdateEventT = EventCliUpdateEvent
+type EventConnectionsChangedT = any
 type EventDelegateCompletedT = EventDelegateCompleted
 type EventDesktopBubbleT = EventDesktopBubble
 type EventDesktopChangedT = EventDesktopChanged

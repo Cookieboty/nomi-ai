@@ -63,6 +63,7 @@ import { cliChildEnv, isScript, spawnHarness } from './cli/harness/spawn';
 import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
 import { SessionHistoryService } from './cli/SessionHistoryService';
 import type { CliKind } from './cli/types';
+import { ConnectionService } from './connections/ConnectionService';
 import { createContractEventBus, type ContractEventBus } from './contract/eventBus';
 import type { CallerWindows } from './contract/media/voiceSenders';
 import { createAppRouter, type AppRouterHandle } from './contract/router';
@@ -103,6 +104,7 @@ import { neutralPersonaSource, packPersonaSource, PersonaService } from './perso
 import { SchedulerService } from './schedule/SchedulerService';
 import { ScreenService } from './screen/ScreenService';
 import { safeStorageFromSecrets } from './security/secretStorage';
+import { createSecretBox } from './security/secretStorage';
 import { CacheService } from './services/CacheService';
 import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
@@ -481,6 +483,13 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     });
     services.tasks = tasks;
     stoppers.push(() => tasks.stop());
+    // 连接（connections.md）：GitHub（复用本机 gh 登录或粘贴令牌）；令牌经系统加密保存
+    services.connections = new ConnectionService({
+      file: userData('connections.json'),
+      secrets: createSecretBox(ports.secrets),
+      events,
+      logger: logger as never,
+    });
     // Nomi 无界面执行（§7.1）：AI runtime 在 start() 里才起来，这里按需取用；工具审批走 broker 的后台模式
     tasks.registerExecutor(
       'nomi',
@@ -1056,11 +1065,20 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           delegate: () => services.delegate,
           ext: () => services.ext,
           extra: () => createImageTools(imageToolDeps()),
+          connections: () =>
+            services.connections && services.desktop
+              ? services.connections.tools({
+                  grantOf: (signal) => services.desktop!.broker.backgroundConnections(signal),
+                  markRead: (signal) => services.desktop!.broker.markRead(signal),
+                })
+              : [],
           tasks: () =>
             services.tasks && services.desktop
               ? createTaskTools({
                   tasks: services.tasks,
                   authorize: (i) => services.desktop!.broker.authorize(i),
+                  githubConnection: () =>
+                    services.connections?.list().find((c) => c.status === 'ok') ?? null,
                 })
               : [],
         },

@@ -426,6 +426,7 @@
   "electron.common.tab-s-still-use-this-account-close-them": "这个账号还有 {0} 个标签在用，请先关闭或换成别的账号",
   "electron.common.tab-was-closed": "标签已关闭",
   "electron.common.target-already-exists": "目标已存在：{0}",
+  "electron.common.task-card-github": "GitHub 只读：{0}（仓库：{1}）",
   "electron.common.task-card-goal": "目标：{0}",
   "electron.common.task-card-level": "能力：{0}",
   "electron.common.task-card-summary": "创建持续任务「{0}」",

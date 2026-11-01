@@ -45,6 +45,7 @@ export function authorizationCard(i: {
   when: ProposeWhen;
   notify: boolean;
   level: GrantLevel;
+  github?: { label: string; repos: string[] };
 }): { summary: string; preview: string } {
   return {
     summary: t('electron.common.task-card-summary', i.title),
@@ -57,6 +58,9 @@ export function authorizationCard(i: {
         i.notify ? t('electron.common.task-who-notify') : t('electron.common.task-who-nomi'),
       ),
       t('electron.common.task-card-level', LEVEL[i.level]()),
+      ...(i.github
+        ? [t('electron.common.task-card-github', i.github.label, i.github.repos.join(', '))]
+        : []),
       t('electron.common.task-card-terms'),
     ].join('\n'),
   };

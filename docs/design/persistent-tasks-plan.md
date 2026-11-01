@@ -62,7 +62,7 @@
 | 1.10 | Outbox + 投递 + 免打扰 ✅（投递到来源对话留作后续；结果在任务详情与通知里）   | `tasks/outbox.ts`；复用 `DesktopService.notify`、免打扰设置                                                                | 对应                                           | 重启重发不重跑任务；同窗口多结果合并成一条                                      |
 | 1.11 | 视图 ✅                                                                       | `packages/ai-chat/src/components/Tasks/*`：入口角标、列表、详情、收件箱、新建表单                                          | 共用                                           | i18n（en.json）、`check:frontend`、无障碍；设置里「定时任务」「提醒」改指向     |
 | 1.12 | 重启核对（none / local） ✅                                                   | `TaskRuntime` 启动流程                                                                                                     | 对应                                           | 中断执行自动重新排队，带进度摘要                                                |
-| 1.13 | 连接 C1（新增）                                                               | `connections/`：Store、能力目录、Broker；GitHub 适配器（`gh` 登录 / 令牌，`github.read`）；设置 → 连接；契约 `connections` | `connections/`、`connectionshandlers/`         | 不读 `gh auth token`；scopes 宽权限警告；账号切换后执行失败并提示；令牌泄露扫描 |
+| 1.13 | 连接 C1（新增） ✅                                                            | `connections/`：Store、能力目录、Broker；GitHub 适配器（`gh` 登录 / 令牌，`github.read`）；设置 → 连接；契约 `connections` | `connections/`、`connectionshandlers/`         | 不读 `gh auth token`；scopes 宽权限警告；账号切换后执行失败并提示；令牌泄露扫描 |
 
 **第 1 期验收**：真实应用 E2E（Electron 与 Go 各一套）——对话里说「每天 9 点…」→ 授权卡片 → 创建 → 到点执行 →
 结果投递 → 重启后状态正确；旧提醒、旧定时任务迁移后照常触发；用本机 `gh` 登录添加 GitHub 连接后，「每天 9 点看 X 仓库 CI」能跑通。

@@ -25,6 +25,8 @@ export interface DesktopToolSources {
   extra?(): ToolDefinition[];
   /** 持续任务（task_propose / task_recall） */
   tasks?(): ToolDefinition[];
+  /** 经连接的工具（github_read）：结果是外部内容，工具自己标记 */
+  connections?(): ToolDefinition[];
 }
 
 /** 把桌面工具（fs_* / desktop_* / undo_last）注册进 ToolRegistry → AI SDK 工具循环可用 */
@@ -52,6 +54,7 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
       // 持续任务：起草（过授权卡片）与查询；task_recall 的结果是执行者的输出，算外部内容
       for (const t of src.tasks?.() ?? [])
         registry.register(t.name === 'task_recall' ? markExternalRead(t, markRead) : t);
+      for (const t of src.connections?.() ?? []) registry.register(t);
       // 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型
       applyToolGates(registry);
       // 扩展：技能（skill_load / skill_read_file）+ GUI 管理的 MCP 服务器

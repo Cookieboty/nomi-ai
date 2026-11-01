@@ -56,6 +56,18 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
   const mem = () => need(s.mem, 'mem');
   const sched = () => need(s.sched, 'sched');
   const tasks = () => need(s.tasks, 'tasks');
+  const conns = () => need(s.connections, 'connections');
+  /** ConnectionError(code) → CONNECTIONS_<CODE>；not_allowed 不会经契约出现 */
+  const connCall = async <T>(ctx: Pick<AppHandlerContext, 'fail'>, run: () => Promise<T> | T) => {
+    try {
+      return await run();
+    } catch (err) {
+      const code = (err as { code?: unknown }).code;
+      const mapped = typeof code === 'string' ? `CONNECTIONS_${code.toUpperCase()}` : '';
+      if (DECLARED.has(mapped)) ctx.fail(mapped as AppErrorCode, (err as Error).message);
+      throw err;
+    }
+  };
   const local = () => need(s.localModels, 'localModels');
   const hub = () => need(s.localHub, 'localHub');
   const ext = () => need(s.ext, 'ext');
@@ -142,6 +154,15 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'tasks.reject': ({ id, feedback }) => tasks().command(id, { type: 'reject', feedback }),
     'tasks.reconcile': ({ id, outcome }) => tasks().command(id, { type: 'reconcile', outcome }),
     'tasks.remove': ({ id }) => tasks().remove(id),
+
+    // ---------- connections ----------
+    'connections.list': () => out(conns().list()),
+    'connections.detect': ({ host }, ctx) =>
+      connCall(ctx, async () => out(await conns().detect(host))),
+    'connections.addGithub': (input, ctx) =>
+      connCall(ctx, async () => out(await conns().addGithub(input))),
+    'connections.check': ({ id }, ctx) => connCall(ctx, async () => out(await conns().check(id))),
+    'connections.remove': ({ id }) => conns().remove(id),
 
     // ---------- local ----------
     'local.state': () => out(local().state()),

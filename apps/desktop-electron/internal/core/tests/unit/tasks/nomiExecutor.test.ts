@@ -218,5 +218,9 @@ describe('nomi 执行者', () => {
     expect(String(msgs[0]!.content)).toContain('用 main 分支');
     expect(msgs[1]).toEqual({ role: 'user', content: 'g' });
     expect(allowedTools(['delegate'])).toEqual([]);
+    expect(
+      allowedTools(['read'], [{ capabilities: ['github.read'] }]).includes('github_read'),
+    ).toBe(true);
+    expect(allowedTools(['read'], []).includes('github_read')).toBe(false);
   });
 });

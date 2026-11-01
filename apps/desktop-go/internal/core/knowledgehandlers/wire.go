@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -72,6 +73,7 @@ type Bundle struct {
 	Hub   *local.Hub
 	Ext   *extensions.Service
 	Tasks *tasks.Service
+	Conns *connections.Service
 	N     int
 }
 
@@ -125,7 +127,9 @@ func Wire(d WireDeps) *Bundle {
 			}
 			return out
 		}})
+	b.Conns = connections.New(connections.Deps{File: ud("connections.json"), Secrets: d.Secrets, Emit: d.Router.Emit})
 	b.N = Install(d.Router, Services{
+		Conns: func() *connections.Service { return b.Conns },
 		Tasks: func() *tasks.Service { return b.Tasks },
 		KB:    func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

@@ -28,9 +28,18 @@ var ToolClassTools = map[string][]string{
 	"delegate":        {},
 }
 
-func AllowedTools(classes []string) []string {
+// AllowedTools：工具类 → 工具名；授权里给了 github.read 才加 github_read
+func AllowedTools(classes []string, conns ...ConnectionGrant) []string {
 	seen := map[string]bool{}
 	out := []string{}
+	for _, g := range conns {
+		for _, c := range g.Capabilities {
+			if c == "github.read" && !seen["github_read"] {
+				seen["github_read"] = true
+				out = append(out, "github_read")
+			}
+		}
+	}
 	for _, c := range classes {
 		for _, t := range ToolClassTools[c] {
 			if !seen[t] {
@@ -46,7 +55,7 @@ type NomiDeps struct {
 	// AgentStream：client.chat.AgentStream，tools 白名单、quiet
 	AgentStream func(ctx context.Context, messages []blm.ChatMessage, tools []string, extra map[string]any, emit func(blm.ChatChunk)) error
 	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）
-	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool) context.Context
+	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant) context.Context
 	Ready          func() bool
 	CostOf         func(model string, input, output int64) (float64, bool)
 	Trace          func(taskID, attemptID string, line map[string]any)
@@ -106,7 +115,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64) []blm.ChatMessa
 	t, a := ctx.Task, ctx.Attempt
 	cause := a.Cause
 	lines := []string{
-		fmt.Sprintf("你是 Nomi，正在后台执行用户交代的一项持续任务「%s」。用户现在不在旁边：不要提问，直接把事情做完；", t.Title),
+		fmt.Sprintf("你是用户的桌面助手，正在后台执行用户交代的一项持续任务「%s」。用户现在不在旁边：不要提问，直接把事情做完；", t.Title),
 		"需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。",
 		"完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。",
 		"现在时间：" + time.UnixMilli(now).Format("2006/1/2 15:04:05"),
@@ -165,7 +174,7 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var tools []string
 	if t.Executor.Tools != nil {
-		tools = AllowedTools(*t.Executor.Tools)
+		tools = AllowedTools(*t.Executor.Tools, t.Grant.Connections...)
 	} else {
 		tools = []string{}
 	}
@@ -187,7 +196,7 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	}
 	ctx := base
 	if e.d.WithBackground != nil {
-		ctx = e.d.WithBackground(base, t.Grant.Level, ask)
+		ctx = e.d.WithBackground(base, t.Grant.Level, ask, t.Grant.Connections)
 	}
 	progress := run.progress
 	go e.consume(ctx, run, tools, progress)

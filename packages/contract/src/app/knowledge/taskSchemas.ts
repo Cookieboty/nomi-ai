@@ -141,3 +141,44 @@ export const TaskListResult = z.object({
 export const TaskJournalEntry = z.looseObject({ t: z.string(), at: z.number() });
 
 export const TaskCmdResult = z.object({ ok: z.boolean(), reason: z.string().optional() });
+
+// ---------- connections（docs/design/connections.md） ----------
+
+export const ConnectionView = z.looseObject({
+  id: z.string(),
+  provider: z.literal('github'),
+  label: z.string(),
+  auth: z.looseObject({ kind: z.enum(['cli-login', 'keychain']), host: z.string() }),
+  account: z.object({ login: z.string(), host: z.string() }).optional(),
+  observedScopes: z.array(z.string()).optional(),
+  wideScopes: z.array(z.string()).optional(),
+  status: z.enum(['ok', 'needs_login', 'error', 'disabled']),
+  checkedAt: z.number().optional(),
+  createdAt: z.number(),
+});
+
+export const ConnectionDetectResult = z.object({
+  gh: z.object({
+    installed: z.boolean(),
+    accounts: z.array(
+      z.object({
+        host: z.string(),
+        login: z.string(),
+        scopes: z.array(z.string()),
+        wideScopes: z.array(z.string()),
+        tokenSource: z.string(),
+        active: z.boolean(),
+        state: z.string(),
+      }),
+    ),
+  }),
+});
+
+export const ConnectionAddGithubInput = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('gh'), host: z.string().optional() }),
+  z.object({
+    mode: z.literal('token'),
+    host: z.string().optional(),
+    token: z.string().min(1).max(500),
+  }),
+]);

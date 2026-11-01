@@ -49,8 +49,14 @@ export const TOOL_CLASS_TOOLS: Record<ToolClass, readonly string[]> = {
   delegate: [],
 };
 
-export function allowedTools(classes: readonly ToolClass[]): string[] {
-  return [...new Set(classes.flatMap((c) => TOOL_CLASS_TOOLS[c] ?? []))];
+export function allowedTools(
+  classes: readonly ToolClass[],
+  connections: readonly { capabilities: readonly string[] }[] = [],
+): string[] {
+  const names = new Set(classes.flatMap((c) => TOOL_CLASS_TOOLS[c] ?? []));
+  // 经连接的只读能力（connections.md §2）：授权里给了才提供
+  if (connections.some((g) => g.capabilities.includes('github.read'))) names.add('github_read');
+  return [...names];
 }
 
 export interface NomiExecutorDeps {
@@ -105,7 +111,7 @@ export function buildPrompt(ctx: AttemptContext, progress: string, now: number):
   const { task, attempt } = ctx;
   const cause = attempt.cause;
   const lines = [
-    `你是 Nomi，正在后台执行用户交代的一项持续任务「${task.title}」。用户现在不在旁边：不要提问，直接把事情做完；`,
+    `你是用户的桌面助手，正在后台执行用户交代的一项持续任务「${task.title}」。用户现在不在旁边：不要提问，直接把事情做完；`,
     '需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。',
     '完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。',
     `现在时间：${new Date(now).toLocaleString('zh-CN')}`,
@@ -136,10 +142,14 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
 
   const launch = (run: Run) => {
     const { task, attempt, report } = run.ctx;
-    const tools = task.executor.kind === 'nomi' ? allowedTools(task.executor.tools) : [];
+    const tools =
+      task.executor.kind === 'nomi'
+        ? allowedTools(task.executor.tools, task.grant.connections)
+        : [];
     const level = task.grant.level as GrantLevel;
     const unregister = d.registerBackground(run.ctrl.signal, {
       level,
+      connections: task.grant.connections,
       ask: (req) =>
         new Promise<boolean>((resolve) => {
           const requestId = `${attempt.id}:${++run.seq}`;

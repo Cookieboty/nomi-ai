@@ -168,6 +168,18 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       desc: 'ui.chat-settings.manage-skill-packs-the-assistant-can-use',
     },
   ],
+  connections: [
+    {
+      icon: Plug,
+      title: 'ui.providers-schedule.connection-add-github',
+      desc: 'ui.providers-schedule.connections-help-github',
+    },
+    {
+      icon: Shield,
+      title: 'ui.providers-schedule.connections-help-scopes-title',
+      desc: 'ui.providers-schedule.connections-help-scopes',
+    },
+  ],
   privacy: [
     {
       icon: Shield,

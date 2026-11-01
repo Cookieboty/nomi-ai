@@ -10,7 +10,13 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
-import { ExtensionsPanel, LocalPanel, QualityPanel, UsagePanel } from '../lazyPanels';
+import {
+  ConnectionsPanel,
+  ExtensionsPanel,
+  LocalPanel,
+  QualityPanel,
+  UsagePanel,
+} from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
 import { RestartUpdateButton } from '../RestartUpdateButton';
@@ -230,6 +236,8 @@ export const SettingsView: React.FC<Props> = ({
         return <KnowledgeSection tab={tabOf('knowledge')} onTab={(x) => setTab('knowledge', x)} />;
       case 'ext':
         return <ExtensionsPanel isVisible onClose={noop} />;
+      case 'connections':
+        return <ConnectionsPanel />;
       case 'privacy':
         return (
           <PrivacySection tab={tabOf('privacy')} onTab={(x) => setTab('privacy', x)} go={go} />

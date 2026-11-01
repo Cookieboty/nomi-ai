@@ -20,7 +20,7 @@ func toolsHarness(t *testing.T, decision string) (*Service, map[string]tools.Def
 	for _, d := range CreateTaskTools(s, func(_ context.Context, _, _ string, _ any, preview string) string {
 		cards = append(cards, preview)
 		return decision
-	}) {
+	}, nil) {
 		defs[d.Name] = d
 	}
 	return s, defs, &cards

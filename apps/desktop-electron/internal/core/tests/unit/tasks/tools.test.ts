@@ -10,7 +10,10 @@ import { createTaskTools, triggerOf } from '../../../src/tasks/tools';
 
 const T0 = new Date(2026, 10, 2, 8, 30).getTime();
 
-function setup(decision: 'allowed' | 'denied' = 'allowed') {
+function setup(
+  decision: 'allowed' | 'denied' = 'allowed',
+  github: { id: string; label: string } | null = null,
+) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tasks-tools-'));
   const svc = new TaskService({
     root: dir,
@@ -27,6 +30,7 @@ function setup(decision: 'allowed' | 'denied' = 'allowed') {
       cards.push(i);
       return decision;
     },
+    githubConnection: () => github,
     now: () => T0,
   });
   const tool = (name: string) => tools.find((t) => t.name === name)!;
@@ -103,6 +107,28 @@ describe('task_propose / task_recall', () => {
       error: { code: 'unknown_task' },
     });
     fs.rmSync(h.dir, { recursive: true, force: true });
+  });
+
+  it('带 GitHub 仓库：授权卡片列出仓库，授权里写入 github.read；没连 GitHub 时拒绝', async () => {
+    const h = setup('allowed', { id: 'conn_1', label: 'GitHub · octo' });
+    const r = (await h
+      .tool('task_propose')
+      .execute(
+        { title: 'CI', goal: 'g', when: { kind: 'manual' }, github_repos: ['o/r'] },
+        {},
+      )) as { ok: true; data: { id: string } };
+    expect(h.cards[0]!.preview).toContain('o/r');
+    expect(h.svc.get(r.data.id)!.task.grant.connections).toEqual([
+      { connectionId: 'conn_1', capabilities: ['github.read'], resources: ['o/r'] },
+    ]);
+    const none = setup();
+    expect(
+      await none
+        .tool('task_propose')
+        .execute({ title: 'CI', goal: 'g', when: { kind: 'manual' }, github_repos: ['o/r'] }, {}),
+    ).toMatchObject({ ok: false, error: { code: 'no_connection' } });
+    fs.rmSync(h.dir, { recursive: true, force: true });
+    fs.rmSync(none.dir, { recursive: true, force: true });
   });
 
   it('何时 → 触发器：每天按本机时间；一次性时间要合法', () => {

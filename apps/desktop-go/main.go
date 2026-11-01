@@ -369,7 +369,7 @@ func main() {
 		return r.File, err
 	})
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
-		imgDeps, b8.Tasks)
+		imgDeps, b8.Tasks, b8.Conns)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
 		GetRegistry: func() tools.Registry { return toolRegistry },
@@ -419,8 +419,12 @@ func main() {
 			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
 				Tools: toolNames, Quiet: true, Extra: extra}, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool) context.Context {
-			return desktop.WithBackground(ctx, &desktop.BackgroundRun{Level: level, Ask: ask})
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant) context.Context {
+			run := &desktop.BackgroundRun{Level: level, Ask: ask}
+			for _, g := range conns {
+				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
+			}
+			return desktop.WithBackground(ctx, run)
 		},
 		Ready: func() bool {
 			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")

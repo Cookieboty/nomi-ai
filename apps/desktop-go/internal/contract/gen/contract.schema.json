@@ -6526,6 +6526,447 @@
     "additionalProperties": {}
    }
   },
+  "connections.addGithub": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+     {
+      "type": "object",
+      "properties": {
+       "mode": {
+        "type": "string",
+        "const": "gh"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "mode"
+      ]
+     },
+     {
+      "type": "object",
+      "properties": {
+       "mode": {
+        "type": "string",
+        "const": "token"
+       },
+       "host": {
+        "type": "string"
+       },
+       "token": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "required": [
+       "mode",
+       "token"
+      ]
+     }
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "connections.check": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "connections.detect": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "host": {
+      "type": "string"
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "gh": {
+      "type": "object",
+      "properties": {
+       "installed": {
+        "type": "boolean"
+       },
+       "accounts": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "host": {
+           "type": "string"
+          },
+          "login": {
+           "type": "string"
+          },
+          "scopes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "wideScopes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "tokenSource": {
+           "type": "string"
+          },
+          "active": {
+           "type": "boolean"
+          },
+          "state": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "host",
+          "login",
+          "scopes",
+          "wideScopes",
+          "tokenSource",
+          "active",
+          "state"
+         ],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": [
+       "installed",
+       "accounts"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "gh"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "connections.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "provider": {
+       "type": "string",
+       "const": "github"
+      },
+      "label": {
+       "type": "string"
+      },
+      "auth": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "cli-login",
+          "keychain"
+         ]
+        },
+        "host": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "host"
+       ],
+       "additionalProperties": {}
+      },
+      "account": {
+       "type": "object",
+       "properties": {
+        "login": {
+         "type": "string"
+        },
+        "host": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "login",
+        "host"
+       ],
+       "additionalProperties": false
+      },
+      "observedScopes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "wideScopes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "ok",
+        "needs_login",
+        "error",
+        "disabled"
+       ]
+      },
+      "checkedAt": {
+       "type": "number"
+      },
+      "createdAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "provider",
+      "label",
+      "auth",
+      "status",
+      "createdAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "connections.remove": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "delegate.clearPin": {
    "kind": "mutation",
    "dangerous": false,
@@ -25692,6 +26133,10 @@
    ],
    "additionalProperties": {}
   },
+  "connections.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "null"
+  },
   "delegate.completed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -27349,6 +27794,11 @@
   "SCHED_BUSY",
   "SCHED_EMPTY",
   "TASKS_NOT_FOUND",
+  "CONNECTIONS_NOT_FOUND",
+  "CONNECTIONS_NEEDS_LOGIN",
+  "CONNECTIONS_UNAVAILABLE",
+  "CONNECTIONS_BAD_PARAMS",
+  "CONNECTIONS_FAILED",
   "CHAT_BG_TOO_LARGE",
   "CHAT_BG_UNSUPPORTED"
  ]

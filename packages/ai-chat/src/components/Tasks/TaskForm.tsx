@@ -9,6 +9,7 @@ import { api } from '../../services/api';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
 import { LEVEL_LABEL, TOOL_LABEL, TOOL_LEVEL, type ToolClass } from '../../services/tasksClient';
 import { confirmDialog } from '../ConfirmDialog';
+import { useConnections } from '../ConnectionsPanel';
 
 import styles from './index.module.css';
 
@@ -42,6 +43,13 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [who, setWho] = useState<Who>('nomi');
   const [tools, setTools] = useState<ToolClass[]>(['read', 'web']);
   const [days, setDays] = useState(30);
+  const [repoText, setRepoText] = useState('');
+  const { items: connections } = useConnections();
+  const github = connections?.find((c) => c.status === 'ok') ?? null;
+  const repos = repoText
+    .split(/[\s,]+/)
+    .map((x) => x.trim())
+    .filter((x) => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +90,9 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
+      ...(github && repos.length && who === 'nomi'
+        ? [t('ui.providers-schedule.task-card-github', github.label, repos.join(', '))]
+        : []),
       t('ui.providers-schedule.task-card-expiry', days),
       t('ui.providers-schedule.task-card-budget'),
     ].join('\n');
@@ -102,7 +113,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         grant: {
           level: level as 0 | 1 | 2 | 3 | 4,
           paths: [],
-          connections: [],
+          connections:
+            github && repos.length && who === 'nomi'
+              ? [{ connectionId: github.id, capabilities: ['github.read'], resources: repos }]
+              : [],
           expiresAt: Date.now() + days * 86_400_000,
         },
       })) as { id: string };
@@ -212,6 +226,18 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               </label>
             ))}
           </fieldset>
+        )}
+        {who === 'nomi' && github && (
+          <label className={styles.field}>
+            <span>{t('ui.providers-schedule.task-github-repos', github.label)}</span>
+            <Textarea
+              value={repoText}
+              onChange={(e) => setRepoText(e.target.value)}
+              rows={2}
+              placeholder="owner/repo"
+              data-testid="task-form-github"
+            />
+          </label>
         )}
         <div className={styles.fieldRow}>
           <label className={styles.field}>

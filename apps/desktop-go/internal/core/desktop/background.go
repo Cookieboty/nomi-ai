@@ -12,6 +12,15 @@ import (
 type BackgroundRun struct {
 	Level int
 	Ask   func(tool, summary, detail string) bool
+	// Connections：任务授权里的连接（connections.md §2）；经连接的工具据此收窄
+	Connections []ConnGrant
+}
+
+// ConnGrant：授权里引用连接的方式
+type ConnGrant struct {
+	ConnectionID string
+	Capabilities []string
+	Resources    []string
 }
 
 type bgKey struct{}

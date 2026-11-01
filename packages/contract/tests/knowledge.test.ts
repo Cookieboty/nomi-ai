@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { appContract, knowledgeEvents, knowledgeProcedures } from '../src/app';
 import { createTestClient } from '../src/testing';
 
-const NAMESPACES = ['kb', 'mem', 'sched', 'tasks', 'local', 'hub', 'ext'];
+const NAMESPACES = ['kb', 'mem', 'sched', 'tasks', 'connections', 'local', 'hub', 'ext'];
 
 describe('knowledge 契约', () => {
   it('过程名 / kind / surfaces / dangerous', () => {
@@ -33,6 +33,7 @@ describe('knowledge 契约', () => {
       .filter(([, d]) => (d as { dangerous?: boolean }).dangerous)
       .map(([n]) => n);
     expect(dangerous.sort()).toEqual([
+      'connections.addGithub',
       'ext.mcpConnect',
       'ext.mcpToggle',
       'ext.mcpUpsert',

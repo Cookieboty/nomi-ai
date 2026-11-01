@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledge"
@@ -23,7 +24,9 @@ var Declared = map[string]bool{
 	"KB_DENIED": true, "KB_EMPTY": true, "KB_LOCAL_ONLY": true, "KB_USER_DENIED": true, "KB_OCR_MISSING": true,
 	"MEM_BAD_SUMMARY": true, "MEM_SUMMARIZE_FAILED": true, "MEM_NOT_FOUND": true, "MEM_EMPTY": true,
 	"SCHED_INVALID": true, "SCHED_NOT_FOUND": true, "SCHED_BUSY": true, "SCHED_EMPTY": true,
-	"TASKS_NOT_FOUND": true,
+	"TASKS_NOT_FOUND":       true,
+	"CONNECTIONS_NOT_FOUND": true, "CONNECTIONS_NEEDS_LOGIN": true, "CONNECTIONS_UNAVAILABLE": true,
+	"CONNECTIONS_BAD_PARAMS": true, "CONNECTIONS_FAILED": true,
 }
 
 // ErrorCode：knowledgeErrorCode(prefix, err)；没声明的返回 ""
@@ -79,6 +82,7 @@ type Services struct {
 	Hub   func() *local.Hub
 	Ext   func() *extensions.Service
 	Tasks func() *tasks.Service
+	Conns func() *connections.Service
 }
 
 func unavailable(name string) error {
@@ -640,6 +644,9 @@ func sliceUTF16(s string, n int) string {
 func Install(r *contract.Router, sv Services) int {
 	hs := Handlers(sv)
 	for name, h := range taskHandlers(sv) {
+		hs[name] = h
+	}
+	for name, h := range connectionHandlers(sv) {
 		hs[name] = h
 	}
 	for name, h := range hs {
