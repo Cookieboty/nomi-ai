@@ -1,9 +1,9 @@
 # 持续任务：交代一次，Nomi 一直记着（设计稿）
 
-> 状态：**设计稿，待评审**（目标版本 2.1.0）；起草 2026-11-01。来源：[#219](https://github.com/Cookieboty/nomi-ai/issues/219)。
-> 相关：[Nomi 委派编程助手](nomi-delegate-cli.md)、[编程助手权限模式](cli-permission-modes.md)、
+> 状态：**已评审，实施中**（目标版本 2.1.0）；起草 2026-11-01，定稿 2026-11-01。实施计划见 [persistent-tasks-plan.md](persistent-tasks-plan.md)。来源：[#219](https://github.com/Cookieboty/nomi-ai/issues/219)。
+> 相关：[参考与取舍](persistent-tasks-references.md)（外部项目调研与据此做的改动）、[Nomi 委派编程助手](nomi-delegate-cli.md)、[编程助手权限模式](cli-permission-modes.md)、
 > [隐私与安全](../features/privacy-security.md)（命令自动审核）、[统一网关](unified-gateway.md)、
-> [内核宿主分离](core-host-decoupling.md)（契约）。
+> [内核宿主分离](core-host-decoupling.md)（契约）、[连接](connections.md)（外部账号与本机软件：GitHub、MCP、computer use）。
 
 ## 1. 背景与目标
 
@@ -107,7 +107,7 @@ interface Task {
 type Trigger =
   | { kind: 'manual' }
   | { kind: 'schedule'; repeat: Repeat; at: string; tz?: string; catchUpMs?: number } // 复用 recurrence
-  | { kind: 'event'; sourceId: string; filter: unknown; cooldownMs?: number }; // §6
+  | { kind: 'event'; sourceId: string; filter: unknown; cooldownMs?: number; mode: 'observe' | 'act' }; // §6；mode 见 §6.3
 
 type ExecutorSpec =
   | { kind: 'notify'; text: string }
@@ -176,13 +176,18 @@ interface ExecutionSnapshot {
 | `waiting_user`    | 用户批准 / 补充                          | `running`（同一 Attempt 继续）                   |
 | `running`         | 执行者报告完成                           | `awaiting_accept` 或 `done` / `idle`             |
 | `awaiting_accept` | 用户接受 / 退回（附意见）                | `done` / `queued`（新 Attempt，带意见）          |
-| `running`         | 失败且可重试                             | `queued`（退避）                                 |
+| `running`         | 失败且可重试（瞬时错误，最多重试一次）   | `queued`（退避）                                 |
 | `running`         | 应用退出                                 | 启动时按 §10 核对 → `queued` / `needs_reconcile` |
 | 任意未结束状态    | 用户取消                                 | `cancelled`（停止执行，保留成果）                |
 | 任意              | 授权撤销 / 到期                          | `waiting_user`（要求重新授权）/ `expired`        |
 
 状态转换写成纯函数 `transition(task, attempt, event) → { task, attempt, effects[] }`，Node 与 Go 各实现一份，用 parity
 golden 比对（§15）。副作用（启动执行、发通知、停止进程）由外层根据 `effects` 执行，便于测试。
+
+失败用稳定的错误码（`TaskErrorCode`）表示，Node 与 Go 共用一张表；每个码标明是否可重试、给用户的处理建议。
+可重试的只有瞬时错误（HTTP 408 / 429 / 5xx，连接被拒、重置、超时，编程助手进程意外退出）；最多 3 次，退避 2 秒起翻倍、
+封顶 60 秒。配置变化（§8.7）、授权问题、执行超时（`timed_out`）、执行者报告失败不重试。重复任务**连续失败 3 次自动暂停**
+并进收件箱，成功一次清零（`consecutiveFailures`）。依据见 [参考与取舍](persistent-tasks-references.md) §2.3、§2.4。
 
 ### 5.3 代次与晚到结果
 
@@ -236,16 +241,22 @@ interface SourceEvent {
 
 ### 6.3 去重、乱序、冷却
 
-- 每个任务记最近 M 个已处理的 `key`（以及事件源游标）；同一 `key` 不重复开执行。
+- 每个任务记最近 500 个已处理的 `key`（以及事件源游标）；同一 `key` 不重复开执行；对应的执行失败时释放该 `key`，下次还能触发。
 - 事件按 `occurredAt` 排序后处理；比游标旧的迟到事件丢弃或合并（按事件源规则）。
-- `cooldownMs`：冷却期内的新事件合并进下一次执行的输入，避免一串评论触发一串执行。
+- `cooldownMs`：**批处理**语义——第一个事件开窗口，窗口结束或攒满 `maxBatch`（默认 20）就开一次执行，带上窗口内全部事件；
+  不用「只取最后一个」的防抖，因为一串评论每条都要处理。
+- **重叠**：定时到点时任务还在执行 → 跳过本次并记一条「上次还在跑」（同 Temporal Schedules 默认的 Skip）；
+  事件触发时还在执行 → 合并进下一次（见下一条）。
 - 执行进行中来了新事件：默认排队合并（下一次执行一起处理），不打断当前执行。
+- **只记录模式**：事件触发器有 `mode`。新建的事件任务默认 `observe`：命中的事件只记进任务（收件箱显示「发现 N 件事，
+  要不要处理」），不开执行；用户在任务详情里改成 `act` 才自动执行。改成 `act` 是放宽授权，走 `tasks.grant`。
 
 ### 6.4 在线与网络
 
 - 只用**出站轮询**和本机监视，不开放本机端口接收 webhook。轮询间隔不低于事件源的 `minIntervalMs`，并遵守对方的限流头。
-- 认证凭据存系统钥匙串，任务里只存引用。GitHub 建议用户单独建一个**只读的细粒度 token**（只勾选要观察的仓库），
-  不默认复用 `gh` 的登录（权限通常过宽）；是否允许复用见 §18。
+- 事件源和对外动作都经**连接**（[connections.md](connections.md)）：任务里只存连接 id，凭据留在钥匙串或原软件里，
+  执行者看不到令牌。GitHub **可以复用本机 `gh` 登录**，也可以粘贴细粒度令牌；复用时的权限收窄与子进程隔离见
+  connections.md §4。
 - 所有出站请求走 `netGuard`，与其他功能一致。
 
 ## 7. 执行者
@@ -270,7 +281,8 @@ interface SourceEvent {
 复用委派：新建后台标签、worktree 隔离、子任务权限不宽于授权。不同点：
 
 - 任务身份是 `taskId`，标签只是本次执行的载体（`Attempt.carrier`）；
-- 并发上限（现为 `MAX_PARALLEL_DELEGATES = 3`）对首次执行、重试、恢复、followup 一视同仁；
+- 并发上限（现为 `MAX_PARALLEL_DELEGATES = 3`）对首次执行、重试、恢复、followup 一视同仁；超出时排队（`queued`），不再拒绝；
+- 执行停下来等人（`waiting_user`）时**释放名额**；用户回应后走预留的一个「人工名额」恢复，新工作挡不住人推进已有工作；
 - 执行结束后 worktree 保留到用户验收，回填（apply 到主工作区）是用户在验收卡片上的单独动作。
 
 ## 8. 授权（Grant）
@@ -294,7 +306,8 @@ interface SourceEvent {
 
 ### 8.3 作用域与期限
 
-授权写明：工作区 / 仓库 / 文件夹范围；允许的事件源与对外目标；执行者（哪个 CLI、哪个供应商）；期限（默认 30 天，
+授权写明：工作区 / 仓库 / 文件夹范围；允许的事件源与对外目标（以 `ConnectionGrant` 逐项列出连接、能力、资源，
+见 [connections.md](connections.md) §2）；执行者（哪个 CLI、哪个供应商）；期限（默认 30 天，
 到期进 `expired`）；预算（§9）。范围收窄立即生效；放宽需要重新确认。
 
 ### 8.4 后台模式下的审批
@@ -352,7 +365,8 @@ MCP 工具默认按 `external` 处理，除非用户把某个工具标为只读�
 
 ### 10.2 先记意图，再做动作
 
-`external` 动作执行前先往事件日志写 `intent`（含幂等键，如要发的评论内容哈希），成功后写 `done`（含外部 id，如评论 id）。
+`external` 动作执行前先往事件日志写 `intent`（含幂等键 `taskId:attemptId:seq` 与内容哈希），成功后写 `done`（含外部 id，如评论 id）。
+取消是协作式的：取消后才到达的 `intent` / `done` 照常记日志（审计完整），只是结果不再投递。
 
 ### 10.3 启动时核对
 
@@ -362,6 +376,10 @@ MCP 工具默认按 `external` 处理，除非用户把某个工具标为只读�
 | `external` 动作都有 `done` | 从下一步继续（新 Attempt，告知已完成的动作）                                      |
 | 有 `intent` 没 `done`      | `needs_reconcile`：能查询的事件源先自动查（这条评论发出去没有）；查不了就交给用户 |
 | 编程助手执行中断           | worktree 保留；重新排队时在同一 worktree 继续，并告知中断位置                     |
+| 停在 `waiting_user` 等人   | **保持原样**，问题不丢、不重问；用户回答后以 `resume` 新开执行，回答写进恢复说明  |
+
+续跑的执行一律带**恢复说明**：已完成的对外动作、中断位置，以及「重复任何对外动作前先核对目录、git 历史和远端」。
+MCP 工具返回的长任务句柄（MCP Tasks 扩展）记进事件日志，重启后先继续轮询，查到结果就不必核对。
 
 不承诺对外 exactly-once；承诺的是**不盲目重复**。
 
@@ -375,8 +393,10 @@ MCP 工具默认按 `external` 处理，除非用户把某个工具标为只读�
 ## 11. 投递与收件箱
 
 - **Outbox**：结果、请求都先写入 outbox，再发送；发送成功写确认。重启后重发未确认的，按 id 去重，**重发不会重新执行任务**。
+  失败重试 2 秒起翻倍、封顶 1 分钟；连续失败 3 次才显示为问题；同一任务发往同一目标的消息保序；丢弃的消息留档（原因、时间）。
 - 投递目标：任务详情（总在）、来源对话（若还在；被删除就只留在任务详情，不新建对话）、系统通知、诺米的气泡。
 - 只在**有结果、需要人、出错**时通知；遵守免打扰时段（复用 `SchedulerService` 的设置），免打扰期间积累，结束后合并成一条。
+- 不在免打扰时段也合并：同一个短时间窗（默认 30 秒）里到达的多条投递合并成一条（「3 个任务有结果」），避免连续刷屏。
 - **收件箱**：所有 `waiting_user` / `needs_reconcile` / `awaiting_accept` 的任务集中显示，每条带一个明确的动作按钮
   （批准、补充、验收、核对）。
 
@@ -423,7 +443,13 @@ MCP 工具默认按 `external` 处理，除非用户把某个工具标为只读�
 | `tasks.applyWorktree`                           | 把 worktree 的改动回填到主工作区            | **是**           |
 | 事件 `tasks.changed`                            | 任务或执行状态变化（`eventSurfaces: chat`） | —                |
 
-Nomi 工具：`task_propose`（起草，只产生授权卡片，不直接创建）、`task_report`（执行者回报结果，仅在任务执行中可用）。
+Nomi 工具：
+
+- `task_propose`：起草，只产生授权卡片，不直接创建；
+- `task_report`：执行者回报结果，仅在任务执行中可用；
+- `task_recall(id)`：只读，返回任务摘要、最近一次执行的结论和关联对象的 id（来源对话、Attempt、连接），
+  模型可以按 id 逐跳查下去；结果有长度上限，不含任何密钥；
+- `delegate_stop(taskId)`：停止一个后台委派，等同 `tasks.cancel`（与 `delegate_to_cli` / `delegate_followup` 成对）。
 
 ## 15. 模块位置
 
@@ -470,7 +496,7 @@ Nomi 工具：`task_propose`（起草，只产生授权卡片，不直接创建�
 - [ ] L4 逐类授权；副作用日志 intent / done；`needs_reconcile` 与自动核对。
 - [ ] `mcp` 事件源与 MCP 工具副作用分类。
 
-2.1.0 至少包含第 1、2 期；第 3、4 期视进度进入 2.1.x。每期在 Node 与 Go 同时交付；某一版本暂未实现的能力在界面上明确禁用并说明，
+2.1.0 依次做第 1、2、3、4 期（连接的 C1–C3 随行，见 [connections.md](connections.md) §10）；computer use 搁置。每期在 Node 与 Go 同时交付；某一版本暂未实现的能力在界面上明确禁用并说明，
 不静默降级。
 
 ## 17. 测试
@@ -490,11 +516,11 @@ Nomi 工具：`task_propose`（起草，只产生授权卡片，不直接创建�
 
 ## 18. 待决定
 
-1. 默认预算与期限（建议：每次执行 20 万 token、30 分钟；每日费用上限 1 美元；授权 30 天）。
-2. GitHub 是否允许复用本机 `gh` 登录（便利 vs 权限过宽）。
-3. 「任务运行时阻止系统休眠」是否提供、默认值。
-4. 历史执行保留多少条、多久。
-5. 第 3、4 期是否进入 2.1.0。
+1. ~~默认预算与期限~~ → 每次执行 20 万 token、30 分钟；每日费用上限 1 美元；授权 30 天。
+2. ~~GitHub 是否允许复用本机 `gh` 登录~~ → 允许，见 [connections.md](connections.md) §4。
+3. ~~阻止系统休眠~~ → 提供，默认关。
+4. ~~历史执行保留~~ → 每个任务保留最近 50 次，更早的归档压缩。
+5. ~~第 3、4 期是否进入 2.1.0~~ → 进入，排在第 1、2 期之后；computer use 搁置。
 
 ## 19. 风险
 
