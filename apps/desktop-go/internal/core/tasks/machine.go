@@ -435,6 +435,14 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		if task.Status == StatusIdle && IsRecurring(&task) {
 			fx = append(fx, Effect{Kind: "schedule_next"})
 		}
+		// 暂停期间进了排队：出队时被拒过，恢复时重新登记
+		if task.Status == StatusQueued {
+			var nb *int64
+			if task.Pending != nil {
+				nb = task.Pending.NotBefore
+			}
+			fx = append(fx, Effect{Kind: "enqueue", NotBefore: nb})
+		}
 		t.Enabled, t.ConsecutiveFailures, t.UpdatedAt = true, 0, at
 		return ok(t, attempt, fx)
 

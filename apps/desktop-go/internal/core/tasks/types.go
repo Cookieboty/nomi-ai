@@ -51,6 +51,7 @@ type ExecutorSpec struct {
 	Text      *string   `json:"text,omitempty"`
 	Model     *string   `json:"model,omitempty"`
 	Tools     *[]string `json:"tools,omitempty"`
+	Scenario  *string   `json:"scenario,omitempty"`
 	Cli       *string   `json:"cli,omitempty"`
 	Cwd       *string   `json:"cwd,omitempty"`
 	Isolation *string   `json:"isolation,omitempty"`
@@ -67,6 +68,7 @@ type Grant struct {
 	Level       int               `json:"level"`
 	Paths       []string          `json:"paths"`
 	Connections []ConnectionGrant `json:"connections"`
+	Clis        *[]string         `json:"clis,omitempty"`
 	GrantedAt   int64             `json:"grantedAt"`
 	ExpiresAt   *int64            `json:"expiresAt,omitempty"`
 	RevokedAt   *int64            `json:"revokedAt,omitempty"`

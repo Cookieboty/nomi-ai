@@ -55,11 +55,23 @@ export type Trigger =
       mode: 'observe' | 'act';
     };
 
-export type ToolClass = 'read' | 'web' | 'knowledge_write' | 'memory_write' | 'shell';
+export type ToolClass =
+  | 'read'
+  | 'web'
+  | 'knowledge_write'
+  | 'memory_write'
+  | 'file_write'
+  | 'shell'
+  /** 委派授权里 clis 列出的编程助手（§7.3） */
+  | 'delegate';
+
+/** 场景：决定编程助手的优先列表（沿用委派的任务类型）；Nomi 自己永远兜底 */
+export type TaskScenario = 'coding' | 'prd' | 'review' | 'research';
 
 export type ExecutorSpec =
   | { kind: 'notify'; text: string }
-  | { kind: 'nomi'; model?: string; tools: ToolClass[] }
+  | { kind: 'nomi'; model?: string; tools: ToolClass[]; scenario?: TaskScenario }
+  /** 用户点名的编程助手（钉住）：不可用时问用户，不自己换（§7.3） */
   | {
       kind: 'cli';
       cli: string;
@@ -83,6 +95,8 @@ export interface Grant {
   /** 工作区 / 文件夹范围 */
   paths: string[];
   connections: ConnectionGrant[];
+  /** 允许调用的编程助手 id（内置或 ACP 外部 CLI）；缺省 = 不调用任何编程助手，只用 Nomi 自己 */
+  clis?: string[];
   grantedAt: number;
   expiresAt?: number;
   revokedAt?: number;

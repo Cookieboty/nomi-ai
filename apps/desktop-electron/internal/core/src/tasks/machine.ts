@@ -484,6 +484,9 @@ export function transition(task: Task, attempt: Attempt | null, ev: TaskEvent): 
     case 'resume': {
       if (task.enabled || isTerminal(task.status)) return reject(task, attempt, 'illegal');
       if (task.status === 'idle' && isRecurring(task)) fx.push({ kind: 'schedule_next' });
+      // 暂停期间进了排队（如运行中暂停、随后失败重试）：出队时被拒过，恢复时重新登记
+      if (task.status === 'queued')
+        fx.push(clean({ kind: 'enqueue' as const, notBefore: task.pending?.notBefore }));
       return accept(withTask(task, at, { enabled: true, consecutiveFailures: 0 }), attempt, fx);
     }
 
