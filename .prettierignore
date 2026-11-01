@@ -21,3 +21,13 @@ rive/nomi-complete/**/*.json
 scripts/rive-complete/**/*.json
 docs/mascot/CLOTHING-SWAP-AUDIT.md
 docs/mascot/clothing-swap-inventory.json
+# 本地编程助手的工作区（不入库）
+.claude/**
+# Go 版 2.0.4 性能基线（原样保存的对比产物）、生成的供应商预设、内嵌进 Go 程序的终端 runner（字节级与 Node 版一致）
+apps/desktop-go/ci/baseline-*/**
+apps/desktop-go/internal/ai/providers/presets_gen.json
+apps/desktop-go/internal/core/terminal/nomi-runner.cjs
+# parity 录制器与场景、pdf.js 夹具生成脚本：场景数据刻意写得紧凑，与 testdata 一样保持原排版
+scripts/parity/**
+scripts/go-pdfjs/**
+scripts/go-contract/gen.mjs
