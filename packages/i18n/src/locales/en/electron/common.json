@@ -306,6 +306,7 @@
   "electron.common.persistent-task-auto-paused": "“{0}” failed 3 times in a row and has been paused",
   "electron.common.persistent-task-expired": "Authorization for “{0}” has expired; authorize it again to continue",
   "electron.common.persistent-task-failed": "“{0}” failed: {1}",
+  "electron.common.persistent-task-merged": "{0} tasks have updates: {1}",
   "electron.common.persistent-task-needs-you": "“{0}” needs you: {1}",
   "electron.common.persistent-task-reconcile": "“{0}” took an outside action before the app closed; please check whether it went through",
   "electron.common.persistent-task-result": "“{0}” finished: {1}",

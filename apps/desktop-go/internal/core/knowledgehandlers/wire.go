@@ -3,6 +3,7 @@ package knowledgehandlers
 import (
 	"context"
 	"path/filepath"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
@@ -110,6 +111,13 @@ func Wire(d WireDeps) *Bundle {
 			d.Desktop.Notify(deps.Notice{Kind: "reminder", Title: title, Text: text, Body: text})
 		},
 		LegacyReminders: d.LegacyReminders,
+		QuietUntil: func() *int64 {
+			if !b.Sched.IsQuiet() {
+				return nil
+			}
+			v := schedule.QuietEndsAt(b.Sched.Settings().Quiet, time.Now().UnixMilli())
+			return &v
+		},
 		LegacySched: func() []tasks.LegacySchedTask {
 			out := []tasks.LegacySchedTask{}
 			for _, t := range b.Sched.Tasks() {

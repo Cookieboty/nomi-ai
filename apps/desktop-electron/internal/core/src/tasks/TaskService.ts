@@ -4,11 +4,12 @@
  *
  * - 存储在 `userData/tasks/`；
  * - 执行者按 `executor.kind` 注册（notify 在此；nomi、cli 由各自模块注册进来）；
- * - 投递：只在有结果、需要人、出错时通知；免打扰由 DesktopService.notify 处理（1.10 换成 Outbox）。
+ * - 投递：只在有结果、需要人、出错时通知；经投递队列（outbox.ts：先存再发、合并、免打扰）。
  *
  * Go 版：apps/desktop-go/internal/core/tasks/service.go。
  */
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
@@ -20,6 +21,7 @@ import {
   type LegacySchedTask,
   type LegacyTaskItem,
 } from './legacy';
+import { Outbox } from './outbox';
 import {
   TaskRuntime,
   type CreateTaskInput,
@@ -43,6 +45,8 @@ export interface TaskServiceDeps {
   notify: NotifyPort;
   /** 旧的提醒 / 定时代理任务（只读并入任务页） */
   legacy?: { reminders(): LegacyReminder[]; sched(): LegacySchedTask[] };
+  /** 免打扰结束时刻；不在免打扰时 null（DesktopService.notifyPolicy） */
+  quietUntil?: () => number | null;
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => () => void;
 }
@@ -66,21 +70,49 @@ export class TaskService {
   readonly store: TaskStore;
   readonly runtime: TaskRuntime;
   private readonly executors: Partial<Record<ExecutorSpec['kind'], TaskExecutor>>;
+  readonly outbox: Outbox;
 
   constructor(private readonly d: TaskServiceDeps) {
     this.store = new TaskStore(d.root, d.logger);
     this.executors = { notify: createNotifyExecutor(d.notify) };
     const now = d.now ?? Date.now;
+    const setTimer =
+      d.setTimer ??
+      ((fn: () => void, ms: number) => {
+        const h = setTimeout(fn, Math.min(ms, 2 ** 31 - 1));
+        return () => clearTimeout(h);
+      });
+    this.outbox = new Outbox({
+      file: path.join(d.root, 'outbox.json'),
+      now,
+      setTimer,
+      newId: () => randomUUID(),
+      send: (n) =>
+        d.notify.notify({ kind: 'reminder', title: n.title, text: n.text, body: n.text }),
+      ...(d.quietUntil ? { quietUntil: d.quietUntil } : {}),
+      mergedText: (items) => ({
+        title: t('electron.common.persistent-tasks'),
+        text: t(
+          'electron.common.persistent-task-merged',
+          new Set(items.map((x) => x.taskId)).size,
+          short([...new Set(items.map((x) => x.taskTitle))].join('、')),
+        ),
+      }),
+      delivered: (items) => {
+        for (const x of items)
+          try {
+            this.store.append(x.taskId, { t: 'note', at: now(), msg: `delivered:${x.id}` });
+          } catch {
+            /* 任务已删 */
+          }
+      },
+      logger: d.logger,
+    });
     this.runtime = new TaskRuntime({
       store: this.store,
       executors: this.executors,
       now,
-      setTimer:
-        d.setTimer ??
-        ((fn, ms) => {
-          const h = setTimeout(fn, Math.min(ms, 2 ** 31 - 1));
-          return () => clearTimeout(h);
-        }),
+      setTimer,
       newId: (p) => `${p}_${randomUUID().replace(/-/g, '')}`,
       logger: d.logger,
       deliver: (task, what, attempt) => this.deliver(task, what, attempt),
@@ -96,11 +128,13 @@ export class TaskService {
   }
 
   start(): void {
+    this.outbox.start();
     this.runtime.start();
   }
 
   stop(): void {
     this.runtime.stop();
+    this.outbox.stop();
   }
 
   // ---------- 读 ----------
@@ -218,10 +252,7 @@ export class TaskService {
         text = t('electron.common.persistent-task-auto-paused', task.title);
         break;
     }
-    try {
-      this.d.notify.notify({ kind: 'reminder', title, text, body: text });
-    } catch (error) {
-      this.d.logger.warn('任务投递失败', { id: task.id, what, error: String(error) });
-    }
+    // 先进投递队列（先存再发、合并、免打扰），见 outbox.ts
+    this.outbox.push({ taskId: task.id, taskTitle: task.title, title, text });
   }
 }

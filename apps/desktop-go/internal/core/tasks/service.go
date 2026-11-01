@@ -5,7 +5,10 @@ package tasks
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -21,12 +24,15 @@ type ServiceDeps struct {
 	// 旧的提醒 / 定时代理任务（只读并入任务页）；缺省不列
 	LegacyReminders func() []LegacyReminder
 	LegacySched     func() []LegacySchedTask
-	Now             func() int64
-	SetTimer        func(fn func(), ms int64) func()
+	// QuietUntil：免打扰结束时刻；不在免打扰时 nil
+	QuietUntil func() *int64
+	Now        func() int64
+	SetTimer   func(fn func(), ms int64) func()
 }
 
 type Service struct {
 	d       ServiceDeps
+	Outbox  *Outbox
 	Store   *Store
 	Runtime *Runtime
 	exec    map[string]Executor
@@ -68,6 +74,38 @@ func NewService(d ServiceDeps) *Service {
 	}
 	s := &Service{d: d, exec: map[string]Executor{}}
 	s.Store = NewStore(d.Root, d.Log)
+	s.Outbox = NewOutbox(OutboxDeps{File: filepath.Join(d.Root, "outbox.json"), Now: d.Now, SetTimer: d.SetTimer,
+		NewID: func() string { return newID("o") }, QuietUntil: d.QuietUntil, Log: d.Log,
+		Send: func(title, text string) (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("%v", p)
+				}
+			}()
+			if d.Notify != nil {
+				d.Notify(title, text)
+			}
+			return nil
+		},
+		MergedText: func(items []OutboxItem) (string, string) {
+			ids, titles := map[string]bool{}, []string{}
+			seen := map[string]bool{}
+			for _, x := range items {
+				ids[x.TaskID] = true
+				if !seen[x.TaskTitle] {
+					seen[x.TaskTitle] = true
+					titles = append(titles, x.TaskTitle)
+				}
+			}
+			return d.T("electron.common.persistent-tasks"),
+				d.T("electron.common.persistent-task-merged", len(ids), short(strings.Join(titles, "、")))
+		},
+		Delivered: func(items []OutboxItem) {
+			for _, x := range items {
+				_ = s.Store.Append(x.TaskID, JournalEntry{T: "note", At: d.Now(), Msg: "delivered:" + x.ID})
+			}
+		},
+	})
 	if d.Notify != nil {
 		s.exec["notify"] = NewNotifyExecutor(d.Notify)
 	}
@@ -94,8 +132,15 @@ func NewService(d ServiceDeps) *Service {
 // RegisterExecutor：nomi、cli 由各自模块注册（须在 Start 之前）
 func (s *Service) RegisterExecutor(kind string, ex Executor) { s.exec[kind] = ex }
 
-func (s *Service) Start() { s.Runtime.Start() }
-func (s *Service) Stop()  { s.Runtime.Stop() }
+func (s *Service) Start() {
+	s.Outbox.Start()
+	s.Runtime.Start()
+}
+
+func (s *Service) Stop() {
+	s.Runtime.Stop()
+	s.Outbox.Stop()
+}
 
 func (s *Service) List() ListResult {
 	ts := s.Runtime.List()
@@ -205,7 +250,6 @@ func (s *Service) deliver(t Task, what string, a *Attempt) {
 	default:
 		return
 	}
-	if s.d.Notify != nil {
-		s.d.Notify(T("electron.common.persistent-tasks"), text)
-	}
+	// 先进投递队列（先存再发、合并、免打扰）
+	s.Outbox.Push(t.ID, t.Title, T("electron.common.persistent-tasks"), text)
 }

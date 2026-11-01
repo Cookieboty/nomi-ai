@@ -104,6 +104,8 @@ describe('TaskService', () => {
     expect(h.svc.inbox().map((t) => t.id)).toEqual([a.id]);
     h.svc.command(a.id, { type: 'decide', requestId: 'r', approve: true });
     report!.failed({ code: 'executor_failed', message: '编译失败' });
+    // 投递队列：30 秒内的第二条攒着，窗口结束再发
+    h.advance(30_000);
     expect(h.notices.at(-1)!.text).toContain('编译失败');
     expect(h.svc.inbox().map((t) => t.status)).toEqual(['failed']);
     // 失败是结束态，可以删；运行中的不行

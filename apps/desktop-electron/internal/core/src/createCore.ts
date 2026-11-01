@@ -473,6 +473,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       logger: logger as never,
       events,
       notify: desktop,
+      quietUntil: () => (desktop.notifyPolicy?.quiet() ? desktop.notifyPolicy.quietEndsAt() : null),
       legacy: {
         reminders: () => desktop.reminders.list(),
         sched: () => sched.tasks(),

@@ -306,6 +306,7 @@
   "electron.common.persistent-task-auto-paused": "「{0}」连续失败 3 次，已暂停",
   "electron.common.persistent-task-expired": "「{0}」的授权已到期，需要重新授权",
   "electron.common.persistent-task-failed": "「{0}」失败了：{1}",
+  "electron.common.persistent-task-merged": "{0} 个任务有更新：{1}",
   "electron.common.persistent-task-needs-you": "「{0}」需要你处理：{1}",
   "electron.common.persistent-task-reconcile": "「{0}」在应用关闭前做过的对外动作需要你核对",
   "electron.common.persistent-task-result": "「{0}」完成了：{1}",
