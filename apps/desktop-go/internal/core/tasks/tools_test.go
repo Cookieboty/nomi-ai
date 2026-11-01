@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 func toolsHarness(t *testing.T, decision string) (*Service, map[string]tools.Definition, *[]string) {
 	now := time.Date(2026, 11, 2, 8, 30, 0, 0, time.Local).UnixMilli()
-	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, Now: func() int64 { return now },
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, Now: func() int64 { return now }, T: i18n.T,
 		SetTimer: func(func(), int64) func() { return func() {} }})
 	cards := []string{}
 	defs := map[string]tools.Definition{}

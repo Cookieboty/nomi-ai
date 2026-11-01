@@ -10,6 +10,7 @@ import { z } from 'zod';
 import type { Decision } from '../desktop/PermissionBroker';
 import type { Repeat } from '../schedule/recurrence';
 
+import { authorizationCard } from './card';
 import type { TaskService } from './TaskService';
 import type { GrantLevel, Task, ToolClass, Trigger } from './types';
 
@@ -28,13 +29,6 @@ const TOOL_LEVEL: Record<(typeof TOOL_CLASSES)[number], GrantLevel> = {
   memory_write: 2,
   file_write: 2,
   shell: 3,
-};
-const LEVEL_TEXT: Record<number, string> = {
-  0: '只发通知',
-  1: '只读：读文件、网页与本机记录',
-  2: '本机写入：知识库、记忆、授权文件夹里的文件',
-  3: '可以跑命令（仍经命令审核）',
-  4: '可以做对外的动作',
 };
 
 const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
@@ -113,23 +107,6 @@ export function triggerOf(w: z.infer<typeof proposeInput>['when'], now: number):
   }
 }
 
-export function describeWhen(w: z.infer<typeof proposeInput>['when']): string {
-  switch (w.kind) {
-    case 'manual':
-      return '手动运行';
-    case 'once':
-      return `一次：${w.at}`;
-    case 'daily':
-      return `每天 ${w.time}`;
-    case 'weekdays':
-      return `工作日 ${w.time}`;
-    case 'weekly':
-      return `每周（${w.days.join('、')}）${w.time}`;
-    case 'interval':
-      return `每 ${w.minutes} 分钟`;
-  }
-}
-
 export interface TaskToolDeps {
   tasks: TaskService;
   authorize(i: {
@@ -178,20 +155,19 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
         } catch (e) {
           return { ok: false, error: { code: 'bad_time', message: String(e) } };
         }
-        const card = [
-          `任务：${i.title}`,
-          `目标：${short(i.goal, 600)}`,
-          `何时：${describeWhen(i.when)}`,
-          `谁来做：${i.executor === 'notify' ? '只发通知' : 'Nomi'}`,
-          `能力：${LEVEL_TEXT[level]}`,
-          '期限：30 天；预算：每次最多 20 万 token、30 分钟，每天最多 1 美元，用完会停下来问你',
-        ].join('\n');
+        const card = authorizationCard({
+          title: i.title,
+          goal: i.goal,
+          when: i.when,
+          notify: i.executor === 'notify',
+          level,
+        });
         const decision = await d.authorize({
           tool: 'task_propose',
           danger: 'write',
-          summary: `创建持续任务「${i.title}」`,
+          summary: card.summary,
           args: i,
-          preview: card,
+          preview: card.preview,
           signal: ctx.signal,
           force: { dialog: true },
         });

@@ -17,11 +17,6 @@ import (
 
 var toolLevel = map[string]int{"read": 1, "web": 1, "knowledge_write": 2, "memory_write": 2, "file_write": 2, "shell": 3}
 
-var levelText = map[int]string{
-	0: "只发通知", 1: "只读：读文件、网页与本机记录", 2: "本机写入：知识库、记忆、授权文件夹里的文件",
-	3: "可以跑命令（仍经命令审核）", 4: "可以做对外的动作",
-}
-
 var hhmmRE = regexp.MustCompile(`^([01]?\d|2[0-3]):([0-5]\d)$`)
 
 const proposeSchema = `{"type":"object","properties":{
@@ -103,24 +98,25 @@ func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 	return Trigger{}, fmt.Errorf("invalid when: %s", w.Kind)
 }
 
-func describeWhen(w ProposeWhen) string {
+// describeWhen：授权卡片里的「何时」（跟界面语言走）
+func describeWhen(T func(string, ...any) string, w ProposeWhen) string {
 	switch w.Kind {
 	case "manual":
-		return "手动运行"
+		return T("electron.common.task-when-manual")
 	case "once":
-		return "一次：" + w.At
+		return T("electron.common.task-when-once", w.At)
 	case "daily":
-		return "每天 " + w.Time
+		return T("electron.common.task-when-daily", w.Time)
 	case "weekdays":
-		return "工作日 " + w.Time
+		return T("electron.common.task-when-weekdays", w.Time)
 	case "weekly":
 		days := make([]string, len(w.Days))
 		for i, d := range w.Days {
 			days[i] = fmt.Sprint(d)
 		}
-		return "每周（" + strings.Join(days, "、") + "）" + w.Time
+		return T("electron.common.task-when-weekly", strings.Join(days, ", "), w.Time)
 	case "interval":
-		return fmt.Sprintf("每 %d 分钟", w.Minutes)
+		return T("electron.common.task-when-interval", w.Minutes)
 	}
 	return w.Kind
 }
@@ -200,19 +196,20 @@ func CreateTaskTools(s *Service, authorize Authorizer) []tools.Definition {
 				if err != nil {
 					return fail("bad_time", err.Error()), nil
 				}
-				who := "Nomi"
+				T := s.d.T
+				who := T("electron.common.task-who-nomi")
 				if in.Executor == "notify" {
-					who = "只发通知"
+					who = T("electron.common.task-who-notify")
 				}
 				card := strings.Join([]string{
-					"任务：" + in.Title,
-					"目标：" + shortN(in.Goal, 600),
-					"何时：" + describeWhen(in.When),
-					"谁来做：" + who,
-					"能力：" + levelText[level],
-					"期限：30 天；预算：每次最多 20 万 token、30 分钟，每天最多 1 美元，用完会停下来问你",
+					T("electron.common.task-card-task", in.Title),
+					T("electron.common.task-card-goal", shortN(in.Goal, 600)),
+					T("electron.common.task-card-when", describeWhen(T, in.When)),
+					T("electron.common.task-card-who", who),
+					T("electron.common.task-card-level", T(fmt.Sprintf("electron.common.task-level-%d", level))),
+					T("electron.common.task-card-terms"),
 				}, "\n")
-				d := authorize(ctx, "task_propose", "创建持续任务「"+in.Title+"」", in, card)
+				d := authorize(ctx, "task_propose", T("electron.common.task-card-summary", in.Title), in, card)
 				if d != "allowed" && d != "auto" {
 					return fail("user_denied", "用户没有授权这个任务"), nil
 				}
