@@ -151,7 +151,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
 	if reg != nil {
 		for _, def := range igtools.WithDangerousUnset(dlg.Tools()) {
-			reg.Register(def)
+			reg.Register(igtools.WithGate(def))
 		}
 	}
 	history := jsrt.Call(func() *cli.SessionHistoryService {

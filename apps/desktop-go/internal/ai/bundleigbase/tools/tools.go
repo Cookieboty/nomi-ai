@@ -47,9 +47,34 @@ type Definition struct {
 	// Available：每轮对话开始时问一次现在能不能用（如没设置图片模型时不提供 image_generate）；
 	// nil = 总是可用；panic / false 都按不可用（mapTools.toAiSdkToolSet）
 	Available func() bool
+	// Relevant：按需提供——这一轮对话里用不用得上（如没提到提醒就不带 reminder_*）；
+	// nil = 总是提供；false 时这一轮不发给模型；panic 按用得上（mapTools.safeRelevant）
+	Relevant func(Turn) bool
 	// Execute：input 为已解析的 JSON 值（*u.Obj / []any / string / float64 / bool / nil）。
 	// 返回值按 JSON 序列化后交给模型（与 AI SDK tool result 相同）。
 	Execute func(ctx context.Context, input any, ec ExecContext) (any, error)
+}
+
+// Turn：ToolTurn，判断工具这一轮是否用得上的依据
+type Turn struct {
+	// UserText：本轮用户最后说的话
+	UserText string
+	// ConvoText：整段对话（用户与助手，不含系统提示）的文本，小写
+	ConvoText string
+	Cwd       string
+}
+
+// IsRelevant：Definition.Relevant 的安全调用（没写 = 用得上；panic 按用得上）
+func IsRelevant(d Definition, t Turn) (ok bool) {
+	if d.Relevant == nil {
+		return true
+	}
+	defer func() {
+		if recover() != nil {
+			ok = true
+		}
+	}()
+	return d.Relevant(t)
 }
 
 // Registry：seams/tools.ts ToolRegistry

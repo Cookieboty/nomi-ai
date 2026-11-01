@@ -12,6 +12,7 @@ import type { KnowledgeService } from '../knowledge/KnowledgeService';
 import type { MemoryService } from '../memory/MemoryService';
 
 import type { DesktopService } from './DesktopService';
+import { applyToolGates } from './toolGates';
 
 /** 桌面工具插件在 apply 时读取的服务（内核实例的服务表；没有的跳过） */
 export interface DesktopToolSources {
@@ -44,6 +45,8 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
       for (const t of src.delegate?.()?.tools() ?? []) registry.register(t);
       // 生图（image_generate，没设置图片模型时不提供给模型）
       for (const t of src.extra?.() ?? []) registry.register(t);
+      // 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型
+      applyToolGates(registry);
       // 扩展：技能（skill_load / skill_read_file）+ GUI 管理的 MCP 服务器
       const ext = src.ext?.();
       if (ext) {

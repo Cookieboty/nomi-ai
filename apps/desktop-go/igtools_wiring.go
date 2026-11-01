@@ -107,8 +107,9 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	// 生图（image_generate，没设置图片模型时不提供给模型）：与 Node plugin.ts 同位（delegate 之后、ext 之前）
 	defs = append(defs, igtools.ImageTools(image)...)
 	defs = append(defs, igtools.SkillTools(ext)...)
+	// 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型（Node plugin.ts applyToolGates）
 	for _, def := range defs {
-		r.Register(def)
+		r.Register(igtools.WithGate(def))
 	}
 }
 

@@ -1,20 +1,32 @@
 /**
  * Map `@nomi-ai/bundle-ig-base` ToolDefinition → Vercel AI SDK `tool()`.
  */
-import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { ToolCallProvider, ToolDefinition, ToolTurn } from '@nomi-ai/bundle-ig-base';
 import { getToolCallerTabId } from '@nomi-ai/bundle-ig-base';
-import { jsonSchema, tool, type Tool } from 'ai';
-import type { ZodType } from 'zod';
+import { asSchema, jsonSchema, tool, type FlexibleSchema, type Tool } from 'ai';
+
+/** 发给模型的 schema 去掉 `$schema`（每个工具省十几个 token，模型用不上） */
+function stripMeta<T>(s: T): T {
+  if (s && typeof s === 'object' && '$schema' in s) {
+    const { $schema: _drop, ...rest } = s as Record<string, unknown>;
+    return rest as T;
+  }
+  return s;
+}
 
 function toFlexibleSchema(input: unknown) {
   // ToolDefinition.input is a zod schema, AI SDK Schema (jsonSchema()), or raw JSON Schema.
   if (input && typeof input === 'object') {
     const o = input as Record<string, unknown>;
     if ('safeParse' in o || 'validate' in o || '~standard' in o) {
-      return input as ZodType;
+      const s = asSchema(input as FlexibleSchema<unknown>);
+      return jsonSchema(
+        async () => stripMeta(await s.jsonSchema),
+        s.validate ? { validate: (v) => s.validate!(v) } : {},
+      );
     }
     if ('type' in o || 'properties' in o || '$schema' in o) {
-      return jsonSchema(input as never);
+      return jsonSchema(stripMeta(input) as never);
     }
   }
   return jsonSchema({
@@ -35,6 +47,8 @@ export type MapToolsOpts = {
   cwd?: string;
   /** 本轮用户最后说的话（命令自动审核用） */
   userText?: string;
+  /** 整段对话文本（小写）：给 ToolDefinition.relevant 判断这一轮用不用得上 */
+  convoText?: string;
 };
 
 function isMapToolsOpts(v: unknown): v is MapToolsOpts {
@@ -46,7 +60,8 @@ function isMapToolsOpts(v: unknown): v is MapToolsOpts {
       'callerTabId' in v ||
       'conversationId' in v ||
       'cwd' in v ||
-      'userText' in v) &&
+      'userText' in v ||
+      'convoText' in v) &&
     !('id' in v)
   );
 }
@@ -94,15 +109,32 @@ function safeAvailable(def: ToolDefinition): boolean {
   }
 }
 
+/** relevant() 抛错按用得上处理（宁可多带一个工具，也不让模型缺工具） */
+function safeRelevant(def: ToolDefinition, turn: ToolTurn): boolean {
+  try {
+    return def.relevant!(turn) !== false;
+  } catch {
+    return true;
+  }
+}
+
 export function toAiSdkToolSet(
   defs: ToolDefinition[],
   providerOrOpts?: MapToolsOpts | ToolCallProvider,
 ): Record<string, Tool> {
   const normalized = normalizeOpts(providerOrOpts);
   const out: Record<string, Tool> = {};
+  // 不知道这一轮说了什么（非对话调用）时不按需裁剪
+  const gate = normalized.convoText !== undefined || normalized.userText !== undefined;
+  const turn: ToolTurn = {
+    userText: normalized.userText ?? '',
+    convoText: normalized.convoText ?? (normalized.userText ?? '').toLowerCase(),
+    ...(normalized.cwd ? { cwd: normalized.cwd } : {}),
+  };
   for (const def of defs) {
     if (def.requiresWorkspace && !normalized.cwd) continue;
     if (def.available && !safeAvailable(def)) continue;
+    if (gate && def.relevant && !safeRelevant(def, turn)) continue;
     out[def.name] = toAiSdkTool(def, normalized);
   }
   return out;

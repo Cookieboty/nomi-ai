@@ -247,6 +247,18 @@ function thinkingOptions(
   return { [opts.id]: { reasoningEffort: 'medium' } } as never;
 }
 
+function textOf(c: unknown): string {
+  if (typeof c === 'string') return c;
+  if (!Array.isArray(c)) return '';
+  return c
+    .map((p) =>
+      p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string'
+        ? (p as { text: string }).text
+        : '',
+    )
+    .join('\n');
+}
+
 /** 本轮用户最后说的话（文本部分，截断到 2000 字）：给工具做命令自动审核 */
 export function lastUserText(
   messages: ReadonlyArray<{ role?: unknown; content?: unknown }> | undefined,
@@ -254,23 +266,23 @@ export function lastUserText(
   for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
     const m = messages![i]!;
     if (m.role !== 'user') continue;
-    const c = m.content;
-    const text =
-      typeof c === 'string'
-        ? c
-        : Array.isArray(c)
-          ? c
-              .map((p) =>
-                p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string'
-                  ? (p as { text: string }).text
-                  : '',
-              )
-              .join('\n')
-          : '';
-    const t = text.trim();
+    const t = textOf(m.content).trim();
     return t ? t.slice(0, 2000) : undefined;
   }
   return undefined;
+}
+
+/** 整段对话里用户与助手说过的话（不含系统提示与工具结果，小写，最多 20000 字）：按需提供工具用 */
+export function conversationText(
+  messages: ReadonlyArray<{ role?: unknown; content?: unknown }> | undefined,
+): string {
+  const parts: string[] = [];
+  for (const m of messages ?? []) {
+    if (m.role !== 'user' && m.role !== 'assistant') continue;
+    const t = textOf(m.content).trim();
+    if (t) parts.push(t);
+  }
+  return parts.join('\n').slice(-20000).toLowerCase();
 }
 
 export class AiSdkLlmProvider implements LLMProvider {
@@ -297,6 +309,7 @@ export class AiSdkLlmProvider implements LLMProvider {
       messages?: ReadonlyArray<{ role?: unknown; content?: unknown }>;
     }) => {
       const userText = lastUserText(req.messages);
+      const convoText = conversationText(req.messages);
       const caller = typeof req.extra?.callerTabId === 'string' ? req.extra.callerTabId : undefined;
       const conversationId =
         typeof req.extra?.conversationId === 'string' ? req.extra.conversationId : undefined;
@@ -308,6 +321,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(conversationId ? { conversationId } : {}),
         ...(cwd ? { cwd } : {}),
         ...(userText ? { userText } : {}),
+        convoText,
       }) as ToolSet;
     };
     return {

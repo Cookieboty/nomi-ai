@@ -330,6 +330,36 @@ func LastUserText(msgs []llm.ChatMessage) string {
 	return ""
 }
 
+// ConversationText = conversationText：整段对话里用户与助手说过的话（不含系统提示与工具结果，
+// 小写，最多 20000 字），按需提供工具用
+func ConversationText(msgs []llm.ChatMessage) string {
+	parts := []string{}
+	for _, m := range msgs {
+		if m.Role != "user" && m.Role != "assistant" {
+			continue
+		}
+		if t := strings.TrimSpace(m.Content); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	r := []rune(strings.Join(parts, "\n"))
+	if len(r) > 20000 {
+		r = r[len(r)-20000:]
+	}
+	return strings.ToLower(string(r))
+}
+
+// modelSchema：发给模型的 schema 去掉 $schema（每个工具省十几个 token，模型用不上）
+func modelSchema(d tools.Definition) *u.Obj {
+	s := tools.SchemaOf(d)
+	if !s.Has("$schema") {
+		return s
+	}
+	c := s.Clone()
+	c.Delete("$schema")
+	return c
+}
+
 // ToolSet：withTools 为一次请求生成的工具集（toAiSdkToolSet）
 func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool {
 	recv := p.opts.Receiver
@@ -346,12 +376,16 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 	}
 	caller, conv, cwd := str("callerTabId"), str("conversationId"), str("cwd")
 	userText := LastUserText(r.Messages)
+	turn := tools.Turn{UserText: userText, ConvoText: ConversationText(r.Messages), Cwd: cwd}
 	out := []Tool{}
 	for _, d := range defs {
 		if d.RequiresWorkspace && cwd == "" {
 			continue
 		}
 		if !tools.IsAvailable(d) {
+			continue
+		}
+		if !tools.IsRelevant(d, turn) {
 			continue
 		}
 		d := d
@@ -361,7 +395,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 			desc = &s
 		}
 		out = append(out, Tool{
-			Name: d.Name, Description: desc, InputSchema: tools.SchemaOf(d),
+			Name: d.Name, Description: desc, InputSchema: modelSchema(d),
 			Execute: func(ctx context.Context, input any, id string) (any, error) {
 				// callerTabId ?? getToolCallerTabId()
 				caller := caller

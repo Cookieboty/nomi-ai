@@ -133,7 +133,22 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
    * 返回 false 时这一轮不提供给模型；不写 = 总是可用
    */
   available?: () => boolean;
+  /**
+   * 按需提供：这一轮对话里用不用得上（例如没提到提醒就不带 reminder_*）。
+   * 返回 false 时这一轮不提供给模型，省下工具定义的 token；不写 = 总是提供
+   */
+  relevant?: (turn: ToolTurn) => boolean;
   execute: (input: TInput, ctx: ToolExecContext) => Promise<TOutput>;
+}
+
+/** 判断工具这一轮是否用得上的依据（ToolDefinition.relevant） */
+export interface ToolTurn {
+  /** 本轮用户最后说的话 */
+  userText: string;
+  /** 整段对话（用户与助手，不含系统提示）的文本，小写；一旦提到过就一直提供，前缀缓存不被打断 */
+  convoText: string;
+  /** Nomi 对话选的工作区 */
+  cwd?: string;
 }
 
 /** 记忆 - 长期 facts / 摘要 / 用户偏好 */
