@@ -341,3 +341,41 @@ describe('PermissionBroker 后台任务（persistent-tasks §8.4）', () => {
     expect(b.isBackground(ctrl.signal)).toBe(false);
   });
 });
+
+describe('PermissionBroker 后台：命令确定性分类先于审核', () => {
+  it('读凭据 / 合并永远问人；对外动作 L3 问人、L4 交给审核', async () => {
+    const { b } = mk();
+    b.aiReview = () => true;
+    b.reviewer = async () => ({ risk: 'low', outcome: 'allow', authorization: 'high' }) as never;
+    const asked: string[] = [];
+    const reg = (level: 3 | 4) => {
+      const c = new AbortController();
+      b.registerBackground(c.signal, {
+        level,
+        ask: async (r) => {
+          asked.push(r.detail.split(' ')[0]!);
+          return false;
+        },
+      });
+      return c.signal;
+    };
+    const run = (command: string, signal: AbortSignal) =>
+      b.authorize({
+        tool: 'workspace_run',
+        danger: 'destructive',
+        summary: 's',
+        args: { command },
+        force: { dialog: true },
+        signal,
+      });
+    const l3 = reg(3);
+    expect(await run('npm test', l3)).toBe('auto');
+    expect(await run('gh auth token', l3)).toBe('denied');
+    expect(await run('gh pr merge 1', l3)).toBe('denied');
+    expect(await run('gh pr create --fill', l3)).toBe('denied');
+    const l4 = reg(4);
+    expect(await run('gh pr create --fill', l4)).toBe('auto');
+    expect(await run('security find-generic-password -w', l4)).toBe('denied');
+    expect(asked).toEqual(['[credential]', '[never]', '[external]', '[credential]']);
+  });
+});

@@ -68,7 +68,15 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if i.Preview != nil {
 		detail = *i.Preview
 	}
+	// 确定性分类在审核之前（command_class.go）：读凭据、合并发布等永远问人；对外动作要 L4
+	cmdText, _, _ := parseCommandArgs(i.Args)
+	cls := ""
 	if command {
+		cls = ClassifyCommand(cmdText)
+	}
+	if cls == "credential" || cls == "never" || (cls == "external" && run.Level < externalLevel) {
+		detail = "[" + cls + "] " + detail
+	} else if command {
 		if cmd, cwd, ok := b.reviewableBackground(i); ok {
 			review := b.review(i, cmd, cwd)
 			// 与前台一致：审核放行就直接跑（workspace_run 总带 Force，审核结果优先）

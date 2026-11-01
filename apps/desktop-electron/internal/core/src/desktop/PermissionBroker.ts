@@ -4,6 +4,7 @@ import * as path from 'path';
 
 import { t } from '../i18n';
 
+import { classifyCommand } from './commandClass';
 import {
   REVIEWED_TOOLS,
   type CommandReview,
@@ -408,7 +409,16 @@ export class PermissionBroker {
     if (run.level < need) return 'denied';
     const tainted = this.isTainted(i.signal);
     let detail = i.preview ?? i.summary;
-    if (command) {
+    // 确定性分类在审核之前（commandClass.ts）：读凭据、合并发布等永远问人；对外动作要 L4
+    const cmd = command ? String((i.args as { command?: unknown } | undefined)?.command ?? '') : '';
+    const cls = cmd ? classifyCommand(cmd) : null;
+    if (
+      cls === 'credential' ||
+      cls === 'never' ||
+      (cls === 'external' && run.level < EXTERNAL_LEVEL)
+    ) {
+      detail = `[${cls}] ${detail}`;
+    } else if (command) {
       const review = this.reviewer && this.aiReview() ? await this.review(i) : null;
       // 与前台一致：审核放行就直接跑（workspace_run 总带 force，审核结果优先）
       if (review?.outcome === 'allow') return 'auto';
