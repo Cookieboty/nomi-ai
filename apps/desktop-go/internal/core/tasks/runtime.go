@@ -9,6 +9,7 @@ package tasks
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
@@ -406,6 +407,59 @@ func (r *Runtime) Command(id string, c Command) CmdResult {
 		}
 	})
 	return res
+}
+
+// Patch：改标题、触发器、预算（不碰授权与状态），对应 TaskRuntime.patch
+type Patch struct {
+	Title   *string      `json:"title,omitempty"`
+	Trigger *Trigger     `json:"trigger,omitempty"`
+	Budget  *BudgetInput `json:"budget,omitempty"`
+}
+
+func (r *Runtime) Patch(id string, p Patch) *Task {
+	var out *Task
+	r.own(func() {
+		rec := r.recs[id]
+		if rec == nil {
+			return
+		}
+		now := r.d.Now()
+		t := rec.Task
+		t.UpdatedAt = now
+		keys := []string{}
+		if p.Budget != nil {
+			keys = append(keys, "budget")
+			if p.Budget.MaxTokensPerAttempt != nil {
+				t.Budget.MaxTokensPerAttempt = p.Budget.MaxTokensPerAttempt
+			}
+			if p.Budget.MaxDurationMsPerAttempt != nil {
+				t.Budget.MaxDurationMsPerAttempt = p.Budget.MaxDurationMsPerAttempt
+			}
+			if p.Budget.MaxCostUsdPerDay != nil {
+				t.Budget.MaxCostUsdPerDay = p.Budget.MaxCostUsdPerDay
+			}
+			if p.Budget.MaxRetries != nil {
+				t.Budget.MaxRetries = *p.Budget.MaxRetries
+			}
+		}
+		if p.Title != nil {
+			keys = append(keys, "title")
+			t.Title = *p.Title
+		}
+		if p.Trigger != nil {
+			keys = append(keys, "trigger")
+			t.Trigger = *p.Trigger
+			t.NextRunAt = r.firstRunAt(t, now)
+		}
+		sort.Strings(keys)
+		r.save(Record{Task: t, Attempts: rec.Attempts})
+		r.appendJ(id, JournalEntry{T: "note", At: now, Msg: "patched:" + strings.Join(keys, ",")})
+		saved := r.recs[id].Task
+		r.changed(saved)
+		r.arm()
+		out = &saved
+	})
+	return out
 }
 
 func (r *Runtime) Remove(id string) bool {

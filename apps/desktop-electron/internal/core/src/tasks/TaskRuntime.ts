@@ -272,6 +272,34 @@ export class TaskRuntime {
     }
   }
 
+  /** 改标题、触发器、预算（不碰授权与状态）；改了定时就重算下一次运行时间 */
+  patch(
+    id: string,
+    p: { title?: string; trigger?: Trigger; budget?: Partial<Budget> },
+  ): Task | null {
+    const live = this.tasks.get(id);
+    if (!live) return null;
+    const now = this.d.now();
+    const task: Task = { ...live.rec.task, updatedAt: now };
+    if (p.title !== undefined) task.title = p.title;
+    if (p.budget) task.budget = { ...task.budget, ...p.budget };
+    if (p.trigger) {
+      task.trigger = p.trigger;
+      const next = this.firstRunAt(task, now);
+      if (next === undefined) delete task.nextRunAt;
+      else task.nextRunAt = next;
+    }
+    live.rec = this.d.store.save({ task, attempts: live.rec.attempts });
+    this.d.store.append(id, {
+      t: 'note',
+      at: now,
+      msg: `patched:${Object.keys(p).sort().join(',')}`,
+    });
+    this.d.onChange?.(live.rec.task);
+    this.arm();
+    return live.rec.task;
+  }
+
   /** 只有结束态的任务可以删除 */
   remove(id: string): boolean {
     const live = this.tasks.get(id);

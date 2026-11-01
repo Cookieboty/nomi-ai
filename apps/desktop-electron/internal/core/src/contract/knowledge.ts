@@ -55,6 +55,7 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
   const kb = () => need(s.kb, 'kb');
   const mem = () => need(s.mem, 'mem');
   const sched = () => need(s.sched, 'sched');
+  const tasks = () => need(s.tasks, 'tasks');
   const local = () => need(s.localModels, 'localModels');
   const hub = () => need(s.localHub, 'localHub');
   const ext = () => need(s.ext, 'ext');
@@ -118,6 +119,29 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
       sched().noteActivity();
       return true;
     },
+
+    // ---------- tasks ----------
+    'tasks.list': () => out(tasks().list()),
+    'tasks.get': ({ id }) => out(tasks().get(id)),
+    'tasks.inbox': () => out(tasks().inbox()),
+    'tasks.journal': ({ id }) => out(tasks().journal(id)),
+    'tasks.create': (input) => out(tasks().create(input)),
+    'tasks.update': ({ id, ...patch }, ctx) => {
+      const task = tasks().update(id, patch);
+      if (!task) ctx.fail('TASKS_NOT_FOUND', id);
+      return out(task);
+    },
+    'tasks.grant': ({ id, grant }) => tasks().command(id, { type: 'grant', grant }),
+    'tasks.revoke': ({ id }) => tasks().command(id, { type: 'revoke' }),
+    'tasks.pause': ({ id }) => tasks().command(id, { type: 'pause' }),
+    'tasks.resume': ({ id }) => tasks().command(id, { type: 'resume' }),
+    'tasks.cancel': ({ id }) => tasks().command(id, { type: 'cancel' }),
+    'tasks.runNow': ({ id }) => tasks().command(id, { type: 'runNow' }),
+    'tasks.decide': ({ id, ...d }) => tasks().command(id, { type: 'decide', ...d }),
+    'tasks.accept': ({ id }) => tasks().command(id, { type: 'accept' }),
+    'tasks.reject': ({ id, feedback }) => tasks().command(id, { type: 'reject', feedback }),
+    'tasks.reconcile': ({ id, outcome }) => tasks().command(id, { type: 'reconcile', outcome }),
+    'tasks.remove': ({ id }) => tasks().remove(id),
 
     // ---------- local ----------
     'local.state': () => out(local().state()),

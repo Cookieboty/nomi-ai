@@ -57,6 +57,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tray"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -289,8 +290,18 @@ func main() {
 		Router:   router,
 		Secrets:  security.NewSecretBox("extensions"),
 		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
-		T:        i18n.T,
-		Ports:    ports,
+		LegacyReminders: func() []tasks.LegacyReminder {
+			out := []tasks.LegacyReminder{}
+			if desktopSvc.Reminders == nil {
+				return out
+			}
+			for _, r := range desktopSvc.Reminders.List(false, 0) {
+				out = append(out, tasks.LegacyReminder{ID: r.ID, Text: r.Text, DueAt: int64(r.DueAt), Status: r.Status, Repeat: r.Repeat})
+			}
+			return out
+		},
+		T:     i18n.T,
+		Ports: ports,
 		OpenChat: func() {
 			if sh != nil {
 				sh.Show(shell.Chat)

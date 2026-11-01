@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/memory"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 )
 
 // Declared：APP_DOMAINS.knowledge.errors
@@ -22,6 +23,7 @@ var Declared = map[string]bool{
 	"KB_DENIED": true, "KB_EMPTY": true, "KB_LOCAL_ONLY": true, "KB_USER_DENIED": true, "KB_OCR_MISSING": true,
 	"MEM_BAD_SUMMARY": true, "MEM_SUMMARIZE_FAILED": true, "MEM_NOT_FOUND": true, "MEM_EMPTY": true,
 	"SCHED_INVALID": true, "SCHED_NOT_FOUND": true, "SCHED_BUSY": true, "SCHED_EMPTY": true,
+	"TASKS_NOT_FOUND": true,
 }
 
 // ErrorCode：knowledgeErrorCode(prefix, err)；没声明的返回 ""
@@ -76,6 +78,7 @@ type Services struct {
 	Local func() *local.Service
 	Hub   func() *local.Hub
 	Ext   func() *extensions.Service
+	Tasks func() *tasks.Service
 }
 
 func unavailable(name string) error {
@@ -636,6 +639,9 @@ func sliceUTF16(s string, n int) string {
 // Install：把 77 个过程挂到 Router（在 procs.Install 之前调用）
 func Install(r *contract.Router, sv Services) int {
 	hs := Handlers(sv)
+	for name, h := range taskHandlers(sv) {
+		hs[name] = h
+	}
 	for name, h := range hs {
 		h := h
 		r.Call(name, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) { return h(ctx, raw) })

@@ -41,6 +41,7 @@ import type { ScreenService } from '../screen/ScreenService';
 import type { IConfigService } from '../services/ConfigService';
 import type { UpdateService } from '../services/UpdateService';
 import type { StartupService } from '../startup/StartupService';
+import type { TaskService } from '../tasks/TaskService';
 import type { ThemeService } from '../theme/ThemeService';
 import type { TtsService } from '../tts/TtsService';
 import type { QualityService } from '../usage/quality/QualityService';
@@ -91,6 +92,8 @@ export interface CoreContractServices {
   kb?: KnowledgeService;
   mem?: MemoryService;
   sched?: SchedulerService;
+  /** 持续任务（tasks.*） */
+  tasks?: TaskService;
   localModels?: LocalModelService;
   localHub?: LocalHubService;
   ext?: ExtensionsService;

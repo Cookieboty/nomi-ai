@@ -108,6 +108,7 @@ import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
 import { UpdateService, type UpdaterLike } from './services/UpdateService';
 import { StartupService } from './startup/StartupService';
+import { TaskService } from './tasks/TaskService';
 import { ThemeService } from './theme/ThemeService';
 import { TtsService } from './tts/TtsService';
 import { GatewayRequestLog, readLegacyGatewayTrace } from './usage/GatewayRequestLog';
@@ -462,6 +463,21 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     });
     services.sched = sched;
     stoppers.push(() => sched.stop());
+
+    // 持续任务（docs/design/persistent-tasks.md）：通知走 DesktopService（免打扰由 SchedulerService 的策略决定）；
+    // 旧的提醒 / 定时代理任务只读并入任务页
+    const tasks = new TaskService({
+      root: userData('tasks'),
+      logger: logger as never,
+      events,
+      notify: desktop,
+      legacy: {
+        reminders: () => desktop.reminders.list(),
+        sched: () => sched.tasks(),
+      },
+    });
+    services.tasks = tasks;
+    stoppers.push(() => tasks.stop());
 
     // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
     services.screen = new ScreenService({
@@ -1136,6 +1152,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       run(() => {
         services.desktop?.startReminders();
         services.sched?.start();
+        services.tasks?.start();
       });
     },
     stop: () => run(() => shutdown.stop()),

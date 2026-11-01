@@ -13,6 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/memory"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 )
 
 // asLocalDesktop：真实 DesktopAdapter 自带 say / setLocalOnly；测试用的 Noop 走 localDesktop 兜底
@@ -57,7 +58,9 @@ type WireDeps struct {
 	ChatProvider func() *knowledge.ChatProvider
 	// 记忆同步到 AI 客户端（client.memory）；扩展的 MCP 工具确认（desktop.broker）
 	MemoryFacade func() memory.Facade
-	Confirm      extensions.ConfirmBroker
+	// 旧提醒列表（任务页只读并入）；缺省不列
+	LegacyReminders func() []tasks.LegacyReminder
+	Confirm         extensions.ConfirmBroker
 }
 
 type Bundle struct {
@@ -67,6 +70,7 @@ type Bundle struct {
 	Local *local.Service
 	Hub   *local.Hub
 	Ext   *extensions.Service
+	Tasks *tasks.Service
 	N     int
 }
 
@@ -101,8 +105,21 @@ func Wire(d WireDeps) *Bundle {
 	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
+	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
+		Notify: func(title, text string) {
+			d.Desktop.Notify(deps.Notice{Kind: "reminder", Title: title, Text: text, Body: text})
+		},
+		LegacyReminders: d.LegacyReminders,
+		LegacySched: func() []tasks.LegacySchedTask {
+			out := []tasks.LegacySchedTask{}
+			for _, t := range b.Sched.Tasks() {
+				out = append(out, tasks.LegacySchedTask{ID: t.ID, Name: t.Name, Enabled: t.Enabled, NextRunAt: t.NextRunAt, Repeat: t.Repeat, LastStatus: t.LastStatus})
+			}
+			return out
+		}})
 	b.N = Install(d.Router, Services{
-		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
+		Tasks: func() *tasks.Service { return b.Tasks },
+		KB:    func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },
 		Hub: func() *local.Hub { return b.Hub }, Ext: func() *extensions.Service { return b.Ext },
 	})
@@ -113,11 +130,13 @@ func (b *Bundle) Start() {
 	b.KB.Start()
 	b.Mem.Start()
 	b.Sched.Start()
+	b.Tasks.Start()
 	b.Ext.Start()
 	go b.Local.AutoStart()
 }
 
 func (b *Bundle) Stop() {
+	b.Tasks.Stop()
 	b.Sched.Stop()
 	b.Mem.Flush()
 	b.KB.Dispose()

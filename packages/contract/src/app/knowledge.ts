@@ -65,6 +65,17 @@ import {
   SkillMeta,
   TaskResult,
 } from './knowledge/schemas';
+import {
+  TaskBudgetInput,
+  TaskCmdResult,
+  TaskCreateInput,
+  TaskGrantInput,
+  TaskJournalEntry,
+  TaskListResult,
+  TaskRecordView,
+  TaskTrigger,
+  TaskView,
+} from './knowledge/taskSchemas';
 
 const none = z.void();
 const id = z.object({ id: z.string() });
@@ -205,6 +216,70 @@ export const knowledgeProcedures = {
   /** 用户刚在对话里活动过（主动搭话据此避让） */
   'sched.activity': { kind: 'mutation', input: none, output: ok },
 
+  // ---------- tasks：持续任务（TaskService，docs/design/persistent-tasks.md §14） ----------
+  /** 全部任务 + 旧的提醒 / 定时（只读并入任务页） */
+  'tasks.list': { kind: 'query', input: none, output: TaskListResult },
+  /** 任务与最近的执行；不存在时 null */
+  'tasks.get': { kind: 'query', input: id, output: TaskRecordView.nullable() },
+  /** 需要用户处理的任务（等你决定、待核对、待验收、失败、到期） */
+  'tasks.inbox': { kind: 'query', input: none, output: z.array(TaskView) },
+  /** 事件日志（状态变化、对外动作、投递），任务详情的历史 */
+  'tasks.journal': { kind: 'query', input: id, output: z.array(TaskJournalEntry) },
+  /** 用户在表单或授权卡片上确认后创建 */
+  'tasks.create': { kind: 'mutation', input: TaskCreateInput, output: TaskView, dangerous: true },
+  /** 改标题、触发器、预算（不改授权；收窄授权用 tasks.grant） */
+  'tasks.update': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      title: z.string().min(1).max(200).optional(),
+      trigger: TaskTrigger.optional(),
+      budget: TaskBudgetInput.optional(),
+    }),
+    output: TaskView,
+  },
+  /** 重新授权：放宽 / 续期 / 收窄（新版本号） */
+  'tasks.grant': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), grant: TaskGrantInput }),
+    output: TaskCmdResult,
+    dangerous: true,
+  },
+  'tasks.revoke': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.pause': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.resume': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 取消：停执行、保留成果 */
+  'tasks.cancel': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.runNow': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 回应 waiting_user（批准 / 拒绝 / 补充信息） */
+  'tasks.decide': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      gen: z.number().int().optional(),
+      requestId: z.string().optional(),
+      approve: z.boolean(),
+      input: z.string().max(8000).optional(),
+    }),
+    output: TaskCmdResult,
+    dangerous: true,
+  },
+  'tasks.accept': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 退回并附意见：新开一次执行 */
+  'tasks.reject': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), feedback: z.string().min(1).max(8000) }),
+    output: TaskCmdResult,
+  },
+  /** 核对重启前不确定的对外动作 */
+  'tasks.reconcile': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), outcome: z.enum(['applied', 'not_applied', 'abandon']) }),
+    output: TaskCmdResult,
+  },
+  /** 删除（只有结束的任务可以删） */
+  'tasks.remove': { kind: 'mutation', input: id, output: ok },
+
   // ---------- local：本机模型（LocalModelService） ----------
   'local.state': { kind: 'query', input: none, output: LocalState },
   'local.setSettings': { kind: 'mutation', input: LocalSettingsPatch, output: LocalSettings },
@@ -325,6 +400,8 @@ export const knowledgeEvents = {
   'sched.result': TaskResult,
   /** 主动搭话 */
   'sched.proactive': z.looseObject({ text: z.string(), at: z.number() }),
+  /** 任务或它的执行变了 */
+  'tasks.changed': z.object({ id: z.string() }),
   'local.changed': z.null(),
   /** 模型 / 运行时下载、Ollama 拉取的进度 */
   'local.progress': LocalProgressEvent,
@@ -349,6 +426,7 @@ export const knowledgeErrors = [
   'SCHED_NOT_FOUND',
   'SCHED_BUSY',
   'SCHED_EMPTY',
+  'TASKS_NOT_FOUND',
 ] as const satisfies readonly string[];
 
 export type KnowledgeProcedureName = keyof typeof knowledgeProcedures & string;
