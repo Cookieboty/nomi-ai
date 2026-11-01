@@ -10,6 +10,7 @@
  * 与 Go 版 internal/core/characterassets 行为一致。见 docs/design/remote-character-assets.md。
  */
 import { createHash } from 'node:crypto';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -227,6 +228,13 @@ export class CharacterAssets {
     };
     this.patch({ status: this.st.status === 'ready' ? 'ready' : 'downloading', percent: 0 });
     const out = fs.createWriteStream(part);
+    // 打开 / 写入失败（磁盘满、权限、被占用）：流会发 error，没有监听就成了主进程未捕获异常，
+    // 打包版会退出整个应用（#216）。记下错误并中止下载，按普通下载失败处理
+    let outErr: Error | null = null;
+    out.on('error', (e) => {
+      outErr ??= e;
+      ctl.abort();
+    });
     const hash = createHash('sha256');
     let got = 0;
     let lastPct = -1;
@@ -238,7 +246,9 @@ export class CharacterAssets {
         got += chunk.length;
         if (got > a.size) throw new Error('download larger than the catalog says');
         hash.update(chunk);
-        if (!out.write(chunk)) await new Promise<void>((r) => out.once('drain', r));
+        if (outErr) throw outErr;
+        // once 在等待期间收到 error 会 reject；abort（卡住 / 写入失败）也会结束等待
+        if (!out.write(chunk)) await once(out, 'drain', { signal: ctl.signal });
         const pct = Math.floor((got / a.size) * 100);
         if (pct !== lastPct) {
           lastPct = pct;
@@ -246,15 +256,18 @@ export class CharacterAssets {
           if (this.st.status !== 'ready') this.patch({ status: 'downloading', percent: pct });
         }
       }
+      if (outErr) throw outErr;
       await new Promise<void>((resolve, reject) =>
         out.end((e?: Error | null) => (e ? reject(e) : resolve())),
       );
+      if (outErr) throw outErr;
       if (got !== a.size) throw new Error(`download incomplete (${got}/${a.size} bytes)`);
       if (hash.digest('hex') !== a.sha256) throw new Error('download sha256 mismatch');
       await fs.promises.rename(part, path.join(dir, a.file));
     } catch (e) {
       out.destroy();
       await fs.promises.rm(part, { force: true }).catch(() => undefined);
+      if (outErr) throw outErr;
       throw ctl.signal.aborted &&
         !(e instanceof Error && /sha256|incomplete|larger/.test(e.message))
         ? new Error(`download stalled: no data for ${Math.round(stallMs / 1000)}s`)

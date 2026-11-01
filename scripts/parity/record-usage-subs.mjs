@@ -286,7 +286,7 @@ const claudeScenarios = [
     plan: { onStart: [cuEnv('Unknown skill: usage')], exit: 'start' },
     twice: true,
   },
-  { name: 'timeout', plan: { onStart: ['{"partial":'] }, timeoutMs: 2000 }, // Windows：.cmd 垫片 + node 启动可能超过 400ms，mock 未写日志就被杀
+  { name: 'timeout', plan: { onStart: ['{"partial":'] }, timeoutMs: 2000 }, // Windows：.cmd 垫片 + node 启动可能超过 400ms，mock 未写日志就被杀；所有超时用例都用 2000
   { name: 'output-limit', plan: { big: 300_000 } },
   { name: 'enoent', bin: MISSING },
 ];
@@ -429,7 +429,7 @@ const codexScenarios = [
   },
   { name: 'closed', plan: { exit: 'start' } },
   { name: 'closed-after-init', plan: { onLine: { 0: [initOk] }, exit: 1 } },
-  { name: 'timeout', plan: {}, timeoutMs: 400 },
+  { name: 'timeout', plan: {}, timeoutMs: 2000 },
   { name: 'output-limit', plan: { big: 300_000, bigAfter: 0 } },
   { name: 'utf16-units-under-limit', plan: { big: 140_000, bigChar: 'é' }, timeoutMs: 600 },
   { name: 'enoent', bin: MISSING },
@@ -511,10 +511,10 @@ const grokScenarios = [
   { name: 'billing-error', plan: { onLine: { 0: [gInit], 2: [idErr(2, { code: -32603 })] } } },
   { name: 'no-limits', plan: { onLine: { 0: [gInit], 2: [id(2, { config: {} })] } } },
   { name: 'id2-no-result', plan: { onLine: { 0: [gInit], 2: ['{"id":2}\n'] } } },
-  { name: 'init-falsy-result', plan: { onLine: { 0: ['{"id":1,"result":0}\n'] } }, timeoutMs: 400 },
+  { name: 'init-falsy-result', plan: { onLine: { 0: ['{"id":1,"result":0}\n'] } }, timeoutMs: 2000 },
   { name: 'double-init', plan: { onLine: { 0: [gInit + gInit], 2: [id(2, okBill)] } } },
   { name: 'closed', plan: { exit: 'start' } },
-  { name: 'timeout', plan: {}, timeoutMs: 400 },
+  { name: 'timeout', plan: {}, timeoutMs: 2000 },
   { name: 'bytes-over-limit', plan: { big: 140_000, bigChar: 'é' } },
   { name: 'enoent', bin: MISSING },
 ];

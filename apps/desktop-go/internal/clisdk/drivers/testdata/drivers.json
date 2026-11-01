@@ -777,7 +777,7 @@
    {
     "op": "start",
     "ok": {
-     "sessionId": "gem-8bdc3cf0-650e-4a5d-903c-0ca058d57392",
+     "sessionId": "gem-1254620d-1292-4a3f-b41f-f243338dd5a1",
      "currentModeId": "default",
      "version": "1",
      "capabilities": {
@@ -813,7 +813,7 @@
      "turnId": "id-1",
      "stopReason": "end_turn",
      "text": "Mock Gemini: hello",
-     "sessionId": "gem-8bdc3cf0-650e-4a5d-903c-0ca058d57392",
+     "sessionId": "gem-1254620d-1292-4a3f-b41f-f243338dd5a1",
      "raw": {
       "stopReason": "end_turn",
       "_meta": {
@@ -853,7 +853,7 @@
    {
     "op": "start",
     "ok": {
-     "sessionId": "gem-2d90028d-76c6-46a6-a174-d8b9658d72c6",
+     "sessionId": "gem-66d1f9ef-de07-4e61-9acf-893e1cc70620",
      "currentModeId": "default",
      "version": "1",
      "capabilities": {
@@ -945,7 +945,7 @@
      "turnId": "id-1",
      "stopReason": "end_turn",
      "text": "Mock Gemini: do it",
-     "sessionId": "gem-2d90028d-76c6-46a6-a174-d8b9658d72c6",
+     "sessionId": "gem-66d1f9ef-de07-4e61-9acf-893e1cc70620",
      "denied": true,
      "raw": {
       "stopReason": "end_turn",
@@ -986,7 +986,7 @@
    {
     "op": "start",
     "ok": {
-     "sessionId": "acp-445a4673",
+     "sessionId": "acp-96b9c4ce",
      "version": "1",
      "capabilities": {
       "loadSession": true,
@@ -1011,7 +1011,7 @@
      "turnId": "id-1",
      "stopReason": "end_turn",
      "text": "external: hi (turn 1)",
-     "sessionId": "acp-445a4673",
+     "sessionId": "acp-96b9c4ce",
      "raw": {
       "stopReason": "end_turn"
      }
@@ -1033,7 +1033,7 @@
      "turnId": "id-2",
      "stopReason": "end_turn",
      "text": "external: second (turn 2)",
-     "sessionId": "acp-445a4673",
+     "sessionId": "acp-96b9c4ce",
      "raw": {
       "stopReason": "end_turn"
      }
@@ -1065,7 +1065,7 @@
    {
     "op": "start",
     "ok": {
-     "sessionId": "acp-aa18c0fe",
+     "sessionId": "acp-6cd6f870",
      "version": "1",
      "capabilities": {
       "loadSession": true,
@@ -1127,7 +1127,7 @@
      "turnId": "id-1",
      "stopReason": "end_turn",
      "text": "external: perm please (turn 1)",
-     "sessionId": "acp-aa18c0fe",
+     "sessionId": "acp-6cd6f870",
      "raw": {
       "stopReason": "end_turn"
      }
@@ -1297,7 +1297,8 @@
      "usage": {
       "inputTokens": 10,
       "outputTokens": 8,
-      "cacheReadTokens": 2
+      "cacheReadTokens": 2,
+      "contextTokens": 0
      },
      "raw": {
       "id": "turn-1",
@@ -1333,7 +1334,7 @@
    {
     "op": "start",
     "ok": {
-     "sessionId": "acp-e0bd7fb0",
+     "sessionId": "acp-a3625fbc",
      "version": "1",
      "capabilities": {
       "loadSession": true,
@@ -1388,7 +1389,7 @@
      "turnId": "id-1",
      "stopReason": "end_turn",
      "text": "external: please compact (turn 1)",
-     "sessionId": "acp-e0bd7fb0",
+     "sessionId": "acp-a3625fbc",
      "usage": {
       "contextTokens": 300
      },

@@ -183,6 +183,25 @@ describe('一轮进行中的实时上下文（含自动压缩）', () => {
     expect(est.used).toBeLessThan(372_301);
   });
 
+  it('压缩后落盘 contextTokens = 0（#217）：重开会话也不回扫到压缩前的值；之后的真实值照常生效', () => {
+    const done: ConvMessage[] = [
+      ...msgs,
+      { id: 'a2', role: 'assistant', text: '已压缩', at: 4, usage: { contextTokens: 0 } },
+    ];
+    const est = estimateContext(done, labels, { windowSize: 1_000_000 });
+    expect(est.basis).toBe('estimate');
+    expect(est.used).toBeLessThan(372_301);
+    const next: ConvMessage[] = [
+      ...done,
+      { id: 'u3', role: 'user', text: '继续', at: 5 },
+      { id: 'a3', role: 'assistant', text: '好', at: 6, usage: { contextTokens: 61_000 } },
+    ];
+    expect(estimateContext(next, labels, { windowSize: 1_000_000 })).toMatchObject({
+      used: 61_000,
+      basis: 'actual',
+    });
+  });
+
   it('Codex / Gemini 实时上报的窗口优先于经验表', () => {
     const live = withLiveContext(msgs, { tokens: 50_000, window: 272_000 });
     expect(contextWindowFor('codex', reportedContextWindow(live))).toEqual({

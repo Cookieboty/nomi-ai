@@ -18,7 +18,7 @@ import {
   type TurnInput,
   type TurnResult,
 } from '../driver';
-import type { HarnessEvent, PermissionAnswer, SessionEvent } from '../events';
+import type { HarnessEvent, HarnessUsage, PermissionAnswer, SessionEvent } from '../events';
 import {
   JsonRpcConnection,
   innermostMessage,
@@ -75,6 +75,11 @@ export class AppServerDriver implements SessionDriver {
   totals: CodexTokenTotals | null = null;
   /** 最近一次请求的上下文占用与模型窗口 */
   context: { contextTokens?: number; contextWindow?: number } | null = null;
+  /**
+   * 压缩完成后还没收到新占用：旧 contextTokens 已作废。结束这一轮时在 usage 里写 contextTokens = 0，
+   * 落盘的消息就带着「压缩后大小未知」的边界，视图不会回扫到压缩前的值（#217）
+   */
+  private contextStale = false;
 
   constructor(private readonly o: AppServerDriverOptions) {
     this.conn = new JsonRpcConnection(
@@ -135,6 +140,7 @@ export class AppServerDriver implements SessionDriver {
       this.totals = codexTokenTotals(params.tokenUsage) ?? this.totals;
       const ctx = codexLastContext(params.tokenUsage);
       this.context = ctx ?? this.context;
+      if (ctx?.contextTokens) this.contextStale = false;
       // 一轮进行中实时上报（自动压缩后的下一次请求会带上新的占用）
       if (this.turn && ctx?.contextTokens)
         this.emit({
@@ -172,6 +178,9 @@ export class AppServerDriver implements SessionDriver {
         else {
           this.emit({ type: 'status', kind: 'clear' });
           this.emit({ type: 'context', tokens: null });
+          const window = this.context?.contextWindow;
+          this.context = window ? { contextWindow: window } : null;
+          this.contextStale = true;
         }
         return;
       }
@@ -207,7 +216,12 @@ export class AppServerDriver implements SessionDriver {
     const status = typeof done.status === 'string' ? done.status : 'completed';
     const err = done.error as { message?: unknown } | null | undefined;
     const turnUsage = codexTurnUsage(turn.totalsBefore, this.totals);
-    const usage = turnUsage && this.context ? { ...turnUsage, ...this.context } : turnUsage;
+    let usage: HarnessUsage | undefined =
+      turnUsage && this.context ? { ...turnUsage, ...this.context } : turnUsage;
+    if (this.contextStale && status === 'completed') {
+      usage = { ...usage, contextTokens: 0 };
+      this.contextStale = false;
+    }
     // turn/completed 可能先于 turn/start 的应答处理（serverId 还没写上）：用它带的 id
     const cliTurnId = turn.serverId ?? (typeof done.id === 'string' ? done.id : null);
     turn.resolve({
