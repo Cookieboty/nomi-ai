@@ -369,6 +369,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		if truthy(del.Get("taskId")) {
 			d.Set("taskId", del.Get("taskId"))
 		}
+		if truthy(del.Get("githubAccess")) {
+			d.Set("githubAccess", true)
+		}
 		d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 		tab.Set("delegation", d)
 	}

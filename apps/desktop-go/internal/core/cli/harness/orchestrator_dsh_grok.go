@@ -163,7 +163,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		aborted := i18n.T("electron.common.aborted")
 		do := drivers.ExecDriverOptions{
 			Spawn: func(cmd string, argv []string, cwd string) clisdk.ChildLike {
-				child := SpawnHarness(cmd, argv, cwd, o.childEnv(opts.asNode, launch, opts.env), id)
+				child := SpawnHarness(cmd, argv, cwd, o.taskEnv(tab, o.childEnv(opts.asNode, launch, opts.env)), id)
 				o.watchTabRelease(tab, child)
 				o.children.Set(id, child)
 				return child

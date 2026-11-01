@@ -96,6 +96,8 @@ export interface HarnessDelegation {
   goal: string;
   /** 持续任务的执行开的标签（docs/design/persistent-tasks.md §7.2）：审批等任务的收件箱回应 */
   taskId?: string;
+  /** 任务授权里有 GitHub 连接的对外能力：不隔离 gh 登录（connections.md §4.4）；没有时任务标签看不到用户的 gh 登录 */
+  githubAccess?: boolean;
   /** 用户在标签里自己发过消息：标签归用户，审批等待恢复 120 秒 */
   takenOver?: boolean;
   /** 审批统计（结果里交回 Nomi） */

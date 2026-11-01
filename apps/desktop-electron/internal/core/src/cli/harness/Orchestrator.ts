@@ -191,7 +191,14 @@ import {
   withPermissionExpiry,
   type ApprovePlanChoice,
 } from './permissionQueue';
-import { cliChildEnv, isScript, peekHarnessBin, resolveHarnessBin, spawnHarness } from './spawn';
+import {
+  cliChildEnv,
+  isolateGhEnv,
+  isScript,
+  peekHarnessBin,
+  resolveHarnessBin,
+  spawnHarness,
+} from './spawn';
 export type {
   AccountBackend,
   HarnessExternalPlugins,
@@ -1203,7 +1210,7 @@ export class HarnessOrchestrator {
       /** false：在后台创建，不切到这个标签（Nomi 委派时不抢用户正在看的界面）；缺省 true */
       activate?: boolean;
       /** 由 Nomi 委派开的标签 */
-      delegation?: { callId?: string; goal: string; taskId?: string };
+      delegation?: { callId?: string; goal: string; taskId?: string; githubAccess?: boolean };
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -1246,6 +1253,7 @@ export class HarnessOrchestrator {
               ...(opts.delegation.callId ? { callId: opts.delegation.callId } : {}),
               goal: opts.delegation.goal.slice(0, 200),
               ...(opts.delegation.taskId ? { taskId: opts.delegation.taskId } : {}),
+              ...(opts.delegation.githubAccess ? { githubAccess: true } : {}),
               approvals: { asked: 0, denied: 0, timedOut: 0 },
             },
           }
@@ -2257,6 +2265,22 @@ export class HarnessOrchestrator {
     return env;
   }
 
+  /**
+   * 持续任务开的标签：默认隔离 gh 登录（空的 GH_CONFIG_DIR、去掉令牌变量、关交互）；
+   * 任务授权里有 GitHub 对外能力时不隔离（connections.md §4.4）。其他标签原样返回。
+   */
+  private taskEnv(tab: HarnessTabMeta, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    const d = tab.delegation;
+    if (!d?.taskId || d.githubAccess) return env;
+    const dir = path.join(os.tmpdir(), 'nomi-task-gh', tab.id.replace(/[^\w.-]/g, '_'));
+    try {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    } catch {
+      /* 建不了目录也照样指过去：gh 读不到登录即可 */
+    }
+    return isolateGhEnv(env, dir);
+  }
+
   /** 本地路由放行的模型：这个 CLI 的标签为当前供应商选中的模型 */
   routeModels(backend: CliBackend): Set<string> {
     const out = new Set<string>();
@@ -3139,7 +3163,7 @@ export class HarnessOrchestrator {
     }
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: this.childEnv(useNode, spawnLaunch ?? launch),
+      env: this.taskEnv(tab, this.childEnv(useNode, spawnLaunch ?? launch)),
       tabId: tab.id,
     });
     if (spawnLaunch) this.watchTabRelease(tab, child);
@@ -3393,7 +3417,7 @@ export class HarnessOrchestrator {
       cwd: tab.cwd,
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
       // 第三方：Grok 用私有 GROK_HOME、Gemini 用环境变量指向网关；官方剔除网关残留
-      env: this.childEnv(useNode, spawnLaunch),
+      env: this.taskEnv(tab, this.childEnv(useNode, spawnLaunch)),
       tabId: tab.id,
     });
     this.watchTabRelease(tab, child);
@@ -4179,7 +4203,7 @@ export class HarnessOrchestrator {
     const argv = ['app-server', ...launch.args];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: this.childEnv(useNode, spawnLaunch),
+      env: this.taskEnv(tab, this.childEnv(useNode, spawnLaunch)),
       tabId: tab.id,
     });
     this.watchTabRelease(tab, child);
@@ -4672,7 +4696,7 @@ export class HarnessOrchestrator {
           cwd: o.cwd,
           // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
           // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
-          env: this.childEnv(Boolean(opts.asNode), launch, opts.env),
+          env: this.taskEnv(tab, this.childEnv(Boolean(opts.asNode), launch, opts.env)),
           tabId: tab.id,
         });
         this.watchTabRelease(tab, child);

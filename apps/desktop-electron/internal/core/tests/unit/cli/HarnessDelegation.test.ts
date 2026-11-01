@@ -63,6 +63,35 @@ describe('CliHarnessService · Nomi 委派开的标签', () => {
     expect(h.listTabs().tabs.find((x) => x.id === d.id)?.delegation?.takenOver).toBe(true);
   });
 
+  it('持续任务的标签：审批等 7 天；默认隔离 gh 登录，授权里有 GitHub 对外能力时不隔离', () => {
+    const h = mk();
+    const task = h.createTab({
+      backend: 'codex',
+      activate: false,
+      delegation: { goal: 'x', taskId: 'task_1' },
+    });
+    const open = h.createTab({
+      backend: 'codex',
+      activate: false,
+      delegation: { goal: 'x', taskId: 'task_2', githubAccess: true },
+    });
+    const plain = h.createTab({ backend: 'codex' });
+    expect(h.permissionTimeoutMs(task.id)).toBe(7 * 86_400_000);
+    const priv = h as unknown as {
+      taskEnv(tab: unknown, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
+      tabs: Map<string, unknown>;
+    };
+    const env = { PATH: '/bin', GH_TOKEN: 't', GITHUB_TOKEN: 'g', GH_ENTERPRISE_TOKEN: 'e' };
+    const isolated = priv.taskEnv(priv.tabs.get(task.id), env);
+    expect(isolated).toMatchObject({ PATH: '/bin', GH_PROMPT_DISABLED: '1' });
+    expect(isolated.GH_TOKEN).toBeUndefined();
+    expect(isolated.GITHUB_TOKEN).toBeUndefined();
+    expect(isolated.GH_ENTERPRISE_TOKEN).toBeUndefined();
+    expect(fs.readdirSync(isolated.GH_CONFIG_DIR!)).toEqual([]);
+    expect(priv.taskEnv(priv.tabs.get(open.id), env)).toBe(env);
+    expect(priv.taskEnv(priv.tabs.get(plain.id), env)).toBe(env);
+  });
+
   it('审批统计：提出 / 拒绝 / 超时分别计数，允许不算拒绝', () => {
     const h = mk();
     const d = h.createTab({ backend: 'codex', activate: false, delegation: { goal: 'x' } });

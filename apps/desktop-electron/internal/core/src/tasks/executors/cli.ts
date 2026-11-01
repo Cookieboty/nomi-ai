@@ -2,6 +2,7 @@
  * `cli` 执行者：用户在 Nomi 里装好、配好的编程助手在后台标签里执行任务（docs/design/persistent-tasks.md §7.2、§7.3）。
  *
  * - 隔离：git 仓库里每个任务一个 worktree（复用委派的 prepareIsolation）；续跑 / 退回时复用上一次的标签与 worktree；
+ *   标签默认看不到用户的 gh 登录（授权里有 GitHub 对外能力时除外，见 githubAccess）；
  * - 权限：授权等级换算成标签的权限档（L1 计划档只读；L2 及以上在 worktree 里改文件），不给「完全放开」；
  * - 审批：标签里的审批请求先过确定性命令分类与授权等级——授权外的直接拒绝，其余要人的让任务停到「等你批准」，
  *   回答经 resume 回到标签（replyPermission）；任务标签的审批等待 7 天；
@@ -29,7 +30,7 @@ export interface CliHarness {
     title: string;
     activate: false;
     permissionMode: 'plan' | 'acceptEdits';
-    delegation: { goal: string; taskId: string };
+    delegation: { goal: string; taskId: string; githubAccess?: boolean };
     modelOverride?: string;
   }): { id: string };
   hasTab(id: string): boolean;
@@ -100,6 +101,13 @@ export function decidePermission(
   return tainted ? 'ask' : 'allow';
 }
 
+/** 授权里有 GitHub 连接的对外能力（github.read 以外）：标签不隔离 gh 登录（connections.md §4.4） */
+export function githubAccess(task: Task): boolean {
+  return task.grant.connections.some((c) =>
+    c.capabilities.some((x) => x.startsWith('github.') && x !== 'github.read'),
+  );
+}
+
 export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
   const runs = new Map<string, Run>();
 
@@ -164,7 +172,11 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
               title: `${task.title}`.slice(0, 60),
               activate: false,
               permissionMode: task.grant.level >= 2 ? 'acceptEdits' : 'plan',
-              delegation: { goal: task.goal.slice(0, 200), taskId: task.id },
+              delegation: {
+                goal: task.goal.slice(0, 200),
+                taskId: task.id,
+                ...(githubAccess(task) ? { githubAccess: true } : {}),
+              },
               ...(ex.model ? { modelOverride: ex.model } : {}),
             }).id;
             report.carrier({

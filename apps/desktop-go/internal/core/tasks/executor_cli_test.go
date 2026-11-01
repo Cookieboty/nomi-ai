@@ -168,6 +168,15 @@ func TestDecidePermission(t *testing.T) {
 	}
 }
 
+func TestGithubAccess(t *testing.T) {
+	with := func(caps ...string) Task {
+		return Task{Grant: Grant{Connections: []ConnectionGrant{{ConnectionID: "c", Capabilities: caps}}}}
+	}
+	if GithubAccess(with("github.read")) || !GithubAccess(with("github.read", "github.comment")) || GithubAccess(Task{}) {
+		t.Fatal("githubAccess")
+	}
+}
+
 func TestCliExecutorCompletesInWorktree(t *testing.T) {
 	rt, f := newCliHarness(t, map[string]bool{"claude": true})
 	id := cliTask(rt, 2)

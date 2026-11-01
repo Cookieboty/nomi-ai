@@ -5,6 +5,7 @@ import {
   classifySummary,
   createCliExecutor,
   decidePermission,
+  githubAccess,
 } from '../../../src/tasks/executors/cli';
 import { TaskRuntime } from '../../../src/tasks/TaskRuntime';
 import type { Task } from '../../../src/tasks/types';
@@ -122,6 +123,16 @@ describe('cli 执行者：审批判定', () => {
     expect(decidePermission(task(2), { summary: 'Bash: npm test' }, false)).toBe('deny');
     expect(decidePermission(task(3), { summary: 'Bash: npm test' }, false)).toBe('allow');
     expect(decidePermission(task(3), { summary: 'Bash: npm test' }, true)).toBe('ask');
+  });
+
+  it('只有 GitHub 对外能力才不隔离 gh 登录', () => {
+    const withCaps = (capabilities: string[]) =>
+      ({
+        grant: { connections: [{ connectionId: 'c', capabilities, resources: [] }] },
+      }) as unknown as Task;
+    expect(githubAccess(withCaps(['github.read']))).toBe(false);
+    expect(githubAccess(withCaps(['github.read', 'github.comment']))).toBe(true);
+    expect(githubAccess(task(4))).toBe(false);
   });
 
   it('摘要的标题前缀不影响分类', () => {

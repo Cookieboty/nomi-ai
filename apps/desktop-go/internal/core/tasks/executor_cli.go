@@ -29,6 +29,8 @@ type CliCreateTab struct {
 	Goal           string
 	TaskID         string
 	ModelOverride  string
+	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
+	GithubAccess bool
 }
 
 // CliSendResult：一轮的结果
@@ -112,6 +114,18 @@ func ClassifySummary(summary string) string {
 		return a
 	}
 	return b
+}
+
+// GithubAccess：授权里有 GitHub 连接的对外能力（github.read 以外）：标签不隔离 gh 登录（connections.md §4.4）
+func GithubAccess(t Task) bool {
+	for _, c := range t.Grant.Connections {
+		for _, x := range c.Capabilities {
+			if strings.HasPrefix(x, "github.") && x != "github.read" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝（§8.4）
@@ -238,7 +252,7 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 			model = *ex.Model
 		}
 		id, err := h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
-			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model})
+			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, GithubAccess: GithubAccess(t)})
 		if err != nil {
 			rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
 			return
