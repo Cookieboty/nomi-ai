@@ -135,6 +135,11 @@ export interface ClientModels {
    * 没设时跟主模型。CLI 发的辅助模型名由客户端规格的 helperModels 识别。
    */
   summary?: string;
+  /**
+   * Nomi 对话的图片生成模型（`供应商/模型`）：image_generate 工具直接调这个供应商的
+   * /images/generations，不经网关的对话协议；只对 clients.nomi 有意义
+   */
+  image?: string;
 }
 
 export interface ClientRuntime {

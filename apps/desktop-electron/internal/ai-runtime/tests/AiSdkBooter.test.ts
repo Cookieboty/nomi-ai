@@ -1,7 +1,11 @@
 import { LLMRegistryKey, ToolRegistryKey, UserProfileKey, echoTool } from '@nomi-ai/bundle-ig-base';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AiSdkLlmProvider, createAiSdkProviderFromEntry } from '../src/ai-sdk/AiSdkLlmProvider';
+import {
+  AiSdkLlmProvider,
+  createAiSdkProviderFromEntry,
+  lastUserText,
+} from '../src/ai-sdk/AiSdkLlmProvider';
 import { toAiSdkToolSet } from '../src/ai-sdk/mapTools';
 import { createAiSdkBooter, defaultAiSdkPlugins } from '../src/AiSdkBooter';
 import { NoopRuntimeLogger } from '../src/logger';
@@ -66,6 +70,46 @@ describe('toAiSdkToolSet', () => {
       abortSignal: undefined as never,
     } as never);
     expect(seen?.conversationId).toBe('conv-42');
+  });
+
+  it('passes the last user message to tools (command auto-review)', async () => {
+    let seen: { userText?: string } | undefined;
+    const tool = {
+      ...echoTool,
+      execute: async (_i: unknown, ctx: { userText?: string }) => {
+        seen = ctx;
+        return 'ok';
+      },
+    };
+    const set = toAiSdkToolSet([tool], { userText: '跑一下测试' });
+    await set.echo!.execute!({ text: 'x' }, {
+      toolCallId: 't1',
+      messages: [],
+      abortSignal: undefined as never,
+    } as never);
+    expect(seen?.userText).toBe('跑一下测试');
+    expect(
+      lastUserText([
+        { role: 'user', content: 'old' },
+        { role: 'assistant', content: 'a' },
+        { role: 'user', content: [{ type: 'text', text: 'new' }, { type: 'image' }] },
+        { role: 'tool', content: 'r' },
+      ]),
+    ).toBe('new');
+    expect(lastUserText([])).toBeUndefined();
+  });
+
+  it('hides tools whose available() says no (or throws) for this turn', () => {
+    const off = { ...echoTool, name: 'off', available: () => false };
+    const boom = {
+      ...echoTool,
+      name: 'boom',
+      available: () => {
+        throw new Error('x');
+      },
+    };
+    const on = { ...echoTool, name: 'on', available: () => true };
+    expect(Object.keys(toAiSdkToolSet([echoTool, off, boom, on]))).toEqual(['echo', 'on']);
   });
 
   it('forwards the conversation workspace and hides workspace-only tools without one', async () => {

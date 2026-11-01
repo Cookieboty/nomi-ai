@@ -284,6 +284,31 @@ describe('ModelsPage', () => {
     );
   });
 
+  it('image generation: lists only image models (even disabled ones) and saves clients.nomi.models.image', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'kimi-k3', enabled: true },
+          { id: 'gpt-image-2', enabled: false },
+        ],
+      }),
+    ];
+    m.state.clients.nomi = { models: { main: 'kimi/kimi-k3' } };
+    render(<ModelsPage />);
+    const image = (await screen.findByTestId('assign-image')) as HTMLSelectElement;
+    const values = (el: HTMLSelectElement) => [...el.options].map((o) => o.value);
+    expect(values(image)).toEqual(['unset', 'kimi/gpt-image-2']);
+    // 对话的模型里没有生图模型
+    expect(values(screen.getByTestId('assign-chat') as HTMLSelectElement)).not.toContain(
+      'kimi/gpt-image-2',
+    );
+    fireEvent.change(image, { target: { value: 'kimi/gpt-image-2' } });
+    await waitFor(() => expect(m.state.clients.nomi!.models.image).toBe('kimi/gpt-image-2'));
+    fireEvent.change(screen.getByTestId('assign-image'), { target: { value: 'unset' } });
+    await waitFor(() => expect(m.state.clients.nomi!.models.image).toBeUndefined());
+  });
+
   it('adding another provider keeps the chat model already chosen', async () => {
     const m = fakeMain();
     m.state.providers = [kimi()];

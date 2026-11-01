@@ -315,6 +315,21 @@ func (p *Provider) Abort(reqID string) {
 
 /* ------------------------------- tools ------------------------------- */
 
+// LastUserText = lastUserText：本轮用户最后说的话（截断到 2000 字），给工具做命令自动审核
+func LastUserText(msgs []llm.ChatMessage) string {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role != "user" {
+			continue
+		}
+		t := []rune(strings.TrimSpace(msgs[i].Content))
+		if len(t) > 2000 {
+			t = t[:2000]
+		}
+		return string(t)
+	}
+	return ""
+}
+
 // ToolSet：withTools 为一次请求生成的工具集（toAiSdkToolSet）
 func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool {
 	recv := p.opts.Receiver
@@ -330,9 +345,13 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		callerSet = true
 	}
 	caller, conv, cwd := str("callerTabId"), str("conversationId"), str("cwd")
+	userText := LastUserText(r.Messages)
 	out := []Tool{}
 	for _, d := range defs {
 		if d.RequiresWorkspace && cwd == "" {
+			continue
+		}
+		if !tools.IsAvailable(d) {
 			continue
 		}
 		d := d
@@ -349,7 +368,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 				if !callerSet {
 					caller, _ = tools.GetToolCallerTabID(ctx)
 				}
-				return d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd})
+				return d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
 			},
 		})
 	}

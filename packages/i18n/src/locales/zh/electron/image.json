@@ -1,0 +1,12 @@
+{
+  "electron.image.service-returned": "生图服务返回 {0}：{1}",
+  "electron.image.download-failed": "下载生成的图片失败（{0}）",
+  "electron.image.too-large": "生成的图片太大，已放弃",
+  "electron.image.no-image-in-response": "生图服务没有返回图片：{0}",
+  "electron.image.no-image-model": "还没有设置图片模型：在 设置 → 模型 里给 Nomi 选一个图片生成模型",
+  "electron.image.task-failed": "生图任务失败：{0}",
+  "electron.image.task-timeout": "生图任务超时，已放弃",
+  "electron.image.edit-not-supported": "{0} 不支持改图 / 参考图，换一个支持的图片模型（如 gpt-image、Gemini 生图）",
+  "electron.image.edit-source-missing": "找不到要修改或参考的图片（只能用素材库里的图片）",
+  "electron.image.no-prompt-to-regenerate": "这张图没有记下提示词，不能重新生成（编程助手生成的图片只能查看）"
+}

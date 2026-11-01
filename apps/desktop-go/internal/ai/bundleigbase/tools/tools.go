@@ -26,6 +26,8 @@ type ExecContext struct {
 	CallerTabID    string
 	ConversationID string
 	Cwd            string
+	// UserText：本轮用户最后说的话（命令自动审核判断授权用）
+	UserText string
 }
 
 // Definition：ToolDefinition。Input 是 JSON Schema（Node 侧 MCP 工具用 jsonSchema(inputSchema)；
@@ -42,6 +44,9 @@ type Definition struct {
 	DangerousUnset    bool
 	ReadOnly          bool
 	RequiresWorkspace bool
+	// Available：每轮对话开始时问一次现在能不能用（如没设置图片模型时不提供 image_generate）；
+	// nil = 总是可用；panic / false 都按不可用（mapTools.toAiSdkToolSet）
+	Available func() bool
 	// Execute：input 为已解析的 JSON 值（*u.Obj / []any / string / float64 / bool / nil）。
 	// 返回值按 JSON 序列化后交给模型（与 AI SDK tool result 相同）。
 	Execute func(ctx context.Context, input any, ec ExecContext) (any, error)
@@ -114,11 +119,27 @@ func SchemaOf(d Definition) *u.Obj {
 	return u.NewObj("type", "object", "additionalProperties", true)
 }
 
+// IsAvailable：Definition.Available 的安全调用（没写 = 可用；panic 按不可用，不拖垮整轮对话）
+func IsAvailable(d Definition) (ok bool) {
+	if d.Available == nil {
+		return true
+	}
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	return d.Available()
+}
+
 // ForLoop：mapTools.toAiSdkToolSet（无 cwd 时跳过 requiresWorkspace 工具）
 func ForLoop(r Registry, cwd string) []Definition {
 	out := []Definition{}
 	for _, d := range r.List() {
 		if d.RequiresWorkspace && cwd == "" {
+			continue
+		}
+		if !IsAvailable(d) {
 			continue
 		}
 		out = append(out, d)

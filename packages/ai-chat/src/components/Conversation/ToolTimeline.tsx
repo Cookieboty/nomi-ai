@@ -51,6 +51,7 @@ import { useAgentForCall } from './agentContext';
 import { DelegateCard, DelegateGroup } from './DelegateCard';
 import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
+import { MarkdownImage } from './MarkdownImage';
 import styles from './Tool.module.css';
 
 const KIND_ICON: Record<ToolKind, LucideIcon> = {
@@ -279,7 +280,8 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
   const kind = describeCall(call).kind;
   // 单个编辑默认展开：直接看到改了什么
   const diffOpen = (kind === 'edit' || kind === 'write') && diffsOf(call).length > 0;
-  return (
+  const image = generatedImageOf(call);
+  const row = (
     <Disclosure
       icon={KIND_ICON[kind]}
       label={<CallLabel call={call} />}
@@ -293,7 +295,70 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
       <CallBody call={call} />
     </Disclosure>
   );
+  if (!image) return row;
+  // 生图结果直接显示在这一步下面（不用展开），点开看大图
+  return (
+    <>
+      {row}
+      <div className={styles.generatedImage} data-testid="tool-generated-image">
+        <MarkdownImage src={image} alt={generatedImageAlt(call)} />
+        <GeneratedImageCaption call={call} />
+      </div>
+    </>
+  );
 };
+
+/** Nomi 生图工具（内核 image/imageGenerate.ts）的结果里带 chat-asset://images/<file> */
+const IMAGE_TOOL = 'image_generate';
+const GENERATED_IMAGE = /chat-asset:\/\/images\/[A-Za-z0-9._-]+/;
+
+export function generatedImageOf(call: ToolCall): string | null {
+  if (call.name !== IMAGE_TOOL || call.status !== 'done' || !call.output) return null;
+  return GENERATED_IMAGE.exec(call.output)?.[0] ?? null;
+}
+
+/** 生图结果里的模型（工具结果的 model / provider / auto） */
+export function generatedImageModel(
+  call: ToolCall,
+): { model: string; provider?: string; auto: boolean } | null {
+  try {
+    const o = JSON.parse(call.output ?? '') as {
+      model?: unknown;
+      provider?: unknown;
+      auto?: unknown;
+    };
+    if (typeof o.model !== 'string' || !o.model) return null;
+    return {
+      model: o.model,
+      ...(typeof o.provider === 'string' && o.provider ? { provider: o.provider } : {}),
+      auto: o.auto === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 图片下面一行：由哪个模型生成（自动匹配的标出来） */
+const GeneratedImageCaption: React.FC<{ call: ToolCall }> = ({ call }) => {
+  const m = generatedImageModel(call);
+  if (!m) return null;
+  const full = m.provider ? `${m.provider}/${m.model}` : m.model;
+  return (
+    <div className={styles.generatedCaption} title={full} data-testid="tool-generated-model">
+      {t('ui.media.generated-by', m.model.slice(m.model.lastIndexOf('/') + 1))}
+      {m.auto && <span className={styles.generatedAuto}>{t('ui.media.auto-matched')}</span>}
+    </div>
+  );
+};
+
+function generatedImageAlt(call: ToolCall): string {
+  try {
+    const p = (JSON.parse(call.input ?? '{}') as { prompt?: unknown }).prompt;
+    return typeof p === 'string' ? p.slice(0, 120) : '';
+  } catch {
+    return '';
+  }
+}
 
 /** reduceTrace 每次都会生成新的 ToolCall 对象：按内容比较，已结束的行不随流式更新重渲染 */
 export function sameCall(a: ToolCall, b: ToolCall): boolean {

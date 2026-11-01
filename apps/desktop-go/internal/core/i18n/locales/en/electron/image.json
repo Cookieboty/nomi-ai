@@ -1,0 +1,12 @@
+{
+  "electron.image.service-returned": "Image service returned {0}: {1}",
+  "electron.image.download-failed": "Couldn't download the generated image ({0})",
+  "electron.image.too-large": "The generated image is too large; skipped",
+  "electron.image.no-image-in-response": "The image service returned no image: {0}",
+  "electron.image.no-image-model": "No image model is set: choose an image generation model for Nomi in Settings → Models",
+  "electron.image.task-failed": "Image task failed: {0}",
+  "electron.image.task-timeout": "The image task timed out; gave up",
+  "electron.image.edit-not-supported": "{0} can't edit or use reference images; pick an image model that can (such as gpt-image or a Gemini image model)",
+  "electron.image.edit-source-missing": "Couldn't find the image to edit or reference (only images in the asset library can be used)",
+  "electron.image.no-prompt-to-regenerate": "This image has no saved prompt, so it can't be regenerated (images from coding agents can only be viewed)"
+}

@@ -6,6 +6,7 @@ package gwstore
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/media"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -506,6 +507,112 @@ func (s *Service) ProviderInfo(id string) *u.Obj {
 }
 
 // Credentials = credentials(id)：只在主进程内使用
+// NomiImageRef：「模型」页给 Nomi 分配的图片生成模型（clients.nomi.models.image，`供应商/模型`）；没设为 ""
+// NomiImageAuto：当前生图模型是不是自动匹配来的（「模型」页没指定）
+func (s *Service) NomiImageAuto() bool {
+	ms := asObj(objGet(s.Store.View().Snapshot(), "clients", "nomi", "models"))
+	ref, _ := ms.Get("image").(string)
+	return strings.TrimSpace(ref) == "" && s.NomiImageRef() != ""
+}
+
+// 没指定时按当前对话模型自动匹配（media.AutoImageModel：同家族优先，否则 gpt → gemini …）；都没有为 ""
+func (s *Service) NomiImageRef() string {
+	ms := asObj(objGet(s.Store.View().Snapshot(), "clients", "nomi", "models"))
+	if ref, _ := ms.Get("image").(string); strings.TrimSpace(ref) != "" {
+		return strings.TrimSpace(ref)
+	}
+	main := ""
+	if p := s.nomiPick("chat"); p != nil && p.Preferred != nil {
+		main = p.PublicModel
+	}
+	var providers []media.AutoProvider
+	for _, raw := range s.Store.View().Providers() {
+		p := asObj(raw)
+		if !u.Truthy(p.Get("enabled")) {
+			continue
+		}
+		a := imageAccessOf(p)
+		id, _ := p.Get("id").(string)
+		ap := media.AutoProvider{Info: media.ProviderInfo{ID: id, PresetID: a.PresetID, URLs: a.URLs, Auth: a.Auth}}
+		ms, _ := p.Get("models").([]any)
+		for _, m := range ms {
+			if mid, ok := asObj(m).Get("id").(string); ok && mid != "" {
+				ap.Models = append(ap.Models, mid)
+			}
+		}
+		providers = append(providers, ap)
+	}
+	return media.AutoImageModel(main, providers)
+}
+
+// ImageAccess = GatewayService.imageProvider：生图用的供应商信息 + 按协议取 Key（只在主进程内用）
+type ImageAccess struct {
+	PresetID string
+	URLs     map[string]string
+	Auth     map[string]string
+	Headers  map[string]string
+	KeyFor   func(wire string) string
+}
+
+// ImageProvider：已启用的供应商；不存在 / 停用为 nil
+func (s *Service) ImageProvider(id string) *ImageAccess {
+	st := s.Store.View()
+	for _, raw := range st.Providers() {
+		p := asObj(raw)
+		if p.Get("id") != id || !u.Truthy(p.Get("enabled")) {
+			continue
+		}
+		a := imageAccessOf(p)
+		ks, _ := p.Get("keys").([]any)
+		a.KeyFor = func(wire string) string {
+			for _, kr := range ks {
+				k := asObj(kr)
+				w := k.Get("wire")
+				if !u.Truthy(k.Get("enabled")) || (u.Truthy(w) && w != wire) {
+					continue
+				}
+				if v, ok := st.Decrypt(k.Get("enc"), k.Get("encryption")); ok && v != "" {
+					return v
+				}
+			}
+			return ""
+		}
+		return a
+	}
+	return nil
+}
+
+// imageAccessOf：供应商的预设 / 各协议地址 / 探测到的鉴权 / 自定义请求头（不含 Key）
+func imageAccessOf(p *u.Obj) *ImageAccess {
+	a := &ImageAccess{URLs: map[string]string{}, Auth: map[string]string{}, Headers: map[string]string{}}
+	a.PresetID, _ = p.Get("presetId").(string)
+	if urls := asObj(p.Get("urls")); urls != nil {
+		for _, k := range urls.Keys() {
+			if v, ok := urls.Get(k).(string); ok && v != "" {
+				a.URLs[k] = v
+			}
+		}
+	}
+	if det := asObj(p.Get("detected")); det != nil {
+		for _, k := range det.Keys() {
+			if v, ok := asObj(det.Get(k)).Get("auth").(string); ok && v != "" {
+				a.Auth[k] = v
+			}
+		}
+	}
+	if hs := asObj(p.Get("headers")); hs != nil {
+		for _, k := range hs.Keys() {
+			if v, ok := hs.Get(k).(string); ok {
+				a.Headers[k] = v
+			}
+		}
+	}
+	if ua, ok := p.Get("userAgent").(string); ok && ua != "" {
+		a.Headers["User-Agent"] = ua
+	}
+	return a
+}
+
 func (s *Service) Credentials(id string) *u.Obj {
 	st := s.Store.View()
 	for _, raw := range st.Providers() {

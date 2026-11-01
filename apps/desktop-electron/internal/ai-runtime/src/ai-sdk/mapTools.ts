@@ -33,6 +33,8 @@ export type MapToolsOpts = {
   conversationId?: string;
   /** Nomi 对话选的工作区（视图带来，工具侧再校验）；没有时不提供 requiresWorkspace 的工具 */
   cwd?: string;
+  /** 本轮用户最后说的话（命令自动审核用） */
+  userText?: string;
 };
 
 function isMapToolsOpts(v: unknown): v is MapToolsOpts {
@@ -43,7 +45,8 @@ function isMapToolsOpts(v: unknown): v is MapToolsOpts {
       'reqId' in v ||
       'callerTabId' in v ||
       'conversationId' in v ||
-      'cwd' in v) &&
+      'cwd' in v ||
+      'userText' in v) &&
     !('id' in v)
   );
 }
@@ -61,7 +64,8 @@ export function toAiSdkTool(
   def: ToolDefinition,
   providerOrOpts?: MapToolsOpts | ToolCallProvider,
 ): Tool {
-  const { provider, reqId, callerTabId, conversationId, cwd } = normalizeOpts(providerOrOpts);
+  const { provider, reqId, callerTabId, conversationId, cwd, userText } =
+    normalizeOpts(providerOrOpts);
   return tool({
     description: def.description,
     inputSchema: toFlexibleSchema(def.input),
@@ -75,9 +79,19 @@ export function toAiSdkTool(
         ...(caller ? { callerTabId: caller } : {}),
         ...(conversationId ? { conversationId } : {}),
         ...(cwd ? { cwd } : {}),
+        ...(userText ? { userText } : {}),
       });
     },
   });
+}
+
+/** available() 抛错按不可用处理（不让一个工具的判断拖垮整轮对话） */
+function safeAvailable(def: ToolDefinition): boolean {
+  try {
+    return def.available!() !== false;
+  } catch {
+    return false;
+  }
 }
 
 export function toAiSdkToolSet(
@@ -88,6 +102,7 @@ export function toAiSdkToolSet(
   const out: Record<string, Tool> = {};
   for (const def of defs) {
     if (def.requiresWorkspace && !normalized.cwd) continue;
+    if (def.available && !safeAvailable(def)) continue;
     out[def.name] = toAiSdkTool(def, normalized);
   }
   return out;

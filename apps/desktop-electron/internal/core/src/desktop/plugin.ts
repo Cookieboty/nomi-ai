@@ -1,4 +1,10 @@
-import { McpKey, ToolRegistryKey, definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
+import {
+  McpKey,
+  ToolRegistryKey,
+  definePlugin,
+  type PluginContext,
+  type ToolDefinition,
+} from '@nomi-ai/bundle-ig-base';
 
 import type { DelegateService } from '../cli/delegate/DelegateService';
 import type { ExtensionsService } from '../extensions/ExtensionsService';
@@ -14,6 +20,8 @@ export interface DesktopToolSources {
   mem?(): MemoryService | null | undefined;
   delegate?(): DelegateService | null | undefined;
   ext?(): ExtensionsService | null | undefined;
+  /** 其它直接给出的工具（如生图 image_generate）；可用与否由工具自己的 available() 判断 */
+  extra?(): ToolDefinition[];
 }
 
 /** 把桌面工具（fs_* / desktop_* / undo_last）注册进 ToolRegistry → AI SDK 工具循环可用 */
@@ -34,6 +42,8 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
       for (const t of src.mem?.()?.tools() ?? []) registry.register(t);
       // 把编程助手当子代理调用（delegate_to_cli）
       for (const t of src.delegate?.()?.tools() ?? []) registry.register(t);
+      // 生图（image_generate，没设置图片模型时不提供给模型）
+      for (const t of src.extra?.() ?? []) registry.register(t);
       // 扩展：技能（skill_load / skill_read_file）+ GUI 管理的 MCP 服务器
       const ext = src.ext?.();
       if (ext) {

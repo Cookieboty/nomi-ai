@@ -109,6 +109,11 @@ export interface ToolExecContext {
    * 工具必须经内核校验（desktop PermissionBroker.workspaceOf）后才能使用；校验不过按没有工作区处理。
    */
   cwd?: string;
+  /**
+   * 本轮用户最后说的话（只读，截断过）：命令自动审核判断「用户有没有要求这么做」用；
+   * 没有时按用户没授权处理
+   */
+  userText?: string;
 }
 
 /** 工具接口 */
@@ -123,6 +128,11 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   readOnly?: boolean;
   /** 只在对话选了工作区（ToolExecContext.cwd）时提供给模型（如 workspace_run） */
   requiresWorkspace?: boolean;
+  /**
+   * 每轮对话开始时问一次：现在能不能用（例如没设置图片模型时不提供 image_generate）。
+   * 返回 false 时这一轮不提供给模型；不写 = 总是可用
+   */
+  available?: () => boolean;
   execute: (input: TInput, ctx: ToolExecContext) => Promise<TOutput>;
 }
 

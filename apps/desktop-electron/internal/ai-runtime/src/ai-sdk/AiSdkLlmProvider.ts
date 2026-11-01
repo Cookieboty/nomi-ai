@@ -247,6 +247,32 @@ function thinkingOptions(
   return { [opts.id]: { reasoningEffort: 'medium' } } as never;
 }
 
+/** 本轮用户最后说的话（文本部分，截断到 2000 字）：给工具做命令自动审核 */
+export function lastUserText(
+  messages: ReadonlyArray<{ role?: unknown; content?: unknown }> | undefined,
+): string | undefined {
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
+    const m = messages![i]!;
+    if (m.role !== 'user') continue;
+    const c = m.content;
+    const text =
+      typeof c === 'string'
+        ? c
+        : Array.isArray(c)
+          ? c
+              .map((p) =>
+                p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string'
+                  ? (p as { text: string }).text
+                  : '',
+              )
+              .join('\n')
+          : '';
+    const t = text.trim();
+    return t ? t.slice(0, 2000) : undefined;
+  }
+  return undefined;
+}
+
 export class AiSdkLlmProvider implements LLMProvider {
   readonly id: string;
   private readonly opts: AiSdkLlmProviderOptions;
@@ -265,7 +291,12 @@ export class AiSdkLlmProvider implements LLMProvider {
       id: this.id,
       ...(this.opts.baseURL ? { baseURL: this.opts.baseURL } : {}),
     };
-    const toolsFor = (req: { reqId: string; extra?: Record<string, unknown> }) => {
+    const toolsFor = (req: {
+      reqId: string;
+      extra?: Record<string, unknown>;
+      messages?: ReadonlyArray<{ role?: unknown; content?: unknown }>;
+    }) => {
+      const userText = lastUserText(req.messages);
       const caller = typeof req.extra?.callerTabId === 'string' ? req.extra.callerTabId : undefined;
       const conversationId =
         typeof req.extra?.conversationId === 'string' ? req.extra.conversationId : undefined;
@@ -276,6 +307,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(caller ? { callerTabId: caller } : {}),
         ...(conversationId ? { conversationId } : {}),
         ...(cwd ? { cwd } : {}),
+        ...(userText ? { userText } : {}),
       }) as ToolSet;
     };
     return {

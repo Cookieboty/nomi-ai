@@ -3,7 +3,7 @@
  * 网关里还没分配时退回旧存储（过渡期，环境变量供应商也在那里）。
  * 缓存一份网关状态供同步读取（消息上的模型标签），网关变化时刷新。
  */
-import type { PickerProvider } from '@nomi-ai/ui';
+import { isImageModel, type PickerProvider } from '@nomi-ai/ui';
 import { useEffect, useState } from 'react';
 
 import {
@@ -115,8 +115,14 @@ export function nomiModelMeta(): ProviderView['models'][number] | undefined {
 export const setNomiModel = (ref: string) =>
   gatewayClient.setAssignment('nomi', { models: { main: ref } });
 
-/** 选择器用的供应商列表：只列启用的供应商里启用的模型 */
-export function pickerProviders(list: ProviderView[]): PickerProvider[] {
+/**
+ * 选择器用的供应商列表：只列启用的供应商里启用的模型。
+ * kind：'chat'（默认）不列生图模型；'image' 只列生图模型（「图片模型」的选择器用）
+ */
+export function pickerProviders(
+  list: ProviderView[],
+  kind: 'chat' | 'image' = 'chat',
+): PickerProvider[] {
   return list
     .filter((p) => p.enabled)
     .map((p) => {
@@ -125,7 +131,8 @@ export function pickerProviders(list: ProviderView[]): PickerProvider[] {
         id: p.id,
         name: providerDisplayName(p.name),
         models: p.models
-          .filter((m) => m.enabled)
+          // 生图模型在添加供应商时默认停用（不能对话），图片选择器照样列出来
+          .filter((m) => (kind === 'image' ? isImageModel(m.id) : m.enabled && !isImageModel(m.id)))
           .map((m) => ({
             id: m.id,
             label: m.label,
