@@ -44,9 +44,12 @@ func realpathNative(p string) (string, error) {
 }
 
 func hideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
 }
 
 func killTerm(p *os.Process) { _ = p.Kill() }
 
 func isJunctionInfo(st os.FileInfo) bool { return st.Mode()&os.ModeIrregular != 0 }
+
+// CREATE_NO_WINDOW：不给控制台子进程建控制台窗口
+const createNoWindow = 0x08000000

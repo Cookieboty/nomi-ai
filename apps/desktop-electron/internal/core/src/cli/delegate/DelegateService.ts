@@ -1069,7 +1069,7 @@ export function gitChanged(cwd: string): Promise<string[] | null> {
     execFile(
       'git',
       ['-c', 'core.quotepath=false', 'rev-parse', '--show-toplevel'],
-      { cwd, encoding: 'utf8', timeout: 10_000, env },
+      { cwd, encoding: 'utf8', timeout: 10_000, env, windowsHide: true },
       (err, toplevelRaw) => {
         if (err) return resolve(null);
         const root = String(toplevelRaw).trim();
@@ -1082,7 +1082,7 @@ export function gitChanged(cwd: string): Promise<string[] | null> {
         execFile(
           'git',
           ['-c', 'core.quotepath=false', 'status', '--porcelain', '-z', '--untracked-files=all'],
-          { cwd: root, encoding: 'utf8', timeout: 10_000, env },
+          { cwd: root, encoding: 'utf8', timeout: 10_000, env, windowsHide: true },
           (err2, stdout) => {
             if (err2) return resolve(null);
             const files = parsePorcelain(String(stdout)).map((f) => {

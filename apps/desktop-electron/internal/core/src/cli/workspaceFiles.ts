@@ -223,7 +223,7 @@ export async function gitCheckoutWorkspaceFile(
     execFile(
       'git',
       ['checkout', '--', r.rel],
-      { cwd: root, encoding: 'utf8', timeout: 30_000 },
+      { cwd: root, encoding: 'utf8', timeout: 30_000, windowsHide: true },
       (err, _stdout, stderr) => {
         if (err) {
           const detail = String(stderr || '').trim();
@@ -308,7 +308,13 @@ function listGitIgnored(root: string): Promise<Set<string>> {
     execFile(
       'git',
       ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'],
-      { cwd: root, encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024 },
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 30_000,
+        maxBuffer: 64 * 1024 * 1024,
+        windowsHide: true,
+      },
       (err, stdout) => resolve(new Set(err ? [] : stdout.split('\0').filter(Boolean))),
     );
   });

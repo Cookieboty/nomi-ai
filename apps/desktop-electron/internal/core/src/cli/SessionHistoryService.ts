@@ -267,7 +267,7 @@ export function zstdDecode(buf: Buffer, maxBytes = ZSTD_MAX_OUTPUT_BYTES): Promi
       const cp = execFile(
         'zstd',
         ['-dc'],
-        { encoding: 'buffer', maxBuffer: maxBytes, timeout: 15_000 },
+        { encoding: 'buffer', maxBuffer: maxBytes, timeout: 15_000, windowsHide: true },
         (err, stdout) => (err ? reject(err) : resolve(stdout.toString('utf8'))),
       );
       cp.stdin?.on('error', () => undefined);

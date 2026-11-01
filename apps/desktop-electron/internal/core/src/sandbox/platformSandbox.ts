@@ -42,7 +42,7 @@ export function findOnPath(
 ): string | null {
   try {
     const cmd = platform === 'win32' ? 'where' : 'which';
-    const r = spawnSync(cmd, [bin], { encoding: 'utf8', timeout: 3000 });
+    const r = spawnSync(cmd, [bin], { encoding: 'utf8', timeout: 3000, windowsHide: true });
     if (r.status !== 0) return null;
     const line = String(r.stdout || '')
       .trim()

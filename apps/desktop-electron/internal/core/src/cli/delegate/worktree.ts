@@ -54,6 +54,7 @@ async function git(
     encoding: 'utf8',
     timeout: opts?.timeout ?? 30_000,
     env: gitEnv(),
+    windowsHide: true,
   });
 }
 
@@ -289,6 +290,7 @@ function requireGitStatus(gitRoot: string, rel: string): { stdout: string } {
       cwd: gitRoot,
       encoding: 'utf8',
       env: gitEnv(),
+      windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     }),
   };

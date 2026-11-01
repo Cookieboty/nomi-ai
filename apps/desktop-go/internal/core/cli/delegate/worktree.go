@@ -84,6 +84,7 @@ func runGit(cwd string, args []string, timeout time.Duration, env []string) (str
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", args...)
+	hideWindow(cmd)
 	cmd.Dir = cwd
 	cmd.Env = env
 	var out, errb bytes.Buffer
