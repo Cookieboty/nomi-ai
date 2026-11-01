@@ -12,10 +12,11 @@
  * Go 版：apps/desktop-go/internal/core/tasks/executor_cli.go。
  */
 import { classifyCommand } from '../../desktop/commandClass';
+import type { SourceEvent } from '../events/types';
 import type { AttemptContext, TaskExecutor } from '../TaskRuntime';
 import type { Task } from '../types';
 
-import { classifyError } from './nomi';
+import { classifyError, eventsSection } from './nomi';
 
 export interface CliTabEvent {
   tabId: string;
@@ -61,6 +62,8 @@ export interface CliExecutorDeps {
   ): { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string } | null;
   /** 目录还存在、仍在授权范围里 */
   dirOk(dir: string): boolean;
+  /** 这次执行要处理的事件（事件触发时） */
+  eventsFor?(taskId: string, eventKey: string | undefined): SourceEvent[];
 }
 
 interface Run {
@@ -121,10 +124,11 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
         return `用户对你上次停下来请求的回答：${c.answer.approve ? '同意' : '不同意'}${c.answer.input ? `，并补充：${c.answer.input}` : ''}。请继续，完成后照原格式汇报。`;
       return '上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。';
     }
+    const ev = eventsSection(d.eventsFor?.(task.id, c.eventKey) ?? []);
     return d.buildPrompt({
       goal: task.goal,
       doneWhen: '目标里写的结果达成；做不到时说明原因',
-      context: task.title,
+      context: ev ? `${task.title}\n${ev}` : task.title,
     });
   };
 

@@ -35,7 +35,7 @@ func newNomiHarness(t *testing.T, script func(ctx context.Context, n int, h *nom
 			h.mu.Unlock()
 			return script(ctx, n, h, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant) context.Context {
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant, _ bool) context.Context {
 			h.mu.Lock()
 			h.asks = append(h.asks, ask)
 			h.mu.Unlock()
@@ -174,5 +174,18 @@ func TestClassifyError(t *testing.T) {
 		if got := ClassifyError(msg).Code; got != code {
 			t.Fatalf("%s: %s", msg, got)
 		}
+	}
+}
+
+func TestBuildPromptEvents(t *testing.T) {
+	ctx := AttemptContext{Task: Task{Title: "t", Goal: "g"}, Attempt: Attempt{Cause: AttemptCause{Kind: "event"}}}
+	msgs := BuildPrompt(ctx, "", 0, []SourceEvent{{Key: "k", Summary: "新文件：a.txt", Payload: map[string]any{"file": "a.txt"}}})
+	sys := msgs[0].Content
+	if !strings.Contains(sys, "触发这次运行的事件（1 件") || !strings.Contains(sys, "1. 新文件：a.txt\n{\"file\":\"a.txt\"}") ||
+		!strings.Contains(sys, "</events>") {
+		t.Fatal(sys)
+	}
+	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil)[0].Content, "<events>") {
+		t.Fatal("empty events should add nothing")
 	}
 }

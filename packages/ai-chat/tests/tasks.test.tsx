@@ -49,6 +49,13 @@ const tasks = [
   },
   { ...base, id: 'task_d', title: '做完的', status: 'done' },
   { ...base, id: 'task_e', title: '待验收', status: 'awaiting_accept' },
+  {
+    ...base,
+    id: 'task_f',
+    title: '盯网页',
+    status: 'idle',
+    trigger: { kind: 'event', sourceId: 'web', filter: { url: 'https://x' }, mode: 'observe' },
+  },
 ];
 const legacy = [
   { source: 'reminder', id: 'r1', title: '喝水', enabled: true, nextRunAt: T0 },
@@ -82,6 +89,14 @@ beforeEach(() => {
       ],
     }),
     'harness.state': () => ({ bins: { claude: '/bin/claude' } }),
+    'tasks.events': () => ({
+      observed: [{ key: 'k1', summary: '网页有变化', occurredAt: T0, payload: {} }],
+      lastPollAt: T0,
+      sources: ['web'],
+    }),
+    'tasks.processObserved': () => ({ ok: true }),
+    'tasks.clearObserved': () => true,
+    'tasks.setMode': () => null,
     'harness.recentCwds': () => ['/repo'],
     'tasks.applyWorktree': () => ({
       applied: ['a.ts'],
@@ -227,6 +242,53 @@ describe('任务页', () => {
     expect(input).toMatchObject({
       executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
       grant: { level: 2, paths: ['/repo'] },
+    });
+  });
+
+  it('事件任务：显示发现的事；处理这些；改成自动处理要先确认', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('task-task_f'));
+    await act(() => fake.settle());
+    expect(screen.getByTestId('task-observed').textContent).toContain('网页有变化');
+    fireEvent.click(screen.getByTestId('task-process-observed'));
+    await act(() => fake.settle());
+    expect(fake.calls).toContainEqual(['tasks.processObserved', { id: 'task_f' }]);
+    const confirm = vi.fn(() => false);
+    window.confirm = confirm;
+    fireEvent.click(screen.getByTestId('task-mode-act'));
+    await act(() => fake.settle());
+    expect(confirm).toHaveBeenCalled();
+    expect(fake.calls.some(([n]) => n === 'tasks.setMode')).toBe(false);
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('task-mode-act'));
+    await act(() => fake.settle());
+    expect(fake.calls).toContainEqual(['tasks.setMode', { id: 'task_f', mode: 'act' }]);
+  });
+
+  it('新建事件任务：先只记录；网址必填', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-new'));
+    await act(() => fake.settle());
+    fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '盯博客' } });
+    fireEvent.change(screen.getByTestId('task-form-goal'), {
+      target: { value: '有新文章总结给我' },
+    });
+    fireEvent.change(screen.getByTestId('task-form-when'), { target: { value: 'event' } });
+    expect((screen.getByTestId('task-form-submit') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId('task-form-url'), {
+      target: { value: 'https://example.com/feed' },
+    });
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('task-form-submit'));
+    await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
+    const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
+    expect(input).toMatchObject({
+      trigger: {
+        kind: 'event',
+        sourceId: 'web',
+        filter: { url: 'https://example.com/feed', kind: 'page' },
+        mode: 'observe',
+      },
     });
   });
 });

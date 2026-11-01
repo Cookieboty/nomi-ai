@@ -18,7 +18,8 @@ import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
 
-type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval';
+type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval' | 'event';
+type Source = 'web' | 'github' | 'folder' | 'app';
 type Who = 'nomi' | 'notify' | 'cli';
 const CLIS = CONVERSATION_BACKENDS.filter((b) => b !== 'nomi');
 
@@ -54,6 +55,15 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [cliPick, setCli] = useState('');
   const [cwd, setCwd] = useState('');
   const [cliShell, setCliShell] = useState(false);
+  // 事件触发（§6）：先只记录
+  const [source, setSource] = useState<Source>('web');
+  const [evUrl, setEvUrl] = useState('');
+  const [evFeed, setEvFeed] = useState(false);
+  const [evRepo, setEvRepo] = useState('');
+  const [evWatch, setEvWatch] = useState<'issues' | 'ci'>('issues');
+  const [evBranch, setEvBranch] = useState('');
+  const [evPath, setEvPath] = useState('');
+  const [evApp, setEvApp] = useState<'cli.finished' | 'knowledge.updated'>('cli.finished');
   const installed = CLIS.filter((b) => !!bins[b]);
   useEffect(() => {
     void harnessClient
@@ -88,17 +98,55 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     if (when === 'interval') return { kind: 'interval', minutes: Math.max(5, minutes) };
     return undefined;
   }, [when, minutes]);
+  const repoOk = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(evRepo.trim());
+  const eventOk =
+    when !== 'event' ||
+    (source === 'web' && /^https?:\/\/\S+$/.test(evUrl.trim())) ||
+    (source === 'github' && !!github && repoOk) ||
+    (source === 'folder' && !!evPath) ||
+    source === 'app';
+  const filter =
+    source === 'web'
+      ? { url: evUrl.trim(), kind: evFeed ? 'feed' : 'page' }
+      : source === 'github'
+        ? {
+            repo: evRepo.trim(),
+            watch: evWatch,
+            ...(evBranch.trim() ? { branch: evBranch.trim() } : {}),
+          }
+        : source === 'folder'
+          ? { path: evPath }
+          : { event: evApp };
+  const eventLabel =
+    source === 'web'
+      ? evUrl.trim()
+      : source === 'github'
+        ? evRepo.trim()
+        : source === 'folder'
+          ? evPath
+          : evApp === 'cli.finished'
+            ? t('ui.providers-schedule.task-event-app-cli')
+            : t('ui.providers-schedule.task-event-app-kb');
   const valid =
     title.trim() &&
     goal.trim() &&
-    (when === 'manual' || !Number.isNaN(new Date(at).getTime())) &&
+    (when === 'manual' || when === 'event' || !Number.isNaN(new Date(at).getTime())) &&
+    eventOk &&
     (who !== 'cli' || (!!cli && !!bins[cli] && !!cwd));
 
   const submit = async () => {
     const trigger =
       when === 'manual'
         ? ({ kind: 'manual' } as const)
-        : { kind: 'schedule' as const, at: new Date(at).getTime(), ...(repeat ? { repeat } : {}) };
+        : when === 'event'
+          ? { kind: 'event' as const, sourceId: source, filter, mode: 'observe' as const }
+          : {
+              kind: 'schedule' as const,
+              at: new Date(at).getTime(),
+              ...(repeat ? { repeat } : {}),
+            };
+    const evRepos = when === 'event' && source === 'github' ? [evRepo.trim()] : [];
+    const allRepos = [...new Set([...(who === 'nomi' ? repos : []), ...evRepos])];
     const executor =
       who === 'notify'
         ? { kind: 'notify' as const, text: goal.trim() }
@@ -112,9 +160,11 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         'ui.providers-schedule.task-card-when',
         when === 'manual'
           ? t('ui.providers-schedule.task-trigger-manual')
-          : repeat
-            ? describeRepeat(repeat)
-            : new Date(at).toLocaleString(),
+          : when === 'event'
+            ? t('ui.providers-schedule.task-card-event', eventLabel)
+            : repeat
+              ? describeRepeat(repeat)
+              : new Date(at).toLocaleString(),
       ),
       t(
         'ui.providers-schedule.task-card-who',
@@ -125,8 +175,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
-      ...(github && repos.length && who === 'nomi'
-        ? [t('ui.providers-schedule.task-card-github', github.label, repos.join(', '))]
+      ...(github && allRepos.length
+        ? [t('ui.providers-schedule.task-card-github', github.label, allRepos.join(', '))]
         : []),
       t('ui.providers-schedule.task-card-expiry', days),
       t('ui.providers-schedule.task-card-budget'),
@@ -147,10 +197,13 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         executor,
         grant: {
           level: level as 0 | 1 | 2 | 3 | 4,
-          paths: who === 'cli' ? [cwd] : [],
+          paths: [
+            ...(who === 'cli' ? [cwd] : []),
+            ...(when === 'event' && source === 'folder' ? [evPath] : []),
+          ],
           connections:
-            github && repos.length && who === 'nomi'
-              ? [{ connectionId: github.id, capabilities: ['github.read'], resources: repos }]
+            github && allRepos.length
+              ? [{ connectionId: github.id, capabilities: ['github.read'], resources: allRepos }]
               : [],
           expiresAt: Date.now() + days * 86_400_000,
         },
@@ -199,11 +252,12 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                 { value: 'daily', label: t('ui.foundation.every-day') },
                 { value: 'weekdays', label: t('ui.foundation.weekdays') },
                 { value: 'interval', label: t('ui.providers-schedule.task-every-n-minutes') },
+                { value: 'event', label: t('ui.providers-schedule.task-trigger-event-option') },
               ]}
               data-testid="task-form-when"
             />
           </label>
-          {when !== 'manual' && (
+          {when !== 'manual' && when !== 'event' && (
             <label className={styles.field}>
               <span>{t('ui.chat-settings.start-time')}</span>
               <DateTimeField
@@ -225,6 +279,101 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             </label>
           )}
         </div>
+        {when === 'event' && (
+          <fieldset className={styles.tools} data-testid="task-form-event">
+            <legend>{t('ui.providers-schedule.task-event-source')}</legend>
+            <Select
+              value={source}
+              onChange={(e) => setSource(e.target.value as Source)}
+              aria-label={t('ui.providers-schedule.task-event-source')}
+              options={[
+                { value: 'web', label: t('ui.providers-schedule.task-source-web') },
+                {
+                  value: 'github',
+                  label: t('ui.providers-schedule.task-source-github'),
+                  disabled: !github,
+                  ...(github ? {} : { description: t('ui.providers-schedule.connections-empty') }),
+                },
+                { value: 'folder', label: t('ui.foundation.folder') },
+                { value: 'app', label: t('ui.providers-schedule.task-source-app') },
+              ]}
+              data-testid="task-form-source"
+            />
+            {source === 'web' && (
+              <>
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-event-url')}</span>
+                  <Input
+                    value={evUrl}
+                    onChange={(e) => setEvUrl(e.target.value)}
+                    placeholder="https://"
+                    data-testid="task-form-url"
+                  />
+                </label>
+                <label className={styles.check}>
+                  <Checkbox checked={evFeed} onChange={(e) => setEvFeed(e.target.checked)} />
+                  {t('ui.providers-schedule.task-event-feed')}
+                </label>
+              </>
+            )}
+            {source === 'github' && (
+              <div className={styles.fieldRow}>
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-event-repo')}</span>
+                  <Input
+                    value={evRepo}
+                    onChange={(e) => setEvRepo(e.target.value)}
+                    placeholder="owner/repo"
+                    data-testid="task-form-repo"
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-event-source')}</span>
+                  <Select
+                    value={evWatch}
+                    onChange={(e) => setEvWatch(e.target.value as 'issues' | 'ci')}
+                    options={[
+                      {
+                        value: 'issues',
+                        label: t('ui.providers-schedule.task-event-watch-issues'),
+                      },
+                      { value: 'ci', label: t('ui.providers-schedule.task-event-watch-ci') },
+                    ]}
+                  />
+                </label>
+                {evWatch === 'ci' && (
+                  <label className={styles.field}>
+                    <span>{t('ui.providers-schedule.task-event-branch')}</span>
+                    <Input value={evBranch} onChange={(e) => setEvBranch(e.target.value)} />
+                  </label>
+                )}
+              </div>
+            )}
+            {source === 'folder' && (
+              <WorkspacePicker
+                value={evPath}
+                onChange={setEvPath}
+                label={t('ui.foundation.folder')}
+                testId="task-form-folder"
+              />
+            )}
+            {source === 'app' && (
+              <Select
+                value={evApp}
+                onChange={(e) => setEvApp(e.target.value as 'cli.finished' | 'knowledge.updated')}
+                aria-label={t('ui.providers-schedule.task-source-app')}
+                options={[
+                  { value: 'cli.finished', label: t('ui.providers-schedule.task-event-app-cli') },
+                  {
+                    value: 'knowledge.updated',
+                    label: t('ui.providers-schedule.task-event-app-kb'),
+                  },
+                ]}
+              />
+            )}
+            <p className={styles.levelNote}>{t('ui.providers-schedule.task-event-observe-note')}</p>
+          </fieldset>
+        )}
         <label className={styles.field}>
           <span>{t('ui.providers-schedule.task-executor')}</span>
           <Select

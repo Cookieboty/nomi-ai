@@ -117,3 +117,43 @@ func TestTaskProposeCli(t *testing.T) {
 		t.Fatalf("%+v %+v", task.Executor, task.Grant)
 	}
 }
+
+func TestTaskProposeEventTrigger(t *testing.T) {
+	now := time.Date(2026, 11, 2, 8, 30, 0, 0, time.Local).UnixMilli()
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, Now: func() int64 { return now }, T: i18n.T,
+		SetTimer: func(func(), int64) func() { return func() {} }})
+	s.RegisterSource(NewGithubSource(GithubSourceDeps{Read: func(context.Context, GithubReadParams, []ConnectionGrant) (any, error) {
+		return []any{}, nil
+	}}))
+	cards := []string{}
+	defs := map[string]tools.Definition{}
+	for _, d := range CreateTaskTools(s, func(_ context.Context, _, _ string, _ any, preview string) string {
+		cards = append(cards, preview)
+		return "allowed"
+	}, func() (string, string, bool) { return "conn_1", "GitHub · octo", true },
+		CliEnv{DirOk: func(d string) bool { return d == "/repo" }}) {
+		defs[d.Name] = d
+	}
+	// 事件触发：先只记录；github 的仓库自动并入只读授权；事件源校验在弹卡片之前
+	r := call(t, defs["task_propose"], `{"title":"盯 issue","goal":"有新 issue 告诉我","when":{"kind":"event","source":"github","repo":"o/r","watch":"issues"}}`, tools.ExecContext{})
+	if r["ok"] != true || !strings.Contains(cards[len(cards)-1], "o/r") {
+		t.Fatal(r, cards)
+	}
+	task := s.Get(r["data"].(map[string]any)["id"].(string)).Task
+	if task.Trigger.Kind != "event" || *task.Trigger.SourceID != "github" || *task.Trigger.Mode != "observe" ||
+		!strings.Contains(string(task.Trigger.Filter), `"repo":"o/r"`) ||
+		len(task.Grant.Connections) != 1 || task.Grant.Connections[0].ConnectionID != "conn_1" ||
+		task.Grant.Connections[0].Resources[0] != "o/r" {
+		t.Fatalf("%+v %+v", task.Trigger, task.Grant)
+	}
+	n := len(cards)
+	bad := call(t, defs["task_propose"], `{"title":"t","goal":"g","when":{"kind":"event","source":"web"}}`, tools.ExecContext{})
+	if bad["ok"] != false || bad["error"].(map[string]any)["code"] != "bad_trigger" || len(cards) != n {
+		t.Fatal(bad, cards)
+	}
+	// folder：目录要是用户打开过的
+	badPath := call(t, defs["task_propose"], `{"title":"t","goal":"g","when":{"kind":"event","source":"folder","path":"/tmp"}}`, tools.ExecContext{})
+	if badPath["error"].(map[string]any)["code"] != "bad_path" {
+		t.Fatal(badPath)
+	}
+}

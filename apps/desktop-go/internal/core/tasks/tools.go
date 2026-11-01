@@ -25,11 +25,19 @@ var hhmmRE = regexp.MustCompile(`^([01]?\d|2[0-3]):([0-5]\d)$`)
 const proposeSchema = `{"type":"object","properties":{
 "title":{"type":"string","minLength":1,"maxLength":80,"description":"任务的短标题，例如「每天看 CI」"},
 "goal":{"type":"string","minLength":1,"maxLength":4000,"description":"交给执行者的目标说明：用户原话 + 你整理的完成标准，写具体"},
-"when":{"type":"object","description":"何时运行：kind = manual | once(at) | daily(time) | weekdays(time) | weekly(days,time) | interval(minutes)",
-"properties":{"kind":{"type":"string","enum":["manual","once","daily","weekdays","weekly","interval"]},
+"when":{"type":"object","description":"何时运行：kind = manual | once(at) | daily(time) | weekdays(time) | weekly(days,time) | interval(minutes) | event(source, …)",
+"properties":{"kind":{"type":"string","enum":["manual","once","daily","weekdays","weekly","interval","event"]},
 "at":{"type":"string","description":"ISO 时间，如 2026-11-03T09:00"},"time":{"type":"string","description":"HH:MM"},
 "days":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6},"description":"0=周日 … 6=周六"},
-"minutes":{"type":"integer","minimum":5,"maximum":10080}},"required":["kind"]},
+"minutes":{"type":"integer","minimum":5,"maximum":10080},
+"source":{"type":"string","enum":["web","github","folder","app"],"description":"web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新"},
+"url":{"type":"string","description":"source=web：网址"},
+"feed":{"type":"boolean","description":"source=web：是 RSS / Atom 订阅"},
+"repo":{"type":"string","description":"source=github：owner/name"},
+"watch":{"type":"string","enum":["issues","ci"],"description":"source=github：issues 或 ci"},
+"branch":{"type":"string","description":"source=github 且 watch=ci：分支"},
+"path":{"type":"string","description":"source=folder：绝对路径（要是用户打开过的目录）"},
+"app_event":{"type":"string","enum":["cli.finished","knowledge.updated"],"description":"source=app：哪种应用事件"}},"required":["kind"]},
 "executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的编程助手在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
 "cli":{"type":"string","description":"executor=cli 时用哪个编程助手（如 claude、codex）"},
 "cwd":{"type":"string","description":"executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）"},
@@ -46,6 +54,15 @@ type ProposeWhen struct {
 	Time    string `json:"time,omitempty"`
 	Days    []int  `json:"days,omitempty"`
 	Minutes int    `json:"minutes,omitempty"`
+	// kind=event
+	Source   string `json:"source,omitempty"`
+	URL      string `json:"url,omitempty"`
+	Feed     bool   `json:"feed,omitempty"`
+	Repo     string `json:"repo,omitempty"`
+	Watch    string `json:"watch,omitempty"`
+	Branch   string `json:"branch,omitempty"`
+	Path     string `json:"path,omitempty"`
+	AppEvent string `json:"app_event,omitempty"`
 }
 
 type proposeIn struct {
@@ -59,7 +76,7 @@ type proposeIn struct {
 	GithubRepos []string    `json:"github_repos"`
 }
 
-// TriggerOf：「何时」→ 触发器（本机时区）
+// TriggerOf：「何时」→ 触发器（本机时区）。事件触发一律先「只记录」，改成自动执行由用户在任务页决定（§6.3）
 func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 	at := func(hhmm string) (*int64, error) {
 		m := hhmmRE.FindStringSubmatch(hhmm)
@@ -103,6 +120,43 @@ func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 		}
 		v := now + int64(w.Minutes)*60_000
 		return Trigger{Kind: "schedule", At: &v, Repeat: &schedule.Repeat{Kind: "interval", Minutes: w.Minutes}}, nil
+	case "event":
+		filter := map[string]any{}
+		switch w.Source {
+		case "web":
+			if w.URL != "" {
+				filter["url"] = w.URL
+			}
+			filter["kind"] = "page"
+			if w.Feed {
+				filter["kind"] = "feed"
+			}
+		case "github":
+			if w.Repo != "" {
+				filter["repo"] = w.Repo
+			}
+			filter["watch"] = "issues"
+			if w.Watch != "" {
+				filter["watch"] = w.Watch
+			}
+			if w.Branch != "" {
+				filter["branch"] = w.Branch
+			}
+		case "folder":
+			if w.Path != "" {
+				filter["path"] = w.Path
+			}
+		case "app":
+			filter["event"] = "cli.finished"
+			if w.AppEvent != "" {
+				filter["event"] = w.AppEvent
+			}
+		default:
+			return Trigger{}, fmt.Errorf("invalid source: %s", w.Source)
+		}
+		raw, _ := json.Marshal(filter)
+		src, mode := w.Source, "observe"
+		return Trigger{Kind: "event", SourceID: &src, Filter: raw, Mode: &mode}, nil
 	}
 	return Trigger{}, fmt.Errorf("invalid when: %s", w.Kind)
 }
@@ -126,6 +180,8 @@ func describeWhen(T func(string, ...any) string, w ProposeWhen) string {
 		return T("electron.common.task-when-weekly", strings.Join(days, ", "), w.Time)
 	case "interval":
 		return T("electron.common.task-when-interval", w.Minutes)
+	case "event":
+		return T("electron.common.task-when-event", firstNonEmpty(w.URL, w.Repo, w.Path, w.AppEvent, w.Source))
 	}
 	return w.Kind
 }
@@ -228,8 +284,22 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 						return fail("bad_cwd", "cwd 必须是用户打开过的工作区目录"), nil
 					}
 				}
+				// 事件触发：github 的仓库自动并入只读授权；folder 的目录要是用户打开过的
+				repos := []string{}
+				for _, r := range in.GithubRepos {
+					if !slices.Contains(repos, r) {
+						repos = append(repos, r)
+					}
+				}
+				ev := in.When.Kind == "event"
+				if ev && in.When.Source == "github" && in.When.Repo != "" && !slices.Contains(repos, in.When.Repo) {
+					repos = append(repos, in.When.Repo)
+				}
+				if ev && in.When.Source == "folder" && (in.When.Path == "" || cli.DirOk == nil || !cli.DirOk(in.When.Path)) {
+					return fail("bad_path", "path 必须是用户打开过的目录"), nil
+				}
 				var ghID, ghLabel string
-				if len(in.GithubRepos) > 0 {
+				if len(repos) > 0 {
 					ok := false
 					if github != nil {
 						ghID, ghLabel, ok = github()
@@ -237,7 +307,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					if !ok {
 						return fail("no_connection", "用户还没有在设置 → 外部连接里连 GitHub"), nil
 					}
-					for _, r := range in.GithubRepos {
+					for _, r := range repos {
 						if !repoNameRE.MatchString(r) {
 							return fail("bad_input", "invalid repo: "+r), nil
 						}
@@ -246,6 +316,20 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				trigger, err := TriggerOf(in.When, s.d.Now())
 				if err != nil {
 					return fail("bad_time", err.Error()), nil
+				}
+				conns := []ConnectionGrant{}
+				if ghID != "" {
+					conns = []ConnectionGrant{{ConnectionID: ghID, Capabilities: []string{"github.read"}, Resources: repos}}
+				}
+				paths := []string{}
+				if in.Executor == "cli" {
+					paths = append(paths, in.Cwd)
+				}
+				if ev && in.When.Source == "folder" && in.When.Path != "" {
+					paths = append(paths, in.When.Path)
+				}
+				if bad := s.ValidateTrigger(trigger, conns, paths); bad != "" {
+					return fail("bad_trigger", bad), nil
 				}
 				T := s.d.T
 				who := T("electron.common.task-who-nomi")
@@ -262,17 +346,15 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					T("electron.common.task-card-level", T(fmt.Sprintf("electron.common.task-level-%d", level))),
 				}, "\n")
 				if ghID != "" {
-					card += "\n" + T("electron.common.task-card-github", ghLabel, strings.Join(in.GithubRepos, ", "))
+					card += "\n" + T("electron.common.task-card-github", ghLabel, strings.Join(repos, ", "))
 				}
 				card += "\n" + T("electron.common.task-card-terms")
 				d := authorize(ctx, "task_propose", T("electron.common.task-card-summary", in.Title), in, card)
 				if d != "allowed" && d != "auto" {
 					return fail("user_denied", "用户没有授权这个任务"), nil
 				}
-				req := CreateRequest{Title: in.Title, Goal: in.Goal, Trigger: trigger, Grant: Grant{Level: level}}
-				if ghID != "" {
-					req.Grant.Connections = []ConnectionGrant{{ConnectionID: ghID, Capabilities: []string{"github.read"}, Resources: in.GithubRepos}}
-				}
+				req := CreateRequest{Title: in.Title, Goal: in.Goal, Trigger: trigger,
+					Grant: Grant{Level: level, Paths: paths, Connections: conns}}
 				if ec.ConversationID != "" {
 					c := ec.ConversationID
 					req.ConversationID = &c
@@ -282,12 +364,14 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					req.Executor = ExecutorSpec{Kind: "notify", Text: &g}
 				} else if in.Executor == "cli" {
 					req.Executor = ExecutorSpec{Kind: "cli", Cli: ptr(in.Cli), Cwd: ptr(in.Cwd), Isolation: ptr("worktree")}
-					req.Grant.Paths = []string{in.Cwd}
 				} else {
 					ts := append([]string(nil), in.Tools...)
 					req.Executor = ExecutorSpec{Kind: "nomi", Tools: &ts}
 				}
-				t := s.Create(req, "nomi")
+				t, err := s.Create(req, "nomi")
+				if err != nil {
+					return fail("bad_trigger", err.Error()), nil
+				}
 				v := taskView(t)
 				v["created"] = true
 				return map[string]any{"ok": true, "data": v}, nil

@@ -49,3 +49,39 @@ func TestTaskHandlersRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTaskHandlersEvents(t *testing.T) {
+	svc := tasks.NewService(tasks.ServiceDeps{Root: t.TempDir(), Log: nopLog{}, Notify: func(string, string) {}})
+	svc.RegisterSource(tasks.NewWebSource(tasks.WebSourceDeps{}))
+	svc.Start()
+	defer svc.Stop()
+	hs := taskHandlers(Services{Tasks: func() *tasks.Service { return svc }})
+	_, err := hs["tasks.create"](context.Background(), json.RawMessage(`{"title":"t","goal":"g",
+		"trigger":{"kind":"event","sourceId":"web","filter":{},"mode":"observe"},
+		"executor":{"kind":"notify","text":"hi"},"grant":{"level":0,"paths":[],"connections":[]}}`))
+	if ce, ok := err.(*contract.Error); !ok || ce.Code != "TASKS_BAD_TRIGGER" {
+		t.Fatal(err)
+	}
+	v, err := hs["tasks.create"](context.Background(), json.RawMessage(`{"title":"t","goal":"g",
+		"trigger":{"kind":"event","sourceId":"web","filter":{"url":"https://example.com/"},"mode":"observe"},
+		"executor":{"kind":"notify","text":"hi"},"grant":{"level":0,"paths":[],"connections":[]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := v.(tasks.Task).ID
+	ev, err := hs["tasks.events"](context.Background(), json.RawMessage(`{"id":"`+id+`"}`))
+	b, _ := json.Marshal(ev)
+	if err != nil || string(b) != `{"observed":[],"sources":["web"]}` {
+		t.Fatal(err, string(b))
+	}
+	if r, _ := hs["tasks.processObserved"](context.Background(), json.RawMessage(`{"id":"`+id+`"}`)); r.(tasks.CmdResult).Reason != "empty" {
+		t.Fatal(r)
+	}
+	if r, _ := hs["tasks.clearObserved"](context.Background(), json.RawMessage(`{"id":"`+id+`"}`)); r != true {
+		t.Fatal(r)
+	}
+	m, err := hs["tasks.setMode"](context.Background(), json.RawMessage(`{"id":"`+id+`","mode":"act"}`))
+	if err != nil || *m.(*tasks.Task).Trigger.Mode != "act" {
+		t.Fatal(err, m)
+	}
+}

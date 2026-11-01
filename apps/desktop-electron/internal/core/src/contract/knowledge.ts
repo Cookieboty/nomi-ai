@@ -15,7 +15,7 @@ import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } 
 
 export type KnowledgeHandlers = DomainHandlers<KnowledgeProcedureName>;
 
-type ErrorPrefix = 'KB' | 'MEM' | 'SCHED';
+type ErrorPrefix = 'KB' | 'MEM' | 'SCHED' | 'TASKS';
 type AppErrorCode = Parameters<AppHandlerContext['fail']>[0];
 
 const DECLARED: ReadonlySet<string> = new Set<string>(APP_DOMAINS.knowledge.errors);
@@ -137,12 +137,13 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'tasks.get': ({ id }) => out(tasks().get(id)),
     'tasks.inbox': () => out(tasks().inbox()),
     'tasks.journal': ({ id }) => out(tasks().journal(id)),
-    'tasks.create': (input) => out(tasks().create(input)),
-    'tasks.update': ({ id, ...patch }, ctx) => {
-      const task = tasks().update(id, patch);
-      if (!task) ctx.fail('TASKS_NOT_FOUND', id);
-      return out(task);
-    },
+    'tasks.create': (input, ctx) => mapped('TASKS', ctx, () => out(tasks().create(input))),
+    'tasks.update': ({ id, ...patch }, ctx) =>
+      mapped('TASKS', ctx, () => {
+        const task = tasks().update(id, patch);
+        if (!task) ctx.fail('TASKS_NOT_FOUND', id);
+        return out(task);
+      }),
     'tasks.grant': ({ id, grant }) => tasks().command(id, { type: 'grant', grant }),
     'tasks.revoke': ({ id }) => tasks().command(id, { type: 'revoke' }),
     'tasks.pause': ({ id }) => tasks().command(id, { type: 'pause' }),
@@ -154,6 +155,17 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'tasks.reject': ({ id, feedback }) => tasks().command(id, { type: 'reject', feedback }),
     'tasks.reconcile': ({ id, outcome }) => tasks().command(id, { type: 'reconcile', outcome }),
     'tasks.remove': ({ id }) => tasks().remove(id),
+    'tasks.events': ({ id }) => ({
+      observed: out(tasks().events.observed(id)),
+      ...tasks().events.status(id),
+      sources: tasks().events.sourceIds(),
+    }),
+    'tasks.processObserved': ({ id }) => tasks().events.processObserved(id),
+    'tasks.clearObserved': ({ id }) => {
+      tasks().events.clearObserved(id);
+      return true;
+    },
+    'tasks.setMode': ({ id, mode }) => out(tasks().setMode(id, mode)),
     'tasks.applyWorktree': async ({ id }) =>
       tasks().applyWorktree(
         id,

@@ -79,3 +79,24 @@ func TestBackgroundCommandNeedsPerson(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+// 事件触发的执行（Tainted）：写入与命令都问人，审核放行也不直接跑（persistent-tasks §8.4）
+func TestBackgroundTaintedRun(t *testing.T) {
+	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	asked := []string{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = WithBackground(ctx, &BackgroundRun{Level: 3, Tainted: true, Ask: func(tool, _, _ string) bool {
+		asked = append(asked, tool)
+		return true
+	}})
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_write_text", Danger: "write", Signal: ctx}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if d := runCmd(b, ctx); d != "allowed" {
+		t.Fatal(d)
+	}
+	if len(asked) != 2 {
+		t.Fatalf("asked %v", asked)
+	}
+}

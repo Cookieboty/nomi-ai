@@ -14,6 +14,17 @@ type taskIDIn struct {
 	ID string `json:"id"`
 }
 
+// taskEventsView：契约 TaskEventsView
+type taskEventsView struct {
+	Observed   []tasks.SourceEvent `json:"observed"`
+	LastPollAt *int64              `json:"lastPollAt,omitempty"`
+	LastError  *string             `json:"lastError,omitempty"`
+	Sources    []string            `json:"sources"`
+}
+
+// tasksErr：TriggerError → TASKS_BAD_TRIGGER（同 Node mapped('TASKS', …)）
+func tasksErr(v any, err error) (any, error) { return mapped("TASKS", v, err) }
+
 func taskHandlers(sv Services) map[string]H {
 	get := func() (*tasks.Service, error) { return need(sv.Tasks, "tasks") }
 	type T = tasks.Service
@@ -51,7 +62,7 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Create(in, "user"), nil
+			return tasksErr(s.Create(in, "user"))
 		}),
 		"tasks.update": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
@@ -61,7 +72,10 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			t := s.Update(in.ID, in.Patch)
+			t, err := s.Update(in.ID, in.Patch)
+			if err != nil {
+				return tasksErr(nil, err)
+			}
 			if t == nil {
 				return nil, &contract.Error{Code: "TASKS_NOT_FOUND", Message: in.ID}
 			}
@@ -137,6 +151,45 @@ func taskHandlers(sv Services) map[string]H {
 				return nil, err
 			}
 			return s.Remove(in.ID), nil
+		}),
+		// 事件任务：观察到的事件、最近一次拉取（§6.3）
+		"tasks.events": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			st := s.Events.Status(in.ID)
+			return taskEventsView{Observed: s.Events.Observed(in.ID), LastPollAt: st.LastPollAt, LastError: st.LastError,
+				Sources: s.Events.SourceIDs()}, nil
+		}),
+		"tasks.processObserved": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.Events.ProcessObserved(in.ID), nil
+		}),
+		"tasks.clearObserved": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			s.Events.ClearObserved(in.ID)
+			return true, nil
+		}),
+		// 只记录 ↔ 自动执行；改成自动执行是放宽授权（契约里 dangerous）
+		"tasks.setMode": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in struct {
+				ID   string `json:"id"`
+				Mode string `json:"mode"`
+			}
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			if t := s.SetMode(in.ID, in.Mode); t != nil {
+				return t, nil
+			}
+			return nil, nil
 		}),
 	}
 }

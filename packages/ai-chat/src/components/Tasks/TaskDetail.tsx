@@ -32,15 +32,27 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const isEvent = task.trigger.kind === 'event';
+  const mode = task.trigger.kind === 'event' ? task.trigger.mode : null;
+  const [events, setEvents] = useState<{
+    observed: { key: string; summary: string; occurredAt: number }[];
+    lastPollAt?: number;
+    lastError?: string;
+  } | null>(null);
 
   useEffect(() => {
     let live = true;
     void tasksApi.get(task.id).then((r) => live && setAttempts([...(r?.attempts ?? [])].reverse()));
     void tasksApi.journal(task.id).then((j) => live && setJournal([...j].reverse().slice(0, 50)));
+    if (isEvent)
+      void api.tasks
+        .events({ id: task.id })
+        .then((r) => live && setEvents(r as never))
+        .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [task.id, task.updatedAt]);
+  }, [task.id, task.updatedAt, isEvent]);
 
   const run = (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -275,6 +287,90 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
         <p className={styles.error} role="alert">
           {error}
         </p>
+      )}
+
+      {isEvent && events && (
+        <section
+          className={styles.action}
+          aria-label={t('ui.providers-schedule.task-observed-title', events.observed.length)}
+          data-testid="task-observed"
+        >
+          <h4 className={styles.detailTitle}>
+            {t('ui.providers-schedule.task-observed-title', events.observed.length)}
+          </h4>
+          {!events.observed.length && (
+            <p className={styles.waitDetail}>{t('ui.providers-schedule.task-observed-empty')}</p>
+          )}
+          <ul className={styles.journal}>
+            {events.observed.slice(-20).map((e) => (
+              <li key={e.key}>{e.summary}</li>
+            ))}
+          </ul>
+          {events.lastPollAt && (
+            <p className={styles.waitDetail}>
+              {t(
+                'ui.providers-schedule.task-last-poll',
+                new Date(events.lastPollAt).toLocaleString(),
+              )}
+            </p>
+          )}
+          {events.lastError && (
+            <p className={styles.error}>
+              {t('ui.providers-schedule.task-poll-error', events.lastError)}
+            </p>
+          )}
+          <div className={styles.actionRow}>
+            {events.observed.length > 0 && (
+              <>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy}
+                  onClick={() => run(() => api.tasks.processObserved({ id }))}
+                  data-testid="task-process-observed"
+                >
+                  {t('ui.providers-schedule.task-process-observed')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => run(() => api.tasks.clearObserved({ id }))}
+                  data-testid="task-clear-observed"
+                >
+                  {t('ui.providers-schedule.task-clear-observed')}
+                </Button>
+              </>
+            )}
+            {mode === 'observe' ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void confirmThen(
+                    t('ui.providers-schedule.task-mode-act-confirm'),
+                    () => api.tasks.setMode({ id, mode: 'act' }),
+                    false,
+                  )
+                }
+                data-testid="task-mode-act"
+              >
+                {t('ui.providers-schedule.task-mode-act')}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => run(() => api.tasks.setMode({ id, mode: 'observe' }))}
+                data-testid="task-mode-observe"
+              >
+                {t('ui.providers-schedule.task-mode-observe')}
+              </Button>
+            )}
+          </div>
+        </section>
       )}
 
       <dl className={styles.facts}>

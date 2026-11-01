@@ -10,7 +10,15 @@ export type ProposeWhen =
   | { kind: 'once'; at: string }
   | { kind: 'daily' | 'weekdays'; time: string }
   | { kind: 'weekly'; days: number[]; time: string }
-  | { kind: 'interval'; minutes: number };
+  | { kind: 'interval'; minutes: number }
+  | {
+      kind: 'event';
+      source: 'web' | 'github' | 'folder' | 'app';
+      url?: string;
+      repo?: string;
+      path?: string;
+      app_event?: string;
+    };
 
 export function describeWhen(w: ProposeWhen): string {
   switch (w.kind) {
@@ -26,6 +34,11 @@ export function describeWhen(w: ProposeWhen): string {
       return t('electron.common.task-when-weekly', w.days.join(', '), w.time);
     case 'interval':
       return t('electron.common.task-when-interval', w.minutes);
+    case 'event':
+      return t(
+        'electron.common.task-when-event',
+        w.url ?? w.repo ?? w.path ?? w.app_event ?? w.source,
+      );
   }
 }
 

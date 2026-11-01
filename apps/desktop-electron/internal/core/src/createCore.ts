@@ -60,7 +60,7 @@ import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
 import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
 import { prepareIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
-import { HarnessStoppedError } from './cli/harness/liveTypes';
+import { HarnessStoppedError, type HarnessTabFinished } from './cli/harness/liveTypes';
 import { HarnessOrchestrator } from './cli/harness/Orchestrator';
 import { cliChildEnv, isScript, spawnHarness } from './cli/harness/spawn';
 import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
@@ -113,6 +113,10 @@ import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
 import { UpdateService, type UpdaterLike } from './services/UpdateService';
 import { StartupService } from './startup/StartupService';
+import { createAppSource } from './tasks/events/sources/app';
+import { createFolderSource } from './tasks/events/sources/folder';
+import { createGithubSource } from './tasks/events/sources/github';
+import { createWebSource } from './tasks/events/sources/web';
 import { createCliExecutor } from './tasks/executors/cli';
 import { createNomiExecutor } from './tasks/executors/nomi';
 import { TaskService } from './tasks/TaskService';
@@ -502,6 +506,33 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       events,
       logger: logger as never,
     });
+    // 事件源（§6.2）：web / folder 直接可用；github 经连接只读；app 听内核事件（编程助手的源在 harness 就绪后接）
+    tasks.registerSource(createWebSource());
+    tasks.registerSource(createFolderSource());
+    tasks.registerSource(
+      createGithubSource({
+        read: (p, grant) => {
+          const c = services.connections;
+          if (!c) throw new Error('connections unavailable');
+          return c.githubRead(p, grant);
+        },
+      }),
+    );
+    tasks.registerSource(
+      createAppSource({
+        onCliFinished: (fn) => {
+          const h = services.harness;
+          if (!h) return () => undefined;
+          const on = (e: HarnessTabFinished) => {
+            const tab = h.listTabs().tabs.find((x) => x.id === e.tabId);
+            fn({ ...e, taskTab: !!tab?.delegation?.taskId });
+          };
+          h.events.on('tab-finished', on);
+          return () => h.events.off('tab-finished', on);
+        },
+        onKnowledgeChanged: (fn) => events.listen('kb.changed', () => fn()),
+      }),
+    );
     // Nomi 无界面执行（§7.1）：AI runtime 在 start() 里才起来，这里按需取用；工具审批走 broker 的后台模式
     tasks.registerExecutor(
       'nomi',
@@ -513,6 +544,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         },
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        eventsFor: (id, key) => tasks.eventBatch(id, key),
         costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),
         trace: (id, attemptId, line) => {
           try {
@@ -987,6 +1019,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         buildPrompt: (b) => buildDelegatePrompt(b),
         parseReport: (text) => parseDelegateReport(text),
         dirOk: (dir) => taskDirOk(dir),
+        eventsFor: (id, key) => services.tasks?.eventBatch(id, key) ?? [],
       }),
     );
     services.delegate = new DelegateService({

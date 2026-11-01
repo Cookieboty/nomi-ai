@@ -5224,6 +5224,10 @@ type TasksCancelOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksClearObservedInput struct {
+	Id string `json:"id"`
+}
+
 type TasksCreateInputGrantConnectionsItem struct {
 	ConnectionId string   `json:"connectionId"`
 	Capabilities []string `json:"capabilities"`
@@ -5317,6 +5321,24 @@ type TasksDecideInput struct {
 type TasksDecideOutput struct {
 	Ok     bool    `json:"ok"`
 	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksEventsInput struct {
+	Id string `json:"id"`
+}
+
+type TasksEventsOutputObservedItem struct {
+	Key        string  `json:"key"`
+	OccurredAt float64 `json:"occurredAt"`
+	Summary    string  `json:"summary"`
+	Payload    any     `json:"payload"`
+}
+
+type TasksEventsOutput struct {
+	Observed   []TasksEventsOutputObservedItem `json:"observed"`
+	LastPollAt *float64                        `json:"lastPollAt,omitempty"`
+	LastError  *string                         `json:"lastError,omitempty"`
+	Sources    []string                        `json:"sources"`
 }
 
 type TasksGetInput struct {
@@ -5526,6 +5548,15 @@ type TasksPauseOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksProcessObservedInput struct {
+	Id string `json:"id"`
+}
+
+type TasksProcessObservedOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
 // TasksReconcileInputOutcome 枚举：applied | not_applied | abandon
 type TasksReconcileInputOutcome = string
 
@@ -5584,6 +5615,61 @@ type TasksRunNowInput struct {
 type TasksRunNowOutput struct {
 	Ok     bool    `json:"ok"`
 	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksSetModeInputMode 枚举：observe | act
+type TasksSetModeInputMode = string
+
+const (
+	TasksSetModeInputModeObserve TasksSetModeInputMode = "observe"
+	TasksSetModeInputModeAct     TasksSetModeInputMode = "act"
+)
+
+type TasksSetModeInput struct {
+	Id   string                `json:"id"`
+	Mode TasksSetModeInputMode `json:"mode"`
+}
+
+// TasksSetModeOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksSetModeOutputStatus = string
+
+const (
+	TasksSetModeOutputStatusIdle           TasksSetModeOutputStatus = "idle"
+	TasksSetModeOutputStatusQueued         TasksSetModeOutputStatus = "queued"
+	TasksSetModeOutputStatusRunning        TasksSetModeOutputStatus = "running"
+	TasksSetModeOutputStatusWaitingUser    TasksSetModeOutputStatus = "waiting_user"
+	TasksSetModeOutputStatusNeedsReconcile TasksSetModeOutputStatus = "needs_reconcile"
+	TasksSetModeOutputStatusAwaitingAccept TasksSetModeOutputStatus = "awaiting_accept"
+	TasksSetModeOutputStatusDone           TasksSetModeOutputStatus = "done"
+	TasksSetModeOutputStatusFailed         TasksSetModeOutputStatus = "failed"
+	TasksSetModeOutputStatusCancelled      TasksSetModeOutputStatus = "cancelled"
+	TasksSetModeOutputStatusExpired        TasksSetModeOutputStatus = "expired"
+)
+
+type TasksSetModeOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksSetModeOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksSetModeOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksSetModeOutput struct {
+	Id        string                     `json:"id"`
+	Title     string                     `json:"title"`
+	Goal      string                     `json:"goal"`
+	Status    TasksSetModeOutputStatus   `json:"status"`
+	Enabled   bool                       `json:"enabled"`
+	Gen       float64                    `json:"gen"`
+	Trigger   TasksSetModeOutputTrigger  `json:"trigger"`
+	Executor  TasksSetModeOutputExecutor `json:"executor"`
+	Grant     TasksSetModeOutputGrant    `json:"grant"`
+	UpdatedAt float64                    `json:"updatedAt"`
 }
 
 type TasksUpdateInputBudget struct {
@@ -8476,6 +8562,10 @@ type TasksApplyWorktreeOutputT = *TasksApplyWorktreeOutput
 type TasksCancelInputT = TasksCancelInput
 type TasksCancelOutputT = TasksCancelOutput
 
+// TasksClearObservedInputT 是 tasks.clearObserved 的入参
+type TasksClearObservedInputT = TasksClearObservedInput
+type TasksClearObservedOutputT = bool
+
 // TasksCreateInputT 是 tasks.create 的入参
 type TasksCreateInputT = TasksCreateInput
 type TasksCreateOutputT = TasksCreateOutput
@@ -8483,6 +8573,10 @@ type TasksCreateOutputT = TasksCreateOutput
 // TasksDecideInputT 是 tasks.decide 的入参
 type TasksDecideInputT = TasksDecideInput
 type TasksDecideOutputT = TasksDecideOutput
+
+// TasksEventsInputT 是 tasks.events 的入参
+type TasksEventsInputT = TasksEventsInput
+type TasksEventsOutputT = TasksEventsOutput
 
 // TasksGetInputT 是 tasks.get 的入参
 type TasksGetInputT = TasksGetInput
@@ -8508,6 +8602,10 @@ type TasksListOutputT = TasksListOutput
 type TasksPauseInputT = TasksPauseInput
 type TasksPauseOutputT = TasksPauseOutput
 
+// TasksProcessObservedInputT 是 tasks.processObserved 的入参
+type TasksProcessObservedInputT = TasksProcessObservedInput
+type TasksProcessObservedOutputT = TasksProcessObservedOutput
+
 // TasksReconcileInputT 是 tasks.reconcile 的入参
 type TasksReconcileInputT = TasksReconcileInput
 type TasksReconcileOutputT = TasksReconcileOutput
@@ -8531,6 +8629,10 @@ type TasksRevokeOutputT = TasksRevokeOutput
 // TasksRunNowInputT 是 tasks.runNow 的入参
 type TasksRunNowInputT = TasksRunNowInput
 type TasksRunNowOutputT = TasksRunNowOutput
+
+// TasksSetModeInputT 是 tasks.setMode 的入参
+type TasksSetModeInputT = TasksSetModeInput
+type TasksSetModeOutputT = *TasksSetModeOutput
 
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput

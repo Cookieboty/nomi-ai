@@ -69,6 +69,7 @@ import {
   TaskBudgetInput,
   TaskCmdResult,
   TaskCreateInput,
+  TaskEventsView,
   TaskGrantInput,
   TaskJournalEntry,
   TaskListResult,
@@ -282,6 +283,19 @@ export const knowledgeProcedures = {
   },
   /** 删除（只有结束的任务可以删） */
   'tasks.remove': { kind: 'mutation', input: id, output: ok },
+  /** 事件任务：观察到的事件、最近一次拉取（§6.3） */
+  'tasks.events': { kind: 'query', input: id, output: TaskEventsView },
+  /** 把观察到的事件开成一次执行 */
+  'tasks.processObserved': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 忽略观察到的事件 */
+  'tasks.clearObserved': { kind: 'mutation', input: id, output: ok },
+  /** 只记录 ↔ 自动执行；改成自动执行是放宽授权 */
+  'tasks.setMode': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), mode: z.enum(['observe', 'act']) }),
+    output: TaskView.nullable(),
+    dangerous: true,
+  },
   /** 验收卡片上的回填：把 worktree 里的改动拷回主工作区（冲突与授权外的文件留在 worktree） */
   'tasks.applyWorktree': {
     kind: 'mutation',
@@ -465,6 +479,7 @@ export const knowledgeErrors = [
   'SCHED_BUSY',
   'SCHED_EMPTY',
   'TASKS_NOT_FOUND',
+  'TASKS_BAD_TRIGGER',
   'CONNECTIONS_NOT_FOUND',
   'CONNECTIONS_NEEDS_LOGIN',
   'CONNECTIONS_UNAVAILABLE',

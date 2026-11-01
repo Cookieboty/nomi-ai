@@ -15,6 +15,8 @@ import { applyWorktreeToMain } from '../cli/delegate/worktree';
 import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
 
+import { EventHub } from './events/EventHub';
+import type { EventSource, SourceEvent } from './events/types';
 import { createNotifyExecutor, type NotifyPort } from './executors/notify';
 import {
   legacyItems,
@@ -67,11 +69,19 @@ export interface CreateFromContract {
   acceptance?: Task['acceptance'];
 }
 
+/** 事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER） */
+export class TaskTriggerError extends Error {
+  readonly code = 'bad_trigger';
+}
+
 export class TaskService {
   readonly store: TaskStore;
   readonly runtime: TaskRuntime;
   private readonly executors: Partial<Record<ExecutorSpec['kind'], TaskExecutor>>;
   readonly outbox: Outbox;
+  /** 事件触发（§6）：事件源由各模块注册（registerSource） */
+  readonly events: EventHub;
+  private readonly sources: EventSource[] = [];
 
   constructor(private readonly d: TaskServiceDeps) {
     this.store = new TaskStore(d.root, d.logger);
@@ -117,10 +127,34 @@ export class TaskService {
       newId: (p) => `${p}_${randomUUID().replace(/-/g, '')}`,
       logger: d.logger,
       deliver: (task, what, attempt) => this.deliver(task, what, attempt),
-      onChange: (task) => d.events.publish('tasks.changed', { id: task.id }),
+      onChange: (task) => {
+        d.events.publish('tasks.changed', { id: task.id });
+        this.events?.sync(task);
+      },
       dailyBudgetExceeded: (task, at) =>
         this.spentToday(task.id, at) >= (task.budget.maxCostUsdPerDay ?? Infinity),
     });
+    this.events = new EventHub({
+      root: path.join(d.root, 'events'),
+      sources: this.sources,
+      get: (id) => this.runtime.get(id)?.task ?? null,
+      fire: (id, key) => this.runtime.fireEvent(id, key),
+      changed: (id) => d.events.publish('tasks.changed', { id }),
+      lastEventKey: (id) => this.runtime.get(id)?.attempts.at(-1)?.cause.eventKey,
+      logger: d.logger,
+      now,
+      setTimer,
+    });
+  }
+
+  /** 事件源（app / folder / web / github），须在 start 之前 */
+  registerSource(src: EventSource): void {
+    this.sources.push(src);
+  }
+
+  /** 执行者取这次执行要处理的事件 */
+  eventBatch(taskId: string, eventKey: string | undefined): SourceEvent[] {
+    return eventKey ? this.events.batch(taskId, eventKey) : [];
   }
 
   /** 其他模块注册执行者（nomi、cli） */
@@ -131,9 +165,11 @@ export class TaskService {
   start(): void {
     this.outbox.start();
     this.runtime.start();
+    this.events.start(this.runtime.list());
   }
 
   stop(): void {
+    this.events.stop();
     this.runtime.stop();
     this.outbox.stop();
   }
@@ -171,6 +207,7 @@ export class TaskService {
 
   create(input: CreateFromContract, createdBy: 'user' | 'nomi' = 'user'): Task {
     const now = (this.d.now ?? Date.now)();
+    this.checkTrigger(input.trigger, input.grant.connections ?? [], input.grant.paths ?? []);
     return this.runtime.create({
       title: input.title,
       goal: input.goal,
@@ -192,7 +229,47 @@ export class TaskService {
     id: string,
     patch: { title?: string; trigger?: Trigger; budget?: Partial<Budget> },
   ): Task | null {
+    const cur = this.runtime.get(id)?.task;
+    if (!cur) return null;
+    if (patch.trigger) {
+      // 改成自动执行是放宽授权：只能经 setMode（dangerous，界面里先确认），这里保留原来的模式
+      if (patch.trigger.kind === 'event')
+        patch = {
+          ...patch,
+          trigger: {
+            ...patch.trigger,
+            mode: cur.trigger.kind === 'event' ? cur.trigger.mode : 'observe',
+          },
+        };
+      this.checkTrigger(patch.trigger!, cur.grant.connections, cur.grant.paths);
+    }
     return this.runtime.patch(id, patch);
+  }
+
+  /** 事件任务：只记录 ↔ 自动执行（改成自动执行是放宽授权，契约里是 dangerous） */
+  setMode(id: string, mode: 'observe' | 'act'): Task | null {
+    const cur = this.runtime.get(id)?.task;
+    if (!cur || cur.trigger.kind !== 'event') return null;
+    return this.runtime.patch(id, { trigger: { ...cur.trigger, mode } });
+  }
+
+  /** 事件触发器：事件源存在、过滤条件合法且在授权范围里；不合法时返回原因 */
+  validateTrigger(
+    trigger: Trigger,
+    connections: Task['grant']['connections'],
+    paths: string[],
+  ): string | null {
+    if (trigger.kind !== 'event') return null;
+    return this.events.validate({ trigger, grant: { connections, paths } } as unknown as Task);
+  }
+
+  private checkTrigger(
+    trigger: Trigger,
+    connections: Task['grant']['connections'],
+    paths: string[],
+  ): void {
+    const err = this.validateTrigger(trigger, connections, paths);
+    if (err) throw new TaskTriggerError(err);
   }
 
   command(id: string, cmd: UserCommand): { ok: boolean; reason?: string } {
@@ -200,7 +277,9 @@ export class TaskService {
   }
 
   remove(id: string): boolean {
-    return this.runtime.remove(id);
+    const ok = this.runtime.remove(id);
+    if (ok) this.events.remove(id);
+    return ok;
   }
 
   /** 这个任务今天（本机时区）各次执行的已知费用合计；费用未知的不计入（§9：不编造费用） */

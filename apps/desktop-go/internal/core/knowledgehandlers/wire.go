@@ -3,6 +3,7 @@ package knowledgehandlers
 import (
 	"context"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -77,6 +78,40 @@ type Bundle struct {
 	N     int
 	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
 	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+
+	kbMu        sync.Mutex
+	kbListeners map[int]func()
+	kbSeq       int
+}
+
+// OnKBChanged：内核内部监听知识库变化（kb.changed；持续任务的 app 事件源），对应 Node eventBus.listen。
+// 回调在新 goroutine 上调用（发事件的地方可能持着知识库的锁）；返回取消函数
+func (b *Bundle) OnKBChanged(fn func()) func() {
+	b.kbMu.Lock()
+	defer b.kbMu.Unlock()
+	if b.kbListeners == nil {
+		b.kbListeners = map[int]func(){}
+	}
+	b.kbSeq++
+	id := b.kbSeq
+	b.kbListeners[id] = fn
+	return func() {
+		b.kbMu.Lock()
+		delete(b.kbListeners, id)
+		b.kbMu.Unlock()
+	}
+}
+
+func (b *Bundle) kbChanged() {
+	b.kbMu.Lock()
+	fns := make([]func(), 0, len(b.kbListeners))
+	for _, fn := range b.kbListeners {
+		fns = append(fns, fn)
+	}
+	b.kbMu.Unlock()
+	for _, fn := range fns {
+		go fn()
+	}
 }
 
 // Wire：对应 createCore.ts 里批次 8 的服务装配；返回后调用 Start 开启后台任务。
@@ -98,7 +133,13 @@ func Wire(d WireDeps) *Bundle {
 	extensions.SetTranslator(d.T)
 	local.SetTranslator(d.T)
 	b := &Bundle{}
-	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
+	kbEv := deps.EventsFunc(func(event string, payload any) {
+		d.Router.Emit(event, payload)
+		if event == "kb.changed" {
+			b.kbChanged()
+		}
+	})
+	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: kbEv, T: d.T,
 		ListProviders: d.Providers, Credentials: d.Credentials, ChatProvider: d.ChatProvider})
 	b.Mem = memory.New(memory.Deps{Root: ud("memory"), Logger: deps.StdLogger{Prefix: "[mem]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
 		Facade: d.MemoryFacade,

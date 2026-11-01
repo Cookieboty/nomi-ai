@@ -486,6 +486,19 @@ func (r *Runtime) Remove(id string) bool {
 
 // ---------- 触发 ----------
 
+// FireEvent：事件触发（EventHub）：eventKey 是这一批事件的 key；任务在忙 / 暂停时返回 OK=false，由 hub 稍后再开。
+// 不能在持有者里调用（OnChange 里要经 EventHub.SyncAsync）
+func (r *Runtime) FireEvent(id, eventKey string) CmdResult {
+	res := CmdResult{Reason: "not_found"}
+	r.own(func() {
+		if r.recs[id] == nil {
+			return
+		}
+		res = r.trigger(id, "event", eventKey)
+	})
+	return res
+}
+
 func (r *Runtime) trigger(id, cause, eventKey string) CmdResult {
 	task := r.recs[id].Task
 	at := r.d.Now()

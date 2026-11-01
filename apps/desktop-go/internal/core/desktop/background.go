@@ -14,6 +14,8 @@ type BackgroundRun struct {
 	Ask   func(tool, summary, detail string) bool
 	// Connections：任务授权里的连接（connections.md §2）；经连接的工具据此收窄
 	Connections []ConnGrant
+	// Tainted：这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4）
+	Tainted bool
 }
 
 // ConnGrant：授权里引用连接的方式
@@ -80,7 +82,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 		if cmd, cwd, ok := b.reviewableBackground(i); ok {
 			review := b.review(i, cmd, cwd)
 			// 与前台一致：审核放行就直接跑（workspace_run 总带 Force，审核结果优先）
-			if review != nil && review.Outcome == "allow" {
+			if review != nil && review.Outcome == "allow" && !run.Tainted {
 				return "auto"
 			}
 			if review != nil {
@@ -91,7 +93,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 				detail = d + "\n" + detail
 			}
 		}
-	} else if i.Danger == "write" && i.Force == nil && !b.IsTainted(i.Signal) {
+	} else if i.Danger == "write" && i.Force == nil && !b.IsTainted(i.Signal) && !run.Tainted {
 		if b.Policy(i.Tool, i.Danger) != "ask" {
 			return "auto"
 		}

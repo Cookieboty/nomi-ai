@@ -315,6 +315,12 @@ export class TaskRuntime {
 
   // ---------- 触发 ----------
 
+  /** 事件触发（EventHub）：eventKey 是这一批事件的 key；任务在忙 / 暂停时返回 ok:false，由 hub 稍后再开 */
+  fireEvent(id: string, eventKey: string): { ok: boolean; reason?: string } {
+    if (!this.tasks.has(id)) return { ok: false, reason: 'not_found' };
+    return this.trigger(id, 'event', eventKey);
+  }
+
   private trigger(id: string, cause: 'manual' | 'schedule' | 'event', eventKey?: string) {
     const task = this.tasks.get(id)!.rec.task;
     const at = this.d.now();

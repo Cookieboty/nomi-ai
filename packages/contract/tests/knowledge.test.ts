@@ -43,6 +43,7 @@ describe('knowledge 契约', () => {
       'tasks.create',
       'tasks.decide',
       'tasks.grant',
+      'tasks.setMode',
     ]);
     for (const d of Object.values(knowledgeProcedures)) {
       expect((d as { surfaces?: unknown }).surfaces).toBeUndefined();
@@ -60,6 +61,7 @@ describe('knowledge 契约', () => {
       'tasks.create',
       'tasks.decide',
       'tasks.grant',
+      'tasks.setMode',
     ]);
     const create = {
       title: '看 CI',

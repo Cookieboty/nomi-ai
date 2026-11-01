@@ -77,6 +77,8 @@ export interface BackgroundRun {
   ask(req: { tool: string; summary: string; detail: string }): Promise<boolean>;
   /** 任务授权里的连接（connections.md §2）：经连接的工具据此收窄到授权的能力与资源 */
   connections?: { connectionId: string; capabilities: string[]; resources: string[] }[];
+  /** 这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4） */
+  tainted?: boolean;
 }
 
 /** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
@@ -407,7 +409,7 @@ export class PermissionBroker {
         ? EXTERNAL_LEVEL
         : BACKGROUND_LEVEL[i.danger];
     if (run.level < need) return 'denied';
-    const tainted = this.isTainted(i.signal);
+    const tainted = this.isTainted(i.signal) || !!run.tainted;
     let detail = i.preview ?? i.summary;
     // 确定性分类在审核之前（commandClass.ts）：读凭据、合并发布等永远问人；对外动作要 L4
     const cmd = command ? String((i.args as { command?: unknown } | undefined)?.command ?? '') : '';
@@ -421,7 +423,7 @@ export class PermissionBroker {
     } else if (command) {
       const review = this.reviewer && this.aiReview() ? await this.review(i) : null;
       // 与前台一致：审核放行就直接跑（workspace_run 总带 force，审核结果优先）
-      if (review?.outcome === 'allow') return 'auto';
+      if (review?.outcome === 'allow' && !run.tainted) return 'auto';
       if (review)
         detail = `${review.risk}${review.rationale ? `: ${review.rationale}` : ''}\n${detail}`;
     } else if (i.danger === 'write' && !tainted && !i.force) {

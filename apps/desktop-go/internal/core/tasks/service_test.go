@@ -40,7 +40,7 @@ func TestServiceNotifyTaskAndDeliveries(t *testing.T) {
 	s.Start()
 	at := now + 60_000
 	text := "该站起来走走了"
-	task := s.Create(CreateRequest{Title: "站起来走走", Goal: "g", Trigger: Trigger{Kind: "schedule", At: &at},
+	task, _ := s.Create(CreateRequest{Title: "站起来走走", Goal: "g", Trigger: Trigger{Kind: "schedule", At: &at},
 		Executor: ExecutorSpec{Kind: "notify", Text: &text}}, "user")
 	now += 60_000
 	for _, tm := range timers {
@@ -60,7 +60,7 @@ func TestServiceNotifyTaskAndDeliveries(t *testing.T) {
 
 	// 失败投递
 	s.RegisterExecutor("nomi", &syncFailExec{})
-	b := s.Create(CreateRequest{Title: "看 CI", Goal: "g", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}, "user")
+	b, _ := s.Create(CreateRequest{Title: "看 CI", Goal: "g", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}, "user")
 	s.Command(b.ID, Command{Type: "runNow"})
 	if !strings.Contains(notices[len(notices)-1], "persistent-task-failed:看 CI:编译失败") {
 		t.Fatalf("notices %v", notices)

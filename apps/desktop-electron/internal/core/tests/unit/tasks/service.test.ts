@@ -131,6 +131,43 @@ describe('TaskService', () => {
     h.cleanup();
   });
 
+  it('事件任务：事件源要存在且在授权里；改触发器不能顺手改成自动执行，只能经 setMode', () => {
+    const h = setup();
+    h.svc.registerSource({
+      id: 'web',
+      minIntervalMs: 1000,
+      validate: (f) => ((f as { url?: string }).url ? null : 'url required'),
+    });
+    const base = {
+      title: 'a',
+      goal: 'g',
+      executor: { kind: 'nomi' as const, tools: ['read' as const] },
+      grant: { level: 1 as const, paths: [], connections: [] },
+    };
+    expect(() =>
+      h.svc.create({
+        ...base,
+        trigger: { kind: 'event', sourceId: 'nope', filter: {}, mode: 'observe' },
+      }),
+    ).toThrow('unknown event source');
+    expect(() =>
+      h.svc.create({
+        ...base,
+        trigger: { kind: 'event', sourceId: 'web', filter: {}, mode: 'observe' },
+      }),
+    ).toThrow('url required');
+    const t = h.svc.create({
+      ...base,
+      trigger: { kind: 'event', sourceId: 'web', filter: { url: 'https://x' }, mode: 'observe' },
+    });
+    const u = h.svc.update(t.id, {
+      trigger: { kind: 'event', sourceId: 'web', filter: { url: 'https://y' }, mode: 'act' },
+    });
+    expect(u!.trigger).toMatchObject({ filter: { url: 'https://y' }, mode: 'observe' });
+    expect(h.svc.setMode(t.id, 'act')!.trigger).toMatchObject({ mode: 'act' });
+    h.cleanup();
+  });
+
   it('旧的提醒 / 定时并入列表：只列待触发的提醒，按时间排', () => {
     const h = setup();
     expect(h.svc.list().legacy).toEqual(

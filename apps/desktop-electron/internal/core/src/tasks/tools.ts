@@ -54,6 +54,24 @@ const proposeInput = z.object({
         time: z.string().regex(HHMM),
       }),
       z.object({ kind: z.literal('interval'), minutes: z.number().int().min(5).max(10080) }),
+      z.object({
+        kind: z.literal('event'),
+        source: z
+          .enum(['web', 'github', 'folder', 'app'])
+          .describe(
+            'web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新',
+          ),
+        url: z.string().optional().describe('source=web：网址'),
+        feed: z.boolean().optional().describe('source=web：是 RSS / Atom 订阅'),
+        repo: z.string().optional().describe('source=github：owner/name'),
+        watch: z.enum(['issues', 'ci']).optional().describe('source=github：issues 或 ci'),
+        branch: z.string().optional().describe('source=github 且 watch=ci：分支'),
+        path: z.string().optional().describe('source=folder：绝对路径（要是用户打开过的目录）'),
+        app_event: z
+          .enum(['cli.finished', 'knowledge.updated'])
+          .optional()
+          .describe('source=app：哪种应用事件'),
+      }),
     ])
     .describe('何时运行'),
   executor: z
@@ -90,7 +108,7 @@ type ToolResult =
 
 const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
-/** 「何时」→ 触发器；时间按本机时区 */
+/** 「何时」→ 触发器；时间按本机时区。事件触发一律先「只记录」，改成自动执行由用户在任务页决定（§6.3） */
 export function triggerOf(w: z.infer<typeof proposeInput>['when'], now: number): Trigger {
   const at = (hhmm: string) => {
     const [h, m] = hhmm.split(':').map(Number);
@@ -117,6 +135,21 @@ export function triggerOf(w: z.infer<typeof proposeInput>['when'], now: number):
         at: now + w.minutes * 60_000,
         repeat: { kind: 'interval', minutes: w.minutes },
       };
+    case 'event': {
+      const filter =
+        w.source === 'web'
+          ? { url: w.url, kind: w.feed ? 'feed' : 'page' }
+          : w.source === 'github'
+            ? {
+                repo: w.repo,
+                watch: w.watch ?? 'issues',
+                ...(w.branch ? { branch: w.branch } : {}),
+              }
+            : w.source === 'folder'
+              ? { path: w.path }
+              : { event: w.app_event ?? 'cli.finished' };
+      return { kind: 'event', sourceId: w.source, filter, mode: 'observe' };
+    }
   }
 }
 
@@ -188,7 +221,18 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
               error: { code: 'bad_cwd', message: 'cwd 必须是用户打开过的工作区目录' },
             };
         }
-        const repos = i.github_repos ?? [];
+        const ev = i.when.kind === 'event' ? i.when : null;
+        const repos = [
+          ...new Set([
+            ...(i.github_repos ?? []),
+            ...(ev?.source === 'github' && ev.repo ? [ev.repo] : []),
+          ]),
+        ];
+        if (ev?.source === 'folder' && (!ev.path || !d.dirOk?.(ev.path)))
+          return {
+            ok: false,
+            error: { code: 'bad_path', message: 'path 必须是用户打开过的目录' },
+          };
         const gh = repos.length ? (d.githubConnection?.() ?? null) : null;
         if (repos.length && !gh)
           return {
@@ -201,6 +245,15 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
         } catch (e) {
           return { ok: false, error: { code: 'bad_time', message: String(e) } };
         }
+        const connections = gh
+          ? [{ connectionId: gh.id, capabilities: ['github.read'], resources: repos }]
+          : [];
+        const paths = [
+          ...(i.executor === 'cli' ? [i.cwd!] : []),
+          ...(ev?.source === 'folder' && ev.path ? [ev.path] : []),
+        ];
+        const bad = d.tasks.validateTrigger(trigger, connections, paths);
+        if (bad) return { ok: false, error: { code: 'bad_trigger', message: bad } };
         const card = authorizationCard({
           title: i.title,
           goal: i.goal,
@@ -235,10 +288,8 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
                   : { kind: 'nomi', tools: [...i.tools] as ToolClass[] },
             grant: {
               level,
-              paths: i.executor === 'cli' ? [i.cwd!] : [],
-              connections: gh
-                ? [{ connectionId: gh.id, capabilities: ['github.read'], resources: repos }]
-                : [],
+              paths,
+              connections,
             },
           },
           'nomi',

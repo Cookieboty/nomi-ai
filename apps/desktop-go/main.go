@@ -419,8 +419,8 @@ func main() {
 			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
 				Tools: toolNames, Quiet: true, Extra: extra}, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant) context.Context {
-			run := &desktop.BackgroundRun{Level: level, Ask: ask}
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted bool) context.Context {
+			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted}
 			for _, g := range conns {
 				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 			}
@@ -442,9 +442,14 @@ func main() {
 				log.Printf("[tasks] trace: %v", err)
 			}
 		},
+		EventsFor: b8.Tasks.EventBatch,
 	}))
 	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
-	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCliDeps(desktopSvc)))
+	taskCli := taskCliDeps(desktopSvc)
+	taskCli.EventsFor = b8.Tasks.EventBatch
+	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCli))
+	// 事件源（§6.2）：web / folder / github / app；编程助手的 tab-finished 在 wireHarness 之后接上
+	registerTaskSources(b8)
 	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
 	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
@@ -500,6 +505,7 @@ func main() {
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	taskCliFinished.attach(harnessOrch)
 	// 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、或这个模型在云端
 	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认（与 Node createCore 一致）
 	desktopSvc.Broker.AIReview = func() bool { return jsrt.Call(harnessOrch.AiReviewEnabled) }

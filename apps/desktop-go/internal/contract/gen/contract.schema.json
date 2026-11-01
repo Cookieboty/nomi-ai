@@ -20524,6 +20524,27 @@
     "additionalProperties": false
    }
   },
+  "tasks.clearObserved": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "tasks.create": {
    "kind": "mutation",
    "dangerous": true,
@@ -21043,6 +21064,71 @@
     },
     "required": [
      "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.events": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "observed": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "key": {
+         "type": "string"
+        },
+        "occurredAt": {
+         "type": "number"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "payload": {}
+       },
+       "required": [
+        "key",
+        "occurredAt",
+        "summary",
+        "payload"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "lastPollAt": {
+      "type": "number"
+     },
+     "lastError": {
+      "type": "string"
+     },
+     "sources": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "observed",
+     "sources"
     ],
     "additionalProperties": false
    }
@@ -21714,6 +21800,39 @@
     "additionalProperties": false
    }
   },
+  "tasks.processObserved": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
   "tasks.reconcile": {
    "kind": "mutation",
    "dangerous": false,
@@ -21913,6 +22032,130 @@
      "ok"
     ],
     "additionalProperties": false
+   }
+  },
+  "tasks.setMode": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "observe",
+       "act"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "mode"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "goal": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "idle",
+         "queued",
+         "running",
+         "waiting_user",
+         "needs_reconcile",
+         "awaiting_accept",
+         "done",
+         "failed",
+         "cancelled",
+         "expired"
+        ]
+       },
+       "enabled": {
+        "type": "boolean"
+       },
+       "gen": {
+        "type": "number"
+       },
+       "trigger": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "additionalProperties": {}
+       },
+       "executor": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "additionalProperties": {}
+       },
+       "grant": {
+        "type": "object",
+        "properties": {
+         "version": {
+          "type": "number"
+         },
+         "level": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "version",
+         "level"
+        ],
+        "additionalProperties": {}
+       },
+       "updatedAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "id",
+       "title",
+       "goal",
+       "status",
+       "enabled",
+       "gen",
+       "trigger",
+       "executor",
+       "grant",
+       "updatedAt"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
    }
   },
   "tasks.update": {
@@ -27855,6 +28098,7 @@
   "SCHED_BUSY",
   "SCHED_EMPTY",
   "TASKS_NOT_FOUND",
+  "TASKS_BAD_TRIGGER",
   "CONNECTIONS_NOT_FOUND",
   "CONNECTIONS_NEEDS_LOGIN",
   "CONNECTIONS_UNAVAILABLE",

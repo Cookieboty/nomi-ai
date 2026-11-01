@@ -35,8 +35,19 @@ type Service struct {
 	Outbox  *Outbox
 	Store   *Store
 	Runtime *Runtime
+	// Events：事件触发（§6）：事件源由各模块注册（RegisterSource）
+	Events  *EventHub
+	sources []*EventSource
 	exec    map[string]Executor
 }
+
+// TriggerError：事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER）
+type TriggerError struct{ Msg string }
+
+func (e *TriggerError) Error() string { return e.Msg }
+
+// Code：bad_trigger
+func (e *TriggerError) Code() string { return "bad_trigger" }
 
 type ListResult struct {
 	Tasks  []Task       `json:"tasks"`
@@ -124,9 +135,47 @@ func NewService(d ServiceDeps) *Service {
 			if d.Emit != nil {
 				d.Emit("tasks.changed", map[string]string{"id": t.ID})
 			}
+			// 在运行时的持有者里：不能同步回到 FireEvent，排队给 hub
+			if s.Events != nil {
+				s.Events.SyncAsync(t)
+			}
 		},
 	})
+	s.Events = NewEventHub(EventHubDeps{
+		Root:    filepath.Join(d.Root, "events"),
+		Sources: func() []*EventSource { return s.sources },
+		Fire:    s.Runtime.FireEvent,
+		Changed: func(id string) {
+			if d.Emit != nil {
+				d.Emit("tasks.changed", map[string]string{"id": id})
+			}
+		},
+		LastEventKey: func(id string) string {
+			rec := s.Runtime.Get(id)
+			if rec == nil || len(rec.Attempts) == 0 {
+				return ""
+			}
+			if k := rec.Attempts[len(rec.Attempts)-1].Cause.EventKey; k != nil {
+				return *k
+			}
+			return ""
+		},
+		Log:      d.Log,
+		Now:      d.Now,
+		SetTimer: d.SetTimer,
+	})
 	return s
+}
+
+// RegisterSource：事件源（app / folder / web / github），须在 Start 之前
+func (s *Service) RegisterSource(src *EventSource) { s.sources = append(s.sources, src) }
+
+// EventBatch：执行者取这次执行要处理的事件
+func (s *Service) EventBatch(taskID string, eventKey *string) []SourceEvent {
+	if eventKey == nil || *eventKey == "" {
+		return []SourceEvent{}
+	}
+	return s.Events.Batch(taskID, *eventKey)
 }
 
 // RegisterExecutor：nomi、cli 由各自模块注册（须在 Start 之前）
@@ -135,9 +184,11 @@ func (s *Service) RegisterExecutor(kind string, ex Executor) { s.exec[kind] = ex
 func (s *Service) Start() {
 	s.Outbox.Start()
 	s.Runtime.Start()
+	s.Events.Start(s.Runtime.List())
 }
 
 func (s *Service) Stop() {
+	s.Events.Stop()
 	s.Runtime.Stop()
 	s.Outbox.Stop()
 }
@@ -191,17 +242,82 @@ type CreateRequest struct {
 	Acceptance     string       `json:"acceptance,omitempty"`
 }
 
-func (s *Service) Create(in CreateRequest, createdBy string) Task {
+// Create：事件触发器不合法时返回 *TriggerError
+func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
+	if err := s.checkTrigger(in.Trigger, in.Grant.Connections, in.Grant.Paths); err != nil {
+		return Task{}, err
+	}
 	return s.Runtime.Create(CreateInput{Title: in.Title, Goal: in.Goal,
 		Origin:  Origin{ConversationID: in.ConversationID, CreatedBy: createdBy, CreatedAt: s.d.Now()},
-		Trigger: in.Trigger, Executor: in.Executor, Grant: in.Grant, Budget: in.Budget, Acceptance: in.Acceptance})
+		Trigger: in.Trigger, Executor: in.Executor, Grant: in.Grant, Budget: in.Budget, Acceptance: in.Acceptance}), nil
 }
 
-func (s *Service) Update(id string, p Patch) *Task { return s.Runtime.Patch(id, p) }
+// Update：没有这个任务返回 nil, nil；事件触发器不合法返回 *TriggerError
+func (s *Service) Update(id string, p Patch) (*Task, error) {
+	rec := s.Runtime.Get(id)
+	if rec == nil {
+		return nil, nil
+	}
+	cur := rec.Task
+	if p.Trigger != nil {
+		tr := *p.Trigger
+		// 改成自动执行是放宽授权：只能经 SetMode（dangerous，界面里先确认），这里保留原来的模式
+		if tr.Kind == "event" {
+			mode := "observe"
+			if cur.Trigger.Kind == "event" && cur.Trigger.Mode != nil {
+				mode = *cur.Trigger.Mode
+			}
+			tr.Mode = &mode
+			p.Trigger = &tr
+		}
+		if err := s.checkTrigger(tr, cur.Grant.Connections, cur.Grant.Paths); err != nil {
+			return nil, err
+		}
+	}
+	return s.Runtime.Patch(id, p), nil
+}
+
+// SetMode：事件任务：只记录 ↔ 自动执行（改成自动执行是放宽授权，契约里是 dangerous）
+func (s *Service) SetMode(id, mode string) *Task {
+	rec := s.Runtime.Get(id)
+	if rec == nil || rec.Task.Trigger.Kind != "event" {
+		return nil
+	}
+	tr := rec.Task.Trigger
+	tr.Mode = &mode
+	return s.Runtime.Patch(id, Patch{Trigger: &tr})
+}
+
+// ValidateTrigger：事件触发器：事件源存在、过滤条件合法且在授权范围里；不合法时返回原因
+func (s *Service) ValidateTrigger(tr Trigger, conns []ConnectionGrant, paths []string) string {
+	if tr.Kind != "event" {
+		return ""
+	}
+	if conns == nil {
+		conns = []ConnectionGrant{}
+	}
+	if paths == nil {
+		paths = []string{}
+	}
+	return s.Events.Validate(Task{Trigger: tr, Grant: Grant{Connections: conns, Paths: paths}})
+}
+
+func (s *Service) checkTrigger(tr Trigger, conns []ConnectionGrant, paths []string) error {
+	if msg := s.ValidateTrigger(tr, conns, paths); msg != "" {
+		return &TriggerError{Msg: msg}
+	}
+	return nil
+}
 
 func (s *Service) Command(id string, c Command) CmdResult { return s.Runtime.Command(id, c) }
 
-func (s *Service) Remove(id string) bool { return s.Runtime.Remove(id) }
+func (s *Service) Remove(id string) bool {
+	ok := s.Runtime.Remove(id)
+	if ok {
+		s.Events.Remove(id)
+	}
+	return ok
+}
 
 // WorktreeApply：回填结果（contract tasks.applyWorktree 的输出）
 type WorktreeApply struct {

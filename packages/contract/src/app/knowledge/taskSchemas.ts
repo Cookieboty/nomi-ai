@@ -142,6 +142,22 @@ export const TaskJournalEntry = z.looseObject({ t: z.string(), at: z.number() })
 
 export const TaskCmdResult = z.object({ ok: z.boolean(), reason: z.string().optional() });
 
+/** 事件源命中的一件事（payload 是外部内容，视图只显示 summary） */
+export const TaskSourceEvent = z.object({
+  key: z.string(),
+  occurredAt: z.number(),
+  summary: z.string(),
+  payload: z.unknown(),
+});
+
+/** 事件任务的观察结果与拉取状态（§6.3） */
+export const TaskEventsView = z.object({
+  observed: z.array(TaskSourceEvent),
+  lastPollAt: z.number().optional(),
+  lastError: z.string().optional(),
+  sources: z.array(z.string()),
+});
+
 // ---------- connections（docs/design/connections.md） ----------
 
 export const ConnectionView = z.looseObject({

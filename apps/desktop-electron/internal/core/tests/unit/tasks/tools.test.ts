@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createGithubSource } from '../../../src/tasks/events/sources/github';
 import { TaskService } from '../../../src/tasks/TaskService';
 import { createTaskTools, triggerOf } from '../../../src/tasks/tools';
 
@@ -213,6 +214,32 @@ describe('task_propose / task_recall', () => {
       executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
       grant: { level: 2, paths: ['/repo'] },
     });
+    fs.rmSync(h.dir, { recursive: true, force: true });
+  });
+
+  it('事件触发：先只记录；github 的仓库自动并入只读授权；事件源校验在弹卡片之前', async () => {
+    const h = setup('allowed', { id: 'conn_1', label: 'GitHub · octo' });
+    h.svc.registerSource(createGithubSource({ read: async () => [] }));
+    const r = (await h.tool('task_propose').execute(
+      {
+        title: '盯 issue',
+        goal: '有新 issue 告诉我',
+        when: { kind: 'event', source: 'github', repo: 'o/r', watch: 'issues' },
+      },
+      {},
+    )) as { ok: true; data: { id: string } };
+    expect(r.ok).toBe(true);
+    expect(h.cards.at(-1)!.preview).toContain('o/r');
+    expect(h.svc.get(r.data.id)!.task).toMatchObject({
+      trigger: { kind: 'event', sourceId: 'github', filter: { repo: 'o/r' }, mode: 'observe' },
+      grant: { connections: [{ connectionId: 'conn_1', resources: ['o/r'] }] },
+    });
+    const n = h.cards.length;
+    const bad = await h
+      .tool('task_propose')
+      .execute({ title: 't', goal: 'g', when: { kind: 'event', source: 'web' } }, {});
+    expect(bad).toMatchObject({ ok: false, error: { code: 'bad_trigger' } });
+    expect(h.cards).toHaveLength(n);
     fs.rmSync(h.dir, { recursive: true, force: true });
   });
 });

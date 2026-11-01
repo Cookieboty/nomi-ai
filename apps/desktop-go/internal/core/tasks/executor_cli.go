@@ -80,6 +80,8 @@ type CliDeps struct {
 	ParseReport      func(text string) *CliReport
 	// DirOk：目录还存在、仍是用户认可的工作区
 	DirOk func(dir string) bool
+	// EventsFor：这次执行要处理的事件（事件触发时）
+	EventsFor func(taskID string, eventKey *string) []SourceEvent
 }
 
 type cliRun struct {
@@ -193,7 +195,13 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 		}
 		return "上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。"
 	}
-	return e.d.BuildPrompt(ctx.Task.Goal, ctx.Task.Title, "目标里写的结果达成；做不到时说明原因")
+	context := ctx.Task.Title
+	if e.d.EventsFor != nil {
+		if ev := EventsSection(e.d.EventsFor(ctx.Task.ID, c.EventKey)); ev != "" {
+			context += "\n" + ev
+		}
+	}
+	return e.d.BuildPrompt(ctx.Task.Goal, context, "目标里写的结果达成；做不到时说明原因")
 }
 
 func runeSlice(s string, n int) string {
