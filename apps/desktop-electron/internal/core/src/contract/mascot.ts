@@ -30,6 +30,11 @@ type MascotCoreProcedureName =
   | 'chatBg.set'
   | 'chatBg.reset'
   | 'chatBg.pickImage'
+  | 'chatAssets.list'
+  | 'chatAssets.remove'
+  | 'chatAssets.reveal'
+  | 'chatAssets.regenerate'
+  | 'chatAssets.saveAs'
   | 'mascot.getRenderer'
   | 'mascot.setRenderer'
   | 'character.assets'
@@ -91,6 +96,19 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'chatBg.reset': () => need(services.chatBg, 'chatBg').reset().then(plain),
     'chatBg.pickImage': (_input, ctx) =>
       withChatBgErrors(ctx, () => need(services.chatBg, 'chatBg').pickImage('chat')).then(plain),
+
+    // —— 素材库（全部生成的图片；只在对话窗口调用）
+    'chatAssets.list': () =>
+      need(services.chatAssets, 'chatAssets')
+        .list()
+        .map((x) => plain(x)),
+    'chatAssets.remove': async ({ files }) => ({
+      removed: await need(services.chatAssets, 'chatAssets').remove(files),
+    }),
+    'chatAssets.reveal': ({ file }) => need(services.chatAssets, 'chatAssets').reveal(file),
+    'chatAssets.regenerate': ({ file }) =>
+      need(services.chatAssets, 'chatAssets').regenerate(file).then(plain),
+    'chatAssets.saveAs': ({ file }) => need(services.chatAssets, 'chatAssets').saveAs(file),
 
     // —— 桌面角色渲染器（userData/settings.json 的 mascot.renderer，默认 svg）
     'mascot.getRenderer': () => readMascotRenderer(deps.ports.paths.userData()),

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cx } from './cx';
 import { t } from './i18n';
@@ -80,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
     );
   }
   const drawer = host?.mode === 'drawer';
-  return (
+  const overlay = (
     <div
       className={cx('cd-modal-overlay', drawer && 'cd-modal-overlay--drawer')}
       data-testid={testId ? `${testId}-overlay` : undefined}
@@ -127,6 +128,9 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+  // 挂到 body：弹窗可能开在消息区等有自己层叠上下文的容器里（如对话里点开大图），
+  // 不挂出去会被输入栏等兄弟元素盖住。遮罩本来就是 fixed，位置不变；React 上下文照常穿过 portal
+  return typeof document === 'undefined' ? overlay : createPortal(overlay, document.body);
 };
 
 export const Dialog = Modal;

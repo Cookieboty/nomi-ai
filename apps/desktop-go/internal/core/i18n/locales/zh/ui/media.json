@@ -1,0 +1,21 @@
+{
+  "ui.media.asset-library": "素材库",
+  "ui.media.delete-image-title": "删除这张图片？",
+  "ui.media.delete-image-body": "图片会移到系统废纸篓，之后还能从那里找回来。",
+  "ui.media.created-at": "生成时间",
+  "ui.media.prompt": "提示词",
+  "ui.media.no-images-yet": "还没有生成过图片。在对话里让 Nomi 画一张，或让编程助手生成图片，都会出现在这里。",
+  "ui.media.generated-by": "由 {0} 生成",
+  "ui.media.auto-matched": "自动匹配",
+  "ui.media.no-prompt": "（没有记下提示词）",
+  "ui.media.details": "详情",
+  "ui.media.size": "尺寸",
+  "ui.media.aspect": "画幅",
+  "ui.media.edited-from": "改自",
+  "ui.media.references": "参考图",
+  "ui.media.regenerating": "正在生成…",
+  "ui.media.edit-this": "以此修改",
+  "ui.media.use-as-reference": "作为参考",
+  "ui.media.compose-edit": "修改这张图片（{0}）：",
+  "ui.media.compose-reference": "参考这张图片（{0}）生成："
+}

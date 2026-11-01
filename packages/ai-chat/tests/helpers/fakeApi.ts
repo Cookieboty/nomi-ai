@@ -132,6 +132,7 @@ export function fakeApiModule(): {
   hasTransport: () => boolean;
   installHostBackends: () => void;
   hostPathForFile: (file: File) => string;
+  hostAssetUrl: (url: string) => string;
 } {
   const api = new Proxy(
     {},
@@ -148,5 +149,6 @@ export function fakeApiModule(): {
     hasTransport: () => state().impl !== null,
     installHostBackends: () => undefined,
     hostPathForFile: () => '',
+    hostAssetUrl: (url: string) => url,
   };
 }

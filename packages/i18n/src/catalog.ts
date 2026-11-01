@@ -1,10 +1,12 @@
 import ai_runtime_providers_en from './locales/en/ai-runtime/providers.json';
 import electron_common_en from './locales/en/electron/common.json';
+import electron_image_en from './locales/en/electron/image.json';
 import ui_chat_settings_en from './locales/en/ui/chat-settings.json';
 import ui_cli_monitor_en from './locales/en/ui/cli-monitor.json';
 import ui_foundation_en from './locales/en/ui/foundation.json';
 import ui_knowledge_local_en from './locales/en/ui/knowledge-local.json';
 import ui_mascot_theme_en from './locales/en/ui/mascot-theme.json';
+import ui_media_en from './locales/en/ui/media.json';
 import ui_model_quality_en from './locales/en/ui/model-quality.json';
 import ui_models_en from './locales/en/ui/models.json';
 import ui_providers_schedule_en from './locales/en/ui/providers-schedule.json';
@@ -14,11 +16,13 @@ import ui_usage_tools_en from './locales/en/ui/usage-tools.json';
 import ui_voice_mascot_en from './locales/en/ui/voice-mascot.json';
 import ai_runtime_providers_zh from './locales/zh/ai-runtime/providers.json';
 import electron_common_zh from './locales/zh/electron/common.json';
+import electron_image_zh from './locales/zh/electron/image.json';
 import ui_chat_settings_zh from './locales/zh/ui/chat-settings.json';
 import ui_cli_monitor_zh from './locales/zh/ui/cli-monitor.json';
 import ui_foundation_zh from './locales/zh/ui/foundation.json';
 import ui_knowledge_local_zh from './locales/zh/ui/knowledge-local.json';
 import ui_mascot_theme_zh from './locales/zh/ui/mascot-theme.json';
+import ui_media_zh from './locales/zh/ui/media.json';
 import ui_model_quality_zh from './locales/zh/ui/model-quality.json';
 import ui_models_zh from './locales/zh/ui/models.json';
 import ui_providers_schedule_zh from './locales/zh/ui/providers-schedule.json';
@@ -31,11 +35,13 @@ export const DICTIONARIES = {
   zh: {
     ai_runtime_providers: ai_runtime_providers_zh,
     electron_common: electron_common_zh,
+    electron_image: electron_image_zh,
     ui_chat_settings: ui_chat_settings_zh,
     ui_cli_monitor: ui_cli_monitor_zh,
     ui_foundation: ui_foundation_zh,
     ui_knowledge_local: ui_knowledge_local_zh,
     ui_mascot_theme: ui_mascot_theme_zh,
+    ui_media: ui_media_zh,
     ui_model_quality: ui_model_quality_zh,
     ui_models: ui_models_zh,
     ui_providers_schedule: ui_providers_schedule_zh,
@@ -47,11 +53,13 @@ export const DICTIONARIES = {
   en: {
     ai_runtime_providers: ai_runtime_providers_en,
     electron_common: electron_common_en,
+    electron_image: electron_image_en,
     ui_chat_settings: ui_chat_settings_en,
     ui_cli_monitor: ui_cli_monitor_en,
     ui_foundation: ui_foundation_en,
     ui_knowledge_local: ui_knowledge_local_en,
     ui_mascot_theme: ui_mascot_theme_en,
+    ui_media: ui_media_en,
     ui_model_quality: ui_model_quality_en,
     ui_models: ui_models_en,
     ui_providers_schedule: ui_providers_schedule_en,
@@ -664,7 +672,16 @@ export type TranslationKey =
   | 'electron.common.you-haven-t-agreed-to-send-file-chunks'
   | 'electron.common.you-re-away-from-the-computer'
   | 'electron.common.you-were-just-chatting'
-  | 'ui.chat-settings.preset-image'
+  | 'electron.image.service-returned'
+  | 'electron.image.download-failed'
+  | 'electron.image.too-large'
+  | 'electron.image.no-image-in-response'
+  | 'electron.image.no-image-model'
+  | 'electron.image.task-failed'
+  | 'electron.image.task-timeout'
+  | 'electron.image.edit-not-supported'
+  | 'electron.image.edit-source-missing'
+  | 'electron.image.no-prompt-to-regenerate'
   | 'ui.chat-settings.a-browser-window-should-have-opened-if-not'
   | 'ui.chat-settings.about'
   | 'ui.chat-settings.about-these-settings'
@@ -672,6 +689,7 @@ export type TranslationKey =
   | 'ui.chat-settings.accessible-folders-available-tools-and-the-action-log'
   | 'ui.chat-settings.account-name'
   | 'ui.chat-settings.action'
+  | 'ui.chat-settings.add-folders-they-are-searched-and-cited'
   | 'ui.chat-settings.add-official-account'
   | 'ui.chat-settings.add-providers-and-keys-nomi-converts-protocols-automatically'
   | 'ui.chat-settings.added'
@@ -685,9 +703,6 @@ export type TranslationKey =
   | 'ui.chat-settings.always-use-the-top-pill'
   | 'ui.chat-settings.animated-nomi'
   | 'ui.chat-settings.animated-nomi-desc'
-  | 'ui.chat-settings.rive-assets-checking'
-  | 'ui.chat-settings.rive-assets-downloading'
-  | 'ui.chat-settings.rive-assets-failed'
   | 'ui.chat-settings.app-icon'
   | 'ui.chat-settings.appearance'
   | 'ui.chat-settings.appearance-theme-icon-and-chat-background'
@@ -701,6 +716,8 @@ export type TranslationKey =
   | 'ui.chat-settings.asks-you-before-changing-files-or-running-commands'
   | 'ui.chat-settings.asks-you-every-time-before-writing-files-or'
   | 'ui.chat-settings.authorization-code'
+  | 'ui.chat-settings.auto-approve-confirm-body'
+  | 'ui.chat-settings.auto-approve-everything'
   | 'ui.chat-settings.auto-deny-in-s'
   | 'ui.chat-settings.auto-edit-files'
   | 'ui.chat-settings.auto-for-read-only-confirm-others'
@@ -723,6 +740,7 @@ export type TranslationKey =
   | 'ui.chat-settings.chat-nomi-tray-and-notifications-switch-instantly'
   | 'ui.chat-settings.chats'
   | 'ui.chat-settings.cheap-model-cheap'
+  | 'ui.chat-settings.choose-another-folder'
   | 'ui.chat-settings.choose-image'
   | 'ui.chat-settings.choose-the-models-for-nomi-chat-tool-calls'
   | 'ui.chat-settings.choose-which-endpoints-show-in-the-sidebar'
@@ -734,11 +752,9 @@ export type TranslationKey =
   | 'ui.chat-settings.coding-agent-progress-only-reads-local-logs-status'
   | 'ui.chat-settings.coding-agent-watching-requires-the-desktop-app'
   | 'ui.chat-settings.collapse-expand-sidebar'
-  | 'ui.chat-settings.minimize-window'
-  | 'ui.chat-settings.maximize-window'
-  | 'ui.chat-settings.restore-window'
   | 'ui.chat-settings.collapse-sidebar'
   | 'ui.chat-settings.collapse-sidebar-ctrl-b'
+  | 'ui.chat-settings.compacting-earlier-messages'
   | 'ui.chat-settings.configure-nomi-s-basic-behavior-and-appearance'
   | 'ui.chat-settings.confirm'
   | 'ui.chat-settings.confirm-action'
@@ -747,10 +763,14 @@ export type TranslationKey =
   | 'ui.chat-settings.connected'
   | 'ui.chat-settings.connection-failed'
   | 'ui.chat-settings.content'
+  | 'ui.chat-settings.conversation-deleted-message-not-sent'
+  | 'ui.chat-settings.copy-file'
   | 'ui.chat-settings.copy-one-time-code'
+  | 'ui.chat-settings.couldn-t-compact-earlier-messages'
   | 'ui.chat-settings.couldn-t-decode-the-image'
   | 'ui.chat-settings.couldn-t-read-the-model-list-from'
   | 'ui.chat-settings.covers-all-interfaces'
+  | 'ui.chat-settings.create-folder'
   | 'ui.chat-settings.credits'
   | 'ui.chat-settings.current'
   | 'ui.chat-settings.currently'
@@ -778,7 +798,9 @@ export type TranslationKey =
   | 'ui.chat-settings.drop-onto-nomi-to-summarize'
   | 'ui.chat-settings.due-reminders-and-scheduled-task-results'
   | 'ui.chat-settings.dynamic-island'
+  | 'ui.chat-settings.earlier-messages-were-compacted-into-a-summary'
   | 'ui.chat-settings.edit-skill'
+  | 'ui.chat-settings.edit-text-file'
   | 'ui.chat-settings.edits-files-in-the-working-directory-automatically-other'
   | 'ui.chat-settings.effort-default-set-by-cli'
   | 'ui.chat-settings.end-time'
@@ -804,6 +826,7 @@ export type TranslationKey =
   | 'ui.chat-settings.failed-to-send-streaming-message'
   | 'ui.chat-settings.file-contents-were-just-read-this-turn-to'
   | 'ui.chat-settings.first-use-of-this-tool-this-session'
+  | 'ui.chat-settings.folder-access-request'
   | 'ui.chat-settings.folder-grants-activity-log'
   | 'ui.chat-settings.follow-up-after-a-background-task-finished'
   | 'ui.chat-settings.following-the-system-currently-chat-nomi-tray-and'
@@ -812,8 +835,10 @@ export type TranslationKey =
   | 'ui.chat-settings.full-access-has-to-be-chosen-and-confirmed'
   | 'ui.chat-settings.full-access-won-t-ask-and-can-change'
   | 'ui.chat-settings.general'
+  | 'ui.chat-settings.general-sections'
   | 'ui.chat-settings.go-through-it-again-language-theme-startup-layout'
   | 'ui.chat-settings.goals'
+  | 'ui.chat-settings.grant-folder'
   | 'ui.chat-settings.graphite'
   | 'ui.chat-settings.gravity-landing'
   | 'ui.chat-settings.h-ago'
@@ -847,6 +872,7 @@ export type TranslationKey =
   | 'ui.chat-settings.keep-editing'
   | 'ui.chat-settings.keys-in-chats-files-and-command-output-become-placeholders'
   | 'ui.chat-settings.knowledge-and-memory-sections'
+  | 'ui.chat-settings.knowledge-base-long-term-memory-and-schedule-all-local'
   | 'ui.chat-settings.knowledge-memory'
   | 'ui.chat-settings.knowledge-memory-schedule'
   | 'ui.chat-settings.launch-coding-assistants-with-third-party-models-from'
@@ -872,11 +898,13 @@ export type TranslationKey =
   | 'ui.chat-settings.manage-skill-packs-the-assistant-can-use'
   | 'ui.chat-settings.mask-sends-a-placeholder-warn-sends-as-is-block'
   | 'ui.chat-settings.max'
+  | 'ui.chat-settings.maximize-window'
   | 'ui.chat-settings.may-be-stuck'
   | 'ui.chat-settings.medium'
   | 'ui.chat-settings.memory-is-tight'
   | 'ui.chat-settings.min-ago'
   | 'ui.chat-settings.minimal'
+  | 'ui.chat-settings.minimize-window'
   | 'ui.chat-settings.mock'
   | 'ui.chat-settings.mock-conversation'
   | 'ui.chat-settings.mock-reply'
@@ -884,14 +912,17 @@ export type TranslationKey =
   | 'ui.chat-settings.model-and-reasoning-effort'
   | 'ui.chat-settings.model-and-reasoning-effort-label'
   | 'ui.chat-settings.models'
+  | 'ui.chat-settings.models-and-providers'
+  | 'ui.chat-settings.models-and-providers-sections'
   | 'ui.chat-settings.models-each-coding-assistant-uses-in-third-party'
   | 'ui.chat-settings.more-endpoints'
+  | 'ui.chat-settings.move-or-rename'
   | 'ui.chat-settings.move-to-trash'
   | 'ui.chat-settings.moved-to-position'
   | 'ui.chat-settings.never-mask'
   | 'ui.chat-settings.new-chat'
-  | 'ui.chat-settings.new-tabs-now-default-to'
   | 'ui.chat-settings.new-sessions-use'
+  | 'ui.chat-settings.new-tabs-now-default-to'
   | 'ui.chat-settings.no-image-yet'
   | 'ui.chat-settings.no-keys-hidden-yet'
   | 'ui.chat-settings.no-past-conversations'
@@ -927,12 +958,14 @@ export type TranslationKey =
   | 'ui.chat-settings.paste-text-to-see-what-the-provider-would-receive'
   | 'ui.chat-settings.permission-mode'
   | 'ui.chat-settings.permission-mode-label'
+  | 'ui.chat-settings.permissions'
   | 'ui.chat-settings.plan'
   | 'ui.chat-settings.plenty-of-memory'
   | 'ui.chat-settings.position-alt-to-reorder'
   | 'ui.chat-settings.prd-requirements'
   | 'ui.chat-settings.preferences'
   | 'ui.chat-settings.preferences-and-facts-remembered-from-chats-view-and'
+  | 'ui.chat-settings.preset-image'
   | 'ui.chat-settings.preview-not-yet-run'
   | 'ui.chat-settings.privacy-action-block'
   | 'ui.chat-settings.privacy-action-mask'
@@ -962,7 +995,11 @@ export type TranslationKey =
   | 'ui.chat-settings.request-folder-access'
   | 'ui.chat-settings.requests-waiting'
   | 'ui.chat-settings.research'
+  | 'ui.chat-settings.restore-window'
   | 'ui.chat-settings.reviewing-my-work'
+  | 'ui.chat-settings.rive-assets-checking'
+  | 'ui.chat-settings.rive-assets-downloading'
+  | 'ui.chat-settings.rive-assets-failed'
   | 'ui.chat-settings.run-code-in-sandbox'
   | 'ui.chat-settings.running-in-background'
   | 'ui.chat-settings.s-until-auto-deny'
@@ -973,7 +1010,6 @@ export type TranslationKey =
   | 'ui.chat-settings.sandbox-browser-type-text'
   | 'ui.chat-settings.schedule'
   | 'ui.chat-settings.scheduling-requires-the-desktop-app'
-  | 'ui.chat-settings.sending-images-requires-the-desktop-app'
   | 'ui.chat-settings.search-files'
   | 'ui.chat-settings.secret-entry-summary'
   | 'ui.chat-settings.secret-kind-api-key'
@@ -986,6 +1022,7 @@ export type TranslationKey =
   | 'ui.chat-settings.see-third-party-notices-md-and-assets-licenses'
   | 'ui.chat-settings.send-look-alike-keys'
   | 'ui.chat-settings.send-new-line'
+  | 'ui.chat-settings.sending-images-requires-the-desktop-app'
   | 'ui.chat-settings.sessions-are-tied-to-their-working-directory-so'
   | 'ui.chat-settings.set-model-prices-unpriced-models-are-not-counted'
   | 'ui.chat-settings.set-reminder'
@@ -1020,6 +1057,7 @@ export type TranslationKey =
   | 'ui.chat-settings.subagent-needs-permission-for-a-tool'
   | 'ui.chat-settings.subagent-s-request-timed-out-and-was-denied'
   | 'ui.chat-settings.submit'
+  | 'ui.chat-settings.suggested-folder-cannot-be-granted'
   | 'ui.chat-settings.summarize-file'
   | 'ui.chat-settings.summarize-file-label'
   | 'ui.chat-settings.switch-model'
@@ -1037,6 +1075,7 @@ export type TranslationKey =
   | 'ui.chat-settings.the-conversation-exceeds-the-model-s-context-length'
   | 'ui.chat-settings.the-knowledge-base-requires-the-desktop-app'
   | 'ui.chat-settings.the-local-hub-requires-the-desktop-app'
+  | 'ui.chat-settings.the-model-returned-an-empty-summary'
   | 'ui.chat-settings.the-request-timed-out-and-was-denied'
   | 'ui.chat-settings.the-turn-that-is-running-won-t-be'
   | 'ui.chat-settings.the-upstream-account-is-out-of-quota-check'
@@ -1053,6 +1092,7 @@ export type TranslationKey =
   | 'ui.chat-settings.today'
   | 'ui.chat-settings.toggle-knowledge-base-q-a'
   | 'ui.chat-settings.token-and-cost-totals-trends-breakdowns-and-a'
+  | 'ui.chat-settings.token-usage-cost-and-how-each-provider-performs'
   | 'ui.chat-settings.too-many-requests-the-upstream-is-rate-limiting'
   | 'ui.chat-settings.tool-calls'
   | 'ui.chat-settings.toolbar-icons'
@@ -1061,6 +1101,7 @@ export type TranslationKey =
   | 'ui.chat-settings.turn-off-hands-free'
   | 'ui.chat-settings.turn-off-hands-free-ctrl-shift-h'
   | 'ui.chat-settings.turn-off-privacy-mode-keys-will-be-sent-as-is'
+  | 'ui.chat-settings.turn-on-auto-approve'
   | 'ui.chat-settings.turn-on-hands-free'
   | 'ui.chat-settings.ultra'
   | 'ui.chat-settings.undo-last-step'
@@ -1069,6 +1110,8 @@ export type TranslationKey =
   | 'ui.chat-settings.update-check-failed'
   | 'ui.chat-settings.upstream-error'
   | 'ui.chat-settings.upstream-error-retry-later'
+  | 'ui.chat-settings.usage-and-quality'
+  | 'ui.chat-settings.usage-and-quality-sections'
   | 'ui.chat-settings.usage-mode-plan-manual-edits-auto-you-can'
   | 'ui.chat-settings.usage-windows-of-each-coding-assistant-s-official'
   | 'ui.chat-settings.use'
@@ -1096,6 +1139,7 @@ export type TranslationKey =
   | 'ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or'
   | 'ui.chat-settings.when-input-is-empty'
   | 'ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks'
+  | 'ui.chat-settings.when-off-system-notifications-are-used-while-nomi'
   | 'ui.chat-settings.which-model-override-to-use-when-handing-off'
   | 'ui.chat-settings.window-aiipc-is-unavailable'
   | 'ui.chat-settings.with-context'
@@ -1104,37 +1148,27 @@ export type TranslationKey =
   | 'ui.chat-settings.write-clipboard'
   | 'ui.chat-settings.write-me-a-briefing-for-today-start-with'
   | 'ui.chat-settings.write-text-file'
-  | 'ui.chat-settings.edit-text-file'
-  | 'ui.chat-settings.create-folder'
-  | 'ui.chat-settings.move-or-rename'
-  | 'ui.chat-settings.copy-file'
   | 'ui.chat-settings.you-run-on-the-user-s-own-computer-be'
   | 'ui.chat-settings.your-desktop-ai-assistant'
   | 'ui.chat-settings.your-next-message-will-be-sent-to-the'
   | 'ui.chat-settings.your-own-secrets'
-  | 'ui.chat-settings.add-folders-they-are-searched-and-cited'
-  | 'ui.chat-settings.general-sections'
-  | 'ui.chat-settings.knowledge-base-long-term-memory-and-schedule-all-local'
-  | 'ui.chat-settings.models-and-providers'
-  | 'ui.chat-settings.models-and-providers-sections'
-  | 'ui.chat-settings.token-usage-cost-and-how-each-provider-performs'
-  | 'ui.chat-settings.usage-and-quality'
-  | 'ui.chat-settings.usage-and-quality-sections'
-  | 'ui.chat-settings.when-off-system-notifications-are-used-while-nomi'
-  | 'ui.chat-settings.permissions'
-  | 'ui.chat-settings.auto-approve-everything'
-  | 'ui.chat-settings.auto-approve-description'
-  | 'ui.chat-settings.turn-on-auto-approve'
-  | 'ui.chat-settings.auto-approve-confirm-body'
-  | 'ui.chat-settings.compacting-earlier-messages'
-  | 'ui.chat-settings.earlier-messages-were-compacted-into-a-summary'
-  | 'ui.chat-settings.couldn-t-compact-earlier-messages'
-  | 'ui.chat-settings.the-model-returned-an-empty-summary'
-  | 'ui.chat-settings.folder-access-request'
-  | 'ui.chat-settings.grant-folder'
-  | 'ui.chat-settings.choose-another-folder'
-  | 'ui.chat-settings.suggested-folder-cannot-be-granted'
-  | 'ui.chat-settings.conversation-deleted-message-not-sent'
+  | 'ui.chat-settings.ai-review'
+  | 'ui.chat-settings.risk-low'
+  | 'ui.chat-settings.risk-medium'
+  | 'ui.chat-settings.risk-high'
+  | 'ui.chat-settings.risk-critical'
+  | 'ui.chat-settings.ai-review-commands'
+  | 'ui.chat-settings.ai-review-commands-description'
+  | 'ui.chat-settings.nomi-section'
+  | 'ui.chat-settings.nomi-section-intro'
+  | 'ui.chat-settings.nomi-section-tabs'
+  | 'ui.chat-settings.nomi-permissions-help'
+  | 'ui.chat-settings.nomi-handoff-help'
+  | 'ui.chat-settings.nomi-workspace-auto-approve'
+  | 'ui.chat-settings.nomi-workspace-auto-approve-description'
+  | 'ui.chat-settings.nomi-auto-approve-confirm-title'
+  | 'ui.chat-settings.nomi-auto-approve-confirm-body'
+  | 'ui.chat-settings.auto-approve-coding-description'
   | 'ui.cli-monitor.account'
   | 'ui.cli-monitor.act-cute'
   | 'ui.cli-monitor.action-sound-effects'
@@ -2100,6 +2134,25 @@ export type TranslationKey =
   | 'ui.mascot-theme.you-can-change-this-any-time-in-settings'
   | 'ui.mascot-theme.you-can-reopen-this-guide-from-settings-anytime'
   | 'ui.mascot-theme.your-data-stays-on-this-computer'
+  | 'ui.media.asset-library'
+  | 'ui.media.delete-image-title'
+  | 'ui.media.delete-image-body'
+  | 'ui.media.created-at'
+  | 'ui.media.prompt'
+  | 'ui.media.no-images-yet'
+  | 'ui.media.generated-by'
+  | 'ui.media.auto-matched'
+  | 'ui.media.no-prompt'
+  | 'ui.media.details'
+  | 'ui.media.size'
+  | 'ui.media.aspect'
+  | 'ui.media.edited-from'
+  | 'ui.media.references'
+  | 'ui.media.regenerating'
+  | 'ui.media.edit-this'
+  | 'ui.media.use-as-reference'
+  | 'ui.media.compose-edit'
+  | 'ui.media.compose-reference'
   | 'ui.model-quality.about-the-two-measurement-layers'
   | 'ui.model-quality.active-filters'
   | 'ui.model-quality.all-columns-count-requests-failed-excludes-client-errors'
@@ -2500,6 +2553,11 @@ export type TranslationKey =
   | 'ui.models.filter-by-provider'
   | 'ui.models.filter-by-vendor'
   | 'ui.models.other-vendors'
+  | 'ui.models.image-generation'
+  | 'ui.models.model-for-image-generation'
+  | 'ui.models.no-image-models'
+  | 'ui.models.image-auto'
+  | 'ui.models.image-auto-hint'
   | 'ui.providers-schedule.a-command-is-required-and-can-t-contain'
   | 'ui.providers-schedule.a-name-is-required-up-to-60-characters'
   | 'ui.providers-schedule.absolute-path-of-the-executable-or-a-name'
@@ -2835,7 +2893,6 @@ export type TranslationKey =
   | 'ui.slash-commands.always-approve'
   | 'ui.slash-commands.ask-claude-code-to-compact-the-current-session'
   | 'ui.slash-commands.ask-claude-code-to-initialize-project-notes-official'
-  | 'ui.slash-commands.ask-codex-to-compact-the-current-session'
   | 'ui.slash-commands.ask-grok-to-compact-the-current-session-grok'
   | 'ui.slash-commands.ask-grok-to-repeat-a-task-on-an'
   | 'ui.slash-commands.ask-grok-to-research-a-question-and-check'
@@ -2858,6 +2915,7 @@ export type TranslationKey =
   | 'ui.slash-commands.cli-version'
   | 'ui.slash-commands.code-review'
   | 'ui.slash-commands.code-review-is-this-cli-s-own-command'
+  | 'ui.slash-commands.ask-codex-to-compact-the-current-session'
   | 'ui.slash-commands.compact-context'
   | 'ui.slash-commands.context-usage'
   | 'ui.slash-commands.could-not-be-expanded'

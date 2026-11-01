@@ -17,7 +17,7 @@
  *
  * 约定见设计稿 §12「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
  * 读用 query、写用 mutation、进度流用 stream；只给一个窗口用的过程写 `surfaces`，
- * 原来要用户确认的写 `dangerous: true`（本域没有）。
+ * 原来要用户确认的写 `dangerous: true`（本域只有删除素材库图片 `chatAssets.remove`）。
  */
 
 import { z } from 'zod';
@@ -253,6 +253,26 @@ export const IslandPatch = z.looseObject({
   kinds: IslandKinds.partial().optional(),
 });
 
+/** 素材库里的一张生成图片（内核 media/AssetLibrary.ts） */
+export const ChatAssetItem = z.looseObject({
+  /** 文件名（也是 id） */
+  file: z.string(),
+  url: z.string(),
+  /** 来源：nomi / grok / codex … */
+  source: z.string(),
+  createdAt: z.number(),
+  bytes: z.number(),
+  model: z.string().optional(),
+  prompt: z.string().optional(),
+  /** 画幅（1:1 / 3:2 …） */
+  aspect: z.string().optional(),
+  /** 改图：改自素材库里的哪张 */
+  editedFrom: z.string().optional(),
+  /** 参考图生成：参考了素材库里的哪几张 */
+  references: z.array(z.string()).optional(),
+  conversationId: z.string().optional(),
+});
+
 /** 聊天主面板背景 —— types `ChatBackgroundState` */
 export const ChatBackgroundState = z.looseObject({
   imageUrl: z.string().nullable(),
@@ -467,6 +487,42 @@ export const mascotProcedures = {
     surfaces: CHAT,
     description: 'chat-bg:reset',
   },
+  'chatAssets.list': {
+    kind: 'query',
+    input: z.void(),
+    output: z.array(ChatAssetItem),
+    surfaces: CHAT,
+    description: '素材库：全部生成的图片（Nomi / 各编程助手），新的在前',
+  },
+  'chatAssets.remove': {
+    kind: 'mutation',
+    input: z.object({ files: z.array(z.string()).max(500) }),
+    output: z.object({ removed: z.array(z.string()) }),
+    surfaces: CHAT,
+    dangerous: true,
+    description: '素材库：删除图片（移到系统废纸篓）；只接受素材库里的文件名',
+  },
+  'chatAssets.regenerate': {
+    kind: 'mutation',
+    input: z.object({ file: z.string() }),
+    output: ChatAssetItem,
+    surfaces: CHAT,
+    description: '素材库：用原图的提示词 / 模型 / 画幅 / 改图来源 / 参考图再生成一张，返回新图',
+  },
+  'chatAssets.saveAs': {
+    kind: 'mutation',
+    input: z.object({ file: z.string() }),
+    output: z.boolean(),
+    surfaces: CHAT,
+    description: '素材库：另存为（系统保存框）；取消返回 false',
+  },
+  'chatAssets.reveal': {
+    kind: 'mutation',
+    input: z.object({ file: z.string() }),
+    output: z.boolean(),
+    surfaces: CHAT,
+    description: '素材库：在文件管理器中显示',
+  },
   'chatBg.pickImage': {
     kind: 'mutation',
     input: z.void(),
@@ -587,6 +643,8 @@ export const mascotEvents = {
   'persona.changed': Persona,
   /** chat-bg:changed */
   'chatBg.changed': ChatBackgroundState,
+  /** 素材库有变化（生成 / 删除）：视图重新拉 chatAssets.list */
+  'chatAssets.changed': z.null(),
   /** window-mouse-enter（桌面角色窗口） */
   'window.mouseEnter': z.null(),
   /** window-mouse-leave（桌面角色窗口） */
@@ -601,6 +659,7 @@ export const mascotEventSurfaces = {
   'avatar.event': ['mascot'],
   'window.mouseEnter': ['mascot'],
   'window.mouseLeave': ['mascot'],
+  'chatAssets.changed': ['chat'],
 } as const satisfies Partial<Record<keyof typeof mascotEvents, readonly Surface[]>>;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */

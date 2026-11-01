@@ -5,6 +5,7 @@ import { Button, ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppEntries } from './components/AppEntries';
+import { useAssetLibraryHost } from './components/AssetLibrary';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import chatHeaderStyles from './components/ChatHeader/index.module.css';
@@ -661,13 +662,19 @@ const AiChatContent: React.FC = () => {
     });
     return {
       ext: mk('ext'),
-      desktop: mk('privacy', 'desktop'),
+      desktop: mk('nomi', 'tools'),
     };
   }, [openSettings]);
 
+  // 素材库：侧栏入口 + 主区整页（切到别的会话 / 标签时自动回到对话）
+  const assetLibrary = useAssetLibraryHost(sidebarCollapsed);
+  const closeAssetLibrary = assetLibrary.close;
   const handleNewChat = useCallback(
-    (opts?: { cwd?: string }) => actions.newConversation(opts),
-    [actions],
+    (opts?: { cwd?: string }) => {
+      closeAssetLibrary();
+      return actions.newConversation(opts);
+    },
+    [actions, closeAssetLibrary],
   );
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
@@ -797,12 +804,14 @@ const AiChatContent: React.FC = () => {
           onNotice={setToast}
           onOpenSettings={openSidebarSettings}
           footer={sidebarFooter}
+          topNav={assetLibrary.nav}
         />
 
         {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
         <div
           className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
           data-with-changes={centerOpen ? 'true' : undefined}
+          hidden={assetLibrary.chatHidden}
         >
           <div
             className="chat-column"
@@ -988,8 +997,10 @@ const AiChatContent: React.FC = () => {
             </>
           ) : null}
         </div>
+        {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
+        {assetLibrary.page}
 
-        {railOpen && railCwd ? (
+        {railOpen && railCwd && !assetLibrary.chatHidden ? (
           <>
             <div
               className="files-rail-splitter"

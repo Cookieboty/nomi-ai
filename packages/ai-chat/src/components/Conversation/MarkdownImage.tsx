@@ -3,6 +3,8 @@ import { Modal, t, useLocale } from '@nomi-ai/ui';
 import React, { memo, useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';
+import { assetFileOf, ImageViewer, useAssetItem } from '../AssetLibrary/ImageViewer';
+import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
 import { sanitizeImgSrc } from './Markdown.helpers';
 import styles from './MarkdownImage.module.css';
@@ -40,16 +42,49 @@ export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ sr
           className={styles.img}
         />
       </button>
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        size="lg"
-        bodyClassName={styles.previewBody}
-        data-testid="md-img-preview"
-      >
-        <img src={safe} alt={alt ?? ''} referrerPolicy="no-referrer" className={styles.preview} />
-      </Modal>
+      {assetFileOf(src) ? (
+        // 生成的图片（素材库里的）：用查看器，带提示词 / 模型 / 重新生成 / 以此修改 / 作为参考 / 下载
+        <AssetViewer url={src} open={open} onClose={() => setOpen(false)} />
+      ) : (
+        <Modal
+          open={open}
+          onClose={() => setOpen(false)}
+          size="lg"
+          bodyClassName={styles.previewBody}
+          data-testid="md-img-preview"
+        >
+          <img src={safe} alt={alt ?? ''} referrerPolicy="no-referrer" className={styles.preview} />
+        </Modal>
+      )}
     </>
   );
 });
 MarkdownImage.displayName = 'MarkdownImage';
+
+/** 对话里点开一张生成的图片：查看器（按文件名从素材库补齐信息；重新生成后换成新图） */
+const AssetViewer: React.FC<{ url: string; open: boolean; onClose: () => void }> = ({
+  url,
+  open,
+  onClose,
+}) => {
+  const loaded = useAssetItem(url, open);
+  const [shown, setShown] = useState<typeof loaded>(null);
+  const { fillComposer } = useChangesUi();
+  const item = shown ?? loaded;
+  if (!open || !item) return null;
+  return (
+    <ImageViewer
+      item={item}
+      onClose={() => {
+        setShown(null);
+        onClose();
+      }}
+      onChange={(next) => setShown(next)}
+      onCompose={(text) => {
+        setShown(null);
+        onClose();
+        fillComposer(text);
+      }}
+    />
+  );
+};

@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/media"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
@@ -85,7 +88,8 @@ var delegateToolNames = []string{"delegate_to_cli", "delegate_status", "delegate
 
 // registerIgTools = createIgPluginHost 的插件顺序：ToolsBuiltin → UserPreferenceMemory → CompanionTools → DesktopTools
 func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aifacade.Facade,
-	kb *knowledge.Service, mem *memory.Service, ext *extensions.Service, d *desktop.Service) {
+	kb *knowledge.Service, mem *memory.Service, ext *extensions.Service, d *desktop.Service,
+	image igtools.ImageDeps) {
 	defs := igtools.BuiltinTools(igtools.Env{})
 	defs = append(defs, igtools.PreferenceTools(profile, igtools.Env{})...)
 	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true)...)
@@ -100,6 +104,8 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 				return nil, errors.New("delegate not ready")
 			}})
 	}
+	// 生图（image_generate，没设置图片模型时不提供给模型）：与 Node plugin.ts 同位（delegate 之后、ext 之前）
+	defs = append(defs, igtools.ImageTools(image)...)
 	defs = append(defs, igtools.SkillTools(ext)...)
 	for _, def := range defs {
 		r.Register(def)
@@ -116,4 +122,38 @@ func desktopShellEnv() []string {
 		}
 	}
 	return env
+}
+
+// imageToolDeps：生图工具读网关里 Nomi 的图片模型与供应商信息（gwstore.Service.NomiImageRef / ImageProvider）
+func imageToolDeps(gw *gwstore.Service, imagesDir string, lib *chatassets.Library) igtools.ImageDeps {
+	return igtools.ImageDeps{
+		ImageAuto: func() bool { return gw != nil && gw.NomiImageAuto() },
+		OnGenerated: func(file string, m igtools.GeneratedMeta) {
+			if lib != nil {
+				lib.Record(file, chatassets.Meta{Model: m.Model, Prompt: m.Prompt, Aspect: m.Aspect,
+					EditedFrom: m.EditedFrom, References: m.References, ConversationID: m.ConversationID})
+			}
+		},
+		ImageRef: func() string {
+			if gw == nil {
+				return ""
+			}
+			return gw.NomiImageRef()
+		},
+		ImageProvider: func(id string) *igtools.ImageAccess {
+			if gw == nil {
+				return nil
+			}
+			a := gw.ImageProvider(id)
+			if a == nil {
+				return nil
+			}
+			return &igtools.ImageAccess{
+				Info:    media.ProviderInfo{ID: id, PresetID: a.PresetID, URLs: a.URLs, Auth: a.Auth},
+				KeyFor:  a.KeyFor,
+				Headers: a.Headers,
+			}
+		},
+		ImagesDir: imagesDir,
+	}
 }

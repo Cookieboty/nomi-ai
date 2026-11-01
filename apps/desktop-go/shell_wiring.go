@@ -162,6 +162,7 @@ func qualityOnUsage(e *u.Obj) {
 	if q := qualityRef.Load(); q != nil {
 		q.AddGateway(e)
 	}
+	recordGatewayUsage(e)
 }
 
 type qualityLogger struct{ l deps.StdLogger }

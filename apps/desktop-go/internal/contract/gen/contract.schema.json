@@ -5230,6 +5230,223 @@
     "additionalProperties": {}
    }
   },
+  "chatAssets.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "file": {
+       "type": "string"
+      },
+      "url": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "createdAt": {
+       "type": "number"
+      },
+      "bytes": {
+       "type": "number"
+      },
+      "model": {
+       "type": "string"
+      },
+      "prompt": {
+       "type": "string"
+      },
+      "aspect": {
+       "type": "string"
+      },
+      "editedFrom": {
+       "type": "string"
+      },
+      "references": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "conversationId": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "file",
+      "url",
+      "source",
+      "createdAt",
+      "bytes"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "chatAssets.regenerate": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "source": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "bytes": {
+      "type": "number"
+     },
+     "model": {
+      "type": "string"
+     },
+     "prompt": {
+      "type": "string"
+     },
+     "aspect": {
+      "type": "string"
+     },
+     "editedFrom": {
+      "type": "string"
+     },
+     "references": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "url",
+     "source",
+     "createdAt",
+     "bytes"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "chatAssets.remove": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "files": {
+      "maxItems": 500,
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "files"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "removed": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "removed"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "chatAssets.reveal": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "chatAssets.saveAs": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "chatBg.get": {
    "kind": "query",
    "dangerous": false,
@@ -7550,6 +7767,27 @@
           "read",
           "read-write"
          ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -11849,6 +12087,12 @@
      },
      "autoApprove": {
       "type": "boolean"
+     },
+     "aiReview": {
+      "type": "boolean"
+     },
+     "nomiAutoApprove": {
+      "type": "boolean"
      }
     }
    },
@@ -11922,6 +12166,12 @@
       "type": "boolean"
      },
      "autoApprove": {
+      "type": "boolean"
+     },
+     "aiReview": {
+      "type": "boolean"
+     },
+     "nomiAutoApprove": {
       "type": "boolean"
      }
     },
@@ -12538,6 +12788,12 @@
      },
      "autoApprove": {
       "type": "boolean"
+     },
+     "aiReview": {
+      "type": "boolean"
+     },
+     "nomiAutoApprove": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -12790,6 +13046,12 @@
       "type": "boolean"
      },
      "autoApprove": {
+      "type": "boolean"
+     },
+     "aiReview": {
+      "type": "boolean"
+     },
+     "nomiAutoApprove": {
       "type": "boolean"
      }
     },
@@ -13862,6 +14124,12 @@
       "type": "boolean"
      },
      "autoApprove": {
+      "type": "boolean"
+     },
+     "aiReview": {
+      "type": "boolean"
+     },
+     "nomiAutoApprove": {
       "type": "boolean"
      }
     },
@@ -23560,6 +23828,10 @@
    ],
    "additionalProperties": {}
   },
+  "chatAssets.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "null"
+  },
   "chatBg.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -23945,6 +24217,27 @@
          "read",
          "read-write"
         ]
+       },
+       "review": {
+        "type": "object",
+        "properties": {
+         "risk": {
+          "type": "string",
+          "enum": [
+           "low",
+           "medium",
+           "high",
+           "critical"
+          ]
+         },
+         "rationale": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "risk"
+        ],
+        "additionalProperties": {}
        }
       },
       "required": [
@@ -24034,6 +24327,27 @@
       "read",
       "read-write"
      ]
+    },
+    "review": {
+     "type": "object",
+     "properties": {
+      "risk": {
+       "type": "string",
+       "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+       ]
+      },
+      "rationale": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "risk"
+     ],
+     "additionalProperties": {}
     }
    },
    "required": [
@@ -24275,6 +24589,12 @@
      "type": "boolean"
     },
     "autoApprove": {
+     "type": "boolean"
+    },
+    "aiReview": {
+     "type": "boolean"
+    },
+    "nomiAutoApprove": {
      "type": "boolean"
     }
    },

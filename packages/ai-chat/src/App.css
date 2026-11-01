@@ -612,3 +612,8 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
     transition: none;
   }
 }
+
+/* 素材库整页打开时隐藏对话区（只隐藏不卸载）：display:flex 会盖过 hidden 属性 */
+.main-content[hidden] {
+  display: none;
+}
