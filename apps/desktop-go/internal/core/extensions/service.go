@@ -703,6 +703,9 @@ func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string) T
 		res := "ok"
 		if err != nil {
 			res = "error"
+		} else if m, ok := s.d.Confirm.(interface{ MarkRead(context.Context) }); ok {
+			// MCP 返回的是外部内容（可能带提示词注入）：本轮标为读过外部内容，之后的命令审核不按「干净」放行中风险
+			m.MarkRead(ctx)
 		}
 		s.audit(def.Name, deps.O("server", serverID), decision, res, "mcp", time.Since(t0).Milliseconds())
 		return r, err

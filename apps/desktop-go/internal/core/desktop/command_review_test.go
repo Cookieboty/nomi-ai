@@ -33,6 +33,16 @@ func TestParseReview(t *testing.T) {
 	if r := ParseReview(`{"risk_level":"high"}`, false); r == nil || r.Authorization != "unknown" || r.Outcome != "ask" {
 		t.Fatalf("%+v", r)
 	}
+	// 说明里带花括号 / 多段 JSON：逐段配平解析，多段时取风险最高的
+	if r := ParseReview("I checked {the command}.\n{\"risk_level\":\"low\",\"rationale\":\"uses {x}\"} done {ok}", false); r == nil || r.Risk != "low" || r.Rationale != "uses {x}" {
+		t.Fatalf("%+v", r)
+	}
+	if r := ParseReview(`{"risk_level":"low"} {"risk_level":"high"}`, false); r == nil || r.Risk != "high" || r.Outcome != "ask" {
+		t.Fatalf("%+v", r)
+	}
+	if r := ParseReview(`{"review":{"risk_level":"medium"}}`, true); r == nil || r.Risk != "medium" || r.Outcome != "ask" {
+		t.Fatalf("%+v", r)
+	}
 	for _, bad := range []string{`{"risk_level":"spicy"}`, "sure, looks fine", "{not json}"} {
 		if ParseReview(bad, false) != nil {
 			t.Fatal(bad)

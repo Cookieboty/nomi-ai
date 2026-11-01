@@ -107,10 +107,36 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	// 生图（image_generate，没设置图片模型时不提供给模型）：与 Node plugin.ts 同位（delegate 之后、ext 之前）
 	defs = append(defs, igtools.ImageTools(image)...)
 	defs = append(defs, igtools.SkillTools(ext)...)
+	// 记忆检索、技能说明与参考文件都是外部内容：本轮标为读过外部内容（Node plugin.ts markExternalReads）
+	if d != nil && d.Broker != nil {
+		defs = markExternalReads(defs, d.Broker.MarkRead)
+	}
 	// 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型（Node plugin.ts applyToolGates）
 	for _, def := range defs {
 		r.Register(igtools.WithGate(def))
 	}
+}
+
+// externalReadTools：输出来自用户以外来源（过往对话摘要、第三方技能包）的工具。kb_search、文件 / 浏览器工具
+// 自己在工具体里标记；MCP 工具在 extensions.withConfirm 里标记。
+var externalReadTools = map[string]bool{"memory_search": true, "skill_load": true, "skill_read_file": true}
+
+// markExternalReads：这些工具成功返回后把本轮标为读过外部内容（命令自动审核据此不放行中风险命令）
+func markExternalReads(defs []tools.Definition, mark func(context.Context)) []tools.Definition {
+	for i, def := range defs {
+		if !externalReadTools[def.Name] || def.Execute == nil {
+			continue
+		}
+		inner := def.Execute
+		defs[i].Execute = func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
+			out, err := inner(ctx, in, ec)
+			if err == nil {
+				mark(ctx)
+			}
+			return out, err
+		}
+	}
+	return defs
 }
 
 // desktopShellEnv = cliChildEnv(false)：工作区命令与编程助手标签同一套环境

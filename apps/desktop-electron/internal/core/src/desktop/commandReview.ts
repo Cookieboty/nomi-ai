@@ -83,24 +83,61 @@ export function reviewMessages(
   ];
 }
 
-/** 从模型回复里取 JSON（允许包在 ```json 里或前后有字）；不合法返回 null */
-export function parseReview(text: string, tainted: boolean): CommandReview | null {
-  const m = /\{[\s\S]*\}/.exec(text ?? '');
-  if (!m) return null;
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(m[0]) as Record<string, unknown>;
-  } catch {
-    return null;
+/** 回复里每个花括号配平的 {…} 片段（跳过字符串里的括号），按出现顺序；回复过长只看前 16K */
+function jsonObjects(text: string): string[] {
+  const s = text.slice(0, 16_000);
+  const out: string[] = [];
+  for (let start = s.indexOf('{'); start >= 0; start = s.indexOf('{', start + 1)) {
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let i = start; i < s.length; i++) {
+      const c = s[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+      } else if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) {
+        out.push(s.slice(start, i + 1));
+        break;
+      }
+    }
   }
-  const risk = j.risk_level as RiskLevel;
-  if (!RISKS.includes(risk)) return null;
-  const authorization = AUTHS.includes(j.user_authorization as UserAuthorization)
-    ? (j.user_authorization as UserAuthorization)
+  return out;
+}
+
+/**
+ * 从模型回复里取审核 JSON（允许包在 ```json 里、前后有说明文字）；不合法返回 null。
+ * 逐个尝试配平的 {…}（不用贪婪正则：说明里带花括号或输出多段 JSON 时不至于整体解析失败）；
+ * 有多段合法结论时取风险最高的一段（宁严勿松）。与 Go 版 ParseReview 一致。
+ */
+export function parseReview(text: string, tainted: boolean): CommandReview | null {
+  let best: Record<string, unknown> | null = null;
+  let bestRank = -1;
+  for (const frag of jsonObjects(text ?? '')) {
+    let j: unknown;
+    try {
+      j = JSON.parse(frag);
+    } catch {
+      continue;
+    }
+    if (!j || typeof j !== 'object' || Array.isArray(j)) continue;
+    const rank = RISKS.indexOf((j as Record<string, unknown>).risk_level as RiskLevel);
+    if (rank > bestRank) {
+      best = j as Record<string, unknown>;
+      bestRank = rank;
+    }
+  }
+  if (!best) return null;
+  const risk = RISKS[bestRank]!;
+  const authorization = AUTHS.includes(best.user_authorization as UserAuthorization)
+    ? (best.user_authorization as UserAuthorization)
     : 'unknown';
   const rationale =
-    typeof j.rationale === 'string' && j.rationale.trim()
-      ? j.rationale.trim().slice(0, 300)
+    typeof best.rationale === 'string' && best.rationale.trim()
+      ? best.rationale.trim().slice(0, 300)
       : undefined;
   return {
     risk,

@@ -38,6 +38,21 @@ describe('命令审核：解析与结论', () => {
       authorization: 'unknown',
       outcome: 'ask',
     });
+    // 说明里带花括号 / 多段 JSON：逐段配平解析，多段时取风险最高的
+    expect(
+      parseReview(
+        'I checked {the command}.\n{"risk_level":"low","rationale":"uses {x}"} done {ok}',
+        false,
+      ),
+    ).toMatchObject({ risk: 'low', rationale: 'uses {x}' });
+    expect(parseReview('{"risk_level":"low"} {"risk_level":"high"}', false)).toMatchObject({
+      risk: 'high',
+      outcome: 'ask',
+    });
+    expect(parseReview('{"review":{"risk_level":"medium"}}', true)).toMatchObject({
+      risk: 'medium',
+      outcome: 'ask',
+    });
     expect(parseReview('{"risk_level":"spicy"}', false)).toBeNull();
     expect(parseReview('sure, looks fine', false)).toBeNull();
     expect(parseReview('{not json}', false)).toBeNull();

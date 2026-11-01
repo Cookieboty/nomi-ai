@@ -39,8 +39,10 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
       for (const t of src.desktop()?.tools() ?? []) registry.register(t);
       // 本地知识库检索（kb_search）
       for (const t of src.kb?.()?.tools() ?? []) registry.register(t);
+      // 记忆检索、技能说明与参考文件是外部内容：成功返回后本轮标为读过外部内容（命令审核据此不放行中风险）
+      const markRead = (signal?: AbortSignal) => src.desktop()?.broker.markRead(signal);
       // 长期记忆（memory_search / memory_remember）
-      for (const t of src.mem?.()?.tools() ?? []) registry.register(t);
+      for (const t of src.mem?.()?.tools() ?? []) registry.register(markExternalRead(t, markRead));
       // 把编程助手当子代理调用（delegate_to_cli）
       for (const t of src.delegate?.()?.tools() ?? []) registry.register(t);
       // 生图（image_generate，没设置图片模型时不提供给模型）
@@ -50,7 +52,7 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
       // 扩展：技能（skill_load / skill_read_file）+ GUI 管理的 MCP 服务器
       const ext = src.ext?.();
       if (ext) {
-        for (const t of ext.tools()) registry.register(t);
+        for (const t of ext.tools()) registry.register(markExternalRead(t, markRead));
         ext.attach(() => ctx.inject(McpKey), registry);
       }
     },
@@ -59,4 +61,29 @@ export function createDesktopToolsPlugin(src: DesktopToolSources) {
 
 export function createDesktopIgPlugins(src: DesktopToolSources) {
   return [{ plugin: createDesktopToolsPlugin(src), config: {} }];
+}
+
+/**
+ * 输出来自用户以外来源（过往对话摘要、第三方技能包）的工具。kb_search、文件 / 浏览器工具在工具体里自己标记；
+ * MCP 工具在 ExtensionsService.withConfirm 里标记。与 Go 版 igtools_wiring.go externalReadTools 一致。
+ */
+const EXTERNAL_READ_TOOLS: ReadonlySet<string> = new Set([
+  'memory_search',
+  'skill_load',
+  'skill_read_file',
+]);
+
+function markExternalRead(
+  def: ToolDefinition,
+  markRead: (signal?: AbortSignal) => void,
+): ToolDefinition {
+  if (!EXTERNAL_READ_TOOLS.has(def.name)) return def;
+  return {
+    ...def,
+    execute: async (input, ctx) => {
+      const out = await def.execute(input, ctx);
+      markRead(ctx?.signal);
+      return out;
+    },
+  } as ToolDefinition;
 }

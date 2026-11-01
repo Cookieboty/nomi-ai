@@ -7,7 +7,6 @@ package desktop
 import (
 	"context"
 	"encoding/json"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -112,27 +111,71 @@ func ReviewMessages(i CommandReviewInput) []map[string]string {
 	}
 }
 
-var jsonBlock = regexp.MustCompile(`(?s)\{.*\}`)
+// jsonObjects：回复里每个花括号配平的 {…} 片段（跳过字符串里的括号），按出现顺序；回复过长只看前 16K
+func jsonObjects(text string) []string {
+	if len(text) > 16000 {
+		text = text[:16000]
+	}
+	var out []string
+	for start := strings.IndexByte(text, '{'); start >= 0; {
+		depth, inStr, esc, end := 0, false, false, -1
+		for i := start; i < len(text) && end < 0; i++ {
+			c := text[i]
+			switch {
+			case inStr && esc:
+				esc = false
+			case inStr && c == '\\':
+				esc = true
+			case inStr && c == '"':
+				inStr = false
+			case inStr:
+			case c == '"':
+				inStr = true
+			case c == '{':
+				depth++
+			case c == '}':
+				if depth--; depth == 0 {
+					end = i
+				}
+			}
+		}
+		if end >= 0 {
+			out = append(out, text[start:end+1])
+		}
+		next := strings.IndexByte(text[start+1:], '{')
+		if next < 0 {
+			break
+		}
+		start += 1 + next
+	}
+	return out
+}
 
-// ParseReview = parseReview：取回复里的 JSON（允许包在代码块里）；不合法返回 nil
+// ParseReview = parseReview：取回复里的审核 JSON（允许包在代码块里、前后有说明文字）；不合法返回 nil。
+// 逐个尝试配平的 {…}（不用贪婪正则：说明里带花括号或输出多段 JSON 时不至于整体解析失败）；
+// 有多段合法结论时取风险最高的一段（宁严勿松）。
 func ParseReview(text string, tainted bool) *CommandReview {
-	m := jsonBlock.FindString(text)
-	if m == "" {
+	var best map[string]any
+	bestRank := -1
+	for _, frag := range jsonObjects(text) {
+		var j map[string]any
+		if json.Unmarshal([]byte(frag), &j) != nil {
+			continue
+		}
+		risk, _ := j["risk_level"].(string)
+		if r := slices.Index(riskLevels, risk); r > bestRank {
+			best, bestRank = j, r
+		}
+	}
+	if best == nil {
 		return nil
 	}
-	var j map[string]any
-	if json.Unmarshal([]byte(m), &j) != nil {
-		return nil
-	}
-	risk, _ := j["risk_level"].(string)
-	if !slices.Contains(riskLevels, risk) {
-		return nil
-	}
-	auth, _ := j["user_authorization"].(string)
+	risk := riskLevels[bestRank]
+	auth, _ := best["user_authorization"].(string)
 	if !slices.Contains(userAuths, auth) {
 		auth = "unknown"
 	}
-	why, _ := j["rationale"].(string)
+	why, _ := best["rationale"].(string)
 	return &CommandReview{Risk: risk, Authorization: auth, Outcome: OutcomeFor(risk, tainted),
 		Rationale: clipRunes(strings.TrimSpace(why), 300)}
 }
