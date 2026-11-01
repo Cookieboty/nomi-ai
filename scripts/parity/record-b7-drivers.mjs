@@ -194,6 +194,11 @@ if (process.env.NOMI_GOLDEN_DIR) {
     stdio: 'inherit',
     cwd: root,
   });
+  // 持续任务状态机（tasks/machine.ts）
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-tasks-machine.mjs')], {
+    stdio: 'inherit',
+    cwd: root,
+  });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-plugins.mjs')], {
     stdio: 'inherit',
     cwd: root,
