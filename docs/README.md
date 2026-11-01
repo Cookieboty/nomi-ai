@@ -46,7 +46,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 - [构建与运行](development/building.md)
 - [测试](development/testing.md)
 - [CI 触发规则](development/ci.md)
-- 设计稿（现行）：[统一模型网关（已实现，v2.0.0）](design/unified-gateway.md)、[编程助手插件化与网关分层（已实现，v2.0.0）](design/cli-plugin-architecture.md)、[模型质量（已实现，v2.0.0）](design/model-quality.md)、[Nomi 委派编程助手（已实现，v2.0.0）](design/nomi-delegate-cli.md)、[编程助手权限模式](design/cli-permission-modes.md)、[编程助手子代理](design/cli-subagents.md)、[官方账号（已废弃说明）](design/cli-official-accounts.md)、[订阅额度卡片](design/usage-quota-cards.md)、[按端信息卡](design/endpoint-info-card.md)
+- 设计稿（现行）：[统一模型网关（已实现，v2.0.0）](design/unified-gateway.md)、[编程助手插件化与网关分层（已实现，v2.0.0）](design/cli-plugin-architecture.md)、[模型质量（已实现，v2.0.0）](design/model-quality.md)、[Nomi 委派编程助手（已实现，v2.0.0）](design/nomi-delegate-cli.md)、[编程助手权限模式](design/cli-permission-modes.md)、[编程助手子代理](design/cli-subagents.md)、[官方账号（已废弃说明）](design/cli-official-accounts.md)、[订阅额度卡片](design/usage-quota-cards.md)、[按端信息卡](design/endpoint-info-card.md)、[持续任务（设计稿，2.1.0）](design/persistent-tasks.md)
 - [发布](RELEASE.md)：打包、签名与公证（含 CI secret 名称）
 - [品牌规范](BRAND.md)：素材在 [`brand/`](brand/)，截图在 [`screenshots/`](screenshots/)
 
@@ -94,6 +94,6 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 - [Building](development/building.md)
 - [Testing](development/testing.md)
 - [CI triggers](development/ci.md)
-- Design notes (current): [Unified gateway (shipped, v2.0.0)](design/unified-gateway.md), [CLI plugin architecture (shipped, v2.0.0)](design/cli-plugin-architecture.md), [Model quality (shipped, v2.0.0)](design/model-quality.md), [Delegate to coding agents (shipped, v2.0.0)](design/nomi-delegate-cli.md), [Permission modes](design/cli-permission-modes.md), [Subagents](design/cli-subagents.md), [Official accounts (deprecated note)](design/cli-official-accounts.md), [Usage quota cards](design/usage-quota-cards.md), [Endpoint info card](design/endpoint-info-card.md)
+- Design notes (current): [Unified gateway (shipped, v2.0.0)](design/unified-gateway.md), [CLI plugin architecture (shipped, v2.0.0)](design/cli-plugin-architecture.md), [Model quality (shipped, v2.0.0)](design/model-quality.md), [Delegate to coding agents (shipped, v2.0.0)](design/nomi-delegate-cli.md), [Permission modes](design/cli-permission-modes.md), [Subagents](design/cli-subagents.md), [Official accounts (deprecated note)](design/cli-official-accounts.md), [Usage quota cards](design/usage-quota-cards.md), [Endpoint info card](design/endpoint-info-card.md), [Persistent tasks (draft, 2.1.0)](design/persistent-tasks.md)
 - [Release](RELEASE.md): packaging, signing & notarization (incl. CI secret names)
 - [Brand guidelines](BRAND.md): assets in [`brand/`](brand/), screenshots in [`screenshots/`](screenshots/)
