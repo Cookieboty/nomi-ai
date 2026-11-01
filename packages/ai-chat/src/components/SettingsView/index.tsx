@@ -24,6 +24,7 @@ import { LanguageSettings } from './LanguageSettings';
 import { MascotRendererSettings } from './MascotRendererSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
+import { NomiSection } from './NomiSection';
 import { PrivacySection } from './PrivacySection';
 import { SECTION_HELP } from './sectionHelp';
 import { SectionPage } from './SectionPage';
@@ -170,6 +171,8 @@ export const SettingsView: React.FC<Props> = ({
           </SectionPage>
         );
       }
+      case 'nomi':
+        return <NomiSection tab={tabOf('nomi')} onTab={(x) => setTab('nomi', x)} />;
       case 'models':
         return (
           <SectionPage

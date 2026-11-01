@@ -475,7 +475,7 @@ func WrapCommandOutput(text string) string {
 
 // runConfirm = workspaceTools RUN_CONFIRM：workspace_run 强制在对话框里确认。工作区只决定工作目录，
 // 命令以用户身份运行、能访问工作区外的任何文件（没有沙箱），所以不受「全部自动」影响、也不能记住；
-// 「计划」档照旧拦下
+// 开了命令自动审核时由审核结论决定是否免确认（见 desktop/command_review.go）；「计划」档照旧拦下
 func runConfirm() *struct{ Dialog bool } { return &struct{ Dialog bool }{Dialog: true} }
 
 func (k *deskKit) workspaceTools() []tools.Definition {
@@ -490,8 +490,8 @@ func (k *deskKit) workspaceTools() []tools.Definition {
 			if ws == "" {
 				return nil, "", toolErr("no_workspace", "这次对话没有可用的工作区（没选，或者选的目录不被允许），不能执行命令")
 			}
-			dec, err := k.confirm(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
-				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws)
+			dec, err := k.confirmFor(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
+				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws, ec.UserText)
 			if err != nil {
 				return nil, "", err
 			}

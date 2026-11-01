@@ -116,6 +116,8 @@ export interface DesktopConfirmRequest {
   kind?: 'scope';
   scopePath?: string;
   scopeMode?: 'read' | 'read-write';
+  /** 辅助模型审核过但没放行（高风险 / 读过外部内容）：风险等级与理由 */
+  review?: { risk: 'low' | 'medium' | 'high' | 'critical'; rationale?: string };
 }
 
 /**

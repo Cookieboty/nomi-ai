@@ -1143,6 +1143,57 @@ export class UsageService {
     return rec;
   }
 
+  /**
+   * 经统一网关的 Nomi 调用：按网关逐次记账（每次上游请求一条）。
+   * 一轮对话里模型可能被调多次（工具循环），AI SDK 在一轮结束时给的汇总在部分协议上不全
+   * （少算过整步的输入），网关记的是每次真正发给上游的请求，以它为准。
+   * 输入口径与网关请求日志一致：Messages 上游的输入不含缓存读写，其它协议的输入含缓存读，要减掉。
+   */
+  recordGateway(e: {
+    client: string;
+    wire?: string;
+    provider?: string;
+    model?: string;
+    upstreamModel?: string;
+    status: number;
+    startedAt: number;
+    ms: number;
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      cacheReadTokens?: number;
+      cacheWriteTokens?: number;
+    };
+  }): UsageRecord | null {
+    if (e.client !== 'nomi' || !(e.status >= 200 && e.status < 300)) return null;
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
+    const u = e.usage ?? {};
+    const cacheRead = n(u.cacheReadTokens);
+    const cacheWrite = n(u.cacheWriteTokens);
+    const raw = n(u.inputTokens);
+    const uncached = e.wire === 'messages' ? raw : Math.max(0, raw - cacheRead);
+    const provider = e.provider;
+    const model =
+      e.upstreamModel ||
+      (provider && e.model?.startsWith(`${provider}/`)
+        ? e.model.slice(provider.length + 1)
+        : e.model) ||
+      'unknown';
+    return this.record({
+      key: `nomi:gw:${e.startedAt}:${provider ?? ''}:${++this.seq}`,
+      ts: e.startedAt,
+      dur: Math.max(0, e.ms),
+      source: 'nomi',
+      via: 'chat',
+      ...(provider ? { provider } : {}),
+      model,
+      promptTokens: uncached + cacheRead + cacheWrite,
+      outputTokens: n(u.outputTokens),
+      cacheRead,
+      cacheWrite,
+    });
+  }
+
   /** 本地路由：请求开始 / 结束（结束时带上从响应里取到的 usage） */
   routeBegin(source: UsageSource): void {
     this.routeInflight.set(source, (this.routeInflight.get(source) ?? 0) + 1);

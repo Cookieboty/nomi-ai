@@ -22,18 +22,23 @@ function setup(autoApprove: boolean) {
   };
   // 与主进程 setPermissionDefaults → changed() → tabsChanged 对齐
   const box: { fake: ReturnType<typeof installFakeApi> | null } = { fake: null };
-  const invoke = vi.fn(async (ch: string, input?: { autoApprove?: boolean }) => {
-    if (ch === 'harness.tabs') return { ...state };
-    if (ch === 'harness.permissionDefaults') {
-      if (typeof input?.autoApprove === 'boolean') state.autoApprove = input.autoApprove;
-      const next = { ...state };
-      queueMicrotask(() => {
-        void box.fake?.emit('harness.tabsChanged', next);
-      });
-      return next;
-    }
-    return {};
-  });
+  const invoke = vi.fn(
+    async (ch: string, input?: { autoApprove?: boolean; aiReview?: boolean }) => {
+      if (ch === 'harness.tabs') return { ...state };
+      if (ch === 'harness.permissionDefaults') {
+        if (typeof input?.autoApprove === 'boolean') state.autoApprove = input.autoApprove;
+        // 与内核一致：只在关掉时带 aiReview: false
+        if (input?.aiReview === false) state.aiReview = false;
+        if (input?.aiReview === true) delete state.aiReview;
+        const next = { ...state };
+        queueMicrotask(() => {
+          void box.fake?.emit('harness.tabsChanged', next);
+        });
+        return next;
+      }
+      return {};
+    },
+  );
   box.fake = installFakeApi(invoke);
   return invoke;
 }

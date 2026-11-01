@@ -398,6 +398,16 @@ export class HarnessOrchestrator {
    */
   private autoApprove = true;
   /**
+   * 命令自动审核（默认开）：Nomi 要跑的命令（workspace_run）先交给辅助模型判风险，低风险直接放行，
+   * 其余交给人确认（desktop/commandReview.ts）。只在关掉时落盘 / 出现在状态里（缺省 = 开）
+   */
+  private aiReview = true;
+  /**
+   * Nomi 对话工作区里的文件操作不逐项确认（设置 →「Nomi」→ 权限）。从「全部自动」里拆出来：
+   * 没单独设过时跟随「全部自动」（老用户行为不变）；只在设过时落盘 / 出现在状态里
+   */
+  private nomiAutoApprove: boolean | undefined = undefined;
+  /**
    * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
    * 模型 / 思考深度在换官方账号或第三方供应商时清掉（recycleBackend）；「完全放开」从不记住。
    */
@@ -619,6 +629,16 @@ export class HarnessOrchestrator {
     return this.autoApprove ? 'bypass' : this.defaultPermissionMode;
   }
 
+  /** Nomi 工作区文件操作是否免确认（没单独设过时跟随「全部自动」） */
+  nomiAutoApproveEnabled(): boolean {
+    return this.nomiAutoApprove ?? this.autoApprove;
+  }
+
+  /** 命令自动审核是否开着 */
+  aiReviewEnabled(): boolean {
+    return this.aiReview;
+  }
+
   /** 「全部自动」是否开着（Nomi 的工作区工具与委派也看这个） */
   autoApproveEnabled(): boolean {
     return this.autoApprove;
@@ -719,6 +739,8 @@ export class HarnessOrchestrator {
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
         autoApprove?: unknown;
+        aiReview?: unknown;
+        nomiAutoApprove?: unknown;
         lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
@@ -729,6 +751,8 @@ export class HarnessOrchestrator {
       // 没有 autoApprove 字段 = 「全部自动」之前的数据：迁一次（见下面的标签循环）
       migrateAuto = raw.autoApprove === undefined;
       if (typeof raw.autoApprove === 'boolean') this.autoApprove = raw.autoApprove;
+      if (raw.aiReview === false) this.aiReview = false;
+      if (typeof raw.nomiAutoApprove === 'boolean') this.nomiAutoApprove = raw.nomiAutoApprove;
       this.restoreLastSettings(raw.lastSettings);
       if (migrateAuto && this.autoApprove) {
         // 之前停在旧默认档上的「最近选择」不再沿用：新会话按新默认（完全放开）开始
@@ -809,6 +833,8 @@ export class HarnessOrchestrator {
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       autoApprove: this.autoApprove,
+      ...(this.aiReview ? {} : { aiReview: false }),
+      ...(this.nomiAutoApprove === undefined ? {} : { nomiAutoApprove: this.nomiAutoApprove }),
       lastSettings: Object.fromEntries(this.lastSettings),
       tabs: [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID),
     };
@@ -1144,6 +1170,8 @@ export class HarnessOrchestrator {
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       autoApprove: this.autoApprove,
+      ...(this.aiReview ? {} : { aiReview: false }),
+      ...(this.nomiAutoApprove === undefined ? {} : { nomiAutoApprove: this.nomiAutoApprove }),
     };
   }
 
@@ -2243,6 +2271,8 @@ export class HarnessOrchestrator {
     defaultPermissionMode?: HarnessPermissionMode;
     codexNetwork?: boolean;
     autoApprove?: boolean;
+    aiReview?: boolean;
+    nomiAutoApprove?: boolean;
   }): HarnessTabsState {
     if (o.defaultPermissionMode !== undefined) {
       if (!isPermissionMode(o.defaultPermissionMode))
@@ -2255,6 +2285,8 @@ export class HarnessOrchestrator {
     }
     if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
     if (typeof o.autoApprove === 'boolean') this.autoApprove = o.autoApprove;
+    if (typeof o.aiReview === 'boolean') this.aiReview = o.aiReview;
+    if (typeof o.nomiAutoApprove === 'boolean') this.nomiAutoApprove = o.nomiAutoApprove;
     this.changed();
     return this.listTabs();
   }

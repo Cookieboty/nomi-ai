@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 367：mutation 254 / query 108 / stream 5
+// 合计 372：mutation 258 / query 109 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -60,6 +60,11 @@ var Procedures = []Procedure{
 	{Name: "character.assets", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "character.ensureAssets", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "character.getActivePack", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "chatAssets.list", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatAssets.regenerate", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatAssets.remove", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "chatAssets.reveal", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatAssets.saveAs", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.reset", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -402,6 +407,7 @@ var Events = []string{
 	"ai.userProfile.changed",
 	"avatar.event",
 	"character.assetsChanged",
+	"chatAssets.changed",
 	"chatBg.changed",
 	"cli.registryChanged",
 	"cliAccount.changed",

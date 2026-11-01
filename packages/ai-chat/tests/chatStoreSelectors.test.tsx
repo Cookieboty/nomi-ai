@@ -9,6 +9,7 @@ import {
   type AiChatState,
 } from '../src/contexts/AiChatContext';
 import {
+  selectBusyHere,
   selectIsLoading,
   shallowArrayEqual,
   useAiChatActions,
@@ -86,6 +87,21 @@ describe('chat store selectors: streaming frames rerender only the live turn', (
     act(() => dispatch({ type: 'SET_LOADING', payload: false }));
     expect(renders.loading - base.loading).toBe(1);
     expect(renders.settled - base.settled).toBe(1); // the reply settles into the list
+  });
+
+  it('first chat: the turn started with a fresh conversation id is busy here', () => {
+    const s0 = aiChatReducer(
+      { messages: [], isLoading: false, streaming: false } as unknown as AiChatState,
+      { type: 'CLEAR_MESSAGES', convoId: undefined },
+    );
+    const s1 = aiChatReducer(s0, { type: 'SET_LOADING', payload: true, convoId: 'c-new' });
+    expect(s1.viewConvoId).toBe('c-new');
+    expect(selectBusyHere(s1)).toBe(true);
+    // 切到别的会话：那边不显示回复中；切回来又是
+    const s2 = aiChatReducer(s1, { type: 'SET_MESSAGES', payload: [], convoId: 'c-other' });
+    expect(selectBusyHere(s2)).toBe(false);
+    const s3 = aiChatReducer(s2, { type: 'SET_MESSAGES', payload: [], convoId: 'c-new' });
+    expect(selectBusyHere(s3)).toBe(true);
   });
 
   it('UPSERT with unchanged fields keeps message identity', () => {

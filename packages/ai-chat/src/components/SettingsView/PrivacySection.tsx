@@ -10,7 +10,7 @@ import React from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';
 import { confirmDialog } from '../ConfirmDialog';
-import { DesktopPanel, LocalPanel } from '../lazyPanels';
+import { LocalPanel } from '../lazyPanels';
 
 import { DiagnosticsSettings } from './DiagnosticsSettings';
 import styles from './index.module.css';
@@ -63,7 +63,11 @@ export const PrivacySection: React.FC<{
               title={t('ui.knowledge-local.desktop-files')}
               description={t('ui.knowledge-local.each-folder-must-be-authorized-every-action-is')}
             >
-              <Button size="sm" onClick={() => onTab('desktop')}>
+              <Button
+                size="sm"
+                data-testid="privacy-go-nomi-tools"
+                onClick={() => go('nomi', 'tools')}
+              >
                 {t('ui.chat-settings.folder-grants-activity-log')}
               </Button>
             </SettingRow>
@@ -119,10 +123,8 @@ export const PrivacySection: React.FC<{
         <div className={styles.groups} data-testid="settings-outbound">
           <PrivacyModeSettings />
         </div>
-      ) : tab === 'export' ? (
-        <LocalPanel key="export" isVisible onClose={noop} tabs={['export']} />
       ) : (
-        <DesktopPanel key="desktop" isVisible onClose={noop} />
+        <LocalPanel key="export" isVisible onClose={noop} tabs={['export']} />
       )}
     </SectionPage>
   );

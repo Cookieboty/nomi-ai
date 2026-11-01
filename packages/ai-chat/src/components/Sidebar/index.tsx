@@ -24,7 +24,6 @@ import {
   HISTORY_BACKENDS,
   isHistoryBackend,
   type HistoryBackend,
-  type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
@@ -46,6 +45,7 @@ import { sidebarToggleLabels } from '../TitleBar';
 import { CollapsedRail } from './CollapsedRail';
 import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
+import { historyOrigin, routeInitial, routeTag } from './historyRoute';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import {
@@ -72,6 +72,8 @@ interface SidebarProps {
   onOpenSettings?: (section: SettingsSection, tab?: SettingsTab) => void;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
+  /** 会话列表上方的固定入口（素材库），由 App 传入 */
+  topNav?: React.ReactNode;
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
@@ -83,6 +85,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   onNotice,
   onOpenSettings,
   footer,
+  topNav,
 }) => {
   // Sidebar 是 React.memo，props 稳定时不随根组件重渲染：自己订阅语言，切换后文案才会刷新
   useLocale();
@@ -104,6 +107,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   } = useConversationListView();
   // 普通模式只有 Nomi：视图固定为「全部」，但不改动已保存的选择，切回开发模式即恢复
   const view = isNormal ? 'all' : storedView;
+  // 素材库只属于 Nomi：助手模式，或工作台筛选到 Nomi 时才显示
+  const nomiNav = isNormal || (view === 'by-endpoint' && endpointFilter === 'nomi') ? topNav : null;
   const bindings = useShortcutBindings();
   const [list, setList] = useState<Meta[]>([]);
   const [current, setCurrent] = useState<string | undefined>();
@@ -718,6 +723,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         )}
       </div>
       {collapsed && <div className={styles.collapsedNew}>{newBtn}</div>}
+      {collapsed && nomiNav && <div className={styles.collapsedNew}>{nomiNav}</div>}
       {collapsed && (
         <CollapsedRail
           items={visible}
@@ -788,6 +794,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               />
             </div>
           )}
+          {nomiNav}
           {searchOpen ? (
             <div className={styles.searchBox} role="search" data-testid="sidebar-search">
               <span className={styles.searchGlyph} aria-hidden>
@@ -1164,37 +1171,3 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
 /** memo：App 每次渲染（流式输出、标签进度）不再连带重渲染整个侧栏 */
 export const Sidebar = React.memo(SidebarImpl);
-
-const CLIENT_LABELS: Record<HistoryClient, string> = {
-  cli: 'CLI',
-  desktop: 'Desktop',
-  ide: 'IDE',
-  exec: 'exec',
-  nomi: ENDPOINT_FULL.nomi(),
-};
-
-/** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */
-function routeTag(h: HistorySession): string | null {
-  if (h.route === 'gateway') return t('ui.cli-monitor.third-party');
-  if (h.route === 'custom') return h.provider || t('ui.cli-monitor.third-party');
-  return null;
-}
-
-/** 行内只显示首字母（第三方供应商名的首字，Nomi 网关为 N），完整名称在行的悬停提示里 */
-function routeInitial(h: HistorySession): string {
-  if (h.route === 'gateway') return 'N';
-  const name = (h.provider ?? '').trim();
-  return name ? [...name][0]!.toUpperCase() : '?';
-}
-
-/** 悬停提示里的来源信息：客户端、线路、账号 */
-function historyOrigin(h: HistorySession): string[] {
-  const out: string[] = [];
-  if (h.client) out.push(t('ui.cli-monitor.client', CLIENT_LABELS[h.client]));
-  if (h.route === 'official') out.push(t('ui.cli-monitor.route-official'));
-  else if (h.route === 'gateway') out.push(t('ui.cli-monitor.route-third-party-nomi-gateway'));
-  else if (h.route === 'custom')
-    out.push(t('ui.cli-monitor.route-other-third-party', h.provider || '?'));
-  if (h.account) out.push(t('ui.cli-monitor.account', h.account));
-  return out;
-}

@@ -15,6 +15,20 @@ type Chunk = { type: string; [k: string]: unknown };
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
+/**
+ * 工具自己返回的失败（`{ ok: false, error }`：用户拒绝、计划档拦下、超时等）也按失败显示，
+ * 不打 ✓。只解析看起来像这种结果的输出（以 `{` 开头且带 `"ok":false`），避免每次都 JSON.parse。
+ */
+function refused(output: string | undefined): boolean {
+  if (!output || output[0] !== '{' || !/"ok"\s*:\s*false/.test(output)) return false;
+  try {
+    const j = JSON.parse(output) as { ok?: unknown };
+    return j?.ok === false;
+  } catch {
+    return false;
+  }
+}
+
 export function chunkToTrace(c: Chunk, now = Date.now()): HarnessTraceEvent | null {
   if (c.type === 'tool_call.delta') {
     const name = str(c.name);
@@ -34,7 +48,7 @@ export function chunkToTrace(c: Chunk, now = Date.now()): HarnessTraceEvent | nu
     return {
       type: 'tool',
       name: str(c.name) ?? 'tool',
-      status: error !== undefined ? 'error' : 'done',
+      status: error !== undefined || refused(output) ? 'error' : 'done',
       ...(str(c.id) ? { id: str(c.id) } : {}),
       ...(output !== undefined ? { output } : {}),
       at: now,

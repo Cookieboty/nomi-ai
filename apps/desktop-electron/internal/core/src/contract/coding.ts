@@ -118,6 +118,8 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
             defaultPermissionMode?: HarnessPermissionMode;
             codexNetwork?: boolean;
             autoApprove?: boolean;
+            aiReview?: boolean;
+            nomiAutoApprove?: boolean;
           },
         ),
       ),

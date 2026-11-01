@@ -79,17 +79,14 @@ describe('SettingsView 合并后的标签页分区', () => {
   const tabs = (r: ReturnType<typeof render>, page: string) =>
     r.getByTestId(`${page}-tabs`).querySelectorAll('[role="tab"]');
 
-  it('隐私与权限：默认「隐私与数据」，可切到「桌面权限」，方向键切换且 aria 状态正确', () => {
+  it('隐私与权限：默认「隐私与数据」，方向键切换且 aria 状态正确；桌面权限入口跳到「Nomi」', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const page = 'settings-privacy-page';
-    expect(tabs(r, page)).toHaveLength(4);
+    expect(tabs(r, page)).toHaveLength(3);
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-selected')).toBe('true');
     expect(r.getByTestId('settings-privacy')).toBeTruthy();
-    // 数据页里的「文件夹授权与操作记录」跳到「桌面权限」标签
-    fireEvent.click(r.getByText('文件夹授权与操作记录'));
-    expect(r.getByTestId(`${page}-tab-desktop`).getAttribute('aria-selected')).toBe('true');
-    expect(r.queryByTestId('settings-privacy')).toBeNull();
-    // 方向键循环并移动焦点：桌面权限 → 数据导出 → 回到隐私与数据
+    // 方向键循环并移动焦点：隐私与数据 → 外发保护 → 数据导出 → 回到隐私与数据
+    fireEvent.keyDown(r.getByTestId(`${page}-tabs`), { key: 'ArrowRight' });
     fireEvent.keyDown(r.getByTestId(`${page}-tabs`), { key: 'ArrowRight' });
     expect(r.getByTestId(`${page}-tab-export`).getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(r.getByTestId(`${page}-tabs`), { key: 'ArrowRight' });
@@ -99,6 +96,17 @@ describe('SettingsView 合并后的标签页分区', () => {
     const panel = r.getByTestId(`${page}-panel`);
     expect(panel.getAttribute('role')).toBe('tabpanel');
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-controls')).toBe(panel.id);
+    // 数据页里的「文件夹授权与操作记录」跳到「Nomi → 工具权限」
+    fireEvent.click(r.getByTestId('privacy-go-nomi-tools'));
+    expect(r.getByTestId('settings-nav-nomi').getAttribute('aria-current')).toBe('page');
+    expect(r.getByTestId('settings-nomi-tab-tools').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('Nomi：默认「权限」，还有「委派」「工具权限」标签', () => {
+    const r = render(<Harness onClose={() => undefined} start="nomi" />);
+    const page = 'settings-nomi';
+    expect(r.getByTestId(page).getAttribute('data-tab')).toBe('permissions');
+    expect([...tabs(r, page)].map((x) => x.textContent)).toEqual(['权限', '委派', '桌面权限']);
   });
 
   it('外发保护单独一个标签：数据页只留入口，点「去设置」切过去', () => {
@@ -113,7 +121,8 @@ describe('SettingsView 合并后的标签页分区', () => {
 
   it('深链接标签：desktop / export / memory / schedule / local / requests 分别落在对应标签', () => {
     const cases: Array<[SettingsSection, SettingsTab, string]> = [
-      ['privacy', 'desktop', 'settings-privacy-page'],
+      ['nomi', 'tools', 'settings-nomi'],
+      ['nomi', 'delegate', 'settings-nomi'],
       ['privacy', 'outbound', 'settings-privacy-page'],
       ['privacy', 'export', 'settings-privacy-page'],
       ['knowledge', 'memory', 'settings-knowledge'],
@@ -255,12 +264,21 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-help')).toBeTruthy();
   });
 
-  it('菜单只有合并后的 7 个分区', () => {
+  it('菜单有 8 个分区：Nomi 紧跟通用', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
       .map((e) => e.getAttribute('data-testid')!.replace('settings-nav-', ''));
-    expect(ids).toEqual(['general', 'models', 'coding', 'usage', 'knowledge', 'ext', 'privacy']);
+    expect(ids).toEqual([
+      'general',
+      'nomi',
+      'models',
+      'usage',
+      'coding',
+      'knowledge',
+      'ext',
+      'privacy',
+    ]);
   });
 
   it('通用：默认「通用」，还有快捷键 / 语音 / 通知标签', () => {

@@ -32,6 +32,7 @@ import {
   type ClientModels,
   type DetectResult,
   type GatewayConfig,
+  type ImageProviderInfo,
   type LearnedState,
   type KeyStatusEvent,
   type LearnEvent,
@@ -40,6 +41,7 @@ import {
   type RuntimeProvider,
   type UsageEvent,
   type Wire,
+  autoImageModel,
   readCatalogFile,
   setCatalogOverlay,
 } from '@nomi-ai/gateway';
@@ -921,6 +923,59 @@ export class GatewayService {
       .map((k) => this.store.decrypt(k.enc, k.encryption))
       .find((v): v is string => Boolean(v));
     return { id: p.id, name: p.name, baseURL: p.urls.chat, ...(key ? { apiKey: key } : {}) };
+  }
+
+  /**
+   * Nomi 生图用的模型（`供应商/模型`）：「模型」页指定了就用它；没指定时按当前对话模型自动匹配
+   * （media/auto.ts：同家族优先，否则 gpt → gemini …）。一个可用的都没有为 null。
+   */
+  nomiImageRef(): string | null {
+    return this.nomiImageChoice()?.ref ?? null;
+  }
+
+  /** 同上，并说明是指定的还是自动匹配的 */
+  nomiImageChoice(): { ref: string; auto: boolean } | null {
+    const assigned = this.store.snapshot().clients.nomi?.models.image?.trim();
+    if (assigned) return { ref: assigned, auto: false };
+    const main = this.nomiPick('chat')?.publicModel ?? null;
+    const providers = this.store
+      .providers()
+      .filter((p) => p.enabled)
+      .map((p) => ({ info: this.imageInfoOf(p), models: p.models }));
+    const ref = autoImageModel(main, providers);
+    return ref ? { ref, auto: true } : null;
+  }
+
+  /** 生图判断端点用的供应商信息（不含 Key） */
+  private imageInfoOf(p: GatewayProvider): ImageProviderInfo {
+    const auth: ImageProviderInfo['auth'] = {};
+    for (const [w, probe] of Object.entries(p.detected ?? {}))
+      if (probe?.auth) auth[w as Wire] = probe.auth;
+    return { id: p.id, ...(p.presetId ? { presetId: p.presetId } : {}), urls: { ...p.urls }, auth };
+  }
+
+  /**
+   * 生图用的供应商信息（media/endpoints 判断适配器与地址）+ 按协议取 Key（与路由同规则：
+   * 未限定协议或限定为该协议的已启用 Key）。只在主进程内使用，绝不发给渲染进程。
+   */
+  imageProvider(id: string): {
+    info: ImageProviderInfo;
+    keyFor(wire: Wire): string | undefined;
+    headers?: Record<string, string>;
+  } | null {
+    const p = this.store.providers().find((x) => x.id === id && x.enabled);
+    if (!p) return null;
+    return {
+      info: this.imageInfoOf(p),
+      keyFor: (wire) =>
+        p.keys
+          .filter((k) => k.enabled && (!k.wire || k.wire === wire))
+          .map((k) => this.store.decrypt(k.enc, k.encryption))
+          .find((v): v is string => Boolean(v)),
+      ...(p.headers || p.userAgent
+        ? { headers: { ...p.headers, ...(p.userAgent ? { 'User-Agent': p.userAgent } : {}) } }
+        : {}),
+    };
   }
 
   /** 同上，列表（不含 Key） */

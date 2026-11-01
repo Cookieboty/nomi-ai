@@ -333,7 +333,10 @@ describe('CliHarnessService Gemini backend', () => {
     const tab = h.createTab({ backend: 'gemini' });
     const err = (await h.sendTab(tab.id, 'stuck').catch((e: Error) => e)) as Error;
     expect(err.message).toContain('Gemini 响应超时');
-    expect(readLog(log).some((c) => c.method === 'session/cancel')).toBe(true);
+    // session/cancel 是通知：发出后 mock CLI 才写日志，慢的机器（Windows CI）上要等它落盘
+    const cancelled = () => readLog(log).some((c) => c.method === 'session/cancel');
+    for (let i = 0; i < 50 && !cancelled(); i++) await new Promise((r) => setTimeout(r, 100));
+    expect(cancelled()).toBe(true);
   }, 15_000);
 
   it('routes permission requests through replyPermission', async () => {

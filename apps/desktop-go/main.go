@@ -40,9 +40,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/characterassets"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -64,6 +66,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/devviews"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
 )
@@ -190,16 +193,31 @@ func main() {
 	if bundle.Settings.Get().Mascot.Renderer == "rive" {
 		go assetsSvc.Ensure()
 	}
+	// 素材库：全部生成的图片（Nomi 的 image_generate、编程助手生成后复制过来的），删除移到废纸篓
+	chatAssetsLib := chatassets.New(chatassets.Deps{
+		ChatRoot:  filepath.Join(userData, "chat"),
+		TrashItem: trash.Item,
+		ShowItemInFolder: func(p string) {
+			hostPorts{sh: &sh}.ShowItemInFolder(p)
+		},
+		OnChanged: func() { router.Emit("chatAssets.changed", nil) },
+		SaveFile: func(name string) string {
+			home, _ := os.UserHomeDir()
+			p, _ := hostPorts{sh: &sh}.SaveFile(context.Background(), "", filepath.Join(home, "Downloads", name), nil)
+			return p
+		},
+	})
 	mascotCtl := mascothandlers.Install(mascothandlers.Deps{
-		Assets:    assetsSvc,
-		Persona:   personaSvc,
-		T:         func(k string) string { return i18n.T(k) },
-		ChatBg:    chatBgSvc,
-		Router:    router,
-		Config:    bundle.Config,
-		Settings:  bundle.Settings,
-		Character: charSvc,
-		Island:    isl,
+		ChatAssets: chatAssetsLib,
+		Assets:     assetsSvc,
+		Persona:    personaSvc,
+		T:          func(k string) string { return i18n.T(k) },
+		ChatBg:     chatBgSvc,
+		Router:     router,
+		Config:     bundle.Config,
+		Settings:   bundle.Settings,
+		Character:  charSvc,
+		Island:     isl,
 		Geometry: func() shell.Geometry {
 			g, _ := sh.(shell.Geometry)
 			return g
@@ -332,7 +350,15 @@ func main() {
 	userProfile.Export()
 	// 非 MCP 的 ig 工具（parity b7s-igtools）：builtin → preference → companion → kb → mem → delegate → ext；
 	// Node 的 MCP 工具在异步 connect 后才注册，排在这些之后
-	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc)
+	// Nomi 生图（对话的 image_generate 与素材库的「重新生成」共用一套依赖）
+	imgDeps := imageToolDeps(gatewaySvc, filepath.Join(userData, "chat", "images"), chatAssetsLib)
+	chatAssetsLib.SetGenerate(func(req chatassets.GenerateReq) (string, error) {
+		r, err := imgDeps.GenerateAsset(context.Background(), igtools.GenerateReq{Prompt: req.Prompt, Aspect: req.Aspect,
+			ModelRef: req.ModelRef, EditFrom: req.EditFrom, References: req.References})
+		return r.File, err
+	})
+	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
+		imgDeps)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
 		GetRegistry: func() tools.Registry { return toolRegistry },
@@ -429,6 +455,33 @@ func main() {
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	// 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、或这个模型在云端
+	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认（与 Node createCore 一致）
+	desktopSvc.Broker.AIReview = func() bool { return jsrt.Call(harnessOrch.AiReviewEnabled) }
+	desktopSvc.Broker.Reviewer = func(ctx context.Context, in desktop.CommandReviewInput) *desktop.CommandReview {
+		if !desktopSvc.Broker.CanSendQuietly(desktopSvc.ProviderFor("summary")) {
+			return nil
+		}
+		return desktop.ReviewCommand(ctx, in, func(c context.Context, msgs []map[string]string) (string, error) {
+			chatFacade := chatFacadeRef.Load()
+			if chatFacade == nil {
+				return "", errors.New(i18n.T("electron.common.ai-service-not-ready"))
+			}
+			role := "summary"
+			cm := make([]blm.ChatMessage, 0, len(msgs))
+			for _, m := range msgs {
+				cm = append(cm, blm.ChatMessage{Role: m["role"], Content: m["content"]})
+			}
+			resp, err := chatFacade.SendMessage(c, &facade.ChatStreamOptions{Role: &role, Messages: cm, Signal: c.Done()})
+			if err != nil {
+				return "", err
+			}
+			return resp.Content, nil
+		}, 0)
+	}
+	desktopSvc.Broker.OnReviewed = func(tool string, r *desktop.CommandReview) {
+		log.Printf("[desktop] command reviewed tool=%s risk=%s authorization=%s outcome=%s", tool, r.Risk, r.Authorization, r.Outcome)
+	}
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry)
 	defer wireAgents(router, userData, desktopSvc)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)

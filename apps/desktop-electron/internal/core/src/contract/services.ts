@@ -32,6 +32,7 @@ import type { LocaleService } from '../i18n';
 import type { KnowledgeService } from '../knowledge/KnowledgeService';
 import type { LocalHubService } from '../local/LocalHubService';
 import type { LocalModelService } from '../local/LocalModelService';
+import type { AssetLibrary } from '../media/AssetLibrary';
 import type { MemoryService } from '../memory/MemoryService';
 import type { OnboardingService } from '../onboarding/OnboardingService';
 import type { PersonaService } from '../persona/PersonaService';
@@ -96,6 +97,8 @@ export interface CoreContractServices {
 
   // D5 mascot
   chatBg?: ChatBackgroundService;
+  /** 素材库：全部生成的图片（Nomi / 各编程助手） */
+  chatAssets?: AssetLibrary;
   characterPack?: CharacterPackService;
   characterAssets?: CharacterAssets;
   persona?: PersonaService;

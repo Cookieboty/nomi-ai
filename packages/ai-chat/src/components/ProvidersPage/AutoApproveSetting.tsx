@@ -1,8 +1,7 @@
 /**
  * 设置 →「编程助手」：「全部自动（最高权限）」开关（默认开）。
- * 开着时新的编程助手标签与 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件操作不再逐项确认；
- * 关掉后回到逐项询问。Nomi 的文件工具在任何档位都拒绝工作区外未授权的路径与敏感文件（.ssh、钥匙串、.env、应用数据…）；
- * Nomi 跑的命令（workspace_run）不受工作区限制，始终逐条确认。
+ * 只管编程助手：开着时新的编程助手标签与 Nomi 委派的编程助手默认「完全放开」；关掉后新标签用默认档位。
+ * Nomi 自己的权限（工作区文件操作免确认、命令自动审核）在设置 →「Nomi」→ 权限，与这里分开。
  */
 import { SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -55,7 +54,7 @@ export const AutoApproveSetting: React.FC = () => {
     <SettingsGroup title={t('ui.chat-settings.permissions')}>
       <SettingRow
         title={t('ui.chat-settings.auto-approve-everything')}
-        description={t('ui.chat-settings.auto-approve-description')}
+        description={t('ui.chat-settings.auto-approve-coding-description')}
       >
         <Switch
           checked={on}

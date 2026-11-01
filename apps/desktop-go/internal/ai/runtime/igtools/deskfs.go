@@ -233,11 +233,16 @@ func wsFor(ws string, g guarded) string {
 }
 
 func (k *deskKit) confirm(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws string) (string, error) {
+	return k.confirmFor(ctx, tool, summary, args, preview, force, ws, "")
+}
+
+// confirmFor：confirm 带上本轮用户说的话（命令自动审核判断授权用）
+func (k *deskKit) confirmFor(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws, userText string) (string, error) {
 	danger, ok := desktop.ToolDanger[tool]
 	if !ok {
 		danger = "write"
 	}
-	req := desktop.AuthorizeInput{Tool: tool, Danger: danger, Summary: summary, Args: rawArgs(args), Preview: preview, Signal: sig(ctx), Force: force}
+	req := desktop.AuthorizeInput{Tool: tool, Danger: danger, Summary: summary, Args: rawArgs(args), Preview: preview, Signal: sig(ctx), Force: force, UserText: userText}
 	var d string
 	if ws != "" {
 		d = k.d.Broker.AuthorizeIn(req)

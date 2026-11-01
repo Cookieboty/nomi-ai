@@ -151,15 +151,67 @@ export function parseSummary(raw: string): ParsedSummary | null {
   return { title, summary, keywords, facts: facts.slice(0, 10) };
 }
 
-/** 事实去重：规范化后完全相同或互相包含视为同一条 */
+/**
+ * 事实去重：规范化后完全相同、互相包含，或只是多 / 少了几个字的同一句话
+ * （「用户被助手称呼为言哥」/「用户被助手称为言哥」）视为同一条。
+ * 「多 / 少几个字」= 短的那条按顺序全在长的那条里（子序列），多出来的不超过 2 个字或 20%，
+ * 且多出来的字里没有否定词（不 / 没 / 无 / 非 / 别 / 未 / 勿 / 否，免得把「不喜欢」并进「喜欢」）。
+ * 换了字的（喜欢猫 / 喜欢狗、北京 / 上海、5 月 / 6 月）不算重复。
+ */
 export function normFact(t: string): string {
-  return t.toLowerCase().replace(/[\s，。,.!！?？、;；:："'“”‘’]/g, '');
+  return t.toLowerCase().replace(/[\s，。,.!！?？、;；:："'“”‘’「」『』《》()（）]/g, '');
 }
+
+const NEGATIONS = new Set(['不', '没', '无', '非', '别', '未', '勿', '否']);
+
+/** 短的那条是长的那条去掉少量非否定字后的样子 */
+function nearlySame(x: string, y: string): boolean {
+  const [a, b] = Array.from(x).length <= Array.from(y).length ? [x, y] : [y, x];
+  const short = Array.from(a);
+  const long = Array.from(b);
+  if (short.length < 6) return false;
+  const extra = long.length - short.length;
+  if (extra > Math.max(2, Math.floor(short.length * 0.2))) return false;
+  let i = 0;
+  for (const ch of long) {
+    if (i < short.length && ch === short[i]) i++;
+    else if (NEGATIONS.has(ch)) return false;
+  }
+  return i === short.length;
+}
+
 export function isDuplicateFact(a: string, b: string): boolean {
   const x = normFact(a);
   const y = normFact(b);
   if (!x || !y) return false;
-  return x === y || (Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x)));
+  if (x === y || (Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x))))
+    return true;
+  return nearlySame(x, y);
+}
+
+/**
+ * 合并已存的重复事实：用户亲口说的（source = user）优先，其次较新的；返回保留下来的（顺序不变）。
+ * 被并掉的条目 id 在 dropped 里（调用方据此清理引用）。
+ */
+export function dedupeFacts<
+  T extends { id: string; text: string; source: string; updatedAt: number },
+>(facts: readonly T[]): { kept: T[]; dropped: string[] } {
+  const rank = (f: T) => (f.source === 'user' ? 1 : 0);
+  // 按组合并：和组里任意一条重复就并进来（重复关系不一定能传递：称呼为 ~ 称为、称呼为 ~ 被称呼为）
+  const groups: Array<{ members: T[]; winner: T }> = [];
+  for (const f of facts) {
+    const g = groups.find((x) => x.members.some((m) => isDuplicateFact(m.text, f.text)));
+    if (!g) {
+      groups.push({ members: [f], winner: f });
+      continue;
+    }
+    g.members.push(f);
+    const w = g.winner;
+    if (rank(f) > rank(w) || (rank(f) === rank(w) && f.updatedAt > w.updatedAt)) g.winner = f;
+  }
+  const keep = new Set(groups.map((g) => g.winner.id));
+  const dropped = facts.filter((f) => !keep.has(f.id)).map((f) => f.id);
+  return { kept: facts.filter((f) => keep.has(f.id)), dropped };
 }
 
 export const episodeText = (e: Pick<Episode, 'title' | 'summary' | 'keywords'>) =>

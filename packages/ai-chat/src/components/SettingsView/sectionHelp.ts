@@ -31,6 +31,23 @@ export interface HelpItem {
 }
 
 export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[]> = {
+  nomi: [
+    {
+      icon: Shield,
+      title: 'ui.chat-settings.permissions',
+      desc: 'ui.chat-settings.nomi-permissions-help',
+    },
+    {
+      icon: Sparkles,
+      title: 'ui.chat-settings.handoff',
+      desc: 'ui.chat-settings.nomi-handoff-help',
+    },
+    {
+      icon: FolderLock,
+      title: 'ui.chat-settings.desktop-permissions',
+      desc: 'ui.chat-settings.accessible-folders-available-tools-and-the-action-log',
+    },
+  ],
   models: [
     {
       icon: Waypoints,
@@ -156,11 +173,6 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       icon: Shield,
       title: 'ui.chat-settings.privacy-data',
       desc: 'ui.chat-settings.how-data-is-stored-exported-and-cleared',
-    },
-    {
-      icon: FolderLock,
-      title: 'ui.chat-settings.desktop-permissions',
-      desc: 'ui.chat-settings.accessible-folders-available-tools-and-the-action-log',
     },
     {
       icon: Download,

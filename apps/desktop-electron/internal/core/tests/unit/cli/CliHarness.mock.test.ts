@@ -947,6 +947,27 @@ describe('CliHarnessService permission modes', () => {
     expect(s).toMatchObject({ defaultPermissionMode: 'plan', codexNetwork: false });
   });
 
+  it('Nomi 的工作区免确认与命令自动审核：独立于「全部自动」，只在设过 / 关掉时落盘', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-nomi-perm-'));
+    const h = mk(root);
+    // mk 关掉了「全部自动」：没单独设过时 Nomi 跟随它
+    expect(h.nomiAutoApproveEnabled()).toBe(false);
+    expect(h.aiReviewEnabled()).toBe(true);
+    expect(h.listTabs()).not.toHaveProperty('nomiAutoApprove');
+    expect(h.listTabs()).not.toHaveProperty('aiReview');
+    const s = h.setPermissionDefaults({ nomiAutoApprove: true, aiReview: false });
+    expect(s).toMatchObject({ autoApprove: false, nomiAutoApprove: true, aiReview: false });
+    expect(h.nomiAutoApproveEnabled()).toBe(true);
+    // 编程助手的「全部自动」改了，Nomi 的设置不跟着变
+    h.setPermissionDefaults({ autoApprove: true });
+    h.setPermissionDefaults({ autoApprove: false });
+    expect(h.nomiAutoApproveEnabled()).toBe(true);
+    h.dispose();
+    const again = mk(root);
+    expect(again.nomiAutoApproveEnabled()).toBe(true);
+    expect(again.aiReviewEnabled()).toBe(false);
+  });
+
   it('binds a bypass confirmation to the backend / cwd it was confirmed for (#66)', () => {
     const h = mk();
     const tab = h.createTab({ backend: 'claude' });

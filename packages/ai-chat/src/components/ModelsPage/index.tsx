@@ -57,6 +57,10 @@ const UNSET = 'unset';
 const SAME_AS_CHAT = [{ value: FOLLOW, label: 'ui.models.same-as-chat' }];
 const FOLLOW_MAIN = [{ value: FOLLOW, label: 'ui.models.follow-main-model' }];
 const NOT_SET = [{ value: UNSET, label: 'ui.cli-monitor.not-set' }];
+/** 图片生成没指定时按对话模型自动匹配（内核 media/auto.ts） */
+const AUTO_IMAGE = [
+  { value: UNSET, label: 'ui.models.image-auto', hint: 'ui.models.image-auto-hint' },
+];
 
 type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
   tiers?: Partial<Record<TierId, string | null>>;
@@ -97,7 +101,9 @@ export const ModelsPage: React.FC = () => {
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
   const nomi = state?.clients.nomi?.models ?? {};
-  const common = { providers: picker, showWire, size: 'sm' as const };
+  // 与对话里的模型选择器同形：按供应商分标签、按厂商筛选 / 分组
+  const common = { providers: picker, showWire, size: 'sm' as const, browse: true };
+  const imagePicker = useMemo(() => pickerProviders(providers, 'image'), [providers]);
 
   const run = (p: Promise<unknown>) => {
     setError(null);
@@ -360,6 +366,23 @@ export const ModelsPage: React.FC = () => {
             disabled={!picker.length}
             aria-label={t('ui.models.model-for-summaries')}
             data-testid="assign-summary"
+          />
+        </div>
+        <div className={styles.row}>
+          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+            {t('ui.models.image-generation')}
+          </span>
+          <ModelPicker
+            {...common}
+            providers={imagePicker}
+            className={styles.picker}
+            extraOptions={AUTO_IMAGE}
+            value={nomi.image ?? UNSET}
+            onChange={(v) => assign({ image: v === UNSET ? null : v })}
+            disabled={!imagePicker.length}
+            placeholder={t('ui.models.no-image-models')}
+            aria-label={t('ui.models.model-for-image-generation')}
+            data-testid="assign-image"
           />
         </div>
       </section>

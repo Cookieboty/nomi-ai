@@ -81,6 +81,9 @@ function capabilities(m: PickerModel, purpose: 'chat' | 'coding'): string {
   return parts.join(' · ');
 }
 
+/** 模型名去掉厂商前缀：google/gemini-2.5-flash-image → gemini-2.5-flash-image */
+export const shortModelName = (s: string): string => s.slice(s.lastIndexOf('/') + 1);
+
 export function splitModelRef(ref: string): { provider: string; model: string } | null {
   const i = ref.indexOf('/');
   return i > 0 ? { provider: ref.slice(0, i), model: ref.slice(i + 1) } : null;
@@ -129,19 +132,25 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         display.set(ref, `${p.name} / ${m.label ?? m.id}`);
         meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
+        const name = m.label ?? m.id;
         opts.push({
           value: ref,
           group: p.name,
-          label: m.label ?? m.id,
+          // browse：去掉厂商前缀（左侧已有厂商筛选与分组标题），完整 id 照样能搜到
+          label: browse ? shortModelName(name) : name,
           // 能力（推理 · 视觉 …）只放悬停提示：选项行留给模型名，避免被截断
           ...(caps ? { hint: caps } : {}),
-          ...(showWire && m.wire ? { description: m.wire } : {}),
+          ...(showWire && m.wire
+            ? { description: m.wire }
+            : browse && m.ctx
+              ? { description: formatContext(m.ctx) }
+              : {}),
           searchText: `${p.id}/${m.id} ${p.name} ${m.label ?? ''}`,
         });
       }
     }
     return { options: opts, display, meta };
-  }, [providers, recent, purpose, showWire, extraOptions]);
+  }, [providers, recent, purpose, showWire, extraOptions, browse]);
 
   // browse：当前供应商标签（'' = 不按供应商筛，只有一个供应商时）与厂商筛选（null = 全部）
   const [tab, setTab] = useState('');
@@ -185,12 +194,30 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     [browse, value, meta, tabs],
   );
 
-  // 分了供应商标签时列表里不再重复供应商分组标题
-  const listOptions = useMemo(
-    () =>
-      showTabs ? options.map((o) => (meta.has(o.value) ? { ...o, group: undefined } : o)) : options,
-    [showTabs, options, meta],
-  );
+  // 分了供应商标签时列表里不再重复供应商分组标题；「全部厂商」时改按厂商分组（顺序与左侧图标栏一致）
+  const listOptions = useMemo(() => {
+    const vendorGrouped = showVendors && activeVendor === null;
+    if (!showTabs && !vendorGrouped) return options;
+    const rank = new Map(vendors.map((v, i) => [v.id, i]));
+    const name = new Map(vendors.map((v) => [v.id, v.name]));
+    const mapped = options.map((o) => {
+      const x = meta.get(o.value);
+      if (!x || o.group === recentGroup) return o;
+      return { ...o, group: vendorGrouped ? name.get(x.vendor) : undefined };
+    });
+    if (!vendorGrouped) return mapped;
+    // 特殊选项、最近使用在前，其余按厂商顺序（同厂商内保持原顺序）
+    const key = (o: SelectOption) => {
+      const x = meta.get(o.value);
+      if (!x) return -2;
+      if (o.group === recentGroup) return -1;
+      return rank.get(x.vendor) ?? vendors.length;
+    };
+    return mapped
+      .map((o, i) => ({ o, i, k: key(o) }))
+      .sort((a, b) => a.k - b.k || a.i - b.i)
+      .map((x) => x.o);
+  }, [showTabs, showVendors, activeVendor, vendors, options, meta, recentGroup]);
 
   const menuHeader = showTabs ? (
     <ModelProviderTabs

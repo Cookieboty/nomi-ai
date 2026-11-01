@@ -72,6 +72,7 @@ const ConfirmHost: React.FC = () => {
       onClose={cancel}
       title={cur.title ?? t('ui.foundation.please-confirm')}
       className={styles.dialog}
+      layer="top"
       data-testid="confirm-dialog"
       footer={
         <>

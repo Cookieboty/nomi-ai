@@ -122,6 +122,8 @@ export interface ClientModels {
   subagent?: string;
   tools?: string;
   summary?: string;
+  /** Nomi 对话的图片生成模型（只对 clients.nomi 有意义） */
+  image?: string;
 }
 
 /** set-assignment 的增量写入：null 用于清掉某个模型配置。 */

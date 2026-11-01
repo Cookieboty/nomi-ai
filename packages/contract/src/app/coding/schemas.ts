@@ -54,6 +54,10 @@ export const HarnessTabsState = loose({
    * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
    */
   autoApprove: z.boolean().optional(),
+  /** 命令自动审核（Nomi 跑命令前先让辅助模型判风险，低风险直接放行）；缺省 = 开 */
+  aiReview: z.boolean().optional(),
+  /** Nomi 工作区文件操作免确认；缺省 = 跟随 autoApprove */
+  nomiAutoApprove: z.boolean().optional(),
 });
 
 /** 标签消息（cli-sdk HarnessTabMessage）：视图写回（seed / createTab）时也用它 */

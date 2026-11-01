@@ -726,6 +726,53 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(within(menu).queryByTestId('model-mix/claude-x')).toBeNull();
     });
 
+    it('第三方模型页：去掉厂商前缀、按厂商分组、右侧显示上下文，刷新挪到供应商标签行', async () => {
+      const mix = prov('mix', 'MixCo', ['anthropic/claude-x', 'openai/gpt-y']);
+      mix.models[0] = { ...mix.models[0]!, ctx: 200_000 } as (typeof mix.models)[number];
+      const gw = { ...gatewayState, providers: [...gatewayState.providers, mix] };
+      const cat: BackendModelCatalog = {
+        ...gwCatalog,
+        models: [
+          ...gwCatalog.models,
+          {
+            id: 'mix/anthropic/claude-x',
+            label: 'MixCo / anthropic/claude-x',
+            reasoning: false,
+            efforts: [],
+          },
+          { id: 'mix/openai/gpt-y', label: 'MixCo / openai/gpt-y', reasoning: false, efforts: [] },
+          {
+            id: 'mix/openai/gpt-image-2',
+            label: 'MixCo / openai/gpt-image-2',
+            reasoning: false,
+            efforts: [],
+          },
+        ],
+      };
+      const { r } = await open({ ...baseTab, source: 'thirdParty' }, gw, cat);
+      fireEvent.click(await r.findByTestId('model-chip'));
+      const menu = await r.findByTestId('model-menu');
+      // 分了供应商标签：不再单独一行「第三方模型」标题，刷新在标签行
+      expect(within(menu).queryByTestId('model-provider')).toBeNull();
+      expect(within(menu).getByTestId('model-refresh')).toBeTruthy();
+      fireEvent.click(within(menu).getByRole('tab', { name: 'MixCo' }));
+      const row = within(menu).getByTestId('model-mix/anthropic/claude-x');
+      expect(row.textContent).toContain('claude-x');
+      expect(row.textContent).not.toContain('anthropic/');
+      expect(row.textContent).toContain('200K');
+      expect(row.getAttribute('title')).toBe('mix/anthropic/claude-x');
+      // 生图模型不能给编程助手用，不列
+      expect(within(menu).queryByTestId('model-mix/openai/gpt-image-2')).toBeNull();
+      // 厂商分组标题按左侧图标栏的顺序
+      const groups = within(menu)
+        .getAllByTestId(/^model-vendor-group-/)
+        .map((g) => g.getAttribute('data-testid'));
+      expect(groups).toEqual(['model-vendor-group-openai', 'model-vendor-group-anthropic']);
+      // 选了厂商就不再分组
+      fireEvent.click(within(menu).getByTestId('model-picker-vendor-openai'));
+      expect(within(menu).queryAllByTestId(/^model-vendor-group-/)).toHaveLength(0);
+    });
+
     it('换到默认供应商并聊过一轮后停在它的标签；没聊过的会话停在默认供应商的标签', async () => {
       const { r } = await open({
         ...baseTab,
@@ -759,7 +806,7 @@ describe('ModelControls（会话的供应商分组）', () => {
       );
     });
 
-    it('默认是第三方供应商：官方标签的模型页附上默认供应商的全部模型，选中即切到第三方', async () => {
+    it('官方标签的模型页与 Nomi 的选择器同形：CLI 自己的模型 + 每个供应商一个标签，选中即切到第三方', async () => {
       const gw = {
         ...gatewayState,
         clients: { codex: { newTabSource: 'thirdParty', models: { main: 'neu/ds-x' } } },
@@ -768,9 +815,15 @@ describe('ModelControls（会话的供应商分组）', () => {
       fireEvent.click(await r.findByTestId('model-chip'));
       fireEvent.click(await r.findByTestId('model-open'));
       const menu = await r.findByTestId('model-menu');
-      expect(within(menu).getByTestId('model-group-switch').textContent).toBe('默认供应商 · NewCo');
-      expect(within(menu).queryByTestId('model-switch-old/glm-a')).toBeNull();
-      fireEvent.click(within(menu).getByTestId('model-switch-neu/ds-x'));
+      // 第一个标签是 CLI 自己的模型；网关供应商各一个标签，默认供应商标在提示上
+      expect(within(menu).getByTestId('model-picker-tab-__cli')).toBeTruthy();
+      expect(within(menu).getByTestId('model-picker-tab-old')).toBeTruthy();
+      const neu = within(menu).getByTestId('model-picker-tab-neu');
+      expect(neu.getAttribute('title') ?? neu.textContent).toContain('NewCo');
+      // 不再另列平铺的「默认供应商」一组
+      expect(within(menu).queryByTestId('model-group-switch')).toBeNull();
+      fireEvent.click(neu);
+      fireEvent.click(within(menu).getByTestId('model-neu/ds-x'));
       await waitFor(() =>
         expect(invoke).toHaveBeenCalledWith('harness.tabSource', {
           id: 'cx',

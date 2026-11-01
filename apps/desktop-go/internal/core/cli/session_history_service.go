@@ -289,6 +289,7 @@ func ZstdDecode(buf []byte, maxBytes int) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "zstd", "-dc")
+	hideWindow(cmd)
 	cmd.Stdin = bytes.NewReader(buf)
 	var stdout limitBuf
 	stdout.max = maxBytes

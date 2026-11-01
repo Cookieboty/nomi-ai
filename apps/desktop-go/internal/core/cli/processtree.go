@@ -29,6 +29,7 @@ var (
 		ctx, cancel := context.WithTimeout(context.Background(), taskkillTimeoutMs*time.Millisecond)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "taskkill", args...)
+		hideWindow(cmd)
 		_ = cmd.Run()
 	}
 	killPid = func(pid int, sig string) error { return nodeproc.KillPid(pid, sig) }

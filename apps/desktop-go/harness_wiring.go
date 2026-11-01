@@ -220,7 +220,8 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 		_, err := gilErr(func() string { return o.KnownDir(dir) })
 		return err == nil
 	}
-	b.AutoApprove = func() bool { return jsrt.Call(o.AutoApproveEnabled) }
+	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随编程助手的「全部自动」）
+	b.AutoApprove = func() bool { return jsrt.Call(o.NomiAutoApproveEnabled) }
 	b.OnWorkspaceRejected = func(dir, reason string) {
 		log.Printf("[desktop] WARN Nomi workspace rejected; tools fall back to granted folders dir=%s reason=%s", dir, reason)
 	}

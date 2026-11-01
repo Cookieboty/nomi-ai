@@ -78,6 +78,7 @@ import {
 } from './core/scope';
 import { ServiceContainer, type IServiceContainer } from './core/ServiceContainer';
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
+import { reviewCommand } from './desktop/commandReview';
 import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
 import { guardOutboundMessages } from './desktop/outboundGuard';
 import { applyConversationWorkspace } from './desktop/workspaceTools';
@@ -89,10 +90,12 @@ import { applyNomiContext, chatRoleOf } from './gateway/nomiContext';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
 import { LocaleService, t as tr, type CoreI18n } from './i18n';
+import { createImageTools, generateImageAsset, type ImageToolDeps } from './image/imageGenerate';
 import { KnowledgeService } from './knowledge/KnowledgeService';
 import { LocalHubService } from './local/LocalHubService';
 import { LocalModelService } from './local/LocalModelService';
 import { readMascotRenderer } from './mascot/mascotRenderer';
+import { AssetLibrary } from './media/AssetLibrary';
 import { MemoryService } from './memory/MemoryService';
 import { OnboardingService } from './onboarding/OnboardingService';
 import { forwardPersonaChanges } from './persona/events';
@@ -312,6 +315,15 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     return typeof resp?.content === 'string' ? resp.content : '';
   };
 
+  /** Nomi 生图的依赖（对话里的 image_generate 与素材库的「重新生成」共用） */
+  const imageToolDeps = (): ImageToolDeps => ({
+    imageRef: () => services.gateway?.nomiImageRef() ?? null,
+    imageProvider: (id) => services.gateway?.imageProvider(id) ?? null,
+    imageAuto: () => services.gateway?.nomiImageChoice()?.auto === true,
+    imagesDir: userData('chat', 'images'),
+    onGenerated: (file, meta) => services.chatAssets?.record(file, meta),
+  });
+
   /** 旧版 displayMode（'live2d' / 'custom-image'）不再使用：读取到就删掉，避免残留配置 */
   const migrateLegacyDisplayMode = (): void => {
     try {
@@ -490,6 +502,21 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
 
     // 界面主题（设置 → 通用 → 主题），对话窗口与桌面角色同步
     services.theme = new ThemeService({ file: userData('theme.json'), ports, events });
+    // 素材库：全部生成的图片（Nomi 的 image_generate、编程助手生成后复制过来的），删除移到废纸篓
+    services.chatAssets = new AssetLibrary({
+      chatRoot: userData('chat'),
+      showItemInFolder: (p) => ports.shell.showItemInFolder(p),
+      trashItem: (p) => ports.shell.trashItem(p),
+      onChanged: () => events.publish('chatAssets.changed', null),
+      saveFile: (name) =>
+        ports.dialogs.saveFile({
+          defaultPath: path.join(ports.paths.home(), 'Downloads', name),
+          filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+        }),
+      generate: async (req) =>
+        (await generateImageAsset(imageToolDeps(), req as Parameters<typeof generateImageAsset>[1]))
+          .file,
+    });
     // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
     services.chatBg = new ChatBackgroundService({
       file: userData('chat-background.json'),
@@ -695,7 +722,11 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       cipher: createSafeStorageCipher(safeStorageFromSecrets(ports.secrets)),
       logger: logger as never,
       // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量
-      onUsage: (e) => quality.addGateway(e),
+      onUsage: (e) => {
+        quality.addGateway(e);
+        // Nomi 的费用按网关逐次记账（一轮里的每次模型调用一条，见 UsageService.recordGateway）
+        usage.recordGateway(e);
+      },
       traceDir: () => requests.traceDir(),
       presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
       presetModels: (id) => findPreset(id)?.modelMeta,
@@ -850,7 +881,23 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         return false;
       }
     };
-    desktop.broker.autoApprove = () => harness.autoApproveEnabled();
+    // Nomi 自己的「工作区文件操作免确认」（设置 →「Nomi」→ 权限；没单独设过时跟随编程助手的「全部自动」）
+    desktop.broker.autoApprove = () => harness.nomiAutoApproveEnabled();
+    // 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、
+    // 或这个模型在云端且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认
+    desktop.broker.aiReview = () => harness.aiReviewEnabled();
+    desktop.broker.reviewer = async (input, signal) => {
+      if (!services.aiRuntime?.resolveProvider('summary')) return null;
+      if (!desktop.broker.canSendQuietly(desktop.providerFor('summary'))) return null;
+      return reviewCommand(input, (messages, s) => complete(messages, s, 'summary'), { signal });
+    };
+    desktop.broker.onReviewed = (tool, r) =>
+      logger.info('command reviewed', {
+        tool,
+        risk: r.risk,
+        authorization: r.authorization,
+        outcome: r.outcome,
+      });
     desktop.broker.onWorkspaceRejected = (dir, reason) =>
       logger.warn('Nomi workspace rejected; tools fall back to granted folders', { dir, reason });
     // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
@@ -968,6 +1015,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           mem: () => services.mem,
           delegate: () => services.delegate,
           ext: () => services.ext,
+          extra: () => createImageTools(imageToolDeps()),
         },
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）

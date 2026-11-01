@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/characterassets"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatnav"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
@@ -34,6 +35,8 @@ type Deps struct {
 	// Persona / ChatBg：persona.* 与 chatBg.*（nil = UNAVAILABLE，同 need(services.x)）
 	Persona *persona.Service
 	ChatBg  *chatbg.Service
+	// ChatAssets：素材库（chatAssets.*；nil = UNAVAILABLE）
+	ChatAssets *chatassets.Library
 	// Assets：当前角色包的远程素材（character.assets / ensureAssets；切到 rive 时开始准备）
 	Assets *characterassets.Service
 	// Geometry 返回外壳几何能力（外壳在 Install 之后才建，故用函数）；nil = 尚不可用
@@ -431,6 +434,67 @@ func Install(d Deps) *Controller {
 	bg("chatBg.set", func(raw json.RawMessage) (chatbg.State, error) { return d.ChatBg.Set(raw) })
 	bg("chatBg.reset", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.Reset() })
 	bg("chatBg.pickImage", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.PickImage() })
+
+	// —— 素材库（全部生成的图片）
+	call("chatAssets.list", func(json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		return d.ChatAssets.List(), nil
+	})
+	call("chatAssets.remove", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		var in struct {
+			Files []string `json:"files"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		return map[string]any{"removed": d.ChatAssets.Remove(in.Files)}, nil
+	})
+	fileIn := func(raw json.RawMessage) (string, error) {
+		var in struct {
+			File string `json:"file"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return "", bad(err)
+		}
+		return in.File, nil
+	}
+	call("chatAssets.regenerate", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		f, err := fileIn(raw)
+		if err != nil {
+			return nil, err
+		}
+		return d.ChatAssets.Regenerate(f)
+	})
+	call("chatAssets.saveAs", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		f, err := fileIn(raw)
+		if err != nil {
+			return nil, err
+		}
+		return d.ChatAssets.SaveAs(f)
+	})
+	call("chatAssets.reveal", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		var in struct {
+			File string `json:"file"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		return d.ChatAssets.Reveal(in.File), nil
+	})
 
 	// —— 桌面角色窗口互动
 	report("mascot.setShape", func(m *mascot.Controller, in map[string]any) { m.ReportShape(in["rects"]) })

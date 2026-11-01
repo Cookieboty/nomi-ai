@@ -5,6 +5,7 @@
 export * from './ingress';
 export * from './ir';
 export * from './learn';
+export * from './media';
 export * from './request';
 export * from './transforms';
 export * from './stream';

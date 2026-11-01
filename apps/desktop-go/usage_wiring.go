@@ -92,6 +92,11 @@ func recordNomiCall(e *util.Obj) {
 	}
 	str := func(k string) string { x, _ := e.Get(k).(string); return x }
 	num := func(k string) float64 { x, _ := e.Get(k).(float64); return x }
+	// 经统一网关的调用由网关逐次记账（gatewayUsageRecorder → RecordGateway），这里跳过免得重复；
+	// 只记不经网关的（NOMI_PROVIDER 锁定的供应商等），与 Node AIRuntimeBoot 一致
+	if str("providerId") == aiproviders.GatewayProviderID {
+		return
+	}
 	at := num("at")
 	provider, model := splitGatewayUsage(str("providerId"), str("model"))
 	in := usage.UsageInput{Ts: at, Source: "nomi", Via: "chat", Provider: provider, Model: model,
@@ -110,6 +115,29 @@ func recordNomiCall(e *util.Obj) {
 		in.Key = &k
 	}
 	s.Record(in)
+}
+
+// gatewayUsageQ：网关用量事件排队后在 jsrt.Run 里记账（网关回调在自己的 goroutine）
+var gatewayUsageQ = func() chan *util.Obj {
+	q := make(chan *util.Obj, 1024)
+	go func() {
+		for e := range q {
+			jsrt.Run(func() {
+				if s := usageRef.Load(); s != nil {
+					s.RecordGateway(e)
+				}
+			})
+		}
+	}()
+	return q
+}()
+
+// recordGatewayUsage：Nomi 的费用按网关逐次记账（一轮里的每次模型调用一条，见 usage.RecordGateway）
+func recordGatewayUsage(e *util.Obj) {
+	select {
+	case gatewayUsageQ <- e:
+	default: // 队列满（极端情况）：丢这一条，不阻塞网关
+	}
 }
 
 // splitGatewayUsage = ai/gatewayUsage.ts

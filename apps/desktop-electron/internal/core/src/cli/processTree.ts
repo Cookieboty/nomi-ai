@@ -50,7 +50,11 @@ export function killProcessTree(child: Pick<ChildProcess, 'pid' | 'kill'>): void
   }
   if (process.platform === 'win32') {
     try {
-      spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', timeout: 3000 });
+      spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+        stdio: 'ignore',
+        timeout: 3000,
+        windowsHide: true,
+      });
     } catch {
       /* */
     }

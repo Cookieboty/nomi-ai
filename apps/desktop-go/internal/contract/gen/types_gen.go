@@ -1224,6 +1224,54 @@ type CharacterGetActivePackOutput struct {
 	Reason            *string                                             `json:"reason,omitempty"`
 }
 
+type ChatAssetsListOutputItem struct {
+	File           string   `json:"file"`
+	Url            string   `json:"url"`
+	Source         string   `json:"source"`
+	CreatedAt      float64  `json:"createdAt"`
+	Bytes          float64  `json:"bytes"`
+	Model          *string  `json:"model,omitempty"`
+	Prompt         *string  `json:"prompt,omitempty"`
+	Aspect         *string  `json:"aspect,omitempty"`
+	EditedFrom     *string  `json:"editedFrom,omitempty"`
+	References     []string `json:"references,omitempty"`
+	ConversationId *string  `json:"conversationId,omitempty"`
+}
+
+type ChatAssetsRegenerateInput struct {
+	File string `json:"file"`
+}
+
+type ChatAssetsRegenerateOutput struct {
+	File           string   `json:"file"`
+	Url            string   `json:"url"`
+	Source         string   `json:"source"`
+	CreatedAt      float64  `json:"createdAt"`
+	Bytes          float64  `json:"bytes"`
+	Model          *string  `json:"model,omitempty"`
+	Prompt         *string  `json:"prompt,omitempty"`
+	Aspect         *string  `json:"aspect,omitempty"`
+	EditedFrom     *string  `json:"editedFrom,omitempty"`
+	References     []string `json:"references,omitempty"`
+	ConversationId *string  `json:"conversationId,omitempty"`
+}
+
+type ChatAssetsRemoveInput struct {
+	Files []string `json:"files"`
+}
+
+type ChatAssetsRemoveOutput struct {
+	Removed []string `json:"removed"`
+}
+
+type ChatAssetsRevealInput struct {
+	File string `json:"file"`
+}
+
+type ChatAssetsSaveAsInput struct {
+	File string `json:"file"`
+}
+
 type ChatBgGetOutput struct {
 	ImageUrl string  `json:"imageUrl"`
 	Blur     float64 `json:"blur"`
@@ -1675,6 +1723,21 @@ const (
 	DesktopStateOutputPendingItemScopeModeReadWrite DesktopStateOutputPendingItemScopeMode = "read-write"
 )
 
+// DesktopStateOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopStateOutputPendingItemReviewRisk = string
+
+const (
+	DesktopStateOutputPendingItemReviewRiskLow      DesktopStateOutputPendingItemReviewRisk = "low"
+	DesktopStateOutputPendingItemReviewRiskMedium   DesktopStateOutputPendingItemReviewRisk = "medium"
+	DesktopStateOutputPendingItemReviewRiskHigh     DesktopStateOutputPendingItemReviewRisk = "high"
+	DesktopStateOutputPendingItemReviewRiskCritical DesktopStateOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopStateOutputPendingItemReview struct {
+	Risk      DesktopStateOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                 `json:"rationale,omitempty"`
+}
+
 type DesktopStateOutputPendingItem struct {
 	Id           string                                  `json:"id"`
 	Tool         string                                  `json:"tool"`
@@ -1689,6 +1752,7 @@ type DesktopStateOutputPendingItem struct {
 	Kind         *string                                 `json:"kind,omitempty"`
 	ScopePath    *string                                 `json:"scopePath,omitempty"`
 	ScopeMode    *DesktopStateOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopStateOutputPendingItemReview    `json:"review,omitempty"`
 }
 
 type DesktopStateOutput struct {
@@ -2785,6 +2849,8 @@ type HarnessPermissionDefaultsInput struct {
 	DefaultPermissionMode *string `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool   `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool   `json:"autoApprove,omitempty"`
+	AiReview              *bool   `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool   `json:"nomiAutoApprove,omitempty"`
 }
 
 type HarnessPermissionDefaultsOutputTabsItem struct {
@@ -2807,6 +2873,8 @@ type HarnessPermissionDefaultsOutput struct {
 	DefaultPermissionMode *string                                   `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                                     `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool                                     `json:"autoApprove,omitempty"`
+	AiReview              *bool                                     `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool                                     `json:"nomiAutoApprove,omitempty"`
 }
 
 type HarnessPickCwdOutput struct {
@@ -2964,6 +3032,8 @@ type HarnessTabActivateOutput struct {
 	DefaultPermissionMode *string                            `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                              `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool                              `json:"autoApprove,omitempty"`
+	AiReview              *bool                              `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool                              `json:"nomiAutoApprove,omitempty"`
 }
 
 type HarnessTabBackendInput struct {
@@ -3027,6 +3097,8 @@ type HarnessTabCloseOutput struct {
 	DefaultPermissionMode *string                         `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                           `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool                           `json:"autoApprove,omitempty"`
+	AiReview              *bool                           `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool                           `json:"nomiAutoApprove,omitempty"`
 }
 
 type HarnessTabContextInput struct {
@@ -3313,6 +3385,8 @@ type HarnessTabsOutput struct {
 	DefaultPermissionMode *string                     `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                       `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool                       `json:"autoApprove,omitempty"`
+	AiReview              *bool                       `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool                       `json:"nomiAutoApprove,omitempty"`
 }
 
 type HarnessWorkspaceDeleteInput struct {
@@ -6114,6 +6188,21 @@ const (
 	EventDesktopChangedPendingItemScopeModeReadWrite EventDesktopChangedPendingItemScopeMode = "read-write"
 )
 
+// EventDesktopChangedPendingItemReviewRisk 枚举：low | medium | high | critical
+type EventDesktopChangedPendingItemReviewRisk = string
+
+const (
+	EventDesktopChangedPendingItemReviewRiskLow      EventDesktopChangedPendingItemReviewRisk = "low"
+	EventDesktopChangedPendingItemReviewRiskMedium   EventDesktopChangedPendingItemReviewRisk = "medium"
+	EventDesktopChangedPendingItemReviewRiskHigh     EventDesktopChangedPendingItemReviewRisk = "high"
+	EventDesktopChangedPendingItemReviewRiskCritical EventDesktopChangedPendingItemReviewRisk = "critical"
+)
+
+type EventDesktopChangedPendingItemReview struct {
+	Risk      EventDesktopChangedPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                  `json:"rationale,omitempty"`
+}
+
 type EventDesktopChangedPendingItem struct {
 	Id           string                                   `json:"id"`
 	Tool         string                                   `json:"tool"`
@@ -6128,6 +6217,7 @@ type EventDesktopChangedPendingItem struct {
 	Kind         *string                                  `json:"kind,omitempty"`
 	ScopePath    *string                                  `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopChangedPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *EventDesktopChangedPendingItemReview    `json:"review,omitempty"`
 }
 
 type EventDesktopChanged struct {
@@ -6147,6 +6237,21 @@ const (
 	EventDesktopConfirmRequestScopeModeReadWrite EventDesktopConfirmRequestScopeMode = "read-write"
 )
 
+// EventDesktopConfirmRequestReviewRisk 枚举：low | medium | high | critical
+type EventDesktopConfirmRequestReviewRisk = string
+
+const (
+	EventDesktopConfirmRequestReviewRiskLow      EventDesktopConfirmRequestReviewRisk = "low"
+	EventDesktopConfirmRequestReviewRiskMedium   EventDesktopConfirmRequestReviewRisk = "medium"
+	EventDesktopConfirmRequestReviewRiskHigh     EventDesktopConfirmRequestReviewRisk = "high"
+	EventDesktopConfirmRequestReviewRiskCritical EventDesktopConfirmRequestReviewRisk = "critical"
+)
+
+type EventDesktopConfirmRequestReview struct {
+	Risk      EventDesktopConfirmRequestReviewRisk `json:"risk"`
+	Rationale *string                              `json:"rationale,omitempty"`
+}
+
 type EventDesktopConfirmRequest struct {
 	Id           string                               `json:"id"`
 	Tool         string                               `json:"tool"`
@@ -6161,6 +6266,7 @@ type EventDesktopConfirmRequest struct {
 	Kind         *string                              `json:"kind,omitempty"`
 	ScopePath    *string                              `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopConfirmRequestScopeMode `json:"scopeMode,omitempty"`
+	Review       *EventDesktopConfirmRequestReview    `json:"review,omitempty"`
 }
 
 type EventDesktopP2Changed struct {
@@ -6225,6 +6331,8 @@ type EventHarnessTabsChanged struct {
 	DefaultPermissionMode *string                           `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                             `json:"codexNetwork,omitempty"`
 	AutoApprove           *bool                             `json:"autoApprove,omitempty"`
+	AiReview              *bool                             `json:"aiReview,omitempty"`
+	NomiAutoApprove       *bool                             `json:"nomiAutoApprove,omitempty"`
 }
 
 type EventKbDownload struct {
@@ -6678,6 +6786,26 @@ type CharacterEnsureAssetsOutputT = CharacterEnsureAssetsOutput
 // CharacterGetActivePackInputT 是 character.getActivePack 的入参
 type CharacterGetActivePackInputT = any
 type CharacterGetActivePackOutputT = CharacterGetActivePackOutput
+
+// ChatAssetsListInputT 是 chatAssets.list 的入参
+type ChatAssetsListInputT = any
+type ChatAssetsListOutputT = []ChatAssetsListOutputItem
+
+// ChatAssetsRegenerateInputT 是 chatAssets.regenerate 的入参
+type ChatAssetsRegenerateInputT = ChatAssetsRegenerateInput
+type ChatAssetsRegenerateOutputT = ChatAssetsRegenerateOutput
+
+// ChatAssetsRemoveInputT 是 chatAssets.remove 的入参
+type ChatAssetsRemoveInputT = ChatAssetsRemoveInput
+type ChatAssetsRemoveOutputT = ChatAssetsRemoveOutput
+
+// ChatAssetsRevealInputT 是 chatAssets.reveal 的入参
+type ChatAssetsRevealInputT = ChatAssetsRevealInput
+type ChatAssetsRevealOutputT = bool
+
+// ChatAssetsSaveAsInputT 是 chatAssets.saveAs 的入参
+type ChatAssetsSaveAsInputT = ChatAssetsSaveAsInput
+type ChatAssetsSaveAsOutputT = bool
 
 // ChatBgGetInputT 是 chatBg.get 的入参
 type ChatBgGetInputT = any
@@ -7982,6 +8110,7 @@ type EventAiTtsEndT = EventAiTtsEnd
 type EventAiUserProfileChangedT = EventAiUserProfileChanged
 type EventAvatarEventT = json.RawMessage
 type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
+type EventChatAssetsChangedT = any
 type EventChatBgChangedT = EventChatBgChanged
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any

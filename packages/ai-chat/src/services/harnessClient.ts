@@ -95,6 +95,10 @@ export interface HarnessTabsState {
    * Nomi 对话工作区里的文件操作不确认（命令始终确认）；关掉后回到逐项询问
    */
   autoApprove?: boolean;
+  /** 命令自动审核；缺省 = 开（只在关掉时出现） */
+  aiReview?: boolean;
+  /** Nomi 工作区文件操作免确认；缺省 = 跟随 autoApprove（只在单独设过时出现） */
+  nomiAutoApprove?: boolean;
 }
 
 export interface HarnessImageInput {
@@ -532,6 +536,8 @@ export const harnessClient = {
     defaultPermissionMode?: PermissionMode;
     codexNetwork?: boolean;
     autoApprove?: boolean;
+    aiReview?: boolean;
+    nomiAutoApprove?: boolean;
   }) => call<HarnessTabsState>(() => api.harness.permissionDefaults(o)),
   /**
    * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给编程助手用的模型；

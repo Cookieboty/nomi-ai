@@ -464,3 +464,24 @@
     transition: none;
   }
 }
+
+/* 生图工具的结果：图片直接显示在这一步下面 */
+.generatedImage {
+  padding: var(--cd-space-1) 0 var(--cd-space-1) var(--cd-space-6);
+  max-width: 360px;
+}
+
+.generatedCaption {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin-top: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.generatedAuto {
+  padding: 0 var(--cd-space-1);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}

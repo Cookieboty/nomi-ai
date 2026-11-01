@@ -85,6 +85,9 @@ var _ extensions.ConfirmBroker = ConfirmAdapter{}
 
 func (c ConfirmAdapter) PermissionMode() string { return c.B.PermissionMode() }
 
+// MarkRead：MCP 工具返回了外部内容（同 Node ExtensionsService.withConfirm 里的 broker.markRead）
+func (c ConfirmAdapter) MarkRead(ctx context.Context) { c.B.MarkRead(ctx) }
+
 func (c ConfirmAdapter) Authorize(ctx context.Context, r extensions.AuthorizeReq) string {
 	preview := r.Preview
 	in := desktop.AuthorizeInput{Tool: r.Tool, Danger: r.Danger, Summary: r.Summary, Args: r.Args, Preview: &preview, Signal: ctx}

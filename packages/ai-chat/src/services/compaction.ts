@@ -23,6 +23,8 @@ export interface NomiContextInfo {
   window: number;
   budget: number;
   compactAt: number;
+  /** 窗口取自哪一级（'default' = 网关也不认识这个模型，用的保守默认值） */
+  source?: string;
 }
 
 export const isCompaction = (m: ChatMessage): boolean => m.origin === 'compaction';

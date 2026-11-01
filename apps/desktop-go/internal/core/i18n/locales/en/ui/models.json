@@ -193,5 +193,10 @@
   "ui.models.all-vendors": "All vendors",
   "ui.models.filter-by-provider": "Filter by provider",
   "ui.models.filter-by-vendor": "Filter by vendor",
-  "ui.models.other-vendors": "Other"
+  "ui.models.other-vendors": "Other",
+  "ui.models.image-generation": "Image generation",
+  "ui.models.model-for-image-generation": "Model for image generation",
+  "ui.models.no-image-models": "No image models from your providers yet",
+  "ui.models.image-auto": "Auto (match the chat model)",
+  "ui.models.image-auto-hint": "When none is set, Nomi picks an image model from the same family as its chat model (gpt → gpt-image, gemini → Gemini image); if there isn't one, it tries gpt, then gemini image models"
 }

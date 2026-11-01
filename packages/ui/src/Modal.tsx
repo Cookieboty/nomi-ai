@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cx } from './cx';
 import { t } from './i18n';
@@ -16,6 +17,8 @@ export interface ModalProps {
   closeLabel?: string;
   className?: string;
   bodyClassName?: string;
+  /** top：确认 / 输入框这类必须盖在所有浮层（如新手引导）之上的弹窗 */
+  layer?: 'default' | 'top';
   children?: React.ReactNode;
   'data-testid'?: string;
 }
@@ -30,6 +33,8 @@ export interface ModalHost {
   hideTitle?: boolean;
   /** 抽屉头部「在设置中打开」 */
   onOpenSettings?: () => void;
+  /** 抽屉头部、「关闭」左侧的额外按钮 */
+  actions?: React.ReactNode;
 }
 export const ModalHostContext = createContext<ModalHost | null>(null);
 
@@ -44,6 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
   closeLabel = t('ui.providers-schedule.close'),
   className,
   bodyClassName,
+  layer = 'default',
   children,
   'data-testid': testId,
 }) => {
@@ -80,9 +86,13 @@ export const Modal: React.FC<ModalProps> = ({
     );
   }
   const drawer = host?.mode === 'drawer';
-  return (
+  const overlay = (
     <div
-      className={cx('cd-modal-overlay', drawer && 'cd-modal-overlay--drawer')}
+      className={cx(
+        'cd-modal-overlay',
+        drawer && 'cd-modal-overlay--drawer',
+        layer === 'top' && 'cd-modal-overlay--top',
+      )}
       data-testid={testId ? `${testId}-overlay` : undefined}
       onClick={closeOnOverlay ? onClose : undefined}
     >
@@ -114,6 +124,7 @@ export const Modal: React.FC<ModalProps> = ({
               {t('ui.mascot-theme.open-in-settings')}
             </button>
           )}
+          {drawer && host?.actions}
           <button
             type="button"
             className="cd-btn cd-btn--ghost cd-btn--sm cd-modal__close"
@@ -127,6 +138,9 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+  // 挂到 body：弹窗可能开在消息区等有自己层叠上下文的容器里（如对话里点开大图），
+  // 不挂出去会被输入栏等兄弟元素盖住。遮罩本来就是 fixed，位置不变；React 上下文照常穿过 portal
+  return typeof document === 'undefined' ? overlay : createPortal(overlay, document.body);
 };
 
 export const Dialog = Modal;

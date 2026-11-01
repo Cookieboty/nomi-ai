@@ -11,7 +11,8 @@ import (
 const brandAppName = "Nomi"
 
 // SetPermissionDefaults = setPermissionDefaults(o)：各字段 util.Undefined/nil 表示缺省。
-func (o *Orchestrator) SetPermissionDefaults(dpm, codexNetwork, autoApprove any) *util.Obj {
+// extra：[aiReview, nomiAutoApprove]（可省略，按位置）
+func (o *Orchestrator) SetPermissionDefaults(dpm, codexNetwork, autoApprove any, extra ...any) *util.Obj {
 	if dpm != nil && dpm != util.Undefined {
 		if !cli.IsPermissionMode(dpm) {
 			throw(i18n.T("electron.common.unknown-permission-mode"))
@@ -29,6 +30,16 @@ func (o *Orchestrator) SetPermissionDefaults(dpm, codexNetwork, autoApprove any)
 	}
 	if b, ok := autoApprove.(bool); ok {
 		o.autoApprove = b
+	}
+	if len(extra) > 0 {
+		if b, ok := extra[0].(bool); ok {
+			o.aiReviewOff = !b
+		}
+	}
+	if len(extra) > 1 {
+		if b, ok := extra[1].(bool); ok {
+			o.nomiAutoApprove = &b
+		}
 	}
 	o.changed()
 	return o.ListTabs()

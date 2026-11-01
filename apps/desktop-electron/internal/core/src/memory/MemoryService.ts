@@ -23,6 +23,7 @@ import {
   buildMemoryContext,
   episodeText,
   exportMarkdown,
+  dedupeFacts,
   isDuplicateFact,
   parseSummary,
   recall,
@@ -101,6 +102,12 @@ export class MemoryService {
       },
       { v: 1, episodes: [], facts: [] },
     );
+    // 早期没合并的重复事实（说法几乎一样的两条）：加载时并掉，有变化才写回
+    const { kept, dropped } = dedupeFacts(this.data.facts);
+    if (dropped.length) {
+      this.data.facts = kept;
+      this.persist();
+    }
     this.syncFacade();
   }
 
@@ -366,6 +373,8 @@ export class MemoryService {
     // 身份类事实始终带上（数量少、对称呼很重要）
     for (const f of this.data.facts)
       if (f.kind === 'identity' && !facts.includes(f) && facts.length < 8) facts.push(f);
+    // 同一件事只引用一次（说法几乎一样的只留排在前面的）
+    facts = facts.filter((f, i) => !facts.slice(0, i).some((g) => isDuplicateFact(g.text, f.text)));
     const text = buildMemoryContext({ persona, facts, episodes: eps });
     return {
       text,

@@ -109,6 +109,11 @@ export interface ToolExecContext {
    * 工具必须经内核校验（desktop PermissionBroker.workspaceOf）后才能使用；校验不过按没有工作区处理。
    */
   cwd?: string;
+  /**
+   * 本轮用户最后说的话（只读，截断过）：命令自动审核判断「用户有没有要求这么做」用；
+   * 没有时按用户没授权处理
+   */
+  userText?: string;
 }
 
 /** 工具接口 */
@@ -123,7 +128,27 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   readOnly?: boolean;
   /** 只在对话选了工作区（ToolExecContext.cwd）时提供给模型（如 workspace_run） */
   requiresWorkspace?: boolean;
+  /**
+   * 每轮对话开始时问一次：现在能不能用（例如没设置图片模型时不提供 image_generate）。
+   * 返回 false 时这一轮不提供给模型；不写 = 总是可用
+   */
+  available?: () => boolean;
+  /**
+   * 按需提供：这一轮对话里用不用得上（例如没提到提醒就不带 reminder_*）。
+   * 返回 false 时这一轮不提供给模型，省下工具定义的 token；不写 = 总是提供
+   */
+  relevant?: (turn: ToolTurn) => boolean;
   execute: (input: TInput, ctx: ToolExecContext) => Promise<TOutput>;
+}
+
+/** 判断工具这一轮是否用得上的依据（ToolDefinition.relevant） */
+export interface ToolTurn {
+  /** 本轮用户最后说的话 */
+  userText: string;
+  /** 整段对话（用户与助手，不含系统提示）的文本，小写；一旦提到过就一直提供，前缀缓存不被打断 */
+  convoText: string;
+  /** Nomi 对话选的工作区 */
+  cwd?: string;
 }
 
 /** 记忆 - 长期 facts / 摘要 / 用户偏好 */

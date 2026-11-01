@@ -17,6 +17,7 @@ const NAMESPACES = [
   'files',
   'window',
   'avatar',
+  'chatAssets',
 ];
 
 const scale = (s: number) => ({
@@ -75,12 +76,15 @@ describe('mascot 契约', () => {
     }
   });
 
-  it('surfaces 跟原来暴露它的 preload 一致；没有 dangerous', () => {
+  it('surfaces 跟原来暴露它的 preload 一致；只有删除素材库图片是 dangerous', () => {
     const p = mascotProcedures as Record<
       string,
       { surfaces?: readonly string[]; dangerous?: boolean }
     >;
-    for (const d of Object.values(p)) expect(d.dangerous).toBeUndefined();
+    const dangerous = Object.entries(p)
+      .filter(([, d]) => d.dangerous)
+      .map(([n]) => n);
+    expect(dangerous).toEqual(['chatAssets.remove']);
     // 两个 preload 都有：角色包 / 人设 / 平台
     for (const n of ['character.getActivePack', 'persona.get', 'window.platform'])
       expect(p[n]!.surfaces).toBeUndefined();

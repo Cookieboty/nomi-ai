@@ -285,6 +285,13 @@ export const DesktopConfirmRequest = z.looseObject({
   kind: z.literal('scope').optional(),
   scopePath: z.string().optional(),
   scopeMode: z.enum(['read', 'read-write']).optional(),
+  /** 辅助模型审核过但没放行：风险等级与理由（卡片上显示） */
+  review: z
+    .looseObject({
+      risk: z.enum(['low', 'medium', 'high', 'critical']),
+      rationale: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const DesktopState = z.looseObject({

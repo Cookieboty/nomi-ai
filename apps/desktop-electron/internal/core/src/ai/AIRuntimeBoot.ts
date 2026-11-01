@@ -184,21 +184,25 @@ export async function startAIRuntime(
   const providerStore = new ProviderStore({
     cipher,
     // 用量与计费：每次成功调用记一条（响应 usage；没有才估算并标「估算」）
+    // 经统一网关的调用由网关逐次记账（createCore → UsageService.recordGateway），这里跳过免得重复；
+    // 只记不经网关的（NOMI_PROVIDER 锁定的供应商等）
     onCall: (e) =>
-      services.usage()?.record({
-        ts: e.at,
-        dur: e.durationMs,
-        source: 'nomi',
-        via: 'chat',
-        // 经统一网关：模型名是「供应商/模型」，拆回真正的供应商与模型（显示名与计价按它们算）
-        ...splitGatewayUsage(e.providerId, e.model),
-        promptTokens: e.inputTokens,
-        outputTokens: e.outputTokens,
-        cacheRead: e.cacheReadTokens,
-        cacheWrite: e.cacheWriteTokens,
-        est: e.estimated,
-        key: e.reqId ? `nomi:${e.reqId}:${e.at}` : undefined,
-      }),
+      e.providerId === GATEWAY_PROVIDER_ID
+        ? undefined
+        : services.usage()?.record({
+            ts: e.at,
+            dur: e.durationMs,
+            source: 'nomi',
+            via: 'chat',
+            // 经统一网关：模型名是「供应商/模型」，拆回真正的供应商与模型（显示名与计价按它们算）
+            ...splitGatewayUsage(e.providerId, e.model),
+            promptTokens: e.inputTokens,
+            outputTokens: e.outputTokens,
+            cacheRead: e.cacheReadTokens,
+            cacheWrite: e.cacheWriteTokens,
+            est: e.estimated,
+            key: e.reqId ? `nomi:${e.reqId}:${e.at}` : undefined,
+          }),
   });
   if (cipher.kind === 'none') {
     logger.warn(

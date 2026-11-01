@@ -38,7 +38,10 @@ export class CodeSandbox implements CodeSandboxApi {
     if (this.pyCache !== undefined) return this.pyCache;
     for (const c of process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python']) {
       try {
-        const r = spawnSync(c, ['-c', 'import sys;print(sys.version_info[0])'], { timeout: 4000 });
+        const r = spawnSync(c, ['-c', 'import sys;print(sys.version_info[0])'], {
+          timeout: 4000,
+          windowsHide: true,
+        });
         if (r.status === 0 && String(r.stdout).trim() === '3') return (this.pyCache = c);
       } catch {
         /* ignore */

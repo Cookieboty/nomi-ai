@@ -1,10 +1,10 @@
 /**
- * 「编程助手」页：分段标签「助手 / 监视与会话」。
+ * 「编程助手」页：逐个配置各编程助手（CLI），分段标签「助手 / 监视与会话」。
+ * Nomi 自己的设置（权限、委派、工具权限）在设置 →「Nomi」。
  * - 助手：一排紧凑的助手选择条（Claude Code / Codex / dsh / Grok / Gemini，带安装状态），
  *   下面是选中助手的分组：版本（检测 / 更新 / 安装）、官方账号、第三方模型入口。
  *   第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口。
  *   下面是「外部 CLI」：用户添加的说 ACP 的编程助手（§5.9）。
- * - 委派：允许 Nomi 委派编程助手、按任务类型的默认编程助手（docs/design/nomi-delegate-cli.md §4.7）。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
@@ -22,7 +22,6 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import { AutoApproveSetting } from './AutoApproveSetting';
 import { CliEndpointSection } from './CliEndpointSection';
-import { DelegateSettings } from './DelegateSettings';
 import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 import { RuntimeEnvironment } from './RuntimeEnvironment';
@@ -42,7 +41,7 @@ export const ProvidersPage: React.FC<{
   // 「监视与会话」时记住上次看的助手；旧的「nomi」选中值落到第一个助手
   const [lastCli, setLastCli] = useState<CliKind>(() => (isCliKind(ep) ? ep : CLIS[0]!));
   const cli: CliKind = isCliKind(ep) ? ep : lastCli;
-  const view = ep === 'monitor' || ep === 'delegate' ? ep : 'assistants';
+  const view = ep === 'monitor' ? ep : 'assistants';
   const pick = (k: CliKind) => {
     setLastCli(k);
     setEp(k);
@@ -94,17 +93,12 @@ export const ProvidersPage: React.FC<{
       <Tabs
         aria-label={t('ui.cli-monitor.coding-assistant-sections')}
         value={view}
-        onChange={(v) => (v === 'monitor' || v === 'delegate' ? setEp(v) : pick(cli))}
+        onChange={(v) => (v === 'monitor' ? setEp(v) : pick(cli))}
         items={[
           {
             value: 'assistants',
             label: t('ui.providers-schedule.assistants'),
             testId: 'providers-view-assistants',
-          },
-          {
-            value: 'delegate',
-            label: t('ui.chat-settings.handoff'),
-            testId: 'providers-view-delegate',
           },
           {
             value: 'monitor',
@@ -115,9 +109,7 @@ export const ProvidersPage: React.FC<{
       />
 
       <div className={styles.body}>
-        {view === 'delegate' ? (
-          <DelegateSettings />
-        ) : view === 'monitor' ? (
+        {view === 'monitor' ? (
           <div data-testid="providers-section-monitor">
             <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
           </div>

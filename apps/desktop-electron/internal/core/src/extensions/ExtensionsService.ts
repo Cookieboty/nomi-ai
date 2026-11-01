@@ -539,6 +539,8 @@ export class ExtensionsService {
         }
         try {
           const out = await def.execute(input, ctx);
+          // MCP 返回的是外部内容（可能带提示词注入）：本轮标为读过外部内容，命令审核不再按「干净」放行中风险
+          broker.markRead(ctx?.signal);
           this.audit(def.name, { server: serverId }, decision, 'ok', 'mcp', Date.now() - t0);
           return out;
         } catch (err) {

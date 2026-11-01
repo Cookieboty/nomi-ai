@@ -328,7 +328,7 @@ export class AdvancedTTSEngine {
       $speak.Speak(${psQuote(text)});
     `;
 
-    return spawn('powershell', ['-Command', script]);
+    return spawn('powershell', ['-NoProfile', '-Command', script], { windowsHide: true });
   }
 
   /**
