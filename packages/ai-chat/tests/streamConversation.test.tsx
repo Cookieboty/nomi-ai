@@ -5,7 +5,9 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
+import { selectBusyHere } from '../src/contexts/aiChatStore';
 import { type SdkIPCClient } from '../src/services/IPCClient';
+import { nomiLive, settledNomiMessages } from '../src/utils/convAdapters';
 
 import type { ApiMockState } from './helpers/knowledgeApi';
 
@@ -97,6 +99,80 @@ const flush = () => act(async () => void (await new Promise((r) => setTimeout(r,
 describe('Nomi 流式回复 · 会话固定与停止生成', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
+
+  it('回复中切到别的会话再切回：之前的消息还在，进行中的这一轮补回来，用时从这一轮的提问算起', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const ipc = ref.api.state.ipcClient as SdkIPCClient;
+    const store = ipc.conversationStore();
+    const A = store.ensureCurrent();
+    store.append({ id: 'a-q', role: 'user', content: '上一问', timestamp: 1 }, A);
+    store.append({ id: 'a-r', role: 'assistant', content: '上一答', timestamp: 2 }, A);
+    const B = store.create().id;
+    store.append({ id: 'b-q', role: 'user', content: 'B 问', timestamp: 3 }, B);
+    store.append({ id: 'b-r', role: 'assistant', content: 'B 答', timestamp: 4 }, B);
+    await act(async () => {
+      await ipc.switchConversation(A);
+      await ref.api.actions.loadChatHistory();
+    });
+
+    let done!: Promise<void>;
+    await act(async () => {
+      done = ref.api.actions.sendStreamMessage('你好');
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    f.push('部分');
+    await flush();
+    const asked = ref.api.state.messages.find((m) => m.content === '你好')!;
+
+    // 切到 B：B 不算在回复中，它的最后一条回复照常显示，不被当成进行中
+    await act(async () => {
+      await ipc.switchConversation(B);
+      await ref.api.actions.loadChatHistory();
+    });
+    expect(ref.api.state.isLoading).toBe(true);
+    expect(selectBusyHere(ref.api.state)).toBe(false);
+    expect(settledNomiMessages(ref.api.state.messages, false).map((m) => m.content)).toEqual([
+      'B 问',
+      'B 答',
+    ]);
+
+    // 切回 A，期间没有新的输出：之前的消息与这一轮都在，用时从「你好」算起
+    await act(async () => {
+      await ipc.switchConversation(A);
+      await ref.api.actions.loadChatHistory();
+    });
+    const s = ref.api.state;
+    expect(selectBusyHere(s)).toBe(true);
+    expect(s.messages.map((m) => m.content)).toEqual(['上一问', '上一答', '你好', '部分']);
+    expect(settledNomiMessages(s.messages, true).map((m) => m.content)).toEqual([
+      '上一问',
+      '上一答',
+      '你好',
+    ]);
+    const live = nomiLive(s.messages, true)!;
+    expect(live.text).toBe('部分');
+    expect(live.startedAt).toBe(asked.timestamp);
+
+    f.push('回复');
+    f.finish();
+    await act(async () => {
+      await done;
+    });
+    expect(store.getMessages(A).map((m) => m.content)).toEqual([
+      '上一问',
+      '上一答',
+      '你好',
+      '部分回复',
+    ]);
+    expect(ref.api.state.messages.map((m) => m.content)).toEqual([
+      '上一问',
+      '上一答',
+      '你好',
+      '部分回复',
+    ]);
+  });
 
   it('流式中途切换会话：整轮消息落在发起会话，新会话保持为空', async () => {
     const f = fakeClient();

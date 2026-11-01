@@ -51,6 +51,7 @@ import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
   selectFirstMessageId,
+  selectBusyHere,
   selectIpcClient,
   selectIsLoading,
   selectMessageCount,
@@ -124,8 +125,9 @@ import { aggregateSessionChanges } from './utils/sessionChanges';
 import { startSplitDrag } from './utils/splitDrag';
 import './App.css';
 
-const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
-const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, s.isLoading);
+// 回复中只看当前展示的会话：切到别的会话时，那个会话的最后一条回复不能被当成「进行中」
+const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
+const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, selectBusyHere(s));
 
 /** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
 const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
@@ -217,6 +219,7 @@ const AiChatContent: React.FC = () => {
   // NomiConversation subscribes to; App and the rest of the tree stay put.
   const { actions, store: chatStore } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
+  const busyHere = useAiChatSelector(selectBusyHere);
   const ipcClient = useAiChatSelector(selectIpcClient);
   const firstMessageId = useAiChatSelector(selectFirstMessageId);
   const messageCount = useAiChatSelector(selectMessageCount);
@@ -295,7 +298,7 @@ const AiChatContent: React.FC = () => {
   const railMessages = tabs.isCliTab ? cliConvMessages : nomiMessages;
   const railBusy = tabs.isCliTab
     ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
-    : isLoading;
+    : busyHere;
   const sessionChangeCount = useMemo(
     () => aggregateSessionChanges(railMessages).length,
     [railMessages],
@@ -939,7 +942,7 @@ const AiChatContent: React.FC = () => {
                 <NomiConversation
                   scopeId={`nomi:${firstMessageId ?? 'new'}`}
                   messages={nomiMessages}
-                  phase={isLoading ? 'running' : 'idle'}
+                  phase={busyHere ? 'running' : 'idle'}
                   queued={nomiQueue.queue}
                   onRemoveQueued={nomiQueue.remove}
                   onRetry={onNomiRetry}
