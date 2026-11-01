@@ -212,16 +212,96 @@ func ParseSummary(raw string) *ParsedSummary {
 	return &ParsedSummary{title, summary, kws, facts}
 }
 
-var normRe = regexp.MustCompile(`[\s，。,.!！?？、;；:："'“”‘’]`)
+var normRe = regexp.MustCompile(`[\s，。,.!！?？、;；:："'“”‘’「」『』《》()（）]`)
 
 func NormFact(t string) string { return normRe.ReplaceAllString(strings.ToLower(t), "") }
 
+// IsDuplicateFact = isDuplicateFact：完全相同、互相包含，或只是多 / 少了几个字的同一句话
+// （短的按顺序全在长的里，多出来的不超过 2 个字或 20%，且多出来的没有否定词）
 func IsDuplicateFact(a, b string) bool {
 	x, y := NormFact(a), NormFact(b)
 	if x == "" || y == "" {
 		return false
 	}
-	return x == y || (min(deps.Len16(x), deps.Len16(y)) >= 4 && (strings.Contains(x, y) || strings.Contains(y, x)))
+	if x == y || (min(deps.Len16(x), deps.Len16(y)) >= 4 && (strings.Contains(x, y) || strings.Contains(y, x))) {
+		return true
+	}
+	return nearlySame(x, y)
+}
+
+var negations = map[rune]bool{'不': true, '没': true, '无': true, '非': true, '别': true, '未': true, '勿': true, '否': true}
+
+func nearlySame(x, y string) bool {
+	short, long := []rune(x), []rune(y)
+	if len(short) > len(long) {
+		short, long = long, short
+	}
+	if len(short) < 6 {
+		return false
+	}
+	if len(long)-len(short) > max(2, len(short)*2/10) {
+		return false
+	}
+	i := 0
+	for _, ch := range long {
+		if i < len(short) && ch == short[i] {
+			i++
+		} else if negations[ch] {
+			return false
+		}
+	}
+	return i == len(short)
+}
+
+// DedupeFacts = dedupeFacts：按组合并重复事实（和组里任意一条重复就并进来），
+// 每组留用户亲口说的，其次较新的；返回保留的（顺序不变）与被并掉的 id
+func DedupeFacts(facts []Fact) (kept []Fact, dropped []string) {
+	rank := func(f Fact) int {
+		if f.Source == "user" {
+			return 1
+		}
+		return 0
+	}
+	type group struct {
+		members []Fact
+		winner  Fact
+	}
+	var groups []*group
+	for _, f := range facts {
+		var g *group
+		for _, x := range groups {
+			for _, m := range x.members {
+				if IsDuplicateFact(m.Text, f.Text) {
+					g = x
+					break
+				}
+			}
+			if g != nil {
+				break
+			}
+		}
+		if g == nil {
+			groups = append(groups, &group{members: []Fact{f}, winner: f})
+			continue
+		}
+		g.members = append(g.members, f)
+		if rank(f) > rank(g.winner) || (rank(f) == rank(g.winner) && f.UpdatedAt > g.winner.UpdatedAt) {
+			g.winner = f
+		}
+	}
+	keep := map[string]bool{}
+	for _, g := range groups {
+		keep[g.winner.ID] = true
+	}
+	kept = make([]Fact, 0, len(facts))
+	for _, f := range facts {
+		if keep[f.ID] {
+			kept = append(kept, f)
+		} else {
+			dropped = append(dropped, f.ID)
+		}
+	}
+	return kept, dropped
 }
 
 func EpisodeText(e Episode) string {

@@ -108,6 +108,11 @@ func New(d Deps) *Service {
 			}
 		}
 	}
+	// 早期没合并的重复事实：加载时并掉，有变化才写回（与 Node 一致）
+	if kept, dropped := DedupeFacts(s.data.Facts); len(dropped) > 0 {
+		s.data.Facts = kept
+		s.persistLocked(false)
+	}
 	s.syncFacade()
 	return s
 }
@@ -571,6 +576,18 @@ func (s *Service) Context(ctx context.Context, query string) Context {
 			facts = append(facts, f)
 		}
 	}
+	// 同一件事只引用一次（说法几乎一样的只留排在前面的）
+	uniq := facts[:0:0]
+	for _, f := range facts {
+		dup := false
+		for _, g := range uniq {
+			dup = dup || IsDuplicateFact(g.Text, f.Text)
+		}
+		if !dup {
+			uniq = append(uniq, f)
+		}
+	}
+	facts = uniq
 	used := []Used{}
 	for _, e := range eps {
 		used = append(used, Used{e.ID, "episode", e.Title})
