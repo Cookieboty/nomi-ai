@@ -251,6 +251,9 @@ type emitter struct{ ls map[string][]*func(any) }
 
 func (e *emitter) On(ev string, fn func(any)) { e.onOff(ev, fn) }
 
+// OnOff：订阅并返回取消函数（持续任务的编程助手执行者用）
+func (e *emitter) OnOff(ev string, fn func(any)) func() { return e.onOff(ev, fn) }
+
 // onOff = on，返回对应的 off（Node events.off(同一函数)）。
 func (e *emitter) onOff(ev string, fn func(any)) func() {
 	if e.ls == nil {

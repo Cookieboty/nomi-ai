@@ -31,6 +31,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -193,7 +194,47 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
             >
               {t('ui.providers-schedule.task-reject')}
             </Button>
+            {last?.carrier?.worktree && last.carrier.sourceCwd && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void (async () => {
+                    if (
+                      !(await confirmDialog({
+                        message: t(
+                          'ui.providers-schedule.task-apply-worktree-confirm',
+                          last.carrier!.sourceCwd!,
+                        ),
+                      }))
+                    )
+                      return;
+                    run(async () => {
+                      const r = await api.tasks.applyWorktree({ id });
+                      if (r)
+                        setNotice(
+                          t(
+                            'ui.providers-schedule.task-applied',
+                            r.applied.length,
+                            r.conflicted.length,
+                            r.denied.length,
+                          ),
+                        );
+                    });
+                  })()
+                }
+                data-testid="task-apply-worktree"
+              >
+                {t('ui.providers-schedule.task-apply-worktree')}
+              </Button>
+            )}
           </div>
+          {notice && (
+            <p className={styles.waitDetail} role="status">
+              {notice}
+            </p>
+          )}
         </div>
       )}
       {task.status === 'needs_reconcile' && (

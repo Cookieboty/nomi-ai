@@ -48,12 +48,16 @@ type Reporter interface {
 	Completed(r AttemptResult)
 	Failed(e TaskError)
 	TakenOver()
+	// Carrier：记下执行载体（标签 / worktree）
+	Carrier(c Carrier)
 }
 
 type AttemptContext struct {
 	Task    Task
 	Attempt Attempt
-	Report  Reporter
+	// Previous：上一次执行（续跑 / 退回时复用它的标签与 worktree）
+	Previous *Attempt
+	Report   Reporter
 }
 
 // Executor：notify / nomi / cli 各自实现
@@ -701,7 +705,17 @@ func (r *Runtime) run(id string, e Effect, task Task, attempt *Attempt) {
 					r.failLater(id, gen, TaskError{Code: "executor_crashed", Message: fmt.Sprint(p)})
 				}
 			}()
-			ex.Start(AttemptContext{Task: task, Attempt: *attempt, Report: &reporter{r: r, id: id, gen: gen}})
+			var prev *Attempt
+			if rec := r.recs[id]; rec != nil {
+				for i := len(rec.Attempts) - 1; i >= 0; i-- {
+					if rec.Attempts[i].ID != attempt.ID {
+						p := rec.Attempts[i]
+						prev = &p
+						break
+					}
+				}
+			}
+			ex.Start(AttemptContext{Task: task, Attempt: *attempt, Previous: prev, Report: &reporter{r: r, id: id, gen: gen}})
 		}()
 	case "resume_attempt":
 		if ex := r.executor(task); ex != nil {
@@ -773,6 +787,40 @@ func (p *reporter) Failed(e TaskError) {
 	p.post(Event{Type: "failed", At: p.r.d.Now(), Gen: ptr(p.gen), Error: &e})
 }
 func (p *reporter) TakenOver() { p.post(Event{Type: "taken_over", At: p.r.d.Now(), Gen: ptr(p.gen)}) }
+
+func (p *reporter) Carrier(c Carrier) {
+	p.r.ownOrQueue(func() {
+		rec := p.r.recs[p.id]
+		a := p.r.current(p.id)
+		if rec == nil || a == nil || a.Gen != p.gen {
+			return
+		}
+		next := *a
+		merged := Carrier{}
+		if a.Carrier != nil {
+			merged = *a.Carrier
+		}
+		for _, f := range []struct {
+			dst **string
+			src *string
+		}{{&merged.TabID, c.TabID}, {&merged.SessionID, c.SessionID}, {&merged.Cwd, c.Cwd},
+			{&merged.Worktree, c.Worktree}, {&merged.SourceCwd, c.SourceCwd}, {&merged.GitRoot, c.GitRoot}} {
+			if f.src != nil {
+				*f.dst = f.src
+			}
+		}
+		next.Carrier = &merged
+		attempts := make([]Attempt, len(rec.Attempts))
+		for i, x := range rec.Attempts {
+			if x.ID == a.ID {
+				attempts[i] = next
+			} else {
+				attempts[i] = x
+			}
+		}
+		p.r.save(Record{Task: rec.Task, Attempts: attempts})
+	})
+}
 
 func (r *Runtime) addUsage(id string, gen int, d UsageDelta) {
 	rec := r.recs[id]

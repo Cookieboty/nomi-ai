@@ -449,6 +449,7 @@
   "electron.common.task-when-once": "Once: {0}",
   "electron.common.task-when-weekdays": "Weekdays at {0}",
   "electron.common.task-when-weekly": "Weekly ({0}) at {1}",
+  "electron.common.task-who-cli": "Coding assistant {0} in {1} (separate worktree; changes are copied back only after you accept)",
   "electron.common.task-who-nomi": "Nomi does it",
   "electron.common.task-who-notify": "Just a notification on time",
   "electron.common.tesseract-english-fast-language-model-for-recognizing-english": "Tesseract English (fast) language model for recognizing English in images and scans.",

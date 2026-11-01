@@ -114,6 +114,23 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.Command(in.ID, tasks.Command{Type: "reconcile", Outcome: in.Outcome}), nil
 		}),
+		"tasks.applyWorktree": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			apply := sv.ApplyWorktree
+			if apply == nil {
+				// 没有桌面能力：一个都不写（同 Node：没有 desktop 时 mayWrite 为 false）
+				apply = func(_ tasks.CliIsolation, files []string) tasks.WorktreeApply {
+					return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
+				}
+			}
+			if r := s.ApplyWorktree(in.ID, apply); r != nil {
+				return r, nil
+			}
+			return nil, nil
+		}),
 		"tasks.remove": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in taskIDIn
 			if err := decode(raw, &in); err != nil {

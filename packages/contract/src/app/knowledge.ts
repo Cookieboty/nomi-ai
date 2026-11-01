@@ -282,6 +282,20 @@ export const knowledgeProcedures = {
   },
   /** 删除（只有结束的任务可以删） */
   'tasks.remove': { kind: 'mutation', input: id, output: ok },
+  /** 验收卡片上的回填：把 worktree 里的改动拷回主工作区（冲突与授权外的文件留在 worktree） */
+  'tasks.applyWorktree': {
+    kind: 'mutation',
+    input: id,
+    output: z
+      .object({
+        applied: z.array(z.string()),
+        skipped: z.array(z.string()),
+        conflicted: z.array(z.string()),
+        denied: z.array(z.string()),
+      })
+      .nullable(),
+    dangerous: true,
+  },
 
   // ---------- connections：外部账号 / 本机软件（ConnectionService，docs/design/connections.md） ----------
   /** 全部连接（不含任何密钥） */

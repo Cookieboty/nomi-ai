@@ -203,6 +203,52 @@ func (s *Service) Command(id string, c Command) CmdResult { return s.Runtime.Com
 
 func (s *Service) Remove(id string) bool { return s.Runtime.Remove(id) }
 
+// WorktreeApply：回填结果（contract tasks.applyWorktree 的输出）
+type WorktreeApply struct {
+	Applied    []string `json:"applied"`
+	Skipped    []string `json:"skipped"`
+	Conflicted []string `json:"conflicted"`
+	Denied     []string `json:"denied"`
+}
+
+// ApplyWorktree：验收卡片上的「回填」（§5.4、§7.2）：把最近一次执行在 worktree 里的改动拷回主工作区。
+// apply 做实际拷贝（delegate.ApplyWorktreeToMain + 按当前授权检查每个目标）；没有可回填的返回 nil。
+func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []string) WorktreeApply) *WorktreeApply {
+	rec := s.Runtime.Get(id)
+	if rec == nil {
+		return nil
+	}
+	var a *Attempt
+	for i := len(rec.Attempts) - 1; i >= 0; i-- {
+		x := rec.Attempts[i]
+		if x.Carrier != nil && x.Carrier.Worktree != nil && x.Result != nil {
+			a = &x
+			break
+		}
+	}
+	if a == nil || a.Carrier.GitRoot == nil {
+		return nil
+	}
+	files := []string{}
+	for _, art := range a.Result.Artifacts {
+		if art.Kind == "file" {
+			files = append(files, art.Ref)
+		}
+	}
+	c := a.Carrier
+	iso := CliIsolation{Kind: "worktree", Cwd: *c.Worktree, SourceCwd: *c.Worktree, GitRoot: *c.GitRoot, WorktreePath: *c.Worktree}
+	if c.Cwd != nil {
+		iso.Cwd = *c.Cwd
+	}
+	if c.SourceCwd != nil {
+		iso.SourceCwd = *c.SourceCwd
+	}
+	r := apply(iso, files)
+	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), AttemptID: a.ID,
+		Msg: fmt.Sprintf("applied:%d conflicted:%d denied:%d", len(r.Applied), len(r.Conflicted), len(r.Denied))})
+	return &r
+}
+
 // SpentToday：今天（本机时区）各次执行的已知费用合计；费用未知的不计入（§9）
 func SpentToday(attempts []Attempt, now int64) float64 {
 	d := time.UnixMilli(now)

@@ -31,6 +31,8 @@ function setup(
       return decision;
     },
     githubConnection: () => github,
+    installedClis: () => ['claude'],
+    dirOk: (d) => d === '/repo',
     now: () => T0,
   });
   const tool = (name: string) => tools.find((t) => t.name === name)!;
@@ -184,6 +186,32 @@ describe('task_propose / task_recall', () => {
     expect(fresh.get(t.id)!.task).toMatchObject({
       status: 'waiting_user',
       wait: { kind: 'budget' },
+    });
+    fs.rmSync(h.dir, { recursive: true, force: true });
+  });
+
+  it('交给编程助手：要装好、目录是工作区；至少 L2，授权路径是代码目录，用 worktree', async () => {
+    const h = setup();
+    const base = { title: '修 bug', goal: '修 #12', when: { kind: 'manual' } };
+    const bad = await h
+      .tool('task_propose')
+      .execute({ ...base, executor: 'cli', cli: 'codex', cwd: '/repo' }, {});
+    expect(bad).toMatchObject({ ok: false, error: { code: 'cli_unavailable' } });
+    const badDir = await h
+      .tool('task_propose')
+      .execute({ ...base, executor: 'cli', cli: 'claude', cwd: '/' }, {});
+    expect(badDir).toMatchObject({ ok: false, error: { code: 'bad_cwd' } });
+    const r = (await h
+      .tool('task_propose')
+      .execute({ ...base, executor: 'cli', cli: 'claude', cwd: '/repo' }, {})) as {
+      ok: true;
+      data: { id: string };
+    };
+    expect(r.ok).toBe(true);
+    expect(h.cards.at(-1)!.preview).toContain('claude');
+    expect(h.svc.get(r.data.id)!.task).toMatchObject({
+      executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
+      grant: { level: 2, paths: ['/repo'] },
     });
     fs.rmSync(h.dir, { recursive: true, force: true });
   });

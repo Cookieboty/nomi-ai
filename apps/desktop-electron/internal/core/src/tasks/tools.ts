@@ -57,9 +57,17 @@ const proposeInput = z.object({
     ])
     .describe('何时运行'),
   executor: z
-    .enum(['nomi', 'notify'])
+    .enum(['nomi', 'notify', 'cli'])
     .default('nomi')
-    .describe('nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知'),
+    .describe(
+      'nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；' +
+        'cli = 交给用户装好的编程助手在代码目录里做（改代码这类，用户点名或明显更合适时才用）',
+    ),
+  cli: z.string().optional().describe('executor=cli 时用哪个编程助手（如 claude、codex）'),
+  cwd: z
+    .string()
+    .optional()
+    .describe('executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）'),
   tools: z
     .array(z.enum(TOOL_CLASSES))
     .default(['read'])
@@ -116,6 +124,10 @@ export interface TaskToolDeps {
   tasks: TaskService;
   /** 可用的 GitHub 连接（取第一个可用的）；没有时 github_repos 不可用 */
   githubConnection?: () => { id: string; label: string } | null;
+  /** 已装好的编程助手 id；executor=cli 用 */
+  installedClis?: () => string[];
+  /** 目录存在、是用户认可的工作区 */
+  dirOk?: (dir: string) => boolean;
   authorize(i: {
     tool: string;
     danger: 'write';
@@ -152,10 +164,30 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
         if (ctx.callerTabId)
           return { ok: false, error: { code: 'not_allowed', message: '编程助手不能创建任务' } };
         const i = proposeInput.parse(raw);
+        const toolLevel = Math.max(1, ...i.tools.map((x) => TOOL_LEVEL[x]));
+        // 编程助手至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）
         const level: GrantLevel =
           i.executor === 'notify'
             ? 0
-            : (Math.max(1, ...i.tools.map((x) => TOOL_LEVEL[x])) as GrantLevel);
+            : i.executor === 'cli'
+              ? (Math.max(2, Math.min(3, toolLevel)) as GrantLevel)
+              : (toolLevel as GrantLevel);
+        if (i.executor === 'cli') {
+          const installed = d.installedClis?.() ?? [];
+          if (!i.cli || !installed.includes(i.cli))
+            return {
+              ok: false,
+              error: {
+                code: 'cli_unavailable',
+                message: `可用的编程助手：${installed.join(', ') || '无'}；没有就用 executor=nomi`,
+              },
+            };
+          if (!i.cwd || !d.dirOk?.(i.cwd))
+            return {
+              ok: false,
+              error: { code: 'bad_cwd', message: 'cwd 必须是用户打开过的工作区目录' },
+            };
+        }
         const repos = i.github_repos ?? [];
         const gh = repos.length ? (d.githubConnection?.() ?? null) : null;
         if (repos.length && !gh)
@@ -176,6 +208,7 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
           notify: i.executor === 'notify',
           level,
           ...(gh ? { github: { label: gh.label, repos } } : {}),
+          ...(i.executor === 'cli' ? { cli: { name: i.cli!, cwd: i.cwd! } } : {}),
         });
         const decision = await d.authorize({
           tool: 'task_propose',
@@ -197,10 +230,12 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
             executor:
               i.executor === 'notify'
                 ? { kind: 'notify', text: i.goal }
-                : { kind: 'nomi', tools: [...i.tools] as ToolClass[] },
+                : i.executor === 'cli'
+                  ? { kind: 'cli', cli: i.cli!, cwd: i.cwd!, isolation: 'worktree' }
+                  : { kind: 'nomi', tools: [...i.tools] as ToolClass[] },
             grant: {
               level,
-              paths: [],
+              paths: i.executor === 'cli' ? [i.cwd!] : [],
               connections: gh
                 ? [{ connectionId: gh.id, capabilities: ['github.read'], resources: repos }]
                 : [],

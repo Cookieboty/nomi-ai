@@ -75,6 +75,8 @@ type Bundle struct {
 	Tasks *tasks.Service
 	Conns *connections.Service
 	N     int
+	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
+	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
 }
 
 // Wire：对应 createCore.ts 里批次 8 的服务装配；返回后调用 Start 开启后台任务。
@@ -131,7 +133,13 @@ func Wire(d WireDeps) *Bundle {
 	b.N = Install(d.Router, Services{
 		Conns: func() *connections.Service { return b.Conns },
 		Tasks: func() *tasks.Service { return b.Tasks },
-		KB:    func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
+		ApplyWorktree: func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
+			if b.ApplyWorktree == nil {
+				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
+			}
+			return b.ApplyWorktree(iso, files)
+		},
+		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },
 		Hub: func() *local.Hub { return b.Hub }, Ext: func() *extensions.Service { return b.Ext },
 	})

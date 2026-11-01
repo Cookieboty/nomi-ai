@@ -91,6 +91,8 @@ export interface Attempt {
   usage: { inputTokens: number; outputTokens: number; costUsd?: number; costKnown: boolean };
   result?: { summary: string; artifacts: { kind: string; ref: string }[] };
   error?: { code: string; message: string };
+  /** 执行载体：编程助手的后台标签与 worktree */
+  carrier?: { tabId?: string; cwd?: string; worktree?: string; sourceCwd?: string };
 }
 
 export interface LegacyItem {

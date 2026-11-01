@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,7 +30,9 @@ const proposeSchema = `{"type":"object","properties":{
 "at":{"type":"string","description":"ISO 时间，如 2026-11-03T09:00"},"time":{"type":"string","description":"HH:MM"},
 "days":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6},"description":"0=周日 … 6=周六"},
 "minutes":{"type":"integer","minimum":5,"maximum":10080}},"required":["kind"]},
-"executor":{"type":"string","enum":["nomi","notify"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知"},
+"executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的编程助手在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
+"cli":{"type":"string","description":"executor=cli 时用哪个编程助手（如 claude、codex）"},
+"cwd":{"type":"string","description":"executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）"},
 "tools":{"type":"array","items":{"type":"string","enum":["read","web","knowledge_write","memory_write","file_write","shell"]},
 "description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},
 "github_repos":{"type":"array","maxItems":20,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},"description":"需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用"}},
@@ -50,6 +53,8 @@ type proposeIn struct {
 	Goal        string      `json:"goal"`
 	When        ProposeWhen `json:"when"`
 	Executor    string      `json:"executor"`
+	Cli         string      `json:"cli"`
+	Cwd         string      `json:"cwd"`
 	Tools       []string    `json:"tools"`
 	GithubRepos []string    `json:"github_repos"`
 }
@@ -156,8 +161,14 @@ func decodeInput(in any, v any) error {
 // GithubConn：可用的 GitHub 连接（取第一个可用的）；没有时 nil
 type GithubConn func() (id, label string, ok bool)
 
+// CliEnv：executor=cli 用：已装好的编程助手、目录是否是用户认可的工作区
+type CliEnv struct {
+	Installed func() []string
+	DirOk     func(dir string) bool
+}
+
 // CreateTaskTools：task_propose / task_recall
-func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn) []tools.Definition {
+func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli CliEnv) []tools.Definition {
 	mustSchema := func(js string) *u.Obj {
 		v, err := u.ParseString(js)
 		if err != nil {
@@ -199,6 +210,24 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn) []tool
 						}
 					}
 				}
+				if in.Executor == "cli" {
+					// 编程助手至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）
+					level = min(3, max(2, level))
+					var installed []string
+					if cli.Installed != nil {
+						installed = cli.Installed()
+					}
+					if in.Cli == "" || !slices.Contains(installed, in.Cli) {
+						names := strings.Join(installed, ", ")
+						if names == "" {
+							names = "无"
+						}
+						return fail("cli_unavailable", "可用的编程助手："+names+"；没有就用 executor=nomi"), nil
+					}
+					if in.Cwd == "" || cli.DirOk == nil || !cli.DirOk(in.Cwd) {
+						return fail("bad_cwd", "cwd 必须是用户打开过的工作区目录"), nil
+					}
+				}
 				var ghID, ghLabel string
 				if len(in.GithubRepos) > 0 {
 					ok := false
@@ -222,6 +251,8 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn) []tool
 				who := T("electron.common.task-who-nomi")
 				if in.Executor == "notify" {
 					who = T("electron.common.task-who-notify")
+				} else if in.Executor == "cli" {
+					who = T("electron.common.task-who-cli", in.Cli, in.Cwd)
 				}
 				card := strings.Join([]string{
 					T("electron.common.task-card-task", in.Title),
@@ -249,6 +280,9 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn) []tool
 				if in.Executor == "notify" {
 					g := in.Goal
 					req.Executor = ExecutorSpec{Kind: "notify", Text: &g}
+				} else if in.Executor == "cli" {
+					req.Executor = ExecutorSpec{Kind: "cli", Cli: ptr(in.Cli), Cwd: ptr(in.Cwd), Isolation: ptr("worktree")}
+					req.Grant.Paths = []string{in.Cwd}
 				} else {
 					ts := append([]string(nil), in.Tools...)
 					req.Executor = ExecutorSpec{Kind: "nomi", Tools: &ts}

@@ -1,0 +1,7 @@
+---
+'@nomi-ai/core': minor
+'@nomi-ai/contract': minor
+'@nomi-ai/ai-chat': minor
+---
+
+持续任务可以交给已装好的编程助手执行：在独立的 git worktree 里改代码，审批按授权等级与命令分类判定（授权外直接拒绝、要人的进任务收件箱），完成后进验收，改动由你在验收卡片上点「回填到工作区」再拷回。Nomi 起草任务时也能选编程助手执行。

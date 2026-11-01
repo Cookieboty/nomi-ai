@@ -1,20 +1,26 @@
 /**
  * 手动新建任务（§12 创建 2）：标题、目标、何时运行、谁来做、能用哪些能力；保存前弹授权卡片，确认后才创建。
- * 授权等级由所选能力推出（取最高），默认 30 天到期；编程助手执行者（cli）在第 2 期开放，这里禁用并说明。
+ * 授权等级由所选能力推出（取最高），默认 30 天到期。
+ * 编程助手执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
  */
 import { Button, Checkbox, DateTimeField, Input, Modal, Select, t, Textarea } from '@nomi-ai/ui';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
+import { harnessClient } from '../../services/harnessClient';
 import { LEVEL_LABEL, TOOL_LABEL, TOOL_LEVEL, type ToolClass } from '../../services/tasksClient';
+import { CONVERSATION_BACKENDS } from '../../types/chat';
+import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { useConnections } from '../ConnectionsPanel';
+import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
 
 type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval';
-type Who = 'nomi' | 'notify';
+type Who = 'nomi' | 'notify' | 'cli';
+const CLIS = CONVERSATION_BACKENDS.filter((b) => b !== 'nomi');
 
 const TOOLS: ToolClass[] = [
   'read',
@@ -44,6 +50,19 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [tools, setTools] = useState<ToolClass[]>(['read', 'web']);
   const [days, setDays] = useState(30);
   const [repoText, setRepoText] = useState('');
+  const [bins, setBins] = useState<Record<string, string | null | undefined>>({});
+  const [cliPick, setCli] = useState('');
+  const [cwd, setCwd] = useState('');
+  const [cliShell, setCliShell] = useState(false);
+  const installed = CLIS.filter((b) => !!bins[b]);
+  useEffect(() => {
+    void harnessClient
+      .state()
+      .then((s) => setBins(s.bins as Record<string, string | null | undefined>))
+      .catch(() => undefined);
+  }, []);
+  // 没选过时默认第一个已装好的
+  const cli = cliPick || installed[0] || '';
   const { items: connections } = useConnections();
   const github = connections?.find((c) => c.status === 'ok') ?? null;
   const repos = repoText
@@ -53,7 +72,16 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const level = who === 'notify' ? 0 : Math.max(1, ...tools.map((x) => TOOL_LEVEL[x]));
+  const level =
+    who === 'notify'
+      ? 0
+      : who === 'cli'
+        ? cliShell
+          ? 3
+          : 2
+        : Math.max(1, ...tools.map((x) => TOOL_LEVEL[x]));
+  const cliLabel = (b: string) =>
+    (ENDPOINT_FULL as Record<string, (() => string) | undefined>)[b]?.() ?? b;
   const repeat: RepeatRule | undefined = useMemo(() => {
     if (when === 'daily') return { kind: 'daily' };
     if (when === 'weekdays') return { kind: 'weekdays' };
@@ -61,7 +89,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     return undefined;
   }, [when, minutes]);
   const valid =
-    title.trim() && goal.trim() && (when === 'manual' || !Number.isNaN(new Date(at).getTime()));
+    title.trim() &&
+    goal.trim() &&
+    (when === 'manual' || !Number.isNaN(new Date(at).getTime())) &&
+    (who !== 'cli' || (!!cli && !!bins[cli] && !!cwd));
 
   const submit = async () => {
     const trigger =
@@ -71,7 +102,9 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     const executor =
       who === 'notify'
         ? { kind: 'notify' as const, text: goal.trim() }
-        : { kind: 'nomi' as const, tools };
+        : who === 'cli'
+          ? { kind: 'cli' as const, cli, cwd, isolation: 'worktree' as const }
+          : { kind: 'nomi' as const, tools };
     // 授权卡片：目标、何时、谁来做、能力等级、期限、预算（§12）
     const card = [
       t('ui.providers-schedule.task-card-goal', goal.trim()),
@@ -87,7 +120,9 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         'ui.providers-schedule.task-card-who',
         who === 'notify'
           ? t('ui.providers-schedule.task-executor-notify')
-          : t('ui.chat-settings.nomi-section'),
+          : who === 'cli'
+            ? t('ui.providers-schedule.task-card-cli', cliLabel(cli), cwd)
+            : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
       ...(github && repos.length && who === 'nomi'
@@ -112,7 +147,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         executor,
         grant: {
           level: level as 0 | 1 | 2 | 3 | 4,
-          paths: [],
+          paths: who === 'cli' ? [cwd] : [],
           connections:
             github && repos.length && who === 'nomi'
               ? [{ connectionId: github.id, capabilities: ['github.read'], resources: repos }]
@@ -201,8 +236,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               {
                 value: 'cli',
                 label: t('ui.providers-schedule.coding-agents'),
-                disabled: true,
-                description: t('ui.providers-schedule.task-executor-cli-later'),
+                disabled: !installed.length,
+                description: installed.length
+                  ? t('ui.providers-schedule.task-executor-cli-hint')
+                  : t('ui.mascot-theme.not-installed'),
               },
             ]}
             data-testid="task-form-who"
@@ -226,6 +263,42 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               </label>
             ))}
           </fieldset>
+        )}
+        {who === 'cli' && (
+          <div className={styles.fieldRow}>
+            <label className={styles.field}>
+              <span>{t('ui.providers-schedule.task-cli-pick')}</span>
+              <Select
+                value={cli}
+                onChange={(e) => setCli(e.target.value)}
+                options={CLIS.map((b) => ({
+                  value: b,
+                  label: cliLabel(b),
+                  disabled: !bins[b],
+                }))}
+                data-testid="task-form-cli"
+              />
+            </label>
+            <div className={styles.field}>
+              <span>{t('ui.providers-schedule.task-cwd')}</span>
+              <WorkspacePicker
+                value={cwd}
+                onChange={setCwd}
+                label={t('ui.providers-schedule.task-cwd')}
+                testId="task-form-cwd"
+              />
+            </div>
+          </div>
+        )}
+        {who === 'cli' && (
+          <label className={styles.check}>
+            <Checkbox
+              checked={cliShell}
+              onChange={(e) => setCliShell(e.target.checked)}
+              data-testid="task-form-cli-shell"
+            />
+            {t('ui.providers-schedule.task-cli-shell')}
+          </label>
         )}
         {who === 'nomi' && github && (
           <label className={styles.field}>

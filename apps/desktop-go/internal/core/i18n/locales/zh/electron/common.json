@@ -449,6 +449,7 @@
   "electron.common.task-when-once": "一次：{0}",
   "electron.common.task-when-weekdays": "工作日 {0}",
   "electron.common.task-when-weekly": "每周（{0}）{1}",
+  "electron.common.task-who-cli": "编程助手 {0} 在 {1} 里做（独立工作区，改动等你验收后再回填）",
   "electron.common.task-who-nomi": "由 Nomi 完成",
   "electron.common.task-who-notify": "到点只发通知",
   "electron.common.tesseract-english-fast-language-model-for-recognizing-english": "Tesseract 英文（快速版）语言模型，用于识别图片与扫描件中的英文。",

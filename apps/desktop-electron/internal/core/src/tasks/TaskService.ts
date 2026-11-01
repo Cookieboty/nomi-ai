@@ -11,6 +11,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
+import { applyWorktreeToMain } from '../cli/delegate/worktree';
 import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
 
@@ -211,6 +212,47 @@ export class TaskService {
     return rec.attempts
       .filter((a) => a.startedAt >= start)
       .reduce((sum, a) => sum + (a.usage.costUsd ?? 0), 0);
+  }
+
+  /**
+   * 验收卡片上的「回填」（§5.4、§7.2）：把最近一次执行在 worktree 里的改动拷回主工作区。
+   * 每个目标按用户当前授权检查（mayWrite）；主工作区里已有改动的文件不覆盖（冲突）。
+   */
+  async applyWorktree(
+    id: string,
+    mayWrite: (dest: string) => boolean | Promise<boolean>,
+  ): Promise<{
+    applied: string[];
+    skipped: string[];
+    conflicted: string[];
+    denied: string[];
+  } | null> {
+    const rec = this.runtime.get(id);
+    const a = rec?.attempts
+      .slice()
+      .reverse()
+      .find((x) => x.carrier?.worktree && x.result);
+    if (!rec || !a?.carrier?.worktree || !a.carrier.gitRoot) return null;
+    const files = (a.result?.artifacts ?? []).filter((x) => x.kind === 'file').map((x) => x.ref);
+    const r = await applyWorktreeToMain(
+      {
+        kind: 'worktree',
+        cwd: a.carrier.cwd ?? a.carrier.worktree,
+        sourceCwd: a.carrier.sourceCwd ?? a.carrier.worktree,
+        gitRoot: a.carrier.gitRoot,
+        worktreePath: a.carrier.worktree,
+        note: '',
+      },
+      files,
+      mayWrite,
+    );
+    this.store.append(id, {
+      t: 'note',
+      at: (this.d.now ?? Date.now)(),
+      msg: `applied:${r.applied.length} conflicted:${r.conflicted.length} denied:${r.denied.length}`,
+      attemptId: a.id,
+    });
+    return r;
   }
 
   // ---------- 投递 ----------

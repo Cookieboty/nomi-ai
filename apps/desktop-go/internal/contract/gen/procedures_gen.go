@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 394：mutation 274 / query 115 / stream 5
+// 合计 395：mutation 275 / query 115 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -329,6 +329,7 @@ var Procedures = []Procedure{
 	{Name: "startup.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "startup.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.accept", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.applyWorktree", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.cancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.decide", Kind: "mutation", Dangerous: true, Surfaces: nil},

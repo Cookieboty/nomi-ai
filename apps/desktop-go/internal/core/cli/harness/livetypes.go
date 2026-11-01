@@ -4,6 +4,8 @@ const (
 	MainTabID                    = "main"
 	PermissionTimeoutMs          = 120_000
 	DelegatedPermissionTimeoutMs = 600_000
+	// TaskPermissionTimeoutMs：持续任务的标签，审批等任务收件箱里的回应
+	TaskPermissionTimeoutMs = 7 * 86_400_000
 )
 
 // TabFinished = HarnessTabFinished（Error nil = 缺省）。

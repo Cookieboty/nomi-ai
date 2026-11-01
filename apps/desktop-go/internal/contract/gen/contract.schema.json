@@ -20430,6 +20430,67 @@
     "additionalProperties": false
    }
   },
+  "tasks.applyWorktree": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "applied": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "skipped": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "conflicted": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "denied": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "applied",
+       "skipped",
+       "conflicted",
+       "denied"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
   "tasks.cancel": {
    "kind": "mutation",
    "dangerous": false,

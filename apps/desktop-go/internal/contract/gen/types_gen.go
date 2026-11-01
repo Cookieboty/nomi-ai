@@ -5204,6 +5204,17 @@ type TasksAcceptOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksApplyWorktreeInput struct {
+	Id string `json:"id"`
+}
+
+type TasksApplyWorktreeOutput struct {
+	Applied    []string `json:"applied"`
+	Skipped    []string `json:"skipped"`
+	Conflicted []string `json:"conflicted"`
+	Denied     []string `json:"denied"`
+}
+
 type TasksCancelInput struct {
 	Id string `json:"id"`
 }
@@ -8456,6 +8467,10 @@ type StartupSetOutputT = StartupSetOutput
 // TasksAcceptInputT 是 tasks.accept 的入参
 type TasksAcceptInputT = TasksAcceptInput
 type TasksAcceptOutputT = TasksAcceptOutput
+
+// TasksApplyWorktreeInputT 是 tasks.applyWorktree 的入参
+type TasksApplyWorktreeInputT = TasksApplyWorktreeInput
+type TasksApplyWorktreeOutputT = *TasksApplyWorktreeOutput
 
 // TasksCancelInputT 是 tasks.cancel 的入参
 type TasksCancelInputT = TasksCancelInput

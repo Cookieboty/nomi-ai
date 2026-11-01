@@ -39,6 +39,7 @@ describe('knowledge 契约', () => {
       'ext.mcpUpsert',
       'kb.consentCloud',
       'local.offline',
+      'tasks.applyWorktree',
       'tasks.create',
       'tasks.decide',
       'tasks.grant',
@@ -54,7 +55,12 @@ describe('knowledge 契约', () => {
       .filter(([k, d]) => k.startsWith('tasks.') && (d as { dangerous?: boolean }).dangerous)
       .map(([k]) => k)
       .sort();
-    expect(dangerous).toEqual(['tasks.create', 'tasks.decide', 'tasks.grant']);
+    expect(dangerous).toEqual([
+      'tasks.applyWorktree',
+      'tasks.create',
+      'tasks.decide',
+      'tasks.grant',
+    ]);
     const create = {
       title: '看 CI',
       goal: '每天 9 点看 o/r 的 CI，红了告诉我',

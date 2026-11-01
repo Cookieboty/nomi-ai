@@ -56,8 +56,11 @@ import { AccountService } from './cli/accounts/AccountService';
 import { ACCOUNT_KINDS, type AccountKind } from './cli/accounts/types';
 import { CliPluginHost } from './cli/CliPluginHost';
 import { CliUpdateService } from './cli/CliUpdateService';
-import { DelegateService } from './cli/delegate/DelegateService';
+import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
+import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
+import { prepareIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
+import { HarnessStoppedError } from './cli/harness/liveTypes';
 import { HarnessOrchestrator } from './cli/harness/Orchestrator';
 import { cliChildEnv, isScript, spawnHarness } from './cli/harness/spawn';
 import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
@@ -110,6 +113,7 @@ import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
 import { UpdateService, type UpdaterLike } from './services/UpdateService';
 import { StartupService } from './startup/StartupService';
+import { createCliExecutor } from './tasks/executors/cli';
 import { createNomiExecutor } from './tasks/executors/nomi';
 import { TaskService } from './tasks/TaskService';
 import { createTaskTools } from './tasks/tools';
@@ -298,6 +302,14 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     config,
     callerWindows: host.callerWindows,
     pendingEvents,
+  };
+  // 任务的代码目录：存在、是用户认可的工作区（编程助手的已知目录）
+  const taskDirOk = (dir: string): boolean => {
+    try {
+      return fs.statSync(dir).isDirectory() && !!services.desktop?.broker.isKnownWorkspace(dir);
+    } catch {
+      return false;
+    }
   };
 
   let appRouter: AppRouterHandle | undefined;
@@ -950,6 +962,33 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     desktop.broker.onWorkspaceRejected = (dir, reason) =>
       logger.warn('Nomi workspace rejected; tools fall back to granted folders', { dir, reason });
     // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
+    // 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
+    services.tasks?.registerExecutor(
+      'cli',
+      createCliExecutor({
+        harness: {
+          bins: () => harness.state().bins,
+          createTab: (o) => harness.createTab(o as Parameters<typeof harness.createTab>[0]),
+          hasTab: (id) => harness.listTabs().tabs.some((x) => x.id === id),
+          sendTab: (id, prompt) => harness.sendTab(id, prompt) as never,
+          cancelTab: (id) => harness.cancelTab(id),
+          replyPermission: (tabId, requestId, allow) =>
+            harness.replyPermission(tabId, requestId, allow),
+          takenOver: (id) =>
+            !!harness.listTabs().tabs.find((x) => x.id === id)?.delegation?.takenOver,
+          onEvent: (fn) => {
+            harness.events.on('event', fn);
+            return () => harness.events.off('event', fn);
+          },
+          isStopped: (err) => err instanceof HarnessStoppedError,
+        },
+        prepareIsolation: (cwd, key) => prepareIsolation(cwd, key),
+        gitChanged: (cwd) => gitChanged(cwd),
+        buildPrompt: (b) => buildDelegatePrompt(b),
+        parseReport: (text) => parseDelegateReport(text),
+        dirOk: (dir) => taskDirOk(dir),
+      }),
+    );
     services.delegate = new DelegateService({
       root: userData('delegate'),
       harness,
@@ -1079,6 +1118,11 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
                   authorize: (i) => services.desktop!.broker.authorize(i),
                   githubConnection: () =>
                     services.connections?.list().find((c) => c.status === 'ok') ?? null,
+                  installedClis: () =>
+                    Object.entries(services.harness?.state().bins ?? {})
+                      .filter(([, v]) => !!v)
+                      .map(([k]) => k),
+                  dirOk: (dir) => taskDirOk(dir),
                 })
               : [],
         },

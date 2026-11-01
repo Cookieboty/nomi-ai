@@ -154,6 +154,11 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'tasks.reject': ({ id, feedback }) => tasks().command(id, { type: 'reject', feedback }),
     'tasks.reconcile': ({ id, outcome }) => tasks().command(id, { type: 'reconcile', outcome }),
     'tasks.remove': ({ id }) => tasks().remove(id),
+    'tasks.applyWorktree': async ({ id }) =>
+      tasks().applyWorktree(
+        id,
+        async (dest) => !!s.desktop && (await s.desktop.broker.guard(dest, 'write', true)).ok,
+      ),
 
     // ---------- connections ----------
     'connections.list': () => out(conns().list()),

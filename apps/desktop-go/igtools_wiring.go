@@ -121,7 +121,7 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 				return c.ID, c.Label, true
 			}
 			return "", "", false
-		})...)
+		}, tasks.CliEnv{Installed: installedClis, DirOk: func(dir string) bool { return taskDirOk(d, dir) }})...)
 	}
 	// 经连接的工具（github_read）：前台只读；后台按任务授权收窄；结果自己标外部内容
 	if conns != nil && d != nil && d.Broker != nil {

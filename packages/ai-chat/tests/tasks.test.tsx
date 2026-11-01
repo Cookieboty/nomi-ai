@@ -77,8 +77,17 @@ beforeEach(() => {
           startedAt: T0,
           usage: { inputTokens: 100, outputTokens: 50, costKnown: false },
           result: { summary: '改好了，测试通过', artifacts: [] },
+          ...(id === 'task_e' ? { carrier: { worktree: '/wt/x', sourceCwd: '/repo' } } : {}),
         },
       ],
+    }),
+    'harness.state': () => ({ bins: { claude: '/bin/claude' } }),
+    'harness.recentCwds': () => ['/repo'],
+    'tasks.applyWorktree': () => ({
+      applied: ['a.ts'],
+      skipped: [],
+      conflicted: [],
+      denied: [],
     }),
     'tasks.journal': () => [{ t: 'state', at: T0, event: 'trigger', from: 'idle', to: 'queued' }],
     'tasks.decide': () => ({ ok: true }),
@@ -182,6 +191,42 @@ describe('任务页', () => {
       executor: { kind: 'nomi', tools: ['read', 'web', 'shell'] },
       grant: { level: 3, paths: [], connections: [] },
       trigger: { kind: 'schedule', repeat: { kind: 'daily' } },
+    });
+  });
+
+  it('验收卡片：编程助手的 worktree 确认后回填，显示结果', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('task-task_e'));
+    await act(() => fake.settle());
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('task-apply-worktree'));
+    await waitFor(() =>
+      expect(fake.calls).toContainEqual(['tasks.applyWorktree', { id: 'task_e' }]),
+    );
+    await act(() => fake.settle());
+    expect(screen.getByRole('status')).toBeTruthy();
+  });
+
+  it('新建：交给已装好的编程助手，选代码目录，L2 起、授权路径是该目录', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-new'));
+    await act(() => fake.settle());
+    fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '修 bug' } });
+    fireEvent.change(screen.getByTestId('task-form-goal'), { target: { value: '修 #12' } });
+    fireEvent.change(screen.getByTestId('task-form-who'), { target: { value: 'cli' } });
+    await act(() => fake.settle());
+    expect((screen.getByTestId('task-form-submit') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('task-form-cwd-button'));
+    await act(() => fake.settle());
+    fireEvent.click(screen.getByTestId('workspace-recent-item'));
+    await act(() => fake.settle());
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('task-form-submit'));
+    await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
+    const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
+    expect(input).toMatchObject({
+      executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
+      grant: { level: 2, paths: ['/repo'] },
     });
   });
 });

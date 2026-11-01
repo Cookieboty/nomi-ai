@@ -443,6 +443,9 @@ func main() {
 			}
 		},
 	}))
+	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
+	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCliDeps(desktopSvc)))
+	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
 	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()

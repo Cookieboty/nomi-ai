@@ -172,6 +172,7 @@ import {
 } from './generatedImages';
 import {
   DELEGATED_PERMISSION_TIMEOUT_MS,
+  TASK_PERMISSION_TIMEOUT_MS,
   MAIN_TAB_ID,
   PERMISSION_TIMEOUT_MS,
   HarnessStoppedError,
@@ -1202,7 +1203,7 @@ export class HarnessOrchestrator {
       /** false：在后台创建，不切到这个标签（Nomi 委派时不抢用户正在看的界面）；缺省 true */
       activate?: boolean;
       /** 由 Nomi 委派开的标签 */
-      delegation?: { callId?: string; goal: string };
+      delegation?: { callId?: string; goal: string; taskId?: string };
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -1244,6 +1245,7 @@ export class HarnessOrchestrator {
               by: 'nomi' as const,
               ...(opts.delegation.callId ? { callId: opts.delegation.callId } : {}),
               goal: opts.delegation.goal.slice(0, 200),
+              ...(opts.delegation.taskId ? { taskId: opts.delegation.taskId } : {}),
               approvals: { asked: 0, denied: 0, timedOut: 0 },
             },
           }
@@ -5071,10 +5073,14 @@ export class HarnessOrchestrator {
     m.set(requestId, timer);
   }
 
-  /** 审批等待时间：Nomi 委派开、用户还没接手的标签 10 分钟，其余 120 秒 */
+  /**
+   * 审批等待时间：持续任务的标签 7 天（等任务收件箱里的回应），Nomi 委派开、用户还没接手的标签 10 分钟，其余 120 秒
+   */
   permissionTimeoutMs(tabId: string): number {
     const d = this.tabs.get(tabId)?.delegation;
-    return d && !d.takenOver ? DELEGATED_PERMISSION_TIMEOUT_MS : PERMISSION_TIMEOUT_MS;
+    if (d && !d.takenOver)
+      return d.taskId ? TASK_PERMISSION_TIMEOUT_MS : DELEGATED_PERMISSION_TIMEOUT_MS;
+    return PERMISSION_TIMEOUT_MS;
   }
 
   private countDelegatedApproval(tabId: string, k: 'asked' | 'denied' | 'timedOut') {

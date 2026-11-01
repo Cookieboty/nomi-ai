@@ -366,6 +366,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 			d.Set("callId", del.Get("callId"))
 		}
 		d.Set("goal", clisdk.Slice0(jsStr(del.Get("goal")), 200))
+		if truthy(del.Get("taskId")) {
+			d.Set("taskId", del.Get("taskId"))
+		}
 		d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 		tab.Set("delegation", d)
 	}

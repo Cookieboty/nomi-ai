@@ -158,7 +158,16 @@ export interface Attempt {
   usage: { inputTokens: number; outputTokens: number; costUsd?: number; costKnown: boolean };
   result?: AttemptResult;
   error?: TaskError;
-  carrier?: { tabId?: string; sessionId?: string };
+  /** 执行载体：编程助手标签、worktree（续跑、验收回填用；不是任务身份） */
+  carrier?: {
+    tabId?: string;
+    sessionId?: string;
+    /** 标签的工作目录（worktree 里对应源目录的位置） */
+    cwd?: string;
+    worktree?: string;
+    sourceCwd?: string;
+    gitRoot?: string;
+  };
 }
 
 /** 下一次执行要带上的说明（重试原因、退回意见、核对结论） */

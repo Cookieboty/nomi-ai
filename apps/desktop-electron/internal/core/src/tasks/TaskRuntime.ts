@@ -50,11 +50,15 @@ export interface AttemptReporter {
   completed(result: AttemptResult): void;
   failed(error: TaskError): void;
   takenOver(): void;
+  /** 记下执行载体（标签 / worktree），写进这次执行的记录 */
+  carrier(c: NonNullable<Attempt['carrier']>): void;
 }
 
 export interface AttemptContext {
   task: Task;
   attempt: Attempt;
+  /** 上一次执行（续跑 / 退回时复用它的标签与 worktree） */
+  previous?: Attempt;
   report: AttemptReporter;
 }
 
@@ -476,7 +480,14 @@ export class TaskRuntime {
           return;
         }
         try {
-          ex.start({ task, attempt, report: this.reporter(id, e.gen) });
+          const all = this.tasks.get(id)?.rec.attempts ?? [];
+          const previous = all.filter((a) => a.id !== attempt.id).at(-1);
+          ex.start({
+            task,
+            attempt,
+            ...(previous ? { previous } : {}),
+            report: this.reporter(id, e.gen),
+          });
         } catch (error) {
           this.inbox.push({
             id,
@@ -531,6 +542,16 @@ export class TaskRuntime {
       completed: (result) => this.dispatch(id, { type: 'completed', at: now(), gen, result }),
       failed: (error) => this.dispatch(id, { type: 'failed', at: now(), gen, error }),
       takenOver: () => this.dispatch(id, { type: 'taken_over', at: now(), gen }),
+      carrier: (c) => {
+        const live = this.tasks.get(id);
+        const attempt = this.current(id);
+        if (!live || !attempt || attempt.gen !== gen) return;
+        const next = { ...attempt, carrier: { ...attempt.carrier, ...c } };
+        live.rec = this.d.store.save({
+          task: live.rec.task,
+          attempts: live.rec.attempts.map((a) => (a.id === attempt.id ? next : a)),
+        });
+      },
     };
   }
 

@@ -20,7 +20,7 @@ func toolsHarness(t *testing.T, decision string) (*Service, map[string]tools.Def
 	for _, d := range CreateTaskTools(s, func(_ context.Context, _, _ string, _ any, preview string) string {
 		cards = append(cards, preview)
 		return decision
-	}, nil) {
+	}, nil, CliEnv{Installed: func() []string { return []string{"claude"} }, DirOk: func(d string) bool { return d == "/repo" }}) {
 		defs[d.Name] = d
 	}
 	return s, defs, &cards
@@ -95,5 +95,25 @@ func TestSpentToday(t *testing.T) {
 	}
 	if v := SpentToday(atts, now); v != 0.4 {
 		t.Fatal(v)
+	}
+}
+
+func TestTaskProposeCli(t *testing.T) {
+	s, defs, cards := toolsHarness(t, "allowed")
+	base := `"title":"修 bug","goal":"修 #12","when":{"kind":"manual"},"executor":"cli"`
+	if r := call(t, defs["task_propose"], `{`+base+`,"cli":"codex","cwd":"/repo"}`, tools.ExecContext{}); r["error"].(map[string]any)["code"] != "cli_unavailable" {
+		t.Fatal(r)
+	}
+	if r := call(t, defs["task_propose"], `{`+base+`,"cli":"claude","cwd":"/"}`, tools.ExecContext{}); r["error"].(map[string]any)["code"] != "bad_cwd" {
+		t.Fatal(r)
+	}
+	r := call(t, defs["task_propose"], `{`+base+`,"cli":"claude","cwd":"/repo"}`, tools.ExecContext{})
+	if r["ok"] != true || !strings.Contains((*cards)[len(*cards)-1], "claude") {
+		t.Fatal(r, *cards)
+	}
+	task := s.Get(r["data"].(map[string]any)["id"].(string)).Task
+	if task.Executor.Kind != "cli" || *task.Executor.Cli != "claude" || *task.Executor.Isolation != "worktree" ||
+		task.Grant.Level != 2 || len(task.Grant.Paths) != 1 || task.Grant.Paths[0] != "/repo" {
+		t.Fatalf("%+v %+v", task.Executor, task.Grant)
 	}
 }

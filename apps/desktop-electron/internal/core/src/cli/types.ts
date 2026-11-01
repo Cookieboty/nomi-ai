@@ -94,6 +94,8 @@ export interface HarnessDelegation {
   callId?: string;
   /** 交给编程助手的目标（卡片标题） */
   goal: string;
+  /** 持续任务的执行开的标签（docs/design/persistent-tasks.md §7.2）：审批等任务的收件箱回应 */
+  taskId?: string;
   /** 用户在标签里自己发过消息：标签归用户，审批等待恢复 120 秒 */
   takenOver?: boolean;
   /** 审批统计（结果里交回 Nomi） */

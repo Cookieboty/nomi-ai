@@ -132,6 +132,10 @@ type Usage struct {
 type Carrier struct {
 	TabID     *string `json:"tabId,omitempty"`
 	SessionID *string `json:"sessionId,omitempty"`
+	Cwd       *string `json:"cwd,omitempty"`
+	Worktree  *string `json:"worktree,omitempty"`
+	SourceCwd *string `json:"sourceCwd,omitempty"`
+	GitRoot   *string `json:"gitRoot,omitempty"`
 }
 
 type Attempt struct {
