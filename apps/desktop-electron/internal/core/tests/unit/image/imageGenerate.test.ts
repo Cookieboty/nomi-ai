@@ -137,6 +137,31 @@ describe('image_generate', () => {
     ]);
   });
 
+  it('对话停止：请求带上 signal，轮询中途中止后不再请求、不落盘', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cd-img-'));
+    const ac = new AbortController();
+    const seen: Array<{ url: string; signal?: AbortSignal | null }> = [];
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      seen.push({ url, signal: init?.signal });
+      return new Response(JSON.stringify({ output: { task_id: 't1', task_status: 'PENDING' } }));
+    }) as unknown as typeof fetch;
+    const [ds] = createImageTools({
+      imageRef: () => 'ds/wan2.2-t2i-flash',
+      imageProvider: () => ({
+        info: { id: 'ds', urls: { chat: 'https://dashscope.aliyuncs.com/compatible-mode/v1' } },
+        keyFor: () => 'sk-ds',
+      }),
+      imagesDir: path.join(dir, 'images'),
+      fetchImpl,
+      // 第一次等待期间用户点了停止
+      sleep: async () => ac.abort(),
+    });
+    await expect(ds!.execute({ prompt: 'x' }, { signal: ac.signal })).rejects.toThrow();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.signal).toBe(ac.signal);
+    expect(fs.existsSync(path.join(dir, 'images'))).toBe(false);
+  });
+
   it('接口报错：带上状态码与上游的错误信息', async () => {
     const { tool } = setup(
       {},

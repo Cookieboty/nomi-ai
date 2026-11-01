@@ -102,7 +102,9 @@ async function send(
   f: typeof fetch,
   req: ImageHttpRequest,
   headers: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<unknown> {
+  signal?.throwIfAborted();
   let body: BodyInit | undefined;
   if (req.multipart) {
     // multipart：Content-Type（含 boundary）由 fetch 按 FormData 生成
@@ -124,6 +126,7 @@ async function send(
       ...req.headers,
     },
     ...(body !== undefined ? { body } : {}),
+    ...(signal ? { signal } : {}),
   });
   const text = await res.text();
   let json: unknown;
@@ -157,10 +160,13 @@ export async function runImageEndpoint(
     /** 带图（改图 / 参考图；适配器要声明 edit） */
     refs?: ImageRef[];
     refMode?: 'edit' | 'reference';
+    /** 对话停止 / 工具调用取消：请求与轮询等待都随之中止 */
+    signal?: AbortSignal;
   } = {},
 ): Promise<{ image: GeneratedImage; revisedPrompt?: string }> {
   const f = opts.fetchImpl ?? fetch;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const signal = opts.signal;
+  const sleep = opts.sleep ?? ((ms: number) => abortableSleep(ms, signal));
   const now = opts.now ?? Date.now;
   const { adapter, baseURL, wire, auth } = target.endpoint;
   if (opts.refs?.length && !adapter.edit)
@@ -177,7 +183,7 @@ export async function runImageEndpoint(
     ...imageAuthHeaders(auth, target.access.keyFor(wire)),
   };
   const deadline = now() + (adapter.timeoutMs ?? DEFAULT_TASK_TIMEOUT_MS);
-  let body = await send(f, adapter.build(input), headers);
+  let body = await send(f, adapter.build(input), headers, signal);
   for (;;) {
     const r = adapter.parse(body, input);
     if (r.kind === 'failed') throw new Error(t('electron.image.task-failed', r.message));
@@ -191,19 +197,37 @@ export async function runImageEndpoint(
     }
     if (now() + r.afterMs > deadline) throw new Error(t('electron.image.task-timeout'));
     await sleep(r.afterMs);
-    body = await send(f, r.next, headers);
+    body = await send(f, r.next, headers, signal);
   }
+}
+
+/** 可中止的等待：signal 触发时立即以 AbortError 结束 */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal!.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 /** 图片字节：base64 直接解；URL 只下载公网地址、不跟随跳转 */
 export async function imageBytes(
   img: GeneratedImage,
   f: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<Uint8Array> {
   if (img.b64) return new Uint8Array(Buffer.from(img.b64, 'base64'));
   if (!img.url) throw new Error(t('electron.image.no-image-in-response', ''));
   const url = await assertPublicHttpUrlResolved(img.url);
-  const res = await f(url.toString(), { redirect: 'error' });
+  signal?.throwIfAborted();
+  const res = await f(url.toString(), { redirect: 'error', ...(signal ? { signal } : {}) });
   if (!res.ok) throw new Error(t('electron.image.download-failed', res.status));
   if (Number(res.headers.get('content-length') ?? 0) > MAX_IMAGE_BYTES)
     throw new Error(t('electron.image.too-large'));
@@ -270,6 +294,8 @@ export async function generateImageAsset(
     /** 指定模型（`供应商/模型`，重新生成沿用原图的模型）；不给 = 当前的图片模型 */
     modelRef?: string;
     conversationId?: string;
+    /** 对话停止时中止：不再请求、不落盘、不记入素材库 */
+    signal?: AbortSignal;
   },
 ): Promise<{
   file: string;
@@ -305,8 +331,10 @@ export async function generateImageAsset(
     sleep: deps.sleep,
     now,
     ...(refs ? { refs, refMode } : {}),
+    ...(req.signal ? { signal: req.signal } : {}),
   });
-  const bytes = await imageBytes(image, deps.fetchImpl);
+  const bytes = await imageBytes(image, deps.fetchImpl, req.signal);
+  req.signal?.throwIfAborted();
   ensurePrivateDir(deps.imagesDir);
   // 前缀 = 来源（素材库按它区分 Nomi / 各编程助手生成的图片）
   const file = `nomi-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${imageExt(bytes)}`;
@@ -371,6 +399,7 @@ export function createImageTools(deps: ImageToolDeps): ToolDefinition[] {
         ...(input.edit_image ? { editFrom: input.edit_image } : {}),
         ...(input.reference_images?.length ? { references: input.reference_images } : {}),
         ...(ctx?.conversationId ? { conversationId: ctx.conversationId } : {}),
+        ...(ctx?.signal ? { signal: ctx.signal } : {}),
       });
       return {
         ok: true,
