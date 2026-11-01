@@ -46,6 +46,7 @@ import {
   type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
+import { useTasksHost } from './components/Tasks';
 import { AppTitleBar } from './components/TitleBar';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
@@ -672,12 +673,24 @@ const AiChatContent: React.FC = () => {
   // 素材库：侧栏入口 + 主区整页（切到别的会话 / 标签时自动回到对话）
   const assetLibrary = useAssetLibraryHost(sidebarCollapsed);
   const closeAssetLibrary = assetLibrary.close;
+  // 任务页（持续任务）：与素材库并列的入口；旧的提醒 / 定时点开进日程面板
+  const tasksHost = useTasksHost(sidebarCollapsed, () => openSettings('knowledge', 'schedule'));
+  const closeTasks = tasksHost.close;
+  // 两个整页互斥：打开一个就关掉另一个
+  useEffect(() => {
+    if (tasksHost.chatHidden) closeAssetLibrary();
+  }, [tasksHost.chatHidden, closeAssetLibrary]);
+  useEffect(() => {
+    if (assetLibrary.chatHidden) closeTasks();
+  }, [assetLibrary.chatHidden, closeTasks]);
+  const mainHidden = assetLibrary.chatHidden || tasksHost.chatHidden;
   const handleNewChat = useCallback(
     (opts?: { cwd?: string }) => {
       closeAssetLibrary();
+      closeTasks();
       return actions.newConversation(opts);
     },
-    [actions, closeAssetLibrary],
+    [actions, closeAssetLibrary, closeTasks],
   );
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
@@ -807,14 +820,21 @@ const AiChatContent: React.FC = () => {
           onNotice={setToast}
           onOpenSettings={openSidebarSettings}
           footer={sidebarFooter}
-          topNav={assetLibrary.nav}
+          topNav={
+            assetLibrary.nav || tasksHost.nav ? (
+              <div className="side-top-nav">
+                {tasksHost.nav}
+                {assetLibrary.nav}
+              </div>
+            ) : null
+          }
         />
 
         {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
         <div
           className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
           data-with-changes={centerOpen ? 'true' : undefined}
-          hidden={assetLibrary.chatHidden}
+          hidden={mainHidden}
         >
           <div
             className="chat-column"
@@ -1002,8 +1022,10 @@ const AiChatContent: React.FC = () => {
         </div>
         {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
         {assetLibrary.page}
+        {/* 任务整页：同样替换对话区 */}
+        {tasksHost.page}
 
-        {railOpen && railCwd && !assetLibrary.chatHidden ? (
+        {railOpen && railCwd && !mainHidden ? (
           <>
             <div
               className="files-rail-splitter"

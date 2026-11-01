@@ -617,3 +617,10 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
 .main-content[hidden] {
   display: none;
 }
+
+/* 侧栏会话列表上方的固定入口（任务、素材库）：竖排 */
+.side-top-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
