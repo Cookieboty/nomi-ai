@@ -156,7 +156,7 @@ export class AssetLibrary {
         file,
         url: `chat-asset://images/${file}`,
         source,
-        createdAt: Math.round(st.birthtimeMs || st.mtimeMs),
+        createdAt: Math.round(createdAtOf(st)),
         bytes: st.size,
         ...(meta[file] ?? {}),
       });
@@ -233,4 +233,14 @@ export class AssetLibrary {
     this.d.showItemInFolder(p);
     return true;
   }
+}
+
+/**
+ * 生成时间：birthtime 与 mtime 取早的那个（birthtime 拿不到时为 0，用 mtime）。
+ * Linux 的 birthtime 是真实创建时间，复制 / 还原的文件 mtime 可能更早；macOS 复制时 birthtime 是复制时刻。
+ * 与 Go 版 chatassets.createdAt 一致。
+ */
+function createdAtOf(st: fs.Stats): number {
+  const b = st.birthtimeMs;
+  return b > 0 && b < st.mtimeMs ? b : st.mtimeMs;
 }
