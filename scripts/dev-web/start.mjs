@@ -89,6 +89,7 @@ function waitForHttp(url, timeoutMs) {
  * @param {'inherit'|'pipe'|'ignore'} [opts.viteStdio]
  * @param {object} [opts.contract] 传给 createCore 的契约选项（冒烟测试用中间件记录调用）
  * @param {boolean} [opts.processes] 用 Node 子进程跑统一网关等工具子进程（默认 true，对话要经网关）
+ * @param {object} [opts.ports] 额外的无界面宿主端口选项（如 app.version、预设对话框答案），官网截图脚本用
  */
 export async function startDevWeb(opts = {}) {
   const missing = REQUIRED_BUILDS.filter((f) => !existsSync(path.join(ROOT, f)));
@@ -107,7 +108,7 @@ export async function startDevWeb(opts = {}) {
   const withMascot = opts.mascot !== false;
   const mascotPort = opts.mascotPort ?? PORTS.renderer;
   const headless = await startHeadlessCore({
-    ports: opts.dataDir ? { root: path.resolve(opts.dataDir) } : {},
+    ports: { ...(opts.dataDir ? { root: path.resolve(opts.dataDir) } : {}), ...opts.ports },
     // 内置角色包：仓库里的包（CHARACTER_PACK 相对仓库根，缺省官方包），与 Electron 开发态一致
     characterPack: path.resolve(ROOT, process.env.CHARACTER_PACK?.trim() || 'characters/nomi'),
     logLevel: opts.logLevel ?? 'info',

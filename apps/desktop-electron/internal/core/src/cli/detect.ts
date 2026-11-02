@@ -37,7 +37,10 @@ const CANDIDATES: Record<CliKind, string[]> = {
  */
 export function mockCliBin(kind: CliKind): string | null {
   if (process.env.NOMI_USE_MOCK_CLI !== '1' || kind === 'cursor') return null;
+  const pinned = process.env.NOMI_MOCK_CLI_DIR?.trim();
   const candidates = [
+    // 显式指定的目录优先（与 harness/spawn.ts 的 mockDir 一致）
+    ...(pinned ? [pinned] : []),
     path.resolve(__dirname, '../../scripts/mock-cli'),
     path.resolve(__dirname, '../scripts/mock-cli'),
     path.resolve(process.cwd(), 'apps/desktop-electron/internal/core/scripts/mock-cli'),

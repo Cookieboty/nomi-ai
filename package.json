@@ -24,6 +24,7 @@
     "test:e2e-cli": "vitest run --config vitest.e2e-cli.config.ts",
     "test:e2e:headed": "playwright test --config playwright.config.ts",
     "smoke:web": "node scripts/dev-web/smoke.mjs",
+    "screenshots:site": "node scripts/site-screenshots/run.mjs",
     "lint": "node scripts/run-bin.mjs turbo run lint",
     "typecheck": "node scripts/run-bin.mjs turbo run typecheck",
     "format": "prettier --write .",

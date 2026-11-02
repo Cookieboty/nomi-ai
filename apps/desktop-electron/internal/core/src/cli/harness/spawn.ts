@@ -16,6 +16,9 @@ import { peekCliBin, resolveCliBinCached, withCliPath } from '../detect';
 type CliBackend = BuiltinCliId;
 
 function mockDir(): string {
+  // 显式指定（官网截图脚本把 Mock CLI 拷到隔离的 HOME 里，避免界面显示仓库路径）
+  const pinned = process.env.NOMI_MOCK_CLI_DIR?.trim();
+  if (pinned && fs.existsSync(path.join(pinned, 'mock-claude.mjs'))) return pinned;
   // apps/desktop-electron/internal/core/scripts/mock-cli（开发）或随包 resources
   const candidates = [
     path.resolve(__dirname, '../../../scripts/mock-cli'),
