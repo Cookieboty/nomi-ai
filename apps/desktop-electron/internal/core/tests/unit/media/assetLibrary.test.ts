@@ -129,6 +129,32 @@ describe('素材库', () => {
     await expect(lib.regenerate('grok-g.png')).rejects.toThrow();
   });
 
+  it('长提示词原样保存，重新生成发的是全文（#225）', async () => {
+    const chatRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cd-assets-'));
+    fs.mkdirSync(path.join(chatRoot, 'images'));
+    fs.writeFileSync(path.join(chatRoot, 'images', 'nomi-a.png'), 'x');
+    const reqs: Array<{ prompt: string }> = [];
+    const lib = new AssetLibrary({
+      chatRoot,
+      generate: async (req) => {
+        reqs.push(req);
+        fs.writeFileSync(path.join(chatRoot, 'images', 'nomi-new.png'), 'y');
+        return 'nomi-new.png';
+      },
+    });
+    for (const prompt of [
+      'p'.repeat(2000),
+      'p'.repeat(2000) + 'KEEP',
+      'p'.repeat(3996) + 'KEEP',
+      '狐'.repeat(1998) + '😀😀', // 代理对在 2000 附近
+    ]) {
+      lib.record('nomi-a.png', { model: 'amux/gpt-image-2', prompt });
+      expect(lib.list().find((x) => x.file === 'nomi-a.png')?.prompt).toBe(prompt);
+      await lib.regenerate('nomi-a.png');
+      expect(reqs.at(-1)!.prompt).toBe(prompt);
+    }
+  });
+
   it('另存为：选了位置就复制一份，取消不动', async () => {
     const chatRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cd-assets-'));
     fs.mkdirSync(path.join(chatRoot, 'images'));

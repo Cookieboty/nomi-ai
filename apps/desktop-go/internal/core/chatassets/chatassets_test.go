@@ -117,3 +117,29 @@ func TestRegenerateAndSaveAs(t *testing.T) {
 		t.Fatal("非素材库文件")
 	}
 }
+
+// 长提示词原样保存，重新生成发的是全文（#225）
+func TestRegenerateKeepsFullPrompt(t *testing.T) {
+	root := t.TempDir()
+	images := filepath.Join(root, "images")
+	_ = os.MkdirAll(images, 0o700)
+	_ = os.WriteFile(filepath.Join(images, "nomi-a.png"), []byte("x"), 0o600)
+	var last GenerateReq
+	l := New(Deps{ChatRoot: root})
+	l.SetGenerate(func(r GenerateReq) (string, error) {
+		last = r
+		_ = os.WriteFile(filepath.Join(images, "nomi-new.png"), []byte("y"), 0o600)
+		return "nomi-new.png", nil
+	})
+	for _, p := range []string{
+		strings.Repeat("p", 2000),
+		strings.Repeat("p", 2000) + "KEEP",
+		strings.Repeat("p", 3996) + "KEEP",
+		strings.Repeat("狐", 1998) + "😀😀",
+	} {
+		l.Record("nomi-a.png", Meta{Model: "amux/gpt-image-2", Prompt: p})
+		if _, err := l.Regenerate("nomi-a.png"); err != nil || last.Prompt != p {
+			t.Fatalf("len=%d: got len %d, err %v", len(p), len(last.Prompt), err)
+		}
+	}
+}

@@ -108,13 +108,17 @@ func (l *Library) writeMeta(m map[string]Meta) {
 	}
 }
 
+// AssetPromptMax = ASSET_PROMPT_MAX：与 image_generate 的 prompt 上限（4000）一致，合法提示词原样保存，
+// 重新生成发的就是首次生成时的全文（#225）
+const AssetPromptMax = 4000
+
 // Record：生成了一张图（Nomi 的 image_generate）
 func (l *Library) Record(file string, meta Meta) {
 	if SourceOf(file) == "" {
 		return
 	}
-	if r := []rune(meta.Prompt); len(r) > 2000 {
-		meta.Prompt = string(r[:2000])
+	if r := []rune(meta.Prompt); len(r) > AssetPromptMax {
+		meta.Prompt = string(r[:AssetPromptMax])
 	}
 	if len(meta.References) > 8 {
 		meta.References = meta.References[:8]

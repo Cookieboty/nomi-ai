@@ -118,7 +118,7 @@ export class AssetLibrary {
     const m = this.readMeta();
     m[file] = {
       ...(meta.model ? { model: meta.model } : {}),
-      ...(meta.prompt ? { prompt: meta.prompt.slice(0, 2000) } : {}),
+      ...(meta.prompt ? { prompt: clipPrompt(meta.prompt) } : {}),
       ...(meta.aspect ? { aspect: meta.aspect } : {}),
       ...(meta.editedFrom ? { editedFrom: meta.editedFrom } : {}),
       ...(meta.references?.length ? { references: meta.references.slice(0, 8) } : {}),
@@ -243,4 +243,18 @@ export class AssetLibrary {
 function createdAtOf(st: fs.Stats): number {
   const b = st.birthtimeMs;
   return b > 0 && b < st.mtimeMs ? b : st.mtimeMs;
+}
+
+/**
+ * 素材库记下的提示词上限：与 image_generate 的 prompt 上限（4000）一致，合法提示词原样保存，
+ * 重新生成发的就是首次生成时的全文（#225）。超长的异常输入才截断，且不切开代理对。
+ */
+export const ASSET_PROMPT_MAX = 4000;
+
+function clipPrompt(s: string): string {
+  if (s.length <= ASSET_PROMPT_MAX) return s;
+  const end = /[\uD800-\uDBFF]/.test(s[ASSET_PROMPT_MAX - 1]!)
+    ? ASSET_PROMPT_MAX - 1
+    : ASSET_PROMPT_MAX;
+  return s.slice(0, end);
 }
