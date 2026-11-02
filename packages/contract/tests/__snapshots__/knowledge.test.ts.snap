@@ -71,6 +71,7 @@ exports[`knowledge 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "connections.detect query *",
   "connections.addGithub mutation * dangerous",
   "connections.check mutation *",
+  "connections.rebind mutation * dangerous",
   "connections.remove mutation *",
   "local.state query *",
   "local.setSettings mutation *",

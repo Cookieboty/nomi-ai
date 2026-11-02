@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
@@ -42,10 +43,14 @@ type Connection struct {
 	Account        *Account `json:"account,omitempty"`
 	ObservedScopes []string `json:"observedScopes,omitempty"`
 	WideScopes     []string `json:"wideScopes,omitempty"`
-	Status         string   `json:"status"`
-	CheckedAt      *int64   `json:"checkedAt,omitempty"`
-	CreatedAt      int64    `json:"createdAt"`
-	SchemaVersion  int      `json:"schemaVersion"`
+	// Name：用户起的名字（同一账号保留多条时区分用，如「只读」）
+	Name string `json:"name,omitempty"`
+	// CurrentLogin：复核时 gh 在这个主机上的当前账号（与 account 不同 = 账号换了，needs_login）
+	CurrentLogin  string `json:"currentLogin,omitempty"`
+	Status        string `json:"status"`
+	CheckedAt     *int64 `json:"checkedAt,omitempty"`
+	CreatedAt     int64  `json:"createdAt"`
+	SchemaVersion int    `json:"schemaVersion"`
 }
 
 type stored struct {
@@ -60,7 +65,8 @@ type Grant struct {
 	Resources    []string `json:"resources"`
 }
 
-// Error：code = not_found | not_allowed | needs_login | bad_params | unavailable | failed
+// Error：code = not_found | not_allowed | needs_login | bad_params | unavailable | failed | duplicate
+// （duplicate：同一个账号已经连过；令牌方式可选替换或保留两个，gh 方式每个主机一条）
 type Error struct {
 	Code string
 	Msg  string
@@ -196,11 +202,31 @@ func activeAccount(accounts []GhAccount, host string) *GhAccount {
 	return nil
 }
 
-// AddInput：mode = gh | token
+// GithubLabel：连接名「GitHub · 账号」，有名字时加在括号里
+func GithubLabel(login, name string) string {
+	if name != "" {
+		return "GitHub · " + login + "（" + name + "）"
+	}
+	return "GitHub · " + login
+}
+
+// AddInput：mode = gh | token；OnDuplicate（replace | keep）与 Name 只用于令牌方式
 type AddInput struct {
-	Mode  string `json:"mode"`
-	Host  string `json:"host,omitempty"`
-	Token string `json:"token,omitempty"`
+	Mode        string `json:"mode"`
+	Host        string `json:"host,omitempty"`
+	Token       string `json:"token,omitempty"`
+	OnDuplicate string `json:"onDuplicate,omitempty"`
+	Name        string `json:"name,omitempty"`
+}
+
+// connName：trim 后截到 40 个 UTF-16 码元（同 JS slice(0, 40)）
+func connName(s string) string {
+	s = strings.TrimSpace(s)
+	units := utf16.Encode([]rune(s))
+	if len(units) > 40 {
+		s = string(utf16.Decode(units[:40]))
+	}
+	return s
 }
 
 func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, error) {
@@ -215,6 +241,15 @@ func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, erro
 	c := stored{Connection: Connection{ID: newID(), Provider: "github", Status: "ok", CheckedAt: &now, CreatedAt: now, SchemaVersion: 1}}
 	switch in.Mode {
 	case "gh":
+		// 每个主机一条（gh 同一主机同一时间只用一个账号，Nomi 只能用当前账号）
+		s.mu.Lock()
+		for _, x := range s.items {
+			if x.Provider == "github" && x.Auth.Kind == "cli-login" && x.Auth.Host == host {
+				s.mu.Unlock()
+				return nil, &Error{"duplicate", x.Label + ": gh login for " + host + " is already added"}
+			}
+		}
+		s.mu.Unlock()
 		installed, accounts := GhAccounts(ctx, s.d.RunGh, host)
 		if !installed {
 			return nil, &Error{"unavailable", "gh is not installed"}
@@ -223,7 +258,7 @@ func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, erro
 		if a == nil {
 			return nil, &Error{"needs_login", "gh is not logged in to " + host}
 		}
-		c.Label = "GitHub · " + a.Login
+		c.Label = GithubLabel(a.Login, "")
 		c.Auth = Auth{Kind: "cli-login", Cli: "gh", Host: host}
 		c.Account = &Account{Login: a.Login, Host: host}
 		c.ObservedScopes = a.Scopes
@@ -242,11 +277,60 @@ func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, erro
 		if login == "" {
 			return nil, &Error{"failed", "unexpected /user response"}
 		}
+		name := connName(in.Name)
+		// 同一主机、同一账号已经连过：不说怎么办就报 duplicate，由用户选 replace 或 keep
+		sameID := ""
+		s.mu.Lock()
+		for _, x := range s.items {
+			if x.Provider == "github" && x.Auth.Host == host && x.Account != nil && strings.EqualFold(x.Account.Login, login) {
+				sameID = x.ID
+				if in.OnDuplicate == "" {
+					s.mu.Unlock()
+					return nil, &Error{"duplicate", x.Label + ": " + login + "@" + host + " is already added"}
+				}
+				break
+			}
+		}
+		s.mu.Unlock()
 		enc, err := s.d.Secrets.Encrypt(token, "secure storage is unavailable")
 		if err != nil {
 			return nil, &Error{"unavailable", err.Error()}
 		}
-		c.Label = "GitHub · " + login
+		if sameID != "" && in.OnDuplicate == "replace" {
+			// 原连接换成这个令牌：id 不变，引用它的任务授权照常有效
+			s.mu.Lock()
+			for i := range s.items {
+				it := &s.items[i]
+				if it.ID != sameID {
+					continue
+				}
+				it.Auth = Auth{Kind: "keychain", Host: host}
+				it.Secret = enc
+				it.Account = &Account{Login: login, Host: host}
+				if scopes != nil {
+					it.ObservedScopes = scopes
+					it.WideScopes = WideScopes(scopes)
+				} else {
+					it.ObservedScopes = nil
+					it.WideScopes = nil
+				}
+				if name != "" {
+					it.Name = name
+				}
+				it.Label = GithubLabel(login, it.Name)
+				it.Status = "ok"
+				it.CurrentLogin = ""
+				it.CheckedAt = &now
+				s.saveLocked()
+				out := it.Connection
+				s.mu.Unlock()
+				return &out, nil
+			}
+			s.mu.Unlock()
+			// 期间被删了：按 keep 处理，另加一条
+		}
+		c.Label = GithubLabel(login, name)
+		c.Name = name
 		c.Auth = Auth{Kind: "keychain", Host: host}
 		c.Account = &Account{Login: login, Host: host}
 		if scopes != nil {
@@ -303,10 +387,65 @@ func (s *Service) Check(ctx context.Context, id string) (*Connection, error) {
 		} else {
 			it.Status = "needs_login"
 		}
+		// gh 换了账号：记下当前账号，界面上写明并给「改用这个账号」
+		if it.Auth.Kind == "cli-login" && login != "" && (it.Account == nil || login != it.Account.Login) {
+			it.CurrentLogin = login
+		} else {
+			it.CurrentLogin = ""
+		}
 		if scopes != nil {
 			it.ObservedScopes = scopes
 			it.WideScopes = WideScopes(scopes)
 		}
+		now := s.d.Now()
+		it.CheckedAt = &now
+		s.saveLocked()
+		c := it.Connection
+		return &c, nil
+	}
+	return nil, &Error{"not_found", id}
+}
+
+// Rebind：「改用 gh 当前账号」：gh 登录方式的连接，账号换了以后由用户确认改绑（不悄悄换，§4.3）。
+// 改绑后返回连接；引用它的任务授权由调用方撤销（重新授权）。
+func (s *Service) Rebind(ctx context.Context, id string) (*Connection, error) {
+	s.mu.Lock()
+	var snap *stored
+	for i := range s.items {
+		if s.items[i].ID == id {
+			x := s.items[i]
+			snap = &x
+		}
+	}
+	s.mu.Unlock()
+	if snap == nil {
+		return nil, &Error{"not_found", id}
+	}
+	if snap.Auth.Kind != "cli-login" {
+		return nil, &Error{"bad_params", "not a gh login"}
+	}
+	host := snap.Auth.Host
+	installed, accounts := GhAccounts(ctx, s.d.RunGh, host)
+	if !installed {
+		return nil, &Error{"unavailable", "gh is not installed"}
+	}
+	a := activeAccount(accounts, host)
+	if a == nil {
+		return nil, &Error{"needs_login", "gh is not logged in to " + host}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		it := &s.items[i]
+		if it.ID != id {
+			continue
+		}
+		it.Account = &Account{Login: a.Login, Host: host}
+		it.ObservedScopes = a.Scopes
+		it.WideScopes = WideScopes(a.Scopes)
+		it.Label = GithubLabel(a.Login, it.Name)
+		it.Status = "ok"
+		it.CurrentLogin = ""
 		now := s.d.Now()
 		it.CheckedAt = &now
 		s.saveLocked()

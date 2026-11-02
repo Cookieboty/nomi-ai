@@ -104,8 +104,8 @@ export const ExtensionsPanel: React.FC<PropsOf<typeof ExtensionsPanelT>> = lazyP
 export const LocalPanel: React.FC<PropsOf<typeof LocalPanelT>> = lazyPanel(() =>
   import('./LocalPanel').then((m) => m.LocalPanel),
 );
-/** 设置 → 外部连接（connections.md §7） */
-export const ConnectionsPanel: React.FC = lazyComponent(() =>
+/** 设置 → 应用与账号（connections.md §7） */
+export const ConnectionsPanel: React.FC<{ onOpenExtensions?: () => void }> = lazyComponent(() =>
   import('./ConnectionsPanel').then((m) => m.ConnectionsPanel),
 );
 export const UsagePanel: React.FC<PropsOf<typeof UsagePanelT>> = lazyComponent(() =>

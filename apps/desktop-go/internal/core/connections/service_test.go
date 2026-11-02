@@ -155,3 +155,79 @@ func TestAddErrorsAndToken(t *testing.T) {
 		t.Fatal("remove")
 	}
 }
+
+// 应用与账号：重复添加、替换 / 保留、gh 换账号（同 Node describe 同名段）
+
+func TestGhOneConnectionPerHost(t *testing.T) {
+	login := "octo"
+	s, calls, _ := harness(t, &login, true)
+	if _, err := s.AddGithub(context.Background(), AddInput{Mode: "gh"}); err != nil {
+		t.Fatal(err)
+	}
+	n := len(*calls)
+	_, err := s.AddGithub(context.Background(), AddInput{Mode: "gh"})
+	if e, ok := err.(*Error); !ok || e.Code != "duplicate" || !strings.HasPrefix(e.Msg, "GitHub · octo:") {
+		t.Fatal(err)
+	}
+	if len(*calls) != n {
+		t.Fatal("duplicate check must run before gh")
+	}
+	if len(s.List()) != 1 {
+		t.Fatal(s.List())
+	}
+}
+
+func TestTokenDuplicateReplaceKeep(t *testing.T) {
+	s, _, _ := harness(t, nil, true)
+	ctx := context.Background()
+	first, err := s.AddGithub(ctx, AddInput{Mode: "token", Token: "good"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.AddGithub(ctx, AddInput{Mode: "token", Token: "good"})
+	if e, ok := err.(*Error); !ok || e.Code != "duplicate" || e.Msg != "GitHub · tok-user: tok-user@github.com is already added" {
+		t.Fatal(err)
+	}
+	kept, err := s.AddGithub(ctx, AddInput{Mode: "token", Token: "good", OnDuplicate: "keep", Name: " 只读 "})
+	if err != nil || kept.ID == first.ID || kept.Label != "GitHub · tok-user（只读）" || kept.Name != "只读" {
+		t.Fatal(kept, err)
+	}
+	replaced, err := s.AddGithub(ctx, AddInput{Mode: "token", Token: "good", OnDuplicate: "replace"})
+	if err != nil || replaced.ID != first.ID || replaced.Label != "GitHub · tok-user" || replaced.Status != "ok" {
+		t.Fatal(replaced, err)
+	}
+	if len(s.List()) != 2 {
+		t.Fatal(s.List())
+	}
+}
+
+func TestGhAccountSwitchRebind(t *testing.T) {
+	login := "octo"
+	s, _, _ := harness(t, &login, true)
+	ctx := context.Background()
+	c, err := s.AddGithub(ctx, AddInput{Mode: "gh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	login = "mona"
+	checked, _ := s.Check(ctx, c.ID)
+	if checked.Status != "needs_login" || checked.CurrentLogin != "mona" {
+		t.Fatalf("%+v", checked)
+	}
+	rebound, err := s.Rebind(ctx, c.ID)
+	if err != nil || rebound.ID != c.ID || rebound.Status != "ok" || rebound.Label != "GitHub · mona" || rebound.CurrentLogin != "" ||
+		rebound.Account.Login != "mona" {
+		t.Fatalf("%+v %v", rebound, err)
+	}
+	b, _ := json.Marshal(rebound)
+	if strings.Contains(string(b), "currentLogin") {
+		t.Fatal(string(b))
+	}
+	tok, _ := s.AddGithub(ctx, AddInput{Mode: "token", Token: "good"})
+	if _, err := s.Rebind(ctx, tok.ID); err == nil || err.(*Error).Code != "bad_params" {
+		t.Fatal(err)
+	}
+	if _, err := s.Rebind(ctx, "conn_x"); err == nil || err.(*Error).Code != "not_found" {
+		t.Fatal(err)
+	}
+}

@@ -1,6 +1,6 @@
 package knowledgehandlers
 
-// connections.*：外部连接，对应 src/contract/knowledge.ts 的 connections 段（docs/design/connections.md §7）。
+// connections.*：应用与账号，对应 src/contract/knowledge.ts 的 connections 段（docs/design/connections.md §7）。
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 )
 
 // connErr：connections.Error(code) → CONNECTIONS_<CODE>
@@ -52,6 +53,35 @@ func connectionHandlers(sv Services) map[string]H {
 				return nil, err
 			}
 			return connErr(s.Check(ctx, in.ID))
+		}),
+		"connections.rebind": on(get, func(ctx context.Context, s *C, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			before := ""
+			if old := s.Get(in.ID); old != nil && old.Account != nil {
+				before = old.Account.Login
+			}
+			c, err := s.Rebind(ctx, in.ID)
+			if err != nil {
+				return connErr(nil, err)
+			}
+			// 真的换了账号：引用这条连接的任务都要重新授权（账号没变就不动授权）
+			changed := c == nil || c.Account == nil || c.Account.Login != before
+			if changed && sv.Tasks != nil {
+				if t := sv.Tasks(); t != nil {
+					for _, task := range t.List().Tasks {
+						for _, g := range task.Grant.Connections {
+							if g.ConnectionID == in.ID {
+								_, _ = t.Command(task.ID, tasks.Command{Type: "revoke"})
+								break
+							}
+						}
+					}
+				}
+			}
+			return c, nil
 		}),
 		"connections.remove": on(get, func(_ context.Context, s *C, raw json.RawMessage) (any, error) {
 			var in taskIDIn

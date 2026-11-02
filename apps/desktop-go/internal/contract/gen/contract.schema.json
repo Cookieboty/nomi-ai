@@ -6562,6 +6562,17 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 500
+       },
+       "onDuplicate": {
+        "type": "string",
+        "enum": [
+         "replace",
+         "keep"
+        ]
+       },
+       "name": {
+        "type": "string",
+        "maxLength": 40
        }
       },
       "required": [
@@ -6641,6 +6652,12 @@
        "error",
        "disabled"
       ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
      },
      "checkedAt": {
       "type": "number"
@@ -6746,6 +6763,12 @@
        "error",
        "disabled"
       ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
      },
      "checkedAt": {
       "type": "number"
@@ -6927,6 +6950,12 @@
         "disabled"
        ]
       },
+      "name": {
+       "type": "string"
+      },
+      "currentLogin": {
+       "type": "string"
+      },
       "checkedAt": {
        "type": "number"
       },
@@ -6944,6 +6973,117 @@
      ],
      "additionalProperties": {}
     }
+   }
+  },
+  "connections.rebind": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
    }
   },
   "connections.remove": {
@@ -28159,6 +28299,7 @@
   "CONNECTIONS_UNAVAILABLE",
   "CONNECTIONS_BAD_PARAMS",
   "CONNECTIONS_FAILED",
+  "CONNECTIONS_DUPLICATE",
   "CHAT_BG_TOO_LARGE",
   "CHAT_BG_UNSUPPORTED"
  ]

@@ -316,7 +316,7 @@ export const knowledgeProcedures = {
     dangerous: true,
   },
 
-  // ---------- connections：外部账号 / 本机软件（ConnectionService，docs/design/connections.md） ----------
+  // ---------- connections：应用与账号（ConnectionService，docs/design/connections.md） ----------
   /** 全部连接（不含任何密钥） */
   'connections.list': { kind: 'query', input: none, output: z.array(ConnectionView) },
   /** 检测本机可复用的登录（gh）：账号、权限范围、宽权限提示（不含令牌） */
@@ -334,6 +334,8 @@ export const knowledgeProcedures = {
   },
   /** 复核账号与权限（换了账号 / 登出了 → needs_login） */
   'connections.check': { kind: 'mutation', input: id, output: ConnectionView },
+  /** gh 换了账号后改用当前账号（引用这条连接的任务授权随之撤销，需要重新授权） */
+  'connections.rebind': { kind: 'mutation', input: id, output: ConnectionView, dangerous: true },
   'connections.remove': { kind: 'mutation', input: id, output: ok },
 
   // ---------- local：本机模型（LocalModelService） ----------
@@ -491,6 +493,7 @@ export const knowledgeErrors = [
   'CONNECTIONS_UNAVAILABLE',
   'CONNECTIONS_BAD_PARAMS',
   'CONNECTIONS_FAILED',
+  'CONNECTIONS_DUPLICATE',
 ] as const satisfies readonly string[];
 
 export type KnowledgeProcedureName = keyof typeof knowledgeProcedures & string;

@@ -428,7 +428,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 						ghID, ghLabel, ok = github()
 					}
 					if !ok {
-						return fail("no_connection", "用户还没有在设置 → 外部连接里连 GitHub"), nil
+						return fail("no_connection", "用户还没有在设置 → 应用与账号里连 GitHub"), nil
 					}
 					for _, r := range repos {
 						if !repoNameRE.MatchString(r) {

@@ -237,7 +237,7 @@ export const SettingsView: React.FC<Props> = ({
       case 'ext':
         return <ExtensionsPanel isVisible onClose={noop} />;
       case 'connections':
-        return <ConnectionsPanel />;
+        return <ConnectionsPanel onOpenExtensions={() => go('ext')} />;
       case 'privacy':
         return (
           <PrivacySection tab={tabOf('privacy')} onTab={(x) => setTab('privacy', x)} go={go} />

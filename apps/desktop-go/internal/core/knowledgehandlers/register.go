@@ -26,7 +26,7 @@ var Declared = map[string]bool{
 	"SCHED_INVALID": true, "SCHED_NOT_FOUND": true, "SCHED_BUSY": true, "SCHED_EMPTY": true,
 	"TASKS_NOT_FOUND": true, "TASKS_BAD_TRIGGER": true, "TASKS_BAD_GRANT": true,
 	"CONNECTIONS_NOT_FOUND": true, "CONNECTIONS_NEEDS_LOGIN": true, "CONNECTIONS_UNAVAILABLE": true,
-	"CONNECTIONS_BAD_PARAMS": true, "CONNECTIONS_FAILED": true,
+	"CONNECTIONS_BAD_PARAMS": true, "CONNECTIONS_FAILED": true, "CONNECTIONS_DUPLICATE": true,
 }
 
 // ErrorCode：knowledgeErrorCode(prefix, err)；没声明的返回 ""

@@ -59,7 +59,7 @@ export const SETTINGS_ICONS = {
   knowledge: Brain,
   /** 扩展 / MCP：积木模块 */
   ext: Blocks,
-  /** 外部连接（GitHub 等账号）：链接 */
+  /** 应用与账号（GitHub 等账号、本机应用）：链接 */
   connections: Link2,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,

@@ -53,6 +53,10 @@ import { githubCommentSummary, githubPrSummary } from './labels';
 /** 对外写能力 */
 export type GithubWriteCapability = 'github.comment' | 'github.pr.create';
 
+/** 连接名：「GitHub · 账号」，有名字时加在括号里 */
+export const githubLabel = (login: string, name?: string) =>
+  name ? `GitHub · ${login}（${name}）` : `GitHub · ${login}`;
+
 /** 两次写请求至少间隔（connections.md §4.2） */
 const WRITE_GAP_MS = 1000;
 
@@ -68,6 +72,10 @@ export interface Connection {
   observedScopes?: string[];
   /** 远多于「读」的权限（如实提示） */
   wideScopes?: string[];
+  /** 用户起的名字（同一账号保留多条时区分用，如「只读」） */
+  name?: string;
+  /** 复核时 gh 在这个主机上的当前账号（与 account 不同 = 账号换了，needs_login） */
+  currentLogin?: string;
   status: ConnectionStatus;
   checkedAt?: number;
   createdAt: number;
@@ -87,7 +95,14 @@ export interface ConnectionGrantLike {
 }
 
 export type ConnectionErrorCode =
-  'not_found' | 'not_allowed' | 'needs_login' | 'bad_params' | 'unavailable' | 'failed';
+  | 'not_found'
+  | 'not_allowed'
+  | 'needs_login'
+  | 'bad_params'
+  | 'unavailable'
+  | 'failed'
+  /** 同一个账号已经连过（令牌方式可选替换或保留两个；gh 方式每个主机一条） */
+  | 'duplicate';
 
 export class ConnectionError extends Error {
   constructor(
@@ -174,9 +189,22 @@ export class ConnectionService {
     };
   }
 
-  /** 添加 GitHub 连接：复用 gh 登录，或粘贴令牌 */
+  /**
+   * 添加 GitHub 连接（应用与账号 → GitHub）：
+   * - gh 方式：每个主机一条（gh 同一主机同一时间只用一个账号，Nomi 只能用当前账号），已有就报 duplicate；
+   * - 令牌方式：同一主机、同一账号已经连过 → 报 duplicate，由用户选 replace（原连接换成这个令牌，
+   *   连接 id 不变，任务授权照常有效）或 keep（另加一条，带名字区分）。
+   */
   async addGithub(
-    i: { mode: 'gh'; host?: string } | { mode: 'token'; host?: string; token: string },
+    i:
+      | { mode: 'gh'; host?: string }
+      | {
+          mode: 'token';
+          host?: string;
+          token: string;
+          onDuplicate?: 'replace' | 'keep';
+          name?: string;
+        },
   ): Promise<Connection> {
     const host = i.host ?? 'github.com';
     if (!HOST.test(host)) throw new ConnectionError('bad_params', 'invalid host');
@@ -184,6 +212,14 @@ export class ConnectionService {
     const id = `conn_${randomUUID().replace(/-/g, '')}`;
     let c: Stored;
     if (i.mode === 'gh') {
+      const dup = this.items.find(
+        (x) => x.provider === 'github' && x.auth.kind === 'cli-login' && x.auth.host === host,
+      );
+      if (dup)
+        throw new ConnectionError(
+          'duplicate',
+          `${dup.label}: gh login for ${host} is already added`,
+        );
       const { installed, accounts } = await ghAccounts(this.runGh, host);
       if (!installed) throw new ConnectionError('unavailable', 'gh is not installed');
       const a = accounts.find((x) => x.host === host && x.active && x.state === 'success');
@@ -191,7 +227,7 @@ export class ConnectionService {
       c = {
         id,
         provider: 'github',
-        label: `GitHub · ${a.login}`,
+        label: githubLabel(a.login),
         auth: { kind: 'cli-login', cli: 'gh', host },
         account: { login: a.login, host },
         observedScopes: a.scopes,
@@ -215,10 +251,41 @@ export class ConnectionService {
       }
       if (typeof login !== 'string')
         throw new ConnectionError('failed', 'unexpected /user response');
+      const name = i.name?.trim().slice(0, 40) || undefined;
+      const same = this.items.find(
+        (x) =>
+          x.provider === 'github' &&
+          x.auth.host === host &&
+          x.account?.login.toLowerCase() === login.toLowerCase(),
+      );
+      if (same && !i.onDuplicate)
+        throw new ConnectionError('duplicate', `${same.label}: ${login}@${host} is already added`);
+      const secret = this.d.secrets.encrypt(token, 'secure storage is unavailable');
+      if (same && i.onDuplicate === 'replace') {
+        // 原连接换成这个令牌：id 不变，引用它的任务授权照常有效
+        same.auth = { kind: 'keychain', host };
+        same.secret = secret;
+        same.account = { login, host };
+        if (scopes) {
+          same.observedScopes = scopes;
+          same.wideScopes = wideScopes(scopes);
+        } else {
+          delete same.observedScopes;
+          delete same.wideScopes;
+        }
+        if (name) same.name = name;
+        same.label = githubLabel(login, same.name);
+        same.status = 'ok';
+        delete same.currentLogin;
+        same.checkedAt = now;
+        this.save();
+        return this.get(same.id)!;
+      }
       c = {
         id,
         provider: 'github',
-        label: `GitHub · ${login}`,
+        label: githubLabel(login, name),
+        ...(name ? { name } : {}),
         auth: { kind: 'keychain', host },
         account: { login, host },
         ...(scopes ? { observedScopes: scopes, wideScopes: wideScopes(scopes) } : {}),
@@ -226,7 +293,7 @@ export class ConnectionService {
         checkedAt: now,
         createdAt: now,
         schemaVersion: 1,
-        secret: this.d.secrets.encrypt(token, 'secure storage is unavailable'),
+        secret,
       };
     }
     this.items.push(c);
@@ -257,10 +324,36 @@ export class ConnectionService {
       }
     }
     c.status = login && login === c.account?.login ? 'ok' : 'needs_login';
+    // gh 换了账号：记下当前账号，界面上写明并给「改用这个账号」
+    if (c.auth.kind === 'cli-login' && login && login !== c.account?.login) c.currentLogin = login;
+    else delete c.currentLogin;
     if (scopes) {
       c.observedScopes = scopes;
       c.wideScopes = wideScopes(scopes);
     }
+    c.checkedAt = this.now();
+    this.save();
+    return this.get(id)!;
+  }
+
+  /**
+   * 「改用 gh 当前账号」：gh 登录方式的连接，账号换了以后由用户确认改绑（不悄悄换，§4.3）。
+   * 改绑后返回连接；引用它的任务授权由调用方撤销（重新授权）。
+   */
+  async rebind(id: string): Promise<Connection> {
+    const c = this.items.find((x) => x.id === id);
+    if (!c) throw new ConnectionError('not_found', id);
+    if (c.auth.kind !== 'cli-login') throw new ConnectionError('bad_params', 'not a gh login');
+    const { installed, accounts } = await ghAccounts(this.runGh, c.auth.host);
+    if (!installed) throw new ConnectionError('unavailable', 'gh is not installed');
+    const a = accounts.find((x) => x.host === c.auth.host && x.active && x.state === 'success');
+    if (!a) throw new ConnectionError('needs_login', `gh is not logged in to ${c.auth.host}`);
+    c.account = { login: a.login, host: c.auth.host };
+    c.observedScopes = a.scopes;
+    c.wideScopes = wideScopes(a.scopes);
+    c.label = githubLabel(a.login, c.name);
+    c.status = 'ok';
+    delete c.currentLogin;
     c.checkedAt = this.now();
     this.save();
     return this.get(id)!;

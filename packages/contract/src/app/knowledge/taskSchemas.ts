@@ -174,6 +174,8 @@ export const ConnectionView = z.looseObject({
   observedScopes: z.array(z.string()).optional(),
   wideScopes: z.array(z.string()).optional(),
   status: z.enum(['ok', 'needs_login', 'error', 'disabled']),
+  name: z.string().optional(),
+  currentLogin: z.string().optional(),
   checkedAt: z.number().optional(),
   createdAt: z.number(),
 });
@@ -201,5 +203,9 @@ export const ConnectionAddGithubInput = z.discriminatedUnion('mode', [
     mode: z.literal('token'),
     host: z.string().optional(),
     token: z.string().min(1).max(500),
+    /** 同一账号已经连过时：替换原来的（id 不变），或另加一条 */
+    onDuplicate: z.enum(['replace', 'keep']).optional(),
+    /** 名字（保留多条时区分用） */
+    name: z.string().max(40).optional(),
   }),
 ]);

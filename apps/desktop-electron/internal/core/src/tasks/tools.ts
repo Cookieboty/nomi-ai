@@ -319,7 +319,7 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
         if (repos.length && !gh)
           return {
             ok: false,
-            error: { code: 'no_connection', message: '用户还没有在设置 → 外部连接里连 GitHub' },
+            error: { code: 'no_connection', message: '用户还没有在设置 → 应用与账号里连 GitHub' },
           };
         let trigger: Trigger;
         try {

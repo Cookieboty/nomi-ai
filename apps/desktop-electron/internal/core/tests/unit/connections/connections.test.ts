@@ -231,3 +231,49 @@ describe('ConnectionService', () => {
     h.done();
   });
 });
+
+describe('应用与账号：重复添加、替换 / 保留、gh 换账号', () => {
+  it('gh 登录每个主机只能接一条', async () => {
+    const h = setup();
+    await h.svc.addGithub({ mode: 'gh' });
+    await expect(h.svc.addGithub({ mode: 'gh' })).rejects.toMatchObject({ code: 'duplicate' });
+    expect(h.svc.list()).toHaveLength(1);
+    h.done();
+  });
+
+  it('同一账号的令牌：不说怎么办就报重复；替换保留 id；保留两个带名字', async () => {
+    const h = setup();
+    const first = await h.svc.addGithub({ mode: 'token', token: 'good' });
+    await expect(h.svc.addGithub({ mode: 'token', token: 'good' })).rejects.toMatchObject({
+      code: 'duplicate',
+    });
+    const kept = await h.svc.addGithub({
+      mode: 'token',
+      token: 'good',
+      onDuplicate: 'keep',
+      name: '只读',
+    });
+    expect(kept.id).not.toBe(first.id);
+    expect(kept.label).toBe('GitHub · tok-user（只读）');
+    const replaced = await h.svc.addGithub({
+      mode: 'token',
+      token: 'good',
+      onDuplicate: 'replace',
+    });
+    expect(replaced.id).toBe(first.id);
+    expect(h.svc.list()).toHaveLength(2);
+    h.done();
+  });
+
+  it('gh 换了账号：复核记下当前账号；改用后连接 id 不变、状态恢复', async () => {
+    const h = setup();
+    const c = await h.svc.addGithub({ mode: 'gh' });
+    h.setLogin('mona');
+    const checked = await h.svc.check(c.id);
+    expect(checked).toMatchObject({ status: 'needs_login', currentLogin: 'mona' });
+    const rebound = await h.svc.rebind(c.id);
+    expect(rebound).toMatchObject({ id: c.id, status: 'ok', label: 'GitHub · mona' });
+    expect(rebound.currentLogin).toBeUndefined();
+    h.done();
+  });
+});

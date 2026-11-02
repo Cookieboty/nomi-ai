@@ -1537,6 +1537,8 @@ type ConnectionsAddGithubOutput struct {
 	ObservedScopes []string                           `json:"observedScopes,omitempty"`
 	WideScopes     []string                           `json:"wideScopes,omitempty"`
 	Status         ConnectionsAddGithubOutputStatus   `json:"status"`
+	Name           *string                            `json:"name,omitempty"`
+	CurrentLogin   *string                            `json:"currentLogin,omitempty"`
 	CheckedAt      *float64                           `json:"checkedAt,omitempty"`
 	CreatedAt      float64                            `json:"createdAt"`
 }
@@ -1582,6 +1584,8 @@ type ConnectionsCheckOutput struct {
 	ObservedScopes []string                       `json:"observedScopes,omitempty"`
 	WideScopes     []string                       `json:"wideScopes,omitempty"`
 	Status         ConnectionsCheckOutputStatus   `json:"status"`
+	Name           *string                        `json:"name,omitempty"`
+	CurrentLogin   *string                        `json:"currentLogin,omitempty"`
 	CheckedAt      *float64                       `json:"checkedAt,omitempty"`
 	CreatedAt      float64                        `json:"createdAt"`
 }
@@ -1646,8 +1650,57 @@ type ConnectionsListOutputItem struct {
 	ObservedScopes []string                          `json:"observedScopes,omitempty"`
 	WideScopes     []string                          `json:"wideScopes,omitempty"`
 	Status         ConnectionsListOutputItemStatus   `json:"status"`
+	Name           *string                           `json:"name,omitempty"`
+	CurrentLogin   *string                           `json:"currentLogin,omitempty"`
 	CheckedAt      *float64                          `json:"checkedAt,omitempty"`
 	CreatedAt      float64                           `json:"createdAt"`
+}
+
+type ConnectionsRebindInput struct {
+	Id string `json:"id"`
+}
+
+// ConnectionsRebindOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsRebindOutputAuthKind = string
+
+const (
+	ConnectionsRebindOutputAuthKindCliLogin ConnectionsRebindOutputAuthKind = "cli-login"
+	ConnectionsRebindOutputAuthKindKeychain ConnectionsRebindOutputAuthKind = "keychain"
+)
+
+type ConnectionsRebindOutputAuth struct {
+	Kind ConnectionsRebindOutputAuthKind `json:"kind"`
+	Host string                          `json:"host"`
+}
+
+type ConnectionsRebindOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsRebindOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsRebindOutputStatus = string
+
+const (
+	ConnectionsRebindOutputStatusOk         ConnectionsRebindOutputStatus = "ok"
+	ConnectionsRebindOutputStatusNeedsLogin ConnectionsRebindOutputStatus = "needs_login"
+	ConnectionsRebindOutputStatusError      ConnectionsRebindOutputStatus = "error"
+	ConnectionsRebindOutputStatusDisabled   ConnectionsRebindOutputStatus = "disabled"
+)
+
+type ConnectionsRebindOutput struct {
+	Id             string                          `json:"id"`
+	Provider       string                          `json:"provider"`
+	Label          string                          `json:"label"`
+	Auth           ConnectionsRebindOutputAuth     `json:"auth"`
+	Account        *ConnectionsRebindOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                        `json:"observedScopes,omitempty"`
+	WideScopes     []string                        `json:"wideScopes,omitempty"`
+	Status         ConnectionsRebindOutputStatus   `json:"status"`
+	Name           *string                         `json:"name,omitempty"`
+	CurrentLogin   *string                         `json:"currentLogin,omitempty"`
+	CheckedAt      *float64                        `json:"checkedAt,omitempty"`
+	CreatedAt      float64                         `json:"createdAt"`
 }
 
 type ConnectionsRemoveInput struct {
@@ -7657,6 +7710,10 @@ type ConnectionsDetectOutputT = ConnectionsDetectOutput
 // ConnectionsListInputT 是 connections.list 的入参
 type ConnectionsListInputT = any
 type ConnectionsListOutputT = []ConnectionsListOutputItem
+
+// ConnectionsRebindInputT 是 connections.rebind 的入参
+type ConnectionsRebindInputT = ConnectionsRebindInput
+type ConnectionsRebindOutputT = ConnectionsRebindOutput
 
 // ConnectionsRemoveInputT 是 connections.remove 的入参
 type ConnectionsRemoveInputT = ConnectionsRemoveInput

@@ -180,6 +180,18 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'connections.addGithub': (input, ctx) =>
       connCall(ctx, async () => out(await conns().addGithub(input))),
     'connections.check': ({ id }, ctx) => connCall(ctx, async () => out(await conns().check(id))),
+    'connections.rebind': ({ id }, ctx) =>
+      connCall(ctx, async () => {
+        const before = conns().get(id)?.account?.login;
+        const c = await conns().rebind(id);
+        // 真的换了账号：引用这条连接的任务都要重新授权（账号没变就不动授权）
+        const t = s.tasks;
+        if (t && c.account?.login !== before)
+          for (const task of t.list().tasks)
+            if (task.grant.connections.some((g) => g.connectionId === id))
+              t.command(task.id, { type: 'revoke' });
+        return out(c);
+      }),
     'connections.remove': ({ id }) => conns().remove(id),
 
     // ---------- local ----------
