@@ -22,6 +22,7 @@ import type { CliUpdateService } from '../cli/CliUpdateService';
 import type { DelegateService } from '../cli/delegate/DelegateService';
 import type { HarnessOrchestrator } from '../cli/harness/Orchestrator';
 import type { SessionHistoryService } from '../cli/SessionHistoryService';
+import type { ConnectionService } from '../connections/ConnectionService';
 import type { PendingEvents } from '../core/pendingEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import type { DiagnosticsService } from '../diagnostics/DiagnosticsService';
@@ -41,6 +42,7 @@ import type { ScreenService } from '../screen/ScreenService';
 import type { IConfigService } from '../services/ConfigService';
 import type { UpdateService } from '../services/UpdateService';
 import type { StartupService } from '../startup/StartupService';
+import type { TaskService } from '../tasks/TaskService';
 import type { ThemeService } from '../theme/ThemeService';
 import type { TtsService } from '../tts/TtsService';
 import type { QualityService } from '../usage/quality/QualityService';
@@ -91,6 +93,10 @@ export interface CoreContractServices {
   kb?: KnowledgeService;
   mem?: MemoryService;
   sched?: SchedulerService;
+  /** 持续任务（tasks.*） */
+  tasks?: TaskService;
+  /** 连接（connections.*） */
+  connections?: ConnectionService;
   localModels?: LocalModelService;
   localHub?: LocalHubService;
   ext?: ExtensionsService;

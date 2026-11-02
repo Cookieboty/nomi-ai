@@ -1,12 +1,18 @@
 package chatassets
 
 import (
+	"bytes"
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 func setup(t *testing.T) (*Library, func(string, int64), *[]string, *[]string, *int, string) {
@@ -115,5 +121,102 @@ func TestRegenerateAndSaveAs(t *testing.T) {
 	}
 	if ok, _ := l.SaveAs("panel-bg.jpg"); ok {
 		t.Fatal("非素材库文件")
+	}
+}
+
+// 长提示词原样保存，重新生成发的是全文（#225）
+func TestRegenerateKeepsFullPrompt(t *testing.T) {
+	root := t.TempDir()
+	images := filepath.Join(root, "images")
+	_ = os.MkdirAll(images, 0o700)
+	_ = os.WriteFile(filepath.Join(images, "nomi-a.png"), []byte("x"), 0o600)
+	var last GenerateReq
+	l := New(Deps{ChatRoot: root})
+	l.SetGenerate(func(r GenerateReq) (string, error) {
+		last = r
+		_ = os.WriteFile(filepath.Join(images, "nomi-new.png"), []byte("y"), 0o600)
+		return "nomi-new.png", nil
+	})
+	for _, p := range []string{
+		strings.Repeat("p", 2000),
+		strings.Repeat("p", 2000) + "KEEP",
+		strings.Repeat("p", 3996) + "KEEP",
+		strings.Repeat("狐", 1998) + "😀😀",
+	} {
+		l.Record("nomi-a.png", Meta{Model: "amux/gpt-image-2", Prompt: p})
+		if _, err := l.Regenerate("nomi-a.png"); err != nil || last.Prompt != p {
+			t.Fatalf("len=%d: got len %d, err %v", len(p), len(last.Prompt), err)
+		}
+	}
+}
+
+var (
+	importPNG  = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3}
+	importJPG  = []byte{0xff, 0xd8, 0xff, 0xe0, 1, 2}
+	importWEBP = []byte("RIFF\x00\x00\x00\x00WEBPVP8 ")
+	importGIF  = []byte("GIF89a\x01\x00")
+)
+
+// 用户发送的原图：写进图片目录（来源 user），记下会话，通知视图，列表里能看到
+func TestImportImage(t *testing.T) {
+	l, _, _, _, changed, images := setup(t)
+	it, err := l.ImportImage(ImportReq{Mime: "image/png", Data: base64.StdEncoding.EncodeToString(importPNG), ConversationID: "c1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`^user-[a-z0-9]+-[a-z0-9]+\.png$`).MatchString(it.File) || it.Source != "user" ||
+		it.URL != "chat-asset://images/"+it.File || it.Bytes != int64(len(importPNG)) || it.ConversationID != "c1" {
+		t.Fatalf("%+v", it)
+	}
+	b, _ := os.ReadFile(filepath.Join(images, it.File))
+	if !bytes.Equal(b, importPNG) || *changed != 1 || SourceOf(it.File) != "user" {
+		t.Fatalf("bytes=%v changed=%d", b, *changed)
+	}
+	if st, _ := os.Stat(filepath.Join(images, it.File)); runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
+		t.Fatal(st.Mode())
+	}
+	if items := l.List(); len(items) != 1 || items[0].File != it.File || items[0].Source != "user" {
+		t.Fatalf("%+v", items)
+	}
+	var exts []string
+	for _, c := range []struct {
+		mime string
+		b    []byte
+	}{{"image/jpeg", importJPG}, {"image/webp", importWEBP}, {"image/gif", importGIF}} {
+		x, err := l.ImportImage(ImportReq{Mime: c.mime, Data: base64.StdEncoding.EncodeToString(c.b)})
+		if err != nil {
+			t.Fatal(c.mime, err)
+		}
+		if x.ConversationID != "" {
+			t.Fatalf("%+v", x)
+		}
+		exts = append(exts, filepath.Ext(x.File))
+	}
+	if strings.Join(exts, ",") != ".jpg,.webp,.gif" {
+		t.Fatal(exts)
+	}
+}
+
+// 文件头与 mime 不符、超过 20 MB：拒绝，不落盘
+func TestImportImageRejects(t *testing.T) {
+	l, _, _, _, changed, images := setup(t)
+	if _, err := l.ImportImage(ImportReq{Mime: "image/jpeg", Data: base64.StdEncoding.EncodeToString(importPNG)}); err == nil ||
+		err.Error() != i18n.T("electron.image.import-bad-format") {
+		t.Fatal(err)
+	}
+	if _, err := l.ImportImage(ImportReq{Mime: "image/png", Data: base64.StdEncoding.EncodeToString([]byte("<svg/>"))}); err == nil {
+		t.Fatal("svg 应拒绝")
+	}
+	if _, err := l.ImportImage(ImportReq{Mime: "image/svg+xml", Data: base64.StdEncoding.EncodeToString(importPNG)}); err == nil {
+		t.Fatal("不认的 mime 应拒绝")
+	}
+	big := make([]byte, ImportMaxBytes+1)
+	copy(big, importPNG)
+	if _, err := l.ImportImage(ImportReq{Mime: "image/png", Data: base64.StdEncoding.EncodeToString(big)}); err == nil ||
+		err.Error() != i18n.T("electron.image.import-too-large", 20) {
+		t.Fatal(err)
+	}
+	if ents, _ := os.ReadDir(images); len(ents) != 0 || *changed != 0 {
+		t.Fatalf("ents=%v changed=%d", ents, *changed)
 	}
 }

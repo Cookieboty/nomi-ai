@@ -142,6 +142,8 @@ const BUILTIN_FILES: Record<string, Record<string, string>> = {
 export class ExtensionsService {
   private servers: McpServerEntry[] = [];
   private live = new Map<string, Live>();
+  /** 未包装确认的 MCP 工具（任务的 mcp 事件源按授权直接调只读工具） */
+  private readonly rawTools = new Map<string, ToolDefinition>();
   private disabledSkills = new Set<string>();
   /**
    * listSkills 的缓存：每条消息发送前都会取技能上下文（skills-context），原来每次都同步递归读遍
@@ -432,6 +434,7 @@ export class ExtensionsService {
           readOnly: def.readOnly === true,
           dangerous: def.dangerous === true,
         });
+        this.rawTools.set(name, def);
         this.registry.unregister?.(name);
         this.registry.register(this.guard(s.id, def));
       }
@@ -459,6 +462,46 @@ export class ExtensionsService {
     this.changed();
   }
 
+  /**
+   * 任务用的 MCP 工具信息（只接本机 stdio 服务器，connections.md §6）：工具名是去掉服务器前缀的原名；
+   * 服务器不在线时 null；远程服务器 `remote: true`（不能授权给任务）
+   */
+  mcpToolInfo(serverId: string, tool: string): { readOnly: boolean; remote?: boolean } | null {
+    const s = this.servers.find((x) => x.id === serverId);
+    if (s && s.transport !== 'stdio') return { readOnly: false, remote: true };
+    const live = this.live.get(serverId);
+    const hit = live?.tools.find((x) => x.name === `${serverId}__${tool}`);
+    return hit ? { readOnly: hit.readOnly } : null;
+  }
+
+  /**
+   * 任务的 mcp 事件源：直接调用只读工具（授权由事件源校验：任务授权里给了这个工具的 mcp.read）。
+   * 不经确认包装；结果是外部内容。只接本机 stdio 服务器。
+   */
+  async callMcpReadOnly(
+    serverId: string,
+    tool: string,
+    args: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    const s = this.servers.find((x) => x.id === serverId);
+    if (!s || s.transport !== 'stdio') throw new Error(`MCP server not available: ${serverId}`);
+    const name = `${serverId}__${tool}`;
+    const def = this.rawTools.get(name);
+    const info = this.live.get(serverId)?.tools.find((x) => x.name === name);
+    if (!def || !info) throw new Error(`MCP tool not connected: ${name}`);
+    if (!info.readOnly) throw new Error(`MCP tool is not read-only: ${name}`);
+    const t0 = Date.now();
+    try {
+      const out = await def.execute(args, { signal } as never);
+      this.audit(name, { server: serverId }, 'task_event', 'ok', 'mcp', Date.now() - t0);
+      return out;
+    } catch (err) {
+      this.audit(name, { server: serverId }, 'task_event', 'error', 'mcp', Date.now() - t0);
+      throw err;
+    }
+  }
+
   /** 包装 MCP 工具：按信任级别确认 + 审计 */
   private guard(serverId: string, def: ToolDefinition): ToolDefinition {
     const s = this.servers.find((x) => x.id === serverId);
@@ -466,6 +509,7 @@ export class ExtensionsService {
       serverId,
       serverName: s?.name ?? serverId,
       trust: s?.trust ?? 'ask',
+      local: s?.transport === 'stdio',
     });
   }
 
@@ -480,12 +524,13 @@ export class ExtensionsService {
       serverId: server.id,
       serverName: server.name || server.id,
       trust: 'ask',
+      local: false,
     });
   }
 
   private withConfirm(
     def: ToolDefinition,
-    opts: { serverId: string; serverName: string; trust: Trust },
+    opts: { serverId: string; serverName: string; trust: Trust; local: boolean },
   ): ToolDefinition {
     const broker = this.d.desktop.broker;
     const { serverId, serverName, trust } = opts;
@@ -494,10 +539,63 @@ export class ExtensionsService {
       execute: async (input, ctx) => {
         const t0 = Date.now();
         let decision: string = 'auto';
+        // 后台任务：不看服务器的信任级别，只认任务授权（connections.md §6）；只接本机 stdio 服务器
+        const background = broker.isBackground(ctx?.signal);
+        if (background) {
+          decision = opts.local
+            ? await broker.authorize({
+                tool: def.name,
+                danger: def.readOnly === true ? 'read' : 'write',
+                summary: t(
+                  'electron.common.extension-tool',
+                  def.name.replace(`${serverId}__`, ''),
+                  serverName,
+                ),
+                args: input,
+                preview: t(
+                  'electron.common.arguments',
+                  JSON.stringify(input ?? {}, null, 2).slice(0, 1200),
+                ),
+                signal: ctx.signal,
+                mcpReadOnly: def.readOnly === true,
+              })
+            : 'denied';
+          if (decision !== 'auto' && decision !== 'allowed') {
+            this.audit(def.name, { server: serverId }, decision, 'denied', 'mcp');
+            return {
+              ok: false,
+              error: { code: 'not_granted', message: 'this MCP tool is not granted for this task' },
+            } as never;
+          }
+          const journal = def.readOnly === true ? null : broker.backgroundExternal(ctx.signal);
+          if (journal) {
+            try {
+              const out = await journal.run(
+                {
+                  action: 'mcp.call',
+                  summary: t(
+                    'electron.common.extension-tool',
+                    def.name.replace(`${serverId}__`, ''),
+                    serverName,
+                  ),
+                  target: { server: serverId, tool: def.name.replace(`${serverId}__`, '') },
+                  payload: input,
+                },
+                async () => ({ value: await def.execute(input, ctx) }),
+              );
+              broker.markRead(ctx?.signal);
+              this.audit(def.name, { server: serverId }, decision, 'ok', 'mcp', Date.now() - t0);
+              return out;
+            } catch (err) {
+              this.audit(def.name, { server: serverId }, decision, 'error', 'mcp', Date.now() - t0);
+              throw err;
+            }
+          }
+        }
         // 权限模式：「计划」拦下非只读工具，「逐项确认」让非只读工具每次都问（即使服务器已信任）
         const mode = broker.permissionMode();
         const strict = def.readOnly !== true && (mode === 'plan' || mode === 'manual');
-        if (strict || needsConfirm(trust, def.readOnly === true)) {
+        if (!background && (strict || needsConfirm(trust, def.readOnly === true))) {
           decision = await broker.authorize({
             tool: def.name,
             // 只读工具走到这里一定是「每次询问」（下面 force 确认），按「读」处理，「计划」档不拦；

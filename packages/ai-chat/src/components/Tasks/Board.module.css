@@ -1,0 +1,214 @@
+/*
+ * 任务看板：横向分列（宽屏时列平分铺满，窄屏横向滚动），列内纵向滚动。
+ * 列是中性泳道；颜色只放在列头图标与「紧急」上。
+ */
+.board {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--cd-space-3);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: var(--cd-space-1);
+  scrollbar-width: thin;
+}
+.column {
+  flex: 1 0 calc(var(--cd-space-8) * 7);
+  max-width: calc(var(--cd-space-8) * 11);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-sunken);
+}
+/* 空列收窄：只有一两个任务时，有任务的列都在屏内（不让「已结束」挤到屏外，用户以为任务丢了） */
+.column[data-empty] {
+  flex: 0 0 calc(var(--cd-space-8) * 5);
+}
+.columnHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  height: var(--cd-control-h-md);
+  padding: 0 var(--cd-space-3);
+}
+.columnIcon {
+  display: inline-flex;
+  color: var(--cd-color-text-subtle);
+}
+.columnIcon[data-column='in_progress'],
+.columnIcon[data-column='high'] {
+  color: var(--cd-color-warning);
+}
+.columnIcon[data-column='needs_you'],
+.columnIcon[data-column='urgent'] {
+  color: var(--cd-color-danger);
+}
+.columnIcon[data-column='review'] {
+  color: var(--cd-color-success);
+}
+.columnIcon[data-column='done'],
+.columnIcon[data-column='medium'] {
+  color: var(--cd-color-info);
+}
+.columnLabel {
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.count {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 var(--cd-space-2) var(--cd-space-2);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  scrollbar-width: thin;
+}
+.columnEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--cd-space-8) * 2);
+  border: 1px dashed var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+
+.card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.card:hover {
+  border-color: var(--cd-color-border-strong);
+  box-shadow: var(--cd-shadow-md);
+}
+.card:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.card[aria-current='true'] {
+  border-color: var(--cd-color-accent);
+  box-shadow: 0 0 0 1px var(--cd-color-accent);
+}
+/* 已结束的淡一点 */
+.card[data-stage='done'] .cardTitle,
+.card[data-stage='done'] .cardGoal {
+  color: var(--cd-color-text-muted);
+}
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+}
+.tag {
+  flex: none;
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-neutral-soft);
+  color: var(--cd-color-text-muted);
+  line-height: var(--cd-line-height-sm);
+}
+.executor {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-subtle);
+}
+.cardTitle {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  line-height: var(--cd-line-height-sm);
+}
+.cardGoal {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+}
+.cardFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  margin-top: var(--cd-space-0-5);
+}
+.cardStatus {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+
+/* 重要程度：图标 + 字，只有「紧急」带底色 */
+.priority {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+.priority[data-quiet] {
+  color: var(--cd-color-text-subtle);
+  font-weight: var(--cd-font-weight-regular);
+}
+.priority[data-priority='urgent'] {
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger);
+  line-height: var(--cd-line-height-sm);
+}
+.priority[data-priority='high'] {
+  color: var(--cd-color-warning);
+}
+.priority[data-priority='medium'] {
+  color: var(--cd-color-info);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+}

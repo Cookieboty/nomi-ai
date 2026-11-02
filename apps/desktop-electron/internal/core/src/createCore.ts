@@ -56,13 +56,18 @@ import { AccountService } from './cli/accounts/AccountService';
 import { ACCOUNT_KINDS, type AccountKind } from './cli/accounts/types';
 import { CliPluginHost } from './cli/CliPluginHost';
 import { CliUpdateService } from './cli/CliUpdateService';
-import { DelegateService } from './cli/delegate/DelegateService';
+import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
+import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
+import { applyDispatchHint } from './cli/delegate/intentHint';
+import { prepareIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
+import { HarnessStoppedError, type HarnessTabFinished } from './cli/harness/liveTypes';
 import { HarnessOrchestrator } from './cli/harness/Orchestrator';
 import { cliChildEnv, isScript, spawnHarness } from './cli/harness/spawn';
 import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
 import { SessionHistoryService } from './cli/SessionHistoryService';
 import type { CliKind } from './cli/types';
+import { ConnectionService } from './connections/ConnectionService';
 import { createContractEventBus, type ContractEventBus } from './contract/eventBus';
 import type { CallerWindows } from './contract/media/voiceSenders';
 import { createAppRouter, type AppRouterHandle } from './contract/router';
@@ -103,11 +108,21 @@ import { neutralPersonaSource, packPersonaSource, PersonaService } from './perso
 import { SchedulerService } from './schedule/SchedulerService';
 import { ScreenService } from './screen/ScreenService';
 import { safeStorageFromSecrets } from './security/secretStorage';
+import { createSecretBox } from './security/secretStorage';
 import { CacheService } from './services/CacheService';
 import { ConfigService } from './services/ConfigService';
 import { LoggerService } from './services/LoggerService';
 import { UpdateService, type UpdaterLike } from './services/UpdateService';
 import { StartupService } from './startup/StartupService';
+import { createAppSource } from './tasks/events/sources/app';
+import { createFolderSource } from './tasks/events/sources/folder';
+import { createGithubSource } from './tasks/events/sources/github';
+import { createMcpSource } from './tasks/events/sources/mcp';
+import { createWebSource } from './tasks/events/sources/web';
+import { createCliExecutor } from './tasks/executors/cli';
+import { createNomiExecutor } from './tasks/executors/nomi';
+import { TaskService } from './tasks/TaskService';
+import { createTaskTools } from './tasks/tools';
 import { ThemeService } from './theme/ThemeService';
 import { TtsService } from './tts/TtsService';
 import { GatewayRequestLog, readLegacyGatewayTrace } from './usage/GatewayRequestLog';
@@ -294,6 +309,24 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     callerWindows: host.callerWindows,
     pendingEvents,
   };
+  // 任务的代码目录：存在、是用户认可的工作区（编程助手的已知目录）
+  const taskDirOk = (dir: string): boolean => {
+    try {
+      if (!fs.statSync(dir).isDirectory()) return false;
+      const broker = services.desktop?.broker;
+      if (!broker) return false;
+      if (broker.isKnownWorkspace(dir)) return true;
+      // 用户授权过读写的文件夹（委派派出的任务就在这里做）
+      const real = fs.realpathSync(dir);
+      return broker.scopes().some((sc) => {
+        if (sc.kind !== 'folder' || sc.mode !== 'read-write' || sc.session) return false;
+        const rel = path.relative(sc.path, real);
+        return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+      });
+    } catch {
+      return false;
+    }
+  };
 
   let appRouter: AppRouterHandle | undefined;
   let started = false;
@@ -462,6 +495,99 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     });
     services.sched = sched;
     stoppers.push(() => sched.stop());
+
+    // 持续任务（docs/design/persistent-tasks.md）：通知走 DesktopService（免打扰由 SchedulerService 的策略决定）；
+    // 旧的提醒 / 定时代理任务只读并入任务页
+    const tasks = new TaskService({
+      root: userData('tasks'),
+      logger: logger as never,
+      events,
+      notify: desktop,
+      quietUntil: () => (desktop.notifyPolicy?.quiet() ? desktop.notifyPolicy.quietEndsAt() : null),
+      legacy: {
+        reminders: () => desktop.reminders.list(),
+        sched: () => sched.tasks(),
+      },
+    });
+    services.tasks = tasks;
+    stoppers.push(() => tasks.stop());
+    // 连接（connections.md）：GitHub（复用本机 gh 登录或粘贴令牌）；令牌经系统加密保存
+    services.connections = new ConnectionService({
+      file: userData('connections.json'),
+      secrets: createSecretBox(ports.secrets),
+      events,
+      logger: logger as never,
+    });
+    // 事件源（§6.2）：web / folder 直接可用；github 经连接只读；app 听内核事件（编程助手的源在 harness 就绪后接）
+    tasks.registerSource(createWebSource());
+    tasks.registerSource(createFolderSource());
+    tasks.registerSource(
+      createGithubSource({
+        read: (p, grant) => {
+          const c = services.connections;
+          if (!c) throw new Error('connections unavailable');
+          return c.githubRead(p, grant);
+        },
+      }),
+    );
+    // 本机 MCP 服务器（只接不做、只接 stdio）：任务的 mcp 事件源调授权里的只读工具；ExtensionsService 在后面建
+    tasks.useMcpTools((server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null);
+    tasks.registerSource(
+      createMcpSource({
+        info: (server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null,
+        call: (server, tool, args, signal) => {
+          const e = services.ext;
+          if (!e) throw new Error('extensions unavailable');
+          return e.callMcpReadOnly(server, tool, args, signal);
+        },
+      }),
+    );
+    // 对外动作的重启核对（§10.3）：评论 / PR 按正文里的幂等标记查
+    for (const action of ['github.comment', 'github.pr.create'])
+      tasks.registerReconciler(
+        action,
+        (intent) => services.connections?.githubReconcile(intent) ?? Promise.resolve(null),
+      );
+    tasks.registerSource(
+      createAppSource({
+        onCliFinished: (fn) => {
+          const h = services.harness;
+          if (!h) return () => undefined;
+          const on = (e: HarnessTabFinished) => {
+            const tab = h.listTabs().tabs.find((x) => x.id === e.tabId);
+            fn({ ...e, taskTab: !!tab?.delegation?.taskId });
+          };
+          h.events.on('tab-finished', on);
+          return () => h.events.off('tab-finished', on);
+        },
+        onKnowledgeChanged: (fn) => events.listen('kb.changed', () => fn()),
+      }),
+    );
+    // Nomi 无界面执行（§7.1）：AI runtime 在 start() 里才起来，这里按需取用；工具审批走 broker 的后台模式
+    tasks.registerExecutor(
+      'nomi',
+      createNomiExecutor({
+        agentStream: (opts) => {
+          const rt = services.aiRuntime;
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
+          return rt.client.chat.agentStream(opts as never) as never;
+        },
+        // 派给 Nomi 的执行用对话的工具集（§7.4）
+        toolNames: () => services.aiRuntime?.client.tools.list().map((t) => t.name) ?? [],
+        ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
+        registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),
+        eventsFor: (id, key) => tasks.eventBatch(id, key),
+        costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),
+        trace: (id, attemptId, line) => {
+          try {
+            tasks.store.appendTrace(id, attemptId, line);
+          } catch (error) {
+            logger.warn('写任务运行轨迹失败', String(error));
+          }
+        },
+      }),
+    );
 
     // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
     services.screen = new ScreenService({
@@ -901,12 +1027,54 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
     desktop.broker.onWorkspaceRejected = (dir, reason) =>
       logger.warn('Nomi workspace rejected; tools fall back to granted folders', { dir, reason });
     // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
+    // 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
+    services.tasks?.registerExecutor(
+      'cli',
+      createCliExecutor({
+        harness: {
+          bins: () => harness.state().bins,
+          createTab: (o) => harness.createTab(o as Parameters<typeof harness.createTab>[0]),
+          hasTab: (id) => harness.listTabs().tabs.some((x) => x.id === id),
+          sendTab: (id, prompt) => harness.sendTab(id, prompt) as never,
+          cancelTab: (id) => harness.cancelTab(id),
+          replyPermission: (tabId, requestId, allow) =>
+            harness.replyPermission(tabId, requestId, allow),
+          takenOver: (id) =>
+            !!harness.listTabs().tabs.find((x) => x.id === id)?.delegation?.takenOver,
+          onEvent: (fn) => {
+            harness.events.on('event', fn);
+            return () => harness.events.off('event', fn);
+          },
+          isStopped: (err) => err instanceof HarnessStoppedError,
+        },
+        prepareIsolation: (cwd, key) => prepareIsolation(cwd, key),
+        gitChanged: (cwd) => gitChanged(cwd),
+        buildPrompt: (b) => buildDelegatePrompt(b),
+        parseReport: (text) => parseDelegateReport(text),
+        dirOk: (dir) => taskDirOk(dir),
+        eventsFor: (id, key) => services.tasks?.eventBatch(id, key) ?? [],
+      }),
+    );
+    // 后台委派 = 持续任务（persistent-tasks-plan 2.2）：排队、重试、重启续跑、验收都走任务
+    const delegateTasks = services.tasks;
     services.delegate = new DelegateService({
       root: userData('delegate'),
       harness,
       desktop,
       gateway: harnessGateway(gateway),
       events,
+      ...(delegateTasks
+        ? {
+            tasks: {
+              createDelegated: (i) => delegateTasks.createDelegated(i),
+              get: (id) => delegateTasks.get(id),
+              command: (id, cmd) => delegateTasks.command(id, cmd),
+              announced: (id, attemptId) => delegateTasks.announced(id, attemptId),
+              markAnnounced: (id, attemptId) => delegateTasks.markAnnounced(id, attemptId),
+              onChange: (fn) => events.listen('tasks.changed', (p) => fn((p as { id: string }).id)),
+            },
+          }
+        : {}),
     });
     services.history = new SessionHistoryService({
       logger: logger as never,
@@ -1016,6 +1184,41 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           delegate: () => services.delegate,
           ext: () => services.ext,
           extra: () => createImageTools(imageToolDeps()),
+          connections: () =>
+            services.connections && services.desktop
+              ? services.connections.tools({
+                  grantOf: (signal) => services.desktop!.broker.backgroundConnections(signal),
+                  markRead: (signal) => services.desktop!.broker.markRead(signal),
+                  externalOf: (signal) => services.desktop!.broker.backgroundExternal(signal),
+                  confirm: async (req) => {
+                    const d = await services.desktop!.broker.authorize({
+                      tool: req.tool,
+                      danger: 'write',
+                      summary: req.summary,
+                      args: req.args,
+                      preview: req.preview,
+                      ...(req.signal ? { signal: req.signal } : {}),
+                      force: { dialog: true },
+                    });
+                    return d === 'allowed' || d === 'auto';
+                  },
+                })
+              : [],
+          tasks: () =>
+            services.tasks && services.desktop
+              ? createTaskTools({
+                  tasks: services.tasks,
+                  authorize: (i) => services.desktop!.broker.authorize(i),
+                  githubConnection: () =>
+                    services.connections?.list().find((c) => c.status === 'ok') ?? null,
+                  installedClis: () =>
+                    Object.entries(services.harness?.state().bins ?? {})
+                      .filter(([, v]) => !!v)
+                      .map(([k]) => k),
+                  dirOk: (dir) => taskDirOk(dir),
+                  mcpTool: (server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null,
+                })
+              : [],
         },
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
@@ -1023,6 +1226,9 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         // 上下文预算：按路由到的模型的窗口算（gateway/nomiContext.ts），不再用固定的 8K
         prepareChat: async (options, method, signal) => {
           if (services.desktop) await applyConversationWorkspace(options, services.desktop.broker);
+          // 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（persistent-tasks §7.4）
+          if (method === 'agentStream' && options.role === 'chat' && services.tasks)
+            applyDispatchHint(options);
           const gw = services.gateway;
           if (gw) applyNomiContext(options, method, (r) => gw.nomiContext(r));
           return guardOutboundMessages(options.messages, (what) => {
@@ -1136,6 +1342,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       run(() => {
         services.desktop?.startReminders();
         services.sched?.start();
+        services.tasks?.start();
       });
     },
     stop: () => run(() => shutdown.stop()),

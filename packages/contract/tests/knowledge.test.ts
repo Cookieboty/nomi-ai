@@ -1,5 +1,5 @@
 /**
- * D4（knowledge）：kb / mem / sched / local / hub / ext 的过程与事件
+ * D4（knowledge）：kb / mem / sched / tasks / local / hub / ext 的过程与事件
  * （docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  */
 
@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { appContract, knowledgeEvents, knowledgeProcedures } from '../src/app';
 import { createTestClient } from '../src/testing';
 
-const NAMESPACES = ['kb', 'mem', 'sched', 'local', 'hub', 'ext'];
+const NAMESPACES = ['kb', 'mem', 'sched', 'tasks', 'connections', 'local', 'hub', 'ext'];
 
 describe('knowledge 契约', () => {
   it('过程名 / kind / surfaces / dangerous', () => {
@@ -33,15 +33,86 @@ describe('knowledge 契约', () => {
       .filter(([, d]) => (d as { dangerous?: boolean }).dangerous)
       .map(([n]) => n);
     expect(dangerous.sort()).toEqual([
+      'connections.addGithub',
+      'connections.rebind',
       'ext.mcpConnect',
       'ext.mcpToggle',
       'ext.mcpUpsert',
       'kb.consentCloud',
       'local.offline',
+      'tasks.applyWorktree',
+      'tasks.create',
+      'tasks.decide',
+      'tasks.grant',
+      'tasks.setMode',
     ]);
     for (const d of Object.values(knowledgeProcedures)) {
       expect((d as { surfaces?: unknown }).surfaces).toBeUndefined();
     }
+  });
+
+  it('tasks：创建 / 批准 / 放宽授权是 dangerous；输入严格校验', () => {
+    const p = appContract.procedures;
+    const dangerous = Object.entries(knowledgeProcedures)
+      .filter(([k, d]) => k.startsWith('tasks.') && (d as { dangerous?: boolean }).dangerous)
+      .map(([k]) => k)
+      .sort();
+    expect(dangerous).toEqual([
+      'tasks.applyWorktree',
+      'tasks.create',
+      'tasks.decide',
+      'tasks.grant',
+      'tasks.setMode',
+    ]);
+    const create = {
+      title: '看 CI',
+      goal: '每天 9 点看 o/r 的 CI，红了告诉我',
+      trigger: { kind: 'schedule', at: 1, repeat: { kind: 'daily' } },
+      executor: { kind: 'nomi', tools: ['read', 'web'], scenario: 'research' },
+      grant: {
+        level: 1,
+        paths: [],
+        connections: [{ connectionId: 'c', capabilities: ['github.read'], resources: ['o/r'] }],
+        clis: ['claude'],
+      },
+    };
+    expect(p['tasks.create'].input.safeParse(create).success).toBe(true);
+    expect(
+      p['tasks.create'].input.safeParse({ ...create, grant: { ...create.grant, level: 5 } })
+        .success,
+    ).toBe(false);
+    expect(
+      p['tasks.create'].input.safeParse({ ...create, executor: { kind: 'nomi', tools: ['root'] } })
+        .success,
+    ).toBe(false);
+    expect(
+      p['tasks.create'].input.safeParse({
+        ...create,
+        trigger: { kind: 'event', sourceId: 'github', filter: {}, mode: 'act' },
+      }).success,
+    ).toBe(true);
+    expect(p['tasks.decide'].input.safeParse({ id: 't', approve: true }).success).toBe(true);
+    expect(p['tasks.reconcile'].input.safeParse({ id: 't', outcome: 'maybe' }).success).toBe(false);
+    expect(
+      p['tasks.list'].output.safeParse({
+        tasks: [
+          {
+            id: 'task_1',
+            title: 't',
+            goal: 'g',
+            status: 'idle',
+            enabled: true,
+            gen: 0,
+            trigger: { kind: 'manual' },
+            executor: { kind: 'nomi', tools: [] },
+            grant: { version: 1, level: 1, paths: [] },
+            updatedAt: 1,
+            extra: 'kept',
+          },
+        ],
+        legacy: [{ source: 'reminder', id: 'rabc123', title: '喝水', enabled: true }],
+      }).success,
+    ).toBe(true);
   });
 
   it('schema 接受旧形状、拒绝错误值', () => {

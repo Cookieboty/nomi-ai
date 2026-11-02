@@ -2,7 +2,8 @@
  * 素材库：所有生成的图片（Nomi 的 image_generate、编程助手生成后复制过来的图片）统一在这里管理。
  *
  * - 图片都在 userData/chat/images（经 chat-asset 协议给视图）；来源写在文件名前缀里：
- *   `nomi-…`（Nomi 生成；早期的 `gen-…` 也算 Nomi）、`grok-…` / `codex-…` 等（编程助手生成）。
+ *   `nomi-…`（Nomi 生成；早期的 `gen-…` 也算 Nomi）、`grok-…` / `codex-…` 等（编程助手生成）、
+ *   `user-…`（用户在对话里发送的原图，经 chatAssets.import 存进来，模型可拿它改图 / 当参考图）。
  *   同目录里的对话背景（`<stem>.<uuid>.ext`、`panel-bg.jpg`）不是生成的图片，不列。
  * - 模型 / 提示词 / 会话等说明另存在 userData/chat/assets.json（只给 Nomi 生成的写；编程助手的只有来源与时间）。
  * - 删除移到系统废纸篓（可恢复）；「在文件夹中显示」经宿主 shell 端口。
@@ -29,6 +30,7 @@ export const ASSET_SOURCES = [
   'kimi',
   'opencode',
   'copilot',
+  'user',
 ] as const;
 export type AssetSource = (typeof ASSET_SOURCES)[number];
 
@@ -52,6 +54,35 @@ export interface AssetItem extends AssetMeta {
   source: AssetSource;
   createdAt: number;
   bytes: number;
+}
+
+/** 用户发送的原图上限（解码后） */
+export const ASSET_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
+
+export type AssetImportMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+
+const IMPORT_EXT: Record<AssetImportMime, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/** 文件头与声明的类型一致（不信视图给的 mime） */
+export function imageMagicMatches(mime: AssetImportMime, b: Uint8Array): boolean {
+  const at = (i: number, ...v: number[]) => v.every((x, k) => b[i + k] === x);
+  switch (mime) {
+    case 'image/png':
+      return at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case 'image/jpeg':
+      return at(0, 0xff, 0xd8, 0xff);
+    case 'image/webp':
+      return at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50);
+    case 'image/gif':
+      return at(0, 0x47, 0x49, 0x46, 0x38) && (at(4, 0x37, 0x61) || at(4, 0x39, 0x61));
+    default:
+      return false;
+  }
 }
 
 export interface AssetLibraryDeps {
@@ -118,7 +149,7 @@ export class AssetLibrary {
     const m = this.readMeta();
     m[file] = {
       ...(meta.model ? { model: meta.model } : {}),
-      ...(meta.prompt ? { prompt: meta.prompt.slice(0, 2000) } : {}),
+      ...(meta.prompt ? { prompt: clipPrompt(meta.prompt) } : {}),
       ...(meta.aspect ? { aspect: meta.aspect } : {}),
       ...(meta.editedFrom ? { editedFrom: meta.editedFrom } : {}),
       ...(meta.references?.length ? { references: meta.references.slice(0, 8) } : {}),
@@ -130,6 +161,41 @@ export class AssetLibrary {
       /* 说明写不进去不影响图片本身 */
     }
     this.d.onChanged?.();
+  }
+
+  /**
+   * 用户在对话里发送的图片：原图存进素材库（来源 user），返回素材项。
+   * 解码后超过 20 MB、或文件头与 mime 不符的拒绝；对话 id 记进说明。
+   */
+  async importImage(req: {
+    mime: AssetImportMime;
+    data: string;
+    conversationId?: string;
+  }): Promise<AssetItem> {
+    const ext = IMPORT_EXT[req.mime];
+    // base64 解码前先按长度估一下，避免超大字符串整块解码
+    const maxMb = ASSET_IMPORT_MAX_BYTES / 1024 / 1024;
+    if (
+      typeof req.data !== 'string' ||
+      req.data.length > Math.ceil(ASSET_IMPORT_MAX_BYTES / 3) * 4 + 4
+    )
+      throw new Error(t('electron.image.import-too-large', maxMb));
+    const bytes = Buffer.from(req.data, 'base64');
+    if (bytes.length > ASSET_IMPORT_MAX_BYTES)
+      throw new Error(t('electron.image.import-too-large', maxMb));
+    if (!ext || !imageMagicMatches(req.mime, bytes))
+      throw new Error(t('electron.image.import-bad-format'));
+    ensurePrivateDir(this.imagesDir);
+    const file = `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    await fs.promises.writeFile(path.join(this.imagesDir, file), bytes, {
+      mode: 0o600,
+      flag: 'wx',
+    });
+    // record 会通知视图（chatAssets.changed）
+    this.record(file, req.conversationId ? { conversationId: req.conversationId } : {});
+    const item = this.list().find((x) => x.file === file);
+    if (!item) throw new Error(t('electron.image.import-bad-format'));
+    return item;
   }
 
   /** 全部生成的图片，新的在前 */
@@ -243,4 +309,18 @@ export class AssetLibrary {
 function createdAtOf(st: fs.Stats): number {
   const b = st.birthtimeMs;
   return b > 0 && b < st.mtimeMs ? b : st.mtimeMs;
+}
+
+/**
+ * 素材库记下的提示词上限：与 image_generate 的 prompt 上限（4000）一致，合法提示词原样保存，
+ * 重新生成发的就是首次生成时的全文（#225）。超长的异常输入才截断，且不切开代理对。
+ */
+export const ASSET_PROMPT_MAX = 4000;
+
+function clipPrompt(s: string): string {
+  if (s.length <= ASSET_PROMPT_MAX) return s;
+  const end = /[\uD800-\uDBFF]/.test(s[ASSET_PROMPT_MAX - 1]!)
+    ? ASSET_PROMPT_MAX - 1
+    : ASSET_PROMPT_MAX;
+  return s.slice(0, end);
 }

@@ -1,0 +1,181 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-5);
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.title {
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+}
+.muted {
+  margin: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+}
+.warn {
+  color: var(--cd-color-warning);
+  font-size: var(--cd-font-size-xs);
+}
+.error {
+  margin: 0;
+  color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface);
+}
+.itemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+.itemTitle {
+  font-weight: var(--cd-font-weight-medium);
+}
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
+.row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cd-space-2);
+}
+.hint {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+/* 已连接：按应用分组 */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.groupCount {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.switched {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin-top: var(--cd-space-1);
+}
+/* 连接应用：卡片网格 */
+.apps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--cd-space-8) * 10), 1fr));
+  gap: var(--cd-space-2);
+}
+.app {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface);
+}
+.app[data-soon] {
+  opacity: 0.7;
+}
+.appIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-md);
+  height: var(--cd-control-h-md);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-bg-subtle);
+  color: var(--cd-color-text);
+}
+.appBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+.appName {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.appDesc {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+/* 连接 GitHub 对话框 */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+}
+.optionTitle {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.added {
+  color: var(--cd-color-success);
+  font-size: var(--cd-font-size-sm);
+}
+.dup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-warning-soft);
+  font-size: var(--cd-font-size-sm);
+}
+/* 对话框里两种方式各一块，边框比面板上的明显一点 */
+.dialog .option {
+  border-color: var(--cd-color-border);
+}

@@ -4,7 +4,15 @@ import { SETTINGS_ICONS } from '../AppIcons';
 
 /** 设置分区（纯数据，App 首屏也要用，不随设置页懒加载）。 */
 export type SettingsSection =
-  'general' | 'nomi' | 'models' | 'coding' | 'usage' | 'knowledge' | 'ext' | 'privacy';
+  | 'general'
+  | 'nomi'
+  | 'models'
+  | 'coding'
+  | 'usage'
+  | 'knowledge'
+  | 'ext'
+  | 'connections'
+  | 'privacy';
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;
@@ -61,6 +69,12 @@ export const SETTINGS_SECTIONS: Array<{
     intro: 'ui.chat-settings.manage-mcp-servers-plugins-and-skills-to-extend',
   },
   {
+    id: 'connections',
+    icon: SETTINGS_ICONS.connections,
+    label: 'ui.providers-schedule.connections',
+    intro: 'ui.providers-schedule.connections-intro',
+  },
+  {
     id: 'privacy',
     icon: SETTINGS_ICONS.privacy,
     label: 'ui.chat-settings.privacy-permissions',
@@ -75,7 +89,7 @@ export const SETTINGS_SECTIONS: Array<{
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
   ['models', 'usage', 'coding'],
-  ['knowledge', 'ext', 'privacy'],
+  ['knowledge', 'ext', 'connections', 'privacy'],
 ];
 
 /** 有标签页的分区：标签 id 与显示文案（文案作 i18n key，渲染时过 t()）。 */

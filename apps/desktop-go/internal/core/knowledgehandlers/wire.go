@@ -3,8 +3,11 @@ package knowledgehandlers
 import (
 	"context"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -13,6 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/memory"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 )
 
 // asLocalDesktop：真实 DesktopAdapter 自带 say / setLocalOnly；测试用的 Noop 走 localDesktop 兜底
@@ -57,7 +61,9 @@ type WireDeps struct {
 	ChatProvider func() *knowledge.ChatProvider
 	// 记忆同步到 AI 客户端（client.memory）；扩展的 MCP 工具确认（desktop.broker）
 	MemoryFacade func() memory.Facade
-	Confirm      extensions.ConfirmBroker
+	// 旧提醒列表（任务页只读并入）；缺省不列
+	LegacyReminders func() []tasks.LegacyReminder
+	Confirm         extensions.ConfirmBroker
 }
 
 type Bundle struct {
@@ -67,7 +73,45 @@ type Bundle struct {
 	Local *local.Service
 	Hub   *local.Hub
 	Ext   *extensions.Service
+	Tasks *tasks.Service
+	Conns *connections.Service
 	N     int
+	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
+	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+
+	kbMu        sync.Mutex
+	kbListeners map[int]func()
+	kbSeq       int
+}
+
+// OnKBChanged：内核内部监听知识库变化（kb.changed；持续任务的 app 事件源），对应 Node eventBus.listen。
+// 回调在新 goroutine 上调用（发事件的地方可能持着知识库的锁）；返回取消函数
+func (b *Bundle) OnKBChanged(fn func()) func() {
+	b.kbMu.Lock()
+	defer b.kbMu.Unlock()
+	if b.kbListeners == nil {
+		b.kbListeners = map[int]func(){}
+	}
+	b.kbSeq++
+	id := b.kbSeq
+	b.kbListeners[id] = fn
+	return func() {
+		b.kbMu.Lock()
+		delete(b.kbListeners, id)
+		b.kbMu.Unlock()
+	}
+}
+
+func (b *Bundle) kbChanged() {
+	b.kbMu.Lock()
+	fns := make([]func(), 0, len(b.kbListeners))
+	for _, fn := range b.kbListeners {
+		fns = append(fns, fn)
+	}
+	b.kbMu.Unlock()
+	for _, fn := range fns {
+		go fn()
+	}
 }
 
 // Wire：对应 createCore.ts 里批次 8 的服务装配；返回后调用 Start 开启后台任务。
@@ -89,7 +133,13 @@ func Wire(d WireDeps) *Bundle {
 	extensions.SetTranslator(d.T)
 	local.SetTranslator(d.T)
 	b := &Bundle{}
-	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
+	kbEv := deps.EventsFunc(func(event string, payload any) {
+		d.Router.Emit(event, payload)
+		if event == "kb.changed" {
+			b.kbChanged()
+		}
+	})
+	b.KB = knowledge.New(knowledge.Deps{Root: ud("knowledge"), Logger: deps.StdLogger{Prefix: "[kb]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: kbEv, T: d.T,
 		ListProviders: d.Providers, Credentials: d.Credentials, ChatProvider: d.ChatProvider})
 	b.Mem = memory.New(memory.Deps{Root: ud("memory"), Logger: deps.StdLogger{Prefix: "[mem]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T,
 		Facade: d.MemoryFacade,
@@ -101,7 +151,35 @@ func Wire(d WireDeps) *Bundle {
 	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
+	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
+		Notify: func(title, text string) {
+			d.Desktop.Notify(deps.Notice{Kind: "reminder", Title: title, Text: text, Body: text})
+		},
+		LegacyReminders: d.LegacyReminders,
+		QuietUntil: func() *int64 {
+			if !b.Sched.IsQuiet() {
+				return nil
+			}
+			v := schedule.QuietEndsAt(b.Sched.Settings().Quiet, time.Now().UnixMilli())
+			return &v
+		},
+		LegacySched: func() []tasks.LegacySchedTask {
+			out := []tasks.LegacySchedTask{}
+			for _, t := range b.Sched.Tasks() {
+				out = append(out, tasks.LegacySchedTask{ID: t.ID, Name: t.Name, Enabled: t.Enabled, NextRunAt: t.NextRunAt, Repeat: t.Repeat, LastStatus: t.LastStatus})
+			}
+			return out
+		}})
+	b.Conns = connections.New(connections.Deps{File: ud("connections.json"), Secrets: d.Secrets, Emit: d.Router.Emit})
 	b.N = Install(d.Router, Services{
+		Conns: func() *connections.Service { return b.Conns },
+		Tasks: func() *tasks.Service { return b.Tasks },
+		ApplyWorktree: func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
+			if b.ApplyWorktree == nil {
+				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
+			}
+			return b.ApplyWorktree(iso, files)
+		},
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },
 		Hub: func() *local.Hub { return b.Hub }, Ext: func() *extensions.Service { return b.Ext },
@@ -113,11 +191,13 @@ func (b *Bundle) Start() {
 	b.KB.Start()
 	b.Mem.Start()
 	b.Sched.Start()
+	b.Tasks.Start()
 	b.Ext.Start()
 	go b.Local.AutoStart()
 }
 
 func (b *Bundle) Stop() {
+	b.Tasks.Stop()
 	b.Sched.Stop()
 	b.Mem.Flush()
 	b.KB.Dispose()

@@ -1,0 +1,188 @@
+package desktop
+
+// 后台任务的审批（docs/design/persistent-tasks.md §8.4），对应 PermissionBroker.ts 的 registerBackground /
+// authorizeBackground。Go 用 context 携带：派生的 context（工具执行时拿到的）自然继承。
+
+import (
+	"context"
+	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
+)
+
+// BackgroundRun：一次后台任务执行；Ask 让任务停到「等你批准」并阻塞到用户回答
+type BackgroundRun struct {
+	Level int
+	Ask   func(tool, summary, detail string) bool
+	// Connections：任务授权里的连接（connections.md §2）；经连接的工具据此收窄
+	Connections []ConnGrant
+	// Tainted：这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4）
+	Tainted bool
+	// External：对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done；可为 nil
+	External connections.ExternalJournal
+	// Trusted：高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
+	// 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
+	Trusted bool
+}
+
+// ConnGrant：授权里引用连接的方式
+type ConnGrant struct {
+	ConnectionID string
+	Capabilities []string
+	Resources    []string
+}
+
+type bgKey struct{}
+
+// WithBackground：把后台执行登记到 ctx 上（之后这条 ctx 及其派生上的审批都走后台规则）
+func WithBackground(ctx context.Context, run *BackgroundRun) context.Context {
+	return context.WithValue(ctx, bgKey{}, run)
+}
+
+func BackgroundFrom(ctx context.Context) *BackgroundRun {
+	if ctx == nil {
+		return nil
+	}
+	run, _ := ctx.Value(bgKey{}).(*BackgroundRun)
+	return run
+}
+
+// BackgroundExternal：后台执行的副作用日志；前台对话返回 nil
+func BackgroundExternal(ctx context.Context) connections.ExternalJournal {
+	if run := BackgroundFrom(ctx); run != nil {
+		return run.External
+	}
+	return nil
+}
+
+func (r *BackgroundRun) grants() []connections.Grant {
+	out := make([]connections.Grant, 0, len(r.Connections))
+	for _, g := range r.Connections {
+		out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
+	}
+	return out
+}
+
+// hasGithubExternal：授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
+func (r *BackgroundRun) hasGithubExternal() bool {
+	for _, g := range r.Connections {
+		for _, c := range g.Capabilities {
+			if strings.HasPrefix(c, "github.") && connections.IsExternalCapability(c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// 各类动作要求的最低授权等级：写本机 L2，跑命令 L3；对外动作（MCP 非只读工具、对外命令）L4
+var backgroundLevel = map[Danger]int{"read": 1, "write": 2, "destructive": 2}
+
+const (
+	commandLevel  = 3
+	externalLevel = 4
+)
+
+func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeInput) Decision {
+	if i.Signal.Err() != nil {
+		return "denied"
+	}
+	// MCP 工具（<服务器>__<工具>）：不继承服务器的前台信任级别，只认任务授权里逐个给出的工具
+	// （connections.md §6）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
+	if server, tool, ok := connections.SplitMcpTool(i.Tool); ok {
+		granted := connections.McpGranted(run.grants(), server, tool, i.McpReadOnly)
+		if granted == "" {
+			return "denied"
+		}
+		if granted == "read" {
+			return "auto"
+		}
+		if run.Level < externalLevel {
+			return "denied"
+		}
+		if run.Trusted || (!b.IsTainted(i.Signal) && !run.Tainted) {
+			return "auto"
+		}
+		detail := i.Summary
+		if i.Preview != nil {
+			detail = *i.Preview
+		}
+		if r := []rune(detail); len(r) > ConfirmPreviewCap {
+			detail = string(r[:ConfirmPreviewCap])
+		}
+		if i.Signal.Err() != nil {
+			return "denied"
+		}
+		ok := run.Ask(i.Tool, i.Summary, detail)
+		if i.Signal.Err() != nil || !ok {
+			return "denied"
+		}
+		return "allowed"
+	}
+	if i.Danger == "read" && i.Force == nil {
+		return "auto"
+	}
+	command := ReviewedTools[i.Tool]
+	need := backgroundLevel[i.Danger]
+	if command {
+		need = commandLevel
+	}
+	if run.Level < need {
+		return "denied"
+	}
+	detail := i.Summary
+	if i.Preview != nil {
+		detail = *i.Preview
+	}
+	// 确定性分类在审核之前（command_class.go）：读凭据、合并发布等永远问人；对外命令要 L4，
+	// 且授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
+	cmdText, _, _ := parseCommandArgs(i.Args)
+	cls := ""
+	if command {
+		cls = ClassifyCommand(cmdText)
+	}
+	if cls == "credential" || cls == "never" || (cls == "external" && (run.Level < externalLevel || !run.hasGithubExternal())) {
+		detail = "[" + cls + "] " + detail
+	} else if command {
+		if cmd, cwd, ok := b.reviewableBackground(i); ok {
+			review := b.review(i, cmd, cwd)
+			// 与前台一致：审核放行就直接跑（workspace_run 总带 Force，审核结果优先）
+			if review != nil && review.Outcome == "allow" && !run.Tainted {
+				return "auto"
+			}
+			if review != nil {
+				d := string(review.Risk)
+				if review.Rationale != "" {
+					d += ": " + review.Rationale
+				}
+				detail = d + "\n" + detail
+			}
+		}
+	} else if i.Danger == "write" && i.Force == nil && (run.Trusted || (!b.IsTainted(i.Signal) && !run.Tainted)) {
+		if b.Policy(i.Tool, i.Danger) != "ask" {
+			return "auto"
+		}
+	}
+	if i.Signal.Err() != nil {
+		return "denied"
+	}
+	if r := []rune(detail); len(r) > ConfirmPreviewCap {
+		detail = string(r[:ConfirmPreviewCap])
+	}
+	ok := run.Ask(i.Tool, i.Summary, detail)
+	if i.Signal.Err() != nil {
+		return "denied"
+	}
+	if ok {
+		return "allowed"
+	}
+	return "denied"
+}
+
+// reviewableBackground：后台不看前台的「计划」档，其余条件同 reviewable
+func (b *PermissionBroker) reviewableBackground(i AuthorizeInput) (cmd, cwd string, ok bool) {
+	if !ReviewedTools[i.Tool] || b.Reviewer == nil || b.AIReview == nil || !b.AIReview() {
+		return "", "", false
+	}
+	return parseCommandArgs(i.Args)
+}

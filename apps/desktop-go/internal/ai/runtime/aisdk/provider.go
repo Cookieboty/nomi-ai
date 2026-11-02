@@ -385,7 +385,8 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		if !tools.IsAvailable(d) {
 			continue
 		}
-		if !tools.IsRelevant(d, turn) {
+		// 后台任务的执行（extra.taskId）：工具已按任务授权给出白名单，不再按对话文字做按需门控
+		if str("taskId") == "" && !tools.IsRelevant(d, turn) {
 			continue
 		}
 		d := d

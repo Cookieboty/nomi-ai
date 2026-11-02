@@ -306,8 +306,14 @@ export async function generateImageAsset(
   revisedPrompt?: string;
 }> {
   const now = deps.now ?? Date.now;
-  const target = (req.modelRef ? imageTarget(deps, req.modelRef) : null) ?? imageTarget(deps);
-  if (!target) throw new Error(t('electron.image.no-image-model'));
+  // 指定了模型（重新生成沿用原图的模型）就只用它：不可用时报错，不悄悄换成当前图片模型（#224）
+  const target = req.modelRef ? imageTarget(deps, req.modelRef) : imageTarget(deps);
+  if (!target)
+    throw new Error(
+      req.modelRef
+        ? t('electron.image.regenerate-model-unavailable', req.modelRef)
+        : t('electron.image.no-image-model'),
+    );
   let refs: ImageRef[] | undefined;
   let refMode: 'edit' | 'reference' | undefined;
   let editedFrom: string | undefined;

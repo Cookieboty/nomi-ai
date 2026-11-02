@@ -349,11 +349,17 @@ type AuthorizeInput struct {
 	IgnoreMode bool
 	// UserText：本轮用户说的话（命令审核判断授权用）
 	UserText string
+	// McpReadOnly：MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权）
+	McpReadOnly bool
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
 // 带 Force 的（如 workspace_run）始终确认
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
+	// 后台任务不看前台的档位与「全部自动」（persistent-tasks §8.1）
+	if BackgroundFrom(i.Signal) != nil {
+		return b.Authorize(i)
+	}
 	if b.PermissionMode() == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
@@ -450,6 +456,9 @@ func (b *PermissionBroker) IsTainted(signal context.Context) bool {
 }
 
 func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
+	if run := BackgroundFrom(i.Signal); run != nil && !i.IgnoreMode {
+		return b.authorizeBackground(run, i)
+	}
 	mode := PermMode("acceptEdits")
 	if !i.IgnoreMode {
 		mode = b.PermissionMode()
@@ -522,7 +531,12 @@ func (b *PermissionBroker) reviewable(i AuthorizeInput) (cmd, cwd string, ok boo
 	if b.PermissionMode() == "plan" {
 		return "", "", false
 	}
-	raw, err := json.Marshal(i.Args)
+	return parseCommandArgs(i.Args)
+}
+
+// parseCommandArgs：取工具参数里的 command / cwd（没有命令时 ok=false）
+func parseCommandArgs(args any) (cmd, cwd string, ok bool) {
+	raw, err := json.Marshal(args)
 	if err != nil {
 		return "", "", false
 	}

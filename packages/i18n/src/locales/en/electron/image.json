@@ -8,5 +8,8 @@
   "electron.image.task-timeout": "The image task timed out; gave up",
   "electron.image.edit-not-supported": "{0} can't edit or use reference images; pick an image model that can (such as gpt-image or a Gemini image model)",
   "electron.image.edit-source-missing": "Couldn't find the image to edit or reference (only images in the asset library can be used)",
-  "electron.image.no-prompt-to-regenerate": "This image has no saved prompt, so it can't be regenerated (images from coding agents can only be viewed)"
+  "electron.image.regenerate-model-unavailable": "The image model this picture was made with ({0}) isn't available now (its provider was disabled, removed, or no longer supports images), so it wasn't regenerated. Restore it and try again",
+  "electron.image.no-prompt-to-regenerate": "This image has no saved prompt, so it can't be regenerated (images from coding agents can only be viewed)",
+  "electron.image.import-too-large": "The image is larger than {0} MB, so it wasn't saved to the asset library",
+  "electron.image.import-bad-format": "The image content doesn't match its type (only PNG, JPEG, WebP and GIF are supported), so it wasn't saved to the asset library"
 }

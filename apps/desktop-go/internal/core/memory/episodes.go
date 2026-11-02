@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledge"
@@ -231,6 +232,12 @@ func IsDuplicateFact(a, b string) bool {
 
 var negations = map[rune]bool{'不': true, '没': true, '无': true, '非': true, '别': true, '未': true, '勿': true, '否': true}
 
+// meaningful = meaningful（episodes.ts）：多出来的字里有否定词、数字、中文数字、拉丁字母就不算同一句话（#223）
+func meaningful(ch rune) bool {
+	return negations[ch] || strings.ContainsRune("零〇一二两三四五六七八九十百千万亿", ch) ||
+		unicode.IsNumber(ch) || unicode.Is(unicode.Latin, ch)
+}
+
 func nearlySame(x, y string) bool {
 	short, long := []rune(x), []rune(y)
 	if len(short) > len(long) {
@@ -246,7 +253,7 @@ func nearlySame(x, y string) bool {
 	for _, ch := range long {
 		if i < len(short) && ch == short[i] {
 			i++
-		} else if negations[ch] {
+		} else if meaningful(ch) {
 			return false
 		}
 	}

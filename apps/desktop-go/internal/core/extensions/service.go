@@ -16,8 +16,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // ───────── 批次 4/5 依赖：薄接口 ─────────
@@ -64,6 +66,15 @@ type AuthorizeReq struct {
 	Tool, Danger, Summary, Preview string
 	Args                           any
 	ForceDialog                    *bool
+	// McpReadOnly：MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权）
+	McpReadOnly bool
+}
+
+// BackgroundBroker：ConfirmBroker 可选实现：这次调用是不是后台任务、后台执行的副作用日志
+// （PermissionBroker.isBackground / backgroundExternal）。没实现时按前台处理
+type BackgroundBroker interface {
+	IsBackground(ctx context.Context) bool
+	BackgroundExternal(ctx context.Context) connections.ExternalJournal
 }
 
 // ConfirmBroker：PermissionBroker 的 permissionMode / authorize（同 Node desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
@@ -162,15 +173,17 @@ type Service struct {
 	cacheOK       bool
 	mcp           func() McpRuntime
 	registry      ToolRegistry
-	migrateCache  map[string]any
-	migrateProj   string
+	// rawTools：未包装确认的 MCP 工具（任务的 mcp 事件源按授权直接调只读工具）
+	rawTools     map[string]ToolDef
+	migrateCache map[string]any
+	migrateProj  string
 }
 
 func New(d Deps) *Service {
 	if d.Secrets == nil {
 		d.Secrets = security.NewMemoryBox()
 	}
-	s := &Service{d: d, live: map[string]Live{}, disabled: map[string]bool{}, migrateCache: map[string]any{}}
+	s := &Service{d: d, live: map[string]Live{}, disabled: map[string]bool{}, migrateCache: map[string]any{}, rawTools: map[string]ToolDef{}}
 	_ = os.MkdirAll(d.Root, 0o755)
 	_ = os.MkdirAll(d.SkillsRoot, 0o755)
 	s.servers = s.loadServers()
@@ -612,8 +625,9 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 				continue
 			}
 			tools = append(tools, LiveTool{n, def.Description, def.ReadOnly, def.Dangerous})
+			s.rawTools[n] = def
 			s.registry.Unregister(n)
-			s.registry.Register(s.withConfirm(def, e.ID, e.Name, e.Trust))
+			s.registry.Register(s.withConfirm(def, e.ID, e.Name, e.Trust, e.Transport == "stdio"))
 		}
 		break
 	}
@@ -646,25 +660,121 @@ func (s *Service) GuardEnvTool(serverID, serverName string, def ToolDef) ToolDef
 	if serverName == "" {
 		serverName = serverID
 	}
-	return s.withConfirm(def, serverID, serverName, "ask")
+	return s.withConfirm(def, serverID, serverName, "ask", false)
+}
+
+// McpToolInfo：任务用的 MCP 工具信息（只接本机 stdio 服务器，connections.md §6）：工具名是去掉服务器前缀的原名；
+// 服务器不在线时 nil；远程服务器 Remote（不能授权给任务）
+func (s *Service) McpToolInfo(serverID, tool string) *connections.McpToolInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if e := s.find(serverID); e != nil && e.Transport != "stdio" {
+		return &connections.McpToolInfo{Remote: true}
+	}
+	name := serverID + "__" + tool
+	for _, t := range s.live[serverID].Tools {
+		if t.Name == name {
+			return &connections.McpToolInfo{ReadOnly: t.ReadOnly}
+		}
+	}
+	return nil
+}
+
+// CallMcpReadOnly：任务的 mcp 事件源：直接调用只读工具（授权由事件源校验：任务授权里给了这个工具的 mcp.read）。
+// 不经确认包装；结果是外部内容。只接本机 stdio 服务器。
+func (s *Service) CallMcpReadOnly(ctx context.Context, serverID, tool string, args any) (any, error) {
+	name := serverID + "__" + tool
+	s.mu.Lock()
+	e := s.find(serverID)
+	if e == nil || e.Transport != "stdio" {
+		s.mu.Unlock()
+		return nil, errors.New("MCP server not available: " + serverID)
+	}
+	def, hasDef := s.rawTools[name]
+	var info *LiveTool
+	for _, t := range s.live[serverID].Tools {
+		if t.Name == name {
+			t := t
+			info = &t
+		}
+	}
+	s.mu.Unlock()
+	if !hasDef || info == nil || def.Execute == nil {
+		return nil, errors.New("MCP tool not connected: " + name)
+	}
+	if !info.ReadOnly {
+		return nil, errors.New("MCP tool is not read-only: " + name)
+	}
+	t0 := time.Now()
+	out, err := def.Execute(ctx, args)
+	res := "ok"
+	if err != nil {
+		res = "error"
+	}
+	s.audit(name, deps.O("server", serverID), "task_event", res, "mcp", time.Since(t0).Milliseconds())
+	return out, err
 }
 
 type ToolError struct{ Code, Message string }
 
 func (e *ToolError) Error() string { return e.Message }
 
-func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string) ToolDef {
+// withConfirm：包装 MCP 工具：按信任级别确认 + 审计。local = 本机 stdio 服务器（后台任务只接这类）
+func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string, local bool) ToolDef {
 	inner := def.Execute
 	out := def
 	out.Execute = func(ctx context.Context, input any) (any, error) {
 		t0 := time.Now()
 		decision := "auto"
+		// 后台任务：不看服务器的信任级别，只认任务授权（connections.md §6）；只接本机 stdio 服务器
+		bb, _ := s.d.Confirm.(BackgroundBroker)
+		background := bb != nil && bb.IsBackground(ctx)
+		if background {
+			short := strings.Replace(def.Name, serverID+"__", "", 1)
+			summary := T("electron.common.extension-tool", short, serverName)
+			decision = "denied"
+			if local {
+				danger := "write"
+				if def.ReadOnly {
+					danger = "read"
+				}
+				args := input
+				if args == nil {
+					args = map[string]any{}
+				}
+				decision = s.d.Confirm.Authorize(ctx, AuthorizeReq{Tool: def.Name, Danger: danger, Summary: summary, Args: input,
+					Preview: T("electron.common.arguments", deps.Slice0(deps.MustStringify(args, "  "), 1200)), McpReadOnly: def.ReadOnly})
+			}
+			if decision != "auto" && decision != "allowed" {
+				s.audit(def.Name, deps.O("server", serverID), decision, "denied", "mcp", 0)
+				return u.NewObj("ok", false, "error", u.NewObj("code", "not_granted", "message", "this MCP tool is not granted for this task")), nil
+			}
+			if !def.ReadOnly {
+				if journal := bb.BackgroundExternal(ctx); journal != nil {
+					r, err := journal.Run(connections.ExternalAction{Action: "mcp.call", Summary: summary,
+						Target: u.NewObj("server", serverID, "tool", short), Payload: input},
+						func(string) (any, string, error) {
+							v, err := inner(ctx, input)
+							return v, "", err
+						})
+					if err != nil {
+						s.audit(def.Name, deps.O("server", serverID), decision, "error", "mcp", time.Since(t0).Milliseconds())
+						return nil, err
+					}
+					if m, ok := s.d.Confirm.(interface{ MarkRead(context.Context) }); ok {
+						m.MarkRead(ctx)
+					}
+					s.audit(def.Name, deps.O("server", serverID), decision, "ok", "mcp", time.Since(t0).Milliseconds())
+					return r, nil
+				}
+			}
+		}
 		mode := ""
 		if s.d.Confirm != nil {
 			mode = s.d.Confirm.PermissionMode()
 		}
 		strict := !def.ReadOnly && (mode == "plan" || mode == "manual")
-		if strict || NeedsConfirm(trust, def.ReadOnly) {
+		if !background && (strict || NeedsConfirm(trust, def.ReadOnly)) {
 			danger := "write"
 			if def.Dangerous {
 				danger = "destructive"

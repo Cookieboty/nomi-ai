@@ -65,6 +65,23 @@ import {
   SkillMeta,
   TaskResult,
 } from './knowledge/schemas';
+import {
+  TaskBudgetInput,
+  TaskCmdResult,
+  TaskCreateInput,
+  TaskEventsView,
+  TaskGrantInput,
+  TaskJournalEntry,
+  TaskListResult,
+  TaskRecordView,
+  TaskCategory,
+  TaskPriority,
+  TaskTrigger,
+  TaskView,
+  ConnectionAddGithubInput,
+  ConnectionDetectResult,
+  ConnectionView,
+} from './knowledge/taskSchemas';
 
 const none = z.void();
 const id = z.object({ id: z.string() });
@@ -205,6 +222,122 @@ export const knowledgeProcedures = {
   /** 用户刚在对话里活动过（主动搭话据此避让） */
   'sched.activity': { kind: 'mutation', input: none, output: ok },
 
+  // ---------- tasks：持续任务（TaskService，docs/design/persistent-tasks.md §14） ----------
+  /** 全部任务 + 旧的提醒 / 定时（只读并入任务页） */
+  'tasks.list': { kind: 'query', input: none, output: TaskListResult },
+  /** 任务与最近的执行；不存在时 null */
+  'tasks.get': { kind: 'query', input: id, output: TaskRecordView.nullable() },
+  /** 需要用户处理的任务（等你决定、待核对、待验收、失败、到期） */
+  'tasks.inbox': { kind: 'query', input: none, output: z.array(TaskView) },
+  /** 事件日志（状态变化、对外动作、投递），任务详情的历史 */
+  'tasks.journal': { kind: 'query', input: id, output: z.array(TaskJournalEntry) },
+  /** 用户在表单或授权卡片上确认后创建 */
+  'tasks.create': { kind: 'mutation', input: TaskCreateInput, output: TaskView, dangerous: true },
+  /** 改标题、触发器、预算（不改授权；收窄授权用 tasks.grant） */
+  'tasks.update': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      title: z.string().min(1).max(200).optional(),
+      trigger: TaskTrigger.optional(),
+      budget: TaskBudgetInput.optional(),
+      /** null = 清除 */
+      priority: TaskPriority.nullable().optional(),
+      category: TaskCategory.nullable().optional(),
+    }),
+    output: TaskView,
+  },
+  /** 重新授权：放宽 / 续期 / 收窄（新版本号） */
+  'tasks.grant': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), grant: TaskGrantInput }),
+    output: TaskCmdResult,
+    dangerous: true,
+  },
+  'tasks.revoke': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.pause': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.resume': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 取消：停执行、保留成果 */
+  'tasks.cancel': { kind: 'mutation', input: id, output: TaskCmdResult },
+  'tasks.runNow': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 回应 waiting_user（批准 / 拒绝 / 补充信息） */
+  'tasks.decide': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      gen: z.number().int().optional(),
+      requestId: z.string().optional(),
+      approve: z.boolean(),
+      input: z.string().max(8000).optional(),
+    }),
+    output: TaskCmdResult,
+    dangerous: true,
+  },
+  'tasks.accept': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 退回并附意见：新开一次执行 */
+  'tasks.reject': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), feedback: z.string().min(1).max(8000) }),
+    output: TaskCmdResult,
+  },
+  /** 核对重启前不确定的对外动作 */
+  'tasks.reconcile': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), outcome: z.enum(['applied', 'not_applied', 'abandon']) }),
+    output: TaskCmdResult,
+  },
+  /** 删除（只有结束的任务可以删） */
+  'tasks.remove': { kind: 'mutation', input: id, output: ok },
+  /** 事件任务：观察到的事件、最近一次拉取（§6.3） */
+  'tasks.events': { kind: 'query', input: id, output: TaskEventsView },
+  /** 把观察到的事件开成一次执行 */
+  'tasks.processObserved': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 忽略观察到的事件 */
+  'tasks.clearObserved': { kind: 'mutation', input: id, output: ok },
+  /** 只记录 ↔ 自动执行；改成自动执行是放宽授权 */
+  'tasks.setMode': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), mode: z.enum(['observe', 'act']) }),
+    output: TaskView.nullable(),
+    dangerous: true,
+  },
+  /** 验收卡片上的回填：把 worktree 里的改动拷回主工作区（冲突与授权外的文件留在 worktree） */
+  'tasks.applyWorktree': {
+    kind: 'mutation',
+    input: id,
+    output: z
+      .object({
+        applied: z.array(z.string()),
+        skipped: z.array(z.string()),
+        conflicted: z.array(z.string()),
+        denied: z.array(z.string()),
+      })
+      .nullable(),
+    dangerous: true,
+  },
+
+  // ---------- connections：应用与账号（ConnectionService，docs/design/connections.md） ----------
+  /** 全部连接（不含任何密钥） */
+  'connections.list': { kind: 'query', input: none, output: z.array(ConnectionView) },
+  /** 检测本机可复用的登录（gh）：账号、权限范围、宽权限提示（不含令牌） */
+  'connections.detect': {
+    kind: 'query',
+    input: z.object({ host: z.string().optional() }),
+    output: ConnectionDetectResult,
+  },
+  /** 添加 GitHub 连接：复用本机 gh 登录，或粘贴令牌 */
+  'connections.addGithub': {
+    kind: 'mutation',
+    input: ConnectionAddGithubInput,
+    output: ConnectionView,
+    dangerous: true,
+  },
+  /** 复核账号与权限（换了账号 / 登出了 → needs_login） */
+  'connections.check': { kind: 'mutation', input: id, output: ConnectionView },
+  /** gh 换了账号后改用当前账号（引用这条连接的任务授权随之撤销，需要重新授权） */
+  'connections.rebind': { kind: 'mutation', input: id, output: ConnectionView, dangerous: true },
+  'connections.remove': { kind: 'mutation', input: id, output: ok },
+
   // ---------- local：本机模型（LocalModelService） ----------
   'local.state': { kind: 'query', input: none, output: LocalState },
   'local.setSettings': { kind: 'mutation', input: LocalSettingsPatch, output: LocalSettings },
@@ -325,6 +458,9 @@ export const knowledgeEvents = {
   'sched.result': TaskResult,
   /** 主动搭话 */
   'sched.proactive': z.looseObject({ text: z.string(), at: z.number() }),
+  /** 任务或它的执行变了 */
+  'tasks.changed': z.object({ id: z.string() }),
+  'connections.changed': z.null(),
   'local.changed': z.null(),
   /** 模型 / 运行时下载、Ollama 拉取的进度 */
   'local.progress': LocalProgressEvent,
@@ -349,6 +485,15 @@ export const knowledgeErrors = [
   'SCHED_NOT_FOUND',
   'SCHED_BUSY',
   'SCHED_EMPTY',
+  'TASKS_NOT_FOUND',
+  'TASKS_BAD_TRIGGER',
+  'TASKS_BAD_GRANT',
+  'CONNECTIONS_NOT_FOUND',
+  'CONNECTIONS_NEEDS_LOGIN',
+  'CONNECTIONS_UNAVAILABLE',
+  'CONNECTIONS_BAD_PARAMS',
+  'CONNECTIONS_FAILED',
+  'CONNECTIONS_DUPLICATE',
 ] as const satisfies readonly string[];
 
 export type KnowledgeProcedureName = keyof typeof knowledgeProcedures & string;

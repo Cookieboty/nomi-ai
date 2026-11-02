@@ -515,7 +515,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
             )}
             style={{
               left: pos.left,
-              width: pos.width,
+              // 普通弹层至少和触发器一样宽，选项更长时随内容变宽（不超出窗口）；带顶栏 / 侧栏的固定宽度
+              ...(framed
+                ? { width: pos.width }
+                : {
+                    minWidth: pos.width,
+                    maxWidth: Math.max(pos.width, window.innerWidth - pos.left - 8),
+                  }),
               ...(framed ? { height: pos.maxHeight } : {}),
               ...(pos.placement === 'bottom'
                 ? { top: pos.top }

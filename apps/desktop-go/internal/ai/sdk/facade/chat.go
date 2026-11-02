@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,10 @@ type ChatStreamOptions struct {
 	MaxSteps  *float64        `json:"maxSteps,omitempty"`
 	Role      *string         `json:"role,omitempty"`
 	Signal    <-chan struct{} `json:"-"`
+	// Tools：agent 的工具白名单（按工具名）；nil = 全部已注册工具（后台任务按授权裁剪，persistent-tasks §7.1）
+	Tools []string `json:"tools,omitempty"`
+	// Quiet：不发 session/assistant-message（后台任务的执行不冒到桌面角色气泡）
+	Quiet bool `json:"quiet,omitempty"`
 }
 
 // UnmarshalJSON：context 可为 false 或对象
@@ -212,8 +217,17 @@ type runner interface {
 	Stream(ctx context.Context, r *blm.ChatRequest, emit func(blm.ChatChunk)) error
 }
 
-func (c *Chat) runAgent(p *picked) runner {
+func (c *Chat) runAgent(p *picked, allow []string) runner {
 	defs := c.listTools()
+	if allow != nil {
+		keep := defs[:0:0]
+		for _, d := range defs {
+			if slices.Contains(allow, d.Name) {
+				keep = append(keep, d)
+			}
+		}
+		defs = keep
+	}
 	if w, ok := p.provider.(blm.WithToolsCapable); ok && len(defs) > 0 {
 		return w.WithTools(defs)
 	}
@@ -221,13 +235,13 @@ func (c *Chat) runAgent(p *picked) runner {
 }
 
 // tap：流结束后（含出错 / 中止）有文本就发 session/assistant-message
-func (c *Chat) tap(ctx context.Context, run func(emit func(blm.ChatChunk)) error, req *blm.ChatRequest, p blm.LLMProvider, emit func(blm.ChatChunk)) error {
+func (c *Chat) tap(ctx context.Context, run func(emit func(blm.ChatChunk)) error, req *blm.ChatRequest, p blm.LLMProvider, emit func(blm.ChatChunk), quiet bool) error {
 	text := ""
 	var finish *string
 	release := c.own(req.ReqID, p)
 	defer func() {
 		release()
-		if trimJS(text) == "" || c.d.Emit == nil {
+		if trimJS(text) == "" || c.d.Emit == nil || quiet {
 			return
 		}
 		meta := u.NewObj("provider", req.Provider, "model", req.Model)
@@ -278,7 +292,7 @@ func (c *Chat) Agent(ctx context.Context, o *ChatStreamOptions) (*blm.ChatRespon
 	}
 	req := c.buildRequest(o, p)
 	defer c.own(req.ReqID, p.provider)()
-	return c.runAgent(p).Chat(ctx, req)
+	return c.runAgent(p, o.Tools).Chat(ctx, req)
 }
 
 func (c *Chat) streamWith(ctx context.Context, o *ChatStreamOptions, role string, agent, regen bool, emit func(blm.ChatChunk)) error {
@@ -294,9 +308,9 @@ func (c *Chat) streamWith(ctx context.Context, o *ChatStreamOptions, role string
 	req.Stream = &t
 	var r runner = p.provider
 	if agent {
-		r = c.runAgent(p)
+		r = c.runAgent(p, o.Tools)
 	}
-	return c.tap(ctx, func(e func(blm.ChatChunk)) error { return r.Stream(ctx, req, e) }, req, p.provider, emit)
+	return c.tap(ctx, func(e func(blm.ChatChunk)) error { return r.Stream(ctx, req, e) }, req, p.provider, emit, o.Quiet)
 }
 
 // Stream = stream(opts)

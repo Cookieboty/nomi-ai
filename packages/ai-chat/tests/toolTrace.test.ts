@@ -5,6 +5,7 @@ import { diffAllAdded, diffStrings, parsePatch } from '../src/utils/lineDiff';
 import {
   buildTimeline,
   classifyTool,
+  closeOpenCalls,
   commandOf,
   describeCall,
   DIFF_CACHE_MAX,
@@ -16,6 +17,7 @@ import {
   groupStats,
   groupTitle,
   reduceTrace,
+  settleTrace,
   shortPath,
   type ToolCall,
 } from '../src/utils/toolTrace';
@@ -56,6 +58,7 @@ const call = (name: string, input?: unknown, over: Partial<ToolCall> = {}): Tool
 
 describe('classifyTool', () => {
   it('maps common tool names across harnesses', () => {
+    expect(classifyTool('delegate_to_nomi')).toBe('subagent');
     expect(classifyTool('Read')).toBe('read');
     expect(classifyTool('read_file')).toBe('read');
     expect(classifyTool('Grep')).toBe('search');
@@ -144,6 +147,10 @@ describe('reduceTrace', () => {
 
 describe('describeCall', () => {
   it('summarises by tool kind', () => {
+    expect(describeCall(call('delegate_to_nomi', { goal: '做一套 PPT\n第二行' }))).toMatchObject({
+      kind: 'subagent',
+      target: '做一套 PPT',
+    });
     expect(describeCall(call('Read', { file_path: '/a/b.ts' }))).toMatchObject({
       kind: 'read',
       verb: '读取',
@@ -404,5 +411,34 @@ describe('buildTimeline：思考块起止时间', () => {
 
     const live = buildTimeline(reduceTrace([th('a', 1000)]), true, 9000)[0]!;
     expect(live.type === 'thinking' && [live.running, live.endedAt]).toEqual([true, undefined]);
+  });
+});
+
+describe('停止后收尾悬空的工具调用', () => {
+  const start = (id: string, name = 'workspace_run') =>
+    ({ type: 'tool', name, status: 'start', id, at: 1 }) as const;
+  const done = (id: string, name = 'workspace_run') =>
+    ({ type: 'tool', name, status: 'done', id, at: 2, output: 'ok' }) as const;
+
+  it('只给有开始、没结束的调用补「已停止」', () => {
+    const events = [start('a'), done('a'), start('b', 'image_generate')];
+    const extra = closeOpenCalls(events, 9, '已停止');
+    expect(extra).toEqual([
+      { type: 'tool', name: 'image_generate', status: 'error', id: 'b', output: '已停止', at: 9 },
+    ]);
+    const calls = reduceTrace([...events, ...extra]).flatMap((e) =>
+      e.type === 'tool' ? [e.call] : [],
+    );
+    expect(calls.map((c) => c.status)).toEqual(['done', 'error']);
+    expect(closeOpenCalls([start('a'), done('a')], 9, 'x')).toEqual([]);
+  });
+
+  it('旧消息里存下的悬空调用：渲染时按已停止显示，同一个数组只算一次', () => {
+    const events = [start('a')];
+    const s1 = settleTrace(events, '已停止');
+    expect(s1).toHaveLength(2);
+    expect(settleTrace(events, '已停止')).toBe(s1);
+    const clean = [start('a'), done('a')];
+    expect(settleTrace(clean, '已停止')).toBe(clean);
   });
 });

@@ -15,7 +15,7 @@ import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } 
 
 export type KnowledgeHandlers = DomainHandlers<KnowledgeProcedureName>;
 
-type ErrorPrefix = 'KB' | 'MEM' | 'SCHED';
+type ErrorPrefix = 'KB' | 'MEM' | 'SCHED' | 'TASKS';
 type AppErrorCode = Parameters<AppHandlerContext['fail']>[0];
 
 const DECLARED: ReadonlySet<string> = new Set<string>(APP_DOMAINS.knowledge.errors);
@@ -55,6 +55,19 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
   const kb = () => need(s.kb, 'kb');
   const mem = () => need(s.mem, 'mem');
   const sched = () => need(s.sched, 'sched');
+  const tasks = () => need(s.tasks, 'tasks');
+  const conns = () => need(s.connections, 'connections');
+  /** ConnectionError(code) → CONNECTIONS_<CODE>；not_allowed 不会经契约出现 */
+  const connCall = async <T>(ctx: Pick<AppHandlerContext, 'fail'>, run: () => Promise<T> | T) => {
+    try {
+      return await run();
+    } catch (err) {
+      const code = (err as { code?: unknown }).code;
+      const mapped = typeof code === 'string' ? `CONNECTIONS_${code.toUpperCase()}` : '';
+      if (DECLARED.has(mapped)) ctx.fail(mapped as AppErrorCode, (err as Error).message);
+      throw err;
+    }
+  };
   const local = () => need(s.localModels, 'localModels');
   const hub = () => need(s.localHub, 'localHub');
   const ext = () => need(s.ext, 'ext');
@@ -118,6 +131,68 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
       sched().noteActivity();
       return true;
     },
+
+    // ---------- tasks ----------
+    'tasks.list': () => out(tasks().list()),
+    'tasks.get': ({ id }) => out(tasks().get(id)),
+    'tasks.inbox': () => out(tasks().inbox()),
+    'tasks.journal': ({ id }) => out(tasks().journal(id)),
+    'tasks.create': (input, ctx) => mapped('TASKS', ctx, () => out(tasks().create(input))),
+    'tasks.update': ({ id, ...patch }, ctx) =>
+      mapped('TASKS', ctx, () => {
+        const task = tasks().update(id, patch);
+        if (!task) ctx.fail('TASKS_NOT_FOUND', id);
+        return out(task);
+      }),
+    'tasks.grant': ({ id, grant }, ctx) =>
+      mapped('TASKS', ctx, () => tasks().command(id, { type: 'grant', grant })),
+    'tasks.revoke': ({ id }) => tasks().command(id, { type: 'revoke' }),
+    'tasks.pause': ({ id }) => tasks().command(id, { type: 'pause' }),
+    'tasks.resume': ({ id }) => tasks().command(id, { type: 'resume' }),
+    'tasks.cancel': ({ id }) => tasks().command(id, { type: 'cancel' }),
+    'tasks.runNow': ({ id }) => tasks().command(id, { type: 'runNow' }),
+    'tasks.decide': ({ id, ...d }) => tasks().command(id, { type: 'decide', ...d }),
+    'tasks.accept': ({ id }) => tasks().command(id, { type: 'accept' }),
+    'tasks.reject': ({ id, feedback }) => tasks().command(id, { type: 'reject', feedback }),
+    'tasks.reconcile': ({ id, outcome }) => tasks().command(id, { type: 'reconcile', outcome }),
+    'tasks.remove': ({ id }) => tasks().remove(id),
+    'tasks.events': ({ id }) => ({
+      observed: out(tasks().events.observed(id)),
+      ...tasks().events.status(id),
+      sources: tasks().events.sourceIds(),
+    }),
+    'tasks.processObserved': ({ id }) => tasks().events.processObserved(id),
+    'tasks.clearObserved': ({ id }) => {
+      tasks().events.clearObserved(id);
+      return true;
+    },
+    'tasks.setMode': ({ id, mode }) => out(tasks().setMode(id, mode)),
+    'tasks.applyWorktree': async ({ id }) =>
+      tasks().applyWorktree(
+        id,
+        async (dest) => !!s.desktop && (await s.desktop.broker.guard(dest, 'write', true)).ok,
+      ),
+
+    // ---------- connections ----------
+    'connections.list': () => out(conns().list()),
+    'connections.detect': ({ host }, ctx) =>
+      connCall(ctx, async () => out(await conns().detect(host))),
+    'connections.addGithub': (input, ctx) =>
+      connCall(ctx, async () => out(await conns().addGithub(input))),
+    'connections.check': ({ id }, ctx) => connCall(ctx, async () => out(await conns().check(id))),
+    'connections.rebind': ({ id }, ctx) =>
+      connCall(ctx, async () => {
+        const before = conns().get(id)?.account?.login;
+        const c = await conns().rebind(id);
+        // 真的换了账号：引用这条连接的任务都要重新授权（账号没变就不动授权）
+        const t = s.tasks;
+        if (t && c.account?.login !== before)
+          for (const task of t.list().tasks)
+            if (task.grant.connections.some((g) => g.connectionId === id))
+              t.command(task.id, { type: 'revoke' });
+        return out(c);
+      }),
+    'connections.remove': ({ id }) => conns().remove(id),
 
     // ---------- local ----------
     'local.state': () => out(local().state()),

@@ -13,6 +13,35 @@ const msg = (
 ) => ({ id, role, content, timestamp: Number(id), ...extra }) as ChatMessage;
 
 describe('buildProviderMessages', () => {
+  it('上一轮生成的图片、用户存进素材库的图片：以地址附在消息后面，下一轮能拿来改图', () => {
+    const gen = (url: string) => ({
+      type: 'tool' as const,
+      name: 'image_generate',
+      status: 'done' as const,
+      id: url,
+      output: JSON.stringify({ image: url, model: 'm' }),
+    });
+    const history = [
+      msg('1', 'user', '画一只猫', {
+        images: [{ thumb: 'data:x', width: 1, height: 1, url: 'chat-asset://images/user-a.png' }],
+      }),
+      msg('2', 'assistant', '画好了', { trace: [gen('chat-asset://images/nomi-1.png')] }),
+      // 只有图、没有正文的回复也要保留
+      msg('3', 'assistant', '', { trace: [gen('chat-asset://images/nomi-2.png')] }),
+      // 失败的生图不算
+      msg('4', 'assistant', '没画成', {
+        trace: [{ type: 'tool', name: 'image_generate', status: 'error', id: 'x', output: 'err' }],
+      }),
+    ];
+    const out = buildProviderMessages(history, '把背景改成蓝色');
+    expect(out[0]!.content).toContain('chat-asset://images/user-a.png');
+    expect(out[1]!.content).toMatch(
+      /^画好了\n\n\[Image links.*chat-asset:\/\/images\/nomi-1\.png\]$/,
+    );
+    expect(out[2]!.content).toContain('chat-asset://images/nomi-2.png');
+    expect(out[3]!.content).toBe('没画成');
+  });
+
   it('prepends system prompt, keeps prior turns, appends the new user input', () => {
     const history = [msg('1', 'user', 'hi'), msg('2', 'assistant', 'hello')];
     expect(buildProviderMessages(history, 'how are you?', '  be brief ')).toEqual([

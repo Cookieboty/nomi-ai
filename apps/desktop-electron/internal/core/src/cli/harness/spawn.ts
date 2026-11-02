@@ -83,3 +83,23 @@ export function cliChildEnv(
     useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra,
   );
 }
+
+/** gh 读令牌的环境变量（环境变量优先于已存的登录） */
+export const GH_TOKEN_VARS = [
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_ENTERPRISE_TOKEN',
+  'GITHUB_ENTERPRISE_TOKEN',
+] as const;
+
+/**
+ * 持续任务的编程助手标签默认看不到用户的 gh 登录（docs/design/connections.md §4.4）：
+ * GH_CONFIG_DIR 指向一个空目录、去掉令牌变量、关交互。只是默认值，不是安全边界（真正的边界是命令分类与审批）。
+ */
+export function isolateGhEnv(env: NodeJS.ProcessEnv, emptyConfigDir: string): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = { ...env };
+  for (const k of GH_TOKEN_VARS) delete out[k];
+  out.GH_CONFIG_DIR = emptyConfigDir;
+  out.GH_PROMPT_DISABLED = '1';
+  return out;
+}

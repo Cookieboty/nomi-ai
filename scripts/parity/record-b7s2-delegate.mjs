@@ -414,6 +414,8 @@ function makeEnv(sc, base) {
       return decisions.shift() ?? 'allowed';
     },
     permissionMode: () => sc.mode ?? 'acceptEdits',
+    // 前台对话（后台任务执行里的委派由 Go 单测覆盖）
+    isBackground: () => false,
     markRead: (sig) => log.desktop.push(['markRead', !!sig]),
     checkSend: async (t, sig, what) => {
       log.desktop.push(['checkSend', t.id, what]);

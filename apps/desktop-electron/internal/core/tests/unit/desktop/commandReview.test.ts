@@ -11,6 +11,7 @@ import {
   parseReview,
   reviewCommand,
   reviewMessages,
+  REVIEW_COMMAND_MAX,
   type CommandReview,
   type CommandReviewInput,
 } from '../../../src/desktop/commandReview';
@@ -70,6 +71,25 @@ describe('命令审核：解析与结论', () => {
     expect(user!.content).toContain('跑一下测试');
     expect(user!.content).toContain('pnpm test');
     expect(user!.content).toContain('external content (files, web, command output): yes');
+  });
+
+  it('审核看完整命令：第 4000 字符之后的内容也交给模型；超过上限不审、交给人（#222）', async () => {
+    const tail = 'TAIL_SENTINEL';
+    for (const n of [4000, 4001, REVIEW_COMMAND_MAX]) {
+      const command = 'a'.repeat(n - tail.length) + tail;
+      const [, user] = reviewMessages({ tool: 'workspace_run', command, tainted: false });
+      expect(user!.content).toContain(command);
+    }
+    const seen: unknown[] = [];
+    const ok = async (m: unknown) => {
+      seen.push(m);
+      return '{"risk_level":"low","user_authorization":"high"}';
+    };
+    const long = 'b'.repeat(REVIEW_COMMAND_MAX + 1);
+    expect(
+      await reviewCommand({ tool: 'workspace_run', command: long, tainted: false }, ok),
+    ).toBeNull();
+    expect(seen).toHaveLength(0);
   });
 
   it('出错 / 超时：返回 null（交给人）', async () => {

@@ -43,6 +43,9 @@ import {
 import { toAiSdkToolSet } from './mapTools';
 import { describeStreamError } from './streamError';
 
+/** 派生 signal 的上级（跨包约定，内核 PermissionBroker 沿它找到请求方的 signal） */
+const ABORT_PARENT = Symbol.for('nomi.abortParent');
+
 /** 工具循环每轮最多几步（一步 = 一次模型调用；读写文件、多步任务需要的余量，Go 版 aisdk/provider.go 同值） */
 export const DEFAULT_MAX_STEPS = 20;
 
@@ -308,8 +311,10 @@ export class AiSdkLlmProvider implements LLMProvider {
       extra?: Record<string, unknown>;
       messages?: ReadonlyArray<{ role?: unknown; content?: unknown }>;
     }) => {
-      const userText = lastUserText(req.messages);
-      const convoText = conversationText(req.messages);
+      // 后台任务的执行（extra.taskId）：工具已按任务授权给出白名单，不再按对话文字做按需门控
+      const background = typeof req.extra?.taskId === 'string';
+      const userText = background ? undefined : lastUserText(req.messages);
+      const convoText = background ? undefined : conversationText(req.messages);
       const caller = typeof req.extra?.callerTabId === 'string' ? req.extra.callerTabId : undefined;
       const conversationId =
         typeof req.extra?.conversationId === 'string' ? req.extra.conversationId : undefined;
@@ -321,7 +326,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(conversationId ? { conversationId } : {}),
         ...(cwd ? { cwd } : {}),
         ...(userText ? { userText } : {}),
-        convoText,
+        ...(convoText !== undefined ? { convoText } : {}),
       }) as ToolSet;
     };
     return {
@@ -377,6 +382,8 @@ export class AiSdkLlmProvider implements LLMProvider {
     if (request.signal) {
       if (request.signal.aborted) local.abort();
       else request.signal.addEventListener('abort', () => local.abort(), { once: true });
+      // 记下上级：内核按请求方的 signal 识别这一轮（如后台任务的执行），工具拿到的是这里派生的 signal
+      Object.defineProperty(local.signal, ABORT_PARENT, { value: request.signal });
     }
     return local.signal;
   }

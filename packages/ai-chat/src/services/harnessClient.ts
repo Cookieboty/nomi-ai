@@ -28,6 +28,8 @@ export interface HarnessDelegation {
   /** 派出它的 Nomi 工具调用 id */
   callId?: string;
   goal: string;
+  /** 持续任务开的标签（后台委派 = 任务）：停止、审批经任务走 */
+  taskId?: string;
   takenOver?: boolean;
   approvals: { asked: number; denied: number; timedOut: number };
 }

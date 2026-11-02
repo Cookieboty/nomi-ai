@@ -11,6 +11,7 @@ import {
   AudioLines,
   Bell,
   Blocks,
+  Link2,
   BookOpen,
   Bot,
   Boxes,
@@ -58,6 +59,8 @@ export const SETTINGS_ICONS = {
   knowledge: Brain,
   /** 扩展 / MCP：积木模块 */
   ext: Blocks,
+  /** 应用与账号（GitHub 等账号、本机应用）：链接 */
+  connections: Link2,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,
 } as const;

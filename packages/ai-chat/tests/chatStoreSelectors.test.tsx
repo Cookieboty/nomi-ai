@@ -10,6 +10,7 @@ import {
 } from '../src/contexts/AiChatContext';
 import {
   selectBusyHere,
+  selectStreamingHere,
   selectIsLoading,
   shallowArrayEqual,
   useAiChatActions,
@@ -102,6 +103,35 @@ describe('chat store selectors: streaming frames rerender only the live turn', (
     expect(selectBusyHere(s2)).toBe(false);
     const s3 = aiChatReducer(s2, { type: 'SET_MESSAGES', payload: [], convoId: 'c-new' });
     expect(selectBusyHere(s3)).toBe(true);
+  });
+
+  it('two conversations reply at once: each one is busy only for itself, and one ending keeps the other', () => {
+    let s = aiChatReducer(
+      { messages: [], isLoading: false, streaming: false } as unknown as AiChatState,
+      { type: 'SET_MESSAGES', payload: [], convoId: 'a' },
+    );
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'a' });
+    s = aiChatReducer(s, { type: 'SET_STREAMING', payload: true, convoId: 'a' });
+    // 切到 b：a 在回复，b 这里既不忙也没有停止键
+    s = aiChatReducer(s, { type: 'SET_MESSAGES', payload: [], convoId: 'b' });
+    expect(selectBusyHere(s)).toBe(false);
+    expect(selectStreamingHere(s)).toBe(false);
+    expect(s.isLoading).toBe(true);
+    // b 也发起一轮
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'b' });
+    s = aiChatReducer(s, { type: 'SET_STREAMING', payload: true, convoId: 'b' });
+    expect(selectBusyHere(s)).toBe(true);
+    // a 先结束：b 仍在回复
+    s = aiChatReducer(s, { type: 'SET_STREAMING', payload: false, convoId: 'a' });
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'a' });
+    expect(selectBusyHere(s)).toBe(true);
+    expect(selectStreamingHere(s)).toBe(true);
+    expect(s.isLoading).toBe(true);
+    s = aiChatReducer(s, { type: 'SET_STREAMING', payload: false, convoId: 'b' });
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'b' });
+    expect(selectBusyHere(s)).toBe(false);
+    expect(s.isLoading).toBe(false);
+    expect(s.streaming).toBe(false);
   });
 
   it('UPSERT with unchanged fields keeps message identity', () => {

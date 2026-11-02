@@ -1224,6 +1224,36 @@ type CharacterGetActivePackOutput struct {
 	Reason            *string                                             `json:"reason,omitempty"`
 }
 
+// ChatAssetsImportInputMime 枚举：image/png | image/jpeg | image/webp | image/gif
+type ChatAssetsImportInputMime = string
+
+const (
+	ChatAssetsImportInputMimeImagePng  ChatAssetsImportInputMime = "image/png"
+	ChatAssetsImportInputMimeImageJpeg ChatAssetsImportInputMime = "image/jpeg"
+	ChatAssetsImportInputMimeImageWebp ChatAssetsImportInputMime = "image/webp"
+	ChatAssetsImportInputMimeImageGif  ChatAssetsImportInputMime = "image/gif"
+)
+
+type ChatAssetsImportInput struct {
+	Mime           ChatAssetsImportInputMime `json:"mime"`
+	Data           string                    `json:"data"`
+	ConversationId *string                   `json:"conversationId,omitempty"`
+}
+
+type ChatAssetsImportOutput struct {
+	File           string   `json:"file"`
+	Url            string   `json:"url"`
+	Source         string   `json:"source"`
+	CreatedAt      float64  `json:"createdAt"`
+	Bytes          float64  `json:"bytes"`
+	Model          *string  `json:"model,omitempty"`
+	Prompt         *string  `json:"prompt,omitempty"`
+	Aspect         *string  `json:"aspect,omitempty"`
+	EditedFrom     *string  `json:"editedFrom,omitempty"`
+	References     []string `json:"references,omitempty"`
+	ConversationId *string  `json:"conversationId,omitempty"`
+}
+
 type ChatAssetsListOutputItem struct {
 	File           string   `json:"file"`
 	Url            string   `json:"url"`
@@ -1498,6 +1528,213 @@ type CliUpdateRunOutput struct {
 	Ok      bool   `json:"ok"`
 	Log     string `json:"log"`
 	Version string `json:"version"`
+}
+
+// ConnectionsAddGithubOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsAddGithubOutputAuthKind = string
+
+const (
+	ConnectionsAddGithubOutputAuthKindCliLogin ConnectionsAddGithubOutputAuthKind = "cli-login"
+	ConnectionsAddGithubOutputAuthKindKeychain ConnectionsAddGithubOutputAuthKind = "keychain"
+)
+
+type ConnectionsAddGithubOutputAuth struct {
+	Kind ConnectionsAddGithubOutputAuthKind `json:"kind"`
+	Host string                             `json:"host"`
+}
+
+type ConnectionsAddGithubOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsAddGithubOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsAddGithubOutputStatus = string
+
+const (
+	ConnectionsAddGithubOutputStatusOk         ConnectionsAddGithubOutputStatus = "ok"
+	ConnectionsAddGithubOutputStatusNeedsLogin ConnectionsAddGithubOutputStatus = "needs_login"
+	ConnectionsAddGithubOutputStatusError      ConnectionsAddGithubOutputStatus = "error"
+	ConnectionsAddGithubOutputStatusDisabled   ConnectionsAddGithubOutputStatus = "disabled"
+)
+
+type ConnectionsAddGithubOutput struct {
+	Id             string                             `json:"id"`
+	Provider       string                             `json:"provider"`
+	Label          string                             `json:"label"`
+	Auth           ConnectionsAddGithubOutputAuth     `json:"auth"`
+	Account        *ConnectionsAddGithubOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                           `json:"observedScopes,omitempty"`
+	WideScopes     []string                           `json:"wideScopes,omitempty"`
+	Status         ConnectionsAddGithubOutputStatus   `json:"status"`
+	Name           *string                            `json:"name,omitempty"`
+	CurrentLogin   *string                            `json:"currentLogin,omitempty"`
+	CheckedAt      *float64                           `json:"checkedAt,omitempty"`
+	CreatedAt      float64                            `json:"createdAt"`
+}
+
+type ConnectionsCheckInput struct {
+	Id string `json:"id"`
+}
+
+// ConnectionsCheckOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsCheckOutputAuthKind = string
+
+const (
+	ConnectionsCheckOutputAuthKindCliLogin ConnectionsCheckOutputAuthKind = "cli-login"
+	ConnectionsCheckOutputAuthKindKeychain ConnectionsCheckOutputAuthKind = "keychain"
+)
+
+type ConnectionsCheckOutputAuth struct {
+	Kind ConnectionsCheckOutputAuthKind `json:"kind"`
+	Host string                         `json:"host"`
+}
+
+type ConnectionsCheckOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsCheckOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsCheckOutputStatus = string
+
+const (
+	ConnectionsCheckOutputStatusOk         ConnectionsCheckOutputStatus = "ok"
+	ConnectionsCheckOutputStatusNeedsLogin ConnectionsCheckOutputStatus = "needs_login"
+	ConnectionsCheckOutputStatusError      ConnectionsCheckOutputStatus = "error"
+	ConnectionsCheckOutputStatusDisabled   ConnectionsCheckOutputStatus = "disabled"
+)
+
+type ConnectionsCheckOutput struct {
+	Id             string                         `json:"id"`
+	Provider       string                         `json:"provider"`
+	Label          string                         `json:"label"`
+	Auth           ConnectionsCheckOutputAuth     `json:"auth"`
+	Account        *ConnectionsCheckOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                       `json:"observedScopes,omitempty"`
+	WideScopes     []string                       `json:"wideScopes,omitempty"`
+	Status         ConnectionsCheckOutputStatus   `json:"status"`
+	Name           *string                        `json:"name,omitempty"`
+	CurrentLogin   *string                        `json:"currentLogin,omitempty"`
+	CheckedAt      *float64                       `json:"checkedAt,omitempty"`
+	CreatedAt      float64                        `json:"createdAt"`
+}
+
+type ConnectionsDetectInput struct {
+	Host *string `json:"host,omitempty"`
+}
+
+type ConnectionsDetectOutputGhAccountsItem struct {
+	Host        string   `json:"host"`
+	Login       string   `json:"login"`
+	Scopes      []string `json:"scopes"`
+	WideScopes  []string `json:"wideScopes"`
+	TokenSource string   `json:"tokenSource"`
+	Active      bool     `json:"active"`
+	State       string   `json:"state"`
+}
+
+type ConnectionsDetectOutputGh struct {
+	Installed bool                                    `json:"installed"`
+	Accounts  []ConnectionsDetectOutputGhAccountsItem `json:"accounts"`
+}
+
+type ConnectionsDetectOutput struct {
+	Gh ConnectionsDetectOutputGh `json:"gh"`
+}
+
+// ConnectionsListOutputItemAuthKind 枚举：cli-login | keychain
+type ConnectionsListOutputItemAuthKind = string
+
+const (
+	ConnectionsListOutputItemAuthKindCliLogin ConnectionsListOutputItemAuthKind = "cli-login"
+	ConnectionsListOutputItemAuthKindKeychain ConnectionsListOutputItemAuthKind = "keychain"
+)
+
+type ConnectionsListOutputItemAuth struct {
+	Kind ConnectionsListOutputItemAuthKind `json:"kind"`
+	Host string                            `json:"host"`
+}
+
+type ConnectionsListOutputItemAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsListOutputItemStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsListOutputItemStatus = string
+
+const (
+	ConnectionsListOutputItemStatusOk         ConnectionsListOutputItemStatus = "ok"
+	ConnectionsListOutputItemStatusNeedsLogin ConnectionsListOutputItemStatus = "needs_login"
+	ConnectionsListOutputItemStatusError      ConnectionsListOutputItemStatus = "error"
+	ConnectionsListOutputItemStatusDisabled   ConnectionsListOutputItemStatus = "disabled"
+)
+
+type ConnectionsListOutputItem struct {
+	Id             string                            `json:"id"`
+	Provider       string                            `json:"provider"`
+	Label          string                            `json:"label"`
+	Auth           ConnectionsListOutputItemAuth     `json:"auth"`
+	Account        *ConnectionsListOutputItemAccount `json:"account,omitempty"`
+	ObservedScopes []string                          `json:"observedScopes,omitempty"`
+	WideScopes     []string                          `json:"wideScopes,omitempty"`
+	Status         ConnectionsListOutputItemStatus   `json:"status"`
+	Name           *string                           `json:"name,omitempty"`
+	CurrentLogin   *string                           `json:"currentLogin,omitempty"`
+	CheckedAt      *float64                          `json:"checkedAt,omitempty"`
+	CreatedAt      float64                           `json:"createdAt"`
+}
+
+type ConnectionsRebindInput struct {
+	Id string `json:"id"`
+}
+
+// ConnectionsRebindOutputAuthKind 枚举：cli-login | keychain
+type ConnectionsRebindOutputAuthKind = string
+
+const (
+	ConnectionsRebindOutputAuthKindCliLogin ConnectionsRebindOutputAuthKind = "cli-login"
+	ConnectionsRebindOutputAuthKindKeychain ConnectionsRebindOutputAuthKind = "keychain"
+)
+
+type ConnectionsRebindOutputAuth struct {
+	Kind ConnectionsRebindOutputAuthKind `json:"kind"`
+	Host string                          `json:"host"`
+}
+
+type ConnectionsRebindOutputAccount struct {
+	Login string `json:"login"`
+	Host  string `json:"host"`
+}
+
+// ConnectionsRebindOutputStatus 枚举：ok | needs_login | error | disabled
+type ConnectionsRebindOutputStatus = string
+
+const (
+	ConnectionsRebindOutputStatusOk         ConnectionsRebindOutputStatus = "ok"
+	ConnectionsRebindOutputStatusNeedsLogin ConnectionsRebindOutputStatus = "needs_login"
+	ConnectionsRebindOutputStatusError      ConnectionsRebindOutputStatus = "error"
+	ConnectionsRebindOutputStatusDisabled   ConnectionsRebindOutputStatus = "disabled"
+)
+
+type ConnectionsRebindOutput struct {
+	Id             string                          `json:"id"`
+	Provider       string                          `json:"provider"`
+	Label          string                          `json:"label"`
+	Auth           ConnectionsRebindOutputAuth     `json:"auth"`
+	Account        *ConnectionsRebindOutputAccount `json:"account,omitempty"`
+	ObservedScopes []string                        `json:"observedScopes,omitempty"`
+	WideScopes     []string                        `json:"wideScopes,omitempty"`
+	Status         ConnectionsRebindOutputStatus   `json:"status"`
+	Name           *string                         `json:"name,omitempty"`
+	CurrentLogin   *string                         `json:"currentLogin,omitempty"`
+	CheckedAt      *float64                        `json:"checkedAt,omitempty"`
+	CreatedAt      float64                         `json:"createdAt"`
+}
+
+type ConnectionsRemoveInput struct {
+	Id string `json:"id"`
 }
 
 type DelegateClearPinInput struct {
@@ -5041,6 +5278,587 @@ type StartupSetOutput struct {
 	ShowMascot  bool                        `json:"showMascot"`
 }
 
+type TasksAcceptInput struct {
+	Id string `json:"id"`
+}
+
+type TasksAcceptOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksApplyWorktreeInput struct {
+	Id string `json:"id"`
+}
+
+type TasksApplyWorktreeOutput struct {
+	Applied    []string `json:"applied"`
+	Skipped    []string `json:"skipped"`
+	Conflicted []string `json:"conflicted"`
+	Denied     []string `json:"denied"`
+}
+
+type TasksCancelInput struct {
+	Id string `json:"id"`
+}
+
+type TasksCancelOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksClearObservedInput struct {
+	Id string `json:"id"`
+}
+
+type TasksCreateInputGrantConnectionsItem struct {
+	ConnectionId string   `json:"connectionId"`
+	Capabilities []string `json:"capabilities"`
+	Resources    []string `json:"resources"`
+}
+
+type TasksCreateInputGrant struct {
+	Level       json.RawMessage                        `json:"level"`
+	Paths       []string                               `json:"paths"`
+	Connections []TasksCreateInputGrantConnectionsItem `json:"connections"`
+	Clis        []string                               `json:"clis,omitempty"`
+	ExpiresAt   *float64                               `json:"expiresAt,omitempty"`
+}
+
+type TasksCreateInputBudget struct {
+	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
+	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
+	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
+	MaxRetries              *int64   `json:"maxRetries,omitempty"`
+}
+
+// TasksCreateInputAcceptance 枚举：auto | user
+type TasksCreateInputAcceptance = string
+
+const (
+	TasksCreateInputAcceptanceAuto TasksCreateInputAcceptance = "auto"
+	TasksCreateInputAcceptanceUser TasksCreateInputAcceptance = "user"
+)
+
+// TasksCreateInputPriority 枚举：urgent | high | medium | low
+type TasksCreateInputPriority = string
+
+const (
+	TasksCreateInputPriorityUrgent TasksCreateInputPriority = "urgent"
+	TasksCreateInputPriorityHigh   TasksCreateInputPriority = "high"
+	TasksCreateInputPriorityMedium TasksCreateInputPriority = "medium"
+	TasksCreateInputPriorityLow    TasksCreateInputPriority = "low"
+)
+
+// TasksCreateInputCategory 枚举：coding | review | research | writing | monitor | chore
+type TasksCreateInputCategory = string
+
+const (
+	TasksCreateInputCategoryCoding   TasksCreateInputCategory = "coding"
+	TasksCreateInputCategoryReview   TasksCreateInputCategory = "review"
+	TasksCreateInputCategoryResearch TasksCreateInputCategory = "research"
+	TasksCreateInputCategoryWriting  TasksCreateInputCategory = "writing"
+	TasksCreateInputCategoryMonitor  TasksCreateInputCategory = "monitor"
+	TasksCreateInputCategoryChore    TasksCreateInputCategory = "chore"
+)
+
+type TasksCreateInput struct {
+	Title          string                      `json:"title"`
+	Goal           string                      `json:"goal"`
+	ConversationId *string                     `json:"conversationId,omitempty"`
+	Trigger        json.RawMessage             `json:"trigger"`
+	Executor       json.RawMessage             `json:"executor"`
+	Grant          TasksCreateInputGrant       `json:"grant"`
+	Budget         *TasksCreateInputBudget     `json:"budget,omitempty"`
+	Acceptance     *TasksCreateInputAcceptance `json:"acceptance,omitempty"`
+	Priority       *TasksCreateInputPriority   `json:"priority,omitempty"`
+	Category       *TasksCreateInputCategory   `json:"category,omitempty"`
+}
+
+// TasksCreateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksCreateOutputStatus = string
+
+const (
+	TasksCreateOutputStatusIdle           TasksCreateOutputStatus = "idle"
+	TasksCreateOutputStatusQueued         TasksCreateOutputStatus = "queued"
+	TasksCreateOutputStatusRunning        TasksCreateOutputStatus = "running"
+	TasksCreateOutputStatusWaitingUser    TasksCreateOutputStatus = "waiting_user"
+	TasksCreateOutputStatusNeedsReconcile TasksCreateOutputStatus = "needs_reconcile"
+	TasksCreateOutputStatusAwaitingAccept TasksCreateOutputStatus = "awaiting_accept"
+	TasksCreateOutputStatusDone           TasksCreateOutputStatus = "done"
+	TasksCreateOutputStatusFailed         TasksCreateOutputStatus = "failed"
+	TasksCreateOutputStatusCancelled      TasksCreateOutputStatus = "cancelled"
+	TasksCreateOutputStatusExpired        TasksCreateOutputStatus = "expired"
+)
+
+type TasksCreateOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksCreateOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksCreateOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksCreateOutput struct {
+	Id        string                    `json:"id"`
+	Title     string                    `json:"title"`
+	Goal      string                    `json:"goal"`
+	Status    TasksCreateOutputStatus   `json:"status"`
+	Enabled   bool                      `json:"enabled"`
+	Gen       float64                   `json:"gen"`
+	Trigger   TasksCreateOutputTrigger  `json:"trigger"`
+	Executor  TasksCreateOutputExecutor `json:"executor"`
+	Grant     TasksCreateOutputGrant    `json:"grant"`
+	UpdatedAt float64                   `json:"updatedAt"`
+}
+
+type TasksDecideInput struct {
+	Id        string  `json:"id"`
+	Gen       *int64  `json:"gen,omitempty"`
+	RequestId *string `json:"requestId,omitempty"`
+	Approve   bool    `json:"approve"`
+	Input     *string `json:"input,omitempty"`
+}
+
+type TasksDecideOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksEventsInput struct {
+	Id string `json:"id"`
+}
+
+type TasksEventsOutputObservedItem struct {
+	Key        string  `json:"key"`
+	OccurredAt float64 `json:"occurredAt"`
+	Summary    string  `json:"summary"`
+	Payload    any     `json:"payload"`
+}
+
+type TasksEventsOutput struct {
+	Observed   []TasksEventsOutputObservedItem `json:"observed"`
+	LastPollAt *float64                        `json:"lastPollAt,omitempty"`
+	LastError  *string                         `json:"lastError,omitempty"`
+	Sources    []string                        `json:"sources"`
+}
+
+type TasksGetInput struct {
+	Id string `json:"id"`
+}
+
+// TasksGetOutputTaskStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksGetOutputTaskStatus = string
+
+const (
+	TasksGetOutputTaskStatusIdle           TasksGetOutputTaskStatus = "idle"
+	TasksGetOutputTaskStatusQueued         TasksGetOutputTaskStatus = "queued"
+	TasksGetOutputTaskStatusRunning        TasksGetOutputTaskStatus = "running"
+	TasksGetOutputTaskStatusWaitingUser    TasksGetOutputTaskStatus = "waiting_user"
+	TasksGetOutputTaskStatusNeedsReconcile TasksGetOutputTaskStatus = "needs_reconcile"
+	TasksGetOutputTaskStatusAwaitingAccept TasksGetOutputTaskStatus = "awaiting_accept"
+	TasksGetOutputTaskStatusDone           TasksGetOutputTaskStatus = "done"
+	TasksGetOutputTaskStatusFailed         TasksGetOutputTaskStatus = "failed"
+	TasksGetOutputTaskStatusCancelled      TasksGetOutputTaskStatus = "cancelled"
+	TasksGetOutputTaskStatusExpired        TasksGetOutputTaskStatus = "expired"
+)
+
+type TasksGetOutputTaskTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksGetOutputTaskExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksGetOutputTaskGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksGetOutputTask struct {
+	Id        string                     `json:"id"`
+	Title     string                     `json:"title"`
+	Goal      string                     `json:"goal"`
+	Status    TasksGetOutputTaskStatus   `json:"status"`
+	Enabled   bool                       `json:"enabled"`
+	Gen       float64                    `json:"gen"`
+	Trigger   TasksGetOutputTaskTrigger  `json:"trigger"`
+	Executor  TasksGetOutputTaskExecutor `json:"executor"`
+	Grant     TasksGetOutputTaskGrant    `json:"grant"`
+	UpdatedAt float64                    `json:"updatedAt"`
+}
+
+type TasksGetOutputAttemptsItem struct {
+	Id        string  `json:"id"`
+	Gen       float64 `json:"gen"`
+	Status    string  `json:"status"`
+	StartedAt float64 `json:"startedAt"`
+}
+
+type TasksGetOutput struct {
+	Task     TasksGetOutputTask           `json:"task"`
+	Attempts []TasksGetOutputAttemptsItem `json:"attempts"`
+}
+
+type TasksGrantInputGrantConnectionsItem struct {
+	ConnectionId string   `json:"connectionId"`
+	Capabilities []string `json:"capabilities"`
+	Resources    []string `json:"resources"`
+}
+
+type TasksGrantInputGrant struct {
+	Level       json.RawMessage                       `json:"level"`
+	Paths       []string                              `json:"paths"`
+	Connections []TasksGrantInputGrantConnectionsItem `json:"connections"`
+	Clis        []string                              `json:"clis,omitempty"`
+	ExpiresAt   *float64                              `json:"expiresAt,omitempty"`
+}
+
+type TasksGrantInput struct {
+	Id    string               `json:"id"`
+	Grant TasksGrantInputGrant `json:"grant"`
+}
+
+type TasksGrantOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksInboxOutputItemStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksInboxOutputItemStatus = string
+
+const (
+	TasksInboxOutputItemStatusIdle           TasksInboxOutputItemStatus = "idle"
+	TasksInboxOutputItemStatusQueued         TasksInboxOutputItemStatus = "queued"
+	TasksInboxOutputItemStatusRunning        TasksInboxOutputItemStatus = "running"
+	TasksInboxOutputItemStatusWaitingUser    TasksInboxOutputItemStatus = "waiting_user"
+	TasksInboxOutputItemStatusNeedsReconcile TasksInboxOutputItemStatus = "needs_reconcile"
+	TasksInboxOutputItemStatusAwaitingAccept TasksInboxOutputItemStatus = "awaiting_accept"
+	TasksInboxOutputItemStatusDone           TasksInboxOutputItemStatus = "done"
+	TasksInboxOutputItemStatusFailed         TasksInboxOutputItemStatus = "failed"
+	TasksInboxOutputItemStatusCancelled      TasksInboxOutputItemStatus = "cancelled"
+	TasksInboxOutputItemStatusExpired        TasksInboxOutputItemStatus = "expired"
+)
+
+type TasksInboxOutputItemTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksInboxOutputItemExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksInboxOutputItemGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksInboxOutputItem struct {
+	Id        string                       `json:"id"`
+	Title     string                       `json:"title"`
+	Goal      string                       `json:"goal"`
+	Status    TasksInboxOutputItemStatus   `json:"status"`
+	Enabled   bool                         `json:"enabled"`
+	Gen       float64                      `json:"gen"`
+	Trigger   TasksInboxOutputItemTrigger  `json:"trigger"`
+	Executor  TasksInboxOutputItemExecutor `json:"executor"`
+	Grant     TasksInboxOutputItemGrant    `json:"grant"`
+	UpdatedAt float64                      `json:"updatedAt"`
+}
+
+type TasksJournalInput struct {
+	Id string `json:"id"`
+}
+
+type TasksJournalOutputItem struct {
+	T  string  `json:"t"`
+	At float64 `json:"at"`
+}
+
+// TasksListOutputTasksItemStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksListOutputTasksItemStatus = string
+
+const (
+	TasksListOutputTasksItemStatusIdle           TasksListOutputTasksItemStatus = "idle"
+	TasksListOutputTasksItemStatusQueued         TasksListOutputTasksItemStatus = "queued"
+	TasksListOutputTasksItemStatusRunning        TasksListOutputTasksItemStatus = "running"
+	TasksListOutputTasksItemStatusWaitingUser    TasksListOutputTasksItemStatus = "waiting_user"
+	TasksListOutputTasksItemStatusNeedsReconcile TasksListOutputTasksItemStatus = "needs_reconcile"
+	TasksListOutputTasksItemStatusAwaitingAccept TasksListOutputTasksItemStatus = "awaiting_accept"
+	TasksListOutputTasksItemStatusDone           TasksListOutputTasksItemStatus = "done"
+	TasksListOutputTasksItemStatusFailed         TasksListOutputTasksItemStatus = "failed"
+	TasksListOutputTasksItemStatusCancelled      TasksListOutputTasksItemStatus = "cancelled"
+	TasksListOutputTasksItemStatusExpired        TasksListOutputTasksItemStatus = "expired"
+)
+
+type TasksListOutputTasksItemTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksListOutputTasksItemExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksListOutputTasksItemGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksListOutputTasksItem struct {
+	Id        string                           `json:"id"`
+	Title     string                           `json:"title"`
+	Goal      string                           `json:"goal"`
+	Status    TasksListOutputTasksItemStatus   `json:"status"`
+	Enabled   bool                             `json:"enabled"`
+	Gen       float64                          `json:"gen"`
+	Trigger   TasksListOutputTasksItemTrigger  `json:"trigger"`
+	Executor  TasksListOutputTasksItemExecutor `json:"executor"`
+	Grant     TasksListOutputTasksItemGrant    `json:"grant"`
+	UpdatedAt float64                          `json:"updatedAt"`
+}
+
+// TasksListOutputLegacyItemSource 枚举：reminder | schedule
+type TasksListOutputLegacyItemSource = string
+
+const (
+	TasksListOutputLegacyItemSourceReminder TasksListOutputLegacyItemSource = "reminder"
+	TasksListOutputLegacyItemSourceSchedule TasksListOutputLegacyItemSource = "schedule"
+)
+
+type TasksListOutputLegacyItem struct {
+	Source     TasksListOutputLegacyItemSource `json:"source"`
+	Id         string                          `json:"id"`
+	Title      string                          `json:"title"`
+	Enabled    bool                            `json:"enabled"`
+	NextRunAt  *float64                        `json:"nextRunAt,omitempty"`
+	Repeat     json.RawMessage                 `json:"repeat,omitempty"`
+	LastStatus *string                         `json:"lastStatus,omitempty"`
+}
+
+type TasksListOutput struct {
+	Tasks  []TasksListOutputTasksItem  `json:"tasks"`
+	Legacy []TasksListOutputLegacyItem `json:"legacy"`
+}
+
+type TasksPauseInput struct {
+	Id string `json:"id"`
+}
+
+type TasksPauseOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksProcessObservedInput struct {
+	Id string `json:"id"`
+}
+
+type TasksProcessObservedOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksReconcileInputOutcome 枚举：applied | not_applied | abandon
+type TasksReconcileInputOutcome = string
+
+const (
+	TasksReconcileInputOutcomeApplied    TasksReconcileInputOutcome = "applied"
+	TasksReconcileInputOutcomeNotApplied TasksReconcileInputOutcome = "not_applied"
+	TasksReconcileInputOutcomeAbandon    TasksReconcileInputOutcome = "abandon"
+)
+
+type TasksReconcileInput struct {
+	Id      string                     `json:"id"`
+	Outcome TasksReconcileInputOutcome `json:"outcome"`
+}
+
+type TasksReconcileOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksRejectInput struct {
+	Id       string `json:"id"`
+	Feedback string `json:"feedback"`
+}
+
+type TasksRejectOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksRemoveInput struct {
+	Id string `json:"id"`
+}
+
+type TasksResumeInput struct {
+	Id string `json:"id"`
+}
+
+type TasksResumeOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksRevokeInput struct {
+	Id string `json:"id"`
+}
+
+type TasksRevokeOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksRunNowInput struct {
+	Id string `json:"id"`
+}
+
+type TasksRunNowOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksSetModeInputMode 枚举：observe | act
+type TasksSetModeInputMode = string
+
+const (
+	TasksSetModeInputModeObserve TasksSetModeInputMode = "observe"
+	TasksSetModeInputModeAct     TasksSetModeInputMode = "act"
+)
+
+type TasksSetModeInput struct {
+	Id   string                `json:"id"`
+	Mode TasksSetModeInputMode `json:"mode"`
+}
+
+// TasksSetModeOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksSetModeOutputStatus = string
+
+const (
+	TasksSetModeOutputStatusIdle           TasksSetModeOutputStatus = "idle"
+	TasksSetModeOutputStatusQueued         TasksSetModeOutputStatus = "queued"
+	TasksSetModeOutputStatusRunning        TasksSetModeOutputStatus = "running"
+	TasksSetModeOutputStatusWaitingUser    TasksSetModeOutputStatus = "waiting_user"
+	TasksSetModeOutputStatusNeedsReconcile TasksSetModeOutputStatus = "needs_reconcile"
+	TasksSetModeOutputStatusAwaitingAccept TasksSetModeOutputStatus = "awaiting_accept"
+	TasksSetModeOutputStatusDone           TasksSetModeOutputStatus = "done"
+	TasksSetModeOutputStatusFailed         TasksSetModeOutputStatus = "failed"
+	TasksSetModeOutputStatusCancelled      TasksSetModeOutputStatus = "cancelled"
+	TasksSetModeOutputStatusExpired        TasksSetModeOutputStatus = "expired"
+)
+
+type TasksSetModeOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksSetModeOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksSetModeOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksSetModeOutput struct {
+	Id        string                     `json:"id"`
+	Title     string                     `json:"title"`
+	Goal      string                     `json:"goal"`
+	Status    TasksSetModeOutputStatus   `json:"status"`
+	Enabled   bool                       `json:"enabled"`
+	Gen       float64                    `json:"gen"`
+	Trigger   TasksSetModeOutputTrigger  `json:"trigger"`
+	Executor  TasksSetModeOutputExecutor `json:"executor"`
+	Grant     TasksSetModeOutputGrant    `json:"grant"`
+	UpdatedAt float64                    `json:"updatedAt"`
+}
+
+type TasksUpdateInputBudget struct {
+	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
+	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
+	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
+	MaxRetries              *int64   `json:"maxRetries,omitempty"`
+}
+
+// TasksUpdateInputPriority 枚举：urgent | high | medium | low
+type TasksUpdateInputPriority = string
+
+const (
+	TasksUpdateInputPriorityUrgent TasksUpdateInputPriority = "urgent"
+	TasksUpdateInputPriorityHigh   TasksUpdateInputPriority = "high"
+	TasksUpdateInputPriorityMedium TasksUpdateInputPriority = "medium"
+	TasksUpdateInputPriorityLow    TasksUpdateInputPriority = "low"
+)
+
+// TasksUpdateInputCategory 枚举：coding | review | research | writing | monitor | chore
+type TasksUpdateInputCategory = string
+
+const (
+	TasksUpdateInputCategoryCoding   TasksUpdateInputCategory = "coding"
+	TasksUpdateInputCategoryReview   TasksUpdateInputCategory = "review"
+	TasksUpdateInputCategoryResearch TasksUpdateInputCategory = "research"
+	TasksUpdateInputCategoryWriting  TasksUpdateInputCategory = "writing"
+	TasksUpdateInputCategoryMonitor  TasksUpdateInputCategory = "monitor"
+	TasksUpdateInputCategoryChore    TasksUpdateInputCategory = "chore"
+)
+
+type TasksUpdateInput struct {
+	Id       string                    `json:"id"`
+	Title    *string                   `json:"title,omitempty"`
+	Trigger  json.RawMessage           `json:"trigger,omitempty"`
+	Budget   *TasksUpdateInputBudget   `json:"budget,omitempty"`
+	Priority *TasksUpdateInputPriority `json:"priority,omitempty"`
+	Category *TasksUpdateInputCategory `json:"category,omitempty"`
+}
+
+// TasksUpdateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksUpdateOutputStatus = string
+
+const (
+	TasksUpdateOutputStatusIdle           TasksUpdateOutputStatus = "idle"
+	TasksUpdateOutputStatusQueued         TasksUpdateOutputStatus = "queued"
+	TasksUpdateOutputStatusRunning        TasksUpdateOutputStatus = "running"
+	TasksUpdateOutputStatusWaitingUser    TasksUpdateOutputStatus = "waiting_user"
+	TasksUpdateOutputStatusNeedsReconcile TasksUpdateOutputStatus = "needs_reconcile"
+	TasksUpdateOutputStatusAwaitingAccept TasksUpdateOutputStatus = "awaiting_accept"
+	TasksUpdateOutputStatusDone           TasksUpdateOutputStatus = "done"
+	TasksUpdateOutputStatusFailed         TasksUpdateOutputStatus = "failed"
+	TasksUpdateOutputStatusCancelled      TasksUpdateOutputStatus = "cancelled"
+	TasksUpdateOutputStatusExpired        TasksUpdateOutputStatus = "expired"
+)
+
+type TasksUpdateOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksUpdateOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksUpdateOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+type TasksUpdateOutput struct {
+	Id        string                    `json:"id"`
+	Title     string                    `json:"title"`
+	Goal      string                    `json:"goal"`
+	Status    TasksUpdateOutputStatus   `json:"status"`
+	Enabled   bool                      `json:"enabled"`
+	Gen       float64                   `json:"gen"`
+	Trigger   TasksUpdateOutputTrigger  `json:"trigger"`
+	Executor  TasksUpdateOutputExecutor `json:"executor"`
+	Grant     TasksUpdateOutputGrant    `json:"grant"`
+	UpdatedAt float64                   `json:"updatedAt"`
+}
+
 // ThemeGetOutputResolved 枚举：mist | graphite | ink | cream | sunset
 type ThemeGetOutputResolved = string
 
@@ -6523,6 +7341,10 @@ type EventStartupChanged struct {
 	ShowMascot  bool                           `json:"showMascot"`
 }
 
+type EventTasksChanged struct {
+	Id string `json:"id"`
+}
+
 // EventThemeChangedResolved 枚举：mist | graphite | ink | cream | sunset
 type EventThemeChangedResolved = string
 
@@ -6787,6 +7609,10 @@ type CharacterEnsureAssetsOutputT = CharacterEnsureAssetsOutput
 type CharacterGetActivePackInputT = any
 type CharacterGetActivePackOutputT = CharacterGetActivePackOutput
 
+// ChatAssetsImportInputT 是 chatAssets.import 的入参
+type ChatAssetsImportInputT = ChatAssetsImportInput
+type ChatAssetsImportOutputT = ChatAssetsImportOutput
+
 // ChatAssetsListInputT 是 chatAssets.list 的入参
 type ChatAssetsListInputT = any
 type ChatAssetsListOutputT = []ChatAssetsListOutputItem
@@ -6902,6 +7728,30 @@ type CliUpdatePreviewOutputT = CliUpdatePreviewOutput
 // CliUpdateRunInputT 是 cliUpdate.run 的入参
 type CliUpdateRunInputT = CliUpdateRunInput
 type CliUpdateRunOutputT = CliUpdateRunOutput
+
+// ConnectionsAddGithubInputT 是 connections.addGithub 的入参
+type ConnectionsAddGithubInputT = json.RawMessage
+type ConnectionsAddGithubOutputT = ConnectionsAddGithubOutput
+
+// ConnectionsCheckInputT 是 connections.check 的入参
+type ConnectionsCheckInputT = ConnectionsCheckInput
+type ConnectionsCheckOutputT = ConnectionsCheckOutput
+
+// ConnectionsDetectInputT 是 connections.detect 的入参
+type ConnectionsDetectInputT = ConnectionsDetectInput
+type ConnectionsDetectOutputT = ConnectionsDetectOutput
+
+// ConnectionsListInputT 是 connections.list 的入参
+type ConnectionsListInputT = any
+type ConnectionsListOutputT = []ConnectionsListOutputItem
+
+// ConnectionsRebindInputT 是 connections.rebind 的入参
+type ConnectionsRebindInputT = ConnectionsRebindInput
+type ConnectionsRebindOutputT = ConnectionsRebindOutput
+
+// ConnectionsRemoveInputT 是 connections.remove 的入参
+type ConnectionsRemoveInputT = ConnectionsRemoveInput
+type ConnectionsRemoveOutputT = bool
 
 // DelegateClearPinInputT 是 delegate.clearPin 的入参
 type DelegateClearPinInputT = DelegateClearPinInput
@@ -7839,6 +8689,94 @@ type StartupGetOutputT = StartupGetOutput
 type StartupSetInputT = StartupSetInput
 type StartupSetOutputT = StartupSetOutput
 
+// TasksAcceptInputT 是 tasks.accept 的入参
+type TasksAcceptInputT = TasksAcceptInput
+type TasksAcceptOutputT = TasksAcceptOutput
+
+// TasksApplyWorktreeInputT 是 tasks.applyWorktree 的入参
+type TasksApplyWorktreeInputT = TasksApplyWorktreeInput
+type TasksApplyWorktreeOutputT = *TasksApplyWorktreeOutput
+
+// TasksCancelInputT 是 tasks.cancel 的入参
+type TasksCancelInputT = TasksCancelInput
+type TasksCancelOutputT = TasksCancelOutput
+
+// TasksClearObservedInputT 是 tasks.clearObserved 的入参
+type TasksClearObservedInputT = TasksClearObservedInput
+type TasksClearObservedOutputT = bool
+
+// TasksCreateInputT 是 tasks.create 的入参
+type TasksCreateInputT = TasksCreateInput
+type TasksCreateOutputT = TasksCreateOutput
+
+// TasksDecideInputT 是 tasks.decide 的入参
+type TasksDecideInputT = TasksDecideInput
+type TasksDecideOutputT = TasksDecideOutput
+
+// TasksEventsInputT 是 tasks.events 的入参
+type TasksEventsInputT = TasksEventsInput
+type TasksEventsOutputT = TasksEventsOutput
+
+// TasksGetInputT 是 tasks.get 的入参
+type TasksGetInputT = TasksGetInput
+type TasksGetOutputT = *TasksGetOutput
+
+// TasksGrantInputT 是 tasks.grant 的入参
+type TasksGrantInputT = TasksGrantInput
+type TasksGrantOutputT = TasksGrantOutput
+
+// TasksInboxInputT 是 tasks.inbox 的入参
+type TasksInboxInputT = any
+type TasksInboxOutputT = []TasksInboxOutputItem
+
+// TasksJournalInputT 是 tasks.journal 的入参
+type TasksJournalInputT = TasksJournalInput
+type TasksJournalOutputT = []TasksJournalOutputItem
+
+// TasksListInputT 是 tasks.list 的入参
+type TasksListInputT = any
+type TasksListOutputT = TasksListOutput
+
+// TasksPauseInputT 是 tasks.pause 的入参
+type TasksPauseInputT = TasksPauseInput
+type TasksPauseOutputT = TasksPauseOutput
+
+// TasksProcessObservedInputT 是 tasks.processObserved 的入参
+type TasksProcessObservedInputT = TasksProcessObservedInput
+type TasksProcessObservedOutputT = TasksProcessObservedOutput
+
+// TasksReconcileInputT 是 tasks.reconcile 的入参
+type TasksReconcileInputT = TasksReconcileInput
+type TasksReconcileOutputT = TasksReconcileOutput
+
+// TasksRejectInputT 是 tasks.reject 的入参
+type TasksRejectInputT = TasksRejectInput
+type TasksRejectOutputT = TasksRejectOutput
+
+// TasksRemoveInputT 是 tasks.remove 的入参
+type TasksRemoveInputT = TasksRemoveInput
+type TasksRemoveOutputT = bool
+
+// TasksResumeInputT 是 tasks.resume 的入参
+type TasksResumeInputT = TasksResumeInput
+type TasksResumeOutputT = TasksResumeOutput
+
+// TasksRevokeInputT 是 tasks.revoke 的入参
+type TasksRevokeInputT = TasksRevokeInput
+type TasksRevokeOutputT = TasksRevokeOutput
+
+// TasksRunNowInputT 是 tasks.runNow 的入参
+type TasksRunNowInputT = TasksRunNowInput
+type TasksRunNowOutputT = TasksRunNowOutput
+
+// TasksSetModeInputT 是 tasks.setMode 的入参
+type TasksSetModeInputT = TasksSetModeInput
+type TasksSetModeOutputT = *TasksSetModeOutput
+
+// TasksUpdateInputT 是 tasks.update 的入参
+type TasksUpdateInputT = TasksUpdateInput
+type TasksUpdateOutputT = TasksUpdateOutput
+
 // ThemeGetInputT 是 theme.get 的入参
 type ThemeGetInputT = any
 type ThemeGetOutputT = ThemeGetOutput
@@ -8116,6 +9054,7 @@ type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin
 type EventCliUpdateEventT = EventCliUpdateEvent
+type EventConnectionsChangedT = any
 type EventDelegateCompletedT = EventDelegateCompleted
 type EventDesktopBubbleT = EventDesktopBubble
 type EventDesktopChangedT = EventDesktopChanged
@@ -8157,6 +9096,7 @@ type EventSchedChangedT = any
 type EventSchedProactiveT = EventSchedProactive
 type EventSchedResultT = EventSchedResult
 type EventStartupChangedT = EventStartupChanged
+type EventTasksChangedT = EventTasksChanged
 type EventThemeChangedT = EventThemeChanged
 type EventUpdatesChangedT = EventUpdatesChanged
 type EventUsageChangedT = any

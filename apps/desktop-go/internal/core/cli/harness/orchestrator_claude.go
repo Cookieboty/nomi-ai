@@ -402,7 +402,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	if useNode {
 		cmd, args = nodeExecPath(), append([]string{bin}, argv...)
 	}
-	child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.childEnv(useNode, sl, nil), id))
+	child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, sl, nil)), id))
 	if spawnLaunch != nil {
 		o.watchTabRelease(tab, child)
 	}

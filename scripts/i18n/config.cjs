@@ -27,7 +27,11 @@ module.exports = {
   keepZh: [
     /voice[\\/]src[\\/]wake\.ts$/,
     /core[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools|workspaceTools)\.ts$/,
-    /core[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService)\.ts$/,
+    /core[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService|intentHint)\.ts$/,
+    // 持续任务：给模型的提示词、工具描述与返回给模型的错误（授权卡片在 tasks/card.ts，走词典）
+    /core[\\/]src[\\/]tasks[\\/](tools|executors[\\/](nomi|cli))\.ts$/,
+    // 连接：github_read 的工具描述（给模型）
+    /core[\\/]src[\\/]connections[\\/]ConnectionService\.ts$/,
     /core[\\/]src[\\/]tts[\\/]legacy[\\/]/,
     /core[\\/]src[\\/]knowledge[\\/](tokenize|answer)\.ts$/,
     /core[\\/]src[\\/]schedule[\\/]recurrence\.ts$/,

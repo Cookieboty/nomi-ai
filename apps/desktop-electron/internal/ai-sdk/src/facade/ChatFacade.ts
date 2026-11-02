@@ -50,6 +50,13 @@ export interface ChatStreamOptions {
    * agent/agentStream 默认 `agent-tools`；后台摘要等可传 `summary`。
    */
   role?: LLMRole;
+  /**
+   * agent / agentStream 的工具白名单（按工具名）；缺省 = 全部已注册工具。
+   * 后台任务按授权裁剪工具（docs/design/persistent-tasks.md §7.1）。
+   */
+  tools?: readonly string[];
+  /** 不发 `session/assistant-message`（后台任务的执行不冒到桌面角色气泡） */
+  quiet?: boolean;
 }
 
 interface WithTools {
@@ -152,8 +159,9 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
     return reg ? (reg.list() as ToolDefinition[]) : [];
   };
 
-  const runAgent = (picked: Picked) => {
-    const tools = listTools();
+  const runAgent = (picked: Picked, allow?: readonly string[]) => {
+    const all = listTools();
+    const tools = allow ? all.filter((t) => allow.includes(t.name)) : all;
     if (hasWithTools(picked.provider) && tools.length > 0) {
       return picked.provider.withTools(tools);
     }
@@ -169,6 +177,7 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
     it: AsyncIterable<ChatChunk>,
     req: ChatRequest,
     provider: LLMProvider,
+    quiet = false,
   ): AsyncIterable<ChatChunk> => ({
     async *[Symbol.asyncIterator]() {
       let text = '';
@@ -182,7 +191,7 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
         }
       } finally {
         release();
-        if (text.trim()) {
+        if (text.trim() && !quiet) {
           try {
             ctx.emit('session/assistant-message', {
               message: {
@@ -216,12 +225,12 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
     async agent(opts) {
       const picked = pick(opts, 'agent-tools');
       const req = buildRequest(opts, picked);
-      return owned(req, picked.provider, () => runAgent(picked).chat(req));
+      return owned(req, picked.provider, () => runAgent(picked, opts.tools).chat(req));
     },
     agentStream(opts) {
       const picked = pick(opts, 'agent-tools');
       const req = { ...buildRequest(opts, picked), stream: true };
-      return tap(runAgent(picked).stream(req), req, picked.provider);
+      return tap(runAgent(picked, opts.tools).stream(req), req, picked.provider, opts.quiet);
     },
     abort(reqId) {
       // 先通知实际在跑的实例，再按当前路由兜底（还没开始迭代的流等）

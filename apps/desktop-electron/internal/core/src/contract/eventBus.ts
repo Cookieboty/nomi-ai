@@ -28,6 +28,8 @@ export interface ContractEventSink {
 export interface ContractEventBus extends AppEvents {
   /** 接上契约事件；返回断开函数（再次 attach 会替换上一个） */
   attach(sink: ContractEventSink): () => void;
+  /** 内核内部监听某个事件（如持续任务的 app 事件源）；返回取消函数 */
+  listen(event: AppEventName, fn: (payload: unknown) => void): () => void;
 }
 
 export function createContractEventBus(
@@ -36,9 +38,17 @@ export function createContractEventBus(
   pending?: PendingEvents,
 ): ContractEventBus {
   let sink: ContractEventSink | null = null;
+  const listeners = new Map<string, Set<(payload: unknown) => void>>();
 
   const publish = (event: AppEventName, payload: unknown, opts?: PublishOptions): void => {
     tap?.publish(event, payload, opts);
+    for (const fn of listeners.get(event) ?? []) {
+      try {
+        fn(payload);
+      } catch (error) {
+        logger?.warn('内部事件监听失败', { event, error: String(error) });
+      }
+    }
     pending?.offer(event, payload, (sink?.subscribers?.(event) ?? 0) > 0);
     if (!sink) return;
     try {
@@ -54,6 +64,12 @@ export function createContractEventBus(
 
   return {
     publish,
+    listen(event, fn) {
+      const set = listeners.get(event) ?? new Set();
+      set.add(fn);
+      listeners.set(event, set);
+      return () => set.delete(fn);
+    },
     attach(next) {
       sink = next;
       return () => {

@@ -350,14 +350,13 @@ func (d ImageDeps) GenerateAsset(ctx context.Context, req GenerateReq) (Generate
 	if now == nil {
 		now = time.Now
 	}
+	// 指定了模型（重新生成沿用原图的模型）就只用它：不可用时报错，不悄悄换成当前图片模型（#224）
 	var t *imageTarget
 	if req.ModelRef != "" {
-		t = d.targetFor(req.ModelRef)
-	}
-	if t == nil {
-		t = d.target()
-	}
-	if t == nil {
+		if t = d.targetFor(req.ModelRef); t == nil {
+			return GenerateResult{}, errors.New(i18n.T("electron.image.regenerate-model-unavailable", req.ModelRef))
+		}
+	} else if t = d.target(); t == nil {
 		return GenerateResult{}, errors.New(i18n.T("electron.image.no-image-model"))
 	}
 	var refs []media.Ref

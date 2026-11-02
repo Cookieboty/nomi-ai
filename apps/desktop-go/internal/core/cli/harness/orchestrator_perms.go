@@ -254,6 +254,9 @@ func (o *Orchestrator) armPermissionTimeout(tabID, requestID string) {
 // PermissionTimeoutMs = permissionTimeoutMs（Node 版为公开方法，这里同样导出）。
 func (o *Orchestrator) PermissionTimeoutMs(tabID string) float64 {
 	if d, _ := o.tab(tabID).Get("delegation").(*util.Obj); d != nil && !truthy(d.Get("takenOver")) {
+		if truthy(d.Get("taskId")) {
+			return TaskPermissionTimeoutMs
+		}
 		return DelegatedPermissionTimeoutMs
 	}
 	return PermissionTimeoutMs

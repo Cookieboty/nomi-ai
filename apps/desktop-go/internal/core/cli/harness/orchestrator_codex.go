@@ -133,7 +133,7 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 		if useNode {
 			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
 		}
-		child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.childEnv(useNode, spawnLaunch, nil), id))
+		child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil)), id))
 		o.watchTabRelease(tab, child)
 		child.OnStderr(func(c string) { o.d.Logger.Warn("harness codex stderr", clisdk.Slice0(c, 500)) })
 		driver := drivers.NewAppServerDriver(drivers.AppServerDriverOptions{

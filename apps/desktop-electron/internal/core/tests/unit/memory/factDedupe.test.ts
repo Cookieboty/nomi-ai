@@ -18,6 +18,26 @@ describe('事实去重：说法几乎一样的视为同一条', () => {
     expect(isDuplicateFact('喜欢猫', '喜欢狗')).toBe(false);
   });
 
+  it('多出来的是数字 / 中文数字 / 字母的不并：不同项目、不同数值（#223）', () => {
+    expect(isDuplicateFact('用户项目A预算是10万元', '用户项目AB预算是100万元')).toBe(false);
+    expect(isDuplicateFact('用户的项目代号是Atls计划', '用户的项目代号是Atlas计划')).toBe(false);
+    expect(isDuplicateFact('用户每周跑步三次左右', '用户每周跑步三十次左右')).toBe(false);
+    expect(isDuplicateFact('用户喜欢早上喝咖啡', '用户not喜欢早上喝咖啡')).toBe(false);
+    const f = (id: string, text: string, source: string, updatedAt: number) => ({
+      id,
+      text,
+      source,
+      updatedAt,
+    });
+    // 加载时的合并：两条用户亲口说的不同事实都留下
+    const r = dedupeFacts([
+      f('a', '用户项目A预算是10万元', 'user', 1),
+      f('b', '用户项目AB预算是100万元', 'user', 2),
+    ]);
+    expect(r.kept.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(r.dropped).toEqual([]);
+  });
+
   it('原有规则不变：完全相同、互相包含', () => {
     expect(isDuplicateFact('用户叫言哥', '用户叫言哥。')).toBe(true);
     expect(isDuplicateFact('用户在做 Nomi 项目', '用户在做 Nomi 项目，用 Go 重写')).toBe(true);

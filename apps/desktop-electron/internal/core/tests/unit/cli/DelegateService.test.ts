@@ -11,8 +11,14 @@ import path from 'node:path';
 import { runWithToolCaller } from '@nomi-ai/bundle-ig-base';
 
 import { HarnessStoppedError } from '../../../src/cli/CliHarnessService';
-import { DelegateService, untrusted } from '../../../src/cli/delegate/DelegateService';
+import {
+  DelegateService,
+  untrusted,
+  type DelegateTaskPort,
+} from '../../../src/cli/delegate/DelegateService';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
+import type { TaskRecord } from '../../../src/tasks/TaskStore';
+import type { Attempt, Task } from '../../../src/tasks/types';
 import { __setSpawnSyncForTest, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
@@ -48,6 +54,10 @@ function setup(
     autoApprove?: boolean;
     /** 已校验通过的对话工作区（workspaceOf 的结果）；ctx.cwd 有值时才生效 */
     workspace?: string;
+    /** 持续任务（后台委派 = 任务） */
+    tasks?: DelegateTaskPort;
+    /** 这个 signal 属于后台任务的执行（PermissionBroker.registerBackground 登记过） */
+    backgroundSignal?: AbortSignal;
   } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'delegate-'));
@@ -93,6 +103,7 @@ function setup(
     receiversFor: () => [{ id: 'cloud', name: 'Cloud', local: false }],
     broker: {
       permissionMode: () => o.mode ?? 'acceptEdits',
+      isBackground: (sig?: AbortSignal) => !!sig && sig === o.backgroundSignal,
       guard: async (p: string) =>
         o.granted === false
           ? { ok: false, code: 'not_granted', message: '未授权' }
@@ -124,6 +135,7 @@ function setup(
     harness: harness as never,
     desktop: desktop as never,
     ...(o.gateway ? { gateway: o.gateway as never } : {}),
+    ...(o.tasks ? { tasks: o.tasks } : {}),
   });
   if (o.settings) svc.setSettings(o.settings);
   const tool = svc.tools()[0]!;
@@ -424,6 +436,7 @@ describe('DelegateService · delegate_to_cli', () => {
       receiversFor: () => [{ id: 'cloud', name: 'Cloud', local: false }],
       broker: {
         permissionMode: () => 'acceptEdits' as const,
+        isBackground: () => false,
         guard: async (p: string) => ({ ok: true, real: p, scope: {}, exists: true }),
         authorize: async () => 'allowed' as const,
         workspaceOf: async () => null,
@@ -596,7 +609,7 @@ describe('DelegateService · P2 异步委派', () => {
     expect(followR.data?.status).toBe('done');
   });
 
-  it('已有 3 个委派在跑时，追问已完成的任务也受上限约束；跑完一个后可以追问（#141）', async () => {
+  it('已有 3 个委派在跑时，追问排队等名额（不再拒绝）；跑完一个后接着追问（#141、2.3）', async () => {
     const gates: Array<(v: { text: string }) => void> = [];
     let calls = 0;
     const s = setup({
@@ -626,18 +639,15 @@ describe('DelegateService · P2 异步委派', () => {
     }
     // 第四个首次委派被拒
     expect((await s.run({ background: true })).error?.code).toBe('concurrency_limit');
-    const r = (await follow.execute({ taskId: aId, message: '再看看' }, {})) as {
-      ok: boolean;
-      error?: { code: string };
-    };
-    expect(r.error?.code).toBe('concurrency_limit');
+    // 追问排队：名额满时不发出去
+    const p = follow.execute({ taskId: aId, message: '再看看' }, {});
     await until(() => gates.length === 3);
+    await new Promise((r) => setTimeout(r, 50));
     expect(calls).toBe(4);
 
-    // 完成一个，名额回来
+    // 完成一个，名额回来，排队的追问接着发
     gates[0]!({ text: REPORT });
     await until(async () => (await statusOf(running[0]!)) === 'done');
-    const p = follow.execute({ taskId: aId, message: '再看看' }, {});
     await until(() => gates.length === 4);
     expect(calls).toBe(5);
     gates[3]!({ text: REPORT });
@@ -802,5 +812,315 @@ describe('DelegateService · gitChanged', () => {
     expect(String(s.created[0]?.cwd)).toContain('.nomi-delegate');
     expect(r.data?.isolationNote).toMatch(/worktree/);
     fs.rmSync(repo, { recursive: true, force: true });
+  });
+});
+
+/** 假的持续任务：只记状态与命令，状态由测试推进 */
+function fakeTasks() {
+  const recs = new Map<string, TaskRecord>();
+  const notes = new Set<string>();
+  const listeners: Array<(id: string) => void> = [];
+  const commands: Array<[string, unknown]> = [];
+  const created: unknown[] = [];
+  const port: DelegateTaskPort = {
+    createDelegated: (i) => {
+      created.push(i);
+      const task = {
+        id: `task_${recs.size + 1}`,
+        title: i.title,
+        goal: i.goal,
+        origin: {
+          createdBy: 'nomi',
+          createdAt: 1,
+          via: 'delegate',
+          ...(i.conversationId ? { conversationId: i.conversationId } : {}),
+        },
+        executor: i.executor,
+        grant: {
+          level: i.level,
+          paths: i.paths,
+          connections: [],
+          clis: i.executor.kind === 'cli' ? [i.executor.cli] : [],
+        },
+        status: 'queued',
+      } as unknown as Task;
+      recs.set(task.id, { task, attempts: [] });
+      return task;
+    },
+    get: (id) => recs.get(id) ?? null,
+    command: (id, cmd) => {
+      commands.push([id, cmd]);
+      const rec = recs.get(id);
+      if (!rec) return { ok: false };
+      if (cmd.type === 'cancel') rec.task.status = 'cancelled';
+      if (cmd.type === 'reject') {
+        if (rec.task.status !== 'awaiting_accept') return { ok: false, reason: 'illegal' };
+        rec.task.status = 'queued';
+      }
+      return { ok: true };
+    },
+    announced: (id, a) => notes.has(`${id}:${a}`),
+    markAnnounced: (id, a) => void notes.add(`${id}:${a}`),
+    onChange: (fn) => {
+      listeners.push(fn);
+      return () => undefined;
+    },
+  };
+  const advance = (id: string, status: string, attempt?: Partial<Attempt>) => {
+    const rec = recs.get(id)!;
+    rec.task.status = status as Task['status'];
+    if (attempt) rec.attempts = [{ id: `att_${rec.attempts.length + 1}`, ...attempt } as Attempt];
+    for (const l of listeners) l(id);
+  };
+  return { port, recs, commands, created, advance };
+}
+
+describe('DelegateService · 后台委派 = 持续任务（2.2–2.4）', () => {
+  it('后台委派建成任务（L3、路径 = 工作目录、带完成标准）；没开全部自动时命令都问人', async () => {
+    const t = fakeTasks();
+    const s = setup({ tasks: t.port });
+    const r = await s.run(
+      { background: true, context: '在 src/login', out_of_scope: '别动 CI' },
+      { conversationId: 'conv_1', toolCallId: 'call-7' },
+    );
+    expect(r.ok).toBe(true);
+    expect(r.data!.taskId).toBe('task_1');
+    expect(r.data!.task).toMatchObject({ id: 'task_1', status: 'queued' });
+    expect(s.created).toHaveLength(0);
+    expect(t.created[0]).toMatchObject({
+      goal: '修复登录 bug',
+      conversationId: 'conv_1',
+      level: 3,
+      paths: [s.cwd],
+      executor: {
+        kind: 'cli',
+        cli: 'claude',
+        cwd: s.cwd,
+        isolation: 'worktree',
+        askCommands: true,
+        // 对话里的子任务卡片据此找到标签（E36：查看、停止）
+        callId: 'call-7',
+        brief: { doneWhen: 'npm test 通过', context: '在 src/login', outOfScope: '别动 CI' },
+      },
+    });
+    expect(s.authorized[0]).toMatchObject({ tool: 'delegate_to_cli' });
+    // 全部自动：命令按审核放行
+    const t2 = fakeTasks();
+    await setup({ tasks: t2.port, autoApprove: true }).run({ background: true });
+    expect((t2.created[0] as { executor: { askCommands?: boolean } }).executor.askCommands).toBe(
+      undefined,
+    );
+    // 用户拒绝：不建任务
+    const t3 = fakeTasks();
+    const s3 = setup({ tasks: t3.port, decision: 'denied' });
+    expect((await s3.run({ background: true })).error?.code).toBe('user_denied');
+    expect(t3.created).toHaveLength(0);
+  });
+
+  it('做完进验收时回报来源对话（只报一次）；状态、追问、停止都按任务', async () => {
+    const t = fakeTasks();
+    const s = setup({ tasks: t.port });
+    const id = (await s.run({ background: true }, { conversationId: 'c' })).data!.taskId as string;
+    const tools = Object.fromEntries(s.svc.tools().map((x) => [x.name, x]));
+    const call = async (name: string, raw: unknown) =>
+      (await tools[name]!.execute(raw, {})) as {
+        ok: boolean;
+        data?: Record<string, unknown>;
+        error?: { code: string };
+      };
+
+    t.advance(id, 'running');
+    expect((await call('delegate_status', { taskId: id })).data!.status).toBe('running');
+    expect((await call('delegate_followup', { taskId: id, message: 'x' })).error?.code).toBe(
+      'busy',
+    );
+    t.advance(id, 'awaiting_accept', {
+      result: { summary: '改好了', artifacts: [{ kind: 'file', ref: 'a.ts' }] },
+      carrier: { worktree: '/wt/1' },
+      endedAt: 10,
+    } as Partial<Attempt>);
+    t.advance(id, 'awaiting_accept');
+    const done = s.events.published.filter((e) => e.event === 'delegate.completed');
+    expect(done).toHaveLength(1);
+    expect(done[0]!.payload).toMatchObject({
+      taskId: id,
+      status: 'done',
+      changedFiles: ['a.ts'],
+      conversationId: 'c',
+    });
+    expect(String((done[0]!.payload as { isolationNote: string }).isolationNote)).toContain(
+      '/wt/1',
+    );
+    // 追问 = 退回带意见
+    expect((await call('delegate_followup', { taskId: id, message: '再加个测试' })).ok).toBe(true);
+    expect(t.commands).toContainEqual([id, { type: 'reject', feedback: '再加个测试' }]);
+    // 停止 = 取消任务；结束了再停报 not_running
+    expect((await call('delegate_stop', { taskId: id })).ok).toBe(true);
+    expect(t.commands).toContainEqual([id, { type: 'cancel' }]);
+    expect((await call('delegate_followup', { taskId: id, message: 'x' })).error?.code).toBe(
+      'not_followable',
+    );
+    expect((await call('delegate_stop', { taskId: 'nope' })).error?.code).toBe('unknown_task');
+  });
+
+  it('失败的任务带错误码', async () => {
+    const t = fakeTasks();
+    const s = setup({ tasks: t.port });
+    const id = (await s.run({ background: true })).data!.taskId as string;
+    t.recs.get(id)!.task.lastError = { code: 'config_changed', message: 'claude 不可用' };
+    t.advance(id, 'failed', { endedAt: 5 } as Partial<Attempt>);
+    const done = s.events.published.filter((e) => e.event === 'delegate.completed');
+    expect(done[0]!.payload).toMatchObject({ status: 'error', errorCode: 'config_changed' });
+  });
+
+  it('空出一个名额只放进一个排队的（不超上限）', async () => {
+    const gates: Array<(v: { text: string }) => void> = [];
+    const s = setup({ send: () => new Promise((r) => gates.push(r)) });
+    const until = async (ok: () => boolean) => {
+      for (let i = 0; i < 500 && !ok(); i++) await new Promise((r) => setTimeout(r, 10));
+      expect(ok()).toBe(true);
+    };
+    const runs = [1, 2, 3].map(() => s.run({}));
+    await until(() => gates.length === 3);
+    const waiting = [s.run({}), s.run({})];
+    gates[0]!({ text: REPORT });
+    await until(() => gates.length === 4);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(gates).toHaveLength(4);
+    for (let i = 1; i < 4; i++) gates[i]!({ text: REPORT });
+    await until(() => gates.length === 5);
+    gates[4]!({ text: REPORT });
+    for (const p of [...runs, ...waiting]) expect((await p).ok).toBe(true);
+  });
+
+  it('同步委派名额满了排队等，Nomi 这一轮停了就退出排队', async () => {
+    const gates: Array<(v: { text: string }) => void> = [];
+    const s = setup({ send: () => new Promise((r) => gates.push(r)) });
+    const first = [1, 2, 3].map(() => s.run({}));
+    const until = async (ok: () => boolean) => {
+      for (let i = 0; i < 500 && !ok(); i++) await new Promise((r) => setTimeout(r, 10));
+    };
+    await until(() => gates.length === 3);
+    const ac = new AbortController();
+    const queued = s.run({}, { signal: ac.signal });
+    const fourth = s.run({});
+    await new Promise((r) => setTimeout(r, 50));
+    expect(gates).toHaveLength(3);
+    ac.abort();
+    expect((await queued).error?.code).toBe('cancelled');
+    gates[0]!({ text: REPORT });
+    await until(() => gates.length === 4);
+    gates[1]!({ text: REPORT });
+    gates[2]!({ text: REPORT });
+    gates[3]!({ text: REPORT });
+    expect((await fourth).ok).toBe(true);
+    for (const p of first) expect((await p).ok).toBe(true);
+  });
+});
+
+describe('DelegateService · 派给 Nomi（persistent-tasks §7.4）', () => {
+  const nomiTool = (svc: DelegateService) =>
+    svc.tools().find((x) => x.name === 'delegate_to_nomi')!;
+  const dispatch = (
+    s: ReturnType<typeof setup>,
+    input: Record<string, unknown> = {},
+    ctx: Record<string, unknown> = {},
+  ) =>
+    nomiTool(s.svc).execute(
+      { goal: '做一套 10 页的 PPT', done_when: 'deck.pptx 写进工作区', ...input },
+      ctx,
+    ) as Promise<{
+      ok: boolean;
+      data?: Record<string, unknown>;
+      error?: { code: string };
+    }>;
+
+  it('建成执行者为后台 Nomi 的任务：对话的工具集、工作区、完成标准；先按对话的规则确认', async () => {
+    const t = fakeTasks();
+    const s = setup({ tasks: t.port, workspace: '/work/deck' });
+    const r = await dispatch(
+      s,
+      { context: '蓝色调', kind: 'writing' },
+      { conversationId: 'c1', cwd: '/work/deck', toolCallId: 'call-1' },
+    );
+    expect(r.ok).toBe(true);
+    expect(r.data).toMatchObject({ taskId: 'task_1', cli: 'nomi', status: 'running' });
+    expect(r.data!.isolationNote).toBeUndefined();
+    expect(t.created[0]).toMatchObject({
+      conversationId: 'c1',
+      level: 4,
+      paths: ['/work/deck'],
+      category: 'writing',
+      executor: {
+        kind: 'nomi',
+        tools: [],
+        toolset: 'conversation',
+        cwd: '/work/deck',
+        brief: { doneWhen: 'deck.pptx 写进工作区', context: '蓝色调' },
+        callId: 'call-1',
+      },
+    });
+    expect(s.authorized[0]).toMatchObject({ tool: 'delegate_to_nomi', inWorkspace: true });
+    // 不需要编程助手：没有标签
+    expect(s.created).toHaveLength(0);
+  });
+
+  it('逐项确认也给高级权限（L4）；计划档拒绝；用户拒绝不建任务', async () => {
+    const t = fakeTasks();
+    await dispatch(setup({ tasks: t.port, mode: 'manual' }));
+    expect(t.created[0]).toMatchObject({ level: 4 });
+    expect('askWrites' in (t.created[0] as { executor: object }).executor).toBe(false);
+    const t2 = fakeTasks();
+    expect((await dispatch(setup({ tasks: t2.port, mode: 'plan' }))).error?.code).toBe(
+      'mode_blocked',
+    );
+    const t3 = fakeTasks();
+    expect((await dispatch(setup({ tasks: t3.port, decision: 'denied' }))).error?.code).toBe(
+      'user_denied',
+    );
+    expect([...t2.created, ...t3.created]).toHaveLength(0);
+  });
+
+  it('只派一层：后台的 Nomi、编程助手标签里都不能再派 Nomi', async () => {
+    const t = fakeTasks();
+    const bg = new AbortController().signal;
+    const s = setup({ tasks: t.port, backgroundSignal: bg });
+    expect((await dispatch(s, {}, { signal: bg })).error?.code).toBe('delegation_depth');
+    expect((await dispatch(s, {}, { callerTabId: 'tab-1' })).error?.code).toBe('delegation_depth');
+    expect(t.created).toHaveLength(0);
+  });
+
+  it('做完回报来源对话；不能追问，能停止', async () => {
+    const t = fakeTasks();
+    const s = setup({ tasks: t.port });
+    const id = (await dispatch(s, {}, { conversationId: 'c' })).data!.taskId as string;
+    const tools = Object.fromEntries(s.svc.tools().map((x) => [x.name, x]));
+    t.advance(id, 'done', {
+      result: { summary: '6 张图都进了素材库', artifacts: [] },
+      endedAt: 10,
+    } as Partial<Attempt>);
+    const done = s.events.published.filter((e) => e.event === 'delegate.completed');
+    expect(done).toHaveLength(1);
+    expect(done[0]!.payload).toMatchObject({ taskId: id, cli: 'nomi', status: 'done' });
+    expect(String((done[0]!.payload as { summary: string }).summary)).toContain('素材库');
+    const followup = (await tools.delegate_followup!.execute({ taskId: id, message: 'x' }, {})) as {
+      error?: { code: string };
+    };
+    expect(followup.error?.code).toBe('not_followable');
+    expect(
+      ((await tools.delegate_status!.execute({ taskId: id }, {})) as { data: { cli: string } }).data
+        .cli,
+    ).toBe('nomi');
+  });
+
+  it('后台的 Nomi 里委派编程助手：一律同步等结果，不建任务', async () => {
+    const t = fakeTasks();
+    const bg = new AbortController().signal;
+    const s = setup({ tasks: t.port, backgroundSignal: bg });
+    const r = await s.run({ background: true }, { signal: bg });
+    expect(r.ok).toBe(true);
+    expect(r.data!.status).toBe('done');
+    expect(t.created).toHaveLength(0);
+    expect(s.created).toHaveLength(1);
   });
 });

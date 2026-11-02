@@ -39,7 +39,14 @@ export interface ChatMessage {
   /** 用户用 `/cli` 指定这条需求交给哪个编程助手（docs/design/nomi-delegate-cli.md §4.6） */
   delegateTo?: 'claude' | 'codex' | 'grok' | 'gemini' | 'dsh';
   /** 用户消息附带的图片：只保存缩略图（原图只随本轮发送，不进历史） */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
+  images?: Array<{
+    thumb: string;
+    width: number;
+    height: number;
+    source?: string;
+    /** 原图存进素材库后的地址（chat-asset://images/user-…）：可放大、复制，模型改图 / 参考时引用 */
+    url?: string;
+  }>;
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */

@@ -1,6 +1,11 @@
 package delegate
 
-// DelegateService.ts：Nomi 把编程助手当子代理调用（delegate_to_cli / delegate_status / delegate_followup）。
+// DelegateService.ts：Nomi 把编程助手当子代理调用（delegate_to_cli / delegate_status / delegate_followup / delegate_stop）。
+// 2.1.0（persistent-tasks-plan 2.2–2.4、2.8）：有持续任务时后台委派就是持续任务（executor: cli）——排队代替拒绝、
+// 瞬时错误重试一次、重启后在同一 worktree 续跑、做完进验收（不自动回填）；`delegate_stop` 停止；
+// 同步委派（background:false）照旧，名额满了排队等，不再拒绝。
+// 派给 Nomi（persistent-tasks §7.4）：工具 `delegate_to_nomi` 建一个执行者为后台 Nomi 的任务（对话的工具集），
+// 结果同样经 `delegate.completed` 回到来源对话；后台 Nomi 里再委派编程助手一律同步等结果。
 
 import (
 	"context"
@@ -10,6 +15,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"sync"
@@ -21,11 +27,14 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh"}
+// cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi（§7.4）
+var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh",
+	"nomi": "后台的 Nomi"}
 
 // PinTTL：/agent 钉住的有效期
 const PinTTL = 10 * 60_000
@@ -75,7 +84,33 @@ type Deps struct {
 	Events  deps.Events
 	Now     func() float64
 	Random  func() float64
+	// Tasks：持续任务；有它时后台委派建成任务（排队、重试、重启续跑、验收）
+	Tasks TaskPort
 }
+
+// TaskPort：委派用到的持续任务能力（tasks.Service 的子集，对应 DelegateTaskPort）
+type TaskPort interface {
+	CreateDelegated(i tasks.DelegatedInput) tasks.Task
+	Get(id string) *tasks.Record
+	// Command：cancel | reject{feedback}
+	Command(id string, c tasks.Command) tasks.CmdResult
+	Announced(id, attemptID string) bool
+	MarkAnnounced(id, attemptID string)
+	// OnChange：任务有变化（tasks.changed）。回调可能在任务运行时持锁时触发，委派这边转到别的 goroutine 再处理
+	OnChange(fn func(id string)) func()
+}
+
+// DelegateErrorCodes：委派的错误码（工具返回的 error.code 与结果里的 errorCode；persistent-tasks-plan 2.8）。
+// 任务执行的错误码（upstream_transient、network、config_changed……）原样透传。
+var DelegateErrorCodes = []string{
+	"delegate_disabled", "delegation_depth", "cli_unavailable", "cwd_outside_workspace", "cwd_required",
+	"cwd_not_granted", "isolation_failed", "mode_blocked", "user_denied", "timeout_denied", "invalid_model",
+	"model_not_in_catalog", "unknown_task", "busy", "concurrency_limit", "taken_over", "not_followable",
+	"cancelled", "executor_failed", "delegate_interrupted_by_restart", "internal_error",
+}
+
+// taskSettled：任务里「做完 / 结束」的状态：委派结果回报给来源对话
+var taskSettled = []string{tasks.StatusAwaitingAccept, tasks.StatusDone, tasks.StatusFailed, tasks.StatusCancelled, tasks.StatusExpired}
 
 type bgTask struct {
 	o   *util.Obj // 持久化形状（键序同 Node 对象）
@@ -102,8 +137,12 @@ type Service struct {
 	order    []string
 	tasks    map[string]*bgTask
 	reserved int
-	persist  sync.Mutex
-	wg       sync.WaitGroup
+	// waiters：排队等名额的同步委派 / 追问（先来先得）；放行时名额已经替它占好
+	waiters []chan struct{}
+	persist sync.Mutex
+	wg      sync.WaitGroup
+	// announceMu：任务结束的回报串行做（同一次结果只报一次）
+	announceMu sync.Mutex
 }
 
 type pin struct {
@@ -128,7 +167,147 @@ func New(d Deps) *Service {
 	s := &Service{d: d, pins: map[string]pin{}, tasks: map[string]*bgTask{}}
 	s.settings = s.load()
 	s.loadTasks()
+	// 后台委派任务结束：把结果回报给来源对话（只报一次，记在任务日志里）。
+	// 任务运行时可能持锁回调：转到新 goroutine，别在回调里回到运行时
+	if d.Tasks != nil {
+		d.Tasks.OnChange(func(id string) { go s.announceTask(id) })
+	}
 	return s
+}
+
+func (s *Service) announceTask(id string) {
+	port := s.d.Tasks
+	if port == nil {
+		return
+	}
+	s.announceMu.Lock()
+	defer s.announceMu.Unlock()
+	rec := port.Get(id)
+	if rec == nil || !isDelegateTask(rec) || len(rec.Attempts) == 0 || !contains(taskSettled, rec.Task.Status) {
+		return
+	}
+	attempt := rec.Attempts[len(rec.Attempts)-1]
+	if port.Announced(id, attempt.ID) {
+		return
+	}
+	port.MarkAnnounced(id, attempt.ID)
+	s.d.Events.Publish("delegate.completed", s.resultFromTask(rec))
+}
+
+func isDelegateTask(rec *tasks.Record) bool {
+	return rec.Task.Origin.Via != nil && *rec.Task.Origin.Via == "delegate"
+}
+
+// taskRecord：对话里委派出去的持续任务；不是返回 nil
+func (s *Service) taskRecord(taskID string) *tasks.Record {
+	if s.d.Tasks == nil {
+		return nil
+	}
+	if rec := s.d.Tasks.Get(taskID); rec != nil && isDelegateTask(rec) {
+		return rec
+	}
+	return nil
+}
+
+func ps(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// resultFromTask：后台委派任务 → 委派结果（给模型、给对话里的卡片）
+func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
+	task := rec.Task
+	var attempt *tasks.Attempt
+	if n := len(rec.Attempts); n > 0 {
+		attempt = &rec.Attempts[n-1]
+	}
+	nomi := task.Executor.Kind == "nomi"
+	cli := "claude"
+	if task.Executor.Kind == "cli" && task.Executor.Cli != nil {
+		cli = *task.Executor.Cli
+	} else if nomi {
+		cli = "nomi"
+	}
+	status := "running"
+	switch task.Status {
+	case tasks.StatusAwaitingAccept, tasks.StatusDone:
+		status = "done"
+	case tasks.StatusCancelled:
+		status = "cancelled"
+	case tasks.StatusFailed, tasks.StatusExpired:
+		status = "error"
+	}
+	changed := []string{}
+	worktree := ""
+	if attempt != nil {
+		if attempt.Result != nil {
+			for _, a := range attempt.Result.Artifacts {
+				if a.Kind == "file" {
+					changed = append(changed, a.Ref)
+				}
+			}
+		}
+		if attempt.Carrier != nil {
+			worktree = ps(attempt.Carrier.Worktree)
+		}
+	}
+	changed = head(changed, 50)
+	waiting, hasWaiting := "", task.Status == tasks.StatusWaitingUser
+	if hasWaiting && task.Wait != nil {
+		waiting = slice(ps(task.Wait.Detail), 300)
+	}
+	var summary string
+	switch {
+	case status != "running":
+		sum := ""
+		if attempt != nil && attempt.Result != nil {
+			sum = attempt.Result.Summary
+		}
+		summary = Untrusted(sum)
+	case task.Status == tasks.StatusQueued:
+		summary = cliName[cli] + " 的任务在排队（同时运行的任务已满），轮到后自动开始：" + slice(task.Goal, 80)
+	case hasWaiting:
+		summary = cliName[cli] + " 停下来等用户处理（在任务页）：" + waiting
+	default:
+		summary = cliName[cli] + " 仍在后台执行：" + slice(task.Goal, 80)
+	}
+	res := util.NewObj("taskId", task.ID, "cli", cli, "status", status)
+	if status == "cancelled" {
+		res.Set("cancelledBy", "user")
+	}
+	res.Set("summary", summary)
+	if len(changed) > 0 {
+		res.Set("changedFiles", toAnyList(changed))
+	}
+	res.Set("filesVerified", false)
+	res.Set("approvals", approvalsZero())
+	if status == "error" && task.LastError != nil {
+		res.Set("error", task.LastError.Message)
+		res.Set("errorCode", task.LastError.Code)
+	}
+	end := s.d.Now()
+	if attempt != nil && attempt.EndedAt != nil {
+		end = float64(*attempt.EndedAt)
+	}
+	res.Set("durationMs", math.Max(0, end-float64(task.Origin.CreatedAt)))
+	switch {
+	case nomi:
+	case worktree != "":
+		res.Set("isolationNote", "改动在独立的 worktree（"+worktree+"）里，用户在任务页验收后再回填到工作区")
+	default:
+		res.Set("isolationNote", "工作目录不是 git 仓库，改动直接在工作目录里")
+	}
+	if task.Origin.ConversationID != nil && *task.Origin.ConversationID != "" {
+		res.Set("conversationId", *task.Origin.ConversationID)
+	}
+	tv := util.NewObj("id", task.ID, "status", task.Status)
+	if hasWaiting {
+		tv.Set("waiting", waiting)
+	}
+	res.Set("task", tv)
+	return res
 }
 
 // WaitIdle：等后台 runChild 收尾（测试 / 退出用；Node 侧是悬空 promise）
@@ -189,6 +368,7 @@ func (s *Service) loadTasks() {
 				"summary", Untrusted("应用在委派任务完成前退出，任务已标记为中断；请重新委派。"),
 				"filesVerified", false, "approvals", approvalsZero(),
 				"error", "delegate_interrupted_by_restart",
+				"errorCode", "delegate_interrupted_by_restart",
 				"durationMs", math.Max(0, s.d.Now()-t.started()),
 				"isolationNote", jsIsoNote(o.Get("isolation").(*util.Obj)),
 			))
@@ -390,6 +570,17 @@ func (s *Service) Tools() []tools.Definition {
 			},
 		},
 		{
+			Name: "delegate_to_nomi",
+			Description: "把一件要做一阵子的事交给后台的 Nomi（你自己的分身）去做，这一轮立刻结束、对话照常继续，做完结果自动回到这个对话。" +
+				"适合：生成一组图片、写 PPT / 文档 / 调研报告、整理一批文件这类多步的活，或用户说「后台做」「做好叫我」。" +
+				"后台的 Nomi 能用你在对话里的工具（生图、联网、技能、文件、命令），代码部分会自己再交给编程助手。" +
+				"一两步就能做完的事直接自己做，不要派。可用 delegate_status 查进度、delegate_stop 停止。",
+			Input: mustSchema(nomiInputSchema),
+			Execute: func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
+				return s.executeNomi(ctx, in, ec), nil
+			},
+		},
+		{
 			Name: "delegate_status",
 			Description: "查询后台委派任务的状态与结果（taskId 来自 delegate_to_cli）。仍在跑时 status 为 running；" +
 				"完成后返回与同步委派相同的结构化汇报。",
@@ -405,7 +596,49 @@ func (s *Service) Tools() []tools.Definition {
 				return s.executeFollowup(ctx, in, ec), nil
 			},
 		},
+		{
+			Name: "delegate_stop",
+			Description: "停止一个还在跑或在排队的委派（taskId 来自 delegate_to_cli）。用户说不要了、目标变了时用；" +
+				"已经做出的改动保留（在 worktree 里），不会回填。",
+			Input:   mustSchema(stopInputSchema),
+			Execute: s.executeStop,
+		},
 	}
+}
+
+// executeStop：delegate_stop：后台委派任务 → 取消任务；同步委派 / 旧的后台委派 → 停掉标签
+func (s *Service) executeStop(_ context.Context, raw any, _ tools.ExecContext) (any, error) {
+	in, err := parseInput(mustSchema(stopInputSchema), raw)
+	if err != nil {
+		return nil, err
+	}
+	id := util.Str(in.Get("taskId"))
+	if rec := s.taskRecord(id); rec != nil {
+		if r := s.d.Tasks.Command(id, tasks.Command{Type: "cancel"}); !r.OK {
+			return errResult("not_running", "这个委派已经结束（"+rec.Task.Status+"）"), nil
+		}
+		s.audit("delegate_stop", util.NewObj("taskId", id), "allowed", "ok", s.d.Now())
+		if next := s.d.Tasks.Get(id); next != nil {
+			rec = next
+		}
+		return util.NewObj("ok", true, "data", s.resultFromTask(rec)), nil
+	}
+	s.mu.Lock()
+	t := s.tasks[id]
+	st := ""
+	if t != nil {
+		st = t.status()
+	}
+	s.mu.Unlock()
+	if t == nil {
+		return errResult("unknown_task", "没有这个委派任务："+id), nil
+	}
+	if st != "running" {
+		return errResult("not_running", "这个委派已经结束（"+st+"）"), nil
+	}
+	s.d.Harness.CancelTab(id)
+	s.audit("delegate_stop", util.NewObj("taskId", id), "allowed", "ok", s.d.Now())
+	return util.NewObj("ok", true, "data", s.StatusOf(id)), nil
 }
 
 func (s *Service) findTab(id string) *util.Obj {
@@ -427,6 +660,9 @@ func delegationOf(tab *util.Obj) *util.Obj {
 
 // StatusOf：后台任务当前结果（终态或 running 占位）；没有返回 nil
 func (s *Service) StatusOf(taskID string) *util.Obj {
+	if rec := s.taskRecord(taskID); rec != nil {
+		return s.resultFromTask(rec)
+	}
 	s.mu.Lock()
 	t := s.tasks[taskID]
 	var res *util.Obj
@@ -528,6 +764,125 @@ func (s *Service) executeFollowup(sig context.Context, raw any, ec tools.ExecCon
 
 func optStr(in *util.Obj, k string) string { return util.Str(in.Get(k)) }
 
+func (s *Service) executeNomi(sig context.Context, raw any, ec tools.ExecContext) *util.Obj {
+	t0 := s.d.Now()
+	data, err := func() (*util.Obj, error) {
+		in, err := parseInput(mustSchema(nomiInputSchema), raw)
+		if err != nil {
+			return nil, err
+		}
+		return s.delegateToNomi(in, &execCtx{sig, ec}, t0)
+	}()
+	if err != nil {
+		code := codeOf(err)
+		dec := "error"
+		if code == "user_denied" || code == "mode_blocked" {
+			dec = "denied"
+		}
+		s.audit("delegate_to_nomi", util.NewObj(), dec, code, t0)
+		return errResult(code, err.Error())
+	}
+	kind := "writing"
+	if o, ok := raw.(*util.Obj); ok && o.Get("kind") != nil {
+		kind = jsString(o.Get("kind"))
+	}
+	s.audit("delegate_to_nomi", util.NewObj("kind", kind), "allowed", util.Str(data.Get("status")), t0)
+	return util.NewObj("ok", true, "data", data)
+}
+
+const nomiPlanBlocked = "当前是「计划」（只读）权限模式，不能派后台的 Nomi 去做；先给出方案，等用户切换权限模式"
+
+// delegateToNomi：派给 Nomi（§7.4）：建一个执行者为后台 Nomi 的任务，用对话的工具集、在对话的工作区里做；
+// 高级权限（为了自动化）：计划档拒绝；其余一律 L4、已装的 MCP 工具都能用，不因对话是「逐项确认」降级；
+// 破坏性动作、凭据 / 永不放行的命令、审核不放行的命令仍停下来等人（PermissionBroker 的 trusted 后台执行）。
+func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, error) {
+	port := s.d.Tasks
+	if port == nil {
+		return nil, derr("internal_error", "持续任务没有启动，不能派给后台的 Nomi")
+	}
+	b := s.d.Desktop
+	if c.ec.CallerTabID != "" {
+		return nil, derr("delegation_depth", "编程助手不能把任务派给 Nomi（只允许一层）")
+	}
+	if desktop.BackgroundFrom(c.sig) != nil {
+		return nil, derr("delegation_depth", "后台的 Nomi 不能再派 Nomi：自己做完，或用 delegate_to_cli 把代码部分交给编程助手")
+	}
+	mode := b.PermissionMode()
+	if mode == "plan" {
+		return nil, derr("mode_blocked", nomiPlanBlocked)
+	}
+	var ctxCwd any
+	if c.ec.Cwd != "" {
+		ctxCwd = c.ec.Cwd
+	}
+	ws := b.WorkspaceOf(ctxCwd)
+	authorize := b.Authorize
+	if ws != "" {
+		authorize = b.AuthorizeIn
+	}
+	goal := util.Str(in.Get("goal"))
+	doneWhen := util.Str(in.Get("done_when"))
+	args := util.NewObj("goal", goal)
+	if ws != "" {
+		args.Set("cwd", ws)
+	}
+	preview := goal + "\n\n完成标准：" + doneWhen
+	decision := authorize(desktop.AuthorizeInput{
+		Tool: "delegate_to_nomi", Danger: "write",
+		Summary: "让后台的 Nomi 去做：" + slice(goal, 80),
+		Args:    args, Preview: &preview, Signal: c.sig,
+	})
+	switch decision {
+	case "blocked":
+		return nil, derr("mode_blocked", nomiPlanBlocked)
+	case "denied":
+		return nil, derr("user_denied", "用户没有同意这次委派，不要重试")
+	case "timeout":
+		return nil, derr("timeout_denied", "没有等到用户确认，已取消委派")
+	}
+	toolset := "conversation"
+	ex := tasks.ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: &toolset,
+		Brief: &tasks.Brief{DoneWhen: doneWhen}}
+	if ws != "" {
+		v := ws
+		ex.Cwd = &v
+	}
+	if ctxText := optStr(in, "context"); ctxText != "" {
+		ex.Brief.Context = &ctxText
+	}
+	if c.ec.ToolCallID != "" {
+		v := c.ec.ToolCallID
+		ex.CallID = &v
+	}
+	paths := []string{}
+	if ws != "" {
+		paths = []string{ws}
+	}
+	category := optStr(in, "kind")
+	if category == "" {
+		category = "writing"
+	}
+	di := tasks.DelegatedInput{Title: "Nomi · " + slice(trim(goal), 40), Goal: goal, Executor: ex, Level: 4,
+		Paths: paths, Category: category}
+	if c.ec.ConversationID != "" {
+		cid := c.ec.ConversationID
+		di.ConversationID = &cid
+	}
+	task := port.CreateDelegated(di)
+	var result *util.Obj
+	if rec := port.Get(task.ID); rec != nil {
+		result = s.resultFromTask(rec)
+	} else {
+		result = util.NewObj("taskId", task.ID, "cli", "nomi", "status", "running", "summary", "",
+			"filesVerified", false, "approvals", approvalsZero(), "durationMs", 0.0)
+	}
+	result.Set("summary", util.Str(result.Get("summary"))+"。已交给后台的 Nomi（任务页可看进度）：同时运行的任务满了会排队；"+
+		"做完后结果会自动回到这个对话。这一轮不用等它，告诉用户已经派出去了即可；"+
+		"可用 delegate_status 查询、delegate_stop 停止。")
+	result.Set("durationMs", s.d.Now()-t0)
+	return s.resultForModel(result, c), nil
+}
+
 func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, error) {
 	s.mu.Lock()
 	enabled := s.settings.Get("enabled") != false
@@ -538,6 +893,10 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 	b := s.d.Desktop
 	h := s.d.Harness
+	// 后台的 Nomi（任务执行）里委派：同步等结果，拿到汇报再继续（§7.4）
+	if desktop.BackgroundFrom(c.sig) != nil {
+		in.Set("background", false)
+	}
 
 	if c.ec.CallerTabID != "" {
 		if d := delegationOf(s.findTab(c.ec.CallerTabID)); d != nil && d.Get("by") == "nomi" {
@@ -596,7 +955,14 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		sourceCwd = g.Real
 	}
 
-	release, err := s.reserveSlot()
+	// 后台委派 = 持续任务：排队、重试、重启续跑、验收都由任务运行时负责
+	background := in.Get("background") != false
+	if background && s.d.Tasks != nil {
+		return s.delegateAsTask(in, c, t0, cli, sourceCwd, ws, turnID, settings)
+	}
+
+	// 同步委派：先占名额再往下走（准备隔离、等用户确认都要等）；名额满了排队等（#141、2.3）
+	release, err := s.reserveSlot(c.sig, !background)
 	if err != nil {
 		return nil, err
 	}
@@ -646,29 +1012,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 
 	s.ConsumePin(turnID)
 
-	ov := ResolveDelegateOverrides(OverridesInput{Model: in.Get("model"), ReasoningEffort: in.Get("reasoning_effort"), Profile: in.Get("profile"), Settings: settings})
-	if ov.Get("ok") != true {
-		return nil, derr(util.Str(ov.Get("code")), util.Str(ov.Get("message")))
-	}
-	if m := util.Str(ov.Get("model")); m != "" {
-		if !clisdk.IsValidModelID(m) {
-			return nil, derr("invalid_model", "模型名不合法："+m)
-		}
-		if gw := s.d.Gateway; gw != nil {
-			def := gw.Defaults(cli)
-			third := def.Get("source") == "thirdParty"
-			if third {
-				found := false
-				for _, x := range gw.Models() {
-					if x.Get("ref") == m {
-						found = true
-					}
-				}
-				if !found {
-					return nil, derr("model_not_in_catalog", "第三方模型不在网关目录："+m)
-				}
-			}
-		}
+	ov, err := s.overridesFor(cli, in, settings)
+	if err != nil {
+		return nil, err
 	}
 
 	nomiMode := b.PermissionMode()
@@ -707,7 +1053,6 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 
 	prompt := preview
-	background := in.Get("background") != false
 	var beforeV any
 	if before != nil {
 		ba := make([]any, len(before))
@@ -738,7 +1083,133 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 			"filesVerified", false, "approvals", approvalsZero(),
 			"durationMs", s.d.Now()-t0, "isolationNote", publicIsolationNote(iso)), c), nil
 	}
+	// 任务已记为 running，由它自己计数：名额在这里还回去（同 Node：try 里 return 未 await 的 promise，finally 立即执行）
+	release()
 	return s.runChild(task, prompt, true, c.sig), nil
+}
+
+// overridesFor：模型 / 思考深度 / 档位：解析并校验（第三方模型必须在网关目录）
+func (s *Service) overridesFor(cli string, in, settings *util.Obj) (*util.Obj, error) {
+	ov := ResolveDelegateOverrides(OverridesInput{Model: in.Get("model"), ReasoningEffort: in.Get("reasoning_effort"), Profile: in.Get("profile"), Settings: settings})
+	if ov.Get("ok") != true {
+		return nil, derr(util.Str(ov.Get("code")), util.Str(ov.Get("message")))
+	}
+	if m := util.Str(ov.Get("model")); m != "" {
+		if !clisdk.IsValidModelID(m) {
+			return nil, derr("invalid_model", "模型名不合法："+m)
+		}
+		if gw := s.d.Gateway; gw != nil {
+			def := gw.Defaults(cli)
+			third := def.Get("source") == "thirdParty"
+			if third {
+				found := false
+				for _, x := range gw.Models() {
+					if x.Get("ref") == m {
+						found = true
+					}
+				}
+				if !found {
+					return nil, derr("model_not_in_catalog", "第三方模型不在网关目录："+m)
+				}
+			}
+		}
+	}
+	return ov, nil
+}
+
+// delegateAsTask：后台委派 = 持续任务（2.2）：用户在对话里确认这次委派，就等于给了这个任务的授权
+// （L3，路径 = 工作目录，编程助手 = 这一个）。命令按 Nomi 的权限：没开「全部自动」时每条都问人（任务收件箱）。
+func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sourceCwd, ws, turnID string, settings *util.Obj) (*util.Obj, error) {
+	b := s.d.Desktop
+	h := s.d.Harness
+	goal := util.Str(in.Get("goal"))
+	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
+	preview := BuildDelegatePrompt(brief)
+	authorize := b.Authorize
+	if ws != "" {
+		authorize = b.AuthorizeIn
+	}
+	decision := authorize(desktop.AuthorizeInput{
+		Tool: "delegate_to_cli", Danger: "write",
+		Summary: "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
+		Args:    util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", "worktree", "background", true),
+		Preview: &preview, Signal: c.sig,
+	})
+	switch decision {
+	case "blocked":
+		return nil, derr("mode_blocked", "当前是「计划」（只读）权限模式，不能派编程助手去改东西；先给出方案，等用户切换权限模式")
+	case "denied":
+		return nil, derr("user_denied", "用户没有同意这次委派，不要重试")
+	case "timeout":
+		return nil, derr("timeout_denied", "没有等到用户确认，已取消委派")
+	}
+	s.ConsumePin(turnID)
+	ov, err := s.overridesFor(cli, in, settings)
+	if err != nil {
+		return nil, err
+	}
+	nomiMode := b.PermissionMode()
+	fullAuto := h.AutoApproveEnabled() && nomiMode != "plan" && nomiMode != "manual"
+	cliV, cwdV, isoV := cli, sourceCwd, "worktree"
+	ex := tasks.ExecutorSpec{Kind: "cli", Cli: &cliV, Cwd: &cwdV, Isolation: &isoV,
+		Brief: &tasks.Brief{DoneWhen: brief.DoneWhen}}
+	if m := util.Str(ov.Get("model")); m != "" {
+		ex.Model = &m
+	}
+	if e, ok := ov.Get("reasoningEffort").(string); ok && e != "" {
+		ex.ReasoningEffort = &e
+	}
+	if brief.Context != "" {
+		v := brief.Context
+		ex.Brief.Context = &v
+	}
+	if brief.OutOfScope != "" {
+		v := brief.OutOfScope
+		ex.Brief.OutOfScope = &v
+	}
+	if !fullAuto {
+		yes := true
+		ex.AskCommands = &yes
+	}
+	if c.ec.ToolCallID != "" {
+		v := c.ec.ToolCallID
+		ex.CallID = &v
+	}
+	di := tasks.DelegatedInput{Title: "Nomi · " + slice(trim(goal), 40), Goal: goal, Executor: ex, Level: 3,
+		Paths: []string{sourceCwd}}
+	if c.ec.ConversationID != "" {
+		cid := c.ec.ConversationID
+		di.ConversationID = &cid
+	}
+	task := s.d.Tasks.CreateDelegated(di)
+	var result *util.Obj
+	if rec := s.d.Tasks.Get(task.ID); rec != nil {
+		result = s.resultFromTask(rec)
+	} else {
+		result = util.NewObj("taskId", task.ID, "cli", cli, "status", "running", "summary", "",
+			"filesVerified", false, "approvals", approvalsZero(), "durationMs", 0.0)
+	}
+	result.Set("summary", util.Str(result.Get("summary"))+"。已作为持续任务派出（任务页可看进度）：同时运行的任务满了会排队；"+
+		"做完后改动留在独立的 worktree 里，等用户在任务页验收、回填；完成后会在对话里通知。"+
+		"可用 delegate_status 查询、delegate_stop 停止。")
+	result.Set("durationMs", s.d.Now()-t0)
+	return s.resultForModel(result, c), nil
+}
+
+var (
+	transientErrRE = regexp.MustCompile(`(?i)\b(408|429|5\d\d)\b|rate.?limit|overloaded|timed? ?out`)
+	networkErrRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network`)
+)
+
+// classifyRunError：编程助手这一轮出错的错误码（upstream_transient / network / executor_failed）
+func classifyRunError(msg string) string {
+	switch {
+	case transientErrRE.MatchString(msg):
+		return "upstream_transient"
+	case networkErrRE.MatchString(msg):
+		return "network"
+	}
+	return "executor_failed"
 }
 
 func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig context.Context) *util.Obj {
@@ -761,6 +1232,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 	status := "done"
 	text := ""
 	errMsg := ""
+	errCode := ""
 	var usage any
 	r, err := h.SendTab(task.id(), prompt)
 	close(done)
@@ -772,6 +1244,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 		} else {
 			status = "error"
 			errMsg = err.Error()
+			errCode = classifyRunError(errMsg)
 		}
 	} else if r != nil {
 		text = util.Str(r.Get("text"))
@@ -786,7 +1259,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 		}
 	}
 	cmu.Unlock()
-	return s.finalize(task, status, text, errMsg, usage, by)
+	return s.finalize(task, status, text, errMsg, errCode, usage, by)
 }
 
 func toAnyList(xs []string) []any {
@@ -823,7 +1296,7 @@ func joinComma(xs []string) string {
 	return s
 }
 
-func (s *Service) finalize(task *bgTask, status, text, errMsg string, usage any, cancelledBy string) *util.Obj {
+func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, usage any, cancelledBy string) *util.Obj {
 	report := ParseDelegateReport(text)
 	var before []string
 	_, hasBefore := task.o.Get("before").([]any)
@@ -905,6 +1378,9 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg string, usage any,
 	if errMsg != "" {
 		res.Set("error", errMsg)
 	}
+	if errCode != "" {
+		res.Set("errorCode", errCode)
+	}
 	res.Set("durationMs", s.d.Now()-task.started())
 	if usage != nil {
 		res.Set("usage", usage)
@@ -924,6 +1400,7 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg string, usage any,
 	task.o.Set("result", res)
 	s.setTask(task)
 	s.persistTasks()
+	s.wakeSlotWaitersLocked()
 	c := task.ctx
 	s.mu.Unlock()
 	s.d.Events.Publish("delegate.completed", res)
@@ -942,26 +1419,86 @@ func (s *Service) approvalsOf(taskID string) *util.Obj {
 	return approvalsZero()
 }
 
-func (s *Service) reserveSlot() (func(), error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// slotFreeLocked：running 任务 + 已占名额还没到上限。调用方持有 s.mu。
+func (s *Service) slotFreeLocked() bool {
 	running := 0
 	for _, t := range s.tasks {
 		if t.status() == "running" {
 			running++
 		}
 	}
-	if running+s.reserved >= MaxParallelDelegates {
-		return nil, derr("concurrency_limit", "同时运行的委派已达上限（"+strconv.Itoa(MaxParallelDelegates)+"）。等其中一个完成后再派，或用 delegate_status 查看进度")
+	return running+s.reserved < MaxParallelDelegates
+}
+
+// wakeSlotWaitersLocked：有空名额就按先来先得放行排队的；名额在这里就替它占上（不会一次放行多个抢同一个名额）
+func (s *Service) wakeSlotWaitersLocked() {
+	for len(s.waiters) > 0 && s.slotFreeLocked() {
+		ch := s.waiters[0]
+		s.waiters = s.waiters[1:]
+		s.reserved++
+		close(ch)
 	}
-	s.reserved++
+}
+
+func (s *Service) slotReleaser() func() {
 	var once sync.Once
 	return func() {
-		once.Do(func() { s.mu.Lock(); s.reserved--; s.mu.Unlock() })
-	}, nil
+		once.Do(func() {
+			s.mu.Lock()
+			s.reserved--
+			s.wakeSlotWaitersLocked()
+			s.mu.Unlock()
+		})
+	}
+}
+
+// reserveSlot：占一个运行名额；满了就排队等（2.3：排队代替拒绝），Nomi 这一轮被停时退出排队（cancelled）。
+// wait=false（没有持续任务时的后台委派）：保持旧行为，满了直接拒绝（concurrency_limit）。返回的释放函数只生效一次。
+func (s *Service) reserveSlot(sig context.Context, wait bool) (func(), error) {
+	s.mu.Lock()
+	if !wait && !s.slotFreeLocked() {
+		s.mu.Unlock()
+		return nil, derr("concurrency_limit", "同时运行的委派已达上限（"+strconv.Itoa(MaxParallelDelegates)+"）。等其中一个完成后再派，或用 delegate_status 查看进度")
+	}
+	if s.slotFreeLocked() && len(s.waiters) == 0 {
+		s.reserved++
+		s.mu.Unlock()
+		return s.slotReleaser(), nil
+	}
+	ch := make(chan struct{})
+	s.waiters = append(s.waiters, ch)
+	s.mu.Unlock()
+	var done <-chan struct{}
+	if sig != nil {
+		done = sig.Done()
+	}
+	select {
+	case <-ch:
+		return s.slotReleaser(), nil
+	case <-done:
+	}
+	s.mu.Lock()
+	queued := false
+	for i, w := range s.waiters {
+		if w == ch {
+			s.waiters = append(s.waiters[:i:i], s.waiters[i+1:]...)
+			queued = true
+			break
+		}
+	}
+	if !queued {
+		// 刚好被放行：把替它占的名额还回去
+		s.reserved--
+		s.wakeSlotWaitersLocked()
+	}
+	s.mu.Unlock()
+	return nil, derr("cancelled", "排队等名额时这一轮被停止了")
 }
 
 func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*util.Obj, error) {
+	if rec := s.taskRecord(taskID); rec != nil {
+		return s.followupTask(rec, message, c, t0)
+	}
 	s.mu.Lock()
 	task := s.tasks[taskID]
 	s.mu.Unlock()
@@ -978,7 +1515,8 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	if d := delegationOf(tab); d != nil && util.Truthy(d.Get("takenOver")) {
 		return nil, derr("taken_over", "用户已接手这个标签，Nomi 不再往里发消息")
 	}
-	release, err := s.reserveSlot()
+	// 追问会让任务重新运行：与首次委派共用名额（#141）；满了排队等（2.3）。等用户确认期间也占着名额
+	release, err := s.reserveSlot(c.sig, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1005,7 +1543,60 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	task.o.Set("startedAt", t0)
 	s.persistTasks()
 	s.mu.Unlock()
+	// 记成 running 后由它自己计数，占的名额还回去（不重复计）
+	release()
 	return s.runChild(task, message, true, c.sig), nil
+}
+
+// followupTask：后台委派任务的追问：做完等验收时 = 退回并带上追问（同一标签与 worktree 里接着改，异步）；
+// 还在跑 / 排队 → busy；已经结束的不能再追问。
+func (s *Service) followupTask(rec *tasks.Record, message string, c *execCtx, t0 float64) (*util.Obj, error) {
+	task := rec.Task
+	if task.Executor.Kind == "nomi" {
+		return nil, derr("not_followable", "派给后台 Nomi 的任务不能追问；要改就再用 delegate_to_nomi 派一次，把上次的结果和修改意见写进 context")
+	}
+	if task.Status != tasks.StatusAwaitingAccept {
+		switch task.Status {
+		case tasks.StatusQueued, tasks.StatusRunning, tasks.StatusWaitingUser, tasks.StatusNeedsReconcile:
+			return nil, derr("busy", "该委派仍在运行或等用户处理，等完成后再用 delegate_followup；可用 delegate_status 查询")
+		}
+		return nil, derr("not_followable", "这个委派已经结束（"+task.Status+"），不能再追问；需要的话重新委派")
+	}
+	cli := "claude"
+	if task.Executor.Kind == "cli" && task.Executor.Cli != nil {
+		cli = *task.Executor.Cli
+	}
+	preview := message
+	decision := s.d.Desktop.Authorize(desktop.AuthorizeInput{
+		Tool: "delegate_followup", Danger: "write",
+		Summary: "向 " + cliName[cli] + " 追问：" + slice(message, 80),
+		Args:    util.NewObj("taskId", task.ID, "message", message),
+		Preview: &preview, Signal: c.sig,
+	})
+	switch decision {
+	case "blocked":
+		return nil, derr("mode_blocked", "当前是「计划」权限模式，不能向编程助手追问")
+	case "denied":
+		return nil, derr("user_denied", "用户没有同意这次追问")
+	case "timeout":
+		return nil, derr("timeout_denied", "没有等到用户确认")
+	}
+	r := s.d.Tasks.Command(task.ID, tasks.Command{Type: "reject", Feedback: message})
+	if !r.OK {
+		reason := r.Reason
+		if reason == "" {
+			reason = task.Status
+		}
+		return nil, derr("busy", "现在不能追问（"+reason+"）")
+	}
+	next := s.d.Tasks.Get(task.ID)
+	if next == nil {
+		next = rec
+	}
+	res := s.resultFromTask(next)
+	res.Set("summary", "已把追问交给 "+cliName[cli]+"，在同一个标签和 worktree 里接着改；完成后会在对话里通知。")
+	res.Set("durationMs", s.d.Now()-t0)
+	return s.resultForModel(res, c), nil
 }
 
 func publicIsolationNote(iso *IsolationHandle) string {

@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { importChatImages } from '../services/chatImages';
 import { canCompact, compactionRequest, isCompaction, shouldCompact } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
@@ -32,6 +33,7 @@ import {
   type HarnessTraceEvent,
   type HarnessUsage,
 } from '../services/harnessClient';
+import { imageLinksNote } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
@@ -42,6 +44,7 @@ import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
+import { closeOpenCalls } from '../utils/toolTrace';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
 
@@ -54,13 +57,16 @@ function plainSummary(s: string): string {
 export interface AiChatState {
   messages: ChatMessage[];
   config: ChatConfig;
+  /** 有任意会话在回复（桌面角色的思考姿势、侧栏主标签状态用）；当前会话看 selectBusyHere */
   isLoading: boolean;
-  /** 正在流式生成且可中止（Nomi 后端；CLI 后端的整段转发不可中止） */
+  /** 有任意会话在流式生成（可中止）；当前会话看 selectStreamingHere */
   streaming: boolean;
+  /** 正在回复的会话（发起这一轮的会话 id；没有会话 id 的旧实现记为 ''）：不同会话可以同时回复 */
+  busyConvos: string[];
+  /** 正在流式生成、可以停止的会话 */
+  streamingConvos: string[];
   error?: string;
   ipcClient: IPCClient;
-  /** isLoading 属于哪个会话（发起这一轮的会话）；没有会话 id 的旧实现为 undefined */
-  busyConvoId?: string;
   /** messages 当前展示的是哪个会话 */
   viewConvoId?: string;
 }
@@ -72,7 +78,7 @@ export type AiChatAction =
   | { type: 'UPDATE_MESSAGE'; payload: { id: string; content: string } }
   /** 按 id 覆盖，不存在则追加（流式期间切走又切回来时，补回这一轮的消息） */
   | { type: 'UPSERT_MESSAGES'; payload: ChatMessage[] }
-  | { type: 'SET_STREAMING'; payload: boolean }
+  | { type: 'SET_STREAMING'; payload: boolean; convoId?: string }
   | { type: 'SET_CONFIG'; payload: ChatConfig }
   /** convoId：这次忙碌属于哪个会话（切走后别的会话不显示「回复中」） */
   | { type: 'SET_LOADING'; payload: boolean; convoId?: string }
@@ -100,6 +106,8 @@ const buildInitialState = (client?: ClientAIClient): AiChatState => ({
   },
   isLoading: false,
   streaming: false,
+  busyConvos: [],
+  streamingConvos: [],
   ipcClient: createIPCClient(client),
 });
 
@@ -108,6 +116,25 @@ function sameFields(cur: ChatMessage, patch: ChatMessage): boolean {
   for (const k of Object.keys(patch) as Array<keyof ChatMessage>)
     if (cur[k] !== patch[k]) return false;
   return true;
+}
+
+/** 会话 → 回复中列表的键：没有会话 id 的旧实现记为 '' */
+export const convoKey = (convoId: string | undefined): string => convoId ?? '';
+
+function toggleKey(list: string[] | undefined, convoId: string | undefined, on: boolean): string[] {
+  const k = convoKey(convoId);
+  list ??= [];
+  if (on) return list.includes(k) ? list : [...list, k];
+  return list.includes(k) ? list.filter((x) => x !== k) : list;
+}
+
+/** 某个会话是否在回复（'' 表示旧实现没有会话 id，视为当前会话） */
+export function busyIn(
+  s: Pick<AiChatState, 'busyConvos' | 'isLoading'>,
+  convoId: string | undefined,
+): boolean {
+  if (!s.busyConvos) return s.isLoading;
+  return s.busyConvos.includes('') || s.busyConvos.includes(convoKey(convoId));
 }
 
 export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
@@ -137,15 +164,17 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
       }
       return { ...state, messages };
     }
-    case 'SET_STREAMING':
-      return { ...state, streaming: action.payload };
+    case 'SET_STREAMING': {
+      const streamingConvos = toggleKey(state.streamingConvos, action.convoId, action.payload);
+      return { ...state, streamingConvos, streaming: streamingConvos.length > 0 };
+    }
     case 'SET_CONFIG':
       return { ...state, config: action.payload };
     case 'SET_LOADING':
       return {
         ...state,
-        isLoading: action.payload,
-        busyConvoId: action.payload ? action.convoId : undefined,
+        busyConvos: toggleKey(state.busyConvos, action.convoId, action.payload),
+        isLoading: toggleKey(state.busyConvos, action.convoId, action.payload).length > 0,
         // 一轮总是从当前展示的会话发起：新对话的 id 在发送时才生成（ensureConversationId），
         // 这时 viewConvoId 还没有，认领它，否则首个对话被当成「别的会话在回复」（没有状态行）
         ...(action.payload && action.convoId && state.viewConvoId === undefined
@@ -337,13 +366,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   useLayoutEffect(() => {
     stateRef.current = state;
   });
-  const activeStream = useRef<ActiveStream | null>(null);
+  /** 各会话进行中的流（不同会话可以同时回复）：停止只停当前会话的那一轮 */
+  const activeStream = useRef(new Map<string, ActiveStream>());
   /**
    * 进行中这一轮的消息快照（用户消息 + 已生成的回复）：一轮结束才落盘，
    * 期间切走再切回时 loadChatHistory 从存储读不到它们，要从这里补回
    */
-  const inflight = useRef<{ reqId: string; convoId?: string; messages: ChatMessage[] } | null>(
-    null,
+  const inflight = useRef(
+    new Map<string, { reqId: string; convoId?: string; messages: ChatMessage[] }>(),
   );
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
@@ -396,7 +426,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 卸载时放弃仍在进行的流
   useEffect(
     () => () => {
-      activeStream.current?.controller.abort();
+      for (const a of activeStream.current.values()) a.controller.abort();
     },
     [],
   );
@@ -587,7 +617,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
       }
     },
     [maybeIngest],
@@ -629,7 +659,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
       }
     },
     [],
@@ -673,6 +703,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
           throw Object.assign(new Error(msg), { cause: pinErr });
         }
+        // 原图存进素材库：消息里记下地址（放大看原图、复制、以此修改 / 作为参考），这一轮也把地址告诉模型
+        const imageUrls = images?.length ? await importChatImages(images, turn.convoId) : [];
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
@@ -682,11 +714,12 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...(delegateTo ? { delegateTo } : {}),
           ...(images?.length
             ? {
-                images: images.map((i) => ({
+                images: images.map((i, k) => ({
                   thumb: i.thumb,
                   width: i.width,
                   height: i.height,
                   source: i.source,
+                  ...(imageUrls[k] ? { url: imageUrls[k] } : {}),
                 })),
               }
             : {}),
@@ -700,7 +733,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         }
         // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-        inflight.current = { reqId, convoId: turn.convoId, messages: [userMessage] };
+        inflight.current.set(convoKey(turn.convoId), {
+          reqId,
+          convoId: turn.convoId,
+          messages: [userMessage],
+        });
         schedClient.activity();
 
         if (hs) {
@@ -753,13 +790,21 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         // 用户消息一并 upsert：准备期间切走又切回时，用户消息还没上屏（顺序保持「问在前、答在后」）
         if (turn.isActive())
           dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, aiMessage] });
-        inflight.current = { reqId, convoId: turn.convoId, messages: [userMessage, aiMessage] };
+        inflight.current.set(convoKey(turn.convoId), {
+          reqId,
+          convoId: turn.convoId,
+          messages: [userMessage, aiMessage],
+        });
 
-        activeStream.current = { reqId, convoId: turn.convoId, controller };
+        activeStream.current.set(convoKey(turn.convoId), {
+          reqId,
+          convoId: turn.convoId,
+          controller,
+        });
         owned = true;
         // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
         if (!delegateTo) speaker = startReplySpeech(reqId);
-        dispatch({ type: 'SET_STREAMING', payload: true });
+        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
 
         let accumulated = '';
         const startedAt = Date.now();
@@ -788,7 +833,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               ...(trace.length ? { trace: traceNow() } : {}),
             },
           ];
-          if (inflight.current?.reqId === reqId) inflight.current.messages = payload;
+          const f = inflight.current.get(convoKey(turn.convoId));
+          if (f?.reqId === reqId) f.messages = payload;
           // 用户已切到别的会话：只累积，不动当前界面；回到本会话时由 loadChatHistory 补回整轮消息
           if (!turn.isActive()) return;
           dispatch({ type: 'UPSERT_MESSAGES', payload });
@@ -799,10 +845,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           timer = window.setTimeout(flushUi, 100);
         };
         try {
+          const linked = imageUrls.filter(Boolean);
+          const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
           await client.sendStreamMessage(
-            delegateTo
-              ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${content}`
-              : content,
+            delegateTo ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${sent}` : sent,
             (chunk: string) => {
               accumulated += chunk;
               if (speaker) {
@@ -831,6 +877,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           );
         } catch (err) {
           flushUi();
+          // 还在跑的工具调用不会再有结果：标成已停止，否则时间线一直转圈
+          trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
           // 这一轮失败：保留已生成的部分与轨迹，作为「错误卡片」留在对话里（可重试），不进模型上下文
           const failed: ChatMessage = {
             ...aiMessage,
@@ -849,6 +897,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         flushUi();
 
         const stopped = controller.signal.aborted;
+        // 停止时还在跑的工具调用（内核已随这一轮中止它们）：标成已停止，否则时间线一直显示运行中
+        trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
         if (stopped) speaker?.stop();
         else speaker?.finish();
         const finalAiMessage: ChatMessage = {
@@ -875,10 +925,12 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       } finally {
         // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
         void clearTurnPin(reqId);
-        if (owned && activeStream.current?.reqId === reqId) activeStream.current = null;
-        if (inflight.current?.reqId === reqId) inflight.current = null;
-        dispatch({ type: 'SET_STREAMING', payload: false });
-        dispatch({ type: 'SET_LOADING', payload: false });
+        const key = convoKey(turn.convoId);
+        if (owned && activeStream.current.get(key)?.reqId === reqId)
+          activeStream.current.delete(key);
+        if (inflight.current.get(key)?.reqId === reqId) inflight.current.delete(key);
+        dispatch({ type: 'SET_STREAMING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
       }
     },
     [maybeIngest],
@@ -887,7 +939,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   const resendFrom = useCallback(
     async (userMessageId: string, newText?: string) => {
       const s = stateRef.current;
-      if (s.isLoading) return;
+      if (busyIn(s, s.ipcClient.currentConversationId?.())) return;
       const idx = s.messages.findIndex((m) => m.id === userMessageId && m.role === 'user');
       if (idx < 0) return;
       const target = s.messages[idx]!;
@@ -905,7 +957,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
   const compactConversation = useCallback(async () => {
     const s = stateRef.current;
-    if (s.isLoading) return { status: 'busy' as const };
+    if (busyIn(s, s.ipcClient.currentConversationId?.())) return { status: 'busy' as const };
     const turn = openTurn(s.ipcClient);
     dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
     try {
@@ -913,12 +965,15 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       if (r.error) return { status: 'failed' as const, error: r.error };
       return { status: r.next ? ('done' as const) : ('nothing' as const) };
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
     }
   }, []);
 
   const stopGeneration = useCallback(() => {
-    const a = activeStream.current;
+    // 只停当前展示的会话的那一轮（别的会话还在回复不受影响）
+    const a = activeStream.current.get(
+      convoKey(stateRef.current.ipcClient.currentConversationId?.()),
+    );
     stopReplySpeech();
     if (!a || a.controller.signal.aborted) return;
     a.controller.abort();
@@ -927,8 +982,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   }, []);
 
   const abortConversation = useCallback((convoId: string) => {
-    const a = activeStream.current;
-    if (!a || a.convoId !== convoId || a.controller.signal.aborted) return;
+    const a = activeStream.current.get(convoKey(convoId));
+    if (!a || a.controller.signal.aborted) return;
     a.controller.abort();
     stateRef.current.ipcClient.abortStream?.(a.reqId);
   }, []);
@@ -947,8 +1002,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       if (my !== historySeq.current) return;
       const convoId = client.currentConversationId?.();
       // 回到正在回复的会话：这一轮还没落盘，把它的用户消息与已生成的部分补回来
-      const f = inflight.current;
-      const payload = f && f.convoId === convoId ? upsertById(history, f.messages) : history;
+      const f = inflight.current.get(convoKey(convoId));
+      const payload = f ? upsertById(history, f.messages) : history;
       dispatch({ type: 'SET_MESSAGES', payload, convoId });
     } catch (error) {
       if (my !== historySeq.current) return;

@@ -3,7 +3,7 @@
 package gen
 
 // ContractVersion 与 appContract.version 一致
-var ContractVersion = struct{ Major, Minor int }{2, 2}
+var ContractVersion = struct{ Major, Minor int }{2, 3}
 
 // Procedure 是契约里一个过程的元数据
 type Procedure struct {
@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 372：mutation 258 / query 109 / stream 5
+// 合计 401：mutation 280 / query 116 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -60,6 +60,7 @@ var Procedures = []Procedure{
 	{Name: "character.assets", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "character.ensureAssets", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "character.getActivePack", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "chatAssets.import", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatAssets.list", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatAssets.regenerate", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatAssets.remove", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
@@ -89,6 +90,12 @@ var Procedures = []Procedure{
 	{Name: "cliUpdate.job", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliUpdate.preview", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliUpdate.run", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "connections.addGithub", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "connections.check", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "connections.detect", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "connections.list", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "connections.rebind", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "connections.remove", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.clearPin", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.pin", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -323,6 +330,28 @@ var Procedures = []Procedure{
 	{Name: "screen.checkSend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "startup.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "startup.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.accept", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.applyWorktree", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.cancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.clearObserved", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.decide", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.events", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.get", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.inbox", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.journal", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.list", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.pause", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.processObserved", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.reconcile", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.reject", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.remove", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.resume", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.runNow", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "theme.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "theme.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tts.getConfig", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
@@ -413,6 +442,7 @@ var Events = []string{
 	"cliAccount.changed",
 	"cliAccount.login",
 	"cliUpdate.event",
+	"connections.changed",
 	"delegate.completed",
 	"desktop.bubble",
 	"desktop.changed",
@@ -454,6 +484,7 @@ var Events = []string{
 	"sched.proactive",
 	"sched.result",
 	"startup.changed",
+	"tasks.changed",
 	"theme.changed",
 	"updates.changed",
 	"usage.changed",
@@ -468,4 +499,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
+var Errors = []string{"UNAVAILABLE", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}

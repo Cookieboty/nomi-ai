@@ -5,8 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { t } from '../../../src/i18n';
 import {
   createImageTools,
+  generateImageAsset,
   imageExt,
   splitImageRef,
   type ImageProviderAccess,
@@ -162,6 +164,46 @@ describe('image_generate', () => {
     expect(fs.existsSync(path.join(dir, 'images'))).toBe(false);
   });
 
+  it('指定了模型（重新生成）：原模型不可用就报错，不改用当前图片模型（#224）', async () => {
+    const generated: unknown[] = [];
+    const { calls, dir } = setup();
+    const deps = (current: string): ImageToolDeps => ({
+      imageRef: () => current,
+      imageProvider: (id) =>
+        id === 'amux' || id === 'other'
+          ? { info: { id, urls: { chat: `https://${id}.example.com/v1/` } }, keyFor: () => 'k' }
+          : null,
+      imagesDir: dir,
+      fetchImpl: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        return new Response(JSON.stringify({ data: [{ b64_json: PNG.toString('base64') }] }));
+      }) as unknown as typeof fetch,
+      onGenerated: (_f, m) => generated.push(m),
+    });
+    // 原供应商没了、当前模型可用：报错，不发请求、不记素材
+    await expect(
+      generateImageAsset(deps('other/openai/gpt-image-2'), {
+        prompt: 'a fox',
+        modelRef: 'gone/gpt-image-2',
+      }),
+    ).rejects.toThrow(
+      // 与界面语言、词典是否已构建无关：和 t() 给出的文案一致
+      t('electron.image.regenerate-model-unavailable', 'gone/gpt-image-2'),
+    );
+    expect(calls).toHaveLength(0);
+    expect(generated).toHaveLength(0);
+    // 原模型还在、当前默认已换：仍用原模型
+    const r = await generateImageAsset(deps('other/openai/gpt-image-2'), {
+      prompt: 'a fox',
+      modelRef: 'amux/openai/gpt-image-2',
+    });
+    expect(r.provider).toBe('amux');
+    expect(calls[0]!.url).toContain('amux.example.com');
+    // 没指定模型：照旧用当前图片模型
+    const r2 = await generateImageAsset(deps('other/openai/gpt-image-2'), { prompt: 'a fox' });
+    expect(r2.provider).toBe('other');
+  });
+
   it('接口报错：带上状态码与上游的错误信息', async () => {
     const { tool } = setup(
       {},
@@ -207,6 +249,26 @@ describe('image_generate', () => {
     expect(out.mode).toBe('reference');
     expect((calls[0]!.init!.body as FormData).getAll('image[]')).toHaveLength(2);
     expect(generated[0]![1]).toMatchObject({ references: ['nomi-a.png', 'grok-b.jpg'] });
+  });
+
+  it('用户发送的原图（素材库 user-…）可以拿来改图 / 当参考图', async () => {
+    const generated: Array<[string, unknown]> = [];
+    const { tool, calls, dir } = setup({ onGenerated: (f, m) => generated.push([f, m]) });
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'user-abc-123.jpg'), PNG);
+    const out = (await tool.execute(
+      { prompt: 'make it blue', edit_image: 'chat-asset://images/user-abc-123.jpg' },
+      {},
+    )) as { mode: string };
+    expect(out.mode).toBe('edit');
+    const img = (calls[0]!.init!.body as FormData).getAll('image[]')[0] as Blob;
+    expect(img.type).toBe('image/jpeg');
+    expect(generated[0]![1]).toMatchObject({ editedFrom: 'user-abc-123.jpg' });
+    const ref = (await tool.execute(
+      { prompt: 'a dog', reference_images: ['chat-asset://images/user-abc-123.jpg'] },
+      {},
+    )) as { mode: string };
+    expect(ref.mode).toBe('reference');
   });
 
   it('带图：素材库以外的路径拒绝；不支持带图的适配器明确报错', async () => {

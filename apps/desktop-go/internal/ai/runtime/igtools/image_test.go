@@ -240,4 +240,53 @@ func TestImageToolEditAndReference(t *testing.T) {
 	if _, err := tool.Execute(context.Background(), u.NewObj("prompt", "x", "edit_image", "../../etc/passwd"), tools.ExecContext{}); err == nil {
 		t.Fatal("路径穿越应拒绝")
 	}
+	// 用户发送的原图（素材库 user-…）可以拿来改图 / 当参考图
+	_ = os.WriteFile(filepath.Join(dir, "user-abc-123.jpg"), png, 0o600)
+	if AssetPathOf(dir, "chat-asset://images/user-abc-123.jpg") != filepath.Join(dir, "user-abc-123.jpg") {
+		t.Fatal("user- 应认作素材库图片")
+	}
+	file, ref, err := d.readAsset("chat-asset://images/user-abc-123.jpg")
+	if err != nil || file != "user-abc-123.jpg" || ref.Mime != "image/jpeg" {
+		t.Fatalf("file=%s mime=%s err=%v", file, ref.Mime, err)
+	}
+	out, err = tool.Execute(context.Background(), u.NewObj("prompt", "make it blue", "edit_image", "chat-asset://images/user-abc-123.jpg"), tools.ExecContext{})
+	if err != nil || out.(*u.Obj).Get("mode") != "edit" || metas[len(metas)-1].EditedFrom != "user-abc-123.jpg" {
+		t.Fatalf("out=%v err=%v metas=%+v", out, err, metas)
+	}
+}
+
+// 指定了模型（重新生成）：原模型不可用就报错，不改用当前图片模型（#224）
+func TestGenerateAssetPinnedModelNoFallback(t *testing.T) {
+	var hits []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits = append(hits, r.Host)
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"b64_json": base64.StdEncoding.EncodeToString(png)}}})
+	}))
+	t.Cleanup(srv.Close)
+	var generated []GeneratedMeta
+	d := ImageDeps{
+		ImageRef: func() string { return "other/openai/gpt-image-2" },
+		ImageProvider: func(id string) *ImageAccess {
+			if id != "amux" && id != "other" {
+				return nil
+			}
+			return &ImageAccess{Info: media.ProviderInfo{ID: id, URLs: map[string]string{"chat": srv.URL + "/" + id + "/v1/"}},
+				KeyFor: func(string) string { return "k" }}
+		},
+		ImagesDir:   filepath.Join(t.TempDir(), "images"),
+		OnGenerated: func(_ string, m GeneratedMeta) { generated = append(generated, m) },
+		Sleep:       func(time.Duration) {},
+	}
+	_, err := d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox", ModelRef: "gone/gpt-image-2"})
+	if err == nil || len(hits) != 0 || len(generated) != 0 {
+		t.Fatalf("err=%v hits=%v generated=%v", err, hits, generated)
+	}
+	r, err := d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox", ModelRef: "amux/openai/gpt-image-2"})
+	if err != nil || r.Provider != "amux" {
+		t.Fatalf("%+v %v", r, err)
+	}
+	r, err = d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox"})
+	if err != nil || r.Provider != "other" {
+		t.Fatalf("%+v %v", r, err)
+	}
 }

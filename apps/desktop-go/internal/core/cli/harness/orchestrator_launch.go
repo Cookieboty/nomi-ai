@@ -5,6 +5,8 @@ package harness
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -269,6 +271,20 @@ func (o *Orchestrator) childEnv(useNode bool, l *tabLaunch, extra *util.Obj) *ut
 	}
 	return env
 }
+
+// taskEnv = taskEnv：持续任务开的标签默认隔离 gh 登录（空的 GH_CONFIG_DIR、去掉令牌变量、关交互）；
+// 任务授权里有 GitHub 对外能力（delegation.githubAccess）时不隔离（connections.md §4.4）。其他标签原样返回。
+func (o *Orchestrator) taskEnv(tab *util.Obj, env *util.Obj) *util.Obj {
+	d, _ := tab.Get("delegation").(*util.Obj)
+	if d == nil || !truthy(d.Get("taskId")) || truthy(d.Get("githubAccess")) {
+		return env
+	}
+	dir := filepath.Join(os.TempDir(), "nomi-task-gh", taskGhDirRe.ReplaceAllString(str(tab, "id"), "_"))
+	_ = os.MkdirAll(dir, 0o700) // 建不了目录也照样指过去：gh 读不到登录即可
+	return IsolateGhEnv(env, dir)
+}
+
+var taskGhDirRe = regexp.MustCompile(`[^\w.-]`)
 
 // RouteModels = routeModels（插入序去重）。
 func (o *Orchestrator) RouteModels(backend string) []string {

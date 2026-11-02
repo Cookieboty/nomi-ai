@@ -16,21 +16,6 @@
   color: var(--cd-color-danger-text);
 }
 
-.imageRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cd-space-2);
-  margin-bottom: var(--cd-space-2);
-}
-
-.imageThumb {
-  max-width: 160px;
-  max-height: 120px;
-  border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  object-fit: cover;
-}
-
 @keyframes messageSlideIn {
   from {
     opacity: 0;

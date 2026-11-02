@@ -1,0 +1,152 @@
+{
+ "cases": [
+  {
+   "command": "ls -la",
+   "class": null
+  },
+  {
+   "command": "git status && git diff",
+   "class": null
+  },
+  {
+   "command": "npm test",
+   "class": null
+  },
+  {
+   "command": "gh auth token",
+   "class": "credential"
+  },
+  {
+   "command": "gh auth status --show-token",
+   "class": "credential"
+  },
+  {
+   "command": "gh auth status -t",
+   "class": "credential"
+  },
+  {
+   "command": "gh auth status",
+   "class": null
+  },
+  {
+   "command": "security find-generic-password -s gh:github.com -w",
+   "class": "credential"
+  },
+  {
+   "command": "cat ~/.config/gh/hosts.yml",
+   "class": "credential"
+  },
+  {
+   "command": "cat ~/.git-credentials | head",
+   "class": "credential"
+  },
+  {
+   "command": "git credential fill",
+   "class": "credential"
+  },
+  {
+   "command": "GH_DEBUG=1 gh auth token",
+   "class": "credential"
+  },
+  {
+   "command": "sudo security dump-keychain",
+   "class": "credential"
+  },
+  {
+   "command": "gh pr merge 12 --squash",
+   "class": "never"
+  },
+  {
+   "command": "gh release create v1.0",
+   "class": "never"
+  },
+  {
+   "command": "gh repo delete o/r --yes",
+   "class": "never"
+  },
+  {
+   "command": "gh secret set TOKEN",
+   "class": "never"
+  },
+  {
+   "command": "git push --force origin main",
+   "class": "never"
+  },
+  {
+   "command": "git push origin +main",
+   "class": "never"
+  },
+  {
+   "command": "git push -f",
+   "class": "never"
+  },
+  {
+   "command": "gh api -X DELETE /repos/o/r",
+   "class": "never"
+  },
+  {
+   "command": "gh api -X PUT /repos/o/r/pulls/1/merge",
+   "class": "never"
+  },
+  {
+   "command": "gh issue comment 3 --body hi",
+   "class": "external"
+  },
+  {
+   "command": "gh pr create --fill",
+   "class": "external"
+  },
+  {
+   "command": "gh pr review 4 --approve",
+   "class": "external"
+  },
+  {
+   "command": "git push origin nomi/fix",
+   "class": "external"
+  },
+  {
+   "command": "gh api --method POST /repos/o/r/issues -f title=x",
+   "class": "external"
+  },
+  {
+   "command": "gh api /repos/o/r/issues -f title=x",
+   "class": "external"
+  },
+  {
+   "command": "gh api /repos/o/r/issues",
+   "class": null
+  },
+  {
+   "command": "gh api -X GET /user",
+   "class": null
+  },
+  {
+   "command": "gh workflow run ci.yml",
+   "class": "external"
+  },
+  {
+   "command": "gh repo create o/new --private",
+   "class": "external"
+  },
+  {
+   "command": "gh issue view 3",
+   "class": null
+  },
+  {
+   "command": "gh pr view 4 --json title",
+   "class": null
+  },
+  {
+   "command": "npm test && gh pr create --fill && gh auth token",
+   "class": "credential"
+  },
+  {
+   "command": "echo 'gh auth token'",
+   "class": null
+  },
+  {
+   "command": "/usr/local/bin/gh pr merge 1",
+   "class": "never"
+  }
+ ]
+}

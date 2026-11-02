@@ -155,7 +155,8 @@ export function parseSummary(raw: string): ParsedSummary | null {
  * 事实去重：规范化后完全相同、互相包含，或只是多 / 少了几个字的同一句话
  * （「用户被助手称呼为言哥」/「用户被助手称为言哥」）视为同一条。
  * 「多 / 少几个字」= 短的那条按顺序全在长的那条里（子序列），多出来的不超过 2 个字或 20%，
- * 且多出来的字里没有否定词（不 / 没 / 无 / 非 / 别 / 未 / 勿 / 否，免得把「不喜欢」并进「喜欢」）。
+ * 且多出来的字里没有否定词（不 / 没 / 无 / 非 / 别 / 未 / 勿 / 否，免得把「不喜欢」并进「喜欢」），
+ * 也没有数字 / 中文数字 / 拉丁字母（项目 A 与项目 AB、10 万与 100 万是不同的事实，#223）。
  * 换了字的（喜欢猫 / 喜欢狗、北京 / 上海、5 月 / 6 月）不算重复。
  */
 export function normFact(t: string): string {
@@ -163,6 +164,10 @@ export function normFact(t: string): string {
 }
 
 const NEGATIONS = new Set(['不', '没', '无', '非', '别', '未', '勿', '否']);
+const CN_DIGITS = new Set(Array.from('零〇一二两三四五六七八九十百千万亿'));
+/** 多出来的字里有这些就不算「同一句话」：否定词、数字、拉丁字母（标识符 / 英文否定） */
+const meaningful = (ch: string) =>
+  NEGATIONS.has(ch) || CN_DIGITS.has(ch) || /[\p{N}\p{Script=Latin}]/u.test(ch);
 
 /** 短的那条是长的那条去掉少量非否定字后的样子 */
 function nearlySame(x: string, y: string): boolean {
@@ -175,7 +180,7 @@ function nearlySame(x: string, y: string): boolean {
   let i = 0;
   for (const ch of long) {
     if (i < short.length && ch === short[i]) i++;
-    else if (NEGATIONS.has(ch)) return false;
+    else if (meaningful(ch)) return false;
   }
   return i === short.length;
 }

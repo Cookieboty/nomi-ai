@@ -12,17 +12,21 @@ import React, {
 
 import {
   selectError,
-  selectIsLoading,
-  selectStreaming,
+  selectBusyHere,
+  selectStreamingHere,
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
+import { isGoHost, onHostOnlyFiles, type HostDroppedFile } from '../../services/api';
 import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
 import {
   MAX_FILE_ATTACHMENTS,
+  fetchHostFile,
   fileAttachmentFrom,
+  fileAttachmentFromHost,
+  isImagePath,
   joinFileAttachments,
   type FileAttachment,
 } from '../../services/fileAttachments';
@@ -176,8 +180,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   }, [fillNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- 只按 nonce 触发
   // slices only: streamed frames (message content) do not rerender the composer
   const { dispatch, actions, store: chatStore } = useAiChatActions();
-  const isLoading = useAiChatSelector(selectIsLoading);
-  const streaming = useAiChatSelector(selectStreaming);
+  // 只看当前展示的会话：别的会话在回复时，这里照常可以发送，也不显示停止键
+  const isLoading = useAiChatSelector(selectBusyHere);
+  const streaming = useAiChatSelector(selectStreamingHere);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）
@@ -277,6 +282,51 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     },
     [addFiles, addOtherFiles],
   );
+  // Go 版在 macOS / Linux 上：原生拖放层接走了 drop，只有宿主送来的路径（services/api.ts onHostOnlyFiles）
+  const takeHostFiles = useCallback(
+    async (list: HostDroppedFile[]) => {
+      const imgs = list.filter((f) => isImagePath(f.name) && f.url);
+      const others = list.filter((f) => !imgs.includes(f));
+      if (imgs.length) {
+        const read = await Promise.all(imgs.map(fetchHostFile));
+        const ok = read.filter((f): f is File => !!f);
+        for (const f of imgs.filter((_, i) => !read[i]))
+          setImgErr(tr('ui.knowledge-local.can-t-read-file', f.name));
+        if (ok.length) void addFiles(ok);
+      }
+      if (!others.length) return;
+      const out = await Promise.all(others.map(fileAttachmentFromHost));
+      setFiles((cur) => {
+        const next = [...cur, ...out];
+        if (next.length > MAX_FILE_ATTACHMENTS)
+          setImgErr(tr('ui.knowledge-local.up-to-files', MAX_FILE_ATTACHMENTS));
+        return next.slice(0, MAX_FILE_ATTACHMENTS);
+      });
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [addFiles],
+  );
+  const takeHostFilesRef = useRef(takeHostFiles);
+  useLayoutEffect(() => {
+    takeHostFilesRef.current = takeHostFiles;
+  }, [takeHostFiles]);
+  useEffect(
+    () =>
+      onHostOnlyFiles((list) => {
+        setDragOver(false);
+        void takeHostFilesRef.current(list);
+      }),
+    [],
+  );
+  // 同样的原因网页收不到 dragover：Wails 在拖动经过时给 body 加 file-drop-target-active，据此高亮输入框
+  useEffect(() => {
+    if (!isGoHost() || typeof MutationObserver === 'undefined' || !document.body) return;
+    const body = document.body;
+    const sync = () => setDragOver(body.classList.contains('file-drop-target-active'));
+    const mo = new MutationObserver(sync);
+    mo.observe(body, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
   // 整个对话窗口都能拖入文件（不只输入框），拖动时高亮输入框
   const takeFilesRef = useRef(takeFiles);
   useLayoutEffect(() => {

@@ -1,7 +1,7 @@
 {
  "version": {
   "major": 2,
-  "minor": 2
+  "minor": 3
  },
  "procedures": {
   "agents.scan": {
@@ -5230,6 +5230,91 @@
     "additionalProperties": {}
    }
   },
+  "chatAssets.import": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "mime": {
+      "type": "string",
+      "enum": [
+       "image/png",
+       "image/jpeg",
+       "image/webp",
+       "image/gif"
+      ]
+     },
+     "data": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 28000000
+     },
+     "conversationId": {
+      "type": "string",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "mime",
+     "data"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "source": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "bytes": {
+      "type": "number"
+     },
+     "model": {
+      "type": "string"
+     },
+     "prompt": {
+      "type": "string"
+     },
+     "aspect": {
+      "type": "string"
+     },
+     "editedFrom": {
+      "type": "string"
+     },
+     "references": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "url",
+     "source",
+     "createdAt",
+     "bytes"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "chatAssets.list": {
    "kind": "query",
    "dangerous": false,
@@ -6524,6 +6609,587 @@
      "version"
     ],
     "additionalProperties": {}
+   }
+  },
+  "connections.addGithub": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+     {
+      "type": "object",
+      "properties": {
+       "mode": {
+        "type": "string",
+        "const": "gh"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "mode"
+      ]
+     },
+     {
+      "type": "object",
+      "properties": {
+       "mode": {
+        "type": "string",
+        "const": "token"
+       },
+       "host": {
+        "type": "string"
+       },
+       "token": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       },
+       "onDuplicate": {
+        "type": "string",
+        "enum": [
+         "replace",
+         "keep"
+        ]
+       },
+       "name": {
+        "type": "string",
+        "maxLength": 40
+       }
+      },
+      "required": [
+       "mode",
+       "token"
+      ]
+     }
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "connections.check": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "connections.detect": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "host": {
+      "type": "string"
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "gh": {
+      "type": "object",
+      "properties": {
+       "installed": {
+        "type": "boolean"
+       },
+       "accounts": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "host": {
+           "type": "string"
+          },
+          "login": {
+           "type": "string"
+          },
+          "scopes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "wideScopes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "tokenSource": {
+           "type": "string"
+          },
+          "active": {
+           "type": "boolean"
+          },
+          "state": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "host",
+          "login",
+          "scopes",
+          "wideScopes",
+          "tokenSource",
+          "active",
+          "state"
+         ],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": [
+       "installed",
+       "accounts"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "gh"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "connections.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "provider": {
+       "type": "string",
+       "const": "github"
+      },
+      "label": {
+       "type": "string"
+      },
+      "auth": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "cli-login",
+          "keychain"
+         ]
+        },
+        "host": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "host"
+       ],
+       "additionalProperties": {}
+      },
+      "account": {
+       "type": "object",
+       "properties": {
+        "login": {
+         "type": "string"
+        },
+        "host": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "login",
+        "host"
+       ],
+       "additionalProperties": false
+      },
+      "observedScopes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "wideScopes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "ok",
+        "needs_login",
+        "error",
+        "disabled"
+       ]
+      },
+      "name": {
+       "type": "string"
+      },
+      "currentLogin": {
+       "type": "string"
+      },
+      "checkedAt": {
+       "type": "number"
+      },
+      "createdAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "provider",
+      "label",
+      "auth",
+      "status",
+      "createdAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "connections.rebind": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "provider": {
+      "type": "string",
+      "const": "github"
+     },
+     "label": {
+      "type": "string"
+     },
+     "auth": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "cli-login",
+         "keychain"
+        ]
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "host"
+      ],
+      "additionalProperties": {}
+     },
+     "account": {
+      "type": "object",
+      "properties": {
+       "login": {
+        "type": "string"
+       },
+       "host": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "login",
+       "host"
+      ],
+      "additionalProperties": false
+     },
+     "observedScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wideScopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "needs_login",
+       "error",
+       "disabled"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "currentLogin": {
+      "type": "string"
+     },
+     "checkedAt": {
+      "type": "number"
+     },
+     "createdAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "label",
+     "auth",
+     "status",
+     "createdAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "connections.remove": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
    }
   },
   "delegate.clearPin": {
@@ -19956,6 +20622,2107 @@
     "additionalProperties": {}
    }
   },
+  "tasks.accept": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.applyWorktree": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "applied": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "skipped": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "conflicted": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "denied": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "applied",
+       "skipped",
+       "conflicted",
+       "denied"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "tasks.cancel": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.clearObserved": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "tasks.create": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+     },
+     "conversationId": {
+      "type": "string"
+     },
+     "trigger": {
+      "oneOf": [
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "manual"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "schedule"
+         },
+         "at": {
+          "type": "number"
+         },
+         "repeat": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "daily"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "weekdays"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "weekly"
+             },
+             "days": {
+              "type": "array",
+              "items": {
+               "type": "number"
+              }
+             }
+            },
+            "required": [
+             "kind",
+             "days"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "monthly"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "interval"
+             },
+             "minutes": {
+              "type": "number"
+             }
+            },
+            "required": [
+             "kind",
+             "minutes"
+            ],
+            "additionalProperties": {}
+           }
+          ]
+         },
+         "catchUpMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "event"
+         },
+         "sourceId": {
+          "type": "string"
+         },
+         "filter": {},
+         "cooldownMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "mode": {
+          "type": "string",
+          "enum": [
+           "observe",
+           "act"
+          ]
+         }
+        },
+        "required": [
+         "kind",
+         "sourceId",
+         "filter",
+         "mode"
+        ]
+       }
+      ]
+     },
+     "executor": {
+      "oneOf": [
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "notify"
+         },
+         "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+         }
+        },
+        "required": [
+         "kind",
+         "text"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "nomi"
+         },
+         "model": {
+          "type": "string"
+         },
+         "tools": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "enum": [
+            "read",
+            "web",
+            "knowledge_write",
+            "memory_write",
+            "file_write",
+            "shell",
+            "delegate"
+           ]
+          }
+         },
+         "scenario": {
+          "type": "string",
+          "enum": [
+           "coding",
+           "prd",
+           "review",
+           "research"
+          ]
+         }
+        },
+        "required": [
+         "kind",
+         "tools"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "cli"
+         },
+         "cli": {
+          "type": "string",
+          "minLength": 1
+         },
+         "model": {
+          "type": "string"
+         },
+         "cwd": {
+          "type": "string",
+          "minLength": 1
+         },
+         "isolation": {
+          "type": "string",
+          "enum": [
+           "worktree",
+           "shared"
+          ]
+         }
+        },
+        "required": [
+         "kind",
+         "cli",
+         "cwd",
+         "isolation"
+        ]
+       }
+      ]
+     },
+     "grant": {
+      "type": "object",
+      "properties": {
+       "level": {
+        "anyOf": [
+         {
+          "type": "number",
+          "const": 0
+         },
+         {
+          "type": "number",
+          "const": 1
+         },
+         {
+          "type": "number",
+          "const": 2
+         },
+         {
+          "type": "number",
+          "const": 3
+         },
+         {
+          "type": "number",
+          "const": 4
+         }
+        ]
+       },
+       "paths": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "connections": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "connectionId": {
+           "type": "string"
+          },
+          "capabilities": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "resources": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "connectionId",
+          "capabilities",
+          "resources"
+         ]
+        }
+       },
+       "clis": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "expiresAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "level",
+       "paths",
+       "connections"
+      ]
+     },
+     "budget": {
+      "type": "object",
+      "properties": {
+       "maxTokensPerAttempt": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "maxDurationMsPerAttempt": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "maxCostUsdPerDay": {
+        "type": "number",
+        "minimum": 0
+       },
+       "maxRetries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10
+       }
+      }
+     },
+     "acceptance": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "user"
+      ]
+     },
+     "priority": {
+      "type": "string",
+      "enum": [
+       "urgent",
+       "high",
+       "medium",
+       "low"
+      ]
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "coding",
+       "review",
+       "research",
+       "writing",
+       "monitor",
+       "chore"
+      ]
+     }
+    },
+    "required": [
+     "title",
+     "goal",
+     "trigger",
+     "executor",
+     "grant"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "goal": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "queued",
+       "running",
+       "waiting_user",
+       "needs_reconcile",
+       "awaiting_accept",
+       "done",
+       "failed",
+       "cancelled",
+       "expired"
+      ]
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "gen": {
+      "type": "number"
+     },
+     "trigger": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "executor": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "grant": {
+      "type": "object",
+      "properties": {
+       "version": {
+        "type": "number"
+       },
+       "level": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "version",
+       "level"
+      ],
+      "additionalProperties": {}
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "goal",
+     "status",
+     "enabled",
+     "gen",
+     "trigger",
+     "executor",
+     "grant",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "tasks.decide": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "gen": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "requestId": {
+      "type": "string"
+     },
+     "approve": {
+      "type": "boolean"
+     },
+     "input": {
+      "type": "string",
+      "maxLength": 8000
+     }
+    },
+    "required": [
+     "id",
+     "approve"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.events": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "observed": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "key": {
+         "type": "string"
+        },
+        "occurredAt": {
+         "type": "number"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "payload": {}
+       },
+       "required": [
+        "key",
+        "occurredAt",
+        "summary",
+        "payload"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "lastPollAt": {
+      "type": "number"
+     },
+     "lastError": {
+      "type": "string"
+     },
+     "sources": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "observed",
+     "sources"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.get": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "task": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "goal": {
+          "type": "string"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "idle",
+           "queued",
+           "running",
+           "waiting_user",
+           "needs_reconcile",
+           "awaiting_accept",
+           "done",
+           "failed",
+           "cancelled",
+           "expired"
+          ]
+         },
+         "enabled": {
+          "type": "boolean"
+         },
+         "gen": {
+          "type": "number"
+         },
+         "trigger": {
+          "type": "object",
+          "properties": {
+           "kind": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "kind"
+          ],
+          "additionalProperties": {}
+         },
+         "executor": {
+          "type": "object",
+          "properties": {
+           "kind": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "kind"
+          ],
+          "additionalProperties": {}
+         },
+         "grant": {
+          "type": "object",
+          "properties": {
+           "version": {
+            "type": "number"
+           },
+           "level": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "version",
+           "level"
+          ],
+          "additionalProperties": {}
+         },
+         "updatedAt": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "id",
+         "title",
+         "goal",
+         "status",
+         "enabled",
+         "gen",
+         "trigger",
+         "executor",
+         "grant",
+         "updatedAt"
+        ],
+        "additionalProperties": {}
+       },
+       "attempts": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "gen": {
+           "type": "number"
+          },
+          "status": {
+           "type": "string"
+          },
+          "startedAt": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "id",
+          "gen",
+          "status",
+          "startedAt"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "task",
+       "attempts"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "tasks.grant": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "grant": {
+      "type": "object",
+      "properties": {
+       "level": {
+        "anyOf": [
+         {
+          "type": "number",
+          "const": 0
+         },
+         {
+          "type": "number",
+          "const": 1
+         },
+         {
+          "type": "number",
+          "const": 2
+         },
+         {
+          "type": "number",
+          "const": 3
+         },
+         {
+          "type": "number",
+          "const": 4
+         }
+        ]
+       },
+       "paths": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "connections": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "connectionId": {
+           "type": "string"
+          },
+          "capabilities": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "resources": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "connectionId",
+          "capabilities",
+          "resources"
+         ]
+        }
+       },
+       "clis": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "expiresAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "level",
+       "paths",
+       "connections"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "grant"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.inbox": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "goal": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "idle",
+        "queued",
+        "running",
+        "waiting_user",
+        "needs_reconcile",
+        "awaiting_accept",
+        "done",
+        "failed",
+        "cancelled",
+        "expired"
+       ]
+      },
+      "enabled": {
+       "type": "boolean"
+      },
+      "gen": {
+       "type": "number"
+      },
+      "trigger": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind"
+       ],
+       "additionalProperties": {}
+      },
+      "executor": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind"
+       ],
+       "additionalProperties": {}
+      },
+      "grant": {
+       "type": "object",
+       "properties": {
+        "version": {
+         "type": "number"
+        },
+        "level": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "version",
+        "level"
+       ],
+       "additionalProperties": {}
+      },
+      "updatedAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "title",
+      "goal",
+      "status",
+      "enabled",
+      "gen",
+      "trigger",
+      "executor",
+      "grant",
+      "updatedAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "tasks.journal": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "t": {
+       "type": "string"
+      },
+      "at": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "t",
+      "at"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "tasks.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "tasks": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "title": {
+         "type": "string"
+        },
+        "goal": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string",
+         "enum": [
+          "idle",
+          "queued",
+          "running",
+          "waiting_user",
+          "needs_reconcile",
+          "awaiting_accept",
+          "done",
+          "failed",
+          "cancelled",
+          "expired"
+         ]
+        },
+        "enabled": {
+         "type": "boolean"
+        },
+        "gen": {
+         "type": "number"
+        },
+        "trigger": {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "kind"
+         ],
+         "additionalProperties": {}
+        },
+        "executor": {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "kind"
+         ],
+         "additionalProperties": {}
+        },
+        "grant": {
+         "type": "object",
+         "properties": {
+          "version": {
+           "type": "number"
+          },
+          "level": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "version",
+          "level"
+         ],
+         "additionalProperties": {}
+        },
+        "updatedAt": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "title",
+        "goal",
+        "status",
+        "enabled",
+        "gen",
+        "trigger",
+        "executor",
+        "grant",
+        "updatedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "legacy": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "source": {
+         "type": "string",
+         "enum": [
+          "reminder",
+          "schedule"
+         ]
+        },
+        "id": {
+         "type": "string"
+        },
+        "title": {
+         "type": "string"
+        },
+        "enabled": {
+         "type": "boolean"
+        },
+        "nextRunAt": {
+         "type": "number"
+        },
+        "repeat": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "const": "daily"
+            }
+           },
+           "required": [
+            "kind"
+           ],
+           "additionalProperties": {}
+          },
+          {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "const": "weekdays"
+            }
+           },
+           "required": [
+            "kind"
+           ],
+           "additionalProperties": {}
+          },
+          {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "const": "weekly"
+            },
+            "days": {
+             "type": "array",
+             "items": {
+              "type": "number"
+             }
+            }
+           },
+           "required": [
+            "kind",
+            "days"
+           ],
+           "additionalProperties": {}
+          },
+          {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "const": "monthly"
+            }
+           },
+           "required": [
+            "kind"
+           ],
+           "additionalProperties": {}
+          },
+          {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "const": "interval"
+            },
+            "minutes": {
+             "type": "number"
+            }
+           },
+           "required": [
+            "kind",
+            "minutes"
+           ],
+           "additionalProperties": {}
+          }
+         ]
+        },
+        "lastStatus": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "source",
+        "id",
+        "title",
+        "enabled"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "tasks",
+     "legacy"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.pause": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.processObserved": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.reconcile": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "outcome": {
+      "type": "string",
+      "enum": [
+       "applied",
+       "not_applied",
+       "abandon"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "outcome"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.reject": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "feedback": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+     }
+    },
+    "required": [
+     "id",
+     "feedback"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.remove": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "tasks.resume": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.revoke": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.runNow": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.setMode": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "observe",
+       "act"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "mode"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "goal": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "idle",
+         "queued",
+         "running",
+         "waiting_user",
+         "needs_reconcile",
+         "awaiting_accept",
+         "done",
+         "failed",
+         "cancelled",
+         "expired"
+        ]
+       },
+       "enabled": {
+        "type": "boolean"
+       },
+       "gen": {
+        "type": "number"
+       },
+       "trigger": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "additionalProperties": {}
+       },
+       "executor": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "additionalProperties": {}
+       },
+       "grant": {
+        "type": "object",
+        "properties": {
+         "version": {
+          "type": "number"
+         },
+         "level": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "version",
+         "level"
+        ],
+        "additionalProperties": {}
+       },
+       "updatedAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "id",
+       "title",
+       "goal",
+       "status",
+       "enabled",
+       "gen",
+       "trigger",
+       "executor",
+       "grant",
+       "updatedAt"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "tasks.update": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "trigger": {
+      "oneOf": [
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "manual"
+         }
+        },
+        "required": [
+         "kind"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "schedule"
+         },
+         "at": {
+          "type": "number"
+         },
+         "repeat": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "daily"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "weekdays"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "weekly"
+             },
+             "days": {
+              "type": "array",
+              "items": {
+               "type": "number"
+              }
+             }
+            },
+            "required": [
+             "kind",
+             "days"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "monthly"
+             }
+            },
+            "required": [
+             "kind"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "object",
+            "properties": {
+             "kind": {
+              "type": "string",
+              "const": "interval"
+             },
+             "minutes": {
+              "type": "number"
+             }
+            },
+            "required": [
+             "kind",
+             "minutes"
+            ],
+            "additionalProperties": {}
+           }
+          ]
+         },
+         "catchUpMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ]
+       },
+       {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "const": "event"
+         },
+         "sourceId": {
+          "type": "string"
+         },
+         "filter": {},
+         "cooldownMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "mode": {
+          "type": "string",
+          "enum": [
+           "observe",
+           "act"
+          ]
+         }
+        },
+        "required": [
+         "kind",
+         "sourceId",
+         "filter",
+         "mode"
+        ]
+       }
+      ]
+     },
+     "budget": {
+      "type": "object",
+      "properties": {
+       "maxTokensPerAttempt": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "maxDurationMsPerAttempt": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "maxCostUsdPerDay": {
+        "type": "number",
+        "minimum": 0
+       },
+       "maxRetries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10
+       }
+      }
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "urgent",
+         "high",
+         "medium",
+         "low"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "coding",
+         "review",
+         "research",
+         "writing",
+         "monitor",
+         "chore"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "goal": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "queued",
+       "running",
+       "waiting_user",
+       "needs_reconcile",
+       "awaiting_accept",
+       "done",
+       "failed",
+       "cancelled",
+       "expired"
+      ]
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "gen": {
+      "type": "number"
+     },
+     "trigger": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "executor": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "grant": {
+      "type": "object",
+      "properties": {
+       "version": {
+        "type": "number"
+       },
+       "level": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "version",
+       "level"
+      ],
+      "additionalProperties": {}
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "goal",
+     "status",
+     "enabled",
+     "gen",
+     "trigger",
+     "executor",
+     "grant",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "theme.get": {
    "kind": "query",
    "dangerous": false,
@@ -23949,6 +26716,10 @@
    ],
    "additionalProperties": {}
   },
+  "connections.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "null"
+  },
   "delegate.completed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -25332,6 +28103,19 @@
    ],
    "additionalProperties": {}
   },
+  "tasks.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false
+  },
   "theme.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -25592,6 +28376,15 @@
   "SCHED_NOT_FOUND",
   "SCHED_BUSY",
   "SCHED_EMPTY",
+  "TASKS_NOT_FOUND",
+  "TASKS_BAD_TRIGGER",
+  "TASKS_BAD_GRANT",
+  "CONNECTIONS_NOT_FOUND",
+  "CONNECTIONS_NEEDS_LOGIN",
+  "CONNECTIONS_UNAVAILABLE",
+  "CONNECTIONS_BAD_PARAMS",
+  "CONNECTIONS_FAILED",
+  "CONNECTIONS_DUPLICATE",
   "CHAT_BG_TOO_LARGE",
   "CHAT_BG_UNSUPPORTED"
  ]

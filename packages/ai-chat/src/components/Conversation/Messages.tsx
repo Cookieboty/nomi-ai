@@ -18,7 +18,12 @@ import type { ConvMessage } from '../../types/conversation';
 import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
 import { isImeComposing } from '../../utils/keyboard';
-import { entriesFromLegacyTools, hasRunning, reduceTraceCached } from '../../utils/toolTrace';
+import {
+  entriesFromLegacyTools,
+  hasRunning,
+  reduceTraceCached,
+  settleTrace,
+} from '../../utils/toolTrace';
 import { FileChipRow } from '../FileAttachment';
 
 import styles from './index.module.css';
@@ -153,10 +158,12 @@ export const AssistantBody: React.FC<{
   extra?: React.ReactNode;
 }> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
   const entries = useMemo(() => {
-    if (trace?.length) return reduceTraceCached(trace);
+    // 已结束的一轮：旧消息里悬空的工具调用按已停止显示（不再一直转圈）
+    if (trace?.length)
+      return reduceTraceCached(live ? trace : settleTrace(trace, t('ui.chat-settings.stopped')));
     if (legacyTools?.length) return entriesFromLegacyTools(legacyTools);
     return [];
-  }, [trace, legacyTools]);
+  }, [trace, legacyTools, live]);
   // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
   const layout = useMemo(() => layoutBody(entries), [entries]);
   const len = planLength(layout, text.length, breaks);

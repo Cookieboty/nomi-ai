@@ -194,6 +194,19 @@ if (process.env.NOMI_GOLDEN_DIR) {
     stdio: 'inherit',
     cwd: root,
   });
+  // 持续任务：状态机、存储、运行时（tasks/machine.ts、TaskStore.ts、TaskRuntime.ts）
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-tasks-machine.mjs')], {
+    stdio: 'inherit',
+    cwd: root,
+  });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-tasks-store.mjs')], {
+    stdio: 'inherit',
+    cwd: root,
+  });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-tasks-runtime.mjs')], {
+    stdio: 'inherit',
+    cwd: root,
+  });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-plugins.mjs')], {
     stdio: 'inherit',
     cwd: root,

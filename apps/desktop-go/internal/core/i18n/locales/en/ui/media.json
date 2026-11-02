@@ -4,6 +4,8 @@
   "ui.media.auto-matched": "Auto-matched",
   "ui.media.compose-edit": "Edit this image ({0}): ",
   "ui.media.compose-reference": "Make a new image using this one as a reference ({0}): ",
+  "ui.media.copy-image": "Copy image",
+  "ui.media.copy-image-failed": "Couldn't copy: {0}",
   "ui.media.created-at": "Created",
   "ui.media.delete-image-body": "The image moves to the system Trash, so you can still get it back from there.",
   "ui.media.delete-image-title": "Delete this image?",
@@ -20,5 +22,6 @@
   "ui.media.regenerate-image-title": "Regenerate this image?",
   "ui.media.regenerating": "Generating…",
   "ui.media.size": "Size",
+  "ui.media.source-user": "Sent by you",
   "ui.media.use-as-reference": "Use as reference"
 }

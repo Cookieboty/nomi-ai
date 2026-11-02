@@ -2,8 +2,11 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { isExternalCapability, mcpGranted, splitMcpTool } from '../connections/catalog';
 import { t } from '../i18n';
+import type { ExternalJournal } from '../tasks/external';
 
+import { classifyCommand } from './commandClass';
 import {
   REVIEWED_TOOLS,
   type CommandReview,
@@ -64,6 +67,36 @@ export interface ConfirmUi {
 /** blocked：当前权限模式不允许（「计划」档下的写 / 破坏性），没有弹确认 */
 export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
 
+/**
+ * 后台任务的一次执行（docs/design/persistent-tasks.md §8.4）：以这次执行的 AbortSignal 为键登记。
+ * 后台执行不继承前台的权限档位与「全部自动」，只认任务授权等级；需要人时不弹确认，而是让任务停到
+ * 「等你批准」（ask 返回用户的回答）。
+ */
+export interface BackgroundRun {
+  /** 任务授权等级（L0–L4） */
+  level: 0 | 1 | 2 | 3 | 4;
+  /** 需要人：暂停执行，等用户批准 / 拒绝 */
+  ask(req: { tool: string; summary: string; detail: string }): Promise<boolean>;
+  /** 任务授权里的连接（connections.md §2）：经连接的工具据此收窄到授权的能力与资源 */
+  connections?: { connectionId: string; capabilities: string[]; resources: string[] }[];
+  /** 这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4） */
+  tainted?: boolean;
+  /** 对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done */
+  external?: ExternalJournal;
+  /**
+   * 高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
+   * 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
+   */
+  trusted?: boolean;
+}
+
+/** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
+const BACKGROUND_LEVEL: Record<Danger, number> = { read: 1, write: 2, destructive: 2 };
+const COMMAND_LEVEL = 3;
+/** 对外动作（MCP 非只读工具、对外命令）：后台需要 L4（connections.md §2） */
+const EXTERNAL_LEVEL = 4;
+const ABORT_PARENT = Symbol.for('nomi.abortParent');
+
 export const CONFIRM_TIMEOUT_MS = 120_000;
 /** 确认里预览的上限：workspace_run 的命令最长 8000 字符，要连同工作目录完整展示 */
 export const CONFIRM_PREVIEW_CAP = 16_000;
@@ -85,6 +118,7 @@ export class PermissionBroker {
   private readonly sessionScopes: Scope[] = [];
   private readonly sessionAllowed = new Set<string>();
   private readonly taintBySignal = new WeakMap<AbortSignal, true>();
+  private readonly backgroundBySignal = new WeakMap<AbortSignal, BackgroundRun>();
   private taintFallbackUntil = 0;
   private readonly pending = new Map<
     string,
@@ -291,6 +325,8 @@ export class PermissionBroker {
    * 关着时按原来的规则确认（但不再要求授权文件夹）。带 force 的（如 workspace_run）始终确认。
    */
   async authorizeIn(i: Parameters<PermissionBroker['authorize']>[0]): Promise<Decision> {
+    // 后台任务不看前台的档位与「全部自动」（§8.1）
+    if (this.isBackground(i.signal)) return this.authorize(i);
     if (this.permissionMode() === 'plan' && i.danger !== 'read') return 'blocked';
     if (!i.force && this.autoApprove()) return 'auto';
     return this.authorize(i);
@@ -336,6 +372,111 @@ export class PermissionBroker {
     return this.now() < this.taintFallbackUntil;
   }
 
+  // ---------- 后台任务 ----------
+  /** 登记一次后台任务执行；返回注销函数 */
+  registerBackground(signal: AbortSignal, run: BackgroundRun): () => void {
+    this.backgroundBySignal.set(signal, run);
+    return () => this.backgroundBySignal.delete(signal);
+  }
+
+  isBackground(signal?: AbortSignal): boolean {
+    return !!this.backgroundOf(signal);
+  }
+
+  /** 后台执行的连接授权；前台对话返回 null（经连接的工具按前台规则只读） */
+  backgroundConnections(
+    signal?: AbortSignal,
+  ): { connectionId: string; capabilities: string[]; resources: string[] }[] | null {
+    const run = this.backgroundOf(signal);
+    return run ? (run.connections ?? []) : null;
+  }
+
+  /** 后台执行的副作用日志；前台对话返回 null */
+  backgroundExternal(signal?: AbortSignal): ExternalJournal | null {
+    return this.backgroundOf(signal)?.external ?? null;
+  }
+
+  /** 沿派生链（AiSdkLlmProvider 记下的上级）找登记的后台执行 */
+  private backgroundOf(signal?: AbortSignal): BackgroundRun | undefined {
+    for (let s = signal, depth = 0; s && depth < 8; depth++) {
+      const run = this.backgroundBySignal.get(s);
+      if (run) return run;
+      s = (s as unknown as Record<symbol, AbortSignal | undefined>)[ABORT_PARENT];
+    }
+    return undefined;
+  }
+
+  /**
+   * 后台审批（§8.4）：读直接放行；授权等级不够直接拒绝（授权外的动作不扩权）；
+   * 跑命令先经命令审核，低风险放行；读过外部内容后的写、破坏性动作、审核不放行的命令都停下来等人。
+   */
+  private async authorizeBackground(
+    run: BackgroundRun,
+    i: Parameters<PermissionBroker['authorize']>[0] & { signal: AbortSignal },
+  ): Promise<Decision> {
+    if (i.signal.aborted) return 'denied';
+    // MCP 工具（`<服务器>__<工具>`）：不继承服务器的前台信任级别，只认任务授权里逐个给出的工具
+    //（connections.md §6）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
+    const mcp = splitMcpTool(i.tool);
+    if (mcp) {
+      const granted = mcpGranted(
+        run.connections ?? [],
+        mcp.serverId,
+        mcp.tool,
+        i.mcpReadOnly === true,
+      );
+      if (!granted) return 'denied';
+      if (granted === 'read') return 'auto';
+      if (run.level < EXTERNAL_LEVEL) return 'denied';
+      if (run.trusted || !(this.isTainted(i.signal) || run.tainted)) return 'auto';
+      if (i.signal.aborted) return 'denied';
+      const ok = await run.ask({
+        tool: i.tool,
+        summary: i.summary,
+        detail: (i.preview ?? i.summary).slice(0, CONFIRM_PREVIEW_CAP),
+      });
+      if (i.signal.aborted) return 'denied';
+      return ok ? 'allowed' : 'denied';
+    }
+    if (i.danger === 'read' && !i.force) return 'auto';
+    const command = REVIEWED_TOOLS.has(i.tool);
+    const need = command ? COMMAND_LEVEL : BACKGROUND_LEVEL[i.danger];
+    if (run.level < need) return 'denied';
+    const tainted = this.isTainted(i.signal) || !!run.tainted;
+    let detail = i.preview ?? i.summary;
+    // 确定性分类在审核之前（commandClass.ts）：读凭据、合并发布等永远问人；对外动作要 L4
+    const cmd = command ? String((i.args as { command?: unknown } | undefined)?.command ?? '') : '';
+    const cls = cmd ? classifyCommand(cmd) : null;
+    if (
+      cls === 'credential' ||
+      cls === 'never' ||
+      (cls === 'external' &&
+        (run.level < EXTERNAL_LEVEL ||
+          !(run.connections ?? []).some((c) =>
+            c.capabilities.some((x) => x.startsWith('github.') && isExternalCapability(x)),
+          )))
+    ) {
+      detail = `[${cls}] ${detail}`;
+    } else if (command) {
+      const review = this.reviewer && this.aiReview() ? await this.review(i) : null;
+      // 与前台一致：审核放行就直接跑（workspace_run 总带 force，审核结果优先）
+      if (review?.outcome === 'allow' && !run.tainted) return 'auto';
+      if (review)
+        detail = `${review.risk}${review.rationale ? `: ${review.rationale}` : ''}\n${detail}`;
+    } else if (i.danger === 'write' && (!tainted || run.trusted) && !i.force) {
+      const policy = this.policy(i.tool, i.danger);
+      if (policy !== 'ask') return 'auto';
+    }
+    if (i.signal.aborted) return 'denied';
+    const ok = await run.ask({
+      tool: i.tool,
+      summary: i.summary,
+      detail: detail.slice(0, CONFIRM_PREVIEW_CAP),
+    });
+    if (i.signal.aborted) return 'denied';
+    return ok ? 'allowed' : 'denied';
+  }
+
   // ---------- 确认 ----------
   async authorize(i: {
     tool: string;
@@ -350,7 +491,12 @@ export class PermissionBroker {
     ignoreMode?: boolean;
     /** 本轮用户说的话（命令审核判断授权用） */
     userText?: string;
+    /** MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权） */
+    mcpReadOnly?: boolean;
   }): Promise<Decision> {
+    const bg = this.backgroundOf(i.signal);
+    if (bg && i.signal && !i.ignoreMode)
+      return this.authorizeBackground(bg, { ...i, signal: i.signal });
     const mode = i.ignoreMode ? 'acceptEdits' : this.permissionMode();
     if (mode === 'plan' && i.danger !== 'read') return 'blocked';
     const d = i.force

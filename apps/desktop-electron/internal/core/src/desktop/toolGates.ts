@@ -35,6 +35,10 @@ const said =
 /** 选了工作区的 Nomi 对话：文件与委派工具总是提供 */
 const files: Gate = (turn) => !!turn.cwd || FILES.test(turn.convoText);
 const delegate: Gate = (turn) => !!turn.cwd || DELEGATE.test(turn.convoText);
+/** 派出去的事（编程助手或后台的 Nomi）：问进度、要停下时也提供查询 / 停止 */
+const FOLLOW =
+  /后台|派|委派|任务|进度|好了没|好了吗|做完|做好|停下|停止|别做|不用做|取消|background|task|progress|status|stop|cancel/;
+const follow: Gate = (turn) => delegate(turn) || FOLLOW.test(turn.convoText);
 
 /** 工具名 → 这一轮用不用得上；不在表里的总是提供（记忆、知识库、时间、表情动作、技能、MCP…） */
 export const TOOL_GATES: Record<string, Gate> = {
@@ -62,8 +66,9 @@ export const TOOL_GATES: Record<string, Gate> = {
   desktop_permissions: said(PERMISSION),
   image_generate: said(IMAGE),
   delegate_to_cli: delegate,
-  delegate_status: delegate,
+  delegate_status: follow,
   delegate_followup: delegate,
+  delegate_stop: follow,
   fs_list: files,
   fs_stat: files,
   fs_read_text: files,

@@ -21,6 +21,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
@@ -57,6 +59,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tray"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -66,6 +69,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/devviews"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/hostdrop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
@@ -289,8 +293,18 @@ func main() {
 		Router:   router,
 		Secrets:  security.NewSecretBox("extensions"),
 		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
-		T:        i18n.T,
-		Ports:    ports,
+		LegacyReminders: func() []tasks.LegacyReminder {
+			out := []tasks.LegacyReminder{}
+			if desktopSvc.Reminders == nil {
+				return out
+			}
+			for _, r := range desktopSvc.Reminders.List(false, 0) {
+				out = append(out, tasks.LegacyReminder{ID: r.ID, Text: r.Text, DueAt: int64(r.DueAt), Status: r.Status, Repeat: r.Repeat})
+			}
+			return out
+		},
+		T:     i18n.T,
+		Ports: ports,
 		OpenChat: func() {
 			if sh != nil {
 				sh.Show(shell.Chat)
@@ -358,7 +372,7 @@ func main() {
 		return r.File, err
 	})
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
-		imgDeps)
+		imgDeps, b8.Tasks, b8.Conns)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
 		GetRegistry: func() tools.Registry { return toolRegistry },
@@ -393,7 +407,16 @@ func main() {
 			if gatewaySvc != nil {
 				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
 			}
-			return desktopSvc.ChatPrep().PrepareChat(options, method, signal)
+			prep := desktopSvc.ChatPrep()
+			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（persistent-tasks §7.4）
+			prep.AfterWorkspace = func(options map[string]any, method string) error {
+				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil {
+					_, err := delegate.ApplyDispatchHint(options)
+					return err
+				}
+				return nil
+			}
+			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
@@ -401,6 +424,55 @@ func main() {
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
 	aiFacade.Register(router)
+	// 持续任务的 Nomi 无界面执行（persistent-tasks §7.1）：工具白名单 + 不冒气泡；审批走 broker 的后台模式
+	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
+		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
+			role := "agent-tools"
+			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
+				Tools: toolNames, Quiet: true, Extra: extra}, emit)
+		},
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context {
+			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external}
+			for _, g := range conns {
+				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
+			}
+			return desktop.WithBackground(ctx, run)
+		},
+		Ready: func() bool {
+			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
+			return ok
+		},
+		CostOf: func(model string, in, out int64) (float64, bool) {
+			s := usageSvcRef.Load()
+			if s == nil {
+				return 0, false
+			}
+			return s.CostOf(model, util.NewObj("input", float64(in), "output", float64(out)))
+		},
+		Trace: func(taskID, attemptID string, line map[string]any) {
+			if err := b8.Tasks.Store.AppendTrace(taskID, attemptID, line); err != nil {
+				log.Printf("[tasks] trace: %v", err)
+			}
+		},
+		EventsFor:       b8.Tasks.EventBatch,
+		ExternalJournal: b8.Tasks.ExternalJournal,
+		// 派给 Nomi 的执行用对话的工具集（§7.4）
+		ToolNames: func() []string {
+			defs := toolRegistry.List()
+			names := make([]string, 0, len(defs))
+			for _, d := range defs {
+				names = append(names, d.Name)
+			}
+			return names
+		},
+	}))
+	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
+	taskCli := taskCliDeps(desktopSvc)
+	taskCli.EventsFor = b8.Tasks.EventBatch
+	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCli))
+	// 事件源（§6.2）：web / folder / github / app；编程助手的 tab-finished 在 wireHarness 之后接上
+	registerTaskSources(b8)
+	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
 	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()
@@ -455,6 +527,7 @@ func main() {
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	taskCliFinished.attach(harnessOrch)
 	// 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、或这个模型在云端
 	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认（与 Node createCore 一致）
 	desktopSvc.Broker.AIReview = func() bool { return jsrt.Call(harnessOrch.AiReviewEnabled) }
@@ -482,7 +555,7 @@ func main() {
 	desktopSvc.Broker.OnReviewed = func(tool string, r *desktop.CommandReview) {
 		log.Printf("[desktop] command reviewed tool=%s risk=%s authorization=%s outcome=%s", tool, r.Risk, r.Authorization, r.Outcome)
 	}
-	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry)
+	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
 	defer wireAgents(router, userData, desktopSvc)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
@@ -540,6 +613,8 @@ func main() {
 	}
 	// 视图 = 2.0.4 的 renderer / ai-chat 包（frontend/build.mjs 构建）；灵动岛页由 islandPageMiddleware 生成
 	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
+	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
+	drops := hostdrop.New()
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// = TrayManager（Application.ts new TrayManager）
 		TrayMenu: func() []shell.MenuItem {
@@ -645,8 +720,9 @@ func main() {
 				// = nomiHostIpc dropFile：只认桌面角色窗口，和 Electron 一样只取第一个文件
 				desktopSvc.DropFile("mascot", paths[0])
 			case shell.Chat:
-				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）
-				sendHostFiles(sh, paths)
+				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）；
+				// 带上一次性临时地址，网页没收到 DOM drop 时（macOS / Linux）据此读出文件
+				sendHostFiles(sh, drops.Add(paths))
 			}
 		},
 		IslandLayout: func() (shell.Rect, string, bool) {
@@ -657,7 +733,7 @@ func main() {
 			r := island.IslandWindowRect(g, g.Height)
 			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
 		},
-		Middleware: devViewsMiddleware(viewPageMiddleware(assets, islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		Middleware: devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -666,7 +742,7 @@ func main() {
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
 			},
-		})))))})
+		}))))))})
 
 	shellP.AttachShell()
 	// = ThemeService.syncAppearance（mac：外观跟随固定主题）
@@ -1029,7 +1105,8 @@ func mergeLoginShellPath() {
 }
 
 // sendHostFiles：本机文件路径交给对话页（ai-chat services/api.ts 的 nomi:host-files，按文件名配对）
-func sendHostFiles(sh shell.Shell, paths []string) {
+// sendHostFiles：detail 是路径数组（粘贴）或 hostdrop.Entry 数组（拖放）
+func sendHostFiles[T string | hostdrop.Entry](sh shell.Shell, paths []T) {
 	if x, ok := sh.(interface {
 		ExecJS(shell.WindowKind, string)
 	}); ok {

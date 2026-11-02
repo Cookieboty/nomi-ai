@@ -72,6 +72,52 @@ const HOST_FILES_TTL_MS = 5_000;
 const HOST_FILES_WAIT_MS = 500;
 let hostDropped: { path: string; at: number }[] = [];
 const hostDropWaiters = new Set<() => void>();
+
+/** 宿主送来的一个拖入文件：本机路径 + 一次性临时地址（拖放时有，粘贴时没有）+ 大小 */
+export interface HostDroppedFile {
+  path: string;
+  name: string;
+  url?: string;
+  size?: number;
+}
+/**
+ * macOS / Linux 上 Wails 的原生拖放层接走了 drop：网页收不到 DOM drop、没有 File，只有宿主送来的路径。
+ * 宿主事件之后这么久内（以及之前 1 秒内）网页都没收到带文件的 drop / paste，就当作「只有宿主」交给订阅方
+ */
+const HOST_ONLY_WAIT_MS = 300;
+const DOM_FILES_WINDOW_MS = 1_000;
+let lastDomFilesAt = -Infinity;
+const hostOnlyListeners = new Set<(files: HostDroppedFile[]) => void>();
+
+/** 订阅只有宿主路径的拖入文件（macOS / Linux 的 Go 版）；返回取消函数 */
+export function onHostOnlyFiles(fn: (files: HostDroppedFile[]) => void): () => void {
+  hostOnlyListeners.add(fn);
+  return () => hostOnlyListeners.delete(fn);
+}
+
+type HostFileDetail = string | { path?: unknown; url?: unknown; size?: unknown };
+
+/** nomi:host-files 的 detail：路径数组（粘贴）或 {path,url,size} 数组（拖放） */
+export function parseHostFiles(detail: unknown): HostDroppedFile[] {
+  if (!Array.isArray(detail)) return [];
+  const out: HostDroppedFile[] = [];
+  for (const d of detail as HostFileDetail[]) {
+    const path = typeof d === 'string' ? d : typeof d?.path === 'string' ? d.path : '';
+    if (!path) continue;
+    const url =
+      typeof d === 'object' && typeof d.url === 'string' && d.url.startsWith('/__nomi/drop/')
+        ? d.url
+        : undefined;
+    const size = typeof d === 'object' && typeof d.size === 'number' ? d.size : undefined;
+    out.push({
+      path,
+      name: path.split(/[\\/]/).pop() ?? '',
+      ...(url ? { url } : {}),
+      ...(size !== undefined ? { size } : {}),
+    });
+  }
+  return out;
+}
 if (goHostTransport) {
   // 拖放目标：Wails 只把落在 data-file-drop-target 元素上的文件交给宿主
   const mark = () => document.body?.setAttribute('data-file-drop-target', '');
@@ -96,15 +142,31 @@ if (goHostTransport) {
     },
     true,
   );
+  // 网页自己收到了带文件的 drop / paste：宿主送来的路径按文件名配对，不另走「只有宿主」
+  const markDomFiles = (e: DragEvent | ClipboardEvent) => {
+    const files = 'dataTransfer' in e ? e.dataTransfer?.files : e.clipboardData?.files;
+    if (files?.length) lastDomFilesAt = Date.now();
+  };
+  window.addEventListener('drop', markDomFiles, true);
+  window.addEventListener('paste', markDomFiles, true);
   window.addEventListener(HOST_FILES_EVENT, (e) => {
-    const paths = (e as CustomEvent<unknown>).detail;
-    if (!Array.isArray(paths)) return;
+    const files = parseHostFiles((e as CustomEvent<unknown>).detail);
+    if (!files.length) return;
     const now = Date.now();
     hostDropped = [
       ...hostDropped.filter((d) => now - d.at < HOST_FILES_TTL_MS),
-      ...paths.filter((p): p is string => typeof p === 'string').map((path) => ({ path, at: now })),
+      ...files.map((f) => ({ path: f.path, at: now })),
     ];
     for (const w of [...hostDropWaiters]) w();
+    // 只有拖放（带临时地址）才可能是「只有宿主」；粘贴总有 DOM 的 paste
+    if (!files.some((f) => f.url)) return;
+    setTimeout(() => {
+      if (Date.now() - lastDomFilesAt < DOM_FILES_WINDOW_MS + HOST_ONLY_WAIT_MS) return;
+      // 这批路径不会再有 File 来配对，从配对缓存里拿掉
+      const taken = new Set(files.map((f) => f.path));
+      hostDropped = hostDropped.filter((d) => !taken.has(d.path));
+      for (const fn of [...hostOnlyListeners]) fn(files);
+    }, HOST_ONLY_WAIT_MS);
   });
 }
 
