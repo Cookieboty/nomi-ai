@@ -622,5 +622,6 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
 .side-top-nav {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-1);
+  gap: 1px;
+  margin-bottom: var(--cd-space-1);
 }

@@ -13,6 +13,7 @@ import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatSt
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { api, hasTransport, hostAssetUrl } from '../../services/api';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
+import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import { fmtTime, ImageViewer, SourceBadge, sourceName, type AssetItem } from './ImageViewer';
 import styles from './index.module.css';
@@ -44,20 +45,15 @@ export const AssetLibraryNav: React.FC<{
   count?: number;
   onOpen: () => void;
 }> = ({ collapsed, active, count, onOpen }) => (
-  <button
-    type="button"
-    className={styles.nav}
-    data-collapsed={collapsed || undefined}
-    aria-current={active ? 'page' : undefined}
-    aria-label={t('ui.media.asset-library')}
-    title={t('ui.media.asset-library')}
-    onClick={onOpen}
-    data-testid="asset-library-open"
-  >
-    <Icon icon={Images} size={16} />
-    {!collapsed && <span className={styles.navLabel}>{t('ui.media.asset-library')}</span>}
-    {!collapsed && !!count && <span className={styles.navCount}>{count}</span>}
-  </button>
+  <SideNavItem
+    icon={Images}
+    label={t('ui.media.asset-library')}
+    collapsed={collapsed}
+    active={active}
+    count={count}
+    onOpen={onOpen}
+    testId="asset-library-open"
+  />
 );
 
 /** 主区整页 */

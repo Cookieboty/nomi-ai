@@ -31,6 +31,7 @@ import {
   type TaskCategory,
   type TaskGroup,
 } from '../../services/tasksClient';
+import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import { PriorityBadge, TaskBoard, type BoardGroup } from './Board';
 import styles from './index.module.css';
@@ -65,24 +66,16 @@ export const TasksNav: React.FC<{
     ? t('ui.providers-schedule.tasks-nav-needs-you', needsYou)
     : t('ui.providers-schedule.tasks');
   return (
-    <button
-      type="button"
-      className={styles.nav}
-      data-collapsed={collapsed || undefined}
-      aria-current={active ? 'page' : undefined}
-      aria-label={label}
+    <SideNavItem
+      icon={ListChecks}
+      label={t('ui.providers-schedule.tasks')}
       title={label}
-      onClick={onOpen}
-      data-testid="tasks-open"
-    >
-      <Icon icon={ListChecks} size={16} />
-      {!collapsed && <span className={styles.navLabel}>{t('ui.providers-schedule.tasks')}</span>}
-      {needsYou > 0 && (
-        <span className={styles.navBadge} data-collapsed={collapsed || undefined}>
-          {needsYou}
-        </span>
-      )}
-    </button>
+      collapsed={collapsed}
+      active={active}
+      badge={needsYou}
+      onOpen={onOpen}
+      testId="tasks-open"
+    />
   );
 };
 

@@ -820,6 +820,7 @@ const AiChatContent: React.FC = () => {
           onNotice={setToast}
           onOpenSettings={openSidebarSettings}
           footer={sidebarFooter}
+          pageOpen={mainHidden}
           topNav={
             assetLibrary.nav || tasksHost.nav ? (
               <div className="side-top-nav">

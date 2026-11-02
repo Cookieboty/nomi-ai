@@ -74,6 +74,8 @@ interface SidebarProps {
   footer?: React.ReactNode;
   /** 会话列表上方的固定入口（素材库），由 App 传入 */
   topNav?: React.ReactNode;
+  /** topNav 里的整页（任务 / 素材库）正打开着：会话行不再显示选中，免得侧栏同时亮两处 */
+  pageOpen?: boolean;
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
@@ -86,6 +88,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   onOpenSettings,
   footer,
   topNav,
+  pageOpen,
 }) => {
   // Sidebar 是 React.memo，props 稳定时不随根组件重渲染：自己订阅语言，切换后文案才会刷新
   useLocale();
@@ -184,6 +187,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     isDev && activeTabId && activeTabId !== MAIN_TAB_ID
       ? list.find((x) => x.tabId === activeTabId)?.id
       : current;
+  const rowActiveId = pageOpen ? undefined : highlightId;
 
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
@@ -727,7 +731,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       {collapsed && (
         <CollapsedRail
           items={visible}
-          activeId={highlightId}
+          activeId={rowActiveId}
           tabById={tabById}
           onOpen={open}
           onCtx={onCtx}
@@ -1005,7 +1009,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               <ThreadItem
                 key={c.id}
                 c={c}
-                active={c.id === highlightId}
+                active={c.id === rowActiveId}
                 tab={c.tabId ? tabById.get(c.tabId) : undefined}
                 onOpen={open}
                 onCtx={onCtx}
