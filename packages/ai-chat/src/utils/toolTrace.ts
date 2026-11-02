@@ -229,6 +229,8 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
   subagent: [
     // Nomi 派给编程助手的子任务（docs/design/nomi-delegate-cli.md）：时间线里显示成子任务卡片
     'delegate_to_cli',
+    // 派给后台的 Nomi（persistent-tasks.md §7.4）
+    'delegate_to_nomi',
     'task',
     'agent',
     'spawn_subagent',
@@ -371,7 +373,7 @@ export function describeCall(call: ToolCall): CallDescription {
       };
     }
     case 'subagent': {
-      const d = firstString(o, ['description', 'prompt', 'task', 'message']);
+      const d = firstString(o, ['description', 'prompt', 'task', 'message', 'goal']);
       return {
         kind,
         verb: t('ui.usage-tools.subagent'),

@@ -21,6 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
@@ -405,7 +406,16 @@ func main() {
 			if gatewaySvc != nil {
 				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
 			}
-			return desktopSvc.ChatPrep().PrepareChat(options, method, signal)
+			prep := desktopSvc.ChatPrep()
+			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（persistent-tasks §7.4）
+			prep.AfterWorkspace = func(options map[string]any, method string) error {
+				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil {
+					_, err := delegate.ApplyDispatchHint(options)
+					return err
+				}
+				return nil
+			}
+			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
@@ -420,8 +430,8 @@ func main() {
 			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
 				Tools: toolNames, Quiet: true, Extra: extra}, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted bool, external connections.ExternalJournal) context.Context {
-			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, External: external}
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context {
+			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external}
 			for _, g := range conns {
 				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 			}
@@ -445,6 +455,15 @@ func main() {
 		},
 		EventsFor:       b8.Tasks.EventBatch,
 		ExternalJournal: b8.Tasks.ExternalJournal,
+		// 派给 Nomi 的执行用对话的工具集（§7.4）
+		ToolNames: func() []string {
+			defs := toolRegistry.List()
+			names := make([]string, 0, len(defs))
+			for _, d := range defs {
+				names = append(names, d.Name)
+			}
+			return names
+		},
 	}))
 	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
 	taskCli := taskCliDeps(desktopSvc)

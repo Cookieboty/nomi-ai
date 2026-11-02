@@ -4,6 +4,8 @@ package delegate
 // 2.1.0（persistent-tasks-plan 2.2–2.4、2.8）：有持续任务时后台委派就是持续任务（executor: cli）——排队代替拒绝、
 // 瞬时错误重试一次、重启后在同一 worktree 续跑、做完进验收（不自动回填）；`delegate_stop` 停止；
 // 同步委派（background:false）照旧，名额满了排队等，不再拒绝。
+// 派给 Nomi（persistent-tasks §7.4）：工具 `delegate_to_nomi` 建一个执行者为后台 Nomi 的任务（对话的工具集），
+// 结果同样经 `delegate.completed` 回到来源对话；后台 Nomi 里再委派编程助手一律同步等结果。
 
 import (
 	"context"
@@ -30,7 +32,9 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh"}
+// cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi（§7.4）
+var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh",
+	"nomi": "后台的 Nomi"}
 
 // PinTTL：/agent 钉住的有效期
 const PinTTL = 10 * 60_000
@@ -219,9 +223,12 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	if n := len(rec.Attempts); n > 0 {
 		attempt = &rec.Attempts[n-1]
 	}
+	nomi := task.Executor.Kind == "nomi"
 	cli := "claude"
 	if task.Executor.Kind == "cli" && task.Executor.Cli != nil {
 		cli = *task.Executor.Cli
+	} else if nomi {
+		cli = "nomi"
 	}
 	status := "running"
 	switch task.Status {
@@ -285,9 +292,11 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 		end = float64(*attempt.EndedAt)
 	}
 	res.Set("durationMs", math.Max(0, end-float64(task.Origin.CreatedAt)))
-	if worktree != "" {
+	switch {
+	case nomi:
+	case worktree != "":
 		res.Set("isolationNote", "改动在独立的 worktree（"+worktree+"）里，用户在任务页验收后再回填到工作区")
-	} else {
+	default:
 		res.Set("isolationNote", "工作目录不是 git 仓库，改动直接在工作目录里")
 	}
 	if task.Origin.ConversationID != nil && *task.Origin.ConversationID != "" {
@@ -561,6 +570,17 @@ func (s *Service) Tools() []tools.Definition {
 			},
 		},
 		{
+			Name: "delegate_to_nomi",
+			Description: "把一件要做一阵子的事交给后台的 Nomi（你自己的分身）去做，这一轮立刻结束、对话照常继续，做完结果自动回到这个对话。" +
+				"适合：生成一组图片、写 PPT / 文档 / 调研报告、整理一批文件这类多步的活，或用户说「后台做」「做好叫我」。" +
+				"后台的 Nomi 能用你在对话里的工具（生图、联网、技能、文件、命令），代码部分会自己再交给编程助手。" +
+				"一两步就能做完的事直接自己做，不要派。可用 delegate_status 查进度、delegate_stop 停止。",
+			Input: mustSchema(nomiInputSchema),
+			Execute: func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
+				return s.executeNomi(ctx, in, ec), nil
+			},
+		},
+		{
 			Name: "delegate_status",
 			Description: "查询后台委派任务的状态与结果（taskId 来自 delegate_to_cli）。仍在跑时 status 为 running；" +
 				"完成后返回与同步委派相同的结构化汇报。",
@@ -744,6 +764,125 @@ func (s *Service) executeFollowup(sig context.Context, raw any, ec tools.ExecCon
 
 func optStr(in *util.Obj, k string) string { return util.Str(in.Get(k)) }
 
+func (s *Service) executeNomi(sig context.Context, raw any, ec tools.ExecContext) *util.Obj {
+	t0 := s.d.Now()
+	data, err := func() (*util.Obj, error) {
+		in, err := parseInput(mustSchema(nomiInputSchema), raw)
+		if err != nil {
+			return nil, err
+		}
+		return s.delegateToNomi(in, &execCtx{sig, ec}, t0)
+	}()
+	if err != nil {
+		code := codeOf(err)
+		dec := "error"
+		if code == "user_denied" || code == "mode_blocked" {
+			dec = "denied"
+		}
+		s.audit("delegate_to_nomi", util.NewObj(), dec, code, t0)
+		return errResult(code, err.Error())
+	}
+	kind := "writing"
+	if o, ok := raw.(*util.Obj); ok && o.Get("kind") != nil {
+		kind = jsString(o.Get("kind"))
+	}
+	s.audit("delegate_to_nomi", util.NewObj("kind", kind), "allowed", util.Str(data.Get("status")), t0)
+	return util.NewObj("ok", true, "data", data)
+}
+
+const nomiPlanBlocked = "当前是「计划」（只读）权限模式，不能派后台的 Nomi 去做；先给出方案，等用户切换权限模式"
+
+// delegateToNomi：派给 Nomi（§7.4）：建一个执行者为后台 Nomi 的任务，用对话的工具集、在对话的工作区里做；
+// 高级权限（为了自动化）：计划档拒绝；其余一律 L4、已装的 MCP 工具都能用，不因对话是「逐项确认」降级；
+// 破坏性动作、凭据 / 永不放行的命令、审核不放行的命令仍停下来等人（PermissionBroker 的 trusted 后台执行）。
+func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, error) {
+	port := s.d.Tasks
+	if port == nil {
+		return nil, derr("internal_error", "持续任务没有启动，不能派给后台的 Nomi")
+	}
+	b := s.d.Desktop
+	if c.ec.CallerTabID != "" {
+		return nil, derr("delegation_depth", "编程助手不能把任务派给 Nomi（只允许一层）")
+	}
+	if desktop.BackgroundFrom(c.sig) != nil {
+		return nil, derr("delegation_depth", "后台的 Nomi 不能再派 Nomi：自己做完，或用 delegate_to_cli 把代码部分交给编程助手")
+	}
+	mode := b.PermissionMode()
+	if mode == "plan" {
+		return nil, derr("mode_blocked", nomiPlanBlocked)
+	}
+	var ctxCwd any
+	if c.ec.Cwd != "" {
+		ctxCwd = c.ec.Cwd
+	}
+	ws := b.WorkspaceOf(ctxCwd)
+	authorize := b.Authorize
+	if ws != "" {
+		authorize = b.AuthorizeIn
+	}
+	goal := util.Str(in.Get("goal"))
+	doneWhen := util.Str(in.Get("done_when"))
+	args := util.NewObj("goal", goal)
+	if ws != "" {
+		args.Set("cwd", ws)
+	}
+	preview := goal + "\n\n完成标准：" + doneWhen
+	decision := authorize(desktop.AuthorizeInput{
+		Tool: "delegate_to_nomi", Danger: "write",
+		Summary: "让后台的 Nomi 去做：" + slice(goal, 80),
+		Args:    args, Preview: &preview, Signal: c.sig,
+	})
+	switch decision {
+	case "blocked":
+		return nil, derr("mode_blocked", nomiPlanBlocked)
+	case "denied":
+		return nil, derr("user_denied", "用户没有同意这次委派，不要重试")
+	case "timeout":
+		return nil, derr("timeout_denied", "没有等到用户确认，已取消委派")
+	}
+	toolset := "conversation"
+	ex := tasks.ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: &toolset,
+		Brief: &tasks.Brief{DoneWhen: doneWhen}}
+	if ws != "" {
+		v := ws
+		ex.Cwd = &v
+	}
+	if ctxText := optStr(in, "context"); ctxText != "" {
+		ex.Brief.Context = &ctxText
+	}
+	if c.ec.ToolCallID != "" {
+		v := c.ec.ToolCallID
+		ex.CallID = &v
+	}
+	paths := []string{}
+	if ws != "" {
+		paths = []string{ws}
+	}
+	category := optStr(in, "kind")
+	if category == "" {
+		category = "writing"
+	}
+	di := tasks.DelegatedInput{Title: "Nomi · " + slice(trim(goal), 40), Goal: goal, Executor: ex, Level: 4,
+		Paths: paths, Category: category}
+	if c.ec.ConversationID != "" {
+		cid := c.ec.ConversationID
+		di.ConversationID = &cid
+	}
+	task := port.CreateDelegated(di)
+	var result *util.Obj
+	if rec := port.Get(task.ID); rec != nil {
+		result = s.resultFromTask(rec)
+	} else {
+		result = util.NewObj("taskId", task.ID, "cli", "nomi", "status", "running", "summary", "",
+			"filesVerified", false, "approvals", approvalsZero(), "durationMs", 0.0)
+	}
+	result.Set("summary", util.Str(result.Get("summary"))+"。已交给后台的 Nomi（任务页可看进度）：同时运行的任务满了会排队；"+
+		"做完后结果会自动回到这个对话。这一轮不用等它，告诉用户已经派出去了即可；"+
+		"可用 delegate_status 查询、delegate_stop 停止。")
+	result.Set("durationMs", s.d.Now()-t0)
+	return s.resultForModel(result, c), nil
+}
+
 func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, error) {
 	s.mu.Lock()
 	enabled := s.settings.Get("enabled") != false
@@ -754,6 +893,10 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 	b := s.d.Desktop
 	h := s.d.Harness
+	// 后台的 Nomi（任务执行）里委派：同步等结果，拿到汇报再继续（§7.4）
+	if desktop.BackgroundFrom(c.sig) != nil {
+		in.Set("background", false)
+	}
 
 	if c.ec.CallerTabID != "" {
 		if d := delegationOf(s.findTab(c.ec.CallerTabID)); d != nil && d.Get("by") == "nomi" {
@@ -1409,6 +1552,9 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 // 还在跑 / 排队 → busy；已经结束的不能再追问。
 func (s *Service) followupTask(rec *tasks.Record, message string, c *execCtx, t0 float64) (*util.Obj, error) {
 	task := rec.Task
+	if task.Executor.Kind == "nomi" {
+		return nil, derr("not_followable", "派给后台 Nomi 的任务不能追问；要改就再用 delegate_to_nomi 派一次，把上次的结果和修改意见写进 context")
+	}
 	if task.Status != tasks.StatusAwaitingAccept {
 		switch task.Status {
 		case tasks.StatusQueued, tasks.StatusRunning, tasks.StatusWaitingUser, tasks.StatusNeedsReconcile:

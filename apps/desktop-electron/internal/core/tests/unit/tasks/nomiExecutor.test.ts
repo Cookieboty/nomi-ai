@@ -29,16 +29,29 @@ function scriptedStream(
   });
 }
 
-function setup(stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChunk>) {
+function setup(
+  stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChunk>,
+  opts: { toolNames?: string[]; ticks?: Array<() => void> } = {},
+) {
   const clock = new FakeClock(T0);
   const store = new MemStore();
-  const calls: { tools: readonly string[]; quiet: boolean; system: string }[] = [];
+  const calls: {
+    tools: readonly string[];
+    quiet: boolean;
+    system: string;
+    extra?: Record<string, unknown>;
+  }[] = [];
   let bg: BackgroundRun | null = null;
   const traces: Record<string, unknown>[] = [];
   let n = 0;
   const exec = createNomiExecutor({
     agentStream: (o) => {
-      calls.push({ tools: o.tools, quiet: o.quiet, system: String(o.messages[0]!.content) });
+      calls.push({
+        tools: o.tools,
+        quiet: o.quiet,
+        system: String(o.messages[0]!.content),
+        ...(o.extra ? { extra: o.extra } : {}),
+      });
       return stream(o.signal, n++);
     },
     registerBackground: (_s, run) => {
@@ -48,6 +61,15 @@ function setup(stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChu
       };
     },
     ready: () => true,
+    ...(opts.toolNames ? { toolNames: () => opts.toolNames! } : {}),
+    ...(opts.ticks
+      ? {
+          every: (_ms: number, fn: () => void) => {
+            opts.ticks!.push(fn);
+            return () => undefined;
+          },
+        }
+      : {}),
     costOf: (_m, t) => (t.input + t.output) / 1e6,
     trace: (_id, _a, line) => traces.push(line),
     now: () => clock.t,
@@ -65,6 +87,137 @@ function setup(stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChu
   rt.start();
   return { rt, calls, traces, bg: () => bg, clock };
 }
+
+describe('nomi 执行者：派给 Nomi（对话的工具集）', () => {
+  const conversationExecutor = (extra: Record<string, unknown> = {}) => ({
+    kind: 'nomi' as const,
+    tools: [],
+    toolset: 'conversation' as const,
+    cwd: '/work/deck',
+    brief: { doneWhen: 'PPT 写进工作区', context: '10 页，蓝色调' },
+    ...extra,
+  });
+
+  it('用对话的工具集（去掉再派 Nomi、建任务、弹窗、角色动作），带上工作区与来源对话', async () => {
+    const h = setup(
+      scriptedStream([
+        { type: 'delta', content: '做好了：deck.pptx' },
+        { type: 'done', finishReason: 'stop' },
+      ]),
+      {
+        toolNames: [
+          'image_generate',
+          'fs_write_text',
+          'delegate_to_cli',
+          'delegate_to_nomi',
+          'task_propose',
+          'desktop_request_scope',
+          'avatar_emotion',
+        ],
+      },
+    );
+    const id = h.rt.create(
+      baseInput({
+        executor: conversationExecutor(),
+        origin: { createdBy: 'nomi', createdAt: T0, via: 'delegate', conversationId: 'c1' },
+      }),
+    ).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.calls[0]!.tools).toEqual(['image_generate', 'fs_write_text', 'delegate_to_cli']);
+    expect(h.calls[0]!.extra).toMatchObject({ conversationId: 'c1', cwd: '/work/deck' });
+    expect(h.calls[0]!.system).toContain('工作区：/work/deck');
+    expect(h.calls[0]!.system).toContain('完成标准：PPT 写进工作区');
+    expect(h.calls[0]!.system).toContain('10 页，蓝色调');
+    expect(h.calls[0]!.system).toContain('delegate_to_cli');
+    expect(h.rt.get(id)!.task.status).toBe('done');
+  });
+
+  it('高级权限：后台执行标为 trusted，已注册的 MCP 工具全部授权', async () => {
+    let seen: BackgroundRun | null = null;
+    let getBg: () => BackgroundRun | null = () => null;
+    const h = setup(
+      scriptedStream([
+        async () => {
+          seen = getBg();
+        },
+        { type: 'delta', content: 'ok' },
+        { type: 'done', finishReason: 'stop' },
+      ]),
+      { toolNames: ['fs_write_text', 'mail__send', 'mail__list', 'notes__add'] },
+    );
+    getBg = h.bg;
+    const id = h.rt.create(
+      baseInput({
+        executor: conversationExecutor(),
+        grant: { level: 4, paths: ['/work/deck'], connections: [] },
+      }),
+    ).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(seen!.trusted).toBe(true);
+    expect(seen!.tainted).toBeUndefined();
+    expect(seen!.level).toBe(4);
+    expect(seen!.connections).toEqual([
+      {
+        connectionId: 'mcp:mail',
+        capabilities: ['mcp.read', 'mcp.call'],
+        resources: ['send', 'list'],
+      },
+      { connectionId: 'mcp:notes', capabilities: ['mcp.read', 'mcp.call'], resources: ['add'] },
+    ]);
+  });
+
+  it('按授权工具类的普通任务不是高级权限', async () => {
+    let seen: BackgroundRun | null = null;
+    let getBg: () => BackgroundRun | null = () => null;
+    const h = setup(
+      scriptedStream([
+        async () => {
+          seen = getBg();
+        },
+        { type: 'delta', content: 'ok' },
+        { type: 'done', finishReason: 'stop' },
+      ]),
+      { toolNames: ['mail__send'] },
+    );
+    getBg = h.bg;
+    const id = h.rt.create(baseInput()).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(seen!.trusted).toBeUndefined();
+    expect(seen!.connections).toEqual([]);
+  });
+
+  it('工具调用进行中按间隔补心跳，工具返回后不再补', async () => {
+    const ticks: Array<() => void> = [];
+    let release!: () => void;
+    const h = setup(
+      scriptedStream([
+        { type: 'tool_call.delta', index: 0, id: 't1', name: 'image_generate' },
+        () => new Promise<void>((r) => (release = r)),
+        { type: 'tool_call.result', id: 't1', name: 'image_generate', output: 'ok' },
+        { type: 'delta', content: '6 张图都进了素材库' },
+        { type: 'done', finishReason: 'stop' },
+      ]),
+      { toolNames: ['image_generate'], ticks },
+    );
+    const id = h.rt.create(baseInput({ executor: conversationExecutor() })).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.rt.get(id)!.task.status).toBe('running');
+    // 看守超时默认 5 分钟：时间走过 10 分钟，期间每分钟一跳，仍在运行
+    for (let m = 0; m < 10; m++) {
+      h.clock.advance(60_000);
+      ticks[0]!();
+    }
+    h.clock.advance(1);
+    expect(h.rt.get(id)!.task.status).toBe('running');
+    release();
+    await flush();
+    expect(h.rt.get(id)!.task.status).toBe('done');
+  });
+});
 
 describe('nomi 执行者', () => {
   it('工具按授权裁剪、不冒气泡；用量累计；结果作为总结', async () => {

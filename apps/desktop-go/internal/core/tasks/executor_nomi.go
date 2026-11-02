@@ -3,6 +3,9 @@ package tasks
 // nomi 执行者，对应 src/tasks/executors/nomi.ts：无界面跑一轮 Nomi 的 agent 循环（persistent-tasks §7.1）。
 // 每次执行一个 goroutine；工具审批经 broker 的后台模式（WithBackground 挂在 ctx 上），需要人时阻塞在通道上
 // 等 Resume 送来的回答。预算暂停会取消这一轮，批准继续后带着进展重开。
+//
+// 对话里派给 Nomi 的（toolset: conversation，§7.4）：工具用对话的工具集（去掉 ConversationExcluded），
+// 在发起对话的工作区里做；工具调用期间（生图、同步等编程助手）自己发心跳，不被看守判成崩溃。
 
 import (
 	"context"
@@ -74,12 +77,67 @@ func AllowedTools(classes []string, conns ...ConnectionGrant) []string {
 	return out
 }
 
+// ConversationExcluded：派给 Nomi 的后台执行里不提供的工具：再派 Nomi、建任务、要弹窗问人的、桌面角色动作
+var ConversationExcluded = []string{
+	"delegate_to_nomi",
+	"task_propose",
+	"desktop_request_scope",
+	"avatar_emotion",
+	"avatar_gesture",
+}
+
+// ToolHeartbeatMs：工具调用进行中时的心跳间隔（看守超时默认 5 分钟）
+const ToolHeartbeatMs = 60_000
+
+// McpGrantsFor：派给 Nomi 的执行（高级权限）：已注册的 MCP 工具全部授权（只读的按只读跑，其它按对外动作）。
+// 按执行时的工具表算，派出后新装的 MCP 服务器也能用；服务器按首次出现的顺序
+func McpGrantsFor(tools []string) []ConnectionGrant {
+	out := []ConnectionGrant{}
+	idx := map[string]int{}
+	for _, n := range tools {
+		server, tool, ok := connections.SplitMcpTool(n)
+		if !ok {
+			continue
+		}
+		i, seen := idx[server]
+		if !seen {
+			i = len(out)
+			idx[server] = i
+			out = append(out, ConnectionGrant{ConnectionID: connections.McpConnectionID(server),
+				Capabilities: []string{"mcp.read", "mcp.call"}, Resources: []string{}})
+		}
+		out[i].Resources = append(out[i].Resources, tool)
+	}
+	return out
+}
+
+// ToolsForTask：这次执行可用的工具名
+func ToolsForTask(t Task, registered []string) []string {
+	if t.Executor.Kind != "nomi" {
+		return []string{}
+	}
+	if t.Executor.Toolset != nil && *t.Executor.Toolset == "conversation" {
+		out := []string{}
+		for _, n := range registered {
+			if !slices.Contains(ConversationExcluded, n) {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	if t.Executor.Tools == nil {
+		return []string{}
+	}
+	return AllowedTools(*t.Executor.Tools, t.Grant.Connections...)
+}
+
 type NomiDeps struct {
 	// AgentStream：client.chat.AgentStream，tools 白名单、quiet
 	AgentStream func(ctx context.Context, messages []blm.ChatMessage, tools []string, extra map[string]any, emit func(blm.ChatChunk)) error
 	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）；tainted = 事件触发，读过外部内容（§8.4）；
+	// trusted = 高级权限（派给 Nomi 的执行，§7.4）；
 	// external = 这次执行的副作用日志（对外工具执行前写 intent、成功后写 done），可为 nil
-	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted bool, external connections.ExternalJournal) context.Context
+	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context
 	// ExternalJournal：这次执行的副作用日志（Service.ExternalJournal）；nil = 不登记
 	ExternalJournal func(taskID, attemptID string) connections.ExternalJournal
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
@@ -88,6 +146,27 @@ type NomiDeps struct {
 	CostOf    func(model string, input, output int64) (float64, bool)
 	Trace     func(taskID, attemptID string, line map[string]any)
 	Now       func() int64
+	// ToolNames：Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集）
+	ToolNames func() []string
+	// Every：周期定时器（测试注入）；返回取消函数
+	Every func(ms int64, fn func()) func()
+}
+
+func defaultEvery(ms int64, fn func()) func() {
+	t := time.NewTicker(time.Duration(ms) * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				fn()
+			case <-done:
+				return
+			}
+		}
+	}()
+	var once sync.Once
+	return func() { once.Do(func() { t.Stop(); close(done) }) }
 }
 
 type nomiRun struct {
@@ -111,6 +190,9 @@ type nomiExecutor struct {
 func NewNomiExecutor(d NomiDeps) Executor {
 	if d.Now == nil {
 		d.Now = func() int64 { return time.Now().UnixMilli() }
+	}
+	if d.Every == nil {
+		d.Every = defaultEvery
 	}
 	return &nomiExecutor{d: d, runs: map[string]*nomiRun{}}
 }
@@ -156,12 +238,33 @@ func EventsSection(events []SourceEvent) string {
 func BuildPrompt(ctx AttemptContext, progress string, now int64, events []SourceEvent) []blm.ChatMessage {
 	t, a := ctx.Task, ctx.Attempt
 	cause := a.Cause
-	lines := []string{
-		fmt.Sprintf("你是用户的桌面助手，正在后台执行用户交代的一项持续任务「%s」。用户现在不在旁边：不要提问，直接把事情做完；", t.Title),
-		"需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。",
-		"完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。",
-		"现在时间：" + time.UnixMilli(now).Format("2006/1/2 15:04:05"),
+	ex := t.Executor
+	var lines []string
+	if ex.Kind == "nomi" && ex.Toolset != nil && *ex.Toolset == "conversation" {
+		lines = []string{
+			"你是用户的桌面助手。用户在对话里把一件事交给你在后台做，对话还在继续，用户现在不在等你：不要提问，直接把整件事做完。",
+			"需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。",
+			"你自己决定怎么分：能自己做的自己做；代码开发、改仓库这类部分可以用 delegate_to_cli 交给编程助手，它会等编程助手做完再把汇报交回给你，你核对后继续，直到整件事完成。",
+			"产出要落到用户拿得到的地方：文件写进工作区，图片用 image_generate（自动进素材库）。",
+			"完成后用简洁的中文写出结果：做了什么、产出在哪（文件路径、素材库里的图片）、还有什么没做完或需要用户注意；不要寒暄。",
+		}
+		if ex.Cwd != nil && *ex.Cwd != "" {
+			lines = append(lines, "工作区："+*ex.Cwd)
+		}
+		if ex.Brief != nil {
+			lines = append(lines, "完成标准："+ex.Brief.DoneWhen)
+			if ex.Brief.Context != nil && *ex.Brief.Context != "" {
+				lines = append(lines, "背景：\n"+shortN(*ex.Brief.Context, 6000))
+			}
+		}
+	} else {
+		lines = []string{
+			fmt.Sprintf("你是用户的桌面助手，正在后台执行用户交代的一项持续任务「%s」。用户现在不在旁边：不要提问，直接把事情做完；", t.Title),
+			"需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。",
+			"完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。",
+		}
 	}
+	lines = append(lines, "现在时间："+time.UnixMilli(now).Format("2006/1/2 15:04:05"))
 	note := ""
 	if cause.Note != nil {
 		note = "（" + *cause.Note + "）"
@@ -217,12 +320,12 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	run.cancel = cancel
 	run.active = true
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
-	var tools []string
-	if t.Executor.Tools != nil {
-		tools = AllowedTools(*t.Executor.Tools, t.Grant.Connections...)
-	} else {
-		tools = []string{}
+	var registered []string
+	if e.d.ToolNames != nil {
+		registered = e.d.ToolNames()
 	}
+	tools := ToolsForTask(t, registered)
+	elevated := t.Executor.Kind == "nomi" && t.Executor.Toolset != nil && *t.Executor.Toolset == "conversation"
 	ask := func(tool, summary, detail string) bool {
 		e.mu.Lock()
 		run.seq++
@@ -241,12 +344,17 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	}
 	ctx := base
 	if e.d.WithBackground != nil {
-		// 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
+		// 事件触发的执行读过外部内容：写入与命令都问人（§8.4）；派给 Nomi 的是高级权限：
+		// 已注册的 MCP 工具全部授权、标为 trusted（§7.4）
 		var external connections.ExternalJournal
 		if e.d.ExternalJournal != nil {
 			external = e.d.ExternalJournal(t.ID, a.ID)
 		}
-		ctx = e.d.WithBackground(base, t.Grant.Level, ask, t.Grant.Connections, a.Cause.Kind == "event", external)
+		conns := t.Grant.Connections
+		if elevated {
+			conns = append(slices.Clone(conns), McpGrantsFor(tools)...)
+		}
+		ctx = e.d.WithBackground(base, t.Grant.Level, ask, conns, a.Cause.Kind == "event", elevated, external)
 	}
 	progress := run.progress
 	go e.consume(ctx, run, tools, progress)
@@ -262,8 +370,26 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if e.d.EventsFor != nil {
 		events = e.d.EventsFor(t.ID, a.Cause.EventKey)
 	}
+	extra := map[string]any{"taskId": t.ID, "attemptId": a.ID}
+	if t.Origin.ConversationID != nil && *t.Origin.ConversationID != "" {
+		extra["conversationId"] = *t.Origin.ConversationID
+	}
+	if t.Executor.Kind == "nomi" && t.Executor.Cwd != nil && *t.Executor.Cwd != "" {
+		extra["cwd"] = *t.Executor.Cwd
+	}
+	// 工具调用进行中（生图、同步等编程助手）流里没有片段：按间隔补心跳，免得被看守判成崩溃
+	var pmu sync.Mutex
+	pending := map[string]bool{}
+	stopBeat := e.d.Every(ToolHeartbeatMs, func() {
+		pmu.Lock()
+		n := len(pending)
+		pmu.Unlock()
+		if n > 0 {
+			rep.Heartbeat()
+		}
+	})
 	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, progress, e.d.Now(), events), tools,
-		map[string]any{"taskId": t.ID, "attemptId": a.ID}, func(c blm.ChatChunk) {
+		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
 				return
 			}
@@ -271,9 +397,21 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			case "delta":
 				text.WriteString(c.Content)
 				rep.Heartbeat()
-			case "reasoning", "tool_call.delta":
+			case "reasoning":
+				rep.Heartbeat()
+			case "tool_call.delta":
+				if c.ID != nil && *c.ID != "" {
+					pmu.Lock()
+					pending[*c.ID] = true
+					pmu.Unlock()
+				}
 				rep.Heartbeat()
 			case "tool_call.result":
+				if c.ID != nil {
+					pmu.Lock()
+					delete(pending, *c.ID)
+					pmu.Unlock()
+				}
 				rep.Heartbeat()
 				if e.d.Trace != nil {
 					line := map[string]any{"at": e.d.Now()}
@@ -310,6 +448,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 				}
 			}
 		})
+	stopBeat()
 	if err == nil {
 		err = streamErr
 	}

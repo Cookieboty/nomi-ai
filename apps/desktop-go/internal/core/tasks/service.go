@@ -316,31 +316,58 @@ type DelegatedInput struct {
 	Title          string
 	Goal           string
 	ConversationID *string
-	Executor       ExecutorSpec // kind: cli
-	Level          int          // 2 | 3
+	Executor       ExecutorSpec // kind: cli | nomi
+	Level          int          // 2 | 3 | 4
 	Paths          []string
+	// Category：缺省 coding
+	Category string
 }
+
+// 派给 Nomi 的委派（§7.4）：每次执行的 token 与时长上限
+const (
+	DelegatedNomiMaxTokens = 2_000_000
+	DelegatedNomiMaxMs     = 2 * 60 * 60_000
+)
 
 // CreateDelegated：对话里 delegate_to_cli 后台派出的任务（persistent-tasks-plan 2.2）：用户已在对话里确认过这次委派；
 // 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
+// 派给 Nomi 的（executor: nomi，§7.4）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) Task {
-	cli := ""
-	if i.Executor.Cli != nil {
-		cli = *i.Executor.Cli
+	nomi := i.Executor.Kind == "nomi"
+	clis := []string{}
+	if i.Executor.Kind == "cli" {
+		cli := ""
+		if i.Executor.Cli != nil {
+			cli = *i.Executor.Cli
+		}
+		clis = []string{cli}
 	}
 	paths := i.Paths
 	if paths == nil {
 		paths = []string{}
 	}
+	category := i.Category
+	if category == "" {
+		category = "coding"
+	}
 	via := "delegate"
+	// 派给 Nomi 的：一次可能生一组图、等编程助手做完，放宽时长与 token；不在对话外另设费用闸门
+	budget := &BudgetInput{MaxRetries: ptr(1)}
+	acceptance := "user"
+	if nomi {
+		budget = &BudgetInput{MaxRetries: ptr(1), MaxTokensPerAttempt: ptr(int64(DelegatedNomiMaxTokens)),
+			MaxDurationMsPerAttempt: ptr(int64(DelegatedNomiMaxMs)), NoCostPerDay: true}
+		// 派给 Nomi 的没有 worktree 要回填：做完结果直接回对话
+		acceptance = "auto"
+	}
 	task := s.Runtime.Create(CreateInput{Title: i.Title, Goal: i.Goal,
 		Origin:     Origin{ConversationID: i.ConversationID, CreatedBy: "nomi", CreatedAt: s.d.Now(), Via: &via},
 		Trigger:    Trigger{Kind: "manual"},
 		Executor:   i.Executor,
-		Category:   ptr("coding"),
-		Grant:      Grant{Level: i.Level, Paths: paths, Connections: []ConnectionGrant{}, Clis: &[]string{cli}},
-		Budget:     &BudgetInput{MaxRetries: ptr(1)},
-		Acceptance: "user",
+		Category:   ptr(category),
+		Grant:      Grant{Level: i.Level, Paths: paths, Connections: []ConnectionGrant{}, Clis: &clis},
+		Budget:     budget,
+		Acceptance: acceptance,
 	})
 	s.Runtime.Command(task.ID, Command{Type: "runNow"})
 	if rec := s.Runtime.Get(task.ID); rec != nil {

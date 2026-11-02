@@ -9,6 +9,8 @@
  * 2.1.0（persistent-tasks-plan 2.2–2.4、2.8）：后台委派就是持续任务（executor: cli）——排队代替拒绝、
  * 瞬时错误重试一次、重启后在同一 worktree 续跑、做完进验收（不自动回填）；`delegate_stop` 停止；
  * 同步委派（background:false）照旧，名额满了排队等，不再拒绝。
+ * 派给 Nomi（persistent-tasks §7.4）：工具 `delegate_to_nomi` 建一个执行者为后台 Nomi 的任务（对话的工具集），
+ * 结果同样经 `delegate.completed` 回到来源对话；后台 Nomi 里再委派编程助手一律同步等结果。
  */
 import { execFile } from 'child_process';
 import * as fs from 'fs';
@@ -23,7 +25,7 @@ import type { AppEventName, AppEvents } from '../../core/appEvents';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
 import type { TaskRecord } from '../../tasks/TaskStore';
-import type { Task, ExecutorSpec } from '../../tasks/types';
+import type { Task, ExecutorSpec, TaskCategory } from '../../tasks/types';
 import { createMainLogger } from '../../utils/log';
 import { writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { HarnessStoppedError, type HarnessOrchestrator } from '../CliHarnessService';
@@ -61,13 +63,17 @@ import {
 
 const log = createMainLogger('delegate');
 
-const CLI_NAME: Record<DelegateCli, string> = {
+const CLI_NAME: Record<DelegateCli | 'nomi', string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   grok: 'Grok',
   gemini: 'Gemini',
   dsh: 'dsh',
+  nomi: '后台的 Nomi',
 };
+
+/** 委派结果里的执行者：编程助手，或派给 Nomi 的后台 Nomi（§7.4） */
+export type DelegateExecutor = DelegateCli | 'nomi';
 
 /** `/agent` 钉住的有效期：这一轮没用上就作废（防止留到很久以后的某次委派） */
 const PIN_TTL_MS = 10 * 60_000;
@@ -101,6 +107,30 @@ const input = z.object({
   reasoning_effort: z.string().optional().describe('思考深度 low / medium / high'),
 });
 
+const nomiInput = z.object({
+  goal: z
+    .string()
+    .min(1)
+    .max(4000)
+    .describe('要做成什么，写具体：用户原话 + 你整理的要求（数量、风格、篇幅、格式）'),
+  done_when: z
+    .string()
+    .min(1)
+    .max(2000)
+    .describe('完成标准：怎样算做完（如「6 张图都进了素材库」「PPT 文件写进工作区」）'),
+  context: z
+    .string()
+    .max(8000)
+    .optional()
+    .describe('已知背景：对话里已经定下的内容、素材、用户偏好'),
+  kind: z
+    .enum(['research', 'writing', 'coding', 'review', 'chore'])
+    .optional()
+    .describe(
+      '类型（任务看板分组用）：research 调研 / writing 写作与做文档、PPT、图片 / coding 开发 / review 审查 / chore 杂事',
+    ),
+});
+
 const statusInput = z.object({
   taskId: z.string().min(1).describe('delegate_to_cli 返回的 taskId（编程助手标签 id）'),
 });
@@ -116,7 +146,7 @@ const followupInput = z.object({
 
 export interface DelegateResult {
   taskId: string;
-  cli: DelegateCli;
+  cli: DelegateExecutor;
   /** running = 后台已启动（异步默认）；其余为终态 */
   status: 'running' | 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi';
@@ -235,9 +265,10 @@ export interface DelegateTaskPort {
     title: string;
     goal: string;
     conversationId?: string;
-    executor: Extract<ExecutorSpec, { kind: 'cli' }>;
-    level: 2 | 3;
+    executor: Extract<ExecutorSpec, { kind: 'cli' }> | Extract<ExecutorSpec, { kind: 'nomi' }>;
+    level: 2 | 3 | 4;
     paths: string[];
+    category?: TaskCategory;
   }): Task;
   get(id: string): TaskRecord | null;
   command(
@@ -311,7 +342,9 @@ export class DelegateService {
   private resultFromTask(rec: TaskRecord): DelegateResult {
     const { task } = rec;
     const attempt = rec.attempts.at(-1);
-    const cli = (task.executor.kind === 'cli' ? task.executor.cli : 'claude') as DelegateCli;
+    const nomi = task.executor.kind === 'nomi';
+    const cli: DelegateExecutor =
+      task.executor.kind === 'cli' ? (task.executor.cli as DelegateCli) : nomi ? 'nomi' : 'claude';
     const status: DelegateResult['status'] =
       task.status === 'awaiting_accept' || task.status === 'done'
         ? 'done'
@@ -348,9 +381,13 @@ export class DelegateService {
         ? { error: task.lastError.message, errorCode: task.lastError.code }
         : {}),
       durationMs: Math.max(0, (attempt?.endedAt ?? task.updatedAt) - task.origin.createdAt),
-      isolationNote: worktree
-        ? `改动在独立的 worktree（${worktree}）里，用户在任务页验收后再回填到工作区`
-        : '工作目录不是 git 仓库，改动直接在工作目录里',
+      ...(nomi
+        ? {}
+        : {
+            isolationNote: worktree
+              ? `改动在独立的 worktree（${worktree}）里，用户在任务页验收后再回填到工作区`
+              : '工作目录不是 git 仓库，改动直接在工作目录里',
+          }),
       ...(task.origin.conversationId ? { conversationId: task.origin.conversationId } : {}),
       task: {
         id: task.id,
@@ -525,6 +562,16 @@ export class DelegateService {
         execute: (raw, ctx) => this.execute(raw, ctx),
       },
       {
+        name: 'delegate_to_nomi',
+        description:
+          '把一件要做一阵子的事交给后台的 Nomi（你自己的分身）去做，这一轮立刻结束、对话照常继续，做完结果自动回到这个对话。' +
+          '适合：生成一组图片、写 PPT / 文档 / 调研报告、整理一批文件这类多步的活，或用户说「后台做」「做好叫我」。' +
+          '后台的 Nomi 能用你在对话里的工具（生图、联网、技能、文件、命令），代码部分会自己再交给编程助手。' +
+          '一两步就能做完的事直接自己做，不要派。可用 delegate_status 查进度、delegate_stop 停止。',
+        input: nomiInput,
+        execute: (raw, ctx) => this.executeNomi(raw, ctx),
+      },
+      {
         name: 'delegate_status',
         description:
           '查询后台委派任务的状态与结果（taskId 来自 delegate_to_cli）。仍在跑时 status 为 running；' +
@@ -676,6 +723,120 @@ export class DelegateService {
     }
   }
 
+  private async executeNomi(raw: unknown, ctx: ToolExecContext): Promise<ToolResult> {
+    const t0 = Date.now();
+    try {
+      const data = await this.delegateToNomi(nomiInput.parse(raw), ctx, t0);
+      this.d.desktop.audit.append({
+        tool: 'delegate_to_nomi',
+        args: { kind: (raw as { kind?: string })?.kind ?? 'writing' },
+        decision: 'allowed',
+        result: data.status,
+        ms: Date.now() - t0,
+        source: 'agent',
+      });
+      return { ok: true, data };
+    } catch (e) {
+      const code = e instanceof DelegateError ? e.code : 'internal_error';
+      const message = e instanceof Error ? e.message : String(e);
+      this.d.desktop.audit.append({
+        tool: 'delegate_to_nomi',
+        args: {},
+        decision: code === 'user_denied' || code === 'mode_blocked' ? 'denied' : 'error',
+        result: code,
+        ms: Date.now() - t0,
+        source: 'agent',
+      });
+      return { ok: false, error: { code, message } };
+    }
+  }
+
+  /**
+   * 派给 Nomi（§7.4）：建一个执行者为后台 Nomi 的任务，用对话的工具集、在对话的工作区里做；
+   * 高级权限（为了自动化）：计划档拒绝；其余一律 L4、已装的 MCP 工具都能用，不因对话是「逐项确认」降级；
+   * 破坏性动作、凭据 / 永不放行的命令、审核不放行的命令仍停下来等人（PermissionBroker 的 trusted 后台执行）。
+   */
+  private async delegateToNomi(
+    i: z.infer<typeof nomiInput>,
+    ctx: ToolExecContext,
+    t0: number,
+  ): Promise<DelegateResult> {
+    const port = this.d.tasks;
+    if (!port) throw new DelegateError('internal_error', '持续任务没有启动，不能派给后台的 Nomi');
+    const broker = this.d.desktop.broker;
+    if (ctx.callerTabId ?? getToolCallerTabId())
+      throw new DelegateError('delegation_depth', '编程助手不能把任务派给 Nomi（只允许一层）');
+    if (broker.isBackground(ctx.signal))
+      throw new DelegateError(
+        'delegation_depth',
+        '后台的 Nomi 不能再派 Nomi：自己做完，或用 delegate_to_cli 把代码部分交给编程助手',
+      );
+    const mode = broker.permissionMode();
+    if (mode === 'plan')
+      throw new DelegateError(
+        'mode_blocked',
+        '当前是「计划」（只读）权限模式，不能派后台的 Nomi 去做；先给出方案，等用户切换权限模式',
+      );
+    const ws = await broker.workspaceOf(ctx.cwd);
+    const authorize = ws ? broker.authorizeIn.bind(broker) : broker.authorize.bind(broker);
+    const decision = await authorize({
+      tool: 'delegate_to_nomi',
+      danger: 'write',
+      summary: `让后台的 Nomi 去做：${i.goal.slice(0, 80)}`,
+      args: { goal: i.goal, ...(ws ? { cwd: ws } : {}) },
+      preview: `${i.goal}\n\n完成标准：${i.done_when}`,
+      signal: ctx.signal,
+    });
+    if (decision === 'blocked')
+      throw new DelegateError(
+        'mode_blocked',
+        '当前是「计划」（只读）权限模式，不能派后台的 Nomi 去做；先给出方案，等用户切换权限模式',
+      );
+    if (decision === 'denied')
+      throw new DelegateError('user_denied', '用户没有同意这次委派，不要重试');
+    if (decision === 'timeout')
+      throw new DelegateError('timeout_denied', '没有等到用户确认，已取消委派');
+    const task = port.createDelegated({
+      title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
+      goal: i.goal,
+      ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
+      executor: {
+        kind: 'nomi',
+        tools: [],
+        toolset: 'conversation',
+        ...(ws ? { cwd: ws } : {}),
+        brief: { doneWhen: i.done_when, ...(i.context ? { context: i.context } : {}) },
+        ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}),
+      },
+      level: 4,
+      paths: ws ? [ws] : [],
+      category: i.kind ?? 'writing',
+    });
+    const rec = port.get(task.id);
+    const result: DelegateResult = rec
+      ? this.resultFromTask(rec)
+      : {
+          taskId: task.id,
+          cli: 'nomi',
+          status: 'running',
+          summary: '',
+          filesVerified: false,
+          approvals: { asked: 0, denied: 0, timedOut: 0 },
+          durationMs: 0,
+        };
+    return this.resultForModel(
+      {
+        ...result,
+        summary:
+          `${result.summary}。已交给后台的 Nomi（任务页可看进度）：同时运行的任务满了会排队；` +
+          '做完后结果会自动回到这个对话。这一轮不用等它，告诉用户已经派出去了即可；' +
+          '可用 delegate_status 查询、delegate_stop 停止。',
+        durationMs: Date.now() - t0,
+      },
+      ctx,
+    );
+  }
+
   private async delegate(
     i: z.infer<typeof input>,
     ctx: ToolExecContext,
@@ -685,6 +846,8 @@ export class DelegateService {
       throw new DelegateError('delegate_disabled', '用户在设置里关闭了「允许 Nomi 委派编程助手」');
     const broker = this.d.desktop.broker;
     const harness = this.d.harness;
+    // 后台的 Nomi（任务执行）里委派：同步等结果，拿到汇报再继续（§7.4）
+    if (broker.isBackground(ctx.signal)) i = { ...i, background: false };
 
     // §6.4：从 Nomi 派出的标签里再委派一律拒绝（只允许一层）
     const callerTabId = ctx.callerTabId ?? getToolCallerTabId();
@@ -1287,6 +1450,11 @@ export class DelegateService {
     t0: number,
   ): Promise<DelegateResult> {
     const { task } = rec;
+    if (task.executor.kind === 'nomi')
+      throw new DelegateError(
+        'not_followable',
+        '派给后台 Nomi 的任务不能追问；要改就再用 delegate_to_nomi 派一次，把上次的结果和修改意见写进 context',
+      );
     if (task.status !== 'awaiting_accept') {
       if (['queued', 'running', 'waiting_user', 'needs_reconcile'].includes(task.status))
         throw new DelegateError(

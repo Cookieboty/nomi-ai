@@ -243,6 +243,12 @@
    "enabled": true
   },
   {
+   "name": "delegate_to_nomi",
+   "description": "把一件要做一阵子的事交给后台的 Nomi（你自己的分身）去做，这一轮立刻结束、对话照常继续，做完结果自动回到这个对话。适合：生成一组图片、写 PPT / 文档 / 调研报告、整理一批文件这类多步的活，或用户说「后台做」「做好叫我」。后台的 Nomi 能用你在对话里的工具（生图、联网、技能、文件、命令），代码部分会自己再交给编程助手。一两步就能做完的事直接自己做，不要派。可用 delegate_status 查进度、delegate_stop 停止。",
+   "parametersJsonSchema": {},
+   "enabled": true
+  },
+  {
    "name": "delegate_status",
    "description": "查询后台委派任务的状态与结果（taskId 来自 delegate_to_cli）。仍在跑时 status 为 running；完成后返回与同步委派相同的结构化汇报。",
    "parametersJsonSchema": {},
@@ -1217,6 +1223,45 @@
    ],
    "additionalProperties": false
   },
+  "delegate_to_nomi": {
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "type": "object",
+   "properties": {
+    "goal": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 4000,
+     "description": "要做成什么，写具体：用户原话 + 你整理的要求（数量、风格、篇幅、格式）"
+    },
+    "done_when": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 2000,
+     "description": "完成标准：怎样算做完（如「6 张图都进了素材库」「PPT 文件写进工作区」）"
+    },
+    "context": {
+     "description": "已知背景：对话里已经定下的内容、素材、用户偏好",
+     "type": "string",
+     "maxLength": 8000
+    },
+    "kind": {
+     "description": "类型（任务看板分组用）：research 调研 / writing 写作与做文档、PPT、图片 / coding 开发 / review 审查 / chore 杂事",
+     "type": "string",
+     "enum": [
+      "research",
+      "writing",
+      "coding",
+      "review",
+      "chore"
+     ]
+    }
+   },
+   "required": [
+    "goal",
+    "done_when"
+   ],
+   "additionalProperties": false
+  },
   "delegate_status": {
    "$schema": "http://json-schema.org/draft-07/schema#",
    "type": "object",
@@ -1429,6 +1474,9 @@
   },
   {
    "name": "delegate_to_cli"
+  },
+  {
+   "name": "delegate_to_nomi"
   },
   {
    "name": "delegate_status"

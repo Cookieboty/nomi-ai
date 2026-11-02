@@ -36,7 +36,7 @@ func newNomiHarness(t *testing.T, script func(ctx context.Context, n int, h *nom
 			h.mu.Unlock()
 			return script(ctx, n, h, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant, _ bool, _ connections.ExternalJournal) context.Context {
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant, _, _ bool, _ connections.ExternalJournal) context.Context {
 			h.mu.Lock()
 			h.asks = append(h.asks, ask)
 			h.mu.Unlock()

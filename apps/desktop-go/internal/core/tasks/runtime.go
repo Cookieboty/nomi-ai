@@ -101,6 +101,8 @@ type BudgetInput struct {
 	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
 	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
 	MaxRetries              *int     `json:"maxRetries,omitempty"`
+	// NoCostPerDay：不设每日费用上限（对应 TS 的 maxCostUsdPerDay: undefined 覆盖默认值）
+	NoCostPerDay bool `json:"-"`
 }
 
 type CreateInput struct {
@@ -353,6 +355,9 @@ func (r *Runtime) Create(in CreateInput) Task {
 			}
 			if in.Budget.MaxCostUsdPerDay != nil {
 				b.MaxCostUsdPerDay = in.Budget.MaxCostUsdPerDay
+			}
+			if in.Budget.NoCostPerDay {
+				b.MaxCostUsdPerDay = nil
 			}
 			if in.Budget.MaxRetries != nil {
 				b.MaxRetries = *in.Budget.MaxRetries

@@ -323,6 +323,36 @@ describe('PermissionBroker 后台任务（persistent-tasks §8.4）', () => {
     ).toBe('auto');
   });
 
+  it('高级权限（派给 Nomi）：读过外部内容后写入照常放行、授权的 MCP 对外工具直接跑；破坏性仍问', async () => {
+    const { b, seen } = mk();
+    const a = ask();
+    const ctrl = new AbortController();
+    b.registerBackground(ctrl.signal, {
+      ...a.run(4),
+      trusted: true,
+      connections: [
+        { connectionId: 'mcp:mail', capabilities: ['mcp.read', 'mcp.call'], resources: ['send'] },
+      ],
+    });
+    b.markRead(ctrl.signal);
+    const write = { danger: 'write' as const, summary: 's', args: {}, signal: ctrl.signal };
+    expect(await b.authorize({ tool: 'fs_write_text', ...write })).toBe('auto');
+    expect(await b.authorize({ tool: 'mail__send', ...write })).toBe('auto');
+    // 没授权的 MCP 工具仍拒绝
+    expect(await b.authorize({ tool: 'mail__delete', ...write })).toBe('denied');
+    expect(
+      await b.authorize({
+        tool: 'fs_trash',
+        danger: 'destructive',
+        summary: 's',
+        args: {},
+        signal: ctrl.signal,
+      }),
+    ).toBe('allowed');
+    expect(a.asked).toEqual(['fs_trash']);
+    expect(seen).toEqual([]);
+  });
+
   it('注销后恢复前台规则；执行已中止时一律拒绝', async () => {
     const { b } = mk();
     const ctrl = new AbortController();

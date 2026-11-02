@@ -149,6 +149,40 @@ func TestBackgroundMcpGrant(t *testing.T) {
 	}
 }
 
+// 高级权限（派给 Nomi，persistent-tasks §7.4）：读过外部内容后写入照常放行、授权的 MCP 对外工具直接跑；破坏性仍问
+func TestBackgroundTrustedRun(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	asked := []string{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = WithBackground(ctx, &BackgroundRun{Level: 4, Trusted: true,
+		Connections: []ConnGrant{{ConnectionID: "mcp:mail", Capabilities: []string{"mcp.read", "mcp.call"}, Resources: []string{"send"}}},
+		Ask: func(tool, _, _ string) bool {
+			asked = append(asked, tool)
+			return true
+		}})
+	b.MarkRead(ctx)
+	write := func(tool string) Decision {
+		return b.Authorize(AuthorizeInput{Tool: tool, Danger: "write", Summary: "s", Args: map[string]any{}, Signal: ctx})
+	}
+	if d := write("fs_write_text"); d != "auto" {
+		t.Fatal(d)
+	}
+	if d := write("mail__send"); d != "auto" {
+		t.Fatal(d)
+	}
+	// 没授权的 MCP 工具仍拒绝
+	if d := write("mail__delete"); d != "denied" {
+		t.Fatal(d)
+	}
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_trash", Danger: "destructive", Summary: "s", Args: map[string]any{}, Signal: ctx}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if len(asked) != 1 || asked[0] != "fs_trash" || len(ui.seen) != 0 {
+		t.Fatalf("asked %v ui %v", asked, ui.seen)
+	}
+}
+
 // 命令确定性分类先于审核：读凭据 / 合并永远问人；对外命令 L3 或没给 GitHub 对外能力时问人、给了 L4 交给审核
 func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow", Authorization: "high"})

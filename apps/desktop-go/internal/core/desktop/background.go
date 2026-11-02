@@ -20,6 +20,9 @@ type BackgroundRun struct {
 	Tainted bool
 	// External：对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done；可为 nil
 	External connections.ExternalJournal
+	// Trusted：高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
+	// 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
+	Trusted bool
 }
 
 // ConnGrant：授权里引用连接的方式
@@ -97,7 +100,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 		if run.Level < externalLevel {
 			return "denied"
 		}
-		if !b.IsTainted(i.Signal) && !run.Tainted {
+		if run.Trusted || (!b.IsTainted(i.Signal) && !run.Tainted) {
 			return "auto"
 		}
 		detail := i.Summary
@@ -155,7 +158,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 				detail = d + "\n" + detail
 			}
 		}
-	} else if i.Danger == "write" && i.Force == nil && !b.IsTainted(i.Signal) && !run.Tainted {
+	} else if i.Danger == "write" && i.Force == nil && (run.Trusted || (!b.IsTainted(i.Signal) && !run.Tainted)) {
 		if b.Policy(i.Tool, i.Danger) != "ask" {
 			return "auto"
 		}

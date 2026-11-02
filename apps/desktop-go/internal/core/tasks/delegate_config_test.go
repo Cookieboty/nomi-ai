@@ -110,3 +110,31 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 		t.Fatal("priority not cleared")
 	}
 }
+
+// 派给 Nomi（§7.4）：执行者 nomi，不钉编程助手；放宽时长与 token、不设每日费用上限；自动验收；类型按派出时给的
+func TestServiceCreateDelegatedNomi(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}})
+	s.RegisterExecutor("nomi", nopCliExec{})
+	s.Start()
+	defer s.Stop()
+	conv := "conv_1"
+	task := s.CreateDelegated(DelegatedInput{Title: "Nomi · 做 PPT", Goal: "做 PPT", ConversationID: &conv,
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: ptr("conversation"),
+			Brief: &Brief{DoneWhen: "PPT 写进工作区"}, CallID: ptr("call_1")},
+		Level: 4, Paths: []string{}, Category: "writing"})
+	b := task.Budget
+	if task.Grant.Clis == nil || len(*task.Grant.Clis) != 0 || b.MaxRetries != 1 ||
+		b.MaxTokensPerAttempt == nil || *b.MaxTokensPerAttempt != DelegatedNomiMaxTokens ||
+		b.MaxDurationMsPerAttempt == nil || *b.MaxDurationMsPerAttempt != 2*60*60_000 || b.MaxCostUsdPerDay != nil ||
+		task.Grant.Level != 4 || task.Acceptance != "auto" || *task.Category != "writing" || task.Status != StatusRunning {
+		t.Fatalf("%+v %+v", task, b)
+	}
+	raw, _ := json.Marshal(task.Executor)
+	if want := `{"kind":"nomi","tools":[],"toolset":"conversation","brief":{"doneWhen":"PPT 写进工作区"},"callId":"call_1"}`; string(raw) != want {
+		t.Fatalf("executor JSON\n got %s\nwant %s", raw, want)
+	}
+	braw, _ := json.Marshal(b)
+	if want := `{"maxTokensPerAttempt":2000000,"maxDurationMsPerAttempt":7200000,"maxRetries":1}`; string(braw) != want {
+		t.Fatalf("budget JSON %s", braw)
+	}
+}

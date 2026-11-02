@@ -83,6 +83,11 @@ export interface BackgroundRun {
   tainted?: boolean;
   /** 对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done */
   external?: ExternalJournal;
+  /**
+   * 高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
+   * 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
+   */
+  trusted?: boolean;
 }
 
 /** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
@@ -423,7 +428,7 @@ export class PermissionBroker {
       if (!granted) return 'denied';
       if (granted === 'read') return 'auto';
       if (run.level < EXTERNAL_LEVEL) return 'denied';
-      if (!(this.isTainted(i.signal) || run.tainted)) return 'auto';
+      if (run.trusted || !(this.isTainted(i.signal) || run.tainted)) return 'auto';
       if (i.signal.aborted) return 'denied';
       const ok = await run.ask({
         tool: i.tool,
@@ -458,7 +463,7 @@ export class PermissionBroker {
       if (review?.outcome === 'allow' && !run.tainted) return 'auto';
       if (review)
         detail = `${review.risk}${review.rationale ? `: ${review.rationale}` : ''}\n${detail}`;
-    } else if (i.danger === 'write' && !tainted && !i.force) {
+    } else if (i.danger === 'write' && (!tainted || run.trusted) && !i.force) {
       const policy = this.policy(i.tool, i.danger);
       if (policy !== 'ask') return 'auto';
     }

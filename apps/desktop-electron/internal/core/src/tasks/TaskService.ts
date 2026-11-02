@@ -40,8 +40,12 @@ import {
   type UserCommand,
 } from './TaskRuntime';
 import { TaskStore, type JournalEntry, type TaskRecord } from './TaskStore';
-import type { Attempt, Budget, ExecutorSpec, Task, Trigger } from './types';
+import type { Attempt, Budget, ExecutorSpec, Task, TaskCategory, Trigger } from './types';
 import { INBOX_STATUSES } from './types';
+
+/** 派给 Nomi 的委派（§7.4）：每次执行的 token 与时长上限 */
+export const DELEGATED_NOMI_MAX_TOKENS = 2_000_000;
+export const DELEGATED_NOMI_MAX_MS = 2 * 60 * 60_000;
 
 interface Logger {
   info(m: string, x?: unknown): void;
@@ -322,11 +326,13 @@ export class TaskService {
     title: string;
     goal: string;
     conversationId?: string;
-    executor: Extract<ExecutorSpec, { kind: 'cli' }>;
-    level: 2 | 3;
+    executor: Extract<ExecutorSpec, { kind: 'cli' }> | Extract<ExecutorSpec, { kind: 'nomi' }>;
+    level: 2 | 3 | 4;
     paths: string[];
+    category?: TaskCategory;
   }): Task {
     const now = (this.d.now ?? Date.now)();
+    const nomi = i.executor.kind === 'nomi';
     const task = this.runtime.create({
       title: i.title,
       goal: i.goal,
@@ -338,10 +344,24 @@ export class TaskService {
       },
       trigger: { kind: 'manual' },
       executor: i.executor,
-      category: 'coding',
-      grant: { level: i.level, paths: i.paths, connections: [], clis: [i.executor.cli] },
-      budget: { maxRetries: 1 },
-      acceptance: 'user',
+      category: i.category ?? 'coding',
+      grant: {
+        level: i.level,
+        paths: i.paths,
+        connections: [],
+        clis: i.executor.kind === 'cli' ? [i.executor.cli] : [],
+      },
+      // 派给 Nomi 的（§7.4）：一次可能生一组图、等编程助手做完，放宽时长与 token；不在对话外另设费用闸门
+      budget: nomi
+        ? {
+            maxRetries: 1,
+            maxTokensPerAttempt: DELEGATED_NOMI_MAX_TOKENS,
+            maxDurationMsPerAttempt: DELEGATED_NOMI_MAX_MS,
+            maxCostUsdPerDay: undefined,
+          }
+        : { maxRetries: 1 },
+      // 派给 Nomi 的没有 worktree 要回填：做完结果直接回对话
+      acceptance: nomi ? 'auto' : 'user',
     });
     this.runtime.command(task.id, { type: 'runNow' });
     return this.runtime.get(task.id)?.task ?? task;

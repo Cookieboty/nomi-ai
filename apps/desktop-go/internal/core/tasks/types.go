@@ -45,16 +45,21 @@ type Trigger struct {
 	Mode       *string          `json:"mode,omitempty"`
 }
 
-// ExecutorSpec 对应 notify{text} | nomi{model?,tools} | cli{cli,model?,cwd,isolation}
+// ExecutorSpec 对应 notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
+// cli{cli,model?,cwd,isolation}
 type ExecutorSpec struct {
-	Kind      string    `json:"kind"`
-	Text      *string   `json:"text,omitempty"`
-	Model     *string   `json:"model,omitempty"`
-	Tools     *[]string `json:"tools,omitempty"`
-	Scenario  *string   `json:"scenario,omitempty"`
-	Cli       *string   `json:"cli,omitempty"`
-	Cwd       *string   `json:"cwd,omitempty"`
-	Isolation *string   `json:"isolation,omitempty"`
+	Kind     string    `json:"kind"`
+	Text     *string   `json:"text,omitempty"`
+	Model    *string   `json:"model,omitempty"`
+	Tools    *[]string `json:"tools,omitempty"`
+	Scenario *string   `json:"scenario,omitempty"`
+	// Toolset：nomi 的 "conversation" = 对话里派给 Nomi 的（§7.4）：用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
+	// 高级权限：L4、已装的 MCP 工具全部授权、读过外部内容后的写入不再一律问人
+	Toolset *string `json:"toolset,omitempty"`
+	Cli     *string `json:"cli,omitempty"`
+	// Cwd：cli 的工作目录；nomi 的发起对话的工作区（内核照常再校验）
+	Cwd       *string `json:"cwd,omitempty"`
+	Isolation *string `json:"isolation,omitempty"`
 	// ReasoningEffort：cli 的思考深度（委派带过来的）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
 	// Brief：对话里委派过来的任务的完成标准、背景、不要碰的范围（提示词用）
@@ -65,7 +70,7 @@ type ExecutorSpec struct {
 	CallID *string `json:"callId,omitempty"`
 }
 
-// Brief 对应 ExecutorSpec cli 的 brief
+// Brief 对应 ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
 type Brief struct {
 	DoneWhen   string  `json:"doneWhen"`
 	Context    *string `json:"context,omitempty"`

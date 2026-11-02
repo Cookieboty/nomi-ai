@@ -148,6 +148,8 @@ type ChatPrep struct {
 	Broker      WorkspaceBroker
 	ProviderFor func(Role) *Provider
 	CheckSend   func(*Provider, context.Context, string) string
+	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（createCore 里追加派出去的判断规则，§7.4）
+	AfterWorkspace func(options map[string]any, method string) error
 }
 
 // ChatPrep 取本服务的依赖
@@ -163,6 +165,11 @@ func (s *Service) ChatPrep() ChatPrep {
 func (c ChatPrep) PrepareChat(options map[string]any, method string, signal <-chan struct{}) error {
 	if _, err := ApplyConversationWorkspace(options, c.Broker); err != nil {
 		return err
+	}
+	if c.AfterWorkspace != nil {
+		if err := c.AfterWorkspace(options, method); err != nil {
+			return err
+		}
 	}
 	ctx, cancel := chanContext(signal)
 	defer cancel()

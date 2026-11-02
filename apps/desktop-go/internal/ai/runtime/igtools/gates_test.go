@@ -27,6 +27,11 @@ func TestToolGates(t *testing.T) {
 		{"fs_write_text", "讲个笑话", true, "/Users/me/proj"},
 		{"delegate_to_cli", "让 codex 修一下这个 bug", true, ""},
 		{"delegate_to_cli", "晚饭吃什么", false, ""},
+		// 派给后台的 Nomi 总是提供（要靠它判断这件事要不要派出去）；问进度、要停下时提供查询 / 停止
+		{"delegate_to_nomi", "晚饭吃什么", true, ""},
+		{"delegate_status", "海报做好了没", true, ""},
+		{"delegate_stop", "那组图别做了", true, ""},
+		{"delegate_status", "晚饭吃什么", false, ""},
 		{"image_generate", "画一只猫", true, ""},
 		{"image_generate", "晚饭吃什么", false, ""},
 		{"set_user_preference", "以后叫我小王", true, ""},

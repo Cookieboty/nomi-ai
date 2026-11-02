@@ -8,11 +8,14 @@
  * - 运行轨迹（工具调用与结果摘要）写到任务目录的 `<taskId>.<attemptId>.trace.jsonl`。
  *
  * 预算暂停（stop 'pause'）会中止这一轮；批准继续后带着已有进展重开一轮。
+ *
+ * 对话里派给 Nomi 的（`toolset: 'conversation'`，§7.4）：工具用对话的工具集（去掉 CONVERSATION_EXCLUDED），
+ * 在发起对话的工作区里做；工具调用期间（生图、同步等编程助手）自己发心跳，不被看守判成崩溃。
  * Go 版：apps/desktop-go/internal/core/tasks/executor_nomi.go。
  */
 import type { ChatChunk, ChatMessage } from '@nomi-ai/bundle-ig-base';
 
-import { mcpServerOf } from '../../connections/catalog';
+import { mcpConnectionId, mcpServerOf, splitMcpTool } from '../../connections/catalog';
 import type { BackgroundRun } from '../../desktop/PermissionBroker';
 import { configText } from '../card';
 import type { SourceEvent } from '../events/types';
@@ -53,6 +56,45 @@ export const TOOL_CLASS_TOOLS: Record<ToolClass, readonly string[]> = {
   delegate: [],
 };
 
+/** 派给 Nomi 的后台执行里不提供的工具：再派 Nomi、建任务、要弹窗问人的、桌面角色动作 */
+export const CONVERSATION_EXCLUDED: readonly string[] = [
+  'delegate_to_nomi',
+  'task_propose',
+  'desktop_request_scope',
+  'avatar_emotion',
+  'avatar_gesture',
+];
+
+/** 工具调用进行中时的心跳间隔（看守超时默认 5 分钟） */
+export const TOOL_HEARTBEAT_MS = 60_000;
+
+/**
+ * 派给 Nomi 的执行（高级权限）：已注册的 MCP 工具全部授权（只读的按只读跑，其它按对外动作）。
+ * 按执行时的工具表算，派出后新装的 MCP 服务器也能用。
+ */
+export function mcpGrantsFor(
+  tools: readonly string[],
+): { connectionId: string; capabilities: string[]; resources: string[] }[] {
+  const by = new Map<string, string[]>();
+  for (const n of tools) {
+    const m = splitMcpTool(n);
+    if (m) by.set(m.serverId, [...(by.get(m.serverId) ?? []), m.tool]);
+  }
+  return [...by].map(([server, resources]) => ({
+    connectionId: mcpConnectionId(server),
+    capabilities: ['mcp.read', 'mcp.call'],
+    resources,
+  }));
+}
+
+/** 这次执行可用的工具名 */
+export function toolsForTask(task: Task, registered: readonly string[]): string[] {
+  if (task.executor.kind !== 'nomi') return [];
+  if (task.executor.toolset === 'conversation')
+    return registered.filter((n) => !CONVERSATION_EXCLUDED.includes(n));
+  return allowedTools(task.executor.tools, task.grant.connections);
+}
+
 export function allowedTools(
   classes: readonly ToolClass[],
   connections: readonly {
@@ -89,6 +131,8 @@ export interface NomiExecutorDeps {
   registerBackground(signal: AbortSignal, run: BackgroundRun): () => void;
   /** 这次执行的副作用日志（TaskService.externalJournal） */
   externalJournal?(taskId: string, attemptId: string): ExternalJournal;
+  /** Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集） */
+  toolNames?(): readonly string[];
   /** 有没有可用的模型（没有时准备失败：config_changed） */
   ready(): boolean;
   /** 按模型价格算费用；不知道价格时 undefined（不编造费用，§9） */
@@ -98,7 +142,15 @@ export interface NomiExecutorDeps {
   /** 写运行轨迹（一行一个步骤） */
   trace?(taskId: string, attemptId: string, line: Record<string, unknown>): void;
   now?: () => number;
+  /** 周期定时器（测试注入）；返回取消函数 */
+  every?(ms: number, fn: () => void): () => void;
 }
+
+const defaultEvery = (ms: number, fn: () => void) => {
+  const h = setInterval(fn, ms);
+  h.unref?.();
+  return () => clearInterval(h);
+};
 
 interface Run {
   ctrl: AbortController;
@@ -144,13 +196,28 @@ export function buildPrompt(
 ): ChatMessage[] {
   const { task, attempt } = ctx;
   const cause = attempt.cause;
-  const lines = [
-    `你是用户的桌面助手，正在后台执行用户交代的一项持续任务「${task.title}」。用户现在不在旁边：不要提问，直接把事情做完；`,
-    '需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。',
-    '完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。',
+  const ex = task.executor?.kind === 'nomi' ? task.executor : null;
+  const lines =
+    ex?.toolset === 'conversation'
+      ? [
+          '你是用户的桌面助手。用户在对话里把一件事交给你在后台做，对话还在继续，用户现在不在等你：不要提问，直接把整件事做完。',
+          '需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。',
+          '你自己决定怎么分：能自己做的自己做；代码开发、改仓库这类部分可以用 delegate_to_cli 交给编程助手，它会等编程助手做完再把汇报交回给你，你核对后继续，直到整件事完成。',
+          '产出要落到用户拿得到的地方：文件写进工作区，图片用 image_generate（自动进素材库）。',
+          '完成后用简洁的中文写出结果：做了什么、产出在哪（文件路径、素材库里的图片）、还有什么没做完或需要用户注意；不要寒暄。',
+          ...(ex.cwd ? [`工作区：${ex.cwd}`] : []),
+          ...(ex.brief ? [`完成标准：${ex.brief.doneWhen}`] : []),
+          ...(ex.brief?.context ? [`背景：\n${short(ex.brief.context, 6000)}`] : []),
+        ]
+      : [
+          `你是用户的桌面助手，正在后台执行用户交代的一项持续任务「${task.title}」。用户现在不在旁边：不要提问，直接把事情做完；`,
+          '需要用户决定的动作会自动停下来等用户批准，你照常调用工具即可。',
+          '完成后用简洁的中文写出结果：做了什么、发现了什么、需要用户注意什么；不要寒暄。',
+        ];
+  lines.push(
     `现在时间：${new Date(now).toLocaleString('zh-CN')}`,
     `这次运行的原因：${cause.kind}${cause.note ? `（${cause.note}）` : ''}`,
-  ];
+  );
   if (cause.answer)
     lines.push(
       `用户对上次停下来的请求的回答：${cause.answer.approve ? '同意' : '不同意'}${
@@ -178,14 +245,15 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
 
   const launch = (run: Run) => {
     const { task, attempt, report } = run.ctx;
-    const tools =
-      task.executor.kind === 'nomi'
-        ? allowedTools(task.executor.tools, task.grant.connections)
-        : [];
+    const tools = toolsForTask(task, d.toolNames?.() ?? []);
+    const elevated = task.executor.kind === 'nomi' && task.executor.toolset === 'conversation';
     const level = task.grant.level as GrantLevel;
     const unregister = d.registerBackground(run.ctrl.signal, {
       level,
-      connections: task.grant.connections,
+      connections: elevated
+        ? [...task.grant.connections, ...mcpGrantsFor(tools)]
+        : task.grant.connections,
+      ...(elevated ? { trusted: true } : {}),
       ...(d.externalJournal ? { external: d.externalJournal(task.id, attempt.id) } : {}),
       // 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
       ...(attempt.cause.kind === 'event' ? { tainted: true } : {}),
@@ -218,6 +286,12 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     let lastIn = 0;
     let lastOut = 0;
     let model: string | undefined;
+    // 工具调用进行中（生图、同步等编程助手）流里没有片段：按间隔补心跳，免得被看守判成崩溃
+    const pending = new Set<string>();
+    const stopBeat = (d.every ?? defaultEvery)(TOOL_HEARTBEAT_MS, () => {
+      if (pending.size) report.heartbeat();
+    });
+    const ex = task.executor.kind === 'nomi' ? task.executor : null;
     try {
       const stream = d.agentStream({
         messages: buildPrompt(
@@ -230,7 +304,12 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
         tools,
         quiet: true,
         role: 'agent-tools',
-        extra: { taskId: task.id, attemptId: attempt.id },
+        extra: {
+          taskId: task.id,
+          attemptId: attempt.id,
+          ...(task.origin.conversationId ? { conversationId: task.origin.conversationId } : {}),
+          ...(ex?.cwd ? { cwd: ex.cwd } : {}),
+        },
       });
       for await (const c of stream) {
         if (run.ctrl.signal.aborted) break;
@@ -243,9 +322,11 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
             report.heartbeat();
             break;
           case 'tool_call.delta':
+            if (c.id) pending.add(c.id);
             report.heartbeat();
             break;
           case 'tool_call.result':
+            pending.delete(c.id);
             report.heartbeat();
             d.trace?.(task.id, attempt.id, {
               at: now(),
@@ -290,6 +371,8 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
       if (run.ctrl.signal.aborted) return;
       runs.delete(task.id);
       report.failed(classifyError(error instanceof Error ? error.message : String(error)));
+    } finally {
+      stopBeat();
     }
   };
 

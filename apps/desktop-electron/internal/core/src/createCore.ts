@@ -58,6 +58,7 @@ import { CliPluginHost } from './cli/CliPluginHost';
 import { CliUpdateService } from './cli/CliUpdateService';
 import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
 import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
+import { applyDispatchHint } from './cli/delegate/intentHint';
 import { prepareIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
 import { HarnessStoppedError, type HarnessTabFinished } from './cli/harness/liveTypes';
@@ -571,6 +572,8 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           return rt.client.chat.agentStream(opts as never) as never;
         },
+        // 派给 Nomi 的执行用对话的工具集（§7.4）
+        toolNames: () => services.aiRuntime?.client.tools.list().map((t) => t.name) ?? [],
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
         externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),
@@ -1223,6 +1226,9 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         // 上下文预算：按路由到的模型的窗口算（gateway/nomiContext.ts），不再用固定的 8K
         prepareChat: async (options, method, signal) => {
           if (services.desktop) await applyConversationWorkspace(options, services.desktop.broker);
+          // 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（persistent-tasks §7.4）
+          if (method === 'agentStream' && options.role === 'chat' && services.tasks)
+            applyDispatchHint(options);
           const gw = services.gateway;
           if (gw) applyNomiContext(options, method, (r) => gw.nomiContext(r));
           return guardOutboundMessages(options.messages, (what) => {

@@ -70,7 +70,23 @@ export type TaskScenario = 'coding' | 'prd' | 'review' | 'research';
 
 export type ExecutorSpec =
   | { kind: 'notify'; text: string }
-  | { kind: 'nomi'; model?: string; tools: ToolClass[]; scenario?: TaskScenario }
+  | {
+      kind: 'nomi';
+      model?: string;
+      tools: ToolClass[];
+      scenario?: TaskScenario;
+      /**
+       * conversation：对话里派给 Nomi 的（§7.4）——用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
+       * 高级权限：L4、已装的 MCP 工具全部授权、读过外部内容后的写入不再一律问人
+       */
+      toolset?: 'conversation';
+      /** 发起对话的工作区（内核照常再校验） */
+      cwd?: string;
+      /** 对话里派过来的：完成标准、背景（提示词用） */
+      brief?: { doneWhen: string; context?: string };
+      /** 对话里派出它的工具调用 id */
+      callId?: string;
+    }
   /** 用户点名的编程助手（钉住）：不可用时问用户，不自己换（§7.3） */
   | {
       kind: 'cli';

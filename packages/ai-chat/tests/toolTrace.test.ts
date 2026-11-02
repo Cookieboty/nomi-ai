@@ -56,6 +56,7 @@ const call = (name: string, input?: unknown, over: Partial<ToolCall> = {}): Tool
 
 describe('classifyTool', () => {
   it('maps common tool names across harnesses', () => {
+    expect(classifyTool('delegate_to_nomi')).toBe('subagent');
     expect(classifyTool('Read')).toBe('read');
     expect(classifyTool('read_file')).toBe('read');
     expect(classifyTool('Grep')).toBe('search');
@@ -144,6 +145,10 @@ describe('reduceTrace', () => {
 
 describe('describeCall', () => {
   it('summarises by tool kind', () => {
+    expect(describeCall(call('delegate_to_nomi', { goal: '做一套 PPT\n第二行' }))).toMatchObject({
+      kind: 'subagent',
+      target: '做一套 PPT',
+    });
     expect(describeCall(call('Read', { file_path: '/a/b.ts' }))).toMatchObject({
       kind: 'read',
       verb: '读取',

@@ -86,7 +86,7 @@ func (a lazyAvatar) AvatarEmotion(n string, w *float64) error {
 var errAvatarNotReady = errors.New("avatar not ready")
 
 // delegateToolNames：DelegateService.tools() 在 wireCoding 里才构造；先占位保住 Map 插入顺序（kb → mem → delegate → ext）
-var delegateToolNames = []string{"delegate_to_cli", "delegate_status", "delegate_followup", "delegate_stop"}
+var delegateToolNames = []string{"delegate_to_cli", "delegate_to_nomi", "delegate_status", "delegate_followup", "delegate_stop"}
 
 // registerIgTools = createIgPluginHost 的插件顺序：ToolsBuiltin → UserPreferenceMemory → CompanionTools → DesktopTools
 func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aifacade.Facade,
