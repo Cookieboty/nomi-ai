@@ -391,7 +391,9 @@ func TestFolderSource(t *testing.T) {
 	src := NewFolderSource(FolderSourceDeps{T: i18n.Identity, Now: func() int64 { return evT0 }})
 	task := evTask("observe", 0)
 	task.Grant.Paths = []string{dir}
-	if v := src.Validate(json.RawMessage(`{"path":"/"}`), task); !strings.Contains(v, "not granted") {
+	// 授权范围外的绝对路径：用临时目录的上级（Windows 上 "/" 不算绝对路径）
+	outside, _ := json.Marshal(map[string]string{"path": filepath.Dir(dir)})
+	if v := src.Validate(outside, task); !strings.Contains(v, "not granted") {
 		t.Fatal(v)
 	}
 	fj, _ := json.Marshal(map[string]string{"path": dir})
