@@ -1,0 +1,26 @@
+# The site is plain static files at the branch root. Everything below is left
+# behind when this checkout switches over from the app branches (main / release/*).
+
+# app monorepo leftovers
+/apps/
+/packages/
+/templates/
+/e2e-headed/
+
+# dependencies, caches and build output
+node_modules/
+.pnpm-cache/
+.pnpm-state/
+.pnpm-store/
+.turbo/
+.tmp/
+
+# test output
+playwright-report/
+test-results/
+
+# local tooling and OS files
+.claude/
+.husky/
+.nomi-delegate/
+.DS_Store
