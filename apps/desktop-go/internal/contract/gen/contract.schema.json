@@ -5230,6 +5230,91 @@
     "additionalProperties": {}
    }
   },
+  "chatAssets.import": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "mime": {
+      "type": "string",
+      "enum": [
+       "image/png",
+       "image/jpeg",
+       "image/webp",
+       "image/gif"
+      ]
+     },
+     "data": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 28000000
+     },
+     "conversationId": {
+      "type": "string",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "mime",
+     "data"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "source": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "bytes": {
+      "type": "number"
+     },
+     "model": {
+      "type": "string"
+     },
+     "prompt": {
+      "type": "string"
+     },
+     "aspect": {
+      "type": "string"
+     },
+     "editedFrom": {
+      "type": "string"
+     },
+     "references": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "url",
+     "source",
+     "createdAt",
+     "bytes"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "chatAssets.list": {
    "kind": "query",
    "dangerous": false,

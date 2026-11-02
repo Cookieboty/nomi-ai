@@ -34,6 +34,7 @@ type MascotCoreProcedureName =
   | 'chatAssets.remove'
   | 'chatAssets.reveal'
   | 'chatAssets.regenerate'
+  | 'chatAssets.import'
   | 'chatAssets.saveAs'
   | 'mascot.getRenderer'
   | 'mascot.setRenderer'
@@ -108,6 +109,8 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'chatAssets.reveal': ({ file }) => need(services.chatAssets, 'chatAssets').reveal(file),
     'chatAssets.regenerate': ({ file }) =>
       need(services.chatAssets, 'chatAssets').regenerate(file).then(plain),
+    'chatAssets.import': (req) =>
+      need(services.chatAssets, 'chatAssets').importImage(req).then(plain),
     'chatAssets.saveAs': ({ file }) => need(services.chatAssets, 'chatAssets').saveAs(file),
 
     // —— 桌面角色渲染器（userData/settings.json 的 mascot.renderer，默认 svg）

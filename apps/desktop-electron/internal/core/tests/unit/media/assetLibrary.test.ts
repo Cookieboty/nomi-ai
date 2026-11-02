@@ -5,7 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AssetLibrary, assetSourceOf } from '../../../src/media/AssetLibrary';
+import { t as tr } from '../../../src/i18n';
+import {
+  ASSET_IMPORT_MAX_BYTES,
+  AssetLibrary,
+  assetSourceOf,
+} from '../../../src/media/AssetLibrary';
 
 function setup() {
   const chatRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cd-assets-'));
@@ -167,5 +172,60 @@ describe('素材库', () => {
     pick = null;
     expect(await lib.saveAs('nomi-a.png')).toBe(false);
     expect(await lib.saveAs('panel-bg.jpg')).toBe(false);
+  });
+});
+
+describe('素材库：保存用户发送的原图', () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const JPG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]);
+  const WEBP = Buffer.from('RIFF\x00\x00\x00\x00WEBPVP8 ', 'latin1');
+  const GIF = Buffer.from('GIF89a\x01\x00', 'latin1');
+
+  it('写进图片目录（来源 user），记下会话，通知视图，列表里能看到', async () => {
+    const t = setup();
+    const item = await t.lib.importImage({
+      mime: 'image/png',
+      data: PNG.toString('base64'),
+      conversationId: 'c1',
+    });
+    expect(item.file).toMatch(/^user-[a-z0-9]+-[a-z0-9]+\.png$/);
+    expect(item).toMatchObject({
+      url: `chat-asset://images/${item.file}`,
+      source: 'user',
+      bytes: PNG.length,
+      conversationId: 'c1',
+    });
+    expect(fs.readFileSync(path.join(t.images, item.file))).toEqual(PNG);
+    expect(t.changed()).toBe(1);
+    expect(t.lib.list().map((x) => [x.file, x.source])).toEqual([[item.file, 'user']]);
+    expect(assetSourceOf(item.file)).toBe('user');
+    if (process.platform !== 'win32')
+      expect(fs.statSync(path.join(t.images, item.file)).mode & 0o777).toBe(0o600);
+  });
+
+  it('扩展名跟 mime 走：jpeg / webp / gif', async () => {
+    const t = setup();
+    const j = await t.lib.importImage({ mime: 'image/jpeg', data: JPG.toString('base64') });
+    const w = await t.lib.importImage({ mime: 'image/webp', data: WEBP.toString('base64') });
+    const g = await t.lib.importImage({ mime: 'image/gif', data: GIF.toString('base64') });
+    expect([j.file, w.file, g.file].map((f) => path.extname(f))).toEqual(['.jpg', '.webp', '.gif']);
+    expect(j.conversationId).toBeUndefined();
+  });
+
+  it('文件头与 mime 不符、超过 20 MB：拒绝，不落盘', async () => {
+    const t = setup();
+    await expect(
+      t.lib.importImage({ mime: 'image/jpeg', data: PNG.toString('base64') }),
+    ).rejects.toThrow(tr('electron.image.import-bad-format'));
+    await expect(
+      t.lib.importImage({ mime: 'image/png', data: Buffer.from('<svg/>').toString('base64') }),
+    ).rejects.toThrow();
+    const big = Buffer.alloc(ASSET_IMPORT_MAX_BYTES + 1);
+    PNG.copy(big);
+    await expect(
+      t.lib.importImage({ mime: 'image/png', data: big.toString('base64') }),
+    ).rejects.toThrow(tr('electron.image.import-too-large', 20));
+    expect(fs.readdirSync(t.images)).toEqual([]);
+    expect(t.changed()).toBe(0);
   });
 });

@@ -509,6 +509,19 @@ export const mascotProcedures = {
     surfaces: CHAT,
     description: '素材库：用原图的提示词 / 模型 / 画幅 / 改图来源 / 参考图再生成一张，返回新图',
   },
+  'chatAssets.import': {
+    kind: 'mutation',
+    input: z.object({
+      mime: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
+      /** 图片原文件的 base64（不带 `data:` 前缀）；解码后不超过 20 MB */
+      data: z.string().min(1).max(28_000_000),
+      conversationId: z.string().max(200).optional(),
+    }),
+    output: ChatAssetItem,
+    surfaces: CHAT,
+    description:
+      '素材库：保存用户在对话里发送的原图（来源 user），返回素材项；模型可把它的 chat-asset 地址传给 image_generate',
+  },
   'chatAssets.saveAs': {
     kind: 'mutation',
     input: z.object({ file: z.string() }),

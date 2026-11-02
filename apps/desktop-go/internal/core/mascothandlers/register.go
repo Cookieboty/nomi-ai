@@ -473,6 +473,16 @@ func Install(d Deps) *Controller {
 		}
 		return d.ChatAssets.Regenerate(f)
 	})
+	call("chatAssets.import", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		var in chatassets.ImportReq
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		return d.ChatAssets.ImportImage(in)
+	})
 	call("chatAssets.saveAs", func(raw json.RawMessage) (any, error) {
 		if d.ChatAssets == nil {
 			return nil, unavailableSvc("chatAssets")

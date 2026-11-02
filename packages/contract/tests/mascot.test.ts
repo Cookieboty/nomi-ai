@@ -166,6 +166,16 @@ describe('mascot 契约', () => {
     expect(e['avatar.event'].safeParse({ type: 'motion', name: 'wave' }).success).toBe(false);
     expect(e['window.mouseEnter'].safeParse(null).success).toBe(true);
     expect(e['window.mouseEnter'].safeParse(undefined).success).toBe(false);
+    const imp = p['chatAssets.import'].input;
+    expect(imp.safeParse({ mime: 'image/png', data: 'iVBORw0KGgo=' }).success).toBe(true);
+    expect(
+      imp.safeParse({ mime: 'image/webp', data: 'UklGRg==', conversationId: 'c1' }).success,
+    ).toBe(true);
+    expect(imp.safeParse({ mime: 'image/svg+xml', data: 'PHN2Zz4=' }).success).toBe(false);
+    expect(imp.safeParse({ mime: 'image/png', data: '' }).success).toBe(false);
+    expect(
+      imp.safeParse({ mime: 'image/png', data: 'a', conversationId: 'x'.repeat(201) }).success,
+    ).toBe(false);
   });
 
   it('round-trip：具名入参、严格序列化、业务错误码、事件', async () => {

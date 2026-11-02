@@ -1224,6 +1224,36 @@ type CharacterGetActivePackOutput struct {
 	Reason            *string                                             `json:"reason,omitempty"`
 }
 
+// ChatAssetsImportInputMime 枚举：image/png | image/jpeg | image/webp | image/gif
+type ChatAssetsImportInputMime = string
+
+const (
+	ChatAssetsImportInputMimeImagePng  ChatAssetsImportInputMime = "image/png"
+	ChatAssetsImportInputMimeImageJpeg ChatAssetsImportInputMime = "image/jpeg"
+	ChatAssetsImportInputMimeImageWebp ChatAssetsImportInputMime = "image/webp"
+	ChatAssetsImportInputMimeImageGif  ChatAssetsImportInputMime = "image/gif"
+)
+
+type ChatAssetsImportInput struct {
+	Mime           ChatAssetsImportInputMime `json:"mime"`
+	Data           string                    `json:"data"`
+	ConversationId *string                   `json:"conversationId,omitempty"`
+}
+
+type ChatAssetsImportOutput struct {
+	File           string   `json:"file"`
+	Url            string   `json:"url"`
+	Source         string   `json:"source"`
+	CreatedAt      float64  `json:"createdAt"`
+	Bytes          float64  `json:"bytes"`
+	Model          *string  `json:"model,omitempty"`
+	Prompt         *string  `json:"prompt,omitempty"`
+	Aspect         *string  `json:"aspect,omitempty"`
+	EditedFrom     *string  `json:"editedFrom,omitempty"`
+	References     []string `json:"references,omitempty"`
+	ConversationId *string  `json:"conversationId,omitempty"`
+}
+
 type ChatAssetsListOutputItem struct {
 	File           string   `json:"file"`
 	Url            string   `json:"url"`
@@ -7578,6 +7608,10 @@ type CharacterEnsureAssetsOutputT = CharacterEnsureAssetsOutput
 // CharacterGetActivePackInputT 是 character.getActivePack 的入参
 type CharacterGetActivePackInputT = any
 type CharacterGetActivePackOutputT = CharacterGetActivePackOutput
+
+// ChatAssetsImportInputT 是 chatAssets.import 的入参
+type ChatAssetsImportInputT = ChatAssetsImportInput
+type ChatAssetsImportOutputT = ChatAssetsImportOutput
 
 // ChatAssetsListInputT 是 chatAssets.list 的入参
 type ChatAssetsListInputT = any

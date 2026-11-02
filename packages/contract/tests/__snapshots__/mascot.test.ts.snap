@@ -30,6 +30,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "chatAssets.list query chat",
   "chatAssets.remove mutation chat dangerous",
   "chatAssets.regenerate mutation chat",
+  "chatAssets.import mutation chat",
   "chatAssets.saveAs mutation chat",
   "chatAssets.reveal mutation chat",
   "chatBg.pickImage mutation chat",

@@ -1,19 +1,25 @@
 // Package chatassets = core/src/media/AssetLibrary.ts：素材库（全部生成的图片）。
-// 图片在 userData/chat/images，来源写在文件名前缀里（nomi- / 早期 gen- 算 Nomi、grok- / codex- …）；
+// 图片在 userData/chat/images，来源写在文件名前缀里（nomi- / 早期 gen- 算 Nomi、grok- / codex- …、
+// user- = 用户在对话里发送的原图，经 chatAssets.import 存进来）；
 // 对话背景（<stem>.<uuid>.ext、panel-bg.jpg）不列。模型 / 提示词 / 会话另存 userData/chat/assets.json。
 // 删除移到系统废纸篓；「在文件夹中显示」经宿主。
 package chatassets
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
@@ -23,7 +29,7 @@ var assetFile = regexp.MustCompile(`(?i)^([a-z][a-z0-9]*)-[A-Za-z0-9._-]+\.(png|
 var legacySource = map[string]string{"gen": "nomi"}
 
 // Sources = ASSET_SOURCES
-var Sources = []string{"nomi", "grok", "codex", "claude", "gemini", "dsh", "qwen", "kimi", "opencode", "copilot"}
+var Sources = []string{"nomi", "grok", "codex", "claude", "gemini", "dsh", "qwen", "kimi", "opencode", "copilot", "user"}
 
 type Meta struct {
 	Model          string   `json:"model,omitempty"`
@@ -234,6 +240,92 @@ func (l *Library) Regenerate(file string) (Item, error) {
 		}
 	}
 	return Item{}, errors.New(i18n.T("electron.image.no-image-in-response", ""))
+}
+
+// ImportMaxBytes = ASSET_IMPORT_MAX_BYTES：用户发送的原图上限（解码后）
+const ImportMaxBytes = 20 * 1024 * 1024
+
+var importExt = map[string]string{"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+
+// ImageMagicMatches = imageMagicMatches：文件头与声明的类型一致（不信视图给的 mime）
+func ImageMagicMatches(mime string, b []byte) bool {
+	at := func(i int, v ...byte) bool { return len(b) >= i+len(v) && bytes.Equal(b[i:i+len(v)], v) }
+	switch mime {
+	case "image/png":
+		return at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)
+	case "image/jpeg":
+		return at(0, 0xff, 0xd8, 0xff)
+	case "image/webp":
+		return at(0, 'R', 'I', 'F', 'F') && at(8, 'W', 'E', 'B', 'P')
+	case "image/gif":
+		return at(0, 'G', 'I', 'F', '8') && (at(4, '7', 'a') || at(4, '9', 'a'))
+	}
+	return false
+}
+
+// ImportReq = chatAssets.import 的入参
+type ImportReq struct {
+	Mime           string `json:"mime"`
+	Data           string `json:"data"`
+	ConversationID string `json:"conversationId,omitempty"`
+}
+
+// ImportImage = importImage：用户在对话里发送的图片，原图存进素材库（来源 user），返回素材项。
+// 解码后超过 20 MB、或文件头与 mime 不符的拒绝；对话 id 记进说明。
+func (l *Library) ImportImage(req ImportReq) (Item, error) {
+	maxMb := ImportMaxBytes / 1024 / 1024
+	tooLarge := errors.New(i18n.T("electron.image.import-too-large", maxMb))
+	badFormat := errors.New(i18n.T("electron.image.import-bad-format"))
+	ext := importExt[req.Mime]
+	// base64 解码前先按长度估一下，避免超大字符串整块解码
+	if len(req.Data) > (ImportMaxBytes+2)/3*4+4 {
+		return Item{}, tooLarge
+	}
+	b, err := decodeBase64Loose(req.Data)
+	if err != nil {
+		return Item{}, badFormat
+	}
+	if len(b) > ImportMaxBytes {
+		return Item{}, tooLarge
+	}
+	if ext == "" || !ImageMagicMatches(req.Mime, b) {
+		return Item{}, badFormat
+	}
+	if err := os.MkdirAll(l.imagesDir(), 0o700); err != nil {
+		return Item{}, err
+	}
+	_ = os.Chmod(l.imagesDir(), 0o700)
+	file := "user-" + strconv.FormatInt(time.Now().UnixMilli(), 36) + "-" +
+		strconv.FormatUint(rand.Uint64(), 36)[:6] + "." + ext
+	f, err := os.OpenFile(filepath.Join(l.imagesDir(), file), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return Item{}, err
+	}
+	if _, err := f.Write(b); err != nil {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+		return Item{}, err
+	}
+	if err := f.Close(); err != nil {
+		return Item{}, err
+	}
+	// Record 会通知视图（chatAssets.changed）
+	l.Record(file, Meta{ConversationID: req.ConversationID})
+	for _, it := range l.List() {
+		if it.File == file {
+			return it, nil
+		}
+	}
+	return Item{}, badFormat
+}
+
+// decodeBase64Loose = Buffer.from(s, 'base64')：标准 / URL 字母表，补齐与否都认
+func decodeBase64Loose(s string) ([]byte, error) {
+	s = strings.TrimRight(strings.TrimSpace(s), "=")
+	if strings.ContainsAny(s, "-_") {
+		return base64.RawURLEncoding.DecodeString(s)
+	}
+	return base64.RawStdEncoding.DecodeString(s)
 }
 
 // SaveAs：另存为（用户选位置后复制一份）；取消返回 false
