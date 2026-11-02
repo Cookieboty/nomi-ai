@@ -8,6 +8,8 @@ import { MessageInput } from '../src/components/MessageInput';
 import {
   MAX_TEXT_BYTES,
   fileAttachmentFrom,
+  fileAttachmentFromHost,
+  isImagePath,
   joinFileAttachments,
   splitFileAttachments,
   type FileAttachment,
@@ -108,5 +110,44 @@ describe('拖入文件', () => {
     expect(r.getByTestId('msg-user').textContent).not.toContain('attached-file');
     fireEvent.click(r.getByTestId('file-chip').querySelector('button')!);
     expect(r.getByTestId('file-preview')).toBeTruthy();
+  });
+});
+
+describe('宿主拖入的文件（Go 版 macOS / Linux：只有路径与临时地址）', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('小文本经临时地址读出内容；大文件只发路径、不去读', async () => {
+    const fetched: string[] = [];
+    vi.stubGlobal('fetch', async (u: string) => {
+      fetched.push(u);
+      return new Response('hello', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    });
+    const small = await fileAttachmentFromHost({
+      path: '/Users/me/notes.md',
+      name: 'notes.md',
+      url: '/__nomi/drop/a',
+      size: 5,
+    });
+    expect(small).toMatchObject({
+      name: 'notes.md',
+      path: '/Users/me/notes.md',
+      size: 5,
+      text: 'hello',
+    });
+    const big = await fileAttachmentFromHost({
+      path: '/Users/me/video.mov',
+      name: 'video.mov',
+      url: '/__nomi/drop/b',
+      size: MAX_TEXT_BYTES + 1,
+    });
+    expect(big).toMatchObject({ name: 'video.mov', path: '/Users/me/video.mov' });
+    expect(big.text).toBeUndefined();
+    expect(fetched).toEqual(['/__nomi/drop/a']);
+  });
+
+  it('按扩展名认图片', () => {
+    expect(isImagePath('a/B.PNG')).toBe(true);
+    expect(isImagePath('x.jpeg')).toBe(true);
+    expect(isImagePath('doc.pdf')).toBe(false);
   });
 });

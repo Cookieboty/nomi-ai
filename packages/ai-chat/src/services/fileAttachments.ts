@@ -4,7 +4,7 @@
  * 显示时再从正文里拆出来画成卡片，所以不需要在消息结构里另加字段。
  * 路径经 `services/api` 的 hostPathForFile（preload 的 nomiHost）取；浏览器预览等没有桥的环境拿不到路径。
  */
-import { hostPathForFile } from './api';
+import { hostPathForFile, type HostDroppedFile } from './api';
 
 export interface FileAttachment {
   id: string;
@@ -44,6 +44,39 @@ export async function fileAttachmentFrom(f: File): Promise<FileAttachment | null
   const [path, text] = await Promise.all([pathOf(f), readText(f)]);
   if (!path && text === undefined) return null;
   return { id: newId(), name: f.name, path, size: f.size, ...(text !== undefined && { text }) };
+}
+
+/** 按扩展名判断宿主拖入的文件是不是图片（还没读内容，没有 MIME） */
+export const isImagePath = (p: string) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(p);
+
+/** 读宿主拖入文件的一次性临时地址（同源）；读不到返回 null */
+export async function fetchHostFile(f: HostDroppedFile): Promise<File | null> {
+  if (!f.url) return null;
+  try {
+    const r = await fetch(f.url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    return new File([blob], f.name, { type: blob.type });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 只有宿主路径的拖入文件（macOS / Linux 的 Go 版没有 File）→ 文件附件：路径直接用，
+ * 小文件经临时地址读出文本（规则同 fileAttachmentFrom）
+ */
+export async function fileAttachmentFromHost(f: HostDroppedFile): Promise<FileAttachment> {
+  const small = f.url && (f.size ?? Infinity) <= MAX_TEXT_BYTES;
+  const file = small ? await fetchHostFile(f) : null;
+  const text = file ? await readText(file) : undefined;
+  return {
+    id: newId(),
+    name: f.name,
+    path: f.path,
+    size: f.size ?? file?.size ?? 0,
+    ...(text !== undefined && { text }),
+  };
 }
 
 const escAttr = (s: string) =>

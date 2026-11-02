@@ -353,6 +353,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Gemini 端点支持登录多个 Google 官方账号并全局切换：登录在独立的临时目录里通过 ACP 完成，不影响现有登录；切换时同时把 Gemini 的认证方式设为 Google 登录，正在使用的 Gemini 会话会在当前轮次结束后按新账号重启。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/host-electron` minor)
 - Gemini 端点支持第三方供应商（API Key、请求地址、模型），交互与其它编程助手一致，输入栏的端点按钮也可切换 Gemini 的官方账号与供应商。启用第三方供应商不会改动 ~/.gemini：认证方式写在 Nomi 自己的设置文件里，密钥只在 Nomi 启动 Gemini 时注入，终端里直接运行的 gemini 和 Google 登录都不受影响。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/host-electron` minor)
 - GitHub 连接：本机 gh 登录每个主机只能接一个（不能重复添加）；同一个账号再用令牌添加时可以选替换原来的或保留两个；gh 换了账号后，连接会说明当前账号并可以确认改用。 (`@nomi-ai/core` minor, `@nomi-ai/contract` minor)
+- Go 版在 macOS / Linux 上，从访达或文件管理器把文件拖进对话窗口能添加为附件了：Wails 的原生拖放层接走了网页的 drop，宿主改为给每个拖入的文件发一次性临时地址，对话页据此读出图片或生成文件附件；拖动经过时输入框也会高亮。 (`@nomi-ai/ai-chat` patch)
 - Grok 会话改为长驻进程：回复逐字显示，点「停止」不再重启进程，切换模型、思考深度和权限模式即时生效， (`@nomi-ai/host-electron` minor, `@nomi-ai/ai-chat` minor)
 - Nomi 可以把开发、文档、审查、调研任务交给本机的编程助手（Claude Code、Codex 等）去做：子任务开成后台标签，对话里的卡片显示进度、子代理和待确认的审批，可以单独停止，做完带回结构化汇报。用 `/cli codex 需求` 可以指定交给谁；设置 →「编程助手」→「委派」里可以按任务类型设默认编程助手。派出前按 Nomi 的权限模式确认，子任务的权限不比 Nomi 宽，工作目录必须已授权；委派标签的审批等待 10 分钟。 (`@nomi-ai/cli-sdk` minor, `@nomi-ai/cli-plugins` minor, `@nomi-ai/ai-runtime` patch)
 - Nomi 可以把开发、文档、审查、调研任务交给本机的编程助手（Claude Code、Codex 等）去做：子任务开成后台标签，对话里的卡片显示进度、子代理和待确认的审批，可以单独停止，做完带回结构化汇报。用 `/cli codex 需求` 可以指定交给谁；设置 →「编程助手」→「委派」里可以按任务类型设默认编程助手。派出前按 Nomi 的权限模式确认，子任务的权限不比 Nomi 宽，工作目录必须已授权；委派标签的审批等待 10 分钟。 (`@nomi-ai/host-electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/bundle-ig-base` minor)

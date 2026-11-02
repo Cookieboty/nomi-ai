@@ -69,6 +69,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/devviews"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/hostdrop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
@@ -612,6 +613,8 @@ func main() {
 	}
 	// 视图 = 2.0.4 的 renderer / ai-chat 包（frontend/build.mjs 构建）；灵动岛页由 islandPageMiddleware 生成
 	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
+	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
+	drops := hostdrop.New()
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// = TrayManager（Application.ts new TrayManager）
 		TrayMenu: func() []shell.MenuItem {
@@ -717,8 +720,9 @@ func main() {
 				// = nomiHostIpc dropFile：只认桌面角色窗口，和 Electron 一样只取第一个文件
 				desktopSvc.DropFile("mascot", paths[0])
 			case shell.Chat:
-				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）
-				sendHostFiles(sh, paths)
+				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）；
+				// 带上一次性临时地址，网页没收到 DOM drop 时（macOS / Linux）据此读出文件
+				sendHostFiles(sh, drops.Add(paths))
 			}
 		},
 		IslandLayout: func() (shell.Rect, string, bool) {
@@ -729,7 +733,7 @@ func main() {
 			r := island.IslandWindowRect(g, g.Height)
 			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
 		},
-		Middleware: devViewsMiddleware(viewPageMiddleware(assets, islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		Middleware: devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -738,7 +742,7 @@ func main() {
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
 			},
-		})))))})
+		}))))))})
 
 	shellP.AttachShell()
 	// = ThemeService.syncAppearance（mac：外观跟随固定主题）
@@ -1101,7 +1105,8 @@ func mergeLoginShellPath() {
 }
 
 // sendHostFiles：本机文件路径交给对话页（ai-chat services/api.ts 的 nomi:host-files，按文件名配对）
-func sendHostFiles(sh shell.Shell, paths []string) {
+// sendHostFiles：detail 是路径数组（粘贴）或 hostdrop.Entry 数组（拖放）
+func sendHostFiles[T string | hostdrop.Entry](sh shell.Shell, paths []T) {
 	if x, ok := sh.(interface {
 		ExecJS(shell.WindowKind, string)
 	}); ok {
