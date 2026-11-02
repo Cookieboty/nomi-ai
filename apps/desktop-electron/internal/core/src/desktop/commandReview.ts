@@ -65,6 +65,12 @@ Judge what the command actually does (resolve variables, pipes, redirections, ch
 Output schema:
 {"risk_level":"low|medium|high|critical","user_authorization":"unknown|low|medium|high","rationale":"one short sentence in the user's language"}`;
 
+/**
+ * 审核看到的命令长度上限（与 workspace_run 的入参上限一致）。审核看的就是要执行的完整命令，
+ * 不截断；超过上限的不审，直接交给人（审核内容与执行内容必须一致，#222）。
+ */
+export const REVIEW_COMMAND_MAX = 8000;
+
 export function reviewMessages(
   i: CommandReviewInput,
 ): Array<{ role: 'system' | 'user'; content: string }> {
@@ -77,7 +83,7 @@ export function reviewMessages(
         `User's latest message (trusted):\n${user || '(none)'}`,
         `Working directory: ${i.cwd ?? '(unknown)'}`,
         `This turn has read external content (files, web, command output): ${i.tainted ? 'yes' : 'no'}`,
-        `Command to run (untrusted until judged):\n${i.command.slice(0, 4000)}`,
+        `Command to run (untrusted until judged):\n${i.command}`,
       ].join('\n\n'),
     },
   ];
@@ -152,13 +158,14 @@ export const REVIEW_TIMEOUT_MS = 15_000;
 
 /**
  * 跑一次审核：complete 是辅助模型补全（createCore 里的 complete(…, 'summary')）。
- * 出错 / 超时 / 回复不合法返回 null（调用方交给人）。
+ * 出错 / 超时 / 回复不合法 / 命令超过 REVIEW_COMMAND_MAX 返回 null（调用方交给人）。
  */
 export async function reviewCommand(
   i: CommandReviewInput,
   complete: (messages: unknown, signal?: AbortSignal) => Promise<string>,
   opts: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<CommandReview | null> {
+  if (i.command.length > REVIEW_COMMAND_MAX) return null;
   const ctl = new AbortController();
   const onAbort = () => ctl.abort();
   opts.signal?.addEventListener('abort', onAbort, { once: true });

@@ -74,6 +74,25 @@ func TestReviewMessagesAndCommand(t *testing.T) {
 	}
 }
 
+func TestReviewSeesFullCommand(t *testing.T) {
+	tail := "TAIL_SENTINEL"
+	for _, n := range []int{4000, 4001, ReviewCommandMax} {
+		cmd := strings.Repeat("命", n-len([]rune(tail))) + tail
+		m := ReviewMessages(CommandReviewInput{Tool: "workspace_run", Command: cmd})
+		if !strings.Contains(m[1]["content"], cmd) {
+			t.Fatalf("n=%d: command clipped", n)
+		}
+	}
+	called := false
+	long := CommandReviewInput{Tool: "workspace_run", Command: strings.Repeat("b", ReviewCommandMax+1)}
+	if ReviewCommand(context.Background(), long, func(context.Context, []map[string]string) (string, error) {
+		called = true
+		return `{"risk_level":"low","user_authorization":"high"}`, nil
+	}, 0) != nil || called {
+		t.Fatal("over-limit command must go to the user without review")
+	}
+}
+
 type reviewUI struct {
 	mu   sync.Mutex
 	seen []ConfirmRequest

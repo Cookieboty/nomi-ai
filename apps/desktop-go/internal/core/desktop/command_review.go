@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type RiskLevel = string
@@ -86,6 +87,9 @@ func clipRunes(s string, n int) string {
 	return s
 }
 
+// ReviewCommandMax = REVIEW_COMMAND_MAX：审核看完整命令不截断，超过上限的不审、交给人（#222）
+const ReviewCommandMax = 8000
+
 // ReviewMessages = reviewMessages
 func ReviewMessages(i CommandReviewInput) []map[string]string {
 	user := clipRunes(strings.TrimSpace(i.UserText), 2000)
@@ -106,7 +110,7 @@ func ReviewMessages(i CommandReviewInput) []map[string]string {
 			"User's latest message (trusted):\n" + user,
 			"Working directory: " + cwd,
 			"This turn has read external content (files, web, command output): " + tainted,
-			"Command to run (untrusted until judged):\n" + clipRunes(i.Command, 4000),
+			"Command to run (untrusted until judged):\n" + i.Command,
 		}, "\n\n")},
 	}
 }
@@ -183,9 +187,12 @@ func ParseReview(text string, tainted bool) *CommandReview {
 // ReviewTimeout：辅助模型要快，等太久不如直接问人
 const ReviewTimeout = 15 * time.Second
 
-// ReviewCommand = reviewCommand：complete 是辅助模型补全；出错 / 超时 / 回复不合法返回 nil（交给人）
+// ReviewCommand = reviewCommand：complete 是辅助模型补全；出错 / 超时 / 回复不合法 / 命令超长返回 nil（交给人）
 func ReviewCommand(ctx context.Context, i CommandReviewInput,
 	complete func(ctx context.Context, messages []map[string]string) (string, error), timeout time.Duration) *CommandReview {
+	if utf8.RuneCountInString(i.Command) > ReviewCommandMax {
+		return nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
