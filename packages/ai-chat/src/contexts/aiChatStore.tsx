@@ -106,14 +106,21 @@ export function shallowArrayEqual<T>(a: readonly T[], b: readonly T[]): boolean 
 }
 
 // Common selectors (module-level, so getSnapshot stays memoized)
+/** 列表里有没有当前会话（'' = 旧实现没有会话 id）；没有列表（只给了 isLoading 的状态）时返回 undefined */
+const hereIn = (list: readonly string[] | undefined, view: string | undefined) =>
+  list ? list.includes('') || (view !== undefined && list.includes(view)) : undefined;
 export const selectIsLoading = (s: AiChatState) => s.isLoading;
 /**
  * 当前展示的会话是否在回复中：回复属于别的会话（切走了）时为 false，
  * 否则那个会话的最后一条回复会被当成「进行中」，用时也从它的提问算起。
  */
 export const selectBusyHere = (s: AiChatState) =>
-  s.isLoading && (s.busyConvoId === undefined || s.busyConvoId === s.viewConvoId);
+  hereIn(s.busyConvos, s.viewConvoId) ?? s.isLoading;
+/** 有任意会话在流式生成 */
 export const selectStreaming = (s: AiChatState) => s.streaming;
+/** 当前展示的会话正在流式生成（可以停止）：别的会话在回复时，这里的停止键不出现 */
+export const selectStreamingHere = (s: AiChatState) =>
+  hereIn(s.streamingConvos, s.viewConvoId) ?? s.streaming;
 export const selectError = (s: AiChatState) => s.error;
 export const selectIpcClient = (s: AiChatState) => s.ipcClient;
 export const selectMessages = (s: AiChatState) => s.messages;

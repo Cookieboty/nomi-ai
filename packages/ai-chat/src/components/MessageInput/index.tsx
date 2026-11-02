@@ -12,8 +12,8 @@ import React, {
 
 import {
   selectError,
-  selectIsLoading,
-  selectStreaming,
+  selectBusyHere,
+  selectStreamingHere,
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
@@ -180,8 +180,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   }, [fillNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- 只按 nonce 触发
   // slices only: streamed frames (message content) do not rerender the composer
   const { dispatch, actions, store: chatStore } = useAiChatActions();
-  const isLoading = useAiChatSelector(selectIsLoading);
-  const streaming = useAiChatSelector(selectStreaming);
+  // 只看当前展示的会话：别的会话在回复时，这里照常可以发送，也不显示停止键
+  const isLoading = useAiChatSelector(selectBusyHere);
+  const streaming = useAiChatSelector(selectStreamingHere);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）

@@ -143,6 +143,52 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
 }
 
 /**
+ * 还没收尾的工具调用（有开始、没有结束）补一条「已停止」：一轮被停止 / 出错时调用结果永远不会回来，
+ * 不补的话时间线一直显示运行中（看上去像工具没停）。只看带 id 的调用；返回要追加的事件（没有就空数组）。
+ */
+export function closeOpenCalls(
+  events: readonly HarnessTraceEvent[],
+  at: number,
+  output: string,
+): HarnessTraceEvent[] {
+  const open = new Map<string, Extract<HarnessTraceEvent, { type: 'tool' }>>();
+  for (const ev of events) {
+    if (ev.type !== 'tool') continue;
+    const key = ev.id ?? ev.detail;
+    if (!key) continue;
+    if (ev.status === 'start') {
+      if (!open.has(key)) open.set(key, ev);
+    } else open.delete(key);
+  }
+  return [...open.entries()].map(([key, ev]) => ({
+    type: 'tool' as const,
+    name: ev.name,
+    status: 'error' as const,
+    ...(ev.id ? { id: ev.id } : { detail: key }),
+    output,
+    at,
+    ...(ev.parentId ? { parentId: ev.parentId } : {}),
+  }));
+}
+
+/**
+ * 已结束的一轮（不再流式）：悬空的调用按已停止显示。旧消息里存下的轨迹可能没有收尾，同一个数组只算一次。
+ */
+const settledCache = new WeakMap<readonly HarnessTraceEvent[], readonly HarnessTraceEvent[]>();
+export function settleTrace(
+  events: readonly HarnessTraceEvent[],
+  output: string,
+): readonly HarnessTraceEvent[] {
+  const hit = settledCache.get(events);
+  if (hit) return hit;
+  const last = events.reduce((m, e) => Math.max(m, e.at ?? 0), 0);
+  const extra = closeOpenCalls(events, last, output);
+  const out = extra.length ? [...events, ...extra] : events;
+  settledCache.set(events, out);
+  return out;
+}
+
+/**
  * reduceTrace 的缓存版：同一个轨迹数组只归并一次（会话视图的状态行和助手正文共用结果）。
  * 流式时轨迹只在有新事件时换新数组（AiChatContext 的 traceSnap、liveState 的 concat），
  * 但仍按（数组, 长度）做键，防止有人就地追加后拿到旧结果。

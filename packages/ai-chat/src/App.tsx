@@ -341,8 +341,9 @@ const AiChatContent: React.FC = () => {
     () => ipcClient.conversationStore?.(),
     () => actions.loadChatHistory(),
   );
+  // 只有当前会话在回复时才排队：别的会话在回复不影响这里直接发送
   const nomiQueue = useSendQueue(
-    isLoading,
+    busyHere,
     // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
     (text, opts) => (opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text)),
     firstMessageId,
@@ -465,7 +466,7 @@ const AiChatContent: React.FC = () => {
     tabId: slashTab?.id ?? null,
     send: (text) => {
       if (slashTab) void tabs.send(text);
-      else if (isLoading) nomiQueue.enqueue(text);
+      else if (busyHere) nomiQueue.enqueue(text);
       else void actions.sendStreamMessage(text);
     },
     // 异步命令的结果回到「发起命令的会话」，与现在显示哪个标签无关
@@ -476,7 +477,7 @@ const AiChatContent: React.FC = () => {
       }
       // Nomi 主对话：只有它仍是当前这个会话才发（新建 / 切换过会话则丢弃）
       if (nomiScope !== target.scopeKey) return false;
-      if (isLoading) nomiQueue.enqueue(text);
+      if (busyHere) nomiQueue.enqueue(text);
       else void actions.sendStreamMessage(text);
       return true;
     },
