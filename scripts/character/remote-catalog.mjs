@@ -17,6 +17,7 @@
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -40,23 +41,25 @@ export async function buildCatalog({
 } = {}) {
   const packs = [];
   const files = [];
+  // 有 manifest.json 的目录才是角色包；读不出来就报错，不能静默产出缺角色的目录
   const dirs = readdirSync(charactersDir)
     .map((name) => join(charactersDir, name))
-    .filter((d) => statSync(d).isDirectory())
+    .filter((d) => statSync(d).isDirectory() && existsSync(join(d, 'manifest.json')))
     .sort();
   for (const dir of dirs) {
-    let pack;
-    try {
-      ({ pack } = await loadPack(dir));
-    } catch {
-      continue; // 不是合法角色包（如示例目录）：跳过
-    }
+    const { pack } = await loadPack(dir);
     const remote = remoteFilesOf(pack);
     if (remote.length === 0) continue;
     const assets = {};
     for (const { kind, rel } of remote) {
       const src = join(dir, ...rel.split('/'));
       const buf = readFileSync(src);
+      // 大文件走 Git LFS：没拉取时这里只是指针文本（CI checkout 要 lfs: true，本地 git lfs pull）
+      if (buf.subarray(0, 40).toString('utf8').startsWith('version https://git-lfs.github.com/')) {
+        throw new Error(
+          `${src} is a Git LFS pointer; fetch LFS files first (checkout lfs: true / git lfs pull)`,
+        );
+      }
       const sha256 = createHash('sha256').update(buf).digest('hex');
       const name = `${pack.manifest.id}-${kind}-${sha256.slice(0, 12)}${extname(rel)}`;
       files.push({ src, name });

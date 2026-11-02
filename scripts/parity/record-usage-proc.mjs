@@ -243,7 +243,7 @@ const runScenarios = [
   { name: 'ok', plan: { onStart: ['hello ', 'wörld\n'], exit: 'start' } },
   { name: 'code-3', plan: { onStart: ['x'], exit: 'start', code: 3 } },
   { name: 'empty', plan: { exit: 'start' } },
-  { name: 'timeout', plan: { onStart: ['partial'] }, timeoutMs: 400 },
+  { name: 'timeout', plan: { onStart: ['partial'] }, timeoutMs: 2000 },
   { name: 'output-limit', plan: { big: 1000 }, maxBytes: 999 },
   { name: 'exact-limit', plan: { big: 1000, exit: 'start' }, maxBytes: 1000 },
   { name: 'bytes-not-units', plan: { big: 600, bigChar: 'é', exit: 'start' }, maxBytes: 1000 },
@@ -303,7 +303,7 @@ const authScenarios = [
   { name: 'closed', plan: { exit: 'start' } },
   { name: 'closed-after-line', plan: { onLine: { 0: ['{"id":1,"result":null}\n'] }, exit: 0 } },
   { name: 'split', plan: { onLine: { 0: ['{"id":1,"res', 'ult":{"ok":true}}', '\n'] } } },
-  { name: 'timeout', plan: {}, timeoutMs: 400 },
+  { name: 'timeout', plan: {}, timeoutMs: 2000 },
   { name: 'over-limit', plan: { big: 140_000, bigChar: 'é' } },
   { name: 'enoent', bin: MISSING },
 ];

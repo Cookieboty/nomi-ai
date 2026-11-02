@@ -831,7 +831,7 @@
      "partial"
     ]
    },
-   "timeoutMs": 400,
+   "timeoutMs": 2000,
    "out": "{\"fail\":\"timeout\",\"name\":\"ProcessFailure\",\"isPF\":true}",
    "log": [
     {
@@ -1118,7 +1118,7 @@
   {
    "name": "timeout",
    "plan": {},
-   "timeoutMs": 400,
+   "timeoutMs": 2000,
    "out": "null",
    "log": [
     {

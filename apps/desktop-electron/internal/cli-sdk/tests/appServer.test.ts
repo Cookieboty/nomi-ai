@@ -160,6 +160,31 @@ describe('AppServerDriver', () => {
     ]);
   });
 
+  it('compaction without a fresh usage report ends the turn with contextTokens 0 (#217)', async () => {
+    const child = new FakeChild();
+    server(child, { compact: true });
+    const d = new AppServerDriver({ child });
+    await d.start({ cwd: '/w' });
+    await d.ensureThread('/w');
+    // 压缩前上报过 110（usage(100, 10)），压缩完成到回合结束之间没有新的上报
+    const r = await d.send({ text: 'hi', params: { cwd: '/w' } });
+    expect(r.usage).toMatchObject({ contextTokens: 0, contextWindow: 2000, inputTokens: 100 });
+  });
+
+  it('compact turn without a later usage report persists contextTokens 0 (#217)', async () => {
+    const child = new FakeChild();
+    server(child);
+    const d = new AppServerDriver({ child });
+    await d.start({ cwd: '/w' });
+    await d.ensureThread('/w');
+    await d.send({ text: 'hi', params: { cwd: '/w' } });
+    expect((await d.compact()).usage).toMatchObject({ contextTokens: 0, contextWindow: 2000 });
+    // 只作用于压缩的那一轮：下一轮带上新的占用
+    expect((await d.send({ text: 'again', params: { cwd: '/w' } })).usage).toMatchObject({
+      contextTokens: 110,
+    });
+  });
+
   it('compact: thread/compact/start runs as a turn whose id comes from turn/started', async () => {
     const child = new FakeChild();
     server(child);
