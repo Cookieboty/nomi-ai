@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { t } from '../../../src/i18n';
 import {
   createImageTools,
   generateImageAsset,
@@ -185,7 +186,10 @@ describe('image_generate', () => {
         prompt: 'a fox',
         modelRef: 'gone/gpt-image-2',
       }),
-    ).rejects.toThrow(/regenerate-model-unavailable/);
+    ).rejects.toThrow(
+      // 与界面语言、词典是否已构建无关：和 t() 给出的文案一致
+      t('electron.image.regenerate-model-unavailable', 'gone/gpt-image-2'),
+    );
     expect(calls).toHaveLength(0);
     expect(generated).toHaveLength(0);
     // 原模型还在、当前默认已换：仍用原模型
