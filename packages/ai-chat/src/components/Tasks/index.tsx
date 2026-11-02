@@ -9,7 +9,7 @@
  * - 看板视图：按进度或重要程度分列，可按类型筛选（视图选择记在本机）。
  * 数据来自契约 tasks.*；内核在任务变化时推 tasks.changed。
  */
-import { Button, Icon, Select, t, Tabs } from '@nomi-ai/ui';
+import { Button, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
 import { ArrowLeft, ListChecks, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -210,6 +210,8 @@ export const TasksPage: React.FC<{
         {layout.view === 'board' && (
           <Select
             size="sm"
+            variant="ghost"
+            className={styles.filter}
             value={layout.group}
             onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
             aria-label={t('ui.providers-schedule.task-board-group')}
@@ -222,6 +224,8 @@ export const TasksPage: React.FC<{
         )}
         <Select
           size="sm"
+          variant="ghost"
+          className={styles.filter}
           value={category}
           onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
           aria-label={t('ui.providers-schedule.task-category')}
@@ -232,12 +236,24 @@ export const TasksPage: React.FC<{
           data-testid="tasks-category"
         />
         <span className={styles.spacer} />
-        <span className={styles.groupCount}>
-          {t('ui.providers-schedule.task-count', tasks.length)}
-        </span>
+        <span className={styles.count}>{t('ui.providers-schedule.task-count', tasks.length)}</span>
       </div>
       <div className={styles.body}>
-        {layout.view === 'board' && (
+        {layout.view === 'board' && data && !allTasks.length && (
+          <EmptyState
+            className={styles.boardEmpty}
+            icon={ListChecks}
+            title={t('ui.providers-schedule.tasks-empty')}
+            action={
+              <Button size="sm" variant="primary" onClick={() => setCreating(true)}>
+                <Icon icon={Plus} size={14} />
+                {t('ui.providers-schedule.new-task')}
+              </Button>
+            }
+            data-testid="tasks-board-empty"
+          />
+        )}
+        {layout.view === 'board' && allTasks.length > 0 && (
           <TaskBoard
             tasks={tasks}
             group={layout.group}

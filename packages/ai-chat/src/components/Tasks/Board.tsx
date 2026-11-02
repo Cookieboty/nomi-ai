@@ -2,14 +2,20 @@
  * 任务看板：按进度（待开始 / 进行中 / 需要你 / 待验收 / 已结束）或按重要程度分列；卡片写清类型、
  * 重要程度、执行者与下一步。点卡片在右侧看详情（与列表视图同一个详情面板）。
  * 进度由任务状态决定，不能拖动改；重要程度在详情里改。
+ * 列是中性底色的泳道，只有列头的图标带颜色（深色主题下大面积彩色底太脏）。
  */
 import { Icon, t } from '@nomi-ai/ui';
 import {
   AlertTriangle,
+  CheckCircle2,
+  Circle,
+  CircleAlert,
+  CircleDot,
+  Eye,
+  ChevronDown,
+  ChevronsUp,
+  Equal,
   Minus,
-  SignalHigh,
-  SignalLow,
-  SignalMedium,
   type LucideIcon,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
@@ -36,16 +42,25 @@ import styles from './Board.module.css';
 export type BoardGroup = 'stage' | 'priority';
 
 type PriorityKey = TaskPriority | 'none';
+type ColumnKey = TaskStage | PriorityKey;
 
 const PRIORITY_ICON: Record<PriorityKey, LucideIcon> = {
   urgent: AlertTriangle,
-  high: SignalHigh,
-  medium: SignalMedium,
-  low: SignalLow,
+  high: ChevronsUp,
+  medium: Equal,
+  low: ChevronDown,
   none: Minus,
 };
 
-/** 同一列里：需要人的、重要的在前，其次最近更新的 */
+const STAGE_ICON: Record<TaskStage, LucideIcon> = {
+  todo: Circle,
+  in_progress: CircleDot,
+  needs_you: CircleAlert,
+  review: Eye,
+  done: CheckCircle2,
+};
+
+/** 同一列里：重要的在前，其次最近更新的 */
 const PRIORITY_RANK: Record<PriorityKey, number> = {
   urgent: 0,
   high: 1,
@@ -54,10 +69,13 @@ const PRIORITY_RANK: Record<PriorityKey, number> = {
   none: 4,
 };
 
-export const PriorityBadge: React.FC<{ priority?: TaskPriority | undefined }> = ({ priority }) => {
+export const PriorityBadge: React.FC<{ priority?: TaskPriority | undefined; quiet?: boolean }> = ({
+  priority,
+  quiet,
+}) => {
   const key: PriorityKey = priority ?? 'none';
   return (
-    <span className={styles.priority} data-priority={key}>
+    <span className={styles.priority} data-priority={key} data-quiet={quiet || undefined}>
       <Icon icon={PRIORITY_ICON[key]} size={12} />
       {t(PRIORITY_LABEL[key])}
     </span>
@@ -74,6 +92,8 @@ const Card: React.FC<{
     task.nextRunAt && task.status === 'idle' && task.enabled
       ? t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))
       : '';
+  // 按重要程度分列时，列已经说明了重要程度：卡片上改写进度
+  const foot = group === 'priority' ? statusLabel(task) : next || triggerLabel(task.trigger);
   return (
     <li>
       <button
@@ -85,17 +105,17 @@ const Card: React.FC<{
         data-testid={`board-card-${task.id}`}
       >
         <span className={styles.cardMeta}>
-          <span className={styles.category}>{t(CATEGORY_LABEL[categoryOf(task)])}</span>
-          <span>{executorLabel(task.executor)}</span>
+          <span className={styles.tag}>{t(CATEGORY_LABEL[categoryOf(task)])}</span>
+          <span className={styles.executor}>{executorLabel(task.executor)}</span>
         </span>
         <span className={styles.cardTitle}>{task.title}</span>
         {task.goal && task.goal !== task.title && (
           <span className={styles.cardGoal}>{task.goal}</span>
         )}
         <span className={styles.cardFoot}>
-          <PriorityBadge priority={task.priority} />
-          <span className={styles.cardStatus}>
-            {group === 'priority' ? statusLabel(task) : next || triggerLabel(task.trigger)}
+          {group === 'stage' && task.priority && <PriorityBadge priority={task.priority} />}
+          <span className={styles.cardStatus} title={foot}>
+            {foot}
           </span>
         </span>
       </button>
@@ -110,11 +130,10 @@ export const TaskBoard: React.FC<{
   onSelect: (id: string) => void;
 }> = ({ tasks, group, selected, onSelect }) => {
   const columns = useMemo(() => {
-    const keys: (TaskStage | PriorityKey)[] =
-      group === 'stage' ? [...STAGES] : [...PRIORITIES, 'none'];
-    const m = new Map<string, Task[]>(keys.map((k) => [k, []]));
+    const keys: ColumnKey[] = group === 'stage' ? [...STAGES] : [...PRIORITIES, 'none'];
+    const m = new Map<ColumnKey, Task[]>(keys.map((k) => [k, []]));
     for (const task of tasks) {
-      const k = group === 'stage' ? stageOf(task) : (task.priority ?? 'none');
+      const k: ColumnKey = group === 'stage' ? stageOf(task) : (task.priority ?? 'none');
       m.get(k)!.push(task);
     }
     for (const list of m.values())
@@ -133,6 +152,8 @@ export const TaskBoard: React.FC<{
           group === 'stage'
             ? t(STAGE_LABEL[key as TaskStage])
             : t(PRIORITY_LABEL[key as PriorityKey]);
+        const icon =
+          group === 'stage' ? STAGE_ICON[key as TaskStage] : PRIORITY_ICON[key as PriorityKey];
         return (
           <section
             key={key}
@@ -142,29 +163,28 @@ export const TaskBoard: React.FC<{
             data-testid={`board-column-${key}`}
           >
             <header className={styles.columnHead}>
-              <span className={styles.pill} data-column={key}>
-                {group === 'priority' && (
-                  <Icon icon={PRIORITY_ICON[key as PriorityKey]} size={12} />
-                )}
-                {label}
+              <span className={styles.columnIcon} data-column={key}>
+                <Icon icon={icon} size={14} />
               </span>
+              <span className={styles.columnLabel}>{label}</span>
               <span className={styles.count}>{list.length}</span>
             </header>
-            {list.length ? (
-              <ul className={styles.cards}>
-                {list.map((task) => (
-                  <Card
-                    key={task.id}
-                    task={task}
-                    group={group}
-                    selected={selected === task.id}
-                    onSelect={() => onSelect(task.id)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className={styles.columnEmpty}>{t('ui.providers-schedule.task-board-empty')}</p>
-            )}
+            <ul className={styles.cards}>
+              {list.map((task) => (
+                <Card
+                  key={task.id}
+                  task={task}
+                  group={group}
+                  selected={selected === task.id}
+                  onSelect={() => onSelect(task.id)}
+                />
+              ))}
+              {!list.length && (
+                <li className={styles.columnEmpty}>
+                  {t('ui.providers-schedule.task-board-empty')}
+                </li>
+              )}
+            </ul>
           </section>
         );
       })}

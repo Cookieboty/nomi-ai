@@ -88,12 +88,36 @@
 .spacer {
   flex: 1;
 }
-/* 视图切换、看板分组、类型筛选 */
+/* 视图切换、看板分组、类型筛选：一行，同高（sm） */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cd-space-2);
+}
+/* 下拉按内容宽度，不占满整行 */
+.toolbar .filter {
+  width: auto;
+  flex: none;
+}
+.count {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+/* 详情里的重要程度 / 类型：并排、按内容宽度 */
+.picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-2);
+}
+.picks .pick {
+  width: auto;
+  flex: none;
+}
+.boardEmpty {
+  flex: 1;
+  align-self: center;
 }
 .list[hidden] {
   display: none;

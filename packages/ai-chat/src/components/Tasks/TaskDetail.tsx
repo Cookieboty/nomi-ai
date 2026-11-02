@@ -106,9 +106,11 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
       <p className={styles.status} data-testid="task-status">
         {statusLabel(task)}
       </p>
-      <div className={styles.fieldRow}>
+      <div className={styles.picks}>
         <Select
           size="sm"
+          variant="ghost"
+          className={styles.pick}
           value={task.priority ?? 'none'}
           onChange={(e) => {
             const v = e.target.value;
@@ -125,6 +127,8 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
         />
         <Select
           size="sm"
+          variant="ghost"
+          className={styles.pick}
           value={categoryOf(task)}
           onChange={(e) =>
             run(() => api.tasks.update({ id, category: e.target.value as TaskCategory }))
