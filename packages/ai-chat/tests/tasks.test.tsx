@@ -168,8 +168,20 @@ describe('任务页', () => {
   });
 
   it('侧栏入口：有需要你处理的时显示角标', () => {
-    render(<TasksNav collapsed={false} active={false} needsYou={2} onOpen={vi.fn()} />);
+    render(<TasksNav collapsed={false} active={false} needsYou={2} running={1} onOpen={vi.fn()} />);
     expect(screen.getByTestId('tasks-open').getAttribute('aria-label')).toContain('2');
+  });
+
+  it('侧栏入口：没有要你处理的事时显示运行中的条数；都没有时不显示数字', () => {
+    const r = render(
+      <TasksNav collapsed={false} active={false} needsYou={0} running={3} onOpen={vi.fn()} />,
+    );
+    const nav = screen.getByTestId('tasks-open');
+    expect(nav.textContent).toContain('3');
+    expect(nav.getAttribute('aria-label')).toContain('3');
+    r.unmount();
+    render(<TasksNav collapsed={false} active={false} needsYou={0} running={0} onOpen={vi.fn()} />);
+    expect(screen.getByTestId('tasks-open').textContent).not.toMatch(/\d/);
   });
 
   it('批准：带上代次与请求 id', async () => {

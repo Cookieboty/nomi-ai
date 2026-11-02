@@ -37,6 +37,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
       ipcClient: {
         listConversations: async () => list,
         currentConversationId: () => current.id,
+        switchConversation: async () => undefined,
         conversationStore: () => undefined,
       },
     },
@@ -113,6 +114,28 @@ describe('Sidebar 高亮项', () => {
 
 const cardEndpoint = (r: ReturnType<typeof render>) =>
   r.getByTestId('endpoint-info-card').getAttribute('data-endpoint');
+
+describe('Sidebar 回到对话', () => {
+  it('任务页 / 素材库打开时点会话（包括当前这个）：先关掉整页回到对话', async () => {
+    tabsState.activeTabId = 't1';
+    const leave = vi.fn();
+    const r = render(
+      <Sidebar
+        collapsed={false}
+        onToggle={() => undefined}
+        onNewChat={() => undefined}
+        pageOpen
+        onLeavePage={leave}
+      />,
+    );
+    await waitFor(() => expect(r.getAllByTestId('conversation-row')).toHaveLength(4));
+    const row = r
+      .getAllByTestId('conversation-row')
+      .find((x) => x.textContent?.includes('你是什么模型'))!;
+    fireEvent.click(row.querySelector('button') ?? row);
+    await waitFor(() => expect(leave).toHaveBeenCalled());
+  });
+});
 
 describe('左下角端信息卡', () => {
   it('跟随当前会话所在的端：Claude Code 标签显示 Claude Code 的卡', async () => {

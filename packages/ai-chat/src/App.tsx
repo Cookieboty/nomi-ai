@@ -684,6 +684,11 @@ const AiChatContent: React.FC = () => {
     if (assetLibrary.chatHidden) closeTasks();
   }, [assetLibrary.chatHidden, closeTasks]);
   const mainHidden = assetLibrary.chatHidden || tasksHost.chatHidden;
+  // 侧栏里点会话 / 新建 / 打开历史：关掉任务页与素材库，直接回到对话
+  const leavePage = useCallback(() => {
+    closeAssetLibrary();
+    closeTasks();
+  }, [closeAssetLibrary, closeTasks]);
   const handleNewChat = useCallback(
     (opts?: { cwd?: string }) => {
       closeAssetLibrary();
@@ -821,6 +826,7 @@ const AiChatContent: React.FC = () => {
           onOpenSettings={openSidebarSettings}
           footer={sidebarFooter}
           pageOpen={mainHidden}
+          onLeavePage={leavePage}
           topNav={
             assetLibrary.nav || tasksHost.nav ? (
               <div className="side-top-nav">

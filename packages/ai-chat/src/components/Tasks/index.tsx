@@ -60,11 +60,15 @@ export const TasksNav: React.FC<{
   collapsed: boolean;
   active: boolean;
   needsYou: number;
+  /** 运行中（含排队）的条数：没有要你处理的事时显示成普通计数 */
+  running: number;
   onOpen: () => void;
-}> = ({ collapsed, active, needsYou, onOpen }) => {
+}> = ({ collapsed, active, needsYou, running, onOpen }) => {
   const label = needsYou
     ? t('ui.providers-schedule.tasks-nav-needs-you', needsYou)
-    : t('ui.providers-schedule.tasks');
+    : running
+      ? t('ui.providers-schedule.tasks-nav-running', running)
+      : t('ui.providers-schedule.tasks');
   return (
     <SideNavItem
       icon={ListChecks}
@@ -73,6 +77,7 @@ export const TasksNav: React.FC<{
       collapsed={collapsed}
       active={active}
       badge={needsYou}
+      count={running}
       onOpen={onOpen}
       testId="tasks-open"
     />
@@ -364,6 +369,7 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
   const [mounted, setMounted] = useState(false);
   const { data } = useTasks(tasksAvailable());
   const needsYou = (data?.tasks ?? []).filter((x) => groupOf(x) === 'needs_you').length;
+  const running = (data?.tasks ?? []).filter((x) => groupOf(x) === 'running').length;
   const show = useCallback(() => {
     setOpen(true);
     setMounted(true);
@@ -377,7 +383,15 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
     last.current = { first, tabId };
   }, [first, tabId]);
   if (!tasksAvailable()) return { nav: null, page: null, chatHidden: false, close };
-  const nav = <TasksNav collapsed={collapsed} active={open} needsYou={needsYou} onOpen={show} />;
+  const nav = (
+    <TasksNav
+      collapsed={collapsed}
+      active={open}
+      needsYou={needsYou}
+      running={running}
+      onOpen={show}
+    />
+  );
   const page = mounted ? (
     <div className={styles.main} hidden={!open} data-testid="tasks-main">
       <TasksPage

@@ -321,6 +321,7 @@
   "ui.providers-schedule.tasks-group-scheduled": "Scheduled",
   "ui.providers-schedule.tasks-hint": "Tell Nomi once and it keeps track: it runs on schedule and comes to you when it needs you.",
   "ui.providers-schedule.tasks-nav-needs-you": "Tasks: {0} need you",
+  "ui.providers-schedule.tasks-nav-running": "Tasks: {0} running",
   "ui.providers-schedule.tasks-open-schedule": "View and edit in Schedule",
   "ui.providers-schedule.terminal-command": "Terminal command",
   "ui.providers-schedule.test": "Test",
