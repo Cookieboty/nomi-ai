@@ -17,6 +17,7 @@ import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import { fmtTime, ImageViewer, SourceBadge, sourceName, type AssetItem } from './ImageViewer';
 import styles from './index.module.css';
+import { layoutMasonry, ratioOf } from './masonry';
 
 export { ImageViewer, type AssetItem } from './ImageViewer';
 
@@ -55,6 +56,82 @@ export const AssetLibraryNav: React.FC<{
     testId="asset-library-open"
   />
 );
+
+/** 图片间距（px），与 --cd-space-3 一致 */
+const GAP = 12;
+/** 图下说明行的高度（px），与 --cd-control-h-sm 一致 */
+const CAPTION = 28;
+
+/** 瀑布流：每张图按真实分辨率的宽高比显示；加载前先用生成时记下的比例占位 */
+const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => void }> = ({
+  items,
+  onOpen,
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>({});
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const ratios = items.map((x) => {
+    const s = sizes[x.file];
+    return s ? s.w / s.h : (ratioOf(x.aspect) ?? 1);
+  });
+  const layout = layoutMasonry(ratios, width, GAP, CAPTION);
+  const onLoad = (file: string, img: HTMLImageElement) => {
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (w > 0 && h > 0 && (sizes[file]?.w !== w || sizes[file]?.h !== h))
+      setSizes((prev) => ({ ...prev, [file]: { w, h } }));
+  };
+  return (
+    <div
+      ref={ref}
+      className={styles.masonry}
+      style={{ height: layout.height }}
+      data-testid="asset-grid"
+    >
+      {items.map((x, i) => {
+        const pos = layout.items[i]!;
+        const size = sizes[x.file];
+        const label = x.prompt ?? x.file;
+        return (
+          <button
+            key={x.file}
+            type="button"
+            className={styles.tile}
+            style={{ left: pos.left, top: pos.top, width: pos.width, height: pos.height }}
+            onClick={() => onOpen(x)}
+            title={`${label}\n${fmtTime(x.createdAt)}`}
+            aria-label={label}
+            data-testid={`asset-${x.file}`}
+          >
+            <span className={styles.frame}>
+              <img
+                src={hostAssetUrl(x.url)}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onLoad={(e) => onLoad(x.file, e.currentTarget)}
+              />
+            </span>
+            <span className={styles.tileMeta}>
+              <SourceBadge source={x.source} />
+              <span className={styles.res} data-testid="asset-resolution">
+                {size ? `${size.w} × ${size.h}` : (x.aspect ?? '')}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /** 主区整页 */
 export const AssetLibraryPage: React.FC<{
@@ -109,30 +186,7 @@ export const AssetLibraryPage: React.FC<{
               {t('ui.media.no-images-yet')}
             </p>
           ) : (
-            <div className={styles.grid} data-testid="asset-grid">
-              {shown.map((x) => (
-                <button
-                  key={x.file}
-                  type="button"
-                  className={styles.tile}
-                  onClick={() => setCurrent(x)}
-                  title={x.prompt ?? x.file}
-                  aria-label={x.prompt ?? x.file}
-                  data-testid={`asset-${x.file}`}
-                >
-                  <img
-                    src={hostAssetUrl(x.url)}
-                    alt=""
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className={styles.tileMeta}>
-                    <SourceBadge source={x.source} />
-                    <span className={styles.time}>{fmtTime(x.createdAt)}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <AssetMasonry items={shown} onOpen={setCurrent} />
           )}
         </div>
       </div>
