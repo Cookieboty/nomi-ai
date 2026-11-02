@@ -11,7 +11,18 @@ import { api } from '../../services/api';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
 import { extClient, type McpServer } from '../../services/extClient';
 import { harnessClient } from '../../services/harnessClient';
-import { LEVEL_LABEL, TOOL_LABEL, TOOL_LEVEL, type ToolClass } from '../../services/tasksClient';
+import {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  LEVEL_LABEL,
+  PRIORITIES,
+  PRIORITY_LABEL,
+  TOOL_LABEL,
+  TOOL_LEVEL,
+  type TaskCategory,
+  type TaskPriority,
+  type ToolClass,
+} from '../../services/tasksClient';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
@@ -52,6 +63,9 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [who, setWho] = useState<Who>('nomi');
   const [tools, setTools] = useState<ToolClass[]>(['read', 'web']);
   const [days, setDays] = useState(30);
+  const [priority, setPriority] = useState<TaskPriority | 'none'>('none');
+  // 不选 = 按执行者 / 触发器推断
+  const [category, setCategory] = useState<TaskCategory | 'auto'>('auto');
   const [repoText, setRepoText] = useState('');
   const [bins, setBins] = useState<Record<string, string | null | undefined>>({});
   const [cliPick, setCli] = useState('');
@@ -314,6 +328,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           ],
           expiresAt: Date.now() + days * 86_400_000,
         },
+        ...(priority !== 'none' ? { priority } : {}),
+        ...(category !== 'auto' ? { category } : {}),
       })) as { id: string };
       onCreated(task.id);
     } catch (e) {
@@ -347,6 +363,32 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             data-testid="task-form-goal"
           />
         </label>
+        <div className={styles.fieldRow}>
+          <label className={styles.field}>
+            <span>{t('ui.providers-schedule.task-priority')}</span>
+            <Select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority | 'none')}
+              options={[...PRIORITIES, 'none' as const].map((p) => ({
+                value: p,
+                label: t(PRIORITY_LABEL[p]),
+              }))}
+              data-testid="task-form-priority"
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{t('ui.providers-schedule.task-category')}</span>
+            <Select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as TaskCategory | 'auto')}
+              options={[
+                { value: 'auto', label: t('ui.providers-schedule.task-category-auto') },
+                ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+              ]}
+              data-testid="task-form-category"
+            />
+          </label>
+        </div>
         <div className={styles.fieldRow}>
           <label className={styles.field}>
             <span>{t('ui.providers-schedule.task-trigger')}</span>

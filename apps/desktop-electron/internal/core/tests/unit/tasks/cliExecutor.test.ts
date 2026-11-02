@@ -119,10 +119,26 @@ describe('cli 执行者：审批判定', () => {
     expect(decidePermission(task(4), { summary: 'Bash: gh auth token' }, false)).toBe('ask');
     expect(decidePermission(task(4), { summary: 'Bash: gh pr merge 1' }, false)).toBe('ask');
     expect(decidePermission(task(3), { summary: 'Bash: git push origin x' }, false)).toBe('ask');
-    expect(decidePermission(task(4), { summary: 'Bash: git push origin x' }, false)).toBe('allow');
+    expect(decidePermission(task(4), { summary: 'Bash: git push origin x' }, false)).toBe('ask');
+    const gh4 = {
+      grant: {
+        level: 4,
+        paths: [],
+        connections: [
+          { connectionId: 'c', capabilities: ['github.pr.create'], resources: ['o/r'] },
+        ],
+      },
+    } as unknown as Task;
+    expect(decidePermission(gh4, { summary: 'Bash: git push origin x' }, false)).toBe('allow');
     expect(decidePermission(task(2), { summary: 'Bash: npm test' }, false)).toBe('deny');
     expect(decidePermission(task(3), { summary: 'Bash: npm test' }, false)).toBe('allow');
     expect(decidePermission(task(3), { summary: 'Bash: npm test' }, true)).toBe('ask');
+    // 委派时 Nomi 没开「全部自动」：命令都问人
+    const ask3 = {
+      grant: { level: 3, paths: [], connections: [] },
+      executor: { kind: 'cli', askCommands: true },
+    } as unknown as Task;
+    expect(decidePermission(ask3, { summary: 'Bash: npm test' }, false)).toBe('ask');
   });
 
   it('只有 GitHub 对外能力才不隔离 gh 登录', () => {
@@ -210,13 +226,15 @@ describe('cli 执行者', () => {
     expect(h.rt.get(id2)!.task.status).toBe('cancelled');
   });
 
-  it('点名的编程助手没装 / 目录不可用：配置变了，不悄悄换别的', async () => {
+  it('点名的编程助手没装 / 目录不可用：停下来问用户，不悄悄换别的', async () => {
     const h = setup({ claude: null });
     const id = h.create();
     h.rt.command(id, { type: 'runNow' });
     await flush();
     const rec = h.rt.get(id)!;
-    expect(rec.task.status).toBe('failed');
+    expect(rec.task.status).toBe('waiting_user');
+    expect(rec.task.wait).toMatchObject({ kind: 'config', resumeTo: 'queued' });
+    expect(rec.task.wait?.detail).toContain('claude');
     expect(rec.task.lastError?.code).toBe('config_changed');
     expect(h.fh.sends).toHaveLength(0);
   });

@@ -47,6 +47,43 @@ type Service struct {
 	mcpTool connections.McpToolLookup
 	// reconciling：启动后的自动核对（单测等它结束）
 	reconciling sync.WaitGroup
+	// changeMu / changeFns：tasks.changed 的进程内订阅（Node 侧是 AppEvents.listen('tasks.changed')）
+	changeMu  sync.Mutex
+	changeFns map[int]func(id string)
+	changeN   int
+}
+
+// OnChange：任务有变化时回调（与 tasks.changed 事件同时发）。回调可能在运行时持锁时触发：
+// 不要在回调里同步回到运行时（Get / Command 等），转到别的 goroutine 再做。
+func (s *Service) OnChange(fn func(id string)) func() {
+	s.changeMu.Lock()
+	defer s.changeMu.Unlock()
+	if s.changeFns == nil {
+		s.changeFns = map[int]func(string){}
+	}
+	s.changeN++
+	k := s.changeN
+	s.changeFns[k] = fn
+	return func() {
+		s.changeMu.Lock()
+		delete(s.changeFns, k)
+		s.changeMu.Unlock()
+	}
+}
+
+func (s *Service) emitChanged(id string) {
+	if s.d.Emit != nil {
+		s.d.Emit("tasks.changed", map[string]string{"id": id})
+	}
+	s.changeMu.Lock()
+	fns := make([]func(string), 0, len(s.changeFns))
+	for _, fn := range s.changeFns {
+		fns = append(fns, fn)
+	}
+	s.changeMu.Unlock()
+	for _, fn := range fns {
+		fn(id)
+	}
 }
 
 // TriggerError：事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER）
@@ -148,9 +185,7 @@ func NewService(d ServiceDeps) *Service {
 			return t.Budget.MaxCostUsdPerDay != nil && SpentToday(attempts, now) >= *t.Budget.MaxCostUsdPerDay
 		},
 		OnChange: func(t Task) {
-			if d.Emit != nil {
-				d.Emit("tasks.changed", map[string]string{"id": t.ID})
-			}
+			s.emitChanged(t.ID)
 			// 在运行时的持有者里：不能同步回到 FireEvent，排队给 hub
 			if s.Events != nil {
 				s.Events.SyncAsync(t)
@@ -161,11 +196,7 @@ func NewService(d ServiceDeps) *Service {
 		Root:    filepath.Join(d.Root, "events"),
 		Sources: func() []*EventSource { return s.sources },
 		Fire:    s.Runtime.FireEvent,
-		Changed: func(id string) {
-			if d.Emit != nil {
-				d.Emit("tasks.changed", map[string]string{"id": id})
-			}
-		},
+		Changed: s.emitChanged,
 		LastEventKey: func(id string) string {
 			rec := s.Runtime.Get(id)
 			if rec == nil || len(rec.Attempts) == 0 {
@@ -262,6 +293,8 @@ type CreateRequest struct {
 	Grant          Grant        `json:"grant"`
 	Budget         *BudgetInput `json:"budget,omitempty"`
 	Acceptance     string       `json:"acceptance,omitempty"`
+	Priority       *string      `json:"priority,omitempty"`
+	Category       *string      `json:"category,omitempty"`
 }
 
 // Create：连接能力不合法时返回 *GrantError；事件触发器不合法时返回 *TriggerError
@@ -274,7 +307,63 @@ func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
 	}
 	return s.Runtime.Create(CreateInput{Title: in.Title, Goal: in.Goal,
 		Origin:  Origin{ConversationID: in.ConversationID, CreatedBy: createdBy, CreatedAt: s.d.Now()},
-		Trigger: in.Trigger, Executor: in.Executor, Grant: in.Grant, Budget: in.Budget, Acceptance: in.Acceptance}), nil
+		Trigger: in.Trigger, Executor: in.Executor, Grant: in.Grant, Budget: in.Budget, Acceptance: in.Acceptance,
+		Priority: in.Priority, Category: in.Category}), nil
+}
+
+// DelegatedInput 对应 TaskService.createDelegated 的入参
+type DelegatedInput struct {
+	Title          string
+	Goal           string
+	ConversationID *string
+	Executor       ExecutorSpec // kind: cli
+	Level          int          // 2 | 3
+	Paths          []string
+}
+
+// CreateDelegated：对话里 delegate_to_cli 后台派出的任务（persistent-tasks-plan 2.2）：用户已在对话里确认过这次委派；
+// 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
+func (s *Service) CreateDelegated(i DelegatedInput) Task {
+	cli := ""
+	if i.Executor.Cli != nil {
+		cli = *i.Executor.Cli
+	}
+	paths := i.Paths
+	if paths == nil {
+		paths = []string{}
+	}
+	via := "delegate"
+	task := s.Runtime.Create(CreateInput{Title: i.Title, Goal: i.Goal,
+		Origin:     Origin{ConversationID: i.ConversationID, CreatedBy: "nomi", CreatedAt: s.d.Now(), Via: &via},
+		Trigger:    Trigger{Kind: "manual"},
+		Executor:   i.Executor,
+		Category:   ptr("coding"),
+		Grant:      Grant{Level: i.Level, Paths: paths, Connections: []ConnectionGrant{}, Clis: &[]string{cli}},
+		Budget:     &BudgetInput{MaxRetries: ptr(1)},
+		Acceptance: "user",
+	})
+	s.Runtime.Command(task.ID, Command{Type: "runNow"})
+	if rec := s.Runtime.Get(task.ID); rec != nil {
+		return rec.Task
+	}
+	return task
+}
+
+func delegateAnnouncedMsg(attemptID string) string { return "delegate_announced:" + attemptID }
+
+// Announced：委派任务的这次结果有没有回报过来源对话（记在事件日志里，重启后不重复回报）
+func (s *Service) Announced(id, attemptID string) bool {
+	msg := delegateAnnouncedMsg(attemptID)
+	for _, e := range s.Store.Journal(id) {
+		if e.T == "note" && e.Msg == msg {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) MarkAnnounced(id, attemptID string) {
+	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), Msg: delegateAnnouncedMsg(attemptID), AttemptID: attemptID})
 }
 
 // Update：没有这个任务返回 nil, nil；事件触发器不合法返回 *TriggerError

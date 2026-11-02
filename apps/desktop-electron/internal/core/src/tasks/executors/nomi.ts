@@ -14,6 +14,7 @@ import type { ChatChunk, ChatMessage } from '@nomi-ai/bundle-ig-base';
 
 import { mcpServerOf } from '../../connections/catalog';
 import type { BackgroundRun } from '../../desktop/PermissionBroker';
+import { configText } from '../card';
 import type { SourceEvent } from '../events/types';
 import type { ExternalJournal } from '../external';
 import type { AttemptContext, AttemptReporter, TaskExecutor } from '../TaskRuntime';
@@ -294,7 +295,7 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
 
   return {
     prepare(task: Task) {
-      if (!d.ready()) return { error: { code: 'config_changed', message: 'no_model' } };
+      if (!d.ready()) return { error: { code: 'config_changed', message: configText.noModel() } };
       return { grantVersion: task.grant.version };
     },
     start(ctx) {

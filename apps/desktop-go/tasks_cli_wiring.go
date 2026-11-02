@@ -8,7 +8,9 @@ package main
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
@@ -51,6 +53,9 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	}
 	if c.ModelOverride != "" {
 		opts.Set("modelOverride", c.ModelOverride)
+	}
+	if c.ReasoningEffort != "" {
+		opts.Set("reasoningEffort", c.ReasoningEffort)
 	}
 	tab, err := gilErr(func() *util.Obj { return o.CreateTab(opts) })
 	if err != nil {
@@ -168,8 +173,9 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 				WorktreePath: iso.WorktreePath}, nil
 		},
 		GitChanged: delegate.GitChanged,
-		BuildPrompt: func(goal, context, doneWhen string) string {
-			return delegate.BuildDelegatePrompt(delegate.DelegateBrief{Goal: goal, Context: context, DoneWhen: doneWhen})
+		BuildPrompt: func(goal, context, doneWhen, outOfScope string) string {
+			return delegate.BuildDelegatePrompt(delegate.DelegateBrief{Goal: goal, Context: context, DoneWhen: doneWhen,
+				OutOfScope: outOfScope})
 		},
 		ParseReport: func(text string) *tasks.CliReport {
 			r := delegate.ParseDelegateReport(text)
@@ -188,10 +194,34 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	}
 }
 
-// taskDirOk：任务的代码目录存在、是用户认可的工作区
+// taskDirOk：任务的代码目录存在、是用户认可的工作区，或在用户授权过读写的（非本次会话）文件夹里
+// （委派派出的任务就在这里做）
 func taskDirOk(d *desktop.Service, dir string) bool {
 	st, err := os.Stat(dir)
-	return err == nil && st.IsDir() && d != nil && d.Broker != nil && d.Broker.IsKnownWorkspace(dir)
+	if err != nil || !st.IsDir() || d == nil || d.Broker == nil {
+		return false
+	}
+	if d.Broker.IsKnownWorkspace(dir) {
+		return true
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	real, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return false
+	}
+	for _, sc := range d.Broker.Scopes() {
+		if sc.Kind != "folder" || sc.Mode != "read-write" || sc.Session {
+			continue
+		}
+		rel, err := filepath.Rel(sc.Path, real)
+		if err == nil && (rel == "." || (!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel))) {
+			return true
+		}
+	}
+	return false
 }
 
 // taskApplyWorktree：tasks.applyWorktree 的实际拷贝，每个目标按用户当前的写授权检查

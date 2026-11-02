@@ -16,8 +16,8 @@ export const TASK_ERROR_CODES = {
   timed_out: { retryable: false },
   /** 执行者报告失败 */
   executor_failed: { retryable: false },
-  /** 引用的供应商 / Key / 账号变了（§8.7） */
-  config_changed: { retryable: false },
+  /** 引用的供应商 / Key / 账号变了、点名的编程助手不可用（§8.7、§7.3）：不重试，停下来问用户 */
+  config_changed: { retryable: false, ask: true },
   /** 授权不足或被拒 */
   grant_denied: { retryable: false },
   /** 预算用完且用户没批准继续 */
@@ -29,6 +29,14 @@ export const TASK_ERROR_CODES = {
 } as const;
 
 export type TaskErrorCode = keyof typeof TASK_ERROR_CODES;
+
+/** 要人处理的错误（配置变了）：执行失败后任务停到「等你处理」，用户确认后重跑，不悄悄换配置 */
+export function asksUser(code: string): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(TASK_ERROR_CODES, code) &&
+    (TASK_ERROR_CODES[code as TaskErrorCode] as { ask?: boolean }).ask === true
+  );
+}
 
 /** 未知错误码按不可重试处理 */
 export function isRetryable(code: string): boolean {

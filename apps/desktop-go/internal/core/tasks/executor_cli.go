@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // CliTabEvent：编排器的标签事件（只用到审批相关字段）
@@ -29,6 +30,8 @@ type CliCreateTab struct {
 	Goal           string
 	TaskID         string
 	ModelOverride  string
+	// ReasoningEffort：委派带过来的思考深度
+	ReasoningEffort string
 	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
 	GithubAccess bool
 }
@@ -76,7 +79,7 @@ type CliDeps struct {
 	Harness          CliHarness
 	PrepareIsolation func(sourceCwd, key string) (CliIsolation, error)
 	GitChanged       func(cwd string) []string // nil = 不在 git 仓库里
-	BuildPrompt      func(goal, context, doneWhen string) string
+	BuildPrompt      func(goal, context, doneWhen, outOfScope string) string
 	ParseReport      func(text string) *CliReport
 	// DirOk：目录还存在、仍是用户认可的工作区
 	DirOk func(dir string) bool
@@ -130,22 +133,29 @@ func GithubAccess(t Task) bool {
 	return false
 }
 
-// DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝（§8.4）
-func DecidePermission(level int, kind, summary string, tainted bool) string {
+// DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝（§8.4）。
+// 计划审批一律问人；读凭据 / 合并发布永远问人；对外动作要 L4 + GitHub 对外能力；跑命令要 L3
+// （事件触发的任务读过外部内容、或委派时 Nomi 没开「全部自动」：问人）。
+func DecidePermission(t Task, kind, summary string, tainted bool) string {
 	if kind == "approve-plan" {
 		return "ask"
 	}
+	level := t.Grant.Level
 	switch ClassifySummary(summary) {
 	case "credential", "never":
 		return "ask"
 	case "external":
-		if level >= 4 {
+		// 对外命令（git push、gh pr create……）：L4 且授权里有 GitHub 的对外能力才放行（connections.md §4.4）
+		if level >= 4 && GithubAccess(t) {
 			return "allow"
 		}
 		return "ask"
 	}
 	if level < 3 {
 		return "deny"
+	}
+	if t.Executor.Kind == "cli" && t.Executor.AskCommands != nil && *t.Executor.AskCommands {
+		return "ask"
 	}
 	if tainted {
 		return "ask"
@@ -160,10 +170,10 @@ func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	}
 	// 用户点名的编程助手不可用：失败并提示，不悄悄换成别的（§7.3）
 	if !e.d.Harness.Bins()[*ex.Cli] {
-		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: *ex.Cli + " is not installed"}
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(*ex.Cli)}
 	}
 	if !e.d.DirOk(*ex.Cwd) {
-		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: "workspace unavailable: " + *ex.Cwd}
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configWorkspaceUnavailable(*ex.Cwd)}
 	}
 	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version, Cli: ptr(*ex.Cli), Cwd: ptr(*ex.Cwd)}
 	if ex.Model != nil && *ex.Model != "" {
@@ -195,13 +205,23 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 		}
 		return "上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。"
 	}
+	if b := ctx.Task.Executor.Brief; ctx.Task.Executor.Kind == "cli" && b != nil {
+		bc, oos := "", ""
+		if b.Context != nil {
+			bc = *b.Context
+		}
+		if b.OutOfScope != nil {
+			oos = *b.OutOfScope
+		}
+		return e.d.BuildPrompt(ctx.Task.Goal, bc, b.DoneWhen, oos)
+	}
 	context := ctx.Task.Title
 	if e.d.EventsFor != nil {
 		if ev := EventsSection(e.d.EventsFor(ctx.Task.ID, c.EventKey)); ev != "" {
 			context += "\n" + ev
 		}
 	}
-	return e.d.BuildPrompt(ctx.Task.Goal, context, "目标里写的结果达成；做不到时说明原因")
+	return e.d.BuildPrompt(ctx.Task.Goal, context, "目标里写的结果达成；做不到时说明原因", "")
 }
 
 func runeSlice(s string, n int) string {
@@ -259,8 +279,13 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 		if ex.Model != nil {
 			model = *ex.Model
 		}
+		effort := ""
+		if ex.ReasoningEffort != nil {
+			effort = *ex.ReasoningEffort
+		}
 		id, err := h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
-			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, GithubAccess: GithubAccess(t)})
+			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
+			GithubAccess: GithubAccess(t)})
 		if err != nil {
 			rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
 			return
@@ -290,7 +315,7 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 		if ev.Type != "permission" || ev.ID == "" {
 			return
 		}
-		switch DecidePermission(t.Grant.Level, ev.Kind, ev.Summary, tainted) {
+		switch DecidePermission(t, ev.Kind, ev.Summary, tainted) {
 		case "allow":
 			h.ReplyPermission(tabID, ev.ID, true)
 		case "deny":
@@ -409,3 +434,14 @@ func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
 	e.mu.Unlock()
 	e.d.Harness.CancelTab(run.tabID)
 }
+
+// 配置变了、要用户处理时的说明（任务停到「等你处理」，§8.7；对应 card.ts configText）
+func configCliUnavailable(cli string) string {
+	return i18n.T("electron.common.task-config-cli-unavailable", cli)
+}
+
+func configWorkspaceUnavailable(cwd string) string {
+	return i18n.T("electron.common.task-config-workspace-unavailable", cwd)
+}
+
+func configNoModel() string { return i18n.T("electron.common.task-config-no-model") }

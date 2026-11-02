@@ -39,7 +39,7 @@ export type ExecutorSpec =
   | { kind: 'cli'; cli: string; model?: string; cwd: string; isolation: 'worktree' | 'shared' };
 
 export interface Wait {
-  kind: 'approval' | 'input' | 'budget' | 'grant' | 'taken_over';
+  kind: 'approval' | 'input' | 'budget' | 'grant' | 'taken_over' | 'config';
   requestId?: string;
   detail?: string;
   resumeTo: string;
@@ -60,7 +60,12 @@ export interface Task {
   id: string;
   title: string;
   goal: string;
-  origin: { conversationId?: string; createdBy: 'user' | 'nomi'; createdAt: number };
+  origin: {
+    conversationId?: string;
+    createdBy: 'user' | 'nomi';
+    createdAt: number;
+    via?: 'delegate';
+  };
   trigger: Trigger;
   executor: ExecutorSpec;
   grant: TaskGrant;
@@ -71,6 +76,8 @@ export interface Task {
     maxRetries: number;
   };
   acceptance: 'auto' | 'user';
+  priority?: TaskPriority;
+  category?: TaskCategory;
   status: TaskStatus;
   enabled: boolean;
   gen: number;
@@ -150,6 +157,74 @@ export const tasksApi = {
   onChange: (fn: () => void) => api.on('tasks.changed', fn),
 };
 
+export type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type TaskCategory = 'coding' | 'review' | 'research' | 'writing' | 'monitor' | 'chore';
+export const PRIORITIES: readonly TaskPriority[] = ['urgent', 'high', 'medium', 'low'];
+export const CATEGORIES: readonly TaskCategory[] = [
+  'coding',
+  'review',
+  'research',
+  'writing',
+  'monitor',
+  'chore',
+];
+
+export const PRIORITY_LABEL: Record<TaskPriority | 'none', string> = {
+  urgent: 'ui.providers-schedule.task-priority-urgent',
+  high: 'ui.chat-settings.high',
+  medium: 'ui.chat-settings.medium',
+  low: 'ui.chat-settings.low',
+  none: 'ui.cli-monitor.not-set',
+};
+
+export const CATEGORY_LABEL: Record<TaskCategory, string> = {
+  coding: 'ui.mascot-theme.interest-coding',
+  review: 'ui.providers-schedule.task-category-review',
+  research: 'ui.providers-schedule.task-category-research',
+  writing: 'ui.mascot-theme.interest-writing',
+  monitor: 'ui.providers-schedule.task-category-monitor',
+  chore: 'ui.providers-schedule.task-category-chore',
+};
+
+/** 类型：没填的按执行者 / 触发器推断（编程助手 → 编程；事件触发 → 盯着某处；其余 → 杂事） */
+export function categoryOf(task: Task): TaskCategory {
+  if (task.category) return task.category;
+  if (task.executor.kind === 'cli') return 'coding';
+  if (task.trigger.kind === 'event') return 'monitor';
+  return 'chore';
+}
+
+/**
+ * 看板的进度列：待开始（等触发 / 暂停）→ 进行中（排队、运行）→ 需要你（等批准、核对、失败）→
+ * 待验收 → 已结束（完成、取消）
+ */
+export type TaskStage = 'todo' | 'in_progress' | 'needs_you' | 'review' | 'done';
+export const STAGES: readonly TaskStage[] = ['todo', 'in_progress', 'needs_you', 'review', 'done'];
+export function stageOf(task: Task): TaskStage {
+  switch (task.status) {
+    case 'idle':
+      return 'todo';
+    case 'queued':
+    case 'running':
+      return 'in_progress';
+    case 'awaiting_accept':
+      return 'review';
+    case 'done':
+    case 'cancelled':
+      return 'done';
+    default:
+      return 'needs_you';
+  }
+}
+
+export const STAGE_LABEL: Record<TaskStage, string> = {
+  todo: 'ui.providers-schedule.task-stage-todo',
+  in_progress: 'ui.chat-settings.in-progress',
+  needs_you: 'ui.providers-schedule.tasks-group-needs-you',
+  review: 'ui.providers-schedule.task-awaiting-accept',
+  done: 'ui.mascot-theme.ended',
+};
+
 /** 列表分组：第一条匹配的胜出，互斥且覆盖全部状态（references §2.12） */
 export type TaskGroup = 'needs_you' | 'running' | 'waiting_trigger' | 'ended';
 export function groupOf(task: Task): TaskGroup {
@@ -174,6 +249,8 @@ export function statusLabel(task: Task): string {
           return t('ui.providers-schedule.task-waiting-grant');
         case 'taken_over':
           return t('ui.providers-schedule.task-taken-over');
+        case 'config':
+          return t('ui.providers-schedule.task-waiting-config');
         default:
           return t('ui.providers-schedule.task-waiting-approval');
       }

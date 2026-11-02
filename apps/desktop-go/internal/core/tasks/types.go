@@ -55,7 +55,26 @@ type ExecutorSpec struct {
 	Cli       *string   `json:"cli,omitempty"`
 	Cwd       *string   `json:"cwd,omitempty"`
 	Isolation *string   `json:"isolation,omitempty"`
+	// ReasoningEffort：cli 的思考深度（委派带过来的）
+	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
+	// Brief：对话里委派过来的任务的完成标准、背景、不要碰的范围（提示词用）
+	Brief *Brief `json:"brief,omitempty"`
+	// AskCommands：跑命令一律问人（Nomi 没开「全部自动」时委派出来的任务）
+	AskCommands *bool `json:"askCommands,omitempty"`
 }
+
+// Brief 对应 ExecutorSpec cli 的 brief
+type Brief struct {
+	DoneWhen   string  `json:"doneWhen"`
+	Context    *string `json:"context,omitempty"`
+	OutOfScope *string `json:"outOfScope,omitempty"`
+}
+
+// 重要程度（看板按它分组；不影响执行顺序）与任务类型（types.ts TASK_PRIORITIES / TASK_CATEGORIES）
+var (
+	TaskPriorities = []string{"urgent", "high", "medium", "low"}
+	TaskCategories = []string{"coding", "review", "research", "writing", "monitor", "chore"}
+)
 
 type ConnectionGrant struct {
 	ConnectionID string   `json:"connectionId"`
@@ -172,6 +191,8 @@ type Origin struct {
 	ConversationID *string `json:"conversationId,omitempty"`
 	CreatedBy      string  `json:"createdBy"`
 	CreatedAt      int64   `json:"createdAt"`
+	// Via："delegate" = 对话里 delegate_to_cli 后台派出的（完成后结果回到来源对话）
+	Via *string `json:"via,omitempty"`
 }
 
 type Task struct {
@@ -184,6 +205,8 @@ type Task struct {
 	Grant               Grant        `json:"grant"`
 	Budget              Budget       `json:"budget"`
 	Acceptance          string       `json:"acceptance"`
+	Priority            *string      `json:"priority,omitempty"`
+	Category            *string      `json:"category,omitempty"`
 	Status              string       `json:"status"`
 	Enabled             bool         `json:"enabled"`
 	Gen                 int          `json:"gen"`

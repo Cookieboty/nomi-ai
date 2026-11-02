@@ -11,7 +11,7 @@
  *
  * Go 版：apps/desktop-go/internal/core/tasks/machine.go，由 scripts/parity/record-tasks-machine.mjs 的 golden 守住一致。
  */
-import { AUTO_PAUSE_AFTER_FAILURES, isRetryable, retryBackoffMs } from './errors';
+import { asksUser, AUTO_PAUSE_AFTER_FAILURES, isRetryable, retryBackoffMs } from './errors';
 import type {
   Attempt,
   AttemptResult,
@@ -355,6 +355,21 @@ export function transition(task: Task, attempt: Attempt | null, ev: TaskEvent): 
           fx,
         );
       }
+      // 配置变了：不判失败，停下来问用户（处理好后重跑，或放弃）
+      if (asksUser(ev.error.code)) {
+        fx.push({ kind: 'deliver', what: 'need_user', attemptId: attempt!.id });
+        return accept(
+          withTask(task, at, {
+            status: 'waiting_user',
+            gen: task.gen + 1,
+            lastError: ev.error,
+            retryCount: 0,
+            wait: { kind: 'config', detail: ev.error.message, resumeTo: 'queued' },
+          }),
+          a,
+          fx,
+        );
+      }
       return accept(giveUp(task, at, ev.error, fx, true), a, fx);
     }
 
@@ -389,6 +404,21 @@ export function transition(task: Task, attempt: Attempt | null, ev: TaskEvent): 
         ]);
 
       if (w.kind === 'grant') return reject(task, attempt, 'illegal');
+
+      if (w.kind === 'config') {
+        // 用户处理好了 → 重跑；放弃 → 按失败收尾（不计入连续失败）
+        if (!ev.approve)
+          return accept(
+            giveUp(task, at, task.lastError ?? { code: 'config_changed', message: '' }, fx, false),
+            attempt,
+            fx,
+          );
+        return accept(
+          enqueue(task, at, { cause: 'retry', note: 'config_changed' }, fx),
+          attempt,
+          fx,
+        );
+      }
 
       if (w.kind === 'taken_over') {
         // 批准 = 用户做完了，算完成；否则交回给执行者继续

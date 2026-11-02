@@ -196,3 +196,43 @@ describe('TaskService', () => {
     h.cleanup();
   });
 });
+
+describe('委派派出的任务（2.2）', () => {
+  it('createDelegated：Nomi 起草、来源对话、只用这个编程助手、重试一次、需要验收，并立即排队', () => {
+    const h = setup();
+    h.svc.registerExecutor('cli', {
+      prepare: (task) => ({ grantVersion: task.grant.version }),
+      start: () => undefined,
+      resume: () => undefined,
+      stop: () => undefined,
+    } as TaskExecutor);
+    h.svc.start();
+    const task = h.svc.createDelegated({
+      title: 'Nomi · 修 bug',
+      goal: '修 bug',
+      conversationId: 'conv_1',
+      executor: {
+        kind: 'cli',
+        cli: 'claude',
+        cwd: h.dir,
+        isolation: 'worktree',
+        brief: { doneWhen: 'npm test' },
+      },
+      level: 3,
+      paths: [h.dir],
+    });
+    expect(task).toMatchObject({
+      origin: { createdBy: 'nomi', via: 'delegate', conversationId: 'conv_1' },
+      grant: { level: 3, paths: [h.dir], clis: ['claude'] },
+      budget: { maxRetries: 1 },
+      acceptance: 'user',
+      status: 'running',
+    });
+    const att = h.svc.get(task.id)!.attempts.at(-1)!;
+    expect(h.svc.announced(task.id, att.id)).toBe(false);
+    h.svc.markAnnounced(task.id, att.id);
+    expect(h.svc.announced(task.id, att.id)).toBe(true);
+    h.svc.stop();
+    h.cleanup();
+  });
+});

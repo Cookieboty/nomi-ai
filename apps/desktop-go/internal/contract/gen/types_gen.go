@@ -5257,6 +5257,28 @@ const (
 	TasksCreateInputAcceptanceUser TasksCreateInputAcceptance = "user"
 )
 
+// TasksCreateInputPriority 枚举：urgent | high | medium | low
+type TasksCreateInputPriority = string
+
+const (
+	TasksCreateInputPriorityUrgent TasksCreateInputPriority = "urgent"
+	TasksCreateInputPriorityHigh   TasksCreateInputPriority = "high"
+	TasksCreateInputPriorityMedium TasksCreateInputPriority = "medium"
+	TasksCreateInputPriorityLow    TasksCreateInputPriority = "low"
+)
+
+// TasksCreateInputCategory 枚举：coding | review | research | writing | monitor | chore
+type TasksCreateInputCategory = string
+
+const (
+	TasksCreateInputCategoryCoding   TasksCreateInputCategory = "coding"
+	TasksCreateInputCategoryReview   TasksCreateInputCategory = "review"
+	TasksCreateInputCategoryResearch TasksCreateInputCategory = "research"
+	TasksCreateInputCategoryWriting  TasksCreateInputCategory = "writing"
+	TasksCreateInputCategoryMonitor  TasksCreateInputCategory = "monitor"
+	TasksCreateInputCategoryChore    TasksCreateInputCategory = "chore"
+)
+
 type TasksCreateInput struct {
 	Title          string                      `json:"title"`
 	Goal           string                      `json:"goal"`
@@ -5266,6 +5288,8 @@ type TasksCreateInput struct {
 	Grant          TasksCreateInputGrant       `json:"grant"`
 	Budget         *TasksCreateInputBudget     `json:"budget,omitempty"`
 	Acceptance     *TasksCreateInputAcceptance `json:"acceptance,omitempty"`
+	Priority       *TasksCreateInputPriority   `json:"priority,omitempty"`
+	Category       *TasksCreateInputCategory   `json:"category,omitempty"`
 }
 
 // TasksCreateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
@@ -5679,11 +5703,35 @@ type TasksUpdateInputBudget struct {
 	MaxRetries              *int64   `json:"maxRetries,omitempty"`
 }
 
+// TasksUpdateInputPriority 枚举：urgent | high | medium | low
+type TasksUpdateInputPriority = string
+
+const (
+	TasksUpdateInputPriorityUrgent TasksUpdateInputPriority = "urgent"
+	TasksUpdateInputPriorityHigh   TasksUpdateInputPriority = "high"
+	TasksUpdateInputPriorityMedium TasksUpdateInputPriority = "medium"
+	TasksUpdateInputPriorityLow    TasksUpdateInputPriority = "low"
+)
+
+// TasksUpdateInputCategory 枚举：coding | review | research | writing | monitor | chore
+type TasksUpdateInputCategory = string
+
+const (
+	TasksUpdateInputCategoryCoding   TasksUpdateInputCategory = "coding"
+	TasksUpdateInputCategoryReview   TasksUpdateInputCategory = "review"
+	TasksUpdateInputCategoryResearch TasksUpdateInputCategory = "research"
+	TasksUpdateInputCategoryWriting  TasksUpdateInputCategory = "writing"
+	TasksUpdateInputCategoryMonitor  TasksUpdateInputCategory = "monitor"
+	TasksUpdateInputCategoryChore    TasksUpdateInputCategory = "chore"
+)
+
 type TasksUpdateInput struct {
-	Id      string                  `json:"id"`
-	Title   *string                 `json:"title,omitempty"`
-	Trigger json.RawMessage         `json:"trigger,omitempty"`
-	Budget  *TasksUpdateInputBudget `json:"budget,omitempty"`
+	Id       string                    `json:"id"`
+	Title    *string                   `json:"title,omitempty"`
+	Trigger  json.RawMessage           `json:"trigger,omitempty"`
+	Budget   *TasksUpdateInputBudget   `json:"budget,omitempty"`
+	Priority *TasksUpdateInputPriority `json:"priority,omitempty"`
+	Category *TasksUpdateInputCategory `json:"category,omitempty"`
 }
 
 // TasksUpdateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired

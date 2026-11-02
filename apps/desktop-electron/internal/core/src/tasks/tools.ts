@@ -110,6 +110,16 @@ const proposeInput = z.object({
       '对 github_repos 的对外动作：comment = 在 issue / PR 下评论，pr = 开 PR（只从 nomi/ 分支）。' +
         '属于最高授权等级，只在用户明确要求时才加',
     ),
+  priority: z
+    .enum(['urgent', 'high', 'medium', 'low'])
+    .optional()
+    .describe('重要程度：用户说了急、重要或不急时才填'),
+  category: z
+    .enum(['coding', 'review', 'research', 'writing', 'monitor', 'chore'])
+    .optional()
+    .describe(
+      '类型：coding 编程 / review 审查 / research 调研 / writing 写作 / monitor 盯着某处 / chore 杂事',
+    ),
   mcp: z
     .array(
       z.object({
@@ -406,6 +416,8 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
               paths,
               connections,
             },
+            ...(i.priority ? { priority: i.priority } : {}),
+            ...(i.category ? { category: i.category } : {}),
           },
           'nomi',
         );

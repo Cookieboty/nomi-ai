@@ -76,9 +76,29 @@ export type ExecutorSpec =
       kind: 'cli';
       cli: string;
       model?: string;
+      reasoningEffort?: string;
       cwd: string;
       isolation: 'worktree' | 'shared';
+      /** 对话里委派过来的任务：完成标准、背景、不要碰的范围（提示词用） */
+      brief?: { doneWhen: string; context?: string; outOfScope?: string };
+      /** 跑命令一律问人（Nomi 处于「逐项确认」时委派出来的任务） */
+      askCommands?: boolean;
     };
+
+/** 重要程度（看板按它分组；不影响执行顺序） */
+export type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
+export const TASK_PRIORITIES: readonly TaskPriority[] = ['urgent', 'high', 'medium', 'low'];
+
+/** 任务类型（给人看、看板筛选用；不填按执行者 / 触发器推断，见 taskCategory） */
+export type TaskCategory = 'coding' | 'review' | 'research' | 'writing' | 'monitor' | 'chore';
+export const TASK_CATEGORIES: readonly TaskCategory[] = [
+  'coding',
+  'review',
+  'research',
+  'writing',
+  'monitor',
+  'chore',
+];
 
 /** 能力等级（§8.2）：L0 只通知 … L4 对外副作用 */
 export type GrantLevel = 0 | 1 | 2 | 3 | 4;
@@ -109,7 +129,8 @@ export interface Budget {
   maxRetries: number;
 }
 
-export type WaitKind = 'approval' | 'input' | 'budget' | 'grant' | 'taken_over';
+/** config：配置变了（点名的编程助手不可用、供应商被删……），用户处理后重跑或放弃（§8.7） */
+export type WaitKind = 'approval' | 'input' | 'budget' | 'grant' | 'taken_over' | 'config';
 
 /** 任务停在 waiting_user 的原因 */
 export interface Wait {
@@ -185,12 +206,22 @@ export interface Task {
   id: string;
   title: string;
   goal: string;
-  origin: { conversationId?: string; createdBy: 'user' | 'nomi'; createdAt: number };
+  origin: {
+    conversationId?: string;
+    createdBy: 'user' | 'nomi';
+    createdAt: number;
+    /** delegate：对话里 delegate_to_cli 后台派出的（完成后结果回到来源对话） */
+    via?: 'delegate';
+  };
   trigger: Trigger;
   executor: ExecutorSpec;
   grant: Grant;
   budget: Budget;
   acceptance: 'auto' | 'user';
+  /** 重要程度；不填 = 未设置 */
+  priority?: TaskPriority;
+  /** 类型；不填按执行者 / 触发器推断 */
+  category?: TaskCategory;
   status: TaskStatus;
   enabled: boolean;
   /** 当前代次；新执行 +1，晚到的回报按代次丢弃（§5.3） */

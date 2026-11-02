@@ -230,7 +230,7 @@ describe('TaskRuntime', () => {
     expect(h.rt.get(id)!.task.status).toBe('running');
   });
 
-  it('准备失败（编程助手不可用等）：不重试，直接失败', () => {
+  it('准备失败（配置变了）：不重试，停下来问用户；继续 = 重跑，放弃 = 失败', () => {
     const h = makeRuntime(T0);
     h.rt.start();
     const id = h.rt.create(baseInput()).id;
@@ -238,6 +238,20 @@ describe('TaskRuntime', () => {
     h.rt.command(id, { type: 'runNow' });
     expect(h.exec.calls).toEqual([]);
     expect(h.rt.get(id)!.task).toMatchObject({
+      status: 'waiting_user',
+      wait: { kind: 'config', detail: 'claude not logged in', resumeTo: 'queued' },
+      lastError: { code: 'config_changed' },
+    });
+    // 处理好了：重跑
+    h.exec.prepareError.delete(id);
+    expect(h.rt.command(id, { type: 'decide', approve: true }).ok).toBe(true);
+    expect(h.rt.get(id)!.task.status).toBe('running');
+    // 再坏一次，这次放弃
+    const id2 = h.rt.create(baseInput()).id;
+    h.exec.prepareError.set(id2, { code: 'config_changed', message: 'x' });
+    h.rt.command(id2, { type: 'runNow' });
+    expect(h.rt.command(id2, { type: 'decide', approve: false }).ok).toBe(true);
+    expect(h.rt.get(id2)!.task).toMatchObject({
       status: 'failed',
       lastError: { code: 'config_changed' },
     });

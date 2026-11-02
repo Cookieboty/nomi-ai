@@ -11,8 +11,8 @@ import (
 var errCliStopped = errors.New("stopped")
 
 type fakeCliTab struct {
-	cwd, mode string
-	takenOver bool
+	cwd, mode, effort string
+	takenOver         bool
 }
 
 // fakeCli：假的编排器；SendTab 阻塞到测试 finish / stop
@@ -46,7 +46,7 @@ func (f *fakeCli) CreateTab(o CliCreateTab) (string, error) {
 	defer f.mu.Unlock()
 	f.n++
 	id := fmt.Sprintf("tab_%d", f.n)
-	f.tabs[id] = &fakeCliTab{cwd: o.Cwd, mode: o.PermissionMode}
+	f.tabs[id] = &fakeCliTab{cwd: o.Cwd, mode: o.PermissionMode, effort: o.ReasoningEffort}
 	return id, nil
 }
 func (f *fakeCli) HasTab(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.tabs[id] != nil }
@@ -116,7 +116,7 @@ func newCliHarness(t *testing.T, bins map[string]bool) (*Runtime, *fakeCli) {
 			}
 			return nil
 		},
-		BuildPrompt: func(goal, _, _ string) string { return "GOAL:" + goal },
+		BuildPrompt: func(goal, _, _, _ string) string { return "GOAL:" + goal },
 		ParseReport: func(text string) *CliReport {
 			if strings.Contains(text, "[nomi-report]") {
 				return &CliReport{Done: "修好了", ChangedFiles: []string{"src/a.ts"}}
@@ -153,15 +153,26 @@ func TestDecidePermission(t *testing.T) {
 		{4, "", "Bash: gh auth token", false, "ask"},
 		{4, "", "Bash: gh pr merge 1", false, "ask"},
 		{3, "", "Bash: git push origin x", false, "ask"},
-		{4, "", "Bash: git push origin x", false, "allow"},
+		{4, "", "Bash: git push origin x", false, "ask"},
 		{2, "", "Bash: npm test", false, "deny"},
 		{3, "", "Bash: npm test", false, "allow"},
 		{3, "", "Bash: npm test", true, "ask"},
 	}
 	for _, c := range cases {
-		if got := DecidePermission(c.level, c.kind, c.summary, c.tainted); got != c.want {
+		if got := DecidePermission(Task{Grant: Grant{Level: c.level}}, c.kind, c.summary, c.tainted); got != c.want {
 			t.Errorf("%+v → %s", c, got)
 		}
+	}
+	gh4 := Task{Grant: Grant{Level: 4, Connections: []ConnectionGrant{
+		{ConnectionID: "c", Capabilities: []string{"github.pr.create"}, Resources: []string{"o/r"}}}}}
+	if DecidePermission(gh4, "", "Bash: git push origin x", false) != "allow" {
+		t.Fatal("L4 + github 对外能力应放行")
+	}
+	// 委派时 Nomi 没开「全部自动」：命令都问人
+	yes := true
+	ask3 := Task{Grant: Grant{Level: 3}, Executor: ExecutorSpec{Kind: "cli", AskCommands: &yes}}
+	if DecidePermission(ask3, "", "Bash: npm test", false) != "ask" {
+		t.Fatal("askCommands")
 	}
 	if ClassifySummary("Bash: gh release create v1") != "never" || ClassifySummary("Edit: src/a.ts") != "" {
 		t.Fatal("classify")
@@ -238,10 +249,57 @@ func TestCliExecutorPinnedCliMissing(t *testing.T) {
 	rt, f := newCliHarness(t, map[string]bool{"claude": false})
 	id := cliTask(rt, 2)
 	rt.Command(id, Command{Type: "runNow"})
-	waitFor(t, func() bool { return rt.Get(id).Task.Status == "failed" })
-	if rt.Get(id).Task.LastError.Code != "config_changed" || f.sendCount() != 0 {
-		t.Fatal(rt.Get(id).Task.LastError)
+	// 停下来问用户，不悄悄换别的
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == "waiting_user" })
+	task := rt.Get(id).Task
+	if task.LastError.Code != "config_changed" || f.sendCount() != 0 {
+		t.Fatal(task.LastError)
 	}
+	if w := task.Wait; w == nil || w.Kind != "config" || w.ResumeTo != "queued" || w.Detail == nil || !strings.Contains(*w.Detail, "claude") {
+		t.Fatalf("%+v", task.Wait)
+	}
+}
+
+func TestCliExecutorBriefPrompt(t *testing.T) {
+	f := newFakeCli(map[string]bool{"claude": true})
+	var got []string
+	var mu sync.Mutex
+	exec := NewCliExecutor(CliDeps{Harness: f,
+		PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+			return CliIsolation{Kind: "shared-cwd", Cwd: cwd, SourceCwd: cwd}, nil
+		},
+		GitChanged: func(string) []string { return nil },
+		BuildPrompt: func(goal, context, doneWhen, oos string) string {
+			mu.Lock()
+			defer mu.Unlock()
+			got = []string{goal, context, doneWhen, oos}
+			return "P"
+		},
+		ParseReport: func(string) *CliReport { return nil },
+		DirOk:       func(string) bool { return true },
+	})
+	rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { return p + "_1" }, Log: &nopLog{}})
+	rt.Start()
+	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("shared"),
+			ReasoningEffort: sp("high"), Brief: &Brief{DoneWhen: "npm test 通过", OutOfScope: sp("别碰 docs")}},
+		Grant: Grant{Level: 3, Paths: []string{"/repo"}}}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	mu.Lock()
+	defer mu.Unlock()
+	if strings.Join(got, "|") != "g||npm test 通过|别碰 docs" {
+		t.Fatal(got)
+	}
+	f.mu.Lock()
+	effort := f.tabs["tab_1"].effort
+	f.mu.Unlock()
+	if effort != "high" {
+		t.Fatal(effort)
+	}
+	f.finish("done")
 }
 
 func TestCliExecutorReworkReusesTab(t *testing.T) {

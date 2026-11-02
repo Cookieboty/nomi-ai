@@ -85,6 +85,9 @@ export const TaskBudgetInput = z.object({
   maxRetries: z.number().int().min(0).max(10).optional(),
 });
 
+export const TaskPriority = z.enum(['urgent', 'high', 'medium', 'low']);
+export const TaskCategory = z.enum(['coding', 'review', 'research', 'writing', 'monitor', 'chore']);
+
 export const TaskCreateInput = z.object({
   title: z.string().min(1).max(200),
   goal: z.string().min(1).max(8000),
@@ -94,6 +97,8 @@ export const TaskCreateInput = z.object({
   grant: TaskGrantInput,
   budget: TaskBudgetInput.optional(),
   acceptance: z.enum(['auto', 'user']).optional(),
+  priority: TaskPriority.optional(),
+  category: TaskCategory.optional(),
 });
 
 /** 读出的任务（内核的 Task；looseObject：新字段不需要改契约） */

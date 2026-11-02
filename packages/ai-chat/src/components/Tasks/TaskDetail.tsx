@@ -2,16 +2,21 @@
  * 任务详情（右侧）：目标、触发、执行者、授权、预算、执行历史；按状态给出唯一明确的动作（批准、补充、验收、核对），
  * 以及立即运行、暂停 / 恢复、取消、撤销授权、删除。撤销、取消、删除先用应用内确认框确认。
  */
-import { Button, Disclosure, Icon, IconButton, t, Textarea } from '@nomi-ai/ui';
+import { Button, Disclosure, Icon, IconButton, Select, t, Textarea } from '@nomi-ai/ui';
 import { X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { api } from '../../services/api';
 import {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  categoryOf,
   executorLabel,
   fmtTime,
   LEVEL_LABEL,
   pendingExternal,
+  PRIORITIES,
+  PRIORITY_LABEL,
   statusLabel,
   tasksApi,
   TOOL_LABEL,
@@ -19,6 +24,8 @@ import {
   type Attempt,
   type JournalEntry,
   type Task,
+  type TaskCategory,
+  type TaskPriority,
 } from '../../services/tasksClient';
 import { confirmDialog } from '../ConfirmDialog';
 
@@ -99,6 +106,34 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
       <p className={styles.status} data-testid="task-status">
         {statusLabel(task)}
       </p>
+      <div className={styles.fieldRow}>
+        <Select
+          size="sm"
+          value={task.priority ?? 'none'}
+          onChange={(e) => {
+            const v = e.target.value;
+            run(() =>
+              api.tasks.update({ id, priority: v === 'none' ? null : (v as TaskPriority) }),
+            );
+          }}
+          aria-label={t('ui.providers-schedule.task-priority')}
+          options={[...PRIORITIES, 'none' as const].map((p) => ({
+            value: p,
+            label: t(PRIORITY_LABEL[p]),
+          }))}
+          data-testid="task-priority"
+        />
+        <Select
+          size="sm"
+          value={categoryOf(task)}
+          onChange={(e) =>
+            run(() => api.tasks.update({ id, category: e.target.value as TaskCategory }))
+          }
+          aria-label={t('ui.providers-schedule.task-category')}
+          options={CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) }))}
+          data-testid="task-category"
+        />
+      </div>
 
       {/* 需要你：每种情况只给一个明确的动作 */}
       {task.status === 'waiting_user' && task.wait && (
@@ -158,9 +193,11 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
               >
                 {task.wait.kind === 'taken_over'
                   ? t('ui.providers-schedule.task-mark-done')
-                  : task.wait.kind === 'input'
-                    ? t('ui.knowledge-local.send')
-                    : t('ui.providers-schedule.task-approve')}
+                  : task.wait.kind === 'config'
+                    ? t('ui.providers-schedule.task-config-retry')
+                    : task.wait.kind === 'input'
+                      ? t('ui.knowledge-local.send')
+                      : t('ui.providers-schedule.task-approve')}
               </Button>
               <Button
                 size="sm"
@@ -180,7 +217,9 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
               >
                 {task.wait.kind === 'taken_over'
                   ? t('ui.providers-schedule.task-hand-back')
-                  : t('ui.chat-settings.deny')}
+                  : task.wait.kind === 'config'
+                    ? t('ui.providers-schedule.task-config-give-up')
+                    : t('ui.chat-settings.deny')}
               </Button>
             </div>
           )}

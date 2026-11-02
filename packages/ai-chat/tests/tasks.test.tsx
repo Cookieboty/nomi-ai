@@ -38,7 +38,7 @@ const tasks = [
     status: 'waiting_user',
     wait: { kind: 'approval', requestId: 'r1', detail: '要跑 npm test', resumeTo: 'running' },
   },
-  { ...base, id: 'task_b', title: '在跑的', status: 'running' },
+  { ...base, id: 'task_b', title: '在跑的', status: 'running', priority: 'urgent' },
   {
     ...base,
     id: 'task_c',
@@ -126,6 +126,11 @@ beforeEach(() => {
     'tasks.journal': () => [{ t: 'state', at: T0, event: 'trigger', from: 'idle', to: 'queued' }],
     'tasks.decide': () => ({ ok: true }),
     'tasks.accept': () => ({ ok: true }),
+    'tasks.update': (input: { id: string }) => ({
+      ...base,
+      ...tasks.find((x) => x.id === input.id),
+      ...input,
+    }),
     'tasks.reject': () => ({ ok: true }),
     'tasks.revoke': () => ({ ok: true }),
     'tasks.create': (input: { title: string }) => ({
@@ -252,6 +257,43 @@ describe('任务页', () => {
         ],
       },
     });
+  });
+
+  it('看板：按进度分列；切到按重要程度；按类型筛选；详情里改重要程度', async () => {
+    localStorage.clear();
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-view-board'));
+    const col = (k: string) => screen.getByTestId(`board-column-${k}`).textContent ?? '';
+    expect(col('needs_you')).toContain('要批准的');
+    expect(col('in_progress')).toContain('在跑的');
+    expect(col('todo')).toContain('定时的');
+    expect(col('review')).toContain('待验收');
+    expect(col('done')).toContain('做完的');
+    expect(screen.getByTestId('tasks-list').hidden).toBe(true);
+
+    fireEvent.change(screen.getByTestId('tasks-board-group'), { target: { value: 'priority' } });
+    expect(col('urgent')).toContain('在跑的');
+    expect(col('none')).toContain('定时的');
+    // 视图选择记在本机
+    expect(JSON.parse(localStorage.getItem('nomi.tasks.view')!)).toEqual({
+      view: 'board',
+      group: 'priority',
+    });
+
+    // 类型：事件触发推断为「盯着某处」
+    fireEvent.change(screen.getByTestId('tasks-category'), { target: { value: 'monitor' } });
+    expect(screen.queryByTestId('board-card-task_b')).toBeNull();
+    expect(screen.getByTestId('board-card-task_f')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('board-card-task_f'));
+    await act(() => fake.settle());
+    fireEvent.change(screen.getByTestId('task-priority'), { target: { value: 'high' } });
+    await act(() => fake.settle());
+    expect(fake.calls).toContainEqual(['tasks.update', { id: 'task_f', priority: 'high' }]);
+    fireEvent.change(screen.getByTestId('task-priority'), { target: { value: 'none' } });
+    await act(() => fake.settle());
+    expect(fake.calls).toContainEqual(['tasks.update', { id: 'task_f', priority: null }]);
+    localStorage.clear();
   });
 
   it('验收卡片：编程助手的 worktree 确认后回填，显示结果', async () => {

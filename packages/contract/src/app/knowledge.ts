@@ -74,6 +74,8 @@ import {
   TaskJournalEntry,
   TaskListResult,
   TaskRecordView,
+  TaskCategory,
+  TaskPriority,
   TaskTrigger,
   TaskView,
   ConnectionAddGithubInput,
@@ -239,6 +241,9 @@ export const knowledgeProcedures = {
       title: z.string().min(1).max(200).optional(),
       trigger: TaskTrigger.optional(),
       budget: TaskBudgetInput.optional(),
+      /** null = 清除 */
+      priority: TaskPriority.nullable().optional(),
+      category: TaskCategory.nullable().optional(),
     }),
     output: TaskView,
   },

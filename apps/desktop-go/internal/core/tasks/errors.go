@@ -14,6 +14,12 @@ var errorRetryable = map[string]bool{
 	"prepare_failed":      false,
 }
 
+// errorAsks：要人处理的错误（配置变了，§8.7、§7.3）：执行失败后任务停到「等你处理」，用户确认后重跑，不悄悄换配置
+var errorAsks = map[string]bool{"config_changed": true}
+
+// AsksUser 对应 errors.ts asksUser
+func AsksUser(code string) bool { return errorAsks[code] }
+
 // IsRetryable：未知错误码按不可重试处理
 func IsRetryable(code string) bool { return errorRetryable[code] }
 

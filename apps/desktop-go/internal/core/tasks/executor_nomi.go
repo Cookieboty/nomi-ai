@@ -196,7 +196,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if e.d.Ready != nil && !e.d.Ready() {
-		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: "no_model"}
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
 	}
 	return ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
 }

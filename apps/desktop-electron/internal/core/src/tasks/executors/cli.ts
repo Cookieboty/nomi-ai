@@ -12,6 +12,7 @@
  * Go 版：apps/desktop-go/internal/core/tasks/executor_cli.go。
  */
 import { classifyCommand } from '../../desktop/commandClass';
+import { configText } from '../card';
 import type { SourceEvent } from '../events/types';
 import type { AttemptContext, TaskExecutor } from '../TaskRuntime';
 import type { Task } from '../types';
@@ -33,6 +34,7 @@ export interface CliHarness {
     permissionMode: 'plan' | 'acceptEdits';
     delegation: { goal: string; taskId: string; githubAccess?: boolean };
     modelOverride?: string;
+    reasoningEffort?: string;
   }): { id: string };
   hasTab(id: string): boolean;
   sendTab(id: string, prompt: string): Promise<{ text: string; usage?: Record<string, unknown> }>;
@@ -56,7 +58,7 @@ export interface CliExecutorDeps {
   harness: CliHarness;
   prepareIsolation(sourceCwd: string, key: string): Promise<CliIsolation>;
   gitChanged(cwd: string): Promise<string[] | null>;
-  buildPrompt(b: { goal: string; context?: string; doneWhen: string }): string;
+  buildPrompt(b: { goal: string; context?: string; doneWhen: string; outOfScope?: string }): string;
   parseReport(
     text: string,
   ): { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string } | null;
@@ -89,7 +91,8 @@ export function classifySummary(summary: string): ReturnType<typeof classifyComm
 
 /**
  * 标签里来了一个审批请求，后台怎么办（§8.4）：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝。
- * 计划审批一律问人；读凭据 / 合并发布永远问人；对外动作要 L4；跑命令要 L3（事件触发的任务读过外部内容，问人）。
+ * 计划审批一律问人；读凭据 / 合并发布永远问人；对外动作要 L4 + GitHub 对外能力；跑命令要 L3
+ * （事件触发的任务读过外部内容、或委派时 Nomi 没开「全部自动」：问人）。
  */
 export function decidePermission(
   task: Task,
@@ -99,8 +102,10 @@ export function decidePermission(
   if (ev.kind === 'approve-plan') return 'ask';
   const cls = classifySummary(ev.summary ?? '');
   if (cls === 'credential' || cls === 'never') return 'ask';
-  if (cls === 'external') return task.grant.level >= 4 ? 'allow' : 'ask';
+  // 对外命令（git push、gh pr create……）：L4 且授权里有 GitHub 的对外能力才放行（connections.md §4.4）
+  if (cls === 'external') return task.grant.level >= 4 && githubAccess(task) ? 'allow' : 'ask';
   if (task.grant.level < 3) return 'deny';
+  if (task.executor?.kind === 'cli' && task.executor.askCommands) return 'ask';
   return tainted ? 'ask' : 'allow';
 }
 
@@ -125,6 +130,14 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
       return '上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。';
     }
     const ev = eventsSection(d.eventsFor?.(task.id, c.eventKey) ?? []);
+    const brief = task.executor.kind === 'cli' ? task.executor.brief : undefined;
+    if (brief)
+      return d.buildPrompt({
+        goal: task.goal,
+        doneWhen: brief.doneWhen,
+        ...(brief.context ? { context: brief.context } : {}),
+        ...(brief.outOfScope ? { outOfScope: brief.outOfScope } : {}),
+      });
     return d.buildPrompt({
       goal: task.goal,
       doneWhen: '目标里写的结果达成；做不到时说明原因',
@@ -139,9 +152,11 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
       const ex = task.executor;
       // 用户点名的编程助手不可用：失败并提示，不悄悄换成别的（§7.3）
       if (!d.harness.bins()[ex.cli])
-        return { error: { code: 'config_changed', message: `${ex.cli} is not installed` } };
+        return { error: { code: 'config_changed', message: configText.cliUnavailable(ex.cli) } };
       if (!d.dirOk(ex.cwd))
-        return { error: { code: 'config_changed', message: `workspace unavailable: ${ex.cwd}` } };
+        return {
+          error: { code: 'config_changed', message: configText.workspaceUnavailable(ex.cwd) },
+        };
       return {
         grantVersion: task.grant.version,
         cli: ex.cli,
@@ -182,6 +197,7 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
                 ...(githubAccess(task) ? { githubAccess: true } : {}),
               },
               ...(ex.model ? { modelOverride: ex.model } : {}),
+              ...(ex.reasoningEffort ? { reasoningEffort: ex.reasoningEffort } : {}),
             }).id;
             report.carrier({
               tabId,

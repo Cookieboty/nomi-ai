@@ -309,6 +309,47 @@ describe('tasks/machine', () => {
       expect(late.task.status).toBe('cancelled');
     });
 
+    it('取消后才到的审批回应作废（2.7）', () => {
+      const w = run(mkTask(), [
+        trig(),
+        slot(),
+        { type: 'needs_user', at: T0 + 3, gen: 1, wait: { kind: 'approval', requestId: 'r1' } },
+      ]).last;
+      const c = transition(w.task, w.attempt, { type: 'cancel', at: T0 + 4 });
+      const late = transition(c.task, c.attempt, {
+        type: 'decide',
+        at: T0 + 5,
+        gen: 1,
+        requestId: 'r1',
+        approve: true,
+      });
+      expect(late.ok).toBe(false);
+      expect(late.task.status).toBe('cancelled');
+    });
+
+    it('配置变了：等用户；放弃后晚到的完成作废', () => {
+      const f = run(mkTask(), [
+        trig(),
+        slot(),
+        { type: 'failed', at: T0 + 3, gen: 1, error: { code: 'config_changed', message: 'm' } },
+      ]).last;
+      expect(f.task).toMatchObject({
+        status: 'waiting_user',
+        gen: 2,
+        wait: { kind: 'config', resumeTo: 'queued' },
+      });
+      expect(kinds(f)).toContain('deliver');
+      const late = transition(f.task, f.attempt, {
+        type: 'completed',
+        at: T0 + 4,
+        gen: 1,
+        result: { summary: 'late', artifacts: [] },
+      });
+      expect(late.ok).toBe(false);
+      const retry = transition(f.task, f.attempt, { type: 'decide', at: T0 + 5, approve: true });
+      expect(retry.task.status).toBe('queued');
+    });
+
     it('接管：代次前进，旧标签的结果作废；用户确认做完 → 完成，交回 → 续跑', () => {
       const r = run(mkTask(), [trig(), slot(), { type: 'taken_over', at: T0 + 3, gen: 1 }]).last;
       expect(r.task).toMatchObject({ status: 'waiting_user', gen: 2 });

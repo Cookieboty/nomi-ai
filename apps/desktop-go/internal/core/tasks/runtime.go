@@ -7,6 +7,7 @@ package tasks
 // 再处理——与 Node 单线程里「dispatching 时排队」的语义一致，parity 录制的调用顺序也一致。
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -111,6 +112,8 @@ type CreateInput struct {
 	Grant      Grant        `json:"grant"` // version / grantedAt 由运行时填
 	Budget     *BudgetInput `json:"budget,omitempty"`
 	Acceptance string       `json:"acceptance,omitempty"`
+	Priority   *string      `json:"priority,omitempty"`
+	Category   *string      `json:"category,omitempty"`
 }
 
 // Command 对应 UserCommand（type: runNow | decide | accept | reject | cancel | pause | resume | reconcile | revoke | grant）
@@ -365,6 +368,12 @@ func (r *Runtime) Create(in CreateInput) Task {
 		t := Task{ID: r.d.NewID("task"), Title: in.Title, Goal: in.Goal, Origin: in.Origin, Trigger: in.Trigger,
 			Executor: in.Executor, Grant: g, Budget: b, Acceptance: acc, Status: StatusIdle, Enabled: true,
 			UpdatedAt: now, SchemaVersion: SchemaVersion}
+		if in.Priority != nil && *in.Priority != "" {
+			t.Priority = ptr(*in.Priority)
+		}
+		if in.Category != nil && *in.Category != "" {
+			t.Category = ptr(*in.Category)
+		}
 		t.NextRunAt = r.firstRunAt(t, now)
 		r.save(Record{Task: t, Attempts: []Attempt{}})
 		r.appendJ(t.ID, JournalEntry{T: "state", At: now, Event: "create", From: "none", To: StatusIdle, Gen: ptr(0)})
@@ -414,11 +423,56 @@ func (r *Runtime) Command(id string, c Command) CmdResult {
 	return res
 }
 
-// Patch：改标题、触发器、预算（不碰授权与状态），对应 TaskRuntime.patch
+// Patch：改标题、触发器、预算、重要程度、类型（不碰授权与状态），对应 TaskRuntime.patch
 type Patch struct {
 	Title   *string      `json:"title,omitempty"`
 	Trigger *Trigger     `json:"trigger,omitempty"`
 	Budget  *BudgetInput `json:"budget,omitempty"`
+	// Priority / Category：没给 = 不改；null = 清除
+	Priority NullableString `json:"priority"`
+	Category NullableString `json:"category"`
+}
+
+// NullableString：补丁里可清除的字段。Set = 键出现过；Value 为 nil 表示 null（清除）
+type NullableString struct {
+	Set   bool
+	Value *string
+}
+
+// ClearString / SetString：Go 代码里构造补丁用
+func ClearString() NullableString       { return NullableString{Set: true} }
+func SetString(v string) NullableString { return NullableString{Set: true, Value: &v} }
+
+func (n *NullableString) UnmarshalJSON(b []byte) error {
+	n.Set = true
+	if string(b) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var v string
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	n.Value = &v
+	return nil
+}
+
+func (n NullableString) MarshalJSON() ([]byte, error) {
+	if n.Value == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(*n.Value)
+}
+
+func applyNullable(dst **string, n NullableString) {
+	if !n.Set {
+		return
+	}
+	if n.Value == nil || *n.Value == "" {
+		*dst = nil
+		return
+	}
+	*dst = ptr(*n.Value)
 }
 
 func (r *Runtime) Patch(id string, p Patch) *Task {
@@ -450,6 +504,14 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 		if p.Title != nil {
 			keys = append(keys, "title")
 			t.Title = *p.Title
+		}
+		if p.Priority.Set {
+			keys = append(keys, "priority")
+			applyNullable(&t.Priority, p.Priority)
+		}
+		if p.Category.Set {
+			keys = append(keys, "category")
+			applyNullable(&t.Category, p.Category)
 		}
 		if p.Trigger != nil {
 			keys = append(keys, "trigger")

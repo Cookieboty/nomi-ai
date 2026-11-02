@@ -16,6 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -105,6 +106,25 @@ type delegateGateway struct{ g *gwstore.Service }
 func (h delegateGateway) Defaults(cli string) *util.Obj { return h.g.CliDefaults(cli) }
 func (h delegateGateway) Models() []*util.Obj           { return h.g.CliModels() }
 
+// delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，persistent-tasks-plan 2.2）
+type delegateTasks struct{ s *tasks.Service }
+
+func (t delegateTasks) CreateDelegated(i tasks.DelegatedInput) tasks.Task {
+	return t.s.CreateDelegated(i)
+}
+func (t delegateTasks) Get(id string) *tasks.Record { return t.s.Get(id) }
+func (t delegateTasks) Command(id string, c tasks.Command) tasks.CmdResult {
+	r, err := t.s.Command(id, c)
+	if err != nil {
+		return tasks.CmdResult{Reason: err.Error()}
+	}
+	return r
+}
+func (t delegateTasks) Announced(id, attemptID string) bool { return t.s.Announced(id, attemptID) }
+func (t delegateTasks) MarkAnnounced(id, attemptID string)  { t.s.MarkAnnounced(id, attemptID) }
+func (t delegateTasks) OnChange(fn func(id string)) func()  { return t.s.OnChange(fn) }
+
+var _ delegate.TaskPort = delegateTasks{}
 var _ delegate.Gateway = delegateGateway{}
 var _ delegate.Desktop = delegateDesktop{}
 var _ delegate.Harness = delegateHarness{}
@@ -114,7 +134,7 @@ var _ delegate.Harness = delegateHarness{}
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
 // 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，Node 侧可选）；
 // history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
-func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry) {
+func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
@@ -141,6 +161,10 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router},
+	}
+	// 后台委派 = 持续任务（persistent-tasks-plan 2.2）：排队、重试、重启续跑、验收都走任务
+	if taskSvc != nil {
+		dd.Tasks = delegateTasks{taskSvc}
 	}
 	var gatewaySession func(backend, sessionID string) bool
 	if gw != nil {

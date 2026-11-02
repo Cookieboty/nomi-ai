@@ -64,6 +64,7 @@ export const TOOL_GATES: Record<string, Gate> = {
   delegate_to_cli: delegate,
   delegate_status: delegate,
   delegate_followup: delegate,
+  delegate_stop: delegate,
   fs_list: files,
   fs_stat: files,
   fs_read_text: files,

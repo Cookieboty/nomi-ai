@@ -311,7 +311,17 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
   // 任务的代码目录：存在、是用户认可的工作区（编程助手的已知目录）
   const taskDirOk = (dir: string): boolean => {
     try {
-      return fs.statSync(dir).isDirectory() && !!services.desktop?.broker.isKnownWorkspace(dir);
+      if (!fs.statSync(dir).isDirectory()) return false;
+      const broker = services.desktop?.broker;
+      if (!broker) return false;
+      if (broker.isKnownWorkspace(dir)) return true;
+      // 用户授权过读写的文件夹（委派派出的任务就在这里做）
+      const real = fs.realpathSync(dir);
+      return broker.scopes().some((sc) => {
+        if (sc.kind !== 'folder' || sc.mode !== 'read-write' || sc.session) return false;
+        const rel = path.relative(sc.path, real);
+        return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+      });
     } catch {
       return false;
     }
@@ -1042,12 +1052,26 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         eventsFor: (id, key) => services.tasks?.eventBatch(id, key) ?? [],
       }),
     );
+    // 后台委派 = 持续任务（persistent-tasks-plan 2.2）：排队、重试、重启续跑、验收都走任务
+    const delegateTasks = services.tasks;
     services.delegate = new DelegateService({
       root: userData('delegate'),
       harness,
       desktop,
       gateway: harnessGateway(gateway),
       events,
+      ...(delegateTasks
+        ? {
+            tasks: {
+              createDelegated: (i) => delegateTasks.createDelegated(i),
+              get: (id) => delegateTasks.get(id),
+              command: (id, cmd) => delegateTasks.command(id, cmd),
+              announced: (id, attemptId) => delegateTasks.announced(id, attemptId),
+              markAnnounced: (id, attemptId) => delegateTasks.markAnnounced(id, attemptId),
+              onChange: (fn) => events.listen('tasks.changed', (p) => fn((p as { id: string }).id)),
+            },
+          }
+        : {}),
     });
     services.history = new SessionHistoryService({
       logger: logger as never,

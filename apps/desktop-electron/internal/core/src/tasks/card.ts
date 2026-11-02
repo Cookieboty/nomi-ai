@@ -111,3 +111,11 @@ export function authorizationCard(i: {
     ].join('\n'),
   };
 }
+
+/** 配置变了、要用户处理时的说明（任务停到「等你处理」，§8.7） */
+export const configText = {
+  cliUnavailable: (cli: string) => t('electron.common.task-config-cli-unavailable', cli),
+  workspaceUnavailable: (cwd: string) =>
+    t('electron.common.task-config-workspace-unavailable', cwd),
+  noModel: () => t('electron.common.task-config-no-model'),
+};

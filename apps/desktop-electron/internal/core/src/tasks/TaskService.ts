@@ -74,6 +74,8 @@ export interface CreateFromContract {
   grant: CreateTaskInput['grant'];
   budget?: Partial<Budget>;
   acceptance?: Task['acceptance'];
+  priority?: Task['priority'];
+  category?: Task['category'];
 }
 
 /** 事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER） */
@@ -307,13 +309,70 @@ export class TaskService {
       grant: input.grant,
       ...(input.budget ? { budget: input.budget } : {}),
       ...(input.acceptance ? { acceptance: input.acceptance } : {}),
+      ...(input.priority ? { priority: input.priority } : {}),
+      ...(input.category ? { category: input.category } : {}),
     });
   }
 
-  /** 改标题、触发器、预算（不碰授权与状态）；返回更新后的任务 */
+  /**
+   * 对话里 delegate_to_cli 后台派出的任务（persistent-tasks-plan 2.2）：用户已在对话里确认过这次委派；
+   * 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
+   */
+  createDelegated(i: {
+    title: string;
+    goal: string;
+    conversationId?: string;
+    executor: Extract<ExecutorSpec, { kind: 'cli' }>;
+    level: 2 | 3;
+    paths: string[];
+  }): Task {
+    const now = (this.d.now ?? Date.now)();
+    const task = this.runtime.create({
+      title: i.title,
+      goal: i.goal,
+      origin: {
+        createdBy: 'nomi',
+        createdAt: now,
+        via: 'delegate',
+        ...(i.conversationId ? { conversationId: i.conversationId } : {}),
+      },
+      trigger: { kind: 'manual' },
+      executor: i.executor,
+      category: 'coding',
+      grant: { level: i.level, paths: i.paths, connections: [], clis: [i.executor.cli] },
+      budget: { maxRetries: 1 },
+      acceptance: 'user',
+    });
+    this.runtime.command(task.id, { type: 'runNow' });
+    return this.runtime.get(task.id)?.task ?? task;
+  }
+
+  /** 委派任务的这次结果有没有回报过来源对话（记在事件日志里，重启后不重复回报） */
+  announced(id: string, attemptId: string): boolean {
+    return this.store
+      .journal(id)
+      .some((e) => e.t === 'note' && e.msg === `delegate_announced:${attemptId}`);
+  }
+
+  markAnnounced(id: string, attemptId: string): void {
+    this.store.append(id, {
+      t: 'note',
+      at: (this.d.now ?? Date.now)(),
+      msg: `delegate_announced:${attemptId}`,
+      attemptId,
+    });
+  }
+
+  /** 改标题、触发器、预算、重要程度、类型（不碰授权与状态）；返回更新后的任务 */
   update(
     id: string,
-    patch: { title?: string; trigger?: Trigger; budget?: Partial<Budget> },
+    patch: {
+      title?: string;
+      trigger?: Trigger;
+      budget?: Partial<Budget>;
+      priority?: Task['priority'] | null;
+      category?: Task['category'] | null;
+    },
   ): Task | null {
     const cur = this.runtime.get(id)?.task;
     if (!cur) return null;

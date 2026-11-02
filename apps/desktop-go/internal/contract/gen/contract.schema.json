@@ -20916,6 +20916,26 @@
        "auto",
        "user"
       ]
+     },
+     "priority": {
+      "type": "string",
+      "enum": [
+       "urgent",
+       "high",
+       "medium",
+       "low"
+      ]
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "coding",
+       "review",
+       "research",
+       "writing",
+       "monitor",
+       "chore"
+      ]
      }
     },
     "required": [
@@ -22345,6 +22365,40 @@
         "maximum": 10
        }
       }
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "urgent",
+         "high",
+         "medium",
+         "low"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "coding",
+         "review",
+         "research",
+         "writing",
+         "monitor",
+         "chore"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "required": [

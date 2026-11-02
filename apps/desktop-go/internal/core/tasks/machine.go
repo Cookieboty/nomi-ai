@@ -316,6 +316,13 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			nb := at + RetryBackoffMs(retry)
 			return ok(enqueue(t, at, PendingRun{Cause: "retry", Note: ptr(e.Code), NotBefore: &nb}, &fx), a, fx)
 		}
+		// 配置变了：不判失败，停下来问用户（处理好后重跑，或放弃）
+		if AsksUser(e.Code) {
+			fx = append(fx, deliver("need_user", ptr(attempt.ID)))
+			t.Status, t.Gen, t.LastError, t.RetryCount, t.UpdatedAt = StatusWaitingUser, task.Gen+1, &e, 0, at
+			t.Wait = &Wait{Kind: "config", Detail: ptr(e.Message), ResumeTo: "queued"}
+			return ok(t, a, fx)
+		}
 		return ok(giveUp(t, at, e, &fx, true), a, fx)
 
 	case "taken_over":
@@ -349,6 +356,17 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		}
 		if w.Kind == "grant" {
 			return reject(task, attempt, "illegal")
+		}
+		if w.Kind == "config" {
+			// 用户处理好了 → 重跑；放弃 → 按失败收尾（不计入连续失败）
+			if !ev.Approve {
+				e := TaskError{Code: "config_changed", Message: ""}
+				if task.LastError != nil {
+					e = *task.LastError
+				}
+				return ok(giveUp(t, at, e, &fx, false), attempt, fx)
+			}
+			return ok(enqueue(t, at, PendingRun{Cause: "retry", Note: ptr("config_changed")}, &fx), attempt, fx)
 		}
 		if w.Kind == "taken_over" {
 			if ev.Approve {

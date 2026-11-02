@@ -50,6 +50,8 @@ const proposeSchema = `{"type":"object","properties":{
 "description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},
 "github_repos":{"type":"array","maxItems":20,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},"description":"需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用"},
 "github_actions":{"type":"array","maxItems":2,"items":{"type":"string","enum":["comment","pr"]},"description":"对 github_repos 的对外动作：comment = 在 issue / PR 下评论，pr = 开 PR（只从 nomi/ 分支）。属于最高授权等级，只在用户明确要求时才加"},
+"priority":{"type":"string","enum":["urgent","high","medium","low"],"description":"重要程度：用户说了急、重要或不急时才填"},
+"category":{"type":"string","enum":["coding","review","research","writing","monitor","chore"],"description":"类型：coding 编程 / review 审查 / research 调研 / writing 写作 / monitor 盯着某处 / chore 杂事"},
 "mcp":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"server":{"type":"string","description":"MCP 服务器 id"},
 "tools":{"type":"array","minItems":1,"maxItems":20,"items":{"type":"string"},"description":"要用的工具名（不带服务器前缀）"}},"required":["server","tools"],"additionalProperties":false},
 "description":"执行时要用的、用户已装的本机 MCP 服务器工具；只读工具之外的一律算对外动作（最高授权等级），只要必要的"}},
@@ -95,6 +97,8 @@ type proposeIn struct {
 	GithubRepos []string    `json:"github_repos"`
 	// GithubActions：comment | pr（对外动作，L4）
 	GithubActions []string     `json:"github_actions"`
+	Priority      string       `json:"priority"`
+	Category      string       `json:"category"`
 	Mcp           []proposeMcp `json:"mcp"`
 }
 
@@ -293,6 +297,10 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				}
 				if in.Executor == "" {
 					in.Executor = "nomi"
+				}
+				if (in.Priority != "" && !slices.Contains(TaskPriorities, in.Priority)) ||
+					(in.Category != "" && !slices.Contains(TaskCategories, in.Category)) {
+					return fail("bad_input", "priority / category 不合法"), nil
 				}
 				if in.Tools == nil {
 					in.Tools = []string{"read"}
@@ -521,6 +529,12 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				} else {
 					ts := append([]string(nil), in.Tools...)
 					req.Executor = ExecutorSpec{Kind: "nomi", Tools: &ts}
+				}
+				if in.Priority != "" {
+					req.Priority = ptr(in.Priority)
+				}
+				if in.Category != "" {
+					req.Category = ptr(in.Category)
 				}
 				t, err := s.Create(req, "nomi")
 				if err != nil {

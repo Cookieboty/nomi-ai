@@ -21,7 +21,9 @@ import type {
   ExecutorSpec,
   Grant,
   Task,
+  TaskCategory,
   TaskError,
+  TaskPriority,
   Trigger,
 } from './types';
 import { TASK_SCHEMA_VERSION } from './types';
@@ -116,6 +118,8 @@ export interface CreateTaskInput {
   grant: Omit<Grant, 'version' | 'grantedAt'>;
   budget?: Partial<Budget>;
   acceptance?: Task['acceptance'];
+  priority?: TaskPriority;
+  category?: TaskCategory;
 }
 
 export type UserCommand =
@@ -224,6 +228,8 @@ export class TaskRuntime {
       },
       budget: { ...DEFAULT_BUDGET, ...input.budget },
       acceptance: input.acceptance ?? (input.executor.kind === 'cli' ? 'user' : 'auto'),
+      ...(input.priority ? { priority: input.priority } : {}),
+      ...(input.category ? { category: input.category } : {}),
       status: 'idle',
       enabled: true,
       gen: 0,
@@ -279,13 +285,24 @@ export class TaskRuntime {
   /** 改标题、触发器、预算（不碰授权与状态）；改了定时就重算下一次运行时间 */
   patch(
     id: string,
-    p: { title?: string; trigger?: Trigger; budget?: Partial<Budget> },
+    p: {
+      title?: string;
+      trigger?: Trigger;
+      budget?: Partial<Budget>;
+      /** null = 清除 */
+      priority?: TaskPriority | null;
+      category?: TaskCategory | null;
+    },
   ): Task | null {
     const live = this.tasks.get(id);
     if (!live) return null;
     const now = this.d.now();
     const task: Task = { ...live.rec.task, updatedAt: now };
     if (p.title !== undefined) task.title = p.title;
+    if (p.priority === null) delete task.priority;
+    else if (p.priority !== undefined) task.priority = p.priority;
+    if (p.category === null) delete task.category;
+    else if (p.category !== undefined) task.category = p.category;
     if (p.budget) task.budget = { ...task.budget, ...p.budget };
     if (p.trigger) {
       task.trigger = p.trigger;
