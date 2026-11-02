@@ -142,6 +142,23 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
   return entries;
 }
 
+/** Nomi 生图工具的结果里带的素材库地址 */
+const GENERATED_IMAGE_URL = /chat-asset:\/\/images\/[A-Za-z0-9._-]+/;
+
+/**
+ * 一轮回复里生成的图片（image_generate 成功的结果）：发历史给模型时附上地址，
+ * 下一轮「把它改一下」时模型才知道改哪张（回复正文里按工具说明不贴图片链接）
+ */
+export function generatedImagesInTrace(events: readonly HarnessTraceEvent[] | undefined): string[] {
+  const out: string[] = [];
+  for (const ev of events ?? []) {
+    if (ev.type !== 'tool' || ev.name !== 'image_generate' || ev.status !== 'done') continue;
+    const url = GENERATED_IMAGE_URL.exec(ev.output ?? '')?.[0];
+    if (url && !out.includes(url)) out.push(url);
+  }
+  return out;
+}
+
 /**
  * 还没收尾的工具调用（有开始、没有结束）补一条「已停止」：一轮被停止 / 出错时调用结果永远不会回来，
  * 不补的话时间线一直显示运行中（看上去像工具没停）。只看带 id 的调用；返回要追加的事件（没有就空数组）。

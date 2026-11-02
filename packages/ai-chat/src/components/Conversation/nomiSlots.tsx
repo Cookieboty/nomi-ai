@@ -15,6 +15,7 @@ import styles from './Citations.module.css';
 import { CiteProvider } from './citeRefs';
 import { Markdown } from './Markdown';
 import type { ConvSlots } from './Messages';
+import { UserImages } from './UserImages';
 
 const rawOf = (m: ConvMessage): ChatMessage | undefined =>
   m.raw && typeof m.raw === 'object' && 'timestamp' in m.raw && 'content' in m.raw
@@ -79,23 +80,7 @@ export const nomiSlots: ConvSlots = {
             </ul>
           </Disclosure>
         )}
-        {!!raw.images?.length && (
-          <div className={styles.imageRow} data-testid="message-images">
-            {raw.images.map((im, i) => (
-              <img
-                key={i}
-                src={im.thumb}
-                alt={
-                  im.source === 'snip'
-                    ? t('ui.providers-schedule.screenshot')
-                    : t('ui.providers-schedule.image')
-                }
-                className={styles.imageThumb}
-                title={`${im.width}×${im.height}`}
-              />
-            ))}
-          </div>
-        )}
+        {!!raw.images?.length && <UserImages images={raw.images} />}
       </>
     );
   },

@@ -13,6 +13,7 @@ import React, { useEffect, useState } from 'react';
 import { api, hostAssetUrl } from '../../services/api';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import type { ConversationBackend } from '../../types/chat';
+import { copyImage } from '../../utils/copyImage';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
@@ -39,7 +40,9 @@ export const assetFileOf = (url: string): string | null => ASSET_URL.exec(url)?.
 const assetUrl = (file: string) => `chat-asset://images/${file}`;
 
 const isEndpoint = (s: string): s is ConversationBackend => s in ENDPOINT_NAME;
-export const sourceName = (s: string) => (isEndpoint(s) ? t(ENDPOINT_NAME[s]) : s);
+/** 来源名：编程助手 / Nomi 用端点名；user = 用户在对话里发送的原图 */
+export const sourceName = (s: string) =>
+  s === 'user' ? t('ui.media.source-user') : isEndpoint(s) ? t(ENDPOINT_NAME[s]) : s;
 
 export const SourceBadge: React.FC<{ source: string }> = ({ source }) => (
   <span className={styles.source} data-testid="asset-source">
@@ -279,6 +282,20 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ item, onClose, onChang
             </div>
           )}
           <div className={styles.row}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                void copyImage(hostAssetUrl(item.url)).catch((e: unknown) =>
+                  setErr(
+                    t('ui.media.copy-image-failed', e instanceof Error ? e.message : String(e)),
+                  ),
+                )
+              }
+              data-testid="viewer-copy-image"
+            >
+              <Icon icon={Copy} size={14} />
+              {t('ui.media.copy-image')}
+            </Button>
             <Button
               variant="secondary"
               onClick={() => void api.chatAssets.saveAs({ file: item.file }).catch(showErr)}

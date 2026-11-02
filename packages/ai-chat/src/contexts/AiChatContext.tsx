@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { importChatImages } from '../services/chatImages';
 import { canCompact, compactionRequest, isCompaction, shouldCompact } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
@@ -32,6 +33,7 @@ import {
   type HarnessTraceEvent,
   type HarnessUsage,
 } from '../services/harnessClient';
+import { imageLinksNote } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
@@ -701,6 +703,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
           throw Object.assign(new Error(msg), { cause: pinErr });
         }
+        // 原图存进素材库：消息里记下地址（放大看原图、复制、以此修改 / 作为参考），这一轮也把地址告诉模型
+        const imageUrls = images?.length ? await importChatImages(images, turn.convoId) : [];
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
@@ -710,11 +714,12 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...(delegateTo ? { delegateTo } : {}),
           ...(images?.length
             ? {
-                images: images.map((i) => ({
+                images: images.map((i, k) => ({
                   thumb: i.thumb,
                   width: i.width,
                   height: i.height,
                   source: i.source,
+                  ...(imageUrls[k] ? { url: imageUrls[k] } : {}),
                 })),
               }
             : {}),
@@ -840,10 +845,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           timer = window.setTimeout(flushUi, 100);
         };
         try {
+          const linked = imageUrls.filter(Boolean);
+          const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
           await client.sendStreamMessage(
-            delegateTo
-              ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${content}`
-              : content,
+            delegateTo ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${sent}` : sent,
             (chunk: string) => {
               accumulated += chunk;
               if (speaker) {
