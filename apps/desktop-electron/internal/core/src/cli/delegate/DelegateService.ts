@@ -1016,6 +1016,7 @@ export class DelegateService {
           ...(i.out_of_scope ? { outOfScope: i.out_of_scope } : {}),
         },
         ...(fullAuto ? {} : { askCommands: true }),
+        ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}),
       },
       level: 3,
       paths: [sourceCwd],

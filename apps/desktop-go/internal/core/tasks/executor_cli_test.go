@@ -11,8 +11,8 @@ import (
 var errCliStopped = errors.New("stopped")
 
 type fakeCliTab struct {
-	cwd, mode, effort string
-	takenOver         bool
+	cwd, mode, effort, callID string
+	takenOver                 bool
 }
 
 // fakeCli：假的编排器；SendTab 阻塞到测试 finish / stop
@@ -46,7 +46,7 @@ func (f *fakeCli) CreateTab(o CliCreateTab) (string, error) {
 	defer f.mu.Unlock()
 	f.n++
 	id := fmt.Sprintf("tab_%d", f.n)
-	f.tabs[id] = &fakeCliTab{cwd: o.Cwd, mode: o.PermissionMode, effort: o.ReasoningEffort}
+	f.tabs[id] = &fakeCliTab{cwd: o.Cwd, mode: o.PermissionMode, effort: o.ReasoningEffort, callID: o.CallID}
 	return id, nil
 }
 func (f *fakeCli) HasTab(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.tabs[id] != nil }
@@ -284,7 +284,8 @@ func TestCliExecutorBriefPrompt(t *testing.T) {
 	rt.Start()
 	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
 		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("shared"),
-			ReasoningEffort: sp("high"), Brief: &Brief{DoneWhen: "npm test 通过", OutOfScope: sp("别碰 docs")}},
+			ReasoningEffort: sp("high"), Brief: &Brief{DoneWhen: "npm test 通过", OutOfScope: sp("别碰 docs")},
+			CallID: sp("call-9")},
 		Grant: Grant{Level: 3, Paths: []string{"/repo"}}}).ID
 	rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return f.sendCount() == 1 })
@@ -294,10 +295,14 @@ func TestCliExecutorBriefPrompt(t *testing.T) {
 		t.Fatal(got)
 	}
 	f.mu.Lock()
-	effort := f.tabs["tab_1"].effort
+	effort, callID := f.tabs["tab_1"].effort, f.tabs["tab_1"].callID
 	f.mu.Unlock()
 	if effort != "high" {
 		t.Fatal(effort)
+	}
+	// 委派派出的任务：标签带上来源工具调用 id（对话里的子任务卡片据此找到标签，E36）
+	if callID != "call-9" {
+		t.Fatal(callID)
 	}
 	f.finish("done")
 }

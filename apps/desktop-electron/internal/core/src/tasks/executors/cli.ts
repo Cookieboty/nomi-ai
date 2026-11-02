@@ -32,7 +32,7 @@ export interface CliHarness {
     title: string;
     activate: false;
     permissionMode: 'plan' | 'acceptEdits';
-    delegation: { goal: string; taskId: string; githubAccess?: boolean };
+    delegation: { goal: string; taskId: string; githubAccess?: boolean; callId?: string };
     modelOverride?: string;
     reasoningEffort?: string;
   }): { id: string };
@@ -195,6 +195,7 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
                 goal: task.goal.slice(0, 200),
                 taskId: task.id,
                 ...(githubAccess(task) ? { githubAccess: true } : {}),
+                ...(ex.callId ? { callId: ex.callId } : {}),
               },
               ...(ex.model ? { modelOverride: ex.model } : {}),
               ...(ex.reasoningEffort ? { reasoningEffort: ex.reasoningEffort } : {}),

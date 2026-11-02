@@ -159,6 +159,7 @@ export const TaskBoard: React.FC<{
             key={key}
             className={styles.column}
             data-column={key}
+            data-empty={list.length ? undefined : true}
             aria-label={`${label} ${list.length}`}
             data-testid={`board-column-${key}`}
           >

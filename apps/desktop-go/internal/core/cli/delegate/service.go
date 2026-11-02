@@ -1028,6 +1028,10 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 		yes := true
 		ex.AskCommands = &yes
 	}
+	if c.ec.ToolCallID != "" {
+		v := c.ec.ToolCallID
+		ex.CallID = &v
+	}
 	di := tasks.DelegatedInput{Title: "Nomi · " + slice(trim(goal), 40), Goal: goal, Executor: ex, Level: 3,
 		Paths: []string{sourceCwd}}
 	if c.ec.ConversationID != "" {

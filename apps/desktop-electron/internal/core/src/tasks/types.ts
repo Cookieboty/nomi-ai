@@ -83,6 +83,8 @@ export type ExecutorSpec =
       brief?: { doneWhen: string; context?: string; outOfScope?: string };
       /** 跑命令一律问人（Nomi 处于「逐项确认」时委派出来的任务） */
       askCommands?: boolean;
+      /** 对话里派出它的工具调用 id：对话里的子任务卡片据此找到标签（查看、停止、审批） */
+      callId?: string;
     };
 
 /** 重要程度（看板按它分组；不影响执行顺序） */

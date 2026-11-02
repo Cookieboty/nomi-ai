@@ -51,6 +51,9 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	if c.GithubAccess {
 		opts.Get("delegation").(*util.Obj).Set("githubAccess", true)
 	}
+	if c.CallID != "" {
+		opts.Get("delegation").(*util.Obj).Set("callId", c.CallID)
+	}
 	if c.ModelOverride != "" {
 		opts.Set("modelOverride", c.ModelOverride)
 	}

@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
+import { api } from '../../services/api';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
 import {
   harnessClient,
@@ -370,9 +371,16 @@ const DelegateDrawer: React.FC<{
   const slots = useMemo(() => buildCliSlots({ cwd }), [cwd]);
   const onPermission = useCallback(
     (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
-      if (tabId) void harnessClient.replyPermission(tabId, id, allow, opts).catch(() => undefined);
+      if (!tabId) return;
+      // 后台委派是持续任务：审批经任务回应
+      const taskId = v.tab?.delegation?.taskId;
+      const done =
+        taskId && !opts?.approvePlan
+          ? api.tasks.decide({ id: taskId, requestId: id, approve: allow })
+          : harnessClient.replyPermission(tabId, id, allow, opts);
+      void Promise.resolve(done).catch(() => undefined);
     },
-    [tabId],
+    [tabId, v.tab?.delegation?.taskId],
   );
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const host = useMemo(
@@ -499,11 +507,19 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   const step = running ? currentStep(v.live) : null;
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
+  // 后台委派是持续任务（标签带 taskId）：停止 = 取消任务；直接停标签会让任务以为执行者崩了
+  const tabTaskId = tab?.delegation?.taskId;
   const stop = () => {
     if (!tab) return;
     setStopping(true);
-    void harnessClient.cancelTab(tab.id).catch(() => setStopping(false));
+    const done = tabTaskId ? api.tasks.cancel({ id: tabTaskId }) : harnessClient.cancelTab(tab.id);
+    void Promise.resolve(done).catch(() => setStopping(false));
   };
+  /** 审批：任务标签经任务回应（任务停在「等你批准」，回应要对上它的请求），普通委派直接回标签 */
+  const reply = (requestId: string, allow: boolean) =>
+    tabTaskId
+      ? api.tasks.decide({ id: tabTaskId, requestId, approve: allow })
+      : harnessClient.replyPermission(tab!.id, requestId, allow);
   const openTab = () => {
     if (!tab) return;
     setDrawer(false);
@@ -587,7 +603,7 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
                   agent={p.agent}
                   expiresAt={p.expiresAt}
                   onReply={(allow) =>
-                    void harnessClient.replyPermission(tab.id, p.id, allow).catch(() => undefined)
+                    void Promise.resolve(reply(p.id, allow)).catch(() => undefined)
                   }
                 />
               ),
@@ -639,8 +655,14 @@ export const DelegateGroup: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
             className={styles.linkBtn}
             data-testid="delegate-stop-all"
             onClick={() => {
-              for (const x of running)
-                if (x.tab) void harnessClient.cancelTab(x.tab.id).catch(() => undefined);
+              for (const x of running) {
+                if (!x.tab) continue;
+                const taskId = x.tab.delegation?.taskId;
+                const done = taskId
+                  ? api.tasks.cancel({ id: taskId })
+                  : harnessClient.cancelTab(x.tab.id);
+                void Promise.resolve(done).catch(() => undefined);
+              }
             }}
           >
             {t('ui.session-workspace.stop-all')}

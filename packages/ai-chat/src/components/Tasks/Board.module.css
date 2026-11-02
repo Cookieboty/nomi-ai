@@ -24,6 +24,10 @@
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-sunken);
 }
+/* 空列收窄：只有一两个任务时，有任务的列都在屏内（不让「已结束」挤到屏外，用户以为任务丢了） */
+.column[data-empty] {
+  flex: 0 0 calc(var(--cd-space-8) * 5);
+}
 .columnHead {
   flex: none;
   display: flex;

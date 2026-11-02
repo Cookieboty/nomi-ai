@@ -4,7 +4,17 @@
  * 编程助手执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
  * 对外动作（L4，connections.md §2）：GitHub 评论 / 开 PR 逐项勾选；本机 MCP 工具逐个勾选（只读之外的算对外动作）。
  */
-import { Button, Checkbox, DateTimeField, Input, Modal, Select, t, Textarea } from '@nomi-ai/ui';
+import {
+  Button,
+  Checkbox,
+  DateTimeField,
+  getLocale,
+  Input,
+  Modal,
+  Select,
+  t,
+  Textarea,
+} from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
@@ -250,7 +260,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             ? t('ui.providers-schedule.task-card-event', eventLabel)
             : repeat
               ? describeRepeat(repeat)
-              : new Date(at).toLocaleString(),
+              : new Date(at).toLocaleString(getLocale()),
       ),
       t(
         'ui.providers-schedule.task-card-who',

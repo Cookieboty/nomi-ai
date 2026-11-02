@@ -2,7 +2,7 @@
  * 持续任务（契约 `tasks.*`，docs/design/persistent-tasks.md）的视图侧类型与小工具。
  * 形状与内核 `src/tasks/types.ts` 一致；契约输出是 looseObject，这里按内核类型收窄。
  */
-import { t } from '@nomi-ai/ui';
+import { getLocale, t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 import { describeRepeat, type RepeatRule } from './desktopClient';
@@ -225,6 +225,24 @@ export const STAGE_LABEL: Record<TaskStage, string> = {
   done: 'ui.mascot-theme.ended',
 };
 
+/** 跟界面语言走的完整时间（Go 版 webview 的系统语言可能和界面语言不同） */
+export const fmtDateTime = (ms: number) => new Date(ms).toLocaleString(getLocale());
+
+/** 一次执行的状态 → 给人看的说明（不显示内部状态码） */
+export const ATTEMPT_STATUS_LABEL: Record<string, string> = {
+  running: 'ui.knowledge-local.running',
+  waiting_user: 'ui.providers-schedule.task-waiting-approval',
+  awaiting_accept: 'ui.providers-schedule.task-awaiting-accept',
+  succeeded: 'ui.foundation.done',
+  failed: 'ui.foundation.failed',
+  cancelled: 'ui.foundation.cancelled',
+  interrupted: 'ui.providers-schedule.task-attempt-interrupted',
+  taken_over: 'ui.providers-schedule.task-taken-over',
+  rejected: 'ui.providers-schedule.task-attempt-rejected',
+};
+export const attemptStatusLabel = (status: string) =>
+  ATTEMPT_STATUS_LABEL[status] ? t(ATTEMPT_STATUS_LABEL[status]!) : status;
+
 /** 列表分组：第一条匹配的胜出，互斥且覆盖全部状态（references §2.12） */
 export type TaskGroup = 'needs_you' | 'running' | 'waiting_trigger' | 'ended';
 export function groupOf(task: Task): TaskGroup {
@@ -279,7 +297,7 @@ export function statusLabel(task: Task): string {
 
 export const fmtTime = (ms?: number) =>
   ms
-    ? new Date(ms).toLocaleString(undefined, {
+    ? new Date(ms).toLocaleString(getLocale(), {
         month: 'numeric',
         day: 'numeric',
         weekday: 'short',
@@ -293,7 +311,7 @@ export function triggerLabel(tr: Trigger): string {
     case 'manual':
       return t('ui.providers-schedule.task-trigger-manual');
     case 'schedule': {
-      const at = new Date(tr.at).toLocaleTimeString(undefined, {
+      const at = new Date(tr.at).toLocaleTimeString(getLocale(), {
         hour: '2-digit',
         minute: '2-digit',
       });

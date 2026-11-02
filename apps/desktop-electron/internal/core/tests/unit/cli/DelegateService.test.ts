@@ -872,7 +872,7 @@ describe('DelegateService · 后台委派 = 持续任务（2.2–2.4）', () => 
     const s = setup({ tasks: t.port });
     const r = await s.run(
       { background: true, context: '在 src/login', out_of_scope: '别动 CI' },
-      { conversationId: 'conv_1' },
+      { conversationId: 'conv_1', toolCallId: 'call-7' },
     );
     expect(r.ok).toBe(true);
     expect(r.data!.taskId).toBe('task_1');
@@ -889,6 +889,8 @@ describe('DelegateService · 后台委派 = 持续任务（2.2–2.4）', () => 
         cwd: s.cwd,
         isolation: 'worktree',
         askCommands: true,
+        // 对话里的子任务卡片据此找到标签（E36：查看、停止）
+        callId: 'call-7',
         brief: { doneWhen: 'npm test 通过', context: '在 src/login', outOfScope: '别动 CI' },
       },
     });

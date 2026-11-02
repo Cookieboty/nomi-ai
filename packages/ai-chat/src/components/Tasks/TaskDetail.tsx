@@ -8,10 +8,12 @@ import React, { useEffect, useState } from 'react';
 
 import { api } from '../../services/api';
 import {
+  attemptStatusLabel,
   CATEGORIES,
   CATEGORY_LABEL,
   categoryOf,
   executorLabel,
+  fmtDateTime,
   fmtTime,
   LEVEL_LABEL,
   pendingExternal,
@@ -308,7 +310,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
             <ul className={styles.journal} data-testid="task-reconcile-pending">
               {pending.map((e) => (
                 <li key={e.seq}>
-                  <time>{new Date(e.at).toLocaleString()}</time> {e.summary ?? e.action}
+                  <time>{fmtDateTime(e.at)}</time> {e.summary ?? e.action}
                 </li>
               ))}
             </ul>
@@ -369,10 +371,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
           </ul>
           {events.lastPollAt && (
             <p className={styles.waitDetail}>
-              {t(
-                'ui.providers-schedule.task-last-poll',
-                new Date(events.lastPollAt).toLocaleString(),
-              )}
+              {t('ui.providers-schedule.task-last-poll', fmtDateTime(events.lastPollAt))}
             </p>
           )}
           {events.lastError && (
@@ -574,7 +573,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
           {attempts.map((a) => (
             <li key={a.id} className={styles.attempt}>
               <span className={styles.attemptHead}>
-                {fmtTime(a.startedAt)} · {a.status}
+                {fmtTime(a.startedAt)} · {attemptStatusLabel(a.status)}
                 {a.usage.inputTokens + a.usage.outputTokens > 0
                   ? ` · ${t(
                       'ui.providers-schedule.task-usage',

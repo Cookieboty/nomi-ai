@@ -61,6 +61,8 @@ type ExecutorSpec struct {
 	Brief *Brief `json:"brief,omitempty"`
 	// AskCommands：跑命令一律问人（Nomi 没开「全部自动」时委派出来的任务）
 	AskCommands *bool `json:"askCommands,omitempty"`
+	// CallID：对话里派出它的工具调用 id：对话里的子任务卡片据此找到标签（查看、停止、审批）
+	CallID *string `json:"callId,omitempty"`
 }
 
 // Brief 对应 ExecutorSpec cli 的 brief

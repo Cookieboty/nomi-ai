@@ -142,7 +142,7 @@ interface TabsState {
     id: string;
     backend: string;
     status: string;
-    delegation?: { callId?: string; goal: string };
+    delegation?: { callId?: string; goal: string; taskId?: string };
   }>;
 }
 
@@ -312,7 +312,11 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       await chat.screenshot({ path: join(shotDir, '01-delegate-done.png') });
       const t1 = await delegated();
       expect(t1).toHaveLength(1);
-      expect(t1[0]).toMatchObject({ backend: 'claude', delegation: { goal: '修复登录 bug' } });
+      // 卡片按 callId 找标签（「查看」「停止」靠它）；后台委派是持续任务，标签同时带 taskId
+      expect(t1[0]).toMatchObject({
+        backend: 'claude',
+        delegation: { goal: '修复登录 bug', callId: expect.any(String) },
+      });
       // 后台创建：当前仍是 Nomi 主对话
       expect((await callContract<TabsState>(chat, 'harness.tabs')).activeTabId).toBe('main');
       // 发给编程助手的是任务说明模板

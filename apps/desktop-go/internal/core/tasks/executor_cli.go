@@ -34,6 +34,8 @@ type CliCreateTab struct {
 	ReasoningEffort string
 	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
 	GithubAccess bool
+	// CallID：委派任务的来源工具调用 id（对话里的子任务卡片据此找到标签）
+	CallID string
 }
 
 // CliSendResult：一轮的结果
@@ -285,7 +287,7 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 		}
 		id, err := h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
 			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
-			GithubAccess: GithubAccess(t)})
+			GithubAccess: GithubAccess(t), CallID: strOr(t.Executor.CallID)})
 		if err != nil {
 			rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
 			return
@@ -445,3 +447,11 @@ func configWorkspaceUnavailable(cwd string) string {
 }
 
 func configNoModel() string { return i18n.T("electron.common.task-config-no-model") }
+
+// strOr：可选字符串取值，nil 为空串
+func strOr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}

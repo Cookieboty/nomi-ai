@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/core': minor
 '@nomi-ai/contract': minor
-'@nomi-ai/ai-chat': minor
 ---
 
 持续任务可以由事件触发：网页 / RSS 有变化、GitHub 仓库的 issue / PR 动态或 CI 跑完、文件夹里有新文件、编程助手一轮结束、知识库更新。新建的事件任务先只记录发现的事，你在任务详情里选择「处理这些」或打开「以后自动处理」。

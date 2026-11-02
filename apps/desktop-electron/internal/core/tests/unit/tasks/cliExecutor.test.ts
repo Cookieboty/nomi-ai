@@ -37,9 +37,14 @@ function fakeHarness(bins: Record<string, string | null> = { claude: '/bin/claud
     stopWith: () => pending?.reject(new StoppedError('stopped')),
     harness: {
       bins: () => bins,
-      createTab: (o: { cwd: string; permissionMode: string }) => {
+      createTab: (o: { cwd: string; permissionMode: string; delegation: { callId?: string } }) => {
         const id = `tab_${++n}`;
-        tabs.set(id, { cwd: o.cwd, mode: o.permissionMode, takenOver: false });
+        tabs.set(id, {
+          cwd: o.cwd,
+          mode: o.permissionMode,
+          takenOver: false,
+          ...(o.delegation.callId ? { callId: o.delegation.callId } : {}),
+        });
         return { id };
       },
       hasTab: (id: string) => tabs.has(id),
@@ -100,10 +105,16 @@ function setup(bins?: Record<string, string | null>) {
     deliver: () => undefined,
   });
   rt.start();
-  const create = (level: 2 | 3 | 4 = 2) =>
+  const create = (level: 2 | 3 | 4 = 2, callId?: string) =>
     rt.create(
       baseInput({
-        executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
+        executor: {
+          kind: 'cli',
+          cli: 'claude',
+          cwd: '/repo',
+          isolation: 'worktree',
+          ...(callId ? { callId } : {}),
+        },
         grant: { level, paths: ['/repo'], connections: [] },
       }),
     ).id;
@@ -237,6 +248,14 @@ describe('cli 执行者', () => {
     expect(rec.task.wait?.detail).toContain('claude');
     expect(rec.task.lastError?.code).toBe('config_changed');
     expect(h.fh.sends).toHaveLength(0);
+  });
+
+  it('委派派出的任务：标签带上来源工具调用 id（对话里的子任务卡片据此找到标签）', async () => {
+    const h = setup();
+    const id = h.create(2, 'call-9');
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect([...h.fh.tabs.values()][0]).toMatchObject({ callId: 'call-9' });
   });
 
   it('退回修改：复用上次的标签与 worktree，带上意见', async () => {
