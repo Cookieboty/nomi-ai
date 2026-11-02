@@ -7,6 +7,7 @@
 import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
+import { CAPABILITIES, mcpConnectionId } from '../connections/catalog';
 import type { Decision } from '../desktop/PermissionBroker';
 import type { Repeat } from '../schedule/recurrence';
 
@@ -57,9 +58,10 @@ const proposeInput = z.object({
       z.object({
         kind: z.literal('event'),
         source: z
-          .enum(['web', 'github', 'folder', 'app'])
+          .enum(['web', 'github', 'folder', 'app', 'mcp'])
           .describe(
-            'web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新',
+            'web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新；' +
+              'mcp = 定时调用户已装的 MCP 服务器的一个只读工具（邮件、日历等），有新条目就算一件事',
           ),
         url: z.string().optional().describe('source=web：网址'),
         feed: z.boolean().optional().describe('source=web：是 RSS / Atom 订阅'),
@@ -71,6 +73,9 @@ const proposeInput = z.object({
           .enum(['cli.finished', 'knowledge.updated'])
           .optional()
           .describe('source=app：哪种应用事件'),
+        mcp_server: z.string().optional().describe('source=mcp：MCP 服务器 id'),
+        mcp_tool: z.string().optional().describe('source=mcp：只读工具名（不带服务器前缀）'),
+        mcp_args: z.record(z.string(), z.unknown()).optional().describe('source=mcp：调用参数'),
       }),
     ])
     .describe('何时运行'),
@@ -97,6 +102,26 @@ const proposeInput = z.object({
     .max(20)
     .optional()
     .describe('需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用'),
+  github_actions: z
+    .array(z.enum(['comment', 'pr']))
+    .max(2)
+    .optional()
+    .describe(
+      '对 github_repos 的对外动作：comment = 在 issue / PR 下评论，pr = 开 PR（只从 nomi/ 分支）。' +
+        '属于最高授权等级，只在用户明确要求时才加',
+    ),
+  mcp: z
+    .array(
+      z.object({
+        server: z.string().describe('MCP 服务器 id'),
+        tools: z.array(z.string()).min(1).max(20).describe('要用的工具名（不带服务器前缀）'),
+      }),
+    )
+    .max(10)
+    .optional()
+    .describe(
+      '执行时要用的、用户已装的本机 MCP 服务器工具；只读工具之外的一律算对外动作（最高授权等级），只要必要的',
+    ),
 });
 
 const recallInput = z.object({
@@ -147,7 +172,13 @@ export function triggerOf(w: z.infer<typeof proposeInput>['when'], now: number):
               }
             : w.source === 'folder'
               ? { path: w.path }
-              : { event: w.app_event ?? 'cli.finished' };
+              : w.source === 'mcp'
+                ? {
+                    server: w.mcp_server,
+                    tool: w.mcp_tool,
+                    ...(w.mcp_args ? { args: w.mcp_args } : {}),
+                  }
+                : { event: w.app_event ?? 'cli.finished' };
       return { kind: 'event', sourceId: w.source, filter, mode: 'observe' };
     }
   }
@@ -161,6 +192,8 @@ export interface TaskToolDeps {
   installedClis?: () => string[];
   /** 目录存在、是用户认可的工作区 */
   dirOk?: (dir: string) => boolean;
+  /** 本机 MCP 工具信息（ExtensionsService.mcpToolInfo）；不在线 null */
+  mcpTool?: (server: string, tool: string) => { readOnly: boolean; remote?: boolean } | null;
   authorize(i: {
     tool: string;
     danger: 'write';
@@ -198,9 +231,48 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
           return { ok: false, error: { code: 'not_allowed', message: '编程助手不能创建任务' } };
         const i = proposeInput.parse(raw);
         const toolLevel = Math.max(1, ...i.tools.map((x) => TOOL_LEVEL[x]));
-        // 编程助手至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）
-        const level: GrantLevel =
-          i.executor === 'notify'
+        // MCP 工具：只读的给 mcp.read，其它一律 mcp.call（对外动作，L4）；工具要在线才知道是不是只读
+        const ev0 = i.when.kind === 'event' ? i.when : null;
+        const mcpWanted = new Map<string, Set<string>>();
+        // 执行时用的 MCP 工具只给 Nomi 自己执行的任务（编程助手、通知不调 Nomi 的工具）
+        for (const m of i.executor === 'nomi' ? (i.mcp ?? []) : [])
+          for (const tool of m.tools)
+            mcpWanted.set(m.server, (mcpWanted.get(m.server) ?? new Set()).add(tool));
+        if (ev0?.source === 'mcp' && ev0.mcp_server && ev0.mcp_tool)
+          mcpWanted.set(
+            ev0.mcp_server,
+            (mcpWanted.get(ev0.mcp_server) ?? new Set()).add(ev0.mcp_tool),
+          );
+        const mcpGrants: { connectionId: string; capabilities: string[]; resources: string[] }[] =
+          [];
+        let mcpExternal = false;
+        for (const [server, set] of mcpWanted) {
+          const caps = new Set<string>();
+          for (const tool of set) {
+            const info = d.mcpTool?.(server, tool) ?? null;
+            if (!info || info.remote)
+              return {
+                ok: false,
+                error: {
+                  code: 'mcp_unavailable',
+                  message: `MCP 工具不可用（要是用户已连上的本机服务器）：${server}/${tool}`,
+                },
+              };
+            caps.add(info.readOnly ? 'mcp.read' : 'mcp.call');
+            if (!info.readOnly) mcpExternal = true;
+          }
+          mcpGrants.push({
+            connectionId: mcpConnectionId(server),
+            capabilities: [...caps].sort(),
+            resources: [...set],
+          });
+        }
+        const ghActions = i.executor === 'notify' ? [] : (i.github_actions ?? []);
+        const external = ghActions.length > 0 || mcpExternal;
+        // 编程助手至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）；对外动作 L4
+        let level: GrantLevel = external
+          ? 4
+          : i.executor === 'notify'
             ? 0
             : i.executor === 'cli'
               ? (Math.max(2, Math.min(3, toolLevel)) as GrantLevel)
@@ -245,9 +317,35 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
         } catch (e) {
           return { ok: false, error: { code: 'bad_time', message: String(e) } };
         }
-        const connections = gh
-          ? [{ connectionId: gh.id, capabilities: ['github.read'], resources: repos }]
-          : [];
+        if (ghActions.length && !repos.length)
+          return {
+            ok: false,
+            error: { code: 'bad_grant', message: 'github_actions 需要 github_repos' },
+          };
+        const connections = [
+          ...(gh
+            ? [
+                {
+                  connectionId: gh.id,
+                  capabilities: [
+                    'github.read',
+                    ...(ghActions.includes('comment') ? ['github.comment'] : []),
+                    ...(ghActions.includes('pr') ? ['github.pr.create'] : []),
+                  ],
+                  resources: repos,
+                },
+              ]
+            : []),
+          ...mcpGrants,
+        ];
+        // 只读能力至少 L1（只发通知的事件任务也要读事件源）
+        const capLevel = Math.max(
+          0,
+          ...connections.flatMap((g) => g.capabilities.map((c) => CAPABILITIES[c]?.level ?? 0)),
+        );
+        if (capLevel > level) level = capLevel as GrantLevel;
+        const badGrant = d.tasks.validateGrant(level, connections);
+        if (badGrant) return { ok: false, error: { code: 'bad_grant', message: badGrant } };
         const paths = [
           ...(i.executor === 'cli' ? [i.cwd!] : []),
           ...(ev?.source === 'folder' && ev.path ? [ev.path] : []),
@@ -260,7 +358,24 @@ export function createTaskTools(d: TaskToolDeps): ToolDefinition[] {
           when: i.when,
           notify: i.executor === 'notify',
           level,
-          ...(gh ? { github: { label: gh.label, repos } } : {}),
+          ...(gh
+            ? {
+                github: {
+                  label: gh.label,
+                  repos,
+                  ...(ghActions.length ? { actions: ghActions } : {}),
+                },
+              }
+            : {}),
+          ...(mcpGrants.length
+            ? {
+                mcp: mcpGrants.map((g) => ({
+                  server: g.connectionId.slice(4),
+                  tools: g.resources,
+                  external: g.capabilities.includes('mcp.call'),
+                })),
+              }
+            : {}),
           ...(i.executor === 'cli' ? { cli: { name: i.cli!, cwd: i.cwd! } } : {}),
         });
         const decision = await d.authorize({

@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createGithubSource } from '../../../src/tasks/events/sources/github';
+import { createMcpSource } from '../../../src/tasks/events/sources/mcp';
 import { TaskService } from '../../../src/tasks/TaskService';
 import { createTaskTools, triggerOf } from '../../../src/tasks/tools';
 
@@ -34,6 +35,8 @@ function setup(
     githubConnection: () => github,
     installedClis: () => ['claude'],
     dirOk: (d) => d === '/repo',
+    mcpTool: (server, tool) =>
+      server !== 'mail' ? null : tool === 'send' ? { readOnly: false } : { readOnly: true },
     now: () => T0,
   });
   const tool = (name: string) => tools.find((t) => t.name === name)!;
@@ -132,6 +135,81 @@ describe('task_propose / task_recall', () => {
     ).toMatchObject({ ok: false, error: { code: 'no_connection' } });
     fs.rmSync(h.dir, { recursive: true, force: true });
     fs.rmSync(none.dir, { recursive: true, force: true });
+  });
+
+  it('对外动作（L4）：GitHub 评论 / 开 PR、MCP 非只读工具；MCP 只读事件源', async () => {
+    const h = setup('allowed', { id: 'conn_1', label: 'GitHub · octo' });
+    h.svc.registerSource(
+      createMcpSource({ info: () => ({ readOnly: true }), call: async () => '[]' }),
+    );
+    const r = (await h.tool('task_propose').execute(
+      {
+        title: 'triage',
+        goal: 'g',
+        when: { kind: 'event', source: 'mcp', mcp_server: 'mail', mcp_tool: 'list' },
+        github_repos: ['o/r'],
+        github_actions: ['comment'],
+        mcp: [{ server: 'mail', tools: ['send'] }],
+      },
+      {},
+    )) as { ok: true; data: { id: string } };
+    expect(r.ok).toBe(true);
+    const preview = h.cards[0]!.preview;
+    expect(preview).toContain('对外');
+    expect(preview).toContain('mail');
+    const task = h.svc.get(r.data.id)!.task;
+    expect(task.grant.level).toBe(4);
+    expect(task.grant.connections).toEqual([
+      {
+        connectionId: 'conn_1',
+        capabilities: ['github.read', 'github.comment'],
+        resources: ['o/r'],
+      },
+      {
+        connectionId: 'mcp:mail',
+        capabilities: ['mcp.call', 'mcp.read'],
+        resources: ['send', 'list'],
+      },
+    ]);
+    expect(task.trigger).toMatchObject({
+      kind: 'event',
+      sourceId: 'mcp',
+      filter: { server: 'mail', tool: 'list' },
+    });
+    // 只发通知的 MCP 事件任务：只读能力 L1
+    const n = (await h.tool('task_propose').execute(
+      {
+        title: 'n',
+        goal: 'g',
+        executor: 'notify',
+        when: { kind: 'event', source: 'mcp', mcp_server: 'mail', mcp_tool: 'list' },
+        mcp: [{ server: 'mail', tools: ['send'] }],
+      },
+      {},
+    )) as { ok: true; data: { id: string } };
+    expect(n.ok).toBe(true);
+    expect(h.svc.get(n.data.id)!.task.grant).toMatchObject({
+      level: 1,
+      connections: [{ connectionId: 'mcp:mail', capabilities: ['mcp.read'], resources: ['list'] }],
+    });
+    // 不在线的 MCP 工具、没有仓库的 GitHub 动作都拒绝
+    expect(
+      await h.tool('task_propose').execute(
+        {
+          title: 't',
+          goal: 'g',
+          when: { kind: 'manual' },
+          mcp: [{ server: 'cal', tools: ['x'] }],
+        },
+        {},
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'mcp_unavailable' } });
+    expect(
+      await h
+        .tool('task_propose')
+        .execute({ title: 't', goal: 'g', when: { kind: 'manual' }, github_actions: ['pr'] }, {}),
+    ).toMatchObject({ ok: false, error: { code: 'bad_grant' } });
+    fs.rmSync(h.dir, { recursive: true, force: true });
   });
 
   it('何时 → 触发器：每天按本机时间；一次性时间要合法', () => {

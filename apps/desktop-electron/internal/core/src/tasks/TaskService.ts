@@ -12,12 +12,19 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import { applyWorktreeToMain } from '../cli/delegate/worktree';
+import { validateConnectionGrants } from '../connections/catalog';
 import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
 
 import { EventHub } from './events/EventHub';
 import type { EventSource, SourceEvent } from './events/types';
 import { createNotifyExecutor, type NotifyPort } from './executors/notify';
+import {
+  createExternalJournal,
+  openIntents,
+  type ExternalJournal,
+  type Reconciler,
+} from './external';
 import {
   legacyItems,
   type LegacyReminder,
@@ -74,6 +81,11 @@ export class TaskTriggerError extends Error {
   readonly code = 'bad_trigger';
 }
 
+/** 授权里的连接能力不合法（契约里映射成 TASKS_BAD_GRANT） */
+export class TaskGrantError extends Error {
+  readonly code = 'bad_grant';
+}
+
 export class TaskService {
   readonly store: TaskStore;
   readonly runtime: TaskRuntime;
@@ -82,6 +94,12 @@ export class TaskService {
   /** 事件触发（§6）：事件源由各模块注册（registerSource） */
   readonly events: EventHub;
   private readonly sources: EventSource[] = [];
+  /** 对外动作的自动核对（§10.3），按能力名注册 */
+  private readonly reconcilers = new Map<string, Reconciler>();
+  /** 在线 MCP 工具是否只读（授权校验：mcp.read 只能给只读工具） */
+  private mcpTool:
+    | ((serverId: string, tool: string) => { readOnly: boolean; remote?: boolean } | null)
+    | undefined;
 
   constructor(private readonly d: TaskServiceDeps) {
     this.store = new TaskStore(d.root, d.logger);
@@ -162,10 +180,77 @@ export class TaskService {
     this.executors[kind] = ex;
   }
 
+  /** 对外动作的自动核对（github.comment 等），须在 start 之前 */
+  registerReconciler(action: string, fn: Reconciler): void {
+    this.reconcilers.set(action, fn);
+  }
+
+  /** MCP 工具信息（ExtensionsService），授权校验用 */
+  useMcpTools(
+    fn: (serverId: string, tool: string) => { readOnly: boolean; remote?: boolean } | null,
+  ): void {
+    this.mcpTool = fn;
+  }
+
+  /** 这次执行的副作用日志（执行者经 PermissionBroker 的后台登记交给对外工具） */
+  externalJournal(taskId: string, attemptId: string): ExternalJournal {
+    return createExternalJournal({
+      store: this.store,
+      get: (id) => this.runtime.get(id),
+      taskId,
+      attemptId,
+      now: this.d.now ?? Date.now,
+    });
+  }
+
   start(): void {
     this.outbox.start();
     this.runtime.start();
     this.events.start(this.runtime.list());
+    void this.reconcileAll();
+  }
+
+  /** 启动后：needs_reconcile 的任务先自动核对，查清了就续跑（§10.3） */
+  async reconcileAll(): Promise<void> {
+    for (const task of this.runtime.list())
+      if (task.status === 'needs_reconcile')
+        await this.autoReconcile(task.id).catch((e: unknown) =>
+          this.d.logger.warn('自动核对对外动作失败', String(e)),
+        );
+  }
+
+  /** 自动核对一个任务；全部查清时提交核对结果并返回 true，查不了的留给用户 */
+  async autoReconcile(id: string): Promise<boolean> {
+    const rec = this.runtime.get(id);
+    const attempt = rec?.attempts.at(-1);
+    if (!rec || !attempt || rec.task.status !== 'needs_reconcile') return false;
+    const open = openIntents(this.store.journal(id), attempt.id);
+    const results: { seq: number; applied: boolean; externalId?: string }[] = [];
+    for (const intent of open) {
+      const fn = this.reconcilers.get(intent.action);
+      const r = fn ? await fn(intent, rec.task).catch(() => null) : null;
+      if (!r) return false;
+      results.push({ seq: intent.seq, ...r });
+    }
+    // 核对期间用户可能已经处理过
+    if (this.runtime.get(id)?.task.status !== 'needs_reconcile') return false;
+    const now = (this.d.now ?? Date.now)();
+    for (const r of results)
+      this.store.append(
+        id,
+        r.applied
+          ? {
+              t: 'done',
+              at: now,
+              attemptId: attempt.id,
+              seq: r.seq,
+              by: 'reconcile',
+              ...(r.externalId ? { externalId: r.externalId } : {}),
+            }
+          : { t: 'failed', at: now, attemptId: attempt.id, seq: r.seq, by: 'reconcile' },
+      );
+    const outcome = results.some((r) => !r.applied) ? 'not_applied' : 'applied';
+    return this.runtime.command(id, { type: 'reconcile', outcome }).ok;
   }
 
   stop(): void {
@@ -207,6 +292,7 @@ export class TaskService {
 
   create(input: CreateFromContract, createdBy: 'user' | 'nomi' = 'user'): Task {
     const now = (this.d.now ?? Date.now)();
+    this.checkGrant(input.grant.level, input.grant.connections ?? []);
     this.checkTrigger(input.trigger, input.grant.connections ?? [], input.grant.paths ?? []);
     return this.runtime.create({
       title: input.title,
@@ -273,7 +359,45 @@ export class TaskService {
   }
 
   command(id: string, cmd: UserCommand): { ok: boolean; reason?: string } {
+    if (cmd.type === 'grant') {
+      const cur = this.runtime.get(id)?.task;
+      this.checkGrant(cmd.grant.level, cmd.grant.connections ?? []);
+      if (cur) this.checkTrigger(cur.trigger, cmd.grant.connections ?? [], cmd.grant.paths ?? []);
+    }
+    if (cmd.type === 'reconcile') return this.userReconcile(id, cmd.outcome);
     return this.runtime.command(id, cmd);
+  }
+
+  /** 用户核对：把还开着的 intent 按用户的判断关掉（审计完整），再交给状态机 */
+  private userReconcile(
+    id: string,
+    outcome: 'applied' | 'not_applied' | 'abandon',
+  ): { ok: boolean; reason?: string } {
+    const rec = this.runtime.get(id);
+    const attempt = rec?.attempts.at(-1);
+    const r = this.runtime.command(id, { type: 'reconcile', outcome });
+    if (r.ok && attempt && outcome !== 'abandon') {
+      const now = (this.d.now ?? Date.now)();
+      for (const intent of openIntents(this.store.journal(id), attempt.id))
+        this.store.append(id, {
+          t: outcome === 'applied' ? 'done' : 'failed',
+          at: now,
+          attemptId: attempt.id,
+          seq: intent.seq,
+          by: 'user',
+        });
+    }
+    return r;
+  }
+
+  /** 授权里的连接能力：在目录里、等级够、资源写明（connections.md §2） */
+  validateGrant(level: number, connections: Task['grant']['connections']): string | null {
+    return validateConnectionGrants(connections, level, this.mcpTool);
+  }
+
+  private checkGrant(level: number, connections: Task['grant']['connections']): void {
+    const err = this.validateGrant(level, connections);
+    if (err) throw new TaskGrantError(err);
   }
 
   remove(id: string): boolean {

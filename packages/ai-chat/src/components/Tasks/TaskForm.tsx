@@ -2,12 +2,14 @@
  * 手动新建任务（§12 创建 2）：标题、目标、何时运行、谁来做、能用哪些能力；保存前弹授权卡片，确认后才创建。
  * 授权等级由所选能力推出（取最高），默认 30 天到期。
  * 编程助手执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
+ * 对外动作（L4，connections.md §2）：GitHub 评论 / 开 PR 逐项勾选；本机 MCP 工具逐个勾选（只读之外的算对外动作）。
  */
 import { Button, Checkbox, DateTimeField, Input, Modal, Select, t, Textarea } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
+import { extClient, type McpServer } from '../../services/extClient';
 import { harnessClient } from '../../services/harnessClient';
 import { LEVEL_LABEL, TOOL_LABEL, TOOL_LEVEL, type ToolClass } from '../../services/tasksClient';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
@@ -19,7 +21,7 @@ import { WorkspacePicker } from '../WorkspacePicker';
 import styles from './index.module.css';
 
 type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval' | 'event';
-type Source = 'web' | 'github' | 'folder' | 'app';
+type Source = 'web' | 'github' | 'folder' | 'app' | 'mcp';
 type Who = 'nomi' | 'notify' | 'cli';
 const CLIS = CONVERSATION_BACKENDS.filter((b) => b !== 'nomi');
 
@@ -64,13 +66,45 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [evBranch, setEvBranch] = useState('');
   const [evPath, setEvPath] = useState('');
   const [evApp, setEvApp] = useState<'cli.finished' | 'knowledge.updated'>('cli.finished');
+  const [evServer, setEvServer] = useState('');
+  const [evTool, setEvTool] = useState('');
+  const [evArgs, setEvArgs] = useState('');
+  // 对外动作（L4）
+  const [ghComment, setGhComment] = useState(false);
+  const [ghPr, setGhPr] = useState(false);
+  // 本机 MCP 服务器（只接 stdio、已连上的）与勾选的工具：服务器 id → 工具名（不带前缀）
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpPick, setMcpPick] = useState<Record<string, string[]>>({});
   const installed = CLIS.filter((b) => !!bins[b]);
   useEffect(() => {
     void harnessClient
       .state()
       .then((s) => setBins(s.bins as Record<string, string | null | undefined>))
       .catch(() => undefined);
+    void extClient
+      .mcpList()
+      .then((l) =>
+        setMcpServers(l.servers.filter((x) => x.transport === 'stdio' && x.status === 'connected')),
+      )
+      .catch(() => undefined);
   }, []);
+  const bare = (server: string, name: string) => name.replace(`${server}__`, '');
+  const toolOf = (server: string, tool: string) =>
+    mcpServers.find((x) => x.id === server)?.tools.find((x) => bare(server, x.name) === tool);
+  const evServerInfo = mcpServers.find((x) => x.id === evServer) ?? null;
+  const evTools = (evServerInfo?.tools ?? []).filter((x) => x.readOnly);
+  const mcpExternal = Object.entries(mcpPick).some(([server, list]) =>
+    list.some((tool) => toolOf(server, tool)?.readOnly !== true),
+  );
+  let parsedArgs: Record<string, unknown> | null = {};
+  if (evArgs.trim())
+    try {
+      const v = JSON.parse(evArgs) as unknown;
+      parsedArgs =
+        v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    } catch {
+      parsedArgs = null;
+    }
   // 没选过时默认第一个已装好的
   const cli = cliPick || installed[0] || '';
   const { items: connections } = useConnections();
@@ -82,9 +116,16 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const level =
-    who === 'notify'
-      ? 0
+  const ghActions =
+    who !== 'notify' && github ? [ghComment && 'comment', ghPr && 'pr'].filter(Boolean) : [];
+  const external = ghActions.length > 0 || (who === 'nomi' && mcpExternal);
+  const level = external
+    ? 4
+    : who === 'notify'
+      ? // 只发通知也要读事件源：GitHub / MCP 的只读能力是 L1
+        when === 'event' && (source === 'github' || source === 'mcp')
+        ? 1
+        : 0
       : who === 'cli'
         ? cliShell
           ? 3
@@ -104,6 +145,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     (source === 'web' && /^https?:\/\/\S+$/.test(evUrl.trim())) ||
     (source === 'github' && !!github && repoOk) ||
     (source === 'folder' && !!evPath) ||
+    (source === 'mcp' &&
+      !!evServerInfo &&
+      evTools.some((x) => bare(evServer, x.name) === evTool) &&
+      parsedArgs !== null) ||
     source === 'app';
   const filter =
     source === 'web'
@@ -116,7 +161,13 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           }
         : source === 'folder'
           ? { path: evPath }
-          : { event: evApp };
+          : source === 'mcp'
+            ? {
+                server: evServer,
+                tool: evTool,
+                ...(parsedArgs && Object.keys(parsedArgs).length ? { args: parsedArgs } : {}),
+              }
+            : { event: evApp };
   const eventLabel =
     source === 'web'
       ? evUrl.trim()
@@ -124,14 +175,17 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         ? evRepo.trim()
         : source === 'folder'
           ? evPath
-          : evApp === 'cli.finished'
-            ? t('ui.providers-schedule.task-event-app-cli')
-            : t('ui.providers-schedule.task-event-app-kb');
+          : source === 'mcp'
+            ? `${evServerInfo?.name ?? evServer} / ${evTool}`
+            : evApp === 'cli.finished'
+              ? t('ui.providers-schedule.task-event-app-cli')
+              : t('ui.providers-schedule.task-event-app-kb');
   const valid =
     title.trim() &&
     goal.trim() &&
     (when === 'manual' || when === 'event' || !Number.isNaN(new Date(at).getTime())) &&
     eventOk &&
+    (ghActions.length === 0 || repos.length > 0) &&
     (who !== 'cli' || (!!cli && !!bins[cli] && !!cwd));
 
   const submit = async () => {
@@ -146,7 +200,25 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               ...(repeat ? { repeat } : {}),
             };
     const evRepos = when === 'event' && source === 'github' ? [evRepo.trim()] : [];
-    const allRepos = [...new Set([...(who === 'nomi' ? repos : []), ...evRepos])];
+    const allRepos = [...new Set([...(who !== 'notify' ? repos : []), ...evRepos])];
+    // MCP：执行时用的工具 + 事件源的只读工具；只读的给 mcp.read，其它给 mcp.call
+    const mcpWanted = new Map<string, Set<string>>();
+    if (who === 'nomi')
+      for (const [server, list] of Object.entries(mcpPick))
+        for (const tool of list)
+          mcpWanted.set(server, (mcpWanted.get(server) ?? new Set()).add(tool));
+    if (when === 'event' && source === 'mcp')
+      mcpWanted.set(evServer, (mcpWanted.get(evServer) ?? new Set()).add(evTool));
+    const mcpGrants = [...mcpWanted]
+      .filter(([, set]) => set.size > 0)
+      .map(([server, set]) => {
+        const list = [...set];
+        const caps = new Set(
+          list.map((tool) => (toolOf(server, tool)?.readOnly ? 'mcp.read' : 'mcp.call')),
+        );
+        return { connectionId: `mcp:${server}`, capabilities: [...caps].sort(), resources: list };
+      });
+    const serverName = (id: string) => mcpServers.find((x) => x.id === id)?.name ?? id;
     const executor =
       who === 'notify'
         ? { kind: 'notify' as const, text: goal.trim() }
@@ -178,6 +250,29 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
       ...(github && allRepos.length
         ? [t('ui.providers-schedule.task-card-github', github.label, allRepos.join(', '))]
         : []),
+      ...(ghActions.length
+        ? [
+            t(
+              'ui.providers-schedule.task-card-github-actions',
+              ghActions
+                .map((a) =>
+                  a === 'comment'
+                    ? t('ui.providers-schedule.task-gh-comment')
+                    : t('ui.providers-schedule.task-gh-pr'),
+                )
+                .join('、'),
+            ),
+          ]
+        : []),
+      ...mcpGrants.map((g) =>
+        t(
+          g.capabilities.includes('mcp.call')
+            ? 'ui.providers-schedule.task-card-mcp-external'
+            : 'ui.providers-schedule.task-card-mcp',
+          serverName(g.connectionId.slice(4)),
+          g.resources.join(', '),
+        ),
+      ),
       t('ui.providers-schedule.task-card-expiry', days),
       t('ui.providers-schedule.task-card-budget'),
     ].join('\n');
@@ -201,10 +296,22 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             ...(who === 'cli' ? [cwd] : []),
             ...(when === 'event' && source === 'folder' ? [evPath] : []),
           ],
-          connections:
-            github && allRepos.length
-              ? [{ connectionId: github.id, capabilities: ['github.read'], resources: allRepos }]
-              : [],
+          connections: [
+            ...(github && allRepos.length
+              ? [
+                  {
+                    connectionId: github.id,
+                    capabilities: [
+                      'github.read',
+                      ...(ghActions.includes('comment') ? ['github.comment'] : []),
+                      ...(ghActions.includes('pr') ? ['github.pr.create'] : []),
+                    ],
+                    resources: allRepos,
+                  },
+                ]
+              : []),
+            ...mcpGrants,
+          ],
           expiresAt: Date.now() + days * 86_400_000,
         },
       })) as { id: string };
@@ -296,6 +403,14 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                 },
                 { value: 'folder', label: t('ui.foundation.folder') },
                 { value: 'app', label: t('ui.providers-schedule.task-source-app') },
+                {
+                  value: 'mcp',
+                  label: t('ui.providers-schedule.task-source-mcp'),
+                  disabled: !mcpServers.length,
+                  ...(mcpServers.length
+                    ? {}
+                    : { description: t('ui.providers-schedule.task-mcp-empty') }),
+                },
               ]}
               data-testid="task-form-source"
             />
@@ -370,6 +485,55 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   },
                 ]}
               />
+            )}
+            {source === 'mcp' && (
+              <>
+                <div className={styles.fieldRow}>
+                  <label className={styles.field}>
+                    <span>{t('ui.foundation.mcp-servers-label')}</span>
+                    <Select
+                      value={evServer}
+                      onChange={(e) => {
+                        setEvServer(e.target.value);
+                        setEvTool('');
+                      }}
+                      options={[
+                        { value: '', label: '—' },
+                        ...mcpServers.map((x) => ({ value: x.id, label: x.name })),
+                      ]}
+                      data-testid="task-form-mcp-server"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>{t('ui.providers-schedule.task-mcp-tool')}</span>
+                    <Select
+                      value={evTool}
+                      onChange={(e) => setEvTool(e.target.value)}
+                      options={[
+                        { value: '', label: '—' },
+                        ...evTools.map((x) => ({
+                          value: bare(evServer, x.name),
+                          label: bare(evServer, x.name),
+                        })),
+                      ]}
+                      data-testid="task-form-mcp-tool"
+                    />
+                  </label>
+                </div>
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-mcp-args')}</span>
+                  <Textarea
+                    value={evArgs}
+                    onChange={(e) => setEvArgs(e.target.value)}
+                    rows={2}
+                    placeholder="{}"
+                    data-testid="task-form-mcp-args"
+                  />
+                </label>
+                <p className={styles.levelNote}>
+                  {t('ui.providers-schedule.task-mcp-readonly-note')}
+                </p>
+              </>
             )}
             <p className={styles.levelNote}>{t('ui.providers-schedule.task-event-observe-note')}</p>
           </fieldset>
@@ -449,7 +613,42 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             {t('ui.providers-schedule.task-cli-shell')}
           </label>
         )}
-        {who === 'nomi' && github && (
+        {who === 'nomi' && mcpServers.length > 0 && (
+          <fieldset className={styles.tools} data-testid="task-form-mcp">
+            <legend>{t('ui.providers-schedule.task-mcp-tools')}</legend>
+            {mcpServers.flatMap((server) =>
+              server.tools.map((tool) => {
+                const name = bare(server.id, tool.name);
+                const picked = (mcpPick[server.id] ?? []).includes(name);
+                return (
+                  <label key={tool.name} className={styles.check}>
+                    <Checkbox
+                      checked={picked}
+                      onChange={(e) =>
+                        setMcpPick((prev) => {
+                          const cur = prev[server.id] ?? [];
+                          return {
+                            ...prev,
+                            [server.id]: e.target.checked
+                              ? [...cur, name]
+                              : cur.filter((x) => x !== name),
+                          };
+                        })
+                      }
+                      data-testid={`task-form-mcp-${tool.name}`}
+                    />
+                    {`${server.name} / ${name}（${
+                      tool.readOnly
+                        ? t('ui.foundation.read-only')
+                        : t('ui.providers-schedule.task-mcp-external')
+                    }）`}
+                  </label>
+                );
+              }),
+            )}
+          </fieldset>
+        )}
+        {who !== 'notify' && github && (
           <label className={styles.field}>
             <span>{t('ui.providers-schedule.task-github-repos', github.label)}</span>
             <Textarea
@@ -460,6 +659,30 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               data-testid="task-form-github"
             />
           </label>
+        )}
+        {who !== 'notify' && github && (
+          <fieldset className={styles.tools} data-testid="task-form-gh-actions">
+            <legend>{t('ui.providers-schedule.task-gh-actions')}</legend>
+            <label className={styles.check}>
+              <Checkbox
+                checked={ghComment}
+                onChange={(e) => setGhComment(e.target.checked)}
+                data-testid="task-form-gh-comment"
+              />
+              {t('ui.providers-schedule.task-gh-comment')}
+            </label>
+            <label className={styles.check}>
+              <Checkbox
+                checked={ghPr}
+                onChange={(e) => setGhPr(e.target.checked)}
+                data-testid="task-form-gh-pr"
+              />
+              {t('ui.providers-schedule.task-gh-pr')}
+            </label>
+            {ghActions.length > 0 && (
+              <p className={styles.levelNote}>{t('ui.providers-schedule.task-gh-actions-note')}</p>
+            )}
+          </fieldset>
         )}
         <div className={styles.fieldRow}>
           <label className={styles.field}>

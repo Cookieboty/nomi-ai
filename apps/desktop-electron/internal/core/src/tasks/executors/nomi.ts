@@ -12,8 +12,10 @@
  */
 import type { ChatChunk, ChatMessage } from '@nomi-ai/bundle-ig-base';
 
+import { mcpServerOf } from '../../connections/catalog';
 import type { BackgroundRun } from '../../desktop/PermissionBroker';
 import type { SourceEvent } from '../events/types';
+import type { ExternalJournal } from '../external';
 import type { AttemptContext, AttemptReporter, TaskExecutor } from '../TaskRuntime';
 import type { GrantLevel, Task, TaskError, ToolClass } from '../types';
 
@@ -52,11 +54,23 @@ export const TOOL_CLASS_TOOLS: Record<ToolClass, readonly string[]> = {
 
 export function allowedTools(
   classes: readonly ToolClass[],
-  connections: readonly { capabilities: readonly string[] }[] = [],
+  connections: readonly {
+    connectionId: string;
+    capabilities: readonly string[];
+    resources: readonly string[];
+  }[] = [],
 ): string[] {
   const names = new Set(classes.flatMap((c) => TOOL_CLASS_TOOLS[c] ?? []));
-  // 经连接的只读能力（connections.md §2）：授权里给了才提供
-  if (connections.some((g) => g.capabilities.includes('github.read'))) names.add('github_read');
+  // 经连接的能力（connections.md §2）：授权里给了才提供；对外能力（L4）另由授权检查与副作用日志把关
+  const has = (cap: string) => connections.some((g) => g.capabilities.includes(cap));
+  if (has('github.read')) names.add('github_read');
+  if (has('github.comment')) names.add('github_comment');
+  if (has('github.pr.create')) names.add('github_pr_create');
+  // 本机 MCP 工具：注册名 `<服务器>__<工具>`，只给授权里逐个列出的
+  for (const g of connections) {
+    const server = mcpServerOf(g.connectionId);
+    if (server) for (const tool of g.resources) names.add(`${server}__${tool}`);
+  }
   return [...names];
 }
 
@@ -72,6 +86,8 @@ export interface NomiExecutorDeps {
   }): AsyncIterable<ChatChunk>;
   /** PermissionBroker.registerBackground */
   registerBackground(signal: AbortSignal, run: BackgroundRun): () => void;
+  /** 这次执行的副作用日志（TaskService.externalJournal） */
+  externalJournal?(taskId: string, attemptId: string): ExternalJournal;
   /** 有没有可用的模型（没有时准备失败：config_changed） */
   ready(): boolean;
   /** 按模型价格算费用；不知道价格时 undefined（不编造费用，§9） */
@@ -169,6 +185,7 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     const unregister = d.registerBackground(run.ctrl.signal, {
       level,
       connections: task.grant.connections,
+      ...(d.externalJournal ? { external: d.externalJournal(task.id, attempt.id) } : {}),
       // 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
       ...(attempt.cause.kind === 'event' ? { tainted: true } : {}),
       ask: (req) =>

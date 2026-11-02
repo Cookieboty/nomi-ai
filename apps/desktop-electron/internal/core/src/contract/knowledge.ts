@@ -144,7 +144,8 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
         if (!task) ctx.fail('TASKS_NOT_FOUND', id);
         return out(task);
       }),
-    'tasks.grant': ({ id, grant }) => tasks().command(id, { type: 'grant', grant }),
+    'tasks.grant': ({ id, grant }, ctx) =>
+      mapped('TASKS', ctx, () => tasks().command(id, { type: 'grant', grant })),
     'tasks.revoke': ({ id }) => tasks().command(id, { type: 'revoke' }),
     'tasks.pause': ({ id }) => tasks().command(id, { type: 'pause' }),
     'tasks.resume': ({ id }) => tasks().command(id, { type: 'resume' }),

@@ -89,6 +89,25 @@ beforeEach(() => {
       ],
     }),
     'harness.state': () => ({ bins: { claude: '/bin/claude' } }),
+    'ext.mcpList': () => ({
+      servers: [
+        {
+          id: 'mail',
+          name: 'Mail',
+          transport: 'stdio',
+          enabled: true,
+          trust: 'ask',
+          status: 'connected',
+          tools: [
+            { name: 'mail__list', description: '', readOnly: true, dangerous: false },
+            { name: 'mail__send', description: '', readOnly: false, dangerous: true },
+          ],
+        },
+      ],
+      env: [],
+      presets: [],
+      ready: true,
+    }),
     'tasks.events': () => ({
       observed: [{ key: 'k1', summary: '网页有变化', occurredAt: T0, payload: {} }],
       lastPollAt: T0,
@@ -206,6 +225,32 @@ describe('任务页', () => {
       executor: { kind: 'nomi', tools: ['read', 'web', 'shell'] },
       grant: { level: 3, paths: [], connections: [] },
       trigger: { kind: 'schedule', repeat: { kind: 'daily' } },
+    });
+  });
+
+  it('新建：勾 MCP 工具；非只读工具是对外动作，等级 L4，授权按工具逐个列出', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-new'));
+    await act(() => fake.settle());
+    fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '回邮件' } });
+    fireEvent.change(screen.getByTestId('task-form-goal'), { target: { value: '整理并回复' } });
+    fireEvent.click(screen.getByTestId('task-form-mcp-mail__list'));
+    fireEvent.click(screen.getByTestId('task-form-mcp-mail__send'));
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('task-form-submit'));
+    await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
+    const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
+    expect(input).toMatchObject({
+      grant: {
+        level: 4,
+        connections: [
+          {
+            connectionId: 'mcp:mail',
+            capabilities: ['mcp.call', 'mcp.read'],
+            resources: ['list', 'send'],
+          },
+        ],
+      },
     });
   });
 

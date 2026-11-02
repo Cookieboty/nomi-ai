@@ -93,6 +93,10 @@ export interface GithubReadParams {
 }
 
 const REPO = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
+
+/** owner/name；不接受 `.` / `..` 这样的段（会拼出模板以外的路径） */
+export const isRepo = (r: string) =>
+  REPO.test(r) && r.split('/').every((x) => x !== '.' && x !== '..');
 const REF = /^[A-Za-z0-9_./-]{1,200}$/;
 const SINCE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
@@ -109,7 +113,7 @@ export function buildReadRequest(p: GithubReadParams): {
     if (v === undefined || !ok(v)) throw new GithubParamError(`invalid ${what}`);
     return v;
   };
-  const repo = () => need(p.repo, (r) => REPO.test(r), 'repo');
+  const repo = () => need(p.repo, isRepo, 'repo');
   const num = () => need(p.number, (n) => Number.isInteger(n) && n > 0 && n < 1e9, 'number');
   const query: Record<string, string> = { per_page: '50' };
   if (p.since !== undefined) query.since = need(p.since, (s) => SINCE.test(s), 'since');
@@ -243,7 +247,7 @@ export function apiBase(host: string): string {
 
 export type FetchLike = (
   url: string,
-  init: { headers: Record<string, string>; signal?: AbortSignal },
+  init: { method?: string; headers: Record<string, string>; body?: string; signal?: AbortSignal },
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -282,4 +286,140 @@ export async function tokenGet(
             .map((s) => s.trim())
             .filter(Boolean),
   };
+}
+
+// ---------- 对外能力（C3）：github.comment / github.pr.create ----------
+
+export interface GithubCommentParams {
+  repo: string;
+  number: number;
+  body: string;
+}
+
+export interface GithubPrParams {
+  repo: string;
+  /** 只允许推到 `nomi/` 前缀的分支（connections.md §2） */
+  head: string;
+  base: string;
+  title: string;
+  body?: string;
+  draft?: boolean;
+}
+
+/** 写请求：方法、路径与字段（字段逐项传，不拼 URL） */
+export interface GithubWriteRequest {
+  method: 'POST';
+  path: string;
+  fields: Record<string, string | boolean>;
+}
+
+const HEAD = /^nomi\/[A-Za-z0-9_./-]{1,200}$/;
+const MAX_BODY = 60_000;
+
+export function buildCommentRequest(p: GithubCommentParams): GithubWriteRequest {
+  if (!isRepo(p.repo)) throw new GithubParamError('invalid repo');
+  if (!Number.isInteger(p.number) || p.number <= 0 || p.number >= 1e9)
+    throw new GithubParamError('invalid number');
+  if (!p.body.trim() || p.body.length > MAX_BODY) throw new GithubParamError('invalid body');
+  return {
+    method: 'POST',
+    path: `/repos/${p.repo}/issues/${p.number}/comments`,
+    fields: { body: p.body },
+  };
+}
+
+export function buildPrRequest(p: GithubPrParams): GithubWriteRequest {
+  if (!isRepo(p.repo)) throw new GithubParamError('invalid repo');
+  if (!HEAD.test(p.head) || p.head.includes('..'))
+    throw new GithubParamError('head must be a nomi/ branch');
+  if (!REF.test(p.base) || p.base.includes('..')) throw new GithubParamError('invalid base');
+  if (!p.title.trim() || p.title.length > 256) throw new GithubParamError('invalid title');
+  if ((p.body ?? '').length > MAX_BODY) throw new GithubParamError('invalid body');
+  return {
+    method: 'POST',
+    path: `/repos/${p.repo}/pulls`,
+    fields: {
+      title: p.title,
+      head: p.head,
+      base: p.base,
+      body: p.body ?? '',
+      ...(p.draft ? { draft: true } : {}),
+    },
+  };
+}
+
+/** 写请求的结果：GitHub 明确拒绝（4xx 带错误正文）= 确定没生效；断网、超时、5xx = 不确定 */
+export class GithubWriteError extends Error {
+  constructor(
+    message: string,
+    readonly definite: boolean,
+  ) {
+    super(message);
+  }
+}
+
+/** gh api 的写请求：字符串字段用 --raw-field（不解析 @文件），布尔用 -F */
+export function ghWriteArgs(host: string, req: GithubWriteRequest): string[] {
+  // --include：状态行与响应头也写到 stdout，按状态码判断「确定没生效」（4xx）还是不确定（5xx、断网）
+  const args = ['api', '--method', req.method, '--include', '--hostname', host, req.path];
+  for (const [k, v] of Object.entries(req.fields))
+    if (typeof v === 'boolean') args.push('-F', `${k}=${v}`);
+    else args.push('--raw-field', `${k}=${v}`);
+  return args;
+}
+
+/** `gh api --include` 的输出：状态码（没有状态行 = 请求没拿到响应）与正文 */
+export function splitIncluded(out: string): { status: number | null; body: string } {
+  const m = /^HTTP\/[\d.]+ (\d{3})/.exec(out);
+  if (!m) return { status: null, body: out };
+  const sep = /\r?\n\r?\n/.exec(out);
+  return { status: Number(m[1]), body: sep ? out.slice(sep.index + sep[0].length) : '' };
+}
+
+/** 4xx（除 408 / 429）= GitHub 处理了请求并拒绝，确定没生效 */
+export const definiteRejection = (status: number) =>
+  status >= 400 && status < 500 && status !== 408 && status !== 429;
+
+export async function ghWrite(run: RunGh, host: string, req: GithubWriteRequest): Promise<unknown> {
+  const r = await run(ghWriteArgs(host, req));
+  const { status, body } = splitIncluded(r.stdout);
+  let data: unknown = null;
+  try {
+    data = JSON.parse(body || 'null');
+  } catch {
+    /* 非 JSON */
+  }
+  if (r.code === 0 && (status === null || status < 300)) return data;
+  const msg = (data as { message?: unknown } | null)?.message;
+  const text = `GitHub ${status ?? `gh ${r.code}`}${typeof msg === 'string' ? `: ${msg}` : ''}`;
+  throw new GithubWriteError(text, status !== null && definiteRejection(status));
+}
+
+/** 带令牌的写请求 */
+export async function tokenWrite(
+  fetchFn: FetchLike,
+  host: string,
+  token: string,
+  req: GithubWriteRequest,
+): Promise<unknown> {
+  const url = assertPublicHttpUrl(`${apiBase(host)}${req.path}`).toString();
+  let res: Awaited<ReturnType<FetchLike>>;
+  try {
+    res = await fetchFn(url, {
+      method: req.method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'nomi',
+      },
+      body: JSON.stringify(req.fields),
+      signal: AbortSignal.timeout(GH_TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new GithubWriteError(e instanceof Error ? e.message : String(e), false);
+  }
+  if (!res.ok) throw new GithubWriteError(`GitHub ${res.status}`, definiteRejection(res.status));
+  return res.json();
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
@@ -42,7 +43,6 @@ type GithubSourceDeps struct {
 }
 
 var (
-	ghRepoRE   = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$`)
 	ghBranchRE = regexp.MustCompile(`^[A-Za-z0-9_./-]{1,200}$`)
 )
 
@@ -100,7 +100,7 @@ func NewGithubSource(d GithubSourceDeps) *EventSource {
 		MinIntervalMs: 5 * 60_000,
 		Validate: func(filter json.RawMessage, t Task) string {
 			var f GithubFilter
-			if len(filter) == 0 || json.Unmarshal(filter, &f) != nil || !ghRepoRE.MatchString(f.Repo) {
+			if len(filter) == 0 || json.Unmarshal(filter, &f) != nil || !connections.IsRepo(f.Repo) {
 				return "repo required"
 			}
 			if f.Watch != "issues" && f.Watch != "ci" {

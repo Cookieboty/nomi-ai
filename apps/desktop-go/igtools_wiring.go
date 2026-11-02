@@ -123,19 +123,31 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 			return "", "", false
 		}, tasks.CliEnv{Installed: installedClis, DirOk: func(dir string) bool { return taskDirOk(d, dir) }})...)
 	}
-	// 经连接的工具（github_read）：前台只读；后台按任务授权收窄；结果自己标外部内容
+	// 经连接的工具：github_read 前台只读、后台按任务授权收窄、结果自己标外部内容；github_comment / github_pr_create
+	// 是对外动作：前台每次强制确认，后台按任务授权（L4）并写副作用日志
 	if conns != nil && d != nil && d.Broker != nil {
-		defs = append(defs, conns.Tools(func(ctx context.Context) ([]connections.Grant, bool) {
-			run := desktop.BackgroundFrom(ctx)
-			if run == nil {
-				return nil, false
-			}
-			out := []connections.Grant{}
-			for _, g := range run.Connections {
-				out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
-			}
-			return out, true
-		}, d.Broker.MarkRead)...)
+		broker := d.Broker
+		defs = append(defs, conns.Tools(connections.ToolDeps{
+			GrantOf: func(ctx context.Context) ([]connections.Grant, bool) {
+				run := desktop.BackgroundFrom(ctx)
+				if run == nil {
+					return nil, false
+				}
+				out := []connections.Grant{}
+				for _, g := range run.Connections {
+					out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
+				}
+				return out, true
+			},
+			MarkRead:   broker.MarkRead,
+			ExternalOf: desktop.BackgroundExternal,
+			Confirm: func(ctx context.Context, r connections.ConfirmRequest) bool {
+				preview := r.Preview
+				dec := broker.Authorize(desktop.AuthorizeInput{Tool: r.Tool, Danger: "write", Summary: r.Summary, Args: r.Args,
+					Preview: &preview, Signal: ctx, Force: &struct{ Dialog bool }{true}})
+				return dec == "allowed" || dec == "auto"
+			},
+		})...)
 	}
 	defs = append(defs, igtools.SkillTools(ext)...)
 	// 记忆检索、技能说明与参考文件都是外部内容：本轮标为读过外部内容（Node plugin.ts markExternalReads）

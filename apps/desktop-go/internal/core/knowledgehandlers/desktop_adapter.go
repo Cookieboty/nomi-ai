@@ -3,6 +3,7 @@ package knowledgehandlers
 import (
 	"context"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
@@ -82,6 +83,17 @@ func (b brokerAdapter) OnChange(fn func()) func() { return b.b.OnChange(fn) }
 type ConfirmAdapter struct{ B *desktop.PermissionBroker }
 
 var _ extensions.ConfirmBroker = ConfirmAdapter{}
+var _ extensions.BackgroundBroker = ConfirmAdapter{}
+
+// IsBackground：这次调用是后台任务（broker.isBackground）
+func (c ConfirmAdapter) IsBackground(ctx context.Context) bool {
+	return desktop.BackgroundFrom(ctx) != nil
+}
+
+// BackgroundExternal：后台执行的副作用日志（broker.backgroundExternal）
+func (c ConfirmAdapter) BackgroundExternal(ctx context.Context) connections.ExternalJournal {
+	return desktop.BackgroundExternal(ctx)
+}
 
 func (c ConfirmAdapter) PermissionMode() string { return c.B.PermissionMode() }
 
@@ -90,7 +102,8 @@ func (c ConfirmAdapter) MarkRead(ctx context.Context) { c.B.MarkRead(ctx) }
 
 func (c ConfirmAdapter) Authorize(ctx context.Context, r extensions.AuthorizeReq) string {
 	preview := r.Preview
-	in := desktop.AuthorizeInput{Tool: r.Tool, Danger: r.Danger, Summary: r.Summary, Args: r.Args, Preview: &preview, Signal: ctx}
+	in := desktop.AuthorizeInput{Tool: r.Tool, Danger: r.Danger, Summary: r.Summary, Args: r.Args, Preview: &preview, Signal: ctx,
+		McpReadOnly: r.McpReadOnly}
 	if r.ForceDialog != nil {
 		in.Force = &struct{ Dialog bool }{*r.ForceDialog}
 	}

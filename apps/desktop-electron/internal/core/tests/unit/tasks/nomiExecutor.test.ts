@@ -219,8 +219,24 @@ describe('nomi 执行者', () => {
     expect(msgs[1]).toEqual({ role: 'user', content: 'g' });
     expect(allowedTools(['delegate'])).toEqual([]);
     expect(
-      allowedTools(['read'], [{ capabilities: ['github.read'] }]).includes('github_read'),
+      allowedTools(
+        ['read'],
+        [{ connectionId: 'c', capabilities: ['github.read'], resources: ['o/r'] }],
+      ).includes('github_read'),
     ).toBe(true);
+    expect(
+      allowedTools(
+        ['read'],
+        [
+          {
+            connectionId: 'c',
+            capabilities: ['github.read', 'github.comment'],
+            resources: ['o/r'],
+          },
+          { connectionId: 'mcp:mail', capabilities: ['mcp.read'], resources: ['list'] },
+        ],
+      ).filter((n) => !n.includes('_') || n.startsWith('github') || n.includes('__')),
+    ).toEqual(expect.arrayContaining(['github_read', 'github_comment', 'mail__list']));
     expect(allowedTools(['read'], []).includes('github_read')).toBe(false);
   });
 });

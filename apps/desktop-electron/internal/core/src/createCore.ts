@@ -116,6 +116,7 @@ import { StartupService } from './startup/StartupService';
 import { createAppSource } from './tasks/events/sources/app';
 import { createFolderSource } from './tasks/events/sources/folder';
 import { createGithubSource } from './tasks/events/sources/github';
+import { createMcpSource } from './tasks/events/sources/mcp';
 import { createWebSource } from './tasks/events/sources/web';
 import { createCliExecutor } from './tasks/executors/cli';
 import { createNomiExecutor } from './tasks/executors/nomi';
@@ -518,6 +519,24 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         },
       }),
     );
+    // 本机 MCP 服务器（只接不做、只接 stdio）：任务的 mcp 事件源调授权里的只读工具；ExtensionsService 在后面建
+    tasks.useMcpTools((server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null);
+    tasks.registerSource(
+      createMcpSource({
+        info: (server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null,
+        call: (server, tool, args, signal) => {
+          const e = services.ext;
+          if (!e) throw new Error('extensions unavailable');
+          return e.callMcpReadOnly(server, tool, args, signal);
+        },
+      }),
+    );
+    // 对外动作的重启核对（§10.3）：评论 / PR 按正文里的幂等标记查
+    for (const action of ['github.comment', 'github.pr.create'])
+      tasks.registerReconciler(
+        action,
+        (intent) => services.connections?.githubReconcile(intent) ?? Promise.resolve(null),
+      );
     tasks.registerSource(
       createAppSource({
         onCliFinished: (fn) => {
@@ -544,6 +563,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         },
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),
         eventsFor: (id, key) => tasks.eventBatch(id, key),
         costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),
         trace: (id, attemptId, line) => {
@@ -1142,6 +1162,19 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
               ? services.connections.tools({
                   grantOf: (signal) => services.desktop!.broker.backgroundConnections(signal),
                   markRead: (signal) => services.desktop!.broker.markRead(signal),
+                  externalOf: (signal) => services.desktop!.broker.backgroundExternal(signal),
+                  confirm: async (req) => {
+                    const d = await services.desktop!.broker.authorize({
+                      tool: req.tool,
+                      danger: 'write',
+                      summary: req.summary,
+                      args: req.args,
+                      preview: req.preview,
+                      ...(req.signal ? { signal: req.signal } : {}),
+                      force: { dialog: true },
+                    });
+                    return d === 'allowed' || d === 'auto';
+                  },
                 })
               : [],
           tasks: () =>
@@ -1156,6 +1189,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
                       .filter(([, v]) => !!v)
                       .map(([k]) => k),
                   dirOk: (dir) => taskDirOk(dir),
+                  mcpTool: (server, tool) => services.ext?.mcpToolInfo(server, tool) ?? null,
                 })
               : [],
         },

@@ -85,3 +85,28 @@ func TestTaskHandlersEvents(t *testing.T) {
 		t.Fatal(err, m)
 	}
 }
+
+// 授权里的连接能力不合法：tasks.create / tasks.grant 都映射成 TASKS_BAD_GRANT
+func TestTaskHandlersBadGrant(t *testing.T) {
+	svc := tasks.NewService(tasks.ServiceDeps{Root: t.TempDir(), Log: nopLog{}, Notify: func(string, string) {}})
+	svc.Start()
+	defer svc.Stop()
+	hs := taskHandlers(Services{Tasks: func() *tasks.Service { return svc }})
+	_, err := hs["tasks.create"](context.Background(), json.RawMessage(`{"title":"t","goal":"g","trigger":{"kind":"manual"},
+		"executor":{"kind":"nomi","tools":["read"]},"grant":{"level":3,"paths":[],
+		"connections":[{"connectionId":"conn_1","capabilities":["github.comment"],"resources":["o/r"]}]}}`))
+	if ce, ok := err.(*contract.Error); !ok || ce.Code != "TASKS_BAD_GRANT" {
+		t.Fatal(err)
+	}
+	v, err := hs["tasks.create"](context.Background(), json.RawMessage(`{"title":"t","goal":"g","trigger":{"kind":"manual"},
+		"executor":{"kind":"nomi","tools":["read"]},"grant":{"level":1,"paths":[],"connections":[]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := v.(tasks.Task).ID
+	_, err = hs["tasks.grant"](context.Background(), json.RawMessage(`{"id":"`+id+`","grant":{"level":4,"paths":[],
+		"connections":[{"connectionId":"conn_1","capabilities":["github.merge"],"resources":["o/r"]}]}}`))
+	if ce, ok := err.(*contract.Error); !ok || ce.Code != "TASKS_BAD_GRANT" {
+		t.Fatal(err)
+	}
+}

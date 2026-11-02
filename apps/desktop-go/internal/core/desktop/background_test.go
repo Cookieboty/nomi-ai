@@ -2,7 +2,9 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -97,6 +99,93 @@ func TestBackgroundTaintedRun(t *testing.T) {
 		t.Fatal(d)
 	}
 	if len(asked) != 2 {
+		t.Fatalf("asked %v", asked)
+	}
+}
+
+// MCP 工具（connections.md §6）：不在授权里的工具拒绝；只读给了就跑；对外工具要 L4，读过外部内容时问人
+func TestBackgroundMcpGrant(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	asked := []string{}
+	mk := func(level int, tainted bool) context.Context {
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		return WithBackground(ctx, &BackgroundRun{Level: level, Tainted: tainted,
+			Connections: []ConnGrant{{ConnectionID: "mcp:mail", Capabilities: []string{"mcp.read", "mcp.call"}, Resources: []string{"list", "send"}}},
+			Ask: func(tool, _, _ string) bool {
+				asked = append(asked, tool)
+				return true
+			}})
+	}
+	call := func(ctx context.Context, tool string, readOnly bool) Decision {
+		danger := Danger("write")
+		if readOnly {
+			danger = "read"
+		}
+		return b.Authorize(AuthorizeInput{Tool: tool, Danger: danger, Summary: "s", Args: map[string]any{}, Signal: ctx, McpReadOnly: readOnly})
+	}
+	cases := []struct {
+		level    int
+		tainted  bool
+		tool     string
+		readOnly bool
+		want     Decision
+	}{
+		{1, false, "mail__other", true, "denied"},
+		{1, false, "mail__list", true, "auto"},
+		{3, false, "mail__send", false, "denied"},
+		{4, false, "mail__send", false, "auto"},
+		{4, true, "mail__send", false, "allowed"},
+		// 授权里没有这个服务器：只读工具也拒绝
+		{1, false, "cal__list", true, "denied"},
+	}
+	for i, c := range cases {
+		if d := call(mk(c.level, c.tainted), c.tool, c.readOnly); d != c.want {
+			t.Fatalf("case %d: %s want %s", i, d, c.want)
+		}
+	}
+	if len(asked) != 1 || asked[0] != "mail__send" || len(ui.seen) != 0 {
+		t.Fatalf("asked %v ui %v", asked, ui.seen)
+	}
+}
+
+// 命令确定性分类先于审核：读凭据 / 合并永远问人；对外命令 L3 或没给 GitHub 对外能力时问人、给了 L4 交给审核
+func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
+	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow", Authorization: "high"})
+	asked := []string{}
+	reg := func(level int, caps ...string) context.Context {
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		run := &BackgroundRun{Level: level, Ask: func(_, _, detail string) bool {
+			asked = append(asked, strings.SplitN(detail, " ", 2)[0])
+			return false
+		}}
+		if len(caps) > 0 {
+			run.Connections = []ConnGrant{{ConnectionID: "conn_1", Capabilities: caps, Resources: []string{"o/r"}}}
+		}
+		return WithBackground(ctx, run)
+	}
+	run := func(cmd string, ctx context.Context) Decision {
+		args, _ := json.Marshal(map[string]any{"cwd": "/w", "command": cmd})
+		return b.Authorize(AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Summary: "s", Args: json.RawMessage(args),
+			Force: &struct{ Dialog bool }{true}, UserText: "开个 PR", Signal: ctx})
+	}
+	l3 := reg(3)
+	if d := run("gh pr create --fill", l3); d != "denied" {
+		t.Fatal(d)
+	}
+	if d := run("gh pr create --fill", reg(4)); d != "denied" {
+		t.Fatal(d)
+	}
+	l4 := reg(4, "github.read", "github.pr.create")
+	if d := run("gh pr create --fill", l4); d != "auto" {
+		t.Fatal(d)
+	}
+	if d := run("gh pr create --fill", reg(4, "github.read")); d != "denied" {
+		t.Fatal(d)
+	}
+	want := []string{"[external]", "[external]", "[external]"}
+	if strings.Join(asked, ",") != strings.Join(want, ",") {
 		t.Fatalf("asked %v", asked)
 	}
 }

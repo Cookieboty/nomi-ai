@@ -113,6 +113,23 @@ export interface JournalEntry {
   to?: string;
   msg?: string;
   action?: string;
+  attemptId?: string;
+  seq?: number;
+  summary?: string;
+}
+
+/** 某次执行里写了 intent、还没有 done / failed 的对外动作（重启核对卡片上列出来，§10.3） */
+export function pendingExternal(
+  journal: readonly JournalEntry[],
+  attemptId: string,
+): JournalEntry[] {
+  const open = new Map<number, JournalEntry>();
+  for (const e of journal) {
+    if (e.attemptId !== attemptId || e.seq === undefined) continue;
+    if (e.t === 'intent') open.set(e.seq, e);
+    else if (e.t === 'done' || e.t === 'failed') open.delete(e.seq);
+  }
+  return [...open.values()];
 }
 
 export const INBOX: readonly TaskStatus[] = [

@@ -28,7 +28,7 @@ export interface SourceContext {
 }
 
 export interface EventSource {
-  id: 'app' | 'folder' | 'web' | 'github';
+  id: 'app' | 'folder' | 'web' | 'github' | 'mcp';
   /** 两次拉取的最短间隔 */
   minIntervalMs: number;
   /** 过滤条件不合法 / 不在授权范围里时返回原因 */

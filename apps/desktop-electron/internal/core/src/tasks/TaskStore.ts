@@ -46,9 +46,17 @@ export type JournalEntry =
       seq: number;
       action: string;
       hash: string;
+      /** 幂等键 taskId:attemptId:seq（2.1.0 起；写进外部内容供自动核对） */
+      key?: string;
+      /** 给人看的摘要 */
+      summary?: string;
+      /** 核对用的目标（仓库、编号、分支、MCP 服务器与工具） */
+      target?: Record<string, unknown>;
     }
   /** 对外动作成功后 */
-  | { t: 'done'; at: number; attemptId: string; seq: number; externalId?: string }
+  | { t: 'done'; at: number; attemptId: string; seq: number; externalId?: string; by?: string }
+  /** 对外动作确定没有生效（请求被拒，或核对后确认没发出去） */
+  | { t: 'failed'; at: number; attemptId: string; seq: number; msg?: string; by?: string }
   /** 晚到的回报被丢弃等运行时记录 */
   | { t: 'note'; at: number; msg: string; attemptId?: string };
 
@@ -204,7 +212,8 @@ export class TaskStore {
     const open = new Set<number>();
     for (const e of this.journal(id)) {
       if (e.t === 'intent' && e.attemptId === attemptId) open.add(e.seq);
-      else if (e.t === 'done' && e.attemptId === attemptId) open.delete(e.seq);
+      else if ((e.t === 'done' || e.t === 'failed') && e.attemptId === attemptId)
+        open.delete(e.seq);
     }
     return open.size > 0;
   }

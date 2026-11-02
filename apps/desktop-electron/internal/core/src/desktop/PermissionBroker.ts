@@ -2,7 +2,9 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { isExternalCapability, mcpGranted, splitMcpTool } from '../connections/catalog';
 import { t } from '../i18n';
+import type { ExternalJournal } from '../tasks/external';
 
 import { classifyCommand } from './commandClass';
 import {
@@ -79,12 +81,14 @@ export interface BackgroundRun {
   connections?: { connectionId: string; capabilities: string[]; resources: string[] }[];
   /** 这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4） */
   tainted?: boolean;
+  /** 对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done */
+  external?: ExternalJournal;
 }
 
 /** 各类动作要求的最低授权等级：写本机 L2，跑命令 L3 */
 const BACKGROUND_LEVEL: Record<Danger, number> = { read: 1, write: 2, destructive: 2 };
 const COMMAND_LEVEL = 3;
-/** MCP 工具（`<服务器>__<工具>`）默认算对外动作：后台需要 L4（connections.md §2） */
+/** 对外动作（MCP 非只读工具、对外命令）：后台需要 L4（connections.md §2） */
 const EXTERNAL_LEVEL = 4;
 const ABORT_PARENT = Symbol.for('nomi.abortParent');
 
@@ -382,6 +386,11 @@ export class PermissionBroker {
     return run ? (run.connections ?? []) : null;
   }
 
+  /** 后台执行的副作用日志；前台对话返回 null */
+  backgroundExternal(signal?: AbortSignal): ExternalJournal | null {
+    return this.backgroundOf(signal)?.external ?? null;
+  }
+
   /** 沿派生链（AiSdkLlmProvider 记下的上级）找登记的后台执行 */
   private backgroundOf(signal?: AbortSignal): BackgroundRun | undefined {
     for (let s = signal, depth = 0; s && depth < 8; depth++) {
@@ -401,13 +410,32 @@ export class PermissionBroker {
     i: Parameters<PermissionBroker['authorize']>[0] & { signal: AbortSignal },
   ): Promise<Decision> {
     if (i.signal.aborted) return 'denied';
+    // MCP 工具（`<服务器>__<工具>`）：不继承服务器的前台信任级别，只认任务授权里逐个给出的工具
+    //（connections.md §6）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
+    const mcp = splitMcpTool(i.tool);
+    if (mcp) {
+      const granted = mcpGranted(
+        run.connections ?? [],
+        mcp.serverId,
+        mcp.tool,
+        i.mcpReadOnly === true,
+      );
+      if (!granted) return 'denied';
+      if (granted === 'read') return 'auto';
+      if (run.level < EXTERNAL_LEVEL) return 'denied';
+      if (!(this.isTainted(i.signal) || run.tainted)) return 'auto';
+      if (i.signal.aborted) return 'denied';
+      const ok = await run.ask({
+        tool: i.tool,
+        summary: i.summary,
+        detail: (i.preview ?? i.summary).slice(0, CONFIRM_PREVIEW_CAP),
+      });
+      if (i.signal.aborted) return 'denied';
+      return ok ? 'allowed' : 'denied';
+    }
     if (i.danger === 'read' && !i.force) return 'auto';
     const command = REVIEWED_TOOLS.has(i.tool);
-    const need = command
-      ? COMMAND_LEVEL
-      : i.tool.includes('__')
-        ? EXTERNAL_LEVEL
-        : BACKGROUND_LEVEL[i.danger];
+    const need = command ? COMMAND_LEVEL : BACKGROUND_LEVEL[i.danger];
     if (run.level < need) return 'denied';
     const tainted = this.isTainted(i.signal) || !!run.tainted;
     let detail = i.preview ?? i.summary;
@@ -417,7 +445,11 @@ export class PermissionBroker {
     if (
       cls === 'credential' ||
       cls === 'never' ||
-      (cls === 'external' && run.level < EXTERNAL_LEVEL)
+      (cls === 'external' &&
+        (run.level < EXTERNAL_LEVEL ||
+          !(run.connections ?? []).some((c) =>
+            c.capabilities.some((x) => x.startsWith('github.') && isExternalCapability(x)),
+          )))
     ) {
       detail = `[${cls}] ${detail}`;
     } else if (command) {
@@ -454,6 +486,8 @@ export class PermissionBroker {
     ignoreMode?: boolean;
     /** 本轮用户说的话（命令审核判断授权用） */
     userText?: string;
+    /** MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权） */
+    mcpReadOnly?: boolean;
   }): Promise<Decision> {
     const bg = this.backgroundOf(i.signal);
     if (bg && i.signal && !i.ignoreMode)

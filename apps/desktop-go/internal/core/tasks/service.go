@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
@@ -39,6 +41,12 @@ type Service struct {
 	Events  *EventHub
 	sources []*EventSource
 	exec    map[string]Executor
+	// reconcilers：对外动作的自动核对（§10.3），按能力名注册
+	reconcilers map[string]Reconciler
+	// mcpTool：在线 MCP 工具是否只读（授权校验：mcp.read 只能给只读工具）
+	mcpTool connections.McpToolLookup
+	// reconciling：启动后的自动核对（单测等它结束）
+	reconciling sync.WaitGroup
 }
 
 // TriggerError：事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER）
@@ -48,6 +56,14 @@ func (e *TriggerError) Error() string { return e.Msg }
 
 // Code：bad_trigger
 func (e *TriggerError) Code() string { return "bad_trigger" }
+
+// GrantError：授权里的连接能力不合法（契约里映射成 TASKS_BAD_GRANT）
+type GrantError struct{ Msg string }
+
+func (e *GrantError) Error() string { return e.Msg }
+
+// Code：bad_grant
+func (e *GrantError) Code() string { return "bad_grant" }
 
 type ListResult struct {
 	Tasks  []Task       `json:"tasks"`
@@ -83,7 +99,7 @@ func NewService(d ServiceDeps) *Service {
 			return func() { t.Stop() }
 		}
 	}
-	s := &Service{d: d, exec: map[string]Executor{}}
+	s := &Service{d: d, exec: map[string]Executor{}, reconcilers: map[string]Reconciler{}}
 	s.Store = NewStore(d.Root, d.Log)
 	s.Outbox = NewOutbox(OutboxDeps{File: filepath.Join(d.Root, "outbox.json"), Now: d.Now, SetTimer: d.SetTimer,
 		NewID: func() string { return newID("o") }, QuietUntil: d.QuietUntil, Log: d.Log,
@@ -185,6 +201,12 @@ func (s *Service) Start() {
 	s.Outbox.Start()
 	s.Runtime.Start()
 	s.Events.Start(s.Runtime.List())
+	// 自动核对要查网络：放到单独的 goroutine，不挡启动、不在运行时的持有者里
+	s.reconciling.Add(1)
+	go func() {
+		defer s.reconciling.Done()
+		s.reconcileAll()
+	}()
 }
 
 func (s *Service) Stop() {
@@ -242,8 +264,11 @@ type CreateRequest struct {
 	Acceptance     string       `json:"acceptance,omitempty"`
 }
 
-// Create：事件触发器不合法时返回 *TriggerError
+// Create：连接能力不合法时返回 *GrantError；事件触发器不合法时返回 *TriggerError
 func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
+	if err := s.checkGrant(in.Grant.Level, in.Grant.Connections); err != nil {
+		return Task{}, err
+	}
 	if err := s.checkTrigger(in.Trigger, in.Grant.Connections, in.Grant.Paths); err != nil {
 		return Task{}, err
 	}
@@ -309,7 +334,43 @@ func (s *Service) checkTrigger(tr Trigger, conns []ConnectionGrant, paths []stri
 	return nil
 }
 
-func (s *Service) Command(id string, c Command) CmdResult { return s.Runtime.Command(id, c) }
+// Command：改授权时校验连接能力（*GrantError）与事件触发器（*TriggerError）；核对时关掉还开着的 intent
+func (s *Service) Command(id string, c Command) (CmdResult, error) {
+	if c.Type == "grant" {
+		g := Grant{}
+		if c.Grant != nil {
+			g = *c.Grant
+		}
+		if err := s.checkGrant(g.Level, g.Connections); err != nil {
+			return CmdResult{}, err
+		}
+		if rec := s.Runtime.Get(id); rec != nil {
+			if err := s.checkTrigger(rec.Task.Trigger, g.Connections, g.Paths); err != nil {
+				return CmdResult{}, err
+			}
+		}
+	}
+	if c.Type == "reconcile" {
+		return s.userReconcile(id, c.Outcome), nil
+	}
+	return s.Runtime.Command(id, c), nil
+}
+
+// ValidateGrant：授权里的连接能力：在目录里、等级够、资源写明（connections.md §2）；合法返回 ""
+func (s *Service) ValidateGrant(level int, conns []ConnectionGrant) string {
+	g := make([]connections.Grant, 0, len(conns))
+	for _, c := range conns {
+		g = append(g, connections.Grant{ConnectionID: c.ConnectionID, Capabilities: c.Capabilities, Resources: c.Resources})
+	}
+	return connections.ValidateConnectionGrants(g, level, s.mcpTool)
+}
+
+func (s *Service) checkGrant(level int, conns []ConnectionGrant) error {
+	if msg := s.ValidateGrant(level, conns); msg != "" {
+		return &GrantError{Msg: msg}
+	}
+	return nil
+}
 
 func (s *Service) Remove(id string) bool {
 	ok := s.Runtime.Remove(id)

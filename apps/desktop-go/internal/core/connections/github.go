@@ -7,16 +7,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf16"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 type GhAccount struct {
@@ -107,7 +112,7 @@ var ErrBadParams = errors.New("bad_params")
 func BuildReadRequest(p ReadParams) (path string, query url.Values, err error) {
 	bad := func(what string) error { return fmt.Errorf("%w: invalid %s", ErrBadParams, what) }
 	repo := func() (string, error) {
-		if p.Repo == nil || !repoRE.MatchString(*p.Repo) {
+		if p.Repo == nil || !IsRepo(*p.Repo) {
 			return "", bad("repo")
 		}
 		return *p.Repo, nil
@@ -330,3 +335,210 @@ func tokenGet(ctx context.Context, do HTTPDo, host, token, path string, q url.Va
 	}
 	return v, scopes, nil
 }
+
+// ---------- 对外能力（C3）：github.comment / github.pr.create ----------
+
+// GithubWriteParams：comment 用 Repo / Number / Body；pr 用 Repo / Head / Base / Title / Body / Draft
+type GithubWriteParams struct {
+	Repo   string
+	Number int
+	Body   *string
+	// Head：只允许推到 nomi/ 前缀的分支（connections.md §2）
+	Head, Base, Title string
+	Draft             *bool
+	ConnectionID      string
+}
+
+// WriteRequest：写请求：方法、路径与字段（字段逐项传，不拼 URL）；Fields 保序，值是 string 或 bool
+type WriteRequest struct {
+	Method string
+	Path   string
+	Fields *u.Obj
+}
+
+var prHeadRE = regexp.MustCompile(`^nomi/[A-Za-z0-9_./-]{1,200}$`)
+
+const maxWriteBody = 60_000
+
+func badParam(what string) error { return fmt.Errorf("%w: %s", ErrBadParams, what) }
+
+// jsTrim：String.prototype.trim 去掉的空白（含 U+FEFF）
+func jsTrim(s string) string {
+	return strings.TrimFunc(s, func(r rune) bool { return unicode.IsSpace(r) || r == 0xFEFF })
+}
+
+func BuildCommentRequest(p GithubWriteParams) (WriteRequest, error) {
+	if !IsRepo(p.Repo) {
+		return WriteRequest{}, badParam("invalid repo")
+	}
+	if p.Number <= 0 || p.Number >= 1e9 {
+		return WriteRequest{}, badParam("invalid number")
+	}
+	body := ""
+	if p.Body != nil {
+		body = *p.Body
+	}
+	if jsTrim(body) == "" || len16(body) > maxWriteBody {
+		return WriteRequest{}, badParam("invalid body")
+	}
+	return WriteRequest{Method: "POST", Path: fmt.Sprintf("/repos/%s/issues/%d/comments", p.Repo, p.Number),
+		Fields: u.NewObj("body", body)}, nil
+}
+
+func BuildPrRequest(p GithubWriteParams) (WriteRequest, error) {
+	if !IsRepo(p.Repo) {
+		return WriteRequest{}, badParam("invalid repo")
+	}
+	if !prHeadRE.MatchString(p.Head) || strings.Contains(p.Head, "..") {
+		return WriteRequest{}, badParam("head must be a nomi/ branch")
+	}
+	if !refRE.MatchString(p.Base) || strings.Contains(p.Base, "..") {
+		return WriteRequest{}, badParam("invalid base")
+	}
+	if jsTrim(p.Title) == "" || len16(p.Title) > 256 {
+		return WriteRequest{}, badParam("invalid title")
+	}
+	body := ""
+	if p.Body != nil {
+		body = *p.Body
+	}
+	if len16(body) > maxWriteBody {
+		return WriteRequest{}, badParam("invalid body")
+	}
+	f := u.NewObj("title", p.Title, "head", p.Head, "base", p.Base, "body", body)
+	if p.Draft != nil && *p.Draft {
+		f.Set("draft", true)
+	}
+	return WriteRequest{Method: "POST", Path: "/repos/" + p.Repo + "/pulls", Fields: f}, nil
+}
+
+// GithubWriteError：GitHub 明确拒绝（4xx 带错误正文）= 确定没生效（Definite）；断网、超时、5xx = 不确定
+type GithubWriteError struct {
+	Msg      string
+	Definite bool
+}
+
+func (e *GithubWriteError) Error() string { return e.Msg }
+
+// GhWriteArgs：gh api 的写请求：字符串字段用 --raw-field（不解析 @文件），布尔用 -F
+func GhWriteArgs(host string, req WriteRequest) []string {
+	// --include：状态行与响应头也写到 stdout，按状态码判断「确定没生效」（4xx）还是不确定（5xx、断网）
+	args := []string{"api", "--method", req.Method, "--include", "--hostname", host, req.Path}
+	if req.Fields == nil {
+		return args
+	}
+	for _, k := range req.Fields.Keys() {
+		switch v := req.Fields.Get(k).(type) {
+		case bool:
+			args = append(args, "-F", fmt.Sprintf("%s=%t", k, v))
+		case string:
+			args = append(args, "--raw-field", k+"="+v)
+		default:
+			args = append(args, "--raw-field", k+"="+u.Str(v))
+		}
+	}
+	return args
+}
+
+// IsRepo：owner/name；不接受 `.` / `..` 这样的段（会拼出模板以外的路径）
+func IsRepo(r string) bool {
+	if !repoRE.MatchString(r) {
+		return false
+	}
+	for _, x := range strings.Split(r, "/") {
+		if x == "." || x == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+var includedStatusRE = regexp.MustCompile(`^HTTP/[\d.]+ (\d{3})`)
+var blankLineRE = regexp.MustCompile(`\r?\n\r?\n`)
+
+// SplitIncluded：`gh api --include` 的输出 → 状态码（0 = 没有状态行，请求没拿到响应）与正文
+func SplitIncluded(out string) (int, string) {
+	m := includedStatusRE.FindStringSubmatch(out)
+	if m == nil {
+		return 0, out
+	}
+	status, _ := strconv.Atoi(m[1])
+	loc := blankLineRE.FindStringIndex(out)
+	if loc == nil {
+		return status, ""
+	}
+	return status, out[loc[1]:]
+}
+
+// DefiniteRejection：4xx（除 408 / 429）= GitHub 处理了请求并拒绝，确定没生效
+func DefiniteRejection(status int) bool {
+	return status >= 400 && status < 500 && status != 408 && status != 429
+}
+
+func ghWrite(ctx context.Context, run RunGh, host string, req WriteRequest) (any, error) {
+	out, code := run(ctx, GhWriteArgs(host, req))
+	status, body := SplitIncluded(string(out))
+	var data any
+	if b := strings.TrimSpace(body); b != "" {
+		data, _ = u.ParseString(b)
+	}
+	if code == 0 && (status == 0 || status < 300) {
+		return data, nil
+	}
+	msg := fmt.Sprintf("gh %d", code)
+	if status != 0 {
+		msg = strconv.Itoa(status)
+	}
+	text := "GitHub " + msg
+	if o, ok := data.(*u.Obj); ok {
+		if m, ok := o.Get("message").(string); ok {
+			text += ": " + m
+		}
+	}
+	return nil, &GithubWriteError{Msg: text, Definite: status != 0 && DefiniteRejection(status)}
+}
+
+// tokenWrite：带令牌的写请求
+func tokenWrite(ctx context.Context, do HTTPDo, host, token string, req WriteRequest) (any, error) {
+	raw := APIBase(host) + req.Path
+	if _, err := security.AssertPublicHttpUrl(raw); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, ghTimeout)
+	defer cancel()
+	body := "{}"
+	if req.Fields != nil {
+		body = u.Stringify(req.Fields)
+	}
+	r, err := http.NewRequestWithContext(ctx, req.Method, raw, strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Authorization", "Bearer "+token)
+	r.Header.Set("Accept", "application/vnd.github+json")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	r.Header.Set("User-Agent", "nomi")
+	res, err := do(r)
+	if err != nil {
+		return nil, &GithubWriteError{Msg: err.Error()}
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		s := res.StatusCode
+		return nil, &GithubWriteError{Msg: fmt.Sprintf("GitHub %d", s), Definite: DefiniteRejection(s)}
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		// 已经 2xx：动作生效了，只是读不到结果
+		return nil, nil
+	}
+	v, err := u.Parse(b)
+	if err != nil {
+		return nil, nil
+	}
+	return v, nil
+}
+
+// len16：JS 字符串长度（UTF-16 码元）
+func len16(s string) int { return len(utf16.Encode([]rune(s))) }

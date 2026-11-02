@@ -3,6 +3,7 @@
  * CI（workflow runs，跑完的才算事件）。按任务授权里的连接与仓库收窄（githubRead 的后台授权检查）。
  * Go 版：apps/desktop-go/internal/core/tasks/events/github.go。
  */
+import { isRepo } from '../../../connections/github';
 import { t } from '../../../i18n';
 import type { ConnectionGrant, Task } from '../../types';
 import type { EventSource, SourceEvent } from '../types';
@@ -26,7 +27,6 @@ export type GithubReader = (
   grant: ConnectionGrant[],
 ) => Promise<unknown>;
 
-const REPO = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const BRANCH = /^[A-Za-z0-9_./-]{1,200}$/;
 
 const repoGranted = (task: Task, repo: string) =>
@@ -43,7 +43,7 @@ export function createGithubSource(deps: { read: GithubReader; now?: () => numbe
     minIntervalMs: 5 * 60_000,
     validate(filter, task) {
       const f = filter as GithubFilter | null;
-      if (!f || typeof f.repo !== 'string' || !REPO.test(f.repo)) return 'repo required';
+      if (!f || typeof f.repo !== 'string' || !isRepo(f.repo)) return 'repo required';
       if (f.watch !== 'issues' && f.watch !== 'ci') return 'bad watch';
       if (f.branch !== undefined && !BRANCH.test(f.branch)) return 'bad branch';
       if (!repoGranted(task, f.repo)) return `repo not granted: ${f.repo}`;

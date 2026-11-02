@@ -22,7 +22,7 @@ type taskEventsView struct {
 	Sources    []string            `json:"sources"`
 }
 
-// tasksErr：TriggerError → TASKS_BAD_TRIGGER（同 Node mapped('TASKS', …)）
+// tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（同 Node mapped('TASKS', …)）
 func tasksErr(v any, err error) (any, error) { return mapped("TASKS", v, err) }
 
 func taskHandlers(sv Services) map[string]H {
@@ -34,7 +34,7 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Command(in.ID, c), nil
+			return plain(s.Command(in.ID, c))
 		})
 	}
 	return map[string]H{
@@ -89,7 +89,7 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Command(in.ID, tasks.Command{Type: "grant", Grant: &in.Grant}), nil
+			return tasksErr(s.Command(in.ID, tasks.Command{Type: "grant", Grant: &in.Grant}))
 		}),
 		"tasks.revoke": cmd(tasks.Command{Type: "revoke"}),
 		"tasks.pause":  cmd(tasks.Command{Type: "pause"}),
@@ -106,7 +106,7 @@ func taskHandlers(sv Services) map[string]H {
 				return nil, err
 			}
 			in.Command.Type = "decide"
-			return s.Command(in.ID, in.Command), nil
+			return plain(s.Command(in.ID, in.Command))
 		}),
 		"tasks.reject": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
@@ -116,7 +116,7 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Command(in.ID, tasks.Command{Type: "reject", Feedback: in.Feedback}), nil
+			return plain(s.Command(in.ID, tasks.Command{Type: "reject", Feedback: in.Feedback}))
 		}),
 		"tasks.reconcile": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
@@ -126,7 +126,7 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Command(in.ID, tasks.Command{Type: "reconcile", Outcome: in.Outcome}), nil
+			return plain(s.Command(in.ID, tasks.Command{Type: "reconcile", Outcome: in.Outcome}))
 		}),
 		"tasks.applyWorktree": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in taskIDIn

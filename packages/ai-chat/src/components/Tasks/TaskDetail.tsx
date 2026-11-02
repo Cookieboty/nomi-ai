@@ -11,6 +11,7 @@ import {
   executorLabel,
   fmtTime,
   LEVEL_LABEL,
+  pendingExternal,
   statusLabel,
   tasksApi,
   TOOL_LABEL,
@@ -28,6 +29,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task, onClose }) => {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [pending, setPending] = useState<JournalEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -42,8 +44,15 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
 
   useEffect(() => {
     let live = true;
-    void tasksApi.get(task.id).then((r) => live && setAttempts([...(r?.attempts ?? [])].reverse()));
-    void tasksApi.journal(task.id).then((j) => live && setJournal([...j].reverse().slice(0, 50)));
+    const load = Promise.all([tasksApi.get(task.id), tasksApi.journal(task.id)]);
+    void load.then(([r, j]) => {
+      if (!live) return;
+      setAttempts([...(r?.attempts ?? [])].reverse());
+      setJournal([...j].reverse().slice(0, 50));
+      const list = r?.attempts ?? [];
+      const last = list[list.length - 1];
+      setPending(last ? pendingExternal(j, last.id) : []);
+    });
     if (isEvent)
       void api.tasks
         .events({ id: task.id })
@@ -252,6 +261,15 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
       {task.status === 'needs_reconcile' && (
         <div className={styles.action} data-testid="task-reconcile-card">
           <p className={styles.waitDetail}>{t('ui.providers-schedule.task-reconcile-hint')}</p>
+          {pending.length > 0 && (
+            <ul className={styles.journal} data-testid="task-reconcile-pending">
+              {pending.map((e) => (
+                <li key={e.seq}>
+                  <time>{new Date(e.at).toLocaleString()}</time> {e.summary ?? e.action}
+                </li>
+              ))}
+            </ul>
+          )}
           <div className={styles.actionRow}>
             <Button
               size="sm"

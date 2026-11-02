@@ -6,6 +6,8 @@ package desktop
 import (
 	"context"
 	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 )
 
 // BackgroundRun：一次后台任务执行；Ask 让任务停到「等你批准」并阻塞到用户回答
@@ -16,6 +18,8 @@ type BackgroundRun struct {
 	Connections []ConnGrant
 	// Tainted：这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4）
 	Tainted bool
+	// External：对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done；可为 nil
+	External connections.ExternalJournal
 }
 
 // ConnGrant：授权里引用连接的方式
@@ -40,7 +44,35 @@ func BackgroundFrom(ctx context.Context) *BackgroundRun {
 	return run
 }
 
-// 各类动作要求的最低授权等级：写本机 L2，跑命令 L3，MCP 工具（<服务器>__<工具>）L4
+// BackgroundExternal：后台执行的副作用日志；前台对话返回 nil
+func BackgroundExternal(ctx context.Context) connections.ExternalJournal {
+	if run := BackgroundFrom(ctx); run != nil {
+		return run.External
+	}
+	return nil
+}
+
+func (r *BackgroundRun) grants() []connections.Grant {
+	out := make([]connections.Grant, 0, len(r.Connections))
+	for _, g := range r.Connections {
+		out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
+	}
+	return out
+}
+
+// hasGithubExternal：授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
+func (r *BackgroundRun) hasGithubExternal() bool {
+	for _, g := range r.Connections {
+		for _, c := range g.Capabilities {
+			if strings.HasPrefix(c, "github.") && connections.IsExternalCapability(c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// 各类动作要求的最低授权等级：写本机 L2，跑命令 L3；对外动作（MCP 非只读工具、对外命令）L4
 var backgroundLevel = map[Danger]int{"read": 1, "write": 2, "destructive": 2}
 
 const (
@@ -52,16 +84,45 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if i.Signal.Err() != nil {
 		return "denied"
 	}
+	// MCP 工具（<服务器>__<工具>）：不继承服务器的前台信任级别，只认任务授权里逐个给出的工具
+	// （connections.md §6）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
+	if server, tool, ok := connections.SplitMcpTool(i.Tool); ok {
+		granted := connections.McpGranted(run.grants(), server, tool, i.McpReadOnly)
+		if granted == "" {
+			return "denied"
+		}
+		if granted == "read" {
+			return "auto"
+		}
+		if run.Level < externalLevel {
+			return "denied"
+		}
+		if !b.IsTainted(i.Signal) && !run.Tainted {
+			return "auto"
+		}
+		detail := i.Summary
+		if i.Preview != nil {
+			detail = *i.Preview
+		}
+		if r := []rune(detail); len(r) > ConfirmPreviewCap {
+			detail = string(r[:ConfirmPreviewCap])
+		}
+		if i.Signal.Err() != nil {
+			return "denied"
+		}
+		ok := run.Ask(i.Tool, i.Summary, detail)
+		if i.Signal.Err() != nil || !ok {
+			return "denied"
+		}
+		return "allowed"
+	}
 	if i.Danger == "read" && i.Force == nil {
 		return "auto"
 	}
 	command := ReviewedTools[i.Tool]
 	need := backgroundLevel[i.Danger]
-	switch {
-	case command:
+	if command {
 		need = commandLevel
-	case strings.Contains(i.Tool, "__"):
-		need = externalLevel
 	}
 	if run.Level < need {
 		return "denied"
@@ -70,13 +131,14 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if i.Preview != nil {
 		detail = *i.Preview
 	}
-	// 确定性分类在审核之前（command_class.go）：读凭据、合并发布等永远问人；对外动作要 L4
+	// 确定性分类在审核之前（command_class.go）：读凭据、合并发布等永远问人；对外命令要 L4，
+	// 且授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
 	cmdText, _, _ := parseCommandArgs(i.Args)
 	cls := ""
 	if command {
 		cls = ClassifyCommand(cmdText)
 	}
-	if cls == "credential" || cls == "never" || (cls == "external" && run.Level < externalLevel) {
+	if cls == "credential" || cls == "never" || (cls == "external" && (run.Level < externalLevel || !run.hasGithubExternal())) {
 		detail = "[" + cls + "] " + detail
 	} else if command {
 		if cmd, cwd, ok := b.reviewableBackground(i); ok {

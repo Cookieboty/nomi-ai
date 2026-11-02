@@ -14,8 +14,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // KeepAttempts：快照里保留的执行条数
@@ -28,18 +30,26 @@ type Record struct {
 
 // JournalEntry 对应 TaskStore.ts 的 JournalEntry 判别联合（按 T 区分）
 type JournalEntry struct {
-	T          string  `json:"t"`
-	At         int64   `json:"at"`
-	Event      string  `json:"event,omitempty"`
-	From       string  `json:"from,omitempty"`
-	To         string  `json:"to,omitempty"`
-	Gen        *int    `json:"gen,omitempty"`
-	AttemptID  string  `json:"attemptId,omitempty"`
-	Seq        *int    `json:"seq,omitempty"`
-	Action     string  `json:"action,omitempty"`
-	Hash       string  `json:"hash,omitempty"`
+	T         string `json:"t"`
+	At        int64  `json:"at"`
+	Event     string `json:"event,omitempty"`
+	From      string `json:"from,omitempty"`
+	To        string `json:"to,omitempty"`
+	Gen       *int   `json:"gen,omitempty"`
+	AttemptID string `json:"attemptId,omitempty"`
+	Seq       *int   `json:"seq,omitempty"`
+	Action    string `json:"action,omitempty"`
+	Hash      string `json:"hash,omitempty"`
+	// Key：幂等键 taskId:attemptId:seq（2.1.0 起；写进外部内容供自动核对）
+	Key string `json:"key,omitempty"`
+	// Summary：intent 给人看的摘要
+	Summary string `json:"summary,omitempty"`
+	// Target：核对用的目标（仓库、编号、分支、MCP 服务器与工具），保持键顺序
+	Target     *u.Obj  `json:"target,omitempty"`
 	ExternalID *string `json:"externalId,omitempty"`
 	Msg        string  `json:"msg,omitempty"`
+	// By：done / failed 由谁关闭（reconcile = 自动核对，user = 用户核对；执行中写的没有）
+	By string `json:"by,omitempty"`
 }
 
 type Logger interface {
@@ -69,6 +79,8 @@ var (
 type Store struct {
 	dir string
 	log Logger
+	// appendMu：事件日志的追加来自运行时与执行中的对外工具（副作用日志），串行化
+	appendMu sync.Mutex
 }
 
 func NewStore(dir string, log Logger) *Store { return &Store{dir: dir, log: log} }
@@ -224,6 +236,8 @@ func (s *Store) Append(id string, e JournalEntry) error {
 	if err != nil {
 		return err
 	}
+	s.appendMu.Lock()
+	defer s.appendMu.Unlock()
 	return appendLines(f, append(line, '\n'))
 }
 
@@ -243,7 +257,7 @@ func (s *Store) ArchivedAttempts(id string) []Attempt {
 	return readJsonl[Attempt](f)
 }
 
-// UnconfirmedExternal：这次执行有没有写了 intent 却没有 done 的对外动作
+// UnconfirmedExternal：这次执行有没有写了 intent 却没有 done / failed 的对外动作
 func (s *Store) UnconfirmedExternal(id, attemptID string) bool {
 	open := map[int]bool{}
 	for _, e := range s.Journal(id) {
@@ -253,7 +267,7 @@ func (s *Store) UnconfirmedExternal(id, attemptID string) bool {
 		switch e.T {
 		case "intent":
 			open[*e.Seq] = true
-		case "done":
+		case "done", "failed":
 			delete(open, *e.Seq)
 		}
 	}

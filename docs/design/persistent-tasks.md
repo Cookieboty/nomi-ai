@@ -538,8 +538,26 @@ Nomi 工具：
 
 ### 第 4 期：对外副作用与 MCP 事件源
 
-- [ ] L4 逐类授权；副作用日志 intent / done；`needs_reconcile` 与自动核对。
-- [ ] `mcp` 事件源与 MCP 工具副作用分类。
+- [x] L4 逐类授权；副作用日志 intent / done；`needs_reconcile` 与自动核对。
+- [x] `mcp` 事件源与 MCP 工具副作用分类。
+
+实现说明（2.1.0）：
+
+- **能力目录**（`connections/catalog.ts`）：`github.read`、`mcp.read` 是 L1；`github.comment`、`github.pr.create`、`mcp.call` 是对外动作（L4）；
+  合并 / 发布永不授予。创建任务与改授权（`tasks.grant`）都按目录校验：能力未知、等级不够、资源为空或带通配都拒绝（`TASKS_BAD_GRANT`）。
+- **本机 MCP 服务器是虚拟连接** `mcp:<服务器 id>`（不另存），资源是工具名；只接 stdio 服务器。标了 `readOnlyHint` 的工具给 `mcp.read`，
+  其它一律 `mcp.call`。后台任务里 MCP 工具不看服务器的前台信任级别，只认授权里逐个列出的工具；对外工具还要 L4，读过外部内容时问人。
+- **副作用日志**：对外动作（GitHub 评论 / 开 PR、MCP 非只读工具）执行前过撤销检查点、写 `intent`（幂等键 `taskId:attemptId:seq`、内容哈希、摘要、核对目标），
+  成功写 `done`（外部 id），GitHub 明确拒绝写 `failed`；超时、断网不写，留给重启核对。
+- **自动核对**：评论与 PR 正文末尾带幂等标记 `<!-- nomi-task:<key> -->`，重启后按标记查（评论按 `since`，PR 按 `head`）；全部查清就提交核对结果续跑，
+  查不了（MCP 工具、连接不可用）停在 `needs_reconcile`，卡片上列出没确认的动作，由用户选「已生效 / 没生效 / 放弃」，同时把日志里的 intent 关掉。
+- **编程助手任务**：`gh pr create`、`git push` 等对外命令除了 L4，还要求授权里有 GitHub 的对外能力，否则暂停等人。
+- **`mcp` 事件源**：定时（最短 5 分钟）调授权里的一个只读工具；结果是 JSON 列表（或对象里第一个数组字段）时按条目的 `id` / `key` / `uid` / `url` 去重，
+  否则比整段文字的哈希；第一次拉当基线。
+- `github.pr.create` 只开 PR、不推分支：`head` 必须是已推送的 `nomi/` 分支（编程助手在 worktree 里推送，经命令审核）。
+- `gh api` 写请求带 `--include`，按状态码判断：4xx（除 408 / 429）才算「确定没生效」，5xx、断网、超时都留给核对。
+- Go 版差异（行为同样保守）：两次写请求之间的等待被取消时直接判为没发出（Node 照常等完再发）；令牌方式 2xx 但正文不是 JSON 时记 `done`、不带外部 id；
+  核对时日志里的仓库 / 分支 / 编号不合法按「查不了」处理；共享的日志类型放在 `connections` 包（避免 `tasks` ↔ `desktop` 循环引用）。
 
 2.1.0 依次做第 1、2、3、4 期（连接的 C1–C3 随行，见 [connections.md](connections.md) §10）；computer use 搁置。每期在 Node 与 Go 同时交付；某一版本暂未实现的能力在界面上明确禁用并说明，
 不静默降级。

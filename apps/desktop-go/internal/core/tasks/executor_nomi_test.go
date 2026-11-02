@@ -9,6 +9,7 @@ import (
 	"time"
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 )
 
 func sp(s string) *string { return &s }
@@ -35,7 +36,7 @@ func newNomiHarness(t *testing.T, script func(ctx context.Context, n int, h *nom
 			h.mu.Unlock()
 			return script(ctx, n, h, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant, _ bool) context.Context {
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, _ []ConnectionGrant, _ bool, _ connections.ExternalJournal) context.Context {
 			h.mu.Lock()
 			h.asks = append(h.asks, ask)
 			h.mu.Unlock()

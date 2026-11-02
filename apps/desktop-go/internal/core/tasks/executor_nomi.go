@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 )
 
 // ToolClassTools：工具类 → Nomi 工具名（与 nomi.ts 的 TOOL_CLASS_TOOLS 相同）
@@ -29,15 +31,35 @@ var ToolClassTools = map[string][]string{
 	"delegate":        {},
 }
 
-// AllowedTools：工具类 → 工具名；授权里给了 github.read 才加 github_read
+// connTools：经连接的能力 → 工具名（授权里给了才提供）
+var connTools = []struct{ cap, tool string }{
+	{"github.read", "github_read"}, {"github.comment", "github_comment"}, {"github.pr.create", "github_pr_create"},
+}
+
+// AllowedTools：工具类 → 工具名；经连接的能力（connections.md §2）授权里给了才提供：github.read → github_read，
+// github.comment / github.pr.create → github_comment / github_pr_create（对外能力 L4 另由授权检查与副作用日志把关），
+// 本机 MCP 工具按注册名 `<服务器>__<工具>` 只给授权里逐个列出的
 func AllowedTools(classes []string, conns ...ConnectionGrant) []string {
 	seen := map[string]bool{}
 	out := []string{}
+	add := func(n string) {
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	for _, ct := range connTools {
+		for _, g := range conns {
+			if slices.Contains(g.Capabilities, ct.cap) {
+				add(ct.tool)
+				break
+			}
+		}
+	}
 	for _, g := range conns {
-		for _, c := range g.Capabilities {
-			if c == "github.read" && !seen["github_read"] {
-				seen["github_read"] = true
-				out = append(out, "github_read")
+		if server := connections.McpServerOf(g.ConnectionID); server != "" {
+			for _, tool := range g.Resources {
+				add(server + "__" + tool)
 			}
 		}
 	}
@@ -55,8 +77,11 @@ func AllowedTools(classes []string, conns ...ConnectionGrant) []string {
 type NomiDeps struct {
 	// AgentStream：client.chat.AgentStream，tools 白名单、quiet
 	AgentStream func(ctx context.Context, messages []blm.ChatMessage, tools []string, extra map[string]any, emit func(blm.ChatChunk)) error
-	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）；tainted = 事件触发，读过外部内容（§8.4）
-	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted bool) context.Context
+	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）；tainted = 事件触发，读过外部内容（§8.4）；
+	// external = 这次执行的副作用日志（对外工具执行前写 intent、成功后写 done），可为 nil
+	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted bool, external connections.ExternalJournal) context.Context
+	// ExternalJournal：这次执行的副作用日志（Service.ExternalJournal）；nil = 不登记
+	ExternalJournal func(taskID, attemptID string) connections.ExternalJournal
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
 	EventsFor func(taskID string, eventKey *string) []SourceEvent
 	Ready     func() bool
@@ -217,7 +242,11 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	ctx := base
 	if e.d.WithBackground != nil {
 		// 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
-		ctx = e.d.WithBackground(base, t.Grant.Level, ask, t.Grant.Connections, a.Cause.Kind == "event")
+		var external connections.ExternalJournal
+		if e.d.ExternalJournal != nil {
+			external = e.d.ExternalJournal(t.ID, a.ID)
+		}
+		ctx = e.d.WithBackground(base, t.Grant.Level, ask, t.Grant.Connections, a.Cause.Kind == "event", external)
 	}
 	progress := run.progress
 	go e.consume(ctx, run, tools, progress)

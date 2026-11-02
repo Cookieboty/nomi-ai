@@ -92,8 +92,8 @@
 | --------------- | ------------------------------------------------------------------------------------------------ | --------------------- |
 | 第 3 期 ✅      | 事件源 `app` / `folder` / `web` / `github`；`observe` 默认；去重、冷却                           | 设计稿 §6 + 分析 P1-1 |
 | 第 3 期补充     | 语义过滤（用户写的自然语言规则，由便宜模型判断）                                                 | 分析 P1-1 Slow Path   |
-| 第 4 期         | L4 对外副作用、intent/done、`needs_reconcile`；`mcp` 事件源                                      | 设计稿 §10、§16       |
-| 连接 C3         | GitHub `comment` / `pr.create`；本机 MCP 服务器作为连接、工具归类（只接不做；远程 MCP 先不考虑） | connections.md §10    |
+| 第 4 期 ✅      | L4 对外副作用、intent/done、`needs_reconcile`；`mcp` 事件源                                      | 设计稿 §10、§16       |
+| 连接 C3 ✅      | GitHub `comment` / `pr.create`；本机 MCP 服务器作为连接、工具归类（只接不做；远程 MCP 先不考虑） | connections.md §10    |
 | 连接 C4（搁置） | computer use：原生辅助程序、`ComputerPort`、`app.observe` → `app.control`；只在对话与手动任务里  | connections.md §5     |
 | Watchdog        | 定时检查运行中的执行：无进展、循环、偏离目标；处置 = 提醒 / followup / stop                      | 分析 P1-2             |
 | 强制委派        | 依据第 0 步基线数据决定是否加 routingPolicy                                                      | 分析 P0-2             |

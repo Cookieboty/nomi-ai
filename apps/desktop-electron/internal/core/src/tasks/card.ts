@@ -13,11 +13,13 @@ export type ProposeWhen =
   | { kind: 'interval'; minutes: number }
   | {
       kind: 'event';
-      source: 'web' | 'github' | 'folder' | 'app';
+      source: 'web' | 'github' | 'folder' | 'app' | 'mcp';
       url?: string;
       repo?: string;
       path?: string;
       app_event?: string;
+      mcp_server?: string;
+      mcp_tool?: string;
     };
 
 export function describeWhen(w: ProposeWhen): string {
@@ -37,7 +39,11 @@ export function describeWhen(w: ProposeWhen): string {
     case 'event':
       return t(
         'electron.common.task-when-event',
-        w.url ?? w.repo ?? w.path ?? w.app_event ?? w.source,
+        w.url ??
+          w.repo ??
+          w.path ??
+          w.app_event ??
+          (w.mcp_server ? `${w.mcp_server}/${w.mcp_tool ?? ''}` : w.source),
       );
   }
 }
@@ -58,7 +64,8 @@ export function authorizationCard(i: {
   when: ProposeWhen;
   notify: boolean;
   level: GrantLevel;
-  github?: { label: string; repos: string[] };
+  github?: { label: string; repos: string[]; actions?: ('comment' | 'pr')[] };
+  mcp?: { server: string; tools: string[]; external: boolean }[];
   cli?: { name: string; cwd: string };
 }): { summary: string; preview: string } {
   return {
@@ -79,6 +86,27 @@ export function authorizationCard(i: {
       ...(i.github
         ? [t('electron.common.task-card-github', i.github.label, i.github.repos.join(', '))]
         : []),
+      ...(i.github?.actions?.length
+        ? [
+            t(
+              'electron.common.task-card-github-actions',
+              i.github.actions
+                .map((a) =>
+                  a === 'comment'
+                    ? t('electron.common.task-action-comment')
+                    : t('electron.common.task-action-pr'),
+                )
+                .join('、'),
+            ),
+          ]
+        : []),
+      ...(i.mcp ?? []).map((m) =>
+        t(
+          m.external ? 'electron.common.task-card-mcp-external' : 'electron.common.task-card-mcp',
+          m.server,
+          m.tools.join(', '),
+        ),
+      ),
       t('electron.common.task-card-terms'),
     ].join('\n'),
   };

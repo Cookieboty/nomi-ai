@@ -21,6 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
@@ -419,8 +420,8 @@ func main() {
 			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
 				Tools: toolNames, Quiet: true, Extra: extra}, emit)
 		},
-		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted bool) context.Context {
-			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted}
+		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted bool, external connections.ExternalJournal) context.Context {
+			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, External: external}
 			for _, g := range conns {
 				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 			}
@@ -442,7 +443,8 @@ func main() {
 				log.Printf("[tasks] trace: %v", err)
 			}
 		},
-		EventsFor: b8.Tasks.EventBatch,
+		EventsFor:       b8.Tasks.EventBatch,
+		ExternalJournal: b8.Tasks.ExternalJournal,
 	}))
 	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
 	taskCli := taskCliDeps(desktopSvc)

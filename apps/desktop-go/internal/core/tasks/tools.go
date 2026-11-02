@@ -5,6 +5,7 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -30,20 +32,27 @@ const proposeSchema = `{"type":"object","properties":{
 "at":{"type":"string","description":"ISO 时间，如 2026-11-03T09:00"},"time":{"type":"string","description":"HH:MM"},
 "days":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6},"description":"0=周日 … 6=周六"},
 "minutes":{"type":"integer","minimum":5,"maximum":10080},
-"source":{"type":"string","enum":["web","github","folder","app"],"description":"web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新"},
+"source":{"type":"string","enum":["web","github","folder","app","mcp"],"description":"web = 网页 / RSS 有变化；github = 仓库 issue·PR 动态或 CI 跑完；folder = 文件夹里有新文件或改动；app = 编程助手一轮结束 / 知识库更新；mcp = 定时调用户已装的 MCP 服务器的一个只读工具（邮件、日历等），有新条目就算一件事"},
 "url":{"type":"string","description":"source=web：网址"},
 "feed":{"type":"boolean","description":"source=web：是 RSS / Atom 订阅"},
 "repo":{"type":"string","description":"source=github：owner/name"},
 "watch":{"type":"string","enum":["issues","ci"],"description":"source=github：issues 或 ci"},
 "branch":{"type":"string","description":"source=github 且 watch=ci：分支"},
 "path":{"type":"string","description":"source=folder：绝对路径（要是用户打开过的目录）"},
-"app_event":{"type":"string","enum":["cli.finished","knowledge.updated"],"description":"source=app：哪种应用事件"}},"required":["kind"]},
+"app_event":{"type":"string","enum":["cli.finished","knowledge.updated"],"description":"source=app：哪种应用事件"},
+"mcp_server":{"type":"string","description":"source=mcp：MCP 服务器 id"},
+"mcp_tool":{"type":"string","description":"source=mcp：只读工具名（不带服务器前缀）"},
+"mcp_args":{"type":"object","additionalProperties":{},"description":"source=mcp：调用参数"}},"required":["kind"]},
 "executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的编程助手在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
 "cli":{"type":"string","description":"executor=cli 时用哪个编程助手（如 claude、codex）"},
 "cwd":{"type":"string","description":"executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）"},
 "tools":{"type":"array","items":{"type":"string","enum":["read","web","knowledge_write","memory_write","file_write","shell"]},
 "description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},
-"github_repos":{"type":"array","maxItems":20,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},"description":"需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用"}},
+"github_repos":{"type":"array","maxItems":20,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},"description":"需要只读查看的 GitHub 仓库（owner/name）；用户在设置里连了 GitHub 时才能用"},
+"github_actions":{"type":"array","maxItems":2,"items":{"type":"string","enum":["comment","pr"]},"description":"对 github_repos 的对外动作：comment = 在 issue / PR 下评论，pr = 开 PR（只从 nomi/ 分支）。属于最高授权等级，只在用户明确要求时才加"},
+"mcp":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"server":{"type":"string","description":"MCP 服务器 id"},
+"tools":{"type":"array","minItems":1,"maxItems":20,"items":{"type":"string"},"description":"要用的工具名（不带服务器前缀）"}},"required":["server","tools"],"additionalProperties":false},
+"description":"执行时要用的、用户已装的本机 MCP 服务器工具；只读工具之外的一律算对外动作（最高授权等级），只要必要的"}},
 "required":["title","goal","when"],"additionalProperties":false}`
 
 const recallSchema = `{"type":"object","properties":{"id":{"type":"string","description":"任务 id（task_…）；不填列出最近的任务"}},"additionalProperties":false}`
@@ -63,6 +72,16 @@ type ProposeWhen struct {
 	Branch   string `json:"branch,omitempty"`
 	Path     string `json:"path,omitempty"`
 	AppEvent string `json:"app_event,omitempty"`
+	// source=mcp
+	McpServer string          `json:"mcp_server,omitempty"`
+	McpTool   string          `json:"mcp_tool,omitempty"`
+	McpArgs   json.RawMessage `json:"mcp_args,omitempty"`
+}
+
+// proposeMcp：task_propose 的 mcp 项
+type proposeMcp struct {
+	Server string   `json:"server"`
+	Tools  []string `json:"tools"`
 }
 
 type proposeIn struct {
@@ -74,6 +93,9 @@ type proposeIn struct {
 	Cwd         string      `json:"cwd"`
 	Tools       []string    `json:"tools"`
 	GithubRepos []string    `json:"github_repos"`
+	// GithubActions：comment | pr（对外动作，L4）
+	GithubActions []string     `json:"github_actions"`
+	Mcp           []proposeMcp `json:"mcp"`
 }
 
 // TriggerOf：「何时」→ 触发器（本机时区）。事件触发一律先「只记录」，改成自动执行由用户在任务页决定（§6.3）
@@ -151,6 +173,24 @@ func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 			if w.AppEvent != "" {
 				filter["event"] = w.AppEvent
 			}
+		case "mcp":
+			// 保序（server, tool, args），args 原样保留键顺序（与 Node 的过滤条件同形状）
+			o := u.NewObj()
+			if w.McpServer != "" {
+				o.Set("server", w.McpServer)
+			}
+			if w.McpTool != "" {
+				o.Set("tool", w.McpTool)
+			}
+			if len(w.McpArgs) > 0 && string(w.McpArgs) != "null" {
+				args, err := u.Parse(w.McpArgs)
+				if err != nil {
+					return Trigger{}, fmt.Errorf("invalid mcp_args")
+				}
+				o.Set("args", args)
+			}
+			src, mode := w.Source, "observe"
+			return Trigger{Kind: "event", SourceID: &src, Filter: json.RawMessage(u.Stringify(o)), Mode: &mode}, nil
 		default:
 			return Trigger{}, fmt.Errorf("invalid source: %s", w.Source)
 		}
@@ -181,7 +221,11 @@ func describeWhen(T func(string, ...any) string, w ProposeWhen) string {
 	case "interval":
 		return T("electron.common.task-when-interval", w.Minutes)
 	case "event":
-		return T("electron.common.task-when-event", firstNonEmpty(w.URL, w.Repo, w.Path, w.AppEvent, w.Source))
+		mcp := ""
+		if w.McpServer != "" {
+			mcp = w.McpServer + "/" + w.McpTool
+		}
+		return T("electron.common.task-when-event", firstNonEmpty(w.URL, w.Repo, w.Path, w.AppEvent, mcp, w.Source))
 	}
 	return w.Kind
 }
@@ -253,6 +297,73 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				if in.Tools == nil {
 					in.Tools = []string{"read"}
 				}
+				// MCP 工具：只读的给 mcp.read，其它一律 mcp.call（对外动作，L4）；工具要在线才知道是不是只读
+				mcpServers := []string{}
+				mcpWanted := map[string][]string{}
+				want := func(server, tool string) {
+					if _, ok := mcpWanted[server]; !ok {
+						mcpServers = append(mcpServers, server)
+					}
+					if !slices.Contains(mcpWanted[server], tool) {
+						mcpWanted[server] = append(mcpWanted[server], tool)
+					}
+				}
+				// 执行时用的 MCP 工具只给 Nomi 自己执行的任务（编程助手、通知不调 Nomi 的工具）
+				mcpIn := in.Mcp
+				if in.Executor != "nomi" {
+					mcpIn = nil
+				}
+				for _, m := range mcpIn {
+					if len(m.Tools) == 0 {
+						return fail("bad_input", "mcp.tools 不能为空"), nil
+					}
+					for _, tool := range m.Tools {
+						want(m.Server, tool)
+					}
+				}
+				if in.When.Kind == "event" && in.When.Source == "mcp" && in.When.McpServer != "" && in.When.McpTool != "" {
+					want(in.When.McpServer, in.When.McpTool)
+				}
+				mcpGrants := []ConnectionGrant{}
+				mcpExternal := false
+				for _, server := range mcpServers {
+					read, call := false, false
+					for _, tool := range mcpWanted[server] {
+						var info *connections.McpToolInfo
+						if s.mcpTool != nil {
+							info = s.mcpTool(server, tool)
+						}
+						if info == nil || info.Remote {
+							return fail("mcp_unavailable", "MCP 工具不可用（要是用户已连上的本机服务器）："+server+"/"+tool), nil
+						}
+						if info.ReadOnly {
+							read = true
+						} else {
+							call, mcpExternal = true, true
+						}
+					}
+					caps := []string{}
+					if call {
+						caps = append(caps, "mcp.call")
+					}
+					if read {
+						caps = append(caps, "mcp.read")
+					}
+					mcpGrants = append(mcpGrants, ConnectionGrant{ConnectionID: connections.McpConnectionID(server),
+						Capabilities: caps, Resources: append([]string{}, mcpWanted[server]...)})
+				}
+				ghActions := []string{}
+				if in.Executor != "notify" {
+					for _, a := range in.GithubActions {
+						if a != "comment" && a != "pr" {
+							return fail("bad_input", "unknown github action: "+a), nil
+						}
+						if !slices.Contains(ghActions, a) {
+							ghActions = append(ghActions, a)
+						}
+					}
+				}
+				external := len(ghActions) > 0 || mcpExternal
 				level := 0
 				if in.Executor != "notify" {
 					level = 1
@@ -283,6 +394,10 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					if in.Cwd == "" || cli.DirOk == nil || !cli.DirOk(in.Cwd) {
 						return fail("bad_cwd", "cwd 必须是用户打开过的工作区目录"), nil
 					}
+				}
+				// 对外动作 L4
+				if external {
+					level = 4
 				}
 				// 事件触发：github 的仓库自动并入只读授权；folder 的目录要是用户打开过的
 				repos := []string{}
@@ -317,9 +432,31 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				if err != nil {
 					return fail("bad_time", err.Error()), nil
 				}
+				if len(ghActions) > 0 && len(repos) == 0 {
+					return fail("bad_grant", "github_actions 需要 github_repos"), nil
+				}
 				conns := []ConnectionGrant{}
 				if ghID != "" {
-					conns = []ConnectionGrant{{ConnectionID: ghID, Capabilities: []string{"github.read"}, Resources: repos}}
+					caps := []string{"github.read"}
+					if slices.Contains(ghActions, "comment") {
+						caps = append(caps, "github.comment")
+					}
+					if slices.Contains(ghActions, "pr") {
+						caps = append(caps, "github.pr.create")
+					}
+					conns = append(conns, ConnectionGrant{ConnectionID: ghID, Capabilities: caps, Resources: repos})
+				}
+				conns = append(conns, mcpGrants...)
+				// 只读能力至少 L1（只发通知的事件任务也要读事件源）
+				for _, g := range conns {
+					for _, c := range g.Capabilities {
+						if l := connections.Capabilities[c].Level; l > level {
+							level = l
+						}
+					}
+				}
+				if bad := s.ValidateGrant(level, conns); bad != "" {
+					return fail("bad_grant", bad), nil
 				}
 				paths := []string{}
 				if in.Executor == "cli" {
@@ -347,6 +484,23 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				}, "\n")
 				if ghID != "" {
 					card += "\n" + T("electron.common.task-card-github", ghLabel, strings.Join(repos, ", "))
+					if len(ghActions) > 0 {
+						names := make([]string, len(ghActions))
+						for i, a := range ghActions {
+							names[i] = T("electron.common.task-action-pr")
+							if a == "comment" {
+								names[i] = T("electron.common.task-action-comment")
+							}
+						}
+						card += "\n" + T("electron.common.task-card-github-actions", strings.Join(names, "、"))
+					}
+				}
+				for _, g := range mcpGrants {
+					key := "electron.common.task-card-mcp"
+					if slices.Contains(g.Capabilities, "mcp.call") {
+						key = "electron.common.task-card-mcp-external"
+					}
+					card += "\n" + T(key, connections.McpServerOf(g.ConnectionID), strings.Join(g.Resources, ", "))
 				}
 				card += "\n" + T("electron.common.task-card-terms")
 				d := authorize(ctx, "task_propose", T("electron.common.task-card-summary", in.Title), in, card)
@@ -370,6 +524,10 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				}
 				t, err := s.Create(req, "nomi")
 				if err != nil {
+					var ge *GrantError
+					if errors.As(err, &ge) {
+						return fail("bad_grant", err.Error()), nil
+					}
 					return fail("bad_trigger", err.Error()), nil
 				}
 				v := taskView(t)

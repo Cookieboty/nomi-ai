@@ -349,6 +349,8 @@ type AuthorizeInput struct {
 	IgnoreMode bool
 	// UserText：本轮用户说的话（命令审核判断授权用）
 	UserText string
+	// McpReadOnly：MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权）
+	McpReadOnly bool
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；

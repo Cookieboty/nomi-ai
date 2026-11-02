@@ -104,6 +104,37 @@ func registerTaskSources(b8 *knowledgehandlers.Bundle) {
 			}
 			return c.GithubRead(ctx, rp, g)
 		}}))
+	// 本机 MCP 服务器（只接不做、只接 stdio）：任务的 mcp 事件源调授权里的只读工具；授权校验用工具是否只读
+	mcpInfo := func(server, tool string) *connections.McpToolInfo {
+		if b8.Ext == nil {
+			return nil
+		}
+		return b8.Ext.McpToolInfo(server, tool)
+	}
+	ts.UseMcpTools(mcpInfo)
+	ts.RegisterSource(tasks.NewMcpSource(tasks.McpPort{
+		Info: mcpInfo,
+		Call: func(ctx context.Context, server, tool string, args *util.Obj) (any, error) {
+			if b8.Ext == nil {
+				return nil, errors.New("extensions unavailable")
+			}
+			return b8.Ext.CallMcpReadOnly(ctx, server, tool, args)
+		},
+	}, tasks.McpSourceDeps{T: i18n.T}))
+	// 对外动作的重启核对（§10.3）：评论 / PR 按正文里的幂等标记查；在任务服务的核对 goroutine 上调用
+	for _, action := range []string{"github.comment", "github.pr.create"} {
+		ts.RegisterReconciler(action, func(intent tasks.JournalEntry, _ tasks.Task) *tasks.ReconcileResult {
+			c := b8.Conns
+			if c == nil {
+				return nil
+			}
+			r := c.GithubReconcile(context.Background(), intent.Action, intent.At, intent.Key, intent.Target)
+			if r == nil {
+				return nil
+			}
+			return &tasks.ReconcileResult{Applied: r.Applied, ExternalID: r.ExternalID}
+		})
+	}
 	ts.RegisterSource(tasks.NewAppSource(tasks.AppBus{
 		OnCliFinished:      taskCliFinished.on,
 		OnKnowledgeChanged: b8.OnKBChanged,
