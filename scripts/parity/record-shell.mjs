@@ -456,6 +456,8 @@ export const UPD = [
 
 async function recordUpdates() {
   const { UpdateService } = await core('services/UpdateService.ts');
+  // 设置是异步原子写（writePrivateFileAtomicAsync）：读文件前等写完，不靠固定延时（CI 慢机上 50ms 不够）
+  const { whenPrivateWritesIdle } = await core('utils/privateFile.ts');
   const { shellProcedures } = await import(
     pathToFileURL(path.join(root, 'packages/contract/src/app/shell.ts')).href
   );
@@ -593,7 +595,7 @@ async function recordUpdates() {
           updater.logger.debug('d');
           r = [updater.autoDownload, updater.autoInstallOnAppQuit, updater.allowPrerelease];
         } else if (op === 'file') {
-          await new Promise((res) => RT(res, 50));
+          await whenPrivateWritesIdle();
           const f = path.join(ud, 'update-settings.json');
           r = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
         } else if (op === 'advance') {
