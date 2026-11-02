@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import {
   createImageTools,
+  generateImageAsset,
   imageExt,
   splitImageRef,
   type ImageProviderAccess,
@@ -160,6 +161,43 @@ describe('image_generate', () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]!.signal).toBe(ac.signal);
     expect(fs.existsSync(path.join(dir, 'images'))).toBe(false);
+  });
+
+  it('指定了模型（重新生成）：原模型不可用就报错，不改用当前图片模型（#224）', async () => {
+    const generated: unknown[] = [];
+    const { calls, dir } = setup();
+    const deps = (current: string): ImageToolDeps => ({
+      imageRef: () => current,
+      imageProvider: (id) =>
+        id === 'amux' || id === 'other'
+          ? { info: { id, urls: { chat: `https://${id}.example.com/v1/` } }, keyFor: () => 'k' }
+          : null,
+      imagesDir: dir,
+      fetchImpl: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        return new Response(JSON.stringify({ data: [{ b64_json: PNG.toString('base64') }] }));
+      }) as unknown as typeof fetch,
+      onGenerated: (_f, m) => generated.push(m),
+    });
+    // 原供应商没了、当前模型可用：报错，不发请求、不记素材
+    await expect(
+      generateImageAsset(deps('other/openai/gpt-image-2'), {
+        prompt: 'a fox',
+        modelRef: 'gone/gpt-image-2',
+      }),
+    ).rejects.toThrow(/regenerate-model-unavailable/);
+    expect(calls).toHaveLength(0);
+    expect(generated).toHaveLength(0);
+    // 原模型还在、当前默认已换：仍用原模型
+    const r = await generateImageAsset(deps('other/openai/gpt-image-2'), {
+      prompt: 'a fox',
+      modelRef: 'amux/openai/gpt-image-2',
+    });
+    expect(r.provider).toBe('amux');
+    expect(calls[0]!.url).toContain('amux.example.com');
+    // 没指定模型：照旧用当前图片模型
+    const r2 = await generateImageAsset(deps('other/openai/gpt-image-2'), { prompt: 'a fox' });
+    expect(r2.provider).toBe('other');
   });
 
   it('接口报错：带上状态码与上游的错误信息', async () => {

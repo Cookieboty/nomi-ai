@@ -241,3 +241,39 @@ func TestImageToolEditAndReference(t *testing.T) {
 		t.Fatal("路径穿越应拒绝")
 	}
 }
+
+// 指定了模型（重新生成）：原模型不可用就报错，不改用当前图片模型（#224）
+func TestGenerateAssetPinnedModelNoFallback(t *testing.T) {
+	var hits []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits = append(hits, r.Host)
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"b64_json": base64.StdEncoding.EncodeToString(png)}}})
+	}))
+	t.Cleanup(srv.Close)
+	var generated []GeneratedMeta
+	d := ImageDeps{
+		ImageRef: func() string { return "other/openai/gpt-image-2" },
+		ImageProvider: func(id string) *ImageAccess {
+			if id != "amux" && id != "other" {
+				return nil
+			}
+			return &ImageAccess{Info: media.ProviderInfo{ID: id, URLs: map[string]string{"chat": srv.URL + "/" + id + "/v1/"}},
+				KeyFor: func(string) string { return "k" }}
+		},
+		ImagesDir:   filepath.Join(t.TempDir(), "images"),
+		OnGenerated: func(_ string, m GeneratedMeta) { generated = append(generated, m) },
+		Sleep:       func(time.Duration) {},
+	}
+	_, err := d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox", ModelRef: "gone/gpt-image-2"})
+	if err == nil || len(hits) != 0 || len(generated) != 0 {
+		t.Fatalf("err=%v hits=%v generated=%v", err, hits, generated)
+	}
+	r, err := d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox", ModelRef: "amux/openai/gpt-image-2"})
+	if err != nil || r.Provider != "amux" {
+		t.Fatalf("%+v %v", r, err)
+	}
+	r, err = d.GenerateAsset(context.Background(), GenerateReq{Prompt: "a fox"})
+	if err != nil || r.Provider != "other" {
+		t.Fatalf("%+v %v", r, err)
+	}
+}

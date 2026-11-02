@@ -681,6 +681,7 @@ export type TranslationKey =
   | 'electron.image.task-timeout'
   | 'electron.image.edit-not-supported'
   | 'electron.image.edit-source-missing'
+  | 'electron.image.regenerate-model-unavailable'
   | 'electron.image.no-prompt-to-regenerate'
   | 'ui.chat-settings.a-browser-window-should-have-opened-if-not'
   | 'ui.chat-settings.about'

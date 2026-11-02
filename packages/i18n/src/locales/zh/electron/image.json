@@ -8,5 +8,6 @@
   "electron.image.task-timeout": "生图任务超时，已放弃",
   "electron.image.edit-not-supported": "{0} 不支持改图 / 参考图，换一个支持的图片模型（如 gpt-image、Gemini 生图）",
   "electron.image.edit-source-missing": "找不到要修改或参考的图片（只能用素材库里的图片）",
+  "electron.image.regenerate-model-unavailable": "原图用的图片模型 {0} 现在不可用（供应商已停用、删除或不再支持生图），没有重新生成：恢复它后再试",
   "electron.image.no-prompt-to-regenerate": "这张图没有记下提示词，不能重新生成（编程助手生成的图片只能查看）"
 }
