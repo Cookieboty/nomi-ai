@@ -24,52 +24,68 @@
           <span class="logo-zh">诺米</span>
         </span>
       </a>
-      <div class="header-actions">
-        <div class="lang-toggle" role="group" data-i18n-aria-label="nav.lang">
-          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="true">中文</button>
-          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
-        </div>
-        <button class="nav-toggle" type="button" data-i18n-aria-label="nav.openMenu" aria-expanded="false" aria-controls="site-nav">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
+      <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
+          <span class="nav-pill" aria-hidden="true"></span>
           <a href="index.html" aria-current="page" data-i18n="nav.home">首页</a>
           <a href="features.html" data-i18n="nav.features">功能</a>
           <a href="privacy.html" data-i18n="nav.privacy">隐私</a>
           <a href="docs.html" data-i18n="nav.docs">文档</a>
           <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
-          <a href="download.html" data-i18n="nav.download">下载</a>
-          <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
           <a class="nav-contact" href="index.html#contact" data-contact-open data-i18n="nav.contact">联系我们</a>
-        </nav>
+      </nav>
+      <div class="header-actions">
+        <div class="lang-toggle" role="group" data-i18n-aria-label="nav.lang">
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="true">中</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
+        <button class="nav-toggle" type="button" data-i18n-aria-label="nav.openMenu" aria-expanded="false" aria-controls="site-nav">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
       </div>
     </div>
   </header>
 
   <main>
-    <section class="hero hero--bleed" aria-labelledby="hero-title">
-      <div class="hero-bleed-media" aria-hidden="true">
-        <img
-          src="assets/mockup/hero-bg.webp?v=20261027qr2"
-          srcset="assets/mockup/hero-bg.webp?v=20261027qr2 1024w, assets/mockup/hero-bg@2x.webp?v=20261027qr2 2048w"
-          sizes="100vw"
-          width="2048" height="768"
-          alt=""
-          fetchpriority="high"
-          decoding="async"
-        />
-      </div>
-      <div class="hero-bleed-mask" aria-hidden="true"></div>
-      <div class="container hero-bleed-inner">
+    <section class="hero hero--stage" aria-labelledby="hero-title">
+      <div class="stage-glow" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="container hero-wrap">
         <div class="hero-copy">
           <div class="hero-badge hero-badge--pill"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span> <span data-i18n="hero.eyebrow">你的 AI 工作伙伴</span></div>
           <h1 id="hero-title" data-i18n-html="hero.title">让每一种 AI 能力，<br>都为你所用。</h1>
           <p class="hero-promise" data-i18n="hero.promise">多家模型、编程助手与外部工具，都接到一处，由诺米陪你调度。</p>
           <div class="hero-actions">
             <a class="btn btn-primary btn-lg" href="download.html" data-i18n="hero.download">下载诺米</a>
-            <a class="btn btn-ghost-light btn-lg" href="#pillars" data-i18n="hero.more">了解诺米</a>
+            <a class="btn btn-secondary btn-lg" href="#pillars" data-i18n="hero.more">了解诺米</a>
           </div>
           <p class="hero-role" data-i18n="hero.quote">「我在这里，陪你把每一个任务都变成小小的成就。」</p>
+        </div>
+
+        <!-- Live desktop demo: decorative, the copy on the left carries the message -->
+        <div class="desk" aria-hidden="true" data-desk>
+          <div class="desk-bar"><span class="desk-apple"></span><span class="desk-menu">Nomi</span><span class="desk-clock">9:41</span></div>
+          <div class="desk-wall">
+            <div class="dwin" data-step="win">
+              <div class="dwin-bar"><i></i><i></i><i></i><span>Nomi</span></div>
+              <div class="dwin-body">
+                <div class="dmsg dmsg--me" data-step="ask"><span data-i18n="demo.ask">把登录页的报错修一下，顺便跑下测试</span></div>
+                <div class="dmsg dmsg--nomi" data-step="reply"><span data-type data-i18n="demo.reply">交给 Codex 在独立 worktree 里改，我盯着进度。</span></div>
+                <div class="dtool" data-step="tool">
+                  <span class="dtool-ico">&gt;_</span>
+                  <span class="dtool-name">Codex · worktree</span>
+                  <span class="dtool-state"><span class="dtool-run" data-i18n="demo.running">运行中</span><span class="dtool-done" data-i18n="demo.done">3 个文件已修改 · 测试通过</span></span>
+                  <span class="dtool-bar"><span></span></span>
+                </div>
+              </div>
+              <div class="dwin-input"><span data-i18n="demo.input">输入消息…</span><b></b></div>
+            </div>
+            <div class="dnomi">
+              <div class="dbubble" data-step="b1"><span data-type data-i18n="demo.bubble1">早上好！今天 3 件待办已经排好了。</span></div>
+              <div class="dbubble" data-step="b2"><span data-type data-i18n="demo.bubble2">搞定～要看看改动吗？</span></div>
+              <img src="assets/mockup/demo-nomi.webp" srcset="assets/mockup/demo-nomi.webp 131w, assets/mockup/demo-nomi@2x.webp 263w" sizes="110px" width="131" height="380" alt="" fetchpriority="high" decoding="async" />
+            </div>
+          </div>
+          <div class="desk-dock"><i></i><i></i><i></i><i class="is-nomi"></i><i></i></div>
         </div>
       </div>
     </section>
@@ -104,8 +120,8 @@
             <p data-i18n="pillars.connect.desc">添加一次供应商，Nomi 和 Claude Code、Codex 等编程助手都能用它的任意模型，也可以全部用本地模型。</p>
           </article>
           <article class="pillar">
-            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.act.title">派它去做</h3></div>
-            <p class="pillar-tag" data-i18n="pillars.act.tag">自己动手，也会派活。</p>
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.act.title">从想法到完成</h3></div>
+            <p class="pillar-tag" data-i18n="pillars.act.tag">它亲自上手，也懂得分工。</p>
             <p data-i18n="pillars.act.desc">读写文件、跑命令、查资料、画图；要做一阵子的活派到后台，写代码交给编程助手，按时间或事件持续推进的任务进度随时可看。</p>
           </article>
           <article class="pillar">
@@ -124,11 +140,13 @@
         </div>
         <div class="modes">
           <article class="mode-card">
+            <div class="mode-shot"><img src="assets/screenshots/chat-640.webp?v=20261102s210" srcset="assets/screenshots/chat-640.webp?v=20261102s210 640w, assets/screenshots/chat.webp?v=20261102s210 1280w, assets/screenshots/chat-2x.webp?v=20261102s210 2560w" sizes="(max-width: 700px) 92vw, 520px" width="1280" height="944" alt="对话窗口截图" data-i18n-alt="modes.assistant.alt" loading="lazy" decoding="async" /></div>
             <h3 data-i18n="modes.assistant.title">助手模式</h3>
             <p class="mode-tag" data-i18n="modes.assistant.tag">日常的事，轻松交给诺米。</p>
             <p data-i18n="modes.assistant.desc">聊天、整理待办、阅读文件、梳理思路。保持简单直接的交互，让你专注于当下要做的事。</p>
           </article>
           <article class="mode-card">
+            <div class="mode-shot"><img src="assets/screenshots/coding-agent-640.webp?v=20261102s210" srcset="assets/screenshots/coding-agent-640.webp?v=20261102s210 640w, assets/screenshots/coding-agent.webp?v=20261102s210 1280w, assets/screenshots/coding-agent-2x.webp?v=20261102s210 2560w" sizes="(max-width: 700px) 92vw, 520px" width="1280" height="944" alt="工作台截图" data-i18n-alt="modes.workbench.alt" loading="lazy" decoding="async" /></div>
             <h3 data-i18n="modes.workbench.title">工作台模式</h3>
             <p class="mode-tag" data-i18n="modes.workbench.tag">复杂的事，让 AI 协同完成。</p>
             <p data-i18n="modes.workbench.desc">连接不同的模型与编程助手，切换供应商和会话，执行开发任务，把分散的 AI 工具组织成自己的工作流。</p>
@@ -143,111 +161,111 @@
           <h2 id="sixcaps-title" class="sixcaps-heading"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="sixcaps.label">Nomi 2.0 六大核心能力</span></h2>
           <p class="lead" data-i18n="sixcaps.title">接任意模型 · 自己动手 · 派活给专业 AI · 边界在你手里</p>
         </div>
-        <div class="sixcaps-grid">
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z"/><path d="M7 10l3 2-3 2M12 14h5"/></svg></div>
-            <span class="sixcap-num">01</span>
-            <h3 data-i18n="sixcaps.1.t">编程助手插件化</h3>
-            <p data-i18n="sixcaps.1.d">Claude Code、Codex、Gemini CLI、Grok、dsh 统一接入，多个会话并行；终端、IDE 里开的会话也能接着聊。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-ico" title="Claude"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span>
-              <span class="chip-ico" title="OpenAI"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M17.8 6.2l-2.1 2.1M8.3 15.7l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
-              <span class="chip-ico" title="Gemini"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c2.5 4 4 5.5 8 8-4 2.5-5.5 4-8 8-2.5-4-4-5.5-8-8 4-2.5 5.5-4 8-8z"/></svg></span>
-              <span class="chip-ico" title="X"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg></span>
-              <span class="chip-ico chip-ico--text" title="dsh">dsh</span>
+        <div class="bento-grid">
+          <article class="bento bento--wide">
+            <div class="bento-demo" aria-hidden="true"><div class="d-term">
+                <div class="d-term-tabs"><span>Claude Code</span><span>Codex</span><span>Gemini CLI</span><span>dsh</span></div>
+                <div class="d-term-body">
+                  <p><b>$</b> claude "refactor auth middleware"</p>
+                  <p class="dim">● Reading src/auth/*.ts</p>
+                  <p class="ok">✓ Edited 4 files · 2 sessions in parallel</p>
+                  <p><b>$</b> codex resume --last<span class="caret"></span></p>
+                </div>
+              </div></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">01</span>
+              <h3 data-i18n="sixcaps.1.t">编程助手插件化</h3>
+              <p data-i18n="sixcaps.1.d">Claude Code、Codex、Gemini CLI、Grok、dsh 统一接入，多个会话并行；终端、IDE 里开的会话也能接着聊。</p>
             </div>
           </article>
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12h6M12 9v6"/></svg></div>
-            <span class="sixcap-num">02</span>
-            <h3 data-i18n="sixcaps.2.t">统一网关</h3>
-            <p data-i18n="sixcaps.2.d">四种 API 协议自动互转：在 Claude Code 里直接用 DeepSeek、GLM、Kimi；断线自动重试与回退。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-pill">Messages</span>
-              <span class="chip-pill">Responses</span>
-              <span class="chip-pill">Chat</span>
-              <span class="chip-pill">Gemini</span>
+          <article class="bento ">
+            <div class="bento-demo" aria-hidden="true"><div class="d-gw">
+                <div class="d-gw-col"><span>Messages</span><span>Responses</span><span>Chat</span><span>Gemini</span></div>
+                <div class="d-gw-wires"><i></i><i></i><i></i><i></i></div>
+                <div class="d-gw-hub"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
+                <div class="d-gw-wires d-gw-wires--out"><i></i><i></i><i></i></div>
+                <div class="d-gw-col d-gw-col--out"><span>DeepSeek</span><span>GLM</span><span>Kimi</span></div>
+              </div></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">02</span>
+              <h3 data-i18n="sixcaps.2.t">统一网关</h3>
+              <p data-i18n="sixcaps.2.d">四种 API 协议自动互转：在 Claude Code 里直接用 DeepSeek、GLM、Kimi；断线自动重试与回退。</p>
             </div>
           </article>
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="7" r="1.5"/><circle cx="19" cy="7" r="1.5"/><circle cx="5" cy="17" r="1.5"/><circle cx="19" cy="17" r="1.5"/><path d="M10.2 10.5L6.2 7.8M13.8 10.5l3.8-2.7M10.2 13.5L6.2 16.2M13.8 13.5l3.8 2.7"/></svg></div>
-            <span class="sixcap-num">03</span>
-            <h3 data-i18n="sixcaps.3.t">持续任务与后台派活</h3>
-            <p data-i18n="sixcaps.3.d">交代一次，Nomi 一直记着：按时间或网页、GitHub、文件夹等事件推进；生一组图、写 PPT 这类长活派给后台的 Nomi，代码交给编程助手在隔离的 worktree 里做，进度在任务页可看、可停。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-pill">worktree</span>
-              <span class="chip-pill">Diff</span>
-              <span class="chip-pill">/agent</span>
+          <article class="bento ">
+            <div class="bento-demo" aria-hidden="true"><ul class="d-task">
+                <li><span class="d-dot"></span><span data-i18n="demo.task1">每天 9:00 · 汇总 GitHub 通知</span><span class="d-prog"><span></span></span></li>
+                <li><span class="d-dot"></span><span data-i18n="demo.task2">监听文件夹 · 新发票自动归档</span><span class="d-prog"><span></span></span></li>
+                <li><span class="d-dot"></span><span data-i18n="demo.task3">后台 · 生成 6 张活动海报</span><span class="d-prog"><span></span></span></li>
+              </ul></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">03</span>
+              <h3 data-i18n="sixcaps.3.t">持续任务与后台派活</h3>
+              <p data-i18n="sixcaps.3.d">交代一次，Nomi 一直记着：按时间或网页、GitHub、文件夹等事件推进；生一组图、写 PPT 这类长活派给后台的 Nomi，代码交给编程助手在隔离的 worktree 里做，进度在任务页可看、可停。</p>
             </div>
           </article>
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="6" ry="2.2"/><path d="M6 6v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V6"/><path d="M6 10v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/><path d="M6 14v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/></svg></div>
-            <span class="sixcap-num">04</span>
-            <h3 data-i18n="sixcaps.4.t">多供应商与本地模型</h3>
-            <p data-i18n="sixcaps.4.d">官方、国内、中转、本地多源接入，多 Key 自动切换；按每次请求记账，用量和费用看得见。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-ico" title="Cloud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7.5 17h10a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 7.5 17z"/></svg></span>
-              <span class="chip-ico" title="Server"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><circle cx="8" cy="7" r="0.9" fill="currentColor"/><circle cx="8" cy="17" r="0.9" fill="currentColor"/></svg></span>
-              <span class="chip-ico" title="Local"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
-              <span class="chip-ico" title="Key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="12" r="3"/><path d="M11 12h10v3M17 12v3"/></svg></span>
+          <article class="bento ">
+            <div class="bento-demo" aria-hidden="true"><div class="d-keys">
+                <div class="d-keys-list"><span>sk-…a1f3</span><span>sk-…9c2e</span><span>sk-…77b0</span></div>
+                <div class="d-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                <div class="d-cost"><span data-i18n="demo.today">今日</span> <b>$0.42</b></div>
+              </div></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">04</span>
+              <h3 data-i18n="sixcaps.4.t">多供应商与本地模型</h3>
+              <p data-i18n="sixcaps.4.d">官方、国内、中转、本地多源接入，多 Key 自动切换；按每次请求记账，用量和费用看得见。</p>
             </div>
           </article>
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h9l-2-2M17 17H8l2 2"/><path d="M16 7v4M8 13v4"/></svg></div>
-            <span class="sixcap-num">05</span>
-            <h3 data-i18n="sixcaps.5.t">画图与素材库</h3>
-            <p data-i18n="sixcaps.5.d">Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；生成的图片统一进素材库。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-ico" title="Image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 3"/></svg></span>
-              <span class="chip-ico" title="Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+          <article class="bento ">
+            <div class="bento-demo" aria-hidden="true"><div class="d-img">
+                <div class="d-prompt" data-i18n="demo.prompt">画一组秋天的咖啡海报</div>
+                <div class="d-tiles"><i></i><i></i><i></i><i></i></div>
+              </div></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">05</span>
+              <h3 data-i18n="sixcaps.5.t">画图与素材库</h3>
+              <p data-i18n="sixcaps.5.d">Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；生成的图片统一进素材库。</p>
             </div>
           </article>
-          <article class="sixcap-card">
-            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M8.5 13.5c.8 1.6 2 2.5 3.5 2.5s2.7-.9 3.5-2.5"/></svg></div>
-            <span class="sixcap-num">06</span>
-            <h3 data-i18n="sixcaps.6.t">命令审核与安全</h3>
-            <p data-i18n="sixcaps.6.d">命令先按风险分级，读过网页等外部内容后中风险也要你确认；外发前隐藏密钥，Key 存系统钥匙串。</p>
-            <div class="sixcap-chips" aria-hidden="true">
-              <span class="chip-ico" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/></svg></span>
-              <span class="chip-ico" title="Chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16M7 16v-5M12 16V8M17 16v-8"/></svg></span>
-              <span class="chip-ico" title="Shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg></span>
+          <article class="bento bento--wide">
+            <div class="bento-demo" aria-hidden="true"><div class="d-safe">
+                <div class="d-cmd"><b>$</b> rm -rf ./dist &amp;&amp; curl -X POST …</div>
+                <div class="d-risk"><span class="lo" data-i18n="demo.riskLow">低风险</span><span class="mid" data-i18n="demo.riskMid">中风险</span></div>
+                <div class="d-ask">
+                  <p data-i18n="demo.confirm">读过外部网页，这条命令需要你确认</p>
+                  <div><span class="no" data-i18n="demo.deny">拒绝</span><span class="yes" data-i18n="demo.allow">允许一次</span></div>
+                </div>
+                <div class="d-secret">sk-<span>••••••••</span> <em data-i18n="demo.hidden">外发前已隐藏</em></div>
+              </div></div>
+            <div class="bento-copy">
+              <span class="sixcap-num">06</span>
+              <h3 data-i18n="sixcaps.6.t">命令审核与安全</h3>
+              <p data-i18n="sixcaps.6.d">命令先按风险分级，读过网页等外部内容后中风险也要你确认；外发前隐藏密钥，Key 存系统钥匙串。</p>
             </div>
           </article>
+          <a class="bento bento--more" href="features.html#v2-full">
+            <span class="bento-more-star"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span></span>
+            <span class="bento-more-text" data-i18n="sixcaps.more">了解 2.0 全部能力 →</span>
+          </a>
         </div>
-        <p class="v2caps-more">
-          <a class="text-link" href="features.html#v2-full" data-i18n="sixcaps.more">了解 2.0 全部能力 →</a>
-        </p>
       </div>
     </section>
 
-    <section class="section workflow workflow--bleed" id="workflow" aria-labelledby="workflow-title">
-      <div class="workflow-bleed-media" aria-hidden="true">
-        <img
-          src="assets/mockup/workflow-bg.webp?v=20261025v2fd"
-          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fd 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fd 1672w"
-          sizes="100vw"
-          width="1672" height="470"
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
-      <div class="workflow-bleed-mask" aria-hidden="true"></div>
-      <div class="container workflow-bleed-inner">
-        <div class="workflow-head">
-          <div>
-            <span class="section-label section-label--on-dark"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="workflow.label">Nomi 的工作流</span></span>
-            <h2 id="workflow-title" data-i18n="workflow.title">从工具接入到任务执行，简单高效</h2>
-            <p class="lead" data-i18n="workflow.lead">把分散的 CLI、模型与会话串成一条清晰路径。</p>
-          </div>
+    <section class="section workflow workflow--pipe" id="workflow" aria-labelledby="workflow-title">
+      <div class="container">
+        <div class="section-head section-head--center">
+          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="workflow.label">Nomi 的工作流</span></span>
+          <h2 id="workflow-title" data-i18n="workflow.title">从工具接入到任务执行，简单高效</h2>
+          <p class="lead" data-i18n="workflow.lead">把分散的 CLI、模型与会话串成一条清晰路径。</p>
         </div>
-        <ol class="workflow-steps">
-          <li><span class="wf-num">1</span><strong data-i18n="workflow.1.t">CLI 工具</strong><span data-i18n="workflow.1.d">Claude、Codex、Gemini、Grok、dsh</span></li>
-          <li><span class="wf-num">2</span><strong data-i18n="workflow.2.t">统一网关</strong><span data-i18n="workflow.2.d">协议转换 · 流式响应 · 错误规范化</span></li>
-          <li><span class="wf-num">3</span><strong data-i18n="workflow.3.t">智能路由</strong><span data-i18n="workflow.3.d">模型 · 协议 · 上下文 · 推理参数</span></li>
-          <li><span class="wf-num">4</span><strong data-i18n="workflow.4.t">多供应商</strong><span data-i18n="workflow.4.d">官方 · 国内 · 中转 · 本地 · 多 Key</span></li>
-          <li><span class="wf-num">5</span><strong data-i18n="workflow.5.t">会话接管</strong><span data-i18n="workflow.5.d">热切换 · 升级 · 恢复</span></li>
-          <li><span class="wf-num">6</span><strong data-i18n="workflow.6.t">可观测与安全</strong><span data-i18n="workflow.6.d">追踪 · 限额 · 令牌 · 隔离</span></li>
+        <ol class="pipeline" data-pipeline>
+          <li class="pipe-track" aria-hidden="true"><span class="pipe-fill"></span><span class="pipe-spark"></span></li>
+          <li><span class="pipe-node">1</span><strong data-i18n="workflow.1.t">CLI 工具</strong><span data-i18n="workflow.1.d">Claude、Codex、Gemini、Grok、dsh</span></li>
+          <li><span class="pipe-node">2</span><strong data-i18n="workflow.2.t">统一网关</strong><span data-i18n="workflow.2.d">协议转换 · 流式响应 · 错误规范化</span></li>
+          <li><span class="pipe-node">3</span><strong data-i18n="workflow.3.t">智能路由</strong><span data-i18n="workflow.3.d">模型 · 协议 · 上下文 · 推理参数</span></li>
+          <li><span class="pipe-node">4</span><strong data-i18n="workflow.4.t">多供应商</strong><span data-i18n="workflow.4.d">官方 · 国内 · 中转 · 本地 · 多 Key</span></li>
+          <li><span class="pipe-node">5</span><strong data-i18n="workflow.5.t">会话接管</strong><span data-i18n="workflow.5.d">热切换 · 升级 · 恢复</span></li>
+          <li><span class="pipe-node">6</span><strong data-i18n="workflow.6.t">可观测与安全</strong><span data-i18n="workflow.6.d">追踪 · 限额 · 令牌 · 隔离</span></li>
         </ol>
       </div>
     </section>
@@ -272,27 +290,27 @@
           <h2 id="home-dl-title" data-i18n="page.download.title">支持多平台</h2>
           <p class="lead" data-i18n="page.download.lead">覆盖主流操作系统，随时随地开始使用。</p>
           <p class="home-download-stats" data-i18n="page.download.stats">Go 内核 · 安装包约 39 MB · 启动 30 秒后内存约 177 MiB（macOS Apple 芯片实测）</p>
-          <div class="home-download-cards">
-            <article class="home-dl-card">
+          <div class="home-download-cards" data-dl-cards>
+            <article class="home-dl-card" data-os="win">
               <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
               <h3>Windows</h3>
               <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
               <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-Setup-2.1.0.exe" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+              <span class="dl-alt" aria-hidden="true"></span>
             </article>
-            <article class="home-dl-card">
+            <article class="home-dl-card" data-os="mac">
               <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
               <h3>macOS</h3>
               <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
-              <div class="home-dl-row">
-                <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-2.1.0-arm64.dmg" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
-                <a class="btn btn-primary" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-2.1.0.dmg" rel="noopener noreferrer" target="_blank">Intel</a>
-              </div>
+              <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-2.1.0-arm64.dmg" rel="noopener noreferrer" target="_blank" data-i18n="dl.mac.arm">下载 Apple 芯片版</a>
+              <a class="dl-alt" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-2.1.0.dmg" rel="noopener noreferrer" target="_blank" data-i18n="dl.mac.intel">Intel 芯片版</a>
             </article>
-            <article class="home-dl-card">
-              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
+            <article class="home-dl-card" data-os="linux">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2c-2.3 0-3.7 1.9-3.7 4.5 0 1.2.2 2.1-.6 3.4C6.5 11.8 5 13.9 5 16.6c0 .8.1 1.5.4 2.2-.9.3-1.6.9-1.6 1.6C3.8 21.6 5.9 22 8 22c1.3 0 2.3-.4 2.8-1h2.4c.5.6 1.5 1 2.8 1 2.1 0 4.2-.4 4.2-1.6 0-.7-.7-1.3-1.6-1.6.3-.7.4-1.4.4-2.2 0-2.7-1.5-4.8-2.7-6.7-.8-1.3-.6-2.2-.6-3.4C15.7 3.9 14.3 2 12 2zm0 8.2c1.8 0 3.3 2.4 3.3 5.6 0 3.1-1.5 4.2-3.3 4.2s-3.3-1.1-3.3-4.2c0-3.2 1.5-5.6 3.3-5.6zM10.6 5.4a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6zm2.8 0a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6z"/></svg></div>
               <h3>Linux</h3>
               <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
               <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases/download/v2.1.0/Nomi-2.1.0.AppImage" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+              <span class="dl-alt" aria-hidden="true"></span>
             </article>
           </div>
           <p class="home-download-more"><a href="download.html" data-i18n="platforms.desktop.cta">前往下载页 →</a></p>
