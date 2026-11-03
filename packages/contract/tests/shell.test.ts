@@ -53,6 +53,8 @@ describe('shell · 过程表', () => {
       'gateway.retry': 'mutation',
       'gateway.upsertProvider': 'mutation',
       'gateway.removeProvider': 'mutation',
+      'gateway.reorderProviders': 'mutation',
+      'gateway.setProviderEnabled': 'mutation',
       'gateway.setAssignment': 'mutation',
       'gateway.setOptions': 'mutation',
       'gateway.resetToken': 'mutation',
