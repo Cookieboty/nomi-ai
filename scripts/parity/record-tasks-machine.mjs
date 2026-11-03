@@ -221,6 +221,17 @@ chain('answer_after_restart', mkTask(), [
   E.done(T0 + 7, 2),
 ]);
 
+// 事件触发的执行：重试与重启续跑都沿用原事件批（#240）
+chain('event_key_carried', mkTask(event), [
+  E.trig(T0 + 1, 'event', { eventKey: 'ev1' }),
+  E.slot(T0 + 2),
+  E.fail(T0 + 3, 1),
+  E.slot(T0 + 70_000, 'att_2'),
+  E.restart(T0 + 70_001),
+  E.slot(T0 + 70_002, 'att_3'),
+  E.done(T0 + 70_003, 3),
+]);
+
 const outDir =
   process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/tasks/testdata');
 fs.mkdirSync(outDir, { recursive: true });
