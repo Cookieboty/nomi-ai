@@ -163,7 +163,8 @@ function makePrivacyGuard(realHome, realUser) {
   const needles = [realHome, `/Users/${realUser}`, `\\Users\\${realUser}`];
   if (realUser.length >= 4 && !/^(nomi|demo|user|admin|root)$/i.test(realUser))
     needles.push(realUser);
-  return async (page, name) => {
+  const leaks = (text) => needles.find((n) => n && text.toLowerCase().includes(n.toLowerCase()));
+  const guard = async (page, name) => {
     const text = await page.evaluate(() => {
       const values = [...document.querySelectorAll('input, textarea')].map((el) => el.value);
       const titles = [...document.querySelectorAll('[title]')].map((el) =>
@@ -171,12 +172,33 @@ function makePrivacyGuard(realHome, realUser) {
       );
       return [document.body.innerText, ...values, ...titles].join('\n');
     });
-    const hit = needles.find((n) => n && text.toLowerCase().includes(n.toLowerCase()));
-    if (hit)
-      throw new Error(
-        `[site-shots] ${name}: page shows local identity (${hit.slice(0, 3)}…); not saved`,
-      );
+    const hit = leaks(text);
+    if (hit) throw new PrivacyError(name, hit);
   };
+  /** 文本产物（explore 的无障碍结构）落盘前同样检查 */
+  guard.text = (text, name) => {
+    const hit = leaks(text);
+    if (hit) throw new PrivacyError(name, hit);
+  };
+  return guard;
+}
+
+/** 隐私检查拒绝：调用方不得再为该页面写任何诊断产物 */
+class PrivacyError extends Error {
+  constructor(name, hit) {
+    super(`[site-shots] ${name}: page shows local identity (${hit.slice(0, 3)}…); not saved`);
+    this.name = 'PrivacyError';
+  }
+}
+
+/** 失败诊断截图也先过隐私检查；检查不过或检查本身出错都不写 */
+async function saveDiagnostic(page, guard, file, name) {
+  try {
+    await guard(page, name);
+  } catch {
+    return;
+  }
+  await page.screenshot({ path: file }).catch(() => {});
 }
 
 /** PNG → 三档 WebP：用 Chromium 自带的编码器，不额外引依赖 */
@@ -319,7 +341,7 @@ async function main() {
   const failures = [];
   try {
     if (args.explore) {
-      await explore(page, h, args.out);
+      await explore(page, h, args.out, guard);
     } else {
       for (const scene of SCENES) {
         const wanted = !args.only || args.only.has(scene.name);
@@ -347,9 +369,13 @@ async function main() {
         } catch (e) {
           failures.push(scene.name);
           process.stdout.write(`FAILED\n  ${String(e.message).split('\n')[0]}\n`);
-          await page
-            .screenshot({ path: path.join(args.out, `_failed-${scene.name}.png`) })
-            .catch(() => {});
+          if (e?.name !== 'PrivacyError')
+            await saveDiagnostic(
+              page,
+              guard,
+              path.join(args.out, `_failed-${scene.name}.png`),
+              scene.name,
+            );
           await h.open().catch(() => {});
         }
       }

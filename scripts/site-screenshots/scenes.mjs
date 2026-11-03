@@ -440,18 +440,25 @@ export const SCENES = [
 ];
 
 /** --explore：逐个设置栏 / 入口页输出无障碍结构与截图，写新场景时对照 */
-export async function explore(page, h, outDir) {
+export async function explore(page, h, outDir, guard) {
   const dir = path.join(outDir, 'explore');
   fs.mkdirSync(dir, { recursive: true });
+  /** 先过隐私检查（页面 + 无障碍文本），全部通过才写图片与文本 */
   const dump = async (name) => {
-    await page.screenshot({ path: path.join(dir, `${name}.png`) });
+    await guard(page, name);
     const snap = await page
       .locator('body')
       .ariaSnapshot()
       .catch((e) => String(e));
+    guard.text(snap, name);
+    await page.screenshot({ path: path.join(dir, `${name}.png`) });
     fs.writeFileSync(path.join(dir, `${name}.txt`), snap);
     out(`[explore] ${name}`);
   };
+  const safeDump = (name) =>
+    dump(name).catch((e) =>
+      out(`[explore] ${name} not saved: ${String(e.message).split('\n')[0]}`),
+    );
   for (const s of SCENES.filter((x) => x.seed)) await s.run(h);
   await h.open();
   await h.settings(null);
@@ -469,7 +476,7 @@ export async function explore(page, h, outDir) {
   ];
   for (const label of sections) {
     await h.settings(label).catch(() => {});
-    await dump(`settings-${label.replace(/[\s/·]+/g, '_')}`);
+    await safeDump(`settings-${label.replace(/[\s/·]+/g, '_')}`);
   }
   for (const entry of ['任务', '素材库']) {
     await h.open();
@@ -479,17 +486,23 @@ export async function explore(page, h, outDir) {
       .click()
       .catch(() => {});
     await h.wait(1200);
-    await dump(`entry-${entry}`);
+    await safeDump(`entry-${entry}`);
   }
   // 需要交互才能看到的状态
   const tryDump = async (name, fn) => {
     try {
       await fn();
-      await dump(name);
     } catch (e) {
       out(`[explore] ${name} skipped: ${String(e.message).split('\n')[0]}`);
-      await page.screenshot({ path: path.join(dir, `_skipped-${name}.png`) }).catch(() => {});
+      const ok = await guard(page, name).then(
+        () => true,
+        () => false,
+      );
+      if (ok)
+        await page.screenshot({ path: path.join(dir, `_skipped-${name}.png`) }).catch(() => {});
+      return;
     }
+    await safeDump(name);
   };
   await tryDump('interact-新建任务', async () => {
     await h.open();
@@ -538,6 +551,6 @@ export async function explore(page, h, outDir) {
       .click()
       .catch(() => {});
     await h.wait(1200);
-    await dump(`entry-${entry.replace(/[\s/·]+/g, '_')}`);
+    await safeDump(`entry-${entry.replace(/[\s/·]+/g, '_')}`);
   }
 }
