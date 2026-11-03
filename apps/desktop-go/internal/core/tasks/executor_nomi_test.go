@@ -243,3 +243,61 @@ func TestNomiExecutorPinnedModelRefused(t *testing.T) {
 		t.Fatal("ran on the routed model")
 	}
 }
+
+// #232：后台登记读任务当前授权：运行中收窄 / 撤销立即反映
+func TestNomiExecutorLiveGrant(t *testing.T) {
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var live func() (Grant, bool)
+	var rt *Runtime
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(ctx context.Context, _ []blm.ChatMessage, _ []string, _ map[string]any, emit func(blm.ChatChunk)) error {
+			<-release
+			emit(blm.ChatChunk{Type: "delta", Content: "ok"})
+			return nil
+		},
+		WithBackground: func(ctx context.Context, _ int, _ func(string, string, string) bool, _ []ConnectionGrant, _, _ bool, _ connections.ExternalJournal) context.Context {
+			return ctx
+		},
+		LiveTask: func(id string) *Task {
+			if rec := rt.Get(id); rec != nil {
+				t := rec.Task
+				return &t
+			}
+			return nil
+		},
+		LiveGrant: func(_ context.Context, l func() (Grant, bool), _ bool, _ func([]ConnectionGrant) []ConnectionGrant) {
+			mu.Lock()
+			live = l
+			mu.Unlock()
+		},
+		Ready: func() bool { return true },
+	})
+	n := 0
+	rt = NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"nomi": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
+	tools := []string{"read", "file_write"}
+	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 2, Paths: []string{"/a", "/b"}}}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { mu.Lock(); defer mu.Unlock(); return live != nil })
+	mu.Lock()
+	l := live
+	mu.Unlock()
+	if g, ok := l(); !ok || g.Level != 2 || len(g.Paths) != 2 {
+		t.Fatalf("%+v %v", g, ok)
+	}
+	if r := rt.Command(id, Command{Type: "grant", Grant: &Grant{Level: 1, Paths: []string{"/a"}}}); !r.OK {
+		t.Fatal(r)
+	}
+	if g, ok := l(); !ok || g.Level != 1 || len(g.Paths) != 1 {
+		t.Fatalf("narrowing not live: %+v %v", g, ok)
+	}
+	rt.Command(id, Command{Type: "revoke"})
+	if _, ok := l(); ok {
+		t.Fatal("revoked grant still live")
+	}
+	close(release)
+}

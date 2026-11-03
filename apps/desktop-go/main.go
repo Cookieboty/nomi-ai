@@ -438,6 +438,34 @@ func main() {
 			}
 			return desktop.WithBackground(ctx, run)
 		},
+		LiveTask: func(id string) *tasks.Task {
+			if rec := b8.Tasks.Runtime.Get(id); rec != nil {
+				t := rec.Task
+				return &t
+			}
+			return nil
+		},
+		LiveGrant: func(ctx context.Context, live func() (tasks.Grant, bool), trusted bool, extra func([]tasks.ConnectionGrant) []tasks.ConnectionGrant) {
+			run := desktop.BackgroundFrom(ctx)
+			if run == nil {
+				return
+			}
+			run.Live = func() (desktop.LiveGrant, bool) {
+				g, ok := live()
+				if !ok {
+					return desktop.LiveGrant{}, false
+				}
+				cs := g.Connections
+				if extra != nil {
+					cs = extra(cs)
+				}
+				out := desktop.LiveGrant{Level: g.Level, Paths: g.Paths}
+				for _, c := range cs {
+					out.Connections = append(out.Connections, desktop.ConnGrant{ConnectionID: c.ConnectionID, Capabilities: c.Capabilities, Resources: c.Resources})
+				}
+				return out, true
+			}
+		},
 		Ready: func() bool {
 			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
 			return ok

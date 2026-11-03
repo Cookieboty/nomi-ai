@@ -211,7 +211,7 @@ type guarded struct {
 	inWorkspace bool
 }
 
-func (k *deskKit) guard(p any, need string, allowMissing bool, ws string) (guarded, error) {
+func (k *deskKit) guard(ctx context.Context, p any, need string, allowMissing bool, ws string) (guarded, error) {
 	var g desktop.GuardResult
 	in := false
 	if ws != "" {
@@ -222,7 +222,18 @@ func (k *deskKit) guard(p any, need string, allowMissing bool, ws string) (guard
 	if !g.OK {
 		return guarded{}, toolErr(string(g.Code), g.Message+scopeHint(string(g.Code), need))
 	}
+	if err := k.assertTaskPath(ctx, g.Real); err != nil {
+		return guarded{}, err
+	}
 	return guarded{g, in}, nil
+}
+
+// assertTaskPath：后台任务：全局授权之外，路径还必须在任务授权的文件夹里（#231）
+func (k *deskKit) assertTaskPath(ctx context.Context, real string) error {
+	if !k.d.Broker.WithinTaskPaths(ctx, real) {
+		return toolErr("outside_scope", "「"+filepath.Base(real)+"」不在这个任务授权的文件夹里（后台任务只能访问任务授权的文件夹）")
+	}
+	return nil
 }
 
 func wsFor(ws string, g guarded) string {
@@ -535,7 +546,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_list", i, func() (any, string, error) {
-					g, err := k.guard(i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -582,7 +593,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_stat", i, func() (any, string, error) {
-					g, err := k.guard(i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -613,7 +624,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_read_text", i, func() (any, string, error) {
-					g, err := k.guard(i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -653,7 +664,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_summarize", i, func() (any, string, error) {
-					g, err := k.guard(i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -704,6 +715,23 @@ func (k *deskKit) baseTools() []tools.Definition {
 					if e == nil {
 						return nil, "", toolErr("nothing_to_undo", "没有可撤销的操作")
 					}
+					// 后台任务：撤销会动到的路径也要在任务授权的文件夹里（#231）
+					for _, op := range e.Inverse {
+						var ps []string
+						switch op.Op {
+						case "move":
+							ps = []string{op.From, op.To}
+						case "restore":
+							ps = []string{op.Original}
+						case "trash", "truncate":
+							ps = []string{op.Path}
+						}
+						for _, p := range ps {
+							if err := k.assertTaskPath(ctx, p); err != nil {
+								return nil, "", err
+							}
+						}
+					}
 					if p := j.Check(*e); p != "" {
 						return nil, "", toolErr("conflict", p)
 					}
@@ -727,7 +755,7 @@ func (k *deskKit) search(ctx context.Context, i *u.Obj, ec tools.ExecContext) (a
 	var roots []string
 	switch {
 	case i.Has("root"):
-		g, err := k.guard(i.Get("root"), "read", false, ws)
+		g, err := k.guard(ctx, i.Get("root"), "read", false, ws)
 		if err != nil {
 			return nil, "", err
 		}
@@ -788,6 +816,9 @@ func (k *deskKit) search(ctx context.Context, i *u.Obj, ec tools.ExecContext) (a
 			if !g.OK {
 				continue
 			}
+			if !b.WithinTaskPaths(ctx, g.Real) {
+				continue
+			}
 			if re != nil && !re.MatchString(d.Name()) {
 				continue
 			}
@@ -826,9 +857,9 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 	var t target
 	var err error
 	if mode == "create" {
-		t, err = k.guardTarget(str0(i, "path"), ws)
+		t, err = k.guardTarget(ctx, str0(i, "path"), ws)
 	} else {
-		t.g, err = k.guard(i.Get("path"), "write", true, ws)
+		t.g, err = k.guard(ctx, i.Get("path"), "write", true, ws)
 	}
 	if err != nil {
 		return nil, "", err
@@ -857,10 +888,10 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 		return nil, "", err
 	}
 	if len(t.newDirs) > 0 {
-		if _, err := k.makeDirs(t.plan, ws); err != nil {
+		if _, err := k.makeDirs(ctx, t.plan, ws); err != nil {
 			return nil, "", err
 		}
-		if g, err = k.guard(i.Get("path"), "write", true, ws); err != nil {
+		if g, err = k.guard(ctx, i.Get("path"), "write", true, ws); err != nil {
 			return nil, "", err
 		}
 	}
@@ -929,7 +960,7 @@ func writeExcl(p, text string) error {
 func (k *deskKit) trash(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
 	b := k.d.Broker
 	ws := b.WorkspaceOf(k.cwd(ec))
-	g, err := k.guard(i.Get("path"), "write", false, ws)
+	g, err := k.guard(ctx, i.Get("path"), "write", false, ws)
 	if err != nil {
 		return nil, "", err
 	}

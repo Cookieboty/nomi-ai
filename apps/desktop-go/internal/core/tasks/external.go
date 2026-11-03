@@ -13,6 +13,8 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"unicode/utf16"
 
@@ -78,7 +80,41 @@ type externalJournal struct {
 	seqLoaded bool
 }
 
-func (j *externalJournal) checkpoint() error {
+// GrantAllows：当前授权是否还允许这个对外动作：对外动作要 L4；GitHub 写还要这条连接的这项能力覆盖这个仓库。
+// MCP 的逐个工具授权由 broker 在调用时按当前授权判（派给 Nomi 的高级权限在运行时补授权）
+func GrantAllows(t Task, a connections.ExternalAction) bool {
+	if t.Grant.Level < 4 {
+		return false
+	}
+	if !strings.HasPrefix(a.Action, "github.") {
+		return true
+	}
+	conn, repo := "", ""
+	if a.Target != nil {
+		if s, ok := a.Target.Get("connectionId").(string); ok {
+			conn = s
+		}
+		if s, ok := a.Target.Get("repo").(string); ok {
+			repo = strings.ToLower(s)
+		}
+	}
+	for _, g := range t.Grant.Connections {
+		if conn != "" && g.ConnectionID != conn {
+			continue
+		}
+		if !slices.Contains(g.Capabilities, a.Action) {
+			continue
+		}
+		for _, r := range g.Resources {
+			if strings.ToLower(r) == repo {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (j *externalJournal) checkpoint(a connections.ExternalAction) error {
 	rec := j.get(j.taskID)
 	if rec == nil {
 		return &connections.ExternalCheckpointError{}
@@ -88,11 +124,15 @@ func (j *externalJournal) checkpoint() error {
 		len(rec.Attempts) == 0 || rec.Attempts[len(rec.Attempts)-1].ID != j.attemptID {
 		return &connections.ExternalCheckpointError{}
 	}
+	// 投递前按任务「当前」授权再核一次：运行中收窄了就不发（#232）
+	if !GrantAllows(t, a) {
+		return &connections.ExternalCheckpointError{}
+	}
 	return nil
 }
 
 func (j *externalJournal) Run(a connections.ExternalAction, fn func(key string) (any, string, error)) (any, error) {
-	if err := j.checkpoint(); err != nil {
+	if err := j.checkpoint(a); err != nil {
 		return nil, err
 	}
 	j.mu.Lock()

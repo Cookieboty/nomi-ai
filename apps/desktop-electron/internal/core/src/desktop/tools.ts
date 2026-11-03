@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'async_hooks';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -149,7 +150,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
   ): Promise<ToolResult<T>> {
     const t0 = Date.now();
     try {
-      const { data, decision } = await body();
+      // 这次调用的 signal：路径守卫据此找后台任务，按任务授权的文件夹收窄（#231）
+      const { data, decision } = await callSignal.run(signal, body);
       audit.append({
         tool,
         args: args as Record<string, unknown>,
@@ -195,7 +197,17 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       ? await broker.guardWorkspaceOrGranted(ws, p, need, allowMissing)
       : { g: await broker.guard(p, need, allowMissing), inWorkspace: false };
     if (!g.ok) throw new ToolError(g.code, g.message + scopeHint(g.code, need));
+    await assertTaskPath(g.real);
     return { ...g, inWorkspace };
+  }
+
+  /** 后台任务：全局授权之外，路径还必须在任务授权的文件夹里（#231） */
+  async function assertTaskPath(real: string) {
+    if (!(await broker.withinTaskPaths(callSignal.getStore(), real)))
+      throw new ToolError(
+        'outside_scope',
+        `「${path.basename(real)}」不在这个任务授权的文件夹里（后台任务只能访问任务授权的文件夹）`,
+      );
   }
 
   /** 没有授权时告诉模型怎么办（不然它常常直接回答「我不能创建文件」） */
@@ -619,6 +631,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
                 ? (await broker.guardWorkspaceOrGranted(ws, full, 'read')).g
                 : await broker.guard(full, 'read');
               if (!g.ok) continue; // 黑名单文件
+              if (!(await broker.withinTaskPaths(ctx.signal, g.real))) continue;
               if (re && !re.test(d.name)) continue;
               const st = await fs.promises.stat(full);
               if (needle) {
@@ -996,6 +1009,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         return run('undo_last', {}, ctx.signal, async () => {
           const e = journal.last();
           if (!e) throw new ToolError('nothing_to_undo', '没有可撤销的操作');
+          for (const p of inversePaths(e.inverse)) await assertTaskPath(p);
           const problem = journal.check(e);
           if (problem) throw new ToolError('conflict', problem);
           const decision = await confirm(
@@ -1035,6 +1049,20 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       }),
     );
   return tools;
+}
+
+/** 当前工具调用的 AbortSignal（run 里设置，跨 await 保持） */
+const callSignal = new AsyncLocalStorage<AbortSignal | undefined>();
+
+/** 撤销会动到的路径（后台任务按任务文件夹检查） */
+function inversePaths(ops: InverseOp[]): string[] {
+  const out: string[] = [];
+  for (const op of ops) {
+    if (op.op === 'move') out.push(op.from, op.to);
+    else if (op.op === 'restore') out.push(op.original);
+    else if (op.op === 'trash' || op.op === 'truncate') out.push(op.path);
+  }
+  return out;
 }
 
 const STYLE_HINT: Record<string, string> = {

@@ -139,6 +139,11 @@ type NomiDeps struct {
 	// trusted = 高级权限（派给 Nomi 的执行，§7.4）；
 	// external = 这次执行的副作用日志（对外工具执行前写 intent、成功后写 done），可为 nil
 	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context
+	// LiveGrant：把任务「当前」的授权接到后台登记上（运行中收窄立即生效，#232；文件夹范围 #231）。
+	// 参数是本次登记的上下文（WithBackground 的返回值）与读当前授权的函数；可为空
+	LiveGrant func(ctx context.Context, live func() (Grant, bool), trusted bool, extraConns func([]ConnectionGrant) []ConnectionGrant)
+	// LiveTask：任务当前状态（LiveGrant 用）；可为空
+	LiveTask func(taskID string) *Task
 	// ExternalJournal：这次执行的副作用日志（Service.ExternalJournal）；nil = 不登记
 	ExternalJournal func(taskID, attemptID string) connections.ExternalJournal
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
@@ -363,6 +368,23 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 			conns = append(slices.Clone(conns), McpGrantsFor(tools)...)
 		}
 		ctx = e.d.WithBackground(base, t.Grant.Level, ask, conns, a.Cause.Kind == "event", elevated, external)
+		if e.d.LiveGrant != nil && e.d.LiveTask != nil {
+			gen := run.gen
+			live := func() (Grant, bool) {
+				cur := e.d.LiveTask(t.ID)
+				if cur == nil || cur.Gen != gen || cur.Grant.RevokedAt != nil ||
+					(cur.Status != StatusRunning && cur.Status != StatusWaitingUser) {
+					return Grant{}, false
+				}
+				return cur.Grant, true
+			}
+			var extra func([]ConnectionGrant) []ConnectionGrant
+			if elevated {
+				mcp := McpGrantsFor(tools)
+				extra = func(cs []ConnectionGrant) []ConnectionGrant { return append(slices.Clone(cs), mcp...) }
+			}
+			e.d.LiveGrant(ctx, live, elevated, extra)
+		}
 	}
 	progress := run.progress
 	go e.consume(ctx, run, tools, progress)

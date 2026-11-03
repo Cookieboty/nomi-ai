@@ -576,6 +576,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         toolNames: () => services.aiRuntime?.client.tools.list().map((t) => t.name) ?? [],
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        liveTask: (id) => tasks.runtime.get(id)?.task ?? null,
         externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),
         eventsFor: (id, key) => tasks.eventBatch(id, key),
         costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),

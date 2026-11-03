@@ -93,6 +93,43 @@ describe('desktop tools', () => {
     expect(String(r.data!.text)).toContain('Ship the desktop tools');
   });
 
+  it('后台任务：全局授权之外还要落在任务授权的文件夹里；收窄立即生效（#231 #232）', async () => {
+    const t = setup();
+    const other = path.join(t.root, 'other');
+    fs.mkdirSync(other);
+    fs.writeFileSync(path.join(other, 'b.txt'), 'B');
+    fs.symlinkSync(path.join(other, 'b.txt'), path.join(t.docs, 'link-to-b.txt'));
+    // A（docs）与 B（other）都有全局授权
+    t.broker.grant(t.docs, 'read');
+    t.broker.grant(other, 'read');
+    const ctrl = new AbortController();
+    let paths: string[] = [t.docs];
+    t.broker.registerBackground(ctrl.signal, {
+      level: 1,
+      ask: async () => false,
+      get paths() {
+        return paths;
+      },
+    });
+    const read = (p: string) => t.call('fs_read_text', { path: p }, ctrl.signal);
+    expect((await read(path.join(t.docs, 'todo.txt'))).ok).toBe(true);
+    expect((await read(path.join(other, 'b.txt'))).error?.code).toBe('outside_scope');
+    expect((await read(path.join(t.docs, '..', 'other', 'b.txt'))).error?.code).toBe(
+      'outside_scope',
+    );
+    expect((await read(path.join(t.docs, 'link-to-b.txt'))).ok).toBe(false);
+    const listed = await t.call('fs_search', { name: '*.txt' }, ctrl.signal);
+    expect(listed.ok).toBe(true);
+    const hits = ((listed.data?.results ?? []) as { path: string }[]).map((h) => h.path);
+    expect(hits.some((h) => h.startsWith(other))).toBe(false);
+    expect(hits.some((h) => h.endsWith('todo.txt'))).toBe(true);
+    // 前台对话不受任务文件夹影响
+    expect((await t.call('fs_read_text', { path: path.join(other, 'b.txt') })).ok).toBe(true);
+    // 运行中收窄：空的任务文件夹 = 什么都不能读
+    paths = [];
+    expect((await read(path.join(t.docs, 'todo.txt'))).error?.code).toBe('outside_scope');
+  });
+
   it('list / stat / search', async () => {
     const t = setup();
     t.broker.grant(t.docs, 'read');

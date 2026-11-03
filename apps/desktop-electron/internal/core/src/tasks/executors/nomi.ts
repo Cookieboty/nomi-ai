@@ -129,6 +129,8 @@ export interface NomiExecutorDeps {
   }): AsyncIterable<ChatChunk>;
   /** PermissionBroker.registerBackground */
   registerBackground(signal: AbortSignal, run: BackgroundRun): () => void;
+  /** 任务的当前状态（运行中收窄授权立即生效，#232）；缺省时按启动时的快照 */
+  liveTask?(taskId: string): Task | null;
   /** 这次执行的副作用日志（TaskService.externalJournal） */
   externalJournal?(taskId: string, attemptId: string): ExternalJournal;
   /** Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集） */
@@ -249,12 +251,33 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     const { task, attempt, report } = run.ctx;
     const tools = toolsForTask(task, d.toolNames?.() ?? []);
     const elevated = task.executor.kind === 'nomi' && task.executor.toolset === 'conversation';
-    const level = task.grant.level as GrantLevel;
+    // 每次读都取任务当前的授权：收窄（等级、连接、文件夹）立即生效；任务已换代 / 撤销 / 不在跑时一律不放行
+    const live = () => {
+      if (!d.liveTask) return task.grant;
+      const cur = d.liveTask(task.id);
+      if (
+        !cur ||
+        cur.gen !== run.gen ||
+        cur.grant.revokedAt !== undefined ||
+        (cur.status !== 'running' && cur.status !== 'waiting_user')
+      )
+        return null;
+      return cur.grant;
+    };
     const unregister = d.registerBackground(run.ctrl.signal, {
-      level,
-      connections: elevated
-        ? [...task.grant.connections, ...mcpGrantsFor(tools)]
-        : task.grant.connections,
+      get level() {
+        return (live()?.level ?? 0) as GrantLevel;
+      },
+      get connections() {
+        const g = live();
+        if (!g) return [];
+        return elevated ? [...g.connections, ...mcpGrantsFor(tools)] : g.connections;
+      },
+      // 普通任务：文件工具只认任务授权的文件夹（#231）；派给 Nomi 的高级权限按工作区（§7.4）。
+      // 必须是对象自身的 getter（展开 {...} 会把 getter 求值成快照）
+      get paths() {
+        return elevated ? undefined : (live()?.paths ?? []);
+      },
       ...(elevated ? { trusted: true } : {}),
       ...(d.externalJournal ? { external: d.externalJournal(task.id, attempt.id) } : {}),
       // 事件触发的执行读过外部内容：写入与命令都问人（§8.4）

@@ -64,6 +64,23 @@ export function openIntents(journal: readonly JournalEntry[], attemptId: string)
   return [...open.values()];
 }
 
+/**
+ * 当前授权是否还允许这个对外动作：对外动作要 L4；GitHub 写还要这条连接的这项能力覆盖这个仓库。
+ * MCP 的逐个工具授权由 PermissionBroker 在调用时按当前授权判（派给 Nomi 的高级权限在运行时补授权）。
+ */
+export function grantAllows(t: Task, a: ExternalAction): boolean {
+  if (t.grant.level < 4) return false;
+  if (!a.action.startsWith('github.')) return true;
+  const conn = typeof a.target.connectionId === 'string' ? a.target.connectionId : undefined;
+  const repo = typeof a.target.repo === 'string' ? a.target.repo.toLowerCase() : '';
+  return t.grant.connections.some(
+    (g) =>
+      (!conn || g.connectionId === conn) &&
+      g.capabilities.includes(a.action) &&
+      g.resources.some((r) => r.toLowerCase() === repo),
+  );
+}
+
 export function createExternalJournal(d: {
   store: Pick<TaskStore, 'append' | 'journal'>;
   get(id: string): TaskRecord | null;
@@ -72,7 +89,7 @@ export function createExternalJournal(d: {
   now: () => number;
 }): ExternalJournal {
   let seq: number | null = null;
-  const checkpoint = () => {
+  const checkpoint = (a: ExternalAction) => {
     const rec = d.get(d.taskId);
     const t: Task | undefined = rec?.task;
     if (
@@ -83,10 +100,12 @@ export function createExternalJournal(d: {
       rec!.attempts.at(-1)?.id !== d.attemptId
     )
       throw new ExternalCheckpointError('task_not_running');
+    // 投递前按任务「当前」授权再核一次：运行中收窄了就不发（#232）
+    if (!grantAllows(t, a)) throw new ExternalCheckpointError('not_granted');
   };
   return {
     async run(a, fn) {
-      checkpoint();
+      checkpoint(a);
       if (seq === null)
         seq = d.store
           .journal(d.taskId)

@@ -23,6 +23,60 @@ type BackgroundRun struct {
 	// Trusted：高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
 	// 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
 	Trusted bool
+	// Paths：任务授权的文件夹（§8.3）：文件工具的路径（realpath 后）还必须落在其中之一（#231）。
+	// nil = 不额外收窄（高级权限的委派执行，§7.4）；空切片 = 不许碰任何文件
+	Paths []string
+	// Live：任务「当前」的授权（运行中收窄立即生效，#232）；nil 时用上面的快照。
+	// ok=false：任务已换代 / 撤销 / 不在跑，一律不放行
+	Live func() (g LiveGrant, ok bool)
+}
+
+// LiveGrant：任务当前的授权
+type LiveGrant struct {
+	Level       int
+	Connections []ConnGrant
+	Paths       []string
+}
+
+// level / conns / paths：读任务当前授权（有 Live 时），否则用登记时的快照
+func (r *BackgroundRun) level() int {
+	if r.Live == nil {
+		return r.Level
+	}
+	if g, ok := r.Live(); ok {
+		return g.Level
+	}
+	return 0
+}
+
+func (r *BackgroundRun) conns() []ConnGrant {
+	if r.Live == nil {
+		return r.Connections
+	}
+	if g, ok := r.Live(); ok {
+		return g.Connections
+	}
+	return nil
+}
+
+// CurrentConnections：经连接的工具按任务当前授权收窄
+func (r *BackgroundRun) CurrentConnections() []ConnGrant { return r.conns() }
+
+// taskPaths：nil = 不收窄
+func (r *BackgroundRun) taskPaths() []string {
+	if r.Trusted {
+		return nil
+	}
+	if r.Live == nil {
+		return r.Paths
+	}
+	if g, ok := r.Live(); ok {
+		if g.Paths == nil {
+			return []string{}
+		}
+		return g.Paths
+	}
+	return []string{}
 }
 
 // ConnGrant：授权里引用连接的方式
@@ -56,8 +110,9 @@ func BackgroundExternal(ctx context.Context) connections.ExternalJournal {
 }
 
 func (r *BackgroundRun) grants() []connections.Grant {
-	out := make([]connections.Grant, 0, len(r.Connections))
-	for _, g := range r.Connections {
+	cs := r.conns()
+	out := make([]connections.Grant, 0, len(cs))
+	for _, g := range cs {
 		out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 	}
 	return out
@@ -65,7 +120,7 @@ func (r *BackgroundRun) grants() []connections.Grant {
 
 // hasGithubExternal：授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
 func (r *BackgroundRun) hasGithubExternal() bool {
-	for _, g := range r.Connections {
+	for _, g := range r.conns() {
 		for _, c := range g.Capabilities {
 			if strings.HasPrefix(c, "github.") && connections.IsExternalCapability(c) {
 				return true
@@ -97,7 +152,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 		if granted == "read" {
 			return "auto"
 		}
-		if run.Level < externalLevel {
+		if run.level() < externalLevel {
 			return "denied"
 		}
 		if run.Trusted || (!b.IsTainted(i.Signal) && !run.Tainted) {
@@ -117,6 +172,10 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 		if i.Signal.Err() != nil || !ok {
 			return "denied"
 		}
+		// 等批准期间授权可能被收窄：按当前授权再核一次（#232）
+		if run.level() < externalLevel || connections.McpGranted(run.grants(), server, tool, i.McpReadOnly) != granted {
+			return "denied"
+		}
 		return "allowed"
 	}
 	if i.Danger == "read" && i.Force == nil {
@@ -127,7 +186,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if command {
 		need = commandLevel
 	}
-	if run.Level < need {
+	if run.level() < need {
 		return "denied"
 	}
 	detail := i.Summary
@@ -141,7 +200,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if command {
 		cls = ClassifyCommand(cmdText)
 	}
-	if cls == "credential" || cls == "never" || (cls == "external" && (run.Level < externalLevel || !run.hasGithubExternal())) {
+	if cls == "credential" || cls == "never" || (cls == "external" && (run.level() < externalLevel || !run.hasGithubExternal())) {
 		detail = "[" + cls + "] " + detail
 	} else if command {
 		if cmd, cwd, ok := b.reviewableBackground(i); ok {
@@ -173,10 +232,41 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if i.Signal.Err() != nil {
 		return "denied"
 	}
+	// 等批准期间授权可能被收窄：按当前授权再核一次（#232）
+	if run.level() < need {
+		return "denied"
+	}
 	if ok {
 		return "allowed"
 	}
 	return "denied"
+}
+
+// WithinTaskPaths：后台执行的路径还要落在任务授权的文件夹里（与全局授权求交集，#231）；
+// 前台对话或不收窄的（高级权限）总是 true。real 是 GuardPath 解析过的真实路径
+func (b *PermissionBroker) WithinTaskPaths(ctx context.Context, real string) bool {
+	run := BackgroundFrom(ctx)
+	if run == nil {
+		return true
+	}
+	roots := run.taskPaths()
+	if roots == nil {
+		return true
+	}
+	for _, r := range roots {
+		root := r
+		rp := b.envBase.Realpath
+		if rp == nil {
+			rp = RealpathNative
+		}
+		if v, err := rp(r); err == nil {
+			root = v
+		}
+		if IsInside(real, root, b.envBase.Platform) {
+			return true
+		}
+	}
+	return false
 }
 
 // reviewableBackground：后台不看前台的「计划」档，其余条件同 reviewable

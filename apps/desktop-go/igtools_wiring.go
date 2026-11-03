@@ -134,7 +134,7 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 					return nil, false
 				}
 				out := []connections.Grant{}
-				for _, g := range run.Connections {
+				for _, g := range run.CurrentConnections() {
 					out = append(out, connections.Grant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 				}
 				return out, true

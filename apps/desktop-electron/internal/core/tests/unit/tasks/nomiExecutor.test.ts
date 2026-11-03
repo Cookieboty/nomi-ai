@@ -44,7 +44,9 @@ function setup(
   let bg: BackgroundRun | null = null;
   const traces: Record<string, unknown>[] = [];
   let n = 0;
+  let rtRef: TaskRuntime | null = null;
   const exec = createNomiExecutor({
+    liveTask: (id) => rtRef?.get(id)?.task ?? null,
     agentStream: (o) => {
       calls.push({
         tools: o.tools,
@@ -84,6 +86,7 @@ function setup(
     logger: { info: () => undefined, warn: () => undefined },
     deliver: () => undefined,
   });
+  rtRef = rt;
   rt.start();
   return { rt, calls, traces, bg: () => bg, clock };
 }
@@ -139,7 +142,14 @@ describe('nomi 执行者：派给 Nomi（对话的工具集）', () => {
     const h = setup(
       scriptedStream([
         async () => {
-          seen = getBg();
+          // 执行中取一份（level / connections 是实时 getter，执行结束后就不再放行）
+          const bg = getBg()!;
+          seen = {
+            ...bg,
+            level: bg.level,
+            connections: bg.connections,
+            paths: bg.paths,
+          } as BackgroundRun;
         },
         { type: 'delta', content: 'ok' },
         { type: 'done', finishReason: 'stop' },
@@ -389,6 +399,40 @@ describe('nomi 执行者', () => {
     await flush();
     expect(h.calls).toHaveLength(0);
     expect(h.rt.get(id)!.task.status).toBe('waiting_user');
+  });
+
+  it('运行中收窄授权立即生效：后台登记读的是任务当前的等级、连接与文件夹（#232 #231）', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const h = setup(scriptedStream([async () => held, { type: 'delta', content: '完成' }]));
+    const id = h.rt.create(
+      baseInput({
+        executor: { kind: 'nomi', tools: ['read', 'file_write'] },
+        grant: {
+          level: 4,
+          paths: ['/a', '/b'],
+          connections: [
+            { connectionId: 'gh', capabilities: ['github.comment'], resources: ['o/r'] },
+          ],
+        },
+      }),
+    ).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    const bg = h.bg()!;
+    expect(bg.level).toBe(4);
+    expect(bg.paths).toEqual(['/a', '/b']);
+    expect(bg.connections).toHaveLength(1);
+    h.rt.command(id, { type: 'grant', grant: { level: 1, paths: ['/a'], connections: [] } });
+    expect(h.rt.get(id)!.task.status).toBe('running');
+    expect(bg.level).toBe(1);
+    expect(bg.paths).toEqual(['/a']);
+    expect(bg.connections).toEqual([]);
+    h.rt.command(id, { type: 'revoke' });
+    expect(bg.level).toBe(0);
+    expect(bg.paths).toEqual([]);
+    release();
+    await flush();
   });
 
   it('上游错误归类：429 / 5xx / 网络可重试，其余不重试', () => {
