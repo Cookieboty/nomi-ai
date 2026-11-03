@@ -19,7 +19,7 @@
   "ai-runtime.providers.preset-xai": "xAI Grok",
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow 硅基流动",
-  "ai-runtime.providers.preset-amux": "Amux",
+  "ai-runtime.providers.preset-amux": "Amux AI",
   "ai-runtime.providers.preset-ollama": "Ollama（本地）",
   "ai-runtime.providers.preset-lmstudio": "LM Studio（本地）",
   "ai-runtime.providers.hint-custom": "手动填写请求地址和 API Key",
