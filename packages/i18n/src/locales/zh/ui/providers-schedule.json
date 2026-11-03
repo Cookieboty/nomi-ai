@@ -100,6 +100,7 @@
   "ui.providers-schedule.monitor": "监视 {0}",
   "ui.providers-schedule.names-only-such-as-my-token-values-are": "只写名字（如 MY_TOKEN），值从启动 Nomi 的环境里继承，Nomi 不保存。",
   "ui.providers-schedule.new-tab": "新建标签",
+  "ui.providers-schedule.new-tab-source-hint": "新建 {0} 标签时默认用哪个账号或第三方供应商；每个标签仍可单独切换。",
   "ui.providers-schedule.new-task": "新建任务",
   "ui.providers-schedule.next": "{0} {1} · 下次 {2}{3}",
   "ui.providers-schedule.no": "否",

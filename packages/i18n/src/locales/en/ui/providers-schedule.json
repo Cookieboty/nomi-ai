@@ -100,6 +100,7 @@
   "ui.providers-schedule.monitor": "Monitor {0}",
   "ui.providers-schedule.names-only-such-as-my-token-values-are": "Names only (such as MY_TOKEN). Values are inherited from the environment Nomi was started in, and Nomi doesn’t store them.",
   "ui.providers-schedule.new-tab": "New tab",
+  "ui.providers-schedule.new-tab-source-hint": "Which account or third-party provider new {0} tabs use by default; each tab can still switch.",
   "ui.providers-schedule.new-task": "New task",
   "ui.providers-schedule.next": "{0} {1} · next {2}{3}",
   "ui.providers-schedule.no": "no",

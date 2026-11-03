@@ -1,56 +1,96 @@
-/* 内联「添加第三方供应商」表单：设置 →「模型」页与新手引导共用 */
+/* 「添加第三方供应商」：设置 →「模型」页（弹窗）与新手引导（内联）共用 */
 .root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
+
+/* 第一步：分组卡片 */
+.group {
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-2);
 }
-.chips {
+.groupTitle {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cd-space-1-5);
-  max-height: 132px;
-  overflow-y: auto;
+  align-items: baseline;
+  gap: var(--cd-space-2);
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
 }
-.chip {
+.groupHint {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-regular);
+  color: var(--cd-color-text-subtle);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--cd-space-2);
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  height: var(--cd-control-h-lg);
+  padding: 0 var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-settings-card-bg);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
+}
+.card:hover {
+  border-color: var(--cd-color-accent);
+  background: var(--cd-control-hover-bg);
+}
+.card:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
+.cardName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 第二步：选中的那一家 + 字段 */
+.chosen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-3);
+  padding-bottom: var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-panel-border);
+}
+.chosenName {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface);
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-medium);
   color: var(--cd-color-text);
-  font-size: var(--cd-font-size-sm);
-  cursor: pointer;
-}
-.chip:hover {
-  border-color: var(--cd-color-accent);
-}
-.chipOn {
-  border-color: var(--cd-color-accent-strong);
-  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
-  background: var(--cd-color-selected-bg);
-  color: var(--cd-color-selected-text);
 }
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
-}
-.input {
-  height: var(--cd-control-h-md, 34px);
-  padding: 0 var(--cd-space-3);
-  border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-sunken);
-  color: var(--cd-color-text);
-  font-size: var(--cd-font-size-md);
-  outline: none;
-}
-.input:focus {
-  border-color: var(--cd-color-accent);
-  box-shadow: var(--cd-focus-ring);
+  gap: var(--cd-space-3);
 }
 .note {
   margin: 0;
@@ -62,38 +102,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--cd-space-2);
-}
-.primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--cd-control-h-md);
-  padding: 0 var(--cd-space-5);
-  border: 0;
-  border-radius: var(--cd-radius-md);
-  background: var(--cd-color-accent);
-  color: var(--cd-color-text-on-accent);
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-bold);
-  cursor: pointer;
-}
-.primary:hover {
-  background: var(--cd-color-accent-hover);
-}
-.primary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-.link {
-  background: none;
-  border: 0;
-  padding: 0 var(--cd-space-1);
-  color: var(--cd-color-accent-strong);
-  font-size: var(--cd-font-size-sm);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .error {
   font-size: var(--cd-font-size-xs);
@@ -108,5 +118,10 @@
 @keyframes provider-form-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
   }
 }

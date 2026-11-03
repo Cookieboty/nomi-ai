@@ -7,13 +7,6 @@
   gap: var(--cd-space-4);
 }
 
-.head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  gap: var(--cd-space-4);
-}
-
 .sub {
   margin: var(--cd-space-1) 0 0;
   font-size: var(--cd-font-size-sm);
@@ -48,12 +41,46 @@
   cursor: pointer;
 }
 
+/* 页底「高级」：显示协议、严格模式、请求体上限 */
 .advanced {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  margin-top: var(--cd-space-3);
+}
+
+/* 「分配 → 更多用途」：收起时一行摘要，点开列出工具调用 / 摘要 / 图片生成 */
+.moreUses {
+  grid-column: 2 / -1;
+  display: inline-flex;
+  align-items: center;
   gap: var(--cd-space-1);
-  margin-top: calc(-1 * var(--cd-space-2));
+  min-width: 0;
+  min-height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+.moreUses:hover {
+  background: var(--cd-control-hover-bg);
+  color: var(--cd-color-text);
+}
+.moreUses:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.moreUsesText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inlineField {
@@ -149,15 +176,6 @@
 
 /* 供应商详情里「添加回退模型」 */
 
-.cliHead {
-  margin-top: var(--cd-space-3);
-  min-height: 0;
-  padding-bottom: var(--cd-space-1);
-  border-bottom: 1px solid var(--cd-panel-border);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
-}
-
 /* 没安装：名称与说明变灰，「安装」按钮保持可用的样子 */
 .cliMissing .cliName,
 .cliMissing .muted {
@@ -177,24 +195,11 @@
   white-space: nowrap;
 }
 
-.source {
-  width: 100%;
-}
-
 .expand {
   justify-self: start;
-  gap: var(--cd-space-1);
-  padding: 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
   white-space: nowrap;
 }
 
-.expand,
-.expand:hover {
-  background: var(--cd-control-hover-bg);
-}
-
-.expand:focus-visible,
 .advToggle:focus-visible,
 .providerMain:focus-visible,
 .presetCard:focus-visible {
@@ -277,8 +282,8 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  /* 名称 | 协议 | Key 数 | 模型数 | 箭头：各行列宽固定，数字右对齐 */
-  grid-template-columns: minmax(9em, 1fr) minmax(0, 1fr) 64px 72px 14px;
+  /* 名称 | 协议 | Key 与模型数 | 箭头：各行列宽固定，数字右对齐 */
+  grid-template-columns: minmax(9em, 1fr) minmax(0, auto) 132px 14px;
   align-items: center;
   gap: var(--cd-space-3);
   min-height: var(--cd-control-h-md);
@@ -295,7 +300,6 @@
   background: var(--cd-control-hover-bg);
 }
 
-.expand,
 .providerMain,
 .presetCard,
 .advToggle {

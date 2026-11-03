@@ -231,7 +231,7 @@
   "ui.chat-settings.models": "{0} models",
   "ui.chat-settings.models-and-providers": "Models & providers",
   "ui.chat-settings.models-and-providers-sections": "Models & providers sections",
-  "ui.chat-settings.models-each-coding-assistant-uses-in-third-party": "New tabs for each coding assistant can use the CLI default, an official account, or a third-party provider; set the third-party model here.",
+  "ui.chat-settings.models-each-coding-assistant-uses-in-third-party": "Models each coding assistant uses when a tab is set to third-party; what new sessions use is set on the Coding assistants page.",
   "ui.chat-settings.more-endpoints": "More endpoints ({0})",
   "ui.chat-settings.move-or-rename": "Move or rename",
   "ui.chat-settings.move-to-trash": "Move to trash",

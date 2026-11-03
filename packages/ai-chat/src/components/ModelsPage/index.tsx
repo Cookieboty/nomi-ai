@@ -1,9 +1,21 @@
 /**
  * 设置 →「模型」页（docs/design/unified-gateway.md §4.1）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
- * - 分配：Nomi 对话（main / tools / summary）；各编程助手的第三方模型（标签选「第三方」时用）与「新标签默认用」；
+ * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各编程助手的第三方模型（标签选「第三方」时用）；
+ *   「新会话默认用」在「编程助手」页各助手的详情里；
+ * - 「显示协议」「严格模式」「请求体上限」都在页底的「高级」里（排查问题时才用）；
  * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
-import { BrandIcon, Button, Icon, Input, ModelPicker, Select, Switch, t } from '@nomi-ai/ui';
+import {
+  BrandIcon,
+  Button,
+  Icon,
+  Input,
+  Modal,
+  ModalHostContext,
+  ModelPicker,
+  Switch,
+  t,
+} from '@nomi-ai/ui';
 import {
   AlertCircle,
   GripVertical,
@@ -20,15 +32,7 @@ import {
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
-import { useCliAccounts } from '../../hooks/useCliAccounts';
-import {
-  CLI_KINDS,
-  newTabOptions,
-  newTabPatch,
-  newTabSelectValue,
-  providerOfRef,
-  type CliKind,
-} from '../../services/cliSource';
+import { CLI_KINDS, providerOfRef, type CliKind } from '../../services/cliSource';
 import {
   gatewayClient,
   WIRE_LABEL,
@@ -94,8 +98,10 @@ export const ModelsPage: React.FC = () => {
   const [openCli, setOpenCli] = useState<CliKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
-  /** 模型页顶部「高级」：请求体上限等 */
+  /** 页底「高级」：显示协议、严格模式、请求体上限 */
   const [showAdvanced, setShowAdvanced] = useState(false);
+  /** 「分配」里的工具调用 / 摘要 / 图片生成（默认收起，只显示一行摘要） */
+  const [showMoreUses, setShowMoreUses] = useState(false);
 
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -145,76 +151,27 @@ export const ModelsPage: React.FC = () => {
   const freshProvider = providers.find((p) => p.id === fresh) ?? null;
   const freshModels =
     freshProvider?.models.filter((m) => m.enabled && m.toolCalling !== false) ?? [];
-  const showForm = adding || (Boolean(state) && !providers.length);
+  /** 还没有供应商：表单直接铺在卡片里（这时它就是页面的主要内容）；已有供应商时「添加」打开弹窗 */
+  const showForm = Boolean(state) && !providers.length;
   const noModels = !picker.length;
+  /** 还没有供应商：卡片标题带步骤编号（1 加供应商 → 2 分配）；配好以后不再显示 */
+  const onboarding = Boolean(state) && !providers.length;
+  /** 模型引用 → 「供应商 / 模型」 */
+  const refLabel = (ref: string) => {
+    const pid = providerOfRef(ref);
+    const p = pid ? providers.find((x) => x.id === pid) : undefined;
+    return p ? `${providerDisplayName(p.name)} / ${ref.slice(pid!.length + 1)}` : ref;
+  };
+  /** 「更多用途」收起时的一行摘要 */
+  const moreUsesSummary = [
+    `${t('ui.models.tool-calls')}：${nomi.tools ? refLabel(nomi.tools) : t('ui.models.same-as-chat')}`,
+    `${t('ui.models.summaries')}：${nomi.summary ? refLabel(nomi.summary) : t('ui.models.same-as-chat')}`,
+    `${t('ui.models.image-generation')}：${nomi.image ? refLabel(nomi.image) : t('ui.models.image-auto')}`,
+  ].join(' · ');
 
   const status = state?.status;
   return (
     <div className={styles.page} data-testid="models-page">
-      <div className={styles.head}>
-        <label className={styles.inlineSwitch}>
-          <Switch checked={showWire} onChange={setShowWire} aria-label={t('ui.models.show-apis')} />
-          <span>{t('ui.models.show-apis')}</span>
-        </label>
-        <label
-          className={styles.inlineSwitch}
-          title={t('ui.models.when-on-parameters-the-model-doesn-t-support')}
-        >
-          <Switch
-            checked={state?.strictParams === true}
-            onChange={(v) => run(gatewayClient.setOptions({ strictParams: v }))}
-            disabled={!state}
-            aria-label={t('ui.models.strict-mode')}
-            data-testid="models-strict"
-          />
-          <span>{t('ui.models.strict-mode')}</span>
-        </label>
-        <button
-          type="button"
-          className={styles.advancedToggle}
-          aria-expanded={showAdvanced}
-          data-testid="models-advanced-toggle"
-          onClick={() => setShowAdvanced((v) => !v)}
-        >
-          <Icon icon={showAdvanced ? ChevronDown : ChevronRight} size={14} />
-          <span>{t('ui.models.advanced')}</span>
-        </button>
-      </div>
-      {showAdvanced && (
-        <div className={styles.advanced} data-testid="models-advanced">
-          <label
-            className={styles.inlineField}
-            title={t('ui.models.posts-over-the-limit-get-413-default-32')}
-          >
-            <span>{t('ui.models.request-body-limit')}</span>
-            <Input
-              size="sm"
-              type="number"
-              min={1}
-              max={256}
-              step={1}
-              inputMode="numeric"
-              className={styles.bodyLimitInput}
-              disabled={!state}
-              value={Math.round((state?.maxRequestBodyBytes ?? 32 * 1024 * 1024) / (1024 * 1024))}
-              onChange={(e) => {
-                const mib = Number(e.target.value);
-                if (!Number.isFinite(mib)) return;
-                run(
-                  gatewayClient.setOptions({
-                    maxRequestBodyBytes: Math.round(mib * 1024 * 1024),
-                  }),
-                );
-              }}
-              aria-label={t('ui.models.request-body-limit')}
-              data-testid="models-body-limit"
-            />
-            <span className={styles.muted}>{t('ui.models.mib')}</span>
-          </label>
-          <p className={styles.sub}>{t('ui.models.posts-over-the-limit-get-413-default-32')}</p>
-        </div>
-      )}
-
       {status?.state === 'failed' && (
         <div className={styles.offer} role="alert" data-testid="gateway-failed">
           <Icon icon={AlertCircle} size={14} />
@@ -257,7 +214,7 @@ export const ModelsPage: React.FC = () => {
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>
           <h3 id="models-providers" className={styles.cardTitle}>
-            <span className={styles.stepNo}>1</span>
+            {onboarding && <span className={styles.stepNo}>1</span>}
             <Icon icon={Boxes} size={16} />
             {t('ui.models.third-party-providers')}
           </h3>
@@ -265,7 +222,7 @@ export const ModelsPage: React.FC = () => {
             size="sm"
             variant="secondary"
             onClick={() => setAdding(true)}
-            disabled={!state || showForm}
+            disabled={!state || showForm || adding}
             data-testid="add-provider"
           >
             <Icon icon={Plus} size={14} />
@@ -277,13 +234,7 @@ export const ModelsPage: React.FC = () => {
             {t('ui.models.no-third-party-providers-yet-add-one-and')}
           </p>
         )}
-        {showForm && (
-          <ProviderForm
-            idPrefix="models"
-            onSaved={onSaved}
-            onCancel={providers.length ? () => setAdding(false) : undefined}
-          />
-        )}
+        {showForm && <ProviderForm idPrefix="models" onSaved={onSaved} />}
         {sortable.length > 1 && (
           <p className={styles.sub} data-testid="providers-order-hint">
             {t('ui.models.provider-order-hint')}
@@ -296,6 +247,7 @@ export const ModelsPage: React.FC = () => {
               key={p.id}
               p={p}
               onOpen={() => setEditing(p.id)}
+              showWire={showWire}
               onToggle={(on) => run(gatewayClient.setProviderEnabled(p.id, on))}
               order={
                 i >= 0 && sortable.length > 1
@@ -333,7 +285,7 @@ export const ModelsPage: React.FC = () => {
         data-state={noModels ? 'disabled' : 'ready'}
       >
         <h3 id="models-assign" className={styles.cardTitle}>
-          <span className={styles.stepNo}>2</span>
+          {onboarding && <span className={styles.stepNo}>2</span>}
           <Icon icon={Waypoints} size={16} />
           {t('ui.models.assignments')}
         </h3>
@@ -388,51 +340,72 @@ export const ModelsPage: React.FC = () => {
         </div>
         <div className={styles.row}>
           <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-            {t('ui.models.tool-calls')}
+            {t('ui.models.more-uses')}
           </span>
-          <ModelPicker
-            {...common}
-            className={styles.picker}
-            extraOptions={SAME_AS_CHAT}
-            value={nomi.tools ?? FOLLOW}
-            onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
-            disabled={!picker.length}
-            aria-label={t('ui.models.model-for-tool-calls')}
-            data-testid="assign-tools"
-          />
+          <button
+            type="button"
+            className={styles.moreUses}
+            aria-expanded={showMoreUses}
+            data-testid="models-more-uses"
+            onClick={() => setShowMoreUses((v) => !v)}
+          >
+            <Icon icon={showMoreUses ? ChevronDown : ChevronRight} size={14} />
+            <span className={styles.moreUsesText}>
+              {showMoreUses ? t('ui.knowledge-local.collapse') : moreUsesSummary}
+            </span>
+          </button>
         </div>
-        <div className={styles.row}>
-          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-            {t('ui.models.summaries')}
-          </span>
-          <ModelPicker
-            {...common}
-            className={styles.picker}
-            extraOptions={SAME_AS_CHAT}
-            value={nomi.summary ?? FOLLOW}
-            onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
-            disabled={!picker.length}
-            aria-label={t('ui.models.model-for-summaries')}
-            data-testid="assign-summary"
-          />
-        </div>
-        <div className={styles.row}>
-          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-            {t('ui.models.image-generation')}
-          </span>
-          <ModelPicker
-            {...common}
-            providers={imagePicker}
-            className={styles.picker}
-            extraOptions={AUTO_IMAGE}
-            value={nomi.image ?? UNSET}
-            onChange={(v) => assign({ image: v === UNSET ? null : v })}
-            disabled={!imagePicker.length}
-            placeholder={t('ui.models.no-image-models')}
-            aria-label={t('ui.models.model-for-image-generation')}
-            data-testid="assign-image"
-          />
-        </div>
+        {showMoreUses && (
+          <>
+            <div className={styles.row}>
+              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+                {t('ui.models.tool-calls')}
+              </span>
+              <ModelPicker
+                {...common}
+                className={styles.picker}
+                extraOptions={SAME_AS_CHAT}
+                value={nomi.tools ?? FOLLOW}
+                onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
+                disabled={!picker.length}
+                aria-label={t('ui.models.model-for-tool-calls')}
+                data-testid="assign-tools"
+              />
+            </div>
+            <div className={styles.row}>
+              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+                {t('ui.models.summaries')}
+              </span>
+              <ModelPicker
+                {...common}
+                className={styles.picker}
+                extraOptions={SAME_AS_CHAT}
+                value={nomi.summary ?? FOLLOW}
+                onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
+                disabled={!picker.length}
+                aria-label={t('ui.models.model-for-summaries')}
+                data-testid="assign-summary"
+              />
+            </div>
+            <div className={styles.row}>
+              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+                {t('ui.models.image-generation')}
+              </span>
+              <ModelPicker
+                {...common}
+                providers={imagePicker}
+                className={styles.picker}
+                extraOptions={AUTO_IMAGE}
+                value={nomi.image ?? UNSET}
+                onChange={(v) => assign({ image: v === UNSET ? null : v })}
+                disabled={!imagePicker.length}
+                placeholder={t('ui.models.no-image-models')}
+                aria-label={t('ui.models.model-for-image-generation')}
+                data-testid="assign-image"
+              />
+            </div>
+          </>
+        )}
       </section>
 
       <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
@@ -440,21 +413,12 @@ export const ModelsPage: React.FC = () => {
           <Icon icon={SquareTerminal} size={16} />
           {t('ui.providers-schedule.coding-agents')}
         </h3>
-        <p className={styles.sub}>
-          {t('ui.models.each-coding-assistant-tab-can-choose-official-account')}
-        </p>
-        <div className={`${styles.cliRow} ${styles.cliHead}`}>
-          <span />
-          <span>{t('ui.models.third-party-models')}</span>
-          <span />
-          <span>{t('ui.models.new-sessions-use')}</span>
-        </div>
+        <p className={styles.sub}>{t('ui.models.cli-models-hint')}</p>
         {CLI_KINDS.map((kind) => (
           <CliRow
             key={kind}
             kind={kind}
             client={state?.clients[kind]}
-            gateway={state ?? null}
             common={common}
             disabled={!picker.length}
             open={openCli === kind}
@@ -468,7 +432,87 @@ export const ModelsPage: React.FC = () => {
       </section>
       {cli.dialog}
 
+      <section className={styles.card} data-testid="models-advanced-card">
+        <button
+          type="button"
+          className={styles.advancedToggle}
+          aria-expanded={showAdvanced}
+          data-testid="models-advanced-toggle"
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
+          <Icon icon={showAdvanced ? ChevronDown : ChevronRight} size={14} />
+          <span>{t('ui.models.advanced')}</span>
+        </button>
+        {showAdvanced && (
+          <div className={styles.advanced} data-testid="models-advanced">
+            <label className={styles.inlineSwitch}>
+              <Switch
+                checked={showWire}
+                onChange={setShowWire}
+                aria-label={t('ui.models.show-apis')}
+                data-testid="models-show-wire"
+              />
+              <span>{t('ui.models.show-apis')}</span>
+            </label>
+            <label className={styles.inlineSwitch}>
+              <Switch
+                checked={state?.strictParams === true}
+                onChange={(v) => run(gatewayClient.setOptions({ strictParams: v }))}
+                disabled={!state}
+                aria-label={t('ui.models.strict-mode')}
+                data-testid="models-strict"
+              />
+              <span>{t('ui.models.strict-mode')}</span>
+            </label>
+            <p className={styles.sub}>
+              {t('ui.models.when-on-parameters-the-model-doesn-t-support')}
+            </p>
+            <label className={styles.inlineField}>
+              <span>{t('ui.models.request-body-limit')}</span>
+              <Input
+                size="sm"
+                type="number"
+                min={1}
+                max={256}
+                step={1}
+                inputMode="numeric"
+                className={styles.bodyLimitInput}
+                disabled={!state}
+                value={Math.round((state?.maxRequestBodyBytes ?? 32 * 1024 * 1024) / (1024 * 1024))}
+                onChange={(e) => {
+                  const mib = Number(e.target.value);
+                  if (!Number.isFinite(mib)) return;
+                  run(
+                    gatewayClient.setOptions({
+                      maxRequestBodyBytes: Math.round(mib * 1024 * 1024),
+                    }),
+                  );
+                }}
+                aria-label={t('ui.models.request-body-limit')}
+                data-testid="models-body-limit"
+              />
+              <span className={styles.muted}>{t('ui.models.mib')}</span>
+            </label>
+            <p className={styles.sub}>{t('ui.models.posts-over-the-limit-get-413-default-32')}</p>
+          </div>
+        )}
+      </section>
+
       <TerminalCommandsCard />
+
+      {adding && providers.length > 0 && (
+        <ModalHostContext.Provider value={null}>
+          <Modal
+            open
+            onClose={() => setAdding(false)}
+            size="lg"
+            title={t('ui.models.add-third-party-provider')}
+            data-testid="models-add-provider-dialog"
+          >
+            <ProviderForm idPrefix="models" onSaved={onSaved} onCancel={() => setAdding(false)} />
+          </Modal>
+        </ModalHostContext.Provider>
+      )}
 
       <ProviderDetailDialog
         provider={editingProvider}
@@ -493,7 +537,6 @@ export const ModelsPage: React.FC = () => {
 const CliRow: React.FC<{
   kind: CliKind;
   client: GatewayState['clients'][CliKind];
-  gateway: GatewayState | null;
   common: Pick<React.ComponentProps<typeof ModelPicker>, 'providers' | 'showWire' | 'size'>;
   disabled: boolean;
   open: boolean;
@@ -507,7 +550,6 @@ const CliRow: React.FC<{
 }> = ({
   kind,
   client,
-  gateway,
   common,
   disabled,
   open,
@@ -519,7 +561,6 @@ const CliRow: React.FC<{
 }) => {
   const m = client?.models ?? {};
   const name = ENDPOINT_NAME[kind];
-  const { accounts, error: accountsError } = useCliAccounts(kind);
   if (missing)
     return (
       <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
@@ -545,13 +586,6 @@ const CliRow: React.FC<{
   const source = client?.newTabSource ?? 'official';
   // eslint-disable-next-line nomi/no-cli-literal -- 各档模型（opus / sonnet / haiku / fable）是 Claude Code 独有的配置
   const claude = kind === 'claude';
-  const newTabCtx = { kind, client, gateway, accounts };
-  const sourceOptions = newTabOptions(newTabCtx);
-  const sourceValue = newTabSelectValue(client, kind);
-  const pickSource = (value: string) => {
-    const patch = newTabPatch(value, newTabCtx);
-    if (patch) onAssign(patch as CliAssignPatch);
-  };
   const setMain = (v: string) => {
     if (v !== UNSET) {
       // 主模型本身带有供应商；选模型就同时把「新标签默认」切到该供应商，
@@ -595,8 +629,9 @@ const CliRow: React.FC<{
           aria-label={t('ui.models.third-party-model', name)}
           data-testid={`cli-main-${kind}`}
         />
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="ghost"
           className={styles.expand}
           aria-expanded={open}
           data-testid={claude ? 'cli-tiers-toggle' : `cli-more-${kind}`}
@@ -604,29 +639,8 @@ const CliRow: React.FC<{
         >
           <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
           {claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}
-        </button>
-        <Select
-          size="sm"
-          className={styles.source}
-          options={sourceOptions}
-          value={sourceValue}
-          onChange={(e) => pickSource(e.target.value)}
-          aria-label={t('ui.models.new-sessions-use-named', name)}
-          data-testid={`cli-source-${kind}`}
-          menuMinWidth={240}
-          title={accountsError ? t('ui.models.failed-to-load-accounts', accountsError) : undefined}
-        />
+        </Button>
       </div>
-      {accountsError ? (
-        <div
-          className={`${styles.cliRow} ${styles.tierRow}`}
-          data-testid={`cli-accounts-error-${kind}`}
-        >
-          <span className={styles.muted}>
-            {t('ui.models.failed-to-load-accounts', accountsError)}
-          </span>
-        </div>
-      ) : null}
       {open && (
         <>
           {claude &&
@@ -705,7 +719,9 @@ const ProviderRow: React.FC<{
   };
   /** 列表上直接启用 / 停用（环境变量供应商没有） */
   onToggle?: (enabled: boolean) => void;
-}> = ({ p, onOpen, order, onToggle }) => {
+  /** 「高级 → 显示协议」：列出各协议名 */
+  showWire?: boolean;
+}> = ({ p, onOpen, order, onToggle, showWire }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
   const fromEnv = p.source === 'env';
   const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
@@ -795,16 +811,29 @@ const ProviderRow: React.FC<{
               <span className={styles.badgeMuted}>{t('ui.slash-commands.disabled')}</span>
             )}
           </span>
-          <span className={styles.wires}>
-            {wires.map((w) => (
-              <span key={w} className={styles.wireTag}>
-                <Icon icon={Check} size={12} />
-                {WIRE_LABEL[w]}
-              </span>
-            ))}
+          {/* 协议：平时只显示几种（悬停看名字），「高级 → 显示协议」打开时列出来 */}
+          {showWire ? (
+            <span className={styles.wires}>
+              {wires.map((w) => (
+                <span key={w} className={styles.wireTag}>
+                  <Icon icon={Check} size={12} />
+                  {WIRE_LABEL[w]}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span
+              className={styles.count}
+              title={wires.map((w) => WIRE_LABEL[w]).join(' · ')}
+              data-testid={`provider-wires-${p.id}`}
+            >
+              {wires.length ? t('ui.models.wires-count', String(wires.length)) : ''}
+            </span>
+          )}
+          <span className={styles.count}>
+            {t('ui.models.keys', String(p.keys.length))} ·{' '}
+            {t('ui.models.models', String(enabledCount))}
           </span>
-          <span className={styles.count}>{t('ui.models.keys', String(p.keys.length))}</span>
-          <span className={styles.count}>{t('ui.models.models', String(enabledCount))}</span>
           <Icon icon={ChevronRight} size={14} />
         </button>
         {!fromEnv && onToggle && (

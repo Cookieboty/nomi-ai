@@ -8,6 +8,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ModelsPage } from '../src/components/ModelsPage';
+import { NewTabSourceRow } from '../src/components/ProvidersPage/NewTabSourceRow';
 import type {
   DetectResult,
   GatewayState,
@@ -295,6 +296,20 @@ describe('ModelsPage', () => {
     );
   });
 
+  it('with providers already set up, 添加 opens the form in a dialog; with none it stays inline', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi({ models: [{ id: 'kimi-k3', enabled: true }] })];
+    render(<ModelsPage />);
+    const add = await screen.findByTestId('add-provider');
+    expect(screen.queryByTestId('models-provider-picker')).toBeNull();
+    fireEvent.click(add);
+    const dialog = await screen.findByTestId('models-add-provider-dialog');
+    expect(within(dialog).getByTestId('models-provider-picker')).toBeTruthy();
+    fireEvent.click(within(dialog).getByTestId('models-preset-custom'));
+    fireEvent.click(within(dialog).getByTestId('models-provider-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('models-add-provider-dialog')).toBeNull());
+  });
+
   it('image generation: lists only image models (even disabled ones) and saves clients.nomi.models.image', async () => {
     const m = fakeMain();
     m.state.providers = [
@@ -307,6 +322,10 @@ describe('ModelsPage', () => {
     ];
     m.state.clients.nomi = { models: { main: 'kimi/kimi-k3' } };
     render(<ModelsPage />);
+    // 工具调用 / 摘要 / 图片生成收在「更多用途」里；收起时有一行摘要
+    const more = await screen.findByTestId('models-more-uses');
+    expect(more.textContent).toContain('图片生成');
+    fireEvent.click(more);
     const image = (await screen.findByTestId('assign-image')) as HTMLSelectElement;
     const values = (el: HTMLSelectElement) => [...el.options].map((o) => o.value);
     expect(values(image)).toEqual(['unset', 'kimi/gpt-image-2']);
@@ -463,6 +482,8 @@ describe('ModelsPage', () => {
       target: { value: 'https://relay.example.com/v1/chat/completions' },
     });
     expect(save.disabled).toBe(false);
+    // 两步：先回到分组列表再选别的
+    fireEvent.click(screen.getByTestId('models-provider-back'));
     fireEvent.click(screen.getByTestId('models-preset-ollama'));
     expect(screen.getByText('本地服务不需要 Key。')).toBeTruthy();
     fireEvent.click(screen.getByTestId('models-provider-save'));
@@ -992,6 +1013,9 @@ describe('ModelsPage', () => {
       },
     });
     render(<ModelsPage />);
+    // 严格模式在页底「高级」里
+    expect(screen.queryByTestId('models-strict')).toBeNull();
+    fireEvent.click(await screen.findByTestId('models-advanced-toggle'));
     const sw = await screen.findByTestId('models-strict');
     await waitFor(() => expect((sw as HTMLButtonElement).disabled).toBe(false));
     expect(sw.getAttribute('aria-checked')).toBe('false');
@@ -1199,7 +1223,14 @@ describe('ModelsPage', () => {
     it('新标签默认用：默认（本机登录）/ 官方账号（跟随默认或指定账号）/ 第三方供应商三组；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
-      render(<ModelsPage />);
+      // 「新会话默认用」在「编程助手」页各助手的详情里；主模型仍在「模型」页
+      render(
+        <>
+          <ModelsPage />
+          <NewTabSourceRow kind="grok" />
+        </>,
+      );
+      expect(within(screen.getByTestId('models-cli')).queryByTestId('cli-source-grok')).toBeNull();
       const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
       const values = () => Array.from(src.options).map((o) => o.value);
       // 默认 = 本机登录；官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）

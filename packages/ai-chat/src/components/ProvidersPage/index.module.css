@@ -313,3 +313,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* 设置行说明里的一行错误（加载账号 / 保存失败） */
+.rowError {
+  display: block;
+  margin-top: var(--cd-space-1);
+  color: var(--cd-color-danger-text);
+}
