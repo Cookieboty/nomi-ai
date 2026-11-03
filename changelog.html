@@ -56,6 +56,41 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v211">
+          <header class="release-head">
+            <h2 data-i18n="cl.v211.title">v2.1.1 — 自动故障转移、从网页添加第三方供应商、浅色与深色主题</h2>
+            <time datetime="2026-11-03">2026-11-03</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v211.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v211.feat.1">自动故障转移：同一个模型配了多家第三方供应商时，一家返回 429 / 5xx 或超时，先在同一个 Key 上稍等重连，再按列表顺序换到下一家；等待时对话里会显示「ProvA 返回 503，换到 ProvB 继续」，回复底部写的是实际回答的那一家</li>
+            <li data-i18n="cl.v211.feat.2">「模型」页可以拖动调整供应商顺序（排在前面的先用），每行都有启用开关，停用的直接跳过</li>
+            <li data-i18n="cl.v211.feat.3">从网页添加第三方供应商：中转站或模型平台网页上的「添加到 Nomi」链接点一下，确认后就加好；也支持网页授权（在对方网站登录同意，Key 不出现在链接里），「设置 → 模型与供应商 → 网页授权」填网址即可；已有同地址的会更新它，不重复添加</li>
+            <li data-i18n="cl.v211.feat.4">浅色与深色主题，新安装默认浅色</li>
+            <li data-i18n="cl.v211.feat.5">新对话自动起标题：发出第一条消息后用当前聊天模型起一个简短的标题；不想多请求一次模型，可以在「设置 → 隐私与权限」关掉，改用第一句话</li>
+            <li data-i18n="cl.v211.feat.6">每个会话的输入框草稿分开保存，切换会话不会串</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v211.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v211.imp.1">「模型」页重做：添加供应商时按官方厂商 / 三方平台 / 本地 / 其他地址分组；编辑分左右两栏，模型可以搜索、筛选、批量开关；Nomi AI 与编程助手放在同一组卡片里</li>
+            <li data-i18n="cl.v211.imp.2">新建任务的表单分左右两栏，可以限定任务能访问的文件夹；任务的文件工具只在这些文件夹里，收窄授权立即生效</li>
+            <li data-i18n="cl.v211.imp.3">「用量与分析」：模型数据同步挪到这里，可以立即同步；默认美元兑人民币汇率 6.75</li>
+            <li data-i18n="cl.v211.imp.4">「编程助手」页改为两栏，左侧固定列表；Nomi 设置页加宽</li>
+            <li data-i18n="cl.v211.imp.5">桌面操作记录保留 30 天并分页显示</li>
+            <li data-i18n="cl.v211.imp.6">侧栏「本机历史」默认折叠</li>
+            <li data-i18n="cl.v211.imp.7">编程助手标签按第一句话起标题，助手自己的会话标题出来后会替换它</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v211.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v211.fix.1">Nomi 把活交给编程助手（如 Codex）后，改过的文件会列在子任务卡片里，点开就能预览，Markdown 显示排版后的样子</li>
+            <li data-i18n="cl.v211.fix.2">桌面角色的确认气泡出现时，台词气泡先让开，不再叠在一起</li>
+            <li data-i18n="cl.v211.fix.3">很快的回复显示真实用时，不再显示「0ms」</li>
+            <li data-i18n="cl.v211.fix.4">任务：准备工作副本时取消或撤销会立即生效；重试与续跑保留触发它的事件；Nomi 任务固定使用预设模型</li>
+            <li data-i18n="cl.v211.fix.5">Codex 配置里引用的文件会带进各个账号；用 gh 登录的 GitHub 连接在使用前会重新核对当前账号</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.1.1" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v210">
           <header class="release-head">
             <h2 data-i18n="cl.v210.title">v2.1.0 — 持续任务、派给后台的 Nomi、应用与账号</h2>
