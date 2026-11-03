@@ -18,20 +18,10 @@ import {
   ModalHostContext,
   ModelPicker,
   Select,
-  Switch,
-  Textarea,
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  ChevronRight,
-  KeyRound,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -53,6 +43,7 @@ import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 import { ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
+import { ProviderKeysSection } from './ProviderKeysSection';
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 import { NON_CHAT, storedProbes } from './providerSetup';
 
@@ -507,176 +498,20 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 </label>
               )}
 
-              {/* ---------------- Key ---------------- */}
-              <section className={styles.section} aria-labelledby="pd-keys">
-                <h4 id="pd-keys" className={styles.groupTitle}>
-                  {t('ui.models.keys-fallback-in-order')}
-                </h4>
-                {!d.keys.length && (
-                  <span className={styles.muted}>{t('ui.models.no-key-needed')}</span>
-                )}
-                {(readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys).map(
-                  (k, i) => {
-                    const view = p.keys.find((x) => x.id === k.id);
-                    const label = keyName({ name: k.name || view?.name }, i);
-                    const replacing = 'replace' in k && k.replace !== undefined;
-                    const nameIsKey = !readOnly && !!view && !replacing && looksLikeKey(k.name);
-                    return (
-                      <div
-                        key={k.id}
-                        className={styles.keyItem}
-                        data-testid={
-                          'value' in k && k.value !== undefined ? 'pd-new-key' : `pd-key-${k.id}`
-                        }
-                      >
-                        <div className={styles.keyRow}>
-                          {!readOnly && (
-                            <span className={styles.orderBtns}>
-                              <IconButton
-                                size="sm"
-                                label={t('ui.models.move-up', label)}
-                                icon={<Icon icon={ArrowUp} size={14} />}
-                                disabled={i === 0}
-                                onClick={() => moveKey(i, -1)}
-                                data-focus-id={`key-${k.id}-up`}
-                                data-testid={`pd-key-up-${k.id}`}
-                              />
-                              <IconButton
-                                size="sm"
-                                label={t('ui.models.move-down', label)}
-                                icon={<Icon icon={ArrowDown} size={14} />}
-                                disabled={i === d.keys.length - 1}
-                                onClick={() => moveKey(i, 1)}
-                                data-focus-id={`key-${k.id}-down`}
-                                data-testid={`pd-key-down-${k.id}`}
-                              />
-                            </span>
-                          )}
-                          {readOnly ? (
-                            <span className={styles.keyName}>{label}</span>
-                          ) : (
-                            <Input
-                              size="sm"
-                              className={styles.keyNameInput}
-                              value={k.name}
-                              placeholder={keyName({}, i)}
-                              onChange={(e) => setKey(i, { name: e.target.value })}
-                              aria-label={t('ui.models.name-of', label)}
-                            />
-                          )}
-                          {'value' in k && typeof k.value === 'string' && (
-                            <span className={styles.badgeSoft}>{t('ui.models.new')}</span>
-                          )}
-                          {replacing && (
-                            <span className={styles.badgeSoft}>{t('ui.models.replacing')}</span>
-                          )}
-                          <code className={styles.masked}>
-                            {'value' in k && typeof k.value === 'string'
-                              ? k.value.length > 8
-                                ? `${k.value.slice(0, 3)}…${k.value.slice(-4)}`
-                                : '…'
-                              : view?.masked}
-                          </code>
-                          {!readOnly && (
-                            <>
-                              {view && (
-                                <IconButton
-                                  size="sm"
-                                  label={
-                                    replacing
-                                      ? t('ui.models.cancel-replacing', label)
-                                      : t('ui.models.replace', label)
-                                  }
-                                  icon={<Icon icon={KeyRound} size={14} />}
-                                  aria-pressed={replacing}
-                                  onClick={() => setKey(i, { replace: replacing ? undefined : '' })}
-                                  data-testid={`pd-key-replace-${k.id}`}
-                                />
-                              )}
-                              <Switch
-                                checked={k.enabled}
-                                onChange={(v) => setKey(i, { enabled: v })}
-                                aria-label={t('ui.foundation.enable', label)}
-                              />
-                              <IconButton
-                                size="sm"
-                                label={t('ui.knowledge-local.delete', label)}
-                                icon={<Icon icon={Trash2} size={14} />}
-                                onClick={() => deleteKey(i)}
-                                data-testid={`pd-key-delete-${k.id}`}
-                              />
-                            </>
-                          )}
-                        </div>
-                        {replacing && (
-                          <Input
-                            size="sm"
-                            autoFocus
-                            autoComplete="off"
-                            spellCheck={false}
-                            value={(k as KeyDraft).replace}
-                            placeholder={t(
-                              'ui.models.paste-the-new-key-it-replaces-when-you',
-                              label,
-                            )}
-                            onChange={(e) => setKey(i, { replace: e.target.value })}
-                            aria-label={t('ui.models.new-value-for', label)}
-                            data-testid={`pd-key-replace-input-${k.id}`}
-                          />
-                        )}
-                        {nameIsKey && (
-                          <span
-                            className={styles.errorText}
-                            data-testid={`pd-key-name-hint-${k.id}`}
-                          >
-                            {t('ui.models.this-name-looks-like-a-key-the-name')}{' '}
-                            <button
-                              type="button"
-                              className={styles.linkBtn}
-                              onClick={() => setKey(i, { replace: k.name.trim(), name: '' })}
-                              data-testid={`pd-key-name-to-replace-${k.id}`}
-                            >
-                              {t('ui.models.use-it-to-replace-this-key-instead')}
-                            </button>
-                          </span>
-                        )}
-                        {view && !view.decryptable && (
-                          <span className={styles.errorText}>
-                            {t('ui.models.can-t-be-decrypted-enter-it-again')}
-                          </span>
-                        )}
-                        {view?.lastError && (
-                          <span className={styles.errorText} data-testid={`pd-key-error-${k.id}`}>
-                            {view.lastError}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  },
-                )}
-                {!readOnly && (
-                  <div className={styles.addKeys}>
-                    <Textarea
-                      rows={2}
-                      value={keysText}
-                      onChange={(e) => setKeysText(e.target.value)}
-                      placeholder={t('ui.models.add-keys-one-per-line-placed-after-the')}
-                      aria-label={t('ui.models.add-keys')}
-                      data-testid="pd-keys-input"
-                    />
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={!splitKeys(keysText).length}
-                      onClick={addKeys}
-                      data-testid="pd-keys-add"
-                    >
-                      <Icon icon={Plus} size={14} />
-                      {t('ui.foundation.add')}
-                    </Button>
-                  </div>
-                )}
-              </section>
+              <ProviderKeysSection
+                keys={readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys}
+                views={p.keys}
+                readOnly={readOnly}
+                keyName={keyName}
+                looksLikeKey={looksLikeKey}
+                onSet={setKey}
+                onMove={moveKey}
+                onDelete={(i) => void deleteKey(i)}
+                text={keysText}
+                onText={setKeysText}
+                onAdd={addKeys}
+                canAdd={splitKeys(keysText).length > 0}
+              />
 
               {/* ---------------- 回退链 ---------------- */}
               {!readOnly && (

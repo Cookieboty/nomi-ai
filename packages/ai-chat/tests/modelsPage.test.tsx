@@ -552,6 +552,7 @@ describe('ModelsPage', () => {
     expect(within(dlg).queryByTestId('pd-key-k2')).toBeTruthy();
     fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
     await waitFor(() => expect(within(dlg).queryByTestId('pd-key-k2')).toBeNull());
+    fireEvent.click(within(dlg).getByTestId('pd-keys-open'));
     fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
       target: { value: 'sk-new-aaaa1111\n\n  sk-new-bbbb2222 \nsk-new-aaaa1111' },
     });
@@ -591,6 +592,7 @@ describe('ModelsPage', () => {
     const dlg = detail();
     const save = within(dlg).getByTestId('provider-detail-save') as HTMLButtonElement;
     expect(save.disabled).toBe(true);
+    fireEvent.click(within(dlg).getByTestId('pd-keys-open'));
     fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
       target: { value: 'sk-typed-cccc3333' },
     });

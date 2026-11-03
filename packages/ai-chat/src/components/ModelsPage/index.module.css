@@ -583,12 +583,6 @@
   margin: 0;
 }
 
-.keyItem {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-0-5);
-}
-
 .keyRow,
 .modelRow,
 .wireRow,
@@ -615,11 +609,6 @@
   white-space: nowrap;
 }
 
-.keyNameInput {
-  flex: 0 1 140px;
-  min-width: 6em;
-}
-
 .linkBtn {
   padding: 0;
   border: 0;
@@ -632,23 +621,6 @@
 .linkBtn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 2px;
-}
-
-.masked {
-  flex: 1;
-  color: var(--cd-color-text-subtle);
-  font-family: var(--cd-font-mono);
-  font-size: var(--cd-font-size-xs);
-}
-
-.addKeys {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--cd-space-2);
-}
-
-.addKeys > :first-child {
-  flex: 1;
 }
 
 /*
@@ -897,4 +869,95 @@
   box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
   background: var(--cd-color-selected-bg);
   color: var(--cd-color-selected-text);
+}
+
+/* 供应商编辑：Key 卡片（两行：序号 / 名称 / 启用；掩码与标签 / 排序、更换、删除） */
+.keyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.keyCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-1-5) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.keyCard[data-disabled] .keyMain,
+.keyCard[data-disabled] .keyMasked {
+  opacity: 0.6;
+}
+.keyMain {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.keyIndex {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+.keyNameField {
+  flex: 1;
+  min-width: 0;
+}
+.keyMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  /* 与名称输入框左对齐：序号宽度 + 间距 */
+  padding-left: calc(var(--cd-control-h-2xs) + var(--cd-space-2));
+  font-size: var(--cd-font-size-xs);
+}
+.keyMasked {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cd-color-text-subtle);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keyActions {
+  display: inline-flex;
+  gap: var(--cd-space-0-5);
+  margin-left: auto;
+}
+.keyReplace {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding-left: calc(var(--cd-control-h-2xs) + var(--cd-space-2));
+}
+.keyReplace > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.keyCard > .errorText {
+  padding-left: calc(var(--cd-control-h-2xs) + var(--cd-space-2));
+}
+.addKeysBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.addKeysActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cd-space-2);
 }
