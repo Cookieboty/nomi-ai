@@ -16,7 +16,7 @@ Go 版**（见下文「2.0.4 → Go 版」）。Electron 版仍随同一个 Rele
 | PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                                                                              |
 | push tag `v*`（≥ v2.0.5）            | **不重跑测试**（打 tag 前 main 上必须已全绿）→ 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release；`ci.yml` 同时上传 Electron 安装包 → 两套齐全后**自动发布**并标为 latest |
 | `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                                                                   |
-| `workflow_dispatch`（在 `main` 上）  | 打一次 Go 安装包；顺带在 main 上建好 2.0.4 安装器缓存（`electron-204-win`，tag 只能读到 main 的缓存）                                                                                 |
+| `workflow_dispatch`（在 `main` 上）  | 打一次 Go 安装包                                                                                                                                                                      |
 
 发一版：
 
@@ -70,8 +70,8 @@ ad-hoc 并告警，**tag 发版直接失败**（2.0.4 不接受 ad-hoc 签名的
 
 - `manifest` 任务用 2.0.4 自带的 electron-updater 解析生成的 yml（`scripts/release/check-update-feed.mjs`），确认每个平台
   （Windows、mac arm64 / x64、Linux）都挑中 Go 版安装包且 sha512 / size 一致；
-- `verify (windows)` 先装从 v2.0.4 源码构建的安装器并运行一次，再以 `--updated --force-run` 跑 Go 安装器，检查自动启动、
-  旧 Electron 文件已清、只剩一个卸载项、用户数据还在；tag 上缺 2.0.4 安装器即失败；
+- `verify (windows)` 只验证新安装器本身（安装、启动、卸载项）。2.1.1 起不再先装 2.0.4 再升级（从源码构建 2.0.4
+  约 40 分钟，2.0.4 用户已很少）；2.0.4 的更新清单仍由上面的 `manifest` 校验；
 - `package (mac)` 检查 `Nomi.app` 的签名标识是 `com.cookieboty.nomi`。
 
 ## Electron（≤ v2.0.4）

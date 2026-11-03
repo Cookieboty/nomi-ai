@@ -144,53 +144,10 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  # 从 v2.0.4 源码构建 Windows 安装器 + win-unpacked（不下载 Release 资产，D-B11-9）：
-  # verify 用它先装 2.0.4，再按 electron-updater 的方式跑 Go 安装器（2.0.4 → 新版的应用内升级路径），
-  # win-unpacked 顺带做同 runner 的桌面角色尺寸基线。PR 上不跑（约 40 分钟）
-  electron-204-win:
-    if: github.event_name != 'pull_request'
-    runs-on: windows-latest
-    timeout-minutes: 40
-    continue-on-error: true
-    steps:
-      # v2.0.4 源码不会再变：构建一次进缓存，之后的 tag 直接取（以前每次都从源码重建）
-      - id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            e204/dist/win-unpacked/
-            e204/dist/*Setup*.exe
-          key: electron-204-win-nsis-v1
-      - if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with: { ref: v2.0.4, path: e204 }
-      - if: steps.cache.outputs.cache-hit != 'true'
-        uses: pnpm/action-setup@v4
-        with: { version: 9.12.3 }
-      - if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/setup-node@v4
-        with: { node-version: '24' }
-      - name: build electron 2.0.4 (win nsis, unsigned)
-        if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: e204
-        shell: bash
-        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false', HUSKY: '0' }
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm turbo run build
-          cd packages/electron && pnpm exec electron-builder build --win nsis --x64 --publish never
-          ls ../../dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: electron-204-win
-          path: |
-            e204/dist/win-unpacked/
-            e204/dist/*Setup*.exe
-          if-no-files-found: error
-          compression-level: 1
-
+  # 2.1.1 起不再验证 2.0.4 → 新版的 Windows 应用内升级（先装 2.0.4 再跑新安装器、从源码构建 2.0.4 约 40 分钟）：
+  # 只验证新安装器本身。2.0.4 的更新清单（latest*.yml）仍由 manifest 用 electron-updater 校验
   verify:
-    needs: [package, electron-204-win]
+    needs: [package]
     if: ${{ always() && needs.package.result == 'success' }}
     strategy:
       fail-fast: false
@@ -210,21 +167,13 @@ jobs:
         with: { sparse-checkout: apps/desktop-go/ci }
       - uses: actions/download-artifact@v4
         with: { name: 'nomi-go-${{ matrix.target }}', path: pkg }
-      - uses: actions/download-artifact@v4
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        with: { name: electron-204-win, path: e204 }
       - name: verify mac
         if: runner.os == 'macOS'
         run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots apps/desktop-go/ci/baseline-2.0.4/mac-info-plist.txt
       - name: verify windows
         if: runner.os == 'Windows'
         shell: pwsh
-        # -Old：先装 2.0.4，再按 electron-updater quitAndInstall 的参数跑 Go 安装器；tag 上缺 2.0.4 安装器直接失败
-        run: |
-          $old = (Get-ChildItem e204 -Filter '*Setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          $exe = (Get-ChildItem e204 -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -Old "$old" -ElectronExe "$exe" -RequireOld:$($env:GITHUB_REF -like 'refs/tags/v*')
+        run: ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots
       - name: verify linux
         if: runner.os == 'Linux'
         run: |

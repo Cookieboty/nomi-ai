@@ -228,6 +228,8 @@ func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 // #231 #232：后台执行读任务当前授权：收窄立即生效；路径与任务文件夹求交集
 func TestBackgroundLiveGrantAndTaskPaths(t *testing.T) {
 	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	// 这里用的是真实临时目录（Windows 上是 C:\…）：按本机平台比较路径，不能用 reviewBroker 的 linux
+	b.envBase.Platform = Platform()
 	dir := t.TempDir()
 	a, other := filepath.Join(dir, "a"), filepath.Join(dir, "b")
 	for _, d := range []string{a, other} {
