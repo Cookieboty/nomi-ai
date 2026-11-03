@@ -39,7 +39,8 @@
 Add a provider once (pick a preset or enter a URL, paste a key) and Nomi itself plus Claude Code, Codex, Gemini CLI, Grok and dsh can all use any of its models, or switch everything to local models.
 The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**; streaming, tool calls, reasoning, images and context compaction keep working, so you can use DeepSeek, GLM, Kimi or Qwen right inside Claude Code.
 Third-party routing applies only to the process Nomi launches; it never edits the CLI's global config or touches official sign-ins.
-→ [Unified gateway design](docs/design/unified-gateway.md)
+Third-party providers can also put an "Add to Nomi" link on their own site: one-click import of the endpoint and key, or web authorization (OAuth + PKCE, so the key never appears in a link). Either way, nothing is saved until you confirm in Nomi.
+→ [Unified gateway design](docs/design/unified-gateway.md) · [Third-party provider links](docs/design/provider-link.md)
 
 ### 2. Nomi is an agent itself
 
@@ -102,6 +103,7 @@ The view talks to the core through one typed contract instead of ad-hoc IPC chan
 ## Features at a glance
 
 - **Models**: presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Qwen, Doubao, Ollama and more; automatic multi-key rotation; usage and cost recorded per upstream request
+- **Third-party provider links**: relays and model platforms add themselves to Nomi with `nomi://provider/import` (one-click import) or `nomi://provider/connect` (web authorization); Cherry Studio's import format also works. See the [integration guide](docs/design/provider-link.md)
 - **Local models**: one-click open-source models (llama.cpp) or Ollama; run local-only, or let only local models read your files
 - **Images**: draw, edit and use reference images right in a Nomi chat, with an image model matched to the chat model's vendor; an asset library keeps every generated image
 - **Knowledge base and memory**: ask questions over a folder with clickable citations; chats turn into exportable long-term memory
@@ -174,8 +176,13 @@ Questions and ideas go to [GitHub Issues](https://github.com/Cookieboty/nomi-ai/
   </tr>
 </table>
 
-## License and credits
+## Acknowledgements
 
-[MIT](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); design credits in [CREDITS.md](CREDITS.md).
+- **Sponsor**: [Amux AI](https://amux.ai) sponsors Nomi's development.
+- **Community**: [Linux.do](https://linux.do), whose members have shared a great deal of feedback and ideas.
 
-Built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive and other open-source projects.
+Nomi is built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive and other open-source projects; design credits are in [CREDITS.md](CREDITS.md).
+
+## License
+
+[MIT](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

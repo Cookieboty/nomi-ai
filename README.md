@@ -39,7 +39,8 @@
 只添加一次供应商（选预设或填地址，粘贴 Key），Nomi 自己和 Claude Code、Codex、Gemini CLI、Grok、dsh 都能用它的任意模型，也可以全部换成本地模型。
 本机网关自动识别并互转 **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**，流式、工具调用、推理、图片、上下文压缩都照常工作：在 Claude Code 里直接用 DeepSeek、GLM、Kimi、Qwen。
 第三方只作用于 Nomi 启动的那个进程，不改 CLI 的全局配置，不碰官方登录。
-→ [统一网关设计](docs/design/unified-gateway.md)
+第三方供应商也可以在自己的网页上放一个「添加到 Nomi」链接：一键导入地址和 Key，或者走网页授权（OAuth + PKCE，Key 不出现在链接里）；不管哪种，都要你在 Nomi 里确认后才保存。
+→ [统一网关设计](docs/design/unified-gateway.md) · [第三方供应商链接接入](docs/design/provider-link.md)
 
 ### 2. Nomi 自己就是一个 agent
 
@@ -102,6 +103,7 @@ flowchart LR
 ## 功能一览
 
 - **模型**：OpenAI、Anthropic、DeepSeek、Kimi、智谱、通义、豆包、Ollama 等预设；多 Key 自动切换；按每次上游请求记账，用量和费用看得见
+- **第三方供应商链接接入**：中转站和模型平台用 `nomi://provider/import`（一键导入）或 `nomi://provider/connect`（网页授权）把自己加进 Nomi，兼容 Cherry Studio 的导入格式；接入方式见[接入说明](docs/design/provider-link.md)
 - **本地模型**：一键下载开源小模型（llama.cpp）或管理 Ollama；可以只用本地模型，也可以只让本地模型读文件
 - **生图**：Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；素材库统一管理生成的图片
 - **知识库与记忆**：文件夹问答带可点击引用；对话自动整理成长期记忆，可导出
@@ -174,8 +176,13 @@ pnpm test         # 单元测试；pnpm test:e2e 跑无界面端到端测试
   </tr>
 </table>
 
-## 许可证与致谢
+## 致谢
 
-[MIT](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，设计参考致谢见 [CREDITS.md](CREDITS.md)。
+- **赞助**：[Amux AI](https://amux.ai) 赞助了 Nomi 的开发。
+- **社区**：[Linux.do](https://linux.do) 社区的佬友们提了大量反馈与建议。
 
-构建于 Go、Wails、Electron、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上。
+Nomi 构建于 Go、Wails、Electron、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上，设计参考致谢见 [CREDITS.md](CREDITS.md)。
+
+## 许可证
+
+[MIT](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
