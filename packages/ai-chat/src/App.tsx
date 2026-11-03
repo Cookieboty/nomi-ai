@@ -73,7 +73,17 @@ import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { useUserProfile } from './hooks/useUserProfile';
 import { setProviderEndpoint } from './services/chatPrefs';
-import { notifyConversationsChanged } from './services/conversationStore';
+import { cliTitleComplete, maybeSmartTitleCliTab } from './services/cliSmartTitle';
+import {
+  createComposerDraftStore,
+  draftKey,
+  sessionHasCommittedUserContent,
+} from './services/composerDrafts';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  notifyConversationsChanged,
+  type ConversationsChangedDetail,
+} from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import {
   FILES_RAIL_W_DEFAULT,
@@ -149,6 +159,8 @@ const AiChatContent: React.FC = () => {
   const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
   const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
   const { workbench, previewOpen, composerFill } = useChangesUi();
+  // 草稿 Map 挂在 keepalive 之上的同一组件里：开设置只隐藏不卸载，会话草稿不丢
+  const draftStore = useRef(createComposerDraftStore()).current;
 
   const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -341,6 +353,64 @@ const AiChatContent: React.FC = () => {
     () => ipcClient.conversationStore?.(),
     () => actions.loadChatHistory(),
   );
+  // 输入草稿按会话隔离：空会话共用 SHARED_UNSENT；发出后 nomi:id / tab:id（从不按 cwd）
+  const activeComposerDraftKey = useMemo(() => {
+    if (tabs.isCliTab && tabs.activeTab) {
+      const tab = tabs.activeTab;
+      // tabs.messages = active CLI tab cache; do not use cliSessionId (late / never on fail)
+      return draftKey({
+        kind: 'tab',
+        id: tab.id,
+        hasCommittedUserContent: sessionHasCommittedUserContent(
+          tabs.messages?.length ?? 0,
+          tab.carriedMessages ?? 0,
+        ),
+      });
+    }
+    const id = ipcClient.currentConversationId?.() ?? '';
+    const storedLen = id ? (ipcClient.conversationStore?.()?.getMessages(id)?.length ?? 0) : 0;
+    const has = storedLen > 0 || messageCount > 0;
+    return draftKey({
+      kind: 'nomi',
+      id: id || 'pending',
+      hasCommittedUserContent: has && !!id,
+    });
+  }, [
+    tabs.isCliTab,
+    tabs.activeTab,
+    tabs.messages,
+    ipcClient,
+    messageCount,
+    firstMessageId,
+    tabs.activeTabId,
+  ]);
+  // 会话 / 标签删除后丢掉私有草稿桶，避免复活脏数据
+  useEffect(() => {
+    type Entry = { id: string; tabId?: string };
+    const toEntry = (c: { id: string; tabId?: string }): Entry => ({
+      id: c.id,
+      tabId: c.tabId,
+    });
+    const dropGone = (gone: Entry) => {
+      draftStore.dropPrivate(`nomi:${gone.id}`);
+      if (gone.tabId) draftStore.dropPrivate(`tab:${gone.tabId}`);
+    };
+    let prev: Entry[] = (ipcClient.conversationStore?.()?.list() ?? []).map(toEntry);
+    const sync = (ev: Event) => {
+      const explicit = (ev as CustomEvent<ConversationsChangedDetail>).detail?.removed;
+      if (explicit) for (const gone of explicit) dropGone(gone);
+      const list = ipcClient.conversationStore?.()?.list() ?? [];
+      const next: Entry[] = list.map(toEntry);
+      const nextIds = new Set(next.map((e: Entry) => e.id));
+      for (const gone of prev) {
+        if (nextIds.has(gone.id)) continue;
+        dropGone(gone);
+      }
+      prev = next;
+    };
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, sync);
+  }, [ipcClient, draftStore]);
   // 只有当前会话在回复时才排队：别的会话在回复不影响这里直接发送
   const nomiQueue = useSendQueue(
     busyHere,
@@ -742,6 +812,8 @@ const AiChatContent: React.FC = () => {
   const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
   const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
   const hasCliActive = !!cliActive;
+  // First CLI send (no messages yet): arm smart title for third-party gateway models.
+  const cliFresh = hasCliActive && tabs.messages.length === 0;
   const inputModeProps = useMemo(
     () =>
       hasCliActive
@@ -756,6 +828,19 @@ const AiChatContent: React.FC = () => {
                 source: im.source,
               }));
               void tabSend(text, imgs);
+              if (cliActive && cliFresh) {
+                const tab = cliActive;
+                const ref =
+                  tab.source === 'thirdParty'
+                    ? tab.modelOverride || tab.lastServedRef || null
+                    : null;
+                void maybeSmartTitleCliTab({
+                  tab,
+                  userText: text,
+                  complete: ref ? cliTitleComplete(ref) : async () => '',
+                  applyAutoTitle: (id, title) => harnessClient.applyAutoTitle(id, title),
+                });
+              }
             },
             busyOverride: cliBusy,
             imageCapability: cliImages.capability,
@@ -767,7 +852,17 @@ const AiChatContent: React.FC = () => {
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [hasCliActive, cliBusy, cliPlaceholder, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
+    [
+      hasCliActive,
+      cliActive,
+      cliFresh,
+      cliBusy,
+      cliPlaceholder,
+      cliImages,
+      tabSend,
+      tabCancel,
+      nomiQueue.enqueue,
+    ],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
@@ -999,6 +1094,8 @@ const AiChatContent: React.FC = () => {
                 }
                 slash={slash.bridge}
                 fill={composerFill}
+                draftStore={draftStore}
+                draftKey={activeComposerDraftKey}
                 onPluginsClick={openPlugins}
                 onProvidersClick={openProviders}
                 onSettingsClick={onInputSettings}

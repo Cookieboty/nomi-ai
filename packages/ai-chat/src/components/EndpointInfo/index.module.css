@@ -26,6 +26,7 @@
   cursor: pointer;
 }
 .main:focus-visible,
+.collapse:focus-visible,
 .refresh:focus-visible {
   outline: 2px solid var(--cd-color-accent);
   outline-offset: 1px;
@@ -35,7 +36,7 @@
   align-items: center;
   gap: var(--cd-space-1-5);
   min-width: 0;
-  padding-right: 28px; /* 给右上角刷新按钮让位 */
+  padding-right: 52px; /* 给右上角折叠 + 刷新按钮让位 */
 }
 .name {
   font-size: var(--cd-font-size-sm);
@@ -51,10 +52,10 @@
   flex-wrap: wrap;
   gap: var(--cd-space-1);
 }
+.collapse,
 .refresh {
   position: absolute;
   top: 7px;
-  right: 7px;
   width: 24px;
   height: 24px;
   display: inline-grid;
@@ -65,21 +66,33 @@
   color: var(--cd-color-text-muted);
   cursor: pointer;
 }
-/* 刷新只在悬停 / 键盘聚焦卡片、或正在刷新时出现，平时不占视觉 */
+.collapse {
+  right: 31px;
+}
+.refresh {
+  right: 7px;
+}
+/* 折叠 / 刷新只在悬停 / 键盘聚焦卡片、或正在刷新时出现，平时不占视觉 */
+.collapse,
 .refresh {
   opacity: 0;
   transition: opacity var(--cd-duration-fast) var(--cd-ease);
 }
+.card:hover .collapse,
+.card:focus-within .collapse,
+.card[data-busy] .collapse,
 .card:hover .refresh,
 .card:focus-within .refresh,
 .card[data-busy] .refresh {
   opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
+  .collapse,
   .refresh {
     transition: none;
   }
 }
+.collapse:hover,
 .refresh:hover:not(:disabled) {
   background: var(--cd-color-hover);
   color: var(--cd-color-text);

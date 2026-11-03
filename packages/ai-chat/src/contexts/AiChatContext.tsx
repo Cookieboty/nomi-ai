@@ -26,6 +26,7 @@ import {
 } from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
+import { splitFileAttachments } from '../services/fileAttachments';
 import { gatewayClient } from '../services/gatewayClient';
 import {
   harnessClient,
@@ -41,6 +42,12 @@ import { nomiModelLabel } from '../services/nomiModel';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
+import {
+  applyNomiSmartTitle,
+  armNomiAutoTitle,
+  generateSmartTitle,
+  isDefaultChatName,
+} from '../services/sessionTitle';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
@@ -285,6 +292,31 @@ export function openTurn(client: IPCClient): ConversationTurn {
         ? client.saveMessageTo(message, convoId)
         : client.saveMessage(message),
   };
+}
+
+/** 首条用户消息落盘前：若仍是默认名则后台用当前 chat 模型生成标题（失败保留启发式）。 */
+function maybeStartNomiSmartTitle(
+  client: IPCClient,
+  convoId: string | undefined,
+  content: string,
+): void {
+  if (!convoId || !client.completeChatText) return;
+  const store = client.conversationStore?.();
+  const meta = store?.get(convoId);
+  const text = splitFileAttachments(content).text.trim();
+  if (!text || !meta || !isDefaultChatName(meta.name)) return;
+  armNomiAutoTitle(convoId);
+  const complete = client.completeChatText.bind(client);
+  void generateSmartTitle(text, (messages) => complete(messages)).then((title) => {
+    const store = client.conversationStore?.();
+    applyNomiSmartTitle(convoId, title, {
+      get: (id) => store?.get(id),
+      updateMeta: (id, patch) => {
+        store?.updateMeta(id, patch);
+      },
+      notify: notifyConversationsChanged,
+    });
+  });
 }
 
 /** 摘要模型的预算查不到时（旧主进程）按这个算摘要请求的大小 */
@@ -611,6 +643,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
 
+        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         await turn.save(userMessage);
         await turn.save(aiMessage);
         if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
@@ -654,6 +687,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           kb: true,
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
+        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         await turn.save(userMessage);
         await turn.save(aiMessage);
       } catch (error) {
@@ -889,6 +923,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           };
           if (turn.isActive())
             dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
+          maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
           await turn.save(userMessage);
           await turn.save(failed);
           // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
@@ -912,6 +947,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (turn.isActive()) {
           dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, finalAiMessage] });
         }
+        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
         await turn.save(userMessage);
         await turn.save(finalAiMessage);
         if (!stopped && turn.exists())

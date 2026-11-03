@@ -33,6 +33,10 @@ export interface IPCClient {
   summarize?(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   ): Promise<string>;
+  /** 短补全：按 chat 路由（当前已选 Nomi 模型），用于会话标题等后台短提示 */
+  completeChatText?(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  ): Promise<string>;
   /** extraSystem：追加在 system prompt 后的上下文（长期记忆召回等） */
   sendStreamMessage(
     message: string,

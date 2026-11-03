@@ -524,6 +524,9 @@ export const harnessClient = {
   closeTab: (id: string) => call<HarnessTabsState>(() => api.harness.tabClose({ id })),
   renameTab: (id: string, title: string) =>
     call<HarnessTabMeta>(() => api.harness.tabRename({ id, title })),
+  /** Smart title write: host only applies while autoTitlePending; null if gated/missing. */
+  applyAutoTitle: (id: string, title: string) =>
+    call<HarnessTabMeta | null>(() => api.harness.tabApplyAutoTitle({ id, title })),
   /** 切换标签权限模式；「完全放开」必须带 confirmed（界面先弹确认框）。degraded = 后端不支持、已降级 */
   /** expect：「完全放开」确认时的标签后端 / 目录；主进程核对不一致则拒绝（确认不能漂移到别处） */
   setTabPermissionMode: (

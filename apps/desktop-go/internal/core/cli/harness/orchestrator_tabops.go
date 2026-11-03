@@ -571,6 +571,29 @@ func (o *Orchestrator) RenameTab(id string, title any) *util.Obj {
 		throw(i18n.T("electron.common.title-cannot-be-empty"))
 	}
 	tab.Set("title", next)
+	delete(o.autoTitlePending, id)
+	o.changed()
+	return tab.Clone()
+}
+
+// ApplyAutoTitle = applyAutoTitle：仅 autoTitlePending 时生效；成功后清门控。
+func (o *Orchestrator) ApplyAutoTitle(id string, title any) *util.Obj {
+	if _, ok := o.autoTitlePending[id]; !ok {
+		return nil
+	}
+	tab := o.tab(id)
+	if tab == nil {
+		return nil
+	}
+	next := ""
+	if title != nil {
+		next = clisdk.Slice0(util.JSTrim(jsStr(title)), 60)
+	}
+	if next == "" {
+		return nil
+	}
+	tab.Set("title", next)
+	delete(o.autoTitlePending, id)
 	o.changed()
 	return tab.Clone()
 }
