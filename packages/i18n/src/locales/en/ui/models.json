@@ -130,7 +130,6 @@
   "ui.models.paste-the-new-key-it-replaces-when-you": "Paste the new key; it replaces {0} when you save",
   "ui.models.per-minute": "Per minute",
   "ui.models.per-tier-models": "Per-tier models",
-  "ui.models.pick-chat-model-from": "Pick Nomi chat's model from “{0}” (the recommended one is preselected; change it anytime):",
   "ui.models.posts-over-the-limit-get-413-default-32": "POSTs over the limit get 413; default 32 MiB, adjustable from 1–256 MiB",
   "ui.models.preset-group-custom": "Other addresses",
   "ui.models.preset-group-custom-hint": "Any address with an OpenAI, Anthropic or Gemini compatible API",

@@ -130,7 +130,6 @@
   "ui.models.paste-the-new-key-it-replaces-when-you": "粘贴新的 Key，保存后替换 {0}",
   "ui.models.per-minute": "每分钟",
   "ui.models.per-tier-models": "各档模型",
-  "ui.models.pick-chat-model-from": "从「{0}」选 Nomi 对话用的模型（已默认选好推荐的，可以改）：",
   "ui.models.posts-over-the-limit-get-413-default-32": "超过上限的 POST 会返回 413；默认 32 MiB，可调范围 1–256 MiB",
   "ui.models.preset-group-custom": "其他地址",
   "ui.models.preset-group-custom-hint": "兼容 OpenAI、Anthropic 或 Gemini 接口的任意地址",

@@ -277,15 +277,12 @@ describe('ModelsPage', () => {
     await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
     await waitFor(() => expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro'));
     expect(screen.getByTestId('models-assign').getAttribute('data-state')).toBe('ready');
-    const fresh = await screen.findByTestId('models-fresh');
-    expect(within(fresh).queryByText('text-embedding-v4')).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
-        'true',
-      ),
-    );
-    // 用户可以改
-    fireEvent.click(screen.getByTestId('models-fresh-deepseek-v4-flash'));
+    // 不再在分配上方列出这家的全部模型（与下面的「Nomi 对话」重复）
+    expect(screen.queryByTestId('models-fresh')).toBeNull();
+    // 用户在「Nomi 对话」里可以改
+    fireEvent.change(screen.getByTestId('assign-chat'), {
+      target: { value: 'deepseek/deepseek-v4-flash' },
+    });
     await waitFor(() =>
       expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-flash'),
     );
@@ -352,11 +349,8 @@ describe('ModelsPage', () => {
     await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
     fireEvent.click(screen.getByTestId('add-provider'));
     await addFlow('deepseek', 'sk-aaaa1111');
-    await screen.findByTestId('models-fresh');
+    await waitFor(() => expect(screen.getByTestId('provider-deepseek')).toBeTruthy());
     expect(m.state.clients.nomi!.models.main).toBe('kimi/kimi-k3');
-    expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
-      'false',
-    );
   });
 
   it('cannot save when every protocol fails, and shows each reason', async () => {

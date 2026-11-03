@@ -90,8 +90,6 @@ const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string }> = [
 export const ModelsPage: React.FC = () => {
   const state = useGatewayState();
   const [adding, setAdding] = useState(false);
-  /** 刚保存的供应商：在「模型分配」里展开它的模型供挑选 */
-  const [fresh, setFresh] = useState<string | null>(null);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   /** 展开了「各档模型 / 更多」的编程助手 */
@@ -141,16 +139,12 @@ export const ModelsPage: React.FC = () => {
       gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
     );
 
-  /** 保存后直接在下方挑模型；Nomi 对话还没模型时先填上推荐的（第一个启用的对话模型），用户可改 */
+  /** 保存后：Nomi 对话还没模型时先填上推荐的（第一个启用的对话模型），在下面的「Nomi 对话」里可改 */
   const onSaved = (p: ProviderView) => {
     setAdding(false);
-    setFresh(p.id);
     const first = p.models.find((x) => x.enabled && x.toolCalling !== false);
     if (!nomi.main && first) assign({ main: `${p.id}/${first.id}` });
   };
-  const freshProvider = providers.find((p) => p.id === fresh) ?? null;
-  const freshModels =
-    freshProvider?.models.filter((m) => m.enabled && m.toolCalling !== false) ?? [];
   /** 还没有供应商：表单直接铺在卡片里（这时它就是页面的主要内容）；已有供应商时「添加」打开弹窗 */
   const showForm = Boolean(state) && !providers.length;
   const noModels = !picker.length;
@@ -293,33 +287,6 @@ export const ModelsPage: React.FC = () => {
           <p className={styles.sub} data-testid="models-assign-off">
             {t('ui.models.configure-a-provider-first')}
           </p>
-        )}
-        {freshProvider && freshModels.length > 0 && (
-          <div className={styles.fresh} data-testid="models-fresh">
-            <span className={styles.sub}>
-              {t('ui.models.pick-chat-model-from', freshProvider.name)}
-            </span>
-            <div className={styles.chips} role="radiogroup">
-              {freshModels.map((m) => {
-                const ref = `${freshProvider.id}/${m.id}`;
-                const on = nomi.main === ref;
-                return (
-                  <button
-                    key={ref}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    className={`${styles.chip} ${on ? styles.chipOn : ''}`}
-                    data-testid={`models-fresh-${m.id}`}
-                    onClick={() => assign({ main: ref })}
-                  >
-                    {on && <Icon icon={Check} size={14} />}
-                    {m.label ?? m.id}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         )}
         <div className={styles.row}>
           <span className={styles.rowLabel}>{t('ui.usage-tools.nomi-chat')}</span>

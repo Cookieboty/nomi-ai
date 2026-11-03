@@ -2556,7 +2556,6 @@ export type TranslationKey =
   | 'ui.models.paste-the-new-key-it-replaces-when-you'
   | 'ui.models.per-minute'
   | 'ui.models.per-tier-models'
-  | 'ui.models.pick-chat-model-from'
   | 'ui.models.posts-over-the-limit-get-413-default-32'
   | 'ui.models.preset-group-custom'
   | 'ui.models.preset-group-custom-hint'
