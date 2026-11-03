@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import styles from './DesktopConfirm.module.css';
 
 import { placeConfirmBubble, type BubblePlacement } from '@/mascot/bubblePlacement';
+import { bubbleSlot } from '@/mascot/bubbleSlot';
 import { api, hasTransport } from '@/services/api';
 
 /** 桌面能力（桌面角色窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */
@@ -138,6 +139,13 @@ export const DesktopConfirm: React.FC = () => {
       off3();
     };
   }, [bridge]);
+
+  // 确认气泡在场时占住头部旁边的气泡位，台词气泡让开（bubbleSlot）
+  const shown = !!cur && !!bridge;
+  useEffect(() => {
+    bubbleSlot.setConfirmShown(shown);
+    return () => bubbleSlot.setConfirmShown(false);
+  }, [shown]);
 
   useEffect(() => {
     if (!cur) return;

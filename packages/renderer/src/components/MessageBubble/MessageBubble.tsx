@@ -1,6 +1,13 @@
 import { bubbleAnchorBox, layoutStore } from '@nomi-ai/avatar-runtime';
 import { t as tr } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import styles from './style.module.css';
 
@@ -12,6 +19,7 @@ import {
   placeBubble,
   type BubblePlacement,
 } from '@/mascot/bubblePlacement';
+import { bubbleSlot } from '@/mascot/bubbleSlot';
 import { getHitboxes } from '@/mascot/characterConfig';
 import { toBubbleText } from '@/security/bubbleText';
 import { api, hasTransport } from '@/services/api';
@@ -40,7 +48,13 @@ export const MessageBubble: React.FC = () => {
   const live = incoming.trim() ? { text: incoming, more: incomingMore } : null;
   const text = live?.text ?? hold.text;
   const more = live ? live.more : hold.more;
-  const active = !!live;
+  // 确认气泡占着头部旁边的位置：台词先让开（同一套摆放规则，否则两个气泡叠在一处）
+  const yielded = useSyncExternalStore(
+    bubbleSlot.subscribe,
+    bubbleSlot.confirmShown,
+    bubbleSlot.confirmShown,
+  );
+  const active = !!live && !yielded;
 
   useLayoutEffect(() => {
     // hold 根据最新消息派生，setState 立即触发级联渲染是预期的（UI 需同步跟随新消息）
@@ -163,7 +177,8 @@ export const MessageBubble: React.FC = () => {
         data-scroll={scrolls ? '' : undefined}
         data-testid="mascot-bubble"
         data-tail={place?.tail ?? 'bottom'}
-        data-empty={text.trim() ? undefined : ''}
+        data-empty={text.trim() && !yielded ? undefined : ''}
+        data-yielded={yielded ? '' : undefined}
         role="status"
         aria-live="polite"
         className={`${styles.messageBubble} ${place ? styles.placed : ''} ${active ? styles.active : ''}`}
