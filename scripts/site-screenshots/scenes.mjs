@@ -53,7 +53,8 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       await h.wait(settleMs);
     },
     async newChat(endpoint) {
-      await page.getByRole('button', { name: '新对话' }).click();
+      // 页面上可能有不止一个「新对话」按钮：点第一个
+      await page.getByRole('button', { name: '新对话' }).first().click();
       const item = page.getByRole('menuitem', { name: endpoint });
       if (await item.isVisible().catch(() => false)) await item.click();
       await h.wait(900);
@@ -169,7 +170,8 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
     },
     async addDemoProvider() {
       await h.settings('模型与供应商');
-      await page.getByRole('radio', { name: '自定义地址' }).click();
+      // 「添加第三方供应商」第一步是分组卡片（不是单选按钮）
+      await page.getByTestId('models-preset-custom').click();
       await page.getByRole('textbox', { name: '地址' }).fill(llmBaseUrl);
       await page.getByRole('textbox', { name: '名称（可选）' }).fill('演示 DeepSeek');
       await page.getByRole('textbox', { name: 'API Key' }).fill('sk-demo-0000000000000000a1f3');
