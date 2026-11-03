@@ -262,4 +262,29 @@ describe('CLI history in the sidebar', () => {
     fireEvent.click(r.getAllByTestId('history-session-item')[2]!);
     await waitFor(() => expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息'));
   });
+
+  it('collapses and expands local history; remount defaults to expanded', async () => {
+    mockIpc();
+    const r = mount();
+    const section = await r.findByTestId('cli-history');
+    expect(section.querySelectorAll('[data-testid="history-session-row"]').length).toBeGreaterThan(
+      0,
+    );
+
+    const toggle = r.getByTestId('cli-history-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
+    expect(r.queryByTestId('cli-history-more')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0);
+
+    r.unmount();
+    const r2 = mount();
+    const toggle2 = await r2.findByTestId('cli-history-toggle');
+    expect(toggle2.getAttribute('aria-expanded')).toBe('true');
+  });
 });
