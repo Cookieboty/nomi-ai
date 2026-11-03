@@ -16,7 +16,7 @@ import type { ChatMessage, ChatSession, ConversationBackend } from '../types/cha
 import { isConversationBackend } from '../types/chat';
 
 import { splitFileAttachments } from './fileAttachments';
-import { isDefaultChatName } from './sessionTitle';
+import { clearNomiAutoTitle, isDefaultChatName } from './sessionTitle';
 
 export interface KeyValueStorage {
   getItem(key: string): string | null;
@@ -467,6 +467,7 @@ export class ConversationStore {
   }
 
   delete(id: string): void {
+    clearNomiAutoTitle(id);
     const removed = this.get(id);
     const remaining = this.idx().filter((c) => c.id !== id);
     this.writeIndex(remaining);

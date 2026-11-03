@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  applyNomiSmartTitle,
   buildTitleMessages,
   generateSmartTitle,
   heuristicTitle,
@@ -63,5 +64,62 @@ describe('sessionTitle', () => {
     expect(title).toBe('Fix login');
     // UI rename path calls clearNomiAutoTitle before updateMeta; pending stays false.
     expect(nomiAutoTitlePending('c-renamed')).toBe(false);
+  });
+
+  it('clears pending when smart title is null (failed apply)', () => {
+    armNomiAutoTitle('c-null');
+    const updateMeta = vi.fn();
+    const applied = applyNomiSmartTitle('c-null', null, {
+      get: () => ({ id: 'c-null' }),
+      updateMeta,
+    });
+    expect(applied).toBe(false);
+    expect(updateMeta).not.toHaveBeenCalled();
+    expect(nomiAutoTitlePending('c-null')).toBe(false);
+  });
+
+  it('skips apply and clears pending when conversation was deleted mid-job', () => {
+    armNomiAutoTitle('c-gone');
+    const updateMeta = vi.fn(() => {
+      throw new Error('unknown conversation: c-gone');
+    });
+    const applied = applyNomiSmartTitle('c-gone', 'Smart Title', {
+      get: () => undefined,
+      updateMeta,
+    });
+    expect(applied).toBe(false);
+    expect(updateMeta).not.toHaveBeenCalled();
+    expect(nomiAutoTitlePending('c-gone')).toBe(false);
+  });
+
+  it('clears pending when updateMeta throws despite get hitting', () => {
+    armNomiAutoTitle('c-race');
+    const updateMeta = vi.fn(() => {
+      throw new Error('unknown conversation: c-race');
+    });
+    expect(() =>
+      applyNomiSmartTitle('c-race', 'Smart Title', {
+        get: () => ({ id: 'c-race' }),
+        updateMeta,
+      }),
+    ).not.toThrow();
+    expect(updateMeta).toHaveBeenCalled();
+    expect(nomiAutoTitlePending('c-race')).toBe(false);
+  });
+
+  it('applies title then clears pending on success', () => {
+    armNomiAutoTitle('c-ok');
+    const updateMeta = vi.fn();
+    const notify = vi.fn();
+    expect(
+      applyNomiSmartTitle('c-ok', 'Fix login', {
+        get: () => ({ id: 'c-ok' }),
+        updateMeta,
+        notify,
+      }),
+    ).toBe(true);
+    expect(updateMeta).toHaveBeenCalledWith('c-ok', { name: 'Fix login' });
+    expect(notify).toHaveBeenCalled();
+    expect(nomiAutoTitlePending('c-ok')).toBe(false);
   });
 });

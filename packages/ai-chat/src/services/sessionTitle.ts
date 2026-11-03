@@ -71,3 +71,32 @@ export function clearNomiAutoTitle(id: string): void {
 export function nomiAutoTitlePending(id: string): boolean {
   return pending.has(id);
 }
+
+export type NomiSmartTitleApplyDeps = {
+  get: (id: string) => unknown;
+  updateMeta: (id: string, patch: { name: string }) => void;
+  notify?: () => void;
+};
+
+/**
+ * Apply a completed smart title if still pending and the conversation still exists.
+ * Always clears pending when the attempt settles (success, null, missing, or throw).
+ * Returns whether the name was written.
+ */
+export function applyNomiSmartTitle(
+  convoId: string,
+  title: string | null,
+  deps: NomiSmartTitleApplyDeps,
+): boolean {
+  try {
+    if (!title || !nomiAutoTitlePending(convoId)) return false;
+    if (!deps.get(convoId)) return false;
+    deps.updateMeta(convoId, { name: title });
+    deps.notify?.();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearNomiAutoTitle(convoId);
+  }
+}

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
 import { buildProviderMessages } from '../src/services/history';
 import { SdkIPCClient } from '../src/services/IPCClient';
+import { armNomiAutoTitle, nomiAutoTitlePending } from '../src/services/sessionTitle';
 import type { ChatMessage } from '../src/types/chat';
 
 const msg = (
@@ -119,6 +120,15 @@ describe('ConversationStore', () => {
     const defaultName = s.get(id)!.name;
     s.append(msg('1', 'user', '<attached-file name="a.ts" />'));
     expect(s.get(id)!.name).toBe(defaultName);
+  });
+
+  it('clears smart-title pending when conversation is deleted', () => {
+    const s = mk();
+    const id = s.ensureCurrent();
+    armNomiAutoTitle(id);
+    expect(nomiAutoTitlePending(id)).toBe(true);
+    s.delete(id);
+    expect(nomiAutoTitlePending(id)).toBe(false);
   });
 
   it('caches loaded messages until the conversation is changed', () => {

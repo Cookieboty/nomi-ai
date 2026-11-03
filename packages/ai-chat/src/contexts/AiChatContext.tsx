@@ -43,11 +43,10 @@ import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../service
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import {
+  applyNomiSmartTitle,
   armNomiAutoTitle,
-  clearNomiAutoTitle,
   generateSmartTitle,
   isDefaultChatName,
-  nomiAutoTitlePending,
 } from '../services/sessionTitle';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
@@ -309,10 +308,14 @@ function maybeStartNomiSmartTitle(
   armNomiAutoTitle(convoId);
   const complete = client.completeChatText.bind(client);
   void generateSmartTitle(text, (messages) => complete(messages)).then((title) => {
-    if (!title || !nomiAutoTitlePending(convoId)) return;
-    client.conversationStore?.()?.updateMeta(convoId, { name: title });
-    clearNomiAutoTitle(convoId);
-    notifyConversationsChanged();
+    const store = client.conversationStore?.();
+    applyNomiSmartTitle(convoId, title, {
+      get: (id) => store?.get(id),
+      updateMeta: (id, patch) => {
+        store?.updateMeta(id, patch);
+      },
+      notify: notifyConversationsChanged,
+    });
   });
 }
 
