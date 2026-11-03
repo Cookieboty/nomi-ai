@@ -2,7 +2,7 @@
  * D2 · 应用外壳（docs/design/core-host-decoupling.md §12 P1b）。
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
- * 命名空间：theme、locale、startup、onboarding、providers、gateway、usage、quality、updates、diagnostics、appIcon、
+ * 命名空间：theme、locale、startup、onboarding、providers、gateway、providerLink、usage、quality、updates、diagnostics、appIcon、
  * migration（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
@@ -154,6 +154,35 @@ export const shellProcedures = {
     output: S.NomiContextInfo.nullable(),
   },
 
+  // ---- providerLink（第三方供应商链接 nomi://provider/*，docs/design/provider-link.md）----
+  /** 等用户确认的链接（冷启动时链接先于窗口到达：窗口挂载后拉取） */
+  'providerLink.list': {
+    kind: 'query',
+    input: v,
+    output: z.array(S.ProviderLinkOffer),
+    surfaces: CHAT,
+  },
+  /** 确认：authorize = 打开浏览器去授权；save = 写进网关 */
+  'providerLink.accept': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: S.ProviderLinkAcceptResult,
+    surfaces: CHAT,
+  },
+  'providerLink.reject': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 设置里填第三方供应商的域名发起授权（读它的授权清单后打开浏览器） */
+  'providerLink.connect': {
+    kind: 'mutation',
+    input: z.object({ issuer: z.string() }),
+    output: z.object({ name: z.string(), issuer: z.string() }),
+    surfaces: CHAT,
+  },
+
   // ---- usage（UsageService）----
   'usage.state': { kind: 'query', input: v, output: S.UsageState },
   'usage.setSettings': {
@@ -290,13 +319,18 @@ export const shellEvents = {
   'providers.openPanel': S.opaqueObject,
   /** 网关配置或状态变了：视图重新拉 `gateway.state` */
   'gateway.changed': z.null(),
+  /** 等确认的第三方供应商链接变了（整份列表） */
+  'providerLink.changed': z.array(S.ProviderLinkOffer),
   'usage.changed': z.null(),
   'quality.changed': z.null(),
   'updates.changed': S.UpdateState,
 } as const satisfies EventMap;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */
-export const shellErrors = [] as const satisfies readonly string[];
+export const shellErrors = [
+  /** 链接无法处理 / 授权失败；message 是错误码（bad_issuer、bad_manifest、network 等，见 provider-link.md） */
+  'PROVIDER_LINK_FAILED',
+] as const satisfies readonly string[];
 
 export type ShellProcedureName = keyof typeof shellProcedures & string;
 export type ShellEventName = keyof typeof shellEvents & string;

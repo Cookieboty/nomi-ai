@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 404：mutation 283 / query 116 / stream 5
+// 合计 408：mutation 286 / query 117 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -308,6 +308,10 @@ var Procedures = []Procedure{
 	{Name: "onboarding.setProfile", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "persona.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "persona.systemPrompt", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "providerLink.accept", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "providerLink.connect", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "providerLink.list", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "providerLink.reject", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "providers.meta", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "providers.presets", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "providers.setActive", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -480,6 +484,7 @@ var Events = []string{
 	"onboarding.profileChanged",
 	"onboarding.show",
 	"persona.changed",
+	"providerLink.changed",
 	"providers.changed",
 	"providers.openPanel",
 	"quality.changed",
@@ -502,4 +507,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}

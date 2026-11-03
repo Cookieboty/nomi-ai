@@ -4874,6 +4874,77 @@ type PersonaGetOutput struct {
 	Greetings            []string `json:"greetings"`
 }
 
+type ProviderLinkAcceptInput struct {
+	Id string `json:"id"`
+}
+
+// ProviderLinkAcceptOutputStage 枚举：authorize | save | error
+type ProviderLinkAcceptOutputStage = string
+
+const (
+	ProviderLinkAcceptOutputStageAuthorize ProviderLinkAcceptOutputStage = "authorize"
+	ProviderLinkAcceptOutputStageSave      ProviderLinkAcceptOutputStage = "save"
+	ProviderLinkAcceptOutputStageError     ProviderLinkAcceptOutputStage = "error"
+)
+
+type ProviderLinkAcceptOutput struct {
+	Stage      ProviderLinkAcceptOutputStage `json:"stage"`
+	ProviderId *string                       `json:"providerId,omitempty"`
+	Name       *string                       `json:"name,omitempty"`
+	Updated    *bool                         `json:"updated,omitempty"`
+}
+
+type ProviderLinkConnectInput struct {
+	Issuer string `json:"issuer"`
+}
+
+type ProviderLinkConnectOutput struct {
+	Name   string `json:"name"`
+	Issuer string `json:"issuer"`
+}
+
+// ProviderLinkListOutputItemStage 枚举：authorize | save | error
+type ProviderLinkListOutputItemStage = string
+
+const (
+	ProviderLinkListOutputItemStageAuthorize ProviderLinkListOutputItemStage = "authorize"
+	ProviderLinkListOutputItemStageSave      ProviderLinkListOutputItemStage = "save"
+	ProviderLinkListOutputItemStageError     ProviderLinkListOutputItemStage = "error"
+)
+
+// ProviderLinkListOutputItemSource 枚举：link | issuer
+type ProviderLinkListOutputItemSource = string
+
+const (
+	ProviderLinkListOutputItemSourceLink   ProviderLinkListOutputItemSource = "link"
+	ProviderLinkListOutputItemSourceIssuer ProviderLinkListOutputItemSource = "issuer"
+)
+
+type ProviderLinkListOutputItemExisting struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ProviderLinkListOutputItem struct {
+	Id        string                              `json:"id"`
+	Stage     ProviderLinkListOutputItemStage     `json:"stage"`
+	Source    ProviderLinkListOutputItemSource    `json:"source"`
+	Issuer    *string                             `json:"issuer,omitempty"`
+	Name      string                              `json:"name"`
+	Homepage  *string                             `json:"homepage,omitempty"`
+	Urls      map[string]string                   `json:"urls"`
+	KeyMasked *string                             `json:"keyMasked,omitempty"`
+	Models    []string                            `json:"models"`
+	Existing  *ProviderLinkListOutputItemExisting `json:"existing,omitempty"`
+	Error     *string                             `json:"error,omitempty"`
+	CreatedAt float64                             `json:"createdAt"`
+	ExpiresAt float64                             `json:"expiresAt"`
+}
+
+type ProviderLinkRejectInput struct {
+	Id string `json:"id"`
+}
+
 type ProvidersMetaOutput struct {
 	Categories map[string]string `json:"categories"`
 	Protocols  map[string]string `json:"protocols"`
@@ -7315,6 +7386,44 @@ type EventPersonaChanged struct {
 	Greetings            []string `json:"greetings"`
 }
 
+// EventProviderLinkChangedItemStage 枚举：authorize | save | error
+type EventProviderLinkChangedItemStage = string
+
+const (
+	EventProviderLinkChangedItemStageAuthorize EventProviderLinkChangedItemStage = "authorize"
+	EventProviderLinkChangedItemStageSave      EventProviderLinkChangedItemStage = "save"
+	EventProviderLinkChangedItemStageError     EventProviderLinkChangedItemStage = "error"
+)
+
+// EventProviderLinkChangedItemSource 枚举：link | issuer
+type EventProviderLinkChangedItemSource = string
+
+const (
+	EventProviderLinkChangedItemSourceLink   EventProviderLinkChangedItemSource = "link"
+	EventProviderLinkChangedItemSourceIssuer EventProviderLinkChangedItemSource = "issuer"
+)
+
+type EventProviderLinkChangedItemExisting struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type EventProviderLinkChangedItem struct {
+	Id        string                                `json:"id"`
+	Stage     EventProviderLinkChangedItemStage     `json:"stage"`
+	Source    EventProviderLinkChangedItemSource    `json:"source"`
+	Issuer    *string                               `json:"issuer,omitempty"`
+	Name      string                                `json:"name"`
+	Homepage  *string                               `json:"homepage,omitempty"`
+	Urls      map[string]string                     `json:"urls"`
+	KeyMasked *string                               `json:"keyMasked,omitempty"`
+	Models    []string                              `json:"models"`
+	Existing  *EventProviderLinkChangedItemExisting `json:"existing,omitempty"`
+	Error     *string                               `json:"error,omitempty"`
+	CreatedAt float64                               `json:"createdAt"`
+	ExpiresAt float64                               `json:"expiresAt"`
+}
+
 type EventProvidersChangedProvidersItem struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
@@ -8633,6 +8742,22 @@ type PersonaGetOutputT = PersonaGetOutput
 type PersonaSystemPromptInputT = any
 type PersonaSystemPromptOutputT = string
 
+// ProviderLinkAcceptInputT 是 providerLink.accept 的入参
+type ProviderLinkAcceptInputT = ProviderLinkAcceptInput
+type ProviderLinkAcceptOutputT = ProviderLinkAcceptOutput
+
+// ProviderLinkConnectInputT 是 providerLink.connect 的入参
+type ProviderLinkConnectInputT = ProviderLinkConnectInput
+type ProviderLinkConnectOutputT = ProviderLinkConnectOutput
+
+// ProviderLinkListInputT 是 providerLink.list 的入参
+type ProviderLinkListInputT = any
+type ProviderLinkListOutputT = []ProviderLinkListOutputItem
+
+// ProviderLinkRejectInputT 是 providerLink.reject 的入参
+type ProviderLinkRejectInputT = ProviderLinkRejectInput
+type ProviderLinkRejectOutputT = any
+
 // ProvidersMetaInputT 是 providers.meta 的入参
 type ProvidersMetaInputT = any
 type ProvidersMetaOutputT = ProvidersMetaOutput
@@ -9133,6 +9258,7 @@ type EventNavVoiceSettingsRequestedT = map[string]any
 type EventOnboardingProfileChangedT = EventOnboardingProfileChanged
 type EventOnboardingShowT = EventOnboardingShow
 type EventPersonaChangedT = EventPersonaChanged
+type EventProviderLinkChangedT = []EventProviderLinkChangedItem
 type EventProvidersChangedT = EventProvidersChanged
 type EventProvidersOpenPanelT = any
 type EventQualityChangedT = any

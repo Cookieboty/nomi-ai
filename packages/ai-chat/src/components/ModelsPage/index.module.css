@@ -108,6 +108,11 @@
   align-items: center;
   justify-content: space-between;
 }
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
 
 .picker {
   width: 100%;

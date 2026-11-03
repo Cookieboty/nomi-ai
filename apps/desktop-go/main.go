@@ -56,6 +56,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mediahandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/providerlink"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
@@ -121,6 +122,7 @@ func main() {
 	router := contract.NewRouter()
 
 	var sh shell.Shell
+	var providerLinks *providerlink.Service
 	bundle := shellhandlers.Install(shellhandlers.Deps{
 		UserData: userData,
 		Router:   router,
@@ -515,6 +517,25 @@ func main() {
 	b8.Start()
 	defer b8.Stop()
 	shellhandlers.InstallGateway(router, gatewaySvc)
+	// 第三方供应商链接 nomi://provider/*（docs/design/provider-link.md）：宿主经 OnURL 转来，确认框在对话窗口
+	providerLinks = providerlink.New(providerlink.Deps{
+		Gateway: func() providerlink.Gateway {
+			if gatewaySvc == nil {
+				return nil
+			}
+			return gatewaySvc
+		},
+		OpenExternal: ports.OpenExternal,
+		Publish:      func(o []providerlink.Offer) { router.Emit("providerLink.changed", o) },
+		Reveal: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+		AssertPublic: func(u string) error { _, err := security.AssertPublicHttpUrlResolved(u, nil); return err },
+		Logger:       deps.StdLogger{Prefix: "[provider-link]"},
+	})
+	shellhandlers.InstallProviderLink(router, providerLinks)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	mediahandlers.Wire(mediahandlers.WireDeps{
@@ -727,6 +748,12 @@ func main() {
 		},
 		// = ThemeService 订阅 appearance.onChange
 		OnSystemThemeChanged: bundle.Theme.SystemChanged,
+		// nomi:// 链接（open-url / argv）：交给第三方供应商链接服务（不是 provider 的它会忽略）
+		OnURL: func(u string) {
+			if providerLinks != nil {
+				providerLinks.Receive(u)
+			}
+		},
 		// 灵动岛页面的收起 / 点击信号（islandPageMiddleware 插入的桥）
 		OnPageMessage: func(msg string) {
 			// = windowGuards setWindowOpenHandler：http(s) 交给系统浏览器，其余拒绝

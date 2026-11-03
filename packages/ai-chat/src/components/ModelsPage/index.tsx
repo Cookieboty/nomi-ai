@@ -44,14 +44,32 @@ import {
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { confirmDialog } from '../ConfirmDialog';
+import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
+import { linkCallErrorText, providerLinkClient } from '../ProviderLink/client';
 
 import styles from './index.module.css';
 import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
 import { ProviderForm } from './ProviderForm';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
 import { useCliInstall } from './useCliInstall';
+
+/** 「网页授权」：填第三方供应商的网址，读它的授权说明后在浏览器里授权（docs/design/provider-link.md B） */
+async function connectByAuthorization(setError: (e: string | null) => void): Promise<void> {
+  const site = await promptDialog({
+    title: t('ui.provider-link.connect-title'),
+    message: t('ui.provider-link.connect-message'),
+    label: t('ui.provider-link.connect-label'),
+    confirmLabel: t('ui.provider-link.go-authorize'),
+  });
+  if (!site?.trim()) return;
+  setError(null);
+  try {
+    await providerLinkClient.connect(site.trim());
+  } catch (e) {
+    setError(linkCallErrorText(e));
+  }
+}
 
 const FOLLOW = 'follow';
 const UNSET = 'unset';
@@ -198,16 +216,28 @@ export const ModelsPage: React.FC = () => {
             <Icon icon={Boxes} size={16} />
             {t('ui.models.third-party-providers')}
           </h3>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setAdding(true)}
-            disabled={!state || showForm || adding}
-            data-testid="add-provider"
-          >
-            <Icon icon={Plus} size={14} />
-            {t('ui.foundation.add')}
-          </Button>
+          <span className={styles.headActions}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setAdding(true)}
+              disabled={!state || showForm || adding}
+              data-testid="add-provider"
+            >
+              <Icon icon={Plus} size={14} />
+              {t('ui.foundation.add')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void connectByAuthorization(setError)}
+              disabled={!state}
+              title={t('ui.provider-link.connect-hint')}
+              data-testid="connect-provider"
+            >
+              {t('ui.provider-link.connect')}
+            </Button>
+          </span>
         </div>
         {state && !providers.length && (
           <p className={styles.sub} data-testid="models-empty">

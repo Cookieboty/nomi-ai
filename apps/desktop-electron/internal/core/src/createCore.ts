@@ -92,6 +92,7 @@ import { ExtensionsService } from './extensions/ExtensionsService';
 import { GatewayService } from './gateway/GatewayService';
 import { harnessGateway } from './gateway/harnessGateway';
 import { applyNomiContext, chatRoleOf } from './gateway/nomiContext';
+import { ProviderLinkService } from './gateway/ProviderLinkService';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
 import { LocaleService, t as tr, type CoreI18n } from './i18n';
@@ -107,6 +108,7 @@ import { forwardPersonaChanges } from './persona/events';
 import { neutralPersonaSource, packPersonaSource, PersonaService } from './persona/PersonaService';
 import { SchedulerService } from './schedule/SchedulerService';
 import { ScreenService } from './screen/ScreenService';
+import { assertPublicHttpUrlResolved } from './security/netGuard';
 import { safeStorageFromSecrets } from './security/secretStorage';
 import { createSecretBox } from './security/secretStorage';
 import { CacheService } from './services/CacheService';
@@ -895,6 +897,14 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       broadcast: (channel, payload) => events.publish(channel, payload),
     });
     services.gateway = gateway;
+    services.providerLink = new ProviderLinkService({
+      gateway: () => services.gateway,
+      openExternal: (url) => ports.shell.openExternal(url),
+      publish: (offers) => events.publish('providerLink.changed', offers),
+      reveal: () => void ports.windows.open('chat'),
+      assertPublic: (url) => assertPublicHttpUrlResolved(url),
+      logger: logger as never,
+    });
     // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
     gateway.init();
     // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）

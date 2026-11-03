@@ -489,3 +489,29 @@ export const ChatHistoryMigration = loose({
   entries: z.record(z.string(), z.string()),
   error: z.string().optional(),
 });
+
+/* ---- providerLink（第三方供应商链接，docs/design/provider-link.md）---- */
+
+export const ProviderLinkOffer = loose({
+  id: z.string(),
+  stage: z.enum(['authorize', 'save', 'error']),
+  source: z.enum(['link', 'issuer']),
+  issuer: z.string().optional(),
+  name: z.string(),
+  homepage: z.string().optional(),
+  urls: WireUrls,
+  /** 打码后的 Key（明文只在内核里） */
+  keyMasked: z.string().optional(),
+  models: z.array(z.string()),
+  existing: loose({ id: z.string(), name: z.string() }).optional(),
+  error: z.string().optional(),
+  createdAt: z.number(),
+  expiresAt: z.number(),
+});
+
+export const ProviderLinkAcceptResult = loose({
+  stage: z.enum(['authorize', 'save', 'error']),
+  providerId: z.string().optional(),
+  name: z.string().optional(),
+  updated: z.boolean().optional(),
+});

@@ -19202,6 +19202,210 @@
     "type": "string"
    }
   },
+  "providerLink.accept": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "stage": {
+      "type": "string",
+      "enum": [
+       "authorize",
+       "save",
+       "error"
+      ]
+     },
+     "providerId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "updated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "stage"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "providerLink.connect": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "issuer": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "issuer": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "issuer"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "providerLink.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "stage": {
+       "type": "string",
+       "enum": [
+        "authorize",
+        "save",
+        "error"
+       ]
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "link",
+        "issuer"
+       ]
+      },
+      "issuer": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "homepage": {
+       "type": "string"
+      },
+      "urls": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "keyMasked": {
+       "type": "string"
+      },
+      "models": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "existing": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "name"
+       ],
+       "additionalProperties": {}
+      },
+      "error": {
+       "type": "string"
+      },
+      "createdAt": {
+       "type": "number"
+      },
+      "expiresAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "stage",
+      "source",
+      "name",
+      "urls",
+      "models",
+      "createdAt",
+      "expiresAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "providerLink.reject": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
   "providers.meta": {
    "kind": "query",
    "dangerous": false,
@@ -28077,6 +28281,96 @@
    ],
    "additionalProperties": {}
   },
+  "providerLink.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "stage": {
+      "type": "string",
+      "enum": [
+       "authorize",
+       "save",
+       "error"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "link",
+       "issuer"
+      ]
+     },
+     "issuer": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "homepage": {
+      "type": "string"
+     },
+     "urls": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "keyMasked": {
+      "type": "string"
+     },
+     "models": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "existing": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ],
+      "additionalProperties": {}
+     },
+     "error": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "expiresAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "stage",
+     "source",
+     "name",
+     "urls",
+     "models",
+     "createdAt",
+     "expiresAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "providers.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -28490,6 +28784,7 @@
  },
  "errors": [
   "UNAVAILABLE",
+  "PROVIDER_LINK_FAILED",
   "ACCOUNT_NOT_FOUND",
   "ACCOUNT_IN_USE",
   "ACCOUNT_LOCAL",

@@ -47,6 +47,9 @@ type Config struct {
 	OnReactivate func()
 	// OnSystemThemeChanged：系统外观（深浅色）变化（= nativeTheme 'updated'）
 	OnSystemThemeChanged func()
+	// OnURL：收到 nomi:// 链接（macOS 的 open-url、Windows / Linux 冷启动的 argv、第二实例的 argv）；
+	// 白名单与解析在内核（providerlink），这里原样转交，不记原文（链接里可能有 Key）
+	OnURL func(url string)
 	// OnPageMessage：页面经 Wails 消息通道发来的 nomi:* 信号（first-paint 与开发态日志除外）
 	OnPageMessage func(msg string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
@@ -121,12 +124,18 @@ func New(cfg Config) *Wails {
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyRegular, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
-		// = Electron requestSingleInstanceLock + second-instance：第二次启动（含 nomi:// deep link，
-		// Win/Linux 经 argv 传入）只把已有实例的对话窗带到前台；deep link 白名单为空，与 Electron 相同不执行动作
+		// = Electron requestSingleInstanceLock + second-instance：第二次启动把已有实例带到前台；
+		// 带着 nomi:// 链接（Win/Linux 经 argv 传入）的交给 OnURL（白名单在内核，与 Electron 相同）
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: AppID,
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+			OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
 				w.reactivate()
+				for _, a := range d.Args {
+					if cfg.OnURL != nil && len(a) > 5 && strings.EqualFold(a[:5], "nomi:") {
+						go cfg.OnURL(a)
+						break
+					}
+				}
 			},
 		},
 	})
@@ -135,6 +144,14 @@ func New(cfg Config) *Wails {
 	w.app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) {
 		go w.reactivate()
 	})
+	// = Electron open-url（macOS）/ 冷启动 argv（Windows / Linux，Wails 发同一个事件）
+	if cfg.OnURL != nil {
+		w.app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(e *application.ApplicationEvent) {
+			if u := e.Context().URL(); len(u) > 5 && strings.EqualFold(u[:5], "nomi:") {
+				go cfg.OnURL(u)
+			}
+		})
+	}
 	if cfg.OnSystemThemeChanged != nil {
 		w.app.Event.OnApplicationEvent(events.Common.ThemeChanged, func(*application.ApplicationEvent) {
 			go cfg.OnSystemThemeChanged()

@@ -12,9 +12,10 @@
 import type { ShellProcedureName } from '@nomi-ai/contract/app';
 
 import type { GatewayService, ProviderInput } from '../gateway/GatewayService';
+import { ProviderLinkError } from '../gateway/ProviderLinkService';
 import type { UsageSettings } from '../usage/UsageService';
 
-import type { ContractDeps, DomainHandlers } from './types';
+import type { AppHandlerContext, ContractDeps, DomainHandlers } from './types';
 import { need } from './types';
 
 /** 应用图标（窗口 / 任务栏 / Dock / 托盘图标）是宿主的事：`appIcon.*` 由宿主的片段实现 */
@@ -26,6 +27,16 @@ export type ShellHandlers = DomainHandlers<Exclude<ShellProcedureName, ShellHost
 function redactProviderError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
   return new Error(msg.replace(/\b(sk|key|AIza)[-_A-Za-z0-9]{12,}\b/g, '***').slice(0, 300));
+}
+
+/** 链接 / 授权失败：错误码交给视图翻译（不匹配文案） */
+async function linkCall<T>(ctx: AppHandlerContext, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (e) {
+    if (e instanceof ProviderLinkError) ctx.fail('PROVIDER_LINK_FAILED', e.code);
+    throw e;
+  }
 }
 
 /** 供应商状态变化（面板 / 托盘 / 工具栏任一入口）→ 应用事件总线 */
@@ -42,6 +53,7 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
   const onboarding = () => need(s.onboarding, 'onboarding');
   const providers = () => need(s.aiRuntime, 'aiRuntime').providers;
   const gateway = () => need(s.gateway, 'gateway');
+  const providerLink = () => need(s.providerLink, 'providerLink');
   const terminal = () => need(s.terminal, 'terminal');
   const usage = () => need(s.usage, 'usage');
   const quality = () => need(s.quality, 'quality');
@@ -82,6 +94,12 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'providers.state': () => withProviders((p) => p.state()),
     'providers.setActive': ({ id, model }) =>
       withProviders((p) => p.setActive(id, model ?? undefined)),
+
+    'providerLink.list': () => providerLink().list(),
+    'providerLink.accept': ({ id }, ctx) => linkCall(ctx, () => providerLink().accept(id)),
+    'providerLink.reject': ({ id }) => providerLink().reject(id),
+    'providerLink.connect': ({ issuer }, ctx) =>
+      linkCall(ctx, () => providerLink().connect(issuer)),
 
     'gateway.state': () => gateway().state(),
     // 网关服务还没起来时当作没配模型（视图按默认预算）

@@ -9,6 +9,7 @@ import ui_mascot_theme_en from './locales/en/ui/mascot-theme.json';
 import ui_media_en from './locales/en/ui/media.json';
 import ui_model_quality_en from './locales/en/ui/model-quality.json';
 import ui_models_en from './locales/en/ui/models.json';
+import ui_provider_link_en from './locales/en/ui/provider-link.json';
 import ui_providers_schedule_en from './locales/en/ui/providers-schedule.json';
 import ui_session_workspace_en from './locales/en/ui/session-workspace.json';
 import ui_slash_commands_en from './locales/en/ui/slash-commands.json';
@@ -25,6 +26,7 @@ import ui_mascot_theme_zh from './locales/zh/ui/mascot-theme.json';
 import ui_media_zh from './locales/zh/ui/media.json';
 import ui_model_quality_zh from './locales/zh/ui/model-quality.json';
 import ui_models_zh from './locales/zh/ui/models.json';
+import ui_provider_link_zh from './locales/zh/ui/provider-link.json';
 import ui_providers_schedule_zh from './locales/zh/ui/providers-schedule.json';
 import ui_session_workspace_zh from './locales/zh/ui/session-workspace.json';
 import ui_slash_commands_zh from './locales/zh/ui/slash-commands.json';
@@ -44,6 +46,7 @@ export const DICTIONARIES = {
     ui_media: ui_media_zh,
     ui_model_quality: ui_model_quality_zh,
     ui_models: ui_models_zh,
+    ui_provider_link: ui_provider_link_zh,
     ui_providers_schedule: ui_providers_schedule_zh,
     ui_session_workspace: ui_session_workspace_zh,
     ui_slash_commands: ui_slash_commands_zh,
@@ -62,6 +65,7 @@ export const DICTIONARIES = {
     ui_media: ui_media_en,
     ui_model_quality: ui_model_quality_en,
     ui_models: ui_models_en,
+    ui_provider_link: ui_provider_link_en,
     ui_providers_schedule: ui_providers_schedule_en,
     ui_session_workspace: ui_session_workspace_en,
     ui_slash_commands: ui_slash_commands_en,
@@ -2634,6 +2638,36 @@ export type TranslationKey =
   | 'ui.models.no-image-models'
   | 'ui.models.image-auto'
   | 'ui.models.image-auto-hint'
+  | 'ui.provider-link.authorize-hint'
+  | 'ui.provider-link.authorize-title'
+  | 'ui.provider-link.connect'
+  | 'ui.provider-link.connect-hint'
+  | 'ui.provider-link.connect-label'
+  | 'ui.provider-link.connect-message'
+  | 'ui.provider-link.connect-title'
+  | 'ui.provider-link.err-bad-issuer'
+  | 'ui.provider-link.err-bad-key'
+  | 'ui.provider-link.err-bad-link'
+  | 'ui.provider-link.err-bad-manifest'
+  | 'ui.provider-link.err-bad-name'
+  | 'ui.provider-link.err-bad-payload'
+  | 'ui.provider-link.err-bad-state'
+  | 'ui.provider-link.err-bad-token'
+  | 'ui.provider-link.err-bad-url'
+  | 'ui.provider-link.err-denied'
+  | 'ui.provider-link.err-network'
+  | 'ui.provider-link.err-too-long'
+  | 'ui.provider-link.error-title'
+  | 'ui.provider-link.go-authorize'
+  | 'ui.provider-link.key'
+  | 'ui.provider-link.models'
+  | 'ui.provider-link.models-count'
+  | 'ui.provider-link.source'
+  | 'ui.provider-link.source-link'
+  | 'ui.provider-link.trust-hint'
+  | 'ui.provider-link.update'
+  | 'ui.provider-link.update-hint'
+  | 'ui.provider-link.update-title'
   | 'ui.providers-schedule.a-command-is-required-and-can-t-contain'
   | 'ui.providers-schedule.a-name-is-required-up-to-60-characters'
   | 'ui.providers-schedule.absolute-path-of-the-executable-or-a-name'
@@ -3101,6 +3135,7 @@ export type TranslationKey =
   | 'ui.session-workspace.path-outside-workspace-read-denied'
   | 'ui.session-workspace.path-outside-workspace-write-denied'
   | 'ui.session-workspace.please-commit-the-following-uncommitted-changes-files'
+  | 'ui.session-workspace.preview-file'
   | 'ui.session-workspace.previous'
   | 'ui.session-workspace.previous-file'
   | 'ui.session-workspace.publish'
@@ -3135,7 +3170,6 @@ export type TranslationKey =
   | 'ui.session-workspace.stop-this-subtask-nomi-keeps-going'
   | 'ui.session-workspace.subagents-running'
   | 'ui.session-workspace.subtask-for'
-  | 'ui.session-workspace.preview-file'
   | 'ui.session-workspace.switch-to-it'
   | 'ui.session-workspace.switch-to-side-by-side-view'
   | 'ui.session-workspace.switch-to-unified-view'
