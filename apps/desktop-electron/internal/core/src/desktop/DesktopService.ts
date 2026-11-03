@@ -693,8 +693,11 @@ export class DesktopService {
     return true;
   }
 
-  auditList(limit: unknown): AuditEntry[] {
-    return this.audit.list(typeof limit === 'number' ? Math.min(1000, limit) : 200);
+  auditList(limit: unknown, offset?: unknown): AuditEntry[] {
+    return this.audit.list(
+      typeof limit === 'number' ? Math.min(1000, limit) : 200,
+      typeof offset === 'number' && offset > 0 ? Math.floor(offset) : 0,
+    );
   }
 
   clearAudit(): boolean {

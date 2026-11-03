@@ -16,7 +16,7 @@ func TestDesktopAdapterUsesRealService(t *testing.T) {
 
 	// audit：键序按书写顺序落盘到批次 6 的审计日志
 	a.Append(deps.AuditEntry{Tool: "kb_ask", Args: deps.O("question", "q", "sources", 2), Decision: "auto", Result: "ok", Source: "agent"})
-	got := svc.Audit.List(1)
+	got := svc.Audit.List(1, 0)
 	if len(got) != 1 || !strings.Contains(string(got[0]), `"args":{"question":"q","sources":2}`) {
 		t.Fatalf("audit = %s", got)
 	}

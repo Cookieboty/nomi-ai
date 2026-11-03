@@ -1567,6 +1567,7 @@ export type TranslationKey =
   | 'ui.foundation.open-skills-folder'
   | 'ui.foundation.organize-today-s-to-dos'
   | 'ui.foundation.overwrite-existing'
+  | 'ui.foundation.page-n'
   | 'ui.foundation.paste-the-common'
   | 'ui.foundation.pending'
   | 'ui.foundation.pick-a-time'

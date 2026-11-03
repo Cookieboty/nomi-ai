@@ -682,12 +682,16 @@ func (s *Service) SetToolPolicy(tool, policy any) bool {
 func (s *Service) SetLocalOnly(v any) bool { s.Broker.SetLocalOnly(v == true); return true }
 func (s *Service) ResetCloudAcks() bool    { s.Broker.ResetCloudAcks(); return true }
 
-func (s *Service) AuditList(limit any) []json.RawMessage {
+func (s *Service) AuditList(limit, offset any) []json.RawMessage {
 	n := 200
 	if f, ok := limit.(float64); ok {
 		n = int(math.Min(1000, f))
 	}
-	return s.Audit.List(n)
+	skip := 0
+	if f, ok := offset.(float64); ok && f > 0 {
+		skip = int(math.Floor(f))
+	}
+	return s.Audit.List(n, skip)
 }
 
 func (s *Service) ClearAudit() bool {

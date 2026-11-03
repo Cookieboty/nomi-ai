@@ -220,9 +220,10 @@ export const mediaProcedures = {
     output: z.boolean(),
     dangerous: true,
   },
+  /** 审计日志：最新在前，只列 30 天内的；offset 用于分页 */
   'desktop.audit': {
     kind: 'query',
-    input: z.object({ limit: z.number().optional() }),
+    input: z.object({ limit: z.number().optional(), offset: z.number().optional() }),
     output: z.array(DesktopAuditEntry),
   },
   'desktop.auditClear': { kind: 'mutation', input: z.void(), output: z.boolean() },

@@ -7390,6 +7390,9 @@
     "properties": {
      "limit": {
       "type": "number"
+     },
+     "offset": {
+      "type": "number"
      }
     }
    },

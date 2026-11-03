@@ -1774,7 +1774,8 @@ type DelegateStatusOutput struct {
 }
 
 type DesktopAuditInput struct {
-	Limit *float64 `json:"limit,omitempty"`
+	Limit  *float64 `json:"limit,omitempty"`
+	Offset *float64 `json:"offset,omitempty"`
 }
 
 type DesktopAuditOutputItem struct {

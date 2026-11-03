@@ -176,6 +176,31 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-open-models')).toBeTruthy();
   });
 
+  it('「监视与会话」：活跃会话超过 20 条时分页', async () => {
+    const sessions = Array.from({ length: 25 }, (_, i) => ({
+      id: `s${i}`,
+      kind: 'codex',
+      title: `会话 ${i}`,
+      status: 'running',
+      mtime: Date.now() - i * 1000,
+      path: `/tmp/s${i}.jsonl`,
+      source: 'file',
+    }));
+    installFakeApi(async (ch: string) => {
+      if (ch === 'agents.state' || ch === 'agents.scan') return { ...AGENTS, sessions };
+      return {};
+    });
+    localStorage.setItem('ai-chat:providerEndpoint', 'monitor');
+    const r = render(<ProvidersPage />);
+    await waitFor(() => r.getByTestId('agents-sessions-pager'));
+    const rows = () =>
+      r.getByTestId('agents-sessions').querySelectorAll('[data-testid="agents-session-file"]');
+    expect(rows().length).toBe(20);
+    expect(r.getByTestId('agents-sessions-page').textContent).toContain('25');
+    fireEvent.click(r.getByTestId('agents-sessions-page-next'));
+    await waitFor(() => expect(rows().length).toBe(5));
+  });
+
   it('「监视与会话」标签：监视开关、检测到的工具、立即扫描；与提醒设置分开', async () => {
     const calls = setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'monitor');

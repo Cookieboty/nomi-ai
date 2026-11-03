@@ -227,7 +227,7 @@
   "ui.knowledge-local.this-computer-has-about": "This computer has about",
   "ui.knowledge-local.this-conversation-is-too-short-chat-a-bit": "This conversation is too short. Chat a bit more before summarizing",
   "ui.knowledge-local.this-deletes-all-conversation-memories-and-about-me": "This deletes all conversation memories and “About me” and can't be undone",
-  "ui.knowledge-local.time-result-and-arguments-of-every-desktop-tool": "Time, result and arguments of every desktop tool call.",
+  "ui.knowledge-local.time-result-and-arguments-of-every-desktop-tool": "Time, result and arguments of every desktop tool call, kept for the last 30 days.",
   "ui.knowledge-local.to-toggle-knowledge-base-q-a-answers-include": "to toggle “Knowledge base Q&A”; answers include clickable citations.",
   "ui.knowledge-local.try-different-keywords": "Try different keywords.",
   "ui.knowledge-local.try-different-keywords-or-check-that-the-sources": "Try different keywords, or check that the sources are indexed.",

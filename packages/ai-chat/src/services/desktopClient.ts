@@ -122,7 +122,9 @@ export const desktopClient = {
     call<boolean>(() => api.desktop.setPolicy({ tool, policy })),
   setLocalOnly: (v: boolean) => call<boolean>(() => api.desktop.setLocalOnly({ value: v })),
   resetCloudAcks: () => call<boolean>(() => api.desktop.resetCloudAcks()),
-  audit: (limit = 200) => call<AuditEntryView[]>(() => api.desktop.audit({ limit })),
+  /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
+  audit: (limit = 200, offset = 0) =>
+    call<AuditEntryView[]>(() => api.desktop.audit({ limit, offset })),
   clearAudit: () => call<boolean>(() => api.desktop.auditClear()),
   journal: () => call<JournalView[]>(() => api.desktop.journal()),
   undoLast: () =>
