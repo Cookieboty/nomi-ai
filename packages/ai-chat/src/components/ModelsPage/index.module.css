@@ -616,7 +616,8 @@
 }
 
 .keyNameInput {
-  width: 160px;
+  flex: 0 1 140px;
+  min-width: 6em;
 }
 
 .linkBtn {
@@ -650,11 +651,115 @@
   flex: 1;
 }
 
-.modelList {
+/*
+ * 供应商编辑：左右两栏。左栏名称 / Key / 回退链 / 高级（自己滚动），右栏模型（占满高度，列表自己滚动）；
+ * 弹窗窄时退回单栏
+ */
+.pdModalBody {
+  container-type: inline-size;
+}
+.pdColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  height: min(70vh, 680px);
+  min-height: 0;
+}
+.pdLeft {
   display: flex;
   flex-direction: column;
-  max-height: 240px;
+  gap: var(--cd-space-4);
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
+  padding-right: var(--cd-space-5);
+}
+.modelPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  min-height: 0;
+  padding-left: var(--cd-space-5);
+  border-left: 1px solid var(--cd-color-border-subtle);
+}
+.modelCount {
+  margin-left: var(--cd-space-2);
+  font-weight: var(--cd-font-weight-regular);
+}
+.modelTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.modelSearch {
+  flex: 1 1 10em;
+  min-width: 0;
+}
+.modelFilter {
+  width: 7.5em;
+}
+.modelList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--cd-space-1);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.modelList .modelRow {
+  flex-shrink: 0;
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+}
+.modelList .modelRow:hover {
+  background: var(--cd-color-hover);
+}
+/* 删除只在悬停 / 键盘聚焦这一行时出现，几十行时不满屏垃圾桶 */
+.modelList .modelRow .rowEnd {
+  opacity: 0;
+}
+.modelList .modelRow:hover .rowEnd,
+.modelList .modelRow:focus-within .rowEnd {
+  opacity: 1;
+}
+@media (hover: none) {
+  .modelList .modelRow .rowEnd {
+    opacity: 1;
+  }
+}
+.modelName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modelEmpty {
+  padding: var(--cd-space-3);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-sm);
+}
+@container (max-width: 720px) {
+  .pdColumns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cd-space-4);
+    height: auto;
+  }
+  .pdLeft {
+    overflow: visible;
+    padding-right: 0;
+  }
+  .modelPanel {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .modelList {
+    flex: none;
+    max-height: 50vh;
+  }
 }
 
 .modelRow .modelCheck {

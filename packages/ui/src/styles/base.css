@@ -311,6 +311,9 @@
 .cd-modal--lg {
   width: min(820px, 100%);
 }
+.cd-modal--xl {
+  width: min(1040px, 100%);
+}
 .cd-modal__header {
   display: flex;
   align-items: center;

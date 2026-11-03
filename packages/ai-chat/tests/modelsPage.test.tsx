@@ -686,6 +686,41 @@ describe('ModelsPage', () => {
     expect(payload.detected).toMatchObject({ messages: { ok: true } });
   });
 
+  it('models: search and status filter narrow the list; enable / disable all act on what is shown', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'kimi-k3', enabled: true },
+          { id: 'kimi-k3-turbo', enabled: false },
+          { id: 'moonshot-v1', enabled: false },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).getByTestId('pd-models-count').textContent).toContain('1');
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: 'K3' } });
+    expect(within(dlg).queryByTestId('pd-model-moonshot-v1')).toBeNull();
+    expect(within(dlg).getByTestId('pd-model-kimi-k3-turbo')).toBeTruthy();
+    // 只启用筛出来的两个，moonshot-v1 不动
+    fireEvent.click(within(dlg).getByTestId('pd-models-enable-shown'));
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-model-filter'), { target: { value: 'off' } });
+    expect(within(dlg).getByTestId('pd-model-moonshot-v1')).toBeTruthy();
+    expect(within(dlg).queryByTestId('pd-model-kimi-k3')).toBeNull();
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: 'nope' } });
+    expect(within(dlg).getByText('没有匹配的模型')).toBeTruthy();
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models.map((x) => [x.id, x.enabled])).toEqual([
+      ['kimi-k3', true],
+      ['kimi-k3-turbo', true],
+      ['moonshot-v1', false],
+    ]);
+  });
+
   it('context limits: badges show the effective value; manual limits save as user-set (§12.7.2)', async () => {
     const m = fakeMain({
       detect: () => ({

@@ -10,7 +10,8 @@ export interface ModalProps {
   onClose: () => void;
   title?: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'md' | 'lg';
+  /** md 560 / lg 820 / xl 1040（左右两栏的编辑器） */
+  size?: 'md' | 'lg' | 'xl';
   /** 点击遮罩关闭（默认 true） */
   closeOnOverlay?: boolean;
   /** 关闭按钮的无障碍名称（默认「关闭」；按钮可见文字固定为「关闭」） */
@@ -104,6 +105,7 @@ export const Modal: React.FC<ModalProps> = ({
         className={cx(
           'cd-modal',
           size === 'lg' && 'cd-modal--lg',
+          size === 'xl' && 'cd-modal--xl',
           drawer && 'cd-modal--drawer',
           className,
         )}
