@@ -487,6 +487,17 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setCardPick(b);
     setEndpointFilter(b);
     setView('by-endpoint');
+    // 切到另一个端：打开它正在运行（或排队）的会话；没有就打开列表里第一条；一条都没有就新建一个空对话
+    // （没安装的 CLI 只切筛选）。已经停在这个端的会话上就不动
+    if (navList.find((x) => x.id === highlightId)?.backend === b) return;
+    const items = navList.filter((x) => x.backend === b);
+    const busy = (x: (typeof items)[number]) => {
+      const st = x.tabId ? tabById.get(x.tabId)?.status : undefined;
+      return st === 'running' || st === 'queued';
+    };
+    const target = items.find(busy) ?? items[0];
+    if (target) void open(target.id);
+    else if (!cliMissing(b)) void createFor(b);
   };
 
   // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
@@ -538,7 +549,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [isDev, currentMeta?.id, currentMeta?.backend, list.length]);
 
   // ── 搜索：图标按钮 → 原位展开为搜索框；Mod+F 聚焦；Esc 清空 / 收起；150ms 防抖
-  const [localHistoryOpen, setLocalHistoryOpen] = useState(true);
+  // 「本机历史」默认折叠（点标题展开；不记住）
+  const [localHistoryOpen, setLocalHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);

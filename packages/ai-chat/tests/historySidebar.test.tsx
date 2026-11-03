@@ -73,7 +73,18 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
   return calls;
 }
 
-const mount = (onNotice = vi.fn()) =>
+/** 「本机历史」默认折叠：这里的用例都要看历史行，挂载后自动点开一次 */
+function expandLocalHistory(r: ReturnType<typeof render>) {
+  void r
+    .findByTestId('cli-history-toggle')
+    .then((t) => {
+      if (t.getAttribute('aria-expanded') === 'false') fireEvent.click(t);
+    })
+    .catch(() => undefined);
+  return r;
+}
+
+const mountRaw = (onNotice = vi.fn()) =>
   render(
     <HarnessTabsProvider>
       <Sidebar
@@ -84,6 +95,7 @@ const mount = (onNotice = vi.fn()) =>
       />
     </HarnessTabsProvider>,
   );
+const mount = (onNotice = vi.fn()) => expandLocalHistory(mountRaw(onNotice));
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
@@ -263,28 +275,25 @@ describe('CLI history in the sidebar', () => {
     await waitFor(() => expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息'));
   });
 
-  it('collapses and expands local history; remount defaults to expanded', async () => {
+  it('local history is collapsed by default; expands and collapses; remount is collapsed again', async () => {
     mockIpc();
-    const r = mount();
-    const section = await r.findByTestId('cli-history');
-    expect(section.querySelectorAll('[data-testid="history-session-row"]').length).toBeGreaterThan(
-      0,
-    );
+    const r = mountRaw();
+    const toggle = await r.findByTestId('cli-history-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
 
-    const toggle = r.getByTestId('cli-history-toggle');
+    fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    await waitFor(() => expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0));
+
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
     expect(r.queryByTestId('cli-history-more')).toBeNull();
 
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0);
-
     r.unmount();
-    const r2 = mount();
+    const r2 = mountRaw();
     const toggle2 = await r2.findByTestId('cli-history-toggle');
-    expect(toggle2.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle2.getAttribute('aria-expanded')).toBe('false');
   });
 });
