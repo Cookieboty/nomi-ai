@@ -90,6 +90,42 @@ describe('CliHarnessService tabs', () => {
     expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.title).toBe('我的 Codex');
   });
 
+  it('sets a heuristic title on first send while the tab title is still generated', async () => {
+    process.env.NOMI_MOCK_DELAY_MS = '10';
+    const h = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    expect(tab.title).toBe('Codex');
+    await h.sendTab(tab.id, '修复登录流程里的空指针');
+    const titled = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(titled.title.startsWith('修复登录流程')).toBe(true);
+    expect(titled.title.length).toBeLessThanOrEqual(60);
+  });
+
+  it('does not overwrite a manual rename with send-time heuristic', async () => {
+    process.env.NOMI_MOCK_DELAY_MS = '10';
+    const h = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    h.renameTab(tab.id, '我的 Codex');
+    await h.sendTab(tab.id, '这段不该改标题');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.title).toBe('我的 Codex');
+  });
+
+  it('applyAutoTitle works only while autoTitlePending; rename clears pending', async () => {
+    process.env.NOMI_MOCK_DELAY_MS = '10';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, '帮我写一个解析器');
+    // after heuristic, pending still true until smart apply or manual rename
+    expect(h.applyAutoTitle(tab.id, '写解析器')).toMatchObject({ title: '写解析器' });
+    expect(h.applyAutoTitle(tab.id, '第二次')).toBeNull();
+
+    const tab2 = h.createTab({ backend: 'codex' });
+    await h.sendTab(tab2.id, '另一段');
+    h.renameTab(tab2.id, '手动名');
+    expect(h.applyAutoTitle(tab2.id, '智能名')).toBeNull();
+    expect(h.listTabs().tabs.find((x) => x.id === tab2.id)?.title).toBe('手动名');
+  });
+
   it('runs all tabs in parallel (no max-concurrent queue)', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '400';
     const h = mk();

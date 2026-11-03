@@ -126,7 +126,7 @@ func isGeneratedTabTitle(title, backend string) bool {
 	if title == base {
 		return true
 	}
-	return strings.HasPrefix(title, base+" ") && digitsRe.MatchString(clisdk.Slice0(title, util.UTF16Len(base)+1))
+	return strings.HasPrefix(title, base+" ") && digitsRe.MatchString(clisdk.SliceFrom(title, util.UTF16Len(base)+1))
 }
 
 // realDir = realDir：Windows 用 native realpath（展开 8.3 短名）；读不到时 path.resolve。
@@ -192,6 +192,7 @@ type Orchestrator struct {
 	turnExits        map[string]bool
 	stopRequested    map[string]bool
 	delegatedUnsent  map[string]bool
+	autoTitlePending map[string]struct{}
 	stopBeforeStart  map[string]bool
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
@@ -301,7 +302,7 @@ func New(d Deps) *Orchestrator {
 	o := &Orchestrator{
 		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: newOrdMap[clisdk.ChildLike](),
 		progress: map[string][2]string{}, partial: map[string]*partialTurn{}, turnExits: map[string]bool{},
-		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, stopBeforeStart: map[string]bool{},
+		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, autoTitlePending: map[string]struct{}{}, stopBeforeStart: map[string]bool{},
 		sendAborts: map[string]*jsrt.AbortController{}, takeoverInFlight: map[string]*jsrt.Promise[struct{}]{},
 		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},

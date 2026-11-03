@@ -101,6 +101,7 @@ let cli: unknown[];
 let endpointFail = false;
 
 beforeEach(() => {
+  localStorage.removeItem('cd.sidebar.endpointCardCollapsed');
   resetToolQuotaMemo();
   calls = [];
   quota = [QUOTA('codex'), { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] }];
@@ -237,6 +238,42 @@ describe('按端信息卡（左下角）', () => {
       expect(getByTestId('endpoint-card-auth').textContent).toContain('API 密钥'),
     );
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
+  });
+
+  it('折叠控件切换 data-collapsed，并写入 cd.sidebar.endpointCardCollapsed', async () => {
+    localStorage.removeItem('cd.sidebar.endpointCardCollapsed');
+    const r = renderCard();
+    const card = await r.findByTestId('endpoint-info-card');
+    await waitFor(() => expect(r.getByTestId('endpoint-card-usage')).toBeTruthy());
+    expect(card.getAttribute('data-collapsed')).toBe('false');
+    expect(r.getByTestId('endpoint-card-usage')).toBeTruthy();
+
+    fireEvent.click(r.getByTestId('endpoint-card-collapse'));
+    expect(card.getAttribute('data-collapsed')).toBe('true');
+    expect(r.queryByTestId('endpoint-card-usage')).toBeNull();
+    expect(localStorage.getItem('cd.sidebar.endpointCardCollapsed')).toBe('1');
+
+    fireEvent.click(r.getByTestId('endpoint-card-collapse'));
+    expect(card.getAttribute('data-collapsed')).toBe('false');
+    expect(localStorage.getItem('cd.sidebar.endpointCardCollapsed')).toBe('0');
+  });
+
+  it('折叠 / 刷新不打开详情抽屉', async () => {
+    const r = renderCard();
+    await r.findByTestId('endpoint-info-card');
+    await waitFor(() => expect(r.getByTestId('endpoint-card-refresh')).toBeTruthy());
+    fireEvent.click(r.getByTestId('endpoint-card-collapse'));
+    expect(r.queryByRole('dialog')).toBeNull();
+    fireEvent.click(r.getByTestId('endpoint-card-refresh'));
+    expect(r.queryByRole('dialog')).toBeNull();
+  });
+
+  it('启动时读取 cd.sidebar.endpointCardCollapsed=1 为收起', async () => {
+    localStorage.setItem('cd.sidebar.endpointCardCollapsed', '1');
+    const r = renderCard();
+    expect((await r.findByTestId('endpoint-info-card')).getAttribute('data-collapsed')).toBe(
+      'true',
+    );
   });
 });
 

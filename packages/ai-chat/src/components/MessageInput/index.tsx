@@ -17,8 +17,10 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
+import { useComposerDraftBinding } from '../../hooks/useComposerDraftBinding';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
 import { isGoHost, onHostOnlyFiles, type HostDroppedFile } from '../../services/api';
+import { SHARED_UNSENT, createComposerDraftStore } from '../../services/composerDrafts';
 import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
 import {
@@ -111,6 +113,10 @@ interface MessageInputProps {
   contextModel?: string | null;
   /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
   fill?: { text: string; nonce: number } | null;
+  /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */
+  draftStore?: ReturnType<typeof createComposerDraftStore>;
+  /** 当前激活草稿桶；勿用 React key 整棵重挂本组件 */
+  draftKey?: string;
 }
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
@@ -132,11 +138,25 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   contextMessages,
   contextModel,
   fill,
+  draftStore,
+  draftKey,
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const bindings = useShortcutBindings();
-  const [message, setMessage] = useState('');
+  // 单测等未传 draftStore 时用组件内私有桶，行为等同原来的本地 useState
+  const localDraftStore = useRef(createComposerDraftStore()).current;
+  const activeDraftStore = draftStore ?? localDraftStore;
+  const activeDraftKey = draftKey ?? SHARED_UNSENT;
+  const {
+    text: message,
+    setText: setMessage,
+    images,
+    setImages,
+    files,
+    setFiles,
+    clearActive,
+  } = useComposerDraftBinding(activeDraftStore, activeDraftKey);
   const [menuOpen, setMenuOpen] = useState(false);
   const [slashIdx, setSlashIdx] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -218,8 +238,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [kbAvailable, toggleKb]);
 
-  // ───── 图片附件：粘贴 / 拖入 ─────
-  const [images, setImages] = useState<ImageAttachment[]>([]);
+  // ───── 图片附件：粘贴 / 拖入（images/files 由 draft binding 持有）─────
   /** 点缩略图放大查看的那张 */
   const [viewing, setViewing] = useState<ImageAttachment | null>(null);
   const closeViewer = useCallback(() => setViewing(null), []);
@@ -253,7 +272,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     [addImages],
   );
   // 非图片文件：小文本文件连内容发，其余只发路径（services/fileAttachments.ts）
-  const [files, setFiles] = useState<FileAttachment[]>([]);
   const addOtherFiles = useCallback(async (list: File[]) => {
     const out: FileAttachment[] = [];
     for (const f of list) {
@@ -384,7 +402,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       const r = await slash.run(trimmedMessage, getRegistry());
       if (r.handled) {
         // 命令是异步的：完成时用户若已切到别的会话，输入框里是那边的草稿，不能清掉
-        if (scopeAtStart === undefined || slash.scope?.() === scopeAtStart) setMessage('');
+        if (scopeAtStart === undefined || slash.scope?.() === scopeAtStart) clearActive();
         return;
       }
       if (r.text !== undefined) trimmedMessage = r.text;
@@ -399,17 +417,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
         if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
         else queue.onQueue(trimmedMessage);
-        setMessage('');
-        setFiles([]);
+        clearActive();
       }
       return;
     }
     const sendImages = images;
 
     try {
-      setMessage('');
-      setImages([]);
-      setFiles([]);
+      clearActive();
       setImgErr('');
       if (sendImages.length && imageCapability === 'none') {
         setImgErr(

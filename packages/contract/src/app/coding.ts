@@ -119,6 +119,11 @@ const harnessProcedures = {
     input: z.object({ id: z.string(), title: z.string() }),
     output: HarnessTabMeta,
   },
+  'harness.tabApplyAutoTitle': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), title: z.string() }),
+    output: HarnessTabMeta.nullable(),
+  },
   'harness.tabActivate': { kind: 'mutation', input: byId, output: HarnessTabsState },
   'harness.tabBackend': {
     kind: 'mutation',

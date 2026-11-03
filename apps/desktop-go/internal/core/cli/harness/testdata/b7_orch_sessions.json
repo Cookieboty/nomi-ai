@@ -1783,7 +1783,8 @@
                 "usage": {
                   "inputTokens": 0,
                   "outputTokens": 0,
-                  "cacheReadTokens": 0
+                  "cacheReadTokens": 0,
+                  "contextTokens": 0
                 }
               }
             ]
@@ -2603,7 +2604,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Claude Code",
+                "title": "hello",
                 "backend": "claude",
                 "cwd": "<T>/work",
                 "cliSessionId": "mock-claude-session-1",
@@ -2689,7 +2690,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Claude Code",
+                "title": "boom",
                 "backend": "claude",
                 "cwd": "<T>/work",
                 "cliSessionId": null,
@@ -2845,7 +2846,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Claude Code",
+                "title": "need perm",
                 "backend": "claude",
                 "cwd": "<T>/work",
                 "cliSessionId": "mock-claude-session-1",
@@ -2959,7 +2960,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Claude Code",
+                "title": "need perm",
                 "backend": "claude",
                 "cwd": "<T>/work",
                 "cliSessionId": "mock-claude-session-1",
@@ -3084,7 +3085,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Gemini",
+                "title": "hello",
                 "backend": "gemini",
                 "cwd": "<T>/work",
                 "cliSessionId": "gem-<U>",
@@ -3219,7 +3220,7 @@
             "tabs": [
               {
                 "id": "<U>",
-                "title": "Codex",
+                "title": "hello",
                 "backend": "codex",
                 "cwd": "<T>/work",
                 "cliSessionId": "mock-codex-thread-1",

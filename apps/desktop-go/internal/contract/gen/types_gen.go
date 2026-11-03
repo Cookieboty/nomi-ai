@@ -3281,6 +3281,23 @@ type HarnessTabActivateOutput struct {
 	NomiAutoApprove       *bool                              `json:"nomiAutoApprove,omitempty"`
 }
 
+type HarnessTabApplyAutoTitleInput struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
+type HarnessTabApplyAutoTitleOutput struct {
+	Id           string  `json:"id"`
+	Title        string  `json:"title"`
+	Backend      string  `json:"backend"`
+	Cwd          string  `json:"cwd"`
+	CliSessionId string  `json:"cliSessionId"`
+	Status       string  `json:"status"`
+	Unread       float64 `json:"unread"`
+	CreatedAt    float64 `json:"createdAt"`
+	UpdatedAt    float64 `json:"updatedAt"`
+}
+
 type HarnessTabBackendInput struct {
 	Id      string `json:"id"`
 	Backend string `json:"backend"`
@@ -8160,6 +8177,10 @@ type HarnessTabAccountOutputT = HarnessTabAccountOutput
 // HarnessTabActivateInputT 是 harness.tabActivate 的入参
 type HarnessTabActivateInputT = HarnessTabActivateInput
 type HarnessTabActivateOutputT = HarnessTabActivateOutput
+
+// HarnessTabApplyAutoTitleInputT 是 harness.tabApplyAutoTitle 的入参
+type HarnessTabApplyAutoTitleInputT = HarnessTabApplyAutoTitleInput
+type HarnessTabApplyAutoTitleOutputT = *HarnessTabApplyAutoTitleOutput
 
 // HarnessTabBackendInputT 是 harness.tabBackend 的入参
 type HarnessTabBackendInputT = HarnessTabBackendInput
