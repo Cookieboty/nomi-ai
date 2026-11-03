@@ -71,6 +71,8 @@ describe('MessageInput @ path mention', () => {
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(ta.value).toContain('@src/App.tsx');
     expect(r.queryByTestId('attach-row')).toBeNull();
+    // Post-pick: palette must dismiss so Enter/arrows no longer own the composer
+    expect(r.queryByTestId('at-path-menu')).toBeNull();
   });
 
   it('does not open palette when cwd is omitted', async () => {

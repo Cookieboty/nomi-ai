@@ -574,8 +574,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         setAtClosed(message);
         return;
       }
-      // 面板开着时 Enter 不发送（含无匹配）
-      if (e.key === 'Enter' && !e.shiftKey) {
+      // 面板开着时 Enter 不发送、Tab 不挪焦点（含无匹配）
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
         e.preventDefault();
         return;
       }
@@ -853,6 +853,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setMessage(next.text);
     setCaret(next.caret);
     setAtIdx(0);
+    // Dismiss so caret at end of @path does not keep atOpen (mirrors Esc/atClosed)
+    setAtClosed(next.text);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
