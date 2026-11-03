@@ -1008,6 +1008,7 @@ const AiChatContent: React.FC = () => {
               <DesktopConfirmDock />
               <MessageInput
                 {...inputModeProps}
+                cwd={railCwd ?? undefined}
                 contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
                 contextModel={
                   tabs.isCliTab
