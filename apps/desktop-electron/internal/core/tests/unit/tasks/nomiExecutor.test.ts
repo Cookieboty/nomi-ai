@@ -348,6 +348,38 @@ describe('nomi 执行者', () => {
     expect(h.rt.get(id)!.task.status).toBe('done');
   });
 
+  it('预算批准时旧流还没退出，随后取消：旧流退出后不再重开（#235）', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    // 旧流不理会中止：暂停后还要等 release 才退出
+    const slowExit: AsyncIterable<ChatChunk> = {
+      async *[Symbol.asyncIterator]() {
+        yield { type: 'delta', content: '做了一半' };
+        yield {
+          type: 'usage',
+          usage: { promptTokens: 900, completionTokens: 200, totalTokens: 1100 },
+        };
+        await held;
+      },
+    };
+    const h = setup((signal, n) =>
+      n === 0 ? slowExit : scriptedStream([{ type: 'delta', content: '不该重开' }])(signal),
+    );
+    const id = h.rt.create(baseInput({ budget: { maxTokensPerAttempt: 1000 } })).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.rt.get(id)!.task).toMatchObject({ status: 'waiting_user', wait: { kind: 'budget' } });
+    h.rt.command(id, { type: 'decide', approve: true });
+    await flush();
+    h.rt.command(id, { type: 'cancel' });
+    release();
+    await flush();
+    await flush();
+    expect(h.calls).toHaveLength(1);
+    expect(h.bg()).toBeNull();
+    expect(h.rt.get(id)!.task.status).toBe('cancelled');
+  });
+
   it('上游错误归类：429 / 5xx / 网络可重试，其余不重试', () => {
     expect(classifyError('HTTP 429 Too Many Requests').code).toBe('upstream_transient');
     expect(classifyError('upstream 503').code).toBe('upstream_transient');

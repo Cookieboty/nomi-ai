@@ -165,6 +165,8 @@ interface Run {
   active: boolean;
   /** 预算批准时上一轮还没退出：退出后再重开 */
   relaunch: boolean;
+  /** 已取消 / 撤销：不再重开 */
+  stopped: boolean;
 }
 
 const short = (s: string, n = 400) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -272,7 +274,8 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     void consume(run, report, tools).finally(() => {
       unregister();
       run.active = false;
-      if (run.relaunch) {
+      // 旧流退出时再核对：已取消 / 撤销或已被新一轮替换的，不把待恢复变成新的执行（#235）
+      if (run.relaunch && !run.stopped && runs.get(task.id) === run) {
         run.relaunch = false;
         run.ctrl = new AbortController();
         launch(run);
@@ -382,7 +385,12 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
       return { grantVersion: task.grant.version };
     },
     start(ctx) {
-      runs.get(ctx.task.id)?.ctrl.abort();
+      const prev = runs.get(ctx.task.id);
+      if (prev) {
+        prev.stopped = true;
+        prev.relaunch = false;
+        prev.ctrl.abort();
+      }
       const run: Run = {
         ctrl: new AbortController(),
         gen: ctx.attempt.gen,
@@ -393,6 +401,7 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
         paused: false,
         active: false,
         relaunch: false,
+        stopped: false,
       };
       runs.set(ctx.task.id, run);
       launch(run);
@@ -420,7 +429,12 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
       const run = runs.get(taskId);
       if (!run || run.gen !== gen) return;
       if (reason === 'pause') run.paused = true;
-      else runs.delete(taskId);
+      else {
+        runs.delete(taskId);
+        run.stopped = true;
+        run.paused = false;
+        run.relaunch = false;
+      }
       for (const w of run.waiting.values()) w(false);
       run.waiting.clear();
       run.ctrl.abort();

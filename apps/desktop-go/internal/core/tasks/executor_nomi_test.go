@@ -190,3 +190,38 @@ func TestBuildPromptEvents(t *testing.T) {
 		t.Fatal("empty events should add nothing")
 	}
 }
+
+// #235：预算批准时旧流还没退出，随后取消：旧流退出后不再重开
+func TestNomiExecutorCancelAfterQueuedRelaunch(t *testing.T) {
+	limit := int64(1000)
+	release := make(chan struct{})
+	exited := make(chan struct{})
+	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
+		if n == 0 {
+			emit(blm.ChatChunk{Type: "delta", Content: "做了一半"})
+			emit(blm.ChatChunk{Type: "usage", Usage: &blm.ChatUsage{PromptTokens: 900, CompletionTokens: 200}})
+			<-ctx.Done()
+			<-release
+			close(exited)
+			return ctx.Err()
+		}
+		emit(blm.ChatChunk{Type: "delta", Content: "不该重开"})
+		return nil
+	})
+	id := nomiTask(h, []string{"read"}, 1, &BudgetInput{MaxTokensPerAttempt: &limit})
+	h.rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
+	h.rt.Command(id, Command{Type: "decide", Approve: true})
+	h.rt.Command(id, Command{Type: "cancel"})
+	close(release)
+	<-exited
+	time.Sleep(30 * time.Millisecond)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.sys) != 1 {
+		t.Fatalf("relaunched after cancel: %d calls", len(h.sys))
+	}
+	if s := h.rt.Get(id).Task.Status; s != StatusCancelled {
+		t.Fatal(s)
+	}
+}

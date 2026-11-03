@@ -177,6 +177,7 @@ type nomiRun struct {
 	paused   bool
 	active   bool // 这一轮的 goroutine 还没退出
 	relaunch bool // 预算批准时上一轮还没退出：退出后再重开
+	stopped  bool // 已取消 / 撤销：不再重开
 	seq      int
 	waiting  map[string]chan bool
 }
@@ -307,6 +308,7 @@ func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 func (e *nomiExecutor) Start(ctx AttemptContext) {
 	e.mu.Lock()
 	if old := e.runs[ctx.Task.ID]; old != nil {
+		old.stopped, old.relaunch = true, false
 		old.cancel()
 	}
 	run := &nomiRun{gen: ctx.Attempt.Gen, ctx: ctx, waiting: map[string]chan bool{}}
@@ -458,7 +460,8 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		if run.paused || run.relaunch {
 			run.progress = strings.TrimSpace(run.progress + "\n" + text.String())
 		}
-		if run.relaunch {
+		// 旧流退出时再核对：已取消 / 撤销或已被新一轮替换的，不把待恢复变成新的执行（#235）
+		if run.relaunch && !run.stopped && e.runs[t.ID] == run {
 			run.relaunch = false
 			e.launchLocked(run)
 		}
@@ -526,6 +529,7 @@ func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
 		run.paused = true
 	} else {
 		delete(e.runs, taskID)
+		run.stopped, run.paused, run.relaunch = true, false, false
 	}
 	for id, ch := range run.waiting {
 		ch <- false
