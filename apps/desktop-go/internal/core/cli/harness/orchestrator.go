@@ -126,7 +126,7 @@ func isGeneratedTabTitle(title, backend string) bool {
 	if title == base {
 		return true
 	}
-	return strings.HasPrefix(title, base+" ") && digitsRe.MatchString(clisdk.Slice0(title, util.UTF16Len(base)+1))
+	return strings.HasPrefix(title, base+" ") && digitsRe.MatchString(clisdk.SliceFrom(title, util.UTF16Len(base)+1))
 }
 
 // realDir = realDir：Windows 用 native realpath（展开 8.3 短名）；读不到时 path.resolve。

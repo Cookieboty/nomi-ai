@@ -113,3 +113,40 @@ func TestApplyAutoTitlePendingGate(t *testing.T) {
 		t.Fatalf("title=%q want 手动名", got)
 	}
 }
+
+func TestHeuristicTitleOnNumberedDefaultTab(t *testing.T) {
+	o := titleTestOrch(t)
+	defer jsrt.Run(o.Dispose)
+
+	first := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "codex"))
+	})
+	if tabTitle(o, str(first, "id")) != "Codex" {
+		t.Fatalf("first title=%q want Codex", tabTitle(o, str(first, "id")))
+	}
+
+	second := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "codex"))
+	})
+	id2 := str(second, "id")
+	if got := tabTitle(o, id2); got != "Codex 2" {
+		t.Fatalf("second title=%q want Codex 2", got)
+	}
+
+	awaitSend(t, o, id2, "修复第二个标签的标题")
+	got := tabTitle(o, id2)
+	if !strings.HasPrefix(got, "修复第二个标签") {
+		t.Fatalf("title=%q want prefix 修复第二个标签", got)
+	}
+	if utf16Len(got) > 60 {
+		t.Fatalf("title len=%d > 60 (%q)", utf16Len(got), got)
+	}
+
+	applied := jsrt.Call(func() *util.Obj { return o.ApplyAutoTitle(id2, "第二个 Codex 智能标题") })
+	if applied == nil || str(applied, "title") != "第二个 Codex 智能标题" {
+		t.Fatalf("ApplyAutoTitle on numbered default=%v", applied)
+	}
+	if secondApply := jsrt.Call(func() *util.Obj { return o.ApplyAutoTitle(id2, "再一次") }); secondApply != nil {
+		t.Fatalf("second ApplyAutoTitle=%v want nil", secondApply)
+	}
+}
