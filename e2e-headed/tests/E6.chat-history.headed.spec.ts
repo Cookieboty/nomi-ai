@@ -37,6 +37,7 @@ test.describe('E6 · real app · AI chat history', () => {
   let userData = '';
   const requests: MockBody[] = [];
   const summaries: MockBody[] = [];
+  const titles: MockBody[] = [];
 
   test.beforeAll(async () => {
     if (existsSync(aiChatBuild)) {
@@ -53,11 +54,18 @@ test.describe('E6 · real app · AI chat history', () => {
         const isSummary = (body.messages ?? []).some(
           (m) => m.role === 'system' && String(m.content).includes('整理长期记忆'),
         );
+        // 新会话的智能标题（2.1.1 起，用当前聊天模型非流式生成一次）同样单独应答
+        const isTitle = (body.messages ?? []).some(
+          (m) => m.role === 'system' && String(m.content).startsWith('You name chat sessions'),
+        );
         if (isSummary) summaries.push(body);
+        else if (isTitle) titles.push(body);
         else requests.push(body);
         const text = isSummary
           ? JSON.stringify({ title: '自我介绍', summary: '用户叫小明。', keywords: [], facts: [] })
-          : `answer${requests.length}`;
+          : isTitle
+            ? 'Mock 标题'
+            : `answer${requests.length}`;
         if (body.stream) {
           res.writeHead(200, { 'content-type': 'text/event-stream' });
           res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
@@ -143,6 +151,8 @@ test.describe('E6 · real app · AI chat history', () => {
     await send('我叫小明，请记住', 'answer1');
     await send('我叫什么名字？', 'answer2');
 
+    // 第一条消息之后起了一次智能标题，不混进对话请求序列
+    await expect.poll(() => titles.length).toBeGreaterThanOrEqual(1);
     const second = requests[1]!;
     expect(second.model).toBe('mock-model');
     expect(second.stream).toBe(true);

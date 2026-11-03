@@ -204,6 +204,10 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     ({ app, chat } = await launch(userData, home));
 
     // ── 2. 历史会话 ─────────────────────────────────────────────────────
+    // 本机历史默认折叠（2.1.1 起）：先展开
+    const histToggle = chat.locator('[data-testid="cli-history-toggle"]');
+    await expect(histToggle).toBeVisible({ timeout: 20_000 });
+    if ((await histToggle.getAttribute('aria-expanded')) !== 'true') await histToggle.click();
     const rows = chat.locator('[data-testid="history-session-item"]');
     await expect(rows).toHaveCount(seeded.dsh ? 4 : 3, { timeout: 20_000 });
     await expect(rows.first()).toHaveAttribute('data-backend', 'claude'); // 5 分钟前，最新
