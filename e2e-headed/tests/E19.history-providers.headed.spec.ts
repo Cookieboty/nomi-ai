@@ -302,11 +302,13 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await nomiRow.locator('[data-testid="row-delete-cancel"]').click();
     await expect(nomiRow.locator('[data-testid="row-delete-confirm"]')).toHaveCount(0);
 
+    // 打开的编程助手会话在侧栏是一行（主 Nomi 对话不算）。前面切到「Claude Code」端时，
+    // 没有会话的端会自动新建一个空会话（2.1.1 起，CLI 装好时才建）：按此刻的行数为基准
+    const tabs = chat.locator('[data-testid="history-item"]:not([data-backend="nomi"])');
+    const baseTabs = await tabs.count();
     // 点击 Claude 历史 → 新标签，转录预填，续接后 Mock 回显 --resume 的 id
     await rows.first().click();
-    // 打开的编程助手会话在侧栏是一行（主 Nomi 对话不算）
-    const tabs = chat.locator('[data-testid="history-item"]:not([data-backend="nomi"])');
-    await expect(tabs).toHaveCount(1);
+    await expect(tabs).toHaveCount(baseTabs + 1);
     await expect(chat.locator('.ai-chat-app')).toContainText('Fix the failing login test');
     await expect(chat.locator('.ai-chat-app')).toContainText('The test expected a 401; fixed.');
     await expect(rows).toHaveCount(seeded.dsh ? 3 : 2); // 已打开的不再重复列出
@@ -326,7 +328,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
 
     // Codex 历史
     await chat.locator('[data-testid="history-session-item"][data-backend="codex"]').click();
-    await expect(tabs).toHaveCount(2);
+    await expect(tabs).toHaveCount(baseTabs + 2);
     await expect(chat.locator('.ai-chat-app')).toContainText('There are two files');
     await input.fill('and then?');
     await input.press('Enter');
@@ -336,7 +338,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     );
     if (seeded.dsh) {
       await chat.locator('[data-testid="history-session-item"][data-backend="dsh"]').click();
-      await expect(tabs).toHaveCount(3);
+      await expect(tabs).toHaveCount(baseTabs + 3);
       await expect(chat.locator('.ai-chat-app')).toContainText('Reply with just the word PONG');
       await input.fill('once more');
       await input.press('Enter');

@@ -43,10 +43,12 @@ vi.mock('../src/contexts/AiChatContext', () => {
       ipcClient: {
         listConversations: async () => list,
         currentConversationId: () => 'n1',
+        // 选中某个端会打开它的一个会话（5a334d9a）：切会话与加载历史都要有
+        switchConversation: async () => undefined,
         conversationStore: () => undefined,
       },
     },
-    actions: {},
+    actions: { loadChatHistory: async () => undefined },
   };
   return { useAiChat: () => api };
 });
