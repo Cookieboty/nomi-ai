@@ -150,3 +150,25 @@ func TestHeuristicTitleOnNumberedDefaultTab(t *testing.T) {
 		t.Fatalf("second ApplyAutoTitle=%v want nil", secondApply)
 	}
 }
+
+// CLI 自己生成的会话标题替换首条发送时的截取标题；之后智能标题不再覆盖（同 HarnessTabs.test.ts）
+func TestCliSessionTitleReplacesHeuristic(t *testing.T) {
+	o := titleTestOrch(t)
+	defer jsrt.Run(o.Dispose)
+	tab := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "claude"))
+	})
+	id := str(tab, "id")
+	awaitSend(t, o, id, "帮我写一个解析器")
+	sid := str(o.tab(id), "cliSessionId")
+	if sid == "" {
+		t.Fatal("no cliSessionId after send")
+	}
+	jsrt.Run(func() { o.SyncOpenSessionTitle("claude", sid, "CLI 生成的标题") })
+	if got := tabTitle(o, id); got != "CLI 生成的标题" {
+		t.Fatalf("title=%q want CLI 生成的标题", got)
+	}
+	if r := jsrt.Call(func() *util.Obj { return o.ApplyAutoTitle(id, "智能名") }); r != nil {
+		t.Fatalf("ApplyAutoTitle after CLI title = %v, want nil", r)
+	}
+}

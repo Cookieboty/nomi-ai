@@ -126,6 +126,19 @@ describe('CliHarnessService tabs', () => {
     expect(h.listTabs().tabs.find((x) => x.id === tab2.id)?.title).toBe('手动名');
   });
 
+  it('the CLI-generated session title replaces the send-time heuristic title', async () => {
+    process.env.NOMI_MOCK_DELAY_MS = '10';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, '帮我写一个解析器');
+    const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId!;
+    expect(sid).toBeTruthy();
+    h.syncOpenSessionTitle('claude', sid, 'CLI 生成的标题');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.title).toBe('CLI 生成的标题');
+    // 已经有 CLI 的标题：智能标题不再覆盖
+    expect(h.applyAutoTitle(tab.id, '智能名')).toBeNull();
+  });
+
   it('runs all tabs in parallel (no max-concurrent queue)', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '400';
     const h = mk();

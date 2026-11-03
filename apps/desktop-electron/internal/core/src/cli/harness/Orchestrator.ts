@@ -1331,7 +1331,10 @@ export class HarnessOrchestrator {
     return out;
   }
 
-  /** 历史扫描能读到 CLI 自己生成的新标题时，替换标签的自动编号标题。 */
+  /**
+   * 历史扫描能读到 CLI 自己生成的新标题时，替换标签的自动编号标题；
+   * 首条发送时写入的截取标题（autoTitlePending）也让位给它，之后不再被智能标题覆盖。
+   */
   syncOpenSessionTitle(backend: BuiltinBackend, sessionId: string, title: string): void {
     const tab = [...this.tabs.values()].find(
       (x) => x.backend === backend && x.cliSessionId === sessionId,
@@ -1339,8 +1342,10 @@ export class HarnessOrchestrator {
     const next = String(title ?? '')
       .trim()
       .slice(0, 60);
-    if (!tab || !next || tab.title === next || !isGeneratedTabTitle(tab.title, backend)) return;
+    if (!tab || !next || tab.title === next) return;
+    if (!isGeneratedTabTitle(tab.title, backend) && !this.autoTitlePending.has(tab.id)) return;
     tab.title = next;
+    this.autoTitlePending.delete(tab.id);
     this.changed();
   }
 

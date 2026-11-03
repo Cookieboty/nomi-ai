@@ -461,10 +461,15 @@ func (o *Orchestrator) SyncOpenSessionTitle(backend, sessionID string, title any
 	if title != nil {
 		next = clisdk.Slice0(util.JSTrim(jsStr(title)), 60)
 	}
-	if tab == nil || next == "" || str(tab, "title") == next || !isGeneratedTabTitle(str(tab, "title"), backend) {
+	if tab == nil || next == "" || str(tab, "title") == next {
+		return
+	}
+	// 首条发送时写入的截取标题（autoTitlePending）也让位给 CLI 自己的标题，之后不再被智能标题覆盖
+	if _, pending := o.autoTitlePending[str(tab, "id")]; !pending && !isGeneratedTabTitle(str(tab, "title"), backend) {
 		return
 	}
 	tab.Set("title", next)
+	delete(o.autoTitlePending, str(tab, "id"))
 	o.changed()
 }
 
