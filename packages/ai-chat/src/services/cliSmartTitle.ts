@@ -1,0 +1,39 @@
+import { api } from './api';
+import type { HarnessTabMeta } from './harnessClient';
+import { splitRef } from './nomiModel';
+import { generateSmartTitle, type TitleComplete } from './sessionTitle';
+
+/** Build a TitleComplete that hits the gateway with the tab's provider/model ref. */
+export function cliTitleComplete(ref: string): TitleComplete {
+  return async (messages) => {
+    const r = splitRef(ref);
+    if (!r) return '';
+    const resp = await api.ai.chat.sendMessage({
+      messages,
+      role: 'chat',
+      provider: r.provider,
+      model: r.model,
+    });
+    return typeof resp?.content === 'string' ? resp.content.trim() : '';
+  };
+}
+
+/**
+ * Official CLI tabs (no free-form gateway model) keep the heuristic title only.
+ * Third-party tabs with a `provider/model` ref run generateSmartTitle then applyAutoTitle.
+ */
+export async function maybeSmartTitleCliTab(opts: {
+  tab: Pick<HarnessTabMeta, 'id' | 'source' | 'modelOverride' | 'lastServedRef' | 'backend'>;
+  userText: string;
+  complete: TitleComplete;
+  applyAutoTitle: (id: string, title: string) => Promise<unknown>;
+}): Promise<void> {
+  const ref =
+    opts.tab.source === 'thirdParty'
+      ? opts.tab.modelOverride || opts.tab.lastServedRef || null
+      : null;
+  if (!ref || !splitRef(ref)) return;
+  const title = await generateSmartTitle(opts.userText, opts.complete);
+  if (!title) return;
+  await opts.applyAutoTitle(opts.tab.id, title);
+}

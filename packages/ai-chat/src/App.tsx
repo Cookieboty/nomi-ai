@@ -73,6 +73,7 @@ import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { useUserProfile } from './hooks/useUserProfile';
 import { setProviderEndpoint } from './services/chatPrefs';
+import { cliTitleComplete, maybeSmartTitleCliTab } from './services/cliSmartTitle';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import {
@@ -742,6 +743,8 @@ const AiChatContent: React.FC = () => {
   const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
   const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
   const hasCliActive = !!cliActive;
+  // First CLI send (no messages yet): arm smart title for third-party gateway models.
+  const cliFresh = hasCliActive && tabs.messages.length === 0;
   const inputModeProps = useMemo(
     () =>
       hasCliActive
@@ -756,6 +759,19 @@ const AiChatContent: React.FC = () => {
                 source: im.source,
               }));
               void tabSend(text, imgs);
+              if (cliActive && cliFresh) {
+                const tab = cliActive;
+                const ref =
+                  tab.source === 'thirdParty'
+                    ? tab.modelOverride || tab.lastServedRef || null
+                    : null;
+                void maybeSmartTitleCliTab({
+                  tab,
+                  userText: text,
+                  complete: ref ? cliTitleComplete(ref) : async () => '',
+                  applyAutoTitle: (id, title) => harnessClient.applyAutoTitle(id, title),
+                });
+              }
             },
             busyOverride: cliBusy,
             imageCapability: cliImages.capability,
@@ -767,7 +783,17 @@ const AiChatContent: React.FC = () => {
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [hasCliActive, cliBusy, cliPlaceholder, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
+    [
+      hasCliActive,
+      cliActive,
+      cliFresh,
+      cliBusy,
+      cliPlaceholder,
+      cliImages,
+      tabSend,
+      tabCancel,
+      nomiQueue.enqueue,
+    ],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
