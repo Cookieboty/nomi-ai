@@ -7,7 +7,7 @@
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
-import { LoaderCircle, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { configPathsOf, useEndpointInfo, type EndpointInfo } from '../../hooks/useEndpointInfo';
@@ -27,6 +27,24 @@ import { QuotaWindowList, quotaTone } from '../UsagePanel/QuotaWindows';
 import { useUsageFx } from '../UsagePanel/useFx';
 
 import styles from './index.module.css';
+
+const ENDPOINT_CARD_COLLAPSED_KEY = 'cd.sidebar.endpointCardCollapsed';
+
+function readEndpointCardCollapsed(): boolean {
+  try {
+    return localStorage.getItem(ENDPOINT_CARD_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeEndpointCardCollapsed(v: boolean): void {
+  try {
+    localStorage.setItem(ENDPOINT_CARD_COLLAPSED_KEY, v ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
 
 export interface EndpointInfoProps {
   backend: ConversationBackend;
@@ -107,6 +125,16 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
   const info = useEndpointInfo(backend);
   const fx = useUsageFx();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readEndpointCardCollapsed);
+
+  const toggleCollapsed = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsed((c) => {
+      const next = !c;
+      writeEndpointCardCollapsed(next);
+      return next;
+    });
+  };
   const name = ENDPOINT_FULL[backend]();
   const installed = installedOf(backend, bin, info);
   const auth = authOf(backend, info.quota);
@@ -132,6 +160,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
         data-testid="endpoint-info-card"
         data-endpoint={backend}
         data-busy={info.busy || undefined}
+        data-collapsed={collapsed ? 'true' : 'false'}
       >
         <button
           type="button"
@@ -154,36 +183,59 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
               </Badge>
             ) : null}
           </span>
-          {installed === false ? (
-            <span className={styles.dim}>
-              {t('ui.usage-tools.official-cli-not-found-you-can-install-it')}
-            </span>
-          ) : (
-            <>
-              {win ? <MiniBars windows={[win]} /> : null}
-              <span className={styles.kv} data-testid="endpoint-card-usage">
-                <span>
-                  {today && today.calls > 0 ? (
-                    <>
-                      {t('ui.usage-tools.today')}{' '}
-                      <b>{formatMoney(today.costUsd, fx.currency, fx.rate)}</b>
-                    </>
-                  ) : (
-                    t('ui.usage-tools.no-usage-today')
-                  )}
-                </span>
-                <span className={styles.dim}>
-                  {last ? relTime(last) : t('ui.usage-tools.no-activity-yet')}
-                </span>
+          {!collapsed &&
+            (installed === false ? (
+              <span className={styles.dim}>
+                {t('ui.usage-tools.official-cli-not-found-you-can-install-it')}
               </span>
-            </>
-          )}
+            ) : (
+              <>
+                {win ? <MiniBars windows={[win]} /> : null}
+                <span className={styles.kv} data-testid="endpoint-card-usage">
+                  <span>
+                    {today && today.calls > 0 ? (
+                      <>
+                        {t('ui.usage-tools.today')}{' '}
+                        <b>{formatMoney(today.costUsd, fx.currency, fx.rate)}</b>
+                      </>
+                    ) : (
+                      t('ui.usage-tools.no-usage-today')
+                    )}
+                  </span>
+                  <span className={styles.dim}>
+                    {last ? relTime(last) : t('ui.usage-tools.no-activity-yet')}
+                  </span>
+                </span>
+              </>
+            ))}
+        </button>
+        <button
+          type="button"
+          className={styles.collapse}
+          data-testid="endpoint-card-collapse"
+          aria-expanded={!collapsed}
+          aria-label={
+            collapsed
+              ? t('ui.usage-tools.expand-endpoint-card')
+              : t('ui.usage-tools.collapse-endpoint-card')
+          }
+          title={
+            collapsed
+              ? t('ui.usage-tools.expand-endpoint-card')
+              : t('ui.usage-tools.collapse-endpoint-card')
+          }
+          onClick={toggleCollapsed}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </button>
         {canRefresh && installed !== false && (
           <button
             type="button"
             className={styles.refresh}
-            onClick={() => void info.refresh()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void info.refresh();
+            }}
             disabled={info.busy}
             aria-label={t('ui.usage-tools.refresh', name)}
             title={t('ui.usage-tools.refresh-only-quota-and-usage-other-endpoints-are', name)}
