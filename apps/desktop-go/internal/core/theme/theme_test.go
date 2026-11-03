@@ -21,8 +21,8 @@ func TestDefaultsAndPersist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Resolved != "graphite" {
-		t.Fatalf("system+dark → graphite, got %s", st.Resolved)
+	if st.Resolved != "dark" {
+		t.Fatalf("system+dark → dark, got %s", st.Resolved)
 	}
 	raw, _ := os.ReadFile(f)
 	var j map[string]string
@@ -31,7 +31,7 @@ func TestDefaultsAndPersist(t *testing.T) {
 		t.Fatalf("persist: %s", raw)
 	}
 	s2 := theme.New(f, func() bool { return false }, nil)
-	if s2.Get().Resolved != "cream" {
+	if s2.Get().Resolved != "light" {
 		t.Fatalf("reload system+light: %+v", s2.Get())
 	}
 }

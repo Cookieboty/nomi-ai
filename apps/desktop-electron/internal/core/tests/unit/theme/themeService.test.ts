@@ -42,11 +42,11 @@ const make = (file: string, n = fakeNative(false), platform: HostPlatform = 'lin
 
 describe('ThemeService', () => {
   beforeEach(() => (events = createRecordingAppEvents()));
-  it('defaults new users to Sunset Orange, respects saved choice', () => {
+  it('defaults new users to Light, respects saved choice', () => {
     const f = tmp();
     expect(make(f, fakeNative(true)).get()).toEqual({
-      pref: 'sunset',
-      resolved: 'sunset',
+      pref: 'light',
+      resolved: 'light',
     });
     fs.writeFileSync(f, JSON.stringify({ theme: 'mist' }));
     expect(make(f, fakeNative(true)).get().pref).toBe('mist');
@@ -79,13 +79,13 @@ describe('ThemeService', () => {
     expect(resolveTheme('image', false)).toBe('graphite');
     expect(appearanceFor('image')).toBe('dark');
   });
-  it('system follows nativeTheme live: dark → graphite, light → cream', () => {
+  it('system follows nativeTheme live: dark → dark, light → light', () => {
     const n = fakeNative(true);
     const s = make(tmp(), n);
-    expect(s.set('system')).toEqual({ pref: 'system', resolved: 'graphite' });
+    expect(s.set('system')).toEqual({ pref: 'system', resolved: 'dark' });
     n.systemDark = false;
     n.fire();
-    expect(events.last('theme.changed')).toEqual({ pref: 'system', resolved: 'cream' });
+    expect(events.last('theme.changed')).toEqual({ pref: 'system', resolved: 'light' });
     expect(resolveTheme('cream', true)).toBe('cream');
     expect(() => s.set('neon')).toThrow();
   });
@@ -106,7 +106,7 @@ describe('ThemeService', () => {
   it('macOS：窗口外观跟随所选主题（失焦时红绿灯与标题栏同色系），跟随系统时交还系统', () => {
     const n = fakeNative(false);
     const s = make(tmp(), n, 'darwin');
-    expect(n.themeSource).toBe('light'); // 默认 sunset
+    expect(n.themeSource).toBe('light'); // 默认 light
     s.set('graphite');
     expect(n.themeSource).toBe('dark');
     s.set('ink');

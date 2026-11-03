@@ -388,12 +388,14 @@
   width: 58%;
 }
 :global([data-theme='ink']) .card,
-:global([data-theme='graphite']) .card {
+:global([data-theme='graphite']) .card,
+:global([data-theme='dark']) .card {
   --onb-wash: #1d1a18;
   --onb-wash-rgb: 29, 26, 24;
 }
 :global([data-theme='ink']) .bg,
-:global([data-theme='graphite']) .bg {
+:global([data-theme='graphite']) .bg,
+:global([data-theme='dark']) .bg {
   opacity: 0.55;
 }
 .head,

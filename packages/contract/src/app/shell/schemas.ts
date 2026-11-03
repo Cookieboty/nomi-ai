@@ -36,7 +36,7 @@ export const opaqueObject = z.custom<object>(
 // theme / locale
 // ---------------------------------------------------------------------------
 
-export const ThemeId = z.enum(['mist', 'graphite', 'ink', 'cream', 'sunset']);
+export const ThemeId = z.enum(['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset']);
 export const ThemePref = z.union([ThemeId, z.literal('system'), z.literal('image')]);
 export const ThemeState = loose({ pref: ThemePref, resolved: ThemeId });
 /** 旧 id（如 `paper`）由主进程归一，所以这里只要求字符串 */

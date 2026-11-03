@@ -3,7 +3,7 @@ package theme
 import "testing"
 
 func TestAppearanceFor(t *testing.T) {
-	for pref, want := range map[string]string{"system": "system", "graphite": "dark", "ink": "dark", "cream": "light", "image": "dark"} {
+	for pref, want := range map[string]string{"system": "system", "light": "light", "dark": "dark", "graphite": "dark", "ink": "dark", "cream": "light", "image": "dark"} {
 		if got := AppearanceFor(pref); got != want {
 			t.Errorf("%s: got %s want %s", pref, got, want)
 		}

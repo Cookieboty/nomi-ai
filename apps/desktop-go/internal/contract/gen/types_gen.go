@@ -5885,10 +5885,12 @@ type TasksUpdateOutput struct {
 	UpdatedAt float64                   `json:"updatedAt"`
 }
 
-// ThemeGetOutputResolved 枚举：mist | graphite | ink | cream | sunset
+// ThemeGetOutputResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type ThemeGetOutputResolved = string
 
 const (
+	ThemeGetOutputResolvedLight    ThemeGetOutputResolved = "light"
+	ThemeGetOutputResolvedDark     ThemeGetOutputResolved = "dark"
 	ThemeGetOutputResolvedMist     ThemeGetOutputResolved = "mist"
 	ThemeGetOutputResolvedGraphite ThemeGetOutputResolved = "graphite"
 	ThemeGetOutputResolvedInk      ThemeGetOutputResolved = "ink"
@@ -5905,10 +5907,12 @@ type ThemeSetInput struct {
 	Pref string `json:"pref"`
 }
 
-// ThemeSetOutputResolved 枚举：mist | graphite | ink | cream | sunset
+// ThemeSetOutputResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type ThemeSetOutputResolved = string
 
 const (
+	ThemeSetOutputResolvedLight    ThemeSetOutputResolved = "light"
+	ThemeSetOutputResolvedDark     ThemeSetOutputResolved = "dark"
 	ThemeSetOutputResolvedMist     ThemeSetOutputResolved = "mist"
 	ThemeSetOutputResolvedGraphite ThemeSetOutputResolved = "graphite"
 	ThemeSetOutputResolvedInk      ThemeSetOutputResolved = "ink"
@@ -7371,10 +7375,12 @@ type EventTasksChanged struct {
 	Id string `json:"id"`
 }
 
-// EventThemeChangedResolved 枚举：mist | graphite | ink | cream | sunset
+// EventThemeChangedResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type EventThemeChangedResolved = string
 
 const (
+	EventThemeChangedResolvedLight    EventThemeChangedResolved = "light"
+	EventThemeChangedResolvedDark     EventThemeChangedResolved = "dark"
 	EventThemeChangedResolvedMist     EventThemeChangedResolved = "mist"
 	EventThemeChangedResolvedGraphite EventThemeChangedResolved = "graphite"
 	EventThemeChangedResolvedInk      EventThemeChangedResolved = "ink"

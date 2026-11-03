@@ -22859,6 +22859,8 @@
        {
         "type": "string",
         "enum": [
+         "light",
+         "dark",
          "mist",
          "graphite",
          "ink",
@@ -22879,6 +22881,8 @@
      "resolved": {
       "type": "string",
       "enum": [
+       "light",
+       "dark",
        "mist",
        "graphite",
        "ink",
@@ -22919,6 +22923,8 @@
        {
         "type": "string",
         "enum": [
+         "light",
+         "dark",
          "mist",
          "graphite",
          "ink",
@@ -22939,6 +22945,8 @@
      "resolved": {
       "type": "string",
       "enum": [
+       "light",
+       "dark",
        "mist",
        "graphite",
        "ink",
@@ -28245,6 +28253,8 @@
       {
        "type": "string",
        "enum": [
+        "light",
+        "dark",
         "mist",
         "graphite",
         "ink",
@@ -28265,6 +28275,8 @@
     "resolved": {
      "type": "string",
      "enum": [
+      "light",
+      "dark",
       "mist",
       "graphite",
       "ink",

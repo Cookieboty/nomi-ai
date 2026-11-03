@@ -9,9 +9,9 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
 
-var ThemeIDs = []string{"mist", "graphite", "ink", "cream", "sunset"}
+var ThemeIDs = []string{"light", "dark", "mist", "graphite", "ink", "cream", "sunset"}
 
-const DefaultTheme = "sunset"
+const DefaultTheme = "light"
 
 var legacy = map[string]string{"paper": "cream"}
 
@@ -70,7 +70,7 @@ func Normalize(v any) string {
 }
 
 // darkThemes = DARK_THEMES
-var darkThemes = map[string]bool{"graphite": true, "ink": true}
+var darkThemes = map[string]bool{"dark": true, "graphite": true, "ink": true}
 
 // AppearanceFor = appearanceFor：所选主题对应的原生窗口外观；「跟随系统」交还给系统
 func AppearanceFor(pref string) string {
@@ -102,9 +102,9 @@ func Resolve(pref string, dark bool) string {
 		return "graphite"
 	case "system":
 		if dark {
-			return "graphite"
+			return "dark"
 		}
-		return "cream"
+		return "light"
 	default:
 		return pref
 	}

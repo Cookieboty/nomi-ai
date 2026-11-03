@@ -1,12 +1,13 @@
 /**
  * 主题：用户选择（ThemePref，含「跟随系统」）→ 实际主题（ThemeId）写到 <html data-theme>。
- * :root 为日落橙（默认）令牌，每个主题都写 data-theme（含 sunset）。
+ * :root 为浅色（默认）令牌，每个主题都写 data-theme（含 light）。
+ * 浅色 / 深色参考 WorkBuddy 的中性灰阶，强调色仍是日落橙；「跟随系统」在这两套之间切换。
  * 桌面端由主进程（主题服务）持久化、解析「跟随系统」并广播给所有窗口：视图入口经 `setThemeBackend`
  * 接上（应用契约 `theme.*`，本包不依赖契约）；没有后端时退回 localStorage + prefers-color-scheme。
  *
  * 历史 id `paper`（纸白）读入时映射为 `cream`（奶油）。
  */
-export type ThemeId = 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
+export type ThemeId = 'light' | 'dark' | 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
 export type ThemePref = ThemeId | 'system' | 'image';
 
 export interface ThemeInfo {
@@ -18,6 +19,18 @@ export interface ThemeInfo {
 }
 
 export const THEMES: ThemeInfo[] = [
+  {
+    id: 'light',
+    name: 'ui.mascot-theme.theme-light',
+    desc: 'ui.mascot-theme.theme-light-desc',
+    swatch: ['#f7f7f7', '#ffffff', '#141414', '#c45425'],
+  },
+  {
+    id: 'dark',
+    name: 'ui.mascot-theme.theme-dark',
+    desc: 'ui.mascot-theme.theme-dark-desc',
+    swatch: ['#141414', '#1f1f1f', '#f2f2f2', '#f08a5d'],
+  },
   {
     id: 'sunset',
     name: 'ui.mascot-theme.sunset-orange-brand',
@@ -51,8 +64,8 @@ export const THEMES: ThemeInfo[] = [
   {
     id: 'system',
     name: 'ui.mascot-theme.follow-system',
-    desc: 'ui.mascot-theme.dark-graphite-light-cream',
-    swatch: ['#13161b', '#20252d', '#fffcf6', '#7887f5'],
+    desc: 'ui.mascot-theme.follow-system-light-dark',
+    swatch: ['#141414', '#1f1f1f', '#f7f7f7', '#f08a5d'],
   },
   {
     id: 'image',
@@ -63,9 +76,9 @@ export const THEMES: ThemeInfo[] = [
 ];
 
 /** 新用户默认；已保存的选择优先 */
-export const DEFAULT_THEME: ThemePref = 'sunset';
+export const DEFAULT_THEME: ThemePref = 'light';
 const KEY = 'cd.theme';
-const THEME_IDS: ThemeId[] = ['mist', 'graphite', 'ink', 'cream', 'sunset'];
+const THEME_IDS: ThemeId[] = ['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset'];
 /** 旧版 Light Paper / 纸白（v1.0.4 起改名奶油），本地缓存里可能还留着 */
 const LEGACY_THEME: Record<string, ThemeId> = { paper: 'cream' };
 
@@ -81,9 +94,9 @@ export const normalizeThemePref = (v: unknown): ThemePref | null => {
   return isThemeId(v) ? v : null;
 };
 
-/** 跟随系统：深色 → Graphite，浅色 → Cream */
+/** 跟随系统：深色 → Dark，浅色 → Light */
 export const resolveTheme = (pref: ThemePref, dark: boolean): ThemeId =>
-  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
+  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'dark' : 'light') : pref;
 
 export interface ThemeState {
   pref: ThemePref;

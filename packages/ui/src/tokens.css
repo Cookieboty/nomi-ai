@@ -127,8 +127,96 @@
   --cd-z-toast: 100200;
 }
 
-/* 日落橙 Sunset：品牌主主题（默认） */
+/* 浅色 Light（默认）：参考 WorkBuddy 的中性灰阶，白底黑字 + 日落橙强调 */
 :root,
+[data-theme='light'] {
+  color-scheme: light;
+  --cd-color-bg: #f7f7f7;
+  --cd-color-bg-gradient: #f7f7f7;
+  --cd-color-bg-subtle: #f2f2f2;
+  --cd-color-surface: #ffffff;
+  --cd-color-surface-raised: #ffffff;
+  --cd-color-surface-sunken: #f7f7f7;
+  --cd-color-hover: #efefef;
+  --cd-color-active: #e3e3e3;
+  --cd-color-selected-bg: #e0e0e0;
+  --cd-color-selected-text: #141414;
+  --cd-color-user-msg: #f2f2f2;
+  --cd-color-text: #141414;
+  --cd-color-text-muted: #4d4d4d;
+  --cd-color-text-subtle: #5f5f5f;
+  --cd-color-text-on-accent: #ffffff;
+  --cd-color-border: #e6e6e6;
+  --cd-color-border-subtle: #ededed;
+  --cd-color-border-strong: #cfcfcf;
+  --cd-color-border-focus: #d96535;
+  --cd-accent-rgb: 196, 84, 37;
+  --cd-accent-2-rgb: 233, 154, 112;
+  --cd-accent-3-rgb: 235, 194, 165;
+  --cd-color-accent: #c45425;
+  --cd-color-brand: #d96535;
+  --cd-color-accent-hover: #b94d27;
+  --cd-color-accent-pressed: #963b20;
+  --cd-color-accent-2: #e99a70;
+  --cd-color-accent-3: #ebc2a5;
+  --cd-color-accent-strong: #963b20;
+  --cd-color-accent-soft: rgba(217, 101, 53, 0.1);
+  --cd-color-btn-secondary-bg: #ffffff;
+  --cd-color-btn-secondary-border: #e0e0e0;
+  --cd-color-btn-secondary-text: #262626;
+  --cd-color-disabled-bg: #ededed;
+  --cd-color-disabled-text: #a3a3a3;
+  --cd-color-switch-off: #dcdcdc;
+  --cd-color-switch-thumb: #ffffff;
+  --cd-color-input-bg: #ffffff;
+  --cd-color-success: #21734b; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-color-success-soft: #e8f5ec;
+  --cd-color-success-border: #b9e2c7;
+  --cd-color-warning: #8f5a17; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-color-warning-soft: #fff3d9;
+  --cd-color-warning-border: #f0d49a;
+  --cd-color-danger: #b8382f; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-color-danger-soft: #fdebe8;
+  --cd-color-danger-border: #f3bdb6;
+  --cd-color-info: #496d80;
+  --cd-color-info-soft: #eaf2f6;
+  --cd-color-info-border: #c8dde7;
+  --cd-color-neutral: #5c5c5c;
+  --cd-color-neutral-soft: #f2f2f2;
+  --cd-color-neutral-border: #e0e0e0;
+  --cd-color-danger-text: #b8382f; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-color-danger-fill: #b9382f;
+  --cd-color-text-on-danger: #ffffff;
+  --cd-color-danger-fill-hover: #9f2f28;
+  --cd-color-danger-fill-pressed: #84251f;
+  --cd-chart-1: var(--cd-color-brand);
+  --cd-chart-2: #8a969f; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-chart-3: #b88c60; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-chart-4: #889a81; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-chart-5: #9a90ae; /* 规范值对比度不足，按 WCAG AA 微调 */
+  /* 多系列对比图（模型质量等）：按固定顺序取，色盲与对比度经 dataviz 校验；浅色下 3、4 号对比度不足 3:1，图上必须有直接标注 / 表格 */
+  --cd-viz-1: #2a78d6;
+  --cd-viz-2: #eb6834;
+  --cd-viz-3: #1baf7a;
+  --cd-viz-4: #eda100;
+  --cd-color-overlay: rgba(0, 0, 0, 0.3);
+  --cd-title-fill: none;
+  --cd-title-color: var(--cd-color-text);
+  --cd-app-glow: none;
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cd-shadow-glow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --cd-focus-ring: 0 0 0 2px rgba(217, 101, 53, 1);
+  --cd-input-ring: 0 0 0 2px rgba(217, 101, 53, 0.24);
+  --cd-bubble-bg: rgba(255, 255, 255, 0.97);
+  --cd-bubble-border: #e6e6e6;
+  --cd-bubble-text: #141414;
+  --cd-bubble-link: #963b20;
+  --cd-bubble-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* 日落橙 Sunset：暖奶油 + 日落橙的品牌主题 */
 [data-theme='sunset'] {
   color-scheme: light;
   --cd-color-bg: #fff8f1;
@@ -561,6 +649,93 @@
   --cd-bubble-border: rgba(240, 242, 246, 0.1);
   --cd-bubble-text: #f0f2f6;
   --cd-bubble-link: #b7beff;
+  --cd-bubble-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* 深色 Dark：参考 WorkBuddy 的中性深灰，白字 + 日落橙强调 */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --cd-color-bg: #141414;
+  --cd-color-bg-gradient: #141414;
+  --cd-color-bg-subtle: #1a1a1a;
+  --cd-color-surface: #1f1f1f;
+  --cd-color-surface-raised: #262626;
+  --cd-color-surface-sunken: #171717;
+  --cd-color-hover: #262626;
+  --cd-color-active: #303030;
+  --cd-color-selected-bg: #2e2e2e;
+  --cd-color-selected-text: #ffffff;
+  --cd-color-user-msg: #262626;
+  --cd-color-text: #f2f2f2;
+  --cd-color-text-muted: #bdbdbd;
+  --cd-color-text-subtle: #9e9e9e;
+  --cd-color-text-on-accent: #241711;
+  --cd-color-border: #2e2e2e;
+  --cd-color-border-subtle: #262626;
+  --cd-color-border-strong: #404040;
+  --cd-color-border-focus: #f08a5d;
+  --cd-accent-rgb: 240, 138, 93;
+  --cd-accent-2-rgb: 255, 164, 126;
+  --cd-accent-3-rgb: 255, 192, 163;
+  --cd-color-accent: #f08a5d;
+  --cd-color-brand: #f08a5d;
+  --cd-color-accent-hover: #ffa47e;
+  --cd-color-accent-pressed: #d96f45;
+  --cd-color-accent-2: #ffa47e;
+  --cd-color-accent-3: #ffc0a3;
+  --cd-color-accent-strong: #ffa47e;
+  --cd-color-accent-soft: rgba(240, 138, 93, 0.14);
+  --cd-color-btn-secondary-bg: #1f1f1f;
+  --cd-color-btn-secondary-border: #333333;
+  --cd-color-btn-secondary-text: #e6e6e6;
+  --cd-color-disabled-bg: #262626;
+  --cd-color-disabled-text: #6b6b6b;
+  --cd-color-switch-off: #3a3a3a;
+  --cd-color-switch-thumb: #ffffff;
+  --cd-color-input-bg: #1a1a1a;
+  --cd-color-success: #6cc59a;
+  --cd-color-success-soft: rgba(108, 197, 154, 0.14);
+  --cd-color-success-border: rgba(108, 197, 154, 0.36);
+  --cd-color-warning: #e5b567;
+  --cd-color-warning-soft: rgba(229, 181, 103, 0.14);
+  --cd-color-warning-border: rgba(229, 181, 103, 0.36);
+  --cd-color-danger: #f29a8e;
+  --cd-color-danger-soft: rgba(242, 154, 142, 0.14);
+  --cd-color-danger-border: rgba(242, 154, 142, 0.36);
+  --cd-color-info: #94bfd3;
+  --cd-color-info-soft: rgba(148, 191, 211, 0.14);
+  --cd-color-info-border: rgba(148, 191, 211, 0.36);
+  --cd-color-neutral: #a6a6a6;
+  --cd-color-neutral-soft: #262626;
+  --cd-color-neutral-border: #3a3a3a;
+  --cd-color-danger-text: #f29a8e;
+  --cd-color-danger-fill: #b9382f;
+  --cd-color-text-on-danger: #ffffff;
+  --cd-color-danger-fill-hover: #9f2f28;
+  --cd-color-danger-fill-pressed: #84251f;
+  --cd-chart-1: var(--cd-color-brand);
+  --cd-chart-2: #8e9aa2;
+  --cd-chart-3: #c5a17d;
+  --cd-chart-4: #8a9b83;
+  --cd-chart-5: #a39ab5;
+  --cd-viz-1: #3987e5;
+  --cd-viz-2: #d95926;
+  --cd-viz-3: #199e70;
+  --cd-viz-4: #c98500;
+  --cd-color-overlay: rgba(0, 0, 0, 0.55);
+  --cd-title-fill: none;
+  --cd-title-color: var(--cd-color-text);
+  --cd-app-glow: none;
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+  --cd-shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --cd-focus-ring: 0 0 0 2px rgba(240, 138, 93, 1);
+  --cd-input-ring: 0 0 0 2px rgba(240, 138, 93, 0.32);
+  --cd-bubble-bg: rgba(31, 31, 31, 0.97);
+  --cd-bubble-border: rgba(255, 255, 255, 0.1);
+  --cd-bubble-text: #f2f2f2;
+  --cd-bubble-link: #ffa47e;
   --cd-bubble-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
