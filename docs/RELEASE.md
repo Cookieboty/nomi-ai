@@ -66,13 +66,11 @@ ad-hoc 并告警，**tag 发版直接失败**（2.0.4 不接受 ad-hoc 签名的
 | macOS   | `Nomi-X.Y.Z[-arm64]-mac.zip` | Squirrel.Mac 替换 `Nomi.app`，要求新包满足 2.0.4 的签名要求（`com.cookieboty.nomi` + 同一 Team ID）                                           |
 | Linux   | `Nomi-X.Y.Z.AppImage`        | 替换原 AppImage 文件后启动                                                                                                                    |
 
-不出 blockmap：electron-updater 取不到 blockmap 时整包下载。用户数据由 Go 版首次启动时迁移（`internal/migrate`）。CI 守住这条路径：
+不出 blockmap：electron-updater 取不到 blockmap 时整包下载。用户数据由 Go 版首次启动时迁移（`internal/migrate`）。
 
-- `manifest` 任务用 2.0.4 自带的 electron-updater 解析生成的 yml（`scripts/release/check-update-feed.mjs`），确认每个平台
-  （Windows、mac arm64 / x64、Linux）都挑中 Go 版安装包且 sha512 / size 一致；
-- `verify (windows)` 只验证新安装器本身（安装、启动、卸载项）。2.1.1 起不再先装 2.0.4 再升级（从源码构建 2.0.4
-  约 40 分钟，2.0.4 用户已很少）；2.0.4 的更新清单仍由上面的 `manifest` 校验；
-- `package (mac)` 检查 `Nomi.app` 的签名标识是 `com.cookieboty.nomi`。
+2.1.1 起 CI 不再验证这条升级路径（2.0.4 → 新版的应用内升级、electron-updater 解析 `latest*.yml`、Squirrel.Mac 签名标识、
+与 2.0.4 的 Info.plist 对比都已去掉）：`latest*.yml` 照常生成，但不保证 2.0.4 能升级成功。`verify` 只验证新安装包本身
+（安装、启动、桌面角色窗口），`manifest` 只校验 Go 版自己读的 `latest-go.json`。
 
 ## Electron（≤ v2.0.4）
 

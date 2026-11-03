@@ -81,8 +81,8 @@ jobs:
           MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
         run: |
           if [ -z "$MAC_CSC_LINK" ] || [ -z "$MAC_CSC_KEY_PASSWORD" ]; then
-            # 发版必须用 Developer ID：2.0.4 经 Squirrel.Mac 升级时要求新 Nomi.app 满足旧版的签名要求（同一 Team ID），ad-hoc 会被拒
-            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "::error::tag 发版缺 MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD（2.0.4 无法升级到 ad-hoc 签名的版本）"; exit 1; fi
+            # 发版必须用 Developer ID：ad-hoc 签名的 Nomi.app 下载后会被 macOS 拦下（「已损坏」）
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "::error::tag 发版缺 MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD"; exit 1; fi
             echo "::warning::MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD 不可用 → ad-hoc 签名"; exit 0; fi
           P12="$RUNNER_TEMP/cert.p12"
           case "$MAC_CSC_LINK" in
@@ -102,7 +102,6 @@ jobs:
           [ -n "$ID" ] || { echo "::error::p12 里没有 Developer ID Application 证书"; security find-identity -v -p codesigning "$KC"; exit 1; }
           echo "MAC_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"; echo "MAC_KEYCHAIN=$KC" >> "$GITHUB_ENV"
           echo "签名身份：$ID" >> "$GITHUB_STEP_SUMMARY"
-      # 与 2.0.4（ci.yml → electron-builder）同一张证书：2.0.4 签过名时，它的 electron-updater 只接受同一发布者签的安装器
       - name: windows signing cert
         if: runner.os == 'Windows'
         env:
@@ -128,9 +127,7 @@ jobs:
         if: startsWith(matrix.target, 'mac-')
         run: |
           D=$(ls apps/desktop-go/dist-pkg/*.zip); T=$(mktemp -d); ditto -x -k "$D" "$T"
-          # designated requirement：2.0.4 的 Squirrel.Mac 用它校验更新包（identifier com.cookieboty.nomi + 同一 Team ID）
           { echo '```'; codesign -dv --verbose=4 "$T/Nomi.app" 2>&1 | grep -v 'Hash'; codesign -d -r- "$T/Nomi.app" 2>&1; lipo -archs "$T/Nomi.app/Contents/MacOS/Nomi"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          codesign -d -r- "$T/Nomi.app" 2>&1 | grep -q 'identifier "com.cookieboty.nomi"' || { echo "::error::Nomi.app 的签名标识不是 com.cookieboty.nomi，2.0.4 无法升级"; exit 1; }
       - name: cleanup keychain
         if: always() && env.MAC_KEYCHAIN != ''
         run: security delete-keychain "$MAC_KEYCHAIN" || true
@@ -144,8 +141,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  # 2.1.1 起不再验证 2.0.4 → 新版的 Windows 应用内升级（先装 2.0.4 再跑新安装器、从源码构建 2.0.4 约 40 分钟）：
-  # 只验证新安装器本身。2.0.4 的更新清单（latest*.yml）仍由 manifest 用 electron-updater 校验
+  # 只验证新安装包本身（安装、启动、桌面角色窗口）；2.1.1 起不再验证 2.0.4 → 新版的应用内升级
   verify:
     needs: [package]
     if: ${{ always() && needs.package.result == 'success' }}
@@ -169,7 +165,7 @@ jobs:
         with: { name: 'nomi-go-${{ matrix.target }}', path: pkg }
       - name: verify mac
         if: runner.os == 'macOS'
-        run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots apps/desktop-go/ci/baseline-2.0.4/mac-info-plist.txt
+        run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots
       - name: verify windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -195,12 +191,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
-      - uses: pnpm/action-setup@v4
-      # 只用 electron-updater 校验更新清单：runner 自带的 Node 24 即可，不恢复整仓 pnpm 缓存
-      # （约 190 MB，以前这一步常卡近 10 分钟，真正干活只要几秒）
-      - uses: actions/setup-node@v4
-        with: { node-version: '24' }
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @nomi-ai/host-electron
       - uses: actions/download-artifact@v4
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
       - name: latest-go.json + latest*.yml + SHA256SUMS
@@ -209,9 +199,6 @@ jobs:
             --notes "docs/releases/v$V.md"
           # 真实 latest-go.json 必须能被 Go 更新器（internal/core/updates）解析，且每个平台都可选中
           (cd apps/desktop-go && CGO_ENABLED=0 NOMI_LATEST_GO_JSON="$GITHUB_WORKSPACE/out/latest-go.json" go test ./internal/core/updates/ -run TestUpdateManifest -v)
-          # 2.0.4 → 新版：用 2.0.4 自带的 electron-updater 解析 latest*.yml，每个平台都要挑中 Go 版安装包且 sha512 / size 对得上
-          node scripts/release/check-update-feed.mjs out "$V"
-          node scripts/release/check-mac-update.mjs out
           { echo "### 全部产物（字节）"; echo '```'; ls -l out | grep -v '^total'; echo '```'; echo '```json'; cat out/latest-go.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with: { name: nomi-go-release, path: out/, compression-level: 0 }
