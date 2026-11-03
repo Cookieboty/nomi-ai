@@ -272,3 +272,30 @@
     transition: none;
   }
 }
+/* 改动的文件：点开在抽屉里预览 */
+.fileBtn {
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: none;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.fileBtn:hover code {
+  text-decoration: underline;
+}
+.fileBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+/* 抽屉里的文件预览撑满高度（预览自带的高度上限是给工作台底栏用的） */
+.drawerBody > .filePreview {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border-top: none;
+}

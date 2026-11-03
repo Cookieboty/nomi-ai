@@ -4,7 +4,8 @@
  * - 当前一行：所有代理里最近的一个动作（「explorer · 运行 npm test」）；
  * - 审批：子任务的权限请求直接在卡片里答复（标签里也同时显示）；
  * - 子代理：每个一行，Claude 可以单独停止；
- * - 结束后：编程助手的汇报（做了什么、改动的文件、没做完的、需要用户决定的）。
+ * - 结束后：编程助手的汇报（做了什么、改动的文件、没做完的、需要用户决定的）；
+ *   改动的文件 = 汇报 / git 核对的 + 子任务对话里编辑 / 写入工具改过的，点开在抽屉里预览（.md 先渲染）。
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
 import { Button, Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
@@ -17,16 +18,21 @@ import { api } from '../../services/api';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
 import {
   harnessClient,
+  MAIN_TAB_ID,
   type HarnessBackend,
   type HarnessTabMessage,
   type HarnessTabMeta,
 } from '../../services/harnessClient';
+import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
-import { parseInput, type ToolCall } from '../../utils/toolTrace';
+import { aggregateSessionChanges } from '../../utils/sessionChanges';
+import { parseInput, type FileDiff, type ToolCall } from '../../utils/toolTrace';
+import { workspaceRelPath } from '../../utils/workspacePath';
 import { EndpointIcon } from '../EndpointIcon';
+import { FilePreview, type PreviewFile } from '../SessionWorkspace/FilePreview';
 
 import { ApprovePlanCard } from './ApprovePlanCard';
 import { buildCliSlots } from './cliSlots';
@@ -230,11 +236,127 @@ const Agents: React.FC<{ v: DelegateView }> = ({ v }) => {
 /** 交给模型时包的 <cli-output> 边界与说明行去掉，只留编程助手的原话 */
 export function plainSummary(s: string): string {
   const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
-  return (m ? m[1]! : s).trim();
+  return balanceCutFence((m ? m[1]! : s).trim());
 }
 
+/**
+ * 内核只保留回复的结尾（开头换成「…」）：截断点落在代码块中间时，剩下的第一个 ``` 其实是收尾，
+ * 原样渲染会把后面的正文全当成代码。在开头补回一个围栏。
+ */
+export function balanceCutFence(s: string): string {
+  if (!s.startsWith('…')) return s;
+  const fences = s.split('\n').filter((l) => /^\s*(```|~~~)/.test(l)).length;
+  if (fences % 2 === 0) return s;
+  return `…\n\n\`\`\`\n${s.slice(1)}`;
+}
+
+/** 编程助手改过的文件：显示用路径（在某个目录里就收成相对路径）+ 对话里看到的 diff */
+export interface DelegateFile {
+  path: string;
+  diff?: FileDiff;
+}
+
+/**
+ * 汇报 / git 核对的文件 + 子任务对话里编辑 / 写入工具改过的文件，按显示路径去重。
+ * 后者补上 git 看不到的：非 git 目录且没按格式汇报、被忽略的目录、用绝对路径写到 worktree 外。
+ */
+export function delegateFiles(
+  reported: readonly string[],
+  messages: readonly ConvMessage[],
+  roots: readonly string[],
+): DelegateFile[] {
+  const rel = (f: string) => {
+    for (const r of roots) {
+      const x = workspaceRelPath(r, f);
+      if (x !== f) return x;
+    }
+    return f;
+  };
+  const out = new Map<string, DelegateFile>();
+  for (const f of reported) if (f) out.set(rel(f), { path: rel(f) });
+  for (const e of aggregateSessionChanges(messages)) {
+    if (!e.file || e.file === '(unnamed)' || e.status === 'deleted') continue;
+    const path = rel(e.file);
+    const diff = e.diff && !e.diff.summaryOnly ? e.diff : undefined;
+    out.set(path, diff ? { path, diff } : (out.get(path) ?? { path }));
+  }
+  return [...out.values()];
+}
+
+/** 子任务标签的完整消息（抽屉与汇报共用）；enabled 为 false 时不拉 */
+function useTabMessages(
+  tabId: string | undefined,
+  updatedAt: number | undefined,
+  running: boolean,
+  enabled = true,
+): HarnessTabMessage[] | null {
+  const [messages, setMessages] = useState<HarnessTabMessage[] | null>(null);
+  useEffect(() => {
+    if (!tabId || !enabled) return;
+    let alive = true;
+    void harnessClient
+      .tabMessages(tabId)
+      .then((m) => alive && setMessages(m))
+      .catch(() => alive && setMessages([]));
+    return () => {
+      alive = false;
+    };
+  }, [tabId, updatedAt, running, enabled]);
+  return messages;
+}
+
+/** 在右侧抽屉里预览编程助手改过的文件 */
+const DelegateFilesDrawer: React.FC<{
+  files: DelegateFile[];
+  roots: string[];
+  active: string;
+  onActive: (path: string) => void;
+  onClose: () => void;
+}> = ({ files, roots, active, onActive, onClose }) => {
+  const preview = useMemo<PreviewFile[]>(
+    () =>
+      files.map((f) => ({
+        key: f.path,
+        path: f.path,
+        cwds: roots,
+        ...(f.diff
+          ? { gitDiff: f.diff, added: f.diff.diff.added, removed: f.diff.diff.removed }
+          : {}),
+      })),
+    [files, roots],
+  );
+  const host = useMemo(() => ({ mode: 'drawer' as const }), []);
+  const name = active.split(/[/\\]/).pop() || active;
+  return (
+    <ModalHostContext.Provider value={host}>
+      <Modal
+        open
+        onClose={onClose}
+        size="lg"
+        title={name}
+        bodyClassName={styles.drawerBody}
+        data-testid="delegate-file-drawer"
+      >
+        <FilePreview
+          files={preview}
+          activeKey={active}
+          cwd={roots[0] ?? null}
+          onActiveKey={onActive}
+          onClose={onClose}
+          preferRender
+          className={styles.filePreview}
+        />
+      </Modal>
+    </ModalHostContext.Provider>
+  );
+};
+
 /** 结束后的汇报 */
-const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
+const Report: React.FC<{
+  v: DelegateView;
+  files: DelegateFile[];
+  onOpenFile?: (path: string) => void;
+}> = ({ v, files, onOpenFile }) => {
   const r = v.result;
   if (v.error && !r)
     return (
@@ -243,7 +365,6 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       </div>
     );
   if (!r) return null;
-  const files = (r.report?.changedFiles?.length ? r.report.changedFiles : r.changedFiles) ?? [];
   return (
     <div className={styles.report} data-testid="delegate-report">
       {r.status === 'cancelled' && (
@@ -289,8 +410,20 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
           </span>
           <ul className={styles.files} data-testid="delegate-files">
             {files.slice(0, 8).map((f) => (
-              <li key={f}>
-                <code>{f}</code>
+              <li key={f.path}>
+                {onOpenFile ? (
+                  <button
+                    type="button"
+                    className={styles.fileBtn}
+                    title={t('ui.session-workspace.preview-file', f.path)}
+                    data-testid="delegate-file"
+                    onClick={() => onOpenFile(f.path)}
+                  >
+                    <code>{f.path}</code>
+                  </button>
+                ) : (
+                  <code>{f.path}</code>
+                )}
               </li>
             ))}
             {files.length > 8 && (
@@ -347,20 +480,8 @@ const DelegateDrawer: React.FC<{
   onOpenTab?: () => void;
   onClose: () => void;
 }> = ({ v, elapsed, running, stopping, onStop, onOpenTab, onClose }) => {
-  const [messages, setMessages] = useState<HarnessTabMessage[] | null>(null);
   const tabId = v.tab?.id;
-  const updatedAt = v.tab?.updatedAt;
-  useEffect(() => {
-    if (!tabId) return;
-    let alive = true;
-    void harnessClient
-      .tabMessages(tabId)
-      .then((m) => alive && setMessages(m))
-      .catch(() => alive && setMessages([]));
-    return () => {
-      alive = false;
-    };
-  }, [tabId, updatedAt, running]);
+  const messages = useTabMessages(tabId, v.tab?.updatedAt, running);
   const backend = v.backend ?? 'claude';
   const conv = useMemo(
     () => (messages ?? []).map((m) => fromHarnessMessage(m, backend)),
@@ -509,6 +630,20 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   const tab = v.tab;
   // 后台委派是持续任务（标签带 taskId）：停止 = 取消任务；直接停标签会让任务以为执行者崩了
   const tabTaskId = tab?.delegation?.taskId;
+  // 结束后：从子任务对话里补齐改过的文件；读文件时按目录依次找
+  // （子任务标签目录，可能是 worktree → 主标签目录，跟着当前对话的工作区走）
+  const mainCwd = tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID)?.cwd;
+  // 不手写 useMemo：交给 React Compiler（卡片里的 v / tab 每次渲染新建，手写依赖保不住）
+  const roots = [...new Set([tab?.cwd, mainCwd].filter((x): x is string => !!x))];
+  const childMessages = useTabMessages(tab?.id, tab?.updatedAt, running, !running && open);
+  const backend = v.backend ?? 'claude';
+  const childConv = (childMessages ?? []).map((m) => fromHarnessMessage(m, backend));
+  const reported =
+    (v.result?.report?.changedFiles?.length
+      ? v.result.report.changedFiles
+      : v.result?.changedFiles) ?? [];
+  const files = delegateFiles(reported, childConv, roots);
+  const [fileOpen, setFileOpen] = useState<string | null>(null);
   const stop = () => {
     if (!tab) return;
     setStopping(true);
@@ -609,8 +744,19 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
               ),
             )}
           <Agents v={v} />
-          {!running && <Report v={v} />}
+          {!running && (
+            <Report v={v} files={files} onOpenFile={roots.length ? setFileOpen : undefined} />
+          )}
         </div>
+      )}
+      {fileOpen && (
+        <DelegateFilesDrawer
+          files={files}
+          roots={roots}
+          active={fileOpen}
+          onActive={setFileOpen}
+          onClose={() => setFileOpen(null)}
+        />
       )}
       {drawer && (
         <DelegateDrawer

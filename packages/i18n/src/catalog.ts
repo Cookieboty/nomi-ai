@@ -3135,6 +3135,7 @@ export type TranslationKey =
   | 'ui.session-workspace.stop-this-subtask-nomi-keeps-going'
   | 'ui.session-workspace.subagents-running'
   | 'ui.session-workspace.subtask-for'
+  | 'ui.session-workspace.preview-file'
   | 'ui.session-workspace.switch-to-it'
   | 'ui.session-workspace.switch-to-side-by-side-view'
   | 'ui.session-workspace.switch-to-unified-view'

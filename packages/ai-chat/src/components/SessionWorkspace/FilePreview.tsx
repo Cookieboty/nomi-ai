@@ -32,6 +32,11 @@ export interface PreviewFile {
   change?: ChangeEntry;
   /** git unified body → DiffView */
   gitDiff?: FileDiff;
+  /**
+   * 依次尝试从这些目录读（找不到 / 不在目录里就换下一个）；缺省用组件的 cwd。
+   * 委派的编程助手可能写在 worktree、也可能用绝对路径写回原工作区。
+   */
+  cwds?: string[];
 }
 
 interface FileViewState {
@@ -51,7 +56,21 @@ export const FilePreview: React.FC<{
   onSaved?: () => void;
   /** 旁边已有文件列表（右栏）时不再显示文件标签条 */
   hideFileTabs?: boolean;
-}> = ({ files, activeKey, cwd, onActiveKey, onClose, onSaved, hideFileTabs = false }) => {
+  /** .md 文件先显示渲染后的预览（看产物时用；工作台审改动仍先看 Diff / 编辑） */
+  preferRender?: boolean;
+  /** 根节点额外的类（放进抽屉时撑满高度） */
+  className?: string;
+}> = ({
+  files,
+  activeKey,
+  cwd,
+  onActiveKey,
+  onClose,
+  onSaved,
+  hideFileTabs = false,
+  preferRender = false,
+  className,
+}) => {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [disk, setDisk] = useState<string>('');
@@ -81,11 +100,17 @@ export const FilePreview: React.FC<{
   // 在渲染期就把模式 / 待确认丢弃重置好（而不是等 effect 之后再来一次渲染）：
   // 读盘 effect 只会看到最终的模式，切文件不会为旧模式多读一次盘
   const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
-  const [mode, setMode] = useState<PreviewMode>(activeHasDiff ? 'diff' : 'file');
+  const initialMode: PreviewMode =
+    preferRender && active && isMarkdownPath(active.path)
+      ? 'render'
+      : activeHasDiff
+        ? 'diff'
+        : 'file';
+  const [mode, setMode] = useState<PreviewMode>(initialMode);
   const [modeKey, setModeKey] = useState(activeKey);
   if (modeKey !== activeKey) {
     setModeKey(activeKey);
-    setMode(activeHasDiff ? 'diff' : 'file');
+    setMode(initialMode);
     setConfirmDiscard(false); // 确认的是上一个文件
   }
 
@@ -144,17 +169,40 @@ export const FilePreview: React.FC<{
   });
   const activeFileKey = active?.key;
   const activePath = active?.path;
+  // 用字符串当依赖：files 每次渲染可能是新数组，不能让读盘跟着重跑
+  const rootsKey = (active?.cwds?.length ? active.cwds : cwd ? [cwd] : []).join('\0');
+  /** 当前文件实际读到的目录（保存写回同一处） */
+  const [readRoot, setReadRoot] = useState<string | null>(null);
   const loadDisk = useCallback(async () => {
-    if (!cwd || !activeFileKey || !activePath) {
+    const roots = rootsKey ? rootsKey.split('\0') : [];
+    if (!roots.length || !activeFileKey || !activePath) {
       setDisk('');
       setBinary(false);
-      setErr(cwd ? null : t('ui.session-workspace.this-session-has-no-working-directory'));
+      setReadRoot(null);
+      setErr(roots.length ? null : t('ui.session-workspace.this-session-has-no-working-directory'));
       return;
     }
     setLoading(true);
     setErr(null);
     try {
-      const r = await harnessClient.workspaceRead(cwd, workspaceRelPath(cwd, activePath));
+      let r: Awaited<ReturnType<typeof harnessClient.workspaceRead>> | null = null;
+      let root = roots[0]!;
+      let thrown: unknown = null;
+      for (const dir of roots) {
+        try {
+          r = await harnessClient.workspaceRead(dir, workspaceRelPath(dir, activePath));
+          thrown = null;
+        } catch (e) {
+          // 目录已不在（worktree 已清理）/ 内核不认：换下一个
+          r = null;
+          thrown = e;
+          continue;
+        }
+        root = dir;
+        if (r.ok || (r.code !== 'not-found' && r.code !== 'outside')) break;
+      }
+      if (!r) throw thrown ?? new Error(t('ui.slash-commands.failed-to-read'));
+      setReadRoot(r.ok ? root : null);
       if (!r.ok) {
         setDisk('');
         setBinary(false);
@@ -181,7 +229,7 @@ export const FilePreview: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [activeFileKey, activePath, cwd]);
+  }, [activeFileKey, activePath, rootsKey]);
 
   useEffect(() => {
     // loadDisk 是「读盘 → 写 state」的数据同步，loading / 重置 state 在其开头同步设置是有意的
@@ -225,15 +273,16 @@ export const FilePreview: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [go, onClose]);
 
+  const saveRoot = active?.cwds?.length ? readRoot : cwd;
   const save = async () => {
-    if (!cwd || !active || binary) return;
+    if (!saveRoot || !active || binary) return;
     const content = taRef.current?.value ?? viewState.current.get(active.key)?.draft ?? disk;
     setSaving(true);
     setErr(null);
     try {
       const r = await harnessClient.workspaceWrite(
-        cwd,
-        workspaceRelPath(cwd, active.path),
+        saveRoot,
+        workspaceRelPath(saveRoot, active.path),
         content,
       );
       if (!r.ok) {
@@ -312,7 +361,12 @@ export const FilePreview: React.FC<{
   const dirty = !!meta[active.key]?.dirty;
 
   return (
-    <div ref={rootRef} className={styles.preview} data-testid="file-preview" tabIndex={-1}>
+    <div
+      ref={rootRef}
+      className={className ? `${styles.preview} ${className}` : styles.preview}
+      data-testid="file-preview"
+      tabIndex={-1}
+    >
       <header className={styles.previewHead}>
         <div className={styles.previewNav}>
           <button
@@ -402,7 +456,7 @@ export const FilePreview: React.FC<{
               type="button"
               className={styles.iconBtn}
               onClick={() => void save()}
-              disabled={saving || !cwd}
+              disabled={saving || !saveRoot}
               title={t('ui.session-workspace.save-to-workspace')}
               aria-label={t('ui.session-workspace.save-to-workspace')}
               data-testid="preview-save"
