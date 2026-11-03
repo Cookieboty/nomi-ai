@@ -45,6 +45,7 @@ const ERRORS: Record<string, string> = {
   bad_state: 'ui.provider-link.err-bad-state',
   denied: 'ui.provider-link.err-denied',
   network: 'ui.provider-link.err-network',
+  private_host: 'ui.provider-link.err-private-host',
 };
 
 /** 错误码（条目里的 error，或契约错误 PROVIDER_LINK_FAILED 的 message）→ 界面文案 */

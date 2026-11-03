@@ -40,7 +40,11 @@ import {
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { Router } from '@nomi-ai/contract';
 import type { AppContract } from '@nomi-ai/contract/app';
-import type { ProviderQuirks } from '@nomi-ai/gateway';
+import {
+  resolveUpstreamAddresses,
+  UpstreamBlockedError,
+  type ProviderQuirks,
+} from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { AgentProgressService } from './agents/AgentProgressService';
@@ -92,7 +96,7 @@ import { ExtensionsService } from './extensions/ExtensionsService';
 import { GatewayService } from './gateway/GatewayService';
 import { harnessGateway } from './gateway/harnessGateway';
 import { applyNomiContext, chatRoleOf } from './gateway/nomiContext';
-import { ProviderLinkService } from './gateway/ProviderLinkService';
+import { ProviderLinkError, ProviderLinkService } from './gateway/ProviderLinkService';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
 import { LocaleService, t as tr, type CoreI18n } from './i18n';
@@ -108,7 +112,6 @@ import { forwardPersonaChanges } from './persona/events';
 import { neutralPersonaSource, packPersonaSource, PersonaService } from './persona/PersonaService';
 import { SchedulerService } from './schedule/SchedulerService';
 import { ScreenService } from './screen/ScreenService';
-import { assertPublicHttpUrlResolved } from './security/netGuard';
 import { safeStorageFromSecrets } from './security/secretStorage';
 import { createSecretBox } from './security/secretStorage';
 import { CacheService } from './services/CacheService';
@@ -902,7 +905,16 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       openExternal: (url) => ports.shell.openExternal(url),
       publish: (offers) => events.publish('providerLink.changed', offers),
       reveal: () => void ports.windows.open('chat'),
-      assertPublic: (url) => assertPublicHttpUrlResolved(url),
+      // 与网关连上游同一套规则：拒绝本机 / 局域网，代理软件的 fake-ip（198.18/15）对域名放行
+      assertPublic: async (url) => {
+        try {
+          await resolveUpstreamAddresses(url);
+        } catch (e) {
+          throw new ProviderLinkError(
+            e instanceof UpstreamBlockedError ? 'private_host' : 'network',
+          );
+        }
+      },
       logger: logger as never,
     });
     // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）

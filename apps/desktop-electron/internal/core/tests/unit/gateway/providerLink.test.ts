@@ -28,6 +28,7 @@ import {
   type LinkManifest,
 } from '../../../src/gateway/providerLink';
 import {
+  ProviderLinkError,
   ProviderLinkService,
   type ProviderLinkOffer,
 } from '../../../src/gateway/ProviderLinkService';
@@ -150,6 +151,7 @@ function service(
   over: {
     fetch?: typeof fetch;
     now?: () => number;
+    assertPublic?: (url: string) => Promise<unknown>;
   } = {},
 ) {
   const gw = gateway();
@@ -324,5 +326,20 @@ describe('ProviderLinkService', () => {
     await t.svc.receive('nomi://provider/connect?issuer=https://broken.example.com');
     expect(t.svc.list().at(-1)).toMatchObject({ error: 'bad_manifest' });
     await expect(t.svc.connect('http://example.com')).rejects.toMatchObject({ code: 'bad_issuer' });
+  });
+
+  it('B：授权网站解析到本机 / 局域网 → private_host（不再误报 bad_issuer）；解析失败 → network', async () => {
+    let fail: 'private_host' | 'network' = 'private_host';
+    const t = service({
+      assertPublic: async () => {
+        throw new ProviderLinkError(fail);
+      },
+    });
+    await t.svc.receive('nomi://provider/connect?issuer=https://intranet.example.com');
+    expect(t.svc.list().at(-1)).toMatchObject({ stage: 'error', error: 'private_host' });
+    fail = 'network';
+    await t.svc.receive('nomi://provider/connect?issuer=https://nxdomain.example.com');
+    expect(t.svc.list().at(-1)).toMatchObject({ error: 'network' });
+    await expect(t.svc.connect('intranet.example.com')).rejects.toMatchObject({ code: 'network' });
   });
 });

@@ -82,7 +82,8 @@ type Deps struct {
 	Publish func(offers []Offer)
 	// Reveal：有新的待确认，把对话窗口带到前台
 	Reveal func()
-	// AssertPublic：出站前校验主机解析出的地址都是公网（netGuard）
+	// AssertPublic：出站前校验主机解析出的地址都是公网（代理软件的 fake-ip 放行）；
+	// 拒绝时返回 &Error{"private_host"}，解析失败返回 &Error{"network"}
 	AssertPublic func(url string) error
 	HTTP         *http.Client
 	Now          func() time.Time
@@ -448,10 +449,11 @@ func (s *Service) postForm(endpoint, body string) (any, error) {
 func (s *Service) request(method, target, body, bad string) (any, error) {
 	if s.d.AssertPublic != nil {
 		if err := s.d.AssertPublic(target); err != nil {
-			if bad == "bad_manifest" {
-				return nil, &Error{"bad_issuer"}
+			var e *Error
+			if errors.As(err, &e) {
+				return nil, e
 			}
-			return nil, &Error{bad}
+			return nil, &Error{"network"}
 		}
 	}
 	var rd io.Reader

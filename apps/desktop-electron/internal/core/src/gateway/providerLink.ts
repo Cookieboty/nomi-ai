@@ -29,7 +29,9 @@ export type LinkErrorCode =
   | 'bad_token'
   | 'bad_state'
   | 'denied'
-  | 'network';
+  | 'network'
+  /** 授权网站解析到本机 / 局域网地址（代理软件的 fake-ip 不算） */
+  | 'private_host';
 
 export type LinkResult<T> = { ok: true; value: T } | { ok: false; code: LinkErrorCode };
 

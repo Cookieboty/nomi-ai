@@ -230,3 +230,19 @@ func TestDeniedNetworkBadManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// 授权网站解析到本机 / 局域网 → private_host（不再误报 bad_issuer）；解析失败 → network
+func TestAssertPublicCodes(t *testing.T) {
+	h := newHarness(nil, nil)
+	code := "private_host"
+	h.svc.d.AssertPublic = func(string) error { return &Error{code} }
+	h.svc.Receive("nomi://provider/connect?issuer=https://intranet.example.com")
+	if l := h.svc.List(); l[len(l)-1].Error != "private_host" {
+		t.Fatalf("%+v", l)
+	}
+	code = "network"
+	h.svc.Receive("nomi://provider/connect?issuer=https://nxdomain.example.com")
+	if l := h.svc.List(); l[len(l)-1].Error != "network" {
+		t.Fatalf("%+v", l)
+	}
+}

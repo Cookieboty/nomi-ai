@@ -17,6 +17,7 @@
   "ui.provider-link.err-bad-url": "Endpoints must use https and can't point to this computer or the local network (add those manually in Settings).",
   "ui.provider-link.err-denied": "You canceled the authorization on the website.",
   "ui.provider-link.err-network": "Couldn't reach the authorization site. Check your network and try again.",
+  "ui.provider-link.err-private-host": "This site resolves to an address on this computer or the local network, so Nomi won't connect to it.",
   "ui.provider-link.err-too-long": "The link is too long.",
   "ui.provider-link.error-title": "Couldn't add the third-party provider",
   "ui.provider-link.go-authorize": "Authorize in browser",
@@ -26,7 +27,9 @@
   "ui.provider-link.source": "From",
   "ui.provider-link.source-link": "Web link (the originating site can't be verified)",
   "ui.provider-link.trust-hint": "Only add third-party providers you trust: requests sent through it include your conversation content.",
+  "ui.provider-link.unverified-hint": "The name and endpoints come from the link itself, and Nomi can't verify who sent it. Only add it if you trust the site that gave you the link.",
   "ui.provider-link.update": "Update",
   "ui.provider-link.update-hint": "A third-party provider with the same endpoint already exists. Confirming adds this key and any missing endpoints and models to it instead of creating a new one.",
-  "ui.provider-link.update-title": "Update third-party provider \"{0}\""
+  "ui.provider-link.update-title": "Update third-party provider \"{0}\"",
+  "ui.provider-link.working": "Working…"
 }

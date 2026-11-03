@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OPEN_MODELS_EVENT } from '../src/components/Onboarding/client';
-import { ProviderLinkHost } from '../src/components/ProviderLink';
+import { fillLinkedModels, ProviderLinkHost } from '../src/components/ProviderLink';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -111,5 +111,56 @@ describe('ProviderLinkHost', () => {
     );
     expect(screen.getByTestId('provider-link-ok')).toBeTruthy();
     expect(screen.queryByTestId('provider-link-accept')).toBeNull();
+  });
+
+  it('链接导入：不显示链接自带的主页 / 网站名（可伪造），只说无法确认来源', async () => {
+    installFakeApi((name) =>
+      name === 'providerLink.list'
+        ? [offer({ homepage: 'https://bank.example', name: '某银行官方' })]
+        : undefined,
+    );
+    render(<ProviderLinkHost />);
+    const facts = await screen.findByTestId('provider-link-facts');
+    expect(facts.textContent).not.toContain('bank.example');
+    expect(screen.getByTestId('provider-link-unverified').textContent).toContain('无法确认');
+    expect(screen.getByTestId('provider-link-dialog').textContent).toContain('Nomi 无法核实');
+  });
+});
+
+describe('fillLinkedModels', () => {
+  it('没有模型的供应商：检测一次并启用对话模型；已有模型的不动', async () => {
+    const fake = installFakeApi((name, input) => {
+      if (name === 'gateway.state')
+        return {
+          providers: [
+            { id: 'ex', name: 'Example AI', models: [] },
+            { id: 'has', name: 'Has', models: [{ id: 'x', enabled: true }] },
+          ],
+          clients: {},
+          status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+        };
+      if (name === 'gateway.detect')
+        return {
+          wires: { chat: { wire: 'chat', ok: true } },
+          byKey: {},
+          models: ['gpt-5', 'text-embedding-3'],
+          urls: {},
+        };
+      if (name === 'gateway.upsertProvider') return { id: input.id, name: input.name };
+      return undefined;
+    });
+    await fillLinkedModels('ex');
+    const up = fake.calls.find(([n]) => n === 'gateway.upsertProvider')?.[1] as {
+      id: string;
+      models: Array<{ id: string; enabled: boolean }>;
+    };
+    expect(up.id).toBe('ex');
+    expect(up.models).toEqual([
+      expect.objectContaining({ id: 'gpt-5', enabled: true }),
+      expect.objectContaining({ id: 'text-embedding-3', enabled: false }),
+    ]);
+    fake.calls.splice(0);
+    await fillLinkedModels('has');
+    expect(fake.calls.some(([n]) => n === 'gateway.detect')).toBe(false);
   });
 });

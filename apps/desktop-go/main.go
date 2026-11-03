@@ -63,6 +63,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tray"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
+	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -532,8 +533,18 @@ func main() {
 				sh.Show(shell.Chat)
 			}
 		},
-		AssertPublic: func(u string) error { _, err := security.AssertPublicHttpUrlResolved(u, nil); return err },
-		Logger:       deps.StdLogger{Prefix: "[provider-link]"},
+		// 与网关连上游同一套规则：拒绝本机 / 局域网，代理软件的 fake-ip（198.18/15）对域名放行
+		AssertPublic: func(u string) error {
+			if _, _, err := gwnet.ResolveUpstreamAddresses(context.Background(), u, gwnet.GuardOpts{}); err != nil {
+				var blocked *gwnet.UpstreamBlockedError
+				if errors.As(err, &blocked) {
+					return &providerlink.Error{Code: "private_host"}
+				}
+				return &providerlink.Error{Code: "network"}
+			}
+			return nil
+		},
+		Logger: deps.StdLogger{Prefix: "[provider-link]"},
 	})
 	shellhandlers.InstallProviderLink(router, providerLinks)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))

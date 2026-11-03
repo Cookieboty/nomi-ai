@@ -77,7 +77,10 @@ export interface ProviderLinkDeps {
   publish: (offers: ProviderLinkOffer[]) => void;
   /** 有新的待确认：把对话窗口带到前台 */
   reveal?: () => void;
-  /** 出站前校验：主机解析出的地址都是公网（netGuard） */
+  /**
+   * 出站前校验：主机解析出的地址都是公网（代理软件的 fake-ip 放行）。
+   * 拒绝时抛 ProviderLinkError('private_host')，解析失败抛 ProviderLinkError('network')。
+   */
   assertPublic: (url: string) => Promise<unknown>;
   fetch?: typeof fetch;
   now?: () => number;
@@ -312,8 +315,8 @@ export class ProviderLinkService {
   private async request(url: string, init: RequestInit, bad: LinkErrorCode): Promise<unknown> {
     try {
       await this.d.assertPublic(url);
-    } catch {
-      throw new ProviderLinkError(bad === 'bad_manifest' ? 'bad_issuer' : bad);
+    } catch (e) {
+      throw e instanceof ProviderLinkError ? e : new ProviderLinkError('network');
     }
     const f = this.d.fetch ?? fetch;
     let res: Response;

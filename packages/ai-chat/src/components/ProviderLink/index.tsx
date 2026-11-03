@@ -8,7 +8,8 @@
 import { Button, Modal, t, useLocale } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
-import { WIRE_LABEL, WIRES } from '../../services/gatewayClient';
+import { gatewayClient, WIRE_LABEL, WIRES } from '../../services/gatewayClient';
+import { defaultEnabled, modelRows, storedProbes } from '../ModelsPage/providerSetup';
 import { OPEN_MODELS_EVENT } from '../Onboarding/client';
 
 import {
@@ -59,11 +60,13 @@ export const ProviderLinkDialog: React.FC<{
           disabled={busy}
           data-testid="provider-link-accept"
         >
-          {offer.stage === 'authorize'
-            ? t('ui.provider-link.go-authorize')
-            : offer.existing
-              ? t('ui.provider-link.update')
-              : t('ui.foundation.add')}
+          {busy
+            ? t('ui.provider-link.working')
+            : offer.stage === 'authorize'
+              ? t('ui.provider-link.go-authorize')
+              : offer.existing
+                ? t('ui.provider-link.update')
+                : t('ui.foundation.add')}
         </Button>
       </>
     );
@@ -85,11 +88,16 @@ export const ProviderLinkDialog: React.FC<{
             <dt>{t('ui.foundation.name')}</dt>
             <dd>{offer.name}</dd>
             <dt>{t('ui.provider-link.source')}</dt>
+            {/* 只写能核实的来源：授权连接写 issuer 域名（Nomi 自己连过它）；链接导入只说无法确认，
+                不显示链接自带的网站名 / 主页，免得被伪造的域名误导 */}
             <dd>
-              {offer.source === 'issuer' ? hostOf(offer.issuer) : t('ui.provider-link.source-link')}
-              {offer.homepage && hostOf(offer.homepage) !== hostOf(offer.issuer) ? (
-                <span className={styles.muted}> · {hostOf(offer.homepage)}</span>
-              ) : null}
+              {offer.source === 'issuer' ? (
+                hostOf(offer.issuer)
+              ) : (
+                <span className={styles.warn} data-testid="provider-link-unverified">
+                  {t('ui.provider-link.source-link')}
+                </span>
+              )}
             </dd>
             {wires.map((w) => (
               <React.Fragment key={w}>
@@ -118,9 +126,14 @@ export const ProviderLinkDialog: React.FC<{
           </dl>
           {offer.stage === 'save' ? (
             <p className={styles.hint}>
-              {offer.existing
-                ? t('ui.provider-link.update-hint')
-                : t('ui.provider-link.trust-hint')}
+              {[
+                offer.source === 'link' ? t('ui.provider-link.unverified-hint') : '',
+                offer.existing
+                  ? t('ui.provider-link.update-hint')
+                  : t('ui.provider-link.trust-hint'),
+              ]
+                .filter(Boolean)
+                .join(' ')}
             </p>
           ) : null}
         </div>
@@ -133,6 +146,36 @@ export const ProviderLinkDialog: React.FC<{
     </Modal>
   );
 };
+
+/**
+ * 链接导入后供应商还没有模型：检测一次（用刚存下的 Key），按添加时的规则启用对话模型。
+ * 失败不打扰（用户可以在模型页手动检测）。
+ */
+export async function fillLinkedModels(providerId: string): Promise<void> {
+  try {
+    const state = await gatewayClient.state();
+    const p = state.providers.find((x) => x.id === providerId);
+    if (!p || p.models.length) return;
+    const r = await gatewayClient.detect({ providerId });
+    const rows = modelRows(r, null);
+    if (!rows.length) return;
+    const enabled = defaultEnabled(rows);
+    await gatewayClient.upsertProvider({
+      id: p.id,
+      name: p.name,
+      urls: {},
+      models: rows.map((m) => ({
+        id: m.id,
+        enabled: enabled.has(m.id),
+        ...(m.chat ? {} : { toolCalling: false }),
+        ...(r.limits?.[m.id] ? { ...r.limits[m.id], metaSource: 'listed' as const } : {}),
+      })),
+      detected: storedProbes(r),
+    });
+  } catch {
+    /* 检测失败：模型页里可以手动检测 */
+  }
+}
 
 /** 挂在对话窗口里：有待确认的链接就弹出 */
 export const ProviderLinkHost: React.FC = () => {
@@ -148,8 +191,11 @@ export const ProviderLinkHost: React.FC = () => {
     providerLinkClient
       .accept(offer.id)
       .then((r) => {
+        if (r.stage !== 'save') return;
+        // 链接没带模型：后台拉一次模型列表（与添加时的检测相同），不让新加的供应商显示 0 个模型
+        if (r.providerId) void fillLinkedModels(r.providerId);
         // 保存好了：打开「设置 → 模型与供应商」看刚加的第三方供应商
-        if (r.stage === 'save') window.dispatchEvent(new CustomEvent(OPEN_MODELS_EVENT));
+        window.dispatchEvent(new CustomEvent(OPEN_MODELS_EVENT));
       })
       .catch((e: unknown) => setError({ id: offer.id, text: linkCallErrorText(e) }))
       .finally(() => setBusy(false));

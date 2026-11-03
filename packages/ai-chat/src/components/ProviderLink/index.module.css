@@ -40,3 +40,7 @@
   font-size: var(--cd-font-size-sm);
   overflow-wrap: anywhere;
 }
+.warn {
+  color: var(--cd-color-warning);
+  font-weight: var(--cd-font-weight-medium);
+}
