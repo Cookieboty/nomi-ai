@@ -46,7 +46,6 @@ import { sidebarToggleLabels } from '../TitleBar';
 import { CollapsedRail } from './CollapsedRail';
 import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
-import { historyOrigin, routeInitial, routeTag } from './historyRoute';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import {
@@ -57,7 +56,7 @@ import {
   SearchIcon,
   type SearchEntry,
 } from './searchSupport';
-import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
+import { HistoryRow, rel, liveOf, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
 import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
@@ -1102,64 +1101,18 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               )}
               {localHistoryOpen &&
                 histItems.map((h) => (
-                  <div
+                  <HistoryRow
                     key={h.key}
-                    className={`${styles.row} ${styles.histRow}`}
-                    data-testid="history-session-row"
-                  >
-                    <button
-                      type="button"
-                      className={styles.thread}
-                      data-testid="history-session-item"
-                      data-backend={h.backend}
-                      data-session-id={h.sessionId}
-                      data-cwd-missing={h.cwdMissing || undefined}
-                      aria-busy={openingKey === h.key}
-                      title={[
-                        h.title,
-                        h.cwd,
-                        ...historyOrigin(h),
-                        h.cwdMissing
-                          ? t('ui.cli-monitor.the-original-directory-no-longer-exists')
-                          : '',
-                      ]
-                        .filter(Boolean)
-                        .join('\n')}
-                      onClick={() => void openHistory(h)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setNewMenu(false);
-                        setCtx(null);
-                        setHistMenu({ h, x: e.clientX, y: e.clientY });
-                      }}
-                    >
-                      <span className={styles.dot} aria-hidden />
-                      <EndpointIcon backend={h.backend} size={14} />
-                      {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
-                      <span className={styles.histTitle}>
-                        <span className={styles.threadName}>{h.title}</span>
-                        {routeTag(h) && (
-                          <span
-                            className={styles.histTag}
-                            aria-label={routeTag(h)!}
-                            data-testid="history-route-tag"
-                          >
-                            {routeInitial(h)}
-                          </span>
-                        )}
-                      </span>
-                      <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
-                    </button>
-                    {/* 磁盘历史：没有重命名；删除 = 把 CLI 的会话记录移到废纸篓 */}
-                    <RowActions
-                      kind="hist"
-                      onDelete={() => void deleteHistory(h)}
-                      onMore={(a) => {
-                        setCtx(null);
-                        setHistMenu({ h, x: a.right - 184, y: a.bottom + 2 });
-                      }}
-                    />
-                  </div>
+                    h={h}
+                    busy={openingKey === h.key}
+                    onOpen={() => void openHistory(h)}
+                    onMenu={(x, y) => {
+                      setNewMenu(false);
+                      setCtx(null);
+                      setHistMenu({ h, x, y });
+                    }}
+                    onDelete={() => void deleteHistory(h)}
+                  />
                 ))}
               {localHistoryOpen && histScopeSupported && history.hasMore(histScope) && (
                 <button

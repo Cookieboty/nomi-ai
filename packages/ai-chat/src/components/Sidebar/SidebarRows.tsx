@@ -4,8 +4,10 @@ import React from 'react';
 import { type RowComponentProps } from 'react-window';
 
 import type { HarnessTabMeta } from '../../services/harnessClient';
+import type { HistorySession } from '../../services/historyClient';
 import { EndpointIcon } from '../EndpointIcon';
 
+import { historyOrigin, routeInitial, routeTag } from './historyRoute';
 import styles from './index.module.css';
 import type { Meta } from './types';
 
@@ -282,6 +284,66 @@ export const VirtualRow = ({
         onDeleteRequest={onDeleteRequest}
         onDeleteCancel={onDeleteCancel}
         onMore={onMore}
+      />
+    </div>
+  );
+};
+
+/**
+ * 「本机历史」里的一行（磁盘上的 CLI 会话）：点开在标签里打开；右键 / 「更多」出菜单；
+ * 没有重命名，删除 = 把 CLI 的会话记录移到废纸篓。
+ */
+export const HistoryRow: React.FC<{
+  h: HistorySession;
+  /** 正在打开这一条 */
+  busy: boolean;
+  onOpen: () => void;
+  /** 在 (x, y) 打开这一行的菜单（右键或「更多」） */
+  onMenu: (x: number, y: number) => void;
+  onDelete: () => void;
+}> = ({ h, busy, onOpen, onMenu, onDelete }) => {
+  const tag = routeTag(h);
+  return (
+    <div className={`${styles.row} ${styles.histRow}`} data-testid="history-session-row">
+      <button
+        type="button"
+        className={styles.thread}
+        data-testid="history-session-item"
+        data-backend={h.backend}
+        data-session-id={h.sessionId}
+        data-cwd-missing={h.cwdMissing || undefined}
+        aria-busy={busy}
+        title={[
+          h.title,
+          h.cwd,
+          ...historyOrigin(h),
+          h.cwdMissing ? t('ui.cli-monitor.the-original-directory-no-longer-exists') : '',
+        ]
+          .filter(Boolean)
+          .join('\n')}
+        onClick={onOpen}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onMenu(e.clientX, e.clientY);
+        }}
+      >
+        <span className={styles.dot} aria-hidden />
+        <EndpointIcon backend={h.backend} size={14} />
+        {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
+        <span className={styles.histTitle}>
+          <span className={styles.threadName}>{h.title}</span>
+          {tag && (
+            <span className={styles.histTag} aria-label={tag} data-testid="history-route-tag">
+              {routeInitial(h)}
+            </span>
+          )}
+        </span>
+        <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
+      </button>
+      <RowActions
+        kind="hist"
+        onDelete={onDelete}
+        onMore={(a) => onMenu(a.right - 184, a.bottom + 2)}
       />
     </div>
   );
