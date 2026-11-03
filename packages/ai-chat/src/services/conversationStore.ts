@@ -92,9 +92,14 @@ export interface ForkConversationOpts {
 /** 会话列表被外部改动（分叉等）后在 window 上广播，侧栏据此立即刷新 */
 export const CONVERSATIONS_CHANGED_EVENT = 'nomi:conversations-changed';
 
-export function notifyConversationsChanged(): void {
+export type ConversationsChangedDetail = {
+  /** 删除路径带上被删项，App 可直接 drop 私有草稿（不依赖 prev 快照） */
+  removed?: Array<{ id: string; tabId?: string }>;
+};
+
+export function notifyConversationsChanged(detail?: ConversationsChangedDetail): void {
   if (typeof window === 'undefined') return;
-  window.dispatchEvent(new Event(CONVERSATIONS_CHANGED_EVENT));
+  window.dispatchEvent(new CustomEvent(CONVERSATIONS_CHANGED_EVENT, { detail }));
 }
 
 export class ConversationStore {
@@ -473,19 +478,26 @@ export class ConversationStore {
     this.writeIndex(remaining);
     this.storage.removeItem(messagesKey(id));
     this.forget(id);
-    if (this.readCurrent() !== id) return;
-    // 当前会话被删：优先切到同后端最近更新的会话；没有则留空（不隐式新建 / 不跨端跳）
-    const sameBackend = removed
-      ? remaining.filter((c) => c.backend === removed.backend)
-      : remaining;
-    const next = sameBackend.reduce<ConversationMeta | undefined>(
-      (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
-      undefined,
-    );
-    if (next) {
-      this.writeCurrent(next.id);
-      if (next.backend === 'nomi' && !next.tabId) this.writeLastNomi(next.id);
-    } else this.writeCurrent(undefined);
+    if (this.readCurrent() === id) {
+      // 当前会话被删：优先切到同后端最近更新的会话；没有则留空（不隐式新建 / 不跨端跳）
+      const sameBackend = removed
+        ? remaining.filter((c) => c.backend === removed.backend)
+        : remaining;
+      const next = sameBackend.reduce<ConversationMeta | undefined>(
+        (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
+        undefined,
+      );
+      if (next) {
+        this.writeCurrent(next.id);
+        if (next.backend === 'nomi' && !next.tabId) this.writeLastNomi(next.id);
+      } else this.writeCurrent(undefined);
+    }
+    // 侧栏刷新 + App 丢掉该会话私有 composer 草稿（nomi:/tab:）
+    if (removed) {
+      notifyConversationsChanged({
+        removed: [{ id: removed.id, ...(removed.tabId ? { tabId: removed.tabId } : {}) }],
+      });
+    }
   }
 
   private touch(id: string, message?: ChatMessage): void {

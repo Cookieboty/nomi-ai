@@ -78,6 +78,7 @@ import { createComposerDraftStore, draftKey } from './services/composerDrafts';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
+  type ConversationsChangedDetail,
 } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import {
@@ -374,15 +375,20 @@ const AiChatContent: React.FC = () => {
       id: c.id,
       tabId: c.tabId,
     });
+    const dropGone = (gone: Entry) => {
+      draftStore.dropPrivate(`nomi:${gone.id}`);
+      if (gone.tabId) draftStore.dropPrivate(`tab:${gone.tabId}`);
+    };
     let prev: Entry[] = (ipcClient.conversationStore?.()?.list() ?? []).map(toEntry);
-    const sync = () => {
+    const sync = (ev: Event) => {
+      const explicit = (ev as CustomEvent<ConversationsChangedDetail>).detail?.removed;
+      if (explicit) for (const gone of explicit) dropGone(gone);
       const list = ipcClient.conversationStore?.()?.list() ?? [];
       const next: Entry[] = list.map(toEntry);
       const nextIds = new Set(next.map((e: Entry) => e.id));
       for (const gone of prev) {
         if (nextIds.has(gone.id)) continue;
-        draftStore.dropPrivate(`nomi:${gone.id}`);
-        if (gone.tabId) draftStore.dropPrivate(`tab:${gone.tabId}`);
+        dropGone(gone);
       }
       prev = next;
     };
