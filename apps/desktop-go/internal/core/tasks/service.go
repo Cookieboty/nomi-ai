@@ -305,10 +305,10 @@ func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
 	if err := s.checkTrigger(in.Trigger, in.Grant.Connections, in.Grant.Paths); err != nil {
 		return Task{}, err
 	}
-	return s.Runtime.Create(CreateInput{Title: in.Title, Goal: in.Goal,
+	return s.Runtime.CreateChecked(CreateInput{Title: in.Title, Goal: in.Goal,
 		Origin:  Origin{ConversationID: in.ConversationID, CreatedBy: createdBy, CreatedAt: s.d.Now()},
 		Trigger: in.Trigger, Executor: in.Executor, Grant: in.Grant, Budget: in.Budget, Acceptance: in.Acceptance,
-		Priority: in.Priority, Category: in.Category}), nil
+		Priority: in.Priority, Category: in.Category})
 }
 
 // DelegatedInput 对应 TaskService.createDelegated 的入参
@@ -332,7 +332,7 @@ const (
 // CreateDelegated：对话里 delegate_to_cli 后台派出的任务（persistent-tasks-plan 2.2）：用户已在对话里确认过这次委派；
 // 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
 // 派给 Nomi 的（executor: nomi，§7.4）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
-func (s *Service) CreateDelegated(i DelegatedInput) Task {
+func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 	nomi := i.Executor.Kind == "nomi"
 	clis := []string{}
 	if i.Executor.Kind == "cli" {
@@ -360,7 +360,7 @@ func (s *Service) CreateDelegated(i DelegatedInput) Task {
 		// 派给 Nomi 的没有 worktree 要回填：做完结果直接回对话
 		acceptance = "auto"
 	}
-	task := s.Runtime.Create(CreateInput{Title: i.Title, Goal: i.Goal,
+	task, err := s.Runtime.CreateChecked(CreateInput{Title: i.Title, Goal: i.Goal,
 		Origin:     Origin{ConversationID: i.ConversationID, CreatedBy: "nomi", CreatedAt: s.d.Now(), Via: &via},
 		Trigger:    Trigger{Kind: "manual"},
 		Executor:   i.Executor,
@@ -369,11 +369,14 @@ func (s *Service) CreateDelegated(i DelegatedInput) Task {
 		Budget:     budget,
 		Acceptance: acceptance,
 	})
+	if err != nil {
+		return Task{}, err
+	}
 	s.Runtime.Command(task.ID, Command{Type: "runNow"})
 	if rec := s.Runtime.Get(task.ID); rec != nil {
-		return rec.Task
+		return rec.Task, nil
 	}
-	return task
+	return task, nil
 }
 
 func delegateAnnouncedMsg(attemptID string) string { return "delegate_announced:" + attemptID }

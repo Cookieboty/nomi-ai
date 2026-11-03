@@ -90,7 +90,7 @@ type Deps struct {
 
 // TaskPort：委派用到的持续任务能力（tasks.Service 的子集，对应 DelegateTaskPort）
 type TaskPort interface {
-	CreateDelegated(i tasks.DelegatedInput) tasks.Task
+	CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error)
 	Get(id string) *tasks.Record
 	// Command：cancel | reject{feedback}
 	Command(id string, c tasks.Command) tasks.CmdResult
@@ -868,7 +868,10 @@ func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Ob
 		cid := c.ec.ConversationID
 		di.ConversationID = &cid
 	}
-	task := port.CreateDelegated(di)
+	task, err := port.CreateDelegated(di)
+	if err != nil {
+		return nil, derr("internal_error", "持续任务没能保存（磁盘空间或权限问题），这次没有派出去")
+	}
 	var result *util.Obj
 	if rec := port.Get(task.ID); rec != nil {
 		result = s.resultFromTask(rec)
@@ -1181,7 +1184,10 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 		cid := c.ec.ConversationID
 		di.ConversationID = &cid
 	}
-	task := s.d.Tasks.CreateDelegated(di)
+	task, err := s.d.Tasks.CreateDelegated(di)
+	if err != nil {
+		return nil, derr("internal_error", "持续任务没能保存（磁盘空间或权限问题），这次没有派出去")
+	}
 	var result *util.Obj
 	if rec := s.d.Tasks.Get(task.ID); rec != nil {
 		result = s.resultFromTask(rec)

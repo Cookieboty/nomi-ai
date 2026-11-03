@@ -62,7 +62,7 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 	defer s.Stop()
 	dir := t.TempDir()
 	conv := "conv_1"
-	task := s.CreateDelegated(DelegatedInput{Title: "Nomi · 修 bug", Goal: "修 bug", ConversationID: &conv,
+	task, _ := s.CreateDelegated(DelegatedInput{Title: "Nomi · 修 bug", Goal: "修 bug", ConversationID: &conv,
 		Executor: ExecutorSpec{Kind: "cli", Cli: ptr("claude"), Cwd: &dir, Isolation: ptr("worktree"),
 			Brief: &Brief{DoneWhen: "npm test"}},
 		Level: 3, Paths: []string{dir}})
@@ -118,7 +118,7 @@ func TestServiceCreateDelegatedNomi(t *testing.T) {
 	s.Start()
 	defer s.Stop()
 	conv := "conv_1"
-	task := s.CreateDelegated(DelegatedInput{Title: "Nomi · 做 PPT", Goal: "做 PPT", ConversationID: &conv,
+	task, _ := s.CreateDelegated(DelegatedInput{Title: "Nomi · 做 PPT", Goal: "做 PPT", ConversationID: &conv,
 		Executor: ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: ptr("conversation"),
 			Brief: &Brief{DoneWhen: "PPT 写进工作区"}, CallID: ptr("call_1")},
 		Level: 4, Paths: []string{}, Category: "writing"})
