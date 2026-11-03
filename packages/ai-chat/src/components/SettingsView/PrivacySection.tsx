@@ -5,10 +5,11 @@
  * 「桌面权限」= 文件夹授权、工具权限、云端与仅本地开关与操作记录（桌面能力面板）；
  * 「数据导出」= 把本机数据打成 zip。
  */
-import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
-import React from 'react';
+import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import React, { useSyncExternalStore } from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';
+import { getSmartTitle, setSmartTitle, subscribeSmartTitle } from '../../services/chatPrefs';
 import { confirmDialog } from '../ConfirmDialog';
 import { LocalPanel } from '../lazyPanels';
 
@@ -19,6 +20,24 @@ import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type PrivacyTab, type SettingsSection, type SettingsTab } from './sections';
 
 const noop = () => undefined;
+
+/** 新对话用模型起标题：会把第一条消息再发给当前聊天模型一次（报告 2.1.1：要能关） */
+const SmartTitleRow: React.FC = () => {
+  const on = useSyncExternalStore(subscribeSmartTitle, getSmartTitle, getSmartTitle);
+  return (
+    <SettingRow
+      title={t('ui.chat-settings.smart-chat-titles')}
+      description={t('ui.chat-settings.smart-chat-titles-desc')}
+    >
+      <Switch
+        checked={on}
+        onChange={setSmartTitle}
+        aria-label={t('ui.chat-settings.smart-chat-titles')}
+        data-testid="smart-title-switch"
+      />
+    </SettingRow>
+  );
+};
 
 export const PrivacySection: React.FC<{
   tab: PrivacyTab;
@@ -59,6 +78,7 @@ export const PrivacySection: React.FC<{
                 {t('ui.mascot-theme.go-to-settings')}
               </Button>
             </SettingRow>
+            <SmartTitleRow />
             <SettingRow
               title={t('ui.knowledge-local.desktop-files')}
               description={t('ui.knowledge-local.each-folder-must-be-authorized-every-action-is')}

@@ -39,6 +39,7 @@ import {
   type ProviderQuirks,
   type RedactionHit,
   type RuntimeProvider,
+  type RetryEvent,
   type UsageEvent,
   type Wire,
   autoImageModel,
@@ -312,7 +313,10 @@ export interface GatewayServiceDeps {
   env?: NodeJS.ProcessEnv;
   /** 测试注入：模型目录的异步原子写；默认 writePrivateFileAtomicAsync */
   writeCatalog?: (file: string, data: string) => Promise<void>;
-  broadcast?: (event: 'gateway.changed', payload: null) => void;
+  broadcast?: {
+    (event: 'gateway.changed', payload: null): void;
+    (event: 'gateway.retrying', payload: RetryEvent): void;
+  };
 }
 
 /** 同步到的模型目录至少要有这么多条，否则视为异常响应 */
@@ -344,6 +348,10 @@ export class GatewayService {
         onUsage: (e) => {
           this.notePrivacy(e);
           d.onUsage?.(e);
+        },
+        // Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；编程助手有自己的进度，不发
+        onRetry: (e) => {
+          if (e.client === 'nomi') d.broadcast?.('gateway.retrying', e);
         },
         onLearn: (e) => void this.learn(e),
         onKeyStatus: (e) => this.keyStatus(e),

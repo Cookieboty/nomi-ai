@@ -27536,6 +27536,37 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "null"
   },
+  "gateway.retrying": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "client": {
+     "type": "string"
+    },
+    "provider": {
+     "type": "string"
+    },
+    "previous": {
+     "type": "string"
+    },
+    "status": {
+     "type": "number"
+    },
+    "attempt": {
+     "type": "number"
+    },
+    "waitMs": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "client",
+    "provider",
+    "previous",
+    "attempt"
+   ],
+   "additionalProperties": {}
+  },
   "harness.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",

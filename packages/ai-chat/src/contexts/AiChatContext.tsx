@@ -14,6 +14,7 @@ import React, {
 } from 'react';
 
 import { importChatImages } from '../services/chatImages';
+import { getSmartTitle } from '../services/chatPrefs';
 import { canCompact, compactionRequest, isCompaction, shouldCompact } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
@@ -38,7 +39,7 @@ import { imageLinksNote } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
-import { nomiModelLabel } from '../services/nomiModel';
+import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
@@ -300,7 +301,8 @@ function maybeStartNomiSmartTitle(
   convoId: string | undefined,
   content: string,
 ): void {
-  if (!convoId || !client.completeChatText) return;
+  // 设置里关掉了：用第一句话作标题（conversationStore 落盘时起），不再额外请求模型
+  if (!convoId || !client.completeChatText || !getSmartTitle()) return;
   const store = client.conversationStore?.();
   const meta = store?.get(convoId);
   const text = splitFileAttachments(content).text.trim();
@@ -938,6 +940,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         else speaker?.finish();
         const finalAiMessage: ChatMessage = {
           ...aiMessage,
+          // 故障转移后实际回答的可能是另一家：按网关报回的写
+          ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
           content: accumulated,
           durationMs: Date.now() - startedAt,
           ...(trace.length ? { trace: [...trace] } : {}),

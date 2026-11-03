@@ -58,8 +58,10 @@ const (
 
 // ProcessDeps = GatewayProcess 的构造参数
 type ProcessDeps struct {
-	Logger      Logger
-	OnUsage     func(e *u.Obj)
+	Logger  Logger
+	OnUsage func(e *u.Obj)
+	// OnRetry：网关进程的 RetryEvent（提交点之前的重连 / 换供应商）
+	OnRetry     func(e server.RetryEvent)
 	OnLearn     func(e server.LearnEvent)
 	OnKeyStatus func(e upstream.KeyStatusEvent)
 	OnStatus    func(s GatewayStatus)
@@ -341,6 +343,10 @@ func (g *GatewayProcess) onMessage(child GatewayChild, m server.WorkerOutbound) 
 	ack := g.tabAck
 	g.mu.Unlock()
 	switch m.Type {
+	case "retry":
+		if g.d.OnRetry != nil && m.Retry != nil {
+			g.d.OnRetry(*m.Retry)
+		}
 	case "usage":
 		if g.d.OnUsage != nil {
 			g.d.OnUsage(m.Usage)

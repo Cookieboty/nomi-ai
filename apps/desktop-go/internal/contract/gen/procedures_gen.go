@@ -460,6 +460,7 @@ var Events = []string{
 	"desktop.summary",
 	"ext.changed",
 	"gateway.changed",
+	"gateway.retrying",
 	"harness.changed",
 	"harness.events",
 	"harness.tabMessage",

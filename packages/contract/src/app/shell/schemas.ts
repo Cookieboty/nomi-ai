@@ -515,3 +515,13 @@ export const ProviderLinkAcceptResult = loose({
   name: z.string().optional(),
   updated: z.boolean().optional(),
 });
+
+/** 网关的重连 / 换供应商通知（@nomi-ai/gateway 的 RetryEvent） */
+export const GatewayRetrying = loose({
+  client: z.string(),
+  provider: z.string(),
+  previous: z.string(),
+  status: z.number().optional(),
+  attempt: z.number(),
+  waitMs: z.number().optional(),
+});

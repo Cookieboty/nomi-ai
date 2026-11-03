@@ -122,6 +122,7 @@ describe('shell · 过程表', () => {
       'providers.changed',
       'providers.openPanel',
       'gateway.changed',
+      'gateway.retrying',
       'providerLink.changed',
       'usage.changed',
       'quality.changed',

@@ -83,7 +83,11 @@ export function turnSummary(m: {
 }): TurnSummaryParts | null {
   const parts: TurnSummaryParts = {};
   const d = m.durationMs ?? m.usage?.durationMs;
-  if (d !== undefined && d >= 0) parts.duration = formatDuration(Math.round(d / 100) * 100);
+  // 按 0.1 秒取整；不到 0.1 秒的（本地 / 很快的上游）照实写毫秒，不显示成「0ms」
+  if (d !== undefined && d >= 0)
+    parts.duration = formatDuration(
+      d < 100 ? Math.max(1, Math.round(d)) : Math.round(d / 100) * 100,
+    );
   const u = m.usage;
   if (u && (u.inputTokens !== undefined || u.outputTokens !== undefined)) {
     parts.tokens = t(

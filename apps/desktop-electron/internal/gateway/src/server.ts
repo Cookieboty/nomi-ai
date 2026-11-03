@@ -182,8 +182,28 @@ export interface UsageEvent {
   blocked?: boolean;
 }
 
+/**
+ * 提交点之前的重连 / 换供应商（§11.1）：让客户端在等待时知道发生了什么（Nomi 对话的「正在重试」提示）。
+ * provider / previous 是供应商的显示名；同一家重连时两者相同。
+ */
+export interface RetryEvent {
+  client: string;
+  /** 接下来要试的供应商 */
+  provider: string;
+  /** 刚失败的供应商 */
+  previous: string;
+  /** 刚失败那次的状态码（上游的；连不上时为网关的 502 / 504） */
+  status?: number;
+  /** 这是这个客户端请求的第几次尝试（从 2 开始） */
+  attempt: number;
+  /** 退避等待的时长（同一家重连时有） */
+  waitMs?: number;
+}
+
 export interface GatewayHooks {
   onUsage?: (e: UsageEvent) => void;
+  /** 提交点之前的重连 / 换供应商（只通知，不影响流程） */
+  onRetry?: (e: RetryEvent) => void;
   /** 运行时学到的东西（主进程持久化，§7.4） */
   onLearn?: (e: LearnEvent) => void;
   /** Key × wire 的状态变化（401/403 → auth，429 → limited，之后恢复 → ok；§11.1），主进程记 lastError */
@@ -366,6 +386,14 @@ export class GatewayServer {
   private readonly sessions: SessionTable;
   /** 进程内实时 RoutePlan 指标（GET /metrics；重启清零） */
   readonly metrics: GatewayMetrics;
+  private notifyRetry(e: RetryEvent): void {
+    try {
+      this.hooks.onRetry?.(e);
+    } catch {
+      /* 只是通知 */
+    }
+  }
+
   /** 钉 IP 的上游 fetch（测试可用 hooks.fetchImpl 覆盖） */
   private readonly upstreamFetch: UpstreamFetch;
   /** 隐私模式：已见值跨请求、跨客户端共享 */
@@ -808,6 +836,15 @@ export class GatewayServer {
       )
         break;
       const cand = queue.shift()!;
+      // 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
+      if (last?.kind === 'failed' && last.cand.provider.id !== cand.provider.id)
+        this.notifyRetry({
+          client,
+          provider: cand.provider.name,
+          previous: last.cand.provider.name,
+          status: last.upstreamStatus ?? last.status,
+          attempt: attempts + 1,
+        });
       /** 这次尝试的流式响应是否经过了提交点（首内容时间由它给出） */
       let peeked = false;
       // 换到了需要外发保护的候选（初选时没算脱敏）：先补算；出错或命中拦截就不发给它，整个请求到此为止
@@ -1024,6 +1061,15 @@ export class GatewayServer {
           ...(retryBase !== undefined ? { baseMs: retryBase } : {}),
         });
         const budget = resolveFirstByteBudgetMs(wantsStream, this.hooks);
+        if (Date.now() + wait - startedAt < budget)
+          this.notifyRetry({
+            client,
+            provider: cand.provider.name,
+            previous: cand.provider.name,
+            status: last.upstreamStatus ?? last.status,
+            attempt: attempts + 1,
+            waitMs: wait,
+          });
         if (
           Date.now() + wait - startedAt < budget &&
           (await waitRetry(wait, abort.signal, wantsStream ? keepAlive : undefined))

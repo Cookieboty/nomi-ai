@@ -10,7 +10,13 @@ import type { KeyStatusEvent } from './cooldown';
 import type { LearnEvent } from './learn';
 import { readCatalogFile, setCatalogOverlay } from './models/catalog';
 import { BindingTable, type BindingAck, type BindingMessage } from './route/binding';
-import { createGateway, type GatewayHooks, type GatewayServer, type UsageEvent } from './server';
+import {
+  createGateway,
+  type GatewayHooks,
+  type GatewayServer,
+  type RetryEvent,
+  type UsageEvent,
+} from './server';
 
 export type WorkerInbound =
   | { type: 'config'; config: GatewayConfig }
@@ -21,6 +27,7 @@ export type WorkerInbound =
 export type WorkerOutbound =
   | { type: 'listening'; port: number; url: string }
   | { type: 'usage'; event: UsageEvent }
+  | { type: 'retry'; event: RetryEvent }
   | { type: 'learn'; event: LearnEvent }
   | { type: 'key-status'; event: KeyStatusEvent }
   | { type: 'error'; message: string; fatal: boolean }
@@ -34,7 +41,7 @@ export interface WorkerPort {
 
 export function runGatewayWorker(
   port: WorkerPort,
-  hooks: Omit<GatewayHooks, 'onUsage' | 'onLearn' | 'onKeyStatus'> = {},
+  hooks: Omit<GatewayHooks, 'onUsage' | 'onLearn' | 'onKeyStatus' | 'onRetry'> = {},
 ): void {
   let gw: GatewayServer | null = null;
   let listenKey = '';
@@ -76,6 +83,7 @@ export function runGatewayWorker(
       ...hooks,
       bindings,
       onUsage: (event) => port.postMessage({ type: 'usage', event }),
+      onRetry: (event) => port.postMessage({ type: 'retry', event }),
       onLearn: (event) => port.postMessage({ type: 'learn', event }),
       onKeyStatus: (event) => port.postMessage({ type: 'key-status', event }),
     });

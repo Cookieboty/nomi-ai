@@ -7206,6 +7206,15 @@ type EventDesktopSummary struct {
 	At      float64 `json:"at"`
 }
 
+type EventGatewayRetrying struct {
+	Client   string   `json:"client"`
+	Provider string   `json:"provider"`
+	Previous string   `json:"previous"`
+	Status   *float64 `json:"status,omitempty"`
+	Attempt  float64  `json:"attempt"`
+	WaitMs   *float64 `json:"waitMs,omitempty"`
+}
+
 type EventHarnessChanged struct {
 	Backend      string `json:"backend"`
 	Cwd          string `json:"cwd"`
@@ -9234,6 +9243,7 @@ type EventDesktopReminderT = EventDesktopReminder
 type EventDesktopSummaryT = EventDesktopSummary
 type EventExtChangedT = any
 type EventGatewayChangedT = any
+type EventGatewayRetryingT = EventGatewayRetrying
 type EventHarnessChangedT = EventHarnessChanged
 type EventHarnessEventsT = []EventHarnessEventsItem
 type EventHarnessTabMessageT = EventHarnessTabMessage

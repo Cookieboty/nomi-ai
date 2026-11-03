@@ -67,6 +67,7 @@ import {
   useHarnessTabsCore,
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useNomiWorkspace } from './hooks/useNomiWorkspace';
@@ -137,7 +138,8 @@ const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, selectBusyHere(s
 const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
   props,
 ) => {
-  const live = useAiChatSelector(selectNomiLive, sameLive);
+  // 网关在重连 / 换供应商时，等待态显示原因
+  const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
   // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
   useGatewayState();
   const current = nomiModelLabel();

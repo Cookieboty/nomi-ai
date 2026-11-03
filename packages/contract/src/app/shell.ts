@@ -319,6 +319,8 @@ export const shellEvents = {
   'providers.openPanel': S.opaqueObject,
   /** 网关配置或状态变了：视图重新拉 `gateway.state` */
   'gateway.changed': z.null(),
+  /** Nomi 对话的请求在提交点之前重连 / 换供应商（等待回复时的提示） */
+  'gateway.retrying': S.GatewayRetrying,
   /** 等确认的第三方供应商链接变了（整份列表） */
   'providerLink.changed': z.array(S.ProviderLinkOffer),
   'usage.changed': z.null(),

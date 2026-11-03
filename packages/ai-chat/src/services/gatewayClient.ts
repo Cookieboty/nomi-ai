@@ -9,6 +9,16 @@ import type { NomiContextInfo } from './compaction';
 export type Wire = 'messages' | 'responses' | 'chat' | 'gemini';
 export type ClientId = 'nomi' | BuiltinCliId;
 
+/** 网关的重连 / 换供应商通知（同一家重连时 provider === previous） */
+export interface GatewayRetrying {
+  client: string;
+  provider: string;
+  previous: string;
+  status?: number;
+  attempt: number;
+  waitMs?: number;
+}
+
 export const WIRES: readonly Wire[] = ['messages', 'responses', 'chat', 'gemini'];
 
 export const WIRE_LABEL: Record<Wire, string> = {
@@ -375,4 +385,7 @@ export const gatewayClient = {
     }>(() => api.gateway.privacyPreview({ text })),
   onChanged: (fn: () => void) =>
     hasTransport() ? api.on('gateway.changed', () => fn()) : () => undefined,
+  /** Nomi 对话的请求在网关里重连 / 换供应商（等待回复时的提示） */
+  onRetrying: (fn: (e: GatewayRetrying) => void) =>
+    hasTransport() ? api.on('gateway.retrying', (e) => fn(e as GatewayRetrying)) : () => undefined,
 };

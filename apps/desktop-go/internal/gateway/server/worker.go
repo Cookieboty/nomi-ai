@@ -30,6 +30,7 @@ type WorkerOutbound struct {
 	Port      int
 	URL       string
 	Usage     *u.Obj
+	Retry     *RetryEvent
 	Learn     *LearnEvent
 	KeyStatus *upstream.KeyStatusEvent
 	Message   string
@@ -90,6 +91,7 @@ func RunGatewayWorker(port WorkerPort, hooks GatewayHooks) {
 		h := hooks
 		h.Bindings = bindings
 		h.OnUsage = func(e *u.Obj) { port.PostMessage(WorkerOutbound{Type: "usage", Usage: e}) }
+		h.OnRetry = func(e RetryEvent) { port.PostMessage(WorkerOutbound{Type: "retry", Retry: &e}) }
 		h.OnLearn = func(e LearnEvent) { port.PostMessage(WorkerOutbound{Type: "learn", Learn: &e}) }
 		h.OnKeyStatus = func(e upstream.KeyStatusEvent) {
 			port.PostMessage(WorkerOutbound{Type: "key-status", KeyStatus: &e})

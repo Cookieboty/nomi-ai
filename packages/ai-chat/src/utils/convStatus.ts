@@ -71,7 +71,8 @@ export function deriveStatus(args: {
   if (st?.kind === 'retry')
     return {
       kind: 'retry',
-      label: t('ui.usage-tools.request-failed-retrying', attemptText(st.attempt, st.max)),
+      label:
+        st.label ?? t('ui.usage-tools.request-failed-retrying', attemptText(st.attempt, st.max)),
       detail: st.text,
     };
   if (st?.kind === 'reconnect')

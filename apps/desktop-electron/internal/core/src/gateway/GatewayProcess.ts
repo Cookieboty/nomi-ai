@@ -17,6 +17,7 @@ import type {
   GatewayConfig,
   KeyStatusEvent,
   LearnEvent,
+  RetryEvent,
   UsageEvent,
   WorkerInbound,
   WorkerOutbound,
@@ -79,6 +80,8 @@ export class GatewayProcess {
     private readonly d: {
       logger: Logger;
       onUsage?: (e: UsageEvent) => void;
+      /** 提交点之前的重连 / 换供应商（网关进程的 RetryEvent） */
+      onRetry?: (e: RetryEvent) => void;
       onLearn?: (e: LearnEvent) => void;
       onKeyStatus?: (e: KeyStatusEvent) => void;
       onStatus?: (s: GatewayStatus) => void;
@@ -224,6 +227,8 @@ export class GatewayProcess {
       this.d.logger.info('gateway running', m.url);
     } else if (m.type === 'usage') {
       this.d.onUsage?.(m.event);
+    } else if (m.type === 'retry') {
+      this.d.onRetry?.(m.event);
     } else if (m.type === 'learn') {
       this.d.onLearn?.(m.event);
     } else if (m.type === 'key-status') {

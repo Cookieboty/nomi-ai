@@ -58,10 +58,37 @@ type Logger interface {
 	Warn(msg string, d any)
 }
 
+// RetryEvent = RetryEvent：让客户端在等待时知道正在重连（同一家，provider == previous）或换供应商。
+type RetryEvent struct {
+	Client   string `json:"client"`
+	Provider string `json:"provider"`
+	Previous string `json:"previous"`
+	Status   int    `json:"status,omitempty"`
+	Attempt  int    `json:"attempt"`
+	WaitMs   int    `json:"waitMs,omitempty"`
+}
+
+func (g *GatewayServer) notifyRetry(e RetryEvent) {
+	if g.hooks.OnRetry == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	g.hooks.OnRetry(e)
+}
+
+func failedStatus(a *attemptT) int {
+	if a.upstreamStatus != nil {
+		return *a.upstreamStatus
+	}
+	return a.status
+}
+
 // GatewayHooks is GatewayHooks. Usage events are the JS UsageEvent objects
 // (ordered keys, same shape as onUsage receives in Node).
 type GatewayHooks struct {
-	OnUsage     func(e *u.Obj)
+	OnUsage func(e *u.Obj)
+	// OnRetry：提交点之前的重连 / 换供应商（只通知，不影响流程）= hooks.onRetry
+	OnRetry     func(e RetryEvent)
 	OnLearn     func(e LearnEvent)
 	OnKeyStatus func(e upstream.KeyStatusEvent)
 	Logger      Logger
@@ -1106,6 +1133,11 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		}
 		c := queue[0]
 		queue = queue[1:]
+		// 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
+		if last != nil && last.kind == "failed" && last.cand != nil && last.cand.Provider.ID != c.Provider.ID {
+			g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: last.cand.Provider.Name,
+				Status: failedStatus(last), Attempt: attempts + 1})
+		}
 		peeked := false
 		if g.privacy.Applies(cfg, c) {
 			if st, msg, refused := ensureMasked(); refused {
@@ -1312,6 +1344,10 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			var tick func()
 			if wantsStream {
 				tick = keepAlive
+			}
+			if NowMs()+wait-startedAt < budget {
+				g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: c.Provider.Name,
+					Status: failedStatus(last), Attempt: attempts + 1, WaitMs: int(wait)})
 			}
 			if NowMs()+wait-startedAt < budget && waitRetry(abortCtx, wait, tick) {
 				queue = append([]*cand.Candidate{c}, queue...)

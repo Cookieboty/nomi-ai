@@ -102,6 +102,16 @@ export function nomiModelLabel(): string | undefined {
   return effectiveProviderLabel();
 }
 
+/**
+ * 这一轮实际回答的模型（网关报回的 `供应商/模型`）→ 显示名；认不出来时用选中的模型。
+ * 故障转移后它和选中的不同：消息底部要写实际回答的那一家。
+ */
+export function servedModelLabel(served: string | undefined): string | undefined {
+  if (!served || !splitRef(served)) return nomiModelLabel();
+  const label = refLabel(cached, served);
+  return label === served ? (nomiModelLabel() ?? served) : label;
+}
+
 /** 当前 main 模型的元数据（视觉等能力判断用）；不知道时 undefined */
 export function nomiModelMeta(): ProviderView['models'][number] | undefined {
   // NOMI_PROVIDER 锁定时不知道实际模型的能力

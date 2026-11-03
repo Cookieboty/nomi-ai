@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig } from '../src/config';
 import { isBurst } from '../src/quality';
-import { createGateway, type GatewayHooks, type UsageEvent } from '../src/server';
+import { createGateway, type GatewayHooks, type RetryEvent, type UsageEvent } from '../src/server';
 
 type Script = (key: string, res: http.ServerResponse, n: number) => void;
 
@@ -296,6 +296,34 @@ describe('model quality · gateway capture', () => {
       ...Array.from({ length: 4 }, () => ['k1', 'upstream-5xx']),
       ['k2', 'ok'],
     ]);
+  });
+
+  it('onRetry: each same-key reconnect is announced before the backoff wait', async () => {
+    const retries: RetryEvent[] = [];
+    const t = await setup(
+      (key, res) => {
+        if (key === 'k1') {
+          res.writeHead(503, { 'content-type': 'application/json' });
+          res.end('{"error":{"message":"busy"}}');
+          return;
+        }
+        sseHead(res);
+        res.end(okStream);
+      },
+      { onRetry: (e) => retries.push(e) },
+    );
+    await (await t.chat()).text();
+    await t.one();
+    // k1 失败 4 次：前 3 次之后在同一个 Key 上重连（各通知一次），第 4 次换到 k2（同一家，不算换供应商）
+    expect(retries).toHaveLength(3);
+    expect(retries[0]).toMatchObject({
+      client: 'codex',
+      provider: 'ZP',
+      previous: 'ZP',
+      status: 503,
+      attempt: 2,
+    });
+    expect(retries.every((r) => typeof r.waitMs === 'number')).toBe(true);
   });
 
   it('first-byte timeout → first-byte-timeout', async () => {
