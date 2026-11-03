@@ -103,7 +103,7 @@ flowchart LR
 ## 功能一览
 
 - **模型**：OpenAI、Anthropic、DeepSeek、Kimi、智谱、通义、豆包、Ollama 等预设；多 Key 自动切换；按每次上游请求记账，用量和费用看得见
-- **第三方供应商链接接入**：中转站和模型平台用 `nomi://provider/import`（一键导入）或 `nomi://provider/connect`（网页授权）把自己加进 Nomi，兼容 Cherry Studio 的导入格式；接入方式见[接入说明](docs/design/provider-link.md)
+- **第三方供应商链接接入**：中转站和模型平台用 `nomi://provider/import`（一键导入）或 `nomi://provider/connect`（网页授权）把自己加进 Nomi，兼容 Cherry Studio 的导入格式；接入规则见下方[第三方供应商接入](#第三方供应商接入)
 - **本地模型**：一键下载开源小模型（llama.cpp）或管理 Ollama；可以只用本地模型，也可以只让本地模型读文件
 - **生图**：Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；素材库统一管理生成的图片
 - **知识库与记忆**：文件夹问答带可点击引用；对话自动整理成长期记忆，可导出
@@ -164,6 +164,71 @@ pnpm test         # 单元测试；pnpm test:e2e 跑无界面端到端测试
 ```
 
 `pnpm run doctor` 检查开发环境。Go 版细节见 [apps/desktop-go](apps/desktop-go/README.md)；打包与发布见 [docs/RELEASE.md](docs/RELEASE.md)；开发指南见 [docs/development](docs/development/)。欢迎 PR，提交前请看 [AGENTS.md](AGENTS.md) 里的约定。
+
+## 第三方供应商接入
+
+中转站、模型平台可以在自己的网页上放一个「添加到 Nomi」按钮，用户点一下就把你加进 Nomi。两种方式任选，**最后都停在 Nomi 的确认框上，用户确认前不会保存任何东西**。完整规格见 [docs/design/provider-link.md](docs/design/provider-link.md)。
+
+### 方式 A：直接导入（几行模板就能接）
+
+```
+nomi://provider/import?v=1&data=<base64url(UTF-8 JSON)>
+```
+
+```jsonc
+{
+  "name": "Example AI", // 必填，最多 64 字
+  "homepage": "https://example.com", // 可选，确认框里显示
+  "urls": {
+    // 至少一个，对应网关的四种协议
+    "chat": "https://api.example.com/v1", // OpenAI Chat Completions
+    "responses": "https://api.example.com/v1", // OpenAI Responses
+    "messages": "https://api.example.com", // Anthropic Messages
+    "gemini": "https://api.example.com/gemini", // Gemini
+  },
+  "key": "sk-…", // 必填
+  "models": ["gpt-5", "claude-sonnet-5-5"], // 可选，预填模型
+}
+```
+
+- `data` 用 base64url（`+/` 换成 `-_`，可以不带 `=`），普通 base64 也认。
+- 兼容 Cherry Studio 的扁平写法 `{ "name", "baseUrl", "apiKey", "type"? }`：`type` 为 `anthropic` 时当作 `messages`，`gemini` 当作 `gemini`，其余当作 `chat`。New API 等「聊天链接」模板把 scheme 换成 `nomi://provider/import` 即可。
+- Key 会出现在链接里；不想这样就用方式 B。
+
+### 方式 B：网页授权（Key 不进链接）
+
+1. 网页放链接 `nomi://provider/connect?v=1&issuer=https://example.com`（`issuer` 只能是 https 源，不带路径）；用户也可以在 Nomi「设置 → 模型与供应商 → 网页授权」里填你的域名。
+2. 提供 `https://example.com/.well-known/nomi-provider.json`：
+
+   ```jsonc
+   {
+     "version": 1,
+     "name": "Example AI",
+     "urls": { "chat": "https://api.example.com/v1", "messages": "https://api.example.com" },
+     "models": ["…"], // 可选
+     "authorization_endpoint": "https://example.com/nomi/authorize",
+     "token_endpoint": "https://example.com/api/nomi/token",
+   }
+   ```
+
+   两个端点必须是 https，主机是 `issuer` 的主机或它的子域名。
+
+3. 用户在 Nomi 里确认后，Nomi 用浏览器打开
+   `{authorization_endpoint}?response_type=code&client_id=nomi&redirect_uri=nomi://provider/callback&state=…&code_challenge=…&code_challenge_method=S256`。
+4. 用户在你的页面登录同意后，跳到 `nomi://provider/callback?code=…&state=…`（拒绝时带 `error=access_denied&state=…`）。
+5. Nomi 向 `token_endpoint` 发 `POST application/x-www-form-urlencoded`：
+   `grant_type=authorization_code&code=…&redirect_uri=nomi://provider/callback&client_id=nomi&code_verifier=…`，
+   你返回 `{ "api_key": "sk-…", "name"?: "…", "urls"?: {…}, "models"?: […] }`（字段名也可以是 `key` / `access_token`；返回的 `urls` 覆盖清单里的同名协议）。
+6. 弹出与方式 A 相同的确认框，用户确认后保存。
+
+### Nomi 的处理规则
+
+- **一律先确认**：确认框显示名称、来源（方式 A 显示「网页链接，无法确认来自哪个网站」，方式 B 显示 issuer 域名）、各协议地址、打码后的 Key、模型数；方式 B 打开浏览器前也要确认。
+- **地址**：只接受 `https`、不带用户名密码、不指向本机或局域网的地址；本机服务请在设置里手动添加。授权与换 Key 请求不跟随跳转。
+- **同地址就更新**：已有某个地址相同的第三方供应商（忽略末尾 `/`），就更新它：补上新 Key（已有同样的不重复加）和缺少的地址、模型，不新建。
+- **限额**：整条链接 ≤ 16 KB；Key 为 8–512 个可见字符；模型最多 200 个；同时等待确认的最多 5 条，10 分钟过期；每次授权的 `state` 10 分钟内有效、只能用一次。
+- **不留痕**：日志只记链接类型，不记原文；Key 只在内核里，界面只拿到打码后的样子，保存时存进系统钥匙串。
+- **冷启动**：Nomi 没开时点的链接会先存着，对话窗口打开后再弹确认。
 
 ## 联系与交流
 

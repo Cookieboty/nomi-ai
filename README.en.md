@@ -103,7 +103,7 @@ The view talks to the core through one typed contract instead of ad-hoc IPC chan
 ## Features at a glance
 
 - **Models**: presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Qwen, Doubao, Ollama and more; automatic multi-key rotation; usage and cost recorded per upstream request
-- **Third-party provider links**: relays and model platforms add themselves to Nomi with `nomi://provider/import` (one-click import) or `nomi://provider/connect` (web authorization); Cherry Studio's import format also works. See the [integration guide](docs/design/provider-link.md)
+- **Third-party provider links**: relays and model platforms add themselves to Nomi with `nomi://provider/import` (one-click import) or `nomi://provider/connect` (web authorization); Cherry Studio's import format also works. See [Third-party provider integration](#third-party-provider-integration) below
 - **Local models**: one-click open-source models (llama.cpp) or Ollama; run local-only, or let only local models read your files
 - **Images**: draw, edit and use reference images right in a Nomi chat, with an image model matched to the chat model's vendor; an asset library keeps every generated image
 - **Knowledge base and memory**: ask questions over a folder with clickable citations; chats turn into exportable long-term memory
@@ -164,6 +164,71 @@ pnpm test         # unit tests; pnpm test:e2e for headless end-to-end tests
 ```
 
 `pnpm run doctor` checks your setup. Go details are in [apps/desktop-go](apps/desktop-go/README.md), packaging and releases in [docs/RELEASE.md](docs/RELEASE.md), and the developer guide in [docs/development](docs/development/). PRs welcome; see the conventions in [AGENTS.md](AGENTS.md) first.
+
+## Third-party provider integration
+
+Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click. There are two ways; **both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms**. Full spec: [docs/design/provider-link.md](docs/design/provider-link.md).
+
+### Option A: direct import (a few lines of template)
+
+```
+nomi://provider/import?v=1&data=<base64url(UTF-8 JSON)>
+```
+
+```jsonc
+{
+  "name": "Example AI", // required, up to 64 characters
+  "homepage": "https://example.com", // optional, shown in the dialog
+  "urls": {
+    // at least one; the gateway's four protocols
+    "chat": "https://api.example.com/v1", // OpenAI Chat Completions
+    "responses": "https://api.example.com/v1", // OpenAI Responses
+    "messages": "https://api.example.com", // Anthropic Messages
+    "gemini": "https://api.example.com/gemini", // Gemini
+  },
+  "key": "sk-…", // required
+  "models": ["gpt-5", "claude-sonnet-5-5"], // optional, prefilled models
+}
+```
+
+- `data` is base64url (`+/` become `-_`, `=` padding optional); standard base64 also works.
+- Cherry Studio's flat shape `{ "name", "baseUrl", "apiKey", "type"? }` is accepted: `type` `anthropic` maps to `messages`, `gemini` to `gemini`, anything else to `chat`. Templates such as New API's chat links only need the scheme changed to `nomi://provider/import`.
+- The key travels in the link; use option B to avoid that.
+
+### Option B: web authorization (the key never enters a link)
+
+1. Link to `nomi://provider/connect?v=1&issuer=https://example.com` (`issuer` must be an https origin with no path); users can also enter your domain under Nomi's Settings → Models & providers → Authorize on web.
+2. Serve `https://example.com/.well-known/nomi-provider.json`:
+
+   ```jsonc
+   {
+     "version": 1,
+     "name": "Example AI",
+     "urls": { "chat": "https://api.example.com/v1", "messages": "https://api.example.com" },
+     "models": ["…"], // optional
+     "authorization_endpoint": "https://example.com/nomi/authorize",
+     "token_endpoint": "https://example.com/api/nomi/token",
+   }
+   ```
+
+   Both endpoints must be https on the `issuer` host or one of its subdomains.
+
+3. After the user confirms in Nomi, Nomi opens
+   `{authorization_endpoint}?response_type=code&client_id=nomi&redirect_uri=nomi://provider/callback&state=…&code_challenge=…&code_challenge_method=S256` in the browser.
+4. Once the user signs in and approves on your page, redirect to `nomi://provider/callback?code=…&state=…` (or `error=access_denied&state=…` if they decline).
+5. Nomi sends `POST application/x-www-form-urlencoded` to `token_endpoint`:
+   `grant_type=authorization_code&code=…&redirect_uri=nomi://provider/callback&client_id=nomi&code_verifier=…`,
+   and you return `{ "api_key": "sk-…", "name"?: "…", "urls"?: {…}, "models"?: […] }` (`key` / `access_token` also work; returned `urls` override the manifest's for the same protocol).
+6. The same confirmation dialog as option A appears; the provider is saved once the user confirms.
+
+### How Nomi handles links
+
+- **Always confirmed first**: the dialog shows the name, the source (option A: "web link, the originating site can't be verified"; option B: the issuer domain), each endpoint, the masked key and the model count. Option B also asks before opening the browser.
+- **Endpoints**: `https` only, no username or password, not this computer or the local network (add local services manually in Settings). Authorization and key-exchange requests don't follow redirects.
+- **Same endpoint means update**: if a third-party provider already has one of the endpoints (ignoring a trailing `/`), Nomi updates it instead of creating another: it adds the new key (skipping a key it already has) and any missing endpoints and models.
+- **Limits**: the whole link ≤ 16 KB; keys are 8–512 printable characters; up to 200 models; at most 5 links waiting for confirmation, each expiring after 10 minutes; each authorization `state` is valid for 10 minutes and can be used once.
+- **No traces**: logs record only the link type, never the link itself; the key stays in the core, the UI only sees it masked, and it's stored in the system keychain.
+- **Cold start**: a link clicked while Nomi isn't running is kept and shown once the chat window opens.
 
 ## Contact
 
