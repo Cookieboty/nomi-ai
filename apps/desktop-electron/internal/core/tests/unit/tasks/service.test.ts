@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import { legacyItems } from '../../../src/tasks/legacy';
 import type { TaskExecutor } from '../../../src/tasks/TaskRuntime';
-import { TaskService } from '../../../src/tasks/TaskService';
+import { TaskGrantError, TaskService } from '../../../src/tasks/TaskService';
 
 const T0 = Date.UTC(2026, 10, 2, 1, 0, 0);
 
@@ -113,6 +113,21 @@ describe('TaskService', () => {
     expect(h.svc.remove(a.id)).toBe(false);
     h.svc.command(a.id, { type: 'cancel' });
     expect(h.svc.remove(a.id)).toBe(true);
+    h.cleanup();
+  });
+
+  it('Nomi 任务不能单独指定模型：创建时拒绝，而不是接受后忽略（#239）', () => {
+    const h = setup();
+    const base = {
+      title: 'a',
+      goal: 'g',
+      trigger: { kind: 'manual' as const },
+      grant: { level: 1 as const, paths: [], connections: [] },
+    };
+    expect(() =>
+      h.svc.create({ ...base, executor: { kind: 'nomi', tools: ['read'], model: 'model-a' } }),
+    ).toThrow(TaskGrantError);
+    expect(h.svc.create({ ...base, executor: { kind: 'nomi', tools: ['read'] } }).id).toBeTruthy();
     h.cleanup();
   });
 

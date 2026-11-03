@@ -382,6 +382,14 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
   return {
     prepare(task: Task) {
       if (!d.ready()) return { error: { code: 'config_changed', message: configText.noModel() } };
+      // 单任务指定模型还不支持：停下来说明，不悄悄用当前路由的模型跑（#239）
+      if (task.executor.kind === 'nomi' && task.executor.model)
+        return {
+          error: {
+            code: 'config_changed',
+            message: configText.modelUnsupported(task.executor.model),
+          },
+        };
       return { grantVersion: task.grant.version };
     },
     start(ctx) {

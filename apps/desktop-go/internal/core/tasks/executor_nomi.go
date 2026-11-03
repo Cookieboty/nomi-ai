@@ -20,6 +20,7 @@ import (
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // ToolClassTools：工具类 → Nomi 工具名（与 nomi.ts 的 TOOL_CLASS_TOOLS 相同）
@@ -301,6 +302,11 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if e.d.Ready != nil && !e.d.Ready() {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
+	}
+	// 单任务指定模型还不支持：停下来说明，不悄悄用当前路由的模型跑（#239）
+	if t.Executor.Kind == "nomi" && t.Executor.Model != nil && *t.Executor.Model != "" {
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed",
+			Message: i18n.T("electron.common.task-config-model-unsupported", *t.Executor.Model)}
 	}
 	return ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
 }

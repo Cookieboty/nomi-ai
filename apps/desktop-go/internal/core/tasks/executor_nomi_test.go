@@ -225,3 +225,21 @@ func TestNomiExecutorCancelAfterQueuedRelaunch(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+// #239：指定了模型的 Nomi 任务不悄悄改用当前路由的模型：准备阶段停下来问用户
+func TestNomiExecutorPinnedModelRefused(t *testing.T) {
+	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
+		emit(blm.ChatChunk{Type: "delta", Content: "不该跑"})
+		return nil
+	})
+	tools := []string{"read"}
+	id := h.rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("model-a")}, Grant: Grant{Level: 1}}).ID
+	h.rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.sys) != 0 {
+		t.Fatal("ran on the routed model")
+	}
+}

@@ -118,4 +118,5 @@ export const configText = {
   workspaceUnavailable: (cwd: string) =>
     t('electron.common.task-config-workspace-unavailable', cwd),
   noModel: () => t('electron.common.task-config-no-model'),
+  modelUnsupported: (model: string) => t('electron.common.task-config-model-unsupported', model),
 };

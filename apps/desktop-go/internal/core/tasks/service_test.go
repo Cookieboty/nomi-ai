@@ -107,3 +107,18 @@ func TestLegacyItems(t *testing.T) {
 		t.Fatalf("\n got %s\nwant %s", b, want)
 	}
 }
+
+// #239：Nomi 任务不能单独指定模型：创建时拒绝，而不是接受后忽略
+func TestServiceRejectsPinnedNomiModel(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, SetTimer: func(func(), int64) func() { return func() {} }})
+	tools := []string{"read"}
+	_, err := s.Create(CreateRequest{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: ptr("model-a")}, Grant: Grant{Level: 1}}, "user")
+	if _, ok := err.(*GrantError); !ok {
+		t.Fatalf("want GrantError, got %v", err)
+	}
+	if _, err := s.Create(CreateRequest{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}}, "user"); err != nil {
+		t.Fatal(err)
+	}
+}

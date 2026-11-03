@@ -442,6 +442,7 @@
   "electron.common.task-card-when": "When: {0}",
   "electron.common.task-card-who": "Done by: {0}",
   "electron.common.task-config-cli-unavailable": "{0} isn't available right now (not installed or removed). Install it and choose Continue to rerun, or give up on this task.",
+  "electron.common.task-config-model-unsupported": "This task pins the model {0}, but background Nomi tasks can't pin a model yet, and it won't silently run on a different one. Recreate the task without a pinned model, or give up.",
   "electron.common.task-config-no-model": "No model is available (the provider was removed or isn't set up). Set one up and choose Continue to rerun, or give up.",
   "electron.common.task-config-workspace-unavailable": "The workspace {0} is gone or no longer one you've authorized. Fix it and choose Continue to rerun, or give up.",
   "electron.common.task-event-cli-finished": "Coding session \"{0}\" ({1}) finished a turn",

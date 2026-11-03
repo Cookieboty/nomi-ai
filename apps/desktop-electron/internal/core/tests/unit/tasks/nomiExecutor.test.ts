@@ -380,6 +380,17 @@ describe('nomi 执行者', () => {
     expect(h.rt.get(id)!.task.status).toBe('cancelled');
   });
 
+  it('指定了模型的任务不悄悄改用当前路由的模型：准备阶段停下来问用户（#239）', async () => {
+    const h = setup(scriptedStream([{ type: 'delta', content: '不该跑' }]));
+    const id = h.rt.create(
+      baseInput({ executor: { kind: 'nomi', tools: ['read'], model: 'model-a' } }),
+    ).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.calls).toHaveLength(0);
+    expect(h.rt.get(id)!.task.status).toBe('waiting_user');
+  });
+
   it('上游错误归类：429 / 5xx / 网络可重试，其余不重试', () => {
     expect(classifyError('HTTP 429 Too Many Requests').code).toBe('upstream_transient');
     expect(classifyError('upstream 503').code).toBe('upstream_transient');

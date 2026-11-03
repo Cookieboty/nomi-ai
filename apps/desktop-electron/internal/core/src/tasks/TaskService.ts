@@ -298,6 +298,9 @@ export class TaskService {
 
   create(input: CreateFromContract, createdBy: 'user' | 'nomi' = 'user'): Task {
     const now = (this.d.now ?? Date.now)();
+    // Nomi 任务按「带工具的 Nomi」路由的模型跑，还不能单独指定：拒绝而不是接受后忽略（#239）
+    if (input.executor.kind === 'nomi' && input.executor.model)
+      throw new TaskGrantError('nomi executor cannot pin a model yet; omit executor.model');
     this.checkGrant(input.grant.level, input.grant.connections ?? []);
     this.checkTrigger(input.trigger, input.grant.connections ?? [], input.grant.paths ?? []);
     return this.runtime.create({

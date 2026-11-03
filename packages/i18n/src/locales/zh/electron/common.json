@@ -442,6 +442,7 @@
   "electron.common.task-card-when": "何时：{0}",
   "electron.common.task-card-who": "谁来做：{0}",
   "electron.common.task-config-cli-unavailable": "{0} 现在不可用（没装好或已卸载）。装好后点「继续」重跑，或放弃这个任务。",
+  "electron.common.task-config-model-unsupported": "这个任务指定了模型 {0}，但 Nomi 后台任务暂不支持单独指定模型，不会悄悄换成别的模型运行。去掉指定的模型后重建任务，或放弃。",
   "electron.common.task-config-no-model": "还没有可用的模型（供应商被删或没配好）。配好后点「继续」重跑，或放弃。",
   "electron.common.task-config-workspace-unavailable": "工作目录 {0} 不在了，或不再是你授权的工作区。处理好后点「继续」重跑，或放弃。",
   "electron.common.task-event-cli-finished": "编程助手会话「{0}」（{1}）这一轮结束了",
