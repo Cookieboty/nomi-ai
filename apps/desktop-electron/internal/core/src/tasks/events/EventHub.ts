@@ -25,6 +25,8 @@ export const MAX_BATCH = 20;
 export const DEFAULT_COOLDOWN_MS = 60_000;
 const MAX_BATCHES = 20;
 const MAX_BACKOFF_MS = 3_600_000;
+/** 单次拉取的总时限：超时就中止，不让一个慢源挡住后面到期的源（Go 版同为 30 秒） */
+export const POLL_TIMEOUT_MS = 30_000;
 
 interface Batch {
   events: SourceEvent[];
@@ -68,6 +70,8 @@ export interface EventHubDeps {
   logger: { warn(m: string, x?: unknown): void };
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => () => void;
+  /** 测试用：单次拉取总时限，默认 POLL_TIMEOUT_MS */
+  pollTimeoutMs?: number;
 }
 
 interface Sub {
@@ -76,6 +80,8 @@ interface Sub {
   dispose: () => void;
   /** 本机监视命中：尽快拉一次 */
   dirty: boolean;
+  /** 在途拉取：退订 / 暂停时立即中止 */
+  inflight?: AbortController;
 }
 
 const eventTrigger = (t: Task) => (t.trigger.kind === 'event' ? t.trigger : null);
@@ -165,7 +171,10 @@ export class EventHub {
         );
       if (source.subscribe)
         disposers.push(source.subscribe(t.filter, task, (e) => this.ingest(task.id, [e])));
-      next.dispose = () => disposers.forEach((f) => f());
+      next.dispose = () => {
+        next.inflight?.abort();
+        disposers.forEach((f) => f());
+      };
       this.subs.set(task.id, next);
     }
     if (task.status === 'idle') this.maybeFlush(task.id);
@@ -301,7 +310,9 @@ export class EventHub {
       const t = eventTrigger(sub.task)!;
       if (sub.dirty) wake = Math.min(wake, now + (soonMs ?? 0));
       if (sub.source.poll) wake = Math.min(wake, s.nextPollAt ?? now);
-      if (s.window)
+      // 窗口只在任务空闲、能开执行时才定时；忙碌时由 sync(idle) 立刻 flush，
+      // 否则过期窗口会让定时器以 0 延时反复空转
+      if (s.window && sub.task.status === 'idle')
         wake = Math.min(wake, s.window.openedAt + (t.cooldownMs ?? DEFAULT_COOLDOWN_MS));
     }
     this.cancelTimer = this.setTimer(() => void this.tick(), Math.max(0, wake - now));
@@ -330,11 +341,27 @@ export class EventHub {
     const s = this.state(id);
     sub.dirty = false;
     const started = this.now();
+    const ctrl = new AbortController();
+    const onHubAbort = () => ctrl.abort(this.ctrl.signal.reason);
+    if (this.ctrl.signal.aborted) ctrl.abort();
+    else this.ctrl.signal.addEventListener('abort', onHubAbort, { once: true });
+    sub.inflight = ctrl;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      const fail = () =>
+        reject(ctrl.signal.reason instanceof Error ? ctrl.signal.reason : new Error('aborted'));
+      ctrl.signal.addEventListener('abort', fail, { once: true });
+      const ms = this.d.pollTimeoutMs ?? POLL_TIMEOUT_MS;
+      timer = setTimeout(() => ctrl.abort(new Error(`poll timed out after ${ms}ms`)), ms);
+      (timer as { unref?: () => void }).unref?.();
+    });
+    deadline.catch(() => undefined);
     try {
-      const r = await sub.source.poll!(t.filter, s.cursor, {
-        task: sub.task,
-        signal: this.ctrl.signal,
-      });
+      // 事件源不理 signal 也不会挡住 hub：超时 / 退订即放弃这次结果
+      const r = await Promise.race([
+        sub.source.poll!(t.filter, s.cursor, { task: sub.task, signal: ctrl.signal }),
+        deadline,
+      ]);
       if (this.subs.get(id) !== sub) return;
       s.cursor = r.cursor;
       s.lastPollAt = started;
@@ -350,7 +377,7 @@ export class EventHub {
       this.save(id);
       if (r.events.length) this.ingest(id, r.events);
     } catch (e) {
-      if (this.stopped) return;
+      if (this.stopped || this.subs.get(id) !== sub) return;
       s.failures += 1;
       s.lastError = e instanceof Error ? e.message : String(e);
       s.nextPollAt =
@@ -362,6 +389,10 @@ export class EventHub {
         source: sub.source.id,
         error: s.lastError,
       });
+    } finally {
+      clearTimeout(timer);
+      this.ctrl.signal.removeEventListener('abort', onHubAbort);
+      if (sub.inflight === ctrl) sub.inflight = undefined;
     }
   }
 

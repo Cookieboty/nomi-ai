@@ -28,9 +28,33 @@ export type FetchLike = (
   status: number;
   headers: { get(name: string): string | null };
   text(): Promise<string>;
+  /** 有流就按字节读，到上限即取消，不先整段缓冲 */
+  body?: ReadableStream<Uint8Array> | null;
 }>;
 
-const MAX_BODY = 2 * 1024 * 1024;
+export const MAX_BODY = 2 * 1024 * 1024;
+
+/** 正文最多读 MAX_BODY 字节：够了就取消读取，剩下的不再接收 */
+export async function readCapped(res: Awaited<ReturnType<FetchLike>>): Promise<string> {
+  const stream = res.body;
+  if (!stream || typeof stream.getReader !== 'function')
+    return (await res.text()).slice(0, MAX_BODY);
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (size < MAX_BODY) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const part = value.subarray(0, MAX_BODY - size);
+      chunks.push(part);
+      size += part.byteLength;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
 
 const decode = (s: string) =>
   s
@@ -110,7 +134,7 @@ export function createWebSource(
       if (res.status >= 300 && res.status < 400)
         throw new Error(`redirect not followed: ${res.status}`);
       if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.text()).slice(0, MAX_BODY);
+      const body = await readCapped(res);
       const next: Cursor = {};
       const etag = res.headers.get('etag');
       const lm = res.headers.get('last-modified');

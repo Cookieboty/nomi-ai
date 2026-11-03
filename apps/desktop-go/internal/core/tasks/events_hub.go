@@ -678,7 +678,9 @@ func (h *EventHub) arm(soonMs int64) {
 			}
 			wake = min(wake, next)
 		}
-		if s.Window != nil {
+		// 窗口只在任务空闲、能开执行时才定时；忙碌时由 Sync(idle) 立刻 flush，
+		// 否则过期窗口会让定时器以 0 延时反复空转
+		if s.Window != nil && sub.task.Status == StatusIdle {
 			wake = min(wake, s.Window.OpenedAt+triggerCooldown(tr))
 		}
 	}

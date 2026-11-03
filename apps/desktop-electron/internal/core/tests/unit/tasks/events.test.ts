@@ -11,7 +11,13 @@ import { EventHub, MAX_BATCH } from '../../../src/tasks/events/EventHub';
 import { createAppSource } from '../../../src/tasks/events/sources/app';
 import { createFolderSource } from '../../../src/tasks/events/sources/folder';
 import { createGithubSource } from '../../../src/tasks/events/sources/github';
-import { createWebSource, parseFeed, pageText } from '../../../src/tasks/events/sources/web';
+import {
+  MAX_BODY,
+  createWebSource,
+  parseFeed,
+  pageText,
+  readCapped,
+} from '../../../src/tasks/events/sources/web';
 import type { EventSource, SourceEvent } from '../../../src/tasks/events/types';
 import type { Task } from '../../../src/tasks/types';
 
@@ -49,7 +55,7 @@ function fakeSource() {
   return { src, queue };
 }
 
-function setup(task = mkTask()) {
+function setup(task = mkTask(), extra: { timers?: number[]; pollTimeoutMs?: number } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'task-events-'));
   let now = T0;
   const fired: { id: string; key: string }[] = [];
@@ -70,7 +76,11 @@ function setup(task = mkTask()) {
     lastEventKey: () => fired.at(-1)?.key,
     logger: { warn: () => undefined },
     now: () => now,
-    setTimer: () => () => undefined,
+    setTimer: (_fn, ms) => {
+      extra.timers?.push(ms);
+      return () => undefined;
+    },
+    ...(extra.pollTimeoutMs ? { pollTimeoutMs: extra.pollTimeoutMs } : {}),
   });
   hub.start([task]);
   return {
@@ -147,6 +157,70 @@ describe('EventHub', () => {
     h.setTask({ ...t, status: 'idle', updatedAt: 1 } as Task);
     expect(h.fired).toHaveLength(1);
     expect(h.hub.batch('task_1', h.fired[0]!.key).map((e) => e.key)).toEqual(['1', '2']);
+    h.done();
+  });
+
+  it('任务忙碌时过期窗口不再安排 0 延时定时器；空闲后只开一次', async () => {
+    const t = mkTask({
+      trigger: { kind: 'event', sourceId: 'fake', filter: {}, mode: 'act', cooldownMs: 60_000 },
+    } as Partial<Task>);
+    const timers: number[] = [];
+    const h = setup(t, { timers });
+    await h.hub.tick();
+    h.advance(2000);
+    h.queue.push([ev('1')]);
+    h.setBusy(true);
+    h.setTask({ ...t, status: 'running', updatedAt: 1 } as Task);
+    await h.hub.tick();
+    h.advance(120_000);
+    timers.length = 0;
+    await h.hub.tick();
+    await h.hub.tick();
+    expect(timers.length).toBeGreaterThan(0);
+    expect(timers.every((ms) => ms > 0)).toBe(true);
+    expect(h.fired).toEqual([]);
+    h.setBusy(false);
+    h.setTask({ ...t, status: 'idle', updatedAt: 2 } as Task);
+    expect(h.fired).toHaveLength(1);
+    expect(h.hub.batch('task_1', h.fired[0]!.key).map((e) => e.key)).toEqual(['1']);
+    h.done();
+  });
+
+  it('单次拉取有总时限：慢源超时被中止，后面到期的源照常拉', async () => {
+    const h = setup(mkTask(), { pollTimeoutMs: 20 });
+    let aborted = false;
+    const slow: EventSource = {
+      id: 'slow' as never,
+      minIntervalMs: 1000,
+      validate: () => null,
+      poll: (_f, _c, ctx) =>
+        new Promise(() => {
+          ctx.signal.addEventListener('abort', () => (aborted = true));
+        }),
+    };
+    let polledOther = 0;
+    const other: EventSource = {
+      id: 'other' as never,
+      minIntervalMs: 1000,
+      validate: () => null,
+      poll: async () => {
+        polledOther += 1;
+        return { events: [], cursor: 'c' };
+      },
+    };
+    const d = (h.hub as unknown as { d: { sources: EventSource[] } }).d;
+    d.sources.push(slow, other);
+    h.hub.stop();
+    const trig = (sourceId: string) =>
+      ({ kind: 'event', sourceId, filter: {}, mode: 'act', cooldownMs: 0 }) as Task['trigger'];
+    h.hub.start([
+      mkTask({ id: 'a', trigger: trig('slow') }),
+      mkTask({ id: 'b', trigger: trig('other') }),
+    ]);
+    await h.hub.tick();
+    expect(aborted).toBe(true);
+    expect(polledOther).toBe(1);
+    expect(h.hub.status('a').lastError).toMatch(/timed out/);
     h.done();
   });
 
@@ -231,6 +305,43 @@ describe('事件源', () => {
     status = 302;
     await expect(src.poll!({ url: 'https://example.com/' }, null, ctx)).rejects.toThrow('redirect');
     expect(pageText('<style>a{}</style><b>hi</b> &amp; you')).toBe('hi & you');
+  });
+
+  it('web：正文按字节读到 2 MB 就停，不先整段缓冲', async () => {
+    let pulled = 0;
+    let cancelled = false;
+    const chunk = new Uint8Array(256 * 1024).fill(0x61);
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulled += 1;
+        if (pulled > 1000) c.close();
+        else c.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const src = createWebSource({
+      resolve: async () => undefined,
+      fetch: async () => ({
+        status: 200,
+        headers: { get: () => null },
+        text: async () => {
+          throw new Error('should stream');
+        },
+        body,
+      }),
+    });
+    const ctx = { task: mkTask(), signal: new AbortController().signal };
+    await src.poll!({ url: 'https://example.com/' }, null, ctx);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(20);
+    const r = await readCapped({
+      status: 200,
+      headers: { get: () => null },
+      text: async () => 'x'.repeat(MAX_BODY + 10),
+    });
+    expect(r).toHaveLength(MAX_BODY);
   });
 
   it('web feed：RSS 与 Atom 条目', () => {
