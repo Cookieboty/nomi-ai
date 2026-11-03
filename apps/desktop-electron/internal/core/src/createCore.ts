@@ -575,6 +575,11 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         // 派给 Nomi 的执行用对话的工具集（§7.4）
         toolNames: () => services.aiRuntime?.client.tools.list().map((t) => t.name) ?? [],
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
+        route: () => {
+          const p = services.aiRuntime?.resolveProvider('agent-tools');
+          const m = services.aiRuntime?.resolveModel('agent-tools');
+          return { ...(p ? { providerId: p.id } : {}), ...(m ? { model: m } : {}) };
+        },
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
         liveTask: (id) => tasks.runtime.get(id)?.task ?? null,
         externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),

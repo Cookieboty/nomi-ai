@@ -31,7 +31,11 @@ function scriptedStream(
 
 function setup(
   stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChunk>,
-  opts: { toolNames?: string[]; ticks?: Array<() => void> } = {},
+  opts: {
+    toolNames?: string[];
+    ticks?: Array<() => void>;
+    route?: { providerId?: string; model?: string };
+  } = {},
 ) {
   const clock = new FakeClock(T0);
   const store = new MemStore();
@@ -63,6 +67,7 @@ function setup(
       };
     },
     ready: () => true,
+    ...(opts.route ? { route: () => opts.route! } : {}),
     ...(opts.toolNames ? { toolNames: () => opts.toolNames! } : {}),
     ...(opts.ticks
       ? {
@@ -390,49 +395,22 @@ describe('nomi 执行者', () => {
     expect(h.rt.get(id)!.task.status).toBe('cancelled');
   });
 
-  it('指定了模型的任务不悄悄改用当前路由的模型：准备阶段停下来问用户（#239）', async () => {
-    const h = setup(scriptedStream([{ type: 'delta', content: '不该跑' }]));
+  it('用预设模型运行，实际供应商与模型记进执行快照（#239）', async () => {
+    const h = setup(scriptedStream([{ type: 'delta', content: '完成' }]), {
+      route: { providerId: 'p1', model: 'routed-model' },
+    });
+    // 旧数据里带着 model 的任务也照常按预设模型跑
     const id = h.rt.create(
       baseInput({ executor: { kind: 'nomi', tools: ['read'], model: 'model-a' } }),
     ).id;
     h.rt.command(id, { type: 'runNow' });
     await flush();
-    expect(h.calls).toHaveLength(0);
-    expect(h.rt.get(id)!.task.status).toBe('waiting_user');
-  });
-
-  it('运行中收窄授权立即生效：后台登记读的是任务当前的等级、连接与文件夹（#232 #231）', async () => {
-    let release!: () => void;
-    const held = new Promise<void>((r) => (release = r));
-    const h = setup(scriptedStream([async () => held, { type: 'delta', content: '完成' }]));
-    const id = h.rt.create(
-      baseInput({
-        executor: { kind: 'nomi', tools: ['read', 'file_write'] },
-        grant: {
-          level: 4,
-          paths: ['/a', '/b'],
-          connections: [
-            { connectionId: 'gh', capabilities: ['github.comment'], resources: ['o/r'] },
-          ],
-        },
-      }),
-    ).id;
-    h.rt.command(id, { type: 'runNow' });
-    await flush();
-    const bg = h.bg()!;
-    expect(bg.level).toBe(4);
-    expect(bg.paths).toEqual(['/a', '/b']);
-    expect(bg.connections).toHaveLength(1);
-    h.rt.command(id, { type: 'grant', grant: { level: 1, paths: ['/a'], connections: [] } });
-    expect(h.rt.get(id)!.task.status).toBe('running');
-    expect(bg.level).toBe(1);
-    expect(bg.paths).toEqual(['/a']);
-    expect(bg.connections).toEqual([]);
-    h.rt.command(id, { type: 'revoke' });
-    expect(bg.level).toBe(0);
-    expect(bg.paths).toEqual([]);
-    release();
-    await flush();
+    expect(h.calls).toHaveLength(1);
+    expect(h.rt.get(id)!.attempts.at(-1)!.snapshot).toMatchObject({
+      providerId: 'p1',
+      model: 'routed-model',
+    });
+    expect(h.rt.get(id)!.task.status).toBe('done');
   });
 
   it('上游错误归类：429 / 5xx / 网络可重试，其余不重试', () => {

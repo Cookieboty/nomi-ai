@@ -299,9 +299,10 @@ type CreateRequest struct {
 
 // Create：连接能力不合法时返回 *GrantError；事件触发器不合法时返回 *TriggerError
 func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
-	// Nomi 任务按「带工具的 Nomi」路由的模型跑，还不能单独指定：拒绝而不是接受后忽略（#239）
-	if in.Executor.Kind == "nomi" && in.Executor.Model != nil && *in.Executor.Model != "" {
-		return Task{}, &GrantError{Msg: "nomi executor cannot pin a model yet; omit executor.model"}
+	// Nomi 任务用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）：
+	// 契约里的 model 不落盘，免得任务里留着一个其实不生效的「指定模型」
+	if in.Executor.Kind == "nomi" {
+		in.Executor.Model = nil
 	}
 	if err := s.checkGrant(in.Grant.Level, in.Grant.Connections); err != nil {
 		return Task{}, err

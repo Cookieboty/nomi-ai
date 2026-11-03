@@ -470,6 +470,16 @@ func main() {
 			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
 			return ok
 		},
+		Route: func() (string, string) {
+			pid, model := "", ""
+			if p := desktopSvc.ProviderFor("agent-tools"); p != nil {
+				pid = p.ID
+			}
+			if _, m, ok := (airouter.Routed{R: llmRegistry}).Resolve("agent-tools"); ok && m != nil {
+				model = *m
+			}
+			return pid, model
+		},
 		CostOf: func(model string, in, out int64) (float64, bool) {
 			s := usageSvcRef.Load()
 			if s == nil {

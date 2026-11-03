@@ -50,7 +50,7 @@ export const TaskExecutorSpec = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('notify'), text: z.string().min(1).max(2000) }),
   z.object({
     kind: z.literal('nomi'),
-    /** 还不支持单任务指定模型：传了会被拒绝（TASKS_BAD_GRANT），按「带工具的 Nomi」路由的模型跑 */
+    /** 不生效：Nomi 任务用「带工具的 Nomi」的预设模型（与对话同一路由），传了会被丢弃 */
     model: z.string().optional(),
     tools: z.array(TaskToolClass),
     scenario: z.enum(['coding', 'prd', 'review', 'research']).optional(),

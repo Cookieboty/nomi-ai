@@ -20,7 +20,6 @@ import (
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // ToolClassTools：工具类 → Nomi 工具名（与 nomi.ts 的 TOOL_CLASS_TOOLS 相同）
@@ -149,9 +148,11 @@ type NomiDeps struct {
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
 	EventsFor func(taskID string, eventKey *string) []SourceEvent
 	Ready     func() bool
-	CostOf    func(model string, input, output int64) (float64, bool)
-	Trace     func(taskID, attemptID string, line map[string]any)
-	Now       func() int64
+	// Route：「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照）；可为空
+	Route  func() (providerID, model string)
+	CostOf func(model string, input, output int64) (float64, bool)
+	Trace  func(taskID, attemptID string, line map[string]any)
+	Now    func() int64
 	// ToolNames：Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集）
 	ToolNames func() []string
 	// Every：周期定时器（测试注入）；返回取消函数
@@ -308,12 +309,20 @@ func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if e.d.Ready != nil && !e.d.Ready() {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
 	}
-	// 单任务指定模型还不支持：停下来说明，不悄悄用当前路由的模型跑（#239）
-	if t.Executor.Kind == "nomi" && t.Executor.Model != nil && *t.Executor.Model != "" {
-		return ExecutionSnapshot{}, &TaskError{Code: "config_changed",
-			Message: i18n.T("electron.common.task-config-model-unsupported", *t.Executor.Model)}
+	// Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
+	// 实际用到的供应商与模型记进快照
+	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version}
+	if e.d.Route != nil {
+		if p, m := e.d.Route(); p != "" || m != "" {
+			if p != "" {
+				snap.ProviderID = ptr(p)
+			}
+			if m != "" {
+				snap.Model = ptr(m)
+			}
+		}
 	}
-	return ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
+	return snap, nil
 }
 
 func (e *nomiExecutor) Start(ctx AttemptContext) {

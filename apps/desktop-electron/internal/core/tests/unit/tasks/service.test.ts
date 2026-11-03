@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import { legacyItems } from '../../../src/tasks/legacy';
 import type { TaskExecutor } from '../../../src/tasks/TaskRuntime';
-import { TaskGrantError, TaskService } from '../../../src/tasks/TaskService';
+import { TaskService } from '../../../src/tasks/TaskService';
 
 const T0 = Date.UTC(2026, 10, 2, 1, 0, 0);
 
@@ -116,18 +116,17 @@ describe('TaskService', () => {
     h.cleanup();
   });
 
-  it('Nomi 任务不能单独指定模型：创建时拒绝，而不是接受后忽略（#239）', () => {
+  it('Nomi 任务用预设模型：契约里的 model 不落盘（#239）', () => {
     const h = setup();
-    const base = {
+    const t = h.svc.create({
       title: 'a',
       goal: 'g',
-      trigger: { kind: 'manual' as const },
-      grant: { level: 1 as const, paths: [], connections: [] },
-    };
-    expect(() =>
-      h.svc.create({ ...base, executor: { kind: 'nomi', tools: ['read'], model: 'model-a' } }),
-    ).toThrow(TaskGrantError);
-    expect(h.svc.create({ ...base, executor: { kind: 'nomi', tools: ['read'] } }).id).toBeTruthy();
+      trigger: { kind: 'manual' },
+      executor: { kind: 'nomi', tools: ['read'], model: 'model-a' },
+      grant: { level: 1, paths: [], connections: [] },
+    });
+    expect(t.executor).toEqual({ kind: 'nomi', tools: ['read'] });
+    expect(h.svc.get(t.id)!.task.executor).not.toHaveProperty('model');
     h.cleanup();
   });
 

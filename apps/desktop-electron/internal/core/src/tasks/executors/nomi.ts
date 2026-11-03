@@ -137,6 +137,8 @@ export interface NomiExecutorDeps {
   toolNames?(): readonly string[];
   /** 有没有可用的模型（没有时准备失败：config_changed） */
   ready(): boolean;
+  /** 「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照，任务详情据此显示这次用的模型） */
+  route?(): { providerId?: string; model?: string };
   /** 按模型价格算费用；不知道价格时 undefined（不编造费用，§9） */
   costOf?(model: string | undefined, usage: { input: number; output: number }): number | undefined;
   /** 这次执行要处理的事件（事件触发时；TaskService.eventBatch） */
@@ -405,15 +407,9 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
   return {
     prepare(task: Task) {
       if (!d.ready()) return { error: { code: 'config_changed', message: configText.noModel() } };
-      // 单任务指定模型还不支持：停下来说明，不悄悄用当前路由的模型跑（#239）
-      if (task.executor.kind === 'nomi' && task.executor.model)
-        return {
-          error: {
-            code: 'config_changed',
-            message: configText.modelUnsupported(task.executor.model),
-          },
-        };
-      return { grantVersion: task.grant.version };
+      // Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
+      // 实际用到的供应商与模型记进快照
+      return { grantVersion: task.grant.version, ...(d.route?.() ?? {}) };
     },
     start(ctx) {
       const prev = runs.get(ctx.task.id);

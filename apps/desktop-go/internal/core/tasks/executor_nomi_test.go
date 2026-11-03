@@ -226,21 +226,30 @@ func TestNomiExecutorCancelAfterQueuedRelaunch(t *testing.T) {
 	}
 }
 
-// #239：指定了模型的 Nomi 任务不悄悄改用当前路由的模型：准备阶段停下来问用户
-func TestNomiExecutorPinnedModelRefused(t *testing.T) {
-	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
-		emit(blm.ChatChunk{Type: "delta", Content: "不该跑"})
-		return nil
+// #239：用预设模型运行（旧数据里带着 model 的任务也一样），实际供应商与模型记进执行快照
+func TestNomiExecutorRoutedModelSnapshot(t *testing.T) {
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(_ context.Context, _ []blm.ChatMessage, _ []string, _ map[string]any, emit func(blm.ChatChunk)) error {
+			emit(blm.ChatChunk{Type: "delta", Content: "完成"})
+			return nil
+		},
+		Ready: func() bool { return true },
+		Route: func() (string, string) { return "p1", "routed-model" },
 	})
+	n := 0
+	rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"nomi": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
 	tools := []string{"read"}
-	id := h.rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
 		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("model-a")}, Grant: Grant{Level: 1}}).ID
-	h.rt.Command(id, Command{Type: "runNow"})
-	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if len(h.sys) != 0 {
-		t.Fatal("ran on the routed model")
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
+	rec := rt.Get(id)
+	snap := rec.Attempts[len(rec.Attempts)-1].Snapshot
+	if snap.ProviderID == nil || *snap.ProviderID != "p1" || snap.Model == nil || *snap.Model != "routed-model" {
+		t.Fatalf("%+v", snap)
 	}
 }
 
