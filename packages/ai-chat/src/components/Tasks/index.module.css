@@ -267,13 +267,125 @@
 .form {
   display: flex;
   flex-direction: column;
+  gap: var(--cd-space-4);
+}
+/*
+ * 新建任务：左右两栏。左栏「做什么 / 什么时候 / 更多设置」，右栏「谁来做、能做什么 / GitHub」；
+ * 弹窗窄时（窗口小）退回单栏
+ */
+.formGrid {
+  display: grid;
+  /* 右栏放勾选组，给宽一点，免得「写授权文件夹里的文件 L2」折行 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  align-items: start;
+  gap: var(--cd-space-4) var(--cd-space-6);
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  min-width: 0;
+}
+.formContainer {
+  container-type: inline-size;
+}
+@container (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* 分节 */
+.section {
+  display: flex;
+  flex-direction: column;
   gap: var(--cd-space-3);
+  min-width: 0;
+}
+.section + .section {
+  padding-top: var(--cd-space-4);
+  border-top: 1px solid var(--cd-color-border-subtle);
+}
+.sectionTitle {
+  margin: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+/* 勾选组：标题与其他字段同样左对齐，选项放在一块浅底里 */
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5em, 1fr));
+  gap: var(--cd-space-2) var(--cd-space-3);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.level {
+  margin-left: var(--cd-space-1-5);
+  white-space: nowrap;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.folders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.folder {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-1) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.folderPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.folderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.folderActions .hint {
+  flex: 1;
+  min-width: 12em;
+}
+.footerNote {
+  flex: 1;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  align-self: center;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
 }
 .field {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--cd-space-1);
+  min-width: 0;
   font-size: var(--cd-font-size-sm);
 }
 .fieldRow {
@@ -281,6 +393,10 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--cd-space-3);
+}
+/* 一栏里放不下时换行，不把下拉框挤成几个字宽 */
+.fieldRow > .field {
+  min-width: 9em;
 }
 .tools {
   display: grid;
@@ -296,6 +412,8 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-1-5);
+  min-width: 0;
+  font-size: var(--cd-font-size-sm);
 }
 .levelNote {
   flex: 1;
