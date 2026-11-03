@@ -196,6 +196,7 @@ var Procedures = []Procedure{
 	{Name: "harness.stopAgent", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabAccount", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabActivate", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.tabApplyAutoTitle", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabBackend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabCarryClear", Kind: "mutation", Dangerous: false, Surfaces: nil},

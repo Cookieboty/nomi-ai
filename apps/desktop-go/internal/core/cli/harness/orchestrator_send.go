@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -97,6 +98,8 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 		}
 		um.Set("timestamp", nowMs())
 		o.appendMessage(id, um)
+		o.armHeuristicTitle(current, text)
+		o.changed()
 		current.Set("lastError", util.Undefined)
 		o.acquire(id)
 		jsrt.Await(jsrt.Resolved(struct{}{}))
@@ -735,4 +738,27 @@ func exitedCause(e error) bool {
 		e = errors.Unwrap(e)
 	}
 	return false
+}
+
+// armHeuristicTitle = armHeuristicTitle：首条启发式标题；仅默认生成名时改写并挂起 pending。
+func (o *Orchestrator) armHeuristicTitle(tab *util.Obj, prompt string) {
+	backend := str(tab, "backend")
+	if backend == "nomi" || backend == "external" {
+		return
+	}
+	id := str(tab, "id")
+	title := str(tab, "title")
+	if !isGeneratedTabTitle(title, backend) {
+		if _, ok := o.autoTitlePending[id]; !ok {
+			return
+		}
+	}
+	cleaned := shared.CleanTitle(prompt, 30)
+	if cleaned == nil {
+		return
+	}
+	if isGeneratedTabTitle(title, backend) {
+		o.autoTitlePending[id] = struct{}{}
+		tab.Set("title", *cleaned)
+	}
 }

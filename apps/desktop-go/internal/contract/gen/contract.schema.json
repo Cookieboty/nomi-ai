@@ -13512,6 +13512,82 @@
     "additionalProperties": {}
    }
   },
+  "harness.tabApplyAutoTitle": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "backend": {
+        "type": "string"
+       },
+       "cwd": {
+        "type": "string"
+       },
+       "cliSessionId": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "status": {
+        "type": "string"
+       },
+       "unread": {
+        "type": "number"
+       },
+       "createdAt": {
+        "type": "number"
+       },
+       "updatedAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "id",
+       "title",
+       "backend",
+       "cwd",
+       "cliSessionId",
+       "status",
+       "unread",
+       "createdAt",
+       "updatedAt"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
   "harness.tabBackend": {
    "kind": "mutation",
    "dangerous": false,

@@ -192,6 +192,7 @@ type Orchestrator struct {
 	turnExits        map[string]bool
 	stopRequested    map[string]bool
 	delegatedUnsent  map[string]bool
+	autoTitlePending map[string]struct{}
 	stopBeforeStart  map[string]bool
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
@@ -301,7 +302,7 @@ func New(d Deps) *Orchestrator {
 	o := &Orchestrator{
 		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: newOrdMap[clisdk.ChildLike](),
 		progress: map[string][2]string{}, partial: map[string]*partialTurn{}, turnExits: map[string]bool{},
-		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, stopBeforeStart: map[string]bool{},
+		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, autoTitlePending: map[string]struct{}{}, stopBeforeStart: map[string]bool{},
 		sendAborts: map[string]*jsrt.AbortController{}, takeoverInFlight: map[string]*jsrt.Promise[struct{}]{},
 		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
