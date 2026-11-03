@@ -116,6 +116,20 @@ describe('TaskService', () => {
     h.cleanup();
   });
 
+  it('Nomi 任务用预设模型：契约里的 model 不落盘（#239）', () => {
+    const h = setup();
+    const t = h.svc.create({
+      title: 'a',
+      goal: 'g',
+      trigger: { kind: 'manual' },
+      executor: { kind: 'nomi', tools: ['read'], model: 'model-a' },
+      grant: { level: 1, paths: [], connections: [] },
+    });
+    expect(t.executor).toEqual({ kind: 'nomi', tools: ['read'] });
+    expect(h.svc.get(t.id)!.task.executor).not.toHaveProperty('model');
+    h.cleanup();
+  });
+
   it('改标题与定时：重算下一次运行时间', () => {
     const h = setup();
     const t = h.svc.create({

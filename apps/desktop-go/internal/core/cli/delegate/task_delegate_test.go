@@ -29,7 +29,7 @@ func newFakeTasks() *fakeTasks {
 	return &fakeTasks{recs: map[string]*tasks.Record{}, notes: map[string]bool{}}
 }
 
-func (f *fakeTasks) CreateDelegated(i tasks.DelegatedInput) tasks.Task {
+func (f *fakeTasks) CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.created = append(f.created, i)
@@ -39,7 +39,7 @@ func (f *fakeTasks) CreateDelegated(i tasks.DelegatedInput) tasks.Task {
 		Executor: i.Executor, Grant: tasks.Grant{Level: i.Level, Paths: i.Paths, Connections: []tasks.ConnectionGrant{}},
 		Status: tasks.StatusQueued}
 	f.recs[t.ID] = &tasks.Record{Task: t, Attempts: []tasks.Attempt{}}
-	return t
+	return t, nil
 }
 
 func (f *fakeTasks) Get(id string) *tasks.Record {

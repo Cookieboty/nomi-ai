@@ -1,6 +1,6 @@
 /**
  * 单个 CLI 端点（Claude Code / Codex / dsh / Grok / Gemini）的分组：版本（检测 / 更新 / 安装）→
- * 官方账号（dsh 没有）→ 第三方模型的入口。
+ * 官方账号（dsh 没有）→ 新会话默认用 + 第三方模型的入口。
  * 第三方模型统一在设置 →「模型」里配置（docs/design/unified-gateway.md §4.1），这里不再有按 CLI 的供应商列表。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
@@ -12,6 +12,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
+import { NewTabSourceRow } from './NewTabSourceRow';
 import { OfficialAccounts } from './OfficialAccounts';
 
 export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => void }> = ({
@@ -23,12 +24,11 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
 
     {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
-    <SettingsGroup
-      title={t('ui.models.third-party-models')}
-      data-testid={`cli-third-party-${kind}`}
-    >
+    {/* 新会话默认用（官方账号 / 第三方供应商）+ 第三方模型入口（在「模型」页统一配置） */}
+    <SettingsGroup data-testid={`cli-third-party-${kind}`}>
+      <NewTabSourceRow kind={kind} />
       <SettingRow
-        title={t('ui.providers-schedule.set-up-in-models')}
+        title={t('ui.models.third-party-models')}
         description={t(
           'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
           ENDPOINT_NAME[kind],

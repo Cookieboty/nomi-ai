@@ -124,12 +124,21 @@ function mockIpc() {
   installFakeApi(invoke);
 }
 
-const mount = (onNewChat = vi.fn()) =>
-  render(
+/** 「本机历史」默认折叠：这里的用例要看历史行，挂载后自动点开一次 */
+const mount = (onNewChat = vi.fn()) => {
+  const r = render(
     <HarnessTabsProvider>
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={onNewChat} />
     </HarnessTabsProvider>,
   );
+  void r
+    .findByTestId('cli-history-toggle')
+    .then((t) => {
+      if (t.getAttribute('aria-expanded') === 'false') fireEvent.click(t);
+    })
+    .catch(() => undefined);
+  return r;
+};
 
 const type = async (r: ReturnType<typeof mount>, text: string) => {
   fireEvent.click(r.getByTestId('sidebar-search-toggle'));

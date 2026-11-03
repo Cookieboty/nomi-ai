@@ -85,12 +85,21 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-version-state-codex').textContent).not.toContain('检测中');
   });
 
-  it('分段标签「助手 / 监视与会话」；助手选择条只有五个 CLI，旧的 Nomi 选中值落到第一个', async () => {
+  it('分段标签「助手 / 监视与会话」；左栏是五个 CLI + 外部 CLI + 通用，旧的 Nomi 选中值落到第一个', async () => {
     setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'nomi');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);
     expect(r.queryByTestId('providers-endpoint-nomi')).toBeNull();
-    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(5);
+    const tabs = [...r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]')];
+    expect(tabs.map((b) => b.getAttribute('data-testid'))).toEqual([
+      'providers-endpoint-claude',
+      'providers-endpoint-codex',
+      'providers-endpoint-dsh',
+      'providers-endpoint-grok',
+      'providers-endpoint-gemini',
+      'providers-endpoint-external',
+      'providers-endpoint-general',
+    ]);
     await waitFor(() => expect(r.getByTestId('providers-section-claude')).toBeTruthy());
     fireEvent.click(r.getByTestId('providers-endpoint-codex'));
     await waitFor(() => expect(r.getByTestId('providers-section-codex')).toBeTruthy());
@@ -121,6 +130,43 @@ describe('ProvidersPage', () => {
     },
   );
 
+  it('运行环境与权限只在「通用」里；助手详情里不出现', async () => {
+    setup();
+    localStorage.setItem('ai-chat:providerEndpoint', 'claude');
+    const r = render(<ProvidersPage onOpenModels={() => undefined} />);
+    await waitFor(() => r.getByTestId('providers-section-claude'));
+    expect(r.queryByTestId('cli-runtime-environment')).toBeNull();
+    expect(r.queryByTestId('providers-runtime-warning')).toBeNull();
+    expect(r.getByTestId('providers-endpoint-status-general').textContent).toBe('运行环境与权限');
+    fireEvent.click(r.getByTestId('providers-endpoint-general'));
+    await waitFor(() => r.getByTestId('cli-runtime-environment'));
+    expect(r.queryByTestId('providers-section-claude')).toBeNull();
+    // 上下键在左栏里切换
+    fireEvent.keyDown(r.getByTestId('providers-endpoint-tabs'), { key: 'ArrowUp' });
+    await waitFor(() => r.getByTestId('external-clis'));
+  });
+
+  it('运行环境有问题：「通用」亮警示，助手详情顶部提示，点一下去「通用」', async () => {
+    setup();
+    const calls: string[] = [];
+    installFakeApi(async (ch: string) => {
+      calls.push(ch);
+      if (ch === 'cliAccount.list') return [];
+      if (ch === 'cliUpdate.inspect') return [];
+      if (ch === 'cliUpdate.environment')
+        return { nodeVersion: null, nodePath: null, npmPath: null, requirements: [] };
+      return {};
+    });
+    localStorage.setItem('ai-chat:providerEndpoint', 'codex');
+    const r = render(<ProvidersPage onOpenModels={() => undefined} />);
+    await waitFor(() => r.getByTestId('providers-runtime-warning'));
+    const st = r.getByTestId('providers-endpoint-status-general');
+    expect(st.getAttribute('data-tone')).toBe('warn');
+    expect(st.textContent).toBe('运行环境需要处理');
+    fireEvent.click(r.getByText('去「通用」查看'));
+    await waitFor(() => r.getByTestId('cli-runtime-notice'));
+  });
+
   it('dsh：没有官方账号，只有版本卡片和去「模型」页的入口', async () => {
     setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
@@ -128,6 +174,31 @@ describe('ProvidersPage', () => {
     await waitFor(() => expect(r.getByTestId('providers-section-dsh')).toBeTruthy());
     expect(r.queryByTestId('cli-accounts-dsh')).toBeNull();
     expect(r.getByTestId('cli-open-models')).toBeTruthy();
+  });
+
+  it('「监视与会话」：活跃会话超过 20 条时分页', async () => {
+    const sessions = Array.from({ length: 25 }, (_, i) => ({
+      id: `s${i}`,
+      kind: 'codex',
+      title: `会话 ${i}`,
+      status: 'running',
+      mtime: Date.now() - i * 1000,
+      path: `/tmp/s${i}.jsonl`,
+      source: 'file',
+    }));
+    installFakeApi(async (ch: string) => {
+      if (ch === 'agents.state' || ch === 'agents.scan') return { ...AGENTS, sessions };
+      return {};
+    });
+    localStorage.setItem('ai-chat:providerEndpoint', 'monitor');
+    const r = render(<ProvidersPage />);
+    await waitFor(() => r.getByTestId('agents-sessions-pager'));
+    const rows = () =>
+      r.getByTestId('agents-sessions').querySelectorAll('[data-testid="agents-session-file"]');
+    expect(rows().length).toBe(20);
+    expect(r.getByTestId('agents-sessions-page').textContent).toContain('25');
+    fireEvent.click(r.getByTestId('agents-sessions-page-next'));
+    await waitFor(() => expect(rows().length).toBe(5));
   });
 
   it('「监视与会话」标签：监视开关、检测到的工具、立即扫描；与提醒设置分开', async () => {

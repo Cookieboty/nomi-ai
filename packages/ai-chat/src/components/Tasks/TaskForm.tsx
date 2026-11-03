@@ -18,7 +18,7 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
-import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
+import { describeRepeat, desktopClient, type RepeatRule } from '../../services/desktopClient';
 import { extClient, type McpServer } from '../../services/extClient';
 import { harnessClient } from '../../services/harnessClient';
 import {
@@ -77,6 +77,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   // 不选 = 按执行者 / 触发器推断
   const [category, setCategory] = useState<TaskCategory | 'auto'>('auto');
   const [repoText, setRepoText] = useState('');
+  // Nomi 读写文件的授权文件夹（grant.paths）：后台任务只能碰这些文件夹（#231）
+  const [folders, setFolders] = useState<string[]>([]);
   const [bins, setBins] = useState<Record<string, string | null | undefined>>({});
   const [cliPick, setCli] = useState('');
   const [cwd, setCwd] = useState('');
@@ -139,6 +141,15 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     .filter((x) => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const usesFiles = tools.includes('read') || tools.includes('file_write');
+  /** 选文件夹并授权（写文件时按读写授权）；同一个文件夹只加一次 */
+  const addFolder = async () => {
+    const scope = await desktopClient
+      .grant(tools.includes('file_write') ? 'read-write' : 'read')
+      .catch(() => null);
+    if (scope?.path)
+      setFolders((prev) => (prev.includes(scope.path) ? prev : [...prev, scope.path]));
+  };
 
   const ghActions =
     who !== 'notify' && github ? [ghComment && 'comment', ghPr && 'pr'].filter(Boolean) : [];
@@ -271,6 +282,13 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
+      ...(who === 'nomi' && usesFiles
+        ? [
+            folders.length
+              ? t('ui.providers-schedule.task-card-folders', folders.join(', '))
+              : t('ui.providers-schedule.task-card-no-folders'),
+          ]
+        : []),
       ...(github && allRepos.length
         ? [t('ui.providers-schedule.task-card-github', github.label, allRepos.join(', '))]
         : []),
@@ -318,6 +336,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           level: level as 0 | 1 | 2 | 3 | 4,
           paths: [
             ...(who === 'cli' ? [cwd] : []),
+            ...(who === 'nomi' && usesFiles ? folders : []),
             ...(when === 'event' && source === 'folder' ? [evPath] : []),
           ],
           connections: [
@@ -349,425 +368,548 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     }
   };
 
+  const footer = (
+    <>
+      <p className={styles.footerNote} data-testid="task-form-summary">
+        {t('ui.providers-schedule.task-summary-level', t(LEVEL_LABEL[level]), days)}
+      </p>
+      <Button variant="ghost" onClick={onClose}>
+        {t('ui.foundation.cancel')}
+      </Button>
+      <Button
+        variant="primary"
+        disabled={!valid || busy}
+        onClick={() => void submit()}
+        data-testid="task-form-submit"
+      >
+        {t('ui.providers-schedule.task-create')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal open onClose={onClose} title={t('ui.providers-schedule.new-task')}>
-      <div className={styles.form}>
-        <label className={styles.field}>
-          <span>{t('ui.providers-schedule.task-title')}</span>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            autoFocus
-            data-testid="task-form-title"
-          />
-        </label>
-        <label className={styles.field}>
-          <span>{t('ui.providers-schedule.task-goal')}</span>
-          <Textarea
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            rows={4}
-            maxLength={8000}
-            placeholder={t('ui.providers-schedule.task-goal-placeholder')}
-            data-testid="task-form-goal"
-          />
-        </label>
-        <div className={styles.fieldRow}>
-          <label className={styles.field}>
-            <span>{t('ui.providers-schedule.task-priority')}</span>
-            <Select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TaskPriority | 'none')}
-              options={[...PRIORITIES, 'none' as const].map((p) => ({
-                value: p,
-                label: t(PRIORITY_LABEL[p]),
-              }))}
-              data-testid="task-form-priority"
-            />
-          </label>
-          <label className={styles.field}>
-            <span>{t('ui.providers-schedule.task-category')}</span>
-            <Select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as TaskCategory | 'auto')}
-              options={[
-                { value: 'auto', label: t('ui.providers-schedule.task-category-auto') },
-                ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
-              ]}
-              data-testid="task-form-category"
-            />
-          </label>
-        </div>
-        <div className={styles.fieldRow}>
-          <label className={styles.field}>
-            <span>{t('ui.providers-schedule.task-trigger')}</span>
-            <Select
-              value={when}
-              onChange={(e) => setWhen(e.target.value as When)}
-              options={[
-                { value: 'manual', label: t('ui.providers-schedule.task-trigger-manual') },
-                { value: 'once', label: t('ui.providers-schedule.task-once') },
-                { value: 'daily', label: t('ui.foundation.every-day') },
-                { value: 'weekdays', label: t('ui.foundation.weekdays') },
-                { value: 'interval', label: t('ui.providers-schedule.task-every-n-minutes') },
-                { value: 'event', label: t('ui.providers-schedule.task-trigger-event-option') },
-              ]}
-              data-testid="task-form-when"
-            />
-          </label>
-          {when !== 'manual' && when !== 'event' && (
-            <label className={styles.field}>
-              <span>{t('ui.chat-settings.start-time')}</span>
-              <DateTimeField
-                type="datetime-local"
-                value={at}
-                onChange={(e) => setAt(e.target.value)}
-              />
-            </label>
-          )}
-          {when === 'interval' && (
-            <label className={styles.field}>
-              <span>{t('ui.providers-schedule.task-interval-minutes')}</span>
-              <Input
-                type="number"
-                min={5}
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              />
-            </label>
-          )}
-        </div>
-        {when === 'event' && (
-          <fieldset className={styles.tools} data-testid="task-form-event">
-            <legend>{t('ui.providers-schedule.task-event-source')}</legend>
-            <Select
-              value={source}
-              onChange={(e) => setSource(e.target.value as Source)}
-              aria-label={t('ui.providers-schedule.task-event-source')}
-              options={[
-                { value: 'web', label: t('ui.providers-schedule.task-source-web') },
-                {
-                  value: 'github',
-                  label: t('ui.providers-schedule.task-source-github'),
-                  disabled: !github,
-                  ...(github ? {} : { description: t('ui.providers-schedule.connections-empty') }),
-                },
-                { value: 'folder', label: t('ui.foundation.folder') },
-                { value: 'app', label: t('ui.providers-schedule.task-source-app') },
-                {
-                  value: 'mcp',
-                  label: t('ui.providers-schedule.task-source-mcp'),
-                  disabled: !mcpServers.length,
-                  ...(mcpServers.length
-                    ? {}
-                    : { description: t('ui.providers-schedule.task-mcp-empty') }),
-                },
-              ]}
-              data-testid="task-form-source"
-            />
-            {source === 'web' && (
-              <>
-                <label className={styles.field}>
-                  <span>{t('ui.providers-schedule.task-event-url')}</span>
-                  <Input
-                    value={evUrl}
-                    onChange={(e) => setEvUrl(e.target.value)}
-                    placeholder="https://"
-                    data-testid="task-form-url"
-                  />
-                </label>
-                <label className={styles.check}>
-                  <Checkbox checked={evFeed} onChange={(e) => setEvFeed(e.target.checked)} />
-                  {t('ui.providers-schedule.task-event-feed')}
-                </label>
-              </>
-            )}
-            {source === 'github' && (
+    <Modal
+      open
+      onClose={onClose}
+      title={t('ui.providers-schedule.new-task')}
+      footer={footer}
+      size="lg"
+    >
+      <div className={`${styles.form} ${styles.formContainer}`}>
+        <div className={styles.formGrid}>
+          <div className={styles.col}>
+            <section className={styles.section} aria-labelledby="task-form-what">
+              <h3 id="task-form-what" className={styles.sectionTitle}>
+                {t('ui.providers-schedule.task-section-what')}
+              </h3>
+              <label className={styles.field}>
+                <span>{t('ui.providers-schedule.task-title')}</span>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={200}
+                  autoFocus
+                  placeholder={t('ui.providers-schedule.task-title-placeholder')}
+                  data-testid="task-form-title"
+                />
+              </label>
+              <label className={styles.field}>
+                <span>{t('ui.providers-schedule.task-goal')}</span>
+                <Textarea
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  rows={3}
+                  maxLength={8000}
+                  placeholder={t('ui.providers-schedule.task-goal-placeholder')}
+                  data-testid="task-form-goal"
+                />
+              </label>
+            </section>
+
+            <section className={styles.section} aria-labelledby="task-form-when-title">
+              <h3 id="task-form-when-title" className={styles.sectionTitle}>
+                {t('ui.providers-schedule.task-section-when')}
+              </h3>
               <div className={styles.fieldRow}>
                 <label className={styles.field}>
-                  <span>{t('ui.providers-schedule.task-event-repo')}</span>
-                  <Input
-                    value={evRepo}
-                    onChange={(e) => setEvRepo(e.target.value)}
-                    placeholder="owner/repo"
-                    data-testid="task-form-repo"
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>{t('ui.providers-schedule.task-event-source')}</span>
+                  <span>{t('ui.providers-schedule.task-trigger')}</span>
                   <Select
-                    value={evWatch}
-                    onChange={(e) => setEvWatch(e.target.value as 'issues' | 'ci')}
+                    value={when}
+                    onChange={(e) => setWhen(e.target.value as When)}
                     options={[
+                      { value: 'manual', label: t('ui.providers-schedule.task-trigger-manual') },
+                      { value: 'once', label: t('ui.providers-schedule.task-once') },
+                      { value: 'daily', label: t('ui.foundation.every-day') },
+                      { value: 'weekdays', label: t('ui.foundation.weekdays') },
+                      { value: 'interval', label: t('ui.providers-schedule.task-every-n-minutes') },
                       {
-                        value: 'issues',
-                        label: t('ui.providers-schedule.task-event-watch-issues'),
+                        value: 'event',
+                        label: t('ui.providers-schedule.task-trigger-event-option'),
                       },
-                      { value: 'ci', label: t('ui.providers-schedule.task-event-watch-ci') },
                     ]}
+                    data-testid="task-form-when"
                   />
                 </label>
-                {evWatch === 'ci' && (
+                {when !== 'manual' && when !== 'event' && (
                   <label className={styles.field}>
-                    <span>{t('ui.providers-schedule.task-event-branch')}</span>
-                    <Input value={evBranch} onChange={(e) => setEvBranch(e.target.value)} />
+                    <span>{t('ui.chat-settings.start-time')}</span>
+                    <DateTimeField
+                      type="datetime-local"
+                      value={at}
+                      onChange={(e) => setAt(e.target.value)}
+                    />
+                  </label>
+                )}
+                {when === 'interval' && (
+                  <label className={styles.field}>
+                    <span>{t('ui.providers-schedule.task-interval-minutes')}</span>
+                    <Input
+                      type="number"
+                      min={5}
+                      value={minutes}
+                      onChange={(e) => setMinutes(Number(e.target.value))}
+                    />
                   </label>
                 )}
               </div>
-            )}
-            {source === 'folder' && (
-              <WorkspacePicker
-                value={evPath}
-                onChange={setEvPath}
-                label={t('ui.foundation.folder')}
-                testId="task-form-folder"
-              />
-            )}
-            {source === 'app' && (
-              <Select
-                value={evApp}
-                onChange={(e) => setEvApp(e.target.value as 'cli.finished' | 'knowledge.updated')}
-                aria-label={t('ui.providers-schedule.task-source-app')}
-                options={[
-                  { value: 'cli.finished', label: t('ui.providers-schedule.task-event-app-cli') },
-                  {
-                    value: 'knowledge.updated',
-                    label: t('ui.providers-schedule.task-event-app-kb'),
-                  },
-                ]}
-              />
-            )}
-            {source === 'mcp' && (
-              <>
-                <div className={styles.fieldRow}>
+              {when === 'event' && (
+                <div className={styles.panel} data-testid="task-form-event">
                   <label className={styles.field}>
-                    <span>{t('ui.foundation.mcp-servers-label')}</span>
+                    <span>{t('ui.providers-schedule.task-event-source')}</span>
                     <Select
-                      value={evServer}
-                      onChange={(e) => {
-                        setEvServer(e.target.value);
-                        setEvTool('');
-                      }}
+                      value={source}
+                      onChange={(e) => setSource(e.target.value as Source)}
                       options={[
-                        { value: '', label: '—' },
-                        ...mcpServers.map((x) => ({ value: x.id, label: x.name })),
+                        { value: 'web', label: t('ui.providers-schedule.task-source-web') },
+                        {
+                          value: 'github',
+                          label: t('ui.providers-schedule.task-source-github'),
+                          disabled: !github,
+                          ...(github
+                            ? {}
+                            : { description: t('ui.providers-schedule.connections-empty') }),
+                        },
+                        { value: 'folder', label: t('ui.foundation.folder') },
+                        { value: 'app', label: t('ui.providers-schedule.task-source-app') },
+                        {
+                          value: 'mcp',
+                          label: t('ui.providers-schedule.task-source-mcp'),
+                          disabled: !mcpServers.length,
+                          ...(mcpServers.length
+                            ? {}
+                            : { description: t('ui.providers-schedule.task-mcp-empty') }),
+                        },
                       ]}
-                      data-testid="task-form-mcp-server"
+                      data-testid="task-form-source"
                     />
                   </label>
-                  <label className={styles.field}>
-                    <span>{t('ui.providers-schedule.task-mcp-tool')}</span>
+                  {source === 'web' && (
+                    <>
+                      <label className={styles.field}>
+                        <span>{t('ui.providers-schedule.task-event-url')}</span>
+                        <Input
+                          value={evUrl}
+                          onChange={(e) => setEvUrl(e.target.value)}
+                          placeholder="https://"
+                          data-testid="task-form-url"
+                        />
+                      </label>
+                      <label className={styles.check}>
+                        <Checkbox checked={evFeed} onChange={(e) => setEvFeed(e.target.checked)} />
+                        {t('ui.providers-schedule.task-event-feed')}
+                      </label>
+                    </>
+                  )}
+                  {source === 'github' && (
+                    <div className={styles.fieldRow}>
+                      <label className={styles.field}>
+                        <span>{t('ui.providers-schedule.task-event-repo')}</span>
+                        <Input
+                          value={evRepo}
+                          onChange={(e) => setEvRepo(e.target.value)}
+                          placeholder="owner/repo"
+                          data-testid="task-form-repo"
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        <span>{t('ui.providers-schedule.task-event-source')}</span>
+                        <Select
+                          value={evWatch}
+                          onChange={(e) => setEvWatch(e.target.value as 'issues' | 'ci')}
+                          options={[
+                            {
+                              value: 'issues',
+                              label: t('ui.providers-schedule.task-event-watch-issues'),
+                            },
+                            { value: 'ci', label: t('ui.providers-schedule.task-event-watch-ci') },
+                          ]}
+                        />
+                      </label>
+                      {evWatch === 'ci' && (
+                        <label className={styles.field}>
+                          <span>{t('ui.providers-schedule.task-event-branch')}</span>
+                          <Input value={evBranch} onChange={(e) => setEvBranch(e.target.value)} />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                  {source === 'folder' && (
+                    <div className={styles.field}>
+                      <span>{t('ui.foundation.folder')}</span>
+                      <WorkspacePicker
+                        value={evPath}
+                        onChange={setEvPath}
+                        label={t('ui.foundation.folder')}
+                        testId="task-form-folder"
+                      />
+                    </div>
+                  )}
+                  {source === 'app' && (
                     <Select
-                      value={evTool}
-                      onChange={(e) => setEvTool(e.target.value)}
+                      value={evApp}
+                      onChange={(e) =>
+                        setEvApp(e.target.value as 'cli.finished' | 'knowledge.updated')
+                      }
+                      aria-label={t('ui.providers-schedule.task-source-app')}
                       options={[
-                        { value: '', label: '—' },
-                        ...evTools.map((x) => ({
-                          value: bare(evServer, x.name),
-                          label: bare(evServer, x.name),
-                        })),
+                        {
+                          value: 'cli.finished',
+                          label: t('ui.providers-schedule.task-event-app-cli'),
+                        },
+                        {
+                          value: 'knowledge.updated',
+                          label: t('ui.providers-schedule.task-event-app-kb'),
+                        },
                       ]}
-                      data-testid="task-form-mcp-tool"
                     />
-                  </label>
+                  )}
+                  {source === 'mcp' && (
+                    <>
+                      <div className={styles.fieldRow}>
+                        <label className={styles.field}>
+                          <span>{t('ui.foundation.mcp-servers-label')}</span>
+                          <Select
+                            value={evServer}
+                            onChange={(e) => {
+                              setEvServer(e.target.value);
+                              setEvTool('');
+                            }}
+                            options={[
+                              { value: '', label: '—' },
+                              ...mcpServers.map((x) => ({ value: x.id, label: x.name })),
+                            ]}
+                            data-testid="task-form-mcp-server"
+                          />
+                        </label>
+                        <label className={styles.field}>
+                          <span>{t('ui.providers-schedule.task-mcp-tool')}</span>
+                          <Select
+                            value={evTool}
+                            onChange={(e) => setEvTool(e.target.value)}
+                            options={[
+                              { value: '', label: '—' },
+                              ...evTools.map((x) => ({
+                                value: bare(evServer, x.name),
+                                label: bare(evServer, x.name),
+                              })),
+                            ]}
+                            data-testid="task-form-mcp-tool"
+                          />
+                        </label>
+                      </div>
+                      <label className={styles.field}>
+                        <span>{t('ui.providers-schedule.task-mcp-args')}</span>
+                        <Textarea
+                          value={evArgs}
+                          onChange={(e) => setEvArgs(e.target.value)}
+                          rows={2}
+                          placeholder="{}"
+                          data-testid="task-form-mcp-args"
+                        />
+                      </label>
+                      <p className={styles.hint}>
+                        {t('ui.providers-schedule.task-mcp-readonly-note')}
+                      </p>
+                    </>
+                  )}
+                  <p className={styles.hint}>
+                    {t('ui.providers-schedule.task-event-observe-note')}
+                  </p>
                 </div>
+              )}
+            </section>
+
+            <section className={styles.section} aria-labelledby="task-form-more-title">
+              <h3 id="task-form-more-title" className={styles.sectionTitle}>
+                {t('ui.providers-schedule.task-section-more')}
+              </h3>
+              <div className={styles.fieldRow}>
                 <label className={styles.field}>
-                  <span>{t('ui.providers-schedule.task-mcp-args')}</span>
-                  <Textarea
-                    value={evArgs}
-                    onChange={(e) => setEvArgs(e.target.value)}
-                    rows={2}
-                    placeholder="{}"
-                    data-testid="task-form-mcp-args"
+                  <span>{t('ui.providers-schedule.task-priority')}</span>
+                  <Select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as TaskPriority | 'none')}
+                    options={[...PRIORITIES, 'none' as const].map((p) => ({
+                      value: p,
+                      label: t(PRIORITY_LABEL[p]),
+                    }))}
+                    data-testid="task-form-priority"
                   />
                 </label>
-                <p className={styles.levelNote}>
-                  {t('ui.providers-schedule.task-mcp-readonly-note')}
-                </p>
-              </>
-            )}
-            <p className={styles.levelNote}>{t('ui.providers-schedule.task-event-observe-note')}</p>
-          </fieldset>
-        )}
-        <label className={styles.field}>
-          <span>{t('ui.providers-schedule.task-executor')}</span>
-          <Select
-            value={who}
-            onChange={(e) => setWho(e.target.value as Who)}
-            options={[
-              { value: 'nomi', label: t('ui.chat-settings.nomi-section') },
-              { value: 'notify', label: t('ui.providers-schedule.task-executor-notify') },
-              {
-                value: 'cli',
-                label: t('ui.providers-schedule.coding-agents'),
-                disabled: !installed.length,
-                description: installed.length
-                  ? t('ui.providers-schedule.task-executor-cli-hint')
-                  : t('ui.mascot-theme.not-installed'),
-              },
-            ]}
-            data-testid="task-form-who"
-          />
-        </label>
-        {who === 'nomi' && (
-          <fieldset className={styles.tools}>
-            <legend>{t('ui.providers-schedule.task-tools')}</legend>
-            {TOOLS.map((x) => (
-              <label key={x} className={styles.check}>
-                <Checkbox
-                  checked={tools.includes(x)}
-                  onChange={(e) =>
-                    setTools((prev) =>
-                      e.target.checked ? [...prev, x] : prev.filter((y) => y !== x),
-                    )
-                  }
-                  data-testid={`task-form-tool-${x}`}
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-expiry')}</span>
+                  <Select
+                    value={String(days)}
+                    onChange={(e) => setDays(Number(e.target.value))}
+                    options={[7, 30, 90].map((d) => ({
+                      value: String(d),
+                      label: t('ui.usage-tools.d', d),
+                    }))}
+                    data-testid="task-form-expiry"
+                  />
+                </label>
+              </div>
+              <label className={styles.field}>
+                <span>{t('ui.providers-schedule.task-category')}</span>
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as TaskCategory | 'auto')}
+                  options={[
+                    { value: 'auto', label: t('ui.providers-schedule.task-category-auto') },
+                    ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+                  ]}
+                  data-testid="task-form-category"
                 />
-                {`${t(TOOL_LABEL[x])}（L${TOOL_LEVEL[x]}）`}
               </label>
-            ))}
-          </fieldset>
-        )}
-        {who === 'cli' && (
-          <div className={styles.fieldRow}>
-            <label className={styles.field}>
-              <span>{t('ui.providers-schedule.task-cli-pick')}</span>
-              <Select
-                value={cli}
-                onChange={(e) => setCli(e.target.value)}
-                options={CLIS.map((b) => ({
-                  value: b,
-                  label: cliLabel(b),
-                  disabled: !bins[b],
-                }))}
-                data-testid="task-form-cli"
-              />
-            </label>
-            <div className={styles.field}>
-              <span>{t('ui.providers-schedule.task-cwd')}</span>
-              <WorkspacePicker
-                value={cwd}
-                onChange={setCwd}
-                label={t('ui.providers-schedule.task-cwd')}
-                testId="task-form-cwd"
-              />
-            </div>
+            </section>
           </div>
-        )}
-        {who === 'cli' && (
-          <label className={styles.check}>
-            <Checkbox
-              checked={cliShell}
-              onChange={(e) => setCliShell(e.target.checked)}
-              data-testid="task-form-cli-shell"
-            />
-            {t('ui.providers-schedule.task-cli-shell')}
-          </label>
-        )}
-        {who === 'nomi' && mcpServers.length > 0 && (
-          <fieldset className={styles.tools} data-testid="task-form-mcp">
-            <legend>{t('ui.providers-schedule.task-mcp-tools')}</legend>
-            {mcpServers.flatMap((server) =>
-              server.tools.map((tool) => {
-                const name = bare(server.id, tool.name);
-                const picked = (mcpPick[server.id] ?? []).includes(name);
-                return (
-                  <label key={tool.name} className={styles.check}>
-                    <Checkbox
-                      checked={picked}
-                      onChange={(e) =>
-                        setMcpPick((prev) => {
-                          const cur = prev[server.id] ?? [];
-                          return {
-                            ...prev,
-                            [server.id]: e.target.checked
-                              ? [...cur, name]
-                              : cur.filter((x) => x !== name),
-                          };
-                        })
-                      }
-                      data-testid={`task-form-mcp-${tool.name}`}
+          <div className={styles.col}>
+            <section className={styles.section} aria-labelledby="task-form-who-title">
+              <h3 id="task-form-who-title" className={styles.sectionTitle}>
+                {t('ui.providers-schedule.task-section-who')}
+              </h3>
+              <label className={styles.field}>
+                <span>{t('ui.providers-schedule.task-executor')}</span>
+                <Select
+                  value={who}
+                  onChange={(e) => setWho(e.target.value as Who)}
+                  options={[
+                    { value: 'nomi', label: t('ui.chat-settings.nomi-section') },
+                    { value: 'notify', label: t('ui.providers-schedule.task-executor-notify') },
+                    {
+                      value: 'cli',
+                      label: t('ui.providers-schedule.coding-agents'),
+                      disabled: !installed.length,
+                      description: installed.length
+                        ? t('ui.providers-schedule.task-executor-cli-hint')
+                        : t('ui.mascot-theme.not-installed'),
+                    },
+                  ]}
+                  data-testid="task-form-who"
+                />
+              </label>
+              {who === 'nomi' && (
+                <div className={styles.field} role="group" aria-labelledby="task-form-tools-label">
+                  <span id="task-form-tools-label">{t('ui.providers-schedule.task-tools')}</span>
+                  <div className={styles.checks}>
+                    {TOOLS.map((x) => (
+                      <label key={x} className={styles.check}>
+                        <Checkbox
+                          checked={tools.includes(x)}
+                          onChange={(e) =>
+                            setTools((prev) =>
+                              e.target.checked ? [...prev, x] : prev.filter((y) => y !== x),
+                            )
+                          }
+                          data-testid={`task-form-tool-${x}`}
+                        />
+                        <span>
+                          {t(TOOL_LABEL[x])}
+                          <span className={styles.level}>L{TOOL_LEVEL[x]}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {who === 'nomi' && usesFiles && (
+                <div
+                  className={styles.field}
+                  role="group"
+                  aria-labelledby="task-form-folders-label"
+                >
+                  <span id="task-form-folders-label">{t('ui.foundation.granted-folders')}</span>
+                  {folders.length > 0 && (
+                    <ul className={styles.folders} data-testid="task-form-folders">
+                      {folders.map((f) => (
+                        <li key={f} className={styles.folder} title={f}>
+                          <span className={styles.folderPath}>{f}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFolders((prev) => prev.filter((x) => x !== f))}
+                            aria-label={t('ui.providers-schedule.task-folders-remove', f)}
+                          >
+                            {t('ui.foundation.revoke')}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className={styles.folderActions}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void addFolder()}
+                      data-testid="task-form-folders-add"
+                    >
+                      {t('ui.providers-schedule.task-folders-add')}
+                    </Button>
+                    <p className={styles.hint}>{t('ui.providers-schedule.task-folders-hint')}</p>
+                  </div>
+                </div>
+              )}
+              {who === 'cli' && (
+                <div className={styles.fieldRow}>
+                  <label className={styles.field}>
+                    <span>{t('ui.providers-schedule.task-cli-pick')}</span>
+                    <Select
+                      value={cli}
+                      onChange={(e) => setCli(e.target.value)}
+                      options={CLIS.map((b) => ({
+                        value: b,
+                        label: cliLabel(b),
+                        disabled: !bins[b],
+                      }))}
+                      data-testid="task-form-cli"
                     />
-                    {`${server.name} / ${name}（${
-                      tool.readOnly
-                        ? t('ui.foundation.read-only')
-                        : t('ui.providers-schedule.task-mcp-external')
-                    }）`}
                   </label>
-                );
-              }),
+                  <div className={styles.field}>
+                    <span>{t('ui.providers-schedule.task-cwd')}</span>
+                    <WorkspacePicker
+                      value={cwd}
+                      onChange={setCwd}
+                      label={t('ui.providers-schedule.task-cwd')}
+                      testId="task-form-cwd"
+                    />
+                  </div>
+                </div>
+              )}
+              {who === 'cli' && (
+                <label className={styles.check}>
+                  <Checkbox
+                    checked={cliShell}
+                    onChange={(e) => setCliShell(e.target.checked)}
+                    data-testid="task-form-cli-shell"
+                  />
+                  {t('ui.providers-schedule.task-cli-shell')}
+                </label>
+              )}
+              {who === 'nomi' && mcpServers.length > 0 && (
+                <div
+                  className={styles.field}
+                  role="group"
+                  aria-labelledby="task-form-mcp-label"
+                  data-testid="task-form-mcp"
+                >
+                  <span id="task-form-mcp-label">{t('ui.providers-schedule.task-mcp-tools')}</span>
+                  <div className={styles.checks}>
+                    {mcpServers.flatMap((server) =>
+                      server.tools.map((tool) => {
+                        const name = bare(server.id, tool.name);
+                        const picked = (mcpPick[server.id] ?? []).includes(name);
+                        return (
+                          <label key={tool.name} className={styles.check}>
+                            <Checkbox
+                              checked={picked}
+                              onChange={(e) =>
+                                setMcpPick((prev) => {
+                                  const cur = prev[server.id] ?? [];
+                                  return {
+                                    ...prev,
+                                    [server.id]: e.target.checked
+                                      ? [...cur, name]
+                                      : cur.filter((x) => x !== name),
+                                  };
+                                })
+                              }
+                              data-testid={`task-form-mcp-${tool.name}`}
+                            />
+                            <span>
+                              {`${server.name} / ${name}`}
+                              <span className={styles.level}>
+                                {tool.readOnly
+                                  ? t('ui.foundation.read-only')
+                                  : t('ui.providers-schedule.task-mcp-external')}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      }),
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {who !== 'notify' && github && (
+              <section className={styles.section} aria-labelledby="task-form-gh-title">
+                <h3 id="task-form-gh-title" className={styles.sectionTitle}>
+                  {t('ui.providers-schedule.task-section-github', github.label)}
+                </h3>
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-github-repos-short')}</span>
+                  <Textarea
+                    value={repoText}
+                    onChange={(e) => setRepoText(e.target.value)}
+                    rows={2}
+                    placeholder="owner/repo"
+                    data-testid="task-form-github"
+                  />
+                  <small className={styles.hint}>
+                    {t('ui.providers-schedule.task-github-repos-hint')}
+                  </small>
+                </label>
+                <div
+                  className={styles.field}
+                  role="group"
+                  aria-labelledby="task-form-gh-actions-label"
+                  data-testid="task-form-gh-actions"
+                >
+                  <span id="task-form-gh-actions-label">
+                    {t('ui.providers-schedule.task-gh-actions')}
+                  </span>
+                  <div className={styles.checks}>
+                    <label className={styles.check}>
+                      <Checkbox
+                        checked={ghComment}
+                        onChange={(e) => setGhComment(e.target.checked)}
+                        data-testid="task-form-gh-comment"
+                      />
+                      {t('ui.providers-schedule.task-gh-comment')}
+                    </label>
+                    <label className={styles.check}>
+                      <Checkbox
+                        checked={ghPr}
+                        onChange={(e) => setGhPr(e.target.checked)}
+                        data-testid="task-form-gh-pr"
+                      />
+                      {t('ui.providers-schedule.task-gh-pr')}
+                    </label>
+                  </div>
+                  {ghActions.length > 0 && (
+                    <p className={styles.hint}>{t('ui.providers-schedule.task-gh-actions-note')}</p>
+                  )}
+                </div>
+              </section>
             )}
-          </fieldset>
-        )}
-        {who !== 'notify' && github && (
-          <label className={styles.field}>
-            <span>{t('ui.providers-schedule.task-github-repos', github.label)}</span>
-            <Textarea
-              value={repoText}
-              onChange={(e) => setRepoText(e.target.value)}
-              rows={2}
-              placeholder="owner/repo"
-              data-testid="task-form-github"
-            />
-          </label>
-        )}
-        {who !== 'notify' && github && (
-          <fieldset className={styles.tools} data-testid="task-form-gh-actions">
-            <legend>{t('ui.providers-schedule.task-gh-actions')}</legend>
-            <label className={styles.check}>
-              <Checkbox
-                checked={ghComment}
-                onChange={(e) => setGhComment(e.target.checked)}
-                data-testid="task-form-gh-comment"
-              />
-              {t('ui.providers-schedule.task-gh-comment')}
-            </label>
-            <label className={styles.check}>
-              <Checkbox
-                checked={ghPr}
-                onChange={(e) => setGhPr(e.target.checked)}
-                data-testid="task-form-gh-pr"
-              />
-              {t('ui.providers-schedule.task-gh-pr')}
-            </label>
-            {ghActions.length > 0 && (
-              <p className={styles.levelNote}>{t('ui.providers-schedule.task-gh-actions-note')}</p>
-            )}
-          </fieldset>
-        )}
-        <div className={styles.fieldRow}>
-          <label className={styles.field}>
-            <span>{t('ui.providers-schedule.task-expiry')}</span>
-            <Select
-              value={String(days)}
-              onChange={(e) => setDays(Number(e.target.value))}
-              options={[7, 30, 90].map((d) => ({
-                value: String(d),
-                label: t('ui.usage-tools.d', d),
-              }))}
-            />
-          </label>
-          <p className={styles.levelNote}>{t(LEVEL_LABEL[level])}</p>
+          </div>
         </div>
         {error && (
           <p className={styles.error} role="alert">
             {error}
           </p>
         )}
-        <div className={styles.actionRow}>
-          <Button variant="ghost" onClick={onClose}>
-            {t('ui.foundation.cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!valid || busy}
-            onClick={() => void submit()}
-            data-testid="task-form-submit"
-          >
-            {t('ui.providers-schedule.task-create')}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

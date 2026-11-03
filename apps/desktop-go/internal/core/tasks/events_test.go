@@ -41,6 +41,7 @@ type hubHarness struct {
 	now     *int64
 	busy    *bool
 	src     *EventSource
+	timers  []int64
 }
 
 func newHubHarness(t *testing.T, task Task) *hubHarness {
@@ -78,9 +79,12 @@ func newHubHarness(t *testing.T, task Task) *hubHarness {
 			}
 			return fired[len(fired)-1][1]
 		},
-		Log:      &nopLog{},
-		Now:      func() int64 { return now },
-		SetTimer: func(func(), int64) func() { return func() {} },
+		Log: &nopLog{},
+		Now: func() int64 { return now },
+		SetTimer: func(_ func(), ms int64) func() {
+			h.timers = append(h.timers, ms)
+			return func() {}
+		},
 	})
 	h.hub.Start([]Task{task})
 	return h
@@ -183,6 +187,39 @@ func TestEventHubCooldownWindowWhileBusy(t *testing.T) {
 	}
 	if got := batchKeys(h.hub.Batch("task_1", (*h.fired)[0][1])); !reflect.DeepEqual(got, []string{"1", "2"}) {
 		t.Fatal(got)
+	}
+}
+
+// 任务忙碌时过期窗口不再安排 0 延时定时器；空闲后只开一次（#236）
+func TestEventHubBusyExpiredWindowNoZeroTimer(t *testing.T) {
+	task := evTask("act", 60_000)
+	h := newHubHarness(t, task)
+	h.hub.Tick()
+	*h.now += 2000
+	h.push(sev("1", evT0))
+	*h.busy = true
+	running := task
+	running.Status = StatusRunning
+	running.UpdatedAt = 1
+	h.hub.Sync(running)
+	h.hub.Tick()
+	*h.now += 120_000
+	h.timers = nil
+	h.hub.Tick()
+	h.hub.Tick()
+	if len(h.timers) == 0 {
+		t.Fatal("no timer armed")
+	}
+	for _, ms := range h.timers {
+		if ms <= 0 {
+			t.Fatalf("zero-delay timer while busy: %v", h.timers)
+		}
+	}
+	*h.busy = false
+	task.UpdatedAt = 2
+	h.hub.Sync(task)
+	if len(*h.fired) != 1 {
+		t.Fatal(*h.fired)
 	}
 }
 

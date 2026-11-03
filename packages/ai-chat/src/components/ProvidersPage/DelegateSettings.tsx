@@ -91,7 +91,8 @@ export const DelegateSettings: React.FC = () => {
   };
 
   return (
-    <div data-testid="providers-section-delegate">
+    // 委派开关占一整行；宽屏时「按任务类型」与「模型档位」并排（容器查询），标签和控件不再隔着大片空白
+    <div className={styles.delegate} data-testid="providers-section-delegate">
       <SettingsGroup
         title={t('ui.chat-settings.handoff')}
         description={t('ui.chat-settings.nomi-can-hand-specific-coding-writing-review-and')}
@@ -108,68 +109,70 @@ export const DelegateSettings: React.FC = () => {
           />
         </SettingRow>
       </SettingsGroup>
-      <SettingsGroup
-        title={t('ui.chat-settings.default-coding-assistant-by-task-type')}
-        description={t('ui.chat-settings.used-when-you-haven-t-picked-one-with')}
-      >
-        {DELEGATE_KINDS.map((k) => (
-          <SettingRow key={k} title={delegateKindLabel(k)}>
+      <div className={styles.delegatePair} data-off={s.enabled ? undefined : '1'}>
+        <SettingsGroup
+          title={t('ui.chat-settings.default-coding-assistant-by-task-type')}
+          description={t('ui.chat-settings.used-when-you-haven-t-picked-one-with')}
+        >
+          {DELEGATE_KINDS.map((k) => (
+            <SettingRow key={k} title={delegateKindLabel(k)}>
+              <Select
+                size="sm"
+                value={s.defaults[k] ?? AUTO}
+                disabled={!s.enabled}
+                aria-label={t('ui.chat-settings.default-for', delegateKindLabel(k))}
+                data-testid={`delegate-default-${k}`}
+                onChange={(e) => setDefault(k, e.target.value)}
+                options={optionsFor(k)}
+                menuMinWidth={140}
+              />
+            </SettingRow>
+          ))}
+        </SettingsGroup>
+        <SettingsGroup
+          title={t('ui.chat-settings.default-handoff-model-profile')}
+          description={t('ui.chat-settings.which-model-override-to-use-when-handing-off')}
+        >
+          <SettingRow
+            title={t('ui.chat-settings.default-profile')}
+            description={t(
+              'ui.chat-settings.agentprofile-ids-default-cheap-local-preferlocal-is-metadata',
+            )}
+          >
             <Select
               size="sm"
-              value={s.defaults[k] ?? AUTO}
+              value={s.defaultProfileId ?? 'default'}
               disabled={!s.enabled}
-              aria-label={t('ui.chat-settings.default-for', delegateKindLabel(k))}
-              data-testid={`delegate-default-${k}`}
-              onChange={(e) => setDefault(k, e.target.value)}
-              options={optionsFor(k)}
-              menuMinWidth={140}
+              aria-label={t('ui.chat-settings.default-handoff-model-profile')}
+              data-testid="delegate-default-profile"
+              onChange={(e) => save({ defaultProfileId: e.target.value })}
+              options={(s.availableProfiles ?? []).map((p) => ({
+                value: p.id,
+                label: p.label,
+              }))}
+              menuMinWidth={180}
             />
           </SettingRow>
-        ))}
-      </SettingsGroup>
-      <SettingsGroup
-        title={t('ui.chat-settings.default-handoff-model-profile')}
-        description={t('ui.chat-settings.which-model-override-to-use-when-handing-off')}
-      >
-        <SettingRow
-          title={t('ui.chat-settings.default-profile')}
-          description={t(
-            'ui.chat-settings.agentprofile-ids-default-cheap-local-preferlocal-is-metadata',
-          )}
-        >
-          <Select
-            size="sm"
-            value={s.defaultProfileId ?? 'default'}
-            disabled={!s.enabled}
-            aria-label={t('ui.chat-settings.default-handoff-model-profile')}
-            data-testid="delegate-default-profile"
-            onChange={(e) => save({ defaultProfileId: e.target.value })}
-            options={(s.availableProfiles ?? []).map((p) => ({
-              value: p.id,
-              label: p.label,
-            }))}
-            menuMinWidth={180}
-          />
-        </SettingRow>
-        <SettingRow
-          title={t('ui.chat-settings.cheap-model-cheap')}
-          description={t('ui.chat-settings.used-when-the-cheap-profile-has-no-model')}
-        >
-          <Input
-            key={s.cheapModel ?? ''}
-            size="sm"
-            defaultValue={s.cheapModel ?? ''}
-            disabled={!s.enabled}
-            placeholder="provider/model"
-            aria-label={t('ui.chat-settings.cheap-model-cheap')}
-            data-testid="delegate-cheap-model"
-            onBlur={(e) => {
-              const v = e.target.value.trim() || undefined;
-              if (v !== (s.cheapModel || undefined)) save({ cheapModel: v });
-            }}
-          />
-        </SettingRow>
-      </SettingsGroup>
+          <SettingRow
+            title={t('ui.chat-settings.cheap-model-cheap')}
+            description={t('ui.chat-settings.used-when-the-cheap-profile-has-no-model')}
+          >
+            <Input
+              key={s.cheapModel ?? ''}
+              size="sm"
+              defaultValue={s.cheapModel ?? ''}
+              disabled={!s.enabled}
+              placeholder="provider/model"
+              aria-label={t('ui.chat-settings.cheap-model-cheap')}
+              data-testid="delegate-cheap-model"
+              onBlur={(e) => {
+                const v = e.target.value.trim() || undefined;
+                if (v !== (s.cheapModel || undefined)) save({ cheapModel: v });
+              }}
+            />
+          </SettingRow>
+        </SettingsGroup>
+      </div>
     </div>
   );
 };

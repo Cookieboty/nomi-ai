@@ -55,7 +55,6 @@ export interface GatewayProvider {
   keys: GatewayKey[];
   models: GatewayModel[];
   modelsSource: 'listed' | 'manual' | 'preset';
-  fallback?: string[];
   headers?: Record<string, string>;
   userAgent?: string;
   modelMap?: Array<{ from: string; to: string }>;

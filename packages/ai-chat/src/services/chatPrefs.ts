@@ -1,5 +1,5 @@
 /**
- * 对话 UI 偏好：普通/开发模式、侧栏「全部|按端」。
+ * 对话 UI 偏好：普通/开发模式、侧栏「全部|按端」、新对话是否用模型起标题。
  * 持久化在 localStorage（与 ConversationStore 同层）；桌面端无需主进程同步。
  */
 export type ChatMode = 'normal' | 'dev';
@@ -8,6 +8,7 @@ export type ConversationListView = 'all' | 'by-endpoint';
 const MODE_KEY = 'ai-chat:chatMode';
 const LIST_VIEW_KEY = 'ai-chat:conversationListView';
 const ENDPOINT_FILTER_KEY = 'ai-chat:endpointFilter';
+const SMART_TITLE_KEY = 'ai-chat:smartTitle';
 
 type Listener = () => void;
 const modeSubs = new Set<Listener>();
@@ -224,9 +225,14 @@ const PROVIDER_ENDPOINT_KEY = 'ai-chat:providerEndpoint';
 const providerEpSubs = new Set<Listener>();
 
 /** 编程助手页的当前标签：内置编程助手端点之一，或「监视与会话」 */
-export type CodingTab = ConversationBackend | 'monitor' | 'delegate';
+/** general = 运行环境与权限；external = 外部 CLI（编程助手页左栏的两项） */
+export type CodingTab = ConversationBackend | 'monitor' | 'delegate' | 'general' | 'external';
 export const isCodingTab = (v: unknown): v is CodingTab =>
-  v === 'monitor' || v === 'delegate' || isConversationBackend(v);
+  v === 'monitor' ||
+  v === 'delegate' ||
+  v === 'general' ||
+  v === 'external' ||
+  isConversationBackend(v);
 
 export function getProviderEndpoint(): CodingTab {
   try {
@@ -260,4 +266,24 @@ export function dropRetiredPrefs(): void {
   } catch {
     /* 存储不可用：无需清理 */
   }
+}
+
+const smartTitleSubs = new Set<Listener>();
+
+/**
+ * 新对话用当前聊天模型起标题（默认开）：会把第一条消息再发给模型一次、消耗少量 token。
+ * 关掉后用第一句话作标题，不额外请求。
+ */
+export function getSmartTitle(): boolean {
+  return read(SMART_TITLE_KEY, ['on', 'off'] as const, 'on') === 'on';
+}
+
+export function setSmartTitle(on: boolean): void {
+  write(SMART_TITLE_KEY, on ? 'on' : 'off');
+  smartTitleSubs.forEach((fn) => fn());
+}
+
+export function subscribeSmartTitle(fn: Listener): () => void {
+  smartTitleSubs.add(fn);
+  return () => void smartTitleSubs.delete(fn);
 }

@@ -105,16 +105,29 @@ function mockIpc() {
   installFakeApi(invoke);
 }
 
+/** 「本机历史」默认折叠：这里的用例都要看历史行，挂载后自动点开一次 */
+function expandLocalHistory(r: ReturnType<typeof render>) {
+  void r
+    .findByTestId('cli-history-toggle')
+    .then((t) => {
+      if (t.getAttribute('aria-expanded') === 'false') fireEvent.click(t);
+    })
+    .catch(() => undefined);
+  return r;
+}
+
 const mount = (collapsed = false, onToggle: () => void = () => undefined) =>
-  render(
-    <HarnessTabsProvider>
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={onToggle}
-        onNewChat={() => undefined}
-        onForkRequest={onForkRequest}
-      />
-    </HarnessTabsProvider>,
+  expandLocalHistory(
+    render(
+      <HarnessTabsProvider>
+        <Sidebar
+          collapsed={collapsed}
+          onToggle={onToggle}
+          onNewChat={() => undefined}
+          onForkRequest={onForkRequest}
+        />
+      </HarnessTabsProvider>,
+    ),
   );
 
 /** 自管 collapsed，便于测「折叠态重命名先展开」（#163） */

@@ -5,9 +5,9 @@
  */
 import fs from 'node:fs';
 
-export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'];
+export const THEME_IDS = ['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset'];
 /** 「跟随系统」解析为 graphite（深）/ cream（浅），无独立令牌 */
-export const SYSTEM_ALIAS = { 'system-dark': 'graphite', 'system-light': 'cream' };
+export const SYSTEM_ALIAS = { 'system-dark': 'dark', 'system-light': 'light' };
 
 export const TEXT = 4.5; // WCAG AA 正文
 export const UI = 3; // WCAG AA 大字 / 非文字 UI
@@ -28,7 +28,7 @@ export function parseThemes(cssText) {
     blocks.push({ selector: m[1].trim(), vars });
   }
   const sels = (b) => b.selector.split(',').map((x) => x.trim());
-  // :root = 非颜色令牌 + 默认主题（sunset）的颜色；按出现顺序合并，与浏览器级联一致
+  // :root = 非颜色令牌 + 默认主题（light）的颜色；按出现顺序合并，与浏览器级联一致
   const root = Object.assign(
     {},
     ...blocks.filter((b) => sels(b).includes(':root')).map((b) => b.vars),

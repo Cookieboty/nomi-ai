@@ -1,5 +1,5 @@
 import { t, Icon, useLocale } from '@nomi-ai/ui';
-import { RefreshCw, X, SquarePen } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, X, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
@@ -26,6 +26,7 @@ import {
   type HistoryBackend,
   type HistorySession,
 } from '../../services/historyClient';
+import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
@@ -45,7 +46,6 @@ import { sidebarToggleLabels } from '../TitleBar';
 import { CollapsedRail } from './CollapsedRail';
 import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
-import { historyOrigin, routeInitial, routeTag } from './historyRoute';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import {
@@ -56,7 +56,7 @@ import {
   SearchIcon,
   type SearchEntry,
 } from './searchSupport';
-import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
+import { HistoryRow, rel, liveOf, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
 import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
@@ -365,7 +365,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       const meta = list.find((x) => x.id === id);
       if (!meta || meta.name === name) return;
       if (meta.tabId) void tabs.rename(meta.tabId, name).catch(() => undefined);
-      else ipc.conversationStore?.()?.updateMeta(id, { name });
+      else {
+        clearNomiAutoTitle(id);
+        ipc.conversationStore?.()?.updateMeta(id, { name });
+      }
       refresh();
     },
     [ipc, refresh],
@@ -483,6 +486,17 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setCardPick(b);
     setEndpointFilter(b);
     setView('by-endpoint');
+    // 切到另一个端：打开它正在运行（或排队）的会话；没有就打开列表里第一条；一条都没有就新建一个空对话
+    // （没安装的 CLI 只切筛选）。已经停在这个端的会话上就不动
+    if (navList.find((x) => x.id === highlightId)?.backend === b) return;
+    const items = navList.filter((x) => x.backend === b);
+    const busy = (x: (typeof items)[number]) => {
+      const st = x.tabId ? tabById.get(x.tabId)?.status : undefined;
+      return st === 'running' || st === 'queued';
+    };
+    const target = items.find(busy) ?? items[0];
+    if (target) void open(target.id);
+    else if (!cliMissing(b)) void createFor(b);
   };
 
   // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
@@ -534,6 +548,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [isDev, currentMeta?.id, currentMeta?.backend, list.length]);
 
   // ── 搜索：图标按钮 → 原位展开为搜索框；Mod+F 聚焦；Esc 清空 / 收起；150ms 防抖
+  // 「本机历史」默认折叠（点标题展开；不记住）
+  const [localHistoryOpen, setLocalHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -1059,72 +1075,46 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           {!searching && histVisible && (histItems.length > 0 || histScanning) && (
             <div className={styles.histSection} data-testid="cli-history">
               <div className={styles.histHead}>
-                <span className={styles.sectionTitle}>{t('ui.cli-monitor.local-history')}</span>
+                <button
+                  type="button"
+                  className={styles.histToggle}
+                  data-testid="cli-history-toggle"
+                  aria-expanded={localHistoryOpen}
+                  aria-label={
+                    localHistoryOpen
+                      ? t('ui.cli-monitor.collapse-local-history')
+                      : t('ui.cli-monitor.expand-local-history')
+                  }
+                  title={
+                    localHistoryOpen
+                      ? t('ui.cli-monitor.collapse-local-history')
+                      : t('ui.cli-monitor.expand-local-history')
+                  }
+                  onClick={() => setLocalHistoryOpen((v) => !v)}
+                >
+                  {localHistoryOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <span className={styles.sectionTitle}>{t('ui.cli-monitor.local-history')}</span>
+                </button>
               </div>
-              {histScanning && (
+              {localHistoryOpen && histScanning && (
                 <div className={styles.empty}>{t('ui.cli-monitor.scanning-history-sessions')}</div>
               )}
-              {histItems.map((h) => (
-                <div
-                  key={h.key}
-                  className={`${styles.row} ${styles.histRow}`}
-                  data-testid="history-session-row"
-                >
-                  <button
-                    type="button"
-                    className={styles.thread}
-                    data-testid="history-session-item"
-                    data-backend={h.backend}
-                    data-session-id={h.sessionId}
-                    data-cwd-missing={h.cwdMissing || undefined}
-                    aria-busy={openingKey === h.key}
-                    title={[
-                      h.title,
-                      h.cwd,
-                      ...historyOrigin(h),
-                      h.cwdMissing
-                        ? t('ui.cli-monitor.the-original-directory-no-longer-exists')
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join('\n')}
-                    onClick={() => void openHistory(h)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
+              {localHistoryOpen &&
+                histItems.map((h) => (
+                  <HistoryRow
+                    key={h.key}
+                    h={h}
+                    busy={openingKey === h.key}
+                    onOpen={() => void openHistory(h)}
+                    onMenu={(x, y) => {
                       setNewMenu(false);
                       setCtx(null);
-                      setHistMenu({ h, x: e.clientX, y: e.clientY });
+                      setHistMenu({ h, x, y });
                     }}
-                  >
-                    <span className={styles.dot} aria-hidden />
-                    <EndpointIcon backend={h.backend} size={14} />
-                    {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
-                    <span className={styles.histTitle}>
-                      <span className={styles.threadName}>{h.title}</span>
-                      {routeTag(h) && (
-                        <span
-                          className={styles.histTag}
-                          aria-label={routeTag(h)!}
-                          data-testid="history-route-tag"
-                        >
-                          {routeInitial(h)}
-                        </span>
-                      )}
-                    </span>
-                    <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
-                  </button>
-                  {/* 磁盘历史：没有重命名；删除 = 把 CLI 的会话记录移到废纸篓 */}
-                  <RowActions
-                    kind="hist"
                     onDelete={() => void deleteHistory(h)}
-                    onMore={(a) => {
-                      setCtx(null);
-                      setHistMenu({ h, x: a.right - 184, y: a.bottom + 2 });
-                    }}
                   />
-                </div>
-              ))}
-              {histScopeSupported && history.hasMore(histScope) && (
+                ))}
+              {localHistoryOpen && histScopeSupported && history.hasMore(histScope) && (
                 <button
                   type="button"
                   className={styles.histMore}

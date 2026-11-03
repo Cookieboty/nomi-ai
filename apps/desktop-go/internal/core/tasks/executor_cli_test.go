@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var errCliStopped = errors.New("stopped")
@@ -320,5 +321,51 @@ func TestCliExecutorReworkReusesTab(t *testing.T) {
 	defer f.mu.Unlock()
 	if f.sendTabs[1] != "tab_1" || !strings.Contains(f.sends[1], "把测试也补上") || f.n != 1 {
 		t.Fatal(f.sendTabs, f.sends)
+	}
+}
+
+// #234：隔离目录准备期间取消 / 撤销：准备完成后不建标签、不发提示词，拆掉没用上的 worktree
+func TestCliCancelDuringPrepare(t *testing.T) {
+	for _, cmd := range []string{"cancel", "revoke"} {
+		f := newFakeCli(map[string]bool{"claude": true})
+		entered := make(chan struct{})
+		unblock := make(chan struct{})
+		var relMu sync.Mutex
+		released := []string{}
+		exec := NewCliExecutor(CliDeps{
+			Harness: f,
+			PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+				close(entered)
+				<-unblock
+				return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
+			},
+			ReleaseIsolation: func(iso CliIsolation) {
+				relMu.Lock()
+				released = append(released, iso.WorktreePath)
+				relMu.Unlock()
+			},
+			GitChanged:  func(string) []string { return nil },
+			BuildPrompt: func(goal, _, _, _ string) string { return goal },
+			ParseReport: func(string) *CliReport { return nil },
+			DirOk:       func(d string) bool { return d == "/repo" },
+		})
+		n := 0
+		rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+			Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+			NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+		rt.Start()
+		id := cliTask(rt, 2)
+		rt.Command(id, Command{Type: "runNow"})
+		<-entered
+		rt.Command(id, Command{Type: cmd})
+		close(unblock)
+		waitFor(t, func() bool { relMu.Lock(); defer relMu.Unlock(); return len(released) == 1 })
+		time.Sleep(20 * time.Millisecond)
+		f.mu.Lock()
+		tabs, sends := len(f.tabs), len(f.sends)
+		f.mu.Unlock()
+		if tabs != 0 || sends != 0 {
+			t.Fatalf("%s: tabs=%d sends=%d after cancel during prepare", cmd, tabs, sends)
+		}
 	}
 }

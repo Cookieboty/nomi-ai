@@ -146,7 +146,6 @@
 .expand:focus-visible,
 .copyBtn:focus-visible,
 .cellBtn:focus-visible,
-.pageBtn:focus-visible,
 .opt:focus-visible,
 .headHint:focus-visible,
 .burstMark:focus-visible,
@@ -760,45 +759,6 @@
 }
 
 /* 分页 */
-.pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cd-space-1);
-  padding: var(--cd-space-2) var(--cd-space-3);
-  border-top: 1px solid var(--cd-color-border-subtle);
-}
-.pageBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--cd-control-h-xs);
-  height: var(--cd-control-h-xs);
-  padding: 0 var(--cd-space-1);
-  border: 1px solid transparent;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  font: inherit;
-  font-size: var(--cd-font-size-xs);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-.pageBtn:hover:not(:disabled) {
-  background: var(--cd-control-hover-bg);
-  color: var(--cd-color-text);
-}
-.pageBtn[aria-current='page'] {
-  border-color: var(--cd-panel-border);
-  background: var(--cd-settings-card-bg);
-  color: var(--cd-color-text);
-  font-weight: var(--cd-font-weight-medium);
-}
-.pageBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 /* ------------------------------ 并排对比 ------------------------------ */
 .compareTable thead th {
   white-space: normal;

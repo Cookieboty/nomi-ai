@@ -80,6 +80,8 @@ type CliReport struct {
 type CliDeps struct {
 	Harness          CliHarness
 	PrepareIsolation func(sourceCwd, key string) (CliIsolation, error)
+	// ReleaseIsolation：准备好但没用上（准备期间被取消）的 worktree 拆掉；可为空
+	ReleaseIsolation func(iso CliIsolation)
 	GitChanged       func(cwd string) []string // nil = 不在 git 仓库里
 	BuildPrompt      func(goal, context, doneWhen, outOfScope string) string
 	ParseReport      func(text string) *CliReport
@@ -101,9 +103,33 @@ type cliExecutor struct {
 	d    CliDeps
 	mu   sync.Mutex
 	runs map[string]*cliRun
+	// preparing：还在准备隔离目录、尚未建标签的执行；Stop 在这里留下取消标记（#234）
+	preparing map[string]*cliPrep
 }
 
-func NewCliExecutor(d CliDeps) Executor { return &cliExecutor{d: d, runs: map[string]*cliRun{}} }
+type cliPrep struct {
+	gen       int
+	cancelled bool
+}
+
+func NewCliExecutor(d CliDeps) Executor {
+	return &cliExecutor{d: d, runs: map[string]*cliRun{}, preparing: map[string]*cliPrep{}}
+}
+
+// prepCancelled：准备是否已被取消 / 撤销 / 换代
+func (e *cliExecutor) prepCancelled(id string, p *cliPrep) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return p.cancelled || e.preparing[id] != p
+}
+
+func (e *cliExecutor) endPrep(id string, p *cliPrep) {
+	e.mu.Lock()
+	if e.preparing[id] == p {
+		delete(e.preparing, id)
+	}
+	e.mu.Unlock()
+}
 
 var classRank = map[string]int{"external": 1, "never": 2, "credential": 3}
 
@@ -243,10 +269,16 @@ func lastRunes(s string, n int) string {
 }
 
 func (e *cliExecutor) Start(ctx AttemptContext) {
-	go e.start(ctx)
+	// 在启动 goroutine 前登记准备态：Stop 可能在 goroutine 跑起来之前就到
+	p := &cliPrep{gen: ctx.Attempt.Gen}
+	e.mu.Lock()
+	e.preparing[ctx.Task.ID] = p
+	e.mu.Unlock()
+	go e.start(ctx, p)
 }
 
-func (e *cliExecutor) start(ctx AttemptContext) {
+func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
+	defer e.endPrep(ctx.Task.ID, p)
 	t, a, rep, prev := ctx.Task, ctx.Attempt, ctx.Report, ctx.Previous
 	if t.Executor.Kind != "cli" || t.Executor.Cli == nil || t.Executor.Cwd == nil {
 		return
@@ -269,7 +301,16 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 			got = CliIsolation{Kind: "shared-cwd", Cwd: *ex.Cwd, SourceCwd: *ex.Cwd}
 		}
 		if err != nil {
-			rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
+			if !e.prepCancelled(t.ID, p) {
+				rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
+			}
+			return
+		}
+		// 准备期间被取消 / 撤销 / 换代：不建标签、不发提示词，拆掉没用上的 worktree
+		if e.prepCancelled(t.ID, p) {
+			if got.Kind == "worktree" && e.d.ReleaseIsolation != nil {
+				e.d.ReleaseIsolation(got)
+			}
 			return
 		}
 		iso = &got
@@ -307,6 +348,11 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 	tainted := k == "event"
 	run := &cliRun{gen: a.Gen, tabID: tabID, ctx: ctx, pending: map[string]bool{}}
 	e.mu.Lock()
+	if p.cancelled || e.preparing[t.ID] != p {
+		e.mu.Unlock()
+		return
+	}
+	delete(e.preparing, t.ID)
 	e.runs[t.ID] = run
 	e.mu.Unlock()
 	off := h.OnEvent(func(ev CliTabEvent) {
@@ -332,6 +378,18 @@ func (e *cliExecutor) start(ctx AttemptContext) {
 	var before []string
 	if !reused {
 		before = e.d.GitChanged(iso.Cwd)
+	}
+	e.mu.Lock()
+	stoppedEarly := run.stopped
+	e.mu.Unlock()
+	if stoppedEarly {
+		off()
+		e.mu.Lock()
+		if e.runs[t.ID] == run {
+			delete(e.runs, t.ID)
+		}
+		e.mu.Unlock()
+		return
 	}
 	r, err := h.SendTab(tabID, e.promptFor(ctx, reused))
 	off()
@@ -427,6 +485,9 @@ func (e *cliExecutor) Resume(taskID string, gen int, answer Answer) {
 
 func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
 	e.mu.Lock()
+	if p := e.preparing[taskID]; p != nil && p.gen == gen {
+		p.cancelled = true
+	}
 	run := e.runs[taskID]
 	if run == nil || run.gen != gen {
 		e.mu.Unlock()

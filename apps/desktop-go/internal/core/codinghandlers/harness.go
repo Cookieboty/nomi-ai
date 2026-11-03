@@ -124,6 +124,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.tabSeed", func(a in) any { return h().SeedTabMessages(a.str("id"), a.list("messages")) })
 	call("harness.tabClose", func(a in) any { return h().CloseTab(a.str("id")) })
 	call("harness.tabRename", func(a in) any { return h().RenameTab(a.str("id"), a.any("title")) })
+	call("harness.tabApplyAutoTitle", func(a in) any { return h().ApplyAutoTitle(a.str("id"), a.any("title")) })
 	call("harness.tabActivate", func(a in) any { return h().SetActiveTab(a.str("id")) })
 	call("harness.tabBackend", func(a in) any { return h().SetTabBackend(a.str("id"), a.any("backend")) })
 	call("harness.tabCwd", func(a in) any { return h().SetTabCwd(a.str("id"), a.str("cwd"), a.is("carry")) })

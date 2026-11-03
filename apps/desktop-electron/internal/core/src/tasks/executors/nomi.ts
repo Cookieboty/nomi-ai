@@ -129,12 +129,16 @@ export interface NomiExecutorDeps {
   }): AsyncIterable<ChatChunk>;
   /** PermissionBroker.registerBackground */
   registerBackground(signal: AbortSignal, run: BackgroundRun): () => void;
+  /** 任务的当前状态（运行中收窄授权立即生效，#232）；缺省时按启动时的快照 */
+  liveTask?(taskId: string): Task | null;
   /** 这次执行的副作用日志（TaskService.externalJournal） */
   externalJournal?(taskId: string, attemptId: string): ExternalJournal;
   /** Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集） */
   toolNames?(): readonly string[];
   /** 有没有可用的模型（没有时准备失败：config_changed） */
   ready(): boolean;
+  /** 「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照，任务详情据此显示这次用的模型） */
+  route?(): { providerId?: string; model?: string };
   /** 按模型价格算费用；不知道价格时 undefined（不编造费用，§9） */
   costOf?(model: string | undefined, usage: { input: number; output: number }): number | undefined;
   /** 这次执行要处理的事件（事件触发时；TaskService.eventBatch） */
@@ -165,6 +169,8 @@ interface Run {
   active: boolean;
   /** 预算批准时上一轮还没退出：退出后再重开 */
   relaunch: boolean;
+  /** 已取消 / 撤销：不再重开 */
+  stopped: boolean;
 }
 
 const short = (s: string, n = 400) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -247,12 +253,33 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     const { task, attempt, report } = run.ctx;
     const tools = toolsForTask(task, d.toolNames?.() ?? []);
     const elevated = task.executor.kind === 'nomi' && task.executor.toolset === 'conversation';
-    const level = task.grant.level as GrantLevel;
+    // 每次读都取任务当前的授权：收窄（等级、连接、文件夹）立即生效；任务已换代 / 撤销 / 不在跑时一律不放行
+    const live = () => {
+      if (!d.liveTask) return task.grant;
+      const cur = d.liveTask(task.id);
+      if (
+        !cur ||
+        cur.gen !== run.gen ||
+        cur.grant.revokedAt !== undefined ||
+        (cur.status !== 'running' && cur.status !== 'waiting_user')
+      )
+        return null;
+      return cur.grant;
+    };
     const unregister = d.registerBackground(run.ctrl.signal, {
-      level,
-      connections: elevated
-        ? [...task.grant.connections, ...mcpGrantsFor(tools)]
-        : task.grant.connections,
+      get level() {
+        return (live()?.level ?? 0) as GrantLevel;
+      },
+      get connections() {
+        const g = live();
+        if (!g) return [];
+        return elevated ? [...g.connections, ...mcpGrantsFor(tools)] : g.connections;
+      },
+      // 普通任务：文件工具只认任务授权的文件夹（#231）；派给 Nomi 的高级权限按工作区（§7.4）。
+      // 必须是对象自身的 getter（展开 {...} 会把 getter 求值成快照）
+      get paths() {
+        return elevated ? undefined : (live()?.paths ?? []);
+      },
       ...(elevated ? { trusted: true } : {}),
       ...(d.externalJournal ? { external: d.externalJournal(task.id, attempt.id) } : {}),
       // 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
@@ -272,7 +299,8 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
     void consume(run, report, tools).finally(() => {
       unregister();
       run.active = false;
-      if (run.relaunch) {
+      // 旧流退出时再核对：已取消 / 撤销或已被新一轮替换的，不把待恢复变成新的执行（#235）
+      if (run.relaunch && !run.stopped && runs.get(task.id) === run) {
         run.relaunch = false;
         run.ctrl = new AbortController();
         launch(run);
@@ -379,10 +407,17 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
   return {
     prepare(task: Task) {
       if (!d.ready()) return { error: { code: 'config_changed', message: configText.noModel() } };
-      return { grantVersion: task.grant.version };
+      // Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
+      // 实际用到的供应商与模型记进快照
+      return { grantVersion: task.grant.version, ...(d.route?.() ?? {}) };
     },
     start(ctx) {
-      runs.get(ctx.task.id)?.ctrl.abort();
+      const prev = runs.get(ctx.task.id);
+      if (prev) {
+        prev.stopped = true;
+        prev.relaunch = false;
+        prev.ctrl.abort();
+      }
       const run: Run = {
         ctrl: new AbortController(),
         gen: ctx.attempt.gen,
@@ -393,6 +428,7 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
         paused: false,
         active: false,
         relaunch: false,
+        stopped: false,
       };
       runs.set(ctx.task.id, run);
       launch(run);
@@ -420,7 +456,12 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
       const run = runs.get(taskId);
       if (!run || run.gen !== gen) return;
       if (reason === 'pause') run.paused = true;
-      else runs.delete(taskId);
+      else {
+        runs.delete(taskId);
+        run.stopped = true;
+        run.paused = false;
+        run.relaunch = false;
+      }
       for (const w of run.waiting.values()) w(false);
       run.waiting.clear();
       run.ctrl.abort();

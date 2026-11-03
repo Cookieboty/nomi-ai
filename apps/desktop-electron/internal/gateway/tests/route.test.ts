@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig, RuntimeProvider } from '../src/config';
 import { checkUpstream } from '../src/net/upstreamGuard';
 import { pickWire, wiresFor, WIRE_DOWN_TTL_MS } from '../src/route/native';
-import { mapModel, preferredWire, resolveCandidates, splitRef } from '../src/route/resolve';
+import {
+  mapModel,
+  preferredWire,
+  resolveCandidates,
+  sameModelKey,
+  splitRef,
+} from '../src/route/resolve';
 import { upstreamUrl } from '../src/upstream';
 
 /** 只要映射到的模型名 */
@@ -89,7 +95,7 @@ describe('resolve (§6.2 / §7.2)', () => {
     expect(mapBuiltinModel('claude', models, '')).toBe('a/x');
     expect(mapBuiltinModel('nomi', models, 'whatever')).toBeNull();
   });
-  it('aliases still resolve, bare names prefer the home provider, and fallbacks are appended', () => {
+  it('aliases still resolve and bare names prefer the home provider', () => {
     const a = p({
       id: 'a',
       aliases: ['old-a'],
@@ -97,7 +103,6 @@ describe('resolve (§6.2 / §7.2)', () => {
         { id: 'x', enabled: true },
         { id: 'dup', enabled: true },
       ],
-      fallback: ['b/big'],
     });
     const b = p({
       id: 'b',
@@ -107,28 +112,93 @@ describe('resolve (§6.2 / §7.2)', () => {
       ],
     });
     const r = resolveCandidates(cfg([a, b]), 'claude', 'old-a/x', 'messages');
-    expect(r.ok && r.candidates.map((c) => c.publicModel)).toEqual(['a/x', 'b/big']);
+    expect(r.ok && r.candidates.map((c) => c.publicModel)).toEqual(['a/x']);
     const bare = resolveCandidates(cfg([a, b]), 'claude', 'dup', 'messages');
     expect(bare.ok && bare.candidates[0]!.provider.id).toBe('a');
   });
-  it('preferredWire lists every upstream that may receive the request, fallbacks included', () => {
+  it('failover: the same model on other providers, in list order; never a different model (§7.2)', () => {
+    const a = p({ id: 'a', models: [{ id: 'claude-opus-4-8', enabled: true }] });
+    // 中转常带供应商前缀、日期后缀：仍是同一个模型
+    const b = p({ id: 'b', models: [{ id: 'anthropic/claude-opus-4-8', enabled: true }] });
+    const off = p({
+      id: 'off',
+      enabled: false,
+      models: [{ id: 'claude-opus-4-8', enabled: true }],
+    });
+    const unchecked = p({ id: 'unchecked', models: [{ id: 'claude-opus-4-8', enabled: false }] });
+    const other = p({ id: 'other', models: [{ id: 'claude-haiku-4-5', enabled: true }] });
+    const c = p({ id: 'c', models: [{ id: 'claude-opus-4-8-20260101', enabled: true }] });
+    const conf = cfg([a, off, unchecked, other, c, b]);
+    const r = resolveCandidates(conf, 'claude', 'a/claude-opus-4-8', 'messages');
+    expect(r.ok && r.candidates.map((x) => x.publicModel)).toEqual([
+      'a/claude-opus-4-8',
+      'c/claude-opus-4-8-20260101',
+      'b/anthropic/claude-opus-4-8',
+    ]);
+    expect(sameModelKey('OpenAI/GPT-5:free')).toBe('gpt-5');
+  });
+  it('a disabled provider gives no candidates of its own; requests go to the next provider with the same model', () => {
     const a = p({
       id: 'a',
+      enabled: false,
+      aliases: ['old-a'],
+      models: [{ id: 'm', enabled: true }],
+    });
+    const b = p({ id: 'b', models: [{ id: 'm', enabled: true }] });
+    const r = resolveCandidates(cfg([a, b]), 'claude', 'old-a/m', 'chat');
+    expect(r.ok && r.candidates.map((x) => x.publicModel)).toEqual(['b/m']);
+    // 客户端分配指向停用的供应商：同样回退
+    const conf = cfg([a, b]);
+    conf.clients.claude = { token: 't', models: { main: 'a/m' } };
+    const mapped = resolveCandidates(conf, 'claude', '', 'chat');
+    expect(mapped.ok && mapped.candidates.map((x) => x.publicModel)).toEqual(['b/m']);
+    // 没有别家提供：说清楚是停用了
+    const none = resolveCandidates(cfg([a]), 'claude', 'a/m', 'chat');
+    expect(none).toMatchObject({ ok: false, status: 400 });
+    expect(!none.ok && none.message).toContain('已停用');
+  });
+  it('failover from a local provider stays local; a cloud provider may fail over anywhere', () => {
+    const local = p({
+      id: 'local',
       urls: { chat: 'http://127.0.0.1:11434/v1' },
+      models: [{ id: 'qwen3', enabled: true }],
+    });
+    const lan = p({
+      id: 'lan',
+      urls: { chat: 'http://192.168.1.5:1234/v1' },
+      models: [{ id: 'qwen3', enabled: true }],
+    });
+    const cloud = p({ id: 'cloud', models: [{ id: 'qwen3', enabled: true }] });
+    const conf = cfg([local, cloud, lan]);
+    const fromLocal = resolveCandidates(conf, 'claude', 'local/qwen3', 'chat');
+    expect(fromLocal.ok && fromLocal.candidates.map((x) => x.provider.id)).toEqual([
+      'local',
+      'lan',
+    ]);
+    const fromCloud = resolveCandidates(conf, 'claude', 'cloud/qwen3', 'chat');
+    expect(fromCloud.ok && fromCloud.candidates.map((x) => x.provider.id)).toEqual([
+      'cloud',
+      'local',
+      'lan',
+    ]);
+  });
+  it('preferredWire lists every upstream that may receive the request, failover included', () => {
+    const a = p({
+      id: 'a',
+      urls: { chat: 'https://a.example/v1' },
       keys: [
         { id: 'k1', value: 'v', enabled: true },
         { id: 'k2', value: 'w', enabled: true },
       ],
       models: [{ id: 'x', enabled: true }],
-      fallback: ['b/big'],
     });
-    const b = p({ id: 'b', name: 'B', models: [{ id: 'big', enabled: true }] });
+    const b = p({ id: 'b', name: 'B', models: [{ id: 'x', enabled: true }] });
     const r = preferredWire(cfg([a, b]), 'nomi', 'a/x');
     expect(r).toMatchObject({ wire: 'chat', publicModel: 'a/x' });
     expect(r!.upstreams).toEqual([
-      { providerId: 'a', name: 'Relay', url: 'http://127.0.0.1:11434/v1' },
+      { providerId: 'a', name: 'Relay', url: 'https://a.example/v1' },
       { providerId: 'b', name: 'B', url: 'https://r/v1' },
-      // B 的 Messages 地址：运行时可能换协议过去（#100）
+      // B 的其它地址：运行时可能换协议过去（#100）
       { providerId: 'b', name: 'B', url: 'https://r' },
     ]);
   });

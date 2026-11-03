@@ -442,6 +442,21 @@
   align-items: center;
   justify-content: space-between;
 }
+.histToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.histToggle:hover {
+  color: var(--cd-color-text);
+}
 .histRow {
   content-visibility: auto;
   contain-intrinsic-size: auto 36px;

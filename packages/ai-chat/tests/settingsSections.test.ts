@@ -21,7 +21,7 @@ describe('设置分区：合并后的菜单', () => {
       'ui.chat-settings.general',
       'ui.chat-settings.nomi-section',
       'ui.chat-settings.models-and-providers',
-      'ui.chat-settings.usage-and-quality',
+      'ui.chat-settings.usage-and-analytics',
       'ui.providers-schedule.coding-agents',
       'ui.chat-settings.knowledge-memory',
       'ui.foundation.extensions-mcp',

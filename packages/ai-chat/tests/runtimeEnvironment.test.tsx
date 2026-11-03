@@ -3,7 +3,13 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { RuntimeEnvironment } from '../src/components/ProvidersPage/RuntimeEnvironment';
+import {
+  RuntimeEnvironment as Section,
+  useCliEnvironment,
+} from '../src/components/ProvidersPage/RuntimeEnvironment';
+
+/** 页面里由 ProvidersPage 调 useCliEnvironment 再传进来；测试里同样接起来 */
+const RuntimeEnvironment: React.FC = () => <Section {...useCliEnvironment()} />;
 import type { CliEnvironment } from '../src/services/cliUpdateClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';

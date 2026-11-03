@@ -148,6 +148,25 @@ describe('undo journal + app trash', () => {
 });
 
 describe('audit log', () => {
+  it('keeps 30 days: older entries are not listed, older monthly files are rotated away; offset pages', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-'));
+    const DAY = 24 * 60 * 60 * 1000;
+    const now = Date.UTC(2026, 10, 3, 12);
+    const log = new AuditLog(dir, () => now);
+    log.append({ tool: 'old-file', args: {}, decision: 'auto', result: 'ok', ts: now - 90 * DAY });
+    log.append({ tool: 'old', args: {}, decision: 'auto', result: 'ok', ts: now - 31 * DAY });
+    // 只追加：按时间顺序写入
+    for (let i = 4; i >= 0; i--)
+      log.append({ tool: `t${i}`, args: {}, decision: 'auto', result: 'ok', ts: now - i * DAY });
+    expect(log.list().map((e) => e.tool)).toEqual(['t0', 't1', 't2', 't3', 't4']);
+    expect(log.list(2, 0).map((e) => e.tool)).toEqual(['t0', 't1']);
+    expect(log.list(2, 2).map((e) => e.tool)).toEqual(['t2', 't3']);
+    expect(log.list(2, 4).map((e) => e.tool)).toEqual(['t4']);
+    log.rotate();
+    expect(fs.readdirSync(dir).sort()).toEqual(['desktop-2026-10.jsonl', 'desktop-2026-11.jsonl']);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it('appends JSONL, lists newest first, and never stores text content', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-'));
     const log = new AuditLog(dir);

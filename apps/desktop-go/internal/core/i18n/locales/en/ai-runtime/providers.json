@@ -19,7 +19,7 @@
   "ai-runtime.providers.preset-xai": "xAI Grok",
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow",
-  "ai-runtime.providers.preset-amux": "Amux",
+  "ai-runtime.providers.preset-amux": "Amux AI",
   "ai-runtime.providers.preset-ollama": "Ollama (local)",
   "ai-runtime.providers.preset-lmstudio": "LM Studio (local)",
   "ai-runtime.providers.hint-custom": "Fill in the request URL and API key manually",

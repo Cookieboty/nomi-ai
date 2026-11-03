@@ -47,7 +47,11 @@ export function redactArgs(args: unknown): Record<string, unknown> {
   return out;
 }
 
-/** 本地审计日志：userData/desktop/audit/desktop-YYYY-MM.jsonl，只追加；保留 6 个月 */
+/** 审计日志保留天数：更早的条目不再列出，整月都更早的文件在启动时删除 */
+export const AUDIT_RETENTION_DAYS = 30;
+const RETENTION_MS = AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+/** 本地审计日志：userData/desktop/audit/desktop-YYYY-MM.jsonl，只追加；保留 30 天 */
 export class AuditLog {
   constructor(
     private readonly dir: string,
@@ -67,14 +71,17 @@ export class AuditLog {
     return entry;
   }
 
-  list(limit = 200): AuditEntry[] {
+  /** 最新在前；跳过 30 天以前的条目；offset 用于分页（跳过前 offset 条） */
+  list(limit = 200, offset = 0): AuditEntry[] {
     if (!fs.existsSync(this.dir)) return [];
+    const cutoff = this.now() - RETENTION_MS;
     const files = fs
       .readdirSync(this.dir)
       .filter((f) => /^desktop-\d{4}-\d{2}\.jsonl$/.test(f))
       .sort()
       .reverse();
     const out: AuditEntry[] = [];
+    let skip = Math.max(0, offset);
     for (const f of files) {
       const lines = fs
         .readFileSync(path.join(this.dir, f), 'utf8')
@@ -82,11 +89,18 @@ export class AuditLog {
         .filter(Boolean)
         .reverse();
       for (const l of lines) {
+        let e: AuditEntry;
         try {
-          out.push(JSON.parse(l) as AuditEntry);
+          e = JSON.parse(l) as AuditEntry;
         } catch {
-          /* 损坏的行跳过 */
+          continue; // 损坏的行跳过
         }
+        if (!(e.ts >= cutoff)) continue;
+        if (skip > 0) {
+          skip--;
+          continue;
+        }
+        out.push(e);
         if (out.length >= limit) return out;
       }
     }
@@ -97,12 +111,10 @@ export class AuditLog {
     fs.rmSync(this.dir, { recursive: true, force: true });
   }
 
-  /** 删除 6 个月以前的文件 */
+  /** 删除整月都在保留期以前的文件（保留期所在月份的文件留着，里面更早的条目由 list 跳过） */
   rotate(): void {
     if (!fs.existsSync(this.dir)) return;
-    const cutoff = new Date(this.now());
-    cutoff.setMonth(cutoff.getMonth() - 6);
-    const keep = path.basename(this.fileFor(cutoff.getTime()));
+    const keep = path.basename(this.fileFor(this.now() - RETENTION_MS));
     for (const f of fs.readdirSync(this.dir)) {
       if (/^desktop-\d{4}-\d{2}\.jsonl$/.test(f) && f < keep)
         fs.rmSync(path.join(this.dir, f), { force: true });

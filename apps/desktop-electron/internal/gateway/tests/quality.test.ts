@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig } from '../src/config';
 import { isBurst } from '../src/quality';
-import { createGateway, type GatewayHooks, type UsageEvent } from '../src/server';
+import { createGateway, type GatewayHooks, type RetryEvent, type UsageEvent } from '../src/server';
 
 type Script = (key: string, res: http.ServerResponse, n: number) => void;
 
@@ -258,9 +258,11 @@ describe('model quality · gateway capture', () => {
     await r.text();
     const e = await t.one();
     expect(e.outcome).toBe(outcome);
+    // 401 不重连直接换 Key；429 / 500 每个 Key 先重连 3 次（§11.1）
+    const per = status === 401 ? 1 : 4;
     expect(e.attemptsDetail.map((a) => [a.keyId, a.outcome, a.status])).toEqual([
-      ['k1', outcome, status],
-      ['k2', outcome, status],
+      ...Array.from({ length: per }, () => ['k1', outcome, status]),
+      ...Array.from({ length: per }, () => ['k2', outcome, status]),
     ]);
   });
 
@@ -272,13 +274,12 @@ describe('model quality · gateway capture', () => {
     await (await t.chat()).text();
     const e = await t.one();
     expect(e.outcome).toBe('pre-commit-error');
-    expect(e.attemptsDetail.map((a) => a.outcome)).toEqual([
-      'pre-commit-error',
-      'pre-commit-error',
-    ]);
+    expect(e.attemptsDetail.map((a) => a.outcome)).toEqual(
+      Array.from({ length: 8 }, () => 'pre-commit-error'),
+    );
   });
 
-  it('fallback: key 1 fails, key 2 succeeds → ok with two attempts', async () => {
+  it('fallback: key 1 keeps failing (retried 3 times), key 2 succeeds → ok', async () => {
     const t = await setup((key, res) => {
       if (key === 'k1') {
         res.writeHead(503, { 'content-type': 'application/json' });
@@ -290,11 +291,39 @@ describe('model quality · gateway capture', () => {
     });
     await (await t.chat()).text();
     const e = await t.one();
-    expect(e).toMatchObject({ outcome: 'ok', keyId: 'k2', attempts: 2 });
+    expect(e).toMatchObject({ outcome: 'ok', keyId: 'k2', attempts: 5 });
     expect(e.attemptsDetail.map((a) => [a.keyId, a.outcome])).toEqual([
-      ['k1', 'upstream-5xx'],
+      ...Array.from({ length: 4 }, () => ['k1', 'upstream-5xx']),
       ['k2', 'ok'],
     ]);
+  });
+
+  it('onRetry: each same-key reconnect is announced before the backoff wait', async () => {
+    const retries: RetryEvent[] = [];
+    const t = await setup(
+      (key, res) => {
+        if (key === 'k1') {
+          res.writeHead(503, { 'content-type': 'application/json' });
+          res.end('{"error":{"message":"busy"}}');
+          return;
+        }
+        sseHead(res);
+        res.end(okStream);
+      },
+      { onRetry: (e) => retries.push(e) },
+    );
+    await (await t.chat()).text();
+    await t.one();
+    // k1 失败 4 次：前 3 次之后在同一个 Key 上重连（各通知一次），第 4 次换到 k2（同一家，不算换供应商）
+    expect(retries).toHaveLength(3);
+    expect(retries[0]).toMatchObject({
+      client: 'codex',
+      provider: 'ZP',
+      previous: 'ZP',
+      status: 503,
+      attempt: 2,
+    });
+    expect(retries.every((r) => typeof r.waitMs === 'number')).toBe(true);
   });
 
   it('first-byte timeout → first-byte-timeout', async () => {

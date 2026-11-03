@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  balanceCutFence,
   DelegateCard,
   delegateView,
   plainSummary,
@@ -362,5 +363,79 @@ describe('plainSummary / 汇报 untrusted 边界', () => {
     expect(r.getByTestId('delegate-files').textContent).toContain('a.ts');
     expect(r.getByTestId('delegate-card').textContent).toContain('我改了 a.ts');
     expect(r.getByTestId('delegate-card').textContent).not.toContain('<cli-output>');
+  });
+});
+
+describe('编程助手改过的文件：补齐并能预览', () => {
+  const mount = (c: ToolCall) =>
+    render(
+      <HarnessTabsProvider>
+        <DelegateCard call={c} />
+      </HarnessTabsProvider>,
+    );
+  const codexPatch = (path: string, diff: string) => ({
+    type: 'tool',
+    name: 'apply_patch',
+    status: 'done',
+    detail: 'p1',
+    input: JSON.stringify({ changes: [{ path, kind: 'add', diff }] }),
+    at: 1,
+  });
+
+  it('汇报里没列、git 也没核对到：从子任务对话的写入补上；点开在抽屉里先渲染 .md', async () => {
+    const ipc = mockIpc([]);
+    const d1 = tab({ id: 'd1', backend: 'codex', status: 'idle', cwd: '/w/.nomi-delegate/x' });
+    ipc.invoke.mockImplementation(async (ch: string, i?: Record<string, unknown>) => {
+      if (ch === 'harness.tabs')
+        return {
+          tabs: [{ ...d1, id: 'main', delegation: undefined, cwd: '/w' }, d1],
+          activeTabId: 'main',
+          running: 0,
+          queued: 0,
+        };
+      if (ch === 'harness.tabMessages')
+        return [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: '写好了报告',
+            timestamp: 2,
+            // 用绝对路径写回原工作区（worktree 外，git 核对不到）
+            trace: [codexPatch('/w/report.md', '@@ -0,0 +1,2 @@\n+# 标题\n+正文')],
+          },
+        ];
+      if (ch === 'harness.workspaceRead') {
+        // worktree 里没有，原工作区里有
+        if (i?.cwd === '/w/.nomi-delegate/x') return { ok: false, code: 'outside' };
+        return { ok: true, content: '# 标题\n\n正文' };
+      }
+      return true;
+    });
+    const r = mount(
+      call({
+        status: 'done',
+        endedAt: Date.now(),
+        output: done({ report: { done: '写好了', changedFiles: [] }, filesVerified: true }),
+      }),
+    );
+    const btn = await r.findByTestId('delegate-file');
+    expect(btn.textContent).toBe('report.md');
+    fireEvent.click(btn);
+    const drawer = await r.findByTestId('delegate-file-drawer');
+    const body = await within(drawer).findByTestId('preview-render-body');
+    // 渲染成标题，而不是原样的「# 标题」
+    await waitFor(() => expect(body.querySelector('h1, h2')?.textContent).toBe('标题'));
+    expect(ipc.invoke).toHaveBeenCalledWith('harness.workspaceRead', {
+      cwd: '/w',
+      path: 'report.md',
+    });
+  });
+
+  it('截断点落在代码块中间：补回开头的围栏，后面的正文不被当成代码', () => {
+    expect(balanceCutFence('…const a = 1;\n```\n后面是正文')).toBe(
+      '…\n\n```\nconst a = 1;\n```\n后面是正文',
+    );
+    expect(balanceCutFence('…正文\n```ts\nx\n```')).toBe('…正文\n```ts\nx\n```');
+    expect(balanceCutFence('没截断\n```')).toBe('没截断\n```');
   });
 });

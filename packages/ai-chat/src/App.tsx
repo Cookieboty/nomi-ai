@@ -2,7 +2,7 @@ import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { t } from '@nomi-ai/ui';
 import { Button, ModalHostContext, type ModalHost } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AppEntries } from './components/AppEntries';
 import { useAssetLibraryHost } from './components/AssetLibrary';
@@ -31,6 +31,7 @@ import { OnboardingHost } from './components/Onboarding';
 import { OPEN_MODELS_EVENT } from './components/Onboarding/client';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
+import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import {
   ChangesUiProvider,
@@ -66,13 +67,16 @@ import {
   useHarnessTabsCore,
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useNomiWorkspace } from './hooks/useNomiWorkspace';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
+import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useUserProfile } from './hooks/useUserProfile';
 import { setProviderEndpoint } from './services/chatPrefs';
+import { smartTitleOnFirstSend } from './services/cliSmartTitle';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import {
@@ -134,7 +138,8 @@ const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, selectBusyHere(s
 const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
   props,
 ) => {
-  const live = useAiChatSelector(selectNomiLive, sameLive);
+  // 网关在重连 / 换供应商时，等待态显示原因
+  const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
   // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
   useGatewayState();
   const current = nomiModelLabel();
@@ -341,6 +346,8 @@ const AiChatContent: React.FC = () => {
     () => ipcClient.conversationStore?.(),
     () => actions.loadChatHistory(),
   );
+  // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份）
+  const drafts = useSessionComposerDrafts();
   // 只有当前会话在回复时才排队：别的会话在回复不影响这里直接发送
   const nomiQueue = useSendQueue(
     busyHere,
@@ -742,6 +749,8 @@ const AiChatContent: React.FC = () => {
   const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
   const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
   const hasCliActive = !!cliActive;
+  // First CLI send (no messages yet): arm smart title for third-party gateway models.
+  const cliFresh = hasCliActive && tabs.messages.length === 0;
   const inputModeProps = useMemo(
     () =>
       hasCliActive
@@ -756,6 +765,7 @@ const AiChatContent: React.FC = () => {
                 source: im.source,
               }));
               void tabSend(text, imgs);
+              if (cliActive && cliFresh) void smartTitleOnFirstSend(cliActive, text);
             },
             busyOverride: cliBusy,
             imageCapability: cliImages.capability,
@@ -767,7 +777,17 @@ const AiChatContent: React.FC = () => {
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [hasCliActive, cliBusy, cliPlaceholder, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
+    [
+      hasCliActive,
+      cliActive,
+      cliFresh,
+      cliBusy,
+      cliPlaceholder,
+      cliImages,
+      tabSend,
+      tabCancel,
+      nomiQueue.enqueue,
+    ],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
@@ -999,6 +1019,8 @@ const AiChatContent: React.FC = () => {
                 }
                 slash={slash.bridge}
                 fill={composerFill}
+                draftStore={drafts.draftStore}
+                draftKey={drafts.draftKey}
                 onPluginsClick={openPlugins}
                 onProvidersClick={openProviders}
                 onSettingsClick={onInputSettings}
@@ -1164,6 +1186,7 @@ function App() {
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />
         <ReleaseNotesHost />
+        <ProviderLinkHost />
       </AiChatContextProvider>
     </ErrorBoundary>
   );

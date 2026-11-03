@@ -1,12 +1,6 @@
 /** 模型质量面板共用的小部件与数据加载 */
-import { ErrorState, Icon, Select, Skeleton, t } from '@nomi-ai/ui';
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
-  type LucideIcon,
-} from 'lucide-react';
+import { ErrorState, Icon, Skeleton, t } from '@nomi-ai/ui';
+import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { qualityClient, type QualityLayer } from '../../services/qualityClient';
@@ -174,91 +168,5 @@ export function useCliHasData(
   return need && seen?.key === key && seen.has;
 }
 
-/** 分页：显示第 x–y 条，共 N 条 · 上一页 · 页码 · 下一页 · 每页 */
-export const Pager: React.FC<{
-  page: number;
-  pageSize: number;
-  total: number;
-  onPage: (p: number) => void;
-  sizes?: number[];
-  onPageSize?: (n: number) => void;
-  /** rows：对比表的顶层行（项）；requests：请求明细（条） */
-  unit?: 'rows' | 'requests';
-}> = ({ page, pageSize, total, onPage, sizes, onPageSize, unit = 'requests' }) => {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const from = total ? page * pageSize + 1 : 0;
-  const to = Math.min(total, (page + 1) * pageSize);
-  // 页码最多 7 个：首尾 + 当前附近
-  const nums: Array<number | null> = [];
-  for (let i = 0; i < pages; i++) {
-    if (i === 0 || i === pages - 1 || Math.abs(i - page) <= 1) nums.push(i);
-    else if (nums[nums.length - 1] !== null) nums.push(null);
-  }
-  return (
-    <nav
-      className={styles.pager}
-      aria-label={t('ui.model-quality.pagination')}
-      data-testid="quality-pager"
-    >
-      <span className={styles.meta} data-testid="quality-page">
-        {unit === 'rows'
-          ? t('ui.model-quality.showing-of-rows', from, to, total)
-          : t('ui.model-quality.showing-of', from, to, total)}
-      </span>
-      <span className={styles.grow} />
-      <button
-        type="button"
-        className={styles.pageBtn}
-        disabled={page === 0}
-        onClick={() => onPage(page - 1)}
-        aria-label={t('ui.usage-tools.previous-page')}
-        data-testid="quality-page-prev"
-      >
-        <Icon icon={ChevronLeft} size={14} />
-      </button>
-      {nums.map((p, i) =>
-        p === null ? (
-          <span key={`gap${i}`} className={styles.meta} aria-hidden>
-            …
-          </span>
-        ) : (
-          <button
-            key={p}
-            type="button"
-            className={styles.pageBtn}
-            aria-current={p === page ? 'page' : undefined}
-            onClick={() => onPage(p)}
-          >
-            {p + 1}
-          </button>
-        ),
-      )}
-      <button
-        type="button"
-        className={styles.pageBtn}
-        disabled={page + 1 >= pages}
-        onClick={() => onPage(page + 1)}
-        aria-label={t('ui.usage-tools.next-page')}
-        data-testid="quality-page-next"
-      >
-        <Icon icon={ChevronRight} size={14} />
-      </button>
-      {sizes && onPageSize && (
-        <Select
-          size="sm"
-          variant="ghost"
-          className={styles.compactSelect}
-          menuMinWidth={120}
-          aria-label={t('ui.model-quality.rows-per-page')}
-          data-testid="quality-page-size"
-          value={String(pageSize)}
-          onChange={(e) => onPageSize(Number(e.target.value))}
-          options={sizes.map((n) => ({
-            value: String(n),
-            label: t('ui.model-quality.per-page', n),
-          }))}
-        />
-      )}
-    </nav>
-  );
-};
+/** 分页条已移到 components/Pager（审计日志、活跃会话也用）；这里转出，保持原来的引用 */
+export { Pager } from '../Pager';

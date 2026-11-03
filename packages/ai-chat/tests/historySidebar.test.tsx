@@ -73,7 +73,18 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
   return calls;
 }
 
-const mount = (onNotice = vi.fn()) =>
+/** 「本机历史」默认折叠：这里的用例都要看历史行，挂载后自动点开一次 */
+function expandLocalHistory(r: ReturnType<typeof render>) {
+  void r
+    .findByTestId('cli-history-toggle')
+    .then((t) => {
+      if (t.getAttribute('aria-expanded') === 'false') fireEvent.click(t);
+    })
+    .catch(() => undefined);
+  return r;
+}
+
+const mountRaw = (onNotice = vi.fn()) =>
   render(
     <HarnessTabsProvider>
       <Sidebar
@@ -84,6 +95,7 @@ const mount = (onNotice = vi.fn()) =>
       />
     </HarnessTabsProvider>,
   );
+const mount = (onNotice = vi.fn()) => expandLocalHistory(mountRaw(onNotice));
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
@@ -261,5 +273,27 @@ describe('CLI history in the sidebar', () => {
     await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
     fireEvent.click(r.getAllByTestId('history-session-item')[2]!);
     await waitFor(() => expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息'));
+  });
+
+  it('local history is collapsed by default; expands and collapses; remount is collapsed again', async () => {
+    mockIpc();
+    const r = mountRaw();
+    const toggle = await r.findByTestId('cli-history-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    await waitFor(() => expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0));
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
+    expect(r.queryByTestId('cli-history-more')).toBeNull();
+
+    r.unmount();
+    const r2 = mountRaw();
+    const toggle2 = await r2.findByTestId('cli-history-toggle');
+    expect(toggle2.getAttribute('aria-expanded')).toBe('false');
   });
 });

@@ -374,6 +374,19 @@ export class Application implements IApplication {
    * 已运行实例被再次唤起（第二实例 / macOS Dock / Windows 托盘左键）：
    * 默认界面为「软件主界面」时把主界面带到前台，返回 true；否则返回 false，调用方保持历史行为。
    */
+  /**
+   * `nomi://` 链接（白名单在 main.ts）：交给内核，内核产出待确认后会打开对话窗口。
+   * 还没启动完返回 false，由调用方先存着。
+   */
+  handleDeepLink(url: string): boolean {
+    const link = this.launched ? this.core.services.providerLink : undefined;
+    if (!link) return false;
+    void this.core
+      .run(() => link.receive(url))
+      .catch((error) => this.logger.warn('处理链接失败', { error: errorMessage(error) }));
+    return true;
+  }
+
   raiseMainOnReactivate(): boolean {
     const startup = this.core.services.startup;
     if (!this.launched || !startup) return false;

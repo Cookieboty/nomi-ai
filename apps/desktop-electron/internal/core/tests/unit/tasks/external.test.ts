@@ -17,6 +17,7 @@ import { createMcpSource, itemKey, resultItems } from '../../../src/tasks/events
 import {
   ExternalCheckpointError,
   ExternalNotAppliedError,
+  grantAllows,
   markerOf,
   openIntents,
 } from '../../../src/tasks/external';
@@ -172,6 +173,31 @@ describe('副作用日志与重启核对（persistent-tasks §10）', () => {
     svc.stop();
   });
 
+  it('运行中收窄授权：之后的对外动作按当前授权拒绝，不写 intent（#232）', async () => {
+    const svc = service(dir);
+    svc.start();
+    const task = create(svc);
+    svc.command(task.id, { type: 'runNow' });
+    const attemptId = svc.get(task.id)!.attempts.at(-1)!.id;
+    const j = svc.externalJournal(task.id, attemptId);
+    const a = { action: 'github.comment', summary: 's', target: { repo: 'o/r' }, payload: 'x' };
+    expect(grantAllows(svc.get(task.id)!.task, a)).toBe(true);
+    const cur = svc.get(task.id)!.task.grant;
+    expect(
+      svc.command(task.id, {
+        type: 'grant',
+        grant: { level: 4, paths: [], connections: [ghGrant(['github.read'])] },
+      }).ok,
+    ).toBe(true);
+    expect(svc.get(task.id)!.task.status).toBe('running');
+    await expect(j.run(a, async () => ({ value: 1 }))).rejects.toBeInstanceOf(
+      ExternalCheckpointError,
+    );
+    expect(svc.journal(task.id).filter((e) => e.t === 'intent')).toHaveLength(0);
+    expect(grantAllows({ ...svc.get(task.id)!.task, grant: { ...cur, level: 3 } }, a)).toBe(false);
+    svc.stop();
+  });
+
   it('重启：自动核对查清了就续跑；查不了留给用户；用户核对关掉 intent', async () => {
     const svc = service(dir);
     svc.start();
@@ -184,7 +210,7 @@ describe('副作用日志与重启核对（persistent-tasks §10）', () => {
         {
           action: id === a.id ? 'github.comment' : 'mcp.call',
           summary: 's',
-          target: {},
+          target: id === a.id ? { repo: 'o/r' } : {},
           payload: 1,
         },
         () => new Promise(() => undefined),

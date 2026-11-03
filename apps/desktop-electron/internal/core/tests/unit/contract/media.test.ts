@@ -363,7 +363,9 @@ describe('media handlers', () => {
       await chat.desktop.setLocalOnly({ value: true });
       expect(t.desktop.setLocalOnly).toHaveBeenCalledWith(true);
       await chat.desktop.audit({ limit: 50 });
-      expect(t.desktop.auditList).toHaveBeenCalledWith(50);
+      expect(t.desktop.auditList).toHaveBeenCalledWith(50, undefined);
+      await chat.desktop.audit({ limit: 50, offset: 100 });
+      expect(t.desktop.auditList).toHaveBeenLastCalledWith(50, 100);
       await chat.desktop.remindersUpdate({ id: 'r1', patch: { repeat: null } });
       expect(t.desktop.updateReminder).toHaveBeenCalledWith('r1', { repeat: null });
       await chat.desktop.remindersSnooze({ id: 'r1', minutes: 5 });

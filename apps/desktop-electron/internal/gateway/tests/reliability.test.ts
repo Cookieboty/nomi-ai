@@ -136,6 +136,7 @@ async function setup(script: Script, hooks: Parameters<typeof createGateway>[1] 
   return { up, clock, usage, status, chat, claude, keysOf, gw };
 }
 
+// 每个 Key 失败时先在同一个 Key 上重连 3 次（§11.1，测试里退避为 0）
 describe('cooldown (§11.1)', () => {
   it('429 with Retry-After cools that key; the next request starts on the other key until it expires', async () => {
     let limited = true;
@@ -143,7 +144,7 @@ describe('cooldown (§11.1)', () => {
       if (s.key === 'k1' && limited) err(res, 429, 'slow down', { 'retry-after': '5' });
       else ok(res);
     });
-    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k2']);
+    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k1', 'k1', 'k1', 'k2']);
     expect(t.status).toEqual([
       {
         providerId: 'zp',
@@ -170,9 +171,9 @@ describe('cooldown (§11.1)', () => {
     const t = await setup((s, res) =>
       s.key === 'k1' ? err(res, 503, 'busy') : err(res, 500, 'boom'),
     );
-    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k2']);
+    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k1', 'k1', 'k1', 'k2', 'k2', 'k2', 'k2']);
     // 两个都在冷却：照样按原顺序尝试
-    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k2']);
+    expect(await t.keysOf(t.chat())).toEqual(['k1', 'k1', 'k1', 'k1', 'k2', 'k2', 'k2', 'k2']);
     expect(t.status).toEqual([]); // 5xx 不报 Key 状态
   });
 
@@ -232,7 +233,7 @@ describe('cooldown (§11.1)', () => {
     expect(r.status).toBe(429);
     expect(r.headers.get('retry-after')).toBe('7');
     expect(await r.json()).toMatchObject({ type: 'error', error: { type: 'rate_limit_error' } });
-    expect(t.up.seen.map((s) => s.key)).toEqual(['k1', 'k2']);
+    expect(t.up.seen.map((s) => s.key)).toEqual(['k1', 'k1', 'k1', 'k1', 'k2', 'k2', 'k2', 'k2']);
   });
 });
 
@@ -329,7 +330,7 @@ describe('affinity (§11.2)', () => {
     const t = await setup((s, res) => (fail.has(s.key) ? err(res, 500, 'boom') : ok(res)));
     const s1 = { 'x-claude-code-session-id': 'sess-1' };
     const msg = (content: string) => ({ stream: true, messages: [{ role: 'user', content }] });
-    expect(await t.keysOf(t.claude(msg('a'), s1))).toEqual(['k1', 'k2']);
+    expect(await t.keysOf(t.claude(msg('a'), s1))).toEqual(['k1', 'k1', 'k1', 'k1', 'k2']);
     fail.clear();
     t.clock.now += 61_000; // k1 的冷却已过
     // 同一个会话留在 k2；别的会话按默认顺序从 k1 开始
@@ -339,7 +340,7 @@ describe('affinity (§11.2)', () => {
     ]);
     // k2 出错：这次换到 k1，之后会话跟着 k1 走（k2 冷却中）
     fail.add('k2');
-    expect(await t.keysOf(t.claude(msg('d'), s1))).toEqual(['k2', 'k1']);
+    expect(await t.keysOf(t.claude(msg('d'), s1))).toEqual(['k2', 'k2', 'k2', 'k2', 'k1']);
     fail.clear();
     expect(await t.keysOf(t.claude(msg('e'), s1))).toEqual(['k1']);
     t.clock.now += 61_000;
@@ -350,7 +351,7 @@ describe('affinity (§11.2)', () => {
     const fail = new Set<string>(['k1']);
     const t = await setup((s, res) => (fail.has(s.key) ? err(res, 503, 'busy') : ok(res)));
     const body = { messages: [{ role: 'user', content: 'same start' }] };
-    expect(await t.keysOf(t.chat(body))).toEqual(['k1', 'k2']);
+    expect(await t.keysOf(t.chat(body))).toEqual(['k1', 'k1', 'k1', 'k1', 'k2']);
     fail.clear();
     t.clock.now += 61_000;
     expect(await t.keysOf(t.chat(body))).toEqual(['k2']);

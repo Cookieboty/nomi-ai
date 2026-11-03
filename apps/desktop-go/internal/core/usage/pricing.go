@@ -257,7 +257,7 @@ func TierPrice(pr ModelPrice, promptTokens float64) ModelPrice {
 	return base
 }
 
-const DefaultCnyPerUsd = 7.2
+const DefaultCnyPerUsd = 6.75
 
 // SanitizeCustomPrices：raw 是 JSON 解析值（util value space）
 func SanitizeCustomPrices(raw any) []PriceEntry {

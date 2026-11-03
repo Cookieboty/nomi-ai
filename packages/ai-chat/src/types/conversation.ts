@@ -60,6 +60,8 @@ export interface ConvLive {
   agents?: Record<string, LiveAgent>;
   status?: {
     kind: 'retry' | 'reconnect' | 'compact';
+    /** 替换默认的状态文案（如「正在换到 ProvB」） */
+    label?: string;
     text?: string;
     attempt?: number;
     max?: number;

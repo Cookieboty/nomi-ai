@@ -26,7 +26,7 @@ export const QualityPanel: React.FC<{
   onTab: (tab: QualityTab) => void;
   /** 跳到「设置 → 隐私与权限」（诊断日志 / 正文追踪） */
   onOpenPrivacy?: () => void;
-  /** 外层已有同名标签（设置 → 用量与质量）：不再渲染自己的标签条 */
+  /** 外层已有同名标签（设置 → 用量与分析）：不再渲染自己的标签条 */
   hideTabs?: boolean;
   /** 测试注入：当前时间 */
   now?: () => number;

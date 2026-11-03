@@ -82,6 +82,16 @@ export interface CreateFromContract {
   category?: Task['category'];
 }
 
+/**
+ * Nomi 任务用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）：
+ * 契约里的 model 不落盘，免得任务里留着一个其实不生效的「指定模型」
+ */
+function withoutNomiModel(ex: ExecutorSpec): ExecutorSpec {
+  if (ex.kind !== 'nomi' || ex.model === undefined) return ex;
+  const { model: _drop, ...rest } = ex;
+  return rest;
+}
+
 /** 事件触发器不合法（契约里映射成 TASKS_BAD_TRIGGER） */
 export class TaskTriggerError extends Error {
   readonly code = 'bad_trigger';
@@ -309,7 +319,7 @@ export class TaskService {
         createdAt: now,
       },
       trigger: input.trigger,
-      executor: input.executor,
+      executor: withoutNomiModel(input.executor),
       grant: input.grant,
       ...(input.budget ? { budget: input.budget } : {}),
       ...(input.acceptance ? { acceptance: input.acceptance } : {}),

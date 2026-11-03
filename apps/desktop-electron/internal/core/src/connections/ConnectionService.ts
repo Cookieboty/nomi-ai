@@ -54,6 +54,9 @@ import { githubCommentSummary, githubPrSummary } from './labels';
 export type GithubWriteCapability = 'github.comment' | 'github.pr.create';
 
 /** 连接名：「GitHub · 账号」，有名字时加在括号里 */
+/** 读请求复核 gh 账号的缓存时长（写不缓存） */
+export const IDENTITY_TTL_MS = 60_000;
+
 export const githubLabel = (login: string, name?: string) =>
   name ? `GitHub · ${login}（${name}）` : `GitHub · ${login}`;
 
@@ -301,6 +304,22 @@ export class ConnectionService {
     return this.get(c.id)!;
   }
 
+  /**
+   * 执行前复核 gh 当前账号（connections.md §4.3，#233）：gh 登录方式的连接用的是 gh 的「当前」账号，
+   * 用户在外面切了账号不会通知我们。读最多沿用 IDENTITY_TTL_MS 内的复核；写每次发送前都复核。
+   * 账号换了 / 登出了 → needs_login，不发请求。令牌方式的身份绑在令牌上，不需要。
+   */
+  private async verifyIdentity(c: Stored, maxAgeMs: number): Promise<void> {
+    if (c.auth.kind !== 'cli-login') return;
+    if (maxAgeMs > 0 && c.checkedAt !== undefined && this.now() - c.checkedAt < maxAgeMs) return;
+    await this.check(c.id);
+    if (c.status !== 'ok')
+      throw new ConnectionError(
+        'needs_login',
+        `${c.label}: the active gh account changed or logged out; re-check the connection`,
+      );
+  }
+
   /** 复核账号与权限：换了账号 / 登出了 → needs_login（不悄悄换成另一个账号） */
   async check(id: string): Promise<Connection> {
     const c = this.items.find((x) => x.id === id);
@@ -402,6 +421,7 @@ export class ConnectionService {
       if (e instanceof GithubParamError) throw new ConnectionError('bad_params', e.message);
       throw e;
     }
+    await this.verifyIdentity(c, IDENTITY_TTL_MS);
     const data =
       c.auth.kind === 'cli-login'
         ? await ghGet(this.runGh, c.auth.host, req.path, req.query)
@@ -448,6 +468,8 @@ export class ConnectionService {
     const run = async () => {
       const wait = this.lastWriteAt + WRITE_GAP_MS - this.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      // 写：排队等完、真正发出前复核账号（不沿用缓存），换了就不发
+      await this.verifyIdentity(c, 0);
       try {
         return c.auth.kind === 'cli-login'
           ? await ghWrite(this.runGh, c.auth.host, req)
@@ -504,9 +526,14 @@ export class ConnectionService {
       } catch (e) {
         if (e instanceof GithubWriteError && e.definite)
           throw new ExternalNotAppliedError(e.message);
+        // 发出前复核发现账号换了：确定没发，关掉 intent
+        if (e instanceof ConnectionError && e.code === 'needs_login')
+          throw new ExternalNotAppliedError(e.message);
         throw e;
       }
     };
+    // 写 intent 之前先复核一次：账号换了直接报 needs_login，不留待核对的 intent
+    await this.verifyIdentity(c, 0);
     if (!journal) return exec(null);
     const pr = cap === 'github.pr.create' ? (p as GithubPrParams) : null;
     return journal.run(

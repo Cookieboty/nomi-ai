@@ -21,7 +21,7 @@ import {
   type NomiPermissionMode,
   type Policy,
 } from './consent';
-import { guardPath, type GuardEnv, type GuardResult, type Scope } from './pathGuard';
+import { guardPath, isInside, type GuardEnv, type GuardResult, type Scope } from './pathGuard';
 import { checkWorkspaceRoot, resolveInWorkspace, workspaceScope } from './workspace';
 
 export interface DesktopSettings {
@@ -71,6 +71,8 @@ export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
  * 后台任务的一次执行（docs/design/persistent-tasks.md §8.4）：以这次执行的 AbortSignal 为键登记。
  * 后台执行不继承前台的权限档位与「全部自动」，只认任务授权等级；需要人时不弹确认，而是让任务停到
  * 「等你批准」（ask 返回用户的回答）。
+ * level / connections / paths 每次读都应反映任务「当前」的授权（执行者用 getter 接到任务状态）：
+ * 运行中收窄授权立即生效（§8.3，#232）。
  */
 export interface BackgroundRun {
   /** 任务授权等级（L0–L4） */
@@ -79,6 +81,11 @@ export interface BackgroundRun {
   ask(req: { tool: string; summary: string; detail: string }): Promise<boolean>;
   /** 任务授权里的连接（connections.md §2）：经连接的工具据此收窄到授权的能力与资源 */
   connections?: { connectionId: string; capabilities: string[]; resources: string[] }[];
+  /**
+   * 任务授权的文件夹（§8.3）：文件工具的路径（realpath 后）还必须落在其中之一，不能只凭全局授权（#231）。
+   * 不设 = 不额外收窄（高级权限的委派执行按工作区 / 全局授权，§7.4）；空数组 = 不许碰任何文件。
+   */
+  paths?: readonly string[];
   /** 这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4） */
   tainted?: boolean;
   /** 对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done */
@@ -391,6 +398,27 @@ export class PermissionBroker {
     return run ? (run.connections ?? []) : null;
   }
 
+  /** 后台执行的任务文件夹范围；前台对话或不收窄的（高级权限）返回 null */
+  backgroundPaths(signal?: AbortSignal): readonly string[] | null {
+    const run = this.backgroundOf(signal);
+    if (!run || run.trusted || run.paths === undefined) return null;
+    return run.paths;
+  }
+
+  /**
+   * 后台执行的路径还要落在任务授权的文件夹里（与全局授权求交集，#231）。
+   * real 是 guardPath 解析过的真实路径；任务文件夹同样先 realpath 再比较。
+   */
+  async withinTaskPaths(signal: AbortSignal | undefined, real: string): Promise<boolean> {
+    const roots = this.backgroundPaths(signal);
+    if (roots === null) return true;
+    for (const r of roots) {
+      const root = await fs.promises.realpath(r).catch(() => path.resolve(r));
+      if (isInside(real, root, this.envBase.platform)) return true;
+    }
+    return false;
+  }
+
   /** 后台执行的副作用日志；前台对话返回 null */
   backgroundExternal(signal?: AbortSignal): ExternalJournal | null {
     return this.backgroundOf(signal)?.external ?? null;
@@ -436,6 +464,13 @@ export class PermissionBroker {
         detail: (i.preview ?? i.summary).slice(0, CONFIRM_PREVIEW_CAP),
       });
       if (i.signal.aborted) return 'denied';
+      // 等批准期间授权可能被收窄：按当前授权再核一次（#232）
+      if (
+        run.level < EXTERNAL_LEVEL ||
+        mcpGranted(run.connections ?? [], mcp.serverId, mcp.tool, i.mcpReadOnly === true) !==
+          granted
+      )
+        return 'denied';
       return ok ? 'allowed' : 'denied';
     }
     if (i.danger === 'read' && !i.force) return 'auto';
@@ -474,6 +509,8 @@ export class PermissionBroker {
       detail: detail.slice(0, CONFIRM_PREVIEW_CAP),
     });
     if (i.signal.aborted) return 'denied';
+    // 等批准期间授权可能被收窄：按当前授权再核一次（#232）
+    if (run.level < need) return 'denied';
     return ok ? 'allowed' : 'denied';
   }
 

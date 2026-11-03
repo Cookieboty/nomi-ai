@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -221,5 +222,52 @@ func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 	want := []string{"[external]", "[external]", "[external]"}
 	if strings.Join(asked, ",") != strings.Join(want, ",") {
 		t.Fatalf("asked %v", asked)
+	}
+}
+
+// #231 #232：后台执行读任务当前授权：收窄立即生效；路径与任务文件夹求交集
+func TestBackgroundLiveGrantAndTaskPaths(t *testing.T) {
+	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	// 这里用的是真实临时目录（Windows 上是 C:\…）：按本机平台比较路径，不能用 reviewBroker 的 linux
+	b.envBase.Platform = Platform()
+	dir := t.TempDir()
+	a, other := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	for _, d := range []string{a, other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ra, _ := RealpathNative(a)
+	rb, _ := RealpathNative(other)
+	cur := LiveGrant{Level: 2, Paths: []string{a}}
+	ok := true
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = WithBackground(ctx, &BackgroundRun{Level: 2, Ask: func(string, string, string) bool { return true },
+		Live: func() (LiveGrant, bool) { return cur, ok }})
+	if !b.WithinTaskPaths(ctx, filepath.Join(ra, "x.txt")) || b.WithinTaskPaths(ctx, filepath.Join(rb, "x.txt")) {
+		t.Fatal("task paths not intersected")
+	}
+	if !b.WithinTaskPaths(context.Background(), filepath.Join(rb, "x.txt")) {
+		t.Fatal("foreground must not be narrowed")
+	}
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_write_text", Danger: "write", Signal: ctx}); d != "auto" {
+		t.Fatal(d)
+	}
+	cur = LiveGrant{Level: 1, Paths: []string{}}
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_write_text", Danger: "write", Signal: ctx}); d != "denied" {
+		t.Fatalf("narrowed grant still allowed write: %s", d)
+	}
+	if b.WithinTaskPaths(ctx, filepath.Join(ra, "x.txt")) {
+		t.Fatal("empty task paths must deny")
+	}
+	cur, ok = LiveGrant{Level: 4, Paths: []string{a}}, false
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_write_text", Danger: "write", Signal: ctx}); d != "denied" {
+		t.Fatalf("revoked task still allowed write: %s", d)
+	}
+	// 高级权限（trusted）不按任务文件夹收窄
+	tctx := WithBackground(context.Background(), &BackgroundRun{Level: 4, Trusted: true, Paths: []string{a}})
+	if !b.WithinTaskPaths(tctx, filepath.Join(rb, "x.txt")) {
+		t.Fatal("trusted run narrowed")
 	}
 }

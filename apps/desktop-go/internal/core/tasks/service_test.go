@@ -107,3 +107,17 @@ func TestLegacyItems(t *testing.T) {
 		t.Fatalf("\n got %s\nwant %s", b, want)
 	}
 }
+
+// #239：Nomi 任务用预设模型：契约里的 model 不落盘
+func TestServiceDropsNomiModel(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, SetTimer: func(func(), int64) func() { return func() {} }})
+	tools := []string{"read"}
+	task, err := s.Create(CreateRequest{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: ptr("model-a")}, Grant: Grant{Level: 1}}, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.Executor.Model != nil || s.Runtime.Get(task.ID).Task.Executor.Model != nil {
+		t.Fatal("model stored")
+	}
+}

@@ -227,7 +227,7 @@
   "ui.knowledge-local.this-computer-has-about": "这台电脑约有",
   "ui.knowledge-local.this-conversation-is-too-short-chat-a-bit": "当前对话太短，至少聊两句再整理",
   "ui.knowledge-local.this-deletes-all-conversation-memories-and-about-me": "将删除全部对话记忆和「关于我」，无法撤销",
-  "ui.knowledge-local.time-result-and-arguments-of-every-desktop-tool": "每次调用桌面工具的时间、结果与参数。",
+  "ui.knowledge-local.time-result-and-arguments-of-every-desktop-tool": "每次调用桌面工具的时间、结果与参数，只保留最近 30 天。",
   "ui.knowledge-local.to-toggle-knowledge-base-q-a-answers-include": "切换「知识库问答」，回答会附上可点击的出处。",
   "ui.knowledge-local.try-different-keywords": "换个关键词试试。",
   "ui.knowledge-local.try-different-keywords-or-check-that-the-sources": "换个关键词，或检查来源是否已建立索引。",

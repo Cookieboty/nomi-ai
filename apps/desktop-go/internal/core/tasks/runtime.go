@@ -8,6 +8,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -275,17 +276,22 @@ func without(xs []string, id string) []string {
 	return out
 }
 
-func (r *Runtime) save(rec Record) {
+// save：落盘成功才更新内存。失败时内存保持旧状态，调用方不得继续发布新状态或执行副作用（#237）
+func (r *Runtime) save(rec Record) error {
 	saved, err := r.d.Store.Save(rec)
 	if err != nil {
 		r.d.Log.Warn("任务保存失败", "id", rec.Task.ID, "error", err.Error())
-		saved = rec
+		return err
 	}
 	if _, ok := r.recs[rec.Task.ID]; !ok {
 		r.order = append(r.order, rec.Task.ID)
 	}
 	r.recs[rec.Task.ID] = &saved
+	return nil
 }
+
+// ErrStorage：任务快照没能落盘（磁盘满、权限等）；状态没有改变
+var ErrStorage = errors.New("task storage failed")
 
 func (r *Runtime) appendJ(id string, e JournalEntry) {
 	if err := r.d.Store.Append(id, e); err != nil {
@@ -330,8 +336,16 @@ func (r *Runtime) Stop() {
 
 // ---------- 写 ----------
 
+// Create：快照写入失败时返回零值 Task；需要错误的调用方用 CreateChecked
 func (r *Runtime) Create(in CreateInput) Task {
+	t, _ := r.CreateChecked(in)
+	return t
+}
+
+// CreateChecked：快照落盘失败时返回 ErrStorage，任务不进列表
+func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 	var out Task
+	var serr error
 	r.own(func() {
 		now := r.d.Now()
 		g := in.Grant
@@ -380,13 +394,16 @@ func (r *Runtime) Create(in CreateInput) Task {
 			t.Category = ptr(*in.Category)
 		}
 		t.NextRunAt = r.firstRunAt(t, now)
-		r.save(Record{Task: t, Attempts: []Attempt{}})
+		if err := r.save(Record{Task: t, Attempts: []Attempt{}}); err != nil {
+			serr = fmt.Errorf("%w: %v", ErrStorage, err)
+			return
+		}
 		r.appendJ(t.ID, JournalEntry{T: "state", At: now, Event: "create", From: "none", To: StatusIdle, Gen: ptr(0)})
 		r.changed(t)
 		r.arm()
 		out = t
 	})
-	return out
+	return out, serr
 }
 
 func (r *Runtime) Command(id string, c Command) CmdResult {
@@ -524,7 +541,9 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 			t.NextRunAt = r.firstRunAt(t, now)
 		}
 		sort.Strings(keys)
-		r.save(Record{Task: t, Attempts: rec.Attempts})
+		if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {
+			return
+		}
 		r.appendJ(id, JournalEntry{T: "note", At: now, Msg: "patched:" + strings.Join(keys, ",")})
 		saved := r.recs[id].Task
 		r.changed(saved)
@@ -601,7 +620,7 @@ func (r *Runtime) nextRunAfter(t Task, after int64) *int64 {
 func (r *Runtime) setNextRun(id string, next *int64) {
 	rec := *r.recs[id]
 	rec.Task.NextRunAt = next
-	r.save(rec)
+	_ = r.save(rec)
 }
 
 func (r *Runtime) runDueSchedules(now int64) {
@@ -703,7 +722,10 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 		}
 		attempts = next
 	}
-	r.save(Record{Task: res.Task, Attempts: attempts})
+	if r.save(Record{Task: res.Task, Attempts: attempts}) != nil {
+		// 没落盘：保持旧状态，不记日志、不执行 start / deliver 等副作用
+		return CmdResult{Reason: "storage_error"}
+	}
 	if before.Status != res.Task.Status || ev.Type == "slot_acquired" {
 		e := JournalEntry{T: "state", At: ev.At, Event: ev.Type, From: before.Status, To: res.Task.Status, Gen: ptr(res.Task.Gen)}
 		if res.Task.LastAttemptID != nil {
@@ -898,7 +920,7 @@ func (p *reporter) Carrier(c Carrier) {
 				attempts[i] = x
 			}
 		}
-		p.r.save(Record{Task: rec.Task, Attempts: attempts})
+		_ = p.r.save(Record{Task: rec.Task, Attempts: attempts})
 	})
 }
 
@@ -932,7 +954,9 @@ func (r *Runtime) addUsage(id string, gen int, d UsageDelta) {
 			attempts[i] = x
 		}
 	}
-	r.save(Record{Task: rec.Task, Attempts: attempts})
+	if r.save(Record{Task: rec.Task, Attempts: attempts}) != nil {
+		return
+	}
 	task := r.recs[id].Task
 	limit := task.Budget.MaxTokensPerAttempt
 	if limit != nil && task.Status == StatusRunning && nu.InputTokens+nu.OutputTokens > *limit {

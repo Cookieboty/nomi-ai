@@ -29,6 +29,7 @@ import {
   type Policy,
 } from '../../services/desktopClient';
 import { confirmDialog } from '../ConfirmDialog';
+import { Pager } from '../Pager';
 
 import styles from './index.module.css';
 
@@ -49,11 +50,16 @@ const DECISION_LABEL: Record<string, string> = {
 };
 
 const fmt = (ts: number) => new Date(ts).toLocaleString();
+/** 审计日志每页条数 */
+const AUDIT_PAGE = 50;
 
 export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const [tab, setTab] = useState<Tab>('folders');
   const [state, setState] = useState<DesktopState | null>(null);
   const [audit, setAudit] = useState<AuditEntryView[]>([]);
+  // 审计日志分页：每页 AUDIT_PAGE 条，多取一条判断有没有下一页
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditHasNext, setAuditHasNext] = useState(false);
   const [journal, setJournal] = useState<JournalView[]>([]);
   const [msg, setMsg] = useState<string>('');
 
@@ -61,13 +67,16 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
     if (!desktopClient.available()) return;
     const [s, a, j] = await Promise.all([
       desktopClient.state(),
-      desktopClient.audit(200),
+      desktopClient.audit(AUDIT_PAGE + 1, auditPage * AUDIT_PAGE),
       desktopClient.journal(),
     ]);
     setState(s);
-    setAudit(a);
+    // 这一页已经没有了（清空 / 过了保留期）：回到第一页
+    if (a.length === 0 && auditPage > 0) setAuditPage(0);
+    setAudit(a.slice(0, AUDIT_PAGE));
+    setAuditHasNext(a.length > AUDIT_PAGE);
     setJournal(j);
-  }, []);
+  }, [auditPage]);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -361,7 +370,12 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   size="sm"
                   variant="ghost"
                   disabled={audit.length === 0}
-                  onClick={() => void desktopClient.clearAudit().then(refresh)}
+                  onClick={() =>
+                    void desktopClient.clearAudit().then(() => {
+                      setAuditPage(0);
+                      return refresh();
+                    })
+                  }
                 >
                   {tr('ui.foundation.clear-log')}
                 </Button>
@@ -397,6 +411,15 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     ))}
                   </tbody>
                 </table>
+              )}
+              {(auditPage > 0 || auditHasNext) && (
+                <Pager
+                  page={auditPage}
+                  pageSize={AUDIT_PAGE}
+                  hasNext={auditHasNext}
+                  onPage={setAuditPage}
+                  testId="desktop-audit"
+                />
               )}
             </SettingsGroup>
           </div>

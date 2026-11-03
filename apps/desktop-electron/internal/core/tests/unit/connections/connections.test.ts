@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ConnectionService } from '../../../src/connections/ConnectionService';
+import { ConnectionService, IDENTITY_TTL_MS } from '../../../src/connections/ConnectionService';
 import {
   buildReadRequest,
   ghEnv,
@@ -25,6 +25,7 @@ const authJson = (login: string, scopes = 'gist, read:org, repo, workflow', stat
 function setup(opts: { login?: string | null; installed?: boolean } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'conn-'));
   let login: string | null = opts.login === undefined ? 'octo' : opts.login;
+  let clock = 1;
   const calls: string[][] = [];
   const fetched: { url: string; auth: string }[] = [];
   const svc = new ConnectionService({
@@ -36,7 +37,7 @@ function setup(opts: { login?: string | null; installed?: boolean } = {}) {
     },
     events: { publish: () => undefined },
     logger: { warn: () => undefined },
-    now: () => 1,
+    now: () => clock,
     runGh: async (args) => {
       calls.push(args);
       if (opts.installed === false) return { stdout: '', code: 127 };
@@ -72,6 +73,7 @@ function setup(opts: { login?: string | null; installed?: boolean } = {}) {
     calls,
     fetched,
     setLogin: (l: string | null) => (login = l),
+    advance: (ms: number) => (clock += ms),
     done: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
 }
@@ -189,6 +191,35 @@ describe('ConnectionService', () => {
     });
     h.setLogin('octo');
     expect((await h.svc.check(c.id)).status).toBe('ok');
+    h.done();
+  });
+
+  it('执行前复核 gh 当前账号：没手动复核也拒绝，不用别的身份发请求（#233）', async () => {
+    const h = setup();
+    const c = await h.svc.addGithub({ mode: 'gh' });
+    const grant = [
+      { connectionId: c.id, capabilities: ['github.read', 'github.comment'], resources: ['o/r'] },
+    ];
+    const apiCalls = () => h.calls.filter((a) => a[0] === 'api').length;
+    h.setLogin('someone-else');
+    // 写：每次发送前都复核（即使刚检查过）
+    await expect(
+      h.svc.githubWrite('github.comment', { repo: 'o/r', number: 1, body: 'hi' }, null, null),
+    ).rejects.toMatchObject({ code: 'needs_login' });
+    expect(apiCalls()).toBe(0);
+    expect(h.svc.get(c.id)!.status).toBe('needs_login');
+    // 换回原账号：复核过就能读；读在短时间内沿用复核结果
+    h.setLogin('octo');
+    await h.svc.check(c.id);
+    await h.svc.githubRead({ endpoint: 'repo', repo: 'o/r', connectionId: c.id }, grant);
+    expect(apiCalls()).toBe(1);
+    // 过了缓存时间再切账号：读也拒绝
+    h.setLogin('someone-else');
+    h.advance(IDENTITY_TTL_MS + 1);
+    await expect(
+      h.svc.githubRead({ endpoint: 'repo', repo: 'o/r', connectionId: c.id }, grant),
+    ).rejects.toMatchObject({ code: 'needs_login' });
+    expect(apiCalls()).toBe(1);
     h.done();
   });
 

@@ -37,7 +37,6 @@ export async function recordRoute({ gw, root }) {
         M('claude-sonnet-4-5', { wires: ['chat'] }),
         M('claude-3-5-haiku-20241022'),
       ],
-      fallback: ['oai/gpt-5', 'nope/x', 'gpt-4o'],
     }),
     P('oai', {
       urls: { responses: 'https://api.openai.com/v1', chat: 'https://api.openai.com/v1' },

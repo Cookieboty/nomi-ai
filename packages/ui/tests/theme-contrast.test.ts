@@ -51,8 +51,8 @@ const contrast = (a: string, b: string) => ratio(parseColor(a), parseColor(b)) a
 
 describe('theme contrast (all themes, all pairs)', () => {
   it('covers every theme plus both system aliases', () => {
-    expect(ids.sort()).toEqual(['cream', 'graphite', 'ink', 'mist', 'sunset']);
-    expect(SYSTEM_ALIAS).toEqual({ 'system-dark': 'graphite', 'system-light': 'cream' });
+    expect(ids.sort()).toEqual(['cream', 'dark', 'graphite', 'ink', 'light', 'mist', 'sunset']);
+    expect(SYSTEM_ALIAS).toEqual({ 'system-dark': 'dark', 'system-light': 'light' });
   });
 
   for (const id of THEME_IDS as string[]) {

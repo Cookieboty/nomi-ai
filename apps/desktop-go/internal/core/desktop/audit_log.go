@@ -118,8 +118,13 @@ func (l *AuditLog) Append(e AuditEntry, rawArgs any) AuditEntry {
 
 var reAuditFile = regexp.MustCompile(`^desktop-\d{4}-\d{2}\.jsonl$`)
 
-// List：最新在前，原样返回每行对象
-func (l *AuditLog) List(limit int) []json.RawMessage {
+// AuditRetentionDays：审计日志保留天数（= AUDIT_RETENTION_DAYS）
+const AuditRetentionDays = 30
+
+const auditRetentionMs = float64(AuditRetentionDays) * 24 * 60 * 60 * 1000
+
+// List：最新在前，原样返回每行对象；跳过 30 天以前的条目，offset 用于分页
+func (l *AuditLog) List(limit, offset int) []json.RawMessage {
 	out := []json.RawMessage{}
 	ents, err := os.ReadDir(l.dir)
 	if err != nil {
@@ -133,6 +138,8 @@ func (l *AuditLog) List(limit int) []json.RawMessage {
 	}
 	slices.Sort(files)
 	slices.Reverse(files)
+	cutoff := l.now() - auditRetentionMs
+	skip := max(offset, 0)
 	for _, f := range files {
 		b, _ := os.ReadFile(filepath.Join(l.dir, f))
 		lines := []string{}
@@ -143,9 +150,20 @@ func (l *AuditLog) List(limit int) []json.RawMessage {
 		}
 		slices.Reverse(lines)
 		for _, s := range lines {
-			if json.Valid([]byte(s)) {
-				out = append(out, json.RawMessage(s))
+			var head struct {
+				Ts *float64 `json:"ts"`
 			}
+			if json.Unmarshal([]byte(s), &head) != nil {
+				continue // 损坏的行跳过
+			}
+			if head.Ts == nil || !(*head.Ts >= cutoff) {
+				continue
+			}
+			if skip > 0 {
+				skip--
+				continue
+			}
+			out = append(out, json.RawMessage(s))
 			if len(out) >= limit {
 				return out
 			}
@@ -161,8 +179,8 @@ func (l *AuditLog) Rotate() {
 	if err != nil {
 		return
 	}
-	cutoff := time.UnixMilli(int64(l.now())).AddDate(0, -6, 0)
-	keep := filepath.Base(l.fileFor(float64(cutoff.UnixMilli())))
+	// 整月都在保留期以前的文件删掉；保留期所在月份的文件留着，更早的条目由 List 跳过
+	keep := filepath.Base(l.fileFor(l.now() - auditRetentionMs))
 	for _, e := range ents {
 		if reAuditFile.MatchString(e.Name()) && e.Name() < keep {
 			_ = os.Remove(filepath.Join(l.dir, e.Name()))

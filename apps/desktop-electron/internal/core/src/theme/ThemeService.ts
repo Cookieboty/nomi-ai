@@ -1,7 +1,7 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 桌面角色）。
- * 「跟随系统」用宿主的 appearance 端口解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
- * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream` 并写回。
+ * 「跟随系统」用宿主的 appearance 端口解析：深色 → Dark，浅色 → Light，系统切换时实时更新。
+ * 新用户默认 Light（浅色）；已保存的选择优先。历史 id `paper` 读入时映射为 `cream` 并写回。
  *
  * macOS 原生窗口外观（appearance.setWindowAppearance）跟随所选主题：否则系统是浅色、主题是深色时，
  * 失焦窗口的红绿灯按浅色外观画成半透明深灰，落在深色标题栏上就看不见了。
@@ -15,10 +15,10 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 
 import type { AppEvents } from '../core/appEvents';
 
-export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
+export const THEME_IDS = ['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 export type ThemePref = ThemeId | 'system' | 'image';
-export const DEFAULT_THEME: ThemePref = 'sunset';
+export const DEFAULT_THEME: ThemePref = 'light';
 
 /** v1.0.4 前的「纸白」已改名奶油；老用户的 theme.json 里可能还是 paper */
 const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
@@ -32,10 +32,10 @@ export const normalizeThemePref = (v: unknown): ThemePref | null => {
 
 export const isThemePref = (v: unknown): v is ThemePref => normalizeThemePref(v) !== null;
 export const resolveTheme = (pref: ThemePref, dark: boolean): ThemeId =>
-  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
+  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'dark' : 'light') : pref;
 
 /** 深色主题：窗口外观用 dark（与 packages/ui/src/tokens.css 的深色主题一致） */
-const DARK_THEMES: ReadonlySet<ThemeId> = new Set<ThemeId>(['graphite', 'ink']);
+const DARK_THEMES: ReadonlySet<ThemeId> = new Set<ThemeId>(['dark', 'graphite', 'ink']);
 
 /** 所选主题对应的原生窗口外观；「跟随系统」交还给系统 */
 export const appearanceFor = (pref: ThemePref): 'system' | 'dark' | 'light' =>

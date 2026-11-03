@@ -7390,6 +7390,9 @@
     "properties": {
      "limit": {
       "type": "number"
+     },
+     "offset": {
+      "type": "number"
      }
     }
    },
@@ -11189,6 +11192,29 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
+  "gateway.reorderProviders": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "ids"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
   "gateway.resetToken": {
    "kind": "mutation",
    "dangerous": false,
@@ -11466,6 +11492,30 @@
      "port"
     ],
     "additionalProperties": {}
+   }
+  },
+  "gateway.setProviderEnabled": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "enabled": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "enabled"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
   "gateway.state": {
@@ -11933,12 +11983,6 @@
      },
      "userAgent": {
       "type": "string"
-     },
-     "fallback": {
-      "type": "array",
-      "items": {
-       "type": "string"
-      }
      },
      "detected": {
       "type": "object",
@@ -13469,6 +13513,82 @@
      "queued"
     ],
     "additionalProperties": {}
+   }
+  },
+  "harness.tabApplyAutoTitle": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "backend": {
+        "type": "string"
+       },
+       "cwd": {
+        "type": "string"
+       },
+       "cliSessionId": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "status": {
+        "type": "string"
+       },
+       "unread": {
+        "type": "number"
+       },
+       "createdAt": {
+        "type": "number"
+       },
+       "updatedAt": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "id",
+       "title",
+       "backend",
+       "cwd",
+       "cliSessionId",
+       "status",
+       "unread",
+       "createdAt",
+       "updatedAt"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
    }
   },
   "harness.tabBackend": {
@@ -19082,6 +19202,210 @@
     "type": "string"
    }
   },
+  "providerLink.accept": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "stage": {
+      "type": "string",
+      "enum": [
+       "authorize",
+       "save",
+       "error"
+      ]
+     },
+     "providerId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "updated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "stage"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "providerLink.connect": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "issuer": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "issuer": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "issuer"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "providerLink.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "stage": {
+       "type": "string",
+       "enum": [
+        "authorize",
+        "save",
+        "error"
+       ]
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "link",
+        "issuer"
+       ]
+      },
+      "issuer": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "homepage": {
+       "type": "string"
+      },
+      "urls": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "keyMasked": {
+       "type": "string"
+      },
+      "models": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "existing": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "name"
+       ],
+       "additionalProperties": {}
+      },
+      "error": {
+       "type": "string"
+      },
+      "createdAt": {
+       "type": "number"
+      },
+      "expiresAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "stage",
+      "source",
+      "name",
+      "urls",
+      "models",
+      "createdAt",
+      "expiresAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "providerLink.reject": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
   "providers.meta": {
    "kind": "query",
    "dangerous": false,
@@ -22739,6 +23063,8 @@
        {
         "type": "string",
         "enum": [
+         "light",
+         "dark",
          "mist",
          "graphite",
          "ink",
@@ -22759,6 +23085,8 @@
      "resolved": {
       "type": "string",
       "enum": [
+       "light",
+       "dark",
        "mist",
        "graphite",
        "ink",
@@ -22799,6 +23127,8 @@
        {
         "type": "string",
         "enum": [
+         "light",
+         "dark",
          "mist",
          "graphite",
          "ink",
@@ -22819,6 +23149,8 @@
      "resolved": {
       "type": "string",
       "enum": [
+       "light",
+       "dark",
        "mist",
        "graphite",
        "ink",
@@ -27204,6 +27536,37 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "null"
   },
+  "gateway.retrying": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "client": {
+     "type": "string"
+    },
+    "provider": {
+     "type": "string"
+    },
+    "previous": {
+     "type": "string"
+    },
+    "status": {
+     "type": "number"
+    },
+    "attempt": {
+     "type": "number"
+    },
+    "waitMs": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "client",
+    "provider",
+    "previous",
+    "attempt"
+   ],
+   "additionalProperties": {}
+  },
   "harness.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -27949,6 +28312,96 @@
    ],
    "additionalProperties": {}
   },
+  "providerLink.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "stage": {
+      "type": "string",
+      "enum": [
+       "authorize",
+       "save",
+       "error"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "link",
+       "issuer"
+      ]
+     },
+     "issuer": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "homepage": {
+      "type": "string"
+     },
+     "urls": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "keyMasked": {
+      "type": "string"
+     },
+     "models": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "existing": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ],
+      "additionalProperties": {}
+     },
+     "error": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "expiresAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "stage",
+     "source",
+     "name",
+     "urls",
+     "models",
+     "createdAt",
+     "expiresAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "providers.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -28125,6 +28578,8 @@
       {
        "type": "string",
        "enum": [
+        "light",
+        "dark",
         "mist",
         "graphite",
         "ink",
@@ -28145,6 +28600,8 @@
     "resolved": {
      "type": "string",
      "enum": [
+      "light",
+      "dark",
       "mist",
       "graphite",
       "ink",
@@ -28358,6 +28815,7 @@
  },
  "errors": [
   "UNAVAILABLE",
+  "PROVIDER_LINK_FAILED",
   "ACCOUNT_NOT_FOUND",
   "ACCOUNT_IN_USE",
   "ACCOUNT_LOCAL",

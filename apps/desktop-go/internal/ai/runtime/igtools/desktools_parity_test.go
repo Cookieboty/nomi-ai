@@ -297,7 +297,7 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 		if raw, ok := c["in"]; ok {
 			in, _ = u.ParseString(fill(raw))
 		}
-		before := len(svc.Audit.List(100000))
+		before := len(svc.Audit.List(100000, 0))
 		rec := map[string]any{"tool": tool}
 		def, ok := byName[tool]
 		if !ok {
@@ -324,9 +324,9 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 		if len(says) > 0 {
 			rec["says"] = says
 		}
-		if n := len(svc.Audit.List(100000)) - before; n > 0 {
+		if n := len(svc.Audit.List(100000, 0)) - before; n > 0 {
 			var a []any
-			for _, e := range svc.Audit.List(n) {
+			for _, e := range svc.Audit.List(n, 0) {
 				var x any
 				_ = json.Unmarshal(e, &x)
 				a = append(a, x)

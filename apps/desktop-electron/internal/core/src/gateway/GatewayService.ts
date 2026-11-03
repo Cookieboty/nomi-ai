@@ -39,6 +39,7 @@ import {
   type ProviderQuirks,
   type RedactionHit,
   type RuntimeProvider,
+  type RetryEvent,
   type UsageEvent,
   type Wire,
   autoImageModel,
@@ -69,6 +70,7 @@ import {
 } from './modelMeta';
 import { nomiContextBudget, type NomiContextInfo, type NomiRole } from './nomiContext';
 import { PrivacyLog, type PrivacyLogEntry } from './PrivacyLog';
+import { sameUrl, type LinkProvider } from './providerLink';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -311,7 +313,10 @@ export interface GatewayServiceDeps {
   env?: NodeJS.ProcessEnv;
   /** 测试注入：模型目录的异步原子写；默认 writePrivateFileAtomicAsync */
   writeCatalog?: (file: string, data: string) => Promise<void>;
-  broadcast?: (event: 'gateway.changed', payload: null) => void;
+  broadcast?: {
+    (event: 'gateway.changed', payload: null): void;
+    (event: 'gateway.retrying', payload: RetryEvent): void;
+  };
 }
 
 /** 同步到的模型目录至少要有这么多条，否则视为异常响应 */
@@ -343,6 +348,10 @@ export class GatewayService {
         onUsage: (e) => {
           this.notePrivacy(e);
           d.onUsage?.(e);
+        },
+        // Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；编程助手有自己的进度，不发
+        onRetry: (e) => {
+          if (e.client === 'nomi') d.broadcast?.('gateway.retrying', e);
         },
         onLearn: (e) => void this.learn(e),
         onKeyStatus: (e) => this.keyStatus(e),
@@ -1213,7 +1222,6 @@ export class GatewayService {
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
-      ...(input.fallback ? { fallback: input.fallback } : {}),
       ...(input.detected ? { detected: input.detected } : {}),
       ...(input.quirks ? { quirks: input.quirks } : {}),
       createdAt: prev?.createdAt ?? now,
@@ -1223,6 +1231,69 @@ export class GatewayService {
     this.store.upsertProvider(p);
     this.commit();
     return this.state().providers.find((x) => x.id === p.id)!;
+  }
+
+  /** 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算） */
+  findProviderByUrls(urls: readonly string[]): { id: string; name: string } | null {
+    const p = this.store
+      .providers()
+      .find(
+        (x) =>
+          x.source !== 'env' &&
+          Object.values(x.urls).some((u) => !!u && urls.some((v) => sameUrl(u, v))),
+      );
+    return p ? { id: p.id, name: p.name } : null;
+  }
+
+  /**
+   * 链接导入（docs/design/provider-link.md）：有同地址的就更新它（补 Key、补没填的协议地址与模型，
+   * 已有同样的 Key 不重复加），否则新建。
+   */
+  importLinkedProvider(p: LinkProvider): { provider: ProviderView; updated: boolean } {
+    const hit = this.findProviderByUrls(Object.values(p.urls));
+    const prev = hit ? this.store.providers().find((x) => x.id === hit.id) : undefined;
+    if (!prev) {
+      const provider = this.upsertProvider({
+        name: p.name,
+        urls: p.urls,
+        newKeys: [{ value: p.key }],
+        models: p.models.map((id) => ({ id, enabled: true })),
+      });
+      return { provider, updated: false };
+    }
+    const hasKey = prev.keys.some((k) => this.store.decrypt(k.enc, k.encryption) === p.key);
+    const urls: ProviderInput['urls'] = {};
+    for (const [w, u] of Object.entries(p.urls) as Array<[Wire, string]>)
+      if (!prev.urls[w]?.trim()) urls[w] = u;
+    const known = new Set(prev.models.map((m) => m.id));
+    const provider = this.upsertProvider({
+      id: prev.id,
+      name: prev.name,
+      urls,
+      ...(hasKey ? {} : { newKeys: [{ value: p.key }] }),
+      models: [
+        ...prev.models,
+        ...p.models.filter((id) => !known.has(id)).map((id) => ({ id, enabled: true })),
+      ],
+    });
+    return { provider, updated: true };
+  }
+
+  /** 列表上的启用 / 停用开关（§7.2：停用的不出候选，按列表顺序换到同一个模型的下一家）；环境变量供应商只读 */
+  setProviderEnabled(id: string, enabled: boolean): void {
+    const p = this.store.providers().find((x) => x.id === id);
+    if (!p) return;
+    if (p.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
+    this.bumpLearn(id);
+    this.store.setProviderEnabled(id, enabled);
+    this.commit();
+  }
+
+  /** 供应商列表的顺序（同一个模型回退时按它换供应商，§7.2）；环境变量供应商不在 store 里，始终排在后面 */
+  reorderProviders(ids: string[]): void {
+    this.store.reorderProviders(ids);
+    this.commit();
   }
 
   removeProvider(id: string): void {

@@ -138,14 +138,21 @@ type NomiDeps struct {
 	// trusted = 高级权限（派给 Nomi 的执行，§7.4）；
 	// external = 这次执行的副作用日志（对外工具执行前写 intent、成功后写 done），可为 nil
 	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context
+	// LiveGrant：把任务「当前」的授权接到后台登记上（运行中收窄立即生效，#232；文件夹范围 #231）。
+	// 参数是本次登记的上下文（WithBackground 的返回值）与读当前授权的函数；可为空
+	LiveGrant func(ctx context.Context, live func() (Grant, bool), trusted bool, extraConns func([]ConnectionGrant) []ConnectionGrant)
+	// LiveTask：任务当前状态（LiveGrant 用）；可为空
+	LiveTask func(taskID string) *Task
 	// ExternalJournal：这次执行的副作用日志（Service.ExternalJournal）；nil = 不登记
 	ExternalJournal func(taskID, attemptID string) connections.ExternalJournal
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
 	EventsFor func(taskID string, eventKey *string) []SourceEvent
 	Ready     func() bool
-	CostOf    func(model string, input, output int64) (float64, bool)
-	Trace     func(taskID, attemptID string, line map[string]any)
-	Now       func() int64
+	// Route：「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照）；可为空
+	Route  func() (providerID, model string)
+	CostOf func(model string, input, output int64) (float64, bool)
+	Trace  func(taskID, attemptID string, line map[string]any)
+	Now    func() int64
 	// ToolNames：Nomi 已注册的全部工具名（派给 Nomi 的执行用对话的工具集）
 	ToolNames func() []string
 	// Every：周期定时器（测试注入）；返回取消函数
@@ -177,6 +184,7 @@ type nomiRun struct {
 	paused   bool
 	active   bool // 这一轮的 goroutine 还没退出
 	relaunch bool // 预算批准时上一轮还没退出：退出后再重开
+	stopped  bool // 已取消 / 撤销：不再重开
 	seq      int
 	waiting  map[string]chan bool
 }
@@ -301,12 +309,26 @@ func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if e.d.Ready != nil && !e.d.Ready() {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
 	}
-	return ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
+	// Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
+	// 实际用到的供应商与模型记进快照
+	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version}
+	if e.d.Route != nil {
+		if p, m := e.d.Route(); p != "" || m != "" {
+			if p != "" {
+				snap.ProviderID = ptr(p)
+			}
+			if m != "" {
+				snap.Model = ptr(m)
+			}
+		}
+	}
+	return snap, nil
 }
 
 func (e *nomiExecutor) Start(ctx AttemptContext) {
 	e.mu.Lock()
 	if old := e.runs[ctx.Task.ID]; old != nil {
+		old.stopped, old.relaunch = true, false
 		old.cancel()
 	}
 	run := &nomiRun{gen: ctx.Attempt.Gen, ctx: ctx, waiting: map[string]chan bool{}}
@@ -355,6 +377,23 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 			conns = append(slices.Clone(conns), McpGrantsFor(tools)...)
 		}
 		ctx = e.d.WithBackground(base, t.Grant.Level, ask, conns, a.Cause.Kind == "event", elevated, external)
+		if e.d.LiveGrant != nil && e.d.LiveTask != nil {
+			gen := run.gen
+			live := func() (Grant, bool) {
+				cur := e.d.LiveTask(t.ID)
+				if cur == nil || cur.Gen != gen || cur.Grant.RevokedAt != nil ||
+					(cur.Status != StatusRunning && cur.Status != StatusWaitingUser) {
+					return Grant{}, false
+				}
+				return cur.Grant, true
+			}
+			var extra func([]ConnectionGrant) []ConnectionGrant
+			if elevated {
+				mcp := McpGrantsFor(tools)
+				extra = func(cs []ConnectionGrant) []ConnectionGrant { return append(slices.Clone(cs), mcp...) }
+			}
+			e.d.LiveGrant(ctx, live, elevated, extra)
+		}
 	}
 	progress := run.progress
 	go e.consume(ctx, run, tools, progress)
@@ -458,7 +497,8 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		if run.paused || run.relaunch {
 			run.progress = strings.TrimSpace(run.progress + "\n" + text.String())
 		}
-		if run.relaunch {
+		// 旧流退出时再核对：已取消 / 撤销或已被新一轮替换的，不把待恢复变成新的执行（#235）
+		if run.relaunch && !run.stopped && e.runs[t.ID] == run {
 			run.relaunch = false
 			e.launchLocked(run)
 		}
@@ -526,6 +566,7 @@ func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
 		run.paused = true
 	} else {
 		delete(e.runs, taskID)
+		run.stopped, run.paused, run.relaunch = true, false, false
 	}
 	for id, ch := range run.waiting {
 		ch <- false

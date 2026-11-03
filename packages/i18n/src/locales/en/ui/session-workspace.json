@@ -107,6 +107,7 @@
   "ui.session-workspace.path-outside-workspace-read-denied": "Path outside workspace — read denied",
   "ui.session-workspace.path-outside-workspace-write-denied": "Path outside workspace — write denied",
   "ui.session-workspace.please-commit-the-following-uncommitted-changes-files": "Please commit the following uncommitted changes ({0} files):",
+  "ui.session-workspace.preview-file": "Preview {0}",
   "ui.session-workspace.previous": "Previous",
   "ui.session-workspace.previous-file": "Previous file",
   "ui.session-workspace.publish": "Publish",

@@ -689,3 +689,21 @@ i.heatCell {
     animation: none;
   }
 }
+
+/* 价格 → 模型数据：两行同步状态与启动时自动同步开关 */
+.syncFacts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--cd-space-1);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.inlineSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}

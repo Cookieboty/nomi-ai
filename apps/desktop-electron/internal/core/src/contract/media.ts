@@ -141,7 +141,7 @@ export function createMediaHandlers(
     'desktop.revoke': ({ id }) => desktop().revokeScope(id),
     'desktop.setPolicy': ({ tool, policy }) => desktop().setToolPolicy(tool, policy),
     'desktop.setLocalOnly': ({ value }) => desktop().setLocalOnly(value),
-    'desktop.audit': ({ limit }) => out(desktop().auditList(limit)),
+    'desktop.audit': ({ limit, offset }) => out(desktop().auditList(limit, offset)),
     'desktop.auditClear': () => desktop().clearAudit(),
     'desktop.journal': () => out(desktop().journalList()),
     'desktop.undoLast': () => desktop().undoLast(),

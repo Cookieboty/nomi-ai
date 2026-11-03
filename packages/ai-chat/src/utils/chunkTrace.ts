@@ -9,6 +9,8 @@ export interface StreamUsage {
   contextTokens?: number;
   /** 隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（统一网关报回） */
   redacted?: number;
+  /** 实际回答的模型（统一网关报回的 `供应商/模型`；故障转移后与选中的不同） */
+  model?: string;
 }
 
 type Chunk = { type: string; [k: string]: unknown };
@@ -75,5 +77,7 @@ export function chunkToUsage(c: Chunk): StreamUsage | null {
   if (cr !== undefined) out.cacheReadTokens = cr;
   const red = n(u.redacted);
   if (red !== undefined && red > 0) out.redacted = Math.trunc(red);
+  const model = str(c.model);
+  if (model) out.model = model;
   return Object.keys(out).length ? out : null;
 }

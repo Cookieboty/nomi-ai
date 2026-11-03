@@ -109,7 +109,7 @@ func (h delegateGateway) Models() []*util.Obj           { return h.g.CliModels()
 // delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，persistent-tasks-plan 2.2）
 type delegateTasks struct{ s *tasks.Service }
 
-func (t delegateTasks) CreateDelegated(i tasks.DelegatedInput) tasks.Task {
+func (t delegateTasks) CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error) {
 	return t.s.CreateDelegated(i)
 }
 func (t delegateTasks) Get(id string) *tasks.Record { return t.s.Get(id) }

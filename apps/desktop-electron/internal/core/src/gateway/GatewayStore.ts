@@ -284,6 +284,28 @@ export class GatewayStore {
     else this.data.providers.push(next);
   }
 
+  /** 只改启用状态，其它设置不动；不存在的 id 返回 false */
+  setProviderEnabled(id: string, enabled: boolean): boolean {
+    const p = this.data.providers.find((x) => x.id === id);
+    if (!p) return false;
+    p.enabled = enabled;
+    p.updatedAt = Date.now();
+    return true;
+  }
+
+  /** 按 ids 的顺序排列；没列出的保持原有相对顺序排在后面，不认识的 id 忽略 */
+  reorderProviders(ids: readonly string[]): void {
+    const rank = new Map<string, number>();
+    ids.forEach((id, i) => {
+      if (!rank.has(id)) rank.set(id, i);
+    });
+    const at = (id: string) => rank.get(id) ?? ids.length;
+    this.data.providers = this.data.providers
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => at(a.p.id) - at(b.p.id) || a.i - b.i)
+      .map((x) => x.p);
+  }
+
   removeProvider(id: string): void {
     this.data.providers = this.data.providers.filter((p) => p.id !== id);
     delete this.data.learned[id];
@@ -366,7 +388,6 @@ export class GatewayStore {
                 ];
           }),
       models: this.runtimeModels(p),
-      ...(p.fallback ? { fallback: p.fallback } : {}),
       ...(p.headers ? { headers: p.headers } : {}),
       ...(p.userAgent ? { userAgent: p.userAgent } : {}),
       ...(p.modelMap ? { modelMap: p.modelMap } : {}),

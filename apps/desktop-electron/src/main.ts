@@ -30,9 +30,13 @@ perfMark('main-entry');
 /**
  * 单实例锁：避免多开导致全局快捷键 / 本地模型服务 / userData 竞争。
  * 打包应用的 deep link（nomi://，Windows/Linux 经第二实例 argv 传入）统一聚焦到已有窗口；
- * host 白名单当前为空——未来实现具体动作时必须在此显式登记，默认一律忽略。
+ * host 白名单：只有登记在这里的才交给内核，其余一律只聚焦窗口。
+ * - provider：第三方供应商链接（docs/design/provider-link.md），内核解析后在对话窗口里请用户确认。
  */
-const DEEP_LINK_ALLOWED_HOSTS = new Set<string>([]);
+const DEEP_LINK_ALLOWED_HOSTS = new Set<string>(['provider']);
+
+/** 应用还没起来时收到的链接（macOS 冷启动的 open-url 早于 ready；Windows / Linux 在 argv 里） */
+const pendingDeepLinks: string[] = [];
 
 function focusExistingWindow(): void {
   // 默认界面为「软件主界面」：第二次启动直接把主界面带到前台
@@ -53,9 +57,10 @@ function consumeDeepLink(url: string | undefined): void {
   } catch {
     return;
   }
-  if (!DEEP_LINK_ALLOWED_HOSTS.has(parsed.host)) return;
-  // 白名单为空：当前没有任何可执行的 deep link 动作，仅聚焦窗口
-  focusExistingWindow();
+  if (!DEEP_LINK_ALLOWED_HOSTS.has(parsed.host.toLowerCase())) return;
+  // 链接里可能有 Key：不记原文
+  if (application?.handleDeepLink(url)) return;
+  if (pendingDeepLinks.length < 5) pendingDeepLinks.push(url);
 }
 
 const isPrimaryInstance = app.requestSingleInstanceLock();
@@ -127,6 +132,9 @@ async function main(): Promise<void> {
     // 初始化并启动应用
     await application.initialize();
     await application.start();
+    // 冷启动带来的链接：Windows / Linux 在本进程的 argv 里，macOS 的 open-url 已排在 pendingDeepLinks
+    consumeDeepLink(process.argv.find((a) => /^nomi:/i.test(a)));
+    for (const url of pendingDeepLinks.splice(0)) application.handleDeepLink(url);
 
     log.info('✅ Nomi 启动成功');
   } catch (error) {

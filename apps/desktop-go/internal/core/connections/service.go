@@ -349,6 +349,43 @@ func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, erro
 }
 
 // Check：复核账号与权限；换了账号 / 登出了 → needs_login（不悄悄换账号）
+// IdentityTTLMs：读请求复核 gh 账号的缓存时长（写不缓存）
+const IdentityTTLMs = 60_000
+
+// verifyIdentity：执行前复核 gh 当前账号（connections.md §4.3，#233）：gh 登录方式的连接用的是 gh 的「当前」账号，
+// 用户在外面切了账号不会通知我们。读最多沿用 IdentityTTLMs 内的复核；写每次发送前都复核。
+// 账号换了 / 登出了 → needs_login，不发请求。令牌方式的身份绑在令牌上，不需要。
+func (s *Service) verifyIdentity(ctx context.Context, id string, maxAgeMs int64) error {
+	s.mu.Lock()
+	var cur *stored
+	for i := range s.items {
+		if s.items[i].ID == id {
+			cur = &s.items[i]
+		}
+	}
+	if cur == nil {
+		s.mu.Unlock()
+		return &Error{"not_found", id}
+	}
+	if cur.Auth.Kind != "cli-login" {
+		s.mu.Unlock()
+		return nil
+	}
+	fresh := maxAgeMs > 0 && cur.CheckedAt != nil && s.d.Now()-*cur.CheckedAt < maxAgeMs && cur.Status == "ok"
+	s.mu.Unlock()
+	if fresh {
+		return nil
+	}
+	c, err := s.Check(ctx, id)
+	if err != nil {
+		return err
+	}
+	if c.Status != "ok" {
+		return &Error{"needs_login", c.Label + ": the active gh account changed or logged out; re-check the connection"}
+	}
+	return nil
+}
+
 func (s *Service) Check(ctx context.Context, id string) (*Connection, error) {
 	s.mu.Lock()
 	var c *stored
@@ -544,6 +581,9 @@ func (s *Service) GithubRead(ctx context.Context, p ReadParams, grant []Grant) (
 		}
 		return nil, err
 	}
+	if err := s.verifyIdentity(ctx, c.ID, IdentityTTLMs); err != nil {
+		return nil, err
+	}
 	var data any
 	if c.Auth.Kind == "cli-login" {
 		data, err = ghGet(ctx, s.d.RunGh, c.Auth.Host, path, q)
@@ -653,6 +693,10 @@ func (s *Service) send(ctx context.Context, c *stored, req WriteRequest) (any, e
 			return nil, &GithubWriteError{Msg: ctx.Err().Error(), Definite: true}
 		}
 	}
+	// 写：排队等完、真正发出前复核账号（不沿用缓存），换了就不发（确定没生效）
+	if err := s.verifyIdentity(ctx, c.ID, 0); err != nil {
+		return nil, &GithubWriteError{Msg: err.Error(), Definite: true}
+	}
 	defer func() { s.lastWriteAt = s.d.Now() }()
 	if c.Auth.Kind == "cli-login" {
 		return ghWrite(ctx, s.d.RunGh, c.Auth.Host, req)
@@ -701,6 +745,10 @@ func (s *Service) GithubWrite(ctx context.Context, capability string, p GithubWr
 	}
 	if grant != nil && journal == nil {
 		return nil, &Error{"not_allowed", "no side-effect journal"}
+	}
+	// 写 intent 之前先复核一次：账号换了直接报 needs_login，不留待核对的 intent
+	if err := s.verifyIdentity(ctx, c.ID, 0); err != nil {
+		return nil, err
 	}
 	exec := func(marker string) (*u.Obj, error) {
 		r := req

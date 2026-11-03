@@ -98,6 +98,7 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
       wire(harness().seedTabMessages(id, messages as unknown as HarnessTabMessage[])),
     'harness.tabClose': ({ id }) => wire(harness().closeTab(id)),
     'harness.tabRename': ({ id, title }) => wire(harness().renameTab(id, title)),
+    'harness.tabApplyAutoTitle': ({ id, title }) => wire(harness().applyAutoTitle(id, title)),
     'harness.tabActivate': ({ id }) => wire(harness().setActiveTab(id)),
     'harness.tabBackend': ({ id, backend }) =>
       wire(harness().setTabBackend(id, backend as HarnessBackend)),

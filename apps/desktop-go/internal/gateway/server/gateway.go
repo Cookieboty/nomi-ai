@@ -43,7 +43,6 @@ import (
 
 const (
 	GatewayVersion    = "1"
-	MaxAttempts       = 4
 	MaxLearnRetries   = 2
 	ServedModelHeader = "x-nomi-served-model"
 	RedactedHeader    = "x-nomi-redacted"
@@ -59,10 +58,37 @@ type Logger interface {
 	Warn(msg string, d any)
 }
 
+// RetryEvent = RetryEvent：让客户端在等待时知道正在重连（同一家，provider == previous）或换供应商。
+type RetryEvent struct {
+	Client   string `json:"client"`
+	Provider string `json:"provider"`
+	Previous string `json:"previous"`
+	Status   int    `json:"status,omitempty"`
+	Attempt  int    `json:"attempt"`
+	WaitMs   int    `json:"waitMs,omitempty"`
+}
+
+func (g *GatewayServer) notifyRetry(e RetryEvent) {
+	if g.hooks.OnRetry == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	g.hooks.OnRetry(e)
+}
+
+func failedStatus(a *attemptT) int {
+	if a.upstreamStatus != nil {
+		return *a.upstreamStatus
+	}
+	return a.status
+}
+
 // GatewayHooks is GatewayHooks. Usage events are the JS UsageEvent objects
 // (ordered keys, same shape as onUsage receives in Node).
 type GatewayHooks struct {
-	OnUsage     func(e *u.Obj)
+	OnUsage func(e *u.Obj)
+	// OnRetry：提交点之前的重连 / 换供应商（只通知，不影响流程）= hooks.onRetry
+	OnRetry     func(e RetryEvent)
 	OnLearn     func(e LearnEvent)
 	OnKeyStatus func(e upstream.KeyStatusEvent)
 	Logger      Logger
@@ -1087,12 +1113,31 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	}
 	queue := g.ordered(g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
 	learnRetries := 0
-	for len(queue) > 0 && attempts < MaxAttempts {
+	// 重连（§11.1，retry.go）：同一个 Key 退避重连几次、同一家累计失败几次
+	keysOf := map[string]map[string]bool{}
+	for _, x := range r.Candidates {
+		if keysOf[x.Provider.ID] == nil {
+			keysOf[x.Provider.ID] = map[string]bool{}
+		}
+		keysOf[x.Provider.ID][x.Key.ID] = true
+	}
+	keyRetries := map[string]int{}
+	providerFails := map[string]int{}
+	retryBase := float64(RetryBaseDelayMs)
+	if b := upstream.ResolveRetryBaseMs(g.hooks.TimeoutHooks); b != nil {
+		retryBase = *b
+	}
+	for len(queue) > 0 && attempts < MaxTotalAttempts {
 		if NowMs()-startedAt > upstream.ResolveFirstByteBudgetMs(wantsStream, g.hooks.TimeoutHooks) || aborted() {
 			break
 		}
 		c := queue[0]
 		queue = queue[1:]
+		// 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
+		if last != nil && last.kind == "failed" && last.cand != nil && last.cand.Provider.ID != c.Provider.ID {
+			g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: last.cand.Provider.Name,
+				Status: failedStatus(last), Attempt: attempts + 1})
+		}
 		peeked := false
 		if g.privacy.Applies(cfg, c) {
 			if st, msg, refused := ensureMasked(); refused {
@@ -1217,8 +1262,21 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		if last.upstreamStatus != nil {
 			ups = fp(float64(*last.upstreamStatus))
 		}
-		if upstream.CoolsDown(last.network, ups) && !aborted() {
-			g.cool.Fail(c, upstream.Failure{UpstreamStatus: ups, RetryAfter: last.retryAfter, Message: strp(last.message)})
+		// 还要在同一个 Key 上重连（§11.1）：先不冷却、不报 Key 状态；重连用完换 Key 时才算这个 Key 暂时不行
+		keyID := c.Provider.ID + "\u0000" + c.Key.ID
+		retried := keyRetries[keyID]
+		failed := last
+		coolDown := func() {
+			if upstream.CoolsDown(failed.network, ups) && !aborted() {
+				g.cool.Fail(c, upstream.Failure{UpstreamStatus: ups, RetryAfter: failed.retryAfter, Message: strp(failed.message)})
+			}
+		}
+		sameKeyRetry := !aborted() &&
+			IsTransientFailure(last.status, last.upstreamStatus, last.network, last.errorKind) &&
+			retried < KeyRetryLimit(len(keysOf[c.Provider.ID])) &&
+			providerFails[c.Provider.ID]+1 < ProviderMaxFailures
+		if !sameKeyRetry {
+			coolDown()
 		}
 		var hint *Retry
 		if last.text != nil {
@@ -1262,6 +1320,41 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			if len(others) > 0 {
 				continue
 			}
+		}
+		// 同一家累计失败够了：放弃它剩下的 Key，换同一个模型的下一家（§11.1）
+		providerFails[c.Provider.ID]++
+		if providerFails[c.Provider.ID] >= ProviderMaxFailures {
+			var others []*cand.Candidate
+			for _, o := range queue {
+				if o.Provider.ID != c.Provider.ID {
+					others = append(others, o)
+				}
+			}
+			queue = others
+			if len(others) > 0 {
+				continue
+			}
+			break
+		}
+		// 临时性错误（503、429、超时……）：先在同一个 Key 上退避重连，不急着报错（§11.1）
+		if sameKeyRetry {
+			keyRetries[keyID] = retried + 1
+			wait := RetryDelayMs(retried+1, last.retryAfter, retryBase, nil)
+			budget := upstream.ResolveFirstByteBudgetMs(wantsStream, g.hooks.TimeoutHooks)
+			var tick func()
+			if wantsStream {
+				tick = keepAlive
+			}
+			if NowMs()+wait-startedAt < budget {
+				g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: c.Provider.Name,
+					Status: failedStatus(last), Attempt: attempts + 1, WaitMs: int(wait)})
+			}
+			if NowMs()+wait-startedAt < budget && waitRetry(abortCtx, wait, tick) {
+				queue = append([]*cand.Candidate{c}, queue...)
+				continue
+			}
+			// 预算不够等下一次 / 客户端走了：这次就算这个 Key 失败
+			coolDown()
 		}
 		if !last.retryable && hint == nil {
 			break

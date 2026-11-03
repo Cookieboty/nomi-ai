@@ -20,6 +20,7 @@ import {
   acpMetaContext,
   BUILTIN_CLI_IDS,
   claude as claudePlugin,
+  cleanTitle,
   codex as codexPlugin,
   createClaudeParser,
   createDshParser,
@@ -353,6 +354,8 @@ export class HarnessOrchestrator {
   private readonly stopRequested = new Set<string>();
   /** Nomi 委派建好、但第一轮还没开始发送的标签（建标签到 sendTab 之间有 git 检查等 await） */
   private readonly delegatedUnsent = new Set<string>();
+  /** 首条启发式标题已写入、仍允许智能标题覆盖的标签（手动改名或智能标题成功后清除） */
+  private readonly autoTitlePending = new Set<string>();
   /** 上面这类标签在开始前就被点了停止：sendTab 一开始就按「已停止」结束，不再发给 CLI */
   private readonly stopBeforeStart = new Set<string>();
   /**
@@ -1328,7 +1331,10 @@ export class HarnessOrchestrator {
     return out;
   }
 
-  /** 历史扫描能读到 CLI 自己生成的新标题时，替换标签的自动编号标题。 */
+  /**
+   * 历史扫描能读到 CLI 自己生成的新标题时，替换标签的自动编号标题；
+   * 首条发送时写入的截取标题（autoTitlePending）也让位给它，之后不再被智能标题覆盖。
+   */
   syncOpenSessionTitle(backend: BuiltinBackend, sessionId: string, title: string): void {
     const tab = [...this.tabs.values()].find(
       (x) => x.backend === backend && x.cliSessionId === sessionId,
@@ -1336,8 +1342,10 @@ export class HarnessOrchestrator {
     const next = String(title ?? '')
       .trim()
       .slice(0, 60);
-    if (!tab || !next || tab.title === next || !isGeneratedTabTitle(tab.title, backend)) return;
+    if (!tab || !next || tab.title === next) return;
+    if (!isGeneratedTabTitle(tab.title, backend) && !this.autoTitlePending.has(tab.id)) return;
     tab.title = next;
+    this.autoTitlePending.delete(tab.id);
     this.changed();
   }
 
@@ -1459,8 +1467,35 @@ export class HarnessOrchestrator {
       .slice(0, 60);
     if (!next) throw new Error(t('electron.common.title-cannot-be-empty'));
     tab.title = next;
+    this.autoTitlePending.delete(id);
     this.changed();
     return { ...tab };
+  }
+
+  /** 智能标题写入：仅在 autoTitlePending 时生效；成功后清门控。 */
+  applyAutoTitle(id: string, title: string): HarnessTabMeta | null {
+    if (!this.autoTitlePending.has(id)) return null;
+    const tab = this.tabs.get(id);
+    if (!tab) return null;
+    const next = String(title ?? '')
+      .trim()
+      .slice(0, 60);
+    if (!next) return null;
+    tab.title = next;
+    this.autoTitlePending.delete(id);
+    this.changed();
+    return { ...tab };
+  }
+
+  private armHeuristicTitle(tab: HarnessTabMeta, prompt: string): void {
+    if (tab.backend === 'nomi' || tab.backend === 'external') return;
+    if (!isGeneratedTabTitle(tab.title, tab.backend) && !this.autoTitlePending.has(tab.id)) return;
+    const cleaned = cleanTitle(prompt, 30);
+    if (!cleaned) return;
+    if (isGeneratedTabTitle(tab.title, tab.backend)) {
+      this.autoTitlePending.add(tab.id);
+      tab.title = cleaned;
+    }
   }
 
   setActiveTab(id: string): HarnessTabsState {
@@ -2649,6 +2684,8 @@ export class HarnessOrchestrator {
       ...(thumbs?.length ? { images: thumbs } : {}),
       timestamp: Date.now(),
     });
+    this.armHeuristicTitle(current, text);
+    this.changed();
     current.lastError = undefined;
     try {
       await this.acquire(id);

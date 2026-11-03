@@ -40,7 +40,11 @@ import {
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { Router } from '@nomi-ai/contract';
 import type { AppContract } from '@nomi-ai/contract/app';
-import type { ProviderQuirks } from '@nomi-ai/gateway';
+import {
+  resolveUpstreamAddresses,
+  UpstreamBlockedError,
+  type ProviderQuirks,
+} from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { AgentProgressService } from './agents/AgentProgressService';
@@ -59,7 +63,7 @@ import { CliUpdateService } from './cli/CliUpdateService';
 import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
 import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
 import { applyDispatchHint } from './cli/delegate/intentHint';
-import { prepareIsolation } from './cli/delegate/worktree';
+import { prepareIsolation, releaseIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
 import { HarnessStoppedError, type HarnessTabFinished } from './cli/harness/liveTypes';
 import { HarnessOrchestrator } from './cli/harness/Orchestrator';
@@ -92,6 +96,7 @@ import { ExtensionsService } from './extensions/ExtensionsService';
 import { GatewayService } from './gateway/GatewayService';
 import { harnessGateway } from './gateway/harnessGateway';
 import { applyNomiContext, chatRoleOf } from './gateway/nomiContext';
+import { ProviderLinkError, ProviderLinkService } from './gateway/ProviderLinkService';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
 import { LocaleService, t as tr, type CoreI18n } from './i18n';
@@ -575,7 +580,13 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         // 派给 Nomi 的执行用对话的工具集（§7.4）
         toolNames: () => services.aiRuntime?.client.tools.list().map((t) => t.name) ?? [],
         ready: () => !!services.aiRuntime?.resolveProvider('agent-tools'),
+        route: () => {
+          const p = services.aiRuntime?.resolveProvider('agent-tools');
+          const m = services.aiRuntime?.resolveModel('agent-tools');
+          return { ...(p ? { providerId: p.id } : {}), ...(m ? { model: m } : {}) };
+        },
         registerBackground: (signal, run) => desktop.broker.registerBackground(signal, run),
+        liveTask: (id) => tasks.runtime.get(id)?.task ?? null,
         externalJournal: (id, attemptId) => tasks.externalJournal(id, attemptId),
         eventsFor: (id, key) => tasks.eventBatch(id, key),
         costOf: (model, t) => (model ? services.usage?.costOf(model, t) : undefined),
@@ -889,6 +900,23 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       broadcast: (channel, payload) => events.publish(channel, payload),
     });
     services.gateway = gateway;
+    services.providerLink = new ProviderLinkService({
+      gateway: () => services.gateway,
+      openExternal: (url) => ports.shell.openExternal(url),
+      publish: (offers) => events.publish('providerLink.changed', offers),
+      reveal: () => void ports.windows.open('chat'),
+      // 与网关连上游同一套规则：拒绝本机 / 局域网，代理软件的 fake-ip（198.18/15）对域名放行
+      assertPublic: async (url) => {
+        try {
+          await resolveUpstreamAddresses(url);
+        } catch (e) {
+          throw new ProviderLinkError(
+            e instanceof UpstreamBlockedError ? 'private_host' : 'network',
+          );
+        }
+      },
+      logger: logger as never,
+    });
     // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
     gateway.init();
     // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）
@@ -1048,6 +1076,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           isStopped: (err) => err instanceof HarnessStoppedError,
         },
         prepareIsolation: (cwd, key) => prepareIsolation(cwd, key),
+        releaseIsolation: (iso) => releaseIsolation({ ...iso, note: '' }),
         gitChanged: (cwd) => gitChanged(cwd),
         buildPrompt: (b) => buildDelegatePrompt(b),
         parseReport: (text) => parseDelegateReport(text),

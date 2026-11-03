@@ -144,15 +144,15 @@ func TestRestartReconcile(t *testing.T) {
 	for _, id := range []string{a.ID, b.ID} {
 		s.Command(id, Command{Type: "runNow"})
 		rec := s.Get(id)
-		action := "mcp.call"
+		action, target := "mcp.call", u.NewObj()
 		if id == a.ID {
-			action = "github.comment"
+			action, target = "github.comment", u.NewObj("repo", "o/r")
 		}
 		// fn 一直不返回：intent 留着（模拟进程在动作途中退出）
 		started := make(chan struct{})
 		go func() {
 			_, _ = s.ExternalJournal(id, rec.Attempts[len(rec.Attempts)-1].ID).Run(
-				connections.ExternalAction{Action: action, Summary: "s", Target: u.NewObj(), Payload: 1},
+				connections.ExternalAction{Action: action, Summary: "s", Target: target, Payload: 1},
 				func(string) (any, string, error) { close(started); select {} })
 		}()
 		<-started
@@ -334,5 +334,29 @@ func TestAllowedToolsConnections(t *testing.T) {
 	}
 	if slices.Contains(got, "github_pr_create") || slices.Contains(AllowedTools([]string{"read"}), "github_read") {
 		t.Fatal(got)
+	}
+}
+
+// #232：投递前按当前授权核对：等级、能力、仓库
+func TestGrantAllowsCurrentGrant(t *testing.T) {
+	a := connections.ExternalAction{Action: "github.comment", Target: u.NewObj("connectionId", "c1", "repo", "O/R")}
+	g := Grant{Level: 4, Connections: []ConnectionGrant{{ConnectionID: "c1", Capabilities: []string{"github.comment"}, Resources: []string{"o/r"}}}}
+	if !GrantAllows(Task{Grant: g}, a) {
+		t.Fatal("should allow")
+	}
+	low := g
+	low.Level = 3
+	if GrantAllows(Task{Grant: low}, a) {
+		t.Fatal("L3 must not deliver")
+	}
+	readOnly := g
+	readOnly.Connections = []ConnectionGrant{{ConnectionID: "c1", Capabilities: []string{"github.read"}, Resources: []string{"o/r"}}}
+	if GrantAllows(Task{Grant: readOnly}, a) {
+		t.Fatal("capability removed must not deliver")
+	}
+	otherRepo := g
+	otherRepo.Connections = []ConnectionGrant{{ConnectionID: "c1", Capabilities: []string{"github.comment"}, Resources: []string{"o/x"}}}
+	if GrantAllows(Task{Grant: otherRepo}, a) {
+		t.Fatal("repo removed must not deliver")
 	}
 }

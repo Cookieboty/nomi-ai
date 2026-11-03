@@ -8,3 +8,6 @@ import { BUILTIN_GATEWAY_ENTRIES } from '@nomi-ai/cli-plugins/gateways';
 import { registerClientSpec } from '../../src/clients/index';
 
 for (const e of BUILTIN_GATEWAY_ENTRIES) registerClientSpec(e.clientSpec);
+
+// 重连退避（retry.ts）在测试里不真等：次数照常，等待为 0；要测退避本身的用例自己传 retryBaseDelayMs
+process.env.NOMI_GATEWAY_RETRY_BASE_MS ??= '0';

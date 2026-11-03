@@ -140,6 +140,36 @@ describe('AccountService（账号目录）', () => {
     expect(cj.oauthAccount).toBeUndefined();
   });
 
+  it('Codex：config.toml 里的相对路径（cc-switch 的模型目录等）也链进账号目录，凭据除外', () => {
+    const { svc, home } = mk();
+    const cx = path.join(home, '.codex');
+    fs.writeFileSync(
+      path.join(cx, 'config.toml'),
+      [
+        'model_catalog_json = "cc-switch-model-catalog.json"',
+        "model_instructions_file = 'prompts-x/base.md' # 注释",
+        'experimental_auth_file = "auth.json"',
+        'model_instructions_path = "/abs/elsewhere.md"',
+        'missing_file = "nope.json"',
+        'model = "catalog.json"',
+      ].join('\n'),
+    );
+    fs.writeFileSync(path.join(cx, 'cc-switch-model-catalog.json'), '{}');
+    fs.mkdirSync(path.join(cx, 'prompts-x'));
+    fs.writeFileSync(path.join(cx, 'prompts-x', 'base.md'), '# p');
+    fs.writeFileSync(path.join(cx, 'auth.json'), '{}');
+    fs.writeFileSync(path.join(cx, 'catalog.json'), '{}');
+    const a = svc.create('codex');
+    const dir = svc.officialLaunch('codex', a.id).dir!;
+    expect(fs.realpathSync(path.join(dir, 'cc-switch-model-catalog.json'))).toBe(
+      fs.realpathSync(path.join(cx, 'cc-switch-model-catalog.json')),
+    );
+    expect(fs.lstatSync(path.join(dir, 'prompts-x')).isSymbolicLink()).toBe(true);
+    // 凭据、不是路径键的值、用户目录里没有的：都不链
+    for (const n of ['auth.json', 'catalog.json', 'nope.json'])
+      expect(fs.existsSync(path.join(dir, n))).toBe(false);
+  });
+
   it('启动前同步保留账号目录自己的身份字段（S11）', () => {
     const { svc } = mk();
     const a = svc.create('claude');

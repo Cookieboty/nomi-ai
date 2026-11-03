@@ -14,6 +14,7 @@
 import { asksUser, AUTO_PAUSE_AFTER_FAILURES, isRetryable, retryBackoffMs } from './errors';
 import type {
   Attempt,
+  AttemptCause,
   AttemptResult,
   ExecutionSnapshot,
   Grant,
@@ -116,6 +117,9 @@ export function isRecurring(task: Task): boolean {
 
 const isActive = (a: Attempt | null): a is Attempt =>
   a !== null && (a.status === 'running' || a.status === 'waiting_user');
+
+/** 续跑类起因：沿用上一次执行的触发上下文（事件批） */
+const CONTINUATION_CAUSES: readonly AttemptCause[] = ['retry', 'resume', 'rework'];
 
 const grantExpired = (task: Task, at: number) =>
   task.grant.expiresAt !== undefined && task.grant.expiresAt <= at;
@@ -273,11 +277,14 @@ export function transition(task: Task, attempt: Attempt | null, ev: TaskEvent): 
       }
       const gen = task.gen + 1;
       const p: PendingRun = task.pending ?? { cause: 'manual' };
+      // 续跑（重试 / 恢复 / 退回）沿用上一次执行的触发事件批，执行者才拿得到原始事件（#240）
+      const eventKey =
+        p.eventKey ?? (CONTINUATION_CAUSES.includes(p.cause) ? attempt?.cause.eventKey : undefined);
       const next: Attempt = clean({
         id: ev.attemptId,
         taskId: task.id,
         gen,
-        cause: clean({ kind: p.cause, eventKey: p.eventKey, note: p.note, answer: p.answer }),
+        cause: clean({ kind: p.cause, eventKey, note: p.note, answer: p.answer }),
         snapshot: ev.snapshot,
         status: 'running' as const,
         startedAt: at,

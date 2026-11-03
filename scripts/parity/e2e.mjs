@@ -373,6 +373,8 @@ export async function recordE2E({ gw }) {
     const g = S.createGateway(cfg, {
       onUsage: (e) => usage.push(e),
       logger: { info() {}, warn() {} },
+      // 重连退避不真等（次数照常，§11.1）；Go 回放同样设 0
+      retryBaseDelayMs: 0,
     });
     await g.start();
     const res = await send(g.listenUrl(), c.req);

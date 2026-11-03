@@ -46,7 +46,7 @@ export const SETTINGS_SECTIONS: Array<{
   {
     id: 'usage',
     icon: SETTINGS_ICONS.usage,
-    label: 'ui.chat-settings.usage-and-quality',
+    label: 'ui.chat-settings.usage-and-analytics',
     intro: 'ui.chat-settings.token-usage-cost-and-how-each-provider-performs',
     wide: true,
   },

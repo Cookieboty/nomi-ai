@@ -8,6 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/clients"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
+	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/providers"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -112,7 +113,32 @@ func MapModel(client string, m *config.ClientModels, requested string, bound boo
 
 func hasModel(p *config.RuntimeProvider, id string) bool { return p.Model(id) != nil }
 
-func resolveRef(cfg *config.GatewayConfig, ref, homeProvider string) (*config.RuntimeProvider, string) {
+// resolveRefOff = resolveRef：先按启用的供应商解析（resolveRefOn）；指向已停用的供应商时返回它并标 disabled：
+// 自己不出候选，直接按列表顺序回退到同一个模型（§7.2）
+func resolveRefOff(cfg *config.GatewayConfig, ref, homeProvider string) (*config.RuntimeProvider, string, bool) {
+	p, m := resolveRefOn(cfg, ref, homeProvider)
+	if p != nil {
+		return p, m, false
+	}
+	pid, model := SplitRef(ref)
+	if pid == "" {
+		return nil, "", false
+	}
+	for i := range cfg.Providers {
+		if x := &cfg.Providers[i]; !x.Enabled && x.ID == pid {
+			return x, model, true
+		}
+	}
+	for i := range cfg.Providers {
+		if x := &cfg.Providers[i]; !x.Enabled && has(x.Aliases, pid) {
+			return x, model, true
+		}
+	}
+	return nil, "", false
+}
+
+// resolveRefOn：只看启用的供应商（§6.2 第 1～3 步）
+func resolveRefOn(cfg *config.GatewayConfig, ref, homeProvider string) (*config.RuntimeProvider, string) {
 	pid, model := SplitRef(ref)
 	if pid != "" {
 		if p := FindProvider(cfg, pid); p != nil {
@@ -287,13 +313,14 @@ func ResolveCandidates(cfg *config.GatewayConfig, client, requested, ingress str
 	}
 	var tp *config.RuntimeProvider
 	var tm string
+	off := false
 	if requested != "" {
-		tp, tm = resolveRef(cfg, requested, home)
+		tp, tm, off = resolveRefOff(cfg, requested, home)
 	}
 	res := &Resolution{How: "explicit"}
 	if tp == nil {
 		if mapped := MapModel(client, m, requested, binding != nil); mapped != nil {
-			tp, tm = resolveRef(cfg, mapped.Ref, home)
+			tp, tm, off = resolveRefOff(cfg, mapped.Ref, home)
 			res = &Resolution{How: mapped.How, Note: mapped.Note}
 		}
 	}
@@ -312,16 +339,86 @@ func ResolveCandidates(cfg *config.GatewayConfig, client, requested, ingress str
 		}
 		return &ResolveResult{Status: 404, Message: msg, Suggestions: s}
 	}
-	cs := expand(cfg, tp, tm, ingress)
-	for _, ref := range tp.Fallback {
-		if fp, fm := resolveRef(cfg, ref, ""); fp != nil {
-			cs = append(cs, expand(cfg, fp, fm, ingress)...)
-		}
+	// 停用的供应商自己不出候选：直接从同一个模型的下一家开始
+	var cs []*cand.Candidate
+	if !off {
+		cs = expand(cfg, tp, tm, ingress)
+	}
+	// 首选的 Key 都不行时：同一个模型，按供应商列表顺序换供应商
+	for _, fb := range FailoverTargets(cfg, tp, tm) {
+		cs = append(cs, expand(cfg, fb.Provider, fb.Model, ingress)...)
 	}
 	if len(cs) == 0 {
+		if off {
+			return &ResolveResult{Status: 400, Message: "Nomi 网关：供应商「" + tp.Name + "」已停用，也没有其它启用的供应商提供 `" + tm + "`"}
+		}
 		return &ResolveResult{Status: 400, Message: "Nomi 网关：供应商「" + tp.Name + "」没有可用的 Key 或协议地址"}
 	}
 	return &ResolveResult{OK: true, Candidates: cs, Resolution: res}
+}
+
+var (
+	modelTagRe    = regexp.MustCompile(`:[\w.-]+$`)
+	modelSuffixRe = regexp.MustCompile(`-\d{8}$|-latest$`)
+)
+
+// SameModelKey = sameModelKey：去掉供应商前缀、`:free` 等标签与日期 / -latest 后缀，不分大小写（§7.2）
+func SameModelKey(id string) string {
+	return modelSuffixRe.ReplaceAllString(modelTagRe.ReplaceAllString(models.BareModelID(id), ""), "")
+}
+
+// isLocalProvider：供应商的地址全在本机 / 局域网；没有地址时不算
+func isLocalProvider(p *config.RuntimeProvider) bool {
+	n := 0
+	for _, w := range p.URLWires() {
+		raw := p.URL(w)
+		if raw == "" {
+			continue
+		}
+		n++
+		pu, err := gnet.ParseURL(raw)
+		if err != nil {
+			return false
+		}
+		h := pu.Hostname()
+		if strings.HasPrefix(pu.Host, "[") {
+			h = "[" + h + "]"
+		}
+		if !gnet.IsLoopbackHost(h) && !gnet.IsPrivateHost(h) {
+			return false
+		}
+	}
+	return n > 0
+}
+
+// FailoverTarget：回退到的供应商与它那边的模型 id
+type FailoverTarget struct {
+	Provider *config.RuntimeProvider
+	Model    string
+}
+
+// FailoverTargets = failoverTargets：首选供应商失败后，按供应商列表顺序在其它启用的供应商里找同一个模型
+// （且在那边是启用的）；不换成别的模型。首选是本机 / 局域网的，只回退到本机 / 局域网（§7.2）
+func FailoverTargets(cfg *config.GatewayConfig, provider *config.RuntimeProvider, model string) []FailoverTarget {
+	key := SameModelKey(model)
+	localOnly := isLocalProvider(provider)
+	out := []FailoverTarget{}
+	for i := range cfg.Providers {
+		p := &cfg.Providers[i]
+		if p.ID == provider.ID || !p.Enabled {
+			continue
+		}
+		if localOnly && !isLocalProvider(p) {
+			continue
+		}
+		for _, m := range p.Models {
+			if m.Enabled && SameModelKey(m.ID) == key {
+				out = append(out, FailoverTarget{Provider: p, Model: m.ID})
+				break
+			}
+		}
+	}
+	return out
 }
 
 // Upstream is one preferredWire upstream.

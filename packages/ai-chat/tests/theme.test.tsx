@@ -27,19 +27,21 @@ afterEach(() => {
 });
 
 describe('themes', () => {
-  it('new users default to Sunset Orange; saved choice respected', () => {
-    expect(DEFAULT_THEME).toBe('sunset');
+  it('new users default to Light; saved choice respected', () => {
+    expect(DEFAULT_THEME).toBe('light');
     initTheme();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('sunset');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     localStorage.setItem('cd.theme', 'mist');
     initTheme();
-    // 每个主题都写 data-theme（:root 只是日落橙的默认值）
+    // 每个主题都写 data-theme（:root 只是浅色的默认值）
     expect(document.documentElement.getAttribute('data-theme')).toBe('mist');
     expect(THEMES.map((t) => t.id).sort()).toEqual([
       'cream',
+      'dark',
       'graphite',
       'image',
       'ink',
+      'light',
       'mist',
       'sunset',
       'system',
@@ -48,9 +50,9 @@ describe('themes', () => {
   it('maps legacy paper id to cream', () => {
     expect(normalizeThemePref('paper')).toBe('cream');
   });
-  it('follow system resolves dark → graphite, light → cream', () => {
-    expect(resolveTheme('system', true)).toBe('graphite');
-    expect(resolveTheme('system', false)).toBe('cream');
+  it('follow system resolves dark → dark, light → light', () => {
+    expect(resolveTheme('system', true)).toBe('dark');
+    expect(resolveTheme('system', false)).toBe('light');
   });
   it('image theme uses the graphite palette and persists the image preference', () => {
     expect(normalizeThemePref('image')).toBe('image');
@@ -66,7 +68,7 @@ describe('themes', () => {
     applyTheme(DEFAULT_THEME);
     await setChatBackground({ imageUrl: CHAT_BG_PRESET_URL });
     const view = render(<ThemeSettings />);
-    expect(view.getAllByRole('radio')).toHaveLength(7);
+    expect(view.getAllByRole('radio')).toHaveLength(9);
     expect(
       (view.getByTestId('theme-system').firstElementChild as HTMLElement).style.backgroundImage,
     ).toContain('linear-gradient');

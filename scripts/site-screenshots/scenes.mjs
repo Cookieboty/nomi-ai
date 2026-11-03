@@ -53,7 +53,8 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       await h.wait(settleMs);
     },
     async newChat(endpoint) {
-      await page.getByRole('button', { name: '新对话' }).click();
+      // 页面上可能有不止一个「新对话」按钮：点第一个
+      await page.getByRole('button', { name: '新对话' }).first().click();
       const item = page.getByRole('menuitem', { name: endpoint });
       if (await item.isVisible().catch(() => false)) await item.click();
       await h.wait(900);
@@ -169,7 +170,8 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
     },
     async addDemoProvider() {
       await h.settings('模型与供应商');
-      await page.getByRole('radio', { name: '自定义地址' }).click();
+      // 「添加第三方供应商」第一步是分组卡片（不是单选按钮）
+      await page.getByTestId('models-preset-custom').click();
       await page.getByRole('textbox', { name: '地址' }).fill(llmBaseUrl);
       await page.getByRole('textbox', { name: '名称（可选）' }).fill('演示 DeepSeek');
       await page.getByRole('textbox', { name: 'API Key' }).fill('sk-demo-0000000000000000a1f3');
@@ -351,16 +353,17 @@ export const SCENES = [
     async run(h) {
       await h.open();
       await h.settings('模型与供应商');
-      await h.page.getByRole('button', { name: '编辑「演示 DeepSeek」' }).click();
+      // 点供应商这一行打开编辑（行尾的「⋯」已去掉，换成启用开关）
+      await h.page.getByRole('button', { name: /^演示 DeepSeek/ }).click();
       await h.wait(1000);
     },
   },
   {
     name: 'quality-panel',
-    title: '用量与质量：对比',
+    title: '用量与分析：对比',
     async run(h) {
       await h.open();
-      await h.settings('用量与质量');
+      await h.settings('用量与分析');
       await h.tab('对比');
     },
   },
@@ -440,18 +443,25 @@ export const SCENES = [
 ];
 
 /** --explore：逐个设置栏 / 入口页输出无障碍结构与截图，写新场景时对照 */
-export async function explore(page, h, outDir) {
+export async function explore(page, h, outDir, guard) {
   const dir = path.join(outDir, 'explore');
   fs.mkdirSync(dir, { recursive: true });
+  /** 先过隐私检查（页面 + 无障碍文本），全部通过才写图片与文本 */
   const dump = async (name) => {
-    await page.screenshot({ path: path.join(dir, `${name}.png`) });
+    await guard(page, name);
     const snap = await page
       .locator('body')
       .ariaSnapshot()
       .catch((e) => String(e));
+    guard.text(snap, name);
+    await page.screenshot({ path: path.join(dir, `${name}.png`) });
     fs.writeFileSync(path.join(dir, `${name}.txt`), snap);
     out(`[explore] ${name}`);
   };
+  const safeDump = (name) =>
+    dump(name).catch((e) =>
+      out(`[explore] ${name} not saved: ${String(e.message).split('\n')[0]}`),
+    );
   for (const s of SCENES.filter((x) => x.seed)) await s.run(h);
   await h.open();
   await h.settings(null);
@@ -460,7 +470,7 @@ export async function explore(page, h, outDir) {
     '通用',
     'Nomi',
     '模型与供应商',
-    '用量与质量',
+    '用量与分析',
     '编程助手',
     '知识与记忆',
     '扩展 / MCP',
@@ -469,7 +479,7 @@ export async function explore(page, h, outDir) {
   ];
   for (const label of sections) {
     await h.settings(label).catch(() => {});
-    await dump(`settings-${label.replace(/[\s/·]+/g, '_')}`);
+    await safeDump(`settings-${label.replace(/[\s/·]+/g, '_')}`);
   }
   for (const entry of ['任务', '素材库']) {
     await h.open();
@@ -479,17 +489,23 @@ export async function explore(page, h, outDir) {
       .click()
       .catch(() => {});
     await h.wait(1200);
-    await dump(`entry-${entry}`);
+    await safeDump(`entry-${entry}`);
   }
   // 需要交互才能看到的状态
   const tryDump = async (name, fn) => {
     try {
       await fn();
-      await dump(name);
     } catch (e) {
       out(`[explore] ${name} skipped: ${String(e.message).split('\n')[0]}`);
-      await page.screenshot({ path: path.join(dir, `_skipped-${name}.png`) }).catch(() => {});
+      const ok = await guard(page, name).then(
+        () => true,
+        () => false,
+      );
+      if (ok)
+        await page.screenshot({ path: path.join(dir, `_skipped-${name}.png`) }).catch(() => {});
+      return;
     }
+    await safeDump(name);
   };
   await tryDump('interact-新建任务', async () => {
     await h.open();
@@ -513,7 +529,7 @@ export async function explore(page, h, outDir) {
   });
   await tryDump('interact-用量对比', async () => {
     await h.open();
-    await h.settings('用量与质量');
+    await h.settings('用量与分析');
     await page.getByRole('tab', { name: '对比' }).click();
     await h.wait(1200);
   });
@@ -538,6 +554,6 @@ export async function explore(page, h, outDir) {
       .click()
       .catch(() => {});
     await h.wait(1200);
-    await dump(`entry-${entry.replace(/[\s/·]+/g, '_')}`);
+    await safeDump(`entry-${entry.replace(/[\s/·]+/g, '_')}`);
   }
 }

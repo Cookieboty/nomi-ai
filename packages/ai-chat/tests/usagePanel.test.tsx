@@ -449,7 +449,7 @@ describe('UsagePanel 明细 / 价格', () => {
   it('价格：展示内置价格表；为未定价模型一键加行并保存', async () => {
     const { findByTestId, getByRole, getByTestId, getByText } = render(<UsagePanel />);
     await findByTestId('usage-card-cost');
-    fireEvent.click(getByRole('tab', { name: '价格' }));
+    fireEvent.click(getByRole('tab', { name: '价格与模型数据' }));
     await findByTestId('usage-pricing');
     expect(getByTestId('usage-builtin-table').textContent).toContain('Claude Sonnet 4.5');
     expect(getByTestId('usage-builtin-table').textContent).toContain('3.75');
@@ -470,10 +470,10 @@ describe('UsagePanel 明细 / 价格', () => {
     await waitFor(() => expect(getByText('已保存')).toBeTruthy());
   });
 
-  it('价格：打开面板不联网；点「同步价格」才调用，并显示价格表日期 / 上次同步 / 隐私说明', async () => {
+  it('价格与模型数据：打开面板不联网；点「立即同步」才调用，并显示价格表日期 / 上次同步 / 隐私说明', async () => {
     const { findByTestId, getByRole, getByTestId } = render(<UsagePanel />);
     await findByTestId('usage-card-cost');
-    fireEvent.click(getByRole('tab', { name: '价格' }));
+    fireEvent.click(getByRole('tab', { name: '价格与模型数据' }));
     await findByTestId('usage-pricing');
     expect(getByTestId('usage-price-sync').textContent).toContain('不上传任何用量');
     expect(getByTestId('usage-sync-status').textContent).toContain('尚未同步');
@@ -483,6 +483,17 @@ describe('UsagePanel 明细 / 价格', () => {
     await waitFor(() => expect(getByTestId('usage-sync-result').textContent).toContain('321'));
     expect(getByTestId('usage-sync-status').textContent).toContain('2026-10-16');
     expect(getByTestId('usage-sync-status').textContent).toContain('321');
+    // 启动时自动同步的开关从「模型」页搬到这里（同步的是 models.dev 的公开数据，不是供应商的模型）
+    fireEvent.click(getByTestId('models-data-auto'));
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) =>
+            c[0] === 'usage.setSettings' &&
+            (c[1] as { modelsSyncAuto?: boolean }).modelsSyncAuto === false,
+        ),
+      ).toBe(true),
+    );
   });
 
   it('价格：同步失败时提示原因并说明继续使用已有价格', () => {
@@ -495,7 +506,7 @@ describe('UsagePanel 明细 / 价格', () => {
   it('价格：缺少输入 / 输出价时拒绝保存并提示', async () => {
     const { findByTestId, getByRole, getByTestId, findByText } = render(<UsagePanel />);
     await findByTestId('usage-card-cost');
-    fireEvent.click(getByRole('tab', { name: '价格' }));
+    fireEvent.click(getByRole('tab', { name: '价格与模型数据' }));
     await findByTestId('usage-pricing');
     fireEvent.click(getByTestId('usage-add-price'));
     fireEvent.change(within(getByTestId('usage-custom-row')).getByPlaceholderText('model-name'), {
@@ -601,7 +612,7 @@ describe('UsagePanel 订阅额度标签', () => {
       '概览',
       '明细',
       '订阅额度',
-      '价格',
+      '价格与模型数据',
       '预算与隐私',
     ]);
     fireEvent.click(r.getByRole('tab', { name: '订阅额度' }));

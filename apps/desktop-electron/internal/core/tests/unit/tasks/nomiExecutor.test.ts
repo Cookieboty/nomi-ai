@@ -31,7 +31,11 @@ function scriptedStream(
 
 function setup(
   stream: (signal: AbortSignal, n: number) => AsyncIterable<ChatChunk>,
-  opts: { toolNames?: string[]; ticks?: Array<() => void> } = {},
+  opts: {
+    toolNames?: string[];
+    ticks?: Array<() => void>;
+    route?: { providerId?: string; model?: string };
+  } = {},
 ) {
   const clock = new FakeClock(T0);
   const store = new MemStore();
@@ -44,7 +48,9 @@ function setup(
   let bg: BackgroundRun | null = null;
   const traces: Record<string, unknown>[] = [];
   let n = 0;
+  let rtRef: TaskRuntime | null = null;
   const exec = createNomiExecutor({
+    liveTask: (id) => rtRef?.get(id)?.task ?? null,
     agentStream: (o) => {
       calls.push({
         tools: o.tools,
@@ -61,6 +67,7 @@ function setup(
       };
     },
     ready: () => true,
+    ...(opts.route ? { route: () => opts.route! } : {}),
     ...(opts.toolNames ? { toolNames: () => opts.toolNames! } : {}),
     ...(opts.ticks
       ? {
@@ -84,6 +91,7 @@ function setup(
     logger: { info: () => undefined, warn: () => undefined },
     deliver: () => undefined,
   });
+  rtRef = rt;
   rt.start();
   return { rt, calls, traces, bg: () => bg, clock };
 }
@@ -139,7 +147,14 @@ describe('nomi 执行者：派给 Nomi（对话的工具集）', () => {
     const h = setup(
       scriptedStream([
         async () => {
-          seen = getBg();
+          // 执行中取一份（level / connections 是实时 getter，执行结束后就不再放行）
+          const bg = getBg()!;
+          seen = {
+            ...bg,
+            level: bg.level,
+            connections: bg.connections,
+            paths: bg.paths,
+          } as BackgroundRun;
         },
         { type: 'delta', content: 'ok' },
         { type: 'done', finishReason: 'stop' },
@@ -345,6 +360,56 @@ describe('nomi 执行者', () => {
     await flush();
     expect(h.calls).toHaveLength(2);
     expect(h.calls[1]!.system).toContain('先查了三个文件');
+    expect(h.rt.get(id)!.task.status).toBe('done');
+  });
+
+  it('预算批准时旧流还没退出，随后取消：旧流退出后不再重开（#235）', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    // 旧流不理会中止：暂停后还要等 release 才退出
+    const slowExit: AsyncIterable<ChatChunk> = {
+      async *[Symbol.asyncIterator]() {
+        yield { type: 'delta', content: '做了一半' };
+        yield {
+          type: 'usage',
+          usage: { promptTokens: 900, completionTokens: 200, totalTokens: 1100 },
+        };
+        await held;
+      },
+    };
+    const h = setup((signal, n) =>
+      n === 0 ? slowExit : scriptedStream([{ type: 'delta', content: '不该重开' }])(signal),
+    );
+    const id = h.rt.create(baseInput({ budget: { maxTokensPerAttempt: 1000 } })).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.rt.get(id)!.task).toMatchObject({ status: 'waiting_user', wait: { kind: 'budget' } });
+    h.rt.command(id, { type: 'decide', approve: true });
+    await flush();
+    h.rt.command(id, { type: 'cancel' });
+    release();
+    await flush();
+    await flush();
+    expect(h.calls).toHaveLength(1);
+    expect(h.bg()).toBeNull();
+    expect(h.rt.get(id)!.task.status).toBe('cancelled');
+  });
+
+  it('用预设模型运行，实际供应商与模型记进执行快照（#239）', async () => {
+    const h = setup(scriptedStream([{ type: 'delta', content: '完成' }]), {
+      route: { providerId: 'p1', model: 'routed-model' },
+    });
+    // 旧数据里带着 model 的任务也照常按预设模型跑
+    const id = h.rt.create(
+      baseInput({ executor: { kind: 'nomi', tools: ['read'], model: 'model-a' } }),
+    ).id;
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    expect(h.calls).toHaveLength(1);
+    expect(h.rt.get(id)!.attempts.at(-1)!.snapshot).toMatchObject({
+      providerId: 'p1',
+      model: 'routed-model',
+    });
     expect(h.rt.get(id)!.task.status).toBe('done');
   });
 

@@ -11,32 +11,17 @@
 import {
   Button,
   Checkbox,
-  formatContext,
   Icon,
   IconButton,
   Input,
   Modal,
   ModalHostContext,
-  ModelPicker,
   Select,
-  Switch,
-  Textarea,
   t,
   type SelectOption,
-  useLocale,
 } from '@nomi-ai/ui';
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  ChevronRight,
-  KeyRound,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from 'lucide-react';
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   gatewayClient,
@@ -51,12 +36,13 @@ import {
   type StoredProbe,
   type Wire,
 } from '../../services/gatewayClient';
-import { pickerProviders } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
-import { metaSourceLabel, ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
+import { ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
+import { ProviderKeysSection } from './ProviderKeysSection';
+import { ProviderModelsPanel } from './ProviderModelsPanel';
 import { NON_CHAT, storedProbes } from './providerSetup';
 
 /** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
@@ -97,7 +83,6 @@ interface Draft {
   name: string;
   keys: KeyDraft[];
   models: GatewayModel[];
-  fallback: string[];
   urls: Record<Wire, string>;
   modelMap: Array<{ from: string; to: string }>;
   headers: Array<{ name: string; value: string }>;
@@ -116,7 +101,6 @@ const initDraft = (p: ProviderView): Draft => ({
     rpm: k.rpm ? String(k.rpm) : '',
   })),
   models: p.models.map((m) => ({ ...m })),
-  fallback: [...(p.fallback ?? [])],
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
   modelMap: (p.modelMap ?? []).map((x) => ({ ...x })),
   headers: Object.entries(p.headers ?? {}).map(([name, value]) => ({ name, value })),
@@ -173,7 +157,6 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       d.headers.filter((h) => h.name.trim()).map((h) => [h.name.trim(), h.value]),
     ),
     userAgent: d.userAgent.trim(),
-    fallback: d.fallback,
     ...(d.detected ? { detected: d.detected } : {}),
   };
 }
@@ -195,82 +178,9 @@ const splitKeys = (text: string): string[] => [
   ),
 ];
 
-/** 模型的能力标签：上下文按主进程算出的生效值显示，悬停看来源 */
-const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
-  const eff = m.effective;
-  const ctx = eff ? (eff.source === 'default' ? undefined : eff.ctx) : m.ctx;
-  const unknown = eff ? eff.source === 'default' : m.metaSource === 'default';
-  return (
-    <>
-      {(eff?.reasoning ?? m.reasoning) && (
-        <span className={styles.badgeSoft}>{t('ui.models.reasoning')}</span>
-      )}
-      {(eff?.vision ?? m.vision) && (
-        <span className={styles.badgeSoft}>{t('ui.models.vision')}</span>
-      )}
-      {ctx ? (
-        <span
-          className={styles.badgeMuted}
-          title={eff ? t('ui.models.meta-source', metaSourceLabel(eff.source)) : undefined}
-        >
-          {formatContext(ctx)}
-        </span>
-      ) : null}
-      {m.toolCalling === false && (
-        <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
-      )}
-      {unknown && (
-        <span className={styles.badgeMuted} title={t('ui.models.limits-unknown-hint')}>
-          {t('ui.models.limits-unknown')}
-        </span>
-      )}
-    </>
-  );
-};
-
-/** 模型列表的一行 */
-const ModelRow = memo(function ModelRow({
-  m,
-  readOnly,
-  onSet,
-  onRemove,
-}: {
-  m: GatewayModel;
-  readOnly: boolean;
-  onSet: (id: string, x: Partial<GatewayModel>) => void;
-  onRemove: (id: string) => void;
-}) {
-  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
-  useLocale();
-  return (
-    <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
-      <label className={styles.modelCheck}>
-        <Checkbox
-          disabled={readOnly}
-          checked={m.enabled}
-          onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
-        />
-        <span>{m.label ?? m.id}</span>
-      </label>
-      <ModelBadges m={m} />
-      {!readOnly && (
-        <IconButton
-          size="sm"
-          className={styles.rowEnd}
-          label={t('ui.models.remove-model', m.id)}
-          icon={<Icon icon={Trash2} size={14} />}
-          onClick={() => onRemove(m.id)}
-        />
-      )}
-    </div>
-  );
-});
-
 interface Props {
   provider: ProviderView | null;
-  providers: ProviderView[];
   allowedPrivateHosts: string[];
-  showWire: boolean;
   onClose: () => void;
   onRemove: (p: ProviderView) => void;
 }
@@ -285,9 +195,7 @@ let tmpSeq = 0;
 
 const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   provider: p,
-  providers,
   allowedPrivateHosts,
-  showWire,
   onClose,
   onRemove,
 }) => {
@@ -295,7 +203,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const [initial] = useState(() => initDraft(p));
   const [d, setD] = useState<Draft>(initial);
   const [keysText, setKeysText] = useState('');
-  const [modelText, setModelText] = useState('');
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState<'save' | 'detect' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -314,22 +221,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   /** 包括输入框里填了、还没点「添加」的 Key（保存时一起存） */
   const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
-  const picker = useMemo(() => pickerProviders(providers), [providers]);
-  const fallbackPicker = useMemo(
-    () =>
-      picker
-        .map((x) => ({
-          ...x,
-          models: x.models.filter((m) => !d.fallback.includes(`${x.id}/${m.id}`)),
-        }))
-        .filter((x) => x.models.length),
-    [picker, d.fallback],
-  );
-  const refName = (ref: string) => {
-    const i = ref.indexOf('/');
-    const owner = providers.find((x) => x.id === ref.slice(0, i));
-    return owner ? `${providerDisplayName(owner.name)} / ${ref.slice(i + 1)}` : ref;
-  };
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
   const wireOptions: SelectOption[] = [
     { value: '', label: t('ui.foundation.auto') },
@@ -398,12 +289,20 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     (id: string) => setD((cur) => ({ ...cur, models: cur.models.filter((x) => x.id !== id) })),
     [],
   );
-  const addModel = () => {
-    const id = modelText.trim();
-    if (!id) return;
-    if (!d.models.some((m) => m.id === id)) patch({ models: [...d.models, { id, enabled: true }] });
-    setModelText('');
-  };
+  /** 批量启用 / 停用（模型面板里「全部启用 / 全部停用」作用于当前筛选出来的） */
+  const setModelsEnabled = useCallback((ids: ReadonlySet<string>, enabled: boolean) => {
+    setD((cur) => ({
+      ...cur,
+      models: cur.models.map((m) => (ids.has(m.id) ? { ...m, enabled } : m)),
+    }));
+  }, []);
+  const addModel = useCallback((id: string) => {
+    setD((cur) =>
+      cur.models.some((m) => m.id === id)
+        ? cur
+        : { ...cur, models: [...cur.models, { id, enabled: true }] },
+    );
+  }, []);
   const toggleModelWire = (m: GatewayModel, w: Wire, on: boolean) => {
     const cur = m.wires ?? [];
     const next = on ? WIRES.filter((x) => x === w || cur.includes(x)) : cur.filter((x) => x !== w);
@@ -531,7 +430,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
       <Modal
         open
         onClose={onClose}
-        size="lg"
+        size="xl"
+        bodyClassName={styles.pdModalBody}
         title={
           readOnly ? (
             <span className={styles.titleRow}>
@@ -559,498 +459,247 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             </p>
           )}
 
-          {!readOnly && (
-            <label className={styles.field}>
-              <span>{t('ui.foundation.name')}</span>
-              <Input
-                size="sm"
-                value={d.name}
-                onChange={(e) => patch({ name: e.target.value })}
-                data-testid="provider-detail-name"
-              />
-            </label>
-          )}
-
-          {/* ---------------- Key ---------------- */}
-          <section className={styles.section} aria-labelledby="pd-keys">
-            <h4 id="pd-keys" className={styles.groupTitle}>
-              {t('ui.models.keys-fallback-in-order')}
-            </h4>
-            {!d.keys.length && <span className={styles.muted}>{t('ui.models.no-key-needed')}</span>}
-            {(readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys).map((k, i) => {
-              const view = p.keys.find((x) => x.id === k.id);
-              const label = keyName({ name: k.name || view?.name }, i);
-              const replacing = 'replace' in k && k.replace !== undefined;
-              const nameIsKey = !readOnly && !!view && !replacing && looksLikeKey(k.name);
-              return (
-                <div
-                  key={k.id}
-                  className={styles.keyItem}
-                  data-testid={
-                    'value' in k && k.value !== undefined ? 'pd-new-key' : `pd-key-${k.id}`
-                  }
-                >
-                  <div className={styles.keyRow}>
-                    {!readOnly && (
-                      <span className={styles.orderBtns}>
-                        <IconButton
-                          size="sm"
-                          label={t('ui.models.move-up', label)}
-                          icon={<Icon icon={ArrowUp} size={14} />}
-                          disabled={i === 0}
-                          onClick={() => moveKey(i, -1)}
-                          data-focus-id={`key-${k.id}-up`}
-                          data-testid={`pd-key-up-${k.id}`}
-                        />
-                        <IconButton
-                          size="sm"
-                          label={t('ui.models.move-down', label)}
-                          icon={<Icon icon={ArrowDown} size={14} />}
-                          disabled={i === d.keys.length - 1}
-                          onClick={() => moveKey(i, 1)}
-                          data-focus-id={`key-${k.id}-down`}
-                          data-testid={`pd-key-down-${k.id}`}
-                        />
-                      </span>
-                    )}
-                    {readOnly ? (
-                      <span className={styles.keyName}>{label}</span>
-                    ) : (
-                      <Input
-                        size="sm"
-                        className={styles.keyNameInput}
-                        value={k.name}
-                        placeholder={keyName({}, i)}
-                        onChange={(e) => setKey(i, { name: e.target.value })}
-                        aria-label={t('ui.models.name-of', label)}
-                      />
-                    )}
-                    {'value' in k && typeof k.value === 'string' && (
-                      <span className={styles.badgeSoft}>{t('ui.models.new')}</span>
-                    )}
-                    {replacing && (
-                      <span className={styles.badgeSoft}>{t('ui.models.replacing')}</span>
-                    )}
-                    <code className={styles.masked}>
-                      {'value' in k && typeof k.value === 'string'
-                        ? k.value.length > 8
-                          ? `${k.value.slice(0, 3)}…${k.value.slice(-4)}`
-                          : '…'
-                        : view?.masked}
-                    </code>
-                    {!readOnly && (
-                      <>
-                        {view && (
-                          <IconButton
-                            size="sm"
-                            label={
-                              replacing
-                                ? t('ui.models.cancel-replacing', label)
-                                : t('ui.models.replace', label)
-                            }
-                            icon={<Icon icon={KeyRound} size={14} />}
-                            aria-pressed={replacing}
-                            onClick={() => setKey(i, { replace: replacing ? undefined : '' })}
-                            data-testid={`pd-key-replace-${k.id}`}
-                          />
-                        )}
-                        <Switch
-                          checked={k.enabled}
-                          onChange={(v) => setKey(i, { enabled: v })}
-                          aria-label={t('ui.foundation.enable', label)}
-                        />
-                        <IconButton
-                          size="sm"
-                          label={t('ui.knowledge-local.delete', label)}
-                          icon={<Icon icon={Trash2} size={14} />}
-                          onClick={() => deleteKey(i)}
-                          data-testid={`pd-key-delete-${k.id}`}
-                        />
-                      </>
-                    )}
-                  </div>
-                  {replacing && (
-                    <Input
-                      size="sm"
-                      autoFocus
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={(k as KeyDraft).replace}
-                      placeholder={t('ui.models.paste-the-new-key-it-replaces-when-you', label)}
-                      onChange={(e) => setKey(i, { replace: e.target.value })}
-                      aria-label={t('ui.models.new-value-for', label)}
-                      data-testid={`pd-key-replace-input-${k.id}`}
-                    />
-                  )}
-                  {nameIsKey && (
-                    <span className={styles.errorText} data-testid={`pd-key-name-hint-${k.id}`}>
-                      {t('ui.models.this-name-looks-like-a-key-the-name')}{' '}
-                      <button
-                        type="button"
-                        className={styles.linkBtn}
-                        onClick={() => setKey(i, { replace: k.name.trim(), name: '' })}
-                        data-testid={`pd-key-name-to-replace-${k.id}`}
-                      >
-                        {t('ui.models.use-it-to-replace-this-key-instead')}
-                      </button>
-                    </span>
-                  )}
-                  {view && !view.decryptable && (
-                    <span className={styles.errorText}>
-                      {t('ui.models.can-t-be-decrypted-enter-it-again')}
-                    </span>
-                  )}
-                  {view?.lastError && (
-                    <span className={styles.errorText} data-testid={`pd-key-error-${k.id}`}>
-                      {view.lastError}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-            {!readOnly && (
-              <div className={styles.addKeys}>
-                <Textarea
-                  rows={2}
-                  value={keysText}
-                  onChange={(e) => setKeysText(e.target.value)}
-                  placeholder={t('ui.models.add-keys-one-per-line-placed-after-the')}
-                  aria-label={t('ui.models.add-keys')}
-                  data-testid="pd-keys-input"
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!splitKeys(keysText).length}
-                  onClick={addKeys}
-                  data-testid="pd-keys-add"
-                >
-                  <Icon icon={Plus} size={14} />
-                  {t('ui.foundation.add')}
-                </Button>
-              </div>
-            )}
-          </section>
-
-          {/* ---------------- 模型 ---------------- */}
-          <section className={styles.section} aria-labelledby="pd-models">
-            <div className={styles.sectionHead}>
-              <h4 id="pd-models" className={styles.groupTitle}>
-                {t('ui.foundation.model')}
-              </h4>
+          <div className={styles.pdColumns}>
+            <div className={styles.pdLeft}>
               {!readOnly && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy !== null}
-                  onClick={() => void detect()}
-                  data-testid="pd-models-refresh"
-                >
-                  <Icon
-                    icon={busy === 'detect' ? Loader2 : RefreshCw}
-                    size={14}
-                    className={busy === 'detect' ? styles.spin : undefined}
-                  />
-                  {t('ui.knowledge-local.refresh')}
-                </Button>
-              )}
-            </div>
-            {notice && (
-              <p className={styles.help} role="status" data-testid="pd-detect-notice">
-                {notice}
-              </p>
-            )}
-            <div className={styles.modelList}>
-              {(readOnly ? p.models : d.models).map((m) => (
-                <ModelRow
-                  key={m.id}
-                  m={m}
-                  readOnly={readOnly}
-                  onSet={setModel}
-                  onRemove={removeModel}
-                />
-              ))}
-            </div>
-            {!readOnly && (
-              <div className={styles.addRow}>
-                <Input
-                  size="sm"
-                  value={modelText}
-                  onChange={(e) => setModelText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addModel();
-                    }
-                  }}
-                  placeholder={t('ui.models.add-a-model-id-manually')}
-                  aria-label={t('ui.models.add-a-model-id-manually')}
-                  data-testid="pd-model-input"
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!modelText.trim()}
-                  onClick={addModel}
-                  data-testid="pd-model-add"
-                >
-                  <Icon icon={Plus} size={14} />
-                  {t('ui.foundation.add')}
-                </Button>
-              </div>
-            )}
-          </section>
-
-          {/* ---------------- 回退链 ---------------- */}
-          {!readOnly && (
-            <section className={styles.section} aria-labelledby="pd-fallback">
-              <h4 id="pd-fallback" className={styles.groupTitle}>
-                {t('ui.models.fallback-chain')}
-              </h4>
-              <p className={styles.help}>
-                {t('ui.models.when-this-provider-s-models-all-fail-use')}
-              </p>
-              {d.fallback.map((ref, i) => (
-                <div key={ref} className={styles.keyRow} data-testid={`pd-fallback-${i}`}>
-                  <span className={styles.orderBtns}>
-                    <IconButton
-                      size="sm"
-                      label={t('ui.models.move-up', ref)}
-                      icon={<Icon icon={ArrowUp} size={14} />}
-                      disabled={i === 0}
-                      onClick={() => patch({ fallback: move(d.fallback, i, -1) })}
-                      data-testid={`pd-fallback-up-${i}`}
-                    />
-                    <IconButton
-                      size="sm"
-                      label={t('ui.models.move-down', ref)}
-                      icon={<Icon icon={ArrowDown} size={14} />}
-                      disabled={i === d.fallback.length - 1}
-                      onClick={() => patch({ fallback: move(d.fallback, i, 1) })}
-                      data-testid={`pd-fallback-down-${i}`}
-                    />
-                  </span>
-                  <span className={styles.keyName}>{refName(ref)}</span>
-                  <IconButton
+                <label className={styles.field}>
+                  <span>{t('ui.foundation.name')}</span>
+                  <Input
                     size="sm"
-                    className={styles.rowEnd}
-                    label={t('ui.models.remove-from-the-fallback-chain', ref)}
-                    icon={<Icon icon={Trash2} size={14} />}
-                    onClick={() => patch({ fallback: d.fallback.filter((x) => x !== ref) })}
-                    data-testid={`pd-fallback-remove-${i}`}
+                    value={d.name}
+                    onChange={(e) => patch({ name: e.target.value })}
+                    data-testid="provider-detail-name"
                   />
-                </div>
-              ))}
-              <ModelPicker
-                providers={fallbackPicker}
-                showWire={showWire}
-                size="sm"
-                className={styles.fallbackAdd}
-                value={null}
-                onChange={(ref) =>
-                  ref && !d.fallback.includes(ref) && patch({ fallback: [...d.fallback, ref] })
-                }
-                placeholder={t('ui.models.add-fallback-model')}
-                disabled={!fallbackPicker.length}
-                aria-label={t('ui.models.add-fallback-model')}
-                data-testid="pd-fallback-add"
+                </label>
+              )}
+
+              <ProviderKeysSection
+                keys={readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys}
+                views={p.keys}
+                readOnly={readOnly}
+                keyName={keyName}
+                looksLikeKey={looksLikeKey}
+                onSet={setKey}
+                onMove={moveKey}
+                onDelete={(i) => void deleteKey(i)}
+                text={keysText}
+                onText={setKeysText}
+                onAdd={addKeys}
+                canAdd={splitKeys(keysText).length > 0}
               />
-            </section>
-          )}
 
-          {/* ---------------- 高级 ---------------- */}
-          <section className={styles.section}>
-            <button
-              type="button"
-              className={styles.advToggle}
-              aria-expanded={advanced}
-              aria-controls="pd-advanced"
-              onClick={() => setAdvanced((x) => !x)}
-              data-testid="pd-advanced-toggle"
-            >
-              <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} />
-              {t('ui.models.advanced')}
-            </button>
-            {advanced && (
-              <div id="pd-advanced" className={styles.advBody}>
-                <div className={styles.advGroup}>
-                  <div className={styles.groupTitle}>
-                    {t('ui.models.address-per-api-leave-empty-to-turn-that')}
-                  </div>
-                  {WIRES.map((w) => (
-                    <label key={w} className={styles.urlRow}>
-                      <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
-                      <Input
-                        size="sm"
-                        value={d.urls[w]}
-                        readOnly={readOnly}
-                        onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
-                        placeholder={t('ui.slash-commands.disabled')}
-                        data-testid={`pd-url-${w}`}
-                      />
-                    </label>
-                  ))}
-                  {!readOnly && urlsChanged && (
-                    <div className={styles.offer} role="status" data-testid="pd-urls-changed">
-                      <span>
-                        {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy !== null}
-                        onClick={() => void detect()}
-                        data-testid="pd-redetect"
-                      >
-                        {t('ui.models.detect-again')}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {!readOnly && (
-                  <>
+              {/* ---------------- 高级 ---------------- */}
+              <section className={styles.section}>
+                <button
+                  type="button"
+                  className={styles.advToggle}
+                  aria-expanded={advanced}
+                  aria-controls="pd-advanced"
+                  onClick={() => setAdvanced((x) => !x)}
+                  data-testid="pd-advanced-toggle"
+                >
+                  <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} />
+                  {t('ui.models.advanced')}
+                </button>
+                {advanced && (
+                  <div id="pd-advanced" className={styles.advBody}>
                     <div className={styles.advGroup}>
                       <div className={styles.groupTitle}>
-                        {t('ui.models.restrict-models-to-apis-none-checked-automatic')}
+                        {t('ui.models.address-per-api-leave-empty-to-turn-that')}
                       </div>
-                      {d.models
-                        .filter((m) => m.enabled || m.wires?.length)
-                        .map((m) => (
-                          <div key={m.id} className={styles.wireRow}>
-                            <span className={styles.keyName}>{m.id}</span>
-                            {urlWires.map((w) => (
-                              <label key={w} className={styles.modelCheck}>
-                                <Checkbox
-                                  checked={m.wires?.includes(w) ?? false}
-                                  onChange={(e) => toggleModelWire(m, w, e.target.checked)}
-                                  aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}
-                                  data-testid={`pd-model-wire-${m.id}-${w}`}
-                                />
-                                <span>{WIRE_LABEL[w]}</span>
-                              </label>
-                            ))}
-                          </div>
-                        ))}
+                      {WIRES.map((w) => (
+                        <label key={w} className={styles.urlRow}>
+                          <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
+                          <Input
+                            size="sm"
+                            value={d.urls[w]}
+                            readOnly={readOnly}
+                            onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
+                            placeholder={t('ui.slash-commands.disabled')}
+                            data-testid={`pd-url-${w}`}
+                          />
+                        </label>
+                      ))}
+                      {!readOnly && urlsChanged && (
+                        <div className={styles.offer} role="status" data-testid="pd-urls-changed">
+                          <span>
+                            {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={busy !== null}
+                            onClick={() => void detect()}
+                            data-testid="pd-redetect"
+                          >
+                            {t('ui.models.detect-again')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
-                    <ModelLimitsGroups models={d.models} setModel={setModel} />
-
-                    {d.keys.length > 0 && (
-                      <div className={styles.advGroup}>
-                        <div className={styles.groupTitle}>
-                          {t('ui.models.restrict-keys-to-an-api')}
+                    {!readOnly && (
+                      <>
+                        <div className={styles.advGroup}>
+                          <div className={styles.groupTitle}>
+                            {t('ui.models.restrict-models-to-apis-none-checked-automatic')}
+                          </div>
+                          {d.models
+                            .filter((m) => m.enabled || m.wires?.length)
+                            .map((m) => (
+                              <div key={m.id} className={styles.wireRow}>
+                                <span className={styles.keyName}>{m.id}</span>
+                                {urlWires.map((w) => (
+                                  <label key={w} className={styles.modelCheck}>
+                                    <Checkbox
+                                      checked={m.wires?.includes(w) ?? false}
+                                      onChange={(e) => toggleModelWire(m, w, e.target.checked)}
+                                      aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}
+                                      data-testid={`pd-model-wire-${m.id}-${w}`}
+                                    />
+                                    <span>{WIRE_LABEL[w]}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            ))}
                         </div>
-                        {d.keys.map((k, i) => {
-                          const label = keyName(
-                            { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
-                            i,
-                          );
-                          return (
-                            <div key={k.id} className={styles.wireRow}>
-                              <span className={styles.keyName}>{label}</span>
-                              <Select
-                                size="sm"
-                                className={styles.wireSelect}
-                                options={wireOptions}
-                                value={k.wire ?? ''}
-                                onChange={(e) =>
-                                  setKey(i, { wire: (e.target.value || undefined) as Wire })
-                                }
-                                aria-label={t('ui.models.api-restriction-for', label)}
-                                data-testid={`pd-key-wire-${k.id}`}
-                              />
+
+                        <ModelLimitsGroups models={d.models} setModel={setModel} />
+
+                        {d.keys.length > 0 && (
+                          <div className={styles.advGroup}>
+                            <div className={styles.groupTitle}>
+                              {t('ui.models.restrict-keys-to-an-api')}
                             </div>
-                          );
-                        })}
-                      </div>
+                            {d.keys.map((k, i) => {
+                              const label = keyName(
+                                { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
+                                i,
+                              );
+                              return (
+                                <div key={k.id} className={styles.wireRow}>
+                                  <span className={styles.keyName}>{label}</span>
+                                  <Select
+                                    size="sm"
+                                    className={styles.wireSelect}
+                                    options={wireOptions}
+                                    value={k.wire ?? ''}
+                                    onChange={(e) =>
+                                      setKey(i, { wire: (e.target.value || undefined) as Wire })
+                                    }
+                                    aria-label={t('ui.models.api-restriction-for', label)}
+                                    data-testid={`pd-key-wire-${k.id}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {d.keys.length > 0 && (
+                          <div className={styles.advGroup}>
+                            <div className={styles.groupTitle}>
+                              {t('ui.models.key-limits-leave-blank-for-no-limit-extra')}
+                            </div>
+                            {d.keys.map((k, i) => {
+                              const label = keyName(
+                                { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
+                                i,
+                              );
+                              return (
+                                <div key={k.id} className={styles.wireRow}>
+                                  <span className={styles.keyName}>{label}</span>
+                                  <Input
+                                    size="sm"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    inputMode="numeric"
+                                    className={styles.limitInput}
+                                    value={k.maxConcurrency ?? ''}
+                                    onChange={(e) => setKey(i, { maxConcurrency: e.target.value })}
+                                    placeholder={t('ui.models.concurrent')}
+                                    aria-label={t('ui.models.max-concurrent-requests', label)}
+                                    data-testid={`pd-key-conc-${k.id}`}
+                                  />
+                                  <Input
+                                    size="sm"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    inputMode="numeric"
+                                    className={styles.limitInput}
+                                    value={k.rpm ?? ''}
+                                    onChange={(e) => setKey(i, { rpm: e.target.value })}
+                                    placeholder={t('ui.models.per-minute')}
+                                    aria-label={t('ui.models.max-requests-per-minute', label)}
+                                    data-testid={`pd-key-rpm-${k.id}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <PairRows
+                          title={t('ui.models.model-mapping-model-name-in-the-request-model')}
+                          rows={d.modelMap.map((x) => [x.from, x.to] as const)}
+                          placeholders={[
+                            t('ui.models.requested-model'),
+                            t('ui.models.upstream-model'),
+                          ]}
+                          testId="pd-map"
+                          onChange={(rows) =>
+                            patch({ modelMap: rows.map(([from, to]) => ({ from, to })) })
+                          }
+                        />
+                        <PairRows
+                          title={t('ui.models.custom-headers')}
+                          rows={d.headers.map((x) => [x.name, x.value] as const)}
+                          placeholders={[t('ui.foundation.name'), t('ui.models.value')]}
+                          testId="pd-header"
+                          onChange={(rows) =>
+                            patch({ headers: rows.map(([name, value]) => ({ name, value })) })
+                          }
+                        />
+                        <label className={styles.urlRow}>
+                          <span className={styles.urlLabel}>User-Agent</span>
+                          <Input
+                            size="sm"
+                            value={d.userAgent}
+                            onChange={(e) => patch({ userAgent: e.target.value })}
+                            placeholder={t('ui.providers-schedule.default')}
+                            data-testid="pd-user-agent"
+                          />
+                        </label>
+                      </>
                     )}
 
-                    {d.keys.length > 0 && (
-                      <div className={styles.advGroup}>
-                        <div className={styles.groupTitle}>
-                          {t('ui.models.key-limits-leave-blank-for-no-limit-extra')}
-                        </div>
-                        {d.keys.map((k, i) => {
-                          const label = keyName(
-                            { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
-                            i,
-                          );
-                          return (
-                            <div key={k.id} className={styles.wireRow}>
-                              <span className={styles.keyName}>{label}</span>
-                              <Input
-                                size="sm"
-                                type="number"
-                                min={1}
-                                step={1}
-                                inputMode="numeric"
-                                className={styles.limitInput}
-                                value={k.maxConcurrency ?? ''}
-                                onChange={(e) => setKey(i, { maxConcurrency: e.target.value })}
-                                placeholder={t('ui.models.concurrent')}
-                                aria-label={t('ui.models.max-concurrent-requests', label)}
-                                data-testid={`pd-key-conc-${k.id}`}
-                              />
-                              <Input
-                                size="sm"
-                                type="number"
-                                min={1}
-                                step={1}
-                                inputMode="numeric"
-                                className={styles.limitInput}
-                                value={k.rpm ?? ''}
-                                onChange={(e) => setKey(i, { rpm: e.target.value })}
-                                placeholder={t('ui.models.per-minute')}
-                                aria-label={t('ui.models.max-requests-per-minute', label)}
-                                data-testid={`pd-key-rpm-${k.id}`}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <PairRows
-                      title={t('ui.models.model-mapping-model-name-in-the-request-model')}
-                      rows={d.modelMap.map((x) => [x.from, x.to] as const)}
-                      placeholders={[t('ui.models.requested-model'), t('ui.models.upstream-model')]}
-                      testId="pd-map"
-                      onChange={(rows) =>
-                        patch({ modelMap: rows.map(([from, to]) => ({ from, to })) })
+                    <LearnedInfo
+                      learned={p.learned}
+                      onClear={() =>
+                        void gatewayClient
+                          .clearLearned(p.id)
+                          .catch((e: Error) => setError(e.message))
                       }
                     />
-                    <PairRows
-                      title={t('ui.models.custom-headers')}
-                      rows={d.headers.map((x) => [x.name, x.value] as const)}
-                      placeholders={[t('ui.foundation.name'), t('ui.models.value')]}
-                      testId="pd-header"
-                      onChange={(rows) =>
-                        patch({ headers: rows.map(([name, value]) => ({ name, value })) })
-                      }
-                    />
-                    <label className={styles.urlRow}>
-                      <span className={styles.urlLabel}>User-Agent</span>
-                      <Input
-                        size="sm"
-                        value={d.userAgent}
-                        onChange={(e) => patch({ userAgent: e.target.value })}
-                        placeholder={t('ui.providers-schedule.default')}
-                        data-testid="pd-user-agent"
-                      />
-                    </label>
-                  </>
+                  </div>
                 )}
-
-                <LearnedInfo
-                  learned={p.learned}
-                  onClear={() =>
-                    void gatewayClient.clearLearned(p.id).catch((e: Error) => setError(e.message))
-                  }
-                />
-              </div>
-            )}
-          </section>
+              </section>
+            </div>
+            <ProviderModelsPanel
+              models={readOnly ? p.models : d.models}
+              readOnly={readOnly}
+              busy={busy !== null}
+              detecting={busy === 'detect'}
+              notice={notice}
+              onRefresh={() => void detect()}
+              onSet={setModel}
+              onSetMany={setModelsEnabled}
+              onRemove={removeModel}
+              onAdd={addModel}
+            />
+          </div>
         </div>
       </Modal>
     </ModalHostContext.Provider>

@@ -7943,6 +7943,20 @@
      "pm": "gen/gpt-4o",
      "um": "gpt-4o",
      "w": "messages"
+    },
+    {
+     "p": "oai",
+     "k": "k1",
+     "pm": "oai/gpt-4o",
+     "um": "gpt-4o",
+     "w": "chat"
+    },
+    {
+     "p": "oai",
+     "k": "k2",
+     "pm": "oai/gpt-4o",
+     "um": "gpt-4o",
+     "w": "chat"
     }
    ],
    "per": [
@@ -9391,6 +9405,2486 @@
        "seed": "20db8ee26edd"
       }
      ]
+    },
+    {
+     "c": 1,
+     "m": 0,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 1,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"minimal\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"minimal\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 2,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 3,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 0,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 1,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"minimal\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"minimal\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"high\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 2,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"temperature\":0.3,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"read_file_dd32cdf\",\"parameters\":{\"type\":\"object\"}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"w\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"type\":\"string\"}}}}}],\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 3,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"low\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"max_tokens\":1024,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"q\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"max_tokens\":8000,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled budget=32000（explicit） → 发出 reasoning_effort=xhigh",
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":false,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"tu_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"tu_1\",\"content\":\"ok\"}],\"stream\":true,\"max_tokens\":100,\"reasoning_effort\":\"xhigh\",\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（explicit） → 发出 reasoning_effort=xhigh"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "read_file_dd32cdf",
+         "read.file"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "read.file",
+        "web_search"
+       ],
+       "repetition": true,
+       "seed": "37933255e6a4"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": [
+        "get_weather"
+       ],
+       "repetition": true,
+       "seed": "20db8ee26edd"
+      }
+     ]
     }
    ]
   },
@@ -9406,6 +11900,20 @@
      "p": "gen",
      "k": "k1",
      "pm": "gen/gpt-4o",
+     "um": "gpt-4o",
+     "w": "chat"
+    },
+    {
+     "p": "oai",
+     "k": "k1",
+     "pm": "oai/gpt-4o",
+     "um": "gpt-4o",
+     "w": "chat"
+    },
+    {
+     "p": "oai",
+     "k": "k2",
+     "pm": "oai/gpt-4o",
      "um": "gpt-4o",
      "w": "chat"
     }
@@ -10639,6 +13147,2402 @@
        "toolNames": null,
        "textTools": null,
        "repetition": false,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 0,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 1,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"minimal\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"minimal\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 2,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 1,
+     "m": 3,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k1"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 0,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 1,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"minimal\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"minimal\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low",
+        "修正重试：思考档位 low → minimal（模型不支持 low）"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh",
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"low\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字",
+        "修正重试：思考档位 medium → low（模型不支持 medium）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "修正重试：思考档位 xhigh → high（模型不支持 xhigh）"
+       ]
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 2,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"temperature\":1,\"seed\":2,\"max_tokens\":50,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"x_y_887fcea\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"z\"}}],\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "3ce33b772528"
+      }
+     ]
+    },
+    {
+     "c": 2,
+     "m": 3,
+     "url": [
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions"
+     ],
+     "headers": [
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ],
+       [
+        "User-Agent",
+        "claude-cli/1.0"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "application/json"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ],
+      [
+       [
+        "Content-Type",
+        "application/json"
+       ],
+       [
+        "Accept",
+        "text/event-stream"
+       ],
+       [
+        "Authorization",
+        "Bearer v-k2"
+       ]
+      ]
+     ],
+     "official": [
+      false,
+      true,
+      "gpt-4o",
+      false
+     ],
+     "bodies": [
+      {
+       "b": 0,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\"}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=low（binding） → 发出 reasoning_effort=low"
+       ]
+      },
+      {
+       "b": 0,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"xhigh\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "推理：请求 enabled effort=max（binding） → 发出 reasoning_effort=xhigh"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}]}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 1,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"stream\":true,\"reasoning_effort\":\"medium\",\"seed\":2,\"max_tokens\":50,\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"user\",\"content\":\"q\"}],\"stream_options\":{\"include_usage\":true}}",
+       "notes": [
+        "1 个工具名已映射为 Chat 接口允许的名字"
+       ]
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": false,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}]}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": null,
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "low",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      },
+      {
+       "b": 2,
+       "stream": true,
+       "be": "max",
+       "body": "{\"model\":\"gpt-4o\",\"reasoning_effort\":\"xhigh\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+       "notes": []
+      }
+     ],
+     "tl": [
+      null,
+      null,
+      null
+     ],
+     "rf": [
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
+       "seed": "c94c998d2a71"
+      },
+      {
+       "chatStream": true,
+       "toolNames": [
+        [
+         "x_y_887fcea",
+         "x y"
+        ]
+       ],
+       "textTools": [
+        "get_weather",
+        "x y",
+        "z"
+       ],
+       "repetition": true,
+       "seed": "ea4b4c0303a8"
+      },
+      {
+       "chatStream": true,
+       "toolNames": null,
+       "textTools": null,
+       "repetition": true,
        "seed": "3ce33b772528"
       }
      ]
@@ -23728,7 +28632,7 @@
    "s": true,
    "r": false,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -23737,7 +28641,7 @@
    "s": true,
    "r": true,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -23764,7 +28668,7 @@
    "s": true,
    "r": false,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -23773,7 +28677,7 @@
    "s": true,
    "r": true,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -23836,7 +28740,7 @@
    "s": true,
    "r": false,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {
@@ -23845,7 +28749,7 @@
    "s": true,
    "r": true,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {
@@ -23872,7 +28776,7 @@
    "s": true,
    "r": false,
    "fb": 1234,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 1000
   },
   {
@@ -23881,7 +28785,7 @@
    "s": true,
    "r": true,
    "fb": 1234,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 1000
   },
   {
@@ -23908,7 +28812,7 @@
    "s": true,
    "r": false,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 1000
   },
   {
@@ -23917,7 +28821,7 @@
    "s": true,
    "r": true,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 1000
   },
   {
@@ -23980,7 +28884,7 @@
    "s": true,
    "r": false,
    "fb": 1234,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {
@@ -23989,7 +28893,7 @@
    "s": true,
    "r": true,
    "fb": 1234,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {
@@ -24016,7 +28920,7 @@
    "s": true,
    "r": false,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -24025,7 +28929,7 @@
    "s": true,
    "r": true,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -24052,7 +28956,7 @@
    "s": true,
    "r": false,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -24061,7 +28965,7 @@
    "s": true,
    "r": true,
    "fb": 1,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 180000
   },
   {
@@ -24124,7 +29028,7 @@
    "s": true,
    "r": false,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {
@@ -24133,7 +29037,7 @@
    "s": true,
    "r": true,
    "fb": 30000,
-   "bud": 60000,
+   "bud": 300000,
    "idle": 6
   },
   {

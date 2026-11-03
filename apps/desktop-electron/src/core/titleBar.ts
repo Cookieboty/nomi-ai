@@ -6,10 +6,12 @@
  */
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 
-export type ChromeTheme = 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
+export type ChromeTheme = 'light' | 'dark' | 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
 
 /** 与 packages/ui/src/tokens.css 中各主题的 --cd-color-bg / --cd-color-text 保持一致 */
 export const THEME_CHROME: Record<ChromeTheme, { bg: string; fg: string }> = {
+  light: { bg: '#f7f7f7', fg: '#141414' },
+  dark: { bg: '#141414', fg: '#f2f2f2' },
   mist: { bg: '#f5f8f9', fg: '#20343d' },
   graphite: { bg: '#13161b', fg: '#f0f2f6' },
   ink: { bg: '#201a17', fg: '#f5ede6' },

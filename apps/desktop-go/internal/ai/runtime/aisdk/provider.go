@@ -444,7 +444,7 @@ func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextPar
 	tp := &TextParams{
 		Model: p.modelFactory(p.resolveModel(r)), Instructions: instr, Messages: msgs,
 		Temperature: r.Temperature, TopP: r.TopP, MaxOutputTokens: r.MaxTokens,
-		ProviderOptions: p.thinkingOptions(),
+		ProviderOptions: p.thinkingOptions(), MaxRetries: p.opts.MaxRetries,
 	}
 	if hasTools {
 		tp.Tools, tp.HasTools = ts, true

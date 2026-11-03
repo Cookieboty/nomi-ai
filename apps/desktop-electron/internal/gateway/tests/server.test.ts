@@ -345,8 +345,9 @@ describe('gateway: routing and conversion', () => {
       { authorization: 'Bearer tok-codex' },
     );
     expect(await ok.text()).toBe(chatStream);
-    expect(n).toBe(2);
-    expect(usage.at(-1)).toMatchObject({ keyId: 'k2', attempts: 2 });
+    // 429 先在 k1 上重连 3 次（§11.1），再换 k2
+    expect(n).toBe(5);
+    expect(usage.at(-1)).toMatchObject({ keyId: 'k2', attempts: 5 });
 
     const bad = await upstream((_s, res) => {
       res.writeHead(400, { 'content-type': 'application/json' });
@@ -935,7 +936,7 @@ describe('gateway: upstream cut off during same-wire passthrough', () => {
 });
 
 describe('gateway: loop integrations (M4)', () => {
-  it('a model missing on one provider skips its other keys and goes to the fallback provider', async () => {
+  it('a model missing on one provider skips its other keys and moves to the next provider with the same model', async () => {
     const a = await upstream((_s, res) => {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: { message: 'The model `glm-5` does not exist' } }));
@@ -961,7 +962,6 @@ describe('gateway: loop integrations (M4)', () => {
                 { id: 'k1', value: 'a1', enabled: true },
                 { id: 'k2', value: 'a2', enabled: true },
               ],
-              fallback: ['bk/glm-5'],
             },
           ),
           provider('bk', { chat: `${b.base}/v1` }),

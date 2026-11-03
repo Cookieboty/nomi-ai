@@ -36,7 +36,7 @@ func Register(r *contract.Router, s *Service) {
 		return s.SetToolPolicy(field(in, "tool"), field(in, "policy"))
 	})
 	call("desktop.setLocalOnly", func(_ contract.Caller, in json.RawMessage) any { return s.SetLocalOnly(field(in, "value")) })
-	call("desktop.audit", func(_ contract.Caller, in json.RawMessage) any { return s.AuditList(field(in, "limit")) })
+	call("desktop.audit", func(_ contract.Caller, in json.RawMessage) any { return s.AuditList(field(in, "limit"), field(in, "offset")) })
 	call("desktop.auditClear", func(contract.Caller, json.RawMessage) any { return s.ClearAudit() })
 	call("desktop.journal", func(contract.Caller, json.RawMessage) any { return s.JournalList() })
 	call("desktop.undoLast", func(contract.Caller, json.RawMessage) any { return s.UndoLast() })

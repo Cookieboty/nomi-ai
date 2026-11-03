@@ -50,19 +50,14 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
   ],
   models: [
     {
-      icon: Waypoints,
-      title: 'ui.models.assignments',
-      desc: 'ui.chat-settings.choose-the-models-for-nomi-chat-tool-calls',
-    },
-    {
-      icon: SquareTerminal,
-      title: 'ui.providers-schedule.coding-agents',
-      desc: 'ui.chat-settings.models-each-coding-assistant-uses-in-third-party',
-    },
-    {
       icon: Boxes,
       title: 'ui.models.third-party-providers',
       desc: 'ui.chat-settings.add-providers-and-keys-nomi-converts-protocols-automatically',
+    },
+    {
+      icon: Waypoints,
+      title: 'ui.models.assignments',
+      desc: 'ui.models.assign-help',
     },
     {
       icon: SquareTerminal,

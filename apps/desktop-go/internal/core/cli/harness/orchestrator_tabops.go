@@ -461,10 +461,15 @@ func (o *Orchestrator) SyncOpenSessionTitle(backend, sessionID string, title any
 	if title != nil {
 		next = clisdk.Slice0(util.JSTrim(jsStr(title)), 60)
 	}
-	if tab == nil || next == "" || str(tab, "title") == next || !isGeneratedTabTitle(str(tab, "title"), backend) {
+	if tab == nil || next == "" || str(tab, "title") == next {
+		return
+	}
+	// 首条发送时写入的截取标题（autoTitlePending）也让位给 CLI 自己的标题，之后不再被智能标题覆盖
+	if _, pending := o.autoTitlePending[str(tab, "id")]; !pending && !isGeneratedTabTitle(str(tab, "title"), backend) {
 		return
 	}
 	tab.Set("title", next)
+	delete(o.autoTitlePending, str(tab, "id"))
 	o.changed()
 }
 
@@ -571,6 +576,29 @@ func (o *Orchestrator) RenameTab(id string, title any) *util.Obj {
 		throw(i18n.T("electron.common.title-cannot-be-empty"))
 	}
 	tab.Set("title", next)
+	delete(o.autoTitlePending, id)
+	o.changed()
+	return tab.Clone()
+}
+
+// ApplyAutoTitle = applyAutoTitle：仅 autoTitlePending 时生效；成功后清门控。
+func (o *Orchestrator) ApplyAutoTitle(id string, title any) *util.Obj {
+	if _, ok := o.autoTitlePending[id]; !ok {
+		return nil
+	}
+	tab := o.tab(id)
+	if tab == nil {
+		return nil
+	}
+	next := ""
+	if title != nil {
+		next = clisdk.Slice0(util.JSTrim(jsStr(title)), 60)
+	}
+	if next == "" {
+		return nil
+	}
+	tab.Set("title", next)
+	delete(o.autoTitlePending, id)
 	o.changed()
 	return tab.Clone()
 }

@@ -46,7 +46,7 @@ func TestReminderLifecycleAndUndo(t *testing.T) {
 	if s.CreateReminder(map[string]json.RawMessage{"text": json.RawMessage(`""`), "inMinutes": json.RawMessage(`5`)}) != nil {
 		t.Fatal("empty text accepted")
 	}
-	if len(s.AuditList(nil)) < 2 {
+	if len(s.AuditList(nil, nil)) < 2 {
 		t.Fatal("audit not written")
 	}
 }

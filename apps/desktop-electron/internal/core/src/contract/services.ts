@@ -28,6 +28,7 @@ import type { DesktopService } from '../desktop/DesktopService';
 import type { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import type { ExtensionsService } from '../extensions/ExtensionsService';
 import type { GatewayService } from '../gateway/GatewayService';
+import type { ProviderLinkService } from '../gateway/ProviderLinkService';
 import type { TerminalCommands } from '../gateway/TerminalCommands';
 import type { LocaleService } from '../i18n';
 import type { KnowledgeService } from '../knowledge/KnowledgeService';
@@ -73,6 +74,8 @@ export interface CoreContractServices {
   startup?: StartupService;
   onboarding?: OnboardingService;
   gateway?: GatewayService;
+  /** 第三方供应商链接（`nomi://provider/*`，docs/design/provider-link.md） */
+  providerLink?: ProviderLinkService;
   terminal?: TerminalCommands;
   usage?: UsageService;
   quality?: QualityService;

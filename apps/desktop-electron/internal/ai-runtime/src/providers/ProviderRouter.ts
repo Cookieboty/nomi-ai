@@ -495,6 +495,8 @@ export class RoutedLLMRegistry implements LLMRegistry {
       ...(r.fetch ? { fetchImpl: r.fetch } : {}),
       // 网关回退到别的候选时，记账按实际服务的模型（#97）
       servedModelHeader: NOMI_SERVED_MODEL_HEADER,
+      // 重连交给网关（同一个 Key 退避重连、换 Key、换供应商，§11.1）：SDK 不再叠加自己的重试
+      maxRetries: 0,
       redactedHeader: NOMI_REDACTED_HEADER,
     });
     // 用量仍由这里记账（网关对 nomi 客户端的用量回调不再重复记）

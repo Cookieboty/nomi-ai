@@ -8,6 +8,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ModelsPage } from '../src/components/ModelsPage';
+import { NewTabSourceRow } from '../src/components/ProvidersPage/NewTabSourceRow';
 import type {
   DetectResult,
   GatewayState,
@@ -139,6 +140,17 @@ function fakeMain(
         state.providers = state.providers.filter((p) => p.id !== args.id);
         changed();
         break;
+      case 'gateway.setProviderEnabled':
+        for (const p of state.providers) if (p.id === args.id) p.enabled = args.enabled as boolean;
+        changed();
+        break;
+      case 'gateway.reorderProviders': {
+        const ids = args.ids as string[];
+        const at = (id: string) => (ids.includes(id) ? ids.indexOf(id) : ids.length);
+        state.providers = [...state.providers].sort((a, b) => at(a.id) - at(b.id));
+        changed();
+        break;
+      }
       case 'gateway.setAssignment': {
         const client = args.client as keyof GatewayState['clients'];
         const p = args.patch as {
@@ -265,15 +277,12 @@ describe('ModelsPage', () => {
     await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
     await waitFor(() => expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro'));
     expect(screen.getByTestId('models-assign').getAttribute('data-state')).toBe('ready');
-    const fresh = await screen.findByTestId('models-fresh');
-    expect(within(fresh).queryByText('text-embedding-v4')).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
-        'true',
-      ),
-    );
-    // 用户可以改
-    fireEvent.click(screen.getByTestId('models-fresh-deepseek-v4-flash'));
+    // 不再在分配上方列出这家的全部模型（与下面的「Nomi 对话」重复）
+    expect(screen.queryByTestId('models-fresh')).toBeNull();
+    // 用户在「Nomi 对话」里可以改
+    fireEvent.change(screen.getByTestId('assign-chat'), {
+      target: { value: 'deepseek/deepseek-v4-flash' },
+    });
     await waitFor(() =>
       expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-flash'),
     );
@@ -282,6 +291,20 @@ describe('ModelsPage', () => {
         'DeepSeek / deepseek-v4-flash',
       ),
     );
+  });
+
+  it('with providers already set up, 添加 opens the form in a dialog; with none it stays inline', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi({ models: [{ id: 'kimi-k3', enabled: true }] })];
+    render(<ModelsPage />);
+    const add = await screen.findByTestId('add-provider');
+    expect(screen.queryByTestId('models-provider-picker')).toBeNull();
+    fireEvent.click(add);
+    const dialog = await screen.findByTestId('models-add-provider-dialog');
+    expect(within(dialog).getByTestId('models-provider-picker')).toBeTruthy();
+    fireEvent.click(within(dialog).getByTestId('models-preset-custom'));
+    fireEvent.click(within(dialog).getByTestId('models-provider-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('models-add-provider-dialog')).toBeNull());
   });
 
   it('image generation: lists only image models (even disabled ones) and saves clients.nomi.models.image', async () => {
@@ -296,6 +319,9 @@ describe('ModelsPage', () => {
     ];
     m.state.clients.nomi = { models: { main: 'kimi/kimi-k3' } };
     render(<ModelsPage />);
+    // Nomi 卡片：主模型在卡片上，工具调用 / 摘要 / 图片生成点箭头展开
+    expect(screen.queryByTestId('assign-image')).toBeNull();
+    fireEvent.click(await screen.findByTestId('nomi-more'));
     const image = (await screen.findByTestId('assign-image')) as HTMLSelectElement;
     const values = (el: HTMLSelectElement) => [...el.options].map((o) => o.value);
     expect(values(image)).toEqual(['unset', 'kimi/gpt-image-2']);
@@ -322,11 +348,8 @@ describe('ModelsPage', () => {
     await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
     fireEvent.click(screen.getByTestId('add-provider'));
     await addFlow('deepseek', 'sk-aaaa1111');
-    await screen.findByTestId('models-fresh');
+    await waitFor(() => expect(screen.getByTestId('provider-deepseek')).toBeTruthy());
     expect(m.state.clients.nomi!.models.main).toBe('kimi/kimi-k3');
-    expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
-      'false',
-    );
   });
 
   it('cannot save when every protocol fails, and shows each reason', async () => {
@@ -452,6 +475,8 @@ describe('ModelsPage', () => {
       target: { value: 'https://relay.example.com/v1/chat/completions' },
     });
     expect(save.disabled).toBe(false);
+    // 两步：先回到分组列表再选别的
+    fireEvent.click(screen.getByTestId('models-provider-back'));
     fireEvent.click(screen.getByTestId('models-preset-ollama'));
     expect(screen.getByText('本地服务不需要 Key。')).toBeTruthy();
     fireEvent.click(screen.getByTestId('models-provider-save'));
@@ -552,6 +577,7 @@ describe('ModelsPage', () => {
     expect(within(dlg).queryByTestId('pd-key-k2')).toBeTruthy();
     fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
     await waitFor(() => expect(within(dlg).queryByTestId('pd-key-k2')).toBeNull());
+    fireEvent.click(within(dlg).getByTestId('pd-keys-open'));
     fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
       target: { value: 'sk-new-aaaa1111\n\n  sk-new-bbbb2222 \nsk-new-aaaa1111' },
     });
@@ -591,6 +617,7 @@ describe('ModelsPage', () => {
     const dlg = detail();
     const save = within(dlg).getByTestId('provider-detail-save') as HTMLButtonElement;
     expect(save.disabled).toBe(true);
+    fireEvent.click(within(dlg).getByTestId('pd-keys-open'));
     fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
       target: { value: 'sk-typed-cccc3333' },
     });
@@ -684,6 +711,41 @@ describe('ModelsPage', () => {
       { id: 'kimi-embedding', enabled: false, toolCalling: false },
     ]);
     expect(payload.detected).toMatchObject({ messages: { ok: true } });
+  });
+
+  it('models: search and status filter narrow the list; enable / disable all act on what is shown', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'kimi-k3', enabled: true },
+          { id: 'kimi-k3-turbo', enabled: false },
+          { id: 'moonshot-v1', enabled: false },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).getByTestId('pd-models-count').textContent).toContain('1');
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: 'K3' } });
+    expect(within(dlg).queryByTestId('pd-model-moonshot-v1')).toBeNull();
+    expect(within(dlg).getByTestId('pd-model-kimi-k3-turbo')).toBeTruthy();
+    // 只启用筛出来的两个，moonshot-v1 不动
+    fireEvent.click(within(dlg).getByTestId('pd-models-enable-shown'));
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-model-filter'), { target: { value: 'off' } });
+    expect(within(dlg).getByTestId('pd-model-moonshot-v1')).toBeTruthy();
+    expect(within(dlg).queryByTestId('pd-model-kimi-k3')).toBeNull();
+    fireEvent.change(within(dlg).getByTestId('pd-model-search'), { target: { value: 'nope' } });
+    expect(within(dlg).getByText('没有匹配的模型')).toBeTruthy();
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models.map((x) => [x.id, x.enabled])).toEqual([
+      ['kimi-k3', true],
+      ['kimi-k3-turbo', true],
+      ['moonshot-v1', false],
+    ]);
   });
 
   it('context limits: badges show the effective value; manual limits save as user-set (§12.7.2)', async () => {
@@ -807,37 +869,70 @@ describe('ModelsPage', () => {
     });
   });
 
-  it('fallback chain: add from the picker, reorder and remove', async () => {
+  it('provider order: drag a row onto another, or Alt+arrows on the grip; env providers are not sortable', async () => {
     const m = fakeMain();
     m.state.providers = [
       kimi(),
-      {
-        ...kimi(),
-        id: 'ds',
-        name: 'DeepSeek',
-        models: [
-          { id: 'v4', enabled: true },
-          { id: 'flash', enabled: true },
-        ],
-      },
+      { ...kimi(), id: 'ds', name: 'DeepSeek' },
+      { ...kimi(), id: 'env-x', name: 'Env', source: 'env' },
     ];
+    render(<ModelsPage />);
+    await screen.findByTestId('provider-open-kimi');
+    expect(screen.getByTestId('providers-order-hint')).toBeTruthy();
+    expect(screen.queryByTestId('provider-grip-env-x')).toBeNull();
+    const dt = { setData: () => undefined, effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(screen.getByTestId('provider-kimi'), { dataTransfer: dt });
+    fireEvent.dragOver(screen.getByTestId('provider-ds'), { dataTransfer: dt });
+    fireEvent.drop(screen.getByTestId('provider-ds'), { dataTransfer: dt });
+    await waitFor(() =>
+      expect(m.calls.filter(([c]) => c === 'gateway.reorderProviders').at(-1)?.[1]).toEqual({
+        ids: ['ds', 'kimi'],
+      }),
+    );
+    // 键盘：手柄上 Alt+↑ 把 kimi 移回第一位
+    await waitFor(() =>
+      expect(screen.getByTestId('provider-grip-kimi').getAttribute('aria-label')).toContain('2'),
+    );
+    fireEvent.keyDown(screen.getByTestId('provider-grip-kimi'), { key: 'ArrowUp', altKey: true });
+    await waitFor(() =>
+      expect(m.calls.filter(([c]) => c === 'gateway.reorderProviders').at(-1)?.[1]).toEqual({
+        ids: ['kimi', 'ds'],
+      }),
+    );
+  });
+
+  it('the list has an enable switch per provider (not for env providers) instead of a ⋯ button', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi(), { ...kimi(), id: 'env-x', name: 'Env', source: 'env' }];
+    render(<ModelsPage />);
+    const sw = await screen.findByTestId('provider-enabled-kimi');
+    expect(screen.queryByTestId('provider-enabled-env-x')).toBeNull();
+    expect(screen.queryByRole('button', { name: /编辑「|查看「/ })).toBeNull();
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls.find(([c]) => c === 'gateway.setProviderEnabled')?.[1]).toEqual({
+        id: 'kimi',
+        enabled: false,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('provider-kimi').hasAttribute('data-off')).toBe(true),
+    );
+  });
+
+  it('the provider dialog no longer has a per-provider fallback chain', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
-    const add = () => within(dlg).getByTestId('pd-fallback-add');
-    fireEvent.change(add(), { target: { value: 'ds/v4' } });
-    fireEvent.change(add(), { target: { value: 'ds/flash' } });
-    fireEvent.change(add(), { target: { value: 'kimi/kimi-k3-turbo' } });
-    // 已在链里的不再出现在选择器里
-    expect(Array.from((add() as HTMLSelectElement).options).map((o) => o.value)).not.toContain(
-      'ds/v4',
-    );
-    fireEvent.click(within(dlg).getByTestId('pd-fallback-up-1'));
-    fireEvent.click(within(dlg).getByTestId('pd-fallback-remove-2'));
-    expect(within(dlg).getByTestId('pd-fallback-0').textContent).toContain('DeepSeek / flash');
+    expect(within(dlg).queryByTestId('pd-fallback-add')).toBeNull();
+    fireEvent.change(within(dlg).getByTestId('provider-detail-name'), {
+      target: { value: 'Kimi 2' },
+    });
     fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
     await waitFor(() => expect(upserts(m)).toHaveLength(1));
-    expect(upserts(m)[0]!.fallback).toEqual(['ds/flash', 'ds/v4']);
+    expect(upserts(m)[0]).not.toHaveProperty('fallback');
   });
 
   it('advanced: URLs (empty turns a protocol off), re-detect, wires, model map, headers, UA', async () => {
@@ -911,6 +1006,9 @@ describe('ModelsPage', () => {
       },
     });
     render(<ModelsPage />);
+    // 严格模式在页底「高级」里
+    expect(screen.queryByTestId('models-strict')).toBeNull();
+    fireEvent.click(await screen.findByTestId('models-advanced-toggle'));
     const sw = await screen.findByTestId('models-strict');
     await waitFor(() => expect((sw as HTMLButtonElement).disabled).toBe(false));
     expect(sw.getAttribute('aria-checked')).toBe('false');
@@ -1118,7 +1216,14 @@ describe('ModelsPage', () => {
     it('新标签默认用：默认（本机登录）/ 官方账号（跟随默认或指定账号）/ 第三方供应商三组；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
-      render(<ModelsPage />);
+      // 「新会话默认用」在「编程助手」页各助手的详情里；主模型仍在「模型」页
+      render(
+        <>
+          <ModelsPage />
+          <NewTabSourceRow kind="grok" />
+        </>,
+      );
+      expect(within(screen.getByTestId('models-cli')).queryByTestId('cli-source-grok')).toBeNull();
       const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
       const values = () => Array.from(src.options).map((o) => o.value);
       // 默认 = 本机登录；官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）

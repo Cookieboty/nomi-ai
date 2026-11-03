@@ -231,3 +231,48 @@ func TestGhAccountSwitchRebind(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// #233：执行前复核 gh 当前账号：没手动复核也拒绝，不用别的身份发请求
+func TestVerifyIdentityBeforeUse(t *testing.T) {
+	login := "octo"
+	s, calls, _ := harness(t, &login, true)
+	ctx := context.Background()
+	c, err := s.AddGithub(ctx, AddInput{Mode: "gh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiCalls := func() int {
+		n := 0
+		for _, a := range *calls {
+			if a[0] == "api" {
+				n++
+			}
+		}
+		return n
+	}
+	grant := []Grant{{ConnectionID: c.ID, Capabilities: []string{"github.read", "github.comment"}, Resources: []string{"o/r"}}}
+	login = "mona"
+	// 写：每次发送前都复核（即使刚检查过）
+	if _, err := s.GithubWrite(ctx, "github.comment", GithubWriteParams{Repo: "o/r", Number: 1, Body: sp("hi")}, nil, nil); err == nil || err.(*Error).Code != "needs_login" {
+		t.Fatalf("write with switched account: %v", err)
+	}
+	if apiCalls() != 0 {
+		t.Fatal("sent with another identity")
+	}
+	login = "octo"
+	if _, err := s.Check(ctx, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GithubRead(ctx, ReadParams{Endpoint: "repo", Repo: sp("o/r"), ConnectionID: sp(c.ID)}, grant); err != nil {
+		t.Fatal(err)
+	}
+	// 过了缓存时间再切账号：读也拒绝
+	login = "mona"
+	s.d.Now = func() int64 { return 1 + IdentityTTLMs + 1 }
+	if _, err := s.GithubRead(ctx, ReadParams{Endpoint: "repo", Repo: sp("o/r"), ConnectionID: sp(c.ID)}, grant); err == nil || err.(*Error).Code != "needs_login" {
+		t.Fatalf("read with switched account: %v", err)
+	}
+	if apiCalls() != 1 {
+		t.Fatalf("api calls %d", apiCalls())
+	}
+}

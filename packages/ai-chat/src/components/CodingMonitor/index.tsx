@@ -31,12 +31,15 @@ import {
 import { harnessClient } from '../../services/harnessClient';
 import { usageClient } from '../../services/usageClient';
 import { EndpointIcon } from '../EndpointIcon';
+import { Pager } from '../Pager';
 import { sessionUsageText } from '../UsagePanel/format';
 import { useUsageFx } from '../UsagePanel/useFx';
 
 import styles from './index.module.css';
 
 const log = createLogger('coding-monitor');
+/** 活跃会话每页条数 */
+const SESSION_PAGE = 20;
 
 /** 相对时间：刚刚 / N 分钟前 / N 小时前 / 日期 */
 export function relTime(ms: number, now = Date.now()): string {
@@ -55,6 +58,8 @@ export const CodingMonitor: React.FC<{
 }> = ({ onOpenedTab, onOpenNotify }) => {
   const [agents, setAgents] = useState<AgentWatchState | null>(null);
   const [agentFilter, setAgentFilter] = useState<EndpointFilter>('all');
+  // 活跃会话分页（每页 SESSION_PAGE 条）；切换端点筛选回到第一页
+  const [page, setPage] = useState(0);
   const fx = useUsageFx();
   // 「最后活动 N 分钟前」本地走时：主进程只在会话有变化时才广播，不能靠广播刷新相对时间
   const [now, setNow] = useState(() => Date.now());
@@ -87,117 +92,126 @@ export const CodingMonitor: React.FC<{
   const setSettings = (p: Parameters<typeof agentsClient.setSettings>[0]) =>
     void agentsClient.setSettings(p).then(loadAgents);
 
+  const visible = agents ? filterSessions(agents.sessions, agentFilter) : [];
+  const lastPage = Math.max(0, Math.ceil(visible.length / SESSION_PAGE) - 1);
+  // 会话结束 / 筛选后条数变少：当前页超出范围时停在最后一页
+  const shownPage = Math.min(page, lastPage);
+
   return (
-    <div className={styles.stack} data-testid="coding-monitor">
+    <div className={styles.root} data-testid="coding-monitor">
       {!agentsClient.available() && (
         <Notice tone="warning">
           {tr('ui.providers-schedule.the-main-process-watcher-isn-t-reachable-in')}
         </Notice>
       )}
       {agents && (
-        <>
-          <SettingsGroup
-            title={tr('ui.providers-schedule.progress-monitoring')}
-            description={tr(
-              'ui.providers-schedule.only-sessions-whose-files-were-just-written-and',
-            )}
-          >
-            <SettingRow
-              title={tr('ui.providers-schedule.watch-coding-agent-progress')}
-              description={tr('ui.providers-schedule.show-a-bubble-dynamic-island-notice-when-a')}
-            >
-              <Switch
-                checked={agents.settings.enabled}
-                onChange={(v) => setSettings({ enabled: v })}
-                aria-label={tr('ui.providers-schedule.watch-coding-agent-progress')}
-                data-testid="agents-enabled"
-              />
-            </SettingRow>
-            <SettingRow
-              title={tr('ui.providers-schedule.read-aloud')}
+        // 宽屏：两组设置并排在上，活跃会话占满整行在下；窄屏上下排
+        <div className={styles.layout}>
+          <div className={styles.side}>
+            <SettingsGroup
+              title={tr('ui.providers-schedule.progress-monitoring')}
               description={tr(
-                'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
+                'ui.providers-schedule.only-sessions-whose-files-were-just-written-and',
               )}
             >
-              <Switch
-                checked={agents.settings.summaryEnabled}
-                disabled={!agents.settings.enabled}
-                onChange={(v) => setSettings({ summaryEnabled: v })}
-                aria-label={tr(
-                  'ui.usage-tools.spoken-coding-assistant-notifications-codex-and-more',
-                )}
-                data-testid="agents-summary"
-              />
-            </SettingRow>
-            {onOpenNotify && (
               <SettingRow
-                title={tr('ui.providers-schedule.dynamic-island-quiet-hours')}
+                title={tr('ui.providers-schedule.watch-coding-agent-progress')}
+                description={tr('ui.providers-schedule.show-a-bubble-dynamic-island-notice-when-a')}
+              >
+                <Switch
+                  checked={agents.settings.enabled}
+                  onChange={(v) => setSettings({ enabled: v })}
+                  aria-label={tr('ui.providers-schedule.watch-coding-agent-progress')}
+                  data-testid="agents-enabled"
+                />
+              </SettingRow>
+              <SettingRow
+                title={tr('ui.providers-schedule.read-aloud')}
                 description={tr(
-                  'ui.providers-schedule.notification-style-types-and-quiet-hours-are-set',
+                  'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
                 )}
               >
+                <Switch
+                  checked={agents.settings.summaryEnabled}
+                  disabled={!agents.settings.enabled}
+                  onChange={(v) => setSettings({ summaryEnabled: v })}
+                  aria-label={tr(
+                    'ui.usage-tools.spoken-coding-assistant-notifications-codex-and-more',
+                  )}
+                  data-testid="agents-summary"
+                />
+              </SettingRow>
+              {onOpenNotify && (
+                <SettingRow
+                  title={tr('ui.providers-schedule.dynamic-island-quiet-hours')}
+                  description={tr(
+                    'ui.providers-schedule.notification-style-types-and-quiet-hours-are-set',
+                  )}
+                >
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid="agents-open-notify"
+                    onClick={onOpenNotify}
+                  >
+                    {tr('ui.cli-monitor.open-notifications-dynamic-island')}
+                  </Button>
+                </SettingRow>
+              )}
+            </SettingsGroup>
+
+            <SettingsGroup
+              title={tr('ui.providers-schedule.assistants-to-monitor')}
+              description={
+                <>
+                  {tr('ui.providers-schedule.detected')}
+                  {agents.detected.length
+                    ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
+                    : tr('ui.providers-schedule.none')}
+                </>
+              }
+              actions={
                 <Button
                   size="sm"
                   variant="secondary"
-                  data-testid="agents-open-notify"
-                  onClick={onOpenNotify}
+                  onClick={() => void agentsClient.scan().then(setAgents)}
+                  data-testid="agents-scan"
                 >
-                  {tr('ui.cli-monitor.open-notifications-dynamic-island')}
+                  {tr('ui.providers-schedule.scan-now')}
                 </Button>
-              </SettingRow>
-            )}
-          </SettingsGroup>
-
-          <SettingsGroup
-            title={tr('ui.providers-schedule.assistants-to-monitor')}
-            description={
-              <>
-                {tr('ui.providers-schedule.detected')}
-                {agents.detected.length
-                  ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
-                  : tr('ui.providers-schedule.none')}
-              </>
-            }
-            actions={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => void agentsClient.scan().then(setAgents)}
-                data-testid="agents-scan"
-              >
-                {tr('ui.providers-schedule.scan-now')}
-              </Button>
-            }
-          >
-            <div className={styles.tools}>
-              {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => {
-                const found = agents.detected.includes(k);
-                return (
-                  <div key={k} className={styles.tool}>
-                    <span className={styles.toolName}>
-                      {tr(AGENT_LABEL[k])}
-                      <span className={styles.toolState} data-found={found ? '1' : undefined}>
-                        {found
-                          ? tr('ui.providers-schedule.detected-label')
-                          : tr('ui.slash-commands.not-detected')}
+              }
+            >
+              <div className={styles.tools}>
+                {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => {
+                  const found = agents.detected.includes(k);
+                  return (
+                    <div key={k} className={styles.tool}>
+                      <span className={styles.toolName}>
+                        {tr(AGENT_LABEL[k])}
+                        <span className={styles.toolState} data-found={found ? '1' : undefined}>
+                          {found
+                            ? tr('ui.providers-schedule.detected-label')
+                            : tr('ui.slash-commands.not-detected')}
+                        </span>
                       </span>
-                    </span>
-                    <Switch
-                      checked={agents.settings.tools[k]}
-                      disabled={!agents.settings.enabled}
-                      onChange={(v) =>
-                        setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
-                      }
-                      aria-label={tr('ui.providers-schedule.monitor', tr(AGENT_LABEL[k]))}
-                      data-testid={`agents-tool-${k}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </SettingsGroup>
+                      <Switch
+                        checked={agents.settings.tools[k]}
+                        disabled={!agents.settings.enabled}
+                        onChange={(v) =>
+                          setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
+                        }
+                        aria-label={tr('ui.providers-schedule.monitor', tr(AGENT_LABEL[k]))}
+                        data-testid={`agents-tool-${k}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </SettingsGroup>
+          </div>
 
           <SettingsGroup
+            className={styles.main}
             title={tr('ui.cli-monitor.active-sessions')}
             description={tr('ui.providers-schedule.claude-code-codex-dsh-grok-gemini-cli-plus')}
           >
@@ -215,7 +229,10 @@ export const CodingMonitor: React.FC<{
                     variant={agentFilter === k ? 'primary' : 'ghost'}
                     aria-pressed={agentFilter === k}
                     data-testid={`agents-filter-${k}`}
-                    onClick={() => setAgentFilter(k)}
+                    onClick={() => {
+                      setAgentFilter(k);
+                      setPage(0);
+                    }}
                   >
                     {isBuiltinCliId(k) ? <EndpointIcon backend={k} size={14} decorative /> : null}
                     {k === 'all'
@@ -236,8 +253,8 @@ export const CodingMonitor: React.FC<{
               />
             ) : (
               <div data-testid="agents-sessions">
-                {filterSessions(agents.sessions, agentFilter)
-                  .slice(0, 20)
+                {visible
+                  .slice(shownPage * SESSION_PAGE, (shownPage + 1) * SESSION_PAGE)
                   .map((s) => (
                     <SettingRow
                       key={s.id}
@@ -298,10 +315,19 @@ export const CodingMonitor: React.FC<{
                       )}
                     </SettingRow>
                   ))}
+                {visible.length > SESSION_PAGE && (
+                  <Pager
+                    page={shownPage}
+                    pageSize={SESSION_PAGE}
+                    total={visible.length}
+                    onPage={setPage}
+                    testId="agents-sessions"
+                  />
+                )}
               </div>
             )}
           </SettingsGroup>
-        </>
+        </div>
       )}
     </div>
   );

@@ -12,7 +12,7 @@ const (
 	FirstByteTimeoutMs                   = 30_000
 	NonStreamFirstByteTimeoutMs          = 300_000
 	ReasoningNonStreamFirstByteTimeoutMs = 600_000
-	FirstByteBudgetMs                    = 60_000
+	FirstByteBudgetMs                    = 300_000
 	NonStreamFirstByteBudgetMs           = 900_000
 	StreamIdleTimeoutMs                  = 180_000
 )
@@ -25,6 +25,24 @@ type TimeoutHooks struct {
 	FirstByteBudgetMs                    *float64
 	NonStreamFirstByteBudgetMs           *float64
 	StreamIdleTimeoutMs                  *float64
+	// RetryBaseDelayMs：重连退避的起点（0 = 不等，测试用）
+	RetryBaseDelayMs *float64
+}
+
+// ResolveRetryBaseMs：hooks → NOMI_GATEWAY_RETRY_BASE_MS（允许 0）；都没有返回 nil（用默认）
+func ResolveRetryBaseMs(h TimeoutHooks) *float64 {
+	if h.RetryBaseDelayMs != nil {
+		return h.RetryBaseDelayMs
+	}
+	raw := u.JSTrim(os.Getenv("NOMI_GATEWAY_RETRY_BASE_MS"))
+	if raw == "" {
+		return nil
+	}
+	n := u.ToNumber(raw)
+	if math.IsNaN(n) || math.IsInf(n, 0) || n < 0 {
+		return nil
+	}
+	return &n
 }
 
 // envMs: JS `process.env[name]?.trim()` → Number → finite and > 0.

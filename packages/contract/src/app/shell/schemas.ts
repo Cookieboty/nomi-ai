@@ -36,7 +36,7 @@ export const opaqueObject = z.custom<object>(
 // theme / locale
 // ---------------------------------------------------------------------------
 
-export const ThemeId = z.enum(['mist', 'graphite', 'ink', 'cream', 'sunset']);
+export const ThemeId = z.enum(['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset']);
 export const ThemePref = z.union([ThemeId, z.literal('system'), z.literal('image')]);
 export const ThemeState = loose({ pref: ThemePref, resolved: ThemeId });
 /** 旧 id（如 `paper`）由主进程归一，所以这里只要求字符串 */
@@ -196,7 +196,6 @@ export const GatewayProviderInput = loose({
   modelMap: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   userAgent: z.string().optional(),
-  fallback: z.array(z.string()).optional(),
   detected: z.partialRecord(Wire, loose({ ok: z.boolean(), at: z.number() })).optional(),
   quirks: opaqueObject.optional(),
 });
@@ -489,4 +488,40 @@ export const ChatHistoryMigration = loose({
   status: ChatHistoryMigrationStatus,
   entries: z.record(z.string(), z.string()),
   error: z.string().optional(),
+});
+
+/* ---- providerLink（第三方供应商链接，docs/design/provider-link.md）---- */
+
+export const ProviderLinkOffer = loose({
+  id: z.string(),
+  stage: z.enum(['authorize', 'save', 'error']),
+  source: z.enum(['link', 'issuer']),
+  issuer: z.string().optional(),
+  name: z.string(),
+  homepage: z.string().optional(),
+  urls: WireUrls,
+  /** 打码后的 Key（明文只在内核里） */
+  keyMasked: z.string().optional(),
+  models: z.array(z.string()),
+  existing: loose({ id: z.string(), name: z.string() }).optional(),
+  error: z.string().optional(),
+  createdAt: z.number(),
+  expiresAt: z.number(),
+});
+
+export const ProviderLinkAcceptResult = loose({
+  stage: z.enum(['authorize', 'save', 'error']),
+  providerId: z.string().optional(),
+  name: z.string().optional(),
+  updated: z.boolean().optional(),
+});
+
+/** 网关的重连 / 换供应商通知（@nomi-ai/gateway 的 RetryEvent） */
+export const GatewayRetrying = loose({
+  client: z.string(),
+  provider: z.string(),
+  previous: z.string(),
+  status: z.number().optional(),
+  attempt: z.number(),
+  waitMs: z.number().optional(),
 });

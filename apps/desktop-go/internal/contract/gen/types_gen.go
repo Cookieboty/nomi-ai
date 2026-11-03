@@ -1774,7 +1774,8 @@ type DelegateStatusOutput struct {
 }
 
 type DesktopAuditInput struct {
-	Limit *float64 `json:"limit,omitempty"`
+	Limit  *float64 `json:"limit,omitempty"`
+	Offset *float64 `json:"offset,omitempty"`
 }
 
 type DesktopAuditOutputItem struct {
@@ -2686,6 +2687,10 @@ type GatewayRemoveProviderInput struct {
 	Id string `json:"id"`
 }
 
+type GatewayReorderProvidersInput struct {
+	Ids []string `json:"ids"`
+}
+
 type GatewayResetTokenInput struct {
 	Client string `json:"client"`
 }
@@ -2745,6 +2750,11 @@ type GatewaySetOptionsOutput struct {
 	Clients             map[string]GatewaySetOptionsOutputClientsValue `json:"clients"`
 	AllowedPrivateHosts []string                                       `json:"allowedPrivateHosts"`
 	Port                float64                                        `json:"port"`
+}
+
+type GatewaySetProviderEnabledInput struct {
+	Id      string `json:"id"`
+	Enabled bool   `json:"enabled"`
 }
 
 type GatewayStateOutputProvidersItemKeysItem struct {
@@ -2883,7 +2893,6 @@ type GatewayUpsertProviderInput struct {
 	ModelMap  []GatewayUpsertProviderInputModelMapItem           `json:"modelMap,omitempty"`
 	Headers   map[string]string                                  `json:"headers,omitempty"`
 	UserAgent *string                                            `json:"userAgent,omitempty"`
-	Fallback  []string                                           `json:"fallback,omitempty"`
 	Detected  map[string]GatewayUpsertProviderInputDetectedValue `json:"detected,omitempty"`
 	Quirks    any                                                `json:"quirks,omitempty"`
 }
@@ -3271,6 +3280,23 @@ type HarnessTabActivateOutput struct {
 	AutoApprove           *bool                              `json:"autoApprove,omitempty"`
 	AiReview              *bool                              `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                              `json:"nomiAutoApprove,omitempty"`
+}
+
+type HarnessTabApplyAutoTitleInput struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
+type HarnessTabApplyAutoTitleOutput struct {
+	Id           string  `json:"id"`
+	Title        string  `json:"title"`
+	Backend      string  `json:"backend"`
+	Cwd          string  `json:"cwd"`
+	CliSessionId string  `json:"cliSessionId"`
+	Status       string  `json:"status"`
+	Unread       float64 `json:"unread"`
+	CreatedAt    float64 `json:"createdAt"`
+	UpdatedAt    float64 `json:"updatedAt"`
 }
 
 type HarnessTabBackendInput struct {
@@ -4848,6 +4874,77 @@ type PersonaGetOutput struct {
 	Greetings            []string `json:"greetings"`
 }
 
+type ProviderLinkAcceptInput struct {
+	Id string `json:"id"`
+}
+
+// ProviderLinkAcceptOutputStage 枚举：authorize | save | error
+type ProviderLinkAcceptOutputStage = string
+
+const (
+	ProviderLinkAcceptOutputStageAuthorize ProviderLinkAcceptOutputStage = "authorize"
+	ProviderLinkAcceptOutputStageSave      ProviderLinkAcceptOutputStage = "save"
+	ProviderLinkAcceptOutputStageError     ProviderLinkAcceptOutputStage = "error"
+)
+
+type ProviderLinkAcceptOutput struct {
+	Stage      ProviderLinkAcceptOutputStage `json:"stage"`
+	ProviderId *string                       `json:"providerId,omitempty"`
+	Name       *string                       `json:"name,omitempty"`
+	Updated    *bool                         `json:"updated,omitempty"`
+}
+
+type ProviderLinkConnectInput struct {
+	Issuer string `json:"issuer"`
+}
+
+type ProviderLinkConnectOutput struct {
+	Name   string `json:"name"`
+	Issuer string `json:"issuer"`
+}
+
+// ProviderLinkListOutputItemStage 枚举：authorize | save | error
+type ProviderLinkListOutputItemStage = string
+
+const (
+	ProviderLinkListOutputItemStageAuthorize ProviderLinkListOutputItemStage = "authorize"
+	ProviderLinkListOutputItemStageSave      ProviderLinkListOutputItemStage = "save"
+	ProviderLinkListOutputItemStageError     ProviderLinkListOutputItemStage = "error"
+)
+
+// ProviderLinkListOutputItemSource 枚举：link | issuer
+type ProviderLinkListOutputItemSource = string
+
+const (
+	ProviderLinkListOutputItemSourceLink   ProviderLinkListOutputItemSource = "link"
+	ProviderLinkListOutputItemSourceIssuer ProviderLinkListOutputItemSource = "issuer"
+)
+
+type ProviderLinkListOutputItemExisting struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ProviderLinkListOutputItem struct {
+	Id        string                              `json:"id"`
+	Stage     ProviderLinkListOutputItemStage     `json:"stage"`
+	Source    ProviderLinkListOutputItemSource    `json:"source"`
+	Issuer    *string                             `json:"issuer,omitempty"`
+	Name      string                              `json:"name"`
+	Homepage  *string                             `json:"homepage,omitempty"`
+	Urls      map[string]string                   `json:"urls"`
+	KeyMasked *string                             `json:"keyMasked,omitempty"`
+	Models    []string                            `json:"models"`
+	Existing  *ProviderLinkListOutputItemExisting `json:"existing,omitempty"`
+	Error     *string                             `json:"error,omitempty"`
+	CreatedAt float64                             `json:"createdAt"`
+	ExpiresAt float64                             `json:"expiresAt"`
+}
+
+type ProviderLinkRejectInput struct {
+	Id string `json:"id"`
+}
+
 type ProvidersMetaOutput struct {
 	Categories map[string]string `json:"categories"`
 	Protocols  map[string]string `json:"protocols"`
@@ -5859,10 +5956,12 @@ type TasksUpdateOutput struct {
 	UpdatedAt float64                   `json:"updatedAt"`
 }
 
-// ThemeGetOutputResolved 枚举：mist | graphite | ink | cream | sunset
+// ThemeGetOutputResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type ThemeGetOutputResolved = string
 
 const (
+	ThemeGetOutputResolvedLight    ThemeGetOutputResolved = "light"
+	ThemeGetOutputResolvedDark     ThemeGetOutputResolved = "dark"
 	ThemeGetOutputResolvedMist     ThemeGetOutputResolved = "mist"
 	ThemeGetOutputResolvedGraphite ThemeGetOutputResolved = "graphite"
 	ThemeGetOutputResolvedInk      ThemeGetOutputResolved = "ink"
@@ -5879,10 +5978,12 @@ type ThemeSetInput struct {
 	Pref string `json:"pref"`
 }
 
-// ThemeSetOutputResolved 枚举：mist | graphite | ink | cream | sunset
+// ThemeSetOutputResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type ThemeSetOutputResolved = string
 
 const (
+	ThemeSetOutputResolvedLight    ThemeSetOutputResolved = "light"
+	ThemeSetOutputResolvedDark     ThemeSetOutputResolved = "dark"
 	ThemeSetOutputResolvedMist     ThemeSetOutputResolved = "mist"
 	ThemeSetOutputResolvedGraphite ThemeSetOutputResolved = "graphite"
 	ThemeSetOutputResolvedInk      ThemeSetOutputResolved = "ink"
@@ -7105,6 +7206,15 @@ type EventDesktopSummary struct {
 	At      float64 `json:"at"`
 }
 
+type EventGatewayRetrying struct {
+	Client   string   `json:"client"`
+	Provider string   `json:"provider"`
+	Previous string   `json:"previous"`
+	Status   *float64 `json:"status,omitempty"`
+	Attempt  float64  `json:"attempt"`
+	WaitMs   *float64 `json:"waitMs,omitempty"`
+}
+
 type EventHarnessChanged struct {
 	Backend      string `json:"backend"`
 	Cwd          string `json:"cwd"`
@@ -7285,6 +7395,44 @@ type EventPersonaChanged struct {
 	Greetings            []string `json:"greetings"`
 }
 
+// EventProviderLinkChangedItemStage 枚举：authorize | save | error
+type EventProviderLinkChangedItemStage = string
+
+const (
+	EventProviderLinkChangedItemStageAuthorize EventProviderLinkChangedItemStage = "authorize"
+	EventProviderLinkChangedItemStageSave      EventProviderLinkChangedItemStage = "save"
+	EventProviderLinkChangedItemStageError     EventProviderLinkChangedItemStage = "error"
+)
+
+// EventProviderLinkChangedItemSource 枚举：link | issuer
+type EventProviderLinkChangedItemSource = string
+
+const (
+	EventProviderLinkChangedItemSourceLink   EventProviderLinkChangedItemSource = "link"
+	EventProviderLinkChangedItemSourceIssuer EventProviderLinkChangedItemSource = "issuer"
+)
+
+type EventProviderLinkChangedItemExisting struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type EventProviderLinkChangedItem struct {
+	Id        string                                `json:"id"`
+	Stage     EventProviderLinkChangedItemStage     `json:"stage"`
+	Source    EventProviderLinkChangedItemSource    `json:"source"`
+	Issuer    *string                               `json:"issuer,omitempty"`
+	Name      string                                `json:"name"`
+	Homepage  *string                               `json:"homepage,omitempty"`
+	Urls      map[string]string                     `json:"urls"`
+	KeyMasked *string                               `json:"keyMasked,omitempty"`
+	Models    []string                              `json:"models"`
+	Existing  *EventProviderLinkChangedItemExisting `json:"existing,omitempty"`
+	Error     *string                               `json:"error,omitempty"`
+	CreatedAt float64                               `json:"createdAt"`
+	ExpiresAt float64                               `json:"expiresAt"`
+}
+
 type EventProvidersChangedProvidersItem struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
@@ -7345,10 +7493,12 @@ type EventTasksChanged struct {
 	Id string `json:"id"`
 }
 
-// EventThemeChangedResolved 枚举：mist | graphite | ink | cream | sunset
+// EventThemeChangedResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type EventThemeChangedResolved = string
 
 const (
+	EventThemeChangedResolvedLight    EventThemeChangedResolved = "light"
+	EventThemeChangedResolvedDark     EventThemeChangedResolved = "dark"
 	EventThemeChangedResolvedMist     EventThemeChangedResolved = "mist"
 	EventThemeChangedResolvedGraphite EventThemeChangedResolved = "graphite"
 	EventThemeChangedResolvedInk      EventThemeChangedResolved = "ink"
@@ -7989,6 +8139,10 @@ type GatewayPrivacySetActionOutputT = GatewayPrivacySetActionOutput
 type GatewayRemoveProviderInputT = GatewayRemoveProviderInput
 type GatewayRemoveProviderOutputT = any
 
+// GatewayReorderProvidersInputT 是 gateway.reorderProviders 的入参
+type GatewayReorderProvidersInputT = GatewayReorderProvidersInput
+type GatewayReorderProvidersOutputT = any
+
 // GatewayResetTokenInputT 是 gateway.resetToken 的入参
 type GatewayResetTokenInputT = GatewayResetTokenInput
 type GatewayResetTokenOutputT = any
@@ -8004,6 +8158,10 @@ type GatewaySetAssignmentOutputT = any
 // GatewaySetOptionsInputT 是 gateway.setOptions 的入参
 type GatewaySetOptionsInputT = GatewaySetOptionsInput
 type GatewaySetOptionsOutputT = GatewaySetOptionsOutput
+
+// GatewaySetProviderEnabledInputT 是 gateway.setProviderEnabled 的入参
+type GatewaySetProviderEnabledInputT = GatewaySetProviderEnabledInput
+type GatewaySetProviderEnabledOutputT = any
 
 // GatewayStateInputT 是 gateway.state 的入参
 type GatewayStateInputT = any
@@ -8144,6 +8302,10 @@ type HarnessTabAccountOutputT = HarnessTabAccountOutput
 // HarnessTabActivateInputT 是 harness.tabActivate 的入参
 type HarnessTabActivateInputT = HarnessTabActivateInput
 type HarnessTabActivateOutputT = HarnessTabActivateOutput
+
+// HarnessTabApplyAutoTitleInputT 是 harness.tabApplyAutoTitle 的入参
+type HarnessTabApplyAutoTitleInputT = HarnessTabApplyAutoTitleInput
+type HarnessTabApplyAutoTitleOutputT = *HarnessTabApplyAutoTitleOutput
 
 // HarnessTabBackendInputT 是 harness.tabBackend 的入参
 type HarnessTabBackendInputT = HarnessTabBackendInput
@@ -8588,6 +8750,22 @@ type PersonaGetOutputT = PersonaGetOutput
 // PersonaSystemPromptInputT 是 persona.systemPrompt 的入参
 type PersonaSystemPromptInputT = any
 type PersonaSystemPromptOutputT = string
+
+// ProviderLinkAcceptInputT 是 providerLink.accept 的入参
+type ProviderLinkAcceptInputT = ProviderLinkAcceptInput
+type ProviderLinkAcceptOutputT = ProviderLinkAcceptOutput
+
+// ProviderLinkConnectInputT 是 providerLink.connect 的入参
+type ProviderLinkConnectInputT = ProviderLinkConnectInput
+type ProviderLinkConnectOutputT = ProviderLinkConnectOutput
+
+// ProviderLinkListInputT 是 providerLink.list 的入参
+type ProviderLinkListInputT = any
+type ProviderLinkListOutputT = []ProviderLinkListOutputItem
+
+// ProviderLinkRejectInputT 是 providerLink.reject 的入参
+type ProviderLinkRejectInputT = ProviderLinkRejectInput
+type ProviderLinkRejectOutputT = any
 
 // ProvidersMetaInputT 是 providers.meta 的入参
 type ProvidersMetaInputT = any
@@ -9065,6 +9243,7 @@ type EventDesktopReminderT = EventDesktopReminder
 type EventDesktopSummaryT = EventDesktopSummary
 type EventExtChangedT = any
 type EventGatewayChangedT = any
+type EventGatewayRetryingT = EventGatewayRetrying
 type EventHarnessChangedT = EventHarnessChanged
 type EventHarnessEventsT = []EventHarnessEventsItem
 type EventHarnessTabMessageT = EventHarnessTabMessage
@@ -9089,6 +9268,7 @@ type EventNavVoiceSettingsRequestedT = map[string]any
 type EventOnboardingProfileChangedT = EventOnboardingProfileChanged
 type EventOnboardingShowT = EventOnboardingShow
 type EventPersonaChangedT = EventPersonaChanged
+type EventProviderLinkChangedT = []EventProviderLinkChangedItem
 type EventProvidersChangedT = EventProvidersChanged
 type EventProvidersOpenPanelT = any
 type EventQualityChangedT = any

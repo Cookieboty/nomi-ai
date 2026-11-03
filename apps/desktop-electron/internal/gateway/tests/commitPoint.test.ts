@@ -85,8 +85,9 @@ describe('commit point (§6.11.2)', () => {
     const text = await r.text();
     expect(text).toContain('Hello');
     expect(text).not.toContain('overloaded');
-    expect(t.keys).toEqual(['k1', 'k2']);
-    expect(t.usage[0]).toMatchObject({ status: 200, keyId: 'k2', attempts: 2 });
+    // k1 先在同一个 Key 上重连 3 次（§11.1），都不行再换 k2
+    expect(t.keys).toEqual(['k1', 'k1', 'k1', 'k1', 'k2']);
+    expect(t.usage[0]).toMatchObject({ status: 200, keyId: 'k2', attempts: 5 });
   });
 
   it('after the first content event an error stays in the stream (no fallback)', async () => {
@@ -110,7 +111,8 @@ describe('commit point (§6.11.2)', () => {
     const r = await t.chat();
     expect(r.status).toBe(429);
     expect(await r.text()).toContain('Rate limit exceeded');
-    expect(t.keys).toEqual(['k1', 'k2']);
+    // 每个 Key 第一次 + 重连 3 次
+    expect(t.keys).toEqual(['k1', 'k1', 'k1', 'k1', 'k2', 'k2', 'k2', 'k2']);
   });
 
   it('a stream without any terminal marker still commits and is reported as truncated', async () => {

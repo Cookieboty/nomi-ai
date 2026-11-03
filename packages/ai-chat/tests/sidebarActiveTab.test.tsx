@@ -41,7 +41,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
         conversationStore: () => undefined,
       },
     },
-    actions: {},
+    actions: { loadChatHistory: async () => undefined },
   };
   return { useAiChat: () => api };
 });

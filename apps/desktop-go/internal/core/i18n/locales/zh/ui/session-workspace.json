@@ -107,6 +107,7 @@
   "ui.session-workspace.path-outside-workspace-read-denied": "路径不在工作区内，已拒绝读取",
   "ui.session-workspace.path-outside-workspace-write-denied": "路径不在工作区内，已拒绝写入",
   "ui.session-workspace.please-commit-the-following-uncommitted-changes-files": "请提交以下未提交的改动（{0} 个文件）：",
+  "ui.session-workspace.preview-file": "预览 {0}",
   "ui.session-workspace.previous": "上一张",
   "ui.session-workspace.previous-file": "上一个文件",
   "ui.session-workspace.publish": "推送",

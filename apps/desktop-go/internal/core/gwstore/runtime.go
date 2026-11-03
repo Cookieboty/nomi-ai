@@ -143,7 +143,7 @@ func (s *Store) RuntimeConfig(extra RuntimeExtra) *u.Obj {
 			keys = append(keys, ko)
 		}
 		o.Set("keys", keys).Set("models", s.runtimeModels(p))
-		for _, k := range []string{"fallback", "headers", "userAgent", "modelMap"} {
+		for _, k := range []string{"headers", "userAgent", "modelMap"} {
 			setIf(o, k, p.Get(k))
 		}
 		if det := asObj(p.Get("detected")); det != nil && u.Truthy(p.Get("detected")) {

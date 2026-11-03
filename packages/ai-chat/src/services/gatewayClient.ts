@@ -9,6 +9,16 @@ import type { NomiContextInfo } from './compaction';
 export type Wire = 'messages' | 'responses' | 'chat' | 'gemini';
 export type ClientId = 'nomi' | BuiltinCliId;
 
+/** 网关的重连 / 换供应商通知（同一家重连时 provider === previous） */
+export interface GatewayRetrying {
+  client: string;
+  provider: string;
+  previous: string;
+  status?: number;
+  attempt: number;
+  waitMs?: number;
+}
+
 export const WIRES: readonly Wire[] = ['messages', 'responses', 'chat', 'gemini'];
 
 export const WIRE_LABEL: Record<Wire, string> = {
@@ -96,7 +106,6 @@ export interface ProviderView {
   source: 'user' | 'env';
   detected?: Partial<Record<Wire, StoredProbe>>;
   /** 这个供应商的模型都失败时依次改用（'provider/model'） */
-  fallback?: string[];
   headers?: Record<string, string>;
   userAgent?: string;
   modelMap?: Array<{ from: string; to: string }>;
@@ -218,11 +227,10 @@ export interface ProviderInput {
     rpm?: number | null;
   }>;
   models?: GatewayModel[];
-  /** modelMap / headers / fallback：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
+  /** modelMap / headers：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
-  fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
   quirks?: {
     maxTools?: number;
@@ -328,6 +336,11 @@ export const gatewayClient = {
   upsertProvider: (input: ProviderInput) =>
     call<ProviderView>(() => api.gateway.upsertProvider(input)),
   removeProvider: (id: string) => call<void>(() => api.gateway.removeProvider({ id })),
+  /** 列表上的启用 / 停用开关 */
+  setProviderEnabled: (id: string, enabled: boolean) =>
+    call<void>(() => api.gateway.setProviderEnabled({ id, enabled })),
+  /** 供应商列表的顺序：同一个模型的回退按它换供应商 */
+  reorderProviders: (ids: string[]) => call<void>(() => api.gateway.reorderProviders({ ids })),
   detect: (input: DetectInput) => call<DetectResult>(() => api.gateway.detect(input)),
   setAssignment: (
     client: ClientId,
@@ -372,4 +385,7 @@ export const gatewayClient = {
     }>(() => api.gateway.privacyPreview({ text })),
   onChanged: (fn: () => void) =>
     hasTransport() ? api.on('gateway.changed', () => fn()) : () => undefined,
+  /** Nomi 对话的请求在网关里重连 / 换供应商（等待回复时的提示） */
+  onRetrying: (fn: (e: GatewayRetrying) => void) =>
+    hasTransport() ? api.on('gateway.retrying', (e) => fn(e as GatewayRetrying)) : () => undefined,
 };

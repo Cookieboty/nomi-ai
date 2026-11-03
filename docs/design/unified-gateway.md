@@ -118,7 +118,9 @@
 
 保存后表单收起，第 ② 步「模型分配」里直接列出这个供应商的对话模型供挑选：Nomi 对话还没有模型时默认填上推荐的那个，用户可以点别的改；已有模型时不动。没有可用供应商时「模型分配」整块置灰，提示先配置好供应商。「新标签默认用」不会自动改，官方账号保持原样。
 
-供应商详情（点「⋯」→ 编辑）：名称、Key 列表（拖动排序即回退顺序，每个 Key 显示最近一次错误）、模型列表（勾选启用、手动添加、刷新）、回退链。**高级**折叠区：手动改某个协议的地址、关闭某个协议、给模型指定协议、Key 限定协议、模型映射、自定义请求头和 User-Agent、清除运行时学到的状态（§7.4）。
+供应商列表拖动调整顺序（手柄上 Alt+↑/↓ 也行；环境变量供应商不参与、始终在最后），每行右侧是启用开关：排在前面的优先；某家停用或请求失败时，按这个顺序换到提供同一个模型的供应商（§7.2）。客户端分配指向的供应商被停用时，同样直接从下一家开始，不报「模型不存在」。
+
+供应商详情（点「⋯」→ 编辑）：名称、Key 列表（拖动排序即回退顺序，每个 Key 显示最近一次错误）、模型列表（勾选启用、手动添加、刷新）。**高级**折叠区：手动改某个协议的地址、关闭某个协议、给模型指定协议、Key 限定协议、模型映射、自定义请求头和 User-Agent、清除运行时学到的状态（§7.4）。
 
 ### 4.3 对话窗口
 
@@ -266,7 +268,6 @@ interface GatewayProvider {
   keys: GatewayKey[];
   models: GatewayModel[];
   modelsSource: 'listed' | 'manual' | 'preset'; // 模型列表从哪来
-  fallback?: string[]; // 本供应商失败时依次尝试的 'provider/model'
   headers?: Record<string, string>; // 少数中转站需要的额外请求头（高级）
   userAgent?: string;
   modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名
@@ -412,7 +413,10 @@ resolve(ingressWire, client, requestedModel) → Candidate[]
    - Codex：codex-auto-review 等内部名 → main（§12.2）
    - Nomi：按调用角色取 main / tools / summary（tools、summary 为空时用 main）
 2. 按 §6.2 解析出 (provider, upstreamModel)
-3. 展开候选：该供应商每个可用的 Key 各算一个 → 再接 provider.fallback 里的每一项（每项同样展开 Key）
+3. 展开候选：该供应商每个可用的 Key 各算一个 → 再按供应商列表的顺序，接上其它启用的供应商里**同一个模型**
+   （比较时去掉供应商前缀、`:tag` 与日期 / `-latest` 后缀，且在那边是启用的；每项同样展开 Key）。不换成别的模型。
+   首选供应商的地址全在本机 / 局域网时，只接本机 / 局域网的供应商（数据原本不出本机，失败也不发到云端）。
+   列表顺序由界面上下调整（`gateway.reorderProviders`）；早期版本按供应商配置的回退链（`provider.fallback`）已移除
 4. 每个候选按 §7.3 选出 wire，没有可用 wire 的候选丢弃
 5. 按 §11.2 的亲和结果调整顺序；处于冷却期的候选移到队尾
 ```
@@ -735,8 +739,15 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 ### 11.1 回退与冷却
 
-- 候选列表见 §7.2。每个请求最多尝试 **4 次**（含 §7.4 的换协议重试）。首字节之前的总耗时上限：**流式 60 秒**、**非流式 15 分钟**（到点就停止尝试并返回错误，即使次数没用完）。实现见 `apps/desktop-electron/internal/gateway/src/timeouts.ts`。
-- 可以换下一个候选的情况：连接失败、首字节前超时、429、5xx、529、401 / 403（换 Key）、§7.4 的学习类错误。
+- 候选列表见 §7.2。**重连**（`src/retry.ts`，Go：`server/retry.go`）：
+  - 临时性错误（连接失败、首字节前超时、开始输出前的错误事件、408、429、500、502、503、504、529）先在**同一个 Key 上退避重连**，不急着报错：每个 Key 最多重连 **3 次**；这家（在这次的候选里）只有一个 Key 时最多 **5 次**；
+  - 退避：0.5s 起、每次翻倍、封顶 8s，±20% 抖动；上游给了 `Retry-After` 按它等（封顶 30s）。与 Codex / Claude Code 的做法一致（指数退避、抖动、尊重 `Retry-After`）。流式请求等待期间照常给客户端发保活；客户端断开立即停止；
+  - 401 / 403 不在同一个 Key 上重连，直接换 Key；404（这家没有这个模型）直接换供应商；
+  - 同一家供应商**累计失败 10 次**：放弃它剩下的 Key，换同一个模型的下一家（§7.2）；
+  - 还在同一个 Key 上重连时不冷却、不报 Key 状态；重连用完换 Key 时才冷却并上报；
+  - 每个请求最多 30 次尝试（只防失控）。首字节之前的总耗时上限：**流式 5 分钟**、**非流式 15 分钟**（到点就停止并返回错误，即使次数没用完）。实现见 `apps/desktop-electron/internal/gateway/src/timeouts.ts`；`NOMI_GATEWAY_RETRY_BASE_MS` 改退避起点（0 = 不等）；
+  - 经网关的 Nomi 对话关掉 AI SDK 自己的重试（`maxRetries: 0`），免得在网关的重连外再叠一层。
+- 可以换下一个候选的情况：上面的重连用完后的临时性错误、401 / 403（换 Key）、§7.4 的学习类错误。
   - **流式首字节超时**（等响应头）：默认 **30 秒**。SSE 头应很快到达。
   - **非流式首字节超时**（头与正文一起返回，实际在等整轮生成）：默认 **5 分钟**；模型标了 `reasoning`（DeepSeek V4 Pro、Claude extended thinking、o-series 等）时默认 **10 分钟**。旧实现把非流式也当成 30 秒，会导致思考模型在平台无错时被网关主动断开（客户端 Abort）。
   - 可用 hooks 或环境变量覆盖：`NOMI_GATEWAY_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_NON_STREAM_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_REASONING_NON_STREAM_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_*_BUDGET_MS`、`NOMI_GATEWAY_STREAM_IDLE_TIMEOUT_MS`。
@@ -958,7 +969,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 
 **模型数据同步**：用量服务的 `PriceSync` 是唯一的联网点，一次下载 models.dev 同时得到价格表与模型目录（`buildCatalog`，与构建脚本同一个函数）：
 
-- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或「模型」页「立即同步」/ 用量面板「同步价格」；没有后台轮询；
+- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或设置 →「用量与分析」→「价格与模型数据」里的「立即同步」（模型参数与价格表同一次同步，原来在「模型」页，2.1.1 移过来）；没有后台轮询；
 - 网关：`GatewayService.applyModelsData` 生成目录（条目少于 100 视为异常，不采用），写 `userData/gateway/catalog-sync.json`，主进程 `setCatalogOverlay` 立即生效，配置里带 `catalogFile` 让网关进程按修改时间重读；
 - 查找先覆盖层后内置（models.dev 下架的旧模型仍按内置）；学到的结论只跟内置目录的版本（同步每天都可能更新，跟着它会让学到的结论天天作废）；
 - 网关还没有目录缓存（文件被删）时这次不带 If-None-Match，避免 304 让目录永远建不起来。

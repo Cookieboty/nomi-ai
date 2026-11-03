@@ -1,0 +1,46 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+}
+.text {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
+  overflow-wrap: anywhere;
+}
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--cd-space-1) var(--cd-space-3);
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+}
+.facts dt {
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.muted {
+  color: var(--cd-color-text-muted);
+}
+.hint {
+  margin: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-sm);
+}
+.error {
+  margin: var(--cd-space-3) 0 0;
+  color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+  overflow-wrap: anywhere;
+}
+.warn {
+  color: var(--cd-color-warning);
+  font-weight: var(--cd-font-weight-medium);
+}

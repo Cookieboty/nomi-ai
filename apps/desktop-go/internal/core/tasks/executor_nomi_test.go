@@ -190,3 +190,123 @@ func TestBuildPromptEvents(t *testing.T) {
 		t.Fatal("empty events should add nothing")
 	}
 }
+
+// #235：预算批准时旧流还没退出，随后取消：旧流退出后不再重开
+func TestNomiExecutorCancelAfterQueuedRelaunch(t *testing.T) {
+	limit := int64(1000)
+	release := make(chan struct{})
+	exited := make(chan struct{})
+	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
+		if n == 0 {
+			emit(blm.ChatChunk{Type: "delta", Content: "做了一半"})
+			emit(blm.ChatChunk{Type: "usage", Usage: &blm.ChatUsage{PromptTokens: 900, CompletionTokens: 200}})
+			<-ctx.Done()
+			<-release
+			close(exited)
+			return ctx.Err()
+		}
+		emit(blm.ChatChunk{Type: "delta", Content: "不该重开"})
+		return nil
+	})
+	id := nomiTask(h, []string{"read"}, 1, &BudgetInput{MaxTokensPerAttempt: &limit})
+	h.rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
+	h.rt.Command(id, Command{Type: "decide", Approve: true})
+	h.rt.Command(id, Command{Type: "cancel"})
+	close(release)
+	<-exited
+	time.Sleep(30 * time.Millisecond)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.sys) != 1 {
+		t.Fatalf("relaunched after cancel: %d calls", len(h.sys))
+	}
+	if s := h.rt.Get(id).Task.Status; s != StatusCancelled {
+		t.Fatal(s)
+	}
+}
+
+// #239：用预设模型运行（旧数据里带着 model 的任务也一样），实际供应商与模型记进执行快照
+func TestNomiExecutorRoutedModelSnapshot(t *testing.T) {
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(_ context.Context, _ []blm.ChatMessage, _ []string, _ map[string]any, emit func(blm.ChatChunk)) error {
+			emit(blm.ChatChunk{Type: "delta", Content: "完成"})
+			return nil
+		},
+		Ready: func() bool { return true },
+		Route: func() (string, string) { return "p1", "routed-model" },
+	})
+	n := 0
+	rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"nomi": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
+	tools := []string{"read"}
+	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("model-a")}, Grant: Grant{Level: 1}}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
+	rec := rt.Get(id)
+	snap := rec.Attempts[len(rec.Attempts)-1].Snapshot
+	if snap.ProviderID == nil || *snap.ProviderID != "p1" || snap.Model == nil || *snap.Model != "routed-model" {
+		t.Fatalf("%+v", snap)
+	}
+}
+
+// #232：后台登记读任务当前授权：运行中收窄 / 撤销立即反映
+func TestNomiExecutorLiveGrant(t *testing.T) {
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var live func() (Grant, bool)
+	var rt *Runtime
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(ctx context.Context, _ []blm.ChatMessage, _ []string, _ map[string]any, emit func(blm.ChatChunk)) error {
+			<-release
+			emit(blm.ChatChunk{Type: "delta", Content: "ok"})
+			return nil
+		},
+		WithBackground: func(ctx context.Context, _ int, _ func(string, string, string) bool, _ []ConnectionGrant, _, _ bool, _ connections.ExternalJournal) context.Context {
+			return ctx
+		},
+		LiveTask: func(id string) *Task {
+			if rec := rt.Get(id); rec != nil {
+				t := rec.Task
+				return &t
+			}
+			return nil
+		},
+		LiveGrant: func(_ context.Context, l func() (Grant, bool), _ bool, _ func([]ConnectionGrant) []ConnectionGrant) {
+			mu.Lock()
+			live = l
+			mu.Unlock()
+		},
+		Ready: func() bool { return true },
+	})
+	n := 0
+	rt = NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"nomi": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
+	tools := []string{"read", "file_write"}
+	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 2, Paths: []string{"/a", "/b"}}}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { mu.Lock(); defer mu.Unlock(); return live != nil })
+	mu.Lock()
+	l := live
+	mu.Unlock()
+	if g, ok := l(); !ok || g.Level != 2 || len(g.Paths) != 2 {
+		t.Fatalf("%+v %v", g, ok)
+	}
+	if r := rt.Command(id, Command{Type: "grant", Grant: &Grant{Level: 1, Paths: []string{"/a"}}}); !r.OK {
+		t.Fatal(r)
+	}
+	if g, ok := l(); !ok || g.Level != 1 || len(g.Paths) != 1 {
+		t.Fatalf("narrowing not live: %+v %v", g, ok)
+	}
+	rt.Command(id, Command{Type: "revoke"})
+	if _, ok := l(); ok {
+		t.Fatal("revoked grant still live")
+	}
+	close(release)
+}

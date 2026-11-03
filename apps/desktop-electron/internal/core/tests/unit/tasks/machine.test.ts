@@ -290,6 +290,30 @@ describe('tasks/machine', () => {
     });
   });
 
+  it('事件触发的执行重试 / 重启续跑：新的执行沿用原事件批（#240）', () => {
+    const evTrig: TaskEvent = { type: 'trigger', at: T0 + 1, cause: 'event', eventKey: 'evt:1' };
+    const err = { code: 'network', message: 'x' };
+    const r1 = run(mkTask(), [
+      evTrig,
+      slot(),
+      { type: 'failed', at: T0 + 3, gen: 1, error: err },
+      slot(T0 + 3 + retryBackoffMs(1), 'att_2'),
+    ]).last;
+    expect(r1.attempt!.cause).toMatchObject({ kind: 'retry', eventKey: 'evt:1' });
+    const r2 = run(
+      r1.task,
+      [
+        { type: 'restarted', at: T0 + 10_000, unconfirmedExternal: false },
+        slot(T0 + 10_001, 'att_3'),
+      ],
+      r1.attempt,
+    ).last;
+    expect(r2.attempt!.cause).toMatchObject({ kind: 'resume', eventKey: 'evt:1' });
+    // 新的一次手动触发不串批
+    const r3 = run(mkTask(), [trig(), slot()]).last;
+    expect(r3.attempt!.cause.eventKey).toBeUndefined();
+  });
+
   describe('代次与晚到结果（§5.3）', () => {
     it('取消后晚到的完成作废，不复活任务', () => {
       const r = run(mkTask(), [trig(), slot(), { type: 'cancel', at: T0 + 3 }]).last;

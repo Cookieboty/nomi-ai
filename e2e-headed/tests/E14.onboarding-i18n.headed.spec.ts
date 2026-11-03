@@ -80,7 +80,8 @@ test.describe('E14 · onboarding + i18n', () => {
     await expect(chat.locator('[data-testid="onboarding-next"]')).toHaveText('下一步');
     // 主题与启动方式与语言在同一页
     await expect(chat.locator('[data-testid="onb-theme-ink"]')).toBeVisible();
-    await expect(chat.locator('html')).toHaveAttribute('data-theme', 'sunset');
+    // 默认浅色（2.1.1 起）
+    await expect(chat.locator('html')).toHaveAttribute('data-theme', 'light');
     await chat.click('[data-testid="onb-theme-system"]');
     await shot('e2e-02-onboarding-theme-zh.png');
     // 每一步都能跳过：一路「跳过这一步」直到供应商（不写死中间有哪些步骤，增删步骤不用改这里）

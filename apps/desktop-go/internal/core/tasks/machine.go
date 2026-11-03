@@ -244,11 +244,16 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		if ev.Snapshot != nil {
 			snap = *ev.Snapshot
 		}
+		// 续跑（重试 / 恢复 / 退回）沿用上一次执行的触发事件批，执行者才拿得到原始事件（#240）
+		eventKey := p.EventKey
+		if eventKey == nil && attempt != nil && (p.Cause == "retry" || p.Cause == "resume" || p.Cause == "rework") {
+			eventKey = attempt.Cause.EventKey
+		}
 		next := &Attempt{
 			ID:        ev.AttemptID,
 			TaskID:    task.ID,
 			Gen:       gen,
-			Cause:     AttemptCause{Kind: p.Cause, EventKey: p.EventKey, Note: p.Note, Answer: p.Answer},
+			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer},
 			Snapshot:  snap,
 			Status:    "running",
 			StartedAt: at,
