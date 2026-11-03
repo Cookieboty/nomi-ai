@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { SHARED_UNSENT, createComposerDraftStore, draftKey } from '../src/services/composerDrafts';
+import {
+  SHARED_UNSENT,
+  createComposerDraftStore,
+  draftKey,
+  sessionHasCommittedUserContent,
+} from '../src/services/composerDrafts';
 
 describe('draftKey', () => {
   it('uses SHARED_UNSENT for null, empty Nomi, and empty CLI', () => {
@@ -41,5 +46,29 @@ describe('createComposerDraftStore', () => {
     s.write(SHARED_UNSENT, { text: 'keep', images: [], files: [] });
     s.dropPrivate(SHARED_UNSENT);
     expect(s.read(SHARED_UNSENT).text).toBe('keep');
+  });
+});
+
+describe('sessionHasCommittedUserContent', () => {
+  it('uses message count / carriedMessages, not cliSessionId timing', () => {
+    // First CLI turn can show messages before cliSessionId is written; failed
+    // first turns may never get a cliSessionId. Draft isolation must still flip.
+    expect(sessionHasCommittedUserContent(0, 0)).toBe(false);
+    expect(sessionHasCommittedUserContent(1, 0)).toBe(true);
+    expect(sessionHasCommittedUserContent(0, 2)).toBe(true);
+    expect(
+      draftKey({
+        kind: 'tab',
+        id: 'boom',
+        hasCommittedUserContent: sessionHasCommittedUserContent(1, 0),
+      }),
+    ).toBe('tab:boom');
+    expect(
+      draftKey({
+        kind: 'tab',
+        id: 'boom',
+        hasCommittedUserContent: sessionHasCommittedUserContent(0, 0),
+      }),
+    ).toBe(SHARED_UNSENT);
   });
 });

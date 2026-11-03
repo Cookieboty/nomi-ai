@@ -74,7 +74,11 @@ import { useSendQueue } from './hooks/useSendQueue';
 import { useUserProfile } from './hooks/useUserProfile';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { cliTitleComplete, maybeSmartTitleCliTab } from './services/cliSmartTitle';
-import { createComposerDraftStore, draftKey } from './services/composerDrafts';
+import {
+  createComposerDraftStore,
+  draftKey,
+  sessionHasCommittedUserContent,
+} from './services/composerDrafts';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -353,10 +357,14 @@ const AiChatContent: React.FC = () => {
   const activeComposerDraftKey = useMemo(() => {
     if (tabs.isCliTab && tabs.activeTab) {
       const tab = tabs.activeTab;
+      // tabs.messages = active CLI tab cache; do not use cliSessionId (late / never on fail)
       return draftKey({
         kind: 'tab',
         id: tab.id,
-        hasCommittedUserContent: !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0,
+        hasCommittedUserContent: sessionHasCommittedUserContent(
+          tabs.messages?.length ?? 0,
+          tab.carriedMessages ?? 0,
+        ),
       });
     }
     const id = ipcClient.currentConversationId?.() ?? '';
@@ -367,7 +375,15 @@ const AiChatContent: React.FC = () => {
       id: id || 'pending',
       hasCommittedUserContent: has && !!id,
     });
-  }, [tabs.isCliTab, tabs.activeTab, ipcClient, messageCount, firstMessageId, tabs.activeTabId]);
+  }, [
+    tabs.isCliTab,
+    tabs.activeTab,
+    tabs.messages,
+    ipcClient,
+    messageCount,
+    firstMessageId,
+    tabs.activeTabId,
+  ]);
   // 会话 / 标签删除后丢掉私有草稿桶，避免复活脏数据
   useEffect(() => {
     type Entry = { id: string; tabId?: string };

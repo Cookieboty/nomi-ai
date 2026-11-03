@@ -12,11 +12,14 @@ export interface ComposerDraft {
 export interface DraftSessionRef {
   kind: 'nomi' | 'tab';
   id: string;
-  /** Nomi: messages.length; CLI: !!cliSessionId || carriedMessages > 0 */
+  /** Nomi / CLI: message count (CLI also counts carriedMessages). Never cliSessionId. */
   hasCommittedUserContent: boolean;
 }
 
-const EMPTY: ComposerDraft = { text: '', images: [], files: [] };
+/** Prefer message count over cliSessionId — session id arrives late / never on failed first turn. */
+export function sessionHasCommittedUserContent(messageCount: number, carriedMessages = 0): boolean {
+  return messageCount > 0 || carriedMessages > 0;
+}
 
 export function draftKey(ref: DraftSessionRef | null): string {
   if (!ref || !ref.hasCommittedUserContent) return SHARED_UNSENT;
