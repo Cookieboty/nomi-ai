@@ -26,6 +26,7 @@ import {
   type HistoryBackend,
   type HistorySession,
 } from '../../services/historyClient';
+import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
@@ -365,7 +366,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       const meta = list.find((x) => x.id === id);
       if (!meta || meta.name === name) return;
       if (meta.tabId) void tabs.rename(meta.tabId, name).catch(() => undefined);
-      else ipc.conversationStore?.()?.updateMeta(id, { name });
+      else {
+        clearNomiAutoTitle(id);
+        ipc.conversationStore?.()?.updateMeta(id, { name });
+      }
       refresh();
     },
     [ipc, refresh],

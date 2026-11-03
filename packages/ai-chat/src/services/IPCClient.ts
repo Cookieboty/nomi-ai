@@ -179,6 +179,14 @@ export class SdkIPCClient implements IPCClient {
     return typeof resp?.content === 'string' ? resp.content.trim() : '';
   }
 
+  /** 短补全：走 chat 路由（当前已选模型），不进工具循环 */
+  async completeChatText(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  ): Promise<string> {
+    const resp = await this.chat.sendMessage({ messages, role: 'chat' });
+    return typeof resp?.content === 'string' ? resp.content.trim() : '';
+  }
+
   async sendMessage(
     message: string,
     history?: ChatMessage[],

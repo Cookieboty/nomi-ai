@@ -16,6 +16,7 @@ import type { ChatMessage, ChatSession, ConversationBackend } from '../types/cha
 import { isConversationBackend } from '../types/chat';
 
 import { splitFileAttachments } from './fileAttachments';
+import { isDefaultChatName } from './sessionTitle';
 
 export interface KeyValueStorage {
   getItem(key: string): string | null;
@@ -490,12 +491,11 @@ export class ConversationStore {
     this.writeIndex(
       this.idx().map((c) => {
         if (c.id !== id) return c;
-        const named =
-          message &&
-          message.role === 'user' &&
-          (c.name === 'ui.chat-settings.new-chat' || c.name === t('ui.chat-settings.new-chat'))
-            ? splitFileAttachments(message.content).text.slice(0, 30)
-            : c.name;
+        const cleaned =
+          message && message.role === 'user' && isDefaultChatName(c.name)
+            ? splitFileAttachments(message.content).text.replace(/\s+/g, ' ').trim().slice(0, 30)
+            : '';
+        const named = cleaned || c.name;
         return { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };
       }),
     );
