@@ -3,6 +3,8 @@ package accounts
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
@@ -107,6 +109,9 @@ func EnsureAccountHome(kind, accountDir, userDir, platform string) ([]HomeProble
 		if err := syncClaudeFiles(accountDir, userDir); err != nil {
 			return nil, err
 		}
+	}
+	if kind == "codex" {
+		problems = append(problems, LinkCodexConfigRefs(accountDir, userDir, platform)...)
 	}
 	if problems == nil {
 		problems = []HomeProblem{}
@@ -241,4 +246,61 @@ func OfficialAccountArgs(kind string, accountDir *string) []string {
 		return []string{}
 	}
 	return append([]string{}, capOf(kind, "accountArgs").AccountArgs...)
+}
+
+// codexPathKey：config.toml 里指向文件的键（model_catalog_json、model_instructions_file 等）的后缀
+var codexPathKey = regexp.MustCompile(`(?:_file|_json|_path|_dir|_toml|_md)$`)
+
+var codexAssignRe = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"\\]*)"|'([^']*)')\s*(?:#.*)?$`)
+var schemeOrTildeRe = regexp.MustCompile(`^~|^[A-Za-z][A-Za-z0-9+.-]*:`)
+
+// codexPrivate：无论 config.toml 怎么写都不链进账号目录的条目（凭据与账号自己的状态，S7）
+var codexPrivate = map[string]bool{"auth.json": true, ".credentials.json": true, "log": true, "tmp": true, ".tmp": true}
+
+// LinkCodexConfigRefs = linkCodexConfigRefs：config.toml 共享给账号目录，但其中的相对路径按 CODEX_HOME 解析
+// （如 cc-switch 的 model_catalog_json = "cc-switch-model-catalog.json"）；账号目录里缺了 Codex 启动即报
+// 「Error loading configuration: No such file or directory」。把引用到、用户目录里存在的相对路径（取第一段）也软链进来。
+func LinkCodexConfigRefs(accountDir, userDir, platform string) []HomeProblem {
+	b, err := os.ReadFile(filepath.Join(userDir, "config.toml"))
+	if err != nil {
+		return nil
+	}
+	shared := map[string]bool{}
+	for _, e := range codex.Accounts.Shared {
+		shared[e.Name] = true
+	}
+	seen := map[string]bool{}
+	var problems []HomeProblem
+	for _, line := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
+		m := codexAssignRe.FindStringSubmatch(line)
+		if m == nil || !codexPathKey.MatchString(m[1]) {
+			continue
+		}
+		value := m[2]
+		if value == "" {
+			value = m[3]
+		}
+		value = strings.TrimSpace(value)
+		if value == "" || filepath.IsAbs(value) || schemeOrTildeRe.MatchString(value) {
+			continue
+		}
+		first := strings.FieldsFunc(value, func(r rune) bool { return r == '/' || r == '\\' })
+		if len(first) == 0 || value[0] == '/' || value[0] == '\\' {
+			continue
+		}
+		name := first[0]
+		if name == "." || name == ".." || codexPrivate[name] || shared[name] || seen[name] {
+			continue
+		}
+		seen[name] = true
+		target := filepath.Join(userDir, name)
+		st, err := os.Stat(target)
+		if err != nil {
+			continue
+		}
+		if reason := launch.LinkShared(target, filepath.Join(accountDir, name), st.IsDir(), platform); reason != "" {
+			problems = append(problems, HomeProblem{Entry: name, Reason: reason})
+		}
+	}
+	return problems
 }

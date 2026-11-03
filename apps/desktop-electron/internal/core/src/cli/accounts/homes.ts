@@ -160,6 +160,54 @@ export function ensureAccountHome(
     platform,
   });
   if (kind === 'claude') syncClaudeFiles(accountDir, userDir);
+  if (kind === 'codex') problems.push(...linkCodexConfigRefs(accountDir, userDir, platform));
+  return problems;
+}
+
+/** config.toml 里指向文件的键（model_catalog_json、model_instructions_file 等）的后缀 */
+const CODEX_PATH_KEY = /(?:_file|_json|_path|_dir|_toml|_md)$/;
+/** 无论 config.toml 怎么写都不链进账号目录的条目（凭据与账号自己的状态，S7） */
+const CODEX_PRIVATE = new Set(['auth.json', '.credentials.json', 'log', 'tmp', '.tmp']);
+
+/**
+ * Codex 的 config.toml 共享给账号目录（软链），但里面的相对路径按 CODEX_HOME 解析：
+ * 例如 cc-switch 写的 `model_catalog_json = "cc-switch-model-catalog.json"`。账号目录里没有这个文件，
+ * Codex 启动即报「Error loading configuration: No such file or directory」，登录都起不来。
+ * 这里把 config.toml 引用的、用户 Codex 目录里存在的相对路径（取第一段）也软链进来，凭据类条目除外。
+ */
+export function linkCodexConfigRefs(
+  accountDir: string,
+  userDir: string,
+  platform: NodeJS.Platform = process.platform,
+): HomeProblem[] {
+  let text: string;
+  try {
+    text = fs.readFileSync(path.join(userDir, 'config.toml'), 'utf8');
+  } catch {
+    return [];
+  }
+  const shared = new Set(LAYOUTS.codex.shared.map((e) => e.name));
+  const problems: HomeProblem[] = [];
+  const seen = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"\\]*)"|'([^']*)')\s*(?:#.*)?$/.exec(line);
+    if (!m || !CODEX_PATH_KEY.test(m[1]!)) continue;
+    const value = (m[2] ?? m[3] ?? '').trim();
+    if (!value || path.isAbsolute(value) || /^~|^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) continue;
+    const first = value.split(/[\\/]/)[0]!;
+    if (!first || first === '.' || first === '..' || CODEX_PRIVATE.has(first)) continue;
+    if (shared.has(first) || seen.has(first)) continue;
+    seen.add(first);
+    const target = path.join(userDir, first);
+    let st: fs.Stats;
+    try {
+      st = fs.statSync(target);
+    } catch {
+      continue;
+    }
+    const reason = linkShared(target, path.join(accountDir, first), st.isDirectory(), platform);
+    if (reason) problems.push({ entry: first, reason });
+  }
   return problems;
 }
 
