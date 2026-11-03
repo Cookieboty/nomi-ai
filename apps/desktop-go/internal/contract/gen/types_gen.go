@@ -2686,6 +2686,10 @@ type GatewayRemoveProviderInput struct {
 	Id string `json:"id"`
 }
 
+type GatewayReorderProvidersInput struct {
+	Ids []string `json:"ids"`
+}
+
 type GatewayResetTokenInput struct {
 	Client string `json:"client"`
 }
@@ -7988,6 +7992,10 @@ type GatewayPrivacySetActionOutputT = GatewayPrivacySetActionOutput
 // GatewayRemoveProviderInputT 是 gateway.removeProvider 的入参
 type GatewayRemoveProviderInputT = GatewayRemoveProviderInput
 type GatewayRemoveProviderOutputT = any
+
+// GatewayReorderProvidersInputT 是 gateway.reorderProviders 的入参
+type GatewayReorderProvidersInputT = GatewayReorderProvidersInput
+type GatewayReorderProvidersOutputT = any
 
 // GatewayResetTokenInputT 是 gateway.resetToken 的入参
 type GatewayResetTokenInputT = GatewayResetTokenInput

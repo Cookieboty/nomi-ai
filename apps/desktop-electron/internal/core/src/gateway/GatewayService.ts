@@ -1213,7 +1213,6 @@ export class GatewayService {
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
-      ...(input.fallback ? { fallback: input.fallback } : {}),
       ...(input.detected ? { detected: input.detected } : {}),
       ...(input.quirks ? { quirks: input.quirks } : {}),
       createdAt: prev?.createdAt ?? now,
@@ -1223,6 +1222,12 @@ export class GatewayService {
     this.store.upsertProvider(p);
     this.commit();
     return this.state().providers.find((x) => x.id === p.id)!;
+  }
+
+  /** 供应商列表的顺序（同一个模型回退时按它换供应商，§7.2）；环境变量供应商不在 store 里，始终排在后面 */
+  reorderProviders(ids: string[]): void {
+    this.store.reorderProviders(ids);
+    this.commit();
   }
 
   removeProvider(id: string): void {

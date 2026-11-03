@@ -107,8 +107,6 @@ export interface RuntimeProvider {
   urls: Partial<Record<Wire, string>>;
   keys: RuntimeKey[];
   models: RuntimeModel[];
-  /** 本供应商失败时依次尝试的 provider/model */
-  fallback?: string[];
   headers?: Record<string, string>;
   userAgent?: string;
   /** 对外名 → 上游真实名 */

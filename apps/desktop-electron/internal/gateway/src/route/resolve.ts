@@ -17,8 +17,11 @@ import type {
   RuntimeProvider,
 } from '../config';
 import type { Wire } from '../ir';
+import { bareModelId } from '../models/catalog';
 import { effectiveModel } from '../models/effective';
 import type { EffectiveModel } from '../models/types';
+import { isPrivateHost } from '../net/address';
+import { isLoopbackHost } from '../net/loopback';
 import { quirksOf } from '../providers/index';
 
 import { pickWire, wiresFor } from './native';
@@ -130,6 +133,54 @@ function resolveRef(
   }
   const hits = cfg.providers.filter((p) => p.enabled && p.models.some((m) => m.id === name));
   return hits.length === 1 ? { provider: hits[0]!, model: name } : null;
+}
+
+/**
+ * 「同一个模型」的比较键：去掉供应商前缀（中转常带 openai/ 之类）、`:free` 等标签与日期 / -latest 后缀，
+ * 不分大小写。用来在别的供应商里找同一个模型做回退（§7.2）。
+ */
+export function sameModelKey(id: string): string {
+  return bareModelId(id)
+    .replace(/:[\w.-]+$/, '')
+    .replace(/-\d{8}$|-latest$/, '');
+}
+
+/** 供应商的地址全在本机 / 局域网（Ollama、LM Studio…）；没有地址时不算 */
+function isLocalProvider(p: RuntimeProvider): boolean {
+  const urls = Object.values(p.urls).filter((u): u is string => !!u);
+  return (
+    urls.length > 0 &&
+    urls.every((u) => {
+      try {
+        const host = new URL(u).hostname;
+        return isLoopbackHost(host) || isPrivateHost(host);
+      } catch {
+        return false;
+      }
+    })
+  );
+}
+
+/**
+ * 首选供应商失败后的回退（§7.2）：按供应商列表的顺序（用户在列表页排的），在其它启用的供应商里找
+ * 同一个模型（且在那边是启用的）。不换成别的模型：能力、上下文与价格都不变。
+ * 首选是本机 / 局域网的，只回退到本机 / 局域网（数据原本不出本机，不能因为失败就发到云端）。
+ */
+export function failoverTargets(
+  cfg: GatewayConfig,
+  provider: RuntimeProvider,
+  model: string,
+): Array<{ provider: RuntimeProvider; model: string }> {
+  const key = sameModelKey(model);
+  const localOnly = isLocalProvider(provider);
+  const out: Array<{ provider: RuntimeProvider; model: string }> = [];
+  for (const p of cfg.providers) {
+    if (p.id === provider.id || !p.enabled) continue;
+    if (localOnly && !isLocalProvider(p)) continue;
+    const m = p.models.find((x) => x.enabled && sameModelKey(x.id) === key);
+    if (m) out.push({ provider: p, model: m.id });
+  }
+  return out;
 }
 
 function upstreamName(p: RuntimeProvider, model: string): string {
@@ -279,10 +330,9 @@ export function resolveCandidates(
     };
   }
   const candidates = expand(cfg, target.provider, target.model, ingress);
-  for (const ref of target.provider.fallback ?? []) {
-    const fb = resolveRef(cfg, ref, null);
-    if (fb) candidates.push(...expand(cfg, fb.provider, fb.model, ingress));
-  }
+  // 首选的 Key 都不行时：同一个模型，按供应商列表顺序换供应商
+  for (const fb of failoverTargets(cfg, target.provider, target.model))
+    candidates.push(...expand(cfg, fb.provider, fb.model, ingress));
   if (!candidates.length) {
     return {
       ok: false,

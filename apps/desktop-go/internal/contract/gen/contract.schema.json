@@ -11189,6 +11189,29 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
+  "gateway.reorderProviders": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "ids"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
   "gateway.resetToken": {
    "kind": "mutation",
    "dangerous": false,

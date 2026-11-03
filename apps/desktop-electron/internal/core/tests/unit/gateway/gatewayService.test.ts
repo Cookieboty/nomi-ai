@@ -488,14 +488,32 @@ describe('GatewayService', () => {
     expect(t.svc.state().clients.nomi!.models).toEqual({ main: 'relay/glm-5' });
   });
 
-  it('reports the real upstream for privacy checks, cloud wins over local fallbacks', () => {
+  it('reorders providers; ids not listed keep their order after the listed ones', () => {
+    const t = setup();
+    t.svc.init();
+    for (const name of ['A', 'B', 'C'])
+      t.svc.upsertProvider({
+        name,
+        urls: { chat: `https://${name.toLowerCase()}.example/v1` },
+        newKeys: [{ value: `sk-${name}` }],
+        models: [{ id: 'm', enabled: true }],
+      });
+    t.svc.reorderProviders(['c', 'nope', 'a']);
+    expect(t.svc.state().providers.map((p) => p.id)).toEqual(['c', 'a', 'b']);
+    expect(t.lastConfig().providers.map((p) => p.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('reports the real upstream for privacy checks; a local first choice never fails over to the cloud', () => {
     const t = setup();
     t.svc.init();
     t.svc.upsertProvider({
       name: 'Cloud',
       urls: { chat: 'https://api.cloud.example/v1' },
       newKeys: [{ value: 'sk-c' }],
-      models: [{ id: 'm', enabled: true }],
+      models: [
+        { id: 'm', enabled: true },
+        { id: 'qwen3', enabled: true },
+      ],
     });
     t.svc.confirmPrivateHost('127.0.0.1:11434');
     t.svc.upsertProvider({
@@ -503,7 +521,6 @@ describe('GatewayService', () => {
       presetId: 'ollama',
       urls: { chat: 'http://127.0.0.1:11434/v1' },
       models: [{ id: 'qwen3', enabled: true }],
-      fallback: ['cloud/m'],
     });
     // 网关还没就绪也能回答「现在用的是谁」
     t.svc.setAssignment('nomi', { models: { main: 'cloud/m' } });
@@ -513,11 +530,17 @@ describe('GatewayService', () => {
       baseURL: 'https://api.cloud.example/v1',
       model: 'm',
     });
-    // 首选是本机，但回退到云端：按云端算
+    // 首选是本机：云端也有同一个模型，但不会回退过去（数据原本不出本机），仍按本机算
     t.svc.setAssignment('nomi', { models: { main: 'ollama/qwen3' } });
     expect(t.svc.nomiProvider('chat')).toMatchObject({
       id: 'ollama',
       model: 'qwen3',
+      baseURL: 'http://127.0.0.1:11434/v1',
+    });
+    // 首选是云端：本机也有同一个模型，可以回退过去；对外仍按云端算（取严）
+    t.svc.setAssignment('nomi', { models: { main: 'cloud/qwen3' } });
+    expect(t.svc.nomiProvider('chat')).toMatchObject({
+      id: 'cloud',
       baseURL: 'https://api.cloud.example/v1',
     });
     expect(t.svc.providerInfo('ollama')).toEqual({

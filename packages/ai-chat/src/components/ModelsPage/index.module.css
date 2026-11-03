@@ -148,9 +148,6 @@
 }
 
 /* 供应商详情里「添加回退模型」 */
-.fallbackAdd {
-  width: 220px;
-}
 
 .cliHead {
   margin-top: var(--cd-space-3);
@@ -233,6 +230,27 @@
 .providerRow {
   display: flex;
   align-items: center;
+}
+
+/* 供应商排序：序号 + 上移 / 下移（排在前面的优先，同一个模型回退时按这个顺序换供应商） */
+.providerOrder {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  margin-right: var(--cd-space-2);
+}
+.providerRank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
 }
 
 .providerMain {
@@ -583,7 +601,6 @@
   margin: 0;
 }
 
-.keyRow,
 .modelRow,
 .wireRow,
 .pairRow,
@@ -594,11 +611,6 @@
   gap: var(--cd-space-2);
   min-height: var(--cd-control-h-sm);
   font-size: var(--cd-font-size-sm);
-}
-
-.orderBtns {
-  display: inline-flex;
-  gap: var(--cd-space-0-5);
 }
 
 .keyName {

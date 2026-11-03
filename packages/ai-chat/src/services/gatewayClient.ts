@@ -96,7 +96,6 @@ export interface ProviderView {
   source: 'user' | 'env';
   detected?: Partial<Record<Wire, StoredProbe>>;
   /** 这个供应商的模型都失败时依次改用（'provider/model'） */
-  fallback?: string[];
   headers?: Record<string, string>;
   userAgent?: string;
   modelMap?: Array<{ from: string; to: string }>;
@@ -218,11 +217,10 @@ export interface ProviderInput {
     rpm?: number | null;
   }>;
   models?: GatewayModel[];
-  /** modelMap / headers / fallback：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
+  /** modelMap / headers：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
-  fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
   quirks?: {
     maxTools?: number;
@@ -328,6 +326,8 @@ export const gatewayClient = {
   upsertProvider: (input: ProviderInput) =>
     call<ProviderView>(() => api.gateway.upsertProvider(input)),
   removeProvider: (id: string) => call<void>(() => api.gateway.removeProvider({ id })),
+  /** 供应商列表的顺序：同一个模型的回退按它换供应商 */
+  reorderProviders: (ids: string[]) => call<void>(() => api.gateway.reorderProviders({ ids })),
   detect: (input: DetectInput) => call<DetectResult>(() => api.gateway.detect(input)),
   setAssignment: (
     client: ClientId,

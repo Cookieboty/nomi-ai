@@ -3,9 +3,21 @@
  * - 分配：Nomi 对话（main / tools / summary）；各编程助手的第三方模型（标签选「第三方」时用）与「新标签默认用」；
  * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
-import { BrandIcon, Button, Icon, Input, ModelPicker, Select, Switch, t } from '@nomi-ai/ui';
+import {
+  BrandIcon,
+  Button,
+  Icon,
+  IconButton,
+  Input,
+  ModelPicker,
+  Select,
+  Switch,
+  t,
+} from '@nomi-ai/ui';
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronRight,
@@ -111,6 +123,16 @@ export const ModelsPage: React.FC = () => {
   };
   const cli = useCliInstall(setError);
   const editingProvider = providers.find((p) => p.id === editing) ?? null;
+  /** 能排序的供应商（环境变量提供的不在存储里，始终排在后面） */
+  const sortable = providers.filter((p) => p.source !== 'env');
+  /** 上移 / 下移：排在前面的优先；某家失败时按这个顺序换到也有同一个模型的供应商 */
+  const moveProvider = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= sortable.length) return;
+    const ids = sortable.map((p) => p.id);
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    run(gatewayClient.reorderProviders(ids));
+  };
   /** null 表示清除（跟随对话） */
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
@@ -270,9 +292,30 @@ export const ModelsPage: React.FC = () => {
             onCancel={providers.length ? () => setAdding(false) : undefined}
           />
         )}
-        {providers.map((p) => (
-          <ProviderRow key={p.id} p={p} onOpen={() => setEditing(p.id)} />
-        ))}
+        {sortable.length > 1 && (
+          <p className={styles.sub} data-testid="providers-order-hint">
+            {t('ui.models.provider-order-hint')}
+          </p>
+        )}
+        {providers.map((p) => {
+          const i = sortable.findIndex((x) => x.id === p.id);
+          return (
+            <ProviderRow
+              key={p.id}
+              p={p}
+              onOpen={() => setEditing(p.id)}
+              order={
+                i >= 0 && sortable.length > 1
+                  ? {
+                      index: i,
+                      count: sortable.length,
+                      onMove: (dir) => moveProvider(i, dir),
+                    }
+                  : undefined
+              }
+            />
+          );
+        })}
       </section>
 
       <ModelsDataSyncCard gateway={state ?? null} />
@@ -424,9 +467,7 @@ export const ModelsPage: React.FC = () => {
 
       <ProviderDetailDialog
         provider={editingProvider}
-        providers={providers}
         allowedPrivateHosts={state?.allowedPrivateHosts ?? []}
-        showWire={showWire}
         onClose={() => setEditing(null)}
         onRemove={async (p) => {
           const ok = await confirmDialog({
@@ -643,7 +684,12 @@ const CliRow: React.FC<{
 
 /* ------------------------------ 供应商一行 ------------------------------ */
 
-const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onOpen }) => {
+const ProviderRow: React.FC<{
+  p: ProviderView;
+  onOpen: () => void;
+  /** 排序（只有两家以上可排序的供应商时才有） */
+  order?: { index: number; count: number; onMove: (dir: -1 | 1) => void };
+}> = ({ p, onOpen, order }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
   const fromEnv = p.source === 'env';
   const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
@@ -658,6 +704,29 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
   return (
     <div className={styles.provider} data-testid={`provider-${p.id}`}>
       <div className={styles.providerRow}>
+        {order && (
+          <span className={styles.providerOrder}>
+            <span className={styles.providerRank} aria-hidden>
+              {order.index + 1}
+            </span>
+            <IconButton
+              size="sm"
+              label={t('ui.models.move-up', name)}
+              icon={<Icon icon={ArrowUp} size={14} />}
+              disabled={order.index === 0}
+              onClick={() => order.onMove(-1)}
+              data-testid={`provider-up-${p.id}`}
+            />
+            <IconButton
+              size="sm"
+              label={t('ui.models.move-down', name)}
+              icon={<Icon icon={ArrowDown} size={14} />}
+              disabled={order.index === order.count - 1}
+              onClick={() => order.onMove(1)}
+              data-testid={`provider-down-${p.id}`}
+            />
+          </span>
+        )}
         <button
           type="button"
           className={styles.providerMain}

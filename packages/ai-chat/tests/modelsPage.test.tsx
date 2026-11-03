@@ -139,6 +139,13 @@ function fakeMain(
         state.providers = state.providers.filter((p) => p.id !== args.id);
         changed();
         break;
+      case 'gateway.reorderProviders': {
+        const ids = args.ids as string[];
+        const at = (id: string) => (ids.includes(id) ? ids.indexOf(id) : ids.length);
+        state.providers = [...state.providers].sort((a, b) => at(a.id) - at(b.id));
+        changed();
+        break;
+      }
       case 'gateway.setAssignment': {
         const client = args.client as keyof GatewayState['clients'];
         const p = args.patch as {
@@ -844,37 +851,42 @@ describe('ModelsPage', () => {
     });
   });
 
-  it('fallback chain: add from the picker, reorder and remove', async () => {
+  it('provider order: move up / down on the list; env providers are not sortable', async () => {
     const m = fakeMain();
     m.state.providers = [
       kimi(),
-      {
-        ...kimi(),
-        id: 'ds',
-        name: 'DeepSeek',
-        models: [
-          { id: 'v4', enabled: true },
-          { id: 'flash', enabled: true },
-        ],
-      },
+      { ...kimi(), id: 'ds', name: 'DeepSeek' },
+      { ...kimi(), id: 'env-x', name: 'Env', source: 'env' },
     ];
+    render(<ModelsPage />);
+    await screen.findByTestId('provider-open-kimi');
+    expect(screen.getByTestId('providers-order-hint')).toBeTruthy();
+    expect(screen.queryByTestId('provider-up-env-x')).toBeNull();
+    expect((screen.getByTestId('provider-up-kimi') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('provider-down-kimi'));
+    await waitFor(() =>
+      expect(m.calls.find(([c]) => c === 'gateway.reorderProviders')?.[1]).toEqual({
+        ids: ['ds', 'kimi'],
+      }),
+    );
+    await waitFor(() =>
+      expect((screen.getByTestId('provider-up-ds') as HTMLButtonElement).disabled).toBe(true),
+    );
+  });
+
+  it('the provider dialog no longer has a per-provider fallback chain', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
-    const add = () => within(dlg).getByTestId('pd-fallback-add');
-    fireEvent.change(add(), { target: { value: 'ds/v4' } });
-    fireEvent.change(add(), { target: { value: 'ds/flash' } });
-    fireEvent.change(add(), { target: { value: 'kimi/kimi-k3-turbo' } });
-    // 已在链里的不再出现在选择器里
-    expect(Array.from((add() as HTMLSelectElement).options).map((o) => o.value)).not.toContain(
-      'ds/v4',
-    );
-    fireEvent.click(within(dlg).getByTestId('pd-fallback-up-1'));
-    fireEvent.click(within(dlg).getByTestId('pd-fallback-remove-2'));
-    expect(within(dlg).getByTestId('pd-fallback-0').textContent).toContain('DeepSeek / flash');
+    expect(within(dlg).queryByTestId('pd-fallback-add')).toBeNull();
+    fireEvent.change(within(dlg).getByTestId('provider-detail-name'), {
+      target: { value: 'Kimi 2' },
+    });
     fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
     await waitFor(() => expect(upserts(m)).toHaveLength(1));
-    expect(upserts(m)[0]!.fallback).toEqual(['ds/flash', 'ds/v4']);
+    expect(upserts(m)[0]).not.toHaveProperty('fallback');
   });
 
   it('advanced: URLs (empty turns a protocol off), re-detect, wires, model map, headers, UA', async () => {

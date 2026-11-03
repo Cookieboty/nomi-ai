@@ -30,7 +30,7 @@ func parseObj(raw json.RawMessage) (*u.Obj, error) {
 
 // GatewayProcedures：本文件注册的过程（测试 / 文档用）
 var GatewayProcedures = []string{
-	"gateway.state", "gateway.nomiContext", "gateway.detect", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider",
+	"gateway.state", "gateway.nomiContext", "gateway.detect", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider", "gateway.reorderProviders",
 	"gateway.setAssignment", "gateway.setOptions", "gateway.resetToken", "gateway.clearLearned",
 	"gateway.confirmPrivateHost", "gateway.privacyPreview", "gateway.privacyLog", "gateway.privacyClearLog",
 	"gateway.privacyAddAllow", "gateway.privacyRemoveAllow", "gateway.privacyAddSecret",
@@ -77,6 +77,17 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 	call("gateway.upsertProvider", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.UpsertProvider(in) })
 	call("gateway.removeProvider", func(g *gwstore.Service, in *u.Obj) (any, error) {
 		return nil, g.RemoveProvider(str(in, "id"))
+	})
+	call("gateway.reorderProviders", func(g *gwstore.Service, in *u.Obj) (any, error) {
+		ids := []string{}
+		if list, ok := in.Get("ids").([]any); ok {
+			for _, x := range list {
+				if s, ok := x.(string); ok {
+					ids = append(ids, s)
+				}
+			}
+		}
+		return nil, g.ReorderProviders(ids)
 	})
 	call("gateway.setAssignment", func(g *gwstore.Service, in *u.Obj) (any, error) {
 		p, _ := in.Get("patch").(*u.Obj)

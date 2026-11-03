@@ -196,7 +196,6 @@ export const GatewayProviderInput = loose({
   modelMap: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   userAgent: z.string().optional(),
-  fallback: z.array(z.string()).optional(),
   detected: z.partialRecord(Wire, loose({ ok: z.boolean(), at: z.number() })).optional(),
   quirks: opaqueObject.optional(),
 });

@@ -16,12 +16,11 @@ import {
   Input,
   Modal,
   ModalHostContext,
-  ModelPicker,
   Select,
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -37,7 +36,6 @@ import {
   type StoredProbe,
   type Wire,
 } from '../../services/gatewayClient';
-import { pickerProviders } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { confirmDialog } from '../ConfirmDialog';
 
@@ -85,7 +83,6 @@ interface Draft {
   name: string;
   keys: KeyDraft[];
   models: GatewayModel[];
-  fallback: string[];
   urls: Record<Wire, string>;
   modelMap: Array<{ from: string; to: string }>;
   headers: Array<{ name: string; value: string }>;
@@ -104,7 +101,6 @@ const initDraft = (p: ProviderView): Draft => ({
     rpm: k.rpm ? String(k.rpm) : '',
   })),
   models: p.models.map((m) => ({ ...m })),
-  fallback: [...(p.fallback ?? [])],
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
   modelMap: (p.modelMap ?? []).map((x) => ({ ...x })),
   headers: Object.entries(p.headers ?? {}).map(([name, value]) => ({ name, value })),
@@ -161,7 +157,6 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       d.headers.filter((h) => h.name.trim()).map((h) => [h.name.trim(), h.value]),
     ),
     userAgent: d.userAgent.trim(),
-    fallback: d.fallback,
     ...(d.detected ? { detected: d.detected } : {}),
   };
 }
@@ -185,9 +180,7 @@ const splitKeys = (text: string): string[] => [
 
 interface Props {
   provider: ProviderView | null;
-  providers: ProviderView[];
   allowedPrivateHosts: string[];
-  showWire: boolean;
   onClose: () => void;
   onRemove: (p: ProviderView) => void;
 }
@@ -202,9 +195,7 @@ let tmpSeq = 0;
 
 const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   provider: p,
-  providers,
   allowedPrivateHosts,
-  showWire,
   onClose,
   onRemove,
 }) => {
@@ -230,22 +221,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   /** 包括输入框里填了、还没点「添加」的 Key（保存时一起存） */
   const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
-  const picker = useMemo(() => pickerProviders(providers), [providers]);
-  const fallbackPicker = useMemo(
-    () =>
-      picker
-        .map((x) => ({
-          ...x,
-          models: x.models.filter((m) => !d.fallback.includes(`${x.id}/${m.id}`)),
-        }))
-        .filter((x) => x.models.length),
-    [picker, d.fallback],
-  );
-  const refName = (ref: string) => {
-    const i = ref.indexOf('/');
-    const owner = providers.find((x) => x.id === ref.slice(0, i));
-    return owner ? `${providerDisplayName(owner.name)} / ${ref.slice(i + 1)}` : ref;
-  };
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
   const wireOptions: SelectOption[] = [
     { value: '', label: t('ui.foundation.auto') },
@@ -512,63 +487,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 onAdd={addKeys}
                 canAdd={splitKeys(keysText).length > 0}
               />
-
-              {/* ---------------- 回退链 ---------------- */}
-              {!readOnly && (
-                <section className={styles.section} aria-labelledby="pd-fallback">
-                  <h4 id="pd-fallback" className={styles.groupTitle}>
-                    {t('ui.models.fallback-chain')}
-                  </h4>
-                  <p className={styles.help}>
-                    {t('ui.models.when-this-provider-s-models-all-fail-use')}
-                  </p>
-                  {d.fallback.map((ref, i) => (
-                    <div key={ref} className={styles.keyRow} data-testid={`pd-fallback-${i}`}>
-                      <span className={styles.orderBtns}>
-                        <IconButton
-                          size="sm"
-                          label={t('ui.models.move-up', ref)}
-                          icon={<Icon icon={ArrowUp} size={14} />}
-                          disabled={i === 0}
-                          onClick={() => patch({ fallback: move(d.fallback, i, -1) })}
-                          data-testid={`pd-fallback-up-${i}`}
-                        />
-                        <IconButton
-                          size="sm"
-                          label={t('ui.models.move-down', ref)}
-                          icon={<Icon icon={ArrowDown} size={14} />}
-                          disabled={i === d.fallback.length - 1}
-                          onClick={() => patch({ fallback: move(d.fallback, i, 1) })}
-                          data-testid={`pd-fallback-down-${i}`}
-                        />
-                      </span>
-                      <span className={styles.keyName}>{refName(ref)}</span>
-                      <IconButton
-                        size="sm"
-                        className={styles.rowEnd}
-                        label={t('ui.models.remove-from-the-fallback-chain', ref)}
-                        icon={<Icon icon={Trash2} size={14} />}
-                        onClick={() => patch({ fallback: d.fallback.filter((x) => x !== ref) })}
-                        data-testid={`pd-fallback-remove-${i}`}
-                      />
-                    </div>
-                  ))}
-                  <ModelPicker
-                    providers={fallbackPicker}
-                    showWire={showWire}
-                    size="sm"
-                    className={styles.fallbackAdd}
-                    value={null}
-                    onChange={(ref) =>
-                      ref && !d.fallback.includes(ref) && patch({ fallback: [...d.fallback, ref] })
-                    }
-                    placeholder={t('ui.models.add-fallback-model')}
-                    disabled={!fallbackPicker.length}
-                    aria-label={t('ui.models.add-fallback-model')}
-                    data-testid="pd-fallback-add"
-                  />
-                </section>
-              )}
 
               {/* ---------------- 高级 ---------------- */}
               <section className={styles.section}>

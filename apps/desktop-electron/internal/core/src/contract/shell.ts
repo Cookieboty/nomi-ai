@@ -90,6 +90,7 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'gateway.retry': () => gateway().retry(),
     'gateway.upsertProvider': (input) => gateway().upsertProvider(input as ProviderInput),
     'gateway.removeProvider': ({ id }) => gateway().removeProvider(id),
+    'gateway.reorderProviders': ({ ids }) => gateway().reorderProviders(ids),
     'gateway.setAssignment': ({ client, patch }) =>
       gateway().setAssignmentFor(client, patch as Parameters<GatewayService['setAssignment']>[1]),
     'gateway.setOptions': (patch) => gateway().setOptions(patch),

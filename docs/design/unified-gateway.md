@@ -118,7 +118,9 @@
 
 保存后表单收起，第 ② 步「模型分配」里直接列出这个供应商的对话模型供挑选：Nomi 对话还没有模型时默认填上推荐的那个，用户可以点别的改；已有模型时不动。没有可用供应商时「模型分配」整块置灰，提示先配置好供应商。「新标签默认用」不会自动改，官方账号保持原样。
 
-供应商详情（点「⋯」→ 编辑）：名称、Key 列表（拖动排序即回退顺序，每个 Key 显示最近一次错误）、模型列表（勾选启用、手动添加、刷新）、回退链。**高级**折叠区：手动改某个协议的地址、关闭某个协议、给模型指定协议、Key 限定协议、模型映射、自定义请求头和 User-Agent、清除运行时学到的状态（§7.4）。
+供应商列表可以上下调整顺序（序号 + 上移 / 下移；环境变量供应商不参与、始终在最后）：排在前面的优先，请求失败时按这个顺序换到提供同一个模型的供应商（§7.2）。
+
+供应商详情（点「⋯」→ 编辑）：名称、Key 列表（拖动排序即回退顺序，每个 Key 显示最近一次错误）、模型列表（勾选启用、手动添加、刷新）。**高级**折叠区：手动改某个协议的地址、关闭某个协议、给模型指定协议、Key 限定协议、模型映射、自定义请求头和 User-Agent、清除运行时学到的状态（§7.4）。
 
 ### 4.3 对话窗口
 
@@ -266,7 +268,6 @@ interface GatewayProvider {
   keys: GatewayKey[];
   models: GatewayModel[];
   modelsSource: 'listed' | 'manual' | 'preset'; // 模型列表从哪来
-  fallback?: string[]; // 本供应商失败时依次尝试的 'provider/model'
   headers?: Record<string, string>; // 少数中转站需要的额外请求头（高级）
   userAgent?: string;
   modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名
@@ -412,7 +413,10 @@ resolve(ingressWire, client, requestedModel) → Candidate[]
    - Codex：codex-auto-review 等内部名 → main（§12.2）
    - Nomi：按调用角色取 main / tools / summary（tools、summary 为空时用 main）
 2. 按 §6.2 解析出 (provider, upstreamModel)
-3. 展开候选：该供应商每个可用的 Key 各算一个 → 再接 provider.fallback 里的每一项（每项同样展开 Key）
+3. 展开候选：该供应商每个可用的 Key 各算一个 → 再按供应商列表的顺序，接上其它启用的供应商里**同一个模型**
+   （比较时去掉供应商前缀、`:tag` 与日期 / `-latest` 后缀，且在那边是启用的；每项同样展开 Key）。不换成别的模型。
+   首选供应商的地址全在本机 / 局域网时，只接本机 / 局域网的供应商（数据原本不出本机，失败也不发到云端）。
+   列表顺序由界面上下调整（`gateway.reorderProviders`）；早期版本按供应商配置的回退链（`provider.fallback`）已移除
 4. 每个候选按 §7.3 选出 wire，没有可用 wire 的候选丢弃
 5. 按 §11.2 的亲和结果调整顺序；处于冷却期的候选移到队尾
 ```

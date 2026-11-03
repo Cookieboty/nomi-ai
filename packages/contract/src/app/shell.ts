@@ -82,6 +82,12 @@ export const shellProcedures = {
     output: S.GatewayProviderView,
   },
   'gateway.removeProvider': { kind: 'mutation', input: z.object({ id: z.string() }), output: v },
+  /** 供应商列表的顺序：同一个模型的回退按这个顺序换供应商（§7.2） */
+  'gateway.reorderProviders': {
+    kind: 'mutation',
+    input: z.object({ ids: z.array(z.string()) }),
+    output: v,
+  },
   'gateway.setAssignment': { kind: 'mutation', input: S.GatewaySetAssignmentInput, output: v },
   'gateway.setOptions': {
     kind: 'mutation',

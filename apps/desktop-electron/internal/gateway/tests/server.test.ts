@@ -935,7 +935,7 @@ describe('gateway: upstream cut off during same-wire passthrough', () => {
 });
 
 describe('gateway: loop integrations (M4)', () => {
-  it('a model missing on one provider skips its other keys and goes to the fallback provider', async () => {
+  it('a model missing on one provider skips its other keys and moves to the next provider with the same model', async () => {
     const a = await upstream((_s, res) => {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: { message: 'The model `glm-5` does not exist' } }));
@@ -961,7 +961,6 @@ describe('gateway: loop integrations (M4)', () => {
                 { id: 'k1', value: 'a1', enabled: true },
                 { id: 'k2', value: 'a2', enabled: true },
               ],
-              fallback: ['bk/glm-5'],
             },
           ),
           provider('bk', { chat: `${b.base}/v1` }),

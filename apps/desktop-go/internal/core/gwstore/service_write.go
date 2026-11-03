@@ -480,7 +480,7 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 			p.Set("userAgent", u.Undefined)
 		}
 	}
-	for _, f := range []string{"fallback", "detected", "quirks"} {
+	for _, f := range []string{"detected", "quirks"} {
 		if u.Truthy(input.Get(f)) {
 			p.Set(f, input.Get(f))
 		}
@@ -507,6 +507,13 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 		}
 	}
 	return nil, nil
+}
+
+// ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商（§7.2）
+func (s *Service) ReorderProviders(ids []string) error {
+	s.lock()
+	s.Store.ReorderProviders(ids)
+	return s.commitUnlock()
 }
 
 // RemoveProvider = removeProvider(id)

@@ -94,7 +94,6 @@ type RuntimeProvider struct {
 	URLs      *u.Obj                 `json:"urls"` // wire → base URL, JS key order
 	Keys      []RuntimeKey           `json:"keys"`
 	Models    []RuntimeModel         `json:"models"`
-	Fallback  []string               `json:"fallback,omitempty"`
 	Headers   *u.Obj                 `json:"headers,omitempty"`
 	UserAgent *string                `json:"userAgent,omitempty"`
 	ModelMap  []ModelMapEntry        `json:"modelMap,omitempty"`
