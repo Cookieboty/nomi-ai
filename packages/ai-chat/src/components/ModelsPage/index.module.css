@@ -250,7 +250,7 @@
   cursor: grab;
 }
 .providerGrip:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   color: var(--cd-color-text);
 }
 .providerGrip:focus-visible {
@@ -710,7 +710,7 @@
   padding: var(--cd-space-1);
   border: 1px solid var(--cd-color-border-subtle);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .modelList .modelRow {
   flex-shrink: 0;
@@ -718,7 +718,7 @@
   border-radius: var(--cd-radius-sm);
 }
 .modelList .modelRow:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 /* 删除只在悬停 / 键盘聚焦这一行时出现，几十行时不满屏垃圾桶 */
 .modelList .modelRow .rowEnd {
@@ -917,7 +917,7 @@
   padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-1-5) var(--cd-space-3);
   border: 1px solid var(--cd-color-border-subtle);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .keyCard[data-disabled] .keyMain,
 .keyCard[data-disabled] .keyMasked {

@@ -363,8 +363,8 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
-    // 「助手」分段下的选择条：Claude Code / Codex / dsh / Grok / Gemini
-    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(5);
+    // 「助手」分段的左栏：Claude Code / Codex / dsh / Grok / Gemini + 外部 CLI + 通用
+    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(7);
     await shot(chat, '09-providers-assistants');
 
     await chat.click('[data-testid="providers-endpoint-claude"]');

@@ -67,7 +67,6 @@
   "ui.cli-monitor.install": "Install",
   "ui.cli-monitor.install-named": "Install {0}",
   "ui.cli-monitor.install-to-user-directory": "Install to user directory",
-  "ui.cli-monitor.installed-version": "Installed version",
   "ui.cli-monitor.is-queued-waiting-for-other-tabs-to-finish": "{0} is queued, waiting for other tabs to finish…",
   "ui.cli-monitor.is-ready-version": "{0} is ready, version {1}.",
   "ui.cli-monitor.is-working-you-can-send-again-when-it": "{0} is working — you can send again when it finishes…",

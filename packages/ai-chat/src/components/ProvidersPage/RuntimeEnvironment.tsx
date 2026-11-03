@@ -1,5 +1,5 @@
 /**
- * 设置 →「编程助手」顶部：安装 / 更新编程助手要用的本机 Node.js 与 npm。
+ * 设置 →「编程助手」→「通用」：安装 / 更新编程助手要用的本机 Node.js 与 npm。
  * Node 版与 Go 版都调用系统的 npm，所以在点「安装 / 更新」之前就把缺什么、版本够不够摆出来。
  */
 import { BUILTIN_RENDERER } from '@nomi-ai/cli-catalog';
@@ -12,7 +12,8 @@ import styles from './index.module.css';
 
 const NODE_DOWNLOAD_URL = 'https://nodejs.org/';
 
-export const RuntimeEnvironment: React.FC = () => {
+/** 运行环境检测（页面与「通用」共用一次结果）：装完 / 更新完自动再看一次 */
+export function useCliEnvironment() {
   const [env, setEnv] = useState<CliEnvironment | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -36,6 +37,18 @@ export const RuntimeEnvironment: React.FC = () => {
     });
   }, [load]);
 
+  return { env, checking, load };
+}
+
+/** 运行环境有没有问题（缺 Node / 版本不够 / 缺 npm）；还没检测出来时算没问题 */
+export const envHasProblem = (env: CliEnvironment | null): boolean =>
+  !!env && (!env.nodeVersion || !env.npmPath || env.requirements.some((r) => !r.ok));
+
+export const RuntimeEnvironment: React.FC<ReturnType<typeof useCliEnvironment>> = ({
+  env,
+  checking,
+  load,
+}) => {
   if (!cliUpdateClient.available() || !env) return null;
 
   const unmet = env.requirements.filter((r) => !r.ok);

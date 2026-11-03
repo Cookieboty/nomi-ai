@@ -23,12 +23,10 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
 
     {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
-    <SettingsGroup
-      title={t('ui.models.third-party-models')}
-      data-testid={`cli-third-party-${kind}`}
-    >
+    {/* 第三方模型只留一行入口：在「模型」页统一配置 */}
+    <SettingsGroup data-testid={`cli-third-party-${kind}`}>
       <SettingRow
-        title={t('ui.providers-schedule.set-up-in-models')}
+        title={t('ui.models.third-party-models')}
         description={t(
           'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
           ENDPOINT_NAME[kind],

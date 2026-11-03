@@ -67,7 +67,6 @@
   "ui.cli-monitor.install": "一键安装",
   "ui.cli-monitor.install-named": "安装 {0}",
   "ui.cli-monitor.install-to-user-directory": "改用用户目录安装",
-  "ui.cli-monitor.installed-version": "已装版本",
   "ui.cli-monitor.is-queued-waiting-for-other-tabs-to-finish": "{0} 排队中，等待其它标签完成…",
   "ui.cli-monitor.is-ready-version": "{0} 已就绪，版本 {1}。",
   "ui.cli-monitor.is-working-you-can-send-again-when-it": "{0} 正在处理，完成后可继续发送…",

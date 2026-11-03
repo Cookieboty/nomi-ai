@@ -16,6 +16,7 @@ import {
   type CliRunResult,
   type CliUpdatableKind,
 } from '../../services/cliUpdateClient';
+import { EndpointIcon } from '../EndpointIcon';
 
 import { CliPlanDialog } from './CliPlanDialog';
 import styles from './index.module.css';
@@ -197,7 +198,19 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   return (
     <SettingsGroup
-      title={t('ui.foundation.version')}
+      title={
+        <span className={styles.cliTitle}>
+          <EndpointIcon backend={kind} size={20} decorative />
+          {name}
+        </span>
+      }
+      description={
+        info?.path ? (
+          <span className={styles.path} title={info.path}>
+            {info.path}
+          </span>
+        ) : undefined
+      }
       data-testid={`cli-version-card-${kind}`}
       actions={
         <>
@@ -225,27 +238,22 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         </>
       }
     >
-      <SettingRow
-        title={t('ui.cli-monitor.installed-version')}
-        description={
-          info?.path ? (
-            <span className={styles.path} title={info.path}>
-              {info.path}
-            </span>
-          ) : undefined
-        }
-      >
+      <SettingRow title={t('ui.foundation.version')}>
         <span className={styles.ver} data-testid={`cli-version-installed-${kind}`}>
           {info?.version ?? '—'}
         </span>
+        {/* 有更新（或未安装）时才单独写出最新版本；已是最新时徽标已经说明 */}
+        {info?.latest && info.latest !== info.version && (
+          <span className={styles.verLatest}>
+            {t('ui.cli-monitor.latest-version')}{' '}
+            <span className={styles.ver} data-testid={`cli-version-latest-${kind}`}>
+              {info.latest}
+            </span>
+          </span>
+        )}
         <Badge tone={statusTone} data-testid={`cli-version-state-${kind}`} data-state={state}>
           {statusText}
         </Badge>
-      </SettingRow>
-      <SettingRow title={t('ui.cli-monitor.latest-version')}>
-        <span className={styles.ver} data-testid={`cli-version-latest-${kind}`}>
-          {info?.latest ?? '—'}
-        </span>
       </SettingRow>
 
       {info?.runtimeWarning && (
