@@ -488,6 +488,28 @@ describe('GatewayService', () => {
     expect(t.svc.state().clients.nomi!.models).toEqual({ main: 'relay/glm-5' });
   });
 
+  it('setProviderEnabled flips only the enabled flag and reaches the runtime config', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'A',
+      urls: { chat: 'https://a.example/v1' },
+      newKeys: [{ value: 'sk-a' }],
+      models: [{ id: 'm', enabled: true }],
+    });
+    const before = t.svc.state().providers.find((p) => p.id === 'a')!;
+    t.svc.setProviderEnabled('a', false);
+    const after = t.svc.state().providers.find((p) => p.id === 'a')!;
+    expect(after.enabled).toBe(false);
+    expect(after.keys).toEqual(before.keys);
+    expect(after.models).toEqual(before.models);
+    expect(t.lastConfig().providers.find((p) => p.id === 'a')!.enabled).toBe(false);
+    t.svc.setProviderEnabled('a', true);
+    expect(t.lastConfig().providers.find((p) => p.id === 'a')!.enabled).toBe(true);
+    // 不存在的 id 不报错
+    t.svc.setProviderEnabled('nope', false);
+  });
+
   it('reorders providers; ids not listed keep their order after the listed ones', () => {
     const t = setup();
     t.svc.init();

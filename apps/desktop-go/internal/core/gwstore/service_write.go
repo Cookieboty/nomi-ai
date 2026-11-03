@@ -509,6 +509,23 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 	return nil, nil
 }
 
+// SetProviderEnabled = setProviderEnabled(id, enabled)：列表上的启用 / 停用开关；环境变量供应商只读
+func (s *Service) SetProviderEnabled(id string, enabled bool) error {
+	s.lock()
+	p := s.findProvider(id)
+	if p == nil {
+		s.unlock()
+		return nil
+	}
+	if p.Get("source") == "env" {
+		s.unlock()
+		return errReadOnly()
+	}
+	s.bumpLearn(id)
+	s.Store.SetProviderEnabled(id, enabled)
+	return s.commitUnlock()
+}
+
 // ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商（§7.2）
 func (s *Service) ReorderProviders(ids []string) error {
 	s.lock()

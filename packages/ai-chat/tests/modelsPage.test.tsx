@@ -139,6 +139,10 @@ function fakeMain(
         state.providers = state.providers.filter((p) => p.id !== args.id);
         changed();
         break;
+      case 'gateway.setProviderEnabled':
+        for (const p of state.providers) if (p.id === args.id) p.enabled = args.enabled as boolean;
+        changed();
+        break;
       case 'gateway.reorderProviders': {
         const ids = args.ids as string[];
         const at = (id: string) => (ids.includes(id) ? ids.indexOf(id) : ids.length);
@@ -851,7 +855,7 @@ describe('ModelsPage', () => {
     });
   });
 
-  it('provider order: move up / down on the list; env providers are not sortable', async () => {
+  it('provider order: drag a row onto another, or Alt+arrows on the grip; env providers are not sortable', async () => {
     const m = fakeMain();
     m.state.providers = [
       kimi(),
@@ -861,16 +865,44 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     await screen.findByTestId('provider-open-kimi');
     expect(screen.getByTestId('providers-order-hint')).toBeTruthy();
-    expect(screen.queryByTestId('provider-up-env-x')).toBeNull();
-    expect((screen.getByTestId('provider-up-kimi') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByTestId('provider-down-kimi'));
+    expect(screen.queryByTestId('provider-grip-env-x')).toBeNull();
+    const dt = { setData: () => undefined, effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(screen.getByTestId('provider-kimi'), { dataTransfer: dt });
+    fireEvent.dragOver(screen.getByTestId('provider-ds'), { dataTransfer: dt });
+    fireEvent.drop(screen.getByTestId('provider-ds'), { dataTransfer: dt });
     await waitFor(() =>
-      expect(m.calls.find(([c]) => c === 'gateway.reorderProviders')?.[1]).toEqual({
+      expect(m.calls.filter(([c]) => c === 'gateway.reorderProviders').at(-1)?.[1]).toEqual({
         ids: ['ds', 'kimi'],
       }),
     );
+    // 键盘：手柄上 Alt+↑ 把 kimi 移回第一位
     await waitFor(() =>
-      expect((screen.getByTestId('provider-up-ds') as HTMLButtonElement).disabled).toBe(true),
+      expect(screen.getByTestId('provider-grip-kimi').getAttribute('aria-label')).toContain('2'),
+    );
+    fireEvent.keyDown(screen.getByTestId('provider-grip-kimi'), { key: 'ArrowUp', altKey: true });
+    await waitFor(() =>
+      expect(m.calls.filter(([c]) => c === 'gateway.reorderProviders').at(-1)?.[1]).toEqual({
+        ids: ['kimi', 'ds'],
+      }),
+    );
+  });
+
+  it('the list has an enable switch per provider (not for env providers) instead of a ⋯ button', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi(), { ...kimi(), id: 'env-x', name: 'Env', source: 'env' }];
+    render(<ModelsPage />);
+    const sw = await screen.findByTestId('provider-enabled-kimi');
+    expect(screen.queryByTestId('provider-enabled-env-x')).toBeNull();
+    expect(screen.queryByRole('button', { name: /编辑「|查看「/ })).toBeNull();
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls.find(([c]) => c === 'gateway.setProviderEnabled')?.[1]).toEqual({
+        id: 'kimi',
+        enabled: false,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('provider-kimi').hasAttribute('data-off')).toBe(true),
     );
   });
 

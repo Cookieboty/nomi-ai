@@ -114,12 +114,15 @@ export function mapModel(
   return spec.unknownToMain ? { ref: main, how: 'default' } : null;
 }
 
-/** 解析 provider/model（§6.2 第 1～3 步）；找不到返回 null */
+/**
+ * 解析 provider/model（§6.2 第 1～3 步）；找不到返回 null。
+ * 指向已停用的供应商时返回它并标 disabled：自己不出候选，直接按列表顺序回退到同一个模型（§7.2）
+ */
 function resolveRef(
   cfg: GatewayConfig,
   ref: string,
   homeProvider: string | null,
-): { provider: RuntimeProvider; model: string } | null {
+): { provider: RuntimeProvider; model: string; disabled?: true } | null {
   const { provider: pid, model } = splitRef(ref);
   if (pid) {
     const p = findProvider(cfg, pid);
@@ -132,7 +135,13 @@ function resolveRef(
     if (home?.models.some((m) => m.id === name)) return { provider: home, model: name };
   }
   const hits = cfg.providers.filter((p) => p.enabled && p.models.some((m) => m.id === name));
-  return hits.length === 1 ? { provider: hits[0]!, model: name } : null;
+  if (hits.length === 1) return { provider: hits[0]!, model: name };
+  // 最后才认停用的供应商（带 / 的模型 id 先按裸名找过）
+  if (!pid) return null;
+  const off =
+    cfg.providers.find((x) => !x.enabled && x.id === pid) ??
+    cfg.providers.find((x) => !x.enabled && x.aliases?.includes(pid));
+  return off ? { provider: off, model, disabled: true } : null;
 }
 
 /**
@@ -329,7 +338,8 @@ export function resolveCandidates(
       suggestions,
     };
   }
-  const candidates = expand(cfg, target.provider, target.model, ingress);
+  // 停用的供应商自己不出候选：直接从同一个模型的下一家开始
+  const candidates = target.disabled ? [] : expand(cfg, target.provider, target.model, ingress);
   // 首选的 Key 都不行时：同一个模型，按供应商列表顺序换供应商
   for (const fb of failoverTargets(cfg, target.provider, target.model))
     candidates.push(...expand(cfg, fb.provider, fb.model, ingress));
@@ -337,7 +347,9 @@ export function resolveCandidates(
     return {
       ok: false,
       status: 400,
-      message: `Nomi 网关：供应商「${target.provider.name}」没有可用的 Key 或协议地址`,
+      message: target.disabled
+        ? `Nomi 网关：供应商「${target.provider.name}」已停用，也没有其它启用的供应商提供 \`${target.model}\``
+        : `Nomi 网关：供应商「${target.provider.name}」没有可用的 Key 或协议地址`,
     };
   }
   return { ok: true, candidates, resolution };

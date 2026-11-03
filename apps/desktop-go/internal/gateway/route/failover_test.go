@@ -2,6 +2,7 @@ package route
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
@@ -49,5 +50,35 @@ func TestFailoverTargets(t *testing.T) {
 	}
 	if got := ids(FailoverTargets(local, &local.Providers[1], "qwen3")); !reflect.DeepEqual(got, []string{"local/qwen3", "lan/qwen3"}) {
 		t.Fatalf("cloud failover %v", got)
+	}
+}
+
+// 停用的供应商自己不出候选：显式请求与客户端分配都直接回退到同一个模型的下一家
+func TestDisabledProviderFailsOver(t *testing.T) {
+	on := config.RuntimeModel{ID: "m", Enabled: true}
+	a := fp("a", "https://a.example/v1", false, on)
+	a.Aliases = []string{"old-a"}
+	a.Keys = []config.RuntimeKey{{ID: "k", Value: "v", Enabled: true}}
+	b := fp("b", "https://b.example/v1", true, on)
+	b.Keys = []config.RuntimeKey{{ID: "k", Value: "v", Enabled: true}}
+	main := "a/m"
+	cfg := &config.GatewayConfig{Providers: []config.RuntimeProvider{a, b},
+		Clients: map[string]*config.ClientRuntime{"claude": {Token: "t", Models: config.ClientModels{Main: &main}}}}
+	pub := func(r *ResolveResult) []string {
+		out := []string{}
+		for _, c := range r.Candidates {
+			out = append(out, c.PublicModel)
+		}
+		return out
+	}
+	if r := ResolveCandidates(cfg, "claude", "old-a/m", "chat", nil); !r.OK || !reflect.DeepEqual(pub(r), []string{"b/m"}) {
+		t.Fatalf("explicit: %+v", r)
+	}
+	if r := ResolveCandidates(cfg, "claude", "", "chat", nil); !r.OK || !reflect.DeepEqual(pub(r), []string{"b/m"}) {
+		t.Fatalf("mapped: %+v", r)
+	}
+	only := &config.GatewayConfig{Providers: []config.RuntimeProvider{a}}
+	if r := ResolveCandidates(only, "claude", "a/m", "chat", nil); r.OK || r.Status != 400 || !strings.Contains(r.Message, "已停用") {
+		t.Fatalf("none: %+v", r)
 	}
 }

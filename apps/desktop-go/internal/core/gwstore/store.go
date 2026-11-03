@@ -464,6 +464,18 @@ func (s *Store) UpsertProvider(p *u.Obj) {
 	s.data.Set("providers", append(list, next))
 }
 
+// SetProviderEnabled = setProviderEnabled(id, enabled)：只改启用状态，其它设置不动；不存在的 id 返回 false
+func (s *Store) SetProviderEnabled(id string, enabled bool) bool {
+	for _, x := range s.Providers() {
+		if o, ok := x.(*u.Obj); ok && o.Get("id") == id {
+			o.Set("enabled", enabled)
+			o.Set("updatedAt", Now())
+			return true
+		}
+	}
+	return false
+}
+
 // ReorderProviders = reorderProviders(ids)：按 ids 的顺序排列；没列出的保持原有相对顺序排在后面，不认识的 id 忽略
 func (s *Store) ReorderProviders(ids []string) {
 	rank := map[string]int{}

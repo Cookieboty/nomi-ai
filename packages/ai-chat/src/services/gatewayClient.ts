@@ -326,6 +326,9 @@ export const gatewayClient = {
   upsertProvider: (input: ProviderInput) =>
     call<ProviderView>(() => api.gateway.upsertProvider(input)),
   removeProvider: (id: string) => call<void>(() => api.gateway.removeProvider({ id })),
+  /** 列表上的启用 / 停用开关 */
+  setProviderEnabled: (id: string, enabled: boolean) =>
+    call<void>(() => api.gateway.setProviderEnabled({ id, enabled })),
   /** 供应商列表的顺序：同一个模型的回退按它换供应商 */
   reorderProviders: (ids: string[]) => call<void>(() => api.gateway.reorderProviders({ ids })),
   detect: (input: DetectInput) => call<DetectResult>(() => api.gateway.detect(input)),

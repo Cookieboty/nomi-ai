@@ -11491,6 +11491,30 @@
     "additionalProperties": {}
    }
   },
+  "gateway.setProviderEnabled": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "enabled": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "enabled"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
   "gateway.state": {
    "kind": "query",
    "dangerous": false,
@@ -11956,12 +11980,6 @@
      },
      "userAgent": {
       "type": "string"
-     },
-     "fallback": {
-      "type": "array",
-      "items": {
-       "type": "string"
-      }
      },
      "detected": {
       "type": "object",

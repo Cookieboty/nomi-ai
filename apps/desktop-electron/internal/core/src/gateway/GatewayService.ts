@@ -1224,6 +1224,17 @@ export class GatewayService {
     return this.state().providers.find((x) => x.id === p.id)!;
   }
 
+  /** 列表上的启用 / 停用开关（§7.2：停用的不出候选，按列表顺序换到同一个模型的下一家）；环境变量供应商只读 */
+  setProviderEnabled(id: string, enabled: boolean): void {
+    const p = this.store.providers().find((x) => x.id === id);
+    if (!p) return;
+    if (p.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
+    this.bumpLearn(id);
+    this.store.setProviderEnabled(id, enabled);
+    this.commit();
+  }
+
   /** 供应商列表的顺序（同一个模型回退时按它换供应商，§7.2）；环境变量供应商不在 store 里，始终排在后面 */
   reorderProviders(ids: string[]): void {
     this.store.reorderProviders(ids);

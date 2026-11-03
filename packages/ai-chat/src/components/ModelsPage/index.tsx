@@ -3,28 +3,16 @@
  * - 分配：Nomi 对话（main / tools / summary）；各编程助手的第三方模型（标签选「第三方」时用）与「新标签默认用」；
  * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
-import {
-  BrandIcon,
-  Button,
-  Icon,
-  IconButton,
-  Input,
-  ModelPicker,
-  Select,
-  Switch,
-  t,
-} from '@nomi-ai/ui';
+import { BrandIcon, Button, Icon, Input, ModelPicker, Select, Switch, t } from '@nomi-ai/ui';
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
+  GripVertical,
   Check,
   ChevronDown,
   ChevronRight,
   Download,
   Boxes,
   Info,
-  MoreHorizontal,
   Plus,
   SquareTerminal,
   Waypoints,
@@ -125,13 +113,18 @@ export const ModelsPage: React.FC = () => {
   const editingProvider = providers.find((p) => p.id === editing) ?? null;
   /** 能排序的供应商（环境变量提供的不在存储里，始终排在后面） */
   const sortable = providers.filter((p) => p.source !== 'env');
-  /** 上移 / 下移：排在前面的优先；某家失败时按这个顺序换到也有同一个模型的供应商 */
-  const moveProvider = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= sortable.length) return;
+  /** 拖动（或手柄上 Alt+↑/↓）调整顺序：排在前面的优先；某家停用或失败时按这个顺序换到同一个模型的下一家 */
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [live, setLive] = useState('');
+  const moveProvider = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || to >= sortable.length) return;
     const ids = sortable.map((p) => p.id);
-    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    const [id] = ids.splice(from, 1);
+    ids.splice(to, 0, id!);
     run(gatewayClient.reorderProviders(ids));
+    setLive(
+      t('ui.chat-settings.moved-to-position', providerDisplayName(sortable[from]!.name), to + 1),
+    );
   };
   /** null 表示清除（跟随对话） */
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
@@ -304,18 +297,33 @@ export const ModelsPage: React.FC = () => {
               key={p.id}
               p={p}
               onOpen={() => setEditing(p.id)}
+              onToggle={(on) => run(gatewayClient.setProviderEnabled(p.id, on))}
               order={
                 i >= 0 && sortable.length > 1
                   ? {
                       index: i,
-                      count: sortable.length,
-                      onMove: (dir) => moveProvider(i, dir),
+                      dragging: dragging === p.id,
+                      onDragStart: () => setDragging(p.id),
+                      onDragEnd: () => setDragging(null),
+                      canDrop: () => dragging !== null,
+                      onDrop: () => {
+                        if (dragging)
+                          moveProvider(
+                            sortable.findIndex((x) => x.id === dragging),
+                            i,
+                          );
+                        setDragging(null);
+                      },
+                      onMove: (dir) => moveProvider(i, i + dir),
                     }
                   : undefined
               }
             />
           );
         })}
+        <span className={styles.srOnly} aria-live="polite">
+          {live}
+        </span>
       </section>
 
       <ModelsDataSyncCard gateway={state ?? null} />
@@ -687,9 +695,20 @@ const CliRow: React.FC<{
 const ProviderRow: React.FC<{
   p: ProviderView;
   onOpen: () => void;
-  /** 排序（只有两家以上可排序的供应商时才有） */
-  order?: { index: number; count: number; onMove: (dir: -1 | 1) => void };
-}> = ({ p, onOpen, order }) => {
+  /** 拖动排序（只有两家以上可排序的供应商时才有） */
+  order?: {
+    index: number;
+    dragging: boolean;
+    onDragStart: () => void;
+    onDragEnd: () => void;
+    canDrop: () => boolean;
+    onDrop: () => void;
+    /** 键盘：手柄上 Alt+↑/↓ */
+    onMove: (dir: -1 | 1) => void;
+  };
+  /** 列表上直接启用 / 停用（环境变量供应商没有） */
+  onToggle?: (enabled: boolean) => void;
+}> = ({ p, onOpen, order, onToggle }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
   const fromEnv = p.source === 'env';
   const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
@@ -702,29 +721,57 @@ const ProviderRow: React.FC<{
     : undefined;
   const name = providerDisplayName(p.name);
   return (
-    <div className={styles.provider} data-testid={`provider-${p.id}`}>
+    <div
+      className={styles.provider}
+      data-off={p.enabled ? undefined : ''}
+      data-dragging={order?.dragging || undefined}
+      data-testid={`provider-${p.id}`}
+      draggable={Boolean(order)}
+      onDragStart={
+        order &&
+        ((e) => {
+          order.onDragStart();
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', p.id);
+        })
+      }
+      onDragEnd={order?.onDragEnd}
+      onDragOver={
+        order &&
+        ((e) => {
+          if (!order.canDrop()) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        })
+      }
+      onDrop={
+        order &&
+        ((e) => {
+          e.preventDefault();
+          order.onDrop();
+        })
+      }
+    >
       <div className={styles.providerRow}>
         {order && (
           <span className={styles.providerOrder}>
+            <button
+              type="button"
+              className={styles.providerGrip}
+              aria-label={t('ui.chat-settings.position-alt-to-reorder', name, order.index + 1)}
+              title={t('ui.chat-settings.drag-to-reorder')}
+              data-testid={`provider-grip-${p.id}`}
+              onKeyDown={(e) => {
+                if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+                e.preventDefault();
+                order.onMove(e.key === 'ArrowUp' ? -1 : 1);
+              }}
+            >
+              <Icon icon={GripVertical} size={14} />
+            </button>
             <span className={styles.providerRank} aria-hidden>
               {order.index + 1}
             </span>
-            <IconButton
-              size="sm"
-              label={t('ui.models.move-up', name)}
-              icon={<Icon icon={ArrowUp} size={14} />}
-              disabled={order.index === 0}
-              onClick={() => order.onMove(-1)}
-              data-testid={`provider-up-${p.id}`}
-            />
-            <IconButton
-              size="sm"
-              label={t('ui.models.move-down', name)}
-              icon={<Icon icon={ArrowDown} size={14} />}
-              disabled={order.index === order.count - 1}
-              onClick={() => order.onMove(1)}
-              data-testid={`provider-down-${p.id}`}
-            />
           </span>
         )}
         <button
@@ -747,6 +794,9 @@ const ProviderRow: React.FC<{
                 {t('ui.chat-settings.environment-variable')}
               </span>
             )}
+            {!p.enabled && (
+              <span className={styles.badgeMuted}>{t('ui.slash-commands.disabled')}</span>
+            )}
           </span>
           <span className={styles.wires}>
             {wires.map((w) => (
@@ -760,15 +810,16 @@ const ProviderRow: React.FC<{
           <span className={styles.count}>{t('ui.models.models', String(enabledCount))}</span>
           <Icon icon={ChevronRight} size={14} />
         </button>
-        <button
-          type="button"
-          className={styles.more}
-          aria-haspopup="dialog"
-          aria-label={fromEnv ? t('ui.models.view', name) : t('ui.models.edit', name)}
-          onClick={onOpen}
-        >
-          <Icon icon={MoreHorizontal} size={16} />
-        </button>
+        {!fromEnv && onToggle && (
+          <span className={styles.providerSwitch}>
+            <Switch
+              checked={p.enabled}
+              onChange={onToggle}
+              aria-label={t('ui.foundation.enable', name)}
+              data-testid={`provider-enabled-${p.id}`}
+            />
+          </span>
+        )}
       </div>
     </div>
   );

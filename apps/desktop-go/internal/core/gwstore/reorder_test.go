@@ -21,3 +21,15 @@ func TestReorderProviders(t *testing.T) {
 		t.Fatalf("got %v want %v", got, want)
 	}
 }
+
+// 列表上的启用开关：只改 enabled，其它设置不动
+func TestSetProviderEnabled(t *testing.T) {
+	st := &Store{data: u.NewObj("providers", []any{u.NewObj("id", "a", "enabled", true, "models", []any{"m"})})}
+	if !st.SetProviderEnabled("a", false) || st.SetProviderEnabled("nope", true) {
+		t.Fatal("return value")
+	}
+	p := st.Providers()[0].(*u.Obj)
+	if p.Get("enabled") != false || len(p.Get("models").([]any)) != 1 {
+		t.Fatalf("%v", p)
+	}
+}

@@ -69103,13 +69103,54 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69119,13 +69160,54 @@
    "ing": null,
    "b": 1,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69135,13 +69217,54 @@
    "ing": null,
    "b": 2,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69151,13 +69274,60 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69167,13 +69337,60 @@
    "ing": "messages",
    "b": 1,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69183,13 +69400,60 @@
    "ing": "messages",
    "b": 2,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69199,13 +69463,57 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69215,13 +69523,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -69231,13 +69580,58 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -76192,33 +76586,39 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": null,
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 0,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -76232,8 +76632,64 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": null,
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -76247,17 +76703,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -76271,8 +76746,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -76283,76 +76757,42 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 0,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded"
+       "quality": "good"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -76369,8 +76809,133 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -76381,13 +76946,57 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -76397,13 +77006,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -76413,13 +77063,58 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -85268,7 +85963,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -85282,14 +85977,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 0,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -85303,8 +86020,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -85318,17 +86034,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -85342,8 +86077,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -85406,7 +86140,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -85420,57 +86154,39 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 0,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded"
+       "quality": "good"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "codex",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -85487,8 +86203,70 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "codex",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -85548,7 +86326,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -85605,7 +86383,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -85666,7 +86444,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -95304,17 +96082,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 10,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -95328,7 +96125,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -95342,14 +96139,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 0,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -95363,8 +96182,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -95378,17 +96196,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -95402,8 +96239,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -95417,17 +96253,39 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 10,
+      "model": 5,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -95444,7 +96302,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -95458,57 +96316,39 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 0,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded"
+       "quality": "good"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "grok",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -95525,8 +96365,70 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "grok",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -95540,17 +96442,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 10,
+      "model": 5,
       "plan": {
        "ingress": "responses",
        "upstream": "chat",
@@ -95567,7 +96488,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -95581,17 +96502,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 10,
+      "model": 5,
       "plan": {
        "ingress": "chat",
        "upstream": "chat",
@@ -95605,7 +96545,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -95619,17 +96559,38 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 10,
+      "model": 5,
       "plan": {
        "ingress": "gemini",
        "upstream": "chat",
@@ -95645,7 +96606,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -103979,33 +104940,39 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": null,
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 0,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -104019,8 +104986,64 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": null,
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -104034,17 +105057,36 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -104058,8 +105100,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -104070,76 +105111,42 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 0,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded"
+       "quality": "good"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 0,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 1,
+      "model": 5,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -104156,8 +105163,133 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 0,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -104168,13 +105300,57 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -104184,13 +105360,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -104200,13 +105417,58 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 5,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111631,13 +112893,56 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111647,13 +112952,56 @@
    "ing": null,
    "b": 1,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111663,13 +113011,56 @@
    "ing": null,
    "b": 2,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111679,13 +113070,62 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111695,13 +113135,62 @@
    "ing": "messages",
    "b": 1,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111711,13 +113200,62 @@
    "ing": "messages",
    "b": 2,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111727,13 +113265,59 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111743,13 +113327,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -111759,13 +113384,60 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -118874,33 +120546,40 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": null,
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 13,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -118915,8 +120594,66 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": null,
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -118930,17 +120667,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -118955,8 +120712,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -118967,77 +120723,43 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 13,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded",
-       "legacy": "chat"
+       "quality": "good",
+       "legacy": "responses"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "claude",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -119055,8 +120777,137 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "claude",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -119067,13 +120918,59 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -119083,13 +120980,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -119099,13 +121037,60 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -128191,7 +130176,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -128205,14 +130190,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 13,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -128227,8 +130235,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -128242,17 +130249,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -128267,8 +130294,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -128333,7 +130359,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -128347,58 +130373,40 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 13,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded",
-       "legacy": "chat"
+       "quality": "good",
+       "legacy": "responses"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "codex",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -128416,8 +130424,72 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "codex",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -128479,7 +130551,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -128536,7 +130608,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -128599,7 +130671,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -138495,17 +140567,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 23,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -138520,7 +140612,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -138534,14 +140626,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 13,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -138556,8 +140671,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -138571,17 +140685,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -138596,8 +140730,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -138611,17 +140744,40 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 23,
+      "model": 18,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -138639,7 +140795,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -138653,58 +140809,40 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 13,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded",
-       "legacy": "chat"
+       "quality": "good",
+       "legacy": "responses"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "grok",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -138722,8 +140860,72 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "grok",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -138737,17 +140939,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 23,
+      "model": 18,
       "plan": {
        "ingress": "responses",
        "upstream": "chat",
@@ -138765,7 +140987,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -138779,17 +141001,35 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 23,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
       "plan": {
        "ingress": "chat",
        "upstream": "chat",
@@ -138804,7 +141044,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -138818,17 +141058,39 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/grok-4",
-      "upstreamModel": "grok-4",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 23,
+      "model": 18,
       "plan": {
        "ingress": "gemini",
        "upstream": "chat",
@@ -138845,7 +141107,7 @@
      }
     ],
     "resolution": {
-     "how": "default"
+     "how": "explicit"
     }
    }
   },
@@ -147391,33 +149653,40 @@
    "ing": null,
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": null,
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
       "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 13,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -147432,8 +149701,66 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": null,
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -147447,17 +149774,37 @@
     "ok": true,
     "candidates": [
      {
-      "provider": "gen",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
-      "wire": "chat",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
       "dropParams": [
-       "seed",
-       "top_k"
+       "seed"
       ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": null,
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": null,
        "upstream": "chat",
@@ -147472,8 +149819,7 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
     }
    }
   },
@@ -147484,77 +149830,43 @@
    "ing": "messages",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 1,
-   "r": {
     "ok": true,
     "candidates": [
      {
-      "provider": "amx",
+      "provider": "oai",
       "key": "k1",
-      "publicModel": "amx/kimi-k2",
-      "upstreamModel": "kimi-k2",
-      "wire": "chat",
-      "dropParams": null,
-      "customToolsAsFunctions": null,
-      "model": 13,
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
       "plan": {
        "ingress": "messages",
-       "upstream": "chat",
+       "upstream": "responses",
        "why": [
-        "default-order"
+        "model-native:responses（保住加密推理）"
        ],
        "losses": [
         "signature",
-        "cache-control",
-        "images"
+        "cache-control"
        ],
-       "quality": "degraded",
-       "legacy": "chat"
+       "quality": "good",
+       "legacy": "responses"
       },
       "rectify": null
-     }
-    ],
-    "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
-    }
-   }
-  },
-  {
-   "cfg": 1,
-   "c": "nomi",
-   "n": "off/gpt-5",
-   "ing": "messages",
-   "b": 2,
-   "r": {
-    "ok": true,
-    "candidates": [
+     },
      {
-      "provider": "gen",
-      "key": "k1",
-      "publicModel": "gen/gpt-4o",
-      "upstreamModel": "gpt-4o",
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
       "wire": "chat",
-      "dropParams": [
-       "seed",
-       "top_k"
-      ],
+      "dropParams": null,
       "customToolsAsFunctions": null,
-      "model": 14,
+      "model": 18,
       "plan": {
        "ingress": "messages",
        "upstream": "chat",
@@ -147572,8 +149884,137 @@
      }
     ],
     "resolution": {
-     "how": "unknown",
-     "note": "未知模型名 off/gpt-5，已按标签主模型处理"
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 1,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
+   }
+  },
+  {
+   "cfg": 1,
+   "c": "nomi",
+   "n": "off/gpt-5",
+   "ing": "messages",
+   "b": 2,
+   "r": {
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "messages",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "signature",
+        "cache-control"
+       ],
+       "quality": "good",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
     }
    }
   },
@@ -147584,13 +150025,59 @@
    "ing": "responses",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "responses",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "sealed-reasoning",
+        "freeform-tools"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -147600,13 +150087,54 @@
    "ing": "chat",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "chat",
+       "upstream": "chat",
+       "why": [
+        "passthrough"
+       ],
+       "losses": [],
+       "quality": "lossless",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -147616,13 +150144,60 @@
    "ing": "gemini",
    "b": 0,
    "r": {
-    "ok": false,
-    "status": 404,
-    "message": "Nomi 网关：模型 `off/gpt-5` 不存在，最接近的是 `oai/gpt-5`、`gen/gpt-4o`",
-    "suggestions": [
-     "oai/gpt-5",
-     "gen/gpt-4o"
-    ]
+    "ok": true,
+    "candidates": [
+     {
+      "provider": "oai",
+      "key": "k1",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "responses",
+      "dropParams": [
+       "seed"
+      ],
+      "customToolsAsFunctions": true,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "responses",
+       "why": [
+        "model-native:responses（保住加密推理）"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "responses"
+      },
+      "rectify": null
+     },
+     {
+      "provider": "oai",
+      "key": "k2",
+      "publicModel": "oai/gpt-5",
+      "upstreamModel": "gpt-5-2025",
+      "wire": "chat",
+      "dropParams": null,
+      "customToolsAsFunctions": null,
+      "model": 18,
+      "plan": {
+       "ingress": "gemini",
+       "upstream": "chat",
+       "why": [
+        "default-order"
+       ],
+       "losses": [
+        "thought-signature"
+       ],
+       "quality": "degraded",
+       "legacy": "chat"
+      },
+      "rectify": null
+     }
+    ],
+    "resolution": {
+     "how": "explicit"
+    }
    }
   },
   {
@@ -154741,7 +157316,17 @@
    "cfg": 0,
    "c": "nomi",
    "n": "off/gpt-5",
-   "p": null
+   "p": {
+    "wire": "responses",
+    "publicModel": "oai/gpt-5",
+    "upstreams": [
+     {
+      "providerId": "oai",
+      "name": "N-oai",
+      "url": "https://api.openai.com/v1"
+     }
+    ]
+   }
   },
   {
    "cfg": 0,
@@ -155072,7 +157657,17 @@
    "cfg": 0,
    "c": "claude",
    "n": "off/gpt-5",
-   "p": null
+   "p": {
+    "wire": "responses",
+    "publicModel": "oai/gpt-5",
+    "upstreams": [
+     {
+      "providerId": "oai",
+      "name": "N-oai",
+      "url": "https://api.openai.com/v1"
+     }
+    ]
+   }
   },
   {
    "cfg": 0,
@@ -155859,7 +158454,17 @@
    "cfg": 1,
    "c": "nomi",
    "n": "off/gpt-5",
-   "p": null
+   "p": {
+    "wire": "responses",
+    "publicModel": "oai/gpt-5",
+    "upstreams": [
+     {
+      "providerId": "oai",
+      "name": "N-oai",
+      "url": "https://api.openai.com/v1"
+     }
+    ]
+   }
   },
   {
    "cfg": 1,
@@ -156190,7 +158795,17 @@
    "cfg": 1,
    "c": "claude",
    "n": "off/gpt-5",
-   "p": null
+   "p": {
+    "wire": "responses",
+    "publicModel": "oai/gpt-5",
+    "upstreams": [
+     {
+      "providerId": "oai",
+      "name": "N-oai",
+      "url": "https://api.openai.com/v1"
+     }
+    ]
+   }
   },
   {
    "cfg": 1,

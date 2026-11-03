@@ -190,26 +190,11 @@
 }
 
 .expand,
-.more {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--cd-control-h-sm);
-  height: var(--cd-control-h-sm);
-  border: none;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  cursor: pointer;
-}
-
-.expand:hover,
-.more:hover {
+.expand:hover {
   background: var(--cd-control-hover-bg);
 }
 
 .expand:focus-visible,
-.more:focus-visible,
 .advToggle:focus-visible,
 .providerMain:focus-visible,
 .presetCard:focus-visible {
@@ -232,13 +217,48 @@
   align-items: center;
 }
 
-/* 供应商排序：序号 + 上移 / 下移（排在前面的优先，同一个模型回退时按这个顺序换供应商） */
+/* 列表上的启用开关（原来的「⋯」与整行重复，去掉了）；停用的供应商变淡 */
+.providerSwitch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-left: var(--cd-space-2);
+}
+.provider[data-off] .providerMain {
+  opacity: 0.55;
+}
+
+/* 供应商排序：拖动手柄 + 序号（排在前面的优先，同一个模型回退时按这个顺序换供应商） */
 .providerOrder {
   display: inline-flex;
   flex: none;
   align-items: center;
   gap: var(--cd-space-0-5);
   margin-right: var(--cd-space-2);
+}
+.providerGrip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-xs);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-subtle);
+  cursor: grab;
+}
+.providerGrip:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.providerGrip:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.provider[data-dragging] {
+  opacity: 0.4;
 }
 .providerRank {
   display: inline-flex;
@@ -258,7 +278,7 @@
   min-width: 0;
   display: grid;
   /* 名称 | 协议 | Key 数 | 模型数 | 箭头：各行列宽固定，数字右对齐 */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 320px) 64px 72px 14px;
+  grid-template-columns: minmax(9em, 1fr) minmax(0, 1fr) 64px 72px 14px;
   align-items: center;
   gap: var(--cd-space-3);
   min-height: var(--cd-control-h-md);
@@ -276,7 +296,6 @@
 }
 
 .expand,
-.more,
 .providerMain,
 .presetCard,
 .advToggle {
@@ -288,7 +307,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .expand,
-  .more,
   .providerMain,
   .presetCard,
   .advToggle {
@@ -972,4 +990,13 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--cd-space-2);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

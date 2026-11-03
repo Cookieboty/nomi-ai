@@ -137,6 +137,26 @@ describe('resolve (§6.2 / §7.2)', () => {
     ]);
     expect(sameModelKey('OpenAI/GPT-5:free')).toBe('gpt-5');
   });
+  it('a disabled provider gives no candidates of its own; requests go to the next provider with the same model', () => {
+    const a = p({
+      id: 'a',
+      enabled: false,
+      aliases: ['old-a'],
+      models: [{ id: 'm', enabled: true }],
+    });
+    const b = p({ id: 'b', models: [{ id: 'm', enabled: true }] });
+    const r = resolveCandidates(cfg([a, b]), 'claude', 'old-a/m', 'chat');
+    expect(r.ok && r.candidates.map((x) => x.publicModel)).toEqual(['b/m']);
+    // 客户端分配指向停用的供应商：同样回退
+    const conf = cfg([a, b]);
+    conf.clients.claude = { token: 't', models: { main: 'a/m' } };
+    const mapped = resolveCandidates(conf, 'claude', '', 'chat');
+    expect(mapped.ok && mapped.candidates.map((x) => x.publicModel)).toEqual(['b/m']);
+    // 没有别家提供：说清楚是停用了
+    const none = resolveCandidates(cfg([a]), 'claude', 'a/m', 'chat');
+    expect(none).toMatchObject({ ok: false, status: 400 });
+    expect(!none.ok && none.message).toContain('已停用');
+  });
   it('failover from a local provider stays local; a cloud provider may fail over anywhere', () => {
     const local = p({
       id: 'local',

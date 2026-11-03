@@ -2751,6 +2751,11 @@ type GatewaySetOptionsOutput struct {
 	Port                float64                                        `json:"port"`
 }
 
+type GatewaySetProviderEnabledInput struct {
+	Id      string `json:"id"`
+	Enabled bool   `json:"enabled"`
+}
+
 type GatewayStateOutputProvidersItemKeysItem struct {
 	Id string `json:"id"`
 }
@@ -2887,7 +2892,6 @@ type GatewayUpsertProviderInput struct {
 	ModelMap  []GatewayUpsertProviderInputModelMapItem           `json:"modelMap,omitempty"`
 	Headers   map[string]string                                  `json:"headers,omitempty"`
 	UserAgent *string                                            `json:"userAgent,omitempty"`
-	Fallback  []string                                           `json:"fallback,omitempty"`
 	Detected  map[string]GatewayUpsertProviderInputDetectedValue `json:"detected,omitempty"`
 	Quirks    any                                                `json:"quirks,omitempty"`
 }
@@ -8012,6 +8016,10 @@ type GatewaySetAssignmentOutputT = any
 // GatewaySetOptionsInputT 是 gateway.setOptions 的入参
 type GatewaySetOptionsInputT = GatewaySetOptionsInput
 type GatewaySetOptionsOutputT = GatewaySetOptionsOutput
+
+// GatewaySetProviderEnabledInputT 是 gateway.setProviderEnabled 的入参
+type GatewaySetProviderEnabledInputT = GatewaySetProviderEnabledInput
+type GatewaySetProviderEnabledOutputT = any
 
 // GatewayStateInputT 是 gateway.state 的入参
 type GatewayStateInputT = any

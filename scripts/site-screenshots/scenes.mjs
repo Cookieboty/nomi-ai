@@ -351,7 +351,8 @@ export const SCENES = [
     async run(h) {
       await h.open();
       await h.settings('模型与供应商');
-      await h.page.getByRole('button', { name: '编辑「演示 DeepSeek」' }).click();
+      // 点供应商这一行打开编辑（行尾的「⋯」已去掉，换成启用开关）
+      await h.page.getByRole('button', { name: /^演示 DeepSeek/ }).click();
       await h.wait(1000);
     },
   },

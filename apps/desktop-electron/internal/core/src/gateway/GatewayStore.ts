@@ -284,6 +284,15 @@ export class GatewayStore {
     else this.data.providers.push(next);
   }
 
+  /** 只改启用状态，其它设置不动；不存在的 id 返回 false */
+  setProviderEnabled(id: string, enabled: boolean): boolean {
+    const p = this.data.providers.find((x) => x.id === id);
+    if (!p) return false;
+    p.enabled = enabled;
+    p.updatedAt = Date.now();
+    return true;
+  }
+
   /** 按 ids 的顺序排列；没列出的保持原有相对顺序排在后面，不认识的 id 忽略 */
   reorderProviders(ids: readonly string[]): void {
     const rank = new Map<string, number>();
