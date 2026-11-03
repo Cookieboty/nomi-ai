@@ -969,7 +969,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 
 **模型数据同步**：用量服务的 `PriceSync` 是唯一的联网点，一次下载 models.dev 同时得到价格表与模型目录（`buildCatalog`，与构建脚本同一个函数）：
 
-- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或「模型」页「立即同步」/ 用量面板「同步价格」；没有后台轮询；
+- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或设置 →「用量与分析」→「价格与模型数据」里的「立即同步」（模型参数与价格表同一次同步，原来在「模型」页，2.1.1 移过来）；没有后台轮询；
 - 网关：`GatewayService.applyModelsData` 生成目录（条目少于 100 视为异常，不采用），写 `userData/gateway/catalog-sync.json`，主进程 `setCatalogOverlay` 立即生效，配置里带 `catalogFile` 让网关进程按修改时间重读；
 - 查找先覆盖层后内置（models.dev 下架的旧模型仍按内置）；学到的结论只跟内置目录的版本（同步每天都可能更新，跟着它会让学到的结论天天作废）；
 - 网关还没有目录缓存（文件被删）时这次不带 If-None-Match，避免 304 让目录永远建不起来。

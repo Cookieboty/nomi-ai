@@ -44,7 +44,6 @@ import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 
 import styles from './index.module.css';
-import { ModelsDataSyncCard } from './ModelsDataSyncCard';
 import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
 import { ProviderForm } from './ProviderForm';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
@@ -325,8 +324,6 @@ export const ModelsPage: React.FC = () => {
           {live}
         </span>
       </section>
-
-      <ModelsDataSyncCard gateway={state ?? null} />
 
       <section
         className={`${styles.card} ${noModels ? styles.cardOff : ''}`}

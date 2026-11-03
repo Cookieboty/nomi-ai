@@ -358,10 +358,10 @@ export const SCENES = [
   },
   {
     name: 'quality-panel',
-    title: '用量与质量：对比',
+    title: '用量与分析：对比',
     async run(h) {
       await h.open();
-      await h.settings('用量与质量');
+      await h.settings('用量与分析');
       await h.tab('对比');
     },
   },
@@ -468,7 +468,7 @@ export async function explore(page, h, outDir, guard) {
     '通用',
     'Nomi',
     '模型与供应商',
-    '用量与质量',
+    '用量与分析',
     '编程助手',
     '知识与记忆',
     '扩展 / MCP',
@@ -527,7 +527,7 @@ export async function explore(page, h, outDir, guard) {
   });
   await tryDump('interact-用量对比', async () => {
     await h.open();
-    await h.settings('用量与质量');
+    await h.settings('用量与分析');
     await page.getByRole('tab', { name: '对比' }).click();
     await h.wait(1200);
   });

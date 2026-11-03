@@ -21,7 +21,7 @@ const SECTIONS = [
   ['general', '通用'],
   ['models', '模型与供应商'],
   ['coding', '编程助手'],
-  ['usage', '用量与质量'],
+  ['usage', '用量与分析'],
   ['knowledge', '知识与记忆'],
   ['ext', '扩展 / MCP'],
   ['privacy', '隐私与权限'],

@@ -1,7 +1,8 @@
-import { Badge, Button, Input, Notice, t } from '@nomi-ai/ui';
+import { Badge, Button, Input, Notice, Switch, t } from '@nomi-ai/ui';
 import { Info, Plus, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
+import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import {
   usageClient,
   type UsageCustomPrice,
@@ -171,6 +172,19 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
     await patch({ cnyPerUsd: n });
   };
   const sync = state.pricing.sync;
+  // 模型目录（上下文、输出上限等，供编程助手注入与「模型」页显示）和价格表是同一次 models.dev 同步
+  const [catalog, setCatalog] = useState<GatewayState['catalog'] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    gatewayClient
+      .state()
+      .then((g) => alive && setCatalog(g?.catalog ?? null))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [sync?.checkedAt]);
+  const auto = st.modelsSyncAuto !== false;
   const syncPrices = async () => {
     setSyncing(true);
     setSyncMsg(null);
@@ -230,10 +244,28 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
         </p>
       </section>
 
+      {/* 模型数据：models.dev 的模型参数与价格表一起同步（原来在「模型」页，同步的不是供应商的模型） */}
       <section className={styles.panel} data-testid="usage-price-sync">
         <header className={styles.panelHead}>
-          <h3>{t('ui.usage-tools.price-table-sync')}</h3>
-          <span className={styles.dim} data-testid="usage-sync-status">
+          <h3>{t('ui.models.models-data')}</h3>
+          <Button
+            size="sm"
+            onClick={() => void syncPrices()}
+            disabled={syncing}
+            data-testid="usage-sync-prices"
+          >
+            {syncing ? t('ui.usage-tools.syncing') : t('ui.models.sync-now')}
+          </Button>
+        </header>
+        <ul className={styles.syncFacts}>
+          {catalog && (
+            <li data-testid="models-data-status">
+              {catalog.synced
+                ? t('ui.models.models-data-synced-status', catalog.version, catalog.models)
+                : t('ui.models.models-data-builtin-status', catalog.version, catalog.models)}
+            </li>
+          )}
+          <li data-testid="usage-sync-status">
             {sync && sync.count > 0
               ? t(
                   'ui.usage-tools.price-table-date-last-synced-models',
@@ -242,18 +274,22 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                   sync.count,
                 )
               : t('ui.usage-tools.not-synced-yet-using-the-built-in-price', state.pricing.date)}
-          </span>
-        </header>
+            {sync?.checkedAt
+              ? ` · ${t('ui.models.last-checked', formatDateTime(sync.checkedAt))}`
+              : ''}
+          </li>
+        </ul>
         <p className={styles.dim}>{t('ui.usage-tools.models-data-sync-note')}</p>
         <div className={styles.actionsRow}>
-          <Button
-            size="sm"
-            onClick={() => void syncPrices()}
-            disabled={syncing}
-            data-testid="usage-sync-prices"
-          >
-            {syncing ? t('ui.usage-tools.syncing') : t('ui.usage-tools.sync-prices')}
-          </Button>
+          <label className={styles.inlineSwitch}>
+            <Switch
+              checked={auto}
+              onChange={(v) => void patch({ modelsSyncAuto: v })}
+              aria-label={t('ui.models.sync-on-startup')}
+              data-testid="models-data-auto"
+            />
+            <span>{t('ui.models.sync-on-startup')}</span>
+          </label>
           {syncMsg && (
             <span className={syncMsg.ok ? styles.ok : styles.err} data-testid="usage-sync-result">
               {syncMsg.text}

@@ -214,7 +214,7 @@ export const SettingsView: React.FC<Props> = ({
         return (
           <SectionPage
             testId="settings-usage-page"
-            tabsLabel="ui.chat-settings.usage-and-quality-sections"
+            tabsLabel="ui.chat-settings.usage-and-analytics-sections"
             tabs={SECTION_TABS.usage}
             value={u}
             onChange={(x) => setTab('usage', x)}

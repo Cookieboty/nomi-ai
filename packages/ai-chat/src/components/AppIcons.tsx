@@ -53,7 +53,7 @@ export const SETTINGS_ICONS = {
   models: Boxes,
   /** 编程助手：终端 */
   coding: SquareTerminal,
-  /** 用量与质量：硬币 */
+  /** 用量与分析：硬币 */
   usage: Coins,
   /** 知识与记忆：大脑 */
   knowledge: Brain,

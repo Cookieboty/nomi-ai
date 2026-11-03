@@ -41,7 +41,7 @@ describe('SettingsView', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);
     for (const s of SETTINGS_SECTIONS) expect(getByTestId(`settings-nav-${s.id}`)).toBeTruthy();
-    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.usage-and-quality');
+    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.usage-and-analytics');
     expect(getByTestId('settings-privacy')).toBeTruthy();
     fireEvent.click(getByTestId('settings-nav-general'));
     expect(getByTestId('settings-nav-general').getAttribute('aria-current')).toBe('page');
@@ -233,11 +233,11 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
-  it('「用量与质量」：默认用量与费用，切到「对比」懒加载质量面板（不再有自己的标签条）', async () => {
+  it('「用量与分析」：默认用量与费用，切到「对比」懒加载质量面板（不再有自己的标签条）', async () => {
     const r = render(<Harness onClose={() => undefined} start="models" />);
     fireEvent.click(r.getByTestId('settings-nav-usage'));
     expect(r.getByTestId('settings-nav-usage').getAttribute('aria-current')).toBe('page');
-    expect(r.getByTestId('settings-section-title').textContent).toBe('用量与质量');
+    expect(r.getByTestId('settings-section-title').textContent).toBe('用量与分析');
     expect(r.getByTestId('settings-usage-page').getAttribute('data-tab')).toBe('cost');
     fireEvent.click(r.getByTestId('settings-usage-page-tab-compare'));
     // 懒加载 chunk 在 Windows CI 上冷启动可能超过默认 1s
