@@ -57,6 +57,8 @@ export interface CliIsolation {
 export interface CliExecutorDeps {
   harness: CliHarness;
   prepareIsolation(sourceCwd: string, key: string): Promise<CliIsolation>;
+  /** 准备好但没用上（准备期间被取消）的隔离目录：拆掉；用户已接管的不会走到这里 */
+  releaseIsolation?(isolation: CliIsolation): Promise<void>;
   gitChanged(cwd: string): Promise<string[] | null>;
   buildPrompt(b: { goal: string; context?: string; doneWhen: string; outOfScope?: string }): string;
   parseReport(
@@ -118,6 +120,8 @@ export function githubAccess(task: Task): boolean {
 
 export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
   const runs = new Map<string, Run>();
+  /** 还在准备隔离目录、尚未建标签的执行：stop 在这里留下取消标记（#234） */
+  const preparing = new Map<string, { gen: number; cancelled: boolean }>();
 
   const promptFor = (ctx: AttemptContext, reused: boolean): string => {
     const { task, attempt } = ctx;
@@ -179,12 +183,20 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
           attempt.cause.kind !== 'manual' &&
           attempt.cause.kind !== 'schedule' &&
           attempt.cause.kind !== 'event';
+        const prep = { gen: attempt.gen, cancelled: false };
+        preparing.set(task.id, prep);
         try {
           if (!reused) {
             isolation =
               ex.isolation === 'worktree'
                 ? await d.prepareIsolation(ex.cwd, `task-${attempt.id}`)
                 : { kind: 'shared-cwd', cwd: ex.cwd, sourceCwd: ex.cwd };
+            // 准备期间被取消 / 撤销 / 换代：不建标签、不发提示词，拆掉没用上的 worktree
+            if (prep.cancelled || preparing.get(task.id) !== prep) {
+              if (isolation.kind === 'worktree')
+                await d.releaseIsolation?.(isolation).catch(() => undefined);
+              return;
+            }
             tabId = d.harness.createTab({
               backend: ex.cli,
               cwd: isolation.cwd,
@@ -211,11 +223,14 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
             report.carrier({ ...previous!.carrier });
           }
         } catch (e) {
+          if (prep.cancelled) return;
           report.failed({
             code: 'prepare_failed',
             message: e instanceof Error ? e.message : String(e),
           });
           return;
+        } finally {
+          if (preparing.get(task.id) === prep) preparing.delete(task.id);
         }
         const id = tabId!;
         const tainted = attempt.cause.kind === 'event';
@@ -246,6 +261,7 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
         });
         try {
           const before = reused ? null : await d.gitChanged(isolation!.cwd);
+          if (run.stopped) throw new Error('stopped before send');
           const r = await d.harness.sendTab(id, promptFor(ctx, reused));
           run.off();
           runs.delete(task.id);
@@ -279,6 +295,7 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
         } catch (err) {
           run.off();
           runs.delete(task.id);
+          if (run.stopped && !d.harness.takenOver(id)) return;
           if (d.harness.isStopped(err)) {
             // 用户在标签里接手：交给用户；我们自己停的（取消 / 撤销 / 超时）不再回报
             if (!run.stopped && d.harness.takenOver(id)) report.takenOver();
@@ -300,6 +317,8 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
     },
 
     stop(taskId, gen) {
+      const prep = preparing.get(taskId);
+      if (prep && prep.gen === gen) prep.cancelled = true;
       const run = runs.get(taskId);
       if (!run || run.gen !== gen) return;
       run.stopped = true;

@@ -59,7 +59,7 @@ import { CliUpdateService } from './cli/CliUpdateService';
 import { buildDelegatePrompt, parseDelegateReport } from './cli/delegate/core';
 import { DelegateService, gitChanged } from './cli/delegate/DelegateService';
 import { applyDispatchHint } from './cli/delegate/intentHint';
-import { prepareIsolation } from './cli/delegate/worktree';
+import { prepareIsolation, releaseIsolation } from './cli/delegate/worktree';
 import { resolveCliBinAsync, readVersionAsync } from './cli/detect';
 import { HarnessStoppedError, type HarnessTabFinished } from './cli/harness/liveTypes';
 import { HarnessOrchestrator } from './cli/harness/Orchestrator';
@@ -1048,6 +1048,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
           isStopped: (err) => err instanceof HarnessStoppedError,
         },
         prepareIsolation: (cwd, key) => prepareIsolation(cwd, key),
+        releaseIsolation: (iso) => releaseIsolation({ ...iso, note: '' }),
         gitChanged: (cwd) => gitChanged(cwd),
         buildPrompt: (b) => buildDelegatePrompt(b),
         parseReport: (text) => parseDelegateReport(text),

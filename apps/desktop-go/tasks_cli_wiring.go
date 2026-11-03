@@ -175,6 +175,10 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 			return tasks.CliIsolation{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd, GitRoot: iso.GitRoot,
 				WorktreePath: iso.WorktreePath}, nil
 		},
+		ReleaseIsolation: func(iso tasks.CliIsolation) {
+			delegate.ReleaseIsolation(&delegate.IsolationHandle{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd,
+				GitRoot: iso.GitRoot, WorktreePath: iso.WorktreePath}, nil)
+		},
 		GitChanged: delegate.GitChanged,
 		BuildPrompt: func(goal, context, doneWhen, outOfScope string) string {
 			return delegate.BuildDelegatePrompt(delegate.DelegateBrief{Goal: goal, Context: context, DoneWhen: doneWhen,

@@ -72,14 +72,17 @@ function fakeHarness(bins: Record<string, string | null> = { claude: '/bin/claud
   };
 }
 
-function setup(bins?: Record<string, string | null>) {
+function setup(bins?: Record<string, string | null>, opts: { holdPrepare?: boolean } = {}) {
   const fh = fakeHarness(bins);
   const clock = new FakeClock(T0);
   const isolations: string[] = [];
+  const released: string[] = [];
+  let unblock: () => void = () => undefined;
   const exec = createCliExecutor({
     harness: fh.harness,
     prepareIsolation: async (cwd, key) => {
       isolations.push(key);
+      if (opts.holdPrepare) await new Promise<void>((r) => (unblock = r));
       return {
         kind: 'worktree',
         cwd: `/wt/${key}`,
@@ -87,6 +90,9 @@ function setup(bins?: Record<string, string | null>) {
         gitRoot: cwd,
         worktreePath: `/wt/${key}`,
       };
+    },
+    releaseIsolation: async (iso) => {
+      released.push(iso.worktreePath ?? iso.cwd);
     },
     gitChanged: async (cwd) => (cwd.startsWith('/wt/') ? ['src/a.ts'] : null),
     buildPrompt: (b) => `GOAL:${b.goal}`,
@@ -118,7 +124,7 @@ function setup(bins?: Record<string, string | null>) {
         grant: { level, paths: ['/repo'], connections: [] },
       }),
     ).id;
-  return { rt, fh, isolations, create };
+  return { rt, fh, isolations, released, create, unblock: () => unblock() };
 }
 
 const task = (level: 1 | 2 | 3 | 4) =>
@@ -235,6 +241,32 @@ describe('cli 执行者', () => {
     h.rt.command(id2, { type: 'cancel' });
     await flush();
     expect(h.rt.get(id2)!.task.status).toBe('cancelled');
+  });
+
+  it('隔离目录准备期间取消 / 撤销：准备完成后不建标签、不发提示词，拆掉没用上的 worktree（#234）', async () => {
+    for (const cmd of [{ type: 'cancel' }, { type: 'revoke' }] as const) {
+      const h = setup(undefined, { holdPrepare: true });
+      const id = h.create();
+      h.rt.command(id, { type: 'runNow' });
+      await flush();
+      expect(h.isolations).toHaveLength(1);
+      h.rt.command(id, cmd);
+      h.unblock();
+      await flush();
+      expect(h.fh.tabs.size).toBe(0);
+      expect(h.fh.sends).toEqual([]);
+      expect(h.released).toEqual([`/wt/${h.isolations[0]}`]);
+      expect(h.rt.get(id)!.task.status).not.toBe('running');
+    }
+    // 正常启动不受影响
+    const ok = setup(undefined, { holdPrepare: true });
+    const id = ok.create();
+    ok.rt.command(id, { type: 'runNow' });
+    await flush();
+    ok.unblock();
+    await flush();
+    expect(ok.fh.sends).toHaveLength(1);
+    expect(ok.released).toEqual([]);
   });
 
   it('点名的编程助手没装 / 目录不可用：停下来问用户，不悄悄换别的', async () => {
