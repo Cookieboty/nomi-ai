@@ -27,6 +27,8 @@ type Options struct {
 	Receiver          *tools.ToolCallProvider
 	ServedModelHeader string
 	RedactedHeader    string
+	// MaxRetries：AI SDK 自己的失败重试次数；nil = 默认（2）。经 Nomi 网关时设 0：网关已经负责重连（§11.1）
+	MaxRetries *int
 	// Client：fetchImpl（网关按需启动时先等就绪）；nil = 全局 fetch
 	Client *http.Client
 }

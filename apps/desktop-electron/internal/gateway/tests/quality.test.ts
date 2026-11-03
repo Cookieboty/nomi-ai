@@ -258,9 +258,11 @@ describe('model quality · gateway capture', () => {
     await r.text();
     const e = await t.one();
     expect(e.outcome).toBe(outcome);
+    // 401 不重连直接换 Key；429 / 500 每个 Key 先重连 3 次（§11.1）
+    const per = status === 401 ? 1 : 4;
     expect(e.attemptsDetail.map((a) => [a.keyId, a.outcome, a.status])).toEqual([
-      ['k1', outcome, status],
-      ['k2', outcome, status],
+      ...Array.from({ length: per }, () => ['k1', outcome, status]),
+      ...Array.from({ length: per }, () => ['k2', outcome, status]),
     ]);
   });
 
@@ -272,13 +274,12 @@ describe('model quality · gateway capture', () => {
     await (await t.chat()).text();
     const e = await t.one();
     expect(e.outcome).toBe('pre-commit-error');
-    expect(e.attemptsDetail.map((a) => a.outcome)).toEqual([
-      'pre-commit-error',
-      'pre-commit-error',
-    ]);
+    expect(e.attemptsDetail.map((a) => a.outcome)).toEqual(
+      Array.from({ length: 8 }, () => 'pre-commit-error'),
+    );
   });
 
-  it('fallback: key 1 fails, key 2 succeeds → ok with two attempts', async () => {
+  it('fallback: key 1 keeps failing (retried 3 times), key 2 succeeds → ok', async () => {
     const t = await setup((key, res) => {
       if (key === 'k1') {
         res.writeHead(503, { 'content-type': 'application/json' });
@@ -290,9 +291,9 @@ describe('model quality · gateway capture', () => {
     });
     await (await t.chat()).text();
     const e = await t.one();
-    expect(e).toMatchObject({ outcome: 'ok', keyId: 'k2', attempts: 2 });
+    expect(e).toMatchObject({ outcome: 'ok', keyId: 'k2', attempts: 5 });
     expect(e.attemptsDetail.map((a) => [a.keyId, a.outcome])).toEqual([
-      ['k1', 'upstream-5xx'],
+      ...Array.from({ length: 4 }, () => ['k1', 'upstream-5xx']),
       ['k2', 'ok'],
     ]);
   });

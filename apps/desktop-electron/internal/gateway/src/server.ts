@@ -60,6 +60,14 @@ import {
 import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
 import {
+  isTransientFailure,
+  keyRetryLimit,
+  MAX_TOTAL_ATTEMPTS,
+  PROVIDER_MAX_FAILURES,
+  retryDelayMs,
+  waitRetry,
+} from './retry';
+import {
   BINDING_RETRY_AFTER_S,
   BindingTable,
   hashTabToken,
@@ -75,6 +83,7 @@ import {
   candidateIsReasoning,
   resolveFirstByteBudgetMs,
   resolveFirstByteTimeoutMs,
+  resolveRetryBaseMs,
   resolveStreamIdleTimeoutMs,
   FIRST_BYTE_TIMEOUT_MS,
   NON_STREAM_FIRST_BYTE_TIMEOUT_MS,
@@ -103,9 +112,7 @@ export {
 
 export const GATEWAY_VERSION = '1';
 
-/** 每个请求最多尝试的候选数（§11.1） */
-const MAX_ATTEMPTS = 4;
-/** 每个请求因运行时学习而重试的上限（计入 MAX_ATTEMPTS） */
+/** 每个请求因运行时学习而重试的上限（计入 MAX_TOTAL_ATTEMPTS） */
 const MAX_LEARN_RETRIES = 2;
 /**
  * 响应头：实际服务这次请求的模型（`供应商/模型`）。回退到别的候选时与请求模型不同，
@@ -787,7 +794,14 @@ export class GatewayServer {
       session ? this.affinity.get(session) : null,
     );
     let learnRetries = 0;
-    while (queue.length && attempts < MAX_ATTEMPTS) {
+    // 重连（§11.1，retry.ts）：同一个 Key 退避重连几次、同一家累计失败几次
+    const keysOf = new Map<string, Set<string>>();
+    for (const c of r.candidates)
+      keysOf.set(c.provider.id, (keysOf.get(c.provider.id) ?? new Set()).add(c.key.id));
+    const keyRetries = new Map<string, number>();
+    const providerFails = new Map<string, number>();
+    const retryBase = resolveRetryBaseMs(this.hooks);
+    while (queue.length && attempts < MAX_TOTAL_ATTEMPTS) {
       if (
         Date.now() - startedAt > resolveFirstByteBudgetMs(wantsStream, this.hooks) ||
         abort.signal.aborted
@@ -935,12 +949,24 @@ export class GatewayServer {
       errors.push(
         `${cand.provider.name}·${cand.key.name ?? cand.key.id}·${cand.wire}: ${last.message}`,
       );
-      if (coolsDown(last) && !abort.signal.aborted)
-        this.cooldowns.fail(cand, {
-          upstreamStatus: last.upstreamStatus,
-          retryAfter: last.retryAfter,
-          message: last.message,
-        });
+      // 还要在同一个 Key 上重连（§11.1）：先不冷却、不报 Key 状态；重连用完换 Key 时才算这个 Key 暂时不行
+      const keyId = `${cand.provider.id}\u0000${cand.key.id}`;
+      const retried = keyRetries.get(keyId) ?? 0;
+      const failed = last;
+      const coolDown = () => {
+        if (coolsDown(failed) && !abort.signal.aborted)
+          this.cooldowns.fail(cand, {
+            upstreamStatus: failed.upstreamStatus,
+            retryAfter: failed.retryAfter,
+            message: failed.message,
+          });
+      };
+      const sameKeyRetry =
+        !abort.signal.aborted &&
+        isTransientFailure(last) &&
+        retried < keyRetryLimit(keysOf.get(cand.provider.id)?.size ?? 1) &&
+        (providerFails.get(cand.provider.id) ?? 0) + 1 < PROVIDER_MAX_FAILURES;
+      if (!sameKeyRetry) coolDown();
       const hint =
         last.text !== undefined
           ? this.learner.failure(
@@ -980,6 +1006,33 @@ export class GatewayServer {
         const others = queue.filter((c) => c.provider.id !== cand.provider.id);
         queue.splice(0, queue.length, ...others);
         if (others.length) continue;
+      }
+      // 同一家累计失败够了：放弃它剩下的 Key，换同一个模型的下一家（§11.1）
+      const fails = (providerFails.get(cand.provider.id) ?? 0) + 1;
+      providerFails.set(cand.provider.id, fails);
+      if (fails >= PROVIDER_MAX_FAILURES) {
+        const others = queue.filter((c) => c.provider.id !== cand.provider.id);
+        queue.splice(0, queue.length, ...others);
+        if (others.length) continue;
+        break;
+      }
+      // 临时性错误（503、429、超时……）：先在同一个 Key 上退避重连，不急着报错（§11.1）
+      if (sameKeyRetry) {
+        keyRetries.set(keyId, retried + 1);
+        const wait = retryDelayMs(retried + 1, {
+          ...(last.retryAfter ? { retryAfter: last.retryAfter } : {}),
+          ...(retryBase !== undefined ? { baseMs: retryBase } : {}),
+        });
+        const budget = resolveFirstByteBudgetMs(wantsStream, this.hooks);
+        if (
+          Date.now() + wait - startedAt < budget &&
+          (await waitRetry(wait, abort.signal, wantsStream ? keepAlive : undefined))
+        ) {
+          queue.unshift(cand);
+          continue;
+        }
+        // 预算不够等下一次 / 客户端走了：这次就算这个 Key 失败
+        coolDown();
       }
       if (!last.retryable && !hint) break;
     }

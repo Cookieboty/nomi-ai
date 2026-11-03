@@ -81,6 +81,8 @@ export interface AiSdkLlmProviderOptions {
   servedModelHeader?: string;
   /** 上游在这个响应头里报回隐藏了几个密钥（Nomi 网关的隐私模式）；只给可信的上游设置 */
   redactedHeader?: string;
+  /** AI SDK 自己的失败重试次数；缺省用 SDK 默认。经 Nomi 网关时设 0：网关已经负责重连 */
+  maxRetries?: number;
 }
 
 function withRedacted(u: ChatUsage | undefined, redacted: number): ChatUsage | undefined {
@@ -401,6 +403,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         topP: request.topP,
         maxOutputTokens: request.maxTokens,
         abortSignal: signal,
+        ...(this.opts.maxRetries !== undefined ? { maxRetries: this.opts.maxRetries } : {}),
         ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
         ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS) } : {}),
       });
@@ -439,6 +442,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         topP: request.topP,
         maxOutputTokens: request.maxTokens,
         abortSignal: signal,
+        ...(this.opts.maxRetries !== undefined ? { maxRetries: this.opts.maxRetries } : {}),
         ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
         ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS) } : {}),
       });

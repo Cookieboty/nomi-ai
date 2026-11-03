@@ -345,8 +345,9 @@ describe('gateway: routing and conversion', () => {
       { authorization: 'Bearer tok-codex' },
     );
     expect(await ok.text()).toBe(chatStream);
-    expect(n).toBe(2);
-    expect(usage.at(-1)).toMatchObject({ keyId: 'k2', attempts: 2 });
+    // 429 先在 k1 上重连 3 次（§11.1），再换 k2
+    expect(n).toBe(5);
+    expect(usage.at(-1)).toMatchObject({ keyId: 'k2', attempts: 5 });
 
     const bad = await upstream((_s, res) => {
       res.writeHead(400, { 'content-type': 'application/json' });

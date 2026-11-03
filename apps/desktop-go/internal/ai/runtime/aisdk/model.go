@@ -91,6 +91,7 @@ type TextParams struct {
 	Tools           []Tool
 	HasTools        bool // tools !== undefined
 	StepCount       int  // stopWhen: stepCountIs(n); 0 = default stepCountIs(1)
+	MaxRetries      *int // maxRetries；nil = SDK 默认
 }
 
 func (p *TextParams) maxSteps() int {

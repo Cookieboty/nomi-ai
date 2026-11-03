@@ -239,7 +239,14 @@ describe('Amux replay (P5.4)', () => {
       body: JSON.stringify({ model: 'amux/gpt', stream: true, input: 'hi' }),
     });
     const text = await r.text();
-    expect(keys).toEqual(['Bearer key-1', 'Bearer key-2']);
+    // key-1 在同一个 Key 上重连 3 次（§11.1）后换 key-2
+    expect(keys).toEqual([
+      'Bearer key-1',
+      'Bearer key-1',
+      'Bearer key-1',
+      'Bearer key-1',
+      'Bearer key-2',
+    ]);
     expect(text).toContain('"delta":"hello"');
     expect(text).not.toContain('boom');
   });

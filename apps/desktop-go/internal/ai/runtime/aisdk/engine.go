@@ -173,7 +173,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			return
 		}
 		opts := p.callOptions(prompt, true)
-		resp, err := llm.Retry(ctx, llm.RetryOptions{}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
+		resp, err := llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -344,7 +344,7 @@ func GenerateText(ctx context.Context, p *TextParams) (*GenerateResult, error) {
 			return nil, err
 		}
 		opts := p.callOptions(prompt, false)
-		resp, err := llm.Retry(ctx, llm.RetryOptions{}, func() (*llm.GenerateResult, error) { return p.Model.DoGenerate(ctx, opts) })
+		resp, err := llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.GenerateResult, error) { return p.Model.DoGenerate(ctx, opts) })
 		if err != nil {
 			return nil, err
 		}

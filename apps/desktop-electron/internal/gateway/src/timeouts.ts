@@ -5,7 +5,8 @@
  *   Claude extended thinking、o-series 等）可能数分钟才出头，默认 5 分钟；标了
  *   `reasoning` 的模型 10 分钟。
  * - **流空闲**：首字节之后上游连续无事件的上限（整轮上限的一部分），默认 180s。
- * - **首字节预算**：同一请求换候选的总时长上限。
+ * - **首字节预算**：同一请求重连与换候选的总时长上限（流式 5 分钟：同一个 Key 退避重连要留够时间，
+ *   等待期间给客户端发保活，§11.1）。
  *
  * 环境变量（毫秒，可选）：
  * - NOMI_GATEWAY_FIRST_BYTE_TIMEOUT_MS
@@ -14,6 +15,7 @@
  * - NOMI_GATEWAY_FIRST_BYTE_BUDGET_MS
  * - NOMI_GATEWAY_NON_STREAM_FIRST_BYTE_BUDGET_MS
  * - NOMI_GATEWAY_STREAM_IDLE_TIMEOUT_MS
+ * - NOMI_GATEWAY_RETRY_BASE_MS（重连退避的起点；0 = 不等）
  */
 import type { Candidate } from './route/resolve';
 
@@ -23,8 +25,8 @@ export const FIRST_BYTE_TIMEOUT_MS = 30_000;
 export const NON_STREAM_FIRST_BYTE_TIMEOUT_MS = 300_000;
 /** 非流式 + 思考/推理模型：更长 */
 export const REASONING_NON_STREAM_FIRST_BYTE_TIMEOUT_MS = 600_000;
-/** 流式：首字节前所有尝试总预算 */
-export const FIRST_BYTE_BUDGET_MS = 60_000;
+/** 流式：首字节前所有尝试（含退避重连）总预算 */
+export const FIRST_BYTE_BUDGET_MS = 300_000;
 /** 非流式：首字节前所有尝试总预算 */
 export const NON_STREAM_FIRST_BYTE_BUDGET_MS = 900_000;
 /** 首字节之后上游连续无事件的上限 */
@@ -37,6 +39,17 @@ export interface TimeoutHooks {
   firstByteBudgetMs?: number;
   nonStreamFirstByteBudgetMs?: number;
   streamIdleTimeoutMs?: number;
+  /** 重连退避的起点（毫秒；0 = 不等，测试用） */
+  retryBaseDelayMs?: number;
+}
+
+/** 重连退避的起点（retry.ts） */
+export function resolveRetryBaseMs(hooks: TimeoutHooks = {}): number | undefined {
+  if (hooks.retryBaseDelayMs !== undefined) return hooks.retryBaseDelayMs;
+  // 这里允许 0（不等），与其它超时不同
+  const raw = process.env.NOMI_GATEWAY_RETRY_BASE_MS?.trim();
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 function envMs(name: string): number | undefined {

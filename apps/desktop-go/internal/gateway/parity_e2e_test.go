@@ -96,11 +96,14 @@ func TestParityE2E(t *testing.T) {
 		patch, _ := c.Get("cfg").(*u.Obj)
 		var mu sync.Mutex
 		usage := []any{}
-		g := server.CreateGateway(e2eConfig(up.HostPort, patch), server.GatewayHooks{OnUsage: func(e *u.Obj) {
+		zero := 0.0 // 重连退避不真等（与录制端一致，§11.1）
+		hooks := server.GatewayHooks{OnUsage: func(e *u.Obj) {
 			mu.Lock()
 			usage = append(usage, e)
 			mu.Unlock()
-		}})
+		}}
+		hooks.RetryBaseDelayMs = &zero
+		g := server.CreateGateway(e2eConfig(up.HostPort, patch), hooks)
 		if err := g.Start(); err != nil {
 			t.Fatal(err)
 		}

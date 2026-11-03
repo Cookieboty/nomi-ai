@@ -739,8 +739,15 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 ### 11.1 回退与冷却
 
-- 候选列表见 §7.2。每个请求最多尝试 **4 次**（含 §7.4 的换协议重试）。首字节之前的总耗时上限：**流式 60 秒**、**非流式 15 分钟**（到点就停止尝试并返回错误，即使次数没用完）。实现见 `apps/desktop-electron/internal/gateway/src/timeouts.ts`。
-- 可以换下一个候选的情况：连接失败、首字节前超时、429、5xx、529、401 / 403（换 Key）、§7.4 的学习类错误。
+- 候选列表见 §7.2。**重连**（`src/retry.ts`，Go：`server/retry.go`）：
+  - 临时性错误（连接失败、首字节前超时、开始输出前的错误事件、408、429、500、502、503、504、529）先在**同一个 Key 上退避重连**，不急着报错：每个 Key 最多重连 **3 次**；这家（在这次的候选里）只有一个 Key 时最多 **5 次**；
+  - 退避：0.5s 起、每次翻倍、封顶 8s，±20% 抖动；上游给了 `Retry-After` 按它等（封顶 30s）。与 Codex / Claude Code 的做法一致（指数退避、抖动、尊重 `Retry-After`）。流式请求等待期间照常给客户端发保活；客户端断开立即停止；
+  - 401 / 403 不在同一个 Key 上重连，直接换 Key；404（这家没有这个模型）直接换供应商；
+  - 同一家供应商**累计失败 10 次**：放弃它剩下的 Key，换同一个模型的下一家（§7.2）；
+  - 还在同一个 Key 上重连时不冷却、不报 Key 状态；重连用完换 Key 时才冷却并上报；
+  - 每个请求最多 30 次尝试（只防失控）。首字节之前的总耗时上限：**流式 5 分钟**、**非流式 15 分钟**（到点就停止并返回错误，即使次数没用完）。实现见 `apps/desktop-electron/internal/gateway/src/timeouts.ts`；`NOMI_GATEWAY_RETRY_BASE_MS` 改退避起点（0 = 不等）；
+  - 经网关的 Nomi 对话关掉 AI SDK 自己的重试（`maxRetries: 0`），免得在网关的重连外再叠一层。
+- 可以换下一个候选的情况：上面的重连用完后的临时性错误、401 / 403（换 Key）、§7.4 的学习类错误。
   - **流式首字节超时**（等响应头）：默认 **30 秒**。SSE 头应很快到达。
   - **非流式首字节超时**（头与正文一起返回，实际在等整轮生成）：默认 **5 分钟**；模型标了 `reasoning`（DeepSeek V4 Pro、Claude extended thinking、o-series 等）时默认 **10 分钟**。旧实现把非流式也当成 30 秒，会导致思考模型在平台无错时被网关主动断开（客户端 Abort）。
   - 可用 hooks 或环境变量覆盖：`NOMI_GATEWAY_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_NON_STREAM_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_REASONING_NON_STREAM_FIRST_BYTE_TIMEOUT_MS`、`NOMI_GATEWAY_*_BUDGET_MS`、`NOMI_GATEWAY_STREAM_IDLE_TIMEOUT_MS`。
