@@ -9,6 +9,7 @@ import {
   BrandIcon,
   Button,
   Icon,
+  IconButton,
   Input,
   Modal,
   ModalHostContext,
@@ -26,7 +27,6 @@ import {
   Boxes,
   Info,
   Plus,
-  SquareTerminal,
   Waypoints,
   X,
 } from 'lucide-react';
@@ -93,13 +93,11 @@ export const ModelsPage: React.FC = () => {
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   /** 展开了「各档模型 / 更多」的编程助手 */
-  const [openCli, setOpenCli] = useState<CliKind | null>(null);
+  const [openCli, setOpenCli] = useState<CliKind | 'nomi' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
   /** 页底「高级」：显示协议、严格模式、请求体上限 */
   const [showAdvanced, setShowAdvanced] = useState(false);
-  /** 「分配」里的工具调用 / 摘要 / 图片生成（默认收起，只显示一行摘要） */
-  const [showMoreUses, setShowMoreUses] = useState(false);
 
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -150,18 +148,6 @@ export const ModelsPage: React.FC = () => {
   const noModels = !picker.length;
   /** 还没有供应商：卡片标题带步骤编号（1 加供应商 → 2 分配）；配好以后不再显示 */
   const onboarding = Boolean(state) && !providers.length;
-  /** 模型引用 → 「供应商 / 模型」 */
-  const refLabel = (ref: string) => {
-    const pid = providerOfRef(ref);
-    const p = pid ? providers.find((x) => x.id === pid) : undefined;
-    return p ? `${providerDisplayName(p.name)} / ${ref.slice(pid!.length + 1)}` : ref;
-  };
-  /** 「更多用途」收起时的一行摘要 */
-  const moreUsesSummary = [
-    `${t('ui.models.tool-calls')}：${nomi.tools ? refLabel(nomi.tools) : t('ui.models.same-as-chat')}`,
-    `${t('ui.models.summaries')}：${nomi.summary ? refLabel(nomi.summary) : t('ui.models.same-as-chat')}`,
-    `${t('ui.models.image-generation')}：${nomi.image ? refLabel(nomi.image) : t('ui.models.image-auto')}`,
-  ].join(' · ');
 
   const status = state?.status;
   return (
@@ -288,114 +274,106 @@ export const ModelsPage: React.FC = () => {
             {t('ui.models.configure-a-provider-first')}
           </p>
         )}
-        <div className={styles.row}>
-          <span className={styles.rowLabel}>{t('ui.usage-tools.nomi-chat')}</span>
-          <ModelPicker
-            {...common}
-            className={styles.picker}
-            value={nomi.main ?? null}
-            onChange={(v) => assign({ main: v })}
-            placeholder={
-              picker.length
-                ? t('ui.models.choose-a-model')
-                : t('ui.models.add-a-third-party-provider-first')
-            }
-            disabled={!picker.length}
-            aria-label={t('ui.models.model-for-nomi-chat')}
-            data-testid="assign-chat"
-          />
-        </div>
-        <div className={styles.row}>
-          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-            {t('ui.models.more-uses')}
-          </span>
-          <button
-            type="button"
-            className={styles.moreUses}
-            aria-expanded={showMoreUses}
-            data-testid="models-more-uses"
-            onClick={() => setShowMoreUses((v) => !v)}
+        <p className={styles.sub}>{t('ui.models.assign-hint')}</p>
+        {/* Nomi 与各编程助手一样一张卡片：主模型在卡片上，箭头展开附加用途（Nomi：工具调用 / 摘要 / 图片生成） */}
+        <div className={styles.cliGrid} data-testid="models-cli">
+          <div
+            className={styles.cliCard}
+            data-testid="nomi-card"
+            data-open={openCli === 'nomi' || undefined}
           >
-            <Icon icon={showMoreUses ? ChevronDown : ChevronRight} size={14} />
-            <span className={styles.moreUsesText}>
-              {showMoreUses ? t('ui.knowledge-local.collapse') : moreUsesSummary}
-            </span>
-          </button>
+            <div className={styles.cliCardHead}>
+              <span className={styles.cliName}>
+                <EndpointIcon backend="nomi" size={16} decorative />
+                {t('ui.models.nomi-ai')}
+              </span>
+              <IconButton
+                size="sm"
+                className={styles.expand}
+                aria-expanded={openCli === 'nomi'}
+                label={`${t('ui.models.nomi-ai')} · ${t('ui.voice-mascot.more')}`}
+                title={t('ui.models.nomi-more-uses')}
+                data-testid="nomi-more"
+                onClick={() => setOpenCli((x) => (x === 'nomi' ? null : 'nomi'))}
+                icon={<Icon icon={openCli === 'nomi' ? ChevronDown : ChevronRight} size={14} />}
+              />
+            </div>
+            <ModelPicker
+              {...common}
+              className={styles.picker}
+              value={nomi.main ?? null}
+              onChange={(v) => assign({ main: v })}
+              placeholder={
+                picker.length
+                  ? t('ui.models.choose-a-model')
+                  : t('ui.models.add-a-third-party-provider-first')
+              }
+              disabled={!picker.length}
+              aria-label={t('ui.models.model-for-nomi-chat')}
+              data-testid="assign-chat"
+            />
+            {openCli === 'nomi' && (
+              <div className={styles.cliTiers}>
+                <div className={styles.tierField}>
+                  <span className={styles.tierLabel}>{t('ui.models.tool-calls')}</span>
+                  <ModelPicker
+                    {...common}
+                    className={styles.picker}
+                    extraOptions={SAME_AS_CHAT}
+                    value={nomi.tools ?? FOLLOW}
+                    onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
+                    disabled={!picker.length}
+                    aria-label={t('ui.models.model-for-tool-calls')}
+                    data-testid="assign-tools"
+                  />
+                </div>
+                <div className={styles.tierField}>
+                  <span className={styles.tierLabel}>{t('ui.models.summaries')}</span>
+                  <ModelPicker
+                    {...common}
+                    className={styles.picker}
+                    extraOptions={SAME_AS_CHAT}
+                    value={nomi.summary ?? FOLLOW}
+                    onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
+                    disabled={!picker.length}
+                    aria-label={t('ui.models.model-for-summaries')}
+                    data-testid="assign-summary"
+                  />
+                </div>
+                <div className={styles.tierField}>
+                  <span className={styles.tierLabel}>{t('ui.models.image-generation')}</span>
+                  <ModelPicker
+                    {...common}
+                    providers={imagePicker}
+                    className={styles.picker}
+                    extraOptions={AUTO_IMAGE}
+                    value={nomi.image ?? UNSET}
+                    onChange={(v) => assign({ image: v === UNSET ? null : v })}
+                    disabled={!imagePicker.length}
+                    placeholder={t('ui.models.no-image-models')}
+                    aria-label={t('ui.models.model-for-image-generation')}
+                    data-testid="assign-image"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          {CLI_KINDS.map((kind) => (
+            <CliRow
+              key={kind}
+              kind={kind}
+              client={state?.clients[kind]}
+              common={common}
+              disabled={!picker.length}
+              open={openCli === kind}
+              onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
+              onAssign={(patch) => assignCli(kind, patch)}
+              missing={cli.missing(kind)}
+              installBusy={cli.busy(kind)}
+              onInstall={() => cli.install(kind)}
+            />
+          ))}
         </div>
-        {showMoreUses && (
-          <>
-            <div className={styles.row}>
-              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-                {t('ui.models.tool-calls')}
-              </span>
-              <ModelPicker
-                {...common}
-                className={styles.picker}
-                extraOptions={SAME_AS_CHAT}
-                value={nomi.tools ?? FOLLOW}
-                onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
-                disabled={!picker.length}
-                aria-label={t('ui.models.model-for-tool-calls')}
-                data-testid="assign-tools"
-              />
-            </div>
-            <div className={styles.row}>
-              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-                {t('ui.models.summaries')}
-              </span>
-              <ModelPicker
-                {...common}
-                className={styles.picker}
-                extraOptions={SAME_AS_CHAT}
-                value={nomi.summary ?? FOLLOW}
-                onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
-                disabled={!picker.length}
-                aria-label={t('ui.models.model-for-summaries')}
-                data-testid="assign-summary"
-              />
-            </div>
-            <div className={styles.row}>
-              <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
-                {t('ui.models.image-generation')}
-              </span>
-              <ModelPicker
-                {...common}
-                providers={imagePicker}
-                className={styles.picker}
-                extraOptions={AUTO_IMAGE}
-                value={nomi.image ?? UNSET}
-                onChange={(v) => assign({ image: v === UNSET ? null : v })}
-                disabled={!imagePicker.length}
-                placeholder={t('ui.models.no-image-models')}
-                aria-label={t('ui.models.model-for-image-generation')}
-                data-testid="assign-image"
-              />
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
-        <h3 id="models-cli" className={styles.cardTitle}>
-          <Icon icon={SquareTerminal} size={16} />
-          {t('ui.providers-schedule.coding-agents')}
-        </h3>
-        <p className={styles.sub}>{t('ui.models.cli-models-hint')}</p>
-        {CLI_KINDS.map((kind) => (
-          <CliRow
-            key={kind}
-            kind={kind}
-            client={state?.clients[kind]}
-            common={common}
-            disabled={!picker.length}
-            open={openCli === kind}
-            onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
-            onAssign={(patch) => assignCli(kind, patch)}
-            missing={cli.missing(kind)}
-            installBusy={cli.busy(kind)}
-            onInstall={() => cli.install(kind)}
-          />
-        ))}
       </section>
       {cli.dialog}
 
@@ -530,13 +508,14 @@ const CliRow: React.FC<{
   const name = ENDPOINT_NAME[kind];
   if (missing)
     return (
-      <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
-        <span className={styles.cliName}>
-          <EndpointIcon backend={kind} size={16} decorative />
-          {name}
-        </span>
-        <span className={styles.muted}>{t('ui.mascot-theme.not-installed')}</span>
-        <span />
+      <div className={`${styles.cliCard} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
+        <div className={styles.cliCardHead}>
+          <span className={styles.cliName}>
+            <EndpointIcon backend={kind} size={16} decorative />
+            {name}
+          </span>
+          <span className={styles.muted}>{t('ui.mascot-theme.not-installed')}</span>
+        </div>
         <Button
           size="sm"
           variant="secondary"
@@ -578,42 +557,51 @@ const CliRow: React.FC<{
         ...(id === 'haiku' && m.small ? { small: null } : {}),
       },
     });
+  /** 卡片里展开的一个附加模型：标签在上，选择框在下 */
+  const field = (label: string, picker: React.ReactNode, title?: string) => (
+    <div className={styles.tierField} key={label}>
+      <span className={styles.tierLabel} title={title}>
+        {label}
+      </span>
+      {picker}
+    </div>
+  );
   return (
-    <>
-      <div className={styles.cliRow} data-testid={`cli-row-${kind}`}>
+    <div className={styles.cliCard} data-testid={`cli-row-${kind}`} data-open={open || undefined}>
+      <div className={styles.cliCardHead}>
         <span className={styles.cliName}>
           <EndpointIcon backend={kind} size={16} decorative />
           {name}
         </span>
-        <ModelPicker
-          {...common}
-          purpose="coding"
-          className={styles.picker}
-          extraOptions={NOT_SET}
-          value={m.main ?? UNSET}
-          onChange={setMain}
-          disabled={disabled}
-          aria-label={t('ui.models.third-party-model', name)}
-          data-testid={`cli-main-${kind}`}
-        />
-        <Button
+        {/* 只放箭头：名字长时不挤；「各档模型 / 更多」作为提示与无障碍名 */}
+        <IconButton
           size="sm"
-          variant="ghost"
           className={styles.expand}
           aria-expanded={open}
+          label={`${t(name)} · ${claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}`}
+          title={claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}
           data-testid={claude ? 'cli-tiers-toggle' : `cli-more-${kind}`}
           onClick={onToggle}
-        >
-          <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-          {claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}
-        </Button>
+          icon={<Icon icon={open ? ChevronDown : ChevronRight} size={14} />}
+        />
       </div>
+      <ModelPicker
+        {...common}
+        purpose="coding"
+        className={styles.picker}
+        extraOptions={NOT_SET}
+        value={m.main ?? UNSET}
+        onChange={setMain}
+        disabled={disabled}
+        aria-label={t('ui.models.third-party-model', name)}
+        data-testid={`cli-main-${kind}`}
+      />
       {open && (
-        <>
+        <div className={styles.cliTiers}>
           {claude &&
-            CLAUDE_TIERS.map((tier) => (
-              <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
-                <span className={styles.cliName}>{t(tier.label)}</span>
+            CLAUDE_TIERS.map((tier) =>
+              field(
+                t(tier.label),
                 <ModelPicker
                   {...common}
                   purpose="coding"
@@ -624,12 +612,12 @@ const CliRow: React.FC<{
                   disabled={disabled}
                   aria-label={t('ui.models.claude-code', t(tier.label))}
                   data-testid={`cli-tier-${tier.id}`}
-                />
-              </div>
-            ))}
-          {claude && (
-            <div className={`${styles.cliRow} ${styles.tierRow}`}>
-              <span className={styles.cliName}>{t('ui.usage-tools.subagent')}</span>
+                />,
+              ),
+            )}
+          {claude &&
+            field(
+              t('ui.usage-tools.subagent'),
               <ModelPicker
                 {...common}
                 purpose="coding"
@@ -640,16 +628,10 @@ const CliRow: React.FC<{
                 disabled={disabled}
                 aria-label={t('ui.models.claude-code-subagent-model')}
                 data-testid="cli-subagent"
-              />
-            </div>
-          )}
-          <div className={`${styles.cliRow} ${styles.tierRow}`}>
-            <span
-              className={styles.cliName}
-              title={t('ui.models.used-for-helper-requests-such-as-titles-summaries')}
-            >
-              {t('ui.usage-tools.helper-model')}
-            </span>
+              />,
+            )}
+          {field(
+            t('ui.usage-tools.helper-model'),
             <ModelPicker
               {...common}
               purpose="coding"
@@ -660,11 +642,12 @@ const CliRow: React.FC<{
               disabled={disabled}
               aria-label={t('ui.models.helper-model-titles-summaries-etc', name)}
               data-testid={`cli-helper-${kind}`}
-            />
-          </div>
-        </>
+            />,
+            t('ui.models.used-for-helper-requests-such-as-titles-summaries'),
+          )}
+        </div>
       )}
-    </>
+    </div>
   );
 };
 

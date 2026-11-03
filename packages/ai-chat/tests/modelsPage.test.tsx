@@ -319,10 +319,9 @@ describe('ModelsPage', () => {
     ];
     m.state.clients.nomi = { models: { main: 'kimi/kimi-k3' } };
     render(<ModelsPage />);
-    // 工具调用 / 摘要 / 图片生成收在「更多用途」里；收起时有一行摘要
-    const more = await screen.findByTestId('models-more-uses');
-    expect(more.textContent).toContain('图片生成');
-    fireEvent.click(more);
+    // Nomi 卡片：主模型在卡片上，工具调用 / 摘要 / 图片生成点箭头展开
+    expect(screen.queryByTestId('assign-image')).toBeNull();
+    fireEvent.click(await screen.findByTestId('nomi-more'));
     const image = (await screen.findByTestId('assign-image')) as HTMLSelectElement;
     const values = (el: HTMLSelectElement) => [...el.options].map((o) => o.value);
     expect(values(image)).toEqual(['unset', 'kimi/gpt-image-2']);

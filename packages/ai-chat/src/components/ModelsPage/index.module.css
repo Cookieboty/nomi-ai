@@ -1,7 +1,5 @@
 .page {
-  --models-label-w: 144px;
-  --models-picker-w: minmax(180px, 280px);
-  --models-end-w: minmax(120px, 150px);
+  container: models-page / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-4);
@@ -48,39 +46,6 @@
   align-items: flex-start;
   gap: var(--cd-space-2);
   margin-top: var(--cd-space-3);
-}
-
-/* 「分配 → 更多用途」：收起时一行摘要，点开列出工具调用 / 摘要 / 图片生成 */
-.moreUses {
-  grid-column: 2 / -1;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1);
-  min-width: 0;
-  min-height: var(--cd-control-h-sm);
-  padding: 0 var(--cd-space-2);
-  border: none;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
-  text-align: left;
-  cursor: pointer;
-}
-.moreUses:hover {
-  background: var(--cd-control-hover-bg);
-  color: var(--cd-color-text);
-}
-.moreUses:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 1px;
-}
-.moreUsesText {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .inlineField {
@@ -144,31 +109,6 @@
   justify-content: space-between;
 }
 
-.row,
-.cliRow {
-  display: grid;
-  /* 标签列 | 模型列 | 弹性 | 末列：两张卡片共用同一套列宽，选择框左缘在同一条竖线上 */
-  grid-template-columns: var(--models-label-w) var(--models-picker-w) minmax(96px, 1fr) var(
-      --models-end-w
-    );
-  align-items: center;
-  gap: var(--cd-space-3);
-  min-height: var(--cd-control-h-sm);
-}
-
-.rowLabel {
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text);
-  white-space: nowrap;
-}
-
-/* 子项：只缩进标签，选择框仍与上一行对齐 */
-.rowLabelSub,
-.tierRow .cliName {
-  padding-left: var(--cd-space-5);
-  color: var(--cd-color-text-muted);
-}
-
 .picker {
   width: 100%;
   min-width: 0;
@@ -196,8 +136,7 @@
 }
 
 .expand {
-  justify-self: start;
-  white-space: nowrap;
+  flex: none;
 }
 
 .advToggle:focus-visible,
@@ -961,4 +900,72 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/*
+ * 「分配」：Nomi 与各编程助手各一张小卡片（一排三张，六张正好两排），
+ * 每张卡片标签 / 名称在上、选择框在下，避免一整行只有一个选择框、右边大片空白。
+ */
+.cliGrid {
+  display: grid;
+  gap: var(--cd-space-3);
+  margin-top: var(--cd-space-3);
+  align-items: start;
+}
+/* 一排三张；窄时两张 / 一张 */
+.cliGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@container models-page (max-width: 620px) {
+  .cliGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container models-page (max-width: 400px) {
+  .cliGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cliCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-panel-surface);
+}
+.tierLabel {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.cliCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  min-height: var(--cd-control-h-sm);
+}
+.cliCard[data-open] {
+  border-color: var(--cd-color-border-strong);
+}
+.cliTiers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding-top: var(--cd-space-2);
+  border-top: 1px solid var(--cd-panel-border);
+}
+.tierField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
+.cliMissing > button {
+  align-self: flex-start;
+}
+.cliCardHead .cliName {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
