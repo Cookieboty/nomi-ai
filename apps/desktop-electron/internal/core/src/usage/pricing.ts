@@ -231,7 +231,7 @@ export function tierPrice(pr: ModelPrice, promptTokens: number): Omit<ModelPrice
 }
 
 /** 默认 CNY 汇率（1 USD = ? CNY）：仅是占位常量，界面上标注「可自定义」 */
-export const DEFAULT_CNY_PER_USD = 7.2;
+export const DEFAULT_CNY_PER_USD = 6.75;
 
 export function sanitizeCustomPrices(raw: unknown): CustomPrice[] {
   if (!Array.isArray(raw)) return [];

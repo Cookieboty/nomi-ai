@@ -146,7 +146,7 @@ describe('UsageService：采集 / 开关 / 查询', () => {
 
   it('设置清洗：非法币种 / 汇率 / 保留期回退默认；clearedAt 不能被补丁篡改', () => {
     const s = sanitizeUsageSettings({ currency: 'EUR', cnyPerUsd: -3, retention: '5y' });
-    expect(s).toMatchObject({ currency: 'USD', cnyPerUsd: 7.2, retention: '1y', enabled: true });
+    expect(s).toMatchObject({ currency: 'USD', cnyPerUsd: 6.75, retention: '1y', enabled: true });
     const { svc } = mk();
     svc.setSettings({ currency: 'CNY', cnyPerUsd: 7.5 });
     svc.clear();
