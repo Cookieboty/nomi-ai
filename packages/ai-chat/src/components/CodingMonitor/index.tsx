@@ -88,116 +88,120 @@ export const CodingMonitor: React.FC<{
     void agentsClient.setSettings(p).then(loadAgents);
 
   return (
-    <div className={styles.stack} data-testid="coding-monitor">
+    <div className={styles.root} data-testid="coding-monitor">
       {!agentsClient.available() && (
         <Notice tone="warning">
           {tr('ui.providers-schedule.the-main-process-watcher-isn-t-reachable-in')}
         </Notice>
       )}
       {agents && (
-        <>
-          <SettingsGroup
-            title={tr('ui.providers-schedule.progress-monitoring')}
-            description={tr(
-              'ui.providers-schedule.only-sessions-whose-files-were-just-written-and',
-            )}
-          >
-            <SettingRow
-              title={tr('ui.providers-schedule.watch-coding-agent-progress')}
-              description={tr('ui.providers-schedule.show-a-bubble-dynamic-island-notice-when-a')}
-            >
-              <Switch
-                checked={agents.settings.enabled}
-                onChange={(v) => setSettings({ enabled: v })}
-                aria-label={tr('ui.providers-schedule.watch-coding-agent-progress')}
-                data-testid="agents-enabled"
-              />
-            </SettingRow>
-            <SettingRow
-              title={tr('ui.providers-schedule.read-aloud')}
+        // 宽屏：两组设置并排在上，活跃会话占满整行在下；窄屏上下排
+        <div className={styles.layout}>
+          <div className={styles.side}>
+            <SettingsGroup
+              title={tr('ui.providers-schedule.progress-monitoring')}
               description={tr(
-                'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
+                'ui.providers-schedule.only-sessions-whose-files-were-just-written-and',
               )}
             >
-              <Switch
-                checked={agents.settings.summaryEnabled}
-                disabled={!agents.settings.enabled}
-                onChange={(v) => setSettings({ summaryEnabled: v })}
-                aria-label={tr(
-                  'ui.usage-tools.spoken-coding-assistant-notifications-codex-and-more',
-                )}
-                data-testid="agents-summary"
-              />
-            </SettingRow>
-            {onOpenNotify && (
               <SettingRow
-                title={tr('ui.providers-schedule.dynamic-island-quiet-hours')}
+                title={tr('ui.providers-schedule.watch-coding-agent-progress')}
+                description={tr('ui.providers-schedule.show-a-bubble-dynamic-island-notice-when-a')}
+              >
+                <Switch
+                  checked={agents.settings.enabled}
+                  onChange={(v) => setSettings({ enabled: v })}
+                  aria-label={tr('ui.providers-schedule.watch-coding-agent-progress')}
+                  data-testid="agents-enabled"
+                />
+              </SettingRow>
+              <SettingRow
+                title={tr('ui.providers-schedule.read-aloud')}
                 description={tr(
-                  'ui.providers-schedule.notification-style-types-and-quiet-hours-are-set',
+                  'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
                 )}
               >
+                <Switch
+                  checked={agents.settings.summaryEnabled}
+                  disabled={!agents.settings.enabled}
+                  onChange={(v) => setSettings({ summaryEnabled: v })}
+                  aria-label={tr(
+                    'ui.usage-tools.spoken-coding-assistant-notifications-codex-and-more',
+                  )}
+                  data-testid="agents-summary"
+                />
+              </SettingRow>
+              {onOpenNotify && (
+                <SettingRow
+                  title={tr('ui.providers-schedule.dynamic-island-quiet-hours')}
+                  description={tr(
+                    'ui.providers-schedule.notification-style-types-and-quiet-hours-are-set',
+                  )}
+                >
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid="agents-open-notify"
+                    onClick={onOpenNotify}
+                  >
+                    {tr('ui.cli-monitor.open-notifications-dynamic-island')}
+                  </Button>
+                </SettingRow>
+              )}
+            </SettingsGroup>
+
+            <SettingsGroup
+              title={tr('ui.providers-schedule.assistants-to-monitor')}
+              description={
+                <>
+                  {tr('ui.providers-schedule.detected')}
+                  {agents.detected.length
+                    ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
+                    : tr('ui.providers-schedule.none')}
+                </>
+              }
+              actions={
                 <Button
                   size="sm"
                   variant="secondary"
-                  data-testid="agents-open-notify"
-                  onClick={onOpenNotify}
+                  onClick={() => void agentsClient.scan().then(setAgents)}
+                  data-testid="agents-scan"
                 >
-                  {tr('ui.cli-monitor.open-notifications-dynamic-island')}
+                  {tr('ui.providers-schedule.scan-now')}
                 </Button>
-              </SettingRow>
-            )}
-          </SettingsGroup>
-
-          <SettingsGroup
-            title={tr('ui.providers-schedule.assistants-to-monitor')}
-            description={
-              <>
-                {tr('ui.providers-schedule.detected')}
-                {agents.detected.length
-                  ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
-                  : tr('ui.providers-schedule.none')}
-              </>
-            }
-            actions={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => void agentsClient.scan().then(setAgents)}
-                data-testid="agents-scan"
-              >
-                {tr('ui.providers-schedule.scan-now')}
-              </Button>
-            }
-          >
-            <div className={styles.tools}>
-              {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => {
-                const found = agents.detected.includes(k);
-                return (
-                  <div key={k} className={styles.tool}>
-                    <span className={styles.toolName}>
-                      {tr(AGENT_LABEL[k])}
-                      <span className={styles.toolState} data-found={found ? '1' : undefined}>
-                        {found
-                          ? tr('ui.providers-schedule.detected-label')
-                          : tr('ui.slash-commands.not-detected')}
+              }
+            >
+              <div className={styles.tools}>
+                {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => {
+                  const found = agents.detected.includes(k);
+                  return (
+                    <div key={k} className={styles.tool}>
+                      <span className={styles.toolName}>
+                        {tr(AGENT_LABEL[k])}
+                        <span className={styles.toolState} data-found={found ? '1' : undefined}>
+                          {found
+                            ? tr('ui.providers-schedule.detected-label')
+                            : tr('ui.slash-commands.not-detected')}
+                        </span>
                       </span>
-                    </span>
-                    <Switch
-                      checked={agents.settings.tools[k]}
-                      disabled={!agents.settings.enabled}
-                      onChange={(v) =>
-                        setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
-                      }
-                      aria-label={tr('ui.providers-schedule.monitor', tr(AGENT_LABEL[k]))}
-                      data-testid={`agents-tool-${k}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </SettingsGroup>
+                      <Switch
+                        checked={agents.settings.tools[k]}
+                        disabled={!agents.settings.enabled}
+                        onChange={(v) =>
+                          setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
+                        }
+                        aria-label={tr('ui.providers-schedule.monitor', tr(AGENT_LABEL[k]))}
+                        data-testid={`agents-tool-${k}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </SettingsGroup>
+          </div>
 
           <SettingsGroup
+            className={styles.main}
             title={tr('ui.cli-monitor.active-sessions')}
             description={tr('ui.providers-schedule.claude-code-codex-dsh-grok-gemini-cli-plus')}
           >
@@ -301,7 +305,7 @@ export const CodingMonitor: React.FC<{
               </div>
             )}
           </SettingsGroup>
-        </>
+        </div>
       )}
     </div>
   );

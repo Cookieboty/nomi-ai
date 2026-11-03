@@ -293,3 +293,23 @@
   display: grid;
   gap: var(--cd-space-3);
 }
+
+/* Nomi →「委派」：分组之间留间距；宽屏（容器 ≥ 760px）时两组设置并排 */
+.delegate {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--cd-space-4);
+}
+.delegatePair {
+  display: grid;
+  gap: var(--cd-space-4);
+  align-items: stretch;
+}
+.delegatePair[data-off] {
+  opacity: 0.6;
+}
+@container (min-width: 760px) {
+  .delegatePair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
