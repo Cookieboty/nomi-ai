@@ -165,6 +165,8 @@ export interface ProviderInput {
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示；空串 = 清除） */
+  baseUrl?: string;
   fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
   /** 预设带来的厂商差异（§12.7.4） */
@@ -1222,6 +1224,7 @@ export class GatewayService {
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
+      ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl.trim() || undefined } : {}),
       ...(input.detected ? { detected: input.detected } : {}),
       ...(input.quirks ? { quirks: input.quirks } : {}),
       createdAt: prev?.createdAt ?? now,

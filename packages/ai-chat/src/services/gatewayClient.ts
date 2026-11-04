@@ -112,6 +112,8 @@ export interface ProviderView {
   /** 这个供应商的模型都失败时依次改用（'provider/model'） */
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示） */
+  baseUrl?: string;
   modelMap?: Array<{ from: string; to: string }>;
   /** 运行时学到的状态（§7.4） */
   learned?: LearnedState;
@@ -235,6 +237,8 @@ export interface ProviderInput {
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示） */
+  baseUrl?: string;
   detected?: Partial<Record<Wire, StoredProbe>>;
   quirks?: {
     maxTools?: number;

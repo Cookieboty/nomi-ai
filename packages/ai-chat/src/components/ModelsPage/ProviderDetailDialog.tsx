@@ -88,6 +88,8 @@ interface Draft {
   modelMap: Array<{ from: string; to: string }>;
   headers: Array<{ name: string; value: string }>;
   userAgent: string;
+  /** 用户填的 Base URL（原样保存、原样显示） */
+  baseUrl: string;
   detected?: Partial<Record<Wire, StoredProbe>>;
 }
 
@@ -106,6 +108,15 @@ const initDraft = (p: ProviderView): Draft => ({
   modelMap: (p.modelMap ?? []).map((x) => ({ ...x })),
   headers: Object.entries(p.headers ?? {}).map(([name, value]) => ({ name, value })),
   userAgent: p.userAgent ?? '',
+  // 旧数据没存过 Base URL：从现有地址里取一个显示
+  baseUrl: (
+    p.baseUrl ??
+    p.urls.chat ??
+    p.urls.responses ??
+    p.urls.messages ??
+    p.urls.gemini ??
+    ''
+  ).trim(),
 });
 
 /** 草稿 → upsert-provider 的参数（也用来判断有没有改动） */
@@ -158,6 +169,7 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       d.headers.filter((h) => h.name.trim()).map((h) => [h.name.trim(), h.value]),
     ),
     userAgent: d.userAgent.trim(),
+    baseUrl: d.baseUrl.trim(),
     ...(d.detected ? { detected: d.detected } : {}),
   };
 }
@@ -195,13 +207,21 @@ export const ProviderDetailDialog: React.FC<Props> = (props) =>
 let tmpSeq = 0;
 
 const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
-  provider: p,
+  provider,
   allowedPrivateHosts,
   onClose,
   onRemove,
 }) => {
+  /** 已保存的状态：不关弹窗的保存（更换 Key 时回车）后换成保存结果，草稿从它重新开始 */
+  const [p, setP] = useState(provider);
+  // 外面刷新了（网关状态变化：清除自动学到的、Key 状态等）：跟着更新，草稿不动
+  const [seenProvider, setSeenProvider] = useState(provider);
+  if (provider !== seenProvider) {
+    setSeenProvider(provider);
+    setP(provider);
+  }
   const readOnly = p.source === 'env';
-  const [initial] = useState(() => initDraft(p));
+  const [initial, setInitial] = useState(() => initDraft(p));
   const [d, setD] = useState<Draft>(initial);
   const [keysText, setKeysText] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -224,15 +244,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
   /** Base URL：只改它，各协议地址由检测推出来（逐协议改在「更多设置」里） */
-  const [base, setBase] = useState(() =>
-    (
-      initial.urls.chat ||
-      initial.urls.responses ||
-      initial.urls.messages ||
-      initial.urls.gemini
-    ).trim(),
-  );
-  const [detectedBase, setDetectedBase] = useState(base);
+  const base = d.baseUrl;
+  const setBase = (v: string) => patch({ baseUrl: v });
+  const [detectedBase, setDetectedBase] = useState(initial.baseUrl);
   const baseChanged = base.trim() !== detectedBase.trim();
   /** 列出来的协议地址：填了的，以及刚点「添加协议地址」加的空行；其余收在「添加」菜单里 */
   const [extraWires, setExtraWires] = useState<ReadonlySet<Wire>>(() => new Set());
@@ -446,7 +460,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const detectBase = async (): Promise<Draft | null> =>
     base.trim() && baseChanged ? detect({ base }) : d;
 
-  const save = async () => {
+  /** keepOpen：保存后留在弹窗里（更换 Key 时回车），草稿换成刚保存的状态 */
+  const save = async (opts: { keepOpen?: boolean } = {}) => {
     // Base URL 改了没检测：先检测（用检测出来的各协议地址），检测不通过就不保存
     const cur = await detectBase();
     if (!cur) return;
@@ -454,7 +469,19 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     setBusy('save');
     try {
       // 填了 Key 没点「添加」就保存：一起存上，不悄悄丢掉
-      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(cur)));
+      const savedView = await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(cur)));
+      if (opts.keepOpen && savedView?.id) {
+        const next = initDraft(savedView);
+        setP(savedView);
+        setInitial(next);
+        setD(next);
+        setKeysText('');
+        setDetectedUrls(JSON.stringify(next.urls));
+        setDetectedBase(next.baseUrl);
+        setNotice(t('ui.voice-mascot.saved'));
+        setBusy(null);
+        return;
+      }
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -608,7 +635,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 onAdd={addKeys}
                 canAdd={splitKeys(keysText).length > 0}
                 wireOptions={wireOptions}
-                onCommit={() => void save()}
+                onCommit={() => void save({ keepOpen: true })}
               />
             </section>
           </div>

@@ -485,6 +485,14 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 			p.Set("userAgent", u.Undefined)
 		}
 	}
+	// baseUrl：用户填的 Base URL（只用来显示；空串 = 清除），同 Node upsertProvider
+	if input.Has("baseUrl") && input.Get("baseUrl") != u.Undefined {
+		if b, ok := input.Get("baseUrl").(string); ok && strings.TrimSpace(b) != "" {
+			p.Set("baseUrl", strings.TrimSpace(b))
+		} else {
+			p.Set("baseUrl", u.Undefined)
+		}
+	}
 	for _, f := range []string{"detected", "quirks"} {
 		if u.Truthy(input.Get(f)) {
 			p.Set(f, input.Get(f))

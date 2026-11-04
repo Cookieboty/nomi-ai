@@ -902,6 +902,23 @@ describe('ModelsPage', () => {
       messages: 'https://new.example',
       chat: 'https://new.example/v1',
     });
+    // 填的 Base URL 原样存下（下次打开原样显示，不换成推出来的某个协议地址）
+    expect(upserts(m)[0]!.baseUrl).toBe('https://new.example/v1');
+  });
+
+  it('a saved Base URL is shown as typed, not rebuilt from the per-API addresses', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        baseUrl: 'https://api.xytoken.example',
+        urls: { chat: 'https://api.xytoken.example/v1', messages: 'https://api.xytoken.example' },
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    expect((within(detail()).getByTestId('pd-base-url') as HTMLInputElement).value).toBe(
+      'https://api.xytoken.example',
+    );
   });
 
   it('replacing a key: Enter in the new-value field saves right away', async () => {
@@ -915,6 +932,8 @@ describe('ModelsPage', () => {
     fireEvent.change(input, { target: { value: 'sk-new-value-0000000000' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    // 保存后弹窗还开着，可以接着改
+    expect(screen.getByTestId('provider-detail')).toBeTruthy();
     expect(upserts(m)[0]!.newKeys).toEqual([
       expect.objectContaining({ value: 'sk-new-value-0000000000', position: 0 }),
     ]);

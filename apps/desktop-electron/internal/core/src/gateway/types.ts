@@ -64,6 +64,8 @@ export interface GatewayProvider {
   modelsSource: 'listed' | 'manual' | 'preset';
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（编辑时原样显示；各协议地址由检测推出来，存在 urls 里） */
+  baseUrl?: string;
   modelMap?: Array<{ from: string; to: string }>;
   source: 'user' | 'env';
   detected?: Partial<Record<Wire, StoredProbe>>;

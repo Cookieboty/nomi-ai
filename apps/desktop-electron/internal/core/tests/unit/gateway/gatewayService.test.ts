@@ -313,6 +313,23 @@ describe('GatewayService', () => {
     expect(t.svc.state().providers[0]!.keys[0]!.name).toBeUndefined();
   });
 
+  it('keeps the Base URL the user typed; omitting it keeps it, an empty string clears it', () => {
+    const t = setup();
+    t.svc.init();
+    const p = t.svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay.example.com/v1', messages: 'https://relay.example.com' },
+      baseUrl: ' https://relay.example.com ',
+    });
+    expect(p.baseUrl).toBe('https://relay.example.com');
+    expect(t.svc.upsertProvider({ id: p.id, name: 'Relay', urls: {} }).baseUrl).toBe(
+      'https://relay.example.com',
+    );
+    expect(t.svc.upsertProvider({ id: p.id, name: 'Relay', urls: {}, baseUrl: '' }).baseUrl).toBe(
+      undefined,
+    );
+  });
+
   it('upserts providers (new keys, reorder, delete), pushes configs and broadcasts', () => {
     const t = setup();
     t.svc.init();
