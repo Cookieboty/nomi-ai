@@ -77,8 +77,26 @@ goldens() {
 step 'parity goldens up to date' goldens
 rm -rf "$gold"
 
+# --go：和 CI 一样先用 Node 现场录本平台的 golden（desktools 等随平台 / Node 版本变化，提交的是 Linux 录的），
+# 再按本平台构建标签跑 go test（不带 -race）
+gotest() {
+  local live tags=()
+  live=$(mktemp -d)
+  case "$(uname -s)" in
+    Darwin) tags=(-tags private_mac_apis) ;;
+    Linux) tags=(-tags gtk3) ;;
+  esac
+  pnpm -s --filter "@nomi-ai/cli-sdk..." build >/dev/null &&
+    pnpm -s --filter "@nomi-ai/core^..." --filter @nomi-ai/contract --filter @nomi-ai/types \
+      --filter @nomi-ai/i18n build >/dev/null &&
+    NOMI_GOLDEN_DIR=$live apps/desktop-go/ci/record-live-goldens.sh >/dev/null || { rm -rf "$live"; return 1; }
+  vet NOMI_LIVE_GOLDENS="$live" go test ${tags[@]+"${tags[@]}"} -count=1 ./... | grep -vE '^(ok|\?) '
+  local st=${PIPESTATUS[0]}
+  rm -rf "$live"
+  return "$st"
+}
 if [ "${1:-}" = --go ]; then
-  step 'go test' vet go test -count=1 ./...
+  step 'go test (live goldens)' gotest
 fi
 
 cd "$root"
