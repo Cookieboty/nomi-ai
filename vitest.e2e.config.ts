@@ -3,11 +3,14 @@ import { createVitest } from './vitest.base.ts';
 // 无界面 E2E：真实内核跑在 @nomi-ai/host-node 上（不启动 Electron），见 docs/development/testing.md
 export default createVitest({
   environment: 'node',
-  include: ['e2e/tests/**/*.{test,spec}.{ts,mts}'],
+  // 相对 dir（e2e）
+  include: ['tests/**/*.{test,spec}.{ts,mts}'],
   setupFiles: ['e2e/setup/isolateEnv.ts'],
   overrides: {
     test: {
       name: 'e2e-headless',
+      // 一个用例都没找到时失败（配置写错时不悄悄「通过」）
+      passWithNoTests: false,
       dir: 'e2e',
       testTimeout: 30_000,
       hookTimeout: 60_000,

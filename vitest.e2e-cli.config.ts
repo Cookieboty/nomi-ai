@@ -6,10 +6,13 @@ import { createVitest } from './vitest.base.ts';
  */
 export default createVitest({
   environment: 'node',
-  include: ['e2e-cli/tests/**/*.test.ts'],
+  // 相对 dir（e2e-cli）
+  include: ['tests/**/*.test.ts'],
   overrides: {
     test: {
       name: 'e2e-cli',
+      // 一个用例都没找到时失败（配置写错时不悄悄「通过」）
+      passWithNoTests: false,
       dir: 'e2e-cli',
       testTimeout: 180_000,
       hookTimeout: 60_000,
