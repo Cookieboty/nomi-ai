@@ -107,9 +107,12 @@ jobs:
       - name: Typecheck / Lint / Test / Build
         # macOS runner 只有 3 核：turbo 默认并发 10，tsc / eslint / vite build 与 jsdom 测试抢 CPU，
         # 单个本地 <1s 的用例会拖到 15s 超时（scaleInput、modelsPage 轮流挂）。macOS 上限 2 个任务并行。
-        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache --concurrency=${{ runner.os == 'macOS' && '2' || '10' }}
+        # --continue=dependencies-successful：一个包失败不停掉其它包，一轮报出全部失败
+        # （以前第一个失败就停，后面被挡住的测试要推好几轮才一个个暴露）；只取消依赖失败任务的下游
+        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache --continue=dependencies-successful --concurrency=${{ runner.os == 'macOS' && '2' || '10' }}
 
       - name: Root script tests
+        if: ${{ !cancelled() }} # 上一步失败也跑，同样不让失败互相遮挡
         run: pnpm run test:root
 
       # 首屏体积预算：只报告（::warning 注解 + job summary），不让 CI 变红；要强制失败加 --strict

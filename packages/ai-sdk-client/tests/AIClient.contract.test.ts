@@ -50,7 +50,7 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
    * 变更 P5 门面时同步维护本表，做为「主进程 → 渲染进程可暴露」的白名单快照。
    */
   const expectedFacadeMethods: Record<string, string[]> = {
-    chat: ['sendMessage', 'stream', 'abort', 'regenerate', 'agentStream'],
+    chat: ['sendMessage', 'stream', 'abort', 'regenerate', 'agentStream', 'steer'],
     sessions: ['list', 'get', 'create', 'fork', 'rename', 'delete'],
     tools: ['list', 'setEnabled', 'confirm'],
     userProfile: ['get', 'set', 'reset', 'export', 'import'],

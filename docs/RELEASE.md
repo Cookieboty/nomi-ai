@@ -142,8 +142,12 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
 2. **Run `pnpm release:check`** before pushing the release PR (`scripts/release/check.sh`): changeset /
    CHANGELOG, i18n, format, typecheck, lint, contract drift, `go vet` under the macOS / Windows / Linux
    build tags, and the platform-independent parity goldens re-recorded and compared. It runs every
-   step and lists what failed; `--go` also runs `go test`. Full unit tests and E2E stay on CI.
-   推送发版 PR 前先跑 `pnpm release:check`：这些检查以前经常要等 CI 跑完一轮才暴露。
+   step and lists what failed; it also runs every package's unit tests with `--continue` (about
+   2–15 minutes depending on the turbo cache). `--go` also records live goldens and runs `go test`.
+   Headed E2E stays on CI: if you changed a flow it covers, run that spec locally
+   (`pnpm test:e2e:headed e2e-headed/tests/<spec>`).
+   推送发版 PR 前先跑 `pnpm release:check`（含全部单测，一个失败不挡住其它）：这些检查以前经常要等 CI
+   跑完一轮才暴露、而且一轮只暴露一个。改了有界面 E2E 覆盖的流程时，本地单独跑那个 spec。
 3. **Commit** on `main` (or a release PR), wait for CI green on all three platforms.
 4. **Tag and push** (example for 1.0.0 — only when you are ready):
 

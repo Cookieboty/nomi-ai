@@ -47,7 +47,7 @@ Workflow：[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)。
 | 有界面 E2E（`playwright.config.ts`）       | CI 上重试一次，Playwright 报告标 flaky                                                                                                                                           |
 | 上传产物                                   | 失败等 30 秒再传一次（GitHub 侧的 `ENOTFOUND` 等）                                                                                                                               |
 
-重试后才通过的测试仍要修：看 job summary 的 ⚠️ 段落。发版前本地先跑 `pnpm release:check`（见 [RELEASE.md](../RELEASE.md)）。
+重试后才通过的测试仍要修：看 job summary 的 ⚠️ 段落。quality 的 turbo 用 `--continue=dependencies-successful`：一个包失败不停掉其它包，一轮报出全部失败。发版前本地先跑 `pnpm release:check`（见 [RELEASE.md](../RELEASE.md)）。
 
 `ci.yml` 照常跑共享 TS 包的 quality / e2e 与 Electron 打包；它的 Release 任务只接 ≤ v2.0.4 的 tag。发布流程见 [RELEASE.md](../RELEASE.md)。
 
