@@ -1,8 +1,9 @@
 /**
  * 正文里写出的工具调用（docs/design/unified-gateway.md §11.3）。
  * 请求带了工具、上游是 Chat 时，部分模型（Qwen / Hermes 系、DeepSeek、GLM）偶尔不走 tool_calls，
- * 而是把调用用自家模板写进正文。认得三种：
+ * 而是把调用用自家模板写进正文。认得四种：
  * - `<tool_call>{"name": "...", "arguments": {...}}</tool_call>`
+ * - `<tool_calls>[{"name": "...", "arguments": {...}}, …]</tool_calls>`（里面是单个对象也认）
  * - GLM：`<tool_call>name<arg_key>k</arg_key><arg_value>v</arg_value>…</tool_call>`（也认不带外层标签的）
  * - DeepSeek：`<｜DSML｜invoke name="..."><｜DSML｜parameter name="k" string="true">v</｜DSML｜parameter>…`
  *
@@ -12,7 +13,9 @@
 
 const DSML = '<｜DSML｜';
 const DSML_CLOSE = '</｜DSML｜';
-const MARKERS = ['<tool_call>', DSML, '<arg_key>'];
+const TOOL_CALLS = '<tool_calls>';
+const TOOL_CALLS_CLOSE = '</tool_calls>';
+const MARKERS = ['<tool_call>', TOOL_CALLS, DSML, '<arg_key>'];
 
 export interface TextToolCall {
   name: string;
@@ -45,32 +48,40 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/** 一个 JSON 调用对象：`{name, arguments}` 或 `{function: {name, arguments}}` */
+function jsonCall(j: unknown, resolve: Resolve): TextToolCall | null {
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
+  const o = j as Record<string, unknown>;
+  const fn =
+    o.function && typeof o.function === 'object' ? (o.function as Record<string, unknown>) : o;
+  const name = resolve(typeof fn.name === 'string' ? fn.name : '');
+  if (!name) return null;
+  let args: unknown = fn.arguments ?? fn.parameters ?? fn.args ?? {};
+  if (typeof args === 'string') {
+    try {
+      args = JSON.parse(args);
+    } catch {
+      return null;
+    }
+  }
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return null;
+  return { name, args: JSON.stringify(args) };
+}
+
+function parseJson(t: string): { ok: true; v: unknown } | { ok: false } {
+  try {
+    return { ok: true, v: JSON.parse(t) };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** `<tool_call>` 里的内容：JSON 或 GLM 的 arg_key / arg_value */
 function parseToolCallBody(body: string, resolve: Resolve): TextToolCall | null {
   const t = body.trim();
   if (t.startsWith('{')) {
-    let j: unknown;
-    try {
-      j = JSON.parse(t);
-    } catch {
-      return null;
-    }
-    if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
-    const o = j as Record<string, unknown>;
-    const fn =
-      o.function && typeof o.function === 'object' ? (o.function as Record<string, unknown>) : o;
-    const name = resolve(typeof fn.name === 'string' ? fn.name : '');
-    if (!name) return null;
-    let args: unknown = fn.arguments ?? fn.parameters ?? fn.args ?? {};
-    if (typeof args === 'string') {
-      try {
-        args = JSON.parse(args);
-      } catch {
-        return null;
-      }
-    }
-    if (!args || typeof args !== 'object' || Array.isArray(args)) return null;
-    return { name, args: JSON.stringify(args) };
+    const j = parseJson(t);
+    return j.ok ? jsonCall(j.v, resolve) : null;
   }
   const i = t.indexOf('<arg_key>');
   return glmCall(i < 0 ? t : t.slice(0, i), i < 0 ? '' : t.slice(i), resolve);
@@ -92,6 +103,23 @@ function glmCall(rawName: string, pairs: string, resolve: Resolve): TextToolCall
   }
   if (pairs.slice(pos).trim()) return null;
   return { name, args: JSON.stringify(args) };
+}
+
+/** `<tool_calls>` 里的内容：JSON 数组（或单个对象）；有一项解析不了就整块按正文输出 */
+function parseToolCallsBody(body: string, resolve: Resolve): TextToolCall[] | null {
+  const t = body.trim();
+  if (!t.startsWith('[') && !t.startsWith('{')) return null;
+  const j = parseJson(t);
+  if (!j.ok) return null;
+  const items = Array.isArray(j.v) ? j.v : [j.v];
+  if (!items.length) return null;
+  const calls: TextToolCall[] = [];
+  for (const it of items) {
+    const c = jsonCall(it, resolve);
+    if (!c) return null;
+    calls.push(c);
+  }
+  return calls;
 }
 
 /** DeepSeek DSML 的一个 invoke */
@@ -116,10 +144,13 @@ function dsmlCall(name: string, body: string, resolve: Resolve): TextToolCall | 
 interface Block {
   start: number;
   end: number;
-  call: TextToolCall | null;
+  /** 解析出的调用；null 按正文输出；空数组是 DSML 外层标签 */
+  calls: TextToolCall[] | null;
 }
 
-/** 在缓存的正文里找出所有块；解析不了的块 call 为 null（按正文输出） */
+const one = (c: TextToolCall | null): TextToolCall[] | null => (c ? [c] : null);
+
+/** 在缓存的正文里找出所有块；解析不了的块 calls 为 null（按正文输出） */
 function findBlocks(s: string, resolve: Resolve, leadName?: string): Block[] {
   const out: Block[] = [];
   let pos = 0;
@@ -131,27 +162,38 @@ function findBlocks(s: string, resolve: Resolve, leadName?: string): Block[] {
       const close = s.indexOf('</tool_call>', at);
       const bodyEnd = close < 0 ? s.length : close;
       const end = close < 0 ? s.length : close + '</tool_call>'.length;
-      out.push({ start: at, end, call: parseToolCallBody(s.slice(at + 11, bodyEnd), resolve) });
+      out.push({
+        start: at,
+        end,
+        calls: one(parseToolCallBody(s.slice(at + 11, bodyEnd), resolve)),
+      });
+      pos = end;
+    } else if (s.startsWith(TOOL_CALLS, at)) {
+      const close = s.indexOf(TOOL_CALLS_CLOSE, at);
+      const bodyEnd = close < 0 ? s.length : close;
+      const end = close < 0 ? s.length : close + TOOL_CALLS_CLOSE.length;
+      const body = s.slice(at + TOOL_CALLS.length, bodyEnd);
+      out.push({ start: at, end, calls: parseToolCallsBody(body, resolve) });
       pos = end;
     } else if (s.startsWith(`${DSML}invoke`, at)) {
       const m = /^<｜DSML｜invoke\s+name="([^"]*)"\s*>/.exec(s.slice(at));
       const close = s.indexOf('</｜DSML｜invoke>', at);
       if (!m || close < 0) {
-        out.push({ start: at, end: s.length, call: null });
+        out.push({ start: at, end: s.length, calls: null });
         break;
       }
       const end = close + '</｜DSML｜invoke>'.length;
       out.push({
         start: at,
         end,
-        call: dsmlCall(m[1]!, s.slice(at + m[0].length, close), resolve),
+        calls: one(dsmlCall(m[1]!, s.slice(at + m[0].length, close), resolve)),
       });
       pos = end;
     } else if (s.startsWith(DSML, at) || s.startsWith(DSML_CLOSE, at)) {
       // 外层 <｜DSML｜function_calls> / </｜DSML｜function_calls>：所有 invoke 都成功时一并去掉
       const m = /^<\/?｜DSML｜function_calls>/.exec(s.slice(at));
       const end = m ? at + m[0].length : at + (s.startsWith(DSML, at) ? DSML : DSML_CLOSE).length;
-      out.push({ start: at, end, call: m ? { name: '', args: '' } : null });
+      out.push({ start: at, end, calls: m ? [] : null });
       pos = end;
     } else {
       // 不带 <tool_call> 的 GLM：名字是标记前的最后一个词（只认缓存里有的部分）
@@ -161,7 +203,7 @@ function findBlocks(s: string, resolve: Resolve, leadName?: string): Block[] {
       const start = before ? pos + before.index : at;
       // 名字已经在缓存之前输出了：用记下来的名字
       const name = before?.[1] ?? (at === 0 ? leadName : undefined);
-      out.push({ start, end, call: name ? glmCall(name, s.slice(at, end), resolve) : null });
+      out.push({ start, end, calls: name ? one(glmCall(name, s.slice(at, end), resolve)) : null });
       pos = end;
     }
   }
@@ -244,14 +286,14 @@ export class TextToolExtractor {
     if (!wasBuffering) return { text: s, calls: [] };
     const blocks = findBlocks(s, this.resolve, this.leadName);
     this.leadName = undefined;
-    const invokesOk = blocks.every((b) => b.call !== null);
+    const invokesOk = blocks.every((b) => b.calls !== null);
     const calls: TextToolCall[] = [];
     let text = '';
     let pos = 0;
     for (const b of blocks) {
       text += s.slice(pos, b.start);
-      const wrapper = b.call !== null && b.call.name === '';
-      if (b.call && !wrapper) calls.push(b.call);
+      const wrapper = b.calls !== null && b.calls.length === 0;
+      if (b.calls && !wrapper) calls.push(...b.calls);
       else if (!(wrapper && invokesOk)) text += s.slice(b.start, b.end);
       pos = b.end;
     }

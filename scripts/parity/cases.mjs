@@ -712,6 +712,12 @@ export const fixTexts = [
       { name: 'mapped_weather', args: '{"city":"Oslo"}', lateName: true },
     ],
   },
+  // <tool_calls> JSON array (appended last so earlier case indices stay put)
+  {
+    text: 'Two calls.<tool_calls>[{"name":"get_weather","arguments":{"city":"Paris"}},{"type":"function","function":{"name":"read_file","arguments":"{\\"path\\":\\"a.ts\\"}"}}]</tool_calls> then text',
+  },
+  { text: '<tool_calls>[{"name":"get_weather","arguments":{}},{"name":"nope","arguments":{}}]</tool_calls>' },
+  { text: 'cut <tool_calls>[{"name":"get_weather"' },
 ];
 /** JSON texts whose key order exercises JS integer-key ordering */
 export const objKeyTexts = [
