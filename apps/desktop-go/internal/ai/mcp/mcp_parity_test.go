@@ -341,6 +341,10 @@ func TestMCPParityGolden(t *testing.T) {
 				dropAbortedInboundGet(w)
 				dropAbortedInboundGet(got)
 			}
+			if sc.Name == "stdio-slowinit" {
+				w, _ = u.ParseString(u.Stringify(w))
+				trimToCommonWire(w, got)
+			}
 			if d := diffScenario(w, got); d != "" {
 				t.Fatalf("[%s] mismatch %s\nwant: %s\ngot:  %s", src, d, u.Stringify(w), u.Stringify(got))
 			}
@@ -364,6 +368,18 @@ func TestMCPParityGolden(t *testing.T) {
 		})
 	}
 	t.Logf("mcp parity (%s): %d scenarios equal, %d mutations detected", src, n, mutated)
+}
+
+// trimToCommonWire：stdio-slowinit 在 init 超时（400ms）时杀掉子进程，子进程来不来得及记下启动信息和收到的请求
+// 取决于机器起进程的速度（Windows CI 上 Node 录制常是空的，Go 这边已有 2 条）。两边只保留共同长度的前缀，
+// 前缀内仍逐条比对；结果与错误照常全等。
+func trimToCommonWire(a, b any) {
+	oa, ob := u.AsObj(a), u.AsObj(b)
+	wa, _ := oa.Get("wire").([]any)
+	wb, _ := ob.Get("wire").([]any)
+	n := min(len(wa), len(wb))
+	oa.Set("wire", wa[:n])
+	ob.Set("wire", wb[:n])
 }
 
 // dropAbortedInboundGet：http-slowinit 中 init 超时 → setProtocolVersion(legacy) 发起入站 GET，
