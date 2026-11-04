@@ -1,4 +1,5 @@
 import { api } from './api';
+import { getSmartTitle } from './chatPrefs';
 import { harnessClient } from './harnessClient';
 import type { HarnessTabMeta } from './harnessClient';
 import { splitRef } from './nomiModel';
@@ -22,13 +23,17 @@ export function cliTitleComplete(ref: string): TitleComplete {
 /**
  * Official CLI tabs (no free-form gateway model) keep the heuristic title only.
  * Third-party tabs with a `provider/model` ref run generateSmartTitle then applyAutoTitle.
+ * 隐私设置里关掉「用模型生成对话标题」时一律不发请求（与 Nomi 对话同一个开关，#247）。
  */
 export async function maybeSmartTitleCliTab(opts: {
   tab: Pick<HarnessTabMeta, 'id' | 'source' | 'modelOverride' | 'lastServedRef' | 'backend'>;
   userText: string;
   complete: TitleComplete;
   applyAutoTitle: (id: string, title: string) => Promise<unknown>;
+  /** 隐私开关，默认读 chatPrefs；测试注入 */
+  enabled?: () => boolean;
 }): Promise<void> {
+  if (!(opts.enabled ?? getSmartTitle)()) return;
   const ref =
     opts.tab.source === 'thirdParty'
       ? opts.tab.modelOverride || opts.tab.lastServedRef || null
@@ -44,6 +49,7 @@ export function smartTitleOnFirstSend(
   tab: Pick<HarnessTabMeta, 'id' | 'source' | 'modelOverride' | 'lastServedRef' | 'backend'>,
   userText: string,
 ): Promise<void> {
+  if (!getSmartTitle()) return Promise.resolve();
   const ref = tab.source === 'thirdParty' ? tab.modelOverride || tab.lastServedRef || null : null;
   return maybeSmartTitleCliTab({
     tab,
