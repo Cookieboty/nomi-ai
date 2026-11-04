@@ -657,6 +657,8 @@ export function buildTimeline(
     };
     list.forEach((e, idx) => {
       if (e.type === 'thinking') {
+        // 只有空白的思考（中转站常发 "\n" / " " 这样的 reasoning 分片）不画成空的「已思考」块
+        if (!e.text.trim()) return;
         flush();
         const next = list[idx + 1];
         const nextAt = next ? (next.type === 'tool' ? next.call.startedAt : next.at) : undefined;

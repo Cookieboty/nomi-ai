@@ -423,6 +423,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 上下文窗口按对照表 / 默认值估算时不再出现「用量超过窗口」，会放宽到下一档并说明是估算；撤销本轮改动改为卡片内确认与提示，不再弹系统对话框；发送图片时，格式不对 / 太大 / 缺缩略图的图片不再被悄悄丢掉，会明确提示后再发；还原文件的 git checkout 改为异步，不再阻塞主进程。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/host-electron` patch)
 - 上游出站统一钉 IP 的 undici Agent（防 DNS 重绑定 TOCTOU），有 HTTP(S)_PROXY 时走 EnvHttpProxyAgent；入站请求体默认 32 MiB 上限（可在模型页高级设置调整，超限 413）；网关子进程滑动窗口崩溃熔断（60 秒内 5 次失败停止自动重启，「重试」清零）。 (`@nomi-ai/gateway` minor, `@nomi-ai/ui` patch)
 - 上游出站统一钉 IP 的 undici Agent（防 DNS 重绑定 TOCTOU），有 HTTP(S)_PROXY 时走 EnvHttpProxyAgent；入站请求体默认 32 MiB 上限（可在模型页高级设置调整，超限 413）；网关子进程滑动窗口崩溃熔断（60 秒内 5 次失败停止自动重启，「重试」清零）。 (`@nomi-ai/host-electron` minor, `@nomi-ai/ai-chat` patch)
+- 上游只发来空白的思考内容（换行、空格）时，对话里不再出现一个空的「已思考」块。 (`@nomi-ai/ai-chat` patch)
 - 中栏 / 全屏审查 / 文件预览的 Diff 在宽度够（≥ 900px）时左右并排，头部可切回单列并全局记住； (`@nomi-ai/ai-chat` patch)
 - 中栏 / 全屏审查 / 文件预览的 Diff 在宽度够（≥ 900px）时左右并排，头部可切回单列并全局记住； (`@nomi-ai/ui` patch)
 - 为 Codex、Claude Code 等编程助手提示增加语音播报开关。开启后，任务完成、失败、卡住、等待确认和定时汇总会在提示音之外朗读通知文字；关闭时保留气泡与提示音。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/host-electron` minor, `@nomi-ai/renderer` minor)

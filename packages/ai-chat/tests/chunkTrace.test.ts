@@ -96,4 +96,18 @@ describe('chunkToTrace (Nomi tool calls use the same trace model)', () => {
       chunkToUsage({ type: 'usage', usage: { promptTokens: 1, redacted: 0 } }),
     ).not.toHaveProperty('redacted');
   });
+
+  it('只有空白的思考（中转站发的 "\\n" 之类）不出空的「已思考」块', () => {
+    const events = [
+      chunkToTrace({ type: 'reasoning', content: '\n' }, 1)!,
+      chunkToTrace({ type: 'reasoning', content: '  ' }, 2)!,
+    ];
+    expect(buildTimeline(reduceTrace(events))).toEqual([]);
+    // 有内容的思考照常显示（中间的换行分片并在一起）
+    const real = [
+      chunkToTrace({ type: 'reasoning', content: '先想' }, 1)!,
+      chunkToTrace({ type: 'reasoning', content: '\n' }, 2)!,
+    ];
+    expect(buildTimeline(reduceTrace(real)).map((i) => i.type)).toEqual(['thinking']);
+  });
 });
