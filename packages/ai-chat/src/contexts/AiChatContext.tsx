@@ -783,13 +783,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               ? await harnessClient.sendTab(
                   MAIN_TAB_ID,
                   content,
-                  images.map((i) => ({
+                  images.map((i, k) => ({
                     mime: i.mime,
                     data: i.data,
                     width: i.width,
                     height: i.height,
                     thumb: i.thumb,
                     source: i.source,
+                    ...(imageUrls[k] ? { url: imageUrls[k] } : {}),
                   })),
                 )
               : await harnessClient.send(content);

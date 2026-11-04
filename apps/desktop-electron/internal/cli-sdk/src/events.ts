@@ -121,7 +121,8 @@ export interface HarnessTabMessage {
   role: 'user' | 'assistant';
   content: string;
   /** 用户附图缩略图（不存全尺寸 base64） */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
+  /** 用户附图：缩略图 + 可选素材库原图地址（预览用，不落全尺寸 base64） */
+  images?: Array<{ thumb: string; width: number; height: number; source?: string; url?: string }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];

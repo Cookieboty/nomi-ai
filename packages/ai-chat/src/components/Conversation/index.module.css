@@ -665,9 +665,12 @@
 .imageRow {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  align-self: flex-end;
+  width: max-content;
+  max-width: min(320px, 100%);
+  justify-content: end;
   gap: 6px;
   margin: 4px 0 8px;
-  max-width: 320px;
 }
 .imageThumb {
   width: 100%;

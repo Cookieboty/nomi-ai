@@ -3589,6 +3589,7 @@ type HarnessTabSendInputImagesItem struct {
 	Height *float64 `json:"height,omitempty"`
 	Thumb  *string  `json:"thumb,omitempty"`
 	Source *string  `json:"source,omitempty"`
+	Url    *string  `json:"url,omitempty"`
 }
 
 type HarnessTabSendInput struct {

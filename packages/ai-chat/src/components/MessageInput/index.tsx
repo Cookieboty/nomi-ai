@@ -32,6 +32,7 @@ import {
   joinFileAttachments,
   type FileAttachment,
 } from '../../services/fileAttachments';
+import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
@@ -49,6 +50,14 @@ import {
   useShortcutBindings,
 } from '../../services/shortcuts';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
+import {
+  atPathToken,
+  filterAtPathOptions,
+  flattenWorkspacePaths,
+  formatAtPathInsert,
+  replaceAtPathToken,
+  type AtPathOption,
+} from '../../slash/atPathComplete';
 import { filterModelOptions, modelArgQuery } from '../../slash/modelComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
@@ -58,6 +67,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
+import { AtPathPalette } from '../AtPathPalette';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
 import { FileChip } from '../FileAttachment';
@@ -113,6 +123,8 @@ interface MessageInputProps {
   contextModel?: string | null;
   /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
   fill?: { text: string; nonce: number } | null;
+  /** 会话工作区 cwd（files rail）；有值时输入 @ 可路径补全 */
+  cwd?: string | null;
   /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */
   draftStore?: ReturnType<typeof createComposerDraftStore>;
   /** 当前激活草稿桶；勿用 React key 整棵重挂本组件 */
@@ -138,6 +150,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   contextMessages,
   contextModel,
   fill,
+  cwd,
   draftStore,
   draftKey,
 }) => {
@@ -170,6 +183,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [agentClosed, setAgentClosed] = useState<string | null>(null);
   /** `/agent ` 补全用的已安装编程助手（委派设置里的检测结果）；null = 还没读到 */
   const [agentInstalled, setAgentInstalled] = useState<DelegateCli[] | null>(null);
+  /** @ 路径补全：光标、高亮项、Esc 关闭快照、已缓存的工作区树 */
+  const [caret, setCaret] = useState(0);
+  const [atIdx, setAtIdx] = useState(0);
+  const [atClosed, setAtClosed] = useState<string | null>(null);
+  const [atNodes, setAtNodes] = useState<WorkspaceTreeNode[]>([]);
+  const [atLoadedCwd, setAtLoadedCwd] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
   useLayoutEffect(() => {
@@ -534,6 +553,33 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         return;
       }
     }
+
+    // `@` 路径补全：↑↓ 选择，Enter / Tab 插入 @path，Esc 关闭（不创建附件芯片）
+    if (atOpen) {
+      const n = atOptions.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
+        e.preventDefault();
+        const d = e.key === 'ArrowDown' ? 1 : -1;
+        setAtIdx((i) => (i + d + n) % n);
+        return;
+      }
+      const o = n ? atOptions[Math.min(atIdx, n - 1)] : undefined;
+      if (o && ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Tab' && !e.shiftKey))) {
+        e.preventDefault();
+        pickAtPath(o);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setAtClosed(message);
+        return;
+      }
+      // 面板开着时 Enter 不发送、Tab 不挪焦点（含无匹配）
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
+        e.preventDefault();
+        return;
+      }
+    }
     // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式按钮时保持默认行为
     if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
       const detail: CyclePermissionDetail = { handled: false };
@@ -574,10 +620,17 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setIsComposing(false);
   };
 
+  const syncCaret = () => {
+    const el = textareaRef.current;
+    if (el != null) setCaret(el.selectionStart);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
+    setCaret(e.target.selectionStart ?? e.target.value.length);
     setSlashIdx(0);
     setAgentIdx(0);
+    setAtIdx(0);
     // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
     if (e.target.value === '/') slash?.refresh();
   };
@@ -786,6 +839,51 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setModelIdx(0);
     };
   }, [modelPhase, loadModelOptions]);
+  const atToken = atPathToken(message, caret);
+  const atAll = cwd && atLoadedCwd === cwd ? flattenWorkspacePaths(atNodes) : [];
+  const atOptions = atToken ? filterAtPathOptions(atAll, atToken.query) : [];
+  const atOpen =
+    !!cwd && atToken !== null && !slashOpen && !agentOpen && !modelOpen && atClosed !== message;
+
+  function pickAtPath(o: AtPathOption) {
+    const token = atPathToken(message, caret);
+    if (!token) return;
+    const insert = formatAtPathInsert(o);
+    const next = replaceAtPathToken(message, token, insert);
+    setMessage(next.text);
+    setCaret(next.caret);
+    setAtIdx(0);
+    // Dismiss so caret at end of @path does not keep atOpen (mirrors Esc/atClosed)
+    setAtClosed(next.text);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
+  useEffect(() => {
+    if (!atOpen || !cwd) return;
+    if (atLoadedCwd === cwd) return;
+    let live = true;
+    void harnessClient
+      .workspaceList(cwd)
+      .then((r) => {
+        if (!live) return;
+        setAtNodes(r.ok && r.entries ? r.entries : []);
+        setAtLoadedCwd(cwd);
+      })
+      .catch(() => {
+        if (!live) return;
+        setAtNodes([]);
+        setAtLoadedCwd(cwd);
+      });
+    return () => {
+      live = false;
+    };
+  }, [atOpen, cwd, atLoadedCwd]);
+
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
@@ -892,6 +990,15 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             onHover={setModelIdx}
           />
         )}
+        {atOpen && (
+          <AtPathPalette
+            options={atOptions}
+            active={Math.min(atIdx, Math.max(0, atOptions.length - 1))}
+            query={atToken?.query ?? ''}
+            onPick={pickAtPath}
+            onHover={setAtIdx}
+          />
+        )}
         {argHint?.args && (
           <div className={styles.slashHint} data-testid="slash-arg-hint">
             <code>
@@ -957,6 +1064,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           value={message}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onSelect={syncCaret}
+          onKeyUp={syncCaret}
+          onClick={syncCaret}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           onPaste={(e) => {

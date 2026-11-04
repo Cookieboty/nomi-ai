@@ -6,6 +6,7 @@
 import { createLogger } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
+import type { HarnessImageInput } from './harnessClient';
 import type { ImageAttachment } from './screenClient';
 
 const log = createLogger('chat-images');
@@ -31,4 +32,21 @@ export async function importChatImages(
       }
     }),
   );
+}
+
+/** 编程助手 sendTab 附图：带上素材库原图地址，气泡预览不再只用 240px 缩略图 */
+export async function toHarnessImages(
+  images: readonly ImageAttachment[],
+  conversationId?: string,
+): Promise<HarnessImageInput[]> {
+  const urls = await importChatImages(images, conversationId);
+  return images.map((i, k) => ({
+    mime: i.mime,
+    data: i.data,
+    width: i.width,
+    height: i.height,
+    thumb: i.thumb,
+    source: i.source,
+    ...(urls[k] ? { url: urls[k] } : {}),
+  }));
 }
