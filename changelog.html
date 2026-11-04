@@ -11,7 +11,7 @@
   <title>更新日志 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261028b205p" />
+  <link rel="stylesheet" href="css/styles.css?v=20261104r" />
 </head>
 <body data-page="changelog" id="top">
   <header class="site-header">
@@ -54,8 +54,59 @@
       </div>
     </section>
 
-    <section class="section section-tight">
-      <div class="container changelog">
+    <section class="section section-tight cl-v4">
+      <div class="container cl-layout">
+        <aside class="cl-aside">
+          <p class="cl-aside-title" data-i18n="cl.nav">版本</p>
+          <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
+        </aside>
+        <div class="changelog">
+        <article class="release" id="v212">
+          <header class="release-head">
+            <h2 data-i18n="cl.v212.title">v2.1.2 — 运行中继续发消息、执行轨迹、供应商编辑重做</h2>
+            <time datetime="2026-11-04">2026-11-04</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v212.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v212.feat.1">第三方模型可以指定「按哪个已知模型处理」：中转改了名的模型（如 Aerith-opus 其实是 claude-opus），选上对应的已知模型后，上下文、输出上限、能力、长上下文和价格都按它算；自己填的数值仍然优先</li>
+            <li data-i18n="cl.v212.feat.2">任何模型都可以填「标准窗口」：填了就能在输入栏按标签开启长上下文，平时按标准窗口压缩</li>
+            <li data-i18n="cl.v212.feat.3">Claude 系列模型声明了超过 200K 的上下文时，会给第三方中转带上长上下文所需的请求头；中转不认就自动去掉重试，之后不再带</li>
+            <li data-i18n="cl.v212.feat.4">运行中可以继续发消息，不会打断这一轮：Enter 把消息插入这一轮（下一个工具步骤交给编程助手 / Nomi），Ctrl/⌘+Enter 排到这一轮结束再发；消息先显示在输入框上方的待发列表里，交出去之前可以撤回修改或删除；按 Esc 停止这一轮并把待发消息合成一条马上发出。Claude Code、Codex、Grok 与 Nomi 对话支持插入，Gemini、dsh 暂时只能排队</li>
+            <li data-i18n="cl.v212.feat.5">输入框里输入 @ 可以插入工作区里的文件或目录路径（目录以 / 结尾）</li>
+            <li data-i18n="cl.v212.feat.6">工作台新增「执行轨迹」：在助手消息的操作栏打开，查看这一轮的时间线与耗时、工具调用的参数与输出、经过网关的模型请求（含请求与响应正文）和编程助手子进程的原始收发，方便排查工具调用和任务执行问题；编程助手标签与 Nomi 对话都支持</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v212.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v212.imp.1">供应商编辑重新设计：上面左边是名称和 Base URL，右边是 Key；下面左边是模型列表，点一个模型在右边看和改它的全部设置；不常用的收进「更多设置」</li>
+            <li data-i18n="cl.v212.imp.2">地址只填 Base URL：回车或离开输入框后自动检测，各协议的地址按检测结果填好；填的 Base URL 原样保存</li>
+            <li data-i18n="cl.v212.imp.3">每个 Key 的协议与限流在它自己的「设置」里；更换 Key 时按回车直接保存，弹窗不关</li>
+            <li data-i18n="cl.v212.imp.4">用量明细和模型质量的请求明细里，输入、输出、缓存读、缓存写分开显示</li>
+            <li data-i18n="cl.v212.imp.5">带搜索的下拉框（如模型选择）留出更多间距，Windows 上不再显得拥挤</li>
+            <li data-i18n="cl.v212.imp.6">编程助手标签的模型选择、供应商编辑里的「按哪个已知模型处理」都和 Nomi 对话用同一个模型下拉：搜索框、供应商标签、厂商筛选、每一行的样式和能力提示都一样</li>
+            <li data-i18n="cl.v212.imp.7">点开自己发送的图片看到的是原图，不再是放大的缩略图；自己发的图片和文件附件靠右对齐</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v212.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v212.fix.1">会话里换了供应商后，请求会发给新选的供应商，不会再被之前服务过这个会话的旧供应商抢走</li>
+            <li data-i18n="cl.v212.fix.2">经第三方供应商（Chat 协议）使用编程助手时，模型把工具调用写成 <code>&lt;tool_calls&gt;[…]&lt;/tool_calls&gt;</code> 文本的，现在会按工具调用执行，不再原样显示在对话里</li>
+            <li data-i18n="cl.v212.fix.3">dsh 启动后立即退出（<code>patches … must be a top-level YAML array</code>）的问题已修复：旧版本移除 Nomi 配置后留下的空 <code>~/.dsh/cordis.patch.yml</code> 会在启动前补好，原有注释保留</li>
+            <li data-i18n="cl.v212.fix.4">检测供应商时，某个协议用第一个模型测不通会换别的模型再测，中转改了模型名时 Responses 等协议不再被误判为不可用；手动改了协议地址后保存会先检测，列表显示正确的协议</li>
+            <li data-i18n="cl.v212.fix.5">Windows 上保存供应商不再卡住界面（文件被杀毒软件短暂占用时）</li>
+            <li data-i18n="cl.v212.fix.6">委派给编程助手的任务报错失败后，自动删除它的工作副本，不再越积越多</li>
+            <li data-i18n="cl.v212.fix.7">委派任务的改动文件按所在目录区分，同名文件预览和保存不会落到另一个目录</li>
+            <li data-i18n="cl.v212.fix.8">Linux 上启动时偶尔直接崩溃（应用还没完全起来就去读鼠标位置）的问题已修复</li>
+            <li data-i18n="cl.v212.fix.9">上游只发来空白的思考内容时，不再显示一个空的「已思考」块</li>
+            <li data-i18n="cl.v212.fix.10">关闭「用模型生成对话标题」后，第三方编程助手的新会话也不再额外请求模型起标题</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v212.sec">安全</h3>
+          <ul>
+            <li data-i18n="cl.v212.sec.1">导入的供应商链接带了别的域名时会新建供应商，已有的 Key 不会被发到新域名</li>
+            <li data-i18n="cl.v212.sec.2">用内网域名配置的本地供应商失败时只回退到其他本地供应商，不会发到云端</li>
+            <li data-i18n="cl.v212.sec.3">事件触发的任务在重试、续跑或退回后，仍按读过外部内容来审批写入和命令</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.1.2" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v211">
           <header class="release-head">
             <h2 data-i18n="cl.v211.title">v2.1.1 — 自动故障转移、从网页添加第三方供应商、浅色与深色主题</h2>
@@ -509,6 +560,7 @@
           </ul>
           <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v1.0.0" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
         </article>
+        </div>
       </div>
     </section>
   </main>
@@ -550,7 +602,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261028b205p"></script>
-  <script src="js/main.js?v=20261028b205p"></script>
+  <script src="js/i18n.js?v=20261104r"></script>
+  <script src="js/main.js?v=20261104r"></script>
 </body>
 </html>
