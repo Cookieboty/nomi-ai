@@ -173,14 +173,16 @@ test.describe('E25 · unified conversation view', () => {
     await expect(status).toContainText('等待模型响应');
     await shot(chat, '20-waiting-first-token');
 
-    // 运行中继续输入：进队列（发送键变为「排队」，输入框不禁用）
+    // 运行中继续输入：Ctrl/⌘+Enter 排到这一轮结束再发（Enter 是插入这一轮），先进输入框上方的待发列表
     const input = chat.locator('[data-testid="chat-input"]');
     await expect(input).toBeEnabled();
     await input.fill('第二条：顺便跑一下测试');
     await expect(chat.locator('[data-testid="queue-button"]')).toBeVisible();
-    await input.press('Enter');
-    await expect(chat.locator('[data-testid="conv-queued"]')).toHaveCount(1);
-    await expect(chat.locator('[data-testid="conv-queued"]')).toContainText('顺便跑一下测试');
+    await input.press('ControlOrMeta+Enter');
+    const pending = chat.locator('[data-testid="pending-item"]');
+    await expect(pending).toHaveCount(1);
+    await expect(pending).toHaveAttribute('data-mode', 'queue');
+    await expect(pending).toContainText('顺便跑一下测试');
     await shot(chat, '21-queued-message');
 
     // 重试 / 压缩等待态（mock 在首字之后依次发出）：按出现顺序断言
@@ -205,7 +207,7 @@ test.describe('E25 · unified conversation view', () => {
 
     // 第一轮结束；排队的第二条自动发出
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(2, { timeout: 120_000 });
-    await expect(chat.locator('[data-testid="conv-queued"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="pending-item"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="msg-assistant"]')).toHaveCount(1);
     // 思考折叠成「已思考 N 秒」
     const done = chat
@@ -390,8 +392,8 @@ test.describe('E25 · unified conversation view', () => {
       // 流式中：状态行 + 可排队 + 可停止
       await expect(chat.locator('[data-testid="conv-status"]')).toBeVisible({ timeout: 30_000 });
       await input.fill('第二个问题');
-      await input.press('Enter');
-      await expect(chat.locator('[data-testid="conv-queued"]')).toHaveCount(1);
+      await input.press('ControlOrMeta+Enter');
+      await expect(chat.locator('[data-testid="pending-item"]')).toHaveCount(1);
       await expect(chat.locator('[data-testid="markdown"] h3').first()).toContainText('回答', {
         timeout: 30_000,
       });
