@@ -51,6 +51,19 @@ func TestFailoverTargets(t *testing.T) {
 	if got := ids(FailoverTargets(local, &local.Providers[1], "qwen3")); !reflect.DeepEqual(got, []string{"local/qwen3", "lan/qwen3"}) {
 		t.Fatalf("cloud failover %v", got)
 	}
+
+	// #248：普通域名解析到局域网、用户确认过的 host:port 也算本机 / 局域网
+	dns := &config.GatewayConfig{AllowedPrivateHosts: []string{"llm.company.example:443"}, Providers: []config.RuntimeProvider{
+		fp("intranet", "https://llm.company.example/v1", true, on("qwen3")),
+		fp("cloud", "https://cloud.example/v1", true, on("qwen3")),
+		fp("lan", "http://192.168.1.5:1234/v1", true, on("qwen3")),
+	}}
+	if got := ids(FailoverTargets(dns, &dns.Providers[0], "qwen3")); !reflect.DeepEqual(got, []string{"lan/qwen3"}) {
+		t.Fatalf("intranet DNS failed over to %v", got)
+	}
+	if got := ids(FailoverTargets(dns, &dns.Providers[2], "qwen3")); !reflect.DeepEqual(got, []string{"intranet/qwen3"}) {
+		t.Fatalf("lan failover %v", got)
+	}
 }
 
 // 停用的供应商自己不出候选：显式请求与客户端分配都直接回退到同一个模型的下一家

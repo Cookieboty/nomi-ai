@@ -182,6 +182,37 @@ describe('resolve (§6.2 / §7.2)', () => {
       'lan',
     ]);
   });
+  it('an intranet DNS name the user confirmed counts as local for failover (#248)', () => {
+    const intranet = p({
+      id: 'intranet',
+      urls: { chat: 'https://llm.company.example/v1' },
+      models: [{ id: 'qwen3', enabled: true }],
+    });
+    const lan = p({
+      id: 'lan',
+      urls: { chat: 'http://192.168.1.5:1234/v1' },
+      models: [{ id: 'qwen3', enabled: true }],
+    });
+    const cloud = p({ id: 'cloud', models: [{ id: 'qwen3', enabled: true }] });
+    const conf = {
+      ...cfg([intranet, cloud, lan]),
+      allowedPrivateHosts: ['llm.company.example:443'],
+    };
+    const r = resolveCandidates(conf, 'claude', 'intranet/qwen3', 'chat');
+    expect(r.ok && r.candidates.map((x) => x.provider.id)).toEqual(['intranet', 'lan']);
+    // 没确认过：仍按云端处理（与之前一致）
+    const unconfirmed = resolveCandidates(
+      cfg([intranet, cloud, lan]),
+      'claude',
+      'intranet/qwen3',
+      'chat',
+    );
+    expect(unconfirmed.ok && unconfirmed.candidates.map((x) => x.provider.id)).toEqual([
+      'intranet',
+      'cloud',
+      'lan',
+    ]);
+  });
   it('preferredWire lists every upstream that may receive the request, failover included', () => {
     const a = p({
       id: 'a',

@@ -367,8 +367,9 @@ func SameModelKey(id string) string {
 	return modelSuffixRe.ReplaceAllString(modelTagRe.ReplaceAllString(models.BareModelID(id), ""), "")
 }
 
-// isLocalProvider：供应商的地址全在本机 / 局域网；没有地址时不算
-func isLocalProvider(p *config.RuntimeProvider) bool {
+// isLocalProvider：供应商的地址全在本机 / 局域网；没有地址时不算。普通域名解析到局域网时只有用户
+// 确认过的 host:port 才连得上（§15），这些也算本机 / 局域网（#248）
+func isLocalProvider(p *config.RuntimeProvider, allowed map[string]bool) bool {
 	n := 0
 	for _, w := range p.URLWires() {
 		raw := p.URL(w)
@@ -384,7 +385,7 @@ func isLocalProvider(p *config.RuntimeProvider) bool {
 		if strings.HasPrefix(pu.Host, "[") {
 			h = "[" + h + "]"
 		}
-		if !gnet.IsLoopbackHost(h) && !gnet.IsPrivateHost(h) {
+		if !gnet.IsLoopbackHost(h) && !gnet.IsPrivateHost(h) && !allowed[gnet.HostPort(pu)] {
 			return false
 		}
 	}
@@ -401,14 +402,18 @@ type FailoverTarget struct {
 // （且在那边是启用的）；不换成别的模型。首选是本机 / 局域网的，只回退到本机 / 局域网（§7.2）
 func FailoverTargets(cfg *config.GatewayConfig, provider *config.RuntimeProvider, model string) []FailoverTarget {
 	key := SameModelKey(model)
-	localOnly := isLocalProvider(provider)
+	allowed := map[string]bool{}
+	for _, x := range cfg.AllowedPrivateHosts {
+		allowed[strings.ToLower(x)] = true
+	}
+	localOnly := isLocalProvider(provider, allowed)
 	out := []FailoverTarget{}
 	for i := range cfg.Providers {
 		p := &cfg.Providers[i]
 		if p.ID == provider.ID || !p.Enabled {
 			continue
 		}
-		if localOnly && !isLocalProvider(p) {
+		if localOnly && !isLocalProvider(p, allowed) {
 			continue
 		}
 		for _, m := range p.Models {

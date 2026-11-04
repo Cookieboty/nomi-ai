@@ -22,6 +22,7 @@ import { effectiveModel } from '../models/effective';
 import type { EffectiveModel } from '../models/types';
 import { isPrivateHost } from '../net/address';
 import { isLoopbackHost } from '../net/loopback';
+import { hostPort } from '../net/upstreamGuard';
 import { quirksOf } from '../providers/index';
 
 import { pickWire, wiresFor } from './native';
@@ -154,15 +155,20 @@ export function sameModelKey(id: string): string {
     .replace(/-\d{8}$|-latest$/, '');
 }
 
-/** 供应商的地址全在本机 / 局域网（Ollama、LM Studio…）；没有地址时不算 */
-function isLocalProvider(p: RuntimeProvider): boolean {
+/**
+ * 供应商的地址全在本机 / 局域网（Ollama、LM Studio…）；没有地址时不算。
+ * 普通域名解析到局域网（llm.company.example → 192.168.x.x）时只有用户确认过的 host:port
+ * 才连得上（§15），这些也算本机 / 局域网（#248）。
+ */
+function isLocalProvider(p: RuntimeProvider, allowedPrivate: ReadonlySet<string>): boolean {
   const urls = Object.values(p.urls).filter((u): u is string => !!u);
   return (
     urls.length > 0 &&
     urls.every((u) => {
       try {
-        const host = new URL(u).hostname;
-        return isLoopbackHost(host) || isPrivateHost(host);
+        const url = new URL(u);
+        const host = url.hostname;
+        return isLoopbackHost(host) || isPrivateHost(host) || allowedPrivate.has(hostPort(url));
       } catch {
         return false;
       }
@@ -181,11 +187,12 @@ export function failoverTargets(
   model: string,
 ): Array<{ provider: RuntimeProvider; model: string }> {
   const key = sameModelKey(model);
-  const localOnly = isLocalProvider(provider);
+  const allowed = new Set((cfg.allowedPrivateHosts ?? []).map((x) => x.toLowerCase()));
+  const localOnly = isLocalProvider(provider, allowed);
   const out: Array<{ provider: RuntimeProvider; model: string }> = [];
   for (const p of cfg.providers) {
     if (p.id === provider.id || !p.enabled) continue;
-    if (localOnly && !isLocalProvider(p)) continue;
+    if (localOnly && !isLocalProvider(p, allowed)) continue;
     const m = p.models.find((x) => x.enabled && sameModelKey(x.id) === key);
     if (m) out.push({ provider: p, model: m.id });
   }
