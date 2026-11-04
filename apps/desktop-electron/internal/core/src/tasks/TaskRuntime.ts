@@ -79,6 +79,11 @@ export interface TaskExecutor {
     gen: number,
     reason: 'cancel' | 'revoked' | 'expired' | 'budget' | 'timeout' | 'pause',
   ): void;
+  /**
+   * 任务失败放弃了（不再重试 / 续跑）：这次执行的载体不会再被复用，释放它（如 worktree）。
+   * 之后的运行都是手动 / 定时 / 事件触发，总是新建载体。
+   */
+  release?(task: Task, attempt: Attempt): void;
 }
 
 export interface TaskStoreLike {
@@ -536,6 +541,13 @@ export class TaskRuntime {
         return;
       case 'deliver':
         this.d.deliver(task, e.what, attempt);
+        if (e.what === 'error' && attempt) {
+          try {
+            this.executor(task)?.release?.(task, attempt);
+          } catch (error) {
+            this.d.logger.warn('task carrier release failed', error);
+          }
+        }
         return;
       case 'schedule_next': {
         if (task.trigger.kind === 'schedule') {

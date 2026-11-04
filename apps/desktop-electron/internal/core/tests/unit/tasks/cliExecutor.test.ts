@@ -35,6 +35,7 @@ function fakeHarness(bins: Record<string, string | null> = { claude: '/bin/claud
     emit: (e: CliTabEvent) => ev.emit('event', e),
     finish: (text: string) => pending?.resolve({ text }),
     stopWith: () => pending?.reject(new StoppedError('stopped')),
+    fail: (msg: string) => pending?.reject(new Error(msg)),
     harness: {
       bins: () => bins,
       createTab: (o: { cwd: string; permissionMode: string; delegation: { callId?: string } }) => {
@@ -267,6 +268,26 @@ describe('cli 执行者', () => {
     await flush();
     expect(ok.fh.sends).toHaveLength(1);
     expect(ok.released).toEqual([]);
+  });
+
+  it('子任务报错、任务失败放弃后拆掉 worktree；用户接管的不拆', async () => {
+    const h = setup();
+    const id = h.create();
+    h.rt.command(id, { type: 'runNow' });
+    await flush();
+    h.fh.fail('boom: unknown option');
+    await flush();
+    expect(h.rt.get(id)!.task.status).toBe('failed');
+    expect(h.released).toEqual([`/wt/${h.isolations[0]}`]);
+
+    const t = setup();
+    const id2 = t.create();
+    t.rt.command(id2, { type: 'runNow' });
+    await flush();
+    t.fh.tabs.get('tab_1')!.takenOver = true;
+    t.fh.fail('boom: unknown option');
+    await flush();
+    expect(t.released).toEqual([]);
   });
 
   it('点名的编程助手没装 / 目录不可用：停下来问用户，不悄悄换别的', async () => {

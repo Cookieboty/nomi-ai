@@ -1304,7 +1304,8 @@ export class DelegateService {
           .join(', ')}`;
       }
     }
-    if (o.status === 'cancelled') {
+    // 取消，或失败且没有留在 worktree 里没拷回的文件：拆掉 worktree（失败的不会再续跑，留着只会越积越多）
+    if (o.status === 'cancelled' || (o.status === 'error' && !conflictedFiles.length)) {
       // 用户接管后 worktree 归用户；不能在取消收尾里删掉（#118）
       const takenOver = this.d.harness.listTabs().tabs.find((x) => x.id === task.taskId)
         ?.delegation?.takenOver;

@@ -57,7 +57,7 @@ export interface CliIsolation {
 export interface CliExecutorDeps {
   harness: CliHarness;
   prepareIsolation(sourceCwd: string, key: string): Promise<CliIsolation>;
-  /** 准备好但没用上（准备期间被取消）的隔离目录：拆掉；用户已接管的不会走到这里 */
+  /** 拆掉隔离目录：准备好但没用上（准备期间被取消），或任务失败放弃后；用户已接管的不会走到这里 */
   releaseIsolation?(isolation: CliIsolation): Promise<void>;
   gitChanged(cwd: string): Promise<string[] | null>;
   buildPrompt(b: { goal: string; context?: string; doneWhen: string; outOfScope?: string }): string;
@@ -323,6 +323,23 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
       if (!run || run.gen !== gen) return;
       run.stopped = true;
       d.harness.cancelTab(run.tabId);
+    },
+
+    release(_task, attempt) {
+      // 失败放弃后 worktree 不会再被用到（失败的执行没有可回填的结果）：拆掉，免得越积越多；
+      // 用户已接管的标签，worktree 归用户（#118）
+      const c = attempt.carrier;
+      if (!c?.worktree || !c.gitRoot) return;
+      if (c.tabId && d.harness.takenOver(c.tabId)) return;
+      void d
+        .releaseIsolation?.({
+          kind: 'worktree',
+          cwd: c.cwd ?? c.worktree,
+          sourceCwd: c.sourceCwd ?? c.worktree,
+          gitRoot: c.gitRoot,
+          worktreePath: c.worktree,
+        })
+        .catch(() => undefined);
     },
   };
 }
