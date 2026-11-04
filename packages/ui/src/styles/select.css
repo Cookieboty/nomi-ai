@@ -111,7 +111,7 @@
 }
 .cd-dropdown__search {
   /* 搜索框与下面的列表留足距离：Windows 字体行高大，原来的间距显得挤 */
-  padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-3);
+  padding: var(--cd-space-2) var(--cd-space-1) var(--cd-space-3);
   border-bottom: 1px solid var(--cd-panel-border);
   margin-bottom: var(--cd-space-2);
 }
