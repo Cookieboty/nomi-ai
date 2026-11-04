@@ -1692,9 +1692,10 @@ export class GatewayService {
     const saved = input.providerId
       ? this.store.providers().find((p) => p.id === input.providerId)
       : undefined;
+    // 新填的 Base URL 优先于已保存的地址（编辑时只改 Base URL 再检测），逐协议给的地址最优先
     const bases = {
-      ...(input.url ? normalizeBases(input.url) : {}),
       ...(saved?.urls ?? {}),
+      ...(input.url ? normalizeBases(input.url) : {}),
       ...(input.urls ?? {}),
     };
     const keys = [

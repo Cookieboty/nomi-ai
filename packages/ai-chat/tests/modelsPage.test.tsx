@@ -873,6 +873,53 @@ describe('ModelsPage', () => {
     });
   });
 
+  it('Base URL: Enter detects, the detected per-API addresses are saved', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: { chat: { wire: 'chat', ok: true }, messages: { wire: 'messages', ok: true } },
+        byKey: {},
+        models: [],
+        urls: { chat: 'https://new.example/v1', messages: 'https://new.example' },
+      }),
+    });
+    m.state.providers = [kimi({ urls: { chat: 'https://api.moonshot.cn/v1' } })];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const base = within(dlg).getByTestId('pd-base-url') as HTMLInputElement;
+    expect(base.value).toBe('https://api.moonshot.cn/v1');
+    fireEvent.change(base, { target: { value: 'https://new.example/v1' } });
+    fireEvent.keyDown(base, { key: 'Enter' });
+    await waitFor(() =>
+      expect(within(dlg).getByTestId('pd-wire-messages').hasAttribute('data-ok')).toBe(true),
+    );
+    const det = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
+    expect(det).toMatchObject({ providerId: 'kimi', url: 'https://new.example/v1' });
+    expect(det).not.toHaveProperty('urls');
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.urls).toEqual({
+      messages: 'https://new.example',
+      chat: 'https://new.example/v1',
+    });
+  });
+
+  it('replacing a key: Enter in the new-value field saves right away', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-key-replace-k0'));
+    const input = within(dlg).getByTestId('pd-key-replace-input-k0');
+    fireEvent.change(input, { target: { value: 'sk-new-value-0000000000' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.newKeys).toEqual([
+      expect.objectContaining({ value: 'sk-new-value-0000000000', position: 0 }),
+    ]);
+  });
+
   it('model settings on the right: treat as a known model, standard window, upstream name, remove', async () => {
     const m = fakeMain({
       extra: {
@@ -996,7 +1043,9 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
-    // 协议地址直接列出（只列填了的），其余在「添加协议地址」里
+    // 平时只改 Base URL；逐协议地址在「更多设置」里（只列填了的，其余在「添加协议地址」里）
+    expect(within(dlg).queryByTestId('pd-url-chat')).toBeNull();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
     expect(within(dlg).getByTestId('pd-url-chat')).toBeTruthy();
     expect(within(dlg).queryByTestId('pd-url-responses')).toBeNull();
     fireEvent.click(within(dlg).getByTestId('pd-url-remove-chat'));
@@ -1022,8 +1071,7 @@ describe('ModelsPage', () => {
     fireEvent.click(within(dlg).getByTestId('pd-model-wire-kimi-k3-responses'));
     fireEvent.click(within(dlg).getByTestId('pd-key-settings-k0'));
     fireEvent.change(within(dlg).getByTestId('pd-key-wire-k0'), { target: { value: 'messages' } });
-    // 列表里没有的模型名的映射、请求头、User-Agent 在「更多设置」里
-    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    // 列表里没有的模型名的映射、请求头、User-Agent 也在「更多设置」里
     fireEvent.change(within(dlg).getByTestId('pd-map-b-0'), { target: { value: 'kimi-k3' } });
     fireEvent.click(within(dlg).getByTestId('pd-map-add'));
     fireEvent.change(within(dlg).getByTestId('pd-map-a-1'), { target: { value: 'half-filled' } });

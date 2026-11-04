@@ -602,10 +602,27 @@
 .pdModalBody {
   container-type: inline-size;
 }
+/* 连接：左边名称与地址，右边 Key，两张卡片并排；窄的时候上下排 */
 .pdConnect {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--cd-space-4);
+}
+.pdCard {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-4);
+  gap: var(--cd-space-3);
+  min-width: 0;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+}
+.wireBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
 }
 /* 模型：左边列表，右边选中模型的设置；窄的时候上下排 */
 .pdModels {
@@ -753,6 +770,7 @@
   font-size: var(--cd-font-size-sm);
 }
 @container (max-width: 720px) {
+  .pdConnect,
   .pdModels {
     grid-template-columns: minmax(0, 1fr);
     height: auto;

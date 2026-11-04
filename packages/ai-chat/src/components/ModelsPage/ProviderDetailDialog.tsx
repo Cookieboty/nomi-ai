@@ -21,7 +21,7 @@ import {
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -223,6 +223,17 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
+  /** Base URL：只改它，各协议地址由检测推出来（逐协议改在「更多设置」里） */
+  const [base, setBase] = useState(() =>
+    (
+      initial.urls.chat ||
+      initial.urls.responses ||
+      initial.urls.messages ||
+      initial.urls.gemini
+    ).trim(),
+  );
+  const [detectedBase, setDetectedBase] = useState(base);
+  const baseChanged = base.trim() !== detectedBase.trim();
   /** 列出来的协议地址：填了的，以及刚点「添加协议地址」加的空行；其余收在「添加」菜单里 */
   const [extraWires, setExtraWires] = useState<ReadonlySet<Wire>>(() => new Set());
   const shownWires = WIRES.filter((w) => d.urls[w].trim() || extraWires.has(w));
@@ -341,9 +352,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   };
 
   /** 本机 / 局域网地址先确认（§15）；拒绝则不检测 */
-  const confirmPrivate = async (): Promise<boolean> => {
-    for (const w of urlWires) {
-      const u = d.urls[w].trim();
+  const confirmPrivate = async (list: readonly string[]): Promise<boolean> => {
+    for (const raw of list) {
+      const u = raw.trim();
       const hp = isPrivateUrl(u) ? hostPortOf(u) : null;
       if (!hp || allowedPrivateHosts.includes(hp)) continue;
       const ok = await confirmDialog({
@@ -355,21 +366,28 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     return true;
   };
 
-  /** 用这个供应商的地址重新探测：新列出的模型加进来但不启用，已有模型的设置不变 */
-  const detect = async () => {
+  /**
+   * 重新探测：新列出的模型加进来但不启用，已有模型的设置不变。
+   * base：按 Base URL 推出各协议地址再测，检测通过的协议写回草稿（没有一个可用时报错、不改）；
+   * 不给 base 时按草稿里逐协议的地址测。返回更新后的草稿（失败 / 取消为 null），保存时接着用。
+   */
+  const detect = async (opts: { base?: string } = {}): Promise<Draft | null> => {
     setError(null);
     setNotice(null);
     setBusy('detect');
     try {
-      if (!(await confirmPrivate())) return;
+      const base = opts.base?.trim();
+      if (!(await confirmPrivate(base ? [base] : urlWires.map((w) => d.urls[w])))) return null;
       const fresh = d.keys
         .filter((k) => k.enabled)
         .map(freshValue)
         .filter((v): v is string => !!v);
       const r = await gatewayClient.detect({
         providerId: p.id,
-        // 空串覆盖保存的地址：关掉的协议不再测
-        urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])),
+        // Base URL：主进程按它推出各协议地址（优先于保存的）；否则逐协议给，空串 = 关掉的协议不测
+        ...(base
+          ? { url: base }
+          : { urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])) }),
         savedKeyIds: d.keys
           .filter((k) => k.enabled && k.value === undefined && !freshValue(k))
           .map((k) => k.id),
@@ -391,31 +409,52 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
           ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
           : m;
-      setD((cur) => ({
-        ...cur,
-        models: [...cur.models.map(refreshed), ...added],
+      if (base && !WIRES.some((w) => r.wires[w]?.ok)) {
+        setError(t('ui.models.no-api-is-available'));
+        return null;
+      }
+      const urls = base
+        ? (Object.fromEntries(WIRES.map((w) => [w, r.urls[w] ?? ''])) as Draft['urls'])
+        : d.urls;
+      const next: Draft = {
+        ...d,
+        urls,
+        models: [...d.models.map(refreshed), ...added],
         detected: storedProbes(r),
-      }));
-      setDetectedUrls(JSON.stringify(d.urls));
+      };
+      setD(next);
+      setDetectedUrls(JSON.stringify(urls));
+      if (base) {
+        setDetectedBase(base);
+        setExtraWires(new Set());
+      }
       const ok = WIRES.filter((w) => r.wires[w]?.ok).map((w) => WIRE_LABEL[w]);
       const wiresText = ok.length
         ? t('ui.models.available-apis', ok.join(' / '))
         : t('ui.models.no-api-is-available');
       const modelsText = t('ui.models.new-models-found-disabled-by-default', String(added.length));
       setNotice(`${wiresText} · ${modelsText}`);
+      return next;
     } catch (e) {
       setError((e as Error).message);
+      return null;
     } finally {
       setBusy(null);
     }
   };
+  /** Base URL 改了还没检测：回车 / 离开输入框时自动检测 */
+  const detectBase = async (): Promise<Draft | null> =>
+    base.trim() && baseChanged ? detect({ base }) : d;
 
   const save = async () => {
+    // Base URL 改了没检测：先检测（用检测出来的各协议地址），检测不通过就不保存
+    const cur = await detectBase();
+    if (!cur) return;
     setError(null);
     setBusy('save');
     try {
       // 填了 Key 没点「添加」就保存：一起存上，不悄悄丢掉
-      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(d)));
+      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(cur)));
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -490,98 +529,89 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             </p>
           )}
 
-          {/* ---------------- 连接：名称、各协议地址、Key ---------------- */}
-          <section className={styles.pdConnect}>
-            {!readOnly && (
-              <label className={styles.field}>
-                <span>{t('ui.foundation.name')}</span>
-                <Input
-                  size="sm"
-                  value={d.name}
-                  onChange={(e) => patch({ name: e.target.value })}
-                  data-testid="provider-detail-name"
-                />
-              </label>
-            )}
-            <div className={styles.advGroup}>
-              <div className={styles.groupTitle}>{t('ui.models.api-addresses')}</div>
-              {shownWires.map((w) => (
-                <div key={w} className={styles.urlRow}>
-                  <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
+          {/* ---------------- 连接：左边名称与地址，右边 Key ---------------- */}
+          <div className={styles.pdConnect}>
+            <section className={styles.pdCard} aria-labelledby="pd-address">
+              <h4 id="pd-address" className={styles.groupTitle}>
+                {t('ui.foundation.connect')}
+              </h4>
+              {!readOnly && (
+                <label className={styles.field}>
+                  <span>{t('ui.foundation.name')}</span>
                   <Input
                     size="sm"
-                    value={d.urls[w]}
-                    readOnly={readOnly}
-                    onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
-                    placeholder="https://"
-                    aria-label={t('ui.models.address-for', WIRE_LABEL[w])}
-                    data-testid={`pd-url-${w}`}
+                    value={d.name}
+                    onChange={(e) => patch({ name: e.target.value })}
+                    data-testid="provider-detail-name"
                   />
-                  {!readOnly && (
-                    <IconButton
-                      size="sm"
-                      label={t('ui.models.remove-address', WIRE_LABEL[w])}
-                      icon={<Icon icon={Trash2} size={14} />}
-                      onClick={() => removeWire(w)}
-                      data-testid={`pd-url-remove-${w}`}
-                    />
-                  )}
-                </div>
-              ))}
-              {!readOnly && hiddenWires.length > 0 && (
-                <div>
-                  <Select
-                    size="sm"
-                    variant="ghost"
-                    value=""
-                    placeholder={t('ui.models.add-api-address')}
-                    options={hiddenWires.map((w) => ({ value: w, label: WIRE_LABEL[w] }))}
-                    onChange={(e) => e.target.value && addWire(e.target.value as Wire)}
-                    aria-label={t('ui.models.add-api-address')}
-                    data-testid="pd-url-add"
-                  />
-                </div>
+                </label>
               )}
-              {!readOnly && urlsChanged && (
-                <div className={styles.offer} role="status" data-testid="pd-urls-changed">
-                  <span>{t('ui.models.the-addresses-changed-detecting-again-is-recommended')}</span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={busy !== null}
-                    onClick={() => void detect()}
-                    data-testid="pd-redetect"
-                  >
-                    {t('ui.models.detect-again')}
-                  </Button>
-                </div>
-              )}
-            </div>
-            <ProviderKeysSection
-              keys={
-                readOnly
-                  ? p.keys.map((k) => ({
-                      id: k.id,
-                      name: k.name ?? '',
-                      enabled: k.enabled,
-                      wire: k.wire,
-                    }))
-                  : d.keys
-              }
-              views={p.keys}
-              readOnly={readOnly}
-              keyName={keyName}
-              looksLikeKey={looksLikeKey}
-              onSet={setKey}
-              onMove={moveKey}
-              onDelete={(i) => void deleteKey(i)}
-              text={keysText}
-              onText={setKeysText}
-              onAdd={addKeys}
-              canAdd={splitKeys(keysText).length > 0}
-              wireOptions={wireOptions}
-            />
-          </section>
+              <label className={styles.field}>
+                <span>Base URL</span>
+                <Input
+                  size="sm"
+                  value={base}
+                  readOnly={readOnly}
+                  placeholder="https://api.example.com/v1"
+                  onChange={(e) => setBase(e.target.value)}
+                  onBlur={() => void detectBase()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void detectBase();
+                    }
+                  }}
+                  data-testid="pd-base-url"
+                />
+              </label>
+              <div className={styles.wireBadges} data-testid="pd-wires">
+                {busy === 'detect' ? (
+                  <span className={styles.muted}>{t('ui.models.detecting-apis')}</span>
+                ) : (
+                  WIRES.map((w) => (
+                    <span
+                      key={w}
+                      className={d.urls[w].trim() ? styles.badgeSoft : styles.badgeMuted}
+                      title={d.urls[w].trim() || t('ui.models.api-not-available')}
+                      data-ok={d.urls[w].trim() ? '' : undefined}
+                      data-testid={`pd-wire-${w}`}
+                    >
+                      {d.urls[w].trim() && <Icon icon={Check} size={12} />}
+                      {WIRE_LABEL[w]}
+                    </span>
+                  ))
+                )}
+              </div>
+              <p className={styles.detailHint}>{t('ui.models.base-url-hint')}</p>
+            </section>
+            <section className={styles.pdCard}>
+              <ProviderKeysSection
+                keys={
+                  readOnly
+                    ? p.keys.map((k) => ({
+                        id: k.id,
+                        name: k.name ?? '',
+                        enabled: k.enabled,
+                        wire: k.wire,
+                      }))
+                    : d.keys
+                }
+                views={p.keys}
+                readOnly={readOnly}
+                keyName={keyName}
+                looksLikeKey={looksLikeKey}
+                onSet={setKey}
+                onMove={moveKey}
+                onDelete={(i) => void deleteKey(i)}
+                text={keysText}
+                onText={setKeysText}
+                onAdd={addKeys}
+                canAdd={splitKeys(keysText).length > 0}
+                wireOptions={wireOptions}
+                onCommit={() => void save()}
+              />
+            </section>
+          </div>
 
           {/* ---------------- 模型：左边列表，右边选中模型的设置 ---------------- */}
           <div className={styles.pdModels}>
@@ -625,6 +655,62 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             </button>
             {advanced && (
               <div id="pd-advanced" className={styles.advBody}>
+                <div className={styles.advGroup}>
+                  <div className={styles.groupTitle}>{t('ui.models.per-api-addresses')}</div>
+                  {shownWires.map((w) => (
+                    <div key={w} className={styles.urlRow}>
+                      <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
+                      <Input
+                        size="sm"
+                        value={d.urls[w]}
+                        readOnly={readOnly}
+                        onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
+                        placeholder="https://"
+                        aria-label={t('ui.models.address-for', WIRE_LABEL[w])}
+                        data-testid={`pd-url-${w}`}
+                      />
+                      {!readOnly && (
+                        <IconButton
+                          size="sm"
+                          label={t('ui.models.remove-address', WIRE_LABEL[w])}
+                          icon={<Icon icon={Trash2} size={14} />}
+                          onClick={() => removeWire(w)}
+                          data-testid={`pd-url-remove-${w}`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && hiddenWires.length > 0 && (
+                    <div>
+                      <Select
+                        size="sm"
+                        variant="ghost"
+                        value=""
+                        placeholder={t('ui.models.add-api-address')}
+                        options={hiddenWires.map((w) => ({ value: w, label: WIRE_LABEL[w] }))}
+                        onChange={(e) => e.target.value && addWire(e.target.value as Wire)}
+                        aria-label={t('ui.models.add-api-address')}
+                        data-testid="pd-url-add"
+                      />
+                    </div>
+                  )}
+                  {!readOnly && urlsChanged && (
+                    <div className={styles.offer} role="status" data-testid="pd-urls-changed">
+                      <span>
+                        {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy !== null}
+                        onClick={() => void detect()}
+                        data-testid="pd-redetect"
+                      >
+                        {t('ui.models.detect-again')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 {!readOnly && (
                   <>
                     <PairRows

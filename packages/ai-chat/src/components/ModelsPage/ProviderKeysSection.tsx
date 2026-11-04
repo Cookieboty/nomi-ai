@@ -57,6 +57,8 @@ export const ProviderKeysSection: React.FC<{
   canAdd: boolean;
   /** 限定协议的选项（自动 + 各协议） */
   wireOptions: SelectOption[];
+  /** 更换输入框里按回车：直接保存（新值立即生效） */
+  onCommit: () => void;
 }> = ({
   keys,
   views,
@@ -71,6 +73,7 @@ export const ProviderKeysSection: React.FC<{
   onAdd,
   canAdd,
   wireOptions,
+  onCommit,
 }) => {
   // 没有 Key 时直接展开，免得多点一下
   const [adding, setAdding] = useState(() => !keys.length);
@@ -243,6 +246,13 @@ export const ProviderKeysSection: React.FC<{
                       value={k.replace}
                       placeholder={t('ui.models.paste-the-new-key-it-replaces-when-you', label)}
                       onChange={(e) => onSet(i, { replace: e.target.value })}
+                      onKeyDown={(e) => {
+                        // 回车 = 换上这个新值并保存，不用再去点「保存」
+                        if (e.key === 'Enter' && k.replace?.trim()) {
+                          e.preventDefault();
+                          onCommit();
+                        }
+                      }}
                       aria-label={t('ui.models.new-value-for', label)}
                       data-testid={`pd-key-replace-input-${k.id}`}
                     />
