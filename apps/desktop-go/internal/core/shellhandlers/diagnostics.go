@@ -56,4 +56,28 @@ func InstallDiagnostics(r *contract.Router, svc func() *diagnostics.Service) {
 		}
 		return s.ExportBundle(), nil
 	})
+	r.Call("diagnostics.cliRecords", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in diagnostics.CliRecordsQuery
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, badInput(err)
+		}
+		s, err := need()
+		if err != nil {
+			return nil, err
+		}
+		return s.CliRecords(in), nil
+	})
+	r.Call("diagnostics.gatewayTrace", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			TraceID string `json:"traceId"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, badInput(err)
+		}
+		s, err := need()
+		if err != nil {
+			return nil, err
+		}
+		return s.GatewayTrace(in.TraceID), nil
+	})
 }

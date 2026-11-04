@@ -21,6 +21,13 @@ import { writePrivateFile } from '../utils/privateFile';
 
 import { buildDiagnosticsBundle } from './bundle';
 import { CliTrace } from './cliTrace';
+import {
+  readCliRecords,
+  readGatewayTrace,
+  type CliRecordsQuery,
+  type CliRecordsResult,
+  type GatewayTraceResult,
+} from './devtools';
 
 const FILE = 'diagnostics.json';
 
@@ -148,6 +155,20 @@ export class DiagnosticsService {
       if (before !== this.enabled()) this.d.onChange?.(this.enabled());
     }
     return this.view();
+  }
+
+  /** 开发者工具：某个标签一段时间里的子进程原始收发（诊断日志关着时照样读已有的，enabled 告诉界面） */
+  async cliRecords(q: CliRecordsQuery): Promise<CliRecordsResult> {
+    await this.cliTrace.flush();
+    return readCliRecords(this.logDir, q, this.enabled());
+  }
+
+  /** 开发者工具：按追踪 id 读网关请求 / 响应正文 */
+  gatewayTrace(traceId: string): Promise<GatewayTraceResult> {
+    return readGatewayTrace(
+      this.d.traceDir ?? path.join(this.d.userData, 'gateway', 'trace'),
+      traceId,
+    );
   }
 
   /** 在系统文件管理器里打开日志目录（没有就先建）；打不开时抛出系统给的原因 */

@@ -16,6 +16,7 @@ import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { nomiTraceSlots, traceActions } from './components/Conversation/TraceAction';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -332,14 +333,16 @@ const AiChatContent: React.FC = () => {
       activeCliTabId
         ? buildCliSlots({
             cwd: activeCwd,
+            ...(isDev ? traceActions({ kind: 'cli', tabId: activeCliTabId }) : {}),
             errorActions: (m, { retry }) =>
               m.geminiTrust ? (
                 <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
               ) : null,
           })
         : undefined,
-    [activeCliTabId, activeCwd],
+    [activeCliTabId, activeCwd, isDev],
   );
+  const nomiConvSlots = isDev ? nomiTraceSlots : nomiSlots;
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
     tabs.activeTabId,
@@ -995,7 +998,7 @@ const AiChatContent: React.FC = () => {
                   onRemoveQueued={nomiQueue.remove}
                   onRetry={onNomiRetry}
                   onEdit={onNomiEdit}
-                  slots={nomiSlots}
+                  slots={nomiConvSlots}
                   cards={slash.cards}
                   onDismissCard={slash.dismissCard}
                 />

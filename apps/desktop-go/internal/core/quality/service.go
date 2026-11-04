@@ -342,6 +342,9 @@ func (s *Service) Requests(raw any) *u.Obj {
 	if o, ok := get(r, "offset").(float64); ok {
 		q.Offset = o
 	}
+	if t, ok := get(r, "tabId").(string); ok && reTabID.MatchString(t) {
+		q.TabID = t
+	}
 	return ListRequests(s.Ledger.Range(q.From, q.To), q, s.d.LabelOf)
 }
 

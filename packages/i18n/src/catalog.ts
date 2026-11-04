@@ -3,6 +3,7 @@ import electron_common_en from './locales/en/electron/common.json';
 import electron_image_en from './locales/en/electron/image.json';
 import ui_chat_settings_en from './locales/en/ui/chat-settings.json';
 import ui_cli_monitor_en from './locales/en/ui/cli-monitor.json';
+import ui_devtools_en from './locales/en/ui/devtools.json';
 import ui_foundation_en from './locales/en/ui/foundation.json';
 import ui_knowledge_local_en from './locales/en/ui/knowledge-local.json';
 import ui_mascot_theme_en from './locales/en/ui/mascot-theme.json';
@@ -20,6 +21,7 @@ import electron_common_zh from './locales/zh/electron/common.json';
 import electron_image_zh from './locales/zh/electron/image.json';
 import ui_chat_settings_zh from './locales/zh/ui/chat-settings.json';
 import ui_cli_monitor_zh from './locales/zh/ui/cli-monitor.json';
+import ui_devtools_zh from './locales/zh/ui/devtools.json';
 import ui_foundation_zh from './locales/zh/ui/foundation.json';
 import ui_knowledge_local_zh from './locales/zh/ui/knowledge-local.json';
 import ui_mascot_theme_zh from './locales/zh/ui/mascot-theme.json';
@@ -40,6 +42,7 @@ export const DICTIONARIES = {
     electron_image: electron_image_zh,
     ui_chat_settings: ui_chat_settings_zh,
     ui_cli_monitor: ui_cli_monitor_zh,
+    ui_devtools: ui_devtools_zh,
     ui_foundation: ui_foundation_zh,
     ui_knowledge_local: ui_knowledge_local_zh,
     ui_mascot_theme: ui_mascot_theme_zh,
@@ -59,6 +62,7 @@ export const DICTIONARIES = {
     electron_image: electron_image_en,
     ui_chat_settings: ui_chat_settings_en,
     ui_cli_monitor: ui_cli_monitor_en,
+    ui_devtools: ui_devtools_en,
     ui_foundation: ui_foundation_en,
     ui_knowledge_local: ui_knowledge_local_en,
     ui_mascot_theme: ui_mascot_theme_en,
@@ -1415,6 +1419,38 @@ export type TranslationKey =
   | 'ui.cli-monitor.npm-not-found-ships-with-node'
   | 'ui.cli-monitor.download-node-js'
   | 'ui.cli-monitor.node-js-too-old'
+  | 'ui.devtools.call-id'
+  | 'ui.devtools.click-a-row-to-see-details'
+  | 'ui.devtools.content-truncated'
+  | 'ui.devtools.diagnostic-logs-are-off'
+  | 'ui.devtools.elapsed'
+  | 'ui.devtools.error-kind'
+  | 'ui.devtools.execution-trace'
+  | 'ui.devtools.failed-calls'
+  | 'ui.devtools.filter-streams'
+  | 'ui.devtools.first-content'
+  | 'ui.devtools.gateway-requests'
+  | 'ui.devtools.gateway-requests-n'
+  | 'ui.devtools.http-status'
+  | 'ui.devtools.mode'
+  | 'ui.devtools.model-request'
+  | 'ui.devtools.no-body-recorded-for-this-request'
+  | 'ui.devtools.no-gateway-requests-in-this-turn'
+  | 'ui.devtools.no-gateway-requests-official-accounts-connect-directly'
+  | 'ui.devtools.no-input-or-output-was-kept'
+  | 'ui.devtools.no-process-records-in-this-turn'
+  | 'ui.devtools.no-steps-in-this-turn'
+  | 'ui.devtools.parent-call'
+  | 'ui.devtools.process-io'
+  | 'ui.devtools.process-io-n'
+  | 'ui.devtools.raw-events'
+  | 'ui.devtools.request-and-response'
+  | 'ui.devtools.thinking'
+  | 'ui.devtools.tokens'
+  | 'ui.devtools.total-time'
+  | 'ui.devtools.unfinished'
+  | 'ui.devtools.upstream-model'
+  | 'ui.devtools.view-request-and-response-body'
   | 'ui.foundation.a-skill-is-a-skill-md-guide-the'
   | 'ui.foundation.action'
   | 'ui.foundation.activity-log'

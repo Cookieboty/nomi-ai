@@ -42,6 +42,8 @@ import { DEFAULT_RETENTION_DAYS, QUALITY_RETENTION_CHOICES, QualityLedger } from
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 const SETTINGS_FILE = 'settings.json';
+/** 标签 id 的格式（同 fromGateway 落盘时的校验） */
+const TAB_ID = /^[A-Za-z0-9_:.-]{1,80}$/;
 const PRUNE_EVERY_MS = 6 * 3_600_000;
 const DIMENSIONS: readonly QualityDimension[] = [
   'provider',
@@ -254,6 +256,7 @@ export class QualityService {
       ...(base.filters ? { filters: base.filters } : {}),
       limit: typeof r.limit === 'number' ? r.limit : 100,
       ...(typeof r.offset === 'number' ? { offset: r.offset } : {}),
+      ...(typeof r.tabId === 'string' && TAB_ID.test(r.tabId) ? { tabId: r.tabId } : {}),
     };
     return listRequests(this.ledger.range(q.from, q.to), q, this.d.labelOf);
   }

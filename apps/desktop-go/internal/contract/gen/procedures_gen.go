@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 409：mutation 286 / query 118 / stream 5
+// 合计 411：mutation 286 / query 120 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -121,7 +121,9 @@ var Procedures = []Procedure{
 	{Name: "desktop.takeMissedReminders", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.takePendingSummary", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "desktop.undoLast", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "diagnostics.cliRecords", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.export", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "diagnostics.gatewayTrace", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.openFolder", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},

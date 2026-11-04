@@ -39,9 +39,11 @@ export interface ConvSlots {
   after?: (m: ConvMessage) => React.ReactNode;
   /** 错误卡片里额外的操作按钮（如「信任此文件夹」）；retry 只在这一轮可以重试时提供 */
   errorActions?: (m: ConvMessage, ctx: { retry?: () => void }) => React.ReactNode;
+  /** 助手消息操作栏里额外的按钮（工作台的「执行轨迹」） */
+  actions?: (m: ConvMessage) => React.ReactNode;
 }
 
-const ActionButton: React.FC<{
+export const ActionButton: React.FC<{
   icon: LucideIcon;
   label: string;
   onClick: () => void;
@@ -410,6 +412,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               onClick={retry}
             />
           )}
+          {slots?.actions?.(message)}
         </div>
       </div>
     </div>

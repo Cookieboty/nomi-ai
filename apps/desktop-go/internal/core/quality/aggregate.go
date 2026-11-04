@@ -177,6 +177,7 @@ type Query struct {
 	Bucket, Metric      string
 	Limit               float64
 	Offset              any
+	TabID               string // "" = 不按标签筛
 }
 
 func (q *Query) layer() string {
@@ -764,9 +765,14 @@ func SeriesQuality(records []*u.Obj, q *Query, labelOf LabelOf) (*u.Obj, error) 
 // ListRequests = listRequests
 func ListRequests(records []*u.Obj, q *Query, labelOf LabelOf) *u.Obj {
 	units := filterUnits(unitsOf(InRange(records, q.From, q.To, q.Layer), "request"), q.Filters)
-	all := make([]*u.Obj, len(units))
-	for i, x := range units {
-		all[i] = x.r
+	all := make([]*u.Obj, 0, len(units))
+	for _, x := range units {
+		if q.TabID != "" {
+			if t, _ := optStr(x.r, "tabId"); t != q.TabID {
+				continue
+			}
+		}
+		all = append(all, x.r)
 	}
 	sort.SliceStable(all, func(i, j int) bool { return num(all[i].Get("ts")) > num(all[j].Get("ts")) })
 	off := 0.0

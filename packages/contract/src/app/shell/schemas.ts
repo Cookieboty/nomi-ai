@@ -388,6 +388,7 @@ export const QualityRequestsQuery = loose({
   filters: QualityFilters.optional(),
   limit: z.number(),
   offset: z.number().optional(),
+  tabId: z.string().max(80).optional(),
 });
 export const QualityFacetsQuery = loose({
   from: z.number(),
@@ -469,6 +470,32 @@ export const DiagnosticsView = loose({
   saveLogs: z.boolean(),
   dir: z.string(),
   bodyTrace: z.boolean(),
+});
+export const DiagnosticsCliRecordsQuery = loose({
+  tabId: z.string().max(80),
+  from: z.number(),
+  to: z.number(),
+});
+export const DiagnosticsCliRecord = loose({
+  t: z.string(),
+  ev: z.string().optional(),
+  pid: z.number().optional(),
+  cli: z.string().optional(),
+  data: z.string().optional(),
+  args: z.array(z.string()).optional(),
+  code: z.number().nullish(),
+  signal: z.string().nullish(),
+  note: z.string().optional(),
+});
+export const DiagnosticsCliRecords = loose({
+  enabled: z.boolean(),
+  records: z.array(DiagnosticsCliRecord),
+  truncated: z.boolean(),
+});
+export const DiagnosticsGatewayTrace = loose({
+  found: z.boolean(),
+  text: z.string().optional(),
+  truncated: z.boolean().optional(),
 });
 export const DiagnosticsExportResult = loose({
   ok: z.boolean(),

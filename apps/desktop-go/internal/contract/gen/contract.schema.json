@@ -8591,6 +8591,101 @@
     "additionalProperties": false
    }
   },
+  "diagnostics.cliRecords": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "tabId": {
+      "type": "string",
+      "maxLength": 80
+     },
+     "from": {
+      "type": "number"
+     },
+     "to": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "tabId",
+     "from",
+     "to"
+    ],
+    "additionalProperties": {}
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "records": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "t": {
+         "type": "string"
+        },
+        "ev": {
+         "type": "string"
+        },
+        "pid": {
+         "type": "number"
+        },
+        "cli": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        },
+        "args": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "code": {
+         "type": [
+          "number",
+          "null"
+         ]
+        },
+        "signal": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "t"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "truncated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled",
+     "records",
+     "truncated"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "diagnostics.export": {
    "kind": "mutation",
    "dangerous": false,
@@ -8622,6 +8717,45 @@
     },
     "required": [
      "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "diagnostics.gatewayTrace": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "traceId": {
+      "type": "string",
+      "maxLength": 64
+     }
+    },
+    "required": [
+     "traceId"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "found": {
+      "type": "boolean"
+     },
+     "text": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "found"
     ],
     "additionalProperties": {}
    }
@@ -19921,6 +20055,10 @@
      },
      "offset": {
       "type": "number"
+     },
+     "tabId": {
+      "type": "string",
+      "maxLength": 80
      }
     },
     "required": [

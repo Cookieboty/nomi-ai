@@ -2022,11 +2022,45 @@ type DesktopUndoLastOutput struct {
 	Error  *string `json:"error,omitempty"`
 }
 
+type DiagnosticsCliRecordsInput struct {
+	TabId string  `json:"tabId"`
+	From  float64 `json:"from"`
+	To    float64 `json:"to"`
+}
+
+type DiagnosticsCliRecordsOutputRecordsItem struct {
+	T      string   `json:"t"`
+	Ev     *string  `json:"ev,omitempty"`
+	Pid    *float64 `json:"pid,omitempty"`
+	Cli    *string  `json:"cli,omitempty"`
+	Data   *string  `json:"data,omitempty"`
+	Args   []string `json:"args,omitempty"`
+	Code   *float64 `json:"code,omitempty"`
+	Signal *string  `json:"signal,omitempty"`
+	Note   *string  `json:"note,omitempty"`
+}
+
+type DiagnosticsCliRecordsOutput struct {
+	Enabled   bool                                     `json:"enabled"`
+	Records   []DiagnosticsCliRecordsOutputRecordsItem `json:"records"`
+	Truncated bool                                     `json:"truncated"`
+}
+
 type DiagnosticsExportOutput struct {
 	Ok    bool     `json:"ok"`
 	Path  *string  `json:"path,omitempty"`
 	Files []string `json:"files,omitempty"`
 	Error *string  `json:"error,omitempty"`
+}
+
+type DiagnosticsGatewayTraceInput struct {
+	TraceId string `json:"traceId"`
+}
+
+type DiagnosticsGatewayTraceOutput struct {
+	Found     bool    `json:"found"`
+	Text      *string `json:"text,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
 }
 
 type DiagnosticsGetOutput struct {
@@ -5095,6 +5129,7 @@ type QualityRequestsInput struct {
 	Filters map[string][]string        `json:"filters,omitempty"`
 	Limit   float64                    `json:"limit"`
 	Offset  *float64                   `json:"offset,omitempty"`
+	TabId   *string                    `json:"tabId,omitempty"`
 }
 
 type QualityRequestsOutputItemsItem struct {
@@ -8010,9 +8045,17 @@ type DesktopTakePendingSummaryOutputT = *DesktopTakePendingSummaryOutput
 type DesktopUndoLastInputT = any
 type DesktopUndoLastOutputT = DesktopUndoLastOutput
 
+// DiagnosticsCliRecordsInputT 是 diagnostics.cliRecords 的入参
+type DiagnosticsCliRecordsInputT = DiagnosticsCliRecordsInput
+type DiagnosticsCliRecordsOutputT = DiagnosticsCliRecordsOutput
+
 // DiagnosticsExportInputT 是 diagnostics.export 的入参
 type DiagnosticsExportInputT = any
 type DiagnosticsExportOutputT = DiagnosticsExportOutput
+
+// DiagnosticsGatewayTraceInputT 是 diagnostics.gatewayTrace 的入参
+type DiagnosticsGatewayTraceInputT = DiagnosticsGatewayTraceInput
+type DiagnosticsGatewayTraceOutputT = DiagnosticsGatewayTraceOutput
 
 // DiagnosticsGetInputT 是 diagnostics.get 的入参
 type DiagnosticsGetInputT = any

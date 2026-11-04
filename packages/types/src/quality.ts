@@ -284,6 +284,8 @@ export interface QualityRequestsQuery {
   filters?: Partial<Record<QualityDimension, string[]>>;
   limit: number;
   offset?: number;
+  /** 只要这个标签的请求（开发者工具：一轮的执行轨迹关联网关请求） */
+  tabId?: string;
 }
 
 export interface QualitySettings {

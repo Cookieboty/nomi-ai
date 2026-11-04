@@ -286,6 +286,20 @@ export const shellProcedures = {
     output: S.DiagnosticsExportResult,
     surfaces: CHAT,
   },
+  /** 开发者工具：一轮里编程助手子进程的原始收发（读 logs/cli-*.jsonl） */
+  'diagnostics.cliRecords': {
+    kind: 'query',
+    input: S.DiagnosticsCliRecordsQuery,
+    output: S.DiagnosticsCliRecords,
+    surfaces: CHAT,
+  },
+  /** 开发者工具：网关请求的请求体 / 响应正文（读 gateway/trace） */
+  'diagnostics.gatewayTrace': {
+    kind: 'query',
+    input: z.object({ traceId: z.string().max(64) }),
+    output: S.DiagnosticsGatewayTrace,
+    surfaces: CHAT,
+  },
 
   // ---- appIcon（core/appIcon；只在对话窗口）----
   'appIcon.get': { kind: 'query', input: v, output: S.AppIconState, surfaces: CHAT },
