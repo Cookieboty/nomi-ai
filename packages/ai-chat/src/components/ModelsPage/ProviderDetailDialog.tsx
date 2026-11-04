@@ -463,8 +463,13 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   /** keepOpen：保存后留在弹窗里（更换 Key 时回车），草稿换成刚保存的状态 */
   const save = async (opts: { keepOpen?: boolean } = {}) => {
     // Base URL 改了没检测：先检测（用检测出来的各协议地址），检测不通过就不保存
-    const cur = await detectBase();
+    let cur = await detectBase();
     if (!cur) return;
+    // 逐协议的地址改了没检测：按填的地址测一次，检测结果随地址一起存（列表按它显示哪些协议可用）
+    if (!readOnly && !baseChanged && urlsChanged) {
+      cur = await detect();
+      if (!cur) return;
+    }
     setError(null);
     setBusy('save');
     try {

@@ -906,6 +906,39 @@ describe('ModelsPage', () => {
     expect(upserts(m)[0]!.baseUrl).toBe('https://new.example/v1');
   });
 
+  it('saving per-API addresses that changed detects them first, so the list shows the right APIs', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: {
+          chat: { wire: 'chat', ok: true, status: 200 },
+          responses: { wire: 'responses', ok: true, status: 200 },
+        },
+        byKey: {},
+        models: [],
+        urls: { chat: 'https://api.moonshot.cn/v1', responses: 'https://api.moonshot.cn/v1' },
+      }),
+    });
+    m.state.providers = [
+      kimi({
+        urls: { chat: 'https://api.moonshot.cn/v1' },
+        detected: { chat: { ok: true, at: 1 }, responses: { ok: false, at: 1, status: 503 } },
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    fireEvent.change(within(dlg).getByTestId('pd-url-add'), { target: { value: 'responses' } });
+    fireEvent.change(within(dlg).getByTestId('pd-url-responses'), {
+      target: { value: 'https://api.moonshot.cn/v1' },
+    });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const det = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
+    expect(det).toMatchObject({ urls: { responses: 'https://api.moonshot.cn/v1' } });
+    expect(upserts(m)[0]!.detected).toMatchObject({ responses: { ok: true } });
+  });
+
   it('a saved Base URL is shown as typed, not rebuilt from the per-API addresses', async () => {
     const m = fakeMain();
     m.state.providers = [
