@@ -15,6 +15,12 @@ type LLMProvider interface {
 	Abort(reqID string)
 }
 
+// Steerer：LLMProvider.steer?(reqId, text)（可选）——一轮进行中插入一条用户消息，跑工具循环的 provider
+// 在下一步把它并进上下文，不中断这一轮。请求不在跑、或没有工具循环可插入时 false。不支持的 provider 不实现。
+type Steerer interface {
+	Steer(reqID, text string) bool
+}
+
 // ToolRunner：withTools(defs) 的 { chat, stream }
 type ToolRunner interface {
 	Chat(ctx context.Context, r *ChatRequest) (*ChatResponse, error)

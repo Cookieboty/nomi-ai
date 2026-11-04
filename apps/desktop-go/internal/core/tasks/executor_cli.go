@@ -80,7 +80,7 @@ type CliReport struct {
 type CliDeps struct {
 	Harness          CliHarness
 	PrepareIsolation func(sourceCwd, key string) (CliIsolation, error)
-	// ReleaseIsolation：准备好但没用上（准备期间被取消）的 worktree 拆掉；可为空
+	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务失败放弃后；可为空
 	ReleaseIsolation func(iso CliIsolation)
 	GitChanged       func(cwd string) []string // nil = 不在 git 仓库里
 	BuildPrompt      func(goal, context, doneWhen, outOfScope string) string
@@ -345,7 +345,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	} else {
 		rep.Carrier(*prev.Carrier)
 	}
-	tainted := k == "event"
+	tainted := a.Cause.FromExternalEvent()
 	run := &cliRun{gen: a.Gen, tabID: tabID, ctx: ctx, pending: map[string]bool{}}
 	e.mu.Lock()
 	if p.cancelled || e.preparing[t.ID] != p {
@@ -481,6 +481,26 @@ func (e *cliExecutor) Resume(taskID string, gen int, answer Answer) {
 	if !e.d.Harness.ReplyPermission(run.tabID, *answer.RequestID, answer.Approve) {
 		run.ctx.Report.Failed(TaskError{Code: "executor_crashed", Message: "permission_expired"})
 	}
+}
+
+// Release：失败放弃后 worktree 不会再被用到（失败的执行没有可回填的结果）：拆掉，免得越积越多；
+// 用户已接管的标签，worktree 归用户（#118）
+func (e *cliExecutor) Release(_ Task, a Attempt) {
+	c := a.Carrier
+	if c == nil || c.Worktree == nil || *c.Worktree == "" || c.GitRoot == nil || *c.GitRoot == "" || e.d.ReleaseIsolation == nil {
+		return
+	}
+	if c.TabID != nil && *c.TabID != "" && e.d.Harness.TakenOver(*c.TabID) {
+		return
+	}
+	iso := CliIsolation{Kind: "worktree", Cwd: *c.Worktree, SourceCwd: *c.Worktree, GitRoot: *c.GitRoot, WorktreePath: *c.Worktree}
+	if c.Cwd != nil && *c.Cwd != "" {
+		iso.Cwd = *c.Cwd
+	}
+	if c.SourceCwd != nil && *c.SourceCwd != "" {
+		iso.SourceCwd = *c.SourceCwd
+	}
+	go e.d.ReleaseIsolation(iso)
 }
 
 func (e *cliExecutor) Stop(taskID string, gen int, reason string) {

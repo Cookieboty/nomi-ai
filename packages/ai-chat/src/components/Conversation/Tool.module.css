@@ -485,3 +485,28 @@
   background: var(--cd-color-selected-bg);
   color: var(--cd-color-selected-text);
 }
+
+/* 用户在这一轮中途插入的消息 */
+.interject {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-1) 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.interjectIcon {
+  flex: none;
+  align-self: center;
+  color: var(--cd-color-accent-strong);
+}
+.interjectLabel {
+  flex: none;
+  color: var(--cd-color-text-subtle);
+}
+.interjectText {
+  min-width: 0;
+  color: var(--cd-color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

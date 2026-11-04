@@ -22,11 +22,11 @@ describe('useSendQueue', () => {
       result.current.enqueue('二');
     });
     expect(sent).toEqual([]);
-    expect(result.current.queue).toEqual(['一', '二']);
+    expect(result.current.items.map((i) => i.text)).toEqual(['一', '二']);
 
     rerender({ busy: false });
     expect(sent).toEqual(['一']);
-    expect(result.current.queue).toEqual(['二']);
+    expect(result.current.items.map((i) => i.text)).toEqual(['二']);
     // 状态还没变忙碌时不会提前派发第二条
     rerender({ busy: false });
     expect(sent).toEqual(['一']);
@@ -37,7 +37,7 @@ describe('useSendQueue', () => {
     });
     rerender({ busy: false });
     expect(sent).toEqual(['一', '二']);
-    expect(result.current.queue).toEqual([]);
+    expect(result.current.items.map((i) => i.text)).toEqual([]);
   });
 
   it('可移出队列；resetKey 变化清空队列', () => {
@@ -48,10 +48,10 @@ describe('useSendQueue', () => {
       result.current.enqueue('一');
       result.current.enqueue('二');
     });
-    act(() => result.current.remove(0));
-    expect(result.current.queue).toEqual(['二']);
+    act(() => result.current.remove(result.current.items[0]!.id));
+    expect(result.current.items.map((i) => i.text)).toEqual(['二']);
     rerender({ k: 'b' });
-    expect(result.current.queue).toEqual([]);
+    expect(result.current.items.map((i) => i.text)).toEqual([]);
   });
 
   it('入队时冻结知识库意图：出队按原意图发送，普通消息不带 kb 标记（#37）', () => {
@@ -63,7 +63,7 @@ describe('useSendQueue', () => {
       result.current.enqueue('问知识库', { kb: true });
       result.current.enqueue('普通问题');
     });
-    expect(result.current.queue).toEqual(['问知识库', '普通问题']);
+    expect(result.current.items.map((i) => i.text)).toEqual(['问知识库', '普通问题']);
     rerender({ busy: false });
     expect(send).toHaveBeenNthCalledWith(1, '问知识库', { kb: true });
     rerender({ busy: true });

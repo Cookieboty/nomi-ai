@@ -403,6 +403,46 @@ func (o *Orchestrator) PickTabCwd(id string) *jsrt.Promise[*util.Obj] {
 	})
 }
 
+// SteerTab = steerTab：一轮进行中插入一条用户消息（工作台 Enter 插入，docs/design/cli-steer.md），交给长驻进程，
+// CLI 在下一个工具 / 模型步骤取走，这一轮不中断。成功后在这一轮的轨迹里记一条 interject（落盘、实时显示）。
+// 没有进行中的轮次、后端不支持（Gemini / dsh / exec 退路）或 CLI 拒绝时 false，视图改为排队。
+func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {
+	return jsrt.Async(func() (bool, error) {
+		tab := o.tab(id)
+		body := util.JSTrim(text)
+		if tab == nil || body == "" || tab.Get("status") != "running" {
+			return false, nil
+		}
+		// 这一轮的轨迹（各后端轮次结构不同，取其 events / text / breaks；text 在 await 之后再读，与 Node 一致）
+		var turn func() (*[]*util.Obj, string, []float64)
+		ok := false
+		claude := o.live.claude[id]
+		codex := o.live.codex[id]
+		acp := o.live.acp[id]
+		if claude != nil && claude.turn != nil && !claude.turn.settled {
+			t := claude.turn
+			turn = func() (*[]*util.Obj, string, []float64) { return &t.events, t.text, t.breaks }
+			ok, _ = jsrt.Await(claude.driver.Steer(body))
+		} else if codex != nil && codex.turn != nil && !codex.turn.settled {
+			t := codex.turn
+			turn = func() (*[]*util.Obj, string, []float64) { return &t.events, t.text, t.breaks }
+			ok, _ = jsrt.Await(codex.driver.Steer(body))
+		} else if acp != nil && acp.turn != nil {
+			t := acp.turn
+			turn = func() (*[]*util.Obj, string, []float64) { return &t.events, t.text, t.breaks }
+			ok, _ = jsrt.Await(acp.driver.Steer(body))
+		}
+		if !ok || turn == nil {
+			return false, nil
+		}
+		events, prev, breaks := turn()
+		_, _, ev := cli.FoldAssistantEvent(prev, breaks, util.NewObj("type", "interject", "text", body, "at", nowMs()))
+		*events = append(*events, ev)
+		o.emitEvent(id, ev)
+		return true, nil
+	})
+}
+
 // CancelTab = cancelTab。
 func (o *Orchestrator) CancelTab(id string) bool {
 	if o.delegatedUnsent[id] && o.tabs.Has(id) {

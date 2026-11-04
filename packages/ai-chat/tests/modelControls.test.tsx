@@ -149,8 +149,10 @@ describe('ModelControls', () => {
     fireEvent.click(await findByTestId('model-chip'));
     fireEvent.click(getByTestId('model-open'));
     const menu = getByTestId('model-menu');
-    expect(within(menu).getByText('GPT-5.6 Sol')).toBeTruthy();
-    expect(within(menu).getByText('GPT-4.1')).toBeTruthy();
+    // 模型页是共享的 ModelPicker（与 Nomi 对话的模型下拉同一个组件）
+    expect(within(menu).getByTestId('model-picker-menu')).toBeTruthy();
+    expect(within(menu).getByTestId('model-gpt-5.6-sol').textContent).toContain('GPT-5.6 Sol');
+    expect(within(menu).getByTestId('model-gpt-4.1').textContent).toContain('GPT-4.1');
     expect(queryByTestId('effort-slider')).toBeNull();
     fireEvent.click(getByTestId('model-gpt-5.6-sol'));
     await waitFor(() =>
@@ -325,7 +327,8 @@ describe('ModelControls', () => {
     expect(chip.textContent).toContain('DeepSeek / v4');
     fireEvent.click(chip);
     const menu = await r.findByTestId('model-menu');
-    expect(within(menu).getByTestId('model-provider').textContent).toContain('第三方模型');
+    // 只有模型页：没有「‹ 模型」返回
+    expect(within(menu).queryByTestId('model-back')).toBeNull();
     expect(within(menu).queryByTestId('effort-view')).toBeNull();
     expect(within(menu).queryByTestId('effort-slider')).toBeNull();
     expect(within(menu).queryByText('无思考深度')).toBeNull();
@@ -451,13 +454,13 @@ describe('ModelControls', () => {
     const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
     fireEvent.click(await r.findByTestId('model-chip'));
     const menu = await r.findByTestId('model-menu');
-    const search = within(menu).getByTestId('model-search');
+    const search = within(menu).getByTestId('model-picker-search');
     fireEvent.change(search, { target: { value: 'opus' } });
     expect(within(menu).getByTestId('model-anthropic/claude-7')).toBeTruthy();
     expect(within(menu).queryByTestId('model-openai/gpt-6')).toBeNull();
     expect(within(menu).queryByTestId('model-default')).toBeNull();
     fireEvent.change(search, { target: { value: 'nothing-here' } });
-    expect(within(menu).getByTestId('model-search-empty')).toBeTruthy();
+    expect(within(menu).getByText('无匹配项')).toBeTruthy();
     fireEvent.keyDown(search, { key: 'Escape' });
     expect((search as HTMLInputElement).value).toBe('');
     expect(r.queryByTestId('model-menu')).not.toBeNull();
@@ -472,7 +475,7 @@ describe('ModelControls', () => {
     );
   });
 
-  it('模型不多时没有搜索框', async () => {
+  it('模型不多时也有搜索框（与 Nomi 对话的模型下拉一致）', async () => {
     const catalog: BackendModelCatalog = {
       backend: 'codex',
       provider: { id: 'amux', name: 'Amux' },
@@ -484,7 +487,7 @@ describe('ModelControls', () => {
     const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
     fireEvent.click(await r.findByTestId('model-chip'));
     await r.findByTestId('model-menu');
-    expect(r.queryByTestId('model-search')).toBeNull();
+    expect(r.getByTestId('model-picker-search')).toBeTruthy();
   });
 
   it('来源从官方切到第三方：重新按第三方要目录；官方仍不带 source', async () => {
@@ -752,25 +755,26 @@ describe('ModelControls（会话的供应商分组）', () => {
       const { r } = await open({ ...baseTab, source: 'thirdParty' }, gw, cat);
       fireEvent.click(await r.findByTestId('model-chip'));
       const menu = await r.findByTestId('model-menu');
-      // 分了供应商标签：不再单独一行「第三方模型」标题，刷新在标签行
-      expect(within(menu).queryByTestId('model-provider')).toBeNull();
-      expect(within(menu).getByTestId('model-refresh')).toBeTruthy();
+      // 刷新在供应商标签行的右端
+      expect(
+        within(menu).getByTestId('model-refresh').closest('.cd-model-picker__header'),
+      ).toBeTruthy();
       fireEvent.click(within(menu).getByRole('tab', { name: 'MixCo' }));
       const row = within(menu).getByTestId('model-mix/anthropic/claude-x');
       expect(row.textContent).toContain('claude-x');
       expect(row.textContent).not.toContain('anthropic/');
       expect(row.textContent).toContain('200K');
-      expect(row.getAttribute('title')).toBe('mix/anthropic/claude-x');
+      expect(row.getAttribute('data-value')).toBe('mix/anthropic/claude-x');
       // 生图模型不能给编程助手用，不列
       expect(within(menu).queryByTestId('model-mix/openai/gpt-image-2')).toBeNull();
       // 厂商分组标题按左侧图标栏的顺序
-      const groups = within(menu)
-        .getAllByTestId(/^model-vendor-group-/)
-        .map((g) => g.getAttribute('data-testid'));
-      expect(groups).toEqual(['model-vendor-group-openai', 'model-vendor-group-anthropic']);
-      // 选了厂商就不再分组
+      const groups = () =>
+        [...menu.querySelectorAll('.cd-dropdown__group')].map((g) => g.textContent);
+      // 最后一组是「切换到官方账号」
+      expect(groups()).toEqual(['OpenAI', 'Anthropic', '默认 · 官方账号']);
+      // 选了厂商就不再按厂商分组
       fireEvent.click(within(menu).getByTestId('model-picker-vendor-openai'));
-      expect(within(menu).queryAllByTestId(/^model-vendor-group-/)).toHaveLength(0);
+      expect(groups()).toEqual(['默认 · 官方账号']);
     });
 
     it('换到默认供应商并聊过一轮后停在它的标签；没聊过的会话停在默认供应商的标签', async () => {
@@ -799,7 +803,9 @@ describe('ModelControls（会话的供应商分组）', () => {
       });
       fireEvent.click(await r.findByTestId('model-chip'));
       const menu = await r.findByTestId('model-menu');
-      expect(within(menu).getByTestId('model-group-switch').textContent).toBe('默认 · 官方账号');
+      expect([...menu.querySelectorAll('.cd-dropdown__group')].map((g) => g.textContent)).toContain(
+        '默认 · 官方账号',
+      );
       fireEvent.click(within(menu).getByTestId('model-switch-official'));
       await waitFor(() =>
         expect(invoke).toHaveBeenCalledWith('harness.tabSource', { id: 'cx', source: 'official' }),

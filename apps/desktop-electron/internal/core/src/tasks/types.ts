@@ -209,6 +209,14 @@ export interface Attempt {
   };
 }
 
+/**
+ * 这次执行带着事件的外部内容（§8.4）：事件触发的，以及接着它重试 / 续跑 / 退回的（继承了 eventKey，
+ * 提示词里仍是那批事件、复用的标签里也还有）。恢复原因变了不能让审批变宽（#250）。
+ */
+export function fromExternalEvent(cause: Attempt['cause']): boolean {
+  return cause.kind === 'event' || !!cause.eventKey;
+}
+
 /** 下一次执行要带上的说明（重试原因、退回意见、核对结论） */
 export interface PendingRun {
   cause: AttemptCause;

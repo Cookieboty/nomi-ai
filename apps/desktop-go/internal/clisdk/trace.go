@@ -13,10 +13,10 @@ const (
 // IsTraceEvent mirrors isTraceEvent.
 func IsTraceEvent(ev Ev) bool {
 	t := ev.Get("type")
-	return t == "tool" || t == "thinking"
+	return t == "tool" || t == "thinking" || t == "interject"
 }
 
-// StampEvent mirrors stampEvent.
+// StampEvent mirrors stampEvent（tool / thinking / interject 打主进程时间戳）.
 func StampEvent(ev Ev, now float64) Ev {
 	if IsTraceEvent(ev) && !ev.Has("at") {
 		ev.Set("at", now)

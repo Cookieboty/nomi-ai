@@ -30,6 +30,7 @@ var Manifest = util.NewObj(
 		"usageQuota", true,
 		"progressMonitor", true,
 		"terminalCommand", true,
+		"steer", true,
 	),
 	"modelSwitch", "gateway",
 	"clientSpec", util.NewObj("client", "grok", "placeholderModel", "nomi"),

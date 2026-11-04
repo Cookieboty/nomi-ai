@@ -19,6 +19,8 @@
 import { ContractError } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
 import { createTestClient, type TestClient } from '@nomi-ai/contract/testing';
+import { act } from '@testing-library/react';
+import { vi } from 'vitest';
 
 export type FakeHandler = (input: any) => unknown;
 export type FakeHandlers = Record<string, FakeHandler>;
@@ -34,12 +36,14 @@ interface FakeState {
   impl: FakeInvoke | null;
   calls: FakeCall[];
   caller: Caller;
+  /** 还没返回的调用数（untilIdle 用） */
+  inflight: number;
 }
 
 const KEY = '__nomiFakeAppApi';
 const state = (): FakeState => {
   const g = globalThis as unknown as Record<string, FakeState | undefined>;
-  return (g[KEY] ??= { client: null, impl: null, calls: [], caller: CHAT });
+  return (g[KEY] ??= { client: null, impl: null, calls: [], caller: CHAT, inflight: 0 });
 };
 
 const CHAT: Caller = { surface: 'chat', trusted: true };
@@ -54,7 +58,20 @@ function client(): TestClient<AppContract> {
       s.calls.push([name, input]);
       if (!s.impl) throw new ContractError('UNAVAILABLE', 'fake api is not installed');
       // 没有入参的过程只传过程名：断言写 `toHaveBeenCalledWith('usage.priceSync')`
-      return input === undefined ? (s.impl as (n: string) => unknown)(name) : s.impl(name, input);
+      s.inflight++;
+      let out: unknown;
+      try {
+        out = input === undefined ? (s.impl as (n: string) => unknown)(name) : s.impl(name, input);
+      } catch (e) {
+        s.inflight--;
+        throw e;
+      }
+      if (out && typeof (out as Promise<unknown>).then === 'function')
+        return (out as Promise<unknown>).finally(() => {
+          s.inflight--;
+        });
+      s.inflight--;
+      return out;
     };
   }
   s.client = createTestClient(appContract, handlers as never, {
@@ -119,11 +136,34 @@ export function installFakeApi(impl: FakeHandlers | FakeInvoke, caller: Caller =
   };
 }
 
+/**
+ * 等界面「做完手上的事」：假内核没有还没返回的调用、连续两轮没有发出新调用，React 也把更新提交完。
+ * 按轮数判定，不按时间：机器再慢也只是多等几轮，不会因为超时翻车。用它代替
+ * `await waitFor(() => …)` / `findBy*`，之后同步断言。轮数用完仍没停下说明界面在不停地发请求，直接报错。
+ * 界面里有延时发请求（如本机历史 120ms 后才读）时，用例开 `vi.useFakeTimers()`：每一轮把已排上的定时器
+ * 立即执行掉，不真的等时间。
+ */
+export async function untilIdle(maxRounds = 200): Promise<void> {
+  const s = state();
+  let quiet = 0;
+  for (let i = 0; i < maxRounds; i++) {
+    const before = s.calls.length;
+    await act(async () => {
+      if (vi.isFakeTimers()) await vi.runOnlyPendingTimersAsync();
+      else await tick();
+    });
+    quiet = s.inflight === 0 && s.calls.length === before ? quiet + 1 : 0;
+    if (quiet >= 2) return;
+  }
+  throw new Error(`fake api never went idle after ${maxRounds} rounds (${s.inflight} in flight)`);
+}
+
 /** 卸下假内核：`hasTransport()` 回到 false，再调用以 UNAVAILABLE 失败 */
 export function resetFakeApi(): void {
   const s = state();
   s.impl = null;
   s.calls = [];
+  s.inflight = 0;
 }
 
 /** `services/api` 的替身模块 */

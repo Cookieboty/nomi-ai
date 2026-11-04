@@ -6,14 +6,19 @@ export interface AtPathToken {
   query: string;
 }
 
-/** Active @-token ending at caret: from nearest @ left of caret with no whitespace between @ and caret. */
+/**
+ * Active @-token ending at caret: the nearest @ left of the caret, with no whitespace between @
+ * and caret. The @ must start the text or follow whitespace, so emails / `user@host` never open
+ * the palette (it swallows Enter while it has matches).
+ */
 export function atPathToken(text: string, caret: number): AtPathToken | null {
   const c = Math.max(0, Math.min(caret, text.length));
   const left = text.slice(0, c);
   const at = left.lastIndexOf('@');
   if (at < 0) return null;
+  if (at > 0 && !/\s/.test(left[at - 1] ?? '')) return null;
   const between = left.slice(at + 1);
-  if (/[\s\n]/.test(between)) return null;
+  if (/\s/.test(between)) return null;
   return { start: at, end: c, query: between };
 }
 

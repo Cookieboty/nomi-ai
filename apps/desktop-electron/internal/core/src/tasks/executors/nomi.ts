@@ -21,7 +21,13 @@ import { configText } from '../card';
 import type { SourceEvent } from '../events/types';
 import type { ExternalJournal } from '../external';
 import type { AttemptContext, AttemptReporter, TaskExecutor } from '../TaskRuntime';
-import type { GrantLevel, Task, TaskError, ToolClass } from '../types';
+import {
+  fromExternalEvent,
+  type GrantLevel,
+  type Task,
+  type TaskError,
+  type ToolClass,
+} from '../types';
 
 /** 工具类 → Nomi 工具名（设计稿 §8.2 的能力等级；委派在 2.2b 开放） */
 export const TOOL_CLASS_TOOLS: Record<ToolClass, readonly string[]> = {
@@ -283,7 +289,7 @@ export function createNomiExecutor(d: NomiExecutorDeps): TaskExecutor {
       ...(elevated ? { trusted: true } : {}),
       ...(d.externalJournal ? { external: d.externalJournal(task.id, attempt.id) } : {}),
       // 事件触发的执行读过外部内容：写入与命令都问人（§8.4）
-      ...(attempt.cause.kind === 'event' ? { tainted: true } : {}),
+      ...(fromExternalEvent(attempt.cause) ? { tainted: true } : {}),
       ask: (req) =>
         new Promise<boolean>((resolve) => {
           const requestId = `${attempt.id}:${++run.seq}`;

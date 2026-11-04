@@ -31,6 +31,8 @@ export interface SelectOption {
   icon?: React.ReactNode;
   /** 搜索用文本（label 不是字符串时提供） */
   searchText?: string;
+  /** 这一行的 data-testid */
+  testId?: string;
 }
 
 export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
@@ -57,6 +59,15 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   filterOption?: (option: SelectOption) => boolean;
   /** 弹层打开 / 关闭 */
   onOpenChange?: (open: boolean) => void;
+  /**
+   * 内嵌：没有触发器，菜单（顶栏、搜索、侧栏、列表）直接画在调用方的浮层里，样式与弹层完全相同
+   * （如编程助手「模型 · 思考深度」浮层里的模型页）。选中或 Esc 时 onOpenChange(false)，由调用方关浮层
+   */
+  inline?: boolean;
+  /** inline：菜单高度上限（px，有顶栏 / 侧栏时就是固定高度），默认 420 */
+  inlineMaxHeight?: number;
+  /** 打开时搜索框里预先填的内容（如 `/model gpt` 打开时的 gpt） */
+  defaultQuery?: string;
 }
 
 const SEARCH_THRESHOLD = 8;
@@ -143,6 +154,7 @@ const MenuOption = React.memo(function MenuOption({
       onMouseMove={() => !active && setActive(index)}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => onPick(o)}
+      data-testid={o.testId}
     >
       {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
       <span className="cd-dropdown__label cd-truncate">{tr(o.label)}</span>
@@ -181,6 +193,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     menuAside,
     filterOption,
     onOpenChange,
+    inline = false,
+    inlineMaxHeight = FRAMED_MAX_H,
+    defaultQuery = '',
     value,
     defaultValue,
     disabled,
@@ -215,8 +230,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  // inline：一直「打开」，没有触发器与定位
+  const [open, setOpen] = useState(inline);
+  const [query, setQuery] = useState(inline ? defaultQuery : '');
   const [active, setActive] = useState(-1);
   const [pos, setPos] = useState<MenuPos | null>(null);
   // 自绘悬停提示（不用原生 title）：鼠标 / 方向键停在某一行一会儿后，在菜单旁显示完整名称与说明
@@ -283,12 +299,30 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   const close = useCallback(
     (refocus = true) => {
+      // inline 没有触发器：只通知调用方（由它关掉所在的浮层）
+      if (inline) return onOpenChange?.(false);
       setOpen(false);
       onOpenChange?.(false);
       if (refocus) triggerRef.current?.focus();
     },
-    [onOpenChange],
+    [onOpenChange, inline],
   );
+
+  // inline：挂载时高亮当前值（弹层是在 openMenu 里做的）
+  useLayoutEffect(() => {
+    if (!inline) return;
+    const base = filterOption ? all.filter(filterOption) : all;
+    const q = defaultQuery.trim();
+    setActive(
+      q
+        ? 0
+        : Math.max(
+            0,
+            base.findIndex((o) => o.value === current),
+          ),
+    );
+    // 只在挂载时
+  }, []);
 
   // 外部筛选变了（如切换供应商标签）：高亮回到当前值，不在列表里就回到第一项
   useEffect(() => {
@@ -307,7 +341,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       if (!opt || opt.disabled) return;
       const el = nativeRef.current;
       if (value == null) setUncontrolled(opt.value);
-      if (el && opt.value !== current) {
+      // inline 没有「关上弹层」这一步：点当前值也通知，调用方据此与 Esc 区分
+      if (el && (opt.value !== current || inline)) {
         el.value = opt.value;
         onChange?.({
           target: el,
@@ -323,7 +358,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       }
       close();
     },
-    [close, current, onChange, value],
+    [close, current, onChange, value, inline],
   );
 
   useLayoutEffect(() => {
@@ -333,7 +368,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   }, [open, showSearch]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || inline) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
@@ -348,7 +383,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       window.removeEventListener('resize', onWin);
       window.removeEventListener('scroll', onWin, true);
     };
-  }, [open, close, place]);
+  }, [open, close, place, inline]);
 
   // 让高亮项保持在可视区域
   useEffect(() => {
@@ -408,10 +443,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       case 'Escape':
         e.preventDefault();
         e.stopPropagation();
+        // inline：先清空搜索词，再按一次才关掉所在的浮层
+        if (inline && query) {
+          setQuery('');
+          setActive(0);
+          break;
+        }
         close();
         break;
       case 'Tab':
-        close(false);
+        // inline 在调用方的浮层里：Tab 照常移动焦点
+        if (!inline) close(false);
         break;
     }
   };
@@ -469,7 +511,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       id={listId}
       role="listbox"
       className="cd-dropdown__list"
-      style={framed ? undefined : { maxHeight: (pos?.maxHeight ?? 0) - (showSearch ? 44 : 0) }}
+      style={
+        framed
+          ? undefined
+          : {
+              maxHeight:
+                (inline ? Math.min(inlineMaxHeight, MENU_MAX_H) : (pos?.maxHeight ?? 0)) -
+                (showSearch ? 44 : 0),
+            }
+      }
       onMouseMove={() => !tipArmed && setTipArmed(true)}
       onMouseLeave={() => setTipArmed(false)}
       onScroll={() => setTipFor(-1)}
@@ -503,6 +553,78 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       })}
     </div>
   );
+  const menuTestId = rest['data-testid' as keyof typeof rest]
+    ? String(rest['data-testid' as keyof typeof rest])
+    : undefined;
+  const menuBody = (
+    <>
+      {menuHeader}
+      {showSearch && (
+        <div className="cd-dropdown__search">
+          <input
+            ref={searchRef}
+            className="cd-input cd-input--sm"
+            placeholder={tr('ui.mascot-theme.search')}
+            value={query}
+            aria-controls={listId}
+            aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+            data-testid={menuTestId ? `${menuTestId}-search` : undefined}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
+          />
+        </div>
+      )}
+      {menuAside ? (
+        <div className="cd-dropdown__body">
+          {menuAside}
+          {list}
+        </div>
+      ) : (
+        list
+      )}
+      {optionTip}
+    </>
+  );
+  const native = (
+    <select
+      ref={nativeRef}
+      className="cd-dropdown__native"
+      tabIndex={-1}
+      aria-hidden
+      value={current}
+      disabled={disabled}
+      onChange={(e) => {
+        if (value == null) setUncontrolled(e.target.value);
+        onChange?.(e);
+      }}
+      {...rest}
+      {...(inline && menuTestId ? { 'data-testid': `${menuTestId}-native` } : {})}
+    >
+      {!selected && <option value={current}>{current}</option>}
+      {nativeOptions}
+    </select>
+  );
+  if (inline)
+    return (
+      <div
+        ref={menuRef}
+        className={cx(
+          'cd-dropdown__menu cd-dropdown__menu--inline',
+          framed && 'cd-dropdown__menu--framed',
+          className,
+        )}
+        // inline 只限最高：选项少时不留一大块空白（弹层固定高度是为了切换筛选时不跳动）
+        style={{ ...style, ...(framed ? { maxHeight: inlineMaxHeight } : {}) }}
+        tabIndex={-1}
+        onKeyDown={onMenuKey}
+        data-testid={menuTestId ? `${menuTestId}-menu` : undefined}
+      >
+        {native}
+        {menuBody}
+      </div>
+    );
   const menu =
     open && pos
       ? createPortal(
@@ -529,38 +651,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
             }}
             tabIndex={-1}
             onKeyDown={onMenuKey}
-            data-testid={
-              rest['data-testid' as keyof typeof rest]
-                ? `${String(rest['data-testid' as keyof typeof rest])}-menu`
-                : undefined
-            }
+            data-testid={menuTestId ? `${menuTestId}-menu` : undefined}
           >
-            {menuHeader}
-            {showSearch && (
-              <div className="cd-dropdown__search">
-                <input
-                  ref={searchRef}
-                  className="cd-input cd-input--sm"
-                  placeholder={tr('ui.mascot-theme.search')}
-                  value={query}
-                  aria-controls={listId}
-                  aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setActive(0);
-                  }}
-                />
-              </div>
-            )}
-            {menuAside ? (
-              <div className="cd-dropdown__body">
-                {menuAside}
-                {list}
-              </div>
-            ) : (
-              list
-            )}
-            {optionTip}
+            {menuBody}
           </div>,
           document.body,
         )
@@ -577,22 +670,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       style={style}
       data-open={open || undefined}
     >
-      <select
-        ref={nativeRef}
-        className="cd-dropdown__native"
-        tabIndex={-1}
-        aria-hidden
-        value={current}
-        disabled={disabled}
-        onChange={(e) => {
-          if (value == null) setUncontrolled(e.target.value);
-          onChange?.(e);
-        }}
-        {...rest}
-      >
-        {!selected && <option value={current}>{current}</option>}
-        {nativeOptions}
-      </select>
+      {native}
       <button
         ref={triggerRef}
         id={id}

@@ -81,7 +81,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "modelSwitch": "inplace",
    "clientSpec": {
@@ -136,7 +137,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "modelSwitch": "inplace",
    "clientSpec": {
@@ -309,7 +311,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "modelSwitch": "gateway",
    "clientSpec": {
@@ -376,7 +379,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "permissionModes": [
     "plan",
@@ -418,7 +422,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "permissionModes": [
     "plan",
@@ -552,7 +557,8 @@
     "fork": false,
     "usageQuota": true,
     "progressMonitor": true,
-    "terminalCommand": true
+    "terminalCommand": true,
+    "steer": true
    },
    "permissionModes": [
     "plan",
@@ -841,7 +847,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "modelSwitch": "inplace",
     "clientSpec": {
@@ -905,7 +912,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "permissionModes": [
      "plan",
@@ -1026,7 +1034,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "modelSwitch": "inplace",
     "clientSpec": {
@@ -1064,7 +1073,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "permissionModes": [
      "plan",
@@ -1428,7 +1438,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "modelSwitch": "gateway",
     "clientSpec": {
@@ -1483,7 +1494,8 @@
      "fork": false,
      "usageQuota": true,
      "progressMonitor": true,
-     "terminalCommand": true
+     "terminalCommand": true,
+     "steer": true
     },
     "permissionModes": [
      "plan",

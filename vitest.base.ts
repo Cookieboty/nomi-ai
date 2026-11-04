@@ -15,7 +15,11 @@ export function createVitest({
   include = ['src/**/*.{test,spec}.{ts,tsx}', 'tests/**/*.{test,spec}.{ts,tsx}'],
   overrides = {},
 }: CreateVitestOptions = {}) {
+  // overrides.test 合并进下面的 test，不能放在最后整个展开：那样 test 被 overrides.test 整个替换，
+  // setupFiles / include / environment 全丢（ai-chat 的 tests/setup.ts、无界面 e2e 的 isolateEnv 曾因此从未加载）
+  const { test: testOverrides, ...rest } = overrides;
   return defineConfig({
+    ...rest,
     test: {
       environment,
       setupFiles,
@@ -30,8 +34,7 @@ export function createVitest({
         include: ['src/**/*.{ts,tsx}'],
         exclude: ['src/**/*.d.ts', 'src/**/*.{test,spec}.{ts,tsx}', 'src/**/__mocks__/**'],
       },
-      ...(overrides.test ?? {}),
+      ...(testOverrides ?? {}),
     },
-    ...overrides,
   });
 }

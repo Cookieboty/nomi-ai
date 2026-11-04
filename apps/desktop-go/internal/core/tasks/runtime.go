@@ -72,6 +72,11 @@ type Executor interface {
 	Stop(taskID string, gen int, reason string)
 }
 
+// Releaser = TaskExecutor.release?：任务失败放弃了（不再重试 / 续跑），这次执行的载体不会再被复用，释放它（如 worktree）
+type Releaser interface {
+	Release(t Task, a Attempt)
+}
+
 type StoreLike interface {
 	LoadAll() []Record
 	Save(r Record) (Record, error)
@@ -834,6 +839,11 @@ func (r *Runtime) run(id string, e Effect, task Task, attempt *Attempt) {
 	case "deliver":
 		if r.d.Deliver != nil {
 			r.d.Deliver(task, e.What, attempt)
+		}
+		if e.What == "error" && attempt != nil {
+			if rel, ok := r.executor(task).(Releaser); ok {
+				rel.Release(task, *attempt)
+			}
 		}
 	case "schedule_next":
 		if task.Trigger.Kind == "schedule" {

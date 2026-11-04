@@ -74,8 +74,25 @@ describe('运行中继续输入（排队）', () => {
     // 有字时发送键是「排队」，没有停止键
     expect(getByTestId('queue-button')).toBeTruthy();
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onQueue).toHaveBeenCalledWith('稍后做这个');
+    expect(onQueue).toHaveBeenCalledWith('稍后做这个', { mode: 'steer' });
     expect(input.value).toBe('');
+  });
+
+  it('Ctrl / ⌘+Enter 排队到这一轮结束；Esc 在待发列表非空时停下来马上发', async () => {
+    streaming = true;
+    const onQueue = vi.fn();
+    const onFlush = vi.fn();
+    const { getByTestId, rerender } = render(<MessageInput queue={{ onQueue, onFlush }} />);
+    const input = getByTestId('chat-input') as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '等这轮结束' } });
+    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true });
+    await vi.waitFor(() => expect(onQueue).toHaveBeenCalledWith('等这轮结束', { mode: 'queue' }));
+    // 列表为空：Esc 不打断这一轮
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(onFlush).not.toHaveBeenCalled();
+    rerender(<MessageInput queue={{ onQueue, onFlush, pending: 1 }} />);
+    fireEvent.keyDown(getByTestId('chat-input'), { key: 'Escape' });
+    expect(onFlush).toHaveBeenCalledTimes(1);
   });
 
   it('输入为空时发送键是停止；没传 queue 时忙碌禁用输入（原行为）', () => {

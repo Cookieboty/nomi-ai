@@ -45,6 +45,10 @@ export interface GatewayModel {
   vision?: boolean;
   toolCalling?: boolean;
   metaSource?: MetaSource;
+  /** 按内置目录里的哪个模型处理（中转改了名的已知模型） */
+  like?: string;
+  /** 用户声明的标准窗口（超过它按长上下文） */
+  ctxStandard?: number;
   /** 主进程按「用户 > 预设 > 模型列表 > 内置目录 > 默认值」算出的生效值（只读，保存时丢弃） */
   effective?: {
     ctx: number;
@@ -108,6 +112,8 @@ export interface ProviderView {
   /** 这个供应商的模型都失败时依次改用（'provider/model'） */
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示） */
+  baseUrl?: string;
   modelMap?: Array<{ from: string; to: string }>;
   /** 运行时学到的状态（§7.4） */
   learned?: LearnedState;
@@ -231,6 +237,8 @@ export interface ProviderInput {
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示） */
+  baseUrl?: string;
   detected?: Partial<Record<Wire, StoredProbe>>;
   quirks?: {
     maxTools?: number;
@@ -310,7 +318,30 @@ export function isPrivateUrl(url: string): boolean {
   }
 }
 
+/** 内置模型目录里的一个模型（「按哪个已知模型处理」的选项） */
+export interface CatalogModel {
+  id: string;
+  family?: string;
+  context?: number;
+  standard?: number;
+}
+
+let catalogCache: Promise<CatalogModel[]> | null = null;
+
 export const gatewayClient = {
+  /** 内置模型目录（进程内只拉一次；旧主进程没有这个过程时为空列表） */
+  catalogModels: (): Promise<CatalogModel[]> =>
+    (catalogCache ??= call<CatalogModel[]>(() => api.gateway.catalogModels())
+      .then((r) => {
+        const list = Array.isArray(r) ? r : [];
+        // 空的（旧主进程 / 还没就绪）不缓存，下次再拉
+        if (!list.length) catalogCache = null;
+        return list;
+      })
+      .catch(() => {
+        catalogCache = null;
+        return [];
+      })),
   /** 形状不对（旧主进程 / 测试桩）时抛错，调用方按「网关不可用」处理 */
   state: async () => {
     const s = await call<GatewayState>(() => api.gateway.state());

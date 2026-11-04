@@ -148,6 +148,12 @@ type AttemptCause struct {
 	Answer   *Answer `json:"answer,omitempty"`
 }
 
+// FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容（§8.4）——事件触发的，以及接着它
+// 重试 / 续跑 / 退回的（继承了 eventKey）。恢复原因变了不能让审批变宽（#250）
+func (c AttemptCause) FromExternalEvent() bool {
+	return c.Kind == "event" || (c.EventKey != nil && *c.EventKey != "")
+}
+
 type Usage struct {
 	InputTokens  int64    `json:"inputTokens"`
 	OutputTokens int64    `json:"outputTokens"`

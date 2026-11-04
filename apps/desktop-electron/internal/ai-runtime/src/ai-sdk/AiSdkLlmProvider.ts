@@ -294,6 +294,8 @@ export class AiSdkLlmProvider implements LLMProvider {
   readonly id: string;
   private readonly opts: AiSdkLlmProviderOptions;
   private readonly aborts = new Map<string, AbortController>();
+  /** 正在跑工具循环的流式请求 → 用户插入、还没并进上下文的消息（steer） */
+  private readonly inbox = new Map<string, string[]>();
   private readonly modelFactory: (modelId: string) => LanguageModel;
 
   constructor(opts: AiSdkLlmProviderOptions) {
@@ -348,6 +350,15 @@ export class AiSdkLlmProvider implements LLMProvider {
   abort(reqId: string): void {
     this.aborts.get(reqId)?.abort();
     this.aborts.delete(reqId);
+  }
+
+  /** 一轮进行中插入用户消息：只收正在跑工具循环的流式请求，下一步（prepareStep）并进上下文 */
+  steer(reqId: string, text: string): boolean {
+    const q = this.inbox.get(reqId);
+    const body = text.trim();
+    if (!q || !body) return false;
+    q.push(body);
+    return true;
   }
 
   /** 上游报回隐藏了几个密钥（只认 redactedHeader 指定的头） */
@@ -434,57 +445,86 @@ export class AiSdkLlmProvider implements LLMProvider {
     const signal = this.bindAbort(request);
     try {
       const prompt = splitPrompt(request.messages);
-      const result = streamText({
-        model: this.modelFactory(this.resolveModel(request)),
-        ...(prompt.instructions ? { instructions: prompt.instructions } : {}),
-        messages: prompt.messages,
-        temperature: request.temperature,
-        topP: request.topP,
-        maxOutputTokens: request.maxTokens,
-        abortSignal: signal,
-        ...(this.opts.maxRetries !== undefined ? { maxRetries: this.opts.maxRetries } : {}),
-        ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
-        ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS) } : {}),
-      });
+      // 有工具循环才能中途插入：每一步开始前把收到的插入消息放到当时的位置，之后每一步都带着
+      if (tools) this.inbox.set(request.reqId, []);
+      let messages = prompt.messages;
       let served: string | undefined;
       // 每一步都是一次网关请求，都会带上整段历史：取各步的最大值
       let redacted = 0;
       // 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
       let lastStep: ChatUsage | undefined;
-      for await (const part of result.fullStream) {
-        if (part.type === 'finish-step') {
-          served = this.servedModel(part.response?.headers) ?? served;
-          redacted = Math.max(redacted, this.redacted(part.response?.headers));
-          lastStep = usageOf(part.usage) ?? lastStep;
-        } else if (part.type === 'text-delta') {
-          yield { type: 'delta', content: part.text };
-        } else if (part.type === 'reasoning-delta') {
-          if (part.text) yield { type: 'reasoning', content: part.text };
-        } else if (part.type === 'tool-call') {
-          yield {
-            type: 'tool_call.delta',
-            index: 0,
-            name: part.toolName,
-            argumentsJson: JSON.stringify(part.input ?? {}),
-            id: part.toolCallId,
-          };
-        } else if (part.type === 'tool-result') {
-          if (!part.preliminary)
+      // 跨续跑轮次累加的用量
+      let total: ChatUsage | undefined;
+      for (let round = 0; ; round++) {
+        const inserts: SteerInsert[] = [];
+        const result = streamText({
+          model: this.modelFactory(this.resolveModel(request)),
+          ...(prompt.instructions ? { instructions: prompt.instructions } : {}),
+          messages,
+          temperature: request.temperature,
+          topP: request.topP,
+          maxOutputTokens: request.maxTokens,
+          abortSignal: signal,
+          ...(this.opts.maxRetries !== undefined ? { maxRetries: this.opts.maxRetries } : {}),
+          ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
+          ...(tools
+            ? {
+                tools,
+                stopWhen: stepCountIs(this.opts.maxSteps ?? DEFAULT_MAX_STEPS),
+                prepareStep: ({ messages: step }: { messages: ModelMessage[] }) => {
+                  const q = this.inbox.get(request.reqId);
+                  if (q?.length) inserts.push({ at: step.length, text: q.splice(0).join('\n\n') });
+                  return inserts.length ? { messages: withSteerInserts(step, inserts) } : undefined;
+                },
+              }
+            : {}),
+        });
+        let finish: Extract<ChatChunk, { type: 'done' }>['finishReason'] | undefined;
+        for await (const part of result.fullStream) {
+          if (part.type === 'finish-step') {
+            served = this.servedModel(part.response?.headers) ?? served;
+            redacted = Math.max(redacted, this.redacted(part.response?.headers));
+            lastStep = usageOf(part.usage) ?? lastStep;
+          } else if (part.type === 'text-delta') {
+            yield { type: 'delta', content: part.text };
+          } else if (part.type === 'reasoning-delta') {
+            if (part.text) yield { type: 'reasoning', content: part.text };
+          } else if (part.type === 'tool-call') {
+            yield {
+              type: 'tool_call.delta',
+              index: 0,
+              name: part.toolName,
+              argumentsJson: JSON.stringify(part.input ?? {}),
+              id: part.toolCallId,
+            };
+          } else if (part.type === 'tool-result') {
+            if (!part.preliminary)
+              yield {
+                type: 'tool_call.result',
+                id: part.toolCallId,
+                name: part.toolName,
+                output: stringifyToolOutput(part.output),
+              };
+          } else if (part.type === 'tool-error') {
             yield {
               type: 'tool_call.result',
               id: part.toolCallId,
               name: part.toolName,
-              output: stringifyToolOutput(part.output),
+              error: part.error instanceof Error ? part.error.message : String(part.error),
             };
-        } else if (part.type === 'tool-error') {
-          yield {
-            type: 'tool_call.result',
-            id: part.toolCallId,
-            name: part.toolName,
-            error: part.error instanceof Error ? part.error.message : String(part.error),
-          };
-        } else if (part.type === 'finish') {
-          const total = usageOf(part.totalUsage);
+          } else if (part.type === 'finish') {
+            total = addUsage(total, usageOf(part.totalUsage));
+            finish = finishOf(part.finishReason);
+          } else if (part.type === 'error') {
+            yield { type: 'error', error: describeStreamError(part.error) };
+          }
+        }
+        if (finish === undefined) break;
+        // 最后一步才收到的插入消息（没有下一步可并进去）：带上它再跑一轮，仍算这一轮；
+        // 要结束时先关掉收件箱，之后再来的插入返回 false（视图改为排队），不会悄悄丢掉
+        const left = this.inbox.get(request.reqId)?.splice(0) ?? [];
+        if (!left.length || signal?.aborted || round >= MAX_STEER_ROUNDS) {
+          this.inbox.delete(request.reqId);
           const u =
             total && lastStep
               ? { ...total, contextTokens: lastStep.promptTokens + lastStep.completionTokens }
@@ -495,14 +535,17 @@ export class AiSdkLlmProvider implements LLMProvider {
               usage: withRedacted(u, redacted)!,
               model: served ?? this.resolveModel(request),
             };
-          yield { type: 'done', finishReason: finishOf(part.finishReason) };
-        } else if (part.type === 'error') {
-          yield { type: 'error', error: describeStreamError(part.error) };
+          yield { type: 'done', finishReason: finish };
+          break;
         }
+        const full = [...messages, ...((await result.response).messages as ModelMessage[])];
+        inserts.push({ at: full.length, text: left.join('\n\n') });
+        messages = withSteerInserts(full, inserts);
       }
     } catch (err) {
       yield { type: 'error', error: describeStreamError(err) };
     } finally {
+      this.inbox.delete(request.reqId);
       this.aborts.delete(request.reqId);
     }
   }
@@ -538,4 +581,52 @@ export function createAiSdkProviderFromEntry(entry: {
   model?: string;
 }): AiSdkLlmProvider {
   return new AiSdkLlmProvider(envProviderConfig(entry));
+}
+
+/** 最后一步才收到插入消息时，带上它续跑的最多轮数 */
+const MAX_STEER_ROUNDS = 3;
+
+/** 两段用量相加（续跑轮次合并成一轮的用量） */
+function addUsage(a: ChatUsage | undefined, b: ChatUsage | undefined): ChatUsage | undefined {
+  if (!a || !b) return a ?? b;
+  const opt = (x?: number, y?: number) =>
+    x === undefined && y === undefined ? undefined : (x ?? 0) + (y ?? 0);
+  const cacheRead = opt(a.cacheReadTokens, b.cacheReadTokens);
+  const cacheWrite = opt(a.cacheWriteTokens, b.cacheWriteTokens);
+  return {
+    ...a,
+    promptTokens: a.promptTokens + b.promptTokens,
+    completionTokens: a.completionTokens + b.completionTokens,
+    totalTokens: a.totalTokens + b.totalTokens,
+    ...(cacheRead !== undefined ? { cacheReadTokens: cacheRead } : {}),
+    ...(cacheWrite !== undefined ? { cacheWriteTokens: cacheWrite } : {}),
+  };
+}
+
+/** 一轮里用户插入的消息：放在第 at 条消息之前（at = 收到时 SDK 消息列表的长度） */
+interface SteerInsert {
+  at: number;
+  text: string;
+}
+
+/** 插入消息的前缀：与 Claude Code 中途消息的写法一致，模型据此知道这是用户本人后来补充的 */
+export const STEER_PREFIX = 'The user sent a new message while you were working:';
+
+/** 把插入消息按位置放回 SDK 这一步的消息列表（同一位置的按收到顺序） */
+export function withSteerInserts(
+  messages: ModelMessage[],
+  inserts: readonly SteerInsert[],
+): ModelMessage[] {
+  const out = [...messages];
+  // 稳定排序：位置小的在前，同一位置保持收到的先后；每插一条，后面的位置顺延一格
+  const sorted = inserts
+    .map((ins, i) => ({ ins, i }))
+    .sort((a, b) => a.ins.at - b.ins.at || a.i - b.i);
+  sorted.forEach(({ ins }, offset) => {
+    out.splice(Math.min(ins.at + offset, out.length), 0, {
+      role: 'user',
+      content: `${STEER_PREFIX}\n${ins.text}`,
+    });
+  });
+  return out;
 }

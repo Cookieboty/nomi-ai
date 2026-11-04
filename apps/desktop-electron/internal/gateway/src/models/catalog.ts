@@ -72,6 +72,28 @@ export function catalogEntry(model: string): ModelSpecData | undefined {
   return overlay?.models[id] ?? doc.models[id] ?? overlay?.models[base] ?? doc.models[base];
 }
 
+/** 目录里的模型（覆盖层优先），给「按哪个已知模型处理」的选择列表用；按 id 排序 */
+export function catalogModels(): Array<{
+  id: string;
+  family?: string;
+  context?: number;
+  standard?: number;
+}> {
+  const all = { ...doc.models, ...(overlay?.models ?? {}) };
+  return Object.keys(all)
+    .sort()
+    .map((id) => {
+      const m = all[id]!;
+      const context = m.limits?.input ?? m.limits?.context;
+      return {
+        id,
+        ...(m.family ? { family: m.family } : {}),
+        ...(context ? { context } : {}),
+        ...(m.limits?.standard ? { standard: m.limits.standard } : {}),
+      };
+    });
+}
+
 export function catalogSize(): number {
   return new Set([...Object.keys(doc.models), ...Object.keys(overlay?.models ?? {})]).size;
 }

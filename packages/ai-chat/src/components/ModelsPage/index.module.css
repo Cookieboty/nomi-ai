@@ -602,20 +602,35 @@
 .pdModalBody {
   container-type: inline-size;
 }
-.pdColumns {
+/* 连接：左边名称与地址，右边 Key，两张卡片并排；窄的时候上下排 */
+.pdConnect {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  height: min(70vh, 680px);
-  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--cd-space-4);
 }
-.pdLeft {
+.pdCard {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-4);
+  gap: var(--cd-space-3);
   min-width: 0;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+}
+.wireBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}
+/* 模型：左边列表，右边选中模型的设置；窄的时候上下排 */
+.pdModels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--cd-space-4);
+  height: min(56vh, 560px);
   min-height: 0;
-  overflow: auto;
-  padding-right: var(--cd-space-5);
 }
 .modelPanel {
   display: flex;
@@ -623,12 +638,65 @@
   gap: var(--cd-space-2);
   min-width: 0;
   min-height: 0;
-  padding-left: var(--cd-space-5);
-  border-left: 1px solid var(--cd-color-border-subtle);
 }
-.modelCount {
-  margin-left: var(--cd-space-2);
-  font-weight: var(--cd-font-weight-regular);
+.modelDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+}
+.detailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+}
+.detailTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--cd-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detailField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cd-space-2);
+}
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+}
+.detailHint {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.wireChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-3);
+}
+.keySettings {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+  gap: var(--cd-space-2);
 }
 .modelTools {
   display: flex;
@@ -662,18 +730,33 @@
 .modelList .modelRow:hover {
   background: var(--cd-control-hover-bg);
 }
-/* 删除只在悬停 / 键盘聚焦这一行时出现，几十行时不满屏垃圾桶 */
-.modelList .modelRow .rowEnd {
-  opacity: 0;
+.modelList .modelRow[data-selected] {
+  background: var(--cd-color-selected-bg);
 }
-.modelList .modelRow:hover .rowEnd,
-.modelList .modelRow:focus-within .rowEnd {
-  opacity: 1;
+/* 点名称这一块在右侧打开这个模型的设置 */
+.modelPick {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  min-height: var(--cd-control-h-ms);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-@media (hover: none) {
-  .modelList .modelRow .rowEnd {
-    opacity: 1;
-  }
+.modelPick:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--cd-radius-sm);
+}
+.modelPick .rowEnd {
+  margin-left: auto;
+  color: var(--cd-color-text-muted);
 }
 .modelName {
   min-width: 0;
@@ -687,22 +770,18 @@
   font-size: var(--cd-font-size-sm);
 }
 @container (max-width: 720px) {
-  .pdColumns {
+  .pdConnect,
+  .pdModels {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--cd-space-4);
     height: auto;
-  }
-  .pdLeft {
-    overflow: visible;
-    padding-right: 0;
-  }
-  .modelPanel {
-    padding-left: 0;
-    border-left: 0;
   }
   .modelList {
     flex: none;
-    max-height: 50vh;
+    max-height: 40vh;
+  }
+  .detailGrid,
+  .keySettings {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

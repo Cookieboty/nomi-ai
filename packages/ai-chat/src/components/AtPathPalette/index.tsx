@@ -8,12 +8,16 @@ import React, { useEffect, useRef } from 'react';
 import type { AtPathOption } from '../../slash/atPathComplete';
 
 import styles from './index.module.css';
-import { AT_PATH_EMPTY_KEY, AT_PATH_MENU_KEY } from './keys';
+import {
+  AT_PATH_EMPTY_KEY,
+  AT_PATH_KIND_DIR_KEY,
+  AT_PATH_KIND_FILE_KEY,
+  AT_PATH_MENU_KEY,
+} from './keys';
 
 export interface AtPathPaletteProps {
   options: readonly AtPathOption[];
   active: number;
-  query: string;
   onPick: (o: AtPathOption) => void;
   onHover: (i: number) => void;
 }
@@ -27,7 +31,6 @@ function visiblePath(option: AtPathOption): string {
 export const AtPathPalette: React.FC<AtPathPaletteProps> = ({
   options,
   active,
-  query,
   onPick,
   onHover,
 }) => {
@@ -35,7 +38,6 @@ export const AtPathPalette: React.FC<AtPathPaletteProps> = ({
   useEffect(() => {
     activeRef.current?.scrollIntoView?.({ block: 'nearest' });
   }, [active, options]);
-  void query;
 
   if (!options.length) {
     return (
@@ -76,7 +78,9 @@ export const AtPathPalette: React.FC<AtPathPaletteProps> = ({
             onClick={() => onPick(o)}
           >
             <span className={styles.name}>{visiblePath(o)}</span>
-            <span className={styles.kind}>{o.kind === 'dir' ? 'dir' : 'file'}</span>
+            <span className={styles.kind}>
+              {o.kind === 'dir' ? t(AT_PATH_KIND_DIR_KEY) : t(AT_PATH_KIND_FILE_KEY)}
+            </span>
           </button>
         );
       })}

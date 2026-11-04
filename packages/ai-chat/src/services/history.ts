@@ -67,6 +67,11 @@ export function buildProviderMessages(
       m.role === 'user'
         ? (m.images ?? []).flatMap((i) => (i.url ? [i.url] : []))
         : generatedImagesInTrace(m.trace);
+    // 这一轮中途插入的消息：放在回复前面，后续轮次模型仍知道用户补充过什么
+    if (m.role === 'assistant') {
+      const added = (m.trace ?? []).flatMap((e) => (e.type === 'interject' ? [e.text] : []));
+      if (added.length) out.push({ role: 'user', content: added.join('\n\n') });
+    }
     out.push({
       role: m.role,
       content: tag + content + (links.length ? `\n\n${imageLinksNote(links)}` : ''),

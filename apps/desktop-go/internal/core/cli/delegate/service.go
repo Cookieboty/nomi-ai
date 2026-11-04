@@ -1352,7 +1352,8 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 			isoNote += " 以下文件在未授权的目录里，没有拷回主工作树（仍在 worktree 中）：" + joinComma(head(ar.Denied, 20))
 		}
 	}
-	if status == "cancelled" {
+	// 取消，或失败且没有留在 worktree 里没拷回的文件：拆掉 worktree（失败的不会再续跑，留着只会越积越多）
+	if status == "cancelled" || (status == "error" && len(conflictedFiles) == 0) {
 		if d := delegationOf(s.findTab(task.id())); d == nil || !util.Truthy(d.Get("takenOver")) {
 			ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
 		}

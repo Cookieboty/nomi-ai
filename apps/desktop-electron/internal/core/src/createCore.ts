@@ -900,6 +900,8 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       broadcast: (channel, payload) => events.publish(channel, payload),
     });
     services.gateway = gateway;
+    // 第三方模型「按哪个已知模型处理」：计价也按它查
+    usage.setPriceAlias((model, provider) => gateway.priceAlias(model, provider));
     services.providerLink = new ProviderLinkService({
       gateway: () => services.gateway,
       openExternal: (url) => ports.shell.openExternal(url),

@@ -250,14 +250,24 @@ export function balanceCutFence(s: string): string {
   return `…\n\n\`\`\`\n${s.slice(1)}`;
 }
 
-/** 编程助手改过的文件：显示用路径（在某个目录里就收成相对路径）+ 对话里看到的 diff */
+/**
+ * 编程助手改过的文件。path 只是显示用的短路径（在某个目录里就收成相对路径），
+ * 文件身份是 key = 所在目录 + 相对路径：两个目录里的同名文件是两个文件（#246）。
+ */
 export interface DelegateFile {
+  key: string;
   path: string;
+  /**
+   * 依次从这些目录读写：绝对路径落在第 i 个目录里时从第 i 个开始（子任务 worktree 清理后
+   * 还能回到主目录读回填的结果，主目录里的文件却不会被换成 worktree 里的同名文件）；
+   * 相对路径按子任务目录（roots[0]）算。
+   */
+  cwds: string[];
   diff?: FileDiff;
 }
 
 /**
- * 汇报 / git 核对的文件 + 子任务对话里编辑 / 写入工具改过的文件，按显示路径去重。
+ * 汇报 / git 核对的文件 + 子任务对话里编辑 / 写入工具改过的文件，按文件身份去重。
  * 后者补上 git 看不到的：非 git 目录且没按格式汇报、被忽略的目录、用绝对路径写到 worktree 外。
  */
 export function delegateFiles(
@@ -265,20 +275,26 @@ export function delegateFiles(
   messages: readonly ConvMessage[],
   roots: readonly string[],
 ): DelegateFile[] {
-  const rel = (f: string) => {
-    for (const r of roots) {
-      const x = workspaceRelPath(r, f);
-      if (x !== f) return x;
+  const ident = (f: string): Omit<DelegateFile, 'diff'> => {
+    for (let i = 0; i < roots.length; i++) {
+      const x = workspaceRelPath(roots[i]!, f);
+      if (x !== f) return { key: `${roots[i]}\0${x}`, path: x, cwds: roots.slice(i) };
     }
-    return f;
+    // 相对路径：按子任务目录；目录外的绝对路径：原样（预览会提示不在工作区里）
+    const isAbs = /^(?:[a-zA-Z]:)?[\\/]/.test(f);
+    return { key: isAbs || !roots[0] ? f : `${roots[0]}\0${f}`, path: f, cwds: [...roots] };
   };
   const out = new Map<string, DelegateFile>();
-  for (const f of reported) if (f) out.set(rel(f), { path: rel(f) });
+  for (const f of reported) {
+    if (!f) continue;
+    const id = ident(f);
+    out.set(id.key, id);
+  }
   for (const e of aggregateSessionChanges(messages)) {
     if (!e.file || e.file === '(unnamed)' || e.status === 'deleted') continue;
-    const path = rel(e.file);
+    const id = ident(e.file);
     const diff = e.diff && !e.diff.summaryOnly ? e.diff : undefined;
-    out.set(path, diff ? { path, diff } : (out.get(path) ?? { path }));
+    out.set(id.key, diff ? { ...id, diff } : (out.get(id.key) ?? id));
   }
   return [...out.values()];
 }
@@ -310,23 +326,24 @@ const DelegateFilesDrawer: React.FC<{
   files: DelegateFile[];
   roots: string[];
   active: string;
-  onActive: (path: string) => void;
+  onActive: (key: string) => void;
   onClose: () => void;
 }> = ({ files, roots, active, onActive, onClose }) => {
   const preview = useMemo<PreviewFile[]>(
     () =>
       files.map((f) => ({
-        key: f.path,
+        key: f.key,
         path: f.path,
-        cwds: roots,
+        cwds: f.cwds,
         ...(f.diff
           ? { gitDiff: f.diff, added: f.diff.diff.added, removed: f.diff.diff.removed }
           : {}),
       })),
-    [files, roots],
+    [files],
   );
   const host = useMemo(() => ({ mode: 'drawer' as const }), []);
-  const name = active.split(/[/\\]/).pop() || active;
+  const activePath = files.find((f) => f.key === active)?.path ?? '';
+  const name = activePath.split(/[/\\]/).pop() || activePath;
   return (
     <ModalHostContext.Provider value={host}>
       <Modal
@@ -355,7 +372,7 @@ const DelegateFilesDrawer: React.FC<{
 const Report: React.FC<{
   v: DelegateView;
   files: DelegateFile[];
-  onOpenFile?: (path: string) => void;
+  onOpenFile?: (key: string) => void;
 }> = ({ v, files, onOpenFile }) => {
   const r = v.result;
   if (v.error && !r)
@@ -410,14 +427,14 @@ const Report: React.FC<{
           </span>
           <ul className={styles.files} data-testid="delegate-files">
             {files.slice(0, 8).map((f) => (
-              <li key={f.path}>
+              <li key={f.key}>
                 {onOpenFile ? (
                   <button
                     type="button"
                     className={styles.fileBtn}
                     title={t('ui.session-workspace.preview-file', f.path)}
                     data-testid="delegate-file"
-                    onClick={() => onOpenFile(f.path)}
+                    onClick={() => onOpenFile(f.key)}
                   >
                     <code>{f.path}</code>
                   </button>

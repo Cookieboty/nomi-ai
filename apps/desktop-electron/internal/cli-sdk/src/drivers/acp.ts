@@ -48,6 +48,12 @@ export interface AcpDriverOptions {
   mapper?: () => AcpMapper;
   clientCapabilities?: Json;
   newId?: () => string;
+  /**
+   * 一轮进行中插入用户消息的扩展方法（ACP 本身没有）：参数 {sessionId, text}。
+   * Grok 1.0.70：`_x.ai/interject`，应答 {status:'queued'}，在下一个工具 / 模型步骤并进这一轮。
+   * 不给 = 不支持（如 Gemini：新的 session/prompt 会中止当前这一轮）。
+   */
+  steerMethod?: string;
 }
 
 interface AcpTurnState {
@@ -389,6 +395,17 @@ export class AcpDriver implements SessionDriver {
     } finally {
       if (compacting) emit({ type: 'status', kind: 'clear' });
       if (this.turn === turn) this.turn = null;
+    }
+  }
+
+  async steer(text: string): Promise<boolean> {
+    const method = this.o.steerMethod;
+    if (!method || !this.turn || !this.sid) return false;
+    try {
+      await this.conn.request(method, { sessionId: this.sid, text });
+      return true;
+    } catch {
+      return false;
     }
   }
 

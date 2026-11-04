@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 408：mutation 286 / query 117 / stream 5
+// 合计 413：mutation 288 / query 120 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -30,6 +30,7 @@ var Procedures = []Procedure{
 	{Name: "ai.chat.agentStream", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.regenerate", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.sendMessage", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "ai.chat.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.stream", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.memory.facts.delete", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ai.memory.facts.list", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -121,7 +122,9 @@ var Procedures = []Procedure{
 	{Name: "desktop.takeMissedReminders", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.takePendingSummary", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "desktop.undoLast", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "diagnostics.cliRecords", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.export", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "diagnostics.gatewayTrace", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.openFolder", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -142,6 +145,7 @@ var Procedures = []Procedure{
 	{Name: "ext.skillToggle", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsContext", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsList", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "gateway.catalogModels", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.clearLearned", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.confirmPrivateHost", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "gateway.detect", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -215,6 +219,7 @@ var Procedures = []Procedure{
 	{Name: "harness.tabSeed", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabSend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabSource", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.tabSteer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabs", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceDelete", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceGitCheckout", Kind: "mutation", Dangerous: false, Surfaces: nil},

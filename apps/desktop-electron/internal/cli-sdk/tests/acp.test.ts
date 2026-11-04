@@ -42,6 +42,8 @@ function agent(
           },
         });
         return reply({});
+      case '_x.ai/interject':
+        return reply({ status: 'queued' });
       case '_unknown/compact':
         return child.send({
           jsonrpc: '2.0',
@@ -279,5 +281,42 @@ describe('AcpDriver', () => {
     });
     expect(got.at(-1)).toMatchObject({ kind: 'health', state: 'exited', code: 0 });
     expect(d.closed).toBe(true);
+  });
+
+  it('steer: the configured extension method with {sessionId, text}; unsupported without one', async () => {
+    const child = new FakeChild();
+    agent(child, { permission: true });
+    const d = new AcpDriver({ child, steerMethod: '_x.ai/interject' });
+    await d.start({ cwd: '/w' });
+    expect(await d.steer('early')).toBe(false);
+    const results: boolean[] = [];
+    d.on((e) => {
+      if (e.kind !== 'permission') return;
+      void d.steer('use the new API').then((ok) => {
+        results.push(ok);
+        d.respondPermission(e.id, { decision: 'allow' });
+      });
+    });
+    await d.send({ text: 'go' });
+    expect(results).toEqual([true]);
+    expect(child.messages().find((m) => m.method === '_x.ai/interject')?.params).toEqual({
+      sessionId: 's1',
+      text: 'use the new API',
+    });
+
+    const plain = new FakeChild();
+    agent(plain, { permission: true });
+    const g = new AcpDriver({ child: plain });
+    await g.start({ cwd: '/w' });
+    const seen: boolean[] = [];
+    g.on((e) => {
+      if (e.kind !== 'permission') return;
+      void g.steer('x').then((ok) => {
+        seen.push(ok);
+        g.respondPermission(e.id, { decision: 'allow' });
+      });
+    });
+    await g.send({ text: 'go' });
+    expect(seen).toEqual([false]);
   });
 });

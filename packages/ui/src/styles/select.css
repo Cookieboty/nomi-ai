@@ -110,9 +110,10 @@
   transform-origin: bottom;
 }
 .cd-dropdown__search {
-  padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
+  /* 搜索框与下面的列表留足距离：Windows 字体行高大，原来的间距显得挤 */
+  padding: var(--cd-space-2) var(--cd-space-1) var(--cd-space-3);
   border-bottom: 1px solid var(--cd-panel-border);
-  margin-bottom: var(--cd-space-1);
+  margin-bottom: var(--cd-space-2);
 }
 .cd-dropdown__search .cd-input {
   width: 100%;
@@ -265,6 +266,17 @@
   width: min(720px, 96vw);
 }
 
+/* 内嵌：菜单画在调用方的浮层里（外框、阴影由浮层给），其余与弹层相同 */
+.cd-dropdown__menu--inline {
+  position: relative;
+  z-index: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
 /* 带顶部标签 / 侧栏的弹层（模型选择器）：固定高度，列表区撑满剩余空间 */
 .cd-dropdown__menu--framed .cd-dropdown__list {
   flex: 1 1 auto;
@@ -281,6 +293,27 @@
   min-width: 0;
 }
 
+/* 模型选择器顶部一行：供应商标签 + 右端的操作（如刷新） */
+.cd-model-picker__header {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  flex: none;
+}
+.cd-model-picker__header > .cd-model-picker__tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cd-model-picker__header-fill {
+  flex: 1 1 auto;
+}
+/* 模型选择器顶部的提示（读不到模型列表等） */
+.cd-model-picker__notice {
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-2);
+  font: var(--cd-text-caption);
+  color: var(--cd-color-text-muted);
+}
 /* 模型选择器 browse：顶部供应商标签 */
 .cd-model-picker__tabs {
   display: flex;

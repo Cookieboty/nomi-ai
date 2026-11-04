@@ -75,6 +75,44 @@ describe('MessageInput @ path mention', () => {
     expect(r.queryByTestId('at-path-menu')).toBeNull();
   });
 
+  it('Enter still sends when the @ token matches nothing', async () => {
+    const onSend = vi.fn();
+    const r = render(<MessageInput cwd="/tmp/proj" onSend={onSend} />);
+    const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;
+    typeAt(ta, 'ping @zzz');
+    await waitFor(() => expect(r.getByTestId('at-path-empty')).toBeTruthy());
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    await waitFor(() => expect(onSend).toHaveBeenCalled());
+    expect(onSend.mock.calls[0]?.[0]).toBe('ping @zzz');
+  });
+
+  it('does not open palette for email-like text', async () => {
+    const r = render(<MessageInput cwd="/tmp/proj" onSend={vi.fn()} />);
+    const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;
+    typeAt(ta, 'mail me@host');
+    await new Promise((x) => setTimeout(x, 50));
+    expect(r.queryByTestId('at-path-menu')).toBeNull();
+  });
+
+  it('Enter still sends when the @ token matches nothing', async () => {
+    const onSend = vi.fn();
+    const r = render(<MessageInput cwd="/tmp/proj" onSend={onSend} />);
+    const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;
+    typeAt(ta, 'ping @zzz');
+    await waitFor(() => expect(r.getByTestId('at-path-empty')).toBeTruthy());
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    await waitFor(() => expect(onSend).toHaveBeenCalled());
+    expect(onSend.mock.calls[0]?.[0]).toBe('ping @zzz');
+  });
+
+  it('does not open palette for email-like text', async () => {
+    const r = render(<MessageInput cwd="/tmp/proj" onSend={vi.fn()} />);
+    const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;
+    typeAt(ta, 'mail me@host');
+    await new Promise((x) => setTimeout(x, 50));
+    expect(r.queryByTestId('at-path-menu')).toBeNull();
+  });
+
   it('does not open palette when cwd is omitted', async () => {
     const r = render(<MessageInput onSend={vi.fn()} />);
     const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;

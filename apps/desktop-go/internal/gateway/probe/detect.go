@@ -114,6 +114,60 @@ func (o *Options) timeout() time.Duration {
 
 func lastSeg(m string) string { p := strings.Split(m, "/"); return p[len(p)-1] }
 
+// foreign：按名字看像别家原生协议的模型，测这个协议时排到最后（同 Node FOREIGN）
+var foreign = map[string]*regexp.Regexp{
+	"messages":  regexp.MustCompile(`(?i)gpt|codex|^o[0-9]|gemini`),
+	"responses": regexp.MustCompile(`(?i)claude|opus|sonnet|haiku|fable|gemini`),
+	"chat":      regexp.MustCompile(`^$`),
+	"gemini":    regexp.MustCompile(`(?i)claude|opus|sonnet|haiku|fable|gpt|codex`),
+}
+
+// FallbackModels = fallbackModels：首选模型失败后换着测的候选——在别的协议上测通的模型优先，
+// 然后按协议排序（像别家原生的放最后），最多 max 个
+func FallbackModels(wire string, all []string, tried map[string]bool, okModel string, max int) []string {
+	var native, other []string
+	for _, m := range all {
+		if nonChat.MatchString(m) || tried[m] {
+			continue
+		}
+		if foreign[wire].MatchString(lastSeg(m)) {
+			other = append(other, m)
+		} else {
+			native = append(native, m)
+		}
+	}
+	order := []string{}
+	if okModel != "" && !tried[okModel] {
+		order = append(order, okModel)
+	}
+	order = append(append(order, native...), other...)
+	seen := map[string]bool{}
+	out := []string{}
+	for _, m := range order {
+		if seen[m] {
+			continue
+		}
+		seen[m] = true
+		out = append(out, m)
+		if len(out) == max {
+			break
+		}
+	}
+	return out
+}
+
+// modelSpecific：这次失败可能只是这个模型的问题——鉴权、模型不存在 / 没渠道、限流、上游 5xx、超时
+func modelSpecific(ln *u.Obj) bool {
+	if ln.Get("ok") == true {
+		return false
+	}
+	if ln.Get("error") == "超时" {
+		return true
+	}
+	st, ok := ln.Get("status").(float64)
+	return ok && (st == 401 || st == 403 || st == 404 || st == 429 || st >= 500)
+}
+
 func pickModel(wire string, all []string, fallback string) string {
 	var models []string
 	for _, m := range all {
@@ -502,15 +556,26 @@ func Detect(o Options) *u.Obj {
 						break
 					}
 				}
-				if okModel != "" {
-					for i, ln := range lines {
-						st := ln.Get("status")
-						specific := st == float64(401) || st == float64(403) || ln.Get("error") == "超时"
-						if ln.Get("ok") == true || !specific || ln.Get("model") == okModel {
-							continue
+				// 聚合网关常按模型返回 401 / 403 / 503（这个模型在这个接口上没有渠道）或长时间不响应：
+				// 换别的模型再测——先用在别的协议上测通的模型，再按协议挑几个，有一个通就算这个协议可用
+				for i, ln := range lines {
+					if !modelSpecific(ln) {
+						continue
+					}
+					w := ln.Get("wire").(string)
+					tried := map[string]bool{}
+					if m, _ := ln.Get("model").(string); m != "" {
+						tried[m] = true
+					}
+					auth := defaultAuth[w]
+					if w == "chat" && l.auth != "" {
+						auth = l.auth
+					}
+					for _, model := range FallbackModels(w, l.models, tried, okModel, 2) {
+						if nx := probeWire(w, o.base(w), key, model, auth, &o); nx.Get("ok") == true {
+							lines[i] = nx
+							break
 						}
-						w := ln.Get("wire").(string)
-						lines[i] = probeWire(w, o.base(w), key, okModel, defaultAuth[w], &o)
 					}
 				}
 				m := u.NewObj()

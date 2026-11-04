@@ -27,7 +27,7 @@ export interface UpstreamGuardOpts {
   lookupAll?: LookupAll;
 }
 
-function hostPort(u: URL): string {
+export function hostPort(u: URL): string {
   const port = u.port || (u.protocol === 'https:' ? '443' : '80');
   return `${u.hostname.replace(/^\[|\]$/g, '').toLowerCase()}:${port}`;
 }

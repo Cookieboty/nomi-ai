@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,7 +8,7 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
-import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+import { installFakeApi, resetFakeApi, untilIdle } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
@@ -73,14 +73,17 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
   return calls;
 }
 
-/** 「本机历史」默认折叠：这里的用例都要看历史行，挂载后自动点开一次 */
-function expandLocalHistory(r: ReturnType<typeof render>) {
-  void r
-    .findByTestId('cli-history-toggle')
-    .then((t) => {
-      if (t.getAttribute('aria-expanded') === 'false') fireEvent.click(t);
-    })
-    .catch(() => undefined);
+/**
+ * 「本机历史」默认折叠：这里的用例都要看历史行，挂载后等界面做完手上的事（untilIdle：按调用是否都已返回判定，
+ * 不按时间），再点开一次
+ */
+async function expandLocalHistory(r: ReturnType<typeof render>) {
+  await untilIdle();
+  const t = r.queryByTestId('cli-history-toggle');
+  if (t?.getAttribute('aria-expanded') === 'false') {
+    fireEvent.click(t);
+    await untilIdle();
+  }
   return r;
 }
 
@@ -96,10 +99,21 @@ const mountRaw = (onNotice = vi.fn()) =>
     </HarnessTabsProvider>,
   );
 const mount = (onNotice = vi.fn()) => expandLocalHistory(mountRaw(onNotice));
+/** 只挂载（不点开本机历史），等界面做完手上的事 */
+const mountIdle = async (onNotice = vi.fn()) => {
+  const r = mountRaw(onNotice);
+  await untilIdle();
+  return r;
+};
 
-beforeEach(() => setChatMode('dev'));
+beforeEach(() => {
+  setChatMode('dev');
+  // 本机历史在挂载 120ms 后才读：用假定时器，untilIdle 每轮直接执行到期的定时器，不按时间等
+  vi.useFakeTimers();
+});
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   localStorage.clear();
   resetFakeApi();
 });
@@ -107,8 +121,9 @@ afterEach(() => {
 describe('CLI history in the sidebar', () => {
   it('dev mode: merged list across installed endpoints, newest first, with endpoint icons', async () => {
     mockIpc();
-    const r = mount();
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    const r = await mount();
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     const rows = r.getAllByTestId('history-session-item');
     expect(rows.map((x) => x.getAttribute('data-session-id'))).toEqual([
       'claude-1',
@@ -133,8 +148,9 @@ describe('CLI history in the sidebar', () => {
         h('codex', 5, { client: 'ide', route: 'official' }),
       ],
     });
-    const r = mount();
-    await waitFor(() => r.getAllByTestId('history-session-item'));
+    const r = await mount();
+    await untilIdle();
+    r.getAllByTestId('history-session-item');
     const row = (id: string) =>
       r.getAllByTestId('history-session-item').find((x) => x.dataset.sessionId === id)!;
     // 行内只显示首字母，完整名称在标签的 aria-label 与行的提示里
@@ -155,8 +171,9 @@ describe('CLI history in the sidebar', () => {
   it('normal mode does not show or scan history', async () => {
     setChatMode('normal');
     const calls = mockIpc();
-    const r = mount();
-    await waitFor(() => r.getAllByTestId('history-item'));
+    const r = await mount();
+    await untilIdle();
+    r.getAllByTestId('history-item');
     expect(r.queryByTestId('cli-history')).toBeNull();
     expect(calls.some(([c]) => c === 'history.list')).toBe(false);
   });
@@ -165,13 +182,15 @@ describe('CLI history in the sidebar', () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     localStorage.setItem('ai-chat:endpointFilter', 'claude');
     const calls = mockIpc();
-    const r = mount();
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(2));
+    const r = await mount();
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(2);
     expect(
       r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),
     ).toBe(true);
     fireEvent.click(r.getByTestId('cli-history-more'));
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     expect(
       calls.filter(
         ([c, a]) =>
@@ -187,17 +206,17 @@ describe('CLI history in the sidebar', () => {
     // Codex 在这里没有对话：没有显式设置时侧栏不显示它，这里显式设为「显示」
     localStorage.setItem('ai-chat:sidebarEndpoints', JSON.stringify({ codex: 'show' }));
     mockIpc();
-    const r = mount();
+    const r = await mount();
     // 当前会话是 Nomi 对话 n1：筛选停在 Claude Code 也显示 Nomi 的卡
-    const card = await r.findByTestId('endpoint-info-card');
-    await waitFor(() => expect(card.getAttribute('data-endpoint')).toBe('nomi'));
+    const card = r.getByTestId('endpoint-info-card');
+    await untilIdle();
+    expect(card.getAttribute('data-endpoint')).toBe('nomi');
     // 卡片在可滚动的会话列表（含「本机历史」）之外，固定在侧栏底部
     expect(r.getByTestId('conversation-list').contains(card)).toBe(false);
-    expect(await r.findByTestId('cli-history')).toBeTruthy();
+    expect(r.getByTestId('cli-history')).toBeTruthy();
     fireEvent.click(r.getByTestId('endpoint-filter-codex'));
-    await waitFor(() =>
-      expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex'),
-    );
+    await untilIdle();
+    expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex');
     // 「全部」视图下也保留
     fireEvent.click(r.getByTestId('list-view-all'));
     expect(r.getByTestId('endpoint-info-card')).toBeTruthy();
@@ -205,8 +224,9 @@ describe('CLI history in the sidebar', () => {
 
   it('一行筛选：从「全部」直接点端点图标即切到该端；悬停提示带对话数与本机历史数', async () => {
     mockIpc();
-    const r = mount();
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    const r = await mount();
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('true');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').title).toBe('Claude Code · 2 条本机历史');
@@ -217,11 +237,10 @@ describe('CLI history in the sidebar', () => {
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
     expect(r.getByTestId('list-title').textContent).toContain('Claude Code');
     expect(r.getByTestId('new-chat').title).toContain('新建 Claude Code 对话');
-    await waitFor(() =>
-      expect(
-        r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),
-      ).toBe(true),
-    );
+    await untilIdle();
+    expect(
+      r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),
+    ).toBe(true);
     // 刷新按钮在标题行，不再单独占一个「历史会话」头
     expect(r.getByTestId('cli-history-refresh')).toBeTruthy();
   });
@@ -230,9 +249,11 @@ describe('CLI history in the sidebar', () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     localStorage.setItem('ai-chat:endpointFilter', 'codex');
     mockIpc({ codexItems: [] });
-    const r = mount();
-    await waitFor(() => r.getByTestId('cli-history-refresh'));
-    await waitFor(() => r.getByTestId('conversation-list-empty'));
+    const r = await mount();
+    await untilIdle();
+    r.getByTestId('cli-history-refresh');
+    await untilIdle();
+    r.getByTestId('conversation-list-empty');
     expect(r.queryByTestId('cli-history')).toBeNull();
     expect(r.queryByText('没有找到本机的历史会话')).toBeNull();
 
@@ -245,46 +266,51 @@ describe('CLI history in the sidebar', () => {
     setChatMode('normal');
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     mockIpc();
-    const r = mount();
-    await waitFor(() => r.getAllByTestId('history-item'));
+    const r = await mount();
+    await untilIdle();
+    r.getAllByTestId('history-item');
     expect(r.queryByTestId('endpoint-info-card')).toBeNull();
   });
 
   it('clicking a row opens it through the main process and reports problems', async () => {
     const onNotice = vi.fn();
     const calls = mockIpc({ openResult: { ok: false, error: '原工作目录已不存在：/work/app' } });
-    const r = mount(onNotice);
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    const r = await mount(onNotice);
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     fireEvent.click(r.getAllByTestId('history-session-item')[0]!);
-    await waitFor(() =>
-      expect(
-        calls.some(
-          ([c, a]) => c === 'history.open' && a.backend === 'claude' && a.sessionId === 'claude-1',
-        ),
-      ).toBe(true),
-    );
-    await waitFor(() => expect(onNotice).toHaveBeenCalledWith('原工作目录已不存在：/work/app'));
+    await untilIdle();
+    expect(
+      calls.some(
+        ([c, a]) => c === 'history.open' && a.backend === 'claude' && a.sessionId === 'claude-1',
+      ),
+    ).toBe(true);
+    await untilIdle();
+    expect(onNotice).toHaveBeenCalledWith('原工作目录已不存在：/work/app');
   });
 
   it('shows the transcript notice returned by the main process', async () => {
     const onNotice = vi.fn();
     mockIpc({ openResult: { ok: true, notice: '没有解析到可显示的历史消息' } });
-    const r = mount(onNotice);
-    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    const r = await mount(onNotice);
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     fireEvent.click(r.getAllByTestId('history-session-item')[2]!);
-    await waitFor(() => expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息'));
+    await untilIdle();
+    expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息');
   });
 
   it('local history is collapsed by default; expands and collapses; remount is collapsed again', async () => {
     mockIpc();
-    const r = mountRaw();
-    const toggle = await r.findByTestId('cli-history-toggle');
+    const r = await mountIdle();
+    const toggle = r.getByTestId('cli-history-toggle');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    await waitFor(() => expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0));
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0);
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -292,8 +318,8 @@ describe('CLI history in the sidebar', () => {
     expect(r.queryByTestId('cli-history-more')).toBeNull();
 
     r.unmount();
-    const r2 = mountRaw();
-    const toggle2 = await r2.findByTestId('cli-history-toggle');
+    const r2 = await mountIdle();
+    const toggle2 = r2.getByTestId('cli-history-toggle');
     expect(toggle2.getAttribute('aria-expanded')).toBe('false');
   });
 });

@@ -38,6 +38,10 @@ type RuntimeModel struct {
 	Label       *string  `json:"label,omitempty"`
 	Efforts     []string `json:"efforts,omitempty"`
 	Strict      *bool    `json:"strict,omitempty"`
+	// Like：按内置目录里的哪个模型处理（用户设置；中转改了名的已知模型），族默认与目录按它查
+	Like *string `json:"like,omitempty"`
+	// CtxStandard：用户声明的标准窗口（只在主进程算注入窗口时用）
+	CtxStandard *float64 `json:"ctxStandard,omitempty"`
 }
 
 // LearnedModel is LearnedModel.

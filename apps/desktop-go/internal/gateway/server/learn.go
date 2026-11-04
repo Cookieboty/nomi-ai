@@ -77,7 +77,12 @@ func word(p string) *regexp.Regexp {
 
 // ClassifyFailure is classifyFailure (applied = opts.applied).
 func ClassifyFailure(status int, text string, sent any, applied []string) Failure {
-	if r := route.RectifierFor(status, text, sent); r != nil && !contains(applied, r.Fix) {
+	return ClassifyFailureBeta(status, text, sent, applied, false)
+}
+
+// ClassifyFailureBeta = classifyFailure(..., { applied, sentBeta })
+func ClassifyFailureBeta(status int, text string, sent any, applied []string, sentBeta bool) Failure {
+	if r := route.RectifierForBeta(status, text, sent, sentBeta); r != nil && !contains(applied, r.Fix) {
 		return Failure{Kind: "rectify", Fix: r.Fix, Rejected: r.Rejected}
 	}
 	var keys []string
@@ -158,6 +163,15 @@ type Learner struct {
 	reported   map[string]bool
 	onLearn    func(LearnEvent)
 	now        func() float64
+	// betaRefused：拒绝过 context-1m beta 的 (供应商|模型)，之后不再补这个头
+	betaRefused map[string]bool
+}
+
+// RefusedBeta = refusedBeta(c)：这个候选的上游拒绝过 context-1m beta
+func (l *Learner) RefusedBeta(c *cand.Candidate) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.betaRefused[c.Provider.ID+"|"+ModelOf(c)]
 }
 
 // NewLearner is new Learner(onLearn, now).
@@ -168,7 +182,7 @@ func NewLearner(onLearn func(LearnEvent), now func() float64) *Learner {
 	if now == nil {
 		now = NowMs
 	}
-	return &Learner{suppressed: map[string]float64{}, streaks: map[string][]hit{}, reported: map[string]bool{}, onLearn: onLearn, now: now}
+	return &Learner{suppressed: map[string]float64{}, streaks: map[string][]hit{}, reported: map[string]bool{}, onLearn: onLearn, now: now, betaRefused: map[string]bool{}}
 }
 
 // IsSuppressed is isSuppressed.
@@ -222,6 +236,12 @@ func (l *Learner) Failure(c *cand.Candidate, f Failure) *Retry {
 	pid := c.Provider.ID
 	switch f.Kind {
 	case "rectify":
+		// 这家（这个模型）不认 context-1m：之后不再补，进程内记住
+		if f.Fix == "beta" {
+			l.mu.Lock()
+			l.betaRefused[pid+"|"+ModelOf(c)] = true
+			l.mu.Unlock()
+		}
 		if f.Fix == "effort" && f.Rejected != "" {
 			l.onLearn(LearnEvent{Type: "model-efforts", ProviderID: pid, Model: ModelOf(c),
 				Efforts: route.RemainingEfforts(f.Rejected, knownEfforts(c.Model)), At: now, CatalogVersion: models.CatalogVersion})

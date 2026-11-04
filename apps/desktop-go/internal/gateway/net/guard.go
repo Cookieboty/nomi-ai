@@ -45,6 +45,9 @@ type GuardOpts struct {
 	LookupAll           LookupAll
 }
 
+// HostPort = hostPort：host:port（小写、去方括号、缺省端口按协议补）
+func HostPort(u *url.URL) string { return hostPort(u) }
+
 func hostPort(u *url.URL) string {
 	port := u.Port()
 	if port == "" {

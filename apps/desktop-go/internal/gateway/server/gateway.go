@@ -1111,6 +1111,10 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	if session != "" {
 		sticky = g.affinity.Get(session)
 	}
+	// 亲和只在首选供应商里挑 Key：会话换了供应商后，上次成功的旧供应商即使还在回退候选里也不能排到第一
+	if sticky != nil && (len(r.Candidates) == 0 || sticky.ProviderID != r.Candidates[0].Provider.ID) {
+		sticky = nil
+	}
 	queue := g.ordered(g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
 	learnRetries := 0
 	// 重连（§11.1，retry.go）：同一个 Key 退避重连几次、同一家累计失败几次
@@ -1133,6 +1137,12 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		}
 		c := queue[0]
 		queue = queue[1:]
+		// 这家拒绝过 context-1m beta：这次直接不补（rectify 'beta'）
+		if g.learner.RefusedBeta(c) && !contains(c.Rectify, "beta") {
+			cc := *c
+			cc.Rectify = append(append([]string{}, c.Rectify...), "beta")
+			c = &cc
+		}
 		// 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
 		if last != nil && last.kind == "failed" && last.cand != nil && last.cand.Provider.ID != c.Provider.ID {
 			g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: last.cand.Provider.Name,
@@ -1280,7 +1290,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		}
 		var hint *Retry
 		if last.text != nil {
-			hint = g.learner.Failure(c, ClassifyFailure(last.status, *last.text, last.sent, c.Rectify))
+			hint = g.learner.Failure(c, ClassifyFailureBeta(last.status, *last.text, last.sent, c.Rectify, upstream.WantsContext1m(c)))
 		}
 		var retry *cand.Candidate
 		if hint != nil && learnRetries < MaxLearnRetries {

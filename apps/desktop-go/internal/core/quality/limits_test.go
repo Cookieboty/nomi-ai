@@ -41,3 +41,32 @@ func TestQualityLimits(t *testing.T) {
 		t.Fatalf("range must be [from,to): %d", n)
 	}
 }
+
+// 开发者工具：quality.requests 按标签筛（同 Node listRequests 的 tabId）
+func TestRequestsTabFilter(t *testing.T) {
+	now := 1_800_000_000_000.0
+	svc := New(ServiceDeps{Dir: t.TempDir(), FlushMs: -1, Now: func() float64 { return now }})
+	defer svc.Dispose()
+	for i, tab := range []string{"tab-a", "tab-b", ""} {
+		r := u.NewObj("id", "r"+u.FormatNumber(float64(i)), "ts", now-float64(i+1)*1000, "layer", "gateway",
+			"client", "x", "source", "thirdParty", "stream", true, "status", 200.0, "outcome", "ok",
+			"timing", u.NewObj("endMs", 1.0), "tokens", u.NewObj(), "model", "m")
+		if tab != "" {
+			r.Set("tabId", tab)
+		}
+		svc.Ledger.Append(r)
+	}
+	res := svc.Requests(u.NewObj("from", now-dayMs, "to", now+1, "limit", 10.0, "tabId", "tab-a"))
+	items, _ := res.Get("items").([]any)
+	if len(items) != 1 || res.Get("total") != 1.0 {
+		t.Fatalf("tab filter: %d items, total %v", len(items), res.Get("total"))
+	}
+	if id, _ := items[0].(*u.Obj).Get("id").(string); id != "r0" {
+		t.Fatalf("got %s", id)
+	}
+	// 不合法的标签 id 忽略（不筛）
+	all := svc.Requests(u.NewObj("from", now-dayMs, "to", now+1, "limit", 10.0, "tabId", "../x"))
+	if all.Get("total") != 3.0 {
+		t.Fatalf("bad tab id must not filter: %v", all.Get("total"))
+	}
+}

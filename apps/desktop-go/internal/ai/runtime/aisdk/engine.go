@@ -167,7 +167,13 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 		if ctx.Err() != nil {
 			return
 		}
-		prompt, err := convertPrompt(p.Instructions, messages)
+		stepMessages := messages
+		if p.PrepareStep != nil {
+			if m := p.PrepareStep(messages); m != nil {
+				stepMessages = m
+			}
+		}
+		prompt, err := convertPrompt(p.Instructions, stepMessages)
 		if err != nil {
 			emit(Part{Type: "error", Error: err})
 			return
@@ -314,7 +320,8 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			messages = append(messages, responseMessages(content, outcomes)...)
 			continue
 		}
-		emit(Part{Type: "finish", FinishReason: finishReason, TotalUsage: total})
+		resMsgs := append(append([]*u.Obj{}, messages[len(p.Messages):]...), responseMessages(content, outcomes)...)
+		emit(Part{Type: "finish", FinishReason: finishReason, TotalUsage: total, ResponseMessages: resMsgs})
 		return
 	}
 }

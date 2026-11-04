@@ -291,6 +291,11 @@ type AiChatSendMessageOutput struct {
 	Usage        *AiChatSendMessageOutputUsage          `json:"usage,omitempty"`
 }
 
+type AiChatSteerInput struct {
+	ReqId string `json:"reqId"`
+	Text  string `json:"text"`
+}
+
 // AiChatStreamInputMessagesItemRole 枚举：system | user | assistant | tool
 type AiChatStreamInputMessagesItemRole = string
 
@@ -2022,11 +2027,45 @@ type DesktopUndoLastOutput struct {
 	Error  *string `json:"error,omitempty"`
 }
 
+type DiagnosticsCliRecordsInput struct {
+	TabId string  `json:"tabId"`
+	From  float64 `json:"from"`
+	To    float64 `json:"to"`
+}
+
+type DiagnosticsCliRecordsOutputRecordsItem struct {
+	T      string   `json:"t"`
+	Ev     *string  `json:"ev,omitempty"`
+	Pid    *float64 `json:"pid,omitempty"`
+	Cli    *string  `json:"cli,omitempty"`
+	Data   *string  `json:"data,omitempty"`
+	Args   []string `json:"args,omitempty"`
+	Code   *float64 `json:"code,omitempty"`
+	Signal *string  `json:"signal,omitempty"`
+	Note   *string  `json:"note,omitempty"`
+}
+
+type DiagnosticsCliRecordsOutput struct {
+	Enabled   bool                                     `json:"enabled"`
+	Records   []DiagnosticsCliRecordsOutputRecordsItem `json:"records"`
+	Truncated bool                                     `json:"truncated"`
+}
+
 type DiagnosticsExportOutput struct {
 	Ok    bool     `json:"ok"`
 	Path  *string  `json:"path,omitempty"`
 	Files []string `json:"files,omitempty"`
 	Error *string  `json:"error,omitempty"`
+}
+
+type DiagnosticsGatewayTraceInput struct {
+	TraceId string `json:"traceId"`
+}
+
+type DiagnosticsGatewayTraceOutput struct {
+	Found     bool    `json:"found"`
+	Text      *string `json:"text,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
 }
 
 type DiagnosticsGetOutput struct {
@@ -2428,6 +2467,13 @@ type ExtSkillsListOutputItem struct {
 	Files       []string `json:"files"`
 	Error       *string  `json:"error,omitempty"`
 	Dir         string   `json:"dir"`
+}
+
+type GatewayCatalogModelsOutputItem struct {
+	Id       string   `json:"id"`
+	Family   *string  `json:"family,omitempty"`
+	Context  *float64 `json:"context,omitempty"`
+	Standard *float64 `json:"standard,omitempty"`
 }
 
 type GatewayClearLearnedInput struct {
@@ -3627,6 +3673,11 @@ type HarnessTabSourceOutput struct {
 	Unread       float64 `json:"unread"`
 	CreatedAt    float64 `json:"createdAt"`
 	UpdatedAt    float64 `json:"updatedAt"`
+}
+
+type HarnessTabSteerInput struct {
+	Id   string `json:"id"`
+	Text string `json:"text"`
 }
 
 type HarnessTabsOutputTabsItem struct {
@@ -5089,6 +5140,7 @@ type QualityRequestsInput struct {
 	Filters map[string][]string        `json:"filters,omitempty"`
 	Limit   float64                    `json:"limit"`
 	Offset  *float64                   `json:"offset,omitempty"`
+	TabId   *string                    `json:"tabId,omitempty"`
 }
 
 type QualityRequestsOutputItemsItem struct {
@@ -7640,6 +7692,10 @@ type AiChatRegenerateChunkT = json.RawMessage
 type AiChatSendMessageInputT = AiChatSendMessageInput
 type AiChatSendMessageOutputT = AiChatSendMessageOutput
 
+// AiChatSteerInputT 是 ai.chat.steer 的入参
+type AiChatSteerInputT = AiChatSteerInput
+type AiChatSteerOutputT = bool
+
 // AiChatStreamInputT 是 ai.chat.stream 的入参
 type AiChatStreamInputT = AiChatStreamInput
 type AiChatStreamChunkT = json.RawMessage
@@ -8004,9 +8060,17 @@ type DesktopTakePendingSummaryOutputT = *DesktopTakePendingSummaryOutput
 type DesktopUndoLastInputT = any
 type DesktopUndoLastOutputT = DesktopUndoLastOutput
 
+// DiagnosticsCliRecordsInputT 是 diagnostics.cliRecords 的入参
+type DiagnosticsCliRecordsInputT = DiagnosticsCliRecordsInput
+type DiagnosticsCliRecordsOutputT = DiagnosticsCliRecordsOutput
+
 // DiagnosticsExportInputT 是 diagnostics.export 的入参
 type DiagnosticsExportInputT = any
 type DiagnosticsExportOutputT = DiagnosticsExportOutput
+
+// DiagnosticsGatewayTraceInputT 是 diagnostics.gatewayTrace 的入参
+type DiagnosticsGatewayTraceInputT = DiagnosticsGatewayTraceInput
+type DiagnosticsGatewayTraceOutputT = DiagnosticsGatewayTraceOutput
 
 // DiagnosticsGetInputT 是 diagnostics.get 的入参
 type DiagnosticsGetInputT = any
@@ -8087,6 +8151,10 @@ type ExtSkillsContextOutputT = string
 // ExtSkillsListInputT 是 ext.skillsList 的入参
 type ExtSkillsListInputT = any
 type ExtSkillsListOutputT = []ExtSkillsListOutputItem
+
+// GatewayCatalogModelsInputT 是 gateway.catalogModels 的入参
+type GatewayCatalogModelsInputT = any
+type GatewayCatalogModelsOutputT = []GatewayCatalogModelsOutputItem
 
 // GatewayClearLearnedInputT 是 gateway.clearLearned 的入参
 type GatewayClearLearnedInputT = GatewayClearLearnedInput
@@ -8379,6 +8447,10 @@ type HarnessTabSendOutputT = HarnessTabSendOutput
 // HarnessTabSourceInputT 是 harness.tabSource 的入参
 type HarnessTabSourceInputT = HarnessTabSourceInput
 type HarnessTabSourceOutputT = HarnessTabSourceOutput
+
+// HarnessTabSteerInputT 是 harness.tabSteer 的入参
+type HarnessTabSteerInputT = HarnessTabSteerInput
+type HarnessTabSteerOutputT = bool
 
 // HarnessTabsInputT 是 harness.tabs 的入参
 type HarnessTabsInputT = any

@@ -159,6 +159,14 @@ export const NomiContextInfo = loose({
   source: z.string(),
 });
 
+/** 内置模型目录里的一个模型（context：最大输入；standard：标准窗口，超过它按长上下文） */
+export const CatalogModel = loose({
+  id: z.string(),
+  family: z.string().optional(),
+  context: z.number().optional(),
+  standard: z.number().optional(),
+});
+
 const KeyLimit = z.number().nullable().optional();
 export const GatewayProviderInput = loose({
   id: z.string().optional(),
@@ -380,6 +388,7 @@ export const QualityRequestsQuery = loose({
   filters: QualityFilters.optional(),
   limit: z.number(),
   offset: z.number().optional(),
+  tabId: z.string().max(80).optional(),
 });
 export const QualityFacetsQuery = loose({
   from: z.number(),
@@ -461,6 +470,32 @@ export const DiagnosticsView = loose({
   saveLogs: z.boolean(),
   dir: z.string(),
   bodyTrace: z.boolean(),
+});
+export const DiagnosticsCliRecordsQuery = loose({
+  tabId: z.string().max(80),
+  from: z.number(),
+  to: z.number(),
+});
+export const DiagnosticsCliRecord = loose({
+  t: z.string(),
+  ev: z.string().optional(),
+  pid: z.number().optional(),
+  cli: z.string().optional(),
+  data: z.string().optional(),
+  args: z.array(z.string()).optional(),
+  code: z.number().nullish(),
+  signal: z.string().nullish(),
+  note: z.string().optional(),
+});
+export const DiagnosticsCliRecords = loose({
+  enabled: z.boolean(),
+  records: z.array(DiagnosticsCliRecord),
+  truncated: z.boolean(),
+});
+export const DiagnosticsGatewayTrace = loose({
+  found: z.boolean(),
+  text: z.string().optional(),
+  truncated: z.boolean().optional(),
 });
 export const DiagnosticsExportResult = loose({
   ok: z.boolean(),

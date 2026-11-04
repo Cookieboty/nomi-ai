@@ -5,6 +5,7 @@ import {
   details,
   heatmap,
   makePriceOf,
+  recordCost,
   rangeOf,
   series,
   startOfDay,
@@ -161,5 +162,30 @@ describe('热力图 / 明细 / CSV', () => {
     expect(usd[2]).toContain(",'=cmd|x,");
     expect(usd[2]).toContain('"he said ""hi"", ok"');
     expect(usd[2]!.split(',').at(-2)).toBe('no'); // priced = no
+  });
+});
+
+describe('计价别名（第三方模型按哪个已知模型处理）', () => {
+  const rec = (model: string, provider?: string) =>
+    ({
+      input: 1_000_000,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      model,
+      ...(provider ? { provider } : {}),
+    }) as never;
+  it('认不出的模型按别名计价；按供应商区分；自己的自定义价仍然优先', () => {
+    const alias = (model: string, provider?: string) =>
+      model === 'Aerith-opus-5.5' && provider !== 'other' ? 'claude-opus-4-8' : undefined;
+    const p = makePriceOf([], [], alias);
+    expect(recordCost(rec('Aerith-opus-5.5'), makePriceOf([]))).toBeNull();
+    expect(recordCost(rec('claude-opus-4-8'), p)).toBeGreaterThan(0);
+    expect(recordCost(rec('Aerith-opus-5.5', 'maas'), p)).toBe(
+      recordCost(rec('claude-opus-4-8'), p),
+    );
+    expect(recordCost(rec('Aerith-opus-5.5', 'other'), p)).toBeNull();
+    const custom = makePriceOf([{ model: 'Aerith-opus-5.5', input: 1, output: 1 }], [], alias);
+    expect(recordCost(rec('Aerith-opus-5.5', 'maas'), custom)).toBe(1);
   });
 });

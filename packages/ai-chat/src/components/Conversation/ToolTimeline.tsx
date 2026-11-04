@@ -12,6 +12,7 @@ import {
   ChevronsUp,
   CircleAlert,
   Compass,
+  CornerDownRight,
   FileDiff as FileDiffIcon,
   FilePen,
   FilePlus,
@@ -613,6 +614,15 @@ export const TIMELINE_WINDOW = 60;
  * 按 items 引用 memo：流式纯文字帧里 convSegments 保持各组 items 不变，这里整块跳过，
  * 不再每帧跑 groupDelegates 和逐行 sameCall。
  */
+/** 用户在这一轮中途插入的消息（Enter 插入，下一步已交给模型） */
+const InterjectRow: React.FC<{ text: string }> = ({ text }) => (
+  <div className={styles.interject} data-testid="trace-interject">
+    <Icon icon={CornerDownRight} size={13} className={styles.interjectIcon} />
+    <span className={styles.interjectLabel}>{t('ui.session-workspace.you-added')}</span>
+    <span className={styles.interjectText}>{text}</span>
+  </div>
+);
+
 export const ToolTimeline = memo(function ToolTimeline({
   items,
   nested,
@@ -659,6 +669,8 @@ export const ToolTimeline = memo(function ToolTimeline({
             );
           case 'call':
             return <ToolCallRow key={it.call.id} call={it.call} />;
+          case 'interject':
+            return <InterjectRow key={it.id} text={it.text} />;
           case 'group':
             return <ToolGroup key={it.id} id={it.id} bucket={it.bucket} calls={it.calls} />;
           default:

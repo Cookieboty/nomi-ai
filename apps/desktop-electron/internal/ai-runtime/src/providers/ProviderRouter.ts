@@ -165,6 +165,12 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     for (const c of this.candidates) c.abort(reqId);
   }
 
+  steer(reqId: string, text: string): boolean {
+    let ok = false;
+    for (const c of this.candidates) ok = c.steer?.(reqId, text) === true || ok;
+    return ok;
+  }
+
   private async runChat(
     req: ChatRequest,
     call: (p: LLMProvider) => Promise<ChatResponse>,

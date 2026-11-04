@@ -23,6 +23,11 @@ export function cliAcceptsImages(backend: string | null | undefined): boolean {
   return !info || info.capabilities.images !== 'none';
 }
 
+/** 一轮进行中能插入用户消息（不能的运行中发送一律排队到这一轮结束） */
+export function canSteer(backend: string | null | undefined): boolean {
+  return cliInfo(backend)?.capabilities.steer === true;
+}
+
 /** 能单独停止某个子代理（不能时只能停整个标签） */
 export function canStopSubagent(backend: string | null | undefined): boolean {
   return cliInfo(backend)?.capabilities.subagentStop === true;

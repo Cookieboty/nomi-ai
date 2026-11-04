@@ -255,6 +255,29 @@ export function patchDshYaml(raw: string | null, patch: DshPatch | null): string
   return kept.length ? `${kept.join('\n')}\n` : '[]\n';
 }
 
+/**
+ * 修复只剩空白 / 注释的 cordis.patch.yml：dsh 要求顶层是 YAML 数组，空文件会让它启动即退出
+ * （`patches … must be a top-level YAML array`）。2026-10-23 之前的版本移除 Nomi 区块后会留下空文件，
+ * 文件里没有 Nomi 标记就再也不会被改写，所以每次启动 dsh 前检查一次。原有注释保留，末尾补 `[]`。
+ * 返回是否改写了；文件不存在、内容有效或写不进去都返回 false。
+ */
+export function repairDshPatchFile(file: string): boolean {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  const meaningful = raw.split(/\r?\n/).some((l) => l.trim() !== '' && !l.trim().startsWith('#'));
+  if (meaningful) return false;
+  try {
+    fs.writeFileSync(file, `${raw.trim() ? `${raw.trimEnd()}\n` : ''}[]\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Grok Build 家目录：GROK_HOME 或 ~/.grok */
 export function grokHomePath(home = os.homedir(), env: NodeJS.ProcessEnv = process.env): string {
   const fromEnv = env.GROK_HOME?.trim();

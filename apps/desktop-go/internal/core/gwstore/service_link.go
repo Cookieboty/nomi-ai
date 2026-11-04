@@ -3,11 +3,14 @@ package gwstore
 // 第三方供应商链接导入（docs/design/provider-link.md）= GatewayService.findProviderByUrls / importLinkedProvider。
 
 import (
+	"strings"
+
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/providerlink"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// findByURLs：调用方持锁
+// findByURLs：调用方持锁。链接里的地址都要和它已有的地址同源：带了别的域名时不合并（新建），
+// 免得它已有的 Key 也被发到链接新加的域名（#249）
 func (s *Service) findByURLs(urls []string) *u.Obj {
 	for _, raw := range s.Store.Providers() {
 		p := asObj(raw)
@@ -18,16 +21,27 @@ func (s *Service) findByURLs(urls []string) *u.Obj {
 		if pu == nil {
 			continue
 		}
+		have := []string{}
 		for _, w := range pu.Keys() {
-			have, _ := strOf(pu.Get(w))
-			if have == "" {
-				continue
+			if h, _ := strOf(pu.Get(w)); h != "" {
+				have = append(have, h)
 			}
-			for _, v := range urls {
-				if providerlink.SameURL(have, v) {
-					return p
+		}
+		same, origins := false, true
+		for _, v := range urls {
+			in := false
+			for _, h := range have {
+				if providerlink.SameURL(h, v) {
+					same = true
+				}
+				if providerlink.SameOrigin(h, v) {
+					in = true
 				}
 			}
+			origins = origins && in
+		}
+		if same && origins {
+			return p
 		}
 	}
 	return nil
@@ -137,4 +151,57 @@ func (s *Service) ImportLinkedProvider(p providerlink.Provider) (*u.Obj, bool, e
 	}
 	view, err := s.UpsertProvider(in)
 	return view, true, err
+}
+
+// PriceAlias = priceAlias(model, provider?)：第三方供应商里用户设的「按哪个已知模型处理」（like）。
+// provider 给了按那家查；没给时按模型名查，各家设得一致才用。锁外读已发布快照
+func (s *Service) PriceAlias(model, provider string) string {
+	bare := func(x string) string { return strings.ToLower(x[strings.LastIndex(x, "/")+1:]) }
+	want := bare(model)
+	hit := func(p *u.Obj) string {
+		ms, _ := p.Get("models").([]any)
+		for _, raw := range ms {
+			m := asObj(raw)
+			if m == nil {
+				continue
+			}
+			id, _ := strOf(m.Get("id"))
+			lk, _ := m.Get("like").(string)
+			if strings.TrimSpace(lk) != "" && bare(id) == want {
+				return strings.TrimSpace(lk)
+			}
+		}
+		return ""
+	}
+	var ps []*u.Obj
+	for _, raw := range s.Store.View().Providers() {
+		if p := asObj(raw); p != nil {
+			ps = append(ps, p)
+		}
+	}
+	if provider != "" {
+		for _, p := range ps {
+			if idOf(p) == provider {
+				return hit(p)
+			}
+			al, _ := p.Get("aliases").([]any)
+			for _, a := range al {
+				if a == provider {
+					return hit(p)
+				}
+			}
+		}
+	}
+	likes := map[string]bool{}
+	for _, p := range ps {
+		if l := hit(p); l != "" {
+			likes[l] = true
+		}
+	}
+	if len(likes) == 1 {
+		for l := range likes {
+			return l
+		}
+	}
+	return ""
 }

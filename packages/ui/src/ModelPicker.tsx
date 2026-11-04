@@ -3,10 +3,11 @@
  * - 按供应商分组，模型旁显示能力（推理、视觉、上下文长度）；可选的「最近使用」分组置顶；
  * - 给编程助手选（purpose="coding"）时，不支持工具调用的模型不出现，参数未知的标出来；
  * - 搜索支持 `provider/` 前缀过滤；键盘与弹层行为沿用 Select；
- * - browse：弹层顶部按供应商分标签、右侧按厂商（OpenAI、Anthropic …）快速筛选（对话输入栏用）。
+ * - browse：弹层顶部按供应商分标签、左侧按厂商（OpenAI、Anthropic …）快速筛选（对话输入栏用）；
+ * - inline：菜单直接画在调用方的浮层里（编程助手「模型 · 思考深度」浮层的模型页），与 Nomi 对话的下拉同一个组件。
  * 值的格式是 `providerId/modelId`（模型 id 本身可以含 `/`，供应商 id 不含）。
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { t } from './i18n';
 import { ModelProviderTabs, modelVendorId, modelVendors, ModelVendorFilter } from './ModelBrowse';
@@ -18,6 +19,8 @@ export interface PickerModel {
   label?: string;
   /** 上下文窗口（token） */
   ctx?: number;
+  /** 分档计价模型的标准窗口：browse 行右侧显示「标准 / 上下文」 */
+  ctxStandard?: number;
   reasoning?: boolean;
   vision?: boolean;
   /** false：不支持工具调用（编程助手不能用） */
@@ -31,12 +34,25 @@ export interface PickerModel {
 export interface PickerProvider {
   id: string;
   name: string;
+  /** browse 时供应商标签的悬停说明（如「默认供应商」「会话原来的供应商」） */
+  hint?: string;
+  /** false：这个供应商的模型都是同一家（如编程助手自己的官方模型），不显示厂商筛选 */
+  vendors?: boolean;
   models: PickerModel[];
 }
 
 export interface ModelPickerProps extends Pick<
   SelectProps,
-  'size' | 'variant' | 'disabled' | 'menuMinWidth' | 'className' | 'id'
+  | 'size'
+  | 'variant'
+  | 'disabled'
+  | 'menuMinWidth'
+  | 'className'
+  | 'id'
+  | 'inline'
+  | 'inlineMaxHeight'
+  | 'defaultQuery'
+  | 'onOpenChange'
 > {
   providers: PickerProvider[];
   /** 最近使用（`providerId/modelId`），最多显示 5 个 */
@@ -49,6 +65,18 @@ export interface ModelPickerProps extends Pick<
   showWire?: boolean;
   /** 放在最前面的特殊选项（如「跟随对话」「未设置」），值不能含 `/` */
   extraOptions?: SelectOption[];
+  /** 放在最后的特殊选项（如「切换到官方账号」一组），值不能含 `/`；不受供应商标签 / 厂商筛选影响 */
+  tailOptions?: SelectOption[];
+  /** 弹层顶部最上面的提示（如读不到模型列表的原因） */
+  notice?: React.ReactNode;
+  /** 顶部供应商标签那一行的右端（如刷新按钮）；没有标签时单独一行 */
+  headerEnd?: React.ReactNode;
+  /** 触发器只写模型名，不带「供应商 /」（只有一个来源时，如内置的已知模型目录） */
+  modelOnly?: boolean;
+  /** 当前值不是哪个供应商的模型（如「默认模型」）时，打开停在这个供应商的标签（如默认模型所在的供应商） */
+  focusProvider?: string;
+  /** 模型行的 data-testid（按值），特殊选项用它们自己的 testId */
+  optionTestId?: (ref: string) => string | undefined;
   placeholder?: string;
   /** 弹层顶部按供应商分标签、右侧按厂商筛选（供应商 / 厂商多于一个时才出现） */
   browse?: boolean;
@@ -101,8 +129,15 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   purpose = 'chat',
   showWire = false,
   extraOptions = NO_EXTRA,
+  tailOptions = NO_EXTRA,
+  notice,
+  headerEnd,
+  optionTestId,
+  focusProvider,
+  modelOnly = false,
   placeholder,
   browse = false,
+  onOpenChange: onOpenChangeProp,
   ...rest
 }) => {
   const { options, display, meta } = useMemo(() => {
@@ -129,7 +164,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       for (const m of p.models) {
         if (!usable(m)) continue;
         const ref = `${p.id}/${m.id}`;
-        display.set(ref, `${p.name} / ${m.label ?? m.id}`);
+        display.set(ref, modelOnly ? (m.label ?? m.id) : `${p.name} / ${m.label ?? m.id}`);
         meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
         const name = m.label ?? m.id;
@@ -143,22 +178,46 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           ...(showWire && m.wire
             ? { description: m.wire }
             : browse && m.ctx
-              ? { description: formatContext(m.ctx) }
+              ? {
+                  description: m.ctxStandard
+                    ? `${formatContext(m.ctxStandard)} / ${formatContext(m.ctx)}`
+                    : formatContext(m.ctx),
+                }
               : {}),
           searchText: `${p.id}/${m.id} ${p.name} ${m.label ?? ''}`,
+          ...(optionTestId?.(ref) ? { testId: optionTestId(ref) } : {}),
         });
       }
     }
+    opts.push(...tailOptions);
     return { options: opts, display, meta };
-  }, [providers, recent, purpose, showWire, extraOptions, browse]);
+  }, [
+    providers,
+    recent,
+    purpose,
+    showWire,
+    extraOptions,
+    tailOptions,
+    browse,
+    optionTestId,
+    modelOnly,
+  ]);
 
-  // browse：当前供应商标签（'' = 不按供应商筛，只有一个供应商时）与厂商筛选（null = 全部）
-  const [tab, setTab] = useState('');
-  const [vendor, setVendor] = useState<string | null>(null);
   const tabs = useMemo(
     () => providers.filter((p) => [...meta.values()].some((x) => x.provider === p.id)),
     [providers, meta],
   );
+  /** 打开时停在哪个供应商标签：当前值所在的那个，没有就第一个；只有一个供应商时不分标签 */
+  const initialTab = () =>
+    tabs.length > 1
+      ? ((value ? meta.get(value)?.provider : undefined) ??
+        tabs.find((p) => p.id === focusProvider)?.id ??
+        tabs[0].id)
+      : '';
+  // browse：当前供应商标签（'' = 不按供应商筛，只有一个供应商时）与厂商筛选（null = 全部）；
+  // inline 没有「打开」这一刻，挂载时就定位
+  const [tab, setTab] = useState(() => (browse && rest.inline ? initialTab() : ''));
+  const [vendor, setVendor] = useState<string | null>(null);
   const vendors = useMemo(
     () =>
       modelVendors(
@@ -167,11 +226,18 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     [meta, tab],
   );
   const showTabs = browse && tabs.length > 1;
-  const showVendors = browse && vendors.length > 1;
+  // 当前标签（只有一个供应商时就是它）声明了不按厂商筛选
+  const tabProvider = tab
+    ? tabs.find((p) => p.id === tab)
+    : tabs.length === 1
+      ? tabs[0]
+      : undefined;
+  const showVendors = browse && vendors.length > 1 && tabProvider?.vendors !== false;
   // 切到的标签里没有这个厂商：回到全部
   const activeVendor = vendor !== null && vendors.some((v) => v.id === vendor) ? vendor : null;
 
   const recentGroup = t('ui.cli-monitor.recent');
+  const tailValues = useMemo(() => new Set(tailOptions.map((o) => o.value)), [tailOptions]);
   const filterOption = useMemo(() => {
     if (!browse || (!tab && activeVendor === null)) return undefined;
     return (o: SelectOption) => {
@@ -184,15 +250,22 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   }, [browse, tab, activeVendor, meta, recentGroup]);
 
   // 打开时定位到当前值所在的供应商，厂商筛选清空
+  const initialTabRef = useRef(initialTab);
+  initialTabRef.current = initialTab;
   const onOpenChange = useCallback(
     (open: boolean) => {
+      onOpenChangeProp?.(open);
       if (!open || !browse) return;
-      const cur = value ? meta.get(value) : undefined;
-      setTab(tabs.length > 1 ? (cur?.provider ?? tabs[0].id) : '');
+      setTab(initialTabRef.current());
       setVendor(null);
     },
-    [browse, value, meta, tabs],
+    [browse, onOpenChangeProp],
   );
+  // inline：供应商在挂载之后才到（如网关状态晚一步）时补一次定位
+  useLayoutEffect(() => {
+    if (!browse || !rest.inline || tab || tabs.length < 2) return;
+    setTab(initialTabRef.current());
+  }, [browse, rest.inline, tab, tabs.length]);
 
   // 分了供应商标签时列表里不再重复供应商分组标题；「全部厂商」时改按厂商分组（顺序与左侧图标栏一致）
   const listOptions = useMemo(() => {
@@ -209,6 +282,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     // 特殊选项、最近使用在前，其余按厂商顺序（同厂商内保持原顺序）
     const key = (o: SelectOption) => {
       const x = meta.get(o.value);
+      if (tailValues.has(o.value)) return Number.MAX_SAFE_INTEGER;
       if (!x) return -2;
       if (o.group === recentGroup) return -1;
       return rank.get(x.vendor) ?? vendors.length;
@@ -217,18 +291,33 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       .map((o, i) => ({ o, i, k: key(o) }))
       .sort((a, b) => a.k - b.k || a.i - b.i)
       .map((x) => x.o);
-  }, [showTabs, showVendors, activeVendor, vendors, options, meta, recentGroup]);
+  }, [showTabs, showVendors, activeVendor, vendors, options, meta, recentGroup, tailValues]);
 
-  const menuHeader = showTabs ? (
-    <ModelProviderTabs
-      tabs={tabs}
-      value={tab}
-      onChange={(id) => {
-        setTab(id);
-        setVendor(null);
-      }}
-    />
-  ) : null;
+  const tabsRow =
+    showTabs || headerEnd ? (
+      <div className="cd-model-picker__header">
+        {showTabs ? (
+          <ModelProviderTabs
+            tabs={tabs}
+            value={tab}
+            onChange={(id) => {
+              setTab(id);
+              setVendor(null);
+            }}
+          />
+        ) : (
+          <span className="cd-model-picker__header-fill" />
+        )}
+        {headerEnd}
+      </div>
+    ) : null;
+  const menuHeader =
+    notice || tabsRow ? (
+      <>
+        {notice}
+        {tabsRow}
+      </>
+    ) : null;
   const menuAside = showVendors ? (
     <ModelVendorFilter vendors={vendors} value={activeVendor} onChange={setVendor} />
   ) : null;

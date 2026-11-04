@@ -49,6 +49,13 @@ export interface RuntimeModel {
   vision?: boolean;
   toolCalling?: boolean;
   label?: string;
+  /**
+   * 按内置目录里的哪个模型处理（用户设置；中转改了名的已知模型）：族默认与目录规格按它查，
+   * 用户手填的字段仍然优先
+   */
+  like?: string;
+  /** 用户声明的标准窗口（超过它按长上下文处理）；只在主进程算注入窗口时用 */
+  ctxStandard?: number;
   /** 用户设置的可用思考档位（§6.9.3 第 5 级；发送前按它贴合） */
   efforts?: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'>;
   /** 严格模式（§6.9.6）：不支持的参数直接报错而不是丢弃；不设时跟网关配置的 strictParams */

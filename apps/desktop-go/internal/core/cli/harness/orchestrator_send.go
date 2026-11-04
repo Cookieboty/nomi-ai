@@ -651,7 +651,7 @@ func (o *Orchestrator) emitEvent(tabID string, ev *util.Obj) {
 	}
 	if part != nil {
 		part.text, part.breaks, outgoing = cli.FoldAssistantEvent(part.text, part.breaks, ev)
-		if t := outgoing.Get("type"); t == "tool" || t == "thinking" {
+		if t := outgoing.Get("type"); t == "tool" || t == "thinking" || t == "interject" {
 			part.events = append(part.events, outgoing)
 		}
 	}

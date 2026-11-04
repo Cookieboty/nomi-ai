@@ -1,14 +1,25 @@
 /**
  * 供应商编辑里的 Key 列表：每个 Key 一张两行的小卡片——
- * 第一行序号、名称、启用；第二行掩码值与状态标签，右侧上移 / 下移 / 更换 / 删除。
+ * 第一行序号、名称、启用；第二行掩码值与状态标签，右侧设置 / 上移 / 下移 / 更换 / 删除。
+ * 「设置」在卡片里展开这个 Key 的限定协议与限流（并发、每分钟）。
  * 更换时新值输入框在这张卡片里；新增 Key 默认收起成一个按钮，点开再贴（一次可贴多个）。
  * 草稿与保存逻辑在 ProviderDetailDialog，这里只负责展示与回调。
  */
-import { Button, Icon, IconButton, Input, Switch, t, Textarea } from '@nomi-ai/ui';
-import { ArrowDown, ArrowUp, KeyRound, Plus, Trash2 } from 'lucide-react';
+import {
+  Button,
+  Icon,
+  IconButton,
+  Input,
+  Select,
+  Switch,
+  t,
+  Textarea,
+  type SelectOption,
+} from '@nomi-ai/ui';
+import { ArrowDown, ArrowUp, KeyRound, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
-import type { ProviderView } from '../../services/gatewayClient';
+import { WIRE_LABEL, type ProviderView, type Wire } from '../../services/gatewayClient';
 
 import styles from './index.module.css';
 
@@ -21,6 +32,11 @@ export interface KeyRowDraft {
   value?: string;
   /** 已有 Key 正在更换成的新值（undefined = 没在更换） */
   replace?: string;
+  /** 只走这个协议（undefined = 自动） */
+  wire?: Wire;
+  /** 并发上限 / 每分钟请求数（输入框文本，留空 = 不限） */
+  maxConcurrency?: string;
+  rpm?: string;
 }
 
 const maskNew = (v: string) => (v.length > 8 ? `${v.slice(0, 3)}…${v.slice(-4)}` : '…');
@@ -39,6 +55,10 @@ export const ProviderKeysSection: React.FC<{
   onText: (v: string) => void;
   onAdd: () => void;
   canAdd: boolean;
+  /** 限定协议的选项（自动 + 各协议） */
+  wireOptions: SelectOption[];
+  /** 更换输入框里按回车：直接保存（新值立即生效） */
+  onCommit: () => void;
 }> = ({
   keys,
   views,
@@ -52,9 +72,20 @@ export const ProviderKeysSection: React.FC<{
   onText,
   onAdd,
   canAdd,
+  wireOptions,
+  onCommit,
 }) => {
   // 没有 Key 时直接展开，免得多点一下
   const [adding, setAdding] = useState(() => !keys.length);
+  /** 展开了设置（限定协议 / 限流）的 Key */
+  const [settings, setSettings] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleSettings = (id: string) =>
+    setSettings((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const open = adding || !!text;
 
   return (
@@ -113,8 +144,20 @@ export const ProviderKeysSection: React.FC<{
                   {!k.enabled && (
                     <span className={styles.badgeMuted}>{t('ui.slash-commands.disabled')}</span>
                   )}
+                  {k.wire && <span className={styles.badgeMuted}>{WIRE_LABEL[k.wire]}</span>}
+                  {(k.maxConcurrency || k.rpm) && (
+                    <span className={styles.badgeMuted}>{t('ui.model-quality.rate-limited')}</span>
+                  )}
                   {!readOnly && (
                     <span className={styles.keyActions}>
+                      <IconButton
+                        size="sm"
+                        label={t('ui.models.key-settings', label)}
+                        icon={<Icon icon={SlidersHorizontal} size={14} />}
+                        aria-pressed={settings.has(k.id)}
+                        onClick={() => toggleSettings(k.id)}
+                        data-testid={`pd-key-settings-${k.id}`}
+                      />
                       <IconButton
                         size="sm"
                         label={t('ui.models.move-up', label)}
@@ -157,6 +200,42 @@ export const ProviderKeysSection: React.FC<{
                     </span>
                   )}
                 </div>
+                {!readOnly && settings.has(k.id) && (
+                  <div className={styles.keySettings}>
+                    <Select
+                      size="sm"
+                      options={wireOptions}
+                      value={k.wire ?? ''}
+                      onChange={(e) => onSet(i, { wire: (e.target.value || undefined) as Wire })}
+                      aria-label={t('ui.models.api-restriction-for', label)}
+                      data-testid={`pd-key-wire-${k.id}`}
+                    />
+                    <Input
+                      size="sm"
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      value={k.maxConcurrency ?? ''}
+                      onChange={(e) => onSet(i, { maxConcurrency: e.target.value })}
+                      placeholder={t('ui.models.concurrent')}
+                      aria-label={t('ui.models.max-concurrent-requests', label)}
+                      data-testid={`pd-key-conc-${k.id}`}
+                    />
+                    <Input
+                      size="sm"
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      value={k.rpm ?? ''}
+                      onChange={(e) => onSet(i, { rpm: e.target.value })}
+                      placeholder={t('ui.models.per-minute')}
+                      aria-label={t('ui.models.max-requests-per-minute', label)}
+                      data-testid={`pd-key-rpm-${k.id}`}
+                    />
+                  </div>
+                )}
                 {replacing && (
                   <div className={styles.keyReplace}>
                     <Input
@@ -167,6 +246,13 @@ export const ProviderKeysSection: React.FC<{
                       value={k.replace}
                       placeholder={t('ui.models.paste-the-new-key-it-replaces-when-you', label)}
                       onChange={(e) => onSet(i, { replace: e.target.value })}
+                      onKeyDown={(e) => {
+                        // 回车 = 换上这个新值并保存，不用再去点「保存」
+                        if (e.key === 'Enter' && k.replace?.trim()) {
+                          e.preventDefault();
+                          onCommit();
+                        }
+                      }}
                       aria-label={t('ui.models.new-value-for', label)}
                       data-testid={`pd-key-replace-input-${k.id}`}
                     />

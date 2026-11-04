@@ -49,6 +49,7 @@ export const manifest: CliManifest = {
     usageQuota: true,
     progressMonitor: true,
     terminalCommand: true,
+    steer: true,
   },
   // 占位模型名 nomi：第三方换模型只改绑定（§6.7）；官方仍按 ACP set_model 原地切
   modelSwitch: 'gateway',

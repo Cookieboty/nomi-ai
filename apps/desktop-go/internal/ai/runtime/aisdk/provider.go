@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,8 @@ type Provider struct {
 	modelFactory ModelFactory
 	mu           sync.Mutex
 	aborts       map[string]context.CancelFunc
+	// inbox：正在跑工具循环的流式请求 → 用户插入、还没并进上下文的消息（steer）
+	inbox map[string][]string
 }
 
 // DefaultMaxSteps：工具循环每轮最多几步（= AiSdkLlmProvider.ts DEFAULT_MAX_STEPS）
@@ -36,7 +39,7 @@ func NewProvider(opts Options, factory ModelFactory) (*Provider, error) {
 	if factory == nil {
 		factory = BuildModelFactory(opts)
 	}
-	return &Provider{ID: opts.ID, opts: opts, modelFactory: factory, aborts: map[string]context.CancelFunc{}}, nil
+	return &Provider{ID: opts.ID, opts: opts, modelFactory: factory, aborts: map[string]context.CancelFunc{}, inbox: map[string][]string{}}, nil
 }
 
 /* ------------------------------- helpers ------------------------------- */
@@ -313,6 +316,94 @@ func (p *Provider) Abort(reqID string) {
 	}
 }
 
+// Steer = steer(reqId, text)：一轮进行中插入用户消息，只收正在跑工具循环的流式请求，下一步（PrepareStep）并进上下文
+func (p *Provider) Steer(reqID, text string) bool {
+	body := u.JSTrim(text)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	q, ok := p.inbox[reqID]
+	if !ok || body == "" {
+		return false
+	}
+	p.inbox[reqID] = append(q, body)
+	return true
+}
+
+// takeInbox = q.splice(0)：取走并清空收到的插入消息
+func (p *Provider) takeInbox(reqID string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	q := p.inbox[reqID]
+	if len(q) == 0 {
+		return nil
+	}
+	p.inbox[reqID] = []string{}
+	return q
+}
+
+// MaxSteerRounds = MAX_STEER_ROUNDS：最后一步才收到插入消息时，最多续跑几轮
+const MaxSteerRounds = 3
+
+// addChatUsage = addUsage：两段用量相加（续跑轮次合并成一轮的用量）
+func addChatUsage(a, b *llm.ChatUsage) *llm.ChatUsage {
+	if a == nil || b == nil {
+		if a != nil {
+			return a
+		}
+		return b
+	}
+	opt := func(x, y *float64) *float64 {
+		if x == nil && y == nil {
+			return nil
+		}
+		v := 0.0
+		if x != nil {
+			v += *x
+		}
+		if y != nil {
+			v += *y
+		}
+		return &v
+	}
+	r := *a
+	r.PromptTokens = a.PromptTokens + b.PromptTokens
+	r.CompletionTokens = a.CompletionTokens + b.CompletionTokens
+	r.TotalTokens = a.TotalTokens + b.TotalTokens
+	if v := opt(a.CacheReadTokens, b.CacheReadTokens); v != nil {
+		r.CacheReadTokens = v
+	}
+	if v := opt(a.CacheWriteTokens, b.CacheWriteTokens); v != nil {
+		r.CacheWriteTokens = v
+	}
+	return &r
+}
+
+// SteerInsert：一轮里用户插入的消息，放在第 At 条消息之前（At = 收到时 SDK 消息列表的长度）
+type SteerInsert struct {
+	At   int
+	Text string
+}
+
+// SteerPrefix = STEER_PREFIX：插入消息的前缀，与 Claude Code 中途消息的写法一致，模型据此知道这是用户本人后来补充的
+const SteerPrefix = "The user sent a new message while you were working:"
+
+// WithSteerInserts = withSteerInserts：把插入消息按位置放回这一步的消息列表（同一位置的按收到顺序）
+func WithSteerInserts(messages []*u.Obj, inserts []SteerInsert) []*u.Obj {
+	out := append([]*u.Obj{}, messages...)
+	// 稳定排序：位置小的在前，同一位置保持收到的先后；每插一条，后面的位置顺延一格
+	sorted := append([]SteerInsert{}, inserts...)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].At < sorted[j].At })
+	for offset, ins := range sorted {
+		at := ins.At + offset
+		if at > len(out) {
+			at = len(out)
+		}
+		msg := u.NewObj("role", "user", "content", SteerPrefix+"\n"+ins.Text)
+		out = append(out[:at], append([]*u.Obj{msg}, out[at:]...)...)
+	}
+	return out
+}
+
 /* ------------------------------- tools ------------------------------- */
 
 // LastUserText = lastUserText：本轮用户最后说的话（截断到 2000 字），给工具做命令自动审核
@@ -500,59 +591,120 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	}
 	c, done := p.bindAbort(ctx, r)
 	defer done()
+	tp := p.params(r, ts, hasTools)
+	// 有工具循环才能中途插入：每一步开始前把收到的插入消息放到当时的位置，之后每一步都带着
+	if hasTools {
+		p.mu.Lock()
+		p.inbox[r.ReqID] = []string{}
+		p.mu.Unlock()
+		defer func() {
+			p.mu.Lock()
+			delete(p.inbox, r.ReqID)
+			p.mu.Unlock()
+		}()
+	}
+	messages := tp.Messages
 	var served *string
+	// 每一步都是一次网关请求，都会带上整段历史：取各步的最大值
 	redacted := 0
+	// 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
 	var lastStep *llm.ChatUsage
-	StreamText(c, p.params(r, ts, hasTools), func(part Part) {
-		switch part.Type {
-		case "finish-step":
-			if s := p.servedModel(part.Headers); s != nil {
-				served = s
+	// 跨续跑轮次累加的用量
+	var total *llm.ChatUsage
+	for round := 0; ; round++ {
+		var inserts []SteerInsert
+		rp := *tp
+		rp.Messages = messages
+		if hasTools {
+			rp.PrepareStep = func(step []*u.Obj) []*u.Obj {
+				if q := p.takeInbox(r.ReqID); len(q) > 0 {
+					inserts = append(inserts, SteerInsert{At: len(step), Text: strings.Join(q, "\n\n")})
+				}
+				if len(inserts) == 0 {
+					return nil
+				}
+				return WithSteerInserts(step, inserts)
 			}
-			if n := p.redacted(part.Headers); n > redacted {
-				redacted = n
+		}
+		var finish *string
+		var resMsgs []*u.Obj
+		StreamText(c, &rp, func(part Part) {
+			switch part.Type {
+			case "finish-step":
+				if s := p.servedModel(part.Headers); s != nil {
+					served = s
+				}
+				if n := p.redacted(part.Headers); n > redacted {
+					redacted = n
+				}
+				lastStep = usageOf(part.Usage)
+			case "text-delta":
+				emit(llm.ChatChunk{Type: "delta", Content: part.Text})
+			case "reasoning-delta":
+				if part.Text != "" {
+					emit(llm.ChatChunk{Type: "reasoning", Content: part.Text})
+				}
+			case "tool-call":
+				emit(llm.ChatChunk{Type: "tool_call.delta", Index: 0, Name: llm.Str(part.ToolName), ArgumentsJSON: llm.Str(argsJSON(part.Input)), ID: llm.Str(part.ToolCallID)})
+			case "tool-result":
+				emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Output: StringifyToolOutput(part.Output, toolOutputMax)})
+			case "tool-error":
+				var msg string
+				switch e := part.Error.(type) {
+				case *ValueError:
+					msg = jsString(e.Value)
+				case error:
+					msg = e.Error()
+				default:
+					msg = jsString(e)
+				}
+				emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Error: &msg})
+			case "finish":
+				total = addChatUsage(total, usageOf(part.TotalUsage))
+				f := finishOf(part.FinishReason)
+				finish = &f
+				resMsgs = part.ResponseMessages
+			case "error":
+				s := DescribeStreamError(part.Error)
+				emit(llm.ChatChunk{Type: "error", Error: &s})
 			}
-			lastStep = usageOf(part.Usage)
-		case "text-delta":
-			emit(llm.ChatChunk{Type: "delta", Content: part.Text})
-		case "reasoning-delta":
-			if part.Text != "" {
-				emit(llm.ChatChunk{Type: "reasoning", Content: part.Text})
-			}
-		case "tool-call":
-			emit(llm.ChatChunk{Type: "tool_call.delta", Index: 0, Name: llm.Str(part.ToolName), ArgumentsJSON: llm.Str(argsJSON(part.Input)), ID: llm.Str(part.ToolCallID)})
-		case "tool-result":
-			emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Output: StringifyToolOutput(part.Output, toolOutputMax)})
-		case "tool-error":
-			var msg string
-			switch e := part.Error.(type) {
-			case *ValueError:
-				msg = jsString(e.Value)
-			case error:
-				msg = e.Error()
-			default:
-				msg = jsString(e)
-			}
-			emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Error: &msg})
-		case "finish":
-			total := usageOf(part.TotalUsage)
+		})
+		if finish == nil {
+			break
+		}
+		// 最后一步才收到的插入消息（没有下一步可并进去）：带上它再跑一轮，仍算这一轮；
+		// 要结束时先关掉收件箱（取走与关闭在同一把锁里），之后再来的插入返回 false（视图改为排队），不会悄悄丢掉
+		p.mu.Lock()
+		left := p.inbox[r.ReqID]
+		if _, ok := p.inbox[r.ReqID]; ok {
+			p.inbox[r.ReqID] = []string{}
+		}
+		stop := len(left) == 0 || c.Err() != nil || round >= MaxSteerRounds
+		if stop {
+			delete(p.inbox, r.ReqID)
+		}
+		p.mu.Unlock()
+		if stop {
 			uu := total
-			if lastStep != nil {
+			if total != nil && lastStep != nil {
 				cp := *total
 				ct := lastStep.PromptTokens + lastStep.CompletionTokens
 				cp.ContextTokens = &ct
 				uu = &cp
 			}
-			model := p.resolveModel(r)
-			if served != nil {
-				model = *served
+			if uu != nil {
+				model := p.resolveModel(r)
+				if served != nil {
+					model = *served
+				}
+				emit(llm.ChatChunk{Type: "usage", Usage: withRedacted(uu, redacted), Model: &model})
 			}
-			emit(llm.ChatChunk{Type: "usage", Usage: withRedacted(uu, redacted), Model: &model})
-			emit(llm.ChatChunk{Type: "done", FinishReason: finishOf(part.FinishReason)})
-		case "error":
-			s := DescribeStreamError(part.Error)
-			emit(llm.ChatChunk{Type: "error", Error: &s})
+			emit(llm.ChatChunk{Type: "done", FinishReason: *finish})
+			break
 		}
-	})
+		full := append(append([]*u.Obj{}, messages...), resMsgs...)
+		inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		messages = WithSteerInserts(full, inserts)
+	}
 	return nil
 }

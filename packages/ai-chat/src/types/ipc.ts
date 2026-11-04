@@ -49,6 +49,8 @@ export interface IPCClient {
   ): Promise<void>;
   /** 中止某一轮流式请求（等价于 chat.abort(reqId)） */
   abortStream?(reqId: string): void;
+  /** 一轮进行中插入用户消息（下一步并进上下文）；请求已结束 / 不能插入时 false */
+  steerStream?(reqId: string, text: string): Promise<boolean>;
   /** 当前会话 id（长期记忆按会话摘要） */
   currentConversationId?(): string | undefined;
   /** 当前会话的消息 */

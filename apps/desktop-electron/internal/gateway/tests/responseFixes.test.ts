@@ -153,6 +153,40 @@ describe('text tool calls', () => {
     });
   });
 
+  it('<tool_calls> JSON array, held across chunk boundaries, text around kept', () => {
+    const ex = new TextToolExtractor(resolveIn(['Bash', 'Read']));
+    const s =
+      'Checking.<tool_calls>[{"name":"Bash","arguments":{"command":"ls"}},' +
+      '{"type":"function","function":{"name":"Read","arguments":"{\\"file_path\\":\\"a.ts\\"}"}}]' +
+      '</tool_calls>Next step.';
+    let shown = '';
+    for (let i = 0; i < s.length; i += 5) shown += ex.push(s.slice(i, i + 5));
+    expect(shown).toBe('Checking.');
+    expect(ex.flush()).toEqual({
+      text: 'Next step.',
+      calls: [
+        { name: 'Bash', args: '{"command":"ls"}' },
+        { name: 'Read', args: '{"file_path":"a.ts"}' },
+      ],
+    });
+    const single = new TextToolExtractor(resolveIn(['Bash']));
+    single.push('<tool_calls>{"name":"Bash","arguments":{"command":"pwd"}}</tool_calls>');
+    expect(single.flush().calls).toEqual([{ name: 'Bash', args: '{"command":"pwd"}' }]);
+  });
+
+  it('<tool_calls> with an unknown tool, bad JSON or an empty array stays text', () => {
+    for (const s of [
+      '<tool_calls>[{"name":"Bash","arguments":{}},{"name":"nope","arguments":{}}]</tool_calls>',
+      '<tool_calls>[{bad</tool_calls>',
+      '<tool_calls>[]</tool_calls>',
+      'cut <tool_calls>[{"name":"Bash"',
+    ]) {
+      const ex = new TextToolExtractor(resolveIn(['Bash']));
+      const shown = ex.push(s);
+      expect(shown + ex.flush().text).toBe(s);
+    }
+  });
+
   it('unknown tools and bad JSON are flushed as text', () => {
     const ex = new TextToolExtractor(resolveIn(['a']));
     const s = '<tool_call>{"name":"b","arguments":{}}</tool_call><tool_call>{bad</tool_call>';

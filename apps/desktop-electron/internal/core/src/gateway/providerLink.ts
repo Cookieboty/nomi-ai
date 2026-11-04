@@ -319,6 +319,17 @@ export function maskKey(key: string): string {
 }
 
 /** 判断两个地址是否同一个（忽略大小写的主机、末尾的 /） */
+/** 同源（协议 + 主机 + 端口，主机不分大小写）；解析不了的不算同源 */
+export function sameOrigin(a: string, b: string): boolean {
+  try {
+    const x = new URL(a.trim());
+    const y = new URL(b.trim());
+    return x.protocol === y.protocol && x.host.toLowerCase() === y.host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export function sameUrl(a: string, b: string): boolean {
   const norm = (s: string) => {
     try {

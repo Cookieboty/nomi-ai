@@ -1,16 +1,17 @@
 /**
- * 供应商详情（docs/design/unified-gateway.md §4.2 末尾）：点供应商一行或「⋯」打开。
- * - 名称；Key 列表（上下移动即回退顺序、启用、改名、原位更换、删除、一次贴多个新增；
- *   每个 Key 显示最近一次错误）；
- * - 模型列表（勾选启用、手动添加、「刷新」重新列出：新发现的默认不启用，已有设置不变）；回退链；
- * - 「高级」折叠区：各协议地址（留空 = 关闭该协议）、模型限定协议、Key 限定协议、模型映射、
- *   自定义请求头、User-Agent、清除自动学到的状态（§7.4）；改了地址后提示重新检测。
+ * 供应商详情（docs/design/unified-gateway.md §4.2 末尾）：点供应商一行或「⋯」打开。单栏，按对象组织：
+ * - 连接：名称、各协议地址（只列填了的，其余在「添加协议地址」里；改了地址后提示重新检测）、
+ *   Key 列表（上下移动即回退顺序、启用、改名、原位更换、删除、一次贴多个新增；每个 Key 的
+ *   限定协议与限流在它自己的「设置」里；显示最近一次错误）；
+ * - 模型：左边列表（勾选启用、手动添加、「刷新」重新列出：新发现的默认不启用，已有设置不变），
+ *   右边是选中模型的全部设置（按哪个已知模型处理、上下文 / 标准窗口 / 输出上限、长上下文、
+ *   实际请求名、限定协议）；
+ * - 更多设置（折叠）：其它模型映射、自定义请求头、User-Agent、清除自动学到的状态（§7.4）。
  * 所有改动先进草稿，「保存」一次写回（ai:gateway:upsert-provider）；「取消」/ Esc 丢弃。
  * 环境变量提供的供应商只读。
  */
 import {
   Button,
-  Checkbox,
   Icon,
   IconButton,
   Input,
@@ -20,7 +21,7 @@ import {
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -40,7 +41,7 @@ import { providerDisplayName } from '../../services/providerClient';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
-import { ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
+import { ModelDetailPanel, userLimit } from './ModelDetailPanel';
 import { ProviderKeysSection } from './ProviderKeysSection';
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 import { NON_CHAT, storedProbes } from './providerSetup';
@@ -87,6 +88,8 @@ interface Draft {
   modelMap: Array<{ from: string; to: string }>;
   headers: Array<{ name: string; value: string }>;
   userAgent: string;
+  /** 用户填的 Base URL（原样保存、原样显示） */
+  baseUrl: string;
   detected?: Partial<Record<Wire, StoredProbe>>;
 }
 
@@ -105,6 +108,15 @@ const initDraft = (p: ProviderView): Draft => ({
   modelMap: (p.modelMap ?? []).map((x) => ({ ...x })),
   headers: Object.entries(p.headers ?? {}).map(([name, value]) => ({ name, value })),
   userAgent: p.userAgent ?? '',
+  // 旧数据没存过 Base URL：从现有地址里取一个显示
+  baseUrl: (
+    p.baseUrl ??
+    p.urls.chat ??
+    p.urls.responses ??
+    p.urls.messages ??
+    p.urls.gemini ??
+    ''
+  ).trim(),
 });
 
 /** 草稿 → upsert-provider 的参数（也用来判断有没有改动） */
@@ -157,6 +169,7 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       d.headers.filter((h) => h.name.trim()).map((h) => [h.name.trim(), h.value]),
     ),
     userAgent: d.userAgent.trim(),
+    baseUrl: d.baseUrl.trim(),
     ...(d.detected ? { detected: d.detected } : {}),
   };
 }
@@ -194,13 +207,21 @@ export const ProviderDetailDialog: React.FC<Props> = (props) =>
 let tmpSeq = 0;
 
 const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
-  provider: p,
+  provider,
   allowedPrivateHosts,
   onClose,
   onRemove,
 }) => {
+  /** 已保存的状态：不关弹窗的保存（更换 Key 时回车）后换成保存结果，草稿从它重新开始 */
+  const [p, setP] = useState(provider);
+  // 外面刷新了（网关状态变化：清除自动学到的、Key 状态等）：跟着更新，草稿不动
+  const [seenProvider, setSeenProvider] = useState(provider);
+  if (provider !== seenProvider) {
+    setSeenProvider(provider);
+    setP(provider);
+  }
   const readOnly = p.source === 'env';
-  const [initial] = useState(() => initDraft(p));
+  const [initial, setInitial] = useState(() => initDraft(p));
   const [d, setD] = useState<Draft>(initial);
   const [keysText, setKeysText] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -222,6 +243,41 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const changed = dirty || splitKeys(keysText).length > 0;
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
+  /** Base URL：只改它，各协议地址由检测推出来（逐协议改在「更多设置」里） */
+  const base = d.baseUrl;
+  const setBase = (v: string) => patch({ baseUrl: v });
+  const [detectedBase, setDetectedBase] = useState(initial.baseUrl);
+  const baseChanged = base.trim() !== detectedBase.trim();
+  /** 列出来的协议地址：填了的，以及刚点「添加协议地址」加的空行；其余收在「添加」菜单里 */
+  const [extraWires, setExtraWires] = useState<ReadonlySet<Wire>>(() => new Set());
+  const shownWires = WIRES.filter((w) => d.urls[w].trim() || extraWires.has(w));
+  const hiddenWires = WIRES.filter((w) => !shownWires.includes(w));
+  const addWire = (w: Wire) => setExtraWires((cur) => new Set(cur).add(w));
+  const removeWire = (w: Wire) => {
+    setExtraWires((cur) => {
+      const next = new Set(cur);
+      next.delete(w);
+      return next;
+    });
+    patch({ urls: { ...d.urls, [w]: '' } });
+  };
+  const models = readOnly ? p.models : d.models;
+  const modelIds = useMemo(() => new Set(models.map((m) => m.id)), [models]);
+  /** 右侧正在看的模型（默认第一个启用的） */
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => (p.models.find((m) => m.enabled) ?? p.models[0])?.id ?? null,
+  );
+  const selected = models.find((m) => m.id === selectedId) ?? models[0];
+  /** 模型映射：列表里模型的那条在模型设置里改（实际请求名），其余的在「更多设置」 */
+  const upstreamOf = (id: string) => d.modelMap.find((x) => x.from === id)?.to ?? '';
+  const setUpstream = (id: string, to: string) =>
+    patch({
+      modelMap: [
+        ...d.modelMap.filter((x) => x.from !== id),
+        ...(to.trim() && to.trim() !== id ? [{ from: id, to }] : []),
+      ],
+    });
+  const otherMap = d.modelMap.filter((x) => !modelIds.has(x.from));
   const wireOptions: SelectOption[] = [
     { value: '', label: t('ui.foundation.auto') },
     ...WIRES.map((w) => ({ value: w, label: WIRE_LABEL[w] })),
@@ -310,9 +366,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   };
 
   /** 本机 / 局域网地址先确认（§15）；拒绝则不检测 */
-  const confirmPrivate = async (): Promise<boolean> => {
-    for (const w of urlWires) {
-      const u = d.urls[w].trim();
+  const confirmPrivate = async (list: readonly string[]): Promise<boolean> => {
+    for (const raw of list) {
+      const u = raw.trim();
       const hp = isPrivateUrl(u) ? hostPortOf(u) : null;
       if (!hp || allowedPrivateHosts.includes(hp)) continue;
       const ok = await confirmDialog({
@@ -324,21 +380,28 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     return true;
   };
 
-  /** 用这个供应商的地址重新探测：新列出的模型加进来但不启用，已有模型的设置不变 */
-  const detect = async () => {
+  /**
+   * 重新探测：新列出的模型加进来但不启用，已有模型的设置不变。
+   * base：按 Base URL 推出各协议地址再测，检测通过的协议写回草稿（没有一个可用时报错、不改）；
+   * 不给 base 时按草稿里逐协议的地址测。返回更新后的草稿（失败 / 取消为 null），保存时接着用。
+   */
+  const detect = async (opts: { base?: string } = {}): Promise<Draft | null> => {
     setError(null);
     setNotice(null);
     setBusy('detect');
     try {
-      if (!(await confirmPrivate())) return;
+      const base = opts.base?.trim();
+      if (!(await confirmPrivate(base ? [base] : urlWires.map((w) => d.urls[w])))) return null;
       const fresh = d.keys
         .filter((k) => k.enabled)
         .map(freshValue)
         .filter((v): v is string => !!v);
       const r = await gatewayClient.detect({
         providerId: p.id,
-        // 空串覆盖保存的地址：关掉的协议不再测
-        urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])),
+        // Base URL：主进程按它推出各协议地址（优先于保存的）；否则逐协议给，空串 = 关掉的协议不测
+        ...(base
+          ? { url: base }
+          : { urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])) }),
         savedKeyIds: d.keys
           .filter((k) => k.enabled && k.value === undefined && !freshValue(k))
           .map((k) => k.id),
@@ -360,31 +423,70 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
           ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
           : m;
-      setD((cur) => ({
-        ...cur,
-        models: [...cur.models.map(refreshed), ...added],
+      if (base && !WIRES.some((w) => r.wires[w]?.ok)) {
+        setError(t('ui.models.no-api-is-available'));
+        return null;
+      }
+      const urls = base
+        ? (Object.fromEntries(WIRES.map((w) => [w, r.urls[w] ?? ''])) as Draft['urls'])
+        : d.urls;
+      const next: Draft = {
+        ...d,
+        urls,
+        models: [...d.models.map(refreshed), ...added],
         detected: storedProbes(r),
-      }));
-      setDetectedUrls(JSON.stringify(d.urls));
+      };
+      setD(next);
+      setDetectedUrls(JSON.stringify(urls));
+      if (base) {
+        setDetectedBase(base);
+        setExtraWires(new Set());
+      }
       const ok = WIRES.filter((w) => r.wires[w]?.ok).map((w) => WIRE_LABEL[w]);
       const wiresText = ok.length
         ? t('ui.models.available-apis', ok.join(' / '))
         : t('ui.models.no-api-is-available');
       const modelsText = t('ui.models.new-models-found-disabled-by-default', String(added.length));
       setNotice(`${wiresText} · ${modelsText}`);
+      return next;
     } catch (e) {
       setError((e as Error).message);
+      return null;
     } finally {
       setBusy(null);
     }
   };
+  /** Base URL 改了还没检测：回车 / 离开输入框时自动检测 */
+  const detectBase = async (): Promise<Draft | null> =>
+    base.trim() && baseChanged ? detect({ base }) : d;
 
-  const save = async () => {
+  /** keepOpen：保存后留在弹窗里（更换 Key 时回车），草稿换成刚保存的状态 */
+  const save = async (opts: { keepOpen?: boolean } = {}) => {
+    // Base URL 改了没检测：先检测（用检测出来的各协议地址），检测不通过就不保存
+    let cur = await detectBase();
+    if (!cur) return;
+    // 逐协议的地址改了没检测：按填的地址测一次，检测结果随地址一起存（列表按它显示哪些协议可用）
+    if (!readOnly && !baseChanged && urlsChanged) {
+      cur = await detect();
+      if (!cur) return;
+    }
     setError(null);
     setBusy('save');
     try {
       // 填了 Key 没点「添加」就保存：一起存上，不悄悄丢掉
-      await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(d)));
+      const savedView = await gatewayClient.upsertProvider(buildPayload(p, withTypedKeys(cur)));
+      if (opts.keepOpen && savedView?.id) {
+        const next = initDraft(savedView);
+        setP(savedView);
+        setInitial(next);
+        setD(next);
+        setKeysText('');
+        setDetectedUrls(JSON.stringify(next.urls));
+        setDetectedBase(next.baseUrl);
+        setNotice(t('ui.voice-mascot.saved'));
+        setBusy(null);
+        return;
+      }
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -459,8 +561,12 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             </p>
           )}
 
-          <div className={styles.pdColumns}>
-            <div className={styles.pdLeft}>
+          {/* ---------------- 连接：左边名称与地址，右边 Key ---------------- */}
+          <div className={styles.pdConnect}>
+            <section className={styles.pdCard} aria-labelledby="pd-address">
+              <h4 id="pd-address" className={styles.groupTitle}>
+                {t('ui.foundation.connect')}
+              </h4>
               {!readOnly && (
                 <label className={styles.field}>
                   <span>{t('ui.foundation.name')}</span>
@@ -472,9 +578,56 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   />
                 </label>
               )}
-
+              <label className={styles.field}>
+                <span>Base URL</span>
+                <Input
+                  size="sm"
+                  value={base}
+                  readOnly={readOnly}
+                  placeholder="https://api.example.com/v1"
+                  onChange={(e) => setBase(e.target.value)}
+                  onBlur={() => void detectBase()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void detectBase();
+                    }
+                  }}
+                  data-testid="pd-base-url"
+                />
+              </label>
+              <div className={styles.wireBadges} data-testid="pd-wires">
+                {busy === 'detect' ? (
+                  <span className={styles.muted}>{t('ui.models.detecting-apis')}</span>
+                ) : (
+                  WIRES.map((w) => (
+                    <span
+                      key={w}
+                      className={d.urls[w].trim() ? styles.badgeSoft : styles.badgeMuted}
+                      title={d.urls[w].trim() || t('ui.models.api-not-available')}
+                      data-ok={d.urls[w].trim() ? '' : undefined}
+                      data-testid={`pd-wire-${w}`}
+                    >
+                      {d.urls[w].trim() && <Icon icon={Check} size={12} />}
+                      {WIRE_LABEL[w]}
+                    </span>
+                  ))
+                )}
+              </div>
+              <p className={styles.detailHint}>{t('ui.models.base-url-hint')}</p>
+            </section>
+            <section className={styles.pdCard}>
               <ProviderKeysSection
-                keys={readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys}
+                keys={
+                  readOnly
+                    ? p.keys.map((k) => ({
+                        id: k.id,
+                        name: k.name ?? '',
+                        enabled: k.enabled,
+                        wire: k.wire,
+                      }))
+                    : d.keys
+                }
                 views={p.keys}
                 readOnly={readOnly}
                 keyName={keyName}
@@ -486,209 +639,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 onText={setKeysText}
                 onAdd={addKeys}
                 canAdd={splitKeys(keysText).length > 0}
+                wireOptions={wireOptions}
+                onCommit={() => void save({ keepOpen: true })}
               />
+            </section>
+          </div>
 
-              {/* ---------------- 高级 ---------------- */}
-              <section className={styles.section}>
-                <button
-                  type="button"
-                  className={styles.advToggle}
-                  aria-expanded={advanced}
-                  aria-controls="pd-advanced"
-                  onClick={() => setAdvanced((x) => !x)}
-                  data-testid="pd-advanced-toggle"
-                >
-                  <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} />
-                  {t('ui.models.advanced')}
-                </button>
-                {advanced && (
-                  <div id="pd-advanced" className={styles.advBody}>
-                    <div className={styles.advGroup}>
-                      <div className={styles.groupTitle}>
-                        {t('ui.models.address-per-api-leave-empty-to-turn-that')}
-                      </div>
-                      {WIRES.map((w) => (
-                        <label key={w} className={styles.urlRow}>
-                          <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
-                          <Input
-                            size="sm"
-                            value={d.urls[w]}
-                            readOnly={readOnly}
-                            onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
-                            placeholder={t('ui.slash-commands.disabled')}
-                            data-testid={`pd-url-${w}`}
-                          />
-                        </label>
-                      ))}
-                      {!readOnly && urlsChanged && (
-                        <div className={styles.offer} role="status" data-testid="pd-urls-changed">
-                          <span>
-                            {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={busy !== null}
-                            onClick={() => void detect()}
-                            data-testid="pd-redetect"
-                          >
-                            {t('ui.models.detect-again')}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-
-                    {!readOnly && (
-                      <>
-                        <div className={styles.advGroup}>
-                          <div className={styles.groupTitle}>
-                            {t('ui.models.restrict-models-to-apis-none-checked-automatic')}
-                          </div>
-                          {d.models
-                            .filter((m) => m.enabled || m.wires?.length)
-                            .map((m) => (
-                              <div key={m.id} className={styles.wireRow}>
-                                <span className={styles.keyName}>{m.id}</span>
-                                {urlWires.map((w) => (
-                                  <label key={w} className={styles.modelCheck}>
-                                    <Checkbox
-                                      checked={m.wires?.includes(w) ?? false}
-                                      onChange={(e) => toggleModelWire(m, w, e.target.checked)}
-                                      aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}
-                                      data-testid={`pd-model-wire-${m.id}-${w}`}
-                                    />
-                                    <span>{WIRE_LABEL[w]}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ))}
-                        </div>
-
-                        <ModelLimitsGroups models={d.models} setModel={setModel} />
-
-                        {d.keys.length > 0 && (
-                          <div className={styles.advGroup}>
-                            <div className={styles.groupTitle}>
-                              {t('ui.models.restrict-keys-to-an-api')}
-                            </div>
-                            {d.keys.map((k, i) => {
-                              const label = keyName(
-                                { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
-                                i,
-                              );
-                              return (
-                                <div key={k.id} className={styles.wireRow}>
-                                  <span className={styles.keyName}>{label}</span>
-                                  <Select
-                                    size="sm"
-                                    className={styles.wireSelect}
-                                    options={wireOptions}
-                                    value={k.wire ?? ''}
-                                    onChange={(e) =>
-                                      setKey(i, { wire: (e.target.value || undefined) as Wire })
-                                    }
-                                    aria-label={t('ui.models.api-restriction-for', label)}
-                                    data-testid={`pd-key-wire-${k.id}`}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {d.keys.length > 0 && (
-                          <div className={styles.advGroup}>
-                            <div className={styles.groupTitle}>
-                              {t('ui.models.key-limits-leave-blank-for-no-limit-extra')}
-                            </div>
-                            {d.keys.map((k, i) => {
-                              const label = keyName(
-                                { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
-                                i,
-                              );
-                              return (
-                                <div key={k.id} className={styles.wireRow}>
-                                  <span className={styles.keyName}>{label}</span>
-                                  <Input
-                                    size="sm"
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    inputMode="numeric"
-                                    className={styles.limitInput}
-                                    value={k.maxConcurrency ?? ''}
-                                    onChange={(e) => setKey(i, { maxConcurrency: e.target.value })}
-                                    placeholder={t('ui.models.concurrent')}
-                                    aria-label={t('ui.models.max-concurrent-requests', label)}
-                                    data-testid={`pd-key-conc-${k.id}`}
-                                  />
-                                  <Input
-                                    size="sm"
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    inputMode="numeric"
-                                    className={styles.limitInput}
-                                    value={k.rpm ?? ''}
-                                    onChange={(e) => setKey(i, { rpm: e.target.value })}
-                                    placeholder={t('ui.models.per-minute')}
-                                    aria-label={t('ui.models.max-requests-per-minute', label)}
-                                    data-testid={`pd-key-rpm-${k.id}`}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        <PairRows
-                          title={t('ui.models.model-mapping-model-name-in-the-request-model')}
-                          rows={d.modelMap.map((x) => [x.from, x.to] as const)}
-                          placeholders={[
-                            t('ui.models.requested-model'),
-                            t('ui.models.upstream-model'),
-                          ]}
-                          testId="pd-map"
-                          onChange={(rows) =>
-                            patch({ modelMap: rows.map(([from, to]) => ({ from, to })) })
-                          }
-                        />
-                        <PairRows
-                          title={t('ui.models.custom-headers')}
-                          rows={d.headers.map((x) => [x.name, x.value] as const)}
-                          placeholders={[t('ui.foundation.name'), t('ui.models.value')]}
-                          testId="pd-header"
-                          onChange={(rows) =>
-                            patch({ headers: rows.map(([name, value]) => ({ name, value })) })
-                          }
-                        />
-                        <label className={styles.urlRow}>
-                          <span className={styles.urlLabel}>User-Agent</span>
-                          <Input
-                            size="sm"
-                            value={d.userAgent}
-                            onChange={(e) => patch({ userAgent: e.target.value })}
-                            placeholder={t('ui.providers-schedule.default')}
-                            data-testid="pd-user-agent"
-                          />
-                        </label>
-                      </>
-                    )}
-
-                    <LearnedInfo
-                      learned={p.learned}
-                      onClear={() =>
-                        void gatewayClient
-                          .clearLearned(p.id)
-                          .catch((e: Error) => setError(e.message))
-                      }
-                    />
-                  </div>
-                )}
-              </section>
-            </div>
+          {/* ---------------- 模型：左边列表，右边选中模型的设置 ---------------- */}
+          <div className={styles.pdModels}>
             <ProviderModelsPanel
-              models={readOnly ? p.models : d.models}
+              models={models}
               readOnly={readOnly}
               busy={busy !== null}
               detecting={busy === 'detect'}
@@ -696,10 +656,139 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
               onRefresh={() => void detect()}
               onSet={setModel}
               onSetMany={setModelsEnabled}
-              onRemove={removeModel}
               onAdd={addModel}
+              selectedId={selected?.id ?? null}
+              onSelect={setSelectedId}
+            />
+            <ModelDetailPanel
+              model={selected}
+              urlWires={urlWires}
+              readOnly={readOnly}
+              upstream={selected ? upstreamOf(selected.id) : ''}
+              onSet={setModel}
+              onUpstream={setUpstream}
+              onToggleWire={toggleModelWire}
+              onRemove={removeModel}
             />
           </div>
+
+          {/* ---------------- 更多设置：请求头、User-Agent、其它模型映射、自动学到的 ---------------- */}
+          <section className={styles.section}>
+            <button
+              type="button"
+              className={styles.advToggle}
+              aria-expanded={advanced}
+              aria-controls="pd-advanced"
+              onClick={() => setAdvanced((x) => !x)}
+              data-testid="pd-advanced-toggle"
+            >
+              <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} />
+              {t('ui.models.more-settings')}
+            </button>
+            {advanced && (
+              <div id="pd-advanced" className={styles.advBody}>
+                <div className={styles.advGroup}>
+                  <div className={styles.groupTitle}>{t('ui.models.per-api-addresses')}</div>
+                  {shownWires.map((w) => (
+                    <div key={w} className={styles.urlRow}>
+                      <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
+                      <Input
+                        size="sm"
+                        value={d.urls[w]}
+                        readOnly={readOnly}
+                        onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
+                        placeholder="https://"
+                        aria-label={t('ui.models.address-for', WIRE_LABEL[w])}
+                        data-testid={`pd-url-${w}`}
+                      />
+                      {!readOnly && (
+                        <IconButton
+                          size="sm"
+                          label={t('ui.models.remove-address', WIRE_LABEL[w])}
+                          icon={<Icon icon={Trash2} size={14} />}
+                          onClick={() => removeWire(w)}
+                          data-testid={`pd-url-remove-${w}`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && hiddenWires.length > 0 && (
+                    <div>
+                      <Select
+                        size="sm"
+                        variant="ghost"
+                        value=""
+                        placeholder={t('ui.models.add-api-address')}
+                        options={hiddenWires.map((w) => ({ value: w, label: WIRE_LABEL[w] }))}
+                        onChange={(e) => e.target.value && addWire(e.target.value as Wire)}
+                        aria-label={t('ui.models.add-api-address')}
+                        data-testid="pd-url-add"
+                      />
+                    </div>
+                  )}
+                  {!readOnly && urlsChanged && (
+                    <div className={styles.offer} role="status" data-testid="pd-urls-changed">
+                      <span>
+                        {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy !== null}
+                        onClick={() => void detect()}
+                        data-testid="pd-redetect"
+                      >
+                        {t('ui.models.detect-again')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {!readOnly && (
+                  <>
+                    <PairRows
+                      title={t('ui.models.other-model-mapping')}
+                      rows={otherMap.map((x) => [x.from, x.to] as const)}
+                      placeholders={[t('ui.models.requested-model'), t('ui.models.upstream-model')]}
+                      testId="pd-map"
+                      onChange={(rows) =>
+                        patch({
+                          modelMap: [
+                            ...d.modelMap.filter((x) => modelIds.has(x.from)),
+                            ...rows.map(([from, to]) => ({ from, to })),
+                          ],
+                        })
+                      }
+                    />
+                    <PairRows
+                      title={t('ui.models.custom-headers')}
+                      rows={d.headers.map((x) => [x.name, x.value] as const)}
+                      placeholders={[t('ui.foundation.name'), t('ui.models.value')]}
+                      testId="pd-header"
+                      onChange={(rows) =>
+                        patch({ headers: rows.map(([name, value]) => ({ name, value })) })
+                      }
+                    />
+                    <label className={styles.urlRow}>
+                      <span className={styles.urlLabel}>User-Agent</span>
+                      <Input
+                        size="sm"
+                        value={d.userAgent}
+                        onChange={(e) => patch({ userAgent: e.target.value })}
+                        placeholder={t('ui.providers-schedule.default')}
+                        data-testid="pd-user-agent"
+                      />
+                    </label>
+                  </>
+                )}
+                <LearnedInfo
+                  learned={p.learned}
+                  onClear={() =>
+                    void gatewayClient.clearLearned(p.id).catch((e: Error) => setError(e.message))
+                  }
+                />
+              </div>
+            )}
+          </section>
         </div>
       </Modal>
     </ModalHostContext.Provider>

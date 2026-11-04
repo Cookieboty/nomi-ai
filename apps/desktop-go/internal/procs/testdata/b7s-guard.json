@@ -257,6 +257,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "ai.chat.steer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "ai.chat.steer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'ai.chat.steer' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "ai.chat.stream",
   "kind": "call",
   "res": {
@@ -716,6 +733,40 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "character.assets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "character.assets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.assets' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "character.ensureAssets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "character.ensureAssets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.ensureAssets' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "character.getActivePack",
   "kind": "call",
   "res": "pass"
@@ -728,6 +779,108 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'character.getActivePack' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.import",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.import",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.import' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.regenerate",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.regenerate",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.regenerate' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.reveal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.reveal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.reveal' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.saveAs",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "chatAssets.saveAs",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.saveAs' is a mutation; use call"
   }
  },
  {
@@ -1136,6 +1289,108 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'cliUpdate.run' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.addGithub",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.addGithub",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.addGithub' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.check",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.check",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.check' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.detect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.detect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.detect' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.rebind",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.rebind",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.rebind' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "connections.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.remove' is a mutation; use call"
   }
  },
  {
@@ -1578,6 +1833,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "diagnostics.cliRecords",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "diagnostics.cliRecords",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.cliRecords' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "diagnostics.export",
   "kind": "call",
   "res": "pass"
@@ -1590,6 +1862,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'diagnostics.export' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.gatewayTrace' is a query; use call"
   }
  },
  {
@@ -1935,6 +2224,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "gateway.catalogModels",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "gateway.catalogModels",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.catalogModels' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "gateway.clearLearned",
   "kind": "call",
   "res": "pass"
@@ -2156,6 +2462,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "gateway.reorderProviders",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "gateway.reorderProviders",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.reorderProviders' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "gateway.resetToken",
   "kind": "call",
   "res": "pass"
@@ -2219,6 +2542,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.setOptions' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "gateway.setProviderEnabled",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "gateway.setProviderEnabled",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.setProviderEnabled' is a mutation; use call"
   }
  },
  {
@@ -2819,6 +3159,23 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabApplyAutoTitle' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "harness.tabBackend",
   "kind": "call",
   "res": "pass"
@@ -3120,6 +3477,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'harness.tabSource' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "harness.tabSteer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "harness.tabSteer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabSteer' is a mutation; use call"
   }
  },
  {
@@ -4778,6 +5152,74 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "providerLink.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.connect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.connect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.connect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "providerLink.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "providers.meta",
   "kind": "call",
   "res": "pass"
@@ -5203,6 +5645,380 @@
  {
   "surface": "chat",
   "trusted": true,
+  "name": "tasks.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.applyWorktree",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.applyWorktree",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.applyWorktree' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.cancel",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.cancel",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.cancel' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.clearObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.clearObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.clearObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.create",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.create",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.create' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.decide",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.decide",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.decide' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.events",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.events",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.events' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.get",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.get",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.get' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.grant",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.grant",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.grant' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.inbox",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.inbox",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.inbox' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.journal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.journal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.journal' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.pause",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.pause",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.pause' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.processObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.processObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.processObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.reconcile",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.reconcile",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reconcile' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.resume",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.resume",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.resume' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.revoke",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.revoke",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.revoke' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.runNow",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.runNow",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.runNow' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.setMode",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.setMode",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.setMode' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.update",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "tasks.update",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.update' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
   "name": "theme.get",
   "kind": "call",
   "res": "pass"
@@ -5522,6 +6338,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'updates.install' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "updates.releaseNotes",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": true,
+  "name": "updates.releaseNotes",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'updates.releaseNotes' is a query; use call"
   }
  },
  {
@@ -6627,6 +7460,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "ai.chat.steer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "ai.chat.steer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'ai.chat.steer' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "ai.chat.stream",
   "kind": "call",
   "res": {
@@ -7092,6 +7942,40 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "character.assets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "character.assets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.assets' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "character.ensureAssets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "character.ensureAssets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.ensureAssets' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "character.getActivePack",
   "kind": "call",
   "res": "pass"
@@ -7104,6 +7988,114 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'character.getActivePack' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.import",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.import",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.import' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.regenerate",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.regenerate",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.regenerate' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.remove",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'chatAssets.remove'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.reveal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.reveal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.reveal' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.saveAs",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "chatAssets.saveAs",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.saveAs' is a mutation; use call"
   }
  },
  {
@@ -7512,6 +8504,120 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'cliUpdate.run' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.addGithub",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'connections.addGithub'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.addGithub",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.addGithub' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.check",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.check",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.check' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.detect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.detect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.detect' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.rebind",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'connections.rebind'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.rebind",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.rebind' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "connections.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.remove' is a mutation; use call"
   }
  },
  {
@@ -7984,6 +9090,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "diagnostics.cliRecords",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "diagnostics.cliRecords",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.cliRecords' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "diagnostics.export",
   "kind": "call",
   "res": "pass"
@@ -7996,6 +9119,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'diagnostics.export' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.gatewayTrace' is a query; use call"
   }
  },
  {
@@ -8359,6 +9499,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "gateway.catalogModels",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.catalogModels",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.catalogModels' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "gateway.clearLearned",
   "kind": "call",
   "res": "pass"
@@ -8586,6 +9743,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "gateway.reorderProviders",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.reorderProviders",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.reorderProviders' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "gateway.resetToken",
   "kind": "call",
   "res": "pass"
@@ -8649,6 +9823,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.setOptions' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.setProviderEnabled",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "gateway.setProviderEnabled",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.setProviderEnabled' is a mutation; use call"
   }
  },
  {
@@ -9267,6 +10458,23 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabApplyAutoTitle' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "harness.tabBackend",
   "kind": "call",
   "res": "pass"
@@ -9574,6 +10782,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'harness.tabSource' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "harness.tabSteer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "harness.tabSteer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabSteer' is a mutation; use call"
   }
  },
  {
@@ -11244,6 +12469,74 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "providerLink.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.connect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.connect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.connect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "providerLink.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "providers.meta",
   "kind": "call",
   "res": "pass"
@@ -11669,6 +12962,410 @@
  {
   "surface": "chat",
   "trusted": false,
+  "name": "tasks.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.applyWorktree",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.applyWorktree'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.applyWorktree",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.applyWorktree' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.cancel",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.cancel",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.cancel' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.clearObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.clearObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.clearObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.create",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.create'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.create",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.create' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.decide",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.decide'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.decide",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.decide' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.events",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.events",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.events' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.get",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.get",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.get' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.grant",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.grant'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.grant",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.grant' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.inbox",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.inbox",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.inbox' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.journal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.journal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.journal' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.pause",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.pause",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.pause' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.processObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.processObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.processObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.reconcile",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.reconcile",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reconcile' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.resume",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.resume",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.resume' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.revoke",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.revoke",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.revoke' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.runNow",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.runNow",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.runNow' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.setMode",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.setMode'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.setMode",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.setMode' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.update",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "tasks.update",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.update' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
   "name": "theme.get",
   "kind": "call",
   "res": "pass"
@@ -11988,6 +13685,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'updates.install' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "updates.releaseNotes",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "chat",
+  "trusted": false,
+  "name": "updates.releaseNotes",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'updates.releaseNotes' is a query; use call"
   }
  },
  {
@@ -13099,6 +14813,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "ai.chat.steer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "ai.chat.steer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'ai.chat.steer' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "ai.chat.stream",
   "kind": "call",
   "res": {
@@ -13570,6 +15301,40 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "character.assets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "character.assets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.assets' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "character.ensureAssets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "character.ensureAssets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.ensureAssets' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "character.getActivePack",
   "kind": "call",
   "res": "pass"
@@ -13582,6 +15347,144 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'character.getActivePack' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.import",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.import'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.import",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.import' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.list",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.list'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.regenerate",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.regenerate'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.regenerate",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.regenerate' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.remove",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.remove'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.reveal",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.reveal'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.reveal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.reveal' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.saveAs",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.saveAs'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "chatAssets.saveAs",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.saveAs' is a mutation; use call"
   }
  },
  {
@@ -14019,6 +15922,108 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "connections.addGithub",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.addGithub",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.addGithub' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.check",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.check",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.check' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.detect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.detect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.detect' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.rebind",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.rebind",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.rebind' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "connections.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "delegate.clearPin",
   "kind": "call",
   "res": "pass"
@@ -14450,6 +16455,29 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "diagnostics.cliRecords",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'diagnostics.cliRecords'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "diagnostics.cliRecords",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.cliRecords' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "diagnostics.export",
   "kind": "call",
   "res": {
@@ -14468,6 +16496,29 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'diagnostics.export' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'diagnostics.gatewayTrace'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.gatewayTrace' is a query; use call"
   }
  },
  {
@@ -14831,6 +16882,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "gateway.catalogModels",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "gateway.catalogModels",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.catalogModels' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "gateway.clearLearned",
   "kind": "call",
   "res": "pass"
@@ -15052,6 +17120,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "gateway.reorderProviders",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "gateway.reorderProviders",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.reorderProviders' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "gateway.resetToken",
   "kind": "call",
   "res": "pass"
@@ -15115,6 +17200,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.setOptions' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "gateway.setProviderEnabled",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "gateway.setProviderEnabled",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.setProviderEnabled' is a mutation; use call"
   }
  },
  {
@@ -15715,6 +17817,23 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabApplyAutoTitle' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "harness.tabBackend",
   "kind": "call",
   "res": "pass"
@@ -16016,6 +18135,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'harness.tabSource' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "harness.tabSteer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "harness.tabSteer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabSteer' is a mutation; use call"
   }
  },
  {
@@ -17638,6 +19774,98 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "providerLink.accept",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.accept'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.connect",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.connect'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.connect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.connect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.list",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.list'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.reject",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.reject'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "providerLink.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "providers.meta",
   "kind": "call",
   "res": "pass"
@@ -18063,6 +20291,380 @@
  {
   "surface": "mascot",
   "trusted": true,
+  "name": "tasks.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.applyWorktree",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.applyWorktree",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.applyWorktree' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.cancel",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.cancel",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.cancel' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.clearObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.clearObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.clearObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.create",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.create",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.create' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.decide",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.decide",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.decide' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.events",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.events",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.events' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.get",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.get",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.get' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.grant",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.grant",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.grant' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.inbox",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.inbox",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.inbox' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.journal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.journal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.journal' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.pause",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.pause",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.pause' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.processObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.processObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.processObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.reconcile",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.reconcile",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reconcile' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.resume",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.resume",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.resume' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.revoke",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.revoke",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.revoke' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.runNow",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.runNow",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.runNow' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.setMode",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.setMode",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.setMode' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.update",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "tasks.update",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.update' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
   "name": "theme.get",
   "kind": "call",
   "res": "pass"
@@ -18412,6 +21014,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'updates.install' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "updates.releaseNotes",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": true,
+  "name": "updates.releaseNotes",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'updates.releaseNotes' is a query; use call"
   }
  },
  {
@@ -19457,6 +22076,23 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "ai.chat.steer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "ai.chat.steer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'ai.chat.steer' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "ai.chat.stream",
   "kind": "call",
   "res": {
@@ -19934,6 +22570,40 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "character.assets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "character.assets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.assets' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "character.ensureAssets",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "character.ensureAssets",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'character.ensureAssets' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "character.getActivePack",
   "kind": "call",
   "res": "pass"
@@ -19946,6 +22616,144 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'character.getActivePack' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.import",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.import'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.import",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.import' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.list",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.list'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.regenerate",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.regenerate'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.regenerate",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.regenerate' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.remove",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.remove'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.reveal",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.reveal'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.reveal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.reveal' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.saveAs",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'chatAssets.saveAs'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "chatAssets.saveAs",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'chatAssets.saveAs' is a mutation; use call"
   }
  },
  {
@@ -20378,6 +23186,120 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'cliUpdate.run' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.addGithub",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'connections.addGithub'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.addGithub",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.addGithub' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.check",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.check",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.check' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.detect",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.detect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.detect' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.rebind",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'connections.rebind'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.rebind",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.rebind' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "connections.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'connections.remove' is a mutation; use call"
   }
  },
  {
@@ -20844,6 +23766,29 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "diagnostics.cliRecords",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'diagnostics.cliRecords'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "diagnostics.cliRecords",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.cliRecords' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "diagnostics.export",
   "kind": "call",
   "res": {
@@ -20862,6 +23807,29 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'diagnostics.export' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'diagnostics.gatewayTrace'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "diagnostics.gatewayTrace",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'diagnostics.gatewayTrace' is a query; use call"
   }
  },
  {
@@ -21243,6 +24211,23 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "gateway.catalogModels",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.catalogModels",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.catalogModels' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "gateway.clearLearned",
   "kind": "call",
   "res": "pass"
@@ -21470,6 +24455,23 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "gateway.reorderProviders",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.reorderProviders",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.reorderProviders' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "gateway.resetToken",
   "kind": "call",
   "res": "pass"
@@ -21533,6 +24535,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'gateway.setOptions' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.setProviderEnabled",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "gateway.setProviderEnabled",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'gateway.setProviderEnabled' is a mutation; use call"
   }
  },
  {
@@ -22151,6 +25170,23 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "harness.tabApplyAutoTitle",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabApplyAutoTitle' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "harness.tabBackend",
   "kind": "call",
   "res": "pass"
@@ -22458,6 +25494,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'harness.tabSource' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "harness.tabSteer",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "harness.tabSteer",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'harness.tabSteer' is a mutation; use call"
   }
  },
  {
@@ -24092,6 +27145,98 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "providerLink.accept",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.accept'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.connect",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.connect'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.connect",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.connect' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.list",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.list'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.reject",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Surface 'mascot' may not call 'providerLink.reject'",
+   "data": {
+    "surface": "mascot"
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "providerLink.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'providerLink.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "providers.meta",
   "kind": "call",
   "res": "pass"
@@ -24517,6 +27662,410 @@
  {
   "surface": "mascot",
   "trusted": false,
+  "name": "tasks.accept",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.accept",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.accept' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.applyWorktree",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.applyWorktree'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.applyWorktree",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.applyWorktree' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.cancel",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.cancel",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.cancel' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.clearObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.clearObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.clearObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.create",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.create'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.create",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.create' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.decide",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.decide'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.decide",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.decide' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.events",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.events",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.events' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.get",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.get",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.get' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.grant",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.grant'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.grant",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.grant' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.inbox",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.inbox",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.inbox' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.journal",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.journal",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.journal' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.list",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.list",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.list' is a query; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.pause",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.pause",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.pause' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.processObserved",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.processObserved",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.processObserved' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.reconcile",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.reconcile",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reconcile' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.reject",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.reject",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.reject' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.remove",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.remove",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.remove' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.resume",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.resume",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.resume' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.revoke",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.revoke",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.revoke' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.runNow",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.runNow",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.runNow' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.setMode",
+  "kind": "call",
+  "res": {
+   "code": "FORBIDDEN",
+   "message": "Untrusted caller may not call dangerous 'tasks.setMode'",
+   "data": {
+    "dangerous": true
+   }
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.setMode",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.setMode' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.update",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "tasks.update",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'tasks.update' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
   "name": "theme.get",
   "kind": "call",
   "res": "pass"
@@ -24866,6 +28415,23 @@
   "res": {
    "code": "BAD_REQUEST",
    "message": "Procedure 'updates.install' is a mutation; use call"
+  }
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "updates.releaseNotes",
+  "kind": "call",
+  "res": "pass"
+ },
+ {
+  "surface": "mascot",
+  "trusted": false,
+  "name": "updates.releaseNotes",
+  "kind": "stream",
+  "res": {
+   "code": "BAD_REQUEST",
+   "message": "Procedure 'updates.releaseNotes' is a query; use call"
   }
  },
  {

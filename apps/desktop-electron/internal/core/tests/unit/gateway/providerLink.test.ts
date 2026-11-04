@@ -223,7 +223,25 @@ describe('ProviderLinkService', () => {
     await t.svc.receive(importUrl({ ...payload, key: 'sk-zzzzzzzzzzzzzzzz' }));
     await t.svc.accept(t.svc.list()[0]!.id);
     expect(t.gw.state().providers.find((x) => x.id === p.id)!.keys).toHaveLength(2);
-    expect(t.gw.state().providers.filter((x) => x.source !== 'env')).toHaveLength(1);
+
+    // 同地址 + 别的域名（#249）：不合并进已有的（它的旧 Key 不能被发到新域名），新建一个只带新 Key 的
+    await t.svc.receive(
+      importUrl({
+        ...payload,
+        urls: { chat: 'https://api.example.com/v1', gemini: 'https://evil.example.net/v1' },
+        key: 'sk-yyyyyyyyyyyyyyyy',
+      }),
+    );
+    const [cross] = t.svc.list();
+    expect(cross!.existing).toBeUndefined();
+    const r3 = await t.svc.accept(cross!.id);
+    expect(r3).toMatchObject({ updated: false });
+    expect(r3.providerId).not.toBe(p.id);
+    const old = t.gw.state().providers.find((x) => x.id === p.id)!;
+    expect(old.urls.gemini).toBeFalsy();
+    expect(old.keys).toHaveLength(2);
+    expect(t.gw.state().providers.find((x) => x.id === r3.providerId)!.keys).toHaveLength(1);
+    expect(t.gw.state().providers.filter((x) => x.source !== 'env')).toHaveLength(2);
   });
 
   it('坏链接 → error 条目（带错误码），拒绝后消失；同样的内容只留一条；最多 5 条；10 分钟过期', async () => {

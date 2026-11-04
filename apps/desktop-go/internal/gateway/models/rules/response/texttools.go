@@ -8,12 +8,14 @@ import (
 )
 
 const (
-	dsml      = "<｜DSML｜"
-	dsmlClose = "</｜DSML｜"
-	maxMarker = 11 // max UTF-16 length of markers ('<tool_call>')
+	dsml           = "<｜DSML｜"
+	dsmlClose      = "</｜DSML｜"
+	toolCalls      = "<tool_calls>"
+	toolCallsClose = "</tool_calls>"
+	maxMarker      = 12 // max UTF-16 length of markers ('<tool_calls>')
 )
 
-var markers = []string{"<tool_call>", dsml, "<arg_key>"}
+var markers = []string{"<tool_call>", toolCalls, dsml, "<arg_key>"}
 
 // TextToolCall is TextToolCall.
 type TextToolCall struct{ Name, Args string }
@@ -48,6 +50,48 @@ func decodeEntities(s string) string {
 	return strings.ReplaceAll(entityRepl.Replace(s), "&amp;", "&")
 }
 
+// jsonCall reads one `{name, arguments}` / `{function: {name, arguments}}` object.
+func jsonCall(j any, resolve Resolve) *TextToolCall {
+	o, ok := j.(*u.Obj)
+	if !ok {
+		return nil
+	}
+	fn := o
+	if f := o.Get("function"); u.Truthy(f) {
+		switch fv := f.(type) {
+		case *u.Obj:
+			fn = fv
+		case []any:
+			fn = u.NewObj()
+		}
+	}
+	name := resolve(u.Str(fn.Get("name")))
+	if name == "" {
+		return nil
+	}
+	args := fn.Get("arguments")
+	if args == nil {
+		args = fn.Get("parameters")
+	}
+	if args == nil {
+		args = fn.Get("args")
+	}
+	if args == nil {
+		args = u.NewObj()
+	}
+	if s, ok := args.(string); ok {
+		v, err := u.ParseString(s)
+		if err != nil {
+			return nil
+		}
+		args = v
+	}
+	if _, ok := args.(*u.Obj); !ok {
+		return nil
+	}
+	return &TextToolCall{Name: name, Args: u.Stringify(args)}
+}
+
 func parseToolCallBody(body string, resolve Resolve) *TextToolCall {
 	t := u.JSTrim(body)
 	if strings.HasPrefix(t, "{") {
@@ -55,44 +99,7 @@ func parseToolCallBody(body string, resolve Resolve) *TextToolCall {
 		if err != nil {
 			return nil
 		}
-		o, ok := j.(*u.Obj)
-		if !ok {
-			return nil
-		}
-		fn := o
-		if f := o.Get("function"); u.Truthy(f) {
-			switch fv := f.(type) {
-			case *u.Obj:
-				fn = fv
-			case []any:
-				fn = u.NewObj()
-			}
-		}
-		name := resolve(u.Str(fn.Get("name")))
-		if name == "" {
-			return nil
-		}
-		args := fn.Get("arguments")
-		if args == nil {
-			args = fn.Get("parameters")
-		}
-		if args == nil {
-			args = fn.Get("args")
-		}
-		if args == nil {
-			args = u.NewObj()
-		}
-		if s, ok := args.(string); ok {
-			v, err := u.ParseString(s)
-			if err != nil {
-				return nil
-			}
-			args = v
-		}
-		if _, ok := args.(*u.Obj); !ok {
-			return nil
-		}
-		return &TextToolCall{Name: name, Args: u.Stringify(args)}
+		return jsonCall(j, resolve)
 	}
 	i := strings.Index(t, "<arg_key>")
 	if i < 0 {
@@ -124,6 +131,35 @@ func glmCall(rawName, pairs string, resolve Resolve) *TextToolCall {
 	return &TextToolCall{Name: name, Args: u.Stringify(args)}
 }
 
+// parseToolCallsBody parses a `<tool_calls>` body: a JSON array (or one object);
+// any item that does not parse rejects the whole block.
+func parseToolCallsBody(body string, resolve Resolve) []TextToolCall {
+	t := u.JSTrim(body)
+	if !strings.HasPrefix(t, "[") && !strings.HasPrefix(t, "{") {
+		return nil
+	}
+	j, err := u.ParseString(t)
+	if err != nil {
+		return nil
+	}
+	items, ok := j.([]any)
+	if !ok {
+		items = []any{j}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	calls := make([]TextToolCall, 0, len(items))
+	for _, it := range items {
+		c := jsonCall(it, resolve)
+		if c == nil {
+			return nil
+		}
+		calls = append(calls, *c)
+	}
+	return calls
+}
+
 func dsmlCall(name, body string, resolve Resolve) *TextToolCall {
 	n := resolve(decodeEntities(name))
 	if n == "" {
@@ -147,9 +183,19 @@ func dsmlCall(name, body string, resolve Resolve) *TextToolCall {
 	return &TextToolCall{Name: n, Args: u.Stringify(args)}
 }
 
+// ttBlock: calls nil = emit as text; non-nil empty = DSML wrapper tag.
 type ttBlock struct {
 	start, end int
-	call       *TextToolCall
+	calls      []TextToolCall
+}
+
+var ttWrapper = []TextToolCall{}
+
+func one(c *TextToolCall) []TextToolCall {
+	if c == nil {
+		return nil
+	}
+	return []TextToolCall{*c}
 }
 
 func indexFrom(s, sub string, from int) int {
@@ -184,7 +230,15 @@ func findBlocks(s string, resolve Resolve, leadName *string) []ttBlock {
 			if close >= 0 {
 				bodyEnd, end = close, close+len("</tool_call>")
 			}
-			out = append(out, ttBlock{at, end, parseToolCallBody(s[at+11:bodyEnd], resolve)})
+			out = append(out, ttBlock{at, end, one(parseToolCallBody(s[at+11:bodyEnd], resolve))})
+			pos = end
+		case strings.HasPrefix(rest, toolCalls):
+			close := indexFrom(s, toolCallsClose, at)
+			bodyEnd, end := len(s), len(s)
+			if close >= 0 {
+				bodyEnd, end = close, close+len(toolCallsClose)
+			}
+			out = append(out, ttBlock{at, end, parseToolCallsBody(s[at+len(toolCalls):bodyEnd], resolve)})
 			pos = end
 		case strings.HasPrefix(rest, dsml+"invoke"):
 			m := dsmlInvRe.FindStringSubmatchIndex(rest)
@@ -194,21 +248,21 @@ func findBlocks(s string, resolve Resolve, leadName *string) []ttBlock {
 				return out
 			}
 			end := close + len("</｜DSML｜invoke>")
-			out = append(out, ttBlock{at, end, dsmlCall(rest[m[2]:m[3]], s[at+m[1]:close], resolve)})
+			out = append(out, ttBlock{at, end, one(dsmlCall(rest[m[2]:m[3]], s[at+m[1]:close], resolve))})
 			pos = end
 		case strings.HasPrefix(rest, dsml) || strings.HasPrefix(rest, dsmlClose):
 			m := dsmlWrapRe.FindStringIndex(rest)
 			var end int
-			var call *TextToolCall
+			var calls []TextToolCall
 			if m != nil {
 				end = at + m[1]
-				call = &TextToolCall{}
+				calls = ttWrapper
 			} else if strings.HasPrefix(rest, dsml) {
 				end = at + len(dsml)
 			} else {
 				end = at + len(dsmlClose)
 			}
-			out = append(out, ttBlock{at, end, call})
+			out = append(out, ttBlock{at, end, calls})
 			pos = end
 		default:
 			close := strings.LastIndex(s, "</arg_value>")
@@ -226,11 +280,11 @@ func findBlocks(s string, resolve Resolve, leadName *string) []ttBlock {
 			} else if at == 0 {
 				name = leadName
 			}
-			var call *TextToolCall
+			var calls []TextToolCall
 			if name != nil {
-				call = glmCall(*name, s[at:end], resolve)
+				calls = one(glmCall(*name, s[at:end], resolve))
 			}
-			out = append(out, ttBlock{start, end, call})
+			out = append(out, ttBlock{start, end, calls})
 			pos = end
 		}
 	}
@@ -329,7 +383,7 @@ func (x *TextToolExtractor) Flush() (string, []TextToolCall) {
 	x.leadName = nil
 	invokesOk := true
 	for _, b := range blocks {
-		if b.call == nil {
+		if b.calls == nil {
 			invokesOk = false
 		}
 	}
@@ -338,9 +392,9 @@ func (x *TextToolExtractor) Flush() (string, []TextToolCall) {
 	pos := 0
 	for _, b := range blocks {
 		text.WriteString(s[pos:b.start])
-		wrapper := b.call != nil && b.call.Name == ""
-		if b.call != nil && !wrapper {
-			calls = append(calls, *b.call)
+		wrapper := b.calls != nil && len(b.calls) == 0
+		if b.calls != nil && !wrapper {
+			calls = append(calls, b.calls...)
 		} else if !(wrapper && invokesOk) {
 			text.WriteString(s[b.start:b.end])
 		}

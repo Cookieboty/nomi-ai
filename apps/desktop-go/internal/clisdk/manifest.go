@@ -14,7 +14,7 @@ var (
 	switches   = []string{"gateway", "inplace", "restart"}
 	permModes  = []string{"plan", "manual", "acceptEdits", "auto", "bypass"}
 	imageKinds = []string{"native", "path", "none"}
-	boolCaps   = []string{"officialAccount", "thirdParty", "subagents", "slashCommands", "resume", "fork", "usageQuota", "progressMonitor", "terminalCommand"}
+	boolCaps   = []string{"officialAccount", "thirdParty", "subagents", "slashCommands", "resume", "fork", "usageQuota", "progressMonitor", "terminalCommand", "steer"}
 	manifestID = mustRe(`^[a-z0-9][a-z0-9-]{0,40}$`)
 )
 

@@ -2,6 +2,7 @@ package models
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
@@ -149,7 +150,12 @@ func EffectiveModel(p *config.RuntimeProvider, model string, learned *config.Lea
 			return h.e
 		}
 	}
-	id := BareModelID(model)
+	// 用户指定了按哪个已知模型处理：族默认与目录都按它查（中转改了名的已知模型）
+	lookup := model
+	if um := p.Model(model); um != nil && um.Like != nil && strings.TrimSpace(*um.Like) != "" {
+		lookup = strings.TrimSpace(*um.Like)
+	}
+	id := BareModelID(lookup)
 	sources := []any{}
 	data := u.NewObj()
 	if fam := FamilyOf(id); fam != nil {

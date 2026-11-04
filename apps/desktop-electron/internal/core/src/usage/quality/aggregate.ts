@@ -562,7 +562,9 @@ export function listRequests(
   q: QualityRequestsQuery,
   labelOf?: QualityLabelOf,
 ): { items: QualityRequestItem[]; total: number } {
-  const units = unitsOf(inRange(records, q), 'request').filter((u) => matches(u, q.filters));
+  const units = unitsOf(inRange(records, q), 'request').filter(
+    (u) => matches(u, q.filters) && (q.tabId === undefined || u.r.tabId === q.tabId),
+  );
   const all = units.map((u) => u.r).sort((a, b) => b.ts - a.ts);
   const offset = Math.max(0, Math.trunc(q.offset ?? 0));
   const limit = Math.min(1000, Math.max(1, Math.trunc(q.limit)));

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -392,6 +393,7 @@ type heatCacheT struct {
 
 type UsageService struct {
 	d              ServiceDeps
+	priceAlias     atomic.Pointer[PriceAlias]
 	Ledger         *UsageLedger
 	smu            sync.RWMutex
 	settings       UsageSettings
@@ -1992,7 +1994,19 @@ func (s *UsageService) TaskCostLine(q CostQuery) string {
 }
 
 func (s *UsageService) priceOf() PriceOf {
+	if al := s.priceAlias.Load(); al != nil {
+		return MakePriceOf(s.snapshot().CustomPrices, s.PriceSync.Entries(), *al)
+	}
 	return MakePriceOf(s.snapshot().CustomPrices, s.PriceSync.Entries())
+}
+
+// SetPriceAlias = setPriceAlias：第三方供应商里「按哪个已知模型处理」（网关服务起来后接上）
+func (s *UsageService) SetPriceAlias(fn PriceAlias) {
+	if fn == nil {
+		s.priceAlias.Store(nil)
+		return
+	}
+	s.priceAlias.Store(&fn)
 }
 
 // LongContextPrice = longContextPrice(model)；nil = undefined（任意 goroutine）

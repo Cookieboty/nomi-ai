@@ -244,6 +244,13 @@ describe('listRequests', () => {
     });
     expect(g.items.map((x) => x.client)).toEqual(['grok']);
   });
+
+  it('按标签筛（开发者工具的执行轨迹）', () => {
+    const rs = [rec({ tabId: 'tab-a' }), rec({ tabId: 'tab-b' }), rec()];
+    const r = listRequests(rs, { from: T0, to: T0 + 86_400_000, limit: 10, tabId: 'tab-a' });
+    expect(r.total).toBe(1);
+    expect(r.items.map((x) => x.id)).toEqual([rs[0]!.id]);
+  });
 });
 
 describe('routeQuality / loss 维度', () => {

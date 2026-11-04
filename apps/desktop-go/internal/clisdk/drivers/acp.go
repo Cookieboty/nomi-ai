@@ -29,6 +29,10 @@ type AcpDriverOptions struct {
 	Mapper             func() AcpMapper
 	ClientCapabilities Json
 	NewID              func() string
+	// SteerMethod：一轮进行中插入用户消息的扩展方法（ACP 本身没有），参数 {sessionId, text}。
+	// Grok 1.0.70：`_x.ai/interject`，应答 {status:'queued'}，在下一个工具 / 模型步骤并进这一轮。
+	// 空串 = 不支持（如 Gemini：新的 session/prompt 会中止当前这一轮）。
+	SteerMethod string
 }
 
 type acpTurn struct {
@@ -472,6 +476,19 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 			res.Set("raw", r)
 		}
 		return res, nil
+	})
+}
+
+// Steer mirrors steer：有扩展方法、有进行中的轮次和会话时发 {sessionId, text}；CLI 报错 = false。
+func (d *AcpDriver) Steer(text string) *jsrt.Promise[bool] {
+	method := d.o.SteerMethod
+	if method == "" || d.turn == nil || d.sid == nil || *d.sid == "" {
+		return jsrt.Resolved(false)
+	}
+	req := d.Conn.Request(method, O("sessionId", *d.sid, "text", text), rpc.RequestOptions{})
+	return jsrt.Async(func() (bool, error) {
+		_, err := jsrt.Await(req)
+		return err == nil, nil
 	})
 }
 

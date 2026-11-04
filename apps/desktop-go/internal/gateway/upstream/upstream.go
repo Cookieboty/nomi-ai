@@ -3,11 +3,13 @@ package upstream
 import (
 	"regexp"
 	"strconv"
+	"strings"
 	"unicode/utf16"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/cand"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/intent"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/ir"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	mreq "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models/rules/request"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/providers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/request"
@@ -58,6 +60,44 @@ type HeaderOpts struct {
 	SameWire      bool
 }
 
+// standardClaudeWindow：超过这个窗口要 context-1m beta（Anthropic 的标准窗口）
+const standardClaudeWindow = 200_000
+
+// WantsContext1m = wantsContext1m(c)：给第三方 Messages 上游补 context-1m beta——Claude 系列（自己的名字，
+// 或用户指定按哪个模型处理）、生效窗口超过 200K、这家没拒绝过（rectify 'beta'）；官方 Anthropic 不补
+func WantsContext1m(c *cand.Candidate) bool {
+	if c.Wire != "messages" || IsAnthropicOfficial(c) {
+		return false
+	}
+	for _, f := range c.Rectify {
+		if f == "beta" {
+			return false
+		}
+	}
+	name := c.UpstreamModel
+	for i := range c.Provider.Models {
+		m := &c.Provider.Models[i]
+		if c.Provider.ID+"/"+m.ID == c.PublicModel && m.Like != nil && *m.Like != "" {
+			name = *m.Like
+			break
+		}
+	}
+	fam := ""
+	window := 0.0
+	if c.Model != nil {
+		fam, _ = c.Model.Get("family").(string)
+		if lim, ok := c.Model.Get("limits").(*u.Obj); ok && lim != nil {
+			if v, ok := lim.Get("input").(float64); ok {
+				window = v
+			} else if v, ok := lim.Get("context").(float64); ok {
+				window = v
+			}
+		}
+	}
+	claude := strings.HasPrefix(strings.ToLower(fam), "claude") || strings.HasPrefix(models.BareModelID(name), "claude")
+	return claude && window > standardClaudeWindow
+}
+
 // Headers is upstreamHeaders: an ordered name → value object (JS key order).
 func Headers(c *cand.Candidate, opts HeaderOpts) *u.Obj {
 	h := u.NewObj("Content-Type", "application/json")
@@ -99,6 +139,14 @@ func Headers(c *cand.Candidate, opts HeaderOpts) *u.Obj {
 		}
 		if beta != "" && !IsAnthropicOfficial(c) {
 			beta = providers.FilterAnthropicBeta(beta)
+		}
+		// 声明了超过 200K 的 Claude 模型：补上 context-1m；上游拒绝时去掉重试并记住（rectify 'beta'）
+		if WantsContext1m(c) {
+			if beta != "" {
+				beta += "," + route.Context1mBeta
+			} else {
+				beta = route.Context1mBeta
+			}
 		}
 		if beta != "" {
 			h.Set("anthropic-beta", beta)

@@ -70,6 +70,8 @@ export const shellProcedures = {
 
   // ---- gateway（GatewayService / TerminalCommands）----
   'gateway.state': { kind: 'query', input: v, output: S.GatewayState },
+  /** 内置模型目录（models.dev 快照 + 同步覆盖层）：第三方模型「按哪个已知模型处理」的选择列表 */
+  'gateway.catalogModels': { kind: 'query', input: v, output: z.array(S.CatalogModel) },
   'gateway.detect': {
     kind: 'mutation',
     input: S.GatewayDetectInput,
@@ -282,6 +284,20 @@ export const shellProcedures = {
     kind: 'mutation',
     input: v,
     output: S.DiagnosticsExportResult,
+    surfaces: CHAT,
+  },
+  /** 开发者工具：一轮里编程助手子进程的原始收发（读 logs/cli-*.jsonl） */
+  'diagnostics.cliRecords': {
+    kind: 'query',
+    input: S.DiagnosticsCliRecordsQuery,
+    output: S.DiagnosticsCliRecords,
+    surfaces: CHAT,
+  },
+  /** 开发者工具：网关请求的请求体 / 响应正文（读 gateway/trace） */
+  'diagnostics.gatewayTrace': {
+    kind: 'query',
+    input: z.object({ traceId: z.string().max(64) }),
+    output: S.DiagnosticsGatewayTrace,
     surfaces: CHAT,
   },
 

@@ -222,6 +222,15 @@ const harnessProcedures = {
     output: HarnessSendReply,
   },
   'harness.tabCancel': { kind: 'mutation', input: byId, output: z.boolean() },
+  /**
+   * 一轮进行中插入一条用户消息（不打断这一轮，CLI 在下一个工具 / 模型步骤取走）。
+   * 没有进行中的轮次或后端不支持时 false：视图改为排队到这一轮结束。
+   */
+  'harness.tabSteer': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), text: z.string().max(200_000) }),
+    output: z.boolean(),
+  },
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时 false */
   'harness.stopAgent': {
     kind: 'mutation',

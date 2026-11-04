@@ -32,7 +32,7 @@ const procedures = Object.fromEntries(
 const aiEventNames = Object.keys(appContract.events).filter((n) => n.startsWith('ai.'));
 
 describe('appContract · 过程表', () => {
-  it('快照：37 个 AI 门面过程的 kind / dangerous', () => {
+  it('快照：38 个 AI 门面过程的 kind / dangerous', () => {
     const table = Object.entries(procedures).map(
       ([name, def]) => `${name}:${def.kind}${def.dangerous ? ':dangerous' : ''}`,
     );
@@ -40,6 +40,7 @@ describe('appContract · 过程表', () => {
       'ai.chat.sendMessage:mutation',
       'ai.chat.stream:stream',
       'ai.chat.abort:mutation',
+      'ai.chat.steer:mutation',
       'ai.chat.regenerate:stream',
       'ai.chat.agentStream:stream',
       'ai.sessions.list:query',
@@ -75,8 +76,8 @@ describe('appContract · 过程表', () => {
       'ai.avatar.speaking:mutation',
       'ai.avatar.report:mutation',
     ]);
-    expect(Object.keys(aiProcedures)).toHaveLength(37);
-    expect(Object.keys(procedures)).toHaveLength(37);
+    expect(Object.keys(aiProcedures)).toHaveLength(38);
+    expect(Object.keys(procedures)).toHaveLength(38);
     // C3：ai.avatar.* 改成语义过程（不留旧名）→ major
     expect(appContract.version).toEqual({ major: 2, minor: 3 });
     expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');

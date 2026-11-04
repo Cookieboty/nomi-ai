@@ -581,13 +581,8 @@ i.heatCell {
   margin: 0;
 }
 
-/* 明细表随容器宽度收起次要列（缓存 / 合计），保证不出现横向滚动 */
-@container (max-width: 700px) {
-  .colCache {
-    display: none;
-  }
-}
-@container (max-width: 640px) {
+/* 明细表随容器宽度收起次要列（合计 = 前几列之和），输入 / 输出 / 缓存读写始终分列显示，不出现横向滚动 */
+@container (max-width: 760px) {
   .colTotal {
     display: none;
   }

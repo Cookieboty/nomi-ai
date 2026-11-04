@@ -155,10 +155,24 @@
     ],
     [
      "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
      "https://api.example.test/v1/responses",
      "bearer",
      "k1",
      "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/claude-y:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
     ],
     [
      "POST",
@@ -356,7 +370,21 @@
      "https://api.example.test/v1/responses",
      "bearer",
      "k1",
+     "{\"model\":\"claude-y\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
      "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/claude-y:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
     ],
     [
      "POST",
@@ -521,10 +549,24 @@
     ],
     [
      "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
      "https://api.example.test/v1/responses",
      "bearer",
      "k1",
      "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/claude-y:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
     ],
     [
      "POST",
@@ -1690,7 +1732,21 @@
      "https://api.example.test/v1/responses",
      "bearer",
      "k1",
+     "{\"model\":\"claude-y\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
      "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/claude-y:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
     ],
     [
      "POST",

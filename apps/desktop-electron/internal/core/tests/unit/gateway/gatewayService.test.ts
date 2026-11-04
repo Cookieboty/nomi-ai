@@ -21,7 +21,7 @@ import {
 
 import { GatewayProcess } from '../../../src/gateway/GatewayProcess';
 import { GatewayService } from '../../../src/gateway/GatewayService';
-import { writePrivateFileAtomicAsync } from '../../../src/utils/privateFile';
+import { whenPrivateWritesIdle, writePrivateFileAtomicAsync } from '../../../src/utils/privateFile';
 
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 const cipher: SecretCipher = {
@@ -311,6 +311,23 @@ describe('GatewayService', () => {
       decryptable: true,
     });
     expect(t.svc.state().providers[0]!.keys[0]!.name).toBeUndefined();
+  });
+
+  it('keeps the Base URL the user typed; omitting it keeps it, an empty string clears it', () => {
+    const t = setup();
+    t.svc.init();
+    const p = t.svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay.example.com/v1', messages: 'https://relay.example.com' },
+      baseUrl: ' https://relay.example.com ',
+    });
+    expect(p.baseUrl).toBe('https://relay.example.com');
+    expect(t.svc.upsertProvider({ id: p.id, name: 'Relay', urls: {} }).baseUrl).toBe(
+      'https://relay.example.com',
+    );
+    expect(t.svc.upsertProvider({ id: p.id, name: 'Relay', urls: {}, baseUrl: '' }).baseUrl).toBe(
+      undefined,
+    );
   });
 
   it('upserts providers (new keys, reorder, delete), pushes configs and broadcasts', () => {
@@ -921,7 +938,8 @@ describe('GatewayService', () => {
     expect(svc.runtimeConfig().catalogFile).toBe(path.join(root, 'catalog-sync.json'));
     expect(svc.state().catalog).toMatchObject({ synced: true });
     expect(svc.modelMetaOf('relay/openai/gpt-5.2')?.ctx).toBe(272_000);
-    // 重启后从文件恢复
+    // 重启后从文件恢复（退出时会等异步保存写完）
+    await whenPrivateWritesIdle();
     setCatalogOverlay(null);
     const again = make();
     expect(again.modelMetaOf('relay/acme/sync-model-7')?.ctx).toBe(333_000);

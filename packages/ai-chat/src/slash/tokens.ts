@@ -114,6 +114,7 @@ function splitMessage(m: ConvMessage): Record<'user' | 'assistant' | 'tools' | '
   else r.assistant += estimateTokens(m.text);
   for (const ev of m.trace ?? []) {
     if (ev.type === 'thinking') r.thinking += estimateTokens(ev.text);
+    else if (ev.type === 'interject') r.user += estimateTokens(ev.text);
     else if (ev.status === 'start')
       r.tools += estimateTokens(`${ev.name} ${ev.input ?? ev.detail ?? ''}`);
     else r.tools += estimateTokens(ev.output ?? '');

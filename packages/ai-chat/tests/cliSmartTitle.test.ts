@@ -3,6 +3,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { maybeSmartTitleCliTab } from '../src/services/cliSmartTitle';
 
 describe('maybeSmartTitleCliTab', () => {
+  it('sends no title request when smart titles are turned off in privacy settings', async () => {
+    const complete = vi.fn(async () => 'Auth fix');
+    const apply = vi.fn();
+    await maybeSmartTitleCliTab({
+      tab: { id: 't0', source: 'thirdParty', modelOverride: 'acme/cool-model', backend: 'codex' },
+      userText: 'fix authentication bug',
+      complete,
+      applyAutoTitle: apply,
+      enabled: () => false,
+    });
+    expect(complete).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it('skips LLM for official tabs without a gateway model ref', async () => {
     const complete = vi.fn();
     const apply = vi.fn();

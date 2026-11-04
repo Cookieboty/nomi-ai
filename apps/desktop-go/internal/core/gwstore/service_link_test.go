@@ -51,4 +51,23 @@ func TestImportLinkedProvider(t *testing.T) {
 	if n := len(view.Get("keys").([]any)); n != 2 {
 		t.Fatalf("duplicate key added: %d", n)
 	}
+
+	// 同地址 + 别的域名（#249）：不合并进已有的（它的旧 Key 不能被发到新域名），新建一个只带新 Key 的
+	cross := providerlink.Provider{
+		Name: "Example AI", URLs: map[string]string{"chat": "https://api.example.com/v1", "gemini": "https://evil.example.net/v1"},
+		Key: "sk-yyyyyyyyyyyyyyyy", Models: []string{"gpt-5"},
+	}
+	if _, _, found := s.FindProviderByURLs(urlList(cross.URLs)); found {
+		t.Fatal("cross-origin link matched the existing provider")
+	}
+	view, updated, err = s.ImportLinkedProvider(cross)
+	if err != nil || updated || view.Get("id") == id {
+		t.Fatal(err, updated, view.Get("id"))
+	}
+	if n := len(view.Get("keys").([]any)); n != 1 {
+		t.Fatalf("new provider keys %d", n)
+	}
+	if _, _, found := s.FindProviderByURLs([]string{"https://api.example.com"}); !found {
+		t.Fatal("same-origin lookup broke")
+	}
 }

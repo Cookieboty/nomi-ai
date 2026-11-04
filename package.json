@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Nomi·诺米：本地运行的桌面 AI 伙伴（Electron + IgPluginHost / Vercel AI SDK）",
   "private": true,
   "type": "module",
@@ -37,6 +37,7 @@
     "changeset:version": "node scripts/release/changelog.mjs --release && changeset version",
     "preinstall": "node scripts/check-node.cjs",
     "prepare": "husky",
+    "release:check": "bash scripts/release/check.sh",
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:i18n": "node scripts/i18n/check.cjs",
     "check:character-leak": "node scripts/check-character-leak.mjs",

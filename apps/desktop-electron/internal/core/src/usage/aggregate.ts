@@ -60,19 +60,39 @@ export function rangeOf(id: RangeId, now: number): RangeSpec {
   };
 }
 
-export type PriceOf = (model: string) => ReturnType<typeof findPrice>;
+/** provider：记录里的供应商 id（有就按「这家供应商的这个模型」查别名） */
+export type PriceOf = (model: string, provider?: string) => ReturnType<typeof findPrice>;
 
-export function makePriceOf(custom: CustomPrice[], synced: PriceEntry[] = []): PriceOf {
+/**
+ * 模型 → 按哪个已知模型计价（第三方供应商里用户设的「按哪个模型处理」）；没设返回 undefined。
+ * provider 给了先按那家查，否则按模型名查（各家设的一致时）。
+ */
+export type PriceAlias = (model: string, provider?: string) => string | undefined;
+
+/**
+ * 计价顺序：这个模型自己的自定义价 > 别名模型的价格（自定义 / 同步 / 内置）> 这个模型自己的同步 / 内置价。
+ * 用户明确说了「按哪个模型处理」，就比按名字猜出来的价格更可信。
+ */
+export function makePriceOf(
+  custom: CustomPrice[],
+  synced: PriceEntry[] = [],
+  alias?: PriceAlias,
+): PriceOf {
   const cache = new Map<string, ReturnType<typeof findPrice>>();
-  return (model) => {
-    if (!cache.has(model)) cache.set(model, findPrice(model, custom, synced));
-    return cache.get(model)!;
+  return (model, provider) => {
+    const key = `${provider ?? ''}\u0000${model}`;
+    if (!cache.has(key)) {
+      const own = findPrice(model, custom, synced);
+      const like = own?.source === 'custom' ? undefined : alias?.(model, provider);
+      cache.set(key, (like ? findPrice(like, custom, synced) : null) ?? own);
+    }
+    return cache.get(key)!;
   };
 }
 
 /** 一条记录的费用（USD）；未定价返回 null */
 export function recordCost(r: UsageRecord, priceOf: PriceOf): number | null {
-  const m = priceOf(r.model);
+  const m = priceOf(r.model, r.provider);
   return m ? costUsd(r, m.price) : null;
 }
 

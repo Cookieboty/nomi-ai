@@ -24,6 +24,33 @@ export interface DiagnosticsExportResult {
   error?: string;
 }
 
+/** 编程助手子进程的一条原始收发（logs/cli-*.jsonl 的一行） */
+export interface CliRecord {
+  /** ISO 时间 */
+  t: string;
+  /** spawn / in / out / err / exit */
+  ev?: string;
+  pid?: number;
+  cli?: string;
+  data?: string;
+  args?: string[];
+  code?: number | null;
+  signal?: string | null;
+  note?: string;
+}
+
+export interface CliRecordsResult {
+  enabled: boolean;
+  records: CliRecord[];
+  truncated: boolean;
+}
+
+export interface GatewayTraceResult {
+  found: boolean;
+  text?: string;
+  truncated?: boolean;
+}
+
 const need = (): typeof api.diagnostics => {
   if (!hasTransport()) throw new Error('diagnostics bridge unavailable');
   return api.diagnostics;
@@ -35,4 +62,9 @@ export const diagnosticsClient = {
   set: (on: boolean): Promise<DiagnosticsView> => need().set({ on }),
   openFolder: (): Promise<boolean> => need().openFolder(),
   exportBundle: (): Promise<DiagnosticsExportResult> => need().export(),
+  /** 开发者工具：某个标签在 [from, to] 里的子进程原始收发 */
+  cliRecords: (q: { tabId: string; from: number; to: number }): Promise<CliRecordsResult> =>
+    need().cliRecords(q),
+  /** 开发者工具：按追踪 id 取网关请求 / 响应正文 */
+  gatewayTrace: (traceId: string): Promise<GatewayTraceResult> => need().gatewayTrace({ traceId }),
 };

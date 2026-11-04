@@ -59,6 +59,11 @@ export interface SessionDriver {
   /** 发起一轮；增量从事件流出来，这里只返回本轮结果 */
   send(turn: TurnInput): Promise<TurnResult>;
   interrupt(): Promise<void>;
+  /**
+   * 一轮进行中插入一条用户消息（不打断这一轮，CLI 在下一个工具 / 模型步骤取走）。
+   * 没有进行中的轮次、或 CLI 拒绝时返回 false（调用方改为排队）。不支持的驱动不实现。
+   */
+  steer?(text: string): Promise<boolean>;
   setModel?(model: string | null, effort: string | null): Promise<'applied' | 'restart'>;
   setPermissionMode?(mode: string): Promise<'applied' | 'restart'>;
   respondPermission(id: string, answer: PermissionAnswer): boolean;

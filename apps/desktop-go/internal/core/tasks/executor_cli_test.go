@@ -369,3 +369,59 @@ func TestCliCancelDuringPrepare(t *testing.T) {
 		}
 	}
 }
+
+// 子任务报错、任务失败放弃后拆掉 worktree；用户接管的不拆
+func TestCliReleasesWorktreeAfterGivingUp(t *testing.T) {
+	for _, takenOver := range []bool{false, true} {
+		f := newFakeCli(map[string]bool{"claude": true})
+		var relMu sync.Mutex
+		released := []string{}
+		exec := NewCliExecutor(CliDeps{
+			Harness: f,
+			PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+				return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
+			},
+			ReleaseIsolation: func(iso CliIsolation) {
+				relMu.Lock()
+				released = append(released, iso.WorktreePath)
+				relMu.Unlock()
+			},
+			GitChanged:  func(string) []string { return nil },
+			BuildPrompt: func(goal, _, _, _ string) string { return goal },
+			ParseReport: func(string) *CliReport { return nil },
+			DirOk:       func(d string) bool { return d == "/repo" },
+		})
+		n := 0
+		rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+			Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+			NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+		rt.Start()
+		id := cliTask(rt, 2)
+		rt.Command(id, Command{Type: "runNow"})
+		waitFor(t, func() bool { return f.sendCount() == 1 })
+		if takenOver {
+			f.mu.Lock()
+			f.tabs["tab_1"].takenOver = true
+			f.mu.Unlock()
+		}
+		f.done <- struct {
+			text string
+			err  error
+		}{"", errors.New("boom: unknown option")}
+		if takenOver {
+			time.Sleep(50 * time.Millisecond)
+			relMu.Lock()
+			got := len(released)
+			relMu.Unlock()
+			if got != 0 {
+				t.Fatalf("released a taken-over worktree: %v", released)
+			}
+			continue
+		}
+		waitFor(t, func() bool { return rt.Get(id).Task.Status == "failed" })
+		waitFor(t, func() bool { relMu.Lock(); defer relMu.Unlock(); return len(released) == 1 })
+		if !strings.HasPrefix(released[0], "/wt/task-") {
+			t.Fatalf("released %v", released)
+		}
+	}
+}

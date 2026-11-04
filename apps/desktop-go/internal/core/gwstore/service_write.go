@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -109,6 +110,10 @@ func (s *Service) withEffective(m *u.Obj, r ResolvedModelMeta) *u.Obj {
 		lc := u.NewObj("standard", r.LongContext.Standard, "full", r.LongContext.Full, "on", r.LongContext.On)
 		if s.rt.d.LongContextPrice != nil {
 			id, _ := m.Get("id").(string)
+			// 指定了按哪个已知模型处理时，长上下文的分档价也按它查
+			if lk, ok := m.Get("like").(string); ok && strings.TrimSpace(lk) != "" {
+				id = strings.TrimSpace(lk)
+			}
 			if price := s.rt.d.LongContextPrice(id); price != nil {
 				lc.Set("price", price)
 			}
@@ -478,6 +483,14 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 			p.Set("userAgent", input.Get("userAgent"))
 		} else {
 			p.Set("userAgent", u.Undefined)
+		}
+	}
+	// baseUrl：用户填的 Base URL（只用来显示；空串 = 清除），同 Node upsertProvider
+	if input.Has("baseUrl") && input.Get("baseUrl") != u.Undefined {
+		if b, ok := input.Get("baseUrl").(string); ok && strings.TrimSpace(b) != "" {
+			p.Set("baseUrl", strings.TrimSpace(b))
+		} else {
+			p.Set("baseUrl", u.Undefined)
 		}
 	}
 	for _, f := range []string{"detected", "quirks"} {

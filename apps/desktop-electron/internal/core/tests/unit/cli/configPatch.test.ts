@@ -16,6 +16,7 @@ import {
   GROK_KEY_ENV,
   GrokInlineModelsError,
   patchDshYaml,
+  repairDshPatchFile,
   patchGrokToml,
   backupFile,
   patchClaudeSettings,
@@ -300,5 +301,30 @@ describe('patchGrokToml', () => {
         GrokInlineModelsError,
       );
     });
+  });
+});
+
+describe('repairDshPatchFile', () => {
+  const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-patch-'));
+
+  it('空文件 / 只有注释：补成顶层空数组，注释保留', () => {
+    const d = dir();
+    const empty = path.join(d, 'a.yml');
+    fs.writeFileSync(empty, '');
+    expect(repairDshPatchFile(empty)).toBe(true);
+    expect(fs.readFileSync(empty, 'utf8')).toBe('[]\n');
+    const comment = path.join(d, 'b.yml');
+    fs.writeFileSync(comment, '# my notes\n\n');
+    expect(repairDshPatchFile(comment)).toBe(true);
+    expect(fs.readFileSync(comment, 'utf8')).toBe('# my notes\n[]\n');
+  });
+
+  it('有内容 / 不存在：不动', () => {
+    const d = dir();
+    const ok = path.join(d, 'c.yml');
+    fs.writeFileSync(ok, '- id: llm-pi-ai\n');
+    expect(repairDshPatchFile(ok)).toBe(false);
+    expect(fs.readFileSync(ok, 'utf8')).toBe('- id: llm-pi-ai\n');
+    expect(repairDshPatchFile(path.join(d, 'missing.yml'))).toBe(false);
   });
 });

@@ -272,6 +272,15 @@ export class StreamJsonDriver implements SessionDriver {
     await this.control({ subtype: 'interrupt' });
   }
 
+  /**
+   * 一轮进行中再写一条用户消息：Claude Code 把它放进自己的队列，在下一个工具结果处并进这一轮
+   * （包成「The user sent a new message while you were working」，实测 2.1.318 只出一个 result）。
+   */
+  async steer(text: string): Promise<boolean> {
+    if (!this.turn || this.turn.settled) return false;
+    return this.writeUser(text);
+  }
+
   async setPermissionMode(mode: string): Promise<'applied'> {
     await this.control({ subtype: 'set_permission_mode', mode });
     return 'applied';

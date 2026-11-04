@@ -70,7 +70,7 @@ import {
 } from './modelMeta';
 import { nomiContextBudget, type NomiContextInfo, type NomiRole } from './nomiContext';
 import { PrivacyLog, type PrivacyLogEntry } from './PrivacyLog';
-import { sameUrl, type LinkProvider } from './providerLink';
+import { sameOrigin, sameUrl, type LinkProvider } from './providerLink';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -165,6 +165,8 @@ export interface ProviderInput {
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
+  /** 用户填的 Base URL（只用来显示；空串 = 清除） */
+  baseUrl?: string;
   fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
   /** 预设带来的厂商差异（§12.7.4） */
@@ -592,7 +594,7 @@ export class GatewayService {
   }
 
   private commit(): void {
-    this.store.save();
+    void this.store.saveAsync();
     this.push();
     this.changed();
   }
@@ -1222,6 +1224,7 @@ export class GatewayService {
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
+      ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl.trim() || undefined } : {}),
       ...(input.detected ? { detected: input.detected } : {}),
       ...(input.quirks ? { quirks: input.quirks } : {}),
       createdAt: prev?.createdAt ?? now,
@@ -1233,15 +1236,38 @@ export class GatewayService {
     return this.state().providers.find((x) => x.id === p.id)!;
   }
 
-  /** 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算） */
+  /**
+   * 计价别名：第三方供应商里用户设的「按哪个已知模型处理」（like）。provider 给了按那家查；
+   * 没给时按模型名查，各家设得一致才用（对不上就不猜）。
+   */
+  priceAlias(model: string, provider?: string): string | undefined {
+    const bare = (s: string) => s.slice(s.lastIndexOf('/') + 1).toLowerCase();
+    const want = bare(model);
+    const hit = (p: GatewayProvider) =>
+      p.models.find((m) => m.like?.trim() && bare(m.id) === want)?.like?.trim();
+    const providers = this.store.providers();
+    if (provider) {
+      const p = providers.find((x) => x.id === provider || x.aliases?.includes(provider));
+      if (p) return hit(p);
+    }
+    const likes = new Set(providers.map(hit).filter((x): x is string => !!x));
+    return likes.size === 1 ? [...likes][0] : undefined;
+  }
+
+  /**
+   * 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算）。
+   * 链接里的地址都要和它已有的地址同源：带了别的域名时不合并（新建），
+   * 免得它已有的 Key 也被发到链接新加的域名（#249）。
+   */
   findProviderByUrls(urls: readonly string[]): { id: string; name: string } | null {
-    const p = this.store
-      .providers()
-      .find(
-        (x) =>
-          x.source !== 'env' &&
-          Object.values(x.urls).some((u) => !!u && urls.some((v) => sameUrl(u, v))),
+    const p = this.store.providers().find((x) => {
+      if (x.source === 'env') return false;
+      const have = Object.values(x.urls).filter((u): u is string => !!u);
+      return (
+        have.some((u) => urls.some((v) => sameUrl(u, v))) &&
+        urls.every((v) => have.some((u) => sameOrigin(u, v)))
       );
+    });
     return p ? { id: p.id, name: p.name } : null;
   }
 
@@ -1640,7 +1666,7 @@ export class GatewayService {
       ...p,
       keys: p.keys.map((x) => (x.id === k.id ? { ...x, lastError: next } : x)),
     });
-    this.store.save();
+    void this.store.saveAsync();
     this.changed();
   }
 
@@ -1669,9 +1695,10 @@ export class GatewayService {
     const saved = input.providerId
       ? this.store.providers().find((p) => p.id === input.providerId)
       : undefined;
+    // 新填的 Base URL 优先于已保存的地址（编辑时只改 Base URL 再检测），逐协议给的地址最优先
     const bases = {
-      ...(input.url ? normalizeBases(input.url) : {}),
       ...(saved?.urls ?? {}),
+      ...(input.url ? normalizeBases(input.url) : {}),
       ...(input.urls ?? {}),
     };
     const keys = [
@@ -1737,7 +1764,8 @@ function withEffective(
   r: ResolvedModelMeta,
   priceOf?: (model: string) => LongContextPrice | undefined,
 ): ModelView {
-  const price = r.longContext ? priceOf?.(m.id) : undefined;
+  // 指定了按哪个已知模型处理时，长上下文的分档价也按它查
+  const price = r.longContext ? priceOf?.(m.like?.trim() || m.id) : undefined;
   return {
     ...m,
     effective: {

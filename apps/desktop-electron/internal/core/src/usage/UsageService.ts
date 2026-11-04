@@ -33,6 +33,7 @@ import {
   toCsv,
   toRow,
   type DetailQuery,
+  type PriceAlias,
   type Labels,
   type RangeId,
 } from './aggregate';
@@ -1535,8 +1536,15 @@ export class UsageService {
 
   // ---------------------------------------------------------------- 查询
 
+  private priceAlias: PriceAlias | undefined;
+
+  /** 第三方供应商里「按哪个已知模型处理」的设置（网关服务起来后接上；计价按它查价格） */
+  setPriceAlias(fn: PriceAlias | undefined): void {
+    this.priceAlias = fn;
+  }
+
   private priceOf() {
-    return makePriceOf(this.settings.customPrices, this.priceSync.entries());
+    return makePriceOf(this.settings.customPrices, this.priceSync.entries(), this.priceAlias);
   }
 
   /**

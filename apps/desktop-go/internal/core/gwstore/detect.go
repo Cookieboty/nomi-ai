@@ -53,11 +53,12 @@ func (s *Service) Detect(input *u.Obj) (*u.Obj, error) {
 			bases.Set(k, o.Get(k))
 		}
 	}
-	if raw, ok := strOf(input.Get("url")); ok && raw != "" {
-		merge(probe.NormalizeBases(raw))
-	}
+	// 新填的 Base URL 优先于已保存的地址（编辑时只改 Base URL 再检测），逐协议给的地址最优先
 	if saved != nil {
 		merge(asObj(saved.Get("urls")))
+	}
+	if raw, ok := strOf(input.Get("url")); ok && raw != "" {
+		merge(probe.NormalizeBases(raw))
 	}
 	merge(asObj(input.Get("urls")))
 	keys := []any{}
