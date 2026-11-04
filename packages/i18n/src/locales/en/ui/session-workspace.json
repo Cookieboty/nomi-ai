@@ -4,6 +4,8 @@
   "ui.session-workspace.ask-assistant-to-commit": "Ask assistant to commit",
   "ui.session-workspace.assistant-changed-n-files-in-worktree": "The assistant changed {1} files in worktree {0}",
   "ui.session-workspace.at-path-empty": "No matching paths",
+  "ui.session-workspace.at-path-kind-dir": "dir",
+  "ui.session-workspace.at-path-kind-file": "file",
   "ui.session-workspace.at-path-menu": "Workspace paths",
   "ui.session-workspace.binary-file-cannot-edit-in-preview": "Binary file — cannot edit in preview",
   "ui.session-workspace.browse-workspace-files": "Browse workspace files",

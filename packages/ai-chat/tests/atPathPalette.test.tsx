@@ -15,7 +15,6 @@ describe('AtPathPalette', () => {
           { path: 'src', kind: 'dir', label: 'src' },
         ]}
         active={0}
-        query="App"
         onPick={vi.fn()}
         onHover={vi.fn()}
       />,
@@ -24,9 +23,7 @@ describe('AtPathPalette', () => {
     expect(screen.getByText('src/App.tsx')).toBeTruthy();
     expect(screen.getByText('src/')).toBeTruthy();
     expect(screen.getAllByTestId('at-path-item')).toHaveLength(2);
-    rerender(
-      <AtPathPalette options={[]} active={0} query="zzz" onPick={vi.fn()} onHover={vi.fn()} />,
-    );
+    rerender(<AtPathPalette options={[]} active={0} onPick={vi.fn()} onHover={vi.fn()} />);
     expect(screen.getByTestId('at-path-empty')).toBeTruthy();
   });
 });

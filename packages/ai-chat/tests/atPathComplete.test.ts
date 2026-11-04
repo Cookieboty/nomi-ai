@@ -13,8 +13,13 @@ describe('atPathToken', () => {
   it('finds @query under the caret', () => {
     expect(atPathToken('see @src/Ap', 11)).toEqual({ start: 4, end: 11, query: 'src/Ap' });
   });
-  it('opens on mid-string @ (email-like)', () => {
-    expect(atPathToken('a@b', 3)).toEqual({ start: 1, end: 3, query: 'b' });
+  it('ignores mid-word @ (email-like)', () => {
+    expect(atPathToken('a@b', 3)).toBeNull();
+    expect(atPathToken('mail me@host.com', 16)).toBeNull();
+  });
+  it('opens on @ at the start or after whitespace', () => {
+    expect(atPathToken('@b', 2)).toEqual({ start: 0, end: 2, query: 'b' });
+    expect(atPathToken('x\n@b', 4)).toEqual({ start: 2, end: 4, query: 'b' });
   });
   it('returns null when caret is not inside an @ token', () => {
     expect(atPathToken('hello', 5)).toBeNull();

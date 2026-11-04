@@ -4,6 +4,8 @@
   "ui.session-workspace.ask-assistant-to-commit": "让助手提交",
   "ui.session-workspace.assistant-changed-n-files-in-worktree": "助手在 worktree {0} 里改了 {1} 个文件",
   "ui.session-workspace.at-path-empty": "无匹配路径",
+  "ui.session-workspace.at-path-kind-dir": "目录",
+  "ui.session-workspace.at-path-kind-file": "文件",
   "ui.session-workspace.at-path-menu": "工作区路径",
   "ui.session-workspace.binary-file-cannot-edit-in-preview": "二进制文件，无法在预览中编辑",
   "ui.session-workspace.browse-workspace-files": "浏览工作区文件",

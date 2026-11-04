@@ -574,11 +574,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         setAtClosed(message);
         return;
       }
-      // 面板开着时 Enter 不发送、Tab 不挪焦点（含无匹配）
-      if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
-        e.preventDefault();
-        return;
-      }
+      // 没有匹配项时不拦 Enter / Tab：照常发送、挪焦点（否则「@ 结尾」的消息发不出去）
     }
     // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式按钮时保持默认行为
     if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
@@ -631,6 +627,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setSlashIdx(0);
     setAgentIdx(0);
     setAtIdx(0);
+    // 刚敲下一个新的 `@`：重新读工作区树（文件可能刚被助手改过）
+    const tok = atPathToken(e.target.value, e.target.selectionStart ?? e.target.value.length);
+    if (tok && tok.query === '' && e.target.value.length > message.length) setAtLoadedCwd(null);
     // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
     if (e.target.value === '/') slash?.refresh();
   };
@@ -994,7 +993,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           <AtPathPalette
             options={atOptions}
             active={Math.min(atIdx, Math.max(0, atOptions.length - 1))}
-            query={atToken?.query ?? ''}
             onPick={pickAtPath}
             onHover={setAtIdx}
           />
