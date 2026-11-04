@@ -95,7 +95,6 @@
   "ui.session-workspace.no-file-changes-in-this-session-yet": "本会话尚无文件变更",
   "ui.session-workspace.no-full-diff-available-to-discard": "没有可丢弃的完整 diff",
   "ui.session-workspace.no-line-level-diff": "无行级 Diff",
-  "ui.session-workspace.no-models-match": "没有匹配「{0}」的模型",
   "ui.session-workspace.no-output-yet": "还没有输出",
   "ui.session-workspace.no-report": "（无汇报）",
   "ui.session-workspace.nomi-handed-off-tasks": "Nomi 派出 {0} 个任务",

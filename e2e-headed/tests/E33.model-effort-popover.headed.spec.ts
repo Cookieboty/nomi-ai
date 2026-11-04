@@ -114,9 +114,9 @@ test.describe('E33 model / effort popover', () => {
     // 模型页：列表与 CLI 一致；旧模型只有 4 档
     await menu.locator('[data-testid="model-open"]').click();
     await expect(menu.locator('[data-testid="model-sonnet"]')).toContainText('Sonnet Mock');
-    await expect(menu.locator('[data-testid="model-claude-haiku-old"]')).toContainText(
-      '无思考深度',
-    );
+    // 模型页是共享的 ModelPicker（与 Nomi 对话的模型下拉同一个组件），能力在悬停提示里
+    await expect(menu.locator('[data-testid="model-picker-menu"]')).toBeVisible();
+    await expect(menu.locator('[data-testid="model-claude-haiku-old"]')).toBeVisible();
     await shot(chat, 'claude-model-list');
     await menu.locator('[data-testid="model-claude-opus-old"]').click();
     await expect(menu.locator('[data-testid="effort-xhigh"]')).toHaveCount(0);

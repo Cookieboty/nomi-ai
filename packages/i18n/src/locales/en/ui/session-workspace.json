@@ -95,7 +95,6 @@
   "ui.session-workspace.no-file-changes-in-this-session-yet": "No file changes in this session yet",
   "ui.session-workspace.no-full-diff-available-to-discard": "No full diff available to discard",
   "ui.session-workspace.no-line-level-diff": "No line-level diff",
-  "ui.session-workspace.no-models-match": "No models match “{0}”",
   "ui.session-workspace.no-output-yet": "No output yet",
   "ui.session-workspace.no-report": "(no report)",
   "ui.session-workspace.nomi-handed-off-tasks": "Nomi handed off {0} tasks",
