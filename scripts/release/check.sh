@@ -26,6 +26,8 @@ step 'CHANGELOG matches changesets' pnpm -s run changelog:check
 step 'i18n' pnpm -s check:i18n
 step 'character name leak' pnpm -s check:character-leak
 step 'frontend standards' pnpm -s check:frontend
+# 扫全部组件 CSS 的主题对比度规则（不到 1 秒；2.1.2 上新加的图标用了 --cd-color-accent 作文字色，CI 才拦下）
+step 'theme contrast (packages/ui)' sh -c 'cd packages/ui && pnpm -s exec vitest run tests/theme-contrast.test.ts >/dev/null'
 step 'format' pnpm -s format:check
 step 'typecheck' pnpm -s typecheck
 step 'lint' pnpm -s lint

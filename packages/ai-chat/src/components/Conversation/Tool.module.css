@@ -498,7 +498,7 @@
 .interjectIcon {
   flex: none;
   align-self: center;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .interjectLabel {
   flex: none;
