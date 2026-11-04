@@ -128,4 +128,21 @@ describe('promptImages', () => {
       height: 2,
     });
   });
+
+  it('thumbs keep chat-asset url for full-size lightbox preview', () => {
+    const imgs = normalizeImages([
+      {
+        mime: 'image/png',
+        data: png,
+        width: 2,
+        height: 2,
+        thumb: 'data:image/png;base64,aaa',
+        url: 'chat-asset://images/user-x.png',
+      },
+    ]);
+    expect(imageThumbsForMessage(imgs)[0]).toMatchObject({
+      thumb: 'data:image/png;base64,aaa',
+      url: 'chat-asset://images/user-x.png',
+    });
+  });
 });

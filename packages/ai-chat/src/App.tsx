@@ -76,6 +76,7 @@ import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useUserProfile } from './hooks/useUserProfile';
+import { toHarnessImages } from './services/chatImages';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
 import { notifyConversationsChanged } from './services/conversationStore';
@@ -759,15 +760,10 @@ const AiChatContent: React.FC = () => {
       hasCliActive
         ? {
             onSend: (text: string, images?: ImageAttachment[]) => {
-              const imgs = images?.map((im) => ({
-                mime: im.mime,
-                data: im.data,
-                width: im.width,
-                height: im.height,
-                thumb: im.thumb,
-                source: im.source,
-              }));
-              void tabSend(text, imgs);
+              void (async () => {
+                const imgs = images?.length ? await toHarnessImages(images) : undefined;
+                await tabSend(text, imgs);
+              })();
               if (cliActive && cliFresh) void smartTitleOnFirstSend(cliActive, text);
             },
             busyOverride: cliBusy,
@@ -1011,6 +1007,7 @@ const AiChatContent: React.FC = () => {
               <DesktopConfirmDock />
               <MessageInput
                 {...inputModeProps}
+                cwd={railCwd ?? undefined}
                 contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
                 contextModel={
                   tabs.isCliTab

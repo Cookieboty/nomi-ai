@@ -19,6 +19,7 @@ type NormalizedImage struct {
 	Height  float64
 	Thumb   string
 	Source  string
+	URL     string
 	AbsPath string
 }
 
@@ -27,6 +28,9 @@ func (im NormalizedImage) Obj() *util.Obj {
 	o := util.NewObj("mime", im.Mime, "data", im.Data, "width", im.Width, "height", im.Height, "thumb", im.Thumb)
 	if im.Source != "" {
 		o.Set("source", im.Source)
+	}
+	if im.URL != "" {
+		o.Set("url", im.URL)
 	}
 	if im.AbsPath != "" {
 		o.Set("absPath", im.AbsPath)
@@ -161,6 +165,9 @@ func InspectImages(raw []any, max int) ([]NormalizedImage, []RejectedImage) {
 		if s := r.Get("source"); util.Truthy(s) {
 			im.Source = util.JSString(s)
 		}
+		if u, ok := r.Get("url").(string); ok && strings.HasPrefix(u, "chat-asset://") {
+			im.URL = u
+		}
 		images = append(images, im)
 	}
 	return images, rejected
@@ -223,6 +230,9 @@ func ImageThumbsForMessage(images []NormalizedImage) []any {
 		o := util.NewObj("thumb", im.Thumb, "width", im.Width, "height", im.Height)
 		if im.Source != "" {
 			o.Set("source", im.Source)
+		}
+		if im.URL != "" {
+			o.Set("url", im.URL)
 		}
 		out = append(out, o)
 	}

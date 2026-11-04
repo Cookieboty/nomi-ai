@@ -485,15 +485,16 @@
 }
 
 /* ── 行尾操作：重命名 / 删除 / 更多（仅悬浮、行内键盘焦点或删除二次确认时浮现；触屏常显）──
-   底色画在整行 .row 上（一整块连续 pill），按钮浮层透明融入；
-   右侧预留固定槽位：默认显示时间，悬浮时与按钮交叉淡入淡出，
-   标题在槽位前截断、永不进入按钮区，故不需要任何遮罩。 */
+   底色画在整行 .row 上（一整块连续 pill）；右侧预留固定槽位默认显示时间/「进行中」，
+   悬浮时 meta 淡出，同时操作区左侧加与行同色的渐隐蒙版盖住残余文字（类似微信会话列表）。 */
 .row {
   position: relative;
   min-width: 0;
   border-radius: var(--cd-radius-md);
 }
 .row .thread {
+  position: relative;
+  z-index: 0;
   width: 100%;
   grid-template-columns: 8px 14px minmax(0, 1fr) 84px;
   background: transparent;
@@ -520,12 +521,33 @@
   right: 4px;
   top: 0;
   bottom: 0;
+  /* 压在 .thread 元信息之上：强调色「进行中」比浅灰时间更容易透过描边图标露出来 */
+  z-index: 1;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 1px;
-  background: transparent;
+  box-sizing: border-box;
+  /* 覆盖右侧 84px meta 槽，避免长文案（In progress / 进行中）探出蒙版 */
+  min-width: 80px;
+  padding-left: 20px;
+  /* 左侧短渐隐 + 右侧实心行底：盖住时间 / 「进行中」 */
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--cd-color-hover) 10px,
+    var(--cd-color-hover) 100%
+  );
   opacity: 0;
   pointer-events: none;
+}
+.row[data-active] .rowActions {
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--cd-color-selected-bg) 10px,
+    var(--cd-color-selected-bg) 100%
+  );
 }
 .row:hover .rowActions,
 .row:focus-within .rowActions,
@@ -533,28 +555,39 @@
   opacity: 1;
   pointer-events: auto;
 }
-/* 二次确认条比图标宽，给一块与行同色的底，保证文字可读 */
+/* 二次确认条比图标宽，给一块与行同色的实心底，保证文字可读 */
 .row[data-confirming] .rowActions {
   right: 6px;
   padding: 0 var(--cd-space-1-5);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-hover);
 }
-.row .threadTime {
+.row[data-active][data-confirming] .rowActions {
+  background: var(--cd-color-selected-bg);
+}
+.row .threadTime,
+.row .threadLive {
   justify-self: end;
 }
 .row:hover .threadTime,
+.row:hover .threadLive,
 .row:focus-within .threadTime,
-.row[data-confirming] .threadTime {
+.row:focus-within .threadLive,
+.row[data-confirming] .threadTime,
+.row[data-confirming] .threadLive {
   opacity: 0;
+  /* 与蒙版同时藏字：避免强调色「进行中」在 opacity 过渡帧透过图标描边 */
+  visibility: hidden;
 }
 @media (hover: none) {
   .rowActions {
     opacity: 1;
     pointer-events: auto;
   }
-  .threadTime {
+  .threadTime,
+  .threadLive {
     opacity: 0;
+    visibility: hidden;
   }
 }
 .rowBtn {
@@ -593,7 +626,8 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .rowActions,
-  .threadTime {
+  .threadTime,
+  .threadLive {
     transition: opacity 0.12s ease;
   }
 }

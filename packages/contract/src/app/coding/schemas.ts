@@ -75,6 +75,8 @@ export const HarnessImageInput = loose({
   height: z.number().optional(),
   thumb: z.string().optional(),
   source: z.string().optional(),
+  /** 原图存进素材库后的 chat-asset 地址（气泡预览用） */
+  url: z.string().optional(),
 });
 
 /** 经 IPC 返回的发送结果（不含逐条事件） */

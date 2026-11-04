@@ -3,6 +3,7 @@ import { t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { hostAssetUrl } from '../../services/api';
 import type { HarnessTabMessage } from '../../services/harnessClient';
 import { aggregateTurnChanges } from '../../utils/sessionChanges';
 import {
@@ -29,7 +30,8 @@ const UrlLightbox: React.FC<{
   onIndex: (i: number) => void;
 }> = ({ images, index, onClose, onIndex }) => {
   const [zoom, setZoom] = useState(1);
-  const src = images[index]?.thumb ?? '';
+  const im = images[index];
+  const src = im?.url ? hostAssetUrl(im.url) : (im?.thumb ?? '');
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
