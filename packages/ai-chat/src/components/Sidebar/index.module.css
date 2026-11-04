@@ -493,6 +493,8 @@
   border-radius: var(--cd-radius-md);
 }
 .row .thread {
+  position: relative;
+  z-index: 0;
   width: 100%;
   grid-template-columns: 8px 14px minmax(0, 1fr) 84px;
   background: transparent;
@@ -519,17 +521,33 @@
   right: 4px;
   top: 0;
   bottom: 0;
+  /* 压在 .thread 元信息之上：强调色「进行中」比浅灰时间更容易透过描边图标露出来 */
+  z-index: 1;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 1px;
-  padding-left: 16px;
-  /* 左侧透明 → 行悬停底色：盖住时间 / 「进行…」避免图标叠字 */
-  background: linear-gradient(to right, transparent 0, var(--cd-color-hover) 14px);
+  box-sizing: border-box;
+  /* 覆盖右侧 84px meta 槽，避免长文案（In progress / 进行中）探出蒙版 */
+  min-width: 80px;
+  padding-left: 20px;
+  /* 左侧短渐隐 + 右侧实心行底：盖住时间 / 「进行中」 */
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--cd-color-hover) 10px,
+    var(--cd-color-hover) 100%
+  );
   opacity: 0;
   pointer-events: none;
 }
 .row[data-active] .rowActions {
-  background: linear-gradient(to right, transparent 0, var(--cd-color-selected-bg) 14px);
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--cd-color-selected-bg) 10px,
+    var(--cd-color-selected-bg) 100%
+  );
 }
 .row:hover .rowActions,
 .row:focus-within .rowActions,
@@ -558,6 +576,8 @@
 .row[data-confirming] .threadTime,
 .row[data-confirming] .threadLive {
   opacity: 0;
+  /* 与蒙版同时藏字：避免强调色「进行中」在 opacity 过渡帧透过图标描边 */
+  visibility: hidden;
 }
 @media (hover: none) {
   .rowActions {
@@ -567,6 +587,7 @@
   .threadTime,
   .threadLive {
     opacity: 0;
+    visibility: hidden;
   }
 }
 .rowBtn {
