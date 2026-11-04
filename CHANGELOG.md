@@ -172,6 +172,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **delegate:** when a handoff runs in a git worktree, changes are copied back to the main working tree only for files inside folders you have authorized. Files the coding assistant changed elsewhere in the same repository stay in the worktree and are listed as not applied automatically (#115). (`@nomi-ai/host-electron` patch)
 - **desktop-go:** Go 版 Nomi 对话选的工作区能用了：之前内核不认任何工作区，每轮都把它当成「用户没选过的目录」丢掉，Nomi 以为自己没有目录权限，只能请你另授权文件夹（比如切到项目目录后它还在「文稿」里找）。输入栏的权限模式（计划 / 逐项确认 …）和「全部自动」开关在 Go 版的 Nomi 对话里也一并生效。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Go 版知识库能索引文档了（PDF、Word 等走与桌面工具相同的受限解析），云端向量能读到第三方供应商；长期记忆学到的事实与摘要会同步给 Nomi；需要确认的 MCP 工具调用会弹出确认，不再直接按拒绝处理。图片 OCR 在 Go 版仍不可用。 (`@nomi-ai/ai-chat` patch)
+- **desktop-go:** Linux 上启动时偶尔直接崩溃的问题已修复：应用还没完全起来时不再读取鼠标位置。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** MCP 工具的字符串参数被模型给成数字或布尔时，返回参数类型错误，不再让 Go 后端崩溃退出。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Messages 协议（Anthropic）的模型可以正常回复了。之前 Go 版这类模型一发消息就报「不支持」，现在和 Node 版一样经本地网关走 Messages 适配器，自定义地址、完整地址、请求头与 API Key 都照常生效（#187）。 (`@nomi-ai/ai-chat` patch)
 - **desktop-go:** Windows 上保存设置等私有文件时，如果目标文件正被杀毒软件、索引程序或另一次保存短暂占用，会稍等重试，不再直接保存失败（与 Node 版一致）。 (`@nomi-ai/ai-chat` patch)
