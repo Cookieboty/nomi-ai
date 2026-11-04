@@ -592,7 +592,7 @@ export class GatewayService {
   }
 
   private commit(): void {
-    this.store.save();
+    void this.store.saveAsync();
     this.push();
     this.changed();
   }
@@ -1645,7 +1645,7 @@ export class GatewayService {
       ...p,
       keys: p.keys.map((x) => (x.id === k.id ? { ...x, lastError: next } : x)),
     });
-    this.store.save();
+    void this.store.saveAsync();
     this.changed();
   }
 
