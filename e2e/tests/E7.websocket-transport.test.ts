@@ -82,8 +82,11 @@ describe('E7 · WebSocket 传输：视图经 127.0.0.1 连内核', () => {
   });
 
   it('错 token 与外站 Origin 被拒绝', async () => {
-    await new Promise((r) => setTimeout(r, 50)); // 上一个用例关掉的连接在服务端收尾
+    // 上一个用例关掉的连接在服务端收尾：等到真的收完（Windows 上 50ms 不一定够），不按固定时间猜
+    for (const end = Date.now() + 5_000; server.connectionCount > 0 && Date.now() < end;)
+      await new Promise((r) => setTimeout(r, 20));
     const before = server.connectionCount;
+    expect(before).toBe(0);
     const wrong = connect({ token: createDevToken() });
     await expect(wrong.transport.ready).rejects.toMatchObject({ code: 'TRANSPORT' });
     await expect(wrong.api.theme.get()).rejects.toMatchObject({ code: 'TRANSPORT' });

@@ -5,6 +5,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	goruntime "runtime"
@@ -791,7 +792,17 @@ func (w *Wails) SetInputShape(k shell.WindowKind, rects []shell.Rect) {
 	}
 }
 
-func (w *Wails) CursorPosition() (int, int) { return nativeCursor(w.app) }
+// CursorPosition：应用起来之前（ApplicationStarted 之前）Wails 的主线程分发还没就绪，InvokeSync 会空指针崩溃
+// （Linux CI 上 deb 启动偶发，mousetrack 每 100ms 一次）；这之前按光标不在任何窗口里处理
+func (w *Wails) CursorPosition() (int, int) {
+	w.mu.Lock()
+	started := w.started
+	w.mu.Unlock()
+	if !started {
+		return math.MinInt32, math.MinInt32
+	}
+	return nativeCursor(w.app)
+}
 
 var _ shell.WindowControl = (*Wails)(nil)
 var _ shell.Shell = (*Wails)(nil)
