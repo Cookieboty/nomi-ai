@@ -393,6 +393,27 @@ export class AppServerDriver implements SessionDriver {
     await this.conn.request('turn/interrupt', { threadId: this.threadId, turnId: turn.serverId });
   }
 
+  /**
+   * turn/steer：把用户消息追加进正在进行的这一轮（expectedTurnId 不匹配时服务端拒绝，返回 false）。
+   * 实测 0.164：立刻应答，模型取走时发出一个 userMessage 条目，同一轮继续。
+   */
+  async steer(text: string): Promise<boolean> {
+    const turn = this.turn;
+    if (!turn || turn.settled || !this.threadId) return false;
+    await turn.started;
+    if (turn.settled || this.turn !== turn || !turn.serverId) return false;
+    try {
+      await this.conn.request('turn/steer', {
+        threadId: this.threadId,
+        expectedTurnId: turn.serverId,
+        input: [{ type: 'text', text, text_elements: [] }],
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async close(): Promise<void> {
     this.cancelPermissions();
     endChild(this.o.child, this.o.kill);

@@ -33,6 +33,7 @@ export const manifest: CliManifest = {
     usageQuota: true,
     progressMonitor: true,
     terminalCommand: true,
+    steer: true,
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'claude' },

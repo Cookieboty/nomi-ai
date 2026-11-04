@@ -67,6 +67,9 @@ func (l *acpLiveSession) cancelPerms() {
 	}
 }
 
+// grokSteerMethod = GROK_STEER_METHOD：Grok 的 ACP 扩展，一轮进行中插入用户消息（参数 {sessionId, text}，实测 1.0.70）。
+const grokSteerMethod = "_x.ai/interject"
+
 // acpUnavailableError = AcpUnavailableError（Grok 退回 `grok -p`）。
 type acpUnavailableError struct {
 	msg   string
@@ -196,9 +199,14 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		if o.d.GeminiPromptIdleMs != nil {
 			idle = int(*o.d.GeminiPromptIdleMs)
 		}
+		steerMethod := ""
+		if backend == "grok" {
+			steerMethod = grokSteerMethod
+		}
 		driver := drivers.NewAcpDriver(drivers.AcpDriverOptions{
 			Child:              child,
 			PermissionIDPrefix: sp("gemini-perm-"),
+			SteerMethod:        steerMethod,
 			PromptIdleMs:       &idle,
 			RPC:                rpc.ConnectionOptions{TimeoutMessage: gemini.AcpTimeoutMessage},
 			Kill:               killTree,

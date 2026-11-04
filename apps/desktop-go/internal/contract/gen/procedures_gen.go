@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 411：mutation 286 / query 120 / stream 5
+// 合计 413：mutation 288 / query 120 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -30,6 +30,7 @@ var Procedures = []Procedure{
 	{Name: "ai.chat.agentStream", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.regenerate", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.sendMessage", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "ai.chat.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ai.chat.stream", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.memory.facts.delete", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ai.memory.facts.list", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -218,6 +219,7 @@ var Procedures = []Procedure{
 	{Name: "harness.tabSeed", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabSend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabSource", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.tabSteer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabs", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceDelete", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceGitCheckout", Kind: "mutation", Dangerous: false, Surfaces: nil},

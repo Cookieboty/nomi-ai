@@ -147,6 +147,7 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
     'harness.tabSend': ({ id, prompt, images }) =>
       wireP(harness().sendTabReply(id, prompt, images as HarnessImageInput[] | undefined)),
     'harness.tabCancel': ({ id }) => harness().cancelTab(id),
+    'harness.tabSteer': ({ id, text }) => harness().steerTab(id, text),
     'harness.stopAgent': ({ id, agentId }) => harness().stopAgent(id, agentId),
     'harness.tabContext': ({ id }) => wireP(harness().tabContext(id)),
 

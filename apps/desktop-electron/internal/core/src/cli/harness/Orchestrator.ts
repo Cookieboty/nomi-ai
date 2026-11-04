@@ -2526,6 +2526,41 @@ export class HarnessOrchestrator {
   }
 
   /**
+   * 一轮进行中插入一条用户消息（工作台 Enter 插入，docs/design/cli-steer.md）：交给长驻进程，
+   * CLI 在下一个工具 / 模型步骤取走，这一轮不中断。成功后在这一轮的轨迹里记一条 interject（落盘、实时显示）。
+   * 没有进行中的轮次、后端不支持（Gemini / dsh / exec 退路）或 CLI 拒绝时返回 false，视图改为排队。
+   */
+  async steerTab(id: string, text: string): Promise<boolean> {
+    const tab = this.tabs.get(id);
+    const body = String(text ?? '').trim();
+    if (!tab || !body || tab.status !== 'running') return false;
+    let turn: { events: HarnessEvent[]; text: string; breaks: number[] } | null = null;
+    let ok = false;
+    const claude = this.claudeLive.get(id);
+    const codex = this.codexLive.get(id);
+    const acp = this.acpLive.get(id);
+    if (claude?.turn && !claude.turn.settled) {
+      turn = claude.turn;
+      ok = await claude.driver.steer(body);
+    } else if (codex?.turn && !codex.turn.settled) {
+      turn = codex.turn;
+      ok = await codex.driver.steer(body);
+    } else if (acp?.turn) {
+      turn = acp.turn;
+      ok = await acp.driver.steer(body);
+    }
+    if (!ok || !turn) return false;
+    const folded = foldAssistantEvent(turn.text, turn.breaks, {
+      type: 'interject',
+      text: body,
+      at: Date.now(),
+    });
+    turn.events.push(folded.ev);
+    this.emitEvent(id, folded.ev);
+    return true;
+  }
+
+  /**
    * 中止标签当前轮次。Claude 用户轮次只发 interrupt、进程保留（下一轮不用冷启动）；
    * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
    */
@@ -3467,6 +3502,7 @@ export class HarnessOrchestrator {
     const driver = new AcpDriver({
       child,
       permissionIdPrefix: 'gemini-perm-',
+      ...(backend === 'grok' ? { steerMethod: GROK_STEER_METHOD } : {}),
       promptIdleMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
       rpc: { timeoutMessage: acpTimeoutMessage },
       kill: killProcessTree,
@@ -4891,7 +4927,8 @@ export class HarnessOrchestrator {
       part.text = folded.text;
       part.breaks = folded.breaks;
       outgoing = folded.ev;
-      if (outgoing.type === 'tool' || outgoing.type === 'thinking') part.events.push(outgoing);
+      if (outgoing.type === 'tool' || outgoing.type === 'thinking' || outgoing.type === 'interject')
+        part.events.push(outgoing);
     }
     this.eventBatcher.push({ ...outgoing, tabId });
     this.events.emit('event', { tabId, event: outgoing });
@@ -5399,6 +5436,9 @@ type CodexLiveSession = {
   /** 换了账号 / 供应商：这一轮结束后拆掉，下一轮按新配置重拉 */
   recycleAfterTurn?: boolean;
 };
+
+/** Grok 的 ACP 扩展：一轮进行中插入用户消息（参数 {sessionId, text}，实测 1.0.70） */
+const GROK_STEER_METHOD = '_x.ai/interject';
 
 /** ACP 握手阶段进程就退出（CLI 太旧 / 不支持 ACP）：Grok 据此退回每轮一个进程的 `grok -p` */
 class AcpUnavailableError extends Error {}

@@ -278,6 +278,7 @@ export function createAiHandlers(opts: AiRouterOptions): AiHandlersHandle {
     'ai.chat.stream': (input, ctx) => chatStream('stream', input, ctx),
     'ai.chat.regenerate': (input, ctx) => chatStream('regenerate', input, ctx),
     'ai.chat.agentStream': (input, ctx) => chatStream('agentStream', input, ctx),
+    'ai.chat.steer': ({ reqId, text }) => client.chat.steer(reqId, text),
     'ai.chat.abort': ({ reqId }) => {
       // 还在外发检查里的流没有上游请求可停：在这里标记取消，检查结束后不再创建（#160）
       streamAborts.get(reqId)?.abort();

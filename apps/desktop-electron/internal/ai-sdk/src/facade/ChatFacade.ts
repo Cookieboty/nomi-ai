@@ -77,6 +77,8 @@ export interface ChatFacade {
   agent(opts: ChatStreamOptions): Promise<ChatResponse>;
   agentStream(opts: ChatStreamOptions): AsyncIterable<ChatChunk>;
   abort(reqId: string): void;
+  /** 一轮进行中插入用户消息（下一步并进上下文）；请求不在跑或不能插入时 false */
+  steer(reqId: string, text: string): boolean;
   regenerate(opts: ChatStreamOptions): AsyncIterable<ChatChunk>;
 }
 
@@ -237,6 +239,11 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
       const targets = new Set(inflight.get(reqId));
       for (const p of ctx.inject(LLMRegistryKey)?.list() ?? []) targets.add(p);
       for (const p of targets) p.abort(reqId);
+    },
+    steer(reqId, text) {
+      let ok = false;
+      for (const p of inflight.get(reqId) ?? []) ok = p.steer?.(reqId, text) === true || ok;
+      return ok;
     },
     regenerate(opts) {
       const picked = pick(opts, 'chat');

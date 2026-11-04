@@ -34,6 +34,11 @@ export type HarnessEvent =
       textAt?: number;
     }
   | { type: 'thinking'; text: string; at?: number; textAt?: number }
+  /**
+   * 一轮进行中用户插入的消息（Enter 插入，见 docs/design/cli-steer.md）：已交给 CLI，
+   * 它在下一个工具 / 模型步骤取走。落盘在轨迹里，会话视图按 textAt 显示在回复中间。
+   */
+  | { type: 'interject'; text: string; at?: number; textAt?: number }
   | {
       type: 'permission';
       id: string;
@@ -113,7 +118,7 @@ export interface HarnessUsage {
 }
 
 /** 持久化到消息里的轨迹事件：HarnessEvent 里的 tool / thinking */
-export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking' }>;
+export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking' | 'interject' }>;
 
 /** 标签里的一条消息（会话视图、历史转录、落盘共用；从主进程 cli/types.ts 搬来，供插件的转录解析用） */
 export interface HarnessTabMessage {

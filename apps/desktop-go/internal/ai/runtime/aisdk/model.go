@@ -77,6 +77,8 @@ type Part struct {
 	Usage        Usage
 	TotalUsage   Usage
 	Headers      map[string]string
+	// ResponseMessages：finish 时 = (await result.response).messages（这一轮各步的回复消息，含最后一步）
+	ResponseMessages []*u.Obj
 }
 
 // TextParams: the streamText / generateText arguments this runtime uses.
@@ -92,6 +94,9 @@ type TextParams struct {
 	HasTools        bool // tools !== undefined
 	StepCount       int  // stopWhen: stepCountIs(n); 0 = default stepCountIs(1)
 	MaxRetries      *int // maxRetries；nil = SDK 默认
+	// PrepareStep = prepareStep({messages})：每一步开始前调用（streamText），返回非 nil 时这一步改用它作为消息列表；
+	// 只作用于这一步，下一步收到的仍是未改写的累积列表（与 AI SDK 一致）。
+	PrepareStep func(messages []*u.Obj) []*u.Obj
 }
 
 func (p *TextParams) maxSteps() int {

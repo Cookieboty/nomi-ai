@@ -28,6 +28,8 @@ function server(
         return reply({ thread: { id: (msg.params as Json).threadId } });
       case 'thread/start':
         return reply({ thread: { id: 'th1' } });
+      case 'turn/steer':
+        return reply({ turnId: 'tu1' });
       case 'turn/interrupt':
         reply({});
         return note('turn/completed', {
@@ -267,5 +269,24 @@ describe('AppServerDriver', () => {
     const p = d.send({ text: 'x' });
     child.exit(1);
     await expect(p).rejects.toThrow('app-server process exited');
+  });
+
+  it('steer: turn/steer with the running turn id; nothing to steer without a turn', async () => {
+    const child = new FakeChild();
+    server(child, { slowStart: true });
+    const d = new AppServerDriver({ child });
+    await d.start({ cwd: '/w' });
+    await d.ensureThread('/w');
+    expect(await d.steer('early')).toBe(false);
+    const p = d.send({ text: 'x' });
+    await tick();
+    expect(await d.steer('also check the docs')).toBe(true);
+    expect(child.messages().find((m) => m.method === 'turn/steer')?.params).toEqual({
+      threadId: 'th1',
+      expectedTurnId: 'tu1',
+      input: [{ type: 'text', text: 'also check the docs', text_elements: [] }],
+    });
+    await d.interrupt();
+    await p;
   });
 });

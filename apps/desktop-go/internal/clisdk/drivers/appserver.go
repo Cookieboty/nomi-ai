@@ -498,6 +498,27 @@ func (d *AppServerDriver) Interrupt() *jsrt.Promise[struct{}] {
 	})
 }
 
+// Steer mirrors steer：turn/steer 把用户消息追加进正在进行的这一轮（expectedTurnId 不匹配时服务端拒绝，返回 false）。
+// 实测 0.164：立刻应答，模型取走时发出一个 userMessage 条目，同一轮继续。turn/start 的应答没回来时先等它。
+func (d *AppServerDriver) Steer(text string) *jsrt.Promise[bool] {
+	turn := d.turn
+	if turn == nil || turn.settled || d.ThreadID == nil || *d.ThreadID == "" {
+		return jsrt.Resolved(false)
+	}
+	return jsrt.Async(func() (bool, error) {
+		jsrt.Await(turn.started)
+		if turn.settled || d.turn != turn || turn.serverID == nil || *turn.serverID == "" {
+			return false, nil
+		}
+		_, err := jsrt.Await(d.Conn.Request("turn/steer", O(
+			"threadId", *d.ThreadID,
+			"expectedTurnId", *turn.serverID,
+			"input", []any{O("type", "text", "text", text, "text_elements", []any{})},
+		), rpc.RequestOptions{}))
+		return err == nil, nil
+	})
+}
+
 func (d *AppServerDriver) Close() *jsrt.Promise[struct{}] {
 	d.cancelPermissions()
 	clisdk.EndChild(d.o.Child, d.o.Kill)

@@ -354,3 +354,21 @@ func (c *Chat) Abort(reqID string) {
 		p.Abort(reqID)
 	}
 }
+
+// Steer = steer(reqId, text)：一轮进行中插入用户消息（下一步并进上下文），只交给这个请求正在跑的实例；
+// 请求不在跑或不能插入时 false
+func (c *Chat) Steer(reqID, text string) bool {
+	c.mu.Lock()
+	var targets []blm.LLMProvider
+	if set := c.inflight[reqID]; set != nil {
+		targets = append(targets, set.list...)
+	}
+	c.mu.Unlock()
+	ok := false
+	for _, p := range targets {
+		if s, is := p.(blm.Steerer); is && s.Steer(reqID, text) {
+			ok = true
+		}
+	}
+	return ok
+}

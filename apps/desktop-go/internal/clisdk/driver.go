@@ -56,6 +56,12 @@ type ModeSetter interface {
 	SetPermissionMode(mode string) *jsrt.Promise[string]
 }
 
+// Steerer：可选能力 steer —— 一轮进行中插入一条用户消息（不打断这一轮，CLI 在下一个工具 / 模型步骤取走）。
+// 没有进行中的轮次、或 CLI 拒绝时 false（调用方改为排队）。不支持的驱动不实现。
+type Steerer interface {
+	Steer(text string) *jsrt.Promise[bool]
+}
+
 // EventHub mirrors EventHub（持锁调用）。
 type EventHub struct {
 	listeners []*func(SessionEvent)

@@ -1399,6 +1399,32 @@
     "additionalProperties": false
    }
   },
+  "ai.chat.steer": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "reqId": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 200000
+     }
+    },
+    "required": [
+     "reqId",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "ai.chat.stream": {
    "kind": "stream",
    "dangerous": false,
@@ -14888,6 +14914,9 @@
         },
         "source": {
          "type": "string"
+        },
+        "url": {
+         "type": "string"
         }
        },
        "required": [
@@ -14998,6 +15027,32 @@
      "updatedAt"
     ],
     "additionalProperties": {}
+   }
+  },
+  "harness.tabSteer": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 200000
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
    }
   },
   "harness.tabs": {

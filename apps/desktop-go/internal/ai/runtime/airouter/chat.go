@@ -87,6 +87,19 @@ func (h *Handlers) Register(r *contract.Router) {
 		h.Abort(in.ReqID)
 		return nil, nil
 	})
+	r.Call("ai.chat.steer", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			ReqID string `json:"reqId"`
+			Text  string `json:"text"`
+		}
+		_ = json.Unmarshal(raw, &in)
+		return h.Steer(in.ReqID, in.Text), nil
+	})
+}
+
+// Steer = 'ai.chat.steer'：一轮进行中插入一条用户消息
+func (h *Handlers) Steer(reqID, text string) bool {
+	return h.o.Chat.Steer(reqID, text)
 }
 
 // Abort = 'ai.chat.abort'

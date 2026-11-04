@@ -200,6 +200,17 @@ func (t *TrackedProvider) Abort(reqID string) {
 	}
 }
 
+// Steer = steer(reqId, text)：交给每个候选（不支持的跳过），有一个收下就算 true
+func (t *TrackedProvider) Steer(reqID, text string) bool {
+	ok := false
+	for _, c := range t.candidates {
+		if s, is := c.(blm.Steerer); is && s.Steer(reqID, text) {
+			ok = true
+		}
+	}
+	return ok
+}
+
 func aborted(req *blm.ChatRequest) bool {
 	if req.Signal == nil {
 		return false

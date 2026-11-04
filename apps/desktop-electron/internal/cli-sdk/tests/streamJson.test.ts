@@ -119,4 +119,19 @@ describe('StreamJsonDriver', () => {
     await expect(p).rejects.toThrow('exit code 2');
     expect(hooked).toHaveLength(1);
   });
+
+  it('steer: writes another user message only while a turn is running', async () => {
+    const child = new FakeChild();
+    const d = new StreamJsonDriver({ child, parseLine, newId: () => 'U1' });
+    expect(await d.steer('early')).toBe(false);
+    const p = d.send({ text: 'hello' });
+    expect(await d.steer('also run the tests')).toBe(true);
+    expect(child.messages()[1]).toMatchObject({
+      type: 'user',
+      message: { role: 'user', content: 'also run the tests' },
+    });
+    child.send({ type: 'result', session_id: 'sess-1' });
+    await p;
+    expect(await d.steer('late')).toBe(false);
+  });
 });

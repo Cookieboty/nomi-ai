@@ -291,6 +291,11 @@ type AiChatSendMessageOutput struct {
 	Usage        *AiChatSendMessageOutputUsage          `json:"usage,omitempty"`
 }
 
+type AiChatSteerInput struct {
+	ReqId string `json:"reqId"`
+	Text  string `json:"text"`
+}
+
 // AiChatStreamInputMessagesItemRole 枚举：system | user | assistant | tool
 type AiChatStreamInputMessagesItemRole = string
 
@@ -3668,6 +3673,11 @@ type HarnessTabSourceOutput struct {
 	Unread       float64 `json:"unread"`
 	CreatedAt    float64 `json:"createdAt"`
 	UpdatedAt    float64 `json:"updatedAt"`
+}
+
+type HarnessTabSteerInput struct {
+	Id   string `json:"id"`
+	Text string `json:"text"`
 }
 
 type HarnessTabsOutputTabsItem struct {
@@ -7682,6 +7692,10 @@ type AiChatRegenerateChunkT = json.RawMessage
 type AiChatSendMessageInputT = AiChatSendMessageInput
 type AiChatSendMessageOutputT = AiChatSendMessageOutput
 
+// AiChatSteerInputT 是 ai.chat.steer 的入参
+type AiChatSteerInputT = AiChatSteerInput
+type AiChatSteerOutputT = bool
+
 // AiChatStreamInputT 是 ai.chat.stream 的入参
 type AiChatStreamInputT = AiChatStreamInput
 type AiChatStreamChunkT = json.RawMessage
@@ -8433,6 +8447,10 @@ type HarnessTabSendOutputT = HarnessTabSendOutput
 // HarnessTabSourceInputT 是 harness.tabSource 的入参
 type HarnessTabSourceInputT = HarnessTabSourceInput
 type HarnessTabSourceOutputT = HarnessTabSourceOutput
+
+// HarnessTabSteerInputT 是 harness.tabSteer 的入参
+type HarnessTabSteerInputT = HarnessTabSteerInput
+type HarnessTabSteerOutputT = bool
 
 // HarnessTabsInputT 是 harness.tabs 的入参
 type HarnessTabsInputT = any

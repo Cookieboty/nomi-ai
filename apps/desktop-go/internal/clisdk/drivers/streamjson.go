@@ -304,6 +304,15 @@ func (d *StreamJsonDriver) Interrupt() *jsrt.Promise[struct{}] {
 	return jsrt.Async(func() (struct{}, error) { _, err := jsrt.Await(c); return struct{}{}, err })
 }
 
+// Steer mirrors steer：一轮进行中再写一条用户消息，Claude Code 把它放进自己的队列，
+// 在下一个工具结果处并进这一轮（实测 2.1.318 只出一个 result）。
+func (d *StreamJsonDriver) Steer(text string) *jsrt.Promise[bool] {
+	if d.turn == nil || d.turn.settled {
+		return jsrt.Resolved(false)
+	}
+	return jsrt.Resolved(d.WriteUser(text, ""))
+}
+
 func (d *StreamJsonDriver) SetPermissionMode(mode string) *jsrt.Promise[string] {
 	c := d.Control(O("subtype", "set_permission_mode", "mode", mode))
 	return jsrt.Async(func() (string, error) { _, err := jsrt.Await(c); return "applied", err })

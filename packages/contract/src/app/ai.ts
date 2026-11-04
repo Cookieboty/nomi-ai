@@ -48,6 +48,15 @@ export const aiProcedures = {
   'ai.chat.sendMessage': { kind: 'mutation', input: ChatOptions, output: ChatResponse },
   'ai.chat.stream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
   'ai.chat.abort': { kind: 'mutation', input: z.object({ reqId: z.string() }), output: z.void() },
+  /**
+   * 一轮进行中插入一条用户消息：下一步（工具结果回给模型时）并进这一轮的上下文，不中断。
+   * 这个请求已结束、或没有工具循环可插入时 false（视图改为排队）。
+   */
+  'ai.chat.steer': {
+    kind: 'mutation',
+    input: z.object({ reqId: z.string(), text: z.string().max(200_000) }),
+    output: z.boolean(),
+  },
   'ai.chat.regenerate': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
   /** 工具循环（AI SDK withTools）：对话窗口用它让模型调用桌面 / 桌面角色工具 */
   'ai.chat.agentStream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
@@ -184,6 +193,7 @@ export const AI_METHODS: readonly AiMethodSpec[] = Object.freeze([
   m('chat', 'sendMessage', 'value'),
   m('chat', 'stream', 'value'),
   m('chat', 'abort', ['reqId']),
+  m('chat', 'steer', ['reqId', 'text']),
   m('chat', 'regenerate', 'value'),
   m('chat', 'agentStream', 'value'),
   m('sessions', 'list', []),

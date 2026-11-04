@@ -5,10 +5,10 @@ export const MAX_TRACE_EVENTS = 300;
 export const MAX_TRACE_BYTES = 400_000;
 
 export function isTraceEvent(ev: HarnessEvent): ev is HarnessTraceEvent {
-  return ev.type === 'tool' || ev.type === 'thinking';
+  return ev.type === 'tool' || ev.type === 'thinking' || ev.type === 'interject';
 }
 
-/** 给 tool / thinking 事件打上主进程时间戳（会话视图据此算耗时） */
+/** 给 tool / thinking / interject 事件打上主进程时间戳（会话视图据此算耗时） */
 export function stampEvent(ev: HarnessEvent, now = Date.now()): HarnessEvent {
   if (isTraceEvent(ev) && ev.at === undefined) ev.at = now;
   return ev;

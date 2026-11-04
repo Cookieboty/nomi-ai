@@ -77,6 +77,11 @@ export interface LLMProvider {
   chat(request: ChatRequest): Promise<ChatResponse>;
   stream(request: ChatRequest): AsyncIterable<ChatChunk>;
   abort(reqId: string): void;
+  /**
+   * 一轮进行中插入一条用户消息：跑工具循环的 provider 在下一步把它并进上下文，不中断这一轮。
+   * 这个请求不在跑、或没有工具循环可插入时返回 false。不支持的 provider 不实现。
+   */
+  steer?(reqId: string, text: string): boolean;
 }
 
 /**

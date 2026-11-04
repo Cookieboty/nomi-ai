@@ -35,7 +35,10 @@ export function foldAssistantEvent(
     );
     return { text: folded.text, breaks: folded.breaks, ev };
   }
-  if ((ev.type === 'tool' || ev.type === 'thinking') && ev.textAt === undefined)
+  if (
+    (ev.type === 'tool' || ev.type === 'thinking' || ev.type === 'interject') &&
+    ev.textAt === undefined
+  )
     return { text: prev, breaks: [...breaks], ev: { ...ev, textAt: prev.length } };
   return { text: prev, breaks: [...breaks], ev };
 }
