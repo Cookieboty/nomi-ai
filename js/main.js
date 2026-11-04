@@ -402,3 +402,93 @@
   }
   window.addEventListener("load", again);
 })();
+
+/* 文档页：按标题 / 说明 / 路径过滤，没有匹配的分组整个隐藏 */
+(function () {
+  var input = document.querySelector("[data-docs-search]");
+  if (!input) return;
+  var empty = document.querySelector("[data-docs-empty]");
+  input.addEventListener("input", function () {
+    var q = input.value.trim().toLowerCase();
+    var any = false;
+    document.querySelectorAll(".docs-group").forEach(function (g) {
+      var shown = 0;
+      g.querySelectorAll(".doc-card").forEach(function (c) {
+        var hit = !q || c.textContent.toLowerCase().indexOf(q) >= 0;
+        c.hidden = !hit;
+        if (hit) shown++;
+      });
+      g.hidden = shown === 0;
+      if (shown) any = true;
+    });
+    if (empty) empty.hidden = any;
+  });
+})();
+
+/* 更新日志：左侧版本时间线由页面里的各版本生成（加新版本不用改这里），滚动时高亮当前版本 */
+(function () {
+  var nav = document.querySelector("[data-cl-nav]");
+  if (!nav) return;
+  var releases = Array.prototype.slice.call(document.querySelectorAll(".changelog .release[id]"));
+  var links = {};
+  releases.forEach(function (r, i) {
+    var h = r.querySelector(".release-head h2");
+    var time = r.querySelector(".release-head time");
+    var ver = h ? h.textContent.split(/\s+[—–-]\s+/)[0].trim() : r.id;
+    var a = document.createElement("a");
+    a.href = "#" + r.id;
+    a.innerHTML = '<span class="cl-nav-ver"></span><span class="cl-nav-date"></span>';
+    a.firstChild.textContent = ver;
+    a.lastChild.textContent = time ? time.textContent : "";
+    if (i === 0) a.classList.add("is-latest");
+    nav.appendChild(a);
+    links[r.id] = a;
+  });
+  if (!("IntersectionObserver" in window)) return;
+  var current = null;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      if (current) current.removeAttribute("aria-current");
+      current = links[e.target.id];
+      if (current) {
+        current.setAttribute("aria-current", "true");
+        var box = nav.getBoundingClientRect(), r = current.getBoundingClientRect();
+        if (r.top < box.top || r.bottom > box.bottom) nav.scrollTop += r.top - box.top - box.height / 2;
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  releases.forEach(function (r) { io.observe(r); });
+})();
+
+/* 截图：点开看大图（原生 <dialog>，Esc / 点背景关闭） */
+(function () {
+  var gallery = document.querySelector("[data-lightbox]");
+  if (!gallery || typeof HTMLDialogElement !== "function") return;
+  var dlg = document.createElement("dialog");
+  dlg.className = "lightbox";
+  dlg.innerHTML = '<button type="button" class="lightbox-close" data-i18n-aria-label="lightbox.close" aria-label="关闭">×</button><img alt="" /><p class="lightbox-cap"></p>';
+  document.body.appendChild(dlg);
+  var img = dlg.querySelector("img"), cap = dlg.querySelector(".lightbox-cap");
+  dlg.querySelector(".lightbox-close").addEventListener("click", function () { dlg.close(); });
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+  gallery.querySelectorAll("figure").forEach(function (fig) {
+    var thumb = fig.querySelector("img");
+    if (!thumb) return;
+    fig.tabIndex = 0;
+    fig.setAttribute("role", "button");
+    var open = function () {
+      var set = thumb.getAttribute("srcset") || "";
+      var big = set.split(",").map(function (x) { return x.trim().split(/\s+/)[0]; }).pop() || thumb.currentSrc || thumb.src;
+      img.src = big;
+      img.alt = thumb.alt;
+      var fc = fig.querySelector("figcaption");
+      cap.textContent = fc ? fc.textContent : "";
+      var close = dlg.querySelector(".lightbox-close");
+      if (window.NomiI18n) close.setAttribute("aria-label", window.NomiI18n.t("lightbox.close"));
+      dlg.showModal();
+    };
+    fig.addEventListener("click", open);
+    fig.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  });
+})();

@@ -7,6 +7,12 @@
 
   var dict = {
     zh: {
+      "page.download.label": "下载",
+      "docs.search": "搜索文档",
+      "docs.nav": "文档分类",
+      "docs.empty": "没有匹配的文档",
+      "cl.nav": "版本",
+      "lightbox.close": "关闭",
       "modes.workbench.tag": "复杂的事，让 AI 协同完成。",
       "modes.assistant.tag": "日常的事，轻松交给诺米。",
       "pillars.side.desc": "常驻桌面，数据默认留在本机；命令先按风险审核，敏感操作由你确认。",
@@ -22,9 +28,9 @@
       "meta.home.title": "Nomi·诺米 — 让每一种 AI 能力，都为你所用",
       "meta.home.desc": "Nomi·诺米——你的 AI 工作伙伴。让每一种 AI 能力，都为你所用：多家模型、编程助手与外部工具，都接到一处，由诺米陪你调度。Windows / macOS / Linux。",
       "meta.features.title": "功能 — Nomi·诺米",
-      "meta.features.desc": "Nomi·诺米 v2.0：助手与工作台、委派编程助手、统一模型网关、模型质量对比、外部 CLI、权限与沙箱、本地优先。",
+      "meta.features.desc": "Nomi·诺米核心能力：助手与工作台、委派编程助手、统一模型网关、模型质量对比、外部 CLI、权限与沙箱、本地优先。",
       "meta.download.title": "下载 — Nomi·诺米",
-      "meta.download.desc": "下载 Nomi·诺米 v2.0.4：Linux AppImage、Windows 安装包与 macOS DMG。",
+      "meta.download.desc": "下载 Nomi·诺米：Linux AppImage、Windows 安装包与 macOS DMG。",
       "meta.docs.title": "文档 — Nomi·诺米",
       "meta.docs.desc": "Nomi·诺米文档中心：快速开始、功能说明、品牌规范与发布说明。",
       "meta.privacy.title": "隐私 — Nomi·诺米",
@@ -42,7 +48,7 @@
       "nav.lang": "语言",
       "logo.home": "Nomi·诺米 首页",
 
-      "hero.badge": "Nomi 2.0",
+      "hero.badge": "全平台",
       "hero.title": "让每一种 AI 能力，<br>都为你所用。",
       "hero.slogan": "让每一种 AI 能力，都为你所用。",
       "hero.promise": "多家模型、编程助手与外部工具，都接到一处，由诺米陪你调度。",
@@ -65,7 +71,7 @@
       "pillars.work.desc": "连接你的工具与模型，帮你处理各类任务。",
       "pillars.local.title": "本地运行",
       "pillars.local.desc": "所有数据与操作都在本机，更安全、更可控。",
-      "sixcaps.label": "Nomi 2.0 六大核心能力",
+      "sixcaps.label": "六大核心能力",
       "sixcaps.title": "接任意模型 · 自己动手 · 派活给专业 AI · 边界在你手里",
       "sixcaps.lead": "少开窗口、少改配置，出事能看见，改文件更安心。",
       "sixcaps.1.t": "编程助手插件化",
@@ -80,7 +86,7 @@
       "sixcaps.5.d": "Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；生成的图片统一进素材库。",
       "sixcaps.6.t": "命令审核与安全",
       "sixcaps.6.d": "命令先按风险分级，读过网页等外部内容后中风险也要你确认；外发前隐藏密钥，Key 存系统钥匙串。",
-      "sixcaps.more": "了解 2.0 全部能力 →",
+      "sixcaps.more": "了解全部能力 →",
       "workflow.label": "Nomi 的工作流",
       "workflow.title": "从工具接入到任务执行，简单高效",
       "workflow.lead": "把分散的 CLI、模型与会话串成一条清晰路径。",
@@ -108,7 +114,7 @@
       "platforms.mobile.desc": "随时随地，与 Nomi 一起工作。",
       "platforms.mobile.cta": "敬请期待",
 
-      "v2caps.label": "现已推出 · v2.0",
+      "v2caps.label": "核心能力",
       "v2caps.title": "干活更省心的三件事",
       "v2caps.lead": "少切换窗口，少改配置，出事也能看清、控住。",
       "v2caps.a.title": "多助手，一个窗口",
@@ -120,9 +126,9 @@
       "v2caps.c.title": "多源更稳、更安全",
       "v2caps.c.desc": "多家供应商与多把 Key，也能跑本地；质量对比看得见，改文件有权限与沙箱把关。",
       "v2caps.c.alt": "模型质量：按模型与供应商对比成功率与延迟",
-      "v2caps.more": "了解 2.0 全部能力 →",
-      "v2full.label": "v2.0 全部能力",
-      "v2full.title": "v2.0.0 六项能力",
+      "v2caps.more": "了解全部能力 →",
+      "v2full.label": "核心能力",
+      "v2full.title": "六项核心能力",
       "v2full.lead": "用结果说话：少开窗口、少改配置、出事能看见、改文件更安心。",
       "v2full.1.t": "多助手，一个窗口",
       "v2full.1.d": "Claude Code、Codex、Gemini、Grok、dsh 并排，还能按命令接入你自己的助手——不用在好几个终端之间跳。",
@@ -137,7 +143,7 @@
       "v2full.6.t": "看得见，控得住",
       "v2full.6.d": "质量对比看成功率与延迟；权限与沙箱把关改文件，敏感操作仍要你点头。",
       "v2full.shot.route": "自动选路与模型",
-      "showcase.titleFeatures": "更多 v2.0 截图",
+      "showcase.titleFeatures": "更多截图",
       "showcase.leadFeatures": "委派、质量对比、外部助手、自动更新等细节都在这里。",
 
       "modes.label": "随时切换",
@@ -172,7 +178,7 @@
 
       "showcase.label": "产品一览",
       "showcase.title": "看看 Nomi 长什么样",
-      "showcase.lead": "以下截图来自 v2.0.0：陪伴如常，工作台更能派活、比模型、接外部助手。",
+      "showcase.lead": "以下截图来自最新版本：陪伴如常，工作台更能派活、比模型、接外部助手。",
       "gallery.mascot": "桌面伙伴",
       "gallery.chat": "助手模式",
       "gallery.palette": "命令面板（Ctrl/⌘+K）",
@@ -403,7 +409,7 @@
       "cl.lead": "Nomi·诺米 每个版本的更新内容，最新版本在前。",
       "cl.release": "查看 GitHub Release →",
       "meta.changelog.title": "更新日志 — Nomi·诺米",
-      "meta.changelog.desc": "Nomi·诺米各版本更新日志：v2.0.4、v2.0.2、v2.0.1、v2.0.0、v1.2.0、v1.1.1、v1.1.0、v1.0.5、v1.0.4、v1.0.3、v1.0.2、v1.0.1、v1.0.0。",
+      "meta.changelog.desc": "Nomi·诺米各版本的更新内容，最新版本在前。",
       "nav.changelog": "更新日志",
 
       "features.delegate.title": "委派编程助手",
@@ -671,6 +677,12 @@
     },
 
     en: {
+      "page.download.label": "Download",
+      "docs.search": "Search docs",
+      "docs.nav": "Doc sections",
+      "docs.empty": "No matching docs",
+      "cl.nav": "Versions",
+      "lightbox.close": "Close",
       "modes.workbench.tag": "",
       "modes.assistant.tag": "",
       "pillars.side.desc": "Lives on your desktop and keeps data on your machine by default; commands are risk-reviewed and sensitive actions wait for you.",
@@ -686,9 +698,9 @@
       "meta.home.title": "Nomi — One place. Every AI capability.",
       "meta.home.desc": "Nomi, your AI work companion. One place. Every AI capability. Models, coding agents and external tools, connected in one place, with Nomi by your side. Windows / macOS / Linux.",
       "meta.features.title": "Features — Nomi",
-      "meta.features.desc": "Nomi v2.0: Assistant & Workbench, coding-agent handoff, unified model gateway, quality comparison, external CLIs, permissions & sandbox, local-first.",
+      "meta.features.desc": "Nomi's core capabilities: Assistant & Workbench, coding-agent handoff, unified model gateway, quality comparison, external CLIs, permissions & sandbox, local-first.",
       "meta.download.title": "Download — Nomi",
-      "meta.download.desc": "Download Nomi v2.0.4 for Linux, Windows, and macOS.",
+      "meta.download.desc": "Download Nomi for Linux, Windows, and macOS.",
       "meta.docs.title": "Docs — Nomi",
       "meta.docs.desc": "Nomi docs hub: getting started, feature guides, brand guidelines, and release notes.",
       "meta.privacy.title": "Privacy — Nomi",
@@ -706,7 +718,7 @@
       "nav.lang": "Language",
       "logo.home": "Nomi home",
 
-      "hero.badge": "Nomi 2.0",
+      "hero.badge": "All platforms",
       "hero.title": "One place.<br>Every AI capability.",
       "hero.slogan": "One place. Every AI capability.",
       "hero.promise": "Models, coding agents and external tools, connected in one place, with Nomi by your side.",
@@ -729,7 +741,7 @@
       "pillars.work.desc": "Connect your tools and models to handle everyday tasks.",
       "pillars.local.title": "Runs locally",
       "pillars.local.desc": "Data and actions stay on your machine — safer and more in your control.",
-      "sixcaps.label": "Nomi 2.0 · Six core capabilities",
+      "sixcaps.label": "Six core capabilities",
       "sixcaps.title": "Any model · does the work · delegates · you set the limits",
       "sixcaps.lead": "Fewer windows, less config — see issues early, change files with care.",
       "sixcaps.1.t": "Coding-agent plugins",
@@ -744,7 +756,7 @@
       "sixcaps.5.d": "Draw, edit and use reference images right in a Nomi chat with a matched image model; every image lands in the asset library.",
       "sixcaps.6.t": "Command review & safety",
       "sixcaps.6.d": "Commands are risk-rated, and after reading web or other external content medium risk asks you too. Secrets are hidden; keys live in the keychain.",
-      "sixcaps.more": "See all of v2.0 →",
+      "sixcaps.more": "See everything Nomi does →",
       "workflow.label": "Nomi's workflow",
       "workflow.title": "From tools to tasks — simple and efficient",
       "workflow.lead": "String CLI tools, models, and sessions into one clear path.",
@@ -772,7 +784,7 @@
       "platforms.mobile.desc": "Work with Nomi anytime, anywhere.",
       "platforms.mobile.cta": "Coming soon",
 
-      "v2caps.label": "Now shipping · v2.0",
+      "v2caps.label": "Core capabilities",
       "v2caps.title": "Three ways work gets easier",
       "v2caps.lead": "Fewer windows, less config, and when something breaks you can see it and stay in control.",
       "v2caps.a.title": "Many assistants, one window",
@@ -784,9 +796,9 @@
       "v2caps.c.title": "More sources, steadier & safer",
       "v2caps.c.desc": "Multiple providers and keys, plus local models; quality stats you can see, with permission modes and a sandbox before files change.",
       "v2caps.c.alt": "Model quality: compare success rate and latency",
-      "v2caps.more": "See all of v2.0 →",
-      "v2full.label": "All of v2.0",
-      "v2full.title": "Six v2.0.0 capabilities",
+      "v2caps.more": "See everything Nomi does →",
+      "v2full.label": "Core capabilities",
+      "v2full.title": "Six core capabilities",
       "v2full.lead": "Outcomes first: fewer windows, less config, visibility when things break, safer file changes.",
       "v2full.1.t": "Many assistants, one window",
       "v2full.1.d": "Claude Code, Codex, Gemini, Grok, and dsh side by side — plus your own via a command. Stop hopping between terminals.",
@@ -801,7 +813,7 @@
       "v2full.6.t": "See it, stay in control",
       "v2full.6.d": "Quality stats for success and latency; permission modes and a sandbox before files change — sensitive steps still need your OK.",
       "v2full.shot.route": "Routing & models",
-      "showcase.titleFeatures": "More v2.0 screenshots",
+      "showcase.titleFeatures": "More screenshots",
       "showcase.leadFeatures": "Delegation, quality, external assistants, auto-update, and more.",
 
       "modes.label": "Switch anytime",
@@ -836,7 +848,7 @@
 
       "showcase.label": "Product tour",
       "showcase.title": "See what Nomi looks like",
-      "showcase.lead": "Every screenshot below comes from v2.0.0 — company when you need it, a workbench that can hand work off and compare models.",
+      "showcase.lead": "Screenshots from the latest version — company when you need it, a workbench that can hand work off, compare models and bring in outside assistants.",
       "gallery.mascot": "Desktop companion",
       "gallery.chat": "Assistant mode",
       "gallery.palette": "Command palette (Ctrl/⌘+K)",
@@ -1067,7 +1079,7 @@
       "cl.lead": "What changed in each Nomi release, newest first.",
       "cl.release": "View on GitHub Release →",
       "meta.changelog.title": "Changelog — Nomi",
-      "meta.changelog.desc": "Nomi release notes: v2.0.4, v2.0.2, v2.0.1, v2.0.0, v1.2.0, v1.1.1, v1.1.0, v1.0.5, v1.0.4, v1.0.3, v1.0.2, v1.0.1 and v1.0.0.",
+      "meta.changelog.desc": "What changed in every Nomi release, newest first.",
       "nav.changelog": "Changelog",
 
       "features.delegate.title": "Coding-agent handoff",
@@ -1383,6 +1395,11 @@
     document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
       var k = el.getAttribute("data-i18n-alt"), v = t(lang, k);
       if (v !== k) el.setAttribute("alt", v);
+    });
+
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
+      var k = el.getAttribute("data-i18n-placeholder"), v = t(lang, k);
+      if (v !== k) el.setAttribute("placeholder", v);
     });
 
     document.querySelectorAll("[data-i18n-title]").forEach(function (el) {

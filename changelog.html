@@ -11,7 +11,7 @@
   <title>更新日志 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261104p" />
+  <link rel="stylesheet" href="css/styles.css?v=20261104r" />
 </head>
 <body data-page="changelog" id="top">
   <header class="site-header">
@@ -54,8 +54,13 @@
       </div>
     </section>
 
-    <section class="section section-tight">
-      <div class="container changelog">
+    <section class="section section-tight cl-v4">
+      <div class="container cl-layout">
+        <aside class="cl-aside">
+          <p class="cl-aside-title" data-i18n="cl.nav">版本</p>
+          <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
+        </aside>
+        <div class="changelog">
         <article class="release" id="v211">
           <header class="release-head">
             <h2 data-i18n="cl.v211.title">v2.1.1 — 自动故障转移、从网页添加第三方供应商、浅色与深色主题</h2>
@@ -509,6 +514,7 @@
           </ul>
           <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v1.0.0" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
         </article>
+        </div>
       </div>
     </section>
   </main>
@@ -550,7 +556,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261028b205p"></script>
-  <script src="js/main.js?v=20261104p"></script>
+  <script src="js/i18n.js?v=20261104r"></script>
+  <script src="js/main.js?v=20261104r"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@
   <title>文档 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261104p" />
+  <link rel="stylesheet" href="css/styles.css?v=20261104r" />
 </head>
 <body data-page="docs">
   <header class="site-header">
@@ -51,13 +51,26 @@
       </div>
     </section>
 
-    <section class="section section-tight docs-section">
-      <div class="container">
-        <div class="section-head">
-          <h2 data-i18n="docs.getting.title">入门与规范</h2>
-          <p class="lead" data-i18n="docs.getting.lead">安装、配置与品牌规范。</p>
-        </div>
-        <div class="docs-grid">
+    <section class="section section-tight docs-v4">
+      <div class="container docs-layout">
+        <aside class="docs-aside">
+          <label class="docs-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input type="search" data-docs-search placeholder="搜索文档" data-i18n-placeholder="docs.search" data-i18n-aria-label="docs.search" aria-label="搜索文档" />
+          </label>
+          <nav class="docs-nav" data-i18n-aria-label="docs.nav" aria-label="文档分类">
+            <a href="#docs-getting" data-i18n="docs.getting.title">入门与规范</a>
+            <a href="#docs-features" data-i18n="docs.features.title">功能文档</a>
+            <a href="#docs-dev" data-i18n="docs.dev.title">开发</a>
+          </nav>
+        </aside>
+        <div class="docs-main">
+          <section class="docs-group" id="docs-getting" aria-labelledby="docs-getting-title">
+            <header class="docs-group-head">
+              <h2 id="docs-getting-title" data-i18n="docs.getting.title">入门与规范</h2>
+              <p data-i18n="docs.getting.lead">安装、配置与品牌规范。</p>
+            </header>
+            <div class="docs-list">
           <a class="doc-card" href="https://github.com/Cookieboty/nomi-ai/blob/main/docs/getting-started.md" rel="noopener noreferrer" target="_blank">
             <h3 data-i18n="docs.gs.title">快速开始</h3>
             <p data-i18n="docs.gs.desc">安装、首次引导、接模型与开始对话。</p>
@@ -78,17 +91,14 @@
             <p data-i18n="docs.release.desc">打包与发布流程。</p>
             <span class="ext">docs/RELEASE.md ↗</span>
           </a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section bg-soft docs-section">
-      <div class="container">
-        <div class="section-head">
-          <h2 data-i18n="docs.features.title">功能文档</h2>
-          <p class="lead" data-i18n="docs.features.lead">每一项能力的详细说明（链接至仓库）。</p>
-        </div>
-        <div class="docs-grid">
+            </div>
+          </section>
+          <section class="docs-group" id="docs-features" aria-labelledby="docs-features-title">
+            <header class="docs-group-head">
+              <h2 id="docs-features-title" data-i18n="docs.features.title">功能文档</h2>
+              <p data-i18n="docs.features.lead">每一项能力的详细说明（链接至仓库）。</p>
+            </header>
+            <div class="docs-list">
           <a class="doc-card" href="https://github.com/Cookieboty/nomi-ai/blob/main/docs/features/mascot.md" rel="noopener noreferrer" target="_blank">
             <h3 data-i18n="docs.f.mascot">桌面伙伴</h3>
             <p data-i18n="docs.f.mascot.d">立绘、互动与透明穿透。</p>
@@ -164,17 +174,14 @@
             <p data-i18n="docs.f.privacy.d">本地存储、导出、外发保护与本地模型读文件限制。</p>
             <span class="ext">features/privacy-security.md ↗</span>
           </a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-tight docs-section">
-      <div class="container">
-        <div class="section-head">
-          <h2 data-i18n="docs.dev.title">开发</h2>
-          <p class="lead" data-i18n="docs.dev.lead">从源码构建、测试与了解架构。</p>
-        </div>
-        <div class="docs-grid docs-grid--3">
+            </div>
+          </section>
+          <section class="docs-group" id="docs-dev" aria-labelledby="docs-dev-title">
+            <header class="docs-group-head">
+              <h2 id="docs-dev-title" data-i18n="docs.dev.title">开发</h2>
+              <p data-i18n="docs.dev.lead">从源码构建、测试与了解架构。</p>
+            </header>
+            <div class="docs-list">
           <a class="doc-card" href="https://github.com/Cookieboty/nomi-ai/blob/main/docs/development/architecture.md" rel="noopener noreferrer" target="_blank">
             <h3 data-i18n="docs.d.arch">架构</h3>
             <p data-i18n="docs.d.arch.d">项目结构与模块说明。</p>
@@ -195,6 +202,9 @@
             <p data-i18n="docs.d.providerLink.d">在你的网页上放「添加到 Nomi」链接：一键导入，或网页授权换取 Key。</p>
             <span class="ext">design/provider-link.md ↗</span>
           </a>
+            </div>
+          </section>
+          <p class="docs-empty" data-docs-empty hidden data-i18n="docs.empty">没有匹配的文档</p>
         </div>
       </div>
     </section>
@@ -237,7 +247,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261028b205p"></script>
-  <script src="js/main.js?v=20261104p"></script>
+  <script src="js/i18n.js?v=20261104r"></script>
+  <script src="js/main.js?v=20261104r"></script>
 </body>
 </html>
