@@ -1,5 +1,5 @@
 # Go + Wails v3 桌面版（2.0.5 起面向用户的正式版本）：三平台 go vet / go test、Node golden 比对、构建、体积与内存实测。
-# 安装包与 Release 见 desktop-go-package.yml（tag 发版时经 workflow_call 先跑本 workflow）。
+# 安装包与 Release 见 desktop-go-package.yml（tag 发版时不重跑本 workflow：打 tag 前 main 上已全绿）。
 name: desktop-go
 on:
   workflow_dispatch: {}

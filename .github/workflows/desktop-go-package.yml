@@ -1,7 +1,7 @@
 # Go + Wails 版安装包流水线（2.0.5 起面向用户的正式版本）：三平台打包 → 安装/启动/签名验证 → 更新元数据 → Release。
 # - push main：打包 + 验证，产物留在 artifact（不建 Release）；
 # - PR → main / release/2.0.5：带 `ci:full` 标签才打包（与 ci.yml 相同），只改 Go / 视图 / 内核时才触发；
-# - push tag v*（≥ v2.0.5）：先跑完整的 desktop-go.yml（go test、parity、变异检查），再打包 + 验证 → draft Release
+# - push tag v*（≥ v2.0.5）：不重跑测试（打 tag 前 main 上已全绿），直接打包 + 验证 → draft Release
 #   → 三平台产物齐全后自动发布（对齐 ci.yml 以前的 Electron 流程）；≤ v2.0.4 的 tag 仍由 ci.yml 的 Electron 任务发布；
 # - workflow_dispatch：在 tag ref 上手动重跑时，publish=true 才发布（失败后补跑用）。
 # 详见 docs/RELEASE.md、docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
@@ -134,12 +134,29 @@ jobs:
       - name: cleanup windows cert
         if: always() && env.WIN_SIGN_PFX != ''
         run: rm -f "$WIN_SIGN_PFX"
-      - uses: actions/upload-artifact@v4
+      # 上传偶发网络错误：失败时等 30 秒再传一次
+      - name: upload packages
+        id: upload
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
         with:
           name: nomi-go-${{ matrix.target }}
           path: apps/desktop-go/dist-pkg/
           if-no-files-found: error
           compression-level: 0
+          overwrite: true
+      - name: wait before retrying the upload
+        if: steps.upload.outcome == 'failure'
+        run: echo "::warning::artifact upload failed, retrying once in 30s"; sleep 30
+      - name: upload packages (retry)
+        if: steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nomi-go-${{ matrix.target }}
+          path: apps/desktop-go/dist-pkg/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   # 只验证新安装包本身（安装、启动、桌面角色窗口）；2.1.1 起不再验证 2.0.4 → 新版的应用内升级
   verify:
@@ -200,8 +217,18 @@ jobs:
           # 真实 latest-go.json 必须能被 Go 更新器（internal/core/updates）解析，且每个平台都可选中
           (cd apps/desktop-go && CGO_ENABLED=0 NOMI_LATEST_GO_JSON="$GITHUB_WORKSPACE/out/latest-go.json" go test ./internal/core/updates/ -run TestUpdateManifest -v)
           { echo "### 全部产物（字节）"; echo '```'; ls -l out | grep -v '^total'; echo '```'; echo '```json'; cat out/latest-go.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        with: { name: nomi-go-release, path: out/, compression-level: 0 }
+      - name: upload release assets
+        id: upload
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with: { name: nomi-go-release, path: out/, compression-level: 0, overwrite: true }
+      - name: wait before retrying the upload
+        if: steps.upload.outcome == 'failure'
+        run: echo "::warning::artifact upload failed, retrying once in 30s"; sleep 30
+      - name: upload release assets (retry)
+        if: steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with: { name: nomi-go-release, path: out/, compression-level: 0, overwrite: true }
 
   # 只在 tag ref 上运行（PR / 分支上永远跳过）：draft → 校验三平台产物 → 发布
   release-draft:

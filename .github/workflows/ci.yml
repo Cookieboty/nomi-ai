@@ -538,8 +538,11 @@ jobs:
         shell: bash
         run: node scripts/release/signing-env.mjs ${{ matrix.artifact }}
 
+      # 上传偶发网络错误（ENOTFOUND 等，GitHub 侧）：失败时等 30 秒再传一次，第二次还失败才算失败
       - name: Upload installer artifact
+        id: upload
         if: steps.plat.outputs.run == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installer-${{ matrix.artifact }}-${{ github.sha }}
@@ -554,6 +557,28 @@ jobs:
             dist/latest*.yml
           if-no-files-found: error
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 14 || 3 }}
+          overwrite: true
+      - name: Wait before retrying the upload
+        if: steps.plat.outputs.run == 'true' && steps.upload.outcome == 'failure'
+        shell: bash
+        run: echo "::warning::artifact upload failed, retrying once in 30s"; sleep 30
+      - name: Upload installer artifact (retry)
+        if: steps.plat.outputs.run == 'true' && steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-${{ matrix.artifact }}-${{ github.sha }}
+          path: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.zip
+            dist/*.blockmap
+            dist/*.nsis.7z
+            dist/*nsis*
+            dist/latest*.yml
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 14 || 3 }}
+          overwrite: true
 
   # ---------------------------------------------------------------
   # Tag 发版：三个平台都上传到草稿 Release 之后再统一发布（#146）。
