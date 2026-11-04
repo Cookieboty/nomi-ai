@@ -53,6 +53,10 @@ func (o *Orchestrator) runDsh(tab *util.Obj, prompt string) *jsrt.Promise[*util.
 		}
 		useNode := IsScript(bin)
 		launch := o.launchFor(tab)
+		// 旧版本留下的空 cordis.patch.yml 会让 dsh 启动即退出：发之前修好
+		if cli.RepairDshPatchFile(cli.DshPatchPath(o.home)) {
+			o.d.Logger.Info("dsh: repaired empty cordis.patch.yml", nil)
+		}
 		argv := append(append([]string{"--profile", "headless"}, launch.args...), "--json")
 		if sid, ok := tab.Get("cliSessionId").(string); ok && sid != "" {
 			argv = append(argv, "--session-id", sid)

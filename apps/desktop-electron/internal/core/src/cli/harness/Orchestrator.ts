@@ -62,7 +62,7 @@ import { qualityLedgerInput } from '../../usage/quality/cliTokens';
 import { CoalescedWriter, flushPendingWritesSync } from '../../utils/coalescedWriter';
 import { writePrivateFile } from '../../utils/privateFile';
 import { cleanCommitMessage, commitMessagePrompt } from '../commitMessage';
-import { codexConfigPath, grokHomePath } from '../configPatch';
+import { codexConfigPath, dshPatchPath, grokHomePath, repairDshPatchFile } from '../configPatch';
 import {
   buildCarriedContext,
   carriedBudget,
@@ -4610,6 +4610,9 @@ export class HarnessOrchestrator {
     } catch (e) {
       return Promise.reject(e);
     }
+    // 旧版本留下的空 cordis.patch.yml 会让 dsh 启动即退出：发之前修好
+    if (repairDshPatchFile(dshPatchPath(this.d.home)))
+      this.d.logger.info('dsh: repaired empty cordis.patch.yml');
     const argv = ['--profile', 'headless', ...launch.args, '--json'];
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
     if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
