@@ -61,26 +61,52 @@ func RangeOf(id string, now float64) RangeSpec {
 	return RangeSpec{ID: id, From: from, To: AddDays(today, 1), PrevFrom: AddDays(from, -days), PrevTo: from, Bucket: "day", Buckets: days}
 }
 
-type PriceOf func(model string) *PriceMatch
+// PriceOf = priceOf(model, provider?)：provider 是记录里的供应商 id（有就按那家的别名查）
+type PriceOf func(model string, provider ...string) *PriceMatch
 
-func MakePriceOf(custom, synced []PriceEntry) PriceOf {
+// PriceAlias = PriceAlias：模型 → 按哪个已知模型计价（第三方供应商里的「按哪个模型处理」）；"" = 没设
+type PriceAlias func(model, provider string) string
+
+// MakePriceOf = makePriceOf(custom, synced, alias?)：这个模型自己的自定义价 > 别名模型的价格 >
+// 这个模型自己的同步 / 内置价
+func MakePriceOf(custom, synced []PriceEntry, alias ...PriceAlias) PriceOf {
 	var mu sync.Mutex
 	cache := map[string]*PriceMatch{}
-	return func(model string) *PriceMatch {
+	var al PriceAlias
+	if len(alias) > 0 {
+		al = alias[0]
+	}
+	return func(model string, provider ...string) *PriceMatch {
+		pv := ""
+		if len(provider) > 0 {
+			pv = provider[0]
+		}
+		key := pv + "\x00" + model
 		mu.Lock()
 		defer mu.Unlock()
-		if m, ok := cache[model]; ok {
+		if m, ok := cache[key]; ok {
 			return m
 		}
 		m := FindPrice(model, custom, synced)
-		cache[model] = m
+		if al != nil && (m == nil || m.Source != "custom") {
+			if like := al(model, pv); like != "" {
+				if l := FindPrice(like, custom, synced); l != nil {
+					m = l
+				}
+			}
+		}
+		cache[key] = m
 		return m
 	}
 }
 
 // RecordCostOf：未定价返回 nil
 func RecordCostOf(r *UsageRecord, priceOf PriceOf) *float64 {
-	m := priceOf(r.Model)
+	pv := ""
+	if r.Provider != nil {
+		pv = *r.Provider
+	}
+	m := priceOf(r.Model, pv)
 	if m == nil {
 		return nil
 	}

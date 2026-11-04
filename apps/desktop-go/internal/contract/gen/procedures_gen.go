@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 408：mutation 286 / query 117 / stream 5
+// 合计 409：mutation 286 / query 118 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -142,6 +142,7 @@ var Procedures = []Procedure{
 	{Name: "ext.skillToggle", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsContext", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsList", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "gateway.catalogModels", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.clearLearned", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.confirmPrivateHost", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "gateway.detect", Kind: "mutation", Dangerous: false, Surfaces: nil},

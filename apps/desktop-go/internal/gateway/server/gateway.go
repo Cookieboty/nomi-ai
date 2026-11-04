@@ -1137,6 +1137,12 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		}
 		c := queue[0]
 		queue = queue[1:]
+		// 这家拒绝过 context-1m beta：这次直接不补（rectify 'beta'）
+		if g.learner.RefusedBeta(c) && !contains(c.Rectify, "beta") {
+			cc := *c
+			cc.Rectify = append(append([]string{}, c.Rectify...), "beta")
+			c = &cc
+		}
 		// 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
 		if last != nil && last.kind == "failed" && last.cand != nil && last.cand.Provider.ID != c.Provider.ID {
 			g.notifyRetry(RetryEvent{Client: client, Provider: c.Provider.Name, Previous: last.cand.Provider.Name,
@@ -1284,7 +1290,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		}
 		var hint *Retry
 		if last.text != nil {
-			hint = g.learner.Failure(c, ClassifyFailure(last.status, *last.text, last.sent, c.Rectify))
+			hint = g.learner.Failure(c, ClassifyFailureBeta(last.status, *last.text, last.sent, c.Rectify, upstream.WantsContext1m(c)))
 		}
 		var retry *cand.Candidate
 		if hint != nil && learnRetries < MaxLearnRetries {

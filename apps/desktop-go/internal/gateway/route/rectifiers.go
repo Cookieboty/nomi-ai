@@ -64,10 +64,24 @@ type Rectify struct {
 	Rejected string // "" = absent
 }
 
+// Context1mBeta = CONTEXT_1M_BETA：长上下文（超过 200K）要求的 beta
+const Context1mBeta = "context-1m-2025-08-07"
+
+var betaWords = regexp.MustCompile(`(?i)anthropic-beta|context-1m|\bbetas?\b`)
+
 // RectifierFor is rectifierFor (nil = null). Case folding of `/i`: see D23.
 func RectifierFor(status int, text string, sent any) *Rectify {
+	return RectifierForBeta(status, text, sent, false)
+}
+
+// RectifierForBeta = rectifierFor(status, text, sent, { sentBeta })：我们补上的 context-1m beta 被拒时
+// 去掉它重试（fix 'beta'）
+func RectifierForBeta(status int, text string, sent any, sentBeta bool) *Rectify {
 	if status != 400 && status != 422 {
 		return nil
+	}
+	if sentBeta && betaWords.MatchString(text) {
+		return &Rectify{Fix: "beta"}
 	}
 	if !badValue.MatchString(text) {
 		return nil

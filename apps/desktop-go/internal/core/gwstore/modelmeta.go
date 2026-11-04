@@ -4,6 +4,8 @@ package gwstore
 // 逐字段按优先级取第一个有值的：用户手填 > 预设 > 已保存的预设 / 模型列表值 > 内置目录 > 保守默认值。
 
 import (
+	"strings"
+
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -129,7 +131,12 @@ func ResolveModelMeta(stored *u.Obj, id string, preset *u.Obj, longContextOpt *b
 	} else {
 		storedL = stored
 	}
-	layers := []layer{{"user", userL}, {"preset", preset}, {third, storedL}, {"catalog", catalogLayer(id)}}
+	// 用户指定了按哪个已知模型处理：目录按它查
+	lookup := id
+	if lk, ok := objGet(stored, "like").(string); ok && strings.TrimSpace(lk) != "" {
+		lookup = strings.TrimSpace(lk)
+	}
+	layers := []layer{{"user", userL}, {"preset", preset}, {third, storedL}, {"catalog", catalogLayer(lookup)}}
 	pick := func(k string) *picked {
 		for _, ly := range layers {
 			if ly.l == nil {
@@ -148,9 +155,17 @@ func ResolveModelMeta(stored *u.Obj, id string, preset *u.Obj, longContextOpt *b
 	}
 	ctx, maxOutput := pick("ctx"), pick("maxOutput")
 	reasoning, vision, toolCalling := pick("reasoning"), pick("vision"), pick("toolCalling")
-	standard, _ := objGet(models.CatalogEntry(id), "limits", "standard").(float64)
+	// 标准窗口：用户声明的优先；否则来自内置目录，但用户手填了上下文、又没声明标准窗口时不分标准 / 长
+	userStandard, _ := objGet(stored, "ctxStandard").(float64)
+	if !(userStandard > 0) {
+		userStandard = 0
+	}
+	standard := userStandard
+	if standard == 0 && ctx != nil && ctx.src != "user" {
+		standard, _ = objGet(models.CatalogEntry(lookup), "limits", "standard").(float64)
+	}
 	var long *LongContext
-	if ctx != nil && ctx.src != "user" && standard != 0 {
+	if ctx != nil && standard != 0 {
 		if full, ok := ctx.v.(float64); ok && standard < full {
 			on := false
 			if longContextOpt != nil {
@@ -165,6 +180,9 @@ func ResolveModelMeta(stored *u.Obj, id string, preset *u.Obj, longContextOpt *b
 	if long != nil && !long.On {
 		r.Ctx = long.Standard
 		r.Source = "catalog"
+		if userStandard > 0 {
+			r.Source = "user"
+		}
 	}
 	r.LongContext = long
 	return r

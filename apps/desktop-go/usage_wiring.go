@@ -223,6 +223,8 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 		})
 		usageSvcRef.Store(s)
 		usageRef.Store(s)
+		// 第三方模型「按哪个已知模型处理」：计价也按它查
+		s.SetPriceAlias(gw.PriceAlias)
 		s.Start()
 		// 启动时自动同步模型数据（cfg.autoSyncModels 缺省 = 开）
 		p := s.AutoSync()

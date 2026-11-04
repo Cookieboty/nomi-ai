@@ -2430,6 +2430,13 @@ type ExtSkillsListOutputItem struct {
 	Dir         string   `json:"dir"`
 }
 
+type GatewayCatalogModelsOutputItem struct {
+	Id       string   `json:"id"`
+	Family   *string  `json:"family,omitempty"`
+	Context  *float64 `json:"context,omitempty"`
+	Standard *float64 `json:"standard,omitempty"`
+}
+
 type GatewayClearLearnedInput struct {
 	ProviderId string `json:"providerId"`
 }
@@ -8086,6 +8093,10 @@ type ExtSkillsContextOutputT = string
 // ExtSkillsListInputT 是 ext.skillsList 的入参
 type ExtSkillsListInputT = any
 type ExtSkillsListOutputT = []ExtSkillsListOutputItem
+
+// GatewayCatalogModelsInputT 是 gateway.catalogModels 的入参
+type GatewayCatalogModelsInputT = any
+type GatewayCatalogModelsOutputT = []GatewayCatalogModelsOutputItem
 
 // GatewayClearLearnedInputT 是 gateway.clearLearned 的入参
 type GatewayClearLearnedInputT = GatewayClearLearnedInput

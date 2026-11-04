@@ -9847,6 +9847,39 @@
     }
    }
   },
+  "gateway.catalogModels": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "family": {
+       "type": "string"
+      },
+      "context": {
+       "type": "number"
+      },
+      "standard": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
   "gateway.clearLearned": {
    "kind": "mutation",
    "dangerous": false,

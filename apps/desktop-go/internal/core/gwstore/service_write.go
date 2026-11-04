@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -109,6 +110,10 @@ func (s *Service) withEffective(m *u.Obj, r ResolvedModelMeta) *u.Obj {
 		lc := u.NewObj("standard", r.LongContext.Standard, "full", r.LongContext.Full, "on", r.LongContext.On)
 		if s.rt.d.LongContextPrice != nil {
 			id, _ := m.Get("id").(string)
+			// 指定了按哪个已知模型处理时，长上下文的分档价也按它查
+			if lk, ok := m.Get("like").(string); ok && strings.TrimSpace(lk) != "" {
+				id = strings.TrimSpace(lk)
+			}
 			if price := s.rt.d.LongContextPrice(id); price != nil {
 				lc.Set("price", price)
 			}

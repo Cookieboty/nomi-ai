@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -163,6 +164,49 @@ func CatalogEntry(model string) *u.Obj {
 }
 
 // CatalogSize is catalogSize.
+// CatalogModels = catalogModels()：目录里的模型（覆盖层优先），按 id 排序；
+// 每项 { id, family?, context?, standard? }（context 取最大输入，没有就取总窗口）
+func CatalogModels() []any {
+	all := map[string]*u.Obj{}
+	for _, k := range doc.Models.Keys() {
+		if m, ok := doc.Models.Get(k).(*u.Obj); ok {
+			all[k] = m
+		}
+	}
+	if ov := currentOverlay(); ov != nil {
+		for _, k := range ov.Models.Keys() {
+			if m, ok := ov.Models.Get(k).(*u.Obj); ok {
+				all[k] = m
+			}
+		}
+	}
+	ids := make([]string, 0, len(all))
+	for k := range all {
+		ids = append(ids, k)
+	}
+	sort.Strings(ids)
+	out := make([]any, 0, len(ids))
+	for _, id := range ids {
+		m := all[id]
+		o := u.NewObj("id", id)
+		if f, ok := m.Get("family").(string); ok && f != "" {
+			o.Set("family", f)
+		}
+		if lim, ok := m.Get("limits").(*u.Obj); ok && lim != nil {
+			if v, ok := lim.Get("input").(float64); ok && v > 0 {
+				o.Set("context", v)
+			} else if v, ok := lim.Get("context").(float64); ok && v > 0 {
+				o.Set("context", v)
+			}
+			if v, ok := lim.Get("standard").(float64); ok && v > 0 {
+				o.Set("standard", v)
+			}
+		}
+		out = append(out, o)
+	}
+	return out
+}
+
 func CatalogSize() int {
 	seen := map[string]bool{}
 	for _, k := range doc.Models.Keys() {
