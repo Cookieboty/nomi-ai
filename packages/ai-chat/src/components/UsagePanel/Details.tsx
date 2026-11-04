@@ -38,7 +38,8 @@ const COLS: Array<{ id: UsageDetailSort | null; label: string; num?: boolean; co
   { id: 'model', label: 'ui.foundation.model' },
   { id: null, label: 'ui.usage-tools.input', num: true },
   { id: null, label: 'ui.usage-tools.output', num: true },
-  { id: null, label: 'ui.usage-tools.cache-read-write', num: true, col: 'colCache' },
+  { id: null, label: 'ui.usage-tools.cache-read', num: true },
+  { id: null, label: 'ui.usage-tools.cache-write', num: true },
   { id: 'tokens', label: 'ui.usage-tools.total', num: true, col: 'colTotal' },
   { id: 'cost', label: 'ui.usage-tools.cost', num: true },
 ];
@@ -211,10 +212,14 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
       {err && <p className={styles.err}>{err}</p>}
       {res && (
         <p className={styles.dim} data-testid="usage-details-summary">
+          {/* 输入 / 输出 / 缓存读 / 缓存写分开列，不只给一个加总 */}
           {t(
-            'ui.usage-tools.records-tokens',
+            'ui.usage-tools.records-breakdown',
             formatInt(total),
-            formatTokens(res.summary.total),
+            formatTokens(res.summary.input),
+            formatTokens(res.summary.output),
+            formatTokens(res.summary.cacheRead),
+            formatTokens(res.summary.cacheWrite),
             money(res.summary.costUsd),
           )}
           {res.summary.unpriced.length > 0 && (
@@ -287,14 +292,12 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
                         .join(' · ')}
                     </div>
                   </td>
-                  <td className={styles.num}>{formatInt(r.input)}</td>
-                  <td className={styles.num}>{formatInt(r.output)}</td>
-                  <td
-                    className={`${styles.num} ${styles.colCache}`}
-                    title={`${formatInt(r.cacheRead)} / ${formatInt(r.cacheWrite)}`}
-                  >
-                    {formatTokens(r.cacheRead)} / {formatTokens(r.cacheWrite)}
-                  </td>
+                  {/* 各类 token 各占一列（紧凑写法，悬停看精确值）；窄的时候先收起合计，不收这几列 */}
+                  {[r.input, r.output, r.cacheRead, r.cacheWrite].map((n, i) => (
+                    <td key={i} className={styles.num} title={formatInt(n)}>
+                      {formatTokens(n)}
+                    </td>
+                  ))}
                   <td className={`${styles.num} ${styles.colTotal}`}>{formatInt(r.tokens)}</td>
                   <td className={styles.num}>
                     <CostCell usd={r.costUsd} fx={fx} />

@@ -35,13 +35,11 @@ describe('usage panel layout', () => {
     expect(usage).toMatch(/\.heatGrid \.heatCell\s*\{[^}]*aspect-ratio:\s*1/);
   });
 
-  it('明细表按容器宽度收起次要列，而不是横向滚动', () => {
+  it('明细表按容器宽度收起合计列，而不是横向滚动；缓存列不收（输入 / 输出 / 缓存分开看）', () => {
     expect(usage).toMatch(
-      /@container \(max-width: 700px\)\s*\{\s*\.colCache\s*\{\s*display:\s*none/,
+      /@container \(max-width: 760px\)\s*\{\s*\.colTotal\s*\{\s*display:\s*none/,
     );
-    expect(usage).toMatch(
-      /@container \(max-width: 640px\)\s*\{\s*\.colTotal\s*\{\s*display:\s*none/,
-    );
+    expect(usage).not.toMatch(/\.colCache/);
   });
 
   it('卡片内统一用 gap 排垂直间距（预算与隐私底部提示条不再紧贴）', () => {
