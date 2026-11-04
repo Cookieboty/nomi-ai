@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   balanceCutFence,
   DelegateCard,
+  delegateFiles,
   delegateView,
   plainSummary,
 } from '../src/components/Conversation/DelegateCard';
@@ -363,6 +364,24 @@ describe('plainSummary / 汇报 untrusted 边界', () => {
     expect(r.getByTestId('delegate-files').textContent).toContain('a.ts');
     expect(r.getByTestId('delegate-card').textContent).toContain('我改了 a.ts');
     expect(r.getByTestId('delegate-card').textContent).not.toContain('<cli-output>');
+  });
+});
+
+describe('delegateFiles：短路径只是显示，文件身份带目录（#246）', () => {
+  const roots = ['/wt', '/project'];
+  it('两个目录里的同名文件分开列，各自只从自己的目录（及其后的回退目录）读写', () => {
+    const files = delegateFiles(['/wt/src/config.ts', '/project/src/config.ts'], [], roots);
+    expect(files.map((f) => f.path)).toEqual(['src/config.ts', 'src/config.ts']);
+    expect(new Set(files.map((f) => f.key)).size).toBe(2);
+    // worktree 里的文件：worktree 清理后可回到主目录读回填结果
+    expect(files[0]!.cwds).toEqual(['/wt', '/project']);
+    // 主目录里的文件：不会被换成 worktree 里的同名文件
+    expect(files[1]!.cwds).toEqual(['/project']);
+  });
+  it('相对路径按子任务目录算，与同一文件的绝对路径去重', () => {
+    const files = delegateFiles(['src/a.ts', '/wt/src/a.ts'], [], roots);
+    expect(files).toHaveLength(1);
+    expect(files[0]!.cwds).toEqual(roots);
   });
 });
 
