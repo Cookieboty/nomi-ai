@@ -7,7 +7,8 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// findByURLs：调用方持锁
+// findByURLs：调用方持锁。链接里的地址都要和它已有的地址同源：带了别的域名时不合并（新建），
+// 免得它已有的 Key 也被发到链接新加的域名（#249）
 func (s *Service) findByURLs(urls []string) *u.Obj {
 	for _, raw := range s.Store.Providers() {
 		p := asObj(raw)
@@ -18,16 +19,27 @@ func (s *Service) findByURLs(urls []string) *u.Obj {
 		if pu == nil {
 			continue
 		}
+		have := []string{}
 		for _, w := range pu.Keys() {
-			have, _ := strOf(pu.Get(w))
-			if have == "" {
-				continue
+			if h, _ := strOf(pu.Get(w)); h != "" {
+				have = append(have, h)
 			}
-			for _, v := range urls {
-				if providerlink.SameURL(have, v) {
-					return p
+		}
+		same, origins := false, true
+		for _, v := range urls {
+			in := false
+			for _, h := range have {
+				if providerlink.SameURL(h, v) {
+					same = true
+				}
+				if providerlink.SameOrigin(h, v) {
+					in = true
 				}
 			}
+			origins = origins && in
+		}
+		if same && origins {
+			return p
 		}
 	}
 	return nil

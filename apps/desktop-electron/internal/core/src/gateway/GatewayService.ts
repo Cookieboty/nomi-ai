@@ -70,7 +70,7 @@ import {
 } from './modelMeta';
 import { nomiContextBudget, type NomiContextInfo, type NomiRole } from './nomiContext';
 import { PrivacyLog, type PrivacyLogEntry } from './PrivacyLog';
-import { sameUrl, type LinkProvider } from './providerLink';
+import { sameOrigin, sameUrl, type LinkProvider } from './providerLink';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -1233,15 +1233,20 @@ export class GatewayService {
     return this.state().providers.find((x) => x.id === p.id)!;
   }
 
-  /** 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算） */
+  /**
+   * 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算）。
+   * 链接里的地址都要和它已有的地址同源：带了别的域名时不合并（新建），
+   * 免得它已有的 Key 也被发到链接新加的域名（#249）。
+   */
   findProviderByUrls(urls: readonly string[]): { id: string; name: string } | null {
-    const p = this.store
-      .providers()
-      .find(
-        (x) =>
-          x.source !== 'env' &&
-          Object.values(x.urls).some((u) => !!u && urls.some((v) => sameUrl(u, v))),
+    const p = this.store.providers().find((x) => {
+      if (x.source === 'env') return false;
+      const have = Object.values(x.urls).filter((u): u is string => !!u);
+      return (
+        have.some((u) => urls.some((v) => sameUrl(u, v))) &&
+        urls.every((v) => have.some((u) => sameOrigin(u, v)))
       );
+    });
     return p ? { id: p.id, name: p.name } : null;
   }
 

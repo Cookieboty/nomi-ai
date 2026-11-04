@@ -487,6 +487,16 @@ func MaskKey(key string) string {
 	return "…" + key[len(key)-2:]
 }
 
+// SameOrigin = sameOrigin：协议 + 主机 + 端口相同（不分大小写）；解析不了的不算同源
+func SameOrigin(a, b string) bool {
+	x, err1 := gwnet.ParseURL(strings.TrimFunc(a, jsSpace))
+	y, err2 := gwnet.ParseURL(strings.TrimFunc(b, jsSpace))
+	if err1 != nil || err2 != nil || x.Host == "" || y.Host == "" {
+		return false
+	}
+	return strings.EqualFold(x.Scheme, y.Scheme) && strings.EqualFold(x.Host, y.Host)
+}
+
 // SameURL：忽略主机大小写、默认端口、末尾的 /
 func SameURL(a, b string) bool {
 	norm := func(s string) string {
