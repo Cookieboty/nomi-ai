@@ -3,7 +3,19 @@
  * 一个模型的所有设置都在这里——按哪个已知模型处理、上下文 / 标准窗口 / 输出上限、默认开长上下文、
  * 实际请求名（模型映射）、限定协议。留空 = 自动（预设 → 模型列表接口 → 内置目录），占位里显示自动值与来源。
  */
-import { Button, Checkbox, formatContext, Icon, Input, Select, Switch, t } from '@nomi-ai/ui';
+import {
+  Button,
+  Checkbox,
+  formatContext,
+  Icon,
+  Input,
+  ModelPicker,
+  splitModelRef,
+  Switch,
+  t,
+  type PickerProvider,
+  type SelectOption,
+} from '@nomi-ai/ui';
 import { Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
@@ -38,6 +50,10 @@ export const tokenLimitOf = (s: string): number | undefined => {
 };
 
 /** 内置模型目录（「按哪个已知模型处理」的选项）；进程内只拉一次 */
+/** 「按哪个已知模型处理」：内置模型目录在选择器里的来源 id（不含 `/`） */
+const KNOWN = 'known';
+const LIKE_NONE: SelectOption[] = [{ value: '', label: 'ui.models.like-none' }];
+
 function useCatalog(): CatalogModel[] {
   const [catalog, setCatalog] = useState<CatalogModel[]>([]);
   useEffect(() => {
@@ -63,20 +79,14 @@ export const ModelDetailPanel: React.FC<{
   onRemove: (id: string) => void;
 }> = ({ model: m, urlWires, readOnly, upstream, onSet, onUpstream, onToggleWire, onRemove }) => {
   const catalog = useCatalog();
-  const likeOptions = useMemo(
+  // 已知模型用与其它模型下拉同一个 ModelPicker（厂商筛选、搜索、行样式一致）：目录当作一个来源
+  const likeProviders = useMemo<PickerProvider[]>(
     () => [
-      { value: '', label: t('ui.models.like-none') },
-      ...catalog.map((c) => ({
-        value: c.id,
-        label: c.id,
-        ...(c.context
-          ? {
-              description: c.standard
-                ? `${formatContext(c.standard)} / ${formatContext(c.context)}`
-                : formatContext(c.context),
-            }
-          : {}),
-      })),
+      {
+        id: KNOWN,
+        name: t('ui.models.spec-col-like'),
+        models: catalog.map((c) => ({ id: c.id, ctx: c.context, ctxStandard: c.standard })),
+      },
     ],
     [catalog],
   );
@@ -149,14 +159,21 @@ export const ModelDetailPanel: React.FC<{
 
       <label className={styles.detailField}>
         <span>{t('ui.models.spec-col-like')}</span>
-        <Select
+        <ModelPicker
+          browse
           size="sm"
-          searchable
+          modelOnly
           disabled={readOnly}
-          value={m.like ?? ''}
-          options={likeOptions}
-          menuMinWidth={260}
-          onChange={(e) => onSet(m.id, { like: e.target.value || undefined })}
+          providers={likeProviders}
+          // 目录还没读到时也显示已选的模型
+          value={m.like ? `${KNOWN}/${m.like}` : null}
+          extraOptions={
+            // 已选的模型不在目录里（目录还没读到 / 目录里没有了）：照样显示它的名字
+            m.like && !catalog.some((c) => c.id === m.like)
+              ? [...LIKE_NONE, { value: `${KNOWN}/${m.like}`, label: m.like }]
+              : LIKE_NONE
+          }
+          onChange={(ref) => onSet(m.id, { like: splitModelRef(ref)?.model || undefined })}
           aria-label={t('ui.models.like-for', m.id)}
           data-testid={`pd-model-like-${m.id}`}
         />

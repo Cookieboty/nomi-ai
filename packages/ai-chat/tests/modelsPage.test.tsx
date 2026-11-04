@@ -993,7 +993,8 @@ describe('ModelsPage', () => {
     const dlg = detail();
     const like = within(dlg).getByTestId('pd-model-like-Aerith-opus-5.5');
     await waitFor(() => expect(like.querySelectorAll('option').length).toBeGreaterThan(1));
-    fireEvent.change(like, { target: { value: 'claude-opus-4-8' } });
+    // 与其它模型下拉同一个 ModelPicker：值是「来源/模型」
+    fireEvent.change(like, { target: { value: 'known/claude-opus-4-8' } });
     fireEvent.change(within(dlg).getByTestId('pd-model-standard-Aerith-opus-5.5'), {
       target: { value: '200000' },
     });

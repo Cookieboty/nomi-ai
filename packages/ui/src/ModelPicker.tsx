@@ -19,6 +19,8 @@ export interface PickerModel {
   label?: string;
   /** 上下文窗口（token） */
   ctx?: number;
+  /** 分档计价模型的标准窗口：browse 行右侧显示「标准 / 上下文」 */
+  ctxStandard?: number;
   reasoning?: boolean;
   vision?: boolean;
   /** false：不支持工具调用（编程助手不能用） */
@@ -69,6 +71,8 @@ export interface ModelPickerProps extends Pick<
   notice?: React.ReactNode;
   /** 顶部供应商标签那一行的右端（如刷新按钮）；没有标签时单独一行 */
   headerEnd?: React.ReactNode;
+  /** 触发器只写模型名，不带「供应商 /」（只有一个来源时，如内置的已知模型目录） */
+  modelOnly?: boolean;
   /** 当前值不是哪个供应商的模型（如「默认模型」）时，打开停在这个供应商的标签（如默认模型所在的供应商） */
   focusProvider?: string;
   /** 模型行的 data-testid（按值），特殊选项用它们自己的 testId */
@@ -130,6 +134,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   headerEnd,
   optionTestId,
   focusProvider,
+  modelOnly = false,
   placeholder,
   browse = false,
   onOpenChange: onOpenChangeProp,
@@ -159,7 +164,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       for (const m of p.models) {
         if (!usable(m)) continue;
         const ref = `${p.id}/${m.id}`;
-        display.set(ref, `${p.name} / ${m.label ?? m.id}`);
+        display.set(ref, modelOnly ? (m.label ?? m.id) : `${p.name} / ${m.label ?? m.id}`);
         meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
         const name = m.label ?? m.id;
@@ -173,7 +178,11 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           ...(showWire && m.wire
             ? { description: m.wire }
             : browse && m.ctx
-              ? { description: formatContext(m.ctx) }
+              ? {
+                  description: m.ctxStandard
+                    ? `${formatContext(m.ctxStandard)} / ${formatContext(m.ctx)}`
+                    : formatContext(m.ctx),
+                }
               : {}),
           searchText: `${p.id}/${m.id} ${p.name} ${m.label ?? ''}`,
           ...(optionTestId?.(ref) ? { testId: optionTestId(ref) } : {}),
@@ -182,7 +191,17 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     }
     opts.push(...tailOptions);
     return { options: opts, display, meta };
-  }, [providers, recent, purpose, showWire, extraOptions, tailOptions, browse, optionTestId]);
+  }, [
+    providers,
+    recent,
+    purpose,
+    showWire,
+    extraOptions,
+    tailOptions,
+    browse,
+    optionTestId,
+    modelOnly,
+  ]);
 
   const tabs = useMemo(
     () => providers.filter((p) => [...meta.values()].some((x) => x.provider === p.id)),
