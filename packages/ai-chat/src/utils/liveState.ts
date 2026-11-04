@@ -101,7 +101,8 @@ export function applyLiveEvents(
         break;
       }
       case 'tool':
-      case 'thinking': {
+      case 'thinking':
+      case 'interject': {
         const { tabId: _id, ...rest } = e;
         const stamped = rest.textAt === undefined ? { ...rest, textAt: next.text.length } : rest;
         const ev = stamped.at === undefined ? { ...stamped, at: now } : stamped;

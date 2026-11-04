@@ -27,7 +27,17 @@ import {
   type HarnessTabMeta,
   type HarnessTabsState,
 } from '../services/harnessClient';
+import { canSteer } from '../utils/cliCaps';
 import { applyLiveEvents, type LiveStatus, type TabLive } from '../utils/liveState';
+import {
+  hasRunningTool,
+  mergePending,
+  newPendingId,
+  requeue,
+  takeSteer,
+  type PendingMode,
+  type PendingSend,
+} from '../utils/pendingSends';
 import { shareTabsState } from '../utils/shareTabsState';
 
 /** 内存里最多缓存几个标签的消息（含当前）：其余切走后丢弃，回来时重新从主进程读取 */
@@ -54,7 +64,7 @@ interface HarnessTabsCore {
   cycle: (dir: 1 | -1) => void;
   selectIndex: (i: number) => void;
   /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送。附图仅空闲直发（排队不带图）。 */
-  send: (text: string, images?: HarnessImageInput[]) => Promise<void>;
+  send: (text: string, images?: HarnessImageInput[], mode?: PendingMode) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
    * 目标运行 / 排队中时进该标签的队列；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
@@ -65,6 +75,8 @@ interface HarnessTabsCore {
     text: string,
     expect?: { backend?: HarnessBackend; cwd?: string },
     images?: HarnessImageInput[],
+    /** 标签在运行时：steer（Enter，默认）插入这一轮 / queue（Ctrl+Enter）排队到这一轮结束 */
+    mode?: PendingMode,
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
   hasTab: (tabId: string) => boolean;
@@ -73,9 +85,12 @@ interface HarnessTabsCore {
    * CLI 会话丢弃、剩余对话作为前文开新会话，再发 text
    */
   resendFrom: (messageId: string, text: string) => Promise<void>;
-  /** 各标签排队中的待发消息 */
-  queues: Record<string, string[]>;
-  removeQueued: (index: number) => void;
+  /** 各标签运行中发出、还没交出去的消息（输入框上方的待发列表，见 utils/pendingSends） */
+  queues: Record<string, PendingSend[]>;
+  /** 从当前标签的待发列表删掉一条（撤回修改 / 删除） */
+  removePending: (id: string) => void;
+  /** Esc：停止当前标签这一轮，待发列表合成一条马上发出；列表为空时 false */
+  flushPending: () => Promise<boolean>;
   cancel: () => Promise<void>;
   replyPermission: (
     requestId: string,
@@ -150,7 +165,44 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   useLayoutEffect(() => {
     liveStore.set(live);
   }, [liveStore, live]);
-  const [queues, setQueues] = useState<Record<string, string[]>>({});
+  const [queues, setQueues] = useState<Record<string, PendingSend[]>>({});
+  const queuesRef = useRef(queues);
+  /** 更新待发列表并同步 ref（交付判断读最新值，不等渲染） */
+  const updateQueues = useCallback(
+    (fn: (cur: Record<string, PendingSend[]>) => Record<string, PendingSend[]>) => {
+      queuesRef.current = fn(queuesRef.current);
+      setQueues(queuesRef.current);
+    },
+    [],
+  );
+  /** 正在交付插入消息的标签 */
+  const delivering = useRef(new Set<string>());
+  /** 把标签待发列表里的插入消息合成一条交给这一轮；交不出去的改为排队 */
+  const deliverSteer = useCallback(
+    async (tabId: string) => {
+      if (delivering.current.has(tabId)) return;
+      const { steer: picked } = takeSteer(queuesRef.current[tabId] ?? []);
+      if (!picked.length) return;
+      delivering.current.add(tabId);
+      const ids = new Set(picked.map((i) => i.id));
+      updateQueues((cur) => ({
+        ...cur,
+        [tabId]: (cur[tabId] ?? []).filter((i) => !ids.has(i.id)),
+      }));
+      try {
+        const ok = await harnessClient.steerTab(tabId, mergePending(picked));
+        if (!ok) updateQueues((cur) => ({ ...cur, [tabId]: requeue(cur[tabId] ?? [], picked) }));
+      } finally {
+        delivering.current.delete(tabId);
+        setTick((n) => n + 1);
+      }
+    },
+    [updateQueues],
+  );
+  const deliverRef = useRef(deliverSteer);
+  useEffect(() => {
+    deliverRef.current = deliverSteer;
+  }, [deliverSteer]);
   /** 已派发、尚未观察到标签进入运行态的标签：防止在状态更新前重复派发队列 */
   const dispatching = useRef(new Set<string>());
   const [tick, setTick] = useState(0);
@@ -239,7 +291,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     };
     const handleRaw = (raw: unknown) => {
       const e = raw as HarnessLiveEvent;
-      if (e && typeof e.tabId === 'string') enqueue(e);
+      if (!e || typeof e.tabId !== 'string') return;
+      enqueue(e);
+      // 工具开始：这个标签等着的插入消息现在交出去（CLI 在这个工具的结果处取走）
+      if (e.type === 'tool' && e.status === 'start') void deliverRef.current(e.tabId);
     };
     const off3 = harnessClient.onEvents((batch) => batch.forEach(handleRaw));
     const off4 = harnessClient.onEvent(handleRaw);
@@ -317,24 +372,27 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       /* ignore */
     }
   }, []);
-  const close = useCallback(async (id: string) => {
-    if (id === MAIN_TAB_ID) return;
-    // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/design/cli-subagents.md §5）
-    if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
-    await harnessClient.closeTab(id);
-    dispatching.current.delete(id);
-    setQueues((cur) => {
-      if (!cur[id]) return cur;
-      const next = { ...cur };
-      delete next[id];
-      return next;
-    });
-    setCache((cur) => {
-      const next = { ...cur };
-      delete next[id];
-      return next;
-    });
-  }, []);
+  const close = useCallback(
+    async (id: string) => {
+      if (id === MAIN_TAB_ID) return;
+      // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/design/cli-subagents.md §5）
+      if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
+      await harnessClient.closeTab(id);
+      dispatching.current.delete(id);
+      updateQueues((cur) => {
+        if (!cur[id]) return cur;
+        const next = { ...cur };
+        delete next[id];
+        return next;
+      });
+      setCache((cur) => {
+        const next = { ...cur };
+        delete next[id];
+        return next;
+      });
+    },
+    [updateQueues],
+  );
   const rename = useCallback(async (id: string, title: string) => {
     await harnessClient.renameTab(id, title);
   }, []);
@@ -386,6 +444,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       text: string,
       expect?: { backend?: HarnessBackend; cwd?: string },
       images?: HarnessImageInput[],
+      mode: PendingMode = 'steer',
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -395,7 +454,13 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
         // 排队不带图：有附图时拒绝入队，避免静默丢图
         if (images?.length) return false;
-        setQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), text] }));
+        // 后端不能中途插入（Gemini / dsh / 外部 CLI）：一律排队
+        const m: PendingMode = mode === 'steer' && canSteer(tab.backend) ? 'steer' : 'queue';
+        const item: PendingSend = { id: newPendingId(), text, mode: m };
+        updateQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), item] }));
+        // 正好有工具在跑：现在交出去，这个工具的结果回给模型时一起带上
+        if (m === 'steer' && hasRunningTool(liveStore.get()[tabId]?.trace))
+          void deliverSteer(tabId);
         return true;
       }
       dispatching.current.add(tabId);
@@ -407,16 +472,16 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       }
       return true;
     },
-    [dispatchSend],
+    [dispatchSend, updateQueues, deliverSteer, liveStore],
   );
   const hasTab = useCallback(
     (tabId: string) => !!stateRef.current?.tabs.some((t) => t.id === tabId),
     [],
   );
   const send = useCallback(
-    async (text: string, images?: HarnessImageInput[]) => {
+    async (text: string, images?: HarnessImageInput[], mode?: PendingMode) => {
       if (!isCliTab) return;
-      await sendToTab(activeId, text, undefined, images);
+      await sendToTab(activeId, text, undefined, images, mode);
     },
     [isCliTab, activeId, sendToTab],
   );
@@ -430,15 +495,27 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [isCliTab, activeId, sendToTab],
   );
-  const removeQueued = useCallback(
-    (index: number) =>
-      setQueues((cur) => {
+  const removePending = useCallback(
+    (id: string) =>
+      updateQueues((cur) => {
         const q = cur[activeId];
-        if (!q || index < 0 || index >= q.length) return cur;
-        return { ...cur, [activeId]: q.filter((_, i) => i !== index) };
+        if (!q?.some((i) => i.id === id)) return cur;
+        return { ...cur, [activeId]: q.filter((i) => i.id !== id) };
       }),
-    [activeId],
+    [activeId, updateQueues],
   );
+  const flushPending = useCallback(async () => {
+    const tabId = activeId;
+    const all = queuesRef.current[tabId] ?? [];
+    if (!isCliTab || !all.length) return false;
+    // 合成一条排在最前：停下来后队列自动发送马上发出它
+    updateQueues((cur) => ({
+      ...cur,
+      [tabId]: [{ id: newPendingId(), text: mergePending(all), mode: 'queue' }],
+    }));
+    await harnessClient.cancelTab(tabId);
+    return true;
+  }, [isCliTab, activeId, updateQueues]);
 
   // 队列自动发送：标签空闲且队列非空时发出队首；已派发的标签要等它进入运行态后再继续
   useEffect(() => {
@@ -450,15 +527,16 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       }
       const q = queues[tab.id];
       if (!q?.length || dispatching.current.has(tab.id)) continue;
+      if (delivering.current.has(tab.id)) continue;
       dispatching.current.add(tab.id);
-      const [text, ...rest] = q;
-      setQueues((cur) => ({ ...cur, [tab.id]: rest }));
-      void dispatchSend(tab.id, text!).finally(() => {
+      const [next, ...rest] = q;
+      updateQueues((cur) => ({ ...cur, [tab.id]: rest }));
+      void dispatchSend(tab.id, next!.text).finally(() => {
         dispatching.current.delete(tab.id);
         setTick((n) => n + 1);
       });
     }
-  }, [state, queues, tick, dispatchSend]);
+  }, [state, queues, tick, dispatchSend, updateQueues]);
   const cancel = useCallback(async () => {
     if (!isCliTab) return;
     if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === activeId))))
@@ -505,7 +583,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       hasTab,
       resendFrom,
       queues,
-      removeQueued,
+      removePending,
+      flushPending,
       cancel,
       replyPermission,
       lastBackend,
@@ -527,7 +606,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       hasTab,
       resendFrom,
       queues,
-      removeQueued,
+      removePending,
+      flushPending,
       cancel,
       replyPermission,
       lastBackend,
@@ -561,7 +641,8 @@ const EMPTY: HarnessTabsValue = {
   hasTab: () => false,
   resendFrom: async () => undefined,
   queues: {},
-  removeQueued: () => undefined,
+  removePending: () => undefined,
+  flushPending: async () => false,
   cancel: async () => undefined,
   replyPermission: async () => undefined,
   lastBackend: 'claude',

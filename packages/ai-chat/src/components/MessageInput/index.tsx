@@ -65,6 +65,7 @@ import type { ModelArgOption, SlashBridge, SlashCommand } from '../../slash/type
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
+import type { PendingMode } from '../../utils/pendingSends';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { AtPathPalette } from '../AtPathPalette';
@@ -79,57 +80,13 @@ import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '
 
 import { ImageLightbox } from './ImageLightbox';
 import styles from './index.module.css';
+import type { MessageInputProps } from './types';
 
 const log = createLogger('message-input');
 
 /** 发文框默认更高；超过 COMPOSER_MAX 后框内滚动。 */
 export const COMPOSER_MIN_HEIGHT_PX = 72;
 export const COMPOSER_MAX_HEIGHT_PX = 240;
-
-interface MessageInputProps {
-  /** CLI 标签可附带图片；第二参仅在有附图时传入 */
-  onSend?: (message: string, images?: ImageAttachment[]) => void;
-  /** 独立于 Nomi 对话的忙碌状态（CLI 标签）；设置后不再看 Nomi 的 isLoading / 模型 */
-  busyOverride?: boolean;
-  /**
-   * CLI 标签的发图能力。不传 = Nomi 路径（走 vision）。
-   * `none`：可预览附件但发送时明确提示，不静默丢图。
-   */
-  imageCapability?: 'full' | 'none';
-  /** 不能附图的原因（模型不支持看图 / dsh 没有图片输入） */
-  imageUnsupportedReason?: string;
-  /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
-  placeholder?: string;
-  /**
-   * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
-   * 不传则保持原行为（运行中禁用输入）。
-   */
-  queue?: { onQueue: (text: string, opts?: { kb?: boolean }) => void; onStop?: () => void };
-  disabled?: boolean;
-  onProvidersClick?: () => void;
-  onDesktopClick?: () => void;
-  /** 打开「知识 · 记忆 · 日程」快速视图 */
-  onHubClick?: () => void;
-  onExtClick?: () => void;
-  onLocalClick?: () => void;
-  /** 打开统一设置页的某个分区 */
-  onSettingsClick?: (section?: SettingsSection, endpoint?: string) => void;
-  /** 斜杠命令桥：传入后输入 / 弹出统一命令面板并接管执行；不传则只有输入框自带的界面命令 */
-  slash?: SlashBridge;
-  /** 打开「插件 / 命令」只读面板 */
-  onPluginsClick?: () => void;
-  /** 发送钮旁上下文占用环的数据源 */
-  contextMessages?: readonly ConvMessage[];
-  contextModel?: string | null;
-  /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
-  fill?: { text: string; nonce: number } | null;
-  /** 会话工作区 cwd（files rail）；有值时输入 @ 可路径补全 */
-  cwd?: string | null;
-  /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */
-  draftStore?: ReturnType<typeof createComposerDraftStore>;
-  /** 当前激活草稿桶；勿用 React key 整棵重挂本组件 */
-  draftKey?: string;
-}
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
@@ -406,7 +363,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       ? imageCapability === 'none'
       : !(visionKnown ?? likelyVision(chatModel)));
 
-  const handleSend = async () => {
+  const handleSend = async (mode: PendingMode = 'steer') => {
     let trimmedMessage =
       message.trim() ||
       (images.length
@@ -434,8 +391,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
         // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
-        if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
-        else queue.onQueue(trimmedMessage);
+        if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true, mode });
+        else queue.onQueue(trimmedMessage, { mode });
         clearActive();
       }
       return;
@@ -593,10 +550,17 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       return;
     }
 
-    // Ctrl/Cmd + Enter 发送消息
+    // Ctrl/Cmd + Enter：运行中排队到这一轮结束；空闲时照常发送
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
-      handleSend();
+      void handleSend('queue');
+      return;
+    }
+
+    // Esc：运行中且待发列表非空 → 停止这一轮，待发消息合成一条马上发出
+    if (e.key === 'Escape' && busy && queue?.onFlush && (queue.pending ?? 0) > 0) {
+      e.preventDefault();
+      queue.onFlush();
       return;
     }
 
@@ -1072,7 +1036,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           }}
           placeholder={
             queue && busy
-              ? tr('ui.usage-tools.running-keep-typing-to-queue-it-will-send')
+              ? tr('ui.usage-tools.running-enter-inserts-ctrl-enter-queues')
               : busyOverride !== undefined
                 ? placeholder
                 : kbMode && kbAvailable
@@ -1172,12 +1136,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
               </button>
             ) : (
               <button
-                onClick={handleSend}
+                onClick={() => void handleSend()}
                 disabled={isDisabled || (!message.trim() && !images.length && !files.length)}
                 className={styles.sendButton}
                 title={
                   queue && busy
-                    ? tr('ui.usage-tools.queue-message-enter')
+                    ? tr('ui.usage-tools.add-to-pending-enter')
                     : tr('ui.knowledge-local.send-message-enter')
                 }
                 aria-label={

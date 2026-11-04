@@ -55,6 +55,7 @@ import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+import { attachSteer, useNomiSteer, type SteerableStream } from './nomiSteer';
 
 /** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
 function plainSummary(s: string): string {
@@ -239,6 +240,10 @@ export interface AiChatActions {
   stopGeneration: () => void;
   /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
   abortConversation: (convoId: string) => void;
+  /** 一轮进行中插入用户消息 / 有工具在跑 / 工具开始的订阅（见 contexts/nomiSteer） */
+  steerStream: ReturnType<typeof useNomiSteer>['steerStream'];
+  nomiToolRunning: ReturnType<typeof useNomiSteer>['nomiToolRunning'];
+  onNomiToolStart: ReturnType<typeof useNomiSteer>['onNomiToolStart'];
   askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
   loadChatHistory: () => Promise<void>;
   clearChatHistory: () => Promise<void>;
@@ -385,10 +390,8 @@ function upsertById(list: ChatMessage[], items: readonly ChatMessage[]): ChatMes
 const newReqId = (): string =>
   `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-interface ActiveStream {
-  reqId: string;
+interface ActiveStream extends SteerableStream {
   convoId: string | undefined;
-  controller: AbortController;
 }
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
@@ -402,6 +405,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   });
   /** 各会话进行中的流（不同会话可以同时回复）：停止只停当前会话的那一轮 */
   const activeStream = useRef(new Map<string, ActiveStream>());
+  // 一轮进行中插入用户消息（只投给当前显示的会话）
+  const { steerStream, nomiToolRunning, onNomiToolStart, notifyToolStart } = useNomiSteer(
+    activeStream,
+    () => convoKey(stateRef.current.ipcClient.currentConversationId?.()),
+  );
   /**
    * 进行中这一轮的消息快照（用户消息 + 已生成的回复）：一轮结束才落盘，
    * 期间切走再切回时 loadChatHistory 从存储读不到它们，要从这里补回
@@ -881,6 +889,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           raf = requestAnimationFrame(flushUi);
           timer = window.setTimeout(flushUi, 100);
         };
+        const stream = activeStream.current.get(convoKey(turn.convoId));
+        if (stream?.reqId === reqId)
+          attachSteer(stream, {
+            trace,
+            textLength: () => accumulated.length,
+            deliver: (id, text) => stateRef.current.ipcClient.steerStream?.(id, text),
+            onChange: scheduleUi,
+          });
         try {
           const linked = imageUrls.filter(Boolean);
           const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
@@ -906,6 +922,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               onTrace: (ev) => {
                 trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
                 scheduleUi();
+                if (ev.type === 'tool' && ev.status === 'start')
+                  notifyToolStart(convoKey(turn.convoId));
               },
               onUsage: (u) => {
                 usage = { ...usage, ...u };
@@ -1123,6 +1141,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      steerStream,
+      nomiToolRunning,
+      onNomiToolStart,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,
@@ -1137,6 +1158,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      steerStream,
+      nomiToolRunning,
+      onNomiToolStart,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,

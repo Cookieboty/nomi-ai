@@ -36,7 +36,7 @@ describe('忙碌时排队的消息保留知识库意图（#37）', () => {
     render(<MessageInput queue={{ onQueue }} />);
     await act(async () => typeAndEnter('Q2'));
     await waitFor(() => expect(onQueue).toHaveBeenCalledTimes(1));
-    expect(onQueue).toHaveBeenCalledWith('Q2', { kb: true });
+    expect(onQueue).toHaveBeenCalledWith('Q2', { kb: true, mode: 'steer' });
   });
 
   it('普通模式：排队的消息没有 kb 标记（对照）', async () => {
@@ -44,6 +44,6 @@ describe('忙碌时排队的消息保留知识库意图（#37）', () => {
     render(<MessageInput queue={{ onQueue }} />);
     await act(async () => typeAndEnter('Q2'));
     await waitFor(() => expect(onQueue).toHaveBeenCalledTimes(1));
-    expect(onQueue).toHaveBeenCalledWith('Q2');
+    expect(onQueue).toHaveBeenCalledWith('Q2', { mode: 'steer' });
   });
 });

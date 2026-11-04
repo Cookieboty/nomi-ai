@@ -27,7 +27,9 @@ export interface ToolCall {
 
 export type TraceEntry =
   | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number; textAt?: number }
-  | { type: 'tool'; call: ToolCall; textAt?: number };
+  | { type: 'tool'; call: ToolCall; textAt?: number }
+  /** 一轮进行中用户插入的消息 */
+  | { type: 'interject'; id: string; text: string; at?: number; textAt?: number };
 
 /** 分组桶：同桶的连续调用折叠成一组 */
 export type Bucket = 'explore' | 'command' | 'edit' | 'other';
@@ -43,6 +45,8 @@ export type TimelineItem =
       endedAt?: number;
     }
   | { type: 'call'; call: ToolCall }
+  /** 用户在这一轮中途插入的消息 */
+  | { type: 'interject'; id: string; text: string; at?: number }
   | { type: 'group'; id: string; bucket: Bucket; calls: ToolCall[] }
   | { type: 'subagent'; call: ToolCall; children: TimelineItem[] };
 
@@ -80,6 +84,16 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
           lastAt: ev.at,
           ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
         });
+      continue;
+    }
+    if (ev.type === 'interject') {
+      entries.push({
+        type: 'interject',
+        id: `ij-${seq++}`,
+        text: ev.text,
+        at: ev.at,
+        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+      });
       continue;
     }
     const key = ev.id ?? ev.detail;
@@ -673,6 +687,11 @@ export function buildTimeline(
         });
         return;
       }
+      if (e.type === 'interject') {
+        flush();
+        items.push({ type: 'interject', id: e.id, text: e.text, at: e.at });
+        return;
+      }
       const kind = classifyTool(e.call.name);
       if (kind === 'subagent') {
         flush();
@@ -818,6 +837,7 @@ export function hasRunning(items: readonly TimelineItem[]): boolean {
     if (it.type === 'call') return it.call.status === 'running';
     if (it.type === 'group') return it.calls.some((c) => c.status === 'running');
     if (it.type === 'subagent') return it.call.status === 'running' || hasRunning(it.children);
+    if (it.type === 'interject') return false;
     return it.running;
   });
 }

@@ -31,6 +31,7 @@ import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
 import { OPEN_MODELS_EVENT } from './components/Onboarding/client';
 import { onboardingClient } from './components/Onboarding/client';
+import { PendingDock } from './components/PendingDock';
 import { PluginPanel } from './components/PluginPanel';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
@@ -68,12 +69,12 @@ import {
   useHarnessTabsCore,
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useComposerPending } from './hooks/useComposerPending';
 import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useNomiWorkspace } from './hooks/useNomiWorkspace';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
-import { useSendQueue } from './hooks/useSendQueue';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useUserProfile } from './hooks/useUserProfile';
 import { toHarnessImages } from './services/chatImages';
@@ -352,13 +353,9 @@ const AiChatContent: React.FC = () => {
   );
   // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份）
   const drafts = useSessionComposerDrafts();
-  // 只有当前会话在回复时才排队：别的会话在回复不影响这里直接发送
-  const nomiQueue = useSendQueue(
-    busyHere,
-    // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
-    (text, opts) => (opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text)),
-    firstMessageId,
-  );
+  // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）
+  const pending = useComposerPending(actions, busyHere, firstMessageId);
+  const nomiQueue = pending.nomiQueue;
   /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
   const precedingUser = <T extends { id: string; role: string }>(
     list: readonly T[],
@@ -476,19 +473,20 @@ const AiChatContent: React.FC = () => {
           : { id: harness?.cliSessionId ?? null, running: !!harness?.busy },
     tabId: slashTab?.id ?? null,
     send: (text) => {
-      if (slashTab) void tabs.send(text);
-      else if (busyHere) nomiQueue.enqueue(text);
+      if (slashTab) void tabs.send(text, undefined, 'queue');
+      else if (busyHere) nomiQueue.enqueue(text, { mode: 'queue' });
       else void actions.sendStreamMessage(text);
     },
     // 异步命令的结果回到「发起命令的会话」，与现在显示哪个标签无关
     sendTo: async (target, text) => {
       if (target.tabId) {
         // CLI 标签：目标标签已关闭 / 后端或目录被改过（重置）→ false，什么都不发
-        return tabs.sendToTab(target.tabId, text, { backend: target.backend, cwd: target.cwd });
+        const expect = { backend: target.backend, cwd: target.cwd };
+        return tabs.sendToTab(target.tabId, text, expect, undefined, 'queue');
       }
       // Nomi 主对话：只有它仍是当前这个会话才发（新建 / 切换过会话则丢弃）
       if (nomiScope !== target.scopeKey) return false;
-      if (busyHere) nomiQueue.enqueue(text);
+      if (busyHere) nomiQueue.enqueue(text, { mode: 'queue' });
       else void actions.sendStreamMessage(text);
       return true;
     },
@@ -748,7 +746,6 @@ const AiChatContent: React.FC = () => {
   // 能不能附图看这个会话当前用的模型（dsh 例外：命令行没有图片输入）
   const cliImages = useCliImageSupport(cliActive);
   const tabSend = tabs.send;
-  const tabCancel = tabs.cancel;
   // 只依赖用到的原始字段：当前标签的 updatedAt / unread 等变化不重建 props，MessageInput 的 memo 才守得住
   const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
   const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
@@ -770,12 +767,9 @@ const AiChatContent: React.FC = () => {
             imageCapability: cliImages.capability,
             imageUnsupportedReason: cliImages.reason,
             placeholder: cliPlaceholder,
-            queue: {
-              onQueue: (text: string) => void tabSend(text),
-              onStop: () => void tabCancel(),
-            },
+            queue: pending.queueProps,
           }
-        : { queue: { onQueue: nomiQueue.enqueue } },
+        : { queue: pending.queueProps },
     [
       hasCliActive,
       cliActive,
@@ -784,8 +778,7 @@ const AiChatContent: React.FC = () => {
       cliPlaceholder,
       cliImages,
       tabSend,
-      tabCancel,
-      nomiQueue.enqueue,
+      pending.queueProps,
     ],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
@@ -928,8 +921,6 @@ const AiChatContent: React.FC = () => {
                             ? 'queued'
                             : 'idle'
                       }
-                      queued={tabs.queues[tabs.activeTab!.id]}
-                      onRemoveQueued={tabs.removeQueued}
                       slots={cliSlots}
                       cards={slash.cards}
                       onDismissCard={slash.dismissCard}
@@ -990,8 +981,6 @@ const AiChatContent: React.FC = () => {
                   scopeId={`nomi:${firstMessageId ?? 'new'}`}
                   messages={nomiMessages}
                   phase={busyHere ? 'running' : 'idle'}
-                  queued={nomiQueue.queue}
-                  onRemoveQueued={nomiQueue.remove}
                   onRetry={onNomiRetry}
                   onEdit={onNomiEdit}
                   slots={nomiConvSlots}
@@ -1005,6 +994,11 @@ const AiChatContent: React.FC = () => {
             <footer className="input-container">
               {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
               <DesktopConfirmDock />
+              <PendingDock
+                items={pending.items}
+                onWithdraw={pending.onWithdraw}
+                onRemove={pending.onRemove}
+              />
               <MessageInput
                 {...inputModeProps}
                 cwd={railCwd ?? undefined}

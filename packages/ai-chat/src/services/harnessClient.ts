@@ -177,12 +177,15 @@ export type HarnessTraceEvent =
       /** 事件发生时助手正文的字符下标 */
       textAt?: number;
     }
-  | { type: 'thinking'; text: string; at?: number; textAt?: number };
+  | { type: 'thinking'; text: string; at?: number; textAt?: number }
+  /** 一轮进行中用户插入的消息（已交给 CLI / Nomi，下一步取走），按 textAt 显示在回复中间 */
+  | { type: 'interject'; text: string; at?: number; textAt?: number };
 
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'tool' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'thinking' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'interject' }>)
   | {
       tabId: string;
       type: 'status';
@@ -603,6 +606,9 @@ export const harnessClient = {
     );
   },
   cancelTab: (id: string) => call<boolean>(() => api.harness.tabCancel({ id })),
+  /** 一轮进行中插入用户消息；没有进行中的轮次 / 后端不支持时 false（改为排队） */
+  steerTab: (id: string, text: string) =>
+    call<boolean>(() => api.harness.tabSteer({ id, text })).catch(() => false),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) =>
     call<boolean>(() => api.harness.stopAgent({ id: tabId, agentId })),

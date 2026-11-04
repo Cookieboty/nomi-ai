@@ -103,6 +103,7 @@ const statusLabel = (s: 'running' | 'done' | 'error'): string =>
 function rowTitle(row: WaterfallRow): string {
   if (row.kind === 'thinking') return t('ui.devtools.thinking');
   if (row.kind === 'tool') return row.call.name;
+  if (row.kind === 'interject') return row.text;
   return row.req.display ?? row.req.model ?? t('ui.devtools.model-request');
 }
 
@@ -196,6 +197,12 @@ const RequestDetail: React.FC<{ req: QualityRequestItem }> = ({ req }) => {
 
 const RowDetail: React.FC<{ row: WaterfallRow }> = ({ row }) => {
   if (row.kind === 'request') return <RequestDetail req={row.req} />;
+  if (row.kind === 'interject')
+    return (
+      <div className={styles.detail}>
+        <Block label={t('ui.session-workspace.you-added')} text={row.text} />
+      </div>
+    );
   if (row.kind === 'thinking')
     return (
       <div className={styles.detail}>
@@ -290,7 +297,9 @@ const Timeline: React.FC<{
                       ? t('ui.slash-commands.requests')
                       : r.kind === 'thinking'
                         ? t('ui.devtools.thinking')
-                        : t('ui.foundation.tool')}
+                        : r.kind === 'interject'
+                          ? t('ui.session-workspace.inserted')
+                          : t('ui.foundation.tool')}
                   </span>
                   <span className={styles.rowTitle}>{rowTitle(r)}</span>
                 </span>

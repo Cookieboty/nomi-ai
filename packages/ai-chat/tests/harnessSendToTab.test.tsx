@@ -99,7 +99,8 @@ describe('HarnessTabsContext.sendToTab', () => {
     });
     expect(ok).toBe(true);
     expect(ipc.sent).toHaveLength(0);
-    expect(ref.current!.queues).toEqual({ a: ['排队'] });
+    expect(Object.keys(ref.current!.queues)).toEqual(['a']);
+    expect(ref.current!.queues.a!.map((i) => i.text)).toEqual(['排队']);
   });
 
   it('用最新状态判断忙闲：渲染后目标刚进入运行态，也要入队而不是重复派发', async () => {
@@ -113,7 +114,7 @@ describe('HarnessTabsContext.sendToTab', () => {
       await stale('a', '迟到文本');
     });
     expect(ipc.sent).toHaveLength(0);
-    expect(ref.current!.queues.a).toEqual(['迟到文本']);
+    expect(ref.current!.queues.a!.map((i) => i.text)).toEqual(['迟到文本']);
   });
 
   it('标签不存在 / 已关闭 / 是 main：返回 false，什么都不发', async () => {

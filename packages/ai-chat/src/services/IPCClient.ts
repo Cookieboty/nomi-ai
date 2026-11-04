@@ -27,6 +27,7 @@ type SdkChatFacade = {
   /** 工具循环（桌面文件工具 / 桌面角色工具）；旧主进程没有该通道时退回 stream */
   agentStream?: (opts: SdkChatOptions & { role?: string }) => AsyncIterable<SdkChatChunk>;
   abort: (reqId: string) => void;
+  steer?: (reqId: string, text: string) => Promise<boolean>;
 };
 
 interface SdkChatOptions {
@@ -289,6 +290,15 @@ export class SdkIPCClient implements IPCClient {
           cause: error,
         },
       );
+    }
+  }
+
+  async steerStream(reqId: string, text: string): Promise<boolean> {
+    try {
+      return (await this.chat.steer?.(reqId, text)) === true;
+    } catch (e) {
+      log.warn('steer failed', e);
+      return false;
     }
   }
 

@@ -25,6 +25,7 @@ export function turnWindow(m: Pick<ConvMessage, 'at' | 'durationMs' | 'trace'>):
 
 export type WaterfallRow =
   | { kind: 'thinking'; id: string; start: number; end?: number; text: string }
+  | { kind: 'interject'; id: string; start: number; end?: number; text: string }
   | { kind: 'tool'; id: string; start: number; end?: number; call: ToolCall; depth: number }
   | {
       kind: 'request';
@@ -47,6 +48,11 @@ export function waterfallRows(
     if (e.type === 'thinking') {
       if (e.at === undefined) continue;
       rows.push({ kind: 'thinking', id: e.id, start: e.at, end: e.lastAt, text: e.text });
+      continue;
+    }
+    if (e.type === 'interject') {
+      if (e.at === undefined) continue;
+      rows.push({ kind: 'interject', id: e.id, start: e.at, end: e.at, text: e.text });
       continue;
     }
     const c = e.call;
