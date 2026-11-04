@@ -54,6 +54,7 @@ export {
   bareModelId,
   CATALOG_VERSION,
   catalogEntry,
+  catalogModels,
   catalogOverlayVersion,
   catalogSize,
   readCatalogFile,

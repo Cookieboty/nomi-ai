@@ -94,7 +94,7 @@ import {
 } from './timeouts';
 import { calibratedCount, measuredInputTokens, recordUsage, sessionKeyOf } from './tokens';
 import { startTrace, type RequestTrace } from './trace';
-import { upstreamBody, upstreamHeaders, upstreamUrl } from './upstream';
+import { upstreamBody, upstreamHeaders, upstreamUrl, wantsContext1m } from './upstream';
 import { usageOfJson, UsageTap } from './usageTap';
 
 export {
@@ -837,7 +837,10 @@ export class GatewayServer {
         abort.signal.aborted
       )
         break;
-      const cand = queue.shift()!;
+      let cand = queue.shift()!;
+      // 这家拒绝过 context-1m beta：这次直接不补（rectify 'beta'）
+      if (this.learner.refusedBeta(cand) && !cand.rectify?.includes('beta'))
+        cand = { ...cand, rectify: [...(cand.rectify ?? []), 'beta'] };
       // 上一次失败了、这次换了一家：告诉客户端正在切换（同一家的重连在退避前已经通知过）
       if (last?.kind === 'failed' && last.cand.provider.id !== cand.provider.id)
         this.notifyRetry({
@@ -1010,7 +1013,10 @@ export class GatewayServer {
         last.text !== undefined
           ? this.learner.failure(
               cand,
-              classifyFailure(last.status, last.text, last.sent, { applied: cand.rectify }),
+              classifyFailure(last.status, last.text, last.sent, {
+                applied: cand.rectify,
+                sentBeta: wantsContext1m(cand),
+              }),
             )
           : null;
       const retry =

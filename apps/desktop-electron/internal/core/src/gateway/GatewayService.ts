@@ -1234,6 +1234,24 @@ export class GatewayService {
   }
 
   /**
+   * 计价别名：第三方供应商里用户设的「按哪个已知模型处理」（like）。provider 给了按那家查；
+   * 没给时按模型名查，各家设得一致才用（对不上就不猜）。
+   */
+  priceAlias(model: string, provider?: string): string | undefined {
+    const bare = (s: string) => s.slice(s.lastIndexOf('/') + 1).toLowerCase();
+    const want = bare(model);
+    const hit = (p: GatewayProvider) =>
+      p.models.find((m) => m.like?.trim() && bare(m.id) === want)?.like?.trim();
+    const providers = this.store.providers();
+    if (provider) {
+      const p = providers.find((x) => x.id === provider || x.aliases?.includes(provider));
+      if (p) return hit(p);
+    }
+    const likes = new Set(providers.map(hit).filter((x): x is string => !!x));
+    return likes.size === 1 ? [...likes][0] : undefined;
+  }
+
+  /**
    * 已有某个地址相同的第三方供应商（链接导入时据此更新而不是新建；环境变量的不算）。
    * 链接里的地址都要和它已有的地址同源：带了别的域名时不合并（新建），
    * 免得它已有的 Key 也被发到链接新加的域名（#249）。
@@ -1742,7 +1760,8 @@ function withEffective(
   r: ResolvedModelMeta,
   priceOf?: (model: string) => LongContextPrice | undefined,
 ): ModelView {
-  const price = r.longContext ? priceOf?.(m.id) : undefined;
+  // 指定了按哪个已知模型处理时，长上下文的分档价也按它查
+  const price = r.longContext ? priceOf?.(m.like?.trim() || m.id) : undefined;
   return {
     ...m,
     effective: {

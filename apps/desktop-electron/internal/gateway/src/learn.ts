@@ -87,10 +87,10 @@ export function classifyFailure(
   status: number,
   text: string,
   sent: unknown,
-  opts: { applied?: readonly RectifyFix[] } = {},
+  opts: { applied?: readonly RectifyFix[]; sentBeta?: boolean } = {},
 ): Failure {
   // 修正器优先（降档比整个去掉推理参数好）；同一种修正已经试过就按普通规则处理
-  const r = rectifierFor(status, text, sent);
+  const r = rectifierFor(status, text, sent, { sentBeta: opts.sentBeta });
   if (r && !opts.applied?.includes(r.fix))
     return { kind: 'rectify', fix: r.fix, ...(r.rejected ? { rejected: r.rejected } : {}) };
   const keys =
@@ -123,6 +123,14 @@ const STREAK_MODELS = 2;
 export const modelOf = (c: Candidate) => c.publicModel.slice(c.provider.id.length + 1);
 
 export class Learner {
+  /** 拒绝过 context-1m beta 的 (供应商|模型)：之后不再补这个头 */
+  private readonly betaRefused = new Set<string>();
+
+  /** 这个候选的上游拒绝过 context-1m beta */
+  refusedBeta(c: Candidate): boolean {
+    return this.betaRefused.has(`${c.provider.id}|${modelOf(c)}`);
+  }
+
   /** (供应商|Key|wire) → 压制到期时间 */
   private readonly suppressedUntil = new Map<string, number>();
   /** (供应商|wire) → 连续失败记录 */
@@ -160,6 +168,8 @@ export class Learner {
     const now = this.now();
     const pid = c.provider.id;
     if (f.kind === 'rectify') {
+      // 这家（这个模型）不认 context-1m：之后不再补，进程内记住
+      if (f.fix === 'beta') this.betaRefused.add(`${pid}|${modelOf(c)}`);
       if (f.fix === 'effort' && f.rejected)
         this.onLearn({
           type: 'model-efforts',

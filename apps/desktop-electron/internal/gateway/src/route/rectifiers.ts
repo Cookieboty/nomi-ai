@@ -14,7 +14,12 @@ import { MIN_BUDGET } from '../intent';
 import type { Wire } from '../ir';
 import type { Effort } from '../models/types';
 
-export type RectifyFix = 'budget' | 'effort';
+/** beta：上游拒绝了 anthropic-beta 里的 context-1m（第三方 Messages 上游），去掉它重试 */
+export type RectifyFix = 'budget' | 'effort' | 'beta';
+
+/** 长上下文（超过 200K）要求的 beta（Anthropic；第三方中转多数原样转给 Anthropic） */
+export const CONTEXT_1M_BETA = 'context-1m-2025-08-07';
+const BETA_WORDS = /anthropic-beta|context-1m|\bbetas?\b/i;
 
 type Obj = Record<string, unknown>;
 
@@ -60,8 +65,11 @@ export function rectifierFor(
   status: number,
   text: string,
   sent: unknown,
+  opts: { sentBeta?: boolean } = {},
 ): { fix: RectifyFix; rejected?: Effort } | null {
   if (status !== 400 && status !== 422) return null;
+  // 我们补上的 context-1m beta 被拒：去掉它重试（上游的报错常不带「不支持」之类的词）
+  if (opts.sentBeta && BETA_WORDS.test(text)) return { fix: 'beta' };
   if (!BAD_VALUE.test(text)) return null;
   if (BUDGET_WORDS.test(text) && sentBudget(sent)) return { fix: 'budget' };
   const effort = sentEffort(sent);

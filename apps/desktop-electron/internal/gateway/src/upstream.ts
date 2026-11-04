@@ -12,10 +12,11 @@ import {
 import { geminiModelPath } from './ingress';
 import { readIntent, withBindingEffort } from './intent';
 import type { Wire } from './ir';
+import { bareModelId } from './models/catalog';
 import { fitLevel, renderReasoning } from './models/rules/request/index';
 import { quirksOf } from './providers/index';
 import { convertRequest } from './request';
-import { applyRectifiers } from './route/rectifiers';
+import { applyRectifiers, CONTEXT_1M_BETA } from './route/rectifiers';
 import type { Candidate } from './route/resolve';
 
 function trimSlash(u: string): string {
@@ -57,6 +58,23 @@ const DEFAULT_AUTH: Record<Wire, AuthStyle> = {
   gemini: 'x-goog-api-key',
 };
 
+/** 超过这个窗口要 context-1m beta（Anthropic 的标准窗口） */
+const STANDARD_CLAUDE_WINDOW = 200_000;
+
+/**
+ * 要不要给第三方 Messages 上游补 context-1m beta：Claude 系列（自己的名字，或用户指定按哪个模型处理）、
+ * 生效窗口超过 200K（目录里的 1M 模型，或用户手填的），且这家没拒绝过（rectify 'beta'）。
+ * 官方 Anthropic 上游不补：透传客户端自己的 beta（它知道真实模型）。
+ */
+export function wantsContext1m(c: Candidate): boolean {
+  if (c.wire !== 'messages' || c.rectify?.includes('beta') || isAnthropicOfficial(c)) return false;
+  const like = c.provider.models.find((m) => `${c.provider.id}/${m.id}` === c.publicModel)?.like;
+  const claude =
+    /^claude/i.test(c.model?.family ?? '') || /^claude/.test(bareModelId(like || c.upstreamModel));
+  const window = c.model?.limits?.input ?? c.model?.limits?.context ?? 0;
+  return claude && window > STANDARD_CLAUDE_WINDOW;
+}
+
 /**
  * 上游请求头：鉴权按协议默认（探测发现别的方式时用探测结果），再叠加供应商的自定义头。
  * 同协议时透传 CLI 自己的 User-Agent（部分 Coding Plan 按它识别编程助手）和 anthropic-beta；
@@ -90,6 +108,9 @@ export function upstreamHeaders(
     let beta = opts.sameWire ? header('anthropic-beta') : undefined;
     // 第三方 Messages 上游不认识 context-1m-… 等 Anthropic 专有 beta（§12.7.3）
     if (beta && !isAnthropicOfficial(c)) beta = filterAnthropicBeta(beta);
+    // 声明了超过 200K 的 Claude 模型：补上 context-1m（多数中转原样转给 Anthropic）；
+    // 上游拒绝时去掉重试并记住（rectify 'beta'）
+    if (wantsContext1m(c)) beta = beta ? `${beta},${CONTEXT_1M_BETA}` : CONTEXT_1M_BETA;
     if (beta) h['anthropic-beta'] = beta;
   }
   const userAgent =

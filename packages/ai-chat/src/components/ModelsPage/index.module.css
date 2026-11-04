@@ -780,6 +780,37 @@
   min-width: 0;
 }
 
+/* 模型规格表：每个模型一行，列 = 模型 / 按哪个模型处理 / 上下文 / 标准窗口 / 输出上限 */
+.specHint {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.specTable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+.specHead,
+.specRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.specHead {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.specCell {
+  display: flex;
+  min-width: 0;
+}
+.specCell > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .pairRow > :nth-child(1),
 .pairRow > :nth-child(3) {
   flex: 1;

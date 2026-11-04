@@ -34,6 +34,13 @@ export interface GatewayModel {
   metaSource?: 'user' | 'preset' | 'listed' | 'catalog' | 'default';
   /** 这个模型默认开启长上下文（§12.7.2；只对有标准窗口的模型有意义，标签可单独切换） */
   longContext?: boolean;
+  /**
+   * 按内置目录里的哪个模型处理（用户设置；中转改了名的已知模型）：上下文、输出上限、能力、价格都按它查，
+   * 手填的值仍然优先
+   */
+  like?: string;
+  /** 用户声明的标准窗口：填了就有长上下文可开（默认按它压缩，开启后用上下文窗口） */
+  ctxStandard?: number;
 }
 
 export interface StoredProbe {

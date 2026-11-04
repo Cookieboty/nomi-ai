@@ -159,6 +159,14 @@ export const NomiContextInfo = loose({
   source: z.string(),
 });
 
+/** 内置模型目录里的一个模型（context：最大输入；standard：标准窗口，超过它按长上下文） */
+export const CatalogModel = loose({
+  id: z.string(),
+  family: z.string().optional(),
+  context: z.number().optional(),
+  standard: z.number().optional(),
+});
+
 const KeyLimit = z.number().nullable().optional();
 export const GatewayProviderInput = loose({
   id: z.string().optional(),

@@ -106,3 +106,50 @@ describe('resolveModelMeta (§12.7.2)', () => {
     expect(presetEntry(undefined, 'glm-5.3')).toBeUndefined();
   });
 });
+
+describe('按已知模型处理（like）与用户声明的标准窗口（ctxStandard）', () => {
+  it('like：上下文、输出上限与长上下文都按那个已知模型查', () => {
+    const r = resolveModelMeta(
+      { id: 'Aerith-sonnet', enabled: true, like: 'claude-sonnet-4.6' },
+      'Aerith-sonnet',
+    );
+    expect(r.longContext).toMatchObject({ standard: 200_000, full: 1_000_000, on: false });
+    // 默认按标准窗口压缩
+    expect(r.ctx).toBe(200_000);
+    expect(r.maxOutput).toBe(128_000);
+    expect(
+      resolveModelMeta(
+        { id: 'Aerith-sonnet', enabled: true, like: 'claude-sonnet-4.6' },
+        'Aerith-sonnet',
+        undefined,
+        { longContext: true },
+      ).ctx,
+    ).toBe(1_000_000);
+  });
+
+  it('没有 like 的未知模型：保守默认值，没有长上下文', () => {
+    const r = resolveModelMeta({ id: 'Aerith-sonnet', enabled: true }, 'Aerith-sonnet');
+    expect(r.source).toBe('default');
+    expect(r.longContext).toBeUndefined();
+  });
+
+  it('ctxStandard：手填上下文 + 标准窗口 → 有长上下文可开', () => {
+    const m = {
+      id: 'private-model',
+      enabled: true,
+      ctx: 2_000_000,
+      ctxStandard: 256_000,
+      metaSource: 'user' as const,
+    };
+    const off = resolveModelMeta(m, m.id);
+    expect(off.longContext).toMatchObject({ standard: 256_000, full: 2_000_000, on: false });
+    expect(off).toMatchObject({ ctx: 256_000, source: 'user' });
+    expect(resolveModelMeta({ ...m, longContext: true }, m.id).ctx).toBe(2_000_000);
+    // 只手填上下文、不填标准窗口：按手填的，不分标准 / 长（与之前一致）
+    const { ctxStandard: _s, ...plain } = m;
+    expect(resolveModelMeta(plain, m.id)).toMatchObject({ ctx: 2_000_000 });
+    expect(resolveModelMeta(plain, m.id).longContext).toBeUndefined();
+    // 标准窗口不小于上下文：没有长上下文
+    expect(resolveModelMeta({ ...m, ctxStandard: 2_000_000 }, m.id).longContext).toBeUndefined();
+  });
+});

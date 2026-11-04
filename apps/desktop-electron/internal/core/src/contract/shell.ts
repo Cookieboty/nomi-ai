@@ -10,6 +10,7 @@
  */
 
 import type { ShellProcedureName } from '@nomi-ai/contract/app';
+import { catalogModels } from '@nomi-ai/gateway';
 
 import type { GatewayService, ProviderInput } from '../gateway/GatewayService';
 import { ProviderLinkError } from '../gateway/ProviderLinkService';
@@ -102,6 +103,7 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
       linkCall(ctx, () => providerLink().connect(issuer)),
 
     'gateway.state': () => gateway().state(),
+    'gateway.catalogModels': () => catalogModels(),
     // 网关服务还没起来时当作没配模型（视图按默认预算）
     'gateway.nomiContext': ({ role }) => s.gateway?.nomiContext(role ?? 'chat') ?? null,
     'gateway.detect': (input) => gateway().detect(input),

@@ -103,7 +103,9 @@ export function effectiveModel(
   // 学到的状态随配置快照整份替换：按引用判断是否需要重算
   const now = opts.now ?? Date.now();
   if (hit && hit.learned === learned && opts.now === undefined && now < hit.until) return hit.e;
-  const id = bareModelId(model);
+  const own = p.models.find((m) => m.id === model);
+  // 用户指定了按哪个已知模型处理：族默认与目录都按它查（中转改了名的已知模型）
+  const id = bareModelId(own?.like?.trim() || model);
   const sources: EffectiveModel['sources'] = [];
   let data: ModelSpecData = {};
   const fam = familyOf(id);
@@ -129,7 +131,7 @@ export function effectiveModel(
   }
   const learnedModel = learned?.models?.[model];
   const l = learnedData(learnedModel, now);
-  const user = userData(p.models.find((m) => m.id === model));
+  const user = userData(own);
   if (l) {
     // 用户明确设置过的不被学到的结论覆盖
     const filtered: ModelSpecData = { ...l };

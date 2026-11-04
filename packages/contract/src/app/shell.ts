@@ -70,6 +70,8 @@ export const shellProcedures = {
 
   // ---- gateway（GatewayService / TerminalCommands）----
   'gateway.state': { kind: 'query', input: v, output: S.GatewayState },
+  /** 内置模型目录（models.dev 快照 + 同步覆盖层）：第三方模型「按哪个已知模型处理」的选择列表 */
+  'gateway.catalogModels': { kind: 'query', input: v, output: z.array(S.CatalogModel) },
   'gateway.detect': {
     kind: 'mutation',
     input: S.GatewayDetectInput,

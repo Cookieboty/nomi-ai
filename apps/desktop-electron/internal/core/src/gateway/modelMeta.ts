@@ -90,7 +90,8 @@ export function resolveModelMeta(
     ['user', userSet ? stored : undefined],
     ['preset', preset],
     [stored?.metaSource === 'preset' ? 'preset' : 'listed', userSet ? undefined : stored],
-    ['catalog', catalogLayer(id)],
+    // 用户指定了按哪个已知模型处理：目录按它查
+    ['catalog', catalogLayer(stored?.like?.trim() || id)],
   ];
   const pick = <K extends keyof Layer>(k: K): [Layer[K], MetaSource] | undefined => {
     for (const [src, l] of layers) {
@@ -104,10 +105,17 @@ export function resolveModelMeta(
   const reasoning = pick('reasoning');
   const vision = pick('vision');
   const toolCalling = pick('toolCalling');
-  // 标准窗口只来自内置目录（长上下文的计价门槛）；用户手填了上下文就按手填的，不再分标准 / 长
-  const standard = catalogEntry(id)?.limits?.standard;
+  // 标准窗口：用户声明的优先；否则来自内置目录（长上下文的计价门槛），但用户手填了上下文、
+  // 又没声明标准窗口时按手填的，不再分标准 / 长
+  const userStandard =
+    stored?.ctxStandard && stored.ctxStandard > 0 ? stored.ctxStandard : undefined;
+  const standard =
+    userStandard ??
+    (ctx && ctx[1] !== 'user'
+      ? catalogEntry(stored?.like?.trim() || id)?.limits?.standard
+      : undefined);
   const long =
-    ctx && ctx[1] !== 'user' && standard && standard < ctx[0]!
+    ctx && standard && standard < ctx[0]!
       ? {
           standard,
           full: ctx[0]!,
@@ -119,7 +127,7 @@ export function resolveModelMeta(
     return {
       ...resolved(ctx, maxOutput, reasoning, vision, toolCalling),
       ctx: long.standard,
-      source: 'catalog',
+      source: userStandard ? 'user' : 'catalog',
       longContext: long,
     };
   }
