@@ -112,7 +112,6 @@ export const requestModelLabel = (r: QualityRequestItem): string =>
 
 const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
   const [open, setOpen] = useState(false);
-  const tokens = (r.tokens.input ?? 0) + (r.tokens.cacheRead ?? 0) + (r.tokens.output ?? 0);
   const fallback = (r.attempts?.length ?? 0) > 1;
   const tps = tpsOf(r);
   const hasMore =
@@ -213,16 +212,23 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
         </td>
         <td className={styles.numCell}>{formatMs(r.timing.firstContentMs)}</td>
         <td className={styles.numCell}>{formatMs(r.timing.endMs)}</td>
-        <td className={styles.numCell} title={tps != null ? formatTps(tps) : undefined}>
-          {tokens > 0 ? formatTokens(tokens) : '—'}
-        </td>
+        {/* 输入 / 输出 / 缓存读 / 缓存写分列，不加成一个总数 */}
+        {[r.tokens.input, r.tokens.output, r.tokens.cacheRead, r.tokens.cacheWrite].map((n, i) => (
+          <td
+            key={i}
+            className={styles.numCell}
+            title={i === 1 && tps != null ? formatTps(tps) : undefined}
+          >
+            {n ? formatTokens(n) : '—'}
+          </td>
+        ))}
         <td className={styles.logTimeline}>
           <Timeline r={r} />
         </td>
       </tr>
       {open && (
         <tr className={styles.logDetail}>
-          <td colSpan={8}>
+          <td colSpan={11}>
             <dl className={styles.detailGrid}>
               <dt>{t('ui.knowledge-local.sources')}</dt>
               <dd>{sourceLabel(r.source)}</dd>
@@ -254,10 +260,10 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
                   <dd>{formatTps(tps)}</dd>
                 </>
               )}
-              {(r.tokens.cacheRead ?? 0) > 0 && (
+              {(r.tokens.reasoning ?? 0) > 0 && (
                 <>
-                  <dt>{t('ui.usage-tools.cache-read')}</dt>
-                  <dd>{formatTokens(r.tokens.cacheRead!)}</dd>
+                  <dt>{t('ui.models.reasoning')}</dt>
+                  <dd>{formatTokens(r.tokens.reasoning!)}</dd>
                 </>
               )}
               {r.retries ? (
@@ -449,7 +455,16 @@ export const RequestDetails: React.FC<{
                       {t('ui.model-quality.e2e')}
                     </th>
                     <th scope="col" className={styles.numHead}>
-                      Tokens
+                      {t('ui.usage-tools.input')}
+                    </th>
+                    <th scope="col" className={styles.numHead}>
+                      {t('ui.usage-tools.output')}
+                    </th>
+                    <th scope="col" className={styles.numHead}>
+                      {t('ui.usage-tools.cache-read')}
+                    </th>
+                    <th scope="col" className={styles.numHead}>
+                      {t('ui.usage-tools.cache-write')}
                     </th>
                     <th scope="col">{t('ui.model-quality.timeline')}</th>
                   </tr>
