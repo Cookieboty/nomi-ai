@@ -30,6 +30,8 @@ export interface HarnessImageInput {
   /** 缩略图 data URL（存进消息气泡） */
   thumb?: string;
   source?: string;
+  /** 原图存进素材库后的 chat-asset 地址（气泡预览用） */
+  url?: string;
 }
 
 export interface NormalizedImage {
@@ -39,6 +41,8 @@ export interface NormalizedImage {
   height: number;
   thumb: string;
   source?: string;
+  /** 原图存进素材库后的 chat-asset 地址（气泡预览用） */
+  url?: string;
 }
 
 export interface StagedImage extends NormalizedImage {
@@ -137,6 +141,7 @@ export function inspectImages(
       rejected.push({ index, reason: 'no-thumb' });
       return;
     }
+    const url = typeof r.url === 'string' && r.url.startsWith('chat-asset://') ? r.url : undefined;
     images.push({
       mime,
       data,
@@ -144,6 +149,7 @@ export function inspectImages(
       height: Math.max(0, Number(r.height) || 0),
       thumb,
       ...(r.source ? { source: String(r.source) } : {}),
+      ...(url ? { url } : {}),
     });
   });
   return { images, rejected };
@@ -182,12 +188,13 @@ export function stageImages(dir: string, images: NormalizedImage[]): StagedImage
 /** 气泡展示用缩略图（不落全尺寸 base64） */
 export function imageThumbsForMessage(
   images: NormalizedImage[],
-): Array<{ thumb: string; width: number; height: number; source?: string }> {
+): Array<{ thumb: string; width: number; height: number; source?: string; url?: string }> {
   return images.map((im) => ({
     thumb: im.thumb,
     width: im.width,
     height: im.height,
     ...(im.source ? { source: im.source } : {}),
+    ...(im.url ? { url: im.url } : {}),
   }));
 }
 

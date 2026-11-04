@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserImages } from '../src/components/Conversation/UserImages';
-import { importChatImages } from '../src/services/chatImages';
+import { importChatImages, toHarnessImages } from '../src/services/chatImages';
 import type { ImageAttachment } from '../src/services/screenClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -106,5 +106,29 @@ describe('importChatImages', () => {
     const urls = await importChatImages([img('a'), { ...img('b'), data: 'BAD' }], 'c1');
     expect(urls).toEqual(['chat-asset://images/user-x.png', '']);
     expect(calls[0]).toEqual({ mime: 'image/png', data: 'AAAA', conversationId: 'c1' });
+  });
+});
+
+describe('toHarnessImages', () => {
+  it('attaches imported chat-asset url for harness send / lightbox', async () => {
+    installFakeApi({
+      'chatAssets.import': () => ({ file: 'user-y.png', url: 'chat-asset://images/user-y.png' }),
+    });
+    const out = await toHarnessImages([
+      {
+        id: '1',
+        mime: 'image/jpeg',
+        data: 'FULL',
+        width: 100,
+        height: 80,
+        thumb: 'data:image/jpeg;base64,THUMB',
+        source: 'paste',
+      },
+    ]);
+    expect(out[0]).toMatchObject({
+      data: 'FULL',
+      thumb: 'data:image/jpeg;base64,THUMB',
+      url: 'chat-asset://images/user-y.png',
+    });
   });
 });

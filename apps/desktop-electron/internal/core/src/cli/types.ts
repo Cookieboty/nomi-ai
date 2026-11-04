@@ -74,6 +74,8 @@ export interface HarnessImageInput {
   height?: number;
   thumb?: string;
   source?: string;
+  /** 原图存进素材库后的 chat-asset 地址（气泡预览用） */
+  url?: string;
 }
 
 // 标签消息与轨迹事件：定义搬到 @nomi-ai/cli-sdk（插件的历史转录解析也用）

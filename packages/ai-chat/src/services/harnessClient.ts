@@ -110,6 +110,8 @@ export interface HarnessImageInput {
   height?: number;
   thumb?: string;
   source?: string;
+  /** 原图存进素材库后的 chat-asset 地址（气泡预览用） */
+  url?: string;
 }
 
 export interface HarnessTabMessage {
@@ -117,7 +119,7 @@ export interface HarnessTabMessage {
   role: 'user' | 'assistant';
   content: string;
   /** 用户附图缩略图 */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
+  images?: Array<{ thumb: string; width: number; height: number; source?: string; url?: string }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];
