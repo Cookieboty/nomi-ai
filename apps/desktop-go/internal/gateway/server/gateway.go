@@ -1111,6 +1111,10 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	if session != "" {
 		sticky = g.affinity.Get(session)
 	}
+	// 亲和只在首选供应商里挑 Key：会话换了供应商后，上次成功的旧供应商即使还在回退候选里也不能排到第一
+	if sticky != nil && (len(r.Candidates) == 0 || sticky.ProviderID != r.Candidates[0].Provider.ID) {
+		sticky = nil
+	}
 	queue := g.ordered(g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
 	learnRetries := 0
 	// 重连（§11.1，retry.go）：同一个 Key 退避重连几次、同一家累计失败几次

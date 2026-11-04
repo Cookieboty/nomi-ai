@@ -817,9 +817,11 @@ export class GatewayServer {
     // 会话归属（§11.4）只认 CLI 给的会话标识，不用内容哈希
     const owner = sessionKey(ingress.wire, req.headers, body, client, { hashFallback: false });
     let stripAll = false;
+    // 亲和只在首选供应商里挑 Key：会话换了供应商后，上次成功的旧供应商即使还在回退候选里也不能排到第一
+    const sticky = session ? this.affinity.get(session) : null;
     const queue = this.ordered(
       this.withSuppression(cfg, r.candidates, ingress.wire),
-      session ? this.affinity.get(session) : null,
+      sticky && sticky.providerId === r.candidates[0]?.provider.id ? sticky : null,
     );
     let learnRetries = 0;
     // 重连（§11.1，retry.ts）：同一个 Key 退避重连几次、同一家累计失败几次

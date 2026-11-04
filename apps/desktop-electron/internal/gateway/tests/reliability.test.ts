@@ -347,6 +347,27 @@ describe('affinity (§11.2)', () => {
     expect(await t.keysOf(t.claude(msg('f'), s1))).toEqual(['k1']);
   });
 
+  it('a session that switched provider goes to the new one, not the affine fallback', async () => {
+    const t = await setup((_s, res) => ok(res));
+    // 第二家供应商提供同一个模型（回退候选），Key 值 key-zp-b → 'kb'
+    const other: RuntimeProvider = {
+      ...provider(t.up.base),
+      id: 'zb',
+      name: 'ZB',
+      keys: [{ id: 'kb', value: 'key-zp-b', enabled: true }],
+    };
+    t.gw.update({ ...t.gw.config, providers: [...t.gw.config.providers, other] });
+    const s1 = { 'x-claude-code-session-id': 'sess-switch' };
+    const msg = (model: string, content: string) => ({
+      model,
+      stream: true,
+      messages: [{ role: 'user', content }],
+    });
+    expect(await t.keysOf(t.claude(msg('zb/glm-5', 'a'), s1))).toEqual(['kb']);
+    // 同一个会话改选 zp：zb 仍是回退候选，但不能因为上次成功就排到第一
+    expect(await t.keysOf(t.claude(msg('zp/glm-5', 'b'), s1))).toEqual(['k1']);
+  });
+
   it('without a session id, system + first user message identifies the session', async () => {
     const fail = new Set<string>(['k1']);
     const t = await setup((s, res) => (fail.has(s.key) ? err(res, 503, 'busy') : ok(res)));
