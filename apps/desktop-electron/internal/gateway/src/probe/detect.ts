@@ -92,6 +92,41 @@ function pickModel(wire: Wire, all: string[], fallback?: string): string | undef
   return models[0] ?? fallback;
 }
 
+/** 按名字看像别家原生协议的模型：测这个协议时排到最后（中转常给改了名的 Claude 起 opus / sonnet 之类） */
+const FOREIGN: Record<Wire, RegExp> = {
+  messages: /gpt|codex|^o[0-9]|gemini/i,
+  responses: /claude|opus|sonnet|haiku|fable|gemini/i,
+  chat: /^$/,
+  gemini: /claude|opus|sonnet|haiku|fable|gpt|codex/i,
+};
+
+/** 首选模型失败后换着测的候选：在别的协议上测通的模型优先，然后按协议排序（像别家原生的放最后） */
+export function fallbackModels(
+  wire: Wire,
+  all: string[],
+  tried: ReadonlySet<string>,
+  okModel: string | undefined,
+  max = 2,
+): string[] {
+  const models = all.filter((m) => !NON_CHAT.test(m) && !tried.has(m));
+  const name = (m: string) => m.split('/').pop() ?? m;
+  const native = models.filter((m) => !FOREIGN[wire].test(name(m)));
+  const foreign = models.filter((m) => FOREIGN[wire].test(name(m)));
+  const order = [...(okModel && !tried.has(okModel) ? [okModel] : []), ...native, ...foreign];
+  return [...new Set(order)].slice(0, max);
+}
+
+/** 这次失败可能只是这个模型的问题（换个模型可能就通）：鉴权、模型不存在 / 没渠道、限流、上游 5xx、超时 */
+const modelSpecific = (l: ProbeLine): boolean =>
+  !l.ok &&
+  (l.error === '超时' ||
+    (l.status !== undefined &&
+      (l.status === 401 ||
+        l.status === 403 ||
+        l.status === 404 ||
+        l.status === 429 ||
+        l.status >= 500)));
+
 function probeBody(wire: Wire, model: string): unknown {
   const messages = [{ role: 'user', content: 'hi' }];
   switch (wire) {
@@ -341,21 +376,26 @@ export async function detect(o: DetectOptions): Promise<DetectResult> {
           );
         }),
       );
-      // 聚合网关常按模型返回 401 / 403 或长时间不响应：同一个 Key 在别的协议上已经成功时，换那个模型再测一次
+      // 聚合网关常按模型返回 401 / 403 / 503（这个模型在这个接口上没有渠道）或长时间不响应：
+      // 换别的模型再测——先用在别的协议上测通的模型，再按协议挑几个，有一个通就算这个协议可用
       const okModel = lines.find((l) => l.ok)?.model;
-      if (okModel) {
-        for (let i = 0; i < lines.length; i++) {
-          const l = lines[i]!;
-          const modelSpecific = l.status === 401 || l.status === 403 || l.error === '超时';
-          if (l.ok || !modelSpecific || l.model === okModel) continue;
-          lines[i] = await probeWire(
-            l.wire,
-            o.bases[l.wire]!,
+      for (let i = 0; i < lines.length; i++) {
+        const first = lines[i]!;
+        if (!modelSpecific(first)) continue;
+        const tried = new Set([first.model].filter((m): m is string => !!m));
+        for (const model of fallbackModels(first.wire, listed.models, tried, okModel)) {
+          const next = await probeWire(
+            first.wire,
+            o.bases[first.wire]!,
             key,
-            okModel,
-            DEFAULT_AUTH[l.wire],
+            model,
+            first.wire === 'chat' && listed.auth ? listed.auth : DEFAULT_AUTH[first.wire],
             o,
           );
+          if (next.ok) {
+            lines[i] = next;
+            break;
+          }
         }
       }
       byKey[key.id] = Object.fromEntries(lines.map((l) => [l.wire, l]));

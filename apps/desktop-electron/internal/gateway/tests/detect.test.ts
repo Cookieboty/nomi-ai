@@ -181,3 +181,38 @@ describe('detect (§8.2)', () => {
     expect(r.urls).toEqual({});
   });
 });
+
+describe('detect：首选模型在某个协议上没有渠道时换模型再测', () => {
+  it('Responses 对改了名的 Claude 返回 503：换一个模型测通就算可用', async () => {
+    const seen: string[] = [];
+    const server = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        const json = (status: number, body: unknown) => {
+          res.writeHead(status, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(body));
+        };
+        if (req.method === 'GET' && req.url === '/v1/models')
+          return json(200, { data: [{ id: 'Aerith-fable-5' }, { id: 'Tifa-5.6-sol' }] });
+        const model = raw ? (JSON.parse(raw) as { model?: string }).model : undefined;
+        seen.push(`${req.url} ${model}`);
+        if (req.url === '/v1/responses' && model === 'Aerith-fable-5')
+          return json(503, { error: { message: '当前分组下对于模型 Aerith-fable-5 无可用渠道' } });
+        return json(200, { id: 'x' });
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    cleanups.push(() => server.close());
+    const hp = `127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const r = await detect({
+      bases: { chat: `http://${hp}/v1`, responses: `http://${hp}/v1` },
+      keys: [{ id: 'k', value: 'sk-test' }],
+      allowedPrivateHosts: [hp],
+    });
+    expect(r.wires.chat).toMatchObject({ ok: true, model: 'Aerith-fable-5' });
+    expect(r.wires.responses).toMatchObject({ ok: true, model: 'Tifa-5.6-sol' });
+    expect(r.urls.responses).toBe(`http://${hp}/v1`);
+    expect(seen).toContain('/v1/responses Tifa-5.6-sol');
+  });
+});
