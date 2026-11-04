@@ -37,6 +37,7 @@
     "changeset:version": "node scripts/release/changelog.mjs --release && changeset version",
     "preinstall": "node scripts/check-node.cjs",
     "prepare": "husky",
+    "release:check": "bash scripts/release/check.sh",
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:i18n": "node scripts/i18n/check.cjs",
     "check:character-leak": "node scripts/check-character-leak.mjs",

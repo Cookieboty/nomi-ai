@@ -34,6 +34,21 @@ Workflow：[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)。
 | [`desktop-go.yml`](../../.github/workflows/desktop-go.yml)                 | push `main` / `feat/2.0.5-go*`；PR → `main`（改到 Go / 视图 / 内核时） | 三平台 go vet / go test -race、Node golden 比对、契约漂移检查、构建、内存实测；变异检查 |
 | [`desktop-go-package.yml`](../../.github/workflows/desktop-go-package.yml) | PR 带 `ci:full`；push tag `v*`（≥ v2.0.5，不重跑测试）；手动           | 三平台安装包 + 安装/启动/签名验证 + `latest-go.json`；tag 上 draft → 自动发布 Release   |
 
+`desktop-go.yml` 分成两个并行 job：`test`（现场录 golden、`go vet` / `go test -race`、chatbg 图像比对）与 `build`（POC 构建、体积、macOS 透明窗口验证、内存实测；内存实测只报告）。PR 上新提交取消旧 run。
+
+## 重试规则 / Retries
+
+只重试与代码无关的偶发失败，并且**重试过的一定看得见**；两次都失败才算失败。
+
+| 地方                                       | 规则                                                                                                                                                                             |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Go 测试（`apps/desktop-go/ci/go-test.sh`） | 失败的包先重新现场录一次 golden（Node 一侧的时序会录进 golden，只重跑 Go 测试没用），再只重跑这些包一次。重试通过：`::warning::` + job summary 列出测试名；编译 / vet 失败不重试 |
+| 无界面 E2E（`vitest.e2e.config.ts`）       | CI 上重试一次，输出里重试过的用例带 `(retry x1)`                                                                                                                                 |
+| 有界面 E2E（`playwright.config.ts`）       | CI 上重试一次，Playwright 报告标 flaky                                                                                                                                           |
+| 上传产物                                   | 失败等 30 秒再传一次（GitHub 侧的 `ENOTFOUND` 等）                                                                                                                               |
+
+重试后才通过的测试仍要修：看 job summary 的 ⚠️ 段落。发版前本地先跑 `pnpm release:check`（见 [RELEASE.md](../RELEASE.md)）。
+
 `ci.yml` 照常跑共享 TS 包的 quality / e2e 与 Electron 打包；它的 Release 任务只接 ≤ v2.0.4 的 tag。发布流程见 [RELEASE.md](../RELEASE.md)。
 
 ---

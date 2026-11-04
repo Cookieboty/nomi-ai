@@ -139,15 +139,20 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
      refreshes the _Unreleased_ section (CI runs `pnpm changelog:check`); `pnpm changeset:version`
      first turns _Unreleased_ into `## x.y.z — date`, then consumes the changesets.
    - Write the release notes (EN + 中文, same shape as the previous Release body) in `docs/releases/vX.Y.Z.md`; paste it as the GitHub Release body after the tag build finishes.
-2. **Commit** on `main` (or a release PR), wait for CI green on all three platforms.
-3. **Tag and push** (example for 1.0.0 — only when you are ready):
+2. **Run `pnpm release:check`** before pushing the release PR (`scripts/release/check.sh`): changeset /
+   CHANGELOG, i18n, format, typecheck, lint, contract drift, `go vet` under the macOS / Windows / Linux
+   build tags, and the platform-independent parity goldens re-recorded and compared. It runs every
+   step and lists what failed; `--go` also runs `go test`. Full unit tests and E2E stay on CI.
+   推送发版 PR 前先跑 `pnpm release:check`：这些检查以前经常要等 CI 跑完一轮才暴露。
+3. **Commit** on `main` (or a release PR), wait for CI green on all three platforms.
+4. **Tag and push** (example for 1.0.0 — only when you are ready):
 
    ```bash
    git tag -a v1.0.0 -m "Nomi 1.0.0"
    git push origin v1.0.0
    ```
 
-4. **CI** (`.github/workflows/ci.yml` → `build-electron`):
+5. **CI** (`.github/workflows/ci.yml` → `build-electron`):
    - Builds win / mac / linux with signing secrets when present
    - Runs `pnpm --filter @nomi-ai/host-electron run package:publish:{win,mac,linux}` (`--publish always`)
    - Uploads installers + `latest*.yml` / `.blockmap` to a **draft** GitHub Release for that tag
@@ -157,11 +162,11 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
      and marks it latest. If a platform failed, the Release stays a draft: fix and re-run, or
      publish it by hand once the missing files are attached
    - On macOS, runs `scripts/release/check-mac-update.mjs`: the job fails if `latest-mac.yml` does not list both the x64 and arm64 zip, or a listed file is missing or its size / sha512 differ. It prints a warning when the build is unsigned, because Squirrel.Mac rejects unsigned updates
-5. **Verify the Release** page has, at least:
+6. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
    - macOS: for **each** of x64 and arm64 both a `.dmg` (first install) **and** a `-mac.zip` (+ `.blockmap`), plus `latest-mac.yml`. The zip is required: electron-updater's MacUpdater only picks `zip` entries from `latest-mac.yml`, so a Release with only DMGs breaks in-app updates on macOS (`ERR_UPDATER_ZIP_FILE_NOT_FOUND`). Check that `latest-mac.yml` lists both zips
    - Linux: `.AppImage` + `latest-linux.yml`
-6. Install a previous build, open **Settings → General → Updates → Check for updates**, confirm download + consent install.
+7. Install a previous build, open **Settings → General → Updates → Check for updates**, confirm download + consent install.
 
 ### Dry-run without notifying users
 
