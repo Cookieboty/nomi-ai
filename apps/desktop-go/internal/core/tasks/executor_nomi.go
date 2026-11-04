@@ -376,7 +376,7 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 		if elevated {
 			conns = append(slices.Clone(conns), McpGrantsFor(tools)...)
 		}
-		ctx = e.d.WithBackground(base, t.Grant.Level, ask, conns, a.Cause.Kind == "event", elevated, external)
+		ctx = e.d.WithBackground(base, t.Grant.Level, ask, conns, a.Cause.FromExternalEvent(), elevated, external)
 		if e.d.LiveGrant != nil && e.d.LiveTask != nil {
 			gen := run.gen
 			live := func() (Grant, bool) {

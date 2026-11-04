@@ -116,3 +116,24 @@ func TestRetryBackoff(t *testing.T) {
 		}
 	}
 }
+
+// #250：接着事件执行重试 / 续跑 / 退回的（继承了 eventKey）仍按外部内容审批；新的手动触发不算
+func TestFromExternalEvent(t *testing.T) {
+	k := "evt:1"
+	cases := []struct {
+		c    AttemptCause
+		want bool
+	}{
+		{AttemptCause{Kind: "event", EventKey: &k}, true},
+		{AttemptCause{Kind: "retry", EventKey: &k}, true},
+		{AttemptCause{Kind: "resume", EventKey: &k}, true},
+		{AttemptCause{Kind: "rework", EventKey: &k}, true},
+		{AttemptCause{Kind: "manual"}, false},
+		{AttemptCause{Kind: "retry"}, false},
+	}
+	for _, c := range cases {
+		if got := c.c.FromExternalEvent(); got != c.want {
+			t.Fatalf("%+v: got %v", c.c, got)
+		}
+	}
+}

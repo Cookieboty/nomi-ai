@@ -345,7 +345,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	} else {
 		rep.Carrier(*prev.Carrier)
 	}
-	tainted := k == "event"
+	tainted := a.Cause.FromExternalEvent()
 	run := &cliRun{gen: a.Gen, tabID: tabID, ctx: ctx, pending: map[string]bool{}}
 	e.mu.Lock()
 	if p.cancelled || e.preparing[t.ID] != p {

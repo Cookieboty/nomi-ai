@@ -1,6 +1,6 @@
 import { retryBackoffMs } from '../../../src/tasks/errors';
 import { transition, type TaskEvent, type TransitionResult } from '../../../src/tasks/machine';
-import type { Attempt, Task } from '../../../src/tasks/types';
+import { fromExternalEvent, type Attempt, type Task } from '../../../src/tasks/types';
 
 const T0 = 1_800_000_000_000;
 
@@ -309,9 +309,13 @@ describe('tasks/machine', () => {
       r1.attempt,
     ).last;
     expect(r2.attempt!.cause).toMatchObject({ kind: 'resume', eventKey: 'evt:1' });
+    // 重试 / 续跑仍带着那批外部内容：审批照样按外部内容来（#250）
+    expect(fromExternalEvent(r1.attempt!.cause)).toBe(true);
+    expect(fromExternalEvent(r2.attempt!.cause)).toBe(true);
     // 新的一次手动触发不串批
     const r3 = run(mkTask(), [trig(), slot()]).last;
     expect(r3.attempt!.cause.eventKey).toBeUndefined();
+    expect(fromExternalEvent(r3.attempt!.cause)).toBe(false);
   });
 
   describe('代次与晚到结果（§5.3）', () => {

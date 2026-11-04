@@ -15,7 +15,7 @@ import { classifyCommand } from '../../desktop/commandClass';
 import { configText } from '../card';
 import type { SourceEvent } from '../events/types';
 import type { AttemptContext, TaskExecutor } from '../TaskRuntime';
-import type { Task } from '../types';
+import { fromExternalEvent, type Task } from '../types';
 
 import { classifyError, eventsSection } from './nomi';
 
@@ -233,7 +233,7 @@ export function createCliExecutor(d: CliExecutorDeps): TaskExecutor {
           if (preparing.get(task.id) === prep) preparing.delete(task.id);
         }
         const id = tabId!;
-        const tainted = attempt.cause.kind === 'event';
+        const tainted = fromExternalEvent(attempt.cause);
         const run: Run = {
           gen: attempt.gen,
           tabId: id,
