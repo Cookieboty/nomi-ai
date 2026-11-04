@@ -1,25 +1,16 @@
 /**
- * 供应商编辑里的模型面板（右栏）：搜索、按启用状态筛选、批量启用 / 停用当前筛选出来的模型、
- * 「刷新」重新列出、手动添加。列表可能有几百行：行组件是 memo，回调由调用方保持引用稳定。
+ * 供应商编辑里的模型列表：搜索、按启用状态筛选、批量启用 / 停用当前筛选出来的模型、
+ * 「刷新」重新列出、手动添加；点一行在右侧（ModelDetailPanel）看和改它的设置。
+ * 列表可能有几百行：行组件是 memo，回调由调用方保持引用稳定。
  */
-import {
-  Button,
-  Checkbox,
-  formatContext,
-  Icon,
-  IconButton,
-  Input,
-  Select,
-  t,
-  useLocale,
-} from '@nomi-ai/ui';
-import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Button, Checkbox, formatContext, Icon, Input, Select, t, useLocale } from '@nomi-ai/ui';
+import { ChevronRight, Loader2, Plus, RefreshCw } from 'lucide-react';
 import React, { memo, useMemo, useState } from 'react';
 
 import type { GatewayModel } from '../../services/gatewayClient';
 
 import styles from './index.module.css';
-import { metaSourceLabel } from './ModelLimitsGroups';
+import { metaSourceLabel } from './ModelDetailPanel';
 
 /** 模型的能力标签：上下文按主进程算出的生效值显示，悬停看来源 */
 const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
@@ -28,6 +19,7 @@ const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
   const unknown = eff ? eff.source === 'default' : m.metaSource === 'default';
   return (
     <>
+      {m.like && <span className={styles.badgeSoft}>→ {m.like}</span>}
       {(eff?.reasoning ?? m.reasoning) && (
         <span className={styles.badgeSoft}>{t('ui.models.reasoning')}</span>
       )}
@@ -45,7 +37,7 @@ const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
       {m.toolCalling === false && (
         <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
       )}
-      {unknown && (
+      {unknown && !m.like && (
         <span className={styles.badgeMuted} title={t('ui.models.limits-unknown-hint')}>
           {t('ui.models.limits-unknown')}
         </span>
@@ -58,38 +50,43 @@ const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
 const ModelRow = memo(function ModelRow({
   m,
   readOnly,
+  selected,
   onSet,
-  onRemove,
+  onSelect,
 }: {
   m: GatewayModel;
   readOnly: boolean;
+  selected: boolean;
   onSet: (id: string, x: Partial<GatewayModel>) => void;
-  onRemove: (id: string) => void;
+  onSelect: (id: string) => void;
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   return (
-    <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
-      <label className={styles.modelCheck}>
-        <Checkbox
-          disabled={readOnly}
-          checked={m.enabled}
-          onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
-        />
+    <div
+      className={styles.modelRow}
+      data-selected={selected ? '' : undefined}
+      data-testid={`pd-model-${m.id}`}
+    >
+      <Checkbox
+        disabled={readOnly}
+        checked={m.enabled}
+        onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
+        aria-label={t('ui.foundation.enable', m.id)}
+      />
+      <button
+        type="button"
+        className={styles.modelPick}
+        aria-pressed={selected}
+        onClick={() => onSelect(m.id)}
+        data-testid={`pd-model-open-${m.id}`}
+      >
         <span className={styles.modelName} title={m.id}>
           {m.label ?? m.id}
         </span>
-      </label>
-      <ModelBadges m={m} />
-      {!readOnly && (
-        <IconButton
-          size="sm"
-          className={styles.rowEnd}
-          label={t('ui.models.remove-model', m.id)}
-          icon={<Icon icon={Trash2} size={14} />}
-          onClick={() => onRemove(m.id)}
-        />
-      )}
+        <ModelBadges m={m} />
+        <Icon icon={ChevronRight} size={14} className={styles.rowEnd} />
+      </button>
     </div>
   );
 });
@@ -106,8 +103,10 @@ export const ProviderModelsPanel: React.FC<{
   onRefresh: () => void;
   onSet: (id: string, x: Partial<GatewayModel>) => void;
   onSetMany: (ids: ReadonlySet<string>, enabled: boolean) => void;
-  onRemove: (id: string) => void;
   onAdd: (id: string) => void;
+  /** 右侧正在看的模型 */
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }> = ({
   models,
   readOnly,
@@ -117,8 +116,9 @@ export const ProviderModelsPanel: React.FC<{
   onRefresh,
   onSet,
   onSetMany,
-  onRemove,
   onAdd,
+  selectedId,
+  onSelect,
 }) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -138,6 +138,7 @@ export const ProviderModelsPanel: React.FC<{
     const id = text.trim();
     if (!id) return;
     onAdd(id);
+    onSelect(id);
     setText('');
   };
 
@@ -221,7 +222,14 @@ export const ProviderModelsPanel: React.FC<{
       </div>
       <div className={styles.modelList}>
         {shown.map((m) => (
-          <ModelRow key={m.id} m={m} readOnly={readOnly} onSet={onSet} onRemove={onRemove} />
+          <ModelRow
+            key={m.id}
+            m={m}
+            readOnly={readOnly}
+            selected={m.id === selectedId}
+            onSet={onSet}
+            onSelect={onSelect}
+          />
         ))}
         {!shown.length && (
           <span className={styles.modelEmpty}>

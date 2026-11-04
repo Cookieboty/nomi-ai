@@ -328,7 +328,12 @@ export const gatewayClient = {
   /** 内置模型目录（进程内只拉一次；旧主进程没有这个过程时为空列表） */
   catalogModels: (): Promise<CatalogModel[]> =>
     (catalogCache ??= call<CatalogModel[]>(() => api.gateway.catalogModels())
-      .then((r) => (Array.isArray(r) ? r : []))
+      .then((r) => {
+        const list = Array.isArray(r) ? r : [];
+        // 空的（旧主进程 / 还没就绪）不缓存，下次再拉
+        if (!list.length) catalogCache = null;
+        return list;
+      })
       .catch(() => {
         catalogCache = null;
         return [];

@@ -796,11 +796,14 @@ describe('ModelsPage', () => {
     expect(astra.textContent).toContain('推理');
     expect(within(dlg).getByTestId('pd-model-acme/mystery').textContent).toContain('参数未知');
 
-    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    // 默认在右侧打开第一个启用的模型
     const ctx = within(dlg).getByTestId('pd-model-ctx-openai/gpt-6-astra') as HTMLInputElement;
     // 自动取值显示在占位里，输入框本身是空的
     expect(ctx.value).toBe('');
     expect(ctx.placeholder).toContain('内置模型目录');
+    // 点另一个模型：右侧换成它的设置
+    fireEvent.click(within(dlg).getByTestId('pd-model-open-acme/mystery'));
+    expect(within(dlg).queryByTestId('pd-model-ctx-openai/gpt-6-astra')).toBeNull();
     fireEvent.change(within(dlg).getByTestId('pd-model-ctx-acme/mystery'), {
       target: { value: '400000' },
     });
@@ -855,8 +858,9 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
-    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    fireEvent.click(within(dlg).getByTestId('pd-model-open-openai/gpt-5.2'));
     expect(within(dlg).queryByTestId('pd-model-long-openai/gpt-5.2')).toBeNull();
+    fireEvent.click(within(dlg).getByTestId('pd-model-open-openai/gpt-6.1-sol'));
     const sw = within(dlg).getByTestId('pd-model-long-openai/gpt-6.1-sol');
     expect(sw.closest('div')?.textContent).toContain('标准 272K · 长上下文 922K');
     fireEvent.click(sw);
@@ -867,6 +871,49 @@ describe('ModelsPage', () => {
       enabled: true,
       longContext: true,
     });
+  });
+
+  it('model settings on the right: treat as a known model, standard window, upstream name, remove', async () => {
+    const m = fakeMain({
+      extra: {
+        'gateway.catalogModels': () => [
+          { id: 'claude-opus-4-8', family: 'claude-opus', context: 1_000_000 },
+        ],
+      },
+    });
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'Aerith-opus-5.5', enabled: true },
+          { id: 'spare', enabled: true },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const like = within(dlg).getByTestId('pd-model-like-Aerith-opus-5.5');
+    await waitFor(() => expect(like.querySelectorAll('option').length).toBeGreaterThan(1));
+    fireEvent.change(like, { target: { value: 'claude-opus-4-8' } });
+    fireEvent.change(within(dlg).getByTestId('pd-model-standard-Aerith-opus-5.5'), {
+      target: { value: '200000' },
+    });
+    fireEvent.change(within(dlg).getByTestId('pd-model-upstream-Aerith-opus-5.5'), {
+      target: { value: 'opus-real' },
+    });
+    // 列表行上显示按哪个模型处理
+    expect(within(dlg).getByTestId('pd-model-Aerith-opus-5.5').textContent).toContain(
+      'claude-opus-4-8',
+    );
+    fireEvent.click(within(dlg).getByTestId('pd-model-open-spare'));
+    fireEvent.click(within(dlg).getByTestId('pd-model-remove-spare'));
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.models).toEqual([
+      { id: 'Aerith-opus-5.5', enabled: true, like: 'claude-opus-4-8', ctxStandard: 200_000 },
+    ]);
+    expect(payload.modelMap).toEqual([{ from: 'Aerith-opus-5.5', to: 'opus-real' }]);
   });
 
   it('provider order: drag a row onto another, or Alt+arrows on the grip; env providers are not sortable', async () => {
@@ -935,7 +982,7 @@ describe('ModelsPage', () => {
     expect(upserts(m)[0]).not.toHaveProperty('fallback');
   });
 
-  it('advanced: URLs (empty turns a protocol off), re-detect, wires, model map, headers, UA', async () => {
+  it('URLs (removing turns a protocol off), re-detect, wires, model map, headers, UA', async () => {
     const m = fakeMain({
       detect: () => ({ wires: {}, byKey: {}, models: [], urls: {} }),
     });
@@ -949,12 +996,12 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
+    // 协议地址直接列出（只列填了的），其余在「添加协议地址」里
+    expect(within(dlg).getByTestId('pd-url-chat')).toBeTruthy();
+    expect(within(dlg).queryByTestId('pd-url-responses')).toBeNull();
+    fireEvent.click(within(dlg).getByTestId('pd-url-remove-chat'));
     expect(within(dlg).queryByTestId('pd-url-chat')).toBeNull();
-    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
-    expect(within(dlg).getByTestId('pd-advanced-toggle').getAttribute('aria-expanded')).toBe(
-      'true',
-    );
-    fireEvent.change(within(dlg).getByTestId('pd-url-chat'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-url-add'), { target: { value: 'responses' } });
     fireEvent.change(within(dlg).getByTestId('pd-url-responses'), {
       target: { value: 'https://api.moonshot.cn/v1' },
     });
@@ -971,8 +1018,12 @@ describe('ModelsPage', () => {
         gemini: '',
       },
     });
+    // 模型的限定协议在右侧这个模型的设置里；Key 的在它自己的「设置」里
     fireEvent.click(within(dlg).getByTestId('pd-model-wire-kimi-k3-responses'));
+    fireEvent.click(within(dlg).getByTestId('pd-key-settings-k0'));
     fireEvent.change(within(dlg).getByTestId('pd-key-wire-k0'), { target: { value: 'messages' } });
+    // 列表里没有的模型名的映射、请求头、User-Agent 在「更多设置」里
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
     fireEvent.change(within(dlg).getByTestId('pd-map-b-0'), { target: { value: 'kimi-k3' } });
     fireEvent.click(within(dlg).getByTestId('pd-map-add'));
     fireEvent.change(within(dlg).getByTestId('pd-map-a-1'), { target: { value: 'half-filled' } });
@@ -1058,7 +1109,9 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
-    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    // 限流在每个 Key 自己的「设置」里
+    fireEvent.click(within(dlg).getByTestId('pd-key-settings-k0'));
+    fireEvent.click(within(dlg).getByTestId('pd-key-settings-k1'));
     expect((within(dlg).getByTestId('pd-key-rpm-k0') as HTMLInputElement).value).toBe('60');
     fireEvent.change(within(dlg).getByTestId('pd-key-rpm-k0'), { target: { value: '' } });
     fireEvent.change(within(dlg).getByTestId('pd-key-conc-k1'), { target: { value: '2' } });
