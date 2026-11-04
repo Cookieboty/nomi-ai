@@ -1,6 +1,7 @@
 package probe
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -39,7 +41,10 @@ func TestDetectFallsBackToAnotherModel(t *testing.T) {
 		Keys:                []Key{{ID: "k", Value: "sk-test"}},
 		FetchImpl:           fetch,
 		AllowedPrivateHosts: nil,
-		LookupAll:           nil,
+		// 不走真实 DNS：Windows CI 上 relay.example.test 解析失败，模型列表都拿不到
+		LookupAll: func(context.Context, string) ([]net.LookupAddress, error) {
+			return []net.LookupAddress{{Address: "93.184.216.34", Family: 4}}, nil
+		},
 	})
 	wires := r.Get("wires").(*u.Obj)
 	res := wires.Get("responses").(*u.Obj)

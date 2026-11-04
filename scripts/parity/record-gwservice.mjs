@@ -37,6 +37,10 @@ syncBuiltinESMExports();
 const { GatewayService } = await imp(
   'apps/desktop-electron/internal/core/src/gateway/GatewayService.ts',
 );
+// 界面编辑走异步落盘（GatewayStore.saveAsync）：快照文件前等写队列清空，否则 Windows 上会录到半截的 .tmp。
+// 模块可能被加载成多份，每份都登记在 globalThis.__nomiPrivateWritesIdle 上
+const whenPrivateWritesIdle = () =>
+  Promise.all([...(globalThis.__nomiPrivateWritesIdle ?? [])].map((f) => f()));
 
 const enc = (p) => Buffer.from('ss:' + p).toString('base64');
 const dec = (s) => {
@@ -133,6 +137,7 @@ async function scenario(name, ops) {
     steps.push(clean(rec, ud));
   }
   s.dispose();
+  await whenPrivateWritesIdle();
   await new Promise((r) => setTimeout(r, 50));
   scenarios.push({ name, steps, files: tree(ud) });
 }

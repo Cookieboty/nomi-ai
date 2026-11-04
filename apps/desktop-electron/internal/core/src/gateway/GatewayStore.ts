@@ -133,15 +133,20 @@ export class GatewayStore {
    * 异步落盘：界面编辑与 Key 状态这类运行中的保存用。Windows 上文件被杀软 / 索引器短暂占用时
    * 退避重试不挡主进程（#154）；内容在调用时就定下，同一文件按调用顺序写，退出前会等写完。
    * 内存里的数据是准的，写失败只记日志，下次保存再写。
+   * 目录同步建好、写入当场入队：先异步 mkdir 再入队的话，几次保存的 mkdir 完成顺序不定，
+   * 旧内容可能排到新内容后面覆盖它，入队前的空档里 whenPrivateWritesIdle 也等不到它。
    */
   saveAsync(): Promise<void> {
     const data = JSON.stringify(this.data, null, 2);
-    return fs.promises
-      .mkdir(path.dirname(this.d.file), { recursive: true })
-      .then(() => writePrivateFileAtomicAsync(this.d.file, data))
-      .catch((e: unknown) => {
-        this.d.logger?.warn('gateway store save failed', { error: String(e) });
-      });
+    try {
+      fs.mkdirSync(path.dirname(this.d.file), { recursive: true });
+    } catch (e) {
+      this.d.logger?.warn('gateway store save failed', { error: String(e) });
+      return Promise.resolve();
+    }
+    return writePrivateFileAtomicAsync(this.d.file, data).catch((e: unknown) => {
+      this.d.logger?.warn('gateway store save failed', { error: String(e) });
+    });
   }
 
   snapshot(): GatewayStoreData {
