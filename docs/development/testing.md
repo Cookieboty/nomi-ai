@@ -8,7 +8,15 @@
 | 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                                                    | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                                      |
 | 真实应用 E2E | `e2e-headed/tests`                                                             | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                                     |
 
-## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 23 个用例）
+## 视图单测里的异步：等「做完」，不等时间
+
+视图（`packages/ai-chat/tests`）的用例不要用 `await waitFor(() => …)` / `findBy*` 等界面出结果：它们按时间轮询，
+默认 1 秒就放弃，CI 机器一慢就翻车（2.1.2 的 `historySidebar` 在 Windows 上就是这样挂的）。改用
+`tests/helpers/fakeApi.ts` 的 `await untilIdle()`：等假内核没有还没返回的调用、界面也更新完（按轮数判定，不设超时），
+之后同步断言。界面里有延时发请求的（如本机历史挂载 120ms 后才读），用例开 `vi.useFakeTimers()`，`untilIdle`
+每一轮直接执行已排上的定时器。存量用例还有很多 `waitFor`，改到哪个文件就顺手换掉。
+
+## 无界面 E2E（`e2e/`，Vitest，9 个文件 / 26 个用例）
 
 每个用例用 `e2e/helpers/headlessCore.ts` 起一个真实内核：`@nomi-ai/host-node/core` 的 `startHeadlessCore()`（临时目录、
 内存密钥、记录下来的对话框 / 通知 / 窗口调用），视图侧的 `ClientAIClient` 经 in-process 传输连进来（一个连接 = 一个窗口）。
