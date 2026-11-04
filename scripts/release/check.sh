@@ -93,6 +93,9 @@ gotest() {
   vet NOMI_LIVE_GOLDENS="$live" go test ${tags[@]+"${tags[@]}"} -count=1 ./... | grep -vE '^(ok|\?) '
   local st=${PIPESTATUS[0]}
   rm -rf "$live"
+  # record-b7s-guard / record-b7s-aifacade 不认 NOMI_GOLDEN_DIR、直接写提交的 golden（CI 上同样如此，Go 测试比对的就是现场录的）：
+  # 列出被改动的，除随机 id 外的差异说明提交的 golden 过时了，要一起提交
+  git -C "$root" diff --stat -- 'apps/desktop-go/**/testdata/*' | sed 's/^/   recorded over: /'
   return "$st"
 }
 if [ "${1:-}" = --go ]; then
