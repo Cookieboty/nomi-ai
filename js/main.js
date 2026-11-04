@@ -323,14 +323,33 @@
   /* a gentle tilt toward the pointer */
   if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
     var hero = desk.closest(".hero") || desk;
+    /* 每帧最多算一次（pointermove 一帧能来好几次），并且不在每次移动时读布局 */
+    var pending = null, rect = null;
+    hero.addEventListener("pointerenter", function () { rect = desk.getBoundingClientRect(); });
+    window.addEventListener("scroll", function () { rect = null; }, { passive: true });
     hero.addEventListener("pointermove", function (e) {
-      var r = desk.getBoundingClientRect();
-      var x = (e.clientX - (r.left + r.width / 2)) / r.width, y = (e.clientY - (r.top + r.height / 2)) / r.height;
-      desk.style.setProperty("--ry", (x * 6).toFixed(2) + "deg");
-      desk.style.setProperty("--rx", (-y * 5).toFixed(2) + "deg");
+      var first = pending === null;
+      pending = e;
+      if (!first) return;
+      requestAnimationFrame(function () {
+        var ev = pending; pending = null;
+        var r = rect || (rect = desk.getBoundingClientRect());
+        var x = (ev.clientX - (r.left + r.width / 2)) / r.width, y = (ev.clientY - (r.top + r.height / 2)) / r.height;
+        desk.style.setProperty("--ry", (x * 6).toFixed(2) + "deg");
+        desk.style.setProperty("--rx", (-y * 5).toFixed(2) + "deg");
+      });
     });
     hero.addEventListener("pointerleave", function () { desk.style.setProperty("--ry", "0deg"); desk.style.setProperty("--rx", "0deg"); });
   }
+})();
+
+/* 首屏滚出视口时暂停它的循环动画（.is-offscreen，见 styles.css） */
+(function () {
+  var hero = document.querySelector(".hero--stage");
+  if (!hero || !("IntersectionObserver" in window)) return;
+  new IntersectionObserver(function (es) {
+    hero.classList.toggle("is-offscreen", !es[0].isIntersecting);
+  }).observe(hero);
 })();
 
 /* Bento demos only animate while their card is on screen. */
