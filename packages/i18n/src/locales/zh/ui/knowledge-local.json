@@ -151,7 +151,7 @@
   "ui.knowledge-local.open-log-folder": "打开日志文件夹",
   "ui.knowledge-local.open-memory": "打开记忆 ·",
   "ui.knowledge-local.pack-chats-memories-schedules-and-more-into-a": "把聊天、记忆、日程等打包成一个 .zip 文件。",
-  "ui.knowledge-local.pack-your-data-into-a-zip-file-to": "把你的数据打包成一个 .zip 文件，随时带走。API 密钥、CalDAV 密码等敏感信息不会被导出。",
+  "ui.knowledge-local.pack-your-data-into-a-zip-file-to": "把你的数据打包成一个 .zip 文件，随时带走。API 密钥等敏感信息不会被导出。",
   "ui.knowledge-local.packing": "打包中…",
   "ui.knowledge-local.packs-the-last-24-hours-of-logs-into": "把最近 24 小时的日志打成一个 .zip，导出前会再脱敏一遍。诊断包包含对话内容和代码，只发给你信任的人。",
   "ui.knowledge-local.page": " · 第 {0} 页",
