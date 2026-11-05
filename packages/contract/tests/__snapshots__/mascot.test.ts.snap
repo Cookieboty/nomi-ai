@@ -57,6 +57,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 2`] = `
   "character.assetsChanged",
   "mascot.cursor",
   "mascot.body",
+  "mascot.screen",
   "mascot.physicsEvent",
   "mascot.command",
   "avatar.event",
