@@ -27,7 +27,12 @@ func TestLocalImage(t *testing.T) {
 	if err != nil || !strings.HasPrefix(got, "data:image/png;base64,") {
 		t.Fatalf("workspace image: %q %v", got, err)
 	}
-	if _, err := LocalImage("file://"+qr, only); err != nil {
+	// file URL：unix 是 file:///Users/…，Windows 是 file:///C:/…
+	fileURL := filepath.ToSlash(qr)
+	if !strings.HasPrefix(fileURL, "/") {
+		fileURL = "/" + fileURL
+	}
+	if _, err := LocalImage("file://"+fileURL, only); err != nil {
 		t.Fatalf("file:// url: %v", err)
 	}
 	if _, err := LocalImage(fake, only); err == nil {
@@ -45,5 +50,19 @@ func TestLocalImage(t *testing.T) {
 	}
 	if !localImageAllowed(real, only) || localImageAllowed("/etc", none) {
 		t.Fatal("allowed roots")
+	}
+}
+
+func TestLocalImagePathWindowsFileURL(t *testing.T) {
+	if p, ok := LocalImagePath("file:///C:/Users/me/qr.png"); filepath.Separator == '\\' {
+		if !ok || p != `C:\Users\me\qr.png` {
+			t.Fatalf("got %q %v", p, ok)
+		}
+	} else if ok {
+		// 非 Windows：C:/… 不是绝对路径
+		t.Fatalf("unexpected %q", p)
+	}
+	if _, ok := LocalImagePath("file://evil.example/x.png"); ok {
+		t.Fatal("remote host must be refused")
 	}
 }

@@ -33,6 +33,11 @@ func LocalImagePath(src string) (string, bool) {
 			return "", false
 		}
 		s = u.Path
+		// Windows：file:///C:/x/y.png → C:/x/y.png
+		if len(s) >= 3 && s[0] == '/' && s[2] == ':' {
+			s = s[1:]
+		}
+		s = filepath.FromSlash(s)
 	} else if strings.HasPrefix(s, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
