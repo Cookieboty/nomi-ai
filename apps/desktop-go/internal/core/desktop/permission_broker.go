@@ -80,8 +80,10 @@ type PermissionBroker struct {
 	sessionAllowed map[string]bool
 	taint          map[context.Context]bool
 	taintUntil     float64
-	pending        map[string]*pendingConfirm
-	listeners      []*func()
+	// rulesSuspendedUntil：读过外部内容后写过文件 → 命令白名单暂停到这个时间（用户亲手确认一次命令就清零）
+	rulesSuspendedUntil float64
+	pending             map[string]*pendingConfirm
+	listeners           []*func()
 
 	UI                  ConfirmUI
 	PermissionMode      func() PermMode
@@ -468,6 +470,11 @@ func (b *PermissionBroker) IsTainted(signal context.Context) bool {
 }
 
 func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
+	// （前台与后台任务都算）
+	// 读过外部内容的一轮里写了文件：脚本 / 测试 / 构建配置可能被改过，之后的轮次也先不认白名单
+	if i.Danger != "read" && !ReviewedTools[i.Tool] && b.IsTainted(i.Signal) {
+		b.suspendCommandRules()
+	}
 	if run := BackgroundFrom(i.Signal); run != nil && !i.IgnoreMode {
 		return b.authorizeBackground(run, i)
 	}
@@ -478,8 +485,9 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
-	// 命令白名单：用户记过的命令前缀直接执行；这一轮读过外部内容时不认（脚本可能被改过），照常审核 / 确认
-	if rule := b.commandRuleFor(i); rule != "" && !b.IsTainted(i.Signal) {
+	// 命令白名单：用户记过的命令前缀直接执行（跳过 workspace_run 的强制确认）。以下情况不认，照常审核 / 确认：
+	// 这一轮读过外部内容、白名单因污染暂停中、「逐项确认」模式、用户给这个工具显式设了「每次询问」
+	if rule := b.commandRuleFor(i); rule != "" && b.commandRulesApply(i, mode) {
 		return "auto"
 	}
 	var d ConsentDecision
@@ -537,6 +545,12 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		req.Preview = &p
 	}
 	decision, remember, req := b.ask(req, i.Signal)
+	// 用户亲手放行了一条命令：污染导致的白名单暂停到此为止
+	if decision == "allowed" && ReviewedTools[i.Tool] {
+		b.mu.Lock()
+		b.rulesSuspendedUntil = 0
+		b.mu.Unlock()
+	}
 	if decision == "allowed" && remember && req.Rememberable {
 		if req.RememberRule != "" {
 			b.AddCommandRule(req.RememberRule)
@@ -550,6 +564,31 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		return "denied"
 	}
 	return decision
+}
+
+// commandRulesSuspendMs：污染后白名单暂停多久（用户亲手确认一次命令就提前恢复）
+const commandRulesSuspendMs = 24 * 60 * 60 * 1000
+
+func (b *PermissionBroker) suspendCommandRules() {
+	b.mu.Lock()
+	b.rulesSuspendedUntil = b.nowFn() + commandRulesSuspendMs
+	b.mu.Unlock()
+}
+
+// commandRulesApply：这次能不能按白名单直接放行
+func (b *PermissionBroker) commandRulesApply(i AuthorizeInput, mode PermMode) bool {
+	if mode == "manual" || b.IsTainted(i.Signal) {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.nowFn() < b.rulesSuspendedUntil {
+		return false
+	}
+	if raw := b.policyRaw(i.Tool); raw != nil && SanitizePolicy(i.Danger, raw) == "ask" {
+		return false
+	}
+	return true
 }
 
 // commandRuleFor：跑命令的工具、命令命中白名单时返回命中的规则；否则 ""
