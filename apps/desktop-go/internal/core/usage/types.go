@@ -33,6 +33,8 @@ type UsageRecord struct {
 	keys []string
 	// raw：未知字段 + 类型不符的已知字段（JSON.stringify 原样写回）
 	raw map[string]json.RawMessage
+	// ord：在账本里的先后（首次写入的顺序；同 ts 的记录按它排，等同 Map 插入序）
+	ord int64
 }
 
 type PriceTier struct {

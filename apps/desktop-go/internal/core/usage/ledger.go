@@ -191,6 +191,12 @@ type LedgerDeps struct {
 	OnPersistChange  func(degraded bool)
 	SyncLoadMaxBytes *int64
 	OnLoaded         func()
+	// HotDays：热窗口天数（nil = defaultHotDays）
+	HotDays *int
+	// PriceOf：给冷数据算费用合计用的当前价格（nil = 等第一次读时按读者给的价格重算）
+	PriceOf func() PriceOf
+	// OnChanged：冷数据按新价格重算完（读到的费用变了）
+	OnChanged func()
 }
 
 // recMap：保持插入顺序的 Map（JS Map 迭代序）
@@ -400,12 +406,28 @@ type UsageLedger struct {
 	cursorSyncGen     int
 	cursorWriting     bool
 	cursorWriteMu     sync.Mutex
+
+	// 冷数据（ledgercold.go）
+	days        map[int32]*coldDay
+	dayIDs      []int32
+	keys        *coldKeys
+	coldPrune   float64 // 冷数据里早于它的记录已按保留期删除（日文件等压缩时再改）
+	seq         int64   // 下一个 ord
+	lastPriceOf PriceOf
+	rcRunning   bool
+	rcAgain     bool
+	rcWG        sync.WaitGroup
+	oddVer      int
+	oddTs       []float64
+	coldEdits   int
+	idxMu       sync.Mutex
 }
 
 type compactJob struct{ done chan struct{} }
 
 func NewUsageLedger(d LedgerDeps) *UsageLedger {
-	l := &UsageLedger{d: d, recs: newRecMap(), cursors: newCursorMap(), dirty: newOrderedSet(), droppedDuringLoad: newOrderedSet()}
+	l := &UsageLedger{d: d, recs: newRecMap(), cursors: newCursorMap(), dirty: newOrderedSet(), droppedDuringLoad: newOrderedSet(),
+		days: map[int32]*coldDay{}, keys: newColdKeys(), coldPrune: math.Inf(-1)}
 	_ = os.MkdirAll(d.Root, 0o777)
 	l.file = filepath.Join(d.Root, "ledger.jsonl")
 	l.cursorFile = filepath.Join(d.Root, "cursors.json")
@@ -413,12 +435,20 @@ func NewUsageLedger(d LedgerDeps) *UsageLedger {
 	if fi, err := os.Stat(l.file); err == nil {
 		size = fi.Size()
 	}
+	var coldBytes int64
+	if ents, err := os.ReadDir(l.coldDir()); err == nil {
+		for _, e := range ents {
+			if fi, err := e.Info(); err == nil {
+				coldBytes += fi.Size()
+			}
+		}
+	}
 	max := int64(syncLoadMaxBytes)
 	if d.SyncLoadMaxBytes != nil {
 		max = *d.SyncLoadMaxBytes
 	}
 	l.ready = make(chan struct{})
-	if size <= max {
+	if size+coldBytes <= max {
 		close(l.ready)
 		l.mu.Lock()
 		l.loadSync()
@@ -460,13 +490,25 @@ func (l *UsageLedger) loadSync() {
 			l.recs.set(r.Key, r)
 		}
 	}
+	days, ids, keys, seq, ok, dirty := loadDays(l.coldDir(), l.recs, l.priceKeysForBuild(), l.warn)
+	if !ok {
+		l.noCompact = true
+	}
+	l.days, l.dayIDs, l.keys = days, ids, keys
+	if dirty && ok {
+		if b, ok := l.encodeColdIndex(l.coldIndexSnapshot()); ok {
+			l.writeColdIndex(b)
+		}
+	}
+	l.recs.each(func(_ string, r *UsageRecord) bool { r.ord = seq; seq++; return true })
+	l.seq = seq
 	if b, err := os.ReadFile(l.cursorFile); err == nil {
 		if c, ok := parseCursors(b); ok {
 			l.cursors = c
 		}
 	}
 	l.loaded = true
-	if l.lines > 1000 && l.lines > l.recs.size()*2 {
+	if (l.lines > 1000 && l.lines > l.recs.size()*2) || l.needColdWork() {
 		l.compactLocked()
 	}
 }
@@ -539,30 +581,63 @@ func (l *UsageLedger) loadAsync(size int64, g chan struct{}) {
 		}
 	}
 	l.mu.Lock()
+	pk := l.priceKeysForBuild()
+	l.mu.Unlock()
+	cold := &coldLoad{}
+	if !failed {
+		var ok bool
+		cold.days, cold.ids, cold.keys, cold.seq, ok, cold.dirty = loadDays(l.coldDir(), disk, pk, l.warn)
+		failed = !ok
+	}
+	l.mu.Lock()
 	if failed {
 		l.noCompact = true
 		disk.clear()
 		lines = 0
+		cold = &coldLoad{}
 	}
 	if epoch != l.epoch {
 		disk.clear()
 		lines = 0
+		cold = &coldLoad{}
 	}
-	cb := l.adopt(disk, lines, diskCursors)
+	cb := l.adopt(disk, lines, diskCursors, cold)
 	recs := l.recs.size()
 	l.mu.Unlock()
 	if l.d.Logger != nil {
 		l.d.Logger.Info("usage ledger loaded", map[string]any{"records": recs, "lines": lines, "ms": time.Since(t0).Milliseconds()})
+	}
+	if cold.dirty && !failed {
+		l.saveColdIndex()
 	}
 	if cb != nil {
 		cb()
 	}
 }
 
-func (l *UsageLedger) adopt(disk *recMap, lines int, diskCursors *cursorMap) func() {
+// coldLoad：后台载入读到的冷数据
+type coldLoad struct {
+	days  map[int32]*coldDay
+	ids   []int32
+	keys  *coldKeys
+	seq   int64
+	dirty bool
+}
+
+func (l *UsageLedger) adopt(disk *recMap, lines int, diskCursors *cursorMap, cold *coldLoad) func() {
+	if cold.days == nil {
+		cold.days, cold.keys = map[int32]*coldDay{}, newColdKeys()
+	}
+	seq := cold.seq
+	disk.each(func(_ string, r *UsageRecord) bool { r.ord = seq; seq++; return true })
 	l.recs.each(func(k string, r *UsageRecord) bool {
 		prev := disk.get(k)
 		if prev == nil {
+			if _, inCold := cold.keys.get(coldHash(k)); inCold {
+				return true // 冷 key：以日文件里的为准（同 Upsert 对冷 key 的处理）
+			}
+			r.ord = seq
+			seq++
 			disk.set(k, r)
 			return true
 		}
@@ -575,6 +650,7 @@ func (l *UsageLedger) adopt(disk *recMap, lines int, diskCursors *cursorMap) fun
 		return true
 	})
 	l.recs = disk
+	l.days, l.dayIDs, l.keys, l.seq = cold.days, cold.ids, cold.keys, seq
 	l.lines += lines
 	l.sorted = nil
 	l.routeSorted = nil
@@ -604,7 +680,7 @@ func (l *UsageLedger) adopt(disk *recMap, lines int, diskCursors *cursorMap) fun
 		l.pendingPrune = ""
 		pruned = l.pruneLocked(r) > 0
 	}
-	if !pruned && l.lines > 1000 && l.lines > l.recs.size()*2 {
+	if !pruned && ((l.lines > 1000 && l.lines > l.recs.size()*2) || l.needColdWork()) {
 		l.compactLocked()
 	}
 	if l.dirty.size() > 0 || l.cursorDirty {
@@ -618,7 +694,12 @@ func (l *UsageLedger) WhenReady() { <-l.ready }
 
 func (l *UsageLedger) IsLoaded() bool { l.mu.Lock(); defer l.mu.Unlock(); return l.loaded }
 
-func (l *UsageLedger) Size() int { l.mu.Lock(); defer l.mu.Unlock(); return l.recs.size() }
+// Size：记录数（内存里的 + 冷数据里的；冷数据按保留期删掉、还没压缩的那部分也算在内）
+func (l *UsageLedger) Size() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.recs.size() + l.coldSize()
+}
 
 func (l *UsageLedger) Upsert(r *UsageRecord) bool {
 	l.mu.Lock()
@@ -631,7 +712,12 @@ func (l *UsageLedger) Upsert(r *UsageRecord) bool {
 		}
 		r = m
 	} else {
+		if _, cold := l.keys.get(coldHash(r.Key)); cold {
+			return false // 冷 key（早于热窗口、已在日文件里）：只认得、不再合并
+		}
 		r = cloneRec(r)
+		r.ord = l.seq
+		l.seq++
 	}
 	if r.Via == "route" || (prev != nil && prev.Via == "route") {
 		l.routeSorted = nil
@@ -731,9 +817,14 @@ func (l *UsageLedger) Attribute(key string, p AttributePatch) bool {
 func (l *UsageLedger) Has(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.recs.get(key) != nil
+	if l.recs.get(key) != nil {
+		return true
+	}
+	_, ok := l.keys.get(coldHash(key))
+	return ok
 }
 
+// Get：内存里的记录；冷 key 返回 nil（Attribute 同样只改内存里的记录）
 func (l *UsageLedger) Get(key string) *UsageRecord {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -753,37 +844,46 @@ func lowerBound(arr []*UsageRecord, ts float64) int {
 	return lo
 }
 
+// Range：[from, to) 的全部记录（按 (ts, ord)）；涉及冷数据时从日文件读，聚合请用 Rows
 func (l *UsageLedger) Range(from, to float64) []*UsageRecord {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	arr := l.snapshot()
-	out := []*UsageRecord{}
-	for i := lowerBound(arr, from); i < len(arr) && arr[i].Ts < to; i++ {
-		out = append(out, arr[i])
-	}
-	return out
+	return mergeByTs(l.coldRange(from, to), l.hotRange(from, to))
 }
 
 func (l *UsageLedger) LastTs(source string) (float64, bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	arr := l.snapshot()
+	last, found := 0.0, false
 	for i := len(arr) - 1; i >= 0; i-- {
 		if arr[i].Source == source {
-			return arr[i].Ts, true
+			last, found = arr[i].Ts, true
+			break
 		}
 	}
-	return 0, false
+	for _, id := range l.dayIDs {
+		d := l.days[id]
+		if v, ok := d.lastBySrc[source]; ok && v >= l.coldPrune && (!found || v > last) {
+			last, found = v, true
+		}
+	}
+	return last, found
 }
 
+// All：全部记录（冷数据从日文件读；按会话合计等请用 Rows）
 func (l *UsageLedger) All() []*UsageRecord {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return append([]*UsageRecord{}, l.snapshot()...)
+	return l.Range(math.Inf(-1), math.Inf(1))
 }
 
+// sortByTs：按 ts，同 ts 按 ord（写入先后，等同 Map 插入序上的稳定排序）
 func sortByTs(out []*UsageRecord) {
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Ts-out[j].Ts < 0 })
+	sort.SliceStable(out, func(i, j int) bool {
+		if d := out[i].Ts - out[j].Ts; d != 0 {
+			return d < 0
+		}
+		return out[i].ord < out[j].ord
+	})
 }
 
 func (l *UsageLedger) snapshot() []*UsageRecord {
@@ -940,10 +1040,24 @@ func (l *UsageLedger) pruneLocked(retention string) int {
 	}
 	keep, ok := RetentionMs[retention]
 	if !ok || math.IsInf(keep, 0) || math.IsNaN(keep) {
+		if l.needColdWork() {
+			l.compactLocked()
+		}
 		return 0
 	}
 	cutoff := l.now() - keep
 	n := 0
+	if cutoff > l.coldPrune {
+		for _, id := range l.dayIDs {
+			if d := l.days[id]; d.minTs < cutoff && d.maxTs >= l.coldPrune {
+				n++ // 冷天里有要删的：日文件留给压缩改，读时已按 coldPrune 过滤
+			}
+		}
+		l.coldPrune = cutoff
+		if n > 0 {
+			l.ver++
+		}
+	}
 	var del []string
 	l.recs.each(func(k string, r *UsageRecord) bool {
 		if r.Ts < cutoff {
@@ -955,7 +1069,7 @@ func (l *UsageLedger) pruneLocked(retention string) int {
 		l.recs.del(k)
 		n++
 	}
-	if n > 0 {
+	if n > 0 || l.needColdWork() {
 		l.sorted = nil
 		l.routeSorted = nil
 		l.ver++
@@ -975,7 +1089,11 @@ func (l *UsageLedger) Clear() {
 	l.dirty = newOrderedSet()
 	l.appendTainted = false
 	l.lines = 0
+	l.days, l.dayIDs, l.keys, l.coldPrune = map[int32]*coldDay{}, nil, newColdKeys(), math.Inf(-1)
 	if err := WritePrivateFile(l.file, ""); err != nil {
+		l.warn("usage clear failed", err.Error())
+	}
+	if err := os.RemoveAll(l.coldDir()); err != nil {
 		l.warn("usage clear failed", err.Error())
 	}
 }
@@ -1038,6 +1156,15 @@ func (l *UsageLedger) runCompact() {
 		return
 	}
 	epoch := l.epoch
+	l.mu.Unlock()
+	if !l.compactCold(epoch) {
+		return
+	}
+	l.mu.Lock()
+	if l.closed || epoch != l.epoch {
+		l.mu.Unlock()
+		return
+	}
 	snap := append([]*UsageRecord(nil), l.snapshot()...)
 	ledgerTmpSeq++
 	tmp := fmt.Sprintf("%s.%d.%d.tmp", l.file, os.Getpid(), ledgerTmpSeq)
