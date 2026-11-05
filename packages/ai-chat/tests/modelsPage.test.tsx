@@ -16,7 +16,7 @@ import type {
   ProviderView,
 } from '../src/services/gatewayClient';
 
-import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+import { installFakeApi, untilIdle, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
@@ -679,6 +679,88 @@ describe('ModelsPage', () => {
       { value: 'sk-fresh-0000aaaa', position: 0, enabled: true },
       { value: 'sk-pasted_Into_Name_1234567890', position: 1, enabled: true },
     ]);
+  });
+
+  it('re-detect keeps edits made while it runs (#257)', async () => {
+    let release!: (r: DetectResult) => void;
+    const m = fakeMain({ detect: () => new Promise<DetectResult>((res) => (release = res)) });
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'kimi-k3', enabled: true },
+          { id: 'kimi-k3-turbo', enabled: false },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await waitFor(() => expect(m.calls.some(([c]) => c === 'gateway.detect')).toBe(true));
+    // 检测还没返回：改名称、打开一个模型
+    fireEvent.change(within(dlg).getByTestId('provider-detail-name'), {
+      target: { value: 'Kimi 改名' },
+    });
+    fireEvent.click(
+      within(within(dlg).getByTestId('pd-model-kimi-k3-turbo')).getByRole('checkbox'),
+    );
+    release({
+      wires: {
+        messages: { wire: 'messages', url: 'https://api.moonshot.cn/anthropic', ok: true, ms: 3 },
+      },
+      byKey: {},
+      models: ['kimi-k3', 'kimi-k3-turbo', 'kimi-new'],
+      urls: {},
+    });
+    await within(dlg).findByTestId('pd-detect-notice');
+    // 改动都还在，新发现的模型照常合并进来（默认不启用）
+    expect(within(dlg).getByDisplayValue('Kimi 改名')).toBeTruthy();
+    expect(
+      (
+        within(within(dlg).getByTestId('pd-model-kimi-k3-turbo')).getByRole(
+          'checkbox',
+        ) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect(within(dlg).getByTestId('pd-model-kimi-new')).toBeTruthy();
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.name).toBe('Kimi 改名');
+    expect(payload.models.map((x) => [x.id, x.enabled])).toEqual([
+      ['kimi-k3', true],
+      ['kimi-k3-turbo', true],
+      ['kimi-new', false],
+    ]);
+  });
+
+  it('a re-detect that returns after the address changed does not apply to the new address (#257)', async () => {
+    let release!: (r: DetectResult) => void;
+    const m = fakeMain({ detect: () => new Promise<DetectResult>((res) => (release = res)) });
+    m.state.providers = [kimi()];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await waitFor(() => expect(m.calls.some(([c]) => c === 'gateway.detect')).toBe(true));
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    fireEvent.change(within(dlg).getByTestId('pd-url-messages'), {
+      target: { value: 'https://relay.example.com/anthropic' },
+    });
+    release({
+      wires: {
+        messages: { wire: 'messages', url: 'https://api.moonshot.cn/anthropic', ok: true, ms: 3 },
+      },
+      byKey: {},
+      models: ['kimi-k3', 'kimi-old-endpoint-only'],
+      urls: {},
+    });
+    await untilIdle();
+    // 旧地址的结果没有套到新地址上：不出新模型、不提示检测结果，改过的地址仍提示重新检测
+    expect(within(dlg).queryByTestId('pd-model-kimi-old-endpoint-only')).toBeNull();
+    expect(within(dlg).queryByTestId('pd-detect-notice')).toBeNull();
+    expect(within(dlg).getByDisplayValue('https://relay.example.com/anthropic')).toBeTruthy();
+    expect(within(dlg).getByTestId('pd-urls-changed')).toBeTruthy();
   });
 
   it('models: add an id by hand; 刷新 merges newly listed models as disabled', async () => {

@@ -232,6 +232,13 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const [detectedUrls, setDetectedUrls] = useState(() => JSON.stringify(initial.urls));
   const bodyRef = useRef<HTMLDivElement>(null);
   const refocus = useRef<string | null>(null);
+  /** 最新草稿：检测是异步的，返回时要合并进用户在检测期间改过的草稿，而不是发起时的那份（#257） */
+  const latest = useRef(d);
+  useEffect(() => {
+    latest.current = d;
+  }, [d]);
+  /** 检测代次：只有最近一次检测的结果生效，旧检测不改草稿、也不清掉新检测的 busy */
+  const detectGen = useRef(0);
 
   const patch = (x: Partial<Draft>) => setD((cur) => ({ ...cur, ...x }));
   const initialPayload = useMemo(() => JSON.stringify(buildPayload(p, initial)), [p, initial]);
@@ -386,13 +393,18 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
    * 不给 base 时按草稿里逐协议的地址测。返回更新后的草稿（失败 / 取消为 null），保存时接着用。
    */
   const detect = async (opts: { base?: string } = {}): Promise<Draft | null> => {
+    const gen = ++detectGen.current;
+    const stale = () => gen !== detectGen.current;
     setError(null);
     setNotice(null);
     setBusy('detect');
+    // 发起时的草稿：检测按它的地址与 Key 进行，结果只对这些地址有效
+    const start = latest.current;
     try {
       const base = opts.base?.trim();
-      if (!(await confirmPrivate(base ? [base] : urlWires.map((w) => d.urls[w])))) return null;
-      const fresh = d.keys
+      if (!(await confirmPrivate(base ? [base] : urlWires.map((w) => start.urls[w])))) return null;
+      if (stale()) return null;
+      const fresh = start.keys
         .filter((k) => k.enabled)
         .map(freshValue)
         .filter((v): v is string => !!v);
@@ -401,13 +413,25 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         // Base URL：主进程按它推出各协议地址（优先于保存的）；否则逐协议给，空串 = 关掉的协议不测
         ...(base
           ? { url: base }
-          : { urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])) }),
-        savedKeyIds: d.keys
+          : { urls: Object.fromEntries(WIRES.map((w) => [w, start.urls[w].trim()])) }),
+        savedKeyIds: start.keys
           .filter((k) => k.enabled && k.value === undefined && !freshValue(k))
           .map((k) => k.id),
         ...(fresh.length ? { keys: fresh } : {}),
       });
-      const have = new Set(d.models.map((m) => m.id));
+      if (stale()) return null;
+      if (base && !WIRES.some((w) => r.wires[w]?.ok)) {
+        setError(t('ui.models.no-api-is-available'));
+        return null;
+      }
+      // 合并进最新草稿：名称、Key、模型的启用 / like / 手填上限等用户在检测期间的改动一律保留
+      const cur = latest.current;
+      // 检测期间又改了地址：这次结果属于旧地址，不套到新地址上（保存时会按新地址再测）
+      const sameEndpoint = base
+        ? base === cur.baseUrl.trim()
+        : JSON.stringify(cur.urls) === JSON.stringify(start.urls);
+      if (!sameEndpoint) return null;
+      const have = new Set([...start.models, ...cur.models].map((m) => m.id));
       const listed = (id: string) =>
         r.limits?.[id] ? { ...r.limits[id], metaSource: 'listed' as const } : {};
       const added: GatewayModel[] = r.models
@@ -418,24 +442,21 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           ...(NON_CHAT.test(id) ? { toolCalling: false } : {}),
           ...listed(id),
         }));
-      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新（第 3 级）
+      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新
       const refreshed = (m: GatewayModel): GatewayModel =>
         r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
           ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
           : m;
-      if (base && !WIRES.some((w) => r.wires[w]?.ok)) {
-        setError(t('ui.models.no-api-is-available'));
-        return null;
-      }
       const urls = base
         ? (Object.fromEntries(WIRES.map((w) => [w, r.urls[w] ?? ''])) as Draft['urls'])
-        : d.urls;
+        : cur.urls;
       const next: Draft = {
-        ...d,
+        ...cur,
         urls,
-        models: [...d.models.map(refreshed), ...added],
+        models: [...cur.models.map(refreshed), ...added],
         detected: storedProbes(r),
       };
+      latest.current = next;
       setD(next);
       setDetectedUrls(JSON.stringify(urls));
       if (base) {
@@ -450,10 +471,10 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
       setNotice(`${wiresText} · ${modelsText}`);
       return next;
     } catch (e) {
-      setError((e as Error).message);
+      if (!stale()) setError((e as Error).message);
       return null;
     } finally {
-      setBusy(null);
+      if (!stale()) setBusy(null);
     }
   };
   /** Base URL 改了还没检测：回车 / 离开输入框时自动检测 */

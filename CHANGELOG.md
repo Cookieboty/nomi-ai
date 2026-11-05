@@ -319,6 +319,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 光标移出诺米后立刻停住时，窗口会一直保持可点击（离开去抖没有后续事件来结算），现在去抖在无新事件时也会继续结算，透明区域恢复点击穿透；Grok 生成图片的 session 根目录改按 realpath 比较（macOS 下 HOME 经 /var → /private/var 符号链接时图片被误拒）。 (`@nomi-ai/renderer` patch)
 - 应用启动后的第一个 Nomi 对话在回复过程中会显示状态行与用时，不再被当成已完成（显示「重新生成」）。新手引导里填本机 / 局域网地址时，「允许访问吗？」确认框盖在引导页之上，不再卡在「正在检测…」。被拒绝或被拦下的工具调用（工具返回 `ok: false`）在时间线上显示为失败。素材库查看器里删除、下载、在文件夹中显示失败时显示原因（删除失败不再当成已删除）；生成时间按界面语言显示；模型显示为「供应商名称 / 模型」。 (`@nomi-ai/ai-chat` patch)
 - 添加第一个第三方供应商后，Nomi 对话的模型没有自动填上推荐模型（内核的变更通知先于保存结果到达时，添加表单已经收起，跳过了这一步）。/ After adding the first third-party provider, Nomi's chat model is filled in with the recommended model again (it was skipped when the change notification arrived before the save returned). (`@nomi-ai/ai-chat` patch)
+- 编辑第三方供应商时点「重新检测」，检测期间改的名称、Key、模型设置不再在检测返回后被还原；检测期间改了地址时，旧地址的结果不会套到新地址上（#257）。/ Edits made while a provider re-detect runs (name, keys, model settings) are no longer reverted when it returns, and a result for an address you have since changed is not applied to the new address (#257). (`@nomi-ai/ai-chat` patch)
 
 ### Performance
 
