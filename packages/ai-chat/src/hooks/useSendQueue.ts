@@ -53,6 +53,11 @@ export function useSendQueue(
     sendRef.current = send;
     steerRef.current = steer;
   }, [send, steer]);
+  /** 队列代次：resetKey 每变一次（切换会话）加一。交付期间切走过（含 A→B→A），交不出去的消息不再回到队列（#254） */
+  const queueGen = useRef(0);
+  useEffect(() => {
+    queueGen.current += 1;
+  }, [resetKey]);
   /** 已派发但还没观察到进入忙碌态：防止状态更新前重复派发 */
   const inflight = useRef(false);
   /** 正在交付的插入消息（交付期间不重复交） */
@@ -73,11 +78,14 @@ export function useSendQueue(
     const { steer: picked } = takeSteer(itemsRef.current);
     if (!picked.length) return;
     delivering.current = true;
+    const owner = queueGen.current;
     const ids = new Set(picked.map((i) => i.id));
     setItems((cur) => cur.filter((i) => !ids.has(i.id)));
     try {
       const ok = await ch.deliver(mergePending(picked));
-      if (!ok) setItems((cur) => requeue(cur, picked));
+      // 交不出去改为排队，但只在还是原来那个会话时：切走时队列本来就清空（resetKey），
+      // 迟到的失败不能把原会话的消息放进新会话再自动发出去
+      if (!ok && queueGen.current === owner) setItems((cur) => requeue(cur, picked));
     } finally {
       delivering.current = false;
     }
