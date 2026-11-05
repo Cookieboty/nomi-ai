@@ -305,7 +305,19 @@ async function main() {
 
   const llm = await startMockLlm();
   // 系统对话框的预设答案：知识库「加入文件夹」选演示文档；附件选演示图片
-  const dev = await startGoApp({ bin, work, locale: 'zh-CN', pickDir: docsDir, pickFiles: images });
+  const dev = await startGoApp({
+    bin,
+    work,
+    locale: 'zh-CN',
+    pickDir: docsDir,
+    pickFiles: images,
+  }).catch(async (e) => {
+    // 应用没起来：关掉浏览器与模拟模型；--keep 时留下临时目录（含 nomi.log）便于排查
+    await browser.close();
+    await llm.close();
+    if (!args.keep) fs.rmSync(work, { recursive: true, force: true });
+    throw e;
+  });
 
   const context = await browser.newContext({
     viewport: VIEWPORT,

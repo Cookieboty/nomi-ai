@@ -108,8 +108,15 @@ export async function startGoApp({ bin, work, locale = 'zh-CN', pickDir, pickFil
     }
     throw new Error(`[site-shots] Nomi did not answer on ${ctl}; see ${logFile}`);
   };
-  const chatPageUrl = await pageUrl('chat');
-  const mascotPageUrl = await pageUrl('mascot');
+  let chatPageUrl, mascotPageUrl;
+  try {
+    chatPageUrl = await pageUrl('chat');
+    mascotPageUrl = await pageUrl('mascot');
+  } catch (e) {
+    // 起不来（卡住或提前退出）：不留进程
+    if (!exited) child.kill('SIGKILL');
+    throw e;
+  }
 
   return {
     chatPageUrl,
