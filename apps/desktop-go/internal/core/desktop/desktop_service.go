@@ -188,6 +188,9 @@ func (s *Service) mascotHidden() bool {
 	return s.windows != nil && s.windows.MascotHidden != nil && s.windows.MascotHidden()
 }
 
+// MascotHidden：桌面角色已关闭（startup.showMascot = false）；没接窗口时按显示处理
+func (s *Service) MascotHidden() bool { return s.mascotHidden() }
+
 func (s *Service) showMain() {
 	if s.windows.IsVisible != nil && !s.windows.IsVisible() && s.windows.ShowInactive != nil {
 		s.windows.ShowInactive()

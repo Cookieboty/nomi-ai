@@ -22,7 +22,9 @@ var (
 	gateDelegate   = regexp.MustCompile(`编程助手|委派|代码|编程|开发|项目|仓库|bug|修复|报错|测试|重构|部署|需求|审查|调研|网站|网页|应用|插件|功能|实现|claude|codex|grok|gemini|dsh|github|commit|review|research|code|repo|deploy|feature|fix`)
 	// 派出去的事（编程助手或后台的 Nomi）：问进度、要停下时也提供查询 / 停止
 	gateFollow = regexp.MustCompile(`后台|派|委派|任务|进度|好了没|好了吗|做完|做好|停下|停止|别做|不用做|取消|background|task|progress|status|stop|cancel`)
-	gateImage  = regexp.MustCompile(`图|画|照片|相片|海报|头像|壁纸|插画|配图|封面|logo|表情包|生成|chat-asset:|image|picture|photo|draw|paint|illustrat|poster|avatar|wallpaper`)
+	// 持续任务：以后 / 定期 / 某件事发生时再做（宁可多带：漏掉时用户就建不了任务）
+	gateTask  = regexp.MustCompile(`每天|每日|每周|每月|每晚|每早|每隔|每小时|每次|每当|定期|定时|周期|持续|长期|以后|之后|往后|将来|到时|到点|稍后|晚点|回头|过会|待会|一旦|只要|发生|出现|变化|变动|更新|有新|新邮件|跑完|结束后|完成后|盯|监控|监视|关注|跟进|留意|看着|通知我|告诉我|提醒|订阅|自动|任务|ci\b|rss|cron|daily|weekly|monthly|every|whenever|later|monitor|watch|notify|recurring|subscribe|task`)
+	gateImage = regexp.MustCompile(`图|画|照片|相片|海报|头像|壁纸|插画|配图|封面|logo|表情包|生成|chat-asset:|image|picture|photo|draw|paint|illustrat|poster|avatar|wallpaper`)
 )
 
 func said(re *regexp.Regexp) func(tools.Turn) bool {
@@ -36,6 +38,11 @@ func orCwd(re *regexp.Regexp) func(tools.Turn) bool {
 
 // follow：委派的门槛，或对话里问到派出去的事的进度 / 要停下
 func follow(t tools.Turn) bool { return orCwd(gateDelegate)(t) || gateFollow.MatchString(t.ConvoText) }
+
+// tasks：起草持续任务；对话里说到以后 / 定期 / 某事发生时、提醒类时间词，或问到派出去的事时提供
+func tasks(t tools.Turn) bool {
+	return gateTask.MatchString(t.ConvoText) || gateReminder.MatchString(t.ConvoText) || gateFollow.MatchString(t.ConvoText)
+}
 
 // toolGates：工具名 → 这一轮用不用得上；不在表里的总是提供（记忆、知识库、时间、表情动作、技能、MCP…）
 var toolGates = map[string]func(tools.Turn) bool{
@@ -59,6 +66,7 @@ var toolGates = map[string]func(tools.Turn) bool{
 	"fs_search": orCwd(gateFiles), "fs_summarize": orCwd(gateFiles), "fs_write_text": orCwd(gateFiles),
 	"fs_edit": orCwd(gateFiles), "fs_mkdir": orCwd(gateFiles), "fs_copy": orCwd(gateFiles),
 	"fs_move": orCwd(gateFiles), "fs_trash": orCwd(gateFiles),
+	"task_propose": tasks, "task_recall": tasks,
 }
 
 // WithGate：给工具挂上 Relevant（applyToolGates；工具自己写了 Relevant 的不覆盖）

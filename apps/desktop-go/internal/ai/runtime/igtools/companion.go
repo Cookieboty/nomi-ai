@@ -28,8 +28,9 @@ var gestureHints = map[string]string{
 	"yawn": "打哈欠", "stretch": "伸懒腰", "goodnight": "晚安", "hum": "哼歌", "random": "随机",
 }
 
-// CompanionTools = CompanionToolsPlugin(autoConfirm)：dangerous = !autoConfirm（显式声明）
-func CompanionTools(avatar Avatar, autoConfirm bool) []tools.Definition {
+// CompanionTools = CompanionToolsPlugin(autoConfirm)：dangerous = !autoConfirm（显式声明）。
+// available：桌面角色在不在（关掉时这一轮不把手势 / 情绪工具发给模型，省一次只为做动作的往返）；nil = 总是提供
+func CompanionTools(avatar Avatar, autoConfirm bool, available func() bool) []tools.Definition {
 	list := make([]string, len(charcontract.SemanticGestures))
 	for i, g := range charcontract.SemanticGestures {
 		list[i] = g + "（" + gestureHints[g] + "）"
@@ -41,6 +42,7 @@ func CompanionTools(avatar Avatar, autoConfirm bool) []tools.Definition {
 			Description: "让桌面角色做一个手势。name 为语义手势：" + strings.Join(list, "、") + "。" + "当前角色没有对应动作的手势会被忽略。",
 			Input:       schema(gestureSchemaT, "%E", enumJSON(charcontract.SemanticGestures)),
 			Dangerous:   !autoConfirm,
+			Available:   available,
 			Execute: func(_ context.Context, in any, _ tools.ExecContext) (any, error) {
 				o, err := parse(gestureIn, in)
 				if err != nil {
@@ -58,6 +60,7 @@ func CompanionTools(avatar Avatar, autoConfirm bool) []tools.Definition {
 				"（weight 0~1 为强度，数秒后自动恢复）。" + "当前角色没有对应表情的情绪会被忽略。",
 			Input:     schema(emotionSchemaT, "%E", enumJSON(charcontract.SemanticEmotions)),
 			Dangerous: !autoConfirm,
+			Available: available,
 			Execute: func(_ context.Context, in any, _ tools.ExecContext) (any, error) {
 				o, err := parse(emotionIn, in)
 				if err != nil {

@@ -94,7 +94,11 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	image igtools.ImageDeps, ts *tasks.Service, conns *connections.Service) {
 	defs := igtools.BuiltinTools(igtools.Env{})
 	defs = append(defs, igtools.PreferenceTools(profile, igtools.Env{})...)
-	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true)...)
+	var mascotShown func() bool
+	if d != nil {
+		mascotShown = func() bool { return !d.MascotHidden() }
+	}
+	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true, mascotShown)...)
 	if d != nil {
 		defs = append(defs, igtools.DesktopTools(igtools.DeskDepsFor(d, desktopShellEnv))...)
 	}
