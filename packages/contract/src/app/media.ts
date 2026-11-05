@@ -270,8 +270,8 @@ export const mediaProcedures = {
     dangerous: true,
   },
   // 以下桌面角色窗口专用（preload.ts 的 electronAPI.desktop）；主进程还会核对调用方就是桌面角色窗口
-  // 拖到桌面角色身上的文件不在契约里：路径必须由 preload 从真实 File 取得并直接提交（window.nomiHost.dropFile，
-  // 主进程 host/nomiHostIpc.ts），视图代码选不了路径。做成接收路径的过程会让页面里的任意脚本读任意文件。
+  // 拖到桌面角色身上的文件不在契约里：路径由宿主从原生拖放事件里取得并直接提交（Go 宿主 WindowFilesDropped），
+  // 视图代码选不了路径。做成接收路径的过程会让页面里的任意脚本读任意文件。
   'desktop.reminderAction': {
     kind: 'mutation',
     input: z.object({

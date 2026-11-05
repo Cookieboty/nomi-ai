@@ -139,7 +139,7 @@ describe('media 契约', () => {
     expect(p['desktop.reminderAction'].input.safeParse({ id: 'r1', action: 'later' }).success).toBe(
       false,
     );
-    // 视图不能提交路径：拖入文件只经 preload（nomiHost.dropFile）
+    // 视图不能提交路径：拖入文件的路径只由宿主从原生拖放事件里取
     expect(p).not.toHaveProperty('desktop.dropFile');
     expect(p['screen.checkSend'].output.safeParse('ok').success).toBe(true);
     expect(p['screen.checkSend'].output.safeParse('denied').success).toBe(false);

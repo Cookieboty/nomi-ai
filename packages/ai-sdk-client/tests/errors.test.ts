@@ -1,6 +1,6 @@
 /**
  * P9-4 客户端错误恢复测试 —— 确保 IPC 序列化后原型丢失的 Error 能被 `SDKError.fromIpc`
- * 还原成带 code / retryable / hint 的领域错误，与主端 [ai-sdk errors](file:///../../ai-sdk/src/errors.ts) 契约保持一致。
+ * 还原成带 code / retryable / hint 的领域错误，与内核的错误前缀约定保持一致。
  */
 
 import { describe, expect, it } from 'vitest';

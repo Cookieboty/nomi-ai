@@ -1,6 +1,6 @@
 /**
- * WebSocket 传输的视图侧（docs/design/core-host-decoupling.md §5.2、§8）：视图在普通浏览器里运行时
- * 用它连开发态内核（`pnpm dev:web`）；服务端在 `@nomi-ai/host-node`（只监听 127.0.0.1）。
+ * WebSocket 传输的视图侧（docs/design/core-host-decoupling.md §5.2、§8）：视图经它连 Go 内核；
+ * 服务端在 apps/desktop-go/internal/contract（只监听 127.0.0.1）。
  *
  * 握手：浏览器的 WebSocket 不能带自定义头，身份放在子协议里——
  * `[WS_PROTOCOL, 'nomi-token.<token>', 'nomi-surface.<surface>']`。服务端校验 Origin、一次性 token 与界面，

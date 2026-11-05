@@ -26,7 +26,7 @@ const DEV = process.env.NODE_ENV === 'development';
 /**
  * Mascot window → avatar-runtime adapter: waits for the Scheme B overlay so mode / asset URLs are
  * final before first paint, then mounts `AvatarStage` with the window's event hub, the contract
- * window host (click-through / drag; only inside the host's mascot window, not on the dev:web page), the bubble /
+ * window host (click-through / drag; only inside the host's mascot window, not in a browser preview), the bubble /
  * speech handler for interaction output and the semantic reporter (touched / clicked / scene → AI).
  */
 export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {

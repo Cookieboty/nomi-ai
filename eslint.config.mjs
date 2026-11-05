@@ -225,7 +225,7 @@ export default tseslint.config(
           selector:
             'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
           message:
-            '视图不直接访问 preload 全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
+            '视图不访问宿主全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
         },
         {
           selector: 'Identifier[name=/^(aiIPC|electronAPI)$/]',
@@ -234,7 +234,7 @@ export default tseslint.config(
         },
         {
           selector:
-            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|NOMI_DEV_TRANSPORT_GLOBAL|getGlobalBridge|getSharedTransport|installSharedTransport|lazyGlobalTransport|createAppClient|createWebSocketClientTransport|createIpcClientTransport|hasPreloadBridge|installGoHostTransport|installDevTransport)$/]',
+            'ImportSpecifier[imported.name=/^(getSharedTransport|installSharedTransport|createAppClient|createWebSocketClientTransport|installGoHostTransport)$/]',
           message:
             '契约客户端只在 services/api.ts 里建一次、传输只在那里选，其余代码 import { api } from services/api（§11.1）。',
         },

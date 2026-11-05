@@ -3,30 +3,19 @@
  *
  * - `api`：`createAppClient()` 建在窗口共享的契约传输上，与 AIProvider 里的 `ClientAIClient` 共用一个会话；
  *   视图里只有这个文件建客户端，其余代码 `import { api } from '…/services/api'`；
- * - 传输只在这里选：有 preload 桥（`window.nomiTransport`，Electron）就用它；没有桥、且是开发构建并且开发服务器
- *   注入了 `window.nomiDevTransport`（`pnpm dev:web`，只有地址；token 在打印的地址片段里）时，经 WebSocket 连开发态
- *   内核（§5.2、§11.3）。生产构建里
- *   `import.meta.env.DEV` 为 false，这段代码与 WebSocket 传输一起被摇掉；
- * - Go 宿主（apps/desktop-go，Wails 没有 preload）：同一份构建产物，运行时识别——没有 preload 桥、页面地址片段里有
- *   宿主给的 WebSocket 地址与 token（`resolveHostTransport`，只认 127.0.0.1）时经 WebSocket 连 Go 内核，视同在宿主窗口里；
- * - `hasTransport()`：有没有可用的契约传输（浏览器预览 / 测试里为 false，调用方据此退回本地状态）；
- * - `hostPathForFile(file)`：拖入 / 粘贴文件的本机路径（preload 的 `window.nomiHost`，唯一不走契约的宿主能力）；
+ * - 传输只在这里选：Go 宿主（apps/desktop-go，Wails）把回环 WebSocket 地址与 token 放在页面地址片段里
+ *   （`resolveHostTransport`，只认 127.0.0.1），读到就连 Go 内核；
+ * - `hasTransport()` / `isGoHost()`：是不是在 Nomi 的对话窗口里（两者相同；浏览器预览 / 测试里为 false，
+ *   调用方据此退回本地状态）；
+ * - `hostPathForFile(file)`：拖入 / 粘贴文件的本机路径（宿主从原生拖放事件 / 系统剪贴板里拿，按文件名配对）；
  * - `installHostBackends()`：入口最先调用一次，把契约接到共享包（`@nomi-ai/ui`、`@nomi-ai/voice`）
  *   留的注入点上；每个域一个文件（`./hostBackends/<域>.ts`），域代理只改自己的那个。
  *
- * 视图里只有本文件决定走哪条传输（判定函数收口在 `@nomi-ai/ai-sdk-client` 的 hostTransport，两个窗口共用），
- * 也只有本文件读 `window.nomiHost`（eslint 拦下其余位置，见 §11.1）。
+ * 视图里只有本文件决定走哪条传输（判定收口在 `@nomi-ai/ai-sdk-client` 的 hostTransport，两个窗口共用）。
  */
 
-import {
-  createAppClient,
-  hasPreloadBridge,
-  hasTransport as hasAnyTransport,
-  installDevTransport,
-  installGoHostTransport,
-  type AppClient,
-} from '@nomi-ai/ai-sdk-client';
-import { NOMI_HOST_GLOBAL, resolveHostAssetUrl } from '@nomi-ai/contract/app';
+import { createAppClient, installGoHostTransport, type AppClient } from '@nomi-ai/ai-sdk-client';
+import { resolveHostAssetUrl } from '@nomi-ai/contract/app';
 
 import { installCodingBackends } from './hostBackends/coding';
 import { installKnowledgeBackends } from './hostBackends/knowledge';
@@ -36,13 +25,8 @@ import { installShellBackends } from './hostBackends/shell';
 
 export type { AppClient };
 
-// 传输只在这里选（判定收口在 @nomi-ai/ai-sdk-client 的 hostTransport，与桌面角色窗口同一份）：
-// preload 桥（Electron）→ Go 宿主回环 WebSocket（生产也要识别）→ 开发态 WebSocket（仅 DEV 构建，
-// 生产构建里 installDevTransport 随这个分支一起被摇掉）。必须在 createAppClient() 之前。
-const preloadBridge = hasPreloadBridge();
-const goHostTransport = !preloadBridge && installGoHostTransport('chat');
-const devTransport =
-  !preloadBridge && !goHostTransport && import.meta.env.DEV && installDevTransport('chat');
+// 必须在 createAppClient() 之前
+const goHostTransport = installGoHostTransport('chat');
 
 export const api: AppClient = createAppClient();
 
@@ -51,20 +35,13 @@ export function isGoHost(): boolean {
   return goHostTransport;
 }
 
+/** 有没有可用的契约传输（浏览器预览 / 测试里为 false） */
 export function hasTransport(): boolean {
-  return hasAnyTransport({
-    hasPreload: preloadBridge,
-    isGoHost: goHostTransport,
-    isDev: devTransport,
-  });
-}
-
-interface NomiHost {
-  pathForFile(file: File): string;
+  return goHostTransport;
 }
 
 /**
- * Go 宿主：Wails 没有 preload，路径来自原生拖放事件——宿主收到 WindowFilesDropped 后往页面派发
+ * 路径来自原生拖放事件——宿主收到 WindowFilesDropped 后往页面派发
  * `nomi:host-files`（detail = 路径数组），这里按文件名配对。DOM 的 drop 与原生回调谁先到不固定，所以先缓存、取时稍等
  */
 const HOST_FILES_EVENT = 'nomi:host-files';
@@ -184,35 +161,27 @@ function takeHostDropped(name: string): string {
 }
 
 /**
- * 真实 File → 本机绝对路径；浏览器预览 / 测试里没有桥，或文件不在本地（网页拖来的内容）时为空串。
- * Go 宿主：拖入的文件来自原生拖放事件，粘贴的文件来自系统剪贴板（Linux 读不到，没有路径）
+ * 真实 File → 本机绝对路径：拖入的文件来自原生拖放事件，粘贴的文件来自系统剪贴板（Linux 读不到，没有路径）。
+ * 不在 Nomi 窗口里（浏览器预览 / 测试），或文件不在本地（网页拖来的内容）时为空串
  */
 export async function hostPathForFile(file: File): Promise<string> {
-  if (typeof window === 'undefined') return '';
-  if (goHostTransport) {
-    const hit = takeHostDropped(file.name);
-    if (hit) return hit;
-    return new Promise<string>((resolve) => {
-      const done = () => {
-        const p = takeHostDropped(file.name);
-        if (!p) return;
-        hostDropWaiters.delete(done);
-        clearTimeout(timer);
-        resolve(p);
-      };
-      const timer = setTimeout(() => {
-        hostDropWaiters.delete(done);
-        resolve('');
-      }, HOST_FILES_WAIT_MS);
-      hostDropWaiters.add(done);
-    });
-  }
-  const host = (window as unknown as Record<string, NomiHost | undefined>)[NOMI_HOST_GLOBAL];
-  try {
-    return host?.pathForFile(file) ?? '';
-  } catch {
-    return '';
-  }
+  if (typeof window === 'undefined' || !goHostTransport) return '';
+  const hit = takeHostDropped(file.name);
+  if (hit) return hit;
+  return new Promise<string>((resolve) => {
+    const done = () => {
+      const p = takeHostDropped(file.name);
+      if (!p) return;
+      hostDropWaiters.delete(done);
+      clearTimeout(timer);
+      resolve(p);
+    };
+    const timer = setTimeout(() => {
+      hostDropWaiters.delete(done);
+      resolve('');
+    }, HOST_FILES_WAIT_MS);
+    hostDropWaiters.add(done);
+  });
 }
 
 /**

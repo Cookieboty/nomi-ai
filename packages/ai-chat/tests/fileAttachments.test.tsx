@@ -22,14 +22,19 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   }),
 }));
 
-const w = window as unknown as { nomiHost?: unknown };
+// 宿主给的本机路径（Go 宿主从原生拖放事件里拿）：bridge() 之后每个文件都在 /tmp 下
+const host = vi.hoisted(() => ({ on: false }));
+vi.mock('../src/services/api', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  hostPathForFile: async (f: File) => (host.on ? `/tmp/${f.name}` : ''),
+}));
 const bridge = () => {
-  w.nomiHost = { pathForFile: (f: File) => `/tmp/${f.name}` };
+  host.on = true;
 };
 
 afterEach(() => {
   cleanup();
-  delete w.nomiHost;
+  host.on = false;
 });
 
 const att = (over: Partial<FileAttachment>): FileAttachment => ({

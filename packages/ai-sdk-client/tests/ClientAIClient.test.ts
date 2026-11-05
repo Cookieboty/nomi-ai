@@ -1,13 +1,7 @@
-import {
-  createIpcServerTransport,
-  type IpcInvokeEventLike,
-  type IpcMainLike,
-} from '@nomi-ai/contract';
 import { describe, expect, it } from 'vitest';
 
 import { ClientAIClient } from '../src/ClientAIClient';
 import { SDKError, SDKErrorCodes } from '../src/errors';
-import type { IPCBridge } from '../src/IPCBridge';
 
 import { createFakeServer, flush, makeProfile } from './fakeServer';
 
@@ -299,61 +293,5 @@ describe('ClientAIClient · 事件', () => {
     server.publish('ai.tts.end', { reqId: 'late' });
     await flush();
     expect(seen).toEqual([]);
-  });
-});
-
-describe('ClientAIClient · IPC 桥（window.nomiTransport 的形状）', () => {
-  it('bridge 选项经 contract:request / contract:frame 两个通道访问内核', async () => {
-    const server = createFakeServer({ 'ai.sessions.list': () => [session] });
-    // 模拟 ipcMain + preload：一条渲染窗口连接
-    let handler: ((e: IpcInvokeEventLike, ...a: unknown[]) => unknown) | undefined;
-    const frameListeners = new Set<(p: unknown) => void>();
-    const ipcMain: IpcMainLike = {
-      handle: (_ch, h) => {
-        handler = h;
-      },
-      removeHandler: () => {
-        handler = undefined;
-      },
-    };
-    const transport = createIpcServerTransport(ipcMain, {
-      resolveCaller: () => ({ surface: 'chat', trusted: true }),
-    });
-    transport.serve(server.router);
-    const channels: string[] = [];
-    const bridge: IPCBridge = {
-      invoke: async <T>(channel: string, ...args: unknown[]) => {
-        channels.push(channel);
-        const event: IpcInvokeEventLike = {
-          senderId: 1,
-          send: (_ch, payload) => queueMicrotask(() => frameListeners.forEach((f) => f(payload))),
-        };
-        return handler!(event, ...args) as T;
-      },
-      on: (channel, fn) => {
-        channels.push(channel);
-        frameListeners.add(fn as (p: unknown) => void);
-        return () => frameListeners.delete(fn as (p: unknown) => void);
-      },
-    };
-    const client = new ClientAIClient({ bridge });
-    await expect((client.sessions as { list: () => Promise<unknown> }).list()).resolves.toEqual([
-      session,
-    ]);
-    expect(new Set(channels)).toEqual(new Set(['contract:request', 'contract:frame']));
-  });
-
-  it('默认读 window.nomiTransport：用到时才读，缺失时调用以 BRIDGE_MISSING 失败、订阅不生效', async () => {
-    const client = new ClientAIClient();
-    expect(() => client.on('agent:step', () => undefined)).not.toThrow();
-    const sessions = client.sessions as { list: () => Promise<unknown> };
-    await expect(sessions.list()).rejects.toMatchObject({
-      code: SDKErrorCodes.BRIDGE_MISSING,
-      message: expect.stringContaining('nomiTransport'),
-    });
-    const stream = (client.chat as { stream: StreamFn }).stream({ messages: [] });
-    await expect(stream[Symbol.asyncIterator]().next()).rejects.toMatchObject({
-      code: SDKErrorCodes.BRIDGE_MISSING,
-    });
   });
 });
