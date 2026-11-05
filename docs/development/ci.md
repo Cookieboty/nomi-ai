@@ -24,10 +24,10 @@
 
 ## Go workflows
 
-| Workflow                 | 触发                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| `desktop-go.yml`         | push `main`；PR → `main`（改到 `apps/desktop-go`、`packages`、契约生成脚本时） |
-| `desktop-go-package.yml` | PR 带 `ci:full`；push tag `v*`（≥ v2.0.5，不重跑测试）；手动                   |
+| Workflow                 | 触发                                                                                                              |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `desktop-go.yml`         | push `main`；PR → `main`（改到 `apps/desktop-go`、`packages`、`characters`、契约生成脚本、`scripts/mock-cli` 时） |
+| `desktop-go-package.yml` | PR 带 `ci:full`；push tag `v*`（≥ v2.0.5，不重跑测试）；手动                                                      |
 
 `desktop-go.yml` 分成两个并行 job：`test`（契约漂移检查、`go vet` / `go test -race`）与 `build`（构建、体积、macOS 透明窗口验证、内存实测；内存实测只报告）。PR 上新提交取消旧 run。
 

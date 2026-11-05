@@ -13,6 +13,9 @@ on:
       # 视图（packages/renderer、ai-chat）与契约内嵌进 Go 程序
       - 'packages/**'
       - 'scripts/go-contract/**'
+      # Go 测试用的假 CLI；build 任务构建的视图里打包了角色包
+      - 'scripts/mock-cli/**'
+      - 'characters/**'
       - '.github/workflows/desktop-go.yml'
 permissions:
   contents: read
