@@ -22,6 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
@@ -163,7 +164,7 @@ func TestSchedule(t *testing.T) {
 // 每个提示词文件都有代码在用；跟着语言走的中英文成对
 func TestPromptFilesUsed(t *testing.T) {
 	var src strings.Builder
-	root := filepath.Join("..", "..", "..")
+	root := repotest.RepoPath("apps", "desktop-go", "internal")
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".go") && !strings.HasSuffix(p, "_test.go") {
 			b, _ := os.ReadFile(p)
