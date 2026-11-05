@@ -1,6 +1,6 @@
 package cli
 
-// SessionHistoryService = apps/desktop-electron/internal/core/src/cli/SessionHistoryService.ts（1:1 移植）。
+// SessionHistoryService：
 // 编程助手历史会话（读本机磁盘）：Claude / Codex / dsh / Gemini / Grok 的会话文件扫描、
 // 增量解析、分页、读转录、打开（交给标签层续接）、删除（移到废纸篓）。
 
@@ -90,8 +90,10 @@ type SessionHistoryDeps struct {
 	Env                       *util.Obj
 	Logger                    interface{ Warn(m string, d ...any) }
 	OpenKeys                  func() map[string]bool
-	OpenTitle                 func(backend, sessionID, title string)
-	// OpenTab 的参数按 Node 的键顺序组装成对象。
+	// Hidden：Nomi 委派用过的会话（只在 Nomi 里看，不进历史）；可空
+	Hidden    func(backend, sessionID string) bool
+	OpenTitle func(backend, sessionID, title string)
+	// OpenTab 的参数按固定键顺序组装成对象。
 	OpenTab        func(o *util.Obj) HistoryOpenTabResult
 	SessionModel   func(backend, sessionID string) string
 	GatewaySession func(backend, sessionID string) bool
@@ -269,7 +271,7 @@ func shReadTailText(p string, n int64) (string, bool, error) {
 
 var errZstdTooLarge = errors.New("Cannot create a Buffer larger than the maximum size")
 
-// ZstdDecode = zstdDecode：先用内置解码（klauspost/compress，对应 Node 自带 zlib.zstdDecompress），
+// ZstdDecode：先用内置解码（klauspost/compress），
 // 失败时退回外部 `zstd -dc`；超过上限直接失败。
 func ZstdDecode(buf []byte, maxBytes int) (string, error) {
 	dec, err := zstd.NewReader(nil, zstd.WithDecoderMaxMemory(uint64(maxBytes)), zstd.WithDecoderConcurrency(1))
@@ -719,6 +721,9 @@ func (s *SessionHistoryService) page(backend string, o HistoryPageOpts, cheap bo
 			}
 			key, _ := m.Get("key").(string)
 			sid, _ := m.Get("sessionId").(string)
+			if s.d.Hidden != nil && s.d.Hidden(backend, sid) {
+				continue
+			}
 			if open[key] {
 				if s.d.OpenTitle != nil {
 					t, _ := m.Get("title").(string)

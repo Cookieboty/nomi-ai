@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// VolcResources = VOLC_RESOURCES（设置仍接受；豆包引擎本身不在 Go 版：D-B9-1）
+// VolcResources：豆包资源 id
 var VolcResources = []string{"volc.seedasr.sauc.duration", "volc.seedasr.sauc.concurrent"}
 
 const VolcTargetID = "volc:openspeech.bytedance.com"
@@ -53,7 +53,7 @@ func nz(f float64) float64 {
 	return f
 }
 
-// Obj：键序同 Node 对象字面量
+// Obj：键序固定
 func (s Settings) Obj() *util.Obj {
 	acked := make([]any, len(s.CloudAcked))
 	for i, a := range s.CloudAcked {

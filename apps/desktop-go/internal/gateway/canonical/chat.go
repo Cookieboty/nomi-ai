@@ -1,4 +1,4 @@
-// Package canonical mirrors apps/desktop-electron/internal/gateway/src/canonical: it rewrites
+// Package canonical rewrites
 // non-standard upstream chunks into the canonical shape before decoding.
 package canonical
 

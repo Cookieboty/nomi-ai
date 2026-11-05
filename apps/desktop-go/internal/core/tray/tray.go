@@ -1,4 +1,4 @@
-// Package tray = apps/desktop-electron/src/core/TrayManager.ts 的菜单部分：一键切换 Nomi 对话的模型、打开对话 /
+// Package tray：托盘菜单：一键切换 Nomi 对话的模型、打开对话 /
 // 模型设置 / 桌面能力、角色动作、互动设置、退出。菜单由统一网关状态生成，变化（模型 / 语言 / 角色）即重建。
 // 只产出菜单模型（shell.MenuItem），渲染在外壳。
 package tray
@@ -134,7 +134,7 @@ func GatewayMenuEntries(v View, t Translate) []Entry {
 	return out
 }
 
-// Motions = TRAY_MOTIONS：语义手势（§10.5）→ 菜单文案
+// Motions = TRAY_MOTIONS：语义手势→ 菜单文案
 var Motions = [][2]string{
 	{"wave", "electron.common.wave"},
 	{"nod", "electron.common.nod"},

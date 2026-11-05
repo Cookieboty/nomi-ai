@@ -17,11 +17,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DesktopService.ts：桌面能力的总装（授权、审计、撤销、回收站、提醒、拖入总结）
+// DesktopService：桌面能力的总装（授权、审计、撤销、回收站、提醒、拖入总结）
 
 type Role = string // chat | agent-tools | summary
 
-// Emitter 应用事件总线；surface 非空表示只发给该窗口（D-B6-12：Go 路由暂按订阅广播）
 // Emitter 推送事件（surface 非空时只发给该窗口），返回是否有订阅者收到
 type Emitter func(event string, payload any, surface string) bool
 
@@ -30,14 +29,14 @@ type RuntimeProvider struct {
 	ID, Name, BaseURL, Model string
 }
 
-// RuntimeHooks 对应 DesktopRuntimeHooks
+// RuntimeHooks：运行时钩子
 type RuntimeHooks struct {
 	Complete        func(messages []map[string]string, role Role) (string, error)
 	ResolveProvider func(role Role) *RuntimeProvider
 	LookupProvider  func(id string) *RuntimeProvider
 }
 
-// Windows 对应 DesktopWindows（Main=桌面角色窗口是否存在）
+// Windows：窗口状态（Main=桌面角色窗口是否存在）
 type Windows struct {
 	Main          func() bool
 	IsVisible     func() bool
@@ -51,13 +50,13 @@ type Windows struct {
 	Island   func(n IslandNotice) bool
 }
 
-// Ports 对应 DesktopPorts 中用到的部分
+// Ports：用到的宿主端口
 type Ports struct {
 	Home             string
 	PickDirectory    func(title, buttonLabel, defaultPath string) string
 	NotifySupported  func() bool
 	ShowNotification func(title, body string, onClick func())
-	// ClipboardRead / ClipboardWrite = ports.clipboard（desktop.tools() 的 clipboard_*）
+	// ClipboardRead / ClipboardWrite：剪贴板（desktop.tools() 的 clipboard_*）
 	ClipboardRead  func() (string, error)
 	ClipboardWrite func(text string) error
 }
@@ -67,7 +66,7 @@ type NotifyPolicy interface {
 	QuietEndsAt() float64
 }
 
-// DesktopNotice 对应 DesktopNotice
+// DesktopNotice：桌面通知
 type DesktopNotice struct {
 	Kind, Title, Text, Body, Status, Endpoint string
 	Passive                                   bool
@@ -114,7 +113,7 @@ const PendingEventTTLMs = 60_000
 
 func realpathFor() func(string) (string, error) { return RealpathNative }
 
-// NewService 对应 new DesktopService(root, logger, opts)
+// NewService：new DesktopService(root, logger, opts)
 func NewService(root string, ports Ports, emit Emitter, denyRoots []string) *Service {
 	if emit == nil {
 		emit = func(string, any, string) bool { return false }
@@ -129,7 +128,7 @@ func NewService(root string, ports Ports, emit Emitter, denyRoots []string) *Ser
 	s.Reminders = reminders.New(filepath.Join(root, "reminders.json"), nil, nil)
 	s.Reminders.OnFire = func(r reminders.Reminder) { s.fireReminder(r) }
 	s.Reminders.OnChange(func() { s.broadcast("desktop.p2Changed", map[string]string{"kind": "reminders"}) })
-	// Node 在 createP2Tools 里注册；Go 版工具层未落地，先在这里注册（D-B6-11）
+	// 提醒的撤销在这里注册
 	s.Journal.RegisterCustom("reminder-restore", CustomUndo{
 		Check: func(p json.RawMessage) string {
 			var r reminders.Reminder
@@ -174,7 +173,7 @@ func (s *Service) chatOpen() bool {
 	return s.windows != nil && s.windows.ChatOpen != nil && s.windows.ChatOpen()
 }
 
-// cancelConfirm：确认请求收起（答复 / 超时 / 取消），两边都发，没订阅的界面收不到
+// cancelConfirm：确认请求收起（答复 / 超时 / 取消），对话窗口与桌面角色都发，没订阅的界面收不到
 func (s *Service) cancelConfirm(id string) {
 	s.emit("desktop.confirmCancel", id, "chat")
 	s.toMascot("desktop.confirmCancel", id)
@@ -220,7 +219,7 @@ func (s *Service) avatarEmotion(name string) {
 	s.emit("avatar.event", map[string]string{"type": "emotion", "name": name}, "")
 }
 
-// IsMascotSender：调用方是桌面角色窗口（D-B6-4：按 Caller.Surface 判断）
+// IsMascotSender：调用方是桌面角色窗口（按 Caller.Surface 判断）
 func (s *Service) IsMascotSender(surface string) bool { return s.main() && surface == "mascot" }
 
 // sendConfirm：对话窗口开着 → 只发给对话窗口（授权卡片）；桌面角色被关掉了 → 打开对话窗口
@@ -271,7 +270,7 @@ func (s *Service) sayWith(text string, opts *util.Obj) {
 	s.toMascot("desktop.bubble", p)
 }
 
-// Notify 对应 notify：bubble | island | notification | none
+// Notify：bubble | island | notification | none
 func (s *Service) Notify(n DesktopNotice) string {
 	if !s.mascotHidden() && s.main() {
 		s.sayWith(n.Text, n.Bubble)
@@ -441,7 +440,7 @@ func (s *Service) TakeMissed() []MissedItem {
 	return out
 }
 
-// ProviderFor 对应 providerFor
+// ProviderFor：角色 role 用的模型供应商
 func (s *Service) ProviderFor(role Role) *Provider {
 	if s.runtime == nil || s.runtime.ResolveProvider == nil {
 		return nil
@@ -516,7 +515,7 @@ type ToolState struct {
 	Locked bool   `json:"locked"`
 }
 
-// State 对应 state()：{...broker.view(), tools, pending}
+// State：{...broker.view(), tools, pending}
 type State struct {
 	BrokerView
 	Tools   []ToolState      `json:"tools"`
@@ -546,7 +545,7 @@ type OKCode struct {
 
 var reWS = regexp.MustCompile(`\s+`)
 
-// SummarizeDropped 对应 summarizeDropped
+// SummarizeDropped：总结拖入的文件
 func (s *Service) SummarizeDropped(raw string) OKCode {
 	t0 := nowMs()
 	say := func(text string) { s.toMascot("desktop.bubble", map[string]string{"text": text}) }
@@ -744,7 +743,7 @@ func clipAny(v any, n int) string {
 	return ""
 }
 
-// CreateReminder 对应 createReminder；o 为解析后的 JSON 对象
+// CreateReminder：新建提醒；o 为解析后的 JSON 对象
 func (s *Service) CreateReminder(o map[string]json.RawMessage) *reminders.Reminder {
 	text := reminders.TrimJS(clipAny(jsAny(o["text"]), 500))
 	in := reminders.DueInput{}
@@ -878,7 +877,7 @@ func jsAny(raw json.RawMessage) any {
 	return v
 }
 
-// CreateService 对应 createDesktopService
+// CreateService：在 userData 下建 DesktopService
 func CreateService(userData string, ports Ports, emit Emitter) *Service {
 	return NewService(filepath.Join(userData, "desktop"), ports, emit, []string{userData})
 }
@@ -888,7 +887,7 @@ func (s *Service) Summarize(text, instruction string) (string, error) {
 	return s.summarize(text, instruction)
 }
 
-// ClipboardRead = ports.clipboard.readText()（没有端口按空剪贴板）
+// ClipboardRead：读剪贴板文本（没有端口按空剪贴板）
 func (s *Service) ClipboardRead() (string, error) {
 	if s.ports.ClipboardRead == nil {
 		return "", nil
@@ -896,7 +895,7 @@ func (s *Service) ClipboardRead() (string, error) {
 	return s.ports.ClipboardRead()
 }
 
-// ClipboardWrite = ports.clipboard.writeText(t)
+// ClipboardWrite：写剪贴板文本
 func (s *Service) ClipboardWrite(t string) error {
 	if s.ports.ClipboardWrite == nil {
 		return nil

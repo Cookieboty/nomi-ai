@@ -2,7 +2,7 @@ import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import { api, hasTransport } from './api';
 /**
- * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/design/cli-plugin-architecture.md §5.10）：
+ * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/development/coding-agents.md）：
  * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（邮箱 / 套餐），Nomi 不保存凭据。
  */
 /** 有官方账号的编程助手（dsh 没有官方账号） */

@@ -1,6 +1,6 @@
-// Package quality = apps/desktop-electron/internal/core/src/usage/quality（QualityService / QualityLedger / aggregate /
+// Package quality：模型质量（QualityService / QualityLedger / aggregate /
 // fromGateway / csv / modelNames / legacy）：模型质量账本、聚合与 quality.* 过程。
-// 记录是 *util.Obj（保持 JSON 键序，与 Node 的对象一致）。
+// 记录是 *util.Obj（保持 JSON 键序）。
 package quality
 
 import (

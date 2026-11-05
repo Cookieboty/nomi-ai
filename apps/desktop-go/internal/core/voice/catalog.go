@@ -1,4 +1,4 @@
-// Package voice 对应 apps/desktop-electron/internal/core/src/voice（不含豆包 volcAsr 与主进程 Silero：见 D-B9）。
+// Package voice：语音输入（本地 whisper、云端识别、豆包流式识别）。
 package voice
 
 import (
@@ -6,7 +6,7 @@ import (
 	"slices"
 )
 
-// Asset = VoiceAsset（catalog.ts）
+// Asset：语音模型文件
 type Asset struct {
 	ID          string
 	Kind        string
@@ -23,7 +23,7 @@ type Asset struct {
 	FileName    string
 }
 
-// Assets = VOICE_ASSETS（版本 + sha256 钉死，与 Node 逐字一致）
+// Assets：语音模型文件（版本 + sha256 钉死）
 var Assets = []Asset{
 	{ID: "whisper-bin-win-x64", Kind: "whisper-bin", Name: "electron.common.whisper-cpp-engine-windows-x64-cpu", Description: "electron.common.official-prebuilt-whisper-cli-for-local-offline-recognition", URL: "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip", Sha256: "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb", Bytes: 8928640, License: "MIT", LicenseURL: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE", SourceURL: "https://github.com/ggml-org/whisper.cpp/releases/tag/b5454", Archive: "zip", Platforms: []string{"win32-x64"}},
 	{ID: "whisper-bin-linux-x64", Kind: "whisper-bin", Name: "electron.common.whisper-cpp-engine-linux-x64", Description: "electron.common.official-prebuilt-whisper-cli-for-local-offline-recognition", URL: "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-ubuntu-x64.tar.gz", Sha256: "a72becf15d7917f990f6313867a52638b82b7f9ef237fb0c980dac56a135781c", Bytes: 10364195, License: "MIT", LicenseURL: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE", SourceURL: "https://github.com/ggml-org/whisper.cpp/releases/tag/b5454", Archive: "tar.gz", Platforms: []string{"linux-x64"}},

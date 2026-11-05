@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * 设置 → 桌面角色动画（Rive）：官方角色的 .riv 是远程素材，打开后这一行显示下载进度，失败可重试
- * （docs/design/remote-character-assets.md）。
+ * （docs/character-pack/README.md）。
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';

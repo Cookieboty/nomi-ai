@@ -3,7 +3,7 @@ import { createLogger, t as tr } from '@nomi-ai/ui';
 import { api, hasTransport } from './api';
 import { contractErrorCode } from './hostBackends/knowledge';
 /**
- * 长期记忆客户端：契约 `mem.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:mem:*`）。数据只在主进程 userData/memory。
+ * 长期记忆客户端：契约 `mem.*`（docs/development/architecture.md，原 `ai:mem:*`）。数据只在主进程 userData/memory。
  */
 
 const log = createLogger('memory');

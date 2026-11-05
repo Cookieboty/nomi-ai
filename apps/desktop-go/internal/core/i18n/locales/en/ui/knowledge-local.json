@@ -151,7 +151,7 @@
   "ui.knowledge-local.open-log-folder": "Open log folder",
   "ui.knowledge-local.open-memory": "Open memory ·",
   "ui.knowledge-local.pack-chats-memories-schedules-and-more-into-a": "Pack chats, memories, schedules and more into a .zip file.",
-  "ui.knowledge-local.pack-your-data-into-a-zip-file-to": "Pack your data into a .zip file to take anywhere. API keys, CalDAV passwords and other secrets are not exported.",
+  "ui.knowledge-local.pack-your-data-into-a-zip-file-to": "Pack your data into a .zip file to take anywhere. API keys and other secrets are not exported.",
   "ui.knowledge-local.packing": "Packing…",
   "ui.knowledge-local.packs-the-last-24-hours-of-logs-into": "Packs the last 24 hours of logs into a .zip, redacted again before export. The bundle contains conversation content and code — only share it with people you trust.",
   "ui.knowledge-local.page": " · page {0}",

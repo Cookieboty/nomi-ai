@@ -1,5 +1,5 @@
 /**
- * D5 · 桌面角色窗口 / 角色 / 灵动岛 / 聊天背景 / 文件 / 窗口（docs/design/core-host-decoupling.md §12 P1b）。
+ * D5 · 桌面角色窗口 / 角色 / 灵动岛 / 聊天背景 / 文件 / 窗口（docs/development/architecture.md）。
  *
  * 本文件只属于 D5：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：mascot、character、persona、island、chatBg、files、window、avatar（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -15,7 +15,7 @@
  * 没有进契约的：electronAPI.files.pathFor（`webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，
  * File 对象不能过线），由收尾批次在 preload 里另留具名能力。
  *
- * 约定见设计稿 §12「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
+ * 约定见设计稿「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
  * 读用 query、写用 mutation、进度流用 stream；只给一个窗口用的过程写 `surfaces`，
  * 原来要用户确认的写 `dangerous: true`（本域只有删除素材库图片 `chatAssets.remove`）。
  */
@@ -98,7 +98,7 @@ export const MascotPhysicsEvent = z.discriminatedUnion('type', [
 
 /**
  * 主进程 → 桌面角色指令（core `ai/mascotCommand.ts` 的 `MascotCommand`）：打开面板、说一句（可带语义手势）、
- * 朗读回复。角色的情绪 / 手势 / 活动不走这里，走语义事件 `avatar.event`（§10.5）。
+ * 朗读回复。角色的情绪 / 手势 / 活动不走这里，走语义事件 `avatar.event`。
  */
 export const MascotCommand = z.discriminatedUnion('type', [
   z.object({ type: z.literal('open-panel'), panel: z.string() }),
@@ -139,7 +139,7 @@ const HitboxRegion = z.object({
 
 /**
  * 当前角色包的远程素材（manifest `assets.remote`，如官方角色的 .riv）：切到 Rive 时由内核按远程角色目录
- * 下载到用户数据目录，就绪后 riveUrl 指向 character-pack://assets/…（见 docs/design/remote-character-assets.md）。
+ * 下载到用户数据目录，就绪后 riveUrl 指向 character-pack://assets/…（见 docs/character-pack/README.md）。
  * remote 为 false 时当前包没有远程素材，视图照旧用包自己的资源。
  */
 export const CharacterAssetsState = z.looseObject({
@@ -184,7 +184,7 @@ export const CharacterPackSnapshot = z.looseObject({
     })
     .nullable(),
   rive: z.object({ artboard: z.string(), stateMachine: z.string() }).nullable(),
-  /** 语义 → 资源（mapping.json，§10.5）；包没有 mapping.json 时为 null。旧主进程不发这个字段 */
+  /** 语义 → 资源（mapping.json）；包没有 mapping.json 时为 null。旧主进程不发这个字段 */
   mapping: z
     .object({
       emotions: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
@@ -194,7 +194,7 @@ export const CharacterPackSnapshot = z.looseObject({
     .nullable()
     .optional(),
   /**
-   * 包声明的表情（manifest.capabilities.expressions，§10.5）；没有声明时为 null。运行时判断 mapping 是不是
+   * 包声明的表情（manifest.capabilities.expressions）；没有声明时为 null。运行时判断 mapping 是不是
    * 2.0.5 旧模板时要用。旧主进程不发这个字段
    */
   expressions: z.array(z.string()).nullable().optional(),
@@ -601,7 +601,7 @@ export const mascotProcedures = {
     surfaces: MASCOT,
     description: 'open-task-board — 打开对话窗口的日程页',
   },
-  // —— 桌面角色渲染器（2.0.5 计划 §5：默认静态 SVG，Rive 可选；存 settings.json 的 mascot.renderer）
+  // —— 桌面角色渲染器（2.0.5 计划：默认静态 SVG，Rive 可选；存 settings.json 的 mascot.renderer）
   'mascot.getRenderer': {
     kind: 'query',
     input: z.void(),
@@ -650,7 +650,7 @@ export const mascotEvents = {
   'mascot.physicsEvent': MascotPhysicsEvent,
   /** mascot:command（托盘 / 服务 → 桌面角色：打开面板、说一句、朗读） */
   'mascot.command': MascotCommand,
-  /** avatar:event（AI 工具 / 托盘 / 内核服务 → 角色：语义情绪、手势、活动，§10.5） */
+  /** avatar:event（AI 工具 / 托盘 / 内核服务 → 角色：语义情绪、手势、活动） */
   'avatar.event': AvatarCue,
   /** character:persona-changed */
   'persona.changed': Persona,
@@ -664,7 +664,7 @@ export const mascotEvents = {
   'window.mouseLeave': z.null(),
 } as const satisfies EventMap;
 
-/** 事件的订阅白名单（§8）：光标 / 物理 / 鼠标进出只给桌面角色窗口 */
+/** 事件的订阅白名单：光标 / 物理 / 鼠标进出只给桌面角色窗口 */
 export const mascotEventSurfaces = {
   'mascot.cursor': ['mascot'],
   'mascot.body': ['mascot'],

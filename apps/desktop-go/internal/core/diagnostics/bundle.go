@@ -1,4 +1,4 @@
-// Package diagnostics 对应 apps/desktop-electron/internal/core/src/diagnostics（DiagnosticsService.ts / bundle.ts）。
+// Package diagnostics：诊断（DiagnosticsService 与诊断包）。
 package diagnostics
 
 import (
@@ -42,7 +42,7 @@ type BundleOptions struct {
 	Meta     []MetaKV
 }
 
-// Entry：zip 内一个文件（测试 / golden 用解压后的内容比较，压缩字节 fflate 与 archive/zip 不同，见 D-SH-1）
+// Entry：zip 内一个文件（测试用解压后的内容比较，压缩字节因实现而异）
 type Entry struct {
 	Name string
 	Data []byte

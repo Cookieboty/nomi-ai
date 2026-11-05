@@ -5,7 +5,7 @@ import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 // Kinds = AgentKind 的固定顺序（settings.tools 键序）。
 var Kinds = []AgentKind{"codex", "claude", "dsh", "grok", "gemini"}
 
-// Settings mirrors AgentWatchSettings。
+// Settings：编程助手进度监测设置。
 type Settings struct {
 	Enabled        bool
 	StallMs        float64
@@ -14,7 +14,7 @@ type Settings struct {
 	Tools          map[AgentKind]bool
 }
 
-// DefaultAgentWatch mirrors DEFAULT_AGENT_WATCH。
+// DefaultAgentWatch：默认设置。
 func DefaultAgentWatch() Settings {
 	return Settings{Enabled: true, StallMs: 5 * 60_000, CooldownMs: 90_000,
 		Tools: map[AgentKind]bool{"codex": true, "claude": true, "dsh": true, "grok": true, "gemini": true}}
@@ -34,7 +34,7 @@ func (s Settings) Obj() *util.Obj {
 		"summaryEnabled", s.SummaryEnabled, "tools", s.toolsObj())
 }
 
-// SanitizeAgentWatch mirrors sanitizeAgentWatch(raw, base)。
+// SanitizeAgentWatch：把 raw 规整成设置，缺的字段取 base。
 func SanitizeAgentWatch(raw any, base Settings) Settings {
 	o := util.AsObj(raw)
 	if o == nil {

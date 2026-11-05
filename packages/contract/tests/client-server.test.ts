@@ -487,7 +487,7 @@ describe('events', () => {
   });
 });
 
-describe('security guard and middleware (§8)', () => {
+describe('security guard and middleware', () => {
   it('refuses dangerous procedures for untrusted callers', async () => {
     const { api } = setup({ transport: { caller: { surface: 'chat', trusted: false } } });
     const err = await rejection(api.tools.confirm({ id: 't', allow: true }));
@@ -554,7 +554,7 @@ describe('security guard and middleware (§8)', () => {
   });
 });
 
-describe('handshake (§4.3)', () => {
+describe('handshake', () => {
   const v2 = defineContract({
     version: { major: 2, minor: 0 },
     procedures: { 'sessions.list': testContract.procedures['sessions.list'] },

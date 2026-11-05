@@ -1,6 +1,6 @@
 package providerlink
 
-// 流程 = ProviderLinkService.ts：宿主把收到的 `nomi://provider/*` 交给 Receive，这里解析、（B 档）读授权清单 / 换 Key，
+// 流程（ProviderLinkService）：宿主把收到的 `nomi://provider/*` 交给 Receive，这里解析、（B 档）读授权清单 / 换 Key，
 // 产出「待确认」交给视图；用户确认后才写进网关。链接里有 Key：日志只记类型；视图只拿到打码后的 Key。
 
 import (

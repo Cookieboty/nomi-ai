@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/core': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 聊天背景启动时的首次落盘失败不再变成未处理的 Promise 拒绝（只记日志，下一次设置会重写）。

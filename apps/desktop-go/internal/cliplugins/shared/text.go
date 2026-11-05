@@ -1,4 +1,4 @@
-// text.go mirrors apps/desktop-electron/internal/cli-plugins/src/shared/text.ts：会话标题等文本的清理。
+// text.go：会话标题等文本的清理。
 package shared
 
 import (
@@ -17,7 +17,7 @@ var (
 	reAgentsMd   = regexp.MustCompile(`(?i)^` + util.JSWhitespace + `*#` + util.JSWhitespace + `*AGENTS\.md`)
 )
 
-// CleanTitle mirrors cleanTitle (nil = undefined).
+// CleanTitle cleans a session title (nil = undefined).
 func CleanTitle(raw string, max int) *string {
 	if raw == "" {
 		return nil

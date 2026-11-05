@@ -64,7 +64,7 @@ func entriesObj(es []QuotaEntry) []any {
 	return out
 }
 
-// Install：contract/shell.ts 的 usage.*（usage.changed 由服务发布）。svc 返回 nil = 服务未就绪。
+// Install：挂 usage.*（usage.changed 由服务发布）。svc 返回 nil = 服务未就绪。
 func Install(r *contract.Router, svc func() *UsageService) {
 	get := func() (*UsageService, error) {
 		if s := svc(); s != nil {

@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/gateway': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 fix(gateway): 用内网域名配置、已确认过地址的供应商算作本机 / 局域网：失败时只回退到其他本机 / 局域网供应商，不会发到云端（#248）。

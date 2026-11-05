@@ -153,7 +153,7 @@ CHARACTER_PACK=../my-character.pack pnpm build
 把**完整**角色包放到其一即可（先到先得）：
 
 1. `{userData}/character-pack/`（开发：Electron `app.getPath('userData')`）
-2. `{resources}/character-pack/`（安装包 `extraResources`，源目录 `apps/desktop-electron/character-pack-resources/`）
+2. `{resources}/character-pack/`（安装包 `extraResources`，源目录 `apps/desktop-go/character-pack-resources/`）
 
 校验失败 → 打日志 → 回退内置包。界面通过 `character-pack:get-active` + `character-pack://pack/…` 取资源与文案。
 
@@ -177,21 +177,21 @@ CHARACTER_PACK=../my-character.pack pnpm build
 ## 远程素材
 
 体积大的素材可以声明为远程（manifest `assets.remote`，目前支持 `rive`）：不随安装包发，用户开启动画时由应用下载。
-官方包的 `.riv` 就是这样，见 [远程角色素材](../design/remote-character-assets.md)。
+官方包的 `.riv` 就是这样。
 
 ---
 
 ## 命令速查
 
-| 命令                                | 作用                                                            |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `pnpm character:check [-- <pack>]`  | `validatePackDir` 校验；默认 `characters/nomi`（要求语音完整）  |
-| `pnpm character:init -- <dir> [id]` | 以 `characters/test-dummy` 为模板新建包                         |
-| `pnpm character:apply`              | 预检将要构建的包（`CHARACTER_PACK` 或 `characters/nomi`），只读 |
-| `CHARACTER_PACK=<dir> pnpm build`   | 用指定包构建                                                    |
-| `pnpm build:stand-in`               | 用替身包 `characters/test-dummy` 构建（e2e-headed 的 G5 用例）  |
-| `pnpm check:character-leak`         | 官方角色名只在 `characters/nomi` 与产品品牌模块里出现           |
-| `pnpm check:i18n`                   | 含 `characters/*/locales` 的 zh / en 一致性检查                 |
+| 命令                                | 作用                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `pnpm character:check [-- <pack>]`  | `validatePackDir` 校验；默认 `characters/nomi`（要求语音完整）        |
+| `pnpm character:init -- <dir> [id]` | 以 `characters/test-dummy` 为模板新建包                               |
+| `pnpm character:apply`              | 预检将要构建的包（`CHARACTER_PACK` 或 `characters/nomi`），只读       |
+| `CHARACTER_PACK=<dir> pnpm build`   | 用指定包构建                                                          |
+| `pnpm build:stand-in`               | 用替身包 `characters/test-dummy` 构建（检查界面里没有写死官方角色名） |
+| `pnpm check:character-leak`         | 官方角色名只在 `characters/nomi` 与产品品牌模块里出现                 |
+| `pnpm check:i18n`                   | 含 `characters/*/locales` 的 zh / en 一致性检查                       |
 
 CI（quality job）会对 `characters/nomi`、`characters/test-dummy`、`examples/static-demo.pack` 跑 check。
 

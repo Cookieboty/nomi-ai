@@ -2,7 +2,7 @@
  * 「添加第三方供应商」表单，两步：先在按官方厂商 / 三方平台 / 本地 / 其他分组的卡片里选一家，
  * 再填 Key（自定义地址还要填地址）→ 检测并保存。
  * 设置 →「模型」页（弹窗）与新手引导（内联）共用；保存后由调用方接着让用户选模型。
- * 本机 / 局域网地址要先确认才会被访问（§15）：本地服务预设自动确认，自定义地址弹窗确认。
+ * 本机 / 局域网地址要先确认才会被访问：本地服务预设自动确认，自定义地址弹窗确认。
  * 可一次填多个 Key（空格、逗号或换行分隔），依次成为主 Key 与备用 Key。
  */
 import { BrandIcon, Button, FormField, Icon, Input, t } from '@nomi-ai/ui';
@@ -159,13 +159,15 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
         models: rows,
         enabled: defaultEnabled(rows),
       });
+      // 已经保存了：父组件的后续动作（Nomi 对话还没模型时填上推荐的）总要做。添加第一个供应商时，内核推来的
+      // providers.changed 可能先于这里返回，内联的表单随之卸载（opGen 变了），不能因此跳过
+      onSaved(saved);
       if (gen !== opGen.current) return;
       setPreset(undefined);
       setKey('');
       setUrl('');
       setName('');
       setTestModel('');
-      onSaved(saved);
     } catch (e) {
       if (gen !== opGen.current) return;
       setError((e as Error).message);

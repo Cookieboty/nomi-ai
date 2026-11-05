@@ -104,7 +104,7 @@ func ParseJSON(b []byte) (any, error) {
 	return v, err
 }
 
-// UnmarshalLoose：类型不符的字段留零值、其余照常解码（对应 Node 读盘后不校验字段类型）
+// UnmarshalLoose：类型不符的字段留零值、其余照常解码（读盘后不校验字段类型）
 func UnmarshalLoose(b []byte, v any) error {
 	err := json.Unmarshal(b, v)
 	if _, ok := err.(*json.UnmarshalTypeError); ok {

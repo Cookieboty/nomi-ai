@@ -2,8 +2,8 @@ package clisdk
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 
-// plugin.go —— apps/desktop-electron/internal/cli-sdk/src/plugin.ts 的 Go 形状。
-// TS 可选方法 = nil 函数字段；Record<string,string> = 保序 *util.Obj（值为 string）；
+// plugin.go —— 编程助手插件契约（docs/development/coding-agents.md）。
+// 可选方法 = nil 函数字段；Record<string,string> = 保序 *util.Obj（值为 string）；
 // string | null = "" 与 Has 标志按字段注明。
 
 // Env 是 NodeJS.ProcessEnv（无序查找表）。
@@ -117,7 +117,7 @@ type HistoryCapability struct {
 	Resume func(sessionID string) *util.Obj // {args?, loadSession?}
 }
 
-// HistoryFileRef mirrors plugin.ts HistoryFileRef（DirID "" = 无）。
+// HistoryFileRef：一份会话记录文件（DirID "" = 无）。
 type HistoryFileRef struct {
 	Path  string
 	Mtime float64

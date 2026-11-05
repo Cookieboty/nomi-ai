@@ -12,7 +12,7 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-// 后台子代理完成后 CLI 自发的一轮（docs/design/cli-subagents.md §4）
+// 后台子代理完成后 CLI 自发的一轮（docs/development/coding-agents.md）
 describe('CLI 自发的跟进轮次', () => {
   afterEach(() => {
     cleanup();

@@ -1,6 +1,6 @@
 package connections
 
-// github_read 工具，对应 ConnectionService.tools()：前台按用户自己的连接只读；后台按任务授权收窄；结果算外部内容。
+// github_read 工具（ConnectionService.tools()）：前台按用户自己的连接只读；后台按任务授权收窄；结果算外部内容。
 
 import (
 	"context"

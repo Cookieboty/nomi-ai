@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/host-electron': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 编程助手的实时事件与标签状态只推送给调用过 ai:harness:* 的窗口（对话窗口），不再克隆发送给诺米、灵动岛等所有窗口。

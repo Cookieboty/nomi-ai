@@ -7,7 +7,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// StripFor mirrors accounts.strip.filter((k) => ctx.accountDir || k !== HOME_ENV)。
+// StripFor：accounts.strip.filter((k) => ctx.accountDir || k !== HOME_ENV)。
 func StripFor(strip []string, accountDir *string, homeEnv string) []string {
 	out := []string{}
 	for _, k := range strip {

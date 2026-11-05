@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROUND20 Task C — closed-eye lid re-shade + soft edge (handoff §6 item 1).
+"""ROUND20 Task C — closed-eye lid re-shade + soft edge (handoff item 1).
 
 Re-shade eye-{l,r}-skin toward calibrated socket-neighbour colours (sampled from
 closed blink frames: ~234,181,162) with mild crease + feathered alpha. Soften

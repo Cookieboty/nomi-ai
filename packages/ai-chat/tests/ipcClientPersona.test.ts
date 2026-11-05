@@ -9,7 +9,7 @@ vi.mock('../src/services/api', async () =>
   (await import('./helpers/mascotHost')).mascotApiModule(),
 );
 
-// 默认系统提示由内核拼装（契约 persona.systemPrompt，docs/design/core-host-decoupling.md §10.4）；
+// 默认系统提示由内核拼装（契约 persona.systemPrompt，docs/character-pack/CONTRACT.md）；
 // 拼装与官方文案的逐字固定见 core tests/unit/persona/systemPrompt.test.ts
 const LEGACY_KEY = 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives'; // i18n-ignore
 const PIP = 'You are Pip, a paper robot.\nBe concise.';

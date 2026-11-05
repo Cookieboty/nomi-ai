@@ -156,7 +156,7 @@ func TestAddErrorsAndToken(t *testing.T) {
 	}
 }
 
-// 应用与账号：重复添加、替换 / 保留、gh 换账号（同 Node describe 同名段）
+// 应用与账号：重复添加、替换 / 保留、gh 换账号
 
 func TestGhOneConnectionPerHost(t *testing.T) {
 	login := "octo"

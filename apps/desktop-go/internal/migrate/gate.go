@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 )
 
-// Gate = 2.0.4 密钥迁移完成屏障（D-B11-12）。窗口先出，迁移（与它唯一的钥匙串授权框）随后在后台跑；
+// Gate = 2.0.4 密钥迁移完成屏障。窗口先出，迁移（与它唯一的钥匙串授权框）随后在后台跑；
 // 读密钥的一方（网关 Init / 供应商存储加载 / 读密钥的契约过程）先 Wait。
 type Gate struct {
 	done chan struct{}

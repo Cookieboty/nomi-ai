@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
-  <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/github/downloads/Cookieboty/nomi-ai/total?style=flat" alt="Total downloads"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCookieboty%2Fnomi-ai%2Fbadges%2Fdownloads.json&style=flat" alt="下载次数"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/releases/latest"><img src="https://img.shields.io/github/v/release/Cookieboty/nomi-ai?style=flat" alt="Latest release"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/commits/main"><img src="https://img.shields.io/github/last-commit/Cookieboty/nomi-ai?style=flat" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Cookieboty/nomi-ai?style=flat" alt="License: MIT"></a>
@@ -40,7 +40,7 @@
 本机网关自动识别并互转 **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**，流式、工具调用、推理、图片、上下文压缩都照常工作：在 Claude Code 里直接用 DeepSeek、GLM、Kimi、Qwen。
 第三方只作用于 Nomi 启动的那个进程，不改 CLI 的全局配置，不碰官方登录。
 第三方供应商也可以在自己的网页上放一个「添加到 Nomi」链接：一键导入地址和 Key，或者走网页授权（OAuth + PKCE，Key 不出现在链接里）；不管哪种，都要你在 Nomi 里确认后才保存。
-→ [统一网关设计](docs/design/unified-gateway.md) · [第三方供应商链接接入](docs/design/provider-link.md)
+→ [统一网关设计](docs/development/gateway.md) · [第三方供应商链接接入](docs/integrations/provider-link.md)
 
 ### 2. Nomi 自己就是一个 agent
 
@@ -52,7 +52,7 @@
 
 写代码这类活，Nomi 会委派给 Claude Code、Codex 等编程助手，子任务的完整对话随时可看、可停。你也可以直接打开编程助手会话：五个 CLI 经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区看 Diff、提交、撤销；终端和 IDE 里开的会话也能接着聊。
 编程助手是目前最强的一类「专业 AI」，接入层是插件化的，后续可以接更多。
-→ [编程工作台](docs/features/coding-workspace.md) · [CLI 插件架构](docs/design/cli-plugin-architecture.md)
+→ [编程助手](docs/features/coding-agents.md) · [编程助手接入](docs/development/coding-agents.md)
 
 ### 4. 放手让它干，但边界在你手里
 
@@ -62,25 +62,27 @@
 
 ### 5. 轻：Go 内核，原生 WebView
 
-正式版是 Go 内核 + [Wails v3](https://v3.wails.io)，不带 Chromium；同一套界面也有 Electron 版，一致性测试（parity golden）守住两边行为一致。macOS Apple 芯片实测（v2.0.5）：
+Go 内核 + [Wails v3](https://v3.wails.io)，不带 Chromium（2.2.0 起不再提供 Electron 版）。与同版本的 Electron 版对比，macOS Apple 芯片：
 
 |                  | Go 版       | Electron 版 |
 | ---------------- | ----------- | ----------- |
-| DMG 安装包       | **38.8 MB** | 153.0 MB    |
-| 安装后占用       | **69 MiB**  | 334 MiB     |
+| DMG 安装包       | **24.5 MB** | 138.4 MB    |
+| 安装后占用       | **49 MiB**  | 315 MiB     |
 | 启动 30 秒后内存 | **177 MiB** | 284 MiB     |
 | 空闲 CPU（单核） | **3.2%**    | 8.2%        |
 | 启动到窗口出现   | **0.55 s**  | 0.82 s      |
+
+体积是 v2.1.2 两个版本的 arm64 安装包实测；内存、CPU、启动耗时是 v2.0.5 与 2.0.4 的同机对比。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  subgraph View["视图（React 19，两版共用）"]
+  subgraph View["视图（React 19）"]
     Chat["对话 / 编程工作台"]
     Mascot["桌面角色"]
   end
-  subgraph Core["内核（Go；Electron 版为 Node）"]
+  subgraph Core["内核（Go）"]
     Contract["类型化契约<br/>（surfaces / dangerous 判定）"]
     Agents["编程助手驱动<br/>ACP · stream-json · app-server · exec"]
     Tools["工具：文件 · 命令 · 浏览器 · MCP · 技能<br/>命令风险审核 + 外部内容污点"]
@@ -98,7 +100,7 @@ flowchart LR
   GW --> Up
 ```
 
-视图与内核之间只有一条类型化契约，没有零散的 IPC 通道；哪些窗口能调用哪些过程、哪些属于危险操作，都在契约里声明。详见 [架构](docs/development/architecture.md)、[内核宿主分离](docs/design/core-host-decoupling.md)。
+视图与内核之间只有一条类型化契约，没有零散的 IPC 通道；哪些窗口能调用哪些过程、哪些属于危险操作，都在契约里声明。详见 [架构](docs/development/architecture.md)、[应用契约](docs/development/contract.md)。
 
 ## 功能一览
 
@@ -132,7 +134,7 @@ flowchart LR
 | Windows 10+（x64） | `Nomi-Setup-<版本>.exe`                          | 需要 WebView2（Windows 10/11 通常自带） |
 | Linux（x64）       | `Nomi-<版本>.AppImage` / `nomi_<版本>_amd64.deb` | AppImage 需 `chmod +x`                  |
 
-文件名以 `Nomi-Electron-` 开头的是 Electron 版。已安装的版本会在应用内提示更新。
+已安装的版本会在应用内提示更新。
 
 > **macOS 提示「已损坏」？** 当前包已签名但尚未公证。拖到「应用程序」后执行：
 >
@@ -153,21 +155,21 @@ flowchart LR
 
 ## 从源码构建
 
-需要 Node.js ≥ 22.12、pnpm 9（`corepack enable`）；Go 版另需 Go（版本见 `apps/desktop-go/go.mod`）与 cgo 工具链（Linux 还要 GTK3 与 WebKitGTK 4.1 开发包）。
+需要 Node.js ≥ 22.12、pnpm 9（`corepack enable`）、Go（版本见 `apps/desktop-go/go.mod`）与 cgo 工具链（Linux 还要 GTK3 与 WebKitGTK 4.1 开发包）。
 
 ```bash
 git clone https://github.com/Cookieboty/nomi-ai.git && cd nomi-ai
 corepack enable && pnpm install
-pnpm dev:go       # Go 版：界面热更新，改 Go 代码自动重编译
-pnpm dev          # Electron 版
-pnpm test         # 单元测试；pnpm test:e2e 跑无界面端到端测试
+pnpm dev          # 界面热更新，改 Go 代码自动重编译
+pnpm test         # 视图与共享包的单元测试
+(cd apps/desktop-go && go test ./...)   # Go 内核测试
 ```
 
-`pnpm run doctor` 检查开发环境。Go 版细节见 [apps/desktop-go](apps/desktop-go/README.md)；打包与发布见 [docs/RELEASE.md](docs/RELEASE.md)；开发指南见 [docs/development](docs/development/)。欢迎 PR，提交前请看 [AGENTS.md](AGENTS.md) 里的约定。
+`pnpm run doctor` 检查开发环境。应用细节见 [apps/desktop-go](apps/desktop-go/README.md)；打包与发布见 [docs/RELEASE.md](docs/RELEASE.md)；开发指南见 [docs/development](docs/development/)。欢迎 PR，提交前请看 [AGENTS.md](AGENTS.md) 里的约定。
 
 ## 第三方供应商接入
 
-中转站、模型平台可以在自己的网页上放一个「添加到 Nomi」按钮，用户点一下就把你加进 Nomi。两种方式任选，**最后都停在 Nomi 的确认框上，用户确认前不会保存任何东西**。完整规格见 [docs/design/provider-link.md](docs/design/provider-link.md)。
+中转站、模型平台可以在自己的网页上放一个「添加到 Nomi」按钮，用户点一下就把你加进 Nomi。两种方式任选，**最后都停在 Nomi 的确认框上，用户确认前不会保存任何东西**。完整规格见 [docs/integrations/provider-link.md](docs/integrations/provider-link.md)。
 
 ### 方式 A：直接导入（几行模板就能接）
 
@@ -246,7 +248,7 @@ nomi://provider/import?v=1&data=<base64url(UTF-8 JSON)>
 - **赞助**：[Amux AI](https://amux.ai) 赞助了 Nomi 的开发。
 - **社区**：[Linux.do](https://linux.do) 社区的佬友们提了大量反馈与建议。
 
-Nomi 构建于 Go、Wails、Electron、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上，设计参考致谢见 [CREDITS.md](CREDITS.md)。
+Nomi 构建于 Go、Wails、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上，设计参考致谢见 [CREDITS.md](CREDITS.md)。
 
 ## 许可证
 

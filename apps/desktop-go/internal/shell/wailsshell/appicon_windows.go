@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// = BrowserWindow.setIcon（Win32：WM_SETICON 大 / 小图标）
+// 设窗口图标（Win32：WM_SETICON 大 / 小图标）
 func nativeSetWindowIcon(hwnd unsafe.Pointer, png []byte) {
 	h := w32.HWND(uintptr(hwnd))
 	if big, err := w32.CreateLargeHIconFromImage(png); err == nil && big != 0 {
@@ -55,7 +55,7 @@ type iPropertyStoreVtbl struct {
 
 type iPropertyStore struct{ vtbl *iPropertyStoreVtbl }
 
-// = BrowserWindow.setAppDetails({ appId, appIconPath, appIconIndex })：
+// 设置窗口的 AppUserModel 详情（appId、图标路径、图标序号）：
 // 窗口属性库写 System.AppUserModel.ID 与 RelaunchIconResource（"<路径>,<序号>"，Electron 同格式）
 func nativeSetAppDetails(hwnd unsafe.Pointer, appID, iconPath string, index int) error {
 	var ps *iPropertyStore

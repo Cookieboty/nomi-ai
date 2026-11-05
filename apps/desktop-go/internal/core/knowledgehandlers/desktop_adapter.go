@@ -9,8 +9,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 )
 
-// DesktopAdapter 把批次 6 的 *desktop.Service 暴露成批次 8 的 deps.Desktop /
-// local.LocalDesktop（Node 里两边共用同一个 DesktopService 实例）。
+// DesktopAdapter 把 *desktop.Service 暴露成 deps.Desktop /
+// local.LocalDesktop（共用同一个 DesktopService 实例）。
 type DesktopAdapter struct{ S *desktop.Service }
 
 var _ deps.Desktop = DesktopAdapter{}
@@ -79,7 +79,7 @@ func (b brokerAdapter) CheckSend(ctx context.Context, p *deps.SendTarget) string
 
 func (b brokerAdapter) OnChange(fn func()) func() { return b.b.OnChange(fn) }
 
-// ConfirmAdapter：扩展 MCP 工具的确认走桌面的 PermissionBroker（同 Node 的 desktop.broker）
+// ConfirmAdapter：扩展 MCP 工具的确认走桌面的 PermissionBroker
 type ConfirmAdapter struct{ B *desktop.PermissionBroker }
 
 var _ extensions.ConfirmBroker = ConfirmAdapter{}
@@ -97,7 +97,7 @@ func (c ConfirmAdapter) BackgroundExternal(ctx context.Context) connections.Exte
 
 func (c ConfirmAdapter) PermissionMode() string { return c.B.PermissionMode() }
 
-// MarkRead：MCP 工具返回了外部内容（同 Node ExtensionsService.withConfirm 里的 broker.markRead）
+// MarkRead：MCP 工具返回了外部内容（ExtensionsService.withConfirm 里的 broker.markRead）
 func (c ConfirmAdapter) MarkRead(ctx context.Context) { c.B.MarkRead(ctx) }
 
 func (c ConfirmAdapter) Authorize(ctx context.Context, r extensions.AuthorizeReq) string {

@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 )
 
-// desktop/plugin.ts：ext.attach(() => ctx.inject(McpKey), registry) 的 Go 适配。
+// 扩展的 MCP 接入：ext.attach(() => ctx.inject(McpKey), registry) 的 Go 适配。
 // extensions 包只看到薄接口（ToolDef / McpRuntime），这里把它们接到真实 Service 与 tools.Registry。
 
 // ExtRuntime：extensions.McpRuntime ← *Service
@@ -28,7 +28,7 @@ func (r ExtRuntime) Connect(ctx context.Context, c extensions.McpConnectConfig) 
 
 func (r ExtRuntime) Disconnect(_ context.Context, id string) error { r.S.Disconnect(id); return nil }
 
-// sortedPairs：Go map 无序；mcp.json 经 sanitize 后键已排序写入，按键排序最接近 Node 的插入序
+// sortedPairs：Go map 无序；mcp.json 经 sanitize 后键已排序写入，按键排序即还原写入顺序
 func sortedPairs(m map[string]string) [][2]string {
 	if m == nil {
 		return nil
@@ -85,7 +85,7 @@ func FromExtDef(def extensions.ToolDef, base tools.Definition) tools.Definition 
 	return out
 }
 
-// GuardFromExt：AIRuntimeBoot mcpToolGuard = (server, def) => ext.guardEnvTool(server, def)
+// GuardFromExt：mcpToolGuard = (server, def) => ext.guardEnvTool(server, def)
 func GuardFromExt(ext *extensions.Service) ToolGuard {
 	return func(server ServerConfig, def tools.Definition) tools.Definition {
 		if ext == nil {

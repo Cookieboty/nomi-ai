@@ -1,5 +1,5 @@
-// Package tts 对应 apps/desktop-electron/internal/core/src/tts：配置（tts-config.json）、路由、朗读回复、TtsService。
-// Edge 引擎在 ./edge；Azure / OpenAI 与 Node 一样「尚未实现」，静默。
+// Package tts：朗读的配置（tts-config.json）、路由、朗读回复、TtsService。
+// Edge 引擎在 ./edge；Azure / OpenAI「尚未实现」，静默。
 package tts
 
 import (
@@ -14,7 +14,7 @@ import (
 // Providers = TTS_PROVIDERS
 var Providers = []string{"none", "edge", "azure", "openai"}
 
-// Config = TTSConfig（normalize 之后的完整形状；键序同 Node）
+// Config = TTSConfig（normalize 之后的完整形状；键序固定）
 type Config struct {
 	Enabled      bool
 	PromptVoice  bool

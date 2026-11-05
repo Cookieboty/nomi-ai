@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// AsObj mirrors asObj: non-objects become an empty object.
+// AsObj: non-objects become an empty object.
 func AsObj(v any) *Obj {
 	if o, ok := v.(*Obj); ok && o != nil {
 		return o
@@ -14,13 +14,13 @@ func AsObj(v any) *Obj {
 	return &Obj{m: map[string]any{}}
 }
 
-// IsObj mirrors `v && typeof v === 'object' && !Array.isArray(v)`.
+// IsObj is `v && typeof v === 'object' && !Array.isArray(v)`.
 func IsObj(v any) bool {
 	o, ok := v.(*Obj)
 	return ok && o != nil
 }
 
-// AsArr mirrors asArr: arrays map each element through AsObj.
+// AsArr: arrays map each element through AsObj.
 func AsArr(v any) []*Obj {
 	arr, ok := v.([]any)
 	if !ok {
@@ -36,7 +36,7 @@ func AsArr(v any) []*Obj {
 // IsArr is Array.isArray.
 func IsArr(v any) bool { _, ok := v.([]any); return ok }
 
-// Str mirrors str.
+// Str returns v if it is a string, else "".
 func Str(v any) string {
 	s, _ := v.(string)
 	return s
@@ -45,7 +45,7 @@ func Str(v any) string {
 // IsStr is typeof v === 'string'.
 func IsStr(v any) bool { _, ok := v.(string); return ok }
 
-// Num mirrors num: finite numbers only.
+// Num: finite numbers only.
 func Num(v any) (float64, bool) {
 	switch x := v.(type) {
 	case float64:
@@ -68,7 +68,7 @@ func IsNum(v any) bool {
 	return false
 }
 
-// Truthy mirrors JS truthiness for JSON values.
+// Truthy is JS truthiness for JSON values.
 func Truthy(v any) bool {
 	switch x := v.(type) {
 	case nil:
@@ -85,7 +85,7 @@ func Truthy(v any) bool {
 	return true
 }
 
-// JSString mirrors String(v) for JSON values (used for String(tc.index) etc.).
+// JSString is String(v) for JSON values (used for String(tc.index) etc.).
 func JSString(v any) string {
 	switch x := v.(type) {
 	case nil:
@@ -125,7 +125,7 @@ func JSString(v any) string {
 	return ""
 }
 
-// ParseArgs mirrors parseArgs.
+// ParseArgs parses tool-call arguments.
 func ParseArgs(v any) any {
 	if IsObj(v) || IsArr(v) {
 		return v
@@ -144,7 +144,7 @@ func ParseArgs(v any) any {
 	return NewObj("value", p)
 }
 
-// ArgsObject mirrors argsObject.
+// ArgsObject parses an arguments string into an object.
 func ArgsObject(args string) any {
 	if strings.TrimSpace(args) == "" {
 		return NewObj()
@@ -168,7 +168,7 @@ func CustomToolSchema() *Obj {
 	)
 }
 
-// DefaultMaxTokens mirrors DEFAULT_MAX_TOKENS.
+// DefaultMaxTokens is the default max_tokens.
 const DefaultMaxTokens = 8192
 
 // DataURL is the result of ParseDataURL.
@@ -178,7 +178,7 @@ type DataURL struct {
 
 var dataURLRe = regexp.MustCompile(`^data:([^;,]+)?(?:;[^,]*)?;base64,([\s\S]*)$`)
 
-// ParseDataURL mirrors parseDataUrl.
+// ParseDataURL splits a data: URL.
 func ParseDataURL(u string) (mediaType, data, url *string) {
 	if m := dataURLRe.FindStringSubmatch(u); m != nil {
 		mt := m[1]
@@ -191,7 +191,7 @@ func ParseDataURL(u string) (mediaType, data, url *string) {
 	return nil, nil, &u
 }
 
-// ToDataURL mirrors toDataUrl.
+// ToDataURL builds a data: URL (or returns url).
 func ToDataURL(mediaType, data, url *string) string {
 	if data != nil {
 		mt := "image/png"

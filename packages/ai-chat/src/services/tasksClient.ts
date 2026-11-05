@@ -1,5 +1,5 @@
 /**
- * 持续任务（契约 `tasks.*`，docs/design/persistent-tasks.md）的视图侧类型与小工具。
+ * 持续任务（契约 `tasks.*`，docs/features/scheduling-calendar.md）的视图侧类型与小工具。
  * 形状与内核 `src/tasks/types.ts` 一致；契约输出是 looseObject，这里按内核类型收窄。
  */
 import { getLocale, t } from '@nomi-ai/ui';
@@ -125,7 +125,7 @@ export interface JournalEntry {
   summary?: string;
 }
 
-/** 某次执行里写了 intent、还没有 done / failed 的对外动作（重启核对卡片上列出来，§10.3） */
+/** 某次执行里写了 intent、还没有 done / failed 的对外动作（重启核对卡片上列出来） */
 export function pendingExternal(
   journal: readonly JournalEntry[],
   attemptId: string,
@@ -243,7 +243,7 @@ export const ATTEMPT_STATUS_LABEL: Record<string, string> = {
 export const attemptStatusLabel = (status: string) =>
   ATTEMPT_STATUS_LABEL[status] ? t(ATTEMPT_STATUS_LABEL[status]!) : status;
 
-/** 列表分组：第一条匹配的胜出，互斥且覆盖全部状态（references §2.12） */
+/** 列表分组：第一条匹配的胜出，互斥且覆盖全部状态（references） */
 export type TaskGroup = 'needs_you' | 'running' | 'waiting_trigger' | 'ended';
 export function groupOf(task: Task): TaskGroup {
   if (INBOX.includes(task.status)) return 'needs_you';
@@ -333,7 +333,7 @@ export function executorLabel(ex: ExecutorSpec): string {
   }
 }
 
-/** 授权等级的用户可读说明（§8.2） */
+/** 授权等级的用户可读说明 */
 export const LEVEL_LABEL: Record<number, string> = {
   0: 'ui.providers-schedule.task-level-0',
   1: 'ui.providers-schedule.task-level-1',

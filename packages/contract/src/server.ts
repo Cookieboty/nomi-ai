@@ -4,12 +4,12 @@
  *
  * - 每个请求有自己的 AbortController：abort 帧、会话关闭都会触发 `ctx.signal`；
  * - 流：逐个 `next()`，每个值发一个 chunk 帧；结束发 end 帧（带最终结果），失败发 err 帧；
- * - 事件：按会话订阅（取代 EventBroadcaster 的按窗口过滤，§5.3）；
+ * - 事件：按会话订阅（取代 EventBroadcaster 的按窗口过滤）；
  * - `send` 返回 false 视为连接已断（窗口销毁）：关闭会话、取消全部进行中的调用；
  *   `send` 抛错视为这一帧发不出去（如不可序列化），对带 id 的帧改发 err 帧；
  * - 流以任何方式提前结束（chunk 校验失败、chunk 发不出去、取消、连接断开）都会调用
  *   处理函数迭代器的 `return()`，让 generator 的 finally 执行；
- * - `strictSerialize`：发出前对每一帧做 `findUnserializable` 检查（§4.2），
+ * - `strictSerialize`：发出前对每一帧做 `findUnserializable` 检查，
  *   在 IPC 的 structuredClone 能放过的 Date / Map / Set 等也会被拦下，提前暴露以后 WebSocket 传不了的值。
  */
 
@@ -233,7 +233,7 @@ export function createServerSession(router: Router, opts: ServerSessionOptions):
       }
       case 'sub': {
         if (subscriptions.has(frame.event) || !router.events.has(frame.event)) return;
-        // 事件的界面白名单（契约 eventSurfaces，§8）：别的界面的订阅与未知事件一样忽略
+        // 事件的界面白名单（契约 eventSurfaces）：别的界面的订阅与未知事件一样忽略
         if (!canSubscribe(router.contract, frame.event, opts.caller.surface)) return;
         const event = frame.event;
         const off = router.events.subscribe(event, (data) => {

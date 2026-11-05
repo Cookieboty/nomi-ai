@@ -1,5 +1,5 @@
 /**
- * 角色人设（docs/design/core-host-decoupling.md §10.4）：主进程 PersonaService 是唯一来源，
+ * 角色人设（docs/character-pack/CONTRACT.md）：主进程 PersonaService 是唯一来源，
  * 按「当前角色包 → 内置角色包（默认 characters/nomi）」解析，再按界面语言取对应文案。
  * 角色包文件格式见 `@nomi-ai/character-contract` 的 personaSchema。
  */

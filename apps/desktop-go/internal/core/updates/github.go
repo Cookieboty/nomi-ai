@@ -26,6 +26,9 @@ type manifestEntry struct {
 	URL    string `json:"url"`
 	Size   int64  `json:"size"`
 	Sha256 string `json:"sha256"`
+	// Update：应用内原地替换用的包（mac 的 -mac.zip，2.2.0 起）。File / URL 仍是给人下载的安装包（dmg），
+	// ≤ 2.1.2 的客户端只认它们，打开后让用户拖拽安装
+	Update *manifestEntry `json:"update,omitempty"`
 }
 
 type manifest struct {
@@ -38,8 +41,11 @@ type manifest struct {
 	Platforms    map[string]manifestEntry `json:"platforms"`
 }
 
-// GitHubUpdater：Updater 的 Go 实现（替代 electron-updater，D3 / D-SH-3）——读 latest-go.json，
-// 下载本平台安装包并校验 sha256，安装 = 打开安装包（mac dmg / Win 安装器 / Linux AppImage 原地替换）后退出。
+// GitHubUpdater：Updater 的实现——读 latest-go.json，下载本平台的包并校验 sha256，然后安装：
+//   - macOS：应用在可写位置时下载 -mac.zip，校验签名后由分离的脚本在退出后把新 Nomi.app 换进原位置并重新打开；
+//     否则（从 dmg 里运行、被 App Translocation 隔离、目录不可写）打开 dmg 让用户拖拽；
+//   - Windows：静默运行 NSIS 安装器（/S --updated --force-run），装完自动启动；
+//   - Linux：AppImage 原地替换后重启；deb 交给系统打开。
 type GitHubUpdater struct {
 	URL      string
 	Version  func() string
@@ -49,6 +55,10 @@ type GitHubUpdater struct {
 	Quit func()
 	// PlatformKey：nil = runtime.GOOS-GOARCH（Linux 非 AppImage 用 -deb）
 	PlatformKey func() string
+	// SwapTarget：可以原地替换的 .app 路径；nil = 按当前进程判断（只在 macOS 上可能为真）
+	SwapTarget func() (bundle string, ok bool)
+	// startSwap：测试替身；nil = startMacSwap
+	startSwap func(zip, bundle string, relaunch bool) error
 
 	mu           sync.Mutex
 	ev           UpdaterEvents
@@ -57,7 +67,9 @@ type GitHubUpdater struct {
 	pending      *manifestEntry
 	info         UpdateInfo
 	downloaded   string
-	cancel       context.CancelFunc
+	// swapBundle：pending 是原地替换包时，要替换的 .app
+	swapBundle string
+	cancel     context.CancelFunc
 }
 
 func (g *GitHubUpdater) Configure(autoDownload, _, _ bool, log Logger) {
@@ -121,6 +133,13 @@ func (g *GitHubUpdater) CheckForUpdates() (*CheckResult, error) {
 	if !ok || e.URL == "" {
 		return nil, notFound(g.key() + " entry of latest-go.json")
 	}
+	swap := ""
+	if e.Update != nil && e.Update.URL != "" {
+		if b, ok := g.swapTarget(); ok {
+			swap = b
+			e = *e.Update
+		}
+	}
 	info := UpdateInfo{Version: m.Version, ReleaseName: OptStr(m.Tag)}
 	if m.ReleaseNotes != "" {
 		info.ReleaseNotes = m.ReleaseNotes
@@ -132,7 +151,7 @@ func (g *GitHubUpdater) CheckForUpdates() (*CheckResult, error) {
 		return &CheckResult{Info: info}, nil
 	}
 	g.mu.Lock()
-	g.pending, g.info, g.downloaded = &e, info, ""
+	g.pending, g.info, g.downloaded, g.swapBundle = &e, info, "", swap
 	auto := g.autoDownload
 	g.mu.Unlock()
 	if ev := g.events(); ev.UpdateAvailable != nil {
@@ -279,15 +298,35 @@ func fileSHA(p string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// QuitAndInstall：交给系统安装器后退出（isForceRunAfter：AppImage 替换后重启新版本）
+func (g *GitHubUpdater) swapTarget() (string, bool) {
+	if g.SwapTarget != nil {
+		return g.SwapTarget()
+	}
+	if runtime.GOOS != "darwin" {
+		return "", false
+	}
+	return macSwapTarget()
+}
+
+// QuitAndInstall：安装后退出（isForceRunAfter：装完重启新版本）
 func (g *GitHubUpdater) QuitAndInstall(_ bool, runAfter bool) error {
 	g.mu.Lock()
-	p := g.downloaded
+	p, bundle := g.downloaded, g.swapBundle
 	g.mu.Unlock()
 	if p == "" {
 		return fmt.Errorf("No update downloaded")
 	}
-	if err := installerCommand(p, runAfter); err != nil {
+	var err error
+	if bundle != "" {
+		start := g.startSwap
+		if start == nil {
+			start = startMacSwap
+		}
+		err = start(p, bundle, runAfter)
+	} else {
+		err = installerCommand(p, runAfter)
+	}
+	if err != nil {
 		return err
 	}
 	if g.Quit != nil {
@@ -301,7 +340,12 @@ func installerCommand(p string, runAfter bool) error {
 	case runtime.GOOS == "darwin":
 		return exec.Command("open", p).Start()
 	case runtime.GOOS == "windows":
-		return exec.Command(p).Start()
+		// 静默覆盖安装（安装器先结束正在运行的 Nomi、沿用原目录与卸载项）；--force-run：装完启动
+		args := []string{"/S", "--updated"}
+		if runAfter {
+			args = append(args, "--force-run")
+		}
+		return exec.Command(p, args...).Start()
 	case strings.HasSuffix(p, ".AppImage") && os.Getenv("APPIMAGE") != "":
 		cur := os.Getenv("APPIMAGE")
 		b, err := os.ReadFile(p)

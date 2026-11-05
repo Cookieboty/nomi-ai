@@ -2,7 +2,7 @@
   "name": "@nomi-ai/avatar-runtime",
   "version": "0.1.0",
   "private": true,
-  "description": "角色引擎（纯浏览器）：Rive / sprite / static 渲染后端、表情与动作驱动、命中区与互动、口型消费；经注入的 AvatarEventSource 接 AI，不依赖 contract / electron（docs/design/core-host-decoupling.md §10.6）",
+  "description": "角色引擎（纯浏览器）：Rive / sprite / static 渲染后端、表情与动作驱动、命中区与互动、口型消费；经注入的 AvatarEventSource 接 AI，不依赖 contract / electron（docs/character-pack/CONTRACT.md）",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

@@ -2,7 +2,7 @@
  * 「按端」左下角端信息卡 + 点击后的右侧详情抽屉。
  * 卡片（紧凑）：端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量费用 /
  * 运行中标签数 / 最近活动；抽屉（完整）：全部额度窗口、近 7 天趋势、配置路径（仅路径）、
- * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/design/endpoint-info-card.md。
+ * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/development/coding-agents.md。
  * 数据都来自本机主进程；Nomi 不读取任何凭据。
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';

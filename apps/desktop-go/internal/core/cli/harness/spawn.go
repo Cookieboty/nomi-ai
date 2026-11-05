@@ -44,7 +44,7 @@ func IsScript(bin string) bool {
 	return strings.HasSuffix(bin, ".mjs") || strings.HasSuffix(bin, ".js")
 }
 
-// CliTrap = currentCoreScope()?.cliTrace?.tap；batch 4/5 接线点（nil = 无 trace）。
+// CliTrap：CLI 子进程的 trace 钩子（nil = 无 trace）。
 var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID string)
 
 // SpawnHarness = spawnHarness。须在 jsrt.Run 内调用（nodeproc 约定）。stdin 'error' 由 nodeproc 吞掉。
@@ -75,7 +75,7 @@ func CliChildEnv(useNode bool, extra *util.Obj) *util.Obj {
 // GhTokenVars = GH_TOKEN_VARS：gh 读令牌的环境变量（环境变量优先于已存的登录）
 var GhTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"}
 
-// IsolateGhEnv = isolateGhEnv：GH_CONFIG_DIR 指向空目录、去掉令牌变量、关交互（connections.md §4.4）。
+// IsolateGhEnv = isolateGhEnv：GH_CONFIG_DIR 指向空目录、去掉令牌变量、关交互（docs/features/scheduling-calendar.md）。
 // 只是默认值，不是安全边界（真正的边界是命令分类与审批）。
 func IsolateGhEnv(env *util.Obj, emptyConfigDir string) *util.Obj {
 	out := env.Clone()

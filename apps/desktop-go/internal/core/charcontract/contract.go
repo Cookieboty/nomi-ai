@@ -64,7 +64,7 @@ func init() {
 	voiceByLegacyKey = v.ByLegacyKey
 }
 
-// ResolveVoiceClipID = migrations.ts resolveVoiceClipId。
+// ResolveVoiceClipID：旧的语音片段 key → clip id（同 migrations.ts resolveVoiceClipId）。
 func ResolveVoiceClipID(keyOrID string) string {
 	if id, ok := voiceByLegacyKey[keyOrID]; ok {
 		return id

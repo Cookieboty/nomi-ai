@@ -158,7 +158,7 @@ func abandon(s <-chan llm.StreamPart) {
 }
 
 // StreamText runs streamText and delivers its fullStream parts (the subset the runtime consumes)
-// to emit, synchronously. An abort (ctx done) ends the stream silently, like the Node provider.
+// to emit, synchronously. An abort (ctx done) ends the stream silently.
 func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 	messages := append([]*u.Obj{}, p.Messages...)
 	var total Usage

@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/host-electron': patch
 ---
 
 整理「编程助手」设置页：

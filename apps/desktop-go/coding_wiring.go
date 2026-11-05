@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"log"
 	"path/filepath"
@@ -25,7 +26,7 @@ type historyLog struct{}
 
 func (historyLog) Warn(m string, d ...any) { log.Println(append([]any{"[history] WARN", m}, d...)...) }
 
-// delegateHarness：delegate.Harness ← HarnessOrchestrator。DelegateService 跑在自己的 goroutine 上（D-B7-S2-2），
+// delegateHarness：delegate.Harness ← HarnessOrchestrator。DelegateService 跑在自己的 goroutine 上，
 // 每次进编排器都拿 GIL；SendTab 的 Promise 在锁外等。
 type delegateHarness struct{ o *harness.Orchestrator }
 
@@ -64,6 +65,16 @@ func (h delegateHarness) SendTab(id, prompt string) (*util.Obj, error) {
 	return jsrt.Block(p)
 }
 func (h delegateHarness) CancelTab(id string) { jsrt.Run(func() { h.o.CancelTab(id) }) }
+func (h delegateHarness) RebindDelegation(id string, del *util.Obj) error {
+	ok, err := gilErr(func() bool { return h.o.RebindDelegation(id, del) })
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("tab not reusable")
+	}
+	return nil
+}
 func (h delegateHarness) CloseTab(id string) error {
 	_, err := gilErr(func() *util.Obj { return h.o.CloseTab(id) })
 	return err
@@ -106,7 +117,7 @@ type delegateGateway struct{ g *gwstore.Service }
 func (h delegateGateway) Defaults(cli string) *util.Obj { return h.g.CliDefaults(cli) }
 func (h delegateGateway) Models() []*util.Obj           { return h.g.CliModels() }
 
-// delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，persistent-tasks-plan 2.2）
+// delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，docs/features/scheduling-calendar.md）
 type delegateTasks struct{ s *tasks.Service }
 
 func (t delegateTasks) CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error) {
@@ -129,11 +140,11 @@ var _ delegate.Gateway = delegateGateway{}
 var _ delegate.Desktop = delegateDesktop{}
 var _ delegate.Harness = delegateHarness{}
 
-// wireCoding 对齐 createCore.ts 的 CliUpdateService / DelegateService / SessionHistoryService 构造
-// 与 coding.ts 的 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
+// wireCoding：构造 CliUpdateService / DelegateService / SessionHistoryService，
+// 注册 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
-// 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，Node 侧可选）；
-// history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
+// 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，可选）；
+// history.delete 的 trash 用 internal/shell/trash。
 func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
@@ -160,9 +171,9 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	}
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
-		Events: hostEvents{router},
+		Events: hostEvents{router}, Claims: delegateClaims,
 	}
-	// 后台委派 = 持续任务（persistent-tasks-plan 2.2）：排队、重试、重启续跑、验收都走任务
+	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {
 		dd.Tasks = delegateTasks{taskSvc}
 	}
@@ -193,6 +204,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				return m
 			},
 			OpenTitle: func(b, id, title string) { o.SyncOpenSessionTitle(b, id, title) },
+			Hidden:    o.IsDelegatedSession,
 			OpenTab: func(x *util.Obj) cli.HistoryOpenTabResult {
 				r := o.OpenHistorySession(x)
 				return cli.HistoryOpenTabResult{Tab: r.Get("tab"), Reused: r.Get("reused") == true}
@@ -243,7 +255,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	codinghandlers.RegisterCoding(router, svc)
 }
 
-// rethrow：账号服务的 JS 异常原样抛回（Node 侧依赖直接抛出）
+// rethrow：账号服务的 JS 异常原样抛回
 func rethrow(err error) any {
 	if t, ok := err.(jsrt.JSThrow); ok {
 		return t

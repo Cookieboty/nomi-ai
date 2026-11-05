@@ -1,6 +1,6 @@
-// Package jsrt 为逐行移植的 Node 代码提供 JS 单线程语义：
+// Package jsrt 提供 JS 单线程语义：
 // 全局锁（GIL）= 事件循环。持锁的代码相当于一段同步 JS；Await 释放锁等待（= await 让出），
-// 子进程回调、定时器从各自 goroutine 进来时先拿锁（= 宏任务）。这样移植后的代码只在 Node 原本
+// 子进程回调、定时器从各自 goroutine 进来时先拿锁（= 宏任务）。这样代码只在 JS 原本
 // 让出的位置交错，状态机不需要额外加锁。
 package jsrt
 
@@ -295,7 +295,7 @@ func runDueTimers() {
 // SetTimeout 持锁调用。
 func SetTimeout(d time.Duration, fn func()) *Timer {
 	if d < time.Millisecond {
-		d = time.Millisecond // Node：delay < 1 视为 1
+		d = time.Millisecond // delay < 1 视为 1
 	}
 	tm := &Timer{fn: fn}
 	tm.arm(d)
@@ -317,7 +317,7 @@ func ClearTimeout(t *Timer) {
 // SetInterval 持锁调用。
 func SetInterval(d time.Duration, fn func()) *Timer {
 	if d <= 0 {
-		d = time.Millisecond // Node：interval < 1 视为 1
+		d = time.Millisecond // interval < 1 视为 1
 	}
 	tm := &Timer{fn: fn, interval: d}
 	tm.arm(d)
@@ -393,12 +393,12 @@ func (s *AbortSignal) OnAbort(fn func()) func() {
 	}
 }
 
-// JSThrow 表示 Node 侧同一输入会抛出的 JS 异常。被移植代码以 panic(JSThrow) 复现「抛出」。
+// JSThrow 表示一次 JS 异常（name + message）。代码以 panic(JSThrow) 表示「抛出」。
 type JSThrow struct{ Name, Message string }
 
 func (e JSThrow) Error() string { return e.Message }
 
-// Uncaught = process.on('uncaughtException')（宿主注入；host-electron：记录日志，生产环境 app.quit()）。
+// Uncaught = process.on('uncaughtException')（宿主注入：记录日志）。
 var Uncaught = func(err error) {}
 
 // Dispatch 按 EventEmitter.emit 语义调用监听者：某个监听者抛出 JSThrow 时，

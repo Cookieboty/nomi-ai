@@ -15,13 +15,13 @@ func runtimeOverride(env map[string]string) string {
 	return runtime.ProviderOverrideFromEnv(runtime.EnvLike(env))
 }
 
-// envProviderName / envProviderKey = createCore 的 ENV_PROVIDER_NAME / ENV_PROVIDER_KEY
+// envProviderName / envProviderKey：ENV_PROVIDER_NAME / ENV_PROVIDER_KEY
 var (
 	envProviderName = map[string]string{"deepseek": "DeepSeek", "openai": "OpenAI", "claude": "Anthropic", "gemini": "Google Gemini", "ollama": "Ollama"}
 	envProviderKey  = map[string]string{"deepseek": "DEEPSEEK_API_KEY", "openai": "OPENAI_API_KEY", "claude": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}
 )
 
-// GatewayEnvProviders = createCore 的 envProviders()：环境变量里的大模型供应商（模型页只读展示）
+// GatewayEnvProviders：环境变量里的大模型供应商（模型页只读展示）
 func GatewayEnvProviders(env map[string]string) []gwstore.EnvProvider {
 	out := []gwstore.EnvProvider{}
 	for _, e := range runtimeEntries(env) {

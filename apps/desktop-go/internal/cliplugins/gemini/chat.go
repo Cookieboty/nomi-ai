@@ -1,4 +1,4 @@
-// Package gemini ports @nomi-ai/cli-plugins/gemini（transcript / chat 折叠 / main）。
+// Package gemini：Gemini CLI 插件（transcript / chat 折叠 / main）。
 package gemini
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Chat mirrors GeminiChat（空串 = undefined）。
+// Chat：折叠后的 Gemini 会话（空串 = undefined）。
 type Chat struct {
 	SessionID, StartTime, LastUpdated, Kind, Summary string
 	Messages                                         []*util.Obj
@@ -16,7 +16,7 @@ type Chat struct {
 
 func s(v any) string { x, _ := sh.NStr(v); return x }
 
-// FoldChat mirrors foldGeminiChat。
+// FoldChat：把会话文件折叠成 Chat。
 func FoldChat(raw string) Chat {
 	trimmed := strings.TrimLeftFunc(raw, func(r rune) bool { return util.JSTrim(string(r)) == "" })
 	if strings.HasPrefix(trimmed, "{") && !strings.Contains(trimmed, "\n{") {
@@ -25,7 +25,7 @@ func FoldChat(raw string) Chat {
 				if arr, ok := j.Get("messages").([]any); ok {
 					ms := make([]*util.Obj, len(arr))
 					for i, m := range arr {
-						ms[i] = sh.AsJ(m) // JS 侧元素按对象读取；非对象元素无属性
+						ms[i] = sh.AsJ(m) // 元素按对象读取；非对象元素无属性
 					}
 					return Chat{s(j.Get("sessionId")), s(j.Get("startTime")), s(j.Get("lastUpdated")), s(j.Get("kind")), s(j.Get("summary")), ms}
 				}
@@ -81,7 +81,7 @@ func FoldChat(raw string) Chat {
 	return Chat{s(head.Get("sessionId")), s(head.Get("startTime")), s(head.Get("lastUpdated")), s(head.Get("kind")), s(head.Get("summary")), ms}
 }
 
-// Text mirrors geminiText（"" = undefined）。
+// Text：消息内容的文本（"" = undefined）。
 func Text(content any) string {
 	switch x := content.(type) {
 	case string:
@@ -106,7 +106,7 @@ func Text(content any) string {
 	return ""
 }
 
-// ParseTranscript mirrors parseGeminiTranscript。
+// ParseTranscript：解析会话记录文件。
 func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 	b := sh.NewBuilder()
 	for _, m := range FoldChat(text).Messages {

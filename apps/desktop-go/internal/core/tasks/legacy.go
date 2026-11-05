@@ -1,6 +1,6 @@
 package tasks
 
-// 旧的提醒 / 定时代理任务并入任务页（只读适配器），对应 src/tasks/legacy.ts。
+// 旧的提醒 / 定时代理任务并入任务页（只读适配器）。
 
 import (
 	"sort"

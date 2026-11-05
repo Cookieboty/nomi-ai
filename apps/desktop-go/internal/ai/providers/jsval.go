@@ -2,7 +2,7 @@ package providers
 
 // JS 值语义的小工具：ProviderStore / ProviderService 直接操作 JSON 形状的动态对象
 // （*u.Obj / []any / string / float64 / bool / nil=null / u.Undefined），以保证
-// 键序、undefined 槽位与 JSON.stringify 输出与 Node 逐字节一致。
+// 键序、undefined 槽位与 JSON.stringify 输出稳定，与旧版写出的文件逐字节兼容。
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func prop(v any, k string) any {
 	return undef
 }
 
-// orUndef：x ?? undefined 的 Go 端（nil 指针 → undefined）
+// orUndef：x ?? undefined（nil 指针 → undefined）
 func truthy(v any) bool {
 	if isUndef(v) {
 		return false

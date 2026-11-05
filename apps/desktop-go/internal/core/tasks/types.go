@@ -1,6 +1,6 @@
-// Package tasks 移植 apps/desktop-electron/internal/core/src/tasks：持续任务的数据模型、错误码与状态机
-// （docs/design/persistent-tasks.md）。JSON 形状与 Node 版一致：可选字段用指针 + omitempty，
-// 对应 TS 里值为 undefined 的键被去掉；空数组照常输出 []。
+// Package tasks：持续任务的数据模型、错误码与状态机
+// （docs/features/scheduling-calendar.md）。JSON 形状与旧版写出的文件兼容：可选字段用指针 + omitempty，
+// 值为 undefined 的键被去掉；空数组照常输出 []。
 package tasks
 
 import (
@@ -11,7 +11,7 @@ import (
 
 const SchemaVersion = 1
 
-// 任务状态（types.ts TaskStatus）
+// 任务状态（TaskStatus）
 const (
 	StatusIdle           = "idle"
 	StatusQueued         = "queued"
@@ -28,12 +28,12 @@ const (
 // TerminalStatuses：结束态，不再触发、不再接受执行回报
 var TerminalStatuses = []string{StatusDone, StatusFailed, StatusCancelled, StatusExpired}
 
-// InboxStatuses：需要用户处理、出现在收件箱里的状态（§11）
+// InboxStatuses：需要用户处理、出现在收件箱里的状态
 var InboxStatuses = []string{
 	StatusWaitingUser, StatusNeedsReconcile, StatusAwaitingAccept, StatusFailed, StatusExpired,
 }
 
-// Trigger 对应 types.ts 的判别联合：manual | schedule{at,repeat?,catchUpMs?} | event{sourceId,filter,cooldownMs?,mode}
+// Trigger：触发器的判别联合：manual | schedule{at,repeat?,catchUpMs?} | event{sourceId,filter,cooldownMs?,mode}
 type Trigger struct {
 	Kind       string           `json:"kind"`
 	At         *int64           `json:"at,omitempty"`
@@ -45,21 +45,23 @@ type Trigger struct {
 	Mode       *string          `json:"mode,omitempty"`
 }
 
-// ExecutorSpec 对应 notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
-// cli{cli,model?,cwd,isolation}
+// ExecutorSpec：notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
+// cli{cli,model?,cwd,isolation,baseBranch?}
 type ExecutorSpec struct {
 	Kind     string    `json:"kind"`
 	Text     *string   `json:"text,omitempty"`
 	Model    *string   `json:"model,omitempty"`
 	Tools    *[]string `json:"tools,omitempty"`
 	Scenario *string   `json:"scenario,omitempty"`
-	// Toolset：nomi 的 "conversation" = 对话里派给 Nomi 的（§7.4）：用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
+	// Toolset：nomi 的 "conversation" = 对话里派给 Nomi 的：用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
 	// 高级权限：L4、已装的 MCP 工具全部授权、读过外部内容后的写入不再一律问人
 	Toolset *string `json:"toolset,omitempty"`
 	Cli     *string `json:"cli,omitempty"`
 	// Cwd：cli 的工作目录；nomi 的发起对话的工作区（内核照常再校验）
 	Cwd       *string `json:"cwd,omitempty"`
 	Isolation *string `json:"isolation,omitempty"`
+	// BaseBranch：cli 的基线分支：是别的分支（不在当前分支历史里）时才开 worktree，否则直接在 cwd 里改
+	BaseBranch *string `json:"baseBranch,omitempty"`
 	// ReasoningEffort：cli 的思考深度（委派带过来的）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
 	// Brief：对话里委派过来的任务的完成标准、背景、不要碰的范围（提示词用）
@@ -70,14 +72,14 @@ type ExecutorSpec struct {
 	CallID *string `json:"callId,omitempty"`
 }
 
-// Brief 对应 ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
+// Brief：ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
 type Brief struct {
 	DoneWhen   string  `json:"doneWhen"`
 	Context    *string `json:"context,omitempty"`
 	OutOfScope *string `json:"outOfScope,omitempty"`
 }
 
-// 重要程度（看板按它分组；不影响执行顺序）与任务类型（types.ts TASK_PRIORITIES / TASK_CATEGORIES）
+// 重要程度（看板按它分组；不影响执行顺序）与任务类型（TASK_PRIORITIES / TASK_CATEGORIES）
 var (
 	TaskPriorities = []string{"urgent", "high", "medium", "low"}
 	TaskCategories = []string{"coding", "review", "research", "writing", "monitor", "chore"}
@@ -148,7 +150,7 @@ type AttemptCause struct {
 	Answer   *Answer `json:"answer,omitempty"`
 }
 
-// FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容（§8.4）——事件触发的，以及接着它
+// FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容——事件触发的，以及接着它
 // 重试 / 续跑 / 退回的（继承了 eventKey）。恢复原因变了不能让审批变宽（#250）
 func (c AttemptCause) FromExternalEvent() bool {
 	return c.Kind == "event" || (c.EventKey != nil && *c.EventKey != "")

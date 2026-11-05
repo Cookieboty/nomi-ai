@@ -298,7 +298,7 @@ export interface ConversationViewProps {
    * 由来源决定（编程助手标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
    */
   modelSwitchTip?: string | null;
-  /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/design/cli-subagents.md §5） */
+  /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/development/coding-agents.md） */
   backgroundAgents?: ReadonlyArray<{
     id: string;
     label?: string;

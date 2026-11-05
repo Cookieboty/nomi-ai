@@ -3,7 +3,7 @@ import { t } from '@nomi-ai/ui';
 import { api, hasTransport } from './api';
 import { contractErrorCode } from './hostBackends/knowledge';
 /**
- * 本地知识库客户端：契约 `kb.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:kb:*`）。
+ * 本地知识库客户端：契约 `kb.*`（docs/development/architecture.md，原 `ai:kb:*`）。
  * 文件夹一律由主进程弹系统选择框加入；渲染层拿不到 key，也不能直接传路径授权。
  */
 export interface KbSourceView {

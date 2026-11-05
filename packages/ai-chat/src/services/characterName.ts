@@ -1,5 +1,5 @@
 /**
- * 当前角色名（docs/design/core-host-decoupling.md §10.1、docs/BRAND.md）：界面里指桌面上那个角色的地方
+ * 当前角色名（docs/character-pack/CONTRACT.md、docs/BRAND.md）：界面里指桌面上那个角色的地方
  * 用它，不写死官方角色名；产品名用 `@nomi-ai/types` 的 `brand.appName`。
  *
  * 角色有全名和简称（人设的 displayName / shortName，docs/BRAND.md）：第一次提到时用全名

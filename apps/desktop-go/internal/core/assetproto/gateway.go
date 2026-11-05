@@ -7,9 +7,9 @@ import (
 
 // GatewayPrefix：Wails v3.0.0 只把自家 "wails" scheme 交给 Go（mac 的 setURLSchemeHandler、
 // Linux 的 webkit_web_context_register_uri_scheme 都硬编码在框架里，WebView2 的自定义 scheme
-// 需在建 Environment 时注册），无法像 Electron protocol.handle 那样注册任意 scheme。
+// 需在建 Environment 时注册），不能注册任意 scheme。
 // 因此在资产服务器上开一个网关：<origin>/__scheme/<scheme>/<host>/<path>?<query>
-// 还原为 <scheme>://<host>/<path>?<query> 后交给与 Electron 逐字对应的处理体（见 D-B10-5）。
+// 还原为 <scheme>://<host>/<path>?<query> 后交给对应协议的处理体。
 const GatewayPrefix = "/__scheme/"
 
 // RawURLFromGateway：网关路径 → 原始协议地址；ok=false 表示不是网关请求

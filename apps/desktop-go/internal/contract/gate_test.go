@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// D-B11-12：Router.GateBefore —— 被门控的过程等屏障，未门控的直接过，abort（ctx 取消）结束等待
+// Router.GateBefore —— 被门控的过程等屏障，未门控的直接过，abort（ctx 取消）结束等待
 func TestRouterGateBefore(t *testing.T) {
 	r := NewRouter()
 	ok := func(context.Context, Caller, json.RawMessage) (any, error) { return "ok", nil }

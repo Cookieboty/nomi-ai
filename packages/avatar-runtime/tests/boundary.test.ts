@@ -1,5 +1,5 @@
 /**
- * 依赖边界（docs/design/core-host-decoupling.md §3.2、§10.6、§11.1）：avatar-runtime 只依赖
+ * 依赖边界（docs/development/architecture.md）：avatar-runtime 只依赖
  * character-contract 与浏览器 API。eslint 拦源码里的 import（eslint.config.mjs），这里再拦 package.json
  * 与动态写法（require / import()）。
  */

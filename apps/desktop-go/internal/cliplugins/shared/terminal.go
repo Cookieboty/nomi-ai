@@ -8,7 +8,7 @@ func PsQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + 
 // KV 保序的 env 键值（JS Object.entries 顺序）。
 type KV struct{ K, V string }
 
-// TerminalLine mirrors terminalLine。
+// TerminalLine：在终端里运行的命令行（同 packages/cli-catalog/src/shared/terminal.ts）。
 func TerminalLine(command string, args []string, env []KV, platform string) string {
 	var b strings.Builder
 	q := ShQuote

@@ -1,6 +1,5 @@
-// Package charcontract 是 packages/character-contract 的 Go 移植（validatePack / migrations / copy），
-// 与 Node 逐字节一致：JSON.parse 的 V8 报错文本、zod v4 的 issue 顺序与文案、JS 对象键序。
-// 金样由 scripts/parity/record-character-contract.mjs 在 Node 上录制（testdata/）。
+// Package charcontract：角色包契约（validatePack / migrations / copy），与 packages/character-contract
+// 同一套规则，输出也一致：JSON.parse 的 V8 报错文本、zod v4 的 issue 顺序与文案、JS 对象键序。
 package charcontract
 
 import (

@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 对应 money.ts
+// 金额
 
 func CurrencySymbol(c Currency) string {
 	if c == "CNY" {

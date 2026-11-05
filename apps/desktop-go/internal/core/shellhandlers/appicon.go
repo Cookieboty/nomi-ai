@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/appicon"
 )
 
-// InstallAppIcon：shell.ts 的 appIcon.*（宿主片段，= host-electron/src/host/contract/index.ts）
+// InstallAppIcon：挂 appIcon.*（宿主部分）
 func InstallAppIcon(r *contract.Router, svc *appicon.Service) {
 	r.Call("appIcon.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return svc.Get(), nil

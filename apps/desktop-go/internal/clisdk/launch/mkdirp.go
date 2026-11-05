@@ -8,8 +8,8 @@ import (
 	"syscall"
 )
 
-// mkdirp 复刻 Node fs.mkdirSync(p, {recursive:true}) 的错误语义（node_file.cc MKDirpSync）：
-// 已存在但不是目录 → EEXIST；其他错误原样；Node 报错路径为调用参数 p（调用方拼 message）。
+// mkdirp：fs.mkdirSync(p, {recursive:true}) 的错误语义（libuv MKDirpSync）：
+// 已存在但不是目录 → EEXIST；其他错误原样；报错路径为调用参数 p（调用方拼 message）。
 func mkdirp(p string, perm os.FileMode) error {
 	err := os.Mkdir(p, perm)
 	if err == nil {

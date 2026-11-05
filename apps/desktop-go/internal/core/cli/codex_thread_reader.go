@@ -1,9 +1,9 @@
 package cli
 
-// codex_thread_reader.go mirrors apps/desktop-electron/internal/core/src/cli/codexThreadReader.ts + codexThreadWorker.ts。
-// Node 把同步的 node:sqlite 整表 SELECT 放到 worker_threads，只为不阻塞主进程事件循环；
-// Go 的"worker"是一个 goroutine（D-B7-S-2）：读库在 jsrt 锁外执行，回复经 jsrt.Run 派发（等价 'message' 事件）。
-// 状态机（懒启动、复用、空闲回收、超时/崩溃失败所有请求、连续崩溃回退主线程读取）逐行同 Node。
+// codex_thread_reader.go：Codex 线程索引的读取（CodexThreadReader + worker）。
+// 整表 SELECT 是同步的，放到 worker 里只为不阻塞主线程事件循环；
+// worker 是一个 goroutine：读库在 jsrt 锁外执行，回复经 jsrt.Run 派发（等价 'message' 事件）。
+// 状态机：懒启动、复用、空闲回收、超时/崩溃失败所有请求、连续崩溃回退主线程读取。
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ type CodexIndexReply struct {
 }
 
 // CodexIndexWorkerLike = worker_threads.Worker 中用到的部分（测试可注入假 worker）。
-// 回调均在 jsrt 锁内调用；PostMessage 返回 error 等价 Node 同步抛错。
+// 回调均在 jsrt 锁内调用；PostMessage 返回 error 等价同步抛错。
 type CodexIndexWorkerLike interface {
 	PostMessage(m CodexIndexRequest) error
 	OnMessage(fn func(CodexIndexReply))
@@ -41,9 +41,9 @@ type CodexIndexWorkerLike interface {
 	Unref()
 }
 
-// CodexThreadReaderOptions mirrors CodexThreadReaderOptions（nil 指针 = undefined）。
+// CodexThreadReaderOptions：读取器选项（nil 指针 = undefined）。
 type CodexThreadReaderOptions struct {
-	// Spawn 返回 (nil, nil) 或 error 表示不可用，直接主线程读取；Spawn 本身为 nil 同 Node 的 null。
+	// Spawn 返回 (nil, nil) 或 error 表示不可用，直接主线程读取；Spawn 本身为 nil = 不用 worker。
 	Spawn      func() (CodexIndexWorkerLike, error)
 	Local      func(file string) ([]*util.Obj, error)
 	TimeoutMs  *int
@@ -58,7 +58,7 @@ type crPending struct {
 	timer *jsrt.Timer
 }
 
-// CodexThreadReader mirrors class CodexThreadReader。所有方法持 jsrt 锁调用。
+// CodexThreadReader：Codex 线程索引读取器。所有方法持 jsrt 锁调用。
 type CodexThreadReader struct {
 	opts       CodexThreadReaderOptions
 	w          CodexIndexWorkerLike
@@ -267,8 +267,8 @@ func (r *CodexThreadReader) maybeIdle() {
 
 /* ------------------------- 默认 worker：goroutine ------------------------- */
 
-// goWorker = codexThreadWorker.ts：每个请求在锁外 ReadCodexThreads，回复持锁派发。
-// Ref/Unref 无操作（Go 进程存活不受 goroutine 影响，D-B7-S-2）。
+// goWorker：每个请求在锁外 ReadCodexThreads，回复持锁派发。
+// Ref/Unref 无操作（Go 进程存活不受 goroutine 影响）。
 type goWorker struct {
 	onMsg      func(CodexIndexReply)
 	onErr      func(error)
@@ -314,7 +314,7 @@ func (w *goWorker) loop() {
 
 func (w *goWorker) PostMessage(m CodexIndexRequest) error {
 	if w.terminated {
-		return nil // 已终止 worker 的 postMessage 静默丢弃（同 Node）
+		return nil // 已终止 worker 的 postMessage 静默丢弃
 	}
 	w.reqs <- m
 	return nil

@@ -1,4 +1,4 @@
-// Package settings：userData/settings.json（计划 §5 的 mascot.renderer 等应用级开关）
+// Package settings：userData/settings.json（计划 的 mascot.renderer 等应用级开关）
 package settings
 
 import (
@@ -21,7 +21,7 @@ type Store struct {
 	mu   sync.Mutex
 	path string
 	data File
-	raw  map[string]any // 整个文件（保留其他键，和 Node writeMascotRenderer 一致）
+	raw  map[string]any // 整个文件（写回时保留其他键）
 }
 
 func New(path string) *Store {

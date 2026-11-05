@@ -1,5 +1,5 @@
-// Package events mirrors apps/desktop-electron/internal/gateway/src/stream/events.ts (NormEvent and
-// the decoder / encoder contracts). Leaf package, see deviation D15.
+// Package events: NormEvent and
+// the decoder / encoder contracts. Leaf package to avoid an import cycle.
 package events
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/stream/sse"
@@ -22,7 +22,7 @@ const (
 	Alive      = "alive"
 )
 
-// StreamUsage: nil means the field is absent (TS undefined).
+// StreamUsage: nil means the field is absent (undefined).
 type StreamUsage struct {
 	InputTokens      *float64
 	OutputTokens     *float64

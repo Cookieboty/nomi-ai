@@ -1,10 +1,10 @@
 /**
- * @nomi-ai/contract —— 视图与内核之间的 API 契约（docs/design/core-host-decoupling.md §4、§5、§8）。
+ * @nomi-ai/contract —— 视图与内核之间的 API 契约（docs/development/contract.md）。
  *
  * - `defineContract`：过程（query / mutation / stream）+ 事件 + zod schema + 版本号；
  * - `createClient`：视图侧类型化 api；
  * - `implement`：内核侧处理函数表 → Router（内置 surfaces / dangerous 守卫 + 中间件）；
- * - 线协议与传输：`ClientTransport` / `ServerTransport`、基于帧的通用实现、IPC 形状的适配；
+ * - 线协议与传输：`ClientTransport` / `ServerTransport`、基于帧的通用实现、WebSocket 适配；
  *   in-process 传输在 `@nomi-ai/contract/testing`。
  *
  * 本包不依赖 electron，也不依赖 Node 内置模块：视图（浏览器）与内核都能加载。
@@ -117,21 +117,6 @@ export {
   type FrameClientTransport,
   type ReconnectableFrameClient,
 } from './frameClient';
-
-export {
-  createIpcClientTransport,
-  createIpcServerTransport,
-  DEFAULT_MAX_SESSIONS_PER_SENDER,
-  IPC_FRAME_CHANNEL,
-  IPC_REQUEST_CHANNEL,
-  type IpcBridgeLike,
-  type IpcClientOptions,
-  type IpcEnvelope,
-  type IpcInvokeEventLike,
-  type IpcMainLike,
-  type IpcServerOptions,
-  type IpcServerTransport,
-} from './ipc';
 
 export { base64ToBytes, bytesToBase64, decodeWireFrame, encodeWireFrame } from './wire';
 

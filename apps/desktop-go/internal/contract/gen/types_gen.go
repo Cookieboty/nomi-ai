@@ -5446,6 +5446,7 @@ type TasksApplyWorktreeOutput struct {
 	Skipped    []string `json:"skipped"`
 	Conflicted []string `json:"conflicted"`
 	Denied     []string `json:"denied"`
+	Branch     *string  `json:"branch,omitempty"`
 }
 
 type TasksCancelInput struct {

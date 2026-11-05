@@ -88,7 +88,7 @@ type ChatProvider struct {
 	Local bool
 }
 
-// ParseResult / ParseFunc：desktop/parse 的 parseFile（受限子进程解析），默认就用它（同 Node）
+// ParseResult / ParseFunc：desktop/parse 的 parseFile（受限子进程解析），默认就用它
 type ParseResult struct {
 	OK        bool
 	Text      string
@@ -98,7 +98,7 @@ type ParseResult struct {
 
 type ParseFunc func(ctx context.Context, path string) ParseResult
 
-// OcrFunc：图片 OCR。Node 版在主进程跑 tesseract.js；Go 版还没有 OCR 实现，不注入时图片索引失败（OCR unavailable）。
+// OcrFunc：图片 OCR。还没有 OCR 实现，不注入时图片索引失败（OCR unavailable）。
 type OcrFunc func(ctx context.Context, path string, langs []string, langDir string) (string, error)
 
 type Deps struct {
@@ -641,7 +641,7 @@ func (s *Service) walk(ctx context.Context, root string, out *[]string) {
 		if depth > MaxDepth || len(*out) >= MaxFilesPerSource || ctx.Err() != nil {
 			return
 		}
-		items, _ := os.ReadDir(dir) // 按名字排序；Node readdir 为文件系统顺序（见 D-B8 偏差表）
+		items, _ := os.ReadDir(dir) // 按名字排序
 		for _, it := range items {
 			if len(*out) >= MaxFilesPerSource || ctx.Err() != nil {
 				return
@@ -1285,7 +1285,7 @@ func (s *Service) Dispose() {
 func (s *Service) StartReindex(force bool) KbProgress {
 	ch := make(chan struct{})
 	go s.reindex(context.Background(), nil, force, func() { close(ch) })
-	<-ch // Node 在同一 tick 内同步进入 scan
+	<-ch // 同步进入 scan
 	return s.Progress()
 }
 

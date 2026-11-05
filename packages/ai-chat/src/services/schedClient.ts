@@ -1,4 +1,4 @@
-/** 主动日程客户端：契约 `sched.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:sched:*`） */
+/** 主动日程客户端：契约 `sched.*`（docs/development/architecture.md，原 `ai:sched:*`） */
 import { t as tr } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';

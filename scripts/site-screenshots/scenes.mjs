@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const out = (line) => process.stdout.write(`${line}\n`);
 
-export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images = [], dataDir }) {
+export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images = [] }) {
   const h = {
     page,
     project,
@@ -116,42 +116,6 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
         }
       }, payload);
       await h.wait(1500);
-    },
-    /**
-     * 浏览器里没有 Electron 的 chat-asset:// 协议（素材库缩略图用它）：从数据目录读出文件，换成 data URL。
-     * 只影响截图时的页面，不改数据。
-     */
-    async inlineChatAssets() {
-      const srcs = await page.evaluate(() => [
-        ...new Set(
-          [...document.images]
-            .map((i) => i.getAttribute('src'))
-            .filter((s) => s?.startsWith('chat-asset://')),
-        ),
-      ]);
-      const index = new Map();
-      const walk = (dir) => {
-        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-          const full = path.join(dir, e.name);
-          if (e.isDirectory()) walk(full);
-          else index.set(e.name, full);
-        }
-      };
-      if (dataDir && fs.existsSync(dataDir)) walk(dataDir);
-      const map = {};
-      for (const src of srcs) {
-        const file = index.get(path.basename(new URL(src).pathname));
-        if (!file) continue;
-        const ext = path.extname(file).slice(1).replace('jpg', 'jpeg');
-        map[src] = `data:image/${ext};base64,${fs.readFileSync(file).toString('base64')}`;
-      }
-      await page.evaluate((m) => {
-        for (const img of document.images) {
-          const s = img.getAttribute('src');
-          if (m[s]) img.src = m[s];
-        }
-      }, map);
-      await h.wait(600);
     },
     async createTask({ title, goal }) {
       await page.getByRole('button', { name: '新建任务' }).click();
@@ -336,7 +300,6 @@ export const SCENES = [
       await h.mode('助手');
       await h.page.getByRole('button', { name: '素材库', exact: true }).first().click();
       await h.wait(1500);
-      await h.inlineChatAssets();
     },
   },
   {

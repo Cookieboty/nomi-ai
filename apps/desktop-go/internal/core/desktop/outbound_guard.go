@@ -7,7 +7,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// outboundGuard.ts：外发给云端模型前，把附件正文 / 编码助手输出按设置挡下或替换
+// 外发给云端模型前，把附件正文 / 编码助手输出按设置挡下或替换
 
 type SendVerdict = string // "" | local_only | user_denied
 
@@ -23,7 +23,7 @@ const withheld = `(Content withheld: shown only on this device. Per the "only lo
 // GuardOutboundMessages 原地改写 messages（[]map[string]any，content 为字符串的才处理）
 func GuardOutboundMessages(messages any, check OutboundCheck) error {
 	var list []map[string]any
-	nullAt := -1 // Node：list[i]! 为 null 时读 .content 抛 TypeError
+	nullAt := -1 // list[i]! 为 null 时读 .content 抛 TypeError
 	switch v := messages.(type) {
 	case []map[string]any:
 		list = v
@@ -91,7 +91,7 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 	return nil
 }
 
-// IslandNotice 对应 islandNotice.ts
+// IslandNotice：灵动岛通知
 type IslandNotice struct {
 	Kind       string `json:"kind"` // message | agent | reminder | info
 	Title      string `json:"title"`

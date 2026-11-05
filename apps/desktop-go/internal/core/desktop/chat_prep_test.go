@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// AfterWorkspace 在会话工作区之后、外发检查之前（createCore.ts prepareChat 的顺序）
+// AfterWorkspace 在会话工作区之后、外发检查之前（prepareChat 的顺序）
 func TestPrepareChatAfterWorkspaceOrder(t *testing.T) {
 	c := ChatPrep{
 		Broker: WorkspaceBroker{

@@ -280,12 +280,17 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
                       const r = await api.tasks.applyWorktree({ id });
                       if (r)
                         setNotice(
-                          t(
-                            'ui.providers-schedule.task-applied',
-                            r.applied.length,
-                            r.conflicted.length,
-                            r.denied.length,
-                          ),
+                          [
+                            t(
+                              'ui.providers-schedule.task-applied',
+                              r.applied.length,
+                              r.conflicted.length,
+                              r.denied.length,
+                            ),
+                            r.branch && t('ui.providers-schedule.task-applied-branch', r.branch),
+                          ]
+                            .filter(Boolean)
+                            .join(' · '),
                         );
                     });
                   })()

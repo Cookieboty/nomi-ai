@@ -8,7 +8,7 @@ import { liveOf } from '../src/components/Sidebar/SidebarRows';
 import type { HarnessTabMeta, HarnessTraceEvent } from '../src/services/harnessClient';
 import type { ConvLive } from '../src/types/conversation';
 
-// 子代理界面（docs/design/cli-subagents.md §5）
+// 子代理界面（docs/development/coding-agents.md）
 afterEach(cleanup);
 
 const tool = (e: Partial<Extract<HarnessTraceEvent, { type: 'tool' }>>): HarnessTraceEvent =>

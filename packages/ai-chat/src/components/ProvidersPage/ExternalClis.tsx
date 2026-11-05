@@ -1,6 +1,6 @@
 /**
  * 「编程助手 → 外部 CLI」：接入任意说 ACP（Agent Client Protocol）的 CLI（L1 声明式插件，
- * docs/design/cli-plugin-architecture.md §5.9）。只填命令、参数模板和需要的环境变量名，不加载任何第三方代码。
+ * docs/development/coding-agents.md）。只填命令、参数模板和需要的环境变量名，不加载任何第三方代码。
  * 「测试」只做 ACP 握手（不建会话、不发消息）；外部 CLI 没有官方账号、第三方模型与用量监视，
  * 权限只有「逐项确认」。
  */

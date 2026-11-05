@@ -35,7 +35,7 @@ type TtsError struct {
 
 func (e *TtsError) Error() string { return e.Msg }
 
-// Socket 是 ws 客户端的最小面（测试可替换），事件语义同 Node 的 EdgeSocket
+// Socket 是 ws 客户端的最小面（测试可替换）
 type Socket interface {
 	// Read 阻塞读一条消息；binary 表示二进制帧
 	Read(ctx context.Context) (data []byte, binary bool, err error)
@@ -43,7 +43,7 @@ type Socket interface {
 	Terminate()
 }
 
-// DialError 描述握手失败：Status>0 表示 unexpected-response，否则是 error 事件（Code 为 Node errno 名）
+// DialError 描述握手失败：Status>0 表示 unexpected-response，否则是 error 事件（Code 为 errno 名）
 type DialError struct {
 	Status int
 	Date   string
@@ -70,7 +70,7 @@ func (s *wsSocket) Send(ctx context.Context, text string) error {
 }
 func (s *wsSocket) Terminate() { _ = s.c.CloseNow() }
 
-// DefaultFactory：coder/websocket，自带头按 Node 顺序写入；permessage-deflate 协商见 D-B9-5
+// DefaultFactory：coder/websocket，自带头按固定顺序写入
 func DefaultFactory(ctx context.Context, url string, headers Header) (Socket, error) {
 	h := http.Header{}
 	for _, kv := range headers {
@@ -92,7 +92,7 @@ func DefaultFactory(ctx context.Context, url string, headers Header) (Socket, er
 	return &wsSocket{c}, nil
 }
 
-// nodeNetError 把 Go 的网络错误翻成 Node 的 errno 名与 message（`getaddrinfo ENOTFOUND host`、`connect ECONNREFUSED ip:port`）
+// nodeNetError 把 Go 的网络错误翻成 Node 风格的 errno 名与 message（`getaddrinfo ENOTFOUND host`、`connect ECONNREFUSED ip:port`）
 func nodeNetError(err error, rawURL string) *DialError {
 	var dns *net.DNSError
 	if errors.As(err, &dns) {

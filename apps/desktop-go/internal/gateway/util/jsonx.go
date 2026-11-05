@@ -1,11 +1,11 @@
-// Package util mirrors apps/desktop-electron/internal/gateway/src/util.ts and adds an order-preserving
-// JSON value model (see deviation D15 in docs/design/migrate-2.0.5-go.md):
+// Package util: gateway helpers plus an order-preserving
+// JSON value model:
 // JavaScript objects keep insertion order and JSON.stringify writes them in that
 // order. The gateway hashes request history (callIdSeed) and forwards bodies
-// byte-for-byte to upstream prompt caches, so Go must keep the same order and
+// byte-for-byte to upstream prompt caches, so the Go side keeps the same order and
 // the same number / string formatting as JSON.stringify.
 //
-// Value space (mirrors JSON.parse results):
+// Value space (as JSON.parse results):
 //
 //	nil | bool | float64 | string | []any | *Obj
 //

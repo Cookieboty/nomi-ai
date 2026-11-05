@@ -77,7 +77,7 @@ func (t *SSETransport) Start() <-chan error {
 	go func() {
 		fail := func(err error) {
 			if isAbortNamed(err) {
-				return // promise 永不 settle（与 Node 一致）
+				return // promise 永不 settle
 			}
 			t.emitErr(err)
 			settle(err)

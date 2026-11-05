@@ -1,7 +1,7 @@
 package harness
 
-// orchestrator_tabops.go mirrors Orchestrator.ts 959–1100（setBackend … send）与
-// 1135–2036（createTab … effectiveOverrides）：标签的创建 / 关闭 / 各项设置、模型目录与来源。
+// orchestrator_tabops.go：setBackend … send 与
+// createTab … effectiveOverrides：标签的创建 / 关闭 / 各项设置、模型目录与来源。
 
 import (
 	"fmt"
@@ -371,6 +371,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		}
 		if truthy(del.Get("githubAccess")) {
 			d.Set("githubAccess", true)
+		}
+		if k, _ := del.Get("reuseKey").(string); k != "" {
+			d.Set("reuseKey", k)
 		}
 		d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 		tab.Set("delegation", d)

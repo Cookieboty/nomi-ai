@@ -1,9 +1,6 @@
 ---
-'@nomi-ai/core': minor
 '@nomi-ai/contract': minor
-'@nomi-ai/cli-sdk': minor
 '@nomi-ai/cli-catalog': minor
-'@nomi-ai/ai-runtime': minor
 '@nomi-ai/i18n': patch
 ---
 

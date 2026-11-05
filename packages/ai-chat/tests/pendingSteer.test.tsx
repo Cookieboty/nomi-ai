@@ -87,6 +87,70 @@ describe('useSendQueue 插入', () => {
     expect(send).toHaveBeenCalledWith('插不进去的', undefined);
   });
 
+  it('交付途中切换了会话：迟到的失败不放进新会话的队列，也不在新会话里发出（#254）', async () => {
+    let finish!: (ok: boolean) => void;
+    const fns = new Set<() => void>();
+    const ch: SteerChannel = {
+      deliver: vi.fn(() => new Promise<boolean>((res) => (finish = res))),
+      toolRunning: () => false,
+      onToolStart: (fn) => {
+        fns.add(fn);
+        return () => fns.delete(fn);
+      },
+      stop: vi.fn(),
+    };
+    const send = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ busy, conv }) => useSendQueue(busy, send, conv, ch),
+      { initialProps: { busy: true, conv: 'A' } },
+    );
+    act(() => result.current.enqueue('给 A 的补充'));
+    await act(async () => {
+      for (const fn of fns) fn();
+    });
+    expect(ch.deliver).toHaveBeenCalledTimes(1);
+    // 交付还没返回：切到空闲的会话 B
+    rerender({ busy: false, conv: 'B' });
+    await act(async () => finish(false));
+    expect(result.current.items).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
+    // B 自己排的消息照常发出，没有被旧回调挤掉
+    rerender({ busy: true, conv: 'B' });
+    act(() => result.current.enqueue('给 B 的', { mode: 'queue' }));
+    rerender({ busy: false, conv: 'B' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('给 B 的', undefined);
+  });
+
+  it('A → B → A 切回来后迟到的失败也不回填：切走时队列已经清空（#254）', async () => {
+    let finish!: (ok: boolean) => void;
+    const fns = new Set<() => void>();
+    const ch: SteerChannel = {
+      deliver: vi.fn(() => new Promise<boolean>((res) => (finish = res))),
+      toolRunning: () => false,
+      onToolStart: (fn) => {
+        fns.add(fn);
+        return () => fns.delete(fn);
+      },
+      stop: vi.fn(),
+    };
+    const send = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ busy, conv }) => useSendQueue(busy, send, conv, ch),
+      { initialProps: { busy: true, conv: 'A' } },
+    );
+    act(() => result.current.enqueue('给 A 的补充'));
+    await act(async () => {
+      for (const fn of fns) fn();
+    });
+    rerender({ busy: true, conv: 'B' });
+    rerender({ busy: true, conv: 'A' });
+    await act(async () => finish(false));
+    // 会话归属是按切换判断的：A→B→A 不是同一次队列，旧交付的失败不复活
+    expect(result.current.items).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('Ctrl+Enter 排队：工具开始时不交出去；可撤回（删除）', async () => {
     const { ch, delivered, toolStart } = channel();
     const { result } = renderHook(() => useSendQueue(true, () => undefined, undefined, ch));

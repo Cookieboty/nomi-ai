@@ -8,7 +8,7 @@
 //     校验通过才改名并更新 current.json，再删旧文件。更新期间旧素材照常可用；
 //   - 失败：有缓存就继续用缓存（只记日志），没有就进入 error，等用户重试（character.ensureAssets）。
 //
-// 与 Node 版 core/src/character/CharacterAssets.ts 行为一致。见 docs/design/remote-character-assets.md。
+// 见 docs/character-pack/README.md。
 package characterassets
 
 import (

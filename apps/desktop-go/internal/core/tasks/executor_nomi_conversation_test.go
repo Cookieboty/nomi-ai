@@ -1,6 +1,6 @@
 package tasks
 
-// 对应 nomiExecutor.test.ts 的「nomi 执行者：派给 Nomi（对话的工具集）」（persistent-tasks §7.4）
+// nomi 执行者：派给 Nomi（对话的工具集）（docs/features/scheduling-calendar.md）
 
 import (
 	"context"

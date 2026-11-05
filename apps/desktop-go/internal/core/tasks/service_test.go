@@ -121,3 +121,23 @@ func TestServiceDropsNomiModel(t *testing.T) {
 		t.Fatal("model stored")
 	}
 }
+
+// 还没跑过的任务：tasks.get 的 attempts 是 []，不是 null（契约 TaskRecordView.attempts 是数组）
+func TestGetNewTaskHasEmptyAttemptsArray(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}})
+	s.RegisterExecutor("nomi", nopCliExec{})
+	s.Start()
+	defer s.Stop()
+	var in CreateRequest
+	if err := json.Unmarshal([]byte(`{"title":"t","goal":"g","trigger":{"kind":"manual"},"executor":{"kind":"nomi"},"grant":{"level":2,"tools":["read"],"paths":[]}}`), &in); err != nil {
+		t.Fatal(err)
+	}
+	task, err := s.Create(in, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(s.Get(task.ID))
+	if !strings.Contains(string(b), `"attempts":[]`) {
+		t.Fatalf("attempts must be an empty array: %s", b)
+	}
+}

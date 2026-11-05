@@ -21,7 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// wireGatewayRequests = createCore 的 new GatewayRequestLog({ root, logger, traceOn, importLegacy })
+// wireGatewayRequests：GatewayRequestLog({ root, logger, traceOn, importLegacy })
 // 旧「最近请求」requests.json 导入模型质量账本一次后删除；追踪目录跟随诊断日志开关
 func wireGatewayRequests(userData string, sp *shellProcs) *usage.GatewayRequestLog {
 	return usage.NewGatewayRequestLog(usage.GatewayRequestLogDeps{
@@ -32,7 +32,7 @@ func wireGatewayRequests(userData string, sp *shellProcs) *usage.GatewayRequestL
 	})
 }
 
-// usageRef：UsageService（createCore new UsageService）；quality / gateway / agents / accounts 的闭包晚绑定读取
+// usageRef：UsageService；quality / gateway / agents / accounts 的闭包晚绑定读取
 var usageRef atomic.Pointer[usage.UsageService]
 
 // accountsRef：AccountService（wireHarness 里构造）；usage 的 grokAccountKey / officialAccount 晚绑定读取
@@ -69,7 +69,7 @@ func usageForgetAccountQuota(kind string) {
 	}
 }
 
-// nomiUsageRecorder = AIRuntimeBoot 的 ProviderStore onCall → usage.record({ source: 'nomi', via: 'chat', ... })。
+// nomiUsageRecorder：ProviderStore onCall → usage.record({ source: 'nomi', via: 'chat', ... })。
 // onCall 在调用方 goroutine 上触发；排进串行队列，由单个 goroutine 按序持锁记账（不在调用方持锁时重入 GIL）。
 func nomiUsageRecorder() func(any) {
 	q := make(chan *util.Obj, 1024)
@@ -93,7 +93,7 @@ func recordNomiCall(e *util.Obj) {
 	str := func(k string) string { x, _ := e.Get(k).(string); return x }
 	num := func(k string) float64 { x, _ := e.Get(k).(float64); return x }
 	// 经统一网关的调用由网关逐次记账（gatewayUsageRecorder → RecordGateway），这里跳过免得重复；
-	// 只记不经网关的（NOMI_PROVIDER 锁定的供应商等），与 Node AIRuntimeBoot 一致
+	// 只记不经网关的（NOMI_PROVIDER 锁定的供应商等）
 	if str("providerId") == aiproviders.GatewayProviderID {
 		return
 	}
@@ -140,7 +140,7 @@ func recordGatewayUsage(e *util.Obj) {
 	}
 }
 
-// splitGatewayUsage = ai/gatewayUsage.ts
+// splitGatewayUsage：网关用量的 providerId / model 拆分
 func splitGatewayUsage(providerID, model string) (string, string) {
 	i := strings.Index(model, "/")
 	if providerID != aiproviders.GatewayProviderID || i <= 0 {
@@ -149,7 +149,7 @@ func splitGatewayUsage(providerID, model string) (string, string) {
 	return model[:i], model[i+1:]
 }
 
-// wireUsage = createCore 的 new UsageService({...}) + usage.start()；网关 init 之后 autoSync。返回 stop。
+// wireUsage：构造 UsageService 并 start；网关 init 之后 autoSync。返回 stop。
 // usageSvcRef：用量服务（持续任务按模型价格算费用）
 var usageSvcRef atomic.Pointer[usage.UsageService]
 
@@ -233,7 +233,7 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 				logger.Warn("models data auto sync failed", err.Error())
 			}
 			// models.dev api.json（约 6 MB）解析成 util.Obj 峰值约 55 MiB 堆，解析完即成垃圾；
-			// Go 的 scavenger 要几分钟才把空闲页还给系统，空闲 USS 因此高约 60 MiB（D-B11-18），这里立刻归还
+			// Go 的 scavenger 要几分钟才把空闲页还给系统，空闲 USS 因此高约 60 MiB，这里立刻归还
 			debug.FreeOSMemory()
 		}()
 	})
@@ -241,7 +241,7 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 	return func() { jsrt.Run(func() { s.Stop() }) }
 }
 
-// usageOf / taskCost = createCore 的 AgentProgressService deps
+// usageOf / taskCost：AgentProgressService 的依赖
 func agentsUsageOf(source, session string) *util.Obj {
 	s := usageRef.Load()
 	if s == nil {

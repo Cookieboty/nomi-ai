@@ -107,7 +107,7 @@ describe('applyLiveEvents', () => {
     expect(performance.now() - t0).toBeLessThan(200);
   });
 
-  it('并行权限请求排队：按 id 结束其中一项不影响其它；超时留下提示（docs/design/cli-subagents.md §5）', () => {
+  it('并行权限请求排队：按 id 结束其中一项不影响其它；超时留下提示（docs/development/coding-agents.md）', () => {
     const perm = (id: string, agent: string): HarnessLiveEvent => ({
       tabId: 't',
       type: 'permission',
@@ -134,7 +134,7 @@ describe('applyLiveEvents', () => {
     expect(s.permissionExpired).toEqual({ summary: 'Bash: a', agent: 'A', at: 2 });
   });
 
-  it('子代理事件折叠成每个 id 一条：进度 / 用量合并，结束后迟到的进度不改回运行中（docs/design/cli-subagents.md §3）', () => {
+  it('子代理事件折叠成每个 id 一条：进度 / 用量合并，结束后迟到的进度不改回运行中（docs/development/coding-agents.md）', () => {
     const ag = (e: Partial<HarnessLiveEvent>) =>
       ({ tabId: 't', type: 'agent', id: 'a1', ...e }) as HarnessLiveEvent;
     let s = applyLiveEvents(

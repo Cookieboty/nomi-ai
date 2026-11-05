@@ -15,7 +15,7 @@ import (
 // PackageVersion = @ai-sdk/mcp VERSION（UA 后缀 ai-sdk/<VERSION>）
 const PackageVersion = "2.0.73"
 
-// DefaultRuntimeUA = getRuntimeEnvironmentUserAgent()（Electron 主进程 Node 24：navigator.userAgent 小写）。D-B5-MCP-1
+// DefaultRuntimeUA = getRuntimeEnvironmentUserAgent()（AI SDK 在 Node 24 下的 navigator.userAgent 小写），上游看到的 UA 不变。
 const DefaultRuntimeUA = "node.js/24"
 
 var headerNameRe = regexp.MustCompile("^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$")
@@ -88,13 +88,13 @@ var httpClient = &http.Client{
 	CheckRedirect: func(*http.Request, []*http.Request) error { return errRedirect }, // redirect: 'error'
 }
 
-// doFetch = undici fetch（Electron 主进程 net 未接管：globalThis.fetch）
+// doFetch：等价于 undici 的 globalThis.fetch
 func doFetch(signal Signal, method, href string, headers [][2]string, body *string) (*fetchResponse, error) {
 	return doFetchDispatched(signal, method, href, headers, body, nil)
 }
 
-// doFetchDispatched：dispatched 在请求已写上连接（或失败）时调用——对应 undici fetch() 同步发起：
-// Node 里"发起即在途"，fire-and-forget 的 GET 先于随后同步发起的 POST 到达服务端。
+// doFetchDispatched：dispatched 在请求已写上连接（或失败）时调用——等价于 fetch() 同步发起：
+// "发起即在途"，fire-and-forget 的 GET 先于随后同步发起的 POST 到达服务端。
 func doFetchDispatched(signal Signal, method, href string, headers [][2]string, body *string, dispatched func()) (*fetchResponse, error) {
 	if dispatched != nil {
 		defer dispatched()
@@ -108,7 +108,7 @@ func doFetchDispatched(signal Signal, method, href string, headers [][2]string, 
 	}
 	// 注意：不再以 WroteRequest 为"在途"信号。net/http 在上一个响应体读完后是异步把连接放回空闲池的，
 	// GET 可能新拨连接而随后的 POST 复用刚空闲的旧连接，服务端先看到 POST（undici 下 GET 拿到空闲 socket，
-	// 顺序确定）。改为等到响应头（或失败，defer）——服务端必已先处理 GET，到达顺序与 Node 一致（D-B5-MCP-10）。
+	// 顺序确定）。改为等到响应头（或失败，defer）——服务端必已先处理 GET，到达顺序确定。
 	var rd io.Reader
 	if body != nil {
 		rd = strings.NewReader(*body)
@@ -125,7 +125,7 @@ func doFetchDispatched(signal Signal, method, href string, headers [][2]string, 
 		req.Header["content-type"] = []string{"text/plain;charset=UTF-8"}
 	}
 	gnet.ApplyUndiciRequestDefaults(req)
-	// net/http 仅按规范键 "User-Agent" 判断是否补 "Go-http-client/1.1"：把小写键挪过去（线上头名大小写不敏感，D-B5-MCP-4）
+	// net/http 仅按规范键 "User-Agent" 判断是否补 "Go-http-client/1.1"：把小写键挪过去（线上头名大小写不敏感）
 	if v, ok := req.Header["user-agent"]; ok {
 		delete(req.Header, "user-agent")
 		req.Header["User-Agent"] = v

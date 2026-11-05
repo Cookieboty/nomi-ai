@@ -1,4 +1,4 @@
-// Package shellhandlers 把 theme/locale/startup/onboarding 等批次 2–3 的契约过程挂到 Router。
+// Package shellhandlers 把 theme/locale/startup/onboarding 等契约 shell 域的过程挂到 Router。
 package shellhandlers
 
 import (

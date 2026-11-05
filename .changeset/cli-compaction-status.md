@@ -1,7 +1,4 @@
 ---
-'@nomi-ai/cli-sdk': patch
-'@nomi-ai/cli-plugins': patch
-'@nomi-ai/core': patch
 '@nomi-ai/i18n': patch
 ---
 

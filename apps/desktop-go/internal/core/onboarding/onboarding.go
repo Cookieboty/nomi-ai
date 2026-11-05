@@ -1,4 +1,4 @@
-// Package onboarding 对应 apps/desktop-electron/internal/core/src/onboarding/OnboardingService.ts
+// Package onboarding：首次引导（OnboardingService）
 package onboarding
 
 import (
@@ -160,7 +160,7 @@ func isSemanticGesture(v any) bool {
 	return false
 }
 
-// Mascot = mascot(cmd)：对话窗口 → 桌面角色：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
+// Mascot = mascot(cmd)：对话窗口 → 桌面角色：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名，
 // 资源名与其它指令一律拒绝。返回是否有桌面角色窗口收到。
 func (s *Service) Mascot(raw json.RawMessage) bool {
 	var c map[string]any

@@ -1,7 +1,6 @@
 /**
- * CLI 插件清单（docs/design/cli-plugin-architecture.md §5.2）：纯数据，主进程加载时校验，
- * 校验失败的插件不注册（宿主写诊断日志）。两个版本共用的视图也会用到，所以不在 cli-sdk 里；
- * cli-sdk 原样转出这里的全部导出。
+ * CLI 插件清单（docs/development/coding-agents.md）：纯数据，内核加载时校验，
+ * 校验失败的插件不注册（宿主写诊断日志）。视图也会用到；Go 内核的 internal/clisdk 有对应实现。
  */
 
 /** Nomi 的五档权限模式（各 CLI 映射到自己的参数 / mode id） */
@@ -50,7 +49,7 @@ export interface CliCapabilities {
 }
 
 /**
- * 网关侧客户端规格（纯数据，§5.5）。具体字段由网关的客户端规格（P6）定义，
+ * 网关侧客户端规格（纯数据）。具体字段由网关的客户端规格（P6）定义，
  * 清单只负责携带；这里不约束形状，避免 cli-sdk 依赖网关。
  */
 export type ClientSpecData = Record<string, unknown>;
@@ -71,14 +70,14 @@ export interface CliManifest {
     minVersion?: string;
     install?: InstallSpec;
   };
-  /** 与 Nomi 的会话协议：决定用哪个共享驱动（§5.4） */
+  /** 与 Nomi 的会话协议：决定用哪个共享驱动 */
   transport: Transport;
   /** 驱动起不来时的退路（如 Codex app-server → exec） */
   fallbackTransport?: 'exec';
   /** 第三方模式下 CLI 打到网关的入口协议 */
   ingress: Ingress;
   capabilities: CliCapabilities;
-  /** 模型切换方式的上限（§6.7） */
+  /** 模型切换方式的上限 */
   modelSwitch: 'gateway' | 'inplace' | 'restart';
   maxTestedVersion?: string;
   /** 按版本开关的能力（semver 范围 → 能力位覆盖） */
@@ -186,7 +185,7 @@ export function validateManifest(m: unknown): string[] {
 }
 
 /**
- * 有效能力 = 清单声明 ∩ 版本开关（按检测到的版本）∩ 握手协商（§5.2，审查意见 I9）。
+ * 有效能力 = 清单声明 ∩ 版本开关（按检测到的版本）∩ 握手协商（审查意见 I9）。
  * `inRange` 由宿主给（semver 比较不放进契约包）。握手只能关掉能力，不能打开清单没声明的。
  */
 export function effectiveCapabilities(

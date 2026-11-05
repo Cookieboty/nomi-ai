@@ -5,10 +5,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Schemas transcribed from @ai-sdk/openai responses/openai-responses-api.ts.
+// Response schemas of the OpenAI Responses API (as in @ai-sdk/openai).
 // Only the item / chunk variants Nomi handles are modelled field-by-field;
 // the other modelled variants (provider-executed tools, compaction, …) are
-// accepted loosely and ignored (D-B5-P-7).
+// accepted loosely and ignored.
 
 type f = llm.F
 
@@ -60,7 +60,7 @@ var annotationSchema = llm.Union(
 	llm.Obj(typ("file_path"), f{Key: "file_id", S: llm.Str()}, f{Key: "index", S: llm.Number()}),
 )
 
-// unportedItemTypes are modelled by the SDK but not ported (D-B5-P-7).
+// unportedItemTypes are modelled by the SDK but not supported here.
 var unportedItemTypes = []string{"apply_patch_call", "code_interpreter_call", "compaction", "computer_call",
 	"custom_tool_call", "file_search_call", "image_generation_call", "local_shell_call", "mcp_approval_request",
 	"mcp_call", "mcp_list_tools", "program", "program_output", "shell_call", "shell_call_output",

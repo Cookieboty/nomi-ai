@@ -3,8 +3,8 @@ import { t } from '@nomi-ai/ui';
 import { api, hasTransport } from './api';
 import { onChatNav, onDesktopSummary } from './pendingNav';
 /**
- * 桌面能力（文件授权 / 工具权限 / 审计 / 撤销）客户端：契约 `desktop.*`（docs/design/core-host-decoupling.md
- * §12 P1b，原 `ai:desktop:*`）。授权文件夹一律由主进程弹出系统选择框，渲染层无法直接传入路径授权。
+ * 桌面能力（文件授权 / 工具权限 / 审计 / 撤销）客户端：契约 `desktop.*`（docs/development/security.md）。
+ * 授权文件夹一律由内核弹出系统选择框，视图无法直接传入路径授权。
  */
 export type Danger = 'read' | 'write' | 'destructive';
 export type Policy = 'always' | 'session' | 'ask';

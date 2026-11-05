@@ -1,6 +1,6 @@
 package providers
 
-// router.go：ProviderRouter.ts —— TrackedProvider（多 key fallback + 记账）与 RoutedLLMRegistry（角色路由）。
+// router.go：TrackedProvider（多 key fallback + 记账）与 RoutedLLMRegistry（角色路由）。
 
 import (
 	"context"
@@ -412,7 +412,7 @@ func (t *TrackedProvider) runStream(ctx context.Context, req *blm.ChatRequest, e
 	return nil
 }
 
-// routerNow：Date.now（golden 测试钉住）
+// routerNow：Date.now（测试钉住）
 var routerNow = time.Now
 
 // ProviderFactory：(opts) => LLMProvider（可 panic/返回错误 = 构造抛错）
@@ -684,7 +684,7 @@ func (r *RoutedLLMRegistry) gatewayProvider(g *GatewayResolution) (blm.LLMProvid
 	p, err := r.factory()(aisdk.Options{ID: GatewayProviderID, Protocol: g.Protocol, BaseURL: g.BaseURL, FullURL: boolPtr(false),
 		DefaultModel: g.Model, APIKey: g.Token, RequiresAPIKey: boolPtr(true), Receiver: &recv, Client: g.Client,
 		ServedModelHeader: NomiServedModelHeader, RedactedHeader: NomiRedactedHeader,
-		// 重连交给网关（同一个 Key 退避重连、换 Key、换供应商，§11.1）：SDK 不再叠加自己的重试
+		// 重连交给网关（同一个 Key 退避重连、换 Key、换供应商）：SDK 不再叠加自己的重试
 		MaxRetries: new(int)})
 	if err != nil {
 		return nil, err
@@ -694,7 +694,7 @@ func (r *RoutedLLMRegistry) gatewayProvider(g *GatewayResolution) (blm.LLMProvid
 	return tp, nil
 }
 
-// ResolveProvider：resolve(role)；nil = undefined。网关 provider 构造抛错时 panic 同 Node 抛出
+// ResolveProvider：resolve(role)；nil = undefined。网关 provider 构造抛错时 panic
 func (r *RoutedLLMRegistry) ResolveProvider(role string) *ResolvedProvider {
 	if role == "" {
 		role = "chat"

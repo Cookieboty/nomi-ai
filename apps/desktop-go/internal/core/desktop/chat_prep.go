@@ -5,9 +5,11 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
 
-// createCore.ts prepareChat + workspaceTools.ts applyConversationWorkspace + DesktopService.receiversFor/checkSendAll
+// 对话请求发出前的准备：prepareChat + applyConversationWorkspace + receiversFor/checkSendAll
 
 // ReceiversFor = receiversFor(provider, roles)：有 provider 用它；否则取候选角色里的全部 provider（按 id 去重）
 func ReceiversFor(provider *Provider, roles []Role, providerFor func(Role) *Provider) []*Provider {
@@ -54,15 +56,9 @@ func (s *Service) CheckSendAll(receivers []*Provider, signal context.Context, wh
 	return CheckSendAll(receivers, signal, what, s.Broker.CheckSend)
 }
 
-// WorkspaceSystemHint = workspaceSystemHint
+// WorkspaceSystemHint = workspaceSystemHint（prompts/text/workspace.md）
 func WorkspaceSystemHint(ws string, autoApprove bool) string {
-	s := "这次对话的工作区是 " + ws + "。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；" +
-		"工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。" +
-		"workspace_run 的工作目录是工作区，但命令本身不受工作区限制，每次执行前都要用户确认（「计划」权限模式下不能用）。"
-	if autoApprove {
-		s += "工作区里的文件操作不需要用户逐项确认。"
-	}
-	return s + "委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+	return prompts.Render("workspace", map[string]any{"Workspace": ws, "AutoApprove": autoApprove})
 }
 
 // WorkspaceBroker = Pick<PermissionBroker, 'workspaceOf' | 'autoApprove'>
@@ -148,7 +144,7 @@ type ChatPrep struct {
 	Broker      WorkspaceBroker
 	ProviderFor func(Role) *Provider
 	CheckSend   func(*Provider, context.Context, string) string
-	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（createCore 里追加派出去的判断规则，§7.4）
+	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（main.go 在这里追加派出去的判断规则）
 	AfterWorkspace func(options map[string]any, method string) error
 }
 
@@ -161,7 +157,7 @@ func (s *Service) ChatPrep() ChatPrep {
 	}
 }
 
-// PrepareChat = createCore.ts AiRouterOptions.prepareChat
+// PrepareChat：AI 路由的 prepareChat 钩子
 func (c ChatPrep) PrepareChat(options map[string]any, method string, signal <-chan struct{}) error {
 	if _, err := ApplyConversationWorkspace(options, c.Broker); err != nil {
 		return err

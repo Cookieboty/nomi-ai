@@ -1,5 +1,5 @@
 /**
- * 设置 → 应用与账号（docs/design/connections.md §7）：Nomi 能用的应用和账号。
+ * 设置 → 应用与账号（docs/features/scheduling-calendar.md）：Nomi 能用的应用和账号。
  *
  * - 「已连接」按应用分组（现在只有 GitHub）：每个账号一行，状态、宽权限提示、重新检测、删除；
  *   gh 换了账号时写明「gh 当前账号是 X」，给「改用 X」（确认后改绑，引用它的任务要重新授权）；

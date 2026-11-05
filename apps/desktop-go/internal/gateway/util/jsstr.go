@@ -134,7 +134,7 @@ func UTF16Prefix(s string, n int) int {
 
 // ToWellFormed is what Node's UTF-8 encoder (Buffer.from, createHash().update,
 // TextEncoder) does with a JS string: every lone surrogate (stored as WTF-8
-// `ED A0..BF xx`, see D19) becomes U+FFFD.
+// `ED A0..BF xx`) becomes U+FFFD.
 func ToWellFormed(s string) string {
 	i := strings.Index(s, "\xed")
 	if i < 0 {

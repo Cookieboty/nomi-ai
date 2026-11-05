@@ -1,4 +1,4 @@
-// Package local 移植 apps/desktop-electron/internal/core/src/local：本地模型目录 / llama-server / Ollama / 本地数据导出。
+// Package local：本地模型目录 / llama-server / Ollama / 本地数据导出。
 package local
 
 import (

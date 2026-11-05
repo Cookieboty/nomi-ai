@@ -1,13 +1,13 @@
-// Package openai ports @ai-sdk/openai's Responses API language model
+// Package openai implements @ai-sdk/openai's Responses API language model
 // (createOpenAI(...).responses(modelId)), used by Nomi for protocol
 // "openai-responses". It is a self-contained net/http + SSE adapter (no
 // vendor SDK): request bodies, headers, stream parts and errors match the
-// Node SDK (see testdata/b5-llm-openai-responses.json goldens).
+// SDK (see the recordings in testdata/b5-llm-openai-responses.json).
 //
-// Scope (docs/design/migrate-2.0.5-go.md D-B5-P-7): function tools and the
+// Scope (docs/development/architecture.md): function tools and the
 // message / reasoning / function_call output items. Provider-executed tools
 // (web/file search, code interpreter, shell, MCP, …), conversations,
-// compaction and GPT-6 configuration updates are not ported.
+// compaction and GPT-6 configuration updates are not supported.
 package openai
 
 import (

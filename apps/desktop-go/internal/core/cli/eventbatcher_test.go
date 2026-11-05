@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// EventBatcher 合并规则（eventBatcher.ts）：相邻、同 tab、同为 text-delta/thinking 且双方 text 为字符串才合并；
+// EventBatcher 合并规则：相邻、同 tab、同为 text-delta/thinking 且双方 text 为字符串才合并；
 // 合并产生新对象（不改原事件）；16ms 后一次性发出；flush/dispose 立即发出。
 func TestEventBatcher(t *testing.T) {
 	var batches [][]*util.Obj

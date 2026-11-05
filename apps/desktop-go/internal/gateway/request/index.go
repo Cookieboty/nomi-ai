@@ -5,13 +5,13 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DecodeOptions mirrors DecodeOptions.
+// DecodeOptions are the decoder options.
 type DecodeOptions struct {
 	Model  *string
 	Stream bool
 }
 
-// DecodeRequest mirrors decodeRequest.
+// DecodeRequest decodes body of the given wire into IR.
 func DecodeRequest(wire ir.Wire, body any, opts DecodeOptions) *ir.Request {
 	switch wire {
 	case ir.Messages:
@@ -25,7 +25,7 @@ func DecodeRequest(wire ir.Wire, body any, opts DecodeOptions) *ir.Request {
 	}
 }
 
-// EncodeRequest mirrors encodeRequest.
+// EncodeRequest encodes r for the given wire.
 func EncodeRequest(wire ir.Wire, r *ir.Request, model *string, opts EncodeOptions) *u.Obj {
 	switch wire {
 	case ir.Messages:
@@ -39,14 +39,14 @@ func EncodeRequest(wire ir.Wire, r *ir.Request, model *string, opts EncodeOption
 	}
 }
 
-// ConvertOptions mirrors convertRequest's opts.
+// ConvertOptions are ConvertRequest's options.
 type ConvertOptions struct {
 	DecodeOptions
 	EncodeOptions
 	UpstreamModel *string
 }
 
-// ConvertRequest mirrors convertRequest.
+// ConvertRequest converts a body from one wire to another through IR.
 func ConvertRequest(from, to ir.Wire, body any, opts ConvertOptions) *u.Obj {
 	return EncodeRequest(to, DecodeRequest(from, body, opts.DecodeOptions), opts.UpstreamModel, opts.EncodeOptions)
 }

@@ -1,5 +1,5 @@
 /**
- * 编程助手的官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录，
+ * 编程助手的官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录，
  * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
  * 与跟随默认的标签用。界面只拿得到身份（邮箱 / 套餐）。
  */

@@ -1,6 +1,6 @@
 package mascot
 
-// 桌面物理：apps/desktop-electron/src/mascot/desktopPhysics.ts 的逐行移植（纯函数）。
+// 桌面物理（纯函数）。
 // 坐标为屏幕像素、y 向下；窗口位置 (x, y) 为左上角；box 为角色在窗口内的包围盒。
 
 import "math"
@@ -56,7 +56,7 @@ func jsSign(v float64) float64 {
 	return v // ±0
 }
 
-// jsHypot = V8 Math.hypot（按最大值缩放 + Kahan 补偿求和），保证与 Node 逐位一致
+// jsHypot = V8 Math.hypot（按最大值缩放 + Kahan 补偿求和），结果逐位一致
 func jsHypot(vals ...float64) float64 {
 	max := 0.0
 	nan := false

@@ -1,6 +1,6 @@
 package aifacade
 
-// zod 4 的最小子集（契约入参 / 出参与 bundle-ig-base userProfileSchema 用到的部分）：
+// zod 4 的最小子集（契约入参 / 出参与 userProfileSchema 用到的部分）：
 // 输出按 shape 顺序（strip 丢未知键、loose 追加、strict 报 unrecognized_keys），
 // issue 的字段顺序与 message 与 zod 4.x en locale 逐字一致（ProfileStore 的 ZodError.message
 // 会原样出现在 INTERNAL 错误里）。

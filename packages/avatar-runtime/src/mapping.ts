@@ -1,5 +1,5 @@
 /**
- * 语义 → 引擎资源（docs/design/core-host-decoupling.md §10.5）。
+ * 语义 → 引擎资源（docs/character-pack/CONTRACT.md）。
  *
  * AI 侧与宿主只发语义名（情绪、活动、手势，词表在 `@nomi-ai/character-contract`）；角色包的
  * `mapping.json` 把它们翻译成自己的表情与动作。没有映射的名字忽略。包没有 `mapping.json` 时用

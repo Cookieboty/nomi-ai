@@ -33,7 +33,7 @@ var builtinChoice = map[string]bool{"code_interpreter": true, "file_search": tru
 	"programmatic_tool_calling": true}
 
 // prepareTools is prepareResponsesTools for function tools (provider tools:
-// D-B5-P-7 → UnsupportedFunctionalityError).
+// not supported → UnsupportedFunctionalityError).
 func prepareTools(tools []llm.Tool, choice *llm.ToolChoice, supportsAsync bool) (any, any, []llm.Warning, error) {
 	var warnings []llm.Warning
 	if len(tools) == 0 {

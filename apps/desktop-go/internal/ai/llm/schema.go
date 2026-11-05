@@ -12,7 +12,7 @@ import (
 // A tiny zod/v4 subset used to transcribe the SDK's response / chunk schemas
 // 1:1: same accept / reject decisions and the same output shape (z.object
 // strips unknown keys, z.looseObject keeps them, absent optional keys stay
-// absent). Issue texts are ours, not zod's (D-B5-P-1).
+// absent). Issue texts are ours, not zod's.
 
 type undefT struct{}
 

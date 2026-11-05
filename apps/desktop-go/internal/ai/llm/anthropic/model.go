@@ -10,10 +10,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Port of AnthropicLanguageModel.doGenerate / doStream
-// (@ai-sdk/anthropic 4.0.78 anthropic-language-model.ts). Server-tool, mcp,
+// AnthropicLanguageModel.doGenerate / doStream
+// (as in @ai-sdk/anthropic 4.0.78). Server-tool, mcp,
 // toolset and *_tool_result response blocks are accepted but not mapped
-// (D-B5-P-A-3).
+// (they are not supported).
 
 func (m *MessagesModel) post(ctx context.Context, o llm.CallOptions, p *prepared) (*llm.Response, string, error) {
 	var beta []llm.Header
@@ -281,7 +281,7 @@ func callerMeta(v any) llm.ProviderMetadata {
 
 func stringify(v any) string {
 	if v == nil || v == util.Undefined {
-		// JSON.stringify(undefined) is undefined; Node then stores it as-is.
+		// JSON.stringify(undefined) is undefined, so the value is stored as-is.
 		if v == nil {
 			return "null"
 		}

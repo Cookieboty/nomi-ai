@@ -1,6 +1,6 @@
 package tasks
 
-// `github` 事件源（§6.2、connections.md §3），对应 src/tasks/events/sources/github.ts：经连接只读轮询——
+// `github` 事件源（docs/features/scheduling-calendar.md）：经连接只读轮询——
 // issue / PR 的新动态（`since` 游标）、CI（workflow runs，跑完的才算事件）。按任务授权里的连接与仓库收窄
 // （GithubRead 的后台授权检查）。
 

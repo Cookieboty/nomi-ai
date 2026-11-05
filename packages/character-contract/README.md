@@ -1,6 +1,6 @@
 # @nomi-ai/character-contract
 
-角色包契约：角色包里各数据文件的类型、zod schema、机器可读契约、校验与迁移。纯数据与纯函数，Node 与浏览器通用，不依赖 Electron。设计见 [docs/design/core-host-decoupling.md](../../docs/design/core-host-decoupling.md) §10.2、§10.3；字段说明见 [docs/character-pack/CONTRACT.md](../../docs/character-pack/CONTRACT.md)。
+角色包契约：角色包里各数据文件的类型、zod schema、机器可读契约、校验与迁移。纯数据与纯函数，Node 与浏览器通用（Go 内核内嵌它导出的 `contract.json`）。字段说明见 [docs/character-pack/CONTRACT.md](../../docs/character-pack/CONTRACT.md)。
 
 ## 结构
 

@@ -1,6 +1,6 @@
 package igtools
 
-// p2tools.ts（提醒 / 剪贴板）、p3tools.ts（受控浏览器 / code_run）、workspaceTools.ts（workspace_run）1:1。
+// 提醒 / 剪贴板、受控浏览器 / code_run、workspace_run 工具。
 
 import (
 	"context"

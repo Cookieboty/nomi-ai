@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Documents = Electron app.getPath('documents')（Chromium chrome::DIR_USER_DOCUMENTS）。
+// Documents：用户的文档目录（同 Chromium chrome::DIR_USER_DOCUMENTS）。
 func Documents() string { return documentsDir() }
 
 // xdgUserDirLookup = Chromium third_party/xdg_user_dirs xdg_user_dir_lookup_with_fallback(type, NULL)：

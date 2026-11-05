@@ -1,6 +1,6 @@
 package gwstore
 
-// 编程助手（§12）：GatewayService.ts cliDefaults … officialEnv 的 1:1 移植。
+// 编程助手：GatewayService 的 cliDefaults … officialEnv。
 
 import (
 	"encoding/json"

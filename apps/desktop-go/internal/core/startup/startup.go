@@ -1,4 +1,4 @@
-// Package startup 对应 apps/desktop-electron/internal/core/src/startup/StartupService.ts
+// Package startup：开机启动（StartupService）
 package startup
 
 import (

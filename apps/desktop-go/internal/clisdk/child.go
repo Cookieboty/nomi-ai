@@ -9,7 +9,7 @@ type StdinLike interface {
 	End()
 }
 
-// ChildLike mirrors child.ts ChildLike（所有方法持 jsrt 锁调用；回调也在锁内到来）。
+// ChildLike：子进程接口（所有方法持 jsrt 锁调用；回调也在锁内到来）。
 type ChildLike interface {
 	PID() int // 0 = undefined
 	ExitCode() *int
@@ -22,10 +22,10 @@ type ChildLike interface {
 	Kill(signal string) bool
 }
 
-// SpawnFn mirrors SpawnFn。
+// SpawnFn 启动子进程。
 type SpawnFn func(command string, args []string, cwd string) ChildLike
 
-// KillFn mirrors KillFn。
+// KillFn 结束子进程。
 type KillFn func(child ChildLike)
 
 // ProcChild 把 nodeproc.Child 适配成 ChildLike。
@@ -35,7 +35,7 @@ func (p ProcChild) PID() int         { return p.Child.Pid }
 func (p ProcChild) Stdin() StdinLike { return p.Child.Stdin }
 func (p ProcChild) ExitCode() *int   { return p.Child.ExitCode() }
 
-// EndChild mirrors endChild。
+// EndChild：关掉 stdin 并结束子进程。
 func EndChild(child ChildLike, kill KillFn) {
 	func() {
 		defer func() { _ = recover() }()
@@ -55,7 +55,7 @@ func EndChild(child ChildLike, kill KillFn) {
 	}()
 }
 
-// StderrTail mirrors stderrTail（n 按 UTF-16 码元截尾）。
+// StderrTail：stderr 的末尾（n 按 UTF-16 码元截尾）。
 func StderrTail(child ChildLike, n int) func() string {
 	if n == 0 {
 		n = 4000

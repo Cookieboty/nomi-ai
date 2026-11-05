@@ -17,7 +17,7 @@ import (
 )
 
 // Facade：主进程 AIClient.memory（MemoryFacade）的切片。
-// main.go 注入 aifacade；nil 时跳过同步（与 Node facade() 返回 null 一致）。
+// main.go 注入 aifacade；nil 时跳过同步。
 type Facade interface {
 	PutFact(f map[string]any)
 	DeleteFact(id string) bool
@@ -108,7 +108,7 @@ func New(d Deps) *Service {
 			}
 		}
 	}
-	// 早期没合并的重复事实：加载时并掉，有变化才写回（与 Node 一致）
+	// 早期没合并的重复事实：加载时并掉，有变化才写回
 	if kept, dropped := DedupeFacts(s.data.Facts); len(dropped) > 0 {
 		s.data.Facts = kept
 		s.persistLocked(false)
@@ -418,7 +418,7 @@ func sortEpisodes(e []Episode) {
 	})
 }
 
-// embedItems：就地写 vec；向量服务不可用时静默跳过（Node: embed 返回 null）
+// embedItems：就地写 vec；向量服务不可用时静默跳过（embed 返回 null）
 func (s *Service) embedItems(ctx context.Context, eps []Episode, facts []Fact) {
 	texts := []string{}
 	for _, e := range eps {

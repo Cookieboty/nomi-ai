@@ -1,5 +1,5 @@
 /**
- * 设置 → 隐私与权限 → 诊断日志（docs/design/cli-plugin-architecture.md §8.1）：
+ * 设置 → 隐私与权限 → 诊断日志（docs/development/coding-agents.md）：
  * 正式版默认关、用户打开；开发版始终记录（开关显示为开且不可关）。
  * 用量面板旧的「调试模式」并入这里。另有打开日志文件夹、导出诊断包。
  */

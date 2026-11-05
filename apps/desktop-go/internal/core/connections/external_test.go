@@ -1,6 +1,6 @@
 package connections
 
-// 对应 tests/unit/tasks/external.test.ts 的「能力目录」与「GitHub 对外写」两段
+// 能力目录与 GitHub 对外写
 
 import (
 	"bytes"
@@ -77,7 +77,7 @@ func TestCatalogValidate(t *testing.T) {
 	}
 }
 
-// 与 Node 的 contentHash 同样输入同样输出（node -e 算出的期望值）
+// contentHash 的期望值按 JSON.stringify 语义算出（与旧版写下的记录一致）
 func TestContentHashMatchesNode(t *testing.T) {
 	h := ContentHash("github.comment", u.NewObj("connectionId", "conn_1", "repo", "o/r", "number", 3),
 		u.NewObj("body", "hi <b> &   é"))

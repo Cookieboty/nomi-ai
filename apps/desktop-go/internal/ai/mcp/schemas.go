@@ -7,7 +7,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// zod v4 子集：只实现 types.ts / json-rpc-message.ts 用到的构件，输出与 zod 解析结果逐键一致：
+// zod v4 子集：只实现 MCP types 与 JSON-RPC 消息 schema 用到的构件，输出与 zod 解析结果逐键一致：
 // 对象输出 = shape 键按声明顺序（缺省的 optional 键不出现）+ loose 模式下未知键按输入顺序。
 
 // schema：absent = 输入为 undefined。返回 (输出, 输出是否为 undefined, ok)。
@@ -275,7 +275,7 @@ func zRefine(s schema, pred func(out any) bool) schema {
 	}
 }
 
-// ───────── types.ts ─────────
+// ───────── MCP types ─────────
 
 var (
 	looseEmpty = zObject(loose)
@@ -391,7 +391,7 @@ var (
 	)
 )
 
-// ───────── json-rpc-message.ts ─────────
+// ───────── JSON-RPC 消息 ─────────
 
 var (
 	jsonrpcID = zUnion(zString(), zInt())
@@ -411,7 +411,7 @@ var (
 	JSONRPCMessageSchema = zUnion(jsonrpcRequest, jsonrpcNotification, jsonrpcResponse, jsonrpcError)
 )
 
-// SchemaError：ZodError（message 无法逐字复刻 zod 的 issues JSON，见 D-B5-MCP-3）
+// SchemaError：ZodError（message 不复刻 zod 的 issues JSON）
 type SchemaError struct{}
 
 func (SchemaError) Error() string { return "Invalid input" }
@@ -426,7 +426,7 @@ func parseWith(s schema, v any) (*u.Obj, error) {
 	return u.AsObj(o), nil
 }
 
-// SafeParse：golden 语料用（ok + 输出）
+// SafeParse：测试语料用（ok + 输出）
 func SafeParse(name string, v any) (any, bool) {
 	s := map[string]schema{
 		"JSONRPCMessage": JSONRPCMessageSchema, "Initialize": InitializeResultSchema, "Discover": DiscoverResultSchema,

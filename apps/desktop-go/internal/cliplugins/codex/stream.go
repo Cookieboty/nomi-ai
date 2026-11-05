@@ -1,4 +1,4 @@
-// Package codex mirrors apps/desktop-electron/internal/cli-plugins/src/codex.
+// Package codex：Codex 插件（清单、网关条目、流式输出与会话记录解析）。
 package codex
 
 import (
@@ -100,7 +100,7 @@ func collabEvents(item *util.Obj, id *string, done bool) []Ev {
 var reReconnectN = regexp.MustCompile(`(?i)reconnect\w*[^\d]*(\d+)` + util.JSWhitespace + `*/` + util.JSWhitespace + `*(\d+)`)
 var reReconnect = regexp.MustCompile(`(?i)reconnect`)
 
-// ParseLine mirrors parseCodexLine.
+// ParseLine：解析一行输出。
 func ParseLine(line string) []Ev {
 	trimmed := JSTrim(line)
 	out := []Ev{}

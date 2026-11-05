@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChatStreamOptions = ChatFacade.ts ChatStreamOptions（契约 ChatOptions 的 JSON 形状）
+// ChatStreamOptions：契约 ChatOptions 的 JSON 形状
 type ChatStreamOptions struct {
 	ReqID       *string           `json:"reqId,omitempty"`
 	Provider    *string           `json:"provider,omitempty"`
@@ -32,7 +32,7 @@ type ChatStreamOptions struct {
 	MaxSteps  *float64        `json:"maxSteps,omitempty"`
 	Role      *string         `json:"role,omitempty"`
 	Signal    <-chan struct{} `json:"-"`
-	// Tools：agent 的工具白名单（按工具名）；nil = 全部已注册工具（后台任务按授权裁剪，persistent-tasks §7.1）
+	// Tools：agent 的工具白名单（按工具名）；nil = 全部已注册工具（后台任务按授权裁剪，docs/features/scheduling-calendar.md）
 	Tools []string `json:"tools,omitempty"`
 	// Quiet：不发 session/assistant-message（后台任务的执行不冒到桌面角色气泡）
 	Quiet bool `json:"quiet,omitempty"`

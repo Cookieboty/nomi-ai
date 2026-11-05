@@ -13,7 +13,7 @@ export type PackMode = (typeof PACK_MODES)[number];
 
 /**
  * 可以声明为远程的素材（manifest `assets.remote`）：不随安装包发，由内核按远程角色目录下载到用户数据目录
- * （见 docs/design/remote-character-assets.md）。声明为远程的素材本地可以没有。
+ * （见 docs/character-pack/README.md）。声明为远程的素材本地可以没有。
  */
 export const REMOTE_ASSET_KINDS = ['rive'] as const;
 export type RemoteAssetKind = (typeof REMOTE_ASSET_KINDS)[number];
@@ -32,7 +32,7 @@ export const ONBOARDING_FILES = [
 ] as const;
 
 /**
- * 语义事件词表（docs/design/core-host-decoupling.md §10.5）。AI 侧（工具、内核服务）只说这些名字，
+ * 语义事件词表（docs/character-pack/CONTRACT.md）。AI 侧（工具、内核服务）只说这些名字，
  * 角色包的 mapping.json 把它们翻译成自己的资源；没有映射的名字运行时忽略。
  */
 

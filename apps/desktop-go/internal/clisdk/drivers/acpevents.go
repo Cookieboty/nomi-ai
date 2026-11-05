@@ -93,7 +93,7 @@ func toolName(kind, title string) string {
 	return "tool"
 }
 
-// AcpMapper mirrors ReturnType<typeof createAcpMapper>。
+// AcpMapper：ACP 更新 → 事件的映射器。
 type AcpMapper interface {
 	Update(u Json) []Ev
 	Flush() []Ev
@@ -106,7 +106,7 @@ type acpMapper struct {
 	names   map[string]string
 }
 
-// NewAcpMapper mirrors createAcpMapper（= createGeminiMapper）。
+// NewAcpMapper：新建 AcpMapper（Gemini 也用它）。
 func NewAcpMapper() AcpMapper { return &acpMapper{context: O(), names: map[string]string{}} }
 
 func (m *acpMapper) Flush() []Ev {
@@ -125,7 +125,7 @@ func posNum(v any) (float64, bool) {
 	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f > 0
 }
 
-// compactTokensAfter mirrors compactTokensAfter：auto_compact_completed 的 tokens_after（兼容驼峰）。
+// compactTokensAfter：auto_compact_completed 的 tokens_after（兼容驼峰）。
 func compactTokensAfter(u Json) (float64, bool) {
 	v := u.Get("tokens_after")
 	if v == nil {
@@ -257,7 +257,7 @@ func (m *acpMapper) Update(u Json) []Ev {
 	return out
 }
 
-// PickPermissionOption mirrors pickPermissionOption（"" + false = null）。
+// PickPermissionOption：按允许 / 拒绝选权限选项（"" + false = null）。
 func PickPermissionOption(options any, allow bool) (string, bool) {
 	list, ok := options.([]any)
 	if !ok {
@@ -282,7 +282,7 @@ func PickPermissionOption(options any, allow bool) (string, bool) {
 	return "", false
 }
 
-// PermissionSummary mirrors permissionSummary。
+// PermissionSummary：权限请求的摘要文案。
 func PermissionSummary(params Json) string {
 	call := params.Get("toolCall")
 	title, ok := getp(call, "title").(string)

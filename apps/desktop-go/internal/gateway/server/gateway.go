@@ -1,8 +1,8 @@
 package server
 
-// gateway.go is server.ts: the GatewayServer (HTTP entry, identify, proxy main
+// gateway.go: the GatewayServer (HTTP entry, identify, proxy main
 // flow with candidates / learning / cooldowns / affinity / privacy / trace,
-// attempt, respond, count_tokens). Layering and names follow server.ts 1:1.
+// attempt, respond, count_tokens).
 
 import (
 	"bytes"
@@ -46,9 +46,9 @@ const (
 	MaxLearnRetries   = 2
 	ServedModelHeader = "x-nomi-served-model"
 	RedactedHeader    = "x-nomi-redacted"
-	// TraceIDHeader is TRACE_ID_HEADER (§8.3).
+	// TraceIDHeader is TRACE_ID_HEADER.
 	TraceIDHeader = "x-nomi-trace-id"
-	// CommitKeepaliveMs is COMMIT_KEEPALIVE_MS (§6.11.2).
+	// CommitKeepaliveMs is COMMIT_KEEPALIVE_MS.
 	CommitKeepaliveMs = 3_000
 )
 
@@ -83,8 +83,8 @@ func failedStatus(a *attemptT) int {
 	return a.status
 }
 
-// GatewayHooks is GatewayHooks. Usage events are the JS UsageEvent objects
-// (ordered keys, same shape as onUsage receives in Node).
+// GatewayHooks are the host callbacks. Usage events are the JS UsageEvent objects
+// (ordered keys).
 type GatewayHooks struct {
 	OnUsage func(e *u.Obj)
 	// OnRetry：提交点之前的重连 / 换供应商（只通知，不影响流程）= hooks.onRetry
@@ -109,7 +109,7 @@ func tokenEquals(a, b string) bool {
 }
 
 // ---------------------------------------------------------------------------
-// response writer: the subset of http.ServerResponse server.ts uses
+// response writer: the subset of http.ServerResponse behaviour the server relies on
 
 type gwRes struct {
 	mu          sync.Mutex
@@ -147,7 +147,7 @@ func (r *gwRes) writeHeadLocked(status int, kv []string) {
 
 // nodeHead adds what Node's http.ServerResponse puts on the wire by itself and
 // stops net/http from adding what Node would not. Node always sends Date (sendDate
-// defaults to true, server.ts does not turn it off), so Go's Date stays. When the
+// defaults to true and the gateway keeps it), so Go's Date stays. When the
 // handler set no Connection header and the request keeps the socket alive, Node
 // sends `Connection: keep-alive` plus `Keep-Alive: timeout=5`; for a closing
 // request net/http writes `Connection: close` the same way Node does. Node never
@@ -353,7 +353,7 @@ type GatewayServer struct {
 	ln      gonet.Listener
 	learner *Learner
 	cool    *upstream.Cooldowns
-	// Bindings is the tab token table (§6.7).
+	// Bindings is the tab token table.
 	Bindings *route.BindingTable
 	limiter  *upstream.Limiter
 	affinity *Affinity
@@ -503,7 +503,7 @@ func clientIDs(cfg *config.GatewayConfig) []string {
 	return ids
 }
 
-// identify: client token, tab token (§6.7), legacy token. unbound=true → 503.
+// identify: client token, tab token, legacy token. unbound=true → 503.
 func (g *GatewayServer) identify(cfg *config.GatewayConfig, req *http.Request, q url.Values) (who *Identity, unbound bool) {
 	tokens := presentedTokens(req, q)
 	for _, id := range clientIDs(cfg) {
@@ -1117,7 +1117,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	}
 	queue := g.ordered(g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
 	learnRetries := 0
-	// 重连（§11.1，retry.go）：同一个 Key 退避重连几次、同一家累计失败几次
+	// 重连（retry.go）：同一个 Key 退避重连几次、同一家累计失败几次
 	keysOf := map[string]map[string]bool{}
 	for _, x := range r.Candidates {
 		if keysOf[x.Provider.ID] == nil {
@@ -1272,7 +1272,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		if last.upstreamStatus != nil {
 			ups = fp(float64(*last.upstreamStatus))
 		}
-		// 还要在同一个 Key 上重连（§11.1）：先不冷却、不报 Key 状态；重连用完换 Key 时才算这个 Key 暂时不行
+		// 还要在同一个 Key 上重连：先不冷却、不报 Key 状态；重连用完换 Key 时才算这个 Key 暂时不行
 		keyID := c.Provider.ID + "\u0000" + c.Key.ID
 		retried := keyRetries[keyID]
 		failed := last
@@ -1331,7 +1331,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 				continue
 			}
 		}
-		// 同一家累计失败够了：放弃它剩下的 Key，换同一个模型的下一家（§11.1）
+		// 同一家累计失败够了：放弃它剩下的 Key，换同一个模型的下一家
 		providerFails[c.Provider.ID]++
 		if providerFails[c.Provider.ID] >= ProviderMaxFailures {
 			var others []*cand.Candidate
@@ -1346,7 +1346,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			}
 			break
 		}
-		// 临时性错误（503、429、超时……）：先在同一个 Key 上退避重连，不急着报错（§11.1）
+		// 临时性错误（503、429、超时……）：先在同一个 Key 上退避重连，不急着报错
 		if sameKeyRetry {
 			keyRetries[keyID] = retried + 1
 			wait := RetryDelayMs(retried+1, last.retryAfter, retryBase, nil)
@@ -1596,7 +1596,7 @@ func hitsArr(hits []*privacy.RedactionHit, counts map[string]int) []any {
 	return a
 }
 
-// withSuppression: suppressed (provider, key, wire) try another wire first (§7.4).
+// withSuppression: suppressed (provider, key, wire) try another wire first.
 func (g *GatewayServer) withSuppression(cfg *config.GatewayConfig, cands []*cand.Candidate, ingress string) []*cand.Candidate {
 	var head, tail []*cand.Candidate
 	for _, c := range cands {
@@ -1612,7 +1612,7 @@ func (g *GatewayServer) withSuppression(cfg *config.GatewayConfig, cands []*cand
 	return append(head, tail...)
 }
 
-// ordered: sticky first, demoted then cooling last (§11.1, §11.2).
+// ordered: sticky first, demoted then cooling last.
 func (g *GatewayServer) ordered(cands []*cand.Candidate, sticky *AffinityTarget) []*cand.Candidate {
 	var first, rest, demoted, cooling []*cand.Candidate
 	adaptive := AdaptiveRouteEnabled()
@@ -2039,7 +2039,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 	return responded{usage: usage, outcome: "ok", streamed: false, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)}
 }
 
-// countTokens: forward when both sides are Messages, else estimate (§10.1, §10.3).
+// countTokens: forward when both sides are Messages, else estimate.
 func (g *GatewayServer) countTokens(res *gwRes, cfg *config.GatewayConfig, ingress *upstream.Ingress, body any, c *cand.Candidate) {
 	if ingress.Wire == "messages" && c.Wire == "messages" {
 		if done := func() bool {

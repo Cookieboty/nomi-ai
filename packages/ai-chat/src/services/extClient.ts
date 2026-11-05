@@ -2,7 +2,7 @@ import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 import { plainError } from './hostBackends/knowledge';
-/** 扩展客户端：MCP 服务器 + 技能包——契约 `ext.*`（docs/design/core-host-decoupling.md §12 P1b，原 `ai:ext:*`） */
+/** 扩展客户端：MCP 服务器 + 技能包——契约 `ext.*`（docs/development/architecture.md，原 `ai:ext:*`） */
 export type Transport = 'stdio' | 'http' | 'sse';
 export type Trust = 'ask' | 'read-auto' | 'auto';
 export type McpStatus = 'off' | 'connecting' | 'connected' | 'error';

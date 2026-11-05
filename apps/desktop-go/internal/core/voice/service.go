@@ -26,7 +26,7 @@ const maxWavBytes = 25 * 1024 * 1024
 type Provider struct{ ID, Name, BaseURL string }
 type Credentials struct{ ID, Name, BaseURL, APIKey string }
 
-// AuditEvent = VoiceDeps.audit 的参数（args 键序同 Node 字面量）
+// AuditEvent：审计参数（args 键序固定）
 type AuditEvent struct {
 	Tool     string
 	Args     *util.Obj
@@ -59,9 +59,9 @@ type Deps struct {
 	Env               func() map[string]string
 	Transcribe        func(ctx context.Context, o CloudOpts) (string, error) // 测试注入
 	Whisper           func(ctx context.Context, o WhisperOpts) (string, error)
-	VolcURL           string         // 测试注入（Node volcUrl）
-	VolcTimeouts      VolcTimeouts   // 测试注入（Node volcTimeouts）
-	VolcPace          *time.Duration // 测试注入（Node volcPaceMs）
+	VolcURL           string         // 测试注入
+	VolcTimeouts      VolcTimeouts   // 测试注入
+	VolcPace          *time.Duration // 测试注入
 }
 
 // Error = VoiceError
@@ -309,7 +309,7 @@ type Readiness struct {
 	Local   bool
 }
 
-// Obj：键序同 Node（ok, local, code?, message?）
+// Obj：键序固定（ok, local, code?, message?）
 func (r Readiness) Obj() *util.Obj {
 	o := util.NewObj("ok", r.OK, "local", r.Local)
 	if r.Code != "" {

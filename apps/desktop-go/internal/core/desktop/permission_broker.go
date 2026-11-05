@@ -14,7 +14,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// PermissionBroker.ts：授权作用域 / 工具策略 / 确认请求 / 云端外发同意
+// PermissionBroker：授权作用域 / 工具策略 / 确认请求 / 云端外发同意
 
 type DesktopSettings struct {
 	Scopes     []Scope  `json:"scopes"`
@@ -191,7 +191,7 @@ func (b *PermissionBroker) notify() {
 	}
 }
 
-// OnChange 对应 onChange：返回取消订阅函数（Node 用 Set.add / Set.delete）
+// OnChange：订阅变化，返回取消订阅函数
 func (b *PermissionBroker) OnChange(fn func()) func() {
 	h := &fn
 	b.mu.Lock()
@@ -337,7 +337,7 @@ func (b *PermissionBroker) GuardWorkspaceOrGranted(root string, p any, need stri
 	return granted, false
 }
 
-// AuthorizeInput 对应 authorize 的参数；Signal 为 nil 表示无 AbortSignal
+// AuthorizeInput：authorize 的参数；Signal 为 nil 表示无 AbortSignal
 type AuthorizeInput struct {
 	Tool       string
 	Danger     Danger
@@ -356,7 +356,7 @@ type AuthorizeInput struct {
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
 // 带 Force 的（如 workspace_run）始终确认
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
-	// 后台任务不看前台的档位与「全部自动」（persistent-tasks §8.1）
+	// 后台任务不看前台的档位与「全部自动」（docs/features/scheduling-calendar.md）
 	if BackgroundFrom(i.Signal) != nil {
 		return b.Authorize(i)
 	}
@@ -426,7 +426,7 @@ func (b *PermissionBroker) ResetCloudAcks() {
 	b.notify()
 }
 
-// MarkRead：本轮读过外部内容（D-B6-5：按 context 记录）
+// MarkRead：本轮读过外部内容（按 context 记录）
 func (b *PermissionBroker) MarkRead(signal context.Context) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

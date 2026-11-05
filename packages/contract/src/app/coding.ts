@@ -1,5 +1,5 @@
 /**
- * D3 · 编程助手（docs/design/core-host-decoupling.md §12 P1b）。
+ * D3 · 编程助手（docs/development/architecture.md）。
  *
  * 本文件只属于 D3：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：harness、cli、cliAccount、cliUpdate、delegate、agents、history（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -9,7 +9,7 @@
  * - `ai:cli:*`（CliPluginHost）、`ai:cli-account:*`（AccountService / AccountLogin）、`ai:cli-update:*`
  * - `ai:delegate:*`、`ai:agents:*`、`ai:history:*`
  *
- * 约定见设计稿 §12「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
+ * 约定见设计稿「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
  * 读用 query、写用 mutation、进度流用 stream；只给一个窗口用的过程写 `surfaces`，
  * 原来要用户确认的写 `dangerous: true`。旧通道都在 `window.aiIPC` 上（两个窗口都有），所以不写 surfaces。
  */
@@ -103,7 +103,7 @@ const harnessProcedures = {
       title: z.string().optional(),
       messages: z.array(HarnessTabMessage).optional(),
       permissionMode: PermissionMode.optional(),
-      /** backend = 'external' 时：外部插件 id（§5.9） */
+      /** backend = 'external' 时：外部插件 id */
       pluginId: z.string().optional(),
     }),
     output: HarnessTabMeta,
@@ -520,7 +520,7 @@ export const codingEvents = {
   'agents.changed': z.null(),
 } as const satisfies EventMap;
 
-/** 事件的订阅白名单（§8）：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
+/** 事件的订阅白名单：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
 export const codingEventSurfaces = {
   'harness.changed': ['chat', 'settings'],
   'harness.tabsChanged': ['chat', 'settings'],

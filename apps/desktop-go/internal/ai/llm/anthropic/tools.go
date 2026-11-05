@@ -37,7 +37,7 @@ func prepareTools(in toolsIn) (*toolsOut, error) {
 	list := []any{}
 	for _, t := range in.tools {
 		if t.Type != "function" {
-			// D-B5-P-A-2: Anthropic provider-defined tools are not ported.
+			// Anthropic provider-defined tools are not supported.
 			out.warnings = append(out.warnings, llm.Warning{Type: "unsupported", Feature: "provider-defined tool " + t.ID})
 			continue
 		}

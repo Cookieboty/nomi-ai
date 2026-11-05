@@ -14,7 +14,7 @@ import (
 // Now is Date.now (overridable in tests).
 var Now = time.Now
 
-// Notes surfaced to the UI (identical strings to Node).
+// Notes surfaced to the UI.
 const (
 	NoteResponsesDropped = "已丢掉 Responses 流里的保活 / 非规范事件"
 	NoteResponsesFilled  = "已补齐 Responses 流里缺失的必填字段"

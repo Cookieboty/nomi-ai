@@ -1,8 +1,8 @@
-// Package accounts mirrors apps/desktop-electron/internal/core/src/cli/accounts (official CLI accounts:
+// Package accounts: official CLI accounts (
 // per-account CLI homes, identity probes, sign-in, session → account map).
 //
 // Records and the store are kept as ordered JS values (*util.Obj / []any) so
-// key order, unknown keys and malformed fields behave like the Node objects.
+// key order, unknown keys and malformed fields survive a read / write round trip.
 package accounts
 
 import (
@@ -193,7 +193,7 @@ func decode16(u []uint16) string {
 
 func len16(s string) int { return len(utf16Units(s)) }
 
-// strTrim = str() in identity.ts / codexAccount.ts ("" = undefined).
+// strTrim: a trimmed non-empty string ("" = undefined).
 func strTrim(v any) string {
 	if s, ok := v.(string); ok {
 		return util.JSTrim(s)

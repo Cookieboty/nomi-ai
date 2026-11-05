@@ -1,5 +1,5 @@
 /**
- * 权限模式（docs/design/cli-permission-modes.md §4）：编程助手，以及 Nomi 自己的工具
+ * 权限模式（docs/development/coding-agents.md）：编程助手，以及 Nomi 自己的工具
  * （主进程 desktop/consent.ts；Nomi 没有「完全放开」）。
  * 与主进程 cli/permissionMode.ts 的 SUPPORTED / 降级规则保持一致：主进程是最终裁决（返回 degraded），
  * 这里只用来决定下拉里哪些可选、Shift+Tab 怎么循环。
@@ -28,7 +28,7 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
   grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
-  // 外部 CLI（L1，§5.9）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
+  // 外部 CLI（L1）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
   external: ['manual'],
 };
 
@@ -47,7 +47,7 @@ export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): Per
   const ok = supportedModes(backend);
   if (ok.includes(mode)) return mode;
   const next = mode === 'manual' ? 'plan' : 'acceptEdits';
-  // 外部插件（§5.9）只有逐项确认：降不到计划 / 自动改文件时用它支持的第一档
+  // 外部插件只有逐项确认：降不到计划 / 自动改文件时用它支持的第一档
   return ok.includes(next) || !ok.length ? next : ok[0]!;
 }
 

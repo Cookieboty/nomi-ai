@@ -106,9 +106,9 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 				return nil, errors.New("delegate not ready")
 			}})
 	}
-	// 生图（image_generate，没设置图片模型时不提供给模型）：与 Node plugin.ts 同位（delegate 之后、ext 之前）
+	// 生图（image_generate，没设置图片模型时不提供给模型）：排在 delegate 之后、ext 之前
 	defs = append(defs, igtools.ImageTools(image)...)
-	// 持续任务（task_propose 过授权卡片 / task_recall）：与 Node plugin.ts 同位（生图之后、扩展之前）
+	// 持续任务（task_propose 过授权卡片 / task_recall）：排在生图之后、扩展之前
 	if ts != nil && d != nil && d.Broker != nil {
 		defs = append(defs, tasks.CreateTaskTools(ts, func(ctx context.Context, tool, summary string, args any, preview string) string {
 			return string(d.Broker.Authorize(desktop.AuthorizeInput{Tool: tool, Danger: "write", Summary: summary, Args: args,
@@ -150,11 +150,11 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 		})...)
 	}
 	defs = append(defs, igtools.SkillTools(ext)...)
-	// 记忆检索、技能说明与参考文件都是外部内容：本轮标为读过外部内容（Node plugin.ts markExternalReads）
+	// 记忆检索、技能说明与参考文件都是外部内容：本轮标为读过外部内容
 	if d != nil && d.Broker != nil {
 		defs = markExternalReads(defs, d.Broker.MarkRead)
 	}
-	// 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型（Node plugin.ts applyToolGates）
+	// 按需提供：对话里没提到的工具组（提醒、浏览器、文件…）不发给模型
 	for _, def := range defs {
 		r.Register(igtools.WithGate(def))
 	}

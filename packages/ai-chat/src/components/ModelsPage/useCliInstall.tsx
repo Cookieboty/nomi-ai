@@ -1,5 +1,5 @@
 /**
- * 「模型」页 CLI 行的安装状态与「安装」（§4.1）：复用「编程助手」页版本卡片的 cliUpdateClient
+ * 「模型」页 CLI 行的安装状态与「安装」：复用「编程助手」页版本卡片的 cliUpdateClient
  * （inspect 判断是否安装、preview 给出确切命令、run 执行）和同一个确认框 CliPlanDialog，不另写安装命令。
  */
 import { ModalHostContext, t } from '@nomi-ai/ui';

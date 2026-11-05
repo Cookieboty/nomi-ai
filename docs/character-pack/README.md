@@ -39,7 +39,7 @@ CHARACTER_PACK=../my-character.pack pnpm build
 5. 单角色；无商店 / 切换 UI；UI 主题、`appId`、产品名不进包。
 6. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见
    [`voice-ids.json`](../../packages/character-contract/voice-ids.json)），旧 key 别名保留一版。
-7. 体积大的素材可以声明为远程（`assets.remote`），用到时由应用下载；官方包的 `.riv` 就是远程素材（[远程角色素材](../design/remote-character-assets.md)）。
+7. 体积大的素材可以声明为远程（`assets.remote`），用到时由应用下载；官方包的 `.riv` 就是远程素材。
 8. `static` 模式为一等公民；替身包 [`characters/test-dummy`](../../characters/test-dummy) 用它验证「换了角色就不再出现 Nomi」。
 
 ## 文档

@@ -1,10 +1,10 @@
 package providers
 
-// ProviderStore —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderStore.ts。
+// ProviderStore：供应商配置的持久化（ai-providers.json）。
 //
-// 数据保持 JSON 形状的动态对象（与 Node 的 ProviderStoreData 同构），这样持久化的
-// `JSON.stringify(data, null, 2)`、视图键序与 undefined 槽位都与 Node 逐字节一致。
-// Node 里 throw 的地方返回 error；中途已做的修改同样保留（与 Node 抛错前的副作用一致）。
+// 数据保持 JSON 形状的动态对象，这样持久化的
+// `JSON.stringify(data, null, 2)`、视图键序与 undefined 槽位都稳定，与旧版写出的文件兼容。
+// 出错时返回 error；中途已做的修改同样保留。
 
 import (
 	"crypto/rand"
@@ -195,7 +195,7 @@ func (s *Store) persist() error {
 	return nil
 }
 
-// commit：persist；成功后返回需通知的监听器（在解锁后调用，等价于 Node 同步回调）
+// commit：persist；成功后返回需通知的监听器（在解锁后调用，效果同同步回调）
 func (s *Store) commit() ([]func(), error) {
 	if err := s.persist(); err != nil {
 		return nil, err
@@ -370,7 +370,7 @@ func (s *Store) ResolveKeys(id string) ([]string, error) {
 	for _, kv := range keys {
 		k, isObj := kv.(*u.Obj)
 		if !isObj {
-			// Node（严格模式）：读 k.encryption / Buffer.from(undefined) 抛错 → catch 里给原始值赋 lastError 再抛
+			// 原始值不是对象：读 k.encryption 出错 → 给原始值赋 lastError 再报错（文案同 JS 严格模式）
 			if kv == nil {
 				return nil, errors.New("Cannot set properties of null (setting 'lastError')")
 			}
@@ -1056,7 +1056,7 @@ func (s *Store) RemoveKey(id string, keyID any) (*u.Obj, error) {
 				out = append(out, k)
 			}
 		}
-		// Node 先赋值 p.keys 再判断长度
+		// 先赋值 p.keys 再判断长度
 		p.Set("keys", out)
 		if len(out) == len(keys) {
 			return nil, fmt.Errorf("key '%s' 不存在", jsString(keyID))
@@ -1255,7 +1255,7 @@ func migrateProvider(raw any) (*u.Obj, error) {
 		Set("enabled", !strictEq(r("enabled"), false)), nil
 }
 
-// MigrateStoreData：读入任意版本的 ai-providers.json → v2（raw 会被就地修改，与 Node 一致）
+// MigrateStoreData：读入任意版本的 ai-providers.json → v2（raw 会被就地修改）
 func MigrateStoreData(raw any) (*u.Obj, bool, error) {
 	if raw == nil || isUndef(raw) {
 		return nil, false, fmt.Errorf("Cannot read properties of %s (reading 'version')", jsString(raw))

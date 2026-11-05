@@ -27,7 +27,7 @@ function session(sendResult: boolean | void = undefined) {
   return { s, frames, onClose };
 }
 
-describe('serializability (§4.2)', () => {
+describe('serializability', () => {
   it('accepts JSON values and Uint8Array', () => {
     expect(
       isSerializable({ a: [1, 'x', true, null, undefined, { b: new Uint8Array([1, 2]) }] }),

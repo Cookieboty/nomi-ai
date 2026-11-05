@@ -1,10 +1,10 @@
 package tasks
 
-// 持续任务运行时，逐段移植 src/tasks/TaskRuntime.ts。
+// 持续任务运行时（TaskRuntime）。
 //
 // 并发模型：同一时刻只有一个「持有者」goroutine 处理事件（ownerMu）。持有者调用执行者 / 投递时不持 mu，
 // 执行者在回调里同步回报（重入）或别的 goroutine 在持有期间回报，都只把事件放进 inbox，由持有者在本轮处理完
-// 再处理——与 Node 单线程里「dispatching 时排队」的语义一致，parity 录制的调用顺序也一致。
+// 再处理——即「dispatching 时排队」，调用顺序确定。
 
 import (
 	"encoding/json"
@@ -64,7 +64,7 @@ type AttemptContext struct {
 
 // Executor：notify / nomi / cli 各自实现
 type Executor interface {
-	// Prepare 返回执行快照；不能跑时返回错误（§8.7）
+	// Prepare 返回执行快照；不能跑时返回错误
 	Prepare(t Task) (ExecutionSnapshot, *TaskError)
 	Start(ctx AttemptContext)
 	Resume(taskID string, gen int, answer Answer)
@@ -75,6 +75,21 @@ type Executor interface {
 // Releaser = TaskExecutor.release?：任务失败放弃了（不再重试 / 续跑），这次执行的载体不会再被复用，释放它（如 worktree）
 type Releaser interface {
 	Release(t Task, a Attempt)
+}
+
+// Retirer：任务进入结束 / 空闲状态（done、idle、cancelled、expired、failed）或被删除：执行载体不会再被复用
+// （下一次执行另开），释放它们；accepted = 这次是验收通过（worktree 先落地再拆）。在持有者里调用，实现方自己转到别的 goroutine
+type Retirer interface {
+	Retire(t Task, attempts []Attempt, accepted bool)
+}
+
+// retiredStatus：进入这些状态时释放执行载体
+func retiredStatus(s string) bool {
+	switch s {
+	case StatusDone, StatusIdle, StatusCancelled, StatusExpired, StatusFailed:
+		return true
+	}
+	return false
 }
 
 type StoreLike interface {
@@ -107,7 +122,7 @@ type BudgetInput struct {
 	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
 	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
 	MaxRetries              *int     `json:"maxRetries,omitempty"`
-	// NoCostPerDay：不设每日费用上限（对应 TS 的 maxCostUsdPerDay: undefined 覆盖默认值）
+	// NoCostPerDay：不设每日费用上限（maxCostUsdPerDay 置空，覆盖默认值）
 	NoCostPerDay bool `json:"-"`
 }
 
@@ -124,7 +139,7 @@ type CreateInput struct {
 	Category   *string      `json:"category,omitempty"`
 }
 
-// Command 对应 UserCommand（type: runNow | decide | accept | reject | cancel | pause | resume | reconcile | revoke | grant）
+// Command：用户命令 UserCommand（type: runNow | decide | accept | reject | cancel | pause | resume | reconcile | revoke | grant）
 type Command struct {
 	Type      string  `json:"type"`
 	Gen       *int    `json:"gen,omitempty"`
@@ -154,9 +169,9 @@ type Runtime struct {
 	mu      sync.Mutex // 保护下面的字段与 inbox / owning
 
 	recs        map[string]*Record
-	order       []string // 任务插入顺序（Node 的 Map 遍历顺序）
+	order       []string // 任务插入顺序（Map 遍历顺序）
 	slots       map[string]bool
-	slotOrder   []string // 占名额先后（Node 的 Set 遍历顺序）
+	slotOrder   []string // 占名额先后（Set 遍历顺序）
 	queue       []queued
 	seq         int
 	beats       map[string]int64
@@ -237,7 +252,7 @@ func (r *Runtime) Get(id string) *Record {
 	defer r.ownerMu.Unlock()
 	if rec, ok := r.recs[id]; ok {
 		c := *rec
-		c.Attempts = append([]Attempt(nil), rec.Attempts...)
+		c.Attempts = append([]Attempt{}, rec.Attempts...) // 没跑过也是 []（契约要求数组，nil 会编成 null）
 		return &c
 	}
 	return nil
@@ -450,7 +465,7 @@ func (r *Runtime) Command(id string, c Command) CmdResult {
 	return res
 }
 
-// Patch：改标题、触发器、预算、重要程度、类型（不碰授权与状态），对应 TaskRuntime.patch
+// Patch：改标题、触发器、预算、重要程度、类型（不碰授权与状态）
 type Patch struct {
 	Title   *string      `json:"title,omitempty"`
 	Trigger *Trigger     `json:"trigger,omitempty"`
@@ -565,6 +580,9 @@ func (r *Runtime) Remove(id string) bool {
 		if rec == nil || !IsTerminal(rec.Task.Status) {
 			return
 		}
+		if ret, ok := r.executor(rec.Task).(Retirer); ok {
+			ret.Retire(rec.Task, rec.Attempts, false)
+		}
 		delete(r.recs, id)
 		r.order = without(r.order, id)
 		if err := r.d.Store.Remove(id); err != nil {
@@ -659,9 +677,9 @@ func (r *Runtime) runDueSchedules(now int64) {
 
 // ---------- 事件 ----------
 
-// dispatch：只在持有者里调用（与 Node 一样：处理中再来的事件排进 pending，本轮处理完再出队、重设定时器）。
+// dispatch：只在持有者里调用（处理中再来的事件排进 pending，本轮处理完再出队、重设定时器）。
 // 执行者在 Start 里同步回报、或别的 goroutine 在此期间回报，都经 own 进 inbox；排水循环一并处理，
-// 顺序与 Node「dispatching 时排队」一致。
+// 即「dispatching 时排队」。
 func (r *Runtime) dispatch(id string, ev Event) CmdResult {
 	if r.dispatching {
 		r.pending = append(r.pending, pendingEv{id, ev})
@@ -741,6 +759,11 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 	saved := r.recs[id].Task
 	for _, e := range res.Effects {
 		r.run(id, e, saved, res.Attempt)
+	}
+	if before.Status != saved.Status && retiredStatus(saved.Status) {
+		if ret, ok := r.executor(saved).(Retirer); ok {
+			ret.Retire(saved, attempts, ev.Type == "accept")
+		}
 	}
 	r.changed(saved)
 	return CmdResult{OK: true}

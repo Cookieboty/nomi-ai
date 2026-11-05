@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-把 docs/brand/icon-variants/*.svg 栅格化（headless Chrome）并用 Pillow 打包成 apps/desktop-electron/assets 下的
+把 docs/brand/icon-variants/*.svg 栅格化（headless Chrome）并用 Pillow 打包成 apps/desktop-go/assets 下的
 全部应用图标资源（文件名 / 尺寸 / 格式与既有资源一致）：
 
 - icon.icns                      ink-mac：128/256/512/1024 + @2x（32/64/256/512），带 TOC
@@ -29,7 +29,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'docs' / 'brand' / 'icon-variants'
 # 默认写到 Electron 宿主的打包资源目录（electron-builder buildResources / extraResources）
-OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'apps' / 'desktop-electron' / 'assets'
+OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'apps' / 'desktop-go' / 'assets'
 VARIANTS = ['ink', 'cream', 'sunset']
 SMALL = [16, 24, 32, 48]
 LARGE = [64, 128, 256]

@@ -1,9 +1,9 @@
 /**
- * ClientAIClient —— 渲染进程侧的 AI 门面，签名与 [AIClient](file:///../../ai-sdk/src/AIClient.ts) 一致。
+ * ClientAIClient —— 视图侧的 AI 门面（chat / sessions / tools / memory / asr / tts / avatar）。
  *
- * 实现在应用契约上（docs/design/core-host-decoupling.md §4、§5、§12 P1）：
- * `createClient(appContract, transport)`，默认传输是 preload 暴露的 `window.nomiTransport`
- * （Electron IPC，`@nomi-ai/contract` 的 `createIpcClientTransport`）。
+ * 实现在应用契约上（docs/development/contract.md P1）：
+ * `createClient(appContract, transport)`，默认用窗口共享的契约传输（`getSharedTransport`，
+ * Go 宿主里经回环 WebSocket 连内核）。
  *
  * - **门面**：每个 `client.<facade>.<method>(...)` 按 `AI_METHODS` 把位置参数打包成过程入参，
  *   调用 `ai.<facade>.<method>`；表里没有的方法名返回 `undefined`（调用即 `is not a function`）；
@@ -19,7 +19,6 @@
 import {
   isContractError,
   createClient,
-  createIpcClientTransport,
   type Client,
   type ClientTransport,
   type ContractStream,
@@ -29,26 +28,23 @@ import {
   AI_METHODS,
   aiArgsToInput,
   appContract,
-  NOMI_TRANSPORT_GLOBAL,
   type AiClientEventName,
   type AiMethodSpec,
   type AppContract,
 } from '@nomi-ai/contract/app';
 
 import { SDKError, SDKErrorCodes } from './errors';
-import { type IPCBridge, type IpcUnsubscribe } from './IPCBridge';
 import { getSharedTransport } from './sharedTransport';
 
+/** 退订函数 */
+export type Unsubscribe = () => void;
+
 export interface ClientAIClientOptions {
-  /** 自定义契约传输（测试 / 无界面宿主用 in-process 传输）；优先于 `bridge`。调用方负责关闭。 */
-  transport?: ClientTransport;
   /**
-   * 自定义 IPC 桥（`invoke` / `on`）；未传则用窗口共享的契约传输（`getSharedTransport`，读
-   * `window.nomiTransport`，可用 bridgeName 覆盖）——同一窗口的所有客户端共用一个会话。
+   * 自定义契约传输（测试用 in-process 传输）；调用方负责关闭。未传则用窗口共享的契约传输
+   * （`getSharedTransport`）——同一窗口的所有客户端共用一个会话。
    */
-  bridge?: IPCBridge;
-  /** window 上的桥接名，默认 `nomiTransport`（preload 暴露的契约传输）。 */
-  bridgeName?: string;
+  transport?: ClientTransport;
   /** 可选：预置 avatar isAvailable 的默认值，避免首次 UI 判断闪烁。 */
   avatarAvailable?: boolean;
 }
@@ -99,8 +95,6 @@ export class ClientAIClient {
   readonly avatar: Record<string, unknown>;
 
   private readonly api: Client<AppContract>;
-  /** 传输是本客户端自己建的（传入 bridge）：dispose 时一并关闭；外部传入的与窗口共享的不关 */
-  private readonly ownsTransport: boolean;
   private readonly listeners = new Map<string, Set<Listener>>();
   /** 已订阅的契约事件：AIClient 事件名 → 退订函数 */
   private readonly subscriptions = new Map<string, () => void>();
@@ -110,13 +104,7 @@ export class ClientAIClient {
   private avatarAvailableCache: boolean;
 
   constructor(opts: ClientAIClientOptions = {}) {
-    this.ownsTransport = !opts.transport && !!opts.bridge;
-    const transport =
-      opts.transport ??
-      (opts.bridge
-        ? createIpcClientTransport(opts.bridge)
-        : getSharedTransport(opts.bridgeName ?? NOMI_TRANSPORT_GLOBAL));
-    this.api = createClient(appContract, transport);
+    this.api = createClient(appContract, opts.transport ?? getSharedTransport());
     this.avatarAvailableCache = opts.avatarAvailable ?? false;
 
     this.chat = this.makeFacade('chat');
@@ -133,7 +121,7 @@ export class ClientAIClient {
   }
 
   /** 订阅业务事件；返回反订阅函数（与 AIClient.on 语义一致） */
-  on(evt: string, fn: (payload: unknown) => void): IpcUnsubscribe {
+  on(evt: string, fn: (payload: unknown) => void): Unsubscribe {
     this.assertLive();
     let bucket = this.listeners.get(evt);
     if (!bucket) {
@@ -177,7 +165,6 @@ export class ClientAIClient {
     }
     this.subscriptions.clear();
     this.listeners.clear();
-    if (this.ownsTransport) this.api.$close();
   }
 
   private assertLive(): void {

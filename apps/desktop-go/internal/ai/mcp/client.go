@@ -9,7 +9,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// mcp-client.ts 常量
+// 客户端常量
 const (
 	LatestProtocolVersion       = "2026-07-28"
 	LatestLegacyProtocolVersion = "2025-11-25"

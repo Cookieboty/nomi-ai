@@ -6,7 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ReasoningEfforts mirrors REASONING_EFFORTS。
+// ReasoningEfforts：推理强度档位。
 var ReasoningEfforts = []string{"minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
 
 func IsReasoningEffort(v any) bool {
@@ -51,7 +51,7 @@ func IsValidModelID(model string) bool {
 // Catalog = BackendModelCatalog（Obj：backend、models[]、defaultModel、permissionModes?、error?、provider?）。
 type Catalog = *util.Obj
 
-// ProviderCatalog mirrors providerCatalog。
+// ProviderCatalog：网关供应商的模型目录。
 func ProviderCatalog(backend string, provider *util.Obj, listed []string, errMsg string) Catalog {
 	pm, _ := provider.Get("model").(string)
 	seen := map[string]bool{}
@@ -78,7 +78,7 @@ func ProviderCatalog(backend string, provider *util.Obj, listed []string, errMsg
 
 func modelEfforts(m *util.Obj) []any { a, _ := m.Get("efforts").([]any); return a }
 
-// EffortsForModel mirrors effortsForModel：state 0 = undefined，1 = null，2 = 列表。
+// EffortsForModel：模型可选的推理强度：state 0 = undefined，1 = null，2 = 列表。
 func EffortsForModel(catalog Catalog, model *string) ([]any, int) {
 	if catalog == nil || util.Truthy(catalog.Get("error")) {
 		return nil, 0
@@ -123,7 +123,7 @@ func EffortsForModel(catalog Catalog, model *string) ([]any, int) {
 	return out, 2
 }
 
-// SanitizeEffort mirrors sanitizeEffort（"" = null）。
+// SanitizeEffort：模型不支持的推理强度清掉（"" = null）。
 func SanitizeEffort(catalog Catalog, model *string, effort any) string {
 	if !IsReasoningEffort(effort) {
 		return ""

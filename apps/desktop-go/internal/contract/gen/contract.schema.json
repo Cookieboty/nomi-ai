@@ -21250,6 +21250,9 @@
         "items": {
          "type": "string"
         }
+       },
+       "branch": {
+        "type": "string"
        }
       },
       "required": [
@@ -21573,6 +21576,11 @@
            "worktree",
            "shared"
           ]
+         },
+         "baseBranch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
          }
         },
         "required": [

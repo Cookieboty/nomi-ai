@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
 )
 
-// 所有 voice.* / tts.* 契约过程都由批次 9 注册（不再落到 UNAVAILABLE 桩），且没有契约外的名字
+// 所有 voice.* / tts.* 契约过程都已注册（不落到 UNAVAILABLE 桩），且没有契约外的名字
 func TestInstallCoversVoiceAndTTS(t *testing.T) {
 	r := contract.NewRouter()
 	Install(r, Deps{Voice: voice.NewService(voice.Deps{Root: t.TempDir()}), Logf: t.Logf, OpenVoiceSettings: func() {}})

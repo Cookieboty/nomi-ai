@@ -1,9 +1,7 @@
 ---
 '@nomi-ai/renderer': minor
-'@nomi-ai/host-electron': minor
 '@nomi-ai/ai-chat': minor
 '@nomi-ai/types': minor
-'@nomi-ai/bundle-ig-mascot': minor
 ---
 
 移除角色切换：只保留内置的 Nomi。去掉「选择角色」窗口（我的角色 / 模型商店 / 导入 VRM / 角色设置）、工具栏的「切换角色」按钮、

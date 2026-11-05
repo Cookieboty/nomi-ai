@@ -30,7 +30,7 @@ func Resolve(p string) string {
 	return a
 }
 
-// CliHome mirrors cliHome。
+// CliHome：CLI 的配置目录（envVar 优先，否则 home 下的 fallback）。
 func CliHome(envVar, fallback string, env map[string]string, home string) string {
 	if p, ok := expandHome(env[envVar], home); ok {
 		return p
@@ -38,7 +38,7 @@ func CliHome(envVar, fallback string, env map[string]string, home string) string
 	return filepath.Join(home, fallback)
 }
 
-// GeminiRoot mirrors geminiRoot。
+// GeminiRoot：Gemini CLI 的配置目录。
 func GeminiRoot(env map[string]string, home string) string {
 	if p, ok := expandHome(env["GEMINI_CLI_HOME"], home); ok {
 		return p

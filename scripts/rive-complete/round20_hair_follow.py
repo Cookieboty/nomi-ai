@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROUND20 Task A — back hair + bow follow body motion with lag (handoff §6 item 4).
+"""ROUND20 Task A — back hair + bow follow body motion with lag (handoff item 4).
 
 1. Extract neck-side hanging hair still stuck on head.png (the "后发硬板" peeks below the
    side locks) into hair-back-{l,r} with 2-bone chains + skinned meshes.

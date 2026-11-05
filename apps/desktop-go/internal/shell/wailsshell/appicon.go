@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 )
 
-// IconWindow：appicon.Window 的 Wails 实现（= BrowserWindow.setIcon / setAppDetails）
+// IconWindow：appicon.Window 的 Wails 实现（设图标 / AppUserModel 详情）
 type IconWindow struct{ win *application.WebviewWindow }
 
 func (iw IconWindow) IsDestroyed() bool { return iw.win == nil || iw.win.NativeWindow() == nil }
@@ -38,7 +38,7 @@ func (iw IconWindow) SetAppDetails(appID, iconPath string, index int) {
 	})
 }
 
-// IconWindows = BrowserWindow.getAllWindows（appicon.Target）
+// IconWindows：所有窗口（appicon.Target）
 func (w *Wails) IconWindows() []IconWindow {
 	w.mu.Lock()
 	defer w.mu.Unlock()

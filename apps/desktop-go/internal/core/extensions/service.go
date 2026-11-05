@@ -22,7 +22,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ───────── 批次 4/5 依赖：薄接口 ─────────
+// ───────── 依赖：薄接口 ─────────
 
 // McpServerInfo：McpService.listServers() 的条目
 type McpServerInfo struct {
@@ -38,7 +38,7 @@ type McpConnectConfig struct {
 	Env, Headers                      map[string]string
 }
 
-// McpRuntime：@nomi-ai/bundle-ig-base 的 McpService（main.go 经 Attach 接 mcpbridge）
+// McpRuntime：MCP 服务（main.go 经 Attach 接 mcpbridge）
 type McpRuntime interface {
 	ListServers() []McpServerInfo
 	Connect(ctx context.Context, cfg McpConnectConfig) error
@@ -77,7 +77,7 @@ type BackgroundBroker interface {
 	BackgroundExternal(ctx context.Context) connections.ExternalJournal
 }
 
-// ConfirmBroker：PermissionBroker 的 permissionMode / authorize（同 Node desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
+// ConfirmBroker：PermissionBroker 的 permissionMode / authorize（desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
 type ConfirmBroker interface {
 	PermissionMode() string
 	Authorize(ctx context.Context, r AuthorizeReq) string
@@ -663,7 +663,7 @@ func (s *Service) GuardEnvTool(serverID, serverName string, def ToolDef) ToolDef
 	return s.withConfirm(def, serverID, serverName, "ask", false)
 }
 
-// McpToolInfo：任务用的 MCP 工具信息（只接本机 stdio 服务器，connections.md §6）：工具名是去掉服务器前缀的原名；
+// McpToolInfo：任务用的 MCP 工具信息（只接本机 stdio 服务器，docs/features/scheduling-calendar.md）：工具名是去掉服务器前缀的原名；
 // 服务器不在线时 nil；远程服务器 Remote（不能授权给任务）
 func (s *Service) McpToolInfo(serverID, tool string) *connections.McpToolInfo {
 	s.mu.Lock()
@@ -726,7 +726,7 @@ func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string, l
 	out.Execute = func(ctx context.Context, input any) (any, error) {
 		t0 := time.Now()
 		decision := "auto"
-		// 后台任务：不看服务器的信任级别，只认任务授权（connections.md §6）；只接本机 stdio 服务器
+		// 后台任务：不看服务器的信任级别，只认任务授权（docs/features/scheduling-calendar.md）；只接本机 stdio 服务器
 		bb, _ := s.d.Confirm.(BackgroundBroker)
 		background := bb != nil && bb.IsBackground(ctx)
 		if background {

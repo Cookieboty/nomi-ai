@@ -27,7 +27,7 @@ function setState(s: MascotScaleState | null | undefined): void {
 
 function start(): void {
   if (started) return;
-  // 窗口缩放只在宿主的桌面角色窗口里有（dev:web 的浏览器页面没有窗口）
+  // 窗口缩放只在宿主的桌面角色窗口里有（浏览器预览页面没有窗口）
   if (!hasWindowHost()) return;
   started = true;
   void api.mascot.scaleGet().then(setState, ignore);

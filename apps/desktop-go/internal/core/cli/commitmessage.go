@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -35,27 +36,10 @@ func CommitMessagePrompt(ctx GitCommitContext) []CommitMessageMsg {
 	if stat == "" {
 		stat = "(none)"
 	}
-	tr := ""
-	if ctx.Truncated {
-		tr = " (truncated)"
-	}
 	return []CommitMessageMsg{
-		{Role: "system", Content: "You write git commit messages. Reply with the commit message only: no code fences, no quotes, no commentary."},
-		{Role: "user", Content: strings.Join([]string{
-			"Write a commit message for the change below.",
-			"- Match the style of the repository's recent commits: their language, whether they use Conventional Commits and which scopes, and their length.",
-			"- Keep every line under 100 characters. Subject first; add a short body after a blank line only if the change needs explaining.",
-			"- Describe what changed and why, not the file list.",
-			"",
-			"Recent commits:",
-			subj,
-			"",
-			"Files:",
-			stat,
-			"",
-			"Diff" + tr + ":",
-			ctx.Diff,
-		}, "\n")},
+		{Role: "system", Content: prompts.Text("commit-message-system")},
+		{Role: "user", Content: prompts.Render("commit-message", map[string]any{
+			"Subjects": subj, "Stat": stat, "Truncated": ctx.Truncated, "Diff": ctx.Diff})},
 	}
 }
 

@@ -1,6 +1,6 @@
 package stream
 
-// Heartbeat kinds (heartbeat.ts).
+// Heartbeat kinds.
 const (
 	HeartbeatComment = ": keepalive\n\n"
 	HeartbeatPing    = "event: ping\ndata: {\"type\":\"ping\"}\n\n"

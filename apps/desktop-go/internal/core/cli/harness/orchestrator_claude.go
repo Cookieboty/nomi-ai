@@ -1,7 +1,7 @@
 package harness
 
-// Node Orchestrator.ts 2913–3290（runClaude … onClaudeLine）、2492（interruptClaudeTurn）、
-// 3701–3801（onClaudeMeta / startAutoTurn / finishAutoTurn）、4016–4064（dropRecycledClaude / teardownClaudeLive）。
+// Claude Code 长驻会话：runClaude … onClaudeLine、interruptClaudeTurn、
+// onClaudeMeta / startAutoTurn / finishAutoTurn、dropRecycledClaude / teardownClaudeLive。
 
 import (
 	"errors"
@@ -83,7 +83,7 @@ func claudeBackgroundActive(live *claudeLiveSession) bool {
 
 /* ------------------------------------------------------------------ */
 
-// gatedChild：child.removeAllListeners() 的等价物（D-B7-O-1）。Go 的 ChildLike 没有移除监听器，
+// gatedChild：child.removeAllListeners() 的等价物。Go 的 ChildLike 没有移除监听器，
 // 所有监听器（驱动的与这里的）都经这层登记，off 之后一律不再派发。
 type gatedChild struct {
 	clisdk.ChildLike
@@ -300,7 +300,7 @@ func (o *Orchestrator) syncClaudeModel(tab *util.Obj) *jsrt.Promise[struct{}] {
 	})
 }
 
-// ensureClaudeLiveBound：第三方标签先登记绑定（§6.7）再启动；能复用就直接复用。
+// ensureClaudeLiveBound：第三方标签先登记绑定再启动；能复用就直接复用。
 func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claudeLiveSession] {
 	return jsrt.Async(func() (*claudeLiveSession, error) {
 		if !o.needsTabBinding(tab) {
@@ -487,7 +487,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 }
 
 // nodeExecPath = process.execPath（脚本型 mock CLI 用 PATH 上的 node 跑）。
-// NodeExecPath：外部插件「测试」用（createCore spawnExternal 的 process.execPath）
+// NodeExecPath：外部插件「测试」用（spawnExternal 的 process.execPath）
 func NodeExecPath() string { return nodeExecPath() }
 
 var nodeExecPath = func() string {
@@ -768,7 +768,7 @@ func (o *Orchestrator) finishAutoTurn(tabID string, live *claudeLiveSession, err
 	}
 }
 
-// interruptClaudeTurn（Node 2492）。
+// interruptClaudeTurn：打断进行中的一轮。
 func (o *Orchestrator) interruptClaudeTurn(id string, live *claudeLiveSession, turn *claudeTurnWaiter) {
 	fallback := func() {
 		if o.live.claude[id] == live && live.turn == turn && !turn.settled {

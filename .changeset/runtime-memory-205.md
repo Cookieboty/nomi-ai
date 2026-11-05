@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/host-electron': patch
 '@nomi-ai/renderer': patch
 ---
 

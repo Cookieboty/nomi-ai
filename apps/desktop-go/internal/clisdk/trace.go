@@ -2,7 +2,7 @@ package clisdk
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 
-// Trace limits (trace.ts).
+// Trace limits.
 const (
 	MaxTraceEvents        = 300
 	MaxTraceBytes         = 400_000
@@ -10,13 +10,13 @@ const (
 	KeepFullTraceMessages = 20
 )
 
-// IsTraceEvent mirrors isTraceEvent.
+// IsTraceEvent reports whether ev belongs in a turn's trace.
 func IsTraceEvent(ev Ev) bool {
 	t := ev.Get("type")
 	return t == "tool" || t == "thinking" || t == "interject"
 }
 
-// StampEvent mirrors stampEvent（tool / thinking / interject 打主进程时间戳）.
+// StampEvent：tool / thinking / interject 打主进程时间戳。
 func StampEvent(ev Ev, now float64) Ev {
 	if IsTraceEvent(ev) && !ev.Has("at") {
 		ev.Set("at", now)
@@ -24,7 +24,7 @@ func StampEvent(ev Ev, now float64) Ev {
 	return ev
 }
 
-// BuildTrace mirrors buildTrace.
+// BuildTrace builds a turn's trace from its events.
 func BuildTrace(events []Ev) []Ev {
 	out := []Ev{}
 	for _, ev := range events {
@@ -72,7 +72,7 @@ func jsEq(a, b any) bool {
 	return a == b
 }
 
-// CompactOldTraces mirrors compactOldTraces (list items are messages).
+// CompactOldTraces drops the traces of older messages (list items are messages).
 func CompactOldTraces(list []Ev, keepRecent int) bool {
 	changed := false
 	for i := 0; i < len(list)-keepRecent; i++ {
@@ -98,7 +98,7 @@ func CompactOldTraces(list []Ev, keepRecent int) bool {
 	return changed
 }
 
-// MergeUsage mirrors mergeUsage (nil = undefined).
+// MergeUsage merges usage events (nil = undefined).
 func MergeUsage(events []Ev) Ev {
 	var out Ev
 	for _, ev := range events {

@@ -1,4 +1,4 @@
-// Package i18n 对应 apps/desktop-electron/internal/core/src/i18n（LocaleService 持久化部分；词典仍由渲染侧 / 后续批次接）
+// Package i18n：界面语言（LocaleService 持久化部分）与主进程翻译 t()。
 package i18n
 
 import (
@@ -78,5 +78,5 @@ func (s *Service) Set(pref any) (State, error) {
 	return st, nil
 }
 
-// Dict：本批返回空表；完整词典在批次里接 @nomi-ai/i18n 的生成物
+// Dict：返回空表
 func (s *Service) Dict() map[string]string { return map[string]string{} }

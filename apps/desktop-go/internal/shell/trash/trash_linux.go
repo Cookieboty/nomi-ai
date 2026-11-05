@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// item：KDE 用 kioclient5/kioclient move <p> trash:/，其余 gio trash（Electron 的选择顺序）
+// item：KDE 用 kioclient5/kioclient move <p> trash:/，其余 gio trash
 func item(p string) error {
 	de := strings.ToUpper(os.Getenv("XDG_CURRENT_DESKTOP"))
 	if strings.Contains(de, "KDE") {

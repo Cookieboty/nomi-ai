@@ -1,9 +1,9 @@
 /**
- * in-process 传输（docs/design/core-host-decoupling.md §5.2）：单元测试与无界面宿主用，
+ * in-process 传输（docs/development/contract.md）：单元测试与无界面宿主用，
  * 内核与视图逻辑在同一进程。
  *
  * 帧仍然走完整的线协议，并且默认（`serialize: 'strict'`）每一帧都做可序列化检查 + structuredClone：
- * 在这里能跑通的契约，换成 Electron IPC / WebSocket 也能跑通（§4.2）。帧异步投递（微任务），
+ * 在这里能跑通的契约，换成 Electron IPC / WebSocket 也能跑通。帧异步投递（微任务），
  * 与真实传输一样不会同步重入。
  */
 

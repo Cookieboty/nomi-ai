@@ -28,7 +28,7 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-// Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md §4.6、§4.7、§7）
+// Nomi 把编程助手当子代理调用（docs/development/coding-agents.md）
 
 const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
   id: 'd1',
@@ -218,7 +218,7 @@ describe('子任务卡片', () => {
     expect(r.queryByTestId('delegate-stop')).toBeNull();
   });
 
-  it('「查看」在右侧抽屉里用会话视图显示子任务对话；工作台模式可切到该标签', async () => {
+  it('「查看」在右侧抽屉里用会话视图显示子任务对话（委派会话只在 Nomi 里看）', async () => {
     const ipc = mockIpc([tab({ status: 'idle' })]);
     ipc.invoke.mockImplementation(async (ch: string) => {
       if (ch === 'harness.tabs')
@@ -237,11 +237,8 @@ describe('子任务卡片', () => {
     await waitFor(() => expect(drawer.textContent).toContain('登录已经修好'));
     expect(drawer.textContent).toContain('修复登录 bug');
     expect(within(drawer).queryByTestId('delegate-drawer-stop')).toBeNull();
-    fireEvent.click(within(drawer).getByTestId('delegate-drawer-tab'));
-    await waitFor(() =>
-      expect(ipc.invoke).toHaveBeenCalledWith('harness.tabActivate', { id: 'd1' }),
-    );
-    expect(r.queryByTestId('delegate-drawer')).toBeNull();
+    // 委派会话只在 Nomi 里看：没有跳到编程助手标签的入口
+    expect(within(drawer).queryByTestId('delegate-drawer-tab')).toBeNull();
   });
 });
 

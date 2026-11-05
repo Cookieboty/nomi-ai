@@ -1,4 +1,4 @@
-// Package pendingevents = apps/desktop-electron/internal/core/src/core/pendingEvents.ts（+ core/chatNav.ts 的 CHAT_NAV_EVENTS / isChatNavEvent）。
+// Package pendingevents：留给对话窗口的一次性事件（CHAT_NAV_EVENTS / isChatNavEvent 在这里定义）。
 // 发布时没有订阅者的一次性事件留下（每组只留最近一次），对话窗口挂载时经契约拉取，拉取即取走；
 // 留下的事件 ttl 后过期。
 package pendingevents
@@ -14,7 +14,7 @@ const TTLMs = 60_000
 // ChatNavEvents = CHAT_NAV_EVENTS
 var ChatNavEvents = []string{"providers.openPanel", "nav.desktopPanelRequested", "nav.scheduleRequested", "nav.voiceSettingsRequested"}
 
-// CoreGroups = CORE_PENDING_GROUPS（顺序同 Node 的对象键序）
+// CoreGroups：内核的 pending 分组（顺序固定）
 var CoreGroups = []Group{{"nav", ChatNavEvents}, {"summary", []string{"desktop.summary"}}}
 
 // IsChatNavEvent = isChatNavEvent

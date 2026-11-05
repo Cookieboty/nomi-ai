@@ -36,7 +36,7 @@ func NewUntrustedError(folder string, cause error) error {
 	return &UntrustedError{Folder: folder, Cause: cause}
 }
 
-// GeminiLoginEnv = geminiLoginEnv（键序同 Node 字面量）。
+// GeminiLoginEnv：登录用的环境变量（键序固定）。
 func GeminiLoginEnv(stagingDir string) [][2]string {
 	return [][2]string{{"GEMINI_CLI_HOME", stagingDir}, {"GEMINI_CLI_TRUST_WORKSPACE", "true"}}
 }

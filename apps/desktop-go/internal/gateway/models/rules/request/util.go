@@ -1,4 +1,4 @@
-// Package request mirrors apps/desktop-electron/internal/gateway/src/models/rules/request.
+// Package request: per-model request rules.
 package request
 
 import (

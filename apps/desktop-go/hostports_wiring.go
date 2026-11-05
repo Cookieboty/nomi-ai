@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
 )
 
-// hostPorts：electronPorts.ts 的 dialogs / shell / power，外壳晚于服务创建，按需取 *wailsshell.Wails
+// hostPorts：对话框 / shell / 电源等宿主端口，外壳晚于服务创建，按需取 *wailsshell.Wails
 type hostPorts struct{ sh *shell.Shell }
 
 func (p hostPorts) w() *wailsshell.Wails {
@@ -27,7 +27,7 @@ func (p hostPorts) PickDirectory(_ context.Context, title, buttonLabel string) (
 	return p.PickDir(title, buttonLabel, "")
 }
 
-// PickDir：批次 6 desktop.Ports.PickDirectory 的签名
+// PickDir：desktop.Ports.PickDirectory 的签名
 func (p hostPorts) PickDir(title, buttonLabel, defaultPath string) (string, error) {
 	if w := p.w(); w != nil {
 		return w.PickDirectory(title, buttonLabel, defaultPath, false)
@@ -54,7 +54,7 @@ func (p hostPorts) OpenPath(path string) string {
 	return "no shell"
 }
 
-// OpenExternal = ports.shell.openExternal
+// OpenExternal：用系统默认程序打开链接
 func (p hostPorts) OpenExternal(url string) error {
 	if w := p.w(); w != nil {
 		return w.OpenExternal(url)
@@ -70,7 +70,7 @@ func (p hostPorts) ShowItemInFolder(path string) {
 
 func (p hostPorts) IdleSeconds() int { return hostports.IdleSeconds() }
 
-// ClipboardRead / ClipboardWrite：electronPorts.ts 的 clipboard（desktop.Ports 用）
+// ClipboardRead / ClipboardWrite：剪贴板（desktop.Ports 用）
 func (p hostPorts) ClipboardRead() (string, error) {
 	if w := p.w(); w != nil {
 		return w.ClipboardText(), nil

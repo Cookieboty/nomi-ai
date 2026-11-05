@@ -1,6 +1,6 @@
 package shellhandlers
 
-// gatewayTerminalSource（apps/desktop-electron/internal/core/src/gateway/TerminalCommands.ts）+ createCore.ts:728 的接线。
+// gatewayTerminalSource：TerminalCommands 的网关来源与接线。
 
 import (
 	"path/filepath"
@@ -71,7 +71,7 @@ func NewGatewayTerminal(userData string, g *gwstore.Service, logger terminal.Log
 		OnEnabled: g.EnsureStarted,
 	})
 	t.Refresh()
-	// 异步：onChange 可能在 EnsureStarted 内同步触发，而 Refresh 持有 Commands.mu（Node 单线程可重入，Go 不可）
+	// 异步：onChange 可能在 EnsureStarted 内同步触发，而 Refresh 持有 Commands.mu（不可重入）
 	g.OnChange(func() { go t.Refresh() })
 	return t
 }

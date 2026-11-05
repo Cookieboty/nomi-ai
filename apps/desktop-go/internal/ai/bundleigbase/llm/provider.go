@@ -6,7 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
 
-// LLMProvider：types/common.ts LLMProvider（stream 以回调代替 AsyncIterable；
+// LLMProvider：LLM 供应商接口（stream 以回调代替 AsyncIterable；
 // 回调返回前不会再发下一块，ctx 取消 = 迭代器 return()）
 type LLMProvider interface {
 	ProviderID() string

@@ -22,7 +22,7 @@ func realpathNative(p string) (string, error) {
 
 func readlinkNode(p string) (string, error) { return os.Readlink(p) }
 
-// symlinkNode：POSIX 上 type 参数被忽略（同 Node）。
+// symlinkNode：POSIX 上 type 参数被忽略。
 func symlinkNode(target, link, _ string) error { return os.Symlink(target, link) }
 
 func isJunction(os.FileInfo) bool { return false }

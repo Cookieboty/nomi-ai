@@ -16,7 +16,7 @@ type Legacy struct {
 }
 
 // Service：GatewayService 的存储部分（init 的迁移 → 规范 → 令牌 → 保存 → 归档）。
-// runtimeConfig / 拉起网关进程随批 5 的 GatewayService 一起接（偏差 D-B4d-5 说明）。
+// runtimeConfig / 拉起网关进程见 service_runtime.go。
 type Service struct {
 	Store  *Store
 	cipher Cipher
@@ -25,7 +25,7 @@ type Service struct {
 	rt     *runtimeState
 }
 
-// NewService：root = userData/gateway，同 Node `file: path.join(root, 'store.json')`
+// NewService：root = userData/gateway，存储文件为 root/store.json
 func NewService(root string, cipher Cipher, logger Logger, legacy *Legacy) *Service {
 	if logger == nil {
 		logger = stdLogger{}
@@ -33,7 +33,7 @@ func NewService(root string, cipher Cipher, logger Logger, legacy *Legacy) *Serv
 	return &Service{Store: NewStore(filepath.Join(root, "store.json"), cipher, logger), cipher: cipher, logger: logger, legacy: legacy}
 }
 
-// NewServiceForUserData：Node createCore 的接法（nomiFile / cli-providers / legacyCliKeyDecryptor）
+// NewServiceForUserData：按 userData 接好 nomiFile / cli-providers / legacyCliKeyDecryptor
 func NewServiceForUserData(userData string, cipher Cipher, logger Logger) *Service {
 	return NewService(filepath.Join(userData, "gateway"), cipher, logger, &Legacy{
 		NomiFile:   filepath.Join(userData, "ai-providers.json"),
@@ -46,7 +46,7 @@ func (s *Service) sources() LegacySources {
 	return LegacySources{NomiFile: s.legacy.NomiFile, CliRoot: s.legacy.CliRoot, NomiCipher: s.Store.cipher, CliDecrypt: s.legacy.CliDecrypt}
 }
 
-// InitAfterMigration（D-B11-12）：2.0.4 密钥迁移（后台）完成后调用 —— 持写锁重新读盘再 Init，
+// InitAfterMigration：2.0.4 密钥迁移（后台）完成后调用 —— 持写锁重新读盘再 Init，
 // 避免启动早期读到的旧密文被 EnsurePrivacyKey 当成坏 key 重新生成（数据丢失）。
 func (s *Service) InitAfterMigration(reload bool) error {
 	if s.rt != nil {
@@ -130,7 +130,7 @@ func (s *Service) archiveLeftoverLegacy() {
 	ArchiveLegacyFiles(left, s.logger)
 }
 
-// stdLogger：未注入 logger 时（createCore 总会传 logger）写标准日志
+// stdLogger：未注入 logger 时写标准日志
 type stdLogger struct{}
 
 func (stdLogger) Info(msg string, d any) { log.Printf("[gateway] %s %v", msg, d) }

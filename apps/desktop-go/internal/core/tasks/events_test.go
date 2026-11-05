@@ -1,6 +1,6 @@
 package tasks
 
-// 对应 tests/unit/tasks/events.test.ts：EventHub 语义与四个事件源。
+// EventHub 语义与四个事件源。
 
 import (
 	"context"

@@ -1,7 +1,7 @@
 package drivers
 
-// steer（一轮进行中插入用户消息）：对应 cli-sdk/tests/{streamJson,appServer,acp}.test.ts 里的 steer 用例。
-// 用内存里的假子进程（= tests/fakeChild.ts）：stdin 收到的每一行在微任务里交给 onLine，send() 往 stdout 推一行。
+// steer（一轮进行中插入用户消息）：stream-json / app-server / acp 三种驱动的 steer 用例。
+// 用内存里的假子进程：stdin 收到的每一行在微任务里交给 onLine，send() 往 stdout 推一行。
 
 import (
 	"strings"
@@ -203,7 +203,7 @@ func TestAppServerDriverSteer(t *testing.T) {
 	})
 }
 
-// acpAgent：最小的 ACP 代理（acp.test.ts agent(child, {permission: true})）
+// acpAgent：最小的 ACP 代理（带权限请求）
 func acpAgent(child *fakeChild) {
 	child.onLine = func(msg *util.Obj) {
 		reply := func(result any) { child.send(O("jsonrpc", "2.0", "id", msg.Get("id"), "result", result)) }

@@ -74,7 +74,7 @@ func TestExecDriverExitCodeAndENOENT(t *testing.T) {
 	})
 }
 
-// Node：解析器在 stdout 'data' 监听里抛出 → uncaughtException；本 chunk 余下行丢弃，解析器状态保留。
+// 解析器在 stdout 'data' 监听里抛出 → uncaughtException；本 chunk 余下行丢弃，解析器状态保留。
 func TestExecDriverParserThrow(t *testing.T) {
 	var uncaught []string
 	old := jsrt.Uncaught

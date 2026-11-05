@@ -2,16 +2,18 @@
 package wailsshell
 
 import (
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"io/fs"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	goruntime "runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -20,7 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 )
 
-// AppID 与 Electron appId 一致（electron-builder.yml），单实例锁 / 打包元数据共用
+// AppID 与安装包的 appId 一致，单实例锁 / 打包元数据共用
 const AppID = "com.cookieboty.nomi"
 
 type Config struct {
@@ -31,7 +33,6 @@ type Config struct {
 	// Pages：各窗口的页面路径（资产服务器上，如 /mascot/index.html）
 	Pages map[shell.WindowKind]string
 	// OnFilesDropped：从系统拖到桌面角色 / 对话窗口（data-file-drop-target 元素）上的文件路径
-	// （= preload nomiHost.dropFile / pathForFile）
 	OnFilesDropped func(k shell.WindowKind, paths []string)
 	// MascotSize 返回桌面角色窗口初始大小（按保存的缩放，夹到主屏工作区 = maxScaleForArea）；nil 时用 330×355
 	MascotSize func(work *shell.Rect) (int, int)
@@ -78,7 +79,7 @@ type Wails struct {
 	pending []func()
 	// releases：各窗口关闭时要调的 Fragment release（撤销窗口的 token）
 	releases map[*application.WebviewWindow]func()
-	// loads：窗口页面还在加载（= webContents.isLoading()）时，等 did-finish-load 的回调
+	// loads：窗口页面还在加载时，等加载完成的回调
 	loads map[*application.WebviewWindow]*pageLoad
 	// notes：系统通知（notify.go）
 	notes *notifier
@@ -99,7 +100,7 @@ func New(cfg Config) *Wails {
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
 		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
-		// 才 Show，这里按 Electron ready-to-show 的语义在首帧就显示（§3.4 D-B11-17）
+		// 才 Show，这里在首帧就显示（ready-to-show）
 		RawMessageHandler: func(win application.Window, msg string, _ *application.OriginInfo) {
 			// 开发态（devviews → viewpage）页面转来的 console 与报错
 			if rest, ok := strings.CutPrefix(msg, viewpage.LogPrefix); ok && win != nil {
@@ -121,14 +122,14 @@ func New(cfg Config) *Wails {
 				application.InvokeAsync(func() { win.Show() })
 			}
 		},
-		// 普通应用（Dock 图标、⌘Tab），与 Electron 相同
+		// 普通应用（Dock 图标、⌘Tab）
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyRegular, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
-		// = Electron requestSingleInstanceLock + second-instance：第二次启动把已有实例带到前台；
-		// 带着 nomi:// 链接（Win/Linux 经 argv 传入）的交给 OnURL（白名单在内核，与 Electron 相同）
+		// 单实例：第二次启动把已有实例带到前台；
+		// 带着 nomi:// 链接（Win/Linux 经 argv 传入）的交给 OnURL（白名单在内核）
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: AppID,
+			UniqueID: singleInstanceID(),
 			OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
 				w.reactivate()
 				for _, a := range d.Args {
@@ -145,7 +146,7 @@ func New(cfg Config) *Wails {
 	w.app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) {
 		go w.reactivate()
 	})
-	// = Electron open-url（macOS）/ 冷启动 argv（Windows / Linux，Wails 发同一个事件）
+	// open-url（macOS）/ 冷启动 argv（Windows / Linux，Wails 发同一个事件）
 	if cfg.OnURL != nil {
 		w.app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(e *application.ApplicationEvent) {
 			if u := e.Context().URL(); len(u) > 5 && strings.EqualFold(u[:5], "nomi:") {
@@ -269,7 +270,7 @@ func (w *Wails) Show(k shell.WindowKind) {
 	w.create(k, nil)
 }
 
-// ShowOnceLoaded = 打开窗口后 `if (webContents.isLoading()) webContents.once('did-finish-load', fn)`：
+// ShowOnceLoaded：打开窗口后等页面加载完再做事：
 // 页面还在加载时返回登记函数（fn 在加载完成后异步调用一次），已加载完返回 nil
 func (w *Wails) ShowOnceLoaded(k shell.WindowKind) func(fn func()) {
 	w.Show(k)
@@ -353,7 +354,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		}
 		if w.cfg.IslandLayout != nil {
 			if r, page, ok := w.cfg.IslandLayout(); ok {
-				// 与 Electron 一样按 islandWindowRect 建窗（刘海模式顶到屏幕最上沿、无投影留白）；建好后用绝对坐标定位
+				// 按 islandWindowRect 建窗（刘海模式顶到屏幕最上沿、无投影留白）；建好后用绝对坐标定位
 				opts.Width, opts.Height, opts.URL = r.Width, r.Height, page
 				at = &r
 			}
@@ -368,7 +369,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi", Width: 1120, Height: 820,
 			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: pageURL,
-			// 拖入文件取本机路径（= preload nomiHost.pathForFile；ai-chat 给 body 加 data-file-drop-target）
+			// 拖入文件取本机路径（ai-chat 给 body 加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
 			Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden},
 			// Windows / Linux = titleBarOptions 的无边框一体化标题栏：Wails 没有 Window Controls Overlay，
@@ -431,7 +432,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		w.release(win)
 		if cur {
 			w.notify(k, "closed")
-			// 用户关的（Destroy 主动销毁时 cur 为 false）：= BrowserWindow 'close'（关闭桌面角色即退出 / closeMain=quit）
+			// 用户关的（Destroy 主动销毁时 cur 为 false）：关闭桌面角色即退出 / closeMain=quit
 			w.notify(k, "user-closed")
 		}
 	})
@@ -662,7 +663,7 @@ func (w *Wails) reactivate() {
 // IsDarkMode = nativeTheme.shouldUseDarkColors（系统当前是否深色）
 func (w *Wails) IsDarkMode() bool { return w.app.Env.IsDarkMode() }
 
-// Hide 隐藏窗口但不销毁（= BrowserWindow.hide()）
+// Hide 隐藏窗口但不销毁
 func (w *Wails) Hide(k shell.WindowKind) {
 	if win := w.win(k); win != nil {
 		win.Hide()
@@ -731,7 +732,7 @@ func (w *Wails) WorkAreas() []shell.WorkArea {
 	return out
 }
 
-// PrimaryDisplay 主屏 bounds / workArea（DIP），供灵动岛刘海检测（D-B10-1）
+// PrimaryDisplay 主屏 bounds / workArea（DIP），供灵动岛刘海检测
 func (w *Wails) PrimaryDisplay() (bounds, work shell.Rect, ok bool) {
 	sc := w.app.Screen.GetPrimary()
 	if sc == nil {
@@ -754,7 +755,7 @@ func (w *Wails) SetResizable(k shell.WindowKind, on bool) {
 	}
 }
 
-// mascotInitialPos = 2.0.4 WindowManager.createMainWindow：保存的位置在 (0, workAreaSize) 开区间内就用，
+// mascotInitialPos：保存的位置在 (0, workAreaSize) 开区间内就用，
 // 否则 x = 宽 - 窗宽、y = 高 - 窗高（主屏工作区右下角）。返回绝对坐标。
 func mascotInitialPos(saved func() (int, int), areaW, areaH, width, height int) *[2]int {
 	x, y := 0, 0
@@ -808,14 +809,14 @@ var _ shell.WindowControl = (*Wails)(nil)
 var _ shell.Shell = (*Wails)(nil)
 var _ shell.Geometry = (*Wails)(nil)
 
-// ExecJS 在窗口页面里执行脚本（= webContents.executeJavaScript，但拿不到返回值）
+// ExecJS 在窗口页面里执行脚本（拿不到返回值）
 func (w *Wails) ExecJS(k shell.WindowKind, js string) {
 	if win := w.win(k); win != nil {
 		win.ExecJS(js)
 	}
 }
 
-// AnyFocused = BrowserWindow.getFocusedWindow() != null：任一应用窗口处于焦点（b7 WindowFocus 接口）
+// AnyFocused：任一应用窗口处于焦点（WindowFocus 接口）
 func (w *Wails) AnyFocused() bool {
 	w.mu.Lock()
 	ws := make([]*application.WebviewWindow, 0, len(w.wins))
@@ -831,4 +832,12 @@ func (w *Wails) AnyFocused() bool {
 		}
 	}
 	return false
+}
+
+// singleInstanceID：截图脚本 / CI（NOMI_POC_CTL）用单独的单实例 ID，本机开着的 Nomi 不会把测试实例挡掉
+func singleInstanceID() string {
+	if os.Getenv("NOMI_POC_CTL") != "" {
+		return AppID + ".ctl"
+	}
+	return AppID
 }

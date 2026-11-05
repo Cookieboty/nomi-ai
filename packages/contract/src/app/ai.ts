@@ -1,9 +1,9 @@
 /**
- * AI 门面的过程与事件（docs/design/core-host-decoupling.md §4.1、§12 P1）。
+ * AI 门面的过程与事件（docs/development/contract.md P1）。
  *
  * 取代 `ai-runtime/src/channels.ts` 与 `ai-sdk-client/src/channels.ts` 两份 `IPC_METHODS`：
  * - 过程名 `ai.<facade>.<method>`，memory 子域写全（`ai.memory.userProfile.get`）；
- * - 原 `kind: 'sync-return' | 'return'` → 读用 query、写用 mutation（一律异步，§4.2），
+ * - 原 `kind: 'sync-return' | 'return'` → 读用 query、写用 mutation（一律异步），
  *   `'stream'` → stream；`dangerous` 原样保留；
  * - 门面方法的位置参数在契约里变成具名对象（`AI_METHODS[*].params`），视图侧的
  *   `ClientAIClient` 按这张表把 `(reqId, ok, reason)` 打包成 `{ reqId, ok, reason }`；
@@ -142,7 +142,7 @@ export const aiProcedures = {
   },
   'ai.tts.stop': { kind: 'mutation', input: z.object({ reqId: z.string() }), output: z.void() },
 
-  // avatar（只有语义名，§10.5）
+  // avatar（只有语义名）
   'ai.avatar.isAvailable': { kind: 'query', input: z.void(), output: z.boolean() },
   'ai.avatar.emotion': { kind: 'mutation', input: AvatarEmotionInput, output: z.void() },
   'ai.avatar.gesture': { kind: 'mutation', input: AvatarGestureInput, output: z.void() },

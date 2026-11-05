@@ -1,5 +1,5 @@
 /**
- * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/design/changes-panel-git.md）。
+ * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/development/coding-agents.md）。
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
 import { Button, Checkbox, Disclosure, t } from '@nomi-ai/ui';

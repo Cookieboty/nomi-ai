@@ -1,13 +1,13 @@
 package tasks
 
-// 持续任务状态机，逐分支移植 src/tasks/machine.ts（docs/design/persistent-tasks.md §5；
-// 取舍依据 persistent-tasks-references.md）。纯函数：不读时钟、不生成 id、不做副作用；
+// 持续任务状态机（docs/features/scheduling-calendar.md；
+// 取舍依据 docs/features/scheduling-calendar.md）。纯函数：不读时钟、不生成 id、不做副作用；
 // 输入不被修改（结构体按值复制，指针字段只替换不改写）。
-// golden：scripts/parity/record-tasks-machine.mjs → testdata/tasks-machine.json
+// 用例：testdata/tasks-machine.json
 
 import "slices"
 
-// Event 对应 machine.ts 的 TaskEvent 判别联合（按 Type 区分，字段按需使用）
+// Event：TaskEvent 判别联合（按 Type 区分，字段按需使用）
 type Event struct {
 	Type                string             `json:"type"`
 	At                  int64              `json:"at"`
@@ -35,7 +35,7 @@ type EventWait struct {
 	Detail    *string `json:"detail,omitempty"`
 }
 
-// Effect 对应 TaskEffect 判别联合（按 Kind 区分）
+// Effect：TaskEffect 判别联合（按 Kind 区分）
 type Effect struct {
 	Kind      string  `json:"kind"`
 	AttemptID *string `json:"attemptId,omitempty"`
@@ -50,7 +50,7 @@ type Effect struct {
 	Event     string  `json:"event,omitempty"`
 }
 
-// Result 对应 TransitionResult；Attempt 为 nil 表示没有执行
+// Result：TransitionResult；Attempt 为 nil 表示没有执行
 type Result struct {
 	OK      bool     `json:"ok"`
 	Reason  string   `json:"reason,omitempty"`
@@ -181,7 +181,7 @@ func stopActive(t *Task, a *Attempt, at int64, reason string, fx *[]Effect, e *T
 	return n
 }
 
-// Transition 对应 machine.ts 的 transition
+// Transition：状态转移
 func Transition(task Task, attempt *Attempt, ev Event) Result {
 	at := ev.At
 	fx := []Effect{}

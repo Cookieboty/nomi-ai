@@ -1,5 +1,5 @@
-// Package knowledgehandlers 把批次 8（知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展）的 77 个契约过程
-// 挂到 Router；对应 apps/desktop-electron/internal/core/src/contract/knowledge.ts。
+// Package knowledgehandlers 把知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展的 77 个契约过程
+// 挂到 Router（契约 knowledge 域）。
 package knowledgehandlers
 
 import (
@@ -90,7 +90,7 @@ type Services struct {
 	Tasks func() *tasks.Service
 	Conns func() *connections.Service
 	// ApplyWorktree：tasks.applyWorktree 的实际拷贝（main 里接 delegate.ApplyWorktreeToMain + broker 写授权）
-	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
 }
 
 func unavailable(name string) error {
@@ -543,7 +543,7 @@ func Handlers(sv Services) map[string]H {
 				return nil, err
 			}
 			s.Disconnect(ctx, in.ID)
-			return nil, nil // Node: async () => undefined
+			return nil, nil // async () => undefined
 		}),
 		"ext.mcpImport": on(ext, func(_ context.Context, s *E, raw json.RawMessage) (any, error) {
 			var in struct {

@@ -2,7 +2,7 @@ package util
 
 import "testing"
 
-// Expectations recorded from Node: JSON.stringify(s.slice(n)) / s.slice(0,n), .length
+// Expectations as JS computes them: JSON.stringify(s.slice(n)) / s.slice(0,n), .length
 func TestLoneSurrogateSlices(t *testing.T) {
 	cases := []struct {
 		s    string

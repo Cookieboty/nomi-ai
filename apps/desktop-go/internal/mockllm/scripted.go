@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// Step is one scripted upstream response (mirrors scripts/parity/e2e.mjs).
+// Step is one scripted upstream response.
 // When OK is set the response is SSE or JSON from the fixtures, chosen by
 // whether the request asked for a stream.
 type Step struct {

@@ -2,36 +2,26 @@
   "name": "@nomi-ai/ai-sdk-client",
   "version": "0.0.1",
   "private": true,
-  "description": "渲染进程薄客户端：ClientAIClient（IPC Proxy）+ React Hooks + preload 模板，签名与 @nomi-ai/ai-sdk 完全一致",
+  "description": "视图侧薄客户端：ClientAIClient（应用契约上的 AI 门面）+ React Hooks + 窗口共享的契约传输",
   "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js",
-      "require": "./dist/react/index.cjs"
-    },
-    "./preload": {
-      "types": "./dist/preload/index.d.ts",
-      "import": "./dist/preload/index.js",
-      "require": "./dist/preload/index.cjs"
+      "import": "./dist/react/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "react": [
         "./dist/react/index.d.ts"
-      ],
-      "preload": [
-        "./dist/preload/index.d.ts"
       ]
     }
   },
@@ -48,7 +38,6 @@
     "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
   },
   "peerDependencies": {
-    "@nomi-ai/ai-sdk": "workspace:*",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
@@ -57,7 +46,6 @@
     }
   },
   "devDependencies": {
-    "@nomi-ai/ai-sdk": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",

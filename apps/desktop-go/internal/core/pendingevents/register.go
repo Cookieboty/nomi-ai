@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Register 接上事件总线的 pending.offer，并挂 nav.takePending（contract/media.ts）：
+// Register 接上事件总线的 pending.offer，并挂 nav.takePending：
 // 取走 nav 组留着的事件；是对话导航事件时返回 { event }，否则 null。
 func Register(r *contract.Router, p *Pending) {
 	r.Pending = p.Offer

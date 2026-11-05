@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/host-electron': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 性能：读取本机编程助手日志统计用量时不再拖慢整个应用。原来每导入一条日志记录都要把整本用量账重新排序，

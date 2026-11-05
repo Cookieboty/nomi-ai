@@ -13,9 +13,9 @@ import (
 	"time"
 )
 
-// AuditLog.ts：desktop-YYYY-MM.jsonl（本地月份），参数脱敏
+// 审计日志：desktop-YYYY-MM.jsonl（本地月份），参数脱敏
 
-// AuditEntry 一条审计（字段顺序见 D-B6-6）
+// AuditEntry 一条审计（字段顺序固定）
 type AuditEntry struct {
 	Tool     string  `json:"tool"`
 	Args     *OMap   `json:"args"`

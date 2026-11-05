@@ -23,7 +23,7 @@ type NormalizedImage struct {
 	AbsPath string
 }
 
-// Obj = 与 Node 对象同序的 JSON 形状（StagedImage 带 absPath）。
+// Obj：固定键序的 JSON 形状（StagedImage 带 absPath）。
 func (im NormalizedImage) Obj() *util.Obj {
 	o := util.NewObj("mime", im.Mime, "data", im.Data, "width", im.Width, "height", im.Height, "thumb", im.Thumb)
 	if im.Source != "" {
@@ -207,7 +207,7 @@ func RejectedImagesMessage(rejected []RejectedImage, max int) string {
 	return i18n.T("electron.common.image-s-can-t-be-sent-remove-them", float64(len(rejected)), strings.Join(parts, "；"))
 }
 
-// StageImages = stageImages（失败时 Node 同步抛出 → error）。
+// StageImages：把图片放进 dir（失败 → error）。
 func StageImages(dir string, images []NormalizedImage) ([]NormalizedImage, error) {
 	if err := os.MkdirAll(dir, 0o777); err != nil {
 		return nil, err

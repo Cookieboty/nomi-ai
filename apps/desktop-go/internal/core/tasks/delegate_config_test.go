@@ -1,6 +1,6 @@
 package tasks
 
-// 2.1.0：配置变了停下来问用户（machine.test.ts / runtime.test.ts）、委派派出的任务、重要程度与类型（service.test.ts）
+// 2.1.0：配置变了停下来问用户、委派派出的任务、重要程度与类型
 
 import (
 	"encoding/json"
@@ -111,7 +111,7 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 	}
 }
 
-// 派给 Nomi（§7.4）：执行者 nomi，不钉编程助手；放宽时长与 token、不设每日费用上限；自动验收；类型按派出时给的
+// 派给 Nomi：执行者 nomi，不钉编程助手；放宽时长与 token、不设每日费用上限；自动验收；类型按派出时给的
 func TestServiceCreateDelegatedNomi(t *testing.T) {
 	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}})
 	s.RegisterExecutor("nomi", nopCliExec{})

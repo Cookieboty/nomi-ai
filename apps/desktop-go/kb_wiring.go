@@ -11,7 +11,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 知识库的云端供应商：createCore 的 listProviders / credentials（aiRuntime 走网关）与 chatProvider（desktop.providerFor('chat')）
+// 知识库的云端供应商：listProviders / credentials（走网关）与 chatProvider（desktop.providerFor('chat')）
 
 func kbProviders(g func() mediahandlers.GatewayLike) func() []knowledge.Provider {
 	list := mediahandlers.GatewayProviders(g)
@@ -45,7 +45,7 @@ func kbChatProvider(s *desktop.Service) func() *knowledge.ChatProvider {
 	}
 }
 
-// aiMemory：记忆服务同步到 AI 客户端的 memory（同 Node services.aiRuntime.client.memory）；门面建好前为 nil
+// aiMemory：记忆服务同步到 AI 门面的 memory；门面建好前为 nil
 func aiMemory(f **aifacade.Facade) func() memory.Facade {
 	return func() memory.Facade {
 		if *f == nil {
@@ -57,7 +57,7 @@ func aiMemory(f **aifacade.Facade) func() memory.Facade {
 
 type memoryFacade struct{ f *aifacade.Facade }
 
-// ordered：按 Node 对象字面量的键序建对象（写进门面的事实 / 摘要与 Node 一致）
+// ordered：按给定键序建对象（写进门面的事实 / 摘要键序固定）
 func ordered(m map[string]any, keys ...string) *u.Obj {
 	o := u.NewObj()
 	for _, k := range keys {

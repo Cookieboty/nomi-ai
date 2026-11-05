@@ -1,8 +1,8 @@
 package tasks
 
-// `folder` 事件源（§6.2），对应 src/tasks/events/sources/folder.ts：本机文件夹的新文件 / 改动。
+// `folder` 事件源：本机文件夹的新文件 / 改动。
 // 目录必须在任务授权的路径里。扫描最多 3 层、2000 个文件，跳过隐藏目录与 node_modules。
-// 与 Node 的差别：Go 模块没有 fsnotify（不为此加依赖），这里没有 Watch，只靠 5 分钟一次的扫描。
+// 没有文件监视（不为此加 fsnotify 依赖），只靠 5 分钟一次的扫描。
 
 import (
 	"context"

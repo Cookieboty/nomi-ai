@@ -1,6 +1,6 @@
 package harness
 
-// orchestrator_api.go：contract/coding.ts 直接调用、此前未移植的几个公开方法
+// orchestrator_api.go：契约 coding 域直接调用的几个公开方法
 // （stopAgent / tabContext / answerPermission / answerApprovePlan）。
 
 import (
@@ -24,7 +24,7 @@ func (o *Orchestrator) StopAgent(tabID, agentID string) bool {
 	return o.writeClaudeControl(live, util.NewObj("subtype", "stop_task", "task_id", agentID))
 }
 
-// TabContext = tabContext：Claude 标签以 CLI 会话记录为准；没有时 null（读盘让出事件循环，同 Node 的 fs.promises）。
+// TabContext：Claude 标签以 CLI 会话记录为准；没有时 null（读盘时让出事件循环）。
 func (o *Orchestrator) TabContext(tabID string) *jsrt.Promise[*util.Obj] {
 	tab := o.tab(tabID)
 	if tab == nil || str(tab, "backend") != "claude" {

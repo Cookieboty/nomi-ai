@@ -25,7 +25,7 @@ import (
 
 const markerName = ".migrated-from-electron.json"
 
-// Chromium / Electron 运行时目录，不复制（对齐 legacyUserData.BOOT_ENTRIES + 缓存）
+// Chromium / Electron 运行时目录，不复制（启动项 + 缓存）
 var skipNames = map[string]bool{
 	"Crashpad": true, "Cache": true, "Code Cache": true, "GPUCache": true,
 	"DawnCache": true, "DawnGraphiteCache": true, "DawnWebGPUCache": true,
@@ -45,7 +45,7 @@ type Result struct {
 	FilesCopied     int      `json:"filesCopied"`
 	SecretsMigrated int      `json:"secretsMigrated"`
 	SecretsFailed   []string `json:"secretsFailed,omitempty"`
-	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（D-B11-12：放到桌面角色窗口出现之后）
+	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（放到桌面角色窗口出现之后）
 	SecretsPending    bool `json:"secretsPending,omitempty"`
 	ChatKeysExtracted int  `json:"chatKeysExtracted"`
 	// ChatExtractError：抽 Electron localStorage 失败的原因（空 = 没失败）；migration.chatHistory 会重试（#181）
@@ -254,7 +254,7 @@ func migrateSecrets(root string, box security.SecretBox, ss security.ElectronSaf
 	ok, failed := 0, []string{}
 	// 1) voice/volc-key.json: { key: "enc:..." } 或明文
 	ok += migrateEncFile(filepath.Join(root, "voice", "volc-key.json"), "key", "voice:volc", box, ss, &failed)
-	// 2) ai-providers.json / gateway/store.json / cli-providers/<kind>/store.json：Node 形态的密文字段
+	// 2) ai-providers.json / gateway/store.json / cli-providers/<kind>/store.json：旧版写出的密文字段
 	for _, rel := range []string{"ai-providers.json", filepath.Join("gateway", "store.json")} {
 		n, f := migrateProviderFile(filepath.Join(root, rel), box, ss, false)
 		ok += n
@@ -299,16 +299,16 @@ func migrateEncFile(path, field, account string, box security.SecretBox, ss secu
 	return 1
 }
 
-// Node 存储里成对出现的「密文字段 / 加密方式字段」（GatewayStore + ai-providers.json）
+// 旧版存储里成对出现的「密文字段 / 加密方式字段」（GatewayStore + ai-providers.json）
 var encPairs = [][2]string{
 	{"enc", "encryption"}, {"secret", "encryption"},
 	{"tokenEnc", "tokenEncryption"}, {"privacyKeyEnc", "privacyKeyEncryption"},
 }
 
-// migrateProviderFile：把 Electron safeStorage 密文就地换成 Go safeStorage 密文（gwstore.NewCipher），
-// 字段名 / encryption 取值 / 键顺序 / JSON 排版与 Node 写出的一致（D-B4d-5 消除：不再改成 "keyring"）。
+// migrateProviderFile：把旧版 Electron safeStorage 密文就地换成 Go safeStorage 密文（gwstore.NewCipher），
+// 字段名 / encryption 取值 / 键顺序 / JSON 排版保持旧版写出的样子（encryption 仍记 "safeStorage"）。
 // cli=true 时处理 cli-providers/<kind>/store.json 的 profiles[].keyEnc（无加密方式字段）。
-// 解不开的保留原样（Node 侧同样读作 null / 按明文 base64 处理）。
+// 解不开的保留原样（读取时作 null / 按明文 base64 处理）。
 func migrateProviderFile(path string, box security.SecretBox, ss security.ElectronSafeStorage, cli bool) (int, []string) {
 	raw, err := os.ReadFile(path)
 	if err != nil {

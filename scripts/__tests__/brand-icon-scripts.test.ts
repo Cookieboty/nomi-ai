@@ -19,8 +19,8 @@ function defaultOut(script: string): string {
 
 describe('brand icon scripts write to the Electron host assets', () => {
   it.each([
-    ['build-icon-assets.py', 'apps/desktop-electron/assets'],
-    ['build-variant-ico.py', 'apps/desktop-electron/assets/app-icons'],
+    ['build-icon-assets.py', 'apps/desktop-go/assets'],
+    ['build-variant-ico.py', 'apps/desktop-go/assets/app-icons'],
   ])('%s → %s', (script, expected) => {
     const out = defaultOut(script);
     expect(out).toBe(join(root, expected));

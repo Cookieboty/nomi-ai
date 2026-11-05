@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ROUND19 Task C — hop crotch wedge fix (same root cause as R18 squat).
 
-Root cause (REPORT-ROUND18.md §4):
+Root cause (REPORT-ROUND18.md):
   R13 shorts mesh blends every vertex below mother y 660 to its thigh, split at the crotch line
   (x 505), ~57 px INBOARD of each hip pivot (448 / 566, y 690).  A knee-out thigh rotation a swings
   those inboard vertices down by ~57*sin(a); the two thighs pull the seam apart -> a pointed dark

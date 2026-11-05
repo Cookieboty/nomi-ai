@@ -14,6 +14,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
 
 type Freq struct {
@@ -142,7 +143,7 @@ const (
 	catchUpDelay = 8 * time.Second
 )
 
-// SchedError 对应 Node 的 SchedError(code)；契约层映射为 SCHED_<CODE>
+// SchedError：带 code 的定时任务错误；契约层映射为 SCHED_<CODE>
 type SchedError struct {
 	Code string
 	Msg  string
@@ -484,29 +485,22 @@ func (s *Service) contextBlock(ctx context.Context, task *SchedTask) string {
 		}
 	}
 	s.mu.Unlock()
-	T := s.d.T
 	date := fmt.Sprintf("%d/%d/%d", d.Year(), int(d.Month()), d.Day())
-	lines := []string{T("electron.common.it-is-now", date, string(week), hhmm(now))}
-	if len(today) > 0 {
-		rs := make([]string, len(today))
-		for i, r := range today {
-			rs[i] = "- " + hhmm(r.DueAt) + " " + r.Text
-		}
-		lines = append(lines, T("electron.common.today-s-reminders", joinLines(rs, "\n")))
-	} else {
-		lines = append(lines, T("electron.common.no-reminders-today"))
+	rs := make([]string, len(today))
+	for i, r := range today {
+		rs[i] = "- " + hhmm(r.DueAt) + " " + r.Text
 	}
-	if len(upcoming) > 0 {
-		lines = append(lines, T("electron.common.scheduled-tasks-still-to-run-today", joinLines(upcoming, "、")))
-	}
-	q := T("electron.common.recent-context")
+	q := prompts.Local("schedule-memory-query", nil)
 	if task != nil {
 		q = task.Prompt
 	}
-	if mem, err := s.d.Memory(ctx, q); err == nil && mem != "" {
-		lines = append(lines, mem)
+	mem, err := s.d.Memory(ctx, q)
+	if err != nil {
+		mem = ""
 	}
-	return joinLines(lines, "\n")
+	// prompts/text/<语言>/schedule-context.md
+	return prompts.Local("schedule-context", map[string]any{"Date": date, "WeekZh": string(week),
+		"Weekday": d.Weekday().String(), "Time": hhmm(now), "Reminders": rs, "Upcoming": upcoming, "Memory": mem})
 }
 
 func joinLines(xs []string, sep string) string {
@@ -562,8 +556,7 @@ func (s *Service) RunTask(ctx context.Context, id string, opts RunOpts) (TaskRes
 	text, err := func() (string, error) {
 		block := s.contextBlock(cctx, &snap)
 		out, err := s.d.Complete(cctx, []deps.Msg{
-			{Role: "system", Content: T("electron.common.you-are-the-desktop-companion-on-the-user", name) +
-				T("electron.common.give-the-result-directly-don-t-ask-questions") + block},
+			{Role: "system", Content: prompts.Local("schedule-task", map[string]any{"Name": name, "Context": block})},
 			{Role: "user", Content: prompt},
 		})
 		if err != nil {
@@ -787,14 +780,12 @@ func (s *Service) MaybeProactive(ctx context.Context, force bool) (string, error
 		s.proactiveBusy = false
 		s.mu.Unlock()
 	}()
-	T := s.d.T
 	cctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	block := s.contextBlock(cctx, nil)
 	out, err := s.d.Complete(cctx, []deps.Msg{
-		{Role: "system", Content: T("electron.common.you-are-a-companion-on-the-user-s") +
-			T("electron.common.output-only-that-one-line-under-25-words") + block},
-		{Role: "user", Content: T("electron.common.the-user-has-been-quiet-for-a-while")},
+		{Role: "system", Content: prompts.Local("schedule-proactive", map[string]any{"Context": block})},
+		{Role: "user", Content: prompts.Local("schedule-proactive-user", nil)},
 	})
 	if err != nil {
 		return "", err
@@ -873,10 +864,4 @@ func (s *Service) ProactiveNow(ctx context.Context) (string, error) {
 		return "", &SchedError{"empty", s.d.T("electron.common.couldn-t-think-of-what-to-say-this")}
 	}
 	return t, nil
-}
-
-// BriefingPrompt：每日简报默认提示词（用时再翻译）
-func BriefingPrompt(T i18n.Translate) string {
-	return T("electron.common.write-me-a-briefing-for-today-start-with") +
-		T("electron.common.then-give-one-or-two-thoughtful-tips-based")
 }

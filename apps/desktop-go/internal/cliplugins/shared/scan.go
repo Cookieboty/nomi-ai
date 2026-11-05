@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 )
 
-// Readdir mirrors readdir()：OS 原序（不排序，同 fs.promises.readdir），失败 = 空。
+// Readdir：OS 原序（不排序），失败 = 空。
 func Readdir(d string) []fs.DirEntry {
 	f, err := os.Open(d)
 	if err != nil {
@@ -34,7 +34,7 @@ func MtimeMs(st fs.FileInfo) float64 {
 
 type FileCand struct{ Path, DirID string }
 
-// StatAll mirrors statAll（stat 跟随符号链接；失败的跳过）。
+// StatAll：stat 跟随符号链接；失败的跳过。
 func StatAll(files []FileCand) []clisdk.HistoryFileRef {
 	out := []clisdk.HistoryFileRef{}
 	for _, f := range files {
@@ -47,7 +47,7 @@ func StatAll(files []FileCand) []clisdk.HistoryFileRef {
 	return out
 }
 
-// WalkFiles mirrors walkFiles。
+// WalkFiles：在 root 下按深度遍历，收集 match 的文件。
 func WalkFiles(root string, depth int, match func(string) bool, dirID bool) []FileCand {
 	files := []FileCand{}
 	var walk func(d string, left int)

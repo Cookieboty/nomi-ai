@@ -1,4 +1,4 @@
-// Package appicon = apps/desktop-electron/src/core/appIcon.ts：应用图标变体（sunset 默认 / cream / ink）的运行时切换。
+// Package appicon：应用图标变体（sunset 默认 / cream / ink）的运行时切换。
 //
 // 能换的（立即）：所有窗口图标（含之后新建的窗口）、Windows 任务栏 AppUserModel 图标（RelaunchIconResource）、
 // 托盘（非 macOS）、macOS Dock。真正改窗口 / Dock / 托盘的是 Target（wailsshell 实现，原生部分见 appicon_*.go）。
@@ -16,7 +16,7 @@ var Variants = []string{"ink", "cream", "sunset"}
 
 const Default = "sunset"
 
-// AppUserModelID 与 electron-builder.yml 的 appId 一致
+// AppUserModelID 与安装包的 appId 一致（packaging/windows/installer.nsi）
 const AppUserModelID = "com.cookieboty.nomi"
 
 // Sanitize = sanitizeVariant（只认精确的三个字符串）
@@ -46,7 +46,7 @@ type Window interface {
 	SetAppDetails(appID, iconPath string, index int)
 }
 
-// Target：宿主图标能力（= app.dock / BrowserWindow.getAllWindows / 托盘监听）
+// Target：宿主图标能力（Dock / 所有窗口 / 托盘）
 type Target interface {
 	SetDockIcon(pngPath string)
 	Windows() []Window
@@ -71,7 +71,7 @@ type Service struct {
 	Preview func(path string, width int) string
 }
 
-// Platform 返回 Node process.platform 的取值
+// Platform 返回 process.platform 风格的取值（darwin / win32 / linux）
 func Platform() string {
 	if runtime.GOOS == "windows" {
 		return "win32"
@@ -83,7 +83,7 @@ func New(assets, disk string, t Target) *Service {
 	return &Service{assets: assets, disk: disk, platform: Platform(), current: Default, target: t, Preview: PNGPreview}
 }
 
-// SetPlatform 仅供 golden 回放
+// SetPlatform 仅供测试
 func (s *Service) SetPlatform(p string) { s.platform = p }
 
 func (s *Service) Current() string { s.mu.Lock(); defer s.mu.Unlock(); return s.current }

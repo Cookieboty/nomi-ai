@@ -1,5 +1,5 @@
 /**
- * 契约定义（docs/design/core-host-decoupling.md §4.1）。
+ * 契约定义（docs/development/contract.md）。
  *
  * 契约是视图与内核之间的唯一来源：过程（query / mutation / stream）+ 事件 + zod schema + 版本号。
  * 过程名用点分（`chat.stream`），客户端据此生成嵌套的 `api.chat.stream(...)`。
@@ -12,7 +12,7 @@ import { BUILTIN_ERROR_CODES, type BuiltinErrorCode } from './errors';
 /** 契约里使用的 schema：任意 zod 类型 */
 export type Schema = z.ZodType;
 
-/** 调用方所在的界面（§8） */
+/** 调用方所在的界面 */
 export type Surface = 'chat' | 'mascot' | 'settings' | 'test';
 
 export const SURFACES: readonly Surface[] = Object.freeze(['chat', 'mascot', 'settings', 'test']);
@@ -20,11 +20,11 @@ export const SURFACES: readonly Surface[] = Object.freeze(['chat', 'mascot', 'se
 export type ProcedureKind = 'query' | 'mutation' | 'stream';
 
 interface ProcedureBase {
-  /** 只接受 `trusted` 调用者（§8） */
+  /** 只接受 `trusted` 调用者 */
   dangerous?: boolean;
   /** 允许调用的界面；不写 = 所有界面 */
   surfaces?: readonly Surface[];
-  /** 已弃用：保留一个 minor 版本后删除（§4.3）；字符串写替代方案 */
+  /** 已弃用：保留一个 minor 版本后删除；字符串写替代方案 */
   deprecated?: boolean | string;
   description?: string;
 }
@@ -80,7 +80,7 @@ export interface Contract<
   /** 业务错误码（内置错误码之外） */
   readonly errors: readonly Err[];
   /**
-   * 事件的订阅白名单（§8）：列出的事件只推给这些界面的调用者，其它界面的订阅被传输层忽略；
+   * 事件的订阅白名单：列出的事件只推给这些界面的调用者，其它界面的订阅被传输层忽略；
    * 不列 = 所有界面都能订阅。按窗口投递靠它，不靠发布方。
    */
   readonly eventSurfaces: Readonly<Record<string, readonly Surface[]>>;
@@ -138,7 +138,7 @@ export type ErrorCodeOf<C extends AnyContract> =
 // defineContract
 // ---------------------------------------------------------------------------
 
-/** 内置握手过程（§4.3）；契约里不得再定义 `meta.*` */
+/** 内置握手过程；契约里不得再定义 `meta.*` */
 export const META_VERSION = 'meta.version';
 const RESERVED_HEADS = new Set(['meta', 'on']);
 /** 任何一段都不能用的名字：会污染原型或让 api 节点变成 thenable */
@@ -313,7 +313,7 @@ export interface ServerInfo {
   protocol: number;
 }
 
-/** major 一致即兼容（§4.3）：minor 只增不删 */
+/** major 一致即兼容：minor 只增不删 */
 export function isCompatible(a: ContractVersion, b: ContractVersion): boolean {
   return a.major === b.major;
 }

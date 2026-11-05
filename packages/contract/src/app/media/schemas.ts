@@ -1,5 +1,5 @@
 /**
- * D1 · 语音 / 朗读 / 桌面能力 / 屏幕的 DTO schema（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D1 · 语音 / 朗读 / 桌面能力 / 屏幕的 DTO schema（docs/development/architecture.md「P1b 实施约定」）。
  *
  * 照现有类型手写（契约包只依赖 zod）：
  * - 语音：electron `voice/VoiceService.ts`、`voice/settings.ts`；视图 `@nomi-ai/voice` 的 `bridge.ts`；

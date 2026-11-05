@@ -1,6 +1,6 @@
 package knowledgehandlers
 
-// tasks.*：持续任务，对应 src/contract/knowledge.ts 的 tasks 段（docs/design/persistent-tasks.md §14）。
+// tasks.*：持续任务（docs/features/scheduling-calendar.md）。
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type taskEventsView struct {
 	Sources    []string            `json:"sources"`
 }
 
-// tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（同 Node mapped('TASKS', …)）
+// tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（mapped('TASKS', …)）
 func tasksErr(v any, err error) (any, error) { return mapped("TASKS", v, err) }
 
 func taskHandlers(sv Services) map[string]H {
@@ -135,8 +135,8 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			apply := sv.ApplyWorktree
 			if apply == nil {
-				// 没有桌面能力：一个都不写（同 Node：没有 desktop 时 mayWrite 为 false）
-				apply = func(_ tasks.CliIsolation, files []string) tasks.WorktreeApply {
+				// 没有桌面能力：一个都不写（mayWrite 为 false）
+				apply = func(_ tasks.CliIsolation, files []string, _ string) tasks.WorktreeApply {
 					return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 				}
 			}
@@ -152,7 +152,7 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.Remove(in.ID), nil
 		}),
-		// 事件任务：观察到的事件、最近一次拉取（§6.3）
+		// 事件任务：观察到的事件、最近一次拉取
 		"tasks.events": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in taskIDIn
 			if err := decode(raw, &in); err != nil {

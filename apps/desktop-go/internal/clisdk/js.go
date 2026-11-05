@@ -57,7 +57,7 @@ func SliceFrom(s string, n int) string {
 // Str is `typeof v === 'string' ? v : ”`.
 func Str(v any) string { return util.Str(v) }
 
-// OptStr mirrors optStr: a non-empty string or undefined (nil).
+// OptStr: a non-empty string or undefined (nil).
 func OptStr(v any) *string {
 	if s, ok := v.(string); ok && s != "" {
 		return &s

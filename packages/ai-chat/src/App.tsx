@@ -396,7 +396,7 @@ const AiChatContent: React.FC = () => {
       else window.clearTimeout(id);
     };
   }, []);
-  // mascot holds a thinking pose while a reply is being generated (semantic event, §10.5)
+  // mascot holds a thinking pose while a reply is being generated (semantic event)
   useEffect(() => {
     if (!isLoading) return;
     onboardingClient.mascot({ type: 'reply', phase: 'waiting' });

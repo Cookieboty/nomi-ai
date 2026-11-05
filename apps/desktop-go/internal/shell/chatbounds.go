@@ -2,10 +2,10 @@ package shell
 
 import "math"
 
-// 对话窗口（主界面）的位置与大小 = host-electron core/chatWindowBounds.ts + WindowManager.buildAiChatWindow：
+// 对话窗口（主界面）的位置与大小：
 // 关闭时记下（config.json 的 chatWindowBounds），下次打开时按当前显示器校正后恢复；没有记录时居中默认尺寸。
 
-// ChatMinSize = WindowManager CHAT_MIN_SIZE
+// ChatMinSize：对话窗口的最小尺寸
 var ChatMinSize = Rect{Width: 760, Height: 560}
 
 // chatVisibleMin：至少要有这么大一块落在某个屏幕的工作区里，才算「还在屏幕上」
@@ -55,8 +55,8 @@ func RestoreChatBounds(saved *SavedChatBounds, workAreas []Rect, minSize Rect) *
 	return &SavedChatBounds{Rect: Rect{X: x, Y: y, Width: width, Height: height}, Maximized: saved.Maximized}
 }
 
-// ChatWindowBounds = buildAiChatWindow 的取值：恢复上次的位置大小，否则主屏工作区居中
-// min(1120, 宽-40) × min(820, 高-40)。primary 是主屏工作区（Electron 用 workAreaSize，x/y 不加原点）。
+// ChatWindowBounds：恢复上次的位置大小，否则主屏工作区居中
+// min(1120, 宽-40) × min(820, 高-40)。primary 是主屏工作区（只用 workAreaSize，x/y 不加原点）。
 func ChatWindowBounds(saved *SavedChatBounds, workAreas []Rect) SavedChatBounds {
 	if r := RestoreChatBounds(saved, workAreas, ChatMinSize); r != nil {
 		return *r

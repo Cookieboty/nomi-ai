@@ -1,6 +1,4 @@
 ---
-'@nomi-ai/ai-runtime': patch
-'@nomi-ai/ai-sdk': patch
 '@nomi-ai/ai-sdk-client': patch
 ---
 

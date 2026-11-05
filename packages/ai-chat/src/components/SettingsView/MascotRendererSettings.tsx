@@ -1,8 +1,8 @@
 /**
- * 设置 → 通用：桌面角色用 Rive 动画还是静态立绘（Electron 与 Go 宿主相同；docs/design/migrate-2.0.5-go.md Q5，
+ * 设置 → 通用：桌面角色用 Rive 动画还是静态立绘（Electron 与 Go 宿主相同；docs/development/architecture.md Q5，
  * 默认静态）。设置存内核的 `mascot.renderer`，切换时内核广播 `mascot.rendererChanged`，桌面角色窗口实时换。
  * 官方角色的 .riv 是远程素材：打开后内核才下载（character.assetsChanged），这一行显示进度，失败可重试
- * （docs/design/remote-character-assets.md）。
+ * （docs/character-pack/README.md）。
  */
 import { Button, SettingRow, Switch, t, tName } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';

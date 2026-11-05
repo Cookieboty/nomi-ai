@@ -1,5 +1,5 @@
 /**
- * 输入与输出：语义事件（docs/design/core-host-decoupling.md §10.5、§10.6）。
+ * 输入与输出：语义事件（docs/character-pack/CONTRACT.md）。
  *
  * avatar-runtime 不认识契约、IPC 或 AI SDK：宿主把它那边的事件（契约事件、TTS 口型、语音状态、
  * 主进程推来的光标与物理事件……）翻译成下面的 `AvatarEvent`，经一个 `AvatarEventSource` 注入。

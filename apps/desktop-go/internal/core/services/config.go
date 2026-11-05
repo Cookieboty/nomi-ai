@@ -1,4 +1,4 @@
-// Package services 对应 apps/desktop-electron/internal/core/src/services（ConfigService）
+// Package services：应用配置（ConfigService）与日志（LoggerService）
 package services
 
 import (
@@ -20,7 +20,7 @@ type VoiceSettings struct {
 	VoicePackPath    string  `json:"voicePackPath"`
 	VoiceMode        string  `json:"voiceMode"`
 	SfxEnabled       *bool   `json:"sfxEnabled,omitempty"`
-	// Raw：Node 里 voiceSettings 是普通对象，原样（含未知键、键序）读写；非 nil 时以它为准序列化（D-B9-3）
+	// Raw：voiceSettings 是普通对象，原样（含未知键、键序）读写；非 nil 时以它为准序列化
 	Raw *util.Obj `json:"-"`
 }
 
@@ -45,7 +45,7 @@ func (v *VoiceSettings) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// WithRaw：按对象设置（Node config.set('voiceSettings', obj)），类型化字段同步
+// WithRaw：按对象设置（config.set('voiceSettings', obj)），类型化字段同步
 func VoiceSettingsFromObj(o *util.Obj) VoiceSettings {
 	var v VoiceSettings
 	_ = v.UnmarshalJSON([]byte(util.Stringify(o)))
@@ -81,13 +81,13 @@ type WindowSettings struct {
 	Transparent bool `json:"transparent"`
 }
 
-// XY = config.json 的 {x, y}（键与 Electron 一致，小写）
+// XY：config.json 的 {x, y}（键小写，与旧版写出的 config.json 兼容）
 type XY struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 }
 
-// ChatWindowBounds = config.chatWindowBounds（host-electron SavedChatBounds）
+// ChatWindowBounds：config.chatWindowBounds（对话窗口位置与大小）
 type ChatWindowBounds struct {
 	X         int   `json:"x"`
 	Y         int   `json:"y"`
@@ -146,11 +146,11 @@ func (s *ConfigService) Load() error {
 		s.config = s.def
 		return nil
 	}
-	// 浅合并：用默认填零值（对齐 Node 的 Object.assign 行为的简化版）
+	// 浅合并：用默认填零值（Object.assign 行为的简化版）
 	if loaded.MascotScale == 0 {
 		loaded.MascotScale = s.def.MascotScale
 	}
-	// voiceSettings 按 Node mergeConfigs 与默认深合并，保留未知键与键序（D-B9-3）
+	// voiceSettings 与默认深合并（mergeConfigs），保留未知键与键序
 	if loaded.VoiceSettings.Raw != nil {
 		defObj, _ := util.Parse([]byte(mustJSON(s.def.VoiceSettings)))
 		loaded.VoiceSettings = VoiceSettingsFromObj(mergeConfigs(defObj, loaded.VoiceSettings.Raw))

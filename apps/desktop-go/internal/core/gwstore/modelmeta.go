@@ -1,6 +1,6 @@
 package gwstore
 
-// modelmeta.go = core/src/gateway/modelMeta.ts：模型元数据的生效值（unified-gateway §12.7.2）。
+// modelmeta.go：模型元数据的生效值（unified-gateway）。
 // 逐字段按优先级取第一个有值的：用户手填 > 预设 > 已保存的预设 / 模型列表值 > 内置目录 > 保守默认值。
 
 import (

@@ -13,9 +13,9 @@ import (
 	"time"
 )
 
-// 对应 runParse.ts 的工具子进程（Electron utilityProcess + worker.ts）：
+// 解析用的工具子进程：
 // 宿主把自身可执行文件以 NOMI_PARSE_WORKER=1 重新拉起，stdin 收 {path,maxBytes}、stdout 回 ParseResult。
-// 堆超过 memoryMb 时子进程以 V8 OOM 同样的方式异常退出，父进程报 crashed（带真实退出码）。
+// 堆超过 memoryMb 时子进程异常退出，父进程报 crashed（带真实退出码）。
 
 const workerEnv = "NOMI_PARSE_WORKER"
 
@@ -49,7 +49,7 @@ type workerReq struct {
 	MaxBytes int64  `json:"maxBytes"`
 }
 
-// WorkerMain 解析子进程入口（worker.ts）
+// WorkerMain 解析子进程入口
 func WorkerMain() {
 	mem, _ := strconv.Atoi(os.Getenv(workerEnv + "_MEM_MB"))
 	if mem > 0 {

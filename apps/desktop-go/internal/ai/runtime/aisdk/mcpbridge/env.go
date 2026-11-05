@@ -17,7 +17,7 @@ func nonEmpty(v string, ok bool) (string, bool) {
 // Warnf：console.warn（测试可替换）
 var Warnf = func(format string, args ...any) { log.Printf(format, args...) }
 
-// ServersFromEnv：igPlugins.mcpServersFromEnv（MCP_SERVERS JSON 数组；非法 → []）
+// ServersFromEnv：环境变量 MCP_SERVERS（JSON 数组；非法 → []）
 func ServersFromEnv(lookup func(string) (string, bool)) []ServerConfig {
 	raw, ok := nonEmpty(lookup("MCP_SERVERS"))
 	if !ok {

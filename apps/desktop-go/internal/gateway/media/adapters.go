@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// 各适配器与 Node adapters/* 一一对应
+// 各家接口的适配器
 
 var OpenAIImages = &Adapter{
 	ID: "openai-images", Auth: AuthBearer, Edit: true,

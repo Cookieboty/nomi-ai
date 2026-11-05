@@ -9,7 +9,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Profile = UserProfileService（seams/userProfile.ts）里工具用到的部分
+// Profile：UserProfileService 里工具用到的部分
 type Profile interface {
 	Get() any
 	GetPath(path string) any
@@ -65,7 +65,7 @@ func PreferenceTools(svc Profile, env Env) []tools.Definition {
 			},
 		},
 		{
-			// list / forget 不解析入参（Node execute 忽略 input）
+			// list / forget 不解析入参
 			Name:           "list_user_preferences",
 			Description:    "返回全部 profile（identity + preferences + habits + dislikes）。",
 			Input:          schema(emptySchema),

@@ -1,7 +1,7 @@
 package quality
 
-// legacy.go = usage/quality/legacy.ts：旧「最近请求」条目 → 网关层质量记录。
-// modelFamily / deriveOutcome / cleanNotes 复用 aggregate.go / fromgateway.go 的同名移植。
+// legacy.go：旧「最近请求」条目 → 网关层质量记录。
+// modelFamily / deriveOutcome / cleanNotes 复用 aggregate.go / fromgateway.go 的实现。
 
 import (
 	"math"
@@ -29,7 +29,7 @@ func notesAny(v []string) any {
 	return out
 }
 
-// RecordFromEntry：旧条目 → 网关层质量记录（JS 对象，键序同 Node）
+// RecordFromEntry：旧条目 → 网关层质量记录（JS 对象，键序固定）
 func RecordFromEntry(e LegacyEntry) *u.Obj {
 	source := "thirdParty"
 	if e.Client == "nomi" {

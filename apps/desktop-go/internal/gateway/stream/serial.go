@@ -1,6 +1,6 @@
 package stream
 
-// SerialBlock is SerialBlock (serial.ts). ID / Name are nil for text blocks.
+// SerialBlock is one serialised content block. ID / Name are nil for text blocks.
 type SerialBlock struct {
 	Kind    string // "text" | "tool"
 	Key     string

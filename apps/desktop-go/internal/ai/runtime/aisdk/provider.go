@@ -28,7 +28,7 @@ type Provider struct {
 	inbox map[string][]string
 }
 
-// DefaultMaxSteps：工具循环每轮最多几步（= AiSdkLlmProvider.ts DEFAULT_MAX_STEPS）
+// DefaultMaxSteps：工具循环每轮最多几步（DEFAULT_MAX_STEPS）
 const DefaultMaxSteps = 20
 
 // NewProvider：constructor（modelFactory 由协议层注入，见 buildModelFactory）

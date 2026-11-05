@@ -1,4 +1,4 @@
-// Package gemini mirrors apps/desktop-electron/internal/core/src/cli/gemini（acp.ts / trust.ts / trustedFolders.ts）。
+// Package gemini：Gemini CLI 的 ACP 启动与文件夹信任（acp / trust / trustedFolders）。
 package gemini
 
 import (

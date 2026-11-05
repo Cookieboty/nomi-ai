@@ -1,27 +1,26 @@
-# Go + Wails v3 桌面版（2.0.5 起面向用户的正式版本）：三平台 go vet / go test、Node golden 比对、构建、体积与内存实测。
+# Go + Wails v3 桌面版：三平台 go vet / go test、构建、体积与内存实测。
 # 安装包与 Release 见 desktop-go-package.yml（tag 发版时不重跑本 workflow：打 tag 前 main 上已全绿）。
 name: desktop-go
 on:
   workflow_dispatch: {}
   workflow_call: {}
   push:
-    branches: [main, feat/2.0.5-go, 'feat/2.0.5-go-**']
+    branches: [main]
   pull_request:
-    branches: [main, release/2.0.5]
+    branches: [main]
     paths:
       - 'apps/desktop-go/**'
-      # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
+      # 视图（packages/renderer、ai-chat）与契约内嵌进 Go 程序
       - 'packages/**'
-      - 'apps/desktop-electron/internal/**'
-      - 'scripts/parity/**'
       - 'scripts/go-contract/**'
+      # Go 测试用的假 CLI；build 任务构建的视图里打包了角色包
+      - 'scripts/mock-cli/**'
+      - 'characters/**'
       - '.github/workflows/desktop-go.yml'
 permissions:
   contents: read
-# 按分支分组：push（main / 集成分支）不取消，一个在跑 + 只保留最新一个排队；
+# 按分支分组：push main 不取消，一个在跑 + 只保留最新一个排队；
 # PR 上新提交取消旧 run（旧提交的结果没人看，还占着三平台 runner、让新 run 排队）。
-# PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
-# worker 分支 feat/2.0.5-go-** 也触发 push：各自独立分组（按 ref），不会取消集成分支的 run。
 concurrency:
   group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -30,7 +29,6 @@ env:
 jobs:
   # 测试与构建 / 实测分成两个并行 job：任一边失败只重跑那一边（以前一个 job 里全做，实测步骤挂了也要整个重跑 go test）
   test:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,33 +56,15 @@ jobs:
         run: |
           pnpm --filter @nomi-ai/contract build
           node scripts/go-contract/gen.mjs --check
-      - name: live Node goldens (per platform)
-        run: |
-          pnpm --filter "@nomi-ai/cli-sdk..." build
-          # 录制脚本经 tsx 引用这些包的 dist：所有录制之前先构建（contract 在三平台都要，b5-batch 用）
-          pnpm --filter "@nomi-ai/core^..." --filter @nomi-ai/contract --filter @nomi-ai/types --filter @nomi-ai/i18n build
-          echo "NOMI_GOLDEN_DIR=$RUNNER_TEMP/goldens" >> "$GITHUB_ENV"
-          echo "NOMI_LIVE_GOLDENS=$RUNNER_TEMP/goldens" >> "$GITHUB_ENV"
-          NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens" apps/desktop-go/ci/record-live-goldens.sh --check
-      - name: go vet + go test (failed packages re-recorded and retried once)
+      - name: go vet + go test (failed packages retried once)
         working-directory: apps/desktop-go
         run: |
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=(); [ "$RUNNER_OS" = Linux ] && TAGS=(-tags gtk3); [ "$RUNNER_OS" = macOS ] && TAGS=(-tags private_mac_apis)
           ci/go-test.sh "${TAGS[@]}"
-      - name: chatbg image parity (no -race; Electron goldens)
-        working-directory: apps/desktop-go
-        shell: bash
-        run: |
-          set -o pipefail
-          go test -count=1 -run '^TestImageParity$' -v ./internal/core/chatbg/ 2>&1 | tee chatbg-parity.log
-          # 严格：必须真正执行并通过（不能 skip / 未匹配到测试）
-          grep -q -- '--- PASS: TestImageParity' chatbg-parity.log
-          ! grep -q -- '--- SKIP: TestImageParity' chatbg-parity.log
 
-  # POC 构建 + 体积 + macOS 透明窗口验证 + 内存实测（与 test 并行）。内存实测只报告，不让 CI 变红
+  # 构建 + 体积 + macOS 透明窗口验证 + 内存实测（与 test 并行）。未签名的 CI 构建，不是安装包；内存实测只报告，不让 CI 变红
   build:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -115,64 +95,64 @@ jobs:
           mkdir -p dist-ci
           case "$RUNNER_OS" in
             Windows)
-              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-poc.exe .
-              cp build/bin/nomi-poc.exe dist-ci/
-              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-poc-windows-amd64.zip nomi-poc.exe >/dev/null) ;;
+              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-ci.exe .
+              cp build/bin/nomi-ci.exe dist-ci/
+              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-ci-windows-amd64.zip nomi-ci.exe >/dev/null) ;;
             macOS)
-              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
-              APP="build/Nomi POC.app"; mkdir -p "$APP/Contents/MacOS"
-              cp build/bin/nomi-poc "$APP/Contents/MacOS/nomi-poc"
+              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-ci .
+              APP="build/Nomi CI.app"; mkdir -p "$APP/Contents/MacOS"
+              cp build/bin/nomi-ci "$APP/Contents/MacOS/nomi-ci"
               cat > "$APP/Contents/Info.plist" <<PL
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-          <key>CFBundleExecutable</key><string>nomi-poc</string>
-          <key>CFBundleIdentifier</key><string>ai.nomi.poc</string>
-          <key>CFBundleName</key><string>Nomi POC</string>
+          <key>CFBundleExecutable</key><string>nomi-ci</string>
+          <key>CFBundleIdentifier</key><string>com.cookieboty.nomi.ci</string>
+          <key>CFBundleName</key><string>Nomi CI</string>
           <key>CFBundlePackageType</key><string>APPL</string>
           <key>LSUIElement</key><true/>
           <key>NSHighResolutionCapable</key><true/>
           </dict></plist>
           PL
               codesign --force --deep -s - "$APP" || true
-              (cd build && ditto -c -k --keepParent "Nomi POC.app" ../dist-ci/nomi-poc-macos-arm64.zip) ;;
+              (cd build && ditto -c -k --keepParent "Nomi CI.app" ../dist-ci/nomi-ci-macos-arm64.zip) ;;
             Linux)
-              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
-              tar czf dist-ci/nomi-poc-linux-amd64.tar.gz -C build/bin nomi-poc ;;
+              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-ci .
+              tar czf dist-ci/nomi-ci-linux-amd64.tar.gz -C build/bin nomi-ci ;;
           esac
           {
             echo "### ${{ matrix.os }} 体积（字节）"
             echo '```'
             ls -l build/bin dist-ci
-            [ -d "build/Nomi POC.app" ] && du -sk "build/Nomi POC.app" | awk '{print ".app du -sk(KiB): "$1}'
+            [ -d "build/Nomi CI.app" ] && du -sk "build/Nomi CI.app" | awk '{print ".app du -sk(KiB): "$1}'
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: nomi-poc-${{ matrix.os }}
+          name: nomi-ci-${{ matrix.os }}
           path: apps/desktop-go/dist-ci/
 
       - name: mac transparency proof
         if: runner.os == 'macOS'
         working-directory: apps/desktop-go
-        run: ci/mac-transparency.sh "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/shots"
+        run: ci/mac-transparency.sh "$PWD/build/Nomi CI.app/Contents/MacOS/nomi-ci" "$PWD/shots"
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'macOS'
         with:
           name: mac-transparency
           path: apps/desktop-go/shots/
 
-      # ---------- 内存实测：POC ----------
-      - name: measure poc (macOS)
+      # ---------- 内存实测 ----------
+      - name: measure (macOS)
         if: runner.os == 'macOS'
         working-directory: apps/desktop-go
-        run: ci/measure-mac.sh poc "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/mem" || true
-      - name: measure poc (Windows)
+        run: ci/measure-mac.sh "$PWD/build/Nomi CI.app/Contents/MacOS/nomi-ci" "$PWD/mem" || true
+      - name: measure (Windows)
         if: runner.os == 'Windows'
         continue-on-error: true # 实测数据只报告，不让 CI 变红
         working-directory: apps/desktop-go
         shell: pwsh
-        run: ./ci/measure-win.ps1 -Mode poc -Bin "$PWD\build\bin\nomi-poc.exe" -Out "$PWD\mem"
+        run: ./ci/measure-win.ps1 -Bin "$PWD\build\bin\nomi-ci.exe" -Out "$PWD\mem"
 
       - name: summarize
         if: runner.os != 'Linux'
@@ -188,39 +168,3 @@ jobs:
         with:
           name: mem-${{ matrix.os }}
           path: apps/desktop-go/mem/
-
-  # shell / quality 变异检查单独成 job（与 build 并行，避免拖长 build、受其 runner 中断影响）；用提交的 golden
-  shell-mutants:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-        with: { lfs: true }
-      - uses: actions/setup-go@v5
-        with:
-          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-      - name: mutate-shell
-        run: |
-          set -o pipefail
-          mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
-          MUTATE_LOG_DIR=$RUNNER_TEMP/mutants MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 \
-            bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
-      - name: mutate-shell summary
-        if: always()
-        run: grep -E '^(mutants:|BLOCKED)' mutate-shell.log >> "$GITHUB_STEP_SUMMARY" || true
-      # 每个变异体（与基线）的完整 go test 输出：失败时判断是测试抓到、超时还是构建 / 环境问题（#205）
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: mutate-shell-logs-${{ matrix.shard }}
-          path: ${{ runner.temp }}/mutants/
-          retention-days: 7

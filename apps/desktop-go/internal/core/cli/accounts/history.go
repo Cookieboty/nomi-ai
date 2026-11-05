@@ -2,7 +2,7 @@ package accounts
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 
-// HistoryAccountLabel = createCore.ts SessionHistoryService 的 accountLabel 依赖：
+// HistoryAccountLabel：SessionHistoryService 的 accountLabel 依赖：
 // 只有 Codex 的历史记录了 creator_account_id；找到账号 → identity?.email ?? label，否则 undefined（nil）。
 func (s *AccountService) HistoryAccountLabel(backend, accountID string) (v any, err error) {
 	if backend != "codex" {
@@ -15,7 +15,7 @@ func (s *AccountService) HistoryAccountLabel(backend, accountID string) (v any, 
 	return orElse(opt(a.Get("identity"), "email"), a.Get("label")), nil
 }
 
-// HistorySessionAccount = createCore.ts 的 sessionAccount 依赖：非账号 CLI → undefined；
+// HistorySessionAccount：SessionHistoryService 的 sessionAccount 依赖：非账号 CLI → undefined；
 // 只有一个账号时不标注（只回 { id }）。
 func (s *AccountService) HistorySessionAccount(backend, sessionID string) (v *util.Obj, err error) {
 	if !isKind(backend) {

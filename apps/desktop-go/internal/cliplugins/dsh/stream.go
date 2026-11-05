@@ -1,4 +1,4 @@
-// Package dsh mirrors apps/desktop-electron/internal/cli-plugins/src/dsh.
+// Package dsh：dsh 插件（清单、网关条目、流式输出与会话记录解析）。
 package dsh
 
 import (
@@ -22,7 +22,7 @@ func or(ss ...string) string {
 	return ""
 }
 
-// ParseLine mirrors parseDshLine.
+// ParseLine：解析一行输出。
 func ParseLine(line string) []Ev {
 	trimmed := JSTrim(line)
 	if !strings.HasPrefix(trimmed, "{") {
@@ -93,7 +93,7 @@ func agentStart(callID string, input any) Ev {
 	if s, ok := input.(string); ok && s != "" {
 		if v, err := util.ParseString(s); err == nil {
 			if v == nil {
-				// Node: o = JSON.parse('null') → o.description 抛 TypeError，冒泡出解析器（见 clisdk.JSThrow）
+				// o 为 null（JSON.parse('null')）时读 o.description 抛 TypeError，冒泡出解析器（见 clisdk.JSThrow）
 				panic(clisdk.JSThrow{Name: "TypeError", Message: "Cannot read properties of null (reading 'description')"})
 			}
 			if x, ok := v.(*util.Obj); ok {
@@ -117,7 +117,7 @@ func agentStart(callID string, input any) Ev {
 		"callId", callID, "label", l, "background", o.Get("run_in_background") == true)
 }
 
-// NewParser mirrors createDshParser.
+// NewParser：带状态的逐行解析器。
 func NewParser() func(line string) []Ev {
 	names := map[string]string{}
 	var turn Ev

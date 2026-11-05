@@ -7,7 +7,7 @@ import (
 
 func tru() *bool { return u.Ptr(true) }
 
-// Builtin specs (providers/builtin.ts).
+// Builtin specs.
 var (
 	Anthropic = &Spec{ID: "anthropic", Presets: []string{"anthropic"}, Hosts: []string{"api.anthropic.com"}, Native: "anthropic"}
 	OpenAI    = &Spec{ID: "openai", Presets: []string{"openai"}, Hosts: []string{"api.openai.com"}, Native: "openai"}

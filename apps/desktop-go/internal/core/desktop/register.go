@@ -7,7 +7,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 )
 
-// register.go：contract/media.ts 「桌面能力」一节的 20 个过程
+// register.go：契约 media 域「桌面能力」一节的 20 个过程
 
 func obj(raw json.RawMessage) map[string]json.RawMessage {
 	m := map[string]json.RawMessage{}

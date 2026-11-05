@@ -1,8 +1,8 @@
-// Package deps 汇总批次 8（知识库 / 记忆 / 定时 / 扩展 / 本地模型）对其它批次的依赖接口。
+// Package deps 汇总知识库 / 记忆 / 定时 / 扩展 / 本地模型对其它模块的依赖接口。
 //
-// Node 里这些服务直接拿 DesktopService（批次 6）、AI runtime（批次 4/5）、HostPorts 的实例；
-// Go 侧按「消费方定义接口」收窄成这里的小接口，由 main.go 装配。尚未移植的部分在
-// fakes.go / noop 实现里给出空行为，并在 docs/design/migrate-2.0.5-go.md §3.4 D-B8-* 记录。
+// 按「消费方定义接口」收窄成这里的小接口（DesktopService、AI runtime、宿主端口），
+// 由 main.go 装配。没有装配的部分在
+// fakes.go / noop 实现里给出空行为。
 package deps
 
 import (
@@ -10,16 +10,16 @@ import (
 	"log"
 )
 
-// Msg 对应 Node 里传给 complete() 的 { role, content }
+// Msg：传给 complete() 的 { role, content }
 type Msg struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-// CompleteFunc：对话模型补全（Node createCore 的 complete()，main.go 接到 ChatFacade）
+// CompleteFunc：对话模型补全（main.go 接到 ChatFacade）
 type CompleteFunc func(ctx context.Context, messages []Msg) (string, error)
 
-// Events 对应 core/appEvents 的 publish（契约事件推给订阅窗口）
+// Events：应用事件的 publish（契约事件推给订阅窗口）
 type Events interface {
 	Publish(event string, payload any)
 }
@@ -29,7 +29,7 @@ type EventsFunc func(event string, payload any)
 
 func (f EventsFunc) Publish(event string, payload any) { f(event, payload) }
 
-// AuditEntry 对应 desktop/audit 的 append 入参（字段顺序 = Node 对象字面量顺序）
+// AuditEntry：desktop/audit 的 append 入参（字段顺序固定）
 type AuditEntry struct {
 	Tool     string `json:"tool"`
 	Args     any    `json:"args"`
@@ -40,7 +40,7 @@ type AuditEntry struct {
 	Source   string `json:"source"`
 }
 
-// Audit：desktop.audit.append（批次 6）
+// Audit：desktop.audit.append
 type Audit interface{ Append(e AuditEntry) }
 
 // Notice：desktop.notify 入参
@@ -71,13 +71,13 @@ type GuardResult struct {
 	Message string
 }
 
-// Broker：PermissionBroker 里批次 8 用到的部分
+// Broker：PermissionBroker 里这些服务用到的部分
 type Broker interface {
 	Guard(ctx context.Context, path, mode string) GuardResult
 	// Grant：用户在对话框里选了文件夹 → 记为已授权
 	Grant(path string)
 	LocalOnly() bool
-	// CheckSend：'ok' | 'local_only' | 'user_denied'；p 为 nil 表示没有对话模型（同 Node 的 undefined）
+	// CheckSend：'ok' | 'local_only' | 'user_denied'；p 为 nil 表示没有对话模型
 	CheckSend(ctx context.Context, p *SendTarget) string
 	OnChange(fn func()) (off func())
 }
@@ -114,7 +114,7 @@ type FileFilter struct {
 	Extensions []string `json:"extensions"`
 }
 
-// Logger 与 Node 的 { info, warn } 对齐
+// Logger：{ info, warn }
 type Logger interface {
 	Info(msg string, kv ...any)
 	Warn(msg string, kv ...any)
@@ -127,7 +127,7 @@ type LevelLogger interface {
 	Debug(msg string, kv ...any)
 }
 
-// Root：宿主启动时装上的 LoggerService（Node 各服务拿到的都是同一个 logger，不带 context）。
+// Root：宿主启动时装上的 LoggerService（各服务拿到的都是同一个 logger，不带 context）。
 // StdLogger 的 Prefix 只在 Root 未装（单元测试）时用于标准库 log 输出。
 var Root LevelLogger
 

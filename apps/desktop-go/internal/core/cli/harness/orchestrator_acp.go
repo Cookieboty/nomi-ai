@@ -1,6 +1,6 @@
 package harness
 
-// Node Orchestrator.ts 3291–3700：Gemini / Grok / 外部插件（ACP）长驻会话。
+// Gemini / Grok / 外部插件（ACP）长驻会话。
 
 import (
 	"errors"
@@ -413,7 +413,7 @@ func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*ut
 	}
 }
 
-// grokCompactMethod mirrors GROK_COMPACT_METHOD：Grok 的手动压缩，ACP 扩展方法 x.ai/compact_conversation
+// grokCompactMethod：Grok 的手动压缩，ACP 扩展方法 x.ai/compact_conversation
 // （1.0.70 内置文档；线上带扩展前缀 _）。
 const grokCompactMethod = "_x.ai/compact_conversation"
 

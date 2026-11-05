@@ -19,7 +19,12 @@ import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearch
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { orderEndpoints, splitShownEndpoints, visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
-import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
+import {
+  MAIN_TAB_ID,
+  harnessClient,
+  isNomiDelegated,
+  type HarnessTabMeta,
+} from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
   isHistoryBackend,
@@ -233,7 +238,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     let running = 0;
     let last: number | null = null;
     for (const x of tabs.state?.tabs ?? []) {
-      if (x.backend !== cardBackend) continue;
+      if (x.backend !== cardBackend || isNomiDelegated(x)) continue;
       if (x.status === 'running' || x.status === 'queued') running++;
       if (last == null || x.updatedAt > last) last = x.updatedAt;
     }

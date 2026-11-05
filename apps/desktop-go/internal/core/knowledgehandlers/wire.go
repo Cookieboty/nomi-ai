@@ -77,14 +77,14 @@ type Bundle struct {
 	Conns *connections.Service
 	N     int
 	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
-	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
 
 	kbMu        sync.Mutex
 	kbListeners map[int]func()
 	kbSeq       int
 }
 
-// OnKBChanged：内核内部监听知识库变化（kb.changed；持续任务的 app 事件源），对应 Node eventBus.listen。
+// OnKBChanged：内核内部监听知识库变化（kb.changed；持续任务的 app 事件源）。
 // 回调在新 goroutine 上调用（发事件的地方可能持着知识库的锁）；返回取消函数
 func (b *Bundle) OnKBChanged(fn func()) func() {
 	b.kbMu.Lock()
@@ -114,7 +114,7 @@ func (b *Bundle) kbChanged() {
 	}
 }
 
-// Wire：对应 createCore.ts 里批次 8 的服务装配；返回后调用 Start 开启后台任务。
+// Wire：装配这些服务；返回后调用 Start 开启后台任务。
 func Wire(d WireDeps) *Bundle {
 	if d.Desktop == nil {
 		d.Desktop = &deps.NoopDesktop{}
@@ -174,11 +174,11 @@ func Wire(d WireDeps) *Bundle {
 	b.N = Install(d.Router, Services{
 		Conns: func() *connections.Service { return b.Conns },
 		Tasks: func() *tasks.Service { return b.Tasks },
-		ApplyWorktree: func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
+		ApplyWorktree: func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
 			if b.ApplyWorktree == nil {
 				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 			}
-			return b.ApplyWorktree(iso, files)
+			return b.ApplyWorktree(iso, files, title)
 		},
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

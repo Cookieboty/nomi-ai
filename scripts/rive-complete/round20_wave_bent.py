@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROUND20 Task B — wave bent-elbow readability (handoff §6 item 6).
+"""ROUND20 Task B — wave bent-elbow readability (handoff item 6).
 
 Tried dedicated bent Solo art rebound at wave-peak FK + 1.55 rad re-warp: arm
 detaches / floats (same failure mode as R6). Mesh rebuild of hang sleeve with

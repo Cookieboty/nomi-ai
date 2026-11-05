@@ -108,7 +108,7 @@ func jsAdd(a, b any) any {
 	return jsNum(pa) + jsNum(pb)
 }
 
-// promptTokensJS / totalTokensJS = aggregate.ts 的 promptTokens / totalTokens（JS `+`）
+// promptTokensJS / totalTokensJS：promptTokens / totalTokens（JS `+`）
 func promptTokensJS(r *UsageRecord) any {
 	return jsAdd(jsAdd(r.jv("input"), r.jv("cacheRead")), r.jv("cacheWrite"))
 }
@@ -211,7 +211,7 @@ func jsUniqDefaultSorted(xs []any) []JSV {
 	return out
 }
 
-// JSThrow：Node 侧会抛出的 TypeError（Details 按 source 排序时 a.source 不是字符串）
+// JSThrow：JS 语义下会抛出的 TypeError（Details 按 source 排序时 a.source 不是字符串）
 type JSThrow struct{ Msg string }
 
 func (e JSThrow) Error() string { return e.Msg }

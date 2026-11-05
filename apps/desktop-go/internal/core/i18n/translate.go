@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// Translate 对应 apps/desktop-electron/internal/core/src/i18n 的 `t(key, ...args)`：稳定 key → 当前语言文案，
+// Translate：`t(key, ...args)`：稳定 key → 当前语言文案，
 // 参数里的字符串也按 key 查一次，再按 `{0}` / `{name}` 替换（@nomi-ai/i18n format）。
 type Translate func(key string, args ...any) string
 
@@ -40,7 +40,7 @@ func Format(value string, args []any) string {
 	})
 }
 
-// NewTranslator：按一份词典翻译（查不到原样返回，和 Node lookup 一致）
+// NewTranslator：按一份词典翻译（查不到原样返回）
 func NewTranslator(dict map[string]string) Translate {
 	return func(key string, args ...any) string {
 		look := func(k string) string {

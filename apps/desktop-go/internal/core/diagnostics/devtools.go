@@ -1,6 +1,6 @@
 package diagnostics
 
-// devtools.ts 的移植：开发者工具（工作台消息旁的「执行轨迹」抽屉）读诊断日志。
+// 开发者工具（工作台消息旁的「执行轨迹」抽屉）读诊断日志。
 // - ReadCliRecords：logs/cli-YYYY-MM-DD.jsonl 里某个标签一段时间的子进程原始收发；
 // - ReadGatewayTrace：按追踪 id 读网关正文追踪文件（gateway/trace/<时间>-<客户端>-<id>.json）。
 
@@ -35,7 +35,7 @@ type CliRecordsQuery struct {
 	To    float64 `json:"to"`
 }
 
-// CliRecord：字段序同 Node pick()
+// CliRecord：字段序固定
 type CliRecord struct {
 	T      string    `json:"t"`
 	Ev     *string   `json:"ev,omitempty"`
@@ -48,7 +48,7 @@ type CliRecord struct {
 	Note   *string   `json:"note,omitempty"`
 }
 
-// rawNull：保留 number / string / null 原样（Node 版 code、signal 可以是 null）
+// rawNull：保留 number / string / null 原样（code、signal 可以是 null）
 type rawNull struct{ v json.RawMessage }
 
 func (r rawNull) MarshalJSON() ([]byte, error) { return r.v, nil }

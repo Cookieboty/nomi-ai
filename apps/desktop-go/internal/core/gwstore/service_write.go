@@ -40,7 +40,7 @@ var (
 
 func trErr(key string, args ...any) error { return errors.New(i18n.T(key, args...)) }
 
-// lock：Node 单线程；Go 的修改串行，changed() 在锁外发（监听器可能回读 state）。
+// lock：修改串行，changed() 在锁外发（监听器可能回读 state）。
 // unlock 前先发布快照（#195）：锁外读者经 Store.View() 只看到已提交的完整版本
 func (s *Service) lock() { s.rt.mu.Lock() }
 func (s *Service) unlock() {
@@ -485,7 +485,7 @@ func (s *Service) UpsertProvider(input *u.Obj) (*u.Obj, error) {
 			p.Set("userAgent", u.Undefined)
 		}
 	}
-	// baseUrl：用户填的 Base URL（只用来显示；空串 = 清除），同 Node upsertProvider
+	// baseUrl：用户填的 Base URL（只用来显示；空串 = 清除）
 	if input.Has("baseUrl") && input.Get("baseUrl") != u.Undefined {
 		if b, ok := input.Get("baseUrl").(string); ok && strings.TrimSpace(b) != "" {
 			p.Set("baseUrl", strings.TrimSpace(b))
@@ -539,7 +539,7 @@ func (s *Service) SetProviderEnabled(id string, enabled bool) error {
 	return s.commitUnlock()
 }
 
-// ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商（§7.2）
+// ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商
 func (s *Service) ReorderProviders(ids []string) error {
 	s.lock()
 	s.Store.ReorderProviders(ids)
@@ -585,7 +585,7 @@ func (s *Service) SetAssignmentFor(client any, patch *u.Obj) error {
 	return s.SetAssignment(c, patch)
 }
 
-// normalizeAssignmentPatch：同 Node（undefined 用 nil 表示）
+// normalizeAssignmentPatch：规整分配 patch（undefined 用 nil 表示）
 func normalizeAssignmentPatch(client string, patch *u.Obj) *u.Obj {
 	if client == "nomi" {
 		return patch
@@ -1076,7 +1076,7 @@ func (s *Service) Learn(e server.LearnEvent) {
 	_ = s.commitUnlock()
 }
 
-// DetectFunc：detect()（probe/detect.ts）的注入点；返回 wires[wire].ok
+// DetectFunc：detect() 的注入点；返回 wires[wire].ok
 type DetectFunc func(in *u.Obj) (*u.Obj, error)
 
 func (s *Service) learnWireSuspect(p *u.Obj, e server.LearnEvent) {
@@ -1254,7 +1254,7 @@ func (s *Service) ApplyModelsData(api any) <-chan struct{} {
 }
 
 // writeCatalog：串行落盘模型目录，成功后生效并推配置（持 catalogMu，两次同步的生效顺序与落盘顺序一致）。
-// 后一次同步已先落盘时跳过：goroutine 不保证先来先写，Node 的写队列按调用顺序。返回是否要通知界面
+// 后一次同步已先落盘时跳过：goroutine 不保证先来先写，这里按调用顺序生效。返回是否要通知界面
 func (s *Service) writeCatalog(seq uint64, write func(string, []byte) error, file string, doc *models.CatalogDoc, data []byte) bool {
 	s.rt.catalogMu.Lock()
 	defer s.rt.catalogMu.Unlock()

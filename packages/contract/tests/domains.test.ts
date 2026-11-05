@@ -1,5 +1,5 @@
 /**
- * P1b 的域划分（docs/design/core-host-decoupling.md §12「P1b 实施约定」）：
+ * P1b 的域划分（docs/development/architecture.md「P1b 实施约定」）：
  * 五个域文件汇总进应用契约、名字互不重复；`createTestClient` 只实现关心的过程。
  */
 

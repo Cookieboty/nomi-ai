@@ -1,6 +1,6 @@
-// Package cand holds the Candidate and RoutePlan types of route/resolve.ts and
-// route/plan.ts. They live in their own leaf package so providers, models and
-// route can share them without an import cycle (Node has no such constraint).
+// Package cand holds the Candidate and RoutePlan types of the router.
+// They live in their own leaf package so providers, models and
+// route can share them without an import cycle.
 package cand
 
 import (
@@ -8,10 +8,10 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Loss is route/plan.ts Loss.
+// Loss names what a plan loses in translation.
 type Loss = string
 
-// RoutePlan is route/plan.ts RoutePlan. Ingress "" is null.
+// RoutePlan is the plan for one route. Ingress "" is null.
 type RoutePlan struct {
 	Ingress  string
 	Upstream string
@@ -42,7 +42,7 @@ func strs(xs []string) []any {
 	return out
 }
 
-// Candidate is route/resolve.ts Candidate.
+// Candidate is a provider/model candidate for a route.
 type Candidate struct {
 	Provider               *config.RuntimeProvider
 	Key                    *config.RuntimeKey

@@ -1,7 +1,7 @@
-// Package media = apps/desktop-electron/internal/gateway/src/media：生图的「适配器 + 端点」两层。
+// Package media：生图的「适配器 + 端点」两层。
 // 适配器（adapters.go）只做纯函数的拼请求 / 解析响应；端点（endpoints.go）是数据化的规则表，
 // 按供应商预设 / 地址 / 上游模型名选适配器与供应商的哪个协议地址。发请求、放 Key、轮询、下载在 core。
-// 新增一家 = 写一个适配器 + 在规则表里加一行（与 Node 同步）。
+// 新增一家 = 写一个适配器 + 在规则表里加一行。
 package media
 
 // Aspect：与厂商无关的画幅

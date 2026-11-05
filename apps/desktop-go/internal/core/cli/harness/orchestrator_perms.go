@@ -1,6 +1,6 @@
 package harness
 
-// orchestrator_perms.go mirrors Orchestrator.ts 4811–5087：CLI 档位回写、权限应答、
+// orchestrator_perms.go：CLI 档位回写、权限应答、
 // 「完全放开」放行、审批超时、委派接管。
 
 import (
@@ -37,7 +37,7 @@ func (o *Orchestrator) applyCliPermissionMode(tabID, raw string) {
 	o.changed()
 }
 
-// tryWarn：Node `try { … } catch (e) { logger.warn(msg, e) }`。
+// tryWarn：`try { … } catch (e) { logger.warn(msg, e) }`。
 func (o *Orchestrator) tryWarn(msg string, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -251,7 +251,7 @@ func (o *Orchestrator) armPermissionTimeout(tabID, requestID string) {
 	})
 }
 
-// PermissionTimeoutMs = permissionTimeoutMs（Node 版为公开方法，这里同样导出）。
+// PermissionTimeoutMs：标签的审批超时（毫秒）。
 func (o *Orchestrator) PermissionTimeoutMs(tabID string) float64 {
 	if d, _ := o.tab(tabID).Get("delegation").(*util.Obj); d != nil && !truthy(d.Get("takenOver")) {
 		if truthy(d.Get("taskId")) {

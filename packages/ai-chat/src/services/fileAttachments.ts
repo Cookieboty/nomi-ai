@@ -2,7 +2,7 @@
  * 拖入 / 粘贴的非图片文件附件：小文本文件连内容一起发，其余只发本机路径（模型 / 编程助手用工具去读）。
  * 附件按 <attached-file> 块拼在消息正文末尾，随正文走完所有通道（Nomi / 编程助手 / 持久化），
  * 显示时再从正文里拆出来画成卡片，所以不需要在消息结构里另加字段。
- * 路径经 `services/api` 的 hostPathForFile（preload 的 nomiHost）取；浏览器预览等没有桥的环境拿不到路径。
+ * 路径经 `services/api` 的 hostPathForFile（宿主从原生拖放事件 / 剪贴板里拿）取；浏览器预览里拿不到路径。
  */
 import { hostPathForFile, type HostDroppedFile } from './api';
 

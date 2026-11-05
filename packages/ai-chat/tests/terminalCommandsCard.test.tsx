@@ -37,7 +37,7 @@ function mockIpc(initial: Partial<TerminalCommandsState> = {}) {
 
 const flush = () => act(async () => {});
 
-describe('TerminalCommandsCard (§12.6)', () => {
+describe('TerminalCommandsCard', () => {
   afterEach(() => {
     cleanup();
     resetFakeApi();

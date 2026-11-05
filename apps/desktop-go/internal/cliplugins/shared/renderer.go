@@ -1,11 +1,11 @@
-// renderer.go mirrors packages/cli-catalog/src/shared/renderer.ts：渲染进程用的插件信息。
+// renderer.go：渲染进程用的插件信息（同 packages/cli-catalog/src/shared/renderer.ts）。
 package shared
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// RendererInfo mirrors rendererInfo(m)：capabilities 与清单共用同一对象（同 Node 引用）。
+// RendererInfo：capabilities 与清单共用同一对象。
 func RendererInfo(m *util.Obj) *util.Obj {
 	caps, _ := m.Get("capabilities").(*util.Obj)
 	modes := []any{}

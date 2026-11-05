@@ -67,7 +67,7 @@ func BuildCarriedContext(messages []*util.Obj, fromCwd string) *CarriedContext {
 	return &CarriedContext{Text: strings.Join(parts, "\n"), Messages: len(kept)}
 }
 
-// CarriedBudget = carriedBudget（platform 为 Node 的 process.platform 值）。
+// CarriedBudget：带入上下文的字符预算（platform 为 process.platform 风格的取值）。
 func CarriedBudget(backend, platform string) int {
 	if backend == "claude" || backend == "gemini" {
 		return CarryMaxTotal
@@ -129,5 +129,5 @@ func WithCarriedContext(carried *string, prompt string) string {
 	return prompt
 }
 
-// StripCarriedContext 由 cli-sdk 提供。
+// StripCarriedContext 由 clisdk 提供。
 func StripCarriedContext(text string) string { return clisdk.StripCarriedContext(text) }

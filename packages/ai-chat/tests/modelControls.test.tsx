@@ -353,7 +353,7 @@ describe('ModelControls', () => {
     );
   });
 
-  it('长上下文（§12.7.2）：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
+  it('长上下文：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
     const ref = 'amux/openai/gpt-6.1-sol';
     const gatewayState = {
       status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },

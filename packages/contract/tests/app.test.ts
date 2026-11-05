@@ -18,7 +18,6 @@ import {
   aiProcedures,
   aiSchemas,
   appContract,
-  NOMI_TRANSPORT_GLOBAL,
   type AppContract,
 } from '../src/app';
 import { createInProcessServer, withMissingHandlers } from '../src/testing';
@@ -80,7 +79,6 @@ describe('appContract · 过程表', () => {
     expect(Object.keys(procedures)).toHaveLength(38);
     // C3：ai.avatar.* 改成语义过程（不留旧名）→ major
     expect(appContract.version).toEqual({ major: 2, minor: 3 });
-    expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');
   });
 
   it('AI_METHODS 与过程表一一对应；具名参数与入参 schema 的字段一致', () => {

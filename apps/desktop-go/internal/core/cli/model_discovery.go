@@ -1,7 +1,7 @@
 package cli
 
-// model_discovery.go mirrors apps/desktop-electron/internal/core/src/cli/modelDiscovery.ts：从各 CLI 自己读取模型目录。
-// 所有函数持 jsrt 锁调用（与 Node 单线程一致）。
+// model_discovery.go：从各 CLI 自己读取模型目录。
+// 所有函数持 jsrt 锁调用（单线程语义）。
 
 import (
 	"errors"
@@ -31,7 +31,7 @@ type ClaudeDefaults struct {
 	SettingsPath *string
 }
 
-// ModelDiscoveryDeps mirrors ModelDiscoveryDeps。Spawn 返回 nil = 找不到 CLI。
+// ModelDiscoveryDeps：模型发现的依赖。Spawn 返回 nil = 找不到 CLI。
 type ModelDiscoveryDeps struct {
 	Spawn                 func(backend string, args []string) clisdk.ChildLike
 	ClaudeDefaults        *ClaudeDefaults
@@ -41,7 +41,7 @@ type ModelDiscoveryDeps struct {
 	TimeoutMs             *int
 }
 
-// DiscoverModels mirrors discoverModels。
+// DiscoverModels：读 backend 的模型目录。
 func DiscoverModels(backend string, deps ModelDiscoveryDeps) *jsrt.Promise[*util.Obj] {
 	timeoutMs := ModelDiscoveryTimeoutMs
 	if deps.TimeoutMs != nil {
@@ -165,7 +165,7 @@ func discoverClaude(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.
 	})
 }
 
-// ClaudeConfiguredEffort mirrors claudeConfiguredEffort（ok=false = null）。
+// ClaudeConfiguredEffort：Claude Code 配置里的推理强度（ok=false = null）。
 func ClaudeConfiguredEffort(deps ModelDiscoveryDeps) (string, bool) {
 	cd := deps.ClaudeDefaults
 	if cd != nil && cd.EffortEnv != nil {
@@ -313,7 +313,7 @@ func mdReadJSON(file string) (any, bool) {
 	return v, err == nil
 }
 
-// readGrokCache mirrors readGrokCache（nil = null）。
+// readGrokCache：Grok 的模型缓存（nil = null）。
 func readGrokCache(deps ModelDiscoveryDeps) *util.Obj {
 	if deps.GrokModelsCachePath == "" {
 		return nil

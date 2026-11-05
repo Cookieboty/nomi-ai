@@ -15,7 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 对应 aggregate.ts
+// 用量聚合
 
 type RangeSpec struct {
 	ID       string  `json:"id"`

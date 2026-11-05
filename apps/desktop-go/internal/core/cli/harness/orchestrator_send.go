@@ -1,7 +1,7 @@
 package harness
 
-// orchestrator_send.go mirrors Orchestrator.ts 2526–2903（sendTab / 质量记录 / finish / 运行计数）
-// 与 4705–4778（trackProgress / emitEvent / 后台子代理）、5288–5311（noteQuality / exitedCause）。
+// orchestrator_send.go：sendTab / 质量记录 / finish / 运行计数
+// 与 trackProgress / emitEvent / 后台子代理、noteQuality / exitedCause。
 
 import (
 	"errors"

@@ -1,5 +1,5 @@
-// Package builtin mirrors apps/desktop-electron/internal/cli-plugins/src/{index,main,gateways}.ts：
-// 内置 CLI 的 id / 清单 / 渲染信息 / 网关条目（各插件 manifest / renderer / gateway 的 Go 移植；golden：b7s2-plugins.json）
+// Package builtin：
+// 内置 CLI 的 id / 清单 / 渲染信息 / 网关条目（各插件 manifest / renderer / gateway；测试用例：testdata/b7s2-plugins.json）
 // 与 BUILTIN_PLUGINS（各 CLI 的 CreateMain）。
 package builtin
 
@@ -13,10 +13,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// IDs = BUILTIN_CLI_IDS（generated/ids.ts：目录名）。
+// IDs：内置 CLI 的 id（与 packages/cli-catalog/src/generated/ids.ts 一致：目录名）。
 var IDs = []string{"claude", "codex", "dsh", "gemini", "grok"}
 
-// IsBuiltinCliID mirrors isBuiltinCliId。
+// IsBuiltinCliID：v 是否内置 CLI 的 id。
 func IsBuiltinCliID(v any) bool {
 	s, ok := v.(string)
 	if !ok {
@@ -36,7 +36,7 @@ var Manifests = util.NewObj("claude", claude.Manifest, "codex", codex.Manifest, 
 // Renderers = BUILTIN_RENDERER。
 var Renderers = util.NewObj("claude", claude.Renderer, "codex", codex.Renderer, "dsh", dsh.Renderer, "gemini", gemini.Renderer, "grok", grok.Renderer)
 
-// GatewayEntries = BUILTIN_GATEWAY_ENTRIES（gateways.ts 顺序：claude、codex、grok、dsh、gemini）。
+// GatewayEntries：各内置 CLI 的网关条目（顺序：claude、codex、grok、dsh、gemini）。
 var GatewayEntries = []any{claude.Gateway, codex.Gateway, grok.Gateway, dsh.Gateway, gemini.Gateway}
 
 func Manifest(id string) *util.Obj { m, _ := Manifests.Get(id).(*util.Obj); return m }
@@ -45,7 +45,7 @@ func plugin(id string, create func() *clisdk.CliMainImpl) clisdk.CliPlugin {
 	return clisdk.CliPlugin{Manifest: Manifest(id), Main: func(clisdk.CliMainHost) (*clisdk.CliMainImpl, error) { return create(), nil }}
 }
 
-// Plugins = BUILTIN_PLUGINS（键序同 TS：claude, codex, dsh, gemini, grok）。
+// Plugins：内置插件（键序：claude, codex, dsh, gemini, grok）。
 var Plugins = map[string]clisdk.CliPlugin{
 	"claude": plugin("claude", claude.CreateMain),
 	"codex":  plugin("codex", codex.CreateMain),

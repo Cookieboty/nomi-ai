@@ -1,5 +1,5 @@
 /**
- * D4 · 知识库 / 记忆 / 日程 / 本地模型 / 扩展（docs/design/core-host-decoupling.md §12 P1b）。
+ * D4 · 知识库 / 记忆 / 日程 / 本地模型 / 扩展（docs/development/architecture.md）。
  *
  * 本文件只属于 D4：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：kb、mem、sched、local、hub、ext（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -13,7 +13,7 @@
  * （`ai:kb:toggle-source(id, enabled)` → `kb.toggleSource({ id, enabled })`）；原来就是一个对象的
  * 补丁（`set-settings`、`upsert-task` 等）直接作为入参。
  *
- * 约定见设计稿 §12「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
+ * 约定见设计稿「P1b 实施约定」：zod schema 从现有类型写、只用可序列化值；
  * 读用 query、写用 mutation、进度流用 stream；只给一个窗口用的过程写 `surfaces`，
  * 原来要用户确认的写 `dangerous: true`。
  */
@@ -222,7 +222,7 @@ export const knowledgeProcedures = {
   /** 用户刚在对话里活动过（主动搭话据此避让） */
   'sched.activity': { kind: 'mutation', input: none, output: ok },
 
-  // ---------- tasks：持续任务（TaskService，docs/design/persistent-tasks.md §14） ----------
+  // ---------- tasks：持续任务（TaskService，docs/features/scheduling-calendar.md） ----------
   /** 全部任务 + 旧的提醒 / 定时（只读并入任务页） */
   'tasks.list': { kind: 'query', input: none, output: TaskListResult },
   /** 任务与最近的执行；不存在时 null */
@@ -288,7 +288,7 @@ export const knowledgeProcedures = {
   },
   /** 删除（只有结束的任务可以删） */
   'tasks.remove': { kind: 'mutation', input: id, output: ok },
-  /** 事件任务：观察到的事件、最近一次拉取（§6.3） */
+  /** 事件任务：观察到的事件、最近一次拉取 */
   'tasks.events': { kind: 'query', input: id, output: TaskEventsView },
   /** 把观察到的事件开成一次执行 */
   'tasks.processObserved': { kind: 'mutation', input: id, output: TaskCmdResult },
@@ -301,7 +301,10 @@ export const knowledgeProcedures = {
     output: TaskView.nullable(),
     dangerous: true,
   },
-  /** 验收卡片上的回填：把 worktree 里的改动拷回主工作区（冲突与授权外的文件留在 worktree） */
+  /**
+   * 验收卡片上的落地：worktree（别的分支做基线）里的改动少就拷回主工作区，改动多、冲突或授权外的文件
+   * 提交到新分支 nomi/…（branch），之后拆掉 worktree。验收通过时没落地的也会自动落地
+   */
   'tasks.applyWorktree': {
     kind: 'mutation',
     input: id,
@@ -311,12 +314,13 @@ export const knowledgeProcedures = {
         skipped: z.array(z.string()),
         conflicted: z.array(z.string()),
         denied: z.array(z.string()),
+        branch: z.string().optional(),
       })
       .nullable(),
     dangerous: true,
   },
 
-  // ---------- connections：应用与账号（ConnectionService，docs/design/connections.md） ----------
+  // ---------- connections：应用与账号（ConnectionService，docs/features/scheduling-calendar.md） ----------
   /** 全部连接（不含任何密钥） */
   'connections.list': { kind: 'query', input: none, output: z.array(ConnectionView) },
   /** 检测本机可复用的登录（gh）：账号、权限范围、宽权限提示（不含令牌） */
@@ -378,7 +382,7 @@ export const knowledgeProcedures = {
 
   // ---------- ext：MCP 服务器 + 技能包（ExtensionsService） ----------
   /*
-   * MCP 服务器的授权（§8「授予权限的过程写 dangerous」）：新建 / 修改决定了启动什么命令、连哪个地址、带哪些
+   * MCP 服务器的授权（「授予权限的过程写 dangerous」）：新建 / 修改决定了启动什么命令、连哪个地址、带哪些
    * 密钥，以及信任级别（`auto` = 工具调用不再确认）；启用 / 连接让 AI 能调用它的工具（连接时还会启动配置的
    * 命令）。这三个只接受受信调用者。删除、断开只收回能力；导入（JSON / 迁移）一律是 `ask`、默认不连，都不算。
    */

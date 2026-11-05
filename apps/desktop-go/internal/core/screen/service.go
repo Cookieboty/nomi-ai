@@ -1,4 +1,4 @@
-// Package screen = apps/desktop-electron/internal/core/src/screen/ScreenService.ts：
+// Package screen：
 // 图片发送前的检查（契约 screen.checkSend，走 PermissionBroker 的云端告知 / 仅本地模式），
 // 以及启动时清掉旧版本留下的屏幕记忆目录。
 package screen
@@ -55,7 +55,7 @@ func (s *Service) CheckSend() string {
 	return r
 }
 
-// Register 挂 screen.checkSend（contract/media.ts）；get 返回 nil = 服务不可用
+// Register 挂 screen.checkSend；get 返回 nil = 服务不可用
 func Register(r *contract.Router, get func() *Service) {
 	r.Call("screen.checkSend", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		s := get()

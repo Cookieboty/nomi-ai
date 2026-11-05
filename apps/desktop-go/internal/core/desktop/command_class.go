@@ -1,6 +1,6 @@
 package desktop
 
-// 命令的确定性分类，对应 src/desktop/commandClass.ts（用例共用 testdata/command-class.json）。
+// 命令的确定性分类（用例在 testdata/command-class.json）。
 // credential：读凭据 → 后台一律停下来等人；never：合并、发布、删仓库、改密钥、强推；external：对外副作用（需 L4）。
 
 import (

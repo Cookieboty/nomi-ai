@@ -1,6 +1,6 @@
 package cli
 
-// gitops.go = apps/desktop-electron/internal/core/src/cli/gitOps.ts（变更面板的 git 写操作）。
+// gitops.go：变更面板的 git 写操作。
 // 所有导出函数须在 jsrt.Run 内调用（async 语义）：git 子进程期间释放 GIL。
 
 import (
@@ -81,7 +81,7 @@ func (c *capBuf) Write(p []byte) (int, error) {
 	return c.Buffer.Write(p)
 }
 
-// gitExecResult：GitRun + Node execFile 回调里 err.message（成功为 ""）与原始 stderr。
+// gitExecResult：GitRun + execFile 风格的 err.message（成功为 ""）与原始 stderr。
 type gitExecResult struct {
 	GitRun
 	err       string
@@ -407,7 +407,7 @@ func GitUnstage(cwd string, paths any) *util.Obj {
 	})
 }
 
-// GitCommit = gitCommit（paths nil / util.Undefined = 未传，同 TS 的 paths != null：只提交已暂存的）。
+// GitCommit：提交（paths nil / util.Undefined = 未传：只提交已暂存的）。
 func GitCommit(cwd string, message any, paths any) *util.Obj {
 	msg := ""
 	if s, ok := message.(string); ok {

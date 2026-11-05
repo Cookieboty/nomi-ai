@@ -10,7 +10,7 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-// 外部 CLI（L1 声明式插件，docs/design/cli-plugin-architecture.md §5.9）
+// 外部 CLI（L1 声明式插件，docs/development/coding-agents.md）
 afterEach(() => {
   cleanup();
   resetFakeApi();

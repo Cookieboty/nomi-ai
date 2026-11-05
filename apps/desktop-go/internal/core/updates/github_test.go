@@ -91,3 +91,56 @@ func TestGitHubUpdater(t *testing.T) {
 		t.Fatal("install without download")
 	}
 }
+
+// mac：清单带 update（-mac.zip）且应用可原地替换时下载 zip、安装走替换；不能替换时仍下 dmg、交给系统打开
+func TestGitHubUpdaterInPlaceSwap(t *testing.T) {
+	dmg, zip := []byte("dmg-bytes"), []byte("zip-bytes")
+	sum := func(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/latest-go.json":
+			fmt.Fprintf(w, `{"schemaVersion":1,"version":"2.2.0","tag":"v2.2.0","platforms":{"darwin-arm64":{"file":"Nomi-2.2.0-arm64.dmg","url":"%[1]s/dmg","size":%[2]d,"sha256":"%[3]s","update":{"file":"Nomi-2.2.0-arm64-mac.zip","url":"%[1]s/zip","size":%[4]d,"sha256":"%[5]s"}}}}`,
+				srv.URL, len(dmg), sum(dmg), len(zip), sum(zip))
+		case "/dmg":
+			w.Write(dmg)
+		case "/zip":
+			w.Write(zip)
+		}
+	}))
+	defer srv.Close()
+	for _, swappable := range []bool{true, false} {
+		dir := t.TempDir()
+		var swapped []string
+		quit := false
+		g := &GitHubUpdater{
+			URL: srv.URL + "/latest-go.json", Version: func() string { return "2.1.2" }, CacheDir: dir,
+			PlatformKey: func() string { return "darwin-arm64" },
+			SwapTarget:  func() (string, bool) { return "/Applications/Nomi.app", swappable },
+			Quit:        func() { quit = true },
+		}
+		g.startSwap = func(z, b string, relaunch bool) error {
+			swapped = append(swapped, filepath.Base(z), b, fmt.Sprint(relaunch))
+			return nil
+		}
+		if _, err := g.CheckForUpdates(); err != nil {
+			t.Fatal(err)
+		}
+		if err := g.DownloadUpdate(); err != nil {
+			t.Fatal(err)
+		}
+		if !swappable {
+			// 不能替换：下的是 dmg；安装会 open 它（这里不真的跑安装）
+			if _, err := os.Stat(filepath.Join(dir, "Nomi-2.2.0-arm64.dmg")); err != nil {
+				t.Fatal("dmg not downloaded", err)
+			}
+			continue
+		}
+		if err := g.QuitAndInstall(false, true); err != nil {
+			t.Fatal(err)
+		}
+		if fmt.Sprint(swapped) != "[Nomi-2.2.0-arm64-mac.zip /Applications/Nomi.app true]" || !quit {
+			t.Fatalf("swap %v quit %v", swapped, quit)
+		}
+	}
+}

@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/gateway': minor
 '@nomi-ai/ui': patch
 ---
 

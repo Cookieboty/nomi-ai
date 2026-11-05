@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // pnpm screenshots:site —— 官网 / README 用的应用截图，一条命令从零重拍。
 //
-// 真实的视图（ai-chat）跑在 pnpm dev:web 的无界面内核上，数据全是演示数据：
+// 真实的视图（ai-chat / renderer）连着真实的 Go 内核（go-app.mjs：构建并启动 apps/desktop-go，视图经回环 HTTP
+// 在 Playwright 的 Chromium 里打开），数据全是演示数据：
 //   - 隔离的 HOME（临时目录）：读不到本机 ~/.claude、~/.codex 的会话历史与用量，截图里不会出现私人内容；
 //   - 模拟模型（mock-llm.mjs，OpenAI 兼容）当「演示 DeepSeek」供应商；
 //   - 编程助手用仓库里的 Mock CLI（NOMI_USE_MOCK_CLI=1），不调用真实的 Claude Code / Codex；
 //   - 每张截图前做隐私检查：页面文字里出现本机用户名或真实 HOME 路径就中止。
 //
-//   pnpm build                                  # 先构建（与 dev:web 相同）
-//   pnpm screenshots:site                       # 全部场景，输出到 .site-shots/
+// 需要 Go 工具链（apps/desktop-go/go.mod）与 Playwright 的 Chromium（pnpm exec playwright install chromium）。
+// 运行时桌面上会出现 Nomi 的窗口（真实应用在跑），截图只拍浏览器里的页面。
+//
+//   pnpm screenshots:site                       # 构建视图与 Go 程序，跑全部场景，输出到 .site-shots/
 //   pnpm screenshots:site -- --only chat,tasks  # 只拍这几张
 //   pnpm screenshots:site -- --out ../shots --keep   # 指定输出目录；保留临时数据目录便于排查
 //   pnpm screenshots:site -- --explore          # 不拍成品：逐个设置页输出无障碍结构 + 截图，写新场景时用
@@ -22,6 +25,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { buildGoApp, startGoApp } from './go-app.mjs';
 import { startMockLlm } from './mock-llm.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -262,10 +266,14 @@ async function main() {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch();
 
-  // 1) 隔离环境：必须在任何模块读 os.homedir() 之前改 HOME
   // 设置页会显示 Node / CLI 的完整路径：工作目录放在短路径下，截图里好看一些
   const tmpBase = process.platform === 'win32' ? os.tmpdir() : '/tmp';
   const work = fs.realpathSync(fs.mkdtempSync(path.join(tmpBase, 'nomi-')));
+  // 0) 构建视图与 Go 程序：在改 HOME 之前（Go 的模块缓存与工具链在真实 HOME 下）
+  const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const bin = buildGoApp({ root: ROOT, work, version });
+
+  // 1) 隔离环境：启动应用之前改 HOME
   const home = path.join(work, 'home');
   fs.mkdirSync(home, { recursive: true });
   const project = makeDemoProject(home);
@@ -282,12 +290,12 @@ async function main() {
     'XDG_DATA_HOME',
   ])
     delete process.env[k];
-  // Mock CLI 拷进隔离 HOME：设置页会显示 CLI 路径，不能是仓库所在的 /Users/<你>/…
-  const mockSrc = path.join(ROOT, 'apps/desktop-electron/internal/core/scripts/mock-cli');
-  const mockDir = path.join(home, '.local', 'share', 'nomi-mock-cli');
-  fs.cpSync(mockSrc, mockDir, { recursive: true });
+  // Mock CLI：内核从工作目录下的 scripts/mock-cli 找（cli.MockCliRoots）。拷进临时目录：设置页会显示 CLI 路径，
+  // 不能是仓库所在的 /Users/<你>/…
+  fs.cpSync(path.join(ROOT, 'scripts/mock-cli'), path.join(work, 'scripts', 'mock-cli'), {
+    recursive: true,
+  });
   Object.assign(process.env, {
-    NOMI_MOCK_CLI_DIR: mockDir,
     NOMI_USE_MOCK_CLI: '1',
     NOMI_MOCK_TOOLS: 'rich',
     NOMI_MOCK_STEP_MS: '120',
@@ -296,23 +304,19 @@ async function main() {
   });
 
   const llm = await startMockLlm();
-  const { freePort, startDevWeb } = await import('../dev-web/start.mjs');
-  const dev = await startDevWeb({
-    dataDir: path.join(work, 'data'),
-    chatPort: await freePort(),
-    mascotPort: await freePort(),
-    viteStdio: 'ignore',
-    logLevel: 'warn',
-    ports: {
-      // 设置页显示的版本号用仓库版本，不是开发态的 0.0.0
-      app: {
-        name: 'Nomi',
-        version: JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version,
-        locale: 'zh-CN',
-      },
-      // 系统对话框的预设答案：知识库「加入文件夹」选演示文档；附件选演示图片
-      dialogs: { pickDirectory: Array(8).fill(docsDir), pickFiles: Array(8).fill(images) },
-    },
+  // 系统对话框的预设答案：知识库「加入文件夹」选演示文档；附件选演示图片
+  const dev = await startGoApp({
+    bin,
+    work,
+    locale: 'zh-CN',
+    pickDir: docsDir,
+    pickFiles: images,
+  }).catch(async (e) => {
+    // 应用没起来：关掉浏览器与模拟模型；--keep 时留下临时目录（含 nomi.log）便于排查
+    await browser.close();
+    await llm.close();
+    if (!args.keep) fs.rmSync(work, { recursive: true, force: true });
+    throw e;
   });
 
   const context = await browser.newContext({
@@ -335,7 +339,6 @@ async function main() {
     project,
     docsDir,
     images,
-    dataDir: path.join(work, 'data'),
   });
 
   const failures = [];
@@ -384,7 +387,7 @@ async function main() {
     await browser.close();
     await dev.stop();
     await llm.close();
-    if (args.keep) out(`[site-shots] kept work dir: ${work}`);
+    if (args.keep) out(`[site-shots] kept work dir: ${work} (app log: ${dev.logFile})`);
     else fs.rmSync(work, { recursive: true, force: true });
   }
   if (pageErrors.length) out(`[site-shots] page errors: ${pageErrors.slice(0, 5).join(' | ')}`);

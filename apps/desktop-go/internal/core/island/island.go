@@ -1,4 +1,4 @@
-// Package island 对应 apps/desktop-electron/src/island/IslandService.ts：设置（get / set）与通知管线（notify.go）。
+// Package island：灵动岛的设置（get / set）与通知管线（notify.go）。
 package island
 
 import (
@@ -8,15 +8,15 @@ import (
 	"sync"
 )
 
-// Rect / Display = geometry.ts 的 DisplayLike
+// Rect / Display：显示器几何（DisplayLike）
 type Rect struct{ X, Y, Width, Height float64 }
 
 type Display struct {
 	Bounds, WorkArea Rect
-	Internal         *bool // nil = 未知（Electron 的 internal 缺省）
+	Internal         *bool // nil = 未知（按内建屏处理）
 }
 
-// HasNotch = geometry.ts hasNotch：CD_ISLAND_SIMULATE_NOTCH=1/0 强制；否则仅 darwin 且内建屏（未知视为内建）且菜单栏 ≥ 30pt
+// HasNotch：CD_ISLAND_SIMULATE_NOTCH=1/0 强制；否则仅 darwin 且内建屏（未知视为内建）且菜单栏 ≥ 30pt
 func HasNotch(platform string, d Display) bool {
 	switch os.Getenv("CD_ISLAND_SIMULATE_NOTCH") {
 	case "1":
@@ -84,7 +84,7 @@ type Service struct {
 	host    Host
 	queue   []Notice
 	showing bool
-	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill（= Node 的 try/catch 退化）
+	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill
 	PrimaryDisplay func() (Display, bool)
 }
 
@@ -96,7 +96,7 @@ func New(file, platform string) *Service {
 	return &Service{file: file, platform: platform, s: Sanitize(raw, platform)}
 }
 
-// Get：形态 notch 只在有刘海的 mac 主屏上出现（D-B10-1：按主屏 bounds/workArea 判断，同 Node）
+// Get：形态 notch 只在有刘海的 mac 主屏上出现（按主屏 bounds/workArea 判断）
 func (s *Service) Get() State {
 	s.mu.Lock()
 	st := State{Settings: s.s, Mode: "pill", Platform: s.platform}

@@ -13,7 +13,7 @@ import (
 
 const maxSafeInt = 9007199254740991
 
-// ParseModels mirrors parseCodexModels（configModel/configEffort 原样传入 any）。
+// ParseModels：解析模型列表（configModel/configEffort 原样传入 any）。
 func ParseModels(json any, configModel, configEffort any) *util.Obj {
 	raw, _ := sh.AsObj(json).Get("models").([]any)
 	type row struct {
@@ -92,7 +92,7 @@ func ParseModels(json any, configModel, configEffort any) *util.Obj {
 var cfgLine = regexp.MustCompile(`^(model|model_reasoning_effort)` + util.JSWhitespace + `*=` + util.JSWhitespace + `*(?:"(.*?)"|'(.*?)')`)
 var nlRe = regexp.MustCompile(`\r?\n`)
 
-// ReadConfigDefaults mirrors readCodexConfigDefaults（"" = null）。
+// ReadConfigDefaults：从 config.toml 读默认模型与推理强度（"" = null）。
 func ReadConfigDefaults(toml string) (model, effort string) {
 	for _, line := range nlRe.Split(toml, -1) {
 		s := util.JSTrim(line)

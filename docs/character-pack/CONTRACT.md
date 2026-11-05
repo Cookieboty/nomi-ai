@@ -196,8 +196,7 @@ normalized to `hem` on load (`migrateHitboxIds()`).
 
 `assets.remote` lists asset kinds that are not shipped with the app and are downloaded on demand
 (currently `"rive"`). A declared remote asset may be missing from the pack directory; the
-normalized pack reports it in `assets.remote`. See
-[remote character assets](../design/remote-character-assets.md).
+normalized pack reports it in `assets.remote`.
 
 ## Loading
 

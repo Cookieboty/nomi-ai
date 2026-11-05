@@ -1,9 +1,9 @@
 // Package mcp 是 @ai-sdk/mcp 2.0.73 MCP 客户端（src/tool/*）的 Go 复刻，不依赖任何 SDK：
-// JSON-RPC 校验（json-rpc-message.ts + types.ts 的 zod schema）、DefaultMCPClient（mcp-client.ts）、
-// stdio（mcp-stdio/*，经 internal/nodeproc + cross-spawn 语义）、streamable HTTP（mcp-http-transport.ts）、
-// SSE（mcp-sse-transport.ts）三种传输。上层 mcpBridge（AiSdkMcpService）在 internal/ai/runtime/aisdk/mcpbridge。
+// JSON-RPC 校验（JSON-RPC 消息与 MCP types 的 zod schema 等价实现）、DefaultMCPClient、
+// stdio（经 internal/nodeproc + cross-spawn 语义）、streamable HTTP、
+// SSE 三种传输。上层 mcpBridge（AiSdkMcpService）在 internal/ai/runtime/aisdk/mcpbridge。
 //
-// 线程模型：Node 是单线程事件循环；这里用 Go 互斥锁 + context（= AbortSignal）+ goroutine 表达同样的
+// 线程模型：用 Go 互斥锁 + context（= AbortSignal）+ goroutine 保证与单线程事件循环相同的
 // 可观察顺序。传输层回调（onmessage/onclose/onerror）可在任意 goroutine 触发，客户端自行加锁。
 package mcp
 
@@ -26,7 +26,7 @@ func (e *ClientError) Unwrap() error { return e.Cause }
 
 func newClientError(msg string) *ClientError { return &ClientError{Message: msg} }
 
-// JSError：Node 内置错误（TypeError / SyntaxError / Error …），保留 name 与 message。
+// JSError：JS 内置错误（TypeError / SyntaxError / Error …），保留 name 与 message。
 type JSError struct {
 	Name    string
 	Message string
@@ -44,7 +44,7 @@ type AbortError struct{}
 
 func (AbortError) Error() string { return "This operation was aborted" }
 
-// ErrorName：error.name（golden 记录用）
+// ErrorName：error.name（测试语料记录用）
 func ErrorName(err error) string {
 	switch e := err.(type) {
 	case *ClientError:
@@ -126,7 +126,7 @@ func mergeSignal(signal, other Signal) Signal {
 	return anySignal(signal, other)
 }
 
-// waitForAbort（mcp-client.ts）：signal 先触发则以 reason 拒绝，被包装的操作照常继续。
+// waitForAbort：signal 先触发则以 reason 拒绝，被包装的操作照常继续。
 func waitForAbort(fn func() error, signal Signal) error {
 	if signal == nil {
 		return fn()

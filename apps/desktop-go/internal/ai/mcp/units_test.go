@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// testdata/units.json：scripts/parity/record-mcp-units.mjs 用真 cross-spawn escape.js 与 eventsource-parser 3.1.1 生成。
+// testdata/units.json：用 cross-spawn escape.js 与 eventsource-parser 3.1.1 录下的语料。
 type unitsFixture struct {
 	Escape [][3]string `json:"escape"`
 	SSE    []struct {

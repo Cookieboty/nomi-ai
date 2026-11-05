@@ -1,24 +1,25 @@
-// Package delegate：apps/desktop-electron/internal/core/src/cli/delegate（core.ts / worktree.ts / DelegateService.ts）的 1:1 移植。
-// Nomi 委派编程助手：选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
+// Package delegate：Nomi 委派编程助手（core / worktree / DelegateService）。
+// 选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
 //
-// 数据形状与 Node 一致：档位 / 设置 / 结果都是有序 *util.Obj（键顺序 = Node 对象字面量顺序），
-// 落盘与工具结果直接序列化，golden（testdata/b7s2-delegate.json）逐字比对。
+// 数据形状固定：档位 / 设置 / 结果都是有序 *util.Obj（键顺序固定），
+// 落盘与工具结果直接序列化，测试（testdata/b7s2-delegate.json）逐字比对。
 package delegate
 
 import (
 	"regexp"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // DelegateClis：可以委派的内置编程助手（外部 CLI 暂不支持委派）
 var DelegateClis = []string{"claude", "codex", "grok", "gemini", "dsh"}
 
-// DelegateKinds：任务类型（设置里按类型配默认编程助手，§4.7）
+// DelegateKinds：任务类型（设置里按类型配默认编程助手）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
 
-// BuiltinAgentProfiles：内置档位（每次返回新对象，等同 Node 的 { ...p } 拷贝）
+// BuiltinAgentProfiles：内置档位（每次返回新对象）
 func BuiltinAgentProfiles() []*util.Obj {
 	return []*util.Obj{
 		util.NewObj("id", "default", "label", "默认（沿用 CLI）"),
@@ -384,25 +385,10 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 // DelegateBrief：任务说明
 type DelegateBrief struct{ Goal, Context, DoneWhen, OutOfScope string }
 
-// BuildDelegatePrompt：发给编程助手的第一条消息（§4.4）
+// BuildDelegatePrompt：发给编程助手的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
 func BuildDelegatePrompt(b DelegateBrief) string {
-	lines := []string{"你在帮 Nomi（用户的桌面助手）完成一项任务。", "目标：" + trim(b.Goal)}
-	if trim(b.Context) != "" {
-		lines = append(lines, "背景："+trim(b.Context))
-	}
-	lines = append(lines, "完成标准："+trim(b.DoneWhen))
-	if trim(b.OutOfScope) != "" {
-		lines = append(lines, "不要碰："+trim(b.OutOfScope))
-	}
-	lines = append(lines, "",
-		"做完后，最后一条回复只按下面的格式输出（标记原样保留）：",
-		"[nomi-report]",
-		"做了什么：…",
-		"改动的文件：每行一个相对路径",
-		"没做完的：…（没有就写「无」）",
-		"需要用户决定的：…（没有就写「无」）",
-		"[/nomi-report]")
-	return strings.Join(lines, "\n")
+	return prompts.Render("delegate-brief", DelegateBrief{Goal: trim(b.Goal), Context: trim(b.Context),
+		DoneWhen: trim(b.DoneWhen), OutOfScope: trim(b.OutOfScope)})
 }
 
 var reportKeys = []struct {

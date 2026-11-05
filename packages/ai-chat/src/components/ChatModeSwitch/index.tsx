@@ -7,7 +7,7 @@ import React, { useMemo } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
-import { MAIN_TAB_ID } from '../../services/harnessClient';
+import { MAIN_TAB_ID, isNomiDelegated } from '../../services/harnessClient';
 
 import styles from './index.module.css';
 
@@ -24,7 +24,10 @@ export const ChatModeSwitch: React.FC = () => {
   const runningCount = useMemo(() => {
     const list = tabs.state?.tabs ?? [];
     return list.filter(
-      (x) => x.id !== MAIN_TAB_ID && (x.status === 'running' || x.status === 'queued'),
+      (x) =>
+        x.id !== MAIN_TAB_ID &&
+        !isNomiDelegated(x) &&
+        (x.status === 'running' || x.status === 'queued'),
     ).length;
   }, [tabs.state]);
 

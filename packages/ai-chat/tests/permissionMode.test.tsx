@@ -34,7 +34,7 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   }),
 }));
 
-// 权限模式（docs/design/cli-permission-modes.md §4）
+// 权限模式（docs/development/coding-agents.md）
 const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   id: 'cx',
   title: 'X',

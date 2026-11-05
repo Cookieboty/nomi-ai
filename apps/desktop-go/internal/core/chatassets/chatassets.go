@@ -1,4 +1,4 @@
-// Package chatassets = core/src/media/AssetLibrary.ts：素材库（全部生成的图片）。
+// Package chatassets：素材库（全部生成的图片）。
 // 图片在 userData/chat/images，来源写在文件名前缀里（nomi- / 早期 gen- 算 Nomi、grok- / codex- …、
 // user- = 用户在对话里发送的原图，经 chatAssets.import 存进来）；
 // 对话背景（<stem>.<uuid>.ext、panel-bg.jpg）不列。模型 / 提示词 / 会话另存 userData/chat/assets.json。

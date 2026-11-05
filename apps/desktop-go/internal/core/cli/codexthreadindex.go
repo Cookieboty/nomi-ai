@@ -14,7 +14,7 @@ var codexThreadCols = []string{"id", "source", "originator", "model_provider", "
 // ReadCodexThreads = readCodexThreads：只读打开 state_5.sqlite，按表结构只选存在的列；无 id 列 / 出错返回空。
 // 行为 node:sqlite 的 .all()：列名为键，INTEGER/REAL → number，TEXT → string，NULL → null。
 func ReadCodexThreads(file string) []*util.Obj {
-	// Node 用同一个只读连接执行两条语句；这里分两次只读打开，结果相同（只读、无写入）
+	// 分两次只读打开执行两条语句（只读、无写入）
 	names := usage.SelectRows(file, `SELECT name FROM pragma_table_info('threads')`)
 	cols := []string{}
 	for _, r := range names {

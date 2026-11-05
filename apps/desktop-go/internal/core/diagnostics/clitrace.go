@@ -1,6 +1,6 @@
 package diagnostics
 
-// cliTrace.ts 的 1:1 移植：编程助手子进程原始收发写到 logs/cli-YYYY-MM-DD.jsonl（诊断日志开着时）。
+// cliTrace：编程助手子进程原始收发写到 logs/cli-YYYY-MM-DD.jsonl（诊断日志开着时）。
 // 每条记录当场脱敏（redactText）、截断（64K 码元）、计入当日大小（200MB 上限，超了留一行说明并停写）；
 // 进内存队列，攒 200ms 或 256KB 后异步追加（0600），同一时间一次写入，顺序与产生顺序一致。
 

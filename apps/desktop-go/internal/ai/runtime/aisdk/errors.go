@@ -12,7 +12,7 @@ import (
 )
 
 // Error shapes of @ai-sdk/provider + ai (dist/index.js). Each error carries the JS `name` so
-// getErrorMessage (error.toString()) prints "AI_X: message" exactly like Node.
+// getErrorMessage (error.toString()) prints "AI_X: message" like the AI SDK.
 
 // GetErrorMessage is provider-utils getErrorMessage (shared implementation in internal/ai/llm).
 func GetErrorMessage(v any) string { return llm.GetErrorMessage(v) }

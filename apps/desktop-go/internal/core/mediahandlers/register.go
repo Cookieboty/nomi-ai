@@ -1,4 +1,4 @@
-// Package mediahandlers = apps/desktop-electron/internal/core/src/contract/media.ts 的语音输入 / 朗读部分（批次 9）：
+// Package mediahandlers：契约 media 域的语音输入 / 朗读部分：
 // voice.* / tts.* / nav.openVoiceSettings。每个过程委派给服务的公开方法，事件由服务直接发布。
 package mediahandlers
 
@@ -18,10 +18,10 @@ type Deps struct {
 	TTS    *tts.Service
 	Mascot voice.MascotConfig
 	Logf   func(string, ...any)
-	// OpenVoiceSettings = ports.windows.open('chat', { route: 'voice' })：显示对话窗口 + nav.voiceSettingsRequested
+	// OpenVoiceSettings：显示对话窗口并导航到语音设置（nav.voiceSettingsRequested）
 	OpenVoiceSettings func()
 
-	streams *voiceStreams // 测试注入（Node createVoiceStreams() 的实例）
+	streams *voiceStreams // 测试注入（voiceStreams 实例）
 }
 
 func bad(msg string) error { return &contract.Error{Code: "BAD_INPUT", Message: msg} }
@@ -113,7 +113,7 @@ func Install(r *contract.Router, d Deps) {
 		}
 		return v.Remove(id), nil
 	})
-	// VAD：Silero 留在渲染进程 WASM（D-B9-2），宿主只回能量检测
+	// VAD：Silero 留在渲染进程 WASM，宿主只回能量检测
 	reg("voice.vadOpen", func(json.RawMessage) (any, error) { return util.NewObj("kind", "energy"), nil })
 	reg("voice.vadProb", func(json.RawMessage) (any, error) { return 0, nil })
 	reg("voice.vadClose", func(json.RawMessage) (any, error) { return nil, nil })

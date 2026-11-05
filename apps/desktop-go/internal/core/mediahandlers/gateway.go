@@ -5,7 +5,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// GatewayLike = AIRuntimeBoot 的 providerCredentials / listProviders 所走的 services.gateway()
+// GatewayLike：网关的 providerCredentials / listProviders
 type GatewayLike interface {
 	Credentials(id string) *u.Obj
 	ListOpenAiCompatible() []any
@@ -13,7 +13,7 @@ type GatewayLike interface {
 
 func gwStr(o *u.Obj, k string) string { s, _ := o.Get(k).(string); return s }
 
-// GatewayProviders = createCore: providers: () => rt?.listProviders() ?? []
+// GatewayProviders：providers: () => rt?.listProviders() ?? []
 func GatewayProviders(g func() GatewayLike) func() []voice.Provider {
 	return func() []voice.Provider {
 		out := []voice.Provider{}
@@ -30,7 +30,7 @@ func GatewayProviders(g func() GatewayLike) func() []voice.Provider {
 	}
 }
 
-// GatewayCredentials = createCore: credentials: (id) => rt?.providerCredentials(id) ?? null
+// GatewayCredentials：credentials: (id) => rt?.providerCredentials(id) ?? null
 func GatewayCredentials(g func() GatewayLike) func(string) *voice.Credentials {
 	return func(id string) *voice.Credentials {
 		gw := g()

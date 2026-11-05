@@ -1,4 +1,4 @@
-// Package agents = apps/desktop-electron/internal/core/src/gateway/agents/index.ts：第三方会话的进程级注入。
+// Package agents：第三方会话的进程级注入。
 package agents
 
 import (
@@ -37,7 +37,7 @@ type LaunchContext struct {
 	Catalog           []string
 	Placeholder       *string
 	Home              string
-	Platform          string // 测试注入；空 = 当前 Node platform
+	Platform          string // 测试注入；空 = 当前平台（process.platform 风格）
 }
 
 // AgentLaunch = AgentLaunch；Env 为有序对象（值均为 string）

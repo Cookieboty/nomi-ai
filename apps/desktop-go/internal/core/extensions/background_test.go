@@ -1,6 +1,6 @@
 package extensions
 
-// 后台任务里的 MCP 工具（connections.md §6），对应 ExtensionsService.withConfirm 的后台分支
+// 后台任务里的 MCP 工具（docs/features/scheduling-calendar.md），ExtensionsService.withConfirm 的后台分支
 
 import (
 	"context"

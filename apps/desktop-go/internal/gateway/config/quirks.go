@@ -9,7 +9,7 @@ import (
 // ProviderQuirks keeps the JS object it came from so merging and serialising
 // follow JS exactly: an override that is null or "" still wins (spread only
 // skips undefined), and own-key order is insertion order. The typed fields are
-// derived with the same truthiness each Node reader applies.
+// derived with the same truthiness each reader applies.
 
 // UnmarshalJSON reads quirks leniently (config.quirks is an opaque object).
 func (q *ProviderQuirks) UnmarshalJSON(b []byte) error {
@@ -135,7 +135,7 @@ func QuirksFromObj(o *u.Obj) *ProviderQuirks {
 }
 
 // SpreadStrings is `[...(v ?? [])]` as property names: arrays element-wise,
-// strings by code point. Other non-iterables would throw in Node; read as [].
+// strings by code point. Other non-iterables would throw; read as [].
 func SpreadStrings(v any) []string {
 	switch x := v.(type) {
 	case []any:

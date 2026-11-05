@@ -9,7 +9,7 @@ import (
 
 var toolEndRe = regexp.MustCompile(`(?i)^tool[/_-]?(result|end|output)`)
 
-// ParseTranscript mirrors parseDshTranscript。
+// ParseTranscript：解析会话记录文件。
 func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 	b := sh.NewBuilder()
 	for _, e := range sh.Lines(text) {

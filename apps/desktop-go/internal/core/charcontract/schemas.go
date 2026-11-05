@@ -16,7 +16,7 @@ var (
 
 var driveRe = regexp.MustCompile(`^[a-zA-Z]:`)
 
-// NormalizePackPath = paths.ts normalizePackPath；ok=false 即 null。
+// NormalizePackPath：规整包内路径；ok=false 即 null。
 func NormalizePackPath(input string) (string, bool) {
 	raw := strings.ReplaceAll(jsTrim(input), `\`, "/")
 	if raw == "" || strings.HasPrefix(raw, "/") || driveRe.MatchString(raw) || strings.Contains(raw, "\x00") {
@@ -38,7 +38,7 @@ func NormalizePackPath(input string) (string, bool) {
 	return strings.Join(out, "/"), true
 }
 
-// JoinPackPath = paths.ts joinPackPath（空段被 filter(Boolean) 去掉）。
+// JoinPackPath：拼包内路径（空段被 filter(Boolean) 去掉）。
 func JoinPackPath(parts ...string) (string, bool) {
 	var keep []string
 	for _, p := range parts {
@@ -128,14 +128,14 @@ var (
 	}}
 )
 
-// jsLess：refine 里的 `<`（通过 refine 时两边都已是数字）。
+// jsLess：refine 里的 `<`（通过 refine 时两侧都已是数字）。
 func jsLess(a, b any) bool {
 	x, ok1 := a.(float64)
 	y, ok2 := b.(float64)
 	return ok1 && ok2 && x < y
 }
 
-// Schemas 供 parity 测试按名字取。
+// Schemas 供测试按名字取。
 var Schemas = map[string]schema{
 	"manifest":     manifestSchema,
 	"persona":      personaSchema,

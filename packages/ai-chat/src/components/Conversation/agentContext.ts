@@ -1,6 +1,6 @@
 /**
  * 运行中一轮的子代理实时状态（按派生它的工具调用 id 索引）：时间线里的子代理卡片据此显示
- * 后台标记、进度、状态（docs/design/cli-subagents.md §5）。历史消息没有它，卡片退回工具调用本身的状态。
+ * 后台标记、进度、状态（docs/development/coding-agents.md）。历史消息没有它，卡片退回工具调用本身的状态。
  */
 import { createContext, useContext } from 'react';
 

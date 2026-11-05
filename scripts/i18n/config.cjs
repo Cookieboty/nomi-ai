@@ -13,32 +13,12 @@ module.exports = {
     { dir: 'packages/avatar-runtime/src', project: 'ui' },
     { dir: 'packages/voice/src', project: 'ui' },
     { dir: 'packages/ui/src', project: 'ui' },
-    { dir: 'apps/desktop-electron/internal/core/src', project: 'electron' },
-    { dir: 'apps/desktop-electron/src', project: 'electron' },
-    { dir: 'apps/desktop-electron/internal/cli-sdk/src', project: 'electron' },
-    { dir: 'apps/desktop-electron/internal/cli-plugins/src', project: 'electron' },
   ],
-  // 这些模块把稳定 key 作为数据返回给 UI，虽然调用点不在 t()/tr() 里，也要纳入未知 / 死 key 检查。
-  keySources: ['apps/desktop-electron/internal/ai-runtime/src/providers'],
-  // keepZh: intentional Chinese that must NOT be extracted as UI keys.
-  // Prefer model-facing tool schemas / prompt fragments / parsers the agent reads
-  // (DelegateService, p2/p3 tools, knowledge answer, schedule recurrence, episodes…).
+  keySources: [],
+  // 主进程文案（electron.* / ai-runtime.*，少数 ui.*）由 Go 内核使用：Go 源码与内嵌 JSON 里的字符串字面量计入使用
+  goKeySources: ['apps/desktop-go'],
+  goKeyNamespaces: ['electron', 'ai-runtime', 'ui'],
+  // keepZh: intentional Chinese that must NOT be extracted as UI keys (e.g. wake words).
   // Do NOT list user-visible UI strings here — localize those instead.
-  keepZh: [
-    /voice[\\/]src[\\/]wake\.ts$/,
-    /core[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools|workspaceTools)\.ts$/,
-    /core[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService|intentHint)\.ts$/,
-    // 持续任务：给模型的提示词、工具描述与返回给模型的错误（授权卡片在 tasks/card.ts，走词典）
-    /core[\\/]src[\\/]tasks[\\/](tools|executors[\\/](nomi|cli))\.ts$/,
-    // 连接：github_read 的工具描述（给模型）
-    /core[\\/]src[\\/]connections[\\/]ConnectionService\.ts$/,
-    /core[\\/]src[\\/]tts[\\/]legacy[\\/]/,
-    /core[\\/]src[\\/]knowledge[\\/](tokenize|answer)\.ts$/,
-    /core[\\/]src[\\/]schedule[\\/]recurrence\.ts$/,
-    /core[\\/]src[\\/]agents[\\/]parsers\.ts$/,
-    /core[\\/]src[\\/]memory[\\/]episodes\.ts$/,
-    /core[\\/]src[\\/]sandbox[\\/]/,
-    /electron[\\/]src[\\/]host[\\/]AgentBrowser\.ts$/,
-    /core[\\/]src[\\/]desktop[\\/]parse[\\/]/,
-  ],
+  keepZh: [/voice[\\/]src[\\/]wake\.ts$/],
 };

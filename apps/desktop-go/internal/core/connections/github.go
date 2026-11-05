@@ -1,4 +1,4 @@
-// Package connections 移植 src/connections：连接（docs/design/connections.md）。2.1.0 先做 GitHub。
+// Package connections：连接（docs/features/scheduling-calendar.md）。2.1.0 先做 GitHub。
 package connections
 
 import (
@@ -343,7 +343,7 @@ type GithubWriteParams struct {
 	Repo   string
 	Number int
 	Body   *string
-	// Head：只允许推到 nomi/ 前缀的分支（connections.md §2）
+	// Head：只允许推到 nomi/ 前缀的分支（docs/features/scheduling-calendar.md）
 	Head, Base, Title string
 	Draft             *bool
 	ConnectionID      string

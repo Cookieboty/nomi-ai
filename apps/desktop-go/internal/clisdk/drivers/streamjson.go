@@ -13,10 +13,10 @@ import (
 
 const ControlTimeoutMs = 10_000
 
-// StreamJsonMessages mirrors messages?（nil 字段 = undefined）。
+// StreamJsonMessages：可选的提示文案（nil 字段 = undefined）。
 type StreamJsonMessages struct{ Timeout, NotWritable, Exited, Rejected *string }
 
-// StreamJsonDriverOptions mirrors StreamJsonDriverOptions。
+// StreamJsonDriverOptions：stream-json 驱动选项。
 type StreamJsonDriverOptions struct {
 	Child            clisdk.ChildLike
 	ParseLine        func(line string) []Ev
@@ -43,7 +43,7 @@ type streamTurn struct {
 	p         *jsrt.Promise[TurnResult]
 }
 
-// StreamJsonDriver mirrors StreamJsonDriver。构造需持 jsrt 锁。
+// StreamJsonDriver：stream-json 会话驱动。构造需持 jsrt 锁。
 type StreamJsonDriver struct {
 	o        StreamJsonDriverOptions
 	hub      *clisdk.EventHub
@@ -236,7 +236,7 @@ func (d *StreamJsonDriver) write(obj any) (ok bool) {
 	return true
 }
 
-// Control mirrors control()。
+// Control：发 control_request，等对应的应答。
 func (d *StreamJsonDriver) Control(request *util.Obj) *jsrt.Promise[*util.Obj] {
 	requestID := d.id()
 	p := jsrt.NewPromise[*util.Obj]()
@@ -273,7 +273,7 @@ func (d *StreamJsonDriver) Start(clisdk.StartOptions) *jsrt.Promise[StartResult]
 	return jsrt.Resolved(O("sessionId", nullable(d.sid), "capabilities", O("images", true)))
 }
 
-// WriteUser mirrors writeUser（uuid 为空串 = 默认）。
+// WriteUser：写一条用户消息（uuid 为空串 = 默认）。
 func (d *StreamJsonDriver) WriteUser(content any, uuid string) bool {
 	if uuid == "" {
 		uuid = d.id()
@@ -304,7 +304,7 @@ func (d *StreamJsonDriver) Interrupt() *jsrt.Promise[struct{}] {
 	return jsrt.Async(func() (struct{}, error) { _, err := jsrt.Await(c); return struct{}{}, err })
 }
 
-// Steer mirrors steer：一轮进行中再写一条用户消息，Claude Code 把它放进自己的队列，
+// Steer：一轮进行中再写一条用户消息，Claude Code 把它放进自己的队列，
 // 在下一个工具结果处并进这一轮（实测 2.1.318 只出一个 result）。
 func (d *StreamJsonDriver) Steer(text string) *jsrt.Promise[bool] {
 	if d.turn == nil || d.turn.settled {
@@ -325,7 +325,7 @@ func (d *StreamJsonDriver) SetModel(model *string, _ *string) *jsrt.Promise[stri
 
 var rejectOrDeny = regexp.MustCompile(`^reject|^deny`)
 
-// RespondPermission mirrors respondPermission（answer：{optionId} / {decision, updatedInput?}）。
+// RespondPermission：回复权限请求（answer：{optionId} / {decision, updatedInput?}）。
 func (d *StreamJsonDriver) RespondPermission(id string, answer *util.Obj) bool {
 	if !d.asks[id] && !d.o.Child.Stdin().Writable() {
 		return false

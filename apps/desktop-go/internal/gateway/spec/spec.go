@@ -1,4 +1,4 @@
-// Package spec mirrors the constant tables of apps/desktop-electron/internal/gateway/src/spec/*.ts
+// Package spec holds the constant tables of the wire specs
 // that the stream / canonical layers depend on; validate.go holds the
 // per-wire validators (WireSpec).
 package spec

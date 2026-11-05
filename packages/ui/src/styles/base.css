@@ -18,7 +18,7 @@
   cursor: pointer;
   transition: var(--cd-transition);
 }
-/* 次按钮：悬停 bg-surface-hover + 强边框，按下 bg-selected（规范 §9.1） */
+/* 次按钮：悬停 bg-surface-hover + 强边框，按下 bg-selected（规范） */
 .cd-btn:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
   background: var(--cd-control-hover-bg);
@@ -82,7 +82,7 @@
 .cd-btn--ghost:disabled {
   border-color: transparent;
 }
-/* 危险按钮：实底白字（规范 §9.1），只用于删除、清除等不可撤销的动作 */
+/* 危险按钮：实底白字（规范），只用于删除、清除等不可撤销的动作 */
 .cd-btn--danger {
   background: var(--cd-color-danger-fill);
   border-color: transparent;
@@ -201,7 +201,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  /* 滑块始终白色，开 / 关靠轨道明暗区分（规范 §11） */
+  /* 滑块始终白色，开 / 关靠轨道明暗区分（规范） */
   background: var(--cd-color-switch-thumb);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: var(--cd-transition);
@@ -814,7 +814,7 @@
 }
 
 /* ---------- SettingsGroup / SettingRow ---------- */
-/* 设置分组：普通卡片（规范 §12：bg-surface + border-default，无明显阴影） */
+/* 设置分组：普通卡片（规范：bg-surface + border-default，无明显阴影） */
 .cd-sgroup {
   display: flex;
   flex-direction: column;

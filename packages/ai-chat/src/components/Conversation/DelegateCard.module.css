@@ -1,4 +1,4 @@
-/* Nomi 派给编程助手的子任务卡片（docs/design/nomi-delegate-cli.md §7） */
+/* Nomi 派给编程助手的子任务卡片（docs/development/coding-agents.md） */
 .group {
   display: flex;
   flex-direction: column;

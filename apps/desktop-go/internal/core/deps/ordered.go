@@ -159,7 +159,7 @@ func O(kv ...any) *OrderedObject {
 	return o
 }
 
-// OverlayKnown 复现“Node 直接改 JSON.parse 出来的对象再写回”：raw 是从磁盘读到的原对象，
+// OverlayKnown 只改动过的字段、其余原样写回（同直接改 JSON.parse 出来的对象再写回）：raw 是从磁盘读到的原对象，
 // loaded / cur 分别是加载时和现在的已知字段（Go struct 的 JSON）。
 // 已知字段没变 → 原值原位保留；变了 → 原位改写（新键追加在末尾）；被清掉 → 删除；未知字段原样保留。
 func OverlayKnown(raw *OrderedObject, loaded, cur []byte) ([]byte, error) {

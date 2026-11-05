@@ -1,6 +1,6 @@
 /**
  * D1（media）：voice / tts / desktop / screen / nav 的过程与事件
- * （docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * （docs/development/architecture.md「P1b 实施约定」）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -139,7 +139,7 @@ describe('media 契约', () => {
     expect(p['desktop.reminderAction'].input.safeParse({ id: 'r1', action: 'later' }).success).toBe(
       false,
     );
-    // 视图不能提交路径：拖入文件只经 preload（nomiHost.dropFile）
+    // 视图不能提交路径：拖入文件的路径只由宿主从原生拖放事件里取
     expect(p).not.toHaveProperty('desktop.dropFile');
     expect(p['screen.checkSend'].output.safeParse('ok').success).toBe(true);
     expect(p['screen.checkSend'].output.safeParse('denied').success).toBe(false);

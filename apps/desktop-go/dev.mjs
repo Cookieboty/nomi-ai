@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Go 版开发态（视图热更新）：pnpm dev:go
+// 开发态（视图热更新）：pnpm dev
 //
 // 1. 构建视图依赖的工作区包（= turbo dev 的 ^build；改了 contract / ui 等包时另开终端 pnpm dev:libs 监听）；
 // 2. 用 Vite 开发服务器跑 packages/renderer（/mascot/）与 packages/ai-chat（/chat/）（视图运行时识别 Go 宿主）；
@@ -8,16 +8,17 @@
 //
 // 改视图源码：热更新；改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
 // 编译失败时旧进程照常跑，修好再存一次即可。关掉应用（退出）= 结束开发态。
-// 参数原样传给 Go 程序；--skip-deps 跳过第 1 步。端口与 Electron 开发态相同（dev-ports.json，可用 CD_*_PORT 覆盖）。
+// 参数原样传给 Go 程序；--skip-deps 跳过第 1 步。端口见 dev-ports.json（可用 CD_*_PORT 覆盖）。
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, watch, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { repoRoot } from '@nomi-ai/repo-paths';
 import { createServer } from 'vite';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../..');
+const root = repoRoot();
 const args = process.argv.slice(2);
 const skipDeps = args.includes('--skip-deps');
 const appArgs = args.filter((a) => a !== '--skip-deps');

@@ -1,5 +1,5 @@
 /**
- * Nomi 派给编程助手的子任务卡片（docs/design/nomi-delegate-cli.md §7）：
+ * Nomi 派给编程助手的子任务卡片（docs/development/coding-agents.md）：
  * - 标题：编程助手、目标、状态、耗时、「停止」「查看」；
  * - 当前一行：所有代理里最近的一个动作（「explorer · 运行 npm test」）；
  * - 审批：子任务的权限请求直接在卡片里答复（标签里也同时显示）；
@@ -13,7 +13,6 @@ import { ChevronDown, ChevronRight, ExternalLink, Square } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
-import { useChatMode } from '../../hooks/useChatMode';
 import { api } from '../../services/api';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
 import {
@@ -494,9 +493,8 @@ const DelegateDrawer: React.FC<{
   running: boolean;
   stopping: boolean;
   onStop: () => void;
-  onOpenTab?: () => void;
   onClose: () => void;
-}> = ({ v, elapsed, running, stopping, onStop, onOpenTab, onClose }) => {
+}> = ({ v, elapsed, running, stopping, onStop, onClose }) => {
   const tabId = v.tab?.id;
   const messages = useTabMessages(tabId, v.tab?.updatedAt, running);
   const backend = v.backend ?? 'claude';
@@ -537,15 +535,10 @@ const DelegateDrawer: React.FC<{
               {t('ui.session-workspace.stop-this-subtask')}
             </Button>
           )}
-          {onOpenTab && (
-            <Button variant="ghost" size="sm" onClick={onOpenTab} data-testid="delegate-drawer-tab">
-              {t('ui.session-workspace.open-in-workbench')}
-            </Button>
-          )}
         </>
       ),
     }),
-    [running, stopping, onStop, onOpenTab],
+    [running, stopping, onStop],
   );
   const empty = messages !== null && !conv.length && !live;
   return (
@@ -595,7 +588,6 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   const tabMeta = delegateTab(call, tabs.state?.tabs);
   // 只订阅自己这个标签的实时进度（别的标签每帧的输出不让这张卡片重渲染）
   const tl = useHarnessLive((l) => (tabMeta ? l[tabMeta.id] : undefined));
-  const { isDev } = useChatMode();
   const parsed = parseOutput(call.output);
   const taskId = parsed.result?.taskId ?? tabMeta?.id;
   const [liveResult, setLiveResult] = useState<DelegateResult | undefined>();
@@ -672,11 +664,6 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
     tabTaskId
       ? api.tasks.decide({ id: tabTaskId, requestId, approve: allow })
       : harnessClient.replyPermission(tab!.id, requestId, allow);
-  const openTab = () => {
-    if (!tab) return;
-    setDrawer(false);
-    void tabs.activate(tab.id);
-  };
   return (
     <section
       className={styles.card}
@@ -782,7 +769,6 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
           running={running}
           stopping={stopping}
           onStop={stop}
-          onOpenTab={isDev ? openTab : undefined}
           onClose={() => setDrawer(false)}
         />
       )}

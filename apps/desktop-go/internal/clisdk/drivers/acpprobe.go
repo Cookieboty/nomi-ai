@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// probeStr mirrors acpProbe 的 str（trim 后取前 120 个 UTF-16 单元）。
+// probeStr：trim 后取前 120 个 UTF-16 单元。
 func probeStr(v any) (string, bool) {
 	s, ok := v.(string)
 	if !ok || clisdk.JSTrim(s) == "" {
@@ -18,7 +18,7 @@ func probeStr(v any) (string, bool) {
 	return clisdk.Slice0(clisdk.JSTrim(s), 120), true
 }
 
-// ProbeAcp mirrors probeAcp：结果为 AcpProbeResult 的 Obj。
+// ProbeAcp：探测 ACP 代理，结果为 AcpProbeResult 的 Obj。
 func ProbeAcp(child clisdk.ChildLike, timeoutMs *int, kill clisdk.KillFn) (*util.Obj, error) {
 	conn := rpc.NewConnection(child, rpc.Handlers{
 		OnNotification: func(string, rpc.Json) {},

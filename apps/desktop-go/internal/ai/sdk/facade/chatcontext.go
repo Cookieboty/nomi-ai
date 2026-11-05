@@ -1,4 +1,4 @@
-// Package facade = apps/desktop-electron/internal/ai-sdk/src/facade（ChatFacade + chatContext）
+// Package facade：主进程 AI 门面（ChatFacade + chatContext）
 package facade
 
 import (
@@ -7,7 +7,7 @@ import (
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 )
 
-// ContextBudget = chatContext.ts ContextBudget（nil 字段 = undefined）
+// ContextBudget：上下文预算（nil 字段 = undefined）
 type ContextBudget struct {
 	MaxTokens   *float64 `json:"maxTokens,omitempty"`
 	MaxMessages *float64 `json:"maxMessages,omitempty"`

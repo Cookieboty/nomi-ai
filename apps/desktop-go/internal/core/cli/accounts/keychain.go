@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// KeychainAdapter = keychain.ts KeychainAdapter (get / set always reject: S7).
+// KeychainAdapter: system keychain access (get / set always reject).
 type KeychainAdapter interface {
 	Get(service, account string) *jsrt.Promise[*string]
 	Set(service, account, value string) *jsrt.Promise[struct{}]

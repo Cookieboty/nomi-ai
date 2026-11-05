@@ -1,24 +1,19 @@
 /**
- * 渲染进程侧错误恢复 —— IPC 抛出的错误在 Electron 序列化后会**丢失原型**，
+ * 视图侧错误恢复 —— 内核抛出的错误经契约传输序列化后会**丢失原型**，
  * 只保留 `message` 字段。本模块负责把这类"贫瘠错误"还原为带 `code / retryable / hint`
- * 的 `SDKError`，与主进程 [`AIClientError`](file:///../../ai-sdk/src/errors.ts) 语义对齐。
+ * 的 `SDKError`，与 Go 内核 AI 门面（apps/desktop-go/internal/ai）的错误语义对齐。
  *
- * 与 ai-sdk 侧的 IPC 契约保持一致（P9-4）：
+ * message 前缀约定（P9-4）：
  *   `[CODE] message`              → 兼容旧版本
  *   `[CODE|1] message`            → retryable=true
  *   `[CODE|1|hint:HINT] message`  → 带 UI CTA 提示
  *
- * ai-sdk-client 不 import ai-sdk 的运行时代码（保持渲染进程 bundle 干净），
- * 与主端的一致性由 [tests/contracts/errors.test.ts](file:///../tests/contracts/errors.test.ts) 契约测试保证。
  */
 
-/** IPC 前缀正则；与 [ai-sdk errors.ts](file:///../../ai-sdk/src/errors.ts) 保持同步。 */
+/** 错误前缀正则（`[CODE|…] message`） */
 const IPC_PREFIX_RE = /^\[([A-Z_][A-Z0-9_]*)(\|[^\]]*)?\]\s?(.*)$/s;
 
-/**
- * 与 [`ErrorCodes`](file:///../../ai-sdk/src/errors.ts) 保持同名的常量表；
- * 客户端侧独立维护以避免拉入 插件宿主 / peer 依赖。
- */
+/** 与内核错误码同名的常量表 */
 export const SDKErrorCodes = {
   // 既有（P5 引入）
   SEAM_NOT_INJECTED: 'SEAM_NOT_INJECTED',

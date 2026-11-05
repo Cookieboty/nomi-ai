@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** 右栏「改动」：暂存、自己提交、撤销、检查远端 / 拉取 / 推送（docs/design/changes-panel-git.md） */
+/** 右栏「改动」：暂存、自己提交、撤销、检查远端 / 拉取 / 推送（docs/development/coding-agents.md） */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

@@ -1,5 +1,5 @@
-// Package aisdk 对应 apps/desktop-electron/internal/ai-runtime/src/ai-sdk。本批只有 AiSdkLlmProvider.ts 的
-// envProviderConfig / ENV_PROTOCOL 与选项类型；适配器本体属批次 5。
+// Package aisdk：基于 internal/ai/llm 的 LLM provider（工具循环、网关字段、流式错误），以及
+// envProviderConfig / ENV_PROTOCOL 与选项类型。
 package aisdk
 
 import (
@@ -22,12 +22,12 @@ type Options struct {
 	Thinking       *bool
 	UserAgent      string
 	Headers        any
-	// 批次 5：工具循环 / 网关字段
+	// 工具循环 / 网关字段
 	MaxSteps          *int
 	Receiver          *tools.ToolCallProvider
 	ServedModelHeader string
 	RedactedHeader    string
-	// MaxRetries：AI SDK 自己的失败重试次数；nil = 默认（2）。经 Nomi 网关时设 0：网关已经负责重连（§11.1）
+	// MaxRetries：AI SDK 自己的失败重试次数；nil = 默认（2）。经 Nomi 网关时设 0：网关已经负责重连
 	MaxRetries *int
 	// Client：fetchImpl（网关按需启动时先等就绪）；nil = 全局 fetch
 	Client *http.Client

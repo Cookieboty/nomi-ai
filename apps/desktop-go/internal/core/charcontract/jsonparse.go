@@ -6,7 +6,7 @@ import (
 	"unicode/utf16"
 )
 
-// ParseJSON = V8 的 JSON.parse：键序、重复键与报错文本（SyntaxError.message）都与 Node 一致。
+// ParseJSON = V8 的 JSON.parse：键序、重复键与报错文本（SyntaxError.message）都一致。
 func ParseJSON(src string) (v any, err error) {
 	p := &jparser{s: utf16.Encode([]rune(src))}
 	defer func() {

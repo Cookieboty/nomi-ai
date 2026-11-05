@@ -163,7 +163,7 @@ describe('reserved identifiers / prototype pollution', () => {
   });
 });
 
-describe('package boundary (§11.1)', () => {
+describe('package boundary', () => {
   const files: string[] = [];
   const collect = (dir: string) => {
     for (const name of readdirSync(dir)) {

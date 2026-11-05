@@ -1,9 +1,9 @@
 package tasks
 
-// 事件触发（docs/design/persistent-tasks.md §6.3、§6.4），对应 src/tasks/events/EventHub.ts 与 events/types.ts：
+// 事件触发（docs/features/scheduling-calendar.md）：EventHub 与事件类型：
 // 按任务订阅事件源，去重、排序、批处理，再触发执行。
 //
-//   - 每个任务记最近 500 个已处理的 key 与事件源游标（<root>/<taskId>.json，形状与 Node 相同）；执行失败时释放该批的 key；
+//   - 每个任务记最近 500 个已处理的 key 与事件源游标（<root>/<taskId>.json，形状与旧版相同）；执行失败时释放该批的 key；
 //   - observe（默认）：命中只记进任务（最多 100 条），不开执行；用户在详情里「处理这些」或改成 act；
 //   - act：第一个事件开窗口，窗口结束（cooldownMs，默认 60 秒）或攒满 20 个就开一次执行，带上整批；
 //     任务还在执行时窗口保持打开，执行结束后再合并开下一次（不打断当前执行）；
@@ -48,7 +48,7 @@ type SourceEvent struct {
 	OccurredAt int64  `json:"occurredAt"`
 	// Summary：给用户看（任务详情里的「发现的事」）
 	Summary string `json:"summary"`
-	// Payload：给执行者；一律视为外部内容（§8.3）
+	// Payload：给执行者；一律视为外部内容
 	Payload any `json:"payload"`
 }
 
@@ -85,7 +85,7 @@ type eventWindow struct {
 	Events   []SourceEvent `json:"events"`
 }
 
-// EventState：落盘的订阅状态（与 Node 的 EventState 同形状）
+// EventState：落盘的订阅状态（形状与旧版写出的文件相同）
 type EventState struct {
 	Cursor *string `json:"cursor"`
 	// Primed：已经拉过一次（基线已建立）

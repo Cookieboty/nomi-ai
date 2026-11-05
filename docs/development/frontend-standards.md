@@ -4,9 +4,9 @@
 
 ## 目录与依赖边界
 
-- `packages/ui` 只放跨窗口复用的设计令牌、无业务组件、无业务状态和无 Electron 依赖。组件必须通过 `packages/ui/src/index.ts` 暴露，页面禁止从 UI 包的内部路径导入。
+- `packages/ui` 只放跨窗口复用的设计令牌、无业务组件、无业务状态和无宿主依赖。组件必须通过 `packages/ui/src/index.ts` 暴露，页面禁止从 UI 包的内部路径导入。
 - `packages/ai-chat` 和 `packages/renderer` 按功能组织页面。一个功能目录可以包含 `index.tsx`、局部子组件、hooks、services 和 CSS Module；跨功能复用的代码上移到 `packages/ui` 或对应包的 `shared` 目录。
-- 依赖方向保持单向：`ui → React/图标库`，业务包 → `ui/types/sdk-client`，渲染层通过 preload 与主进程通信。UI 包不能依赖业务包、Electron 或窗口实现。
+- 依赖方向保持单向：`ui → React/图标库`，业务包 → `ui/types/sdk-client`，视图只经契约（`services/api.ts`）与 Go 内核通信。UI 包不能依赖业务包或窗口实现。
 - 页面组件负责组合和路由，业务组件负责展示与交互，hooks 负责状态和副作用，services 负责 IPC/API 适配，纯计算放在 `utils`。组件中不直接拼接 IPC 通道名。
 
 ## 文件、组件和公共能力

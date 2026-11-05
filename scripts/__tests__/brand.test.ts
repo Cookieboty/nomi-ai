@@ -5,26 +5,30 @@ import { describe, expect, it } from 'vitest';
 
 import { brand } from '../../packages/types/src/brand';
 
-// 产品名只有一个来源（docs/design/core-host-decoupling.md §10.1）：`@nomi-ai/types` 的 `brand`。
-// 安装包的名字与 appId 写在 electron-builder.yml 里（YAML 不能 import），这里守住两边一致。
-// 运行时应用名（userData 目录名）是另一回事，见 electron-builder-app-name.test.ts。
+// 产品名只有一个来源（docs/character-pack/CONTRACT.md）：`@nomi-ai/types` 的 `brand`。
+// Go 版的 appId 写在 Go 常量与各平台打包模板里（不能 import TS），这里守住几处一致。
 const root = join(__dirname, '../..');
-const yml = readFileSync(join(root, 'apps/desktop-electron/electron-builder.yml'), 'utf8');
+const read = (rel: string): string => readFileSync(join(root, rel), 'utf8');
 
 describe('product brand', () => {
-  it('electron-builder productName / appId match brand', () => {
-    expect(yml).toMatch(new RegExp(`^productName: ${brand.appName}$`, 'm'));
-    expect(yml).toMatch(new RegExp(`^appId: ${brand.appId.replace(/\./g, '\\.')}$`, 'm'));
+  it('Go shell, Windows AppUserModelID and installers use brand.appId', () => {
+    const id = brand.appId.replace(/\./g, '\\.');
+    expect(read('apps/desktop-go/internal/shell/wailsshell/wails.go')).toMatch(
+      new RegExp(`const AppID = "${id}"`),
+    );
+    expect(read('apps/desktop-go/internal/core/appicon/appicon.go')).toMatch(
+      new RegExp(`const AppUserModelID = "${id}"`),
+    );
+    expect(read('apps/desktop-go/packaging/windows/installer.nsi')).toMatch(
+      new RegExp(`!define APP_ID "${id}"`),
+    );
+    expect(read('apps/desktop-go/packaging/mac/Info.plist.in')).toMatch(
+      new RegExp(`<key>CFBundleIdentifier</key><string>${id}</string>`),
+    );
   });
 
   it('the brand module holds product constants only (no character name)', () => {
     expect(brand.appName).toBe('Nomi');
     expect(JSON.stringify(brand)).not.toMatch(/诺米|·/);
-  });
-
-  it('the host re-exports brand instead of keeping its own copy', () => {
-    const host = readFileSync(join(root, 'apps/desktop-electron/src/brand.ts'), 'utf8');
-    expect(host).toMatch(/from '@nomi-ai\/types'/);
-    expect(host).not.toMatch(/'Nomi'|诺米/);
   });
 });

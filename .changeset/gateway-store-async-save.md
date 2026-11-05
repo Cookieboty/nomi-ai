@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/core': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 fix(gateway): Windows 上保存供应商和 Key 状态不再在主进程里同步等待文件占用，文件被杀软短暂占用时界面不会卡住（#154）。

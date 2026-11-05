@@ -1,7 +1,7 @@
 package voice
 
-// 对应 apps/desktop-electron/internal/core/src/voice/volcAsr.ts：豆包 / 火山引擎「流式语音识别 2.0」客户端（二进制协议 + 一次识别会话）。
-// 会话的事件处理全部在 s.mu 下串行执行（等价 Node 的单线程事件循环），回调 onPartial 也在锁内同步调用。
+// 豆包 / 火山引擎「流式语音识别 2.0」客户端（二进制协议 + 一次识别会话）。
+// 会话的事件处理全部在 s.mu 下串行执行（单线程事件循环语义），回调 onPartial 也在锁内同步调用。
 
 import (
 	"bytes"

@@ -148,7 +148,7 @@ func (h *Hub) ExportTo(file string, o ExportOpts) (ExportResult, error) {
 					for _, s := range arr {
 						oo, ok := s.(*deps.OrderedObject)
 						if !ok {
-							okAll = false // Node：非对象条目会在 redact 里抛错 → 整体跳过
+							okAll = false // 非对象条目会在 redact 里抛错 → 整体跳过
 							break
 						}
 						out = append(out, extensions.RedactServerForExport(oo, T("electron.common.removed")))

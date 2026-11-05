@@ -5,7 +5,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Manifest mirrors claude/manifest.ts。
+// Manifest：清单，与 packages/cli-catalog/src/claude/manifest.ts 一致。
 var Manifest = util.NewObj(
 	"id", "claude",
 	"apiVersion", 1.0,
@@ -37,5 +37,5 @@ var Manifest = util.NewObj(
 	"clientSpec", util.NewObj("client", "claude"),
 )
 
-// Renderer mirrors claude/renderer.ts。
+// Renderer：渲染进程用的插件信息（同 packages/cli-catalog/src/claude/renderer.ts）。
 var Renderer = sh.RendererInfo(Manifest)

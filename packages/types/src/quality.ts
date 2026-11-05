@@ -1,5 +1,5 @@
 /**
- * 模型质量（docs/design/model-quality.md）：网关层与 CLI 层的质量记录、查询与结果。
+ * 模型质量（docs/development/gateway.md）：网关层与 CLI 层的质量记录、查询与结果。
  * 主进程（记录、聚合）与对话窗口（展示）共用这份契约；只含元数据，不含对话内容。
  */
 
@@ -12,7 +12,7 @@
  */
 export type QualityLayer = 'gateway' | 'cli';
 
-/** 一次请求 / 一轮的结果（§2.3） */
+/** 一次请求 / 一轮的结果 */
 export type QualityOutcome =
   | 'ok'
   | 'client-cancel'

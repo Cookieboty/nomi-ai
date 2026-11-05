@@ -10,7 +10,7 @@ import (
 
 var camelRe = regexp.MustCompile(`[_-][a-z]`)
 
-// toCamelCase is utils/to-camel-case.ts toCamelCase.
+// toCamelCase turns snake_case / kebab-case into camelCase.
 func toCamelCase(s string) string {
 	return camelRe.ReplaceAllStringFunc(s, func(g string) string { return strings.ToUpper(g[1:]) })
 }

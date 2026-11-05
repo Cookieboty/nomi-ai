@@ -1,5 +1,5 @@
 /**
- * 模型质量客户端：应用契约 `quality.*`（docs/design/model-quality.md，类型 @nomi-ai/types quality.ts）。
+ * 模型质量客户端：应用契约 `quality.*`（docs/development/gateway.md，类型 @nomi-ai/types quality.ts）。
  * 只读元数据，不含对话内容。
  */
 import type {

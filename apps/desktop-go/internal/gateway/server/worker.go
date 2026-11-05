@@ -1,9 +1,9 @@
 package server
 
-// worker.go is worker.ts (runGatewayWorker): the gateway process message loop.
+// worker.go (runGatewayWorker): the gateway process message loop.
 // The main process (GatewayService) pushes config snapshots through the port; the
 // gateway reports its listen address, usage, learning, key status and errors.
-// Like Node, the loop does not depend on the host: port only needs OnMessage /
+// The loop does not depend on the host: port only needs OnMessage /
 // PostMessage (tests use a fake port; the desktop host uses an in-process port).
 
 import (
@@ -44,13 +44,13 @@ type WorkerPort interface {
 	PostMessage(m WorkerOutbound)
 }
 
-// RunGatewayWorker is runGatewayWorker(port, hooks): hooks' OnUsage/OnLearn/OnKeyStatus are replaced.
+// RunGatewayWorker runs the loop on port: hooks' OnUsage/OnLearn/OnKeyStatus are replaced.
 func RunGatewayWorker(port WorkerPort, hooks GatewayHooks) {
 	var gw *GatewayServer
 	listenKey := ""
 	// The binding table follows the gateway process, not one listener.
 	bindings := route.NewBindingTable()
-	// Serial message handling (the Node promise chain).
+	// Serial message handling.
 	chain := make(chan WorkerInbound, 64)
 
 	// Loaded catalog key (path + mtime + size); the core pushes config only after the file landed (#185).

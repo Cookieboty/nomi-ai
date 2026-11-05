@@ -82,8 +82,8 @@ func utf8String(b []byte) string {
 	return string(utf16.Decode(utf8Decode(b)))
 }
 
-// latin1：WHATWG 规定 'latin1'/'windows-1252' 走 1252 表，但 Node（含 Electron 主进程）的
-// TextDecoder 实现成 ISO-8859-1（字节即码位）；金样录的是 Node 实际行为，这里对齐 Node。
+// latin1：WHATWG 规定 'latin1'/'windows-1252' 走 1252 表，但这里按 ISO-8859-1（字节即码位）解码，
+// 与 Chromium / Node 的 TextDecoder 实际行为一致。
 func latin1(c byte) uint16 { return uint16(c) }
 
 type decoder func([]byte) []uint16

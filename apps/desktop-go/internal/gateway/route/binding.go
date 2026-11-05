@@ -12,7 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 )
 
-// Tab token constants (route/binding.ts).
+// Tab token constants.
 const (
 	TabTokenPrefix     = "nomi-tab-"
 	BindingWaitMs      = 2_000

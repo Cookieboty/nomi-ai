@@ -7,7 +7,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 录制回放覆盖不到的边界常量（gatewayRequests/qualityService 源码同值）。
+// 回放用例覆盖不到的边界常量。
 func TestQualityLimits(t *testing.T) {
 	if CsvCell("@SUM(A1)") != "'@SUM(A1)" {
 		t.Fatalf("formula @ not escaped: %q", CsvCell("@SUM(A1)"))
@@ -42,7 +42,7 @@ func TestQualityLimits(t *testing.T) {
 	}
 }
 
-// 开发者工具：quality.requests 按标签筛（同 Node listRequests 的 tabId）
+// 开发者工具：quality.requests 按标签筛（tabId）
 func TestRequestsTabFilter(t *testing.T) {
 	now := 1_800_000_000_000.0
 	svc := New(ServiceDeps{Dir: t.TempDir(), FlushMs: -1, Now: func() float64 { return now }})

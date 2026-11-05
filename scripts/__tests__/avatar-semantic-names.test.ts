@@ -1,6 +1,6 @@
 /**
- * AI 与角色之间只传语义事件（docs/design/core-host-decoupling.md §10.5、§12 C3 的完成标准）：
- * AI 侧代码（内核、AI 运行时、AI SDK、插件包、契约）里不出现角色包的片段 / 动作 / 表情资源名，
+ * AI 与角色之间只传语义事件（docs/character-pack/CONTRACT.md C3 的完成标准）：
+ * AI 侧代码（AI SDK 客户端、契约）里不出现角色包的片段 / 动作 / 表情资源名，
  * 只用 `@nomi-ai/character-contract` 词表里的语义名；资源名只在角色包的 mapping.json 与引擎
  * （avatar-runtime）里。
  *
@@ -14,16 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '../..');
 
-const AI_SIDE = [
-  'apps/desktop-electron/internal/core/src',
-  'apps/desktop-electron/internal/ai-runtime/src',
-  'apps/desktop-electron/internal/ai-sdk/src',
-  'packages/ai-sdk-client/src',
-  'apps/desktop-electron/internal/bundle-ig-base/src',
-  'apps/desktop-electron/internal/bundle-ig-mascot/src',
-  'apps/desktop-electron/internal/bundle-ig-electron-caps/src',
-  'packages/contract/src',
-];
+const AI_SIDE = ['packages/ai-sdk-client/src', 'packages/contract/src'];
 
 /** 常见英文词：作为资源名不够有辨识度，在业务代码里另有含义 */
 const GENERIC = new Set(['ok', 'run', 'step', 'walk', 'blink', 'fist', 'typing', 'poke', 'squat']);

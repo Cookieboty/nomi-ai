@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 )
 
 func TestContractFilesInSync(t *testing.T) {
 	for name, got := range map[string][]byte{"contract.json": contractJSON, "voice-ids.json": voiceIDsJSON} {
-		want, err := os.ReadFile(paritytest.RepoPath("packages/character-contract", name))
+		want, err := os.ReadFile(repotest.RepoPath("packages/character-contract", name))
 		if err != nil {
 			t.Fatal(err)
 		}

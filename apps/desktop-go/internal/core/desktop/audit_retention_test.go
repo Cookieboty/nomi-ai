@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// 保留 30 天：更早的条目不列出，整月都更早的文件被删；offset 分页（同 journal.test.ts）
+// 保留 30 天：更早的条目不列出，整月都更早的文件被删；offset 分页
 func TestAuditLogRetentionAndPaging(t *testing.T) {
 	dir := t.TempDir()
 	const day = 24 * 60 * 60 * 1000.0

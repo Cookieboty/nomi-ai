@@ -12,7 +12,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// pathGuard.ts：授权作用域 + 黑名单 + 规范化 + realpath 防符号链接逃逸
+// 路径守卫：授权作用域 + 黑名单 + 规范化 + realpath 防符号链接逃逸
 
 type GuardCode = string
 
@@ -24,7 +24,7 @@ type Scope struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   bool    `json:"session,omitempty"`
-	// raw：从 settings.json 读到的原对象（未知字段、键序、原始类型原样保留，同 Node 直接沿用解析结果）
+	// raw：从 settings.json 读到的原对象（未知字段、键序、原始类型原样保留）
 	raw       *deps.OrderedObject
 	modeDirty bool
 }
@@ -69,7 +69,7 @@ func (g GuardResult) MarshalJSON() ([]byte, error) {
 	}{false, g.Code, g.Message})), nil
 }
 
-// GuardEnv 对应 GuardEnv；Realpath 为空时用 RealpathNative
+// GuardEnv：路径守卫的环境；Realpath 为空时用 RealpathNative
 type GuardEnv struct {
 	Scopes    []Scope
 	Home      string
@@ -258,7 +258,7 @@ func scopeMatch(s Scope, p, sp, platform string) bool {
 	return IsInside(p, sp, platform)
 }
 
-// GuardPath 对应 guardPath
+// GuardPath：校验 input 是否允许访问
 func GuardPath(input any, env GuardEnv, opts GuardOpts) GuardResult {
 	norm, bad := NormalizeInput(input, env.Home, env.Platform)
 	if bad != nil {

@@ -1,5 +1,5 @@
 /**
- * 桌面角色渲染器选择（docs/design/migrate-2.0.5-go.md §0、Q5：默认静态 SVG，Rive 由用户在设置里开启）。
+ * 桌面角色渲染器选择（docs/development/architecture.md、Q5：默认静态 SVG，Rive 由用户在设置里开启）。
  * 设置存在内核的 `mascot.renderer`（Node 与 Go 内核相同），切换时内核广播 `mascot.rendererChanged`。
  *
  * - 有契约传输（Electron / Go 宿主）：按设置；`svg` 时内置包改用它自己的静态立绘（avatar-runtime 的 static
@@ -40,7 +40,7 @@ export function useMascotRenderer(): MascotRenderer | null {
 
 /**
  * 内置包的 .riv 是远程素材（manifest `assets.remote`）：不随安装包发，切到 Rive 时由内核下载
- * （docs/design/remote-character-assets.md）。
+ * （docs/character-pack/README.md）。
  */
 export function bundledRiveIsRemote(): boolean {
   return BUNDLED_PACK.assets.remote?.includes('rive') ?? false;

@@ -100,7 +100,7 @@ type readResult struct {
 	Err     string
 }
 
-// sameFile：os.SameFile 在 Unix 上即比较 dev+ino（与 Node 的 st.ino/st.dev 一致），Windows 上比较卷序号+文件索引。
+// sameFile：os.SameFile 在 Unix 上即比较 dev+ino，Windows 上比较卷序号+文件索引。
 func sameFile(a, b os.FileInfo) bool { return os.SameFile(a, b) }
 
 // ReadConfigFile：真实路径在 allowRoots 内、文件名不变、不在凭据目录；打开后再校验是同一文件
@@ -777,7 +777,7 @@ func DiscoverMigrations(e MigrateEnv) MigrateScan {
 		if !ok {
 			continue
 		}
-		// D-B8：go-toml 解码为 map，表内顺序丢失 → 按名字排序
+		// go-toml 解码为 map，表内顺序丢失 → 按名字排序
 		names := make([]string, 0, len(servers))
 		for k := range servers {
 			names = append(names, k)
@@ -854,7 +854,7 @@ func DiscoverMigrations(e MigrateEnv) MigrateScan {
 	return scan
 }
 
-// frontmatter：cli 的 ParseFrontmatter（同 Node 引用 cli/slashDiscovery 的 parseFrontmatter / DENY_DIR），转成按键取值的 map
+// frontmatter：cli 的 ParseFrontmatter（与斜杠命令发现共用 parseFrontmatter / DENY_DIR），转成按键取值的 map
 func frontmatter(text string) (map[string]string, string) {
 	o, body := cli.ParseFrontmatter(text)
 	meta := map[string]string{}

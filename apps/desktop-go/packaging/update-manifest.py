@@ -10,12 +10,13 @@ base64、size），2.0.4 据此下载 Go 版安装包（Windows 跑 NSIS 安装�
 Squirrel.Mac 替换 Nomi.app，要求与 2.0.4 同一签名身份；Linux 替换 AppImage）。不出 blockmap：electron-updater
 取不到 blockmap 时整包下载（Electron 与 Go 的包也没有可复用的块）。2.0.5+ 的 Go 版更新检查读取
 https://github.com/<repo>/releases/latest/download/latest-go.json，比较 version，按当前平台挑出
-platforms[<os>-<arch>] 的安装包，弹窗引导下载（不自动替换，见 docs/design/migrate-2.0.5-go.md 批次 11）。
+platforms[<os>-<arch>] 下载、校验 sha256 后安装（apps/desktop-go/internal/core/updates/github.go）。
+mac 条目的 update 是应用内原地替换用的 -mac.zip（2.2.0 起）；file / url 仍是 dmg，≤ 2.1.2 只认它们（打开 dmg 让用户拖拽）。
 schema（schemaVersion=1）：
   {schemaVersion, version, tag, releaseDate, releaseUrl, releaseNotes?（--notes 文件原文，2.0.8 起；
    Go / Node 内核的 updates.releaseNotes 按版本取 releases/download/v<version>/latest-go.json 读它）,
    platforms: {"darwin-arm64"|"darwin-amd64"|"windows-amd64"|"linux-amd64"|"linux-amd64-deb":
-               {file, url, size, sha256}}}
+               {file, url, size, sha256, update?: {file, url, size, sha256}}}}
 """
 import argparse, base64, datetime, hashlib, json, os, sys
 
@@ -57,7 +58,9 @@ def main():
         "linux-amd64": f"Nomi-{v}.AppImage",
         "linux-amd64-deb": f"nomi_{v}_amd64.deb",
     }
-    extra = [f"Nomi-{v}-arm64-mac.zip", f"Nomi-{v}-mac.zip"]
+    # mac 的原地替换包：写进对应平台的 update
+    swap = {"darwin-arm64": f"Nomi-{v}-arm64-mac.zip", "darwin-amd64": f"Nomi-{v}-mac.zip"}
+    extra = list(swap.values())
     base = f"https://github.com/{a.repo}/releases/download/{tag}"
     plats, sums, missing = {}, [], []
     for key, name in want.items():
@@ -66,10 +69,14 @@ def main():
             missing.append(name); continue
         d = sha256(p)
         plats[key] = {"file": name, "url": f"{base}/{name}", "size": os.path.getsize(p), "sha256": d}
-    for name in extra:
+    for key, name in swap.items():
         p = os.path.join(a.dir, name)
-        if os.path.isfile(p): sums.append((sha256(p), name))
-        else: missing.append(name)
+        if not os.path.isfile(p):
+            missing.append(name); continue
+        d = sha256(p)
+        sums.append((d, name))
+        if key in plats:
+            plats[key]["update"] = {"file": name, "url": f"{base}/{name}", "size": os.path.getsize(p), "sha256": d}
     if missing:
         print("missing artifacts: " + ", ".join(missing), file=sys.stderr); sys.exit(1)
     sums += [(x["sha256"], x["file"]) for x in plats.values()]

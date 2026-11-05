@@ -10,7 +10,7 @@ package voice
 //     收到的压缩消息解压；服务端把 client_max_window_bits 限到 15 以下时改发不压缩的消息（RFC 7692 允许，
 //     ws 的 zlib 会按窗口压，Go flate 只有 32K 窗口：字节不同、语义相同）；
 //   - 帧：客户端掩码、自动回 pong、收到 close 回 close；maxPayload 超限按 ws 报 1009。
-// TLS 握手由 crypto/tls 完成（ClientHello 与 OpenSSL 不同，D-B9-5 收窄后的剩余差异）。
+// TLS 握手由 crypto/tls 完成（ClientHello 与 OpenSSL 不同）。
 
 import (
 	"bufio"
@@ -39,7 +39,7 @@ const wsGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 // wsDialContext：建 TCP 连接（测试换成可控的连接）
 var wsDialContext = (&net.Dialer{}).DialContext
 
-// WsHeader：有序的请求头（Node 对象字面量的插入顺序）
+// WsHeader：有序的请求头（插入顺序）
 type WsHeader [][2]string
 
 // WsUnexpected：握手返回非 101（ws 的 'unexpected-response'）

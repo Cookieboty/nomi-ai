@@ -1,6 +1,6 @@
 package tasks
 
-// `app` 事件源（§6.2），对应 src/tasks/events/sources/app.ts：应用内部事件，直接推送，不经网络。
+// `app` 事件源：应用内部事件，直接推送，不经网络。
 //   - cli.finished：编程助手会话的一轮结束（任务自己开的标签不算，免得任务触发自己）；
 //   - knowledge.updated：知识库有变化。
 

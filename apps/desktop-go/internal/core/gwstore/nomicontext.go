@@ -7,7 +7,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// gateway/nomiContext.ts：Nomi 对话的上下文预算（按路由到的模型的窗口算）
+// Nomi 对话的上下文预算（按路由到的模型的窗口算）
 
 const (
 	// CompactRatio：自动压缩阈值（输入预算的比例）

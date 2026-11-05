@@ -23,7 +23,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
 )
 
-// shellProcs：packages/contract/src/app/shell.ts 中 batch 2–5 之外的过程（diagnostics / appIcon / updates / quality / usage / gateway）
+// shellProcs：packages/contract/src/app/shell.ts 中 diagnostics / appIcon / updates / quality / usage / gateway 过程
 type shellProcs struct {
 	Diagnostics *diagnostics.Service
 	AppIcon     *appicon.Service
@@ -71,7 +71,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 		},
 	})
 	harness.CliTrap = sp.Diagnostics.CliTrace.Tap
-	// quality.*（QualityService，createCore 1:1）：userData/usage/quality；enabled / cost 来自 UsageService（晚绑定）
+	// quality.*（QualityService）：userData/usage/quality；enabled / cost 来自 UsageService（晚绑定）
 	sp.Quality = quality.New(quality.ServiceDeps{
 		Dir:     filepath.Join(userData, "usage", "quality"),
 		Enabled: usageEnabled,
@@ -86,11 +86,11 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 	qualityRef.Store(sp.Quality)
 	quality.Install(router, func() *quality.Service { return sp.Quality })
 	shellhandlers.InstallDiagnostics(router, func() *diagnostics.Service { return sp.Diagnostics })
-	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 apps/desktop-electron/assets）
+	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 apps/desktop-go/assets）
 	assets := assetsDir()
 	sp.AppIcon = appicon.New(assets, assets, iconTarget{hp})
 	shellhandlers.InstallAppIcon(router, sp.AppIcon)
-	// updates.*：electron-updater 换成读 latest-go.json 的 GitHubUpdater（D3 / D-SH-3）
+	// updates.*：读 latest-go.json 的 GitHubUpdater
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		cache = os.TempDir()
@@ -170,7 +170,7 @@ type qualityLogger struct{ l deps.StdLogger }
 func (q qualityLogger) Info(msg string, data any) { q.l.Info(msg, data) }
 func (q qualityLogger) Warn(msg string, data any) { q.l.Warn(msg, data) }
 
-// gatewayLabelOf = createCore 的 labelOf（供应商名 / Key 名或掩码）
+// gatewayLabelOf：供应商名 / Key 名或掩码
 func gatewayLabelOf(gw *gwstore.Service) quality.LabelOf {
 	providerOf := func(pid string) *u.Obj {
 		if gw == nil {

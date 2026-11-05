@@ -3,7 +3,7 @@ package reminders
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 	"math"
 	"os"
 	"strings"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// testdata/dateparse_node.txt：每行 "<TZ> <JSON[[input, Date.parse(input)]]>"，由 Node 生成
+// testdata/dateparse_node.txt：每行 "<TZ> <JSON[[input, Date.parse(input)]]>"，期望值由 V8 的 Date.parse 生成
 func TestDateParseNodeFixtures(t *testing.T) {
 	f, err := os.Open("testdata/dateparse_node.txt")
 	if err != nil {
@@ -25,7 +25,7 @@ func TestDateParseNodeFixtures(t *testing.T) {
 		zone, js, _ := strings.Cut(sc.Text(), " ")
 		loc, err := time.LoadLocation(zone)
 		if err != nil {
-			paritytest.SkipOrFail(t, err)
+			repotest.SkipOrFail(t, err)
 		}
 		time.Local = loc
 		var cases [][2]any

@@ -1,5 +1,5 @@
-// Package trash = HostPorts.shell.trashItem（Electron shell.trashItem）：把文件 / 目录移到系统废纸篓。
-// 不用厂商 SDK：Linux 走 gio / kioclient（同 Electron platform_util_linux），macOS 走 NSFileManager trashItemAtURL（同 Electron），
+// Package trash：把文件 / 目录移到系统废纸篓。
+// 不用厂商 SDK：Linux 走 gio / kioclient，macOS 走 NSFileManager trashItemAtURL，
 // Windows 走 shell32 SHFileOperationW(FOF_ALLOWUNDO)。
 package trash
 

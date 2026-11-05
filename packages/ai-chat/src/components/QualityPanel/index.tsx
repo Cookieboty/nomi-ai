@@ -1,5 +1,5 @@
 /**
- * 设置 → 模型质量（docs/design/model-quality.md §5）：对比（多级对比表）/ 趋势 / 请求明细。
+ * 设置 → 模型质量（docs/development/gateway.md）：对比（多级对比表）/ 趋势 / 请求明细。
  * 一行工具栏（时间、口径层、层级、筛选芯片；右侧口径、刷新、导出、设置）；设置放进 ⚙ 弹层，不占内容区。
  * 数据来自主进程 QualityService（ai:quality:*）；只有元数据，全部只存本机。
  */

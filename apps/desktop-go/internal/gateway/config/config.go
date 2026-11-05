@@ -1,4 +1,4 @@
-// Package config mirrors apps/desktop-electron/internal/gateway/src/config.ts: the runtime snapshot
+// Package config: the runtime snapshot
 // the host builds from store.json (keys decrypted, memory only).
 package config
 
@@ -111,7 +111,7 @@ type RuntimeProvider struct {
 
 var memoMu sync.Mutex
 
-// Memo is the per-provider-object cache (WeakMap<RuntimeProvider, …> in Node).
+// Memo is the per-provider-object cache.
 func (p *RuntimeProvider) Memo() *sync.Map {
 	memoMu.Lock()
 	defer memoMu.Unlock()

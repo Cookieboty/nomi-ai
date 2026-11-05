@@ -1,6 +1,8 @@
 package delegate
 
-// worktree.ts：P3 委派 OS 隔离（轻量）：git worktree，避免并行子任务改同一工作区。
+// worktree.go：委派的工作目录。默认直接在源目录里改（同一仓库里的并发写由 claims.go 按文件、按优先级裁决）；
+// 只有明确指定了别的分支做基线、且那个分支不在当前分支的历史里时，才从它开一个 git worktree。
+// worktree 做完「落地」：改动少拷回当前工作区，改动多（或拷不回去的）提交到新分支 nomi/…，然后拆掉。
 
 import (
 	"bytes"
@@ -24,13 +26,22 @@ const MaxParallelDelegates = 3
 
 var pth = nodepath.Lib(nodepath.Platform())
 
-// IsolationHandle：{ kind, cwd, sourceCwd, gitRoot?, worktreePath?, note }（JSON 键序同 Node）
+// 隔离方式：worktree = 从别的分支开的 worktree；in-place = git 仓库里直接改；shared-cwd = 不是 git 仓库
+const (
+	IsoWorktree = "worktree"
+	IsoInPlace  = "in-place"
+	IsoShared   = "shared-cwd"
+)
+
+// IsolationHandle：{ kind, cwd, sourceCwd, gitRoot?, worktreePath?, baseBranch?, baseCommit?, note }（JSON 键序固定）
 type IsolationHandle struct {
 	Kind         string `json:"kind"`
 	Cwd          string `json:"cwd"`
 	SourceCwd    string `json:"sourceCwd"`
 	GitRoot      string `json:"gitRoot,omitempty"`
 	WorktreePath string `json:"worktreePath,omitempty"`
+	BaseBranch   string `json:"baseBranch,omitempty"`
+	BaseCommit   string `json:"baseCommit,omitempty"`
 	Note         string `json:"note"`
 }
 
@@ -43,15 +54,22 @@ func (h *IsolationHandle) Obj() *util.Obj {
 	if h.WorktreePath != "" {
 		o.Set("worktreePath", h.WorktreePath)
 	}
+	if h.BaseBranch != "" {
+		o.Set("baseBranch", h.BaseBranch)
+	}
+	if h.BaseCommit != "" {
+		o.Set("baseCommit", h.BaseCommit)
+	}
 	o.Set("note", h.Note)
 	return o
 }
 
-// 持久化的 isolation 原样读回（worktree.ts 只读这几个字段）
+// 持久化的 isolation 原样读回（只读这几个字段）
 func isolationFromObj(o *util.Obj) *IsolationHandle {
 	return &IsolationHandle{
 		Kind: util.Str(o.Get("kind")), Cwd: util.Str(o.Get("cwd")), SourceCwd: util.Str(o.Get("sourceCwd")),
-		GitRoot: util.Str(o.Get("gitRoot")), WorktreePath: util.Str(o.Get("worktreePath")), Note: util.Str(o.Get("note")),
+		GitRoot: util.Str(o.Get("gitRoot")), WorktreePath: util.Str(o.Get("worktreePath")),
+		BaseBranch: util.Str(o.Get("baseBranch")), BaseCommit: util.Str(o.Get("baseCommit")), Note: util.Str(o.Get("note")),
 	}
 }
 
@@ -172,20 +190,61 @@ func EnsureDelegateExclude(gitRoot string) {
 	_ = f.Close()
 }
 
-var emptyHeadRe = regexp.MustCompile(`(?i)invalid reference:` + `[\t\n\v\f\r \x{a0}\x{feff}\x{2028}\x{2029}\p{Zs}]*` + `HEAD|unknown revision|bad revision|ambiguous argument ['"]HEAD['"]`)
-
 func sharedCwd(sourceCwd string) *IsolationHandle {
-	return &IsolationHandle{Kind: "shared-cwd", Cwd: sourceCwd, SourceCwd: sourceCwd,
+	return &IsolationHandle{Kind: IsoShared, Cwd: sourceCwd, SourceCwd: sourceCwd,
 		Note: tr.T("electron.common.the-working-directory-is-not-a-git-repository") + tr.T("electron.common.hand-off-tasks-one-at-a-time-or")}
+}
+
+func inPlace(sourceCwd, root, base string) *IsolationHandle {
+	note := "直接在工作目录里改（同一仓库里并行的任务改到同一个文件时，按优先级让路）"
+	if base != "" {
+		note = "基线 " + base + " 就在当前分支的历史里，直接在工作目录里改"
+	}
+	return &IsolationHandle{Kind: IsoInPlace, Cwd: sourceCwd, SourceCwd: sourceCwd, GitRoot: root, BaseBranch: base, Note: note}
 }
 
 func existsSync(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// PrepareIsolation：git 仓库内新建 worktree（detached HEAD，`<sourceCwd>/.nomi-delegate/<id>`）；非 git → shared-cwd
-func PrepareIsolation(sourceCwd, taskKey string) (*IsolationHandle, error) {
+// resolveBase：基线分支 → 提交；own = 基线就是当前分支，或者它的提交已经在当前分支的历史里（不用另开 worktree）
+func resolveBase(root, base string) (commit string, own bool, err error) {
+	if base == "HEAD" {
+		return "", true, nil
+	}
+	if cur, e := git(root, "symbolic-ref", "--short", "-q", "HEAD"); e == nil && trim(cur) == base {
+		return "", true, nil
+	}
+	for _, ref := range []string{base, "origin/" + base} {
+		if out, e := git(root, "rev-parse", "--verify", "--quiet", ref+"^{commit}"); e == nil && trim(out) != "" {
+			commit = trim(out)
+			break
+		}
+	}
+	if commit == "" {
+		return "", false, fmt.Errorf("找不到基线分支 %s", base)
+	}
+	if _, e := git(root, "merge-base", "--is-ancestor", commit, "HEAD"); e == nil {
+		return commit, true, nil
+	}
+	return commit, false, nil
+}
+
+// PrepareIsolation：不是 git 仓库 → shared-cwd；没指定基线、或基线属于当前分支 → in-place（直接在源目录里改）；
+// 基线是别的分支 → 从它开 worktree（detached，`<sourceCwd>/.nomi-delegate/<id>`）
+func PrepareIsolation(sourceCwd, taskKey, baseBranch string) (*IsolationHandle, error) {
 	root := ResolveGitRoot(sourceCwd)
 	if root == "" {
 		return sharedCwd(sourceCwd), nil
+	}
+	base := trim(baseBranch)
+	if base == "" {
+		return inPlace(sourceCwd, root, ""), nil
+	}
+	commit, own, err := resolveBase(root, base)
+	if err != nil {
+		return nil, err
+	}
+	if own {
+		return inPlace(sourceCwd, root, base), nil
 	}
 	id := safeID(taskKey)
 	wt := pth.Join(pth.Resolve(sourceCwd), ".nomi-delegate", id)
@@ -199,16 +258,11 @@ func PrepareIsolation(sourceCwd, taskKey string) (*IsolationHandle, error) {
 			_, _ = git(root, "worktree", "prune")
 		}
 	}
-	if _, err := git(root, "worktree", "add", "--detach", wt, "HEAD"); err != nil {
-		msg := err.Error()
-		if emptyHeadRe.MatchString(msg) {
-			_ = os.RemoveAll(wt)
-			return sharedCwd(sourceCwd), nil
-		}
-		return nil, fmt.Errorf("无法创建委派 worktree：%s", msg)
+	if _, err := git(root, "worktree", "add", "--detach", wt, commit); err != nil {
+		return nil, fmt.Errorf("无法创建委派 worktree：%s", err.Error())
 	}
-	return &IsolationHandle{Kind: "worktree", Cwd: wt, SourceCwd: sourceCwd, GitRoot: root, WorktreePath: wt,
-		Note: "已在 git worktree 中隔离并行写入：" + wt}, nil
+	return &IsolationHandle{Kind: IsoWorktree, Cwd: wt, SourceCwd: sourceCwd, GitRoot: root, WorktreePath: wt,
+		BaseBranch: base, BaseCommit: commit, Note: "基于分支 " + base + " 在独立的 git worktree 里改：" + wt}, nil
 }
 
 // ReleaseIsolation：拆除 worktree；shared-cwd 无操作。失败只记日志。
@@ -302,4 +356,189 @@ func isMainPathClean(gitRoot, rel string) bool {
 		return false
 	}
 	return trim(out) == ""
+}
+
+// 落地的规模线：超过任一条就不往当前分支拷，整体提交到新分支
+const (
+	LandMaxFiles = 10
+	LandMaxLines = 400
+)
+
+// LandResult：worktree 落地的结果。Mode：applied = 拷回了当前工作区（拷不回去的另提交到 Branch）；
+// branch = 改动多，整体提交到了 Branch；none = 没有改动。Kept = worktree 留着（提交失败，改动还在里面）
+type LandResult struct {
+	Mode   string
+	Branch string
+	Apply  ApplyResult
+	Kept   bool
+	Err    string
+}
+
+func safeRel(rel string) bool {
+	return rel != "" && !strings.Contains(rel, "..") && !pth.IsAbsolute(rel)
+}
+
+// diffLines：暂存这些文件后的增删行数（二进制文件不计行）
+func diffLines(wt string, files []string) (int, error) {
+	if _, err := git(wt, append([]string{"add", "-A", "--"}, files...)...); err != nil {
+		return 0, err
+	}
+	out, err := git(wt, "diff", "--cached", "--numstat")
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, l := range crlfRe.Split(out, -1) {
+		f := strings.Fields(l)
+		if len(f) < 2 {
+			continue
+		}
+		var a, d int
+		_, _ = fmt.Sscanf(f[0], "%d", &a)
+		_, _ = fmt.Sscanf(f[1], "%d", &d)
+		n += a + d
+	}
+	return n, nil
+}
+
+var branchUnsafeRe = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
+
+func branchPart(s string) string {
+	p := strings.Trim(branchUnsafeRe.ReplaceAllString(s, "-"), "-.")
+	if len(p) > 40 {
+		p = strings.Trim(p[:40], "-.")
+	}
+	return p
+}
+
+// CommitToBranch：把 worktree 里这些文件的改动提交成一个新分支 nomi/<基线>-<id>（不跑钩子、不签名；
+// 没配身份时用 Nomi 的）。返回分支名
+func CommitToBranch(h *IsolationHandle, files []string, title string) (string, error) {
+	wt := h.WorktreePath
+	_, _ = git(wt, "reset", "-q")
+	if _, err := git(wt, append([]string{"add", "-A", "--"}, files...)...); err != nil {
+		return "", err
+	}
+	msg := "nomi: " + slice(trim(strings.SplitN(title, "\n", 2)[0]), 90)
+	if trim(title) == "" {
+		msg = "nomi: delegated changes"
+	}
+	args := []string{"-c", "commit.gpgsign=false", "commit", "-q", "--no-verify", "-m", msg}
+	if _, err := git(wt, args...); err != nil {
+		id := []string{"-c", "user.name=Nomi", "-c", "user.email=nomi@localhost"}
+		if _, err2 := git(wt, append(id, args...)...); err2 != nil {
+			return "", err2
+		}
+	}
+	base := branchPart(h.BaseBranch)
+	if base == "" {
+		base = "worktree"
+	}
+	name := "nomi/" + base + "-" + safeID(pth.Basename(wt))
+	for i := 2; ; i++ {
+		if _, err := git(h.GitRoot, "rev-parse", "--verify", "--quiet", "refs/heads/"+name); err != nil {
+			break
+		}
+		name = fmt.Sprintf("nomi/%s-%s-%d", base, safeID(pth.Basename(wt)), i)
+	}
+	if _, err := git(wt, "branch", name, "HEAD"); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+// LandWorktree：worktree 的改动落地：改动多（> LandMaxFiles 个文件或 > LandMaxLines 行）→ 整体提交到新分支；
+// 否则拷回当前工作区，拷不回去的（冲突、授权外、复制失败）提交到新分支。落地成功后拆掉 worktree。
+func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite func(dest string) bool) LandResult {
+	r := LandResult{Mode: "none", Apply: ApplyResult{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: []string{}}}
+	if h == nil || h.Kind != IsoWorktree || h.WorktreePath == "" || h.GitRoot == "" || !existsSync(h.WorktreePath) {
+		return r
+	}
+	files := []string{}
+	for _, f := range changed {
+		if safeRel(f) {
+			files = append(files, f)
+		} else {
+			r.Apply.Skipped = append(r.Apply.Skipped, f)
+		}
+	}
+	if len(files) == 0 {
+		ReleaseIsolation(h, nil)
+		return r
+	}
+	lines, err := diffLines(h.WorktreePath, files)
+	big := err != nil || len(files) > LandMaxFiles || lines > LandMaxLines
+	rest := files
+	if !big {
+		r.Mode = "applied"
+		ar := ApplyWorktreeToMain(h, files, mayWrite)
+		ar.Skipped = append(r.Apply.Skipped, ar.Skipped...)
+		r.Apply = ar
+		rest = []string{}
+		for _, f := range append(append(append([]string{}, ar.Conflicted...), ar.Denied...), ar.Skipped...) {
+			if safeRel(f) {
+				rest = append(rest, f)
+			}
+		}
+	} else {
+		r.Mode = "branch"
+	}
+	if len(rest) > 0 {
+		b, err := CommitToBranch(h, rest, title)
+		if err != nil {
+			r.Kept, r.Err = true, err.Error()
+			return r
+		}
+		r.Branch = b
+	}
+	ReleaseIsolation(h, nil)
+	return r
+}
+
+// IsDelegateWorktree：路径是委派开的 worktree（<目录>/.nomi-delegate/<id>）
+func IsDelegateWorktree(p string) bool {
+	return pth.Basename(pth.Dirname(p)) == ".nomi-delegate"
+}
+
+// SweepOrphanWorktrees：启动时清理没人认领的委派 worktree：keep(路径) 为真的留着（还在用的任务、用户接手的标签）；
+// 干净的直接拆，有改动的先提交到新分支再拆（提交不了就留着）。返回拆掉的路径
+func SweepOrphanWorktrees(roots []string, keep func(path string) bool, log func(string)) []string {
+	removed := []string{}
+	seen := map[string]bool{}
+	for _, r := range roots {
+		root := ResolveGitRoot(r)
+		if root == "" || seen[root] {
+			continue
+		}
+		seen[root] = true
+		out, err := git(root, "worktree", "list", "--porcelain")
+		if err != nil {
+			continue
+		}
+		for _, l := range crlfRe.Split(out, -1) {
+			p, ok := strings.CutPrefix(l, "worktree ")
+			if !ok || !IsDelegateWorktree(p) || (keep != nil && (keep(p) || keep(realPath(p)))) {
+				continue
+			}
+			h := &IsolationHandle{Kind: IsoWorktree, Cwd: p, SourceCwd: p, GitRoot: root, WorktreePath: p}
+			if existsSync(p) {
+				st, err := git(p, "status", "--porcelain", "--untracked-files=all")
+				if err != nil {
+					continue
+				}
+				if trim(st) != "" {
+					if _, err := CommitToBranch(h, []string{"."}, "unfinished delegated changes"); err != nil {
+						if log != nil {
+							log("keep orphan worktree " + p + ": " + err.Error())
+						}
+						continue
+					}
+				}
+			}
+			ReleaseIsolation(h, log)
+			removed = append(removed, p)
+		}
+		_, _ = git(root, "worktree", "prune")
+	}
+	return removed
 }

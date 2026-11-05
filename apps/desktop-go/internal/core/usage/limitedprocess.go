@@ -15,7 +15,7 @@ import (
 
 type ProcessFailureKind string
 
-// ProcessFailure mirrors class ProcessFailure（message = kind）。
+// ProcessFailure：受限子进程失败（message = kind）。
 type ProcessFailure struct{ Kind ProcessFailureKind }
 
 func (e *ProcessFailure) Error() string { return string(e.Kind) }

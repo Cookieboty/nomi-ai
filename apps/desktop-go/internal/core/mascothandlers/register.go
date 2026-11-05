@@ -1,5 +1,5 @@
-// Package mascothandlers 把批次 10（桌面角色 / 角色包 / 灵动岛）的契约过程挂到 Router。
-// 对应 apps/desktop-electron/internal/core/src/contract/mascot.ts（内核部分）与 apps/desktop-electron/src/host/contract/mascot.ts（宿主部分）。
+// Package mascothandlers 把桌面角色 / 角色包 / 灵动岛的契约过程挂到 Router
+// （契约 mascot 域，内核与宿主两部分）。
 package mascothandlers
 
 import (
@@ -50,8 +50,8 @@ type Deps struct {
 
 func bad(err error) error { return &contract.Error{Code: "BAD_INPUT", Message: err.Error()} }
 
-// Controller 持有桌面角色窗口的 mascot.Controller（= WindowManager.mascotController）：窗口建好时新建并 start，
-// 关闭时 dispose；重建窗口（rive → svg）同样换一个新控制器，与 Electron 新窗口一致。
+// Controller 持有桌面角色窗口的 mascot.Controller：窗口建好时新建并 start，
+// 关闭时 dispose；重建窗口（rive → svg）同样换一个新控制器。
 type Controller struct {
 	mu    sync.Mutex
 	d     Deps
@@ -239,7 +239,7 @@ func (c *Controller) WindowPosition() (int, int) {
 	return p.X, p.Y
 }
 
-// winAdapter = BrowserWindow（桌面角色窗口）；窗口不存在即 isDestroyed
+// winAdapter：桌面角色窗口；窗口不存在即 isDestroyed
 type winAdapter struct{ c *Controller }
 
 func (w *winAdapter) IsDestroyed() bool { _, _, ok := w.c.geom(); return !ok }
@@ -379,7 +379,7 @@ func Install(d Deps) *Controller {
 		})
 	}
 
-	// —— 渲染器设置（§5）
+	// —— 渲染器设置
 	call("mascot.getRenderer", func(json.RawMessage) (any, error) { return d.Settings.Get().Mascot.Renderer, nil })
 	call("mascot.setRenderer", func(raw json.RawMessage) (any, error) {
 		var in struct {
@@ -407,11 +407,7 @@ func Install(d Deps) *Controller {
 			return nil, unavailableSvc("persona")
 		}
 		p := d.Persona.Get()
-		t := d.T
-		if t == nil {
-			t = func(k string) string { return k }
-		}
-		return persona.DefaultSystemPrompt(&p, t), nil
+		return persona.DefaultSystemPrompt(&p), nil
 	})
 
 	// —— 聊天主面板背景

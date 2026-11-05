@@ -4,7 +4,7 @@ import { api, hasTransport } from './api';
 import { plainError } from './hostBackends/knowledge';
 /**
  * 本机管理客户端：本机模型（llama.cpp / Ollama）、数据导出——契约 `local.*` / `hub.*`
- * （docs/design/core-host-decoupling.md §12 P1b，原 `ai:local:*` / `ai:hub:*`）
+ * （docs/development/architecture.md，原 `ai:local:*` / `ai:hub:*`）
  */
 export type Fit = 'ok' | 'tight' | 'too-big';
 export interface Progress {

@@ -438,7 +438,7 @@ func (t *HTTPTransport) startInboundSse(resume string) {
 		return
 	}
 	// fetch() 同步发起、不阻塞调用方：GET 异步发出；随后的 POST（Send）先等它写上连接（有界），
-	// 保持与 Node 相同的到达顺序；紧接着的 close() 不等，直接 abort（与 Node 一样可能在写出前取消）
+	// 保持 GET 先到；紧接着的 close() 不等，直接 abort（可能在写出前取消）
 	ch := make(chan struct{})
 	var once sync.Once
 	t.mu.Lock()

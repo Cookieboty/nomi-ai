@@ -89,9 +89,9 @@ func PreviewPrivacy(text string, p *config.PrivacyConfig) (string, []*RedactionH
 	return r.Text, r.Hits
 }
 
-// GatewayPrivacy is GatewayPrivacy.
+// GatewayPrivacy masks secrets in request bodies.
 //
-// Node 单线程，Store 的查找→分配占位→更新索引天然是原子的；Go 的 net/http 每个连接一个
+// Store 的查找→分配占位→更新索引必须是原子的；Go 的 net/http 每个连接一个
 // goroutine，并发请求会同时 Mask，配置更新也会 Configure 同一个 Store，裸 map / 索引并发读写
 // 会让进程直接 fatal（#201）。mu 把 Configure / Mask 整段事务串起来；Mask 只做内存里的
 // 遍历替换，不碰网络，持锁时间与正文大小成正比。Store 只应在持 mu 时访问。

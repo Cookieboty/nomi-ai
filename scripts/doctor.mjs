@@ -51,29 +51,27 @@ if (!existsSync(path.join(root, 'node_modules'))) {
   bad('dependencies are not installed', 'pnpm install');
 } else {
   ok('node_modules present');
-  // 4. Electron 二进制（Electron 44 起不再在 postinstall 下载，首次运行时才下载）
-  try {
-    const pkgDir = path.dirname(require.resolve('electron/package.json'));
-    const ver = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')).version;
-    const pathTxt = path.join(pkgDir, 'path.txt');
-    const has =
-      existsSync(pathTxt) && existsSync(path.join(pkgDir, 'dist', readFileSync(pathTxt, 'utf8')));
-    if (has) ok(`Electron ${ver} binary`);
-    else {
-      console.log(`  … downloading Electron ${ver} binary for ${process.platform}/${process.arch}`);
-      const r = spawnSync(process.execPath, [path.join(pkgDir, 'install.js')], {
-        stdio: 'inherit',
-      });
-      if (r.status === 0) ok(`Electron ${ver} binary downloaded`);
-      else
-        bad(
-          'Electron binary download failed',
-          'check network / proxy (ELECTRON_MIRROR, HTTPS_PROXY), then: rm -rf node_modules/electron && pnpm install',
-        );
-    }
-  } catch {
-    bad('electron package not found', 'pnpm install');
-  }
+}
+
+// 4. Go 工具链（apps/desktop-go/go.mod 的 go 版本）
+{
+  const want = /^go (\d+)\.(\d+)/m.exec(
+    readFileSync(path.join(root, 'apps/desktop-go/go.mod'), 'utf8'),
+  );
+  // 在模块目录里问：GOTOOLCHAIN=auto 时 go 会按 go.mod 切到（必要时下载）所需版本
+  const r = spawnSync('go', ['env', 'GOVERSION'], {
+    cwd: path.join(root, 'apps/desktop-go'),
+    encoding: 'utf8',
+  });
+  const have = /go(\d+)\.(\d+)/.exec(r.stdout ?? '');
+  if (r.error || r.status !== 0 || !have)
+    bad('go not found on PATH', 'install Go from https://go.dev/dl/');
+  else if (want && newer([+have[1], +have[2], 0], [+want[1], +want[2], 0]) < 0)
+    bad(
+      `${r.stdout.trim()} is too old (apps/desktop-go/go.mod needs go ${want[1]}.${want[2]})`,
+      'install a newer Go from https://go.dev/dl/',
+    );
+  else ok(r.stdout.trim());
 }
 
 // 5. Tooling CLIs at workspace root (Windows pnpm .bin shims are fragile; scripts use run-bin.mjs)

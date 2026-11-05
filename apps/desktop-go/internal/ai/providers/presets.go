@@ -8,8 +8,8 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// presets_gen.json 由 scripts/parity/airuntime.mjs --gen 从 apps/desktop-electron/internal/ai-runtime/src/providers/presets.ts
-// 的 PROVIDER_PRESETS 原样导出（含 GATEWAY_EXT 合并后的结果，键序不变）；改预设请改 TS 后重新生成。
+// presets_gen.json 是内置供应商预设 PROVIDER_PRESETS（含 GATEWAY_EXT 合并后的结果，键序即展示顺序）；
+// 改预设直接改这个文件。
 //
 //go:embed presets_gen.json
 var presetsJSON []byte

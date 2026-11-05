@@ -48,8 +48,8 @@ func realpathNative(p string) (string, error) {
 	return s, nil
 }
 
-// readlinkNode = fs.readlinkSync：Go 与 libuv 都去掉 \??\ 前缀；junction 的 substitute name 结尾 \
-// 由 libuv 去掉（Windows CI golden 实测 Node 返回 `X:\dir` 不带结尾 \），Go os.Readlink 保留，这里同样去掉。
+// readlinkNode = fs.readlinkSync：去掉 \??\ 前缀；junction 的 substitute name 结尾的 \
+// 也去掉（Go os.Readlink 会保留），这样读回的 target 是 `X:\dir`，能与写入时的 target 直接比较。
 func readlinkNode(p string) (string, error) {
 	to, err := os.Readlink(p)
 	if err != nil {
@@ -71,7 +71,7 @@ func nodeStatMode(st os.FileInfo) float64 {
 
 func symlinkNode(target, link, kind string) error {
 	if kind == "junction" {
-		// Node：junction 目标先相对 link 所在目录 resolve
+		// junction 目标先相对 link 所在目录 resolve
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(link), target)
 		}
@@ -142,5 +142,5 @@ func utf16NoNul(s string) []uint16 {
 	return u[:len(u)-1]
 }
 
-// isJunction：Go ≥1.23 把 mount point（junction）报为 ModeIrregular；Node lstat 视其为 isSymbolicLink。
+// isJunction：Go ≥1.23 把 mount point（junction）报为 ModeIrregular；这里把它当作符号链接。
 func isJunction(st os.FileInfo) bool { return st.Mode()&os.ModeIrregular != 0 }

@@ -1,5 +1,5 @@
-// Package upstream mirrors apps/desktop-electron/internal/gateway/src/{ingress,fixes,customTools,
-// responseFixes,upstream,timeouts,cooldown,limits}.ts.
+// Package upstream: ingress, fixes, custom tools, response fixes, the upstream call,
+// timeouts, cooldowns and limits.
 package upstream
 
 import (
@@ -17,7 +17,7 @@ type Ingress struct {
 	CountTokens bool
 }
 
-// JSON is the TS object shape.
+// JSON is the JS object shape.
 func (i *Ingress) JSON() any {
 	if i == nil {
 		return nil

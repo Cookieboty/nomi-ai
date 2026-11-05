@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/core': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 fix(gateway): 导入供应商链接时，如果链接带了别的域名，就新建一个供应商，不再合并进已有的，避免已有的 Key 被发到新域名（#249）。

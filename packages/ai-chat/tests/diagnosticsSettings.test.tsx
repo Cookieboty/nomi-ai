@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 设置 → 隐私与权限 → 诊断日志（docs/design/cli-plugin-architecture.md §8.1）。
+ * 设置 → 隐私与权限 → 诊断日志（docs/development/coding-agents.md）。
  */
 import { cleanup, configure, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';

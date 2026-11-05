@@ -1,5 +1,5 @@
 /**
- * 设置 →「模型」→ 终端启动命令（docs/design/unified-gateway.md §12.6，默认关）。
+ * 设置 →「模型」→ 终端启动命令（docs/development/gateway.md，默认关）。
  * 打开后生成 ~/.nomi/bin/nomi-claude 等脚本；加 PATH 要改 shell 配置文件，先弹窗确认。
  * Windows 经确认后加入用户 PATH，关闭时只移除 Nomi 添加的项。
  */

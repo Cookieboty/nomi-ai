@@ -1,6 +1,6 @@
 package aisdk
 
-// Nomi 一轮进行中插入用户消息（= ai-runtime/tests/aiSdkSteer.test.ts）：放回每一步消息列表的位置，前缀标明是用户后来补充的。
+// Nomi 一轮进行中插入用户消息：放回每一步消息列表的位置，前缀标明是用户后来补充的。
 
 import (
 	"context"

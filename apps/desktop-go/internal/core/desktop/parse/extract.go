@@ -1,4 +1,4 @@
-// Package parse 对应 apps/desktop-electron/internal/core/src/desktop/parse：把本地文档抽成纯文本。
+// Package parse：把本地文档抽成纯文本。
 package parse
 
 import (
@@ -31,7 +31,7 @@ func ExtOf(p string) string {
 
 func IsSupported(p string) bool { e := ExtOf(p); return TextExts[e] || DocExts[e] }
 
-// Extracted 对应 Extracted（键序 text, mime, pages, pageTexts）
+// Extracted：抽取结果（键序 text, mime, pages, pageTexts）
 type Extracted struct {
 	Text      string   `json:"text"`
 	Mime      string   `json:"mime"`
@@ -95,7 +95,7 @@ func ExtractPdf(buf []byte) Extracted {
 	return Extracted{Text: strings.Join(texts, "\n\n"), Mime: "application/pdf", Pages: &n, PageTexts: texts}
 }
 
-// Extract 对应 extract；失败以 *Error panic 抛出，由 ParseFile 兜住
+// Extract：按类型抽取；失败以 *Error panic 抛出，由 ParseFile 兜住
 func Extract(buf []byte, filePath string) Extracted {
 	e := ExtOf(filePath)
 	switch {

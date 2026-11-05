@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// #197：GitCommit 把 nil 与 util.Undefined 都当未传（TS paths != null），只提交已暂存的；空数组仍 invalid。
+// #197：GitCommit 把 nil 与 util.Undefined 都当未传，只提交已暂存的；空数组仍 invalid。
 func TestGitCommitNullishPaths(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git missing")

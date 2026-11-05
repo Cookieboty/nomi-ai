@@ -1,7 +1,5 @@
 ---
-'@nomi-ai/core': minor
 '@nomi-ai/contract': minor
-'@nomi-ai/ai-runtime': minor
 '@nomi-ai/i18n': minor
 ---
 

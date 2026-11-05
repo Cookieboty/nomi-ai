@@ -1,12 +1,12 @@
 /**
- * 视图侧：`createClient(contract, transport)` → 类型化的 api（docs/design/core-host-decoupling.md §4.1）。
+ * 视图侧：`createClient(contract, transport)` → 类型化的 api（docs/development/contract.md）。
  *
  *   const api = createClient(contract, transport);
  *   await api.sessions.list();
  *   for await (const chunk of api.chat.stream(input, { signal })) …
  *   const off = api.on('usage.updated', (u) => …);
  *
- * 握手（§4.3）：默认第一次调用前自动调用 `meta.version`，major 不一致时所有调用都以
+ * 握手：默认第一次调用前自动调用 `meta.version`，major 不一致时所有调用都以
  * VERSION_MISMATCH 失败，不进入半可用状态；也可以 `handshake: 'manual'` 后自己 `await api.$connect()`。
  * 'auto' 模式下握手成功之前收到的事件先缓存（每个监听最多 EVENT_BUFFER_LIMIT 条），
  * 握手成功后按顺序投递，major 不一致时丢弃。

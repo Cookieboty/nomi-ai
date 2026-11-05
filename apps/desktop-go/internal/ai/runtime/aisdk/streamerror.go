@@ -12,7 +12,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// streamError.ts: describeStreamError — one short readable line for a stream error (#78).
+// describeStreamError: one short readable line for a stream error (#78).
 
 const maxErrLen = 500
 
@@ -161,7 +161,7 @@ func httpStatus(e any) (int, bool) {
 
 var httpPrefix = regexp.MustCompile(`(?i)^HTTP\s+\d{3}`)
 
-// DescribeStreamError: streamError.ts describeStreamError.
+// DescribeStreamError: one short readable line for a stream error.
 func DescribeStreamError(e any) string {
 	status, hasStatus := httpStatus(e)
 	body, hasBody := "", false

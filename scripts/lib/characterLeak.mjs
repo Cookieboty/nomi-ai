@@ -1,5 +1,5 @@
 /**
- * 角色名泄漏的判定规则（docs/design/core-host-decoupling.md §10.1、§11.2）。
+ * 角色名泄漏的判定规则（docs/character-pack/CONTRACT.md）。
  *
  * 「Nomi」同时是产品名和官方角色名。产品名可以出现在任何地方（应用名、「Nomi 对话」「Nomi 网关」……，
  * 统一来源是 `@nomi-ai/types` 的 `brand.appName`）；角色名只能来自角色包。所以这里判的是：

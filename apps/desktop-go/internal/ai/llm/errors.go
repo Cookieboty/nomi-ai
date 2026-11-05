@@ -50,7 +50,7 @@ type APICallError struct {
 	StatusCode        int // 0 = undefined
 	ResponseHeaders   map[string]string
 	ResponseBody      *string
-	// ResponseBodyValue, when set, is a non-string responseBody (Node passes
+	// ResponseBodyValue, when set, is a non-string responseBody (callers pass
 	// e.g. a parsed JSON value where a string is declared).
 	ResponseBodyValue any
 	IsRetryable       bool
@@ -93,7 +93,7 @@ func NewInvalidResponseDataError(data any, message string) *InvalidResponseDataE
 }
 
 // TypeValidationError: Value is the value that failed the (zod) schema.
-// Message detail after "Error message:" is our schema's issue text (D-B5-P-1).
+// Message detail after "Error message:" is our schema's issue text.
 type TypeValidationError struct {
 	Value any
 	Cause error
@@ -199,7 +199,7 @@ type NetError struct {
 func (e *NetError) Error() string { return e.Message }
 func (e *NetError) Name() string  { return "Error" }
 
-// ErrorJSON describes an error for goldens: { name, message, ...fields }.
+// ErrorJSON describes an error for test recordings: { name, message, ...fields }.
 func ErrorJSON(err error) *util.Obj {
 	if err == nil {
 		return nil

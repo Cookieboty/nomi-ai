@@ -1,8 +1,8 @@
 /**
- * 手动新建任务（§12 创建 2）：标题、目标、何时运行、谁来做、能用哪些能力；保存前弹授权卡片，确认后才创建。
+ * 手动新建任务（创建 2）：标题、目标、何时运行、谁来做、能用哪些能力；保存前弹授权卡片，确认后才创建。
  * 授权等级由所选能力推出（取最高），默认 30 天到期。
  * 编程助手执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
- * 对外动作（L4，connections.md §2）：GitHub 评论 / 开 PR 逐项勾选；本机 MCP 工具逐个勾选（只读之外的算对外动作）。
+ * 对外动作（L4，docs/features/scheduling-calendar.md）：GitHub 评论 / 开 PR 逐项勾选；本机 MCP 工具逐个勾选（只读之外的算对外动作）。
  */
 import {
   Button,
@@ -83,7 +83,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [cliPick, setCli] = useState('');
   const [cwd, setCwd] = useState('');
   const [cliShell, setCliShell] = useState(false);
-  // 事件触发（§6）：先只记录
+  // 事件触发：先只记录
   const [source, setSource] = useState<Source>('web');
   const [evUrl, setEvUrl] = useState('');
   const [evFeed, setEvFeed] = useState(false);
@@ -260,7 +260,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         : who === 'cli'
           ? { kind: 'cli' as const, cli, cwd, isolation: 'worktree' as const }
           : { kind: 'nomi' as const, tools };
-    // 授权卡片：目标、何时、谁来做、能力等级、期限、预算（§12）
+    // 授权卡片：目标、何时、谁来做、能力等级、期限、预算
     const card = [
       t('ui.providers-schedule.task-card-goal', goal.trim()),
       t(

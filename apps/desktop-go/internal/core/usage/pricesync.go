@@ -1,4 +1,4 @@
-// priceSync.ts 的移植：models.dev 数据同步（价格覆盖层）。
+// priceSync：models.dev 数据同步（价格覆盖层）。
 package usage
 
 import (
@@ -269,7 +269,7 @@ func SanitizeSyncedEntries(raw any) []PriceEntry {
 	return out.values()
 }
 
-// PriceEntryObj：按 Node 字面量键序输出（model, input, output, cacheRead?, cacheWrite?, tiers?, label?）
+// PriceEntryObj：按固定键序输出（model, input, output, cacheRead?, cacheWrite?, tiers?, label?）
 func PriceEntryObj(e PriceEntry) *util.Obj {
 	o := util.NewObj().Set("model", e.Model).Set("input", e.Input).Set("output", e.Output)
 	if e.CacheRead != nil {
@@ -348,7 +348,7 @@ func (c *psCache) obj() *util.Obj {
 		Set("tableDate", c.tableDate).Set("entries", es)
 }
 
-// PriceFetch：发请求（默认 = Node 全局 fetch(url, {redirect:'follow', credentials:'omit'}) 的 undici 语义）
+// PriceFetch：发请求（默认 = fetch(url, {redirect:'follow', credentials:'omit'}) 的 undici 语义）
 type PriceFetch func(req *http.Request) (*http.Response, error)
 
 // psClient：不让 net/http 自己跟随重定向（它会加 Referer、按「子域」规则保留凭据头、上限 10 跳），
@@ -358,7 +358,7 @@ var psClient = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) 
 // errFetchFailed：undici 网络错误（String(e) = "TypeError: fetch failed"）
 var errFetchFailed = jsrt.JSThrow{Name: "TypeError", Message: "fetch failed"}
 
-// psFetchDefaults：Node 全局 fetch 缺省补的请求头（大小写不敏感判断；规范名写入，否则 net/http 会再补自己的 User-Agent）
+// psFetchDefaults：undici fetch 缺省补的请求头（大小写不敏感判断；规范名写入，否则 net/http 会再补自己的 User-Agent）
 func psFetchDefaults(h http.Header) {
 	for _, kv := range [][2]string{{"accept", "*/*"}, {"accept-language", "*"}, {"sec-fetch-mode", "cors"}, {"user-agent", "node"}} {
 		found := false

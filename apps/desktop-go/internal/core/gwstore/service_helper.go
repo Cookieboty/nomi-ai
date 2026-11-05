@@ -1,7 +1,6 @@
 package gwstore
 
-// service_helper.go = GatewayService 的 servedSession / servedSessionRef / sessionOwner / helperRoute / helperComplete
-// （apps/desktop-electron/internal/core/src/gateway/GatewayService.ts）。golden：scripts/parity/record-gwcli.mjs「helpers」场景。
+// service_helper.go：GatewayService 的 servedSession / servedSessionRef / sessionOwner / helperRoute / helperComplete。
 
 import (
 	"bytes"
@@ -40,7 +39,7 @@ func (s *Service) ServedSessionRef(kind, sessionID string) string {
 	return ""
 }
 
-// sessionOwner：ok=false 即 Node 的 null
+// sessionOwner：ok=false 即 null
 func (s *Service) sessionOwner(kind, sessionID string) (any, bool) {
 	if kind != "claude" || sessionID == "" {
 		return nil, false
@@ -113,7 +112,7 @@ type HelperRoute struct {
 	Receiver HelperReceiver
 }
 
-// Obj：与 Node 返回值同形
+// Obj：返回值的 JSON 形状
 func (h *HelperRoute) Obj() *u.Obj {
 	if h == nil {
 		return nil

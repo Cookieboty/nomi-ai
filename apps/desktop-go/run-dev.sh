@@ -3,7 +3,7 @@
 #   ./run-dev.sh              构建前端 + Go，然后启动
 #   SKIP_FRONTEND=1 ./run-dev.sh   只改了 Go 代码时跳过前端构建
 #   SKIP_BUILD=1 ./run-dev.sh      不跑 turbo build，直接复制 renderer / ai-chat 现有的 dist
-#   视图热更新用 pnpm dev:go
+#   视图热更新用 pnpm dev
 #   ./run-dev.sh <参数…>       参数原样传给程序
 set -euo pipefail
 cd "$(dirname "$0")"

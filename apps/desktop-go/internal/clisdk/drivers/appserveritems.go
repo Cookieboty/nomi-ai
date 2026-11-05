@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// CodexTurnPolicy mirrors codexTurnPolicy。
+// CodexTurnPolicy：按权限模式与网络开关给出一轮的沙箱 / 审批策略。
 func CodexTurnPolicy(mode string, network bool) Json {
 	workspace := func() Json {
 		return O("type", "workspaceWrite", "writableRoots", []any{}, "networkAccess", network, "excludeTmpdirEnvVar", false, "excludeSlashTmp", false)
@@ -69,7 +69,7 @@ func optStr(k string, v any) kv {
 	return kv{k: k}
 }
 
-// CodexExecItem mirrors codexExecItem（nil = null 结果）。
+// CodexExecItem：命令执行条目 → 事件（nil = null 结果）。
 func CodexExecItem(item Json) Json {
 	id := optStr("id", item.Get("id"))
 	var status kv
@@ -151,7 +151,7 @@ func hasp(v any, k string) bool {
 	return false
 }
 
-// CodexApprovalSummary mirrors codexApprovalSummary。
+// CodexApprovalSummary：审批请求的摘要文案。
 func CodexApprovalSummary(method string, params Json) string {
 	c := func(s string) string { return clip(s, 200) }
 	if method == "item/commandExecution/requestApproval" {
@@ -173,7 +173,7 @@ func CodexApprovalSummary(method string, params Json) string {
 	return c("apply_patch: " + second)
 }
 
-// CodexTokenTotals mirrors CodexTokenTotals。
+// CodexTokenTotals：累计 token 数。
 type CodexTokenTotals struct{ InputTokens, CachedInputTokens, OutputTokens float64 }
 
 func finite(v any) float64 {
@@ -198,7 +198,7 @@ func CodexTokenTotalsOf(tokenUsage any) *CodexTokenTotals {
 	return &CodexTokenTotals{finite(t.Get("inputTokens")), finite(t.Get("cachedInputTokens")), finite(t.Get("outputTokens"))}
 }
 
-// CodexLastContext mirrors codexLastContext（nil = null）。
+// CodexLastContext：最近一次的上下文用量（nil = null）。
 func CodexLastContext(tokenUsage any) Json {
 	n := func(v any) (float64, bool) { return posNum(v) }
 	last := getp(tokenUsage, "last")
@@ -234,7 +234,7 @@ func CodexLastContext(tokenUsage any) Json {
 	return r
 }
 
-// CodexTurnUsage mirrors codexTurnUsage（nil = undefined）。
+// CodexTurnUsage：一轮的用量（前后累计之差，nil = undefined）。
 func CodexTurnUsage(before, after *CodexTokenTotals) Json {
 	if after == nil {
 		return nil

@@ -1,6 +1,6 @@
 package tasks
 
-// notify 执行者，对应 src/tasks/executors/notify.ts：到点发一条通知，通知本身就是结果。
+// notify 执行者：到点发一条通知，通知本身就是结果。
 
 type NotifyFunc func(title, text string)
 

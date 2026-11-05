@@ -1,6 +1,6 @@
 package usage
 
-// UsageLogScanner.ts 的 1:1 移植：读取本机编程工具自己的会话日志，补齐不经过 Nomi 的用量。
+// UsageLogScanner：读取本机编程工具自己的会话日志，补齐不经过 Nomi 的用量。
 
 import (
 	"crypto/sha1"
@@ -32,7 +32,7 @@ const (
 	dirCacheRacyMs  = 2000
 	fpBytes         = 256
 	// 一轮扫描读入超过这么多日志（首次 / 长时间未运行后的追赶扫描）就在结束时立刻把空闲堆还给系统：
-	// 会话日志逐行解析成 util.Obj 的峰值堆是读入量的数倍，扫描完即成垃圾，Go 的 scavenger 要几分钟才归还（同 D-B11-18）
+	// 会话日志逐行解析成 util.Obj 的峰值堆是读入量的数倍，扫描完即成垃圾，Go 的 scavenger 要几分钟才归还
 	freeOSMemoryAfterRead = 8 * 1024 * 1024
 )
 
@@ -85,7 +85,7 @@ func statOf(p string) os.FileInfo {
 
 func nowMs() float64 { return float64(time.Now().UnixMilli()) }
 
-// walkAsync：深度优先（Node 版的并发预取不改变结果顺序）。
+// walkAsync：深度优先。
 func walkAsync(dir string, pred func(name, full string) bool, depth int, since float64,
 	cache map[string]*dirListing, seen map[string]bool) []walkFile {
 	var files []string

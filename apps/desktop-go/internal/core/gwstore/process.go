@@ -1,9 +1,9 @@
 package gwstore
 
-// process.go = core/src/gateway/GatewayProcess.ts：网关进程守护（unified-gateway §5.3）。
+// process.go：网关进程守护（GatewayProcess，unified-gateway）。
 // 拉起网关、推送配置快照；意外退出按指数退避重启（1s、2s、4s…最长 30s）；
 // 60s 内 5 次失败熔断；whenReady 最长等 10 秒；lazy 时第一次 ensureStarted/whenReady 才拉起。
-// fork 可注入；默认 fork 在本进程内跑 server.RunGatewayWorker（偏差 D-B5-GW-1：Electron utilityProcess → goroutine）。
+// fork 可注入；默认 fork 在本进程内跑 server.RunGatewayWorker（goroutine）。
 
 import (
 	"fmt"
@@ -81,7 +81,7 @@ type GatewayProcess struct {
 	d            ProcessDeps
 	mu           sync.Mutex
 	child        GatewayChild
-	spawning     int // >0：已标 starting、fork 尚未执行（Node 单线程里 setStatus→fork 是同步的；这里把 fork 放到 onStatus 之后）
+	spawning     int // >0：已标 starting、fork 尚未执行（fork 放到 onStatus 之后）
 	spawnGen     int
 	config       *u.Obj
 	status       GatewayStatus
@@ -164,7 +164,7 @@ func (g *GatewayProcess) Apply(cfg *u.Obj) {
 	g.stopping = false
 	var after func()
 	if g.spawning > 0 {
-		// fork 马上执行并推送最新配置（等价于 Node 中 child 已存在时的 config 消息）
+		// fork 马上执行并推送最新配置（child 已存在时发 config 消息）
 	} else if g.child != nil {
 		c := g.child
 		after = func() { c.PostMessage(g.inbound(cfg)) }
@@ -230,7 +230,7 @@ func (g *GatewayProcess) WhenReady(timeout time.Duration) bool {
 	}
 	g.EnsureStarted()
 	g.mu.Lock()
-	// 判定与注册须在同一把锁内：Node 里 listening 是异步消息，不会插在 ensureStarted 与 push(waiter) 之间；
+	// 判定与注册须在同一把锁内：listening 不能插在 ensureStarted 与 push(waiter) 之间；
 	// 这里网关在别的 goroutine 上，可能在上面读状态之后、注册之前就已 setStatus(running) 并清空 waiter（#196）
 	if g.stopping {
 		g.mu.Unlock()
@@ -273,7 +273,7 @@ func (g *GatewayProcess) spawnLocked() func() {
 	g.spawning++
 	gen := g.spawnGen
 	return func() {
-		// Node 顺序：setStatus(starting) → fork → on(message/exit) → postMessage(config)
+		// 顺序：setStatus(starting) → fork → on(message/exit) → postMessage(config)
 		notify()
 		g.mu.Lock()
 		g.spawning--
@@ -507,7 +507,7 @@ func (p parentSide) OnMessage(fn func(m server.WorkerOutbound)) {
 	}
 }
 
-// WaitExit：等网关循环结束（Node 的子进程在 stop 后自行退出、落盘不占父进程；进程内实现须等它，
+// WaitExit：等网关循环结束（进程内实现须等它，
 // 否则 Dispose 返回后 goroutine 仍在写用户数据目录）
 func (p parentSide) WaitExit(timeout time.Duration) bool {
 	select {
@@ -535,7 +535,7 @@ func (p parentSide) Kill() bool {
 	return true
 }
 
-// InProcessFork：在本进程内跑网关消息循环（worker.ts 的 runGatewayWorker）。
+// InProcessFork：在本进程内跑网关消息循环（runGatewayWorker）。
 // 网关循环 panic 时按进程异常退出（code 1）上报，走同样的退避 / 熔断。
 func InProcessFork(hooks server.GatewayHooks) ForkGateway {
 	return func() GatewayChild {

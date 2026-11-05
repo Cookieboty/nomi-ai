@@ -1,6 +1,6 @@
 package igtools
 
-// tools.ts 的补充文件工具：fs_edit / fs_mkdir / fs_move / fs_copy，以及新建时补建上级文件夹、授权提示
+// 补充的文件工具：fs_edit / fs_mkdir / fs_move / fs_copy，以及新建时补建上级文件夹、授权提示
 
 import (
 	"bytes"
@@ -219,7 +219,7 @@ const editConflict = "文件在等待确认期间被其他程序改过（例如�
 // editBeforeTrash 只给测试用：模拟「重读比对之后、移入回收站之前」的外部写入
 var editBeforeTrash func(path string)
 
-// commitEditSource 是 fs_edit 的提交前版本核对（同 tools.ts 的 commitEditSource）：
+// commitEditSource 是 fs_edit 的提交前版本核对：
 // 确认可能等很久，期间用户可能在编辑器里保存了同一文件。
 //  1. 重读比对内容哈希，与确认前读到的不同就报 conflict，什么都不动；
 //  2. 把文件移入应用回收站（同盘 rename，原子），再核对被移走的正是比对过的版本——

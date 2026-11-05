@@ -15,8 +15,8 @@ type GatewayInfo interface {
 	ProviderInfo(id string) *u.Obj
 }
 
-// DesktopRuntimeHooks = createCore.ts desktop.attachRuntime({ resolveProvider, lookupProvider, complete })
-// 与 AIRuntimeBoot.resolveProvider / lookupProvider 一致。
+// DesktopRuntimeHooks：desktop.attachRuntime({ resolveProvider, lookupProvider, complete }) 的实现，
+// resolveProvider / lookupProvider 与 AI runtime 的同名方法一致。
 func DesktopRuntimeHooks(svc *providers.Service, reg *providers.RoutedLLMRegistry, gw GatewayInfo,
 	send func(ctx context.Context, role string, msgs []blm.ChatMessage) (string, error)) *desktop.RuntimeHooks {
 	str := func(v any) string { s, _ := v.(string); return s }

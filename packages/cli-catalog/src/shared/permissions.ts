@@ -1,5 +1,5 @@
 /**
- * 权限档位的共用部分（设计与真机查证见 docs/design/cli-permission-modes.md）：
+ * 权限档位的共用部分（设计与真机查证见 docs/development/coding-agents.md）：
  * Nomi 统一五档；各 CLI 的原生参数 / mode id 在各自插件里，这里只有与 CLI 无关的规则。
  * 纯数据与纯函数，渲染进程也能用。
  */

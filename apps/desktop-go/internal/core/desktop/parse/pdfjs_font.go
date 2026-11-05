@@ -13,7 +13,7 @@ import (
 
 // pdf.js v6.1.200 字体装载（evaluator.js translateFont / extractDataStructures /
 // extractWidths / buildToUnicode，fonts.js _charToGlyph / charsToGlyphs / _spaceWidth）
-// 中与文本抽取相关的部分。不解析字体程序本身（见 D-B6-8 残余项）。
+// 中与文本抽取相关的部分。不解析字体程序本身。
 
 type pdfjsFontMetrics struct {
 	defaultWidth float64
@@ -442,7 +442,7 @@ func pdfjsReadToUnicode(v pdf.Value) *pdfjsToUnicode {
 		if n := v.Name(); n == "Identity-H" || n == "Identity-V" {
 			return &pdfjsToUnicode{identity: true, first: 0, last: 0xffff, length: 0x10000}
 		}
-		return nil // 预定义 CMap（bcmap）未内置：D-B6-8 残余项
+		return nil // 预定义 CMap（bcmap）未内置
 	case pdf.Stream:
 		data, ok := readAllValue(v)
 		if !ok {
@@ -887,7 +887,7 @@ func pdfjsBuildToUnicode(p *pdfjsFontProps) *pdfjsToUnicode {
 		}
 		return &pdfjsToUnicode{m: m, length: l}
 	}
-	// 预定义 CJK CMap / Adobe-GB1 等 UCS2 映射需要 bcmap 数据：未内置（D-B6-8 残余项），回退为 Identity
+	// 预定义 CJK CMap / Adobe-GB1 等 UCS2 映射需要 bcmap 数据：未内置，回退为 Identity
 	return &pdfjsToUnicode{identity: true, first: p.firstChar, last: p.lastChar, length: p.lastChar + 1 - p.firstChar}
 }
 
@@ -964,7 +964,7 @@ func pdfjsTranslateFont(typ string, dict, baseDict, descriptor pdf.Value, compos
 			case "Identity-V":
 				p.cmap = &pdfjsCMap{identity: true, builtIn: true, vertical: true, ranges: [4][]uint32{nil, {0, 0xffff}}}
 			default:
-				return pdfjsErrorFont() // 预定义 CMap 未内置（D-B6-8 残余项）
+				return pdfjsErrorFont() // 预定义 CMap 未内置
 			}
 		case pdf.Stream:
 			b, ok := readAllValue(enc)

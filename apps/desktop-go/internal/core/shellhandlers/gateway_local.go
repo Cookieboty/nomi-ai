@@ -1,6 +1,6 @@
 package shellhandlers
 
-// LocalGateway：createCore 的 `gateway: () => services.gateway ?? null` 交给 LocalModelService（D-B8-2）。
+// LocalGateway：交给 LocalModelService 的网关（没有网关服务时为 null）。
 // providers 取 gw.state().providers（含环境变量视图），useAsChat = setAssignment('nomi', {models:{main}})。
 
 import (

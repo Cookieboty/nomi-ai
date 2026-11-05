@@ -1,5 +1,5 @@
-// Package nodefs 把 Go 文件系统错误翻译成 Node（libuv）的错误码与 Error.message，
-// 各平台共用（Windows 的 Win32 错误按 uv_translate_sys_error 映射），供所有移植代码复刻 Node 文案。
+// Package nodefs 把 Go 文件系统错误翻译成 Node（libuv）风格的错误码与 Error.message，
+// 各平台共用（Windows 的 Win32 错误按 uv_translate_sys_error 映射），供需要 Node 风格文案的代码使用。
 package nodefs
 
 import (
@@ -63,8 +63,8 @@ func ReadFileError(err error, p string) string {
 }
 
 // RmForce = fs.rmSync(p, {recursive:true, force:true})，错误被吞（调用方本就 try/catch）。
-// Windows：刚被 kill 的子进程仍以该目录为 cwd 时句柄释放有延迟，Node 的 TerminateProcess 是同步的；
-// 这里对共享冲突 / 拒绝访问短暂重试（≤1s）以得到与 Node 相同的结果。
+// Windows：刚被 kill 的子进程仍以该目录为 cwd 时句柄释放有延迟；
+// 这里对共享冲突 / 拒绝访问短暂重试（≤1s），等句柄释放后再删。
 func RmForce(p string) error {
 	err := os.RemoveAll(p)
 	if runtime.GOOS != "windows" {
@@ -82,7 +82,7 @@ func RmForce(p string) error {
 }
 
 // MkdirpMessage = fs.mkdirSync(dir, {recursive:true}) 抛出的 message。
-// Node 的 MKDirpSync 遇到 ENOENT 会逐级向上建目录，父级是已存在的普通文件时报 ENOTDIR（Windows 上
+// MKDirpSync 遇到 ENOENT 会逐级向上建目录，父级是已存在的普通文件时报 ENOTDIR（Windows 上
 // Win32 给的是 PATH_NOT_FOUND；POSIX 本就是 ENOTDIR），path 仍是原始 dir。
 func MkdirpMessage(err error, dir string) string {
 	if Code(err) == "ENOENT" {

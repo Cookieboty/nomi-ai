@@ -103,7 +103,7 @@ func PassthroughFail(wire, message string) string {
 	return sse.Format("response.failed", o)
 }
 
-// TerminalWatch is canonical/terminal.ts TerminalWatch (lives in stream to avoid an import cycle; D18).
+// TerminalWatch watches for the terminal event (lives in stream to avoid an import cycle with canonical).
 type TerminalWatch struct {
 	parser sse.Parser
 	dec    events.Decoder
@@ -134,7 +134,7 @@ func (t *TerminalWatch) Terminated() bool {
 	return t.dec.Terminated()
 }
 
-// WithFixes fills ConvertOptions from opts.fixes (ConvertOptions.fixes in Node):
+// WithFixes fills ConvertOptions from opts.fixes:
 // the call-id seed, a stream EventFixer, and the JSON-path fixEvents (repetition off).
 func WithFixes(base ConvertOptions, o *resp.FixOptions) ConvertOptions {
 	if o == nil {

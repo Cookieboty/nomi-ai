@@ -1,4 +1,4 @@
-// Package mascot 对应 apps/desktop-electron/internal/core/src/mascot（mascotSize.ts）：桌面角色窗口大小的纯函数，逐行照抄。
+// Package mascot：桌面角色窗口（大小的纯函数、窗口控制器、桌面物理）。
 package mascot
 
 import "math"

@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// Produce = coalescedWriter.ts Produce：写入时才生成内容。
+// Produce：写入时才生成内容。
 type Produce func() (string, error)
 
 var (
@@ -23,8 +23,8 @@ type inflightWrite struct {
 	g    int
 }
 
-// FileWriter = utils/coalescedWriter.ts CoalescedWriter（按文件去抖、合并、原子写）。
-// 与 Node 一样只在 jsrt 线程上调用；异步写在 goroutine 里做，rename 前按代次判断是否已被更新的写覆盖。
+// FileWriter：按文件去抖、合并、原子写（CoalescedWriter）。
+// 只在 jsrt 线程上调用；异步写在 goroutine 里做，rename 前按代次判断是否已被更新的写覆盖。
 type FileWriter struct {
 	mu       sync.Mutex
 	delay    time.Duration

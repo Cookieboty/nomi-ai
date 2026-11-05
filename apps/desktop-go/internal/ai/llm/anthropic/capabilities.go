@@ -17,7 +17,7 @@ type capabilities struct {
 	isKnownModel                           bool
 }
 
-// getModelCapabilities mirrors anthropic-language-model.ts getModelCapabilities
+// getModelCapabilities follows @ai-sdk/anthropic's getModelCapabilities
 // (first match on substring; regex arms hand-written since Go RE2 has no lookahead).
 func getModelCapabilities(id string) capabilities {
 	has := func(s string) bool { return strings.Contains(id, s) }

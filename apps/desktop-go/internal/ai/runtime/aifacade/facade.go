@@ -1,5 +1,5 @@
-// Package aifacade：ai-runtime AIClient 的 sessions / tools / memory / asr / tts / avatar 门面
-// （ai.chat.* 由 airouter 承担）。32 个契约过程逐字对齐 Node：入参 zod 校验失败 = BAD_INPUT
+// Package aifacade：AI 客户端的 sessions / tools / memory / asr / tts / avatar 门面
+// （ai.chat.* 由 airouter 承担）。32 个契约过程：入参 zod 校验失败 = BAD_INPUT
 // "Invalid input"，出参失败 = BAD_OUTPUT，AIClientError = "[CODE|0] msg"，普通 Error = INTERNAL。
 package aifacade
 
@@ -457,7 +457,7 @@ func (f *Facade) summariesPut(in any) (any, error) {
 	return o, nil
 }
 
-// PutFact / DeleteFact / PutSummary：主进程的记忆服务直接写（同 Node client.memory.facts.put / delete、summaries.put）
+// PutFact / DeleteFact / PutSummary：主进程的记忆服务直接写（等同 memory.facts.put / delete、summaries.put）
 func (f *Facade) PutFact(o *u.Obj) { _, _ = f.factsPut(o) }
 
 func (f *Facade) DeleteFact(id string) bool {
@@ -574,5 +574,5 @@ func (f *Facade) AvatarEmotion(name string, weight *float64) error {
 // Profile：UserProfileKey 实例（nil = 未装）
 func (f *Facade) Profile() *ProfileStore { return f.o.Profile }
 
-// ToolsList = ai.tools.list（igtools parity 回放 ToolSpec 用）
+// ToolsList = ai.tools.list（测试回放 ToolSpec 用）
 func (f *Facade) ToolsList() (any, error) { return f.toolsList(nil) }
