@@ -153,12 +153,17 @@ func (s *Service) ImportLinkedProvider(p providerlink.Provider) (*u.Obj, bool, e
 	return view, true, err
 }
 
-// PriceAlias = priceAlias(model, provider?)：第三方供应商里用户设的「按哪个已知模型处理」（like）。
-// provider 给了按那家查；没给时按模型名查，各家设得一致才用。锁外读已发布快照
+// PriceAlias：第三方供应商里用户设的「按哪个已知模型处理」（like），用于计价。
+// provider 给了按那家查；没给时按模型名查，各家设得一致才用。锁外读已发布快照。
+//
+// 用量账本记的是实际请求上游的模型名：配了 modelMap（公开名 → 上游名）时，那是映射后的上游名，
+// 这里在这家的 modelMap 里反查回公开名再取 like（#256）。多个公开名映射到同一个上游名、like 又不一致
+// （或有的没设）时不猜，返回 ""（按未定价处理）
 func (s *Service) PriceAlias(model, provider string) string {
 	bare := func(x string) string { return strings.ToLower(x[strings.LastIndex(x, "/")+1:]) }
 	want := bare(model)
 	hit := func(p *u.Obj) string {
+		likeOf := map[string]string{} // 模型 id（小写）→ like
 		ms, _ := p.Get("models").([]any)
 		for _, raw := range ms {
 			m := asObj(raw)
@@ -167,8 +172,28 @@ func (s *Service) PriceAlias(model, provider string) string {
 			}
 			id, _ := strOf(m.Get("id"))
 			lk, _ := m.Get("like").(string)
-			if strings.TrimSpace(lk) != "" && bare(id) == want {
-				return strings.TrimSpace(lk)
+			likeOf[bare(id)] = strings.TrimSpace(lk)
+		}
+		if lk := likeOf[want]; lk != "" {
+			return lk
+		}
+		// 上游名 → 映射到它的公开名
+		likes := map[string]bool{}
+		mm, _ := p.Get("modelMap").([]any)
+		for _, raw := range mm {
+			e := asObj(raw)
+			if e == nil {
+				continue
+			}
+			from, _ := strOf(e.Get("from"))
+			to, _ := strOf(e.Get("to"))
+			if from != "" && bare(to) == want {
+				likes[likeOf[bare(from)]] = true
+			}
+		}
+		if len(likes) == 1 {
+			for lk := range likes {
+				return lk // 唯一且一致（"" = 公开名没设 like）
 			}
 		}
 		return ""
