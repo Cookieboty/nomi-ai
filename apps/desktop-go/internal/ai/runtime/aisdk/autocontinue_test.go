@@ -86,9 +86,71 @@ func TestProviderAutoContinueCapped(t *testing.T) {
 		}); err != nil {
 		t.Fatal(err)
 	}
-	// 1 轮 + 续 1 轮，之后停下（finish 仍是 tool_calls）
+	// 1 轮 + 续 1 轮，之后停下（finish 仍是 tool_calls），并在回复末尾说明停下了
 	if len(s.Seen()) != 2 || finish != "tool_calls" {
 		t.Fatalf("requests %d finish %q", len(s.Seen()), finish)
+	}
+}
+
+// 用户拒绝了一次工具：步数用完也不自动续跑（免得模型换个方式反复弹确认），回复末尾说明停下
+func TestProviderAutoContinueStopsAfterDenial(t *testing.T) {
+	s, err := mockllm.StartScripted(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.Set([]mockllm.Step{toolCallStep("c1"), toolCallStep("c2")})
+	steps := 1
+	p, err := NewProvider(Options{ID: "test", BaseURL: "http://" + s.HostPort, APIKey: "k", DefaultModel: "m", MaxSteps: &steps}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defs := []tools.Definition{{Name: "look", Description: "look", Execute: func(context.Context, any, tools.ExecContext) (any, error) {
+		return map[string]any{"ok": false, "error": map[string]any{"code": "user_denied", "message": "no"}}, nil
+	}}}
+	text := ""
+	if err := p.WithTools(defs).Stream(context.Background(), &blm.ChatRequest{ReqID: "r", Messages: []blm.ChatMessage{{Role: "user", Content: "hi"}}},
+		func(c blm.ChatChunk) {
+			if c.Type == "delta" {
+				text += c.Content
+			}
+		}); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Seen()) != 1 || text == "" {
+		t.Fatalf("requests %d notice %q", len(s.Seen()), text)
+	}
+}
+
+// 累计 token 超过上限：不再自动续跑
+func TestProviderAutoContinueStopsOverTokenBudget(t *testing.T) {
+	s, err := mockllm.StartScripted(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	old := MaxAutoContinueTokens
+	MaxAutoContinueTokens = 0
+	defer func() { MaxAutoContinueTokens = old }()
+	usage := `{"id":"c1","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11}}`
+	step := toolCallStep("c1")
+	step.SSE = sse(`{"id":"c1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"look","arguments":"{}"}}]}}]}`,
+		`{"id":"c1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`, usage)
+	s.Set([]mockllm.Step{step, toolCallStep("c2")})
+	steps := 1
+	p, err := NewProvider(Options{ID: "test", BaseURL: "http://" + s.HostPort, APIKey: "k", DefaultModel: "m", MaxSteps: &steps}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defs := []tools.Definition{{Name: "look", Description: "look", Execute: func(context.Context, any, tools.ExecContext) (any, error) {
+		return "seen", nil
+	}}}
+	if err := p.WithTools(defs).Stream(context.Background(), &blm.ChatRequest{ReqID: "r", Messages: []blm.ChatMessage{{Role: "user", Content: "hi"}}},
+		func(blm.ChatChunk) {}); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Seen()) != 1 {
+		t.Fatalf("requests %d, want 1 (stopped by token budget)", len(s.Seen()))
 	}
 }
 
