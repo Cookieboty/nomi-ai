@@ -49,6 +49,8 @@ func TestToolGates(t *testing.T) {
 		{"task_recall", "之前那个任务跑得怎么样", true, ""},
 		{"task_recall", "海报做好了没", true, ""},
 		{"task_recall", "讲个笑话", false, ""},
+		// 兜底：用户的说法没命中、助手回复里提议了「持续任务」→ 下一轮带上（ConvoText 含助手的话）
+		{"task_propose", "这个周报能不能帮我弄成固定的 这个可以设成持续任务，要我起草吗？", true, ""},
 	}
 	for _, c := range cases {
 		d := WithGate(tools.Definition{Name: c.name})
