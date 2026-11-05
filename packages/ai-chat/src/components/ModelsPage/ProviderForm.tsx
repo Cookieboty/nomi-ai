@@ -159,13 +159,15 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
         models: rows,
         enabled: defaultEnabled(rows),
       });
+      // 已经保存了：父组件的后续动作（Nomi 对话还没模型时填上推荐的）总要做。添加第一个供应商时，内核推来的
+      // providers.changed 可能先于这里返回，内联的表单随之卸载（opGen 变了），不能因此跳过
+      onSaved(saved);
       if (gen !== opGen.current) return;
       setPreset(undefined);
       setKey('');
       setUrl('');
       setName('');
       setTestModel('');
-      onSaved(saved);
     } catch (e) {
       if (gen !== opGen.current) return;
       setError((e as Error).message);

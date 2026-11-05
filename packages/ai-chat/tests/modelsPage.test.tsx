@@ -74,6 +74,8 @@ const okDetect = (url: string): DetectResult => ({
 function fakeMain(
   o: {
     detect?: (input: Record<string, unknown>) => DetectResult | Promise<DetectResult>;
+    /** upsertProvider 推完 gateway.changed 之后、返回之前等它（模拟内核的变更事件先于调用结果到达） */
+    beforeUpsertReturns?: () => Promise<void>;
 
     extra?: Record<string, (i: any) => unknown>;
   } = {},
@@ -130,6 +132,7 @@ function fakeMain(
         };
         state.providers = [...state.providers.filter((x) => x.id !== id), p];
         changed();
+        await o.beforeUpsertReturns?.();
         return p;
       }
       case 'gateway.clearLearned':
@@ -333,6 +336,17 @@ describe('ModelsPage', () => {
     await waitFor(() => expect(m.state.clients.nomi!.models.image).toBe('kimi/gpt-image-2'));
     fireEvent.change(screen.getByTestId('assign-image'), { target: { value: 'unset' } });
     await waitFor(() => expect(m.state.clients.nomi!.models.image).toBeUndefined());
+  });
+
+  it('first provider: the chat model is filled in even when the change event arrives before the save returns', async () => {
+    // 内联表单在有了供应商后卸载；保存结果晚到时也要给 Nomi 对话填上推荐模型
+    const m = fakeMain({
+      beforeUpsertReturns: () =>
+        waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull()),
+    });
+    render(<ModelsPage />);
+    await addFlow('deepseek', 'sk-aaaa1111');
+    await waitFor(() => expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro'));
   });
 
   it('adding another provider keeps the chat model already chosen', async () => {

@@ -271,6 +271,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **slash:** `/plugins` (and `/skills`, `/mcp`) in a Nomi conversation shows Nomi's own Skills and MCP servers again instead of the "dsh has no public directory" message (#143). (`@nomi-ai/ai-chat` patch)
 - **tasks:** 事件触发的任务在重试、续跑或退回修改后，仍按读过外部内容来审批写入和命令（#250）。 (`@nomi-ai/desktop-go` patch)
 - **tasks:** 委派的编程助手报错、任务失败后，自动删除它的 worktree（已接管的除外），不再越积越多。 (`@nomi-ai/desktop-go` patch)
+- **tasks:** 打开还没运行过的任务的详情时报「Invalid output of 'tasks.get'」：执行记录为空时内核返回了 null，现在返回空列表。/ Opening a task that has never run no longer fails with "Invalid output of 'tasks.get'": an empty run history is returned as an empty list instead of null. (`@nomi-ai/desktop-go` patch)
 - **tasks:** 新建任务的表单改为左右两栏并可限定允许访问的文件夹，后台任务的文件工具只在这些文件夹里，收窄授权立即生效；Nomi 任务固定用预设模型；准备 worktree 时取消 / 撤销会生效；重试与续跑保留触发它的事件；事件轮询有上限；Go 版任务快照保存失败时直接失败。 (`@nomi-ai/desktop-go` patch)
 - **tray:** after switching between two recent models with the same display name (for example the same model under two providers), clicking a tray entry selects the model it shows again instead of the one the menu had before (#212). (`@nomi-ai/desktop-go` patch)
 - **tts:** a stale TTS request that fails late no longer stops or revokes the sentence that is currently playing; each sentence owns its audio / url / audio graph, and a cancel during `AudioContext.resume()` no longer attaches the envelope or plays. (`@nomi-ai/renderer` patch)
@@ -317,6 +318,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复用户导入 / 商店下载的 VRM 诺米无法加载（`cdmodel://` 协议被后注册的 `chat-asset://` 特权声明覆盖，现统一一次性注册）；Rive 诺米启动失败（wasm / 场景加载失败或 20 秒未就绪）时自动回退到分层 2D 渲染器，并补上 `mascot-model-loaded` 就绪信号；修复滚轮缩放诺米时脚底锚点漂移（上报给主进程的包围盒落后一次窗口缩放）。 (`@nomi-ai/renderer` patch)
 - 光标移出诺米后立刻停住时，窗口会一直保持可点击（离开去抖没有后续事件来结算），现在去抖在无新事件时也会继续结算，透明区域恢复点击穿透；Grok 生成图片的 session 根目录改按 realpath 比较（macOS 下 HOME 经 /var → /private/var 符号链接时图片被误拒）。 (`@nomi-ai/renderer` patch)
 - 应用启动后的第一个 Nomi 对话在回复过程中会显示状态行与用时，不再被当成已完成（显示「重新生成」）。新手引导里填本机 / 局域网地址时，「允许访问吗？」确认框盖在引导页之上，不再卡在「正在检测…」。被拒绝或被拦下的工具调用（工具返回 `ok: false`）在时间线上显示为失败。素材库查看器里删除、下载、在文件夹中显示失败时显示原因（删除失败不再当成已删除）；生成时间按界面语言显示；模型显示为「供应商名称 / 模型」。 (`@nomi-ai/ai-chat` patch)
+- 添加第一个第三方供应商后，Nomi 对话的模型没有自动填上推荐模型（内核的变更通知先于保存结果到达时，添加表单已经收起，跳过了这一步）。/ After adding the first third-party provider, Nomi's chat model is filled in with the recommended model again (it was skipped when the change notification arrived before the save returned). (`@nomi-ai/ai-chat` patch)
 
 ### Performance
 
