@@ -1273,6 +1273,14 @@ type ChatAssetsListOutputItem struct {
 	ConversationId *string  `json:"conversationId,omitempty"`
 }
 
+type ChatAssetsLocalImageInput struct {
+	Src string `json:"src"`
+}
+
+type ChatAssetsLocalImageOutput struct {
+	DataUrl string `json:"dataUrl"`
+}
+
 type ChatAssetsRegenerateInput struct {
 	File string `json:"file"`
 }
@@ -8005,6 +8013,10 @@ type ChatAssetsImportOutputT = ChatAssetsImportOutput
 // ChatAssetsListInputT 是 chatAssets.list 的入参
 type ChatAssetsListInputT = any
 type ChatAssetsListOutputT = []ChatAssetsListOutputItem
+
+// ChatAssetsLocalImageInputT 是 chatAssets.localImage 的入参
+type ChatAssetsLocalImageInputT = ChatAssetsLocalImageInput
+type ChatAssetsLocalImageOutputT = *ChatAssetsLocalImageOutput
 
 // ChatAssetsRegenerateInputT 是 chatAssets.regenerate 的入参
 type ChatAssetsRegenerateInputT = ChatAssetsRegenerateInput

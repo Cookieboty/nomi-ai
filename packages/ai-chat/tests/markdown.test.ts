@@ -89,5 +89,13 @@ describe('Markdown link / image sanitisation', () => {
     expect(urlTransform('javascript:alert(1)', 'href', { tagName: 'a' })).toBe('');
     expect(urlTransform('http://cdn/x.png', 'src', { tagName: 'img' })).toBe('');
     expect(urlTransform('http://a.dev', 'href', { tagName: 'a' })).toBe('http://a.dev');
+    // 本机路径原样交给 MarkdownImage（由内核校验后读取）；链接里的 file: 仍拒绝
+    expect(urlTransform('/Users/me/proj/auth-qr.png', 'src', { tagName: 'img' })).toBe(
+      '/Users/me/proj/auth-qr.png',
+    );
+    expect(urlTransform('file:///tmp/qr.png', 'src', { tagName: 'img' })).toBe(
+      'file:///tmp/qr.png',
+    );
+    expect(urlTransform('file:///tmp/qr.png', 'href', { tagName: 'a' })).toBe('');
   });
 });

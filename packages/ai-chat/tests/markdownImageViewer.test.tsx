@@ -13,6 +13,8 @@ vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).f
 let fake: FakeApi;
 beforeEach(() => {
   fake = installFakeApi({
+    'chatAssets.localImage': ({ src }: { src: string }) =>
+      src.endsWith('auth-qr.png') ? { dataUrl: 'data:image/png;base64,AA==' } : null,
     'chatAssets.list': () => [
       {
         file: 'nomi-b.png',
@@ -39,6 +41,19 @@ describe('对话里的图片查看', () => {
     expect(screen.getByTestId('image-viewer')).toBeTruthy();
     expect(screen.getByTestId('viewer-prompt').textContent).toBe('a red fox');
     expect(screen.queryByTestId('md-img-preview')).toBeNull();
+  });
+
+  it('本机图片：内核读成 data URL 后显示；读不了时显示路径兜底', async () => {
+    render(<MarkdownImage src="/Users/me/proj/auth-qr.png" alt="qr" />);
+    await act(() => fake.settle());
+    expect(screen.getByTestId('md-img').querySelector('img')?.getAttribute('src')).toBe(
+      'data:image/png;base64,AA==',
+    );
+    cleanup();
+    render(<MarkdownImage src="/etc/secret.png" alt="x" />);
+    await act(() => fake.settle());
+    expect(screen.queryByTestId('md-img')).toBeNull();
+    expect(document.body.textContent).toContain('/etc/secret.png');
   });
 
   it('其它图片：简单预览', () => {

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -220,6 +222,19 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 		_, err := gilErr(func() string { return o.KnownDir(dir) })
 		return err == nil
 	}
+	// 对话里的本机图片（CLI 存下的二维码、截图）：在认可的工作区或授权过的文件夹里才读
+	dirOk := func(dir string) bool {
+		if b.IsKnownWorkspace(dir) {
+			return true
+		}
+		for _, sc := range b.Scopes() {
+			if sc.Kind == "folder" && (sc.Path == dir || strings.HasPrefix(dir, strings.TrimSuffix(sc.Path, string(filepath.Separator))+string(filepath.Separator))) {
+				return true
+			}
+		}
+		return false
+	}
+	mascothandlers.LocalImageDirOk.Store(&dirOk)
 	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随编程助手的「全部自动」）
 	b.AutoApprove = func() bool { return jsrt.Call(o.NomiAutoApproveEnabled) }
 	b.OnWorkspaceRejected = func(dir, reason string) {

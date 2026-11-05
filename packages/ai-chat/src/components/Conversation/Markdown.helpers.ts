@@ -16,6 +16,13 @@ export function sanitizeImgSrc(url: string | null | undefined): string {
 
 /** react-markdown v9+ urlTransform：按节点类型分叉 —— img 走图片白名单，其它走链接白名单。*/
 export function urlTransform(url: string, _key: string, node: { tagName?: string }): string {
-  if (node?.tagName === 'img') return sanitizeImgSrc(url);
+  // 本机路径不在这里放行加载：原样交给 MarkdownImage，由内核按位置校验后读成 data URL
+  if (node?.tagName === 'img') return isLocalImagePath(url) ? url.trim() : sanitizeImgSrc(url);
   return sanitizeHref(url);
+}
+
+/** 本机文件路径（绝对路径 / ~/ / file:// / Windows 盘符）：交给内核按位置校验后读成 data URL（chatAssets.localImage） */
+export function isLocalImagePath(url: string | null | undefined): boolean {
+  const h = (url ?? '').trim();
+  return /^(\/|~\/|file:\/\/|[A-Za-z]:[\\/])/.test(h);
 }

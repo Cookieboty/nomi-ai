@@ -355,5 +355,6 @@
   "ui.usage-tools.your-previous-status-line-command-keeps-running": "Your previous status line command keeps running.",
   "ui.usage-tools.your-turn": "Your turn!",
   "ui.usage-tools.zoom-in": "Zoom in",
-  "ui.usage-tools.zoom-out": "Zoom out"
+  "ui.usage-tools.zoom-out": "Zoom out",
+  "ui.usage-tools.local-image-unavailable": "Can't show this local image"
 }

@@ -5404,6 +5404,47 @@
     }
    }
   },
+  "chatAssets.localImage": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "src": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+     }
+    },
+    "required": [
+     "src"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "dataUrl": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "dataUrl"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
   "chatAssets.regenerate": {
    "kind": "mutation",
    "dangerous": false,
