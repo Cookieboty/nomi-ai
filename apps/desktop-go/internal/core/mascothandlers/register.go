@@ -407,11 +407,7 @@ func Install(d Deps) *Controller {
 			return nil, unavailableSvc("persona")
 		}
 		p := d.Persona.Get()
-		t := d.T
-		if t == nil {
-			t = func(k string) string { return k }
-		}
-		return persona.DefaultSystemPrompt(&p, t), nil
+		return persona.DefaultSystemPrompt(&p), nil
 	})
 
 	// —— 聊天主面板背景

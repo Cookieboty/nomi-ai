@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -384,25 +385,10 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 // DelegateBrief：任务说明
 type DelegateBrief struct{ Goal, Context, DoneWhen, OutOfScope string }
 
-// BuildDelegatePrompt：发给编程助手的第一条消息
+// BuildDelegatePrompt：发给编程助手的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
 func BuildDelegatePrompt(b DelegateBrief) string {
-	lines := []string{"你在帮 Nomi（用户的桌面助手）完成一项任务。", "目标：" + trim(b.Goal)}
-	if trim(b.Context) != "" {
-		lines = append(lines, "背景："+trim(b.Context))
-	}
-	lines = append(lines, "完成标准："+trim(b.DoneWhen))
-	if trim(b.OutOfScope) != "" {
-		lines = append(lines, "不要碰："+trim(b.OutOfScope))
-	}
-	lines = append(lines, "",
-		"做完后，最后一条回复只按下面的格式输出（标记原样保留）：",
-		"[nomi-report]",
-		"做了什么：…",
-		"改动的文件：每行一个相对路径",
-		"没做完的：…（没有就写「无」）",
-		"需要用户决定的：…（没有就写「无」）",
-		"[/nomi-report]")
-	return strings.Join(lines, "\n")
+	return prompts.Render("delegate-brief", DelegateBrief{Goal: trim(b.Goal), Context: trim(b.Context),
+		DoneWhen: trim(b.DoneWhen), OutOfScope: trim(b.OutOfScope)})
 }
 
 var reportKeys = []struct {

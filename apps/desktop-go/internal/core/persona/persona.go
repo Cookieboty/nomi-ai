@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	cc "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
 
 // Persona = @nomi-ai/types Persona；字段顺序固定（JSON.stringify 比较 / 输出）
@@ -367,17 +368,14 @@ func (s *Service) load() (*Bundle, error) {
 	return nil, fmt.Errorf("no persona source produced a persona")
 }
 
-// ChatGuidanceKey = CHAT_GUIDANCE_KEY
-const ChatGuidanceKey = "ui.chat-settings.you-run-on-the-user-s-own-computer-be"
-
-// DefaultSystemPrompt = defaultSystemPrompt：身份段 + 对话要求（各自 trim，空的略过）
-func DefaultSystemPrompt(p *Persona, translate func(string) string) string {
+// DefaultSystemPrompt = defaultSystemPrompt：身份段 + 对话要求（prompts/text/<语言>/chat-guidance.md；各自 trim，空的略过）
+func DefaultSystemPrompt(p *Persona) string {
 	parts := []string{}
 	cands := []string{}
 	if p != nil {
 		cands = append(cands, p.SystemPromptIdentity)
 	}
-	cands = append(cands, translate(ChatGuidanceKey))
+	cands = append(cands, prompts.Local("chat-guidance", nil))
 	for _, c := range cands {
 		if t := jsTrim(c); t != "" {
 			parts = append(parts, t)

@@ -1,0 +1,17 @@
+### system
+You write git commit messages. Reply with the commit message only: no code fences, no quotes, no commentary.
+### user
+Write a commit message for the change below.
+- Match the style of the repository's recent commits: their language, whether they use Conventional Commits and which scopes, and their length.
+- Keep every line under 100 characters. Subject first; add a short body after a blank line only if the change needs explaining.
+- Describe what changed and why, not the file list.
+
+Recent commits:
+- fix: a
+- feat: b
+
+Files:
+a.go | 2 +-
+
+Diff (truncated):
+@@ diff

@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -76,6 +77,7 @@ func ModeFromNative(supported []string, raw any, onRequest string) string {
 	return m
 }
 
-const PlanPromptPrefix = "You are in plan mode: do not modify any files. Investigate as needed, then reply with a complete implementation plan in Markdown and wait for approval.\n\n"
+// PlanPromptPrefix：计划模式附在用户消息前的说明（prompts/text/plan-mode.md）
+var PlanPromptPrefix = prompts.Text("plan-mode") + "\n\n"
 
 var _ = strings.ToLower

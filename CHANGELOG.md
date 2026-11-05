@@ -757,6 +757,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 网关运行时学习功能的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/ai-chat` minor)
 - 网关非流式响应在上游发完响应头后卡住（不发正文也不断开）时不再无限挂起：正文读取沿用非流式整轮超时（5 分钟 / 思考模型 10 分钟），超时后中断上游连接并按入口协议返回错误。 (`@nomi-ai/desktop-go` patch)
 - 聊天背景启动时的首次落盘失败不再变成未处理的 Promise 拒绝（只记日志，下一次设置会重写）。 (`@nomi-ai/desktop-go` patch)
+- 英文界面下，定时任务与主动搭话发给模型的说明改用英文星期，句子之间不再缺空格；内核发给模型的提示词从代码里移到单独的文件。 (`@nomi-ai/desktop-go` patch)
 - 补充上下文窗口估算提示与撤销确认的英文文案。 (`@nomi-ai/ui` patch)
 - 订阅额度保留上一次的结果：再次打开「订阅额度」会立即显示上一次的值并在后台更新，不再先空一下；Claude Code 与 Grok 的额度也会保存下来，重启 Nomi 后无需重新拉取即可看到（之前只有 Codex 会保存）。在「官方账号」里切换账号时，会清掉上一个账号的额度，不会显示给新账号。 (`@nomi-ai/ai-chat` patch)
 - 订阅额度改成卡片网格（Codex / Claude Code / Grok 各一张，沿用「概览明细」的行与进度条样式），每张卡有自己的「刷新」按钮和刷新中 / 失败 / 更新于状态，另保留「全部刷新」；主进程 `ai:usage:quota-refresh` 按工具参数化，单工具刷新只拉起该工具自己的官方 CLI，不同工具并行、互不阻塞，同工具并发合并。 (`@nomi-ai/ai-chat` minor)

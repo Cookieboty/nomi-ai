@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
 
 // 对话请求发出前的准备：prepareChat + applyConversationWorkspace + receiversFor/checkSendAll
@@ -54,15 +56,9 @@ func (s *Service) CheckSendAll(receivers []*Provider, signal context.Context, wh
 	return CheckSendAll(receivers, signal, what, s.Broker.CheckSend)
 }
 
-// WorkspaceSystemHint = workspaceSystemHint
+// WorkspaceSystemHint = workspaceSystemHint（prompts/text/workspace.md）
 func WorkspaceSystemHint(ws string, autoApprove bool) string {
-	s := "这次对话的工作区是 " + ws + "。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；" +
-		"工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。" +
-		"workspace_run 的工作目录是工作区，但命令本身不受工作区限制，每次执行前都要用户确认（「计划」权限模式下不能用）。"
-	if autoApprove {
-		s += "工作区里的文件操作不需要用户逐项确认。"
-	}
-	return s + "委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+	return prompts.Render("workspace", map[string]any{"Workspace": ws, "AutoApprove": autoApprove})
 }
 
 // WorkspaceBroker = Pick<PermissionBroker, 'workspaceOf' | 'autoApprove'>
