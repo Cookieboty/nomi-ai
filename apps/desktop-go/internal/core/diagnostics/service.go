@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	file        = "diagnostics.json"
-	observeFile = "observe.json"
+	file = "diagnostics.json"
 )
 
 // View：DiagnosticsView（字段序固定）
@@ -60,17 +59,16 @@ type Logger interface {
 
 // SetLevel：logger.setLevel(DEBUG|INFO)；nil = 宿主没有可调级别的日志器
 type Deps struct {
-	UserData      string
-	Logger        Logger
-	Ports         Ports
-	Dev           *bool
-	OnChange      func(enabled bool)
-	LegacyEnabled func() bool
-	TraceDir      string
-	Env           map[string]string
-	Now           func() int64
-	SetLevel      func(debug bool)
-	Platform      string
+	UserData string
+	Logger   Logger
+	Ports    Ports
+	Dev      *bool
+	OnChange func(enabled bool)
+	TraceDir string
+	Env      map[string]string
+	Now      func() int64
+	SetLevel func(debug bool)
+	Platform string
 }
 
 type Service struct {
@@ -243,19 +241,11 @@ func (s *Service) OpenLogFolder() (bool, error) {
 	return true, nil
 }
 
+// load：没有 diagnostics.json（新装、从没改过开关）= 默认开着，执行轨迹里能看到网关请求正文；
+// 用户在设置里关掉后写入 saveLogs:false，以后按文件
 func (s *Service) load() bool {
 	if _, err := os.Stat(s.file); err != nil {
-		legacy := false
-		if s.d.LegacyEnabled != nil {
-			func() {
-				defer func() { _ = recover() }()
-				legacy = s.d.LegacyEnabled()
-			}()
-		}
-		if legacy {
-			_ = utils.WritePrivateFileAtomic(s.file, []byte(`{"version":1,"saveLogs":true}`))
-		}
-		return legacy
+		return true
 	}
 	b, err := os.ReadFile(s.file)
 	if err != nil {
@@ -276,19 +266,4 @@ func (s *Service) apply() {
 	}
 	dev := os.Getenv("NODE_ENV") == "development"
 	s.d.SetLevel(s.Enabled() || dev)
-}
-
-// ReadLegacyGatewayTrace = usage/GatewayRequestLog.readLegacyGatewayTrace（OBSERVE_FILE）
-func ReadLegacyGatewayTrace(root string) bool {
-	b, err := os.ReadFile(filepath.Join(root, observeFile))
-	if err != nil {
-		return false
-	}
-	var raw any
-	if json.Unmarshal(b, &raw) != nil {
-		return false
-	}
-	m, _ := raw.(map[string]any)
-	v, _ := m["trace"].(bool)
-	return v
 }

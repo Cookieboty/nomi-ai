@@ -32,6 +32,9 @@ func wireGatewayRequests(userData string, sp *shellProcs) *usage.GatewayRequestL
 	})
 }
 
+// gatewayRequestsRef：GatewayRequestLog（installShellProcs 之后构造）；网关 RuntimeConfig 的 traceDir 晚绑定读取
+var gatewayRequestsRef atomic.Pointer[usage.GatewayRequestLog]
+
 // usageRef：UsageService；quality / gateway / agents / accounts 的闭包晚绑定读取
 var usageRef atomic.Pointer[usage.UsageService]
 

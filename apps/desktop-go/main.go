@@ -333,6 +333,13 @@ func main() {
 		OnUsage:        qualityOnUsage,
 		// longContextPrice = usage.longContextPrice（UsageService 晚绑定）
 		LongContextPrice: usageLongContextPrice,
+		// 请求正文追踪目录：跟随诊断日志开关（GatewayRequestLog 晚绑定；没接上时不追踪）
+		TraceDir: func() string {
+			if l := gatewayRequestsRef.Load(); l != nil {
+				return l.TraceDir()
+			}
+			return ""
+		},
 	})
 	// UsageService（构造 + start；网关 init 后 autoSync）
 	defer wireUsage(router, userData, desktopSvc, gatewaySvc)()
@@ -597,6 +604,7 @@ func main() {
 	defer shellP.Diagnostics.CliTrace.FlushSync()
 	defer shellP.Quality.Dispose()
 	gatewayRequests := wireGatewayRequests(userData, shellP)
+	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
