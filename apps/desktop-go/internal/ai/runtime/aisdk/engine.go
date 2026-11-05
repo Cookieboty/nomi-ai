@@ -316,12 +316,13 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 				client++
 			}
 		}
-		if client > 0 && len(outcomes) == client && steps < p.maxSteps() {
+		complete := client > 0 && len(outcomes) == client
+		if complete && steps < p.maxSteps() {
 			messages = append(messages, responseMessages(content, outcomes)...)
 			continue
 		}
 		resMsgs := append(append([]*u.Obj{}, messages[len(p.Messages):]...), responseMessages(content, outcomes)...)
-		emit(Part{Type: "finish", FinishReason: finishReason, TotalUsage: total, ResponseMessages: resMsgs})
+		emit(Part{Type: "finish", FinishReason: finishReason, TotalUsage: total, ResponseMessages: resMsgs, StepLimit: complete})
 		return
 	}
 }

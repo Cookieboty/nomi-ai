@@ -344,6 +344,11 @@ func (p *Provider) takeInbox(reqID string) []string {
 // MaxSteerRounds = MAX_STEER_ROUNDS：最后一步才收到插入消息时，最多续跑几轮
 const MaxSteerRounds = 3
 
+// MaxAutoRounds：一轮的工具步数用完、模型还要接着调工具时，自动再续几轮（每轮 StepCount 步）。
+// 复杂任务（读代码 → 改 → 跑测试 → 再改）常要上百步，不让用户反复说「继续」；
+// 上限只是兜底（防止原地打转），用户随时可以停止，后台任务另有预算。
+var MaxAutoRounds = 20
+
 // addChatUsage = addUsage：两段用量相加（续跑轮次合并成一轮的用量）
 func addChatUsage(a, b *llm.ChatUsage) *llm.ChatUsage {
 	if a == nil || b == nil {
@@ -611,7 +616,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	var lastStep *llm.ChatUsage
 	// 跨续跑轮次累加的用量
 	var total *llm.ChatUsage
-	for round := 0; ; round++ {
+	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数
+	steerRounds, autoRounds := 0, 0
+	for {
 		var inserts []SteerInsert
 		rp := *tp
 		rp.Messages = messages
@@ -628,6 +635,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		}
 		var finish *string
 		var resMsgs []*u.Obj
+		stepLimit := false
 		StreamText(c, &rp, func(part Part) {
 			switch part.Type {
 			case "finish-step":
@@ -664,6 +672,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				f := finishOf(part.FinishReason)
 				finish = &f
 				resMsgs = part.ResponseMessages
+				stepLimit = part.StepLimit
 			case "error":
 				s := DescribeStreamError(part.Error)
 				emit(llm.ChatChunk{Type: "error", Error: &s})
@@ -679,7 +688,10 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		if _, ok := p.inbox[r.ReqID]; ok {
 			p.inbox[r.ReqID] = []string{}
 		}
-		stop := len(left) == 0 || c.Err() != nil || round >= MaxSteerRounds
+		// 步数用完时最后一步的工具已经执行、结果模型还没看到：接着跑一轮
+		auto := hasTools && stepLimit && autoRounds < MaxAutoRounds
+		steer := len(left) > 0 && steerRounds < MaxSteerRounds
+		stop := c.Err() != nil || (!auto && !steer)
 		if stop {
 			delete(p.inbox, r.ReqID)
 		}
@@ -703,8 +715,17 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			break
 		}
 		full := append(append([]*u.Obj{}, messages...), resMsgs...)
-		inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		if len(left) > 0 {
+			inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		}
 		messages = WithSteerInserts(full, inserts)
+		if auto {
+			autoRounds++
+			// 换轮时把这一轮里较早的大段工具输出缩短（只在换轮时改一次，前缀缓存每轮只断一次）
+			messages = CompactToolResults(messages, len(tp.Messages), compactKeepRecent)
+		} else {
+			steerRounds++
+		}
 	}
 	return nil
 }
