@@ -7,10 +7,13 @@ import { api, hasTransport } from '../services/api';
 const log = createLogger('avatar');
 
 /**
- * avatar-runtime 的互动输出：反应台词进气泡（`mascot:say`），点击类再朗读。
- * 表情与动作已经在运行时里做过。
+ * avatar-runtime 的互动输出：双击角色打开工作台（对话窗口）；反应台词进气泡（`mascot:say`），
+ * 点击类再朗读。表情与动作已经在运行时里做过。
  */
 export function handleAvatarInteraction(e: AvatarInteractionEvent): void {
+  if (e.kind === 'double' && hasTransport()) {
+    void api.window.openAiChat().catch((error: unknown) => log.debug('open chat failed', error));
+  }
   if (!e.line) return;
   window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text: e.line } }));
   if (e.speak) speakForActiveCharacter(e.line);
