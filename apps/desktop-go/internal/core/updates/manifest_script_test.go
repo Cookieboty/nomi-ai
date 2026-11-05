@@ -75,11 +75,8 @@ func checkManifest(t *testing.T, path, dir string) manifest {
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(raw) }))
 	defer srv.Close()
-	for _, key := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64", "linux-amd64-deb"} {
-		e, ok := m.Platforms[key]
-		if !ok {
-			t.Fatalf("missing platform %s", key)
-		}
+	checkEntry := func(key string, e manifestEntry) {
+		t.Helper()
 		f, err := os.Open(filepath.Join(dir, e.File))
 		if err != nil {
 			t.Fatal(err)
@@ -90,8 +87,26 @@ func checkManifest(t *testing.T, path, dir string) manifest {
 		if e.Sha256 != hex.EncodeToString(h.Sum(nil)) || e.Size != n || e.URL != "https://github.com/Cookieboty/nomi-ai/releases/download/"+m.Tag+"/"+e.File {
 			t.Fatalf("%s entry wrong: %+v", key, e)
 		}
+	}
+	// mac 的 file 仍是 dmg（≤ 2.1.2 只认它），update 是原地替换用的 -mac.zip
+	zips := map[string]string{"darwin-arm64": "Nomi-" + v + "-arm64-mac.zip", "darwin-amd64": "Nomi-" + v + "-mac.zip"}
+	for _, key := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64", "linux-amd64-deb"} {
+		e, ok := m.Platforms[key]
+		if !ok {
+			t.Fatalf("missing platform %s", key)
+		}
+		checkEntry(key, e)
+		if zip, mac := zips[key]; mac {
+			if e.Update == nil || e.Update.File != zip {
+				t.Fatalf("%s: update = %+v, want %s", key, e.Update, zip)
+			}
+			checkEntry(key+" update", *e.Update)
+		} else if e.Update != nil {
+			t.Fatalf("%s: unexpected update entry", key)
+		}
 		k := key
-		g := &GitHubUpdater{URL: srv.URL, Version: func() string { return "2.0.4" }, PlatformKey: func() string { return k }, CacheDir: t.TempDir()}
+		g := &GitHubUpdater{URL: srv.URL, Version: func() string { return "2.0.4" }, PlatformKey: func() string { return k }, CacheDir: t.TempDir(),
+			SwapTarget: func() (string, bool) { return "", false }}
 		if _, err := g.CheckForUpdates(); err != nil {
 			t.Fatalf("%s: CheckForUpdates: %v", key, err)
 		}
@@ -103,6 +118,19 @@ func checkManifest(t *testing.T, path, dir string) manifest {
 		}
 		if m.ReleaseNotes != "" && info.ReleaseNotes != m.ReleaseNotes {
 			t.Fatalf("%s: releaseNotes not passed to UpdateInfo: %v", key, info.ReleaseNotes)
+		}
+		if e.Update != nil {
+			// 应用可原地替换时选中 zip
+			g.SwapTarget = func() (string, bool) { return "/Applications/Nomi.app", true }
+			if _, err := g.CheckForUpdates(); err != nil {
+				t.Fatal(err)
+			}
+			g.mu.Lock()
+			p, b := g.pending, g.swapBundle
+			g.mu.Unlock()
+			if p == nil || p.File != e.Update.File || b != "/Applications/Nomi.app" {
+				t.Fatalf("%s swap: pending %+v bundle %q", key, p, b)
+			}
 		}
 	}
 	return m
