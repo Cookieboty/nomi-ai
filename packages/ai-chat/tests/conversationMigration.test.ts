@@ -16,6 +16,7 @@ import {
 import {
   LEGACY_HISTORY_ID,
   migrateConversationsToKernel,
+  remapConversationId,
 } from '../src/services/conversationMigration';
 import { createMemoryStorage } from '../src/services/conversationStore';
 import type { ChatMessage } from '../src/types/chat';
@@ -71,8 +72,13 @@ describe('localStorage → 内核会话存储', () => {
       [...Array(source.length).keys()].map((i) => [source.key(i)!, source.getItem(source.key(i)!)]),
     );
     const r = await migrateConversationsToKernel({ kernel, source, snapshot: EMPTY, mark: true });
-    expect(r).toMatchObject({ status: 'complete', total: 5, imported: 5, invalid: 1 });
-    expect(kernel.data.order).toEqual(['a', 'b', 't', 'orphan', LEGACY_HISTORY_ID]);
+    expect(r).toMatchObject({ status: 'complete', total: 6, imported: 6, remapped: 1 });
+    const bad = remapConversationId('bad/id');
+    expect([...kernel.data.order].sort()).toEqual(
+      ['a', 'b', 't', bad, 'orphan', LEGACY_HISTORY_ID].sort(),
+    );
+    // 不能当文件名的 id 换了新 id 导入，旧 id 记在元信息里
+    expect(kernel.data.metas.get(bad)).toMatchObject({ id: bad, legacyId: 'bad/id', name: 'x' });
     expect(kernel.data.messages.get('a')).toEqual([
       m('1', 'user', 'hello'),
       m('2', 'assistant', 'hi'),
@@ -84,7 +90,7 @@ describe('localStorage → 内核会话存储', () => {
     expect(kernel.data.previews).toMatchObject({ a: 'hello', orphan: 'lost index' });
     expect(kernel.data.current).toBe('b');
     expect(kernel.data.lastNomi).toBe('a');
-    expect(kernel.data.migrated).toBe(5);
+    expect(kernel.data.migrated).toBe(6);
     expect(r.snapshot.migrated).toBe(true);
     // 旧键保留（降级回旧版还能看到）
     for (const [k, v] of before) expect(source.getItem(k)).toBe(v);
@@ -135,7 +141,7 @@ describe('localStorage → 内核会话存储', () => {
       mark: true,
     });
     expect(r2.status).toBe('complete');
-    expect(kernel.data.order).toHaveLength(5);
+    expect(kernel.data.order).toHaveLength(6);
   });
 
   it('大会话分几次发，消息一条不少、顺序不变', async () => {
@@ -174,28 +180,154 @@ describe('启动（conversationBoot）', () => {
     const old = oldLayout();
     for (let i = 0; i < old.length; i++) ls.setItem(old.key(i)!, old.getItem(old.key(i)!)!);
     const r = await prepareConversationStore({ kernel, storage: ls });
-    expect(r.migration).toBe('complete');
+    expect(r).toMatchObject({ ok: true, migration: 'complete' });
     const store = createConversationStore();
-    expect(store.list().map((c) => c.id)).toEqual(['a', 'b', 't', 'orphan', LEGACY_HISTORY_ID]);
+    expect(
+      store
+        .list()
+        .map((c) => c.id)
+        .sort(),
+    ).toEqual(['a', 'b', 't', remapConversationId('bad/id'), 'orphan', LEGACY_HISTORY_ID].sort());
     expect(store.currentId()).toBe('b');
     store.delete('a');
     await store.flush();
     resetPreparedConversationStore();
     const again = await prepareConversationStore({ kernel, storage: ls });
-    expect(again.migration).toBeUndefined();
+    expect(again).toMatchObject({ ok: true });
+    expect(again.ok && again.migration).toBeUndefined();
     expect(createConversationStore().get('a')).toBeUndefined();
     // 旧键还在
     expect(ls.getItem('ai-chat:conversation:a')).not.toBeNull();
   });
 
-  it('内核读不到：不迁移、照常给出空的存储', async () => {
+  it('内核读不到：报错（不是空列表），不迁移、不构造存储；重试成功后照常', async () => {
     const kernel = createMemoryConversationKernel();
+    await kernel.put({
+      meta: { id: 'keep', name: 'K', createdAt: 1, updatedAt: 1, backend: 'nomi' },
+    });
+    kernel.calls.length = 0;
     kernel.failNext = (name) => name === 'state';
     window.localStorage.setItem('ai-chat:conversations', '[]');
-    const r = await prepareConversationStore({ kernel, storage: window.localStorage });
-    expect(r.migration).toBe('skipped');
+    const r = await prepareConversationStore({
+      kernel,
+      storage: window.localStorage,
+      stateBackoffMs: 1,
+    });
+    expect(r.ok).toBe(false);
+    expect(kernel.calls.filter((c) => c === 'state')).toHaveLength(3);
     expect(kernel.calls).not.toContain('import');
-    expect(createConversationStore().list()).toEqual([]);
+    expect(kernel.calls).not.toContain('markMigrated');
+    // 没有构造接内核的存储（不会拿空索引往内核写）
+    createConversationStore().create();
+    expect(kernel.calls).not.toContain('put');
+    kernel.failNext = undefined;
+    const again = await prepareConversationStore({ kernel, storage: window.localStorage });
+    expect(again.ok).toBe(true);
+    expect(
+      createConversationStore()
+        .list()
+        .map((c) => c.id),
+    ).toContain('keep');
+  });
+
+  it('取索引卡住：限时后重试', async () => {
+    const kernel = createMemoryConversationKernel();
+    const orig = kernel.state.bind(kernel);
+    let n = 0;
+    kernel.state = () => (++n === 1 ? new Promise(() => undefined) : orig());
+    const r = await prepareConversationStore({ kernel, stateTimeoutMs: 20, stateBackoffMs: 1 });
+    expect(r.ok).toBe(true);
+    expect(n).toBe(2);
+  });
+
+  it('导入时报进度；几个会话并行导入', async () => {
+    const kernel = createMemoryConversationKernel();
+    const ls = window.localStorage;
+    const old = oldLayout();
+    for (let i = 0; i < old.length; i++) ls.setItem(old.key(i)!, old.getItem(old.key(i)!)!);
+    let active = 0;
+    let peak = 0;
+    const orig = kernel.importConversation.bind(kernel);
+    kernel.importConversation = async (input) => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 5));
+      active--;
+      return orig(input);
+    };
+    const progress: Array<[number, number]> = [];
+    const r = await prepareConversationStore({
+      kernel,
+      storage: ls,
+      onProgress: (p) => progress.push([p.done, p.total]),
+    });
+    expect(r).toMatchObject({ ok: true, migration: 'complete' });
+    expect(progress[0]).toEqual([0, 6]);
+    expect(progress.at(-1)).toEqual([6, 6]);
+    expect(peak).toBeGreaterThan(1);
+  });
+});
+
+describe('会话 id 规则（与 Go 内核一致）', () => {
+  it('Windows 保留名不能当 id：迁移时换新 id，指针跟着换', async () => {
+    const kernel = createMemoryConversationKernel();
+    const source = createMemoryStorage();
+    source.setItem(
+      'ai-chat:conversations',
+      JSON.stringify(
+        ['con', 'NUL', 'com1', 'Lpt9', 'aux', 'ok_1'].map((id) => ({
+          id,
+          name: id,
+          createdAt: 1,
+          updatedAt: 1,
+          backend: 'nomi',
+        })),
+      ),
+    );
+    source.setItem('ai-chat:conversation:con', JSON.stringify([m('1', 'user', 'hi')]));
+    source.setItem('ai-chat:currentConversation', '"con"');
+    const r = await migrateConversationsToKernel({ kernel, source, snapshot: EMPTY, mark: true });
+    expect(r).toMatchObject({ status: 'complete', total: 6, remapped: 5 });
+    const con = remapConversationId('con');
+    expect(kernel.data.messages.get(con)).toEqual([m('1', 'user', 'hi')]);
+    expect(kernel.data.current).toBe(con);
+    expect(kernel.data.metas.has('ok_1')).toBe(true);
+    // 换出来的 id 固定（重复导入按 id 跳过），彼此不同
+    expect(remapConversationId('con')).toBe(con);
+    expect(new Set(['con', 'NUL', 'com1', 'Lpt9', 'aux'].map(remapConversationId)).size).toBe(5);
+    const again = await migrateConversationsToKernel({
+      kernel,
+      source,
+      snapshot: await kernel.state(),
+      mark: true,
+    });
+    expect(again).toMatchObject({ status: 'complete', imported: 0 });
+  });
+
+  it('isValidConversationId 与内核同一套规则', async () => {
+    const { isValidConversationId } = await import('../src/services/conversationKernel');
+    for (const ok of ['a', 'c_1-x', 'A'.repeat(128), 'con1', 'com', 'comx', 'nuls'])
+      expect(isValidConversationId(ok), ok).toBe(true);
+    for (const bad of [
+      '',
+      'a/b',
+      'a.b',
+      'A'.repeat(129),
+      'con',
+      'CON',
+      'Prn',
+      'aux',
+      'nul',
+      'com0',
+      'COM9',
+      'lpt1',
+    ])
+      expect(isValidConversationId(bad), bad).toBe(false);
+    // 内存内核和真内核一样拒收
+    const kernel = createMemoryConversationKernel();
+    await expect(
+      kernel.put({ meta: { id: 'con', name: 'x', createdAt: 1, updatedAt: 1, backend: 'nomi' } }),
+    ).rejects.toMatchObject({ code: 'BAD_INPUT' });
   });
 });
 

@@ -196,6 +196,7 @@ export {
 } from './ai';
 
 export * as aiSchemas from './schemas';
+export { CONVERSATION_ID_PATTERN, isValidConversationId } from './shell/schemas';
 
 export {
   codingEvents,

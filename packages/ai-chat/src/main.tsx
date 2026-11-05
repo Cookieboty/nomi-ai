@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client';
 import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
+import { BootScreen, type BootScreenState } from './components/BootScreen';
 import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
@@ -55,38 +56,61 @@ if (!hasHost) {
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
 /**
- * 会话存储在 Go 内核里：第一次渲染前取好索引（会话列表、预览、当前会话），首次运行时把本窗口
+ * 会话存储在 Go 内核里：渲染 App 前取好索引（会话列表、预览、当前会话），首次运行时把本窗口
  * localStorage 里旧的会话（以及 Electron 旧版抽出来的，#181）导入内核（conversationBoot）。
- * 会话存储在 App 渲染时随 IPC 客户端构造，所以先准备再渲染；失败只记日志、照常渲染，迁移下次启动再试
+ * 会话存储在 App 渲染时随 IPC 客户端构造，所以先准备再渲染 App；这期间先画启动画面（不白屏，导入时
+ * 显示进度）。读不到对话记录时停在启动画面显示错误与「重试」，不渲染空列表。
  */
-async function prepareConversations(): Promise<void> {
+function renderBoot(state: BootScreenState, onRetry?: () => void): void {
+  root.render(
+    <React.StrictMode>
+      <LocaleRoot render={() => <BootScreen state={state} {...(onRetry ? { onRetry } : {})} />} />
+    </React.StrictMode>,
+  );
+}
+
+function renderApp(): void {
+  root.render(
+    <React.StrictMode>
+      <LocaleRoot
+        render={() => (
+          <AIProvider>
+            <App />
+          </AIProvider>
+        )}
+      />
+    </React.StrictMode>,
+  );
+}
+
+async function bootConversations(): Promise<void> {
   let storage: Storage | undefined;
   try {
     storage = window.localStorage;
   } catch {
     storage = undefined;
   }
-  await prepareConversationStore({
+  const r = await prepareConversationStore({
     api,
     ...(storage ? { storage } : {}),
     fetchLegacy: () => api.migration.chatHistory(),
-  }).catch((error: unknown) => log.warn('准备会话存储失败', error));
+    onProgress: (p) => renderBoot({ kind: 'migrating', done: p.done, total: p.total }),
+  }).catch((error: unknown) => ({ ok: false as const, error }));
+  if (r.ok) {
+    renderApp();
+    return;
+  }
+  log.warn('准备会话存储失败', r.error);
+  const retry = () => {
+    renderBoot({ kind: 'failed', retrying: true });
+    void bootConversations();
+  };
+  renderBoot({ kind: 'failed' }, retry);
 }
 
 if (hasHost) {
-  void prepareConversations().finally(() =>
-    root.render(
-      <React.StrictMode>
-        <LocaleRoot
-          render={() => (
-            <AIProvider>
-              <App />
-            </AIProvider>
-          )}
-        />
-      </React.StrictMode>,
-    ),
-  );
+  renderBoot({ kind: 'loading' });
+  void bootConversations();
 } else {
   // 开发/预览模式下不构造 ClientAIClient，避免其在契约传输缺失时抛错
   root.render(

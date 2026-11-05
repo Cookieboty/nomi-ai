@@ -9,6 +9,10 @@
  *   判断有没有消息用 `hasMessages`（没加载时看内核给的条数）；
  * - 写：内存立即更新，内核写入排进一个有序队列（一次一个，排着的相邻追加合并成一次）。追加只发新消息，
  *   不序列化整段历史；`flush()` 等队列写完（关窗前）。读一个没缓存的会话前也先等队列写完；
+ * - 写失败：暂时的错误（连接断了、内核 IO 出错）退避重试；重试用尽时这一条留在队首（不丢），过一会儿或
+ *   下一次写入时再试，并提示用户一次（`CONVERSATION_WRITE_FAILED_EVENT`）。内核说会话不在
+ *   （CONVERSATION_NOT_FOUND：新建没写成、索引重建过）就按内存里的元信息 + 全部消息重新建一份再继续；
+ *   重试追加时也整份写（不会追加成两份）。有排着的写入的会话不从缓存里淘汰；
  * - 别的窗口写了（`conversations.changed`，来源不是自己）：重新取索引、丢掉那些会话的缓存。
  * 没有内核（测试 / 浏览器预览）时只在内存里，不淘汰。
  * 旧的 localStorage 布局由 conversationMigration 一次性导入内核。
@@ -19,10 +23,12 @@ import { createLogger, t } from '@nomi-ai/ui';
 import type { ChatMessage, ConversationBackend } from '../types/chat';
 import { isConversationBackend } from '../types/chat';
 
-import type {
-  ConversationKernel,
-  ConversationMeta,
-  ConversationSnapshot,
+import {
+  isConversationNotFound,
+  isPermanentWriteError,
+  type ConversationKernel,
+  type ConversationMeta,
+  type ConversationSnapshot,
 } from './conversationKernel';
 import { splitFileAttachments } from './fileAttachments';
 import { clearNomiAutoTitle, isDefaultChatName } from './sessionTitle';
@@ -71,6 +77,10 @@ export interface ConversationStoreOptions {
   maxCachedChars?: number;
   now?: () => number;
   newId?: () => string;
+  /** 写失败后的退避（毫秒），用尽算「写不进去」；默认 [300, 1000, 3000] */
+  retryDelays?: number[];
+  /** 写不进去之后隔多久再试一次（毫秒），默认 15000 */
+  stalledRetryMs?: number;
 }
 
 export interface CreateConversationOpts {
@@ -107,6 +117,12 @@ export function notifyConversationsChanged(detail?: ConversationsChangedDetail):
   window.dispatchEvent(new CustomEvent(CONVERSATIONS_CHANGED_EVENT, { detail }));
 }
 
+/**
+ * 对话记录写不进内核（重试用尽 / 被拒收）：在 window 上广播，App 提示一次（不打断）。
+ * 恢复后再出问题会再广播一次。
+ */
+export const CONVERSATION_WRITE_FAILED_EVENT = 'nomi:conversation-write-failed';
+
 /** 排队的内核写入；append / pointers 与紧挨着的同类合并 */
 type WriteOp =
   | {
@@ -117,8 +133,19 @@ type WriteOp =
       preview?: string;
       max?: number;
     }
+  | {
+      kind: 'replace';
+      id: string;
+      messages: ChatMessage[];
+      meta?: ConversationMeta;
+      preview?: string;
+    }
   | { kind: 'pointers'; current?: string | null; lastNomi?: string | null }
   | { kind: 'call'; name: string; id?: string; run: (k: ConversationKernel) => Promise<unknown> };
+
+const opId = (op: WriteOp): string | undefined => (op.kind === 'pointers' ? undefined : op.id);
+const opName = (op: WriteOp): string => (op.kind === 'call' ? op.name : op.kind);
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export class ConversationStore {
   private readonly kernel: ConversationKernel | undefined;
@@ -140,7 +167,18 @@ export class ConversationStore {
   private readonly counts = new Map<string, number>();
   /** 写队列（还没开始的）；drain 一次跑一个 */
   private readonly ops: WriteOp[] = [];
+  /** 正在写的那一条（已从队列取出） */
+  private inflight: WriteOp | undefined;
   private draining: Promise<void> | undefined;
+  private readonly retryDelays: number[];
+  private readonly stalledRetryMs: number;
+  /** 写不进去（队首那条重试用尽）：等 retryTimer 或下一次写入再试 */
+  private stalled = false;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** 这一轮故障已经提示过用户 */
+  private failureNotified = false;
+  /** 写不进去期间别的窗口写了：恢复后再重新取索引（不能拿内核的旧索引盖掉还没写进去的） */
+  private pendingRefresh: string[] | undefined;
   /** 每个会话本地写过几次：加载期间又写了就重新加载，不用过期的结果 */
   private readonly writes = new Map<string, number>();
   private readonly loads = new Map<string, Promise<ChatMessage[]>>();
@@ -155,6 +193,8 @@ export class ConversationStore {
     this.maxCachedConversations = Math.max(1, opts.maxCachedConversations ?? 12);
     this.maxCachedChars = Math.max(0, opts.maxCachedChars ?? 8_000_000);
     this.now = opts.now ?? Date.now;
+    this.retryDelays = opts.retryDelays ?? [300, 1000, 3000];
+    this.stalledRetryMs = opts.stalledRetryMs ?? 15_000;
     this.newId =
       opts.newId ??
       (() => `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
@@ -185,8 +225,16 @@ export class ConversationStore {
     if (!this.kernel || this.disposed) return;
     try {
       await this.flush();
+      if (this.hasPendingWrites()) {
+        // 自己还有没写进去的：内核的索引缺这些，先不套用，写进去之后再取
+        this.pendingRefresh = [...(this.pendingRefresh ?? []), ...ids];
+        return;
+      }
       const s = await this.kernel.state();
-      if (this.disposed) return;
+      if (this.disposed || this.hasPendingWrites()) {
+        if (!this.disposed) this.pendingRefresh = [...(this.pendingRefresh ?? []), ...ids];
+        return;
+      }
       this.applySnapshot(s);
       for (const id of ids) this.forget(id);
       for (const id of [...this.messagesCache.keys()]) if (!this.get(id)) this.forget(id);
@@ -204,11 +252,26 @@ export class ConversationStore {
   dispose(): void {
     this.disposed = true;
     this.offKernel();
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
   }
 
-  /** 等排着的内核写入都写完（关窗 / 释放前调用） */
+  /**
+   * 等排着的内核写入都写完（关窗 / 释放前调用）。写不进去（重试用尽）时不一直等：这一轮试完就返回，
+   * 没写进去的留在队列里（`hasPendingWrites()`）
+   */
   async flush(): Promise<void> {
     while (this.draining) await this.draining;
+  }
+
+  /** 还有没写进内核的（排着的、正在写的、写不进去等着重试的） */
+  hasPendingWrites(): boolean {
+    return !!this.inflight || this.ops.length > 0;
+  }
+
+  private pendingFor(id: string): boolean {
+    if (this.inflight && opId(this.inflight) === id) return true;
+    return this.ops.some((op) => opId(op) === id);
   }
 
   /** Drop the in-memory message caches (the index stays). */
@@ -417,11 +480,22 @@ export class ConversationStore {
       if (!this.get(id)) return [];
       // 加载期间本地又写了：这次结果过期，重读（写入在队列里，下一轮先等它写完）
       if ((this.writes.get(id) ?? 0) !== before && attempt < 3) continue;
-      const messages = r.messages.slice(-this.maxMessages);
+      // 写不进去、还排着的（flush 没等到）：叠上去，缓存里的就是内核写完之后会有的
+      const messages = this.withPending(id, r.messages).slice(-this.maxMessages);
       this.counts.set(id, messages.length);
       this.remember(id, messages, r.bytes ?? approxChars(messages));
       return messages;
     }
+  }
+
+  private withPending(id: string, loaded: ChatMessage[]): ChatMessage[] {
+    let out = loaded;
+    for (const op of this.inflight ? [this.inflight, ...this.ops] : this.ops) {
+      if (opId(op) !== id) continue;
+      if (op.kind === 'replace') out = [...op.messages];
+      else if (op.kind === 'append') out = [...out, ...op.messages];
+    }
+    return out;
   }
 
   /**
@@ -456,12 +530,7 @@ export class ConversationStore {
     const preview = this.nextPreview(id, next);
     const meta = this.touch(id);
     this.bump(id);
-    this.enqueue({
-      kind: 'call',
-      name: 'replace',
-      id,
-      run: (k) => k.replace({ id, messages: next, ...(meta ? { meta } : {}), ...preview }),
-    });
+    this.enqueue({ kind: 'replace', id, messages: next, ...(meta ? { meta } : {}), ...preview });
   }
 
   append(message: ChatMessage, id: string | undefined = this.currentId()): void {
@@ -687,35 +756,140 @@ export class ConversationStore {
 
   private async drain(): Promise<void> {
     const kernel = this.kernel!;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
     try {
       while (this.ops.length) {
         const op = this.ops.shift()!;
-        try {
-          if (op.kind === 'append') {
-            const { kind: _k, ...input } = op;
-            await kernel.append(input);
-          } else if (op.kind === 'pointers') {
-            const { kind: _k, ...input } = op;
-            await kernel.setPointers(input);
-          } else {
-            await op.run(kernel);
-          }
-        } catch (e) {
-          const id = op.kind === 'pointers' ? undefined : op.id;
-          const name = op.kind === 'call' ? op.name : op.kind;
-          // 写的时候会话已被删（流式回复晚到）：不是故障
-          if (id && !this.get(id)) log.debug('conversation write skipped', { name, id });
-          else
-            log.warn('conversation write failed', {
-              name,
-              id,
-              error: e instanceof Error ? e.message : String(e),
-            });
+        this.inflight = op;
+        const ok = await this.write(kernel, op);
+        this.inflight = undefined;
+        if (!ok) {
+          // 写不进去：留在队首（不丢），过一会儿再试；提示用户一次
+          this.ops.unshift(op);
+          this.stall();
+          return;
         }
       }
+      if (this.stalled) {
+        this.stalled = false;
+        this.failureNotified = false;
+        log.info('conversation writes recovered');
+      }
+      // 写完了：之前因为有排着的写入没淘汰的，现在按预算淘汰
+      this.evict();
     } finally {
+      this.inflight = undefined;
       this.draining = undefined;
     }
+    const refresh = this.pendingRefresh;
+    if (refresh && !this.disposed) {
+      this.pendingRefresh = undefined;
+      void this.refreshFromKernel(refresh);
+    }
+  }
+
+  /** 写一条（含重试）；false = 重试用尽、还没写进去 */
+  private async write(kernel: ConversationKernel, op: WriteOp): Promise<boolean> {
+    const id = opId(op);
+    // 整份重写这个会话（会话不在 / 重试追加）
+    let resync = false;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        if (resync && id) await this.resync(kernel, op, id);
+        else await this.send(kernel, op);
+        return true;
+      } catch (e) {
+        const name = opName(op);
+        const error = e instanceof Error ? e.message : String(e);
+        // 写的时候会话已被删（流式回复晚到）：不是故障
+        if (id && !this.get(id) && name !== 'delete') {
+          log.debug('conversation write skipped', { name, id });
+          return true;
+        }
+        if (id && !resync && isConversationNotFound(e)) {
+          // 内核里没有（新建没写成 / 索引重建过）：按内存里的重新建一份
+          log.warn('conversation missing in the kernel, re-creating it', { name, id });
+          resync = true;
+          attempt--;
+          continue;
+        }
+        if (isPermanentWriteError(e)) {
+          // 重试也没用（被拒收）：不再重试，记下并提示
+          log.error('conversation write rejected', { name, id, error });
+          this.notifyWriteFailure();
+          return true;
+        }
+        if (attempt >= this.retryDelays.length) {
+          log.warn('conversation write failed, will retry', { name, id, error });
+          return false;
+        }
+        // 追加可能已经落盘、只是回复没收到：有整份的就整份写，不会追加成两份
+        if (id && (op.kind === 'append' || op.kind === 'replace') && this.messagesCache.has(id))
+          resync = true;
+        await sleep(this.retryDelays[attempt]!);
+        if (this.disposed) return false;
+      }
+    }
+  }
+
+  private async send(kernel: ConversationKernel, op: WriteOp): Promise<void> {
+    if (op.kind === 'append') {
+      const { kind: _k, ...input } = op;
+      await kernel.append(input);
+    } else if (op.kind === 'replace') {
+      const { kind: _k, ...input } = op;
+      await kernel.replace(input);
+    } else if (op.kind === 'pointers') {
+      const { kind: _k, ...input } = op;
+      await kernel.setPointers(input);
+    } else {
+      await op.run(kernel);
+    }
+  }
+
+  /**
+   * 按内存里的元信息 + 消息整份写（put 会话不在就新建）。缓存里有整份消息时，队列里这个会话后面排着的
+   * 追加 / 替换都已包含在内，一并去掉；没缓存时只能写这一条带的消息（内核里本来就没有更早的）。
+   */
+  private async resync(kernel: ConversationKernel, op: WriteOp, id: string): Promise<void> {
+    if (op.kind === 'call') return void (await op.run(kernel));
+    const meta = this.get(id);
+    if (!meta) return;
+    const cached = this.messagesCache.get(id);
+    const fallback = op.kind === 'append' || op.kind === 'replace' ? op.messages : undefined;
+    const messages = cached ? [...cached] : fallback;
+    const preview = this.previews[id] ?? (messages ? previewOf(messages) : undefined);
+    await kernel.put({
+      meta,
+      ...(messages ? { messages } : {}),
+      ...(preview !== undefined ? { preview } : {}),
+    });
+    if (!messages) await this.send(kernel, op);
+    if (cached) {
+      for (let i = this.ops.length - 1; i >= 0; i--) {
+        const o = this.ops[i]!;
+        if ((o.kind === 'append' || o.kind === 'replace') && o.id === id) this.ops.splice(i, 1);
+      }
+    }
+  }
+
+  private stall(): void {
+    this.stalled = true;
+    if (this.disposed) return;
+    this.notifyWriteFailure();
+    if (this.retryTimer) return;
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      if (!this.draining && this.ops.length && !this.disposed) this.draining = this.drain();
+    }, this.stalledRetryMs);
+  }
+
+  private notifyWriteFailure(): void {
+    if (this.failureNotified) return;
+    this.failureNotified = true;
+    if (typeof window !== 'undefined')
+      window.dispatchEvent(new CustomEvent(CONVERSATION_WRITE_FAILED_EVENT));
   }
 
   /** 把一份消息放到缓存末尾（最近使用），不触发淘汰。 */
@@ -739,7 +913,13 @@ export class ConversationStore {
     this.touchCache(id, messages);
     this.cachedChars += chars - (this.cacheChars.get(id) ?? 0);
     this.cacheChars.set(id, chars);
+    this.evict(id);
+  }
+
+  /** 超出份数上限或字符预算时淘汰最久未用的（当前会话、keep、有排着的写入的除外） */
+  private evict(keep?: string): void {
     if (!this.kernel) return;
+    const id = keep;
     const pin = this.currentId();
     while (
       this.messagesCache.size > this.maxCachedConversations ||
@@ -747,7 +927,8 @@ export class ConversationStore {
     ) {
       let victim: string | undefined;
       for (const key of this.messagesCache.keys()) {
-        if (key !== pin && key !== id) {
+        // 有排着的写入的不淘汰：重新建会话 / 重试时要用整份消息
+        if (key !== pin && key !== id && !this.pendingFor(key)) {
           victim = key;
           break;
         }

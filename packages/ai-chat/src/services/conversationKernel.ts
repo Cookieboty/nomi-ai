@@ -8,6 +8,8 @@
  */
 
 import type { AppClient } from '@nomi-ai/ai-sdk-client';
+import { ContractError, isContractError } from '@nomi-ai/contract';
+import { isValidConversationId } from '@nomi-ai/contract/app';
 
 import type { ChatMessage, ChatSession } from '../types/chat';
 
@@ -63,8 +65,26 @@ export interface ConversationKernel {
   readonly source?: string;
 }
 
-/** 会话 id 也是内核里的文件名（与契约 ConversationId 一致） */
-export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+/**
+ * 会话 id 也是内核里的文件名：规则来自契约（与 Go 内核的 convstore.ValidID 一致，含 Windows 保留名）
+ */
+export { isValidConversationId };
+
+/** 内核说这个会话不在（没建成 / 别处删了 / 索引重建过） */
+export function isConversationNotFound(e: unknown): boolean {
+  return isContractError(e, 'CONVERSATION_NOT_FOUND');
+}
+
+/**
+ * 重试也不会成功的写入错误（入参被契约 / 内核拒收、过程不存在、没权限）；其余（连接断了、内核 IO 出错）
+ * 当作暂时的，退避重试
+ */
+export function isPermanentWriteError(e: unknown): boolean {
+  if (!isContractError(e)) return false;
+  return ['BAD_INPUT', 'BAD_REQUEST', 'NOT_FOUND', 'FORBIDDEN', 'VERSION_MISMATCH'].includes(
+    e.code,
+  );
+}
 
 export function newSourceId(): string {
   return `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -149,8 +169,8 @@ export function createMemoryConversationKernel(
   };
   /** 测试用：每次调用的名字 */
   readonly calls: string[];
-  /** 测试用：让下一次（或某些）调用失败 */
-  failNext?: (name: string) => boolean;
+  /** 测试用：让下一次（或某些）调用失败（true = 暂时的错误；也可以给要抛的错误） */
+  failNext?: (name: string) => boolean | Error;
   /** 测试用：模拟别的窗口写了（来源不是本端口） */
   emitExternal(ids: string[], index?: boolean): void;
 } {
@@ -171,19 +191,22 @@ export function createMemoryConversationKernel(
     source,
     data,
     calls,
-    failNext: undefined as ((name: string) => boolean) | undefined,
+    failNext: undefined as ((name: string) => boolean | Error) | undefined,
     emitExternal: (ids: string[], index = true) => emit(ids, index, 'external'),
   };
   const check = (name: string, id?: string) => {
     calls.push(name);
-    if (k.failNext?.(name)) throw new Error(`${name} failed`);
-    if (id !== undefined && !CONVERSATION_ID_RE.test(id)) throw new Error('BAD_INPUT');
+    const fail = k.failNext?.(name);
+    if (fail) throw fail === true ? new Error(`${name} failed`) : fail;
+    if (id !== undefined && !isValidConversationId(id))
+      throw new ContractError('BAD_INPUT', 'invalid conversation id');
   };
   const emit = (ids: string[], index: boolean, from = source) => {
     for (const fn of listeners) fn({ source: from, ids, index });
   };
   const need = (id: string) => {
-    if (!data.metas.has(id)) throw Object.assign(new Error('CONVERSATION_NOT_FOUND'), { id });
+    if (!data.metas.has(id))
+      throw new ContractError('CONVERSATION_NOT_FOUND', `conversation not found: ${id}`);
   };
   const kernel: ConversationKernel = {
     source,

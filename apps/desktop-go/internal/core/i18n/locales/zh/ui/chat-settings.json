@@ -483,5 +483,10 @@
   "ui.chat-settings.your-desktop-ai-assistant": "你的桌面 AI 助手",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "下一条消息会连同之前的 {0} 条对话一起发给新会话",
   "ui.chat-settings.your-own-secrets": "你登记的密钥",
-  "ui.chat-settings.always-allow-command-prefix": "以后不再询问以此开头的命令："
+  "ui.chat-settings.always-allow-command-prefix": "以后不再询问以此开头的命令：",
+  "ui.chat-settings.boot-loading-history": "正在载入对话记录…",
+  "ui.chat-settings.boot-importing-history": "正在导入之前的对话记录（{0}/{1}）…",
+  "ui.chat-settings.boot-history-unavailable": "对话记录暂时读不出来",
+  "ui.chat-settings.boot-history-unavailable-detail": "记录还在，没有丢失。稍后重试一下；一直不行的话重启应用。",
+  "ui.chat-settings.history-save-failed": "对话记录暂时没能保存，正在自动重试，请先不要退出应用"
 }

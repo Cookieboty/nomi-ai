@@ -31,11 +31,17 @@
 | --------------------- | -------------------------------------------------------------------- |
 | `index.json`          | 会话列表（名称、端点、工作区、更新时间等）、每个会话的条数、当前会话 |
 | `previews.json`       | 每个会话第一条用户消息的前 300 字（侧栏搜索用）                      |
+| `migrated.json`       | 已从旧 localStorage 导入过的标记（`index.json` 里也有一份）          |
 | `messages/<id>.jsonl` | 一行一条消息                                                         |
 
 - 新消息只追加到 `jsonl` 末尾；编辑重发、清空、分叉、超出「最多保留条数」时整份重写。整份重写与索引都先写临时文件再改名，文件权限 0600。
-- 对话窗口只在内存里留最近打开的十几个会话的消息（当前会话一直在），其余打开时再从内核读。
-- 2.2.0 及以前会话存在对话窗口的 localStorage 里（WebKit 约 5 MB 的配额，满了会写不进）。2.2.1 首次启动时把它们（以及 2.0.4 Electron 版抽出来的旧对话）一次性导入内核，核对条数后记完成；没导完的下次启动接着导，已有的会话不覆盖。旧的 localStorage 键保留一个版本，降级回 2.2.0 仍能看到当时的会话（之后的新消息不在里面）。
+- 对话窗口只在内存里留最近打开的十几个会话的消息（当前会话、还有没写进内核的会话一直在），其余打开时再从内核读。
+- 写入：界面先更新，写入按顺序排队发给内核（一次一条，前一条回来立刻发下一条，不攒批）。暂时写不进（连接断开、磁盘出错）时退避重试几次；还不行就留在队列里（不丢），约 15 秒后或下一次写入时再试，并提示一次「对话记录暂时没能保存」。内核说会话不在（新建时没写成、索引重建过）时，按界面里的名称与全部消息重新建一份再接着写；重试追加时整份写，不会重复。内核拒收的写入（入参不合法）不重试，同样提示。
+- 退出（托盘、⌘Q、注销）时，内核在关窗之前等对话窗口排着的写入写完：最多 1.5 秒，最近 200 毫秒没有写入就直接退出。剩下的风险窗口是退出前几毫秒里刚产生、还没发到内核的那一条，以及重试中的写入。
+- `index.json` 坏了（不是 JSON）：挪成 `index.json.corrupt`（已有就加时间戳，不覆盖），按 `messages/*.jsonl` 重建会话列表（名称取第一条用户消息、时间取消息时间，标 `recovered`；没有消息的会话不恢复，当前会话指针丢失）。`index.json` 不见了而消息文件还在时同样重建。「已导入」以 `migrated.json` 为准，重建后不会再从旧 localStorage 导一遍。`index.json` 读不出来（权限 / IO 错误）时不当作空：所有读写报错，对话窗口启动时显示「对话记录暂时读不出来」与「重试」，不显示空列表、也不迁移。
+- 启动时先显示启动画面（不白屏）：取会话列表（每次限时 5 秒、重试 3 次），首次导入旧会话时显示进度。
+- 2.2.0 及以前会话存在对话窗口的 localStorage 里（WebKit 约 5 MB 的配额，满了会写不进）。2.2.1 首次启动时把它们（以及 2.0.4 Electron 版抽出来的旧对话）一次性导入内核（几个会话同时导），核对条数后记完成；没导完的下次启动接着导，已有的会话不覆盖。会话 id 与内核用同一条规则（字母、数字、`_`、`-`，不能是 Windows 保留名 `con`、`nul`、`com1` 等，规则在契约的 `isValidConversationId`）；不合法的旧 id 换成固定的新 id（`m_<散列>_<原 id 能用的部分>`）导入，原 id 记在元信息的 `legacyId`。旧的 localStorage 键保留一个版本，降级回 2.2.0 仍能看到当时的会话（之后的新消息不在里面）。
+- 设置里的「数据导出」把 `userData/conversations/` 整个打包成 zip 里的 `conversations/`（`conversations.json` 只有对话偏好）。应用没有从导出包恢复的功能，导出包只给人看或自己备份。
 
 ## 图片与文件
 
@@ -79,5 +85,5 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 ## 实现
 
 - 视图：`packages/ai-chat/src`（`App.tsx`、`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
-- 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）。
+- 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）、`components/BootScreen`（启动画面）；退出前等写入：`shellhandlers.ConversationWrites`（`main.go` 的 `OnShutdown`）。
 - 内核：`apps/desktop-go/internal/aichat`（2.0.4 Electron 旧对话的抽取），图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。

@@ -4,14 +4,71 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 )
 
+// ConversationWrites 记会话写入的进行情况：退出前（宿主的 OnShutdown）用 WaitIdle 等对话窗口排着的
+// 写入写完。视图的写队列一次发一个、前一个回来后立刻发下一个，所以「没有进行中的、且安静了 quiet」
+// 就说明队列空了。
+type ConversationWrites struct {
+	mu       sync.Mutex
+	inflight int
+	last     time.Time
+}
+
+func (w *ConversationWrites) begin() {
+	w.mu.Lock()
+	w.inflight++
+	w.last = time.Now()
+	w.mu.Unlock()
+}
+
+func (w *ConversationWrites) end() {
+	w.mu.Lock()
+	w.inflight--
+	w.last = time.Now()
+	w.mu.Unlock()
+}
+
+func (w *ConversationWrites) idle(quiet time.Duration) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.inflight == 0 && (w.last.IsZero() || time.Since(w.last) >= quiet)
+}
+
+// WaitIdle 等到没有进行中的会话写入、且最近 quiet 内没有新的写入，最多等 max；返回是否等到了。
+// 最近没写过的话立刻返回（退出不变慢）。
+func (w *ConversationWrites) WaitIdle(max, quiet time.Duration) bool {
+	if w == nil {
+		return true
+	}
+	deadline := time.Now().Add(max)
+	for !w.idle(quiet) {
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return true
+}
+
 // InstallConversations 挂 conversations.*（对话窗口的会话存储，userData/conversations/）。
 // 每次写完推 conversations.changed（带调用方传的 source），别的窗口据此重新取索引。
-func InstallConversations(r *contract.Router, s *convstore.Store) {
+// 返回写入的进行情况（退出前等写完）。
+func InstallConversations(r *contract.Router, s *convstore.Store) *ConversationWrites {
+	w := &ConversationWrites{}
+	// 写入类的处理函数：记进行中 / 最近一次写
+	write := func(name string, f contract.CallFunc) {
+		r.Call(name, func(ctx context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
+			w.begin()
+			defer w.end()
+			return f(ctx, c, raw)
+		})
+	}
 	emit := func(source string, index bool, ids ...string) {
 		if ids == nil {
 			ids = []string{}
@@ -29,7 +86,11 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 	}
 
 	r.Call("conversations.state", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
-		return s.State(), nil
+		st, err := s.State()
+		if err != nil {
+			return nil, fail(err)
+		}
+		return st, nil
 	})
 	r.Call("conversations.messages", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
@@ -49,7 +110,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		}
 		return map[string]any{"messages": msgs, "bytes": n}, nil
 	})
-	r.Call("conversations.append", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.append", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Source   string            `json:"source"`
 			ID       string            `json:"id"`
@@ -67,7 +128,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit(in.Source, len(in.Meta) > 0, in.ID)
 		return nil, nil
 	})
-	r.Call("conversations.replace", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.replace", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Source   string            `json:"source"`
 			ID       string            `json:"id"`
@@ -87,7 +148,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit(in.Source, len(in.Meta) > 0, in.ID)
 		return nil, nil
 	})
-	r.Call("conversations.put", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.put", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Source   string            `json:"source"`
 			Meta     json.RawMessage   `json:"meta"`
@@ -104,7 +165,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit(in.Source, true, id)
 		return nil, nil
 	})
-	r.Call("conversations.delete", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.delete", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Source string `json:"source"`
 			ID     string `json:"id"`
@@ -118,7 +179,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit(in.Source, true, in.ID)
 		return nil, nil
 	})
-	r.Call("conversations.setPointers", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.setPointers", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Source   string          `json:"source"`
 			Current  json.RawMessage `json:"current"`
@@ -141,7 +202,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit(in.Source, true)
 		return nil, nil
 	})
-	r.Call("conversations.import", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.import", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Meta     json.RawMessage   `json:"meta"`
 			Messages []json.RawMessage `json:"messages"`
@@ -158,7 +219,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		}
 		return map[string]any{"imported": ok}, nil
 	})
-	r.Call("conversations.markMigrated", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+	write("conversations.markMigrated", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			Count int `json:"count"`
 		}
@@ -171,6 +232,7 @@ func InstallConversations(r *contract.Router, s *convstore.Store) {
 		emit("", true)
 		return nil, nil
 	})
+	return w
 }
 
 // pointer：字段没传 = 不变（nil），null = 清空（""），字符串 = 设成它

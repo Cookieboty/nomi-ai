@@ -9,9 +9,12 @@
  *   ai-chat:history                更早的单会话历史
  *
  * - 导入索引里的每个会话；索引里没有、但消息键还在的（以前存储满了索引没写进去）也导入，元信息按消息补；
- *   消息不是数组的按空会话导入；id 不能当文件名的跳过（记日志）；
+ *   消息不是数组的按空会话导入；id 不能当文件名的（含 Windows 保留名，规则同内核）换一个固定的新 id
+ *   （`remapConversationId`，同一个旧 id 每次换出来的一样）导入，旧 id 记在元信息的 `legacyId`；
  * - 幂等：内核里已有的 id 不覆盖（内核侧保证）；大会话分几次发，中途中断的内核不收进索引，下次从头再导；
- * - 导完重新取一次索引核对：来源里的会话都在了才记完成（`conversations.markMigrated`），否则下次启动再试；
+ *   几个会话同时导（每个会话的几块按顺序），进度经 `onProgress` 报给启动画面；
+ * - 导完重新取一次索引核对：来源里的会话（含换了 id 的）都在了才记完成（`conversations.markMigrated`），
+ *   否则下次启动再试；
  * - 旧键保留一个版本（降级回旧版还能看到），不在这里删。
  */
 
@@ -21,7 +24,7 @@ import type { ChatMessage } from '../types/chat';
 import { isConversationBackend } from '../types/chat';
 
 import {
-  CONVERSATION_ID_RE,
+  isValidConversationId,
   type ConversationKernel,
   type ConversationMeta,
   type ConversationSnapshot,
@@ -110,12 +113,33 @@ function synthesizeMeta(id: string, messages: ChatMessage[], name: string): Conv
   return { id, name: user || name, createdAt: first, updatedAt: last, backend: 'nomi' };
 }
 
-/** 从旧存储里读出所有会话（invalid = id 不能当文件名、跳过的） */
+/** FNV-1a 32 位（换 id 用：同一个旧 id 每次得到同一个新 id，重复导入按 id 跳过） */
+function fnv1a(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+/**
+ * 不能当文件名的旧 id → 合法的新 id：`m_<旧 id 的散列>_<旧 id 里能用的字符>`（固定、不会是保留名）
+ */
+export function remapConversationId(id: string): string {
+  const safe = id
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  return `m_${fnv1a(id)}${safe ? `_${safe}` : ''}`;
+}
+
+/** 从旧存储里读出所有会话（remapped = id 不能当文件名、换了新 id 的：旧 id → 新 id） */
 export function readLegacyConversations(storage: EnumerableStorage): {
   conversations: LegacyConversation[];
   current?: string;
   lastNomi?: string;
-  invalid: string[];
+  remapped: Array<{ from: string; to: string }>;
 } {
   const previewsRaw = parse(read(storage, LEGACY_KEYS.previews));
   const previews =
@@ -123,18 +147,21 @@ export function readLegacyConversations(storage: EnumerableStorage): {
       ? (previewsRaw as Record<string, unknown>)
       : {};
   const out: LegacyConversation[] = [];
-  const invalid: string[] = [];
-  const seen = new Set<string>();
+  const remapped: Array<{ from: string; to: string }> = [];
+  /** 旧 id → 导入用的 id */
+  const ids = new Map<string, string>();
+  const used = new Set<string>();
   const add = (meta: ConversationMeta, messages: ChatMessage[]) => {
-    if (seen.has(meta.id)) return;
-    seen.add(meta.id);
-    if (!CONVERSATION_ID_RE.test(meta.id)) {
-      invalid.push(meta.id);
-      return;
-    }
+    if (ids.has(meta.id)) return;
+    const to = isValidConversationId(meta.id) ? meta.id : remapConversationId(meta.id);
+    if (used.has(to)) return;
+    ids.set(meta.id, to);
+    used.add(to);
     const known = previews[meta.id];
+    const base = isConversationBackend(meta.backend) ? meta : { ...meta, backend: 'nomi' as const };
+    if (to !== meta.id) remapped.push({ from: meta.id, to });
     out.push({
-      meta: isConversationBackend(meta.backend) ? meta : { ...meta, backend: 'nomi' },
+      meta: to === meta.id ? base : { ...base, id: to, legacyId: meta.id },
       messages,
       preview: typeof known === 'string' ? known : previewOf(messages),
     });
@@ -151,18 +178,18 @@ export function readLegacyConversations(storage: EnumerableStorage): {
   for (const key of keysOf(storage)) {
     if (!key.startsWith(LEGACY_KEYS.messagesPrefix)) continue;
     const id = key.slice(LEGACY_KEYS.messagesPrefix.length);
-    if (seen.has(id)) continue;
+    if (ids.has(id)) continue;
     const messages = messagesOf(parse(read(storage, key)));
     if (!messages.length) continue;
     add(synthesizeMeta(id, messages, t('ui.chat-settings.history')), messages);
   }
   // 更早的单会话历史
   const history = messagesOf(parse(read(storage, LEGACY_KEYS.history)));
-  if (history.length && !seen.has(LEGACY_HISTORY_ID))
+  if (history.length && !ids.has(LEGACY_HISTORY_ID))
     add(synthesizeMeta(LEGACY_HISTORY_ID, history, t('ui.chat-settings.history')), history);
   const ptr = (key: string) => {
     const v = parse(read(storage, key));
-    return typeof v === 'string' && seen.has(v) ? v : undefined;
+    return typeof v === 'string' ? ids.get(v) : undefined;
   };
   const current = ptr(LEGACY_KEYS.current);
   const lastNomi = ptr(LEGACY_KEYS.lastNomi);
@@ -170,7 +197,7 @@ export function readLegacyConversations(storage: EnumerableStorage): {
     conversations: out,
     ...(current ? { current } : {}),
     ...(lastNomi ? { lastNomi } : {}),
-    invalid,
+    remapped,
   };
 }
 
@@ -201,14 +228,20 @@ function chunks(messages: ChatMessage[], maxChars: number): ChatMessage[][] {
 export interface MigrationResult {
   /** complete：来源里的会话都在内核里了（mark 时已记完成）；incomplete：有没导进去的，下次再试 */
   status: 'complete' | 'incomplete';
-  /** 来源里的会话数（不含 id 不合法的） */
+  /** 来源里的会话数（含换了 id 的） */
   total: number;
   /** 这次新导入的 */
   imported: number;
-  /** id 不能当文件名、跳过的 */
-  invalid: number;
+  /** id 不能当文件名、换了新 id 导入的 */
+  remapped: number;
   /** 导入后的索引（失败时是导入前的） */
   snapshot: ConversationSnapshot;
+}
+
+export interface MigrationProgress {
+  /** 已处理的会话（导入了 / 已经在内核里 / 失败了） */
+  done: number;
+  total: number;
 }
 
 export async function migrateConversationsToKernel(opts: {
@@ -219,16 +252,22 @@ export async function migrateConversationsToKernel(opts: {
   mark: boolean;
   /** 每次调用最多带这么多字符的消息，默认 4M */
   maxChunkChars?: number;
+  /** 同时导入的会话数，默认 4（内核按会话串行写，这里省的是往返等待） */
+  concurrency?: number;
+  onProgress?: (p: MigrationProgress) => void;
 }): Promise<MigrationResult> {
   const { kernel } = opts;
   const legacy = readLegacyConversations(opts.source);
-  if (legacy.invalid.length)
-    log.warn('conversation migration: skipped invalid ids', legacy.invalid.length);
+  if (legacy.remapped.length)
+    log.warn('conversation migration: remapped ids that cannot be file names', legacy.remapped);
   const have = new Set(opts.snapshot.conversations.map((c) => c.id));
+  const todo = legacy.conversations.filter((c) => !have.has(c.meta.id));
+  const total = legacy.conversations.length;
+  let done = total - todo.length;
   let imported = 0;
   let failed = 0;
-  for (const conv of legacy.conversations) {
-    if (have.has(conv.meta.id)) continue;
+  opts.onProgress?.({ done, total });
+  const importOne = async (conv: LegacyConversation) => {
     try {
       const parts = chunks(conv.messages, opts.maxChunkChars ?? 4_000_000);
       for (let i = 0; i < parts.length; i++) {
@@ -248,27 +287,26 @@ export async function migrateConversationsToKernel(opts: {
         error: e instanceof Error ? e.message : String(e),
       });
     }
-  }
+    done++;
+    opts.onProgress?.({ done, total });
+  };
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) await importOne(todo[next++]!);
+  };
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? 4, todo.length)) }, worker),
+  );
+  const base = { total, imported, remapped: legacy.remapped.length };
   let snapshot = opts.snapshot;
   try {
     snapshot = await kernel.state();
   } catch (e) {
     log.warn('conversation migration: state unavailable after import', e);
-    return {
-      status: 'incomplete',
-      total: legacy.conversations.length,
-      imported,
-      invalid: legacy.invalid.length,
-      snapshot,
-    };
+    return { status: 'incomplete', ...base, snapshot };
   }
   const ids = new Set(snapshot.conversations.map((c) => c.id));
   const missing = legacy.conversations.filter((c) => !ids.has(c.meta.id)).length;
-  const base = {
-    total: legacy.conversations.length,
-    imported,
-    invalid: legacy.invalid.length,
-  };
   if (missing > 0 || failed > 0) {
     log.warn('conversation migration incomplete, will retry next launch', { missing, failed });
     return { status: 'incomplete', ...base, snapshot };

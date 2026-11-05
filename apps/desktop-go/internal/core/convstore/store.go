@@ -4,6 +4,7 @@
 //
 //	index.json            元信息列表（视图的 ChatSession 去掉 messages，原样保存）+ 每个会话的条数 +
 //	                      当前会话 / 最近的 Nomi 会话 + 是否已从视图旧的 localStorage 导入
+//	migrated.json         「已导入」标记的另一份（索引坏了也不会再导一次旧数据）
 //	previews.json         { id: 第一条用户消息的前 300 字 }（侧栏搜索用，只在变了时重写）
 //	messages/<id>.jsonl   一行一条消息（视图的 ChatMessage，内核不解析，原样保存）
 //
@@ -12,6 +13,11 @@
 //
 // 崩溃安全：先写消息文件再写索引（新建 / 导入），先写索引再删消息文件（删除）；没进索引的消息文件
 // 当作不存在。追加写了一半的最后一行读的时候跳过，下一次追加前先补一个换行，不会和新消息粘在一起。
+//
+// 索引坏了（不是 JSON）或不见了、但还有消息文件：坏文件挪到一边，按 messages/*.jsonl 重建索引
+// （元信息按消息补，标成 recovered）。「已导入」另存一份（migrated.json），索引重建后视图也不会再从
+// 旧 localStorage 导一遍（导了也不覆盖已有的 id）。
+// 索引读不出来（权限 / IO 错误）时所有调用都报错、不当作空，免得下一次写把它覆盖掉。
 package convstore
 
 import (
@@ -19,13 +25,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
@@ -36,6 +45,7 @@ const Dir = "conversations"
 const (
 	indexFile    = "index.json"
 	previewsFile = "previews.json"
+	migratedFile = "migrated.json"
 	messagesDir  = "messages"
 	importSuffix = ".import"
 	// 一行消息的上限（含图片缩略图的消息也远小于它）；超过的行读的时候跳过
@@ -56,7 +66,7 @@ var idRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 // Windows 的保留设备名（加了扩展名也不能当文件名）
 var reserved = map[string]bool{"CON": true, "PRN": true, "AUX": true, "NUL": true}
 
-// ValidID：会话 id 能不能当文件名
+// ValidID：会话 id 能不能当文件名（与契约 packages/contract 的 isValidConversationId 一致）
 func ValidID(id string) bool {
 	if !idRe.MatchString(id) {
 		return false
@@ -119,27 +129,61 @@ func (s *Store) msgPath(id string) string {
 	return filepath.Join(s.dir, messagesDir, id+".jsonl")
 }
 
-// load 懒加载索引与预览；读不出来的索引当作空（不覆盖坏文件，先挪到一边）
-func (s *Store) load() {
+// load 懒加载索引与预览。索引不是 JSON：挪到一边、从消息文件重建；索引不在但有消息文件：同样重建。
+// 读不出来（不是「不存在」）时报错，下次调用再试（不当作空，免得覆盖）。
+func (s *Store) load() error {
 	if s.loaded {
-		return
+		return nil
 	}
-	s.loaded = true
-	s.doc = indexDoc{Version: 1}
-	s.previews = map[string]string{}
-	if b, err := os.ReadFile(filepath.Join(s.dir, indexFile)); err == nil {
+	doc := indexDoc{Version: 1}
+	rebuild := false
+	b, err := os.ReadFile(filepath.Join(s.dir, indexFile))
+	switch {
+	case err == nil:
 		var d indexDoc
 		if json.Unmarshal(b, &d) == nil {
-			s.doc = d
-			s.doc.Version = 1
+			doc = d
+			doc.Version = 1
 		} else {
-			_ = os.Rename(filepath.Join(s.dir, indexFile), filepath.Join(s.dir, indexFile+".corrupt"))
+			if err := s.setAside(indexFile); err != nil {
+				return err
+			}
+			rebuild = true
+		}
+	case os.IsNotExist(err):
+		rebuild = true
+	default:
+		return err
+	}
+	previews := map[string]string{}
+	if b, err := os.ReadFile(filepath.Join(s.dir, previewsFile)); err == nil {
+		_ = json.Unmarshal(b, &previews)
+		if previews == nil {
+			previews = map[string]string{}
 		}
 	}
-	if b, err := os.ReadFile(filepath.Join(s.dir, previewsFile)); err == nil {
-		_ = json.Unmarshal(b, &s.previews)
-		if s.previews == nil {
-			s.previews = map[string]string{}
+	s.doc, s.previews = doc, previews
+	// 「已导入」以另一份标记为准（索引重建后也还在）：不会再从旧 localStorage 导一遍；
+	// 没导完就中断的（没有标记）下次照常续导，导入不覆盖已有的 id
+	if s.doc.Migrated == nil {
+		if b, err := os.ReadFile(filepath.Join(s.dir, migratedFile)); err == nil {
+			var m migratedMark
+			if json.Unmarshal(b, &m) == nil {
+				s.doc.Migrated = &m
+			}
+		}
+	} else if _, err := os.Stat(filepath.Join(s.dir, migratedFile)); os.IsNotExist(err) {
+		_ = s.writeMigratedMark() // 补上另一份标记（只有索引里那份的数据）
+	}
+	if rebuild {
+		n, err := s.rebuildFromMessages()
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			if err := s.writeIndex(); err != nil {
+				return err
+			}
 		}
 	}
 	// 去掉坏行（没有合法 id 的）与重复 id
@@ -157,6 +201,112 @@ func (s *Store) load() {
 		kept = append(kept, e)
 	}
 	s.doc.Conversations = kept
+	s.loaded = true
+	return nil
+}
+
+// setAside 把坏文件挪开（不覆盖之前挪开的）
+func (s *Store) setAside(name string) error {
+	src := filepath.Join(s.dir, name)
+	dst := src + ".corrupt"
+	if _, err := os.Stat(dst); err == nil {
+		dst = fmt.Sprintf("%s.corrupt-%d", src, s.now().UnixMilli())
+	}
+	return os.Rename(src, dst)
+}
+
+// rebuildFromMessages 按 messages/*.jsonl 重建索引（索引坏了 / 丢了）。返回有几个消息文件（含空的）；
+// 只有消息的会话进索引，元信息按消息补（名字取第一条用户消息，时间取消息的时间戳），标 recovered。
+func (s *Store) rebuildFromMessages() (int, error) {
+	ents, err := os.ReadDir(filepath.Join(s.dir, messagesDir))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	type found struct {
+		e       entry
+		created int64
+	}
+	var list []found
+	files := 0
+	for _, de := range ents {
+		name := de.Name()
+		id, ok := strings.CutSuffix(name, ".jsonl")
+		if !ok || de.IsDir() || !ValidID(id) {
+			continue
+		}
+		files++
+		msgs, err := readLines(s.msgPath(id))
+		if err != nil {
+			return 0, err
+		}
+		if len(msgs) == 0 {
+			continue
+		}
+		var mtime int64
+		if fi, err := de.Info(); err == nil {
+			mtime = fi.ModTime().UnixMilli()
+		}
+		meta, created := recoveredMeta(id, msgs, mtime)
+		list = append(list, found{entry{Meta: meta, Count: len(msgs)}, created})
+	}
+	sort.SliceStable(list, func(i, j int) bool { return list[i].created < list[j].created })
+	s.doc.Conversations = make([]entry, 0, len(list))
+	for _, f := range list {
+		s.doc.Conversations = append(s.doc.Conversations, f.e)
+	}
+	return files, nil
+}
+
+// recoveredMeta 按消息补一份元信息（视图的 ChatSession 字段：id / name / createdAt / updatedAt / backend）
+func recoveredMeta(id string, msgs []json.RawMessage, mtime int64) (json.RawMessage, int64) {
+	var first, last int64
+	name := ""
+	for _, raw := range msgs {
+		var m struct {
+			Role      string  `json:"role"`
+			Content   any     `json:"content"`
+			Timestamp float64 `json:"timestamp"`
+		}
+		if json.Unmarshal(raw, &m) != nil {
+			continue
+		}
+		if ts := int64(m.Timestamp); ts > 0 {
+			if first == 0 || ts < first {
+				first = ts
+			}
+			if ts > last {
+				last = ts
+			}
+		}
+		if name == "" && m.Role == "user" {
+			if c, ok := m.Content.(string); ok {
+				name = shortName(c)
+			}
+		}
+	}
+	if first == 0 {
+		first, last = mtime, mtime
+	}
+	if name == "" {
+		name = id
+	}
+	b, _ := json.Marshal(map[string]any{
+		"id": id, "name": name, "createdAt": first, "updatedAt": last, "backend": "nomi", "recovered": true,
+	})
+	return b, first
+}
+
+// shortName：第一条用户消息压掉空白后的前 30 个字（与视图默认标题一致）
+func shortName(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if utf8.RuneCountInString(s) <= 30 {
+		return s
+	}
+	r := []rune(s)
+	return string(r[:30])
 }
 
 func metaID(meta json.RawMessage) string {
@@ -224,6 +374,14 @@ func (s *Store) writePreviews() error {
 	return utils.WritePrivateFileAtomic(filepath.Join(s.dir, previewsFile), b)
 }
 
+func (s *Store) writeMigratedMark() error {
+	b, err := json.Marshal(s.doc.Migrated)
+	if err != nil {
+		return err
+	}
+	return utils.WritePrivateFileAtomic(filepath.Join(s.dir, migratedFile), b)
+}
+
 // setPreview 返回是否变了
 func (s *Store) setPreview(id string, p *string) bool {
 	if p == nil {
@@ -237,10 +395,12 @@ func (s *Store) setPreview(id string, p *string) bool {
 }
 
 // State：索引快照（元信息、预览、条数、指针）
-func (s *Store) State() State {
+func (s *Store) State() (State, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return State{}, err
+	}
 	st := State{
 		Conversations: make([]json.RawMessage, 0, len(s.doc.Conversations)),
 		Previews:      make(map[string]string, len(s.previews)),
@@ -257,7 +417,7 @@ func (s *Store) State() State {
 			st.Previews[id] = p
 		}
 	}
-	return st
+	return st, nil
 }
 
 // Messages 读一个会话的消息（limit > 0 时只要最后 limit 条）。坏行（写了一半）跳过。
@@ -267,7 +427,9 @@ func (s *Store) Messages(id string, limit int) ([]json.RawMessage, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return nil, err
+	}
 	i, ok := s.pos[id]
 	if !ok {
 		return []json.RawMessage{}, nil
@@ -389,7 +551,9 @@ func (s *Store) Append(in AppendInput) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return err
+	}
 	i, ok := s.pos[in.ID]
 	if !ok {
 		return ErrNotFound
@@ -398,6 +562,8 @@ func (s *Store) Append(in AppendInput) error {
 	if err := appendFile(path, data); err != nil {
 		return err
 	}
+	// 消息已经落盘：之后的整理（裁掉最旧的、写预览 / 索引）失败也不报错——报错的话视图会重发这一批、
+	// 追加成两份。内存里的索引已更新，下一次写入时一起落盘；条数读消息时以文件为准。
 	e := &s.doc.Conversations[i]
 	e.Count += len(in.Messages)
 	if in.Max > 0 && e.Count > in.Max+trimSlack(in.Max) {
@@ -405,10 +571,7 @@ func (s *Store) Append(in AppendInput) error {
 			if len(msgs) > in.Max {
 				msgs = msgs[len(msgs)-in.Max:]
 			}
-			if b, err := encodeLines(msgs); err == nil {
-				if err := utils.WritePrivateFileAtomic(path, b); err != nil {
-					return err
-				}
+			if b, err := encodeLines(msgs); err == nil && utils.WritePrivateFileAtomic(path, b) == nil {
 				e.Count = len(msgs)
 			}
 		}
@@ -417,11 +580,10 @@ func (s *Store) Append(in AppendInput) error {
 		e.Meta = meta
 	}
 	if s.setPreview(in.ID, in.Preview) {
-		if err := s.writePreviews(); err != nil {
-			return err
-		}
+		_ = s.writePreviews()
 	}
-	return s.writeIndex()
+	_ = s.writeIndex()
+	return nil
 }
 
 // Replace 整份替换消息（原子写）
@@ -440,7 +602,9 @@ func (s *Store) Replace(id string, msgs []json.RawMessage, meta json.RawMessage,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return err
+	}
 	i, ok := s.pos[id]
 	if !ok {
 		return ErrNotFound
@@ -474,7 +638,9 @@ func (s *Store) Put(meta json.RawMessage, msgs []json.RawMessage, preview *strin
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return "", err
+	}
 	i, exists := s.pos[id]
 	// 新建：先写消息文件（哪怕是空的）再进索引
 	if msgs != nil || !exists {
@@ -506,7 +672,9 @@ func (s *Store) Delete(id string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return err
+	}
 	i, ok := s.pos[id]
 	if !ok {
 		return nil
@@ -551,7 +719,9 @@ func (s *Store) SetPointers(current, lastNomi Pointer) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return err
+	}
 	changed := false
 	if current != nil && *current != s.doc.Current {
 		s.doc.Current, changed = *current, true
@@ -587,7 +757,9 @@ func (s *Store) Import(in ImportInput) (bool, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return false, err
+	}
 	staging := s.msgPath(id) + importSuffix
 	if _, exists := s.pos[id]; exists {
 		_ = os.Remove(staging)
@@ -626,8 +798,14 @@ func (s *Store) Import(in ImportInput) (bool, error) {
 func (s *Store) MarkMigrated(count int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.load()
+	if err := s.load(); err != nil {
+		return err
+	}
 	s.doc.Migrated = &migratedMark{At: s.now().UnixMilli(), Count: count}
+	// 另一份标记先写：索引坏了重建时还认得出已导入过
+	if err := s.writeMigratedMark(); err != nil {
+		return err
+	}
 	return s.writeIndex()
 }
 

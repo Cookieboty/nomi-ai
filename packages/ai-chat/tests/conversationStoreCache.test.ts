@@ -1,8 +1,12 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { ContractError } from '@nomi-ai/contract';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createMemoryConversationKernel } from '../src/services/conversationKernel';
-import { ConversationStore } from '../src/services/conversationStore';
+import {
+  CONVERSATION_WRITE_FAILED_EVENT,
+  ConversationStore,
+} from '../src/services/conversationStore';
 import type { ChatMessage } from '../src/types/chat';
 
 const msg = (i: number, content = 'x'): ChatMessage => ({
@@ -180,20 +184,130 @@ describe('ConversationStore over the kernel', () => {
     expect(r.getMessages(r.fork(a).id)).toHaveLength(1);
   });
 
-  it('a failed kernel write is logged and does not block later writes', async () => {
+  it('a transient write failure is retried; later writes keep their order', async () => {
     const kernel = createMemoryConversationKernel();
-    const s = new ConversationStore({ kernel });
+    const s = new ConversationStore({ kernel, retryDelays: [1, 1, 1] });
+    let fails = 2;
+    kernel.failNext = (name) => name === 'put' && fails-- > 0;
+    const a = s.create('a').id;
+    s.append(msg(0, 'first'), a);
+    s.append(msg(1, 'second'), a);
+    await s.flush();
+    expect(s.hasPendingWrites()).toBe(false);
+    expect(kernel.data.messages.get(a)!.map((m) => m.content)).toEqual(['first', 'second']);
+  });
+
+  it('a lost new conversation (append → NOT_FOUND) is re-created from memory', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1] });
+    const a = s.create('a').id;
+    s.append(msg(0, 'one'), a);
+    await s.flush();
+    // 内核那边没了（put 当时没写成 / 索引重建过）
+    kernel.data.metas.delete(a);
+    kernel.data.order = kernel.data.order.filter((x) => x !== a);
+    s.append(msg(1, 'two'), a);
+    s.append(msg(2, 'three'), a);
+    await s.flush();
+    expect(kernel.data.order).toContain(a);
+    expect(kernel.data.messages.get(a)!.map((m) => m.content)).toEqual(['one', 'two', 'three']);
+    expect(kernel.data.metas.get(a)!.name).toBe(s.get(a)!.name);
+  });
+
+  it('retrying an append writes the whole conversation (no duplicates if the first one landed)', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1] });
     const a = s.create('a').id;
     await s.flush();
+    // 追加落盘了，但回复没收到（连接断了）
+    const orig = kernel.append.bind(kernel);
+    let once = true;
+    kernel.append = async (input) => {
+      await orig(input);
+      if (once) {
+        once = false;
+        throw new Error('connection closed');
+      }
+    };
+    s.append(msg(0, 'only once'), a);
+    await s.flush();
+    expect(kernel.data.messages.get(a)!.map((m) => m.content)).toEqual(['only once']);
+  });
+
+  it('a persistent failure keeps the write queued, tells the user once, and recovers', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1], stalledRetryMs: 20 });
+    const failed = vi.fn();
+    window.addEventListener(CONVERSATION_WRITE_FAILED_EVENT, failed);
+    try {
+      kernel.failNext = (name) => name === 'put' || name === 'append';
+      const a = s.create('a').id;
+      s.append(msg(0, 'kept'), a);
+      await s.flush(); // 不一直等
+      expect(s.hasPendingWrites()).toBe(true);
+      s.append(msg(1, 'also kept'), a);
+      await s.flush();
+      expect(failed).toHaveBeenCalledTimes(1);
+      // 别的窗口写了：内核的旧索引不能盖掉还没写进去的会话
+      kernel.emitExternal([]);
+      await new Promise((r) => setTimeout(r, 5));
+      expect(s.get(a)).toBeDefined();
+      kernel.failNext = undefined;
+      await vi.waitFor(() => expect(s.hasPendingWrites()).toBe(false));
+      await s.flush();
+      expect(kernel.data.messages.get(a)!.map((m) => m.content)).toEqual(['kept', 'also kept']);
+      expect(s.get(a)).toBeDefined();
+    } finally {
+      window.removeEventListener(CONVERSATION_WRITE_FAILED_EVENT, failed);
+      s.dispose();
+    }
+  });
+
+  it('a rejected write (BAD_INPUT) is not retried forever and is reported', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1, 1, 1] });
+    const failed = vi.fn();
+    window.addEventListener(CONVERSATION_WRITE_FAILED_EVENT, failed);
+    try {
+      const a = s.create('a').id;
+      await s.flush();
+      let n = 0;
+      kernel.failNext = (name) =>
+        name === 'append' && ++n > 0 ? new ContractError('BAD_INPUT', 'too big') : false;
+      s.append(msg(0, 'x'), a);
+      await s.flush();
+      expect(n).toBe(1);
+      expect(failed).toHaveBeenCalledTimes(1);
+      kernel.failNext = undefined;
+      s.updateMeta(a, { name: 'still works' });
+      await s.flush();
+      expect(kernel.data.metas.get(a)!.name).toBe('still works');
+      // 内存里那份还在（本次会话里不丢）
+      expect(s.getMessages(a)).toHaveLength(1);
+    } finally {
+      window.removeEventListener(CONVERSATION_WRITE_FAILED_EVENT, failed);
+    }
+  });
+
+  it('loading a conversation while its writes are stalled includes the queued messages', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({
+      kernel,
+      retryDelays: [1],
+      stalledRetryMs: 60_000,
+      maxCachedConversations: 1,
+    });
+    const a = s.create('a').id;
+    s.append(msg(0, 'on disk'), a);
+    s.create('b'); // a 不再是当前会话
+    await s.flush();
+    expect(s.isLoaded(a)).toBe(false);
     kernel.failNext = (name) => name === 'append';
-    s.append(msg(0, 'lost'), a);
+    s.append(msg(1, 'queued'), a); // 后台回复写到没加载的会话
     await s.flush();
     kernel.failNext = undefined;
-    s.updateMeta(a, { name: 'still works' });
-    await s.flush();
-    expect(kernel.data.metas.get(a)!.name).toBe('still works');
-    // 内存里那份还在（本次会话里不丢）
-    expect(s.getMessages(a)).toHaveLength(1);
+    expect((await s.loadMessages(a)).map((m) => m.content)).toEqual(['on disk', 'queued']);
+    s.dispose();
   });
 
   it('another window’s write refreshes the index and drops its cached messages', async () => {
@@ -241,7 +355,8 @@ describe('ConversationStore messages LRU', () => {
       store.setMessages(id, [msg(i, big)]);
       return id;
     });
-    // current = last created; budget holds ~2 of these
+    // current = last created; budget holds ~2 of these（排着写入的不淘汰，写完再按预算淘汰）
+    await store.flush();
     expect(store.isLoaded(ids[3]!)).toBe(true);
     expect(store.isLoaded(ids[0]!)).toBe(false);
     expect(store.hasMessages(ids[0]!)).toBe(true);

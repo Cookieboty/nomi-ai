@@ -408,3 +408,33 @@ describe('shell · 端到端（strict 序列化）', () => {
     }
   });
 });
+
+describe('conversation id（与 Go convstore.ValidID 同一条规则）', () => {
+  it('字符 / 长度 / Windows 保留名', async () => {
+    const { isValidConversationId } = await import('../src/app');
+    const ok = ['a', 'c_1-x', 'A'.repeat(128), 'con1', 'com', 'comx', 'lpt10'];
+    const bad = [
+      '',
+      'a/b',
+      'a.b',
+      'A'.repeat(129),
+      'con',
+      'CON',
+      'Prn',
+      'aux',
+      'nul',
+      'com0',
+      'COM9',
+      'lpt1',
+    ];
+    for (const id of ok) {
+      expect(isValidConversationId(id), id).toBe(true);
+      expect(S.ConversationId.safeParse(id).success, id).toBe(true);
+    }
+    for (const id of bad) {
+      expect(isValidConversationId(id), id).toBe(false);
+      expect(S.ConversationId.safeParse(id).success, id).toBe(false);
+    }
+    expect(isValidConversationId(42)).toBe(false);
+  });
+});

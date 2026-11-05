@@ -22,6 +22,15 @@ func msgs(ss ...string) []json.RawMessage {
 
 func strp(s string) *string { return &s }
 
+func stateOf(t *testing.T, s *Store) State {
+	t.Helper()
+	st, err := s.State()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
 func mustPut(t *testing.T, s *Store, meta string, m []json.RawMessage) {
 	t.Helper()
 	if _, err := s.Put(raw(meta), m, nil); err != nil {
@@ -62,7 +71,7 @@ func TestPutAppendAndReopen(t *testing.T) {
 	}
 	// 新实例（重启）读同一目录
 	r := New(ud)
-	st := r.State()
+	st := stateOf(t, r)
 	if len(st.Conversations) != 2 || metaID(st.Conversations[0]) != "c1" || metaID(st.Conversations[1]) != "c2" {
 		t.Fatalf("order: %s", st.Conversations)
 	}
@@ -160,7 +169,7 @@ func TestReplaceForkClearAndTrim(t *testing.T) {
 	// 分叉 = 新会话带整份消息
 	mustPut(t, s, `{"id":"b","name":"copy"}`, msgs(`{"id":"b_0_e1"}`, `{"id":"b_1_x"}`))
 	eq(t, contents(t, s, "b"), []string{`{"id":"b_0_e1"}`, `{"id":"b_1_x"}`})
-	if s.State().Counts["b"] != 2 {
+	if stateOf(t, s).Counts["b"] != 2 {
 		t.Fatal("fork count")
 	}
 	// 只改元信息不动消息
@@ -200,7 +209,7 @@ func TestDeleteAndPointers(t *testing.T) {
 	if err := s.Delete("a"); err != nil { // 幂等
 		t.Fatal(err)
 	}
-	st := New(ud).State()
+	st := stateOf(t, New(ud))
 	if len(st.Conversations) != 1 || st.Current != "" || st.LastNomi != "" {
 		t.Fatalf("after delete: %+v", st)
 	}
@@ -214,12 +223,12 @@ func TestDeleteAndPointers(t *testing.T) {
 	// nil = 不变，"" = 清空
 	_ = s.SetPointers(strp("b"), nil)
 	_ = s.SetPointers(nil, strp("b"))
-	st = New(ud).State()
+	st = stateOf(t, New(ud))
 	if st.Current != "b" || st.LastNomi != "b" {
 		t.Fatalf("pointers: %+v", st)
 	}
 	_ = s.SetPointers(strp(""), nil)
-	if st := New(ud).State(); st.Current != "" || st.LastNomi != "b" {
+	if st := stateOf(t, New(ud)); st.Current != "" || st.LastNomi != "b" {
 		t.Fatalf("clear: %+v", st)
 	}
 }
@@ -238,7 +247,7 @@ func TestTornAppendIsSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 	eq(t, contents(t, r, "a"), []string{`{"id":"m1"}`, `{"id":"m3"}`})
-	if r.State().Counts["a"] != 2 {
+	if stateOf(t, r).Counts["a"] != 2 {
 		t.Fatal("count follows the file")
 	}
 }
@@ -267,8 +276,9 @@ func TestIndexConsistency(t *testing.T) {
 	dir := filepath.Join(ud, Dir)
 	_ = os.MkdirAll(filepath.Join(dir, messagesDir), 0o700)
 	_ = os.WriteFile(filepath.Join(dir, messagesDir, "orphan.jsonl"), []byte(`{"id":"m"}`+"\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`{"version":1,"conversations":[]}`), 0o600)
 	s := New(ud)
-	if st := s.State(); len(st.Conversations) != 0 {
+	if st := stateOf(t, s); len(st.Conversations) != 0 {
 		t.Fatalf("orphan listed: %+v", st)
 	}
 	if got := contents(t, s, "orphan"); len(got) != 0 {
@@ -279,16 +289,120 @@ func TestIndexConsistency(t *testing.T) {
 	}
 	// 重复 / 不合法的行在加载时去掉
 	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`{"version":1,"conversations":[{"meta":{"id":"a"},"count":0},{"meta":{"id":"a"},"count":0},{"meta":{"id":"../x"}},{"meta":{"id":"b"}}]}`), 0o600)
-	if st := New(ud).State(); len(st.Conversations) != 2 {
+	if st := stateOf(t, New(ud)); len(st.Conversations) != 2 {
 		t.Fatalf("dedupe: %s", st.Conversations)
 	}
 	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`{not json`), 0o600)
 	r := New(ud)
-	if st := r.State(); len(st.Conversations) != 0 || st.Migrated {
+	// 坏索引挪开、按消息文件重建：orphan 有消息，回来了
+	if st := stateOf(t, r); len(st.Conversations) != 1 || st.Migrated {
 		t.Fatalf("corrupt index: %+v", st)
 	}
 	if _, err := os.Stat(filepath.Join(dir, indexFile+".corrupt")); err != nil {
 		t.Fatal("corrupt index not kept aside")
+	}
+}
+
+// 索引坏了：按 messages/*.jsonl 重建（元信息按消息补），「已导入」不丢；再坏一次不覆盖上次挪开的
+func TestCorruptIndexIsRebuiltFromMessages(t *testing.T) {
+	ud := t.TempDir()
+	dir := filepath.Join(ud, Dir)
+	s := New(ud)
+	mustPut(t, s, `{"id":"old","name":"Old","backend":"nomi"}`, msgs(`{"id":"1","role":"user","content":"  first   question that is quite a bit longer than thirty runes","timestamp":100}`, `{"id":"2","role":"assistant","content":"a","timestamp":200}`))
+	mustPut(t, s, `{"id":"new","name":"New"}`, msgs(`{"id":"3","role":"user","content":"你好","timestamp":50}`))
+	mustPut(t, s, `{"id":"empty","name":"E"}`, nil)
+	if err := s.MarkMigrated(3); err != nil {
+		t.Fatal(err)
+	}
+	// 中途中断的导入暂存不算
+	_ = os.WriteFile(filepath.Join(dir, messagesDir, "half.jsonl"+importSuffix), []byte(`{"id":"x"}`+"\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`{"version":1,"conv`), 0o600)
+
+	r := New(ud)
+	st := stateOf(t, r)
+	if !st.Migrated {
+		t.Fatal("migrated flag lost with the index: old localStorage would be imported again")
+	}
+	if len(st.Conversations) != 2 || st.Counts["old"] != 2 || st.Counts["new"] != 1 {
+		t.Fatalf("rebuilt: %s %+v", st.Conversations, st.Counts)
+	}
+	// 按最早的消息时间排（new 的第一条更早）
+	var metas []map[string]any
+	for _, c := range st.Conversations {
+		var m map[string]any
+		_ = json.Unmarshal(c, &m)
+		metas = append(metas, m)
+	}
+	if metas[0]["id"] != "new" || metas[0]["name"] != "你好" || metas[1]["name"] != "first question that is quite a" {
+		t.Fatalf("metas: %v", metas)
+	}
+	if metas[1]["createdAt"] != float64(100) || metas[1]["updatedAt"] != float64(200) || metas[1]["backend"] != "nomi" || metas[1]["recovered"] != true {
+		t.Fatalf("meta fields: %v", metas[1])
+	}
+	eq(t, contents(t, r, "old"), []string{`{"id":"1","role":"user","content":"  first   question that is quite a bit longer than thirty runes","timestamp":100}`, `{"id":"2","role":"assistant","content":"a","timestamp":200}`})
+	// 重建后的索引写下来了；能接着写
+	if err := r.Append(AppendInput{ID: "old", Messages: msgs(`{"id":"4"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if st := stateOf(t, New(ud)); st.Counts["old"] != 3 || !st.Migrated {
+		t.Fatalf("after rebuild: %+v", st)
+	}
+	// 再坏一次：上次挪开的不被覆盖
+	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`]`), 0o600)
+	_ = stateOf(t, New(ud))
+	ents, _ := os.ReadDir(dir)
+	n := 0
+	for _, e := range ents {
+		if strings.HasPrefix(e.Name(), indexFile+".corrupt") {
+			n++
+		}
+	}
+	if n != 2 {
+		t.Fatalf("corrupt copies: %d", n)
+	}
+}
+
+// 索引不见了（被删）：同样按消息文件重建；没有标记 = 还没导入完，视图照常续导（不覆盖已有 id）
+func TestMissingIndexIsRebuiltAndMarkerIsBackfilled(t *testing.T) {
+	ud := t.TempDir()
+	dir := filepath.Join(ud, Dir)
+	s := New(ud)
+	mustPut(t, s, `{"id":"a"}`, msgs(`{"id":"1","role":"user","content":"hi"}`))
+	_ = os.Remove(filepath.Join(dir, indexFile))
+	st := stateOf(t, New(ud))
+	if len(st.Conversations) != 1 || st.Migrated {
+		t.Fatalf("missing index: %+v", st)
+	}
+	// 只有索引里有「已导入」（旧数据）：加载时补上另一份标记
+	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`{"version":1,"migrated":{"at":1,"count":1},"conversations":[{"meta":{"id":"a"},"count":1}]}`), 0o600)
+	_ = stateOf(t, New(ud))
+	if _, err := os.Stat(filepath.Join(dir, migratedFile)); err != nil {
+		t.Fatal("marker not backfilled")
+	}
+	_ = os.WriteFile(filepath.Join(dir, indexFile), []byte(`nope`), 0o600)
+	if st := stateOf(t, New(ud)); !st.Migrated || len(st.Conversations) != 1 {
+		t.Fatalf("after corrupt: %+v", st)
+	}
+}
+
+// 索引读不出来（不是不存在）：报错，不当作空、不覆盖
+func TestUnreadableIndexFailsInsteadOfEmpty(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory as file")
+	}
+	ud := t.TempDir()
+	dir := filepath.Join(ud, Dir)
+	_ = os.MkdirAll(filepath.Join(dir, indexFile), 0o700) // 读一个目录：EISDIR
+	s := New(ud)
+	if _, err := s.State(); err == nil {
+		t.Fatal("unreadable index treated as empty")
+	}
+	if _, err := s.Put(raw(`{"id":"a"}`), nil, nil); err == nil {
+		t.Fatal("write over an unreadable index")
+	}
+	_ = os.Remove(filepath.Join(dir, indexFile))
+	if st := stateOf(t, s); len(st.Conversations) != 0 {
+		t.Fatalf("retry: %+v", st)
 	}
 }
 
@@ -307,7 +421,7 @@ func TestImportIsIdempotentAndResumable(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := New(ud)
-	if len(r.State().Conversations) != 1 {
+	if len(stateOf(t, r).Conversations) != 1 {
 		t.Fatal("partial import visible")
 	}
 	// 下次从头再导：first 清掉上次的暂存
@@ -317,7 +431,7 @@ func TestImportIsIdempotentAndResumable(t *testing.T) {
 		t.Fatalf("final: %v %v", ok, err)
 	}
 	eq(t, contents(t, r, "big"), []string{`{"id":"1"}`, `{"id":"2"}`, `{"id":"3"}`})
-	st := New(ud).State()
+	st := stateOf(t, New(ud))
 	if st.Counts["big"] != 3 || st.Previews["big"] != "p" || st.Migrated {
 		t.Fatalf("state: %+v", st)
 	}
@@ -332,7 +446,21 @@ func TestImportIsIdempotentAndResumable(t *testing.T) {
 	if err := r.MarkMigrated(2); err != nil {
 		t.Fatal(err)
 	}
-	if !New(ud).State().Migrated {
+	if !stateOf(t, New(ud)).Migrated {
 		t.Fatal("migrated mark not persisted")
+	}
+}
+
+// 与契约 isValidConversationId 的用例一致（packages/contract/tests/shell.test.ts）
+func TestValidIDMatchesContract(t *testing.T) {
+	for _, id := range []string{"a", "c_1-x", strings.Repeat("A", 128), "con1", "com", "comx", "lpt10"} {
+		if !ValidID(id) {
+			t.Errorf("%q should be valid", id)
+		}
+	}
+	for _, id := range []string{"", "a/b", "a.b", strings.Repeat("A", 129), "con", "CON", "Prn", "aux", "nul", "com0", "COM9", "lpt1"} {
+		if ValidID(id) {
+			t.Errorf("%q should be invalid", id)
+		}
 	}
 }

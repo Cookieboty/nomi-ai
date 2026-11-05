@@ -89,6 +89,10 @@ export interface ChatSession {
    * 委派的编程助手也在这里开工。缺省 = 没有工作区（按已授权文件夹，原有行为）。
    */
   cwd?: string;
+  /** 迁移时换了 id 的会话（旧 id 不能当文件名）：原来的 id */
+  legacyId?: string;
+  /** 内核按消息文件重建索引时找回的会话（元信息是按消息补的） */
+  recovered?: boolean;
 }
 
 export interface StreamResponse {

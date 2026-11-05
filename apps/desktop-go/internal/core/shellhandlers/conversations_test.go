@@ -107,3 +107,34 @@ func TestConversationsChangedEventCarriesSource(t *testing.T) {
 		}
 	}
 }
+
+// 退出前等写完：最近没写过立刻返回；有进行中的写入时等它写完、再安静一会儿
+func TestConversationWritesWaitIdle(t *testing.T) {
+	r := contract.NewRouter()
+	w := shellhandlers.InstallConversations(r, convstore.New(t.TempDir()))
+	start := time.Now()
+	if !w.WaitIdle(time.Second, 50*time.Millisecond) || time.Since(start) > 30*time.Millisecond {
+		t.Fatal("idle store should not delay quit")
+	}
+	ch := make(chan contract.ServerFrame, 64)
+	s := r.NewSession(context.Background(), contract.Caller{Surface: "chat"}, func(f contract.ServerFrame) { ch <- f })
+	defer s.Close()
+	c := &convSession{t: t, s: s, ch: ch}
+	c.call("conversations.put", `{"meta":{"id":"c1"}}`)
+	start = time.Now()
+	if !w.WaitIdle(time.Second, 80*time.Millisecond) {
+		t.Fatal("did not become idle")
+	}
+	if time.Since(start) < 40*time.Millisecond {
+		t.Fatal("returned before the quiet period after a write")
+	}
+	// 一直在写：最多等 max
+	c.call("conversations.put", `{"meta":{"id":"c2"}}`)
+	if w.WaitIdle(20*time.Millisecond, time.Second) {
+		t.Fatal("should time out while writes are recent")
+	}
+	var nilW *shellhandlers.ConversationWrites
+	if !nilW.WaitIdle(time.Second, time.Second) {
+		t.Fatal("nil tracker")
+	}
+}

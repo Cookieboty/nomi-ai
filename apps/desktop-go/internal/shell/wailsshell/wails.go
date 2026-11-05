@@ -62,6 +62,8 @@ type Config struct {
 	TrayMenu func() []shell.MenuItem
 	// OnTrayActivate：Windows 左键点托盘图标（= TrayManager onActivate：默认界面是主界面时打开主界面）
 	OnTrayActivate func()
+	// OnShutdown：应用退出、关窗之前（所有退出路径：托盘、⌘Q、系统注销）；在主线程上跑，须自己限时
+	OnShutdown func()
 }
 
 type Wails struct {
@@ -97,6 +99,8 @@ func New(cfg Config) *Wails {
 	w.app = application.New(application.Options{
 		Name:     "Nomi",
 		Services: w.notes.services(),
+		// 退出时在关窗之前跑（等对话窗口排着的会话写入写完，见 main.go）
+		OnShutdown: cfg.OnShutdown,
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
 		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation

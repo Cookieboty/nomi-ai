@@ -70,6 +70,7 @@ import {
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useComposerPending } from './hooks/useComposerPending';
+import { useConversationWriteNotice } from './hooks/useConversationWriteNotice';
 import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
@@ -383,6 +384,7 @@ const AiChatContent: React.FC = () => {
     const tid = window.setTimeout(() => setToast(null), 2400);
     return () => window.clearTimeout(tid);
   }, [toast]);
+  useConversationWriteNotice(setToast);
 
   // 首屏后空闲时预取设置 / 面板 chunk（不占首屏，打开时无需等待）
   useEffect(() => {
