@@ -29,6 +29,31 @@ describe('Markdown：解析结果缓存与共享高亮', () => {
     expect(renderChunkCached(FENCE, false)).not.toBe(renderChunkCached(FENCE, true));
   });
 
+  it('缓存的元素树不再挂着 hast 子树（组件不读 node），重复渲染结果不变', () => {
+    const md = '# 标题\n\n[链接](https://example.com) 与 `x`\n\n' + FENCE;
+    const el = renderChunkCached(md);
+    const nodes: Array<{ children?: unknown[]; position?: unknown }> = [];
+    const walk = (n: React.ReactNode): void => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!React.isValidElement<{ node?: never; children?: React.ReactNode }>(n)) return;
+      if (n.props.node) nodes.push(n.props.node);
+      walk(n.props.children);
+    };
+    walk(el);
+    expect(nodes.length).toBeGreaterThan(0);
+    for (const n of nodes) {
+      expect(n.children ?? []).toEqual([]);
+      expect(n.position).toBeUndefined();
+    }
+    const a = render(<Markdown text={md} settled />);
+    const html = a.container.innerHTML;
+    a.unmount();
+    const b = render(<Markdown text={md} settled />);
+    expect(b.container.innerHTML).toBe(html);
+    expect(b.container.querySelector('a[href="https://example.com"]')).toBeTruthy();
+    expect(b.container.querySelector('code.hljs .hljs-keyword')).toBeTruthy();
+  });
+
   it('带语言的围栏代码块被高亮，且高亮可通过缓存重复渲染', () => {
     const first = render(<Markdown text={FENCE} settled />);
     expect(first.container.querySelector('code.hljs .hljs-keyword')).toBeTruthy();

@@ -45,6 +45,7 @@ import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { startWindowPoll } from '@/mascot/windowPoll';
 import { api, hasTransport } from '@/services/api';
 import { setCache } from '@/utils/cache';
 
@@ -545,11 +546,12 @@ export const ToolBar: React.FC = () => {
     };
     compute();
     const off = layoutStore.subscribe(compute);
-    const t = setInterval(compute, 700); // 窗口被拖动 / 物理移动后检查是否贴边
+    // 窗口被拖动 / 物理移动后检查是否贴边（窗口没动、页面隐藏时跳过）
+    const stop = startWindowPoll(compute, 700);
     window.addEventListener('resize', compute);
     return () => {
       off();
-      clearInterval(t);
+      stop();
       window.removeEventListener('resize', compute);
     };
   }, [primary.length]);

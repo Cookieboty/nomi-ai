@@ -184,6 +184,8 @@ describe('ConversationStore', () => {
     s.append(msg('2', 'user', 'beta'), b);
     const c = s.create({ name: 'C' }).id;
     s.append(msg('3', 'user', 'gamma'), c);
+    // 追加是合并写盘的：先写盘，下面数的是从存储读
+    s.flush();
 
     reads = 0;
     expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
@@ -194,11 +196,12 @@ describe('ConversationStore', () => {
     expect(reads).toBe(1);
 
     reads = 0;
+    // 预览随追加记下：不用再读 / 解析这段历史
     expect(s.firstUserPreview(b)).toBe('beta');
-    expect(reads).toBe(1);
+    expect(reads).toBe(0);
     expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
     expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
-    expect(reads).toBe(1);
+    expect(reads).toBe(0);
   });
 
   it('trims to maxMessages and migrates the legacy single-history key', () => {

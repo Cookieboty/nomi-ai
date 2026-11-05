@@ -31,6 +31,7 @@ import {
   type ServerInfo,
 } from './contract';
 import { abortedError, ContractError, isContractError } from './errors';
+import { leanValidation } from './leanValidation';
 import { PushStream, type ContractStream } from './stream';
 import type { CallOptions, ClientTransport, ContractLogger } from './transport';
 
@@ -226,7 +227,12 @@ export function createClient<C extends AnyContract>(
         const inner = transport.stream(name, payload, { signal: local.signal });
         for await (const chunk of inner) {
           if (out.closed) return;
-          out.push(validateOutput ? await check(def.chunk, chunk, 'BAD_OUTPUT', 'chunk') : chunk);
+          // 轻校验（生产）：chunk 不逐个校验，流的最终结果照常校验
+          out.push(
+            validateOutput && !leanValidation()
+              ? await check(def.chunk, chunk, 'BAD_OUTPUT', 'chunk')
+              : chunk,
+          );
         }
         const result = await inner.result;
         out.end(
@@ -298,7 +304,7 @@ export function createClient<C extends AnyContract>(
       if (!schema) throw new ContractError('NOT_FOUND', `Event '${event}' is not declared`);
       const deliver = (data: unknown): void => {
         if (mismatched) return;
-        if (!validateEvents) {
+        if (!validateEvents || leanValidation()?.events.has(event)) {
           fn(data as EventData<C, typeof event>);
           return;
         }

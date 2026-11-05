@@ -382,16 +382,22 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
     if (last.current.first !== first || last.current.tabId !== tabId) setOpen(false);
     last.current = { first, tabId };
   }, [first, tabId]);
-  if (!tasksAvailable()) return { nav: null, page: null, chatHidden: false, close };
-  const nav = (
-    <TasksNav
-      collapsed={collapsed}
-      active={open}
-      needsYou={needsYou}
-      running={running}
-      onOpen={show}
-    />
+  const available = tasksAvailable();
+  // 记住入口元素：侧栏是 React.memo，每次给新元素会让它跟着 App 根组件每帧重渲染
+  const nav = useMemo(
+    () =>
+      available ? (
+        <TasksNav
+          collapsed={collapsed}
+          active={open}
+          needsYou={needsYou}
+          running={running}
+          onOpen={show}
+        />
+      ) : null,
+    [available, collapsed, open, needsYou, running, show],
   );
+  if (!available) return { nav: null, page: null, chatHidden: false, close };
   const page = mounted ? (
     <div className={styles.main} hidden={!open} data-testid="tasks-main">
       <TasksPage

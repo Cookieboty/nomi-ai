@@ -218,7 +218,7 @@ const NomiWorkspaceControl: React.FC<{ mainCwd: string | undefined }> = ({ mainC
 };
 
 /** 对话顶栏右侧：当前标签的工作目录（与「改动 · 文件」开关相邻，说的都是这个目录；分支在右栏顶部） */
-export const WorkspaceControl: React.FC = () => {
+const WorkspaceControlImpl: React.FC = () => {
   const { cli, cwd, changeCwd, modal } = useCwdSwitch();
   const { tabs, harness } = useEndpoint();
   // Nomi 对话（主标签在 Nomi 后端）：工作区按会话存；等标签列表到了再判断，避免先闪一下
@@ -241,6 +241,9 @@ export const WorkspaceControl: React.FC = () => {
     </>
   );
 };
+
+/** 没有 props：memo 后 App 根组件流式重渲染时不带着它重渲染（只跟自己订阅的上下文走） */
+export const WorkspaceControl = React.memo(WorkspaceControlImpl);
 
 /**
  * 对话区顶部：「带上前文」标记（换目录 / 换来源后才有）。

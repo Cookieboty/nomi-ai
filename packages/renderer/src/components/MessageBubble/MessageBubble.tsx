@@ -21,6 +21,7 @@ import {
 } from '@/mascot/bubblePlacement';
 import { bubbleSlot } from '@/mascot/bubbleSlot';
 import { getHitboxes } from '@/mascot/characterConfig';
+import { startWindowPoll } from '@/mascot/windowPoll';
 import { toBubbleText } from '@/security/bubbleText';
 import { api, hasTransport } from '@/services/api';
 
@@ -115,14 +116,22 @@ export const MessageBubble: React.FC = () => {
     compute();
   }, [compute, text, more, scale]);
 
+  // 轮询只在有文字（气泡显示 / 淡出中）时有意义：没文字时出现新消息，上面的 layout effect 立即重算
+  const hasText = !!text.trim();
+  const hasTextRef = useRef(hasText);
+  useLayoutEffect(() => {
+    hasTextRef.current = hasText;
+  }, [hasText]);
+
   useEffect(() => {
     const off = layoutStore.subscribe(() => compute());
     window.addEventListener('resize', compute);
-    const t = setInterval(compute, 1000); // 窗口被拖到屏幕边缘时重新判断
+    // 窗口被拖到屏幕边缘时重新判断（窗口没动、页面隐藏、没有文字时跳过）
+    const stop = startWindowPoll(compute, 1000, { active: () => hasTextRef.current });
     return () => {
       off();
       window.removeEventListener('resize', compute);
-      clearInterval(t);
+      stop();
     };
   }, [compute]);
 

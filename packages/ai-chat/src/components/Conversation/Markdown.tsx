@@ -215,11 +215,33 @@ function renderChunk(text: string, highlight: boolean, cite = false): React.Reac
 }
 
 /**
- * 已定稿文本块的解析结果缓存（按文本 + 是否高亮，LRU，限总字符数）：切回看过的会话时不再重新解析 / 高亮。
+ * 已定稿文本块的解析结果缓存（按文本 + 是否高亮，LRU，限总字符数与条数）：切回看过的会话时不再重新解析 / 高亮。
  * 流式中的最后一块每个 token 文本都不同，不进缓存（否则会把有用的条目挤掉）。
+ * 存的是 React 元素树（比原文大得多），所以预算按原文算得保守一些。
  */
-const CACHE_CHAR_BUDGET = 600_000;
+const CACHE_CHAR_BUDGET = 300_000;
+const CACHE_MAX_ENTRIES = 400;
 const chunkCache = new Map<string, React.ReactElement>();
+
+/**
+ * react-markdown 给每个自定义组件元素都带上 hast 节点（props.node，含整棵子树与位置信息），
+ * 而这里的组件都不读它：放进缓存前把这些节点清空，缓存只留元素树本身。
+ */
+function releaseHastNodes(node: React.ReactNode): void {
+  if (Array.isArray(node)) {
+    for (const n of node) releaseHastNodes(n);
+    return;
+  }
+  if (!React.isValidElement<{ node?: unknown; children?: React.ReactNode }>(node)) return;
+  const hast = node.props.node as
+    { children?: unknown[]; position?: unknown; data?: unknown } | undefined;
+  if (hast && typeof hast === 'object') {
+    if (Array.isArray(hast.children)) hast.children = [];
+    delete hast.position;
+    delete hast.data;
+  }
+  releaseHastNodes(node.props.children);
+}
 let cacheChars = 0;
 
 export function renderChunkCached(
@@ -237,10 +259,11 @@ export function renderChunkCached(
   }
   const el = renderChunk(text, highlight, cite);
   if (text.length <= CACHE_CHAR_BUDGET / 4) {
+    releaseHastNodes(el);
     chunkCache.set(key, el);
     cacheChars += key.length;
     for (const [k] of chunkCache) {
-      if (cacheChars <= CACHE_CHAR_BUDGET) break;
+      if (cacheChars <= CACHE_CHAR_BUDGET && chunkCache.size <= CACHE_MAX_ENTRIES) break;
       chunkCache.delete(k);
       cacheChars -= k.length;
     }

@@ -138,6 +138,18 @@ export function resolveHostTransport(hash: string): HostTransportConfig | null {
   }
 }
 
+/**
+ * 高频事件（流式输出 / 光标 / 窗口运动，每秒几十次）：视图的生产构建里打开轻校验时
+ * （`setLeanValidation({ events: APP_HIGH_FREQUENCY_EVENTS })`）不逐个做 schema 校验。
+ * 这些事件的 schema 都没有 default / transform，跳过校验拿到的值不变。
+ */
+export const APP_HIGH_FREQUENCY_EVENTS = [
+  'ai.message.delta',
+  'harness.events',
+  'mascot.cursor',
+  'mascot.body',
+] as const satisfies readonly (keyof AppContract['events'])[];
+
 /** 视图里要换址的本应用协议（内核给的资源地址用的自定义协议） */
 export const HOST_ASSET_SCHEMES = ['chat-asset', 'character-pack'] as const;
 /** Go 宿主的资产服务器网关前缀（与 Go `assetproto.GatewayURL` 一致，见 docs D-B10-5） */

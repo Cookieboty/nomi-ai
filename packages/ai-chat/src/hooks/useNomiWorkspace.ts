@@ -8,7 +8,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { selectIpcClient, selectMessages, useAiChatSelector } from '../contexts/aiChatStore';
+import type { AiChatState } from '../contexts/AiChatContext';
+import { selectIpcClient, useAiChatSelector } from '../contexts/aiChatStore';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -16,6 +17,13 @@ import {
 } from '../services/conversationStore';
 import { harnessClient } from '../services/harnessClient';
 import type { IPCClient } from '../types/ipc';
+
+/**
+ * 只在切换会话 / 会话建立（第一条消息、条数变化）时变的签名：用来重读会话 meta。
+ * 不订阅整份 messages，否则流式生成时每一帧都会让调用方（App 根组件）重渲染。
+ */
+const selectConversationSignature = (s: AiChatState) =>
+  `${s.viewConvoId ?? ''}|${s.messages[0]?.id ?? ''}|${s.messages.length}`;
 
 export interface NomiWorkspace {
   /** 当前 Nomi 会话的工作区；没有选时为空串 */
@@ -33,7 +41,7 @@ export function useNomiWorkspace(
 ): NomiWorkspace {
   // 没有对话上下文（独立渲染的控件 / 测试）时为空：只显示默认目录
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
-  const messages = useAiChatSelector(selectMessages);
+  const signature = useAiChatSelector(selectConversationSignature);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((n) => n + 1);
@@ -46,8 +54,8 @@ export function useNomiWorkspace(
   const meta = id && store?.isNomi(id) ? store.get(id) : undefined;
   // 还没有会话：显示新会话会用的默认工作区（主标签当前的目录）
   const cwd = meta ? (meta.cwd ?? '') : id ? '' : (mainCwd ?? '');
-  // messages / tick 只用来在切换会话、会话列表变化后重新读取
-  void messages;
+  // signature / tick 只用来在切换会话、会话列表变化后重新读取
+  void signature;
   void tick;
 
   // 切到带工作区的会话：主标签目录跟上（内核据此认这个目录）

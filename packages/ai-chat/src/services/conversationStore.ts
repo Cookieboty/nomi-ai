@@ -5,12 +5,13 @@
  *   ai-chat:conversations          → ChatSession 元信息列表（不含 messages）
  *   ai-chat:conversation:<id>      → 该会话的 ChatMessage[]
  *   ai-chat:currentConversation    → 当前会话 id
+ *   ai-chat:conversationPreviews   → { [id]: 第一条用户消息的前 300 字 }（侧栏搜索用，缺了按需从消息补）
  * 旧版单会话 `ai-chat:history` 在首次访问时迁移为一个会话。
  * 无 backend 字段的旧行迁移为 nomi。
  * 无 localStorage（测试 / 非浏览器）时退化为内存存储。
  */
 
-import { t } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 
 import type { ChatMessage, ChatSession, ConversationBackend } from '../types/chat';
 import { isConversationBackend } from '../types/chat';
@@ -31,7 +32,29 @@ const CURRENT_KEY = 'ai-chat:currentConversation';
 /** 最近一次作为「当前」的 Nomi 会话：当前导航在 CLI 镜像上时，回到 Nomi 主标签要恢复它（#19） */
 const LAST_NOMI_KEY = 'ai-chat:lastNomiConversation';
 const LEGACY_HISTORY_KEY = 'ai-chat:history';
-const messagesKey = (id: string) => `ai-chat:conversation:${id}`;
+/** 第一条用户消息预览：侧栏搜索不用为每个会话解析整段历史 */
+const PREVIEW_KEY = 'ai-chat:conversationPreviews';
+const PREVIEW_LEN = 300;
+const MESSAGES_PREFIX = 'ai-chat:conversation:';
+const messagesKey = (id: string) => `${MESSAGES_PREFIX}${id}`;
+/** 合并写最多等这么久（空闲回调的 timeout / 没有 requestIdleCallback 时的延时） */
+const FLUSH_TIMEOUT_MS = 1000;
+const FLUSH_FALLBACK_DELAY_MS = 250;
+/** 存储满了之后，同一会话在这段时间内不再重试（不用每轮都白白序列化整段历史）；删会话会立刻解除 */
+const QUOTA_BACKOFF_MS = 60_000;
+
+const log = createLogger('conversationStore');
+
+function isQuotaError(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const { name, code } = e as { name?: unknown; code?: unknown };
+  return (
+    name === 'QuotaExceededError' ||
+    name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    code === 22 ||
+    code === 1014
+  );
+}
 
 export function createMemoryStorage(): KeyValueStorage {
   const map = new Map<string, string>();
@@ -66,6 +89,11 @@ export interface ConversationStoreOptions {
   maxCachedChars?: number;
   now?: () => number;
   newId?: () => string;
+  /**
+   * 追加消息时合并写盘：内存立即更新，序列化与 setItem 放到空闲时做（同一会话多次写只做一次）。
+   * 读同一会话、切换会话、页面隐藏 / 关闭、dispose 前都会先写盘。默认 true；false = 每次立即写（旧行为）。
+   */
+  deferWrites?: boolean;
 }
 
 export interface CreateConversationOpts {
@@ -124,6 +152,16 @@ export class ConversationStore {
   private current: { v: string | undefined } | undefined;
   private lastNomi: { v: string | undefined } | undefined;
   private readonly offStorage: () => void;
+  private readonly offLifecycle: () => void;
+  private readonly deferWrites: boolean;
+  /** 待写盘的消息（key → 最新的整份消息）；读同一 key 前先写盘 */
+  private readonly pending = new Map<string, ChatMessage[]>();
+  private cancelFlush: (() => void) | undefined;
+  /** 存储满了写不进的 key → 失败时间；退避期内跳过（关窗前的最后一次写仍会试） */
+  private readonly quotaFailed = new Map<string, number>();
+  /** 第一条用户消息预览（PREVIEW_KEY 的内存副本，懒加载）；变了就标脏，随合并写一起写盘 */
+  private previews: Record<string, string> | undefined;
+  private previewsDirty = false;
   /** 新 Nomi 对话没指定工作区时用的目录（IPCClient 注入主标签当前的目录；缺省没有） */
   defaultNomiCwd: () => string | undefined = () => undefined;
 
@@ -133,6 +171,8 @@ export class ConversationStore {
     this.maxCachedConversations = Math.max(1, opts.maxCachedConversations ?? 12);
     this.maxCachedChars = Math.max(0, opts.maxCachedChars ?? 8_000_000);
     this.offStorage = this.listenForeignWrites();
+    this.deferWrites = opts.deferWrites ?? true;
+    this.offLifecycle = this.deferWrites ? this.listenLifecycle() : () => undefined;
     this.now = opts.now ?? Date.now;
     this.newId =
       opts.newId ??
@@ -145,9 +185,119 @@ export class ConversationStore {
     return [...this.idx()];
   }
 
-  /** Stop listening for other windows' writes. */
+  /** Stop listening for other windows' writes (pending writes are flushed first). */
   dispose(): void {
+    this.flush({ force: true });
     this.offStorage();
+    this.offLifecycle();
+  }
+
+  /** 把合并中的消息写盘。force：忽略存储满了的退避（页面关闭前的最后机会）。 */
+  flush(opts: { force?: boolean } = {}): void {
+    this.cancelFlush?.();
+    this.cancelFlush = undefined;
+    for (const key of [...this.pending.keys()]) this.flushKey(key, opts.force);
+    if (this.previewsDirty && this.previews) {
+      this.previewsDirty = false;
+      this.write(PREVIEW_KEY, this.previews);
+    }
+  }
+
+  private previewMap(): Record<string, string> {
+    if (!this.previews) {
+      const raw = this.read<unknown>(PREVIEW_KEY);
+      this.previews =
+        raw && typeof raw === 'object' && !Array.isArray(raw)
+          ? (raw as Record<string, string>)
+          : {};
+    }
+    return this.previews;
+  }
+
+  /** 消息变了之后更新这个会话的预览（通常只看第一条，不序列化） */
+  private updatePreview(id: string, messages: readonly ChatMessage[]): void {
+    const map = this.previewMap();
+    const next = previewOf(messages);
+    if (map[id] === next) return;
+    map[id] = next;
+    this.previewsDirty = true;
+    if (this.deferWrites) this.scheduleFlush();
+    else this.flush();
+  }
+
+  private dropPreview(id: string): void {
+    const map = this.previewMap();
+    if (!(id in map)) return;
+    delete map[id];
+    this.previewsDirty = true;
+    if (this.deferWrites) this.scheduleFlush();
+    else this.flush();
+  }
+
+  private flushKey(key: string, force = false): void {
+    const value = this.pending.get(key);
+    if (!value) return;
+    const failedAt = this.quotaFailed.get(key);
+    // 存储满了：退避期内不序列化，留着等下次（页面关闭前 force 再试一次）
+    if (!force && failedAt !== undefined && this.now() - failedAt < QUOTA_BACKOFF_MS) return;
+    this.pending.delete(key);
+    const chars = this.write(key, value);
+    // 缓存里还是这一份：用真实长度替换估算值（字符预算）
+    const id = key.slice(MESSAGES_PREFIX.length);
+    if (chars && this.messagesCache.get(id) === value) this.setChars(id, chars);
+  }
+
+  private scheduleFlush(): void {
+    if (this.cancelFlush) return;
+    const run = () => {
+      this.cancelFlush = undefined;
+      this.flush();
+    };
+    const g = globalThis as typeof globalThis & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    if (typeof g.requestIdleCallback === 'function') {
+      const h = g.requestIdleCallback(run, { timeout: FLUSH_TIMEOUT_MS });
+      this.cancelFlush = () => g.cancelIdleCallback?.(h);
+    } else {
+      const h = setTimeout(run, FLUSH_FALLBACK_DELAY_MS);
+      this.cancelFlush = () => clearTimeout(h);
+    }
+  }
+
+  /** 页面隐藏 / 关闭时把合并中的消息写盘 */
+  private listenLifecycle(): () => void {
+    if (typeof window === 'undefined' || !window.addEventListener) return () => undefined;
+    const now = () => this.flush({ force: true });
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') now();
+    };
+    window.addEventListener('pagehide', now);
+    window.addEventListener('beforeunload', now);
+    if (typeof document !== 'undefined')
+      document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', now);
+      window.removeEventListener('beforeunload', now);
+      if (typeof document !== 'undefined')
+        document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }
+
+  /** 消息写盘：合并模式下只记下，空闲时写；否则立即写。返回缓存字符预算用的长度（估算或真实）。 */
+  private writeMessages(id: string, messages: ChatMessage[], estimate: number): number {
+    const key = messagesKey(id);
+    if (!this.deferWrites) return this.write(key, messages);
+    this.pending.set(key, messages);
+    this.scheduleFlush();
+    return estimate;
+  }
+
+  /** 立即写一份消息（取代合并中的那份） */
+  private writeMessagesNow(id: string, messages: ChatMessage[]): number {
+    this.pending.delete(messagesKey(id));
+    return this.write(messagesKey(id), messages);
   }
 
   /** Drop the in-memory mirror (another window wrote the same storage). */
@@ -155,12 +305,19 @@ export class ConversationStore {
     if (!key || key === INDEX_KEY) this.index = undefined;
     if (!key || key === CURRENT_KEY) this.current = undefined;
     if (!key || key === LAST_NOMI_KEY) this.lastNomi = undefined;
+    if (!key || key === PREVIEW_KEY) {
+      this.previews = undefined;
+      this.previewsDirty = false;
+    }
     if (!key) {
       this.messagesCache.clear();
       this.cacheChars.clear();
       this.cachedChars = 0;
-    } else if (key.startsWith('ai-chat:conversation:')) {
-      this.forget(key.slice('ai-chat:conversation:'.length));
+    } else if (key.startsWith(MESSAGES_PREFIX)) {
+      const id = key.slice(MESSAGES_PREFIX.length);
+      this.forget(id);
+      // 别的窗口改了这段消息：预览下次搜索时按需重算
+      if (this.previews && id in this.previews) delete this.previews[id];
     }
   }
 
@@ -308,7 +465,7 @@ export class ConversationStore {
     const cwd = opts.cwd ?? (backend === 'nomi' && !opts.tabId ? this.defaultNomiCwd() : undefined);
     if (cwd) meta.cwd = cwd;
     this.writeIndex([...this.idx(), meta]);
-    this.write(messagesKey(meta.id), []);
+    this.writeMessagesNow(meta.id, []);
     // 先记下当前会话，再放入缓存，这样淘汰时不会把刚建的会话丢掉
     if (opts.activate !== false) {
       this.writeCurrent(meta.id);
@@ -322,6 +479,8 @@ export class ConversationStore {
   switchTo(id: string): void {
     const meta = this.get(id);
     if (!meta) throw new Error(`unknown conversation: ${id}`);
+    // 切会话：先把合并中的消息写盘
+    if (this.pending.size) this.flush();
     if (this.readCurrent() !== id) this.writeCurrent(id);
     if (meta.backend === 'nomi' && !meta.tabId) this.writeLastNomi(id);
   }
@@ -331,6 +490,12 @@ export class ConversationStore {
     const cached = this.messagesCache.get(id);
     if (cached) return this.touchCache(id, cached);
     const raw = this.readRaw(messagesKey(id));
+    // 存储满了还没写进去的：内存里那份才是最新的
+    const unsaved = this.pending.get(messagesKey(id));
+    if (unsaved) {
+      this.remember(id, unsaved, raw?.length ?? 2);
+      return unsaved;
+    }
     const messages = (raw ? this.parse<ChatMessage[]>(raw) : undefined) ?? [];
     this.remember(id, messages, raw?.length ?? 2);
     return messages;
@@ -340,30 +505,50 @@ export class ConversationStore {
    * 侧栏搜索用：只要第一条用户消息的前若干字。
    * 命中缓存时直接读；未命中则解析后立刻丢掉，不进入 messagesCache。
    */
-  firstUserPreview(id: string, maxLen = 300): string {
+  firstUserPreview(id: string, maxLen = PREVIEW_LEN): string {
+    const fits = maxLen <= PREVIEW_LEN;
+    const map = this.previewMap();
+    const known = fits && Object.prototype.hasOwnProperty.call(map, id) ? map[id] : undefined;
+    if (known !== undefined) return known.slice(0, maxLen);
     const cached = this.messagesCache.get(id);
-    const messages = cached ?? this.read<ChatMessage[]>(messagesKey(id));
+    const messages =
+      cached ?? this.pending.get(messagesKey(id)) ?? this.read<ChatMessage[]>(messagesKey(id));
+    // 旧会话还没有预览：算一次记下来（之后搜索不再解析这段历史）
+    if (fits && this.get(id)) {
+      const preview = previewOf(messages ?? []);
+      map[id] = preview;
+      this.previewsDirty = true;
+      if (this.deferWrites) this.scheduleFlush();
+      else this.flush();
+      return preview.slice(0, maxLen);
+    }
     const text = messages?.find((m) => m.role === 'user')?.content ?? '';
     return splitFileAttachments(text).text.slice(0, maxLen);
   }
 
   setMessages(id: string, messages: ChatMessage[]): void {
     const next = messages.slice(-this.maxMessages);
-    this.remember(id, next, this.write(messagesKey(id), next));
+    // 整体替换很少见（编辑重发）：立即写，长度也准
+    this.remember(id, next, this.writeMessagesNow(id, next));
+    this.updatePreview(id, next);
     this.touch(id);
   }
 
   append(message: ChatMessage, id: string | undefined = this.currentId()): void {
     if (!id) return;
-    const next = [...this.getMessages(id), message].slice(-this.maxMessages);
-    this.remember(id, next, this.write(messagesKey(id), next));
+    const prev = this.getMessages(id);
+    const next = [...prev, message].slice(-this.maxMessages);
+    const estimate = (this.cacheChars.get(id) ?? 2) + approxJsonLength(message) + 1;
+    this.remember(id, next, this.writeMessages(id, next, estimate));
+    this.updatePreview(id, next);
     this.touch(id, message);
   }
 
   /** 清空会话消息（会话本身保留） */
   clear(id: string | undefined = this.currentId()): void {
     if (!id) return;
-    this.remember(id, [], this.write(messagesKey(id), []));
+    this.remember(id, [], this.writeMessagesNow(id, []));
+    this.updatePreview(id, []);
     this.touch(id);
   }
 
@@ -430,7 +615,7 @@ export class ConversationStore {
       ...(tab.cliSessionId ? { cliSessionId: tab.cliSessionId } : {}),
     };
     this.writeIndex([...this.idx(), meta]);
-    this.write(messagesKey(meta.id), []);
+    this.writeMessagesNow(meta.id, []);
     return meta;
   }
 
@@ -465,7 +650,8 @@ export class ConversationStore {
         id: `${meta.id}_${i}_${m.id}`,
       }));
       const copiedMessages = copied.slice(-this.maxMessages);
-      this.remember(meta.id, copiedMessages, this.write(messagesKey(meta.id), copiedMessages));
+      this.remember(meta.id, copiedMessages, this.writeMessagesNow(meta.id, copiedMessages));
+      this.updatePreview(meta.id, copiedMessages);
       this.touch(meta.id);
     }
     return this.get(meta.id)!;
@@ -476,8 +662,12 @@ export class ConversationStore {
     const removed = this.get(id);
     const remaining = this.idx().filter((c) => c.id !== id);
     this.writeIndex(remaining);
+    this.pending.delete(messagesKey(id));
     this.storage.removeItem(messagesKey(id));
+    // 腾出了空间：之前存储满了没写进的会话可以再试
+    this.quotaFailed.clear();
     this.forget(id);
+    this.dropPreview(id);
     if (this.readCurrent() === id) {
       // 当前会话被删：优先切到同后端最近更新的会话；没有则留空（不隐式新建 / 不跨端跳）
       const sameBackend = removed
@@ -534,7 +724,7 @@ export class ConversationStore {
     if (legacy.length === 0) return;
     const meta = this.create(t('ui.chat-settings.history'));
     const messages = legacy.slice(-this.maxMessages);
-    this.remember(meta.id, messages, this.write(messagesKey(meta.id), messages));
+    this.remember(meta.id, messages, this.writeMessagesNow(meta.id, messages));
   }
 
   /** 把一份消息放到缓存末尾（最近使用），不触发淘汰。 */
@@ -556,6 +746,11 @@ export class ConversationStore {
    */
   private remember(id: string, messages: ChatMessage[], chars: number): void {
     this.touchCache(id, messages);
+    this.setChars(id, chars);
+  }
+
+  /** 更新一份缓存的字符数（不改 LRU 顺序），超出预算时淘汰 */
+  private setChars(id: string, chars: number): void {
     this.cachedChars += chars - (this.cacheChars.get(id) ?? 0);
     this.cacheChars.set(id, chars);
     const pin = this.currentId();
@@ -576,6 +771,8 @@ export class ConversationStore {
   }
 
   private readRaw(key: string): string | null {
+    // 读之前先把这个 key 合并中的写盘，读到的总是最新的
+    if (this.pending.has(key)) this.flushKey(key);
     try {
       return this.storage.getItem(key);
     } catch {
@@ -602,9 +799,35 @@ export class ConversationStore {
     try {
       json = JSON.stringify(value);
       this.storage.setItem(key, json);
-    } catch {
-      /* quota / disabled storage */
+      if (this.quotaFailed.delete(key)) log.info('storage write recovered', { key });
+    } catch (e) {
+      if (isQuotaError(e)) {
+        // 每个 key 只在第一次失败时告警，退避期内不再重试（见 flushKey）
+        if (!this.quotaFailed.has(key))
+          log.warn('localStorage is full; conversation not saved', { key, chars: json.length });
+        this.quotaFailed.set(key, this.now());
+      } else {
+        log.warn('storage write failed', {
+          key,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
     return json.length;
+  }
+}
+
+/** 第一条用户消息去掉附件后的前 PREVIEW_LEN 字（没有用户消息为空串） */
+function previewOf(messages: readonly ChatMessage[]): string {
+  const text = messages.find((m) => m.role === 'user')?.content ?? '';
+  return splitFileAttachments(text).text.slice(0, PREVIEW_LEN);
+}
+
+/** 一条消息的 JSON 长度（缓存字符预算的估算；只序列化这一条，不是整段历史） */
+function approxJsonLength(message: ChatMessage): number {
+  try {
+    return JSON.stringify(message).length;
+  } catch {
+    return 2;
   }
 }

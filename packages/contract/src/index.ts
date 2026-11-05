@@ -120,6 +120,8 @@ export {
 
 export { base64ToBytes, bytesToBase64, decodeWireFrame, encodeWireFrame } from './wire';
 
+export { leanValidation, setLeanValidation, type LeanValidation } from './leanValidation';
+
 export {
   createWebSocketClientTransport,
   WS_PROTOCOL,

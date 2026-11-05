@@ -339,7 +339,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   // 切换会话 / 首次挂载：先只渲染末尾几条（首帧尽快出现），其余按帧分批往上补，主线程不会被一次性占满
   const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
   const start = Math.max(fullStart, messages.length - eagerCount);
-  const shown = start > 0 ? messages.slice(start) : messages;
+  // 记住切片：live / 状态变化引起的重渲染（消息没变）不让 groupTurns 重算
+  const shown = useMemo(() => (start > 0 ? messages.slice(start) : messages), [messages, start]);
   const turns = useMemo(() => groupTurns(shown), [shown]);
   const labels = useMemo(() => timeLabels(messages), [messages]);
   // 卡片归位：afterId 命中某条消息 → 紧跟其后；null → 会话开头；找不到（消息被删 / 重试）→ 末尾

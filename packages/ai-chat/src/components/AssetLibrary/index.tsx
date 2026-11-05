@@ -243,10 +243,17 @@ export function useAssetLibraryHost(collapsed: boolean) {
     if (last.current.first !== first || last.current.tabId !== tabId) setOpen(false);
     last.current = { first, tabId };
   }, [first, tabId]);
-  if (!hasTransport()) return { nav: null, page: null, chatHidden: false, close };
-  const nav = (
-    <AssetLibraryNav collapsed={collapsed} active={open} count={items?.length} onOpen={show} />
+  const available = hasTransport();
+  const count = items?.length;
+  // 记住入口元素：侧栏是 React.memo，每次给新元素会让它跟着 App 根组件每帧重渲染
+  const nav = useMemo(
+    () =>
+      available ? (
+        <AssetLibraryNav collapsed={collapsed} active={open} count={count} onOpen={show} />
+      ) : null,
+    [available, collapsed, open, count, show],
   );
+  if (!available) return { nav: null, page: null, chatHidden: false, close };
   const page = mounted ? (
     <div className={styles.main} hidden={!open} data-testid="asset-library-main">
       <AssetLibraryPage active={open} onBack={close} onCompose={compose} />
