@@ -2,16 +2,18 @@
 package wailsshell
 
 import (
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"io/fs"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	goruntime "runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -127,7 +129,7 @@ func New(cfg Config) *Wails {
 		// 单实例：第二次启动把已有实例带到前台；
 		// 带着 nomi:// 链接（Win/Linux 经 argv 传入）的交给 OnURL（白名单在内核）
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: AppID,
+			UniqueID: singleInstanceID(),
 			OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
 				w.reactivate()
 				for _, a := range d.Args {
@@ -830,4 +832,12 @@ func (w *Wails) AnyFocused() bool {
 		}
 	}
 	return false
+}
+
+// singleInstanceID：截图脚本 / CI（NOMI_POC_CTL）用单独的单实例 ID，本机开着的 Nomi 不会把测试实例挡掉
+func singleInstanceID() string {
+	if os.Getenv("NOMI_POC_CTL") != "" {
+		return AppID + ".ctl"
+	}
+	return AppID
 }

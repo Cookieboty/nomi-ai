@@ -1,6 +1,8 @@
 package wailsshell
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -8,8 +10,25 @@ import (
 
 // HostPorts：对话框 / shell 子集（Wails 原生对话框）
 
+// 截图脚本 / CI 用的对话框预设答案：只在设置了 NOMI_POC_CTL 时生效，直接返回这些路径、不弹系统对话框
+const (
+	testPickDirEnv   = "NOMI_TEST_PICK_DIR"
+	testPickFilesEnv = "NOMI_TEST_PICK_FILES" // 用系统路径分隔符（: / ;）隔开
+)
+
+func testPreset(env string) (string, bool) {
+	if os.Getenv("NOMI_POC_CTL") == "" {
+		return "", false
+	}
+	v := os.Getenv(env)
+	return v, v != ""
+}
+
 // PickDirectory = dialogs.pickDirectory：properties ['openDirectory'(, 'createDirectory')]；取消 → ""
 func (w *Wails) PickDirectory(title, buttonLabel, defaultPath string, createDirectory bool) (string, error) {
+	if v, ok := testPreset(testPickDirEnv); ok {
+		return v, nil
+	}
 	d := w.app.Dialog.OpenFile().CanChooseFiles(false).CanChooseDirectories(true).CanCreateDirectories(createDirectory)
 	if title != "" {
 		d.SetTitle(title)
@@ -61,6 +80,9 @@ func (w *Wails) ShowItemInFolder(p string) { _ = w.app.Env.OpenFileManager(p, tr
 
 // PickFiles = dialogs.pickFiles（单选）：取消 → nil
 func (w *Wails) PickFiles(title string, filters []SaveFileFilter) ([]string, error) {
+	if v, ok := testPreset(testPickFilesEnv); ok {
+		return filepath.SplitList(v)[:1], nil // 单选：取第一个
+	}
 	d := w.app.Dialog.OpenFile().CanChooseFiles(true).CanChooseDirectories(false)
 	if title != "" {
 		d.SetTitle(title)

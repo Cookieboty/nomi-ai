@@ -87,6 +87,7 @@ func main() {
 		parse.WorkerMain()
 		return
 	}
+	useMemoryKeyringForTests()
 	if exe, err := os.Executable(); err == nil {
 		parse.EnableWorker(exe)
 	}
@@ -631,15 +632,20 @@ func main() {
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
+	ctl := os.Getenv("NOMI_POC_CTL")
 	ws := &contract.WSServer{Router: router, Origins: map[string]bool{
 		"wails://localhost": true, "wails://wails": true, "http://wails.localhost": true, "wails://wails.localhost": true,
 	}}
+	// 截图脚本 / CI：视图也在回环 HTTP 上提供，内核接受这个来源（webviews.go，只在设置了 NOMI_POC_CTL 时生效）
+	web := listenWebViews(ctl)
+	if web != nil {
+		ws.Origins[web.origin] = true
+	}
 	if err := ws.Start(); err != nil {
 		log.Fatal(err)
 	}
 
 	assets, _ := fs.Sub(dist, "frontend/dist")
-	ctl := os.Getenv("NOMI_POC_CTL")
 	// 每个窗口（每次新建 / 重建）一份 token，绑定窗口的界面：内核按 token 认调用方，不信页面自报的界面；
 	// 窗口关闭时撤销。灵动岛页不连内核，不发 token
 	frag := func(k shell.WindowKind) (url.Values, func()) {
@@ -685,6 +691,17 @@ func main() {
 	pages := map[shell.WindowKind]string{shell.Mascot: "/mascot/index.html", shell.Chat: "/chat/index.html", shell.Island: islandPagePath}
 	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
 	drops := hostdrop.New()
+	// 视图资源的中间件链：应用窗口与（截图 / CI 用的）回环 HTTP 共用
+	viewsMW := devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
+		assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
+			assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
+		},
+		// registerCharacterPackProtocol(protocol, () => this.resolved.root)
+		assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
+			assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
+		},
+	}))))))
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// 托盘菜单
 		TrayMenu: func() []shell.MenuItem {
@@ -809,16 +826,11 @@ func main() {
 			r := island.IslandWindowRect(g, g.Height)
 			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
 		},
-		Middleware: devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
-			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
-			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
-				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
-			},
-			// registerCharacterPackProtocol(protocol, () => this.resolved.root)
-			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
-				assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
-			},
-		}))))))})
+		Middleware: viewsMW,
+	})
+	if web != nil {
+		web.serve(viewsMW(http.FileServer(http.FS(assets))))
+	}
 
 	shellP.AttachShell()
 	// = ThemeService.syncAppearance（mac：外观跟随固定主题）
@@ -857,6 +869,14 @@ func main() {
 				if v := r.URL.Query().Get("v"); v == "svg" || v == "rive" {
 					_, _ = mascotCtl.SetRenderer(v)
 				}
+			case "web-url": // 截图 / CI：给浏览器一个带本次 token 的页面地址（需 NOMI_WEB_VIEWS）
+				u, err := web.pageURL(ws, r.URL.Query().Get("surface"), ctl)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				w.Write([]byte(u + "\n"))
+				return
 			case "quit":
 				sh.Quit()
 			}
