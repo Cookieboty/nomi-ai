@@ -7,7 +7,7 @@
   Models, coding agents, MCP and local tools in one place, coordinated by Nomi.
 </p>
 
-<p align="center">macOS · Windows · Linux　|　Go + Wails core, 39 MB installer　|　MIT</p>
+<p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>
 
 <p align="center">
   <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
