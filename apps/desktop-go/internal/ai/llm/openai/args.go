@@ -168,7 +168,7 @@ func (m *ResponsesModel) getArgs(o llm.CallOptions) (*args, error) {
 		warnings = append(warnings, unsup("conversation", "conversation and previousResponseId cannot be used together"))
 	}
 	if nn(op, "conversation") {
-		return nil, llm.NewUnsupported("openai conversation option (Go runtime, D-B5-P-7)")
+		return nil, llm.NewUnsupported("openai conversation option")
 	}
 
 	tools, toolChoice, toolWarnings, err := prepareTools(o.Tools, o.ToolChoice, caps.supportsAsyncToolCalling)
@@ -176,7 +176,7 @@ func (m *ResponsesModel) getArgs(o llm.CallOptions) (*args, error) {
 		return nil, err
 	}
 	if nn(op, "allowedTools") {
-		return nil, llm.NewUnsupported("openai allowedTools option (Go runtime, D-B5-P-7)")
+		return nil, llm.NewUnsupported("openai allowedTools option")
 	}
 	outputSchemaTools := map[string]bool{}
 	for _, t := range o.Tools {
@@ -220,7 +220,7 @@ func (m *ResponsesModel) getArgs(o llm.CallOptions) (*args, error) {
 		if reason != "" {
 			warnings = append(warnings, unsup("reasoningEffortUpdate", reason))
 		} else {
-			return nil, llm.NewUnsupported("reasoningEffortUpdate (Go runtime, D-B5-P-7)")
+			return nil, llm.NewUnsupported("reasoningEffortUpdate")
 		}
 	}
 	if get(op, "compactionTrigger") == true {

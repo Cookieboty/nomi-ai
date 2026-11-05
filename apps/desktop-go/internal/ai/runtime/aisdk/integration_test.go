@@ -101,7 +101,7 @@ func TestIntegrationToolLoopFullURL(t *testing.T) {
 		}
 	}
 	if !strings.Contains(seen[0].Body, `"description":""`) {
-		t.Errorf("D-B5-5: empty description must be sent: %s", seen[0].Body)
+		t.Errorf("empty description must be sent: %s", seen[0].Body)
 	}
 	if !strings.Contains(seen[1].Body, `"role":"tool"`) || !strings.Contains(seen[1].Body, `"tool_call_id":"call_1"`) {
 		t.Errorf("tool result not sent back: %s", seen[1].Body)

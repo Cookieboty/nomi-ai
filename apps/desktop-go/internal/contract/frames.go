@@ -13,13 +13,15 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract/gen"
 )
 
 // ProtocolVersion 与 protocol.ts 的 PROTOCOL_VERSION 一致
 const ProtocolVersion = 1
 
-// ContractVersion 与 packages/contract/src/app/index.ts 的 appContract.version 一致
-var ContractVersion = Version{Major: 2, Minor: 2}
+// ContractVersion：握手（meta.version）回报的契约版本，取自生成的过程表（= packages/contract 的 appContract.version）
+var ContractVersion = Version{Major: gen.ContractVersion.Major, Minor: gen.ContractVersion.Minor}
 
 type Version struct {
 	Major int `json:"major"`

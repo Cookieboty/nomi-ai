@@ -166,7 +166,7 @@ func convertInput(a inputArgs) ([]any, []llm.Warning, error) {
 		case "system":
 			if eff := get(objAt(msg.ProviderOptions, name), "reasoningEffortUpdate"); eff != nil {
 				return nil, nil, &llm.UnsupportedFunctionalityError{Functionality: "Message-level reasoningEffortUpdate",
-					Message: "Message-level reasoningEffortUpdate is not supported by the Go runtime (D-B5-P-7)."}
+					Message: "Message-level reasoningEffortUpdate is not supported."}
 			}
 			switch a.systemMessageMode {
 			case "system", "developer":
