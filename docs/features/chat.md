@@ -58,4 +58,4 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 ## 实现
 
 - 视图：`packages/ai-chat/src`（`App.tsx`、`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
-- 内核：`apps/desktop-go/internal/core/chat.go`、`internal/aichat`，图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。
+- 内核：`apps/desktop-go/internal/aichat`，图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。
