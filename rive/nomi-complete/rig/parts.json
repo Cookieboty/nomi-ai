@@ -1,0 +1,1376 @@
+{
+ "mother": "mother-v2.png",
+ "size": [
+  1024,
+  1536
+ ],
+ "top_first": [
+  {
+   "name": "hair-clip",
+   "z": 0,
+   "visible": true,
+   "rest": 124,
+   "backfill": 0,
+   "box": [
+    583,
+    86,
+    30,
+    45
+   ]
+  },
+  {
+   "name": "hair-bow",
+   "z": 1,
+   "visible": true,
+   "rest": 5345,
+   "backfill": 0,
+   "box": [
+    570,
+    105,
+    84,
+    154
+   ]
+  },
+  {
+   "name": "hair-ornament-l",
+   "z": 2,
+   "visible": true,
+   "rest": 714,
+   "backfill": 0,
+   "box": [
+    381,
+    105,
+    67,
+    155
+   ]
+  },
+  {
+   "name": "hair-front",
+   "z": 3,
+   "visible": true,
+   "rest": 19049,
+   "backfill": 0,
+   "box": [
+    416,
+    19,
+    184,
+    160
+   ]
+  },
+  {
+   "name": "brow-l",
+   "z": 4,
+   "visible": true,
+   "rest": 93,
+   "backfill": 0,
+   "box": [
+    445,
+    129,
+    36,
+    10
+   ]
+  },
+  {
+   "name": "brow-r",
+   "z": 5,
+   "visible": true,
+   "rest": 128,
+   "backfill": 0,
+   "box": [
+    518,
+    122,
+    32,
+    11
+   ]
+  },
+  {
+   "name": "eye-l-closed-a",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    443,
+    148,
+    44,
+    25
+   ]
+  },
+  {
+   "name": "eye-l-closed",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    443,
+    148,
+    44,
+    25
+   ]
+  },
+  {
+   "name": "eye-l-lash",
+   "z": 6,
+   "visible": true,
+   "rest": 294,
+   "backfill": 72,
+   "box": [
+    444,
+    146,
+    40,
+    21
+   ]
+  },
+  {
+   "name": "eye-l-lid",
+   "z": 7,
+   "visible": true,
+   "rest": 158,
+   "backfill": 11,
+   "box": [
+    444,
+    164,
+    39,
+    15
+   ]
+  },
+  {
+   "name": "eye-l-hl",
+   "z": 8,
+   "visible": true,
+   "rest": 23,
+   "backfill": 0,
+   "box": [
+    458,
+    157,
+    13,
+    17
+   ]
+  },
+  {
+   "name": "eye-l-iris",
+   "z": 9,
+   "visible": true,
+   "rest": 283,
+   "backfill": 129,
+   "box": [
+    458,
+    153,
+    22,
+    24
+   ]
+  },
+  {
+   "name": "eye-l-sclera",
+   "z": 10,
+   "visible": true,
+   "rest": 180,
+   "backfill": 210,
+   "box": [
+    444,
+    155,
+    40,
+    21
+   ]
+  },
+  {
+   "name": "eye-r-closed-a",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    521,
+    141,
+    48,
+    27
+   ]
+  },
+  {
+   "name": "eye-r-closed",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    521,
+    141,
+    48,
+    27
+   ]
+  },
+  {
+   "name": "eye-r-lash",
+   "z": 11,
+   "visible": true,
+   "rest": 314,
+   "backfill": 42,
+   "box": [
+    522,
+    142,
+    46,
+    20
+   ]
+  },
+  {
+   "name": "eye-r-lid",
+   "z": 12,
+   "visible": true,
+   "rest": 136,
+   "backfill": 9,
+   "box": [
+    523,
+    158,
+    44,
+    16
+   ]
+  },
+  {
+   "name": "eye-r-hl",
+   "z": 13,
+   "visible": true,
+   "rest": 20,
+   "backfill": 0,
+   "box": [
+    537,
+    152,
+    13,
+    16
+   ]
+  },
+  {
+   "name": "eye-r-iris",
+   "z": 14,
+   "visible": true,
+   "rest": 328,
+   "backfill": 129,
+   "box": [
+    527,
+    147,
+    24,
+    25
+   ]
+  },
+  {
+   "name": "eye-r-sclera",
+   "z": 15,
+   "visible": true,
+   "rest": 221,
+   "backfill": 247,
+   "box": [
+    523,
+    150,
+    44,
+    22
+   ]
+  },
+  {
+   "name": "mouth-viseme-a",
+   "z": 16,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    495,
+    198,
+    21,
+    15
+   ]
+  },
+  {
+   "name": "mouth-viseme-i",
+   "z": 17,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    493,
+    199,
+    25,
+    11
+   ]
+  },
+  {
+   "name": "mouth-viseme-u",
+   "z": 18,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    498,
+    199,
+    15,
+    13
+   ]
+  },
+  {
+   "name": "mouth-viseme-e",
+   "z": 19,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    494,
+    199,
+    23,
+    11
+   ]
+  },
+  {
+   "name": "mouth-viseme-o",
+   "z": 20,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    496,
+    198,
+    19,
+    15
+   ]
+  },
+  {
+   "name": "mouth-viseme-m",
+   "z": 21,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    488,
+    197,
+    36,
+    16
+   ]
+  },
+  {
+   "name": "face-smile",
+   "z": 22,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    494,
+    216,
+    60,
+    20
+   ]
+  },
+  {
+   "name": "nose",
+   "z": 23,
+   "visible": true,
+   "rest": 268,
+   "backfill": 0,
+   "box": [
+    496,
+    172,
+    15,
+    21
+   ]
+  },
+  {
+   "name": "lips",
+   "z": 24,
+   "visible": true,
+   "rest": 480,
+   "backfill": 0,
+   "box": [
+    488,
+    197,
+    36,
+    16
+   ]
+  },
+  {
+   "name": "head-cheek-l",
+   "z": 25,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    454,
+    185,
+    33,
+    15
+   ]
+  },
+  {
+   "name": "head-cheek-c",
+   "z": 26,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    477,
+    183,
+    59,
+    11
+   ]
+  },
+  {
+   "name": "head-cheek-r",
+   "z": 27,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    531,
+    181,
+    33,
+    15
+   ]
+  },
+  {
+   "name": "hair-side-l",
+   "z": 28,
+   "visible": true,
+   "rest": 14097,
+   "backfill": 0,
+   "box": [
+    53,
+    3,
+    454,
+    293
+   ]
+  },
+  {
+   "name": "hair-side-r",
+   "z": 29,
+   "visible": true,
+   "rest": 5611,
+   "backfill": 0,
+   "box": [
+    507,
+    13,
+    455,
+    316
+   ]
+  },
+  {
+   "name": "face",
+   "z": 30,
+   "visible": true,
+   "rest": 6765,
+   "backfill": 7273,
+   "box": [
+    434,
+    96,
+    145,
+    144
+   ]
+  },
+  {
+   "name": "hand-l-fist",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    284,
+    743,
+    59,
+    58
+   ]
+  },
+  {
+   "name": "hand-l-index-p2",
+   "z": null,
+   "visible": true,
+   "box": [
+    311,
+    813,
+    17,
+    17
+   ]
+  },
+  {
+   "name": "hand-l-index-p2-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    311,
+    813,
+    17,
+    17
+   ]
+  },
+  {
+   "name": "hand-l-index-p1",
+   "z": null,
+   "visible": true,
+   "box": [
+    305,
+    800,
+    21,
+    21
+   ]
+  },
+  {
+   "name": "hand-l-index-p1-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    305,
+    800,
+    21,
+    21
+   ]
+  },
+  {
+   "name": "hand-l-index-p0",
+   "z": null,
+   "visible": true,
+   "box": [
+    288,
+    786,
+    34,
+    27
+   ]
+  },
+  {
+   "name": "hand-l-index-p0-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    288,
+    786,
+    34,
+    27
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p2",
+   "z": null,
+   "visible": true,
+   "box": [
+    317,
+    788,
+    19,
+    19
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p2-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    317,
+    788,
+    19,
+    19
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p1",
+   "z": null,
+   "visible": true,
+   "box": [
+    317,
+    774,
+    21,
+    19
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p1-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    317,
+    774,
+    21,
+    19
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p0",
+   "z": null,
+   "visible": true,
+   "box": [
+    311,
+    744,
+    29,
+    33
+   ]
+  },
+  {
+   "name": "hand-l-thumb-p0-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    311,
+    744,
+    29,
+    33
+   ]
+  },
+  {
+   "name": "hand-l-little",
+   "z": null,
+   "visible": true,
+   "box": [
+    323,
+    799,
+    19,
+    17
+   ]
+  },
+  {
+   "name": "hand-l-little-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    323,
+    799,
+    19,
+    17
+   ]
+  },
+  {
+   "name": "hand-l-ring",
+   "z": null,
+   "visible": true,
+   "box": [
+    331,
+    787,
+    13,
+    14
+   ]
+  },
+  {
+   "name": "hand-l-ring-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    331,
+    787,
+    13,
+    14
+   ]
+  },
+  {
+   "name": "hand-l-middle",
+   "z": null,
+   "visible": true,
+   "box": [
+    334,
+    775,
+    10,
+    14
+   ]
+  },
+  {
+   "name": "hand-l-middle-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    334,
+    775,
+    10,
+    14
+   ]
+  },
+  {
+   "name": "hand-l-palm",
+   "z": null,
+   "visible": true,
+   "box": [
+    283,
+    742,
+    60,
+    88
+   ]
+  },
+  {
+   "name": "hand-l-palm-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    283,
+    742,
+    60,
+    88
+   ]
+  },
+  {
+   "name": "arm-l-cuff",
+   "z": 59,
+   "visible": true,
+   "rest": 5811,
+   "backfill": 0,
+   "box": [
+    262,
+    673,
+    117,
+    82
+   ]
+  },
+  {
+   "name": "sleeve-l-fore",
+   "z": 60,
+   "visible": true,
+   "rest": 29477,
+   "backfill": 585,
+   "box": [
+    33,
+    387,
+    384,
+    853
+   ]
+  },
+  {
+   "name": "sleeve-l-upper",
+   "z": 60,
+   "visible": true,
+   "rest": 29477,
+   "backfill": 585,
+   "box": [
+    33,
+    387,
+    384,
+    853
+   ]
+  },
+  {
+   "name": "sleeve-l-specks",
+   "z": 60,
+   "visible": true,
+   "rest": 29477,
+   "backfill": 585,
+   "box": [
+    33,
+    387,
+    384,
+    853
+   ]
+  },
+  {
+   "name": "arm-l-skin",
+   "z": 61,
+   "visible": true,
+   "rest": 5636,
+   "backfill": 16994,
+   "box": [
+    295,
+    282,
+    128,
+    478
+   ]
+  },
+  {
+   "name": "hand-r-fist",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    672,
+    738,
+    63,
+    63
+   ]
+  },
+  {
+   "name": "hand-r-index-p2",
+   "z": null,
+   "visible": true,
+   "box": [
+    693,
+    813,
+    11,
+    15
+   ]
+  },
+  {
+   "name": "hand-r-index-p2-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    693,
+    813,
+    11,
+    15
+   ]
+  },
+  {
+   "name": "hand-r-index-p1",
+   "z": null,
+   "visible": true,
+   "box": [
+    694,
+    803,
+    13,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-index-p1-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    694,
+    803,
+    13,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-index-p0",
+   "z": null,
+   "visible": true,
+   "box": [
+    698,
+    777,
+    28,
+    33
+   ]
+  },
+  {
+   "name": "hand-r-index-p0-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    698,
+    777,
+    28,
+    33
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p2",
+   "z": null,
+   "visible": true,
+   "box": [
+    682,
+    784,
+    14,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p2-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    682,
+    784,
+    14,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p1",
+   "z": null,
+   "visible": true,
+   "box": [
+    680,
+    771,
+    18,
+    18
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p1-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    680,
+    771,
+    18,
+    18
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p0",
+   "z": null,
+   "visible": true,
+   "box": [
+    676,
+    743,
+    24,
+    31
+   ]
+  },
+  {
+   "name": "hand-r-thumb-p0-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    676,
+    743,
+    24,
+    31
+   ]
+  },
+  {
+   "name": "hand-r-little",
+   "z": null,
+   "visible": true,
+   "box": [
+    671,
+    795,
+    22,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-little-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    671,
+    795,
+    22,
+    17
+   ]
+  },
+  {
+   "name": "hand-r-ring",
+   "z": null,
+   "visible": true,
+   "box": [
+    671,
+    782,
+    14,
+    15
+   ]
+  },
+  {
+   "name": "hand-r-ring-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    671,
+    782,
+    14,
+    15
+   ]
+  },
+  {
+   "name": "hand-r-middle",
+   "z": null,
+   "visible": true,
+   "box": [
+    671,
+    768,
+    12,
+    16
+   ]
+  },
+  {
+   "name": "hand-r-middle-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    671,
+    768,
+    12,
+    16
+   ]
+  },
+  {
+   "name": "hand-r-palm",
+   "z": null,
+   "visible": true,
+   "box": [
+    672,
+    737,
+    64,
+    93
+   ]
+  },
+  {
+   "name": "hand-r-palm-clean",
+   "z": null,
+   "visible": false,
+   "alternate": true,
+   "box": [
+    672,
+    737,
+    64,
+    93
+   ]
+  },
+  {
+   "name": "arm-r-cuff",
+   "z": 90,
+   "visible": true,
+   "rest": 5608,
+   "backfill": 0,
+   "box": [
+    641,
+    669,
+    110,
+    84
+   ]
+  },
+  {
+   "name": "sleeve-r-fore",
+   "z": 91,
+   "visible": true,
+   "rest": 27496,
+   "backfill": 542,
+   "box": [
+    598,
+    389,
+    412,
+    953
+   ]
+  },
+  {
+   "name": "sleeve-r-upper",
+   "z": 91,
+   "visible": true,
+   "rest": 27496,
+   "backfill": 542,
+   "box": [
+    598,
+    389,
+    412,
+    953
+   ]
+  },
+  {
+   "name": "sleeve-r-specks",
+   "z": 91,
+   "visible": true,
+   "rest": 27496,
+   "backfill": 542,
+   "box": [
+    598,
+    389,
+    412,
+    953
+   ]
+  },
+  {
+   "name": "arm-r-skin",
+   "z": 92,
+   "visible": true,
+   "rest": 5826,
+   "backfill": 17031,
+   "box": [
+    592,
+    280,
+    140,
+    480
+   ]
+  },
+  {
+   "name": "hem-ribbon-l",
+   "z": 93,
+   "visible": true,
+   "rest": 10098,
+   "backfill": 28,
+   "box": [
+    325,
+    657,
+    61,
+    307
+   ]
+  },
+  {
+   "name": "hem-ribbon-r",
+   "z": 94,
+   "visible": true,
+   "rest": 9234,
+   "backfill": 0,
+   "box": [
+    627,
+    701,
+    60,
+    257
+   ]
+  },
+  {
+   "name": "belt-pouch",
+   "z": 95,
+   "visible": true,
+   "rest": 5527,
+   "backfill": 0,
+   "box": [
+    556,
+    510,
+    80,
+    102
+   ]
+  },
+  {
+   "name": "belt-id",
+   "z": 96,
+   "visible": true,
+   "rest": 4420,
+   "backfill": 0,
+   "box": [
+    441,
+    509,
+    41,
+    172
+   ]
+  },
+  {
+   "name": "belt-band",
+   "z": 97,
+   "visible": true,
+   "rest": 4768,
+   "backfill": 13,
+   "box": [
+    423,
+    480,
+    163,
+    35
+   ]
+  },
+  {
+   "name": "coat-front-l",
+   "z": 98,
+   "visible": true,
+   "rest": 7021,
+   "backfill": 656,
+   "box": [
+    369,
+    277,
+    138,
+    600
+   ]
+  },
+  {
+   "name": "coat-front-r",
+   "z": 99,
+   "visible": true,
+   "rest": 6655,
+   "backfill": 910,
+   "box": [
+    507,
+    275,
+    141,
+    588
+   ]
+  },
+  {
+   "name": "thigh-strap",
+   "z": 100,
+   "visible": true,
+   "rest": 3791,
+   "backfill": 0,
+   "box": [
+    379,
+    758,
+    124,
+    48
+   ]
+  },
+  {
+   "name": "shorts",
+   "z": 101,
+   "visible": true,
+   "rest": 30813,
+   "backfill": 11827,
+   "box": [
+    396,
+    498,
+    223,
+    215
+   ]
+  },
+  {
+   "name": "choker",
+   "z": 102,
+   "visible": true,
+   "rest": 1225,
+   "backfill": 0,
+   "box": [
+    470,
+    229,
+    85,
+    61
+   ]
+  },
+  {
+   "name": "tank",
+   "z": 103,
+   "visible": true,
+   "rest": 28120,
+   "backfill": 6662,
+   "box": [
+    408,
+    268,
+    201,
+    238
+   ]
+  },
+  {
+   "name": "neck",
+   "z": 104,
+   "visible": true,
+   "rest": 1587,
+   "backfill": 3212,
+   "box": [
+    462,
+    205,
+    91,
+    74
+   ]
+  },
+  {
+   "name": "chest",
+   "z": 105,
+   "visible": true,
+   "rest": 6328,
+   "backfill": 81010,
+   "box": [
+    396,
+    258,
+    225,
+    455
+   ]
+  },
+  {
+   "name": "coat-collar-l-out",
+   "z": 106,
+   "visible": true,
+   "rest": 3149,
+   "backfill": 525,
+   "box": [
+    43,
+    230,
+    464,
+    176
+   ]
+  },
+  {
+   "name": "coat-collar-l-in",
+   "z": 106,
+   "visible": true,
+   "rest": 3149,
+   "backfill": 525,
+   "box": [
+    43,
+    230,
+    464,
+    176
+   ]
+  },
+  {
+   "name": "coat-collar-r-out",
+   "z": 107,
+   "visible": true,
+   "rest": 3046,
+   "backfill": 1362,
+   "box": [
+    507,
+    236,
+    431,
+    170
+   ]
+  },
+  {
+   "name": "coat-collar-r-in",
+   "z": 107,
+   "visible": true,
+   "rest": 3046,
+   "backfill": 1362,
+   "box": [
+    507,
+    236,
+    431,
+    170
+   ]
+  },
+  {
+   "name": "shoe-l",
+   "z": 108,
+   "visible": true,
+   "rest": 23114,
+   "backfill": 0,
+   "box": [
+    49,
+    1261,
+    469,
+    247
+   ]
+  },
+  {
+   "name": "sock-l",
+   "z": 109,
+   "visible": true,
+   "rest": 2810,
+   "backfill": 266,
+   "box": [
+    422,
+    1210,
+    71,
+    63
+   ]
+  },
+  {
+   "name": "leg-l",
+   "z": 110,
+   "visible": true,
+   "rest": 45170,
+   "backfill": 12412,
+   "box": [
+    267,
+    582,
+    245,
+    680
+   ]
+  },
+  {
+   "name": "shoe-r",
+   "z": 111,
+   "visible": true,
+   "rest": 23366,
+   "backfill": 0,
+   "box": [
+    515,
+    1261,
+    457,
+    245
+   ]
+  },
+  {
+   "name": "sock-r",
+   "z": 112,
+   "visible": true,
+   "rest": 3069,
+   "backfill": 273,
+   "box": [
+    541,
+    1211,
+    69,
+    62
+   ]
+  },
+  {
+   "name": "leg-r",
+   "z": 113,
+   "visible": true,
+   "rest": 47615,
+   "backfill": 12331,
+   "box": [
+    506,
+    582,
+    239,
+    682
+   ]
+  },
+  {
+   "name": "hair-back",
+   "z": 114,
+   "visible": true,
+   "rest": 0,
+   "backfill": 44127,
+   "box": [
+    358,
+    13,
+    287,
+    280
+   ]
+  }
+ ]
+}

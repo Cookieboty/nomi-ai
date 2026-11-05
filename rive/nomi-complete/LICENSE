@@ -1,3 +1,6 @@
 Nomi·诺米 Rive production scene
 
-All artwork embedded in the production scene is derived from the official Nomi layer set or the user-supplied mother reference. Pose-specific AI/generated plates were intentionally removed. See parts/DETAIL_LICENSE.json for per-file hashes and provenance.
+All artwork in the production scene is derived from the user-supplied full-body mother (source-nomi-master.png):
+every layer is cut from its pixels, and the areas the mother hides are painted procedurally from the same part's own
+pixels (tools/rebuild). No AI-generated or third-party pixels are added. See parts/DETAIL_LICENSE.json for per-file
+hashes and provenance.

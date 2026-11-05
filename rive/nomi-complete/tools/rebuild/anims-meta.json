@@ -1,0 +1,474 @@
+[
+ {
+  "name": "full.idle",
+  "loopValue": "loop",
+  "duration": "216",
+  "fps": "60",
+  "id": "0:195",
+  "layer": "full.idle"
+ },
+ {
+  "name": "rest",
+  "loopValue": "loop",
+  "duration": "1",
+  "fps": "60",
+  "id": "0:207",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.wave",
+  "loopValue": "oneShot",
+  "duration": "108",
+  "fps": "60",
+  "id": "0:196",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.cheer",
+  "loopValue": "oneShot",
+  "duration": "96",
+  "fps": "60",
+  "id": "0:197",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.hello",
+  "loopValue": "oneShot",
+  "duration": "96",
+  "fps": "60",
+  "id": "0:198",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.celebrate",
+  "loopValue": "oneShot",
+  "duration": "120",
+  "fps": "60",
+  "id": "0:199",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.nod",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:200",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.flinch",
+  "loopValue": "oneShot",
+  "duration": "84",
+  "fps": "60",
+  "id": "0:201",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.poke",
+  "loopValue": "oneShot",
+  "duration": "78",
+  "fps": "60",
+  "id": "0:202",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.shake",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:203",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.clap",
+  "loopValue": "oneShot",
+  "duration": "96",
+  "fps": "60",
+  "id": "0:204",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.think",
+  "loopValue": "oneShot",
+  "duration": "90",
+  "fps": "60",
+  "id": "0:205",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.work",
+  "loopValue": "oneShot",
+  "duration": "90",
+  "fps": "60",
+  "id": "0:206",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.smile",
+  "loopValue": "oneShot",
+  "duration": "48",
+  "fps": "60",
+  "id": "0:234",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.fist_pump",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:300",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.typing",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:301",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.bow",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:302",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.salute",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:303",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.prayer",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:304",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.ok",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:305",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.explain",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:306",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.eureka",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:307",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.puzzled",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:308",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.look_around",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:309",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.look_lr",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:310",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.peek",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:311",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.heart",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:312",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.blow_kiss",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:313",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.shy",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:314",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.apology",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:315",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.surprise",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:316",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.inhale",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:317",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.smug",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:318",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.aggrieved",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:319",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.tears",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:320",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.angry",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:321",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.cold_sweat",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:322",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.daze",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:323",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.thumbs_up",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:324",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.peace",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:325",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.hop",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:326",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.blink",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:327",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.idle-blink",
+  "loopValue": "loop",
+  "duration": "900",
+  "fps": "60",
+  "id": "0:60001",
+  "layer": "full.autoblink"
+ },
+ {
+  "name": "full.tongue",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:328",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.yawn",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:329",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.stretch",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:330",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.fist",
+  "loopValue": "oneShot",
+  "duration": "72",
+  "fps": "60",
+  "id": "0:331",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.squat",
+  "loopValue": "oneShot",
+  "duration": "80",
+  "fps": "60",
+  "id": "0:60102",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.run",
+  "loopValue": "oneShot",
+  "duration": "178",
+  "fps": "60",
+  "id": "0:60104",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.walk",
+  "loopValue": "oneShot",
+  "duration": "256",
+  "fps": "60",
+  "id": "0:60103",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.step",
+  "loopValue": "oneShot",
+  "duration": "150",
+  "fps": "60",
+  "id": "0:60101",
+  "layer": "Actions"
+ },
+ {
+  "name": "full.mouth_rest",
+  "loopValue": "oneShot",
+  "duration": "6",
+  "fps": "60",
+  "id": "0:135624",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_a",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135626",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_i",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135627",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_u",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135628",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_e",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135629",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_o",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135630",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.viseme_m",
+  "loopValue": "oneShot",
+  "duration": "30",
+  "fps": "60",
+  "id": "0:135631",
+  "layer": "full.mouth"
+ },
+ {
+  "name": "full.talk",
+  "loopValue": "oneShot",
+  "duration": "70",
+  "fps": "60",
+  "id": "0:135625",
+  "layer": "full.mouth"
+ }
+]

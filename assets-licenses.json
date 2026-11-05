@@ -26,7 +26,7 @@
       "pattern": "characters/nomi/rive/**",
       "license": "MIT",
       "author": "Nomi-ai project owner (Cookieboty) — approved full-body mother artwork; rig/animation by Nomi contributors",
-      "source": "generated from rive/nomi-complete/source-nomi-master.png and its deterministic SVG-backed rig in rive/nomi-complete/reference/svg-rig"
+      "source": "generated from rive/nomi-complete/source-nomi-master.png: layers segmented from the mother with procedurally painted backfill (rive/nomi-complete/rig, tools/rebuild)"
     },
     {
       "pattern": "apps/desktop-go/assets/{icon.ico,icon.icns,entitlements.mac.plist,trayTemplate.png,trayTemplate@2x.png,icons/**,app-icons/**}",

@@ -87,3 +87,6 @@ AppData/
 # Go 打包产物（packaging/package.sh）
 apps/desktop-go/dist-pkg/
 apps/desktop-go/rsrc_windows_*.syso
+
+# Rive rebuild intermediates (tools/rebuild/build.sh)
+rive/nomi-complete/rig/seg.npz
