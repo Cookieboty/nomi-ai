@@ -76,6 +76,19 @@ export const MascotScaleState = z.looseObject({
 /** 全局光标（相对窗口左上角，可能在窗口外）—— types `MascotCursorEvent` */
 export const MascotCursorEvent = z.object({ x: z.number(), y: z.number(), inside: z.boolean() });
 
+/**
+ * 窗口在屏幕上的位置与它所在显示器的工作区（内核按真实窗口坐标算；WKWebView 里 window.screenX
+ * 在内核挪窗后不一定更新）。工具栏 / 气泡据此判断贴边换边。只在变化时推。
+ */
+export const MascotScreenEvent = z.object({
+  winX: z.number(),
+  winY: z.number(),
+  availLeft: z.number(),
+  availTop: z.number(),
+  availWidth: z.number(),
+  availHeight: z.number(),
+});
+
 /** 窗口运动 —— types `MascotBodyEvent` */
 export const MascotBodyEvent = z.looseObject({
   mode: z.enum(['idle', 'held', 'falling', 'walking']),
@@ -646,6 +659,8 @@ export const mascotEvents = {
   'mascot.cursor': MascotCursorEvent,
   /** mascot:body（运动中每帧，静止时 ~2Hz） */
   'mascot.body': MascotBodyEvent,
+  /** 窗口位置 / 所在显示器工作区（变化时） */
+  'mascot.screen': MascotScreenEvent,
   /** mascot:physics-event */
   'mascot.physicsEvent': MascotPhysicsEvent,
   /** mascot:command（托盘 / 服务 → 桌面角色：打开面板、说一句、朗读） */
@@ -668,6 +683,7 @@ export const mascotEvents = {
 export const mascotEventSurfaces = {
   'mascot.cursor': ['mascot'],
   'mascot.body': ['mascot'],
+  'mascot.screen': ['mascot'],
   'mascot.physicsEvent': ['mascot'],
   'avatar.event': ['mascot'],
   'window.mouseEnter': ['mascot'],

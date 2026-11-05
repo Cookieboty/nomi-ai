@@ -8,6 +8,7 @@ import styles from './DesktopConfirm.module.css';
 
 import { placeConfirmBubble, type BubblePlacement } from '@/mascot/bubblePlacement';
 import { bubbleSlot } from '@/mascot/bubbleSlot';
+import { hostScreen } from '@/mascot/hostScreen';
 import { api, hasTransport } from '@/services/api';
 
 /** 桌面能力（桌面角色窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */
@@ -77,11 +78,7 @@ export const DesktopConfirm: React.FC = () => {
       head,
       gutter,
       view: { width: window.innerWidth, height: window.innerHeight },
-      screen: {
-        winX: window.screenX,
-        availLeft: (window.screen as Screen & { availLeft?: number }).availLeft ?? 0,
-        availWidth: window.screen.availWidth,
-      },
+      screen: hostScreen(),
       measure: (w) => {
         const prev = el.style.cssText;
         el.style.width = `${w}px`;

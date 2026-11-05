@@ -5,6 +5,7 @@ import type { FC } from 'react';
 import { avatarEvents } from '../avatar/events';
 
 import { handleMascotCommand } from './commands';
+import { setHostScreen } from './hostScreen';
 
 import { lipSyncStore } from '@/ai/lipSyncStore';
 import { api, hasTransport } from '@/services/api';
@@ -33,6 +34,16 @@ const MascotDriver: FC = () => {
           avatarEvents.emit({ type: 'cursor', x: p.x, y: p.y, inside: p.inside }),
         )
       : undefined;
+    const offScreen = live
+      ? api.on('mascot.screen', (e) =>
+          setHostScreen({
+            winX: e.winX,
+            winY: e.winY,
+            availLeft: e.availLeft,
+            availWidth: e.availWidth,
+          }),
+        )
+      : undefined;
     const offPhysics = live
       ? api.on('mascot.physicsEvent', (e) =>
           avatarEvents.emit({
@@ -49,6 +60,7 @@ const MascotDriver: FC = () => {
       offAvatar?.();
       offCursor?.();
       offPhysics?.();
+      offScreen?.();
     };
   }, []);
   return null;

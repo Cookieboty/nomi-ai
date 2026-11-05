@@ -493,6 +493,7 @@ var Events = []string{
 	"mascot.physicsEvent",
 	"mascot.rendererChanged",
 	"mascot.scaleChanged",
+	"mascot.screen",
 	"mem.changed",
 	"mem.status",
 	"nav.desktopPanelRequested",

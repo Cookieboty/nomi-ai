@@ -7590,6 +7590,15 @@ type EventMascotScaleChanged struct {
 	Window  EventMascotScaleChangedWindow `json:"window"`
 }
 
+type EventMascotScreen struct {
+	WinX        float64 `json:"winX"`
+	WinY        float64 `json:"winY"`
+	AvailLeft   float64 `json:"availLeft"`
+	AvailTop    float64 `json:"availTop"`
+	AvailWidth  float64 `json:"availWidth"`
+	AvailHeight float64 `json:"availHeight"`
+}
+
 type EventMemStatus struct {
 	Busy []string `json:"busy"`
 }
@@ -9547,6 +9556,7 @@ type EventMascotCursorT = EventMascotCursor
 type EventMascotPhysicsEventT = json.RawMessage
 type EventMascotRendererChangedT = EventMascotRendererChanged
 type EventMascotScaleChangedT = EventMascotScaleChanged
+type EventMascotScreenT = EventMascotScreen
 type EventMemChangedT = any
 type EventMemStatusT = EventMemStatus
 type EventNavDesktopPanelRequestedT = map[string]any

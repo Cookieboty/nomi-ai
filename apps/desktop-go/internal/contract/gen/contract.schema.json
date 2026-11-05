@@ -29131,6 +29131,39 @@
    ],
    "additionalProperties": {}
   },
+  "mascot.screen": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "winX": {
+     "type": "number"
+    },
+    "winY": {
+     "type": "number"
+    },
+    "availLeft": {
+     "type": "number"
+    },
+    "availTop": {
+     "type": "number"
+    },
+    "availWidth": {
+     "type": "number"
+    },
+    "availHeight": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "winX",
+    "winY",
+    "availLeft",
+    "availTop",
+    "availWidth",
+    "availHeight"
+   ],
+   "additionalProperties": false
+  },
   "mem.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "null"

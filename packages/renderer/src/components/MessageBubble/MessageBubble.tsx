@@ -21,6 +21,7 @@ import {
 } from '@/mascot/bubblePlacement';
 import { bubbleSlot } from '@/mascot/bubbleSlot';
 import { getHitboxes } from '@/mascot/characterConfig';
+import { hostScreen, subscribeHostScreen } from '@/mascot/hostScreen';
 import { startWindowPoll } from '@/mascot/windowPoll';
 import { toBubbleText } from '@/security/bubbleText';
 import { api, hasTransport } from '@/services/api';
@@ -84,11 +85,7 @@ export const MessageBubble: React.FC = () => {
       view: { width: window.innerWidth, height: vh },
       prefWidth: PREF_W,
       preferAbove: document.documentElement.dataset.mascotRig === 'layered',
-      screen: {
-        winX: window.screenX,
-        availLeft: (window.screen as Screen & { availLeft?: number }).availLeft ?? 0,
-        availWidth: window.screen.availWidth,
-      },
+      screen: hostScreen(),
       measure: (w) => {
         el.style.width = `${w}px`;
         return Math.min(el.offsetHeight, maxH);
@@ -125,11 +122,14 @@ export const MessageBubble: React.FC = () => {
 
   useEffect(() => {
     const off = layoutStore.subscribe(() => compute());
+    // 内核推来窗口位置变化（贴边）时重新摆放
+    const offScreen = subscribeHostScreen(() => hasTextRef.current && compute());
     window.addEventListener('resize', compute);
     // 窗口被拖到屏幕边缘时重新判断（窗口没动、页面隐藏、没有文字时跳过）
     const stop = startWindowPoll(compute, 1000, { active: () => hasTextRef.current });
     return () => {
       off();
+      offScreen();
       window.removeEventListener('resize', compute);
       stop();
     };
