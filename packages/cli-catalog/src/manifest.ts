@@ -1,7 +1,6 @@
 /**
- * CLI 插件清单（docs/design/cli-plugin-architecture.md §5.2）：纯数据，主进程加载时校验，
- * 校验失败的插件不注册（宿主写诊断日志）。两个版本共用的视图也会用到，所以不在 cli-sdk 里；
- * cli-sdk 原样转出这里的全部导出。
+ * CLI 插件清单（docs/design/cli-plugin-architecture.md §5.2）：纯数据，内核加载时校验，
+ * 校验失败的插件不注册（宿主写诊断日志）。视图也会用到；Go 内核的 internal/clisdk 有对应实现。
  */
 
 /** Nomi 的五档权限模式（各 CLI 映射到自己的参数 / mode id） */

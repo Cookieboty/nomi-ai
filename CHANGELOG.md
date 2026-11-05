@@ -353,6 +353,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - **release:** macOS signing + notarization and Windows signing are enabled automatically when the documented secrets are present; root CHANGELOG generated from changesets.
 - **release:** tag builds check the tag equals `v${version}`, create one draft Release from `docs/releases/<tag>.md` before packaging, and publish only after every installer and blockmap listed in latest*.yml is attached (#146). (`@nomi-ai/desktop-go` patch)
+- 2.2.0 起只发布 Go 版（Go 内核 + Wails），不再提供 Electron 版安装包（`Nomi-Electron-*`）；仓库里删除了 Electron 应用与 Node 内核。已安装 Electron 版的用户照常经应用内更新升级到 Go 版，数据在首次启动时迁移。 (`@nomi-ai/desktop-go` minor)
 
 ### Maintenance
 

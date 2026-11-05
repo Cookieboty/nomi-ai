@@ -33,7 +33,7 @@ BM25 tokenizer/index, chunking, ODT/RTF/XLSX text extraction and the cited-answe
 
 ## Voice input (speech-to-text)
 
-Model files and binaries are **not bundled**: they are downloaded on demand from the pinned URLs in `apps/desktop-electron/internal/core/src/voice/catalog.ts`, verified by SHA-256, and the licence is shown before download.
+Model files and binaries are **not bundled**: they are downloaded on demand from the pinned URLs in `apps/desktop-go/internal/core/voice/catalog.go`, verified by SHA-256, and the licence is shown before download.
 
 | Component                                                                                                             | Licence                                           | Notes                                                                                   |
 | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -57,11 +57,11 @@ There is no built-in (offline) speech synthesis engine. Nomi's short fixed promp
 Lines without a prerecorded clip are synthesized at runtime by the **Microsoft Edge online read-aloud service** (`speech.platform.bing.com`, the service behind Edge's "Read aloud"). Nothing is bundled and no audio is stored; text is sent to Microsoft over the network only when the engine is `edge` (the default) and the mascot speaks.
 
 - **Not an official public Microsoft API.** It is used the way the Edge browser uses it; Microsoft may change or block it at any time, in which case Nomi silently falls back to text only. Terms of use for third-party clients are not stated — **licensing is a grey area**. Users can switch the engine to "None" in Settings.
-- **Client code is original project code (MIT)** — `apps/desktop-electron/internal/core/src/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
+- **Client code is original project code (MIT)** — `apps/desktop-go/internal/core/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
 
 ## Local models (llama.cpp)
 
-Nothing here is bundled. The runtime and the model weights download on demand from the pinned URLs in `apps/desktop-electron/internal/core/src/local/llmCatalog.ts`. Each download is checked against its SHA-256, and the licence is shown before it starts. We checked every licence on the official model card. Models with custom licences (Llama, Gemma) or an "other" licence (Qwen2.5-3B) are not listed.
+Nothing here is bundled. The runtime and the model weights download on demand from the pinned URLs in `apps/desktop-go/internal/core/local/llmcatalog.go`. Each download is checked against its SHA-256, and the licence is shown before it starts. We checked every licence on the official model card. Models with custom licences (Llama, Gemma) or an "other" licence (Qwen2.5-3B) are not listed.
 
 | Component                                                              | Source                                                                                                                                          | Licence    |
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -77,22 +77,22 @@ Ollama is optional. The user installs it separately (MIT); the app only calls it
 
 ## Sandboxed browser & code execution
 
-Clean-room implementation on Electron (`BrowserWindow` sandbox + memory partition) and the
-Node.js permission model (both MIT, already listed). No code from Open Interpreter (AGPL-3.0)
+Clean-room implementation; code execution uses the Node.js permission model and the OS sandbox
+(macOS `sandbox-exec` / Linux `bwrap`). No code from Open Interpreter (AGPL-3.0)
 or other copyleft agents was used; no new dependencies were added. Python, when used, is the
 user's own system interpreter and is not redistributed.
 
 ## Subscription quota readers
 
-Clean-room TypeScript in `apps/desktop-electron/internal/core/src/usage/`; no dependencies added. The restricted
+Clean-room code in `apps/desktop-go/internal/core/usage/`; no dependencies added. The restricted
 `claude -p /usage` subprocess and the reset-time parser are written from scratch against the
 official CLIs' documented behaviour. Codex quota is read through the official `codex app-server`
 JSON-RPC (`account/rateLimits/read`), so credentials never leave the CLI.
 
 ## Usage & cost data sources
 
-The usage readers, parsers and cost maths in `apps/desktop-electron/internal/core/src/usage/` are original TypeScript
-(MIT); no dependencies were added (SQLite sources use Node's built-in `node:sqlite`, read-only).
+The usage readers, parsers and cost maths in `apps/desktop-go/internal/core/usage/` are original code
+(MIT); no dependencies were added (SQLite sources are read read-only).
 Three open-source projects informed the work — **no code was copied** from any of them:
 
 | Project                                                   | Licence | How it is used                                                                                                                                                                                    |
@@ -107,108 +107,129 @@ and the projects above; they are marked as not yet verified against every real i
 
 ## Gateway model catalog
 
-| Data                                                                                      | Licence | Notes                                                                                                                                                                                                                                                                                                                             |
-| ----------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Model capability table (`apps/desktop-electron/internal/gateway/src/models/catalog.json`) | MIT     | Trimmed from [models.dev](https://github.com/sst/models.dev) (© SST / models.dev contributors) by `apps/desktop-electron/internal/gateway/scripts/build-catalog.mjs`: context / output limits, input modalities, tool calling, reasoning options and sampling support of first-party models. Shipped offline; regenerated by hand |
+| Data                                                                            | Licence | Notes                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model capability table (`apps/desktop-go/internal/gateway/models/catalog.json`) | MIT     | Trimmed from [models.dev](https://github.com/sst/models.dev) (© SST / models.dev contributors): context / output limits, input modalities, tool calling, reasoning options and sampling support of first-party models. Shipped offline; regenerated by hand |
 
 ## Production dependencies (generated with `pnpm licenses list --prod -r`)
 
-| Package                          | Version(s)   | Licence                   |
-| -------------------------------- | ------------ | ------------------------- |
-| `@ai-sdk/anthropic`              | 4.0.78       | Apache-2.0                |
-| `@ai-sdk/gateway`                | 4.0.110      | Apache-2.0                |
-| `@ai-sdk/mcp`                    | 2.0.73       | Apache-2.0                |
-| `@ai-sdk/openai`                 | 4.0.91       | Apache-2.0                |
-| `@ai-sdk/openai-compatible`      | 3.0.67       | Apache-2.0                |
-| `@ai-sdk/provider`               | 4.0.26       | Apache-2.0                |
-| `@ai-sdk/provider-utils`         | 5.0.58       | Apache-2.0                |
-| `@electron-internal/extract-zip` | 1.0.5        | BSD-2-Clause              |
-| `@electron/get`                  | 5.1.0        | MIT                       |
-| `@protobufjs/aspromise`          | 1.1.2        | BSD-3-Clause              |
-| `@protobufjs/base64`             | 1.1.2        | BSD-3-Clause              |
-| `@protobufjs/codegen`            | 2.0.5        | BSD-3-Clause              |
-| `@protobufjs/eventemitter`       | 1.1.1        | BSD-3-Clause              |
-| `@protobufjs/fetch`              | 1.1.1        | BSD-3-Clause              |
-| `@protobufjs/float`              | 1.0.2        | BSD-3-Clause              |
-| `@protobufjs/path`               | 1.1.2        | BSD-3-Clause              |
-| `@protobufjs/pool`               | 1.1.0        | BSD-3-Clause              |
-| `@protobufjs/utf8`               | 1.1.2        | BSD-3-Clause              |
-| `@standard-schema/spec`          | 1.1.0        | MIT                       |
-| `@types/node`                    | 24.13.3      | MIT                       |
-| `@types/react`                   | 19.3.0       | MIT                       |
-| `@vercel/oidc`                   | 3.2.0        | Apache-2.0                |
-| `@workflow/serde`                | 4.1.0        | Apache-2.0                |
-| `ai`                             | 7.0.136      | Apache-2.0                |
-| `argparse`                       | 2.0.1        | Python-2.0                |
-| `base64-js`                      | 1.5.1        | MIT                       |
-| `bmp-js`                         | 0.1.0        | MIT                       |
-| `buffer`                         | 6.0.3        | MIT                       |
-| `builder-util-runtime`           | 9.7.0        | MIT                       |
-| `cross-env`                      | 7.0.3        | MIT                       |
-| `cross-spawn`                    | 7.0.6        | MIT                       |
-| `csstype`                        | 3.2.3        | MIT                       |
-| `debug`                          | 4.4.3        | MIT                       |
-| `electron`                       | 44.7.0       | MIT                       |
-| `electron-updater`               | 6.8.9        | MIT                       |
-| `env-paths`                      | 3.0.0        | MIT                       |
-| `eventsource-parser`             | 3.1.1        | MIT                       |
-| `fflate`                         | 0.8.3        | MIT                       |
-| `flatbuffers`                    | 25.9.23      | Apache-2.0                |
-| `fs-extra`                       | 10.1.0       | MIT                       |
-| `graceful-fs`                    | 4.2.11       | ISC                       |
-| `guid-typescript`                | 1.0.9        | ISC                       |
-| `idb-keyval`                     | 6.3.0        | Apache-2.0                |
-| `ieee754`                        | 1.2.1        | BSD-3-Clause              |
-| `is-url`                         | 1.2.4        | MIT                       |
-| `isexe`                          | 2.0.0        | ISC                       |
-| `js-yaml`                        | 4.3.2        | MIT                       |
-| `json-schema`                    | 0.4.0        | (AFL-2.1 OR BSD-3-Clause) |
-| `jsonfile`                       | 6.1.0        | MIT                       |
-| `lazy-val`                       | 1.0.5        | MIT                       |
-| `lodash.escaperegexp`            | 4.1.2        | MIT                       |
-| `lodash.isequal`                 | 4.5.0        | MIT                       |
-| `long`                           | 5.3.2        | Apache-2.0                |
-| `lucide-react`                   | 1.55.0       | ISC                       |
-| `ms`                             | 2.1.3        | MIT                       |
-| `node-fetch`                     | 2.7.0        | MIT                       |
-| `node-global-key-listener`       | 0.3.0        | MIT                       |
-| `onnxruntime-common`             | 1.30.0       | MIT                       |
-| `onnxruntime-web`                | 1.30.0       | MIT                       |
-| `opencollective-postinstall`     | 2.0.3        | MIT                       |
-| `path-key`                       | 3.1.1        | MIT                       |
-| `pkce-challenge`                 | 5.0.1        | MIT                       |
-| `platform`                       | 1.3.6        | MIT                       |
-| `progress`                       | 2.0.3        | MIT                       |
-| `protobufjs`                     | 7.6.6        | BSD-3-Clause              |
-| `react`                          | 19.3.0       | MIT                       |
-| `react-dom`                      | 19.3.0       | MIT                       |
-| `react-window`                   | 2.3.3        | MIT                       |
-| `regenerator-runtime`            | 0.13.11      | MIT                       |
-| `sax`                            | 1.4.1        | ISC                       |
-| `scheduler`                      | 0.28.0       | MIT                       |
-| `semver`                         | 7.7.4, 7.8.5 | ISC                       |
-| `shebang-command`                | 2.0.0        | MIT                       |
-| `shebang-regex`                  | 3.0.0        | MIT                       |
-| `sudo-prompt`                    | 9.2.1        | MIT                       |
-| `sumchecker`                     | 3.0.1        | Apache-2.0                |
-| `tesseract.js`                   | 7.0.0        | Apache-2.0                |
-| `tesseract.js-core`              | 7.0.0        | Apache-2.0                |
-| `tiny-typed-emitter`             | 2.1.0        | MIT                       |
-| `tr46`                           | 0.0.3        | MIT                       |
-| `undici`                         | 7.29.0       | MIT                       |
-| `undici-types`                   | 7.18.2       | MIT                       |
-| `universalify`                   | 2.0.1        | MIT                       |
-| `unpdf`                          | 1.8.1        | MIT                       |
-| `wasm-feature-detect`            | 1.9.0        | Apache-2.0                |
-| `webidl-conversions`             | 3.0.1        | BSD-2-Clause              |
-| `whatwg-url`                     | 5.0.0        | MIT                       |
-| `which`                          | 2.0.2        | ISC                       |
-| `zlibjs`                         | 0.3.1        | MIT                       |
-| `zod`                            | 4.6.5        | MIT                       |
+| Package                                             | Version(s)    | Licence      |
+| --------------------------------------------------- | ------------- | ------------ |
+| `@rive-app/canvas-lite`                             | 2.44.2        | MIT          |
+| `@types/debug`                                      | 4.1.12        | MIT          |
+| `@types/estree`                                     | 1.0.9         | MIT          |
+| `@types/estree-jsx`                                 | 1.0.5         | MIT          |
+| `@types/hast`                                       | 3.0.5         | MIT          |
+| `@types/mdast`                                      | 4.0.4         | MIT          |
+| `@types/ms`                                         | 2.1.0         | MIT          |
+| `@types/react`                                      | 19.3.0        | MIT          |
+| `@types/unist`                                      | 2.0.11, 3.0.3 | MIT          |
+| `@ungap/structured-clone`                           | 1.4.0         | ISC          |
+| `bail`                                              | 2.0.2         | MIT          |
+| `ccount`                                            | 2.0.1         | MIT          |
+| `character-entities`                                | 2.0.2         | MIT          |
+| `character-entities-html4`                          | 2.1.0         | MIT          |
+| `character-entities-legacy`                         | 3.0.0         | MIT          |
+| `character-reference-invalid`                       | 2.0.1         | MIT          |
+| `comma-separated-tokens`                            | 2.0.3         | MIT          |
+| `csstype`                                           | 3.2.3         | MIT          |
+| `debug`                                             | 4.4.3         | MIT          |
+| `decode-named-character-reference`                  | 1.3.0         | MIT          |
+| `dequal`                                            | 2.0.3         | MIT          |
+| `devlop`                                            | 1.1.0         | MIT          |
+| `escape-string-regexp`                              | 5.0.0         | MIT          |
+| `estree-util-is-identifier-name`                    | 3.0.0         | MIT          |
+| `extend`                                            | 3.0.2         | MIT          |
+| `hast-util-to-jsx-runtime`                          | 2.3.6         | MIT          |
+| `hast-util-whitespace`                              | 3.0.0         | MIT          |
+| `highlight.js`                                      | 11.11.2       | BSD-3-Clause |
+| `html-url-attributes`                               | 3.0.1         | MIT          |
+| `inline-style-parser`                               | 0.2.7         | MIT          |
+| `is-alphabetical`                                   | 2.0.1         | MIT          |
+| `is-alphanumerical`                                 | 2.0.1         | MIT          |
+| `is-decimal`                                        | 2.0.1         | MIT          |
+| `is-hexadecimal`                                    | 2.0.1         | MIT          |
+| `is-plain-obj`                                      | 4.1.0         | MIT          |
+| `longest-streak`                                    | 3.1.0         | MIT          |
+| `lowlight`                                          | 3.3.0         | MIT          |
+| `lucide-react`                                      | 1.55.0        | ISC          |
+| `markdown-table`                                    | 3.0.4         | MIT          |
+| `mdast-util-find-and-replace`                       | 3.0.3         | MIT          |
+| `mdast-util-from-markdown`                          | 2.1.0         | MIT          |
+| `mdast-util-gfm`                                    | 3.1.0         | MIT          |
+| `mdast-util-gfm-autolink-literal`                   | 2.0.1         | MIT          |
+| `mdast-util-gfm-footnote`                           | 2.1.0         | MIT          |
+| `mdast-util-gfm-strikethrough`                      | 2.0.1         | MIT          |
+| `mdast-util-gfm-table`                              | 2.0.0         | MIT          |
+| `mdast-util-gfm-task-list-item`                     | 2.0.0         | MIT          |
+| `mdast-util-mdx-expression`                         | 2.0.1         | MIT          |
+| `mdast-util-mdx-jsx`                                | 3.2.0         | MIT          |
+| `mdast-util-mdxjs-esm`                              | 2.0.1         | MIT          |
+| `mdast-util-phrasing`                               | 4.1.0         | MIT          |
+| `mdast-util-to-hast`                                | 13.2.1        | MIT          |
+| `mdast-util-to-markdown`                            | 2.2.0         | MIT          |
+| `mdast-util-to-string`                              | 4.0.0         | MIT          |
+| `micromark`                                         | 4.0.3         | MIT          |
+| `micromark-core-commonmark`                         | 2.0.4         | MIT          |
+| `micromark-extension-gfm`                           | 3.0.0         | MIT          |
+| `micromark-extension-gfm-autolink-literal`          | 2.1.0         | MIT          |
+| `micromark-extension-gfm-footnote`                  | 2.1.0         | MIT          |
+| `micromark-extension-gfm-strikethrough`             | 2.1.0         | MIT          |
+| `micromark-extension-gfm-table`                     | 2.1.2         | MIT          |
+| `micromark-extension-gfm-tagfilter`                 | 2.0.0         | MIT          |
+| `micromark-extension-gfm-task-list-item`            | 2.1.0         | MIT          |
+| `micromark-factory-destination`                     | 2.0.1         | MIT          |
+| `micromark-factory-label`                           | 2.0.1         | MIT          |
+| `micromark-factory-space`                           | 2.1.0         | MIT          |
+| `micromark-factory-title`                           | 2.0.1         | MIT          |
+| `micromark-factory-whitespace`                      | 2.0.1         | MIT          |
+| `micromark-util-character`                          | 2.1.1         | MIT          |
+| `micromark-util-chunked`                            | 2.0.1         | MIT          |
+| `micromark-util-classify-character`                 | 2.0.1         | MIT          |
+| `micromark-util-combine-extensions`                 | 2.0.1         | MIT          |
+| `micromark-util-decode-numeric-character-reference` | 2.0.2         | MIT          |
+| `micromark-util-decode-string`                      | 2.0.1         | MIT          |
+| `micromark-util-edit-map`                           | 1.0.0         | MIT          |
+| `micromark-util-encode`                             | 2.0.1         | MIT          |
+| `micromark-util-html-tag-name`                      | 2.0.1         | MIT          |
+| `micromark-util-normalize-identifier`               | 2.0.1         | MIT          |
+| `micromark-util-resolve-all`                        | 2.0.1         | MIT          |
+| `micromark-util-sanitize-uri`                       | 2.0.1         | MIT          |
+| `micromark-util-subtokenize`                        | 2.1.0         | MIT          |
+| `micromark-util-symbol`                             | 2.0.1         | MIT          |
+| `micromark-util-types`                              | 2.0.3         | MIT          |
+| `ms`                                                | 2.1.3         | MIT          |
+| `parse-entities`                                    | 4.0.2         | MIT          |
+| `property-information`                              | 7.2.0         | MIT          |
+| `react`                                             | 19.3.0        | MIT          |
+| `react-dom`                                         | 19.3.0        | MIT          |
+| `react-markdown`                                    | 10.1.0        | MIT          |
+| `react-window`                                      | 2.3.3         | MIT          |
+| `remark-gfm`                                        | 4.0.1         | MIT          |
+| `remark-parse`                                      | 11.0.0        | MIT          |
+| `remark-rehype`                                     | 11.1.2        | MIT          |
+| `remark-stringify`                                  | 11.0.0        | MIT          |
+| `scheduler`                                         | 0.28.0        | MIT          |
+| `space-separated-tokens`                            | 2.0.2         | MIT          |
+| `stringify-entities`                                | 4.0.4         | MIT          |
+| `style-to-js`                                       | 1.1.21        | MIT          |
+| `style-to-object`                                   | 1.0.14        | MIT          |
+| `trim-lines`                                        | 3.0.1         | MIT          |
+| `trough`                                            | 2.2.0         | MIT          |
+| `unified`                                           | 11.0.5        | MIT          |
+| `unist-util-is`                                     | 6.0.1         | MIT          |
+| `unist-util-position`                               | 5.0.0         | MIT          |
+| `unist-util-stringify-position`                     | 4.0.0         | MIT          |
+| `unist-util-visit`                                  | 5.1.0         | MIT          |
+| `unist-util-visit-parents`                          | 6.0.2         | MIT          |
+| `vfile`                                             | 6.0.3         | MIT          |
+| `vfile-message`                                     | 4.0.3         | MIT          |
+| `zod`                                               | 4.6.7         | MIT          |
+| `zwitch`                                            | 2.0.4         | MIT          |
 
 ## magpie
 
-Some secret-detection rules in `apps/desktop-electron/internal/gateway/src/privacy/rules.ts` are ported from
+Some secret-detection rules in `apps/desktop-go/internal/gateway/privacy/rules.go` are ported from
 [yetone/magpie](https://github.com/yetone/magpie) `internal/redact/redact.go`; see [CREDITS.md](CREDITS.md#code-references).
 
 ```text

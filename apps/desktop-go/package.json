@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/desktop-go",
-  "version": "2.1.2",
+  "version": "0.0.0",
   "private": true,
   "description": "Nomi 桌面应用（Go 内核 + Wails v3）：Go 代码用 go 工具链构建与测试，这个文件只让它在工作区里有个包名（changesets）",
   "license": "MIT",

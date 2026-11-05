@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Go 宿主的视图：与 Electron 同一份构建产物（packages/renderer、packages/ai-chat 的 dist），原样复制后嵌进 Go 程序
+// Go 宿主的视图：packages/renderer、packages/ai-chat 的构建产物（dist），原样复制后嵌进 Go 程序
 // （main.go 的 //go:embed all:frontend/dist）。
 //
 //   dist/mascot/  ← packages/renderer/dist（桌面角色窗口）
@@ -22,7 +22,7 @@ const root = repoRoot();
 const dist = path.join(here, 'dist');
 
 if (!process.argv.includes('--skip-build')) {
-  // 与 Electron 的 pnpm build 同一个任务（含依赖与 turbo 缓存）
+  // 与 pnpm build 同一个任务（含依赖与 turbo 缓存）
   const argv = [
     path.join(root, 'scripts/run-bin.mjs'),
     'turbo',
