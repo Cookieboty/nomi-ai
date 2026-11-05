@@ -8571,6 +8571,279 @@
     ]
    }
   },
+  "desktop.removeCommandRule": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "rule": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "rule"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "mode": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "read-write"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "kind": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "folder",
+            "file"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "grantedAt": {
+         "type": "number"
+        },
+        "session": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "path",
+        "mode",
+        "kind",
+        "grantedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "policies": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "always",
+          "session",
+          "ask"
+         ]
+        },
+        {
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "localOnly": {
+      "type": "boolean"
+     },
+     "cloudAcked": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "policy": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "always",
+            "session",
+            "ask"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "locked": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "danger",
+        "policy"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "pending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsJson": {
+         "type": "string"
+        },
+        "preview": {
+         "type": "string"
+        },
+        "dialog": {
+         "type": "boolean"
+        },
+        "rememberable": {
+         "type": "boolean"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "expiresAt": {
+         "type": "number"
+        },
+        "kind": {
+         "type": "string",
+         "const": "scope"
+        },
+        "scopePath": {
+         "type": "string"
+        },
+        "scopeMode": {
+         "type": "string",
+         "enum": [
+          "read",
+          "read-write"
+         ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "tool",
+        "danger",
+        "summary",
+        "argsJson",
+        "dialog",
+        "rememberable",
+        "reason",
+        "expiresAt"
+       ],
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "scopes",
+     "policies",
+     "localOnly",
+     "cloudAcked",
+     "tools"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "desktop.resetAll": {
    "kind": "mutation",
    "dangerous": true,
@@ -8759,6 +9032,12 @@
        "type": "string"
       }
      },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
      "tools": {
       "type": "array",
       "items": {
@@ -8890,6 +9169,9 @@
           "risk"
          ],
          "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
         }
        },
        "required": [
@@ -27874,6 +28156,12 @@
       "type": "string"
      }
     },
+    "commandRules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
     "tools": {
      "type": "array",
      "items": {
@@ -28005,6 +28293,9 @@
          "risk"
         ],
         "additionalProperties": {}
+       },
+       "rememberRule": {
+        "type": "string"
        }
       },
       "required": [
@@ -28115,6 +28406,9 @@
       "risk"
      ],
      "additionalProperties": {}
+    },
+    "rememberRule": {
+     "type": "string"
     }
    },
    "required": [

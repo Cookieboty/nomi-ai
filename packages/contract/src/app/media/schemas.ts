@@ -292,6 +292,8 @@ export const DesktopConfirmRequest = z.looseObject({
       rationale: z.string().optional(),
     })
     .optional(),
+  /** 命令能记进白名单时的前缀（如 `pnpm test`）：勾「记住」= 以后这类命令不再问 */
+  rememberRule: z.string().optional(),
 });
 
 export const DesktopState = z.looseObject({
@@ -299,6 +301,8 @@ export const DesktopState = z.looseObject({
   policies: z.record(z.string(), DesktopPolicy),
   localOnly: z.boolean(),
   cloudAcked: z.array(z.string()),
+  /** 命令白名单：workspace_run 跑这些前缀的命令直接执行（读过外部内容的那一轮除外） */
+  commandRules: z.array(z.string()).optional(),
   tools: z.array(
     z.looseObject({
       name: z.string(),

@@ -21,6 +21,8 @@ type DesktopSettings struct {
 	Policies   *OMap    `json:"policies"`
 	LocalOnly  bool     `json:"localOnly"`
 	CloudAcked []string `json:"cloudAcked"`
+	// CommandRules：命令白名单（command_rules.go），workspace_run 跑这些前缀的命令不再确认
+	CommandRules []string `json:"commandRules,omitempty"`
 }
 
 type ConfirmRequest struct {
@@ -40,6 +42,8 @@ type ConfirmRequest struct {
 	ScopeMode string `json:"scopeMode,omitempty"`
 	// Review：辅助模型审核过但没放行（高风险 / 读过外部内容）时的风险等级与理由
 	Review *ConfirmReview `json:"review,omitempty"`
+	// RememberRule：命令能记进白名单时的前缀（卡片上「以后 xxx 不再问」）；Rememberable 同时为 true
+	RememberRule string `json:"rememberRule,omitempty"`
 }
 
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
@@ -125,10 +129,11 @@ func (b *PermissionBroker) load() {
 		return
 	}
 	var r struct {
-		Scopes     []json.RawMessage `json:"scopes"`
-		Policies   json.RawMessage   `json:"policies"`
-		LocalOnly  any               `json:"localOnly"`
-		CloudAcked []any             `json:"cloudAcked"`
+		Scopes       []json.RawMessage `json:"scopes"`
+		Policies     json.RawMessage   `json:"policies"`
+		LocalOnly    any               `json:"localOnly"`
+		CloudAcked   []any             `json:"cloudAcked"`
+		CommandRules []any             `json:"commandRules"`
 	}
 	if json.Unmarshal(raw, &r) != nil {
 		return
@@ -155,6 +160,13 @@ func (b *PermissionBroker) load() {
 	for _, x := range r.CloudAcked {
 		if s, ok := x.(string); ok {
 			b.settings.CloudAcked = append(b.settings.CloudAcked, s)
+		}
+	}
+	for _, x := range r.CommandRules {
+		if s, ok := x.(string); ok {
+			if n := NormalizeCommandRule(s); n != "" && !slices.Contains(b.settings.CommandRules, n) {
+				b.settings.CommandRules = append(b.settings.CommandRules, n)
+			}
 		}
 	}
 }
@@ -466,6 +478,10 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
+	// 命令白名单：用户记过的命令前缀直接执行；这一轮读过外部内容时不认（脚本可能被改过），照常审核 / 确认
+	if rule := b.commandRuleFor(i); rule != "" && !b.IsTainted(i.Signal) {
+		return "auto"
+	}
 	var d ConsentDecision
 	if i.Force != nil {
 		d = ConsentDecision{Confirm: true, Dialog: i.Force.Dialog, Reason: "policy"}
@@ -504,6 +520,15 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		args = map[string]any{}
 	}
 	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
+	if ReviewedTools[i.Tool] {
+		// 跑命令的工具：「记住」= 把这类命令记进白名单，不是整个工具这次会话都放行
+		req.Rememberable = false
+		if cmd, _, ok := parseCommandArgs(i.Args); ok {
+			if rule, ok := CommandRuleOf(cmd); ok {
+				req.Rememberable, req.RememberRule = true, rule
+			}
+		}
+	}
 	if review != nil {
 		req.Review = &ConfirmReview{Risk: review.Risk, Rationale: review.Rationale}
 	}
@@ -513,14 +538,76 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	}
 	decision, remember, req := b.ask(req, i.Signal)
 	if decision == "allowed" && remember && req.Rememberable {
-		b.mu.Lock()
-		b.sessionAllowed[i.Tool] = true
-		b.mu.Unlock()
+		if req.RememberRule != "" {
+			b.AddCommandRule(req.RememberRule)
+		} else {
+			b.mu.Lock()
+			b.sessionAllowed[i.Tool] = true
+			b.mu.Unlock()
+		}
 	}
 	if decision == "pick" {
 		return "denied"
 	}
 	return decision
+}
+
+// commandRuleFor：跑命令的工具、命令命中白名单时返回命中的规则；否则 ""
+func (b *PermissionBroker) commandRuleFor(i AuthorizeInput) string {
+	if !ReviewedTools[i.Tool] {
+		return ""
+	}
+	cmd, _, ok := parseCommandArgs(i.Args)
+	if !ok {
+		return ""
+	}
+	b.mu.Lock()
+	rules := slices.Clone(b.settings.CommandRules)
+	b.mu.Unlock()
+	rule, _ := MatchCommandRule(cmd, rules)
+	return rule
+}
+
+// CommandRules：命令白名单（按加入先后）
+func (b *PermissionBroker) CommandRules() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]string{}, b.settings.CommandRules...)
+}
+
+// AddCommandRule：记一条命令前缀；不合法的不记，已有的不重复，超过上限丢最早的
+func (b *PermissionBroker) AddCommandRule(rule string) bool {
+	n := NormalizeCommandRule(rule)
+	if n == "" {
+		return false
+	}
+	b.mu.Lock()
+	if !slices.Contains(b.settings.CommandRules, n) {
+		b.settings.CommandRules = append(b.settings.CommandRules, n)
+		if over := len(b.settings.CommandRules) - MaxCommandRules; over > 0 {
+			b.settings.CommandRules = b.settings.CommandRules[over:]
+		}
+		b.saveLocked()
+	}
+	b.mu.Unlock()
+	b.notify()
+	return true
+}
+
+// RemoveCommandRule：删掉一条命令前缀
+func (b *PermissionBroker) RemoveCommandRule(rule string) bool {
+	b.mu.Lock()
+	before := len(b.settings.CommandRules)
+	b.settings.CommandRules = slices.DeleteFunc(b.settings.CommandRules, func(r string) bool { return r == rule })
+	changed := len(b.settings.CommandRules) != before
+	if changed {
+		b.saveLocked()
+	}
+	b.mu.Unlock()
+	if changed {
+		b.notify()
+	}
+	return changed
 }
 
 // reviewable：只审跑命令的工具；开关关着 / 没有审核器 / 计划档 / 没有命令不审
@@ -757,10 +844,11 @@ func (b *PermissionBroker) CheckSend(p *Provider, signal context.Context, what s
 
 // BrokerView：view()
 type BrokerView struct {
-	Scopes     []Scope  `json:"scopes"`
-	Policies   *OMap    `json:"policies"`
-	LocalOnly  bool     `json:"localOnly"`
-	CloudAcked []string `json:"cloudAcked"`
+	Scopes       []Scope  `json:"scopes"`
+	Policies     *OMap    `json:"policies"`
+	LocalOnly    bool     `json:"localOnly"`
+	CloudAcked   []string `json:"cloudAcked"`
+	CommandRules []string `json:"commandRules"`
 }
 
 func (b *PermissionBroker) View() BrokerView {
@@ -770,7 +858,8 @@ func (b *PermissionBroker) View() BrokerView {
 	for _, k := range b.settings.Policies.Keys {
 		pol.Set(k, b.settings.Policies.Vals[k])
 	}
-	return BrokerView{Scopes: b.scopesLocked(), Policies: pol, LocalOnly: b.settings.LocalOnly, CloudAcked: append([]string{}, b.settings.CloudAcked...)}
+	return BrokerView{Scopes: b.scopesLocked(), Policies: pol, LocalOnly: b.settings.LocalOnly, CloudAcked: append([]string{}, b.settings.CloudAcked...),
+		CommandRules: append([]string{}, b.settings.CommandRules...)}
 }
 
 func (b *PermissionBroker) ResetAll() {

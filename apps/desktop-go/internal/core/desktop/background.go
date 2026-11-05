@@ -202,6 +202,9 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	}
 	if cls == "credential" || cls == "never" || (cls == "external" && (run.level() < externalLevel || !run.hasGithubExternal())) {
 		detail = "[" + cls + "] " + detail
+	} else if command && b.commandRuleFor(i) != "" && !run.Tainted && !b.IsTainted(i.Signal) {
+		// 命令白名单：与前台一致，读过外部内容时不认
+		return "auto"
 	} else if command {
 		if cmd, cwd, ok := b.reviewableBackground(i); ok {
 			review := b.review(i, cmd, cwd)

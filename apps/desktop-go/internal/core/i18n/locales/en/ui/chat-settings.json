@@ -482,5 +482,6 @@
   "ui.chat-settings.write-text-file": "Write text file",
   "ui.chat-settings.your-desktop-ai-assistant": "Your desktop AI assistant",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "Your next message will be sent to the new session together with the previous {0} messages",
-  "ui.chat-settings.your-own-secrets": "Your own secrets"
+  "ui.chat-settings.your-own-secrets": "Your own secrets",
+  "ui.chat-settings.always-allow-command-prefix": "Don't ask again for commands starting with:"
 }

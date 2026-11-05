@@ -118,6 +118,8 @@ export interface DesktopConfirmRequest {
   scopeMode?: 'read' | 'read-write';
   /** 辅助模型审核过但没放行（高风险 / 读过外部内容）：风险等级与理由 */
   review?: { risk: 'low' | 'medium' | 'high' | 'critical'; rationale?: string };
+  /** 命令能记进白名单时的前缀（如 `pnpm test`）：勾「记住」= 以后这类命令不再问 */
+  rememberRule?: string;
 }
 
 /**

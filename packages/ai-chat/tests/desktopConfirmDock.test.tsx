@@ -143,4 +143,20 @@ describe('DesktopConfirmDock', () => {
     expect(note.textContent).toContain('高风险');
     expect(note.textContent).toContain('会删掉整个 build 目录');
   });
+
+  it('命令能记进白名单：「记住」写明前缀，勾上后照常经契约答复', async () => {
+    pending = [req({ tool: 'workspace_run', danger: 'destructive', rememberRule: 'pnpm test' })];
+    await mount();
+    const remember = screen.getByTestId('desktop-confirm-remember').closest('label')!;
+    expect(remember.textContent).toContain('pnpm test');
+    expect(remember.textContent).toContain('以后不再询问以此开头的命令');
+    fireEvent.click(screen.getByTestId('desktop-confirm-remember'));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    fireEvent.click(screen.getByTestId('desktop-confirm-allow'));
+    await act(() => fake.settle());
+    expect(fake.inputs('desktop.confirmAnswer')).toEqual([
+      { id: 'c1', allow: true, remember: true, pick: false },
+    ]);
+  });
 });

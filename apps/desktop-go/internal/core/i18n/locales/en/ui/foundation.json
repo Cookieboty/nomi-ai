@@ -272,5 +272,9 @@
   "ui.foundation.next-month": "Next month",
   "ui.foundation.now": "Now",
   "ui.foundation.hour": "Hour",
-  "ui.foundation.minute": "Minute"
+  "ui.foundation.minute": "Minute",
+  "ui.foundation.command-allowlist": "Command allowlist",
+  "ui.foundation.command-allowlist-desc": "Nomi runs workspace commands that start with these without asking. It still asks in a turn that has read external content such as web pages. Tick “Don't ask again” on a confirmation card to add one.",
+  "ui.foundation.command-allowlist-empty": "No remembered commands yet",
+  "ui.foundation.remove-command-rule": "Remove from command allowlist: {0}"
 }

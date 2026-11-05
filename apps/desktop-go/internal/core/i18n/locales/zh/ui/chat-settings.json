@@ -482,5 +482,6 @@
   "ui.chat-settings.write-text-file": "写入文本文件",
   "ui.chat-settings.your-desktop-ai-assistant": "你的桌面 AI 助手",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "下一条消息会连同之前的 {0} 条对话一起发给新会话",
-  "ui.chat-settings.your-own-secrets": "你登记的密钥"
+  "ui.chat-settings.your-own-secrets": "你登记的密钥",
+  "ui.chat-settings.always-allow-command-prefix": "以后不再询问以此开头的命令："
 }

@@ -2019,6 +2019,77 @@ type DesktopRemindersUpdateOutput struct {
 	FireCount *float64                            `json:"fireCount,omitempty"`
 }
 
+type DesktopRemoveCommandRuleInput struct {
+	Rule string `json:"rule"`
+}
+
+type DesktopRemoveCommandRuleOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopRemoveCommandRuleOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopRemoveCommandRuleOutputPendingItemScopeMode = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemScopeModeRead      DesktopRemoveCommandRuleOutputPendingItemScopeMode = "read"
+	DesktopRemoveCommandRuleOutputPendingItemScopeModeReadWrite DesktopRemoveCommandRuleOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopRemoveCommandRuleOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopRemoveCommandRuleOutputPendingItemReviewRisk = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskLow      DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "low"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskMedium   DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "medium"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskHigh     DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "high"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskCritical DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopRemoveCommandRuleOutputPendingItemReview struct {
+	Risk      DesktopRemoveCommandRuleOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                             `json:"rationale,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutputPendingItem struct {
+	Id           string                                              `json:"id"`
+	Tool         string                                              `json:"tool"`
+	Danger       string                                              `json:"danger"`
+	Summary      string                                              `json:"summary"`
+	ArgsJson     string                                              `json:"argsJson"`
+	Preview      *string                                             `json:"preview,omitempty"`
+	Dialog       bool                                                `json:"dialog"`
+	Rememberable bool                                                `json:"rememberable"`
+	Reason       string                                              `json:"reason"`
+	ExpiresAt    float64                                             `json:"expiresAt"`
+	Kind         *string                                             `json:"kind,omitempty"`
+	ScopePath    *string                                             `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopRemoveCommandRuleOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopRemoveCommandRuleOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                             `json:"rememberRule,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutput struct {
+	Scopes       []DesktopRemoveCommandRuleOutputScopesItem  `json:"scopes"`
+	Policies     map[string]string                           `json:"policies"`
+	LocalOnly    bool                                        `json:"localOnly"`
+	CloudAcked   []string                                    `json:"cloudAcked"`
+	CommandRules []string                                    `json:"commandRules,omitempty"`
+	Tools        []DesktopRemoveCommandRuleOutputToolsItem   `json:"tools"`
+	Pending      []DesktopRemoveCommandRuleOutputPendingItem `json:"pending,omitempty"`
+}
+
 type DesktopRevokeInput struct {
 	Id string `json:"id"`
 }
@@ -2086,15 +2157,17 @@ type DesktopStateOutputPendingItem struct {
 	ScopePath    *string                                 `json:"scopePath,omitempty"`
 	ScopeMode    *DesktopStateOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
 	Review       *DesktopStateOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                 `json:"rememberRule,omitempty"`
 }
 
 type DesktopStateOutput struct {
-	Scopes     []DesktopStateOutputScopesItem  `json:"scopes"`
-	Policies   map[string]string               `json:"policies"`
-	LocalOnly  bool                            `json:"localOnly"`
-	CloudAcked []string                        `json:"cloudAcked"`
-	Tools      []DesktopStateOutputToolsItem   `json:"tools"`
-	Pending    []DesktopStateOutputPendingItem `json:"pending,omitempty"`
+	Scopes       []DesktopStateOutputScopesItem  `json:"scopes"`
+	Policies     map[string]string               `json:"policies"`
+	LocalOnly    bool                            `json:"localOnly"`
+	CloudAcked   []string                        `json:"cloudAcked"`
+	CommandRules []string                        `json:"commandRules,omitempty"`
+	Tools        []DesktopStateOutputToolsItem   `json:"tools"`
+	Pending      []DesktopStateOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DesktopTakeMissedRemindersOutputItem struct {
@@ -7287,15 +7360,17 @@ type EventDesktopChangedPendingItem struct {
 	ScopePath    *string                                  `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopChangedPendingItemScopeMode `json:"scopeMode,omitempty"`
 	Review       *EventDesktopChangedPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                  `json:"rememberRule,omitempty"`
 }
 
 type EventDesktopChanged struct {
-	Scopes     []EventDesktopChangedScopesItem  `json:"scopes"`
-	Policies   map[string]string                `json:"policies"`
-	LocalOnly  bool                             `json:"localOnly"`
-	CloudAcked []string                         `json:"cloudAcked"`
-	Tools      []EventDesktopChangedToolsItem   `json:"tools"`
-	Pending    []EventDesktopChangedPendingItem `json:"pending,omitempty"`
+	Scopes       []EventDesktopChangedScopesItem  `json:"scopes"`
+	Policies     map[string]string                `json:"policies"`
+	LocalOnly    bool                             `json:"localOnly"`
+	CloudAcked   []string                         `json:"cloudAcked"`
+	CommandRules []string                         `json:"commandRules,omitempty"`
+	Tools        []EventDesktopChangedToolsItem   `json:"tools"`
+	Pending      []EventDesktopChangedPendingItem `json:"pending,omitempty"`
 }
 
 // EventDesktopConfirmRequestScopeMode 枚举：read | read-write
@@ -7336,6 +7411,7 @@ type EventDesktopConfirmRequest struct {
 	ScopePath    *string                              `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopConfirmRequestScopeMode `json:"scopeMode,omitempty"`
 	Review       *EventDesktopConfirmRequestReview    `json:"review,omitempty"`
+	RememberRule *string                              `json:"rememberRule,omitempty"`
 }
 
 type EventDesktopP2Changed struct {
@@ -8156,6 +8232,10 @@ type DesktopRemindersSnoozeOutputT = bool
 // DesktopRemindersUpdateInputT 是 desktop.remindersUpdate 的入参
 type DesktopRemindersUpdateInputT = DesktopRemindersUpdateInput
 type DesktopRemindersUpdateOutputT = *DesktopRemindersUpdateOutput
+
+// DesktopRemoveCommandRuleInputT 是 desktop.removeCommandRule 的入参
+type DesktopRemoveCommandRuleInputT = DesktopRemoveCommandRuleInput
+type DesktopRemoveCommandRuleOutputT = DesktopRemoveCommandRuleOutput
 
 // DesktopResetAllInputT 是 desktop.resetAll 的入参
 type DesktopResetAllInputT = any

@@ -266,7 +266,14 @@ export const DesktopConfirm: React.FC = () => {
                   onChange={(e) => setRemember(e.target.checked)}
                   data-testid="desktop-remember"
                 />
-                {tr('ui.chat-settings.don-t-ask-again-for-this-tool-this')}
+                {cur.rememberRule ? (
+                  <span>
+                    {tr('ui.chat-settings.always-allow-command-prefix')}{' '}
+                    <code>{cur.rememberRule}</code>
+                  </span>
+                ) : (
+                  tr('ui.chat-settings.don-t-ask-again-for-this-tool-this')
+                )}
               </label>
             )}
             <div className={styles.actions}>

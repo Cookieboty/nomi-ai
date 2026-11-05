@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 422：mutation 295 / query 122 / stream 5
+// 合计 423：mutation 296 / query 122 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -122,6 +122,7 @@ var Procedures = []Procedure{
 	{Name: "desktop.remindersList", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersSnooze", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersUpdate", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.removeCommandRule", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.resetAll", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.resetCloudAcks", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},

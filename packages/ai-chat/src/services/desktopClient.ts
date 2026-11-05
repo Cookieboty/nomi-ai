@@ -23,6 +23,8 @@ export interface DesktopState {
   policies: Record<string, Policy>;
   localOnly: boolean;
   cloudAcked: string[];
+  /** 命令白名单：workspace_run 跑这些前缀的命令不再确认 */
+  commandRules?: string[];
   tools: Array<{ name: string; danger: Danger; policy: Policy; locked?: boolean }>;
 }
 
@@ -122,6 +124,8 @@ export const desktopClient = {
     call<boolean>(() => api.desktop.setPolicy({ tool, policy })),
   setLocalOnly: (v: boolean) => call<boolean>(() => api.desktop.setLocalOnly({ value: v })),
   resetCloudAcks: () => call<boolean>(() => api.desktop.resetCloudAcks()),
+  removeCommandRule: (rule: string) =>
+    call<DesktopState>(() => api.desktop.removeCommandRule({ rule })),
   /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
   audit: (limit = 200, offset = 0) =>
     call<AuditEntryView[]>(() => api.desktop.audit({ limit, offset })),
