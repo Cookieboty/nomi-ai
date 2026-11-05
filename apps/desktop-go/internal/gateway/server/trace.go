@@ -317,12 +317,26 @@ func PruneTracesNow(dir string) int {
 	return PruneTraces(dir, float64(time.Now().UnixMilli()), TraceMaxAgeMs)
 }
 
-// PruneTraces is pruneTraces(dir, now, maxAgeMs).
+// TraceMaxTotalBytes：追踪目录的总量上限（正文追踪默认开着，长任务每一步都带整段历史）；超了从最旧的删
+const TraceMaxTotalBytes = 256 << 20
+
+// PruneTraces is pruneTraces(dir, now, maxAgeMs)：删超过 maxAgeMs 的，再按总量上限删最旧的
 func PruneTraces(dir string, now float64, maxAgeMs float64) int {
+	return pruneTraces(dir, now, maxAgeMs, TraceMaxTotalBytes)
+}
+
+func pruneTraces(dir string, now, maxAgeMs float64, maxTotal int64) int {
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return 0
 	}
+	type kept struct {
+		path  string
+		mtime float64
+		size  int64
+	}
+	var keep []kept
+	var total int64
 	removed := 0
 	for _, e := range ents {
 		n := e.Name()
@@ -339,6 +353,22 @@ func PruneTraces(dir string, now float64, maxAgeMs float64) int {
 			if err := os.RemoveAll(f); err == nil {
 				removed++
 			}
+			continue
+		}
+		keep = append(keep, kept{f, mtime, st.Size()})
+		total += st.Size()
+	}
+	if total <= maxTotal {
+		return removed
+	}
+	sort.Slice(keep, func(i, j int) bool { return keep[i].mtime < keep[j].mtime })
+	for _, k := range keep {
+		if total <= maxTotal {
+			break
+		}
+		if err := os.RemoveAll(k.path); err == nil {
+			removed++
+			total -= k.size
 		}
 	}
 	return removed

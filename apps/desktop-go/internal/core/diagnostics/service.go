@@ -75,6 +75,8 @@ type Service struct {
 	d        Deps
 	mu       sync.Mutex
 	saveLogs bool
+	// explicit：开关是用户在设置里打开的（diagnostics.json 里 saveLogs:true），不是默认开着
+	explicit bool
 	forced   bool
 	file     string
 	logDir   string
@@ -95,7 +97,7 @@ func New(d Deps) *Service {
 	s.logDir = filepath.Join(d.UserData, "logs")
 	s.CliTrace = NewCliTrace(s.logDir, s.Enabled)
 	s.FlushTrace = s.CliTrace.Flush
-	s.saveLogs = s.load()
+	s.saveLogs, s.explicit = s.load()
 	s.apply()
 	return s
 }
@@ -202,12 +204,14 @@ func (s *Service) warn(m string, kv ...any) {
 
 func (s *Service) Set(on bool) View {
 	s.mu.Lock()
-	changed := on != s.saveLogs
+	// 默认开着时用户再点「打开」也算主动打开（写进文件、日志转 DEBUG）
+	changed := on != s.saveLogs || (on && !s.explicit)
 	s.mu.Unlock()
 	if changed {
 		before := s.Enabled()
 		s.mu.Lock()
 		s.saveLogs = on
+		s.explicit = on
 		s.mu.Unlock()
 		b, _ := json.Marshal(struct {
 			Version  int  `json:"version"`
@@ -243,27 +247,31 @@ func (s *Service) OpenLogFolder() (bool, error) {
 
 // load：没有 diagnostics.json（新装、从没改过开关）= 默认开着，执行轨迹里能看到网关请求正文；
 // 用户在设置里关掉后写入 saveLogs:false，以后按文件
-func (s *Service) load() bool {
+func (s *Service) load() (on, explicit bool) {
 	if _, err := os.Stat(s.file); err != nil {
-		return true
+		return true, false
 	}
 	b, err := os.ReadFile(s.file)
 	if err != nil {
-		return false
+		return false, false
 	}
 	var raw any
 	if json.Unmarshal(b, &raw) != nil {
-		return false
+		return false, false
 	}
 	m, _ := raw.(map[string]any)
 	v, _ := m["saveLogs"].(bool)
-	return v
+	return v, v
 }
 
+// apply：DEBUG 级日志只在开发版、或用户在设置里主动打开时才开；默认开着的诊断只记正文追踪，日志保持 INFO
 func (s *Service) apply() {
 	if s.d.SetLevel == nil {
 		return
 	}
 	dev := os.Getenv("NODE_ENV") == "development"
-	s.d.SetLevel(s.Enabled() || dev)
+	s.mu.Lock()
+	explicit := s.explicit
+	s.mu.Unlock()
+	s.d.SetLevel(s.forced || explicit || dev)
 }
