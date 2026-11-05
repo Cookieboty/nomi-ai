@@ -46,6 +46,7 @@ type fakeHarness struct {
 	pendMu   sync.Mutex
 	abort    func()
 	cancelCh chan struct{}
+	tabCwd   map[string]string
 }
 
 func (h *fakeHarness) sub(s string) string { return strings.ReplaceAll(s, sbTok, h.base) }
@@ -92,6 +93,10 @@ func (h *fakeHarness) CreateTab(o *util.Obj) (*util.Obj, error) {
 		del.Set("approvals", a)
 	}
 	h.tabs = append(h.tabs, util.NewObj("id", id, "delegation", del))
+	if h.tabCwd == nil {
+		h.tabCwd = map[string]string{}
+	}
+	h.tabCwd[id] = util.Str(o.Get("cwd"))
 	return util.NewObj("id", id), nil
 }
 
@@ -116,6 +121,17 @@ func (h *fakeHarness) SendTab(id, prompt string) (*util.Obj, error) {
 		select {
 		case <-h.cancelCh:
 		case <-time.After(5 * time.Second):
+		}
+	}
+	// writeTab：先在这个标签的工作目录（隔离时是 worktree）里写文件，再按 stop / error 收尾
+	if w, ok := s.Get("writeTab").(*util.Obj); ok {
+		h.mu.Lock()
+		dir := h.tabCwd[id]
+		h.mu.Unlock()
+		for _, k := range w.Keys() {
+			p := filepath.Join(dir, k)
+			_ = os.MkdirAll(filepath.Dir(p), 0o755)
+			_ = os.WriteFile(p, []byte(util.Str(w.Get(k))), 0o644)
 		}
 	}
 	if st, ok := s.Lookup("stop"); ok {

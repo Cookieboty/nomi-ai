@@ -1336,14 +1336,17 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	default:
 		changed = []string{}
 	}
-	changed = head(changed, 50)
+	// 回填处理完整的变更集合；只有给模型 / 界面看的列表截到 50 个（#255）
 	isoNote := task.iso.Note
 	conflictedFiles := []string{}
+	// worktree 里还有没拷回主工作树的改动（冲突、未授权、复制失败）：不能拆
+	leftBehind := false
 	if status != "cancelled" && task.iso.Kind == "worktree" && len(changed) > 0 {
 		ar := ApplyWorktreeToMain(task.iso, changed, func(dest string) bool { return s.d.Desktop.Guard(dest, "write", true).OK })
 		conflictedFiles = append(append(conflictedFiles, ar.Conflicted...), ar.Denied...)
+		leftBehind = len(ar.Conflicted)+len(ar.Denied)+len(ar.Skipped) > 0
 		if len(ar.Applied) > 0 {
-			changed = head(ar.Applied, 50)
+			changed = ar.Applied
 		}
 		if len(ar.Conflicted) > 0 {
 			isoNote += " 未覆盖主工作树中已有改动的文件：" + joinComma(head(ar.Conflicted, 20))
@@ -1351,9 +1354,14 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 		if len(ar.Denied) > 0 {
 			isoNote += " 以下文件在未授权的目录里，没有拷回主工作树（仍在 worktree 中）：" + joinComma(head(ar.Denied, 20))
 		}
+		if len(ar.Skipped) > 0 {
+			isoNote += " 以下文件没能拷回主工作树（仍在 worktree 中）：" + joinComma(head(ar.Skipped, 20))
+		}
 	}
-	// 取消，或失败且没有留在 worktree 里没拷回的文件：拆掉 worktree（失败的不会再续跑，留着只会越积越多）
-	if status == "cancelled" || (status == "error" && len(conflictedFiles) == 0) {
+	changed = head(changed, 50)
+	// 取消：拆掉 worktree。失败：只有确知全部改动都已拷回（变更列表来自 git、没有留下任何文件）才拆；
+	// 列不出变更或还有没拷回的，留着给用户接手（#255）
+	if status == "cancelled" || (status == "error" && gitOK && !leftBehind) {
 		if d := delegationOf(s.findTab(task.id())); d == nil || !util.Truthy(d.Get("takenOver")) {
 			ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
 		}
