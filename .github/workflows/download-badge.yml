@@ -1,0 +1,55 @@
+# README 的下载数徽章：只数安装包（dmg / exe / AppImage / deb）的下载次数。
+# shields 的 github/downloads/total 把 Release 里所有文件都算进去，其中大半是更新检查读的
+# latest*.yml / latest-go.json、应用内更新的 mac zip、blockmap、角色目录 catalog.json，不是下载。
+# 结果写到 badges 分支的 downloads.json（shields endpoint 格式），README 用
+# https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<repo>/badges/downloads.json 显示。
+name: download-badge
+
+on:
+  schedule:
+    - cron: '41 */6 * * *'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: download-badge
+  cancel-in-progress: false
+
+jobs:
+  badge:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: count installer downloads
+        run: |
+          n=$(gh api "repos/$REPO/releases?per_page=100" --paginate \
+                --jq '.[] | select(.draft | not) | .assets[]
+                      | select(.name | test("\\.(dmg|exe|AppImage|deb)$")) | .download_count' \
+              | awk '{s += $1} END {print s + 0}')
+          # 和 shields 一样缩写：1234 → 1.2k，1234567 → 1.2M
+          msg=$(awk -v n="$n" 'BEGIN {
+            if (n >= 1000000) printf "%.1fM", n / 1000000;
+            else if (n >= 1000) printf "%.1fk", n / 1000;
+            else printf "%d", n }' | sed 's/\.0\([kM]\)$/\1/')
+          echo "installer downloads: $n ($msg)" | tee -a "$GITHUB_STEP_SUMMARY"
+          printf '{"schemaVersion":1,"label":"downloads","message":"%s","color":"brightgreen"}\n' "$msg" > downloads.json
+      - name: publish to the badges branch
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          url="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git clone -q --depth 1 --branch badges "$url" out 2>/dev/null; then :; else
+            git init -q out && git -C out checkout -q --orphan badges && git -C out remote add origin "$url"
+          fi
+          cp downloads.json out/downloads.json
+          cd out
+          git add downloads.json
+          git diff --cached --quiet && { echo 'no change'; exit 0; }
+          git commit -q -m 'chore: update download badge'
+          git push -q origin badges
