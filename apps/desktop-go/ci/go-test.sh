@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# desktop-go.yml 的 go vet + go test：失败的包重新录一次现场 golden 后只重跑这些包一次。
+# desktop-go.yml 的 go vet + go test：失败的包只重跑一次。
 # - 第二次也失败 → 真失败（CI 红）；
 # - 第二次通过 → 不稳定：打 ::warning:: 并写进 job summary（列出两次各自失败的测试），不悄悄放过；
 # - 编译失败 / vet 失败不重试。
-# 为什么要重录：parity golden 是各平台现场用 Node 录的，Node 一侧的时序（异步落盘、子进程退出）会被录进 golden，
-# 只重跑 Go 测试仍然比对同一份录歪的 golden。
 # 用法（apps/desktop-go 目录）：ci/go-test.sh <go 构建标签参数…>，例如 ci/go-test.sh -tags gtk3
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -30,10 +28,7 @@ if [ -z "${pkgs// /}" ]; then
   echo "::error::go test failed but no failing package was reported"
   exit 1
 fi
-echo "::group::retry: re-record live goldens, re-run package(s): ${pkgs}"
-if [ -n "${NOMI_GOLDEN_DIR:-}" ]; then
-  (cd ../.. && apps/desktop-go/ci/record-live-goldens.sh) || { echo "::error::re-recording goldens failed"; exit 1; }
-fi
+echo "::group::retry: re-run package(s): ${pkgs}"
 # shellcheck disable=SC2086
 go test "${tags[@]}" -race -count=1 $pkgs 2>&1 | tee "$log2"
 st=${PIPESTATUS[0]}

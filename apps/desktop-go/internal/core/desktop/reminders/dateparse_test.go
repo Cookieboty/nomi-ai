@@ -3,7 +3,7 @@ package reminders
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 	"math"
 	"os"
 	"strings"
@@ -25,7 +25,7 @@ func TestDateParseNodeFixtures(t *testing.T) {
 		zone, js, _ := strings.Cut(sc.Text(), " ")
 		loc, err := time.LoadLocation(zone)
 		if err != nil {
-			paritytest.SkipOrFail(t, err)
+			repotest.SkipOrFail(t, err)
 		}
 		time.Local = loc
 		var cases [][2]any

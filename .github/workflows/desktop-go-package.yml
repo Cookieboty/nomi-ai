@@ -1,8 +1,8 @@
-# Go + Wails 版安装包流水线（2.0.5 起面向用户的正式版本）：三平台打包 → 安装/启动/签名验证 → 更新元数据 → Release。
+# Go + Wails 版安装包流水线：三平台打包 → 安装/启动/签名验证 → 更新元数据 → Release。
 # - push main：打包 + 验证，产物留在 artifact（不建 Release）；
 # - PR → main / release/2.0.5：带 `ci:full` 标签才打包（与 ci.yml 相同），只改 Go / 视图 / 内核时才触发；
 # - push tag v*（≥ v2.0.5）：不重跑测试（打 tag 前 main 上已全绿），直接打包 + 验证 → draft Release
-#   → 三平台产物齐全后自动发布（对齐 ci.yml 以前的 Electron 流程）；≤ v2.0.4 的 tag 仍由 ci.yml 的 Electron 任务发布；
+#   → 三平台产物齐全后自动发布；
 # - workflow_dispatch：在 tag ref 上手动重跑时，publish=true 才发布（失败后补跑用）。
 # 详见 docs/RELEASE.md、docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
 name: desktop-go-package
@@ -19,18 +19,17 @@ on:
         default: false
   # 只在 tag 上打包发布（main 上不再重复打包：PR 带 ci:full 时已打包并验证安装）
   push:
-    # ≤ v2.0.4 是 Electron 版本（ci.yml 发布），这里不接
+    # ≤ v2.0.4 是已停止维护的 Electron 版本，这里不接
     tags: ['v*', '!v0.*', '!v1.*', '!v2.0.[0-4]', '!v2.0.[0-4]-*']
   pull_request:
     branches: [main, release/2.0.5]
     types: [opened, synchronize, reopened, ready_for_review, labeled]
     paths:
       - 'apps/desktop-go/**'
-      # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
+      # 视图（packages/renderer、ai-chat）与契约内嵌进 Go 程序
       - 'packages/**'
-      - 'apps/desktop-electron/internal/**'
       - 'characters/nomi/**'
-      - 'apps/desktop-electron/assets/**'
+      - 'apps/desktop-go/assets/**'
       - '.github/workflows/desktop-go-package.yml'
 permissions:
   contents: read
@@ -73,7 +72,7 @@ jobs:
         run: command -v makensis || [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ] || choco install nsis -y --no-progress
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - id: ver
-        run: echo "version=$(node -p "require('./apps/desktop-electron/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - name: mac signing keychain (Developer ID, no notarization)
         if: startsWith(matrix.target, 'mac-')
         env:
@@ -253,11 +252,10 @@ jobs:
           V=${TAG#v}; have=$(gh release view "$TAG" --json assets -q '.assets[].name')
           for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS latest.yml latest-mac.yml latest-linux.yml; do
             grep -qx "$f" <<<"$have" || { echo "::error::draft 缺少 $f"; exit 1; }; done
-      # tag push：Go 与 Electron（ci.yml build-electron 上传的 Nomi-Electron-*）都齐了才发布，后完成的一方发布；
-      # 手动重跑时 publish=true 才发布
-      - name: publish (when Electron installers are attached too)
+      # tag push：三平台产物齐全（上一步）即发布；手动重跑时 publish=true 才发布
+      - name: publish
         if: github.event_name == 'push' || inputs.publish
-        run: bash scripts/release/publish-when-complete.sh "$TAG"
+        run: gh release edit "$TAG" --draft=false --latest
 
   # 可选（dispatch bench=true）：同 runner 2.0.5 Go vs 2.0.4 Electron 基准；2.0.4 从 v2.0.4 源码构建（绝不下载 Release 资产），每项 3 轮中位数
   electron-204:

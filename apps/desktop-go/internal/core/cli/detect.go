@@ -26,14 +26,10 @@ var candidates = map[string][]string{
 	"gemini": {"gemini"}, "cursor": {"cursor-agent", "agent"},
 }
 
-// MockCliRoots：Node 版前两项是相对 __dirname 的 bundle 目录（Go 二进制没有 __dirname；
-// 宿主在 batch 4/5 wiring 时把打包后的 mock-cli 目录 prepend 进来）。后两项与 Node 相同（相对 cwd）。
+// MockCliRoots：开发态 mock CLI 目录（仓库根目录 scripts/mock-cli，相对 cwd）。
 var MockCliRoots = func() []string {
 	cwd, _ := os.Getwd()
-	return []string{
-		filepath.Join(cwd, "apps/desktop-electron/internal/core/scripts/mock-cli"),
-		filepath.Join(cwd, "scripts/mock-cli"),
-	}
+	return []string{filepath.Join(cwd, "scripts/mock-cli")}
 }
 
 // MockCliBin = mockCliBin（"" = null）。

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// 开发态从仓库里找 apps/desktop-electron/assets：应用图标（Dock / 托盘 / 窗口 / 设置页预览）都从这里读
+// 开发态从仓库里找 apps/desktop-go/assets：应用图标（Dock / 托盘 / 窗口 / 设置页预览）都从这里读
 func TestAssetsDirHasAppIcons(t *testing.T) {
 	dir := assetsDir()
 	if filepath.Base(dir) != "assets" {

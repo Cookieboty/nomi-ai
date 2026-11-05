@@ -283,7 +283,7 @@ async function main() {
   ])
     delete process.env[k];
   // Mock CLI 拷进隔离 HOME：设置页会显示 CLI 路径，不能是仓库所在的 /Users/<你>/…
-  const mockSrc = path.join(ROOT, 'apps/desktop-electron/internal/core/scripts/mock-cli');
+  const mockSrc = path.join(ROOT, 'scripts/mock-cli');
   const mockDir = path.join(home, '.local', 'share', 'nomi-mock-cli');
   fs.cpSync(mockSrc, mockDir, { recursive: true });
   Object.assign(process.env, {

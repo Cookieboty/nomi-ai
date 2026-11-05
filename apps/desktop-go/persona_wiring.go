@@ -37,7 +37,7 @@ func newPersona(cs *character.Service, router *contract.Router) *persona.Service
 }
 
 // chatBgPresetFile = getChatBackgroundPresetFile：打包后在 resources/assets，开发时在 apps/desktop-electron/assets
-// assetsDir：只读资源的 assets 目录（打包后 resources/assets，开发时 apps/desktop-electron/assets）；
+// assetsDir：只读资源的 assets 目录（打包后 resources/assets，开发时 apps/desktop-go/assets）；
 // 应用图标从 assets/app-icons/<变体>/ 读
 func assetsDir() string { return filepath.Dir(filepath.Dir(chatBgPresetFile())) }
 
@@ -55,7 +55,7 @@ func chatBgPresetFile() string {
 	}
 	for _, d := range starts {
 		for i := 0; i < 6; i++ {
-			for _, c := range []string{filepath.Join(d, rel), filepath.Join(d, "apps", "desktop-electron", rel)} {
+			for _, c := range []string{filepath.Join(d, rel), filepath.Join(d, "apps", "desktop-go", rel)} {
 				if _, err := os.Stat(c); err == nil {
 					return c
 				}

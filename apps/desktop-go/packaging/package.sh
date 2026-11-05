@@ -5,7 +5,7 @@
 #   Nomi-<v>-arm64.dmg  Nomi-<v>-arm64-mac.zip  Nomi-<v>.dmg  Nomi-<v>-mac.zip
 #   Nomi-Setup-<v>.exe  Nomi-<v>.AppImage  nomi_<v>_amd64.deb
 # 环境：
-#   NOMI_VERSION     缺省读 apps/desktop-electron/package.json 的 version
+#   NOMI_VERSION     缺省读仓库根目录 package.json 的 version
 #   SKIP_FRONTEND=1  已构建 frontend/dist 时跳过
 #   MAC_SIGN_IDENTITY  非空 → codesign --options runtime --timestamp（Developer ID，不公证）；空 → ad-hoc（-）
 #   WIN_SIGN_PFX / WIN_SIGN_PASSWORD  非空 → signtool 签 Nomi.exe 与安装器（与 2.0.4 同一证书：2.0.4 签过名时
@@ -15,10 +15,10 @@ TARGET="${1:?usage: package.sh mac-arm64|mac-x64|windows|linux}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APP="$(cd "$HERE/.." && pwd)"
 ROOT="$(cd "$APP/../.." && pwd)"
-ASSETS="$ROOT/apps/desktop-electron/assets"
+ASSETS="$APP/assets"
 OUT="$APP/dist-pkg"
 WORK="$APP/dist-pkg/.work-$TARGET"
-VERSION="${NOMI_VERSION:-$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$ROOT/apps/desktop-electron/package.json" | head -1)}"
+VERSION="${NOMI_VERSION:-$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$ROOT/package.json" | head -1)}"
 LDFLAGS="-s -w -X github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports.AppVersion=$VERSION"
 rm -rf "$WORK"; mkdir -p "$OUT" "$WORK"
 log() { echo "::group::$*" 2>/dev/null || true; echo "== $*"; }
@@ -28,7 +28,7 @@ if [ "${SKIP_FRONTEND:-}" != 1 ]; then
   log "frontend build"; node "$APP/frontend/build.mjs"; endg
 fi
 
-# 只读资源：= Electron extraResources 里 Go 版仍需要的部分（assets/ 全量、内置角色包、OEM 覆盖占位）
+# 只读资源：assets/ 全量、内置角色包、OEM 覆盖占位
 stage_resources() {
   local dst="$1"; mkdir -p "$dst/characters"
   cp -R "$ASSETS" "$dst/assets"
@@ -37,10 +37,9 @@ stage_resources() {
   node "$ROOT/scripts/character/remote-catalog.mjs" --list-remote "$ROOT/characters/nomi" |
     while IFS= read -r rel; do [ -n "$rel" ] && rm -f "$dst/characters/nomi/$rel"; done
   find "$dst/characters/nomi" -type d -empty -delete
-  if [ -d "$ROOT/apps/desktop-electron/character-pack-resources" ]; then
-    cp -R "$ROOT/apps/desktop-electron/character-pack-resources" "$dst/character-pack"
+  if [ -d "$APP/character-pack-resources" ]; then
+    cp -R "$APP/character-pack-resources" "$dst/character-pack"
   fi
-  # 打包不带 mac 专用 entitlements / icns 到 win/linux 以外无害，保持与 Electron 相同目录树
 }
 
 # Windows Authenticode（SHA-256 + RFC 3161 时间戳）；没有证书时跳过

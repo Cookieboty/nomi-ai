@@ -2,13 +2,13 @@
 
 ## Nomi image theme preset
 
-- **Bundled background** (`apps/desktop-electron/assets/backgrounds/nomi-preset.jpg`) — supplied by the user and confirmed as free material on 2026-10-26. The original source, author and exact licence were not supplied; recorded as `LicenseRef-UserProvided-Free`, not MIT or CC0. Inclusion does not resolve the existing release licence gate.
+- **Bundled background** (`apps/desktop-go/assets/backgrounds/nomi-preset.jpg`) — supplied by the user and confirmed as free material on 2026-10-26. The original source, author and exact licence were not supplied; recorded as `LicenseRef-UserProvided-Free`, not MIT or CC0. Inclusion does not resolve the existing release licence gate.
 
 ## Nomi·诺米 brand & mascot
 
 - **Brand board, mascot artwork (the Rive character and its static SVG image), logo concept** — owner-provided, AI-generated, licensed by project owner (Cookieboty) for use in this repository under the MIT licence.
 - **Onboarding illustrations** (`characters/nomi/onboarding/*.webp`: welcome, profile, provider, privacy) — AI-generated scene art requested by the project owner (Cookieboty) for the first-run guide and licensed by the project owner under the MIT licence. Updated in v2.0.4: welcome / profile / provider were regenerated using the official reference art (`docs/brand/reference/nomi-closeup.png`, `nomi-clean-halfbody.jpg`) as the character reference so Nomi's face, hair and accessories stay consistent across all steps. The hands are shown purely through per-step CSS sizing and bottom alignment, with no redraw. Because the original art clips the top of Nomi's hair at the frame edge, the app webps (960×800, lossless) add 260px of plain background above each image and extend only the missing hair crown (≈11–26px) by deterministically projecting the original top-row hair pixels onto a contour-matched dome; every pixel of the original image is kept byte-identical below the extension. A dedicated privacy illustration (Nomi holding a glowing lock shield) was generated for step 4 using the welcome / profile / provider art as reference. They are decorative only and are **not** brand master art; the brand artwork is unchanged — see [docs/BRAND.md](docs/BRAND.md#9-品牌锁).
-- **Vector logo / app icons / tray icons** (`docs/brand/*.svg`, `apps/desktop-electron/assets/`) — recreated as vectors from the brand board by Nomi-ai contributors; same terms.
+- **Vector logo / app icons / tray icons** (`docs/brand/*.svg`, `apps/desktop-go/assets/`) — recreated as vectors from the brand board by Nomi-ai contributors; same terms.
 
 ## Code references
 

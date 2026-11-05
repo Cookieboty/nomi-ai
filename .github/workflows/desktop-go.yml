@@ -1,4 +1,4 @@
-# Go + Wails v3 桌面版（2.0.5 起面向用户的正式版本）：三平台 go vet / go test、Node golden 比对、构建、体积与内存实测。
+# Go + Wails v3 桌面版：三平台 go vet / go test、构建、体积与内存实测。
 # 安装包与 Release 见 desktop-go-package.yml（tag 发版时不重跑本 workflow：打 tag 前 main 上已全绿）。
 name: desktop-go
 on:
@@ -10,10 +10,8 @@ on:
     branches: [main, release/2.0.5]
     paths:
       - 'apps/desktop-go/**'
-      # 两个版本共用视图（packages/renderer、ai-chat）与契约，parity 比对的是 TS 内核
+      # 视图（packages/renderer、ai-chat）与契约内嵌进 Go 程序
       - 'packages/**'
-      - 'apps/desktop-electron/internal/**'
-      - 'scripts/parity/**'
       - 'scripts/go-contract/**'
       - '.github/workflows/desktop-go.yml'
 permissions:
@@ -58,29 +56,12 @@ jobs:
         run: |
           pnpm --filter @nomi-ai/contract build
           node scripts/go-contract/gen.mjs --check
-      - name: live Node goldens (per platform)
-        run: |
-          pnpm --filter "@nomi-ai/cli-sdk..." build
-          # 录制脚本经 tsx 引用这些包的 dist：所有录制之前先构建（contract 在三平台都要，b5-batch 用）
-          pnpm --filter "@nomi-ai/core^..." --filter @nomi-ai/contract --filter @nomi-ai/types --filter @nomi-ai/i18n build
-          echo "NOMI_GOLDEN_DIR=$RUNNER_TEMP/goldens" >> "$GITHUB_ENV"
-          echo "NOMI_LIVE_GOLDENS=$RUNNER_TEMP/goldens" >> "$GITHUB_ENV"
-          NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens" apps/desktop-go/ci/record-live-goldens.sh --check
-      - name: go vet + go test (failed packages re-recorded and retried once)
+      - name: go vet + go test (failed packages retried once)
         working-directory: apps/desktop-go
         run: |
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=(); [ "$RUNNER_OS" = Linux ] && TAGS=(-tags gtk3); [ "$RUNNER_OS" = macOS ] && TAGS=(-tags private_mac_apis)
           ci/go-test.sh "${TAGS[@]}"
-      - name: chatbg image parity (no -race; Electron goldens)
-        working-directory: apps/desktop-go
-        shell: bash
-        run: |
-          set -o pipefail
-          go test -count=1 -run '^TestImageParity$' -v ./internal/core/chatbg/ 2>&1 | tee chatbg-parity.log
-          # 严格：必须真正执行并通过（不能 skip / 未匹配到测试）
-          grep -q -- '--- PASS: TestImageParity' chatbg-parity.log
-          ! grep -q -- '--- SKIP: TestImageParity' chatbg-parity.log
 
   # POC 构建 + 体积 + macOS 透明窗口验证 + 内存实测（与 test 并行）。内存实测只报告，不让 CI 变红
   build:
@@ -188,39 +169,3 @@ jobs:
         with:
           name: mem-${{ matrix.os }}
           path: apps/desktop-go/mem/
-
-  # shell / quality 变异检查单独成 job（与 build 并行，避免拖长 build、受其 runner 中断影响）；用提交的 golden
-  shell-mutants:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-        with: { lfs: true }
-      - uses: actions/setup-go@v5
-        with:
-          { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
-      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-      - name: mutate-shell
-        run: |
-          set -o pipefail
-          mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
-          MUTATE_LOG_DIR=$RUNNER_TEMP/mutants MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 \
-            bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
-      - name: mutate-shell summary
-        if: always()
-        run: grep -E '^(mutants:|BLOCKED)' mutate-shell.log >> "$GITHUB_STEP_SUMMARY" || true
-      # 每个变异体（与基线）的完整 go test 输出：失败时判断是测试抓到、超时还是构建 / 环境问题（#205）
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: mutate-shell-logs-${{ matrix.shard }}
-          path: ${{ runner.temp }}/mutants/
-          retention-days: 7

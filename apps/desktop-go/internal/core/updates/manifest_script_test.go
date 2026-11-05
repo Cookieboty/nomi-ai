@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 )
 
 // packaging/update-manifest.py 产出的 latest-go.json 必须能被 GitHubUpdater 解析（D-B11-3）。
@@ -34,7 +34,7 @@ func TestUpdateManifestScriptParses(t *testing.T) {
 	if err := os.WriteFile(notes, []byte("# Nomi "+v+"\n\n- 修复 / Fixed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	script := paritytest.RepoPath("apps/desktop-go/packaging/update-manifest.py")
+	script := repotest.RepoPath("apps/desktop-go/packaging/update-manifest.py")
 	if out, err := exec.Command(py, script, v, dir, "--notes", notes).CombinedOutput(); err != nil {
 		t.Fatalf("update-manifest.py: %v\n%s", err, out)
 	}
