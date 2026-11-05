@@ -61,6 +61,46 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v230">
+          <header class="release-head">
+            <h2 data-i18n="cl.v230.title">v2.3.0 — 长任务一口气做完、聊天记录存进应用、更流畅更省</h2>
+            <time datetime="2026-11-05">2026-11-05</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v230.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v230.feat.1">一轮的工具调用用完、Nomi 还要接着做时自动续轮，不用再说「继续」；续轮时较早的大段工具输出只留开头，避免撑满上下文</li>
+            <li data-i18n="cl.v230.feat.2">多步任务 Nomi 先列计划清单并逐步更新进度，自动续轮后也知道做到哪了</li>
+            <li data-i18n="cl.v230.feat.3">本机没装编程助手（或关了委派）时，Nomi 自己读代码、小步修改、构建和跑测试，不再让你去装编程助手</li>
+            <li data-i18n="cl.v230.feat.4">命令确认卡片上可以勾「以后不再询问以此开头的命令」（如 <code>pnpm test</code>、<code>go test</code>），之后直接执行；在「桌面权限 → 工具权限」里查看和移除</li>
+            <li data-i18n="cl.v230.feat.5">双击桌面角色打开工作台</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v230.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v230.imp.1">聊天记录改存在应用数据目录里，发消息只追加一条，不再整段重写；长会话不会再因为浏览器约 5 MB 的存储上限而悄悄存不进。首次启动会把原有会话导入一次并核对，导入时显示进度</li>
+            <li data-i18n="cl.v230.imp.2">回复生成时对话窗口不再每帧整体重绘，打字、滚动更顺；侧栏搜索第一个字不再卡顿</li>
+            <li data-i18n="cl.v230.imp.3">桌面角色空闲时降低帧率、画面没变时不重绘，说话、眨眼和动作照常流畅</li>
+            <li data-i18n="cl.v230.imp.4">用量统计占用的内存约减少一半，且不再随历史变长而增长，启动更快</li>
+            <li data-i18n="cl.v230.imp.5">每次对话发给模型的工具说明更少：桌面角色关着时不带动作工具，没提到以后或定期做的事时不带持续任务工具，更省 token</li>
+            <li data-i18n="cl.v230.imp.6">诊断日志默认打开，对话的「执行轨迹」里能看到发给模型的请求正文；记录只存在本机，总量超过 256 MB 时从最旧的删，可在设置里关掉</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v230.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v230.fix.1">编程助手或命令行工具存在本机的图片（如飞书 CLI 设备授权的二维码）能在回复里显示，不再是「不支持的图片链接」</li>
+            <li data-i18n="cl.v230.fix.2">桌面角色贴近屏幕右边或左边时，工具栏和气泡会换到另一侧</li>
+            <li data-i18n="cl.v230.fix.3">macOS 上桌面角色的气泡和工具栏周围不再有一圈错位的灰边</li>
+            <li data-i18n="cl.v230.fix.4">自动续轮在用量很大、或这一轮你拒绝过某一步时会停下，并在回复末尾说明原因</li>
+            <li data-i18n="cl.v230.fix.5">命令白名单只认测试、构建、检查和只读查询类命令，不再压过「逐项确认」模式和单独设为「每次都询问」的工具；读过外部内容又改过文件后先暂停，等你亲手确认一次命令</li>
+            <li data-i18n="cl.v230.fix.6">聊天记录保存失败会自动重试并提示一次，退出应用前会等正在保存的内容写完</li>
+            <li data-i18n="cl.v230.fix.7">说到以后或定期要做的事但没被识别时，Nomi 会主动提出可以设成持续任务</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v230.note">说明</h3>
+          <ul>
+            <li data-i18n="cl.v230.note.1">回退到 2.2.0 仍能看到升级当时的会话（之后的新消息不在里面），用量统计只看得到最近约 2 个月；再升级回来数据都在</li>
+            <li data-i18n="cl.v230.note.2">以前记下的命令白名单里，不再符合规则的会自动去掉</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.0" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v220">
           <header class="release-head">
             <h2 data-i18n="cl.v220.title">v2.2.0 — 只剩 Go 版、点一下就装好更新、委派直接在工作目录里改</h2>
