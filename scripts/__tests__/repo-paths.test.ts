@@ -1,7 +1,7 @@
 /**
  * 防回退：源码与测试里不用相对路径跨出所在的包（`../../../../characters`、`"..", "..", ".."`）。
  * 包挪了位置这种路径不会报错，只会悄悄指到别处（找不到文件就走了另一条分支），
- * 所以通往仓库根目录 / 别的包的路径一律用 `@nomi-ai/repo-paths` 的 repoPath（Go 用 paritytest.RepoPath）。
+ * 所以通往仓库根目录 / 别的包的路径一律用 `@nomi-ai/repo-paths` 的 repoPath（Go 用 repotest.RepoPath）。
  *
  * 不管的：import / require / vi.mock 之类的模块路径（写错了编译或加载时直接报错）、
  * `*.config.*` 与 package.json / tsconfig（构建时直接报错）。

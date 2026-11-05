@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/ai-runtime': minor
 '@nomi-ai/ui': patch
 ---
 

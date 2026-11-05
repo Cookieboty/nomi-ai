@@ -14,10 +14,11 @@ import { existsSync, mkdirSync, renameSync, watch, writeFileSync } from 'node:fs
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { repoRoot } from '@nomi-ai/repo-paths';
 import { createServer } from 'vite';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../..');
+const root = repoRoot();
 const args = process.argv.slice(2);
 const skipDeps = args.includes('--skip-deps');
 const appArgs = args.filter((a) => a !== '--skip-deps');

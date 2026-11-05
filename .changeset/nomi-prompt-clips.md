@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/renderer': patch
-'@nomi-ai/host-electron': patch
 '@nomi-ai/types': patch
 ---
 

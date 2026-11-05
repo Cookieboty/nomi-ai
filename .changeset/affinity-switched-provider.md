@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/gateway': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 fix(gateway): 会话里换了供应商后，请求发给新选的供应商；之前服务过这个会话的旧供应商即使也有同一个模型，也不会再被优先使用。

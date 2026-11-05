@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/ai-runtime': patch
 '@nomi-ai/i18n': patch
 ---
 

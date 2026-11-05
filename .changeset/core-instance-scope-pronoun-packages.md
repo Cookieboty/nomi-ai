@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/core': patch
 '@nomi-ai/contract': patch
 '@nomi-ai/character-contract': patch
 '@nomi-ai/i18n': patch

@@ -1,6 +1,4 @@
 ---
-'@nomi-ai/gateway': patch
-'@nomi-ai/core': patch
 '@nomi-ai/contract': minor
 ---
 

@@ -5,7 +5,7 @@
  * 角色名、人设、台词从当前角色包读。判定规则（`诺米`、角色语境下的 `Nomi`）见 ./lib/characterLeak.mjs。
  *
  * 扫描范围：会进产物的源码与文案——`{packages,apps}/<pkg>/src`、`…/config`、`…/public`、
- * `…/index.html`、`apps/desktop-electron/electron-builder.yml`、其它角色包
+ * `…/index.html`、Go 版各平台打包模板（`apps/desktop-go/packaging`）、其它角色包
  * `characters/<id>`（`nomi` 除外；那里任何 `Nomi` 都算，包里没有产品语境）。
  * 测试、文档、构建产物不扫（测试里需要写官方名来断言它不出现）。
  *
@@ -61,7 +61,12 @@ export const BARE_ALLOW = [
 
 const SCAN_DIRS = ['src', 'config', 'public'];
 const SCAN_PKG_FILES = ['index.html'];
-const SCAN_FILES = ['apps/desktop-electron/electron-builder.yml'];
+const SCAN_FILES = [
+  'apps/desktop-go/packaging/mac/Info.plist.in',
+  'apps/desktop-go/packaging/windows/installer.nsi',
+  'apps/desktop-go/packaging/linux/nomi.desktop.in',
+  'apps/desktop-go/packaging/linux/nfpm.yaml',
+];
 const TEXT_EXT = /\.(?:[cm]?[jt]sx?|json|ya?ml|html|css|md|txt)$/;
 const SKIP_DIR = /^(?:node_modules|dist|coverage|tests?|__tests__|__mocks__|\.turbo)$/;
 const SKIP_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
@@ -82,8 +87,8 @@ function walk(dir, out) {
 /** 要扫的文件（绝对路径） */
 export function scanTargets(root) {
   const files = [];
-  // 共享包（packages/*）、两个宿主应用（apps/desktop-electron、apps/desktop-go）与 Node 版内核包
-  for (const group of ['packages', 'apps', 'apps/desktop-electron/internal']) {
+  // 共享包（packages/*）与应用（apps/*）
+  for (const group of ['packages', 'apps']) {
     const pkgs = path.join(root, group);
     if (!fs.existsSync(pkgs)) continue;
     for (const pkg of fs.readdirSync(pkgs).sort()) {

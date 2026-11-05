@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/core': minor
 '@nomi-ai/i18n': patch
 ---
 

@@ -263,6 +263,55 @@ for (const dir of cfg.keySources) {
   }
 }
 
+// Go 内核（apps/desktop-go）用的主进程文案：Go 源码与内嵌 JSON 里的字符串字面量按稳定 key 计入使用，
+// 不认识的 key 报错（与上面的 keySources 一样），这样 electron / ai-runtime 命名空间也有死 key 检查。
+function walkGo(dir, files = []) {
+  if (!fs.existsSync(dir)) return files;
+  for (const name of fs.readdirSync(dir)) {
+    const file = path.join(dir, name);
+    if (fs.statSync(file).isDirectory()) {
+      if (!/^(node_modules|dist|frontend|testdata|locales|build)$/.test(name)) walkGo(file, files);
+    } else if ((name.endsWith('.go') && !name.endsWith('_test.go')) || name.endsWith('.json'))
+      files.push(file);
+  }
+  return files;
+}
+const GO_STRING = /"((?:[^"\\\n]|\\.)*)"|`([^`]*)`/g;
+for (const dir of cfg.goKeySources || []) {
+  for (const file of walkGo(path.join(root, dir))) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const m of text.matchAll(GO_STRING)) {
+      const value = m[1] ?? m[2];
+      // fmt.Sprintf("electron.common.task-level-%d", n)：按格式串匹配一组 key
+      if (/%[dsv]/.test(value) && cfg.goKeyNamespaces.some((ns) => value.startsWith(ns + '.'))) {
+        const re = new RegExp(
+          '^' +
+            value
+              .split(/%[dsv]/)
+              .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+              .join('[a-z0-9-]+') +
+            '$',
+        );
+        for (const key of Object.keys(dictionaries[baseLanguage])) if (re.test(key)) used.add(key);
+        continue;
+      }
+      if (!KEY.test(value) || !cfg.goKeyNamespaces.some((ns) => value.startsWith(ns + '.')))
+        continue;
+      // ui.* 只计入使用：voice-ids.json 这类迁移表里留着旧 key，不在这里报未知
+      if (
+        !value.startsWith('ui.') &&
+        !Object.prototype.hasOwnProperty.call(dictionaries[baseLanguage], value)
+      ) {
+        const line = text.slice(0, m.index).split('\n').length;
+        errors.push(
+          `${path.relative(root, file)}:${line}: unknown i18n key ${JSON.stringify(value)}`,
+        );
+      }
+      used.add(value);
+    }
+  }
+}
+
 // Character copy lives in the character packs (characters/<id>/locales/{zh,en}.json), not in the
 // UI catalog: every pack needs both languages with the same lines, placeholders and persona fields.
 const charactersRoot = path.join(root, cfg.characters || 'characters');

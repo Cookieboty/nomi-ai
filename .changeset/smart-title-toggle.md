@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/core': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 feat(ai-chat): 「设置 → 隐私与权限」可以关掉「用模型生成对话标题」：关掉后用第一句话作标题，不再为起标题多请求一次模型。

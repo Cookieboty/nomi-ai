@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/ai-chat': minor
-'@nomi-ai/host-electron': minor
 '@nomi-ai/types': minor
 ---
 

@@ -44,7 +44,6 @@ describe('findCharacterLeaks', () => {
     'title: `Nomi · ${goal}`',
     '不显示 Nomi 的模型提示',
     'brand.appName',
-    'nomi-ai/host-electron',
     '让 Nomi 选',
     '让 Nomi 每天早上给你一份简报',
     '也可以直接对 Nomi 说「记住…」',

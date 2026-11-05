@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/host-electron': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 性能：编程助手标签的状态与消息不再每次变化都同步整文件写盘：约 200ms 合并一次、异步原子写入（临时文件 + 改名），退出 / 释放时立即写完；

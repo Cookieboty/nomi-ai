@@ -1,6 +1,4 @@
 ---
-'@nomi-ai/cli-sdk': minor
-'@nomi-ai/cli-plugins': minor
 '@nomi-ai/ui': patch
 ---
 

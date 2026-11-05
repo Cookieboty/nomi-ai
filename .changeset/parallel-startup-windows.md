@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/host-electron': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 默认界面为「软件主界面」时，启动时对话窗口与诺米窗口并行加载，不再等诺米页面加载完才打开主界面。

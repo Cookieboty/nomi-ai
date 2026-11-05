@@ -2,20 +2,12 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [["@nomi-ai/ai-sdk", "@nomi-ai/ai-runtime", "@nomi-ai/ai-sdk-client"]],
+  "fixed": [],
   "linked": [],
   "access": "restricted",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@nomi-ai/host-electron",
-    "@nomi-ai/renderer",
-    "@nomi-ai/ai-chat",
-    "@nomi-ai/types",
-    "@nomi-ai/bundle-ig-base",
-    "@nomi-ai/bundle-ig-electron-caps",
-    "@nomi-ai/bundle-ig-mascot"
-  ],
+  "ignore": ["@nomi-ai/desktop-go", "@nomi-ai/renderer", "@nomi-ai/ai-chat", "@nomi-ai/types"],
   "privatePackages": {
     "version": true,
     "tag": false

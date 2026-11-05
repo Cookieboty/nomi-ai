@@ -55,15 +55,8 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts",
         "$TURBO_ROOT$/rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg"
       ]
-    },
-    "@nomi-ai/host-electron#build": {
-      "dependsOn": ["^build", "@nomi-ai/renderer#build", "@nomi-ai/ai-chat#build"],
-      "env": ["CHARACTER_PACK"],
-      "outputs": ["dist/**", "build/**", ".turbo/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
     },
     "@nomi-ai/ai-chat#build": {
       "dependsOn": ["^build"],
@@ -77,8 +70,7 @@
         "!dist/**",
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
-        "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/apps/desktop-electron/src/security/csp.ts"
+        "$TURBO_ROOT$/scripts/ports.mjs"
       ]
     },
     "typecheck": {
@@ -114,7 +106,6 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/character/pack.mjs",
-        "$TURBO_ROOT$/apps/desktop-electron/internal/core/src/mascot/mascotSize.ts",
         "$TURBO_ROOT$/rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg"
       ]
     },
@@ -128,81 +119,6 @@
         "!coverage/**",
         "!dist/**",
         "$TURBO_ROOT$/characters/**"
-      ]
-    },
-    "@nomi-ai/ai-sdk-client#test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!README.md",
-        "!CHANGELOG.md",
-        "!coverage/**",
-        "!dist/**",
-        "$TURBO_ROOT$/apps/desktop-electron/internal/ai-runtime/src/channels.ts"
-      ]
-    },
-    "@nomi-ai/host-electron#test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!README.md",
-        "!CHANGELOG.md",
-        "!coverage/**",
-        "!dist/**",
-        "$TURBO_ROOT$/characters/**",
-        "$TURBO_ROOT$/assets-licenses.json"
-      ]
-    },
-    "@nomi-ai/core#test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!README.md",
-        "!CHANGELOG.md",
-        "!coverage/**",
-        "!dist/**",
-        "$TURBO_ROOT$/characters/**"
-      ]
-    },
-    "@nomi-ai/host-electron#package": {
-      "cache": false,
-      "dependsOn": [
-        "@nomi-ai/host-electron#build",
-        "@nomi-ai/renderer#build",
-        "@nomi-ai/ai-chat#build"
-      ]
-    },
-    "package:prod:mac": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
-    "package:prod:win": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
-    "package:prod:linux": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
-    "package:debug": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
-    "@nomi-ai/gateway#test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!README.md",
-        "!CHANGELOG.md",
-        "!coverage/**",
-        "!dist/**",
-        "$TURBO_ROOT$/apps/desktop-electron/internal/cli-plugins/src/gateways.ts",
-        "$TURBO_ROOT$/apps/desktop-electron/internal/cli-plugins/src/**",
-        "$TURBO_ROOT$/apps/desktop-electron/internal/ai-runtime/src/providers/presets.ts"
       ]
     }
   }

@@ -48,7 +48,6 @@
     "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
   },
   "peerDependencies": {
-    "@nomi-ai/ai-sdk": "workspace:*",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
@@ -57,7 +56,6 @@
     }
   },
   "devDependencies": {
-    "@nomi-ai/ai-sdk": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",

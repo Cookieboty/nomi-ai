@@ -1,6 +1,5 @@
 ---
-'@nomi-ai/gateway': patch
-'@nomi-ai/ai-runtime': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 修复 Nomi 对话入口协议选择被 Chat 透传优先级覆盖的问题，恢复 Responses、厂商协议偏好和缓存用量策略；补齐 AMUX 三种协议地址。
