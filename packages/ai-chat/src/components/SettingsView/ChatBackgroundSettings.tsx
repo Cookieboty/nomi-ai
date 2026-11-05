@@ -1,4 +1,4 @@
-/** 图片主题的图片选择、全局毛玻璃模糊与透明度。 */
+/** 图片主题的图片选择、全局蒙版毛玻璃模糊与不透明度。 */
 import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';

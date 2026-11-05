@@ -218,6 +218,11 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 				c := &stepContent{kind: kind, text: &strings.Builder{}}
 				content = append(content, c)
 				active[kind+":"+chunk.ID] = c
+				if chunk.Type == "reasoning-start" {
+					emit(Part{Type: "reasoning-start"})
+				}
+			case "reasoning-end":
+				emit(Part{Type: "reasoning-end"})
 			case "text-delta", "reasoning-delta":
 				kind := strings.TrimSuffix(chunk.Type, "-delta")
 				d := chunk.Delta

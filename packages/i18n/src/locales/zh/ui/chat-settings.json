@@ -273,7 +273,7 @@
   "ui.chat-settings.only-affects-sessions-opened-from-now-on": "只影响以后新开的 {0} 会话，已有会话不变",
   "ui.chat-settings.only-clicks-on-the-character-itself-are-captured": "只有点在角色身上才会被拦截，其它地方的点击直接落到下面的窗口。",
   "ui.chat-settings.only-kind-length-and-first-characters-are-kept": "只记类型、长度和开头几个字符，不记原文。同一个值每一轮都会随历史再遮一次，这里按值合并。",
-  "ui.chat-settings.opacity": "透明度",
+  "ui.chat-settings.opacity": "蒙版不透明度",
   "ui.chat-settings.open-commands-in-the-input-box": "在输入框里打开命令",
   "ui.chat-settings.open-settings": "打开设置",
   "ui.chat-settings.open-sign-in-page": "打开登录页",
@@ -482,5 +482,7 @@
   "ui.chat-settings.write-text-file": "写入文本文件",
   "ui.chat-settings.your-desktop-ai-assistant": "你的桌面 AI 助手",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "下一条消息会连同之前的 {0} 条对话一起发给新会话",
-  "ui.chat-settings.your-own-secrets": "你登记的密钥"
+  "ui.chat-settings.your-own-secrets": "你登记的密钥",
+  "ui.chat-settings.conversation-font-size": "会话正文字号",
+  "ui.chat-settings.conversation-font-size-description": "仅调整会话正文，默认 {0}px；不影响输入框、侧栏和按钮。"
 }

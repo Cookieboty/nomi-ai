@@ -65,9 +65,11 @@ const tone = (s: McpServer['status']) =>
     ? 'success'
     : s === 'error'
       ? 'danger'
-      : s === 'connecting'
-        ? 'accent'
-        : 'neutral';
+      : s === 'authorization-required'
+        ? 'warning'
+        : s === 'connecting'
+          ? 'accent'
+          : 'neutral';
 
 interface Draft {
   id?: string;
@@ -78,6 +80,7 @@ interface Draft {
   url: string;
   env: string;
   headers: string;
+  oauthClientId: string;
   trust: Trust;
 }
 const emptyDraft = (): Draft => ({
@@ -88,6 +91,7 @@ const emptyDraft = (): Draft => ({
   url: '',
   env: '',
   headers: '',
+  oauthClientId: '',
   trust: 'ask',
 });
 const fromServer = (s: McpServer): Draft => ({
@@ -99,6 +103,7 @@ const fromServer = (s: McpServer): Draft => ({
   url: s.url ?? '',
   env: kvText(s.env),
   headers: kvText(s.headers),
+  oauthClientId: s.oauthClientId ?? '',
   trust: s.trust,
 });
 const fromPreset = (p: McpPreset): Draft => ({
@@ -185,7 +190,11 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
         trust: draft.trust,
         ...(draft.transport === 'stdio'
           ? { command: draft.command.trim(), args: splitArgs(draft.args), env: parseKv(draft.env) }
-          : { url: draft.url.trim(), headers: parseKv(draft.headers) }),
+          : {
+              url: draft.url.trim(),
+              headers: parseKv(draft.headers),
+              oauthClientId: draft.oauthClientId.trim(),
+            }),
         enabled: connect ? true : undefined,
       });
       setDraft(null);
@@ -347,6 +356,11 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                         {tr(TRUST_LABEL[s.trust])}
                       </div>
                       {s.error && <div className={styles.err}>{s.error}</div>}
+                      {s.auth === 'pending' && (
+                        <p className={styles.hint} role="status">
+                          {tr('ui.foundation.mcp-oauth-pending')}
+                        </p>
+                      )}
                       {open === s.id && (
                         <div className={styles.stack}>
                           {s.tools.length > 0 ? (
@@ -370,20 +384,36 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                             </p>
                           )}
                           <div className={styles.row}>
-                            {s.status === 'connected' ? (
+                            {s.status === 'connected' || s.auth === 'pending' ? (
                               <Button
                                 size="sm"
                                 onClick={() =>
                                   void run(`c:${s.id}`, () => extClient.mcpDisconnect(s.id))
                                 }
                               >
-                                {tr('ui.foundation.disconnect')}
+                                {tr(
+                                  s.auth === 'pending'
+                                    ? 'ui.foundation.mcp-cancel-authorization'
+                                    : 'ui.foundation.disconnect',
+                                )}
+                              </Button>
+                            ) : s.status === 'authorization-required' ? (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={busy === `a:${s.id}`}
+                                onClick={() =>
+                                  void run(`a:${s.id}`, () => extClient.mcpAuthorize(s.id))
+                                }
+                                data-testid="mcp-authorize"
+                              >
+                                {tr('ui.foundation.mcp-authorize-connect')}
                               </Button>
                             ) : (
                               <Button
                                 size="sm"
                                 variant="primary"
-                                disabled={busy === `c:${s.id}`}
+                                disabled={s.status === 'connecting' || busy === `c:${s.id}`}
                                 onClick={() =>
                                   void run(`c:${s.id}`, () => extClient.mcpConnect(s.id))
                                 }
@@ -396,6 +426,28 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                                     : tr('ui.foundation.connect')}
                               </Button>
                             )}
+                            {s.hasAuthorization && (
+                              <Button
+                                size="sm"
+                                data-testid="mcp-clear-authorization"
+                                onClick={async () => {
+                                  if (
+                                    await confirmDialog({
+                                      message: tr(
+                                        'ui.foundation.mcp-clear-authorization-confirm',
+                                        s.name,
+                                      ),
+                                      danger: true,
+                                    })
+                                  )
+                                    void run(`a:${s.id}`, () =>
+                                      extClient.mcpClearAuthorization(s.id),
+                                    );
+                                }}
+                              >
+                                {tr('ui.foundation.mcp-clear-authorization')}
+                              </Button>
+                            )}
                             <Button size="sm" onClick={() => setDraft(fromServer(s))}>
                               {tr('ui.foundation.edit')}
                             </Button>
@@ -405,7 +457,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                               onClick={async () => {
                                 if (
                                   await confirmDialog({
-                                    message: tr('ui.foundation.delete-mcp-server', s.name),
+                                    message: tr(
+                                      s.hasAuthorization
+                                        ? 'ui.foundation.mcp-delete-with-authorization'
+                                        : 'ui.foundation.delete-mcp-server',
+                                      s.name,
+                                    ),
                                     danger: true,
                                   })
                                 )
@@ -674,6 +731,16 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                     data-testid="mcp-url"
                   />
                 </label>
+                <label className={styles.field}>
+                  {tr('ui.foundation.mcp-oauth-client-id')}
+                  <Input
+                    value={draft.oauthClientId}
+                    maxLength={512}
+                    onChange={(e) => setDraft({ ...draft, oauthClientId: e.target.value })}
+                    data-testid="mcp-oauth-client-id"
+                  />
+                </label>
+                <p className={styles.hint}>{tr('ui.foundation.mcp-oauth-login-hint')}</p>
                 <label className={styles.field}>
                   {tr('ui.foundation.headers-one-key-value-per-line-e-g')}
                   <Textarea

@@ -96,9 +96,24 @@ export function deriveStatus(args: {
     return { kind: 'tool', label: `${d.verb}${d.target ? ' ' : ''}`, detail: d.target };
   }
   const last = items[items.length - 1];
-  if (last?.type === 'thinking' && last.running)
+  const lastTrace = live?.trace?.[live.trace.length - 1];
+  const textAfterThought =
+    lastTrace?.type === 'thinking' &&
+    lastTrace.textAt !== undefined &&
+    (live?.text.length ?? 0) > lastTrace.textAt;
+  if (
+    live?.thinking === true ||
+    (live?.thinking === undefined &&
+      !textAfterThought &&
+      ((last?.type === 'thinking' && last.running) || lastTrace?.type === 'thinking'))
+  )
     return { kind: 'thinking', label: t('ui.usage-tools.model-is-reasoning') };
-  if ((!live || (live.firstEventAt === undefined && !live.text)) && !items.length)
+  if (
+    (!live || (live.firstEventAt === undefined && !live.text)) &&
+    !items.length &&
+    !live?.trace?.length &&
+    live?.thinking === undefined
+  )
     return { kind: 'first-token', label: t('ui.usage-tools.waiting-for-the-model') };
   if (live?.text.trim()) return { kind: 'writing', label: t('ui.usage-tools.writing-reply') };
   return { kind: 'working', label: t('ui.chat-settings.processing') };

@@ -640,6 +640,10 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				lastStep = usageOf(part.Usage)
 			case "text-delta":
 				emit(llm.ChatChunk{Type: "delta", Content: part.Text})
+			case "reasoning-start":
+				emit(llm.ChatChunk{Type: "reasoning", Phase: "start"})
+			case "reasoning-end":
+				emit(llm.ChatChunk{Type: "reasoning", Phase: "end"})
 			case "reasoning-delta":
 				if part.Text != "" {
 					emit(llm.ChatChunk{Type: "reasoning", Content: part.Text})

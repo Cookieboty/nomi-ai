@@ -30,6 +30,7 @@ type ServerConfig struct {
 	URL       string
 	Env       [][2]string
 	Headers   [][2]string
+	Fetch     mcp.FetchFunc
 }
 
 // ServerInfo：McpServerInfo
@@ -277,7 +278,7 @@ func BuildTransport(cfg ServerConfig) (*BuiltTransport, error) {
 		if cfg.Transport == "websocket" && !httpURLRe.MatchString(url) {
 			return nil, fmt.Errorf("MCP server '%s': websocket without http(s) url is not supported; use http/sse/stdio", cfg.ID)
 		}
-		return &BuiltTransport{Config: &mcp.TransportConfig{Type: transport, URL: url, Headers: cfg.Headers}, DisplayURL: url}, nil
+		return &BuiltTransport{Config: &mcp.TransportConfig{Type: transport, URL: url, Headers: cfg.Headers, Fetch: cfg.Fetch}, DisplayURL: url}, nil
 	}
 	if transport == "stdio" {
 		command := strings.TrimSpace(cfg.Command)

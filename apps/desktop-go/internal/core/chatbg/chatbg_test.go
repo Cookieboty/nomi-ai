@@ -45,7 +45,7 @@ func TestServiceFlow(t *testing.T) {
 			}
 			return []string{pick}, nil
 		}}, func(k string) string { return k }, func(State) { events++ })
-	if g := s.Get(); g.ImageURL == nil || *g.ImageURL != PresetURL || g.Blur != 8 {
+	if g := s.Get(); g.ImageURL == nil || *g.ImageURL != PresetURL || g.Blur != 0 || g.Opacity != 0.5 {
 		t.Fatalf("%+v", g)
 	}
 	st, err := s.Set(json.RawMessage(`{"blur":100,"opacity":0,"imageUrl":"chat-asset://images/panel-bg.missing.png"}`))
@@ -71,7 +71,7 @@ func TestServiceFlow(t *testing.T) {
 	}
 	// 重新启动：持久化的用户图片仍有效
 	s2 := New(filepath.Join(ud, File), filepath.Join(ud, "chat", "images"), preset, Ports{}, nil, nil)
-	if *s2.Get().ImageURL != *st.ImageURL {
+	if got := s2.Get(); *got.ImageURL != *st.ImageURL || got.Blur != 40 || got.Opacity != 0.05 {
 		t.Fatal(s2.Get())
 	}
 	bad := filepath.Join(ud, "a.bmp")
@@ -81,6 +81,9 @@ func TestServiceFlow(t *testing.T) {
 	}
 	if _, err := s.Reset(); err != nil {
 		t.Fatal(err)
+	}
+	if got := s.Get(); got.Blur != 0 || got.Opacity != 0.5 {
+		t.Fatal(got)
 	}
 	if ents, _ := os.ReadDir(filepath.Join(ud, "chat", "images")); len(ents) != 0 || *s.Get().ImageURL != PresetURL {
 		t.Fatal(ents)

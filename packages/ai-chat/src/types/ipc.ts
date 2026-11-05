@@ -16,6 +16,8 @@ export interface StreamSendOptions {
   signal?: AbortSignal;
   /** 工具调用 / 思考事件（Nomi 自己的 MCP / 知识库 / 搜索等工具）：与编程助手同一种轨迹事件 */
   onTrace?: (event: HarnessTraceEvent) => void;
+  /** 思考执行状态，独立于明细；开始 / 增量为 true，结束 / 恢复输出为 false。 */
+  onThinking?: (active: boolean) => void;
   /** 本轮 token 用量（上游返回时） */
   onUsage?: (usage: StreamUsage) => void;
   /**

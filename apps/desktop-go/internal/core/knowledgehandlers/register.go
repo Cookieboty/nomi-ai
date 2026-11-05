@@ -537,6 +537,20 @@ func Handlers(sv Services) map[string]H {
 			}
 			return plain(s.Connect(ctx, in.ID))
 		}),
+		"ext.mcpAuthorize": on(ext, func(_ context.Context, s *E, raw json.RawMessage) (any, error) {
+			var in idIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return plain(s.Authorize(in.ID))
+		}),
+		"ext.mcpClearAuthorization": on(ext, func(ctx context.Context, s *E, raw json.RawMessage) (any, error) {
+			var in idIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.ClearAuthorization(ctx, in.ID)
+		}),
 		"ext.mcpDisconnect": on(ext, func(ctx context.Context, s *E, raw json.RawMessage) (any, error) {
 			var in idIn
 			if err := decode(raw, &in); err != nil {

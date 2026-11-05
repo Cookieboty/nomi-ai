@@ -253,6 +253,12 @@ export class SdkIPCClient implements IPCClient {
         };
         if (signal) signal.addEventListener('abort', onAbort, { once: true });
       });
+      let thinking: boolean | undefined;
+      const noteThinking = (active: boolean) => {
+        if (thinking === active) return;
+        thinking = active;
+        streamOpts?.onThinking?.(active);
+      };
       try {
         for (;;) {
           const r = await Promise.race([it.next(), aborted]);
@@ -261,6 +267,11 @@ export class SdkIPCClient implements IPCClient {
           const chunk = r.value;
           if (!chunk || typeof chunk !== 'object') continue;
           const c = chunk as SdkChatChunk;
+          if (c.type === 'reasoning') noteThinking(c.phase !== 'end');
+          else if (
+            ['delta', 'tool_call.delta', 'tool_call.result', 'done', 'error'].includes(c.type)
+          )
+            noteThinking(false);
           if (c.type === 'delta' && typeof (c as { content?: string }).content === 'string') {
             onChunk?.((c as { content: string }).content);
           } else if (c.type === 'error') {
@@ -276,6 +287,7 @@ export class SdkIPCClient implements IPCClient {
         // 主动中止时上游常以 abort 错误收尾：不是失败
         if (!signal?.aborted) throw error;
       } finally {
+        noteThinking(false);
         if (onAbort) signal?.removeEventListener('abort', onAbort);
         // 通知迭代器清理（ClientAIClient.return 会再发一次 ai:chat:abort 并退订 chunk）
         void Promise.resolve(it.return?.()).catch(() => undefined);

@@ -64,7 +64,7 @@ import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../..
 import type { ModelArgOption, SlashBridge, SlashCommand } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { isImeComposing } from '../../utils/keyboard';
+import { isImeComposing, moveTextareaToLineBoundary } from '../../utils/keyboard';
 import type { PendingMode } from '../../utils/pendingSends';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
@@ -430,6 +430,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
     if (isComposing || isImeComposing(e.nativeEvent)) return;
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      moveTextareaToLineBoundary(e.currentTarget, e.key, e.shiftKey, e.ctrlKey || e.metaKey);
+      syncCaret();
+      return;
+    }
 
     // `/agent ` 后选编程助手：↑↓ 选择，Enter / Tab 选用，Esc 关闭列表
     if (agentOpen) {

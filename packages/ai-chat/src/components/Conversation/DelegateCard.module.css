@@ -17,9 +17,9 @@
   flex-direction: column;
   gap: var(--cd-space-1-5);
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   font-size: var(--cd-font-size-sm);
 }
 .card[data-phase='waiting'] {

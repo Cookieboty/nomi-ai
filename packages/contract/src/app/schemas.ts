@@ -106,7 +106,11 @@ export const ChatChunk = z.discriminatedUnion('type', [
     output: z.string().optional(),
     error: z.string().optional(),
   }),
-  z.looseObject({ type: z.literal('reasoning'), content: z.string() }),
+  z.looseObject({
+    type: z.literal('reasoning'),
+    content: z.string(),
+    phase: z.enum(['start', 'end']).optional(),
+  }),
   z.looseObject({ type: z.literal('usage'), usage: ChatUsage, model: z.string().optional() }),
   z.looseObject({ type: z.literal('done'), finishReason: FinishReason }),
   z.looseObject({ type: z.literal('error'), error: z.string() }),

@@ -402,6 +402,9 @@ export const knowledgeProcedures = {
   },
   'ext.mcpConnect': { kind: 'mutation', input: id, output: McpLive, dangerous: true },
   'ext.mcpDisconnect': { kind: 'mutation', input: id, output: z.void() },
+  /** Native browser authorization grants remote MCP access. Credentials stay in the core. */
+  'ext.mcpAuthorize': { kind: 'mutation', input: id, output: McpLive, dangerous: true },
+  'ext.mcpClearAuthorization': { kind: 'mutation', input: id, output: ok },
   /** 从 JSON（其他客户端的 mcpServers 配置）导入，导入后默认不连 */
   'ext.mcpImport': {
     kind: 'mutation',

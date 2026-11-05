@@ -46,15 +46,16 @@ func (d localDesktop) SetLocalOnly(on bool) {
 }
 
 type WireDeps struct {
-	UserData string
-	Router   *contract.Router
-	T        i18n.Translate
-	Desktop  deps.Desktop // main.go 传 DesktopAdapter{desktopSvc}；nil → NoopDesktop（仅测试）
-	Ports    deps.Ports   // nil → NoopPorts（仅测试）
-	Complete deps.CompleteFunc
-	OpenChat func()
-	Gateway  func() local.GatewayLike
-	Secrets  security.SecretBox
+	UserData     string
+	Router       *contract.Router
+	T            i18n.Translate
+	Desktop      deps.Desktop // main.go 传 DesktopAdapter{desktopSvc}；nil → NoopDesktop（仅测试）
+	Ports        deps.Ports   // nil → NoopPorts（仅测试）
+	Complete     deps.CompleteFunc
+	OpenChat     func()
+	Gateway      func() local.GatewayLike
+	Secrets      security.SecretBox
+	OpenExternal func(string) error
 	// 知识库的云端供应商（向量、云端同意）：aiRuntime.listProviders / providerCredentials、desktop.providerFor('chat')
 	Providers    func() []knowledge.Provider
 	Credentials  func(id string) *knowledge.Credentials
@@ -148,7 +149,7 @@ func Wire(d WireDeps) *Bundle {
 		}})
 	b.Sched = schedule.New(schedule.Deps{Root: ud("schedule"), Logger: deps.StdLogger{Prefix: "[sched]"}, Desktop: d.Desktop, Complete: d.Complete, Ports: d.Ports, Events: ev, T: d.T, OpenChat: d.OpenChat,
 		Memory: func(ctx context.Context, q string) (string, error) { return b.Mem.Context(ctx, q).Text, nil }})
-	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm})
+	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm, OpenExternal: d.OpenExternal})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
 	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
@@ -201,5 +202,6 @@ func (b *Bundle) Stop() {
 	b.Sched.Stop()
 	b.Mem.Flush()
 	b.KB.Dispose()
+	b.Ext.Dispose()
 	b.Local.Stop()
 }

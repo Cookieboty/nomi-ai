@@ -100,3 +100,54 @@ describe('ExtensionsPanel', () => {
     expect(parseKv('A=1\nbad\nB = x=y')).toEqual({ A: '1', B: 'x=y' });
   });
 });
+
+describe('ExtensionsPanel minimal OAuth UI', () => {
+  const remote = {
+    id: 'remote',
+    name: 'Remote',
+    transport: 'http',
+    url: 'https://example.com/mcp',
+    enabled: true,
+    trust: 'ask',
+    origin: 'user',
+    status: 'authorization-required',
+    tools: [],
+  };
+  it('offers explicit authorization without auto-opening a browser', async () => {
+    const invoke = mockIpc([remote]);
+    const r = render(<ExtensionsPanel isVisible onClose={() => undefined} />);
+    await waitFor(() => expect(r.getByText('需要授权')).toBeTruthy());
+    expect(invoke).not.toHaveBeenCalledWith('ext.mcpAuthorize', expect.anything());
+    fireEvent.click(r.getByRole('button', { expanded: false }));
+    fireEvent.click(r.getByTestId('mcp-authorize'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ext.mcpAuthorize', { id: 'remote' }));
+  });
+  it('lets a pending browser authorization be cancelled', async () => {
+    const invoke = mockIpc([{ ...remote, auth: 'pending' }]);
+    const r = render(<ExtensionsPanel isVisible onClose={() => undefined} />);
+    await waitFor(() =>
+      expect(r.getByText('请在系统浏览器完成授权，完成后会自动连接。')).toBeTruthy(),
+    );
+    fireEvent.click(r.getByRole('button', { expanded: false }));
+    expect(r.queryByTestId('mcp-authorize')).toBeNull();
+    fireEvent.click(r.getByText('取消授权'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ext.mcpDisconnect', { id: 'remote' }));
+  });
+  it('keeps the original editor and round-trips the optional OAuth client ID', async () => {
+    const invoke = mockIpc([{ ...remote, oauthClientId: 'existing-client' }]);
+    const r = render(<ExtensionsPanel isVisible onClose={() => undefined} />);
+    await waitFor(() => expect(r.getByText('Remote')).toBeTruthy());
+    fireEvent.click(r.getByRole('button', { expanded: false }));
+    fireEvent.click(r.getByText('编辑'));
+    const input = r.getByTestId('mcp-oauth-client-id') as HTMLInputElement;
+    expect(input.value).toBe('existing-client');
+    fireEvent.change(input, { target: { value: 'custom-client' } });
+    fireEvent.click(r.getByTestId('mcp-save'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'ext.mcpUpsert',
+        expect.objectContaining({ oauthClientId: 'custom-client', url: remote.url }),
+      ),
+    );
+  });
+});

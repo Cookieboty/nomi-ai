@@ -13,6 +13,8 @@ export interface ConvMessage {
   at: number;
   /** 工具调用 / 思考轨迹（与来源无关的同一种事件） */
   trace?: HarnessTraceEvent[];
+  /** 普通会话只显示思考执行状态；编程助手标签默认保留明细。 */
+  showThinkingDetails?: boolean;
   /** 正文分段起点：后一段从这里开始 */
   textBreaks?: number[];
   /** 旧版只存了工具名的消息 */
@@ -39,7 +41,11 @@ export interface ConvMessage {
 /** 运行中的一轮（尚未落盘成消息） */
 export interface ConvLive {
   text: string;
+  /** 独立的思考阶段状态；undefined 表示旧来源由轨迹推断。 */
+  thinking?: boolean;
   trace?: HarnessTraceEvent[];
+  /** 普通会话只显示思考执行状态；编程助手标签默认保留明细。 */
+  showThinkingDetails?: boolean;
   /** 正文分段起点 */
   textBreaks?: number[];
   startedAt?: number;

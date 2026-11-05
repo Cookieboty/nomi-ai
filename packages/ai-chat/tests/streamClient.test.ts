@@ -78,3 +78,62 @@ describe('SdkIPCClient.sendStreamMessage · abort', () => {
     expect(upstream.signal.aborted).toBe(true);
   });
 });
+
+describe('SdkIPCClient reasoning lifecycle', () => {
+  function reasoningClient(chunks: Array<Record<string, unknown>>) {
+    return new SdkIPCClient({
+      chat: {
+        agentStream: () =>
+          (async function* () {
+            for (const chunk of chunks) yield chunk;
+          })(),
+      },
+      memory: { userProfile: { get: () => undefined, set: vi.fn() } },
+    } as never);
+  }
+  it('starts on an empty event, ends explicitly and resumes on text/tool output', async () => {
+    const ipc = reasoningClient([
+      { type: 'reasoning', content: '', phase: 'start' },
+      { type: 'reasoning', content: '', phase: 'end' },
+      { type: 'reasoning', content: 'detail' },
+      { type: 'delta', content: 'answer' },
+      { type: 'reasoning', content: '', phase: 'start' },
+      { type: 'tool_call.delta', name: 'read', id: 'r' },
+    ]);
+    const phases: boolean[] = [];
+    const trace = vi.fn();
+    await ipc.sendStreamMessage('q', undefined, [], undefined, undefined, {
+      onThinking: (active) => phases.push(active),
+      onTrace: trace,
+    });
+    expect(phases).toEqual([true, false, true, false, true, false]);
+    expect(trace).toHaveBeenCalledWith(expect.objectContaining({ type: 'thinking', text: '' }));
+  });
+  it('clears thinking on stream exhaustion or errors', async () => {
+    for (const error of [false, true]) {
+      const phases: boolean[] = [];
+      const ipc = reasoningClient([
+        { type: 'reasoning', content: '', phase: 'start' },
+        ...(error ? [{ type: 'error', error: 'boom' }] : []),
+      ]);
+      const pending = ipc.sendStreamMessage('q', undefined, [], undefined, undefined, {
+        onThinking: (active) => phases.push(active),
+      });
+      if (error) await expect(pending).rejects.toThrow('boom');
+      else await pending;
+      expect(phases).toEqual([true, false]);
+    }
+  });
+  it('honors an explicit end even when no start event was received', async () => {
+    const phases: boolean[] = [];
+    await reasoningClient([{ type: 'reasoning', content: '', phase: 'end' }]).sendStreamMessage(
+      'q',
+      undefined,
+      [],
+      undefined,
+      undefined,
+      { onThinking: (active) => phases.push(active) },
+    );
+    expect(phases).toEqual([false]);
+  });
+});
