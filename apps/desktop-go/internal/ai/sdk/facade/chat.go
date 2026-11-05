@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChatStreamOptions = ChatFacade.ts ChatStreamOptions（契约 ChatOptions 的 JSON 形状）
+// ChatStreamOptions：契约 ChatOptions 的 JSON 形状
 type ChatStreamOptions struct {
 	ReqID       *string           `json:"reqId,omitempty"`
 	Provider    *string           `json:"provider,omitempty"`

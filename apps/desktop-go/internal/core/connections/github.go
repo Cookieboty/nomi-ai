@@ -1,4 +1,4 @@
-// Package connections 移植 src/connections：连接（docs/features/scheduling-calendar.md）。2.1.0 先做 GitHub。
+// Package connections：连接（docs/features/scheduling-calendar.md）。2.1.0 先做 GitHub。
 package connections
 
 import (

@@ -21,7 +21,7 @@ const (
 	observeFile = "observe.json"
 )
 
-// View = DiagnosticsView（字段序同 Node 对象字面量）
+// View：DiagnosticsView（字段序固定）
 type View struct {
 	Enabled   bool   `json:"enabled"`
 	Forced    bool   `json:"forced"`

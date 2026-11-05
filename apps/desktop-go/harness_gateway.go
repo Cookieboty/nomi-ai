@@ -1,6 +1,6 @@
 package main
 
-// harnessGateway：apps/desktop-electron/internal/core/src/gateway/harnessGateway.ts 的 1:1 移植（docs/development/gateway.md）。
+// harnessGateway：编排器用的网关端口（docs/development/gateway.md）。
 
 import (
 	"encoding/json"

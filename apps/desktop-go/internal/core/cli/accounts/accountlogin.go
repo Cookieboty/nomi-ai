@@ -130,7 +130,7 @@ func (l *AccountLogin) Start(kind string, accountID *string) *jsrt.Promise[*util
 	return jsrt.Async(func() (ev *util.Obj, err error) {
 		defer catchJS(&err)
 		if !isKind(kind) {
-			// Node：resolveCliBin 的 `for (const c of CANDIDATES[kind])`
+			// resolveCliBin 里 `for (const c of CANDIDATES[kind])` 的 TypeError
 			panic(typeErr("CANDIDATES[kind] is not iterable"))
 		}
 		bin := harness.ResolveHarnessBin(kind)

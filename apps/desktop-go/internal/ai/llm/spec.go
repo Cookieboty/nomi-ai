@@ -1,13 +1,13 @@
-// Package llm mirrors the parts of @ai-sdk/provider (LanguageModelV4 spec,
+// Package llm implements the parts of @ai-sdk/provider (LanguageModelV4 spec,
 // errors) and @ai-sdk/provider-utils (postJsonToApi, SSE parsing, headers)
-// that Node's AI runtime (apps/desktop-electron/internal/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts)
+// that Nomi's AI runtime (internal/ai/runtime/aisdk)
 // reaches through the Vercel AI SDK. Protocol adapters live in subpackages:
 //
 //	llm/compatible  ← @ai-sdk/openai-compatible chatModel   (protocol openai-chat)
 //	llm/openai      ← @ai-sdk/openai .responses()           (protocol openai-responses)
 //	llm/anthropic   ← @ai-sdk/anthropic .messages()         (protocol anthropic)
 //
-// No vendor SDKs: net/http + a port of eventsource-parser (see sse.go).
+// No vendor SDKs: net/http + an eventsource-parser equivalent (see sse.go).
 //
 // JSON values follow gateway/util's value space (nil | bool | float64 | string
 // | []any | *util.Obj) so request bodies serialize exactly like JSON.stringify.
@@ -56,7 +56,7 @@ type CallOptions struct {
 	ProviderOptions ProviderOptions
 }
 
-// Header is one header entry; Undefined mirrors `{ k: undefined }`.
+// Header is one header entry; Undefined stands for `{ k: undefined }`.
 type Header struct {
 	Name, Value string
 	Undefined   bool

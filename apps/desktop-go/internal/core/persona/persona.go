@@ -1,4 +1,4 @@
-// Package persona = apps/desktop-electron/internal/core/src/persona（PersonaService / systemPrompt）：角色人设的唯一来源。
+// Package persona：角色人设（PersonaService / systemPrompt）的唯一来源。
 // 来源依次为当前角色包 → 内置角色包 → 中性兜底；按界面语言取文案（zh 为主语言，其他语言用 locales/<lang>.json 覆盖）。
 package persona
 
@@ -15,7 +15,7 @@ import (
 	cc "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
 )
 
-// Persona = @nomi-ai/types Persona；字段顺序与 Node 对象构造顺序一致（JSON.stringify 比较 / 输出）
+// Persona = @nomi-ai/types Persona；字段顺序固定（JSON.stringify 比较 / 输出）
 type Persona struct {
 	CharacterID          string   `json:"characterId"`
 	DisplayName          string   `json:"displayName"`
@@ -145,7 +145,7 @@ type ActivePack struct {
 	Manifest any
 }
 
-// ReadFile = fs.existsSync ? readFileSync(utf8) : undefined；目录等读失败返回 error（Node 抛错）
+// ReadFile = fs.existsSync ? readFileSync(utf8) : undefined；目录等读失败返回 error
 func ReadFile(file string) (string, bool, error) {
 	if _, err := os.Stat(file); err != nil {
 		return "", false, nil
@@ -174,7 +174,7 @@ func PackSource(id string, getPack func() *ActivePack, readFile func(string) (st
 					b, err = nil, t.err
 					return
 				}
-				// getPack 抛出（例如 validatePack 的 TypeError）：Node 的 source.load 在 try/catch 里
+				// getPack 抛出（例如 validatePack 的 TypeError）：source.load 在 try/catch 里
 				if e, ok := r.(error); ok {
 					b, err = nil, e
 					return

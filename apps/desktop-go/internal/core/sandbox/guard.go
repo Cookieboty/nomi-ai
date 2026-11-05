@@ -1,4 +1,4 @@
-// Package sandbox 对应 apps/desktop-electron/internal/core/src/sandbox：CodeSandbox / platformSandbox / agentBrowserGuard。
+// Package sandbox：代码沙箱（CodeSandbox / platformSandbox / agentBrowserGuard）。
 package sandbox
 
 import (

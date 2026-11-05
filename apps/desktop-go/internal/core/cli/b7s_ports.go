@@ -1,6 +1,6 @@
 package cli
 
-// b7s_ports.go：把 b7s 实现接到 ports.go 的接口上（Orchestrator 侧只依赖 ports）。
+// b7s_ports.go：把 core/cli 的服务实现接到 ports.go 的接口上（Orchestrator 侧只依赖 ports）。
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -13,7 +13,7 @@ import (
 
 // ModelDiscoveryPaths = Orchestrator.modelCatalog 传给 discoverModels 的路径部分
 // （claudeDefaults / codexConfigPath / grok*CachePath）。ports.ModelDiscoveryDeps 只带 spawn/timeoutMs，
-// 因此由 Orchestrator 在构造适配器时提供 Paths 回调（按 backend 每次调用求值，同 Node 每次现算）。
+// 因此由 Orchestrator 在构造适配器时提供 Paths 回调（按 backend 每次调用求值）。
 type ModelDiscoveryPaths struct {
 	ClaudeDefaults        *ClaudeDefaults
 	CodexConfigPath       string
@@ -54,7 +54,7 @@ func (a ModelDiscoveryAdapter) DiscoverModels(backend string, d ports.ModelDisco
 	}
 	pr := DiscoverModels(backend, deps)
 	if spawnErr != nil {
-		// spawnHarness 同步抛错 → discoverModels 同步抛出；Go 侧以 rejection 交付（D-B7-S-1）
+		// spawnHarness 同步出错 → 以 rejection 交付
 		return jsrt.Rejected[*util.Obj](spawnErr)
 	}
 	return pr

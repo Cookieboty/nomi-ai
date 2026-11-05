@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ParseOptions 对应 ParseOptions
+// ParseOptions：解析选项
 type ParseOptions struct {
 	TimeoutMs float64
 	MaxBytes  int64
@@ -53,7 +53,7 @@ func nodeFSErr(err error, syscall, p string) *Error {
 	return &Error{code, fmt.Sprintf("%s: %s, %s '%s'", code, desc, syscall, p)}
 }
 
-// ParseFile 对应 parseFile（worker 语义：先校验是文件、大小，再超时内解析）
+// ParseFile：解析文件（worker 语义：先校验是文件、大小，再超时内解析）
 func ParseFile(filePath string, opts ParseOptions) ParseResult {
 	timeout := opts.TimeoutMs
 	if timeout == 0 {

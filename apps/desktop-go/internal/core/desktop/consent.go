@@ -7,7 +7,7 @@ import (
 	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 )
 
-// consent.ts：何时需要用户确认（纯函数）
+// 何时需要用户确认（纯函数）
 
 type Danger = string   // read | write | destructive
 type Policy = string   // always | session | ask
@@ -24,7 +24,7 @@ var ToolDefaultPolicy = map[string]Policy{
 }
 
 // SanitizePolicy：p 是 JSON 值（string 或其它）
-// 未知 danger 时 Node 返回 undefined（DEFAULT_POLICY 无此键），这里返回 ""；JSON 层由调用方省略
+// 未知 danger（DEFAULT_POLICY 无此键）返回 ""；JSON 层由调用方省略
 func SanitizePolicy(danger Danger, p any) Policy {
 	s, _ := p.(string)
 	if s != "always" && s != "session" && s != "ask" {

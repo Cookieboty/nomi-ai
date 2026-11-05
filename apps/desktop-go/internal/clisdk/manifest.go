@@ -81,7 +81,7 @@ func checkCaps(c any, where string, errs *[]string) {
 	}
 }
 
-// ValidateManifest mirrors validateManifest（versionPattern 用 ECMAScript 正则校验）。
+// ValidateManifest：校验清单，返回问题列表（versionPattern 用 ECMAScript 正则校验）。
 func ValidateManifest(raw any) []string {
 	errs := []string{}
 	m, ok := isPlainObj(raw)
@@ -162,7 +162,7 @@ func jsStringOrUndef(o *util.Obj, k string) string {
 	return util.JSString(o.Get(k))
 }
 
-// EffectiveCapabilities mirrors effectiveCapabilities。
+// EffectiveCapabilities：按版本与握手结果得出实际能力。
 func EffectiveCapabilities(m *util.Obj, version *string, inRange func(v, r string) bool, handshake *util.Obj) *util.Obj {
 	caps := O()
 	if c, ok := m.Get("capabilities").(*util.Obj); ok {

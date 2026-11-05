@@ -176,9 +176,9 @@ type affEnt struct {
 	at float64
 }
 
-// Affinity is Affinity (session → last good provider/key, in-memory LRU).
+// Affinity: session → last good provider/key, in-memory LRU.
 //
-// Node 单线程里 Map 的 delete+set 天然是原子的；Go 的 net/http 每个连接一个 goroutine，
+// Map 的 delete+set 必须是原子的；Go 的 net/http 每个连接一个 goroutine，
 // 不同标签的请求会并发 Get / Set（Get 本身也要删再插来刷新顺序），裸 map + 链表并发读写
 // 会让进程直接 fatal（#199）。mu 让每次 Get / Set / Size 的整段 LRU 事务在锁内完成，
 // 锁只包内存操作，不跨上游请求。

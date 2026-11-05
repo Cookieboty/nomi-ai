@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Ports of provider-utils detect-media-type.ts / resolve-full-media-type.ts /
-// uint8-utils.ts.
+// Media type detection and full-media-type resolution (as in @ai-sdk/provider-utils
+// detect-media-type / resolve-full-media-type / uint8-utils).
 
 type sig struct {
 	mt     string

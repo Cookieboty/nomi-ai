@@ -1,5 +1,5 @@
-// Package terminal ports apps/desktop-electron/internal/core/src/gateway/TerminalCommands.ts (+ windowsPath.ts /
-// windowsTerminal.ts): nomi-<cli> commands in ~/.nomi/bin that launch CLIs through the gateway.
+// Package terminal：TerminalCommands（含 Windows 的 PATH 与终端启动）：
+// nomi-<cli> commands in ~/.nomi/bin that launch CLIs through the gateway.
 package terminal
 
 import (
@@ -15,8 +15,8 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// WindowsRunner = buildWindowsRunner()：windowsTerminal.ts 的 run() 经 esbuild 编译后的原文
-// （scripts/parity/record-shell.mjs 每次录制都重新生成并比对，漂移即失败）。
+// WindowsRunner：Windows 上 nomi-<cli> 用的启动脚本（nomi-runner.cjs，由 node 运行）。
+// 改启动逻辑直接改这个文件。
 //
 //go:embed nomi-runner.cjs
 var WindowsRunner string

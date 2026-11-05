@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// 与 Node tests/unit/diagnostics/devtools.test.ts 同样的用例（输出 JSON 逐字一致）
+// 输出 JSON 逐字比对
 
 var devT0 = time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC).UnixMilli()
 

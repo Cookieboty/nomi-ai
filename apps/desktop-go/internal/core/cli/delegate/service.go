@@ -1,6 +1,6 @@
 package delegate
 
-// DelegateService.ts：Nomi 把编程助手当子代理调用（delegate_to_cli / delegate_status / delegate_followup / delegate_stop）。
+// DelegateService：Nomi 把编程助手当子代理调用（delegate_to_cli / delegate_status / delegate_followup / delegate_stop）。
 // 2.1.0（docs/features/scheduling-calendar.md）：有持续任务时后台委派就是持续任务（executor: cli）——排队代替拒绝、
 // 瞬时错误重试一次、重启后在同一 worktree 续跑、做完进验收（不自动回填）；`delegate_stop` 停止；
 // 同步委派（background:false）照旧，名额满了排队等，不再拒绝。
@@ -42,7 +42,7 @@ const PinTTL = 10 * 60_000
 // MaxPersistedTasks：tasks.json 最多保留的任务数
 const MaxPersistedTasks = 200
 
-// Harness：DelegateService 用到的 HarnessOrchestrator 子集（tab / state 形状同 Node，*util.Obj）。
+// Harness：DelegateService 用到的 HarnessOrchestrator 子集（tab / state 为 *util.Obj）。
 // SendTab 被停止时返回 *harness.StoppedError。
 type Harness interface {
 	State() *util.Obj
@@ -55,7 +55,7 @@ type Harness interface {
 	CloseTab(id string) error
 }
 
-// Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 在 Go 侧同步，D-B7-S2-2）
+// Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
 type Desktop interface {
 	WorkspaceOf(cwd any) string
 	Guard(p any, need string, allowMissing bool) desktop.GuardResult
@@ -88,7 +88,7 @@ type Deps struct {
 	Tasks TaskPort
 }
 
-// TaskPort：委派用到的持续任务能力（tasks.Service 的子集，对应 DelegateTaskPort）
+// TaskPort：委派用到的持续任务能力（tasks.Service 的子集）
 type TaskPort interface {
 	CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error)
 	Get(id string) *tasks.Record
@@ -113,7 +113,7 @@ var DelegateErrorCodes = []string{
 var taskSettled = []string{tasks.StatusAwaitingAccept, tasks.StatusDone, tasks.StatusFailed, tasks.StatusCancelled, tasks.StatusExpired}
 
 type bgTask struct {
-	o   *util.Obj // 持久化形状（键序同 Node 对象）
+	o   *util.Obj // 持久化形状（键序固定）
 	iso *IsolationHandle
 	ctx *execCtx
 }
@@ -310,7 +310,7 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	return res
 }
 
-// WaitIdle：等后台 runChild 收尾（测试 / 退出用；Node 侧是悬空 promise）
+// WaitIdle：等后台 runChild 收尾（测试 / 退出用）
 func (s *Service) WaitIdle() { s.wg.Wait() }
 
 func (s *Service) file() string      { return filepath.Join(s.d.Root, "settings.json") }
@@ -1086,7 +1086,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 			"filesVerified", false, "approvals", approvalsZero(),
 			"durationMs", s.d.Now()-t0, "isolationNote", publicIsolationNote(iso)), c), nil
 	}
-	// 任务已记为 running，由它自己计数：名额在这里还回去（同 Node：try 里 return 未 await 的 promise，finally 立即执行）
+	// 任务已记为 running，由它自己计数：名额在这里还回去
 	release()
 	return s.runChild(task, prompt, true, c.sig), nil
 }

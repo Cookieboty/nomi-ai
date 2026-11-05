@@ -1,8 +1,8 @@
-// Package delegate：apps/desktop-electron/internal/core/src/cli/delegate（core.ts / worktree.ts / DelegateService.ts）的 1:1 移植。
-// Nomi 委派编程助手：选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
+// Package delegate：Nomi 委派编程助手（core / worktree / DelegateService）。
+// 选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
 //
-// 数据形状与 Node 一致：档位 / 设置 / 结果都是有序 *util.Obj（键顺序 = Node 对象字面量顺序），
-// 落盘与工具结果直接序列化，golden（testdata/b7s2-delegate.json）逐字比对。
+// 数据形状固定：档位 / 设置 / 结果都是有序 *util.Obj（键顺序固定），
+// 落盘与工具结果直接序列化，测试（testdata/b7s2-delegate.json）逐字比对。
 package delegate
 
 import (
@@ -18,7 +18,7 @@ var DelegateClis = []string{"claude", "codex", "grok", "gemini", "dsh"}
 // DelegateKinds：任务类型（设置里按类型配默认编程助手）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
 
-// BuiltinAgentProfiles：内置档位（每次返回新对象，等同 Node 的 { ...p } 拷贝）
+// BuiltinAgentProfiles：内置档位（每次返回新对象）
 func BuiltinAgentProfiles() []*util.Obj {
 	return []*util.Obj{
 		util.NewObj("id", "default", "label", "默认（沿用 CLI）"),

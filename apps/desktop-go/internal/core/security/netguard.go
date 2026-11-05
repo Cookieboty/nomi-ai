@@ -11,7 +11,7 @@ import (
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 )
 
-// 对应 apps/desktop-electron/internal/core/src/security/netGuard.ts：出站 URL 只允许公网 http(s)，拒绝内嵌凭据与保留地址。
+// 出站 URL 只允许公网 http(s)，拒绝内嵌凭据与保留地址。
 
 // LookupAddress 是 dns.LookupAddress。
 type LookupAddress struct {
@@ -22,7 +22,7 @@ type LookupAddress struct {
 // LookupAll 返回主机名解析出的全部地址（dns.promises.lookup(host, {all:true})）。
 type LookupAll func(host string) ([]LookupAddress, error)
 
-// DefaultLookupAll 用系统解析器；未找到时消息与 Node getaddrinfo 一致。
+// DefaultLookupAll 用系统解析器；未找到时消息为 getaddrinfo 风格（ENOTFOUND）。
 func DefaultLookupAll(host string) ([]LookupAddress, error) {
 	ips, err := net.DefaultResolver.LookupIPAddr(context.Background(), host)
 	if err != nil {

@@ -151,7 +151,7 @@ func TestMigrateElectronFixture(t *testing.T) {
 		}
 	}
 
-	// provider secrets: Node 形态（encryption 仍是 safeStorage，enc = Go safeStorage 密文，无 enc: 前缀）
+	// provider secrets: 旧版形态（encryption 仍是 safeStorage，enc = Go safeStorage 密文，无 enc: 前缀）
 	gc := gwstore.NewCipher(box)
 	gs, _ := os.ReadFile(filepath.Join(goRoot, "gateway", "store.json"))
 	gk := gjson(t, gs)["providers"].([]any)[0].(map[string]any)["keys"].([]any)[0].(map[string]any)

@@ -6,7 +6,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 同 Node modelMeta.test.ts：like 按已知模型查；ctxStandard 让任何模型有长上下文可开
+// like 按已知模型查；ctxStandard 让任何模型有长上下文可开
 func TestResolveModelMetaLikeAndStandard(t *testing.T) {
 	on := true
 	like := u.NewObj("id", "Aerith-sonnet", "enabled", true, "like", "claude-sonnet-4.6")

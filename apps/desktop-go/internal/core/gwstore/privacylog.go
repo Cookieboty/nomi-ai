@@ -1,6 +1,6 @@
 package gwstore
 
-// privacylog.go = PrivacyLog.ts：最近隐藏的密钥（只有元数据），按占位符合并，攒 2 秒写盘。
+// privacylog.go：PrivacyLog，最近隐藏的密钥（只有元数据），按占位符合并，攒 2 秒写盘。
 
 import (
 	"math"
@@ -179,7 +179,7 @@ func (l *PrivacyLog) snapshotLocked() []byte {
 var afterPrivacySnapshot = func() {}
 
 // writeSnapshotUnlock：调用方持有 mu。先拿到写锁再放开 mu，落盘顺序与快照顺序一致：
-// 清空之前拍的快照不会在清空写盘之后才落盘、把旧记录写回去（= Node 的写队列，#164）
+// 清空之前拍的快照不会在清空写盘之后才落盘、把旧记录写回去（#164）
 func (l *PrivacyLog) writeSnapshotUnlock() {
 	data := l.snapshotLocked()
 	afterPrivacySnapshot()

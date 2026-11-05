@@ -24,7 +24,7 @@ func isPlaceholder(n string) bool { return n == "cwd" || n == "home" }
 
 func itoa(i int) string { return util.FormatNumber(float64(i)) }
 
-// ValidateExternalSpec mirrors validateExternalSpec。
+// ValidateExternalSpec：校验外部 CLI 规格，返回问题列表。
 func ValidateExternalSpec(raw any, reserved []string) []string {
 	errs := []string{}
 	o, ok := isPlainObj(raw)
@@ -103,7 +103,7 @@ func ValidateExternalSpec(raw any, reserved []string) []string {
 	return errs
 }
 
-// NormalizeExternalSpec mirrors normalizeExternalSpec。
+// NormalizeExternalSpec：规整外部 CLI 规格。
 func NormalizeExternalSpec(s *util.Obj) *util.Obj {
 	args, _ := s.Get("args").([]any)
 	r := O("version", float64(1), "id", JSTrim(s.Get("id").(string)), "displayName", JSTrim(s.Get("displayName").(string)),
@@ -123,7 +123,7 @@ func NormalizeExternalSpec(s *util.Obj) *util.Obj {
 	return r
 }
 
-// RenderExternalArgs mirrors renderExternalArgs。
+// RenderExternalArgs：把参数里的变量替换成 vars 的值。
 func RenderExternalArgs(args []string, vars map[string]string) []string {
 	out := make([]string, len(args))
 	for i, a := range args {
@@ -138,7 +138,7 @@ func RenderExternalArgs(args []string, vars map[string]string) []string {
 	return out
 }
 
-// MissingExternalEnv mirrors missingExternalEnv（env 值空串视为缺）。
+// MissingExternalEnv：缺的环境变量（env 值空串视为缺）。
 func MissingExternalEnv(spec *util.Obj, env map[string]string) []string {
 	out := []string{}
 	names, _ := spec.Get("env").([]any)
@@ -151,7 +151,7 @@ func MissingExternalEnv(spec *util.Obj, env map[string]string) []string {
 	return out
 }
 
-// ExternalManifest mirrors externalManifest。
+// ExternalManifest：外部 CLI 规格 → 清单。
 func ExternalManifest(s *util.Obj) *util.Obj {
 	return O("id", s.Get("id"), "apiVersion", float64(CliAPIVersion), "displayName", s.Get("displayName"), "icon", "",
 		"binary", O("names", []any{s.Get("command")}, "versionArgs", []any{"--version"}, "versionPattern", `(\d+\.\d+\.\d+)`),

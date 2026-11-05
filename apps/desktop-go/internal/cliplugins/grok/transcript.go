@@ -12,7 +12,7 @@ func objOr(v any, fb *util.Obj) *util.Obj {
 	return sh.AsJ(v)
 }
 
-// ParseTranscript mirrors parseGrokTranscript。
+// ParseTranscript：解析会话记录文件。
 func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 	b := sh.NewBuilder()
 	for _, e := range sh.Lines(text) {

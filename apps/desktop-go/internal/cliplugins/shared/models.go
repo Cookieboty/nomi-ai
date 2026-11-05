@@ -10,10 +10,10 @@ var Undef any = util.JSFunc{}
 // IsUndef：nil 或 Undef 都按 undefined/null 读。
 func IsUndef(v any) bool { _, f := v.(util.JSFunc); return v == nil || f }
 
-// AsObj mirrors asObj（数组也是对象：无具名属性）。
+// AsObj：按对象读取（数组也是对象：无具名属性）。
 func AsObj(v any) Json { return AsJ(v) }
 
-// AsStr mirrors asStr：trim 后非空。
+// AsStr：trim 后非空的字符串。
 func AsStr(v any) (string, bool) {
 	s, ok := v.(string)
 	if !ok {
@@ -31,7 +31,7 @@ func AsStrV(v any) any {
 	return Undef
 }
 
-// ParsePermissionModes mirrors parsePermissionModes（nil = undefined）。
+// ParsePermissionModes：解析权限模式列表（nil = undefined）。
 func ParsePermissionModes(root any) []any {
 	obj := AsObj(root)
 	modeRoot := obj.Get("modes")

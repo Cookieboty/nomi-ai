@@ -1,4 +1,4 @@
-// Package archguard 用静态扫描守住 Go 版的分层边界，与 Node 版的 ESLint 边界规则对等
+// Package archguard 用静态扫描守住 Go 版的分层边界
 // （docs/development/architecture.md）：
 //
 //  1. Wails 框架（github.com/wailsapp/wails/v3/...）只能出现在壳层 internal/shell/wailsshell，

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// createCore.ts prepareChat + workspaceTools.ts applyConversationWorkspace + DesktopService.receiversFor/checkSendAll
+// 对话请求发出前的准备：prepareChat + applyConversationWorkspace + receiversFor/checkSendAll
 
 // ReceiversFor = receiversFor(provider, roles)：有 provider 用它；否则取候选角色里的全部 provider（按 id 去重）
 func ReceiversFor(provider *Provider, roles []Role, providerFor func(Role) *Provider) []*Provider {
@@ -148,7 +148,7 @@ type ChatPrep struct {
 	Broker      WorkspaceBroker
 	ProviderFor func(Role) *Provider
 	CheckSend   func(*Provider, context.Context, string) string
-	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（createCore 里追加派出去的判断规则）
+	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（main.go 在这里追加派出去的判断规则）
 	AfterWorkspace func(options map[string]any, method string) error
 }
 
@@ -161,7 +161,7 @@ func (s *Service) ChatPrep() ChatPrep {
 	}
 }
 
-// PrepareChat = createCore.ts AiRouterOptions.prepareChat
+// PrepareChat：AI 路由的 prepareChat 钩子
 func (c ChatPrep) PrepareChat(options map[string]any, method string, signal <-chan struct{}) error {
 	if _, err := ApplyConversationWorkspace(options, c.Broker); err != nil {
 		return err

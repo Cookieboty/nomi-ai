@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// 工具确认发到哪（同 core/tests/unit/desktop/confirmRouting.test.ts）：对话窗口开着 → 只发给对话窗口；
+// 工具确认发到哪：对话窗口开着 → 只发给对话窗口；
 // 桌面角色被关掉了 → 打开对话窗口，不把她叫出来；否则发给桌面角色。请求文件夹在对话里问。
 
 type sentEvent struct {

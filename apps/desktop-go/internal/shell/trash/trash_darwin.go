@@ -8,7 +8,7 @@ package trash
 #import <Foundation/Foundation.h>
 #include <stdlib.h>
 
-// 与 Electron shell.trashItem 相同：NSFileManager trashItemAtURL，静默移到废纸篓（可「放回原处」），
+// NSFileManager trashItemAtURL：静默移到废纸篓（可「放回原处」），
 // 不经 Finder（osascript 会弹「控制 Finder」的自动化授权框，并播放 Finder 音效）。
 // 失败返回 strdup 的错误描述，成功返回 NULL。
 static char *nomiTrashItem(const char *path) {

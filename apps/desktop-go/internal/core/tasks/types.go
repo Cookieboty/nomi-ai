@@ -1,6 +1,6 @@
-// Package tasks 移植 apps/desktop-electron/internal/core/src/tasks：持续任务的数据模型、错误码与状态机
-// （docs/features/scheduling-calendar.md）。JSON 形状与 Node 版一致：可选字段用指针 + omitempty，
-// 对应 TS 里值为 undefined 的键被去掉；空数组照常输出 []。
+// Package tasks：持续任务的数据模型、错误码与状态机
+// （docs/features/scheduling-calendar.md）。JSON 形状与旧版写出的文件兼容：可选字段用指针 + omitempty，
+// 值为 undefined 的键被去掉；空数组照常输出 []。
 package tasks
 
 import (
@@ -11,7 +11,7 @@ import (
 
 const SchemaVersion = 1
 
-// 任务状态（types.ts TaskStatus）
+// 任务状态（TaskStatus）
 const (
 	StatusIdle           = "idle"
 	StatusQueued         = "queued"
@@ -33,7 +33,7 @@ var InboxStatuses = []string{
 	StatusWaitingUser, StatusNeedsReconcile, StatusAwaitingAccept, StatusFailed, StatusExpired,
 }
 
-// Trigger 对应 types.ts 的判别联合：manual | schedule{at,repeat?,catchUpMs?} | event{sourceId,filter,cooldownMs?,mode}
+// Trigger：触发器的判别联合：manual | schedule{at,repeat?,catchUpMs?} | event{sourceId,filter,cooldownMs?,mode}
 type Trigger struct {
 	Kind       string           `json:"kind"`
 	At         *int64           `json:"at,omitempty"`
@@ -45,7 +45,7 @@ type Trigger struct {
 	Mode       *string          `json:"mode,omitempty"`
 }
 
-// ExecutorSpec 对应 notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
+// ExecutorSpec：notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
 // cli{cli,model?,cwd,isolation}
 type ExecutorSpec struct {
 	Kind     string    `json:"kind"`
@@ -70,14 +70,14 @@ type ExecutorSpec struct {
 	CallID *string `json:"callId,omitempty"`
 }
 
-// Brief 对应 ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
+// Brief：ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
 type Brief struct {
 	DoneWhen   string  `json:"doneWhen"`
 	Context    *string `json:"context,omitempty"`
 	OutOfScope *string `json:"outOfScope,omitempty"`
 }
 
-// 重要程度（看板按它分组；不影响执行顺序）与任务类型（types.ts TASK_PRIORITIES / TASK_CATEGORIES）
+// 重要程度（看板按它分组；不影响执行顺序）与任务类型（TASK_PRIORITIES / TASK_CATEGORIES）
 var (
 	TaskPriorities = []string{"urgent", "high", "medium", "low"}
 	TaskCategories = []string{"coding", "review", "research", "writing", "monitor", "chore"}

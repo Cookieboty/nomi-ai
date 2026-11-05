@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
 
-// SessionStore 对应 FileSessionStorePlugin：userData/ai-chat/<id>.jsonl
+// SessionStore：会话落盘，userData/ai-chat/<id>.jsonl
 type SessionStore struct {
 	dir         string
 	rotateBytes int64
@@ -79,7 +79,7 @@ func (s *SessionStore) List() ([]string, error) {
 	return ids, nil
 }
 
-// Profile 对应 FileProfileStorage：userData/ai-chat/memory（JSON）
+// Profile：userData/ai-chat/memory（JSON）
 func (s *SessionStore) ReadProfile() (map[string]any, error) {
 	raw, err := os.ReadFile(filepath.Join(s.dir, "memory"))
 	if err != nil {

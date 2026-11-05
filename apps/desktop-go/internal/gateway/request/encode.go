@@ -121,7 +121,7 @@ func (f fnTool) responsesJSON() *u.Obj {
 
 func dataURLOf(p ir.Part) string { return u.ToDataURL(p.MediaType, p.Data, p.URL) }
 
-// EncodeOptions mirrors EncodeOptions.
+// EncodeOptions are the encoder options.
 type EncodeOptions struct {
 	ReasoningPassback bool
 }
@@ -140,7 +140,7 @@ func choiceJSON(c *ir.ToolChoice, obj func(name string) *u.Obj) any {
 	return c.Mode
 }
 
-// EncodeChat mirrors encodeChat.
+// EncodeChat encodes r as an OpenAI Chat Completions body.
 func EncodeChat(r *ir.Request, model *string, opts EncodeOptions) *u.Obj {
 	messages := []any{}
 	if sys := systemJoined(r, "\n"); sys != "" {
@@ -274,7 +274,7 @@ func EncodeChat(r *ir.Request, model *string, opts EncodeOptions) *u.Obj {
 	return out
 }
 
-// EncodeResponses mirrors encodeResponses.
+// EncodeResponses encodes r as an OpenAI Responses body.
 func EncodeResponses(r *ir.Request, model *string) *u.Obj {
 	input := []any{}
 	for _, m := range r.Messages {
@@ -380,7 +380,7 @@ func geminiMedia(p ir.Part) *u.Obj {
 	return nil
 }
 
-// EncodeGemini mirrors encodeGemini (no model: it lives in the path).
+// EncodeGemini encodes r as a Gemini body (no model: it lives in the path).
 func EncodeGemini(r *ir.Request) *u.Obj {
 	type content struct {
 		role  string
@@ -535,7 +535,7 @@ func blockType(b any) any {
 	return nil
 }
 
-// EncodeMessages mirrors encodeMessages.
+// EncodeMessages encodes r as an Anthropic Messages body.
 func EncodeMessages(r *ir.Request, model *string) *u.Obj {
 	type msg struct {
 		role    string

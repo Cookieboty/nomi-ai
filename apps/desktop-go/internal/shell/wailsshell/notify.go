@@ -13,7 +13,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
 
-// notifier = electronPorts.notifications（Electron Notification）：系统通知，点击回调按通知 ID 分发
+// notifier：系统通知，点击回调按通知 ID 分发
 type notifier struct {
 	ns     *notifications.NotificationService
 	seq    atomic.Int64

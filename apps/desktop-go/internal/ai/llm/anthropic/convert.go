@@ -490,7 +490,7 @@ func convertPrompt(prompt []llm.Message, cx convertCtx) (*converted, error) {
 						}
 						content = append(content, withCaller(util.NewObj("type", "tool_use", "id", p.ToolCallID, "name", p.ToolName, "input", toolInput(p.Input))))
 					case "tool-result":
-						// D-B5-P-A-1: provider-executed tool results (server tools / MCP) are not ported.
+						// Provider-executed tool results (server tools / MCP) are not supported.
 						if mcpIDs[p.ToolCallID] && p.Output != nil && p.Output.Type != "json" && p.Output.Type != "error-json" {
 							*cx.warnings = append(*cx.warnings, otherWarning("provider executed tool result output type "+p.Output.Type+" for tool "+p.ToolName+" is not supported"))
 							break

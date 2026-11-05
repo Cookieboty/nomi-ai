@@ -1,6 +1,6 @@
 package providers
 
-// ProviderService —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderService.ts 的 CRUD / 状态部分。
+// ProviderService：供应商的 CRUD / 状态部分。
 // test / testDraft / fetchModels / fetchModelsDraft 见 service_ping.go。
 
 import (
@@ -23,7 +23,7 @@ type Resolved struct {
 	Model      *string
 }
 
-// RoutedRegistry：ProviderService 用到的 RoutedLLMRegistry 子集（批次 5 实现）
+// RoutedRegistry：ProviderService 用到的 RoutedLLMRegistry 子集
 type RoutedRegistry interface {
 	Resolve(role string) (Resolved, bool)
 	Get(id string) llm.LLMProvider

@@ -1,5 +1,5 @@
-// Package schedule 移植 apps/desktop-electron/internal/core/src/schedule：重复规则 / 免打扰（recurrence.ts）与
-// SchedulerService（定时任务、补跑、主动聊天）。时间一律按本地时区（time.Local），与 Node 的 Date 一致。
+// Package schedule：重复规则 / 免打扰（recurrence）与
+// SchedulerService（定时任务、补跑、主动聊天）。时间一律按本地时区（time.Local）。
 package schedule
 
 import (
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Repeat 对应 recurrence.ts 的判别联合：daily | weekdays | weekly{days} | monthly | interval{minutes}
+// Repeat：重复规则的判别联合：daily | weekdays | weekly{days} | monthly | interval{minutes}
 type Repeat struct {
 	Kind    string `json:"kind"`
 	Days    []int  `json:"days,omitempty"`

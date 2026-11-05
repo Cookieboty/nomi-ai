@@ -1,6 +1,6 @@
 package usage
 
-// groksubscription.go = apps/desktop-electron/internal/core/src/usage/grokSubscription.ts
+// groksubscription.go：Grok 账户额度
 //
 // Grok 账户额度：官方 Grok CLI 在 ACP 中提供 `_x.ai/billing` 扩展。让 CLI 自己读取登录态，
 // 只保留账户周期的百分比、周期时间和套餐名；Nomi 不读 auth.json，也不把 billing 原始响应写入日志或磁盘。
@@ -177,7 +177,7 @@ func (g *GrokBillingFetcher) fetch() (out FetchOutcome) {
 		}()
 		child = sp(launch.File, launch.Args, nodeproc.Options{Cwd: dir, Env: EnvSlice(childEnv), IgnoreStderr: true, Verbatim: launch.Via == ViaCmdShim})
 	}()
-	// 让出期间 jsrt 可能先跑 spawn 失败的 'error' 宏任务（Node 里 await 只让出微任务，error 一定在挂监听之后）：
+	// 让出期间 jsrt 可能先跑 spawn 失败的 'error' 宏任务（error 应在挂监听之后才到）：
 	// 先记下，挂好监听后补发，结果确定。
 	earlyErr, hooked := false, false
 	if child != nil {

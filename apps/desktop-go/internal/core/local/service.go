@@ -75,7 +75,7 @@ type Deps struct {
 	TotalMem func() uint64
 }
 
-// Settings：字段顺序 = Node 构造函数字面量顺序；undefined → 省略
+// Settings：字段顺序固定；undefined → 省略
 type Settings struct {
 	ActiveModel       *string `json:"activeModel,omitempty"`
 	AutoStart         bool    `json:"autoStart"`
@@ -298,7 +298,7 @@ func (s *Service) SetSettings(p map[string]any) Settings {
 		s.settings.AutoStart = v
 	}
 	if tv, present := p["threads"]; !present || tv == nil {
-		// Node：p.threads === undefined → 清空（JSON null 也视为缺省）
+		// p.threads === undefined → 清空（JSON null 也视为缺省）
 		s.settings.Threads = nil
 	} else if n, ok := isInt(tv); ok && n > 0 && n <= 64 {
 		s.settings.Threads = &n
@@ -585,7 +585,7 @@ func exitCode(c *exec.Cmd) any {
 		return nil
 	}
 	if ws, ok := c.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
-		return nil // Node：被信号杀死时 code 为 null（signal 有值）
+		return nil // 被信号杀死时 code 为 null（signal 有值）
 	}
 	// Windows 没有信号：外部 TerminateProcess 结束时 libuv 同样只给退出码，signal 为 null
 

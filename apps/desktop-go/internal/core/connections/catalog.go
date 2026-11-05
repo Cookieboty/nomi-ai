@@ -1,6 +1,6 @@
 package connections
 
-// 连接的能力目录（docs/features/scheduling-calendar.md），对应 src/connections/catalog.ts，两边逐条一致：
+// 连接的能力目录（docs/features/scheduling-calendar.md）：
 //
 //   - github.read / mcp.read 只读（L1）；github.comment / github.pr.create / mcp.call 是对外动作（L4），
 //     执行前先写 intent、成功后写 done（docs/features/scheduling-calendar.md）；

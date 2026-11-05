@@ -5,7 +5,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Gateway mirrors gemini/gateway.ts。
+// Gateway：Gemini CLI 的网关条目。
 var Gateway = sh.GatewayEntry(Manifest, util.NewObj(
 	"id", Manifest.Get("id"),
 	"strictness", "lenient",

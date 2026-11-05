@@ -1,12 +1,12 @@
 package usage
 
-// 对应 quotaCache.ts：额度缓存——按账号身份隔离 + 分层降级 + 60 秒节流。
+// 额度缓存——按账号身份隔离 + 分层降级 + 60 秒节流。
 //
 //   - 身份：非敏感指纹（见 quotaidentity）。指纹变了 = 换号，旧值立刻清掉；
 //   - 降级：只有「暂时性失败」才保留旧值并标 stale；「认证失效类」清掉旧值；
 //   - 节流：同一个来源两次真实拉取至少间隔 TTL（60 秒），期间直接返回 throttled；同时只会有一个进行中的拉取。
 //
-// 所有方法都在 jsrt 锁内调用（= Node 主线程）。
+// 所有方法都在 jsrt 锁内调用（= 主线程）。
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -37,7 +37,7 @@ type RefreshResult struct {
 	Stale  bool
 }
 
-// ToObj：Node 字面量形状（{ state } / { state, reason, stale } / { state, reason }）。
+// ToObj：{ state } / { state, reason, stale } / { state, reason }。
 func (r RefreshResult) ToObj() *util.Obj {
 	o := util.NewObj("state", r.State)
 	switch r.State {
@@ -84,7 +84,7 @@ type IdentityQuotaCache struct {
 	ttlMs float64
 }
 
-// NewIdentityQuotaCache：now 为 nil = Date.now；ttlMs <= 0 不会出现在 Node（默认 QUOTA_TTL_MS），此处 0 = 默认。
+// NewIdentityQuotaCache：now 为 nil = Date.now；ttlMs <= 0 = 默认（QUOTA_TTL_MS）。
 func NewIdentityQuotaCache(now func() float64, ttlMs float64) *IdentityQuotaCache {
 	if now == nil {
 		now = nowMs

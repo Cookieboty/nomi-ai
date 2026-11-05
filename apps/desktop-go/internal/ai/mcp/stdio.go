@@ -13,12 +13,12 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
-// StdioConfig（mcp-stdio-transport.ts）
+// StdioConfig：stdio 传输配置
 type StdioConfig struct {
 	Command string
 	Args    []string
 	Env     [][2]string // nil = undefined
-	Stderr  io.Writer   // nil = 'inherit'（经管道转写到 os.Stderr，D-B5-MCP-2）
+	Stderr  io.Writer   // nil = 'inherit'（经管道转写到 os.Stderr）
 	Cwd     string
 }
 
@@ -208,7 +208,7 @@ func (t *StdioTransport) Send(msg *u.Obj, _ *SendOptions) <-chan error {
 	return resolved(nil)
 }
 
-// eventQueue：按序执行回调的队列（替代 Node 事件循环，避免在 jsrt 锁内调用客户端）。
+// eventQueue：按序执行回调的队列（保证事件循环式的顺序，避免在 jsrt 锁内调用客户端）。
 // 有回调时才起一个 goroutine，排空就退出（同一时刻最多一个，保证顺序）；不常驻，传输关掉后不留 goroutine
 type eventQueue struct {
 	mu      sync.Mutex

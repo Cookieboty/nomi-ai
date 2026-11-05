@@ -15,7 +15,7 @@ static void nomi_cursor(int *x, int *y) {
 	if (p) gdk_device_get_position(p, NULL, x, y);
 }
 
-// 输入形状：形状外的点击穿透到下层窗口（Electron setShape 在 Linux 上的等价物）
+// 输入形状：形状外的点击穿透到下层窗口
 static void nomi_input_shape(void *win, int *r, int n) {
 	GtkWidget *w = GTK_WIDGET(win);
 	cairo_region_t *reg = cairo_region_create();
@@ -27,7 +27,7 @@ static void nomi_input_shape(void *win, int *r, int n) {
 	cairo_region_destroy(reg);
 }
 
-// = BrowserWindow.setIcon（GTK3：gtk_window_set_icon）
+// 设窗口图标（GTK3：gtk_window_set_icon）
 static void nomi_set_icon(void *win, const guchar *buf, gsize n) {
 	GdkPixbufLoader *l = gdk_pixbuf_loader_new();
 	if (gdk_pixbuf_loader_write(l, buf, n, NULL) && gdk_pixbuf_loader_close(l, NULL)) {

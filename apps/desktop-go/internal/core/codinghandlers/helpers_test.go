@@ -1,6 +1,6 @@
 package codinghandlers
 
-// 测试辅助（原在已删除的 parity 测试里）
+// 测试辅助
 
 type nopLogger struct{}
 

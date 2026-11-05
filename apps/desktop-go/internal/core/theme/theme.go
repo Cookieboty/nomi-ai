@@ -1,4 +1,4 @@
-// Package theme 对应 apps/desktop-electron/internal/core/src/theme/ThemeService.ts
+// Package theme：外观主题（ThemeService）
 package theme
 
 import (
@@ -83,7 +83,7 @@ func AppearanceFor(pref string) string {
 	return "light"
 }
 
-// SetAppearanceHook = ports.appearance.setWindowAppearance（宿主注入，mac 上设整个应用的外观）；注入后立即同步一次
+// SetAppearanceHook：宿主注入的外观设置（mac 上设整个应用的外观）；注入后立即同步一次
 func (s *Service) SetAppearanceHook(fn func(mode string)) {
 	s.appearance = fn
 	s.syncAppearance()

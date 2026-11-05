@@ -6,12 +6,12 @@ import (
 	"sync"
 )
 
-// ErrAIUnavailable：AI runtime（批次 4/5）未装配时 complete 的返回
+// ErrAIUnavailable：AI runtime 未装配时 complete 的返回
 var ErrAIUnavailable = errors.New("AI runtime not wired yet")
 
 func UnavailableComplete(context.Context, []Msg) (string, error) { return "", ErrAIUnavailable }
 
-// NoopDesktop：DesktopService 未装配（批次 6）时的空实现——审计 / 通知丢弃，权限一律拒绝。
+// NoopDesktop：DesktopService 未装配时的空实现——审计 / 通知丢弃，权限一律拒绝。
 // 也是测试 fake 的基础：记录审计与通知，Guard 按 Allow 前缀放行。
 type NoopDesktop struct {
 	mu       sync.Mutex

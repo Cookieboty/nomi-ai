@@ -740,7 +740,7 @@ func DshRuntimeProblem(nodeVersion *string) *DshProblem {
 	return &DshProblem{NodeVersion: nodeVersion, Required: DshMinNodeMajor}
 }
 
-// ---- 异步版本：在 jsrt 线程内调用；阻塞部分释放 GIL（= Node 不卡主线程）。
+// ---- 异步版本：在 jsrt 线程内调用；阻塞部分释放 GIL（不卡主线程）。
 
 func offThread[T any](fn func() T) T {
 	p := jsrt.NewPromise[T]()

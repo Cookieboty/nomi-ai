@@ -12,7 +12,7 @@ import (
 	"unicode/utf16"
 )
 
-// office.ts：odt / xlsx / rtf 的轻量文本提取
+// odt / xlsx / rtf 的轻量文本提取
 
 var (
 	reEnt    = regexp.MustCompile(`&(amp|lt|gt|quot|apos);`)
@@ -28,7 +28,7 @@ func fromCodePoint(n float64, _ string) string {
 	return string(rune(int(n)))
 }
 
-// UnescapeXML 对应 unescapeXml
+// UnescapeXML：解 XML 实体
 func UnescapeXML(s string) string {
 	s = reEnt.ReplaceAllStringFunc(s, func(m string) string { return ent[m[1:len(m)-1]] })
 	s = reDecEnt.ReplaceAllStringFunc(s, func(m string) string {
@@ -98,7 +98,7 @@ func jsTrim(s string) string {
 	})
 }
 
-// OdtXMLToText 对应 odtXmlToText
+// OdtXMLToText：odt content.xml → 文本
 func OdtXMLToText(xml string) string {
 	body := reAnnot.ReplaceAllString(xml, "")
 	var out strings.Builder
@@ -176,7 +176,7 @@ func jsIndex(v string) (int, bool) {
 	return int(f), true
 }
 
-// XlsxToText 对应 xlsxToText（order 为 zip 中的条目顺序）
+// XlsxToText：xlsx → 文本（order 为 zip 中的条目顺序）
 func XlsxToText(order []string, files map[string][]byte, maxRows int) string {
 	shared := []string{}
 	if ss, ok := files["xl/sharedStrings.xml"]; ok {
@@ -316,7 +316,7 @@ func parseHexPrefix(s string) int {
 	return n
 }
 
-// RtfToText 对应 rtfToText；rtf 是按 latin1 解码的原始字节
+// RtfToText：rtf → 文本；rtf 是按 latin1 解码的原始字节
 func RtfToText(rtf []byte) string {
 	if !bytes.HasPrefix(rtf, []byte(`{\rtf`)) {
 		panic(parseErr("不是有效的 rtf 文件"))

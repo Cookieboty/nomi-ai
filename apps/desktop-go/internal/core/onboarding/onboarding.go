@@ -1,4 +1,4 @@
-// Package onboarding 对应 apps/desktop-electron/internal/core/src/onboarding/OnboardingService.ts
+// Package onboarding：首次引导（OnboardingService）
 package onboarding
 
 import (

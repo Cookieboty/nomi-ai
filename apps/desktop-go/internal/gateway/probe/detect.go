@@ -1,4 +1,4 @@
-// Package probe = apps/desktop-electron/internal/gateway/src/probe/detect.ts（unified-gateway 协议探测）：
+// Package probe：协议探测（unified-gateway）：
 // 地址规范化 → 拉模型列表（顺带判断鉴权方式）→ 各协议并行发最小请求 → 按 Key 记录结果。
 package probe
 
@@ -114,7 +114,7 @@ func (o *Options) timeout() time.Duration {
 
 func lastSeg(m string) string { p := strings.Split(m, "/"); return p[len(p)-1] }
 
-// foreign：按名字看像别家原生协议的模型，测这个协议时排到最后（同 Node FOREIGN）
+// foreign：按名字看像别家原生协议的模型，测这个协议时排到最后
 var foreign = map[string]*regexp.Regexp{
 	"messages":  regexp.MustCompile(`(?i)gpt|codex|^o[0-9]|gemini`),
 	"responses": regexp.MustCompile(`(?i)claude|opus|sonnet|haiku|fable|gemini`),

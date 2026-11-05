@@ -1,5 +1,5 @@
-// Package models mirrors apps/desktop-electron/internal/gateway/src/models/{types,families,catalog,
-// effective,buildCatalog}.ts and models.ts. Spec data is kept as ordered
+// Package models: model specs, families, the catalog, effective model metadata
+// and catalog building. Spec data is kept as ordered
 // objects (*util.Obj) so merges and serialisation follow the JS key order.
 package models
 

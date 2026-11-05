@@ -7,14 +7,14 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// SecretCipher 对应 secretCipher.ts：'safeStorage' = 系统级加密；'none' = 未加密回退（仅 base64）
+// SecretCipher：'safeStorage' = 系统级加密；'none' = 未加密回退（仅 base64）
 type SecretCipher interface {
 	Kind() string
 	Encrypt(plain string) (string, error)
 	Decrypt(stored string) (string, error)
 }
 
-// SafeStorageLike：Electron safeStorage 的最小接口（Go 宿主由系统钥匙串实现）
+// SafeStorageLike：系统级加密的最小接口（Go 宿主由系统钥匙串实现）
 type SafeStorageLike interface {
 	IsEncryptionAvailable() bool
 	EncryptString(plain string) ([]byte, error)
@@ -99,7 +99,7 @@ func nodeBase64Decode(s string) string {
 		case c == '_':
 			clean = append(clean, '/')
 		case c == '=':
-			i = len(s) // Node 在第一个 '=' 处停止
+			i = len(s) // 在第一个 '=' 处停止
 		}
 	}
 	if len(clean)%4 == 1 {

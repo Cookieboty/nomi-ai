@@ -82,7 +82,7 @@ var dist embed.FS
 
 func main() {
 	hostports.Stage("main-enter")
-	// 文档解析子进程（runParse.ts 的 utilityProcess）：同一可执行文件以 NOMI_PARSE_WORKER=1 拉起
+	// 文档解析子进程：同一可执行文件以 NOMI_PARSE_WORKER=1 拉起
 	if parse.IsWorker() {
 		parse.WorkerMain()
 		return
@@ -109,10 +109,10 @@ func main() {
 	// 低优先级启动任务 cleanup-old-logs（delay 1000）
 	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	hostports.Stage("logger-ready")
-	// = main.ts loadLoginShellPath：读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
+	// 读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
 	// （自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI；稍后再跑，不和启动抢资源）
 	go mergeLoginShellPath()
-	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在桌面角色窗口出来后后台跑（secretGate）
+	// 这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在桌面角色窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated && !res.Skipped { // Skipped：标记已在，res 是上次迁移读回来的结果，不是这次复制的
@@ -233,14 +233,14 @@ func main() {
 		OpenChat: func() { sh.Show(shell.Chat) },
 		AppName:  "Nomi",
 	})
-	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
+	// 桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
 	home, _ := os.UserHomeDir()
 	ports := hostPorts{sh: &sh}
 	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
 		dir, _ := ports.PickDir(title, button, def)
 		return dir
 	}, ClipboardRead: ports.ClipboardRead, ClipboardWrite: ports.ClipboardWrite,
-		// = electronPorts.notifications（系统通知；mac 开发态不在 .app 里时不可用，桌面服务退回岛 / 气泡）
+		// 系统通知（mac 开发态不在 .app 里时不可用，桌面服务退回岛 / 气泡）
 		NotifySupported: func() bool {
 			n, ok := sh.(shellNotifier)
 			return ok && n.NotifySupported()
@@ -255,7 +255,7 @@ func main() {
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
 	// 知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展；Desktop 与桌面工具共用同一个 DesktopService。
-	// createCore complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
+	// complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
 	var chatFacadeRef atomic.Pointer[facade.Chat]
 	complete := func(ctx context.Context, msgs []deps.Msg) (string, error) {
 		chatFacade := chatFacadeRef.Load()
@@ -273,7 +273,7 @@ func main() {
 		}
 		return resp.Content, nil
 	}
-	// D-B8-2：LocalModelService 的 gateway()（createCore: services.gateway ?? null）；网关服务稍后创建，延迟取
+	// LocalModelService 的 gateway()（没有网关服务时为 null）；网关服务稍后创建，延迟取
 	var gatewaySvc *gwstore.Service
 	// aiRuntime 的 listProviders / providerCredentials 走网关；知识库与语音共用
 	aiGateway := func() mediahandlers.GatewayLike {
@@ -319,9 +319,9 @@ func main() {
 		MemoryFacade: aiMemory(&aiFacade),
 		Confirm:      knowledgehandlers.ConfirmAdapter{B: desktopSvc.Broker},
 	})
-	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
+	// 内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
 	providerBox := security.NewSecretBox("providers")
-	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
+	// GatewayStore：userData/gateway/store.json（格式 / 迁移 / 归档见 gwstore）
 	gatewaySvc = gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
 	gatewaySvc.Store.SetPresetDeps(gwstore.FindPresetDeps())
 	gatewaySvc.AttachRuntime(gwstore.RuntimeDeps{
@@ -333,9 +333,9 @@ func main() {
 		// longContextPrice = usage.longContextPrice（UsageService 晚绑定）
 		LongContextPrice: usageLongContextPrice,
 	})
-	// UsageService（createCore new UsageService + start；网关 init 后 autoSync）
+	// UsageService（构造 + start；网关 init 后 autoSync）
 	defer wireUsage(router, userData, desktopSvc, gatewaySvc)()
-	// D-B11-12：2.0.4 密钥迁移屏障。窗口先出（page-loaded mascot），再迁密钥（唯一一次钥匙串授权框），
+	// 2.0.4 密钥迁移屏障。窗口先出（page-loaded mascot），再迁密钥（唯一一次钥匙串授权框），
 	// 之后才 gateway Init（含 EnsurePrivacyKey）+ Start；读密钥的契约过程先等它。被拒 = secretsFailed，当空。
 	secretGate := migrate.StartSecrets(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage(),
 		firstWindowShown(), 10*time.Second, func(r migrate.Result) {
@@ -359,14 +359,14 @@ func main() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
 	}
 	shellhandlers.InstallProviders(router, providerSvc)
-	// ToolRegistry（ig ctx 的 ToolRegistryKey）+ MCP 桥（AiSdkMcpPlugin / McpBridgePlugin）+ ext.attach（desktop/plugin.ts）
+	// ToolRegistry + MCP 桥（AiSdkMcpPlugin / McpBridgePlugin）+ 扩展的 ext.attach
 	toolRegistry := tools.NewInMemory()
 	// 画像落 userData/ai-chat/memory/user_profile.json；引导期 export() 同 createAiSdkBooter。
 	nowMs := func() float64 { return float64(time.Now().UnixMilli()) }
 	userProfile := aifacade.NewProfileStore(aifacade.ProfilePath(userData), nowMs)
 	userProfile.Export()
-	// 非 MCP 的 ig 工具（parity b7s-igtools）：builtin → preference → companion → kb → mem → delegate → ext；
-	// Node 的 MCP 工具在异步 connect 后才注册，排在这些之后
+	// 非 MCP 的 ig 工具：builtin → preference → companion → kb → mem → delegate → ext；
+	// MCP 工具在异步 connect 后才注册，排在这些之后
 	// Nomi 生图（对话的 image_generate 与素材库的「重新生成」共用一套依赖）
 	imgDeps := imageToolDeps(gatewaySvc, filepath.Join(userData, "chat", "images"), chatAssetsLib)
 	chatAssetsLib.SetGenerate(func(req chatassets.GenerateReq) (string, error) {
@@ -395,7 +395,7 @@ func main() {
 		Emit:  airouter.PublishAssistantMessage(router.Emit),
 	})
 	chatFacadeRef.Store(chatFacade)
-	// createCore：desktop.attachRuntime（工具结果接收者 / 摘要补全）+ prepareChat（会话工作区 + 外发检查，D-B5-10）
+	// desktop.attachRuntime（工具结果接收者 / 摘要补全）+ prepareChat（会话工作区 + 外发检查）
 	desktopSvc.AttachRuntime(shellhandlers.DesktopRuntimeHooks(providerSvc, llmRegistry, gatewaySvc,
 		func(ctx context.Context, role string, msgs []blm.ChatMessage) (string, error) {
 			resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done()})
@@ -406,7 +406,7 @@ func main() {
 		}))
 	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
-			// 上下文预算：按路由到的模型的窗口算（gateway/nomiContext.ts），不再用固定的 8K
+			// 上下文预算：按路由到的模型的窗口算（gwstore nomicontext），不再用固定的 8K
 			if gatewaySvc != nil {
 				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
 			}
@@ -423,7 +423,7 @@ func main() {
 		}})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
-	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 过程，parity b7s-aifacade）。
+	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 个过程）。
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
 	aiFacade.Register(router)
@@ -514,7 +514,7 @@ func main() {
 	// 事件源：web / folder / github / app；编程助手的 tab-finished 在 wireHarness 之后接上
 	registerTaskSources(b8)
 	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
-	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
+	// AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()
 	shellhandlers.InstallGateway(router, gatewaySvc)
@@ -548,7 +548,7 @@ func main() {
 	})
 	shellhandlers.InstallProviderLink(router, providerLinks)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
-	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
+	// 语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	mediahandlers.Wire(mediahandlers.WireDeps{
 		Providers:   mediahandlers.GatewayProviders(aiGateway),
 		Credentials: mediahandlers.GatewayCredentials(aiGateway),
@@ -599,7 +599,7 @@ func main() {
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)
 	// 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、或这个模型在云端
-	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认（与 Node createCore 一致）
+	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认
 	desktopSvc.Broker.AIReview = func() bool { return jsrt.Call(harnessOrch.AiReviewEnabled) }
 	desktopSvc.Broker.Reviewer = func(ctx context.Context, in desktop.CommandReviewInput) *desktop.CommandReview {
 		if !desktopSvc.Broker.CanSendQuietly(desktopSvc.ProviderFor("summary")) {
@@ -661,7 +661,7 @@ func main() {
 		v.Set("token", token)
 		return v, revoke
 	}
-	// 窗口生命周期：桌面角色控制器；用户关掉桌面角色窗口 = 退出（WindowManager mainWindow 'close' → requestQuit）；
+	// 窗口生命周期：桌面角色控制器；用户关掉桌面角色窗口 = 退出（requestQuit）；
 	// 用户关掉主界面且「关闭主界面时：退出 Nomi」= 退出（shouldQuitOnMainClose）
 	var quitting atomic.Bool
 	quit := func() {
@@ -686,7 +686,7 @@ func main() {
 	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
 	drops := hostdrop.New()
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
-		// = TrayManager（Application.ts new TrayManager）
+		// 托盘菜单
 		TrayMenu: func() []shell.MenuItem {
 			return tray.Menu(tray.Deps{
 				T: i18n.T, TName: i18n.TName,
@@ -793,10 +793,10 @@ func main() {
 		OnFilesDropped: func(k shell.WindowKind, paths []string) {
 			switch k {
 			case shell.Mascot:
-				// = nomiHostIpc dropFile：只认桌面角色窗口，和 Electron 一样只取第一个文件
+				// 拖到桌面角色：只认桌面角色窗口，只取第一个文件
 				desktopSvc.DropFile("mascot", paths[0])
 			case shell.Chat:
-				// = nomiHost.pathForFile：路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）；
+				// 路径交给对话页按文件名配对（ai-chat services/api.ts 的 nomi:host-files）；
 				// 带上一次性临时地址，网页没收到 DOM drop 时（macOS / Linux）据此读出文件
 				sendHostFiles(sh, drops.Add(paths))
 			}
@@ -864,7 +864,7 @@ func main() {
 		}))
 	}
 
-	// 启动偏好（Application.ts）：桌面角色按 showMascot 显示；关掉桌面角色时保证主界面可达（#55）
+	// 启动偏好：桌面角色按 showMascot 显示；关掉桌面角色时保证主界面可达（#55）
 	showMascot := bundle.Startup.Get().ShowMascot
 	var showMascotMu sync.Mutex
 	bundle.OnStartupChange = append(bundle.OnStartupChange, func(st startup.State) {
@@ -897,7 +897,7 @@ func main() {
 			sh.Show(shell.Chat)
 		}
 	}
-	// 桌面角色窗口的鼠标进出（WindowManager.setupMousePositionTracking）
+	// 桌面角色窗口的鼠标进出（mousetrack）
 	if g, ok := sh.(shell.Geometry); ok {
 		if wc, ok := sh.(shell.WindowControl); ok {
 			go mousetrack.New(mousetrack.Deps{
@@ -948,11 +948,11 @@ func processEnv() map[string]string {
 	return m
 }
 
-// islandPagePath：Electron 用 data: URL 装 islandHtml(g)；Wails 窗口只能加载资产服务器上的页面，
+// islandPagePath：Wails 窗口只能加载资产服务器上的页面，
 // 这里按当前几何现场生成同一份 HTML（页面自带 meta CSP）
 const islandPagePath = "/__island.html"
 
-// viewPageMiddleware：视图页面（与 Electron 同一份构建产物）按 Go 宿主改写 CSP、插入 Wails 运行时（viewpage）
+// viewPageMiddleware：视图页面按 Go 宿主改写 CSP、插入 Wails 运行时（viewpage）
 func viewPageMiddleware(assets fs.FS, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	page := viewpage.Middleware(assets, "/mascot/index.html", "/chat/index.html")
 	return func(h http.Handler) http.Handler { return page(next(h)) }
@@ -1031,7 +1031,7 @@ func (mcpLogger) Info(m string, kv ...any)  { log.Println(append([]any{"[mcp]", 
 func (mcpLogger) Warn(m string, kv ...any)  { log.Println(append([]any{"[mcp] WARN", m}, kv...)...) }
 func (mcpLogger) Error(m string, kv ...any) { log.Println(append([]any{"[mcp] ERROR", m}, kv...)...) }
 
-// 读 / 写密钥（网关 store、供应商 token、语音 key、AI 聊天）的契约过程：2.0.4 密钥迁移完成前先等（D-B11-12）
+// 读 / 写密钥（网关 store、供应商 token、语音 key、AI 聊天）的契约过程：2.0.4 密钥迁移完成前先等
 var secretGatedPrefixes = []string{"gateway.", "providers.", "ai.", "voice.", "tts.", "usage.", "harness.", "cli.", "cliAccount.", "delegate.", "local."}
 
 // firstWindowShown：任一窗口页面加载完（桌面角色被设置隐藏时是主窗口）就关闭
@@ -1048,8 +1048,8 @@ func firstWindowShown() <-chan struct{} {
 	return out
 }
 
-// islandBridge：灵动岛页面（Electron 版逐字移植）收起时设 document.title = 'hidden:…'、点击时设 location.hash =
-// '#open-…'，Electron 靠 page-title-updated / did-navigate-in-page 收到；Wails 没有这两个事件，这里转成消息。
+// islandBridge：灵动岛页面收起时设 document.title = 'hidden:…'、点击时设 location.hash =
+// '#open-…'；Wails 没有页面标题 / 页内导航事件，这里转成消息。
 // 插在 </body> 前，执行时页面自己的脚本已经跑完
 const islandBridge = `<script>(() => {
   const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };

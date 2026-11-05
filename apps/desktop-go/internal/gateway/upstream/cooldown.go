@@ -29,7 +29,7 @@ type KeyStatusEvent struct {
 	Until      *float64
 }
 
-// JSON is the TS object (key order of the literals; error key present even when undefined is dropped by JSON).
+// JSON is the JS object (fixed key order; error key present even when undefined is dropped by JSON).
 func (e KeyStatusEvent) JSON() *u.Obj {
 	o := u.NewObj("providerId", e.ProviderID, "keyId", e.KeyID, "wire", e.Wire, "status", e.Status)
 	if e.Error != nil {
@@ -43,7 +43,7 @@ func (e KeyStatusEvent) JSON() *u.Obj {
 
 var reSeconds = regexp.MustCompile(`^\d+(\.\d+)?$`)
 
-// dateParse is Date.parse (the shared V8 port).
+// dateParse is Date.parse (reminders.DateParse).
 func dateParse(s string) (float64, bool) { return reminders.DateParse(s) }
 
 // ParseRetryAfter is parseRetryAfter (nil = null).

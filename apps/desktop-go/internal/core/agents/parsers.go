@@ -1,7 +1,7 @@
-// Package agents ports apps/desktop-electron/internal/core/src/agents。
+// Package agents：编程助手会话的进度监测（本地会话文件、进程、标签）。
 //
-// parsers.go 1:1 移植 agents/parsers.ts：解析各编程助手本地会话文件，推断会话身份
-// （id / cwd / 标题）与最后状态。字符串字段 "" 即 TS 的 undefined（str() 永不产出空串）。
+// parsers.go：解析各编程助手本地会话文件，推断会话身份
+// （id / cwd / 标题）与最后状态。字符串字段 "" 即 undefined（str() 永不产出空串）。
 package agents
 
 import (
@@ -16,16 +16,16 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// AgentKind mirrors AgentKind。
+// AgentKind：编程助手种类。
 type AgentKind = string
 
-// AgentStatus mirrors AgentStatus。
+// AgentStatus：会话状态。
 type AgentStatus = string
 
-// LastPhase mirrors LastPhase。
+// LastPhase：最后所处的阶段。
 type LastPhase = string
 
-// SessionInfo mirrors SessionInfo（"" = undefined；LastAt nil = undefined）。
+// SessionInfo：从会话文件推断出的信息（"" = undefined；LastAt nil = undefined）。
 type SessionInfo struct {
 	SessionID, ParentID, Cwd, Model, ReasoningEffort, Title string
 	// PermissionMode 可为已定义的空串（codex sandbox_policy: ""），故用指针：nil = undefined。
@@ -50,7 +50,7 @@ func orp(prev *string, vs ...string) *string {
 	return prev
 }
 
-// TypeError mirrors a JS TypeError thrown by property access on null.
+// TypeError: a JS TypeError thrown by property access on null.
 type TypeError struct{ Msg string }
 
 func (e *TypeError) Error() string { return e.Msg }
@@ -58,7 +58,7 @@ func (e *TypeError) Error() string { return e.Msg }
 // Name reports the JS error name.
 func (e *TypeError) Name() string { return "TypeError" }
 
-// JsonlEvents mirrors jsonlEvents。
+// JsonlEvents：逐行解析 JSONL，最多 limit 条。
 func JsonlEvents(text string, limit int) []*util.Obj {
 	text = strings.TrimPrefix(text, "\uFEFF")
 	lines := []string{}
@@ -159,7 +159,7 @@ func ts(v any) *float64 {
 	return nil
 }
 
-// contentText mirrors contentText（数组元素为 null 时 JS 读 .type 抛 TypeError）。
+// contentText：内容的文本（数组元素为 null 时读 .type 抛 TypeError）。
 func contentText(content any) (string, bool) {
 	switch x := content.(type) {
 	case string:
@@ -235,7 +235,7 @@ func claudeMeta(info *SessionInfo, e *util.Obj) {
 	info.PermissionMode = orp(info.PermissionMode, str(e.Get("permissionMode")), str(get(message, "permissionMode")))
 }
 
-// ParseClaudeSession mirrors parseClaudeSession。
+// ParseClaudeSession：解析 Claude Code 会话文件的开头与末尾。
 func ParseClaudeSession(head, tail string) SessionInfo {
 	info := SessionInfo{Phase: "unknown"}
 	for _, e := range JsonlEvents(head, 200) {
@@ -325,7 +325,7 @@ func codexCtx(info *SessionInfo, p *util.Obj, cwdFirst bool) {
 	}
 }
 
-// ParseCodexSession mirrors parseCodexSession。
+// ParseCodexSession：解析 Codex 会话文件的开头与末尾。
 func ParseCodexSession(head, tail string) SessionInfo {
 	info := SessionInfo{Phase: "unknown"}
 	for _, e := range JsonlEvents(head, 200) {
@@ -413,7 +413,7 @@ func ParseCodexSession(head, tail string) SessionInfo {
 	return info
 }
 
-// jsKeys mirrors Object.keys(v) for any truthy value.
+// jsKeys is Object.keys(v) for any truthy value.
 func jsKeys(v any) []string {
 	switch x := v.(type) {
 	case *util.Obj:
@@ -435,7 +435,7 @@ func jsKeys(v any) []string {
 	return nil
 }
 
-// ParseGrokSession mirrors parseGrokSession。
+// ParseGrokSession：解析 Grok 会话文件。
 func ParseGrokSession(text, fallbackSessionID string) SessionInfo {
 	info := SessionInfo{Phase: "unknown", SessionID: fallbackSessionID}
 	for _, e := range JsonlEvents(text, 1000) {
@@ -475,7 +475,7 @@ func ParseGrokSession(text, fallbackSessionID string) SessionInfo {
 	return info
 }
 
-// ParseGeminiSession mirrors parseGeminiSession。
+// ParseGeminiSession：解析 Gemini CLI 会话文件。
 func ParseGeminiSession(raw string) SessionInfo {
 	info := SessionInfo{Phase: "unknown"}
 	j := gemini.FoldChat(raw)
@@ -534,7 +534,7 @@ func ParseGeminiSession(raw string) SessionInfo {
 	return info
 }
 
-// ParseDshSession mirrors parseDshSession。
+// ParseDshSession：解析 dsh 会话文件。
 func ParseDshSession(text, fallbackSessionID string) SessionInfo {
 	info := SessionInfo{Phase: "unknown", SessionID: fallbackSessionID}
 	permissionMode := ""
@@ -596,7 +596,7 @@ func ParseDshSession(text, fallbackSessionID string) SessionInfo {
 	return info
 }
 
-// dshInserted mirrors (data.inserted)?.[0]?.content。
+// dshInserted：(data.inserted)?.[0]?.content。
 func dshInserted(v any) any {
 	switch x := v.(type) {
 	case []any:
@@ -609,7 +609,7 @@ func dshInserted(v any) any {
 	return nil
 }
 
-// StatusInput mirrors StatusInput（Alive nil = undefined）。
+// StatusInput：判定状态的输入（Alive nil = undefined）。
 type StatusInput struct {
 	Phase   LastPhase
 	Alive   *bool
@@ -617,7 +617,7 @@ type StatusInput struct {
 	StallMs float64
 }
 
-// DecideStatus mirrors decideStatus。
+// DecideStatus：由会话信息与进程存活判定状态。
 func DecideStatus(i StatusInput) AgentStatus {
 	phase, ageMs, stallMs := i.Phase, i.AgeMs, i.StallMs
 	if phase == "error" {
@@ -659,13 +659,13 @@ func DecideStatus(i StatusInput) AgentStatus {
 	return "waiting"
 }
 
-// DshProjcache mirrors Omit<SessionInfo,'phase'> from parseDshProjcache（Cwd nil = undefined）。
+// DshProjcache：parseDshProjcache 的结果（不含 phase；Cwd nil = undefined）。
 type DshProjcache struct {
 	Cwd                   *string
 	Title, PermissionMode string
 }
 
-// ParseDshProjcache mirrors parseDshProjcache。
+// ParseDshProjcache：解析 dsh 的 projcache。
 func ParseDshProjcache(raw string) DshProjcache {
 	v, err := util.ParseString(raw)
 	if err != nil {

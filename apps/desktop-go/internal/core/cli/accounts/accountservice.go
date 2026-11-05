@@ -145,7 +145,7 @@ func setProp(a any, k string, v any) {
 		x.Set(k, v)
 		return
 	case []any:
-		return // 不会出现：记录是数组时属性不进 JSON（Node 同样丢弃）
+		return // 不会出现：记录是数组时属性不进 JSON
 	case nil:
 		panic(typeErr("Cannot set properties of null (setting '" + k + "')"))
 	case util.JSUndefined:

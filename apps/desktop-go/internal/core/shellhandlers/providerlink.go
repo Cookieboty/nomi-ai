@@ -1,6 +1,6 @@
 package shellhandlers
 
-// providerLink.* —— apps/desktop-electron/internal/core/src/contract/shell.ts 的 providerLink 部分
+// providerLink.*：契约 shell 域的 providerLink 部分
 // （第三方供应商链接，docs/integrations/provider-link.md）。providerLink.changed 由服务的 Publish 发出。
 
 import (

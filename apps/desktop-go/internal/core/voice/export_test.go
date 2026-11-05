@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// RunExecForTest：按 whisper.go 的方式跑命令，返回无 stderr 时的 Node err.message
+// RunExecForTest：按 whisper.go 的方式跑命令，返回无 stderr 时的错误 message
 func RunExecForTest(file string, args []string, timeout, abort time.Duration) string {
 	parent, pc := context.WithCancel(context.Background())
 	defer pc()

@@ -13,7 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
 )
 
-// newPersona = createCore.startPersona：当前包 → 内置包 → 中性兜底；换包 / 换语言时有变化才发 persona.changed
+// newPersona：当前包 → 内置包 → 中性兜底；换包 / 换语言时有变化才发 persona.changed
 func newPersona(cs *character.Service, router *contract.Router) *persona.Service {
 	act := func(p *character.Pack) *persona.ActivePack {
 		if p == nil {
@@ -36,7 +36,6 @@ func newPersona(cs *character.Service, router *contract.Router) *persona.Service
 	return svc
 }
 
-// chatBgPresetFile = getChatBackgroundPresetFile：打包后在 resources/assets，开发时在 apps/desktop-electron/assets
 // assetsDir：只读资源的 assets 目录（打包后 resources/assets，开发时 apps/desktop-go/assets）；
 // 应用图标从 assets/app-icons/<变体>/ 读
 func assetsDir() string { return filepath.Dir(filepath.Dir(chatBgPresetFile())) }
@@ -66,8 +65,8 @@ func chatBgPresetFile() string {
 	return filepath.Join(filepath.Dir(os.Args[0]), rel)
 }
 
-// newCharacterService：角色包解析抛出的 TypeError（Node createCore 内同步抛出）→ main.ts 的
-// console.error('❌ 应用启动失败:', error) + process.exit(1)
+// newCharacterService：角色包解析抛出的 TypeError → 启动失败：
+// 记 error（'❌ 应用启动失败:'）并 exit(1)
 func newCharacterService(userData, resources, builtin string) (cs *character.Service) {
 	defer func() {
 		if r := recover(); r != nil {

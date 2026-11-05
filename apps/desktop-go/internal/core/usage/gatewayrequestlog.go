@@ -1,6 +1,6 @@
 package usage
 
-// 对应 apps/desktop-electron/internal/core/src/usage/GatewayRequestLog.ts：网关正文追踪目录、过期清理、旧 requests.json 迁移。
+// GatewayRequestLog：网关正文追踪目录、过期清理、旧 requests.json 迁移。
 
 import (
 	"os"
@@ -84,7 +84,7 @@ func (l *GatewayRequestLog) migrateLegacy() {
 	if _, err := os.Stat(file); err != nil {
 		return
 	}
-	// warn 文本 = Node 的 (e as Error).message
+	// warn 文本 = 错误的 message
 	fail := func(msg string) {
 		if l.d.Logger != nil {
 			l.d.Logger.Warn("gateway request log migration failed", map[string]any{"error": msg})

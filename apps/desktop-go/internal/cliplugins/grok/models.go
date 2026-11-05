@@ -24,7 +24,7 @@ func strCo(vs ...any) any {
 	return sh.Undef
 }
 
-// ParseModels mirrors parseGrokModels。
+// ParseModels：从会话结果解析模型列表。
 func ParseModels(sessionResult any) *util.Obj {
 	root := sh.AsObj(sessionResult)
 	rawModels := root.Get("models")

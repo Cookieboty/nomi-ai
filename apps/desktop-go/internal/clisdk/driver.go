@@ -7,7 +7,7 @@ import (
 
 /* ------------------------------ driver.ts ------------------------------ */
 
-// StartResult mirrors StartResult（Obj：sessionId、resumed?、version?、currentModeId?、capabilities）。
+// StartResult：Obj：sessionId、resumed?、version?、currentModeId?、capabilities。
 type StartResult = *util.Obj
 
 // StartOptions = start() 的入参（{cwd, resumeId?, signal?, mcpServers?}）。
@@ -18,7 +18,7 @@ type StartOptions struct {
 	McpServers []any // nil = undefined
 }
 
-// TurnInput mirrors TurnInput。
+// TurnInput：一轮的输入。
 type TurnInput struct {
 	Text   string
 	Blocks []any // nil = undefined
@@ -28,13 +28,13 @@ type TurnInput struct {
 	OnTimeout func()
 }
 
-// TurnResult mirrors TurnResult（Obj：turnId、stopReason、text、sessionId、usage?、error?、cliTurnId?、denied?、raw?）。
+// TurnResult：Obj：turnId、stopReason、text、sessionId、usage?、error?、cliTurnId?、denied?、raw?。
 type TurnResult = *util.Obj
 
-// SessionEvent mirrors SessionEvent（Obj，kind = harness / commands / permission / health）。
+// SessionEvent：Obj，kind = harness / commands / permission / health。
 type SessionEvent = *util.Obj
 
-// SessionDriver mirrors SessionDriver（持 jsrt 锁调用；Promise 方法用 jsrt.Await 等）。
+// SessionDriver：会话驱动（持 jsrt 锁调用；Promise 方法用 jsrt.Await 等）。
 type SessionDriver interface {
 	Start(o StartOptions) *jsrt.Promise[StartResult]
 	On(fn func(SessionEvent)) func()
@@ -62,7 +62,7 @@ type Steerer interface {
 	Steer(text string) *jsrt.Promise[bool]
 }
 
-// EventHub mirrors EventHub（持锁调用）。
+// EventHub：事件分发（持锁调用）。
 type EventHub struct {
 	listeners []*func(SessionEvent)
 	ended     bool
@@ -109,7 +109,7 @@ func (h *EventHub) Emit(e SessionEvent) {
 	}
 }
 
-// End mirrors end()：只结束一次。
+// End：只结束一次。
 func (h *EventHub) End() {
 	if h.ended {
 		return

@@ -1,6 +1,6 @@
 package connections
 
-// 连接服务，对应 src/connections/ConnectionService.ts：存储 userData/connections.json（不含密钥原文），
+// 连接服务（ConnectionService）：存储 userData/connections.json（不含密钥原文），
 // 复用本机 gh 登录或粘贴令牌（经系统加密保存），复核账号与权限，按授权收窄 github.read。
 
 import (

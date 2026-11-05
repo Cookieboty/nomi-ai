@@ -2,7 +2,7 @@ package stream
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/stream/events"
 
-// NamelessToolGuard is NamelessToolGuard (stream/namelessTools.ts): drops tool
+// NamelessToolGuard drops tool
 // calls that never got a tool name, for every upstream wire.
 type NamelessToolGuard struct {
 	dropped map[string]bool

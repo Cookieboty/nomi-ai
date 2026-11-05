@@ -12,7 +12,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ProfileStore：bundle-ig-base ProfileStore + FileProfileStorage
+// ProfileStore：用户画像存储
 // （rootDir/ai-chat/memory/user_profile.json；写入走 tmp + rename）。
 type ProfileStore struct {
 	mu        sync.Mutex
@@ -23,7 +23,7 @@ type ProfileStore struct {
 	listeners []func(any)
 }
 
-// ProfilePath：Node 的持久化位置
+// ProfilePath：用户画像的持久化位置
 func ProfilePath(rootDir string) string {
 	return filepath.Join(rootDir, "ai-chat", "memory", "user_profile.json")
 }

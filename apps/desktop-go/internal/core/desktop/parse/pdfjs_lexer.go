@@ -1,7 +1,7 @@
 package parse
 
 // pdf.js v6.1.200 src/core/parser.js 的 Lexer/Parser 子集：用于内容流与 CMap 流。
-// 数值解析逐字照搬 Lexer.getNumber（累加后再除），保证与 Node 的浮点结果一致。
+// 数值解析逐字照搬 Lexer.getNumber（累加后再除），保证与 pdf.js 的浮点结果一致。
 
 type pdfjsCmd string
 type pdfjsName string
@@ -438,7 +438,7 @@ func (p *pdfjsParser) getObj() any {
 }
 
 // inlineImage：makeInlineImage 的默认（findDefaultInlineStreamEnd）分支的近似：
-// 找到 "EI" + 空白 处结束；不区分 DCT/A85/AHx 过滤器（D-B6-8 残余项）。
+// 找到 "EI" + 空白 处结束；不区分 DCT/A85/AHx 过滤器。
 func (p *pdfjsParser) inlineImage() any {
 	for !isPCmd(p.buf1, "ID") {
 		if _, eof := p.buf1.(pdfjsEOF); eof {

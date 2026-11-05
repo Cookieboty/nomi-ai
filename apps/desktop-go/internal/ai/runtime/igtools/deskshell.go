@@ -152,7 +152,7 @@ loop:
 	return finish(nil)
 }
 
-// spawn ENOENT 文案（Node：spawn <file> ENOENT）
+// spawn ENOENT 文案（spawn <file> ENOENT）
 func spawnErr(err error, file string) error {
 	if errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound) {
 		return errors.New("spawn " + file + " ENOENT")

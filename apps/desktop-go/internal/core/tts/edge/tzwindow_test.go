@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// TestJSDateStringTZWindow：2024–2037 窗口内全部 IANA 区，对 Electron 44.9.3 录制的
+// TestJSDateStringTZWindow：2024–2037 窗口内全部 IANA 区，对 Chromium（V8 + ICU）录下的
 // (偏移, 括号名) 分段逐例比对（每变化点 ±48h 逐小时 + 变化前 1 秒 + 2000 随机时刻）。
-// golden：scripts/parity/record-tz-window.mjs → testdata/tz-window.json。
+// 期望值：testdata/tz-window.json。
 func TestJSDateStringTZWindow(t *testing.T) {
 	b, err := os.ReadFile("testdata/tz-window.json")
 	if err != nil {

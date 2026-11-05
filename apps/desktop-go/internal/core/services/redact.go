@@ -1,6 +1,6 @@
 package services
 
-// utils/redact.ts：按 key 名（大小写不敏感）把敏感字段换成 ***；深度上限 8（[Truncated]）。
+// redact：按 key 名（大小写不敏感）把敏感字段换成 ***；深度上限 8（[Truncated]）。
 // Go 值先按 JSON.stringify 语义序列化成按序对象再遍历（Go 值里没有循环引用）。
 
 import (
@@ -67,7 +67,7 @@ func redactJSON(meta any) string {
 	return util.Stringify(redactWalk(parsed, 0))
 }
 
-// Redact：导出给其它包（utils/redact.ts 的 redact）
+// Redact：导出给其它包
 func Redact(meta any) any {
 	raw := util.Stringify(meta)
 	p, err := util.Parse([]byte(raw))

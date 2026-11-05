@@ -1,12 +1,12 @@
-// Package ports 定义 Orchestrator（feat/2.0.5-go-b7）向独立 core/cli 服务（feat/2.0.5-go-b7s）
-// 要的接口。b7s 实现这些接口；b7 只依赖接口并用 fakes 测试。接线点在 app 层（hostports_wiring.go）。
+// Package ports 定义 Orchestrator（core/cli/harness）向 core/cli 各服务
+// 要的接口。服务侧实现这些接口（core/cli/b7s_ports.go）；Orchestrator 只依赖接口并用 fakes 测试。接线点在 app 层（hostports_wiring.go）。
 //
 // 归属约定：
-//   - b7：Orchestrator、liveTypes、permissionQueue、spawn、promptImages、generatedImages、
+//   - harness：Orchestrator、liveTypes、permissionQueue、spawn、promptImages、generatedImages、
 //     transcriptContext、gitOps、slashDiscovery、workspaceFiles、permissionMode、modelCatalog、
-//     externalPlugins 存储、各 harness 处理器与 mock-CLI 往返 golden。
-//   - b7s：CliUpdate、SessionHistory、Account(+keychain/adapters/homes/identity/login)、Delegate、
-//     CliPluginHost、codexThreadIndex/state_5.sqlite、cli-plugins 余下部分、acpProbe/launch/
+//     externalPlugins 存储、各 harness 处理器与 mock-CLI 往返测试。
+//   - core/cli 及子包：CliUpdate、SessionHistory、Account(+keychain/adapters/homes/identity/login)、Delegate、
+//     CliPluginHost、codexThreadIndex/state_5.sqlite、cliplugins、acpProbe/launch/
 //     external/manifest/models、modelDiscovery、gemini/{acp,trust,trustedFolders}。
 package ports
 
@@ -17,7 +17,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// HarnessTabSource / HarnessBackend 与 Node types.ts 相同的字符串取值。
+// HarnessTabSource / HarnessBackend 的字符串取值。
 type (
 	HarnessTabSource = string
 	BuiltinCliId     = string
@@ -31,7 +31,7 @@ type GatewayDefaults struct {
 	AccountId *string
 }
 
-// GatewayLaunchOpts：LongContext nil = 缺省（Node 不带该键）。
+// GatewayLaunchOpts：LongContext nil = 缺省（不带该键）。
 type GatewayLaunchOpts struct {
 	TabBound    bool
 	LongContext *bool
@@ -56,7 +56,7 @@ type GatewayModel struct {
 	Vision               *bool
 }
 
-// HarnessGateway mirrors liveTypes.HarnessGateway。可选方法用 HasTabAPI 判断（Node 的 `?.`）。
+// HarnessGateway：编排器用的网关端口。可选方法用 HasTabAPI 判断（相当于 `?.`）。
 type HarnessGateway interface {
 	Defaults(kind BuiltinCliId) GatewayDefaults
 	Launch(kind BuiltinCliId, tabId, model string, opts *GatewayLaunchOpts) *GatewayLaunch // nil = null
@@ -79,7 +79,7 @@ type AccountLaunch struct {
 	Sig   string
 }
 
-// HarnessOfficialAccounts mirrors liveTypes.HarnessOfficialAccounts（accountId nil = null/undefined）。
+// HarnessOfficialAccounts：官方账号端口（accountId nil = null/undefined）。
 type HarnessOfficialAccounts interface {
 	Launch(kind AccountBackend, accountId *string) AccountLaunch
 }
@@ -89,7 +89,7 @@ type AccountSessionNoter interface {
 	NoteSession(kind AccountBackend, sessionId string, accountId *string)
 }
 
-// HarnessExternalPlugins mirrors liveTypes.HarnessExternalPlugins（Spec nil = undefined）。
+// HarnessExternalPlugins：外部插件端口（Spec nil = undefined）。
 type HarnessExternalPlugins interface {
 	Spec(id string) *util.Obj
 }
@@ -98,7 +98,7 @@ type ExternalHandshaker interface {
 	Handshake(id string, images, resume bool)
 }
 
-// ---- 模型发现（modelDiscovery.ts，b7s） ----
+// ---- 模型发现 ----
 
 type ModelDiscoveryDeps struct {
 	Spawn     func(backend string, args []string) (clisdk.ChildLike, error)
@@ -110,7 +110,7 @@ type ModelDiscovery interface {
 	DiscoverModels(backend string, deps ModelDiscoveryDeps) *jsrt.Promise[*util.Obj]
 }
 
-// ---- gemini（gemini/{acp,trust,trustedFolders}.ts，b7s） ----
+// ---- gemini（acp / trust / trustedFolders） ----
 
 type GeminiTrustResult struct {
 	Folder   string
@@ -129,7 +129,7 @@ type GeminiTrust interface {
 	TrustGeminiFolder(folder string, home string, env *util.Obj, platform string) (*GeminiTrustResult, error)
 }
 
-// ---- 会话模型 / 历史（SessionHistoryService，b7s）只读回调 ----
+// ---- 会话模型 / 历史（SessionHistoryService）只读回调 ----
 
 // QualitySink = d.quality。
 type QualitySink interface {

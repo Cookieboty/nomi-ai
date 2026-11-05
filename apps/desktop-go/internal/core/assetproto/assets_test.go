@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// character-pack://assets/<packId>/<file>：只能落在远程素材缓存目录里（= Node resolveCharacterAssetUrl）
+// character-pack://assets/<packId>/<file>：只能落在远程素材缓存目录里
 func TestResolveCharacterAssetURL(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "nomi"), 0o755); err != nil {

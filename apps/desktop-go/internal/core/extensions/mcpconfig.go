@@ -1,4 +1,4 @@
-// Package extensions 移植 apps/desktop-electron/internal/core/src/extensions：MCP 服务器配置、技能包、从其它工具迁移与 ExtensionsService。
+// Package extensions：MCP 服务器配置、技能包、从其它工具迁移与 ExtensionsService。
 package extensions
 
 import (
@@ -11,7 +11,7 @@ import (
 	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 )
 
-// T：对应 Node `import { t } from '../i18n'`（模块级）；main.go 启动时 SetTranslator。
+// T：包级翻译函数；main.go 启动时 SetTranslator。
 var T i18n.Translate = i18n.Identity
 
 func SetTranslator(t i18n.Translate) {
@@ -20,7 +20,7 @@ func SetTranslator(t i18n.Translate) {
 	}
 }
 
-// McpServerEntry：字段顺序 = Node sanitizeServer 的字面量顺序 + 后续赋值顺序
+// McpServerEntry：字段顺序固定（sanitizeServer 的字面量顺序 + 后续赋值顺序）
 type McpServerEntry struct {
 	ID        string            `json:"id"`
 	Name      string            `json:"name"`
@@ -59,7 +59,7 @@ func itoa(i int) string { b, _ := json.Marshal(i); return string(b) }
 
 var envKeyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 
-// strMap：保留插入顺序的意义只在 JSON 输出；Go map 按键排序输出（见 D-B8 偏差表）
+// strMap：Go map 按键排序输出 JSON（不保留插入顺序）
 func strMap(v any) map[string]string {
 	m, ok := v.(map[string]any)
 	if !ok {

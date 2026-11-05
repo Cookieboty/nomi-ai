@@ -142,7 +142,7 @@ const (
 	catchUpDelay = 8 * time.Second
 )
 
-// SchedError 对应 Node 的 SchedError(code)；契约层映射为 SCHED_<CODE>
+// SchedError：带 code 的定时任务错误；契约层映射为 SCHED_<CODE>
 type SchedError struct {
 	Code string
 	Msg  string

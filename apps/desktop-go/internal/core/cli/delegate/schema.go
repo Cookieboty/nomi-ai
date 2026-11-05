@@ -6,8 +6,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 工具入参：Node 用 zod（z.object），AI SDK 交给模型的是 asSchema(zod).jsonSchema（draft-07）。
-// Go 侧直接声明同一份 JSON Schema（golden 比对逐字一致），并按同样约束校验（D-B7-S2-1）。
+// 工具入参：AI SDK 交给模型的是 asSchema(zod).jsonSchema（draft-07）。
+// 这里直接声明这份 JSON Schema（测试逐字比对），并按同样约束校验。
 const (
 	delegateInputSchema = `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":4000,"description":"要做成什么，写具体"},"done_when":{"type":"string","minLength":1,"maxLength":2000,"description":"完成标准：怎样算做完（如「npm test 通过」）"},"context":{"description":"已知背景：相关文件、报错、用户原话","type":"string","maxLength":8000},"out_of_scope":{"description":"不要碰的范围","type":"string","maxLength":2000},"kind":{"description":"任务类型：coding 编程开发 / prd 需求文档 / review 代码审查 / research 调研分析","type":"string","enum":["coding","prd","review","research"]},"cli":{"description":"只有用户在消息里点名了某个编程助手时才填（claude / codex / grok / gemini / dsh）","type":"string"},"cwd":{"description":"工作目录（必须是用户已授权的文件夹）；缺省用最近的工作目录","type":"string"},"background":{"description":"默认 true：立刻返回 taskId，完成后通知；false 则同步等结果","type":"boolean"},"profile":{"description":"模型档位 id（default / cheap / local 等）；缺省用设置里的默认档位","type":"string"},"model":{"description":"覆盖模型（第三方「供应商/模型」，官方用 CLI 模型名），优先于 profile","type":"string"},"reasoning_effort":{"description":"思考深度 low / medium / high","type":"string"}},"required":["goal","done_when"],"additionalProperties":false}`
 	nomiInputSchema     = `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":4000,"description":"要做成什么，写具体：用户原话 + 你整理的要求（数量、风格、篇幅、格式）"},"done_when":{"type":"string","minLength":1,"maxLength":2000,"description":"完成标准：怎样算做完（如「6 张图都进了素材库」「PPT 文件写进工作区」）"},"context":{"description":"已知背景：对话里已经定下的内容、素材、用户偏好","type":"string","maxLength":8000},"kind":{"description":"类型（任务看板分组用）：research 调研 / writing 写作与做文档、PPT、图片 / coding 开发 / review 审查 / chore 杂事","type":"string","enum":["research","writing","coding","review","chore"]}},"required":["goal","done_when"],"additionalProperties":false}`

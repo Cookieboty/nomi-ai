@@ -8,11 +8,11 @@ import (
 // 插件事件总线（ig ctx.emit / ctx.on）在门面这一侧的对应：
 //   - AIClient.bindRuntimeBridges：插件事件 → AIClientEvent → AiContractRouter.bindEvents（AI_EVENTS）→ 契约事件；
 //   - ToolsFacade.confirm：ctx.emit('tools/wrap', { reqId, ok, reason })。
-// Node 生产装配里没有插件发 agent/turn-end、agent/stopped-by-user、tool/confirm-required、
+// 目前没有插件发 agent/turn-end、agent/stopped-by-user、tool/confirm-required、
 // tools/post-execute（GuardrailsPlugin 未装配，tools/wrap 也无人监听），agent:step 根本没有桥；
-// Go 侧照搬同一张桥表，谁 Hook 了就按 Node 同样的映射与事件 schema 推出去。
+// 桥表照样保留，谁 Hook 了就按同样的映射与事件 schema 推出去。
 
-// bridges：AIClient.ts bindRuntimeBridges 的映射表（插件事件 → 契约事件）
+// bridges：bindRuntimeBridges 的映射表（插件事件 → 契约事件）
 var bridges = map[string]string{
 	"session/assistant-message": "ai.message.complete",
 	"agent/turn-end":            "ai.agent.turnEnd",

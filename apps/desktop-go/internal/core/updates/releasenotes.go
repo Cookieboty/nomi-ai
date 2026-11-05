@@ -42,7 +42,7 @@ type notesCache struct {
 }
 
 // Notes：按版本号取更新说明——先读 <userData>/release-notes.json，没有再取该版本的 latest-go.json 并缓存。
-// 与 Node 版 services/ReleaseNotes.ts 同一份缓存格式。
+// 缓存格式与旧版相同。
 type Notes struct {
 	Version func() string
 	// UserData：缓存目录；"" = 不缓存

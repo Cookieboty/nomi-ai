@@ -1,6 +1,6 @@
 package tasks
 
-// `mcp` 事件源（docs/features/scheduling-calendar.md），对应 src/tasks/events/sources/mcp.ts：定时调用用户已装的本机 MCP 服务器的
+// `mcp` 事件源（docs/features/scheduling-calendar.md）：定时调用用户已装的本机 MCP 服务器的
 // 一个**只读**工具，把结果里的新条目当事件。邮件、日历、Jira……由用户自己的 MCP 服务器提供，不需要我们逐个写适配器。
 //
 //   - 工具必须在任务授权里（连接 `mcp:<服务器>`，能力 mcp.read，资源里写了这个工具），且标了 readOnlyHint；
@@ -8,7 +8,7 @@ package tasks
 //     不是列表就比整段文字的哈希（有变化 = 一件事）；第一次拉当基线；
 //   - 只接本机 stdio 服务器（远程 MCP 不在 2.1.0 范围）；最短 5 分钟一次。
 //
-// JSON 一律用 util 的保序对象与 util.Stringify（同 JSON.stringify），条目 key / 哈希与 Node 一致。
+// JSON 一律用 util 的保序对象与 util.Stringify（同 JSON.stringify），条目 key / 哈希稳定。
 
 import (
 	"context"

@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ProcessEnv 返回 process.env 的快照（Object.entries 顺序 = environ 顺序；Windows 跳过 `=C:` 这类隐藏变量，同 Node）。
+// ProcessEnv 返回 process.env 的快照（Object.entries 顺序 = environ 顺序；Windows 跳过 `=C:` 这类隐藏变量）。
 func ProcessEnv() *util.Obj {
 	o := util.NewObj()
 	for _, kv := range os.Environ() {

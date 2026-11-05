@@ -1,6 +1,6 @@
 package usage
 
-// claudesubscription.go = apps/desktop-electron/internal/core/src/usage/claudeSubscription.ts
+// claudesubscription.go：Claude Code 订阅额度的兜底读取
 //
 // Claude Code 额度兜底：用户点「刷新」且状态栏快照缺失 / 过期时，运行官方
 // `claude -p /usage --output-format json`，由 Claude Code 自己用自己的登录态去取，Nomi 不接触任何凭据。
@@ -33,7 +33,7 @@ type ClaudeUsageParse struct {
 }
 
 // ParseClaudeUsageResultFn = claudeUsageParser.parseClaudeUsageResult。claudeUsageParser 由 UsageService 侧
-// 移植（同包另一文件）并在 init 里接上；未接上时等同解析抛错（= spawn-failed）。
+// 实现（同包另一文件）并在 init 里接上；未接上时等同解析抛错（= spawn-failed）。
 var ParseClaudeUsageResultFn func(stdout string, now float64) ClaudeUsageParse
 
 // DefaultClaudeBin / DefaultCodexBin：由 core/cli 在 init 时接上（= resolveCliBinAsync('claude'/'codex')）。

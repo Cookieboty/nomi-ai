@@ -1,6 +1,6 @@
 package usage
 
-// authmode.go = apps/desktop-electron/internal/core/src/usage/authMode.ts（不读取任何凭据内容；只看官方登录状态命令的结论与配置里「是否配了」）。
+// authmode.go：登录方式判定（不读取任何凭据内容；只看官方登录状态命令的结论与配置里「是否配了」）。
 
 import (
 	"os"
@@ -327,7 +327,7 @@ func HasGrokLocalPresence(home string, env *util.Obj) bool {
 	return ExistsSync(filepath.Join(dir, "config.toml")) || ExistsSync(filepath.Join(dir, "sessions"))
 }
 
-// AuthInfo：登录方式 + 非敏感身份信息。FP nil = null；Plan nil = 无（恢复出来的 plan: "" 原样保留，同 Node）。
+// AuthInfo：登录方式 + 非敏感身份信息。FP nil = null；Plan nil = 无（恢复出来的 plan: "" 原样保留）。
 type AuthInfo struct {
 	Mode      string
 	FP        *string
@@ -504,7 +504,7 @@ func (a *AuthModeDetector) DetectFull(id string) *jsrt.Promise[AuthInfo] {
 	if p, ok := a.inflight[id]; ok {
 		return p
 	}
-	// Node：p = probe(id).then(写缓存 / setKnown).finally(删 inflight)；inflight.set 同步发生，
+	// p = probe(id).then(写缓存 / setKnown).finally(删 inflight)；inflight.set 同步发生，
 	// then 回调在微任务里跑（结算前 detectPassive 看不到缓存），probe 拒绝时 finally 照样删 inflight。
 	probeP := jsrt.Async(func() (AuthInfo, error) { return a.probe(id), nil })
 	p := jsrt.Async(func() (AuthInfo, error) {

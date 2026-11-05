@@ -1,7 +1,6 @@
 package providers
 
 // ProviderService 的 test / testDraft / fetchModels / fetchModelsDraft
-// —— 对应 apps/desktop-electron/internal/ai-runtime/src/providers/ProviderService.ts 同名方法。
 
 import (
 	"context"

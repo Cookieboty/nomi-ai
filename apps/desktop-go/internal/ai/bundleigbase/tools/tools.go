@@ -1,8 +1,7 @@
-// Package tools：@nomi-ai/bundle-ig-base 的 ToolDefinition / ToolExecContext / ToolRegistry
-// （types/common.ts + seams/tools.ts + ToolsBuiltinPlugin.InMemoryToolRegistry）。
+// Package tools：工具定义 ToolDefinition / ToolExecContext 与工具注册表 ToolRegistry。
 //
-// 这是工具循环消费工具的唯一接口：内置工具、桌面工具、MCP 桥（feat/2.0.5-go-mcp）
-// 都向同一个 Registry Register / Unregister，与 Node 的 AiSdkMcpService 写 ctx.tools 一致。
+// 这是工具循环消费工具的唯一接口：内置工具、桌面工具、MCP 桥
+// 都向同一个 Registry Register / Unregister。
 package tools
 
 import (
@@ -12,7 +11,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ToolCallProvider：types/common.ts ToolCallProvider（实际接收工具结果的 provider）
+// ToolCallProvider：实际接收工具结果的 provider
 type ToolCallProvider struct {
 	ID      string
 	BaseURL string
@@ -30,7 +29,7 @@ type ExecContext struct {
 	UserText string
 }
 
-// Definition：ToolDefinition。Input 是 JSON Schema（Node 侧 MCP 工具用 jsonSchema(inputSchema)；
+// Definition：ToolDefinition。Input 是 JSON Schema（MCP 工具用服务端给的 inputSchema；
 // zod 工具在 Go 侧以等价 JSON Schema 声明）。nil = { type: 'object', additionalProperties: true }。
 type Definition struct {
 	Name        string
@@ -39,7 +38,7 @@ type Definition struct {
 	NoDescription bool
 	Input         *u.Obj
 	Dangerous     bool
-	// DangerousUnset：dangerous 为 undefined（Node 内置 / 桌面 / kb / memory 工具不声明；
+	// DangerousUnset：dangerous 未声明（内置 / 桌面 / kb / memory 工具不声明；
 	// ai.tools.list 的 ToolSpec 里省略该键，MCP / 扩展工具照常发 bool）
 	DangerousUnset    bool
 	ReadOnly          bool
@@ -77,7 +76,7 @@ func IsRelevant(d Definition, t Turn) (ok bool) {
 	return d.Relevant(t)
 }
 
-// Registry：seams/tools.ts ToolRegistry
+// Registry：工具注册表
 type Registry interface {
 	Register(def Definition)
 	Get(name string) (Definition, bool)

@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 常量与 apps/desktop-electron/src/island/geometry.ts 一致
+// 灵动岛的几何常量
 const (
 	IslandPadY       = 11
 	IslandRowMin     = 36
@@ -37,7 +37,7 @@ var (
 	ShadowMargin = Margin{X: 14, Bottom: 18}
 )
 
-// Geometry = IslandGeometry（字段顺序与 Node 对象一致，便于逐字比对 JSON）
+// Geometry：灵动岛几何（字段顺序固定，便于逐字比对 JSON）
 type Geometry struct {
 	Mode          string  `json:"mode"`
 	X             float64 `json:"x"`
@@ -107,7 +107,7 @@ func IslandGeometry(platform string, d Display, pref string) Geometry {
 	return g
 }
 
-// IslandHTML = islandHtml(g)：生成的逐字模板（islandpage_tpl.go）替换数值哨兵
+// IslandHTML：灵动岛页面（生成的逐字模板 islandpage_tpl.go 替换数值哨兵）
 func IslandHTML(g Geometry) string {
 	n := util.FormatNumber
 	return strings.NewReplacer(

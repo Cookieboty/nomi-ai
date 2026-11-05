@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// 对应 platformSandbox.ts：Python 路径的平台隔离（macOS sandbox-exec / Linux bwrap / Windows 无 FS jail）。
+// Python 路径的平台隔离（macOS sandbox-exec / Linux bwrap / Windows 无 FS jail）。
 
 // Isolation 是 PlatformSandboxIsolation。
 type Isolation = string

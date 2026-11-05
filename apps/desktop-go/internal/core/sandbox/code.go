@@ -68,7 +68,7 @@ type RunOpts struct {
 	Stdin     string
 }
 
-// Options 是构造参数。NodeBin 为空时取 PATH 上的 node（Go 宿主无内嵌 Node，见 D-B7-S2-5）；
+// Options 是构造参数。NodeBin 为空时取 PATH 上的 node（Go 宿主不内嵌 Node）；
 // RunAsNode 为 nil 视为 true（注入 ELECTRON_RUN_AS_NODE=1）。
 type Options struct {
 	NodeBin   string
@@ -229,7 +229,7 @@ func (s *CodeSandbox) Run(ctx context.Context, lang, code string, opts RunOpts) 
 	for _, e := range env {
 		cmd.Env = append(cmd.Env, e.Key+"="+e.Value)
 	}
-	// 同 Node spawn：Windows 上 libuv 补齐 HOMEDRIVE/USERNAME 等必需变量
+	// 同 libuv spawn：Windows 上补齐 HOMEDRIVE/USERNAME 等必需变量
 	cmd.Env = nodeproc.LibuvEnv(cmd.Env)
 	hideWindow(cmd)
 	cmd.Stdout = chunkWriter{&mu, stdout}
@@ -239,7 +239,7 @@ func (s *CodeSandbox) Run(ctx context.Context, lang, code string, opts RunOpts) 
 		perr = cmd.Start()
 	}
 	if perr != nil {
-		// spawn 失败：Node 先发 error（stderr 追加消息），close 码为负 errno
+		// spawn 失败：stderr 追加错误消息，退出码为负 errno
 		res.Stderr = stderr.String() + spawnErrorMessage(cmdName, perr)
 		res.ExitCode = spawnErrorCode(perr)
 		res.Ms = time.Since(t0).Milliseconds()

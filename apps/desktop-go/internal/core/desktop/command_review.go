@@ -1,6 +1,6 @@
 package desktop
 
-// command_review.go = core/src/desktop/commandReview.ts：Nomi 要跑的命令（workspace_run）先交给辅助模型
+// command_review.go：Nomi 要跑的命令（workspace_run）先交给辅助模型
 // 判一次风险，低风险直接放行，拿不准 / 高风险的交给人确认（卡片带风险等级与理由）。
 // 风险分级与授权打分参考 Codex guardian；Nomi 不替用户拒绝，结论只有「放行」与「交给人」。
 

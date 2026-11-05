@@ -15,7 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 )
 
-// packaging/update-manifest.py 产出的 latest-go.json 必须能被 GitHubUpdater 解析（D-B11-3）。
+// packaging/update-manifest.py 产出的 latest-go.json 必须能被 GitHubUpdater 解析。
 func TestUpdateManifestScriptParses(t *testing.T) {
 	py, err := exec.LookPath("python3")
 	if err != nil {

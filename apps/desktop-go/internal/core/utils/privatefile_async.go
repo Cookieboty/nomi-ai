@@ -21,7 +21,7 @@ var (
 )
 
 // WritePrivateFileAtomicAsync = writePrivateFileAtomicAsync：各次写入用各自的临时文件
-// `${file}.${pid}.${seq}.tmp`，失败时删掉临时文件再拒绝（message 与 Node fs 一致）。
+// `${file}.${pid}.${seq}.tmp`，失败时删掉临时文件再拒绝（message 为 Node 风格 fs 错误）。
 func WritePrivateFileAtomicAsync(file string, data []byte) *jsrt.Promise[struct{}] {
 	p := jsrt.NewPromise[struct{}]()
 	writeMu.Lock()
@@ -97,7 +97,7 @@ func renameRetry(from, to string) error {
 	}
 }
 
-// WritePrivateFileAtomicNode = writePrivateFileAtomic 原样：`${file}.tmp`，不建目录，错误 message 同 Node fs。
+// WritePrivateFileAtomicNode：`${file}.tmp`，不建目录，错误 message 为 Node 风格 fs 错误。
 func WritePrivateFileAtomicNode(file string, data []byte) error {
 	tmp := file + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
@@ -110,7 +110,7 @@ func WritePrivateFileAtomicNode(file string, data []byte) error {
 	return nil
 }
 
-// rename：非 Windows 直接 rename(2)（os.Rename 对目标是目录先报 EEXIST；Node 是内核的 EISDIR 等）。
+// rename：非 Windows 直接 rename(2)（os.Rename 对目标是目录先报 EEXIST；内核报 EISDIR 等）。
 func rename(from, to string) error {
 	if runtime.GOOS == "windows" {
 		return os.Rename(from, to)

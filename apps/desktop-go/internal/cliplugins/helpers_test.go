@@ -1,6 +1,6 @@
 package cliplugins_test
 
-// 测试辅助（原在已删除的 parity 测试里）
+// 测试辅助
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"

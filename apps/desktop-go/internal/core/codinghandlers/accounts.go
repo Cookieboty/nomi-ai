@@ -37,7 +37,7 @@ type AccountServices struct {
 	Login    func() AccountLogin
 }
 
-// accountCodes = coding.ts 的 ACCOUNT_CODES（AccountError.code → 契约错误码）
+// accountCodes：AccountError.code → 契约错误码
 var accountCodes = map[string]string{
 	"not-found":    "ACCOUNT_NOT_FOUND",
 	"in-use":       "ACCOUNT_IN_USE",
@@ -70,7 +70,7 @@ func awaitAccount[T any](p *jsrt.Promise[T]) T {
 	return v
 }
 
-// accountKind = parseAccountKind（未知种类按普通异常抛出，与 Node 相同）
+// accountKind：解析账号种类（未知种类按普通异常抛出）
 func accountKind(v any) string {
 	k, err := accounts.ParseAccountKind(v)
 	if err != nil {
@@ -83,7 +83,7 @@ func accountKind(v any) string {
 	return k
 }
 
-// RegisterAccounts 挂上 cliAccount.*（= coding.ts 的 cliAccount 段）
+// RegisterAccounts 挂上 cliAccount.*
 func RegisterAccounts(r *contract.Router, s AccountServices) {
 	acc := func() Accounts { return need(s.Accounts, "accounts") }
 	login := func() AccountLogin { return need(s.Login, "accountLogin") }

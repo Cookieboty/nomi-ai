@@ -80,7 +80,7 @@ func assertNoTmp(t *testing.T, dir string) {
 	}
 }
 
-// Windows 上替换时目标被短暂占用（ACCESS_DENIED）：退避重试直到成功；非瞬时错误直接返回（同 Node renameWithRetry）
+// Windows 上替换时目标被短暂占用（ACCESS_DENIED）：退避重试直到成功；非瞬时错误直接返回
 func TestRenameWithRetry(t *testing.T) {
 	origRename, origWin := renameFile, isWindows
 	t.Cleanup(func() { renameFile, isWindows = origRename, origWin })

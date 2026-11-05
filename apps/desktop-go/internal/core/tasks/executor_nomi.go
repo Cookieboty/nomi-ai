@@ -1,6 +1,6 @@
 package tasks
 
-// nomi 执行者，对应 src/tasks/executors/nomi.ts：无界面跑一轮 Nomi 的 agent 循环（docs/features/scheduling-calendar.md）。
+// nomi 执行者：无界面跑一轮 Nomi 的 agent 循环（docs/features/scheduling-calendar.md）。
 // 每次执行一个 goroutine；工具审批经 broker 的后台模式（WithBackground 挂在 ctx 上），需要人时阻塞在通道上
 // 等 Resume 送来的回答。预算暂停会取消这一轮，批准继续后带着进展重开。
 //
@@ -22,7 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 )
 
-// ToolClassTools：工具类 → Nomi 工具名（与 nomi.ts 的 TOOL_CLASS_TOOLS 相同）
+// ToolClassTools：工具类 → Nomi 工具名
 var ToolClassTools = map[string][]string{
 	"read": {"fs_list", "fs_stat", "fs_read_text", "fs_search", "fs_summarize", "kb_search", "memory_search",
 		"skill_load", "skill_read_file", "time_now", "list_user_preferences", "get_user_preferences", "reminder_list"},

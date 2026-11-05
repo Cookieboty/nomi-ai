@@ -9,10 +9,10 @@ import (
 
 // 与 migrations.ts 逐项对应（纯函数，不改入参）。
 
-// isPlainObj = migrations.ts isObject（非 null、非数组的对象）。
+// isPlainObj = isObject（非 null、非数组的对象）。
 func isPlainObj(v any) bool { return isObject(v) }
 
-// strOf = migrations.ts str()：非空白字符串取 trim 后的值。
+// strOf：非空白字符串取 trim 后的值。
 func strOf(v any) (string, bool) {
 	s, ok := v.(string)
 	if !ok {

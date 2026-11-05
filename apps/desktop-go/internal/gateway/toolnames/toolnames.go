@@ -1,4 +1,4 @@
-// Package toolnames mirrors apps/desktop-electron/internal/gateway/src/toolNames.ts.
+// Package toolnames: tool name mapping between wires.
 package toolnames
 
 import (

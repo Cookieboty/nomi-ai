@@ -155,7 +155,7 @@ func mapCaller(c *util.Obj) any {
 }
 
 // convertInput is convertToOpenAIResponsesInput (hasConversation=false, no
-// provider tools; parallel result groups: D-B5-P-7).
+// provider tools; parallel result groups are not supported).
 func convertInput(a inputArgs) ([]any, []llm.Warning, error) {
 	input := []any{}
 	var warnings []llm.Warning

@@ -25,7 +25,7 @@ type historyLog struct{}
 
 func (historyLog) Warn(m string, d ...any) { log.Println(append([]any{"[history] WARN", m}, d...)...) }
 
-// delegateHarness：delegate.Harness ← HarnessOrchestrator。DelegateService 跑在自己的 goroutine 上（D-B7-S2-2），
+// delegateHarness：delegate.Harness ← HarnessOrchestrator。DelegateService 跑在自己的 goroutine 上，
 // 每次进编排器都拿 GIL；SendTab 的 Promise 在锁外等。
 type delegateHarness struct{ o *harness.Orchestrator }
 
@@ -129,11 +129,11 @@ var _ delegate.Gateway = delegateGateway{}
 var _ delegate.Desktop = delegateDesktop{}
 var _ delegate.Harness = delegateHarness{}
 
-// wireCoding 对齐 createCore.ts 的 CliUpdateService / DelegateService / SessionHistoryService 构造
-// 与 coding.ts 的 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
+// wireCoding：构造 CliUpdateService / DelegateService / SessionHistoryService，
+// 注册 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
-// 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，Node 侧可选）；
-// history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
+// 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，可选）；
+// history.delete 的 trash 用 internal/shell/trash。
 func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
@@ -243,7 +243,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	codinghandlers.RegisterCoding(router, svc)
 }
 
-// rethrow：账号服务的 JS 异常原样抛回（Node 侧依赖直接抛出）
+// rethrow：账号服务的 JS 异常原样抛回
 func rethrow(err error) any {
 	if t, ok := err.(jsrt.JSThrow); ok {
 		return t

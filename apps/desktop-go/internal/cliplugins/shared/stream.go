@@ -1,4 +1,4 @@
-// Package shared mirrors apps/desktop-electron/internal/cli-plugins/src/shared: helpers every CLI's
+// Package shared: helpers every CLI's
 // stream / transcript parser shares.
 package shared
 
@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Clip limits (shared/stream.ts).
+// Clip limits.
 const (
 	MaxInputStr = 2000
 	MaxOutput   = 6000
@@ -25,7 +25,7 @@ var (
 	reB64          = regexp.MustCompile(`(?i)^[a-z0-9+/=\r\n]+$`)
 )
 
-// ImageRefs mirrors imageRefs.
+// ImageRefs collects image references found in value.
 func ImageRefs(value any, out []string, depth int, allowHTTPS bool) []string {
 	if depth > 6 || value == nil {
 		return out
@@ -95,7 +95,7 @@ func ImageRefs(value any, out []string, depth int, allowHTTPS bool) []string {
 	return out
 }
 
-// ImageMarkdown mirrors imageMarkdown.
+// ImageMarkdown renders the image references in value as Markdown.
 func ImageMarkdown(value any, allowHTTPS bool) string {
 	refs := ImageRefs(value, nil, 0, allowHTTPS)
 	seen := map[string]bool{}
@@ -110,7 +110,7 @@ func ImageMarkdown(value any, allowHTTPS bool) string {
 	return strings.Join(parts, "\n\n")
 }
 
-// TextWithImage mirrors textWithImage.
+// TextWithImage appends image to text.
 func TextWithImage(text, image string) string {
 	if image == "" {
 		return text
@@ -121,7 +121,7 @@ func TextWithImage(text, image string) string {
 	return image
 }
 
-// BlockText mirrors blockText.
+// BlockText extracts the text of a content block.
 func BlockText(value any, depth int) string {
 	if depth > 6 || value == nil {
 		return ""
@@ -151,7 +151,7 @@ func BlockText(value any, depth int) string {
 	return ""
 }
 
-// ImageEvent mirrors imageEvent.
+// ImageEvent turns an image value into events.
 func ImageEvent(value any, allowHTTPS, assumeBase64 bool) []Ev {
 	candidate := value
 	if s, ok := value.(string); ok && assumeBase64 && !reDataImage.MatchString(util.JSIText(s)) && !reHTTPS.MatchString(util.JSIText(s)) {
@@ -164,7 +164,7 @@ func ImageEvent(value any, allowHTTPS, assumeBase64 bool) []Ev {
 	return nil
 }
 
-// Clip mirrors clip.
+// Clip truncates s to n characters.
 func Clip(s string, n int) string {
 	if l := Len(s); l > n {
 		return Slice0(s, n) + "\n… (+" + util.FormatNumber(float64(l-n)) + ")"
@@ -172,7 +172,7 @@ func Clip(s string, n int) string {
 	return s
 }
 
-// ClipDeep mirrors clipDeep.
+// ClipDeep clips every string inside v.
 func ClipDeep(v any, depth int) any {
 	if s, ok := v.(string); ok {
 		return Clip(s, MaxInputStr)
@@ -204,7 +204,7 @@ func ClipDeep(v any, depth int) any {
 	return v
 }
 
-// InputText mirrors inputText (nil = undefined).
+// InputText is the text form of a tool input (nil = undefined).
 func InputText(v any) *string {
 	switch x := v.(type) {
 	case nil:
@@ -228,7 +228,7 @@ func InputText(v any) *string {
 	return &s
 }
 
-// OutputText mirrors outputText.
+// OutputText is the text form of a tool output.
 func OutputText(v any) *string {
 	var s string
 	switch x := v.(type) {
@@ -267,7 +267,7 @@ func OutputText(v any) *string {
 	return &r
 }
 
-// Num mirrors num: a finite non-negative number or undefined.
+// Num: a finite non-negative number or undefined.
 func Num(v any) *float64 {
 	if f, ok := v.(float64); ok && !math.IsNaN(f) && !math.IsInf(f, 0) && f >= 0 {
 		return &f
@@ -275,7 +275,7 @@ func Num(v any) *float64 {
 	return nil
 }
 
-// ParseUsage mirrors parseUsage (nil = undefined).
+// ParseUsage builds a usage event (nil = undefined).
 func ParseUsage(usage any, costUsd, durationMs any) Ev {
 	u := util.AsObj(usage)
 	pick := func(keys ...string) *float64 {
@@ -300,7 +300,7 @@ func ParseUsage(usage any, costUsd, durationMs any) Ev {
 	return out
 }
 
-// AcpMetaContext mirrors acpMetaContext.
+// AcpMetaContext reads context usage from ACP _meta.
 func AcpMetaContext(meta any) Ev {
 	m := util.AsObj(meta)
 	in := Num(m.Get("inputTokens"))
@@ -315,13 +315,13 @@ func AcpMetaContext(meta any) Ev {
 	return O()
 }
 
-// AgentEndStatus mirrors AGENT_END_STATUS.
+// AgentEndStatus maps end reasons to statuses.
 var AgentEndStatus = map[string]string{
 	"completed": "completed", "failed": "failed", "error": "failed", "errored": "failed",
 	"stopped": "stopped", "killed": "stopped", "cancelled": "stopped", "shutdown": "stopped", "closed": "stopped",
 }
 
-// AgentUsage mirrors agentUsage.
+// AgentUsage builds a usage event from an agent usage object.
 func AgentUsage(u any) Ev {
 	o, ok := u.(*util.Obj)
 	if !ok {

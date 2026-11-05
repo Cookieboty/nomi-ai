@@ -17,7 +17,7 @@ import (
 )
 
 // #197：harness.gitCommit 经 Router → 处理函数 → Orchestrator.GitCommitIn → cli.GitCommit 的完整边界。
-// 界面在有已暂存内容时传 paths:null，只提交暂存区（同 TS gitCommit 的 paths != null）。
+// 界面在有已暂存内容时传 paths:null，只提交暂存区。
 func TestHarnessGitCommitPaths(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git missing")

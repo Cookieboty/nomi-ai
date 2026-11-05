@@ -1,6 +1,6 @@
 package codinghandlers
 
-// coding.ts 中 agents.* 一节：AgentProgressService（进度监视）。
+// agents.*：AgentProgressService（进度监视）。
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"

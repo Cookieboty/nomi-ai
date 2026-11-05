@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// getEnvironment（mcp-stdio/get-environment.ts）：custom env + 少量白名单继承变量。
+// getEnvironment：custom env + 少量白名单继承变量。
 // 返回有序 [key, value]（JS 对象插入顺序）。
 func getEnvironment(custom [][2]string, isWindows bool, lookup func(string) (string, bool)) [][2]string {
 	var defaults []string

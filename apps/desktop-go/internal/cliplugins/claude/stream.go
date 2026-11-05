@@ -1,4 +1,4 @@
-// Package claude mirrors apps/desktop-electron/internal/cli-plugins/src/claude.
+// Package claude：Claude Code 插件（清单、网关条目、流式输出与会话记录解析）。
 package claude
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// StreamState mirrors ClaudeStreamState.
+// StreamState：流式解析的跨行状态。
 type StreamState struct {
 	TextSeen    bool
 	LastContext *float64
@@ -74,7 +74,7 @@ func parentID(j *util.Obj) *string { return OptStr(j.Get("parent_tool_use_id")) 
 
 var reToolSep = regexp.MustCompile(`[_\s-]`)
 
-// ParseLine mirrors parseClaudeLine.
+// ParseLine：解析一行 stream-json 输出。
 func ParseLine(line string, state *StreamState) []Ev {
 	trimmed := JSTrim(line)
 	out := []Ev{}
@@ -295,7 +295,7 @@ func (l *lru) del(k string) {
 
 var reAgentTool = regexp.MustCompile(`(?i)^(agent|task)$`)
 
-// NewParser mirrors createClaudeParser.
+// NewParser：带状态的逐行解析器。
 func NewParser() func(line string) []Ev {
 	names := newLRU()
 	parents := newLRU()

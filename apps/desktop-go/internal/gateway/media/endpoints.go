@@ -18,7 +18,7 @@ type Rule struct {
 	Base string
 }
 
-// Rules = IMAGE_ENDPOINT_RULES（顺序与 Node 一致：带供应商限定的在前，OpenAI Images 兜底）
+// Rules：IMAGE_ENDPOINT_RULES（顺序：带供应商限定的在前，OpenAI Images 兜底）
 var Rules = []Rule{
 	{Adapter: "openrouter-chat-image", Host: regexp.MustCompile(`(?i)(^|\.)openrouter\.ai$`), Presets: []string{"openrouter"}},
 	{Adapter: "gemini", Model: regexp.MustCompile(`(?i)^gemini.*image`), Wire: "gemini",

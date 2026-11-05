@@ -1,8 +1,8 @@
 package server
 
-// gateway.go is server.ts: the GatewayServer (HTTP entry, identify, proxy main
+// gateway.go: the GatewayServer (HTTP entry, identify, proxy main
 // flow with candidates / learning / cooldowns / affinity / privacy / trace,
-// attempt, respond, count_tokens). Layering and names follow server.ts 1:1.
+// attempt, respond, count_tokens).
 
 import (
 	"bytes"
@@ -83,8 +83,8 @@ func failedStatus(a *attemptT) int {
 	return a.status
 }
 
-// GatewayHooks is GatewayHooks. Usage events are the JS UsageEvent objects
-// (ordered keys, same shape as onUsage receives in Node).
+// GatewayHooks are the host callbacks. Usage events are the JS UsageEvent objects
+// (ordered keys).
 type GatewayHooks struct {
 	OnUsage func(e *u.Obj)
 	// OnRetry：提交点之前的重连 / 换供应商（只通知，不影响流程）= hooks.onRetry
@@ -109,7 +109,7 @@ func tokenEquals(a, b string) bool {
 }
 
 // ---------------------------------------------------------------------------
-// response writer: the subset of http.ServerResponse server.ts uses
+// response writer: the subset of http.ServerResponse behaviour the server relies on
 
 type gwRes struct {
 	mu          sync.Mutex
@@ -147,7 +147,7 @@ func (r *gwRes) writeHeadLocked(status int, kv []string) {
 
 // nodeHead adds what Node's http.ServerResponse puts on the wire by itself and
 // stops net/http from adding what Node would not. Node always sends Date (sendDate
-// defaults to true, server.ts does not turn it off), so Go's Date stays. When the
+// defaults to true and the gateway keeps it), so Go's Date stays. When the
 // handler set no Connection header and the request keeps the socket alive, Node
 // sends `Connection: keep-alive` plus `Keep-Alive: timeout=5`; for a closing
 // request net/http writes `Connection: close` the same way Node does. Node never

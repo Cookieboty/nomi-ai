@@ -25,13 +25,13 @@ import (
 // DefaultGatewayPort = DEFAULT_GATEWAY_PORT
 const DefaultGatewayPort = 18721
 
-// Logger 同 Node 的 { info, warn }
+// Logger：{ info, warn }
 type Logger interface {
 	Info(msg string, d any)
 	Warn(msg string, d any)
 }
 
-// 可替换的时钟 / 随机源（golden 测试固定它们，对应录制脚本里替换 Date.now / randomUUID / randomBytes）
+// 可替换的时钟 / 随机源（测试固定它们）
 var (
 	Now        = func() float64 { return float64(time.Now().UnixMilli()) }
 	RandomUUID = func() string {
@@ -94,9 +94,9 @@ func ProviderSlug(name string) string {
 	return s
 }
 
-// Store = GatewayStore（数据保持为有序 JSON 对象，落盘与 JSON.stringify(data, null, 2) 逐字节一致）
+// Store = GatewayStore（数据保持为有序 JSON 对象，落盘即 JSON.stringify(data, null, 2) 的格式）
 //
-// 并发（#195）：Node 单线程，读与写天然不交错；Go 里 IPC 每请求一个 goroutine。data 是写端的活数据，
+// 并发（#195）：IPC 每请求一个 goroutine。data 是写端的活数据，
 // 只能在 Service 的写锁（rt.mu）内读写；锁外的读一律走 View()：它读 Publish() 发布的不可变深拷贝
 // （写锁释放前发布，copy-on-write + atomic.Pointer），同一次读取看到的是同一个版本，不会与写端并发读写 map。
 type Store struct {
@@ -196,7 +196,7 @@ func (s *Store) Snapshot() *u.Obj { return deepClone(s.data).(*u.Obj) }
 // Replace = replace(data)（写锁内；锁外的读者在 Publish 后才看到）
 func (s *Store) Replace(d *u.Obj) { s.data = d }
 
-// Reload：重新读盘（D-B11-12：2.0.4 密钥迁移改写 store.json 之后、Init 之前；写锁内）
+// Reload：重新读盘（2.0.4 密钥迁移改写 store.json 之后、Init 之前；写锁内）
 func (s *Store) Reload() { s.data = s.load() }
 
 func deepClone(v any) any {
@@ -224,14 +224,14 @@ func deepClone(v any) any {
 func (s *Store) Encrypt(plain string) (enc, encryption string) {
 	e, err := s.cipher.Encrypt(plain)
 	if err != nil {
-		// Node 的 safeStorage.encryptString 抛错会冒泡；Go 钥匙串运行中失效时退回明文 base64（同 'none'）
+		// 钥匙串运行中失效时退回明文 base64（同 'none'）
 		e, _ = providers.PlaintextCipher.Encrypt(plain)
 		return e, "none"
 	}
 	return e, s.cipher.Kind()
 }
 
-// Decrypt = decrypt(enc, encryption)：读不出 → ok=false（Node 的 null）
+// Decrypt = decrypt(enc, encryption)：读不出 → ok=false
 func (s *Store) Decrypt(enc, encryption any) (string, bool) {
 	es, ok := enc.(string)
 	if !ok {
@@ -346,7 +346,7 @@ func (s *Store) PrivacyKey() string {
 	return s.eph.v
 }
 
-// Port = port()
+// Port：网关端口
 func (s *Store) Port() float64 {
 	p, _ := s.data.Get("port").(float64)
 	return p

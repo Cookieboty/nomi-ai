@@ -44,7 +44,7 @@ type Status struct {
 	successFirst bool
 }
 
-// Obj：JSON 形状，键序同 Node 的对象展开
+// Obj：JSON 形状，键序固定
 func (s Status) Obj() *util.Obj {
 	o := util.NewObj("consecutiveFailures", s.ConsecutiveFailures)
 	add := func(k string, v *int64) {

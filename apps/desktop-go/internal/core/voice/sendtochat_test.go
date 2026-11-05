@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// D-B9-8：sendToChat 在页面加载中时等 did-finish-load，再 setTimeout(500)；已加载完则立即投递
+// sendToChat 在页面加载中时等 did-finish-load，再 setTimeout(500)；已加载完则立即投递
 func TestSendToChatWaitsForPageLoad(t *testing.T) {
 	var mu sync.Mutex
 	var got []time.Time

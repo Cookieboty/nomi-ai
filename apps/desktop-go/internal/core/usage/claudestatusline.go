@@ -1,6 +1,6 @@
 package usage
 
-// 对应 claudeStatusline.ts：Claude Code 订阅额度——官方 statusline 输入里的 `rate_limits`（five_hour / seven_day）。
+// Claude Code 订阅额度——官方 statusline 输入里的 `rate_limits`（five_hour / seven_day）。
 //
 // 做法（用户在面板里主动开启，可随时关闭恢复原配置）：
 //  1. 在 userData/usage 下生成一个很小的 sh 脚本：把 stdin 的 JSON 落成本地快照文件（0600），
@@ -305,7 +305,7 @@ func writePrivateNode(file, data string) error {
 	return nil
 }
 
-// EnableHook：写脚本、备份并改写 settings.json 的 statusLine。出问题返回 Error（同 Node 抛错），且不会改动 settings.json。
+// EnableHook：写脚本、备份并改写 settings.json 的 statusLine。出问题返回 Error，且不会改动 settings.json。
 func EnableHook(d HookDeps) (HookStatus, error) {
 	home := d.home()
 	st := HookStatusOf(d)

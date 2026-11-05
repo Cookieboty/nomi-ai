@@ -1,6 +1,6 @@
 package providers
 
-// router.go：ProviderRouter.ts —— TrackedProvider（多 key fallback + 记账）与 RoutedLLMRegistry（角色路由）。
+// router.go：TrackedProvider（多 key fallback + 记账）与 RoutedLLMRegistry（角色路由）。
 
 import (
 	"context"
@@ -412,7 +412,7 @@ func (t *TrackedProvider) runStream(ctx context.Context, req *blm.ChatRequest, e
 	return nil
 }
 
-// routerNow：Date.now（golden 测试钉住）
+// routerNow：Date.now（测试钉住）
 var routerNow = time.Now
 
 // ProviderFactory：(opts) => LLMProvider（可 panic/返回错误 = 构造抛错）
@@ -694,7 +694,7 @@ func (r *RoutedLLMRegistry) gatewayProvider(g *GatewayResolution) (blm.LLMProvid
 	return tp, nil
 }
 
-// ResolveProvider：resolve(role)；nil = undefined。网关 provider 构造抛错时 panic 同 Node 抛出
+// ResolveProvider：resolve(role)；nil = undefined。网关 provider 构造抛错时 panic
 func (r *RoutedLLMRegistry) ResolveProvider(role string) *ResolvedProvider {
 	if role == "" {
 		role = "chat"

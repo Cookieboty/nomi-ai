@@ -2,13 +2,13 @@ package harness
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 
-// 各后端长驻会话的分工约定（b7 / b7o 拆分）：
-//   orchestrator_claude.go  Node Orchestrator.ts 2913–3290 + 3701–3801 + 4016–4064（b7o）
-//   orchestrator_acp.go     3291–3700（b7o）
-//   orchestrator_codex.go   4065–4462（b7o）
-//   orchestrator_exec.go    4463–4683 dsh / grok / spawnCollect（b7o）
-// sendTab / cancelTab / dispose / 回收（b7）只经下列方法签名调用；
-// 所有 run* 返回 *jsrt.Promise[*util.Obj]（HarnessSendResult），rejection = Node 的 reject/throw。
+// 各后端长驻会话的分工：
+//   orchestrator_claude.go    Claude Code
+//   orchestrator_acp.go       Gemini / Grok / 外部插件（ACP）
+//   orchestrator_codex.go     Codex
+//   orchestrator_dsh_grok.go  dsh / grok / spawnCollect
+// sendTab / cancelTab / dispose / 回收只经下列方法签名调用；
+// 所有 run* 返回 *jsrt.Promise[*util.Obj]（HarnessSendResult），rejection = reject/throw。
 
 // liveState：各后端长驻会话表（Map<tabId, …>，插入序见 *Order）。
 type liveState struct {
@@ -19,7 +19,7 @@ type liveState struct {
 	claudeOrder, acpOrder, codexOrder []string
 	// claudeStarting = claudeStarting（第三方标签登记绑定后才拉起的进程）
 	claudeStarting map[string]*jsrt.Promise[*claudeLiveSession]
-	// codexAppUnavailable / grokAcpUnavailable = Node 同名私有字段
+	// codexAppUnavailable / grokAcpUnavailable：app-server / ACP 不可用，退回每轮一个进程
 	codexAppUnavailable, grokAcpUnavailable bool
 }
 

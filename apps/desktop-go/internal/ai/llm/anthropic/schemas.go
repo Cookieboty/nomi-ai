@@ -5,10 +5,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Transcriptions of anthropic-api.ts zod schemas (anthropicResponseSchema,
+// Response schemas of the Anthropic API (anthropicResponseSchema,
 // anthropicChunkSchema, anthropicErrorDataSchema). Server-tool / mcp / web
 // result blocks are accepted structurally (type + tool_use_id) but not
-// mapped (D-B5-P-A-1).
+// mapped (not supported).
 
 func fl(k string, s llm.Schema) llm.F { return llm.F{Key: k, S: s} }
 
@@ -69,7 +69,7 @@ var contextManagementSchema = obj(fl("applied_edits", llm.Arr(llm.Union(
 ))))
 
 // serverBlock accepts the server-tool / mcp / result block families by type
-// (their inner shapes are not validated; D-B5-P-A-1).
+// (their inner shapes are not validated; they are not supported).
 func serverBlock() llm.Schema {
 	return loose(fl("type", llm.Enum("server_tool_use", "mcp_tool_use", "mcp_tool_result", "web_fetch_tool_result",
 		"web_search_tool_result", "code_execution_tool_result", "bash_code_execution_tool_result",

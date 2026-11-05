@@ -14,7 +14,7 @@ var (
 	suspectConstructorRx = regexp.MustCompile(`"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:`)
 )
 
-// JSONParseError（@ai-sdk/provider）；cause 的 V8 文案不可复刻（D-B5-MCP-3）
+// JSONParseError（@ai-sdk/provider）；cause 不复刻 V8 的解析错误文案
 type JSONParseError struct {
 	Text  string
 	Cause error
@@ -90,5 +90,5 @@ func ParseJSONRPCMessage(text string) (Message, error) {
 	return ValidateJSONRPCMessage(v)
 }
 
-// 消息分类（mcp-client.ts onmessage 的 'method' in / 'result' in / 'error' in 判断）
+// 消息分类（按 'method' in / 'result' in / 'error' in 判断）
 func hasKey(m Message, k string) bool { return m != nil && m.Has(k) }

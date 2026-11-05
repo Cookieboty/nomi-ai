@@ -1,5 +1,5 @@
-// Package security 对应 apps/desktop-electron/internal/core/src/security（secretStorage）。
-// 字节级机密走 go-keyring（OS 钥匙串）；磁盘上的 `enc:` 前缀、失败关闭、旧明文兼容与 Node 一致。
+// Package security：密钥存储（secretStorage）、出站守卫与旧版 Electron safeStorage 的解密。
+// 字节级机密走 go-keyring（OS 钥匙串）；磁盘上的 `enc:` 前缀、失败关闭、旧明文兼容。
 package security
 
 import (
@@ -20,18 +20,18 @@ type SecretBoxUnavailableError struct{ Msg string }
 
 func (e *SecretBoxUnavailableError) Error() string { return e.Msg }
 
-// SecretBox 对齐 Node createSecretBox 的返回值
+// SecretBox：加解密的密钥盒
 type SecretBox interface {
 	CanEncrypt() bool
 	Encrypt(value, unavailableMessage string) (string, error)
 	Decrypt(value string) string
 }
 
-// keyringBox 对齐 Electron safeStorage 的落盘形态：钥匙串里只存一把主密钥（同 Electron 的
+// keyringBox 的落盘形态同 safeStorage：钥匙串里只存一把主密钥（相当于
 // "<App> Safe Storage" 口令），每个值加密后整体写进 `enc:<base64 密文>`，磁盘值自带全部信息，
 // 不依赖任何计数器或 id 表——跨启动、多实例、多账户都不会互相覆盖。
 //
-// 密文：`g10` + 12 字节随机 nonce + AES-256-GCM(值)。和 Node 一样，同一明文每次加密结果不同。
+// 密文：`g10` + 12 字节随机 nonce + AES-256-GCM(值)。同一明文每次加密结果不同。
 // 旧格式（2.0.5 预览里的 `enc:base64("<account>:<n>")` 钥匙串引用）仍可解密。
 type keyringBox struct {
 	service string
@@ -46,7 +46,7 @@ const (
 )
 
 // NewSecretBox：account 只用于识别调用方（gateway / voice / extensions / migrate …），
-// 所有 box 共用同一把主密钥，和 Electron 全进程共用一个 safeStorage 一样。
+// 所有 box 共用同一把主密钥（全进程共用一个 safeStorage）。
 func NewSecretBox(account string) SecretBox {
 	return &keyringBox{service: keyringService, account: account}
 }
@@ -128,7 +128,7 @@ func (b *keyringBox) open(raw []byte) (string, bool) {
 	return string(pt), true
 }
 
-// CanEncrypt：同 Node，做一次真实加密探测
+// CanEncrypt：做一次真实加密探测
 func (b *keyringBox) CanEncrypt() bool {
 	_, err := b.seal("nomi-probe")
 	return err == nil

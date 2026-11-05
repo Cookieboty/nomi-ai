@@ -149,7 +149,7 @@ func TestIntegrationAnthropicFactoryWiring(t *testing.T) {
 			if got := ct.n.Load(); got != 2 {
 				t.Fatalf("网关 client 应承载全部 2 个请求，实际 %d", got)
 			}
-			// generateText 的调用级 user-agent 覆盖配置值（与 Node 一致，见 model.go callOptions），只有流式请求带配置的 UA
+			// generateText 的调用级 user-agent 覆盖配置值（见 model.go callOptions），只有流式请求带配置的 UA
 			wantUA := []string{"ai/", "nomi-test ai-sdk-anthropic/"}
 			for i, r := range seen {
 				if r.uri != tc.wantURI || r.header.Get("x-api-key") != "sk-ant" || r.header.Get("anthropic-version") != "2023-06-01" ||

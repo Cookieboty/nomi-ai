@@ -49,7 +49,7 @@ func walkSync(root string) ([]string, error) {
 	return out, nil
 }
 
-// DecodeUTF8 = TextDecoder('utf-8')（不剥 BOM，Node readFileSync 'utf8' 的行为）：
+// DecodeUTF8 = TextDecoder('utf-8')（不剥 BOM，同 readFileSync 'utf8'）：
 // 非法序列按 WHATWG「最大子部分」各替换为一个 U+FFFD。
 func DecodeUTF8(b []byte) string {
 	if utf8.Valid(b) {
@@ -189,7 +189,7 @@ func ValidatePackDirSync(dir string, opts ValidateOptions) ValidateResult {
 	return ValidatePack(src, opts)
 }
 
-// LoadPackResult = packResolve.ts LoadPackResult。
+// LoadPackResult：loadPackAt 的结果。
 type LoadPackResult struct {
 	OK         bool
 	Pack       *Obj
@@ -197,8 +197,8 @@ type LoadPackResult struct {
 	Reason     string
 }
 
-// LoadPackAt = packResolve.ts loadPackAt。
-// validatePack 在 Node 会抛出的 TypeError（clips 含 null）以 panic(JSThrow) 原样向上冒，与 Node 一致：
+// LoadPackAt：读包目录并校验。
+// validatePack 抛出的 TypeError（clips 含 null）以 panic(JSThrow) 原样向上冒：
 // 启动时（resolveCharacterPack）导致启动失败；getBuiltin 经人设源的 try/catch 变成源错误。
 func LoadPackAt(root string, lenient bool) (r LoadPackResult) {
 	res := ValidatePackDirSync(root, ValidateOptions{Lenient: lenient})

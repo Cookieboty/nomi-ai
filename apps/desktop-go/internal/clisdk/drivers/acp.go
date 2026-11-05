@@ -14,12 +14,12 @@ import (
 
 const AcpPromptIdleMs = 10 * 60_000
 
-// xaiSessionNotify mirrors XAI_SESSION_NOTIFY：Grok 的会话扩展通知（x.ai/session_notification 带 auto-compact）。
+// xaiSessionNotify：Grok 的会话扩展通知（x.ai/session_notification 带 auto-compact）。
 var xaiSessionNotify = regexp.MustCompile(`^_?x\.ai/session(?:_notification|/update)$`)
 
 var _ = time.Millisecond
 
-// AcpDriverOptions mirrors AcpDriverOptions。
+// AcpDriverOptions：ACP 驱动选项。
 type AcpDriverOptions struct {
 	Child              clisdk.ChildLike
 	PermissionIDPrefix *string
@@ -92,7 +92,7 @@ func parseCommands(raw any) []any {
 	return out
 }
 
-// AcpDriver mirrors AcpDriver。构造需持 jsrt 锁。
+// AcpDriver：ACP 会话驱动。构造需持 jsrt 锁。
 type AcpDriver struct {
 	Conn              *rpc.Connection
 	o                 AcpDriverOptions
@@ -294,7 +294,7 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 					sid = &s
 				} else if util.Truthy(v) {
 					s := util.JSString(v)
-					sid = &s // 非字符串真值：Node 原样存入（此处转字符串，见 D-B7 注）
+					sid = &s // 非字符串真值：转成字符串存入
 				}
 			}
 			modeNow = getp(getp(r, "modes"), "currentModeId")
@@ -404,7 +404,7 @@ func (d *AcpDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 	}, input, false)
 }
 
-// Compact mirrors compact：手动压缩上下文（扩展方法，如 Grok 的 `_x.ai/compact_conversation`，参数 {sessionId}）。
+// Compact：手动压缩上下文（扩展方法，如 Grok 的 `_x.ai/compact_conversation`，参数 {sessionId}）。
 // 按一轮处理：期间的更新带这一轮的 id；自己补上「压缩中 / 清状态」，CLI 另发不发 auto_compact_* 都一样。
 // 方法不存在等 RPC 错误照常 reject（*rpc.RpcError），由调用方决定退回什么。
 func (d *AcpDriver) Compact(method string, input TurnInput) *jsrt.Promise[TurnResult] {
@@ -479,7 +479,7 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 	})
 }
 
-// Steer mirrors steer：有扩展方法、有进行中的轮次和会话时发 {sessionId, text}；CLI 报错 = false。
+// Steer：有扩展方法、有进行中的轮次和会话时发 {sessionId, text}；CLI 报错 = false。
 func (d *AcpDriver) Steer(text string) *jsrt.Promise[bool] {
 	method := d.o.SteerMethod
 	if method == "" || d.turn == nil || d.sid == nil || *d.sid == "" {

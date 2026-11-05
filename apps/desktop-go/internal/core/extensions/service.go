@@ -22,7 +22,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ───────── 批次 4/5 依赖：薄接口 ─────────
+// ───────── 依赖：薄接口 ─────────
 
 // McpServerInfo：McpService.listServers() 的条目
 type McpServerInfo struct {
@@ -38,7 +38,7 @@ type McpConnectConfig struct {
 	Env, Headers                      map[string]string
 }
 
-// McpRuntime：@nomi-ai/bundle-ig-base 的 McpService（main.go 经 Attach 接 mcpbridge）
+// McpRuntime：MCP 服务（main.go 经 Attach 接 mcpbridge）
 type McpRuntime interface {
 	ListServers() []McpServerInfo
 	Connect(ctx context.Context, cfg McpConnectConfig) error
@@ -77,7 +77,7 @@ type BackgroundBroker interface {
 	BackgroundExternal(ctx context.Context) connections.ExternalJournal
 }
 
-// ConfirmBroker：PermissionBroker 的 permissionMode / authorize（同 Node desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
+// ConfirmBroker：PermissionBroker 的 permissionMode / authorize（desktop.broker）；不注入时需要确认的 MCP 工具一律拒绝
 type ConfirmBroker interface {
 	PermissionMode() string
 	Authorize(ctx context.Context, r AuthorizeReq) string

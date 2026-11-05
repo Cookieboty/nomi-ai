@@ -8,7 +8,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// EffortOrder is ORDER in rectifiers.ts.
+// EffortOrder is the effort ladder used by the rectifiers.
 var EffortOrder = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
 
 var (
@@ -69,7 +69,7 @@ const Context1mBeta = "context-1m-2025-08-07"
 
 var betaWords = regexp.MustCompile(`(?i)anthropic-beta|context-1m|\bbetas?\b`)
 
-// RectifierFor is rectifierFor (nil = null). Case folding of `/i`: see D23.
+// RectifierFor picks the rectifier for an upstream error (nil = null). `/i` folds ASCII only.
 func RectifierFor(status int, text string, sent any) *Rectify {
 	return RectifierForBeta(status, text, sent, false)
 }

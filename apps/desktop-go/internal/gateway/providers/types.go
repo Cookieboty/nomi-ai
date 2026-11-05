@@ -1,4 +1,4 @@
-// Package providers mirrors apps/desktop-electron/internal/gateway/src/providers/*.
+// Package providers: upstream provider specs.
 package providers
 
 import (

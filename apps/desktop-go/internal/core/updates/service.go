@@ -1,5 +1,5 @@
-// Package updates = apps/desktop-electron/internal/core/src/services/UpdateService.ts：检查 / 下载状态、重试、卡住检测、自动检查开关。
-// 真正的更新器（= electron-updater 的 autoUpdater）由组合根注入（Updater）；Go 版的实现见 github.go（latest-go.json）。
+// Package updates：检查 / 下载状态、重试、卡住检测、自动检查开关。
+// 真正的更新器由组合根注入（Updater），实现见 github.go（latest-go.json）。
 package updates
 
 import (
@@ -16,7 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 )
 
-// Opt 是 TS 里「可缺省、可为 null」的字符串字段（releaseName / releaseNotes）
+// Opt 是「可缺省、可为 null」的字符串字段（releaseName / releaseNotes）
 type Opt struct {
 	Set bool
 	V   *string
@@ -84,7 +84,7 @@ func num(p *float64) any {
 	return *p
 }
 
-// UpdateInfo / ProgressInfo = electron-updater 的同名结构里用到的字段
+// UpdateInfo / ProgressInfo：更新信息与下载进度（字段沿用 electron-updater 的命名）
 type UpdateInfo struct {
 	Version      string
 	ReleaseName  Opt
@@ -120,7 +120,7 @@ type Updater interface {
 	QuitAndInstall(isSilent, isForceRunAfter bool) error
 }
 
-// CodedError：带 code 的错误（= electron-updater 的 newError(msg, code)）
+// CodedError：带 code 的错误
 type CodedError struct{ Code, Msg string }
 
 func (e *CodedError) Error() string { return e.Msg }

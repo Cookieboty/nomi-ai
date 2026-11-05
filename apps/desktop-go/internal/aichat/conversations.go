@@ -1,4 +1,4 @@
-// Package aichat 对应渲染侧 conversationStore + FileSessionStorePlugin 的落盘。
+// Package aichat：渲染侧对话会话（conversationStore）的落盘。
 // 渲染侧的会话仍在视图自己的 localStorage 里；首启从 Electron 的 Chromium localStorage 抽出的
 // ai-chat:* 键落在 userData/ai-chat/，由契约 migration.chatHistory 交给视图导入（#181）。
 package aichat

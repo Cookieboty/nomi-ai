@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-// 打包后的只读资源目录（= Electron process.resourcesPath）。安装包布局见 packaging/README.md：
+// 打包后的只读资源目录。安装包布局见 packaging/README.md：
 //
 //	mac:     Nomi.app/Contents/Resources/{characters/nomi,assets}
 //	win:     <安装目录>/resources/{characters/nomi,assets}

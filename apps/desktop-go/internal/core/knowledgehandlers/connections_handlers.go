@@ -1,6 +1,6 @@
 package knowledgehandlers
 
-// connections.*：应用与账号，对应 src/contract/knowledge.ts 的 connections 段（docs/features/scheduling-calendar.md）。
+// connections.*：应用与账号（docs/features/scheduling-calendar.md）。
 
 import (
 	"context"

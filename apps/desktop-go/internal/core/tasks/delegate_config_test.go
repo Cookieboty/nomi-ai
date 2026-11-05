@@ -1,6 +1,6 @@
 package tasks
 
-// 2.1.0：配置变了停下来问用户（machine.test.ts / runtime.test.ts）、委派派出的任务、重要程度与类型（service.test.ts）
+// 2.1.0：配置变了停下来问用户、委派派出的任务、重要程度与类型
 
 import (
 	"encoding/json"

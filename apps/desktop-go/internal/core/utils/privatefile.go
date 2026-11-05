@@ -1,4 +1,4 @@
-// Package utils 对应 apps/desktop-electron/internal/core/src/utils（privateFile / coalescedWriter）。
+// Package utils：私有文件（privateFile）与合并写入（coalescedWriter）。
 package utils
 
 import (
@@ -16,7 +16,7 @@ import (
 // WritePrivateFileAtomic：写临时文件再 rename，权限 0600（对齐 writePrivateFileAtomic）。
 // 临时文件名每次唯一（同进程并发保存同一路径也不会写进同一个临时文件），任何失败都删掉它。
 // 同一路径多次保存的先后顺序由调用方保证（如 ConfigService 的 saveMu）。
-// Windows 上不做 icacls（偏差 D12：Go 版跳过逐文件 ACL，依赖目录权限；userData 本身已是用户目录）。
+// Windows 上不做 icacls（跳过逐文件 ACL，依赖目录权限；userData 本身已是用户目录）。
 func WritePrivateFileAtomic(path string, data []byte) (err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
@@ -44,7 +44,7 @@ func WritePrivateFileAtomic(path string, data []byte) (err error) {
 	return renameWithRetry(tmp, path)
 }
 
-// rename 的重试参数与 Node 版相同（privateFile.ts renameWithRetry）
+// rename 的重试参数（renameWithRetry）
 const renameRetryBudget = 2 * time.Second
 
 var (
@@ -126,7 +126,7 @@ func (w *CoalescedWriter) WhenIdle() {
 	}
 }
 
-// WritePrivateFile = utils/privateFile.writePrivateFile（POSIX 0600；Windows ACL 见偏差 D12）
+// WritePrivateFile：写私有文件（POSIX 0600；Windows 不设逐文件 ACL）
 func WritePrivateFile(file, data string) error {
 	if err := os.WriteFile(file, []byte(data), 0o600); err != nil {
 		return err

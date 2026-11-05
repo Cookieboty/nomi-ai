@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// 与 apps/desktop-electron/tests/unit/core/TrayManager.test.ts 的 gatewayMenuEntries 用例相同
+// gatewayMenuEntries 的用例
 func viewOf(t *testing.T, raw string) View {
 	t.Helper()
 	var v any

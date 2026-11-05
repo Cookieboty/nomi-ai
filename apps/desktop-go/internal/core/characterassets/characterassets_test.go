@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// 与 Node 版 tests/unit/character/CharacterAssets.test.ts 同样的场景
+// 远程素材的下载、缓存与失败场景
 
 type fakeRemote struct {
 	mu      sync.Mutex

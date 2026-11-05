@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// SecretsPort = host-ports SecretsPort 的 available / decrypt 子集（batch 4/5 宿主端口：Electron safeStorage）。
+// SecretsPort：宿主密钥端口的 available / decrypt 子集（系统级加密）。
 type SecretsPort interface {
 	Available() bool
 	Decrypt(b []byte) (string, error)

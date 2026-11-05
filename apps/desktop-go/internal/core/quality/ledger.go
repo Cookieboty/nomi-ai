@@ -49,7 +49,7 @@ type LedgerDeps struct {
 	Dir    string
 	Logger Logger
 	Now    func() float64
-	// FlushMs：默认 500；<0 = 每条立即同步写（Node 的 0）
+	// FlushMs：默认 500；<0 = 每条立即同步写
 	FlushMs int
 }
 
@@ -166,7 +166,7 @@ func (l *Ledger) write(batch []chunk) error {
 	return nil
 }
 
-// Flush = flush（Node 异步；这里同步串行写完，失败只 warn）
+// Flush：同步串行写完，失败只 warn
 func (l *Ledger) Flush() {
 	l.mu.Lock()
 	l.stopTimer()

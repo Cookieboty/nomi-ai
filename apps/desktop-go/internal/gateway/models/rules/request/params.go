@@ -18,7 +18,7 @@ type ParamChanges struct {
 	Filled  *u.Obj
 }
 
-// JSON is the changes as the TS object.
+// JSON is the changes as a JS object.
 func (c *ParamChanges) JSON() *u.Obj {
 	d := make([]any, len(c.Dropped))
 	for i, s := range c.Dropped {

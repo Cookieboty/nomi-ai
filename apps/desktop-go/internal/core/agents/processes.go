@@ -1,6 +1,6 @@
 package agents
 
-// processes.go 1:1 移植 agents/processes.ts：跨平台列出本机编程助手进程（只读）。
+// processes.go：跨平台列出本机编程助手进程（只读）。
 
 import (
 	"context"
@@ -14,14 +14,14 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// AgentProc mirrors AgentProc（Cwd "" = undefined）。
+// AgentProc：编程助手进程（Cwd "" = undefined）。
 type AgentProc struct {
 	Pid  float64
 	Kind AgentKind
 	Cwd  string
 }
 
-// RawProc mirrors RawProc。
+// RawProc：进程列表里的一项。
 type RawProc struct {
 	Pid       float64
 	Name, Cmd string
@@ -77,7 +77,7 @@ var rules = []struct {
 	}},
 }
 
-// Classify mirrors classify(procs, selfPid)。
+// Classify：从进程列表里挑出编程助手（排除自身 selfPid）。
 func Classify(procs []RawProc, selfPid float64) []AgentProc {
 	out := []AgentProc{}
 	for _, p := range procs {
@@ -101,7 +101,7 @@ func Classify(procs []RawProc, selfPid float64) []AgentProc {
 // JS `.` 不匹配行终止符；\S = 非 JS 空白。
 var rePsLine = regexp.MustCompile(`^` + ws + `*(\d+)` + ws + `+([^` + ws[1:len(ws)-1] + `]+)` + ws + `*([^\n\r\x{2028}\x{2029}]*)$`)
 
-// ParsePs mirrors parsePs。
+// ParsePs：解析 ps 输出。
 func ParsePs(stdout string) []RawProc {
 	out := []RawProc{}
 	for _, line := range strings.Split(stdout, "\n") {
@@ -130,7 +130,7 @@ func strOr(v any) string {
 	return util.JSString(v)
 }
 
-// ParseWinJson mirrors parseWinJson。
+// ParseWinJson：解析 Windows 进程列表的 JSON 输出。
 func ParseWinJson(stdout string) []RawProc {
 	v, err := util.ParseString(stdout)
 	if err != nil {
@@ -209,7 +209,7 @@ func jsNumber(s string) float64 {
 
 var nanv = func() float64 { z := 0.0; return z / z }()
 
-// ListAgentProcesses mirrors listAgentProcesses（nil = 整体失败/无法判断）。
+// ListAgentProcesses：列出编程助手进程（nil = 整体失败/无法判断）。
 func ListAgentProcesses(platform string) []AgentProc {
 	self := float64(os.Getpid())
 	if platform == "win32" {
@@ -245,7 +245,7 @@ func ListAgentProcesses(platform string) []AgentProc {
 	return found
 }
 
-// ReadLockedInodes mirrors readLockedInodes(Async)（nil = 无法判断）。
+// ReadLockedInodes：被进程锁住的文件 inode（nil = 无法判断）。
 func ReadLockedInodes(platform string) map[float64]bool {
 	if platform != "linux" {
 		return nil
@@ -262,7 +262,7 @@ var (
 	reLockKind = regexp.MustCompile(`FLOCK|POSIX|OFDLCK`)
 )
 
-// ParseProcLocks mirrors parseProcLocks。
+// ParseProcLocks：解析 /proc/locks。
 func ParseProcLocks(raw string) map[float64]bool {
 	out := map[float64]bool{}
 	for _, line := range strings.Split(raw, "\n") {

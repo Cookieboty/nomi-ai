@@ -1,9 +1,9 @@
 package harness
 
-// Orchestrator = apps/desktop-electron/internal/core/src/cli/harness/Orchestrator.ts（HarnessOrchestrator）。
-// 分块移植：本文件是状态、构造、持久化、工作目录与 git / 工作区 / 斜杠命令的转发；
-// 标签管理、各后端会话、权限队列在 orchestrator_*.go。所有方法须在 jsrt 线程上调用（与 Node 单线程一致）。
-// 标签元数据、消息都用 *util.Obj：键序与 Node 对象字面量 / 展开一致，落盘 JSON 逐字节可比。
+// Orchestrator：编程助手标签的编排器（HarnessOrchestrator）。
+// 本文件是状态、构造、持久化、工作目录与 git / 工作区 / 斜杠命令的转发；
+// 标签管理、各后端会话、权限队列在 orchestrator_*.go。所有方法须在 jsrt 线程上调用（单线程语义）。
+// 标签元数据、消息都用 *util.Obj：键序固定，落盘 JSON 逐字节稳定。
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// Logger = Orchestrator.ts Logger。
+// Logger：编排器日志。
 type Logger interface {
 	Info(m string, d any)
 	Warn(m string, d any)
@@ -210,7 +210,7 @@ type Orchestrator struct {
 	activeTabID     string
 	defaultPermMode string
 	autoApprove     bool
-	// aiReviewOff：命令自动审核关掉了（缺省 = 开；只在关掉时落盘 / 出现在状态里，与 Node 一致）
+	// aiReviewOff：命令自动审核关掉了（缺省 = 开；只在关掉时落盘 / 出现在状态里）
 	aiReviewOff bool
 	// nomiAutoApprove：Nomi 工作区文件操作免确认；nil = 跟随 autoApprove（只在单独设过时落盘 / 出现在状态里）
 	nomiAutoApprove *bool
@@ -255,7 +255,7 @@ func (e *emitter) On(ev string, fn func(any)) { e.onOff(ev, fn) }
 // OnOff：订阅并返回取消函数（持续任务的编程助手执行者用）
 func (e *emitter) OnOff(ev string, fn func(any)) func() { return e.onOff(ev, fn) }
 
-// onOff = on，返回对应的 off（Node events.off(同一函数)）。
+// onOff = on，返回对应的 off。
 func (e *emitter) onOff(ev string, fn func(any)) func() {
 	if e.ls == nil {
 		e.ls = map[string][]*func(any){}
@@ -389,7 +389,7 @@ func winKey(p string) string {
 	return r
 }
 
-// KnownDir = knownDir(cwd)：panic(jsrt.JSThrow) 与 Node 的 throw 对应。
+// KnownDir：校验 cwd 是已知目录；不认时 panic(jsrt.JSThrow)。
 func (o *Orchestrator) KnownDir(cwd any) string {
 	s := ""
 	if cwd != nil {
@@ -645,7 +645,7 @@ func (o *Orchestrator) load() {
 			o.restoreOverrides(m, raw)
 			m.Set("longContext", sanitizeLongContext(raw.Get("longContext")))
 		} else if v == nil {
-			// JSON 'null'：属性访问抛 TypeError，被 catch 吞掉（与 Node 相同，什么也不做）
+			// JSON 'null'：属性访问抛 TypeError，被 catch 吞掉（什么也不做）
 		}
 	}
 	if v, ok := readJSONFile(o.tabsPath); ok {

@@ -15,7 +15,7 @@ func nullish(vs ...any) any {
 	return nil
 }
 
-// ParseModels mirrors parseClaudeModels（configEffort: config.effort）。
+// ParseModels：解析模型列表（configEffort: config.effort）。
 func ParseModels(response any, configEffort any) *util.Obj {
 	configured := ""
 	if clisdk.IsReasoningEffort(configEffort) {
@@ -80,7 +80,7 @@ func ParseModels(response any, configEffort any) *util.Obj {
 	return sh.CatalogOut("claude", models, def, response)
 }
 
-// ReadEffortSetting mirrors readClaudeEffortSetting（ok=false = null）。
+// ReadEffortSetting：从 settings.json 读推理强度（ok=false = null）。
 func ReadEffortSetting(json string) (string, bool) {
 	v, err := util.ParseString(json)
 	if err != nil {

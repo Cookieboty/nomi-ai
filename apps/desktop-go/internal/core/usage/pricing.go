@@ -7,7 +7,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 对应 pricing.ts
+// 计价
 
 const PricingTableDate = "2026-10-16"
 
@@ -216,7 +216,7 @@ func CostUsd(r CostInput, pr ModelPrice) float64 {
 	} else {
 		price1h = eff.Input
 	}
-	// 显式 float64() 强制每个乘积先舍入：禁止 arm64 把 a*b+c 融合成 FMA（与 Node 逐位一致）。
+	// 显式 float64() 强制每个乘积先舍入：禁止 arm64 把 a*b+c 融合成 FMA（结果与 IEEE 双精度逐步计算逐位一致）。
 	base := (float64(r.Input*eff.Input) +
 		float64(r.Output*eff.Output) +
 		float64(r.CacheRead*or0(eff.CacheRead, eff.Input)) +

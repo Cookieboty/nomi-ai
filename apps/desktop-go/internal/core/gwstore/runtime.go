@@ -11,13 +11,13 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// PresetDeps = GatewayStore 的 presetQuirks / presetModels（nil = 未注入，同 Node 可选依赖）
+// PresetDeps：GatewayStore 的 presetQuirks / presetModels（nil = 未注入，可选依赖）
 type PresetDeps struct {
 	Quirks func(presetID any) *u.Obj
 	Models func(presetID any) []any
 }
 
-// FindPresetDeps：createCore 的接法 findPreset(id)?.quirks / findPreset(id)?.modelMeta
+// FindPresetDeps：findPreset(id)?.quirks / findPreset(id)?.modelMeta
 func FindPresetDeps() PresetDeps {
 	return PresetDeps{
 		Quirks: func(id any) *u.Obj {
@@ -113,7 +113,7 @@ func setIf(o *u.Obj, k string, v any) {
 	}
 }
 
-// RuntimeConfig = runtimeConfig(extra)：GatewayConfig 的 JS 对象（键序同 Node）
+// RuntimeConfig = runtimeConfig(extra)：GatewayConfig 的 JS 对象（键序固定）
 func (s *Store) RuntimeConfig(extra RuntimeExtra) *u.Obj {
 	provs := []any{}
 	for _, raw := range s.Providers() {

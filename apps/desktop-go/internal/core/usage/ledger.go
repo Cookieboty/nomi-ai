@@ -20,7 +20,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
 
-// 对应 UsageLedger.ts
+// 用量账本（UsageLedger）
 
 type Retention = string
 
@@ -324,7 +324,7 @@ func (c *cursorMap) MarshalJSON() ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-// parseCursors：JSON.parse 后 c && typeof c === 'object'（数组也算，同 Node）
+// parseCursors：JSON.parse 后 c && typeof c === 'object'（数组也算）
 func parseCursors(b []byte) (*cursorMap, bool) {
 	dec := json.NewDecoder(strings.NewReader(string(b)))
 	t, err := dec.Token()
@@ -471,7 +471,7 @@ func (l *UsageLedger) loadSync() {
 	}
 }
 
-// testLoadGate：测试用，后台载入在此等待（模拟 Node 中载入要等事件循环让出）
+// testLoadGate：测试用，后台载入在此等待（模拟载入要等事件循环让出）
 var testLoadGate chan struct{}
 
 func (l *UsageLedger) loadAsync(size int64, g chan struct{}) {
@@ -1289,7 +1289,7 @@ func (l *UsageLedger) Close() {
 	l.flushLocked()
 }
 
-// MarshalJSON：state 为 nil 时省略；空对象 {} 照写（与 Node JSON.stringify 一致）。
+// MarshalJSON：state 为 nil 时省略；空对象 {} 照写（同 JSON.stringify）。
 func (c FileCursor) MarshalJSON() ([]byte, error) {
 	type plain FileCursor
 	var st any

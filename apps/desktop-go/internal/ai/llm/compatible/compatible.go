@@ -1,7 +1,7 @@
-// Package compatible ports @ai-sdk/openai-compatible's chat model
+// Package compatible implements @ai-sdk/openai-compatible's chat model
 // (createOpenAICompatible(...).chatModel), used by Nomi for protocol
 // "openai-chat". Request bodies, headers, stream parts and errors match the
-// Node SDK (see testdata/b5-llm.json goldens).
+// SDK (see the recordings in testdata/b5-llm.json).
 package compatible
 
 import (

@@ -1,7 +1,7 @@
 // Package contract 是 packages/contract 线协议（protocol.ts / wire.ts）的 Go 端实现：
 // 帧格式、过程注册表、流式与取消。和传输无关：WebSocket、Wails stream 都只是把帧搬来搬去。
 //
-// POC 里帧类型是手写的；正式迁移时由 contract 的 zod 定义导出 JSON Schema 再生成（见 docs/development/architecture.md）。
+// 帧类型是手写的（见 docs/development/architecture.md）。
 package contract
 
 import (
@@ -52,14 +52,14 @@ type ErrorPayload struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-// Caller：调用方。ID = 契约的 caller.id（Electron 是 webContents id；Go 宿主按连接分配，从 1 起）；
-// Done 在调用方断开（窗口销毁 / 连接关闭）时关闭，对应 webContents 的 'destroyed'。
+// Caller：调用方。ID = 契约的 caller.id（按连接分配，从 1 起）；
+// Done 在调用方断开（窗口销毁 / 连接关闭）时关闭。
 type Caller struct {
 	Surface string
 	ID      int
 	Done    <-chan struct{}
-	// Untrusted：契约 caller.trusted 取反（零值 = trusted，同 Node 各宿主传输层：
-	// host-node/websocket.ts 与 host-electron/ipcSenderGuard.ts 对放行的调用者都记 trusted: true）
+	// Untrusted：契约 caller.trusted 取反（零值 = trusted：
+	// 传输层放行的调用者都是 trusted）
 	Untrusted bool
 }
 
@@ -79,7 +79,7 @@ type Router struct {
 	sessions map[*Session]struct{}
 
 	// Pending（可选）= 事件总线的 pending.offer：每次发布告诉它有没有订阅者（不看 surface，
-	// 同 Node 的 sink.subscribers(event) > 0），没送达的面板导航由它留着（core/pendingEvents.ts）。
+	// 即 subscribers(event) > 0），没送达的面板导航由它留着（core/pendingEvents）。
 	Pending func(event string, data any, delivered bool)
 
 	gates []gate
@@ -90,7 +90,7 @@ type gate struct {
 	wait     func(context.Context) error
 }
 
-// GateBefore：名字以 prefixes 之一开头的过程先 wait(ctx) 再执行（D-B11-12：读密钥的过程
+// GateBefore：名字以 prefixes 之一开头的过程先 wait(ctx) 再执行（读密钥的过程
 // 等 2.0.4 密钥迁移完成）。须在开始服务前调用。
 func (r *Router) GateBefore(prefixes []string, wait func(context.Context) error) {
 	r.gates = append(r.gates, gate{prefixes, wait})
@@ -146,7 +146,7 @@ func (r *Router) Registered() map[string]string {
 func (r *Router) Emit(event string, data any) { r.EmitTo(event, data, "") }
 
 // EmitTo 只推给 surface 窗口（"" = 所有窗口）里订阅了该事件的连接；返回是否有人收到
-// （对应 Node 事件总线 publish 的 { surface } 定向与 delivered）
+// （publish 的 { surface } 定向与 delivered）
 func (r *Router) EmitTo(event string, data any, surface string) bool {
 	r.subMu.Lock()
 	ss := make([]*Session, 0, len(r.sessions))
@@ -242,7 +242,7 @@ func errFrame(id string, err error) ServerFrame {
 func (s *Session) Handle(raw []byte) {
 	var f ClientFrame
 	if err := json.Unmarshal(raw, &f); err != nil || f.T == "" {
-		return // 和 TS 侧一样：非法帧直接丢弃
+		return // 非法帧直接丢弃
 	}
 	switch f.T {
 	case "abort":
@@ -280,7 +280,7 @@ func (s *Session) Handle(raw []byte) {
 				s.mu.Unlock()
 				cancel()
 			}()
-			// 处理函数 panic = TS 处理函数抛异常：这次调用回 INTERNAL，记日志，进程不受影响
+			// 处理函数 panic = 处理函数抛异常：这次调用回 INTERNAL，记日志，进程不受影响
 			defer func() {
 				if x := recover(); x != nil {
 					log.Printf("[contract] %s panicked: %v\n%s", f.Name, x, debug.Stack())

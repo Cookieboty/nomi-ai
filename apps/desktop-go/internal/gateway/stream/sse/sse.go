@@ -1,7 +1,7 @@
-// Package sse mirrors apps/desktop-electron/internal/gateway/src/stream/sse.ts: a byte-exact SSE
+// Package sse: a byte-exact SSE
 // block splitter and an event parser. It is a leaf package so canonical/ can
-// use it without importing stream/ (deviation D15: Go forbids the import cycle
-// Node has between stream/ and canonical/).
+// use it without importing stream/ (Go forbids the import cycle
+// between stream/ and canonical/).
 package sse
 
 import (
@@ -144,7 +144,7 @@ func parseBlock(block string) (Event, bool) {
 	return Event{Event: event, Data: strings.Join(data, "\n")}, true
 }
 
-// Format is formatSse; event "" means no event line (TS `undefined`).
+// Format formats one SSE event; event "" means no event line.
 func Format(event string, data any) string {
 	payload, ok := data.(string)
 	if !ok {

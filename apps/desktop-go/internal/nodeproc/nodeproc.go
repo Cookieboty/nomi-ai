@@ -2,7 +2,7 @@
 // 按子进程 env 的 PATH 查找可执行文件（Windows：cwd 优先、.com/.exe、不跑 .cmd）、
 // 'error'（spawn <file> ENOENT）后 'close'(-errno, null)、被信号杀死 close(null, 'SIGTERM')、
 // stdout/stderr 按块回调（每块独立 UTF-8 解码，同 Buffer.toString('utf8')），
-// 回调都在 jsrt 锁内执行（= Node 主线程）。
+// 回调都在 jsrt 锁内执行（= JS 主线程）。
 package nodeproc
 
 import (
@@ -17,7 +17,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// Options = spawn 的 options 子集（被移植代码用到的）。
+// Options：spawn 的 options 子集。
 type Options struct {
 	Cwd string
 	Env []string // nil = 继承 process.env
@@ -52,7 +52,7 @@ type Stdin struct {
 
 func (s *Stdin) Writable() bool { return s != nil && s.writable }
 
-// Write 异步写（与 Node 一样不阻塞调用方；EPIPE 等错误被吞，见 spawn.ts 的 stdin.on('error')）。
+// Write 异步写（不阻塞调用方；EPIPE 等错误被吞）。
 func (s *Stdin) Write(chunk string) bool {
 	if s != nil && s.OnWrite != nil {
 		s.OnWrite(chunk)
@@ -184,7 +184,7 @@ func Spawn(file string, args []string, o Options) *Child {
 					continue
 				}
 				if _, err := stdinW.Write(b); err != nil {
-					broken = true // EPIPE：spawn.ts 吞掉 stdin 的 error
+					broken = true // EPIPE：吞掉 stdin 的 error
 				}
 			}
 			_ = stdinW.Close()
@@ -267,7 +267,7 @@ func (c *Child) Kill(signal string) bool {
 	return true
 }
 
-// Decoder 保留占位（Node 每块独立 toString，不跨块拼接多字节字符）。
+// Decoder 保留占位（每块独立 toString，不跨块拼接多字节字符）。
 type Decoder struct{}
 
 // DecodeChunk = Buffer.toString('utf8')：WHATWG UTF-8 解码，非法序列按“最大子部分”换成 U+FFFD。

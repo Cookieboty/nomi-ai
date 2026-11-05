@@ -1,4 +1,4 @@
-// Package usage ports the leaves of apps/desktop-electron/internal/core/src/usage used by core/cli（cliHomes / limitedProcess /
+// Package usage：用量（账本、聚合、计价、额度），以及 core/cli 用到的叶子功能（cliHomes / limitedProcess /
 // grokAuth / sqliteRead / quality/cliTokens）。
 package usage
 
@@ -76,7 +76,7 @@ func GrokHomeDir(home string, env *util.Obj) string {
 	return or(v, ok, filepath.Join(home, ".grok"))
 }
 
-// QualityLedgerInput mirrors quality/cliTokens.ts（nil = undefined）。
+// QualityLedgerInput：质量账本记的输入 token 数（nil = undefined）。
 func QualityLedgerInput(client string, inputTokens, cacheReadTokens *float64) *float64 {
 	if inputTokens == nil {
 		return nil

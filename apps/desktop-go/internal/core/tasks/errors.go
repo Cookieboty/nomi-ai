@@ -1,6 +1,6 @@
 package tasks
 
-// 任务错误码，对应 src/tasks/errors.ts。只有瞬时错误可重试。
+// 任务错误码。只有瞬时错误可重试。
 var errorRetryable = map[string]bool{
 	"upstream_transient":  true,
 	"network":             true,
@@ -17,7 +17,7 @@ var errorRetryable = map[string]bool{
 // errorAsks：要人处理的错误（配置变了）：执行失败后任务停到「等你处理」，用户确认后重跑，不悄悄换配置
 var errorAsks = map[string]bool{"config_changed": true}
 
-// AsksUser 对应 errors.ts asksUser
+// AsksUser：这个错误码是否要停下来问用户
 func AsksUser(code string) bool { return errorAsks[code] }
 
 // IsRetryable：未知错误码按不可重试处理

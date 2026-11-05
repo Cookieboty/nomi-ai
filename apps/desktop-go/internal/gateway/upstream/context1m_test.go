@@ -24,7 +24,7 @@ func candOf(p *config.RuntimeProvider, model, wire string, rectify ...string) *c
 		Wire: wire, Model: models.EffectiveModel(p, model, nil, models.EffectiveOpts{}), Rectify: rectify}
 }
 
-// like：族默认与目录按它查（同 Node context1m.test.ts）
+// like：族默认与目录按它查
 func TestLikeEffectiveModel(t *testing.T) {
 	p := relay(
 		config.RuntimeModel{ID: "Aerith-opus-5.5", Enabled: true, Like: sp("claude-opus-4-8")},

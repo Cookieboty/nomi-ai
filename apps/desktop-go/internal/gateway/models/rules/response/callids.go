@@ -1,5 +1,5 @@
-// Package response mirrors apps/desktop-electron/internal/gateway/src/models/rules/response.
-// callids.go mirrors callIds.ts (deterministic call ids, wire-safe escaping).
+// Package response: per-model response rules.
+// callids.go: deterministic call ids, wire-safe escaping.
 package response
 
 import (
@@ -20,13 +20,13 @@ var b64urlRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 const chatIDMax = 40
 const escapePrefix = "nomi_"
 
-// CallIds mirrors class CallIds.
+// CallIds generates deterministic call ids.
 type CallIds struct {
 	Seed string
 	n    int
 }
 
-// NewCallIds mirrors `new CallIds(seed?)`: empty seed → 8 random bytes hex.
+// NewCallIds: empty seed → 8 random bytes hex.
 func NewCallIds(seed *string) *CallIds {
 	if seed != nil {
 		return &CallIds{Seed: *seed}
@@ -36,7 +36,7 @@ func NewCallIds(seed *string) *CallIds {
 	return &CallIds{Seed: hex.EncodeToString(b)}
 }
 
-// Next mirrors next().
+// Next returns the next call id.
 func (c *CallIds) Next() string {
 	s := "call_" + c.Seed + "_" + strconv.Itoa(c.n)
 	c.n++
@@ -58,7 +58,7 @@ func historyOf(body any) any {
 	return []any{b.Get("system"), b.Get("instructions"), h}
 }
 
-// CallIDSeed mirrors callIdSeed. JSON.stringify writes undefined array slots as
+// CallIDSeed derives the call-id seed from a request body. JSON.stringify writes undefined array slots as
 // null, which is what Get returns for a missing key.
 func CallIDSeed(body any) string {
 	text := ""
@@ -73,7 +73,7 @@ func CallIDSeed(body any) string {
 	return hex.EncodeToString(sum[:])[:12]
 }
 
-// EscapeCallID mirrors escapeCallId.
+// EscapeCallID escapes a call id for wires with a restricted id charset.
 func EscapeCallID(id string) string {
 	if id == "" || messagesID.MatchString(id) {
 		return id
@@ -81,7 +81,7 @@ func EscapeCallID(id string) string {
 	return escapePrefix + base64.RawURLEncoding.EncodeToString([]byte(id))
 }
 
-// UnescapeCallID mirrors unescapeCallId.
+// UnescapeCallID reverses EscapeCallID.
 func UnescapeCallID(id string) string {
 	if !strings.HasPrefix(id, escapePrefix) {
 		return id
@@ -103,7 +103,7 @@ func UnescapeCallID(id string) string {
 	return id
 }
 
-// CallIDForWire mirrors callIdForWire.
+// CallIDForWire returns id in the form wire accepts.
 func CallIDForWire(wire, id string) string {
 	if id == "" {
 		return id

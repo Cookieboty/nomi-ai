@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Codex：config.toml 里的相对路径（cc-switch 的模型目录等）也链进账号目录，凭据除外（同 accounts.test.ts）
+// Codex：config.toml 里的相对路径（cc-switch 的模型目录等）也链进账号目录，凭据除外
 func TestEnsureAccountHomeLinksCodexConfigRefs(t *testing.T) {
 	root := t.TempDir()
 	cx := filepath.Join(root, "user")

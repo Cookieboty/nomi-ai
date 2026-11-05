@@ -2,7 +2,7 @@ package desktop
 
 import "strings"
 
-// workspace.ts：对话工作区（cwd）作为隐式读写作用域
+// 对话工作区（cwd）作为隐式读写作用域
 
 var homeContainers = []string{"Documents", "Desktop", "Downloads", "Library", "OneDrive", "Pictures"}
 
@@ -10,7 +10,7 @@ var posixSystem = []string{"/System", "/Library", "/Applications", "/Users", "/h
 
 var winSystem = []string{"Windows", "Program Files", "Program Files (x86)", "ProgramData", "Users"}
 
-// WorkspaceEnv 对应 WorkspaceEnv
+// WorkspaceEnv：工作区校验的环境
 type WorkspaceEnv struct {
 	Home      string
 	Platform  string

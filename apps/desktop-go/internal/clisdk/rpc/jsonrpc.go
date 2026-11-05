@@ -1,4 +1,4 @@
-// Package rpc mirrors apps/desktop-electron/internal/cli-sdk/src/rpc/jsonrpc.ts。
+// Package rpc：基于行的 JSON-RPC 连接。
 package rpc
 
 import (
@@ -16,7 +16,7 @@ type Json = *util.Obj
 
 const RPCRequestTimeoutMs = 120_000
 
-// RequestOptions mirrors RpcRequestOptions（TimeoutMs nil = undefined）。
+// RequestOptions：请求选项（TimeoutMs nil = undefined）。
 type RequestOptions struct {
 	TimeoutMs *int
 	Idle      bool
@@ -24,7 +24,7 @@ type RequestOptions struct {
 	Signal    *jsrt.AbortSignal
 }
 
-// TimeoutError mirrors RpcTimeoutError。
+// TimeoutError：请求超时。
 type TimeoutError struct {
 	Method    string
 	TimeoutMs int
@@ -43,7 +43,7 @@ func newTimeoutError(method string, ms int, msg *string) *TimeoutError {
 	return &TimeoutError{method, ms, method + " timed out after " + util.FormatNumber(s) + "s"}
 }
 
-// Error mirrors RpcError（Code 为 JSON 原值：通常是 number）。
+// Error：JSON-RPC 错误应答（Code 为 JSON 原值：通常是 number）。
 type Error struct {
 	Code any
 	Msg  string
@@ -54,7 +54,7 @@ func (e *Error) Name() string  { return "RpcError" }
 
 const RPCExited = "ACP process exited"
 
-// InnermostMessage mirrors innermostMessage。
+// InnermostMessage：取嵌套错误里最内层的 message。
 func InnermostMessage(raw string) string {
 	cur := raw
 	for i := 0; i < 6; i++ {
@@ -101,18 +101,18 @@ type pending struct {
 	cleanup   func()
 }
 
-// Handlers mirrors RpcHandlers（持锁调用）。
+// Handlers：对端请求 / 通知的处理函数（持锁调用）。
 type Handlers struct {
 	OnNotification func(method string, params Json)
 	OnRequest      func(method string, params Json) *jsrt.Promise[any]
 }
 
-// ConnectionOptions mirrors RpcConnectionOptions。
+// ConnectionOptions：连接选项。
 type ConnectionOptions struct {
 	TimeoutMessage func(method string, timeoutMs int) string
 }
 
-// Connection mirrors JsonRpcConnection。构造需持 jsrt 锁。
+// Connection：JSON-RPC 连接。构造需持 jsrt 锁。
 type Connection struct {
 	child    clisdk.ChildLike
 	handlers Handlers
@@ -277,7 +277,7 @@ func (c *Connection) write(obj Json) (ok bool) {
 	return true
 }
 
-// Request mirrors request()。
+// Request 发请求，等应答。
 func (c *Connection) Request(method string, params Json, opts RequestOptions) *jsrt.Promise[any] {
 	if c.closed {
 		return jsrt.Rejected[any](errors.New("ACP connection closed"))

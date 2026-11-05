@@ -20,7 +20,7 @@ func (c CliSink) AddCli(rec *u.Obj) {
 
 var errBad = &contract.Error{Code: "BAD_INPUT", Message: "Invalid input"}
 
-// ---- zod 校验（schemas.ts 的 Quality* ；loose = 多余字段放行）----
+// ---- zod 校验（契约 schemas 的 Quality* ；loose = 多余字段放行）----
 
 func parseObj(raw json.RawMessage) (*u.Obj, bool) {
 	if len(raw) == 0 {
@@ -85,7 +85,7 @@ func validQuery(o *u.Obj) bool {
 	return validBase(o) && optOK(o, "filters", isFilters) && optOK(o, "groupBy", isStr) && optOK(o, "groupPath", isStrArr)
 }
 
-// Install：shell.ts 的 quality.*（quality.changed 由服务发布）
+// Install：挂 quality.*（quality.changed 由服务发布）
 func Install(r *contract.Router, svc func() *Service) {
 	get := func() (*Service, error) {
 		if s := svc(); s != nil {

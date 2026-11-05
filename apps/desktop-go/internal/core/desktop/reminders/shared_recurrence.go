@@ -7,7 +7,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 )
 
-// Repeat：与 SchedulerService 共用 schedule/recurrence（Node 两边都 import '../schedule/recurrence'）
+// Repeat：与 SchedulerService 共用 schedule 的重复规则
 type Repeat = schedule.Repeat
 
 // SanitizeRepeat：原始 JSON → schedule.SanitizeRepeat

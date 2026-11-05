@@ -16,7 +16,7 @@ var appApprovals = map[string]bool{
 	"item/fileChange/requestApproval":       true,
 }
 
-// AppServerDriverOptions mirrors AppServerDriverOptions。
+// AppServerDriverOptions：app-server 驱动选项。
 type AppServerDriverOptions struct {
 	Child              clisdk.ChildLike
 	RPC                rpc.ConnectionOptions
@@ -39,7 +39,7 @@ type appTurn struct {
 	p            *jsrt.Promise[TurnResult]
 }
 
-// AppServerDriver mirrors AppServerDriver。
+// AppServerDriver：Codex app-server 会话驱动。
 type AppServerDriver struct {
 	Conn      *rpc.Connection
 	o         AppServerDriverOptions
@@ -274,7 +274,7 @@ func (d *AppServerDriver) finish(turn *appTurn, done any) {
 		}
 	}
 	if status == "failed" {
-		// Node：`error: msg || lastError || undefined`；undefined 时键存在但 JSON 省略，这里不设（读值等价）
+		// `error: msg || lastError || undefined`；undefined 时键存在但 JSON 省略，这里不设（读值等价）
 		if m, ok := getp(getp(done, "error"), "message").(string); ok && m != "" {
 			r.Set("error", m)
 		} else if turn.lastError != nil && *turn.lastError != "" {
@@ -379,7 +379,7 @@ func (d *AppServerDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult
 			if err != nil {
 				return nil, err
 			}
-			// `r?.thread?.id ?? resumeId`：非字符串 id 原样保留（D-B7 acp 同类）
+			// `r?.thread?.id ?? resumeId`：非字符串 id 原样保留
 			if v := getp(getp(r, "thread"), "id"); v != nil {
 				s := util.JSString(v)
 				d.ThreadID = &s
@@ -443,7 +443,7 @@ func (d *AppServerDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 	return d.startTurn("turn/start", params)
 }
 
-// Compact mirrors compact：手动压缩上下文（thread/compact/start，应答为空对象）。服务端把它当作一轮
+// Compact：手动压缩上下文（thread/compact/start，应答为空对象）。服务端把它当作一轮
 // （turn/started → contextCompaction 条目 → turn/completed），结束方式与 Send 相同；轮次 id 从 turn/started 取。
 func (d *AppServerDriver) Compact() *jsrt.Promise[TurnResult] {
 	if d.ThreadID == nil || *d.ThreadID == "" {
@@ -498,7 +498,7 @@ func (d *AppServerDriver) Interrupt() *jsrt.Promise[struct{}] {
 	})
 }
 
-// Steer mirrors steer：turn/steer 把用户消息追加进正在进行的这一轮（expectedTurnId 不匹配时服务端拒绝，返回 false）。
+// Steer：turn/steer 把用户消息追加进正在进行的这一轮（expectedTurnId 不匹配时服务端拒绝，返回 false）。
 // 实测 0.164：立刻应答，模型取走时发出一个 userMessage 条目，同一轮继续。turn/start 的应答没回来时先等它。
 func (d *AppServerDriver) Steer(text string) *jsrt.Promise[bool] {
 	turn := d.turn

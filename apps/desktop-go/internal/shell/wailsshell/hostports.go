@@ -6,7 +6,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// HostPorts：electronPorts.ts 的 dialogs / shell 子集（Wails 原生对话框）
+// HostPorts：对话框 / shell 子集（Wails 原生对话框）
 
 // PickDirectory = dialogs.pickDirectory：properties ['openDirectory'(, 'createDirectory')]；取消 → ""
 func (w *Wails) PickDirectory(title, buttonLabel, defaultPath string, createDirectory bool) (string, error) {
@@ -23,7 +23,7 @@ func (w *Wails) PickDirectory(title, buttonLabel, defaultPath string, createDire
 	return d.PromptForSingleSelection()
 }
 
-// SaveFileFilter = Electron FileFilter { name, extensions }
+// SaveFileFilter：文件类型筛选 { name, extensions }
 type SaveFileFilter struct {
 	Name       string
 	Extensions []string

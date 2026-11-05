@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// testdata/pdf/expected.json 由 Node 侧 unpdf（pdf.js v6.1.200）extractText 逐页生成，
-// 再经 Node 的 trim 处理；Go 端必须逐字节一致（D-B6-8）。
+// testdata/pdf/expected.json 由 unpdf（pdf.js v6.1.200）extractText 逐页生成，
+// 再经 trim 处理；Go 端必须逐字节一致。
 func TestExtractPdfMatchesPdfjs(t *testing.T) {
 	raw, err := os.ReadFile("testdata/pdf/expected.json")
 	if err != nil {

@@ -23,7 +23,7 @@ func contains(l []string, s string) bool {
 	return false
 }
 
-// DegradeMode mirrors degradeMode。
+// DegradeMode：mode 不受支持时降级到最接近的受支持模式。
 func DegradeMode(supported []string, mode string) (string, bool) {
 	if contains(supported, mode) {
 		return mode, false
@@ -39,7 +39,7 @@ var ClaudeMode = map[string]string{"plan": "plan", "manual": "default", "acceptE
 
 var sepRun = regexp.MustCompile(`[_` + util.JSWhitespace[1:len(util.JSWhitespace)-1] + `]+`)
 
-// ModeFromNative mirrors modeFromNative（"" = null；onRequest "" = 未给）。
+// ModeFromNative：CLI 原生权限值 → 模式（"" = null；onRequest "" = 未给）。
 func ModeFromNative(supported []string, raw any, onRequest string) string {
 	s, ok := raw.(string)
 	if !ok || util.JSTrim(s) == "" {

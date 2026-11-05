@@ -20,7 +20,7 @@ import (
 //     带 Range 时先追加 `identity`（规范第 18 步）。
 //   - 非 HEAD/CONNECT、非 null body 状态（101/204/205/304）且不跟随重定向时，
 //     按 content-encoding 从后往前逐层解码：gzip/x-gzip、deflate（首字节 &0x0F==8 走 zlib，否则 raw）、
-//     br、zstd（Electron 的 Node 带 zlib.zstd）；遇到不认识的编码则整体不解码。超过 5 层直接失败。
+//     br、zstd；遇到不认识的编码则整体不解码。超过 5 层直接失败。
 //   - 响应头原样保留（content-encoding / content-length 都不删）。
 //   - 解码器用 SYNC_FLUSH 结束：截断的压缩流不报错，读到哪算哪。
 

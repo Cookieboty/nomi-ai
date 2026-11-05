@@ -12,7 +12,7 @@ func tier(t string) *util.Obj {
 	return util.NewObj("pattern", "^(?=.*"+claudeGate+").*"+t, "slot", "tiers."+t)
 }
 
-// Gateway mirrors claude/gateway.ts。
+// Gateway：Claude Code 的网关条目。
 var Gateway = sh.GatewayEntry(Manifest, util.NewObj(
 	"id", Manifest.Get("id"),
 	"strictness", "lenient",

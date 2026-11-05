@@ -6,11 +6,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 对应 quota.ts：订阅额度（尽力而为）。
+// 订阅额度（尽力而为）。
 // 原则：只用本机已经有的数据，或让官方 CLI 自己读取登录态后返回的额度结果；不读取凭据文件，
 // 不把原始 billing 响应写入磁盘或日志。新来源通过 QuotaRegistry.Register 接入。
 //
-// 可选字段用指针 / 零值省略；结构体字段顺序 = Node 对象字面量的键顺序（JSON 序列化逐键一致）。
+// 可选字段用指针 / 零值省略；结构体字段顺序即 JSON 键顺序。
 
 // QuotaWindow = interface QuotaWindow（一个额度窗口）。
 type QuotaWindow struct {
@@ -65,9 +65,9 @@ type QuotaEntry struct {
 
 // JSPlanKind：plan 在 JS 里的值类别。codexRateLimits 的 `PLAN_LABEL[planRaw] ?? planRaw` 走原型链：
 // planType 为 Object.prototype 上的方法名时得到函数，为 "__proto__" 时得到 Object.prototype 本身；
-// 两者都为真值，`...(plan ? { plan } : {})` / quota.ts `r.plan ? { plan: r.plan }` 都会保留，
+// 两者都为真值，`...(plan ? { plan } : {})` / `r.plan ? { plan: r.plan }` 都会保留，
 // JSON 序列化时函数被丢弃、Object.prototype 写成 {}。PlanKind≠PlanString 时 Plan 恒为 ""，
-// 因而 `typeof plan === 'string'` 的下游（Plan != "" 判断）与 Node 同样把它当作没有 plan。
+// 因而 `typeof plan === 'string'` 的下游（Plan != "" 判断）把它当作没有 plan。
 type JSPlanKind uint8
 
 const (
@@ -204,7 +204,7 @@ func SanitizeWindows(ws []QuotaWindow, now float64) []QuotaWindow {
 	return out
 }
 
-// ToObj：Node 对象形状（键顺序同字面量；-0 / Infinity 走 JSON.stringify 语义）。
+// ToObj：JS 对象形状（键顺序固定；-0 / Infinity 走 JSON.stringify 语义）。
 func (w QuotaWindow) ToObj() *util.Obj {
 	o := util.NewObj("id", w.ID, "usedPercent", w.UsedPercent)
 	if w.WindowMinutes != nil {

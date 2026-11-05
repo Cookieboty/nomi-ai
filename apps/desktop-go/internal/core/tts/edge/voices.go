@@ -45,7 +45,7 @@ type VoiceList struct {
 // Fetcher 发 GET（测试可替换）；返回状态码与正文
 type Fetcher func(ctx context.Context, url string, headers Header) (int, []byte, error)
 
-// DefaultFetcher：net/http；undici 的 Accept-Encoding 默认值与解压见 D-B9-6
+// DefaultFetcher：net/http（Accept-Encoding 与解压同 undici 的默认）
 func DefaultFetcher(ctx context.Context, url string, headers Header) (int, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

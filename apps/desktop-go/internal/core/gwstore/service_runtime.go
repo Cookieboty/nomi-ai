@@ -46,7 +46,7 @@ type RuntimeDeps struct {
 	Fork           ForkGateway
 	// LongContextPrice = usage.longContextPrice（nil = 不给价格）
 	LongContextPrice func(model string) *u.Obj
-	// Detect = detectImpl ?? detect（nil = detect 未移植，wire-suspect 不学）
+	// Detect = detectImpl ?? detect（nil = 不探测，wire-suspect 不学）
 	Detect DetectFunc
 	// WriteCatalog = writeCatalog（测试注入：模型目录的原子写；nil = utils.WritePrivateFileAtomic）
 	WriteCatalog func(file string, data []byte) error
@@ -63,7 +63,7 @@ type runtimeState struct {
 	privacyLog   *PrivacyLog
 	tabs         *TabTokens
 	legacyRevoke *u.Obj
-	mu           sync.Mutex // 存储写入串行（Node 单线程）
+	mu           sync.Mutex // 存储写入串行
 	// 模型目录同步（#185）：catalogMu 串行后台写；catalogSeq 每次同步递增，catalogDone 是已落盘的最大序号
 	catalogMu   sync.Mutex
 	catalogSeq  atomic.Uint64

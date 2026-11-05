@@ -1,8 +1,8 @@
 package agents
 
-// fsscan.go 移植 agents/fsScan.ts（ScanCache）。Node 用 fs.promises + 并发池；这里在
+// fsscan.go：会话文件扫描（ScanCache）。在
 // GIL 外顺序执行（Service 把整轮扫描放到后台 goroutine），结果按深度优先目录项顺序拼接、
-// 再按 mtime 稳定倒序——与 Node 的 Promise.all(...).flat() + sort 一致。
+// 再按 mtime 稳定倒序。
 
 import (
 	"io"
@@ -25,7 +25,7 @@ type dirEnt struct {
 	dir, file bool
 }
 
-// ScanOpts mirrors ScanOpts。
+// ScanOpts：扫描选项。
 type ScanOpts struct {
 	Now, HotMs float64
 	Full       bool
@@ -50,13 +50,13 @@ type parsedHit struct {
 	gen   int
 }
 
-// ScanCache mirrors ScanCache（单一调用方串行使用；不需要锁）。
+// ScanCache：扫描缓存（单一调用方串行使用；不需要锁）。
 type ScanCache struct {
 	dirs   map[string]*dirHit
 	files  map[string]*fileHit
 	parsed map[string]*parsedHit
 	gen    int
-	// wallNow = Date.now()（DIR_RACY 判定用真实时钟，与 Node 一致）；测试可替换。
+	// wallNow = Date.now()（DIR_RACY 判定用真实时钟）；测试可替换。
 	wallNow func() float64
 }
 
@@ -141,7 +141,7 @@ type FileRef struct {
 	Mtime float64
 }
 
-// ListFiles mirrors listFiles。
+// ListFiles：列出 dir 下满足 pred 的文件（深度、数量有上限）。
 func (c *ScanCache) ListFiles(dir string, pred func(n, full string) bool, depth, limit int, o ScanOpts) []FileRef {
 	visited := 0
 	var walk func(d string, dep int) []FileRef
@@ -159,7 +159,7 @@ func (c *ScanCache) ListFiles(dir string, pred func(n, full string) bool, depth,
 			visited++
 			p := filepath.Join(d, e.name)
 			if e.dir {
-				// Node 在父目录循环里同步调用 walk(p)：dep / visited 判定发生在此刻。
+				// 在父目录循环里同步调用 walk(p)：dep / visited 判定发生在此刻。
 				if dep-1 < 0 || visited > maxVisited {
 					continue
 				}
@@ -191,7 +191,7 @@ func (c *ScanCache) ListFiles(dir string, pred func(n, full string) bool, depth,
 	return out
 }
 
-// ReadParsed mirrors readParsed（同一路径必须始终用同一个 parse）。
+// ReadParsed：读文件并缓存解析结果（同一路径必须始终用同一个 parse）。
 func ReadParsed[T any](c *ScanCache, p string, bytes int64, parse func(string) T) T {
 	st := c.stat(p)
 	if st == nil {
@@ -207,7 +207,7 @@ func ReadParsed[T any](c *ScanCache, p string, bytes int64, parse func(string) T
 	return val
 }
 
-// ReadSlice mirrors readSliceAsync（tail=false 读开头）。
+// ReadSlice：读文件的开头或末尾 bytes 字节（tail=false 读开头）。
 func ReadSlice(p string, tail bool, bytes int64) string {
 	f, err := os.Open(p)
 	if err != nil {
@@ -232,7 +232,7 @@ func ReadSlice(p string, tail bool, bytes int64) string {
 		off = size - n
 	}
 	if _, err := f.ReadAt(buf, off); err != nil && err != io.EOF {
-		return "" // EISDIR 等：Node 的 catch → ''
+		return "" // EISDIR 等：读不了 → ''
 	}
 	return charcontract.DecodeUTF8(buf)
 }

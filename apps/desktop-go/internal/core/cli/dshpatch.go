@@ -1,6 +1,6 @@
 package cli
 
-// configPatch.ts 的 dsh 部分：dshHomePath / dshPatchPath / repairDshPatchFile。
+// dsh 的配置补丁：dshHomePath / dshPatchPath / repairDshPatchFile。
 
 import (
 	"os"

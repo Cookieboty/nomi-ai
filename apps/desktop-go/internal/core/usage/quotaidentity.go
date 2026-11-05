@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 对应 quotaIdentity.ts
+// 额度的账号身份（非敏感指纹）
 
 const saltFile = "quota-salt"
 
@@ -51,7 +51,7 @@ func Fingerprint(salt string, parts []*string) (string, bool) {
 	return hex.EncodeToString(h[:])[:16], true
 }
 
-// WritePrivateFile = utils/privateFile.writePrivateFile（POSIX 0600；Windows ACL 见偏差 D12）
+// WritePrivateFile = utils.WritePrivateFile（POSIX 0600；Windows 不设逐文件 ACL）
 func WritePrivateFile(file, data string) error {
 	if err := os.WriteFile(file, []byte(data), 0o600); err != nil {
 		return err

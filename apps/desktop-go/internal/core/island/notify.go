@@ -4,7 +4,7 @@ import (
 	"unicode/utf16"
 )
 
-// Notice = IslandNotice（core/desktop/islandNotice.ts）
+// Notice：灵动岛通知
 type Notice struct {
 	Kind       string `json:"kind"` // message | agent | reminder | info
 	Title      string `json:"title"`
@@ -14,7 +14,7 @@ type Notice struct {
 	Status     string `json:"status,omitempty"` // done | failed | attention | running
 }
 
-// Host：岛窗口的宿主能力（= IslandService 里的 BrowserWindow 操作）
+// Host：岛窗口的宿主能力
 type Host struct {
 	// Present 确保岛窗口在（几何变了就重建）、填入通知并播放展开（= ensureWindow + prepare / showInactive / play）
 	Present func(n Notice) error
@@ -65,7 +65,7 @@ func (s *Service) Accepts(n Notice, force bool) bool {
 	return quiet == nil || !quiet()
 }
 
-// sliceUTF16 = String.prototype.slice(0, n)（按 UTF-16 码元截断，与 Node 一致）
+// sliceUTF16 = String.prototype.slice(0, n)（按 UTF-16 码元截断）
 func sliceUTF16(s string, n int) string {
 	u := utf16.Encode([]rune(s))
 	if len(u) <= n {
@@ -108,7 +108,7 @@ func (s *Service) Notify(n Notice, force bool) bool {
 	return true
 }
 
-// pump：一次只显示一条；展开失败时停在这里（与 Node 相同，下一条通知进来再试）
+// pump：一次只显示一条；展开失败时停在这里（下一条通知进来再试）
 func (s *Service) pump() {
 	s.mu.Lock()
 	if s.showing || len(s.queue) == 0 || s.host.Present == nil {

@@ -1,4 +1,4 @@
-// Package launch mirrors apps/desktop-electron/internal/cli-sdk/src/launch/index.ts：启动注入的通用实现——
+// Package launch：启动注入的通用实现——
 // 环境变量叠加与剔除、进程级文件、规范化目录、共享软链（Windows 目录用 junction）、私有 HOME。
 package launch
 
@@ -37,7 +37,7 @@ type File struct {
 	Mode    *os.FileMode
 }
 
-// WriteLaunchFiles：目录 0700、文件默认 0600；返回写下的路径。失败时返回 Node 形态错误信息（throw 语义）。
+// WriteLaunchFiles：目录 0700、文件默认 0600；返回写下的路径。失败时返回 Node 风格的错误信息。
 func WriteLaunchFiles(files []File) ([]string, error) {
 	written := []string{}
 	for _, f := range files {

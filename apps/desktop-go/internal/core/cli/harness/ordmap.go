@@ -36,7 +36,7 @@ func (o *ordMap[V]) Keys() []string { return append([]string{}, o.order...) }
 
 // ioAsync 复刻 `await fs.promises.*`：fn 在锁外线程池执行（不得触碰 jsrt 状态），
 // 结果在之后的宏任务里交付——等待期间事件循环照常运行（其它标签可在此间开跑），
-// 与 Node 的 libuv 线程池 I/O 让出语义一致。
+// 即 libuv 线程池 I/O 的让出语义。
 func ioAsync[T any](fn func() T) *jsrt.Promise[T] {
 	p := jsrt.NewPromise[T]()
 	go func() {

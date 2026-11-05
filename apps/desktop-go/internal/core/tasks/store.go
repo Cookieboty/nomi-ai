@@ -1,6 +1,6 @@
 package tasks
 
-// 持续任务的存储，移植 src/tasks/TaskStore.ts（docs/features/scheduling-calendar.md），读写同一格式：
+// 持续任务的存储（TaskStore，docs/features/scheduling-calendar.md），格式与旧版写出的文件相同：
 // <id>.json（任务 + 最近 KeepAttempts 次执行，原子写）、<id>.events.jsonl（只追加的事件日志）、
 // <id>.attempts.jsonl（旧执行归档）。读 jsonl 时跳过崩溃留下的半行；追加前若文件不以换行结尾先补换行。
 
@@ -28,7 +28,7 @@ type Record struct {
 	Attempts []Attempt `json:"attempts"`
 }
 
-// JournalEntry 对应 TaskStore.ts 的 JournalEntry 判别联合（按 T 区分）
+// JournalEntry：事件日志条目的判别联合（按 T 区分）
 type JournalEntry struct {
 	T         string `json:"t"`
 	At        int64  `json:"at"`

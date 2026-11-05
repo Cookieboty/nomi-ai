@@ -2,7 +2,7 @@ package usage
 
 import "testing"
 
-// 同 Node aggregate.test.ts：认不出的模型按别名计价；按供应商区分；自己的自定义价仍然优先
+// 认不出的模型按别名计价；按供应商区分；自己的自定义价仍然优先
 func TestPriceAlias(t *testing.T) {
 	alias := func(model, provider string) string {
 		if model == "Aerith-opus-5.5" && provider != "other" {

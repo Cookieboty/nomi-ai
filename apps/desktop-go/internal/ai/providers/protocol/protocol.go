@@ -1,6 +1,6 @@
-// Package protocol 对应 apps/desktop-electron/internal/ai-runtime/src/providers/protocol.ts：三种上游协议、
-// 端点拼接与模型列表解析。单独成包是因为 Node 里 AiSdkLlmProvider 与 ProviderService
-// 互相引用（Go 不允许包循环），协议这一层两边都要用。
+// Package protocol：三种上游协议、
+// 端点拼接与模型列表解析。单独成包是因为 aisdk 的 LLM provider 与 ProviderService
+// 都要用协议这一层（Go 不允许包循环）。
 package protocol
 
 import (
@@ -18,7 +18,7 @@ type Protocol = string
 
 var Protocols = []Protocol{"openai-chat", "openai-responses", "anthropic"}
 
-// ProtocolLabels：PROTOCOL_LABELS（保持 Node 对象键序）
+// ProtocolLabels：PROTOCOL_LABELS（键序固定）
 func ProtocolLabels() *u.Obj {
 	return u.NewObj(
 		"openai-chat", "ai-runtime.providers.protocol-openai-chat",
@@ -196,7 +196,7 @@ func MapModel(model string, mapping []any) string {
 
 var defaultPorts = map[string]string{"http": "80", "https": "443", "ws": "80", "wss": "443", "ftp": "21"}
 
-// urlOrigin：new URL(s).origin；解析失败返回 false（Node 的 catch 分支：保留原值）
+// urlOrigin：new URL(s).origin；解析失败返回 false（调用方保留原值）
 func urlOrigin(s string) (string, bool) {
 	pu, err := url.Parse(s)
 	if err != nil || pu.Scheme == "" {

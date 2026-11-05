@@ -1,8 +1,8 @@
 package igtools
 
-// desktop.tools() = createDesktopTools（apps/desktop-electron/internal/core/src/desktop/tools.ts + p2tools / p3tools / workspaceTools）1:1：
+// desktop.tools() = createDesktopTools：
 // 基础 fs_* / desktop_* / undo_last → P2 提醒 / 剪贴板 → P3 受控浏览器 / code_run → workspace_run。
-// 顺序、入参 schema、描述、错误码 / 文案、审计、确认、撤销日志与 Node 相同；Node 的 AbortSignal 用 ctx 代替。
+// 顺序、入参 schema、描述、错误码 / 文案、审计、确认、撤销日志都固定；取消用 ctx（相当于 AbortSignal）。
 
 import (
 	"context"
@@ -150,7 +150,7 @@ func (k *deskKit) now() float64 {
 	return nowMs()
 }
 
-// sig：Node 的 ctx.signal（没有可取消的 ctx 时 = undefined）
+// sig：工具的取消信号（没有可取消的 ctx 时 = undefined）
 func sig(ctx context.Context) context.Context {
 	if ctx == nil || ctx.Done() == nil {
 		return nil
@@ -331,7 +331,7 @@ func (k *deskKit) readExtracted(real string) (dparse.ParseResult, error) {
 	return r, nil
 }
 
-// ---- Node fs 错误文案（非 ToolError → internal_error，message 原样）----
+// ---- fs 错误文案（Node 风格，如 ENOENT: no such file or directory；非 ToolError → internal_error，message 原样）----
 
 func nodeFSErr(err error, syscallName, p string) error {
 	if err == nil {
@@ -360,7 +360,7 @@ func isoOf(t time.Time) string {
 	return s
 }
 
-// mtimeMs：与 Node fs.Stats.mtimeMs（sec*1e3 + nsec/1e6）及 desktop.UndoJournal.Check 同一公式；
+// mtimeMs：与 fs.Stats.mtimeMs（sec*1e3 + nsec/1e6）及 desktop.UndoJournal.Check 同一公式；
 // UnixNano()/1e6 在纳秒精度文件系统上会差 1ulp，导致撤销误报 conflict
 func mtimeMs(fi os.FileInfo) float64 {
 	t := fi.ModTime()
@@ -430,7 +430,7 @@ func DesktopTools(d DeskDeps) []tools.Definition {
 		k.d.Platform = desktop.Platform()
 	}
 	out := k.baseTools()
-	// 补充的文件工具排在 fs_trash 前（同 tools.ts）
+	// 补充的文件工具排在 fs_trash 前
 	for j, t := range out {
 		if t.Name == "fs_trash" {
 			out = append(out[:j], append(k.extraFsTools(), out[j:]...)...)

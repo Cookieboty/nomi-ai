@@ -1,6 +1,6 @@
 package tasks
 
-// 持续任务服务，对应 src/tasks/TaskService.ts：组合存储、运行时、执行者与投递，供契约处理函数（tasks.*）使用。
+// 持续任务服务（TaskService）：组合存储、运行时、执行者与投递，供契约处理函数（tasks.*）使用。
 
 import (
 	"crypto/rand"
@@ -47,7 +47,7 @@ type Service struct {
 	mcpTool connections.McpToolLookup
 	// reconciling：启动后的自动核对（单测等它结束）
 	reconciling sync.WaitGroup
-	// changeMu / changeFns：tasks.changed 的进程内订阅（Node 侧是 AppEvents.listen('tasks.changed')）
+	// changeMu / changeFns：tasks.changed 的进程内订阅
 	changeMu  sync.Mutex
 	changeFns map[int]func(id string)
 	changeN   int
@@ -316,7 +316,7 @@ func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
 		Priority: in.Priority, Category: in.Category})
 }
 
-// DelegatedInput 对应 TaskService.createDelegated 的入参
+// DelegatedInput：createDelegated 的入参
 type DelegatedInput struct {
 	Title          string
 	Goal           string

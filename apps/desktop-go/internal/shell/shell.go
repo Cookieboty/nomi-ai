@@ -43,7 +43,7 @@ type Geometry interface {
 	Recreate(k WindowKind)
 }
 
-// WindowControl：MascotWindowController 需要的其余窗口能力（对应 BrowserWindow 的同名方法）
+// WindowControl：MascotWindowController 需要的其余窗口能力
 type WindowControl interface {
 	Resizable(k WindowKind) bool
 	SetResizable(k WindowKind, on bool)

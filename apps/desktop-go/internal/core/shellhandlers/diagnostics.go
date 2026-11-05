@@ -14,7 +14,7 @@ func unavailable(svc string) error {
 
 func badInput(err error) error { return &contract.Error{Code: "BAD_INPUT", Message: err.Error()} }
 
-// InstallDiagnostics：shell.ts 的 diagnostics.*（core/contract/shell.ts）
+// InstallDiagnostics：挂 diagnostics.*
 func InstallDiagnostics(r *contract.Router, svc func() *diagnostics.Service) {
 	need := func() (*diagnostics.Service, error) {
 		if s := svc(); s != nil {

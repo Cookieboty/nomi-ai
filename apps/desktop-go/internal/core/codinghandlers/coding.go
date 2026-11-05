@@ -1,6 +1,6 @@
 package codinghandlers
 
-// coding.ts 中 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 一节：每个过程委派给服务的公开方法，
+// cli.registry/plugin*、cliUpdate.*、delegate.*、history.*：每个过程委派给服务的公开方法，
 // 服务在调用时由 getter 读取，缺了报 UNAVAILABLE（= need('<name>')）。
 
 import (
@@ -104,7 +104,7 @@ func gil(r *contract.Router, name string, f func(a in) any) {
 	})
 }
 
-// plain：不进 GIL 直接调用（DelegateService 在 Go 侧是 goroutine + 锁实现，D-B7-S2-2；
+// plain：不进 GIL 直接调用（DelegateService 是 goroutine + 锁实现；
 // 它回调编排器时自己 jsrt.Call，若在 GIL 帧里调用会自锁）。panic(JSThrow) = 抛错。
 func plain(r *contract.Router, name string, f func(a in) any) {
 	r.Call(name, func(_ context.Context, _ contract.Caller, raw json.RawMessage) (v any, err error) {

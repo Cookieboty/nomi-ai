@@ -1,4 +1,4 @@
-// Package intent mirrors apps/desktop-electron/internal/gateway/src/intent.ts (reasoning intent).
+// Package intent: the reasoning intent of a request.
 package intent
 
 import (
@@ -26,7 +26,7 @@ type Intent struct {
 	Source          string
 }
 
-// JSON is the intent as a JS object (key order of the TS literals).
+// JSON is the intent as a JS object (fixed key order).
 func (i *Intent) JSON() any {
 	if i == nil {
 		return nil

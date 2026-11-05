@@ -1,6 +1,6 @@
 package delegate
 
-// worktree.ts：P3 委派 OS 隔离（轻量）：git worktree，避免并行子任务改同一工作区。
+// worktree.go：委派的 OS 隔离（轻量）：git worktree，避免并行子任务改同一工作区。
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ const MaxParallelDelegates = 3
 
 var pth = nodepath.Lib(nodepath.Platform())
 
-// IsolationHandle：{ kind, cwd, sourceCwd, gitRoot?, worktreePath?, note }（JSON 键序同 Node）
+// IsolationHandle：{ kind, cwd, sourceCwd, gitRoot?, worktreePath?, note }（JSON 键序固定）
 type IsolationHandle struct {
 	Kind         string `json:"kind"`
 	Cwd          string `json:"cwd"`
@@ -47,7 +47,7 @@ func (h *IsolationHandle) Obj() *util.Obj {
 	return o
 }
 
-// 持久化的 isolation 原样读回（worktree.ts 只读这几个字段）
+// 持久化的 isolation 原样读回（只读这几个字段）
 func isolationFromObj(o *util.Obj) *IsolationHandle {
 	return &IsolationHandle{
 		Kind: util.Str(o.Get("kind")), Cwd: util.Str(o.Get("cwd")), SourceCwd: util.Str(o.Get("sourceCwd")),

@@ -23,7 +23,7 @@ func call(r *contract.Router, name string, in json.RawMessage) (any, *contract.E
 }
 
 func TestQualityValidationGolden(t *testing.T) {
-	// 提交的 golden 固定 3 个时区（TZ 子进程录制；CI 只在 Linux 现场重录并 diff，见 desktop-go.yml）
+	// 提交的期望值固定 3 个时区（TZ 子进程录制；CI 只在 Linux 现场重录并 diff，见 desktop-go.yml）
 	p := "testdata/quality.json"
 	raw, _ := os.ReadFile(p)
 	var g struct {

@@ -1,6 +1,6 @@
 package igtools
 
-// image_generate = core/src/image/imageGenerate.ts：用「模型」页给 Nomi 分配的图片模型
+// image_generate：用「模型」页给 Nomi 分配的图片模型
 // （clients.nomi.models.image，`供应商/模型`）生图。各家接口差异在 gateway/media：
 // 端点规则选适配器与地址，适配器拼请求 / 解析响应；这里只发请求、放 Key、轮询、下载与保存。
 // 没分配 / 供应商不可用 / 没有端点时不提供（Definition.Available）；结果只回 chat-asset 地址；
@@ -72,7 +72,7 @@ type ImageDeps struct {
 	LookupAll security.LookupAll
 }
 
-// GeneratedMeta = GeneratedMeta（imageGenerate.ts）
+// GeneratedMeta：生成图片的元数据
 type GeneratedMeta struct {
 	// Model：`供应商/模型`
 	Model, Prompt, Aspect, EditedFrom, ConversationID string

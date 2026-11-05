@@ -1,6 +1,6 @@
 package voice
 
-// 对应 VoiceService.ts 的「豆包流式识别」一节：streamStart / streamPush / streamStop / streamCancel、
+// 豆包流式识别：streamStart / streamPush / streamStop / streamCancel、
 // volcBatch / volcFallback / volcTest，以及按发起窗口管理的会话（MAX_STREAMS_PER_SENDER、窗口销毁撤销）。
 
 import (

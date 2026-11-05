@@ -1,6 +1,6 @@
 package tasks
 
-// 对外动作的副作用日志（docs/features/scheduling-calendar.md），对应 src/tasks/external.ts：
+// 对外动作的副作用日志（docs/features/scheduling-calendar.md）：
 //
 //   - 动作执行前先过撤销检查点（任务还在跑、还是这次执行、授权没撤销），再往事件日志写 intent
 //     （幂等键 taskId:attemptId:seq、内容哈希、给人看的摘要、核对用的目标）；

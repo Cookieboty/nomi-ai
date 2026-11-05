@@ -1,7 +1,7 @@
 package tasks
 
 // `cli` 执行者：用户装好、配好的编程助手在后台标签里执行任务（docs/features/scheduling-calendar.md）。
-// 对应 src/tasks/executors/cli.ts：worktree 隔离、授权等级换算权限档、审批先过确定性命令分类、
+// worktree 隔离、授权等级换算权限档、审批先过确定性命令分类、
 // 用户在标签里接手 → takenOver、完成后按 git 列改动但不自动回填（回填是验收卡片上的单独动作）。
 
 import (
@@ -518,7 +518,7 @@ func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
 	e.d.Harness.CancelTab(run.tabID)
 }
 
-// 配置变了、要用户处理时的说明（任务停到「等你处理」，；对应 card.ts configText）
+// 配置变了、要用户处理时的说明（任务停到「等你处理」）
 func configCliUnavailable(cli string) string {
 	return i18n.T("electron.common.task-config-cli-unavailable", cli)
 }

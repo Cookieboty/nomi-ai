@@ -1,5 +1,4 @@
-// Package assetproto 是 chat-asset:// 与 character-pack:// 两个本地协议的 1:1 移植
-// （apps/desktop-electron/src/host/assetProtocol.ts、apps/desktop-electron/internal/core/src/character/packProtocol.ts）。
+// Package assetproto：chat-asset:// 与 character-pack:// 两个本地协议。
 package assetproto
 
 import (
@@ -7,7 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-// whatwgURL 是 Node `new URL()` 对非特殊 scheme（chat-asset / character-pack）解析结果中本包用到的部分。
+// whatwgURL 是 `new URL()` 对非特殊 scheme（chat-asset / character-pack）解析结果中本包用到的部分。
 type whatwgURL struct {
 	Protocol string // 含尾部冒号，小写
 	Hostname string // 不透明主机：保留大小写
@@ -20,7 +19,7 @@ func isASCIIAlpha(c byte) bool { return c|0x20 >= 'a' && c|0x20 <= 'z' }
 const forbiddenHost = "\x00\t\n\r #/:<>?@[\\]^|"
 
 // parseURL 仅覆盖本包需要的 WHATWG 语义：非特殊 scheme 的 authority / 路径 / 点段规范化。
-// 特殊 scheme（http 等）只需判定 protocol，不展开主机解析。ok=false 对应 Node 抛 TypeError。
+// 特殊 scheme（http 等）只需判定 protocol，不展开主机解析。ok=false 即解析失败（new URL 抛 TypeError）。
 func parseURL(raw string) (whatwgURL, bool) {
 	// 去首尾 C0 控制符与空格，删去所有 tab / 换行
 	s := strings.TrimFunc(raw, func(r rune) bool { return r <= 0x20 })

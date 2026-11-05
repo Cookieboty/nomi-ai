@@ -16,7 +16,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 同 Node context1m.test.ts：按已知 Claude 模型处理的 1M 模型补 context-1m；上游拒绝就去掉重试，
+// 按已知 Claude 模型处理的 1M 模型补 context-1m；上游拒绝就去掉重试，
 // 之后的请求直接不带
 func TestContext1mBetaRetry(t *testing.T) {
 	o := u.NewObj("host", "127.0.0.1", "port", 0.0,
@@ -36,7 +36,7 @@ func TestContext1mBetaRetry(t *testing.T) {
 	g := server.CreateGateway(&cfg, server.GatewayHooks{
 		FetchImpl: func(req *http.Request) (*http.Response, error) {
 			_, _ = io.ReadAll(req.Body)
-			// 网关按原样的小写名设头（与 Node 一致），不用 Header.Get（它会规范化成 Anthropic-Beta）
+			// 网关按原样的小写名设头，不用 Header.Get（它会规范化成 Anthropic-Beta）
 			beta := ""
 			if v := req.Header["anthropic-beta"]; len(v) > 0 {
 				beta = v[0]

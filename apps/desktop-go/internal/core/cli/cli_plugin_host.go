@@ -1,4 +1,4 @@
-// cli_plugin_host.go mirrors apps/desktop-electron/internal/core/src/cli/CliPluginHost.ts：
+// cli_plugin_host.go：编程助手插件宿主（CliPluginHost）：
 // 加载插件、校验清单、算有效能力（清单 ∩ 版本开关 ∩ 握手）、启停、出错隔离，
 // 并给界面一份注册表快照（cli.registryChanged）。
 package cli
@@ -174,7 +174,7 @@ func (h *CliPluginHost) plugins() []NamedPlugin {
 	for k := range builtin.Plugins {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys) // 同 TS BUILTIN_PLUGINS 键序：claude, codex, dsh, gemini, grok
+	sort.Strings(keys) // 内置插件键序：claude, codex, dsh, gemini, grok
 	out := []NamedPlugin{}
 	for _, k := range keys {
 		out = append(out, NamedPlugin{k, builtin.Plugins[k]})

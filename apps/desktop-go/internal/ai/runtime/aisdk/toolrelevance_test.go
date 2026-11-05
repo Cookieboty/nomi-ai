@@ -9,7 +9,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 按需提供工具 + 发给模型的 schema 去掉 $schema（Node tests/toolRelevance.test.ts）
+// 按需提供工具 + 发给模型的 schema 去掉 $schema
 func TestToolsForRelevanceAndSchema(t *testing.T) {
 	p := &Provider{ID: "p"}
 	schema := u.NewObj("$schema", "http://json-schema.org/draft-07/schema#", "type", "object")

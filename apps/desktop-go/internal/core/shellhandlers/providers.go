@@ -1,7 +1,7 @@
 package shellhandlers
 
-// providers.* —— apps/desktop-electron/internal/core/src/contract/shell.ts 的 withProviders / bindProviderEvents 部分。
-// 服务是 AI runtime 的 ProviderService（internal/ai/providers）；生产路径与 AIRuntimeBoot 一致：
+// providers.*：契约 shell 域的 withProviders / bindProviderEvents 部分。
+// 服务是 AI runtime 的 ProviderService（internal/ai/providers），装配方式：
 // 内存 ProviderStore（无 filePath）+ createSafeStorageCipher(secrets) + 环境变量 provider。
 
 import (
@@ -75,7 +75,7 @@ func InstallProviders(r *contract.Router, svc *providers.Service) {
 	})
 }
 
-// secretBoxStorage：把 SecretBox 适配成 SafeStorageLike（Node：safeStorageFromSecrets(ports.secrets)）
+// secretBoxStorage：把 SecretBox 适配成 SafeStorageLike
 type SecretBoxLike interface {
 	CanEncrypt() bool
 	Encrypt(value, unavailableMessage string) (string, error)
@@ -106,7 +106,7 @@ func (g gatewayRoute) Resolve(role string) *providers.GatewayResolution {
 	return g.f(role)
 }
 
-// NewProviderService：AIRuntimeBoot 的 ProviderStore + ProviderService + RoutedLLMRegistry
+// NewProviderService：ProviderStore + ProviderService + RoutedLLMRegistry
 // （AiSdkLLMProvidersPlugin：env providers、store、gateway 路由；registry 经 getRegistry 交给 ProviderService）
 func NewProviderService(box SecretBoxLike, env map[string]string, onCall func(any)) *providers.Service {
 	svc, _ := NewProviderRuntime(box, env, onCall, nil)

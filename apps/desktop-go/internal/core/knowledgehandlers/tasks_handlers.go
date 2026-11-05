@@ -1,6 +1,6 @@
 package knowledgehandlers
 
-// tasks.*：持续任务，对应 src/contract/knowledge.ts 的 tasks 段（docs/features/scheduling-calendar.md）。
+// tasks.*：持续任务（docs/features/scheduling-calendar.md）。
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type taskEventsView struct {
 	Sources    []string            `json:"sources"`
 }
 
-// tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（同 Node mapped('TASKS', …)）
+// tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（mapped('TASKS', …)）
 func tasksErr(v any, err error) (any, error) { return mapped("TASKS", v, err) }
 
 func taskHandlers(sv Services) map[string]H {
@@ -135,7 +135,7 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			apply := sv.ApplyWorktree
 			if apply == nil {
-				// 没有桌面能力：一个都不写（同 Node：没有 desktop 时 mayWrite 为 false）
+				// 没有桌面能力：一个都不写（mayWrite 为 false）
 				apply = func(_ tasks.CliIsolation, files []string) tasks.WorktreeApply {
 					return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 				}

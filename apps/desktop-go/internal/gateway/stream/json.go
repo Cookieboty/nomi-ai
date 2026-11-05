@@ -8,7 +8,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// jnum is json.ts num(): finite numbers only.
+// jnum: finite numbers only.
 func jnum(v any) *float64 {
 	f, ok := v.(float64)
 	if !ok || math.IsInf(f, 0) || math.IsNaN(f) {

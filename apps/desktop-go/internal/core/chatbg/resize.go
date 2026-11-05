@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// decodeNative = electron::util::AddImageSkiaRepFromBuffer（无宽高参数时）：先试 PNG，再试 JPEG
+// decodeNative：解码图片（无宽高参数时）：先试 PNG，再试 JPEG
 func decodeNative(data []byte) image.Image {
 	if img, err := png.Decode(bytes.NewReader(data)); err == nil {
 		return img
@@ -38,7 +38,7 @@ func ResizeDims(w, h int) (int, int) {
 }
 
 // lanczos3：quality 'best' = skia RESIZE_BEST = Lanczos3 可分离卷积（缩小时核按比例展宽），在预乘 RGBA 上计算。
-// Skia 用 14 位定点系数与 SIMD，像素不可能逐字节一致；尺寸、格式与取舍规则一致（见 docs D-B10-6）。
+// Skia 用 14 位定点系数与 SIMD，像素不会逐字节一致；尺寸、格式与取舍规则一致。
 func lanczos3(src image.Image, w, h int) image.Image {
 	b := src.Bounds()
 	rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
@@ -152,7 +152,7 @@ func Process(ext string, data []byte) (out []byte, outExt string, err error) {
 		return nil, ext, nil
 	}
 	w, h := ResizeDims(b.Dx(), b.Dy())
-	out = []byte{} // 缩成 0 边的空图：toPNG/toJPEG 返回空 Buffer，Node 照样写出 0 字节文件
+	out = []byte{} // 缩成 0 边的空图：照样写出 0 字节文件
 	if w > 0 && h > 0 {
 		var buf bytes.Buffer
 		if ext == ".png" {

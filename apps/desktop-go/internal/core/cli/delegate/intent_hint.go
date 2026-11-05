@@ -3,7 +3,7 @@ package delegate
 // 对话里「这件事要不要派出去」的判断规则（docs/features/scheduling-calendar.md）：每轮用户对话请求发出前追加到系统提示。
 // 由内核统一追加，用户自定义了系统提示也生效；文字固定不变，不打断前缀缓存。
 // 后台任务的执行（extra.taskId）与编程助手标签里的调用（extra.callerTabId）不加。
-// Node 版：apps/desktop-electron/internal/core/src/cli/delegate/intentHint.ts，文字逐字一致（intent_hint_test.go 比对）。
+// 文字由 intent_hint_test.go 钉住。
 
 import (
 	"errors"

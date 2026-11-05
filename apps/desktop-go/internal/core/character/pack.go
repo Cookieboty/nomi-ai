@@ -1,6 +1,6 @@
-// Package character 对应 apps/desktop-electron/internal/core/src/character（packResolve + CharacterPackService.getActive）。
-// 校验是 charcontract.ValidatePack（packages/character-contract validatePack 的 1:1 移植，金样见
-// charcontract/testdata），覆盖包 lenient、内置包严格，与 Node 相同。
+// Package character：角色包的解析与当前角色包（packResolve + CharacterPackService.getActive）。
+// 校验是 charcontract.ValidatePack（与 packages/character-contract 的 validatePack 同一套规则），
+// 覆盖包 lenient、内置包严格。
 package character
 
 import (
@@ -197,7 +197,7 @@ func deref(s *string) string {
 	return *s
 }
 
-// LoadPackAt = packResolve.loadPackAt：用 charcontract（validatePack 的 1:1 移植）校验并归一化；
+// LoadPackAt：用 charcontract 的 validatePack 校验并归一化；
 // 失败时 error 为第一条错误（"file: message"）或 "invalid character pack"。
 // Downgraded 为 lenient 放行的问题（供日志）。
 func LoadPackAt(root string, lenient bool) (*Pack, error) {

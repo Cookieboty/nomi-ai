@@ -96,7 +96,7 @@ func ParseGrokAuthStatus(text string) string {
 	return ""
 }
 
-// GrokAuthReaderDeps：未设置的字段用默认实现（ResolveBin 在 batch 7 由 cli.ResolveCliBinAsync("grok") 注入）。
+// GrokAuthReaderDeps：未设置的字段用默认实现（ResolveBin 由 cli.ResolveCliBinAsync("grok") 注入）。
 type GrokAuthReaderDeps struct {
 	ResolveBin func() (string, bool)
 	SpawnFn    func(file string, args []string, o nodeproc.Options) *nodeproc.Child

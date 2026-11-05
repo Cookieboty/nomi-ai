@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 )
 
-// = Electron ScreenWin::GetCursorScreenPoint：物理像素 → DIP
+// 光标位置：物理像素 → DIP
 func nativeCursor(app *application.App) (int, int) {
 	x, y, ok := w32.GetCursorPos()
 	if !ok {

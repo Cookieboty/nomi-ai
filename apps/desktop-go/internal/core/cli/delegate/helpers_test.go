@@ -1,6 +1,6 @@
 package delegate
 
-// 测试辅助（原在已删除的 parity 测试里）
+// 测试辅助
 
 import (
 	"context"
@@ -147,7 +147,7 @@ func (h *fakeHarness) release() {
 	p := h.pending
 	h.pending = nil
 	h.pendMu.Unlock()
-	// Node 依次 resolve，微任务逐个跑完 finalize；Go 逐个放行并等该任务发出 completed 事件
+	// 逐个放行并等该任务发出 completed 事件
 	for _, ch := range p {
 		n := h.log.eventCount()
 		close(ch)

@@ -1,7 +1,7 @@
 package mascot
 
-// MascotWindowController：apps/desktop-electron/src/mascot/MascotWindowController.ts 与
-// host/windowBounds.ts 的逐行移植。窗口、时钟、定时器、光标、显示器经接口注入，便于回放 Node 录下的轨迹。
+// MascotWindowController：桌面角色窗口的控制器（含窗口边界的处理）。
+// 窗口、时钟、定时器、光标、显示器经接口注入，便于回放录下的轨迹。
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -20,7 +20,7 @@ type InteractionConfig struct {
 
 var DefaultInteraction = InteractionConfig{ClickThrough: true, Gravity: false, Wander: false, Reactions: true, GlobalLook: true}
 
-// IRect：窗口整数矩形（Electron Rectangle）
+// IRect：窗口整数矩形
 type IRect struct {
 	X      int `json:"x"`
 	Y      int `json:"y"`
@@ -28,7 +28,7 @@ type IRect struct {
 	Height int `json:"height"`
 }
 
-// Win = 控制器用到的 BrowserWindow 子集
+// Win：控制器用到的窗口能力
 type Win interface {
 	IsDestroyed() bool
 	GetPosition() (int, int)
@@ -220,7 +220,7 @@ func (c *Controller) Start() {
 		c.pref = c.hooks.Get()
 	}
 	// Windows 上 Start 早于窗口实化，GetSize 返回 0x0：此时按创建窗口时同一口径（偏好缩放）取当前缩放，
-	// 否则会被夹到最小 0.3（246x265，而 Electron 2.0.4 为 330x355）
+	// 否则会被夹到最小 0.3（246x265，正常应为 330x355）
 	if w <= 2*int(MascotPad.X) {
 		c.scale = FitMascotScale(c.pref, MaxMascotScale)
 	}

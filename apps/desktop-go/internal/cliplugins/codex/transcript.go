@@ -29,7 +29,7 @@ func codexOutput(raw any) (any, bool) {
 	return v, false
 }
 
-// ParseTranscript mirrors parseCodexTranscript。
+// ParseTranscript：解析会话记录文件。
 func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 	b := sh.NewBuilder()
 	for _, e := range sh.Lines(text) {

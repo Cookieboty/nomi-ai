@@ -1,9 +1,9 @@
 package services
 
-// LoggerService.ts 的 1:1 移植：分级（ERROR<WARN<INFO<DEBUG）、setLevel/getLevel、控制台一行
+// LoggerService：分级（ERROR<WARN<INFO<DEBUG）、setLevel/getLevel、控制台一行
 // `${ISO} ${LEVEL} ${[ctx] }${message}${ meta}`（打包后控制台只出 WARN/ERROR，NOMI_DEBUG=1 恢复），
 // 文件 userData/logs/app.log 每行 JSON {timestamp,level,message,meta,context}，攒 100ms 异步追加、
-// ERROR 立即写，>10MB 轮转 app.1..app.4.log；meta 按 key 名脱敏（utils/redact.ts）。
+// ERROR 立即写，>10MB 轮转 app.1..app.4.log；meta 按 key 名脱敏（redact.go）。
 
 import (
 	"fmt"
@@ -105,7 +105,7 @@ type undefined struct{}
 
 var Undefined any = undefined{}
 
-// MetaOf：Go 调用约定 → Node 的 meta 参数。无参 = undefined；一个参数 = 原值；
+// MetaOf：Go 调用约定 → meta 参数。无参 = undefined；一个参数 = 原值；
 // 偶数个且键是字符串 = 按序对象 { k: v, ... }；其它 = 数组。
 func MetaOf(kv ...any) any {
 	switch len(kv) {

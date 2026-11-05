@@ -1,6 +1,6 @@
 package tasks
 
-// 对应 tests/unit/tasks/external.test.ts（副作用日志与重启核对、mcp 事件源）与 tools.test.ts / nomiExecutor.test.ts 的 L4 部分
+// 副作用日志与重启核对、mcp 事件源，以及工具与 nomi 执行者的 L4 部分
 
 import (
 	"context"
@@ -241,7 +241,7 @@ func TestMcpSourcePoll(t *testing.T) {
 		r1.Events[1].Key != "mcp:mail/list:"+McpItemKey(u.NewObj("x", 1.0)) || !strings.Contains(r1.Events[0].Summary, "你好") {
 		t.Fatalf("%+v %v", r1, err)
 	}
-	// 与 Node 一致：条目内容哈希 = sha256(JSON.stringify(item)) 前 24 位
+	// 条目内容哈希 = sha256(JSON.stringify(item)) 前 24 位
 	if McpItemKey(u.NewObj("x", 1.0)) != "5041bf1f713df204784353e8" || gotArgs != `{"z":1,"a":2}` {
 		t.Fatal(McpItemKey(u.NewObj("x", 1.0)), gotArgs)
 	}

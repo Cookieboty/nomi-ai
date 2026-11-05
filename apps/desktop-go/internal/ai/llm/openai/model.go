@@ -227,7 +227,7 @@ func (m *ResponsesModel) DoGenerate(ctx context.Context, o llm.CallOptions) (*ll
 	}, nil
 }
 
-// ---------- stream errors (openai-stream-error.ts) ----------
+// ---------- stream errors ----------
 
 type streamErr struct {
 	message string
@@ -243,7 +243,7 @@ func stringOrNumber(v any) any {
 	return nil
 }
 
-// parseStreamError is openai-stream-error.ts parseStreamError.
+// parseStreamError reads an error frame from the Responses stream.
 func parseStreamError(frame any) *streamErr {
 	v, ok := frame.(*util.Obj)
 	if !ok {
@@ -517,7 +517,7 @@ const chatMismatch = "Received a Chat Completions stream while using the OpenAI 
 	"You can also use @ai-sdk/openai-compatible for OpenAI-compatible providers."
 
 // pre is the number of chunks the early-error peek already pulled: like
-// Node's replay stream they are transformed even after an abort; the next
+// the SDK's replay stream they are transformed even after an abort; the next
 // read then fails with the abort.
 func (m *ResponsesModel) transform(ctx context.Context, o llm.CallOptions, a *args, headers map[string]string, in <-chan llm.StreamItem, pre int, out chan<- llm.StreamPart) {
 	defer close(out)

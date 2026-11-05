@@ -1,4 +1,4 @@
-// Package llmtest replays golden Node AI-SDK provider recordings against the Go adapters.
+// Package llmtest replays recorded AI-SDK provider exchanges (testdata) against the Go adapters.
 package llmtest
 
 import (
@@ -76,7 +76,7 @@ func Load(t *testing.T, path, protocol string) []Scenario {
 	if err := json.Unmarshal(b, &g); err != nil {
 		t.Fatal(err)
 	}
-	// The UA runtime suffix is the recording Node's major (D-B5-P-3).
+	// The UA runtime suffix is the major version of the recording's runtime.
 	if m := strings.SplitN(strings.TrimPrefix(g.Node, "v"), ".", 2); m[0] != "" {
 		prev := llm.RuntimeUserAgent
 		llm.RuntimeUserAgent = "node.js/" + m[0]
@@ -100,7 +100,7 @@ type seenReq struct {
 	Headers            map[string]string
 }
 
-// Server scripts responses like the Node recorder.
+// Server scripts responses as recorded.
 type Server struct {
 	*httptest.Server
 	mu    sync.Mutex
@@ -130,7 +130,7 @@ func NewServer(steps []Step) *Server {
 		}
 		s.mu.Unlock()
 		if st.End == "destroy" && len(st.Chunks) == 0 && st.Body == nil {
-			// Node: socket destroyed before the response head is flushed.
+			// Socket destroyed before the response head is flushed.
 			if hj, ok := w.(http.Hijacker); ok {
 				c, _, _ := hj.Hijack()
 				c.Close()
@@ -298,7 +298,7 @@ func Options(raw json.RawMessage) llm.CallOptions {
 
 func anyArr(v any) []any { a, _ := v.([]any); return a }
 
-// ---------- serialization (mirrors the recorder's plain()/errJSON) ----------
+// ---------- serialization (same shape as the recordings' plain()/errJSON) ----------
 
 func setNum(o *util.Obj, k string, v *float64) {
 	if v != nil {
@@ -470,7 +470,7 @@ func (d *Diff) Eq(what string, want, got any) {
 // Factory builds the model for a scenario's settings against base URL.
 type Factory func(s Settings, baseURL string, genID func() string) llm.LanguageModel
 
-// idMapper normalizes generated ids: map golden ids to Go ids by order.
+// idMapper normalizes generated ids: map recorded ids to Go ids by order.
 type Run struct {
 	Scenario Scenario
 	Server   *Server

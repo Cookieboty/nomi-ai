@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// Windows 夹具：目录共享用 junction（无需特权）。CI 现场 Node 录制（launch golden）表明 readlinkSync
+// Windows 夹具：目录共享用 junction（无需特权）。readlinkSync
 // 对 junction 返回不带尾 `\` 的 target，因此第二轮 cur == target → 保留不重建。
 func TestJunctionParityWindows(t *testing.T) {
 	S, err := realpathNative(t.TempDir())
@@ -57,7 +57,7 @@ func TestJunctionParityWindows(t *testing.T) {
 	if st, _ := os.Lstat(real); isLink(st) {
 		t.Fatal("real dir replaced")
 	}
-	// 文件软链：无特权/开发者模式时 Node 报 "EPERM: operation not permitted, symlink 'a' -> 'b'"
+	// 文件软链：无特权/开发者模式时报 "EPERM: operation not permitted, symlink 'a' -> 'b'"
 	f := filepath.Join(S, "user", "f.txt")
 	_ = os.WriteFile(f, []byte("u"), 0o666)
 	fl := filepath.Join(S, "home", "f.txt")

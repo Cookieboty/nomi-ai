@@ -7,7 +7,7 @@ package wailsshell
 #cgo LDFLAGS: -framework Cocoa
 #import <Cocoa/Cocoa.h>
 
-// = Electron NativeWindowMac::RedrawTrafficLights（trafficLightPosition）：标题栏容器高度 = 按钮高 + 2·y，
+// 红绿灯定位（trafficLightPosition）：标题栏容器高度 = 按钮高 + 2·y，
 // 按钮从 x 起横排、在容器里竖直居中
 static void nomi_place_traffic_lights(NSWindow *w, CGFloat x, CGFloat y) {
 	NSButton *close = [w standardWindowButton:NSWindowCloseButton];
@@ -64,7 +64,7 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 // trafficLightX / Y = titleBarOptions('darwin').trafficLightPosition
 const trafficLightX, trafficLightY = 14, 12
 
-// placeTrafficLights：对话窗口（隐藏原生标题栏）的红绿灯放到 (14, 12)，与 Electron 相同
+// placeTrafficLights：对话窗口（隐藏原生标题栏）的红绿灯放到 (14, 12)
 func placeTrafficLights(win *application.WebviewWindow) {
 	application.InvokeAsync(func() {
 		if p := win.NativeWindow(); p != nil {

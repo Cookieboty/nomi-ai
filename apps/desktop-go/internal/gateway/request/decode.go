@@ -1,4 +1,4 @@
-// Package request mirrors apps/desktop-electron/internal/gateway/src/request (decode.ts, encode.ts, index.ts).
+// Package request: wire request bodies ↔ IR (decode, encode, convert).
 package request
 
 import (
@@ -88,7 +88,7 @@ func numPtr(v any) *float64 {
 	return nil
 }
 
-// typeofNumber mirrors `typeof v === 'number'` (NaN/Infinity included; JSON never yields them).
+// typeofNumber is `typeof v === 'number'` (NaN/Infinity included; JSON never yields them).
 func typeofNumber(v any) *float64 {
 	if f, ok := v.(float64); ok {
 		return &f
@@ -103,7 +103,7 @@ func stringArray(v any) []string {
 	}
 	out := make([]string, len(arr))
 	for i, e := range arr {
-		out[i] = u.Str(e) // TS casts; non-strings are not expected here
+		out[i] = u.Str(e) // non-strings are not expected here
 	}
 	return out
 }
@@ -197,7 +197,7 @@ func textParts(texts []string) []ir.Part {
 	return out
 }
 
-// DecodeMessages mirrors decodeMessages.
+// DecodeMessages decodes an Anthropic Messages body.
 func DecodeMessages(body any) *ir.Request {
 	b := u.AsObj(body)
 	var system []ir.Part
@@ -337,7 +337,7 @@ func textOfParts(parts []ir.Part, onlyText bool) string {
 	return b.String()
 }
 
-// DecodeResponses mirrors decodeResponses.
+// DecodeResponses decodes an OpenAI Responses body.
 func DecodeResponses(body any) *ir.Request {
 	b := u.AsObj(body)
 	var sys []string
@@ -493,7 +493,7 @@ func chatContent(content any) []ir.Part {
 	return out
 }
 
-// DecodeChat mirrors decodeChat.
+// DecodeChat decodes an OpenAI Chat Completions body.
 func DecodeChat(body any) *ir.Request {
 	b := u.AsObj(body)
 	var sys []string
@@ -612,13 +612,13 @@ func geminiFunctionResponse(fr *u.Obj, callID string) ir.Part {
 	return p
 }
 
-// GeminiOpts mirrors decodeGemini's opts.
+// GeminiOpts are DecodeGemini's options.
 type GeminiOpts struct {
 	Model  *string
 	Stream bool
 }
 
-// DecodeGemini mirrors decodeGemini.
+// DecodeGemini decodes a Gemini generateContent body.
 func DecodeGemini(body any, opts GeminiOpts) *ir.Request {
 	b := u.AsObj(body)
 	messages := []ir.Message{}

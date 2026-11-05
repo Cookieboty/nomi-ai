@@ -1,5 +1,5 @@
-// Package mcpbridge 移植 apps/desktop-electron/internal/ai-runtime/src/ai-sdk/mcpBridge.ts（AiSdkMcpService）+ AiSdkMcpPlugin /
-// McpBridgePlugin 的装配语义 + igPlugins.mcpServersFromEnv / mcpAutoConnectFromEnv。
+// Package mcpbridge：MCP 服务管理（AiSdkMcpService）+ AiSdkMcpPlugin /
+// McpBridgePlugin 的装配语义 + 环境变量 MCP_SERVERS / 自动连接。
 //
 // connect：buildTransport → mcp.CreateClient（internal/ai/mcp，手写 @ai-sdk/mcp 2.0.73）→ listTools →
 // 逐个 Register 进 bundleigbase/tools.Registry（工具循环只从 Registry 读）；disconnect / dispose：
@@ -20,7 +20,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ServerConfig：@nomi-ai/bundle-ig-base McpServerConfig（Env / Headers 保留插入顺序；nil = undefined）
+// ServerConfig：MCP 服务器配置（Env / Headers 保留插入顺序；nil = undefined）
 type ServerConfig struct {
 	ID        string
 	Name      string
@@ -489,7 +489,7 @@ func (s *Service) Connect(ctx context.Context, cfg ServerConfig) error {
 	return nil
 }
 
-// callAny：arguments 为非对象 JSON 值时（JS 侧不做校验）
+// callAny：arguments 为非对象 JSON 值时（不做校验）
 func callAny(c Client, name string, input any, ctx context.Context) (any, error) {
 	type anyCaller interface {
 		CallToolAny(name string, args any, options *mcp.RequestOptions) (*u.Obj, error)

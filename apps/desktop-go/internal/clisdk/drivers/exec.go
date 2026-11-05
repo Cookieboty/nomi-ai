@@ -1,4 +1,4 @@
-// Package drivers mirrors apps/desktop-electron/internal/cli-sdk/src/drivers。
+// Package drivers：共享会话驱动（acp / stream-json / app-server / exec）。
 package drivers
 
 import (
@@ -38,7 +38,7 @@ func strOr(p *string, d string) string {
 
 func sp(s string) *string { return &s }
 
-// ExecDriverOptions mirrors ExecDriverOptions。
+// ExecDriverOptions：exec 驱动选项。
 type ExecDriverOptions struct {
 	Spawn          clisdk.SpawnFn
 	Command        string
@@ -58,7 +58,7 @@ type ExecDriverOptions struct {
 	OnStderr       func(chunk string)
 }
 
-// ExecDriver mirrors ExecDriver。
+// ExecDriver：每轮起一个子进程的会话驱动。
 type ExecDriver struct {
 	o       ExecDriverOptions
 	hub     *clisdk.EventHub
@@ -179,7 +179,7 @@ func (d *ExecDriver) Send(input TurnInput) *jsrt.Promise[TurnResult] {
 		}
 		rest := lines.Take()
 		if clisdk.JSTrim(rest) != "" {
-			handle(rest, true) // 抛出（JSThrow）时沿 close 监听者向上（jsrt.Dispatch），本轮不 settle，与 Node 同
+			handle(rest, true) // 抛出（JSThrow）时沿 close 监听者向上（jsrt.Dispatch），本轮不 settle
 		}
 		if err != nil {
 			p.Reject(err)

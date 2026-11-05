@@ -21,7 +21,7 @@ type StoredExternal struct {
 	Errors []string
 }
 
-// ExternalPluginStore = ExternalPluginStore（userData/cli-plugins/external/<id>.json）。
+// ExternalPluginStore：外部插件的存储（userData/cli-plugins/external/<id>.json）。
 type ExternalPluginStore struct {
 	dir      string
 	reserved []string
@@ -75,7 +75,7 @@ func (s *ExternalPluginStore) Save(raw any) (*util.Obj, []string) {
 	}
 	spec := clisdk.NormalizeExternalSpec(raw.(*util.Obj))
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
-		panic(err) // Node 同步抛出
+		panic(err) // 同步抛出
 	}
 	if err := utils.WritePrivateFileAtomic(s.file(util.Str(spec.Get("id"))), []byte(util.StringifyIndent(spec, "  "))); err != nil {
 		panic(err)
@@ -97,7 +97,7 @@ func (s *ExternalPluginStore) Remove(id string) bool {
 	return os.Remove(s.file(id)) == nil
 }
 
-// readJSONFile：fs.readFileSync + JSON.parse，错误文案与 Node 一致（V8 SyntaxError.message / fs 错误）。
+// readJSONFile：fs.readFileSync + JSON.parse，错误文案同 JS（V8 SyntaxError.message / Node 风格 fs 错误）。
 func readJSONFile(p string) (any, error) {
 	b, err := os.ReadFile(p)
 	if err != nil {

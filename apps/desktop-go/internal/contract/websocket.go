@@ -25,10 +25,10 @@ const (
 	WSSurfacePrefix = "nomi-surface."
 )
 
-// WSServer：只听 127.0.0.1，校验 Origin、token、surface（同 host-node/src/websocket.ts 的规则）。
+// WSServer：只听 127.0.0.1，校验 Origin、token、surface。
 //
-// 每个窗口一份 token（Issue），服务端记 token → 界面：caller 的界面由 token 决定（同 Electron 由发送方
-// webContents 判定，ipcSenderGuard.ts），子协议里自报的界面只用来核对，与 token 不符直接拒绝握手。
+// 每个窗口一份 token（Issue），服务端记 token → 界面：caller 的界面由 token 决定，
+// 子协议里自报的界面只用来核对，与 token 不符直接拒绝握手。
 // 窗口关闭时撤销它的 token（Issue 返回的 revoke），同时断开还连着的连接，之后用这份 token 重连也被拒。
 type WSServer struct {
 	Router  *Router

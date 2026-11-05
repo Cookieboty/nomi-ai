@@ -20,7 +20,7 @@ import (
 	"unsafe"
 )
 
-// preferredLanguages = [NSLocale preferredLanguages]（Electron getPreferredSystemLanguages 在 mac 上的来源）
+// preferredLanguages = [NSLocale preferredLanguages]（系统首选语言）
 func preferredLanguages() []string {
 	p := C.nomiPreferredLanguages()
 	defer C.free(unsafe.Pointer(p))

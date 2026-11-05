@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/updates"
 )
 
-// InstallUpdates：shell.ts 的 updates.*（updates.changed 由服务自己发布）
+// InstallUpdates：挂 updates.*（updates.changed 由服务自己发布）
 func InstallUpdates(r *contract.Router, svc func() *updates.Service, notes *updates.Notes) {
 	get := func() (*updates.Service, error) {
 		if s := svc(); s != nil {

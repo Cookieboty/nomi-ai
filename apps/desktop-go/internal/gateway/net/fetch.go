@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Timeouts / pool sizes from upstreamFetch.ts.
+// Timeouts / pool sizes of the upstream fetch.
 const (
 	ConnectTimeout   = 10 * time.Second
 	HeadersTimeout   = 60 * time.Second

@@ -1,5 +1,5 @@
-// Package ir mirrors apps/desktop-electron/internal/gateway/src/ir.ts: the protocol-neutral request
-// form every wire decodes into and encodes from. Optional TS fields are
+// Package ir: the protocol-neutral request
+// form every wire decodes into and encodes from. Optional fields are
 // pointers (nil = undefined) so "absent" and "empty" stay distinct.
 package ir
 
@@ -13,7 +13,7 @@ const (
 	Gemini    Wire = "gemini"
 )
 
-// Wires mirrors WIRES.
+// Wires lists the four wire protocols.
 var Wires = []Wire{Messages, Responses, Chat, Gemini}
 
 // Sealed is an opaque reasoning block only its origin protocol can replay.
@@ -22,7 +22,7 @@ type Sealed struct {
 	Raw any
 }
 
-// Part mirrors IRPart.
+// Part is one content part of a message.
 type Part struct {
 	Kind      string // text | image | file | tool_call | tool_result | thinking
 	Text      *string
@@ -40,13 +40,13 @@ type Part struct {
 	Custom    *bool
 }
 
-// Message mirrors IRMessage.
+// Message is one conversation message.
 type Message struct {
 	Role  string // user | assistant
 	Parts []Part
 }
 
-// Tool mirrors IRTool.
+// Tool is a function tool.
 type Tool struct {
 	Name        string
 	Description *string
@@ -54,20 +54,20 @@ type Tool struct {
 	Kind        string // function | custom
 }
 
-// ToolChoice mirrors IRToolChoice: Mode is auto|none|required, or Name is set.
+// ToolChoice: Mode is auto|none|required, or Name is set.
 type ToolChoice struct {
 	Mode string
 	Name *string
 }
 
-// Reasoning mirrors IRReasoning.
+// Reasoning is the reasoning setting.
 type Reasoning struct {
 	Effort *string
 	Budget *float64
 	Off    *bool
 }
 
-// Request mirrors IRRequest.
+// Request is the protocol-neutral request.
 type Request struct {
 	Model             string
 	System            []Part

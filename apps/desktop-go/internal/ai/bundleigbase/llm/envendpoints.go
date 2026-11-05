@@ -1,4 +1,4 @@
-// Package llm 对应 apps/desktop-electron/internal/bundle-ig-base/src/plugins/llm 中主进程需要的部分（envEndpoints.ts）。
+// Package llm：主进程用的 LLM 供应商类型与环境变量端点（envEndpoints）。
 package llm
 
 // EnvEndpointDefaults：环境变量 provider id → OpenAI 兼容端点默认值（仅预填）
@@ -20,7 +20,7 @@ var EnvEndpointDefaultsByID = map[string]EnvEndpointDefaults{
 	"doubao":   {"https://ark.cn-beijing.volces.com/api/v3", "doubao-pro", true},
 }
 
-// LLMProviderEntry：LLMProvidersPlugin.ts 的 LLMProviderEntry（"" = undefined）
+// LLMProviderEntry：供应商条目（"" = 未设置）
 type LLMProviderEntry struct {
 	ID      string
 	APIKey  string

@@ -1,6 +1,6 @@
 package harness
 
-// orchestrator_idle.go mirrors Orchestrator.ts 3802–4013：空闲回收、换账号 / 升级时重启长驻进程。
+// orchestrator_idle.go：空闲回收、换账号 / 升级时重启长驻进程。
 
 import (
 	"time"

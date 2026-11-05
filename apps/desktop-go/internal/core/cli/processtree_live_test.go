@@ -1,7 +1,7 @@
 package cli
 
 // 真实进程树：父 node 再拉起子 node（Windows 上走 taskkill /T /F，其它平台 pgrep -P 递归 + SIGKILL），
-// KillProcessTree 之后两者都必须消失。与 Node killProcessTree 的可观察结果一致。
+// KillProcessTree 之后两者都必须消失。
 
 import (
 	"os"
@@ -35,7 +35,7 @@ fs.writeFileSync(process.argv[2],String(c.pid));setInterval(()=>{},1000);`
 	if err := os.WriteFile(script, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// nodeproc.Child 的方法须在 jsrt 线程内调用（与 Node 单线程一致）
+	// nodeproc.Child 的方法须在 jsrt 线程内调用（单线程语义）
 	var child *nodeproc.Child
 	jsrt.Run(func() {
 		child = nodeproc.Spawn(node, []string{script, pidFile}, nodeproc.Options{IgnoreStdin: true, IgnoreStderr: true})

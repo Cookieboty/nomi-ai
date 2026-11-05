@@ -7,7 +7,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
 
-// 与 Node tests/unit/desktop/toolGates.test.ts 同一组语料
+// 工具分组的判定语料
 func TestToolGates(t *testing.T) {
 	cases := []struct {
 		name, text string

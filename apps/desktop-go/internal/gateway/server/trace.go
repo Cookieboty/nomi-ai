@@ -484,7 +484,7 @@ func (t *RequestTrace) Client(chunk string) {
 
 // Finish is finish(result): result is the JS object in its literal key order
 // (status, ms, attempts, usage?, error?, notes?). Returns the file written or "".
-// A non-nil error is the RangeError Node's finish() rejects with (invalid startedAt).
+// A non-nil error is a RangeError (invalid startedAt).
 func (t *RequestTrace) Finish(result *u.Obj) (string, error) {
 	t.mu.Lock()
 	if t.done {

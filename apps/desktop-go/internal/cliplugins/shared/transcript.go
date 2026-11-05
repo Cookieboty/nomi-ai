@@ -28,7 +28,7 @@ func AsJ(v any) Json {
 	return o()
 }
 
-// Lines mirrors lines()：去 BOM，逐行 trim，'{' 开头且解析为对象的保留（数组视为空对象）。
+// Lines：去 BOM，逐行 trim，'{' 开头且解析为对象的保留（数组视为空对象）。
 func Lines(text string) []Json {
 	out := []Json{}
 	text = strings.TrimPrefix(text, "\uFEFF")
@@ -51,7 +51,7 @@ func Lines(text string) []Json {
 	return out
 }
 
-// Str mirrors str()：非空字符串。
+// NStr：非空字符串。
 func NStr(v any) (string, bool) {
 	s, ok := v.(string)
 	return s, ok && s != ""
@@ -67,7 +67,7 @@ func NStrOr(vs ...any) (string, bool) {
 	return "", false
 }
 
-// When mirrors when()。
+// When：记录的时间戳（毫秒），读不出时用 fallback。
 func When(v any, fallback float64) float64 {
 	switch x := v.(type) {
 	case float64:
@@ -110,7 +110,7 @@ func asList(content any) []any {
 	return nil
 }
 
-// Blocks mirrors blocks()。
+// Blocks：内容块的文本与图片。
 func Blocks(content any) (string, []string) {
 	if s, ok := content.(string); ok {
 		return s, []string{}
@@ -150,7 +150,7 @@ var (
 	injRe4 = regexp.MustCompile(`(?i)^` + util.JSWhitespace + `*\[Your previous response had no visible output`)
 )
 
-// Injected mirrors injected()。
+// Injected：是否注入的上下文（非用户输入）。
 func Injected(text string) bool {
 	t := util.JSIText(text)
 	return injRe1.MatchString(t) || injRe2.MatchString(t) || injRe3.MatchString(t) || injRe4.MatchString(t)
@@ -170,7 +170,7 @@ type ToolEnd struct {
 	At     float64
 }
 
-// Builder mirrors class Builder。
+// Builder：把会话记录逐条拼成历史消息。
 type Builder struct {
 	Out       []Json
 	n         int
@@ -324,7 +324,7 @@ func (b *Builder) Result() []Json {
 	return b.Out
 }
 
-// AddUsage mirrors addUsage。
+// AddUsage：两份用量相加。
 func AddUsage(a, b Json) Json {
 	out := o()
 	if a != nil {
@@ -362,7 +362,7 @@ func toolResult(b *Builder, x Json, at float64) {
 	}
 }
 
-// FeedBlocks mirrors feedBlocks。
+// FeedBlocks：把内容块喂给 Builder。
 func FeedBlocks(b *Builder, content any, at float64, parentID string) {
 	list, ok := content.([]any)
 	if !ok {
@@ -392,7 +392,7 @@ func FeedBlocks(b *Builder, content any, at float64, parentID string) {
 	}
 }
 
-// WalkAssistant mirrors walkAssistant。
+// WalkAssistant：处理一条助手消息的内容块。
 func WalkAssistant(b *Builder, content any, at float64, usage Json) {
 	list, ok := content.([]any)
 	if !ok {
@@ -436,7 +436,7 @@ func WalkAssistant(b *Builder, content any, at float64, usage Json) {
 	}
 }
 
-// UsageOf mirrors usageOf（nil = undefined）。
+// UsageOf：规整用量对象（nil = undefined）。
 func UsageOf(u Json) Json {
 	n := func(k string) (float64, bool) {
 		v, ok := u.Get(k).(float64)
@@ -471,7 +471,7 @@ func UsageOf(u Json) Json {
 	return out
 }
 
-// TitleFromMessages mirrors titleFromMessages。
+// TitleFromMessages：从消息里取会话标题。
 func TitleFromMessages(msgs []Json) *string {
 	for _, m := range msgs {
 		if m.Get("role") == "user" {
@@ -493,7 +493,7 @@ func sessionIDOf(f clisdk.HistoryFileRef) string {
 // TranscriptParser = (text, fallbackAt) => HarnessTabMessage[]。
 type TranscriptParser func(text string, fallbackAt float64) []Json
 
-// HistoryParse mirrors historyParse：返回 HistoryParse Obj。
+// HistoryParse：返回 HistoryParse Obj 的解析函数。
 func HistoryParse(formatHint string, parse TranscriptParser) func(text string, f clisdk.HistoryFileRef) Json {
 	return func(text string, f clisdk.HistoryFileRef) Json {
 		msgs := parse(text, f.Mtime)

@@ -27,7 +27,7 @@ var packMime = map[string]string{
 var areas = map[string]bool{"images": true, "presets": true}
 var sepRe = regexp.MustCompile(`[\\/]`)
 
-// extname：Node path.extname（以点开头的纯文件名无扩展名）
+// extname：path.extname（以点开头的纯文件名无扩展名）
 func extname(p string) string {
 	base := p
 	if i := strings.LastIndexAny(p, `/`+string(filepath.Separator)); i >= 0 {
@@ -76,7 +76,7 @@ func realpath(p string) (string, bool) {
 	return diskCase(r), true
 }
 
-// ResolveChatAssetURL 对应 resolveChatAssetUrl；返回 "" 即 Node 的 null
+// ResolveChatAssetURL：chat-asset:// 地址 → 文件路径；返回 "" 即不认
 func ResolveChatAssetURL(root, rawURL, presetFile string) string {
 	u, ok := parseURL(rawURL)
 	if !ok || u.Protocol != ChatAssetScheme+":" || !areas[u.Hostname] {
@@ -117,10 +117,10 @@ func ResolveChatAssetURL(root, rawURL, presetFile string) string {
 	return real
 }
 
-// ResolveCharacterPackURL 对应 resolveCharacterPackUrl（root 为空即 null）
+// ResolveCharacterPackURL：character-pack:// 地址 → 包内文件路径（root 为空即不认）
 func ResolveCharacterPackURL(root, rawURL string) string { return resolveUnder(root, rawURL, "pack") }
 
-// ResolveCharacterAssetURL 对应 resolveCharacterAssetUrl：character-pack://assets/<packId>/<file>
+// ResolveCharacterAssetURL：character-pack://assets/<packId>/<file>
 // 指向下载好的远程角色素材（<userData>/character-assets，见 characterassets）
 func ResolveCharacterAssetURL(assetsRoot, rawURL string) string {
 	return resolveUnder(assetsRoot, rawURL, "assets")
@@ -157,7 +157,7 @@ func resolveUnder(root, rawURL, host string) string {
 	return real
 }
 
-// serve：两协议共用的响应体（整读入内存再返回；不支持 Range，与 Electron 实现一致）
+// serve：两协议共用的响应体（整读入内存再返回；不支持 Range）
 func serve(w http.ResponseWriter, file string, mime func(string) string) {
 	var body []byte
 	var err error
@@ -199,7 +199,7 @@ func ServeCharacterPackOrAssets(w http.ResponseWriter, root, assetsRoot, rawURL 
 }
 
 // ServeBuiltinPack：视图里的内置角色包（./character/…）从磁盘上的内置包目录提供，不嵌进程序
-// （= Electron 的 resources/renderer/character，同样是磁盘文件）。escapedRel 为包内相对路径（未解码），
+// （磁盘文件）。escapedRel 为包内相对路径（未解码），
 // 越界与路径校验同 character-pack://。支持 Range / 条件请求：rive 文件十几 MB，不整读进内存
 func ServeBuiltinPack(w http.ResponseWriter, r *http.Request, root, escapedRel string) {
 	file := ResolveCharacterPackURL(root, CharacterPackScheme+"://pack/"+escapedRel)

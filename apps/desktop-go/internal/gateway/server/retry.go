@@ -1,6 +1,6 @@
 package server
 
-// 重连策略（docs/development/gateway.md），对应 apps/desktop-electron/internal/gateway/src/retry.ts：
+// 重连策略（docs/development/gateway.md）：
 // 临时性错误先在同一个 Key 上退避重连，每个 Key 重连 KeyRetries 次（只有一个 Key 时 SingleKeyRetries 次），
 // 同一家累计失败 ProviderMaxFailures 次换同一个模型的下一家；401 / 403 不重连直接换 Key。
 

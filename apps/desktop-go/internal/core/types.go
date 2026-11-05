@@ -1,7 +1,7 @@
 // Package core 是 Go 业务核心的最小切片：只实现 ai.chat.stream。和 Wails 无关（不 import 外壳）。
 package core
 
-// 对应 packages/contract/src/app/schemas.ts 的 ChatMessage / ChatOptions / ChatChunk（POC 手写子集）
+// 对应 packages/contract/src/app/schemas.ts 的 ChatMessage / ChatOptions / ChatChunk（手写子集）
 type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`

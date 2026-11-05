@@ -156,7 +156,7 @@ func jsObjectKeys(keys []string) []string {
 	return append(ints, rest...)
 }
 
-// MarshalJSON：与 Node toJSON() 字节一致
+// MarshalJSON：toJSON() 的固定格式（与已落盘的索引兼容）
 func (x *Bm25Index) MarshalJSON() ([]byte, error) {
 	buf := []byte(`{"v":1,"docs":[`)
 	first := true

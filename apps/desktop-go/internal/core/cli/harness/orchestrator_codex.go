@@ -1,6 +1,6 @@
 package harness
 
-// Node Orchestrator.ts 4065–4462：Codex（app-server 长驻会话 / exec 每轮一个进程）。
+// Codex（app-server 长驻会话 / exec 每轮一个进程）。
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// compactCommand mirrors isCompactCommand：用户输入的 `/compact`，Codex（app-server）与 Grok（ACP）改发各自的
+// compactCommand：用户输入的 `/compact`，Codex（app-server）与 Grok（ACP）改发各自的
 // 压缩请求，不当作消息发给模型。两家的压缩请求都不带压缩说明，`/compact` 后面的参数忽略。
 var compactCommand = regexp.MustCompile(`^/compact(?:\s|$)`)
 
@@ -522,7 +522,7 @@ func (o *Orchestrator) teardownCodexLive(tabID string) {
 }
 
 func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.NormalizedImage) *jsrt.Promise[*util.Obj] {
-	// Node 为同步函数返回 rejected Promise；Async 同步执行到首个 await，JSThrow 即 rejection
+	// 同步出错也以 rejected Promise 交付：Async 同步执行到首个 await，JSThrow 即 rejection
 	return jsrt.Async(func() (*util.Obj, error) {
 		// exec 每轮一个进程，没有压缩请求；不把 /compact 当消息发给模型
 		if isCompactCommand(prompt) {

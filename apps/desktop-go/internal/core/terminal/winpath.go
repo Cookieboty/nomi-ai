@@ -10,7 +10,7 @@ import (
 	"unicode/utf16"
 )
 
-// windowsPathScript：windowsPath.ts 的 PowerShell 原文（只改当前用户 PATH，保留未展开变量与值类型）
+// windowsPathScript：改 PATH 的 PowerShell 脚本（只改当前用户 PATH，保留未展开变量与值类型）
 const windowsPathScript = `
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -62,7 +62,7 @@ func PathArgs() []string {
 	return []string{"-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", EncodedCommand(windowsPathScript)}
 }
 
-// UpdateWindowsPath = updateWindowsPath(directory, add)；失败时 Node 抛错（set 调用链向上抛），这里 panic 同等传播
+// UpdateWindowsPath：把 directory 加进 / 移出用户 PATH；失败时 panic（沿 set 调用链向上抛）
 func UpdateWindowsPath(directory string, add bool) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()

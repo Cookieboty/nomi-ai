@@ -1,6 +1,6 @@
 package desktop
 
-// 后台任务的审批（docs/features/scheduling-calendar.md），对应 PermissionBroker.ts 的 registerBackground /
+// 后台任务的审批（docs/features/scheduling-calendar.md）：PermissionBroker 的 registerBackground /
 // authorizeBackground。Go 用 context 携带：派生的 context（工具执行时拿到的）自然继承。
 
 import (

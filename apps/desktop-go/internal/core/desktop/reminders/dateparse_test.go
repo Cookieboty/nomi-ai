@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// testdata/dateparse_node.txt：每行 "<TZ> <JSON[[input, Date.parse(input)]]>"，由 Node 生成
+// testdata/dateparse_node.txt：每行 "<TZ> <JSON[[input, Date.parse(input)]]>"，期望值由 V8 的 Date.parse 生成
 func TestDateParseNodeFixtures(t *testing.T) {
 	f, err := os.Open("testdata/dateparse_node.txt")
 	if err != nil {

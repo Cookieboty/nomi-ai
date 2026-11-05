@@ -1,6 +1,6 @@
-// Package clients mirrors apps/desktop-electron/internal/gateway/src/clients/* plus the plugin
-// client specs the host registers at startup (core/src/gateway/pluginSpecs.ts
-// with @nomi-ai/cli-plugins BUILTIN_GATEWAY_ENTRIES).
+// Package clients holds the gateway clients plus the plugin
+// client specs the host registers at startup (pluginSpecs,
+// from the built-in CLI plugins' gateway entries).
 package clients
 
 import (

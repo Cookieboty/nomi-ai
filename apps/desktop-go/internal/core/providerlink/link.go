@@ -1,6 +1,5 @@
 // Package providerlink 是第三方供应商链接（docs/integrations/provider-link.md）：
-// apps/desktop-electron/internal/core/src/gateway/providerLink.ts（纯逻辑）与 ProviderLinkService.ts（流程）的移植。
-// 纯逻辑与 TS 跑同一份用例：apps/desktop-electron/internal/core/tests/fixtures/provider-link-cases.json。
+// providerLink（纯逻辑）与 ProviderLinkService（流程）。
 package providerlink
 
 import (
@@ -19,7 +18,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Wires：四种网关协议（顺序与 TS 的 LINK_WIRES 一致）
+// Wires：四种网关协议（顺序固定）
 var Wires = []string{"chat", "responses", "messages", "gemini"}
 
 const (
@@ -60,7 +59,7 @@ type Link struct {
 	Error    string    `json:"error,omitempty"`
 }
 
-// Result 对应 TS 的 LinkResult
+// Result：LinkResult
 type Result[T any] struct {
 	OK    bool   `json:"ok"`
 	Value *T     `json:"value,omitempty"`

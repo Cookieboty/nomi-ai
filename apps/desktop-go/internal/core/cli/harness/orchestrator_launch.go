@@ -1,6 +1,6 @@
 package harness
 
-// orchestrator_launch.go mirrors Orchestrator.ts 2037–2523：来源注入（launchFor / 标签绑定）、
+// orchestrator_launch.go：来源注入（launchFor / 标签绑定）、
 // 外部插件、会话归属、子进程环境、设置继承、预热、选目录、取消与 dispose。
 
 import (
@@ -413,7 +413,7 @@ func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {
 		if tab == nil || body == "" || tab.Get("status") != "running" {
 			return false, nil
 		}
-		// 这一轮的轨迹（各后端轮次结构不同，取其 events / text / breaks；text 在 await 之后再读，与 Node 一致）
+		// 这一轮的轨迹（各后端轮次结构不同，取其 events / text / breaks；text 在 await 之后再读）
 		var turn func() (*[]*util.Obj, string, []float64)
 		ok := false
 		claude := o.live.claude[id]

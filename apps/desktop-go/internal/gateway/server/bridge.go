@@ -11,7 +11,7 @@ import (
 // BridgeMode is 'passthrough' | 'convert'.
 type BridgeMode = string
 
-// BridgePlan is BridgePlan (bridge.ts).
+// BridgePlan is the plan for bridging one wire to another.
 type BridgePlan struct {
 	From, To    string
 	Mode        BridgeMode

@@ -44,7 +44,7 @@ func IsScript(bin string) bool {
 	return strings.HasSuffix(bin, ".mjs") || strings.HasSuffix(bin, ".js")
 }
 
-// CliTrap = currentCoreScope()?.cliTrace?.tap；batch 4/5 接线点（nil = 无 trace）。
+// CliTrap：CLI 子进程的 trace 钩子（nil = 无 trace）。
 var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID string)
 
 // SpawnHarness = spawnHarness。须在 jsrt.Run 内调用（nodeproc 约定）。stdin 'error' 由 nodeproc 吞掉。

@@ -5,8 +5,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/stream/sse"
 )
 
-// EventFixer is the response-fixer hook (models/rules/response/fixer.ts);
-// nil means no fixes, like Node's `fixer = null`.
+// EventFixer is the response-fixer hook (models/rules/response);
+// nil means no fixes.
 type EventFixer interface {
 	Push(ev events.NormEvent) []events.NormEvent
 	Tripped() bool

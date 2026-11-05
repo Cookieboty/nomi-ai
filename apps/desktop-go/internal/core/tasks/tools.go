@@ -1,6 +1,6 @@
 package tasks
 
-// Nomi 的任务工具，对应 src/tasks/tools.ts：task_propose（过授权卡片后才创建）与 task_recall（只读）。
+// Nomi 的任务工具：task_propose（过授权卡片后才创建）与 task_recall（只读）。
 
 import (
 	"context"
@@ -178,7 +178,7 @@ func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 				filter["event"] = w.AppEvent
 			}
 		case "mcp":
-			// 保序（server, tool, args），args 原样保留键顺序（与 Node 的过滤条件同形状）
+			// 保序（server, tool, args），args 原样保留键顺序
 			o := u.NewObj()
 			if w.McpServer != "" {
 				o.Set("server", w.McpServer)

@@ -11,7 +11,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// UndoJournal.ts：可撤销操作的逆操作日志（journal.jsonl）
+// UndoJournal：可撤销操作的逆操作日志（journal.jsonl）
 
 // InverseOp 逆操作；Op ∈ move | restore | trash | truncate | custom
 type InverseOp struct {

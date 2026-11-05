@@ -1,9 +1,9 @@
-// Package clisdk mirrors apps/desktop-electron/internal/cli-sdk (docs/development/coding-agents.md):
+// Package clisdk (docs/development/coding-agents.md):
 // the coding-assistant plugin contract and the shared session drivers.
 //
-// Events and protocol payloads are JavaScript objects in Node; Go keeps them as
-// order-preserving *util.Obj values (deviation D15) so JSON.stringify output —
-// what the renderer and the tab files see — stays byte-identical.
+// Events and protocol payloads are kept as order-preserving *util.Obj values
+// so JSON.stringify output —
+// what the renderer and the tab files see — keeps a fixed key order.
 package clisdk
 
 import (
@@ -21,7 +21,7 @@ type Ev = *util.Obj
 // O builds an ordered object from alternating key/value pairs.
 func O(kv ...any) Ev { return util.NewObj(kv...) }
 
-// WithOpt mirrors withOpt: sets each optional key whose value is not undefined
+// WithOpt sets each optional key whose value is not undefined
 // (Go nil stands for undefined here; set JS null with Obj.Set directly).
 func WithOpt(ev Ev, kv ...any) Ev {
 	for i := 0; i+1 < len(kv); i += 2 {
@@ -65,7 +65,7 @@ func isUndef(v any) bool {
 
 /* ------------------------------ events.ts ------------------------------ */
 
-// AnswerAllows mirrors answerAllows: nil = cancelled.
+// AnswerAllows reports whether a permission answer allows: nil = cancelled.
 func AnswerAllows(a Ev, options []Ev) *bool {
 	t, f := true, false
 	if a.Has("optionId") {
@@ -94,7 +94,7 @@ func AnswerAllows(a Ev, options []Ev) *bool {
 
 var crlfSplit = regexp.MustCompile(`\r?\n`)
 
-// LineSplitter mirrors LineSplitter.
+// LineSplitter splits a byte stream into lines.
 type LineSplitter struct{ parts []string }
 
 // Push returns the newly completed lines (CRLF stripped).
@@ -130,10 +130,10 @@ func (l *LineSplitter) Take() string {
 
 /* ------------------------------ carry.ts ------------------------------- */
 
-// CarryEnd mirrors CARRY_END.
+// CarryEnd ends the carried-over context of a previous conversation.
 const CarryEnd = "</previous_conversation>\n\n---\n\n"
 
-// StripCarriedContext mirrors stripCarriedContext.
+// StripCarriedContext removes the carried-over context from text.
 func StripCarriedContext(text string) string {
 	i := strings.Index(text, CarryEnd)
 	if i >= 0 && strings.HasPrefix(JSTrimStart(text), "[Nomi]") {
@@ -144,7 +144,7 @@ func StripCarriedContext(text string) string {
 
 /* ------------------------------- i18n.ts ------------------------------- */
 
-// Translate mirrors the Translate type.
+// Translate translates an i18n key.
 type Translate func(key string, args ...any) string
 
 var fmtRe = regexp.MustCompile(`\{(\d+)\}`)
@@ -161,7 +161,7 @@ func fallbackT(key string, args ...any) string {
 
 var currentT Translate = fallbackT
 
-// SetTranslate mirrors setTranslate (nil restores the key fallback).
+// SetTranslate installs the translator (nil restores the key fallback).
 func SetTranslate(fn Translate) {
 	if fn == nil {
 		currentT = fallbackT
@@ -170,12 +170,12 @@ func SetTranslate(fn Translate) {
 	currentT = fn
 }
 
-// T mirrors t.
+// T translates key with the current translator.
 func T(key string, args ...any) string { return currentT(key, args...) }
 
 /* ------------------------------ driver.ts ------------------------------ */
 
-// AppendText mirrors appendText.
+// AppendText appends the text of ev to text.
 func AppendText(text string, ev Ev) string {
 	switch ev.Get("type") {
 	case "text-delta":
@@ -189,5 +189,5 @@ func AppendText(text string, ev Ev) string {
 	return text
 }
 
-// JSThrow = jsrt.JSThrow（解析器以 panic(JSThrow) 复现 Node 的抛出；事件源用 jsrt.Dispatch 处理）。
+// JSThrow = jsrt.JSThrow（解析器以 panic(JSThrow) 表示 JS 抛出；事件源用 jsrt.Dispatch 处理）。
 type JSThrow = jsrt.JSThrow

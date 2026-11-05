@@ -10,7 +10,7 @@ import (
 )
 
 // PNGPreview = nativeImage.createFromPath(p).resize({ width }).toDataURL()：等比缩到 width（面积平均），PNG data URL。
-// 读不到 / 解不开时与空 NativeImage 一样给 "data:image/png;base64,"。像素与 Skia 的重采样不逐字节一致（D-SH-2）。
+// 读不到 / 解不开时与空 NativeImage 一样给 "data:image/png;base64,"。像素与 Skia 的重采样不逐字节一致。
 func PNGPreview(path string, width int) string {
 	const prefix = "data:image/png;base64,"
 	b, err := os.ReadFile(path)

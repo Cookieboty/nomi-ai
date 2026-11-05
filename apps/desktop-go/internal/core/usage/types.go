@@ -2,13 +2,13 @@ package usage
 
 import "encoding/json"
 
-// 对应 apps/desktop-electron/internal/core/src/usage/types.ts
+// 用量的数据类型
 
 type UsageSource = string
 type UsageVia = string
 type Currency = string
 
-// UsageRecord：一次调用（字段与 Node 同名、同可选性）
+// UsageRecord：一次调用
 type UsageRecord struct {
 	Key          string   `json:"key"`
 	Ts           float64  `json:"ts"`

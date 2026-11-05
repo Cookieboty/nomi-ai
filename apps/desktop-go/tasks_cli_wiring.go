@@ -1,7 +1,7 @@
 package main
 
-// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，对应 createCore.ts 里
-// registerExecutor('cli', createCliExecutor(...))。编排器在任务服务启动之后才装好（wireHarness），这里按调用时的
+// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，
+// 注册 cli 执行者（createCliExecutor）。编排器在任务服务启动之后才装好（wireHarness），这里按调用时的
 // harnessOrch 取；还没装好时 Bins 为空 → 准备阶段报「配置变了」。
 // 执行者在自己的 goroutine 上跑，进编排器都拿 GIL；编排器的事件回调本身持锁，转到新 goroutine 再交给执行者（锁不可重入）。
 

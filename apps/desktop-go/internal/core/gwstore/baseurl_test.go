@@ -7,7 +7,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 同 Node gatewayService.test.ts：用户填的 Base URL 原样存下；不传保留，空串清除
+// 用户填的 Base URL 原样存下；不传保留，空串清除
 func TestUpsertProviderBaseURL(t *testing.T) {
 	ud := t.TempDir()
 	s := NewService(filepath.Join(ud, "gateway"), fakeCipher{}, nil, nil)

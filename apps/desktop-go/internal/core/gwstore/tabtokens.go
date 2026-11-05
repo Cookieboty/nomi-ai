@@ -1,6 +1,6 @@
 package gwstore
 
-// tabtokens.go = TabTokens.ts：第三方标签的进程级路由令牌（先登记、后启动；网关重启后 replay）。
+// tabtokens.go：第三方标签的进程级路由令牌（先登记、后启动；网关重启后 replay）。
 
 import (
 	"crypto/rand"

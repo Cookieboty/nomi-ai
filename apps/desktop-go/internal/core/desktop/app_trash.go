@@ -14,7 +14,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// AppTrash.ts：应用自己的回收站 <root>/<YYYY-MM-DD>/<uuid>/<basename> + manifest.json
+// 应用自己的回收站 <root>/<YYYY-MM-DD>/<uuid>/<basename> + manifest.json
 
 // TrashRecord 回收记录
 type TrashRecord struct {

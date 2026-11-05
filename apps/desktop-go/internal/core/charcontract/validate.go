@@ -9,7 +9,7 @@ import (
 
 // 与 validate.ts 逐项对应。
 
-// PackSource = validate.ts PackSource。ReadJSON：文件不存在返回 (Undef, nil)。
+// PackSource：包的读取来源。ReadJSON：文件不存在返回 (Undef, nil)。
 type PackSource struct {
 	Files    []string
 	ReadJSON func(path string) (any, error)
@@ -17,7 +17,7 @@ type PackSource struct {
 	SizeOf   func(path string) (int64, bool)
 }
 
-// JSThrow 表示 Node 实现在此处会抛出的 TypeError（例如 clips 里有 null）。
+// JSThrow 表示 validatePack 在此处抛出的 TypeError（例如 clips 里有 null）。
 type JSThrow struct{ Message string }
 
 func (e JSThrow) Error() string { return e.Message }
@@ -52,7 +52,7 @@ type ValidateResult struct {
 	Pack     *Obj
 }
 
-// JS 返回 JSON.stringify(result) 的形状（金样比对用）。
+// JS 返回 JSON.stringify(result) 的形状（测试比对用）。
 func (r ValidateResult) JS() *Obj {
 	o := NewObj()
 	o.Set("ok", r.OK)
@@ -758,7 +758,7 @@ func ValidatePack(src PackSource, opts ValidateOptions) ValidateResult {
 	return done(pack)
 }
 
-// remoteHas：manifest assets.remote 是否声明了这种素材（= TS assets.remote?.includes(kind)）
+// remoteHas：manifest assets.remote 是否声明了这种素材（assets.remote?.includes(kind)）
 func remoteHas(assets *Obj, kind string) bool {
 	arr, _ := assets.Get("remote").([]any)
 	for _, v := range arr {

@@ -1,7 +1,7 @@
 package connections
 
-// 对外动作的副作用日志：共享类型（docs/features/scheduling-calendar.md）。Node 里这些在 src/tasks/external.ts；
-// Go 里 tasks 依赖 desktop / connections，接口与错误类型放在这里（desktop、extensions、connections、tasks 都能引用），
+// 对外动作的副作用日志：共享类型（docs/features/scheduling-calendar.md）。
+// tasks 依赖 desktop / connections，接口与错误类型放在这里（desktop、extensions、connections、tasks 都能引用），
 // 日志本身（写 intent / done / failed、核对）在 tasks/external.go。
 
 import (
@@ -17,7 +17,7 @@ type ExternalAction struct {
 	Action string
 	// Summary：给人看（收件箱、核对卡片）
 	Summary string
-	// Target：核对用（仓库、编号、分支、MCP 服务器与工具……），保持键的顺序（与 Node 的对象一致）
+	// Target：核对用（仓库、编号、分支、MCP 服务器与工具……），保持键的顺序
 	Target *u.Obj
 	// Payload：动作内容（只记哈希）；nil = JSON null
 	Payload any
@@ -44,8 +44,8 @@ func (e *ExternalCheckpointError) Code() string  { return "task_not_running" }
 func MarkerOf(key string) string { return "<!-- nomi-task:" + key + " -->" }
 
 // ContentHash：sha256(JSON.stringify([action, target, payload ?? null])) 的前 32 个十六进制字符。
-// 用 util.Stringify（与 JSON.stringify 同样的转义与数字格式）、Target 用保序对象，所以同样的输入与 Node 字节一致。
-// 例外：Payload 若是 Go 的 map（不是 *util.Obj / json.RawMessage），键按字母序输出，与 Node 按插入顺序可能不同
+// 用 util.Stringify（与 JSON.stringify 同样的转义与数字格式）、Target 用保序对象，所以同样的输入哈希不变（与旧版写下的记录一致）。
+// 例外：Payload 若是 Go 的 map（不是 *util.Obj / json.RawMessage），键按字母序输出，可能与插入顺序不同
 // （MCP 工具参数由调用方原样传入时才会遇到；哈希只用于审计，不参与核对）。
 func ContentHash(action string, target *u.Obj, payload any) string {
 	var t any = target

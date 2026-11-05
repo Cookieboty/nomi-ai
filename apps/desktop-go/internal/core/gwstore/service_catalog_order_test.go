@@ -12,7 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/server"
 )
 
-// 模型目录同步的时序（#185，对齐 core gatewayService.test.ts 的 models data sync ordering）：
+// 模型目录同步的时序（#185）：
 // 落盘成功后才生效、推配置；网关收到配置时按 catalogFile 读到的就是这次同步的目录。
 
 // catalogChild：假网关，收到配置时像 worker 一样按 catalogFile 读磁盘，记下读到的条目数（0 = 没有目录）

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Node 直接沿用 JSON.parse 出来的 scope 对象：未知字段、键序、原始值写回时保持不变
+// 直接沿用 JSON.parse 出来的 scope 对象：未知字段、键序、原始值写回时保持不变
 func TestScopeUnknownFieldsRoundTrip(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "settings.json")
 	in := `{"scopes":[{"path":"/tmp/x","note":"keep","id":"a","grantedAt":"1","mode":"read","kind":"folder"}],"policies":{},"localOnly":false,"cloudAcked":[]}`

@@ -4,7 +4,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ChatImage / ChatMessage / ChatRequest / ChatUsage / ChatResponse / ChatChunk：types/common.ts
+// ChatImage / ChatMessage / ChatRequest / ChatUsage / ChatResponse / ChatChunk：对话请求与回复的公共类型
 type ChatImage struct {
 	Mime string `json:"mime"`
 	Data any    `json:"data"` // typeof data === 'string' is checked by splitPrompt
@@ -42,7 +42,7 @@ type ChatUsage struct {
 	Redacted         *float64
 }
 
-// Obj：按 Node 对象字面量的键顺序（展开 { ...total, contextTokens } 后再 { ...u, redacted }）
+// Obj：固定键顺序（{ ...total, contextTokens } 后再 { ...u, redacted }）
 func (c ChatUsage) Obj() *u.Obj {
 	o := u.NewObj("promptTokens", c.PromptTokens, "completionTokens", c.CompletionTokens, "totalTokens", c.TotalTokens)
 	if c.CacheReadTokens != nil {

@@ -1,8 +1,8 @@
 // Package viewpage：Go 宿主提供视图页面（packages/renderer、packages/ai-chat 的 index.html）时的改写。
-// 视图与 Electron 共用同一份构建产物，宿主差异在这里补：
-//   - CSP 的 connect-src 放行 ws://127.0.0.1:*（契约传输是连本机内核的 WebSocket；Electron 走 preload，构建产物里没有）；
+// 视图构建产物是通用的，宿主差异在这里补：
+//   - CSP 的 connect-src 放行 ws://127.0.0.1:*（契约传输是连本机内核的 WebSocket，构建产物里没有）；
 //   - 插入 Wails 完整运行时 /wails/runtime.js（--wails-draggable 拖动窗口、文件拖放；Wails 加载完页面只注入核心桥）；
-//   - 插入宿主脚本 /__nomi/host.js（同源，CSP 'self' 放行）：外链交给系统浏览器（= security/windowGuards.ts）；
+//   - 插入宿主脚本 /__nomi/host.js（同源，CSP 'self' 放行）：外链交给系统浏览器；
 //   - 开发态再插入报错转发：页面的 console 与未捕获错误经 Wails 消息通道打到宿主日志（WebView 默认没有检查器）。
 package viewpage
 
@@ -24,7 +24,7 @@ const OpenExternalPrefix = "nomi:open-external:"
 
 const hostTag = `<script src="` + HostScriptPath + `"></script>`
 
-// hostScript = windowGuards.ts 的视图侧：Wails 的 WebView 不会把 target=_blank / window.open 交给系统浏览器
+// hostScript：视图侧的外链处理：Wails 的 WebView 不会把 target=_blank / window.open 交给系统浏览器
 // （mac 没有 createWebView 委托，点了没反应；Windows 会在应用内弹窗），也不拦跨文档跳转。这里把跨源链接的点击
 // 与 window.open 都转给宿主（宿主只放行 http / https），同源链接照常
 const hostScript = `(() => {
@@ -104,7 +104,7 @@ func widenConnectSrc(html []byte) []byte {
 	return append(out, html[at:]...)
 }
 
-// Middleware：pages 里的路径（如 /mascot/index.html，对应 assets 里去掉开头 / 的文件）改由这里读出、改写后返回，
+// Middleware：pages 里的路径（如 /mascot/index.html，即 assets 里去掉开头 / 的文件）改由这里读出、改写后返回，
 // 其余请求交给 next（嵌入资产、网关、灵动岛页）
 func Middleware(assets fs.FS, pages ...string) func(http.Handler) http.Handler {
 	want := map[string]bool{}

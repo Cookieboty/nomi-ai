@@ -33,8 +33,8 @@ func (p harnessPorts) PickDirectory(title string, _ bool, def string) *string {
 	return &d
 }
 
-// WindowFocus：windows.anyFocused。壳（feat/2.0.5-go-shell）在 *wailsshell.Wails 上实现
-// AnyFocused() bool 即自动接上；未实现前按未聚焦处理。
+// WindowFocus：windows.anyFocused。壳在 *wailsshell.Wails 上实现
+// AnyFocused() bool 即自动接上；没实现时按未聚焦处理。
 type WindowFocus interface{ AnyFocused() bool }
 
 func (p harnessPorts) AnyFocused() bool {
@@ -69,12 +69,12 @@ var harnessOrch *harness.Orchestrator
 // harnessAccounts：wireHarness 构造的 AccountService（构造失败时为 nil）
 var harnessAccounts *accounts.AccountService
 
-// wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
+// wireHarness：构造 HarnessOrchestrator，注册 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
 func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
-	// 编程助手插件宿主（createCore.ts new CliPluginHost）
+	// 编程助手插件宿主（CliPluginHost）
 	plugins := jsrt.Call(func() *cli.CliPluginHost {
 		return cli.NewCliPluginHost(cli.CliPluginHostDeps{
 			Root: filepath.Join(userData, "cli-plugins"), Logger: stdLogger{}, Events: hostEvents{router},
@@ -106,7 +106,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
 	})
-	// AccountService（createCore.ts new AccountService）
+	// AccountService
 	var acc *accounts.AccountService
 	jsrt.Run(func() {
 		a, err := accounts.NewAccountService(accounts.ServiceDeps{
@@ -141,10 +141,10 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		}
 		acc = a
 		accountsRef.Store(a) // usage_wiring.go：grokAccountKey / officialAccount
-		harnessAccounts = a  // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
+		harnessAccounts = a  // coding_wiring.go：history 的 accountLabel / sessionAccount
 	})
 	var accPort ports.HarnessOfficialAccounts
-	// AccountLogin（createCore.ts new AccountLogin：emit = loginBroadcaster → cliAccount.login）
+	// AccountLogin（emit = loginBroadcaster → cliAccount.login）
 	var login *accounts.AccountLogin
 	if acc != nil {
 		accPort = accounts.HarnessAdapter{S: acc}
@@ -155,7 +155,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			Logger:       deps.StdLogger{Prefix: "[cli-accounts]"},
 		})
 	}
-	// cliAccount.*（coding.ts 的 cliAccount 段）
+	// cliAccount.* 过程
 	codinghandlers.RegisterAccounts(router, codinghandlers.AccountServices{
 		Accounts: func() codinghandlers.Accounts {
 			if acc == nil {
@@ -197,7 +197,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	}
 }
 
-// gatewayPort：nil 网关 = Node 未传 gateway（可选依赖）
+// gatewayPort：nil 网关 = 没有网关（可选依赖）
 func gatewayPort(gw *gwstore.Service) ports.HarnessGateway {
 	if gw == nil {
 		return nil
@@ -205,7 +205,7 @@ func gatewayPort(gw *gwstore.Service) ports.HarnessGateway {
 	return harnessGateway{gw}
 }
 
-// wireNomiBroker：createCore.ts 里给 desktop.broker 接的编程助手设置。Nomi 对话的权限模式跟输入栏
+// wireNomiBroker：给 desktop.broker 接上编程助手设置。Nomi 对话的权限模式跟输入栏
 // （「完全放开」不适用）；工作区只认用户选过的目录（标签目录 / 最近列表 / 默认目录）；「全部自动」
 // 跟编程助手设置。broker 的调用方（PrepareChat、工具执行）都在 GIL 外，进编排器要拿 GIL。
 func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {

@@ -1,12 +1,12 @@
-// Package igtools：主进程 ig 工具注册表里非 MCP 的工具（Node 生产装配 1:1）。
+// Package igtools：主进程 ig 工具注册表里非 MCP 的工具，装配顺序：
 //
 //	ToolsBuiltinPlugin(enable: time_now / random / echo)
 //	→ UserPreferenceMemoryPlugin(exposeAsTools) 的 createPreferenceTools
 //	→ CompanionToolsPlugin(autoConfirm → dangerous:false)
 //	→ DesktopToolsPlugin：kb.tools() → mem.tools() → delegate.tools() → ext.tools()
 //
-// 入参 JSON Schema 为 asSchema(zod).jsonSchema 原文（golden 逐字比对），校验用 aifacade 的 zod 等价实现。
-// dangerous：Node 只有 companion 工具显式声明（false），其余都是 undefined → DangerousUnset。
+// 入参 JSON Schema 为 asSchema(zod).jsonSchema 原文（测试逐字比对），校验用 aifacade 的 zod 等价实现。
+// dangerous：只有 companion 工具显式声明（false），其余都不声明 → DangerousUnset。
 package igtools
 
 import (
@@ -54,7 +54,7 @@ func enumJSON(vals []string) string {
 	return u.Stringify(a)
 }
 
-// ---- zod 校验（与 Node 各工具的 z.object(...).strict() 同形）----
+// ---- zod 校验（各工具的 z.object(...).strict() 等价实现）----
 
 type z = aifacade.Schema
 

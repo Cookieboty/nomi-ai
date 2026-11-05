@@ -1,4 +1,4 @@
-// Package types 对应 packages/types 里主进程用到的纯函数（speechText.ts）。
+// Package types：主进程用到的 packages/types 纯函数（speechText.ts）。
 package types
 
 import (

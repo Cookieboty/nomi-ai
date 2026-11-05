@@ -1,7 +1,7 @@
-// Package anthropic ports @ai-sdk/anthropic's messages model
+// Package anthropic implements @ai-sdk/anthropic's messages model
 // (createAnthropic(...).messages(modelId)), used by Nomi for protocol
 // "anthropic". Request bodies, headers, stream parts and errors match the
-// Node SDK 4.0.78.
+// SDK 4.0.78.
 package anthropic
 
 import (

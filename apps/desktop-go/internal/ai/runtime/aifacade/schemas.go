@@ -3,7 +3,7 @@ package aifacade
 import "regexp"
 
 // 契约 packages/contract/src/app/ai.ts + schemas.ts 的入参 / 出参，
-// 与 bundle-ig-base UserProfileSchema.ts 的严格 userProfileSchema。
+// 与严格的 userProfileSchema。
 
 func strMax(n int) *StrS { s := Str(); s.Max = n; return s }
 
@@ -90,7 +90,7 @@ func storedEnum(vals ...string) Schema {
 	return Union(Enum(vals...), str)
 }
 
-// 严格 userProfileSchema（bundle-ig-base）
+// 严格 userProfileSchema
 var userProfileStrict Schema = func() Schema {
 	st := func(kv ...any) *ObjS { return ObjOf('S', kv...) }
 	pv := func(v Schema) Schema {

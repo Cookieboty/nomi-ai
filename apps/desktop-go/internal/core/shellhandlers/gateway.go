@@ -1,7 +1,7 @@
 package shellhandlers
 
-// gateway.* —— apps/desktop-electron/internal/core/src/contract/shell.ts 的 gateway() 部分（GatewayService）。
-// gateway.detect = probe/detect.ts 移植（gwstore.Service.Detect）；gateway.terminal* = TerminalCommands（InstallTerminal）。
+// gateway.*：契约 shell 域的网关部分（GatewayService）。
+// gateway.detect = gwstore.Service.Detect；gateway.terminal* = TerminalCommands（InstallTerminal）。
 
 import (
 	"context"
@@ -55,11 +55,11 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 	}
 	str := func(in *u.Obj, k string) string { s, _ := in.Get(k).(string); return s }
 	call("gateway.state", func(g *gwstore.Service, _ *u.Obj) (any, error) { return g.State(), nil })
-	// 内置模型目录（不依赖网关服务）：第三方模型「按哪个已知模型处理」的选择列表，同 shell.ts
+	// 内置模型目录（不依赖网关服务）：第三方模型「按哪个已知模型处理」的选择列表
 	r.Call("gateway.catalogModels", func(_ context.Context, _ contract.Caller, _ json.RawMessage) (any, error) {
 		return models.CatalogModels(), nil
 	})
-	// 网关服务还没起来时当作没配模型（视图按默认预算），同 shell.ts
+	// 网关服务还没起来时当作没配模型（视图按默认预算）
 	r.Call("gateway.nomiContext", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		in, err := parseObj(raw)
 		if err != nil {

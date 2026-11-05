@@ -1,4 +1,4 @@
-// Package reminders 移植 apps/desktop-electron/internal/core/src/desktop/reminders/ReminderStore.ts：
+// Package reminders：提醒（ReminderStore）：
 // 持久化在 <root>/reminders.json，应用运行时到点触发，关闭期间到期的标记为 missed。
 package reminders
 
@@ -22,7 +22,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// Reminder 一条提醒（新建的按 Node 字段顺序；从磁盘读来的保留原键序与未知字段）
+// Reminder 一条提醒（新建的按固定字段顺序；从磁盘读来的保留原键序与未知字段）
 type Reminder struct {
 	ID        string   `json:"id"`
 	Text      string   `json:"text"`
@@ -35,7 +35,7 @@ type Reminder struct {
 	Repeat    *Repeat  `json:"repeat,omitempty"`
 	AnchorAt  *float64 `json:"anchorAt,omitempty"`
 	FireCount *int     `json:"fireCount,omitempty"`
-	// raw/loaded：磁盘上的原对象和加载时的已知字段，写回时保留未知字段与键序（同 Node {...r}）
+	// raw/loaded：磁盘上的原对象和加载时的已知字段，写回时保留未知字段与键序
 	raw    *deps.OrderedObject
 	loaded []byte
 }

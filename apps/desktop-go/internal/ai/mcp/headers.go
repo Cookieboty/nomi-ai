@@ -10,7 +10,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// mcp-http-headers.ts
+// HTTP 传输的请求头
 
 type headerBinding struct {
 	headerName string

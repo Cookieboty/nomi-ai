@@ -1,4 +1,4 @@
-// Package contract mirrors apps/desktop-electron/internal/cli-sdk/src/testing/index.ts（checkPlugin 插件契约检查）。
+// Package contract：插件契约检查（checkPlugin）。
 package contract
 
 import (
@@ -62,7 +62,7 @@ type nopLogger struct{}
 func (nopLogger) Info(string, any) {}
 func (nopLogger) Warn(string, any) {}
 
-// CheckPlugin 返回问题列表（空 = 通过）；error = Node 的 checkPlugin reject（未捕获异常）。
+// CheckPlugin 返回问题列表（空 = 通过）；error = 检查本身抛出的未捕获异常。
 func CheckPlugin(p clisdk.CliPlugin, o Options) (problems []string, err error) {
 	defer func() {
 		if r := recover(); r != nil {

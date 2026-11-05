@@ -1,4 +1,4 @@
-// Package grok mirrors apps/desktop-electron/internal/cli-plugins/src/grok.
+// Package grok：Grok 插件（清单、网关条目、流式输出与会话记录解析）。
 package grok
 
 import (
@@ -29,7 +29,7 @@ func or(ss ...string) string {
 	return ""
 }
 
-// ParseLine mirrors parseGrokLine.
+// ParseLine：解析一行输出。
 func ParseLine(line string) []Ev {
 	trimmed := JSTrim(line)
 	if !strings.HasPrefix(trimmed, "{") {
@@ -138,7 +138,7 @@ func ParseLine(line string) []Ev {
 	return []Ev{}
 }
 
-// NewParser mirrors createGrokParser.
+// NewParser：带状态的逐行解析器。
 func NewParser() func(line string) []Ev {
 	names := map[string]string{}
 	return func(line string) []Ev {

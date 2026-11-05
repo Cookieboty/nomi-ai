@@ -1,5 +1,5 @@
-// Package aisdk 对应 apps/desktop-electron/internal/ai-runtime/src/ai-sdk。本批只有 AiSdkLlmProvider.ts 的
-// envProviderConfig / ENV_PROTOCOL 与选项类型；适配器本体属批次 5。
+// Package aisdk：基于 internal/ai/llm 的 LLM provider（工具循环、网关字段、流式错误），以及
+// envProviderConfig / ENV_PROTOCOL 与选项类型。
 package aisdk
 
 import (
@@ -22,7 +22,7 @@ type Options struct {
 	Thinking       *bool
 	UserAgent      string
 	Headers        any
-	// 批次 5：工具循环 / 网关字段
+	// 工具循环 / 网关字段
 	MaxSteps          *int
 	Receiver          *tools.ToolCallProvider
 	ServedModelHeader string

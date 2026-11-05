@@ -19,7 +19,7 @@ type batcher struct {
 	clock clock
 }
 
-// clock：可注入（batch_parity_test 用假时钟对拍 Node 的 fake-timer 录制）
+// clock：可注入（测试用假时钟）
 type clock interface {
 	AfterFunc(d time.Duration, f func()) stopper
 }
@@ -96,7 +96,7 @@ func (b *batcher) finish() {
 	b.flushLocked()
 }
 
-// stop：出错 / 取消，丢弃攒着的文本（同 Node：throw 时不再 yield held）
+// stop：出错 / 取消，丢弃攒着的文本
 func (b *batcher) stop() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// 持续任务的标签：审批等 7 天；默认隔离 gh 登录，授权里有 GitHub 对外能力时不隔离（同 HarnessDelegation.test.ts）
+// 持续任务的标签：审批等 7 天；默认隔离 gh 登录，授权里有 GitHub 对外能力时不隔离
 func TestTaskTabEnv(t *testing.T) {
 	tmp := t.TempDir()
 	idle := 0.0

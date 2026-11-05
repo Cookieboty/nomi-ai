@@ -151,7 +151,7 @@ func TestHeuristicTitleOnNumberedDefaultTab(t *testing.T) {
 	}
 }
 
-// CLI 自己生成的会话标题替换首条发送时的截取标题；之后智能标题不再覆盖（同 HarnessTabs.test.ts）
+// CLI 自己生成的会话标题替换首条发送时的截取标题；之后智能标题不再覆盖
 func TestCliSessionTitleReplacesHeuristic(t *testing.T) {
 	o := titleTestOrch(t)
 	defer jsrt.Run(o.Dispose)

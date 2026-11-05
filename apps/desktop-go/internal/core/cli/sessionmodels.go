@@ -153,5 +153,5 @@ func (s *SessionModelTable) drain(file string) {
 	}
 }
 
-// Flush 等待已排队的异步落盘完成（测试 / 退出前用；Node 无对应，不影响可观察行为）。
+// Flush 等待已排队的异步落盘完成（测试 / 退出前用）。
 func (s *SessionModelTable) Flush() { s.inflight.Wait() }

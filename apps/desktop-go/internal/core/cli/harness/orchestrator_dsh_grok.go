@@ -1,7 +1,6 @@
 package harness
 
-// Node Orchestrator.ts 4463–4683：dsh / grok -p / spawnCollect（每轮一个进程）。
-// b7 的占位文件名为 orchestrator_exec.go，按任务改名（D-B7-O-4）。
+// dsh / grok -p / spawnCollect（每轮一个进程）。
 
 import (
 	"errors"
@@ -96,7 +95,7 @@ func (o *Orchestrator) runGrokTurn(tab *util.Obj, prompt string, signal *jsrt.Ab
 	})
 }
 
-// promptImageDir（Node 4515）。
+// promptImageDir：标签的提示图片目录。
 func (o *Orchestrator) promptImageDir(tabID string) string {
 	return filepath.Join(o.d.Root, "prompt-images", nonWordDash.ReplaceAllString(tabID, "_"))
 }
@@ -262,7 +261,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 	})
 }
 
-// intOrNull：模板里 code 为 null 时 Node 插值为 "null"。
+// intOrNull：模板里 code 为 null 时插值为 "null"。
 func intOrNull(c *int) any {
 	if c == nil {
 		return nil

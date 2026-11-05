@@ -13,7 +13,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// holdUI：确认请求先挂起，由测试决定何时放行（同 tools.test.ts 的 fs_edit 并发用例）
+// holdUI：确认请求先挂起，由测试决定何时放行（fs_edit 并发用例）
 type holdUI struct{ reqs chan desktop.ConfirmRequest }
 
 func (h *holdUI) Request(req desktop.ConfirmRequest) { h.reqs <- req }

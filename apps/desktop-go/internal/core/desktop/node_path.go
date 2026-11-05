@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// PathLib 是 Node path.posix / path.win32 中桌面能力用到的部分（pathGuard 与 workspace 按 platform 选择）
+// PathLib 是 path.posix / path.win32 中桌面能力用到的部分（pathGuard 与 workspace 按 platform 选择）
 type PathLib interface {
 	IsAbsolute(p string) bool
 	Resolve(ps ...string) string
@@ -19,7 +19,7 @@ type PathLib interface {
 	Root(p string) string
 }
 
-// Platform 返回 Node 的 process.platform 名称
+// Platform 返回 process.platform 风格的名称
 func Platform() string {
 	switch runtime.GOOS {
 	case "windows":

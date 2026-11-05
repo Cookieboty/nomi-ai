@@ -1,7 +1,7 @@
 package agents
 
-// service.go 移植 agents/AgentProgressService.ts。与 Node 同为单线程语义：所有导出方法必须持
-// jsrt GIL 调用（= JS 主线程）；tick 的目录扫描 / 读文件放到后台 goroutine 并 Await（= Node 的
+// service.go：AgentProgressService。单线程语义：所有导出方法必须持
+// jsrt GIL 调用（= JS 主线程）；tick 的目录扫描 / 读文件放到后台 goroutine 并 Await（相当于
 // fs.promises + await），期间事件循环照常运转。
 
 import (
@@ -73,7 +73,7 @@ func remind(status, l, s string) string {
 	return ""
 }
 
-// Notice mirrors DesktopNotice（"" = undefined）。
+// Notice：桌面通知（"" = undefined）。
 type Notice struct {
 	Kind, Endpoint, Status, Title, Body, Text string
 	Bubble                                    *util.Obj
@@ -111,7 +111,7 @@ type Logger interface {
 	Warn(m string, d ...any)
 }
 
-// Deps mirrors Deps。
+// Deps：服务依赖。
 type Deps struct {
 	Root   string
 	Logger Logger
@@ -133,7 +133,7 @@ type Deps struct {
 	TaskCost     func(q CostQuery) *jsrt.Promise[string]
 }
 
-// Harness mirrors attachHarness 的 h。Tabs 返回 WatchedTab（原样的标签对象）。
+// Harness：attachHarness 的 h。Tabs 返回 WatchedTab（原样的标签对象）。
 type Harness struct {
 	Tabs         func() []*util.Obj
 	OnTabs       func(fn func())
@@ -142,7 +142,7 @@ type Harness struct {
 	Progress     func(tabID string) string
 }
 
-// EndpointFinished mirrors EndpointFinished（Error "" = undefined）。
+// EndpointFinished：一个端点的一轮结束（Error "" = undefined）。
 type EndpointFinished struct {
 	TabID, Title, Backend string
 	Ok                    bool
@@ -150,7 +150,7 @@ type EndpointFinished struct {
 	Background            bool
 }
 
-// EndpointPermissionNeeded mirrors EndpointPermissionNeeded。
+// EndpointPermissionNeeded：端点在等权限确认。
 type EndpointPermissionNeeded struct {
 	TabID, Title, Backend, Summary string
 	Background                     bool
@@ -210,7 +210,7 @@ type inspectedHit struct {
 	cand  candidate
 }
 
-// Service mirrors AgentProgressService。
+// Service：编程助手进度服务。
 type Service struct {
 	d                 Deps
 	settings          Settings
@@ -245,7 +245,7 @@ func nodePlatform() string {
 	return runtime.GOOS
 }
 
-// New mirrors the constructor（mkdir root + load）。
+// New：建目录并加载（mkdir root + load）。
 func New(d Deps) *Service {
 	s := &Service{d: d, settings: DefaultAgentWatch(), tracked: map[string]*trackedT{}, runStart: map[string]float64{},
 		inspected: map[string]inspectedHit{}, scan: NewScanCache(),
@@ -323,7 +323,7 @@ func tstr(t *util.Obj, k string) string {
 
 func truthy(v any) bool { return util.Truthy(v) }
 
-// State mirrors state()。
+// State：当前状态快照。
 func (s *Service) State() *util.Obj {
 	tabs := s.safeTabs()
 	owned := map[string]bool{}
@@ -409,7 +409,7 @@ func (s *Service) withUsage(v *util.Obj, tabs []*util.Obj) (out *util.Obj) {
 	return v
 }
 
-// SetSettings mirrors setSettings(patch)。
+// SetSettings：合并并保存设置 patch。
 func (s *Service) SetSettings(patch any) (*util.Obj, error) {
 	m := s.settings.Obj()
 	tools := s.settings.toolsObj()
@@ -441,7 +441,7 @@ func (s *Service) SetSettings(patch any) (*util.Obj, error) {
 	return s.settings.Obj(), nil
 }
 
-// DetectKinds mirrors detectKinds()。
+// DetectKinds：本机装了哪些编程助手。
 func (s *Service) DetectKinds() []AgentKind {
 	ex := func(p string) bool { _, err := os.Stat(p); return err == nil }
 	found := []AgentKind{}
@@ -773,7 +773,7 @@ func (s *Service) catchTick(p *jsrt.Promise[struct{}]) {
 	}()
 }
 
-// Tick mirrors tick(refresh)。
+// Tick：扫描一轮（refresh 强制重读）。
 func (s *Service) Tick(refresh bool) *jsrt.Promise[struct{}] {
 	if !s.settings.Enabled {
 		return jsrt.Resolved(struct{}{})
@@ -1035,7 +1035,7 @@ func (s *Service) info(m string, d any) {
 	}
 }
 
-// AttachHarness mirrors attachHarness(h)。
+// AttachHarness：接上编排器 h（标签端点的进度来自它）。
 func (s *Service) AttachHarness(h Harness) {
 	s.tabs = h.Tabs
 	if h.Progress != nil {
@@ -1069,7 +1069,7 @@ var (
 
 func squash(s string) string { return util.JSTrim(reWS.ReplaceAllString(s, " ")) }
 
-// OnPermissionNeeded mirrors onPermissionNeeded(e)。
+// OnPermissionNeeded：端点在等权限确认。
 func (s *Service) OnPermissionNeeded(e EndpointPermissionNeeded) {
 	if !s.settings.Enabled {
 		return
@@ -1106,7 +1106,7 @@ func (s *Service) notify(n Notice) {
 	}
 }
 
-// OnEndpointFinished mirrors onEndpointFinished(e)。
+// OnEndpointFinished：端点一轮结束。
 func (s *Service) OnEndpointFinished(e EndpointFinished) {
 	if !e.Background || !s.settings.Enabled {
 		return
@@ -1235,7 +1235,7 @@ func (s *Service) startTimers() bool {
 
 func (s *Service) firstTick() { s.catchTick(s.Tick(true)) }
 
-// Start mirrors start()（首轮 tick 先于定时器注册，与 Node 同步段内的顺序一致）。
+// Start：先跑首轮 tick，再注册定时器。
 func (s *Service) Start() {
 	if s.timer != nil {
 		return
@@ -1244,7 +1244,7 @@ func (s *Service) Start() {
 	s.startTimers()
 }
 
-// Stop mirrors stop()。
+// Stop：停掉定时器。
 func (s *Service) Stop() {
 	jsrt.ClearTimeout(s.timer)
 	s.timer = nil
@@ -1281,7 +1281,7 @@ func (s *Service) runningTasks() []runningTask {
 	return out
 }
 
-// Digest mirrors digest()。
+// Digest：汇总通知。
 func (s *Service) Digest() bool {
 	if !s.settings.Enabled {
 		return false
@@ -1358,7 +1358,7 @@ func (s *Service) Digest() bool {
 	return true
 }
 
-// ScanNow mirrors scanNow()（持 GIL 调用；内部 Await）。
+// ScanNow：立即扫描（持 GIL 调用；内部 Await）。
 func (s *Service) ScanNow() (*util.Obj, error) {
 	if _, err := jsrt.Await(s.Tick(true)); err != nil {
 		return nil, err
@@ -1366,7 +1366,7 @@ func (s *Service) ScanNow() (*util.Obj, error) {
 	return s.State(), nil
 }
 
-// TabView mirrors tabView(t)。
+// TabView：标签 t 的视图对象。
 func TabView(t *util.Obj) *util.Obj {
 	st := t.Get("status")
 	status := "waiting"
@@ -1431,7 +1431,7 @@ func finishSummary(lb, title string, ok bool, detail string) string {
 	return tr.T("electron.common.task-failed", lb, task, d)
 }
 
-// WithCost mirrors withCost(text, cost)（"" = null）。
+// WithCost：文案后接上花费（"" = null）。
 func WithCost(text, cost string) string {
 	if cost == "" {
 		return util.UTF16Slice0(text, bubbleMax)

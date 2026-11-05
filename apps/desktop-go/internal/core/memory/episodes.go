@@ -1,4 +1,4 @@
-// Package memory 移植 apps/desktop-electron/internal/core/src/memory：情节记忆（episodes.ts，纯逻辑）与 MemoryService。
+// Package memory：情节记忆（episodes，纯逻辑）与 MemoryService。
 package memory
 
 import (
@@ -148,7 +148,7 @@ type ParsedSummary struct {
 
 var secretRe = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{12,}|password|密码|口令|身份证|银行卡|\b\d{15,19}\b)`)
 
-// HasSecret：网关 privacy 的共用密钥规则（apps/desktop-electron/internal/gateway/src/privacy/rules.ts hasSecret(s) = ruleSpans(s, {}).length > 0）。
+// HasSecret：网关 privacy 的共用密钥规则（ruleSpans(s, {}).length > 0）。
 var HasSecret = func(s string) bool { return privacy.HasSecret(s, false) }
 
 func ParseSummary(raw string) *ParsedSummary {
@@ -232,7 +232,7 @@ func IsDuplicateFact(a, b string) bool {
 
 var negations = map[rune]bool{'不': true, '没': true, '无': true, '非': true, '别': true, '未': true, '勿': true, '否': true}
 
-// meaningful = meaningful（episodes.ts）：多出来的字里有否定词、数字、中文数字、拉丁字母就不算同一句话（#223）
+// meaningful：多出来的字里有否定词、数字、中文数字、拉丁字母就不算同一句话（#223）
 func meaningful(ch rune) bool {
 	return negations[ch] || strings.ContainsRune("零〇一二两三四五六七八九十百千万亿", ch) ||
 		unicode.IsNumber(ch) || unicode.Is(unicode.Latin, ch)

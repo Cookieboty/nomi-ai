@@ -1,6 +1,6 @@
 package delegate
 
-// 派给 Nomi（docs/features/scheduling-calendar.md），对应 DelegateService.test.ts「DelegateService · 派给 Nomi」。
+// 派给 Nomi（docs/features/scheduling-calendar.md）。
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 package main
 
-// 持续任务的事件源（docs/features/scheduling-calendar.md），对应 createCore.ts 里的 tasks.registerSource(...)：
+// 持续任务的事件源（docs/features/scheduling-calendar.md），注册到 tasks（registerSource）：
 // web / folder 直接可用；github 经连接只读；app 听内核事件。编程助手的 tab-finished 在编排器装好（wireHarness，
 // 晚于任务服务启动）后才接上：先把订阅记在 taskCliFinished 里，attach 时再挂到编排器的事件上。
 // 编排器的事件回调持 GIL（不可重入），转到新 goroutine 再查标签、交给 hub。

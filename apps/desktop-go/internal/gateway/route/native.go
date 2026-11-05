@@ -1,4 +1,4 @@
-// Package route mirrors apps/desktop-electron/internal/gateway/src/route/*.
+// Package route: candidate resolution, route plans, native passthrough and rectifiers.
 package route
 
 import (

@@ -13,7 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// wireAgents 对齐 createCore.ts 的 AgentProgressService 构造 + attachHarness。
+// wireAgents：构造 AgentProgressService 并接到编排器（attachHarness）。
 // usageOf / taskCost 来自 UsageService（usage_wiring.go）。
 func wireAgents(router *contract.Router, userData string, d *desktop.Service) func() {
 	o := harnessOrch

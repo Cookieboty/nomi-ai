@@ -13,7 +13,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 同 Node detect.test.ts：Responses 对改了名的 Claude 返回 503，换一个模型测通就算可用
+// Responses 对改了名的 Claude 返回 503，换一个模型测通就算可用
 func TestDetectFallsBackToAnotherModel(t *testing.T) {
 	var mu sync.Mutex
 	var seen []string
