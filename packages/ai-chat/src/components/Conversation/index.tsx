@@ -543,7 +543,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                       <AssistantBody
                         text={live?.text ?? ''}
                         trace={live?.trace}
-                        showThinkingDetails={live?.showThinkingDetails}
                         breaks={live?.textBreaks}
                         live
                         streaming
@@ -566,7 +565,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                   <AssistantBody
                     text={live?.text ?? ''}
                     trace={live?.trace}
-                    showThinkingDetails={live?.showThinkingDetails}
                     breaks={live?.textBreaks}
                     live
                     streaming

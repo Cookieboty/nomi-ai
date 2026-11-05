@@ -38,15 +38,11 @@ export type WaterfallRow =
 
 /** 瀑布图的行：按开始时间排序；没有时间的工具调用放在最后（start = NaN） */
 export function waterfallRows(
-  m: Pick<ConvMessage, 'trace' | 'showThinkingDetails'>,
+  m: Pick<ConvMessage, 'trace'>,
   requests: readonly QualityRequestItem[],
 ): WaterfallRow[] {
   const rows: WaterfallRow[] = [];
-  const trace =
-    m.showThinkingDetails === false
-      ? m.trace?.map((event) => (event.type === 'thinking' ? { ...event, text: '' } : event))
-      : m.trace;
-  const entries = reduceTrace(trace ?? []);
+  const entries = reduceTrace(m.trace ?? []);
   const depthOf = new Map<string, number>();
   for (const e of entries) {
     if (e.type === 'thinking') {

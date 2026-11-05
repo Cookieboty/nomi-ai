@@ -276,7 +276,7 @@ describe('Nomi 对话走同一套视图', () => {
     ...over,
   });
 
-  it('Nomi 的工具轨迹照常渲染，不展示思考明细，正文是 Markdown', () => {
+  it('Nomi 的工具调用（MCP / 搜索）与思考走同一个 trace 渲染，正文是 Markdown', () => {
     const { container, getByTestId } = render(
       <NomiConversation
         messages={[
@@ -308,7 +308,7 @@ describe('Nomi 对话走同一套视图', () => {
       />,
     );
     expect(container.querySelector('[data-testid="tool-row"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="tool-thinking"]')).toBeNull();
+    expect(getByTestId('tool-thinking')).toBeTruthy();
     expect(getByTestId('markdown').querySelector('strong')?.textContent).toBe('结果');
   });
 
