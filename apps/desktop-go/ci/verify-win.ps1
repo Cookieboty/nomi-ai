@@ -1,9 +1,7 @@
-# 批次 11 Windows 安装器验证：先装 Electron 2.0.4 记录目录/快捷方式/注册表 → 用 Go 版安装器覆盖升级 → 对比 → 启动看到桌面角色 → 卸载。
-# 用法：verify-win.ps1 -Setup <Nomi-Setup-x.exe> -Out <dir> [-Old <Nomi-Setup-2.0.4.exe>] [-RequireOld]
-# 有 -Old 时模拟 2.0.4 的应用内升级：electron-updater（NsisUpdater.doInstall）在 quitAndInstall(false, true) 后
-# 以 `--updated --force-run`（非静默）启动新安装器 → 要求覆盖到同一目录、只剩一个卸载项、旧 Electron 文件清掉、
-# 装完自动启动新版本、2.0.4 的用户数据还在。-RequireOld：没有 2.0.4 安装器就判失败（tag 发版用）
-param([string]$Setup, [string]$Out, [string]$Old = "", [string]$ElectronExe = "", [switch]$RequireOld)
+# Windows 安装器验证：全新静默安装 → 用应用内更新的方式（/S --updated --force-run）再装一次，要求覆盖到同一目录、只剩一个
+# 卸载项、装完自动启动 → 启动后看到桌面角色窗口 → 静默卸载（程序与快捷方式清掉、用户数据保留）。
+# 用法：verify-win.ps1 -Setup <Nomi-Setup-x.exe> -Out <dir>
+param([string]$Setup, [string]$Out)
 $ErrorActionPreference = "Continue"
 New-Item -ItemType Directory -Force $Out | Out-Null
 $R = Join-Path $Out "report.md"; $ok = $true
@@ -46,77 +44,36 @@ function Snap($label) {
   } | Out-File -Encoding utf8 $f
   return $f }
 W "### windows: $(Split-Path $Setup -Leaf) ($((Get-Item $Setup).Length) bytes)"
-$sig = Get-AuthenticodeSignature $Setup; W "- Authenticode：$($sig.Status)（Electron 2.0.4 同样未签名）"
-# CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json / latest.yml，2.0.4 还会自动下载整个安装包，算进下载量。Go 版 userData = %APPDATA%\Nomi；2.0.4 没有 productName，userData = %APPDATA%\@nomi-ai\electron
-foreach ($d in "$env:APPDATA\Nomi", "$env:APPDATA\@nomi-ai\electron") {
-  New-Item -ItemType Directory -Force $d | Out-Null
-  Set-Content -Encoding ascii (Join-Path $d 'update-settings.json') '{"version":1,"autoCheck":false}'
-}
+$sig = Get-AuthenticodeSignature $Setup; W "- Authenticode：$($sig.Status)"
+# CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json，算进下载量（userData = %APPDATA%\Nomi）
+$ud = "$env:APPDATA\Nomi"; New-Item -ItemType Directory -Force $ud | Out-Null
+Set-Content -Encoding ascii (Join-Path $ud 'update-settings.json') '{"version":1,"autoCheck":false}'
 # 安装器把每一步的耗时写在 %TEMP%\nomi-install.log（installer.nsi 的 StepLog）
 function InstallLog($title) {
   $f = Join-Path $env:TEMP "nomi-install.log"
   if (Test-Path $f) { W $title; W '```'; Get-Content $f | ForEach-Object { W $_ }; W '```' } else { W "- $title：没有 nomi-install.log" }
 }
-$upgrade = $Old -and (Test-Path $Old)
-if (-not $upgrade -and $RequireOld) { W "- 缺 Electron 2.0.4 安装器，无法验证 2.0.4 → 新版升级"; $ok = $false }
-if ($upgrade) {
-  Start-Process -Wait $Old -ArgumentList "/S"; Start-Sleep 5
-  # 跑一次 2.0.4 让它写出用户数据（升级后要还在）
-  $e = Join-Path (InstDir) "Nomi.exe"; if (Test-Path $e) { Start-Process $e; Start-Sleep 30 }
-  Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
-  $a = Snap "electron-204"; W "- 已安装并运行过 Electron 2.0.4（state-electron-204.txt）"
-  $old204 = "$env:APPDATA\@nomi-ai\electron"  # 2.0.4 没有 productName，userData 不在 %APPDATA%\Nomi
-  $dataBefore = @(Get-ChildItem $old204 -Recurse -File -ErrorAction SilentlyContinue).Count
-  # = NsisUpdater.doInstall：quitAndInstall(false, true) → ["--updated", "--force-run"]，非静默
-  # 只等安装器本身：Start-Process -Wait 会连 --force-run 拉起的 Nomi 一起等（Nomi 一直在跑 → 卡到任务超时）
-  $t = Measure-Command { $script:inst = Start-Process $Setup -ArgumentList "--updated","--force-run" -PassThru; $null = $script:inst.WaitForExit(300000) }
-  if (-not $inst.HasExited) { W "- Go 安装器 5 分钟没有退出"; $ok = $false }
-  Start-Sleep 15; $b = Snap "go"; W "- Go 安装器（--updated --force-run，同 2.0.4 应用内升级）用时 $([int]$t.TotalSeconds)s（state-go.txt）"
-  $dir = InstDir
-  $run = @(Get-Process Nomi -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) })
-  W "- 装完自动启动（--force-run）：$(if ($run.Count) { '是' } else { '否' })"; if (-not $run.Count) { $ok = $false }
-  Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
-  $leftover = @("resources\app.asar", "ffmpeg.dll", "libEGL.dll", "chrome_100_percent.pak") | Where-Object { Test-Path (Join-Path $dir $_) }
-  W "- 旧 Electron 文件残留：$(if ($leftover) { $leftover -join ', ' } else { '无' })"; if ($leftover) { $ok = $false }
-  $keys = @(Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "Nomi*" })
-  $ver = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).DisplayVersion
-  W "- 卸载项：$($keys.Count) 个，DisplayVersion=$ver"; if ($keys.Count -ne 1 -or $ver -eq "2.0.4") { $ok = $false }
-  $dataAfter = @(Get-ChildItem $old204 -Recurse -File -ErrorAction SilentlyContinue).Count
-  W "- 2.0.4 用户数据（%APPDATA%\@nomi-ai\electron）：升级前 $dataBefore 个文件，升级后 $dataAfter 个"; if ($dataBefore -gt 0 -and $dataAfter -eq 0) { $ok = $false }
-  InstallLog "安装器各步耗时（Electron 2.0.4 → Go）"
-  # Go → Go 覆盖安装：已装 Go 版的用户应用内更新走的就是这条路径
-  $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
-  W "- Go → Go 覆盖安装（/S）用时 $([int]$t.TotalSeconds)s"
-  InstallLog "安装器各步耗时（Go → Go）"
-  if (Test-Path (Join-Path $dir "resources\app.asar")) { W "- Go → Go 后出现 Electron 文件"; $ok = $false }
-} else {
-  $t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
-  Start-Sleep 3; $b = Snap "go"; W "- Go 安装器 /S 用时 $([int]$t.TotalSeconds)s（state-go.txt）"
-  InstallLog "安装器各步耗时（全新安装）"
-}
-if ($upgrade) {
-  W "安装状态对比（Electron 2.0.4 → Go 覆盖升级后）"; W '```diff'
-  Compare-Object (Get-Content $a) (Get-Content $b) | ForEach-Object { W ("{0} {1}" -f ($(if ($_.SideIndicator -eq '<=') {'-'} else {'+'})), $_.InputObject) }
-  W '```'
-  $others = (Get-Content $b) -join "`n"
-  if ($others -match "\(missing\)") { W "- 有缺失项（见上）"; $ok = $false }
-}
+$t = Measure-Command { Start-Process -Wait $Setup -ArgumentList "/S" }
+Start-Sleep 3; $b = Snap "go"; W "- 全新安装（/S）用时 $([int]$t.TotalSeconds)s（state-go.txt）"
+InstallLog "安装器各步耗时（全新安装）"
+if ((Get-Content $b) -join "`n" -match "\(missing\)") { W "- 安装后有缺失项（state-go.txt）"; $ok = $false }
+# 应用内更新：updates.GitHubUpdater.QuitAndInstall 以 /S --updated --force-run 运行新安装器后退出
+# 只等安装器本身：Start-Process -Wait 会连 --force-run 拉起的 Nomi 一起等（Nomi 一直在跑 → 卡到任务超时）
+$dir = InstDir
+$t = Measure-Command { $script:inst = Start-Process $Setup -ArgumentList "/S","--updated","--force-run" -PassThru; $null = $script:inst.WaitForExit(300000) }
+if (-not $inst.HasExited) { W "- 更新安装器 5 分钟没有退出"; $ok = $false }
+Start-Sleep 15; $u = Snap "update"; W "- 应用内更新（/S --updated --force-run）用时 $([int]$t.TotalSeconds)s（state-update.txt）"
+InstallLog "安装器各步耗时（应用内更新）"
+$run = @(Get-Process Nomi -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) })
+W "- 装完自动启动（--force-run）：$(if ($run.Count) { '是' } else { '否' })"; if (-not $run.Count) { $ok = $false }
+Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+$keys = @(Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "Nomi*" })
+W "- 卸载项：$($keys.Count) 个；安装目录：$(InstDir)"; if ($keys.Count -ne 1 -or (InstDir) -ne $dir) { $ok = $false }
+W "安装状态对比（全新安装 → 应用内更新后）"; W '```diff'
+Compare-Object (Get-Content $b) (Get-Content $u) | ForEach-Object { W ("{0} {1}" -f ($(if ($_.SideIndicator -eq '<=') {'-'} else {'+'})), $_.InputObject) }
+W '```'
 function PickMascot($ws) { $ws | Where-Object { $f = $_.Split('|'); [int]$f[3] -ge 200 -and [int]$f[3] -le 700 -and [math]::Abs([int]$f[4] / [math]::Max(1,[int]$f[3]) - 355/330) -lt 0.08 } | Select-Object -First 1 }
 W ("- 屏幕：" + [System.Windows.Forms.Screen]::PrimaryScreen.Bounds + "，工作区 " + [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea + "，系统 DPI " + [Wn]::GetDpiForSystem())
-$EMascot = $null
-if ($ElectronExe -and (Test-Path $ElectronExe)) {
-  # 同 runner、全新 userData 启动源码构建的 Electron 2.0.4，量桌面角色窗口（尺寸基线）
-  Remove-Item -Recurse -Force "$env:APPDATA\Nomi","$env:APPDATA\@nomi-ai" -ErrorAction SilentlyContinue
-  $ep = Start-Process $ElectronExe -PassThru; Start-Sleep 45
-  $ews = @(); Get-Process -Name Nomi -ErrorAction SilentlyContinue | ForEach-Object { $ews += [Wn]::List([uint32]$_.Id) }
-  $ews | Out-File -Encoding utf8 (Join-Path $Out "windows-electron-204.txt")
-  Shot (Join-Path $Out "win-electron-204-fullscreen.png")
-  $em = PickMascot $ews
-  if ($em) { $f = $em.Split('|'); $EMascot = "$($f[3])x$($f[4])"; Shot (Join-Path $Out "win-electron-204-mascot.png") (New-Object System.Drawing.Rectangle ([int]$f[1]), ([int]$f[2]), ([int]$f[3]), ([int]$f[4])); W "- Electron 2.0.4（源码构建）桌面角色窗口 $EMascot（$($f[6])）" }
-  else { W "- Electron 2.0.4（源码构建）未找到桌面角色窗口（windows-electron-204.txt）" }
-  Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
-  Remove-Item -Recurse -Force "$env:APPDATA\Nomi","$env:APPDATA\@nomi-ai" -ErrorAction SilentlyContinue
-} else { W "- 无 Electron 2.0.4 构建，跳过同机尺寸对比" }
 $exe = Join-Path (InstDir) "Nomi.exe"
 if (-not (Test-Path $exe)) { W "- 安装目录里没有 Nomi.exe"; $ok = $false }
 else {
@@ -125,8 +82,7 @@ else {
   Shot (Join-Path $Out "win-launch-fullscreen.png")
   $m = PickMascot $ws
   if ($m) { $f = $m.Split('|'); Shot (Join-Path $Out "win-mascot.png") (New-Object System.Drawing.Rectangle ([int]$f[1]), ([int]$f[2]), ([int]$f[3]), ([int]$f[4]))
-    W "- 启动：PID $($p.Id)，桌面角色窗口 $($f[3])x$($f[4])（$($f[6])）已显示（win-mascot.png）"
-    if ($EMascot -and $EMascot -ne "$($f[3])x$($f[4])") { W "- 尺寸与 Electron 2.0.4 不一致：$EMascot vs $($f[3])x$($f[4])"; $ok = $false } }
+    W "- 启动：PID $($p.Id)，桌面角色窗口 $($f[3])x$($f[4])（$($f[6])）已显示（win-mascot.png）" }
   else { W "- 启动后未找到桌面角色窗口（windows.txt）"; $ok = $false }
   W ("- 进程：" + ((Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path)))
   Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2

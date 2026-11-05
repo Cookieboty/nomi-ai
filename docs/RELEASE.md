@@ -15,7 +15,7 @@ Nomi 的安装包（`apps/desktop-go`，Go 内核 + Wails v3）由
 | push `main`                          | `desktop-go.yml`（三平台 go vet / go test、构建）+ `ci.yml`（三平台 quality）；不打安装包                                                          |
 | PR → `main`                          | `desktop-go.yml`（只改 Go / 视图 / 内核时）；带 `ci:full` 标签才打安装包                                                                           |
 | push tag `v*`（≥ v2.0.5）            | **不重跑测试**（打 tag 前 main 上必须已全绿）→ 三平台打包 + 安装/启动验证 → `latest-go.json` → draft Release → 产物齐全后**自动发布**并标为 latest |
-| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布；`bench=true` 额外跑与 2.0.4 的性能对比                                                                                |
+| `workflow_dispatch`（在 tag ref 上） | 补跑：`publish=true` 才发布                                                                                                                        |
 | `workflow_dispatch`（在 `main` 上）  | 打一次 Go 安装包                                                                                                                                   |
 
 发一版：

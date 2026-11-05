@@ -5,9 +5,9 @@ on:
   workflow_dispatch: {}
   workflow_call: {}
   push:
-    branches: [main, feat/2.0.5-go, 'feat/2.0.5-go-**']
+    branches: [main]
   pull_request:
-    branches: [main, release/2.0.5]
+    branches: [main]
     paths:
       - 'apps/desktop-go/**'
       # 视图（packages/renderer、ai-chat）与契约内嵌进 Go 程序
@@ -16,10 +16,8 @@ on:
       - '.github/workflows/desktop-go.yml'
 permissions:
   contents: read
-# 按分支分组：push（main / 集成分支）不取消，一个在跑 + 只保留最新一个排队；
+# 按分支分组：push main 不取消，一个在跑 + 只保留最新一个排队；
 # PR 上新提交取消旧 run（旧提交的结果没人看，还占着三平台 runner、让新 run 排队）。
-# PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
-# worker 分支 feat/2.0.5-go-** 也触发 push：各自独立分组（按 ref），不会取消集成分支的 run。
 concurrency:
   group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -28,7 +26,6 @@ env:
 jobs:
   # 测试与构建 / 实测分成两个并行 job：任一边失败只重跑那一边（以前一个 job 里全做，实测步骤挂了也要整个重跑 go test）
   test:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -63,9 +60,8 @@ jobs:
           TAGS=(); [ "$RUNNER_OS" = Linux ] && TAGS=(-tags gtk3); [ "$RUNNER_OS" = macOS ] && TAGS=(-tags private_mac_apis)
           ci/go-test.sh "${TAGS[@]}"
 
-  # POC 构建 + 体积 + macOS 透明窗口验证 + 内存实测（与 test 并行）。内存实测只报告，不让 CI 变红
+  # 构建 + 体积 + macOS 透明窗口验证 + 内存实测（与 test 并行）。未签名的 CI 构建，不是安装包；内存实测只报告，不让 CI 变红
   build:
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -96,64 +92,64 @@ jobs:
           mkdir -p dist-ci
           case "$RUNNER_OS" in
             Windows)
-              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-poc.exe .
-              cp build/bin/nomi-poc.exe dist-ci/
-              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-poc-windows-amd64.zip nomi-poc.exe >/dev/null) ;;
+              go build -trimpath -ldflags "-s -w -H windowsgui" -o build/bin/nomi-ci.exe .
+              cp build/bin/nomi-ci.exe dist-ci/
+              (cd build/bin && 7z a -tzip ../../dist-ci/nomi-ci-windows-amd64.zip nomi-ci.exe >/dev/null) ;;
             macOS)
-              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
-              APP="build/Nomi POC.app"; mkdir -p "$APP/Contents/MacOS"
-              cp build/bin/nomi-poc "$APP/Contents/MacOS/nomi-poc"
+              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-ci .
+              APP="build/Nomi CI.app"; mkdir -p "$APP/Contents/MacOS"
+              cp build/bin/nomi-ci "$APP/Contents/MacOS/nomi-ci"
               cat > "$APP/Contents/Info.plist" <<PL
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-          <key>CFBundleExecutable</key><string>nomi-poc</string>
-          <key>CFBundleIdentifier</key><string>ai.nomi.poc</string>
-          <key>CFBundleName</key><string>Nomi POC</string>
+          <key>CFBundleExecutable</key><string>nomi-ci</string>
+          <key>CFBundleIdentifier</key><string>com.cookieboty.nomi.ci</string>
+          <key>CFBundleName</key><string>Nomi CI</string>
           <key>CFBundlePackageType</key><string>APPL</string>
           <key>LSUIElement</key><true/>
           <key>NSHighResolutionCapable</key><true/>
           </dict></plist>
           PL
               codesign --force --deep -s - "$APP" || true
-              (cd build && ditto -c -k --keepParent "Nomi POC.app" ../dist-ci/nomi-poc-macos-arm64.zip) ;;
+              (cd build && ditto -c -k --keepParent "Nomi CI.app" ../dist-ci/nomi-ci-macos-arm64.zip) ;;
             Linux)
-              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
-              tar czf dist-ci/nomi-poc-linux-amd64.tar.gz -C build/bin nomi-poc ;;
+              go build -tags gtk3 -trimpath -ldflags "-s -w" -o build/bin/nomi-ci .
+              tar czf dist-ci/nomi-ci-linux-amd64.tar.gz -C build/bin nomi-ci ;;
           esac
           {
             echo "### ${{ matrix.os }} 体积（字节）"
             echo '```'
             ls -l build/bin dist-ci
-            [ -d "build/Nomi POC.app" ] && du -sk "build/Nomi POC.app" | awk '{print ".app du -sk(KiB): "$1}'
+            [ -d "build/Nomi CI.app" ] && du -sk "build/Nomi CI.app" | awk '{print ".app du -sk(KiB): "$1}'
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: nomi-poc-${{ matrix.os }}
+          name: nomi-ci-${{ matrix.os }}
           path: apps/desktop-go/dist-ci/
 
       - name: mac transparency proof
         if: runner.os == 'macOS'
         working-directory: apps/desktop-go
-        run: ci/mac-transparency.sh "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/shots"
+        run: ci/mac-transparency.sh "$PWD/build/Nomi CI.app/Contents/MacOS/nomi-ci" "$PWD/shots"
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'macOS'
         with:
           name: mac-transparency
           path: apps/desktop-go/shots/
 
-      # ---------- 内存实测：POC ----------
-      - name: measure poc (macOS)
+      # ---------- 内存实测 ----------
+      - name: measure (macOS)
         if: runner.os == 'macOS'
         working-directory: apps/desktop-go
-        run: ci/measure-mac.sh poc "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/mem" || true
-      - name: measure poc (Windows)
+        run: ci/measure-mac.sh "$PWD/build/Nomi CI.app/Contents/MacOS/nomi-ci" "$PWD/mem" || true
+      - name: measure (Windows)
         if: runner.os == 'Windows'
         continue-on-error: true # 实测数据只报告，不让 CI 变红
         working-directory: apps/desktop-go
         shell: pwsh
-        run: ./ci/measure-win.ps1 -Mode poc -Bin "$PWD\build\bin\nomi-poc.exe" -Out "$PWD\mem"
+        run: ./ci/measure-win.ps1 -Bin "$PWD\build\bin\nomi-ci.exe" -Out "$PWD\mem"
 
       - name: summarize
         if: runner.os != 'Linux'

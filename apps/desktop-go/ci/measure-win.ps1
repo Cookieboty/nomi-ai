@@ -1,6 +1,7 @@
-# CI 内存测量（Windows）。用法：measure-win.ps1 -Mode poc|electron -Bin <exe> -Out <dir>
+# CI 内存测量（Windows）。用法：measure-win.ps1 -Bin <exe> -Out <dir>
 # 口径：私有工作集（Win32_PerfFormattedData_PerfProc_Process.WorkingSetPrivate）+ PrivateMemorySize64（提交的私有内存）+ WorkingSet64，整棵进程树。
-param([string]$Mode, [string]$Bin, [string]$Out)
+param([string]$Bin, [string]$Out)
+$Mode = 'app'
 $ErrorActionPreference = 'Continue'
 $wait = if ($env:WAIT) { [int]$env:WAIT } else { 45 }
 New-Item -ItemType Directory -Force $Out | Out-Null
@@ -30,7 +31,7 @@ function Snap($label) {
   Write-Host "== $label"; $rows | Format-Table -AutoSize | Out-String | Write-Host
 }
 Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | Out-File "$Out\$Mode-mem-before.txt"
-if ($Mode -eq 'poc') {
+& {
   $env:NOMI_POC_CTL = $ctl
   # 官方角色的 .riv 是远程素材（不随构建发）：测 Rive 前把仓库里的文件按内核缓存格式放进 userData，不依赖外网
   $repo = (git rev-parse --show-toplevel)
@@ -41,7 +42,7 @@ $proc = Start-Process -FilePath $Bin -PassThru -RedirectStandardOutput "$Out\$Mo
 $script:root = $proc.Id; Write-Host "root=$($proc.Id) wait=${wait}s"
 Start-Sleep $wait; Shot cold
 1..3 | ForEach-Object { Snap "cold-$_"; Start-Sleep 5 }
-if ($Mode -eq 'poc') {
+& {
   foreach ($i in 1..3) { Ctl show-chat; Start-Sleep 10; if ($i -eq 1) { Shot chat-open }; Snap "chat-open-$i"; Ctl close-chat; Start-Sleep 10; Snap "chat-closed-$i" }
   # 渲染器切换：svg（默认）→ rive → svg，各截图 + 三次快照
   Shot mascot-svg; foreach ($i in 1..3) { Snap "renderer-svg-start-$i"; Start-Sleep 5 }

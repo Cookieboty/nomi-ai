@@ -1,11 +1,11 @@
 # 测试
 
-| 层级     | 位置                                   | 运行                                     | 跑什么                                                                                                      |
-| -------- | -------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 视图单测 | `packages/*/{src,tests}/**`            | `pnpm test`                              | 视图与共享包（Vitest）；跑完各包再跑脚本测试                                                                |
-| 脚本测试 | `scripts/__tests__`                    | `pnpm test:root`                         | 仓库级规则：changelog / changeset、发布与签名、turbo 输入、品牌名与 appId、角色名扫描、语义事件名、体积预算 |
-| Go 测试  | `apps/desktop-go/**/*_test.go`         | `cd apps/desktop-go && go test ./...`    | Go 内核与 Wails 壳；macOS 加 `-tags private_mac_apis`，Linux 加 `-tags gtk3`                                |
-| 安装验证 | `apps/desktop-go/ci/verify-*.{sh,ps1}` | CI（`desktop-go-package.yml` 的 verify） | 三平台安装包：安装、启动、桌面角色窗口出现                                                                  |
+| 层级     | 位置                                   | 运行                                  | 跑什么                                                                                                                                             |
+| -------- | -------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 视图单测 | `packages/*/{src,tests}/**`            | `pnpm test`                           | 视图与共享包（Vitest）；跑完各包再跑脚本测试                                                                                                       |
+| 脚本测试 | `scripts/__tests__`                    | `pnpm test:root`                      | 仓库级规则：changelog / changeset、发布与签名、turbo 输入、品牌名与 appId、角色名扫描、语义事件名、体积预算                                        |
+| Go 测试  | `apps/desktop-go/**/*_test.go`         | `cd apps/desktop-go && go test ./...` | Go 内核与 Wails 壳；macOS 加 `-tags private_mac_apis`，Linux 加 `-tags gtk3`                                                                       |
+| 安装验证 | `apps/desktop-go/ci/verify-*.{sh,ps1}` | CI（`desktop-go-package.yml`）        | 三平台安装包：安装、启动、桌面角色窗口；Windows 另验应用内更新的静默覆盖安装；mac 打包后用真实 `-mac.zip` 跑一次原地替换（`TestVerifyMacAppReal`） |
 
 2.2.0 起 Electron 版与 Node 内核已删除，跑在它们上面的无界面 E2E（`e2e/`）、真实应用 E2E（`e2e-headed/`）、
 浏览器冒烟（`dev:web` / `smoke:web`）、真实 CLI 一致性测试（`e2e-cli/`）以及 Go 版与 TS 内核的 parity 比对一并去掉了。

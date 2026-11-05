@@ -78,7 +78,7 @@ go test -tags private_mac_apis ./...
 - 契约：`node scripts/go-contract/gen.mjs` 从 TS 契约重新生成 `internal/contract/gen`，`--check` 检查是否漂移（CI 里跑）。
 - 仓库内路径用 `internal/repotest` 的 `RepoPath`；假模型在 `internal/mockllm`，假 CLI 在仓库根目录 `scripts/mock-cli`。
 - 词典：`internal/core/i18n/locales` 是 `packages/i18n/src/locales` 的副本，`dict_test.go` 比对两份。
-- CI：`.github/workflows/desktop-go.yml`（构建与测试）、`desktop-go-package.yml`（三平台打包、安装校验、可选性能对比 `bench=true`）。
+- CI：`.github/workflows/desktop-go.yml`（构建与测试）、`desktop-go-package.yml`（三平台打包、安装校验、mac 原地更新与 Windows 静默升级验证）。
 
 ## 打包
 
