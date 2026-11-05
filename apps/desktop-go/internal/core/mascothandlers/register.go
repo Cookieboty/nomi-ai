@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -46,6 +47,17 @@ type Deps struct {
 	// T 翻译（core.i18n.t）
 	T       func(key string) string
 	AppName string
+}
+
+// LocalImageDirOk：chatAssets.localImage 允许读的目录（工作区 / 授权文件夹），组合根在权限中心建好后设置；
+// 没设时只认系统临时目录
+var LocalImageDirOk atomic.Pointer[func(dir string) bool]
+
+func localImageDirOk(dir string) bool {
+	if f := LocalImageDirOk.Load(); f != nil {
+		return (*f)(dir)
+	}
+	return false
 }
 
 func bad(err error) error { return &contract.Error{Code: "BAD_INPUT", Message: err.Error()} }
@@ -478,6 +490,19 @@ func Install(d Deps) *Controller {
 			return nil, bad(err)
 		}
 		return d.ChatAssets.ImportImage(in)
+	})
+	call("chatAssets.localImage", func(raw json.RawMessage) (any, error) {
+		var in struct {
+			Src string `json:"src"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		url, err := chatassets.LocalImage(in.Src, localImageDirOk)
+		if err != nil {
+			return nil, nil // 不在允许的位置 / 不存在 / 不是图片：视图显示兜底
+		}
+		return map[string]string{"dataUrl": url}, nil
 	})
 	call("chatAssets.saveAs", func(raw json.RawMessage) (any, error) {
 		if d.ChatAssets == nil {

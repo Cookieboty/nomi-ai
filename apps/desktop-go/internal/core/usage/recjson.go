@@ -261,7 +261,7 @@ func (r *UsageRecord) UnmarshalJSON(data []byte) error {
 func (UsageRecord) fromObj(o *util.Obj) UsageRecord {
 	var r UsageRecord
 	keys := o.Keys()
-	r.keys = append([]string{}, keys...)
+	r.keys = internKeys(keys)
 	v := reflect.ValueOf(&r).Elem()
 	own := map[string]bool{}
 	for _, k := range keys {
@@ -298,9 +298,9 @@ func (UsageRecord) fromObj(o *util.Obj) UsageRecord {
 				s = jsToString(x)
 			}
 			if f.kind == 's' {
-				fv.SetString(s)
+				fv.SetString(internStr(k, s))
 			} else {
-				fv.Set(reflect.ValueOf(strp(s)))
+				fv.Set(reflect.ValueOf(internStrp(k, s)))
 			}
 		case 'B':
 			bv, ok := x.(bool)

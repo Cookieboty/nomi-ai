@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
@@ -183,6 +184,8 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		gatewaySession = gw.ServedSession
 	}
 	dlg := delegate.New(dd)
+	// 提示词与工具门控按「现在有没有能委派的编程助手」走（没有时 Nomi 自己写代码、跑命令）
+	codingcli.Set(dlg.CliAvailable)
 	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
 	if reg != nil {
 		for _, def := range igtools.WithDangerousUnset(dlg.Tools()) {

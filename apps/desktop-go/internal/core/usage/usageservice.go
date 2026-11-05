@@ -265,6 +265,9 @@ type SessionUsage struct {
 	CostUsd  *float64
 	Calls    float64
 	Unpriced bool
+
+	cost   exactSum // CostUsd 的精确和（finish 写回）
+	priced bool
 }
 
 func (e *SessionUsage) ToObj() *util.Obj {
@@ -319,18 +322,8 @@ type UsageInput struct {
 }
 
 func accumulate(e *SessionUsage, r *UsageRecord, priceOf PriceOf) {
-	e.Tokens.add(TotalTokens(r))
-	e.Calls++
-	c := RecordCostOf(r, priceOf)
-	if c == nil {
-		e.Unpriced = true
-	} else {
-		v := *c
-		if e.CostUsd != nil {
-			v = *e.CostUsd + *c
-		}
-		e.CostUsd = &v
-	}
+	accumulateRow(e, aggRow{r: r}, priceOf)
+	e.finish()
 }
 
 var fp16Re = regexp.MustCompile(`^[0-9a-f]{16}$`)
@@ -568,6 +561,8 @@ func NewUsageService(d ServiceDeps) *UsageService {
 	s.Ledger = NewUsageLedger(LedgerDeps{Root: d.Root, Logger: d.Logger, Now: d.Now,
 		OnPersistChange:  func(bool) { jsrt.Go(s.changed) },
 		SyncLoadMaxBytes: d.LedgerSyncLoadMaxBytes,
+		PriceOf:          s.priceOf,
+		OnChanged:        func() { jsrt.Go(s.changed) },
 		OnLoaded: func() {
 			jsrt.Go(func() {
 				s.changed()
@@ -1755,21 +1750,20 @@ func (s *UsageService) CheckBudgets() {
 	}
 	todayStart := StartOfDay(now)
 	monthStart := float64(time.Date(d.Year(), d.Month(), 1, 0, 0, 0, 0, time.Local).UnixMilli())
-	recs := s.Ledger.Range(math.Min(todayStart, monthStart), now+1)
 	priceOf := s.priceOf()
-	day, month := 0.0, 0.0
+	rows := s.Ledger.Rows(math.Min(todayStart, monthStart), now+1, math.Inf(1), priceOf)
+	var dayAcc, monthAcc exactSum
 	unpriced := false
-	for _, r := range recs {
-		c := RecordCostOf(r, priceOf)
-		if c == nil {
+	for _, w := range rows {
+		if !w.addCost(&monthAcc, priceOf) {
 			unpriced = true
 			continue
 		}
-		month += *c
-		if r.Ts >= todayStart {
-			day += *c
+		if w.ts() >= todayStart {
+			w.addCost(&dayAcc, priceOf)
 		}
 	}
+	day, month := dayAcc.value(), monthAcc.value()
 	k := s.rate()
 	level := func(cost, budget float64) float64 {
 		if !(budget > 0) {
@@ -1922,17 +1916,21 @@ func (s *UsageService) sessionMap() map[string]*SessionUsage {
 	}
 	priceOf := s.priceOf()
 	m := map[string]*SessionUsage{}
-	for _, r := range s.Ledger.All() {
-		if !truthy(r.Session) {
+	for _, w := range s.Ledger.Rows(math.Inf(-1), math.Inf(1), math.Inf(1), priceOf) {
+		sess := w.session()
+		if !truthy(sess) {
 			continue
 		}
-		key := r.Source + ":" + *r.Session
+		key := w.source() + ":" + *sess
 		e := m[key]
 		if e == nil {
 			e = newSessionUsage()
 		}
-		accumulate(e, r, priceOf)
+		accumulateRow(e, w, priceOf)
 		m[key] = e
+	}
+	for _, e := range m {
+		e.finish()
 	}
 	s.sessionCache = &sessionCacheT{ver: ver, pricesGen: gen, priceVer: priceVer, m: m}
 	return m
@@ -1960,15 +1958,17 @@ func (s *UsageService) CostSince(q CostQuery) *SessionUsage {
 	}
 	priceOf := s.priceOf()
 	e := newSessionUsage()
-	for _, r := range s.Ledger.Range(q.Since, s.now()+1) {
-		if r.Source != q.Source {
+	for _, w := range s.Ledger.Rows(q.Since, s.now()+1, math.Inf(1), priceOf) {
+		if w.source() != q.Source {
 			continue
 		}
-		if q.Session != "" && (r.Session == nil || *r.Session != q.Session) && !(r.Via == "route" && !truthy(r.Session)) {
+		sess := w.session()
+		if q.Session != "" && (sess == nil || *sess != q.Session) && !(w.via() == "route" && !truthy(sess)) {
 			continue
 		}
-		accumulate(e, r, priceOf)
+		accumulateRow(e, w, priceOf)
 	}
+	e.finish()
 	if e.Calls == 0 {
 		return nil
 	}
@@ -2125,14 +2125,23 @@ func (s *UsageService) Query(rangeID string) *util.Obj {
 	now := s.now()
 	rg := RangeOf(rangeID, now)
 	priceOf := s.priceOf()
-	recs := s.Ledger.Range(rg.PrevFrom, rg.To)
-	cur := filterRecs(recs, func(r *UsageRecord) bool { return r.Ts >= rg.From })
-	prev := filterRecs(recs, func(r *UsageRecord) bool { return r.Ts < rg.From })
+	return queryRows(s.Ledger, rg, priceOf, s.labels())
+}
+
+// queryRows：query 的计算部分（按行聚合；按小时分桶时当天给记录）
+func queryRows(led *UsageLedger, rg RangeSpec, priceOf PriceOf, labels *Labels) *util.Obj {
+	recFrom := math.Inf(1)
+	if rg.Bucket == "hour" {
+		recFrom = rg.From
+	}
+	rows := led.Rows(rg.PrevFrom, rg.To, recFrom, priceOf)
+	cur := filterRows(rows, func(w aggRow) bool { return w.ts() >= rg.From })
+	prev := filterRows(rows, func(w aggRow) bool { return w.ts() < rg.From })
 	return util.NewObj("range", util.NewObj("id", rg.ID, "from", rg.From, "to", rg.To, "bucket", rg.Bucket),
-		"summary", Summarize(cur, priceOf), "prev", Summarize(prev, priceOf), "series", toAny(Series(cur, rg, priceOf)),
-		"bySource", toAny(Breakdown(cur, "source", priceOf, s.labels())),
-		"byProvider", toAny(Breakdown(cur, "provider", priceOf, s.labels())),
-		"byModel", toAny(Breakdown(cur, "model", priceOf, s.labels())))
+		"summary", summarizeRows(cur, priceOf), "prev", summarizeRows(prev, priceOf), "series", toAny(seriesRows(cur, rg, priceOf)),
+		"bySource", toAny(breakdownRows(cur, "source", priceOf, labels)),
+		"byProvider", toAny(breakdownRows(cur, "provider", priceOf, labels)),
+		"byModel", toAny(breakdownRows(cur, "model", priceOf, labels)))
 }
 
 // EndpointUsage = endpointUsage(source)
@@ -2141,11 +2150,11 @@ func (s *UsageService) EndpointUsage(source string) *util.Obj {
 	priceOf := s.priceOf()
 	week := RangeOf("7d", now)
 	today := RangeOf("today", now)
-	recs := filterRecs(s.Ledger.Range(week.From, week.To), func(r *UsageRecord) bool { return r.Source == source })
-	todayRecs := filterRecs(recs, func(r *UsageRecord) bool { return r.Ts >= today.From })
-	o := util.NewObj("source", source, "today", Summarize(todayRecs, priceOf), "week", Summarize(recs, priceOf),
-		"series", toAny(Series(recs, week, priceOf)), "byModel", toAny(Breakdown(recs, "model", priceOf, s.labels())),
-		"byProvider", toAny(Breakdown(recs, "provider", priceOf, s.labels())))
+	recs := filterRows(s.Ledger.Rows(week.From, week.To, math.Inf(1), priceOf), func(w aggRow) bool { return w.source() == source })
+	todayRecs := filterRows(recs, func(w aggRow) bool { return w.ts() >= today.From })
+	o := util.NewObj("source", source, "today", summarizeRows(todayRecs, priceOf), "week", summarizeRows(recs, priceOf),
+		"series", toAny(seriesRows(recs, week, priceOf)), "byModel", toAny(breakdownRows(recs, "model", priceOf, s.labels())),
+		"byProvider", toAny(breakdownRows(recs, "provider", priceOf, s.labels())))
 	// lastActivityAt：number | null，键总在
 	o.Set("lastActivityAt", nil)
 	if last, ok := s.Ledger.LastTs(source); ok {
@@ -2164,8 +2173,8 @@ func (s *UsageService) Heatmap() *util.Obj {
 	if c := s.heatCache; c != nil && c.ver == ver && c.pricesGen == gen && c.priceVer == priceVer && c.today == today {
 		return util.NewObj("days", toAny(c.days), "today", DateKey(now))
 	}
-	recs := s.Ledger.Range(AddDays(today, -364), AddDays(today, 1))
-	days := Heatmap(recs, now, s.priceOf(), 365)
+	priceOf := s.priceOf()
+	days := heatmapRows(s.Ledger.Rows(AddDays(today, -364), AddDays(today, 1), math.Inf(1), priceOf), now, priceOf, 365)
 	s.heatCache = &heatCacheT{ver: ver, pricesGen: gen, priceVer: priceVer, today: today, days: days}
 	return util.NewObj("days", toAny(days), "today", DateKey(now))
 }

@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  prepareConversationStore,
+  resetPreparedConversationStore,
+} from '../src/services/conversationBoot';
+import { createMemoryConversationKernel } from '../src/services/conversationKernel';
 import { createMemoryStorage, type KeyValueStorage } from '../src/services/conversationStore';
 import { SdkIPCClient } from '../src/services/IPCClient';
 import {
@@ -48,22 +53,24 @@ function fakeClient() {
   };
 }
 
-/** 渲染入口读的那份存储：生产里的 SdkIPCClient（默认构造 ConversationStore → window.localStorage） */
-function openChat() {
+type Kernel = ReturnType<typeof createMemoryConversationKernel>;
+
+/** 启动对话窗口：会话存储准备（含旧对话导入、迁移进内核）→ 生产里的 SdkIPCClient */
+async function openChat(kernel: Kernel, fetchLegacy = vi.fn(async () => ready())) {
+  resetPreparedConversationStore();
+  await prepareConversationStore({ kernel, storage: window.localStorage, fetchLegacy });
   return new SdkIPCClient(fakeClient() as never, { defaultSystemPrompt: async () => undefined });
 }
 
 afterEach(() => {
   window.localStorage.clear();
+  resetPreparedConversationStore();
 });
 
-describe('旧 Electron 对话导入 → 渲染入口可见', () => {
+describe('旧 Electron 对话导入 → 内核会话存储 → 渲染入口可见', () => {
   it('全新的 Go 存储：会话、名称、工作区、消息、当前 / 最近 Nomi 会话都在', async () => {
-    const fetch = vi.fn(async () => ready());
-    const res = await importLegacyChatHistory({ fetch, storage: window.localStorage });
-    expect(res).toEqual({ status: 'imported', conversations: 3, skipped: 0 });
-
-    const ipc = openChat();
+    const kernel = createMemoryConversationKernel();
+    const ipc = await openChat(kernel);
     const list = await ipc.listConversations();
     expect(list.map((c) => [c.id, c.name, c.cwd])).toEqual([
       ['old1', '周报 🚀', '/Users/me/w'],
@@ -73,32 +80,40 @@ describe('旧 Electron 对话导入 → 渲染入口可见', () => {
     expect(ipc.currentConversationId()).toBe('old2');
     expect(await ipc.getChatHistory()).toEqual(OLD2);
     const store = ipc.conversationStore();
-    expect(store.getMessages('old1')).toEqual(OLD1);
+    expect(await store.loadMessages('old1')).toEqual(OLD1);
     expect(store.lastNomiId()).toBe('old1');
-    // 对话设置等偏好也带过来
+    // 对话设置等偏好也带过来（偏好仍在 localStorage）
     expect((await ipc.getConfig()).fontSize).toBe(16);
     expect(window.localStorage.getItem('ai-chat:chatMode')).toBe('"agent"');
+    // 会话进了内核，旧会话没写进 localStorage；完成标记记下
+    expect(window.localStorage.getItem('ai-chat:conversations')).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(LEGACY_IMPORT_MARKER)!)).toMatchObject({
+      status: 'imported',
+      conversations: 3,
+    });
     await ipc.dispose();
   });
 
   it('Go 版里已有的会话不被覆盖，当前会话保持；旧会话补进侧栏', async () => {
-    const before = openChat();
+    const kernel = createMemoryConversationKernel();
+    const before = await openChat(
+      kernel,
+      vi.fn(async () => ({ status: 'failed' as const, entries: {}, error: 'x' })),
+    );
     const mine = await before.newConversation('go chat');
     await before.saveMessage(m('g1', 'user', 'from go', 100));
     await before.dispose();
 
-    await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage });
-
-    const ipc = openChat();
+    const ipc = await openChat(kernel);
     const ids = (await ipc.listConversations()).map((c) => c.id);
     expect(ids).toEqual([mine, 'old1', 'old2', 'old3']);
     expect(ipc.currentConversationId()).toBe(mine);
     expect((await ipc.getChatHistory()).map((x) => x.content)).toEqual(['from go']);
-    expect(ipc.conversationStore().getMessages('old1')).toEqual(OLD1);
+    expect(await ipc.conversationStore().loadMessages('old1')).toEqual(OLD1);
     await ipc.dispose();
   });
 
-  it('同 id 已在本窗口：保留本窗口的消息', async () => {
+  it('同 id 已在本窗口的旧存储里：保留本窗口的消息', async () => {
     window.localStorage.setItem(
       'ai-chat:conversations',
       JSON.stringify([
@@ -109,49 +124,55 @@ describe('旧 Electron 对话导入 → 渲染入口可见', () => {
       'ai-chat:conversation:old1',
       JSON.stringify([m('x', 'user', 'new', 9)]),
     );
-    await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage });
-    const ipc = openChat();
-    expect(ipc.conversationStore().get('old1')?.name).toBe('renamed');
-    expect(
-      ipc
-        .conversationStore()
-        .getMessages('old1')
-        .map((x) => x.id),
-    ).toEqual(['x']);
+    const ipc = await openChat(createMemoryConversationKernel());
+    const store = ipc.conversationStore();
+    expect(store.get('old1')?.name).toBe('renamed');
+    expect((await store.loadMessages('old1')).map((x) => x.id)).toEqual(['x']);
     await ipc.dispose();
   });
 });
 
 describe('再次启动', () => {
   it('完成标记在：不再问内核，升级后新写的消息不被覆盖', async () => {
-    await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage });
-    const ipc = openChat();
+    const kernel = createMemoryConversationKernel();
+    const ipc = await openChat(kernel);
     await ipc.saveMessage(m('after', 'user', 'after upgrade', 50));
     await ipc.dispose();
 
     const fetch = vi.fn(async () => ready());
-    expect(await importLegacyChatHistory({ fetch, storage: window.localStorage })).toEqual({
-      status: 'done-before',
-    });
+    const again = await openChat(kernel, fetch);
     expect(fetch).not.toHaveBeenCalled();
-    const again = openChat();
     expect((await again.getChatHistory()).map((x) => x.id)).toEqual(['c', 'after']);
     await again.dispose();
   });
 
   it('标记丢了也只是空跑：已有的会话按 id 跳过，消息不动', async () => {
-    await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage });
-    const ipc = openChat();
+    const kernel = createMemoryConversationKernel();
+    const ipc = await openChat(kernel);
     await ipc.saveMessage(m('after', 'user', 'after upgrade', 50));
     await ipc.dispose();
     window.localStorage.removeItem(LEGACY_IMPORT_MARKER);
 
-    expect(
-      await importLegacyChatHistory({ fetch: async () => ready(), storage: window.localStorage }),
-    ).toEqual({ status: 'imported', conversations: 0, skipped: 0 });
-    const again = openChat();
+    const fetch = vi.fn(async () => ready());
+    const again = await openChat(kernel, fetch);
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect((await again.getChatHistory()).map((x) => x.id)).toEqual(['c', 'after']);
     expect((await again.listConversations()).length).toBe(3);
+    expect(window.localStorage.getItem(LEGACY_IMPORT_MARKER)).not.toBeNull();
+    await again.dispose();
+  });
+
+  it('会话没进内核（写入失败）：不记完成，下次启动再导', async () => {
+    const kernel = createMemoryConversationKernel();
+    kernel.failNext = (name) => name === 'import';
+    const first = await openChat(kernel);
+    expect((await first.listConversations()).length).toBe(0);
+    expect(window.localStorage.getItem(LEGACY_IMPORT_MARKER)).toBeNull();
+    await first.dispose();
+    kernel.failNext = undefined;
+    const again = await openChat(kernel);
+    expect((await again.listConversations()).map((c) => c.id)).toEqual(['old1', 'old2', 'old3']);
+    expect(window.localStorage.getItem(LEGACY_IMPORT_MARKER)).not.toBeNull();
     await again.dispose();
   });
 

@@ -272,5 +272,9 @@
   "ui.foundation.next-month": "下个月",
   "ui.foundation.now": "现在",
   "ui.foundation.hour": "时",
-  "ui.foundation.minute": "分"
+  "ui.foundation.minute": "分",
+  "ui.foundation.command-allowlist": "命令白名单",
+  "ui.foundation.command-allowlist-desc": "Nomi 在工作区里跑以这些开头的命令时直接执行，不再询问；那一轮读过网页等外部内容时仍会询问。在确认卡片上勾选「以后不再询问」即可加入。",
+  "ui.foundation.command-allowlist-empty": "还没有记住的命令",
+  "ui.foundation.remove-command-rule": "移除命令白名单：{0}"
 }

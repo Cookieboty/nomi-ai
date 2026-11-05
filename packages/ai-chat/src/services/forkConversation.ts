@@ -39,7 +39,8 @@ async function loadSourceMessages(
     }));
     return { meta, messages };
   }
-  return { meta, messages: store.getMessages(sourceId) };
+  // 没缓存的会话从内核读（不能当成空的去复制）
+  return { meta, messages: await store.loadMessages(sourceId) };
 }
 
 export interface ForkOptions {

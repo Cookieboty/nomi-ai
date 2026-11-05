@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { useRestoreNomiOnMain } from '../src/hooks/useRestoreNomiOnMain';
-import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
+import { ConversationStore } from '../src/services/conversationStore';
 import { type SdkIPCClient } from '../src/services/IPCClient';
 import type { ChatMessage } from '../src/types/chat';
 
@@ -24,7 +24,7 @@ const cliTab = (id: string) =>
 
 describe('ConversationStore：Nomi 会话与 CLI 镜像分离（#19）', () => {
   const setup = () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     const A = store.create('A').id;
     store.append(msg('1', 'user', '旧问题'), A);
     store.append(msg('2', 'assistant', '旧回答'), A);
@@ -65,7 +65,7 @@ describe('ConversationStore：Nomi 会话与 CLI 镜像分离（#19）', () => {
     expect(store.nomiTarget()).toBe(A);
     expect(store.currentId()).toBe(C);
 
-    const lone = new ConversationStore({ storage: createMemoryStorage() });
+    const lone = new ConversationStore();
     const M = lone.upsertFromTab(cliTab('tab-m')).id;
     lone.switchTo(M);
     const fresh = lone.nomiTarget();
@@ -73,13 +73,13 @@ describe('ConversationStore：Nomi 会话与 CLI 镜像分离（#19）', () => {
     expect(lone.currentId()).toBe(M);
     expect(lone.nomiTarget()).toBe(fresh); // 不会每次都新建
 
-    const empty = new ConversationStore({ storage: createMemoryStorage() });
+    const empty = new ConversationStore();
     const id = empty.nomiTarget();
     expect(empty.currentId()).toBe(id);
   });
 
   it('没有任何 Nomi 会话时才新建', () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     const C = store.upsertFromTab(cliTab('tab-x')).id;
     store.switchTo(C);
     const id = store.ensureCurrentNomi();
@@ -202,7 +202,7 @@ describe('Nomi 发送：A → 侧栏点 CLI C → 回主标签 → 发送（#19�
 
 describe('useRestoreNomiOnMain：任何入口回到主标签都恢复 Nomi 会话（#19）', () => {
   const setup = () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     const A = store.create('A').id;
     const C = store.upsertFromTab(cliTab('tab-c')).id;
     store.switchTo(C);

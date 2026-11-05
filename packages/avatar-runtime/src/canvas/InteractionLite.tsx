@@ -20,6 +20,11 @@ export interface SpriteGeometry {
   body: Box | null;
   /** Character box in window coords (for pack hitboxes ratios). */
   box?: Box | null;
+  /**
+   * 画布像素变了就加一（SpriteCanvas 每次真正重画时写）；没有这个字段的后端按「每次都可能变了」处理。
+   * Linux 的窗口形状据此只在角色像素变了之后才重新扫描整张画布。
+   */
+  paintSeq?: number;
 }
 
 export interface InteractionLiteProps {
@@ -162,6 +167,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       if (e.type === 'cursor') {
         s.cursor = { x: e.x, y: e.y, inside: e.inside, fresh: true };
         layoutStore.setCursor({ x: e.x, y: e.y, inside: e.inside });
+        wake();
       } else if (e.type === 'physics') {
         dataset.mascotPhysics = e.kind;
         if (e.kind === 'grab') react('grab', 'any', 3000);
@@ -177,6 +183,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       s.hit = null;
       s.cursor.fresh = true;
       dataset.mascotDragging = '0';
+      wake();
     };
     /** Chromium emits both pointermove and a compatibility mousemove; without
      *  dedupe every drag IPC (and gate sample) runs twice and doubles main-process work. */
@@ -186,6 +193,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       if (key === lastMoveKey) return;
       lastMoveKey = key;
       s.cursor = { x: e.clientX, y: e.clientY, inside: true, fresh: true };
+      wake();
       // Prefer our own held flag: under setPointerCapture / click-through toggles,
       // Chromium on Windows frequently delivers move events with buttons=0.
       const buttons = s.buttonHeld ? e.buttons | 1 : e.buttons;
@@ -212,6 +220,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       // a browser accessibility layer retargets the event.
       if (e.button !== 0 || e.currentTarget !== canvas) return;
       if (!hitTest(e.clientX, e.clientY, true)) return;
+      wake();
       s.buttonHeld = true;
       gate.press(e.clientX, e.clientY, performance.now());
       s.down = { region: regionAt(e.clientX, e.clientY), sx: e.screenX, sy: e.screenY };
@@ -268,7 +277,15 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     canvas.addEventListener('lostpointercapture', onCancel, capture);
 
     let raf = 0;
+    let timer = 0;
+    let disposed = false;
     let headAt = 0;
+    let lastHeadKey = '';
+    let lastCharKey = '';
+    /** Linux 窗口形状：上次扫描时的画布像素版本 / 尺寸与扫描结果（不含 UI 矩形） */
+    let shapeSeq: number | undefined;
+    let shapeCanvasKey = '';
+    let shapeRects: Rect[] | null = null;
     // 窗口被缩放：尽快重新上报包围盒 / 头部框 / 形状（见 windowResize.ts）
     const offResize = onWindowResized(() => {
       // 主进程缩放后会重置命中状态，原命中值未变时也必须重新同步。
@@ -278,12 +295,46 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       s.shapeAt = 0;
       s.lastGeom = '';
       headAt = 0;
+      lastHeadKey = '';
+      lastCharKey = '';
+      shapeRects = null;
+      wake();
     });
+    /**
+     * 调度：光标刚动过 / 离开防抖中 / 按下或拖动时每帧跑（命中与视线要跟手）；
+     * 其余时候 ≈80 ms 跑一次就够（头部框 12 Hz、身体框 2 Hz、Linux 形状 4 Hz），不占满帧的 rAF。
+     */
+    const IDLE_STEP_MS = 80;
+    function schedule(): void {
+      if (raf || timer || disposed) return;
+      if (s.cursor.fresh || hyst.leaving || s.dragging || s.down) raf = requestAnimationFrame(run);
+      else
+        timer = window.setTimeout(() => {
+          timer = 0;
+          if (!disposed) raf = requestAnimationFrame(run);
+        }, IDLE_STEP_MS);
+    }
+    /** 有输入了：取消空闲定时，下一帧就跑 */
+    function wake(): void {
+      if (raf || disposed) return;
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = 0;
+      }
+      raf = requestAnimationFrame(run);
+    }
+    function run(now: number): void {
+      raf = 0;
+      try {
+        loop(now);
+      } finally {
+        schedule();
+      }
+    }
     const loop = (now: number) => {
-      raf = requestAnimationFrame(loop);
       const g = geometry.current;
       const cfg = interactionSettings.get();
-      // head box (bubble placement), ≈12 Hz
+      // head box (bubble placement), ≈12 Hz; only written when the rounded box changed
       if (g?.head && now - headAt > 80) {
         headAt = now;
         const h = {
@@ -292,18 +343,25 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           top: Math.round(g.head.top),
           bottom: Math.round(g.head.bottom),
         };
-        layoutStore.setHead(h);
-        layoutStore.setCharBox(
-          g.box
-            ? {
-                left: Math.round(g.box.left),
-                right: Math.round(g.box.right),
-                top: Math.round(g.box.top),
-                bottom: Math.round(g.box.bottom),
-              }
-            : null,
-        );
-        dataset.mascotHead = `${h.left},${h.right},${h.top},${h.bottom}`;
+        const headKey = `${h.left},${h.right},${h.top},${h.bottom}`;
+        if (headKey !== lastHeadKey) {
+          lastHeadKey = headKey;
+          layoutStore.setHead(h);
+          dataset.mascotHead = headKey;
+        }
+        const cb = g.box
+          ? {
+              left: Math.round(g.box.left),
+              right: Math.round(g.box.right),
+              top: Math.round(g.box.top),
+              bottom: Math.round(g.box.bottom),
+            }
+          : null;
+        const charKey = cb ? `${cb.left},${cb.right},${cb.top},${cb.bottom}` : '-';
+        if (charKey !== lastCharKey) {
+          lastCharKey = charKey;
+          layoutStore.setCharBox(cb);
+        }
       }
       // body box (toolbar slot + main-process physics), 2 Hz with 8 px hysteresis
       if (g?.body && now - s.geomAt > 500) {
@@ -351,19 +409,30 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         const cx = ctx();
         if (cfg.clickThrough && cx && !document.querySelector('[role="dialog"]')) {
           const r = canvas.getBoundingClientRect();
-          try {
-            const img = cx.getImageData(0, 0, canvas.width, canvas.height);
-            rects = alphaSpans(new Uint8Array(img.data.buffer), canvas.width, canvas.height, {
-              scale: r.width / Math.max(1, canvas.width),
-              offsetX: r.left,
-              offsetY: r.top,
-              topDown: true,
-            });
-          } catch {
-            const bb = g?.body;
-            rects = bb
-              ? [{ x: bb.left, y: bb.top, width: bb.right - bb.left, height: bb.bottom - bb.top }]
-              : [];
+          // 整张画布的 getImageData 很贵：角色像素（paintSeq）与画布尺寸 / 位置都没变时沿用上次的扫描结果
+          const seq = g?.paintSeq;
+          const canvasKey = `${canvas.width}x${canvas.height}@${r.left},${r.top},${r.width}`;
+          if (shapeRects && seq !== undefined && seq === shapeSeq && canvasKey === shapeCanvasKey) {
+            rects = [...shapeRects];
+          } else {
+            try {
+              const img = cx.getImageData(0, 0, canvas.width, canvas.height);
+              rects = alphaSpans(new Uint8Array(img.data.buffer), canvas.width, canvas.height, {
+                scale: r.width / Math.max(1, canvas.width),
+                offsetX: r.left,
+                offsetY: r.top,
+                topDown: true,
+              });
+              shapeRects = [...rects];
+              shapeSeq = seq;
+              shapeCanvasKey = canvasKey;
+            } catch {
+              const bb = g?.body;
+              rects = bb
+                ? [{ x: bb.left, y: bb.top, width: bb.right - bb.left, height: bb.bottom - bb.top }]
+                : [];
+              shapeRects = null;
+            }
           }
           if (rects.length) {
             for (const u of uiRects())
@@ -410,10 +479,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       }
       if (region === 'head' && pat.feed(c.x, t)) react('pat', 'head', 1500);
     };
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(run);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
       offResize();
       offEvents?.();
       classifier.dispose();

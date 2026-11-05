@@ -112,6 +112,15 @@ describe('shell · 过程表', () => {
       'appIcon.get': 'query surfaces=chat',
       'appIcon.set': 'mutation surfaces=chat',
       'migration.chatHistory': 'query surfaces=chat',
+      'conversations.state': 'query surfaces=chat',
+      'conversations.messages': 'query surfaces=chat',
+      'conversations.append': 'mutation surfaces=chat',
+      'conversations.replace': 'mutation surfaces=chat',
+      'conversations.put': 'mutation surfaces=chat',
+      'conversations.delete': 'mutation surfaces=chat',
+      'conversations.setPointers': 'mutation surfaces=chat',
+      'conversations.import': 'mutation surfaces=chat',
+      'conversations.markMigrated': 'mutation surfaces=chat',
     });
   });
 
@@ -130,6 +139,7 @@ describe('shell · 过程表', () => {
       'usage.changed',
       'quality.changed',
       'updates.changed',
+      'conversations.changed',
     ]);
   });
 
@@ -148,6 +158,7 @@ describe('shell · 过程表', () => {
       'diagnostics',
       'appIcon',
       'migration',
+      'conversations',
     ]);
     for (const name of [...Object.keys(shellProcedures), ...Object.keys(shellEvents)]) {
       expect(ns.has(name.split('.')[0]!)).toBe(true);
@@ -395,5 +406,35 @@ describe('shell · 端到端（strict 序列化）', () => {
     } finally {
       close();
     }
+  });
+});
+
+describe('conversation id（与 Go convstore.ValidID 同一条规则）', () => {
+  it('字符 / 长度 / Windows 保留名', async () => {
+    const { isValidConversationId } = await import('../src/app');
+    const ok = ['a', 'c_1-x', 'A'.repeat(128), 'con1', 'com', 'comx', 'lpt10'];
+    const bad = [
+      '',
+      'a/b',
+      'a.b',
+      'A'.repeat(129),
+      'con',
+      'CON',
+      'Prn',
+      'aux',
+      'nul',
+      'com0',
+      'COM9',
+      'lpt1',
+    ];
+    for (const id of ok) {
+      expect(isValidConversationId(id), id).toBe(true);
+      expect(S.ConversationId.safeParse(id).success, id).toBe(true);
+    }
+    for (const id of bad) {
+      expect(isValidConversationId(id), id).toBe(false);
+      expect(S.ConversationId.safeParse(id).success, id).toBe(false);
+    }
+    expect(isValidConversationId(42)).toBe(false);
   });
 });

@@ -5,7 +5,6 @@ import { createComposerDraftStore } from '../src/services/composerDrafts';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   ConversationStore,
-  createMemoryStorage,
   type ConversationsChangedDetail,
 } from '../src/services/conversationStore';
 
@@ -47,7 +46,6 @@ describe('drop private drafts on session delete', () => {
   beforeEach(() => {
     let n = 0;
     store = new ConversationStore({
-      storage: createMemoryStorage(),
       now: () => 1000 + ++n,
       newId: () => `c${++n}`,
     });

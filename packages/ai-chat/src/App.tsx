@@ -70,6 +70,7 @@ import {
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useComposerPending } from './hooks/useComposerPending';
+import { useConversationWriteNotice } from './hooks/useConversationWriteNotice';
 import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
@@ -383,6 +384,7 @@ const AiChatContent: React.FC = () => {
     const tid = window.setTimeout(() => setToast(null), 2400);
     return () => window.clearTimeout(tid);
   }, [toast]);
+  useConversationWriteNotice(setToast);
 
   // 首屏后空闲时预取设置 / 面板 chunk（不占首屏，打开时无需等待）
   useEffect(() => {
@@ -694,6 +696,19 @@ const AiChatContent: React.FC = () => {
     if (assetLibrary.chatHidden) closeTasks();
   }, [assetLibrary.chatHidden, closeTasks]);
   const mainHidden = assetLibrary.chatHidden || tasksHost.chatHidden;
+  // 侧栏是 React.memo：入口元素记住，流式生成时根组件重渲染不带着侧栏重渲染
+  const tasksNav = tasksHost.nav;
+  const assetNav = assetLibrary.nav;
+  const sidebarTopNav = useMemo(
+    () =>
+      assetNav || tasksNav ? (
+        <div className="side-top-nav">
+          {tasksNav}
+          {assetNav}
+        </div>
+      ) : null,
+    [tasksNav, assetNav],
+  );
   // 侧栏里点会话 / 新建 / 打开历史：关掉任务页与素材库，直接回到对话
   const leavePage = useCallback(() => {
     closeAssetLibrary();
@@ -840,14 +855,7 @@ const AiChatContent: React.FC = () => {
           footer={sidebarFooter}
           pageOpen={mainHidden}
           onLeavePage={leavePage}
-          topNav={
-            assetLibrary.nav || tasksHost.nav ? (
-              <div className="side-top-nav">
-                {tasksHost.nav}
-                {assetLibrary.nav}
-              </div>
-            ) : null
-          }
+          topNav={sidebarTopNav}
         />
 
         {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}

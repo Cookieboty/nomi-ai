@@ -1,21 +1,53 @@
 /** 助手 Markdown 中的图片：协议白名单 + 懒加载 + 加载失败兜底 + 点击放大。*/
 import { Modal, t, useLocale } from '@nomi-ai/ui';
-import React, { memo, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 
-import { hostAssetUrl } from '../../services/api';
+import { api, hasTransport, hostAssetUrl } from '../../services/api';
 import { assetFileOf, ImageViewer, useAssetItem } from '../AssetLibrary/ImageViewer';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
-import { sanitizeImgSrc } from './Markdown.helpers';
+import { isLocalImagePath, sanitizeImgSrc } from './Markdown.helpers';
 import styles from './MarkdownImage.module.css';
+
+/**
+ * 本机图片（CLI 把二维码、截图存成本地文件，回复里写的是路径）：请内核读成 data URL。
+ * undefined = 读取中；null = 读不了（不在工作区 / 授权文件夹 / 临时目录，不是图片，或太大）
+ */
+function useLocalImage(src: string): string | null | undefined {
+  const live = !!src && hasTransport();
+  const [got, setGot] = useState<{ src: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (!live) return;
+    let alive = true;
+    api.chatAssets
+      .localImage({ src })
+      .then((r) => alive && setGot({ src, url: r?.dataUrl ?? null }))
+      .catch(() => alive && setGot({ src, url: null }));
+    return () => {
+      alive = false;
+    };
+  }, [src, live]);
+  if (!live) return null;
+  return got?.src === src ? got.url : undefined;
+}
 
 export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ src, alt }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   // 白名单过了再换址（Go 宿主里 chat-asset:// 走资产网关）
-  const safe = hostAssetUrl(sanitizeImgSrc(src));
+  const local = isLocalImagePath(src);
+  const localUrl = useLocalImage(local ? src : '');
+  const safe = local ? (localUrl ?? '') : hostAssetUrl(sanitizeImgSrc(src));
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  if (local && localUrl === undefined) return null; // 内核还在读
+  if (local && !safe) {
+    return (
+      <span className={styles.failed} title={src}>
+        [{t('ui.usage-tools.local-image-unavailable')}：{src}]
+      </span>
+    );
+  }
   if (!safe) {
     return <span className={styles.unsafe}>[{t('ui.usage-tools.unsupported-image-link')}]</span>;
   }

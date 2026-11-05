@@ -40,11 +40,13 @@ import styles from './style.module.css';
 import { useMascot } from '@/contexts/MascotContext';
 import { useCompanionMessage } from '@/hooks/useCompanionMessage';
 import { characterName } from '@/mascot/characterCopy';
+import { hostScreen, subscribeHostScreen } from '@/mascot/hostScreen';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { startWindowPoll } from '@/mascot/windowPoll';
 import { api, hasTransport } from '@/services/api';
 import { setCache } from '@/utils/cache';
 
@@ -530,11 +532,7 @@ export const ToolBar: React.FC = () => {
         box: layoutStore.get().box,
         bar: { width: bw, height: bh },
         view: { width: window.innerWidth, height: window.innerHeight },
-        screen: force ?? {
-          winX: window.screenX,
-          availLeft: (window.screen as Screen & { availLeft?: number }).availLeft ?? 0,
-          availWidth: window.screen.availWidth,
-        },
+        screen: force ?? hostScreen(),
       });
       layoutStore.setGutter({ left: p.x, right: p.x + bw, top: p.y, bottom: p.y + bh });
       setPlace((prev) =>
@@ -545,11 +543,14 @@ export const ToolBar: React.FC = () => {
     };
     compute();
     const off = layoutStore.subscribe(compute);
-    const t = setInterval(compute, 700); // 窗口被拖动 / 物理移动后检查是否贴边
+    const offScreen = subscribeHostScreen(compute);
+    // 窗口被拖动 / 物理移动后检查是否贴边（窗口没动、页面隐藏时跳过）
+    const stop = startWindowPoll(compute, 700);
     window.addEventListener('resize', compute);
     return () => {
       off();
-      clearInterval(t);
+      offScreen();
+      stop();
       window.removeEventListener('resize', compute);
     };
   }, [primary.length]);

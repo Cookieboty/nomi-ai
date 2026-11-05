@@ -44,8 +44,14 @@ export function useSessionComposerDrafts() {
       });
     }
     const id = ipcClient.currentConversationId?.() ?? '';
-    const storedLen = id ? (ipcClient.conversationStore?.()?.getMessages(id)?.length ?? 0) : 0;
-    const has = storedLen > 0 || messageCount > 0;
+    // 没加载的会话看内核给的条数（不读消息）
+    const store = ipcClient.conversationStore?.();
+    const stored = id
+      ? typeof store?.hasMessages === 'function'
+        ? !!store.hasMessages(id)
+        : (store?.getMessages(id)?.length ?? 0) > 0
+      : false;
+    const has = stored || messageCount > 0;
     return draftKey({
       kind: 'nomi',
       id: id || 'pending',

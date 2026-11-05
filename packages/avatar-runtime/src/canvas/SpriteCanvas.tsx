@@ -14,6 +14,7 @@ import {
   type RigManifest,
 } from '../layeredRig';
 import { IdleBehavior } from '../rig/idleBehavior';
+import { PoseGate } from '../rig/poseGate';
 import { characterBox } from '../spriteLayout';
 
 import MascotInteractionLayerLite, { type SpriteGeometry } from './InteractionLite';
@@ -165,10 +166,17 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
         ? window.matchMedia('(prefers-reduced-motion: reduce)')
         : null;
     let last = performance.now();
-    let activeAt = last;
-    let lastSig = '';
     let lastUserSig = '';
     let userAt = last;
+    // 分开记：说话 / 表情 / 思考 / 动作（coreAt）与只是视线跟着光标动（lookAt）
+    let lastCoreSig = '';
+    let lastLookSig = '';
+    let coreAt = last;
+    let lookAt = last;
+    /** 上一帧在说话 / 口型张着 / 有动作：下一帧照常满帧 */
+    let lastHot = true;
+    const poseGate = new PoseGate();
+    let paintSeq = 0;
     const idleBehavior = new IdleBehavior();
     // e2e / perf probes: current action id + smoothed frame cost (ms), published every ~30 frames
     let probeAction = '';
@@ -183,6 +191,22 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       cachedViewport = viewport;
       cachedRect = null;
     };
+    /**
+     * 这一帧至少隔多久（ms，0 = 每帧都画）。说话 / 口型 / 动作 / 表情刚变（2 s 内）满帧；
+     * 只是视线跟着光标动 ≈20 fps；空闲 ≈30 fps（与以前一样）；10 s 没有任何变化 ≈10 fps，
+     * 但眨眼、眼神跳动、甩头发前后仍按 ≈30 fps 画（视线在动时眨眼满帧），看上去和以前一样。
+     */
+    const frameGap = (now: number, reduced: boolean): number => {
+      if (reduced) return 30;
+      const anim = animRef.current;
+      if (!rigRef.current || !anim) return 0;
+      if (lastHot || now - coreAt < 2000 || anim.actions.busy()) return 0;
+      const quick = anim.quickMotionNear(now / 1000);
+      if (now - lookAt < 2000) return quick ? 0 : 50;
+      if (quick) return 30;
+      if (now - Math.max(coreAt, lookAt, userAt) > 10_000) return 90;
+      return 30;
+    };
     const tick = (now: number) => {
       // pause entirely while the window is hidden / minimised (resumed by visibilitychange)
       if (document.hidden) {
@@ -191,12 +215,10 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       }
       raf = requestAnimationFrame(tick);
       const reduced = !!reduceMq?.matches;
-      // reduced motion: 30fps is plenty for blink + lip sync. Idle rig (no speech, gesture or
-      // cursor movement for 2 s) also drops to ~30fps: slow noise/breath motion stays smooth
-      // and CPU use halves.
-      const idle = !!rigRef.current && now - activeAt > 2000;
-      if ((reduced || idle) && now - last < 30) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
+      const minGap = frameGap(now, reduced);
+      if (minGap && now - last < minGap) return;
+      // 降帧时一步走得更长：放宽 dt 上限，慢动作（呼吸、噪声）速度不变
+      const dt = Math.min(Math.max(0.05, (minGap + 20) / 1000), (now - last) / 1000);
       last = now;
       const backend = backendRef.current;
       const canvas = canvasRef.current;
@@ -208,24 +230,34 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
         lastUserSig = userSig;
         userAt = now;
       }
-      const sig = `${userSig}|${frame.gesture?.id}`;
-      if (sig !== lastSig || frame.mouth > 0.02) {
-        lastSig = sig;
-        activeAt = now;
+      const coreSig = `${frame.talking}|${frame.expression}|${frame.thinking}|${frame.gesture?.id}`;
+      if (coreSig !== lastCoreSig || frame.mouth > 0.02) {
+        lastCoreSig = coreSig;
+        coreAt = now;
       }
+      const lookSig = `${frame.lookX.toFixed(2)}|${frame.lookY.toFixed(2)}`;
+      if (lookSig !== lastLookSig) {
+        lastLookSig = lookSig;
+        lookAt = now;
+      }
+      lastHot = frame.talking || frame.mouth > 0.02 || !!animRef.current?.actions.busy();
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
+      let resized = false;
       if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
+        resized = true;
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
       const rig = rigRef.current;
       const anim = animRef.current;
+      if (!rig || !anim) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+      }
       if (rig && anim) {
         // random idle behaviours (look around, hum, yawn, stretch …) — never while busy / reduced
         const pick = idleBehavior.update(now, {
@@ -247,17 +279,34 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
           thinking: frame.thinking,
         });
         const box = characterBox(w, h);
+        const view = rigTransform(rig, w, h, box);
+        const cur = anim.actions.current() ?? '';
+        if (resized) poseGate.invalidate();
+        // 和上次画出的姿势几乎一样（静止 / 很慢的呼吸）：这一帧不重画，画布保持上一帧
+        if (
+          !poseGate.shouldPaint(
+            pose,
+            view.sc * dpr,
+            `${w}x${h}@${dpr}|${box.x},${box.y},${box.w},${box.h}`,
+          )
+        ) {
+          if (cur !== probeAction) {
+            probeAction = cur;
+            document.documentElement.dataset.mascotAction = cur;
+          }
+          return;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
         const t0 = performance.now();
         paintRigFrame(ctx, rig, rigImgs.current, pose, w, h, box);
         frameMs += (performance.now() - t0 - frameMs) * 0.1;
-        const cur = anim.actions.current() ?? '';
         if (cur !== probeAction || ++frameN % 30 === 0) {
           probeAction = cur;
           const ds = document.documentElement.dataset;
           ds.mascotAction = cur;
           ds.mascotPaintMs = frameMs.toFixed(2);
         }
-        const view = rigTransform(rig, w, h, box);
         // canvas 固定铺满窗口，位置只在窗口移动/缩放时变；缓存避免每帧强制布局
         cachedRect ??= canvas.getBoundingClientRect();
         const r = cachedRect;
@@ -279,6 +328,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
           head: shift(rigHeadBox(rig, rigImgs.current, pose, view)),
           body: bodyBox,
           box: char,
+          paintSeq: ++paintSeq,
         };
         return;
       }

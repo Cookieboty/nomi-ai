@@ -79,6 +79,8 @@ type Part struct {
 	Headers      map[string]string
 	// ResponseMessages：finish 时 = (await result.response).messages（这一轮各步的回复消息，含最后一步）
 	ResponseMessages []*u.Obj
+	// StepLimit：finish 时 = 步数用完才停（最后一步的工具都执行完了，模型还没看到结果），可以接着跑
+	StepLimit bool
 }
 
 // TextParams: the streamText / generateText arguments this runtime uses.

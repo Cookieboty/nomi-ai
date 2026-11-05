@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
+import { ConversationStore } from '../src/services/conversationStore';
 import { SdkIPCClient } from '../src/services/IPCClient';
 import type { ChatMessage } from '../src/types/chat';
 
@@ -18,7 +18,7 @@ describe('SdkIPCClient.saveMessageTo', () => {
       memory: { userProfile: { get: () => undefined, set: vi.fn() } },
     } as never);
     // 换成内存 store，避免依赖 localStorage
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     (ipc as unknown as { store: ConversationStore }).store = store;
     const a = store.ensureCurrent();
     const b = store.create().id; // 当前会话变成 b

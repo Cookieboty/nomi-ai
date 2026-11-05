@@ -3,7 +3,7 @@
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：theme、locale、startup、onboarding、providers、gateway、providerLink、usage、quality、updates、diagnostics、appIcon、
- * migration（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * migration、conversations（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:theme:*`、`ai:locale:*`（packages/ui 的 theme.ts / i18n.ts）、`ai:startup:*`、`ai:onboarding:*`
@@ -321,6 +321,65 @@ export const shellProcedures = {
     output: S.ChatHistoryMigration,
     surfaces: CHAT,
   },
+
+  // ---- conversations（Nomi 对话的会话存储，内核 userData/conversations/；只在对话窗口）----
+  /** 索引：元信息、预览、条数、当前会话（启动时在第一次渲染前取） */
+  'conversations.state': { kind: 'query', input: v, output: S.ConversationsState, surfaces: CHAT },
+  /** 一个会话的消息（原样返回） */
+  'conversations.messages': {
+    kind: 'query',
+    input: S.ConversationsMessagesInput,
+    output: S.ConversationsMessages,
+    surfaces: CHAT,
+  },
+  /** 追加消息（不重写已有的；会话不存在时 CONVERSATION_NOT_FOUND） */
+  'conversations.append': {
+    kind: 'mutation',
+    input: S.ConversationsAppendInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 整份替换消息（编辑重发、清空；会话不存在时 CONVERSATION_NOT_FOUND） */
+  'conversations.replace': {
+    kind: 'mutation',
+    input: S.ConversationsReplaceInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 新建会话或更新元信息（新建的排在末尾） */
+  'conversations.put': {
+    kind: 'mutation',
+    input: S.ConversationsPutInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  'conversations.delete': {
+    kind: 'mutation',
+    input: S.ConversationsDeleteInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 当前会话 / 最近的 Nomi 会话 */
+  'conversations.setPointers': {
+    kind: 'mutation',
+    input: S.ConversationsPointersInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 迁移：导入一个旧会话（幂等，已有的 id 不覆盖） */
+  'conversations.import': {
+    kind: 'mutation',
+    input: S.ConversationsImportInput,
+    output: S.ConversationsImportResult,
+    surfaces: CHAT,
+  },
+  /** 迁移：核对完成后记下已导入 */
+  'conversations.markMigrated': {
+    kind: 'mutation',
+    input: S.ConversationsMarkMigratedInput,
+    output: v,
+    surfaces: CHAT,
+  },
 } as const satisfies ProcedureMap;
 
 export const shellEvents = {
@@ -342,12 +401,21 @@ export const shellEvents = {
   'usage.changed': z.null(),
   'quality.changed': z.null(),
   'updates.changed': S.UpdateState,
+  /** 会话存储变了（`source` 是写入方传的标记）：其他窗口重新取索引、丢掉这些会话的消息缓存 */
+  'conversations.changed': S.ConversationsChanged,
 } as const satisfies EventMap;
+
+/** 只推给对话窗口的事件 */
+export const shellEventSurfaces = {
+  'conversations.changed': ['chat'],
+} as const;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */
 export const shellErrors = [
   /** 链接无法处理 / 授权失败；message 是错误码（bad_issuer、bad_manifest、network 等，见 docs/integrations/provider-link.md） */
   'PROVIDER_LINK_FAILED',
+  /** 会话存储里没有这个会话（已删除） */
+  'CONVERSATION_NOT_FOUND',
 ] as const satisfies readonly string[];
 
 export type ShellProcedureName = keyof typeof shellProcedures & string;

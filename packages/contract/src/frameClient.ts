@@ -4,6 +4,7 @@
  */
 
 import { abortedError, ContractError, fromErrorPayload } from './errors';
+import { leanValidation } from './leanValidation';
 import { serverFrameSchema, type ClientFrame, type ServerFrame } from './protocol';
 import { PushStream } from './stream';
 import type { CallOptions, ClientTransport, ContractLogger } from './transport';
@@ -86,12 +87,18 @@ export function createFrameClientTransport(
   };
 
   const handleFrame = (raw: unknown): void => {
-    const parsed = serverFrameSchema.safeParse(raw);
-    if (!parsed.success) {
-      options.logger?.warn('[contract] dropped malformed server frame');
-      return;
+    let frame: ServerFrame;
+    if (leanValidation() && isHotFrame(raw)) {
+      // 轻校验（生产）：高频的 chunk / event 帧只查外壳字段，载荷由上层按需校验
+      frame = raw;
+    } else {
+      const parsed = serverFrameSchema.safeParse(raw);
+      if (!parsed.success) {
+        options.logger?.warn('[contract] dropped malformed server frame');
+        return;
+      }
+      frame = parsed.data;
     }
-    const frame: ServerFrame = parsed.data;
     if (frame.t === 'event') {
       const set = listeners.get(frame.event);
       if (!set) return;
@@ -222,4 +229,13 @@ export function createFrameClientTransport(
       offPort();
     },
   };
+}
+
+/** chunk / event 帧的外壳：类型与路由字段对就直接用（其它帧仍走 schema 校验） */
+function isHotFrame(raw: unknown): raw is ServerFrame {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return false;
+  const f = raw as { t?: unknown; id?: unknown; event?: unknown };
+  if (f.t === 'chunk') return typeof f.id === 'string';
+  if (f.t === 'event') return typeof f.event === 'string';
+  return false;
 }

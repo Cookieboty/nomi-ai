@@ -210,7 +210,14 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
             onChange={(e) => setRemember(e.target.checked)}
             data-testid="desktop-confirm-remember"
           />
-          {t('ui.chat-settings.don-t-ask-again-for-this-tool-this')}
+          {req.rememberRule ? (
+            <span>
+              {t('ui.chat-settings.always-allow-command-prefix')}{' '}
+              <code className={styles.tool}>{req.rememberRule}</code>
+            </span>
+          ) : (
+            t('ui.chat-settings.don-t-ask-again-for-this-tool-this')
+          )}
         </label>
       )}
       {/* 「详情」在左；拒绝 / 允许靠右，主操作在最右（与系统对话框一致） */}

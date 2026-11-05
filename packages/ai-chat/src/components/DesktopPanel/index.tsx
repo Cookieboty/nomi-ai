@@ -197,73 +197,101 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
         )}
 
         {tab === 'tools' && state && (
-          <SettingsGroup
-            title={tr('ui.foundation.tool-permissions')}
-            description={tr(
-              'ui.knowledge-local.how-the-assistant-confirms-before-calling-each-tool',
-            )}
-          >
-            <table className={`${styles.table} ${styles.toolsTable}`} data-testid="desktop-tools">
-              <thead>
-                <tr>
-                  <th>{tr('ui.foundation.tool')}</th>
-                  <th>{tr('ui.foundation.level')}</th>
-                  <th>{tr('ui.foundation.confirmation')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.tools.map((t) => (
-                  <tr key={t.name}>
-                    <td>
-                      {tr(TOOL_LABELS[t.name] ?? t.name)}
-                      <div className={styles.code}>{tr(t.name)}</div>
-                    </td>
-                    <td>
-                      <Badge
-                        tone={
-                          t.danger === 'destructive'
-                            ? 'danger'
-                            : t.danger === 'write'
-                              ? 'warning'
-                              : 'neutral'
-                        }
-                      >
-                        {tr(DANGER_LABELS[t.danger])}
-                      </Badge>
-                    </td>
-                    <td>
-                      {t.danger === 'destructive' ? (
-                        <span className={styles.hint}>
-                          {tr('ui.foundation.confirm-in-a-dialog-every-time-cannot-be')}
-                        </span>
-                      ) : t.name === 'desktop_request_scope' ? (
-                        <span className={styles.hint}>
-                          {tr('ui.foundation.decided-by-you-in-the-system-folder-picker')}
-                        </span>
-                      ) : t.locked ? (
-                        <span className={styles.hint}>
-                          {tr('ui.foundation.ask-every-time-cannot-be-changed')}
-                        </span>
-                      ) : (
-                        <Select
-                          size="sm"
-                          value={t.policy}
-                          onChange={(e) =>
-                            void desktopClient.setPolicy(t.name, e.target.value as Policy)
-                          }
-                          options={(['always', 'session', 'ask'] as Policy[]).map((p) => ({
-                            value: p,
-                            label: tr(POLICY_LABELS[p]),
-                          }))}
-                          data-testid={`desktop-policy-${t.name}`}
-                        />
-                      )}
-                    </td>
+          <div className={styles.stack}>
+            <SettingsGroup
+              title={tr('ui.foundation.tool-permissions')}
+              description={tr(
+                'ui.knowledge-local.how-the-assistant-confirms-before-calling-each-tool',
+              )}
+            >
+              <table className={`${styles.table} ${styles.toolsTable}`} data-testid="desktop-tools">
+                <thead>
+                  <tr>
+                    <th>{tr('ui.foundation.tool')}</th>
+                    <th>{tr('ui.foundation.level')}</th>
+                    <th>{tr('ui.foundation.confirmation')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </SettingsGroup>
+                </thead>
+                <tbody>
+                  {state.tools.map((t) => (
+                    <tr key={t.name}>
+                      <td>
+                        {tr(TOOL_LABELS[t.name] ?? t.name)}
+                        <div className={styles.code}>{tr(t.name)}</div>
+                      </td>
+                      <td>
+                        <Badge
+                          tone={
+                            t.danger === 'destructive'
+                              ? 'danger'
+                              : t.danger === 'write'
+                                ? 'warning'
+                                : 'neutral'
+                          }
+                        >
+                          {tr(DANGER_LABELS[t.danger])}
+                        </Badge>
+                      </td>
+                      <td>
+                        {t.danger === 'destructive' ? (
+                          <span className={styles.hint}>
+                            {tr('ui.foundation.confirm-in-a-dialog-every-time-cannot-be')}
+                          </span>
+                        ) : t.name === 'desktop_request_scope' ? (
+                          <span className={styles.hint}>
+                            {tr('ui.foundation.decided-by-you-in-the-system-folder-picker')}
+                          </span>
+                        ) : t.locked ? (
+                          <span className={styles.hint}>
+                            {tr('ui.foundation.ask-every-time-cannot-be-changed')}
+                          </span>
+                        ) : (
+                          <Select
+                            size="sm"
+                            value={t.policy}
+                            onChange={(e) =>
+                              void desktopClient.setPolicy(t.name, e.target.value as Policy)
+                            }
+                            options={(['always', 'session', 'ask'] as Policy[]).map((p) => ({
+                              value: p,
+                              label: tr(POLICY_LABELS[p]),
+                            }))}
+                            data-testid={`desktop-policy-${t.name}`}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SettingsGroup>
+            <SettingsGroup
+              title={tr('ui.foundation.command-allowlist')}
+              description={tr('ui.foundation.command-allowlist-desc')}
+            >
+              {state.commandRules?.length ? (
+                state.commandRules.map((rule) => (
+                  <SettingRow
+                    key={rule}
+                    data-testid="desktop-command-rule"
+                    title={<code className={styles.code}>{rule}</code>}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void desktopClient.removeCommandRule(rule)}
+                      aria-label={tr('ui.foundation.remove-command-rule', rule)}
+                      data-testid="desktop-command-rule-remove"
+                    >
+                      {tr('ui.knowledge-local.remove')}
+                    </Button>
+                  </SettingRow>
+                ))
+              ) : (
+                <p className={styles.hint}>{tr('ui.foundation.command-allowlist-empty')}</p>
+              )}
+            </SettingsGroup>
+          </div>
         )}
 
         {tab === 'cloud' && state && (

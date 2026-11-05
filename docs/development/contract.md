@@ -35,6 +35,10 @@ packages/contract/src/app/<域>.ts   ──pnpm --filter @nomi-ai/contract build
 - 线协议：客户端发 `req` / `abort` / `sub` / `unsub`，服务端回 `res` / `chunk` / `end` / `err` / `event`（`packages/contract/src/protocol.ts`）。
   只用 JSON 值与 `Uint8Array`（WebSocket 上按 `wire.ts` 编成 base64），`Date` / `Map` / `Set` 不能过线。
 - 窗口关闭时宿主撤销它的 token 并断开连接；断线后客户端按退避重连，事件订阅在重连后恢复。
+- 校验：客户端默认用 schema 校验入参、结果、每个 chunk 与事件。视图的生产构建（`import.meta.env.PROD`）在 `services/api.ts`
+  里打开轻校验（`setLeanValidation({ events: APP_HIGH_FREQUENCY_EVENTS })`）：流式 chunk、高频事件（流式输出、光标、窗口运动）
+  与 chunk / event 帧外壳不再逐个校验，入参、调用结果、流的最终结果与其余事件照常校验。高频事件的 schema 不能有 default /
+  transform（跳过校验时拿到的是原值）。
 
 ## 加一个过程
 

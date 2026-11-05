@@ -482,5 +482,11 @@
   "ui.chat-settings.write-text-file": "Write text file",
   "ui.chat-settings.your-desktop-ai-assistant": "Your desktop AI assistant",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "Your next message will be sent to the new session together with the previous {0} messages",
-  "ui.chat-settings.your-own-secrets": "Your own secrets"
+  "ui.chat-settings.your-own-secrets": "Your own secrets",
+  "ui.chat-settings.always-allow-command-prefix": "Don't ask again for commands starting with:",
+  "ui.chat-settings.boot-loading-history": "Loading your chats…",
+  "ui.chat-settings.boot-importing-history": "Importing your earlier chats ({0}/{1})…",
+  "ui.chat-settings.boot-history-unavailable": "Couldn't load your chats",
+  "ui.chat-settings.boot-history-unavailable-detail": "Your chats are still there. Try again in a moment, or restart the app if it keeps failing.",
+  "ui.chat-settings.history-save-failed": "Couldn't save your chats yet. Retrying automatically — please keep the app open for now."
 }

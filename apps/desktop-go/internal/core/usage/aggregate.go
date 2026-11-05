@@ -138,43 +138,7 @@ type Summary struct {
 }
 
 func Summarize(recs []*UsageRecord, priceOf PriceOf) Summary {
-	s := Summary{Unpriced: []Unpriced{}, Input: num0(), Output: num0(), Total: num0(), CacheRead: num0(), CacheWrite: num0()}
-	un := map[string]*Unpriced{}
-	var order []string
-	for _, r := range recs {
-		s.Calls++
-		if r.Est != nil && *r.Est {
-			s.EstimatedCalls++
-		}
-		s.Input.add(PromptTokens(r))
-		s.Output.add(r.jv("output"))
-		s.CacheRead.add(r.jv("cacheRead"))
-		s.CacheWrite.add(r.jv("cacheWrite"))
-		c := RecordCostOf(r, priceOf)
-		if c == nil {
-			e, ok := un[r.Model]
-			if !ok {
-				e = &Unpriced{Model: r.Model, Tokens: num0()}
-				un[r.Model] = e
-				order = append(order, r.Model)
-			}
-			e.Tokens.add(TotalTokens(r))
-			e.Calls++
-		} else {
-			s.CostUsd += JSNum(*c)
-		}
-	}
-	s.Total = JSV{jsAdd(s.Input.V, s.Output.V)}
-	denom := s.Input.Num() - s.CacheWrite.Num()
-	if denom > 0 {
-		v := s.CacheRead.Num() / denom
-		s.CacheHitRate = (*JSNum)(&v)
-	}
-	for _, k := range order {
-		s.Unpriced = append(s.Unpriced, *un[k])
-	}
-	jsSortStable(s.Unpriced, func(a, b Unpriced) float64 { return b.Tokens.Num() - a.Tokens.Num() })
-	return s
+	return summarizeRows(recRows(recs), priceOf)
 }
 
 type SeriesPoint struct {
@@ -187,40 +151,7 @@ type SeriesPoint struct {
 }
 
 func Series(recs []*UsageRecord, rg RangeSpec, priceOf PriceOf) []SeriesPoint {
-	pts := make([]SeriesPoint, 0, rg.Buckets)
-	for i := 0; i < rg.Buckets; i++ {
-		var t float64
-		if rg.Bucket == "hour" {
-			t = rg.From + float64(float64(i)*3_600_000)
-		} else {
-			t = AddDays(rg.From, i)
-		}
-		pts = append(pts, SeriesPoint{T: t, Input: num0(), Output: num0(), Tokens: num0()})
-	}
-	for _, r := range recs {
-		if r.Ts < rg.From || r.Ts >= rg.To {
-			continue
-		}
-		var idx float64
-		if rg.Bucket == "hour" {
-			idx = math.Floor((r.Ts - rg.From) / 3_600_000)
-		} else {
-			idx = math.Floor((StartOfDay(r.Ts)-rg.From)/dayMs + 0.5)
-		}
-		i := int(math.Min(math.Max(idx, 0), float64(len(pts)-1)))
-		if i < 0 || i >= len(pts) {
-			continue
-		}
-		p := &pts[i]
-		p.Input.add(PromptTokens(r))
-		p.Output.add(r.jv("output"))
-		p.Tokens.add(TotalTokens(r))
-		p.Calls++
-		if c := RecordCostOf(r, priceOf); c != nil {
-			p.CostUsd += JSNum(*c)
-		}
-	}
-	return pts
+	return seriesRows(recRows(recs), rg, priceOf)
 }
 
 type BreakdownRow struct {
@@ -264,59 +195,11 @@ type Labels struct {
 }
 
 func ProviderOf(r *UsageRecord, labels *Labels) string {
-	if r.Provider != nil && *r.Provider != "" {
-		if labels != nil {
-			if n, ok := labels.ProviderName(*r.Provider); ok {
-				return n
-			}
-		}
-		return *r.Provider
-	}
-	v, _ := VendorOfModel(r.Model)
-	return v
+	return providerOfPM(r.Provider, r.Model, labels)
 }
 
 func Breakdown(recs []*UsageRecord, by string, priceOf PriceOf, labels *Labels) []BreakdownRow {
-	m := map[string]*BreakdownRow{}
-	var order []string
-	for _, r := range recs {
-		var kv any
-		switch by {
-		case "source":
-			kv = r.srcV()
-		case "model":
-			kv = r.Model
-		default:
-			kv = ProviderOf(r, labels)
-		}
-		key := sameValueZeroKey(kv)
-		row, ok := m[key]
-		if !ok {
-			row = &BreakdownRow{Key: jsvp(kv), Tokens: num0(), Input: num0(), Output: num0()}
-			m[key] = row
-			order = append(order, key)
-		}
-		row.Tokens.add(TotalTokens(r))
-		row.Input.add(PromptTokens(r))
-		row.Output.add(r.jv("output"))
-		row.Calls++
-		if c := RecordCostOf(r, priceOf); c == nil {
-			row.HasUnpriced = true
-		} else {
-			row.CostUsd += JSNum(*c)
-		}
-	}
-	out := make([]BreakdownRow, 0, len(order))
-	for _, k := range order {
-		out = append(out, *m[k])
-	}
-	jsSortStable(out, func(a, b BreakdownRow) float64 {
-		if d := float64(b.CostUsd - a.CostUsd); d != 0 && !math.IsNaN(d) {
-			return d
-		}
-		return b.Tokens.Num() - a.Tokens.Num()
-	})
-	return out
+	return breakdownRows(recRows(recs), by, priceOf, labels)
 }
 
 type HeatDay struct {
@@ -332,40 +215,7 @@ func DateKey(ts float64) string {
 }
 
 func Heatmap(recs []*UsageRecord, now float64, priceOf PriceOf, days int) []HeatDay {
-	if days == 0 {
-		days = 365
-	}
-	today := StartOfDay(now)
-	first := AddDays(today, -(days - 1))
-	byDay := map[string]*HeatDay{}
-	var order []string
-	for i := 0; i < days; i++ {
-		k := DateKey(AddDays(first, i))
-		if _, ok := byDay[k]; !ok {
-			order = append(order, k)
-		}
-		byDay[k] = &HeatDay{Date: k, Tokens: num0()}
-	}
-	end := AddDays(today, 1)
-	for _, r := range recs {
-		if r.Ts < first || r.Ts >= end {
-			continue
-		}
-		d := byDay[DateKey(r.Ts)]
-		if d == nil {
-			continue
-		}
-		d.Tokens.add(TotalTokens(r))
-		d.Calls++
-		if c := RecordCostOf(r, priceOf); c != nil {
-			d.CostUsd += JSNum(*c)
-		}
-	}
-	out := make([]HeatDay, 0, len(order))
-	for _, k := range order {
-		out = append(out, *byDay[k])
-	}
-	return out
+	return heatmapRows(recRows(recs), now, priceOf, days)
 }
 
 // ---------------------------------------------------------------- 明细

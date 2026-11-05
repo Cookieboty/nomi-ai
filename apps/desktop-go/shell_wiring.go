@@ -63,7 +63,6 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 				}
 			}
 		},
-		LegacyEnabled: func() bool { return diagnostics.ReadLegacyGatewayTrace(filepath.Join(userData, "gateway")) },
 		OnChange: func(bool) {
 			if gw != nil {
 				gw.Refresh()

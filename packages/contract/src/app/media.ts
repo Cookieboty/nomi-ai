@@ -231,6 +231,12 @@ export const mediaProcedures = {
   'desktop.undoLast': { kind: 'mutation', input: z.void(), output: DesktopUndoResult },
   'desktop.resetAll': { kind: 'mutation', input: z.void(), output: z.boolean(), dangerous: true },
   'desktop.resetCloudAcks': { kind: 'mutation', input: z.void(), output: z.boolean() },
+  /** 从命令白名单删掉一条（workspace_run 跑这些前缀的命令不再确认），返回最新状态 */
+  'desktop.removeCommandRule': {
+    kind: 'mutation',
+    input: z.object({ rule: z.string() }),
+    output: DesktopState,
+  },
   'desktop.remindersList': {
     kind: 'query',
     input: z.object({ all: z.boolean().optional() }),

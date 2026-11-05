@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createMemoryConversationKernel } from '../src/services/conversationKernel';
 import { ConversationStore } from '../src/services/conversationStore';
 import { SdkIPCClient } from '../src/services/IPCClient';
 
@@ -18,17 +19,22 @@ describe('Nomi conversation workspace (store)', () => {
     expect(store.create({ backend: 'codex', tabId: 't1' }).cwd).toBeUndefined();
   });
 
-  it('persists per conversation, can be cleared, and forks keep it', () => {
-    const store = new ConversationStore();
+  it('persists per conversation, can be cleared, and forks keep it', async () => {
+    const kernel = createMemoryConversationKernel();
+    const store = new ConversationStore({ kernel });
     const a = store.create({ cwd: '/proj/a' });
     const b = store.create({ cwd: '/proj/b' });
     store.updateMeta(a.id, { cwd: '/proj/a2' });
-    // 重新读取（另一个窗口 / 重启）仍在
-    const again = new ConversationStore();
+    // 重新读取（重启）仍在
+    const reopen = async () => {
+      await store.flush();
+      return new ConversationStore({ kernel, snapshot: await kernel.state() });
+    };
+    const again = await reopen();
     expect(again.get(a.id)?.cwd).toBe('/proj/a2');
     expect(again.get(b.id)?.cwd).toBe('/proj/b');
     store.updateMeta(b.id, { cwd: undefined });
-    expect(new ConversationStore().get(b.id)?.cwd).toBeUndefined();
+    expect((await reopen()).get(b.id)?.cwd).toBeUndefined();
     expect(store.fork(a.id).cwd).toBe('/proj/a2');
     expect(store.fork(a.id, { cwd: '/other' }).cwd).toBe('/other');
   });

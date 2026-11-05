@@ -581,5 +581,8 @@
   "electron.common.you-denied-this-tool-call-so-this-turn": "已拒绝这次工具调用，这一轮已结束",
   "electron.common.you-haven-t-agreed-to-send-file-chunks": "还没同意把文件片段发送给「{0}」",
   "electron.common.you-re-away-from-the-computer": "你不在电脑前",
-  "electron.common.you-were-just-chatting": "你刚刚在聊天"
+  "electron.common.you-were-just-chatting": "你刚刚在聊天",
+  "electron.common.auto-continue-stopped-rounds": "（已自动接着做了 {0} 轮，先停在这里。要我继续就说「继续」。）",
+  "electron.common.auto-continue-stopped-budget": "（已自动接着做了 {0} 轮，这次用量较大，先停在这里。要我继续就说「继续」。）",
+  "electron.common.auto-continue-stopped-denied": "（有一步被你拒绝了，我先停在这里，没有继续自动往下做。）"
 }

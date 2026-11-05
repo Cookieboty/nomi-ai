@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 )
@@ -128,8 +129,13 @@ func (h *Hub) ExportTo(file string, o ExportOpts) (ExportResult, error) {
 		want[s] = true
 	}
 	ud := h.d.UserData
-	if want["conversations"] && truthy(o.Conversations) {
-		add("conversations.json", []byte(deps.MustStringify(o.Conversations, "  ")))
+	if want["conversations"] {
+		// 会话存储（userData/conversations/：index.json、previews.json、messages/<id>.jsonl）
+		addDir("conversations", filepath.Join(ud, convstore.Dir), 0)
+		// 视图传来的对话设置（localStorage 里的 ai-chat:* 偏好）
+		if truthy(o.Conversations) {
+			add("conversations.json", []byte(deps.MustStringify(o.Conversations, "  ")))
+		}
 	}
 	for _, k := range []string{"memory", "schedule", "skills"} {
 		if want[k] {

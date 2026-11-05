@@ -188,6 +188,9 @@ func (s *Service) mascotHidden() bool {
 	return s.windows != nil && s.windows.MascotHidden != nil && s.windows.MascotHidden()
 }
 
+// MascotHidden：桌面角色已关闭（startup.showMascot = false）；没接窗口时按显示处理
+func (s *Service) MascotHidden() bool { return s.mascotHidden() }
+
 func (s *Service) showMain() {
 	if s.windows.IsVisible != nil && !s.windows.IsVisible() && s.windows.ShowInactive != nil {
 		s.windows.ShowInactive()
@@ -680,6 +683,14 @@ func (s *Service) SetToolPolicy(tool, policy any) bool {
 
 func (s *Service) SetLocalOnly(v any) bool { s.Broker.SetLocalOnly(v == true); return true }
 func (s *Service) ResetCloudAcks() bool    { s.Broker.ResetCloudAcks(); return true }
+
+// RemoveCommandRule：从命令白名单删掉一条，返回最新状态
+func (s *Service) RemoveCommandRule(rule any) State {
+	if r, ok := rule.(string); ok {
+		s.Broker.RemoveCommandRule(r)
+	}
+	return s.State()
+}
 
 func (s *Service) AuditList(limit, offset any) []json.RawMessage {
 	n := 200

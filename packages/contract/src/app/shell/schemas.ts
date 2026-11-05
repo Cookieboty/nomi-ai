@@ -560,3 +560,107 @@ export const GatewayRetrying = loose({
   attempt: z.number(),
   waitMs: z.number().optional(),
 });
+
+/* ---- conversations（Nomi 对话的会话存储：内核 userData/conversations/，docs/features/chat.md）---- */
+
+/** 会话 id 的字符：也是内核里的文件名，只认字母、数字、`_`、`-`，1–128 个 */
+export const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+/** Windows 的保留设备名（不分大小写；加了扩展名也不能当文件名） */
+const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
+/**
+ * 会话 id 能不能当文件名：视图（迁移、新建）与 Go 内核（convstore.ValidID）用同一条规则，
+ * 不合法的 id 内核一律拒收（BAD_INPUT）
+ */
+export function isValidConversationId(id: unknown): id is string {
+  return (
+    typeof id === 'string' && CONVERSATION_ID_PATTERN.test(id) && !WINDOWS_RESERVED_NAME.test(id)
+  );
+}
+/** 会话 id（规则见 isValidConversationId） */
+export const ConversationId = z
+  .string()
+  .regex(CONVERSATION_ID_PATTERN)
+  .refine((id) => !WINDOWS_RESERVED_NAME.test(id), { message: 'reserved file name' });
+/** 会话元信息（视图的 ChatSession 去掉 messages）：内核只认 id，其余字段原样保存、原样返回 */
+export const ConversationMetaWire = z.looseObject({ id: ConversationId });
+/** 一条消息：内核不解析，原样保存 */
+const ConversationMessages = z.array(opaqueObject);
+/** 写会话的调用者标记：内核原样放进 `conversations.changed`，窗口据此忽略自己写的 */
+const ConversationSource = z.string().max(64).optional();
+
+export const ConversationsState = loose({
+  /** 按视图的顺序（新建的在末尾） */
+  conversations: z.array(z.looseObject({ id: z.string() })),
+  /** 第一条用户消息的预览（侧栏搜索用） */
+  previews: z.record(z.string(), z.string()),
+  /** 每个会话的消息条数（加载前判断有没有消息） */
+  counts: z.record(z.string(), z.number().int()),
+  current: z.string().optional(),
+  lastNomi: z.string().optional(),
+  /** 是否已从视图旧的 localStorage 导入过 */
+  migrated: z.boolean(),
+});
+export const ConversationsMessagesInput = z.object({
+  id: ConversationId,
+  /** 只要最后这么多条（默认全部） */
+  limit: z.number().int().positive().optional(),
+});
+export const ConversationsMessages = loose({
+  messages: ConversationMessages,
+  /** 这些消息的 JSON 大小（字节；视图的消息缓存按它算预算，不用再序列化一遍） */
+  bytes: z.number().int().nonnegative().optional(),
+});
+export const ConversationsAppendInput = z.object({
+  source: ConversationSource,
+  id: ConversationId,
+  messages: ConversationMessages.min(1),
+  /** 追加后的元信息（标题 / 更新时间） */
+  meta: ConversationMetaWire.optional(),
+  preview: z.string().optional(),
+  /** 每个会话最多保留的条数：超出一定余量后内核整份重写、丢掉最旧的 */
+  max: z.number().int().positive().optional(),
+});
+export const ConversationsReplaceInput = z.object({
+  source: ConversationSource,
+  id: ConversationId,
+  messages: ConversationMessages,
+  meta: ConversationMetaWire.optional(),
+  preview: z.string().optional(),
+});
+/** 新建或更新元信息；带 messages 时整份替换消息 */
+export const ConversationsPutInput = z.object({
+  source: ConversationSource,
+  meta: ConversationMetaWire,
+  messages: ConversationMessages.optional(),
+  preview: z.string().optional(),
+});
+export const ConversationsDeleteInput = z.object({
+  source: ConversationSource,
+  id: ConversationId,
+});
+/** 不传 = 不变，null = 清空 */
+export const ConversationsPointersInput = z.object({
+  source: ConversationSource,
+  current: ConversationId.nullable().optional(),
+  lastNomi: ConversationId.nullable().optional(),
+});
+/**
+ * 导入一个会话（从视图旧的 localStorage 迁移）：大会话分几次发（first 开始、final 结束），
+ * final 时才进索引；索引里已有这个 id 就不覆盖（imported = false）。中途中断的下次从头再导。
+ */
+export const ConversationsImportInput = z.object({
+  meta: ConversationMetaWire,
+  messages: ConversationMessages,
+  preview: z.string().optional(),
+  first: z.boolean(),
+  final: z.boolean(),
+});
+export const ConversationsImportResult = loose({ imported: z.boolean() });
+export const ConversationsMarkMigratedInput = z.object({ count: z.number().int().nonnegative() });
+export const ConversationsChanged = loose({
+  source: z.string().optional(),
+  /** 消息或元信息变了的会话 */
+  ids: z.array(z.string()),
+  /** 索引（列表 / 当前会话）变了 */
+  index: z.boolean(),
+});

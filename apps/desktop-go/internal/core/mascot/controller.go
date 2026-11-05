@@ -158,6 +158,8 @@ type Controller struct {
 	box            *CharacterBox
 	staleSize      *Size
 	workAreas      []Rect
+	lastScreen     ScreenEvent
+	lastScreenAt   float64
 	cancel         func()
 	gen            uint64 // schedule 的代号：过期的定时回调直接丢弃
 	lastActivityAt float64
@@ -213,6 +215,7 @@ func (c *Controller) Start() {
 	defer c.mu.Unlock()
 	c.started = true
 	c.refreshDisplays()
+	c.lastScreen, c.lastScreenAt = ScreenEvent{}, 0 // 新窗口：下一个 tick 推一次初值
 	w, _ := c.win.GetSize()
 	c.scale = RoundMascotScale((float64(w) - float64(2*MascotPad.X)) / MascotBase.Width)
 	c.pref = c.scale
@@ -244,6 +247,7 @@ func (c *Controller) DisplaysChanged() {
 		return
 	}
 	c.refreshDisplays()
+	c.sendScreen(c.host.Now())
 	want := FitMascotScale(c.pref, c.capNow())
 	if want != c.scale && !c.win.IsDestroyed() {
 		c.applyScale(want, false, true)
@@ -814,6 +818,7 @@ func (c *Controller) tick() {
 			c.send("mascot.cursor", CursorEvent{X: rx, Y: ry, Inside: rx >= 0 && ry >= 0 && rx < float64(w) && ry < float64(h)})
 		}
 	}
+	c.sendScreen(now)
 	if !c.hitKnown && c.ignoring {
 		c.applyIgnore(false)
 	}
@@ -832,6 +837,35 @@ type BodyEvent struct {
 	AX   float64 `json:"ax"`
 	AY   float64 `json:"ay"`
 	Dir  float64 `json:"dir"`
+}
+
+// ScreenEvent：窗口位置与它所在显示器的工作区（mascot.screen）；视图据此判断工具栏 / 气泡贴边换边
+type ScreenEvent struct {
+	WinX        float64 `json:"winX"`
+	WinY        float64 `json:"winY"`
+	AvailLeft   float64 `json:"availLeft"`
+	AvailTop    float64 `json:"availTop"`
+	AvailWidth  float64 `json:"availWidth"`
+	AvailHeight float64 `json:"availHeight"`
+}
+
+// screenResendMS：没变化也隔这么久重发一次（视图刷新 / 重建后没收到初值时兜底）
+const screenResendMS = 5000
+
+// sendScreen：窗口位置或所在工作区变了才推；静止时每 screenResendMS 重发一次
+func (c *Controller) sendScreen(now float64) {
+	if c.win.IsDestroyed() {
+		return
+	}
+	w, _ := c.win.GetSize()
+	x, y := jsRound(c.body.X), jsRound(c.body.Y)
+	a := AreaUnder(c.workAreas, x+float64(w)/2)
+	ev := ScreenEvent{WinX: x, WinY: y, AvailLeft: a.X, AvailTop: a.Y, AvailWidth: a.Width, AvailHeight: a.Height}
+	if ev == c.lastScreen && now-c.lastScreenAt < screenResendMS {
+		return
+	}
+	c.lastScreen, c.lastScreenAt = ev, now
+	c.send("mascot.screen", ev)
 }
 
 type CursorEvent struct {

@@ -583,7 +583,7 @@ const DelegateDrawer: React.FC<{
   );
 };
 
-export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
+const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const tabs = useHarnessTabs();
   const tabMeta = delegateTab(call, tabs.state?.tabs);
   // 只订阅自己这个标签的实时进度（别的标签每帧的输出不让这张卡片重渲染）
@@ -776,13 +776,22 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   );
 };
 
+export const DelegateCard = React.memo(DelegateCardImpl);
+
+/** 组头只看「在等你批准」：用占位的实时状态算阶段（delegateView 只看 permissions 有没有） */
+const WAITING_LIVE = { permissions: [{}] } as unknown as TabLive;
+
 /** 同一轮派出多个子任务：组头汇总状态，「全部停止」 */
-export const DelegateGroup: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
+const DelegateGroupImpl: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
   const tabs = useHarnessTabs();
-  const live = useHarnessLive((l) => l);
-  const views = calls.map((c) => {
-    const tab = delegateTab(c, tabs.state?.tabs);
-    return delegateView(c, tab, tab ? live[tab.id] : undefined);
+  const groupTabs = calls.map((c) => delegateTab(c, tabs.state?.tabs));
+  // 只订阅这组标签「有没有待批准」（一位一个标签的字符串）：别的标签 / 本组标签的流式输出不让组头重渲染
+  const waitingKey = useHarnessLive((l) =>
+    groupTabs.map((tab) => (tab && l[tab.id]?.permissions?.length ? '1' : '0')).join(''),
+  );
+  const views = calls.map((c, i) => {
+    const tab = groupTabs[i] ?? null;
+    return delegateView(c, tab, tab && waitingKey[i] === '1' ? WAITING_LIVE : undefined);
   });
   const running = views.filter((x) => x.phase === 'running' || x.phase === 'waiting');
   const waiting = views.filter((x) => x.phase === 'waiting').length;
@@ -824,3 +833,9 @@ export const DelegateGroup: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
     </div>
   );
 };
+
+/** calls 每次是新数组（ToolTimeline 现取），按元素比较 */
+export const DelegateGroup = React.memo(
+  DelegateGroupImpl,
+  (a, b) => a.calls.length === b.calls.length && a.calls.every((c, i) => c === b.calls[i]),
+);

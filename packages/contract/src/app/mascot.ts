@@ -76,6 +76,19 @@ export const MascotScaleState = z.looseObject({
 /** 全局光标（相对窗口左上角，可能在窗口外）—— types `MascotCursorEvent` */
 export const MascotCursorEvent = z.object({ x: z.number(), y: z.number(), inside: z.boolean() });
 
+/**
+ * 窗口在屏幕上的位置与它所在显示器的工作区（内核按真实窗口坐标算；WKWebView 里 window.screenX
+ * 在内核挪窗后不一定更新）。工具栏 / 气泡据此判断贴边换边。只在变化时推。
+ */
+export const MascotScreenEvent = z.object({
+  winX: z.number(),
+  winY: z.number(),
+  availLeft: z.number(),
+  availTop: z.number(),
+  availWidth: z.number(),
+  availHeight: z.number(),
+});
+
 /** 窗口运动 —— types `MascotBodyEvent` */
 export const MascotBodyEvent = z.looseObject({
   mode: z.enum(['idle', 'held', 'falling', 'walking']),
@@ -522,6 +535,14 @@ export const mascotProcedures = {
     description:
       '素材库：保存用户在对话里发送的原图（来源 user），返回素材项；模型可把它的 chat-asset 地址传给 image_generate',
   },
+  'chatAssets.localImage': {
+    kind: 'query',
+    input: z.object({ src: z.string().min(1).max(4096) }),
+    output: z.object({ dataUrl: z.string() }).nullable(),
+    surfaces: CHAT,
+    description:
+      '对话里引用的本机图片（绝对路径 / ~/ / file://，如 CLI 存下的授权二维码）→ data URL；只读工作区、授权文件夹与系统临时目录里的 png / jpeg / gif / webp（≤ 10 MB），其余返回 null',
+  },
   'chatAssets.saveAs': {
     kind: 'mutation',
     input: z.object({ file: z.string() }),
@@ -646,6 +667,8 @@ export const mascotEvents = {
   'mascot.cursor': MascotCursorEvent,
   /** mascot:body（运动中每帧，静止时 ~2Hz） */
   'mascot.body': MascotBodyEvent,
+  /** 窗口位置 / 所在显示器工作区（变化时） */
+  'mascot.screen': MascotScreenEvent,
   /** mascot:physics-event */
   'mascot.physicsEvent': MascotPhysicsEvent,
   /** mascot:command（托盘 / 服务 → 桌面角色：打开面板、说一句、朗读） */
@@ -668,6 +691,7 @@ export const mascotEvents = {
 export const mascotEventSurfaces = {
   'mascot.cursor': ['mascot'],
   'mascot.body': ['mascot'],
+  'mascot.screen': ['mascot'],
   'mascot.physicsEvent': ['mascot'],
   'avatar.event': ['mascot'],
   'window.mouseEnter': ['mascot'],

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
 
@@ -58,7 +59,7 @@ func (s *Service) CheckSendAll(receivers []*Provider, signal context.Context, wh
 
 // WorkspaceSystemHint = workspaceSystemHint（prompts/text/workspace.md）
 func WorkspaceSystemHint(ws string, autoApprove bool) string {
-	return prompts.Render("workspace", map[string]any{"Workspace": ws, "AutoApprove": autoApprove})
+	return prompts.Render("workspace", map[string]any{"Workspace": ws, "AutoApprove": autoApprove, "HasCli": codingcli.Available()})
 }
 
 // WorkspaceBroker = Pick<PermissionBroker, 'workspaceOf' | 'autoApprove'>

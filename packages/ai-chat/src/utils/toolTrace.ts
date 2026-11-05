@@ -52,14 +52,57 @@ export type TimelineItem =
 
 // ───────────────────────── 事件 → 调用 ─────────────────────────
 
-/** 把一串 tool / thinking 事件归并为条目（开始与结果按调用 id 配对，缺 id 时按同名最近一个运行中的） */
-export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] {
-  const entries: TraceEntry[] = [];
-  const byKey = new Map<string, ToolCall>();
-  const running: ToolCall[] = [];
-  let seq = 0;
+/** reduceTrace 的中间状态：可以接着往后折叠新事件（见 reduceTraceCached） */
+interface ReduceState {
+  entries: TraceEntry[];
+  byKey: Map<string, ToolCall>;
+  running: ToolCall[];
+  /** 每个调用所在的条目下标（增量折叠时换掉被改的调用） */
+  entryOf: Map<ToolCall, number>;
+  seq: number;
+}
 
-  const finish = (c: ToolCall, ev: Extract<HarnessTraceEvent, { type: 'tool' }>) => {
+function emptyReduceState(): ReduceState {
+  return { entries: [], byKey: new Map(), running: [], entryOf: new Map(), seq: 0 };
+}
+
+/**
+ * 把 events[from..] 折叠进 st。owned = 这次折叠里新建 / 已复制过的对象：之前结果里的条目与调用
+ * 是共享出去的（调用方可能按引用做缓存），改动前先复制一份再改；owned 为 null 时全部可以就地改。
+ */
+function foldTrace(
+  st: ReduceState,
+  events: readonly HarnessTraceEvent[],
+  from: number,
+  owned: Set<object> | null,
+): void {
+  const { entries, byKey, running, entryOf } = st;
+  const own = <T extends object>(o: T): T => {
+    owned?.add(o);
+    return o;
+  };
+  /** 拿到可以改的调用：不是这次折叠建的就复制，并替换条目 / 索引里的引用 */
+  const writable = (c: ToolCall): ToolCall => {
+    if (!owned || owned.has(c)) return c;
+    const copy = own({ ...c });
+    const at = entryOf.get(c);
+    entryOf.delete(c);
+    if (at !== undefined) {
+      entries[at] = own({ ...(entries[at] as Extract<TraceEntry, { type: 'tool' }>), call: copy });
+      entryOf.set(copy, at);
+    }
+    for (const [k, v] of byKey) if (v === c) byKey.set(k, copy);
+    const ri = running.indexOf(c);
+    if (ri >= 0) running[ri] = copy;
+    return copy;
+  };
+  const pushTool = (call: ToolCall, textAt: number | undefined) => {
+    entryOf.set(call, entries.length);
+    entries.push(own({ type: 'tool', call, ...(textAt !== undefined ? { textAt } : {}) }));
+  };
+
+  const finish = (c0: ToolCall, ev: Extract<HarnessTraceEvent, { type: 'tool' }>) => {
+    const c = writable(c0);
     c.status = ev.status === 'error' ? 'error' : 'done';
     c.endedAt = ev.at ?? c.endedAt;
     if (ev.output !== undefined) c.output = ev.output;
@@ -69,31 +112,38 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
     if (i >= 0) running.splice(i, 1);
   };
 
-  for (const ev of events) {
+  for (let n = from; n < events.length; n++) {
+    const ev = events[n]!;
     if (ev.type === 'thinking') {
       const last = entries[entries.length - 1];
       if (last?.type === 'thinking' && last.textAt === ev.textAt) {
-        last.text += ev.text;
-        if (ev.at !== undefined) last.lastAt = ev.at;
+        const th = owned && !owned.has(last) ? own({ ...last }) : last;
+        entries[entries.length - 1] = th;
+        th.text += ev.text;
+        if (ev.at !== undefined) th.lastAt = ev.at;
       } else
-        entries.push({
-          type: 'thinking',
-          id: `th-${seq++}`,
-          text: ev.text,
-          at: ev.at,
-          lastAt: ev.at,
-          ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
-        });
+        entries.push(
+          own({
+            type: 'thinking',
+            id: `th-${st.seq++}`,
+            text: ev.text,
+            at: ev.at,
+            lastAt: ev.at,
+            ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+          }),
+        );
       continue;
     }
     if (ev.type === 'interject') {
-      entries.push({
-        type: 'interject',
-        id: `ij-${seq++}`,
-        text: ev.text,
-        at: ev.at,
-        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
-      });
+      entries.push(
+        own({
+          type: 'interject',
+          id: `ij-${st.seq++}`,
+          text: ev.text,
+          at: ev.at,
+          ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+        }),
+      );
       continue;
     }
     const key = ev.id ?? ev.detail;
@@ -101,24 +151,20 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
       const existing = key ? byKey.get(key) : undefined;
       if (existing) {
         // 重复的 start（如 Grok 的 tool_call 更新）：补全参数即可
-        if (ev.input !== undefined) existing.input = ev.input;
+        if (ev.input !== undefined) writable(existing).input = ev.input;
         continue;
       }
-      const call: ToolCall = {
-        id: key ?? `call-${seq++}`,
+      const call: ToolCall = own({
+        id: key ?? `call-${st.seq++}`,
         name: ev.name,
         status: 'running',
         input: ev.input,
         startedAt: ev.at,
         parentId: ev.parentId,
-      };
+      });
       if (key) byKey.set(key, call);
       running.push(call);
-      entries.push({
-        type: 'tool',
-        call,
-        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
-      });
+      pushTool(call, ev.textAt);
       continue;
     }
     // done / error
@@ -135,8 +181,8 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
     if (target) finish(target, ev);
     else {
       // 没见过开始事件：直接作为一条已结束的调用
-      const call: ToolCall = {
-        id: key ?? `call-${seq++}`,
+      const call: ToolCall = own({
+        id: key ?? `call-${st.seq++}`,
         name: ev.name,
         status: ev.status === 'error' ? 'error' : 'done',
         input: ev.input,
@@ -144,16 +190,18 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
         startedAt: ev.at,
         endedAt: ev.at,
         parentId: ev.parentId,
-      };
-      if (key) byKey.set(key, call);
-      entries.push({
-        type: 'tool',
-        call,
-        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
       });
+      if (key) byKey.set(key, call);
+      pushTool(call, ev.textAt);
     }
   }
-  return entries;
+}
+
+/** 把一串 tool / thinking 事件归并为条目（开始与结果按调用 id 配对，缺 id 时按同名最近一个运行中的） */
+export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] {
+  const st = emptyReduceState();
+  foldTrace(st, events, 0, null);
+  return st.entries;
 }
 
 /** Nomi 生图工具的结果里带的素材库地址 */
@@ -223,18 +271,47 @@ export function settleTrace(
  * reduceTrace 的缓存版：同一个轨迹数组只归并一次（会话视图的状态行和助手正文共用结果）。
  * 流式时轨迹只在有新事件时换新数组（AiChatContext 的 traceSnap、liveState 的 concat），
  * 但仍按（数组, 长度）做键，防止有人就地追加后拿到旧结果。
+ * 新数组是上一份的延长（前缀里的事件是同一批对象）时只折叠新到的事件，结果与整段重算一致；
+ * 没改到的条目 / 调用沿用上一份结果里的对象，改到的换成新对象（旧结果不被改动）。
  * 返回值是共享的：调用方不得修改。
  */
 const reducedCache = new WeakMap<
   readonly HarnessTraceEvent[],
   { len: number; entries: TraceEntry[] }
 >();
+/** 每条轨迹（按第一个事件认）最近一次归并的状态：下一帧的数组若是它的延长就接着折叠 */
+interface Resumable {
+  events: readonly HarnessTraceEvent[];
+  len: number;
+  st: ReduceState;
+}
+const resumeCache = new WeakMap<HarnessTraceEvent, Resumable>();
+
+function extendsPrefix(prev: Resumable, events: readonly HarnessTraceEvent[]): boolean {
+  if (events.length < prev.len) return false;
+  const old = prev.events;
+  if (old.length < prev.len) return false;
+  for (let i = prev.len - 1; i >= 0; i--) if (old[i] !== events[i]) return false;
+  return true;
+}
+
 export function reduceTraceCached(events: readonly HarnessTraceEvent[]): TraceEntry[] {
   const hit = reducedCache.get(events);
   if (hit && hit.len === events.length) return hit.entries;
-  const entries = reduceTrace(events);
-  reducedCache.set(events, { len: events.length, entries });
-  return entries;
+  const first = events[0];
+  const prev = first ? resumeCache.get(first) : undefined;
+  let st: ReduceState;
+  if (prev && prev.len > 0 && extendsPrefix(prev, events)) {
+    // 接着上一份折叠：内部索引直接接手（上一份状态作废），条目数组复制一份
+    st = { ...prev.st, entries: prev.st.entries.slice() };
+    foldTrace(st, events, prev.len, new Set());
+  } else {
+    st = emptyReduceState();
+    foldTrace(st, events, 0, null);
+  }
+  if (first) resumeCache.set(first, { events, len: events.length, st });
+  reducedCache.set(events, { len: events.length, entries: st.entries });
+  return st.entries;
 }
 
 /** 旧消息只存了 `["Read ✓", "Bash ✗", "Grep"]` 这样的字符串：还原成已结束的调用 */

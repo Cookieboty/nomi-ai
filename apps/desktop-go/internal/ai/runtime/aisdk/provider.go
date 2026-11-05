@@ -3,6 +3,7 @@ package aisdk
 import (
 	"context"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"math"
 	"regexp"
 	"sort"
@@ -344,6 +345,34 @@ func (p *Provider) takeInbox(reqID string) []string {
 // MaxSteerRounds = MAX_STEER_ROUNDS：最后一步才收到插入消息时，最多续跑几轮
 const MaxSteerRounds = 3
 
+// MaxAutoRounds：一轮的工具步数用完、模型还要接着调工具时，自动再续几轮（每轮 StepCount 步）。
+// 复杂任务（读代码 → 改 → 跑测试 → 再改）常要上百步，不让用户反复说「继续」；
+// 上限只是兜底（防止原地打转），用户随时可以停止，后台任务另有预算。
+var MaxAutoRounds = 20
+
+// MaxAutoContinueTokens：自动续跑的累计 token 上限（输入 + 输出，所有轮次合计）。每一步都重发整段历史，
+// 不设上限时前台一次长任务能烧掉上千万 token；超了就停下，告诉用户说「继续」接着做。后台任务另有按次预算。
+var MaxAutoContinueTokens = 3_000_000
+
+// deniedTool：工具结果 / 错误是「用户拒绝 / 权限模式不允许」——这时不自动续跑，免得模型换个方式反复弹确认
+func deniedTool(s string) bool {
+	if s == "" {
+		return false
+	}
+	return strings.Contains(s, "user_denied") || strings.Contains(s, "mode_blocked")
+}
+
+// autoStoppedNotice：自动续跑到上限 / 被拒绝后停下时补在回复末尾的一句（不是静默结束）
+func autoStoppedNotice(reason string, rounds int) string {
+	switch reason {
+	case "denied":
+		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-denied")
+	case "tokens":
+		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-budget", rounds)
+	}
+	return "\n\n" + i18n.T("electron.common.auto-continue-stopped-rounds", rounds)
+}
+
 // addChatUsage = addUsage：两段用量相加（续跑轮次合并成一轮的用量）
 func addChatUsage(a, b *llm.ChatUsage) *llm.ChatUsage {
 	if a == nil || b == nil {
@@ -611,7 +640,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	var lastStep *llm.ChatUsage
 	// 跨续跑轮次累加的用量
 	var total *llm.ChatUsage
-	for round := 0; ; round++ {
+	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数
+	steerRounds, autoRounds := 0, 0
+	for {
 		var inserts []SteerInsert
 		rp := *tp
 		rp.Messages = messages
@@ -628,6 +659,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		}
 		var finish *string
 		var resMsgs []*u.Obj
+		stepLimit, denied := false, false
 		StreamText(c, &rp, func(part Part) {
 			switch part.Type {
 			case "finish-step":
@@ -647,7 +679,11 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			case "tool-call":
 				emit(llm.ChatChunk{Type: "tool_call.delta", Index: 0, Name: llm.Str(part.ToolName), ArgumentsJSON: llm.Str(argsJSON(part.Input)), ID: llm.Str(part.ToolCallID)})
 			case "tool-result":
-				emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Output: StringifyToolOutput(part.Output, toolOutputMax)})
+				out := StringifyToolOutput(part.Output, toolOutputMax)
+				if out != nil && deniedTool(*out) {
+					denied = true
+				}
+				emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Output: out})
 			case "tool-error":
 				var msg string
 				switch e := part.Error.(type) {
@@ -658,12 +694,16 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				default:
 					msg = jsString(e)
 				}
+				if deniedTool(msg) || toolErrorCodeDenied(part.Error) {
+					denied = true
+				}
 				emit(llm.ChatChunk{Type: "tool_call.result", ID: llm.Str(part.ToolCallID), Name: llm.Str(part.ToolName), Error: &msg})
 			case "finish":
 				total = addChatUsage(total, usageOf(part.TotalUsage))
 				f := finishOf(part.FinishReason)
 				finish = &f
 				resMsgs = part.ResponseMessages
+				stepLimit = part.StepLimit
 			case "error":
 				s := DescribeStreamError(part.Error)
 				emit(llm.ChatChunk{Type: "error", Error: &s})
@@ -679,12 +719,29 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		if _, ok := p.inbox[r.ReqID]; ok {
 			p.inbox[r.ReqID] = []string{}
 		}
-		stop := len(left) == 0 || c.Err() != nil || round >= MaxSteerRounds
+		// 步数用完时最后一步的工具已经执行、结果模型还没看到：接着跑一轮
+		auto := hasTools && stepLimit && autoRounds < MaxAutoRounds
+		stopReason := ""
+		if hasTools && stepLimit {
+			switch {
+			case denied:
+				auto, stopReason = false, "denied"
+			case total != nil && total.PromptTokens+total.CompletionTokens > float64(MaxAutoContinueTokens):
+				auto, stopReason = false, "tokens"
+			case autoRounds >= MaxAutoRounds:
+				stopReason = "rounds"
+			}
+		}
+		steer := len(left) > 0 && steerRounds < MaxSteerRounds
+		stop := c.Err() != nil || (!auto && !steer)
 		if stop {
 			delete(p.inbox, r.ReqID)
 		}
 		p.mu.Unlock()
 		if stop {
+			if stopReason != "" && c.Err() == nil {
+				emit(llm.ChatChunk{Type: "delta", Content: autoStoppedNotice(stopReason, autoRounds)})
+			}
 			uu := total
 			if total != nil && lastStep != nil {
 				cp := *total
@@ -703,8 +760,25 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			break
 		}
 		full := append(append([]*u.Obj{}, messages...), resMsgs...)
-		inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		if len(left) > 0 {
+			inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		}
 		messages = WithSteerInserts(full, inserts)
+		if auto {
+			autoRounds++
+			// 换轮时把这一轮里较早的大段工具输出缩短（只在换轮时改一次，前缀缓存每轮只断一次）
+			messages = CompactToolResults(messages, len(tp.Messages), compactKeepRecent)
+		} else {
+			steerRounds++
+		}
 	}
 	return nil
+}
+
+// toolErrorCodeDenied：工具体返回的结构化错误（desktop.ToolError 等带 Code 的）是拒绝类
+func toolErrorCodeDenied(err any) bool {
+	if c, ok := err.(interface{ ToolErrorCode() string }); ok {
+		return deniedTool(c.ToolErrorCode())
+	}
+	return false
 }

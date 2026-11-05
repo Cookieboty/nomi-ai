@@ -62,6 +62,8 @@ type Config struct {
 	TrayMenu func() []shell.MenuItem
 	// OnTrayActivate：Windows 左键点托盘图标（= TrayManager onActivate：默认界面是主界面时打开主界面）
 	OnTrayActivate func()
+	// OnShutdown：应用退出、关窗之前（所有退出路径：托盘、⌘Q、系统注销）；在主线程上跑，须自己限时
+	OnShutdown func()
 }
 
 type Wails struct {
@@ -97,6 +99,8 @@ func New(cfg Config) *Wails {
 	w.app = application.New(application.Options{
 		Name:     "Nomi",
 		Services: w.notes.services(),
+		// 退出时在关窗之前跑（等对话窗口排着的会话写入写完，见 main.go）
+		OnShutdown: cfg.OnShutdown,
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
 		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
@@ -326,7 +330,8 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			Linux:            application.LinuxWindow{WindowIsTranslucent: true, WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand},
 			// mac/Windows 需要各自显式声明透明。Mac 上 WKWebView 只能用私有键 drawsBackground 关底色，
 			// Wails v3.0.0 只在 -tags private_mac_apis 下编进去（否则是空实现 → 白底），见 macflags_darwin.go。
-			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent},
+			// 关掉系统窗口投影：macOS 按不透明像素生成投影，气泡 / 工具栏挪动后投影不重算，会留下一圈错位的灰边
+			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent, DisableShadow: true},
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     pageURL,
 			// 拖文件到角色身上 → 总结（renderer useFileDropSummarize 给画布加 data-file-drop-target）
@@ -348,7 +353,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			BackgroundType:   application.BackgroundTypeTransparent,
 			BackgroundColour: application.RGBA{},
 			Linux:            application.LinuxWindow{WindowIsTranslucent: true},
-			Mac:              application.MacWindow{Backdrop: application.MacBackdropTransparent, WindowLevel: application.MacWindowLevelStatus},
+			Mac:              application.MacWindow{Backdrop: application.MacBackdropTransparent, WindowLevel: application.MacWindowLevelStatus, DisableShadow: true},
 			Windows:          application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:              pageURL,
 		}

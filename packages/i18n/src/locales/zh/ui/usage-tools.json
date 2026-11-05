@@ -355,5 +355,6 @@
   "ui.usage-tools.your-previous-status-line-command-keeps-running": "你原来的状态栏命令照常运行。",
   "ui.usage-tools.your-turn": "轮到你啦！",
   "ui.usage-tools.zoom-in": "放大",
-  "ui.usage-tools.zoom-out": "缩小"
+  "ui.usage-tools.zoom-out": "缩小",
+  "ui.usage-tools.local-image-unavailable": "无法显示这张本机图片"
 }

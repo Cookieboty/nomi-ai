@@ -2,16 +2,16 @@
  * 旧 Electron 对话导入（#181）。
  *
  * 2.0.4（Electron）的会话在 Chromium localStorage 里；Go 版首启把其中的 `ai-chat:*` 键抽到 userData，
- * 经契约 `migration.chatHistory` 交给对话窗口。这里在会话存储（ConversationStore）第一次构造之前取一次，
- * 幂等合并进本窗口的存储：
- * - 只补没有的：已有的会话（Go 版里新建 / 上次已导入的）一条不覆盖，当前会话指针也只在空着时才补；
+ * 经契约 `migration.chatHistory` 交给对话窗口。启动时（conversationBoot）在会话存储构造之前取一次，
+ * 幂等合并进「迁移来源」（一份内存里的旧布局），再由 conversationMigration 一起导入 Go 内核的会话存储：
+ * - 只补没有的：已有的会话一条不覆盖，当前会话指针也只在空着时才补；
  * - 按最近更新从新到旧一条一条导入：先写这条会话的消息，再把它加进索引，索引与已写的消息始终一致；
- *   存储满了（WebKit 的 localStorage 配额比 Chromium 小，聊天很多时放不下）就撤掉写不进的那条、停下，
- *   已导入的保留并记完成——只导入最新的一部分；一条都放不进才算失败，下次启动再试；
+ *   存储满了就撤掉写不进的那条、停下，已导入的保留——只导入最新的一部分；一条都放不进才算失败；
+ * - 其余 `ai-chat:*` 偏好（对话设置、侧栏视图等）写进 `prefs`（对话窗口的 localStorage），本窗口没有的才补；
  * - 完成标记（`LEGACY_IMPORT_MARKER`，不以 `ai-chat:` 开头，免得被下一次抽取带上）只在导入成功 /
- *   确认没有可导入的之后才写；抽取失败、导入失败、内核不可用都不写，下次启动再试；
+ *   确认没有可导入的之后才写；`deferMark` 时由调用方在会话进了内核之后再记（`markLegacyImportDone`）；
+ *   抽取失败、导入失败、内核不可用都不写，下次启动再试；
  * - 只读契约返回的副本，Electron 原数据不动。
- * Node 版（Electron）内核恒返回 `none`：第一次打开就记完成，之后不再询问。
  */
 
 import { createLogger } from '@nomi-ai/ui';
@@ -50,7 +50,14 @@ export type LegacyImportResult =
 
 export interface LegacyImportOptions {
   fetch: () => Promise<LegacyChatHistory>;
+  /** 会话合并进这里（旧 localStorage 布局）；也是完成标记的位置，除非给了 marker */
   storage: KeyValueStorage;
+  /** 其余 ai-chat:* 偏好写到这里；默认 = storage */
+  prefs?: KeyValueStorage;
+  /** 完成标记写到这里；默认 = storage */
+  marker?: KeyValueStorage;
+  /** 导入成功时先不记完成（调用方确认会话进了内核后调 markLegacyImportDone） */
+  deferMark?: boolean;
   /** 等内核的上限：超时就先不导入（不挡对话窗口），晚到的结果丢弃。默认 10 秒 */
   timeoutMs?: number;
   now?: () => number;
@@ -99,6 +106,15 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/** 记下 Electron 旧会话已导入（deferMark 时由调用方在会话进了内核之后调用） */
+export function markLegacyImportDone(
+  storage: KeyValueStorage,
+  conversations: number,
+  at = Date.now(),
+): void {
+  markDone(storage, 'imported', at, conversations);
+}
+
 function markDone(
   storage: KeyValueStorage,
   status: 'none' | 'imported',
@@ -126,6 +142,7 @@ export interface LegacyMergeResult {
 export function mergeLegacyChatEntries(
   storage: KeyValueStorage,
   entries: Record<string, string>,
+  prefs: KeyValueStorage = storage,
 ): LegacyMergeResult {
   const current = metaList(storage.getItem(INDEX_KEY));
   const have = new Set(current.map((c) => c.id));
@@ -187,8 +204,8 @@ export function mergeLegacyChatEntries(
   for (const [key, value] of Object.entries(entries)) {
     if (!key.startsWith('ai-chat:') || key === INDEX_KEY || key === CURRENT_KEY) continue;
     if (key === LAST_NOMI_KEY || key.startsWith(MESSAGES_PREFIX)) continue;
-    if (storage.getItem(key) !== null) continue;
-    trySet(storage, key, value);
+    if (prefs.getItem(key) !== null) continue;
+    trySet(prefs, key, value);
   }
   return { added: added.length, skipped };
 }
@@ -205,9 +222,10 @@ export async function importLegacyChatHistory(
   opts: LegacyImportOptions,
 ): Promise<LegacyImportResult> {
   const { storage } = opts;
+  const marker = opts.marker ?? storage;
   const now = opts.now ?? Date.now;
   try {
-    if (storage.getItem(LEGACY_IMPORT_MARKER) !== null) return { status: 'done-before' };
+    if (marker.getItem(LEGACY_IMPORT_MARKER) !== null) return { status: 'done-before' };
   } catch {
     /* 读不了存储：照常问一次 */
   }
@@ -223,17 +241,17 @@ export async function importLegacyChatHistory(
     return { status: 'extract-failed', error: res.error ?? 'unknown error' };
   }
   if (res.status !== 'ready' || Object.keys(res.entries ?? {}).length === 0) {
-    markDone(storage, 'none', now());
+    markDone(marker, 'none', now());
     return { status: 'none' };
   }
 
   let merged: LegacyMergeResult;
   try {
-    merged = mergeLegacyChatEntries(storage, res.entries);
+    merged = mergeLegacyChatEntries(storage, res.entries, opts.prefs ?? storage);
   } catch (e) {
     return { status: 'import-failed', error: errText(e) };
   }
-  markDone(storage, 'imported', now(), merged.added);
+  if (!opts.deferMark) markDone(marker, 'imported', now(), merged.added);
   return { status: 'imported', conversations: merged.added, skipped: merged.skipped };
 }
 

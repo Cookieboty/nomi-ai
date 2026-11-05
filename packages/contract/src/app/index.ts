@@ -16,7 +16,7 @@ import { codingErrors, codingEvents, codingEventSurfaces, codingProcedures } fro
 import { knowledgeErrors, knowledgeEvents, knowledgeProcedures } from './knowledge';
 import { mascotErrors, mascotEvents, mascotEventSurfaces, mascotProcedures } from './mascot';
 import { mediaErrors, mediaEvents, mediaEventSurfaces, mediaProcedures } from './media';
-import { shellErrors, shellEvents, shellProcedures } from './shell';
+import { shellErrors, shellEvents, shellEventSurfaces, shellProcedures } from './shell';
 
 /**
  * 各域共用的业务错误码（P1b 基础）：
@@ -74,7 +74,7 @@ assertDisjoint(
 );
 
 export const appContract = defineContract({
-  version: { major: 2, minor: 3 },
+  version: { major: 2, minor: 4 },
   procedures: {
     ...aiProcedures,
     ...mediaProcedures,
@@ -93,6 +93,7 @@ export const appContract = defineContract({
   },
   eventSurfaces: {
     ...mediaEventSurfaces,
+    ...shellEventSurfaces,
     ...codingEventSurfaces,
     ...mascotEventSurfaces,
   },
@@ -137,6 +138,18 @@ export function resolveHostTransport(hash: string): HostTransportConfig | null {
     return null;
   }
 }
+
+/**
+ * 高频事件（流式输出 / 光标 / 窗口运动，每秒几十次）：视图的生产构建里打开轻校验时
+ * （`setLeanValidation({ events: APP_HIGH_FREQUENCY_EVENTS })`）不逐个做 schema 校验。
+ * 这些事件的 schema 都没有 default / transform，跳过校验拿到的值不变。
+ */
+export const APP_HIGH_FREQUENCY_EVENTS = [
+  'ai.message.delta',
+  'harness.events',
+  'mascot.cursor',
+  'mascot.body',
+] as const satisfies readonly (keyof AppContract['events'])[];
 
 /** 视图里要换址的本应用协议（内核给的资源地址用的自定义协议） */
 export const HOST_ASSET_SCHEMES = ['chat-asset', 'character-pack'] as const;
@@ -183,6 +196,7 @@ export {
 } from './ai';
 
 export * as aiSchemas from './schemas';
+export { CONVERSATION_ID_PATTERN, isValidConversationId } from './shell/schemas';
 
 export {
   codingEvents,
@@ -213,6 +227,7 @@ export {
 } from './media';
 export {
   shellEvents,
+  shellEventSurfaces,
   shellProcedures,
   type ShellEventName,
   type ShellProcedureName,

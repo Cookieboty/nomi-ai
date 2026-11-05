@@ -1273,6 +1273,14 @@ type ChatAssetsListOutputItem struct {
 	ConversationId *string  `json:"conversationId,omitempty"`
 }
 
+type ChatAssetsLocalImageInput struct {
+	Src string `json:"src"`
+}
+
+type ChatAssetsLocalImageOutput struct {
+	DataUrl string `json:"dataUrl"`
+}
+
 type ChatAssetsRegenerateInput struct {
 	File string `json:"file"`
 }
@@ -1742,6 +1750,96 @@ type ConnectionsRemoveInput struct {
 	Id string `json:"id"`
 }
 
+type ConversationsAppendInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsAppendInput struct {
+	Source   *string                       `json:"source,omitempty"`
+	Id       string                        `json:"id"`
+	Messages []any                         `json:"messages"`
+	Meta     *ConversationsAppendInputMeta `json:"meta,omitempty"`
+	Preview  *string                       `json:"preview,omitempty"`
+	Max      *int64                        `json:"max,omitempty"`
+}
+
+type ConversationsDeleteInput struct {
+	Source *string `json:"source,omitempty"`
+	Id     string  `json:"id"`
+}
+
+type ConversationsImportInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsImportInput struct {
+	Meta     ConversationsImportInputMeta `json:"meta"`
+	Messages []any                        `json:"messages"`
+	Preview  *string                      `json:"preview,omitempty"`
+	First    bool                         `json:"first"`
+	Final    bool                         `json:"final"`
+}
+
+type ConversationsImportOutput struct {
+	Imported bool `json:"imported"`
+}
+
+type ConversationsMarkMigratedInput struct {
+	Count int64 `json:"count"`
+}
+
+type ConversationsMessagesInput struct {
+	Id    string `json:"id"`
+	Limit *int64 `json:"limit,omitempty"`
+}
+
+type ConversationsMessagesOutput struct {
+	Messages []any  `json:"messages"`
+	Bytes    *int64 `json:"bytes,omitempty"`
+}
+
+type ConversationsPutInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsPutInput struct {
+	Source   *string                   `json:"source,omitempty"`
+	Meta     ConversationsPutInputMeta `json:"meta"`
+	Messages []any                     `json:"messages,omitempty"`
+	Preview  *string                   `json:"preview,omitempty"`
+}
+
+type ConversationsReplaceInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsReplaceInput struct {
+	Source   *string                        `json:"source,omitempty"`
+	Id       string                         `json:"id"`
+	Messages []any                          `json:"messages"`
+	Meta     *ConversationsReplaceInputMeta `json:"meta,omitempty"`
+	Preview  *string                        `json:"preview,omitempty"`
+}
+
+type ConversationsSetPointersInput struct {
+	Source   *string `json:"source,omitempty"`
+	Current  *string `json:"current,omitempty"`
+	LastNomi *string `json:"lastNomi,omitempty"`
+}
+
+type ConversationsStateOutputConversationsItem struct {
+	Id string `json:"id"`
+}
+
+type ConversationsStateOutput struct {
+	Conversations []ConversationsStateOutputConversationsItem `json:"conversations"`
+	Previews      map[string]string                           `json:"previews"`
+	Counts        map[string]int64                            `json:"counts"`
+	Current       *string                                     `json:"current,omitempty"`
+	LastNomi      *string                                     `json:"lastNomi,omitempty"`
+	Migrated      bool                                        `json:"migrated"`
+}
+
 type DelegateClearPinInput struct {
 	TurnId string `json:"turnId"`
 }
@@ -1929,6 +2027,77 @@ type DesktopRemindersUpdateOutput struct {
 	FireCount *float64                            `json:"fireCount,omitempty"`
 }
 
+type DesktopRemoveCommandRuleInput struct {
+	Rule string `json:"rule"`
+}
+
+type DesktopRemoveCommandRuleOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopRemoveCommandRuleOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopRemoveCommandRuleOutputPendingItemScopeMode = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemScopeModeRead      DesktopRemoveCommandRuleOutputPendingItemScopeMode = "read"
+	DesktopRemoveCommandRuleOutputPendingItemScopeModeReadWrite DesktopRemoveCommandRuleOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopRemoveCommandRuleOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopRemoveCommandRuleOutputPendingItemReviewRisk = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskLow      DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "low"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskMedium   DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "medium"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskHigh     DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "high"
+	DesktopRemoveCommandRuleOutputPendingItemReviewRiskCritical DesktopRemoveCommandRuleOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopRemoveCommandRuleOutputPendingItemReview struct {
+	Risk      DesktopRemoveCommandRuleOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                             `json:"rationale,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutputPendingItem struct {
+	Id           string                                              `json:"id"`
+	Tool         string                                              `json:"tool"`
+	Danger       string                                              `json:"danger"`
+	Summary      string                                              `json:"summary"`
+	ArgsJson     string                                              `json:"argsJson"`
+	Preview      *string                                             `json:"preview,omitempty"`
+	Dialog       bool                                                `json:"dialog"`
+	Rememberable bool                                                `json:"rememberable"`
+	Reason       string                                              `json:"reason"`
+	ExpiresAt    float64                                             `json:"expiresAt"`
+	Kind         *string                                             `json:"kind,omitempty"`
+	ScopePath    *string                                             `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopRemoveCommandRuleOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopRemoveCommandRuleOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                             `json:"rememberRule,omitempty"`
+}
+
+type DesktopRemoveCommandRuleOutput struct {
+	Scopes       []DesktopRemoveCommandRuleOutputScopesItem  `json:"scopes"`
+	Policies     map[string]string                           `json:"policies"`
+	LocalOnly    bool                                        `json:"localOnly"`
+	CloudAcked   []string                                    `json:"cloudAcked"`
+	CommandRules []string                                    `json:"commandRules,omitempty"`
+	Tools        []DesktopRemoveCommandRuleOutputToolsItem   `json:"tools"`
+	Pending      []DesktopRemoveCommandRuleOutputPendingItem `json:"pending,omitempty"`
+}
+
 type DesktopRevokeInput struct {
 	Id string `json:"id"`
 }
@@ -1996,15 +2165,17 @@ type DesktopStateOutputPendingItem struct {
 	ScopePath    *string                                 `json:"scopePath,omitempty"`
 	ScopeMode    *DesktopStateOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
 	Review       *DesktopStateOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                 `json:"rememberRule,omitempty"`
 }
 
 type DesktopStateOutput struct {
-	Scopes     []DesktopStateOutputScopesItem  `json:"scopes"`
-	Policies   map[string]string               `json:"policies"`
-	LocalOnly  bool                            `json:"localOnly"`
-	CloudAcked []string                        `json:"cloudAcked"`
-	Tools      []DesktopStateOutputToolsItem   `json:"tools"`
-	Pending    []DesktopStateOutputPendingItem `json:"pending,omitempty"`
+	Scopes       []DesktopStateOutputScopesItem  `json:"scopes"`
+	Policies     map[string]string               `json:"policies"`
+	LocalOnly    bool                            `json:"localOnly"`
+	CloudAcked   []string                        `json:"cloudAcked"`
+	CommandRules []string                        `json:"commandRules,omitempty"`
+	Tools        []DesktopStateOutputToolsItem   `json:"tools"`
+	Pending      []DesktopStateOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DesktopTakeMissedRemindersOutputItem struct {
@@ -7124,6 +7295,12 @@ type EventCliUpdateEvent struct {
 	Phase string `json:"phase"`
 }
 
+type EventConversationsChanged struct {
+	Source *string  `json:"source,omitempty"`
+	Ids    []string `json:"ids"`
+	Index  bool     `json:"index"`
+}
+
 type EventDelegateCompleted struct {
 	TaskId  string `json:"taskId"`
 	Cli     string `json:"cli"`
@@ -7191,15 +7368,17 @@ type EventDesktopChangedPendingItem struct {
 	ScopePath    *string                                  `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopChangedPendingItemScopeMode `json:"scopeMode,omitempty"`
 	Review       *EventDesktopChangedPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                  `json:"rememberRule,omitempty"`
 }
 
 type EventDesktopChanged struct {
-	Scopes     []EventDesktopChangedScopesItem  `json:"scopes"`
-	Policies   map[string]string                `json:"policies"`
-	LocalOnly  bool                             `json:"localOnly"`
-	CloudAcked []string                         `json:"cloudAcked"`
-	Tools      []EventDesktopChangedToolsItem   `json:"tools"`
-	Pending    []EventDesktopChangedPendingItem `json:"pending,omitempty"`
+	Scopes       []EventDesktopChangedScopesItem  `json:"scopes"`
+	Policies     map[string]string                `json:"policies"`
+	LocalOnly    bool                             `json:"localOnly"`
+	CloudAcked   []string                         `json:"cloudAcked"`
+	CommandRules []string                         `json:"commandRules,omitempty"`
+	Tools        []EventDesktopChangedToolsItem   `json:"tools"`
+	Pending      []EventDesktopChangedPendingItem `json:"pending,omitempty"`
 }
 
 // EventDesktopConfirmRequestScopeMode 枚举：read | read-write
@@ -7240,6 +7419,7 @@ type EventDesktopConfirmRequest struct {
 	ScopePath    *string                              `json:"scopePath,omitempty"`
 	ScopeMode    *EventDesktopConfirmRequestScopeMode `json:"scopeMode,omitempty"`
 	Review       *EventDesktopConfirmRequestReview    `json:"review,omitempty"`
+	RememberRule *string                              `json:"rememberRule,omitempty"`
 }
 
 type EventDesktopP2Changed struct {
@@ -7416,6 +7596,15 @@ type EventMascotScaleChanged struct {
 	Default float64                       `json:"default"`
 	Step    float64                       `json:"step"`
 	Window  EventMascotScaleChangedWindow `json:"window"`
+}
+
+type EventMascotScreen struct {
+	WinX        float64 `json:"winX"`
+	WinY        float64 `json:"winY"`
+	AvailLeft   float64 `json:"availLeft"`
+	AvailTop    float64 `json:"availTop"`
+	AvailWidth  float64 `json:"availWidth"`
+	AvailHeight float64 `json:"availHeight"`
 }
 
 type EventMemStatus struct {
@@ -7825,6 +8014,10 @@ type ChatAssetsImportOutputT = ChatAssetsImportOutput
 type ChatAssetsListInputT = any
 type ChatAssetsListOutputT = []ChatAssetsListOutputItem
 
+// ChatAssetsLocalImageInputT 是 chatAssets.localImage 的入参
+type ChatAssetsLocalImageInputT = ChatAssetsLocalImageInput
+type ChatAssetsLocalImageOutputT = *ChatAssetsLocalImageOutput
+
 // ChatAssetsRegenerateInputT 是 chatAssets.regenerate 的入参
 type ChatAssetsRegenerateInputT = ChatAssetsRegenerateInput
 type ChatAssetsRegenerateOutputT = ChatAssetsRegenerateOutput
@@ -7961,6 +8154,42 @@ type ConnectionsRebindOutputT = ConnectionsRebindOutput
 type ConnectionsRemoveInputT = ConnectionsRemoveInput
 type ConnectionsRemoveOutputT = bool
 
+// ConversationsAppendInputT 是 conversations.append 的入参
+type ConversationsAppendInputT = ConversationsAppendInput
+type ConversationsAppendOutputT = any
+
+// ConversationsDeleteInputT 是 conversations.delete 的入参
+type ConversationsDeleteInputT = ConversationsDeleteInput
+type ConversationsDeleteOutputT = any
+
+// ConversationsImportInputT 是 conversations.import 的入参
+type ConversationsImportInputT = ConversationsImportInput
+type ConversationsImportOutputT = ConversationsImportOutput
+
+// ConversationsMarkMigratedInputT 是 conversations.markMigrated 的入参
+type ConversationsMarkMigratedInputT = ConversationsMarkMigratedInput
+type ConversationsMarkMigratedOutputT = any
+
+// ConversationsMessagesInputT 是 conversations.messages 的入参
+type ConversationsMessagesInputT = ConversationsMessagesInput
+type ConversationsMessagesOutputT = ConversationsMessagesOutput
+
+// ConversationsPutInputT 是 conversations.put 的入参
+type ConversationsPutInputT = ConversationsPutInput
+type ConversationsPutOutputT = any
+
+// ConversationsReplaceInputT 是 conversations.replace 的入参
+type ConversationsReplaceInputT = ConversationsReplaceInput
+type ConversationsReplaceOutputT = any
+
+// ConversationsSetPointersInputT 是 conversations.setPointers 的入参
+type ConversationsSetPointersInputT = ConversationsSetPointersInput
+type ConversationsSetPointersOutputT = any
+
+// ConversationsStateInputT 是 conversations.state 的入参
+type ConversationsStateInputT = any
+type ConversationsStateOutputT = ConversationsStateOutput
+
 // DelegateClearPinInputT 是 delegate.clearPin 的入参
 type DelegateClearPinInputT = DelegateClearPinInput
 type DelegateClearPinOutputT = bool
@@ -8024,6 +8253,10 @@ type DesktopRemindersSnoozeOutputT = bool
 // DesktopRemindersUpdateInputT 是 desktop.remindersUpdate 的入参
 type DesktopRemindersUpdateInputT = DesktopRemindersUpdateInput
 type DesktopRemindersUpdateOutputT = *DesktopRemindersUpdateOutput
+
+// DesktopRemoveCommandRuleInputT 是 desktop.removeCommandRule 的入参
+type DesktopRemoveCommandRuleInputT = DesktopRemoveCommandRuleInput
+type DesktopRemoveCommandRuleOutputT = DesktopRemoveCommandRuleOutput
 
 // DesktopResetAllInputT 是 desktop.resetAll 的入参
 type DesktopResetAllInputT = any
@@ -9307,6 +9540,7 @@ type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin
 type EventCliUpdateEventT = EventCliUpdateEvent
 type EventConnectionsChangedT = any
+type EventConversationsChangedT = EventConversationsChanged
 type EventDelegateCompletedT = EventDelegateCompleted
 type EventDesktopBubbleT = EventDesktopBubble
 type EventDesktopChangedT = EventDesktopChanged
@@ -9334,6 +9568,7 @@ type EventMascotCursorT = EventMascotCursor
 type EventMascotPhysicsEventT = json.RawMessage
 type EventMascotRendererChangedT = EventMascotRendererChanged
 type EventMascotScaleChangedT = EventMascotScaleChanged
+type EventMascotScreenT = EventMascotScreen
 type EventMemChangedT = any
 type EventMemStatusT = EventMemStatus
 type EventNavDesktopPanelRequestedT = map[string]any

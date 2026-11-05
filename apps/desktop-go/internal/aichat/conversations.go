@@ -1,6 +1,6 @@
-// Package aichat：渲染侧对话会话（conversationStore）的落盘。
-// 渲染侧的会话仍在视图自己的 localStorage 里；首启从 Electron 的 Chromium localStorage 抽出的
-// ai-chat:* 键落在 userData/ai-chat/，由契约 migration.chatHistory 交给视图导入（#181）。
+// Package aichat：2.0.4 Electron 旧对话的抽取（#181）。
+// 首启从 Electron 的 Chromium localStorage 抽出的 ai-chat:* 键落在 userData/ai-chat/，由契约
+// migration.chatHistory 交给对话窗口，视图把其中的会话导入内核的会话存储（internal/core/convstore）。
 package aichat
 
 import (

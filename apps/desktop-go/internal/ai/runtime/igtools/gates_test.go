@@ -37,6 +37,20 @@ func TestToolGates(t *testing.T) {
 		{"set_user_preference", "以后叫我小王", true, ""},
 		{"undo_last", "撤销刚才的操作", true, ""},
 		{"time_now", "你好", true, ""},
+		// 持续任务：以后 / 定期 / 某事发生时；闲聊不带（选了工作区也不带）
+		{"task_propose", "每天 9 点看一下 CI，红了告诉我", true, ""},
+		{"task_propose", "帮我盯着这个仓库，有新 issue 就说一声", true, ""},
+		{"task_propose", "下周一帮我整理周报", true, ""},
+		{"task_propose", "等编程助手跑完再帮我审一下", true, ""},
+		{"task_propose", "把这件事做成一个任务", true, ""},
+		{"task_propose", "check my inbox every morning", true, ""},
+		{"task_propose", "介绍下你自己", false, "/Users/me/proj"},
+		{"task_propose", "晚饭吃什么", false, ""},
+		{"task_recall", "之前那个任务跑得怎么样", true, ""},
+		{"task_recall", "海报做好了没", true, ""},
+		{"task_recall", "讲个笑话", false, ""},
+		// 兜底：用户的说法没命中、助手回复里提议了「持续任务」→ 下一轮带上（ConvoText 含助手的话）
+		{"task_propose", "这个周报能不能帮我弄成固定的 这个可以设成持续任务，要我起草吗？", true, ""},
 	}
 	for _, c := range cases {
 		d := WithGate(tools.Definition{Name: c.name})

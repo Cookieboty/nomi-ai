@@ -71,6 +71,9 @@ export function encodeWireFrame(frame: unknown): string {
 
 /** 文本 → 帧（未校验：交给帧 schema 校验）；不是合法 JSON 时抛错 */
 export function decodeWireFrame(text: string): unknown {
+  // 快速路径：文本里没有标记键就不可能有字节字段，直接 JSON.parse（不用 reviver 逐节点 Object.keys）。
+  // 只看 `u8"`：键名即使把 `$` 写成转义（\u0024u8）也会命中，命中就走下面的完整解码
+  if (!text.includes('u8"')) return JSON.parse(text);
   return JSON.parse(text, (_key, value: unknown) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const keys = Object.keys(value);

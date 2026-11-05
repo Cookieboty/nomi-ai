@@ -574,6 +574,9 @@ export class RigAnimator {
   private headLX = new Spring(22, 1.0);
   private headLY = new Spring(22, 1.0);
   private nextSaccade = 0.55;
+  /** 上一次眼神跳动 / 甩头发的时间（渲染循环据此在快动作前后不降帧，见 quickMotionNear） */
+  private lastSaccade = -10;
+  private lastFlick = -10;
   // blinks
   private blinkStarts: number[] = [];
   private nextBlink = 1.8;
@@ -636,6 +639,20 @@ export class RigAnimator {
 
   private trigger(name: string, t: number) {
     if (gestureCurve(name, 0)) this.gesture = { name, t0: t };
+  }
+
+  /**
+   * t 附近（lead 秒内将要开始，或刚开始还没收尾）有快动作：眨眼、眼神跳动、甩头发、旧式手势。
+   * 渲染循环在空闲降帧时用它保住这些瞬间的帧率（只读，不改动画状态）。
+   */
+  quickMotionNear(t: number, lead = 0.1): boolean {
+    if (!this.started || this.gesture) return true;
+    if (this.nextBlink - t < lead) return true;
+    for (const b of this.blinkStarts)
+      if (b - t < lead && t - b < BLINK_DURATION + 0.05) return true;
+    if (this.nextSaccade - t < lead || t - this.lastSaccade < 0.2) return true;
+    if (this.nextHairFlick - t < lead || t - this.lastFlick < 0.8) return true;
+    return false;
   }
 
   /** blink closure 0..1 from the blink scheduler (auto, double, on gaze shift) */
@@ -831,11 +848,13 @@ export class RigAnimator {
       if (jump > 0.55 && this.rand() < 0.6) this.startBlink(t, false);
       this.eyeGoalX = goalX;
       this.eyeGoalY = goalY;
+      this.lastSaccade = t;
       this.nextSaccade = t + 0.5 + this.rand() * 1.4;
     } else if (t >= this.nextSaccade) {
       // idle micro-saccade / dart between blinks
       this.eyeGoalX = goalX + (this.rand() - 0.5) * 0.22 * m;
       this.eyeGoalY = goalY + (this.rand() - 0.5) * 0.14 * m;
+      this.lastSaccade = t;
       this.nextSaccade = t + 0.45 + this.rand() * 1.5;
     }
     const eyeX = this.eyeX.step(this.eyeGoalX, dt);
@@ -883,6 +902,7 @@ export class RigAnimator {
     let flick = 0;
     if (t >= this.nextHairFlick && m) {
       flick = (this.rand() - 0.5) * 5.5 * DEG;
+      this.lastFlick = t;
       this.nextHairFlick = t + 3.5 + this.rand() * 6;
     }
 
@@ -1097,6 +1117,8 @@ export const RIG_LAYERS = [
 ] as const;
 
 const scratches: (HTMLCanvasElement | OffscreenCanvas | undefined)[] = [];
+/** 每个暂存画布上现在画着什么（图层图片 + 着色）：没变就直接复用，不再每帧重新着色 */
+const scratchContent: ({ img: unknown; fill: string } | undefined)[] = [];
 function scratchCanvas(w: number, h: number, slot = 0) {
   let c = scratches[slot];
   if (!c) {
@@ -1109,6 +1131,7 @@ function scratchCanvas(w: number, h: number, slot = 0) {
   if (c.width !== w || c.height !== h) {
     c.width = w;
     c.height = h;
+    scratchContent[slot] = undefined;
   }
   return c;
 }
@@ -1272,14 +1295,19 @@ export function drawRig(
     if (!img || !off) return;
     if (tint.a <= 0.004) return layer(name);
     const c = scratchCanvas(img.width, img.height, slot);
-    const g = c.getContext('2d') as CanvasRenderingContext2D | null;
-    if (!g) return layer(name);
-    g.globalCompositeOperation = 'source-over';
-    g.clearRect(0, 0, c.width, c.height);
-    g.drawImage(img, 0, 0);
-    g.globalCompositeOperation = 'source-atop';
-    g.fillStyle = `rgba(${tint.r | 0},${tint.g | 0},${tint.b | 0},${tint.a})`;
-    g.fillRect(0, 0, c.width, c.height);
+    const fill = `rgba(${tint.r | 0},${tint.g | 0},${tint.b | 0},${tint.a})`;
+    const had = scratchContent[slot];
+    if (!had || had.img !== img || had.fill !== fill) {
+      const g = c.getContext('2d') as CanvasRenderingContext2D | null;
+      if (!g) return layer(name);
+      g.globalCompositeOperation = 'source-over';
+      g.clearRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-atop';
+      g.fillStyle = fill;
+      g.fillRect(0, 0, c.width, c.height);
+      scratchContent[slot] = { img, fill };
+    }
     const k = off[2] ?? 1;
     ctx.drawImage(c as CanvasImageSource, off[0], off[1], img.width * k, img.height * k);
   };
@@ -1938,11 +1966,24 @@ export function paintRigFrame(
   drawRig(ctx, rig, imgs, pose);
   ctx.restore();
   const fadeH = (box?.h ?? h) * 0.12;
-  const g = ctx.createLinearGradient(0, h - fadeH, 0, h);
-  g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,1)');
+  const g = fadeGradient(ctx, h, fadeH);
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillStyle = g;
   ctx.fillRect(0, h - fadeH, w, fadeH);
   ctx.globalCompositeOperation = 'source-over';
+}
+
+/** 底部淡出渐变：同一画布、同样的高度时复用（不用每帧新建） */
+const fadeCache = new WeakMap<
+  CanvasRenderingContext2D,
+  { h: number; fadeH: number; g: CanvasGradient }
+>();
+function fadeGradient(ctx: CanvasRenderingContext2D, h: number, fadeH: number): CanvasGradient {
+  const hit = fadeCache.get(ctx);
+  if (hit && hit.h === h && hit.fadeH === fadeH) return hit.g;
+  const g = ctx.createLinearGradient(0, h - fadeH, 0, h);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,1)');
+  fadeCache.set(ctx, { h, fadeH, g });
+  return g;
 }

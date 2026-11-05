@@ -12,7 +12,7 @@ import { type IPCClient, type StreamSendOptions } from '../types/ipc';
 import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { api, hasTransport } from './api';
-import { ConversationStore } from './conversationStore';
+import { createConversationStore } from './conversationBoot';
 import { harnessClient } from './harnessClient';
 import { buildProviderMessages, type ProviderMessage } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
@@ -112,7 +112,7 @@ const systemPromptFromCore: SystemPromptGetter = async () => {
 export class SdkIPCClient implements IPCClient {
   private readonly client: ClientAIClient;
   private readonly owned: boolean;
-  private readonly store = new ConversationStore();
+  private readonly store = createConversationStore();
   private readonly defaultSystemPrompt: SystemPromptGetter;
   /** 主标签（Nomi 对话）当前的目录：新 Nomi 对话的默认工作区（默认 文稿/nomi） */
   private mainCwd: string | undefined;
@@ -139,7 +139,8 @@ export class SdkIPCClient implements IPCClient {
 
   async dispose(): Promise<void> {
     this.offHarness?.();
-    // 会话存储的 storage 监听与消息缓存也随之释放
+    // 会话存储：等排着的写入写进内核，再停掉变更通知、释放消息缓存
+    await this.store.flush();
     this.store.dispose();
     this.store.invalidate();
     if (this.owned) await this.client.dispose();
@@ -311,7 +312,8 @@ export class SdkIPCClient implements IPCClient {
   }
 
   async getChatHistory(): Promise<ChatMessage[]> {
-    return this.store.getMessages();
+    // 没缓存的会话从内核读（不会把没加载的会话当成空的）
+    return this.store.loadMessages();
   }
 
   async clearChatHistory(): Promise<void> {
@@ -357,7 +359,8 @@ export class SdkIPCClient implements IPCClient {
   }
 
   async switchConversation(id: string): Promise<void> {
-    this.store.switchTo(id);
+    // 切换后预先加载消息：之后的 getChatHistory 直接命中缓存
+    await this.store.open(id);
   }
 
   async updateConversation(
@@ -379,6 +382,8 @@ export class SdkIPCClient implements IPCClient {
       messages?: ChatMessage[];
     },
   ) {
+    // 源会话的消息要先加载（没传 messages 时复制它的全部消息）
+    if (!opts?.messages) await this.store.loadMessages(id);
     return this.store.fork(id, opts);
   }
 
