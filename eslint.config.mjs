@@ -10,11 +10,11 @@ import tseslint from 'typescript-eslint';
 import { CLI_LITERAL_ALLOWLIST } from './scripts/eslint/cli-literal-allowlist.mjs';
 import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
 
-// 任何包都不 import 角色包目录：角色包只经包解析（CharacterPackService / validatePack）读取（§11.1）。
+// 任何包都不 import 角色包目录：角色包只经包解析（CharacterPackService / validatePack）读取。
 const CHARACTER_PACK_IMPORT = {
   group: ['**/characters/*', '**/characters/**'],
   message:
-    '不能直接 import characters/*：角色包只经包解析读取（docs/design/core-host-decoupling.md §11.1）。',
+    '不能直接 import characters/*：角色包只经包解析读取（docs/development/architecture.md）。',
 };
 
 export default tseslint.config(
@@ -141,7 +141,7 @@ export default tseslint.config(
       ],
     },
   },
-  // 视图不按内置编程助手名字分支（§7.3）：差异放进插件清单，视图按能力位判断。
+  // 视图不按内置编程助手名字分支：差异放进插件清单，视图按能力位判断。
   {
     files: ['packages/ai-chat/src/**/*.{ts,tsx}'],
     ignores: [...CLI_LITERAL_ALLOWLIST],
@@ -149,7 +149,7 @@ export default tseslint.config(
     rules: { 'nomi/no-cli-literal': 'error' },
   },
 
-  // avatar-runtime 是纯浏览器的角色引擎（§3.2、§10.6、§11.1）：经注入的 AvatarEventSource 接 AI，
+  // avatar-runtime 是纯浏览器的角色引擎：经注入的 AvatarEventSource 接 AI，
   // 不依赖契约、electron、AI SDK 客户端或任何视图包（renderer 的 services/api 等）；也不用 ui。
   {
     files: ['packages/avatar-runtime/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
@@ -157,9 +157,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [
-            { name: 'electron', message: 'avatar-runtime 不能依赖 electron（§3.2、§11.1）。' },
-          ],
+          paths: [{ name: 'electron', message: 'avatar-runtime 不能依赖 electron。' }],
           patterns: [
             CHARACTER_PACK_IMPORT,
             {
@@ -183,7 +181,7 @@ export default tseslint.config(
                 '**/renderer/src/**',
               ],
               message:
-                'avatar-runtime 只依赖 character-contract 与浏览器 API：AI 与宿主能力经注入的 AvatarEventSource / AvatarWindowHost / 回调接入（§10.6）。',
+                'avatar-runtime 只依赖 character-contract 与浏览器 API：AI 与宿主能力经注入的 AvatarEventSource / AvatarWindowHost / 回调接入。',
             },
           ],
         },
@@ -193,7 +191,7 @@ export default tseslint.config(
         {
           selector:
             'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
-          message: 'avatar-runtime 不访问宿主全局：宿主能力经注入的接口传进来（§10.6）。',
+          message: 'avatar-runtime 不访问宿主全局：宿主能力经注入的接口传进来。',
         },
       ],
     },
@@ -207,7 +205,7 @@ export default tseslint.config(
     },
   },
 
-  // 视图只经契约访问内核（docs/design/core-host-decoupling.md §8、§11.1）：传输只在每个视图包唯一的
+  // 视图只经契约访问内核（docs/development/architecture.md）：传输只在每个视图包唯一的
   // `services/api.ts` 里选（Go 宿主经页面地址片段里的回环 WebSocket）；旧桥 `window.aiIPC` /
   // `window.electronAPI` 已删除，也不许再声明或访问。
   {
@@ -225,22 +223,21 @@ export default tseslint.config(
           selector:
             'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
           message:
-            '视图不访问宿主全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
+            '视图不访问宿主全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile。',
         },
         {
           selector: 'Identifier[name=/^(aiIPC|electronAPI)$/]',
-          message:
-            'window.aiIPC / window.electronAPI 已删除：改用 services/api 的契约客户端（§11.1）。',
+          message: 'window.aiIPC / window.electronAPI 已删除：改用 services/api 的契约客户端。',
         },
         {
           selector:
             'ImportSpecifier[imported.name=/^(getSharedTransport|installSharedTransport|createAppClient|createWebSocketClientTransport|installGoHostTransport)$/]',
           message:
-            '契约客户端只在 services/api.ts 里建一次、传输只在那里选，其余代码 import { api } from services/api（§11.1）。',
+            '契约客户端只在 services/api.ts 里建一次、传输只在那里选，其余代码 import { api } from services/api。',
         },
         {
           selector: "ImportSpecifier[imported.name='ipcRenderer']",
-          message: '视图不发原始 IPC：调用内核用 services/api 的 api.*（§11.1）。',
+          message: '视图不发原始 IPC：调用内核用 services/api 的 api.*。',
         },
       ],
     },

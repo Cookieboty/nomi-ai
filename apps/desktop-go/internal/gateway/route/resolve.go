@@ -114,7 +114,7 @@ func MapModel(client string, m *config.ClientModels, requested string, bound boo
 func hasModel(p *config.RuntimeProvider, id string) bool { return p.Model(id) != nil }
 
 // resolveRefOff = resolveRef：先按启用的供应商解析（resolveRefOn）；指向已停用的供应商时返回它并标 disabled：
-// 自己不出候选，直接按列表顺序回退到同一个模型（§7.2）
+// 自己不出候选，直接按列表顺序回退到同一个模型
 func resolveRefOff(cfg *config.GatewayConfig, ref, homeProvider string) (*config.RuntimeProvider, string, bool) {
 	p, m := resolveRefOn(cfg, ref, homeProvider)
 	if p != nil {
@@ -137,7 +137,7 @@ func resolveRefOff(cfg *config.GatewayConfig, ref, homeProvider string) (*config
 	return nil, "", false
 }
 
-// resolveRefOn：只看启用的供应商（§6.2 第 1～3 步）
+// resolveRefOn：只看启用的供应商（第 1～3 步）
 func resolveRefOn(cfg *config.GatewayConfig, ref, homeProvider string) (*config.RuntimeProvider, string) {
 	pid, model := SplitRef(ref)
 	if pid != "" {
@@ -362,13 +362,13 @@ var (
 	modelSuffixRe = regexp.MustCompile(`-\d{8}$|-latest$`)
 )
 
-// SameModelKey = sameModelKey：去掉供应商前缀、`:free` 等标签与日期 / -latest 后缀，不分大小写（§7.2）
+// SameModelKey = sameModelKey：去掉供应商前缀、`:free` 等标签与日期 / -latest 后缀，不分大小写
 func SameModelKey(id string) string {
 	return modelSuffixRe.ReplaceAllString(modelTagRe.ReplaceAllString(models.BareModelID(id), ""), "")
 }
 
 // isLocalProvider：供应商的地址全在本机 / 局域网；没有地址时不算。普通域名解析到局域网时只有用户
-// 确认过的 host:port 才连得上（§15），这些也算本机 / 局域网（#248）
+// 确认过的 host:port 才连得上，这些也算本机 / 局域网（#248）
 func isLocalProvider(p *config.RuntimeProvider, allowed map[string]bool) bool {
 	n := 0
 	for _, w := range p.URLWires() {
@@ -399,7 +399,7 @@ type FailoverTarget struct {
 }
 
 // FailoverTargets = failoverTargets：首选供应商失败后，按供应商列表顺序在其它启用的供应商里找同一个模型
-// （且在那边是启用的）；不换成别的模型。首选是本机 / 局域网的，只回退到本机 / 局域网（§7.2）
+// （且在那边是启用的）；不换成别的模型。首选是本机 / 局域网的，只回退到本机 / 局域网
 func FailoverTargets(cfg *config.GatewayConfig, provider *config.RuntimeProvider, model string) []FailoverTarget {
 	key := SameModelKey(model)
 	allowed := map[string]bool{}

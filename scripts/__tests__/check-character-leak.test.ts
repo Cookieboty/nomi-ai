@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ALLOW, BARE_ALLOW, checkCharacterLeak } from '../check-character-leak.mjs';
 import { findBareChineseName, findCharacterLeaks } from '../lib/characterLeak.mjs';
 
-// 角色名扫描（docs/design/core-host-decoupling.md §11.2）：规则与扫描范围
+// 角色名扫描（docs/development/architecture.md）：规则与扫描范围
 describe('findCharacterLeaks', () => {
   it.each([
     ['诺米提示语音', '诺米'],

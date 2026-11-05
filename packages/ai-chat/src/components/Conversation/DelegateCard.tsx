@@ -1,5 +1,5 @@
 /**
- * Nomi 派给编程助手的子任务卡片（docs/design/nomi-delegate-cli.md §7）：
+ * Nomi 派给编程助手的子任务卡片（docs/development/coding-agents.md）：
  * - 标题：编程助手、目标、状态、耗时、「停止」「查看」；
  * - 当前一行：所有代理里最近的一个动作（「explorer · 运行 npm test」）；
  * - 审批：子任务的权限请求直接在卡片里答复（标签里也同时显示）；

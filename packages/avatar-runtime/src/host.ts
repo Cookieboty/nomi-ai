@@ -1,5 +1,5 @@
 /**
- * 运行时的输入与输出（docs/design/core-host-decoupling.md §10.6）：
+ * 运行时的输入与输出（docs/character-pack/CONTRACT.md）：
  *
  * - 输入：角色（manifest 的引擎相关字段 + mapping，类型来自 `@nomi-ai/character-contract`）、
  *   `resolveAsset(path) → url`、一个语义事件源 `AvatarEventSource`（./events.ts）；
@@ -44,7 +44,7 @@ export interface AvatarCharacter {
   layout?: PackLayout | null;
   capabilities?: PackCapabilities;
   /**
-   * 语义 → 引擎资源（§10.5，mapping.json）：情绪、活动、手势都按它翻译，没有映射的忽略。
+   * 语义 → 引擎资源（mapping.json）：情绪、活动、手势都按它翻译，没有映射的忽略。
    * `null` / 缺省（包没有 mapping.json）用引擎默认映射（mapping.ts）。
    */
   mapping?: PackMapping | null;

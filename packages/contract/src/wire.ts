@@ -1,5 +1,5 @@
 /**
- * 文本线格式（docs/design/core-host-decoupling.md §4.2、§5.2）：帧按 JSON 发，`Uint8Array` 编成
+ * 文本线格式（docs/development/contract.md）：帧按 JSON 发，`Uint8Array` 编成
  * `{ "$u8": "<base64>" }`。WebSocket 等只能传文本 / 字节的传输用它；Electron IPC 与 in-process 传输
  * 走 structuredClone，不需要。
  *

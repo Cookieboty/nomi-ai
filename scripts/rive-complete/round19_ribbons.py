@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ROUND19 Task A — hem ribbons react to arm/leg motion with lag (wave/clap/step/squat).
 
-Handoff §6 item 12: ribbons were parented to the coat/body only; R13 baked secondary motion for
+Handoff item 12: ribbons were parented to the coat/body only; R13 baked secondary motion for
 clips that already existed then (pose accel + thigh push), but wave/clap had no keys and step/squat
 were added later (R18) without ribbon bake.  This round re-bakes s1/s2/s3 rotation for those four
 clips with an added ipsilateral-arm angular-accel term (laggy), so ribbons flick with wave/clap and

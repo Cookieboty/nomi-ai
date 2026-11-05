@@ -1,10 +1,10 @@
 package delegate
 
 // DelegateService.ts：Nomi 把编程助手当子代理调用（delegate_to_cli / delegate_status / delegate_followup / delegate_stop）。
-// 2.1.0（persistent-tasks-plan 2.2–2.4、2.8）：有持续任务时后台委派就是持续任务（executor: cli）——排队代替拒绝、
+// 2.1.0（docs/features/scheduling-calendar.md）：有持续任务时后台委派就是持续任务（executor: cli）——排队代替拒绝、
 // 瞬时错误重试一次、重启后在同一 worktree 续跑、做完进验收（不自动回填）；`delegate_stop` 停止；
 // 同步委派（background:false）照旧，名额满了排队等，不再拒绝。
-// 派给 Nomi（persistent-tasks §7.4）：工具 `delegate_to_nomi` 建一个执行者为后台 Nomi 的任务（对话的工具集），
+// 派给 Nomi（docs/features/scheduling-calendar.md）：工具 `delegate_to_nomi` 建一个执行者为后台 Nomi 的任务（对话的工具集），
 // 结果同样经 `delegate.completed` 回到来源对话；后台 Nomi 里再委派编程助手一律同步等结果。
 
 import (
@@ -32,7 +32,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi（§7.4）
+// cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi
 var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh",
 	"nomi": "后台的 Nomi"}
 
@@ -100,7 +100,7 @@ type TaskPort interface {
 	OnChange(fn func(id string)) func()
 }
 
-// DelegateErrorCodes：委派的错误码（工具返回的 error.code 与结果里的 errorCode；persistent-tasks-plan 2.8）。
+// DelegateErrorCodes：委派的错误码（工具返回的 error.code 与结果里的 errorCode；docs/features/scheduling-calendar.md）。
 // 任务执行的错误码（upstream_transient、network、config_changed……）原样透传。
 var DelegateErrorCodes = []string{
 	"delegate_disabled", "delegation_depth", "cli_unavailable", "cwd_outside_workspace", "cwd_required",
@@ -792,7 +792,7 @@ func (s *Service) executeNomi(sig context.Context, raw any, ec tools.ExecContext
 
 const nomiPlanBlocked = "当前是「计划」（只读）权限模式，不能派后台的 Nomi 去做；先给出方案，等用户切换权限模式"
 
-// delegateToNomi：派给 Nomi（§7.4）：建一个执行者为后台 Nomi 的任务，用对话的工具集、在对话的工作区里做；
+// delegateToNomi：派给 Nomi：建一个执行者为后台 Nomi 的任务，用对话的工具集、在对话的工作区里做；
 // 高级权限（为了自动化）：计划档拒绝；其余一律 L4、已装的 MCP 工具都能用，不因对话是「逐项确认」降级；
 // 破坏性动作、凭据 / 永不放行的命令、审核不放行的命令仍停下来等人（PermissionBroker 的 trusted 后台执行）。
 func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, error) {
@@ -896,7 +896,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 	b := s.d.Desktop
 	h := s.d.Harness
-	// 后台的 Nomi（任务执行）里委派：同步等结果，拿到汇报再继续（§7.4）
+	// 后台的 Nomi（任务执行）里委派：同步等结果，拿到汇报再继续
 	if desktop.BackgroundFrom(c.sig) != nil {
 		in.Set("background", false)
 	}
@@ -1636,7 +1636,7 @@ func (s *Service) maySend(c *execCtx) bool {
 	return true
 }
 
-// Untrusted：编程助手的输出用边界包起来（§6.1）
+// Untrusted：编程助手的输出用边界包起来
 func Untrusted(text string) string {
 	if text == "" {
 		return ""

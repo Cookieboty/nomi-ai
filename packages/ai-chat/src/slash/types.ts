@@ -1,5 +1,5 @@
 /**
- * 斜杠命令统一模型（设计见 docs/design/chat-slash-commands.md §4）。
+ * 斜杠命令统一模型（设计见 docs/development/coding-agents.md）。
  *
  * 借鉴 ACP `available_commands_update` 的最小形状（name / description / input.hint），
  * 再加 Nomi 需要的：来源（分组）、接管方式（kind）、别名和执行器。

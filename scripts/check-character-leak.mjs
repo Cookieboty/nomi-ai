@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 角色名扫描（CI，docs/design/core-host-decoupling.md §11.2）：官方角色名只能在官方角色包
+ * 角色名扫描（CI，docs/development/architecture.md）：官方角色名只能在官方角色包
  * `characters/nomi` 与产品品牌模块里出现。产品名统一用 `brand.appName`（`@nomi-ai/types`）；
  * 角色名、人设、台词从当前角色包读。判定规则（`诺米`、角色语境下的 `Nomi`）见 ./lib/characterLeak.mjs。
  *
@@ -181,7 +181,7 @@ function main() {
     console.error(
       `\n✗ ${leaks.length} 处官方角色名出现在 characters/nomi 与品牌模块之外。` +
         '产品名用 brand.appName（@nomi-ai/types）；角色名、人设、台词从当前角色包读' +
-        '（docs/design/core-host-decoupling.md §10.1、§11.2）。官方角色包里「Nomi·诺米」是一个完整的名字，' +
+        '（docs/character-pack/CONTRACT.md）。官方角色包里「Nomi·诺米」是一个完整的名字，' +
         '不单独写「诺米」（docs/BRAND.md）。确实不能改的，加进 scripts/check-character-leak.mjs 的 ALLOW / BARE_ALLOW 并写理由。',
     );
     process.exit(1);

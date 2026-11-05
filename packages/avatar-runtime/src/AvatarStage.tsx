@@ -40,7 +40,7 @@ export function semanticOfInteraction(e: AvatarInteractionEvent): AvatarOutputEv
  * 运行时的 React 入口：按角色的 `mode` 挂上 Rive / sprite / static 画布（Rive 起不来时回退到分层 2D），
  * 订阅事件源驱动表情、动作与口型，把互动经 `onInteraction` 报出去。
  *
- * 卸载时释放全部资源（后端、wasm 实例、图片、计时器、订阅），可以换角色重新挂载（§10.7）。
+ * 卸载时释放全部资源（后端、wasm 实例、图片、计时器、订阅），可以换角色重新挂载。
  */
 export const AvatarStage: FC<AvatarStageProps> = ({
   character,

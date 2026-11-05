@@ -134,7 +134,7 @@ func GatewayMenuEntries(v View, t Translate) []Entry {
 	return out
 }
 
-// Motions = TRAY_MOTIONS：语义手势（§10.5）→ 菜单文案
+// Motions = TRAY_MOTIONS：语义手势→ 菜单文案
 var Motions = [][2]string{
 	{"wave", "electron.common.wave"},
 	{"nod", "electron.common.nod"},

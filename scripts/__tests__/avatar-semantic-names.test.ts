@@ -1,5 +1,5 @@
 /**
- * AI 与角色之间只传语义事件（docs/design/core-host-decoupling.md §10.5、§12 C3 的完成标准）：
+ * AI 与角色之间只传语义事件（docs/character-pack/CONTRACT.md C3 的完成标准）：
  * AI 侧代码（AI SDK 客户端、契约）里不出现角色包的片段 / 动作 / 表情资源名，
  * 只用 `@nomi-ai/character-contract` 词表里的语义名；资源名只在角色包的 mapping.json 与引擎
  * （avatar-runtime）里。

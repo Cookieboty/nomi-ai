@@ -1,5 +1,5 @@
 /**
- * @nomi-ai/cli-catalog：内置编程助手的清单与界面信息（docs/design/cli-plugin-architecture.md §5.1、§7）。
+ * @nomi-ai/cli-catalog：内置编程助手的清单与界面信息（docs/development/coding-agents.md）。
  * 只有纯数据与纯函数（清单、界面信息、id、权限档位、终端命令转义），Node 版与 Go 版共用的视图也 import；
  * 内核实现在 apps/desktop-go/internal/cliplugins。
  */

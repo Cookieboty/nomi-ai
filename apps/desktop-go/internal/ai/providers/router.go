@@ -684,7 +684,7 @@ func (r *RoutedLLMRegistry) gatewayProvider(g *GatewayResolution) (blm.LLMProvid
 	p, err := r.factory()(aisdk.Options{ID: GatewayProviderID, Protocol: g.Protocol, BaseURL: g.BaseURL, FullURL: boolPtr(false),
 		DefaultModel: g.Model, APIKey: g.Token, RequiresAPIKey: boolPtr(true), Receiver: &recv, Client: g.Client,
 		ServedModelHeader: NomiServedModelHeader, RedactedHeader: NomiRedactedHeader,
-		// 重连交给网关（同一个 Key 退避重连、换 Key、换供应商，§11.1）：SDK 不再叠加自己的重试
+		// 重连交给网关（同一个 Key 退避重连、换 Key、换供应商）：SDK 不再叠加自己的重试
 		MaxRetries: new(int)})
 	if err != nil {
 		return nil, err

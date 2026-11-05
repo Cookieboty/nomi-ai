@@ -85,7 +85,7 @@ type Deps struct {
 	T i18n.Translate
 }
 
-// writeGap：两次写请求至少间隔（connections.md §4.2）
+// writeGap：两次写请求至少间隔（docs/features/scheduling-calendar.md）
 const writeGap = time.Second
 
 type Service struct {
@@ -352,7 +352,7 @@ func (s *Service) AddGithub(ctx context.Context, in AddInput) (*Connection, erro
 // IdentityTTLMs：读请求复核 gh 账号的缓存时长（写不缓存）
 const IdentityTTLMs = 60_000
 
-// verifyIdentity：执行前复核 gh 当前账号（connections.md §4.3，#233）：gh 登录方式的连接用的是 gh 的「当前」账号，
+// verifyIdentity：执行前复核 gh 当前账号（docs/features/scheduling-calendar.md，#233）：gh 登录方式的连接用的是 gh 的「当前」账号，
 // 用户在外面切了账号不会通知我们。读最多沿用 IdentityTTLMs 内的复核；写每次发送前都复核。
 // 账号换了 / 登出了 → needs_login，不发请求。令牌方式的身份绑在令牌上，不需要。
 func (s *Service) verifyIdentity(ctx context.Context, id string, maxAgeMs int64) error {
@@ -443,7 +443,7 @@ func (s *Service) Check(ctx context.Context, id string) (*Connection, error) {
 	return nil, &Error{"not_found", id}
 }
 
-// Rebind：「改用 gh 当前账号」：gh 登录方式的连接，账号换了以后由用户确认改绑（不悄悄换，§4.3）。
+// Rebind：「改用 gh 当前账号」：gh 登录方式的连接，账号换了以后由用户确认改绑（不悄悄换）。
 // 改绑后返回连接；引用它的任务授权由调用方撤销（重新授权）。
 func (s *Service) Rebind(ctx context.Context, id string) (*Connection, error) {
 	s.mu.Lock()
@@ -805,7 +805,7 @@ type ReconcileOutcome struct {
 	ExternalID string
 }
 
-// GithubReconcile：重启核对（persistent-tasks §10.3）：按 intent 里的幂等标记查评论 / PR 有没有发出去。
+// GithubReconcile：重启核对（docs/features/scheduling-calendar.md）：按 intent 里的幂等标记查评论 / PR 有没有发出去。
 // 查到 → Applied；查完确定没有 → !Applied；连接不可用、查询失败 → nil（交给用户）。
 // target 来自事件日志：仓库、分支再按写入时的规则校验一遍，不合法按查不了处理。
 func (s *Service) GithubReconcile(ctx context.Context, action string, at int64, key string, target *u.Obj) *ReconcileOutcome {

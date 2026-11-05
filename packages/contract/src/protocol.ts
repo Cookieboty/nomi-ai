@@ -1,5 +1,5 @@
 /**
- * 线协议（docs/design/core-host-decoupling.md §4.2）：所有帧都是可序列化的普通对象，
+ * 线协议（docs/development/contract.md）：所有帧都是可序列化的普通对象，
  * 可以原样走 Electron IPC、MessagePort 或 WebSocket（JSON + Uint8Array）。
  *
  * 客户端 → 服务端

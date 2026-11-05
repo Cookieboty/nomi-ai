@@ -64,7 +64,7 @@ type AttemptContext struct {
 
 // Executor：notify / nomi / cli 各自实现
 type Executor interface {
-	// Prepare 返回执行快照；不能跑时返回错误（§8.7）
+	// Prepare 返回执行快照；不能跑时返回错误
 	Prepare(t Task) (ExecutionSnapshot, *TaskError)
 	Start(ctx AttemptContext)
 	Resume(taskID string, gen int, answer Answer)

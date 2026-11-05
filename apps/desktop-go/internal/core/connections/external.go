@@ -1,6 +1,6 @@
 package connections
 
-// 对外动作的副作用日志：共享类型（docs/design/persistent-tasks.md §10.2）。Node 里这些在 src/tasks/external.ts；
+// 对外动作的副作用日志：共享类型（docs/features/scheduling-calendar.md）。Node 里这些在 src/tasks/external.ts；
 // Go 里 tasks 依赖 desktop / connections，接口与错误类型放在这里（desktop、extensions、connections、tasks 都能引用），
 // 日志本身（写 intent / done / failed、核对）在 tasks/external.go。
 

@@ -15,7 +15,7 @@ import (
 // DelegateClis：可以委派的内置编程助手（外部 CLI 暂不支持委派）
 var DelegateClis = []string{"claude", "codex", "grok", "gemini", "dsh"}
 
-// DelegateKinds：任务类型（设置里按类型配默认编程助手，§4.7）
+// DelegateKinds：任务类型（设置里按类型配默认编程助手）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
 
 // BuiltinAgentProfiles：内置档位（每次返回新对象，等同 Node 的 { ...p } 拷贝）
@@ -384,7 +384,7 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 // DelegateBrief：任务说明
 type DelegateBrief struct{ Goal, Context, DoneWhen, OutOfScope string }
 
-// BuildDelegatePrompt：发给编程助手的第一条消息（§4.4）
+// BuildDelegatePrompt：发给编程助手的第一条消息
 func BuildDelegatePrompt(b DelegateBrief) string {
 	lines := []string{"你在帮 Nomi（用户的桌面助手）完成一项任务。", "目标：" + trim(b.Goal)}
 	if trim(b.Context) != "" {

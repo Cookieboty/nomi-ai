@@ -1,6 +1,6 @@
 package gwstore
 
-// detect.go = GatewayService.detect（§8 探测入口）+ 默认 detect 实现（probe/detect.ts）。
+// detect.go = GatewayService.detect（探测入口）+ 默认 detect 实现（probe/detect.ts）。
 
 import (
 	"strconv"

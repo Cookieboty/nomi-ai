@@ -1,9 +1,9 @@
 /**
  * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
- * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮列**所有第三方供应商**的模型
+ * 标签来源是第三方（docs/development/gateway.md）时，同一个按钮列**所有第三方供应商**的模型
  * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`）：顶部按供应商分标签、
- * 左侧按厂商快速筛选（与对话输入栏的模型选择器一致），第三方之间换供应商原地续接（§13 第 5 条）；
+ * 左侧按厂商快速筛选（与对话输入栏的模型选择器一致），第三方之间换供应商原地续接（第 5 条）；
  * 直接打开模型列表、没有思考深度；新标签默认在侧栏信息卡（CliDefaultSource）。
  * 「默认模型」= 这个 CLI 在「模型」页分配的模型（属于当前供应商时）。
  *
@@ -244,7 +244,7 @@ const ModelChip: React.FC<{
   catalog: BackendModelCatalog;
   refreshing: boolean;
   onRefresh: () => void;
-  /** 第三方模型可开长上下文时的信息（§12.7.2）；null = 不显示「上下文」一组 */
+  /** 第三方模型可开长上下文时的信息；null = 不显示「上下文」一组 */
   long?: LongContextInfo | null;
   /**
    * 聊过的第三方会话实际在用的模型（没手动选时就是会话上次用的）：勾选打在它上面，
@@ -374,7 +374,7 @@ const ModelChip: React.FC<{
   };
   // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
-  // 官方来源的标签可以单独选官方账号（多个账号并行，§5.10.8）
+  // 官方来源的标签可以单独选官方账号（多个账号并行）
   const accountKind =
     !thirdParty && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
       ? (tab.backend as AccountKind)

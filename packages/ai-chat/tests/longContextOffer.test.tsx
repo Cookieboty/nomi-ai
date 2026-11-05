@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 上下文环的长上下文提议（docs/design/unified-gateway.md §12.7.2）：第三方模型快到标准窗口
+ * 上下文环的长上下文提议（docs/development/gateway.md）：第三方模型快到标准窗口
  * （CLI 将自动压缩）时，悬停浮窗里就地提议开启长上下文，并写清价格。
  */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';

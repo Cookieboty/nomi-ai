@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 替身角色构建（docs/design/core-host-decoupling.md §11.3）：`CHARACTER_PACK=characters/test-dummy pnpm build`
+ * 替身角色构建（docs/development/architecture.md）：`CHARACTER_PACK=characters/test-dummy pnpm build`
  * 的跨平台写法。产物里的内置角色是 characters/test-dummy，用来跑 e2e-headed 的 G5.stand-in-character；
  * 跑完用 `pnpm build` 换回官方构建（turbo 按 CHARACTER_PACK 分开缓存，换回来很快）。
  *

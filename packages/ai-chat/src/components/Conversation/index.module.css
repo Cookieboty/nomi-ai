@@ -114,7 +114,7 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
-/* 来源子代理与自动拒绝倒计时（docs/design/cli-subagents.md §5） */
+/* 来源子代理与自动拒绝倒计时（docs/development/coding-agents.md） */
 .permSource {
   padding: 1px var(--cd-space-2);
   border-radius: var(--cd-radius-full);
@@ -549,7 +549,7 @@
   }
 }
 
-/* 后台任务条：一轮结束后仍在跑的后台子代理（docs/design/cli-subagents.md §5） */
+/* 后台任务条：一轮结束后仍在跑的后台子代理（docs/development/coding-agents.md） */
 .bgBar {
   display: flex;
   flex-direction: column;

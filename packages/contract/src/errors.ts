@@ -1,5 +1,5 @@
 /**
- * 错误模型（docs/design/core-host-decoupling.md §4.2）：
+ * 错误模型（docs/development/contract.md）：
  * 线上只传 `{ code, message, data? }`，不透传 Error 对象。
  * 内置错误码由本包定义；业务错误码在 `defineContract({ errors })` 里枚举。
  */

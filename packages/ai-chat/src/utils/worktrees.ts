@@ -1,4 +1,4 @@
-/** 右栏「改动」的 worktree 辅助（docs/design/changes-panel-git.md §5） */
+/** 右栏「改动」的 worktree 辅助（docs/development/coding-agents.md） */
 import type { GitWorktree } from '../services/harnessClient';
 
 /** 比较用：斜杠统一、去尾斜杠；macOS 的 /private/var、/private/tmp 与 /var、/tmp 是同一处 */

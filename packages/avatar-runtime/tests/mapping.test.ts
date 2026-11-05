@@ -1,5 +1,5 @@
 /**
- * 语义 → 资源的映射（docs/design/core-host-decoupling.md §10.5）：
+ * 语义 → 资源的映射（docs/character-pack/CONTRACT.md）：
  *
  * - 官方包 characters/nomi/mapping.json 与引擎默认映射相同，并覆盖 AI 能发出的全部语义名；
  * - C3 之前 AI 工具、内核服务、托盘与表情导演直接给出的动作 / 表情名，换成语义名后经映射在

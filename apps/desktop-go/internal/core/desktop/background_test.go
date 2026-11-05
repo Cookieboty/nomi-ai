@@ -83,7 +83,7 @@ func TestBackgroundCommandNeedsPerson(t *testing.T) {
 	}
 }
 
-// 事件触发的执行（Tainted）：写入与命令都问人，审核放行也不直接跑（persistent-tasks §8.4）
+// 事件触发的执行（Tainted）：写入与命令都问人，审核放行也不直接跑（docs/features/scheduling-calendar.md）
 func TestBackgroundTaintedRun(t *testing.T) {
 	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
 	asked := []string{}
@@ -104,7 +104,7 @@ func TestBackgroundTaintedRun(t *testing.T) {
 	}
 }
 
-// MCP 工具（connections.md §6）：不在授权里的工具拒绝；只读给了就跑；对外工具要 L4，读过外部内容时问人
+// MCP 工具（docs/features/scheduling-calendar.md）：不在授权里的工具拒绝；只读给了就跑；对外工具要 L4，读过外部内容时问人
 func TestBackgroundMcpGrant(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	asked := []string{}
@@ -150,7 +150,7 @@ func TestBackgroundMcpGrant(t *testing.T) {
 	}
 }
 
-// 高级权限（派给 Nomi，persistent-tasks §7.4）：读过外部内容后写入照常放行、授权的 MCP 对外工具直接跑；破坏性仍问
+// 高级权限（派给 Nomi，docs/features/scheduling-calendar.md）：读过外部内容后写入照常放行、授权的 MCP 对外工具直接跑；破坏性仍问
 func TestBackgroundTrustedRun(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	asked := []string{}

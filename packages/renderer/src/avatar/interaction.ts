@@ -17,7 +17,7 @@ export function handleAvatarInteraction(e: AvatarInteractionEvent): void {
 }
 
 /**
- * 角色 → AI 的语义事件（被摸 / 被点 / 场景，§10.5）：经契约 `ai.avatar.report` 交给主进程的
+ * 角色 → AI 的语义事件（被摸 / 被点 / 场景）：经契约 `ai.avatar.report` 交给主进程的
  * AI 插件宿主（ctx.avatar 的订阅者）。没有契约传输（浏览器预览）时不报。
  */
 export function reportAvatarEvent(e: AvatarOutputEvent): void {

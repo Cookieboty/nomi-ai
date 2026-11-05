@@ -1,5 +1,5 @@
 /**
- * 终端启动命令（主进程 gateway/TerminalCommands.ts，docs/design/unified-gateway.md §12.6）。
+ * 终端启动命令（主进程 gateway/TerminalCommands.ts，docs/development/gateway.md）。
  * 打开后生成 ~/.nomi/bin/nomi-claude 等脚本；只有用户确认后才改 shell 配置文件加 PATH。
  * 应用契约 `gateway.terminalState` / `gateway.terminalSet`。
  */

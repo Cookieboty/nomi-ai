@@ -16,7 +16,7 @@ import { cmd, nativeCommands } from './common';
 const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
 /**
- * `/agent 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/design/nomi-delegate-cli.md §4.6）。
+ * `/agent 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/development/coding-agents.md）。
  * 带需求就立即发出；只有名字时在输入框上方挂一个「下一个需求交给 X」，下一条消息发出后自动取消。
  */
 async function runAgent(raw: string): Promise<SlashOutcome> {

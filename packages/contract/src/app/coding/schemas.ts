@@ -1,5 +1,5 @@
 /**
- * D3 · 编程助手的 DTO schema（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D3 · 编程助手的 DTO schema（docs/development/architecture.md「P1b 实施约定」）。
  *
  * 照主进程 `cli/types.ts`、`@nomi-ai/cli-sdk` 的事件类型与 ai-chat 各客户端模块的接口手写：
  * - 输出与事件的对象都用 `z.looseObject`（字段多、会演进；未知字段原样透传，与原 IPC 一致），

@@ -1,6 +1,6 @@
 package knowledgehandlers
 
-// tasks.*：持续任务，对应 src/contract/knowledge.ts 的 tasks 段（docs/design/persistent-tasks.md §14）。
+// tasks.*：持续任务，对应 src/contract/knowledge.ts 的 tasks 段（docs/features/scheduling-calendar.md）。
 
 import (
 	"context"
@@ -152,7 +152,7 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.Remove(in.ID), nil
 		}),
-		// 事件任务：观察到的事件、最近一次拉取（§6.3）
+		// 事件任务：观察到的事件、最近一次拉取
 		"tasks.events": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in taskIDIn
 			if err := decode(raw, &in); err != nil {

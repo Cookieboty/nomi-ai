@@ -3,7 +3,7 @@ import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { api, hasTransport } from './api';
 import type { NomiContextInfo } from './compaction';
 /**
- * 统一网关（主进程 GatewayService，见 docs/design/unified-gateway.md §5、§6；应用契约 `gateway.*`）。
+ * 统一网关（主进程 GatewayService，见 docs/development/gateway.md；应用契约 `gateway.*`）。
  * 返回的数据里 Key 只有掩码、没有客户端令牌；明文 Key 只在 upsertProvider / detect 的参数里单向发出。
  */
 export type Wire = 'messages' | 'responses' | 'chat' | 'gemini';
@@ -115,7 +115,7 @@ export interface ProviderView {
   /** 用户填的 Base URL（只用来显示） */
   baseUrl?: string;
   modelMap?: Array<{ from: string; to: string }>;
-  /** 运行时学到的状态（§7.4） */
+  /** 运行时学到的状态 */
   learned?: LearnedState;
   createdAt: number;
   updatedAt: number;
@@ -186,7 +186,7 @@ export interface GatewayState {
       {
         models: ClientModels;
         newTabSource?: 'official' | 'thirdParty';
-        /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；缺省 = 跟随默认账号（§12） */
+        /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；缺省 = 跟随默认账号 */
         newTabAccountId?: string | null;
       }
     >
@@ -199,12 +199,12 @@ export interface GatewayState {
   maxRequestBodyBytes?: number;
   /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
   privacyMode?: boolean;
-  /** 隐私模式的设置（docs/design/secret-privacy.md §12）；旧主进程没有 */
+  /** 隐私模式的设置（docs/development/security.md）；旧主进程没有 */
   privacy?: PrivacySettings;
   migratedFrom?: { at: number; files: string[] };
   /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
   catalog?: { models: number; version: string; synced: boolean };
-  /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步） */
+  /** 这次启动撤销旧版本全局配置的结果（第 7 步） */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }
 
@@ -297,7 +297,7 @@ export function hostPortOf(url: string): string | null {
   }
 }
 
-/** 本机或局域网地址（需要用户确认后网关才会访问，§15） */
+/** 本机或局域网地址（需要用户确认后网关才会访问） */
 export function isPrivateUrl(url: string): boolean {
   try {
     const h = new URL(url).hostname.replace(/^\[|\]$/g, '').toLowerCase();

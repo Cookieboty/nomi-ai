@@ -1,5 +1,5 @@
 /**
- * CLI 标签的来源（docs/design/unified-gateway.md §4.3、§13）：本机默认 / 官方账号 / 第三方（经网关）。
+ * CLI 标签的来源（docs/development/gateway.md）：本机默认 / 官方账号 / 第三方（经网关）。
  * 侧栏信息卡的「新标签默认」（CliDefaultSource）、模型按钮和斜杠命令 /model、/status 共用这里的数据与切换逻辑。
  */
 import { t, type SelectOption } from '@nomi-ai/ui';

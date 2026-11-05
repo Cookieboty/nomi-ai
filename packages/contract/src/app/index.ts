@@ -1,9 +1,9 @@
 /**
- * `@nomi-ai/contract/app` —— 应用契约（docs/design/core-host-decoupling.md §4、§12 P1）。
+ * `@nomi-ai/contract/app` —— 应用契约（docs/development/contract.md P1）。
  *
  * 视图与内核之间的唯一来源。P1a：AI 门面（`ai.*`，原 `ai:<facade>:<method>` 与 `ai:event`）；
  * P1b：其余 `ai:*` 服务通道与 `window.electronAPI` 的能力，按域分在五个文件里（每个文件只属于一个域），
- * 这里汇总。按 §4.3 只增不删（minor）。
+ * 这里汇总。按 只增不删（minor）。
  *
  *   const api = createClient(appContract, transport);   // 视图
  *   implement(appContract, handlers);                     // 内核

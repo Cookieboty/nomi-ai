@@ -1,5 +1,5 @@
 /**
- * 设置 →「模型」页（docs/design/unified-gateway.md §4.1）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
+ * 设置 →「模型」页（docs/development/gateway.md）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
  * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各编程助手的第三方模型（标签选「第三方」时用）；
  *   「新会话默认用」在「编程助手」页各助手的详情里；
  * - 「显示协议」「严格模式」「请求体上限」都在页底的「高级」里（排查问题时才用）；
@@ -54,7 +54,7 @@ import { ProviderForm } from './ProviderForm';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
 import { useCliInstall } from './useCliInstall';
 
-/** 「网页授权」：填第三方供应商的网址，读它的授权说明后在浏览器里授权（docs/design/provider-link.md B） */
+/** 「网页授权」：填第三方供应商的网址，读它的授权说明后在浏览器里授权（docs/integrations/provider-link.md B） */
 async function connectByAuthorization(setError: (e: string | null) => void): Promise<void> {
   const site = await promptDialog({
     title: t('ui.provider-link.connect-title'),

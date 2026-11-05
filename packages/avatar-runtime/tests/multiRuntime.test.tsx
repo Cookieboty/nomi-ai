@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 同一页面挂两个角色（docs/design/core-host-decoupling.md §10.7）：每个运行时实例有自己的后端注册表、
+ * 同一页面挂两个角色（docs/character-pack/CONTRACT.md）：每个运行时实例有自己的后端注册表、
  * 布局、互动设置、映射、情绪与自动动作冷却、互动反应冷却。用两个不同的角色包——替身角色
  * characters/test-dummy（只映射 neutral）与 examples/static-demo.pack（没有 mapping.json，用引擎默认映射）——
  * 各挂一个运行时，确认互不影响，也不碰页面主运行时。

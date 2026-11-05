@@ -1,6 +1,6 @@
 /**
  * 角色包数据文件的 zod schema 与类型：manifest / persona / mapping / locales。
- * 角色包只含数据，不含代码（docs/design/core-host-decoupling.md §10.2）。
+ * 角色包只含数据，不含代码（docs/character-pack/CONTRACT.md）。
  */
 import { z } from 'zod';
 
@@ -121,7 +121,7 @@ export type PackManifest = z.infer<typeof manifestSchema>;
 /** 未经默认值填充的 manifest 输入形状。 */
 export type PackManifestInput = z.input<typeof manifestSchema>;
 
-/** persona.json：角色身份。对话的系统提示与问候都从这里读（§10.4）。 */
+/** persona.json：角色身份。对话的系统提示与问候都从这里读。 */
 export const personaSchema = z.object({
   /** 全名：界面里第一次提到角色时用（docs/BRAND.md） */
   displayName: nonEmpty,

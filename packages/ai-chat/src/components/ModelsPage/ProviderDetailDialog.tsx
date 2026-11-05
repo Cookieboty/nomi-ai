@@ -1,12 +1,12 @@
 /**
- * 供应商详情（docs/design/unified-gateway.md §4.2 末尾）：点供应商一行或「⋯」打开。单栏，按对象组织：
+ * 供应商详情（docs/development/gateway.md 末尾）：点供应商一行或「⋯」打开。单栏，按对象组织：
  * - 连接：名称、各协议地址（只列填了的，其余在「添加协议地址」里；改了地址后提示重新检测）、
  *   Key 列表（上下移动即回退顺序、启用、改名、原位更换、删除、一次贴多个新增；每个 Key 的
  *   限定协议与限流在它自己的「设置」里；显示最近一次错误）；
  * - 模型：左边列表（勾选启用、手动添加、「刷新」重新列出：新发现的默认不启用，已有设置不变），
  *   右边是选中模型的全部设置（按哪个已知模型处理、上下文 / 标准窗口 / 输出上限、长上下文、
  *   实际请求名、限定协议）；
- * - 更多设置（折叠）：其它模型映射、自定义请求头、User-Agent、清除自动学到的状态（§7.4）。
+ * - 更多设置（折叠）：其它模型映射、自定义请求头、User-Agent、清除自动学到的状态。
  * 所有改动先进草稿，「保存」一次写回（ai:gateway:upsert-provider）；「取消」/ Esc 丢弃。
  * 环境变量提供的供应商只读。
  */
@@ -365,7 +365,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     setModel(m.id, { wires: next.length ? next : undefined });
   };
 
-  /** 本机 / 局域网地址先确认（§15）；拒绝则不检测 */
+  /** 本机 / 局域网地址先确认；拒绝则不检测 */
   const confirmPrivate = async (list: readonly string[]): Promise<boolean> => {
     for (const raw of list) {
       const u = raw.trim();
@@ -418,7 +418,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           ...(NON_CHAT.test(id) ? { toolCalling: false } : {}),
           ...listed(id),
         }));
-      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新（§12.7.2 第 3 级）
+      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新（第 3 级）
       const refreshed = (m: GatewayModel): GatewayModel =>
         r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
           ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
@@ -854,7 +854,7 @@ const PairRows: React.FC<{
   );
 };
 
-/** 运行时学到的（§7.4）：哪些协议暂时不可用、哪些模型只走某些协议、去掉了哪些字段；可以清除重新学 */
+/** 运行时学到的：哪些协议暂时不可用、哪些模型只走某些协议、去掉了哪些字段；可以清除重新学 */
 const LearnedInfo: React.FC<{ learned?: LearnedState; onClear: () => void }> = ({
   learned,
   onClear,

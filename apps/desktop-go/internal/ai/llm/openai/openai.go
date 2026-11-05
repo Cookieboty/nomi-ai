@@ -4,7 +4,7 @@
 // vendor SDK): request bodies, headers, stream parts and errors match the
 // Node SDK (see testdata/b5-llm-openai-responses.json goldens).
 //
-// Scope (docs/design/migrate-2.0.5-go.md D-B5-P-7): function tools and the
+// Scope (docs/development/architecture.md): function tools and the
 // message / reasoning / function_call output items. Provider-executed tools
 // (web/file search, code interpreter, shell, MCP, …), conversations,
 // compaction and GPT-6 configuration updates are not ported.

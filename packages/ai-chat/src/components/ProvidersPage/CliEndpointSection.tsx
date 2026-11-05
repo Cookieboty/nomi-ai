@@ -1,7 +1,7 @@
 /**
  * 单个 CLI 端点（Claude Code / Codex / dsh / Grok / Gemini）的分组：版本（检测 / 更新 / 安装）→
  * 官方账号（dsh 没有）→ 新会话默认用 + 第三方模型的入口。
- * 第三方模型统一在设置 →「模型」里配置（docs/design/unified-gateway.md §4.1），这里不再有按 CLI 的供应商列表。
+ * 第三方模型统一在设置 →「模型」里配置（docs/development/gateway.md），这里不再有按 CLI 的供应商列表。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';

@@ -1,5 +1,5 @@
 /**
- * 产品品牌常量（docs/design/core-host-decoupling.md §10.1）：唯一来源。
+ * 产品品牌常量（docs/character-pack/CONTRACT.md）：唯一来源。
  *
  * 只放产品的东西（应用名、appId）；角色名、人设、台词属于角色包（characters/<id>），从当前角色的人设读，
  * 不在这里。Go 版的 appId（Go 常量、各平台打包模板）与这里一致（scripts/__tests__/brand.test.ts 守住）。

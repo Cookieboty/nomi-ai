@@ -1,6 +1,6 @@
 package tasks
 
-// 对外动作的副作用日志（docs/design/persistent-tasks.md §10.2、§10.3），对应 src/tasks/external.ts：
+// 对外动作的副作用日志（docs/features/scheduling-calendar.md），对应 src/tasks/external.ts：
 //
 //   - 动作执行前先过撤销检查点（任务还在跑、还是这次执行、授权没撤销），再往事件日志写 intent
 //     （幂等键 taskId:attemptId:seq、内容哈希、给人看的摘要、核对用的目标）；
@@ -184,7 +184,7 @@ func (s *Service) RegisterReconciler(action string, fn Reconciler) {
 // UseMcpTools：MCP 工具信息（ExtensionsService），授权校验用（mcp.read 只能给只读工具）
 func (s *Service) UseMcpTools(fn connections.McpToolLookup) { s.mcpTool = fn }
 
-// reconcileAll：启动后：needs_reconcile 的任务先自动核对，查清了就续跑（§10.3）。在单独的 goroutine 上跑：
+// reconcileAll：启动后：needs_reconcile 的任务先自动核对，查清了就续跑。在单独的 goroutine 上跑：
 // 核对要查网络，不能挡启动，也不能在运行时的持有者里调用
 func (s *Service) reconcileAll() {
 	for _, t := range s.Runtime.List() {

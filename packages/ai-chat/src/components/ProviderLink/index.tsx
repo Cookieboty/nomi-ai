@@ -1,5 +1,5 @@
 /**
- * 第三方供应商链接的确认框（docs/design/provider-link.md）：网页上的 `nomi://provider/*` 链接经内核解析后，
+ * 第三方供应商链接的确认框（docs/integrations/provider-link.md）：网页上的 `nomi://provider/*` 链接经内核解析后，
  * 在这里请用户确认。一次只显示最早的一条；确认保存后打开「设置 → 模型与供应商」看结果。
  * - save：名称、来源、各协议地址、打码后的 Key、模型数；已有同地址的显示「更新」；
  * - authorize：去第三方供应商的网页授权（打开系统浏览器）；

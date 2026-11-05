@@ -1,5 +1,5 @@
 /**
- * 添加第三方供应商的公共逻辑（§4.2）：预设地址、探测结果 → 模型行、保存进网关。
+ * 添加第三方供应商的公共逻辑：预设地址、探测结果 → 模型行、保存进网关。
  * 设置 →「模型」页与新手引导共用同一个内联表单（ProviderForm），这里是它背后的纯函数。
  */
 import { t } from '@nomi-ai/ui';
@@ -47,7 +47,7 @@ export function storedProbes(result: DetectResult): Partial<Record<Wire, StoredP
   return detected;
 }
 
-/** 预设里各协议的地址：有多地址扩展（§8.4）用它，否则只有 baseURL 那一种 */
+/** 预设里各协议的地址：有多地址扩展用它，否则只有 baseURL 那一种 */
 export const presetUrls = (p: ProviderPreset): Partial<Record<Wire, string>> =>
   p.urls ?? { [PROTOCOL_WIRE[p.protocol]]: p.baseURL };
 
@@ -99,12 +99,12 @@ export function saveDetectedProvider(input: {
   const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
   const list: GatewayModel[] = models.map((m) => {
     const known = meta.get(m.id);
-    // 预设没整理的，用模型列表接口顺带返回的上限（§12.7.2 第 3 级）
+    // 预设没整理的，用模型列表接口顺带返回的上限（第 3 级）
     const listed = known ? undefined : result.limits?.[m.id];
     return {
       id: m.id,
       enabled: enabled.has(m.id),
-      // 预设整理过的元数据（§12.7.2 第 2 级）一起存下，编程助手按它注入上下文与输出上限
+      // 预设整理过的元数据（第 2 级）一起存下，编程助手按它注入上下文与输出上限
       ...(known
         ? {
             ctx: known.ctx,

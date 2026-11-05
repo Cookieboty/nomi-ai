@@ -78,7 +78,7 @@
   color: var(--cd-color-selected-text);
   font-weight: var(--cd-font-weight-bold);
   /* 左侧强调条：当前项在同色系淡底上也能一眼分辨 */
-  /* 规范 §13：选中导航左侧 3px 主色强调线 */
+  /* 规范：选中导航左侧 3px 主色强调线 */
   box-shadow: inset 3px 0 0 var(--cd-color-brand);
 }
 .navIcon {

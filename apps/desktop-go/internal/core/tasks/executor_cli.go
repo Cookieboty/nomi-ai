@@ -1,6 +1,6 @@
 package tasks
 
-// `cli` 执行者：用户装好、配好的编程助手在后台标签里执行任务（docs/design/persistent-tasks.md §7.2、§7.3）。
+// `cli` 执行者：用户装好、配好的编程助手在后台标签里执行任务（docs/features/scheduling-calendar.md）。
 // 对应 src/tasks/executors/cli.ts：worktree 隔离、授权等级换算权限档、审批先过确定性命令分类、
 // 用户在标签里接手 → takenOver、完成后按 git 列改动但不自动回填（回填是验收卡片上的单独动作）。
 
@@ -149,7 +149,7 @@ func ClassifySummary(summary string) string {
 	return b
 }
 
-// GithubAccess：授权里有 GitHub 连接的对外能力（github.read 以外）：标签不隔离 gh 登录（connections.md §4.4）
+// GithubAccess：授权里有 GitHub 连接的对外能力（github.read 以外）：标签不隔离 gh 登录（docs/features/scheduling-calendar.md）
 func GithubAccess(t Task) bool {
 	for _, c := range t.Grant.Connections {
 		for _, x := range c.Capabilities {
@@ -161,7 +161,7 @@ func GithubAccess(t Task) bool {
 	return false
 }
 
-// DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝（§8.4）。
+// DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝。
 // 计划审批一律问人；读凭据 / 合并发布永远问人；对外动作要 L4 + GitHub 对外能力；跑命令要 L3
 // （事件触发的任务读过外部内容、或委派时 Nomi 没开「全部自动」：问人）。
 func DecidePermission(t Task, kind, summary string, tainted bool) string {
@@ -173,7 +173,7 @@ func DecidePermission(t Task, kind, summary string, tainted bool) string {
 	case "credential", "never":
 		return "ask"
 	case "external":
-		// 对外命令（git push、gh pr create……）：L4 且授权里有 GitHub 的对外能力才放行（connections.md §4.4）
+		// 对外命令（git push、gh pr create……）：L4 且授权里有 GitHub 的对外能力才放行（docs/features/scheduling-calendar.md）
 		if level >= 4 && GithubAccess(t) {
 			return "allow"
 		}
@@ -196,7 +196,7 @@ func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if ex.Kind != "cli" || ex.Cli == nil || ex.Cwd == nil {
 		return ExecutionSnapshot{}, &TaskError{Code: "executor_failed", Message: "not a cli task"}
 	}
-	// 用户点名的编程助手不可用：失败并提示，不悄悄换成别的（§7.3）
+	// 用户点名的编程助手不可用：失败并提示，不悄悄换成别的
 	if !e.d.Harness.Bins()[*ex.Cli] {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(*ex.Cli)}
 	}
@@ -518,7 +518,7 @@ func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
 	e.d.Harness.CancelTab(run.tabID)
 }
 
-// 配置变了、要用户处理时的说明（任务停到「等你处理」，§8.7；对应 card.ts configText）
+// 配置变了、要用户处理时的说明（任务停到「等你处理」，；对应 card.ts configText）
 func configCliUnavailable(cli string) string {
 	return i18n.T("electron.common.task-config-cli-unavailable", cli)
 }

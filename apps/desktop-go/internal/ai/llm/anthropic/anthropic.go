@@ -1,8 +1,7 @@
 // Package anthropic ports @ai-sdk/anthropic's messages model
 // (createAnthropic(...).messages(modelId)), used by Nomi for protocol
 // "anthropic". Request bodies, headers, stream parts and errors match the
-// Node SDK 4.0.78 (see testdata/b5-llm-anthropic.json goldens). Deviations
-// are logged as D-B5-P-A-n in docs/design/migrate-2.0.5-go.md §3.4.
+// Node SDK 4.0.78.
 package anthropic
 
 import (

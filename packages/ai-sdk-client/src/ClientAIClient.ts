@@ -1,7 +1,7 @@
 /**
  * ClientAIClient —— 视图侧的 AI 门面（chat / sessions / tools / memory / asr / tts / avatar）。
  *
- * 实现在应用契约上（docs/design/core-host-decoupling.md §4、§5、§12 P1）：
+ * 实现在应用契约上（docs/development/contract.md P1）：
  * `createClient(appContract, transport)`，默认用窗口共享的契约传输（`getSharedTransport`，
  * Go 宿主里经回环 WebSocket 连内核）。
  *

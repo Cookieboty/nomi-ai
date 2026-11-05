@@ -28,7 +28,7 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-// Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md §4.6、§4.7、§7）
+// Nomi 把编程助手当子代理调用（docs/development/coding-agents.md）
 
 const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
   id: 'd1',

@@ -12,7 +12,7 @@ vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).f
 
 vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
 
-// 官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录
+// 官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录
 afterEach(() => {
   cleanup();
   resetFakeApi();

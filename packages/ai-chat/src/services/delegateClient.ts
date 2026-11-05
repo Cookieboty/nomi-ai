@@ -1,7 +1,7 @@
 /**
- * Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md）：
- * - 设置：总开关 + 按任务类型的默认编程助手（§4.7）；
- * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手（§4.6）。渲染层按 conversationId 记在
+ * Nomi 把编程助手当子代理调用（docs/development/coding-agents.md）：
+ * - 设置：总开关 + 按任务类型的默认编程助手；
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
  *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  */

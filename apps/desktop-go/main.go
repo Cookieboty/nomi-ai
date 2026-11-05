@@ -1,5 +1,5 @@
-// Nomi 的 Go 版（Go 内核 + Wails v3 外壳），与 apps/desktop-electron 共用同一套视图。说明见 README.md，
-// 与 Electron 版的偏差见 docs/design/migrate-2.0.5-go.md。
+// Nomi 桌面应用（Go 内核 + Wails v3 外壳），视图是 packages/renderer 与 packages/ai-chat 的构建产物。
+// 说明见 README.md 与 docs/development/architecture.md。
 //
 //	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|island-test|renderer&v=svg|rive|quit）。
 //	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
@@ -411,7 +411,7 @@ func main() {
 				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
 			}
 			prep := desktopSvc.ChatPrep()
-			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（persistent-tasks §7.4）
+			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）
 			prep.AfterWorkspace = func(options map[string]any, method string) error {
 				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil {
 					_, err := delegate.ApplyDispatchHint(options)
@@ -427,7 +427,7 @@ func main() {
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
 	aiFacade.Register(router)
-	// 持续任务的 Nomi 无界面执行（persistent-tasks §7.1）：工具白名单 + 不冒气泡；审批走 broker 的后台模式
+	// 持续任务的 Nomi 无界面执行（docs/features/scheduling-calendar.md）：工具白名单 + 不冒气泡；审批走 broker 的后台模式
 	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
@@ -497,7 +497,7 @@ func main() {
 		},
 		EventsFor:       b8.Tasks.EventBatch,
 		ExternalJournal: b8.Tasks.ExternalJournal,
-		// 派给 Nomi 的执行用对话的工具集（§7.4）
+		// 派给 Nomi 的执行用对话的工具集
 		ToolNames: func() []string {
 			defs := toolRegistry.List()
 			names := make([]string, 0, len(defs))
@@ -507,18 +507,18 @@ func main() {
 			return names
 		},
 	}))
-	// 持续任务的编程助手执行（persistent-tasks §7.2）：后台标签 + worktree；审批走任务收件箱；不自动回填
+	// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：后台标签 + worktree；审批走任务收件箱；不自动回填
 	taskCli := taskCliDeps(desktopSvc)
 	taskCli.EventsFor = b8.Tasks.EventBatch
 	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCli))
-	// 事件源（§6.2）：web / folder / github / app；编程助手的 tab-finished 在 wireHarness 之后接上
+	// 事件源：web / folder / github / app；编程助手的 tab-finished 在 wireHarness 之后接上
 	registerTaskSources(b8)
 	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
 	// 同 Node core.start：AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()
 	shellhandlers.InstallGateway(router, gatewaySvc)
-	// 第三方供应商链接 nomi://provider/*（docs/design/provider-link.md）：宿主经 OnURL 转来，确认框在对话窗口
+	// 第三方供应商链接 nomi://provider/*（docs/integrations/provider-link.md）：宿主经 OnURL 转来，确认框在对话窗口
 	providerLinks = providerlink.New(providerlink.Deps{
 		Gateway: func() providerlink.Gateway {
 			if gatewaySvc == nil {

@@ -1,6 +1,6 @@
 package desktop
 
-// 后台任务的审批（docs/design/persistent-tasks.md §8.4），对应 PermissionBroker.ts 的 registerBackground /
+// 后台任务的审批（docs/features/scheduling-calendar.md），对应 PermissionBroker.ts 的 registerBackground /
 // authorizeBackground。Go 用 context 携带：派生的 context（工具执行时拿到的）自然继承。
 
 import (
@@ -14,17 +14,17 @@ import (
 type BackgroundRun struct {
 	Level int
 	Ask   func(tool, summary, detail string) bool
-	// Connections：任务授权里的连接（connections.md §2）；经连接的工具据此收窄
+	// Connections：任务授权里的连接（docs/features/scheduling-calendar.md）；经连接的工具据此收窄
 	Connections []ConnGrant
-	// Tainted：这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（persistent-tasks §8.4）
+	// Tainted：这次执行读过外部内容（事件触发）：写入与命令都问人，不按审核放行（docs/features/scheduling-calendar.md）
 	Tainted bool
-	// External：对外动作的副作用日志（persistent-tasks §10.2）：对外工具执行前写 intent、成功后写 done；可为 nil
+	// External：对外动作的副作用日志（docs/features/scheduling-calendar.md）：对外工具执行前写 intent、成功后写 done；可为 nil
 	External connections.ExternalJournal
-	// Trusted：高级权限（派给 Nomi 的后台执行，persistent-tasks §7.4）：读过外部内容后的写入仍按写入策略放行、
+	// Trusted：高级权限（派给 Nomi 的后台执行，docs/features/scheduling-calendar.md）：读过外部内容后的写入仍按写入策略放行、
 	// 授权里的 MCP 对外工具直接跑；破坏性动作、凭据 / 永不放行的命令、审核不放行的命令照旧问人
 	Trusted bool
-	// Paths：任务授权的文件夹（§8.3）：文件工具的路径（realpath 后）还必须落在其中之一（#231）。
-	// nil = 不额外收窄（高级权限的委派执行，§7.4）；空切片 = 不许碰任何文件
+	// Paths：任务授权的文件夹：文件工具的路径（realpath 后）还必须落在其中之一（#231）。
+	// nil = 不额外收窄（高级权限的委派执行）；空切片 = 不许碰任何文件
 	Paths []string
 	// Live：任务「当前」的授权（运行中收窄立即生效，#232）；nil 时用上面的快照。
 	// ok=false：任务已换代 / 撤销 / 不在跑，一律不放行
@@ -143,7 +143,7 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 		return "denied"
 	}
 	// MCP 工具（<服务器>__<工具>）：不继承服务器的前台信任级别，只认任务授权里逐个给出的工具
-	// （connections.md §6）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
+	// （docs/features/scheduling-calendar.md）；只读工具给了就跑，对外工具还要 L4，读过外部内容时问人
 	if server, tool, ok := connections.SplitMcpTool(i.Tool); ok {
 		granted := connections.McpGranted(run.grants(), server, tool, i.McpReadOnly)
 		if granted == "" {

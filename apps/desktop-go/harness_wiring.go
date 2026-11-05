@@ -55,7 +55,7 @@ type hostEvents struct{ r *contract.Router }
 
 func (e hostEvents) Publish(ev string, p any) { e.r.Emit(ev, p) }
 
-// externals：外部插件（§5.9）spec / handshake（握手能力只能收窄注册表能力位）
+// externals：外部插件spec / handshake（握手能力只能收窄注册表能力位）
 type externals struct{ h *cli.CliPluginHost }
 
 func (e externals) Spec(id string) *util.Obj { return e.h.ExternalSpec(id) }

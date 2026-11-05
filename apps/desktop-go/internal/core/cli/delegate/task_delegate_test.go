@@ -1,6 +1,6 @@
 package delegate
 
-// 后台委派 = 持续任务（persistent-tasks-plan 2.2–2.4），对应 DelegateService.test.ts「后台委派 = 持续任务」。
+// 后台委派 = 持续任务（docs/features/scheduling-calendar.md），对应 DelegateService.test.ts「后台委派 = 持续任务」。
 
 import (
 	"context"

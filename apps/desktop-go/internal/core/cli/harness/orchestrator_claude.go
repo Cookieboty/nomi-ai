@@ -300,7 +300,7 @@ func (o *Orchestrator) syncClaudeModel(tab *util.Obj) *jsrt.Promise[struct{}] {
 	})
 }
 
-// ensureClaudeLiveBound：第三方标签先登记绑定（§6.7）再启动；能复用就直接复用。
+// ensureClaudeLiveBound：第三方标签先登记绑定再启动；能复用就直接复用。
 func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claudeLiveSession] {
 	return jsrt.Async(func() (*claudeLiveSession, error) {
 		if !o.needsTabBinding(tab) {

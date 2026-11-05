@@ -1,4 +1,4 @@
-/** PR3：退出计划模式 → 「批准计划」三选一卡片（docs/design/cli-permission-modes.md §5） */
+/** PR3：退出计划模式 → 「批准计划」三选一卡片（docs/development/coding-agents.md） */
 import { Icon, t } from '@nomi-ai/ui';
 import { ClipboardCheck } from 'lucide-react';
 import React, { useEffect, useState } from 'react';

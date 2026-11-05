@@ -1,6 +1,6 @@
 package tasks
 
-// `web` 事件源（§6.2），对应 src/tasks/events/sources/web.ts：HTTP 轮询网页 / RSS·Atom。条件请求（ETag /
+// `web` 事件源，对应 src/tasks/events/sources/web.ts：HTTP 轮询网页 / RSS·Atom。条件请求（ETag /
 // Last-Modified），没有就比内容哈希；订阅源按条目 id 去重。只拉公网地址（netguard 预检 + 不跟随跳转），正文最多 2 MB。
 
 import (

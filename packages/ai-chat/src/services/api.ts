@@ -1,5 +1,5 @@
 /**
- * 本窗口唯一的应用契约客户端（docs/design/core-host-decoupling.md §4.1、§11.1、§12 P1b）。
+ * 本窗口唯一的应用契约客户端（docs/development/contract.md）。
  *
  * - `api`：`createAppClient()` 建在窗口共享的契约传输上，与 AIProvider 里的 `ClientAIClient` 共用一个会话；
  *   视图里只有这个文件建客户端，其余代码 `import { api } from '…/services/api'`；

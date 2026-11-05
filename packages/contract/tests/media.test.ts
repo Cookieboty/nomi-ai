@@ -1,6 +1,6 @@
 /**
  * D1（media）：voice / tts / desktop / screen / nav 的过程与事件
- * （docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * （docs/development/architecture.md「P1b 实施约定」）。
  */
 
 import { describe, expect, it } from 'vitest';

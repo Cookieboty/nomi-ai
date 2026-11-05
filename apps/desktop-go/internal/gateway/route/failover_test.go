@@ -21,7 +21,7 @@ func ids(ts []FailoverTarget) []string {
 	return out
 }
 
-// §7.2：同一个模型、按列表顺序换供应商；不换成别的模型；本机首选只回退到本机
+// TestFailoverTargets：同一个模型、按列表顺序换供应商；不换成别的模型；本机首选只回退到本机
 func TestFailoverTargets(t *testing.T) {
 	on := func(id string) config.RuntimeModel { return config.RuntimeModel{ID: id, Enabled: true} }
 	cfg := &config.GatewayConfig{Providers: []config.RuntimeProvider{

@@ -71,7 +71,7 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    // 没有人设时用通用称呼；指桌面角色的文案不写死官方角色名（§10.1）
+    // 没有人设时用通用称呼；指桌面角色的文案不写死官方角色名
     expect(mascot.textContent).toContain('桌面角色');
     expect(mascot.textContent).not.toMatch(/Nomi|诺米/);
     expect(main.textContent).toContain('软件主界面');

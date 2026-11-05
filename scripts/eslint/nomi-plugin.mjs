@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * 仓库自己的 ESLint 规则（docs/design/cli-plugin-architecture.md §7.3）。
+ * 仓库自己的 ESLint 规则（docs/development/coding-agents.md）。
  *
  * nomi/no-cli-literal：视图里不能按内置编程助手的名字分支（`backend === 'claude'`、`case 'codex':`）。
  * 某个 CLI 的特殊行为应该放进它的插件清单（@nomi-ai/cli-catalog），视图按能力位判断；

@@ -379,7 +379,7 @@ func Install(d Deps) *Controller {
 		})
 	}
 
-	// —— 渲染器设置（§5）
+	// —— 渲染器设置
 	call("mascot.getRenderer", func(json.RawMessage) (any, error) { return d.Settings.Get().Mascot.Renderer, nil })
 	call("mascot.setRenderer", func(raw json.RawMessage) (any, error) {
 		var in struct {

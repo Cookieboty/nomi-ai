@@ -1,5 +1,5 @@
 /**
- * 窗口共享的契约传输与应用客户端（docs/design/core-host-decoupling.md §5、§12 P1b）。
+ * 窗口共享的契约传输与应用客户端（docs/development/contract.md）。
  *
  * 一个窗口只开一个契约会话：`ClientAIClient` 与视图的 `services/api.ts`（`createAppClient()`）
  * 都用 `getSharedTransport()`，帧经同一个客户端 id 收发；页面刷新后新页面重新建。
@@ -82,7 +82,7 @@ export function getSharedTransport(): ClientTransport {
 }
 
 /**
- * 把本窗口共享的契约传输换成给定的传输（Go 宿主经回环 WebSocket，docs/design/core-host-decoupling.md §5.2）。
+ * 把本窗口共享的契约传输换成给定的传输（Go 宿主经回环 WebSocket，docs/development/contract.md）。
  * 视图只在 `services/api.ts` 里、建客户端之前调用；之前装的传输会被关闭。
  */
 export function installSharedTransport(transport: ClientTransport): void {
@@ -99,7 +99,7 @@ export function resetSharedTransportForTest(): void {
 }
 
 /**
- * 应用契约的类型化客户端。每个视图包只在 `services/api.ts` 调一次（docs §11.1：
+ * 应用契约的类型化客户端。每个视图包只在 `services/api.ts` 调一次（docs：
  * 视图只经 createClient 访问内核，且集中在一个文件里）。
  */
 export function createAppClient(

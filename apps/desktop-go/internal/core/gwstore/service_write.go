@@ -539,7 +539,7 @@ func (s *Service) SetProviderEnabled(id string, enabled bool) error {
 	return s.commitUnlock()
 }
 
-// ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商（§7.2）
+// ReorderProviders = reorderProviders(ids)：同一个模型回退时按这个顺序换供应商
 func (s *Service) ReorderProviders(ids []string) error {
 	s.lock()
 	s.Store.ReorderProviders(ids)

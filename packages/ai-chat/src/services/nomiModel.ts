@@ -1,5 +1,5 @@
 /**
- * Nomi 对话当前用的模型（docs/design/unified-gateway.md §12.5）：以网关里 clients.nomi.models.main 为准；
+ * Nomi 对话当前用的模型（docs/development/gateway.md）：以网关里 clients.nomi.models.main 为准；
  * 网关里还没分配时退回旧存储（过渡期，环境变量供应商也在那里）。
  * 缓存一份网关状态供同步读取（消息上的模型标签），网关变化时刷新。
  */

@@ -1,6 +1,6 @@
 package tasks
 
-// 事件触发（docs/design/persistent-tasks.md §6.3、§6.4），对应 src/tasks/events/EventHub.ts 与 events/types.ts：
+// 事件触发（docs/features/scheduling-calendar.md），对应 src/tasks/events/EventHub.ts 与 events/types.ts：
 // 按任务订阅事件源，去重、排序、批处理，再触发执行。
 //
 //   - 每个任务记最近 500 个已处理的 key 与事件源游标（<root>/<taskId>.json，形状与 Node 相同）；执行失败时释放该批的 key；
@@ -48,7 +48,7 @@ type SourceEvent struct {
 	OccurredAt int64  `json:"occurredAt"`
 	// Summary：给用户看（任务详情里的「发现的事」）
 	Summary string `json:"summary"`
-	// Payload：给执行者；一律视为外部内容（§8.3）
+	// Payload：给执行者；一律视为外部内容
 	Payload any `json:"payload"`
 }
 

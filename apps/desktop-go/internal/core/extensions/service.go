@@ -663,7 +663,7 @@ func (s *Service) GuardEnvTool(serverID, serverName string, def ToolDef) ToolDef
 	return s.withConfirm(def, serverID, serverName, "ask", false)
 }
 
-// McpToolInfo：任务用的 MCP 工具信息（只接本机 stdio 服务器，connections.md §6）：工具名是去掉服务器前缀的原名；
+// McpToolInfo：任务用的 MCP 工具信息（只接本机 stdio 服务器，docs/features/scheduling-calendar.md）：工具名是去掉服务器前缀的原名；
 // 服务器不在线时 nil；远程服务器 Remote（不能授权给任务）
 func (s *Service) McpToolInfo(serverID, tool string) *connections.McpToolInfo {
 	s.mu.Lock()
@@ -726,7 +726,7 @@ func (s *Service) withConfirm(def ToolDef, serverID, serverName, trust string, l
 	out.Execute = func(ctx context.Context, input any) (any, error) {
 		t0 := time.Now()
 		decision := "auto"
-		// 后台任务：不看服务器的信任级别，只认任务授权（connections.md §6）；只接本机 stdio 服务器
+		// 后台任务：不看服务器的信任级别，只认任务授权（docs/features/scheduling-calendar.md）；只接本机 stdio 服务器
 		bb, _ := s.d.Confirm.(BackgroundBroker)
 		background := bb != nil && bb.IsBackground(ctx)
 		if background {

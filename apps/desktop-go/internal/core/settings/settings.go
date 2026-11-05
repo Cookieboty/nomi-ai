@@ -1,4 +1,4 @@
-// Package settings：userData/settings.json（计划 §5 的 mascot.renderer 等应用级开关）
+// Package settings：userData/settings.json（计划 的 mascot.renderer 等应用级开关）
 package settings
 
 import (

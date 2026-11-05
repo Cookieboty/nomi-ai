@@ -748,7 +748,7 @@ describe('ModelsPage', () => {
     ]);
   });
 
-  it('context limits: badges show the effective value; manual limits save as user-set (§12.7.2)', async () => {
+  it('context limits: badges show the effective value; manual limits save as user-set', async () => {
     const m = fakeMain({
       detect: () => ({
         wires: { chat: { wire: 'chat', url: 'https://relay/v1', ok: true, ms: 3 } },
@@ -826,7 +826,7 @@ describe('ModelsPage', () => {
     ]);
   });
 
-  it('long context default per model (§12.7.2): only models with a standard window get the switch', async () => {
+  it('long context default per model: only models with a standard window get the switch', async () => {
     const m = fakeMain();
     m.state.providers = [
       kimi({
@@ -1303,7 +1303,7 @@ describe('ModelsPage', () => {
     ).toBe(true);
   });
 
-  describe('编程助手的第三方模型（§4.1）', () => {
+  describe('编程助手的第三方模型', () => {
     const seed = (m: ReturnType<typeof fakeMain>) => {
       m.state.providers = [
         {

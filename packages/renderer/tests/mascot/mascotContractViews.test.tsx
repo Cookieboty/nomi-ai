@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * D5 视图经契约访问主进程（docs/design/core-host-decoupling.md §12 P1b）：模型名缓存、互动设置推送、
+ * D5 视图经契约访问主进程（docs/development/architecture.md）：模型名缓存、互动设置推送、
  * 主进程的桌面角色指令。没有传输（浏览器预览）时退回本地行为。
  */
 import { interactionSettings, setInteractionConfigBackend } from '@nomi-ai/avatar-runtime';

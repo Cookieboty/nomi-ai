@@ -102,7 +102,7 @@ type proposeIn struct {
 	Mcp           []proposeMcp `json:"mcp"`
 }
 
-// TriggerOf：「何时」→ 触发器（本机时区）。事件触发一律先「只记录」，改成自动执行由用户在任务页决定（§6.3）
+// TriggerOf：「何时」→ 触发器（本机时区）。事件触发一律先「只记录」，改成自动执行由用户在任务页决定
 func TriggerOf(w ProposeWhen, now int64) (Trigger, error) {
 	at := func(hhmm string) (*int64, error) {
 		m := hhmmRE.FindStringSubmatch(hhmm)

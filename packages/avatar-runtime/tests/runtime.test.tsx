@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * avatar-runtime 单独运行（docs/design/core-host-decoupling.md §12 C2 的完成标准）：
+ * avatar-runtime 单独运行（docs/development/architecture.md C2 的完成标准）：
  * 不经 renderer、契约或 Electron，用替身角色包 characters/test-dummy（manifest + mapping）、
  * 一个假的事件源和互动回调把运行时挂到页面上，驱动它并收它的输出，最后完整卸载。
  */

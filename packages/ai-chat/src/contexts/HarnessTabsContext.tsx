@@ -375,7 +375,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const close = useCallback(
     async (id: string) => {
       if (id === MAIN_TAB_ID) return;
-      // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/design/cli-subagents.md §5）
+      // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/development/coding-agents.md）
       if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
       await harnessClient.closeTab(id);
       dispatching.current.delete(id);

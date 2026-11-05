@@ -68,7 +68,7 @@ describe('theme contrast (all themes, all pairs)', () => {
 });
 
 describe('key pairs called out in the sunset feedback', () => {
-  // 规范 §3.3 / §13：选中导航用 bg-selected 底 + 深一档强调色（accent-strong）的文字与图标
+  // 规范：选中导航用 bg-selected 底 + 深一档强调色（accent-strong）的文字与图标
   it.each(['sunset', 'cream', 'mist'])(
     '%s: selected nav/tab text is the deep accent on bg-selected (≥ 4.5:1)',
     (id) => {

@@ -1,12 +1,12 @@
 /**
- * AI 门面的 DTO schema（docs/design/core-host-decoupling.md §4.2）。
+ * AI 门面的 DTO schema（docs/development/contract.md）。
  *
  * 逐项对照 `@nomi-ai/ai-sdk` 的 `types/`、`facade/` 与 `bundle-ig-base` / `bundle-ig-electron-caps`
  * 的 seam 类型手写：契约包只依赖 zod，不 import 运行时包。两边是否一致由 ai-runtime 的
  * `implement(appContract, …)` 在编译期检查（处理函数的入参 / 返回值类型由这里推导）。
  *
  * 约定：
- * - 只用 JSON 值与 `Uint8Array`（§4.2）；`AbortSignal`、`raw` 这类不可序列化字段不进契约；
+ * - 只用 JSON 值与 `Uint8Array`；`AbortSignal`、`raw` 这类不可序列化字段不进契约；
  * - 视图传来的对象（对话选项、画像补丁）用 loose：未知字段原样透传，与原 IPC 行为一致；
  * - 不用 transform：两端都会解析一次；
  * - 输入严格、输出宽容：从磁盘读出的持久化数据（画像、事实、偏好、会话 meta）可能来自旧版本或被手改，
@@ -346,7 +346,7 @@ export const TtsResult = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// avatar（AI ⇄ 角色只传语义事件，docs/design/core-host-decoupling.md §10.5）
+// avatar（AI ⇄ 角色只传语义事件，docs/character-pack/CONTRACT.md）
 // 词表在 @nomi-ai/character-contract（SEMANTIC_*）；契约不依赖它，只要求名字是语义名的形状
 // （驼峰，没有下划线 / 连字符），角色包的资源名（`thumbs_up`、`think-on`）过不了线。
 // ---------------------------------------------------------------------------

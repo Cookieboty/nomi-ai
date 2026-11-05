@@ -1,5 +1,5 @@
 /**
- * 第三方供应商链接（docs/design/provider-link.md）的视图侧：待确认列表、确认 / 拒绝、在设置里发起授权。
+ * 第三方供应商链接（docs/integrations/provider-link.md）的视图侧：待确认列表、确认 / 拒绝、在设置里发起授权。
  * 内核在应用没开时收到链接会先存着：窗口挂载后拉一次列表，之后靠 `providerLink.changed`。
  */
 import { isContractError } from '@nomi-ai/contract';

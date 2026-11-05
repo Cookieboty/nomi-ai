@@ -299,7 +299,7 @@ describe('CliConversation 运行中', () => {
     expect(onPermission).toHaveBeenNthCalledWith(2, 'p1', false);
   });
 
-  it('并行子代理的权限请求全部排出：标注来源与倒计时，各自回复各自的 id（docs/design/cli-subagents.md §5）', () => {
+  it('并行子代理的权限请求全部排出：标注来源与倒计时，各自回复各自的 id（docs/development/coding-agents.md）', () => {
     const onPermission = vi.fn();
     const soon = Date.now() + 90_000;
     const { getAllByTestId, getByTestId } = render(

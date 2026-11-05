@@ -1,10 +1,10 @@
 package connections
 
-// 连接的能力目录（docs/design/connections.md §2），对应 src/connections/catalog.ts，两边逐条一致：
+// 连接的能力目录（docs/features/scheduling-calendar.md），对应 src/connections/catalog.ts，两边逐条一致：
 //
 //   - github.read / mcp.read 只读（L1）；github.comment / github.pr.create / mcp.call 是对外动作（L4），
-//     执行前先写 intent、成功后写 done（persistent-tasks.md §10.2）；
-//   - 本机 MCP 服务器是虚拟连接 `mcp:<服务器 id>`：只接用户已配好的 stdio 服务器，不另存（connections.md §6）。
+//     执行前先写 intent、成功后写 done（docs/features/scheduling-calendar.md）；
+//   - 本机 MCP 服务器是虚拟连接 `mcp:<服务器 id>`：只接用户已配好的 stdio 服务器，不另存（docs/features/scheduling-calendar.md）。
 //     mcp.read 只能给标了 readOnlyHint 的工具；其它工具一律按对外动作（mcp.call）；resources 是工具名；
 //   - 合并、发布这类能力永不授予。
 

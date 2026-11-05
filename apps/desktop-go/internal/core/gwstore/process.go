@@ -1,6 +1,6 @@
 package gwstore
 
-// process.go = core/src/gateway/GatewayProcess.ts：网关进程守护（unified-gateway §5.3）。
+// process.go = core/src/gateway/GatewayProcess.ts：网关进程守护（unified-gateway）。
 // 拉起网关、推送配置快照；意外退出按指数退避重启（1s、2s、4s…最长 30s）；
 // 60s 内 5 次失败熔断；whenReady 最长等 10 秒；lazy 时第一次 ensureStarted/whenReady 才拉起。
 // fork 可注入；默认 fork 在本进程内跑 server.RunGatewayWorker（偏差 D-B5-GW-1：Electron utilityProcess → goroutine）。

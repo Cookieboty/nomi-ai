@@ -36,7 +36,7 @@ function names(): { displayName: string; shortName: string } {
 }
 
 /**
- * The active character's short name in the UI language (§10.1, docs/BRAND.md): wherever the UI
+ * The active character's short name in the UI language (docs/BRAND.md): wherever the UI
  * names the figure on the desktop again ("Close X", "X toolbar"), never a hard-coded official name. Put it into a sentence with `tName` so zh spacing stays right.
  */
 export function characterName(): string {

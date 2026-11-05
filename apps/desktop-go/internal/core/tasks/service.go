@@ -37,11 +37,11 @@ type Service struct {
 	Outbox  *Outbox
 	Store   *Store
 	Runtime *Runtime
-	// Events：事件触发（§6）：事件源由各模块注册（RegisterSource）
+	// Events：事件触发：事件源由各模块注册（RegisterSource）
 	Events  *EventHub
 	sources []*EventSource
 	exec    map[string]Executor
-	// reconcilers：对外动作的自动核对（§10.3），按能力名注册
+	// reconcilers：对外动作的自动核对，按能力名注册
 	reconcilers map[string]Reconciler
 	// mcpTool：在线 MCP 工具是否只读（授权校验：mcp.read 只能给只读工具）
 	mcpTool connections.McpToolLookup
@@ -328,15 +328,15 @@ type DelegatedInput struct {
 	Category string
 }
 
-// 派给 Nomi 的委派（§7.4）：每次执行的 token 与时长上限
+// 派给 Nomi 的委派：每次执行的 token 与时长上限
 const (
 	DelegatedNomiMaxTokens = 2_000_000
 	DelegatedNomiMaxMs     = 2 * 60 * 60_000
 )
 
-// CreateDelegated：对话里 delegate_to_cli 后台派出的任务（persistent-tasks-plan 2.2）：用户已在对话里确认过这次委派；
+// CreateDelegated：对话里 delegate_to_cli 后台派出的任务（docs/features/scheduling-calendar.md）：用户已在对话里确认过这次委派；
 // 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
-// 派给 Nomi 的（executor: nomi，§7.4）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
+// 派给 Nomi 的（executor: nomi）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 	nomi := i.Executor.Kind == "nomi"
 	clis := []string{}
@@ -480,7 +480,7 @@ func (s *Service) Command(id string, c Command) (CmdResult, error) {
 	return s.Runtime.Command(id, c), nil
 }
 
-// ValidateGrant：授权里的连接能力：在目录里、等级够、资源写明（connections.md §2）；合法返回 ""
+// ValidateGrant：授权里的连接能力：在目录里、等级够、资源写明（docs/features/scheduling-calendar.md）；合法返回 ""
 func (s *Service) ValidateGrant(level int, conns []ConnectionGrant) string {
 	g := make([]connections.Grant, 0, len(conns))
 	for _, c := range conns {
@@ -512,7 +512,7 @@ type WorktreeApply struct {
 	Denied     []string `json:"denied"`
 }
 
-// ApplyWorktree：验收卡片上的「回填」（§5.4、§7.2）：把最近一次执行在 worktree 里的改动拷回主工作区。
+// ApplyWorktree：验收卡片上的「回填」：把最近一次执行在 worktree 里的改动拷回主工作区。
 // apply 做实际拷贝（delegate.ApplyWorktreeToMain + 按当前授权检查每个目标）；没有可回填的返回 nil。
 func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []string) WorktreeApply) *WorktreeApply {
 	rec := s.Runtime.Get(id)
@@ -550,7 +550,7 @@ func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []
 	return &r
 }
 
-// SpentToday：今天（本机时区）各次执行的已知费用合计；费用未知的不计入（§9）
+// SpentToday：今天（本机时区）各次执行的已知费用合计；费用未知的不计入
 func SpentToday(attempts []Attempt, now int64) float64 {
 	d := time.UnixMilli(now)
 	start := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.Local).UnixMilli()

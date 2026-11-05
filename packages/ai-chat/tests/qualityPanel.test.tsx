@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 设置 → 模型质量（docs/design/model-quality.md §5）：工具栏（筛选芯片、层级、口径、设置）、
+ * 设置 → 模型质量（docs/development/gateway.md）：工具栏（筛选芯片、层级、口径、设置）、
  * 多级对比表（展开、勾选并排对比、分页、钻取）、趋势、请求明细、空状态。
  */
 import type {

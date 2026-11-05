@@ -1,6 +1,6 @@
 package tasks
 
-// 持续任务的存储，移植 src/tasks/TaskStore.ts（docs/design/persistent-tasks.md §4.3），读写同一格式：
+// 持续任务的存储，移植 src/tasks/TaskStore.ts（docs/features/scheduling-calendar.md），读写同一格式：
 // <id>.json（任务 + 最近 KeepAttempts 次执行，原子写）、<id>.events.jsonl（只追加的事件日志）、
 // <id>.attempts.jsonl（旧执行归档）。读 jsonl 时跳过崩溃留下的半行；追加前若文件不以换行结尾先补换行。
 

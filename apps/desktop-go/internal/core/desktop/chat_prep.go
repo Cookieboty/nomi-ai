@@ -148,7 +148,7 @@ type ChatPrep struct {
 	Broker      WorkspaceBroker
 	ProviderFor func(Role) *Provider
 	CheckSend   func(*Provider, context.Context, string) string
-	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（createCore 里追加派出去的判断规则，§7.4）
+	// AfterWorkspace：会话工作区之后、外发检查之前的就地改写（createCore 里追加派出去的判断规则）
 	AfterWorkspace func(options map[string]any, method string) error
 }
 

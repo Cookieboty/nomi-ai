@@ -1,5 +1,5 @@
 /**
- * 模型质量面板：文案、格式化、层级预设与对比表的列（与 docs/design/model-quality.md §2 的口径一致）。
+ * 模型质量面板：文案、格式化、层级预设与对比表的列（与 docs/development/gateway.md 的口径一致）。
  */
 import { t } from '@nomi-ai/ui';
 
@@ -22,7 +22,7 @@ export const SERIES_COLORS = [
   'var(--cd-viz-4)',
 ] as const;
 
-/** 少于这么多样本只显示中位数（§2.2） */
+/** 少于这么多样本只显示中位数 */
 export const MIN_SAMPLES = 20;
 
 const WIRE_LABEL: Record<string, string> = {

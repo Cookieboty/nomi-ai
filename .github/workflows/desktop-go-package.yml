@@ -4,7 +4,7 @@
 # - push tag v*（≥ v2.0.5）：不重跑测试（打 tag 前 main 上已全绿），直接打包 + 验证 → draft Release
 #   → 三平台产物齐全后自动发布；
 # - workflow_dispatch：在 tag ref 上手动重跑时，publish=true 才发布（失败后补跑用）。
-# 详见 docs/RELEASE.md、docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
+# 详见 docs/RELEASE.md、docs/development/architecture.md。
 name: desktop-go-package
 on:
   workflow_dispatch:

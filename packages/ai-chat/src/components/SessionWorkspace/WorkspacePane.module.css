@@ -272,7 +272,7 @@
   }
 }
 
-/* 底部提交区：固定在列表下方（docs/design/changes-panel-git.md §1） */
+/* 底部提交区：固定在列表下方（docs/development/coding-agents.md） */
 .commitBox {
   display: flex;
   flex: none;

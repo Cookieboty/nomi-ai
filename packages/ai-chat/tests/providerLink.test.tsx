@@ -11,7 +11,7 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-// 第三方供应商链接的确认框（docs/design/provider-link.md）
+// 第三方供应商链接的确认框（docs/integrations/provider-link.md）
 
 const offer = (over: Record<string, unknown> = {}) => ({
   id: 'pl_1',

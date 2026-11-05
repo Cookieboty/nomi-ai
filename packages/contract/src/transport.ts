@@ -1,5 +1,5 @@
 /**
- * 传输接口（docs/design/core-host-decoupling.md §5.1）。
+ * 传输接口（docs/development/contract.md）。
  *
  * 视图侧只依赖 `ClientTransport`，内核侧只依赖 `ServerTransport`；
  * Electron IPC / WebSocket / in-process 都是它们的实现，可以整体替换。

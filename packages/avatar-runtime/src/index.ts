@@ -1,5 +1,5 @@
 /**
- * @nomi-ai/avatar-runtime — 角色引擎（docs/design/core-host-decoupling.md §10.6）。
+ * @nomi-ai/avatar-runtime — 角色引擎（docs/character-pack/CONTRACT.md）。
  *
  * 纯浏览器包：不依赖 contract / electron / ai-sdk-client，也不读宿主全局。宿主给它
  * 角色（manifest + mapping）、`resolveAsset` 与一个语义事件源，收它的互动事件。

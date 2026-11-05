@@ -115,7 +115,7 @@ export interface VoiceApi {
 }
 
 /**
- * 注入点（docs/design/core-host-decoupling.md §12「P1b 实施约定」）：宿主（视图的
+ * 注入点（docs/development/architecture.md「P1b 实施约定」）：宿主（视图的
  * `services/hostBackends/media.ts`）把契约客户端包成 VoiceApi 交给本包；本包不 import 契约。
  * 没有注入时为 null（浏览器预览 / 测试）。
  */

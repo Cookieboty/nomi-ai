@@ -245,7 +245,7 @@
   word-break: break-all;
 }
 
-/* 官方账号登录弹窗里的一次性码（docs/design/cli-official-accounts.md §6） */
+/* 官方账号登录弹窗里的一次性码（docs/development/coding-agents.md） */
 .loginCode {
   display: inline-flex;
   align-items: center;
@@ -271,7 +271,7 @@
   gap: var(--cd-space-1-5);
 }
 
-/* 外部 CLI（§5.9） */
+/* 外部 CLI */
 .extTitle {
   display: inline-flex;
   align-items: center;

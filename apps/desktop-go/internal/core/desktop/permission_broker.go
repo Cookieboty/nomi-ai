@@ -356,7 +356,7 @@ type AuthorizeInput struct {
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
 // 带 Force 的（如 workspace_run）始终确认
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
-	// 后台任务不看前台的档位与「全部自动」（persistent-tasks §8.1）
+	// 后台任务不看前台的档位与「全部自动」（docs/features/scheduling-calendar.md）
 	if BackgroundFrom(i.Signal) != nil {
 		return b.Authorize(i)
 	}

@@ -11,7 +11,7 @@ import { api, hasTransport } from '@/services/api';
 
 /**
  * 宿主事件 → avatar-runtime 的语义事件（`avatarEvents`）：TTS 音量包络（口型）；内核的语义事件
- * `avatar.event`（情绪 / 手势 / 活动 / 等回复，§10.5）；主进程推来的全局光标与窗口物理事件；
+ * `avatar.event`（情绪 / 手势 / 活动 / 等回复）；主进程推来的全局光标与窗口物理事件；
  * 主进程的桌面角色指令（打开面板、说一句、朗读回复）。口型、表情与动作怎么做由运行时按角色包的
  * mapping.json 决定。
  *

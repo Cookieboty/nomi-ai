@@ -1,5 +1,5 @@
 /**
- * WebSocket 传输的视图侧（docs/design/core-host-decoupling.md §5.2、§8）：视图经它连 Go 内核；
+ * WebSocket 传输的视图侧（docs/development/contract.md）：视图经它连 Go 内核；
  * 服务端在 apps/desktop-go/internal/contract（只监听 127.0.0.1）。
  *
  * 握手：浏览器的 WebSocket 不能带自定义头，身份放在子协议里——

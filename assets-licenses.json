@@ -78,7 +78,7 @@
       "pattern": "characters/test-dummy/**",
       "license": "CC0-1.0",
       "author": "Nomi contributors (generated placeholder images and fixture data)",
-      "source": "this repository (stand-in pack for tests, docs/design/core-host-decoupling.md §11.3)"
+      "source": "this repository (stand-in pack for tests, docs/development/architecture.md)"
     },
     {
       "pattern": "apps/desktop-electron/internal/gateway/src/models/catalog.json",

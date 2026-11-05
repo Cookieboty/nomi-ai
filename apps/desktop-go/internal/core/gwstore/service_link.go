@@ -1,6 +1,6 @@
 package gwstore
 
-// 第三方供应商链接导入（docs/design/provider-link.md）= GatewayService.findProviderByUrls / importLinkedProvider。
+// 第三方供应商链接导入（docs/integrations/provider-link.md）= GatewayService.findProviderByUrls / importLinkedProvider。
 
 import (
 	"strings"

@@ -1,5 +1,5 @@
 /**
- * 对话窗口的面板导航与拖入总结（docs/design/core-host-decoupling.md §5.3、§12）。
+ * 对话窗口的面板导航与拖入总结（docs/development/contract.md）。
  *
  * 宿主打开对话窗口后发布导航事件（`providers.openPanel` / `nav.*Requested`）或拖入总结（`desktop.summary`）。
  * 已经开着的窗口经事件收到；刚打开的窗口在发布时还没订阅，内核把这次留着，窗口挂载时拉取

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Mock generic ACP agent (an "external CLI" added in Settings → 编程助手 → 添加 CLI, §5.9).
+ * Mock generic ACP agent (an "external CLI" added in Settings → 编程助手 → 添加 CLI).
  * Usage: mock-acp.mjs acp [--cwd <dir>] [...]   (the "acp" argument is required, to test arg templates)
  * Env: NOMI_MOCK_ACP_LOG=<file>      append {argv, cwd} and every request method (one JSON per line)
  *      NOMI_MOCK_ACP_DIR=<dir>       where sessions are kept so session/load works across restarts

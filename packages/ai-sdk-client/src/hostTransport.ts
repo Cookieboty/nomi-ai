@@ -1,5 +1,5 @@
 /**
- * 视图窗口的契约传输（docs/design/core-host-decoupling.md §5.2、§11.1）。
+ * 视图窗口的契约传输（docs/development/contract.md）。
  *
  * 对话窗口（ai-chat，surface `chat`）与桌面角色窗口（renderer，surface `mascot`）各有一个
  * `services/api.ts`，在 `createAppClient()` 之前调一次 {@link installGoHostTransport}：

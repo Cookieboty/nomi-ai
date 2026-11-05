@@ -1,6 +1,6 @@
 /**
  * D5（mascot）：mascot / character / persona / island / chatBg / files / window 的过程与事件
- * （docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * （docs/development/architecture.md「P1b 实施约定」）。
  */
 
 import { describe, expect, it } from 'vitest';

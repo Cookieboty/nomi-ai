@@ -2,7 +2,7 @@
 
 /**
  * 测试 / 测量用：把仓库里角色包的远程素材（manifest assets.remote，如官方角色的 .riv）按内核缓存的格式放进
- * 某个 userData，等同于用户已经下载过（docs/design/remote-character-assets.md）。内核启动即就绪，
+ * 某个 userData，等同于用户已经下载过（docs/character-pack/README.md）。内核启动即就绪，
  * 不依赖外网与 GitHub Release `characters`；联网检查失败时内核也继续用这份缓存。
  *
  *   node scripts/character/seed-remote-cache.mjs <userData> [packDir=characters/nomi]

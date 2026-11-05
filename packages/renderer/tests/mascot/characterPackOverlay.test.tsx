@@ -185,7 +185,7 @@ describe('Scheme B overlay readiness', () => {
     ]);
   });
 
-  it('names the figure after the active character, never the official one (§10.1)', async () => {
+  it('names the figure after the active character, never the official one', async () => {
     // 内置包（这次构建打进去的包）的人设名
     // 简称（官方包「Nomi」），全名（官方包「Nomi·诺米」）只在第一次提到时用（docs/BRAND.md）
     expect(characterName()).toBe(

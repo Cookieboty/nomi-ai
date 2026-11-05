@@ -99,7 +99,7 @@ func New(cfg Config) *Wails {
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
 		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
-		// 才 Show，这里按 Electron ready-to-show 的语义在首帧就显示（§3.4 D-B11-17）
+		// 才 Show，这里按 Electron ready-to-show 的语义在首帧就显示（D-B11-17）
 		RawMessageHandler: func(win application.Window, msg string, _ *application.OriginInfo) {
 			// 开发态（devviews → viewpage）页面转来的 console 与报错
 			if rest, ok := strings.CutPrefix(msg, viewpage.LogPrefix); ok && win != nil {

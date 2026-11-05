@@ -273,7 +273,7 @@ func (o *Orchestrator) childEnv(useNode bool, l *tabLaunch, extra *util.Obj) *ut
 }
 
 // taskEnv = taskEnv：持续任务开的标签默认隔离 gh 登录（空的 GH_CONFIG_DIR、去掉令牌变量、关交互）；
-// 任务授权里有 GitHub 对外能力（delegation.githubAccess）时不隔离（connections.md §4.4）。其他标签原样返回。
+// 任务授权里有 GitHub 对外能力（delegation.githubAccess）时不隔离（docs/features/scheduling-calendar.md）。其他标签原样返回。
 func (o *Orchestrator) taskEnv(tab *util.Obj, env *util.Obj) *util.Obj {
 	d, _ := tab.Get("delegation").(*util.Obj)
 	if d == nil || !truthy(d.Get("taskId")) || truthy(d.Get("githubAccess")) {
@@ -403,7 +403,7 @@ func (o *Orchestrator) PickTabCwd(id string) *jsrt.Promise[*util.Obj] {
 	})
 }
 
-// SteerTab = steerTab：一轮进行中插入一条用户消息（工作台 Enter 插入，docs/design/cli-steer.md），交给长驻进程，
+// SteerTab = steerTab：一轮进行中插入一条用户消息（工作台 Enter 插入，docs/development/coding-agents.md），交给长驻进程，
 // CLI 在下一个工具 / 模型步骤取走，这一轮不中断。成功后在这一轮的轨迹里记一条 interject（落盘、实时显示）。
 // 没有进行中的轮次、后端不支持（Gemini / dsh / exec 退路）或 CLI 拒绝时 false，视图改为排队。
 func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {

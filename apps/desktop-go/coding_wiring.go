@@ -106,7 +106,7 @@ type delegateGateway struct{ g *gwstore.Service }
 func (h delegateGateway) Defaults(cli string) *util.Obj { return h.g.CliDefaults(cli) }
 func (h delegateGateway) Models() []*util.Obj           { return h.g.CliModels() }
 
-// delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，persistent-tasks-plan 2.2）
+// delegateTasks：delegate.TaskPort ← tasks.Service（后台委派 = 持续任务，docs/features/scheduling-calendar.md）
 type delegateTasks struct{ s *tasks.Service }
 
 func (t delegateTasks) CreateDelegated(i tasks.DelegatedInput) (tasks.Task, error) {
@@ -162,7 +162,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router},
 	}
-	// 后台委派 = 持续任务（persistent-tasks-plan 2.2）：排队、重试、重启续跑、验收都走任务
+	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {
 		dd.Tasks = delegateTasks{taskSvc}
 	}

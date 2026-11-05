@@ -1,5 +1,5 @@
 /**
- * 持续任务（`tasks.*`）的契约 schema（docs/design/persistent-tasks.md §4、§14）。
+ * 持续任务（`tasks.*`）的契约 schema（docs/features/scheduling-calendar.md）。
  * 形状与内核的 `src/tasks/types.ts` 一致；读出的对象用 looseObject（内核可以多带字段），写入的输入严格校验。
  */
 import { z } from 'zod';
@@ -128,7 +128,7 @@ export const TaskRecordView = z.looseObject({
   attempts: z.array(TaskAttemptView),
 });
 
-/** 旧的提醒 / 定时代理任务（只读并入任务页，设计稿 §13 的 2.1.0 调整） */
+/** 旧的提醒 / 定时代理任务（只读并入任务页，设计稿 的 2.1.0 调整） */
 export const LegacyTaskItem = z.object({
   source: z.enum(['reminder', 'schedule']),
   id: z.string(),
@@ -156,7 +156,7 @@ export const TaskSourceEvent = z.object({
   payload: z.unknown(),
 });
 
-/** 事件任务的观察结果与拉取状态（§6.3） */
+/** 事件任务的观察结果与拉取状态 */
 export const TaskEventsView = z.object({
   observed: z.array(TaskSourceEvent),
   lastPollAt: z.number().optional(),
@@ -164,7 +164,7 @@ export const TaskEventsView = z.object({
   sources: z.array(z.string()),
 });
 
-// ---------- connections（docs/design/connections.md） ----------
+// ---------- connections（docs/features/scheduling-calendar.md） ----------
 
 export const ConnectionView = z.looseObject({
   id: z.string(),

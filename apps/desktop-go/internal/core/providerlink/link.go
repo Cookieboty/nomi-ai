@@ -1,4 +1,4 @@
-// Package providerlink 是第三方供应商链接（docs/design/provider-link.md）：
+// Package providerlink 是第三方供应商链接（docs/integrations/provider-link.md）：
 // apps/desktop-electron/internal/core/src/gateway/providerLink.ts（纯逻辑）与 ProviderLinkService.ts（流程）的移植。
 // 纯逻辑与 TS 跑同一份用例：apps/desktop-electron/internal/core/tests/fixtures/provider-link-cases.json。
 package providerlink

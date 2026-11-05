@@ -1,9 +1,9 @@
 /**
- * 内核侧：`implement(contract, handlers)` → Router（docs/design/core-host-decoupling.md §4.1、§8）。
+ * 内核侧：`implement(contract, handlers)` → Router（docs/development/contract.md）。
  *
  * - 处理函数表按契约推导：缺过程、多过程、参数或返回值类型不符都会编译失败；
  * - 调用链：内置守卫（surfaces / dangerous）→ 入参校验 → 中间件（洋葱模型）→ 处理函数 → 出参校验；
- * - `ctx.events.publish` 按契约事件表做类型与 schema 校验，内核不知道窗口，由传输层按订阅推送（§5.3）。
+ * - `ctx.events.publish` 按契约事件表做类型与 schema 校验，内核不知道窗口，由传输层按订阅推送。
  */
 
 import type { z } from 'zod';
@@ -29,7 +29,7 @@ import { abortedError, ContractError } from './errors';
 import { PROTOCOL_VERSION } from './protocol';
 import type { ContractLogger } from './transport';
 
-/** 调用者信息（§8）：由传输层填写，router 中间件据此判定 */
+/** 调用者信息：由传输层填写，router 中间件据此判定 */
 export interface CallerContext {
   surface: Surface;
   /** 宿主确认来源是自家页面 */
@@ -160,7 +160,7 @@ const handshakeInput = {
   },
 };
 
-/** 内置守卫（§8）：surfaces 白名单与 dangerous 过程只接受 trusted 调用者。不可关闭。 */
+/** 内置守卫：surfaces 白名单与 dangerous 过程只接受 trusted 调用者。不可关闭。 */
 function guard(name: string, def: ProcedureDef, caller: CallerContext | undefined): void {
   if (!caller) throw new ContractError('FORBIDDEN', `No caller for '${name}'`);
   if (def.surfaces && !def.surfaces.includes(caller.surface)) {

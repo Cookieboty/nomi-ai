@@ -1,5 +1,5 @@
 // Package archguard 用静态扫描守住 Go 版的分层边界，与 Node 版的 ESLint 边界规则对等
-// （docs/design/core-host-decoupling.md §3.2、§7.2、§11.1）：
+// （docs/development/architecture.md）：
 //
 //  1. Wails 框架（github.com/wailsapp/wails/v3/...）只能出现在壳层 internal/shell/wailsshell，
 //     业务内核（core / gateway / ai / contract / procs / clisdk ...）一律不得依赖宿主框架；
@@ -77,7 +77,7 @@ func TestBoundaries(t *testing.T) {
 			if strings.HasPrefix(imp, wailsPrefix) && !inShell {
 				violations = append(violations, violation{
 					file: rel, imp: imp,
-					msg: "业务内核不能依赖 Wails 框架：平台能力走 hostports 端口，宿主实现放 internal/shell/wailsshell（§3.2、§7.2）",
+					msg: "业务内核不能依赖 Wails 框架：平台能力走 hostports 端口，宿主实现放 internal/shell/wailsshell",
 				})
 			}
 
@@ -85,7 +85,7 @@ func TestBoundaries(t *testing.T) {
 				!inShell && strings.HasPrefix(relDir, "internal/") {
 				violations = append(violations, violation{
 					file: rel, imp: imp,
-					msg: "internal/ 下的包不能依赖壳层 wailsshell：只能由仓库根组合根接线，业务内核依赖 hostports 端口（§3.2、§6）",
+					msg: "internal/ 下的包不能依赖壳层 wailsshell：只能由仓库根组合根接线，业务内核依赖 hostports 端口",
 				})
 			}
 		}

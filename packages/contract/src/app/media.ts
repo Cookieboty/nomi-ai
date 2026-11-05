@@ -1,5 +1,5 @@
 /**
- * D1 · 语音 / 朗读 / 桌面能力 / 屏幕（docs/design/core-host-decoupling.md §12 P1b）。
+ * D1 · 语音 / 朗读 / 桌面能力 / 屏幕（docs/development/architecture.md）。
  *
  * 本文件只属于 D1：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：voice、tts、desktop、screen、nav（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -15,7 +15,7 @@
  * - `ai:screen:check-send`（screen/ScreenService.ts）
  * - 导航：`open-voice-settings`，事件 `ai:desktop:open-panel` / `ai:hub:open-schedule` / `ai:settings:open-voice`
  *
- * 安全（§8）：
+ * 安全：
  * - `ai:*` 两个窗口都有，不写 surfaces；只在一个 preload 里暴露的写 surfaces：桌面角色（preload.ts 的
  *   electronAPI）`['mascot']`，对话窗口（原 ai-chat-preload.ts 的 electronAPI.tts）`['chat']`；`tts:stop` 两边都有；
  * - 回答用户确认、授予权限的写 `dangerous: true`：确认答复、授权文件夹、工具策略、仅本地开关、全部重置、
@@ -350,7 +350,7 @@ export const mediaEvents = {
 } as const satisfies EventMap;
 
 /**
- * 事件的订阅白名单（§8）：确认请求给桌面角色与对话窗口（服务按当前开着的窗口只发一边），气泡只给桌面角色窗口，总结全文与面板导航只给对话窗口
+ * 事件的订阅白名单：确认请求给桌面角色与对话窗口（服务按当前开着的窗口只发一边），气泡只给桌面角色窗口，总结全文与面板导航只给对话窗口
  * （`settings` 在 Electron 上也是对话窗口）。其它界面的订阅被传输层忽略。
  */
 export const mediaEventSurfaces = {

@@ -29,7 +29,7 @@ export interface TabLive {
   firstEventAt?: number;
   /**
    * 待确认的权限请求（按到达顺序排队）：并行子代理会同时请求，不能互相覆盖
-   * （docs/design/cli-subagents.md §5）
+   * （docs/development/coding-agents.md）
    */
   permissions?: PendingPermission[];
   /** 最近一次超时自动拒绝（界面短暂提示） */

@@ -1,10 +1,10 @@
 package tasks
 
-// nomi 执行者，对应 src/tasks/executors/nomi.ts：无界面跑一轮 Nomi 的 agent 循环（persistent-tasks §7.1）。
+// nomi 执行者，对应 src/tasks/executors/nomi.ts：无界面跑一轮 Nomi 的 agent 循环（docs/features/scheduling-calendar.md）。
 // 每次执行一个 goroutine；工具审批经 broker 的后台模式（WithBackground 挂在 ctx 上），需要人时阻塞在通道上
 // 等 Resume 送来的回答。预算暂停会取消这一轮，批准继续后带着进展重开。
 //
-// 对话里派给 Nomi 的（toolset: conversation，§7.4）：工具用对话的工具集（去掉 ConversationExcluded），
+// 对话里派给 Nomi 的（toolset: conversation）：工具用对话的工具集（去掉 ConversationExcluded），
 // 在发起对话的工作区里做；工具调用期间（生图、同步等编程助手）自己发心跳，不被看守判成崩溃。
 
 import (
@@ -39,7 +39,7 @@ var connTools = []struct{ cap, tool string }{
 	{"github.read", "github_read"}, {"github.comment", "github_comment"}, {"github.pr.create", "github_pr_create"},
 }
 
-// AllowedTools：工具类 → 工具名；经连接的能力（connections.md §2）授权里给了才提供：github.read → github_read，
+// AllowedTools：工具类 → 工具名；经连接的能力（docs/features/scheduling-calendar.md）授权里给了才提供：github.read → github_read，
 // github.comment / github.pr.create → github_comment / github_pr_create（对外能力 L4 另由授权检查与副作用日志把关），
 // 本机 MCP 工具按注册名 `<服务器>__<工具>` 只给授权里逐个列出的
 func AllowedTools(classes []string, conns ...ConnectionGrant) []string {
@@ -134,8 +134,8 @@ func ToolsForTask(t Task, registered []string) []string {
 type NomiDeps struct {
 	// AgentStream：client.chat.AgentStream，tools 白名单、quiet
 	AgentStream func(ctx context.Context, messages []blm.ChatMessage, tools []string, extra map[string]any, emit func(blm.ChatChunk)) error
-	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）；tainted = 事件触发，读过外部内容（§8.4）；
-	// trusted = 高级权限（派给 Nomi 的执行，§7.4）；
+	// WithBackground：把后台执行登记到 ctx（desktop.WithBackground）；tainted = 事件触发，读过外部内容；
+	// trusted = 高级权限（派给 Nomi 的执行）；
 	// external = 这次执行的副作用日志（对外工具执行前写 intent、成功后写 done），可为 nil
 	WithBackground func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context
 	// LiveGrant：把任务「当前」的授权接到后台登记上（运行中收窄立即生效，#232；文件夹范围 #231）。
@@ -228,7 +228,7 @@ func ClassifyError(msg string) TaskError {
 	return TaskError{Code: "executor_failed", Message: msg}
 }
 
-// EventsSection：触发这次执行的事件：外部内容，只当数据（§8.3）；最多 6000 字
+// EventsSection：触发这次执行的事件：外部内容，只当数据；最多 6000 字
 func EventsSection(events []SourceEvent) string {
 	if len(events) == 0 {
 		return ""
@@ -366,8 +366,8 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	}
 	ctx := base
 	if e.d.WithBackground != nil {
-		// 事件触发的执行读过外部内容：写入与命令都问人（§8.4）；派给 Nomi 的是高级权限：
-		// 已注册的 MCP 工具全部授权、标为 trusted（§7.4）
+		// 事件触发的执行读过外部内容：写入与命令都问人；派给 Nomi 的是高级权限：
+		// 已注册的 MCP 工具全部授权、标为 trusted
 		var external connections.ExternalJournal
 		if e.d.ExternalJournal != nil {
 			external = e.d.ExternalJournal(t.ID, a.ID)

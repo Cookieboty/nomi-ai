@@ -1,7 +1,7 @@
 package tasks
 
-// 持续任务状态机，逐分支移植 src/tasks/machine.ts（docs/design/persistent-tasks.md §5；
-// 取舍依据 persistent-tasks-references.md）。纯函数：不读时钟、不生成 id、不做副作用；
+// 持续任务状态机，逐分支移植 src/tasks/machine.ts（docs/features/scheduling-calendar.md；
+// 取舍依据 docs/features/scheduling-calendar.md）。纯函数：不读时钟、不生成 id、不做副作用；
 // 输入不被修改（结构体按值复制，指针字段只替换不改写）。
 // golden：scripts/parity/record-tasks-machine.mjs → testdata/tasks-machine.json
 

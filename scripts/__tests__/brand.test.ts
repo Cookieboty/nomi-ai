@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { brand } from '../../packages/types/src/brand';
 
-// 产品名只有一个来源（docs/design/core-host-decoupling.md §10.1）：`@nomi-ai/types` 的 `brand`。
+// 产品名只有一个来源（docs/character-pack/CONTRACT.md）：`@nomi-ai/types` 的 `brand`。
 // Go 版的 appId 写在 Go 常量与各平台打包模板里（不能 import TS），这里守住几处一致。
 const root = join(__dirname, '../..');
 const read = (rel: string): string => readFileSync(join(root, rel), 'utf8');

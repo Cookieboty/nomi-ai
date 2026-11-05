@@ -2,7 +2,7 @@
 //
 // Node 里这些服务直接拿 DesktopService（批次 6）、AI runtime（批次 4/5）、HostPorts 的实例；
 // Go 侧按「消费方定义接口」收窄成这里的小接口，由 main.go 装配。尚未移植的部分在
-// fakes.go / noop 实现里给出空行为，并在 docs/design/migrate-2.0.5-go.md §3.4 D-B8-* 记录。
+// fakes.go / noop 实现里给出空行为。
 package deps
 
 import (

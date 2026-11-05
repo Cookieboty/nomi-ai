@@ -22,7 +22,7 @@ export interface HarnessState {
 
 export type HarnessTabStatus = 'idle' | 'queued' | 'running' | 'error';
 
-/** 由 Nomi 委派开的标签（docs/design/nomi-delegate-cli.md） */
+/** 由 Nomi 委派开的标签（docs/development/coding-agents.md） */
 export interface HarnessDelegation {
   by: 'nomi';
   /** 派出它的 Nomi 工具调用 id */
@@ -41,7 +41,7 @@ export interface HarnessTabMeta {
   delegation?: HarnessDelegation;
   backend: HarnessBackend;
   /**
-   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。
+   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id）。
    * 插件被删除后标签保留，发消息时报错。
    */
   pluginId?: string;
@@ -59,11 +59,11 @@ export interface HarnessTabMeta {
   /** 权限模式（主进程已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode?: PermissionMode;
   /**
-   * 标签的来源（docs/design/unified-gateway.md §4.3）：官方账号 / 第三方（经网关）；缺省 = 官方。
+   * 标签的来源（docs/development/gateway.md）：官方账号 / 第三方（经网关）；缺省 = 官方。
    * 切换走 setTabSource，规则由主进程执行（空标签直接切；官方 → 第三方续接；第三方 → 官方带上下文新开）。
    */
   source?: TabSource;
-  /** 官方来源下用哪个官方账号；null / 缺省 = 跟随默认账号（docs/design/cli-plugin-architecture.md §5.10） */
+  /** 官方来源下用哪个官方账号；null / 缺省 = 跟随默认账号（docs/development/coding-agents.md） */
   accountId?: string | null;
   /**
    * 标签级模型覆盖。官方来源：CLI 的模型 id，null/缺省 = 沿用 CLI 默认模型（进程级参数注入，不改全局配置）；
@@ -220,7 +220,7 @@ export type HarnessLiveEvent =
       reason: 'allowed' | 'denied' | 'timeout';
     };
 
-/** 子代理生命周期（主进程统一的 agent 事件，见 docs/design/cli-subagents.md §3） */
+/** 子代理生命周期（主进程统一的 agent 事件，见 docs/development/coding-agents.md） */
 export interface LiveAgentEvent {
   type: 'agent';
   op: 'start' | 'progress' | 'end';
@@ -521,7 +521,7 @@ export const harnessClient = {
     cwd?: string;
     title?: string;
     messages?: HarnessTabMessage[];
-    /** backend = 'external' 时：外部插件 id（「添加 CLI」，§5.9） */
+    /** backend = 'external' 时：外部插件 id（「添加 CLI」） */
     pluginId?: string;
   }) => call<HarnessTabMeta>(() => api.harness.tabCreate(o as never)),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>

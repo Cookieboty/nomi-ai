@@ -1,5 +1,5 @@
 // Package tasks 移植 apps/desktop-electron/internal/core/src/tasks：持续任务的数据模型、错误码与状态机
-// （docs/design/persistent-tasks.md）。JSON 形状与 Node 版一致：可选字段用指针 + omitempty，
+// （docs/features/scheduling-calendar.md）。JSON 形状与 Node 版一致：可选字段用指针 + omitempty，
 // 对应 TS 里值为 undefined 的键被去掉；空数组照常输出 []。
 package tasks
 
@@ -28,7 +28,7 @@ const (
 // TerminalStatuses：结束态，不再触发、不再接受执行回报
 var TerminalStatuses = []string{StatusDone, StatusFailed, StatusCancelled, StatusExpired}
 
-// InboxStatuses：需要用户处理、出现在收件箱里的状态（§11）
+// InboxStatuses：需要用户处理、出现在收件箱里的状态
 var InboxStatuses = []string{
 	StatusWaitingUser, StatusNeedsReconcile, StatusAwaitingAccept, StatusFailed, StatusExpired,
 }
@@ -53,7 +53,7 @@ type ExecutorSpec struct {
 	Model    *string   `json:"model,omitempty"`
 	Tools    *[]string `json:"tools,omitempty"`
 	Scenario *string   `json:"scenario,omitempty"`
-	// Toolset：nomi 的 "conversation" = 对话里派给 Nomi 的（§7.4）：用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
+	// Toolset：nomi 的 "conversation" = 对话里派给 Nomi 的：用对话的工具集（去掉不能在后台用的），不按 tools 裁剪；
 	// 高级权限：L4、已装的 MCP 工具全部授权、读过外部内容后的写入不再一律问人
 	Toolset *string `json:"toolset,omitempty"`
 	Cli     *string `json:"cli,omitempty"`
@@ -148,7 +148,7 @@ type AttemptCause struct {
 	Answer   *Answer `json:"answer,omitempty"`
 }
 
-// FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容（§8.4）——事件触发的，以及接着它
+// FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容——事件触发的，以及接着它
 // 重试 / 续跑 / 退回的（继承了 eventKey）。恢复原因变了不能让审批变宽（#250）
 func (c AttemptCause) FromExternalEvent() bool {
 	return c.Kind == "event" || (c.EventKey != nil && *c.EventKey != "")

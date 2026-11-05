@@ -1,5 +1,5 @@
 /**
- * @nomi-ai/contract —— 视图与内核之间的 API 契约（docs/design/core-host-decoupling.md §4、§5、§8）。
+ * @nomi-ai/contract —— 视图与内核之间的 API 契约（docs/development/contract.md）。
  *
  * - `defineContract`：过程（query / mutation / stream）+ 事件 + zod schema + 版本号；
  * - `createClient`：视图侧类型化 api；

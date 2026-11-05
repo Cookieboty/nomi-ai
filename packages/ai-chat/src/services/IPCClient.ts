@@ -74,7 +74,7 @@ const writeStorage = (key: string, value: unknown): void => {
 
 /**
  * systemPrompt 没有默认值：未自定义时用内核拼装的默认系统提示（契约 `persona.systemPrompt`：当前角色的
- * 身份段 + 与角色无关的对话要求，docs/design/core-host-decoupling.md §10.4）。界面包里不写任何角色人设。
+ * 身份段 + 与角色无关的对话要求，docs/character-pack/CONTRACT.md）。界面包里不写任何角色人设。
  */
 const DEFAULT_CONFIG: ChatConfig = {
   theme: 'light',

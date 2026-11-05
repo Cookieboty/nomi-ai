@@ -8,7 +8,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 链接导入（docs/design/provider-link.md）：没有同地址的新建；有的话补 Key / 地址 / 模型，同样的 Key 不重复加
+// 链接导入（docs/integrations/provider-link.md）：没有同地址的新建；有的话补 Key / 地址 / 模型，同样的 Key 不重复加
 func TestImportLinkedProvider(t *testing.T) {
 	ud := t.TempDir()
 	s := NewService(filepath.Join(ud, "gateway"), fakeCipher{}, nil, nil)

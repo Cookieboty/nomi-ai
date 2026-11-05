@@ -1,7 +1,7 @@
 // Package contract 是 packages/contract 线协议（protocol.ts / wire.ts）的 Go 端实现：
 // 帧格式、过程注册表、流式与取消。和传输无关：WebSocket、Wails stream 都只是把帧搬来搬去。
 //
-// POC 里帧类型是手写的；正式迁移时由 contract 的 zod 定义导出 JSON Schema 再生成（见 docs/design/arch-go-wails.md §4）。
+// POC 里帧类型是手写的；正式迁移时由 contract 的 zod 定义导出 JSON Schema 再生成（见 docs/development/architecture.md）。
 package contract
 
 import (
@@ -187,7 +187,7 @@ func (r *Router) allowed(name, surface string) bool {
 	return false
 }
 
-// guard：router.ts 的内置守卫（§8）——surfaces 白名单，dangerous 过程只接受 trusted 调用者
+// guard：router.ts 的内置守卫——surfaces 白名单，dangerous 过程只接受 trusted 调用者
 func (r *Router) guard(name string, c Caller) error {
 	if !r.allowed(name, c.Surface) {
 		return &Error{Code: "FORBIDDEN", Message: "Surface '" + c.Surface + "' may not call '" + name + "'",

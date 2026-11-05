@@ -1,5 +1,5 @@
 /**
- * 右栏「改动」分支栏的 git 信息（docs/design/changes-panel-git.md §3、§5）：与上游的差距、同一仓库的 worktree。
+ * 右栏「改动」分支栏的 git 信息（docs/development/coding-agents.md）：与上游的差距、同一仓库的 worktree。
  * 换目录、这一轮跑完、窗口重新拿到焦点、nonce 变化时重读。ahead / behind 只按本地已知的远端分支算，要新的先「检查远端」。
  * 不是 git 仓库、主进程没有这个接口时返回 null。
  */

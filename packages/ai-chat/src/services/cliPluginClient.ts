@@ -1,5 +1,5 @@
 /**
- * 编程助手插件注册表与外部插件（L1 声明式，docs/design/cli-plugin-architecture.md §5.9）的渲染进程客户端：
+ * 编程助手插件注册表与外部插件（L1 声明式，docs/development/coding-agents.md）的渲染进程客户端：
  * 契约 `cli.registry`、`cli.pluginAdd / pluginRemove / pluginTest`、事件 `cli.registryChanged`（主进程 CliPluginHost）。
  */
 import { t } from '@nomi-ai/ui';

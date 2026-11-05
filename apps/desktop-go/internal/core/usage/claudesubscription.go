@@ -33,7 +33,7 @@ type ClaudeUsageParse struct {
 }
 
 // ParseClaudeUsageResultFn = claudeUsageParser.parseClaudeUsageResult。claudeUsageParser 由 UsageService 侧
-// 移植（同包另一文件）并在 init 里接上；未接上时等同解析抛错（= spawn-failed），见 §3.4。
+// 移植（同包另一文件）并在 init 里接上；未接上时等同解析抛错（= spawn-failed）。
 var ParseClaudeUsageResultFn func(stdout string, now float64) ClaudeUsageParse
 
 // DefaultClaudeBin / DefaultCodexBin：由 core/cli 在 init 时接上（= resolveCliBinAsync('claude'/'codex')）。

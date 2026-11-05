@@ -1,5 +1,5 @@
 /**
- * 诊断日志（docs/design/cli-plugin-architecture.md §8）：应用契约 `diagnostics.*` 的薄封装（只在对话窗口）。
+ * 诊断日志（docs/development/coding-agents.md）：应用契约 `diagnostics.*` 的薄封装（只在对话窗口）。
  * 浏览器预览等没有契约传输的环境 available() 为 false，界面不显示这一组。
  */
 import { api, hasTransport } from './api';
