@@ -1,11 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  CONVERSATIONS_CHANGED_EVENT,
-  ConversationStore,
-  createMemoryStorage,
-} from '../src/services/conversationStore';
+import { CONVERSATIONS_CHANGED_EVENT, ConversationStore } from '../src/services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../src/services/forkConversation';
 import { harnessClient } from '../src/services/harnessClient';
 import type { ChatMessage } from '../src/types/chat';
@@ -47,7 +43,6 @@ describe('forkConversation', () => {
   beforeEach(() => {
     let n = 0;
     store = new ConversationStore({
-      storage: createMemoryStorage(),
       now: () => 1000 + ++n,
       newId: () => `c${++n}`,
     });

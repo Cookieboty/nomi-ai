@@ -1,7 +1,7 @@
 {
  "version": {
   "major": 2,
-  "minor": 3
+  "minor": 4
  },
  "procedures": {
   "agents.scan": {
@@ -7216,6 +7216,413 @@
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "boolean"
+   }
+  },
+  "conversations.append": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "messages": {
+      "minItems": 1,
+      "type": "array",
+      "items": {}
+     },
+     "meta": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": {}
+     },
+     "preview": {
+      "type": "string"
+     },
+     "max": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id",
+     "messages"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.delete": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.import": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "meta": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": {}
+     },
+     "messages": {
+      "type": "array",
+      "items": {}
+     },
+     "preview": {
+      "type": "string"
+     },
+     "first": {
+      "type": "boolean"
+     },
+     "final": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "meta",
+     "messages",
+     "first",
+     "final"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "imported": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "imported"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "conversations.markMigrated": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "count"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.messages": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "limit": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "messages": {
+      "type": "array",
+      "items": {}
+     },
+     "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "messages"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "conversations.put": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "meta": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": {}
+     },
+     "messages": {
+      "type": "array",
+      "items": {}
+     },
+     "preview": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "meta"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.replace": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "messages": {
+      "type": "array",
+      "items": {}
+     },
+     "meta": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": {}
+     },
+     "preview": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "messages"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.setPointers": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "current": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "lastNomi": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.state": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "conversations": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "previews": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "counts": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      }
+     },
+     "current": {
+      "type": "string"
+     },
+     "lastNomi": {
+      "type": "string"
+     },
+     "migrated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "conversations",
+     "previews",
+     "counts",
+     "migrated"
+    ],
+    "additionalProperties": {}
    }
   },
   "delegate.clearPin": {
@@ -27286,6 +27693,29 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "null"
   },
+  "conversations.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "source": {
+     "type": "string"
+    },
+    "ids": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "index": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "ids",
+    "index"
+   ],
+   "additionalProperties": {}
+  },
   "delegate.completed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -29050,6 +29480,7 @@
  "errors": [
   "UNAVAILABLE",
   "PROVIDER_LINK_FAILED",
+  "CONVERSATION_NOT_FOUND",
   "ACCOUNT_NOT_FOUND",
   "ACCOUNT_IN_USE",
   "ACCOUNT_LOCAL",

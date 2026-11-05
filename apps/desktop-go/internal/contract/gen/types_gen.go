@@ -1742,6 +1742,96 @@ type ConnectionsRemoveInput struct {
 	Id string `json:"id"`
 }
 
+type ConversationsAppendInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsAppendInput struct {
+	Source   *string                       `json:"source,omitempty"`
+	Id       string                        `json:"id"`
+	Messages []any                         `json:"messages"`
+	Meta     *ConversationsAppendInputMeta `json:"meta,omitempty"`
+	Preview  *string                       `json:"preview,omitempty"`
+	Max      *int64                        `json:"max,omitempty"`
+}
+
+type ConversationsDeleteInput struct {
+	Source *string `json:"source,omitempty"`
+	Id     string  `json:"id"`
+}
+
+type ConversationsImportInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsImportInput struct {
+	Meta     ConversationsImportInputMeta `json:"meta"`
+	Messages []any                        `json:"messages"`
+	Preview  *string                      `json:"preview,omitempty"`
+	First    bool                         `json:"first"`
+	Final    bool                         `json:"final"`
+}
+
+type ConversationsImportOutput struct {
+	Imported bool `json:"imported"`
+}
+
+type ConversationsMarkMigratedInput struct {
+	Count int64 `json:"count"`
+}
+
+type ConversationsMessagesInput struct {
+	Id    string `json:"id"`
+	Limit *int64 `json:"limit,omitempty"`
+}
+
+type ConversationsMessagesOutput struct {
+	Messages []any  `json:"messages"`
+	Bytes    *int64 `json:"bytes,omitempty"`
+}
+
+type ConversationsPutInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsPutInput struct {
+	Source   *string                   `json:"source,omitempty"`
+	Meta     ConversationsPutInputMeta `json:"meta"`
+	Messages []any                     `json:"messages,omitempty"`
+	Preview  *string                   `json:"preview,omitempty"`
+}
+
+type ConversationsReplaceInputMeta struct {
+	Id string `json:"id"`
+}
+
+type ConversationsReplaceInput struct {
+	Source   *string                        `json:"source,omitempty"`
+	Id       string                         `json:"id"`
+	Messages []any                          `json:"messages"`
+	Meta     *ConversationsReplaceInputMeta `json:"meta,omitempty"`
+	Preview  *string                        `json:"preview,omitempty"`
+}
+
+type ConversationsSetPointersInput struct {
+	Source   *string `json:"source,omitempty"`
+	Current  *string `json:"current,omitempty"`
+	LastNomi *string `json:"lastNomi,omitempty"`
+}
+
+type ConversationsStateOutputConversationsItem struct {
+	Id string `json:"id"`
+}
+
+type ConversationsStateOutput struct {
+	Conversations []ConversationsStateOutputConversationsItem `json:"conversations"`
+	Previews      map[string]string                           `json:"previews"`
+	Counts        map[string]int64                            `json:"counts"`
+	Current       *string                                     `json:"current,omitempty"`
+	LastNomi      *string                                     `json:"lastNomi,omitempty"`
+	Migrated      bool                                        `json:"migrated"`
+}
+
 type DelegateClearPinInput struct {
 	TurnId string `json:"turnId"`
 }
@@ -7124,6 +7214,12 @@ type EventCliUpdateEvent struct {
 	Phase string `json:"phase"`
 }
 
+type EventConversationsChanged struct {
+	Source *string  `json:"source,omitempty"`
+	Ids    []string `json:"ids"`
+	Index  bool     `json:"index"`
+}
+
 type EventDelegateCompleted struct {
 	TaskId  string `json:"taskId"`
 	Cli     string `json:"cli"`
@@ -7960,6 +8056,42 @@ type ConnectionsRebindOutputT = ConnectionsRebindOutput
 // ConnectionsRemoveInputT 是 connections.remove 的入参
 type ConnectionsRemoveInputT = ConnectionsRemoveInput
 type ConnectionsRemoveOutputT = bool
+
+// ConversationsAppendInputT 是 conversations.append 的入参
+type ConversationsAppendInputT = ConversationsAppendInput
+type ConversationsAppendOutputT = any
+
+// ConversationsDeleteInputT 是 conversations.delete 的入参
+type ConversationsDeleteInputT = ConversationsDeleteInput
+type ConversationsDeleteOutputT = any
+
+// ConversationsImportInputT 是 conversations.import 的入参
+type ConversationsImportInputT = ConversationsImportInput
+type ConversationsImportOutputT = ConversationsImportOutput
+
+// ConversationsMarkMigratedInputT 是 conversations.markMigrated 的入参
+type ConversationsMarkMigratedInputT = ConversationsMarkMigratedInput
+type ConversationsMarkMigratedOutputT = any
+
+// ConversationsMessagesInputT 是 conversations.messages 的入参
+type ConversationsMessagesInputT = ConversationsMessagesInput
+type ConversationsMessagesOutputT = ConversationsMessagesOutput
+
+// ConversationsPutInputT 是 conversations.put 的入参
+type ConversationsPutInputT = ConversationsPutInput
+type ConversationsPutOutputT = any
+
+// ConversationsReplaceInputT 是 conversations.replace 的入参
+type ConversationsReplaceInputT = ConversationsReplaceInput
+type ConversationsReplaceOutputT = any
+
+// ConversationsSetPointersInputT 是 conversations.setPointers 的入参
+type ConversationsSetPointersInputT = ConversationsSetPointersInput
+type ConversationsSetPointersOutputT = any
+
+// ConversationsStateInputT 是 conversations.state 的入参
+type ConversationsStateInputT = any
+type ConversationsStateOutputT = ConversationsStateOutput
 
 // DelegateClearPinInputT 是 delegate.clearPin 的入参
 type DelegateClearPinInputT = DelegateClearPinInput
@@ -9307,6 +9439,7 @@ type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin
 type EventCliUpdateEventT = EventCliUpdateEvent
 type EventConnectionsChangedT = any
+type EventConversationsChangedT = EventConversationsChanged
 type EventDelegateCompletedT = EventDelegateCompleted
 type EventDesktopBubbleT = EventDesktopBubble
 type EventDesktopChangedT = EventDesktopChanged

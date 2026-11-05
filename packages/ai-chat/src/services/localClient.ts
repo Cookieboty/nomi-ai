@@ -1,6 +1,7 @@
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
+import { isLegacyConversationKey } from './conversationMigration';
 import { plainError } from './hostBackends/knowledge';
 /**
  * 本机管理客户端：本机模型（llama.cpp / Ollama）、数据导出——契约 `local.*` / `hub.*`
@@ -117,14 +118,17 @@ export function fmtBytes(n: number): string {
 export const pct = (p?: Progress) =>
   p && p.total ? Math.min(100, Math.round((p.received / p.total) * 100)) : 0;
 
-/** 读取渲染端保存的全部会话（localStorage 中 ai-chat:* 键），用于导出 */
+/**
+ * 导出用：对话窗口 localStorage 里的 ai-chat:* 偏好（对话设置、侧栏视图等）。会话本身在内核的会话存储里，
+ * 由内核整份打包（userData/conversations/）；旧布局留下的会话键不再导出（已迁进内核）
+ */
 export function collectConversations(
   storage: Pick<Storage, 'length' | 'key' | 'getItem'> = localStorage,
 ) {
   const out: Record<string, unknown> = {};
   for (let i = 0; i < storage.length; i++) {
     const k = storage.key(i);
-    if (!k || !k.startsWith('ai-chat:')) continue;
+    if (!k || !k.startsWith('ai-chat:') || isLegacyConversationKey(k)) continue;
     const v = storage.getItem(k);
     try {
       out[k] = v ? JSON.parse(v) : null;

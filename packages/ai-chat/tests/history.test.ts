@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
+import { createMemoryConversationKernel } from '../src/services/conversationKernel';
+import { ConversationStore } from '../src/services/conversationStore';
 import { buildProviderMessages } from '../src/services/history';
 import { SdkIPCClient } from '../src/services/IPCClient';
 import { armNomiAutoTitle, nomiAutoTitlePending } from '../src/services/sessionTitle';
@@ -78,14 +79,14 @@ describe('buildProviderMessages', () => {
 });
 
 describe('ConversationStore', () => {
-  const mk = (storage = createMemoryStorage()) => {
+  const mk = (kernel?: ReturnType<typeof createMemoryConversationKernel>) => {
     let n = 0;
-    return new ConversationStore({ storage, now: () => 1000 + n, newId: () => `c${++n}` });
+    return new ConversationStore({ kernel, now: () => 1000 + n, newId: () => `c${++n}` });
   };
 
-  it('persists messages per conversation and supports switching / clearing', () => {
-    const storage = createMemoryStorage();
-    const s = mk(storage);
+  it('persists messages per conversation and supports switching / clearing', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = mk(kernel);
     const first = s.ensureCurrent();
     s.append(msg('1', 'user', 'first question'));
     const second = s.create().id;
@@ -101,10 +102,12 @@ describe('ConversationStore', () => {
     expect(s.getMessages()).toEqual([]);
     expect(s.getMessages(second)).toHaveLength(1);
 
-    // 新实例读同一存储（模拟重启）
-    const reopened = new ConversationStore({ storage });
+    // 新实例读同一内核（模拟重启）
+    await s.flush();
+    const reopened = new ConversationStore({ kernel, snapshot: await kernel.state() });
     expect(reopened.currentId()).toBe(first);
-    expect(reopened.getMessages(second)[0]!.content).toBe('other');
+    expect((await reopened.loadMessages(second))[0]!.content).toBe('other');
+    expect(await reopened.loadMessages(first)).toEqual([]);
   });
 
   it('keeps heuristic name when smart title is skipped; applySmart only while pending', () => {
@@ -131,49 +134,30 @@ describe('ConversationStore', () => {
     expect(nomiAutoTitlePending(id)).toBe(false);
   });
 
-  it('caches loaded messages until the conversation is changed', () => {
-    const base = createMemoryStorage();
-    base.setItem(
-      'ai-chat:conversations',
-      JSON.stringify([{ id: 'c1', name: 'cached', createdAt: 1, updatedAt: 1, backend: 'nomi' }]),
-    );
-    base.setItem('ai-chat:conversation:c1', JSON.stringify([msg('1', 'user', 'hello')]));
-    let reads = 0;
-    const storage = {
-      getItem: (key: string) => {
-        reads++;
-        return base.getItem(key);
-      },
-      setItem: base.setItem,
-      removeItem: base.removeItem,
-    };
-    const s = new ConversationStore({ storage });
-    reads = 0;
+  it('caches loaded messages until the conversation is changed', async () => {
+    const kernel = createMemoryConversationKernel();
+    await kernel.put({
+      meta: { id: 'c1', name: 'cached', createdAt: 1, updatedAt: 1, backend: 'nomi' },
+      messages: [msg('1', 'user', 'hello')],
+    });
+    const s = new ConversationStore({ kernel, snapshot: await kernel.state() });
+    kernel.calls.length = 0;
 
+    expect(await s.loadMessages('c1')).toHaveLength(1);
+    expect(kernel.calls).toEqual(['messages']);
     expect(s.getMessages('c1')).toHaveLength(1);
-    // 一次读消息，一次读当前会话 id（淘汰时要保住当前会话）
-    expect(reads).toBe(2);
-    expect(s.getMessages('c1')).toHaveLength(1);
-    expect(reads).toBe(2);
+    expect(await s.loadMessages('c1')).toHaveLength(1);
+    expect(kernel.calls).toEqual(['messages']);
 
     s.append(msg('2', 'assistant', 'world'), 'c1');
     expect(s.getMessages('c1').map((m) => m.content)).toEqual(['hello', 'world']);
   });
 
-  it('evicts old message caches, keeps the current one, and previews without caching', () => {
-    const base = createMemoryStorage();
-    let reads = 0;
-    const storage = {
-      getItem: (key: string) => {
-        if (key.startsWith('ai-chat:conversation:')) reads++;
-        return base.getItem(key);
-      },
-      setItem: base.setItem.bind(base),
-      removeItem: base.removeItem.bind(base),
-    };
+  it('evicts old message caches, keeps the current one, and previews without caching', async () => {
+    const kernel = createMemoryConversationKernel();
     let n = 0;
     const s = new ConversationStore({
-      storage,
+      kernel,
       maxCachedConversations: 2,
       now: () => 1,
       newId: () => `c${++n}`,
@@ -184,38 +168,32 @@ describe('ConversationStore', () => {
     s.append(msg('2', 'user', 'beta'), b);
     const c = s.create({ name: 'C' }).id;
     s.append(msg('3', 'user', 'gamma'), c);
-    // 追加是合并写盘的：先写盘，下面数的是从存储读
-    s.flush();
+    await s.flush();
 
-    reads = 0;
+    kernel.calls.length = 0;
     expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
     expect(s.getMessages(b).map((m) => m.content)).toEqual(['beta']);
-    expect(reads).toBe(0);
+    // a 被淘汰：同步读是空的，要加载
+    expect(s.isLoaded(a)).toBe(false);
+    expect((await s.loadMessages(a)).map((m) => m.content)).toEqual(['alpha message']);
+    expect(kernel.calls).toEqual(['messages']);
 
-    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
-    expect(reads).toBe(1);
-
-    reads = 0;
-    // 预览随追加记下：不用再读 / 解析这段历史
+    kernel.calls.length = 0;
+    // 预览随追加记下：不用再读这段历史
     expect(s.firstUserPreview(b)).toBe('beta');
-    expect(reads).toBe(0);
-    expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
-    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
-    expect(reads).toBe(0);
+    expect(kernel.calls).toEqual([]);
   });
 
-  it('trims to maxMessages and migrates the legacy single-history key', () => {
-    const storage = createMemoryStorage();
-    storage.setItem(
-      'ai-chat:history',
-      JSON.stringify([msg('1', 'user', 'old'), msg('2', 'assistant', 'reply')]),
-    );
-    const s = new ConversationStore({ storage, maxMessages: 3 });
-    expect(storage.getItem('ai-chat:history')).toBeNull();
-    expect(s.getMessages().map((m) => m.content)).toEqual(['old', 'reply']);
+  it('trims to maxMessages', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, maxMessages: 3 });
+    const id = s.ensureCurrent();
+    s.setMessages(id, [msg('1', 'user', 'old'), msg('2', 'assistant', 'reply')]);
     s.append(msg('3', 'user', 'a'));
     s.append(msg('4', 'user', 'b'));
     expect(s.getMessages().map((m) => m.content)).toEqual(['reply', 'a', 'b']);
+    await s.flush();
+    expect(kernel.data.messages.get(id)!.map((m) => m.content)).toEqual(['reply', 'a', 'b']);
   });
 
   it('delete: removing the current conversation switches to the same-backend most recent one', () => {
@@ -270,24 +248,24 @@ describe('ConversationStore', () => {
   });
 
   it('tags migrated rows without backend as nomi', () => {
-    const storage = createMemoryStorage();
-    storage.setItem(
-      'ai-chat:conversations',
-      JSON.stringify([
-        { id: 'old1', name: 'legacy', createdAt: 1, updatedAt: 2 },
-        {
-          id: 'old2',
-          name: 'claude one',
-          createdAt: 1,
-          updatedAt: 3,
-          backend: 'claude',
-          tabId: 't1',
-        },
-      ]),
-    );
-    storage.setItem('ai-chat:conversation:old1', JSON.stringify([msg('1', 'user', 'hi')]));
-    storage.setItem('ai-chat:conversation:old2', JSON.stringify([]));
-    const s = new ConversationStore({ storage });
+    const s = new ConversationStore({
+      snapshot: {
+        conversations: [
+          { id: 'old1', name: 'legacy', createdAt: 1, updatedAt: 2 } as never,
+          {
+            id: 'old2',
+            name: 'claude one',
+            createdAt: 1,
+            updatedAt: 3,
+            backend: 'claude',
+            tabId: 't1',
+          },
+        ],
+        previews: {},
+        counts: { old1: 1, old2: 0 },
+        migrated: true,
+      },
+    });
     expect(s.get('old1')!.backend).toBe('nomi');
     expect(s.get('old2')!.backend).toBe('claude');
     expect(s.get('old2')!.tabId).toBe('t1');
@@ -297,7 +275,6 @@ describe('ConversationStore', () => {
   it('creates with backend, forks same-backend, and upserts CLI tabs', () => {
     let n = 0;
     const s = new ConversationStore({
-      storage: createMemoryStorage(),
       now: () => 1000 + n,
       newId: () => `c${++n}`,
     });

@@ -9,7 +9,7 @@ import App from './App';
 import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
-import { runLegacyChatImport } from './services/legacyChatImport';
+import { prepareConversationStore } from './services/conversationBoot';
 
 const log = createLogger('main');
 
@@ -55,24 +55,26 @@ if (!hasHost) {
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
 /**
- * 旧 Electron 对话（Go 版首启抽出，#181）要在会话存储第一次构造之前并进本窗口的 localStorage：
- * 会话存储在 App 渲染时随 IPC 客户端构造，所以先导入再渲染。导入失败只记日志、照常渲染，下次启动再试
+ * 会话存储在 Go 内核里：第一次渲染前取好索引（会话列表、预览、当前会话），首次运行时把本窗口
+ * localStorage 里旧的会话（以及 Electron 旧版抽出来的，#181）导入内核（conversationBoot）。
+ * 会话存储在 App 渲染时随 IPC 客户端构造，所以先准备再渲染；失败只记日志、照常渲染，迁移下次启动再试
  */
-async function importLegacyChats(): Promise<void> {
-  let storage: Storage;
+async function prepareConversations(): Promise<void> {
+  let storage: Storage | undefined;
   try {
     storage = window.localStorage;
   } catch {
-    return;
+    storage = undefined;
   }
-  if (!storage) return;
-  await runLegacyChatImport({ fetch: () => api.migration.chatHistory(), storage }).catch(
-    (error: unknown) => log.warn('导入旧对话失败', error),
-  );
+  await prepareConversationStore({
+    api,
+    ...(storage ? { storage } : {}),
+    fetchLegacy: () => api.migration.chatHistory(),
+  }).catch((error: unknown) => log.warn('准备会话存储失败', error));
 }
 
 if (hasHost) {
-  void importLegacyChats().finally(() =>
+  void prepareConversations().finally(() =>
     root.render(
       <React.StrictMode>
         <LocaleRoot

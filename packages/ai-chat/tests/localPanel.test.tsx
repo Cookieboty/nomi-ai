@@ -122,9 +122,11 @@ describe('localClient helpers', () => {
     expect(fmtBytes(3 * 1024 ** 3)).toBe('3.0 GB');
     expect(pct({ received: 50, total: 200 })).toBe(25);
   });
-  it('collects only ai-chat keys', () => {
+  it('collects only ai-chat preference keys (conversations are exported by the kernel)', () => {
     const m = new Map([
       ['ai-chat:conversations', '[1]'],
+      ['ai-chat:conversation:c1', '[]'],
+      ['ai-chat:chatMode', '"agent"'],
       ['other', 'x'],
     ]);
     const s = {
@@ -132,7 +134,7 @@ describe('localClient helpers', () => {
       key: (i: number) => [...m.keys()][i] ?? null,
       getItem: (k: string) => m.get(k) ?? null,
     };
-    expect(collectConversations(s)).toEqual({ 'ai-chat:conversations': [1] });
+    expect(collectConversations(s)).toEqual({ 'ai-chat:chatMode': 'agent' });
   });
 
   it('tabs 属性限制可见标签：只给一个时不显示标签条', async () => {

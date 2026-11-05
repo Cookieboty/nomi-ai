@@ -90,7 +90,8 @@ flowchart LR
 ## 关键约定
 
 - **数据**：全部保存在 userData（macOS `~/Library/Application Support/Nomi`、Windows `%APPDATA%\Nomi`、Linux `~/.config/Nomi`）下按功能划分的目录；
-  API Key 存系统钥匙串。首次启动从旧 Electron 版的目录复制数据（`internal/migrate`）。
+  API Key 存系统钥匙串。视图不把业务数据存在 WebView 的 localStorage 里（只放界面偏好）：对话会话在内核的 `userData/conversations/`
+  （`internal/core/convstore`，契约 `conversations.*`，见 [chat.md](../features/chat.md#会话保存在哪里)），开发与打包的页面来源不同也看到同一份。首次启动从旧 Electron 版的目录复制数据（`internal/migrate`）。
 - **网络与命令**：外部请求经网关的网络守卫拦截本机 / 内网地址、DNS 钉 IP；执行命令做参数转义；私有文件以 0600 写入。
 - **日志**：视图用 `@nomi-ai/ui` 的 `createLogger`，不直接用 `console.log`；Go 内核用 `internal/core/services` 的 logger。
 - **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；桌面角色 Rive 场景按需加载。

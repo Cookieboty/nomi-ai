@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/onboarding"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
@@ -67,6 +68,7 @@ func Install(d Deps) *Bundle {
 	b.Onboarding.SetMascotPorts(onboarding.MascotPorts{Publish: r.Emit, LiveWindows: d.LiveWindows})
 
 	InstallMigration(r, d.UserData)
+	InstallConversations(r, convstore.New(d.UserData))
 
 	r.Call("theme.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return b.Theme.Get(), nil

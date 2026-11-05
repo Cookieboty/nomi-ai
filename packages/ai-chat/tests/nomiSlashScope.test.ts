@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
+import { ConversationStore } from '../src/services/conversationStore';
 import { nomiScopeKey } from '../src/slash/nomiScope';
 
 const cliTab = (id: string) =>
@@ -8,7 +8,7 @@ const cliTab = (id: string) =>
 
 describe('nomiScopeKey：异步斜杠命令的 Nomi 作用域（#14）', () => {
   it('两个空会话的作用域不同（不再都是 nomi:new）', () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     store.create('A');
     const a = nomiScopeKey(store, undefined);
     store.create('B');
@@ -18,7 +18,7 @@ describe('nomiScopeKey：异步斜杠命令的 Nomi 作用域（#14）', () => {
   });
 
   it('停在 CLI 镜像时仍是离开前的 Nomi 会话，且不切换导航', () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     const A = store.create('A').id;
     const scope = nomiScopeKey(store, undefined);
     const C = store.upsertFromTab(cliTab('tab-x')).id;
@@ -29,7 +29,7 @@ describe('nomiScopeKey：异步斜杠命令的 Nomi 作用域（#14）', () => {
   });
 
   it('同一会话重新加载（消息不变）作用域不变；没有会话存储时退回首条消息 id', () => {
-    const store = new ConversationStore({ storage: createMemoryStorage() });
+    const store = new ConversationStore();
     store.create('A');
     expect(nomiScopeKey(store, 'm1')).toBe(nomiScopeKey(store, 'm1'));
     expect(nomiScopeKey(undefined, 'm1')).toBe('nomi:m1');

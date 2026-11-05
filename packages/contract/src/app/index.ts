@@ -16,7 +16,7 @@ import { codingErrors, codingEvents, codingEventSurfaces, codingProcedures } fro
 import { knowledgeErrors, knowledgeEvents, knowledgeProcedures } from './knowledge';
 import { mascotErrors, mascotEvents, mascotEventSurfaces, mascotProcedures } from './mascot';
 import { mediaErrors, mediaEvents, mediaEventSurfaces, mediaProcedures } from './media';
-import { shellErrors, shellEvents, shellProcedures } from './shell';
+import { shellErrors, shellEvents, shellEventSurfaces, shellProcedures } from './shell';
 
 /**
  * 各域共用的业务错误码（P1b 基础）：
@@ -74,7 +74,7 @@ assertDisjoint(
 );
 
 export const appContract = defineContract({
-  version: { major: 2, minor: 3 },
+  version: { major: 2, minor: 4 },
   procedures: {
     ...aiProcedures,
     ...mediaProcedures,
@@ -93,6 +93,7 @@ export const appContract = defineContract({
   },
   eventSurfaces: {
     ...mediaEventSurfaces,
+    ...shellEventSurfaces,
     ...codingEventSurfaces,
     ...mascotEventSurfaces,
   },
@@ -225,6 +226,7 @@ export {
 } from './media';
 export {
   shellEvents,
+  shellEventSurfaces,
   shellProcedures,
   type ShellEventName,
   type ShellProcedureName,

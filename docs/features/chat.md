@@ -23,6 +23,20 @@
 - 对话快满时（约 95%）发送前会自动把较早的内容压缩成摘要，也可以手动 `/compact`。
 - 会话行的菜单里可以重命名、删除，或 `Ctrl/⌘+Shift+F` 分叉为新对话。
 
+## 会话保存在哪里
+
+会话（Nomi 对话与编程助手标签在侧栏里的条目）由内核保存在 `userData/conversations/`：
+
+| 文件                  | 内容                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `index.json`          | 会话列表（名称、端点、工作区、更新时间等）、每个会话的条数、当前会话 |
+| `previews.json`       | 每个会话第一条用户消息的前 300 字（侧栏搜索用）                      |
+| `messages/<id>.jsonl` | 一行一条消息                                                         |
+
+- 新消息只追加到 `jsonl` 末尾；编辑重发、清空、分叉、超出「最多保留条数」时整份重写。整份重写与索引都先写临时文件再改名，文件权限 0600。
+- 对话窗口只在内存里留最近打开的十几个会话的消息（当前会话一直在），其余打开时再从内核读。
+- 2.2.0 及以前会话存在对话窗口的 localStorage 里（WebKit 约 5 MB 的配额，满了会写不进）。2.2.1 首次启动时把它们（以及 2.0.4 Electron 版抽出来的旧对话）一次性导入内核，核对条数后记完成；没导完的下次启动接着导，已有的会话不覆盖。旧的 localStorage 键保留一个版本，降级回 2.2.0 仍能看到当时的会话（之后的新消息不在里面）。
+
 ## 图片与文件
 
 - 把图片**粘贴**或**拖入**输入框：一次最多 4 张，单张不超过 20 MB（PNG / JPEG / WebP / GIF / BMP），发送前自动压缩。会话历史只保存缩略图，原图不落盘。
@@ -58,4 +72,5 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 ## 实现
 
 - 视图：`packages/ai-chat/src`（`App.tsx`、`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
-- 内核：`apps/desktop-go/internal/aichat`，图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。
+- 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）。
+- 内核：`apps/desktop-go/internal/aichat`（2.0.4 Electron 旧对话的抽取），图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。

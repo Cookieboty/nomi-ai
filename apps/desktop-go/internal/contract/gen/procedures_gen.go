@@ -3,7 +3,7 @@
 package gen
 
 // ContractVersion 与 appContract.version 一致
-var ContractVersion = struct{ Major, Minor int }{2, 3}
+var ContractVersion = struct{ Major, Minor int }{2, 4}
 
 // Procedure 是契约里一个过程的元数据
 type Procedure struct {
@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 413：mutation 288 / query 120 / stream 5
+// 合计 422：mutation 295 / query 122 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -97,6 +97,15 @@ var Procedures = []Procedure{
 	{Name: "connections.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "connections.rebind", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "connections.remove", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "conversations.append", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.delete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.import", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.markMigrated", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.messages", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.put", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.replace", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.setPointers", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.state", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "delegate.clearPin", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.pin", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -455,6 +464,7 @@ var Events = []string{
 	"cliAccount.login",
 	"cliUpdate.event",
 	"connections.changed",
+	"conversations.changed",
 	"delegate.completed",
 	"desktop.bubble",
 	"desktop.changed",
@@ -513,4 +523,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
