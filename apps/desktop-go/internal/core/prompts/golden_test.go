@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -96,6 +97,11 @@ func TestTaskRun(t *testing.T) {
 		"已经读完提交记录", []tasks.SourceEvent{{Summary: "新的 PR", Payload: map[string]any{"n": 1}}}))
 	golden(t, "task-run-resume", run(tasks.ExecutorSpec{Kind: "nomi", Toolset: sp("conversation")},
 		tasks.AttemptCause{Kind: "resume", Answer: &tasks.Answer{Approve: false}}, "", nil))
+	// 本机没有可委派的编程助手：代码由后台的 Nomi 自己写
+	codingcli.Set(func() bool { return false })
+	defer codingcli.Set(nil)
+	golden(t, "task-run-conversation-nocli", run(tasks.ExecutorSpec{Kind: "nomi", Toolset: sp("conversation"), Cwd: sp("/work")},
+		tasks.AttemptCause{Kind: "manual"}, "", nil))
 }
 
 func TestDelegateBrief(t *testing.T) {
@@ -103,10 +109,14 @@ func TestDelegateBrief(t *testing.T) {
 		Goal: " 修好登录 ", Context: "报错在 auth.go", DoneWhen: "测试通过", OutOfScope: "不要改数据库"}))
 	golden(t, "delegate-brief-min", delegate.BuildDelegatePrompt(delegate.DelegateBrief{Goal: "修好登录", DoneWhen: "测试通过"}))
 	golden(t, "dispatch-hint", delegate.DispatchHint)
+	golden(t, "dispatch-hint-nocli", delegate.DispatchHintFor(false))
 }
 
 func TestDesktop(t *testing.T) {
 	golden(t, "workspace", desktop.WorkspaceSystemHint("/work", false)+"\n---\n"+desktop.WorkspaceSystemHint("/work", true))
+	codingcli.Set(func() bool { return false })
+	golden(t, "workspace-nocli", desktop.WorkspaceSystemHint("/work", false))
+	codingcli.Set(nil)
 	var got []string
 	sum := func(text, instr string) (string, error) { got = append(got, instr); return "ok", nil }
 	if _, err := desktop.SummarizeText(sum, "短文本", "tldr", "auto", 200, "a.txt"); err != nil {

@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 )
@@ -265,6 +266,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		"Rework":       cause.Kind == "rework" && cause.Note != nil,
 		"Progress":     "",
 		"Events":       EventsSection(events),
+		"HasCli":       codingcli.Available(),
 	}
 	if ex.Cwd != nil {
 		d["Cwd"] = *ex.Cwd
