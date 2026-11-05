@@ -1,6 +1,6 @@
-# README 的下载数徽章：只数安装包（dmg / exe / AppImage / deb）的下载次数。
-# shields 的 github/downloads/total 把 Release 里所有文件都算进去，其中大半是更新检查读的
-# latest*.yml / latest-go.json、应用内更新的 mac zip、blockmap、角色目录 catalog.json，不是下载。
+# README 的下载数徽章：只数应用的下载——版本 Release（v*）里的安装包（dmg / exe / AppImage / deb）
+# 与自动更新下载的 mac zip。shields 的 github/downloads/total 把所有文件都算进去，其中一大半是
+# 每次检查更新都会读一遍的 latest*.yml / latest-go.json，以及 blockmap、SHA256SUMS、角色素材（catalog.json、.riv）。
 # 结果写到 badges 分支的 downloads.json（shields endpoint 格式），README 用
 # https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<repo>/badges/downloads.json 显示。
 name: download-badge
@@ -30,8 +30,8 @@ jobs:
       - name: count installer downloads
         run: |
           n=$(gh api "repos/$REPO/releases?per_page=100" --paginate \
-                --jq '.[] | select(.draft | not) | .assets[]
-                      | select(.name | test("\\.(dmg|exe|AppImage|deb)$")) | .download_count' \
+                --jq '.[] | select((.draft | not) and (.tag_name | startswith("v"))) | .assets[]
+                      | select(.name | test("\\.(dmg|exe|AppImage|deb|zip)$")) | .download_count' \
               | awk '{s += $1} END {print s + 0}')
           # 和 shields 一样缩写：1234 → 1.2k，1234567 → 1.2M
           msg=$(awk -v n="$n" 'BEGIN {
