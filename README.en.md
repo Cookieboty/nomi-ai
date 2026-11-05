@@ -40,7 +40,7 @@ Add a provider once (pick a preset or enter a URL, paste a key) and Nomi itself 
 The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**; streaming, tool calls, reasoning, images and context compaction keep working, so you can use DeepSeek, GLM, Kimi or Qwen right inside Claude Code.
 Third-party routing applies only to the process Nomi launches; it never edits the CLI's global config or touches official sign-ins.
 Third-party providers can also put an "Add to Nomi" link on their own site: one-click import of the endpoint and key, or web authorization (OAuth + PKCE, so the key never appears in a link). Either way, nothing is saved until you confirm in Nomi.
-→ [Unified gateway design](docs/design/unified-gateway.md) · [Third-party provider links](docs/design/provider-link.md)
+→ [Unified gateway design](docs/development/gateway.md) · [Third-party provider links](docs/integrations/provider-link.md)
 
 ### 2. Nomi is an agent itself
 
@@ -52,7 +52,7 @@ Tools are offered on demand: small talk sends about 2K tokens of tool definition
 
 For coding, Nomi delegates to Claude Code, Codex and other coding agents, and you can open or stop each subtask's full conversation. You can also open a coding-agent session directly: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo; sessions started in a terminal or IDE carry on here too.
 Coding agents are the strongest kind of specialist today; the connection layer is a plugin system, so more can join.
-→ [Coding workspace](docs/features/coding-workspace.md) · [CLI plugin architecture](docs/design/cli-plugin-architecture.md)
+→ [Coding agents](docs/features/coding-agents.md) · [Coding-agent integration](docs/development/coding-agents.md)
 
 ### 4. Let it work, keep the boundaries
 
@@ -62,25 +62,27 @@ Chats, memory and the knowledge base stay on your machine by default; secrets ar
 
 ### 5. Light: a Go core on the native WebView
 
-The main build is a Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium; the same UI also ships as an Electron build, and parity golden tests keep both behaving the same. Measured on macOS, Apple silicon (v2.0.5):
+A Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium (there is no Electron build from 2.2.0 on). Compared with the Electron build of the same version, macOS, Apple silicon:
 
 |                                 | Go build    | Electron build |
 | ------------------------------- | ----------- | -------------- |
-| DMG                             | **38.8 MB** | 153.0 MB       |
-| Installed size                  | **69 MiB**  | 334 MiB        |
+| DMG                             | **24.5 MB** | 138.4 MB       |
+| Installed size                  | **49 MiB**  | 315 MiB        |
 | Memory 30 s after launch        | **177 MiB** | 284 MiB        |
 | Idle CPU (one core)             | **3.2%**    | 8.2%           |
 | Launch until the window appears | **0.55 s**  | 0.82 s         |
+
+Sizes are measured from the v2.1.2 arm64 installers of both builds; memory, CPU and launch time come from a same-machine comparison of v2.0.5 and 2.0.4.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph View["View (React 19, shared by both builds)"]
+  subgraph View["View (React 19)"]
     Chat["Chat / coding workspace"]
     Mascot["Desktop character"]
   end
-  subgraph Core["Core (Go; Node in the Electron build)"]
+  subgraph Core["Core (Go)"]
     Contract["Typed contract<br/>(surfaces / dangerous checks)"]
     Agents["Coding-agent drivers<br/>ACP · stream-json · app-server · exec"]
     Tools["Tools: files · commands · browser · MCP · skills<br/>command risk review + external-content taint"]
@@ -98,7 +100,7 @@ flowchart LR
   GW --> Up
 ```
 
-The view talks to the core through one typed contract instead of ad-hoc IPC channels; which windows may call which procedures, and which ones are dangerous, is declared in the contract. See [Architecture](docs/development/architecture.md) and [Core / host decoupling](docs/design/core-host-decoupling.md).
+The view talks to the core through one typed contract instead of ad-hoc IPC channels; which windows may call which procedures, and which ones are dangerous, is declared in the contract. See [Architecture](docs/development/architecture.md) and [the app contract](docs/development/contract.md).
 
 ## Features at a glance
 
@@ -132,7 +134,7 @@ From [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest):
 | Windows 10+ (x64)     | `Nomi-Setup-<version>.exe`                             | Needs WebView2 (usually preinstalled on Windows 10/11) |
 | Linux (x64)           | `Nomi-<version>.AppImage` / `nomi_<version>_amd64.deb` | `chmod +x` the AppImage                                |
 
-Files named `Nomi-Electron-…` are the Electron build. Installed copies offer updates in-app.
+Installed copies offer updates in-app.
 
 > **macOS says the app is damaged?** The app is signed but not notarized yet. After moving it to Applications, run:
 >
@@ -153,21 +155,21 @@ More detail in [Getting started](docs/getting-started.md).
 
 ## Build from source
 
-Needs Node.js ≥ 22.12 and pnpm 9 (`corepack enable`); the Go build also needs Go (see `apps/desktop-go/go.mod`) and a cgo toolchain (plus GTK3 and WebKitGTK 4.1 dev packages on Linux).
+Needs Node.js ≥ 22.12, pnpm 9 (`corepack enable`), Go (see `apps/desktop-go/go.mod`) and a cgo toolchain (plus GTK3 and WebKitGTK 4.1 dev packages on Linux).
 
 ```bash
 git clone https://github.com/Cookieboty/nomi-ai.git && cd nomi-ai
 corepack enable && pnpm install
-pnpm dev:go       # Go build: hot-reloads the UI, rebuilds on Go changes
-pnpm dev          # Electron build
-pnpm test         # unit tests; pnpm test:e2e for headless end-to-end tests
+pnpm dev          # hot-reloads the UI, rebuilds on Go changes
+pnpm test         # unit tests for the views and shared packages
+(cd apps/desktop-go && go test ./...)   # Go core tests
 ```
 
 `pnpm run doctor` checks your setup. Go details are in [apps/desktop-go](apps/desktop-go/README.md), packaging and releases in [docs/RELEASE.md](docs/RELEASE.md), and the developer guide in [docs/development](docs/development/). PRs welcome; see the conventions in [AGENTS.md](AGENTS.md) first.
 
 ## Third-party provider integration
 
-Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click. There are two ways; **both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms**. Full spec: [docs/design/provider-link.md](docs/design/provider-link.md).
+Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click. There are two ways; **both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms**. Full spec: [docs/integrations/provider-link.md](docs/integrations/provider-link.md).
 
 ### Option A: direct import (a few lines of template)
 
@@ -246,7 +248,7 @@ Questions and ideas go to [GitHub Issues](https://github.com/Cookieboty/nomi-ai/
 - **Sponsor**: [Amux AI](https://amux.ai) sponsors Nomi's development.
 - **Community**: [Linux.do](https://linux.do), whose members have shared a great deal of feedback and ideas.
 
-Nomi is built on Go, Wails, Electron, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive and other open-source projects; design credits are in [CREDITS.md](CREDITS.md).
+Nomi is built on Go, Wails, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive and other open-source projects; design credits are in [CREDITS.md](CREDITS.md).
 
 ## License
 

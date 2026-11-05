@@ -2,7 +2,7 @@
 
 角色引擎（纯浏览器）：Rive / sprite（分层 2D 骨架）/ static 渲染后端、表情与动作驱动、命中区与互动反应、口型消费。
 不依赖 `contract`、`electron`、`ai-sdk-client`、`ui` 或任何视图包（eslint 与 `tests/boundary.test.ts` 双重把关）；
-AI 与宿主能力全部经注入的接口接入。设计见 [docs/design/core-host-decoupling.md](../../docs/design/core-host-decoupling.md) §10.5、§10.6。
+AI 与宿主能力全部经注入的接口接入。设计见 [docs/development/architecture.md](../../docs/development/architecture.md) 与 [角色包文档](../../docs/character-pack/README.md)。
 
 ## 输入 / 输出
 

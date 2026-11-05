@@ -5,6 +5,10 @@ description: 重拍官网 / README 用的应用截图（演示数据、隔离环
 
 # 官网截图
 
+> **2.2.0 起暂时不可用**：脚本靠 `pnpm dev:web`（Node 内核 + 浏览器里的视图）出图，Node 内核已随 Electron 版删除。
+> 要重拍得先把 `run.mjs` 改成驱动 Go 版（`apps/desktop-go`，可借 `NOMI_POC_CTL` 控制口与 `NOMI_DEV_VIEWS`）；改好之前别用这个技能，
+> 直接告诉用户需要先移植。
+
 一条命令从零重拍：`pnpm screenshots:site`。脚本在 `scripts/site-screenshots/`：
 
 | 文件          | 作用                                                                                       |

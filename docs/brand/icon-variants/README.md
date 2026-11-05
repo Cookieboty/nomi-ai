@@ -1,8 +1,7 @@
 # Nomi 应用图标变体
 
 原创矢量（MIT，与仓库同许可），由 `scripts/brand/build-app-icon.py` 生成，
-`scripts/brand/build-icon-assets.py`（headless Chrome 栅格化 + Pillow 打包）产出 `apps/desktop-go/assets` 下的位图 / ico / icns
-（也可用 `scripts/brand/render-icons.mjs` 以 Electron 自带 Chromium 栅格化）。依据品牌板与
+`scripts/brand/build-icon-assets.py`（headless Chrome 栅格化 + Pillow 打包）产出 `apps/desktop-go/assets` 下的位图 / ico / icns。依据品牌板与
 `docs/brand/nomi-app-icon.svg` / `nomi-mark.svg`：**双色**流畅曲线 N（主笔画 + 画在下层的橙色次笔画 `#F7A67C`，
 形成橙色阴影 / 衬底）+ 橙色四角星光，配色 `#FB9466` / 奶油 `#FFF6EC` / 深棕 `#33291F`。N 与星光的几何直接取自品牌 svg。
 

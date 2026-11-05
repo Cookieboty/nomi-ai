@@ -108,9 +108,8 @@ nomi://provider/import?v=1&data={base64 of {"name":"Example AI","baseUrl":"{addr
 
 ## 实现位置
 
-- 解析 / 校验 / PKCE：`apps/desktop-electron/internal/core/src/gateway/providerLink.ts`，
-  Go：`apps/desktop-go/internal/core/providerlink`；两边用同一份用例
-  （`apps/desktop-electron/internal/core/tests/fixtures/provider-link-cases.json`）。
-- 状态与流程：`ProviderLinkService`（内核），宿主只把收到的 `nomi://` 链接交给它。
-- 契约：`providerLink.list / accept / reject / connect`，事件 `providerLink.changed`（`packages/contract/src/app/shell.ts`）。
+- 解析、校验、PKCE：`apps/desktop-go/internal/core/providerlink/link.go`；流程与状态（等待确认的链接、授权会话、读清单、换 Key）：
+  同目录 `service.go`。宿主只把收到的 `nomi://` 链接交给它（冷启动时先存着）。
+- 契约：`providerLink.list / accept / reject / connect`，事件 `providerLink.changed`（`packages/contract/src/app/shell.ts`），
+  处理函数在 `apps/desktop-go/internal/core/shellhandlers/providerlink.go`。
 - 视图：`packages/ai-chat/src/components/ProviderLink`。

@@ -47,10 +47,7 @@
 
 ## 升级指南
 
-- **从旧版本升级**：
-  - 首次启动会自动执行 [migrate-config](../scripts/migrate-config.ts) / [migrate-history](../scripts/migrate-history.ts) / [migrate-user-profile](../scripts/migrate-user-profile.ts)；
-  - 原文件保留为 `<原名>.legacy.json`，回滚只需删除 `userData/keys/` 与相关 session log；
-- **SDK 消费方**：如引用 `@ig-live/ai-sdk` / `@ig-live/ai-runtime` / `@ig-live/ai-sdk-client`，遵循 fixed-group（同版本号）；参考 [.changeset/README.md](../.changeset/README.md)。
+- **从旧版本升级**：应用内「重启更新」即可；从 Electron 版（≤ 2.0.4）升级时，首次启动会把旧数据复制过来（不改、不删原目录）。
 
 ## 已知问题
 
@@ -58,10 +55,9 @@
 
 ## 验收清单（发版前 checklist）
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` 全绿
-- [ ] `xvfb-run -a pnpm test:e2e:headed` 全绿
+- [ ] `pnpm release:check` 全绿（typecheck / lint / 单元测试 / 契约漂移 / go vet）
 - [ ] `pnpm changeset status` 无未消费 changeset
-- [ ] 三平台 CI matrix build 全绿（[ci.yml · build-electron](workflows/ci.yml)）
+- [ ] `main` 上 [CI](workflows/ci.yml) 与 [desktop-go](workflows/desktop-go.yml) 全绿；tag 后 [desktop-go-package](workflows/desktop-go-package.yml) 三平台打包与安装验证全绿
 - [ ] 手工验收危险工具确认弹窗同意路径（确认弹窗 → 同意 → 文件写入成功）
 - [ ] `pnpm changelog:check` 通过，根目录 `CHANGELOG.md` 已包含本版本
 - [ ] GitHub Releases 安装包上传完成
