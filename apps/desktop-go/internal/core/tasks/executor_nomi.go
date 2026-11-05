@@ -27,7 +27,7 @@ import (
 // ToolClassTools：工具类 → Nomi 工具名
 var ToolClassTools = map[string][]string{
 	"read": {"fs_list", "fs_stat", "fs_read_text", "fs_search", "fs_summarize", "kb_search", "memory_search",
-		"skill_load", "skill_read_file", "time_now", "list_user_preferences", "get_user_preferences", "reminder_list"},
+		"skill_load", "skill_read_file", "time_now", "plan_update", "list_user_preferences", "get_user_preferences", "reminder_list"},
 	"web":             {"http_get_readonly"},
 	"knowledge_write": {},
 	"memory_write":    {"memory_remember", "set_user_preferences"},

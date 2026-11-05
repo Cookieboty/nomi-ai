@@ -93,6 +93,8 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	kb *knowledge.Service, mem *memory.Service, ext *extensions.Service, d *desktop.Service,
 	image igtools.ImageDeps, ts *tasks.Service, conns *connections.Service) {
 	defs := igtools.BuiltinTools(igtools.Env{})
+	// 多步任务的计划清单（长任务自动续轮时靠它记住做到哪）
+	defs = append(defs, igtools.PlanTool())
 	defs = append(defs, igtools.PreferenceTools(profile, igtools.Env{})...)
 	var mascotShown func() bool
 	if d != nil {
