@@ -427,10 +427,7 @@ func (s *Service) ListMcp() map[string]any {
 		if !ok {
 			l = Live{Status: "off", Tools: []LiveTool{}}
 		}
-		l.HasAuthorization = false
-		if oauth := s.oauthSession(e); oauth != nil {
-			l.HasAuthorization = oauth.HasCredentials()
-		}
+		l.HasAuthorization = s.hasAuthorization(e)
 		servers = append(servers, merge(toOrdered(MaskServer(*e)), l))
 	}
 	env := []any{}
@@ -526,8 +523,7 @@ func (s *Service) Upsert(ctx context.Context, raw map[string]any) (McpServerEntr
 			return McpServerEntry{}, err
 		}
 		s.live[e.ID] = Live{Status: "off", Tools: []LiveTool{}}
-		closing = make(chan struct{})
-		s.closing[e.ID] = closing
+		closing = s.startClosing(e.ID)
 		runtime = s.runtime()
 	}
 	ne := e
@@ -557,7 +553,7 @@ func (s *Service) Upsert(ctx context.Context, raw map[string]any) (McpServerEntr
 			if runtime != nil {
 				_ = runtime.Disconnect(context.Background(), e.ID)
 			}
-			close(closing)
+			s.finishClosing(e.ID, closing)
 		}()
 	}
 	if reconnectOp != nil {
@@ -570,9 +566,7 @@ func (s *Service) Remove(ctx context.Context, id string) bool {
 	s.Disconnect(ctx, id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if oauth := s.oauthSession(s.find(id)); oauth != nil {
-		_ = oauth.Clear()
-	}
+	// Disconnect 已取消会话；这里只删盘上的授权记录，不为删除再新建会话
 	if err := s.invalidate(id, true); err != nil {
 		return false
 	}
@@ -720,7 +714,9 @@ func (s *Service) connectOperation(ctx context.Context, id string, expected *mcp
 			return l, nil
 		}
 		msg := FriendlyError(err)
-		if e.Transport != "stdio" {
+		// 远程服务：认得出的错误（连不上 / 拒绝访问 / 超时）照常提示原因；
+		// 认不出的不回显原始报错（可能带服务端响应内容），换成通用提示
+		if e.Transport != "stdio" && !friendlyKnown(err) {
 			msg = T("ui.foundation.mcp-remote-connection-failed")
 		}
 		s.live[id] = Live{Status: "error", Error: msg, Tools: []LiveTool{}}
@@ -762,13 +758,12 @@ func (s *Service) Disconnect(ctx context.Context, id string) {
 	s.live[id] = Live{Status: "off", Tools: []LiveTool{}}
 	s.changed()
 	svc := s.runtime()
-	closing := make(chan struct{})
-	s.closing[id] = closing
+	closing := s.startClosing(id)
 	s.mu.Unlock()
 	if svc != nil {
 		_ = svc.Disconnect(ctx, id)
 	}
-	close(closing)
+	s.finishClosing(id, closing)
 }
 
 // GuardEnvTool：MCP_SERVERS 来的工具一律按「ask」
@@ -1759,6 +1754,11 @@ var (
 	feAuth     = regexp.MustCompile(`(?i)401|403|unauthori[sz]ed`)
 	feTimeout  = regexp.MustCompile(`(?i)timeout|timed out`)
 )
+
+func friendlyKnown(err error) bool {
+	m := err.Error()
+	return feConn.MatchString(m) || feAuth.MatchString(m) || feTimeout.MatchString(m)
+}
 
 func FriendlyError(err error) string {
 	m := err.Error()

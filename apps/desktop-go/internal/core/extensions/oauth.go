@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,8 +73,7 @@ type oauthSession struct {
 func canonicalOAuth(raw string) string { return strings.TrimSuffix(raw, "/") }
 func newOAuthSession(root, id, server, clientID string, box security.SecretBox, open func(string) error, onRequired func()) *oauthSession {
 	ctx, cancel := context.WithCancel(context.Background())
-	hash := sha256.Sum256([]byte(id))
-	s := &oauthSession{ctx: ctx, cancel: cancel, file: filepath.Join(root, "oauth", hex.EncodeToString(hash[:])+".json"), server: server, clientID: clientID, box: box, open: open, onRequired: onRequired}
+	s := &oauthSession{ctx: ctx, cancel: cancel, file: oauthFile(root, id), server: server, clientID: clientID, box: box, open: open, onRequired: onRequired}
 	s.stored = oauthStored{Version: 1, Server: canonicalOAuth(server), ConfiguredClientID: clientID}
 	if b, e := os.ReadFile(s.file); e == nil && strings.HasPrefix(string(b), "enc:") {
 		var v oauthStored

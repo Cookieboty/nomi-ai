@@ -7,6 +7,7 @@
 - 在界面里添加本地命令（stdio）或远程 HTTP / SSE 服务器；内置 filesystem、memory、sequential-thinking 三个官方参考服务器预设（首次连接时通过 `npx` 获取，不随应用分发）。
 - 「导入 JSON」可以粘贴通用的 `{ "mcpServers": { … } }` 一次导入多个；导入后默认不连接，检查无误再开启。
 - 连接后列出每个工具，并标注只读 / 破坏性。
+- **远程服务器授权**：需要登录的 HTTP / SSE 服务器连接时显示「需要授权」，点「授权并连接」会在浏览器里完成 OAuth 登录（自动发现授权服务器、PKCE；服务器不支持动态注册时，可以在服务器设置里填客户端 ID）。授权会自动续期，可以随时取消或「清除授权」。手动填了 `Authorization` 请求头的服务器不走浏览器授权。修改服务器的地址、请求头或客户端 ID 后旧授权会被清除，需要重新授权。
 - **信任级别**（按服务器设置）：每次确认（默认）、只读自动其它确认、全部自动（仍记录）。破坏性工具永远需要在详情里确认。
 - 每次调用都写入本地审计日志，在「设置 → Nomi → 桌面权限 → 操作记录」里查看。
 
@@ -22,7 +23,8 @@
 
 ## 实现
 
-- 内核：`apps/desktop-go/internal/core/extensions`（`mcpconfig.go`、`service.go`、`migrate.go`）。
+- 内核：`apps/desktop-go/internal/core/extensions`（`mcpconfig.go`、`service.go`、`migrate.go`，OAuth 在 `oauth*.go`）。
+- OAuth 凭据按服务器加密保存在 `userData/extensions/oauth/`，系统安全存储不可用时不授权、不降级为明文。授权端点只接受公网 HTTPS（服务器本身在 `127.0.0.1` 时例外），解析出的每个地址都要求非内网，不跟随重定向；令牌只发给配置的服务器地址；浏览器回调只监听 `127.0.0.1`，校验 `state` 与 `iss`，只认一次，等待 180 秒。
 - 配置保存在 `userData/extensions/mcp.json`；名称含 key / token / secret / password / auth / cookie / credential 的环境变量与请求头用系统安全存储加密，界面里打码显示，系统安全存储不可用时拒绝保存。
 - 破坏性判断不完全相信服务器自报：本地命令服务器的非只读工具一律按破坏性处理，远程工具按危险命名（exec / delete / write / shell 等）推断。
 - 也可以用环境变量 `MCP_SERVERS`（JSON 数组）提供服务器，它们在界面里只读显示，调用一律按「每次确认」。

@@ -23,6 +23,7 @@ func (s *Service) invalidate(id string, clear bool) error {
 	}
 	if oauth := s.oauth[id]; oauth != nil {
 		oauth.cancel()
+		oauth.client.CloseIdleConnections()
 		// Wait for a save already past its cancellation check before removing its file.
 		oauth.mu.Lock()
 		oauth.mu.Unlock()
@@ -34,22 +35,64 @@ func (s *Service) invalidate(id string, clear bool) error {
 		}
 	}
 	if clear {
-		hash := sha256.Sum256([]byte(id))
-		err := os.Remove(filepath.Join(s.d.Root, "oauth", hex.EncodeToString(hash[:])+".json"))
+		err := os.Remove(oauthFile(s.d.Root, id))
 		if err != nil && !os.IsNotExist(err) {
 			return &McpConfigError{T("ui.foundation.mcp-authorization-remove-failed")}
 		}
 	}
 	return nil
 }
-func (s *Service) oauthSession(e *McpServerEntry) *oauthSession {
+
+// oauthFile：某个服务的加密授权记录（按 id 的 sha256 命名，不把 id 写进文件名）
+func oauthFile(root, id string) string {
+	hash := sha256.Sum256([]byte(id))
+	return filepath.Join(root, "oauth", hex.EncodeToString(hash[:])+".json")
+}
+
+// oauthEligible：远程服务且没有手填 Authorization 请求头时才走浏览器授权
+func oauthEligible(e *McpServerEntry) bool {
 	if e == nil || e.Transport == "stdio" || e.URL == "" {
-		return nil
+		return false
 	}
 	for k := range e.Headers {
 		if strings.EqualFold(k, "Authorization") {
-			return nil
+			return false
 		}
+	}
+	return true
+}
+
+// hasAuthorization：列表里只读，不为没用过授权的服务新建会话、解密凭据。Caller holds s.mu.
+func (s *Service) hasAuthorization(e *McpServerEntry) bool {
+	if !oauthEligible(e) {
+		return false
+	}
+	if oauth := s.oauth[e.ID]; oauth != nil {
+		return oauth.HasCredentials()
+	}
+	_, err := os.Stat(oauthFile(s.d.Root, e.ID))
+	return err == nil
+}
+
+// startClosing：登记一次断开，Connect 会等它结束再连；断开完成后移除登记。Caller holds s.mu.
+func (s *Service) startClosing(id string) chan struct{} {
+	closing := make(chan struct{})
+	s.closing[id] = closing
+	return closing
+}
+
+func (s *Service) finishClosing(id string, closing chan struct{}) {
+	close(closing)
+	s.mu.Lock()
+	if s.closing[id] == closing {
+		delete(s.closing, id)
+	}
+	s.mu.Unlock()
+}
+
+func (s *Service) oauthSession(e *McpServerEntry) *oauthSession {
+	if !oauthEligible(e) {
+		return nil
 	}
 	session := s.oauth[e.ID]
 	if session == nil {
@@ -65,13 +108,12 @@ func (s *Service) oauthSession(e *McpServerEntry) *oauthSession {
 			s.changed()
 			if connected {
 				runtime := s.runtime()
-				closing := make(chan struct{})
-				s.closing[id] = closing
+				closing := s.startClosing(id)
 				go func() {
 					if runtime != nil {
 						_ = runtime.Disconnect(context.Background(), id)
 					}
-					close(closing)
+					s.finishClosing(id, closing)
 				}()
 			}
 		})
