@@ -1219,6 +1219,8 @@ export type TranslationKey =
   | 'ui.chat-settings.your-desktop-ai-assistant'
   | 'ui.chat-settings.your-next-message-will-be-sent-to-the'
   | 'ui.chat-settings.your-own-secrets'
+  | 'ui.chat-settings.conversation-font-size'
+  | 'ui.chat-settings.conversation-font-size-description'
   | 'ui.cli-monitor.account'
   | 'ui.cli-monitor.act-cute'
   | 'ui.cli-monitor.action-sound-effects'
@@ -3986,7 +3988,27 @@ export type TranslationKey =
   | 'ui.voice-mascot.whisper-cli-path-optional'
   | 'ui.voice-mascot.will-download-from'
   | 'ui.voice-mascot.will-use'
-  | 'ui.voice-mascot.you-missed-reminders-while-away';
+  | 'ui.voice-mascot.you-missed-reminders-while-away'
+  | 'ui.foundation.mcp-authorization-remove-failed'
+  | 'ui.foundation.mcp-authorization-required'
+  | 'ui.foundation.mcp-authorize-connect'
+  | 'ui.foundation.mcp-cancel-authorization'
+  | 'ui.foundation.mcp-clear-authorization'
+  | 'ui.foundation.mcp-clear-authorization-confirm'
+  | 'ui.foundation.mcp-delete-with-authorization'
+  | 'ui.foundation.mcp-oauth-callback-denied'
+  | 'ui.foundation.mcp-oauth-callback-received'
+  | 'ui.foundation.mcp-oauth-client'
+  | 'ui.foundation.mcp-oauth-client-id'
+  | 'ui.foundation.mcp-oauth-denied'
+  | 'ui.foundation.mcp-oauth-discovery'
+  | 'ui.foundation.mcp-oauth-failed'
+  | 'ui.foundation.mcp-oauth-login-hint'
+  | 'ui.foundation.mcp-oauth-pending'
+  | 'ui.foundation.mcp-oauth-storage'
+  | 'ui.foundation.mcp-oauth-timeout'
+  | 'ui.foundation.mcp-oauth-unavailable'
+  | 'ui.foundation.mcp-remote-connection-failed';
 export type Language = keyof typeof DICTIONARIES;
 
 /** 合并后的整张词典按语言缓存：t() 每次翻译都要查它，每次重新合并几千条会让界面明显卡顿 */

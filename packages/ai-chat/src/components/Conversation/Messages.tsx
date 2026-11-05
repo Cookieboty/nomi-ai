@@ -152,20 +152,37 @@ export const ErrorCard: React.FC<{
 export const AssistantBody: React.FC<{
   text: string;
   trace?: ConvMessage['trace'];
+  showThinkingDetails?: boolean;
   legacyTools?: string[];
   breaks?: readonly number[];
   live?: boolean;
   streaming?: boolean;
   endedAt?: number;
   extra?: React.ReactNode;
-}> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
+}> = ({
+  text,
+  trace,
+  showThinkingDetails = true,
+  legacyTools,
+  breaks,
+  live,
+  streaming,
+  endedAt,
+  extra,
+}) => {
   const entries = useMemo(() => {
     // 已结束的一轮：旧消息里悬空的工具调用按已停止显示（不再一直转圈）
-    if (trace?.length)
-      return reduceTraceCached(live ? trace : settleTrace(trace, t('ui.chat-settings.stopped')));
+    if (trace?.length) {
+      const visible = showThinkingDetails
+        ? trace
+        : trace.filter((event) => event.type !== 'thinking');
+      return reduceTraceCached(
+        live ? visible : settleTrace(visible, t('ui.chat-settings.stopped')),
+      );
+    }
     if (legacyTools?.length) return entriesFromLegacyTools(legacyTools);
     return [];
-  }, [trace, legacyTools, live]);
+  }, [trace, legacyTools, live, showThinkingDetails]);
   // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
   const layout = useMemo(() => layoutBody(entries), [entries]);
   const len = planLength(layout, text.length, breaks);
@@ -363,6 +380,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       <AssistantBody
         text={body ? '' : message.text}
         trace={message.trace}
+        showThinkingDetails={message.showThinkingDetails}
         legacyTools={message.legacyTools}
         breaks={body ? undefined : message.textBreaks}
         endedAt={message.at}

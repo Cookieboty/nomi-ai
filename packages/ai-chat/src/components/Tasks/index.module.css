@@ -15,7 +15,7 @@
   flex-direction: column;
   gap: var(--cd-space-2);
   padding: var(--cd-space-4) var(--cd-space-5);
-  background: var(--cd-color-bg);
+  background: var(--cd-panel-bg);
 }
 .pageHead {
   display: flex;
@@ -116,9 +116,9 @@
   gap: var(--cd-space-0-5) var(--cd-space-3);
   width: 100%;
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface);
+  background: var(--cd-panel-surface);
   color: var(--cd-color-text);
   font: inherit;
   text-align: left;
@@ -171,9 +171,9 @@
   flex-direction: column;
   gap: var(--cd-space-3);
   padding: var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
 }
 .detailHead {
   display: flex;
@@ -303,7 +303,7 @@
 }
 .section + .section {
   padding-top: var(--cd-space-4);
-  border-top: 1px solid var(--cd-color-border-subtle);
+  border-top: 1px solid var(--cd-panel-border);
 }
 .sectionTitle {
   margin: 0;
@@ -317,9 +317,9 @@
   grid-template-columns: repeat(auto-fill, minmax(10.5em, 1fr));
   gap: var(--cd-space-2) var(--cd-space-3);
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .level {
   margin-left: var(--cd-space-1-5);
@@ -332,9 +332,9 @@
   flex-direction: column;
   gap: var(--cd-space-3);
   padding: var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .folders {
   display: flex;
@@ -349,9 +349,9 @@
   align-items: center;
   gap: var(--cd-space-2);
   padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-1) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .folderPath {
   flex: 1;
@@ -404,7 +404,7 @@
   gap: var(--cd-space-1) var(--cd-space-3);
   margin: 0;
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   font-size: var(--cd-font-size-sm);
 }

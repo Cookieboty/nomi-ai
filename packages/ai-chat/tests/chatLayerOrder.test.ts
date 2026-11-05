@@ -55,6 +55,28 @@ describe('聊天区层级：输入区高于聊天内容', () => {
 });
 
 describe('全局背景层', () => {
+  it('任务页、委派卡片与素材库使用图片主题透明令牌，不新增局部模糊', () => {
+    const delegate = read('src/components/Conversation/DelegateCard.module.css');
+    expect(ruleBody(delegate, '.card')).toContain('--cd-panel-surface-raised');
+    expect(ruleBody(delegate, '.card')).toContain('--cd-panel-border');
+    const tasks = read('src/components/Tasks/index.module.css');
+    expect(ruleBody(tasks, '.page')).toContain('--cd-panel-bg');
+    expect(ruleBody(tasks, '.detail')).toContain('--cd-panel-surface-raised');
+    const board = read('src/components/Tasks/Board.module.css');
+    expect(ruleBody(board, '.column')).toContain('--cd-panel-surface-sunken');
+    expect(ruleBody(board, '.card')).toContain('--cd-panel-surface-raised');
+    const assets = read('src/components/AssetLibrary/index.module.css');
+    expect(ruleBody(assets, '.page')).toContain('--cd-panel-bg');
+    expect(ruleBody(assets, '.frame')).toContain('--cd-panel-surface-sunken');
+    expect(ruleBody(assets, '.frame')).toContain('--cd-panel-border');
+    for (const css of [delegate, tasks, board, assets]) {
+      expect(css).not.toContain('backdrop-filter');
+      expect(css).not.toMatch(
+        /background(?:-color)?:\s*var\(--cd-color-(?:surface(?:-raised|-sunken)?|bg(?:-subtle)?)\)/,
+      );
+    }
+  });
+
   it('图片主题顶部与侧栏同色深，顶部底边、右栏和拖动分隔使用同一透明边框令牌', () => {
     const defaults = ruleBody(tokens, ':root');
     expect(defaults).toContain('--cd-panel-border: var(--cd-color-border)');
@@ -94,20 +116,28 @@ describe('全局背景层', () => {
     expect(layer).not.toMatch(/opacity:/);
   });
 
-  it('图片层自身 filter 模糊并用负 inset 盖住边缘，遮罩为固定深色且不做 backdrop 模糊', () => {
+  it('底图尺寸固定，只有全局蒙版调节背景采样模糊与不透明度', () => {
     const image = ruleBody(app, '.chat-bg-image');
-    expect(image).toMatch(/inset:\s*calc\(var\(--cd-chat-bg-blur, 0px\) \* -2\)/);
+    expect(image).toMatch(/inset:\s*0/);
     expect(image).toMatch(/background-size:\s*cover/);
     expect(image).toMatch(/background-position:\s*center/);
-    expect(image).toMatch(/opacity:\s*var\(--cd-chat-bg-opacity/);
-    expect(image).toMatch(/(?:^|\s)filter:\s*blur\(var\(--cd-chat-bg-blur/);
-    expect(image).not.toContain('backdrop-filter');
+    expect(image).not.toMatch(/filter:|opacity:|transform:|--cd-chat-bg-blur/);
     const mask = ruleBody(app, '.chat-bg-mask');
     expect(mask).toMatch(/inset:\s*0/);
     expect(mask).toMatch(/z-index:\s*1/);
-    expect(mask).toMatch(/background:\s*rgb\(0 0 0 \/ \d+%\)/);
-    expect(mask).not.toMatch(/filter:|--cd-chat-bg-opacity/);
-    expect(app).not.toContain('--cd-chat-bg-color');
+    expect(mask).toContain('background: rgb(0 0 0 / var(--cd-chat-bg-opacity, 0.5))');
+    expect(mask).toContain('backdrop-filter: blur(var(--cd-chat-bg-blur, 0px))');
+    expect(mask).toContain('-webkit-backdrop-filter: blur(var(--cd-chat-bg-blur, 0px))');
+    expect(mask).not.toMatch(/(?:^|[;\n])\s*(?:filter|opacity|transform):/);
+  });
+
+  it('图片主题预览复用底图和蒙版，不模糊卡片内容或遮挡选中标记', () => {
+    const settings = read('src/components/SettingsView/index.module.css');
+    expect(ruleBody(settings, '.themeImageLayers')).toMatch(/inset:\s*0/);
+    expect(ruleBody(settings, '.themeImageLayers')).toMatch(/overflow:\s*hidden/);
+    expect(ruleBody(settings, '.themeImageLayers')).not.toMatch(/filter:|opacity:/);
+    expect(ruleBody(settings, '.themeCard')).toMatch(/z-index:\s*2/);
+    expect(ruleBody(settings, '.themeCheck')).toMatch(/z-index:\s*2/);
   });
 
   it('欢迎区、输入区和各栏不再单独模糊', () => {

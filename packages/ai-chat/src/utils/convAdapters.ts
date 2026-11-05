@@ -62,7 +62,7 @@ function buildChat(m: ChatMessage): ConvMessage | null {
     ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
-    ...(m.role === 'assistant' ? { label: ENDPOINT_NAME.nomi } : {}),
+    ...(m.role === 'assistant' ? { label: ENDPOINT_NAME.nomi, showThinkingDetails: false } : {}),
     ...(m.role === 'assistant' && m.modelId ? { model: m.modelId } : {}),
     raw: m,
   };
@@ -120,6 +120,8 @@ export function nomiLive(messages: readonly ChatMessage[], running: boolean): Co
   if (!last) return { text: '', startedAt: lastUser?.timestamp ?? Date.now() };
   return {
     text: last.content ?? '',
+    showThinkingDetails: false,
+    ...(last.thinking !== undefined ? { thinking: last.thinking } : {}),
     ...(last.trace ? { trace: last.trace } : {}),
     startedAt: lastUser?.timestamp ?? last.timestamp,
     ...(last.content || last.trace?.length ? { firstEventAt: last.timestamp } : {}),
@@ -133,6 +135,8 @@ export function sameLive(a: ConvLive | undefined, b: ConvLive | undefined): bool
   return (
     a.text === b.text &&
     a.trace === b.trace &&
+    a.thinking === b.thinking &&
+    a.showThinkingDetails === b.showThinkingDetails &&
     a.startedAt === b.startedAt &&
     a.firstEventAt === b.firstEventAt
   );

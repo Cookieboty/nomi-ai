@@ -12,6 +12,7 @@ import (
 type SSETransport struct {
 	href, origin string
 	headers      [][2]string
+	fetch        FetchFunc
 	ua           string
 
 	mu              sync.Mutex
@@ -87,7 +88,7 @@ func (t *SSETransport) Start() <-chan error {
 			fail(err)
 			return
 		}
-		resp, err := doFetch(ctx, "GET", t.href, h, nil)
+		resp, err := doFetchWith(t.fetch, ctx, "GET", t.href, h, nil, nil)
 		if err != nil {
 			fail(err)
 			return
@@ -237,7 +238,7 @@ func (t *SSETransport) Send(msg *u.Obj, opts *SendOptions) <-chan error {
 				return err
 			}
 			body := u.Stringify(msg)
-			resp, err := doFetch(reqSignal, "POST", ep, h, &body)
+			resp, err := doFetchWith(t.fetch, reqSignal, "POST", ep, h, &body, nil)
 			if err != nil {
 				return err
 			}

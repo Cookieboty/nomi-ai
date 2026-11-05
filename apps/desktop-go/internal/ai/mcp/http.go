@@ -28,6 +28,7 @@ func parseHref(raw string) (string, string, error) {
 type HTTPTransport struct {
 	href    string
 	headers [][2]string
+	fetch   FetchFunc
 	ua      string
 
 	mu               sync.Mutex
@@ -186,7 +187,7 @@ func (t *HTTPTransport) Close(signal Signal) <-chan error {
 				if err != nil || throwIfAborted(signal) != nil {
 					return
 				}
-				if r, err := doFetch(signal, "DELETE", t.href, h, nil); err == nil {
+				if r, err := doFetchWith(t.fetch, signal, "DELETE", t.href, h, nil, nil); err == nil {
 					r.discard()
 				}
 			}()
@@ -282,7 +283,7 @@ func (t *HTTPTransport) attempt(msg *u.Obj, opts *SendOptions, optSignal, reqSig
 		return err
 	}
 	body := u.Stringify(msg)
-	resp, err := doFetch(reqSignal, "POST", t.href, headers, &body)
+	resp, err := doFetchWith(t.fetch, reqSignal, "POST", t.href, headers, &body, nil)
 	if err != nil {
 		return err
 	}
@@ -486,7 +487,7 @@ func (t *HTTPTransport) openInboundSse(resume string, dispatched func()) {
 		fail(err)
 		return
 	}
-	resp, err := doFetchDispatched(t.transportSignal(), "GET", t.href, h, nil, dispatched)
+	resp, err := doFetchWith(t.fetch, t.transportSignal(), "GET", t.href, h, nil, dispatched)
 	if err != nil {
 		fail(err)
 		return

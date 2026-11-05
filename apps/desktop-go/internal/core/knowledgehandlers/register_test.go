@@ -10,10 +10,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledge"
 )
 
-func TestHandlersCover75(t *testing.T) {
+func TestHandlersCover77(t *testing.T) {
 	h := Handlers(Services{})
-	if len(h) != 75 {
-		t.Fatalf("got %d handlers, want 75", len(h))
+	if len(h) != 77 {
+		t.Fatalf("got %d handlers, want 77", len(h))
 	}
 	for n := range h {
 		p := strings.SplitN(n, ".", 2)[0]

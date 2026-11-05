@@ -96,6 +96,7 @@ func (r ChatResponse) Obj() *u.Obj {
 type ChatChunk struct {
 	Type          string // delta | tool_call.delta | tool_call.result | reasoning | usage | done | error
 	Content       string
+	Phase         string // reasoning: start | end（文本增量时为空）
 	Index         float64
 	Name          *string
 	ArgumentsJSON *string
@@ -112,6 +113,9 @@ func (c ChatChunk) Obj() *u.Obj {
 	switch c.Type {
 	case "delta", "reasoning":
 		o.Set("content", c.Content)
+		if c.Type == "reasoning" && c.Phase != "" {
+			o.Set("phase", c.Phase)
+		}
 	case "tool_call.delta":
 		o.Set("index", c.Index)
 		setStr(o, "name", c.Name)

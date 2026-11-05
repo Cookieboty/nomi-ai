@@ -1,5 +1,5 @@
 /** 窗口级背景层，与设置及挂到 body 的弹层共用，不拦截指针。
- *  图片层自身 filter 模糊（静态、只栅格化一次），上面叠一层固定深色遮罩保证文字对比度。 */
+ *  底图保持清晰且尺寸固定，上方单层蒙版采样模糊并调节遮罩不透明度。 */
 import { currentTheme } from '@nomi-ai/ui';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
@@ -25,12 +25,10 @@ export const ChatBackgroundLayer: React.FC = () => {
     const root = document.documentElement;
     if (active) root.dataset.chatBg = 'image';
     else delete root.dataset.chatBg;
-    root.style.setProperty('--cd-chat-bg-blur', `${s.blur}px`);
     return () => {
       delete root.dataset.chatBg;
-      root.style.removeProperty('--cd-chat-bg-blur');
     };
-  }, [active, s.blur]);
+  }, [active]);
   // 运行中图片被删 / 移走：加载失败时让主进程重新校验，回退到内置预设
   useEffect(() => {
     if (!active || !s.imageUrl || typeof Image === 'undefined') return;

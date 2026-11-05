@@ -39,7 +39,7 @@ type State struct {
 	Opacity  float64 `json:"opacity"`
 }
 
-var Default = State{ImageURL: nil, Blur: 8, Opacity: 0.4}
+var Default = State{ImageURL: nil, Blur: 0, Opacity: 0.5}
 
 func clamp(n, lo, hi float64) float64 { return math.Min(hi, math.Max(lo, n)) }
 

@@ -2259,18 +2259,72 @@ type DiagnosticsSetOutput struct {
 	BodyTrace bool   `json:"bodyTrace"`
 }
 
+type ExtMcpAuthorizeInput struct {
+	Id string `json:"id"`
+}
+
+// ExtMcpAuthorizeOutputStatus 枚举：off | connecting | authorization-required | connected | error
+type ExtMcpAuthorizeOutputStatus = string
+
+const (
+	ExtMcpAuthorizeOutputStatusOff                   ExtMcpAuthorizeOutputStatus = "off"
+	ExtMcpAuthorizeOutputStatusConnecting            ExtMcpAuthorizeOutputStatus = "connecting"
+	ExtMcpAuthorizeOutputStatusAuthorizationRequired ExtMcpAuthorizeOutputStatus = "authorization-required"
+	ExtMcpAuthorizeOutputStatusConnected             ExtMcpAuthorizeOutputStatus = "connected"
+	ExtMcpAuthorizeOutputStatusError                 ExtMcpAuthorizeOutputStatus = "error"
+)
+
+// ExtMcpAuthorizeOutputAuth 枚举：required | pending | authorized
+type ExtMcpAuthorizeOutputAuth = string
+
+const (
+	ExtMcpAuthorizeOutputAuthRequired   ExtMcpAuthorizeOutputAuth = "required"
+	ExtMcpAuthorizeOutputAuthPending    ExtMcpAuthorizeOutputAuth = "pending"
+	ExtMcpAuthorizeOutputAuthAuthorized ExtMcpAuthorizeOutputAuth = "authorized"
+)
+
+type ExtMcpAuthorizeOutputToolsItem struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ReadOnly    bool   `json:"readOnly"`
+	Dangerous   bool   `json:"dangerous"`
+}
+
+type ExtMcpAuthorizeOutput struct {
+	Status           ExtMcpAuthorizeOutputStatus      `json:"status"`
+	Auth             *ExtMcpAuthorizeOutputAuth       `json:"auth,omitempty"`
+	HasAuthorization *bool                            `json:"hasAuthorization,omitempty"`
+	Error            *string                          `json:"error,omitempty"`
+	Tools            []ExtMcpAuthorizeOutputToolsItem `json:"tools"`
+	At               *float64                         `json:"at,omitempty"`
+}
+
+type ExtMcpClearAuthorizationInput struct {
+	Id string `json:"id"`
+}
+
 type ExtMcpConnectInput struct {
 	Id string `json:"id"`
 }
 
-// ExtMcpConnectOutputStatus 枚举：off | connecting | connected | error
+// ExtMcpConnectOutputStatus 枚举：off | connecting | authorization-required | connected | error
 type ExtMcpConnectOutputStatus = string
 
 const (
-	ExtMcpConnectOutputStatusOff        ExtMcpConnectOutputStatus = "off"
-	ExtMcpConnectOutputStatusConnecting ExtMcpConnectOutputStatus = "connecting"
-	ExtMcpConnectOutputStatusConnected  ExtMcpConnectOutputStatus = "connected"
-	ExtMcpConnectOutputStatusError      ExtMcpConnectOutputStatus = "error"
+	ExtMcpConnectOutputStatusOff                   ExtMcpConnectOutputStatus = "off"
+	ExtMcpConnectOutputStatusConnecting            ExtMcpConnectOutputStatus = "connecting"
+	ExtMcpConnectOutputStatusAuthorizationRequired ExtMcpConnectOutputStatus = "authorization-required"
+	ExtMcpConnectOutputStatusConnected             ExtMcpConnectOutputStatus = "connected"
+	ExtMcpConnectOutputStatusError                 ExtMcpConnectOutputStatus = "error"
+)
+
+// ExtMcpConnectOutputAuth 枚举：required | pending | authorized
+type ExtMcpConnectOutputAuth = string
+
+const (
+	ExtMcpConnectOutputAuthRequired   ExtMcpConnectOutputAuth = "required"
+	ExtMcpConnectOutputAuthPending    ExtMcpConnectOutputAuth = "pending"
+	ExtMcpConnectOutputAuthAuthorized ExtMcpConnectOutputAuth = "authorized"
 )
 
 type ExtMcpConnectOutputToolsItem struct {
@@ -2281,10 +2335,12 @@ type ExtMcpConnectOutputToolsItem struct {
 }
 
 type ExtMcpConnectOutput struct {
-	Status ExtMcpConnectOutputStatus      `json:"status"`
-	Error  *string                        `json:"error,omitempty"`
-	Tools  []ExtMcpConnectOutputToolsItem `json:"tools"`
-	At     *float64                       `json:"at,omitempty"`
+	Status           ExtMcpConnectOutputStatus      `json:"status"`
+	Auth             *ExtMcpConnectOutputAuth       `json:"auth,omitempty"`
+	HasAuthorization *bool                          `json:"hasAuthorization,omitempty"`
+	Error            *string                        `json:"error,omitempty"`
+	Tools            []ExtMcpConnectOutputToolsItem `json:"tools"`
+	At               *float64                       `json:"at,omitempty"`
 }
 
 type ExtMcpDisconnectInput struct {
@@ -2314,16 +2370,17 @@ const (
 )
 
 type ExtMcpImportOutputItem struct {
-	Id        string                          `json:"id"`
-	Name      string                          `json:"name"`
-	Transport ExtMcpImportOutputItemTransport `json:"transport"`
-	Command   *string                         `json:"command,omitempty"`
-	Args      []string                        `json:"args,omitempty"`
-	Url       *string                         `json:"url,omitempty"`
-	Env       map[string]string               `json:"env,omitempty"`
-	Headers   map[string]string               `json:"headers,omitempty"`
-	Enabled   bool                            `json:"enabled"`
-	Trust     ExtMcpImportOutputItemTrust     `json:"trust"`
+	Id            string                          `json:"id"`
+	Name          string                          `json:"name"`
+	Transport     ExtMcpImportOutputItemTransport `json:"transport"`
+	Command       *string                         `json:"command,omitempty"`
+	Args          []string                        `json:"args,omitempty"`
+	Url           *string                         `json:"url,omitempty"`
+	Env           map[string]string               `json:"env,omitempty"`
+	Headers       map[string]string               `json:"headers,omitempty"`
+	OauthClientId *string                         `json:"oauthClientId,omitempty"`
+	Enabled       bool                            `json:"enabled"`
+	Trust         ExtMcpImportOutputItemTrust     `json:"trust"`
 }
 
 // ExtMcpListOutputServersItemTransport 枚举：stdio | http | sse
@@ -2344,14 +2401,24 @@ const (
 	ExtMcpListOutputServersItemTrustAuto     ExtMcpListOutputServersItemTrust = "auto"
 )
 
-// ExtMcpListOutputServersItemStatus 枚举：off | connecting | connected | error
+// ExtMcpListOutputServersItemStatus 枚举：off | connecting | authorization-required | connected | error
 type ExtMcpListOutputServersItemStatus = string
 
 const (
-	ExtMcpListOutputServersItemStatusOff        ExtMcpListOutputServersItemStatus = "off"
-	ExtMcpListOutputServersItemStatusConnecting ExtMcpListOutputServersItemStatus = "connecting"
-	ExtMcpListOutputServersItemStatusConnected  ExtMcpListOutputServersItemStatus = "connected"
-	ExtMcpListOutputServersItemStatusError      ExtMcpListOutputServersItemStatus = "error"
+	ExtMcpListOutputServersItemStatusOff                   ExtMcpListOutputServersItemStatus = "off"
+	ExtMcpListOutputServersItemStatusConnecting            ExtMcpListOutputServersItemStatus = "connecting"
+	ExtMcpListOutputServersItemStatusAuthorizationRequired ExtMcpListOutputServersItemStatus = "authorization-required"
+	ExtMcpListOutputServersItemStatusConnected             ExtMcpListOutputServersItemStatus = "connected"
+	ExtMcpListOutputServersItemStatusError                 ExtMcpListOutputServersItemStatus = "error"
+)
+
+// ExtMcpListOutputServersItemAuth 枚举：required | pending | authorized
+type ExtMcpListOutputServersItemAuth = string
+
+const (
+	ExtMcpListOutputServersItemAuthRequired   ExtMcpListOutputServersItemAuth = "required"
+	ExtMcpListOutputServersItemAuthPending    ExtMcpListOutputServersItemAuth = "pending"
+	ExtMcpListOutputServersItemAuthAuthorized ExtMcpListOutputServersItemAuth = "authorized"
 )
 
 type ExtMcpListOutputServersItemToolsItem struct {
@@ -2362,29 +2429,33 @@ type ExtMcpListOutputServersItemToolsItem struct {
 }
 
 type ExtMcpListOutputServersItem struct {
-	Id        string                                 `json:"id"`
-	Name      string                                 `json:"name"`
-	Transport ExtMcpListOutputServersItemTransport   `json:"transport"`
-	Command   *string                                `json:"command,omitempty"`
-	Args      []string                               `json:"args,omitempty"`
-	Url       *string                                `json:"url,omitempty"`
-	Env       map[string]string                      `json:"env,omitempty"`
-	Headers   map[string]string                      `json:"headers,omitempty"`
-	Enabled   bool                                   `json:"enabled"`
-	Trust     ExtMcpListOutputServersItemTrust       `json:"trust"`
-	Status    ExtMcpListOutputServersItemStatus      `json:"status"`
-	Error     *string                                `json:"error,omitempty"`
-	Tools     []ExtMcpListOutputServersItemToolsItem `json:"tools"`
+	Id               string                                 `json:"id"`
+	Name             string                                 `json:"name"`
+	Transport        ExtMcpListOutputServersItemTransport   `json:"transport"`
+	Command          *string                                `json:"command,omitempty"`
+	Args             []string                               `json:"args,omitempty"`
+	Url              *string                                `json:"url,omitempty"`
+	Env              map[string]string                      `json:"env,omitempty"`
+	Headers          map[string]string                      `json:"headers,omitempty"`
+	OauthClientId    *string                                `json:"oauthClientId,omitempty"`
+	Enabled          bool                                   `json:"enabled"`
+	Trust            ExtMcpListOutputServersItemTrust       `json:"trust"`
+	Status           ExtMcpListOutputServersItemStatus      `json:"status"`
+	Auth             *ExtMcpListOutputServersItemAuth       `json:"auth,omitempty"`
+	HasAuthorization *bool                                  `json:"hasAuthorization,omitempty"`
+	Error            *string                                `json:"error,omitempty"`
+	Tools            []ExtMcpListOutputServersItemToolsItem `json:"tools"`
 }
 
-// ExtMcpListOutputEnvItemStatus 枚举：off | connecting | connected | error
+// ExtMcpListOutputEnvItemStatus 枚举：off | connecting | authorization-required | connected | error
 type ExtMcpListOutputEnvItemStatus = string
 
 const (
-	ExtMcpListOutputEnvItemStatusOff        ExtMcpListOutputEnvItemStatus = "off"
-	ExtMcpListOutputEnvItemStatusConnecting ExtMcpListOutputEnvItemStatus = "connecting"
-	ExtMcpListOutputEnvItemStatusConnected  ExtMcpListOutputEnvItemStatus = "connected"
-	ExtMcpListOutputEnvItemStatusError      ExtMcpListOutputEnvItemStatus = "error"
+	ExtMcpListOutputEnvItemStatusOff                   ExtMcpListOutputEnvItemStatus = "off"
+	ExtMcpListOutputEnvItemStatusConnecting            ExtMcpListOutputEnvItemStatus = "connecting"
+	ExtMcpListOutputEnvItemStatusAuthorizationRequired ExtMcpListOutputEnvItemStatus = "authorization-required"
+	ExtMcpListOutputEnvItemStatusConnected             ExtMcpListOutputEnvItemStatus = "connected"
+	ExtMcpListOutputEnvItemStatusError                 ExtMcpListOutputEnvItemStatus = "error"
 )
 
 type ExtMcpListOutputEnvItemToolsItem struct {
@@ -2443,16 +2514,17 @@ const (
 )
 
 type ExtMcpUpsertInput struct {
-	Id        *string                     `json:"id,omitempty"`
-	Name      *string                     `json:"name,omitempty"`
-	Transport *ExtMcpUpsertInputTransport `json:"transport,omitempty"`
-	Command   *string                     `json:"command,omitempty"`
-	Args      []string                    `json:"args,omitempty"`
-	Url       *string                     `json:"url,omitempty"`
-	Env       map[string]string           `json:"env,omitempty"`
-	Headers   map[string]string           `json:"headers,omitempty"`
-	Enabled   *bool                       `json:"enabled,omitempty"`
-	Trust     *ExtMcpUpsertInputTrust     `json:"trust,omitempty"`
+	Id            *string                     `json:"id,omitempty"`
+	Name          *string                     `json:"name,omitempty"`
+	Transport     *ExtMcpUpsertInputTransport `json:"transport,omitempty"`
+	Command       *string                     `json:"command,omitempty"`
+	Args          []string                    `json:"args,omitempty"`
+	Url           *string                     `json:"url,omitempty"`
+	Env           map[string]string           `json:"env,omitempty"`
+	Headers       map[string]string           `json:"headers,omitempty"`
+	OauthClientId *string                     `json:"oauthClientId,omitempty"`
+	Enabled       *bool                       `json:"enabled,omitempty"`
+	Trust         *ExtMcpUpsertInputTrust     `json:"trust,omitempty"`
 }
 
 // ExtMcpUpsertOutputTransport 枚举：stdio | http | sse
@@ -2474,16 +2546,17 @@ const (
 )
 
 type ExtMcpUpsertOutput struct {
-	Id        string                      `json:"id"`
-	Name      string                      `json:"name"`
-	Transport ExtMcpUpsertOutputTransport `json:"transport"`
-	Command   *string                     `json:"command,omitempty"`
-	Args      []string                    `json:"args,omitempty"`
-	Url       *string                     `json:"url,omitempty"`
-	Env       map[string]string           `json:"env,omitempty"`
-	Headers   map[string]string           `json:"headers,omitempty"`
-	Enabled   bool                        `json:"enabled"`
-	Trust     ExtMcpUpsertOutputTrust     `json:"trust"`
+	Id            string                      `json:"id"`
+	Name          string                      `json:"name"`
+	Transport     ExtMcpUpsertOutputTransport `json:"transport"`
+	Command       *string                     `json:"command,omitempty"`
+	Args          []string                    `json:"args,omitempty"`
+	Url           *string                     `json:"url,omitempty"`
+	Env           map[string]string           `json:"env,omitempty"`
+	Headers       map[string]string           `json:"headers,omitempty"`
+	OauthClientId *string                     `json:"oauthClientId,omitempty"`
+	Enabled       bool                        `json:"enabled"`
+	Trust         ExtMcpUpsertOutputTrust     `json:"trust"`
 }
 
 // ExtMigrateImportInputItemsItemAction 枚举：skip | rename | overwrite
@@ -8317,6 +8390,14 @@ type DiagnosticsOpenFolderOutputT = bool
 // DiagnosticsSetInputT 是 diagnostics.set 的入参
 type DiagnosticsSetInputT = DiagnosticsSetInput
 type DiagnosticsSetOutputT = DiagnosticsSetOutput
+
+// ExtMcpAuthorizeInputT 是 ext.mcpAuthorize 的入参
+type ExtMcpAuthorizeInputT = ExtMcpAuthorizeInput
+type ExtMcpAuthorizeOutputT = ExtMcpAuthorizeOutput
+
+// ExtMcpClearAuthorizationInputT 是 ext.mcpClearAuthorization 的入参
+type ExtMcpClearAuthorizationInputT = ExtMcpClearAuthorizationInput
+type ExtMcpClearAuthorizationOutputT = bool
 
 // ExtMcpConnectInputT 是 ext.mcpConnect 的入参
 type ExtMcpConnectInputT = ExtMcpConnectInput

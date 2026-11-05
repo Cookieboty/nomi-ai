@@ -279,8 +279,6 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const kind = describeCall(call).kind;
-  // 单个编辑默认展开：直接看到改了什么
-  const diffOpen = (kind === 'edit' || kind === 'write') && diffsOf(call).length > 0;
   const image = generatedImageOf(call);
   const row = (
     <Disclosure
@@ -289,7 +287,6 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
       meta={kind === 'edit' || kind === 'write' ? <EditStats call={call} /> : undefined}
       status={call.status}
       duration={callDuration(call)}
-      defaultOpen={diffOpen}
       testId="tool-row"
       attrs={{ 'data-kind': kind, 'data-tool': call.name }}
     >

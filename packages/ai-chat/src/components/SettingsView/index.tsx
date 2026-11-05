@@ -22,6 +22,7 @@ import { ProvidersPage } from '../ProvidersPage';
 import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AppIconSettings } from './AppIconSettings';
+import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
@@ -137,6 +138,7 @@ export const SettingsView: React.FC<Props> = ({
                   data-testid="settings-appearance"
                 >
                   <ThemeSettings />
+                  <ConversationFontSizeSettings />
                   <AppIconSettings />
                 </SettingsGroup>
                 <StartupSettings

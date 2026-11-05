@@ -94,6 +94,8 @@ exports[`knowledge 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "ext.mcpToggle mutation * dangerous",
   "ext.mcpConnect mutation * dangerous",
   "ext.mcpDisconnect mutation *",
+  "ext.mcpAuthorize mutation * dangerous",
+  "ext.mcpClearAuthorization mutation *",
   "ext.mcpImport mutation *",
   "ext.skillsList query *",
   "ext.skillGet query *",

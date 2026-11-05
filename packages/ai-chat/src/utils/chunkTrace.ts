@@ -56,8 +56,8 @@ export function chunkToTrace(c: Chunk, now = Date.now()): HarnessTraceEvent | nu
       at: now,
     };
   }
-  if (c.type === 'reasoning' && str(c.content)) {
-    return { type: 'thinking', text: str(c.content)!, at: now };
+  if (c.type === 'reasoning' && c.phase !== 'end' && typeof c.content === 'string') {
+    return { type: 'thinking', text: c.content, at: now };
   }
   return null;
 }

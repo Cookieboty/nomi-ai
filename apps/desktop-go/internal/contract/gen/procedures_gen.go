@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 424：mutation 296 / query 123 / stream 5
+// 合计 426：mutation 298 / query 123 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -139,6 +139,8 @@ var Procedures = []Procedure{
 	{Name: "diagnostics.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.openFolder", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "ext.mcpAuthorize", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "ext.mcpClearAuthorization", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ext.mcpConnect", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "ext.mcpDisconnect", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ext.mcpImport", Kind: "mutation", Dangerous: false, Surfaces: nil},

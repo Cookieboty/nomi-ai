@@ -96,3 +96,14 @@ describe('格式化', () => {
     expect(prettyJson('not json')).toBe('not json');
   });
 });
+
+it('hides ordinary-chat reasoning details while retaining timing and CLI defaults', () => {
+  const trace = [{ type: 'thinking' as const, text: 'private detail', at: T0 }];
+  expect(waterfallRows({ trace, showThinkingDetails: false }, [])).toEqual([
+    expect.objectContaining({ kind: 'thinking', start: T0, text: '' }),
+  ]);
+  expect(waterfallRows({ trace }, [])).toEqual([
+    expect.objectContaining({ kind: 'thinking', text: 'private detail' }),
+  ]);
+  expect(trace[0]?.text).toBe('private detail');
+});

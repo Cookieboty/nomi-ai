@@ -4,9 +4,9 @@ import { THEMES, currentTheme, setTheme, type ThemePref, type ThemeState } from 
 import { Check, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
-import { hostAssetUrl } from '../../services/api';
 import {
   chatBgErrorMessage,
+  chatBgStyle,
   getChatBackground,
   pickChatBackgroundImage,
   subscribeChatBackground,
@@ -109,16 +109,22 @@ export const ThemeSettings: React.FC = () => {
               <span
                 className={styles.themePreview}
                 style={{
+                  ...(image ? chatBgStyle(background) : {}),
                   backgroundColor: t.swatch[0],
                   borderColor: t.swatch[1],
                   backgroundImage: sys
                     ? `linear-gradient(110deg, ${t.swatch[0]} 50%, ${t.swatch[2]} 50%)`
-                    : image && background.imageUrl
-                      ? `url("${hostAssetUrl(background.imageUrl).replace(/"/g, '\\"')}")`
-                      : 'none',
+                    : 'none',
                 }}
                 aria-hidden
+                data-testid={image ? 'theme-bg-preview' : undefined}
               >
+                {image && background.imageUrl && (
+                  <span className={styles.themeImageLayers}>
+                    <span className="chat-bg-image" data-testid="theme-bg-image" />
+                    <span className="chat-bg-mask" data-testid="theme-bg-mask" />
+                  </span>
+                )}
                 {image && !background.imageUrl ? (
                   <span className={styles.themeImagePlaceholder}>
                     <Icon icon={Image} size={24} />

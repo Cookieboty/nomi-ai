@@ -273,7 +273,7 @@
   "ui.chat-settings.only-affects-sessions-opened-from-now-on": "只影响以后新开的 {0} 会话，已有会话不变",
   "ui.chat-settings.only-clicks-on-the-character-itself-are-captured": "只有点在角色身上才会被拦截，其它地方的点击直接落到下面的窗口。",
   "ui.chat-settings.only-kind-length-and-first-characters-are-kept": "只记类型、长度和开头几个字符，不记原文。同一个值每一轮都会随历史再遮一次，这里按值合并。",
-  "ui.chat-settings.opacity": "透明度",
+  "ui.chat-settings.opacity": "蒙版不透明度",
   "ui.chat-settings.open-commands-in-the-input-box": "在输入框里打开命令",
   "ui.chat-settings.open-settings": "打开设置",
   "ui.chat-settings.open-sign-in-page": "打开登录页",
@@ -488,5 +488,7 @@
   "ui.chat-settings.boot-importing-history": "正在导入之前的对话记录（{0}/{1}）…",
   "ui.chat-settings.boot-history-unavailable": "对话记录暂时读不出来",
   "ui.chat-settings.boot-history-unavailable-detail": "记录还在，没有丢失。稍后重试一下；一直不行的话重启应用。",
-  "ui.chat-settings.history-save-failed": "对话记录暂时没能保存，正在自动重试，请先不要退出应用"
+  "ui.chat-settings.history-save-failed": "对话记录暂时没能保存，正在自动重试，请先不要退出应用",
+  "ui.chat-settings.conversation-font-size": "会话正文字号",
+  "ui.chat-settings.conversation-font-size-description": "仅调整会话正文，默认 {0}px；不影响输入框、侧栏和按钮。"
 }

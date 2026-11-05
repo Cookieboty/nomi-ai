@@ -4,9 +4,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Codex Desktop 26.1013 会话区：正文 16px，行高比字号多 8px，代码 14px。 */
-  --conv-text: 16px;
-  --conv-leading: 24px;
+  --conv-text: 14px;
+  --conv-leading: 22px;
   --conv-code: 14px;
   --conv-ui: 14px;
   --conv-meta: 13px;

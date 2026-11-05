@@ -292,11 +292,12 @@ func main() {
 			}
 			return shellhandlers.LocalGateway(gatewaySvc)()
 		},
-		Complete: complete,
-		UserData: userData,
-		Router:   router,
-		Secrets:  security.NewSecretBox("extensions"),
-		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
+		Complete:     complete,
+		UserData:     userData,
+		Router:       router,
+		Secrets:      security.NewSecretBox("extensions"),
+		OpenExternal: ports.OpenExternal,
+		Desktop:      knowledgehandlers.DesktopAdapter{S: desktopSvc},
 		LegacyReminders: func() []tasks.LegacyReminder {
 			out := []tasks.LegacyReminder{}
 			if desktopSvc.Reminders == nil {

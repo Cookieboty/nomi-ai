@@ -2,9 +2,9 @@
 export interface ChatBackgroundState {
   /** chat-asset://images/panel-bg.<uuid>.<ext> 或内置预设 URL */
   imageUrl: string | null;
-  /** 背景图模糊 px，0–40 */
+  /** 全局蒙版的背景采样模糊 px，0–40 */
   blur: number;
-  /** 背景图不透明度 0.05–1 */
+  /** 全局蒙版不透明度 0.05–1（不是背景图片的不透明度） */
   opacity: number;
 }
 
@@ -22,8 +22,8 @@ export const CHAT_BG_ERROR = {
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   imageUrl: null,
-  blur: 8,
-  opacity: 0.4,
+  blur: 0,
+  opacity: 0.5,
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));

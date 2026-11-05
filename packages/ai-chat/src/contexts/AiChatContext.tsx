@@ -850,15 +850,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
         if (!delegateTo) speaker = startReplySpeech(reqId);
         dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-
         let accumulated = '';
+        let thinking: boolean | undefined;
         const startedAt = Date.now();
         const trace: HarnessTraceEvent[] = [];
         let usage: HarnessUsage | undefined;
         // 流式 UI 更新按帧合批：一帧内到达的文本 / 工具事件只 dispatch 一次（逐 chunk dispatch 会让整条消息列表重渲染）
         let raf = 0;
         let timer = 0;
-        // 只有轨迹变了才换新数组：纯文本帧沿用同一引用，实时工具时间线不必每帧重算
         let traceSnap: HarnessTraceEvent[] | undefined;
         const traceNow = () => {
           if (!trace.length) return undefined;
@@ -875,6 +874,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             {
               ...aiMessage,
               content: accumulated,
+              ...(thinking !== undefined ? { thinking } : {}),
               ...(trace.length ? { trace: traceNow() } : {}),
             },
           ];
@@ -917,8 +917,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             {
               reqId,
               signal: controller.signal,
-              // 显式带上发起时固定的会话与工作区：IPCClient 不再按当前会话替换
               conversation: { id: turn.convoId, cwd: turn.cwd },
+              onThinking: (active) => {
+                thinking = active;
+                scheduleUi();
+              },
               onTrace: (ev) => {
                 trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
                 scheduleUi();
@@ -951,7 +954,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           return;
         }
         flushUi();
-
         const stopped = controller.signal.aborted;
         // 停止时还在跑的工具调用（内核已随这一轮中止它们）：标成已停止，否则时间线一直显示运行中
         trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));

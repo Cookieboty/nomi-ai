@@ -273,7 +273,7 @@
   "ui.chat-settings.only-affects-sessions-opened-from-now-on": "Only affects {0} sessions opened from now on; existing sessions stay as they are",
   "ui.chat-settings.only-clicks-on-the-character-itself-are-captured": "Only clicks on the character itself are captured; clicks elsewhere go straight to the window below.",
   "ui.chat-settings.only-kind-length-and-first-characters-are-kept": "Only the type, length and first few characters are kept, never the value. The same value is masked again every turn with the history, so it is listed once.",
-  "ui.chat-settings.opacity": "Opacity",
+  "ui.chat-settings.opacity": "Mask opacity",
   "ui.chat-settings.open-commands-in-the-input-box": "Open commands in the input box",
   "ui.chat-settings.open-settings": "Open settings",
   "ui.chat-settings.open-sign-in-page": "Open sign-in page",
@@ -488,5 +488,7 @@
   "ui.chat-settings.boot-importing-history": "Importing your earlier chats ({0}/{1})…",
   "ui.chat-settings.boot-history-unavailable": "Couldn't load your chats",
   "ui.chat-settings.boot-history-unavailable-detail": "Your chats are still there. Try again in a moment, or restart the app if it keeps failing.",
-  "ui.chat-settings.history-save-failed": "Couldn't save your chats yet. Retrying automatically — please keep the app open for now."
+  "ui.chat-settings.history-save-failed": "Couldn't save your chats yet. Retrying automatically — please keep the app open for now.",
+  "ui.chat-settings.conversation-font-size": "Conversation font size",
+  "ui.chat-settings.conversation-font-size-description": "Only changes conversation text. Default: {0}px. The input, sidebar and buttons are unchanged."
 }
