@@ -79,7 +79,8 @@ flowchart LR
   规范化（`canonical/`，按 `spec/` 的协议规范表补齐与检测结束）、协议桥和客户端适配器（`clients/`）。路由计划在 `route/`。
 - **供应商存储**：第三方供应商与 Key 只存在网关存储（`userData/gateway/store.json`，`internal/core/gwstore`）；Nomi 对话、agent-tools、
   summary 经网关解析模型。
-- **委派**：Nomi 可把任务异步交给编程助手标签（`delegate_to_cli`，默认后台）；git 仓库内用 worktree 隔离。见
+- **委派**：Nomi 可把任务异步交给编程助手标签（`delegate_to_cli`，默认后台）；默认直接在工作目录里改（同仓库并行按文件、按优先级让路），
+  指定别的分支做基线时才用 worktree；委派的标签与会话只在 Nomi 里看，同一种委派复用会话。见
   [coding-agents.md](coding-agents.md)、[security.md](security.md)
   （Python OS 沙箱：macOS `sandbox-exec` / Linux `bwrap`）。
 - **标签绑定**：第三方标签每启动一个 CLI 进程，先签一个 `nomi-tab-` 令牌并向网关登记绑定（标签、代次、模型、思考深度）；网关按绑定

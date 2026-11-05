@@ -196,13 +196,15 @@ type Orchestrator struct {
 	stopBeforeStart  map[string]bool
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
-	eventBatcher     *cli.EventBatcher
-	pendingPerms     *ordMap[map[string]*jsrt.Timer]
-	pendingPermOrder map[string][]string
-	migratedImgTabs  map[string]bool
-	tabBindings      map[string]*tabBinding
-	bgAgents         map[string]*orderedAgents
-	dormant          map[string]bool
+	// delegatedSessions：Nomi 委派用过的编程助手会话（backend:sessionId）：不出现在编程助手的历史里（orchestrator_delegated.go）
+	delegatedSessions map[string]bool
+	eventBatcher      *cli.EventBatcher
+	pendingPerms      *ordMap[map[string]*jsrt.Timer]
+	pendingPermOrder  map[string][]string
+	migratedImgTabs   map[string]bool
+	tabBindings       map[string]*tabBinding
+	bgAgents          map[string]*orderedAgents
+	dormant           map[string]bool
 
 	idleReclaimMs   float64
 	idleTimer       *jsrt.Timer

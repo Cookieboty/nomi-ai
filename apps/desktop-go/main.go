@@ -508,7 +508,9 @@ func main() {
 			return names
 		},
 	}))
-	// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：后台标签 + worktree；审批走任务收件箱；不自动回填
+	// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：后台标签，默认直接在代码目录里改
+	// （别的分支做基线时用 worktree，验收时落地）；同一种任务复用会话；审批走任务收件箱
+	b8Tasks = b8.Tasks
 	taskCli := taskCliDeps(desktopSvc)
 	taskCli.EventsFor = b8.Tasks.EventBatch
 	b8.Tasks.RegisterExecutor("cli", tasks.NewCliExecutor(taskCli))
@@ -599,6 +601,12 @@ func main() {
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)
+	// 委派 / 任务直接改同一仓库：按文件、按优先级裁决；启动时清理没人认领的委派 worktree
+	wireDelegateClaims(harnessOrch)
+	go func() {
+		sweepDelegateWorktrees(harnessOrch, b8.Tasks)
+		closeStaleDelegatedTabs(harnessOrch)
+	}()
 	// 命令自动审核：交给 Nomi 的辅助模型（摘要角色，没设时跟主模型）判风险。没配模型、或这个模型在云端
 	// 且用户还没同意过发送（不为审核额外弹窗）时不审，照旧交给人确认
 	desktopSvc.Broker.AIReview = func() bool { return jsrt.Call(harnessOrch.AiReviewEnabled) }

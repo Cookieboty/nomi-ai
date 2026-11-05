@@ -34,6 +34,10 @@ export interface HarnessDelegation {
   approvals: { asked: number; denied: number; timedOut: number };
 }
 
+/** Nomi 委派出去的标签：只在 Nomi 里看（对话里的子任务卡片、任务页），不进侧栏与编程助手的标签计数 */
+export const isNomiDelegated = (tab: { delegation?: HarnessDelegation }): boolean =>
+  tab.delegation?.by === 'nomi';
+
 export interface HarnessTabMeta {
   id: string;
   title: string;

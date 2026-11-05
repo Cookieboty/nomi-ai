@@ -571,6 +571,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 委派 P1 加固：汇报字段包 untrusted 边界；`/agent` 钉住按会话+轮次隔离（失败中止发送）；拒绝委派标签再委派；git 改动列表用 rev-parse/porcelain -z；abort 后清理孤儿标签；`taken_over` 记为有意偏差；修复非 git 目录下 gitDiff 用例的竞态。 (`@nomi-ai/ai-chat` patch)
 - 委派 P1 加固：汇报字段包 untrusted 边界；`/agent` 钉住按会话+轮次隔离（失败中止发送）；拒绝委派标签再委派；git 改动列表用 rev-parse/porcelain -z；abort 后清理孤儿标签；`taken_over` 记为有意偏差；修复非 git 目录下 gitDiff 用例的竞态。 (`@nomi-ai/desktop-go` patch)
 - 委派可以派给后台的 Nomi 了：在对话里交代生成一组图片、写 PPT 或调研报告这类要做一阵子的事，Nomi 会交给后台的自己去做，对话照常继续，做完结果回到这个对话。后台的 Nomi 用对话里的工具（生图、联网、技能、文件、命令），代码部分自己再交给编程助手并等它做完。后台的 Nomi 默认给高级权限：读写工作区、跑命令、用已装的 MCP 工具都不再一步步问你，只有删除、高危命令和审核没放行的命令会停下来等你批准；计划（只读）档下不派。任务页能看到进度、能停止。Node 版与 Go 版同步。 (`@nomi-ai/desktop-go` minor)
+- 委派给编程助手不再每次都开 worktree：默认直接在工作目录里改，同一仓库里并行的任务改到同一个文件时按重要程度让路；只有指定基于另一个分支做时才开 worktree，做完落地（改动少拷回工作区，改动多提交到新分支 `nomi/…`）并清理，启动时也会清理遗留的 worktree。同一种委派接着用上一次的会话；委派出去的会话只在 Nomi 里查看，不再出现在侧栏和编程助手的历史里。 (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/contract` patch)
 - 安装包瘦身约 160MB：onnxruntime-web 只打包 Node 下语音检测实际加载的 4 个文件，tesseract.js-core 只保留 Electron 会用到的 relaxedsimd 核心，Chromium 语言包只保留英文与简体中文。 (`@nomi-ai/desktop-go` patch)
 - 安装包瘦身（easy wins）：去掉 asarUnpack 在 asar 内的 onnx/tesseract 重复副本；bare-* prebuilds 只留当前平台；zlibjs 只留 node-zlib.js；i18n 不打包 src/ESM dist；assets 仅走 extraResources。 (`@nomi-ai/desktop-go` patch)
 - 对照 Codex Desktop 默认整页 IA：左会话 | 中 chat | 右 files-rail。「查看变更」聚焦右侧已更改文件树 + Diff，不再默认打开全屏 portal 工作台；工作台降为次要详情入口。 (`@nomi-ai/ai-chat` minor)

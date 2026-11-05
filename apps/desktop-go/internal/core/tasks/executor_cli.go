@@ -1,8 +1,9 @@
 package tasks
 
 // `cli` 执行者：用户装好、配好的编程助手在后台标签里执行任务（docs/features/scheduling-calendar.md）。
-// worktree 隔离、授权等级换算权限档、审批先过确定性命令分类、
-// 用户在标签里接手 → takenOver、完成后按 git 列改动但不自动回填（回填是验收卡片上的单独动作）。
+// 默认直接在代码目录里改（同仓库并行的任务按文件、按优先级让路）；指定了别的分支做基线时在 worktree 里改，
+// 验收（或验收卡片上的回填）时落地：改动少拷回当前工作区，改动多提交到新分支。
+// 同一种任务接着用上一次的会话；授权等级换算权限档、审批先过确定性命令分类、用户在标签里接手 → takenOver。
 
 import (
 	"strings"
@@ -34,6 +35,8 @@ type CliCreateTab struct {
 	ReasoningEffort string
 	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
 	GithubAccess bool
+	// ReuseKey：同一种任务的标识（之后同一种任务接着用这个标签的会话）；空 = 不复用
+	ReuseKey string
 	// CallID：委派任务的来源工具调用 id（对话里的子任务卡片据此找到标签）
 	CallID string
 }
@@ -62,11 +65,12 @@ type CliHarness interface {
 
 // CliIsolation：prepareIsolation 的结果
 type CliIsolation struct {
-	Kind         string // worktree | shared-cwd
+	Kind         string // worktree | in-place | shared-cwd
 	Cwd          string
 	SourceCwd    string
 	GitRoot      string
 	WorktreePath string
+	BaseBranch   string
 }
 
 // CliReport：[nomi-report] 解析结果
@@ -78,13 +82,22 @@ type CliReport struct {
 }
 
 type CliDeps struct {
-	Harness          CliHarness
-	PrepareIsolation func(sourceCwd, key string) (CliIsolation, error)
-	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务失败放弃后；可为空
+	Harness CliHarness
+	// PrepareIsolation：baseBranch 是别的分支时开 worktree，否则直接在 sourceCwd 里改（in-place / shared-cwd）
+	PrepareIsolation func(sourceCwd, key, baseBranch string) (CliIsolation, error)
+	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务结束后；可为空
 	ReleaseIsolation func(iso CliIsolation)
-	GitChanged       func(cwd string) []string // nil = 不在 git 仓库里
-	BuildPrompt      func(goal, context, doneWhen, outOfScope string) string
-	ParseReport      func(text string) *CliReport
+	// Land：worktree 落地（改动少拷回当前工作区、多则提交到新分支）并拆掉；可为空
+	Land func(iso CliIsolation, files []string, title string) WorktreeApply
+	// ReuseKey / ReuseTab：同一种任务接着用上一次的会话；ReuseTab 找到并接管了空闲标签时返回它的 id；可为空
+	ReuseKey func(t Task, cwd string) string
+	ReuseTab func(t Task, cwd, mode string) string
+	// Claim / Unclaim：同一仓库里直接改的并行任务按文件、按优先级裁决；Unclaim 返回自己的改动与让出去的文件；可为空
+	Claim       func(tabID, gitRoot, cwd, priority, label string)
+	Unclaim     func(tabID string, changed []string) (mine, yielded []string)
+	GitChanged  func(cwd string) []string // nil = 不在 git 仓库里
+	BuildPrompt func(goal, context, doneWhen, outOfScope string) string
+	ParseReport func(text string) *CliReport
 	// DirOk：目录还存在、仍是用户认可的工作区
 	DirOk func(dir string) bool
 	// EventsFor：这次执行要处理的事件（事件触发时）
@@ -105,6 +118,19 @@ type cliExecutor struct {
 	runs map[string]*cliRun
 	// preparing：还在准备隔离目录、尚未建标签的执行；Stop 在这里留下取消标记（#234）
 	preparing map[string]*cliPrep
+	// released：已经拆掉（或交给落地）的 worktree：失败放弃（Release）与任务结束（Retire）可能先后到，只处理一次
+	released map[string]bool
+}
+
+// claimRelease：这个 worktree 还没处理过就记下并返回 true
+func (e *cliExecutor) claimRelease(wt string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.released[wt] {
+		return false
+	}
+	e.released[wt] = true
+	return true
 }
 
 type cliPrep struct {
@@ -113,7 +139,7 @@ type cliPrep struct {
 }
 
 func NewCliExecutor(d CliDeps) Executor {
-	return &cliExecutor{d: d, runs: map[string]*cliRun{}, preparing: map[string]*cliPrep{}}
+	return &cliExecutor{d: d, runs: map[string]*cliRun{}, preparing: map[string]*cliPrep{}, released: map[string]bool{}}
 }
 
 // prepCancelled：准备是否已被取消 / 撤销 / 换代
@@ -295,8 +321,8 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	if !reused {
 		var got CliIsolation
 		var err error
-		if ex.Isolation != nil && *ex.Isolation == "worktree" {
-			got, err = e.d.PrepareIsolation(*ex.Cwd, "task-"+a.ID)
+		if e.d.PrepareIsolation != nil {
+			got, err = e.d.PrepareIsolation(*ex.Cwd, "task-"+a.ID, strOr(ex.BaseBranch))
 		} else {
 			got = CliIsolation{Kind: "shared-cwd", Cwd: *ex.Cwd, SourceCwd: *ex.Cwd}
 		}
@@ -326,12 +352,27 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		if ex.ReasoningEffort != nil {
 			effort = *ex.ReasoningEffort
 		}
-		id, err := h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
-			PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
-			GithubAccess: GithubAccess(t), CallID: strOr(t.Executor.CallID)})
-		if err != nil {
-			rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
-			return
+		// 同一种任务接着用上一次的会话（worktree 里做的不复用）
+		id := ""
+		if got.Kind != "worktree" && e.d.ReuseTab != nil {
+			id = e.d.ReuseTab(t, got.Cwd, mode)
+		}
+		if id == "" {
+			key := ""
+			if got.Kind != "worktree" && e.d.ReuseKey != nil {
+				key = e.d.ReuseKey(t, got.Cwd)
+			}
+			var err error
+			id, err = h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
+				PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
+				GithubAccess: GithubAccess(t), CallID: strOr(t.Executor.CallID), ReuseKey: key})
+			if err != nil {
+				if got.Kind == "worktree" && e.d.ReleaseIsolation != nil {
+					e.d.ReleaseIsolation(got)
+				}
+				rep.Failed(TaskError{Code: "prepare_failed", Message: err.Error()})
+				return
+			}
 		}
 		tabID = id
 		c := Carrier{TabID: ptr(id), Cwd: ptr(got.Cwd), SourceCwd: ptr(got.SourceCwd)}
@@ -345,6 +386,20 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	} else {
 		rep.Carrier(*prev.Carrier)
 	}
+	// 直接在仓库里改（不是 worktree）：登记，和同仓库并行的任务按文件、按优先级裁决
+	claimed := false
+	if cr := ctxCarrier(iso, prev, reused); cr.gitRoot != "" && cr.worktree == "" && e.d.Claim != nil && e.d.Unclaim != nil {
+		e.d.Claim(tabID, cr.gitRoot, cr.cwd, strOr(t.Priority), runeSlice(t.Title, 40))
+		claimed = true
+	}
+	unclaim := func(changed []string) ([]string, []string) {
+		if !claimed {
+			return changed, nil
+		}
+		claimed = false
+		return e.d.Unclaim(tabID, changed)
+	}
+	defer unclaim(nil)
 	tainted := a.Cause.FromExternalEvent()
 	run := &cliRun{gen: a.Gen, tabID: tabID, ctx: ctx, pending: map[string]bool{}}
 	e.mu.Lock()
@@ -445,6 +500,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	} else if parsed != nil {
 		changed = append(changed, parsed.ChangedFiles...)
 	}
+	changed, yielded := unclaim(changed)
 	parts := []string{}
 	if parsed != nil {
 		parts = append(parts, parsed.Done)
@@ -456,6 +512,9 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 	} else if s := lastRunes(strings.TrimSpace(r.Text), 2000); s != "" {
 		parts = append(parts, s)
+	}
+	if len(yielded) > 0 {
+		parts = append(parts, "和并行的任务改到同一个文件，按优先级让给了对方："+strings.Join(yielded, "、"))
 	}
 	summary := strings.Join(parts, "\n")
 	if summary == "" {
@@ -493,6 +552,9 @@ func (e *cliExecutor) Release(_ Task, a Attempt) {
 	if c.TabID != nil && *c.TabID != "" && e.d.Harness.TakenOver(*c.TabID) {
 		return
 	}
+	if !e.claimRelease(*c.Worktree) {
+		return
+	}
 	iso := CliIsolation{Kind: "worktree", Cwd: *c.Worktree, SourceCwd: *c.Worktree, GitRoot: *c.GitRoot, WorktreePath: *c.Worktree}
 	if c.Cwd != nil && *c.Cwd != "" {
 		iso.Cwd = *c.Cwd
@@ -501,6 +563,66 @@ func (e *cliExecutor) Release(_ Task, a Attempt) {
 		iso.SourceCwd = *c.SourceCwd
 	}
 	go e.d.ReleaseIsolation(iso)
+}
+
+// Retire：任务结束了（验收通过、取消、过期、失败放弃、删除），执行用过的 worktree 不会再用：
+// 验收通过的先落地（改动少拷回当前工作区，多则提交到新分支），其余直接拆；用户接手的标签，worktree 归用户
+func (e *cliExecutor) Retire(t Task, attempts []Attempt, accepted bool) {
+	if e.d.ReleaseIsolation == nil {
+		return
+	}
+	type job struct {
+		iso   CliIsolation
+		files []string
+		land  bool
+	}
+	jobs := []job{}
+	seen := map[string]bool{}
+	for i := len(attempts) - 1; i >= 0; i-- {
+		a := attempts[i]
+		c := a.Carrier
+		if c == nil || c.Worktree == nil || *c.Worktree == "" || c.GitRoot == nil || *c.GitRoot == "" || seen[*c.Worktree] {
+			continue
+		}
+		seen[*c.Worktree] = true
+		if c.TabID != nil && *c.TabID != "" && e.d.Harness.TakenOver(*c.TabID) {
+			continue
+		}
+		if !e.claimRelease(*c.Worktree) {
+			continue
+		}
+		iso := CliIsolation{Kind: "worktree", Cwd: *c.Worktree, SourceCwd: *c.Worktree, GitRoot: *c.GitRoot, WorktreePath: *c.Worktree}
+		if c.Cwd != nil && *c.Cwd != "" {
+			iso.Cwd = *c.Cwd
+		}
+		if c.SourceCwd != nil && *c.SourceCwd != "" {
+			iso.SourceCwd = *c.SourceCwd
+		}
+		iso.BaseBranch = strOr(t.Executor.BaseBranch)
+		j := job{iso: iso}
+		// 只有最近一次有结果的执行要落地（更早的已被退回重做，改动就在同一个 worktree 里）
+		if accepted && len(jobs) == 0 && a.Result != nil && e.d.Land != nil {
+			j.land = true
+			for _, art := range a.Result.Artifacts {
+				if art.Kind == "file" {
+					j.files = append(j.files, art.Ref)
+				}
+			}
+		}
+		jobs = append(jobs, j)
+	}
+	if len(jobs) == 0 {
+		return
+	}
+	go func() {
+		for _, j := range jobs {
+			if j.land {
+				e.d.Land(j.iso, j.files, t.Title)
+				continue
+			}
+			e.d.ReleaseIsolation(j.iso)
+		}
+	}()
 }
 
 func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
@@ -535,4 +657,18 @@ func strOr(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+type carrierInfo struct{ gitRoot, cwd, worktree string }
+
+// ctxCarrier：这次执行的载体（新开的取 iso，复用上一次的取它的载体）
+func ctxCarrier(iso *CliIsolation, prev *Attempt, reused bool) carrierInfo {
+	if iso != nil {
+		return carrierInfo{gitRoot: iso.GitRoot, cwd: iso.Cwd, worktree: iso.WorktreePath}
+	}
+	if reused && prev != nil && prev.Carrier != nil {
+		c := prev.Carrier
+		return carrierInfo{gitRoot: strOr(c.GitRoot), cwd: strOr(c.Cwd), worktree: strOr(c.Worktree)}
+	}
+	return carrierInfo{}
 }

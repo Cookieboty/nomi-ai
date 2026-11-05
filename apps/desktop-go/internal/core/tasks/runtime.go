@@ -77,6 +77,21 @@ type Releaser interface {
 	Release(t Task, a Attempt)
 }
 
+// Retirer：任务进入结束 / 空闲状态（done、idle、cancelled、expired、failed）或被删除：执行载体不会再被复用
+// （下一次执行另开），释放它们；accepted = 这次是验收通过（worktree 先落地再拆）。在持有者里调用，实现方自己转到别的 goroutine
+type Retirer interface {
+	Retire(t Task, attempts []Attempt, accepted bool)
+}
+
+// retiredStatus：进入这些状态时释放执行载体
+func retiredStatus(s string) bool {
+	switch s {
+	case StatusDone, StatusIdle, StatusCancelled, StatusExpired, StatusFailed:
+		return true
+	}
+	return false
+}
+
 type StoreLike interface {
 	LoadAll() []Record
 	Save(r Record) (Record, error)
@@ -565,6 +580,9 @@ func (r *Runtime) Remove(id string) bool {
 		if rec == nil || !IsTerminal(rec.Task.Status) {
 			return
 		}
+		if ret, ok := r.executor(rec.Task).(Retirer); ok {
+			ret.Retire(rec.Task, rec.Attempts, false)
+		}
 		delete(r.recs, id)
 		r.order = without(r.order, id)
 		if err := r.d.Store.Remove(id); err != nil {
@@ -741,6 +759,11 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 	saved := r.recs[id].Task
 	for _, e := range res.Effects {
 		r.run(id, e, saved, res.Attempt)
+	}
+	if before.Status != saved.Status && retiredStatus(saved.Status) {
+		if ret, ok := r.executor(saved).(Retirer); ok {
+			ret.Retire(saved, attempts, ev.Type == "accept")
+		}
 	}
 	r.changed(saved)
 	return CmdResult{OK: true}

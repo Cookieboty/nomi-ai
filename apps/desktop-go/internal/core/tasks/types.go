@@ -46,7 +46,7 @@ type Trigger struct {
 }
 
 // ExecutorSpec：notify{text} | nomi{model?,tools,scenario?,toolset?,cwd?,brief?,callId?} |
-// cli{cli,model?,cwd,isolation}
+// cli{cli,model?,cwd,isolation,baseBranch?}
 type ExecutorSpec struct {
 	Kind     string    `json:"kind"`
 	Text     *string   `json:"text,omitempty"`
@@ -60,6 +60,8 @@ type ExecutorSpec struct {
 	// Cwd：cli 的工作目录；nomi 的发起对话的工作区（内核照常再校验）
 	Cwd       *string `json:"cwd,omitempty"`
 	Isolation *string `json:"isolation,omitempty"`
+	// BaseBranch：cli 的基线分支：是别的分支（不在当前分支历史里）时才开 worktree，否则直接在 cwd 里改
+	BaseBranch *string `json:"baseBranch,omitempty"`
 	// ReasoningEffort：cli 的思考深度（委派带过来的）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
 	// Brief：对话里委派过来的任务的完成标准、背景、不要碰的范围（提示词用）

@@ -37,19 +37,30 @@
 
 结果里的 `sandbox` 字段说明实际用了哪种隔离，界面据此提示；没有隔离时确认更严格。
 
-## 委派隔离
+## 委派的工作目录
 
-Nomi 用 `delegate_to_cli` 把任务交给编程助手时（`internal/core/cli/delegate/worktree.go`）：
+Nomi 用 `delegate_to_cli`（或持续任务的编程助手执行）把任务交给编程助手时（`internal/core/cli/delegate/`）：
 
-1. 工作目录在 git 仓库里：在 `<cwd>/.nomi-delegate/<id>` 建 detached HEAD 的 worktree，编程助手标签在里面工作；
-   `.nomi-delegate/` 写进仓库的 `info/exclude`。
-2. 任务成功后把改动的文件拷回主工作树；目标文件已被用户或别的委派改过时不覆盖，列进结果的 `conflictedFiles`。
-   worktree 保留到不再需要 `delegate_followup`。
-3. 取消或授权失败时拆掉 worktree；应用重启时仍在运行的任务标为中断并清理。
-4. 非 git 目录在原目录运行，并在结果里提示并行任务会互相改文件。
-5. 同时运行的委派最多 3 个（`MaxParallelDelegates`）。
+1. 默认直接在工作目录里改（`in-place`），不开 worktree。同一个 git 仓库里并行的任务按文件登记谁在改
+   （`claims.go`，来自编程助手改文件类工具事件的入参）；两个任务改到同一个文件时按优先级裁决
+   （urgent > high > medium > low，同级先来的优先），让路的一方收到插话，别再动这个文件；收尾时这个文件算赢的一方的，
+   同期别的任务改的文件也不算进自己的改动。跑命令改的文件认不出来，按 git 列出且没人登记的仍算自己的。
+2. 只有明确指定了别的分支做基线（`base_branch`），且那个分支不在当前分支的历史里时，才在 `<cwd>/.nomi-delegate/<id>`
+   从它建 detached 的 worktree（`.nomi-delegate/` 写进仓库的 `info/exclude`）。
+3. worktree 做完落地（`LandWorktree`）：改动少（≤ 10 个文件且 ≤ 400 行）拷回当前工作区，目标文件已有改动或在授权外的不覆盖；
+   改动多、以及拷不回去的文件提交到新分支 `nomi/<基线>-<id>`（不跑钩子、不签名），由用户决定是否合并。落地后拆掉 worktree。
+   同步委派做完就落地；持续任务在验收卡片上「落地改动」，或验收通过时自动落地。
+4. 取消、失败放弃、过期、删除任务时拆掉 worktree（用户接手的标签除外）；应用启动时清理没人认领的委派 worktree，
+   有改动的先提交到新分支再拆。
+5. 非 git 目录在原目录运行，并在结果里提示并行任务会互相改文件。
+6. 同时运行的委派最多 3 个（`MaxParallelDelegates`）。
 
 编程助手自带的沙箱（如 Codex 的 Seatbelt）照常生效；这一层只解决并行写同一工作树。
+
+委派出去的编程助手标签只在 Nomi 里看（对话里的子任务卡片、任务页）：不进侧栏，委派用过的会话不出现在编程助手的历史里
+（`harness/orchestrator_delegated.go`）。同一个对话里同一种委派（编程助手、目录、任务类型、模型、思考深度都相同）
+接着用上一次空闲的会话（一小时内用过的，`reuse.go`），省 token 也更快；在 worktree 里做的不复用。
+委派标签闲置超过一周、对应任务已结束的，应用启动时关掉（用户在侧栏关不到它们）。
 
 ## 网络
 

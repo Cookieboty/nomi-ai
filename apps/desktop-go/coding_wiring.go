@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"log"
 	"path/filepath"
@@ -64,6 +65,16 @@ func (h delegateHarness) SendTab(id, prompt string) (*util.Obj, error) {
 	return jsrt.Block(p)
 }
 func (h delegateHarness) CancelTab(id string) { jsrt.Run(func() { h.o.CancelTab(id) }) }
+func (h delegateHarness) RebindDelegation(id string, del *util.Obj) error {
+	ok, err := gilErr(func() bool { return h.o.RebindDelegation(id, del) })
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("tab not reusable")
+	}
+	return nil
+}
 func (h delegateHarness) CloseTab(id string) error {
 	_, err := gilErr(func() *util.Obj { return h.o.CloseTab(id) })
 	return err
@@ -160,7 +171,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	}
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
-		Events: hostEvents{router},
+		Events: hostEvents{router}, Claims: delegateClaims,
 	}
 	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {
@@ -193,6 +204,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				return m
 			},
 			OpenTitle: func(b, id, title string) { o.SyncOpenSessionTitle(b, id, title) },
+			Hidden:    o.IsDelegatedSession,
 			OpenTab: func(x *util.Obj) cli.HistoryOpenTabResult {
 				r := o.OpenHistorySession(x)
 				return cli.HistoryOpenTabResult{Tab: r.Get("tab"), Reused: r.Get("reused") == true}

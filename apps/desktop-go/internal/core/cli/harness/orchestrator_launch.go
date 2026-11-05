@@ -235,6 +235,9 @@ func (o *Orchestrator) SessionModel(backend, sessionID string) (string, bool) {
 func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 	changed := tab.Get("cliSessionId") != sessionID
 	tab.Set("cliSessionId", sessionID)
+	if d, _ := tab.Get("delegation").(*util.Obj); d != nil && d.Get("by") == "nomi" {
+		o.noteDelegatedSession(str(tab, "backend"), sessionID)
+	}
 	if !changed || o.sourceOf(tab) != "official" || !isAccountBackend(str(tab, "backend")) {
 		return
 	}

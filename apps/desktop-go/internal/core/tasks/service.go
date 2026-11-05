@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -326,6 +327,8 @@ type DelegatedInput struct {
 	Paths          []string
 	// Category：缺省 coding
 	Category string
+	// Priority：urgent | high | medium | low；空 = 不设
+	Priority string
 }
 
 // 派给 Nomi 的委派：每次执行的 token 与时长上限
@@ -334,8 +337,15 @@ const (
 	DelegatedNomiMaxMs     = 2 * 60 * 60_000
 )
 
+func priorityOf(p string) *string {
+	if slices.Contains(TaskPriorities, p) {
+		return ptr(p)
+	}
+	return nil
+}
+
 // CreateDelegated：对话里 delegate_to_cli 后台派出的任务（docs/features/scheduling-calendar.md）：用户已在对话里确认过这次委派；
-// 编程助手在 worktree 里做，做完进验收（不自动回填）；瞬时错误重试一次；创建后立即排队。
+// 编程助手默认直接在工作目录里改（指定了别的分支做基线时在 worktree 里），做完进验收；瞬时错误重试一次；创建后立即排队。
 // 派给 Nomi 的（executor: nomi）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 	nomi := i.Executor.Kind == "nomi"
@@ -370,6 +380,7 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 		Trigger:    Trigger{Kind: "manual"},
 		Executor:   i.Executor,
 		Category:   ptr(category),
+		Priority:   priorityOf(i.Priority),
 		Grant:      Grant{Level: i.Level, Paths: paths, Connections: []ConnectionGrant{}, Clis: &clis},
 		Budget:     budget,
 		Acceptance: acceptance,
@@ -504,17 +515,18 @@ func (s *Service) Remove(id string) bool {
 	return ok
 }
 
-// WorktreeApply：回填结果（contract tasks.applyWorktree 的输出）
+// WorktreeApply：落地结果（contract tasks.applyWorktree 的输出）。Branch：改动多（或拷不回去的）提交到的新分支
 type WorktreeApply struct {
 	Applied    []string `json:"applied"`
 	Skipped    []string `json:"skipped"`
 	Conflicted []string `json:"conflicted"`
 	Denied     []string `json:"denied"`
+	Branch     string   `json:"branch,omitempty"`
 }
 
-// ApplyWorktree：验收卡片上的「回填」：把最近一次执行在 worktree 里的改动拷回主工作区。
-// apply 做实际拷贝（delegate.ApplyWorktreeToMain + 按当前授权检查每个目标）；没有可回填的返回 nil。
-func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []string) WorktreeApply) *WorktreeApply {
+// ApplyWorktree：验收卡片上的「回填」：最近一次执行在 worktree 里的改动落地（delegate.LandWorktree：改动少拷回
+// 当前工作区、按当前授权检查每个目标，多则提交到新分支），然后拆掉 worktree；没有可回填的返回 nil。
+func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []string, title string) WorktreeApply) *WorktreeApply {
 	rec := s.Runtime.Get(id)
 	if rec == nil {
 		return nil
@@ -544,9 +556,10 @@ func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []
 	if c.SourceCwd != nil {
 		iso.SourceCwd = *c.SourceCwd
 	}
-	r := apply(iso, files)
+	iso.BaseBranch = strOr(rec.Task.Executor.BaseBranch)
+	r := apply(iso, files, rec.Task.Title)
 	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), AttemptID: a.ID,
-		Msg: fmt.Sprintf("applied:%d conflicted:%d denied:%d", len(r.Applied), len(r.Conflicted), len(r.Denied))})
+		Msg: fmt.Sprintf("applied:%d conflicted:%d denied:%d branch:%s", len(r.Applied), len(r.Conflicted), len(r.Denied), r.Branch)})
 	return &r
 }
 

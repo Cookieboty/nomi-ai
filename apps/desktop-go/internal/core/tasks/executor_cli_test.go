@@ -108,7 +108,7 @@ func newCliHarness(t *testing.T, bins map[string]bool) (*Runtime, *fakeCli) {
 	f := newFakeCli(bins)
 	exec := NewCliExecutor(CliDeps{
 		Harness: f,
-		PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 			return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
 		},
 		GitChanged: func(cwd string) []string {
@@ -266,7 +266,7 @@ func TestCliExecutorBriefPrompt(t *testing.T) {
 	var got []string
 	var mu sync.Mutex
 	exec := NewCliExecutor(CliDeps{Harness: f,
-		PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 			return CliIsolation{Kind: "shared-cwd", Cwd: cwd, SourceCwd: cwd}, nil
 		},
 		GitChanged: func(string) []string { return nil },
@@ -334,7 +334,7 @@ func TestCliCancelDuringPrepare(t *testing.T) {
 		released := []string{}
 		exec := NewCliExecutor(CliDeps{
 			Harness: f,
-			PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+			PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 				close(entered)
 				<-unblock
 				return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
@@ -378,7 +378,7 @@ func TestCliReleasesWorktreeAfterGivingUp(t *testing.T) {
 		released := []string{}
 		exec := NewCliExecutor(CliDeps{
 			Harness: f,
-			PrepareIsolation: func(cwd, key string) (CliIsolation, error) {
+			PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 				return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
 			},
 			ReleaseIsolation: func(iso CliIsolation) {
@@ -423,5 +423,130 @@ func TestCliReleasesWorktreeAfterGivingUp(t *testing.T) {
 		if !strings.HasPrefix(released[0], "/wt/task-") {
 			t.Fatalf("released %v", released)
 		}
+	}
+}
+
+// 验收通过：最近一次执行的 worktree 先落地（拷回 / 提交到分支），不再单独拆；取消：直接拆
+func TestCliRetireLandsOnAccept(t *testing.T) {
+	for _, accept := range []bool{true, false} {
+		f := newFakeCli(map[string]bool{"claude": true})
+		var mu sync.Mutex
+		landed, released := []string{}, []string{}
+		calls := 0
+		exec := NewCliExecutor(CliDeps{
+			Harness: f,
+			PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+				return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
+			},
+			ReleaseIsolation: func(iso CliIsolation) { mu.Lock(); released = append(released, iso.WorktreePath); mu.Unlock() },
+			Land: func(iso CliIsolation, files []string, title string) WorktreeApply {
+				mu.Lock()
+				landed = append(landed, iso.WorktreePath+":"+strings.Join(files, ","))
+				mu.Unlock()
+				return WorktreeApply{}
+			},
+			GitChanged: func(cwd string) []string {
+				mu.Lock()
+				defer mu.Unlock()
+				calls++
+				if calls == 1 {
+					return []string{}
+				}
+				return []string{"src/a.ts"}
+			},
+			BuildPrompt: func(goal, _, _, _ string) string { return goal },
+			ParseReport: func(string) *CliReport { return nil },
+			DirOk:       func(d string) bool { return d == "/repo" },
+		})
+		n := 0
+		var idMu sync.Mutex
+		rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+			Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+			NewID: func(p string) string { idMu.Lock(); defer idMu.Unlock(); n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+		rt.Start()
+		id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
+			Executor:   ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
+			Grant:      Grant{Level: 2, Paths: []string{"/repo"}},
+			Acceptance: "user"}).ID
+		rt.Command(id, Command{Type: "runNow"})
+		waitFor(t, func() bool { return f.sendCount() == 1 })
+		f.finish("done")
+		waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusAwaitingAccept })
+		cmd := "cancel"
+		if accept {
+			cmd = "accept"
+		}
+		if r := rt.Command(id, Command{Type: cmd}); !r.OK {
+			t.Fatalf("%s: %+v", cmd, r)
+		}
+		waitFor(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(landed)+len(released) == 1 })
+		time.Sleep(20 * time.Millisecond)
+		mu.Lock()
+		if accept && (len(landed) != 1 || !strings.HasSuffix(landed[0], ":src/a.ts") || len(released) != 0) {
+			t.Fatalf("accept: landed=%v released=%v", landed, released)
+		}
+		if !accept && (len(released) != 1 || len(landed) != 0) {
+			t.Fatalf("cancel: landed=%v released=%v", landed, released)
+		}
+		mu.Unlock()
+	}
+}
+
+// 直接改（in-place）：同一种任务接着用找到的空闲标签，不新开；登记 / 收尾经 Claim / Unclaim，让出去的写进结果
+func TestCliReusesTabAndClaims(t *testing.T) {
+	f := newFakeCli(map[string]bool{"claude": true})
+	f.tabs["tab_old"] = &fakeCliTab{cwd: "/repo"}
+	var mu sync.Mutex
+	claimed, unclaimed := []string{}, []string{}
+	exec := NewCliExecutor(CliDeps{
+		Harness: f,
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
+		},
+		ReuseTab: func(t Task, cwd, mode string) string { return "tab_old" },
+		Claim: func(tabID, root, cwd, priority, label string) {
+			mu.Lock()
+			claimed = append(claimed, tabID+":"+priority)
+			mu.Unlock()
+		},
+		Unclaim: func(tabID string, changed []string) ([]string, []string) {
+			mu.Lock()
+			unclaimed = append(unclaimed, tabID)
+			mu.Unlock()
+			return []string{"mine.ts"}, []string{"shared.ts（让给了「别的」）"}
+		},
+		GitChanged:  func(cwd string) []string { return []string{"mine.ts", "shared.ts"} },
+		BuildPrompt: func(goal, _, _, _ string) string { return goal },
+		ParseReport: func(string) *CliReport { return nil },
+		DirOk:       func(d string) bool { return d == "/repo" },
+	})
+	n := 0
+	var idMu sync.Mutex
+	rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { idMu.Lock(); defer idMu.Unlock(); n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
+	id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
+		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}, Priority: sp("high")}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	f.mu.Lock()
+	tab, tabs := f.sendTabs[0], len(f.tabs)
+	f.mu.Unlock()
+	if tab != "tab_old" || tabs != 1 {
+		t.Fatalf("should reuse tab_old: sent to %s, %d tabs", tab, tabs)
+	}
+	f.finish("done")
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusAwaitingAccept })
+	rec := rt.Get(id)
+	res := rec.Attempts[len(rec.Attempts)-1].Result
+	if len(res.Artifacts) != 1 || res.Artifacts[0].Ref != "mine.ts" || !strings.Contains(res.Summary, "shared.ts") {
+		t.Fatalf("result: %+v", res)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if strings.Join(claimed, ",") != "tab_old:high" || strings.Join(unclaimed, ",") != "tab_old" {
+		t.Fatalf("claimed=%v unclaimed=%v", claimed, unclaimed)
 	}
 }

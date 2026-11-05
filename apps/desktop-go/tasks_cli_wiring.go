@@ -7,10 +7,12 @@ package main
 
 import (
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
@@ -19,6 +21,9 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
+
+// b8Tasks：持续任务服务（main 里装好后赋值；复用会话时判断上一个任务是否结束）
+var b8Tasks *tasks.Service
 
 type taskCliHarness struct{}
 
@@ -53,6 +58,9 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	}
 	if c.CallID != "" {
 		opts.Get("delegation").(*util.Obj).Set("callId", c.CallID)
+	}
+	if c.ReuseKey != "" {
+		opts.Get("delegation").(*util.Obj).Set("reuseKey", c.ReuseKey)
 	}
 	if c.ModelOverride != "" {
 		opts.Set("modelOverride", c.ModelOverride)
@@ -167,17 +175,51 @@ func (taskCliHarness) IsStopped(err error) bool {
 func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	return tasks.CliDeps{
 		Harness: taskCliHarness{},
-		PrepareIsolation: func(cwd, key string) (tasks.CliIsolation, error) {
-			iso, err := delegate.PrepareIsolation(cwd, key)
+		PrepareIsolation: func(cwd, key, base string) (tasks.CliIsolation, error) {
+			iso, err := delegate.PrepareIsolation(cwd, key, base)
 			if err != nil {
 				return tasks.CliIsolation{}, err
 			}
 			return tasks.CliIsolation{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd, GitRoot: iso.GitRoot,
-				WorktreePath: iso.WorktreePath}, nil
+				WorktreePath: iso.WorktreePath, BaseBranch: iso.BaseBranch}, nil
 		},
 		ReleaseIsolation: func(iso tasks.CliIsolation) {
-			delegate.ReleaseIsolation(&delegate.IsolationHandle{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd,
-				GitRoot: iso.GitRoot, WorktreePath: iso.WorktreePath}, nil)
+			delegate.ReleaseIsolation(isoHandle(iso), nil)
+		},
+		Land: func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
+			return taskApplyWorktree(d)(iso, files, title)
+		},
+		ReuseKey: taskReuseKey,
+		ReuseTab: func(t tasks.Task, cwd, mode string) string {
+			key := taskReuseKey(t, cwd)
+			o := harnessOrch
+			if key == "" || o == nil {
+				return ""
+			}
+			tabs, _ := jsrt.Call(o.ListTabs).Get("tabs").([]any)
+			id := delegate.FindReusableTab(tabs, key, float64(time.Now().UnixMilli()), func(prev string) bool {
+				return taskBusy(prev)
+			})
+			if id == "" {
+				return ""
+			}
+			del := util.NewObj("goal", runeSlice(t.Goal, 200), "taskId", t.ID, "permissionMode", mode)
+			if t.Executor.CallID != nil && *t.Executor.CallID != "" {
+				del.Set("callId", *t.Executor.CallID)
+			}
+			if tasks.GithubAccess(t) {
+				del.Set("githubAccess", true)
+			}
+			if ok, err := gilErr(func() bool { return o.RebindDelegation(id, del) }); err != nil || !ok {
+				return ""
+			}
+			return id
+		},
+		Claim: func(tabID, root, cwd, priority, label string) {
+			delegateClaims.Register(tabID, root, cwd, priority, label)
+		},
+		Unclaim: func(tabID string, changed []string) ([]string, []string) {
+			return delegateClaims.Finish(tabID).Filter(changed)
 		},
 		GitChanged: delegate.GitChanged,
 		BuildPrompt: func(goal, context, doneWhen, outOfScope string) string {
@@ -231,15 +273,59 @@ func taskDirOk(d *desktop.Service, dir string) bool {
 	return false
 }
 
-// taskApplyWorktree：tasks.applyWorktree 的实际拷贝，每个目标按用户当前的写授权检查
-func taskApplyWorktree(d *desktop.Service) func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
-	return func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
-		r := delegate.ApplyWorktreeToMain(&delegate.IsolationHandle{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd,
-			GitRoot: iso.GitRoot, WorktreePath: iso.WorktreePath}, files, func(dest string) bool {
+// taskApplyWorktree：tasks.applyWorktree / 验收通过时的落地（delegate.LandWorktree）：改动少拷回当前工作区，
+// 每个目标按用户当前的写授权检查；改动多或拷不回去的提交到新分支；之后拆掉 worktree
+func taskApplyWorktree(d *desktop.Service) func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
+	return func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
+		r := delegate.LandWorktree(isoHandle(iso), files, title, func(dest string) bool {
 			return d != nil && d.Broker != nil && d.Broker.Guard(dest, "write", true).OK
 		})
-		return tasks.WorktreeApply{Applied: r.Applied, Skipped: r.Skipped, Conflicted: r.Conflicted, Denied: r.Denied}
+		if r.Kept {
+			log.Printf("[tasks] worktree landing failed, kept %s: %s", iso.WorktreePath, r.Err)
+		}
+		return tasks.WorktreeApply{Applied: r.Apply.Applied, Skipped: r.Apply.Skipped, Conflicted: r.Apply.Conflicted,
+			Denied: r.Apply.Denied, Branch: r.Branch}
 	}
+}
+
+func isoHandle(iso tasks.CliIsolation) *delegate.IsolationHandle {
+	return &delegate.IsolationHandle{Kind: iso.Kind, Cwd: iso.Cwd, SourceCwd: iso.SourceCwd, GitRoot: iso.GitRoot,
+		WorktreePath: iso.WorktreePath, BaseBranch: iso.BaseBranch}
+}
+
+// taskReuseKey：同一种任务的标识：来源对话 + 编程助手 + 目录 + 类型 + 模型 + 思考深度（没有来源对话的不复用）
+func taskReuseKey(t tasks.Task, cwd string) string {
+	if t.Origin.ConversationID == nil || t.Executor.Cli == nil {
+		return ""
+	}
+	cat, model, effort := "", "", ""
+	if t.Category != nil {
+		cat = *t.Category
+	}
+	if t.Executor.Model != nil {
+		model = *t.Executor.Model
+	}
+	if t.Executor.ReasoningEffort != nil {
+		effort = *t.Executor.ReasoningEffort
+	}
+	return delegate.ReuseKey(*t.Origin.ConversationID, *t.Executor.Cli, cwd, cat, model, effort)
+}
+
+// taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）就不拿来复用
+func taskBusy(id string) bool {
+	if b8Tasks == nil {
+		return true
+	}
+	rec := b8Tasks.Runtime.Get(id)
+	return rec != nil && !retiredTaskStatus(rec.Task.Status)
+}
+
+func runeSlice(s string, n int) string {
+	r := []rune(s)
+	if len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 // installedClis：已装好的编程助手（task_propose 的 executor=cli 用）

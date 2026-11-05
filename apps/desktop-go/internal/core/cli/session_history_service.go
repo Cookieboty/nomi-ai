@@ -90,7 +90,9 @@ type SessionHistoryDeps struct {
 	Env                       *util.Obj
 	Logger                    interface{ Warn(m string, d ...any) }
 	OpenKeys                  func() map[string]bool
-	OpenTitle                 func(backend, sessionID, title string)
+	// Hidden：Nomi 委派用过的会话（只在 Nomi 里看，不进历史）；可空
+	Hidden    func(backend, sessionID string) bool
+	OpenTitle func(backend, sessionID, title string)
 	// OpenTab 的参数按固定键顺序组装成对象。
 	OpenTab        func(o *util.Obj) HistoryOpenTabResult
 	SessionModel   func(backend, sessionID string) string
@@ -719,6 +721,9 @@ func (s *SessionHistoryService) page(backend string, o HistoryPageOpts, cheap bo
 			}
 			key, _ := m.Get("key").(string)
 			sid, _ := m.Get("sessionId").(string)
+			if s.d.Hidden != nil && s.d.Hidden(backend, sid) {
+				continue
+			}
 			if open[key] {
 				if s.d.OpenTitle != nil {
 					t, _ := m.Get("title").(string)

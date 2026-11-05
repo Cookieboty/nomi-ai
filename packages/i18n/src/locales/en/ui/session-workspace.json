@@ -104,7 +104,6 @@
   "ui.session-workspace.not-on-the-remote-yet": "Not on the remote",
   "ui.session-workspace.now": "Now: {0}",
   "ui.session-workspace.only-files-the-assistant-edited-in-this-session": "Only files the assistant edited in this session",
-  "ui.session-workspace.open-in-workbench": "Open in workbench",
   "ui.session-workspace.partly-staged": " (partly staged)",
   "ui.session-workspace.path-outside-workspace-read-denied": "Path outside workspace — read denied",
   "ui.session-workspace.path-outside-workspace-write-denied": "Path outside workspace — write denied",

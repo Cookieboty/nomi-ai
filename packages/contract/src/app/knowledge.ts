@@ -301,7 +301,10 @@ export const knowledgeProcedures = {
     output: TaskView.nullable(),
     dangerous: true,
   },
-  /** 验收卡片上的回填：把 worktree 里的改动拷回主工作区（冲突与授权外的文件留在 worktree） */
+  /**
+   * 验收卡片上的落地：worktree（别的分支做基线）里的改动少就拷回主工作区，改动多、冲突或授权外的文件
+   * 提交到新分支 nomi/…（branch），之后拆掉 worktree。验收通过时没落地的也会自动落地
+   */
   'tasks.applyWorktree': {
     kind: 'mutation',
     input: id,
@@ -311,6 +314,7 @@ export const knowledgeProcedures = {
         skipped: z.array(z.string()),
         conflicted: z.array(z.string()),
         denied: z.array(z.string()),
+        branch: z.string().optional(),
       })
       .nullable(),
     dangerous: true,

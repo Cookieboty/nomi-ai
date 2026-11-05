@@ -77,7 +77,7 @@ type Bundle struct {
 	Conns *connections.Service
 	N     int
 	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
-	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
 
 	kbMu        sync.Mutex
 	kbListeners map[int]func()
@@ -174,11 +174,11 @@ func Wire(d WireDeps) *Bundle {
 	b.N = Install(d.Router, Services{
 		Conns: func() *connections.Service { return b.Conns },
 		Tasks: func() *tasks.Service { return b.Tasks },
-		ApplyWorktree: func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply {
+		ApplyWorktree: func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
 			if b.ApplyWorktree == nil {
 				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 			}
-			return b.ApplyWorktree(iso, files)
+			return b.ApplyWorktree(iso, files, title)
 		},
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

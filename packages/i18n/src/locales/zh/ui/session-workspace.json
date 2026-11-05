@@ -104,7 +104,6 @@
   "ui.session-workspace.not-on-the-remote-yet": "未推送到远端",
   "ui.session-workspace.now": "当前：{0}",
   "ui.session-workspace.only-files-the-assistant-edited-in-this-session": "只看本会话里助手改过的文件",
-  "ui.session-workspace.open-in-workbench": "在工作台打开",
   "ui.session-workspace.partly-staged": "（部分已暂存）",
   "ui.session-workspace.path-outside-workspace-read-denied": "路径不在工作区内，已拒绝读取",
   "ui.session-workspace.path-outside-workspace-write-denied": "路径不在工作区内，已拒绝写入",

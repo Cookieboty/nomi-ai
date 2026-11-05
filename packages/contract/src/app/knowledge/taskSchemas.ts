@@ -61,6 +61,8 @@ export const TaskExecutorSpec = z.discriminatedUnion('kind', [
     model: z.string().optional(),
     cwd: z.string().min(1),
     isolation: z.enum(['worktree', 'shared']),
+    /** 基线分支：是别的分支（不在当前分支的历史里）时才开 worktree，否则直接在 cwd 里改 */
+    baseBranch: z.string().min(1).max(200).optional(),
   }),
 ]);
 

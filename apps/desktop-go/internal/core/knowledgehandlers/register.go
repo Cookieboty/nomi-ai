@@ -90,7 +90,7 @@ type Services struct {
 	Tasks func() *tasks.Service
 	Conns func() *connections.Service
 	// ApplyWorktree：tasks.applyWorktree 的实际拷贝（main 里接 delegate.ApplyWorktreeToMain + broker 写授权）
-	ApplyWorktree func(iso tasks.CliIsolation, files []string) tasks.WorktreeApply
+	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
 }
 
 func unavailable(name string) error {

@@ -23,7 +23,7 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | `apps/desktop-go/internal/cliplugins/<cli>`    | 内置插件：启动注入、权限档位、官方账号目录、历史转录解析、模型目录、斜杠命令；共用部分在 `shared/`          |
 | `apps/desktop-go/internal/core/cli/harness`    | 编排器：标签、持久化、来源（官方 / 第三方）、权限队列、插话（steer）、空闲回收、升级重启                    |
 | `apps/desktop-go/internal/core/cli/accounts`   | 官方账号：识别终端里登录的账号、导入、登录、切换（各 CLI 自己的 HOME / 钥匙串）                             |
-| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给编程助手（`delegate_to_cli`），git 仓库里用 worktree 隔离                                    |
+| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给编程助手（`delegate_to_cli`）：直接改 + 按文件裁决，别的分支做基线时用 worktree，复用会话    |
 | `apps/desktop-go/internal/core/cli`（其余）    | CLI 探测与版本、安装 / 更新、历史会话、git 操作（变更面板）、斜杠命令发现、工作区文件                       |
 | `apps/desktop-go/internal/core/codinghandlers` | 编程助手相关的契约过程                                                                                      |
 

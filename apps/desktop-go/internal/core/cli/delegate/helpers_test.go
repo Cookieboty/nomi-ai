@@ -100,6 +100,23 @@ func (h *fakeHarness) CreateTab(o *util.Obj) (*util.Obj, error) {
 	return util.NewObj("id", id), nil
 }
 
+func (h *fakeHarness) RebindDelegation(id string, del *util.Obj) error {
+	h.log.add(&h.log.harness, []any{"rebind", id, del.Clone()})
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, t := range h.tabs {
+		if x := t.(*util.Obj); util.Str(x.Get("id")) == id {
+			d, _ := x.Get("delegation").(*util.Obj)
+			if d == nil {
+				return errors.New("not delegated")
+			}
+			d.Set("goal", del.Get("goal"))
+			return nil
+		}
+	}
+	return errors.New("no tab")
+}
+
 func (h *fakeHarness) SendTab(id, prompt string) (*util.Obj, error) {
 	h.log.add(&h.log.sent, []any{id, prompt})
 	h.mu.Lock()

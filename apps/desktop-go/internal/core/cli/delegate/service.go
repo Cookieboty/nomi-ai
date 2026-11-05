@@ -53,6 +53,8 @@ type Harness interface {
 	SendTab(id, prompt string) (*util.Obj, error)
 	CancelTab(id string)
 	CloseTab(id string) error
+	// RebindDelegation：把空闲的委派标签交给新的一次委派（接着用它的会话）：更新 callId / taskId / goal
+	RebindDelegation(tabID string, del *util.Obj) error
 }
 
 // Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
@@ -86,6 +88,8 @@ type Deps struct {
 	Random  func() float64
 	// Tasks：持续任务；有它时后台委派建成任务（排队、重试、重启续跑、验收）
 	Tasks TaskPort
+	// Claims：同一仓库里直接改的并行任务按文件、按优先级裁决（可空）
+	Claims *Claims
 }
 
 // TaskPort：委派用到的持续任务能力（tasks.Service 的子集）
@@ -240,7 +244,7 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 		status = "error"
 	}
 	changed := []string{}
-	worktree := ""
+	worktree, inGit := "", false
 	if attempt != nil {
 		if attempt.Result != nil {
 			for _, a := range attempt.Result.Artifacts {
@@ -251,6 +255,7 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 		}
 		if attempt.Carrier != nil {
 			worktree = ps(attempt.Carrier.Worktree)
+			inGit = ps(attempt.Carrier.GitRoot) != ""
 		}
 	}
 	changed = head(changed, 50)
@@ -295,7 +300,10 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	switch {
 	case nomi:
 	case worktree != "":
-		res.Set("isolationNote", "改动在独立的 worktree（"+worktree+"）里，用户在任务页验收后再回填到工作区")
+		res.Set("isolationNote", "改动在基于另一个分支的 worktree（"+worktree+"）里；用户验收时落地："+
+			"改动少拷回当前工作区，改动多提交到新分支 nomi/…")
+	case inGit || attempt == nil:
+		res.Set("isolationNote", "改动直接在工作目录里")
 	default:
 		res.Set("isolationNote", "工作目录不是 git 仓库，改动直接在工作目录里")
 	}
@@ -972,7 +980,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	defer release()
 
 	key := "del-" + strconv.FormatInt(int64(s.d.Now()), 36) + "-" + slice(jsSliceFrom(NumberToString36(s.d.Random()), 2), 6)
-	iso, err := PrepareIsolation(sourceCwd, key)
+	iso, err := PrepareIsolation(sourceCwd, key, optStr(in, "base_branch"))
 	if err != nil {
 		return nil, derr("isolation_failed", err.Error())
 	}
@@ -1038,12 +1046,32 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	if e, ok := ov.Get("reasoningEffort").(string); ok {
 		opts.Set("reasoningEffort", e)
 	}
-	tab, err := h.CreateTab(opts)
-	if err != nil {
-		ReleaseIsolation(iso, nil)
-		return nil, err
+	// 同一种委派接着用上一次的会话（缓存还在）；worktree 里做的不复用
+	reuseKey := ""
+	if iso.Kind != IsoWorktree {
+		reuseKey = ReuseKey(c.ec.ConversationID, cli, sourceCwd, kind, util.Str(ov.Get("model")), util.Str(ov.Get("reasoningEffort")))
 	}
-	tabID := util.Str(tab.Get("id"))
+	tabID := ""
+	if id := s.reusableTab(reuseKey); id != "" {
+		rb := del.Clone()
+		if pm, ok := opts.Get("permissionMode").(string); ok {
+			rb.Set("permissionMode", pm)
+		}
+		if h.RebindDelegation(id, rb) == nil {
+			tabID = id
+		}
+	}
+	if tabID == "" {
+		if reuseKey != "" {
+			del.Set("reuseKey", reuseKey)
+		}
+		tab, err := h.CreateTab(opts)
+		if err != nil {
+			ReleaseIsolation(iso, nil)
+			return nil, err
+		}
+		tabID = util.Str(tab.Get("id"))
+	}
 
 	before := GitChanged(cwd)
 
@@ -1066,6 +1094,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 	o := util.NewObj("taskId", tabID, "cli", cli, "goal", goal, "cwd", cwd, "sourceCwd", sourceCwd,
 		"isolation", iso.Obj(), "startedAt", t0, "before", beforeV, "status", "running")
+	if p := optStr(in, "priority"); p != "" {
+		o.Set("priority", p)
+	}
 	if c.ec.ConversationID != "" {
 		o.Set("conversationId", c.ec.ConversationID)
 	}
@@ -1078,8 +1109,11 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		s.wg.Add(1)
 		go func() { defer s.wg.Done(); s.runChild(task, prompt, false, nil) }()
 		note := "（注意：工作目录不是 git 仓库，并行任务可能互相修改文件）"
-		if iso.Kind == "worktree" {
-			note = "（已使用 git worktree 隔离并行写入）"
+		switch iso.Kind {
+		case IsoWorktree:
+			note = "（基于分支 " + iso.BaseBranch + " 在独立的 git worktree 里做，做完落地到当前工作区或新分支）"
+		case IsoInPlace:
+			note = "（直接在工作目录里改；并行任务改到同一个文件时按优先级让路）"
 		}
 		return s.resultForModel(util.NewObj("taskId", tabID, "cli", cli, "status", "running",
 			"summary", cliName[cli]+" 已在后台开始："+slice(goal, 80)+"。可用 delegate_status 查询进度；完成后会在对话里通知。"+note,
@@ -1135,7 +1169,7 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 	decision := authorize(desktop.AuthorizeInput{
 		Tool: "delegate_to_cli", Danger: "write",
 		Summary: "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
-		Args:    util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", "worktree", "background", true),
+		Args:    util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", isoKindFor(sourceCwd, optStr(in, "base_branch")), "background", true),
 		Preview: &preview, Signal: c.sig,
 	})
 	switch decision {
@@ -1156,6 +1190,9 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 	cliV, cwdV, isoV := cli, sourceCwd, "worktree"
 	ex := tasks.ExecutorSpec{Kind: "cli", Cli: &cliV, Cwd: &cwdV, Isolation: &isoV,
 		Brief: &tasks.Brief{DoneWhen: brief.DoneWhen}}
+	if base := trim(optStr(in, "base_branch")); base != "" {
+		ex.BaseBranch = &base
+	}
 	if m := util.Str(ov.Get("model")); m != "" {
 		ex.Model = &m
 	}
@@ -1178,8 +1215,15 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 		v := c.ec.ToolCallID
 		ex.CallID = &v
 	}
+	kind := optStr(in, "kind")
+	switch kind {
+	case "":
+		kind = "coding"
+	case "prd":
+		kind = "writing"
+	}
 	di := tasks.DelegatedInput{Title: "Nomi · " + slice(trim(goal), 40), Goal: goal, Executor: ex, Level: 3,
-		Paths: []string{sourceCwd}}
+		Paths: []string{sourceCwd}, Category: kind, Priority: optStr(in, "priority")}
 	if c.ec.ConversationID != "" {
 		cid := c.ec.ConversationID
 		di.ConversationID = &cid
@@ -1196,10 +1240,46 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 			"filesVerified", false, "approvals", approvalsZero(), "durationMs", 0.0)
 	}
 	result.Set("summary", util.Str(result.Get("summary"))+"。已作为持续任务派出（任务页可看进度）：同时运行的任务满了会排队；"+
-		"做完后改动留在独立的 worktree 里，等用户在任务页验收、回填；完成后会在对话里通知。"+
+		"做完后等用户在任务页验收；完成后会在对话里通知。"+
 		"可用 delegate_status 查询、delegate_stop 停止。")
 	result.Set("durationMs", s.d.Now()-t0)
 	return s.resultForModel(result, c), nil
+}
+
+// isoKindFor：授权卡片上显示的隔离方式（真正的判断在执行时 PrepareIsolation 里）
+func isoKindFor(cwd, base string) string {
+	switch {
+	case ResolveGitRoot(cwd) == "":
+		return IsoShared
+	case trim(base) != "":
+		return IsoWorktree
+	}
+	return IsoInPlace
+}
+
+// taskRetired：任务这些状态下它的标签空出来了，可以给同一种新委派接着用
+var taskRetired = []string{tasks.StatusDone, tasks.StatusFailed, tasks.StatusCancelled, tasks.StatusExpired, tasks.StatusIdle}
+
+// taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）
+func (s *Service) taskBusy(taskID string) bool {
+	if s.d.Tasks != nil {
+		if rec := s.d.Tasks.Get(taskID); rec != nil {
+			return !contains(taskRetired, rec.Task.Status)
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t := s.tasks[taskID]
+	return t != nil && t.status() == "running"
+}
+
+// reusableTab：能接着用的同一种委派标签（没有返回空）
+func (s *Service) reusableTab(key string) string {
+	if key == "" {
+		return ""
+	}
+	tabs, _ := s.d.Harness.ListTabs().Get("tabs").([]any)
+	return FindReusableTab(tabs, key, s.d.Now(), s.taskBusy)
 }
 
 var (
@@ -1220,6 +1300,10 @@ func classifyRunError(msg string) string {
 
 func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig context.Context) *util.Obj {
 	h := s.d.Harness
+	if task.iso != nil && task.iso.Kind == IsoInPlace {
+		s.d.Claims.Register(task.id(), task.iso.GitRoot, util.Str(task.o.Get("cwd")), util.Str(task.o.Get("priority")),
+			"Nomi · "+slice(trim(util.Str(task.o.Get("goal"))), 30))
+	}
 	var cancelledByNomi bool
 	var cmu sync.Mutex
 	done := make(chan struct{})
@@ -1336,36 +1420,52 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	default:
 		changed = []string{}
 	}
-	// 回填处理完整的变更集合；只有给模型 / 界面看的列表截到 50 个（#255）
+	// 落地处理完整的变更集合；只有给模型 / 界面看的列表截到 50 个（#255）
 	isoNote := task.iso.Note
 	conflictedFiles := []string{}
-	// worktree 里还有没拷回主工作树的改动（冲突、未授权、复制失败）：不能拆
-	leftBehind := false
-	if status != "cancelled" && task.iso.Kind == "worktree" && len(changed) > 0 {
-		ar := ApplyWorktreeToMain(task.iso, changed, func(dest string) bool { return s.d.Desktop.Guard(dest, "write", true).OK })
-		conflictedFiles = append(append(conflictedFiles, ar.Conflicted...), ar.Denied...)
-		leftBehind = len(ar.Conflicted)+len(ar.Denied)+len(ar.Skipped) > 0
-		if len(ar.Applied) > 0 {
-			changed = ar.Applied
+	// 直接改：同期别的任务改的文件不算自己的；让给了优先级更高的任务的写进说明
+	if out := s.d.Claims.Finish(task.id()); out != nil {
+		mine, yielded := out.Filter(changed)
+		changed = mine
+		if len(yielded) > 0 {
+			isoNote += " 以下文件和别的任务撞上，按优先级让给了对方：" + joinComma(head(yielded, 20))
 		}
-		if len(ar.Conflicted) > 0 {
-			isoNote += " 未覆盖主工作树中已有改动的文件：" + joinComma(head(ar.Conflicted, 20))
-		}
-		if len(ar.Denied) > 0 {
-			isoNote += " 以下文件在未授权的目录里，没有拷回主工作树（仍在 worktree 中）：" + joinComma(head(ar.Denied, 20))
-		}
-		if len(ar.Skipped) > 0 {
-			isoNote += " 以下文件没能拷回主工作树（仍在 worktree 中）：" + joinComma(head(ar.Skipped, 20))
+	}
+	takenOver := false
+	if d := delegationOf(s.findTab(task.id())); d != nil && util.Truthy(d.Get("takenOver")) {
+		takenOver = true
+	}
+	if task.iso.Kind == IsoWorktree && !takenOver {
+		switch {
+		case status == "cancelled":
+			ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
+		case status == "error" && !gitOK:
+			// 列不出变更：worktree 留着给用户接手（#255）
+		default:
+			// 做完（或失败但列得出变更）：落地。改动少拷回当前工作区，改动多 / 拷不回去的提交到新分支，然后拆掉
+			lr := LandWorktree(task.iso, changed, util.Str(task.o.Get("goal")),
+				func(dest string) bool { return s.d.Desktop.Guard(dest, "write", true).OK })
+			conflictedFiles = append(append(conflictedFiles, lr.Apply.Conflicted...), lr.Apply.Denied...)
+			switch {
+			case lr.Mode == "branch":
+				isoNote += " 改动较多（" + strconv.Itoa(len(changed)) + " 个文件），没有拷进当前分支，已提交到新分支 " + lr.Branch +
+					"（基于 " + task.iso.BaseBranch + "），由用户决定是否合并"
+			case lr.Mode == "applied":
+				if len(lr.Apply.Applied) > 0 {
+					changed = lr.Apply.Applied
+				}
+				isoNote += " 改动已拷回当前工作区"
+				if lr.Branch != "" {
+					isoNote += "；以下文件拷不回去（工作区里已有改动、未授权或复制失败），提交到了新分支 " + lr.Branch + "：" +
+						joinComma(head(append(append(append([]string{}, lr.Apply.Conflicted...), lr.Apply.Denied...), lr.Apply.Skipped...), 20))
+				}
+			}
+			if lr.Kept {
+				isoNote += " 落地失败（" + slice(lr.Err, 200) + "），改动仍在 worktree 中：" + task.iso.WorktreePath
+			}
 		}
 	}
 	changed = head(changed, 50)
-	// 取消：拆掉 worktree。失败：只有确知全部改动都已拷回（变更列表来自 git、没有留下任何文件）才拆；
-	// 列不出变更或还有没拷回的，留着给用户接手（#255）
-	if status == "cancelled" || (status == "error" && gitOK && !leftBehind) {
-		if d := delegationOf(s.findTab(task.id())); d == nil || !util.Truthy(d.Get("takenOver")) {
-			ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
-		}
-	}
 	if report != nil {
 		report = wrapReport(report, changed)
 	}
@@ -1530,6 +1630,10 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	if d := delegationOf(tab); d != nil && util.Truthy(d.Get("takenOver")) {
 		return nil, derr("taken_over", "用户已接手这个标签，Nomi 不再往里发消息")
 	}
+	if task.iso != nil && task.iso.Kind == IsoWorktree && !existsSync(task.iso.WorktreePath) {
+		return nil, derr("not_followable", "这次委派的改动已经落地（拷回工作区或提交到新分支），worktree 已清理；"+
+			"要接着改就重新委派（base_branch 填那个新分支）")
+	}
 	// 追问会让任务重新运行：与首次委派共用名额（#141）；满了排队等（2.3）。等用户确认期间也占着名额
 	release, err := s.reserveSlot(c.sig, true)
 	if err != nil {
@@ -1615,8 +1719,11 @@ func (s *Service) followupTask(rec *tasks.Record, message string, c *execCtx, t0
 }
 
 func publicIsolationNote(iso *IsolationHandle) string {
-	if iso.Kind == "worktree" {
-		return "已使用 git worktree 隔离并行写入"
+	switch iso.Kind {
+	case IsoWorktree:
+		return "基于分支 " + iso.BaseBranch + " 在独立的 git worktree 里做"
+	case IsoInPlace:
+		return "直接在工作目录里改"
 	}
 	return "工作目录不是 git 仓库，并行任务可能互相修改文件"
 }

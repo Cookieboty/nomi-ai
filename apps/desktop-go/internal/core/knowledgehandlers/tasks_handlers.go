@@ -136,7 +136,7 @@ func taskHandlers(sv Services) map[string]H {
 			apply := sv.ApplyWorktree
 			if apply == nil {
 				// 没有桌面能力：一个都不写（mayWrite 为 false）
-				apply = func(_ tasks.CliIsolation, files []string) tasks.WorktreeApply {
+				apply = func(_ tasks.CliIsolation, files []string, _ string) tasks.WorktreeApply {
 					return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 				}
 			}

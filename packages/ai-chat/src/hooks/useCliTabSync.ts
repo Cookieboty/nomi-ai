@@ -1,11 +1,17 @@
 /**
  * 把 harness CLI 标签镜像进 ConversationStore，供侧栏「全部 / 按端」统一渲染。
+ * Nomi 委派出去的标签不镜像：它们只在 Nomi 里打开（对话里的子任务卡片、任务页）。
  */
 import { useEffect, useMemo, useRef } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../contexts/aiChatStore';
 import { useHarnessTabs } from '../contexts/HarnessTabsContext';
-import { MAIN_TAB_ID, type HarnessBackend, type HarnessTabMeta } from '../services/harnessClient';
+import {
+  MAIN_TAB_ID,
+  isNomiDelegated,
+  type HarnessBackend,
+  type HarnessTabMeta,
+} from '../services/harnessClient';
 import type { ConversationBackend } from '../types/chat';
 
 function asBackend(b: HarnessBackend): ConversationBackend {
@@ -20,7 +26,10 @@ export function useCliTabSync(onChange?: () => void): void {
   // 只用真正影响会话列表的字段生成同步键，避免每次切换都写 localStorage 并刷新列表。
   const cliTabs = useMemo(
     () =>
-      (tabs.state?.tabs ?? []).filter((tab) => tab.id !== MAIN_TAB_ID && tab.backend !== 'nomi'),
+      // Nomi 委派出去的标签只在 Nomi 里看，不镜像进侧栏（已镜像过的在下面按「标签已不在」清掉）
+      (tabs.state?.tabs ?? []).filter(
+        (tab) => tab.id !== MAIN_TAB_ID && tab.backend !== 'nomi' && !isNomiDelegated(tab),
+      ),
     [tabs.state],
   );
   const tabListRef = useRef<HarnessTabMeta[]>([]);
