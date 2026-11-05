@@ -237,7 +237,7 @@ func (r *Runtime) Get(id string) *Record {
 	defer r.ownerMu.Unlock()
 	if rec, ok := r.recs[id]; ok {
 		c := *rec
-		c.Attempts = append([]Attempt(nil), rec.Attempts...)
+		c.Attempts = append([]Attempt{}, rec.Attempts...) // 没跑过也是 []（契约要求数组，nil 会编成 null）
 		return &c
 	}
 	return nil
