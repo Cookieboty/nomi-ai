@@ -7,7 +7,7 @@
   模型、编程助手、MCP 与本地工具都接到一处，由 Nomi 统一调度。
 </p>
 
-<p align="center">macOS · Windows · Linux　|　Go 内核，安装包 39 MB　|　MIT</p>
+<p align="center">macOS · Windows · Linux　|　Go 内核，安装包约 25 MB　|　MIT</p>
 
 <p align="center">
   <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
