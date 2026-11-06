@@ -61,6 +61,39 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v232">
+          <header class="release-head">
+            <h2 data-i18n="cl.v232.title">v2.3.2 — 会话按工作区分组、固定导航栏、搜索与分支切换</h2>
+            <time datetime="2026-11-06">2026-11-06</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v232.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v232.feat.1">会话按工作区分组：Nomi 对话按会话的工作区、编程助手按标签目录归到同一个文件夹，每个文件夹默认显示 5 条，点「展开显示」每次再多 5 条；文件夹和「工作区」「最近」分区都可以收起 / Chats are grouped by workspace: Nomi chats by their workspace and coding-agent tabs by their folder; each folder shows 5 chats and "Show more" adds 5 at a time; folders and the Workspaces</li>
+            <li data-i18n="cl.v232.feat.2">左侧固定导航栏：对话、任务、素材库，工坊模式下竖排列出全部编程助手，设置在最下面；收起会话面板后，鼠标移到「对话」或编程助手图标上会弹出会话浮层</li>
+            <li data-i18n="cl.v232.feat.3">两种模式改名：「Nomi 灵伴」主打聊天、知识问答、记忆与日常事务，「Nomi 工坊」由 Nomi 调度 Claude Code、Codex、多模型完成项目与代码任务</li>
+            <li data-i18n="cl.v232.feat.4">搜索窗：放大镜或 <code>Ctrl/⌘+F</code> 打开，搜索对话、本机历史、任务和素材，底部标签切换全部 / 对话 / 任务 / 素材库，素材带缩略图 / A search window (magnifier or <code>Ctrl/⌘+F</code>) finds chats, local history, tasks and assets, with All / Chats / Tasks</li>
+            <li data-i18n="cl.v232.feat.5">置顶与归档：置顶的会话在最上面；归档的会话不在侧栏显示，可在「设置 → 通用 → 已归档的对话」里恢复或永久删除；永久删除会再确认一次</li>
+            <li data-i18n="cl.v232.feat.6">分支切换：新会话输入框上方和右栏「改动」顶部的分支名可以点开，搜索本地分支、切换或新建分支；有会被覆盖的未提交改动时不会切换，改动不会丢</li>
+            <li data-i18n="cl.v232.feat.7">输入框「+」菜单改成给这条消息加东西：添加图片或文件、引用文件（@）、交给编程助手、知识库问答</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v232.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v232.imp.1">整体布局：导航栏和标题栏在窗口底色上，会话面板与对话区拼成一张圆角卡片；标题栏显示当前会话名和工作区，右上角是会话菜单与改动 · 文件栏开关</li>
+            <li data-i18n="cl.v232.imp.2">会话行更简洁：行首不再画图标，只有工坊「全部」里的编程助手会话在行尾有灰色小图标；悬停显示详情卡片，点卡片里的标题直接改名</li>
+            <li data-i18n="cl.v232.imp.3">工作区在新会话的输入框上方选择（可搜索、可不使用），不再放在对话顶栏</li>
+            <li data-i18n="cl.v232.imp.4">输入框随内容长高，内容列收窄到 768；「+」、权限、模型和语音按钮去掉边框，模型挪到右侧挨着发送</li>
+            <li data-i18n="cl.v232.imp.5">麦克风和免按键按钮只在语音识别配好后显示；没配好时「+」菜单里有「设置语音输入…」</li>
+            <li data-i18n="cl.v232.imp.6">任务与素材库整页放进白色卡片，看板改成浅灰泳道，回对话用导航栏或 Esc</li>
+            <li data-i18n="cl.v232.imp.7">滚动条不再常驻，鼠标移到可滚动区域上才出现</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v232.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v232.fix.1">新建对话时如果这个工作区已有还没说话的空对话，直接切过去，不再堆一个新的空对话</li>
+            <li data-i18n="cl.v232.fix.2">「+」菜单里点选项不再清空正在输入的草稿</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.2" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v231">
           <header class="release-head">
             <h2 data-i18n="cl.v231.title">v2.3.1 — 远程 MCP 浏览器授权、角色骨架重绑、会话字号可调</h2>
