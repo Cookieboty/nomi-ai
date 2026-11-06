@@ -15,6 +15,8 @@ export interface MicButtonProps {
   onStop(cancel: boolean): void;
   /** sm 28 / ms 32（与输入栏工具行同高）/ md 36 */
   size?: 'sm' | 'ms' | 'md';
+  /** bare：无边框（Codex 式输入栏工具行），hover 才出底色 */
+  variant?: 'default' | 'bare';
   tooltip?: string;
   tooltipPlacement?: 'top' | 'top-end' | 'bottom' | 'left' | 'right';
   /** 追加到 Tooltip 气泡上的额外 class（透传给 Tooltip 的 bubbleClassName） */
@@ -47,6 +49,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
   onStart,
   onStop,
   size = 'md',
+  variant = 'default',
   tooltip,
   tooltipPlacement,
   tooltipBubbleClassName,
@@ -87,6 +90,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
         className={cx(
           'cd-voice-mic',
           `cd-voice-mic--${size}`,
+          variant === 'bare' && 'cd-voice-mic--bare',
           recording && 'is-recording',
           armedCancel && 'is-cancel',
           busy && 'is-busy',
