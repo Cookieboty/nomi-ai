@@ -312,9 +312,9 @@ export class ConversationStore {
    */
   lastNomiId(): string | undefined {
     const rec = this.lastNomi;
-    if (rec && this.isNomi(rec)) return rec;
+    if (rec && this.isNomi(rec) && !this.get(rec)?.archivedAt) return rec;
     return this.index
-      .filter((c) => c.backend === 'nomi' && !c.tabId)
+      .filter((c) => c.backend === 'nomi' && !c.tabId && !c.archivedAt)
       .reduce<ConversationMeta | undefined>(
         (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
         undefined,
@@ -678,6 +678,36 @@ export class ConversationStore {
       this.setMessages(meta.id, copied);
     }
     return this.get(meta.id)!;
+  }
+
+  /** 归档 / 取消归档 Nomi 对话：不改更新时间；归档的是当前会话时，像删除一样切到同端最近的会话 */
+  setArchived(id: string, archived: boolean): void {
+    const meta = this.get(id);
+    if (!meta || Boolean(meta.archivedAt) === archived) return;
+    this.updateMeta(id, {
+      archivedAt: archived ? this.now() : undefined,
+      updatedAt: meta.updatedAt,
+    });
+    if (archived && this.current === id) {
+      const next = this.index
+        .filter((c) => c.backend === meta.backend && c.id !== id && !c.archivedAt)
+        .reduce<ConversationMeta | undefined>(
+          (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
+          undefined,
+        );
+      if (next)
+        this.setPointers(next.id, next.backend === 'nomi' && !next.tabId ? next.id : undefined);
+      else this.setPointers(null, undefined);
+    }
+    notifyConversationsChanged();
+  }
+
+  /** 置顶 / 取消置顶：不改更新时间（置顶不算一次活动） */
+  setPinned(id: string, pinned: boolean): void {
+    const meta = this.get(id);
+    if (!meta || Boolean(meta.pinnedAt) === pinned) return;
+    this.updateMeta(id, { pinnedAt: pinned ? this.now() : undefined, updatedAt: meta.updatedAt });
+    notifyConversationsChanged();
   }
 
   delete(id: string): void {

@@ -282,7 +282,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     ]);
   });
 
-  it('通用：默认「通用」，还有快捷键 / 语音 / 通知标签', () => {
+  it('通用：默认「通用」，还有快捷键 / 语音 / 通知 / 已归档的对话标签', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     const page = 'settings-general-page';
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('basics');
@@ -291,6 +291,7 @@ describe('SettingsView 合并后的标签页分区', () => {
       '快捷键',
       '语音',
       '通知 / 灵动岛',
+      '已归档的对话',
     ]);
     fireEvent.click(r.getByTestId(`${page}-tab-notify`));
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('notify');
