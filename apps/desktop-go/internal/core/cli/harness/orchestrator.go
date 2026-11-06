@@ -1092,9 +1092,13 @@ func (o *Orchestrator) GitCommitIn(cwd, message, paths any) *util.Obj {
 func (o *Orchestrator) GitCommitUndoIn(cwd, sha any) *util.Obj {
 	return cli.GitCommitUndo(o.KnownDir(cwd), sha)
 }
-func (o *Orchestrator) GitFetchIn(cwd any) *util.Obj { return cli.GitFetch(o.KnownDir(cwd)) }
-func (o *Orchestrator) GitPullIn(cwd any) *util.Obj  { return cli.GitPull(o.KnownDir(cwd)) }
-func (o *Orchestrator) GitPushIn(cwd any) *util.Obj  { return cli.GitPush(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitFetchIn(cwd any) *util.Obj    { return cli.GitFetch(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitPullIn(cwd any) *util.Obj     { return cli.GitPull(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitPushIn(cwd any) *util.Obj     { return cli.GitPush(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitBranchesIn(cwd any) *util.Obj { return cli.GitBranches(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitCheckoutIn(cwd, branch, create any) *util.Obj {
+	return cli.GitCheckout(o.KnownDir(cwd), branch, create)
+}
 func (o *Orchestrator) GitDiscardIn(cwd, paths any) *util.Obj {
 	return cli.GitDiscard(o.KnownDir(cwd), paths)
 }

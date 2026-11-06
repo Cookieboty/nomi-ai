@@ -111,6 +111,13 @@ export const GitDiffResult = loose({
 
 export const GitBranchResult = loose({ branch: z.string().nullable() });
 
+/** 本地分支（按最近提交倒序，最多 200 个）；游离 HEAD 时 current 为 null、detached 是短提交号 */
+export const GitBranchList = loose({
+  current: z.string().nullable(),
+  detached: z.string().optional(),
+  branches: z.array(z.string()),
+});
+
 /** 右栏「改动」写操作的结果；失败原因在 code（busy / auth / no-model …） */
 export const GitOpResult = loose({ ok: z.boolean(), code: z.string().optional() });
 

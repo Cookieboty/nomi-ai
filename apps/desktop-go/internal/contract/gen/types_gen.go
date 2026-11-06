@@ -3224,6 +3224,27 @@ type HarnessGitBranchOutput struct {
 	Branch string `json:"branch"`
 }
 
+type HarnessGitBranchesInput struct {
+	Cwd string `json:"cwd"`
+}
+
+type HarnessGitBranchesOutput struct {
+	Current  string   `json:"current"`
+	Detached *string  `json:"detached,omitempty"`
+	Branches []string `json:"branches"`
+}
+
+type HarnessGitCheckoutInput struct {
+	Cwd    string `json:"cwd"`
+	Branch string `json:"branch"`
+	Create *bool  `json:"create,omitempty"`
+}
+
+type HarnessGitCheckoutOutput struct {
+	Ok   bool    `json:"ok"`
+	Code *string `json:"code,omitempty"`
+}
+
 type HarnessGitCommitInput struct {
 	Cwd     string   `json:"cwd"`
 	Message string   `json:"message"`
@@ -8570,6 +8591,14 @@ type HarnessGeminiTrustFolderOutputT = HarnessGeminiTrustFolderOutput
 // HarnessGitBranchInputT 是 harness.gitBranch 的入参
 type HarnessGitBranchInputT = HarnessGitBranchInput
 type HarnessGitBranchOutputT = *HarnessGitBranchOutput
+
+// HarnessGitBranchesInputT 是 harness.gitBranches 的入参
+type HarnessGitBranchesInputT = HarnessGitBranchesInput
+type HarnessGitBranchesOutputT = *HarnessGitBranchesOutput
+
+// HarnessGitCheckoutInputT 是 harness.gitCheckout 的入参
+type HarnessGitCheckoutInputT = HarnessGitCheckoutInput
+type HarnessGitCheckoutOutputT = HarnessGitCheckoutOutput
 
 // HarnessGitCommitInputT 是 harness.gitCommit 的入参
 type HarnessGitCommitInputT = HarnessGitCommitInput
