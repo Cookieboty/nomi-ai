@@ -359,9 +359,22 @@ export class SdkIPCClient implements IPCClient {
 
   async newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string },
+    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string; notReuse?: string },
   ): Promise<string> {
     // 新的 Nomi 对话没给工作区时由 store 用主标签当前的目录（defaultNomiCwd）
+    // 这个工作区已经有还没说话的空对话：切过去（挪到最上面），不再新建一个
+    if ((opts?.backend ?? 'nomi') === 'nomi' && !opts?.tabId) {
+      // notReuse：界面上有消息 / 正在回复的当前会话（消息可能还没落盘，看起来是空的）
+      const empty = this.store.findEmptyNomi(
+        opts?.cwd ?? this.store.defaultNomiCwd(),
+        opts?.notReuse,
+      );
+      if (empty) {
+        this.store.updateMeta(empty.id, {});
+        this.store.switchTo(empty.id);
+        return empty.id;
+      }
+    }
     return this.store.create({
       name,
       backend: opts?.backend,

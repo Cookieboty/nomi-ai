@@ -1092,10 +1092,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       dispatch({ type: 'SET_ERROR', payload: undefined });
       try {
         ingestCurrent();
-        await stateRef.current.ipcClient.newConversation(
-          undefined,
-          opts?.cwd ? { cwd: opts.cwd } : undefined,
-        );
+        // 当前会话界面上有消息或正在回复：消息可能还没落盘，不能当空对话复用
+        const { messages, isLoading, ipcClient } = stateRef.current;
+        const notReuse = messages.length || isLoading ? ipcClient.currentConversationId?.() : '';
+        await ipcClient.newConversation(undefined, { cwd: opts?.cwd, notReuse });
         historySeq.current++;
         dispatch({
           type: 'CLEAR_MESSAGES',

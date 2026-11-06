@@ -702,6 +702,24 @@ export class ConversationStore {
     notifyConversationsChanged();
   }
 
+  /**
+   * 同一工作区里还没有消息的 Nomi 对话（新建时复用它，不再堆一个空对话）。
+   * cwd 按去掉末尾斜杠比较；没有工作区的只和同样没有工作区的配对。归档的不算。
+   */
+  findEmptyNomi(cwd: string | undefined, exclude?: string): ConversationMeta | undefined {
+    const norm = (p: string | undefined) => (p ?? '').replace(/[\\/]+$/, '');
+    const want = norm(cwd);
+    return this.index.find(
+      (c) =>
+        c.id !== exclude &&
+        c.backend === 'nomi' &&
+        !c.tabId &&
+        !c.archivedAt &&
+        norm(c.cwd) === want &&
+        !this.hasMessages(c.id),
+    );
+  }
+
   /** 置顶 / 取消置顶：不改更新时间（置顶不算一次活动） */
   setPinned(id: string, pinned: boolean): void {
     const meta = this.get(id);

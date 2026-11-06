@@ -33,3 +33,17 @@ describe('ConversationStore.setArchived', () => {
     expect(store.list()).toHaveLength(1);
   });
 });
+
+describe('ConversationStore.findEmptyNomi', () => {
+  it('同一工作区里还没有消息的 Nomi 对话可以复用；有消息 / 归档 / 别的工作区的不算', () => {
+    const store = new ConversationStore();
+    const a = store.create({ name: 'a', cwd: '/w/app' }).id;
+    expect(store.findEmptyNomi('/w/app/')?.id).toBe(a);
+    expect(store.findEmptyNomi('/w/other')).toBeUndefined();
+    store.append({ id: 'm', role: 'user', content: 'hi', timestamp: 1 } as never, a);
+    expect(store.findEmptyNomi('/w/app')).toBeUndefined();
+    const b = store.create({ name: 'b', cwd: '/w/app' }).id;
+    store.setArchived(b, true);
+    expect(store.findEmptyNomi('/w/app')).toBeUndefined();
+  });
+});
