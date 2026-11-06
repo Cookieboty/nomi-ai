@@ -123,7 +123,7 @@ func RunWhisperCli(ctx context.Context, o WhisperOpts) (string, error) {
 	}
 	defer os.RemoveAll(dir)
 	wavPath := filepath.Join(dir, "in.wav")
-	if err := os.WriteFile(wavPath, o.Wav, 0o666); err != nil {
+	if err := os.WriteFile(wavPath, o.Wav, 0o600); err != nil {
 		return "", err
 	}
 	cliDir := filepath.Dir(o.Cli)
