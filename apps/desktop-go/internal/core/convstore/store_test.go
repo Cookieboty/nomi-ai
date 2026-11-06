@@ -464,3 +464,73 @@ func TestValidIDMatchesContract(t *testing.T) {
 		}
 	}
 }
+
+// #268：删除 / 改指针时索引写失败，内存回滚；故障解除后重试真的落盘，重启后不复活
+func TestDeleteRetriesAfterIndexWriteFailure(t *testing.T) {
+	ud := t.TempDir()
+	s := New(ud)
+	mustPut(t, s, `{"id":"a"}`, msgs(`{"id":"m"}`))
+	mustPut(t, s, `{"id":"b"}`, msgs(`{"id":"n"}`))
+	mustPut(t, s, `{"id":"c"}`, nil)
+	if err := s.SetPointers(strp("c"), strp("c")); err != nil {
+		t.Fatal(err)
+	}
+	failing := errors.New("disk full")
+	write := s.writeFile
+	s.writeFile = func(string, []byte) error { return failing }
+	// 删中间的非当前会话：失败要报错，内存里它还在
+	if err := s.Delete("b"); !errors.Is(err, failing) {
+		t.Fatalf("first delete: %v", err)
+	}
+	if st := stateOf(t, s); len(st.Conversations) != 3 || st.Counts["b"] != 1 {
+		t.Fatalf("memory not rolled back: %+v", st)
+	}
+	if got := contents(t, s, "b"); len(got) != 1 {
+		t.Fatal("messages must stay until the index is written", got)
+	}
+	// 改指针失败也回滚
+	if err := s.SetPointers(strp("a"), nil); !errors.Is(err, failing) {
+		t.Fatalf("pointers: %v", err)
+	}
+	if st := stateOf(t, s); st.Current != "c" {
+		t.Fatalf("pointer not rolled back: %+v", st)
+	}
+	// 故障解除后重试：真的写进索引、删掉消息文件，不做别的索引写入
+	s.writeFile = write
+	if err := s.Delete("b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPointers(strp("a"), nil); err != nil {
+		t.Fatal(err)
+	}
+	st := stateOf(t, New(ud))
+	if len(st.Conversations) != 2 || st.Counts["b"] != 0 || st.Current != "a" || st.LastNomi != "c" {
+		t.Fatalf("after restart: %+v", st)
+	}
+	if _, err := os.Stat(filepath.Join(ud, Dir, messagesDir, "b.jsonl")); !os.IsNotExist(err) {
+		t.Fatal("messages file left behind")
+	}
+	if got := stateOf(t, New(ud)); metaID(got.Conversations[0]) != "a" || metaID(got.Conversations[1]) != "c" {
+		t.Fatalf("order: %s", got.Conversations)
+	}
+}
+
+// 索引已经写成、删消息文件失败：重试补删残留的消息文件
+func TestDeleteRetryRemovesLeftoverMessages(t *testing.T) {
+	ud := t.TempDir()
+	s := New(ud)
+	mustPut(t, s, `{"id":"a"}`, msgs(`{"id":"m"}`))
+	if err := s.Delete("a"); err != nil {
+		t.Fatal(err)
+	}
+	leftover := filepath.Join(ud, Dir, messagesDir, "a.jsonl")
+	if err := os.WriteFile(leftover, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Delete("a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(leftover); !os.IsNotExist(err) {
+		t.Fatal("leftover messages file not removed on retry")
+	}
+}

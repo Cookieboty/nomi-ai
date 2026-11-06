@@ -119,10 +119,12 @@ type Store struct {
 	doc      indexDoc
 	pos      map[string]int // id → doc.Conversations 下标
 	previews map[string]string
+	// writeFile：索引的原子写（测试里换成会失败的）
+	writeFile func(path string, b []byte) error
 }
 
 func New(userData string) *Store {
-	return &Store{dir: filepath.Join(userData, Dir), now: time.Now}
+	return &Store{dir: filepath.Join(userData, Dir), now: time.Now, writeFile: utils.WritePrivateFileAtomic}
 }
 
 func (s *Store) msgPath(id string) string {
@@ -363,7 +365,7 @@ func (s *Store) writeIndex() error {
 	if err != nil {
 		return err
 	}
-	return utils.WritePrivateFileAtomic(filepath.Join(s.dir, indexFile), b)
+	return s.writeFile(filepath.Join(s.dir, indexFile), b)
 }
 
 func (s *Store) writePreviews() error {
@@ -665,7 +667,9 @@ func (s *Store) Put(meta json.RawMessage, msgs []json.RawMessage, preview *strin
 	return id, s.writeIndex()
 }
 
-// Delete 删除会话（不存在时什么都不做）：先改索引再删消息文件
+// Delete 删除会话：先改索引再删消息文件。索引写失败时内存回滚，重试会把整个删除重做一遍
+// （不会因为内存里已经没有这个 id 就报成功）；不在索引里时只补删残留的消息文件
+// （上一次索引写成了、删消息文件失败的重试）。
 func (s *Store) Delete(id string) error {
 	if !ValidID(id) {
 		return ErrBadID
@@ -677,10 +681,14 @@ func (s *Store) Delete(id string) error {
 	}
 	i, ok := s.pos[id]
 	if !ok {
+		if err := os.Remove(s.msgPath(id)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 		return nil
 	}
-	s.doc.Conversations = append(s.doc.Conversations[:i], s.doc.Conversations[i+1:]...)
-	s.reindex()
+	prev := s.doc
+	// 新切片：不和 prev 共用底层数组，回滚时 prev 还是原样
+	s.doc.Conversations = append(append(make([]entry, 0, len(prev.Conversations)-1), prev.Conversations[:i]...), prev.Conversations[i+1:]...)
 	if s.doc.Current == id {
 		s.doc.Current = ""
 	}
@@ -688,8 +696,10 @@ func (s *Store) Delete(id string) error {
 		s.doc.LastNomi = ""
 	}
 	if err := s.writeIndex(); err != nil {
+		s.doc = prev
 		return err
 	}
+	s.reindex()
 	if _, ok := s.previews[id]; ok {
 		delete(s.previews, id)
 		_ = s.writePreviews()
@@ -722,6 +732,7 @@ func (s *Store) SetPointers(current, lastNomi Pointer) error {
 	if err := s.load(); err != nil {
 		return err
 	}
+	prev := s.doc
 	changed := false
 	if current != nil && *current != s.doc.Current {
 		s.doc.Current, changed = *current, true
@@ -732,7 +743,12 @@ func (s *Store) SetPointers(current, lastNomi Pointer) error {
 	if !changed {
 		return nil
 	}
-	return s.writeIndex()
+	if err := s.writeIndex(); err != nil {
+		// 回滚：重试同样的指针时还会再写，而不是因为内存里已经是这个值就报成功
+		s.doc.Current, s.doc.LastNomi = prev.Current, prev.LastNomi
+		return err
+	}
+	return nil
 }
 
 // ImportInput 见 conversations.import
