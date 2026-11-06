@@ -169,6 +169,8 @@ export class ConversationStore {
   private readonly ops: WriteOp[] = [];
   /** 正在写的那一条（已从队列取出） */
   private inflight: WriteOp | undefined;
+  /** 整份重写已拍进快照的排队操作：不再往里合并新的追加，重写成功后只删这些 */
+  private readonly sealed = new WeakSet<WriteOp>();
   private draining: Promise<void> | undefined;
   private readonly retryDelays: number[];
   private readonly stalledRetryMs: number;
@@ -740,7 +742,12 @@ export class ConversationStore {
   private enqueue(op: WriteOp): void {
     if (!this.kernel) return;
     const last = this.ops[this.ops.length - 1];
-    if (op.kind === 'append' && last?.kind === 'append' && last.id === op.id) {
+    if (
+      op.kind === 'append' &&
+      last?.kind === 'append' &&
+      last.id === op.id &&
+      !this.sealed.has(last)
+    ) {
       last.messages.push(...op.messages);
       if (op.meta) last.meta = op.meta;
       if (op.preview !== undefined) last.preview = op.preview;
@@ -849,8 +856,9 @@ export class ConversationStore {
   }
 
   /**
-   * 按内存里的元信息 + 消息整份写（put 会话不在就新建）。缓存里有整份消息时，队列里这个会话后面排着的
-   * 追加 / 替换都已包含在内，一并去掉；没缓存时只能写这一条带的消息（内核里本来就没有更早的）。
+   * 按内存里的元信息 + 消息整份写（put 会话不在就新建）。缓存里有整份消息时，拍快照那一刻队列里这个会话
+   * 排着的追加 / 替换都已包含在内，写成后去掉——只去掉这些（按对象认），put 等待期间新排进来的照常写；
+   * 它们被封住，新的追加不会合并进去跟着被去掉。没缓存时只能写这一条带的消息（内核里本来就没有更早的）。
    */
   private async resync(kernel: ConversationKernel, op: WriteOp, id: string): Promise<void> {
     if (op.kind === 'call') return void (await op.run(kernel));
@@ -860,17 +868,24 @@ export class ConversationStore {
     const fallback = op.kind === 'append' || op.kind === 'replace' ? op.messages : undefined;
     const messages = cached ? [...cached] : fallback;
     const preview = this.previews[id] ?? (messages ? previewOf(messages) : undefined);
-    await kernel.put({
-      meta,
-      ...(messages ? { messages } : {}),
-      ...(preview !== undefined ? { preview } : {}),
-    });
+    const covered = cached
+      ? this.ops.filter((o) => (o.kind === 'append' || o.kind === 'replace') && o.id === id)
+      : [];
+    for (const o of covered) this.sealed.add(o);
+    try {
+      await kernel.put({
+        meta,
+        ...(messages ? { messages } : {}),
+        ...(preview !== undefined ? { preview } : {}),
+      });
+    } catch (e) {
+      for (const o of covered) this.sealed.delete(o);
+      throw e;
+    }
     if (!messages) await this.send(kernel, op);
-    if (cached) {
-      for (let i = this.ops.length - 1; i >= 0; i--) {
-        const o = this.ops[i]!;
-        if ((o.kind === 'append' || o.kind === 'replace') && o.id === id) this.ops.splice(i, 1);
-      }
+    for (const o of covered) {
+      const i = this.ops.indexOf(o);
+      if (i >= 0) this.ops.splice(i, 1);
     }
   }
 
