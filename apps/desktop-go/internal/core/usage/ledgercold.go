@@ -506,6 +506,7 @@ func (l *UsageLedger) setDay(d *coldDay) {
 		l.dayIDs[i] = d.id
 	}
 	l.days[d.id] = d
+	delete(l.coldRoutes, d.id)
 }
 
 func (l *UsageLedger) dropDay(id int32) {
@@ -513,6 +514,7 @@ func (l *UsageLedger) dropDay(id int32) {
 		return
 	}
 	delete(l.days, id)
+	delete(l.coldRoutes, id)
 	i := sort.Search(len(l.dayIDs), func(i int) bool { return l.dayIDs[i] >= id })
 	l.dayIDs = append(l.dayIDs[:i], l.dayIDs[i+1:]...)
 }
