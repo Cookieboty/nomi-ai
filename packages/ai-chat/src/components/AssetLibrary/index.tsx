@@ -5,8 +5,8 @@
  * 在侧栏切到别的会话 / 标签、新建对话时自动回到对话（参考 feat/2.1.0-image-gen-p0 的 useMediaHost）。
  * 数据来自内核 media/AssetLibrary.ts（契约 chatAssets.*）；生成 / 删除后内核推 chatAssets.changed。
  */
-import { Button, Icon, t } from '@nomi-ai/ui';
-import { ArrowLeft, Images } from 'lucide-react';
+import { t } from '@nomi-ai/ui';
+import { Images } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -139,12 +139,30 @@ export const AssetLibraryPage: React.FC<{
   onBack: () => void;
   /** 以此修改 / 作为参考：回到对话并把这句话填进输入框 */
   onCompose?: (text: string) => void;
-}> = ({ active, onBack, onCompose }) => {
+  /** 从搜索打开某张图（nonce 变了就再打开一次） */
+  focus?: { file: string; nonce: number } | null;
+}> = ({ active, onBack, onCompose, focus }) => {
   const { items, reload } = useAssets(active);
   const [filter, setFilter] = useState<string | null>(null);
   const [current, setCurrent] = useState<AssetItem | null>(null);
+  // 从搜索打开某张图：列表到了之后在查看器里打开它
+  const [focusSeen, setFocusSeen] = useState<number | undefined>(undefined);
+  const focused = focus && items?.find((x) => x.file === focus.file);
+  if (focus && focused && focus.nonce !== focusSeen) {
+    setFocusSeen(focus.nonce);
+    setCurrent(focused);
+  }
   const sources = useMemo(() => [...new Set((items ?? []).map((x) => x.source))], [items]);
   const shown = (items ?? []).filter((x) => filter === null || x.source === filter);
+  // 回对话：导航栏的「对话」，或者没开查看器时按 Esc
+  useEffect(() => {
+    if (!active || current) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) onBack();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active, current, onBack]);
   return (
     <section
       className={styles.page}
@@ -152,10 +170,6 @@ export const AssetLibraryPage: React.FC<{
       data-testid="asset-library"
     >
       <header className={styles.pageHead}>
-        <Button size="sm" variant="ghost" onClick={onBack} data-testid="asset-back">
-          <Icon icon={ArrowLeft} size={14} />
-          {t('ui.chat-settings.back-to-chat')}
-        </Button>
         <h2 className={styles.pageTitle}>{t('ui.media.asset-library')}</h2>
         {items && <span className={styles.pageCount}>{shown.length}</span>}
       </header>
@@ -226,6 +240,13 @@ export function useAssetLibraryHost(collapsed: boolean) {
     setMounted(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
+  const [focus, setFocus] = useState<{ file: string; nonce: number } | null>(null);
+  /** 搜索里点了素材：打开素材库并在查看器里打开这张图 */
+  const openAsset = useCallback((file: string) => {
+    setFocus((f) => ({ file, nonce: (f?.nonce ?? 0) + 1 }));
+    setOpen(true);
+    setMounted(true);
+  }, []);
   const { fillComposer } = useChangesUi();
   // 以此修改 / 作为参考：回到对话，把带图片链接的一句话填进输入框
   const compose = useCallback(
@@ -253,11 +274,11 @@ export function useAssetLibraryHost(collapsed: boolean) {
       ) : null,
     [available, collapsed, open, count, show],
   );
-  if (!available) return { nav: null, page: null, chatHidden: false, close };
+  if (!available) return { nav: null, page: null, chatHidden: false, close, openAsset: undefined };
   const page = mounted ? (
     <div className={styles.main} hidden={!open} data-testid="asset-library-main">
-      <AssetLibraryPage active={open} onBack={close} onCompose={compose} />
+      <AssetLibraryPage active={open} onBack={close} onCompose={compose} focus={focus} />
     </div>
   ) : null;
-  return { nav, page, chatHidden: open, close };
+  return { nav, page, chatHidden: open, close, openAsset };
 }

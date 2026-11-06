@@ -1,5 +1,5 @@
 import { t, Icon, useLocale } from '@nomi-ai/ui';
-import { Ellipsis, Pencil, Trash2 } from 'lucide-react';
+import { Archive, Ellipsis, Pin, PinOff, Trash2 } from 'lucide-react';
 import React from 'react';
 import { type RowComponentProps } from 'react-window';
 
@@ -29,100 +29,82 @@ export function liveOf(tab: HarnessTabMeta | undefined): string {
 }
 
 /** 行内操作的图标（描边，随文字色） */
-const PenIcon = () => <Icon icon={Pencil} size={14} />;
+const PinIcon = () => <Icon icon={Pin} size={14} />;
+const UnpinIcon = () => <Icon icon={PinOff} size={14} />;
 const TrashIcon = () => <Icon icon={Trash2} size={14} />;
+const ArchiveIcon = () => <Icon icon={Archive} size={14} />;
 const MoreIcon = () => <Icon icon={Ellipsis} size={14} />;
 
 export interface RowActionHandlers {
-  onRename?: () => void;
-  /** Nomi 对话：删除（两步确认）；CLI 标签：关闭标签 */
+  /** 置顶 / 取消置顶（改标题在悬停卡片里点标题） */
+  onPin?: () => void;
+  pinned?: boolean;
+  /** Nomi 对话：归档（可在设置里找回）；CLI 标签：关闭标签；本机历史：删除 */
   onDelete?: () => void;
-  onCancelDelete?: () => void;
   onMore: (anchor: DOMRect) => void;
 }
 
 /**
- * 行尾三个图标按钮：重命名 / 删除（或关闭标签）/ 更多。悬浮、行内键盘焦点、选中行时显示；
- * 「更多」只触发父级按需渲染的菜单（与右键菜单共用 ConversationMenu），行内不常驻挂载菜单。
+ * 行尾三个图标按钮：置顶 / 归档（CLI 标签是关闭，本机历史是删除）/ 更多。悬浮、行内键盘焦点时显示；
+ * 永久删除在「更多」里（与右键菜单共用 ConversationMenu），行内不常驻挂载菜单。
  */
-export const RowActions: React.FC<
-  RowActionHandlers & { kind: 'conv' | 'tab' | 'hist'; confirming?: boolean }
-> = ({ kind, confirming, onRename, onDelete, onCancelDelete, onMore }) => {
+export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | 'hist' }> = ({
+  kind,
+  onPin,
+  pinned,
+  onDelete,
+  onMore,
+}) => {
+  const pinLabel = pinned ? t('ui.knowledge-local.unpin') : t('ui.cli-monitor.pin-chat');
   const delLabel =
-    kind === 'tab' ? t('ui.mascot-theme.close-tab-action') : t('ui.cli-monitor.delete-chat');
+    kind === 'tab'
+      ? t('ui.mascot-theme.close-tab-action')
+      : kind === 'conv'
+        ? t('ui.cli-monitor.archive-chat')
+        : t('ui.cli-monitor.delete-chat');
   return (
     <div
       className={styles.rowActions}
       role="group"
       aria-label={t('ui.cli-monitor.conversation-actions')}
       data-testid="row-actions"
-      data-confirming={confirming || undefined}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && confirming) {
-          e.stopPropagation();
-          onCancelDelete?.();
-        }
-      }}
     >
-      {confirming ? (
-        <>
-          <button
-            type="button"
-            className={`${styles.rowBtn} ${styles.rowBtnDanger} ${styles.rowBtnText}`}
-            onClick={onDelete}
-            data-testid="row-delete-confirm"
-            autoFocus
-          >
-            {t('ui.knowledge-local.delete-confirm')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.rowBtn} ${styles.rowBtnText}`}
-            onClick={onCancelDelete}
-            data-testid="row-delete-cancel"
-          >
-            {t('ui.foundation.cancel')}
-          </button>
-        </>
-      ) : (
-        <>
-          {onRename && (
-            <button
-              type="button"
-              className={styles.rowBtn}
-              title={t('ui.cli-monitor.rename')}
-              aria-label={t('ui.cli-monitor.rename')}
-              onClick={onRename}
-              data-testid="row-rename"
-            >
-              <PenIcon />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              className={`${styles.rowBtn} ${styles.rowBtnDanger}`}
-              title={delLabel}
-              aria-label={delLabel}
-              onClick={onDelete}
-              data-testid="row-delete"
-            >
-              <TrashIcon />
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.rowBtn}
-            title={t('ui.cli-monitor.more-actions')}
-            aria-label={t('ui.cli-monitor.more-actions')}
-            aria-haspopup="menu"
-            onClick={(e) => onMore(e.currentTarget.getBoundingClientRect())}
-            data-testid="row-more"
-          >
-            <MoreIcon />
-          </button>
-        </>
+      {onPin && (
+        <button
+          type="button"
+          className={styles.rowBtn}
+          title={pinLabel}
+          aria-label={pinLabel}
+          aria-pressed={pinned}
+          onClick={onPin}
+          data-testid="row-pin"
+        >
+          {pinned ? <UnpinIcon /> : <PinIcon />}
+        </button>
       )}
+      {onDelete && (
+        <button
+          type="button"
+          className={`${styles.rowBtn} ${kind === 'conv' ? '' : styles.rowBtnDanger}`}
+          title={delLabel}
+          aria-label={delLabel}
+          onClick={onDelete}
+          data-testid={kind === 'conv' ? 'row-archive' : 'row-delete'}
+        >
+          {kind === 'conv' ? <ArchiveIcon /> : <TrashIcon />}
+        </button>
+      )}
+      <button
+        type="button"
+        className={styles.rowBtn}
+        title={t('ui.cli-monitor.more-actions')}
+        aria-label={t('ui.cli-monitor.more-actions')}
+        aria-haspopup="menu"
+        onClick={(e) => onMore(e.currentTarget.getBoundingClientRect())}
+        data-testid="row-more"
+      >
+        <MoreIcon />
+      </button>
     </div>
   );
 };
@@ -135,11 +117,15 @@ const ThreadItemImpl: React.FC<{
   onCtx: (id: string, e: React.MouseEvent) => void;
   renaming?: boolean;
   onRename?: (id: string, name: string | null) => void;
-  confirming?: boolean;
-  onRenameStart?: (id: string) => void;
+  /** 行内的置顶 / 取消置顶 */
+  onPinToggle?: (id: string) => void;
+  /** 行内的归档（Nomi 对话）/ 关闭（CLI 标签） */
   onDeleteRequest?: (id: string) => void;
-  onDeleteCancel?: () => void;
   onMore?: (id: string, anchor: DOMRect) => void;
+  /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
+  onPeek?: (id: string, el: HTMLElement | null) => void;
+  /** 行首的端点图标：工作台里区分端点；助手模式全是 Nomi，不画（Codex 式纯标题行） */
+  showIcon?: boolean;
   style?: React.CSSProperties;
 }> = ({
   c,
@@ -149,26 +135,34 @@ const ThreadItemImpl: React.FC<{
   onCtx,
   renaming,
   onRename,
-  confirming,
-  onRenameStart,
+  onPinToggle,
   onDeleteRequest,
-  onDeleteCancel,
   onMore,
+  onPeek,
+  showIcon = true,
   style,
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
   const live = liveOf(tab);
+  const layout = showIcon ? 'icon' : 'plain';
+  // 状态点不占列：压在行首内边距里，只有运行 / 新结果 / 出错时才看得见
   const lead = (
     <>
       <span className={styles.dot} data-live={live || undefined} aria-hidden />
-      <EndpointIcon backend={c.backend} size={14} />
+      {showIcon && <EndpointIcon backend={c.backend} size={14} />}
     </>
   );
   if (renaming) {
     return (
-      <div className={cls} style={style} data-testid="history-item" data-backend={c.backend}>
+      <div
+        className={cls}
+        style={style}
+        data-layout={layout}
+        data-testid="history-item"
+        data-backend={c.backend}
+      >
         {lead}
         <input
           className={styles.renameInput}
@@ -193,14 +187,29 @@ const ThreadItemImpl: React.FC<{
       className={styles.row}
       style={style}
       data-active={active || undefined}
-      data-confirming={confirming || undefined}
       data-testid="conversation-row"
+      onMouseEnter={onPeek ? (e) => onPeek(c.id, e.currentTarget) : undefined}
+      onMouseLeave={onPeek ? () => onPeek(c.id, null) : undefined}
     >
       <button
         className={cls}
-        onClick={() => void onOpen(c.id)}
-        onContextMenu={(e) => onCtx(c.id, e)}
-        title={tab?.dormant ? t('ui.cli-monitor.named-dormant', t(c.name)) : t(c.name)}
+        onClick={() => {
+          onPeek?.(c.id, null);
+          void onOpen(c.id);
+        }}
+        onContextMenu={(e) => {
+          onPeek?.(c.id, null);
+          onCtx(c.id, e);
+        }}
+        // 有详情卡片时不再叠一个系统提示
+        title={
+          onPeek
+            ? undefined
+            : tab?.dormant
+              ? t('ui.cli-monitor.named-dormant', t(c.name))
+              : t(c.name)
+        }
+        data-layout={layout}
         data-testid="history-item"
         data-backend={c.backend}
         data-conversation-id={c.id}
@@ -209,22 +218,21 @@ const ThreadItemImpl: React.FC<{
         <span className={styles.threadName}>
           {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
         </span>
+        {/* 不显示时间（悬停卡片里有）；进行中 / 排队时显示状态文字，一眼看出哪个任务在跑 */}
         {live === 'running' || live === 'queued' ? (
-          // 进行中 / 排队：时间位置换成状态文字，一眼看出哪个任务在跑
           <span className={styles.threadLive} data-live={live} data-testid="thread-live">
             {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
           </span>
         ) : (
-          <span className={styles.threadTime}>{rel(c.updatedAt)}</span>
+          <span />
         )}
       </button>
       {onMore && (
         <RowActions
           kind={c.tabId ? 'tab' : 'conv'}
-          confirming={confirming}
-          onRename={() => onRenameStart?.(c.id)}
+          onPin={onPinToggle ? () => onPinToggle(c.id) : undefined}
+          pinned={Boolean(c.pinnedAt)}
           onDelete={() => onDeleteRequest?.(c.id)}
-          onCancelDelete={onDeleteCancel}
           onMore={(r) => onMore(c.id, r)}
         />
       )}
@@ -243,11 +251,11 @@ export type VirtualProps = {
   onCtx: (id: string, e: React.MouseEvent) => void;
   renamingId: string | null;
   onRename: (id: string, name: string | null) => void;
-  confirmId: string | null;
-  onRenameStart: (id: string) => void;
+  onPinToggle: (id: string) => void;
   onDeleteRequest: (id: string) => void;
-  onDeleteCancel: () => void;
   onMore: (id: string, anchor: DOMRect) => void;
+  onPeek?: (id: string, el: HTMLElement | null) => void;
+  showIcon?: boolean;
 };
 
 /** react-window 2 already memoizes rowComponent (shallow props compare); no extra memo here. */
@@ -261,11 +269,11 @@ export const VirtualRow = ({
   onCtx,
   renamingId,
   onRename,
-  confirmId,
-  onRenameStart,
+  onPinToggle,
   onDeleteRequest,
-  onDeleteCancel,
   onMore,
+  onPeek,
+  showIcon,
   ariaAttributes,
 }: RowComponentProps<VirtualProps>) => {
   const c = items[index]!;
@@ -279,11 +287,11 @@ export const VirtualRow = ({
         onCtx={onCtx}
         renaming={renamingId === c.id}
         onRename={onRename}
-        confirming={confirmId === c.id}
-        onRenameStart={onRenameStart}
+        onPinToggle={onPinToggle}
         onDeleteRequest={onDeleteRequest}
-        onDeleteCancel={onDeleteCancel}
         onMore={onMore}
+        onPeek={onPeek}
+        showIcon={showIcon}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
@@ -34,30 +34,49 @@ afterEach(() => {
 });
 
 describe('Sidebar rows', () => {
-  it('uses the Nomi mark (same as settings) and text as the toggle, only the mark when collapsed', () => {
+  it('puts the Nomi mark at the top of the rail as the toggle; the panel has the mode menu', () => {
     const onToggle = vi.fn();
     const props = { onToggle, onNewChat: () => undefined };
     const view = render(<Sidebar {...props} collapsed={false} />);
-    const header = view.getByTestId('chat-sidebar').firstElementChild!;
-    expect(header.textContent).toContain('Nomi');
+    const rail = view.getByTestId('app-rail');
     const toggle = view.getByTestId('sidebar-toggle');
+    expect(rail.firstElementChild).toBe(toggle);
     expect(toggle.getAttribute('aria-label')).toBe('收起侧边栏');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const brandIcon = toggle.querySelector('[data-testid="sidebar-brand-mark"]')!;
-    expect(brandIcon.getAttribute('width')).toBe('28');
-    fireEvent.click(brandIcon);
-    fireEvent.click(toggle.querySelector('span')!);
-    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(view.getByTestId('chat-mode-trigger').textContent).toContain('Nomi');
+    expect(view.getByTestId('nav-chats').getAttribute('aria-current')).toBe('page');
+    fireEvent.click(view.getByTestId('sidebar-brand-mark'));
+    expect(onToggle).toHaveBeenCalledTimes(1);
 
     view.rerender(<Sidebar {...props} collapsed />);
-    const icon = view.getByTestId('sidebar-brand-mark');
-    expect(icon.getAttribute('width')).toBe('24');
-    expect(icon.getAttribute('aria-hidden')).toBe('true');
-    expect(view.getByTestId('sidebar-toggle').textContent).toBe('');
+    expect(view.queryByTestId('chat-mode-switch')).toBeNull();
+    expect(view.getByTestId('nav-chats')).toBeTruthy();
     expect(view.getByTestId('sidebar-toggle').getAttribute('aria-label')).toBe('展开侧边栏');
     expect(view.getByTestId('sidebar-toggle').getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(icon.closest('button')!);
-    expect(onToggle).toHaveBeenCalledTimes(3);
+    fireEvent.click(view.getByTestId('sidebar-toggle'));
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it('collapsed: hovering 对话 on the rail floats the chat panel; leaving or Esc hides it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const view = render(
+      <Sidebar collapsed onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    expect(view.queryByTestId('sidebar-panel')).toBeNull();
+    fireEvent.mouseEnter(view.getByTestId('nav-chats'));
+    expect(view.getByTestId('sidebar-panel').getAttribute('data-floating')).toBe('true');
+    // 移出侧栏稍等一下才收起；中途回来不收
+    fireEvent.mouseLeave(view.getByTestId('chat-sidebar'));
+    fireEvent.mouseEnter(view.getByTestId('chat-sidebar'));
+    vi.advanceTimersByTime(400);
+    expect(view.getByTestId('sidebar-panel')).toBeTruthy();
+    fireEvent.mouseLeave(view.getByTestId('chat-sidebar'));
+    act(() => void vi.advanceTimersByTime(400));
+    expect(view.queryByTestId('sidebar-panel')).toBeNull();
+    fireEvent.mouseEnter(view.getByTestId('nav-chats'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(view.queryByTestId('sidebar-panel')).toBeNull();
+    vi.useRealTimers();
   });
 
   it('shows the endpoint icon in front of the title and no text badge', async () => {

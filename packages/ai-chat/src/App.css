@@ -16,19 +16,20 @@ body {
 
 .ai-chat-app {
   /*
-   * 四栏（侧栏 296 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
+   * 四栏（侧栏 312 = 导航 52 + 会话 260 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
    * 旧版写死 360 + 360 + 200，加侧栏恰好约 1240px；窗口再窄，右栏就被挤出屏外（body 是 overflow:hidden，看起来像「被切掉」）。
-   * 这里按「侧栏 296 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
+   * 这里按「侧栏 312 + 对话卡片右外边距 8 与边框 2 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
    * 各自有上限（宽屏沿用原来的 360 / 360 / 200）与下限；窗口最小 760px 时三栏之和仍不超过剩余宽度。
    * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
    */
-  --cd-pane-avail: calc(100vw - 312px);
-  --cd-chat-col-min: clamp(180px, calc(var(--cd-pane-avail) * 0.4), 360px);
-  --cd-center-pane-min: clamp(140px, calc(var(--cd-pane-avail) * 0.38), 360px);
+  --cd-pane-avail: calc(100vw - 338px);
+  --cd-chat-col-min: clamp(172px, calc(var(--cd-pane-avail) * 0.4), 360px);
+  --cd-center-pane-min: clamp(136px, calc(var(--cd-pane-avail) * 0.38), 360px);
   --cd-files-rail-min: clamp(90px, calc(var(--cd-pane-avail) * 0.18), 200px);
   height: 100vh;
   display: flex;
-  background: transparent;
+  /* 侧栏、标题栏与卡片外的底色连成一片（Codex 式），对话区是浮在上面的白色圆角卡片 */
+  background: var(--cd-panel-bg-subtle);
   overflow: hidden;
   position: relative;
   /* 自成层叠上下文：工作台背景层用负 z-index 垫在侧栏 / 主区 / 右栏之下 */
@@ -77,9 +78,37 @@ html[data-chat-bg] .ai-chat-app::before {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
   position: relative;
   z-index: 1;
+}
+
+/* 侧栏右边整块：白色圆角卡片，四周留出底色（Codex 式分区，不再用整条硬边框切开） */
+.workspace-card {
+  flex: 1;
+  min-width: 0;
+  height: calc(100vh - var(--cd-space-2) * 2);
+  display: flex;
+  position: relative;
+  z-index: 1;
+  margin: var(--cd-space-2) var(--cd-space-2) var(--cd-space-2) 0;
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-xl);
+  background: var(--cd-color-surface);
+  box-shadow: var(--cd-shadow-sm);
+  overflow: hidden;
+}
+html[data-platform] .workspace-card {
+  margin-top: 0;
+}
+/* 会话面板展开：面板（浅灰）+ 对话区（白）拼成同一张卡片，卡片左边框就是两者的分隔线 */
+[data-panel='open'] + .workspace-card {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+/* 自定义背景：卡片透明，让底图透出来（与原来对话区的处理一致） */
+html[data-chat-bg] .workspace-card {
+  background: transparent;
 }
 
 /* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高）。
@@ -175,7 +204,7 @@ html[data-chat-bg] .ai-chat-app::before {
   width: 260px;
   min-width: var(--cd-files-rail-min);
   max-width: 420px;
-  height: 100vh;
+  height: 100%;
   /* 窗口窄时允许收缩到 min-width（宽屏时不会触发，宽度仍是拖动值） */
   flex-shrink: 1;
   display: flex;
@@ -202,7 +231,7 @@ html[data-chat-bg] .ai-chat-app::before {
   gap: var(--cd-space-2);
   min-height: 0;
   width: 100%;
-  max-width: 820px;
+  max-width: var(--cd-chat-content-w);
   margin: var(--cd-space-1-5) auto 0;
   padding: 0 var(--cd-space-1);
   box-sizing: border-box;
@@ -356,19 +385,7 @@ html[data-chat-bg] .ai-chat-app::before {
   max-width: 100%;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.28);
-  border-radius: var(--cd-radius-full);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--cd-accent-rgb), 0.45);
-}
+/* 滚动条样式统一在 @nomi-ai/ui 的 theme.css：不常驻，鼠标移到可滚动区域上才显示 */
 
 @media (max-width: 768px) {
   .input-container {
@@ -440,6 +457,8 @@ html[data-chat-bg] .ai-chat-app::before {
 
 /* ---------- 一体化标题栏（hiddenInset / titleBarOverlay） ---------- */
 :root {
+  /* 对话内容列宽（消息、输入框、输入框上方的工作区条 / 授权卡片等都按它居中对齐，Codex 式偏窄一档） */
+  --cd-chat-content-w: 768px;
   --cd-titlebar-h: 0px;
 }
 html[data-platform] {
@@ -461,8 +480,8 @@ html[data-platform] .app-titlebar {
   z-index: 2000;
   align-items: center;
   justify-content: center;
-  background: var(--cd-panel-bg);
-  border-bottom: 1px solid var(--cd-panel-border);
+  /* 与侧栏、卡片外底色同一层，不再用底边线切开 */
+  background: var(--cd-panel-bg-subtle);
   -webkit-app-region: drag;
   app-region: drag;
   --wails-draggable: drag; /* Go 宿主（Wails）认这个，不认 app-region */
@@ -540,19 +559,90 @@ html[data-platform='darwin'] .app-window-controls {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
+/* 标题栏主体：从对话卡片左边开始（侧栏展开 312、收起 52；mac 至少让开红绿灯 + 侧栏按钮） */
+.app-titlebar-main {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--cd-titlebar-main-left, 312px);
+  right: var(--cd-space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  min-width: 0;
+}
+.app-titlebar[data-sidebar='collapsed'] {
+  --cd-titlebar-main-left: 52px;
+}
+html[data-platform='darwin'] .app-titlebar[data-sidebar='collapsed'] {
+  --cd-titlebar-main-left: 116px;
+}
+/* Windows / Linux：右侧给窗口按钮留位 */
+html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
+  right: 140px;
+}
 .app-titlebar-title {
-  font: var(--cd-text-label);
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.app-titlebar-session {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.app-titlebar-session-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-titlebar-session-cwd {
+  flex: none;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-regular);
+  color: var(--cd-color-text-subtle);
+}
+.app-titlebar-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+}
+.app-titlebar-btn {
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
   color: var(--cd-color-text-muted);
-  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.app-titlebar-btn:hover,
+.app-titlebar-btn[aria-expanded='true'] {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.app-titlebar-btn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
 }
 html[data-platform] .ai-chat-app {
   height: 100vh;
   padding-top: var(--cd-titlebar-h);
 }
-html[data-platform] .main-content,
-html[data-platform] .files-rail {
-  /* 右栏也要扣掉标题栏：否则底部固定的提交区会被裁掉一截 */
-  height: calc(100vh - var(--cd-titlebar-h));
+html[data-platform] .workspace-card {
+  /* 卡片（含右栏）扣掉标题栏与底部外边距：否则右栏底部固定的提交区会被裁掉一截 */
+  height: calc(100vh - var(--cd-titlebar-h) - var(--cd-space-2));
 }
 /* 模态 / 遮罩不盖住标题栏（可以一直拖动窗口） */
 html[data-platform] [role='dialog'] button,

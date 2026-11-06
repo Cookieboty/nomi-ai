@@ -42,20 +42,33 @@ describe('ChatModeSwitch', () => {
   });
   afterEach(() => cleanup());
 
-  it('defaults to normal and shows running badge when CLI tabs are busy', () => {
+  it('defaults to Nomi Assistant and shows running badge when CLI tabs are busy', () => {
     render(<ChatModeSwitch />);
-    expect(screen.getByTestId('chat-mode-normal').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('chat-mode-dev').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('Nomi 灵伴');
+    fireEvent.click(screen.getByTestId('chat-mode-trigger'));
+    expect(screen.getByTestId('chat-mode-normal').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('chat-mode-dev').getAttribute('aria-checked')).toBe('false');
     // 侧栏顶行放不下长文案：徽标只显示数字，说明放在 title 里
     const badge = screen.getByTestId('chat-mode-running-badge');
     expect(badge.textContent).toMatch(/^\d+$/);
     expect(badge.title).toContain('运行中');
   });
 
-  it('switches to dev and clears the running badge', () => {
+  it('switches to the workbench from the menu, closes it and clears the running badge', () => {
     render(<ChatModeSwitch />);
+    fireEvent.click(screen.getByTestId('chat-mode-trigger'));
     fireEvent.click(screen.getByTestId('chat-mode-dev'));
-    expect(screen.getByTestId('chat-mode-dev').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByTestId('chat-mode-menu')).toBeNull();
+    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('Nomi 工坊');
     expect(screen.queryByTestId('chat-mode-running-badge')).toBeNull();
+  });
+
+  it('closes the menu with Escape and returns focus to the trigger', () => {
+    render(<ChatModeSwitch />);
+    const trigger = screen.getByTestId('chat-mode-trigger');
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByTestId('chat-mode-menu'), { key: 'Escape' });
+    expect(screen.queryByTestId('chat-mode-menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

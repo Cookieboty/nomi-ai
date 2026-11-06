@@ -1,0 +1,99 @@
+/* 会话详情小卡片（SessionPeek）：fixed 定位挂在 body 上，不挡鼠标 */
+.peek {
+  position: fixed;
+  z-index: 3000;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-md);
+  pointer-events: none;
+}
+.peekTitle {
+  overflow: hidden;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.peekMeta {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}
+.peekHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 200px;
+}
+.peekHead .peekTitle {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.peekIcon {
+  flex: none;
+  display: inline-flex;
+}
+.peekTime {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--cd-space-3);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+}
+.peekCwd {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin-top: var(--cd-space-1);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.peekCwdName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 可编辑的卡片（侧栏列表行）：能点标题改名，鼠标可以移进来 */
+.peek[data-interactive] {
+  pointer-events: auto;
+}
+.peekTitleBtn {
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-xs);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+}
+.peekTitleBtn:hover {
+  background: var(--cd-color-hover);
+}
+.peekTitleBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.peekInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--cd-space-1);
+  border: 1px solid var(--cd-color-border-focus);
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  outline: none;
+}

@@ -1,6 +1,5 @@
-import { brand } from '@nomi-ai/types';
 import { Icon, t } from '@nomi-ai/ui';
-import { Copy, Minus, PanelLeft, Square, X } from 'lucide-react';
+import { Copy, Minus, PanelLeftClose, PanelLeftOpen, Square, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { isGoHost } from '../../services/api';
@@ -98,10 +97,19 @@ const WindowControls: React.FC = () => {
 export const AppTitleBar: React.FC<{
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
-}> = ({ sidebarCollapsed, onToggleSidebar }) => {
+  /** 对话卡片上方左侧：当前会话（工作区图标 + 名称）；新会话时为空 */
+  title?: React.ReactNode;
+  /** 对话卡片上方右侧：会话菜单「…」、工具栏开关 */
+  trailing?: React.ReactNode;
+}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing }) => {
   const labels = sidebarToggleLabels(sidebarCollapsed);
   return (
-    <div className="app-titlebar" data-testid="app-titlebar" onDoubleClick={onTitleBarDoubleClick}>
+    <div
+      className="app-titlebar"
+      data-testid="app-titlebar"
+      data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
+      onDoubleClick={onTitleBarDoubleClick}
+    >
       <button
         type="button"
         className="app-titlebar-toggle"
@@ -111,9 +119,15 @@ export const AppTitleBar: React.FC<{
         aria-pressed={!sidebarCollapsed}
         data-testid="titlebar-sidebar-toggle"
       >
-        <Icon icon={PanelLeft} size={16} />
+        <Icon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} size={16} />
       </button>
-      <span className="app-titlebar-title">{brand.appName}</span>
+      {/* 与对话卡片左边对齐：会话名在这里，不再显示产品名 */}
+      <div className="app-titlebar-main">
+        <div className="app-titlebar-title" data-testid="titlebar-title">
+          {title}
+        </div>
+        {trailing && <div className="app-titlebar-actions">{trailing}</div>}
+      </div>
       {isGoHost() && <WindowControls />}
     </div>
   );

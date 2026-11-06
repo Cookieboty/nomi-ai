@@ -60,13 +60,13 @@ describe('全局背景层', () => {
     expect(ruleBody(delegate, '.card')).toContain('--cd-panel-surface-raised');
     expect(ruleBody(delegate, '.card')).toContain('--cd-panel-border');
     const tasks = read('src/components/Tasks/index.module.css');
-    expect(ruleBody(tasks, '.page')).toContain('--cd-panel-bg');
+    expect(ruleBody(tasks, ':global(html[data-chat-bg]) .page')).toContain('--cd-panel-bg');
     expect(ruleBody(tasks, '.detail')).toContain('--cd-panel-surface-raised');
     const board = read('src/components/Tasks/Board.module.css');
     expect(ruleBody(board, '.column')).toContain('--cd-panel-surface-sunken');
     expect(ruleBody(board, '.card')).toContain('--cd-panel-surface-raised');
     const assets = read('src/components/AssetLibrary/index.module.css');
-    expect(ruleBody(assets, '.page')).toContain('--cd-panel-bg');
+    expect(ruleBody(assets, ':global(html[data-chat-bg]) .page')).toContain('--cd-panel-bg');
     expect(ruleBody(assets, '.frame')).toContain('--cd-panel-surface-sunken');
     expect(ruleBody(assets, '.frame')).toContain('--cd-panel-border');
     for (const css of [delegate, tasks, board, assets]) {
@@ -88,8 +88,8 @@ describe('全局背景层', () => {
     );
     const header = read('src/components/ChatHeader/index.module.css');
     expect(ruleBody(header, '.header')).toContain('--cd-chat-header-bg');
-    const sidebar = read('src/components/Sidebar/index.module.css');
-    expect(ruleBody(sidebar, '.sidebar')).toContain('--cd-panel-border');
+    // 侧栏不再画分割线：对话区是一张带同一边框令牌的圆角卡片
+    expect(ruleBody(app, '.workspace-card')).toContain('--cd-panel-border');
     expect(ruleBody(app, '.files-rail')).toContain('--cd-panel-border');
     expect(ruleBody(app, 'html[data-chat-bg] .files-rail')).toContain('border-left: none');
     const splitter = ruleBody(
@@ -188,7 +188,9 @@ describe('全局背景层', () => {
       expect(custom).toContain(`${name}: var(--cd-panel-bg-subtle)`);
     }
     const sidebar = read('src/components/Sidebar/index.module.css');
-    expect(ruleBody(sidebar, '.sidebar')).toContain('background: var(--cd-panel-bg-subtle)');
+    expect(ruleBody(sidebar, ':global(html[data-chat-bg]) .sidebar')).toContain(
+      'background: var(--cd-panel-bg-subtle)',
+    );
     const conversation = read('src/components/Conversation/index.module.css');
     expect(ruleBody(conversation, '.userBubble')).toContain('--cd-chat-user-bg');
     const tools = read('src/components/Conversation/Tool.module.css');

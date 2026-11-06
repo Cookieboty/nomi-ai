@@ -235,8 +235,9 @@ describe('sidebar search', () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'login');
-    await waitFor(() => expect(r.container.querySelectorAll('mark').length).toBeGreaterThan(0));
-    expect(r.container.querySelector('mark')!.textContent!.toLowerCase()).toBe('login');
+    // 搜索窗挂在 body 上（不在侧栏容器里）
+    await waitFor(() => expect(document.querySelectorAll('mark').length).toBeGreaterThan(0));
+    expect(document.querySelector('mark')!.textContent!.toLowerCase()).toBe('login');
   });
 
   it('keyboard: ↑/↓ moves, Enter opens, Esc clears then closes', async () => {
@@ -248,7 +249,10 @@ describe('sidebar search', () => {
     fireEvent.keyDown(input, { key: 'ArrowUp' });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(switchConversation).toHaveBeenCalledWith('n3'));
-    fireEvent.keyDown(input, { key: 'Escape' });
+    // 打开结果后搜索窗关掉；再开一次看 Esc：先清空再关闭
+    expect(r.queryByTestId('sidebar-search')).toBeNull();
+    const again = await type(r, '登录');
+    fireEvent.keyDown(again, { key: 'Escape' });
     expect((r.getByTestId('sidebar-search-input') as HTMLInputElement).value).toBe('');
     fireEvent.keyDown(r.getByTestId('sidebar-search-input'), { key: 'Escape' });
     expect(r.queryByTestId('sidebar-search-input')).toBeNull();

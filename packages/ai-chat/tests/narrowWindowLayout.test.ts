@@ -1,7 +1,7 @@
 /**
  * 窗口窄于约 1240px 时四栏（侧栏 | 对话 | 中栏 | 右栏文件）不能横向溢出。
  * happy-dom 没有布局引擎，这里按 App.css 里声明的最小宽度公式算：每个窗口宽度下，
- * 侧栏 296 + 各栏最小宽度 + 分割线 / 边框，必须 ≤ 窗口宽度（Electron 对话窗最小宽度 760）。
+ * 侧栏 312（导航 52 + 会话 260）+ 各栏最小宽度 + 分割线 / 边框，必须 ≤ 窗口宽度（Electron 对话窗最小宽度 760）。
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,7 +11,8 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(__dirname, '../src/App.css'), 'utf8');
 const app = readFileSync(resolve(__dirname, '../src/App.tsx'), 'utf8');
 
-const SIDEBAR = 296;
+/** 侧栏 312 + 对话卡片右外边距 8 + 左右边框 2 */
+const SIDEBAR = 322;
 /** 两条分割线（各 5px）+ 中栏 / 右栏左边框（各 1px） */
 const CHROME = 12;
 const MIN_WINDOW = 760;
@@ -81,9 +82,11 @@ describe('窄窗口四栏不横向溢出', () => {
 });
 
 describe('一体化标题栏下的高度', () => {
-  it('右栏和主区一样扣掉标题栏高度（否则底部固定的提交区被裁掉）', () => {
-    const rule =
-      /html\[data-platform\] \.main-content,\s*html\[data-platform\] \.files-rail \{[^}]*height:\s*calc\(100vh - var\(--cd-titlebar-h\)\)/;
-    expect(css).toMatch(rule);
+  it('右栏和主区都在卡片里撑满，卡片扣掉标题栏高度（否则底部固定的提交区被裁掉）', () => {
+    expect(css).toMatch(
+      /html\[data-platform\] \.workspace-card \{[^}]*height:\s*calc\(100vh - var\(--cd-titlebar-h\)/,
+    );
+    expect(css).toMatch(/\.main-content \{[^}]*height:\s*100%/s);
+    expect(css).toMatch(/\.files-rail \{[^}]*height:\s*100%/s);
   });
 });

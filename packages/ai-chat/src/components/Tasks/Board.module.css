@@ -20,7 +20,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--cd-panel-border);
+  /* 白色卡片上的浅灰泳道：靠底色分列，不画边框（Codex 式） */
   border-radius: var(--cd-radius-lg);
   background: var(--cd-panel-surface-sunken);
 }
@@ -83,8 +83,6 @@
   align-items: center;
   justify-content: center;
   height: calc(var(--cd-space-8) * 2);
-  border: 1px dashed var(--cd-panel-border);
-  border-radius: var(--cd-radius-md);
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
 }
@@ -96,7 +94,7 @@
   gap: var(--cd-space-1-5);
   padding: var(--cd-space-3);
   border: 1px solid var(--cd-panel-border);
-  border-radius: var(--cd-radius-md);
+  border-radius: var(--cd-radius-lg);
   background: var(--cd-panel-surface-raised);
   box-shadow: var(--cd-shadow-sm);
   color: var(--cd-color-text);

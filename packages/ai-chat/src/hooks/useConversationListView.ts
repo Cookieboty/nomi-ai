@@ -3,8 +3,12 @@ import { useCallback, useSyncExternalStore } from 'react';
 import {
   getConversationListView,
   setConversationListView as persist,
+  getCollapsedWorkspaces,
   getEndpointFilter,
   getEndpointOrder,
+  getGroupByWorkspace,
+  setGroupByWorkspace as persistGroup,
+  setWorkspaceCollapsed as persistCollapsed,
   getEndpointVisibility,
   setEndpointFilter as persistFilter,
   setEndpointOrder as persistOrder,
@@ -15,6 +19,8 @@ import {
   type EndpointVisibilityMap,
 } from '../services/chatPrefs';
 import type { ConversationBackend } from '../types/chat';
+
+const EMPTY: readonly string[] = [];
 
 export function useConversationListView(): {
   view: ConversationListView;
@@ -27,6 +33,12 @@ export function useConversationListView(): {
   /** 自定义的端点顺序；null = 按对话数自动排序 */
   endpointOrder: ConversationBackend[] | null;
   setEndpointOrder: (order: readonly ConversationBackend[] | null) => void;
+  /** 会话按工作区分组 */
+  groupByWorkspace: boolean;
+  setGroupByWorkspace: (on: boolean) => void;
+  /** 折叠起来的工作区分组键 */
+  collapsedWorkspaces: readonly string[];
+  setWorkspaceCollapsed: (key: string, collapsed: boolean) => void;
 } {
   const view = useSyncExternalStore(
     subscribeConversationListView,
@@ -58,7 +70,26 @@ export function useConversationListView(): {
     (order: readonly ConversationBackend[] | null) => persistOrder(order),
     [],
   );
+  const groupByWorkspace = useSyncExternalStore(
+    subscribeConversationListView,
+    getGroupByWorkspace,
+    () => true,
+  );
+  const setGroupByWorkspace = useCallback((on: boolean) => persistGroup(on), []);
+  const collapsedWorkspaces = useSyncExternalStore(
+    subscribeConversationListView,
+    getCollapsedWorkspaces,
+    () => EMPTY,
+  );
+  const setWorkspaceCollapsed = useCallback(
+    (key: string, collapsed: boolean) => persistCollapsed(key, collapsed),
+    [],
+  );
   return {
+    groupByWorkspace,
+    setGroupByWorkspace,
+    collapsedWorkspaces,
+    setWorkspaceCollapsed,
     view,
     setView,
     endpointFilter,
