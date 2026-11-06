@@ -241,20 +241,20 @@ html[data-chat-bg] .ai-chat-app::before {
 .chat-bg-mask {
   position: absolute;
 }
-/* 模糊直接作用在静态图片上（只栅格化一次），负 inset 盖住模糊后变透明的边缘 */
+/* 底图只按窗口尺寸 cover；模糊值不参与几何计算，避免拖动滑块时图片放大。 */
 .chat-bg-image {
-  inset: calc(var(--cd-chat-bg-blur, 0px) * -2);
+  inset: 0;
   background-image: var(--cd-chat-bg-image, none);
   background-size: cover;
   background-position: center;
-  opacity: var(--cd-chat-bg-opacity, 0.4);
-  filter: blur(var(--cd-chat-bg-blur, 0px));
 }
-/* 固定深色遮罩：不随透明度滑块变化，保证亮图上的文字对比度 */
+/* 单层全局毛玻璃：采样下方清晰底图，透明度只影响蒙版颜色，不影响图片或前景。 */
 .chat-bg-mask {
   inset: 0;
   z-index: 1;
-  background: rgb(0 0 0 / 35%);
+  background: rgb(0 0 0 / var(--cd-chat-bg-opacity, 0.5));
+  backdrop-filter: blur(var(--cd-chat-bg-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur, 0px));
 }
 .chat-container > * {
   position: relative;

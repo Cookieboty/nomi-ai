@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -36,6 +38,7 @@ type McpConnectConfig struct {
 	ID, Name, Transport, Command, URL string
 	Args                              []string
 	Env, Headers                      map[string]string
+	Fetch                             func(*http.Request) (*http.Response, error)
 }
 
 // McpRuntime：MCP 服务（main.go 经 Attach 接 mcpbridge）
@@ -84,23 +87,26 @@ type ConfirmBroker interface {
 }
 
 type Deps struct {
-	Root       string
-	SkillsRoot string
-	Logger     deps.Logger
-	Desktop    deps.Audit
-	Confirm    ConfirmBroker
-	Home       func() string
-	Env        func() map[string]string
-	Ports      deps.Ports
-	Secrets    security.SecretBox
-	Events     deps.Events
+	Root         string
+	SkillsRoot   string
+	Logger       deps.Logger
+	Desktop      deps.Audit
+	Confirm      ConfirmBroker
+	Home         func() string
+	Env          func() map[string]string
+	Ports        deps.Ports
+	Secrets      security.SecretBox
+	OpenExternal func(string) error
+	Events       deps.Events
 }
 
 type Live struct {
-	Status string     `json:"status"`
-	Error  string     `json:"error,omitempty"`
-	Tools  []LiveTool `json:"tools"`
-	At     int64      `json:"at,omitempty"`
+	Status           string     `json:"status"`
+	Error            string     `json:"error,omitempty"`
+	Tools            []LiveTool `json:"tools"`
+	At               int64      `json:"at,omitempty"`
+	Auth             string     `json:"auth,omitempty"`
+	HasAuthorization bool       `json:"hasAuthorization,omitempty"`
 }
 
 type LiveTool struct {
@@ -166,6 +172,9 @@ type Service struct {
 	mu            sync.Mutex
 	servers       []*McpServerEntry
 	live          map[string]Live
+	oauth         map[string]*oauthSession
+	operations    map[string]*mcpOperation
+	closing       map[string]chan struct{}
 	disabled      map[string]bool
 	disabledOrder []string
 	cacheSig      string
@@ -183,7 +192,7 @@ func New(d Deps) *Service {
 	if d.Secrets == nil {
 		d.Secrets = security.NewMemoryBox()
 	}
-	s := &Service{d: d, live: map[string]Live{}, disabled: map[string]bool{}, migrateCache: map[string]any{}, rawTools: map[string]ToolDef{}}
+	s := &Service{d: d, live: map[string]Live{}, oauth: map[string]*oauthSession{}, operations: map[string]*mcpOperation{}, closing: map[string]chan struct{}{}, disabled: map[string]bool{}, migrateCache: map[string]any{}, rawTools: map[string]ToolDef{}}
 	_ = os.MkdirAll(d.Root, 0o755)
 	_ = os.MkdirAll(d.SkillsRoot, 0o755)
 	s.servers = s.loadServers()
@@ -418,6 +427,7 @@ func (s *Service) ListMcp() map[string]any {
 		if !ok {
 			l = Live{Status: "off", Tools: []LiveTool{}}
 		}
+		l.HasAuthorization = s.hasAuthorization(e)
 		servers = append(servers, merge(toOrdered(MaskServer(*e)), l))
 	}
 	env := []any{}
@@ -501,6 +511,21 @@ func (s *Service) Upsert(ctx context.Context, raw map[string]any) (McpServerEntr
 		s.mu.Unlock()
 		return McpServerEntry{}, err
 	}
+	// Capture the old online state before invalidation turns live off. A disabled
+	// server must stay offline even when another connection field changed.
+	reconnect := prev != nil && e.Enabled && s.live[e.ID].Status == "connected"
+	invalidate := prev != nil && (prev.Transport != e.Transport || prev.URL != e.URL || prev.OAuthClientID != e.OAuthClientID || !reflect.DeepEqual(prev.Headers, e.Headers) || prev.Command != e.Command || !reflect.DeepEqual(prev.Args, e.Args) || !reflect.DeepEqual(prev.Env, e.Env))
+	var closing chan struct{}
+	var runtime McpRuntime
+	if invalidate {
+		if err := s.invalidate(e.ID, true); err != nil {
+			s.mu.Unlock()
+			return McpServerEntry{}, err
+		}
+		s.live[e.ID] = Live{Status: "off", Tools: []LiveTool{}}
+		closing = s.startClosing(e.ID)
+		runtime = s.runtime()
+	}
 	ne := e
 	if prev != nil {
 		for i, x := range s.servers {
@@ -513,11 +538,26 @@ func (s *Service) Upsert(ctx context.Context, raw map[string]any) (McpServerEntr
 	}
 	s.saveServers()
 	s.audit("mcp_server_save", deps.O("id", e.ID, "transport", e.Transport, "trust", e.Trust), "user", "ok", "settings", 0)
-	s.changed()
-	reconnect := prev != nil && s.live[e.ID].Status == "connected"
-	s.mu.Unlock()
+	// Register the automatic reconnect before unlocking so a following disable,
+	// delete or edit can cancel this exact generation instead of reviving it later.
+	var reconnectOp *mcpOperation
 	if reconnect {
-		go func() { _, _ = s.Connect(context.Background(), e.ID) }()
+		opCtx, cancel := context.WithCancel(context.Background())
+		reconnectOp = &mcpOperation{ctx: opCtx, cancel: cancel}
+		s.operations[e.ID] = reconnectOp
+	}
+	s.changed()
+	s.mu.Unlock()
+	if closing != nil {
+		go func() {
+			if runtime != nil {
+				_ = runtime.Disconnect(context.Background(), e.ID)
+			}
+			s.finishClosing(e.ID, closing)
+		}()
+	}
+	if reconnectOp != nil {
+		go func() { _, _ = s.connectOperation(reconnectOp.ctx, e.ID, reconnectOp) }()
 	}
 	return MaskServer(e), nil
 }
@@ -526,6 +566,10 @@ func (s *Service) Remove(ctx context.Context, id string) bool {
 	s.Disconnect(ctx, id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Disconnect 已取消会话；这里只删盘上的授权记录，不为删除再新建会话
+	if err := s.invalidate(id, true); err != nil {
+		return false
+	}
 	n := len(s.servers)
 	out := s.servers[:0:0]
 	for _, e := range s.servers {
@@ -587,7 +631,21 @@ func (s *Service) ImportJSON(text string) ([]McpServerEntry, error) {
 }
 
 func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
+	return s.connectOperation(ctx, id, nil)
+}
+
+// connectOperation checks an authorization continuation's generation under the same
+// lock that starts a connection. A cancelled continuation cannot reserve a new operation.
+func (s *Service) connectOperation(ctx context.Context, id string, expected *mcpOperation) (Live, error) {
 	s.mu.Lock()
+	if expected != nil && s.operations[id] != expected {
+		live, ok := s.live[id]
+		s.mu.Unlock()
+		if !ok {
+			live = Live{Status: "off", Tools: []LiveTool{}}
+		}
+		return live, nil
+	}
 	e := s.find(id)
 	if e == nil {
 		s.mu.Unlock()
@@ -598,17 +656,69 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 		s.mu.Unlock()
 		return Live{}, &McpConfigError{T("electron.common.the-ai-service-isn-t-ready-yet-try")}
 	}
+	op := expected
+	if op == nil {
+		if _, busy := s.operations[id]; busy {
+			live := s.live[id]
+			s.mu.Unlock()
+			return live, nil
+		}
+		opCtx, cancel := context.WithCancel(ctx)
+		op = &mcpOperation{ctx: opCtx, cancel: cancel}
+		s.operations[id] = op
+	}
+	opCtx := op.ctx
+	oauth := s.oauthSession(e)
+	closing := s.closing[id]
 	cfg := McpConnectConfig{ID: e.ID, Name: e.Name, Transport: e.Transport, Command: e.Command, Args: e.Args, URL: e.URL, Env: e.Env, Headers: e.Headers}
+	if oauth != nil {
+		cfg.Fetch = oauth.Fetch
+	}
 	s.live[id] = Live{Status: "connecting", Tools: []LiveTool{}}
 	s.changed()
 	s.mu.Unlock()
 	t0 := time.Now()
-	err := svc.Connect(ctx, cfg)
+	if closing != nil {
+		select {
+		case <-closing:
+		case <-opCtx.Done():
+		}
+	}
+	var err error
+	if opCtx.Err() != nil {
+		err = opCtx.Err()
+	} else {
+		err = svc.Connect(opCtx, cfg)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.operations[id] != op {
+		if live, ok := s.live[id]; ok {
+			return live, nil
+		}
+		return Live{Status: "off", Tools: []LiveTool{}}, nil
+	}
+	if opCtx.Err() != nil {
+		_ = s.invalidate(id, false)
+		s.live[id] = Live{Status: "off", Tools: []LiveTool{}}
+		s.changed()
+		return s.live[id], nil
+	}
+	delete(s.operations, id)
 	ms := time.Since(t0).Milliseconds()
 	if err != nil {
+		if oauth != nil && oauth.Required() {
+			l := Live{Status: "authorization-required", Auth: "required", Tools: []LiveTool{}}
+			s.live[id] = l
+			s.changed()
+			return l, nil
+		}
 		msg := FriendlyError(err)
+		// 远程服务：认得出的错误（连不上 / 拒绝访问 / 超时）照常提示原因；
+		// 认不出的不回显原始报错（可能带服务端响应内容），换成通用提示
+		if e.Transport != "stdio" && !friendlyKnown(err) {
+			msg = T("ui.foundation.mcp-remote-connection-failed")
+		}
 		s.live[id] = Live{Status: "error", Error: msg, Tools: []LiveTool{}}
 		s.audit("mcp_connect", deps.O("id", id), "user", "error", "mcp", ms)
 		s.changed()
@@ -632,6 +742,9 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 		break
 	}
 	l := Live{Status: "connected", Tools: tools, At: time.Now().UnixMilli()}
+	if oauth != nil && oauth.HasCredentials() {
+		l.Auth = "authorized"
+	}
 	s.live[id] = l
 	s.audit("mcp_connect", deps.O("id", id, "tools", len(tools)), "user", "ok", "mcp", ms)
 	deps.AvatarGesture(s.d.Events, "nod")
@@ -640,13 +753,17 @@ func (s *Service) Connect(ctx context.Context, id string) (Live, error) {
 }
 
 func (s *Service) Disconnect(ctx context.Context, id string) {
-	if svc := s.runtime(); svc != nil {
-		_ = svc.Disconnect(ctx, id)
-	}
 	s.mu.Lock()
+	s.invalidate(id, false)
 	s.live[id] = Live{Status: "off", Tools: []LiveTool{}}
 	s.changed()
+	svc := s.runtime()
+	closing := s.startClosing(id)
 	s.mu.Unlock()
+	if svc != nil {
+		_ = svc.Disconnect(ctx, id)
+	}
+	s.finishClosing(id, closing)
 }
 
 // GuardEnvTool：MCP_SERVERS 来的工具一律按「ask」
@@ -1464,6 +1581,11 @@ func (s *Service) importMcpCandidate(ctx context.Context, c *McpCandidate, actio
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if overwrite {
+		if err := s.invalidate(e.ID, true); err != nil {
+			return "", false, err
+		}
+	}
 	ne := e
 	if overwrite {
 		for i, x := range s.servers {
@@ -1632,6 +1754,11 @@ var (
 	feAuth     = regexp.MustCompile(`(?i)401|403|unauthori[sz]ed`)
 	feTimeout  = regexp.MustCompile(`(?i)timeout|timed out`)
 )
+
+func friendlyKnown(err error) bool {
+	m := err.Error()
+	return feConn.MatchString(m) || feAuth.MatchString(m) || feTimeout.MatchString(m)
+}
 
 func FriendlyError(err error) string {
 	m := err.Error()

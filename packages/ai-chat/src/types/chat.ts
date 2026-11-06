@@ -32,6 +32,8 @@ export interface ChatMessage {
   memories?: Array<{ id: string; kind: 'episode' | 'fact'; title: string }>;
   /** 本轮的工具调用 / 思考轨迹（与编程助手同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
   trace?: HarnessTraceEvent[];
+  /** 仅流式占位消息：模型的思考阶段是否正在执行。定稿消息不保存该状态。 */
+  thinking?: boolean;
   /** 本轮耗时（ms，从发出到结束） */
   durationMs?: number;
   /** 本轮 token 用量（上游返回时才有） */

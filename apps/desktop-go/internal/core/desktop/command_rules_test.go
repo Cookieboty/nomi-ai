@@ -91,6 +91,18 @@ func TestBrokerCommandRules(t *testing.T) {
 	if b.Authorize(in) != "auto" {
 		t.Fatal("allowlisted command should run without asking")
 	}
+	// #265：已记住 go test / git diff 时，带引号的危险参数不能凭白名单放行
+	if !b.AddCommandRule("go test") || !b.AddCommandRule("git diff") {
+		t.Fatal("add go test / git diff")
+	}
+	for _, cmd := range []string{`go test "-exec=/tmp/helper" ./...`, `git diff "--output=/tmp/nomi-output"`, `git diff --outp=/tmp/x`} {
+		q := AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Args: map[string]any{"command": cmd}}
+		if got := b.commandRuleFor(q); got != "" {
+			t.Fatalf("%q matched allowlist rule %q", cmd, got)
+		}
+	}
+	b.RemoveCommandRule("go test")
+	b.RemoveCommandRule("git diff")
 	// 重新加载：规则持久化
 	b2 := NewPermissionBroker(file, GuardEnv{}, BrokerOpts{})
 	if r := b2.CommandRules(); len(r) != 1 {
@@ -164,5 +176,53 @@ func TestCommandRulesYieldToModeAndTaint(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	if b.commandRulesApply(in, "acceptEdits") {
 		t.Fatal("allowlist must stay suspended after a tainted write")
+	}
+}
+
+// #265：危险参数按 shell 实际交给程序的 argv 检查——引号、部分引号拼接、长选项缩写都不能绕过
+func TestCommandRuleQuotedUnsafeArgs(t *testing.T) {
+	rules := []string{"go test", "git diff", "git log", "go vet", "go build"}
+	for _, cmd := range []string{
+		`go test "-exec=/tmp/helper" ./...`, `go test '-exec=/tmp/helper' ./...`,
+		`go test "-exec" /tmp/helper ./...`, `go test -"exec"=/tmp/helper ./...`,
+		`go test '-'exec=/tmp/helper ./...`, `go vet "-vettool=./evil" ./...`,
+		`go build "-toolexec" ./evil .`, `go build "-o" /usr/local/bin/x .`,
+		`git diff "--output=/tmp/nomi-output"`, `git diff '--output=/tmp/x'`,
+		`git diff --out"put"=/tmp/x`, `git diff "--output" /tmp/x`, `git log "-c" core.pager=evil`,
+		// git 长选项前缀缩写
+		`git diff --outp=/tmp/x`, `git diff --ou /tmp/x`, `git log --ext-d`, `git diff "--outp=/tmp/x"`,
+		// 引号不配对
+		`go test "-run=x ./...`,
+	} {
+		if r, ok := MatchCommandRule(cmd, rules); ok {
+			t.Errorf("%q must not match a remembered rule (got %q)", cmd, r)
+		}
+		if r, ok := CommandRuleOf(cmd); ok {
+			t.Errorf("%q must not be rememberable (got %q)", cmd, r)
+		}
+	}
+	// 正常的引号参数（含空格、空串）照常放行
+	for cmd, want := range map[string]string{
+		`go test -run 'TestA B' ./x`:         "go test",
+		`go test -run "TestA|TestB" ./x`:     "",
+		`go test "./internal/x" -count=1`:    "go test",
+		`git log --format="%h %s" -5`:        "git log",
+		`git log --grep "fix bug" --oneline`: "git log",
+		`git diff -- "a b.txt"`:              "git diff",
+		`go test -run "" ./x`:                "go test",
+	} {
+		r, ok := MatchCommandRule(cmd, rules)
+		if want == "" {
+			if ok {
+				t.Errorf("%q must not match (got %q)", cmd, r)
+			}
+			continue
+		}
+		if !ok || r != want {
+			t.Errorf("%q → %q %v, want %q", cmd, r, ok, want)
+		}
+	}
+	if w, ok := shellWords(`go test -"exec"=a 'b c'd "" e`); !ok || len(w) != 6 || w[2] != "-exec=a" || w[3] != "b cd" || w[4] != "" {
+		t.Fatalf("shellWords: %q %v", w, ok)
 	}
 }

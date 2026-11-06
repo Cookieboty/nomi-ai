@@ -99,3 +99,24 @@ describe('deriveStatus 等待态', () => {
     ).toBe('working');
   });
 });
+
+it('explicit thinking state overrides legacy traces, including status-only events', () => {
+  const base = { phase: 'running' as const, items: [] };
+  expect(deriveStatus({ ...base, live: { text: '', thinking: true } })?.kind).toBe('thinking');
+  expect(deriveStatus({ ...base, live: { text: '', thinking: false } })?.kind).toBe('working');
+  const trace = [{ type: 'thinking' as const, text: 'detail', at: 1, textAt: 0 }];
+  expect(
+    deriveStatus({
+      phase: 'running',
+      live: { text: '', thinking: false, trace },
+      items: items(trace),
+    })?.kind,
+  ).toBe('working');
+  expect(
+    deriveStatus({ phase: 'running', live: { text: 'answer', trace }, items: items(trace) })?.kind,
+  ).toBe('writing');
+  expect(
+    deriveStatus({ ...base, live: { text: '', trace: [{ type: 'thinking', text: '', at: 1 }] } })
+      ?.kind,
+  ).toBe('thinking');
+});

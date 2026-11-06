@@ -1,5 +1,5 @@
 /**
- * 图片主题背景（图片 / 模糊 / 透明度）：主进程（契约 chatBg.*）持久化；无传输时落 localStorage（浏览器 / 单测）。
+ * 图片主题背景（清晰底图 / 全局蒙版模糊 / 蒙版不透明度）：主进程（契约 chatBg.*）持久化；无传输时落 localStorage（浏览器 / 单测）。
  * 是否显示只看主题 pref === 'image'；状态与校验共用 @nomi-ai/types。
  */
 import {
@@ -192,12 +192,13 @@ export function chatBgErrorMessage(error: unknown): string {
   return tr('ui.chat-settings.background-image-import-failed');
 }
 
-/** 背景层本身的 CSS 变量（图片 / 透明度）；模糊变量由背景层写到 <html>。 */
+/** 背景与主题预览共用的 CSS 变量：底图 URL、蒙版背景采样模糊与不透明度。 */
 export function chatBgStyle(s: ChatBackgroundState): CSSProperties {
   return {
     ['--cd-chat-bg-image' as string]: s.imageUrl
       ? `url("${hostAssetUrl(s.imageUrl).replace(/"/g, '\\"')}")`
       : 'none',
+    ['--cd-chat-bg-blur' as string]: `${s.blur}px`,
     ['--cd-chat-bg-opacity' as string]: String(s.opacity),
   };
 }

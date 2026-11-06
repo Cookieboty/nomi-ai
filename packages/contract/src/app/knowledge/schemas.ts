@@ -351,7 +351,13 @@ export const HubExportResult = z.looseObject({ file: str, files: num, bytes: num
 
 export const McpTransport = z.enum(['stdio', 'http', 'sse']);
 export const McpTrust = z.enum(['ask', 'read-auto', 'auto']);
-export const McpStatus = z.enum(['off', 'connecting', 'connected', 'error']);
+export const McpStatus = z.enum([
+  'off',
+  'connecting',
+  'authorization-required',
+  'connected',
+  'error',
+]);
 
 export const McpTool = z.looseObject({
   name: str,
@@ -372,12 +378,15 @@ export const McpServerEntry = z.looseObject({
   url: str.optional(),
   env: stringMap.optional(),
   headers: stringMap.optional(),
+  oauthClientId: str.max(512).optional(),
   enabled: bool,
   trust: McpTrust,
 });
 
 export const McpServer = McpServerEntry.extend({
   status: McpStatus,
+  auth: z.enum(['required', 'pending', 'authorized']).optional(),
+  hasAuthorization: bool.optional(),
   error: str.optional(),
   tools: z.array(McpTool),
 });
@@ -392,12 +401,15 @@ export const McpServerInput = z.looseObject({
   url: str.optional(),
   env: stringMap.optional(),
   headers: stringMap.optional(),
+  oauthClientId: str.max(512).optional(),
   enabled: bool.optional(),
   trust: McpTrust.optional(),
 });
 
 export const McpLive = z.looseObject({
   status: McpStatus,
+  auth: z.enum(['required', 'pending', 'authorized']).optional(),
+  hasAuthorization: bool.optional(),
   error: str.optional(),
   tools: z.array(McpTool),
   at: num.optional(),

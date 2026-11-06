@@ -234,6 +234,73 @@ describe('ConversationStore over the kernel', () => {
     expect(kernel.data.messages.get(a)!.map((m) => m.content)).toEqual(['only once']);
   });
 
+  // #266：整份重写（resync）等内核回复期间新排进来的追加 / 替换不能被当成已写进快照而去掉
+  it('writes queued while a resync snapshot is in flight are still persisted', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1] });
+    const a = s.create('a').id;
+    s.append(msg(0, 'A'), a);
+    await s.flush();
+    // 下一次追加失败一次 → 转为整份重写；put 卡住，期间再来新消息
+    let failAppend = true;
+    kernel.failNext = (name) => {
+      if (name !== 'append' || !failAppend) return false;
+      failAppend = false;
+      return new Error('connection closed');
+    };
+    let release!: () => void;
+    let entered!: () => void;
+    const putEntered = new Promise<void>((r) => (entered = r));
+    const gate = new Promise<void>((r) => (release = r));
+    const put = kernel.put.bind(kernel);
+    kernel.put = async (input) => {
+      entered();
+      await gate;
+      return put(input);
+    };
+    s.append(msg(1, 'X'), a); // 发出、失败
+    s.append(msg(2, 'Y'), a); // 排着：会被快照包含
+    await putEntered;
+    kernel.put = put;
+    s.append(msg(3, 'B'), a); // 快照之后才来：不能合并进 Y、也不能被去掉
+    release();
+    await s.flush();
+    const again = await reopen(s, kernel);
+    expect((await again.loadMessages(a)).map((m) => m.content)).toEqual(['A', 'X', 'Y', 'B']);
+  });
+
+  it('a replace queued while a resync snapshot is in flight wins', async () => {
+    const kernel = createMemoryConversationKernel();
+    const s = new ConversationStore({ kernel, retryDelays: [1] });
+    const a = s.create('a').id;
+    s.append(msg(0, 'A'), a);
+    await s.flush();
+    let failAppend = true;
+    kernel.failNext = (name) => {
+      if (name !== 'append' || !failAppend) return false;
+      failAppend = false;
+      return new Error('connection closed');
+    };
+    let release!: () => void;
+    let entered!: () => void;
+    const putEntered = new Promise<void>((r) => (entered = r));
+    const gate = new Promise<void>((r) => (release = r));
+    const put = kernel.put.bind(kernel);
+    kernel.put = async (input) => {
+      entered();
+      await gate;
+      return put(input);
+    };
+    s.append(msg(1, 'X'), a);
+    await putEntered;
+    kernel.put = put;
+    s.clear(a);
+    release();
+    await s.flush();
+    const again = await reopen(s, kernel);
+    expect(await again.loadMessages(a)).toEqual([]);
+  });
+
   it('a persistent failure keeps the write queued, tells the user once, and recovers', async () => {
     const kernel = createMemoryConversationKernel();
     const s = new ConversationStore({ kernel, retryDelays: [1], stalledRetryMs: 20 });

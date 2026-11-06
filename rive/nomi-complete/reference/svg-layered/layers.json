@@ -1,0 +1,2521 @@
+{
+ "source": "rive/nomi-complete/source-nomi-master.png",
+ "mother_v2": "mother-v2.png",
+ "alpha_normalisation": "a>=240 -> 255; 200<a<240 -> 200+(a-200)*55/40; a<=200 unchanged (AI cutout left 240-254 noise inside the body)",
+ "size": [
+  1024,
+  1536
+ ],
+ "order_bottom_to_top": [
+  {
+   "name": "fullbody-base-no-head-arms",
+   "box": [
+    0,
+    0,
+    1024,
+    1536
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/fullbody-base-no-head-arms.png",
+   "alternate": true
+  },
+  {
+   "name": "mother-stray-specks",
+   "box": [
+    33,
+    19,
+    977,
+    1476
+   ],
+   "visible": true,
+   "src": "source-nomi-master.png",
+   "owned": 805,
+   "backfill": 0
+  },
+  {
+   "name": "body-backfill__hidden",
+   "box": [
+    495,
+    315,
+    145,
+    450
+   ],
+   "visible": false,
+   "of": "body-backfill",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "body-backfill",
+   "box": [
+    0,
+    0,
+    1024,
+    1536
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/body-backfill.png",
+   "owned": 915,
+   "backfill": 101630
+  },
+  {
+   "name": "coat-r-shoulder-dark",
+   "box": [
+    564,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-r-shoulder-dark.png",
+   "owned": 0,
+   "backfill": 2883
+  },
+  {
+   "name": "coat-r-shoulder-lining",
+   "box": [
+    564,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-r-shoulder-lining.png",
+   "owned": 128,
+   "backfill": 3006
+  },
+  {
+   "name": "coat-r-shoulder__hidden",
+   "box": [
+    625,
+    294,
+    44,
+    84
+   ],
+   "visible": false,
+   "of": "coat-r-shoulder",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "coat-r-shoulder",
+   "box": [
+    564,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-r-shoulder.png",
+   "owned": 1317,
+   "backfill": 6733
+  },
+  {
+   "name": "coat-l-shoulder-dark",
+   "box": [
+    275,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-l-shoulder-dark.png",
+   "owned": 0,
+   "backfill": 4623
+  },
+  {
+   "name": "coat-l-shoulder-lining",
+   "box": [
+    275,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-l-shoulder-lining.png",
+   "owned": 46,
+   "backfill": 4864
+  },
+  {
+   "name": "coat-l-shoulder__hidden",
+   "box": [
+    344,
+    292,
+    44,
+    86
+   ],
+   "visible": false,
+   "of": "coat-l-shoulder",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "coat-l-shoulder",
+   "box": [
+    275,
+    285,
+    185,
+    220
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-l-shoulder.png",
+   "owned": 819,
+   "backfill": 6528
+  },
+  {
+   "name": "sleeve-r-stump__hidden",
+   "box": [
+    659,
+    356,
+    55,
+    183
+   ],
+   "visible": false,
+   "of": "sleeve-r-stump",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-r-stump",
+   "box": [
+    544,
+    300,
+    245,
+    250
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-r-stump.png",
+   "owned": 0,
+   "backfill": 15910
+  },
+  {
+   "name": "sleeve-l-stump__hidden",
+   "box": [
+    300,
+    359,
+    52,
+    177
+   ],
+   "visible": false,
+   "of": "sleeve-l-stump",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-l-stump",
+   "box": [
+    235,
+    300,
+    245,
+    250
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-l-stump.png",
+   "owned": 0,
+   "backfill": 17957
+  },
+  {
+   "name": "arm-r-shoulder-skin__hidden",
+   "box": [
+    595,
+    285,
+    68,
+    85
+   ],
+   "visible": false,
+   "of": "arm-r-shoulder-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-r-shoulder-skin",
+   "box": [
+    554,
+    250,
+    155,
+    215
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-r-shoulder-skin.png",
+   "owned": 2277,
+   "backfill": 1600
+  },
+  {
+   "name": "arm-l-shoulder-skin__hidden",
+   "box": [
+    349,
+    288,
+    75,
+    82
+   ],
+   "visible": false,
+   "of": "arm-l-shoulder-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-l-shoulder-skin",
+   "box": [
+    315,
+    250,
+    155,
+    215
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-l-shoulder-skin.png",
+   "owned": 1904,
+   "backfill": 1954
+  },
+  {
+   "name": "hem-ribbon-r",
+   "box": [
+    610,
+    701,
+    100,
+    309
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hem-ribbon-r.png",
+   "owned": 9234,
+   "backfill": 53
+  },
+  {
+   "name": "hem-ribbon-l__hidden",
+   "box": [
+    342,
+    719,
+    11,
+    80
+   ],
+   "visible": false,
+   "of": "hem-ribbon-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hem-ribbon-l",
+   "box": [
+    315,
+    657,
+    100,
+    353
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hem-ribbon-l.png",
+   "owned": 10098,
+   "backfill": 74
+  },
+  {
+   "name": "leg-r-skin__hidden",
+   "box": [
+    508,
+    676,
+    122,
+    597
+   ],
+   "visible": false,
+   "of": "leg-r-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "leg-r-skin",
+   "box": [
+    503,
+    666,
+    137,
+    610
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/leg-r-skin.png",
+   "owned": 48351,
+   "backfill": 8774
+  },
+  {
+   "name": "sock-r__hidden",
+   "box": [
+    544,
+    1261,
+    66,
+    11
+   ],
+   "visible": false,
+   "of": "sock-r",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sock-r",
+   "box": [
+    505,
+    666,
+    135,
+    610
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sock-r.png",
+   "owned": 2972,
+   "backfill": 273
+  },
+  {
+   "name": "shoe-r",
+   "box": [
+    515,
+    1259,
+    125,
+    247
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/shoe-r.png",
+   "owned": 23244,
+   "backfill": 0
+  },
+  {
+   "name": "leg-l-skin__hidden",
+   "box": [
+    379,
+    729,
+    120,
+    544
+   ],
+   "visible": false,
+   "of": "leg-l-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "leg-l-skin",
+   "box": [
+    376,
+    666,
+    131,
+    610
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/leg-l-skin.png",
+   "owned": 42515,
+   "backfill": 11886
+  },
+  {
+   "name": "thigh-strap",
+   "box": [
+    376,
+    666,
+    127,
+    610
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/thigh-strap.png",
+   "owned": 3791,
+   "backfill": 0
+  },
+  {
+   "name": "sock-l__hidden",
+   "box": [
+    429,
+    1261,
+    66,
+    11
+   ],
+   "visible": false,
+   "of": "sock-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sock-l",
+   "box": [
+    376,
+    666,
+    127,
+    610
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sock-l.png",
+   "owned": 2680,
+   "backfill": 266
+  },
+  {
+   "name": "shoe-l",
+   "box": [
+    403,
+    1259,
+    115,
+    249
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/shoe-l.png",
+   "owned": 23053,
+   "backfill": 0
+  },
+  {
+   "name": "underlayer-top",
+   "box": [
+    410,
+    305,
+    193,
+    180
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/underlayer-top.png",
+   "owned": 0,
+   "backfill": 9860
+  },
+  {
+   "name": "torso-tank",
+   "box": [
+    410,
+    305,
+    193,
+    180
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/torso-tank.png",
+   "owned": 21186,
+   "backfill": 5543
+  },
+  {
+   "name": "head-scalp__hidden",
+   "box": [
+    386,
+    52,
+    229,
+    119
+   ],
+   "visible": false,
+   "of": "head-scalp",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "head-scalp",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-scalp.png",
+   "owned": 0,
+   "backfill": 28651
+  },
+  {
+   "name": "head-socket",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-socket.png",
+   "owned": 0,
+   "backfill": 1917
+  },
+  {
+   "name": "hair-r__hidden",
+   "box": [
+    584,
+    67,
+    29,
+    176
+   ],
+   "visible": false,
+   "of": "hair-r",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-r",
+   "box": [
+    565,
+    15,
+    185,
+    325
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-r.png",
+   "owned": 99,
+   "backfill": 326
+  },
+  {
+   "name": "hair-l__hidden",
+   "box": [
+    389,
+    47,
+    49,
+    67
+   ],
+   "visible": false,
+   "of": "hair-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-l",
+   "box": [
+    275,
+    15,
+    185,
+    325
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-l.png",
+   "owned": 748,
+   "backfill": 501
+  },
+  {
+   "name": "hair-tip-l__hidden",
+   "box": [
+    378,
+    276,
+    43,
+    32
+   ],
+   "visible": false,
+   "of": "hair-tip-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-tip-l",
+   "box": [
+    376,
+    274,
+    47,
+    36
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-tip-l.png",
+   "owned": 47,
+   "backfill": 39
+  },
+  {
+   "name": "eye-r-r44__hidden",
+   "box": [
+    547,
+    228,
+    23,
+    20
+   ],
+   "visible": false,
+   "of": "eye-r-r44",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "eye-r-r44",
+   "box": [
+    530,
+    145,
+    105,
+    115
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-r44.png",
+   "owned": 1051,
+   "backfill": 865
+  },
+  {
+   "name": "eye-l-r44__hidden",
+   "box": [
+    452,
+    226,
+    25,
+    22
+   ],
+   "visible": false,
+   "of": "eye-l-r44",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "eye-l-r44",
+   "box": [
+    390,
+    145,
+    105,
+    115
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-r44.png",
+   "owned": 954,
+   "backfill": 1092
+  },
+  {
+   "name": "mouth",
+   "box": [
+    450,
+    250,
+    125,
+    60
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/mouth.png",
+   "owned": 2312,
+   "backfill": 1183
+  },
+  {
+   "name": "head-eyeback",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-eyeback.png",
+   "owned": 218,
+   "backfill": 117
+  },
+  {
+   "name": "eye-r-skin",
+   "box": [
+    521,
+    141,
+    47,
+    33
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-skin.png",
+   "owned": 0,
+   "backfill": 1253
+  },
+  {
+   "name": "eye-r-sclera",
+   "box": [
+    523,
+    150,
+    44,
+    22
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-sclera.png",
+   "owned": 220,
+   "backfill": 272
+  },
+  {
+   "name": "eye-r-iris",
+   "box": [
+    527,
+    147,
+    24,
+    25
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-iris.png",
+   "owned": 328,
+   "backfill": 136
+  },
+  {
+   "name": "eye-r-hl",
+   "box": [
+    537,
+    152,
+    13,
+    16
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-hl.png",
+   "owned": 20,
+   "backfill": 0
+  },
+  {
+   "name": "eye-r-lid",
+   "box": [
+    521,
+    156,
+    46,
+    18
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-lid.png",
+   "owned": 133,
+   "backfill": 104
+  },
+  {
+   "name": "eye-r-lash",
+   "box": [
+    521,
+    141,
+    47,
+    21
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-r-lash.png",
+   "owned": 313,
+   "backfill": 152
+  },
+  {
+   "name": "eye-l-skin",
+   "box": [
+    442,
+    146,
+    44,
+    33
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-skin.png",
+   "owned": 0,
+   "backfill": 1164
+  },
+  {
+   "name": "eye-l-sclera",
+   "box": [
+    444,
+    155,
+    41,
+    21
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-sclera.png",
+   "owned": 179,
+   "backfill": 239
+  },
+  {
+   "name": "eye-l-iris",
+   "box": [
+    458,
+    153,
+    22,
+    24
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-iris.png",
+   "owned": 283,
+   "backfill": 131
+  },
+  {
+   "name": "eye-l-hl",
+   "box": [
+    458,
+    157,
+    13,
+    17
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-hl.png",
+   "owned": 23,
+   "backfill": 0
+  },
+  {
+   "name": "eye-l-lid",
+   "box": [
+    444,
+    162,
+    41,
+    17
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-lid.png",
+   "owned": 157,
+   "backfill": 51
+  },
+  {
+   "name": "eye-l-lash",
+   "box": [
+    444,
+    146,
+    42,
+    21
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/eye-l-lash.png",
+   "owned": 294,
+   "backfill": 156
+  },
+  {
+   "name": "head-neck__hidden",
+   "box": [
+    448,
+    232,
+    127,
+    39
+   ],
+   "visible": false,
+   "of": "head-neck",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "head-neck",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-neck.png",
+   "owned": 5962,
+   "backfill": 8234
+  },
+  {
+   "name": "head-sidebits__hidden",
+   "box": [
+    446,
+    163,
+    128,
+    107
+   ],
+   "visible": false,
+   "of": "head-sidebits",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "head-sidebits",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-sidebits.png",
+   "owned": 8347,
+   "backfill": 561
+  },
+  {
+   "name": "head-cheek-l",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/head-cheek-l.png",
+   "alternate": true
+  },
+  {
+   "name": "head-cheek-c",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/head-cheek-c.png",
+   "alternate": true
+  },
+  {
+   "name": "head-cheek-r",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/head-cheek-r.png",
+   "alternate": true
+  },
+  {
+   "name": "head-face-backfill",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/head-face-backfill.png",
+   "alternate": true
+  },
+  {
+   "name": "head-face-r44",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-face-r44.png",
+   "owned": 3241,
+   "backfill": 8995
+  },
+  {
+   "name": "head-eyezone__hidden",
+   "box": [
+    522,
+    142,
+    47,
+    22
+   ],
+   "visible": false,
+   "of": "head-eyezone",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "head-eyezone",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-eyezone.png",
+   "owned": 1224,
+   "backfill": 1180
+  },
+  {
+   "name": "head-mouth",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-mouth.png",
+   "owned": 480,
+   "backfill": 0
+  },
+  {
+   "name": "face-smile",
+   "box": [
+    455,
+    185,
+    120,
+    70
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/face-smile.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-m",
+   "box": [
+    484,
+    193,
+    44,
+    24
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-m.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-o",
+   "box": [
+    494,
+    196,
+    23,
+    19
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-o.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-e",
+   "box": [
+    492,
+    197,
+    27,
+    15
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-e.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-u",
+   "box": [
+    496,
+    197,
+    19,
+    17
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-u.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-i",
+   "box": [
+    491,
+    197,
+    29,
+    15
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-i.png",
+   "alternate": true
+  },
+  {
+   "name": "mouth-viseme-a",
+   "box": [
+    493,
+    197,
+    25,
+    18
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/mouth-viseme-a.png",
+   "alternate": true
+  },
+  {
+   "name": "head-nose",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-nose.png",
+   "owned": 268,
+   "backfill": 0
+  },
+  {
+   "name": "head-cap__hidden",
+   "box": [
+    543,
+    30,
+    59,
+    137
+   ],
+   "visible": false,
+   "of": "head-cap",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "head-cap",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-cap.png",
+   "owned": 11803,
+   "backfill": 4247
+  },
+  {
+   "name": "head-clipres",
+   "box": [
+    250,
+    0,
+    530,
+    370
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/head-clipres.png",
+   "owned": 279,
+   "backfill": 130
+  },
+  {
+   "name": "bangs-c",
+   "box": [
+    539,
+    95,
+    38,
+    60
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/bangs-c.png",
+   "owned": 1358,
+   "backfill": 184
+  },
+  {
+   "name": "bangs-b",
+   "box": [
+    469,
+    95,
+    78,
+    65
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/bangs-b.png",
+   "owned": 2830,
+   "backfill": 446
+  },
+  {
+   "name": "bangs-a",
+   "box": [
+    439,
+    95,
+    52,
+    69
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/bangs-a.png",
+   "owned": 2035,
+   "backfill": 113
+  },
+  {
+   "name": "brow-r",
+   "box": [
+    518,
+    122,
+    32,
+    11
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/brow-r.png",
+   "owned": 123,
+   "backfill": 0
+  },
+  {
+   "name": "brow-l",
+   "box": [
+    445,
+    129,
+    36,
+    10
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/brow-l.png",
+   "owned": 93,
+   "backfill": 0
+  },
+  {
+   "name": "hair-clip",
+   "box": [
+    565,
+    75,
+    145,
+    145
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-clip.png",
+   "owned": 99,
+   "backfill": 129
+  },
+  {
+   "name": "hair-lock-r__hidden",
+   "box": [
+    572,
+    108,
+    74,
+    145
+   ],
+   "visible": false,
+   "of": "hair-lock-r",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-lock-r",
+   "box": [
+    568,
+    104,
+    80,
+    159
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-lock-r.png",
+   "owned": 4157,
+   "backfill": 2725
+  },
+  {
+   "name": "hair-bow",
+   "box": [
+    568,
+    104,
+    86,
+    155
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-bow.png",
+   "owned": 5205,
+   "backfill": 0
+  },
+  {
+   "name": "hair-lock-l__hidden",
+   "box": [
+    390,
+    204,
+    7,
+    13
+   ],
+   "visible": false,
+   "of": "hair-lock-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-lock-l",
+   "box": [
+    351,
+    96,
+    97,
+    171
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-lock-l.png",
+   "owned": 11877,
+   "backfill": 670
+  },
+  {
+   "name": "hair-ornament-l",
+   "box": [
+    354,
+    96,
+    94,
+    167
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-ornament-l.png",
+   "owned": 714,
+   "backfill": 0
+  },
+  {
+   "name": "hair-back-r__hidden",
+   "box": [
+    573,
+    270,
+    73,
+    74
+   ],
+   "visible": false,
+   "of": "hair-back-r",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-back-r",
+   "box": [
+    571,
+    263,
+    77,
+    83
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-back-r.png",
+   "owned": 1260,
+   "backfill": 14
+  },
+  {
+   "name": "hair-back-l__hidden",
+   "box": [
+    415,
+    255,
+    35,
+    89
+   ],
+   "visible": false,
+   "of": "hair-back-l",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hair-back-l",
+   "box": [
+    364,
+    244,
+    88,
+    102
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hair-back-l.png",
+   "owned": 2256,
+   "backfill": 16
+  },
+  {
+   "name": "choker",
+   "box": [
+    450,
+    250,
+    125,
+    60
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/choker.png",
+   "owned": 498,
+   "backfill": 0
+  },
+  {
+   "name": "underlayer-bottom__hidden",
+   "box": [
+    436,
+    669,
+    1,
+    1
+   ],
+   "visible": false,
+   "of": "underlayer-bottom",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "underlayer-bottom",
+   "box": [
+    379,
+    507,
+    268,
+    248
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/underlayer-bottom.png",
+   "owned": 54,
+   "backfill": 41908
+  },
+  {
+   "name": "shorts__hidden",
+   "box": [
+    436,
+    523,
+    190,
+    147
+   ],
+   "visible": false,
+   "of": "shorts",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "shorts",
+   "box": [
+    379,
+    507,
+    268,
+    248
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/shorts.png",
+   "owned": 34014,
+   "backfill": 11010
+  },
+  {
+   "name": "shorts-side-orange",
+   "box": [
+    379,
+    507,
+    268,
+    248
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/shorts-side-orange.png",
+   "owned": 3906,
+   "backfill": 479
+  },
+  {
+   "name": "waist-backfill__hidden",
+   "box": [
+    423,
+    479,
+    163,
+    37
+   ],
+   "visible": false,
+   "of": "waist-backfill",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "waist-backfill",
+   "box": [
+    418,
+    473,
+    183,
+    52
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/waist-backfill.png",
+   "owned": 2679,
+   "backfill": 5433
+  },
+  {
+   "name": "belt-id",
+   "box": [
+    435,
+    509,
+    54,
+    162
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/belt-id.png",
+   "owned": 4310,
+   "backfill": 11
+  },
+  {
+   "name": "belt-band__hidden",
+   "box": [
+    432,
+    482,
+    37,
+    33
+   ],
+   "visible": false,
+   "of": "belt-band",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "belt-band",
+   "box": [
+    418,
+    473,
+    183,
+    52
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/belt-band.png",
+   "owned": 4755,
+   "backfill": 126
+  },
+  {
+   "name": "hand-r-thumb__hidden",
+   "box": [
+    693,
+    770,
+    33,
+    41
+   ],
+   "visible": false,
+   "of": "hand-r-thumb",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-thumb",
+   "box": [
+    672,
+    734,
+    59,
+    96
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-thumb.png",
+   "owned": 702,
+   "backfill": 495
+  },
+  {
+   "name": "hand-r-thumb-meta",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-thumb-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-thumb-p0",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-thumb-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-thumb-p1",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-thumb-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-thumb-p2",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-thumb-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-index__hidden",
+   "box": [
+    676,
+    761,
+    22,
+    49
+   ],
+   "visible": false,
+   "of": "hand-r-index",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-index",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-index.png",
+   "owned": 362,
+   "backfill": 333
+  },
+  {
+   "name": "hand-r-index-meta",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-index-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-index-p0",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-index-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-index-p1",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-index-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-index-p2",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-index-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-middle__hidden",
+   "box": [
+    675,
+    787,
+    4,
+    5
+   ],
+   "visible": false,
+   "of": "hand-r-middle",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-middle",
+   "box": [
+    671,
+    734,
+    60,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-middle.png",
+   "owned": 221,
+   "backfill": 52
+  },
+  {
+   "name": "hand-r-middle-p0",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-middle-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-middle-p1",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-middle-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-middle-p2",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-middle-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-ring__hidden",
+   "box": [
+    674,
+    798,
+    5,
+    5
+   ],
+   "visible": false,
+   "of": "hand-r-ring",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-ring",
+   "box": [
+    671,
+    734,
+    60,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-ring.png",
+   "owned": 153,
+   "backfill": 38
+  },
+  {
+   "name": "hand-r-ring-meta",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-ring-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-ring-p0",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-ring-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-ring-p1",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-ring-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-ring-p2",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-ring-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-little__hidden",
+   "box": [
+    694,
+    800,
+    3,
+    7
+   ],
+   "visible": false,
+   "of": "hand-r-little",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-little",
+   "box": [
+    671,
+    734,
+    60,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-little.png",
+   "owned": 270,
+   "backfill": 6
+  },
+  {
+   "name": "hand-r-little-meta",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-little-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-little-p0",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-little-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-little-p1",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-little-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-little-p2",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-little-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-r-web__hidden",
+   "box": [
+    692,
+    754,
+    11,
+    22
+   ],
+   "visible": false,
+   "of": "hand-r-web",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-r-web",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-web.png",
+   "owned": 70,
+   "backfill": 52
+  },
+  {
+   "name": "hand-r-palm",
+   "box": [
+    672,
+    734,
+    64,
+    90
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-r-palm.png",
+   "owned": 2277,
+   "backfill": 128
+  },
+  {
+   "name": "hand-r-palm-meta",
+   "box": [
+    672,
+    734,
+    59,
+    90
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-r-palm-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "arm-r-cuff__hidden",
+   "box": [
+    730,
+    670,
+    26,
+    57
+   ],
+   "visible": false,
+   "of": "arm-r-cuff",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-r-cuff",
+   "box": [
+    634,
+    665,
+    175,
+    150
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-r-cuff.png",
+   "owned": 5529,
+   "backfill": 757
+  },
+  {
+   "name": "arm-r-under-skin__hidden",
+   "box": [
+    730,
+    697,
+    1,
+    3
+   ],
+   "visible": false,
+   "of": "arm-r-under-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-r-under-skin",
+   "box": [
+    594,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-r-under-skin.png",
+   "owned": 0,
+   "backfill": 15866
+  },
+  {
+   "name": "sleeve-r-full-dark__hidden",
+   "box": [
+    706,
+    512,
+    53,
+    191
+   ],
+   "visible": false,
+   "of": "sleeve-r-full-dark",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-r-full-dark",
+   "box": [
+    594,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-r-full-dark.png",
+   "owned": 0,
+   "backfill": 1708
+  },
+  {
+   "name": "sleeve-r-full__hidden",
+   "box": [
+    594,
+    415,
+    51,
+    261
+   ],
+   "visible": false,
+   "of": "sleeve-r-full",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-r-full",
+   "box": [
+    594,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-r-full.png",
+   "owned": 27011,
+   "backfill": 6346
+  },
+  {
+   "name": "coat-r-front__hidden",
+   "box": [
+    636,
+    584,
+    1,
+    11
+   ],
+   "visible": false,
+   "of": "coat-r-front",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "coat-r-front",
+   "box": [
+    594,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-r-front.png",
+   "owned": 5044,
+   "backfill": 833
+  },
+  {
+   "name": "belt-pouch",
+   "box": [
+    553,
+    507,
+    96,
+    112
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/belt-pouch.png",
+   "owned": 5448,
+   "backfill": 0
+  },
+  {
+   "name": "arm-r-upper-skin",
+   "box": [
+    554,
+    250,
+    140,
+    190
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-r-upper-skin.png",
+   "owned": 1506,
+   "backfill": 0
+  },
+  {
+   "name": "hand-l-thumb__hidden",
+   "box": [
+    288,
+    764,
+    41,
+    51
+   ],
+   "visible": false,
+   "of": "hand-l-thumb",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-l-thumb",
+   "box": [
+    286,
+    735,
+    59,
+    95
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-thumb.png",
+   "owned": 960,
+   "backfill": 730
+  },
+  {
+   "name": "hand-l-thumb-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-thumb-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-thumb-p0",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-thumb-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-thumb-p1",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-thumb-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-thumb-p2",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-thumb-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-index__hidden",
+   "box": [
+    311,
+    761,
+    26,
+    46
+   ],
+   "visible": false,
+   "of": "hand-l-index",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-l-index",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-index.png",
+   "owned": 731,
+   "backfill": 230
+  },
+  {
+   "name": "hand-l-index-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-index-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-index-p0",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-index-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-index-p1",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-index-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-index-p2",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-index-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-middle__hidden",
+   "box": [
+    336,
+    787,
+    7,
+    5
+   ],
+   "visible": false,
+   "of": "hand-l-middle",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-l-middle",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-middle.png",
+   "owned": 214,
+   "backfill": 42
+  },
+  {
+   "name": "hand-l-middle-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-middle-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-middle-p0",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-middle-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-middle-p1",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-middle-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-middle-p2",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-middle-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-ring__hidden",
+   "box": [
+    338,
+    798,
+    5,
+    5
+   ],
+   "visible": false,
+   "of": "hand-l-ring",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-l-ring",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-ring.png",
+   "owned": 172,
+   "backfill": 60
+  },
+  {
+   "name": "hand-l-ring-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-ring-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-ring-p0",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-ring-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-ring-p1",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-ring-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-ring-p2",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-ring-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-little",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-little.png",
+   "owned": 325,
+   "backfill": 0
+  },
+  {
+   "name": "hand-l-little-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-little-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-little-p0",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-little-p0.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-little-p1",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-little-p1.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-little-p2",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-little-p2.png",
+   "alternate": true
+  },
+  {
+   "name": "hand-l-web__hidden",
+   "box": [
+    311,
+    758,
+    13,
+    26
+   ],
+   "visible": false,
+   "of": "hand-l-web",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "hand-l-web",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-web.png",
+   "owned": 84,
+   "backfill": 34
+  },
+  {
+   "name": "hand-l-palm",
+   "box": [
+    283,
+    735,
+    62,
+    93
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/hand-l-palm.png",
+   "owned": 1587,
+   "backfill": 46
+  },
+  {
+   "name": "hand-l-palm-meta",
+   "box": [
+    286,
+    735,
+    59,
+    93
+   ],
+   "visible": false,
+   "src": "reference/svg-rig/hand-l-palm-meta.png",
+   "alternate": true
+  },
+  {
+   "name": "arm-l-cuff__hidden",
+   "box": [
+    258,
+    670,
+    96,
+    61
+   ],
+   "visible": false,
+   "of": "arm-l-cuff",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-l-cuff",
+   "box": [
+    215,
+    665,
+    175,
+    150
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-l-cuff.png",
+   "owned": 5765,
+   "backfill": 881
+  },
+  {
+   "name": "arm-l-under-skin__hidden",
+   "box": [
+    284,
+    702,
+    1,
+    2
+   ],
+   "visible": false,
+   "of": "arm-l-under-skin",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "arm-l-under-skin",
+   "box": [
+    205,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-l-under-skin.png",
+   "owned": 0,
+   "backfill": 15979
+  },
+  {
+   "name": "sleeve-l-full-dark__hidden",
+   "box": [
+    257,
+    440,
+    78,
+    285
+   ],
+   "visible": false,
+   "of": "sleeve-l-full-dark",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-l-full-dark",
+   "box": [
+    205,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-l-full-dark.png",
+   "owned": 0,
+   "backfill": 2129
+  },
+  {
+   "name": "sleeve-l-full__hidden",
+   "box": [
+    378,
+    412,
+    52,
+    264
+   ],
+   "visible": false,
+   "of": "sleeve-l-full",
+   "note": "pixels of this part that would show at rest over another part; not in rig"
+  },
+  {
+   "name": "sleeve-l-full",
+   "box": [
+    205,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/sleeve-l-full.png",
+   "owned": 26797,
+   "backfill": 10518
+  },
+  {
+   "name": "coat-l-front",
+   "box": [
+    205,
+    320,
+    225,
+    440
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/coat-l-front.png",
+   "owned": 10030,
+   "backfill": 0
+  },
+  {
+   "name": "arm-l-upper-skin",
+   "box": [
+    330,
+    250,
+    140,
+    190
+   ],
+   "visible": true,
+   "src": "reference/svg-rig/arm-l-upper-skin.png",
+   "owned": 1740,
+   "backfill": 0
+  }
+ ]
+}

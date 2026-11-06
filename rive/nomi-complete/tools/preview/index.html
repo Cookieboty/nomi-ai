@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nomi·诺米 动作预览</title>
+    <style>
+      :root {
+        --bg: #f4f1ec;
+        --panel: #ffffff;
+        --ink: #1f1d1a;
+        --muted: #6f6a63;
+        --line: #e2ddd5;
+        --accent: #e8792b;
+        --accent-ink: #ffffff;
+        --stage: #2a2724;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171615;
+          --panel: #211f1d;
+          --ink: #f1ede7;
+          --muted: #a49d94;
+          --line: #35322e;
+          --stage: #0f0e0d;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          14px/1.45 -apple-system,
+          BlinkMacSystemFont,
+          'PingFang SC',
+          'Segoe UI',
+          sans-serif;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(320px, 520px) 1fr;
+        gap: 16px;
+        padding: 16px;
+        min-height: 100vh;
+      }
+      @media (max-width: 860px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+      .stage {
+        position: sticky;
+        top: 16px;
+        align-self: start;
+        background: var(--stage);
+        border-radius: 12px;
+        overflow: hidden;
+        aspect-ratio: 960 / 1300;
+      }
+      .stage.checker {
+        background-image:
+          linear-gradient(45deg, #ccc 25%, transparent 25%),
+          linear-gradient(-45deg, #ccc 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #ccc 75%),
+          linear-gradient(-45deg, transparent 75%, #ccc 75%);
+        background-size: 24px 24px;
+        background-position:
+          0 0,
+          0 12px,
+          12px -12px,
+          -12px 0;
+        background-color: #eee;
+      }
+      .stage.light {
+        background: #fbfaf8;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .status {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 12px;
+      }
+      .drop {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        background: rgba(232, 121, 43, 0.35);
+        color: #fff;
+        font-size: 18px;
+      }
+      .stage.dragging .drop {
+        display: grid;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 13px;
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      p.note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      button.on {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      input[type='range'] {
+        width: 180px;
+      }
+      code {
+        font-size: 12px;
+      }
+      .err {
+        color: #d9443a;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="stage" id="stage">
+        <canvas id="cv" width="960" height="1300" aria-label="角色预览"></canvas>
+        <div class="status" id="status">加载中…</div>
+        <div class="drop">松开以加载这个 .riv</div>
+      </div>
+      <div>
+        <section>
+          <h1>Nomi·诺米 动作预览</h1>
+          <p class="note">
+            与应用一致：<code>@rive-app/canvas-lite</code>、画板 <code>Nomi-full</code>、状态机
+            <code>NomiFull</code>、<code>Fit.Contain</code> 底部居中。默认加载
+            <code>characters/nomi/rive/character.riv</code>，也可以把别的 .riv 拖到左边对比。
+          </p>
+          <div class="row">
+            <button class="primary" id="playAll">全部依次播放</button>
+            <button id="stop">停止序列</button>
+            <button id="reload">重新加载</button>
+            <label
+              >背景
+              <button data-bg="dark" class="on">深</button>
+              <button data-bg="light">浅</button>
+              <button data-bg="checker">透明格</button>
+            </label>
+          </div>
+          <div class="row"><span id="file" class="note"></span></div>
+        </section>
+        <section>
+          <h2>动作（Actions 层）</h2>
+          <div class="grid" id="actions"></div>
+        </section>
+        <section>
+          <h2>嘴部（full.mouth 层）</h2>
+          <div class="grid" id="mouth"></div>
+          <div class="row">
+            <label for="viseme">viseme <span id="visemeV">0</span></label>
+            <input id="viseme" type="range" min="0" max="6" step="1" value="0" />
+            <label for="mouthOpen">mouthOpen <span id="mouthOpenV">0</span></label>
+            <input id="mouthOpen" type="range" min="0" max="1" step="0.05" value="0" />
+          </div>
+          <p class="note">
+            viseme 数值切换口型；回到闭嘴要发 <code>mouth-close</code>（应用在嘴合上时会自动发）。
+          </p>
+        </section>
+      </div>
+    </main>
+    <script src="/node_modules/@rive-app/canvas-lite/rive.js"></script>
+    <script>
+      const DEFAULT_SRC = '/characters/nomi/rive/character.riv';
+      const MOUTH = [
+        'mouth-open',
+        'mouth-close',
+        'talking',
+        'talk',
+        'viseme_a',
+        'viseme_i',
+        'viseme_u',
+        'viseme_e',
+        'viseme_o',
+        'viseme_m',
+      ];
+      const $ = (id) => document.getElementById(id);
+      const stage = $('stage');
+      let r = null;
+      let src = DEFAULT_SRC;
+      let durations = {};
+      let seq = null;
+
+      rive.RuntimeLoader.setWasmUrl('/node_modules/@rive-app/canvas-lite/rive.wasm');
+
+      fetch('/rive/nomi-complete/tools/rebuild/anims-meta.json')
+        .then((x) => x.json())
+        .then((meta) => {
+          for (const m of meta)
+            durations[m.name.replace(/^full\./, '')] =
+              (Number(m.duration) / Number(m.fps || 60)) * 1000;
+        })
+        .catch(() => {});
+
+      function setStatus(text, bad) {
+        $('status').textContent = text;
+        $('status').classList.toggle('err', !!bad);
+      }
+
+      function load(source, label) {
+        if (r) r.cleanup();
+        stopSeq();
+        setStatus('加载中…');
+        $('file').textContent = '文件：' + label;
+        const opts = {
+          canvas: $('cv'),
+          artboard: 'Nomi-full',
+          stateMachines: 'NomiFull',
+          autoplay: true,
+          autoBind: true,
+          layout: new rive.Layout({
+            fit: rive.Fit.Contain,
+            alignment: rive.Alignment.BottomCenter,
+          }),
+          onLoad: () => {
+            r.resizeDrawingSurfaceToCanvas();
+            buildButtons();
+            setStatus('静止');
+          },
+          onLoadError: () => setStatus('加载失败', true),
+          onStateChange: (e) => {
+            const names = (Array.isArray(e.data) ? e.data : []).filter(
+              (n) => typeof n === 'string' && n !== 'full.idle' && n !== 'full.idle-blink',
+            );
+            if (names.length) setStatus(names.join(' · '));
+          },
+        };
+        if (typeof source === 'string') opts.src = source;
+        else opts.buffer = source;
+        r = new rive.Rive(opts);
+      }
+
+      function vm() {
+        return r && r.viewModelInstance;
+      }
+
+      function fire(name) {
+        const t = vm() && vm().trigger(name);
+        if (t) t.trigger();
+        else setStatus('没有触发器 ' + name, true);
+      }
+
+      function buildButtons() {
+        const inst = vm();
+        const props = inst ? inst.properties : [];
+        const triggers = props
+          .filter((p) => String(p.type).toLowerCase().includes('trigger'))
+          .map((p) => p.name);
+        const actions = triggers.filter((n) => !MOUTH.includes(n));
+        const mk = (box, names) => {
+          box.innerHTML = '';
+          for (const n of names) {
+            const b = document.createElement('button');
+            b.textContent = n;
+            b.addEventListener('click', () => fire(n));
+            box.appendChild(b);
+          }
+        };
+        mk($('actions'), actions);
+        mk(
+          $('mouth'),
+          triggers.filter((n) => MOUTH.includes(n)),
+        );
+        $('playAll').onclick = () => playAll(actions);
+      }
+
+      function stopSeq() {
+        if (seq) clearTimeout(seq);
+        seq = null;
+      }
+
+      function playAll(names) {
+        stopSeq();
+        let i = 0;
+        const next = () => {
+          if (i >= names.length) {
+            setStatus('序列结束');
+            seq = null;
+            return;
+          }
+          const n = names[i++];
+          fire(n);
+          seq = setTimeout(next, (durations[n] || 1500) + 600);
+        };
+        next();
+      }
+
+      $('stop').onclick = stopSeq;
+      $('reload').onclick = () => load(src, src);
+      for (const b of document.querySelectorAll('[data-bg]')) {
+        b.addEventListener('click', () => {
+          stage.classList.remove('light', 'checker');
+          if (b.dataset.bg !== 'dark') stage.classList.add(b.dataset.bg);
+          for (const o of document.querySelectorAll('[data-bg]')) o.classList.toggle('on', o === b);
+        });
+      }
+      for (const [id, prop] of [
+        ['viseme', 'viseme'],
+        ['mouthOpen', 'mouthOpen'],
+      ]) {
+        $(id).addEventListener('input', (e) => {
+          const v = Number(e.target.value);
+          $(id + 'V').textContent = v;
+          const num = vm() && vm().number(prop);
+          if (num) num.value = v;
+        });
+      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') stopSeq();
+      });
+      stage.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        stage.classList.add('dragging');
+      });
+      stage.addEventListener('dragleave', () => stage.classList.remove('dragging'));
+      stage.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        stage.classList.remove('dragging');
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        load(await f.arrayBuffer(), f.name);
+      });
+      load(DEFAULT_SRC, DEFAULT_SRC);
+    </script>
+  </body>
+</html>

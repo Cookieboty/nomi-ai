@@ -20,9 +20,9 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 /* 空列收窄：只有一两个任务时，有任务的列都在屏内（不让「已结束」挤到屏外，用户以为任务丢了） */
 .column[data-empty] {
@@ -83,7 +83,7 @@
   align-items: center;
   justify-content: center;
   height: calc(var(--cd-space-8) * 2);
-  border: 1px dashed var(--cd-color-border);
+  border: 1px dashed var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
@@ -95,9 +95,9 @@
   flex-direction: column;
   gap: var(--cd-space-1-5);
   padding: var(--cd-space-3);
-  border: 1px solid var(--cd-color-border-subtle);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   box-shadow: var(--cd-shadow-sm);
   color: var(--cd-color-text);
   font: inherit;

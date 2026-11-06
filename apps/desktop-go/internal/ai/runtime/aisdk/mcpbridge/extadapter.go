@@ -23,7 +23,7 @@ func (r ExtRuntime) ListServers() []extensions.McpServerInfo {
 }
 
 func (r ExtRuntime) Connect(ctx context.Context, c extensions.McpConnectConfig) error {
-	return r.S.Connect(ctx, ServerConfig{ID: c.ID, Name: c.Name, Transport: c.Transport, Command: c.Command, Args: c.Args, URL: c.URL, Env: sortedPairs(c.Env), Headers: sortedPairs(c.Headers)})
+	return r.S.Connect(ctx, ServerConfig{ID: c.ID, Name: c.Name, Transport: c.Transport, Command: c.Command, Args: c.Args, URL: c.URL, Env: sortedPairs(c.Env), Headers: sortedPairs(c.Headers), Fetch: c.Fetch})
 }
 
 func (r ExtRuntime) Disconnect(_ context.Context, id string) error { r.S.Disconnect(id); return nil }

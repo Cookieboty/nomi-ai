@@ -35,6 +35,7 @@ describe('knowledge 契约', () => {
     expect(dangerous.sort()).toEqual([
       'connections.addGithub',
       'connections.rebind',
+      'ext.mcpAuthorize',
       'ext.mcpConnect',
       'ext.mcpToggle',
       'ext.mcpUpsert',

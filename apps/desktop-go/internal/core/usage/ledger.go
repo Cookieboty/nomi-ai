@@ -408,11 +408,15 @@ type UsageLedger struct {
 	cursorWriteMu     sync.Mutex
 
 	// 冷数据（ledgercold.go）
-	days        map[int32]*coldDay
-	dayIDs      []int32
-	keys        *coldKeys
-	coldPrune   float64 // 冷数据里早于它的记录已按保留期删除（日文件等压缩时再改）
-	seq         int64   // 下一个 ord
+	days      map[int32]*coldDay
+	dayIDs    []int32
+	keys      *coldKeys
+	coldPrune float64 // 冷数据里早于它的记录已按保留期删除（日文件等压缩时再改）
+	// 冷日文件里的路由记录（按天缓存，RouteCovering 匹配早于热窗口的工具日志用；日文件换了就作废）
+	coldRoutes map[int32][]*UsageRecord
+	// 冷路由记录 → 认领它的日志 key（冷记录改不了 logKey：本进程里别的日志不再匹配它）
+	coldClaims  map[string]string
+	seq         int64 // 下一个 ord
 	lastPriceOf PriceOf
 	rcRunning   bool
 	rcAgain     bool
@@ -495,6 +499,7 @@ func (l *UsageLedger) loadSync() {
 		l.noCompact = true
 	}
 	l.days, l.dayIDs, l.keys = days, ids, keys
+	l.coldRoutes = nil
 	if dirty && ok {
 		if b, ok := l.encodeColdIndex(l.coldIndexSnapshot()); ok {
 			l.writeColdIndex(b)
@@ -651,6 +656,7 @@ func (l *UsageLedger) adopt(disk *recMap, lines int, diskCursors *cursorMap, col
 	})
 	l.recs = disk
 	l.days, l.dayIDs, l.keys, l.seq = cold.days, cold.ids, cold.keys, seq
+	l.coldRoutes = nil
 	l.lines += lines
 	l.sorted = nil
 	l.routeSorted = nil
@@ -935,16 +941,75 @@ func (l *UsageLedger) routeSnapshot() []*UsageRecord {
 	return l.routeSorted
 }
 
+// RouteCovering：覆盖这条工具日志的路由记录。热窗口里找不到、日志又早于热窗口时，到那段时间的冷日文件里
+// 用同样的规则找（冷归档后重新扫到旧日志，不再当成新请求重复记一次）
 func (l *UsageLedger) RouteCovering(source string, ts float64, hint *RouteHint) *UsageRecord {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	arr := l.routeSnapshot()
+	if r := routeMatch(l.routeSnapshot(), source, ts, hint, nil); r != nil {
+		return r
+	}
+	if ts-routeSlackMs-10*60_000 >= l.hotCutoff() {
+		return nil
+	}
+	return l.coldRouteCovering(source, ts, hint)
+}
+
+// coldRouteCovering（持锁）：冷日文件里覆盖这条日志的路由记录；命中的记下由这个日志 key 认领
+func (l *UsageLedger) coldRouteCovering(source string, ts float64, hint *RouteHint) *UsageRecord {
+	left, right := ts-routeSlackMs-10*60_000, ts+routeSlackMs
+	var arr []*UsageRecord
+	for _, id := range l.dayIDs {
+		d := l.days[id]
+		if d == nil || d.n == 0 || d.minTs > right || d.maxTs < left {
+			continue
+		}
+		arr = append(arr, l.coldRoutesOf(d)...)
+	}
+	if len(arr) == 0 {
+		return nil
+	}
+	sortByTs(arr)
+	claimed := func(r *UsageRecord) bool {
+		k, ok := l.coldClaims[r.Key]
+		return ok && hint != nil && k != hint.Key
+	}
+	r := routeMatch(arr, source, ts, hint, claimed)
+	if r != nil && hint != nil && !nonEmpty(r.LogKey) && r.Key != hint.Key {
+		if l.coldClaims == nil {
+			l.coldClaims = map[string]string{}
+		}
+		l.coldClaims[r.Key] = hint.Key
+	}
+	return r
+}
+
+// coldRoutesOf（持锁）：这一天冷日文件里的路由记录（缓存）
+func (l *UsageLedger) coldRoutesOf(d *coldDay) []*UsageRecord {
+	if rs, ok := l.coldRoutes[d.id]; ok {
+		return rs
+	}
+	rs := []*UsageRecord{}
+	for _, r := range l.dayRecords(d) {
+		if r.Via == "route" {
+			rs = append(rs, r)
+		}
+	}
+	if l.coldRoutes == nil {
+		l.coldRoutes = map[int32][]*UsageRecord{}
+	}
+	l.coldRoutes[d.id] = rs
+	return rs
+}
+
+// routeMatch：arr（按 ts 排序的记录）里覆盖这条日志的路由记录；skip 为真的不算
+func routeMatch(arr []*UsageRecord, source string, ts float64, hint *RouteHint, skip func(*UsageRecord) bool) *UsageRecord {
 	left := ts - routeSlackMs - 10*60_000
 	var best *UsageRecord
 	bestScore := 0.0
 	for i := lowerBound(arr, left); i < len(arr) && arr[i].Ts <= ts+routeSlackMs; i++ {
 		r := arr[i]
-		if r.Via != "route" || r.Source != source {
+		if r.Via != "route" || r.Source != source || (skip != nil && skip(r)) {
 			continue
 		}
 		if ts < r.Ts-routeSlackMs || ts > r.Ts+or0(r.Dur, 0)+routeSlackMs {
@@ -1054,6 +1119,7 @@ func (l *UsageLedger) pruneLocked(retention string) int {
 			}
 		}
 		l.coldPrune = cutoff
+		l.coldRoutes = nil
 		if n > 0 {
 			l.ver++
 		}
@@ -1090,6 +1156,7 @@ func (l *UsageLedger) Clear() {
 	l.appendTainted = false
 	l.lines = 0
 	l.days, l.dayIDs, l.keys, l.coldPrune = map[int32]*coldDay{}, nil, newColdKeys(), math.Inf(-1)
+	l.coldRoutes, l.coldClaims = nil, nil
 	if err := WritePrivateFile(l.file, ""); err != nil {
 		l.warn("usage clear failed", err.Error())
 	}

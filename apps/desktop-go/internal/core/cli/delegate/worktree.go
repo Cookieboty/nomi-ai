@@ -430,6 +430,12 @@ func CommitToBranch(h *IsolationHandle, files []string, title string) (string, e
 			return "", err2
 		}
 	}
+	return branchAtHead(h)
+}
+
+// branchAtHead：在 worktree 的 HEAD 上建一个没被占用的新分支 nomi/<基线>-<id>[-n]，返回分支名
+func branchAtHead(h *IsolationHandle) (string, error) {
+	wt := h.WorktreePath
 	base := branchPart(h.BaseBranch)
 	if base == "" {
 		base = "worktree"
@@ -447,8 +453,36 @@ func CommitToBranch(h *IsolationHandle, files []string, title string) (string, e
 	return name, nil
 }
 
+// headUnreachable：worktree 的 HEAD 上有任何分支 / 标签 / 远程分支都够不着的提交（编程助手在 detached HEAD
+// 上提交了、或 CommitToBranch 提交成功但建分支失败）。git status 干净不代表没有成果。查不出来时报错
+func headUnreachable(wt string) (bool, error) {
+	out, err := git(wt, "rev-list", "-n", "1", "HEAD", "--not", "--branches", "--tags", "--remotes")
+	if err != nil {
+		return false, err
+	}
+	return trim(out) != "", nil
+}
+
+// preserveHead：拆 worktree 前把 HEAD 上独有的提交留在一个新分支上；没有独有提交时什么都不做。
+// 返回建的分支名；查不出来或建不成时返回错误——调用方保留目录，不能当作没有成果
+func preserveHead(h *IsolationHandle) (string, error) {
+	unique, err := headUnreachable(h.WorktreePath)
+	if err != nil {
+		return "", fmt.Errorf("检查 worktree 的提交失败：%s", err.Error())
+	}
+	if !unique {
+		return "", nil
+	}
+	b, err := branchAtHead(h)
+	if err != nil {
+		return "", fmt.Errorf("保存 worktree 里的提交失败：%s", err.Error())
+	}
+	return b, nil
+}
+
 // LandWorktree：worktree 的改动落地：改动多（> LandMaxFiles 个文件或 > LandMaxLines 行）→ 整体提交到新分支；
-// 否则拷回当前工作区，拷不回去的（冲突、授权外、复制失败）提交到新分支。落地成功后拆掉 worktree。
+// 否则拷回当前工作区，拷不回去的（冲突、授权外、复制失败）提交到新分支。编程助手自己提交了、
+// 还没有分支指着的提交，拆之前也留在一个新分支上（status 干净不等于没有成果）。落地成功后拆掉 worktree。
 func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite func(dest string) bool) LandResult {
 	r := LandResult{Mode: "none", Apply: ApplyResult{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: []string{}}}
 	if h == nil || h.Kind != IsoWorktree || h.WorktreePath == "" || h.GitRoot == "" || !existsSync(h.WorktreePath) {
@@ -463,6 +497,14 @@ func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite f
 		}
 	}
 	if len(files) == 0 {
+		b, err := preserveHead(h)
+		if err != nil {
+			r.Kept, r.Err = true, err.Error()
+			return r
+		}
+		if b != "" {
+			r.Mode, r.Branch = "branch", b
+		}
 		ReleaseIsolation(h, nil)
 		return r
 	}
@@ -491,6 +533,15 @@ func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite f
 		}
 		r.Branch = b
 	}
+	// 拷回的只是未提交的改动；编程助手自己提交的还要留住
+	if r.Branch == "" {
+		b, err := preserveHead(h)
+		if err != nil {
+			r.Kept, r.Err = true, err.Error()
+			return r
+		}
+		r.Branch = b
+	}
 	ReleaseIsolation(h, nil)
 	return r
 }
@@ -501,7 +552,8 @@ func IsDelegateWorktree(p string) bool {
 }
 
 // SweepOrphanWorktrees：启动时清理没人认领的委派 worktree：keep(路径) 为真的留着（还在用的任务、用户接手的标签）；
-// 干净的直接拆，有改动的先提交到新分支再拆（提交不了就留着）。返回拆掉的路径
+// 有改动的先提交到新分支，已有提交但没有分支指着的也先建分支，然后再拆（提交 / 建分支 / 检查失败就留着）。
+// 返回拆掉的路径
 func SweepOrphanWorktrees(roots []string, keep func(path string) bool, log func(string)) []string {
 	removed := []string{}
 	seen := map[string]bool{}
@@ -533,6 +585,13 @@ func SweepOrphanWorktrees(roots []string, keep func(path string) bool, log func(
 						}
 						continue
 					}
+				} else if b, err := preserveHead(h); err != nil {
+					if log != nil {
+						log("keep orphan worktree " + p + ": " + err.Error())
+					}
+					continue
+				} else if b != "" && log != nil {
+					log("orphan worktree " + p + ": kept its commits on " + b)
 				}
 			}
 			ReleaseIsolation(h, log)

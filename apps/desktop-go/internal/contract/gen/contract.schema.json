@@ -787,6 +787,13 @@
        },
        "content": {
         "type": "string"
+       },
+       "phase": {
+        "type": "string",
+        "enum": [
+         "start",
+         "end"
+        ]
        }
       },
       "required": [
@@ -1088,6 +1095,13 @@
        },
        "content": {
         "type": "string"
+       },
+       "phase": {
+        "type": "string",
+        "enum": [
+         "start",
+         "end"
+        ]
        }
       },
       "required": [
@@ -1625,6 +1639,13 @@
        },
        "content": {
         "type": "string"
+       },
+       "phase": {
+        "type": "string",
+        "enum": [
+         "start",
+         "end"
+        ]
        }
       },
       "required": [
@@ -9617,6 +9638,109 @@
     "additionalProperties": {}
    }
   },
+  "ext.mcpAuthorize": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "off",
+       "connecting",
+       "authorization-required",
+       "connected",
+       "error"
+      ]
+     },
+     "auth": {
+      "type": "string",
+      "enum": [
+       "required",
+       "pending",
+       "authorized"
+      ]
+     },
+     "hasAuthorization": {
+      "type": "boolean"
+     },
+     "error": {
+      "type": "string"
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "readOnly": {
+         "type": "boolean"
+        },
+        "dangerous": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "description",
+        "readOnly",
+        "dangerous"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "at": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "status",
+     "tools"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "ext.mcpClearAuthorization": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "ext.mcpConnect": {
    "kind": "mutation",
    "dangerous": true,
@@ -9642,9 +9766,21 @@
       "enum": [
        "off",
        "connecting",
+       "authorization-required",
        "connected",
        "error"
       ]
+     },
+     "auth": {
+      "type": "string",
+      "enum": [
+       "required",
+       "pending",
+       "authorized"
+      ]
+     },
+     "hasAuthorization": {
+      "type": "boolean"
      },
      "error": {
       "type": "string"
@@ -9773,6 +9909,10 @@
         "type": "string"
        }
       },
+      "oauthClientId": {
+       "type": "string",
+       "maxLength": 512
+      },
       "enabled": {
        "type": "boolean"
       },
@@ -9856,6 +9996,10 @@
           "type": "string"
          }
         },
+        "oauthClientId": {
+         "type": "string",
+         "maxLength": 512
+        },
         "enabled": {
          "type": "boolean"
         },
@@ -9872,9 +10016,21 @@
          "enum": [
           "off",
           "connecting",
+          "authorization-required",
           "connected",
           "error"
          ]
+        },
+        "auth": {
+         "type": "string",
+         "enum": [
+          "required",
+          "pending",
+          "authorized"
+         ]
+        },
+        "hasAuthorization": {
+         "type": "boolean"
         },
         "error": {
          "type": "string"
@@ -9938,6 +10094,7 @@
          "enum": [
           "off",
           "connecting",
+          "authorization-required",
           "connected",
           "error"
          ]
@@ -10114,6 +10271,10 @@
        "type": "string"
       }
      },
+     "oauthClientId": {
+      "type": "string",
+      "maxLength": 512
+     },
      "enabled": {
       "type": "boolean"
      },
@@ -10175,6 +10336,10 @@
       "additionalProperties": {
        "type": "string"
       }
+     },
+     "oauthClientId": {
+      "type": "string",
+      "maxLength": 512
      },
      "enabled": {
       "type": "boolean"

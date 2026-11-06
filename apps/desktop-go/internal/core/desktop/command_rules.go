@@ -22,10 +22,9 @@ var (
 	// 出现就不是简单命令：串联、管道、重定向、命令替换、变量展开、通配、后台、换行
 	unsafeShell = regexp.MustCompile("[;&|<>`$*?(){}\\[\\]!\\\\\\n\\r]")
 	// 开头的 `cd 子目录 && `：只认工作区里的相对路径（不以 / 或 ~ 开头，不含 ..）
-	leadingCd  = regexp.MustCompile(`^cd\s+([A-Za-z0-9._\-/]+)\s*&&\s*`)
-	ruleWord   = regexp.MustCompile(`^[a-z][a-z0-9:_\-]*$`)
-	programRE  = regexp.MustCompile(`^[a-z][a-z0-9._\-+]*$`)
-	ruleQuoted = regexp.MustCompile(`"[^"]*"|'[^']*'`)
+	leadingCd = regexp.MustCompile(`^cd\s+([A-Za-z0-9._\-/]+)\s*&&\s*`)
+	ruleWord  = regexp.MustCompile(`^[a-z][a-z0-9:_\-]*$`)
+	programRE = regexp.MustCompile(`^[a-z][a-z0-9._\-+]*$`)
 )
 
 // 能记成规则的「程序 → 子命令」：只放行已知是测试 / 构建 / 检查 / 只读查询的组合（白名单式，没列的都不认）。
@@ -54,6 +53,31 @@ var ruleProgramsAlone = []string{"tsc", "eslint", "prettier", "vitest", "jest", 
 // 写到任意位置（--output / -o 绝对路径）、换外部程序（-O / --open-files-in-pager / --ext-diff / --config / -c）
 var unsafeRuleArgs = regexp.MustCompile(`^(-exec|--exec|-toolexec|--toolexec|-vettool|--vettool|-overlay|--output|--output-directory|-O|--open-files-in-pager|--ext-diff|--textconv|--config|-c|--upload-pack|--receive-pack)(=.*)?$|^-O.+|^--output=|^-o$`)
 
+// 危险长选项：git 等用 parse-options 的程序接受唯一前缀缩写（`--outp=x` 即 `--output=x`），
+// 所以 `--` 开头、名字是其中任一个前缀的参数也不放行（宁可多拦）
+var unsafeLongOptions = []string{"--exec", "--toolexec", "--vettool", "--output", "--output-directory",
+	"--open-files-in-pager", "--ext-diff", "--textconv", "--config", "--upload-pack", "--receive-pack"}
+
+// unsafeRuleArg：参数（已按 shell 规则去掉引号）是危险参数
+func unsafeRuleArg(a string) bool {
+	if unsafeRuleArgs.MatchString(a) {
+		return true
+	}
+	if !strings.HasPrefix(a, "--") {
+		return false
+	}
+	name, _, _ := strings.Cut(a, "=")
+	if len(name) < 3 {
+		return false // 单独的 `--`：参数结束标记
+	}
+	for _, o := range unsafeLongOptions {
+		if strings.HasPrefix(o, name) {
+			return true
+		}
+	}
+	return false
+}
+
 // 跑 package.json 脚本的子命令：规则带上脚本名
 var scriptRunners = map[string][]string{"npm": {"run", "run-script"}, "pnpm": {"run"}, "yarn": {"run"}, "bun": {"run"}, "turbo": {"run"}}
 
@@ -70,12 +94,46 @@ func commandWords(cmd string) ([]string, bool) {
 	if c == "" || unsafeShell.MatchString(c) {
 		return nil, false
 	}
-	// 引号里的参数可以有空格，但引号不能出现在程序名与子命令里（下面按词比对）
-	plain := ruleQuoted.ReplaceAllString(c, "x")
-	if strings.ContainsAny(plain, `"'`) {
+	return shellWords(c)
+}
+
+// shellWords：按 shell 实际交给程序的 argv 切词。unsafeShell 已经排除了 `$`、反引号、反斜杠、通配等
+// 所有展开与转义，剩下的语法只有单 / 双引号：引号段与相邻的普通段拼成同一个词、去掉引号——
+// 与 sh -c 的结果一致（`"-exec=x"`、`'-'exec=x`、`--out"put"=x` 都还原成程序看到的参数）。
+// 引号不配对时 ok=false。Windows 上程序自己按同样的规则去引号，危险参数检查看到的也是去引号后的值。
+func shellWords(c string) ([]string, bool) {
+	var words []string
+	var cur strings.Builder
+	inWord := false
+	var quote rune
+	for _, r := range c {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				cur.WriteRune(r)
+			}
+		case r == '"' || r == '\'':
+			quote, inWord = r, true
+		case r == ' ' || r == '\t':
+			if inWord {
+				words = append(words, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		default:
+			cur.WriteRune(r)
+			inWord = true
+		}
+	}
+	if quote != 0 {
 		return nil, false
 	}
-	return strings.Fields(c), true
+	if inWord {
+		words = append(words, cur.String())
+	}
+	return words, true
 }
 
 // CommandRuleOf：这条命令能记成的白名单前缀；不在允许的程序 / 子命令里、带危险参数、不是简单命令、
@@ -85,11 +143,12 @@ func CommandRuleOf(cmd string) (string, bool) {
 	if !ok || len(w) == 0 {
 		return "", false
 	}
-	if cls := ClassifyCommand(cmd); cls != "" {
+	// 原文与去引号后的命令都过一遍确定性分类：引号不能挡住凭据路径 / 对外操作的识别
+	if ClassifyCommand(cmd) != "" || ClassifyCommand(strings.Join(w, " ")) != "" {
 		return "", false
 	}
 	for _, a := range w[1:] {
-		if unsafeRuleArgs.MatchString(a) {
+		if unsafeRuleArg(a) {
 			return "", false
 		}
 	}

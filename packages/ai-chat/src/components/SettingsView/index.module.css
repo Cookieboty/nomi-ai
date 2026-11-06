@@ -54,13 +54,14 @@
   min-width: 0;
 }
 .brandName {
-  font-size: var(--cd-font-size-lg);
+  font-size: var(--cd-font-size-xl);
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
-  line-height: 1.25;
+  line-height: var(--cd-line-height-lg);
 }
 .brandSub {
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-md);
   color: var(--cd-color-text-muted);
 }
 /* 分组之间只用一条细线隔开（不加组标题）；第一组紧跟「返回对话」 */
@@ -311,6 +312,14 @@
   background-size: cover;
   background-position: center;
 }
+/* 预览只裁剪背景与蒙版；卡片和外侧选中角标不参与背景模糊。 */
+.themeImageLayers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
 .themeImagePlaceholder {
   display: grid;
   place-items: center;
@@ -318,6 +327,7 @@
   color: var(--cd-color-text-muted);
 }
 .themeCard {
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -342,6 +352,7 @@
 }
 /* 选中角标 */
 .themeCheck {
+  z-index: 2;
   position: absolute;
   top: -6px;
   right: -6px;

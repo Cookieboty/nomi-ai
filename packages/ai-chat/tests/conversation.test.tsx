@@ -124,7 +124,7 @@ describe('CliConversation 历史消息', () => {
     expect(read.querySelector('[data-testid="tool-output"]')?.textContent).toBe('const a = 1;');
   });
 
-  it('命令行展开显示命令与输出；编辑默认展开 diff（增删着色 + 统计）', () => {
+  it('命令行展开显示命令与输出；编辑默认收起，展开后显示 diff（增删着色 + 统计）', () => {
     const { container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
     );
@@ -135,6 +135,9 @@ describe('CliConversation 历史消息', () => {
     expect(cmd.querySelector('[data-testid="tool-output"]')?.textContent).toBe('PASS a.test.ts');
 
     const edit = container.querySelector<HTMLElement>('[data-kind="edit"]')!;
+    expect(edit.getAttribute('data-open')).toBe('false');
+    expect(edit.querySelectorAll('[data-type]')).toHaveLength(0);
+    fireEvent.click(edit.querySelector('button')!);
     expect(edit.getAttribute('data-open')).toBe('true');
     const lines = edit.querySelectorAll('[data-type]');
     const types = [...lines].map((l) => l.getAttribute('data-type'));

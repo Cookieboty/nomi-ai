@@ -203,7 +203,9 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 			if id == "" {
 				return ""
 			}
-			del := util.NewObj("goal", runeSlice(t.Goal, 200), "taskId", t.ID, "permissionMode", mode)
+			// 带上挑选时的拥有者：并发的另一个任务先领走了这个标签时，RebindDelegation 拒绝，这里改为新建
+			del := util.NewObj("goal", runeSlice(t.Goal, 200), "taskId", t.ID, "permissionMode", mode,
+				delegate.ExpectTaskIDKey, delegate.ReuseOwner(tabs, id))
 			if t.Executor.CallID != nil && *t.Executor.CallID != "" {
 				del.Set("callId", *t.Executor.CallID)
 			}

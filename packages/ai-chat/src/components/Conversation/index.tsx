@@ -6,8 +6,21 @@
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { ArrowDown, ArrowLeftRight, ChevronsUp, Layers, X } from 'lucide-react';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react';
 
+import {
+  getConversationFontSize,
+  subscribeConversationFontSize,
+} from '../../services/conversationFontSize';
 import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
@@ -327,6 +340,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   backgroundCount,
   onStopAgent,
 }) => {
+  const fontSize = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
   const scrollRef = useRef<HTMLDivElement>(null);
   const agentMap = useMemo(() => agentsByCall(live?.agents), [live?.agents]);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
@@ -366,10 +380,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     () => (liveTrace?.length ? buildTimeline(reduceTraceCached(liveTrace), running) : []),
     [liveTrace, running],
   );
-  const status = useMemo(
-    () => deriveStatus({ phase, live, items: liveItems }),
-    [phase, live, liveItems],
-  );
+  const status = deriveStatus({ phase, live, items: liveItems });
 
   // 分批往上补消息时不读 scrollHeight / 不改 scrollTop：每批都强制整列重排，切会话时是主要开销之一。
   // 内容已经超出一屏时，浏览器的滚动锚定（overflow-anchor）会让视口里的内容保持不动；
@@ -464,7 +475,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 
   return (
     <AgentsByCallContext.Provider value={agentMap}>
-      <div className={styles.root} data-testid="conversation" data-status={phase}>
+      <div
+        className={styles.root}
+        data-testid="conversation"
+        data-status={phase}
+        style={
+          { '--conv-text': `${fontSize}px`, '--conv-leading': `${fontSize + 8}px` } as CSSProperties
+        }
+      >
         <div
           className={styles.scroll}
           ref={scrollRef}

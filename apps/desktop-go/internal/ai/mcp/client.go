@@ -70,6 +70,7 @@ type TransportConfig struct {
 	Type    string // http | sse
 	URL     string
 	Headers [][2]string
+	Fetch   FetchFunc
 }
 
 // ClientConfig = MCPClientConfig 子集（bridge 用到的 + 测试钩子）
@@ -163,9 +164,17 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 func createTransport(cfg TransportConfig, ua string) (Transport, error) {
 	switch cfg.Type {
 	case "sse":
-		return NewSSETransport(cfg.URL, cfg.Headers, ua)
+		t, err := NewSSETransport(cfg.URL, cfg.Headers, ua)
+		if t != nil {
+			t.fetch = cfg.Fetch
+		}
+		return t, err
 	case "http":
-		return NewHTTPTransport(cfg.URL, cfg.Headers, LatestProtocolVersion, ua)
+		t, err := NewHTTPTransport(cfg.URL, cfg.Headers, LatestProtocolVersion, ua)
+		if t != nil {
+			t.fetch = cfg.Fetch
+		}
+		return t, err
 	}
 	return nil, newClientError("Unsupported or invalid transport configuration. If you are using a custom transport, make sure it implements the MCPTransport interface.")
 }

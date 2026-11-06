@@ -88,7 +88,9 @@ var httpClient = &http.Client{
 	CheckRedirect: func(*http.Request, []*http.Request) error { return errRedirect }, // redirect: 'error'
 }
 
-// doFetch：等价于 undici 的 globalThis.fetch
+type FetchFunc func(*http.Request) (*http.Response, error)
+
+// doFetch：HTTP 获取器；保留 MCP OAuth 注入接口。
 func doFetch(signal Signal, method, href string, headers [][2]string, body *string) (*fetchResponse, error) {
 	return doFetchDispatched(signal, method, href, headers, body, nil)
 }
@@ -96,6 +98,10 @@ func doFetch(signal Signal, method, href string, headers [][2]string, body *stri
 // doFetchDispatched：dispatched 在请求已写上连接（或失败）时调用——等价于 fetch() 同步发起：
 // "发起即在途"，fire-and-forget 的 GET 先于随后同步发起的 POST 到达服务端。
 func doFetchDispatched(signal Signal, method, href string, headers [][2]string, body *string, dispatched func()) (*fetchResponse, error) {
+	return doFetchWith(nil, signal, method, href, headers, body, dispatched)
+}
+
+func doFetchWith(fetch FetchFunc, signal Signal, method, href string, headers [][2]string, body *string, dispatched func()) (*fetchResponse, error) {
 	if dispatched != nil {
 		defer dispatched()
 	}
@@ -130,7 +136,10 @@ func doFetchDispatched(signal Signal, method, href string, headers [][2]string, 
 		delete(req.Header, "user-agent")
 		req.Header["User-Agent"] = v
 	}
-	resp, err := httpClient.Do(req)
+	if fetch == nil {
+		fetch = httpClient.Do
+	}
+	resp, err := fetch(req)
 	if err != nil {
 		if aborted(signal) {
 			return nil, reason(signal)

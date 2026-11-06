@@ -1063,8 +1063,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		reuseKey = ReuseKey(c.ec.ConversationID, cli, sourceCwd, kind, util.Str(ov.Get("model")), util.Str(ov.Get("reasoningEffort")))
 	}
 	tabID := ""
-	if id := s.reusableTab(reuseKey); id != "" {
+	if id, owner := s.reusableTab(reuseKey); id != "" {
 		rb := del.Clone()
+		rb.Set(ExpectTaskIDKey, owner)
 		if pm, ok := opts.Get("permissionMode").(string); ok {
 			rb.Set("permissionMode", pm)
 		}
@@ -1285,12 +1286,14 @@ func (s *Service) taskBusy(taskID string) bool {
 }
 
 // reusableTab：能接着用的同一种委派标签（没有返回空）
-func (s *Service) reusableTab(key string) string {
+// reusableTab：能接着用的委派标签与挑选时它的拥有者（taskId）
+func (s *Service) reusableTab(key string) (string, string) {
 	if key == "" {
-		return ""
+		return "", ""
 	}
 	tabs, _ := s.d.Harness.ListTabs().Get("tabs").([]any)
-	return FindReusableTab(tabs, key, s.d.Now(), s.taskBusy)
+	id := FindReusableTab(tabs, key, s.d.Now(), s.taskBusy)
+	return id, ReuseOwner(tabs, id)
 }
 
 var (

@@ -265,7 +265,7 @@
   box-shadow: none;
 }
 .messageTextarea {
-  font-size: var(--cd-font-size-md);
+  font-size: 14px;
   /* 与 COMPOSER_MAX_HEIGHT_PX 一致：到顶后内部滚动 */
   max-height: 200px;
 }

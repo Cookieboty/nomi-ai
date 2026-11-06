@@ -27,3 +27,37 @@ export function shouldIgnoreEscape(
 export function isImeComposing(e: { isComposing?: boolean; keyCode?: number }): boolean {
   return e.isComposing === true || e.keyCode === 229;
 }
+
+/** Home/End 定位当前逻辑行；Shift 扩展选区，Ctrl/Meta 定位全文首尾。 */
+export function moveTextareaToLineBoundary(
+  el: HTMLTextAreaElement,
+  key: 'Home' | 'End',
+  extend: boolean,
+  documentBoundary: boolean,
+): void {
+  const { value, selectionStart: start, selectionEnd: end, selectionDirection: direction } = el;
+  const backward = direction === 'backward';
+  const anchor = backward ? end : start;
+  const focus = extend ? (backward ? start : end) : key === 'Home' ? start : end;
+  const nextBreak = value.indexOf('\n', focus);
+  const target = documentBoundary
+    ? key === 'Home'
+      ? 0
+      : value.length
+    : key === 'Home'
+      ? focus === 0
+        ? 0
+        : value.lastIndexOf('\n', focus - 1) + 1
+      : nextBreak < 0
+        ? value.length
+        : nextBreak;
+  if (extend) {
+    el.setSelectionRange(
+      Math.min(anchor, target),
+      Math.max(anchor, target),
+      target < anchor ? 'backward' : 'forward',
+    );
+  } else {
+    el.setSelectionRange(target, target);
+  }
+}

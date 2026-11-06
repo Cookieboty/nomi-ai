@@ -5,7 +5,7 @@ import { plainError } from './hostBackends/knowledge';
 /** 扩展客户端：MCP 服务器 + 技能包——契约 `ext.*`（docs/development/architecture.md，原 `ai:ext:*`） */
 export type Transport = 'stdio' | 'http' | 'sse';
 export type Trust = 'ask' | 'read-auto' | 'auto';
-export type McpStatus = 'off' | 'connecting' | 'connected' | 'error';
+export type McpStatus = 'off' | 'connecting' | 'authorization-required' | 'connected' | 'error';
 
 export interface McpTool {
   name: string;
@@ -22,10 +22,14 @@ export interface McpServer {
   url?: string;
   env?: Record<string, string>;
   headers?: Record<string, string>;
+  /** 可选的 OAuth 客户端 ID；留空时尝试动态注册。 */
+  oauthClientId?: string;
   enabled: boolean;
   trust: Trust;
   origin: 'user' | 'env';
   status: McpStatus;
+  auth?: 'required' | 'pending' | 'authorized';
+  hasAuthorization?: boolean;
   error?: string;
   tools: McpTool[];
 }
@@ -84,6 +88,7 @@ export interface MigrateMcpItem extends MigrateBase {
     url?: string;
     env?: Record<string, string>;
     headers?: Record<string, string>;
+    oauthClientId?: string;
   };
 }
 export interface MigrateSkillItem extends MigrateBase {
@@ -117,6 +122,7 @@ export const STATUS_LABEL: Record<McpStatus, string> = {
   off: 'ui.chat-settings.not-connected',
   connecting: 'ui.foundation.connecting',
   connected: 'ui.chat-settings.connected',
+  'authorization-required': 'ui.foundation.mcp-authorization-required',
   error: 'ui.chat-settings.connection-failed',
 };
 
@@ -133,9 +139,15 @@ export const extClient = {
   available: () => hasTransport(),
   mcpList: () => call<McpList>(() => api.ext.mcpList()),
   mcpUpsert: (s: Partial<McpServer>) => call<McpServer>(() => api.ext.mcpUpsert(s)),
-  mcpRemove: (id: string) => call<boolean>(() => api.ext.mcpRemove({ id })),
+  mcpRemove: async (id: string) => {
+    const removed = await call<boolean>(() => api.ext.mcpRemove({ id }));
+    if (!removed) throw new Error(t('ui.foundation.mcp-authorization-remove-failed'));
+    return true;
+  },
   mcpToggle: (id: string, v: boolean) => call<boolean>(() => api.ext.mcpToggle({ id, enabled: v })),
   mcpConnect: (id: string) => call(() => api.ext.mcpConnect({ id })),
+  mcpAuthorize: (id: string) => call(() => api.ext.mcpAuthorize({ id })),
+  mcpClearAuthorization: (id: string) => call<boolean>(() => api.ext.mcpClearAuthorization({ id })),
   mcpDisconnect: (id: string) => call(() => api.ext.mcpDisconnect({ id })),
   mcpImport: (text: string) => call<McpServer[]>(() => api.ext.mcpImport({ text })),
   skills: () => call<SkillInfo[]>(() => api.ext.skillsList()),

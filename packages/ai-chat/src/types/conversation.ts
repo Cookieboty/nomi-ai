@@ -39,6 +39,8 @@ export interface ConvMessage {
 /** 运行中的一轮（尚未落盘成消息） */
 export interface ConvLive {
   text: string;
+  /** 独立的思考阶段状态；undefined 表示旧来源由轨迹推断。 */
+  thinking?: boolean;
   trace?: HarnessTraceEvent[];
   /** 正文分段起点 */
   textBreaks?: number[];

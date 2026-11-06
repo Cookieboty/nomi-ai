@@ -22,17 +22,18 @@ func SetTranslator(t i18n.Translate) {
 
 // McpServerEntry：字段顺序固定（sanitizeServer 的字面量顺序 + 后续赋值顺序）
 type McpServerEntry struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	Transport string            `json:"transport"`
-	Enabled   bool              `json:"enabled"`
-	Trust     string            `json:"trust"`
-	Origin    string            `json:"origin"`
-	Command   string            `json:"command,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	URL       string            `json:"url,omitempty"`
-	Headers   map[string]string `json:"headers,omitempty"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Transport     string            `json:"transport"`
+	Enabled       bool              `json:"enabled"`
+	Trust         string            `json:"trust"`
+	Origin        string            `json:"origin"`
+	Command       string            `json:"command,omitempty"`
+	Args          []string          `json:"args,omitempty"`
+	Env           map[string]string `json:"env,omitempty"`
+	URL           string            `json:"url,omitempty"`
+	Headers       map[string]string `json:"headers,omitempty"`
+	OAuthClientID string            `json:"oauthClientId,omitempty"`
 }
 
 var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
@@ -159,6 +160,7 @@ func SanitizeServer(raw any, taken map[string]bool) (McpServerEntry, error) {
 		}
 		e.URL = u.String()
 		e.Headers = strMap(o["headers"])
+		e.OAuthClientID = deps.TrimSlice(strOAuth(o["oauthClientId"]), 512)
 	}
 	return e, nil
 }

@@ -67,6 +67,7 @@ afterEach(async () => {
 
 describe('chatBackground', () => {
   it('state only carries image / blur / opacity', () => {
+    expect(DEFAULT_CHAT_BG).toEqual({ imageUrl: null, blur: 0, opacity: 0.5 });
     expect(Object.keys(DEFAULT_CHAT_BG).sort()).toEqual(['blur', 'imageUrl', 'opacity']);
     expect(sanitizeChatBg({ mode: 'solid', solidColor: '#123456', blurCenter: 3 })).toEqual(
       DEFAULT_CHAT_BG,
@@ -92,9 +93,14 @@ describe('chatBackground', () => {
     expect(JSON.parse(localStorage.getItem('cd.chatBackground')!)).toEqual(getChatBackground());
   });
 
-  it('chatBgStyle only exposes image and opacity', () => {
+  it('chatBgStyle exposes image and mask parameters without changing image geometry', () => {
     const style = chatBgStyle({ imageUrl: 'chat-asset://images/a.png', blur: 5, opacity: 0.3 });
-    expect(Object.keys(style).sort()).toEqual(['--cd-chat-bg-image', '--cd-chat-bg-opacity']);
+    expect(Object.keys(style).sort()).toEqual([
+      '--cd-chat-bg-blur',
+      '--cd-chat-bg-image',
+      '--cd-chat-bg-opacity',
+    ]);
+    expect(style).toMatchObject({ '--cd-chat-bg-blur': '5px', '--cd-chat-bg-opacity': '0.3' });
   });
 
   it('settings UI only exposes global blur and opacity sliders', async () => {
@@ -102,12 +108,13 @@ describe('chatBackground', () => {
     expect(view.queryByTestId('chat-bg-pick')).toBeNull();
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getAllByRole('slider')).toHaveLength(2));
+    expect(view.getByRole('slider', { name: '蒙版不透明度' })).toBeTruthy();
     fireEvent.change(view.getByTestId('chat-bg-blur'), { target: { value: '12' } });
     fireEvent.change(view.getByTestId('chat-bg-opacity'), { target: { value: '42' } });
     await waitFor(() => expect(getChatBackground()).toMatchObject({ blur: 12, opacity: 0.42 }));
   });
 
-  it('background layer lives under body and sets one global blur variable', async () => {
+  it('background layer lives under body and scopes mask parameters to its layers', async () => {
     const view = render(<ChatBackgroundLayer />);
     expect(document.documentElement.dataset.chatBg).toBeUndefined();
     act(() => applyTheme('image'));
@@ -116,9 +123,10 @@ describe('chatBackground', () => {
     );
     const root = document.documentElement;
     expect(root.dataset.chatBg).toBe('image');
-    expect(root.style.getPropertyValue('--cd-chat-bg-blur')).toBe('9px');
+    expect(root.style.getPropertyValue('--cd-chat-bg-blur')).toBe('');
     const layer = screen.getByTestId('chat-bg-layer');
     expect(layer.parentElement).toBe(document.body);
+    expect(layer.style.getPropertyValue('--cd-chat-bg-blur')).toBe('9px');
     expect(layer.style.getPropertyValue('--cd-chat-bg-opacity')).toBe('0.42');
     expect(layer.style.getPropertyValue('--cd-chat-bg-image')).toContain('images/a.png');
     expect(Array.from(layer.children)).toEqual([
@@ -144,6 +152,53 @@ describe('chatBackground', () => {
     expect(
       screen.getByTestId('chat-bg-layer').style.getPropertyValue('--cd-chat-bg-image'),
     ).toContain(imageUrl);
+  });
+
+  it('zero blur and opacity updates reach the mask without replacing or resizing the image', async () => {
+    act(() => applyTheme('image'));
+    const view = render(<ChatBackgroundLayer />);
+    const image = view.getByTestId('chat-bg-image');
+    const mask = view.getByTestId('chat-bg-mask');
+    await act(() => setChatBackground({ blur: 40, opacity: 0.05 }));
+    const layer = view.getByTestId('chat-bg-layer');
+    const imageUrl = layer.style.getPropertyValue('--cd-chat-bg-image');
+    expect(layer.style.getPropertyValue('--cd-chat-bg-blur')).toBe('40px');
+    await act(() => setChatBackground({ blur: 0, opacity: 1 }));
+    expect(layer.style.getPropertyValue('--cd-chat-bg-blur')).toBe('0px');
+    expect(layer.style.getPropertyValue('--cd-chat-bg-opacity')).toBe('1');
+    expect(layer.style.getPropertyValue('--cd-chat-bg-image')).toBe(imageUrl);
+    expect(view.getByTestId('chat-bg-image')).toBe(image);
+    expect(view.getByTestId('chat-bg-mask')).toBe(mask);
+    expect(image.getAttribute('style')).toBeNull();
+    act(() => applyTheme('cream'));
+    expect(view.queryByTestId('chat-bg-layer')).toBeNull();
+    act(() => applyTheme('image'));
+    expect(view.getByTestId('chat-bg-layer').style.getPropertyValue('--cd-chat-bg-blur')).toBe(
+      '0px',
+    );
+  });
+
+  it('theme preview uses the same mask parameters and restores persisted slider values', async () => {
+    await setChatBackground({ blur: 13, opacity: 0.57 });
+    const saved = getChatBackground();
+    await setChatBackground({ blur: 0, opacity: 1 });
+    localStorage.setItem('cd.chatBackground', JSON.stringify(saved));
+    const unsubscribe = initChatBackground();
+    const view = render(<ThemeSettings />);
+    const preview = view.getByTestId('theme-bg-preview');
+    expect(preview.style.getPropertyValue('--cd-chat-bg-blur')).toBe('13px');
+    expect(preview.style.getPropertyValue('--cd-chat-bg-opacity')).toBe('0.57');
+    expect(view.getByTestId('theme-bg-image').className).toBe('chat-bg-image');
+    expect(view.getByTestId('theme-bg-mask').className).toBe('chat-bg-mask');
+    fireEvent.click(view.getByTestId('theme-image'));
+    await waitFor(() => expect(view.getByTestId('chat-bg-blur')).toHaveProperty('value', '13'));
+    fireEvent.change(view.getByTestId('chat-bg-blur'), { target: { value: '0' } });
+    fireEvent.change(view.getByTestId('chat-bg-opacity'), { target: { value: '85' } });
+    await waitFor(() => {
+      expect(preview.style.getPropertyValue('--cd-chat-bg-blur')).toBe('0px');
+      expect(preview.style.getPropertyValue('--cd-chat-bg-opacity')).toBe('0.85');
+    });
+    unsubscribe();
   });
 
   it('falls back to the preset when the current image fails to load', async () => {
@@ -260,8 +315,8 @@ describe('chatBackground', () => {
     ).toContain('custom.png');
     fireEvent.click(view.getByTestId('chat-bg-reset'));
     await waitFor(() => expect(getChatBackground()).toEqual(PRESET));
-    expect(view.getByTestId('chat-bg-blur')).toHaveProperty('value', '8');
-    expect(view.getByTestId('chat-bg-opacity')).toHaveProperty('value', '40');
+    expect(view.getByTestId('chat-bg-blur')).toHaveProperty('value', '0');
+    expect(view.getByTestId('chat-bg-opacity')).toHaveProperty('value', '50');
     unsubscribe();
   });
 

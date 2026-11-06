@@ -111,3 +111,12 @@ describe('chunkToTrace (Nomi tool calls use the same trace model)', () => {
     expect(buildTimeline(reduceTrace(real)).map((i) => i.type)).toEqual(['thinking']);
   });
 });
+
+it('preserves an empty reasoning start timestamp but never treats end as new thinking', () => {
+  expect(chunkToTrace({ type: 'reasoning', content: '', phase: 'start' }, 42)).toEqual({
+    type: 'thinking',
+    text: '',
+    at: 42,
+  });
+  expect(chunkToTrace({ type: 'reasoning', content: '', phase: 'end' }, 43)).toBeNull();
+});

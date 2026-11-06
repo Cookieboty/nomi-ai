@@ -1,216 +1,106 @@
 # Rive Nomi production scene
 
-The production Rive scene uses only the supplied full-body mother at
-`rive/nomi-complete/source-nomi-master.png`. The mother is embedded byte-for-byte
-in `reference/svg-rig/nomi-fullbody-mother.svg`; Rive CLI bundles that SVG as
-the source asset while the runtime draws the same pixels. The `Nomi-full`
-artboard and its root/torso/head/upper-arm/forearm/hand bones share one 960×1300
-coordinate system, so fit and zoom scale the complete hierarchy.
+`rive/nomi-complete` is the Rive CLI project behind the official character's
+`characters/nomi/rive/character.riv`. Everything in it is derived from the supplied
+full-body mother `rive/nomi-complete/source-nomi-master.png` (wrapped byte-for-byte in
+`reference/svg-rig/nomi-fullbody-mother.svg`; both are embedded in the `.riv` as the
+source lock checked by `packages/avatar-runtime/tests/rive.test.ts`).
 
-## Build and verify
+## App contract
 
-```powershell
-& "$env:USERPROFILE/.rive/bin/rive.exe" doctor
-& "$env:USERPROFILE/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" scripts/rive-complete/build-fullbody-svg-rig.py
-Push-Location rive/nomi-complete
-& "$env:USERPROFILE/.rive/bin/rive.exe" . --verify
-& "$env:USERPROFILE/.rive/bin/rive.exe" . --once
-Pop-Location
-& "$env:USERPROFILE/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" scripts/rive-complete/brand-check.py
+| What          | Value                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------- |
+| Artboard      | `Nomi-full`, 960×1300; the 1024×1536 mother is drawn at 1300/1536, offset x 46.67                        |
+| State machine | `NomiFull`, layers `full.idle`, `full.autoblink`, `Actions`, `full.mouth`                                |
+| View model    | `MascotFull`: one trigger per action, plus `viseme` / `mouthOpen` numbers and the viseme / talk triggers |
+
+The view model, artboard header and state machine live in
+`tools/rebuild/contract.xml` and are copied verbatim; animations keep their ids
+(`tools/rebuild/anims-meta.json`), so the state machine needs no edits.
+
+## Pipeline
+
+```bash
+rive/nomi-complete/tools/rebuild/build.sh   # needs uv and the Rive CLI
 ```
 
-The resulting `rive/nomi-complete/build/nomi-complete.riv` is copied to
-`characters/nomi/rive/character.riv` (the official character pack) by the release
-workflow.
+1. **Rest art** – `reference/svg-layered/mother-v2.png` is the mother with the body alpha
+   normalised: the AI cut-out left 240–254 alpha noise inside the body, so `a ≥ 240 → 255`,
+   `200 < a < 240` ramps to 255, `a ≤ 200` is unchanged. This is the image the rest pose
+   must reproduce. (`tools/rebuild/owner.npz` records which old rig crop owned each mother pixel; segmentation starts from it.)
+2. **Segmentation** (`segment.py`, geometry in `geometry.py`) – every mother pixel gets exactly
+   one part. Clean old crops (eyes, brows, nose, lips, fingers, cuffs, belt, badge, pouch, shoes,
+   socks, thigh strap, hem ribbons, hair clip / bow / ornament) are kept; everything else is
+   re-split by colour class and body geometry into face, hair-front / hair-side-{l,r}, neck,
+   chest, arm-{l,r}-skin, leg-{l,r}, tank, shorts, choker, sleeve-{l,r}, coat-front-{l,r},
+   coat-collar-{l,r}, then a watershed grows line art and anti-aliasing into the neighbours.
+3. **Painted backfill** (`paint.py`) – each part is completed to its full shape (whole torso
+   under the tank and shorts, whole arms under the sleeves, thighs under the shorts, the face
+   under bangs / eyes / side hair cut at the jaw line, a full back-hair mass, tank and shorts
+   under the belt and coat). Colours are spread from the part's own pixels (normalised Gaussian
+   convolution); skin and hair get a soft edge shade and a line-art outline. Backfill is kept
+   only under a fully opaque part drawn above it, so the rest pose is unchanged. Blush is
+   painted (`head-cheek-*`). Output: `rig/parts.json` + `rig/layers/*.png`.
+4. **Sleeves and eyes** – `split_sleeves.py` cuts each sleeve at the elbow bisector into a rigid upper
+   and forearm piece (16 px opaque overlap under the forearm piece), so a bent elbow rotates the cloth
+   instead of smearing it; the jacket's collar band is split along the arm line too
+   (outside rides the upper arm as the top of the sleeve, inside stays with the chest). Sleeves turn with the
+   arm but take only half of its foreshortening, and a raised forearm flips its sleeve along the arm so the
+   puff falls to the elbow as cloth would. Arm targets stay near the body plane (depth x0.35): the drawing
+   has no foreshortened sleeve. `eyes.py` cuts the closed eye from `reference/sheets/nomi-sheet-parts.png`
+   (image-right eye, mirrored for the left) and places it on each eye; blinks and closed-eye
+   expressions swap to it instead of squashing the open eye. Hands always use the mother's own hand: `hand_rig.py` re-cuts each hand by
+   traced anatomy (back of the hand; index reaching down, thumb pressing the middle, middle / ring / little
+   curled behind it) into palm, thumb and index in three phalanges each, and one piece per curled finger, with
+   joints fitted to the drawing (`hand-joints.json`). Finger bones are 2D children of the hand bone (the hand
+   is never squashed); curls stay small so the drawing reads unchanged. The drawn hands' edge ring is opaque and mixed
+   with the ribbon / shorts behind them, so each piece also has a `-clean` copy (edge pixels classified as
+   skin / line art vs. background, background dropped, 1 px antialias) that actions show whenever the arm moves.
+   Bangs are one layer down to the strand tips (no cut across the forehead), skinned to five two-bone strand
+   chains that sway on the idle layer; all head parts sit at nearly one depth so nods and turns never open seams.
+   Fist gestures (wave, cheer, fist pump, fist, thumbs-up) swap the whole hand for `hand-<side>-fist`: the back
+   of the drawn hand down to the knuckles, the index / thumb gap filled with the hand's own skin, a rounded
+   outlined knuckle edge. Elbow direction is automatic (down first, out second; forward when the hand comes up
+   to the face, slightly back when it stays low) instead of a per-action pole. Loose sleeve specks stay on the body; the upper sleeve keeps an elbow cap under the forearm piece.
+5. **2.5D rig** (`rig3d.py`, bindings in `bindings.py`, scene in `gen.py`) – a 3D skeleton (x right, y down,
+   z toward the viewer) with depth per joint and per head / chest part. A pose (3D wrist targets solved by
+   two-bone IK, head / spine / pelvis angles, leg angles, finger curl) is projected to the Rive bones:
+   limb and finger bones follow their projected segment (rotation + scaleX, so a forearm reaching toward
+   the viewer foreshortens), head and torso parts follow the projected frame at their depth anchor, so a
+   head turn shifts near parts more than far ones. Bones are siblings (no 2D chain), tendons store each
+   bone's rest frame, meshes are grids over each part with weights that only blend right at a joint.
+   Each arm is one node with draw rules so a hand can come in front of the face.
+   Animations (`anim2.py`) are written as such poses; idle (breathing, hair / coat / ribbon / badge /
+   pouch sway) and blink live on child bones only those layers key, and `rest` keys every channel any
+   action uses, so a blend back to rest restores everything.
+6. **Checks** – `rive . --verify`, then a 1:1 copy of the scene (1024×1536 artboard, no
+   animation) is rendered and compared with `mother-v2.png` by `check_rest.py`; the build fails if
+   any pixel is off by more than 2.
 
-## Asset rule
+## Shipping
 
-The scene contains no old AI pose plates or legacy full-body pose images. Every
-non-official file is listed with a SHA-256 hash in
-`rive/nomi-complete/parts/DETAIL_LICENSE.json`.
+```bash
+rive/nomi-complete/tools/rebuild/export-riv.sh characters/nomi/rive/character.riv
+```
 
-The `Nomi-full` artboard is the only production artboard. The previous half-body
-artboard, layer stack and generated pose plates were removed so a stale renderer
-cannot select a detached-arm asset. The full-body source is split into a body,
-head, six sleeve/forearm/hand layers and a small smile overlay; the head image is
-parented to `full.head` at the neck pivot.
-
-## Skeleton and animation surface
-
-The view model exposes the full-body action triggers wave, hello, cheer,
-celebrate, nod, flinch, poke, shake, clap, think, work and smile. The idle timeline
-keeps a subtle breathing scale while action timelines transition through timed
-state-machine blends. The torso and neck anchors stay fixed while upper-arm,
-forearm and hand bones move. The visible sleeves are parented to shoulder
-pivots in the same artboard space; action offsets are added to their authored
-absolute coordinates, so changing Rive fit or zoom scales the complete
-hierarchy rather than separating the hands, cuffs, shoulders or head.
-
-The production source preserves the raster fabric and face texture inside the
-SVG mother. Rive root bones are authored for the full-body hierarchy and the
-derived arm crops are kept in the same source coordinate system. New actions
-must reuse this SVG-backed mother and its bone-bound derivatives instead of
-importing a separately generated pose plate, which would break the source lock
-and introduce costume drift.
+The scene has no scripts, so no signing is needed: the script runs `rive . --headless-serve` and keeps
+the build its live-link socket pushes (`livelink_riv.py`). `rive . --publish` (needs `rive login`) writes
+the same scene as a signed `build/nomi-complete.riv`.
 
 ## Visual QA
 
-Capture neutral and wave frames with the same viewport and inspect the shoulder,
-elbow, wrist, hand and neck anchors. Also test a pointer drag after changing
-zoom. `brand-check.py` must report zero stale generated references and zero
-license problems before committing.
+`rive/nomi-complete/tools/preview/serve.sh` serves the repo and opens a local page that plays
+`characters/nomi/rive/character.riv` with the app's runtime (`@rive-app/canvas-lite`, same artboard,
+state machine and fit): one button per action, the mouth triggers, `viseme` / `mouthOpen` sliders, a
+"play all" sequence, and drag-and-drop of another `.riv` to compare.
 
-## Full-bone crop pass (feat/mascot-rive-full-bone-rig)
+Headless, drive every action and look at two frames of each:
 
-Rebuild the arm/hand crops from `source-nomi-master.png` so each moving layer is a
-true silhouette matte (shoulder / upper sleeve / lower sleeve / cuff / palm /
-five fingers per side). Dark and orange garment detail passes are restored as
-separate mother-pixel layers that share the arm bones with the base fabric.
+```bash
+cd rive/nomi-complete
+printf 'advance 30\ndata wave=1\nadvance 40\nscreenshot wave.png\nquit\n' | rive . --commands
+```
 
-The right thumb is occluded in the mother rest pose; the build script mirrors the
-left-thumb mother pixels into `hand-r-thumb.png` and composites any native sliver
-on top (registered in `parts/DETAIL_LICENSE.json`).
-
-### Animation fixes
-
-- **clap**: both `full.arm-*.rig` translate toward the chest while elbows bend
-  inward and wrists rotate so palms face each other (no left/right cross-through).
-- **wave / cheer / idle**: retimed on the production bone ids; idle adds a soft
-  torso/arm sway on top of the breathing scale.
-
-### Mesh+Skin (ROUND2)
-
-`scripts/rive-complete/add-arm-meshes.py` migrates each arm to three independent
-RootBones (`upper` / `fore` / `hand`) under `arm.rig` with **rest rotation = limb
-angle** (r3 pattern). Sleeve / coat-shoulder / cuff / upper-skin Images are remounted
-under `arm.rig` (not under a rotating bone) and carry a grid `Mesh` + `Skin` with
-Tendon **rotation matrices**. `bone.scaleX` stays `1` on mother crops: putting the
-link length into `scaleX` (as r3 does for AI straight-sleeve art) warped the rest pose.
-
-`scripts/rive-complete/bake-arm-fk-anims.py` converts relative rotation keys into
-absolute FK (`rotation` + fore/hand `x`/`y`). It is idempotent. Elbow overlap in
-`build-fullbody-svg-rig.py` was widened so upper/lower sleeves share a blend zone.
-
-### ROUND3 — continuous sleeve + Solo bent scaffold
-
-`partition()` keeps the full garment matte in the base layer (no orange/dark
-punch-holes). Arms use mother-derived `sleeve-{l,r}-full` crops with a denser
-three-bone Mesh (GRID=16, elbow blend ±85 artboard px). Palm/fingers draw after
-the cuff. A Solo hang/bent pair is authored (`sleeve-*-bent.png` = mother-pixel
-forearm warp); clap/wave currently stay on hang because the warp art is not yet
-cleaner than continuous skin at peak bend. Clap uses less `arm.rig` chest pull.
-
-### ROUND4 — shoulder seam + torso-locked collar
-
-Coat/sleeve hard-subtract left **zero overlap**, so orange collar sawteeth and cream
-gaps appeared as soon as meshes diverged. Crops now keep a ~12–20px soft underlap
-(sleeve core eroded before subtract) and absorb collar-band orange into the coat
-matte. `coat-*-shoulder` is **torso-locked** (static under `full.root`, drawn after
-arm.rig) so clap `arm.rig` chest pull cannot tear the orange collar off the jacket
-body; sleeves still slide underneath. Clap arm.rig translation further reduced.
-Coat shoulder alpha is lightly feathered to reduce polygon sawteeth.
-
-### ROUND5 — shoulder stump + raised wave
-
-Idle sawteeth: deeper soft underlap (~24–36px), stronger coat alpha feather, and
-proximal **stump lock** on `sleeve-*-full` (upper-only near shoulder). A torso-locked
-`sleeve-*-stump` mother patch sits under the orange collar so raised arms do not open
-a cream socket hole.
-
-**wave** retimed for a viewer-facing raise: modest outward upper (~−0.6 rad) + deep
-elbow bend (~−2.1) so the hand reaches cheek/head height with wrist oscillation; Solo
-stays on hang. Extreme upper (~−1.15) tore the sleeve off the collar.
-
-### ROUND6 — windshield-wiper wave
-
-**wave** retargeted to a real greeting: `upper≈−1.10` (hold) + `fore≈−1.55`
-(bake interior ≈ |fore_delta| → ~90° elbow), hand FK ~head-side. Wrist relative
-keys **cancel** chain inheritance so absolute palm faces the camera; finger bones
-spread open. Elbow Mesh blend band **B=85→20** for a harder bone polyline.
-Solo stays hang (outward bent Solo still tears). See scratch `v6/` screenshots.
-
-### ROUND7 — full mother decompose (layers + skeleton coverage)
-
-Pause single-action polish. Inventory every mother-visible part vs Image/RootBone/Mesh,
-then crop missing face/hair/accessory/leg layers from `source-nomi-master.png`, punch
-them out of `head.png` / `fullbody-base-no-head-arms.png`, and parent Images under
-existing or new bones (`hair.clip`, `hair.bow`, `choker`, `belt*`, `hem.ribbon.*`,
-`thigh.strap`).
-
-Selective Mesh+Skin (honest, not full-body claim): remounted single-bone meshes on
-thigh / calf-sock / shoe (L+R) and coat tails. Arm meshes unchanged. Finger phalanx
-sub-crops skipped (≈6px); whole-finger Images stay on finger roots without Mesh.
-
-Idle meanΔ vs mother (character ROI) improves vs ROUND6; screenshots in scratch `v7/`.
-Script: `scripts/rive-complete/round7-full-decompose.py`. Checklist:
-`/workspace/scratch/rive-bone-rig/FULL-DECOMPOSE-CHECKLIST.md`.
-
-### ROUND8 — tank / shorts split + continuous leg & finger skinning
-
-Built on ROUND7 (`5d7f38c`). R7 labels were wrong in places (the "belt" crop was really
-the shorts band; thigh/calf bones sat at the wrong joints), so the layers were re-cut from
-`source-nomi-master.png` (`round8_layers.py`) and the scene rebuilt from the pinned R7
-scene (`round8_scene.py`, idempotent).
-
-- **Black vest + N logo** (`torso-tank`) and **shorts** (+ `belt-id` / `belt-pouch`
-  overlays on dedicated pelvis bones) are independent Images; the base keeps only a 7px
-  ring under them (no see-through when the torso sways). Shorts carry a dark fabric fill
-  under the swinging ID/pouch. Mother body alpha (249–253) is snapped to 255 on every cut layer.
-- **belt-band** is a light 3-tendon Mesh (torso → pelvis blend), overlapped 6px with the tank and shorts.
-- **Legs**: one continuous Mesh+Skin per leg (thigh incl. thigh strap → calf → sock) with
-  3 tendons (thigh/knee/ankle) and smoothstep weights across knee and ankle; shoes ride the
-  foot bones. Skin holes left by the hands are inpainted, the thigh top tucks under the shorts.
-- **Fingers**: every finger is a nested 3-bone chain (`.1` at PIP, `.2` at DIP) with one
-  3-tendon Mesh. The R7 "parent-space" failure came from skinning Images that sat under
-  the finger root: Images must sit under the same parent as the bones (here `arm.rig`,
-  like the sleeves) and tendon binds are in that rig space. Original root pivots are
-  kept so wave/clap finger spread matches ROUND7.
-- Residual hand-fringe slivers (hem-ribbon / coat tails / base) were removed.
-
-Scripts: `round8_layers.py`, `round8_scene.py`, `round8_metrics.py`. Screenshots in scratch `v8/`.
-
-### ROUND9 — one continuous skinned hand per side (finger ghosts / overlap removed)
-
-Root cause of the "multi-layer, ghosted, floating" fingers in R8: the hand skin pixels were
-drawn ~8× per hand (≈2.4× on average). The cuff crop embedded the whole hand (+ thigh chunk and
-ribbon strip), the palm crop already contained all fingers, and five more whole-finger crops
-overlapped it. Finger bones also pivoted ~60px below the fingertips and the hand bone sat 38px
-off the wrist, so any rotation slid the stacked copies apart; the wave counter-rotated the hand.
-
-- Each hand is now **one** crop (`hand-l.png` / `hand-r.png`, cut from the mother) skinned as a
-  single Mesh with 17 tendons: hand + 5×3 phalanx bones at the real joints (soft capsule
-  weights, no seams) + the forearm bone, whose weight is 100% on the wrist rows so they ride
-  the cuff band exactly and then blend into the hand (no wedge when the wrist flexes).
-- Hand bone re-pivoted to the wrist (`round9_scene.py`, keys rewritten so the pose is unchanged);
-  the wave hand follows the forearm and the forearm leans slightly inward at the peak.
-- Cuff / sleeve / hem-ribbon / base crops had their embedded hand, wrist and sliver pixels
-  removed (`round9_layers.py`). Old `hand-*-{palm,thumb,index,middle,ring,little}` assets deleted.
-- Result per hand: 9 → 4 Images touching the hand (1 hand mesh + cuff/sleeve/hem with ≤ 150 px
-  of fringe), skin overdraw 2.4× → 1.0× (max 5× → 2×). Image 61→51, Mesh/Skin 25→17.
-
-Scripts: `round9_{layers,rig,scene,shots,viz,inventory}.py` (idempotent, pinned to `be33278`).
-Screenshots in scratch `v9/`.
-
-### ROUND10 — cuff drawn once, ribbon shard gone, fist-ready hand pieces
-
-- **Orange shard beside the wave wrist**: `arm-*-cuff` (and `sleeve-l-full`) still carried a chunk of
-  the orange hem ribbon (R 270 px, L 385+72 px). It rode the forearm, so it floated next to the wrist
-  in wave. The shard (and the 1px AA strands along the cuff edge) is removed from the cuff / sleeve
-  crops and handed to the body-locked `hem-ribbon-*` layer, whose crop now grows upward (L +53 rows,
-  R +9) so the ribbon still reaches up behind the cuff in idle.
-- **Cuff band drawn twice**: `sleeve-*-full` (+ `-full-dark` shading) had the whole band baked in,
-  and `arm-*-cuff` drew it again (R 5364 px / L 6459 px double-drawn, skinned differently → ghost in
-  wave). The cuff owns the band now; the sleeve crops lose every pixel under it (6px seam kept along
-  the cuff's top cut). Double-drawn px: R 5364→832, L 6459→969 (remaining = the seam rows).
-- **Fist**: the single skinned hand (R9) tore when fingers closed (the soft weight band between finger
-  and palm is sheared into strings). The hand is now **palm + 5 finger pieces** cut from the same
-  hand crop (`hand-<side>-{palm,thumb,index,middle,ring,little}.png`), each skinned only to its own
-  bones; a finger piece carries a 1.5px ring so the hinge/edge overlap hides the seam at rest. Hand
-  skin overdraw 1.0× → ~1.3× (ring overlap only). New `fist` trigger / `full.fist` clip
-  (72f) validates the extreme curl; `fist` is also in `RIVE_NATIVE_MOTIONS`.
-
-Pipeline: `scripts/rive-complete/round10_build.sh` (pinned to `754f4a0`):
-`round10_layers.py` → `round10_scene.py` → `round10_hand_scene.py` → `round10_fist.py`.
-Checks: `round10_overdraw.py` (per-pixel layer overlap), `round10_fist_shots.py`, `round10_regress.py`;
-skinning preview used to pick the fist angles: `round10_hand.py`, `fistsim_view.py`, `fistsim_eval.py`.
-Screenshots in scratch `v10/`.
+Check the shoulder / elbow / wrist joins, the face edge when the head turns, the closed eyes
+during a blink, and that nothing stays behind when an arm lifts (sleeve pieces must ride the arm,
+coat front panels stay on the torso).
