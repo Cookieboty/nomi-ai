@@ -1166,3 +1166,15 @@
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
+
+/* 行尾的端点小图标：灰色、不抢标题；悬停时让位给行内操作 */
+.threadEp {
+  display: inline-flex;
+  justify-self: end;
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.row:hover .threadEp,
+.row:focus-within .threadEp {
+  visibility: hidden;
+}

@@ -79,26 +79,38 @@ describe('Sidebar rows', () => {
     vi.useRealTimers();
   });
 
-  it('shows the endpoint icon in front of the title and no text badge', async () => {
+  it('「全部」里只给编程助手的会话在行尾标一个灰色端点图标；Nomi 不标；标题前没有图标', async () => {
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
     );
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(3));
     const rows = r.getAllByTestId('history-item');
     const codex = rows.find((x) => x.getAttribute('data-backend') === 'codex')!;
-    const icon = codex.querySelector('[data-testid="endpoint-icon-codex"]')!;
-    expect(icon.getAttribute('aria-label')).toBe('Codex');
-    // 图标在标题之前（DOM 顺序）
+    const nomi = rows.find((x) => x.getAttribute('data-backend') === 'nomi')!;
+    const mark = codex.querySelector('[data-testid="thread-endpoint"]')!;
+    expect(mark.querySelector('[data-testid="endpoint-icon-codex"]')).toBeTruthy();
+    // 图标在标题之后（行尾）
     const title = Array.from(codex.querySelectorAll('span')).find(
       (x) => x.textContent === '修复登录',
     )!;
-    expect(icon.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // 去掉 svg（含悬停 <title>）后，行内文本只有标题 + 相对时间，没有文字徽标
+    expect(title.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nomi.querySelector('[data-testid="thread-endpoint"]')).toBeNull();
+    // 去掉 svg 后，行内文本只有标题，没有文字徽标
     for (const row of rows) {
       const c = row.cloneNode(true) as HTMLElement;
       c.querySelectorAll('svg').forEach((n) => n.remove());
       expect(c.textContent).not.toMatch(/Codex|Nomi|Claude/);
     }
+  });
+
+  it('切到某个端：行尾也不标端点（都是同一个端）', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'codex');
+    const r = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    await waitFor(() => r.getAllByTestId('history-item'));
+    expect(r.queryByTestId('thread-endpoint')).toBeNull();
   });
 
   it('endpoint filter chips are icon-only; name lives in the label / tooltip', async () => {

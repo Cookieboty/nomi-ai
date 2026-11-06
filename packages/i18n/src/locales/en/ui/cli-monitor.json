@@ -208,5 +208,6 @@
   "ui.cli-monitor.no-matching-tasks": "No matching tasks",
   "ui.cli-monitor.no-matching-assets": "No matching assets",
   "ui.cli-monitor.pin-chat": "Pin chat",
-  "ui.cli-monitor.click-to-rename": "Click to rename"
+  "ui.cli-monitor.click-to-rename": "Click to rename",
+  "ui.cli-monitor.delegated-by-nomi": "Handed off by {0} to {1}"
 }

@@ -196,7 +196,7 @@ describe('sidebar workspace groups', () => {
     setGroupByWorkspace(true);
   });
 
-  it('助手模式是纯标题行（不画端点图标）；工作台里行首有端点图标', async () => {
+  it('标题前不画端点图标；工坊「全部」里编程助手的会话在行尾有灰色端点图标，Nomi 没有', async () => {
     setChatMode('normal');
     const r = mount();
     const app = (await r.findAllByTestId('workspace-group'))[0]!;
@@ -206,11 +206,11 @@ describe('sidebar workspace groups', () => {
     cleanup();
     setChatMode('dev');
     const d = mount();
-    const devRow = (await d.findAllByTestId('workspace-group'))[0]!.querySelector(
-      '[data-testid="history-item"]',
-    )!;
-    expect(devRow.getAttribute('data-layout')).toBe('icon');
-    expect(devRow.querySelector('[data-testid^="endpoint-icon-"]')).toBeTruthy();
+    const groups = await d.findAllByTestId('workspace-group');
+    const nomiRow = groups[0]!.querySelector('[data-testid="history-item"]')!;
+    expect(nomiRow.querySelector('[data-testid="thread-endpoint"]')).toBeNull();
+    const claudeRow = groups[1]!.querySelector('[data-testid="history-item"]')!;
+    expect(claudeRow.querySelector('[data-testid="thread-endpoint"]')).toBeTruthy();
   });
 
   it('「工作区」「最近」分区标题可以收起整个分区，并记住', async () => {

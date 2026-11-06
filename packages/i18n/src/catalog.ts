@@ -1408,6 +1408,7 @@ export type TranslationKey =
   | 'ui.cli-monitor.no-matching-assets'
   | 'ui.cli-monitor.pin-chat'
   | 'ui.cli-monitor.click-to-rename'
+  | 'ui.cli-monitor.delegated-by-nomi'
   | 'ui.devtools.call-id'
   | 'ui.devtools.click-a-row-to-see-details'
   | 'ui.devtools.content-truncated'

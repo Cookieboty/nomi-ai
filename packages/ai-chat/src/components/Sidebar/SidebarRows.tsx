@@ -124,7 +124,10 @@ const ThreadItemImpl: React.FC<{
   onMore?: (id: string, anchor: DOMRect) => void;
   /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
   onPeek?: (id: string, el: HTMLElement | null) => void;
-  /** 行首的端点图标：工作台里区分端点；助手模式全是 Nomi，不画（Codex 式纯标题行） */
+  /**
+   * 行尾的端点小图标（灰色）：只在工坊「全部」里给编程助手的会话标出端点；Nomi 是默认，不标。
+   * 行首不画图标，所有标题左对齐（Codex 式）。
+   */
   showIcon?: boolean;
   style?: React.CSSProperties;
 }> = ({
@@ -146,14 +149,10 @@ const ThreadItemImpl: React.FC<{
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
   const live = liveOf(tab);
-  const layout = showIcon ? 'icon' : 'plain';
+  const layout = 'plain';
+  const endpointMark = showIcon && c.backend !== 'nomi';
   // 状态点不占列：压在行首内边距里，只有运行 / 新结果 / 出错时才看得见
-  const lead = (
-    <>
-      <span className={styles.dot} data-live={live || undefined} aria-hidden />
-      {showIcon && <EndpointIcon backend={c.backend} size={14} />}
-    </>
-  );
+  const lead = <span className={styles.dot} data-live={live || undefined} aria-hidden />;
   if (renaming) {
     return (
       <div
@@ -222,6 +221,10 @@ const ThreadItemImpl: React.FC<{
         {live === 'running' || live === 'queued' ? (
           <span className={styles.threadLive} data-live={live} data-testid="thread-live">
             {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
+          </span>
+        ) : endpointMark ? (
+          <span className={styles.threadEp} data-testid="thread-endpoint" aria-hidden>
+            <EndpointIcon backend={c.backend} size={12} decorative />
           </span>
         ) : (
           <span />

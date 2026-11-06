@@ -3,6 +3,7 @@
  * 第一行标题 + 端点图标 + 多久前，第二行状态，第三行工作区（目录名，完整路径在 title 里）。
  * 挂到 body 上用 fixed 定位，不会被侧栏裁掉；不接收鼠标事件，不挡操作。
  */
+import { brand } from '@nomi-ai/types';
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Folder } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -166,6 +167,11 @@ export const SessionPeek: React.FC<{
         <span className={rail.peekTime}>{rel(c.updatedAt)}</span>
       </span>
       {status && <span className={rail.peekMeta}>{status}</span>}
+      {tab?.delegation?.by === 'nomi' && (
+        <span className={rail.peekMeta} data-testid="session-peek-delegated">
+          {t('ui.cli-monitor.delegated-by-nomi', brand.appName, t(ENDPOINT_NAME[c.backend]))}
+        </span>
+      )}
       {cwd && (
         <span className={rail.peekCwd} title={cwd} data-testid="session-peek-cwd">
           <Icon icon={Folder} size={14} />

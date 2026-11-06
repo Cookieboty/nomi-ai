@@ -796,7 +796,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onDeleteRequest: requestDelete,
       onMore: openMore,
       onPeek: listPeek.onPeek,
-      showIcon: isDev,
+      showIcon: isDev && view === 'all',
     }),
     [
       visible,
@@ -810,6 +810,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       openMore,
       listPeek.onPeek,
       isDev,
+      view,
     ],
   );
 
@@ -977,7 +978,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                   onDeleteRequest={requestDelete}
                   onMore={openMore}
                   onPeek={listPeek.onPeek}
-                  showIcon={isDev}
+                  showIcon={isDev && view === 'all'}
                 />
               ))}
             {!wsGroups.grouped && listOpen && unpinned.length > 100 && (

@@ -208,5 +208,6 @@
   "ui.cli-monitor.no-matching-tasks": "没有匹配的任务",
   "ui.cli-monitor.no-matching-assets": "没有匹配的素材",
   "ui.cli-monitor.pin-chat": "置顶聊天",
-  "ui.cli-monitor.click-to-rename": "点击修改标题"
+  "ui.cli-monitor.click-to-rename": "点击修改标题",
+  "ui.cli-monitor.delegated-by-nomi": "由 {0} 委派给 {1}"
 }
