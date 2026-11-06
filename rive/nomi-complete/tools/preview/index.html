@@ -25,12 +25,19 @@
           --stage: #0f0e0d;
         }
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--ink);
-        font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif;
+        font:
+          14px/1.45 -apple-system,
+          BlinkMacSystemFont,
+          'PingFang SC',
+          'Segoe UI',
+          sans-serif;
       }
       main {
         display: grid;
@@ -39,7 +46,11 @@
         padding: 16px;
         min-height: 100vh;
       }
-      @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+      @media (max-width: 860px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
       .stage {
         position: sticky;
         top: 16px;
@@ -50,16 +61,27 @@
         aspect-ratio: 960 / 1300;
       }
       .stage.checker {
-        background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+        background-image:
+          linear-gradient(45deg, #ccc 25%, transparent 25%),
           linear-gradient(-45deg, #ccc 25%, transparent 25%),
           linear-gradient(45deg, transparent 75%, #ccc 75%),
           linear-gradient(-45deg, transparent 75%, #ccc 75%);
         background-size: 24px 24px;
-        background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+        background-position:
+          0 0,
+          0 12px,
+          12px -12px,
+          -12px 0;
         background-color: #eee;
       }
-      .stage.light { background: #fbfaf8; }
-      canvas { width: 100%; height: 100%; display: block; }
+      .stage.light {
+        background: #fbfaf8;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
       .status {
         position: absolute;
         left: 10px;
@@ -70,9 +92,18 @@
         color: #fff;
         font-size: 12px;
       }
-      .drop { position: absolute; inset: 0; display: none; place-items: center; background: rgba(232, 121, 43, 0.35);
-        color: #fff; font-size: 18px; }
-      .stage.dragging .drop { display: grid; }
+      .drop {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        background: rgba(232, 121, 43, 0.35);
+        color: #fff;
+        font-size: 18px;
+      }
+      .stage.dragging .drop {
+        display: grid;
+      }
       section {
         background: var(--panel);
         border: 1px solid var(--line);
@@ -80,10 +111,27 @@
         padding: 14px 16px;
         margin-bottom: 12px;
       }
-      h1 { font-size: 18px; margin: 0 0 4px; }
-      h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
-      p.note { margin: 0; color: var(--muted); font-size: 12px; }
-      .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 13px;
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      p.note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
       button {
         font: inherit;
         padding: 6px 10px;
@@ -93,15 +141,43 @@
         color: var(--ink);
         cursor: pointer;
       }
-      button:hover { border-color: var(--accent); }
-      button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-      button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-      button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-      .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-      label { color: var(--muted); font-size: 12px; }
-      input[type='range'] { width: 180px; }
-      code { font-size: 12px; }
-      .err { color: #d9443a; }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      button.on {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      input[type='range'] {
+        width: 180px;
+      }
+      code {
+        font-size: 12px;
+      }
+      .err {
+        color: #d9443a;
+      }
     </style>
   </head>
   <body>
@@ -123,7 +199,8 @@
             <button class="primary" id="playAll">全部依次播放</button>
             <button id="stop">停止序列</button>
             <button id="reload">重新加载</button>
-            <label>背景
+            <label
+              >背景
               <button data-bg="dark" class="on">深</button>
               <button data-bg="light">浅</button>
               <button data-bg="checker">透明格</button>
@@ -144,15 +221,27 @@
             <label for="mouthOpen">mouthOpen <span id="mouthOpenV">0</span></label>
             <input id="mouthOpen" type="range" min="0" max="1" step="0.05" value="0" />
           </div>
-          <p class="note">viseme 数值切换口型；回到闭嘴要发 <code>mouth-close</code>（应用在嘴合上时会自动发）。</p>
+          <p class="note">
+            viseme 数值切换口型；回到闭嘴要发 <code>mouth-close</code>（应用在嘴合上时会自动发）。
+          </p>
         </section>
       </div>
     </main>
     <script src="/node_modules/@rive-app/canvas-lite/rive.js"></script>
     <script>
       const DEFAULT_SRC = '/characters/nomi/rive/character.riv';
-      const MOUTH = ['mouth-open', 'mouth-close', 'talking', 'talk', 'viseme_a', 'viseme_i', 'viseme_u', 'viseme_e',
-        'viseme_o', 'viseme_m'];
+      const MOUTH = [
+        'mouth-open',
+        'mouth-close',
+        'talking',
+        'talk',
+        'viseme_a',
+        'viseme_i',
+        'viseme_u',
+        'viseme_e',
+        'viseme_o',
+        'viseme_m',
+      ];
       const $ = (id) => document.getElementById(id);
       const stage = $('stage');
       let r = null;
@@ -165,7 +254,9 @@
       fetch('/rive/nomi-complete/tools/rebuild/anims-meta.json')
         .then((x) => x.json())
         .then((meta) => {
-          for (const m of meta) durations[m.name.replace(/^full\./, '')] = (Number(m.duration) / Number(m.fps || 60)) * 1000;
+          for (const m of meta)
+            durations[m.name.replace(/^full\./, '')] =
+              (Number(m.duration) / Number(m.fps || 60)) * 1000;
         })
         .catch(() => {});
 
@@ -185,7 +276,10 @@
           stateMachines: 'NomiFull',
           autoplay: true,
           autoBind: true,
-          layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.BottomCenter }),
+          layout: new rive.Layout({
+            fit: rive.Fit.Contain,
+            alignment: rive.Alignment.BottomCenter,
+          }),
           onLoad: () => {
             r.resizeDrawingSurfaceToCanvas();
             buildButtons();
@@ -194,7 +288,8 @@
           onLoadError: () => setStatus('加载失败', true),
           onStateChange: (e) => {
             const names = (Array.isArray(e.data) ? e.data : []).filter(
-              (n) => typeof n === 'string' && n !== 'full.idle' && n !== 'full.idle-blink');
+              (n) => typeof n === 'string' && n !== 'full.idle' && n !== 'full.idle-blink',
+            );
             if (names.length) setStatus(names.join(' · '));
           },
         };
@@ -216,7 +311,9 @@
       function buildButtons() {
         const inst = vm();
         const props = inst ? inst.properties : [];
-        const triggers = props.filter((p) => String(p.type).toLowerCase().includes('trigger')).map((p) => p.name);
+        const triggers = props
+          .filter((p) => String(p.type).toLowerCase().includes('trigger'))
+          .map((p) => p.name);
         const actions = triggers.filter((n) => !MOUTH.includes(n));
         const mk = (box, names) => {
           box.innerHTML = '';
@@ -228,7 +325,10 @@
           }
         };
         mk($('actions'), actions);
-        mk($('mouth'), triggers.filter((n) => MOUTH.includes(n)));
+        mk(
+          $('mouth'),
+          triggers.filter((n) => MOUTH.includes(n)),
+        );
         $('playAll').onclick = () => playAll(actions);
       }
 
@@ -262,7 +362,10 @@
           for (const o of document.querySelectorAll('[data-bg]')) o.classList.toggle('on', o === b);
         });
       }
-      for (const [id, prop] of [['viseme', 'viseme'], ['mouthOpen', 'mouthOpen']]) {
+      for (const [id, prop] of [
+        ['viseme', 'viseme'],
+        ['mouthOpen', 'mouthOpen'],
+      ]) {
         $(id).addEventListener('input', (e) => {
           const v = Number(e.target.value);
           $(id + 'V').textContent = v;
