@@ -290,16 +290,21 @@
 .cd-dropdown__list::-webkit-scrollbar-track {
   background: transparent;
 }
+/* 不常驻（Codex 式）：平时透明，鼠标移到可滚动的区域上才显示；3px 透明边让细条贴着边缘 */
 ::-webkit-scrollbar-thumb,
 .cd-dropdown__list::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.28);
+  background: transparent;
   border: 3px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
 }
+*:hover::-webkit-scrollbar-thumb,
+.cd-dropdown__list:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.32);
+}
 ::-webkit-scrollbar-thumb:hover,
 .cd-dropdown__list::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(148, 163, 184, 0.45);
+  background-color: rgba(148, 163, 184, 0.5);
 }
 
 /* brand icon */

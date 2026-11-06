@@ -62,6 +62,23 @@
   border-color: var(--cd-panel-border);
   background: var(--cd-control-hover-bg);
 }
+/* 无边框：输入栏工具行（Codex 式），与 + / 权限 / 语音按钮同高同形，hover 才出底色 */
+.cd-dropdown--bare .cd-dropdown__trigger {
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2);
+  border-color: transparent;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  font-size: var(--cd-font-size-sm);
+}
+.cd-dropdown--bare .cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--cd-control-hover-bg);
+}
+.cd-dropdown--bare .cd-dropdown__chevron {
+  width: 12px;
+  height: 12px;
+}
 /* 与同一行模型 / 权限按钮的小箭头同大 */
 .cd-dropdown--chip .cd-dropdown__chevron {
   width: 12px;

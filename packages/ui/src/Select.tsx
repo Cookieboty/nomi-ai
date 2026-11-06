@@ -41,7 +41,8 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
    * 外观：default 实底；ghost 透明底（与旁边的透明按钮 / chip 同一行时用）；
    * chip 胶囊形、ms 高（输入栏工具行，与模型 / 权限按钮同形同高，忽略 size）
    */
-  variant?: 'default' | 'ghost' | 'chip';
+  /** bare：无边框（Codex 式输入栏工具行），hover 才出底色 */
+  variant?: 'default' | 'ghost' | 'chip' | 'bare';
   /** 简写：传 options；也可以继续写 <option>/<optgroup> children */
   options?: SelectOption[];
   /** 是否显示搜索框；默认选项多于 8 个时自动开启 */
