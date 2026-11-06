@@ -14,13 +14,32 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
     /** 重新打开对话窗口（内核状态保留） */
     async open() {
       await page.goto(chatPageUrl);
-      // 视图会恢复上次停留的页面（设置 / 任务 / 素材库），先回到对话
+      // 视图会恢复上次停留的页面（设置 / 任务 / 素材库），先回到对话：
+      // 设置页有「返回对话」；任务 / 素材库用左侧导航栏的「对话」
       const back = page.getByRole('button', { name: '返回对话' });
-      const ready = page
-        .getByRole('textbox', { name: '消息输入框' })
-        .or(page.getByRole('button', { name: '跳过引导' }))
-        .or(back);
-      await ready.first().waitFor({ timeout: 30_000 });
+      const chats = page.getByTestId('nav-chats');
+      // 等任意一个出现：用 .or().first() 会取页面顺序里第一个（可能是被隐藏的导航按钮）
+      const candidates = [
+        page.getByRole('textbox', { name: '消息输入框' }),
+        page.getByRole('button', { name: '跳过引导' }),
+        back,
+        chats,
+      ];
+      const visible = async () => {
+        for (const c of candidates)
+          if (
+            await c
+              .first()
+              .isVisible()
+              .catch(() => false)
+          )
+            return true;
+        return false;
+      };
+      for (let t = 0; !(await visible()); t += 300) {
+        if (t > 30_000) throw new Error('chat window did not load');
+        await h.wait(300);
+      }
       // 刷新后可能还恢复着上次的弹窗（如新建任务的草稿）：先关掉
       for (
         let i = 0;
@@ -35,14 +54,26 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
         await page.keyboard.press('Escape');
         await h.wait(300);
       }
-      if (await back.isVisible().catch(() => false)) {
-        await back.click();
-        await page.getByRole('textbox', { name: '消息输入框' }).waitFor({ timeout: 15_000 });
-      }
+      if (await back.isVisible().catch(() => false)) await back.click();
+      const box = page.getByRole('textbox', { name: '消息输入框' });
+      if (
+        !(await box.isVisible().catch(() => false)) &&
+        (await chats.isVisible().catch(() => false))
+      )
+        await chats.click();
+      if (
+        !(await page
+          .getByRole('button', { name: '跳过引导' })
+          .isVisible()
+          .catch(() => false))
+      )
+        await box.waitFor({ timeout: 15_000 });
       await h.wait(800);
     },
+    /** 切模式：会话面板顶部的「Nomi 灵伴 ⌄ / Nomi 工坊 ⌄」菜单；name 是「灵伴」或「工坊」 */
     async mode(name) {
-      await page.getByRole('group', { name: '对话模式' }).getByRole('button', { name }).click();
+      await page.getByRole('button', { name: /^对话模式/ }).click();
+      await page.getByRole('menuitemradio', { name: new RegExp(`Nomi ${name}`) }).click();
       await h.wait(600);
     },
     async send(text, settleMs = 3500) {
@@ -55,8 +86,12 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
     async newChat(endpoint) {
       // 页面上可能有不止一个「新对话」按钮：点第一个
       await page.getByRole('button', { name: '新对话' }).first().click();
+      // 工坊「全部」里会弹出端点菜单（挂在 body 上，量好位置才显示）：等它出来再点；灵伴里直接新建、没有菜单
       const item = page.getByRole('menuitem', { name: endpoint });
-      if (await item.isVisible().catch(() => false)) await item.click();
+      await item
+        .waitFor({ state: 'visible', timeout: 2500 })
+        .then(() => item.click())
+        .catch(() => {});
       await h.wait(900);
     },
     /** 打开设置里的某一栏，如「模型与供应商」 */
@@ -86,11 +121,12 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
         .evaluate((el) => el.scrollIntoView({ block: 'start' }));
       await h.wait(500);
     },
-    /** 工作台里打开已有的编程助手会话 */
-    async openSession(label = /Claude Code/) {
-      await h.mode('工作台');
+    /** 工坊里打开已有的编程助手会话 */
+    async openSession(label = /^Claude Code/) {
+      await h.mode('工坊');
+      // 会话行不再带端点名（行首没有图标）：点左侧导航栏的端点图标，切到这个端正在跑 / 最近的会话
       await page
-        .getByRole('navigation', { name: '历史对话' })
+        .getByRole('group', { name: '按端点筛选' })
         .getByRole('button', { name: label })
         .first()
         .click();
@@ -212,7 +248,7 @@ export const SCENES = [
     seed: true,
     async run(h) {
       await h.open();
-      await h.mode('助手');
+      await h.mode('灵伴');
       await h.page.getByRole('button', { name: '任务', exact: true }).first().click();
       await h.wait(800);
       await h.createTask({
@@ -231,7 +267,7 @@ export const SCENES = [
     seed: true,
     async run(h) {
       await h.open();
-      await h.mode('助手');
+      await h.mode('灵伴');
       await h.send('帮我写一份本周周报');
       await h.newChat('Nomi');
       await h.dropImages();
@@ -240,20 +276,20 @@ export const SCENES = [
   },
   {
     name: 'chat',
-    title: '助手模式对话',
+    title: '灵伴：对话',
     async run(h) {
       await h.open();
-      await h.mode('助手');
+      await h.mode('灵伴');
       await h.newChat('Nomi');
       await h.send('帮我整理一下今天的待办吧');
     },
   },
   {
     name: 'coding-agent',
-    title: '工作台：编程助手会话',
+    title: '工坊：编程助手会话',
     async run(h) {
       await h.open();
-      await h.mode('工作台');
+      await h.mode('工坊');
       await h.page
         .getByRole('button', { name: '隐藏' })
         .click({ timeout: 2000 })
@@ -279,6 +315,9 @@ export const SCENES = [
       await h.open();
       await h.openSession();
       await h.page.getByRole('button', { name: '展开变更栏' }).click();
+      // 鼠标移开、焦点移走：按钮的提示（悬停 / 聚焦都会出）不进截图
+      await h.page.mouse.move(700, 900);
+      await h.page.evaluate(() => document.activeElement?.blur?.());
       await h.wait(1200);
     },
   },
@@ -287,7 +326,7 @@ export const SCENES = [
     title: '持续任务',
     async run(h) {
       await h.open();
-      await h.mode('助手');
+      await h.mode('灵伴');
       await h.page.getByRole('button', { name: '任务', exact: true }).first().click();
       await h.wait(1200);
     },
@@ -297,7 +336,7 @@ export const SCENES = [
     title: '素材库',
     async run(h) {
       await h.open();
-      await h.mode('助手');
+      await h.mode('灵伴');
       await h.page.getByRole('button', { name: '素材库', exact: true }).first().click();
       await h.wait(1500);
     },
@@ -498,7 +537,7 @@ export async function explore(page, h, outDir, guard) {
   });
   await tryDump('interact-编程会话权限菜单', async () => {
     await h.open();
-    await h.mode('工作台');
+    await h.mode('工坊');
     await h.newChat('Claude Code');
     await h.send('给 registerHandler 加一个可选的 id 参数', 8000);
     await page.getByRole('button', { name: /权限模式/ }).click();

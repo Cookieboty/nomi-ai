@@ -1,6 +1,6 @@
 # 编程助手
 
-![三栏工作区](../screenshots/v1.2.0-workspace.webp)
+![三栏工作区](../screenshots/workspace.webp)
 
 > 截图由模拟的 CLI 驱动真实界面生成，对话内容与路径仅作演示。
 

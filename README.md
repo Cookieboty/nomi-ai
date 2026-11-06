@@ -29,7 +29,7 @@
 
 <p align="center">
   <img src="docs/screenshots/chat.webp" alt="和 Nomi 对话" width="44%">
-  <img src="docs/screenshots/v1.2.0-workspace.webp" alt="编程助手三栏工作区" width="54%">
+  <img src="docs/screenshots/workspace.webp" alt="编程助手三栏工作区" width="54%">
 </p>
 
 ## 为什么是 Nomi
@@ -79,7 +79,7 @@ Go 内核 + [Wails v3](https://v3.wails.io)，不带 Chromium（2.2.0 起不再�
 ```mermaid
 flowchart LR
   subgraph View["视图（React 19）"]
-    Chat["对话 / 编程工作台"]
+    Chat["对话（灵伴 / 工坊）"]
     Mascot["桌面角色"]
   end
   subgraph Core["内核（Go）"]
