@@ -5,9 +5,10 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { repoPath } from '@nomi-ai/repo-paths';
 import { describe, expect, it } from 'vitest';
 
-const theme = readFileSync(resolve(__dirname, '../../ui/src/styles/theme.css'), 'utf8');
+const theme = readFileSync(repoPath('packages/ui/src/styles/theme.css'), 'utf8');
 
 function cssFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
