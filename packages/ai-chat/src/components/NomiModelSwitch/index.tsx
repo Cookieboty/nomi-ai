@@ -62,7 +62,7 @@ export const NomiModelSwitch: React.FC<{ className?: string }> = ({ className })
       data-testid="nomi-model-switch"
     >
       <ModelPicker
-        variant="chip"
+        variant="bare"
         browse
         className={styles.picker}
         providers={providers}

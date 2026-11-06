@@ -184,6 +184,8 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	})
 	call("harness.gitDiff", func(a in) any { return h().GitDiffIn(a.any("cwd")) })
 	call("harness.gitBranch", func(a in) any { return h().GitBranchIn(a.any("cwd")) })
+	call("harness.gitBranches", func(a in) any { return h().GitBranchesIn(a.any("cwd")) })
+	call("harness.gitCheckout", func(a in) any { return h().GitCheckoutIn(a.any("cwd"), a.any("branch"), a.any("create")) })
 	call("harness.gitSyncStatus", func(a in) any { return h().GitSyncStatusIn(a.any("cwd")) })
 	call("harness.gitStage", func(a in) any { return h().GitStageIn(a.any("cwd"), a.any("paths")) })
 	call("harness.gitUnstage", func(a in) any { return h().GitUnstageIn(a.any("cwd"), a.any("paths")) })

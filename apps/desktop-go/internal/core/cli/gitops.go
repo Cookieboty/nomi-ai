@@ -1089,3 +1089,64 @@ func GitDiscardUndo(cwd string, stashes any) *util.Obj {
 		return gitOK()
 	})
 }
+
+// gitBranchesMax：分支下拉最多列这么多（按最近提交排序，再多的用搜索也找不全，界面上已经够用）。
+const gitBranchesMax = 200
+
+// GitBranches = 本地分支列表（输入框上方 / 右栏的分支切换用）：按最近提交倒序，当前分支在 current；
+// 游离 HEAD 时 current 为 null、detached 是短提交号。不是 git 仓库返回 nil。
+func GitBranches(cwd string) *util.Obj {
+	if gitLine(cwd, []string{"rev-parse", "--is-inside-work-tree"}) != "true" {
+		return nil
+	}
+	r := gitRun(cwd, []string{"for-each-ref", "--sort=-committerdate", "--format=%(refname:short)", "refs/heads"}, gitLocalMs, "")
+	names := []any{}
+	if r.Code == 0 {
+		for _, s := range strings.Split(r.Stdout, "\n") {
+			if s = util.JSTrim(s); s != "" && len(names) < gitBranchesMax {
+				names = append(names, s)
+			}
+		}
+	}
+	current := gitBranchOf(cwd)
+	o := util.NewObj("branches", names)
+	if current != "" {
+		o.Set("current", current)
+	} else {
+		o.Set("current", nil)
+		if sha := gitLine(cwd, []string{"rev-parse", "--short", "HEAD"}); sha != "" {
+			o.Set("detached", sha)
+		}
+	}
+	return o
+}
+
+var reBranchExists = regexp.MustCompile(`(?i)already exists`)
+
+// GitCheckout = 切到已有分支，或（create）从当前 HEAD 新建并切过去。
+// 有会被覆盖的未提交改动时 git 自己拒绝（code dirty），不会丢改动；分支名先过 check-ref-format。
+func GitCheckout(cwd string, branch any, create any) *util.Obj {
+	name, _ := branch.(string)
+	name = util.JSTrim(name)
+	if name == "" || strings.HasPrefix(name, "-") {
+		return gitFail("invalid")
+	}
+	if gitRun(cwd, []string{"check-ref-format", "--branch", name}, gitLocalMs, "").Code != 0 {
+		return gitFail("invalid")
+	}
+	isCreate, _ := create.(bool)
+	return gitLocked(cwd, func() *util.Obj {
+		args := []string{"switch", name}
+		if isCreate {
+			args = []string{"switch", "-c", name}
+		}
+		r := gitRun(cwd, args, gitHookMs, "")
+		if r.Code == 0 {
+			return util.NewObj("ok", true, "output", gitOut(r))
+		}
+		if isCreate && reBranchExists.MatchString(r.Stderr) {
+			return gitFail("exists", r)
+		}
+		return gitFail(Classify(r), r)
+	})
+}

@@ -3,39 +3,29 @@
  *
  * - `EndpointControls`（输入栏左侧）：模型（编程助手还有权限模式），只留发消息时要用的。
  *   端点在新建对话时选定，之后不在输入栏切换。
- * - `WorkspaceControl`（对话顶栏右侧，挨着「改动 · 文件」开关）：工作目录与换目录确认。
+ * - `NewChatContext`（新会话时输入框上方）：工作区 · 本地 · 分支，工作区可以自由切换。
  * - `SessionControls`（对话区顶部）：「带上前文」标记。
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
  */
-import { Button, Icon, Modal, t } from '@nomi-ai/ui';
+import { Icon, t } from '@nomi-ai/ui';
 import { History, X } from 'lucide-react';
-import React, { useState } from 'react';
+import React from 'react';
 
+import { selectMessageCount, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
+import { useGitBranch } from '../../hooks/useGitBranch';
 import { useHarnessState } from '../../hooks/useHarnessState';
 import { useNomiWorkspace } from '../../hooks/useNomiWorkspace';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
-import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { BranchPicker } from '../BranchPicker';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
 import { BypassTip, PermissionModeChip, type PermissionTab } from '../PermissionModeChip';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
-
-/** 换目录后新会话怎么开：带上当前对话作为前文 / 干净地开新会话 */
-type SwitchMode = 'carry' | 'fresh';
-
-/** 等用户决定怎么换的目录切换：冻结发起时的标签（主对话标签为 null）、后端与原目录 */
-interface PendingCwd {
-  tabId: string | null;
-  backend: string | null;
-  title: string;
-  originCwd: string;
-  next: string;
-}
 
 /** 当前显示的是哪个端点，以及对应的 CLI 标签（Nomi 为 null） */
 function useEndpoint() {
@@ -48,8 +38,11 @@ function useEndpoint() {
   return { isDev, tabs, harness, cli, tab };
 }
 
-/** 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置） */
-export const EndpointControls: React.FC = () => {
+/**
+ * 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置）。
+ * part：Codex 式布局里权限模式在左（mode）、模型在右（model）；不传则两个都画。
+ */
+export const EndpointControls: React.FC<{ part?: 'mode' | 'model' }> = ({ part }) => {
   const { tabs, harness, cli, tab } = useEndpoint();
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
@@ -65,15 +58,15 @@ export const EndpointControls: React.FC = () => {
           permissionMode: harness.permissionMode,
         }
       : null;
+  const model = part !== 'mode';
+  const mode = part !== 'model';
   return (
     <>
-      {!cli && gatewayClientAvailable() && <NomiModelSwitch />}
-      {nomiTab && <PermissionModeChip tab={nomiTab} />}
-      {cli && modeTab && (
-        <>
-          <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />
-          <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
-        </>
+      {model && !cli && gatewayClientAvailable() && <NomiModelSwitch />}
+      {mode && nomiTab && <PermissionModeChip tab={nomiTab} />}
+      {model && cli && modeTab && <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />}
+      {mode && cli && modeTab && (
+        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
       )}
     </>
   );
@@ -90,160 +83,93 @@ export const PermissionTip: React.FC = () => {
   return <BypassTip tab={modeTab} exitMode={def && def !== 'bypass' ? def : 'acceptEdits'} />;
 };
 
-/** 当前 CLI 标签的工作目录与换目录流程（cwd 是 CLI 会话身份的一部分：换目录一定开新会话） */
+/**
+ * 当前 CLI 标签的工作目录。工作区只在新会话（还没有消息）时能换，没有对话可带：
+ * cwd 是 CLI 会话身份的一部分，换目录直接开新会话，不再弹确认框。
+ */
 function useCwdSwitch() {
-  const { tabs, harness, cli, tab } = useEndpoint();
+  const { harness, cli, tab } = useEndpoint();
   const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
-  const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
-  const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
-  const visibleMessages = (tabs.messages ?? []).filter((m) => !m.error && m.content.trim()).length;
-  const [pendingCwd, setPendingCwd] = useState<PendingCwd | null>(null);
-  // 确认框打开期间换到了别的标签（Mod+数字、Ctrl+Tab、程序切换）、原标签被关闭或换了后端 / 目录：
-  // 作废，绝不把对 A 的选择用到当前标签或主对话上（#68）。渲染期比对后清掉，切回 A 也不复活。
-  const pending =
-    pendingCwd &&
-    pendingCwd.tabId === (tab?.id ?? null) &&
-    pendingCwd.backend === cli &&
-    pendingCwd.originCwd === cwd
-      ? pendingCwd
-      : null;
-  if (pendingCwd && !pending) setPendingCwd(null);
-
-  /** target：发起换目录时冻结的标签；没有 target 时就是当前标签 */
-  const apply = async (next: string, mode: SwitchMode, target?: PendingCwd) => {
-    const opts = { carry: mode === 'carry' };
-    const tabId = target ? target.tabId : (tab?.id ?? null);
-    if (tabId) await harnessClient.setTabCwd(tabId, next, opts).catch(() => undefined);
-    else await harnessClient.setCwd(next, opts).catch(() => undefined);
-  };
-
-  // 已有对话时让用户选是否把它带过去
   const changeCwd = async (next: string) => {
     if (next === cwd) return;
-    if (hasSession || running || visibleMessages > 0)
-      setPendingCwd({
-        tabId: tab?.id ?? null,
-        backend: cli,
-        title: tab?.title ?? (cli ? ENDPOINT_NAME[cli] : ''),
-        originCwd: cwd,
-        next,
-      });
-    else await apply(next, 'fresh');
+    const opts = { carry: false };
+    if (tab) await harnessClient.setTabCwd(tab.id, next, opts).catch(() => undefined);
+    else await harnessClient.setCwd(next, opts).catch(() => undefined);
   };
-
-  const choose = (mode: SwitchMode) => {
-    const target = pending;
-    setPendingCwd(null);
-    if (target) void apply(target.next, mode, target);
-  };
-
-  return {
-    cli,
-    cwd,
-    changeCwd,
-    modal: (
-      <>
-        {pending && (
-          <Modal
-            open
-            onClose={() => setPendingCwd(null)}
-            title={t('ui.chat-settings.switch-working-directory')}
-            closeLabel={t('ui.foundation.cancel')}
-            data-testid="cli-cwd-switch"
-            footer={
-              <div className={styles.actions}>
-                <Button data-testid="cli-cwd-cancel" onClick={() => setPendingCwd(null)}>
-                  {t('ui.foundation.cancel')}
-                </Button>
-                <Button data-testid="cli-cwd-fresh" onClick={() => choose('fresh')}>
-                  {t('ui.chat-settings.start-a-new-session')}
-                </Button>
-                <Button
-                  variant="primary"
-                  autoFocus
-                  disabled={visibleMessages === 0}
-                  data-testid="cli-cwd-carry"
-                  onClick={() => choose('carry')}
-                >
-                  {t('ui.chat-settings.bring-this-conversation')}
-                </Button>
-              </div>
-            }
-          >
-            <div className={styles.body}>
-              <p>
-                {t('ui.chat-settings.switch-to')}{' '}
-                <code className={styles.path}>{pending.next}</code>
-              </p>
-              <p className="cd-muted" data-testid="cli-cwd-switch-origin">
-                {t('ui.chat-settings.tab', pending.title)} ·{' '}
-                <code className={styles.path}>{pending.originCwd}</code>
-              </p>
-              <p className="cd-muted">
-                {t(
-                  'ui.chat-settings.sessions-are-tied-to-their-working-directory-so',
-                  ENDPOINT_NAME[cli ?? 'claude'],
-                )}
-              </p>
-              {running && (
-                <p className="cd-muted">
-                  {t('ui.chat-settings.the-turn-that-is-running-won-t-be')}
-                </p>
-              )}
-            </div>
-          </Modal>
-        )}
-      </>
-    ),
-  };
+  return { cli, cwd, changeCwd };
 }
 
 /**
- * Nomi 对话的工作区：存在当前会话上，选了之后 Nomi 的文件工具只能在里面用、命令在里面启动；
- * 没有 CLI 会话要续接，换工作区不用确认，下一轮起生效。可以「不使用工作区」回到按授权文件夹。
+ * 新会话（还没有消息）时贴在输入框上方的一条：工作区（可搜索、可换、可不使用）· 当前分支（Nomi 只在本机运行，不再标「本地」）。
+ * Nomi 对话的工作区存在会话上，下一轮起生效；CLI 标签的目录是会话身份的一部分，空标签换目录直接开新会话。
+ * 有了消息之后不再显示，顶栏也不再放工作区。
  */
-const NomiWorkspaceControl: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) => {
+const ContextBar: React.FC<{
+  cwd: string;
+  picker: React.ReactNode;
+}> = ({ cwd, picker }) => {
+  const branch = useGitBranch(cwd || null);
+  return (
+    <div className={styles.contextBar} data-testid="new-chat-context">
+      {picker}
+      {/* 当前分支：点开可以搜索、切换或新建分支（与右栏「改动」顶部同一个切换器） */}
+      {branch && cwd && <BranchPicker cwd={cwd} branch={branch} up testId="new-chat-branch" />}
+    </div>
+  );
+};
+
+const NomiContextBar: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) => {
   const ws = useNomiWorkspace(mainCwd);
   return (
-    <WorkspacePicker
-      value={ws.cwd}
-      onChange={ws.set}
-      onClear={ws.clear}
-      emptyLabel={t('ui.cli-monitor.no-workspace')}
-      size="ms"
-      variant="ghost"
-      testId="nomi-workspace"
+    <ContextBar
+      cwd={ws.cwd}
+      picker={
+        <WorkspacePicker
+          value={ws.cwd}
+          onChange={ws.set}
+          onClear={ws.clear}
+          emptyLabel={t('ui.cli-monitor.no-workspace')}
+          size="ms"
+          variant="ghost"
+          up
+          searchable
+          testId="nomi-workspace"
+        />
+      }
     />
   );
 };
 
-/** 对话顶栏右侧：当前标签的工作目录（与「改动 · 文件」开关相邻，说的都是这个目录；分支在右栏顶部） */
-const WorkspaceControlImpl: React.FC = () => {
-  const { cli, cwd, changeCwd, modal } = useCwdSwitch();
+const NewChatContextImpl: React.FC = () => {
+  const { cli, cwd, changeCwd } = useCwdSwitch();
   const { tabs, harness } = useEndpoint();
-  // Nomi 对话（主标签在 Nomi 后端）：工作区按会话存；等标签列表到了再判断，避免先闪一下
+  const nomiCount = useAiChatSelector(selectMessageCount);
   if (!cli) {
     const onMain = !tabs.isCliTab && harness?.backend === 'nomi';
-    return onMain && harnessClient.available() ? (
-      <NomiWorkspaceControl mainCwd={harness.cwd} />
-    ) : null;
+    if (!onMain || !harnessClient.available() || nomiCount > 0) return null;
+    return <NomiContextBar mainCwd={harness.cwd} />;
   }
+  if ((tabs.messages ?? []).length > 0) return null;
   return (
-    <>
-      <WorkspacePicker
-        value={cwd}
-        onChange={changeCwd}
-        size="ms"
-        variant="ghost"
-        testId="cli-workspace"
-      />
-      {modal}
-    </>
+    <ContextBar
+      cwd={cwd}
+      picker={
+        <WorkspacePicker
+          value={cwd}
+          onChange={changeCwd}
+          size="ms"
+          variant="ghost"
+          up
+          searchable
+          testId="cli-workspace"
+        />
+      }
+    />
   );
 };
 
 /** 没有 props：memo 后 App 根组件流式重渲染时不带着它重渲染（只跟自己订阅的上下文走） */
-export const WorkspaceControl = React.memo(WorkspaceControlImpl);
+export const NewChatContext = React.memo(NewChatContextImpl);
 
 /**
  * 对话区顶部：「带上前文」标记（换目录 / 换来源后才有）。

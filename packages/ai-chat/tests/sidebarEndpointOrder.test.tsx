@@ -8,7 +8,6 @@ import {
   orderEndpoints,
   setChatMode,
   setEndpointOrder,
-  splitShownEndpoints,
 } from '../src/services/chatPrefs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -104,36 +103,18 @@ describe('端点排序与「更多」', () => {
     ]);
   });
 
-  it('splitShownEndpoints：最多 5 个，选中的端点在「更多」里时换到最后一位', () => {
-    const o = ['nomi', 'codex', 'claude', 'dsh', 'grok', 'gemini'] as const;
-    expect(splitShownEndpoints(o, null)).toEqual({
-      shown: ['nomi', 'codex', 'claude', 'dsh', 'grok'],
-      more: ['gemini'],
-    });
-    expect(splitShownEndpoints(o, 'gemini')).toEqual({
-      shown: ['nomi', 'codex', 'claude', 'dsh', 'gemini'],
-      more: ['grok'],
-    });
-  });
-
-  it('筛选行最多 5 个图标，其余在「+N」里；从「更多」选中后它出现在行内', async () => {
+  it('导航栏列出全部端点（不再收进「+N」），按顺序排列', async () => {
     const r = mount();
-    await waitFor(() => r.getByTestId('endpoint-filter-more'));
-    expect(shownIds(r)).toEqual(['nomi', 'codex', 'claude', 'dsh', 'grok']);
-    expect(r.getByTestId('endpoint-filter-more').textContent).toBe('+1');
-    fireEvent.click(r.getByTestId('endpoint-filter-more'));
-    await waitFor(() =>
-      expect((r.getByTestId('endpoint-more-gemini') as HTMLButtonElement).disabled).toBe(false),
-    );
-    fireEvent.click(r.getByTestId('endpoint-more-gemini'));
-    expect(r.queryByTestId('endpoint-more-menu')).toBeNull();
+    await waitFor(() => r.getByTestId('endpoint-filter-gemini'));
+    expect(r.queryByTestId('endpoint-filter-more')).toBeNull();
+    expect(shownIds(r)).toEqual(['nomi', 'codex', 'claude', 'dsh', 'grok', 'gemini']);
+    fireEvent.click(r.getByTestId('endpoint-filter-gemini'));
     expect(r.getByTestId('endpoint-filter-gemini').getAttribute('aria-pressed')).toBe('true');
-    expect(shownIds(r)).toEqual(['nomi', 'codex', 'claude', 'dsh', 'gemini']);
   });
 
   it('显示设置里拖拽 / Alt+↑ 调整顺序并记住；可恢复按对话数排序', async () => {
     const r = mount();
-    await waitFor(() => r.getByTestId('endpoint-filter-more'));
+    await waitFor(() => r.getByTestId('endpoint-filter-gemini'));
     fireEvent.click(r.getByTestId('endpoint-visibility'));
     // 拖拽：把 Gemini 拖到 Codex 的位置
     fireEvent.dragStart(r.getByTestId('endpoint-order-gemini'), {
@@ -144,7 +125,9 @@ describe('端点排序与「更多」', () => {
     });
     fireEvent.drop(r.getByTestId('endpoint-order-codex'));
     expect(getEndpointOrder()).toEqual(['gemini', 'codex', 'claude', 'dsh', 'grok']);
-    await waitFor(() => expect(shownIds(r)).toEqual(['nomi', 'gemini', 'codex', 'claude', 'dsh']));
+    await waitFor(() =>
+      expect(shownIds(r)).toEqual(['nomi', 'gemini', 'codex', 'claude', 'dsh', 'grok']),
+    );
     // 键盘：Alt+↑ 把 Claude 上移一位
     fireEvent.keyDown(r.getByTestId('endpoint-order-grip-claude'), {
       key: 'ArrowUp',
@@ -153,7 +136,9 @@ describe('端点排序与「更多」', () => {
     expect(getEndpointOrder()).toEqual(['gemini', 'claude', 'codex', 'dsh', 'grok']);
     fireEvent.click(r.getByTestId('endpoint-order-reset'));
     expect(getEndpointOrder()).toBeNull();
-    await waitFor(() => expect(shownIds(r)).toEqual(['nomi', 'codex', 'claude', 'dsh', 'grok']));
+    await waitFor(() =>
+      expect(shownIds(r)).toEqual(['nomi', 'codex', 'claude', 'dsh', 'grok', 'gemini']),
+    );
   });
 
   it('损坏或含未知端点的顺序被忽略', () => {

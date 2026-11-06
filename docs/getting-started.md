@@ -42,7 +42,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ### 两种模式
 
-侧栏顶部 Nomi 标志旁可以切换 **助手**（只和 Nomi 对话）与 **工作台**（还能开 Claude Code、Codex、Grok、Gemini、dsh 的编程助手标签）。工作台的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。
+会话面板顶部的「Nomi 灵伴 ⌄」菜单可以切换 **灵伴**（聊天、知识问答、记忆与日常事务）与 **工坊**（Nomi 调度 AI 能力完成任务：Claude Code、Codex、Grok、Gemini、dsh 的编程助手标签，多模型、项目管理与代码修改）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。
 
 ### 常用快捷键
 

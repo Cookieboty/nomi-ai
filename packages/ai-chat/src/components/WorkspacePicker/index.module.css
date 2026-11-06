@@ -99,3 +99,28 @@
   border-radius: 0 0 var(--cd-radius-sm) var(--cd-radius-sm);
   margin-top: var(--cd-space-0-5);
 }
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-1-5) var(--cd-space-2) var(--cd-space-2);
+  margin-bottom: var(--cd-space-1);
+  border-bottom: 1px solid var(--cd-color-border);
+  color: var(--cd-color-text-subtle);
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+}
+.checkEnd {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--cd-color-text);
+}

@@ -138,15 +138,16 @@ const mountSidebar = () =>
   );
 
 describe('one conversation context menu', () => {
-  it('CLI conversation: rename / fork / fork-cross / close / delete', async () => {
+  it('CLI conversation: rename / pin / fork / fork-cross / close / delete', async () => {
     mockIpc();
     const r = mountSidebar();
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     const m = r.getByTestId('conversation-context-menu');
-    expect(m.querySelectorAll('[role=menuitem]').length).toBe(5);
+    expect(m.querySelectorAll('[role=menuitem]').length).toBe(6);
     for (const id of [
       'conversation-rename',
+      'conversation-pin',
       'fork-same',
       'fork-cross',
       'conversation-close',
@@ -213,6 +214,8 @@ describe('one conversation context menu', () => {
       r.getByTestId('conversation-list').querySelector('[data-conversation-id="b"]')!,
     );
     fireEvent.click(r.getByTestId('conversation-delete'));
+    // 永久删除要在应用内确认框里再确认一次
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('b'));
     await waitFor(() => expect(loadChatHistory).toHaveBeenCalled());
     expect(clearChatHistory).not.toHaveBeenCalled();
@@ -300,6 +303,8 @@ describe('one conversation context menu', () => {
       r.getByTestId('conversation-list').querySelector('[data-conversation-id="b"]')!,
     );
     fireEvent.click(r.getByTestId('conversation-delete'));
+    // 永久删除要在应用内确认框里再确认一次
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('b'));
     await waitFor(() => expect(clearChatHistory).toHaveBeenCalled());
     expect(loadChatHistory).not.toHaveBeenCalled();
@@ -335,7 +340,7 @@ describe('one conversation context menu', () => {
     const first = r.getByTestId('conversation-rename');
     expect(document.activeElement).toBe(first);
     fireEvent.keyDown(r.getByTestId('conversation-context-menu'), { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(r.getByTestId('fork-same'));
+    expect(document.activeElement).toBe(r.getByTestId('conversation-pin'));
     fireEvent.keyDown(r.getByTestId('conversation-context-menu'), { key: 'Escape' });
     expect(r.queryByTestId('conversation-context-menu')).toBeNull();
   });
@@ -349,9 +354,14 @@ describe('one "new" menu', () => {
         <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />
       </HarnessTabsProvider>,
     );
-    fireEvent.click(await waitFor(() => r.getByTestId('new-chat')));
+    // 等列表加载完：分组出现后「+」挪到「工作区」标题右侧（重新挂载）
+    await waitFor(() => r.getAllByTestId('history-item'));
+    fireEvent.click(r.getByTestId('new-chat'));
     const sideMenu = await waitFor(() => r.getByTestId('new-chat-menu'));
     expect(sideMenu.getAttribute('role')).toBe('menu');
+    // 菜单挂在 body 上贴着按钮右侧，不在会话列表（滚动容器）里：不会被裁掉、也不会撑出横向滚动
+    expect(r.getByTestId('conversation-list').contains(sideMenu)).toBe(false);
+    expect(sideMenu.closest('[data-testid="sidebar-popover"]')).toBeTruthy();
     // 同样的名称；未安装的端点置灰（dsh 在侧栏里未探测到）
     expect(r.getByTestId('new-chat-claude').textContent).toBe('Claude Code');
     expect(r.getByTestId('new-chat-codex').textContent).toBe('Codex');

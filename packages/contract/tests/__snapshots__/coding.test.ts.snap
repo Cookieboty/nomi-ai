@@ -39,6 +39,8 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.slashExpand query",
   "harness.gitDiff query",
   "harness.gitBranch query",
+  "harness.gitBranches query",
+  "harness.gitCheckout mutation",
   "harness.gitSyncStatus query",
   "harness.gitStage mutation",
   "harness.gitUnstage mutation",

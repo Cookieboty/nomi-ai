@@ -1,6 +1,6 @@
 /**
  * 侧栏底部：应用级入口（设置 · 知识 · 记忆 · 日程 · 扩展 / MCP）。
- * 它们与当前对话无关，所以不放在对话列顶栏；展开时一行（设置带文字），侧栏收起时竖排只显示图标。
+ * 它们与当前对话无关，所以不放在对话列顶栏；展开时一行（设置带文字），在左侧导航栏里竖排只显示图标，设置在最下面。
  * 侧栏 overflow: hidden 会裁掉 CSS 提示，这里用原生 title。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
@@ -66,17 +66,6 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
       aria-label={t('ui.foundation.app-shortcuts')}
       data-testid="app-entries"
     >
-      <button
-        type="button"
-        className={`${styles.btn} ${p.collapsed ? '' : styles.settings}`}
-        onClick={p.onSettings}
-        title={`${settingsTip}  ${settingsKey}`}
-        aria-label={settingsTip}
-        data-testid="open-settings"
-      >
-        <Icon icon={Settings} size={16} />
-        {!p.collapsed && <span>{settingsTip}</span>}
-      </button>
       <RestartUpdateButton placement="sidebar" collapsed={p.collapsed} />
       {!p.collapsed && <span className={styles.spacer} />}
       {panels.map((e) => (
@@ -92,6 +81,17 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
           <Icon icon={e.icon} size={16} />
         </button>
       ))}
+      <button
+        type="button"
+        className={`${styles.btn} ${p.collapsed ? '' : styles.settings}`}
+        onClick={p.onSettings}
+        title={`${settingsTip}  ${settingsKey}`}
+        aria-label={settingsTip}
+        data-testid="open-settings"
+      >
+        <Icon icon={Settings} size={16} />
+        {!p.collapsed && <span>{settingsTip}</span>}
+      </button>
     </nav>
   );
 };

@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 426：mutation 298 / query 123 / stream 5
+// 合计 428：mutation 299 / query 124 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -184,6 +184,8 @@ var Procedures = []Procedure{
 	{Name: "gateway.upsertProvider", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.geminiTrustFolder", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.gitBranch", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "harness.gitBranches", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "harness.gitCheckout", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitCommit", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitCommitUndo", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitDiff", Kind: "query", Dangerous: false, Surfaces: nil},

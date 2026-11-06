@@ -6,11 +6,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MessageInput } from '../src/components/MessageInput';
+import { COMPOSER_MIN_HEIGHT_PX, MessageInput } from '../src/components/MessageInput';
 
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
@@ -35,8 +35,8 @@ const rule = (selector: string): string => {
 };
 
 describe('输入框工具栏结构', () => {
-  it('发送按钮与语音按钮在右侧按钮组，插件入口在左侧区，两者同在 composer-bar 里', () => {
-    const { getByTestId } = render(<MessageInput onSend={vi.fn()} onPluginsClick={vi.fn()} />);
+  it('发送按钮与语音按钮在右侧按钮组，「+」在左侧区，两者同在 composer-bar 里', () => {
+    const { getByTestId } = render(<MessageInput onSend={vi.fn()} />);
     const bar = getByTestId('composer-bar');
     const left = bar.querySelector('[data-zone="left"]');
     const right = bar.querySelector('[data-zone="right"]');
@@ -45,8 +45,23 @@ describe('输入框工具栏结构', () => {
     expect(left?.nextElementSibling).toBe(right);
     expect(right?.contains(getByTestId('send-button'))).toBe(true);
     expect(left?.contains(getByTestId('composer-more'))).toBe(true);
-    expect(left?.contains(getByTestId('plugin-panel-open'))).toBe(true);
     expect(left?.contains(getByTestId('send-button'))).toBe(false);
+    // Codex 式：模型选择器在右侧区（挨着发送），权限模式留在左侧
+    expect(right?.contains(getByTestId('composer-model'))).toBe(true);
+  });
+
+  it('插件 / 命令不再单独占按钮：给了 onPluginsClick（编程助手标签）时在「+」菜单里', () => {
+    const onPlugins = vi.fn();
+    const r = render(<MessageInput onSend={vi.fn()} onPluginsClick={onPlugins} />);
+    expect(r.queryByTestId('plugin-panel-open')).toBeNull();
+    fireEvent.click(r.getByTestId('composer-more'));
+    fireEvent.click(r.getByTestId('plugin-panel-open'));
+    expect(onPlugins).toHaveBeenCalledTimes(1);
+    cleanup();
+    // Nomi 对话：App 不传 onPluginsClick，菜单里也没有
+    const n = render(<MessageInput onSend={vi.fn()} />);
+    fireEvent.click(n.getByTestId('composer-more'));
+    expect(n.queryByTestId('plugin-panel-open')).toBeNull();
   });
 
   it('没有会话消息时不显示上下文用量环', () => {
@@ -58,11 +73,12 @@ describe('输入框工具栏结构', () => {
 });
 
 describe('输入框工具栏 CSS 契约', () => {
-  it('工具栏不换行；右侧按钮组不收缩；左侧区可收缩（min-width:0）', () => {
+  it('工具栏不换行；右侧只有模型选择器可收缩（语音 / 发送不收缩）；左侧区可收缩（min-width:0）', () => {
     const bar = rule('.composerBar');
     expect(bar).toMatch(/flex-wrap:\s*nowrap/);
     expect(bar).not.toMatch(/flex-wrap:\s*wrap\b/);
-    expect(rule('.composerRight')).toMatch(/flex:\s*none/);
+    expect(rule('.composerRight')).toMatch(/min-width:\s*0/);
+    expect(rule('.composerRight > :not(.modelStatus)')).toMatch(/flex:\s*none/);
     const left = rule('.composerLeft');
     expect(left).toMatch(/min-width:\s*0/);
     expect(left).toMatch(/flex:\s*1 1 0/);
@@ -101,4 +117,20 @@ describe('输入框工具栏 CSS 契约', () => {
       );
     },
   );
+});
+
+describe('发文框高度随内容', () => {
+  it('空着是最小高度（不按占位文字量，窄宽度下也不被撑高）；有内容时按内容长高', () => {
+    const { getByTestId } = render(<MessageInput onSend={vi.fn()} />);
+    const input = getByTestId('chat-input') as HTMLTextAreaElement;
+    expect(input.style.height).toBe(`${COMPOSER_MIN_HEIGHT_PX}px`);
+    Object.defineProperty(input, 'scrollHeight', { configurable: true, value: 90 });
+    fireEvent.change(input, { target: { value: '一\n二\n三' } });
+    expect(input.style.height).toBe('90px');
+    Object.defineProperty(input, 'scrollHeight', { configurable: true, value: 900 });
+    fireEvent.change(input, { target: { value: '很长'.repeat(200) } });
+    expect(input.style.height).toBe('240px');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.style.height).toBe(`${COMPOSER_MIN_HEIGHT_PX}px`);
+  });
 });

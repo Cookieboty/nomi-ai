@@ -358,7 +358,15 @@ export type GitOpCode =
   | 'pushed'
   | 'no-model'
   | 'timeout'
+  | 'exists'
   | 'error';
+
+/** 本地分支（分支切换下拉用）：按最近提交倒序；游离 HEAD 时 current 为 null */
+export interface GitBranchList {
+  current: string | null;
+  detached?: string;
+  branches: string[];
+}
 
 export interface GitOpResult {
   ok: boolean;
@@ -454,6 +462,10 @@ export const harnessClient = {
   gitBranch: (cwd: string) =>
     call<{ branch: string | null; detached?: string } | null>(() => api.harness.gitBranch({ cwd })),
   /** 分支、上游、ahead / behind；不是 git 仓库时 null */
+  gitBranches: (cwd: string) => call<GitBranchList | null>(() => api.harness.gitBranches({ cwd })),
+  /** 切到已有分支，或 create 时从当前 HEAD 新建并切过去 */
+  gitCheckout: (cwd: string, branch: string, create = false) =>
+    call<GitOpResult>(() => api.harness.gitCheckout({ cwd, branch, create })),
   gitSyncStatus: (cwd: string) =>
     call<GitSyncStatus | null>(() => api.harness.gitSyncStatus({ cwd })),
   /** 路径都相对 cwd（同 git status） */

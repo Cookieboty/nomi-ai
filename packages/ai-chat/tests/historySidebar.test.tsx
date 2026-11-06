@@ -230,18 +230,16 @@ describe('CLI history in the sidebar', () => {
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('true');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').title).toBe('Claude Code · 2 条本机历史');
-    expect(r.getByTestId('list-title').textContent).toContain('对话');
 
     fireEvent.click(r.getByTestId('endpoint-filter-claude'));
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
-    expect(r.getByTestId('list-title').textContent).toContain('Claude Code');
     expect(r.getByTestId('new-chat').title).toContain('新建 Claude Code 对话');
     await untilIdle();
     expect(
       r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),
     ).toBe(true);
-    // 刷新按钮在标题行，不再单独占一个「历史会话」头
+    // 刷新按钮在「本机历史」标题右侧
     expect(r.getByTestId('cli-history-refresh')).toBeTruthy();
   });
 
@@ -251,15 +249,17 @@ describe('CLI history in the sidebar', () => {
     mockIpc({ codexItems: [] });
     const r = await mount();
     await untilIdle();
-    r.getByTestId('cli-history-refresh');
     await untilIdle();
     r.getByTestId('conversation-list-empty');
+    // 没有历史分组，也就没有它标题右侧的刷新
     expect(r.queryByTestId('cli-history')).toBeNull();
+    expect(r.queryByTestId('cli-history-refresh')).toBeNull();
     expect(r.queryByText('没有找到本机的历史会话')).toBeNull();
 
     fireEvent.click(r.getByTestId('endpoint-filter-nomi'));
     expect(r.queryByTestId('cli-history-refresh')).toBeNull();
-    expect(r.getByTestId('list-title').textContent).toContain('1');
+    await untilIdle();
+    expect(r.getAllByTestId('history-item')).toHaveLength(1);
   });
 
   it('普通模式不显示按端信息卡', async () => {

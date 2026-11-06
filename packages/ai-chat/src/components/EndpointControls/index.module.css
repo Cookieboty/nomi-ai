@@ -67,3 +67,33 @@
 }
 /* 这一行的控件（带上前文 / 工作目录 / 供应商下拉 / 设置按钮）都用 sm 档：
    高度 --cd-control-h-sm、圆角 md、字号 xs，由各组件自己的 size 决定，不在这里覆盖 */
+/* 新会话时输入框上方：工作区 · 本地 · 分支 */
+.contextBar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  /* 与输入框同一列（--cd-chat-content-w，居中），左右各收进一点，像压在输入框后面的一张卡片 */
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--cd-space-3));
+  max-width: calc(var(--cd-chat-content-w) - 2 * var(--cd-space-3));
+  margin: 0 auto calc(-1 * var(--cd-space-3));
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-4);
+  border-radius: var(--cd-radius-lg) var(--cd-radius-lg) 0 0;
+  background: var(--cd-color-bg-subtle);
+}
+.contextChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.contextText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

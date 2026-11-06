@@ -9,7 +9,6 @@ import {
   Expand,
   FolderGit2,
   FolderTree,
-  GitBranch,
   LocateFixed,
   Minus,
   PanelRightClose,
@@ -51,6 +50,7 @@ import {
 import type { FileDiff as ToolFileDiff } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { editsElsewhere, samePath, worktreeLabel } from '../../utils/worktrees';
+import { BranchPicker } from '../BranchPicker';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
@@ -775,14 +775,21 @@ export const SessionChangesPanel: React.FC<{
         ) : null}
       </header>
       {/* 当前分支：改动和文件说的都是这个分支上的工作区 */}
-      {branch ? (
+      {branch && gitCwd ? (
         <div
           className={styles.branchBar}
           title={t('ui.session-workspace.current-branch', branch)}
           data-testid="rail-git-branch"
         >
-          <GitBranch size={13} aria-hidden />
-          <span className={styles.branchName}>{branch}</span>
+          {/* 点开切换 / 新建分支；助手正在跑时不让切（它可能正在改这个仓库） */}
+          <BranchPicker
+            cwd={gitCwd}
+            branch={branch}
+            disabled={busy}
+            className={styles.branchPicker}
+            testId="rail-branch-picker"
+            onSwitched={() => setBranchNonce((n) => n + 1)}
+          />
           <GitSyncButtons sync={sync} ops={ops} />
         </div>
       ) : null}

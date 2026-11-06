@@ -13260,6 +13260,97 @@
     ]
    }
   },
+  "harness.gitBranches": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cwd"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "current": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "detached": {
+        "type": "string"
+       },
+       "branches": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "current",
+       "branches"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "harness.gitCheckout": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string",
+      "maxLength": 255
+     },
+     "create": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "cwd",
+     "branch"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.gitCommit": {
    "kind": "mutation",
    "dangerous": false,

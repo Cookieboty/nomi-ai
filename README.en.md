@@ -29,7 +29,7 @@
 
 <p align="center">
   <img src="docs/screenshots/chat.webp" alt="Chatting with Nomi" width="44%">
-  <img src="docs/screenshots/v1.2.0-workspace.webp" alt="Three-column coding workspace" width="54%">
+  <img src="docs/screenshots/workspace.webp" alt="Three-column coding workspace" width="54%">
 </p>
 
 ## Why Nomi
@@ -79,7 +79,7 @@ Sizes are measured from the v2.1.2 arm64 installers of both builds; memory, CPU 
 ```mermaid
 flowchart LR
   subgraph View["View (React 19)"]
-    Chat["Chat / coding workspace"]
+    Chat["Chat (Companion / Workshop)"]
     Mascot["Desktop character"]
   end
   subgraph Core["Core (Go)"]

@@ -88,9 +88,10 @@ describe('素材库', () => {
     expect(onOpen).toHaveBeenCalled();
   });
 
-  it('返回对话', async () => {
+  it('没有单独的返回按钮（导航栏「对话」回去）；Esc 回对话', async () => {
     await open();
-    fireEvent.click(screen.getByTestId('asset-back'));
+    expect(screen.queryByTestId('asset-back')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(onBack).toHaveBeenCalled();
   });
 

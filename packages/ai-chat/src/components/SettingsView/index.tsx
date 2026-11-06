@@ -22,6 +22,7 @@ import { ProvidersPage } from '../ProvidersPage';
 import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AppIconSettings } from './AppIconSettings';
+import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
@@ -176,6 +177,7 @@ export const SettingsView: React.FC<Props> = ({
             {g === 'shortcuts' && <ShortcutSettings />}
             {g === 'voice' && <VoiceSection />}
             {g === 'notify' && <IslandSettings />}
+            {g === 'archived' && <ArchivedChats />}
           </SectionPage>
         );
       }

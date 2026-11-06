@@ -8,7 +8,6 @@ import { AppEntries } from './components/AppEntries';
 import { useAssetLibraryHost } from './components/AssetLibrary';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
-import chatHeaderStyles from './components/ChatHeader/index.module.css';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
 import { CliConversation } from './components/Conversation/CliConversation';
@@ -18,7 +17,7 @@ import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
 import { nomiTraceSlots, traceActions } from './components/Conversation/TraceAction';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
-import { SessionControls, WorkspaceControl } from './components/EndpointControls';
+import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu, type ForkPick } from './components/ForkMenu';
 import {
@@ -39,7 +38,6 @@ import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
   CenterChangesHost,
-  FilesRailToggle,
   SessionChangesPanel,
   useChangesUi,
 } from './components/SessionWorkspace';
@@ -50,7 +48,8 @@ import {
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
 import { useTasksHost } from './components/Tasks';
-import { AppTitleBar } from './components/TitleBar';
+import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
+import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
@@ -683,10 +682,11 @@ const AiChatContent: React.FC = () => {
   }, [openSettings]);
 
   // 素材库：侧栏入口 + 主区整页（切到别的会话 / 标签时自动回到对话）
-  const assetLibrary = useAssetLibraryHost(sidebarCollapsed);
+  // 入口在左侧固定导航栏里：始终只显示图标
+  const assetLibrary = useAssetLibraryHost(true);
   const closeAssetLibrary = assetLibrary.close;
   // 任务页（持续任务）：与素材库并列的入口；旧的提醒 / 定时点开进日程面板
-  const tasksHost = useTasksHost(sidebarCollapsed, () => openSettings('knowledge', 'schedule'));
+  const tasksHost = useTasksHost(true, () => openSettings('knowledge', 'schedule'));
   const closeTasks = tasksHost.close;
   // 两个整页互斥：打开一个就关掉另一个
   useEffect(() => {
@@ -695,7 +695,8 @@ const AiChatContent: React.FC = () => {
   useEffect(() => {
     if (assetLibrary.chatHidden) closeTasks();
   }, [assetLibrary.chatHidden, closeTasks]);
-  const mainHidden = assetLibrary.chatHidden || tasksHost.chatHidden;
+  const openPage = tasksHost.chatHidden ? 'tasks' : assetLibrary.chatHidden ? 'assets' : null;
+  const mainHidden = openPage !== null;
   // 侧栏是 React.memo：入口元素记住，流式生成时根组件重渲染不带着侧栏重渲染
   const tasksNav = tasksHost.nav;
   const assetNav = assetLibrary.nav;
@@ -822,15 +823,17 @@ const AiChatContent: React.FC = () => {
   );
   const openGeneralSettings = useCallback(() => openSettings(), [openSettings]);
   const sidebarFooter = useMemo(
-    () => (
-      <AppEntries
-        collapsed={sidebarCollapsed}
-        onHub={openHub}
-        onExt={openExt}
-        onSettings={openGeneralSettings}
-      />
-    ),
-    [sidebarCollapsed, openHub, openExt, openGeneralSettings],
+    () => <AppEntries collapsed onHub={openHub} onExt={openExt} onSettings={openGeneralSettings} />,
+    [openHub, openExt, openGeneralSettings],
+  );
+
+  // 当前会话的「…」菜单 + 工具栏（改动 · 文件）开关：桌面应用在标题栏右侧，浏览器在对话顶栏
+  const titleBar = hasAppTitleBar();
+  const sessionTools = (
+    <SessionTools
+      onFork={onForkRequest}
+      rail={railCwd ? { open: railOpen, count: sessionChangeCount, onToggle: toggleRail } : null}
+    />
   );
 
   const paletteEl = (
@@ -840,7 +843,12 @@ const AiChatContent: React.FC = () => {
   return (
     <div className="ai-chat-app">
       <ChatBackgroundLayer />
-      <AppTitleBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+      <AppTitleBar
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={toggleSidebar}
+        title={<TitleBarTitle page={openPage} />}
+        trailing={titleBar && !mainHidden ? sessionTools : undefined}
+      />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
       <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
@@ -856,242 +864,237 @@ const AiChatContent: React.FC = () => {
           pageOpen={mainHidden}
           onLeavePage={leavePage}
           topNav={sidebarTopNav}
+          onOpenTask={tasksHost.openTask}
+          onOpenAsset={assetLibrary.openAsset}
         />
 
-        {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
-        <div
-          className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
-          data-with-changes={centerOpen ? 'true' : undefined}
-          hidden={mainHidden}
-        >
+        {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
+        <div className="workspace-card" data-testid="workspace-card">
+          {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
           <div
-            className="chat-column"
-            data-testid="chat-column"
-            style={{
-              ...(centerOpen
-                ? {
-                    width: chatColumnWidth,
-                    // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
-                    minWidth: 'var(--cd-chat-col-min)',
-                    maxWidth: CHAT_COL_W_MAX,
-                    // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
-                    flexShrink: 1,
-                  }
-                : {}),
-            }}
+            className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
+            data-with-changes={centerOpen ? 'true' : undefined}
+            hidden={mainHidden}
           >
-            <ChatHeader
-              trailing={
-                <>
-                  {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
-                  <WorkspaceControl />
-                  {railCwd ? (
-                    <FilesRailToggle
-                      open={railOpen}
-                      count={sessionChangeCount}
-                      onToggle={toggleRail}
-                      bubbleClassName={chatHeaderStyles.actionsTipBubble}
-                    />
-                  ) : null}
-                </>
-              }
-            />
-            {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
-            <div className="session-bar chat-session-bar">
-              <SessionControls />
-            </div>
-            {/* 对话区域 */}
-            <main className="chat-container">
-              {isDev && tabs.isCliTab ? (
-                <>
-                  {tabs.messages.length === 0 &&
-                  !cliHasLive &&
-                  slash.cards.length === 0 &&
-                  tabs.activeTab!.status === 'idle' ? (
-                    <div className="welcome-screen" data-testid="cli-tab-empty">
-                      <div className="welcome-content">
-                        <h2 className="welcome-title">
-                          {t('ui.mascot-theme.new-session', tabs.activeTab!.title)}
-                        </h2>
-                        <p className="welcome-subtitle">
-                          {t('ui.mascot-theme.messages-go-to-the-coding-agent-on-this')}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <CliConversation
-                      scopeId={tabs.activeTab!.id}
-                      messages={cliConvMessages}
-                      phase={
-                        tabs.activeTab!.status === 'running'
-                          ? 'running'
-                          : tabs.activeTab!.status === 'queued'
-                            ? 'queued'
-                            : 'idle'
-                      }
-                      slots={cliSlots}
-                      cards={slash.cards}
-                      onDismissCard={slash.dismissCard}
-                      dormant={tabs.activeTab!.dormant}
-                      backgroundAgents={tabs.activeTab!.backgroundAgents}
-                      backgroundCount={tabs.activeTab!.background}
-                    />
-                  )}
-                </>
-              ) : messageCount === 0 && slash.cards.length === 0 ? (
-                <div className="welcome-screen" data-testid="welcome-screen">
-                  <div className="welcome-content">
-                    <h2 className="welcome-title">
-                      {t('ui.foundation.what-would-you-like-to-do-today')}
-                    </h2>
-                    {modelStatus === 'none' || modelStatus === 'unassigned' ? (
-                      <div
-                        className="welcome-setup"
-                        data-testid="welcome-needs-model"
-                        data-status={modelStatus}
-                      >
-                        <p className="welcome-subtitle">
-                          {modelStatus === 'none'
-                            ? t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')
-                            : t('ui.foundation.pick-one-of-your-models-for-nomi-chat')}
-                        </p>
-                        <Button
-                          variant="primary"
-                          onClick={() => openSettings('models')}
-                          data-testid="welcome-add-model"
-                        >
-                          {modelStatus === 'none'
-                            ? t('ui.foundation.getting-started-add-a-model')
-                            : t('ui.models.choose-a-model')}
-                        </Button>
+            <div
+              className="chat-column"
+              data-testid="chat-column"
+              style={{
+                ...(centerOpen
+                  ? {
+                      width: chatColumnWidth,
+                      // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
+                      minWidth: 'var(--cd-chat-col-min)',
+                      maxWidth: CHAT_COL_W_MAX,
+                      // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
+                      flexShrink: 1,
+                    }
+                  : {}),
+              }}
+            >
+              {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
+              {!titleBar && <ChatHeader trailing={sessionTools} />}
+              {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
+              <div className="session-bar chat-session-bar">
+                <SessionControls />
+              </div>
+              {/* 对话区域 */}
+              <main className="chat-container">
+                {isDev && tabs.isCliTab ? (
+                  <>
+                    {tabs.messages.length === 0 &&
+                    !cliHasLive &&
+                    slash.cards.length === 0 &&
+                    tabs.activeTab!.status === 'idle' ? (
+                      <div className="welcome-screen" data-testid="cli-tab-empty">
+                        <div className="welcome-content">
+                          <h2 className="welcome-title">
+                            {t('ui.mascot-theme.new-session', tabs.activeTab!.title)}
+                          </h2>
+                          <p className="welcome-subtitle">
+                            {t('ui.mascot-theme.messages-go-to-the-coding-agent-on-this')}
+                          </p>
+                        </div>
                       </div>
                     ) : (
-                      <div className="quick-actions">
-                        {quickPrompts.map((id) => (
-                          <button
-                            key={id}
-                            className="quick-action-btn"
-                            data-testid={`quick-action-${id}`}
-                            onClick={() => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
-                          >
-                            {t(QUICK_PROMPT_TEXT[id].label)}
-                          </button>
-                        ))}
-                      </div>
+                      <CliConversation
+                        scopeId={tabs.activeTab!.id}
+                        messages={cliConvMessages}
+                        phase={
+                          tabs.activeTab!.status === 'running'
+                            ? 'running'
+                            : tabs.activeTab!.status === 'queued'
+                              ? 'queued'
+                              : 'idle'
+                        }
+                        slots={cliSlots}
+                        cards={slash.cards}
+                        onDismissCard={slash.dismissCard}
+                        dormant={tabs.activeTab!.dormant}
+                        backgroundAgents={tabs.activeTab!.backgroundAgents}
+                        backgroundCount={tabs.activeTab!.background}
+                      />
                     )}
-                    <p className="welcome-subtitle">
-                      {t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')}
-                    </p>
+                  </>
+                ) : messageCount === 0 && slash.cards.length === 0 ? (
+                  <div className="welcome-screen" data-testid="welcome-screen">
+                    <div className="welcome-content">
+                      <h2 className="welcome-title">
+                        {t('ui.foundation.what-would-you-like-to-do-today')}
+                      </h2>
+                      {modelStatus === 'none' || modelStatus === 'unassigned' ? (
+                        <div
+                          className="welcome-setup"
+                          data-testid="welcome-needs-model"
+                          data-status={modelStatus}
+                        >
+                          <p className="welcome-subtitle">
+                            {modelStatus === 'none'
+                              ? t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')
+                              : t('ui.foundation.pick-one-of-your-models-for-nomi-chat')}
+                          </p>
+                          <Button
+                            variant="primary"
+                            onClick={() => openSettings('models')}
+                            data-testid="welcome-add-model"
+                          >
+                            {modelStatus === 'none'
+                              ? t('ui.foundation.getting-started-add-a-model')
+                              : t('ui.models.choose-a-model')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="quick-actions">
+                          {quickPrompts.map((id) => (
+                            <button
+                              key={id}
+                              className="quick-action-btn"
+                              data-testid={`quick-action-${id}`}
+                              onClick={() => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
+                            >
+                              {t(QUICK_PROMPT_TEXT[id].label)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="welcome-subtitle">
+                        {t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <NomiConversation
-                  scopeId={`nomi:${firstMessageId ?? 'new'}`}
-                  messages={nomiMessages}
-                  phase={busyHere ? 'running' : 'idle'}
-                  onRetry={onNomiRetry}
-                  onEdit={onNomiEdit}
-                  slots={nomiConvSlots}
-                  cards={slash.cards}
-                  onDismissCard={slash.dismissCard}
+                ) : (
+                  <NomiConversation
+                    scopeId={`nomi:${firstMessageId ?? 'new'}`}
+                    messages={nomiMessages}
+                    phase={busyHere ? 'running' : 'idle'}
+                    onRetry={onNomiRetry}
+                    onEdit={onNomiEdit}
+                    slots={nomiConvSlots}
+                    cards={slash.cards}
+                    onDismissCard={slash.dismissCard}
+                  />
+                )}
+              </main>
+
+              {/* 输入区域 */}
+              <footer className="input-container">
+                {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
+                <DesktopConfirmDock />
+                <PendingDock
+                  items={pending.items}
+                  onWithdraw={pending.onWithdraw}
+                  onRemove={pending.onRemove}
                 />
-              )}
-            </main>
+                {/* 新会话：输入框上方的工作区 · 本地 · 分支，可以自由切换 */}
+                <NewChatContext />
+                <MessageInput
+                  {...inputModeProps}
+                  cwd={railCwd ?? undefined}
+                  delegate={slashBackend === 'nomi'}
+                  contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                  contextModel={
+                    tabs.isCliTab
+                      ? (tabs.activeTab?.modelOverride ??
+                        liveContext?.model ??
+                        reportedModel(cliConvMessages) ??
+                        tabs.activeTab?.backend)
+                      : undefined
+                  }
+                  slash={slash.bridge}
+                  fill={composerFill}
+                  draftStore={drafts.draftStore}
+                  draftKey={drafts.draftKey}
+                  // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                  onPluginsClick={slashBackend !== 'nomi' ? openPlugins : undefined}
+                  onProvidersClick={openProviders}
+                  onSettingsClick={onInputSettings}
+                  onDesktopClick={openDesktop}
+                  onHubClick={openHub}
+                  onExtClick={openExt}
+                  onLocalClick={openLocal}
+                />
+              </footer>
+            </div>
 
-            {/* 输入区域 */}
-            <footer className="input-container">
-              {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
-              <DesktopConfirmDock />
-              <PendingDock
-                items={pending.items}
-                onWithdraw={pending.onWithdraw}
-                onRemove={pending.onRemove}
-              />
-              <MessageInput
-                {...inputModeProps}
-                cwd={railCwd ?? undefined}
-                contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                contextModel={
-                  tabs.isCliTab
-                    ? (tabs.activeTab?.modelOverride ??
-                      liveContext?.model ??
-                      reportedModel(cliConvMessages) ??
-                      tabs.activeTab?.backend)
-                    : undefined
-                }
-                slash={slash.bridge}
-                fill={composerFill}
-                draftStore={drafts.draftStore}
-                draftKey={drafts.draftKey}
-                onPluginsClick={openPlugins}
-                onProvidersClick={openProviders}
-                onSettingsClick={onInputSettings}
-                onDesktopClick={openDesktop}
-                onHubClick={openHub}
-                onExtClick={openExt}
-                onLocalClick={openLocal}
-              />
-            </footer>
+            {centerOpen && railCwd ? (
+              <>
+                <div
+                  className="center-changes-splitter"
+                  data-testid="center-changes-splitter"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-valuenow={chatColumnWidth}
+                  aria-valuemin={CHAT_COL_W_MIN}
+                  aria-valuemax={CHAT_COL_W_MAX}
+                  onPointerDown={onChatColSplitterDown}
+                  onDoubleClick={onChatColSplitterDbl}
+                  title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
+                />
+                <CenterChangesHost messages={railMessages} cwd={railCwd} />
+              </>
+            ) : null}
           </div>
+          {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
+          {assetLibrary.page}
+          {/* 任务整页：同样替换对话区 */}
+          {tasksHost.page}
 
-          {centerOpen && railCwd ? (
+          {railOpen && railCwd && !mainHidden ? (
             <>
               <div
-                className="center-changes-splitter"
-                data-testid="center-changes-splitter"
+                className="files-rail-splitter"
+                data-testid="files-rail-splitter"
                 role="separator"
                 aria-orientation="vertical"
-                aria-valuenow={chatColumnWidth}
-                aria-valuemin={CHAT_COL_W_MIN}
-                aria-valuemax={CHAT_COL_W_MAX}
-                onPointerDown={onChatColSplitterDown}
-                onDoubleClick={onChatColSplitterDbl}
-                title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
+                aria-valuenow={filesRailWidth}
+                aria-valuemin={FILES_RAIL_W_MIN}
+                aria-valuemax={FILES_RAIL_W_MAX}
+                onPointerDown={onFilesRailSplitterDown}
+                onDoubleClick={onFilesRailSplitterDbl}
+                title={t('ui.session-workspace.drag-to-resize-chat-vs-workspace-double-click')}
               />
-              <CenterChangesHost messages={railMessages} cwd={railCwd} />
+              <aside
+                className="files-rail"
+                data-testid="files-rail"
+                style={{
+                  width: filesRailWidth,
+                  minWidth: 'var(--cd-files-rail-min)',
+                  maxWidth: FILES_RAIL_W_MAX,
+                  flexShrink: 1,
+                }}
+              >
+                <SessionChangesPanel
+                  rail
+                  messages={railMessages}
+                  cwd={railCwd}
+                  busy={railBusy}
+                  onClose={closeRail}
+                />
+                <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} />
+              </aside>
             </>
           ) : null}
         </div>
-        {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
-        {assetLibrary.page}
-        {/* 任务整页：同样替换对话区 */}
-        {tasksHost.page}
-
-        {railOpen && railCwd && !mainHidden ? (
-          <>
-            <div
-              className="files-rail-splitter"
-              data-testid="files-rail-splitter"
-              role="separator"
-              aria-orientation="vertical"
-              aria-valuenow={filesRailWidth}
-              aria-valuemin={FILES_RAIL_W_MIN}
-              aria-valuemax={FILES_RAIL_W_MAX}
-              onPointerDown={onFilesRailSplitterDown}
-              onDoubleClick={onFilesRailSplitterDbl}
-              title={t('ui.session-workspace.drag-to-resize-chat-vs-workspace-double-click')}
-            />
-            <aside
-              className="files-rail"
-              data-testid="files-rail"
-              style={{
-                width: filesRailWidth,
-                minWidth: 'var(--cd-files-rail-min)',
-                maxWidth: FILES_RAIL_W_MAX,
-                flexShrink: 1,
-              }}
-            >
-              <SessionChangesPanel
-                rail
-                messages={railMessages}
-                cwd={railCwd}
-                busy={railBusy}
-                onClose={closeRail}
-              />
-              <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} />
-            </aside>
-          </>
-        ) : null}
       </div>
 
       {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}

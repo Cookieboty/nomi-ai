@@ -1,0 +1,5 @@
+---
+'@nomi-ai/ai-chat': patch
+---
+
+feat(sidebar): 模式改名「Nomi 灵伴」（聊天、知识问答、记忆与日常事务）与「Nomi 工坊」（Nomi 调度 AI 能力完成任务：Claude Code、Codex、多模型、项目管理与代码修改），说明随之重写。会话面板去掉「对话 · N」标题行：搜索按钮挪到模式菜单右侧，点开是居中的搜索窗（快捷操作、最近对话，输入后搜对话与本机历史；底部标签切换全部 / 对话 / 任务 / 素材库，任务与素材点开直接进对应页面）；新建「+」与整理侧栏「…」（按工作区分组 / 合并显示）在「工作区」标题右侧，本机历史的刷新在它的标题右侧。/ Modes are renamed "Nomi Companion" (chat, knowledge Q&A, memory and everyday tasks) and "Nomi Workshop" (Nomi orchestrates AI to get work done: Claude Code, Codex, multiple models, projects and code changes), with rewritten descriptions. The chat panel drops its "Chats · N" row: search moves next to the mode menu and opens a centred search window (quick actions and recent chats; typing searches chats and local history; tabs at the bottom switch between All / Chats / Tasks / Assets, and opening a task or asset goes straight to its page); "+" (new chat) and "…" (organize: by workspace / single list) sit on the right of the Workspaces header, and refresh sits on the right of Local history.

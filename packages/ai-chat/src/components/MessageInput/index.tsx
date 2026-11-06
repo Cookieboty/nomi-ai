@@ -1,5 +1,5 @@
 import { createLogger, t as tr, Icon, useLocale } from '@nomi-ai/ui';
-import { BookOpen, Blocks, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
+import { BookOpen, X, ArrowUp, ListPlus, Square } from 'lucide-react';
 import React, {
   memo,
   useCallback,
@@ -80,12 +80,14 @@ import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '
 
 import { ImageLightbox } from './ImageLightbox';
 import styles from './index.module.css';
+import { PlusMenu } from './PlusMenu';
 import type { MessageInputProps } from './types';
+import { useAutoHeight } from './useAutoHeight';
 
 const log = createLogger('message-input');
 
-/** 发文框默认更高；超过 COMPOSER_MAX 后框内滚动。 */
-export const COMPOSER_MIN_HEIGHT_PX = 72;
+/** 发文框随内容长高（Codex 式）：空着时两行高（14px × 1.6 行高，一行字 + 留白），超过 COMPOSER_MAX 后框内滚动。 */
+export const COMPOSER_MIN_HEIGHT_PX = 44;
 export const COMPOSER_MAX_HEIGHT_PX = 240;
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
@@ -108,6 +110,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   contextModel,
   fill,
   cwd,
+  delegate,
   draftStore,
   draftKey,
 }) => {
@@ -128,8 +131,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     clearActive,
   } = useComposerDraftBinding(activeDraftStore, activeDraftKey);
   const [menuOpen, setMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [slashIdx, setSlashIdx] = useState(0);
-  const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const [agentIdx, setAgentIdx] = useState(0);
   /** `/model ` 补全：候选（null = 还在读）、高亮项、按 Esc 关掉时的输入 */
@@ -148,17 +151,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [atLoadedCwd, setAtLoadedCwd] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.maxHeight = `${COMPOSER_MAX_HEIGHT_PX}px`;
-    el.style.height = '0px';
-    const next = Math.min(
-      Math.max(el.scrollHeight, COMPOSER_MIN_HEIGHT_PX),
-      COMPOSER_MAX_HEIGHT_PX,
-    );
-    el.style.height = `${next}px`;
-  }, [message]);
+  useAutoHeight(textareaRef, message, COMPOSER_MIN_HEIGHT_PX, COMPOSER_MAX_HEIGHT_PX);
   // 挂载时已有的请求视为处理过（切标签重挂载不再重复填入）
   const seenFill = useRef(fill?.nonce);
   const fillNonce = fill?.nonce;
@@ -651,9 +644,45 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     active?: boolean;
     /** 出现在 ＋ 菜单里（其余只走 / 命令、快捷键与顶栏/设置） */
     menu?: boolean;
+    /** ＋ 菜单里的第二层（不作 / 命令：「交给编程助手」用 `/agent`） */
+    submenu?: 'delegate';
   };
   // 命令项的 run 函数捕获了 textareaRef 等用于事件处理，react-hooks/refs 对此过度推断，豁免此处
   const allCommands: Cmd[] = [
+    {
+      // 和拖入 / 粘贴走同一条路：图片作图片附件，其余作文件附件
+      id: 'attach',
+      icon: <AppIcon icon={FEATURE_ICONS.attach} />,
+      label: tr('ui.knowledge-local.add-images-or-files'),
+      testId: 'composer-attach',
+      menu: true,
+      run: () => fileInputRef.current?.click(),
+      show: true,
+    },
+    {
+      // 插入 `@` 打开工作区文件面板（只在有工作区时）
+      id: 'mention',
+      icon: <AppIcon icon={FEATURE_ICONS.mention} />,
+      label: tr('ui.knowledge-local.reference-a-file-or-folder'),
+      hint: '@',
+      testId: 'composer-mention',
+      menu: true,
+      run: insertAt,
+      show: !!cwd,
+    },
+    {
+      // Nomi 对话：下一条交给哪个编程助手（与 `/agent` 同一个钉住，输入框上方显示「交给 X」）
+      id: 'delegate',
+      icon: <AppIcon icon={FEATURE_ICONS.delegate} />,
+      label: tr('ui.slash-commands.hand-off-to-a-coding-assistant'),
+      hint: '›',
+      testId: 'composer-delegate',
+      menu: true,
+      // 由「+」菜单打开第二层，不直接执行
+      run: () => undefined,
+      submenu: 'delegate',
+      show: !!delegate && delegateClient.available(),
+    },
     {
       id: 'kb',
       icon: <AppIcon icon={FEATURE_ICONS.kb} />,
@@ -672,16 +701,19 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       icon: <AppIcon icon={FEATURE_ICONS.model} />,
       label: tr('ui.knowledge-local.providers-models'),
       testId: 'open-providers',
-      menu: true,
       run: () => openModels(),
       show: true,
     },
     {
       id: 'voice',
       icon: <AppIcon icon={FEATURE_ICONS.voice} />,
-      label: tr('ui.knowledge-local.voice-settings'),
-      hint: tr('ui.knowledge-local.f2-to-talk'),
+      // 识别还没配好时语音按钮不显示：「+」菜单里给一个去配置的入口
+      label: cv.ready
+        ? tr('ui.knowledge-local.voice-settings')
+        : tr('ui.knowledge-local.set-up-voice-input'),
+      hint: cv.ready ? tr('ui.knowledge-local.f2-to-talk') : undefined,
       testId: 'open-voice-settings',
+      menu: !cv.ready,
       run: () => cv.setShowSettings(true),
       show: cv.v.available,
     },
@@ -702,6 +734,16 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       testId: 'open-ext-panel',
       run: () => onExtClick?.(),
       show: !!onExtClick && extClient.available(),
+    },
+    {
+      // 编程助手标签才有：CLI 自己装的命令 / Skills / 插件 / MCP / 子代理（Nomi 自己的在「扩展」里）
+      id: 'plugins',
+      icon: <AppIcon icon={FEATURE_ICONS.cliPlugins} />,
+      label: tr('ui.slash-commands.plugins-commands'),
+      testId: 'plugin-panel-open',
+      menu: true,
+      run: () => onPluginsClick?.(),
+      show: !!onPluginsClick,
     },
     {
       id: 'desktop',
@@ -728,7 +770,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       testId: 'composer-settings',
       run: () => onSettingsClick?.(),
       show: !!onSettingsClick,
-      menu: true,
     },
   ];
   // allCommands 的 run 函数捕获了 textareaRef / busyRef 等事件处理用的 ref，
@@ -736,18 +777,20 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const commands: Cmd[] = allCommands.filter((c) => c.show);
   // 输入框自带的界面命令 → 统一命令模型（「供应商与模型」改名 /providers，把 /model 让给原生的模型切换）
-  const uiSlash: SlashCommand[] = commands.map((c) => ({
-    id: `ui:${c.id}`,
-    name: c.id === 'model' ? 'providers' : c.id,
-    label: tr(c.label),
-    description: tr(c.label),
-    source: 'ui',
-    kind: 'ui',
-    run: () => {
-      c.run();
-      return { type: 'noop' };
-    },
-  }));
+  const uiSlash: SlashCommand[] = commands
+    .filter((c) => !c.submenu)
+    .map((c) => ({
+      id: `ui:${c.id}`,
+      name: c.id === 'model' ? 'providers' : c.id,
+      label: tr(c.label),
+      description: tr(c.label),
+      source: 'ui',
+      kind: 'ui',
+      run: () => {
+        c.run();
+        return { type: 'noop' };
+      },
+    }));
   const getRegistry = () => (slash ? slash.compose(uiSlash) : buildRegistry(uiSlash));
   const inSlash = message.startsWith('/');
   const registry = inSlash ? getRegistry() : [];
@@ -858,11 +901,22 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   // 命令名已定、正在输参数：显示参数提示
   const argHint =
     argCmd?.args && !argCmd.disabled && !argState?.args && !agentOpen && !modelOpen ? argCmd : null;
-  function runCommand(c: Cmd | undefined) {
-    if (!c) return;
-    setMenuOpen(false);
-    setMessage('');
-    c.run();
+  /** 「引用文件」：在光标处插入 `@`（前面不是空白时先补一个空格），打开工作区文件面板 */
+  function insertAt() {
+    const el = textareaRef.current;
+    const at = el?.selectionStart ?? message.length;
+    const before = message.slice(0, at);
+    const ins = before && !/\s$/.test(before) ? ' @' : '@';
+    const next = before + ins + message.slice(at);
+    const pos = at + ins.length;
+    setMessage(next);
+    setCaret(pos);
+    setAtIdx(0);
+    setAtLoadedCwd(null);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(pos, pos);
+    });
   }
   /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
   function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
@@ -882,38 +936,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     if (slash) void slash.run(`/${c.name}`, getRegistry());
     else void c.run('', undefined as never);
   }
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onEsc = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onEsc);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onEsc);
-    };
-  }, [menuOpen]);
-
-  const renderItems = (list: Cmd[]) =>
-    list.map((c) => (
-      <button
-        key={c.id}
-        type="button"
-        role="menuitem"
-        className={styles.menuItem}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => runCommand(c)}
-        data-testid={c.testId}
-        aria-pressed={c.active}
-        title={tr(c.label)}
-      >
-        <span className={styles.menuIcon}>{c.icon}</span>
-        <span className={styles.menuLabel}>{tr(c.label)}</span>
-        <span className={styles.menuHint}>{tr(c.hint)}</span>
-      </button>
-    ));
 
   return (
     <div className={styles.messageInputContainer}>
@@ -1058,25 +1080,17 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
         <div className={styles.composerBar} data-testid="composer-bar">
           <div className={styles.composerLeft} data-zone="left">
-            <div className={styles.moreWrap} ref={menuRef}>
-              <button
-                type="button"
-                className={styles.iconButton}
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                title={tr('ui.knowledge-local.more-knowledge-base-q-a-models-settings')}
-                aria-label={tr('ui.knowledge-local.more')}
-                data-testid="composer-more"
-              >
-                <Icon icon={Plus} />
-              </button>
-              {menuOpen && (
-                <div className={styles.menu} role="menu" data-testid="composer-menu">
-                  {renderItems(commands.filter((c) => c.menu))}
-                </div>
-              )}
-            </div>
+            <PlusMenu
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              items={commands.filter((c) => c.menu)}
+              fileInputRef={fileInputRef}
+              onFiles={takeFiles}
+              onDelegate={(cli) => {
+                setNextDelegate(cli);
+                requestAnimationFrame(() => textareaRef.current?.focus());
+              }}
+            />
             {kbMode && kbAvailable && (
               <button
                 type="button"
@@ -1108,23 +1122,15 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 <Icon icon={X} size={12} />
               </button>
             )}
-            {onPluginsClick && (
-              <button
-                type="button"
-                className={styles.iconButton}
-                onClick={onPluginsClick}
-                title={tr('ui.slash-commands.plugins-commands-commands-skills-plugins-and-mcp-for')}
-                aria-label={tr('ui.slash-commands.plugins-commands')}
-                data-testid="plugin-panel-open"
-              >
-                <Icon icon={Blocks} size={16} />
-              </button>
-            )}
+            {/* Codex 式：左边是 + 与权限模式，模型放到右边、挨着语音与发送 */}
             <div className={styles.modelStatus}>
-              <EndpointControls />
+              <EndpointControls part="mode" />
             </div>
           </div>
           <div className={styles.composerRight} data-zone="right">
+            <div className={styles.modelStatus} data-testid="composer-model">
+              <EndpointControls part="model" />
+            </div>
             <VoiceButtons cv={cv} disabled={disabled} />
             {contextMessages?.length ? (
               <ContextUsageBar messages={contextMessages} model={contextModel} />

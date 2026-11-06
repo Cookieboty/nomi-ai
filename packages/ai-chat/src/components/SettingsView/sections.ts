@@ -99,6 +99,7 @@ export const SECTION_TABS = {
     { id: 'shortcuts', label: 'ui.chat-settings.shortcuts' },
     { id: 'voice', label: 'ui.chat-settings.voice' },
     { id: 'notify', label: 'ui.mascot-theme.notifications-island' },
+    { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
   nomi: [
     { id: 'permissions', label: 'ui.chat-settings.permissions' },

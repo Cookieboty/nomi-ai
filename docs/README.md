@@ -15,25 +15,25 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：住在桌面，懂你
 
 ### 功能
 
-| 模块                                          | 说明                                                                                      |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [桌面角色诺米](features/mascot.md)            | 动作、显示方式、工具栏、大小与互动设置                                                    |
-| [AI 对话](features/chat.md)                   | 助手与工作台、图片与文件、生成图片与素材库、命令面板、交给编程助手                        |
-| [斜杠命令](features/slash-commands.md)        | 输入 `/` 弹出命令，内置命令在界面里执行，其余转给 CLI                                     |
-| [编程助手](features/coding-agents.md)         | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工作台、会话 |
-| [编程助手监视](features/agent-monitor.md)     | 本机编程工具的进度提醒                                                                    |
-| [第三方供应商与模型](features/providers.md)   | 切换模型、添加 / 从网页添加供应商、按任务分配、多 Key 与回退                              |
-| [本地模型](features/local-models.md)          | 一键运行开源小模型、Ollama、离线模式                                                      |
-| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                                            |
-| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                                                         |
-| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号                                    |
-| [MCP 与技能](features/mcp-skills.md)          | MCP 服务器、SKILL.md 技能、从其他工具导入                                                 |
-| [自动化与桌面能力](features/automation.md)    | 文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录                                    |
-| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                                              |
-| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                                                        |
-| [个性化](features/personalization.md)         | 主题、应用图标、侧栏、快捷键、语言、无障碍                                                |
-| [自动更新](features/auto-update.md)           | 后台下载，确认后原地安装并重启                                                            |
-| [隐私与安全](features/privacy-security.md)    | 数据位置、仅本地模式、外发保护、权限确认、导出与清除                                      |
+| 模块                                          | 说明                                                                                    |
+| --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [桌面角色诺米](features/mascot.md)            | 动作、显示方式、工具栏、大小与互动设置                                                  |
+| [AI 对话](features/chat.md)                   | 灵伴与工坊、图片与文件、生成图片与素材库、命令面板、交给编程助手                        |
+| [斜杠命令](features/slash-commands.md)        | 输入 `/` 弹出命令，内置命令在界面里执行，其余转给 CLI                                   |
+| [编程助手](features/coding-agents.md)         | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工坊、会话 |
+| [编程助手监视](features/agent-monitor.md)     | 本机编程工具的进度提醒                                                                  |
+| [第三方供应商与模型](features/providers.md)   | 切换模型、添加 / 从网页添加供应商、按任务分配、多 Key 与回退                            |
+| [本地模型](features/local-models.md)          | 一键运行开源小模型、Ollama、离线模式                                                    |
+| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                                          |
+| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                                                       |
+| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号                                  |
+| [MCP 与技能](features/mcp-skills.md)          | MCP 服务器、SKILL.md 技能、从其他工具导入                                               |
+| [自动化与桌面能力](features/automation.md)    | 文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录                                  |
+| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                                            |
+| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                                                      |
+| [个性化](features/personalization.md)         | 主题、应用图标、侧栏、快捷键、语言、无障碍                                              |
+| [自动更新](features/auto-update.md)           | 后台下载，确认后原地安装并重启                                                          |
+| [隐私与安全](features/privacy-security.md)    | 数据位置、仅本地模式、外发保护、权限确认、导出与清除                                    |
 
 ### 角色包与接入
 

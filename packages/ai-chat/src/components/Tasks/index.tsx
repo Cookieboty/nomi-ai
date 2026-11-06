@@ -10,7 +10,7 @@
  * 数据来自契约 tasks.*；内核在任务变化时推 tasks.changed。
  */
 import { Button, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
-import { ArrowLeft, ListChecks, Plus } from 'lucide-react';
+import { ListChecks, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -123,9 +123,16 @@ export const TasksPage: React.FC<{
   onBack: () => void;
   /** 旧的提醒 / 定时：打开原有的日程面板 */
   onOpenSchedule?: () => void;
-}> = ({ active, onBack, onOpenSchedule }) => {
+  /** 从搜索打开某个任务：打开后选中它（nonce 变了就再选一次） */
+  focus?: { id: string; nonce: number } | null;
+}> = ({ active, onBack, onOpenSchedule, focus }) => {
   const { data } = useTasks(active);
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusSeen, setFocusSeen] = useState(focus?.nonce);
+  if (focus && focus.nonce !== focusSeen) {
+    setFocusSeen(focus.nonce);
+    setSelected(focus.id);
+  }
   const [creating, setCreating] = useState(false);
   const [layout, setLayout] = useState(loadView);
   const [category, setCategory] = useState<TaskCategory | 'all'>('all');
@@ -158,10 +165,12 @@ export const TasksPage: React.FC<{
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (creating) setCreating(false);
       else if (selected) setSelected(null);
+      // 回对话：导航栏的「对话」，或者什么都没开时按 Esc
+      else onBack();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [active, creating, selected]);
+  }, [active, creating, selected, onBack]);
 
   return (
     <section
@@ -170,10 +179,6 @@ export const TasksPage: React.FC<{
       data-testid="tasks"
     >
       <header className={styles.pageHead}>
-        <Button size="sm" variant="ghost" onClick={onBack} data-testid="tasks-back">
-          <Icon icon={ArrowLeft} size={14} />
-          {t('ui.chat-settings.back-to-chat')}
-        </Button>
         <h2 className={styles.pageTitle}>{t('ui.providers-schedule.tasks')}</h2>
         <span className={styles.spacer} />
         <Button
@@ -375,6 +380,13 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
     setMounted(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
+  const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
+  /** 搜索里点了任务：打开任务页并选中它 */
+  const openTask = useCallback((id: string) => {
+    setFocus((f) => ({ id, nonce: (f?.nonce ?? 0) + 1 }));
+    setOpen(true);
+    setMounted(true);
+  }, []);
   const first = useAiChatSelector(selectFirstMessageId);
   const tabId = useHarnessTabs().state?.activeTabId;
   const last = useRef({ first, tabId });
@@ -397,12 +409,13 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
       ) : null,
     [available, collapsed, open, needsYou, running, show],
   );
-  if (!available) return { nav: null, page: null, chatHidden: false, close };
+  if (!available) return { nav: null, page: null, chatHidden: false, close, openTask: undefined };
   const page = mounted ? (
     <div className={styles.main} hidden={!open} data-testid="tasks-main">
       <TasksPage
         active={open}
         onBack={close}
+        focus={focus}
         onOpenSchedule={
           onOpenSchedule
             ? () => {
@@ -414,5 +427,5 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
       />
     </div>
   ) : null;
-  return { nav, page, chatHidden: open, close };
+  return { nav, page, chatHidden: open, close, openTask };
 }

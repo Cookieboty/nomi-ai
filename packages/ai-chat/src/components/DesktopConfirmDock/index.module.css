@@ -1,10 +1,10 @@
-/* 授权卡片：输入栏上方，和编程助手标签的权限卡片同一种醒目样式；与输入框同宽（MessageInput .inputWrapper 820） */
+/* 授权卡片：输入栏上方，和编程助手标签的权限卡片同一种醒目样式；与输入框同宽（--cd-chat-content-w） */
 .dock {
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-2);
   width: 100%;
-  max-width: 820px;
+  max-width: var(--cd-chat-content-w);
   box-sizing: border-box;
   margin: 0 auto;
   max-height: 50vh;

@@ -141,10 +141,53 @@ export function visibleEndpoints(
   });
 }
 
+// ───── 侧栏按工作区分组 ─────
+const WORKSPACE_GROUP_KEY = 'ai-chat:groupByWorkspace';
+const WORKSPACE_COLLAPSED_KEY = 'ai-chat:collapsedWorkspaces';
+
+/** 侧栏会话是否按工作区分组（默认开） */
+export function getGroupByWorkspace(): boolean {
+  return read(WORKSPACE_GROUP_KEY, ['on', 'off'] as const, 'on') === 'on';
+}
+
+export function setGroupByWorkspace(on: boolean): void {
+  write(WORKSPACE_GROUP_KEY, on ? 'on' : 'off');
+  listSubs.forEach((fn) => fn());
+}
+
+let collapsedCache: { raw: string | null; value: readonly string[] } = { raw: null, value: [] };
+
+/** 折叠起来的工作区（分组键） */
+export function getCollapsedWorkspaces(): readonly string[] {
+  let raw: string | null = null;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage)
+      raw = window.localStorage.getItem(WORKSPACE_COLLAPSED_KEY);
+  } catch {
+    raw = null;
+  }
+  if (raw === collapsedCache.raw) return collapsedCache.value;
+  let value: string[] = [];
+  try {
+    const a = raw ? (JSON.parse(raw) as unknown) : null;
+    if (Array.isArray(a)) value = a.filter((k): k is string => typeof k === 'string');
+  } catch {
+    value = []; // 损坏的值按「全部展开」处理
+  }
+  collapsedCache = { raw, value };
+  return value;
+}
+
+export function setWorkspaceCollapsed(key: string, collapsed: boolean): void {
+  const cur = getCollapsedWorkspaces().filter((k) => k !== key);
+  // 只留最近的 200 个，免得删掉的目录一直堆在里面
+  const next = collapsed ? [...cur, key].slice(-200) : cur;
+  write(WORKSPACE_COLLAPSED_KEY, JSON.stringify(next));
+  listSubs.forEach((fn) => fn());
+}
+
 // ───── 侧栏端点的排列顺序 ─────
 const ENDPOINT_ORDER_KEY = 'ai-chat:sidebarEndpointOrder';
-/** 筛选行一次最多显示的端点图标数（含 Nomi），其余收进「更多」 */
-export const MAX_SHOWN_ENDPOINTS = 5;
 
 let orderCache: { raw: string | null; value: ConversationBackend[] | null } = {
   raw: null,
@@ -202,22 +245,6 @@ export function orderEndpoints(
   const known = custom ? custom.filter((b) => cli.includes(b)) : [];
   const rest = cli.filter((b) => !known.includes(b)).sort(byCount);
   return [...(list.includes('nomi') ? (['nomi'] as const) : []), ...known, ...rest];
-}
-
-/**
- * 筛选行里直接显示的端点（最多 max 个），其余进「更多」。
- * 选中的端点在「更多」里时，换到最后一个位置上，保证选中项始终可见。
- */
-export function splitShownEndpoints(
-  ordered: readonly ConversationBackend[],
-  selected: ConversationBackend | null,
-  max = MAX_SHOWN_ENDPOINTS,
-): { shown: ConversationBackend[]; more: ConversationBackend[] } {
-  if (ordered.length <= max) return { shown: [...ordered], more: [] };
-  const shown = ordered.slice(0, max);
-  if (selected && !shown.includes(selected) && ordered.includes(selected))
-    shown[max - 1] = selected;
-  return { shown, more: ordered.filter((b) => !shown.includes(b)) };
 }
 
 // ───── 供应商页当前端点（设置 → 供应商 顶部的端点切换） ─────

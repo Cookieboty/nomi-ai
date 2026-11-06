@@ -185,5 +185,15 @@
   "ui.session-workspace.write-conventional-commits-messages-following-the-repo-conventions": "按仓库约定写 Conventional Commits 提交信息，必要时按主题拆成多个提交。",
   "ui.session-workspace.you-added": "你插入了",
   "ui.session-workspace.you-stopped-this-subtask": "你停止了这个子任务。",
-  "ui.session-workspace.your-next-request-goes-to-click-to-cancel": "下一个需求交给 {0}，点击取消"
+  "ui.session-workspace.your-next-request-goes-to-click-to-cancel": "下一个需求交给 {0}，点击取消",
+  "ui.session-workspace.git-error-checkout-dirty": "有未提交的改动会被这次切换覆盖：先提交或暂存这些改动再切换（改动没有丢）",
+  "ui.session-workspace.git-error-branch-exists": "已经有同名的分支，换一个名字",
+  "ui.session-workspace.git-error-branch-invalid": "分支名不合法（不能有空格、连续的点或以 - 开头）",
+  "ui.session-workspace.search-branches": "搜索 {0} 的分支",
+  "ui.session-workspace.branches": "分支",
+  "ui.session-workspace.no-matching-branches": "没有匹配的分支",
+  "ui.session-workspace.create-and-checkout-branch": "创建并检出新分支",
+  "ui.session-workspace.create-and-checkout-branch-ellipsis": "创建并检出新分支…",
+  "ui.session-workspace.new-branch-name": "新分支名",
+  "ui.session-workspace.switch-branch": "切换分支（当前：{0}）"
 }

@@ -36,6 +36,9 @@ export function useChatVoice(opts: {
   useEffect(() => v.api?.onInject((e) => onText(e.text, e.autoSend)), [v.api, onText]);
 
   const handsFree = v.state.mode === 'handsfree';
+  // 识别引擎能不能用（本地模型已下载 / 云端识别已配置，内核判断）。免按键没有 Silero VAD 时
+  // 退回能量检测，照样能用，所以只看识别。状态还没读到时按「不能用」处理，按钮不先闪出来
+  const ready = !!v.config?.readiness.ok;
   const toggleHandsFree = useCallback(
     () => void v.setContinuous(handsFree ? 'off' : 'handsfree'),
     [v, handsFree],
@@ -46,6 +49,11 @@ export function useChatVoice(opts: {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'F2' && !e.repeat && !f2Down.current && !disabled) {
         e.preventDefault();
+        // 还没配好识别：按了也识别不了，直接打开语音设置
+        if (!ready) {
+          if (v.available) setShowSettings(true);
+          return;
+        }
         f2Down.current = true;
         void v.pttStart();
       } else if (e.key === 'Escape' && f2Down.current) {
@@ -53,7 +61,8 @@ export function useChatVoice(opts: {
         void v.pttStop(true);
       } else if (matchShortcut(e, getBindings().handsFree)) {
         e.preventDefault();
-        toggleHandsFree();
+        if (ready || handsFree) toggleHandsFree();
+        else if (v.available) setShowSettings(true);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -68,11 +77,11 @@ export function useChatVoice(opts: {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
-  }, [v, disabled, toggleHandsFree]);
+  }, [v, disabled, toggleHandsFree, ready, handsFree]);
 
   useEffect(() => () => void v.controller?.stopContinuous(), [v.controller]);
 
-  return { v, handsFree, toggleHandsFree, showSettings, setShowSettings };
+  return { v, ready, handsFree, toggleHandsFree, showSettings, setShowSettings };
 }
 
 export type ChatVoice = ReturnType<typeof useChatVoice>;
@@ -80,45 +89,54 @@ export type ChatVoice = ReturnType<typeof useChatVoice>;
 const HeadsetIcon = () => <Icon icon={Headphones} size={16} />;
 
 export const VoiceButtons: React.FC<{ cv: ChatVoice; disabled?: boolean }> = ({ cv, disabled }) => {
-  const { v, handsFree, toggleHandsFree } = cv;
-  if (!v.available) return null;
+  const { v, ready, handsFree, toggleHandsFree } = cv;
+  // 识别没配好：两个按钮都用不了，不显示（「+」菜单里有「设置语音输入…」）；免按键开着时留着关掉它的按钮
+  if (!v.available || (!ready && !handsFree)) return null;
   return (
     <div className="cd-voice-buttons">
       {/* 输入栏工具行统一 ms（32px）高：与 + / 模型 / 权限 / 发送按钮同高 */}
-      <MicButton
-        size="ms"
-        state={v.state}
-        disabled={disabled || handsFree}
-        onStart={() => void v.pttStart()}
-        onStop={(cancel) => void v.pttStop(cancel)}
-        tooltip={t('ui.chat-settings.hold-to-talk-f2')}
-        data-testid="voice-mic"
-      />
-      {/* top-end：按钮贴着输入区右缘，居中的提示会被窗口右边裁掉 */}
-      <Tooltip
-        placement="top-end"
-        content={
-          handsFree
-            ? t('ui.chat-settings.turn-off-hands-free-ctrl-shift-h')
-            : t('ui.chat-settings.hands-free-recognized-automatically-when-you-stop-talking')
-        }
-      >
-        <button
-          type="button"
-          aria-label={
-            handsFree
-              ? t('ui.chat-settings.turn-off-hands-free')
-              : t('ui.chat-settings.turn-on-hands-free')
-          }
-          aria-pressed={handsFree}
-          className={`cd-voice-mic cd-voice-mic--ms cd-voice-toggle ${handsFree ? 'is-on' : ''}`}
-          onClick={toggleHandsFree}
-          disabled={disabled}
-          data-testid="voice-handsfree"
-        >
-          <HeadsetIcon />
-        </button>
-      </Tooltip>
+      {ready && (
+        <MicButton
+          size="ms"
+          variant="bare"
+          state={v.state}
+          disabled={disabled || handsFree}
+          onStart={() => void v.pttStart()}
+          onStop={(cancel) => void v.pttStop(cancel)}
+          tooltip={t('ui.chat-settings.hold-to-talk-f2')}
+          data-testid="voice-mic"
+        />
+      )}
+      {/* 识别不能用时只在免按键还开着时显示（方便关掉） */}
+      {(ready || handsFree) && (
+        <>
+          {/* top-end：按钮贴着输入区右缘，居中的提示会被窗口右边裁掉 */}
+          <Tooltip
+            placement="top-end"
+            content={
+              handsFree
+                ? t('ui.chat-settings.turn-off-hands-free-ctrl-shift-h')
+                : t('ui.chat-settings.hands-free-recognized-automatically-when-you-stop-talking')
+            }
+          >
+            <button
+              type="button"
+              aria-label={
+                handsFree
+                  ? t('ui.chat-settings.turn-off-hands-free')
+                  : t('ui.chat-settings.turn-on-hands-free')
+              }
+              aria-pressed={handsFree}
+              className={`cd-voice-mic cd-voice-mic--ms cd-voice-mic--bare cd-voice-toggle ${handsFree ? 'is-on' : ''}`}
+              onClick={toggleHandsFree}
+              disabled={disabled}
+              data-testid="voice-handsfree"
+            >
+              <HeadsetIcon />
+            </button>
+          </Tooltip>
+        </>
+      )}
     </div>
   );
 };

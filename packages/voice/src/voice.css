@@ -33,6 +33,16 @@
   color: var(--cd-color-accent-strong);
   border-color: var(--cd-color-accent);
 }
+/* 无边框（输入栏工具行，Codex 式）：圆角方块、透明底，hover 才出底色；录音 / 开着时照旧用强调色 */
+.cd-voice-mic--bare {
+  border-color: transparent;
+  border-radius: var(--cd-radius-md, 8px);
+  background: transparent;
+}
+.cd-voice-mic--bare:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--cd-control-hover-bg, var(--cd-color-hover));
+}
 .cd-voice-mic:focus-visible {
   outline: none;
   box-shadow: var(--cd-focus-ring);

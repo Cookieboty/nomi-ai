@@ -41,6 +41,7 @@ describe('设置分区：合并后的菜单', () => {
       'shortcuts',
       'voice',
       'notify',
+      'archived',
     ]);
     expect(SECTION_TABS.models.map((t) => t.id)).toEqual(['providers', 'local']);
     expect(SECTION_TABS.usage.map((t) => t.id)).toEqual(['cost', 'compare', 'trend', 'requests']);

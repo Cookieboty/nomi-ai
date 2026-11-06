@@ -26,6 +26,8 @@ const conv = (id: string, name: string, backend: string, age: number, extra = {}
 let convs: ReturnType<typeof conv>[] = [];
 let tabStatus = 'idle';
 const updateMeta = vi.fn();
+const setArchived = vi.fn();
+const setPinned = vi.fn();
 const deleteConversation = vi.fn(async () => undefined);
 const onForkRequest = vi.fn();
 
@@ -43,6 +45,8 @@ vi.mock('../src/contexts/AiChatContext', () => {
         currentId: () => 'n1',
         get: (id: string) => convs.find((x) => x.id === id),
         updateMeta,
+        setArchived,
+        setPinned,
         getMessages: () => [],
       };
       api = {
@@ -153,6 +157,8 @@ beforeEach(() => {
   setChatMode('dev');
   tabStatus = 'idle';
   updateMeta.mockClear();
+  setArchived.mockClear();
+  setPinned.mockClear();
   deleteConversation.mockClear();
   onForkRequest.mockClear();
   convs = [
@@ -185,13 +191,13 @@ describe('sidebar row actions', () => {
     );
   });
 
-  it('every conversation row carries rename / delete / more icon buttons with tooltips + aria-labels', async () => {
+  it('every conversation row carries pin / archive / more icon buttons with tooltips + aria-labels', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     const w = within(row(r, 'n2'));
     for (const [id, label] of [
-      ['row-rename', '重命名'],
-      ['row-delete', '删除对话'],
+      ['row-pin', '置顶聊天'],
+      ['row-archive', '归档'],
       ['row-more', '更多操作'],
     ] as const) {
       const b = w.getByTestId(id);
@@ -208,44 +214,70 @@ describe('sidebar row actions', () => {
     expect(row(r, 'n2').querySelectorAll('button button')).toHaveLength(0);
   });
 
-  it('rename pen starts inline editing: Enter commits, Esc cancels', async () => {
+  it('没有重命名按钮；悬停卡片里点标题改名：Enter 保存，Esc 取消', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-rename'));
-    let input = r.getByTestId('conversation-rename-input') as HTMLInputElement;
+    expect(within(row(r, 'n2')).queryByTestId('row-rename')).toBeNull();
+    fireEvent.mouseEnter(row(r, 'n2'));
+    fireEvent.click(await screen.findByTestId('session-peek-title'));
+    let input = screen.getByTestId('session-peek-rename-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '新名字' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(updateMeta).toHaveBeenCalledWith('n2', { name: '新名字' });
-    await waitFor(() => expect(r.queryByTestId('conversation-rename-input')).toBeNull());
 
     updateMeta.mockClear();
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-rename'));
-    input = r.getByTestId('conversation-rename-input') as HTMLInputElement;
+    fireEvent.mouseEnter(row(r, 'n2'));
+    fireEvent.click(await screen.findByTestId('session-peek-title'));
+    input = screen.getByTestId('session-peek-rename-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '不要' } });
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(updateMeta).not.toHaveBeenCalled();
-    expect(r.queryByTestId('conversation-rename-input')).toBeNull();
+    expect(screen.queryByTestId('session-peek-rename-input')).toBeNull();
   });
 
-  it('delete a nomi conversation needs a second confirmation; Esc / cancel back out', async () => {
+  it('置顶按钮：置顶 / 取消置顶；置顶的会话在最上面的「置顶」里', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-pin'));
+    expect(setPinned).toHaveBeenCalledWith('n2', true);
+    cleanup();
+    convs = convs.map((c) => (c.id === 'n2' ? { ...c, pinnedAt: now } : c));
+    const again = mount();
+    const pinned = await again.findByTestId('pinned-section');
+    expect(pinned.querySelector('[data-conversation-id="n2"]')).toBeTruthy();
+    const btn = within(row(again, 'n2')).getByTestId('row-pin');
+    expect(btn.getAttribute('aria-label')).toBe('取消置顶');
+    fireEvent.click(btn);
+    expect(setPinned).toHaveBeenCalledWith('n2', false);
+  });
+
+  it('archive icon archives a nomi conversation at once; permanent delete is in the menu and asks first', async () => {
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-item'));
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-archive'));
+    expect(setArchived).toHaveBeenCalledWith('n2', true);
     expect(deleteConversation).not.toHaveBeenCalled();
-    const confirm = within(row(r, 'n2')).getByTestId('row-delete-confirm');
-    expect(confirm.textContent).toBe('确认删除');
-    // 取消
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete-cancel'));
-    expect(within(row(r, 'n2')).queryByTestId('row-delete-confirm')).toBeNull();
+
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
+    expect(r.getByTestId('conversation-archive')).toBeTruthy();
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain('永久删除');
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
     expect(deleteConversation).not.toHaveBeenCalled();
-    // Esc
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
-    fireEvent.keyDown(within(row(r, 'n2')).getByTestId('row-delete-confirm'), { key: 'Escape' });
-    expect(within(row(r, 'n2')).queryByTestId('row-delete-confirm')).toBeNull();
-    // 确认
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete-confirm'));
+
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n2'));
+  });
+
+  it('archived conversations are not listed in the sidebar', async () => {
+    convs = [...convs, conv('n3', '已经归档的', 'nomi', 3, { archivedAt: now })];
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-item'));
+    expect(r.container.querySelector('[data-conversation-id="n3"]')).toBeNull();
+    expect(r.container.querySelector('[data-conversation-id="n2"]')).toBeTruthy();
   });
 
   it('cli tab: trash closes the tab; a running tab keeps the close confirmation (in-app)', async () => {
@@ -340,7 +372,7 @@ describe('sidebar row actions', () => {
     await waitFor(() => r.getAllByTestId('history-item'));
     expect(r.queryByTestId('cli-history')).toBeNull();
     const w = within(row(r, 'n2'));
-    expect(w.getByTestId('row-rename')).toBeTruthy();
+    expect(w.getByTestId('row-pin')).toBeTruthy();
     expect(w.getByTestId('row-more')).toBeTruthy();
   });
 

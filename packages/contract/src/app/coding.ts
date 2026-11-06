@@ -40,6 +40,7 @@ import {
   ExternalCliSpec,
   ExternalTestResult,
   GeminiTrustResult,
+  GitBranchList,
   GitBranchResult,
   GitDiffResult,
   GitOpResult,
@@ -255,6 +256,18 @@ const harnessProcedures = {
   // 右栏「改动」（cli/gitOps.ts）：cwd 必须是已知工作区，主进程核对
   'harness.gitDiff': { kind: 'query', input: cwd, output: GitDiffResult },
   'harness.gitBranch': { kind: 'query', input: cwd, output: GitBranchResult.nullable() },
+  /** 分支切换下拉：本地分支列表；不是 git 仓库时 null */
+  'harness.gitBranches': { kind: 'query', input: cwd, output: GitBranchList.nullable() },
+  /** 切到已有分支，或 create 时从当前 HEAD 新建并切过去；有会被覆盖的改动时 code dirty（不丢改动） */
+  'harness.gitCheckout': {
+    kind: 'mutation',
+    input: z.object({
+      cwd: z.string(),
+      branch: z.string().max(255),
+      create: z.boolean().optional(),
+    }),
+    output: GitOpResult,
+  },
   'harness.gitSyncStatus': { kind: 'query', input: cwd, output: GitSyncStatus.nullable() },
   'harness.gitStage': { kind: 'mutation', input: cwdPaths, output: GitOpResult },
   'harness.gitUnstage': { kind: 'mutation', input: cwdPaths, output: GitOpResult },

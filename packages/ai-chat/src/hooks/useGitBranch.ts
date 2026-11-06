@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 
+import { GIT_BRANCH_CHANGED_EVENT } from '../services/gitEvents';
 import { harnessClient } from '../services/harnessClient';
 
 export function useGitBranch(cwd: string | null | undefined, running = false, nonce = 0) {
@@ -20,9 +21,12 @@ export function useGitBranch(cwd: string | null | undefined, running = false, no
         .catch(() => alive && setSt({ cwd, label: null }));
     load();
     window.addEventListener('focus', load);
+    // 分支切换器切了分支：所有显示这个仓库分支的地方一起刷新
+    window.addEventListener(GIT_BRANCH_CHANGED_EVENT, load);
     return () => {
       alive = false;
       window.removeEventListener('focus', load);
+      window.removeEventListener(GIT_BRANCH_CHANGED_EVENT, load);
     };
   }, [cwd, running, nonce]);
   return cwd && st?.cwd === cwd ? st.label : null;

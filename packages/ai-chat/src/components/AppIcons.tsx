@@ -26,6 +26,9 @@ import {
   SquareTerminal,
   type LucideIcon,
   type LucideProps,
+  Paperclip,
+  AtSign,
+  Forward,
 } from 'lucide-react';
 import React from 'react';
 
@@ -74,6 +77,14 @@ export const FEATURE_ICONS = {
   /** 知识 · 记忆 · 日程 快速视图 */
   hub: LibraryBig,
   ext: Blocks,
+  /** 编程助手自己的命令 / Skills / 插件 / MCP / 子代理（只读） */
+  cliPlugins: SquareTerminal,
+  /** 「+」：添加图片或文件 */
+  attach: Paperclip,
+  /** 「+」：引用工作区里的文件（@） */
+  mention: AtSign,
+  /** 「+」：下一条交给编程助手 */
+  delegate: Forward,
   desktop: ShieldCheck,
   local: Cpu,
   notify: Bell,

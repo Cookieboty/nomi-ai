@@ -993,7 +993,7 @@
 .composerChangesWrap {
   position: relative;
   align-self: center;
-  max-width: min(100%, 820px);
+  max-width: min(100%, var(--cd-chat-content-w));
   width: fit-content;
   margin: 0 auto 8px;
 }
@@ -1002,7 +1002,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  max-width: 820px;
+  max-width: var(--cd-chat-content-w);
   width: fit-content;
   background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
   border: 1px solid var(--cd-color-border, #333);
@@ -1114,6 +1114,12 @@
   border-bottom: 1px solid var(--cd-color-border);
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
+}
+/* 右栏顶部的分支切换器：占满分支名的位置，同步按钮仍在右边 */
+.branchPicker {
+  flex: 1;
+  min-width: 0;
+  margin-left: calc(-1 * var(--cd-space-2));
 }
 .branchName {
   min-width: 0;

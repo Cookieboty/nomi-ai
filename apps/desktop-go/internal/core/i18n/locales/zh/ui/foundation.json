@@ -239,7 +239,7 @@
   "ui.foundation.getting-started-go-add": "去添加",
   "ui.foundation.getting-started-import-mcp-and-skills": "导入 MCP 与技能",
   "ui.foundation.getting-started-install-a-coding-agent": "安装编程助手",
-  "ui.foundation.getting-started-install-a-coding-agent-desc": "在工作台里用 Claude Code、Codex 等写代码。",
+  "ui.foundation.getting-started-install-a-coding-agent-desc": "在工坊里让 Nomi 调度 Claude Code、Codex 等写代码。",
   "ui.foundation.getting-started-installing": "安装中…",
   "ui.foundation.getting-started-open-a-coding-session": "开一个编程会话",
   "ui.foundation.getting-started-open-a-coding-session-desc": "选好项目目录，让编程助手开始干活。",

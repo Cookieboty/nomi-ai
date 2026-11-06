@@ -1,7 +1,7 @@
 /**
  * 唯一的对话右键菜单：侧栏条目与顶部标签共用。
  * 重命名 / 分叉为新对话 / 分叉到其他端 /（CLI 标签）关闭标签 / 关闭左右标签 / 删除对话。
- * 关闭 = 仅关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话，
+ * 归档 = Nomi 对话不在侧栏显示（设置里可找回）；关闭 = 仅关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话，
  * CLI 会话（标签或本机历史）则把 CLI 的会话记录移到系统废纸篓。
  */
 import { t } from '@nomi-ai/ui';
@@ -19,11 +19,16 @@ export interface ConversationMenuProps {
   /** 磁盘历史会话没有重命名 / 分叉，只给 onOpen 与 onDelete */
   onOpen?: () => void;
   onRename?: () => void;
+  /** 置顶 / 取消置顶（pinned 为当前状态） */
+  onPin?: () => void;
+  pinned?: boolean;
   onFork?: () => void;
   onForkCross?: () => void;
   onClose?: () => void;
   onCloseLeft?: () => void;
   onCloseRight?: () => void;
+  /** Nomi 对话：归档（不在侧栏显示，可在设置里找回）；有归档时「删除」写成「永久删除」 */
+  onArchive?: () => void;
   onDelete?: () => void;
   onDismiss: () => void;
 }
@@ -34,11 +39,14 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   isTab,
   onOpen,
   onRename,
+  onPin,
+  pinned,
   onFork,
   onForkCross,
   onClose,
   onCloseLeft,
   onCloseRight,
+  onArchive,
   onDelete,
   onDismiss,
 }) => {
@@ -81,7 +89,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
 
   // 贴边时往里收一点，避免菜单被窗口裁掉
   const left = Math.max(4, Math.min(x, window.innerWidth - 210));
-  const menuHeight = onCloseLeft || onCloseRight ? 330 : 220;
+  const menuHeight = onCloseLeft || onCloseRight ? 330 : 260;
   const top = Math.max(4, Math.min(y, window.innerHeight - menuHeight));
 
   return (
@@ -117,6 +125,17 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           {isTab && <span className={styles.key}>{formatCombo(bindings.renameTab)}</span>}
         </button>
       )}
+      {onPin && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={act(onPin)}
+          data-testid="conversation-pin"
+        >
+          {pinned ? t('ui.knowledge-local.unpin') : t('ui.cli-monitor.pin-chat')}
+        </button>
+      )}
       {onFork && (
         <button
           type="button"
@@ -139,7 +158,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           {t('ui.cli-monitor.fork-to-another-endpoint')}
         </button>
       )}
-      {(onClose || onDelete) && <div className={styles.sep} role="separator" />}
+      {(onClose || onArchive || onDelete) && <div className={styles.sep} role="separator" />}
       {onClose && (
         <button
           type="button"
@@ -174,6 +193,17 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           {t('ui.mascot-theme.close-tabs-to-the-right')}
         </button>
       )}
+      {onArchive && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={act(onArchive)}
+          data-testid="conversation-archive"
+        >
+          {t('ui.cli-monitor.archive-chat')}
+        </button>
+      )}
       {onDelete && (
         <button
           type="button"
@@ -182,7 +212,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onDelete)}
           data-testid="conversation-delete"
         >
-          {t('ui.cli-monitor.delete-chat')}
+          {onArchive ? t('ui.cli-monitor.delete-permanently') : t('ui.cli-monitor.delete-chat')}
         </button>
       )}
     </div>

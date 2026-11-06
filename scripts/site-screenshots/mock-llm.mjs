@@ -25,10 +25,26 @@ const SCRIPTS = [
 ];
 const FALLBACK = '收到～我在这儿，随时可以帮你。';
 
+/** 起标题的请求（sessionTitle.ts 的 buildTitleMessages）：回短标题，侧栏和标题栏才像真的 */
+const TITLES = [
+  [/待办|to-?do/i, '整理今天的待办'],
+  [/周报|weekly/i, '本周周报草稿'],
+  [/海报|poster/i, '秋天咖啡海报'],
+  [/每天|定时|schedule/i, '每日 GitHub 通知汇总'],
+];
+
 function replyFor(messages) {
   const last = [...(messages ?? [])].reverse().find((m) => m.role === 'user');
   const text =
     typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content ?? '');
+  const naming = (messages ?? []).some(
+    (m) =>
+      m.role === 'system' && typeof m.content === 'string' && /name chat sessions/i.test(m.content),
+  );
+  if (naming) {
+    for (const [re, out] of TITLES) if (re.test(text)) return out;
+    return text.replace(/\s+/g, ' ').trim().slice(0, 16);
+  }
   for (const [re, out] of SCRIPTS) if (re.test(text)) return out;
   return FALLBACK;
 }
