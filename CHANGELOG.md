@@ -217,6 +217,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **desktop:** `fs_edit` 在等待确认期间如果文件被别的程序改过（比如你在编辑器里保存了另一段），不再用确认前读到的旧全文覆盖它：提交前核对内容哈希，变了就返回 `conflict` 错误、文件保持你保存的版本，让 Nomi 重新读取后再改；移入回收站后再核对一次被移走的版本，堵住核对与写回之间的空隙。Node 版与 Go 版一致（#190）。 (`@nomi-ai/desktop-go` patch)
 - **desktop:** the command allowlist only accepts known test / build / check / read-only commands
 - **desktop:** undoing a file overwrite made by the assistant now works (it always reported a conflict before). The old version is restored from the app trash; if you edited the new file in between, the undo is refused and both copies are kept, and a failed undo step is rolled back. (`@nomi-ai/ai-chat` patch)
+- **desktop:** 命令白名单按 shell 去掉引号后的实际参数检查危险选项，带引号或部分引号的 `-exec`、`--output` 等以及 git 长选项缩写（如 `--outp=`）不再凭已记住的 `go test` / `git diff` 直接放行（#265）。/ The command allowlist now checks dangerous options against the arguments the shell actually passes (quotes removed), so quoted or partly quoted `-exec`, `--output` etc. and abbreviated git long options (such as `--outp=`) no longer run unasked under a remembered `go test` / `git diff` rule (#265). (`@nomi-ai/desktop-go` patch)
 - **desktop:** 命令自动审核看完整命令，不再只看前 4000 个字符；超过审核上限的交给用户确认（#222）。 (`@nomi-ai/desktop-go` patch)
 - **desktop:** 请求授权文件夹时如果对话已被停止，不再弹出授权卡片；授权答复与停止同时发生时也不会写入授权。 (`@nomi-ai/desktop-go` patch)
 - **diagnostics:** gateway request bodies are traced again: the gateway never received the trace
