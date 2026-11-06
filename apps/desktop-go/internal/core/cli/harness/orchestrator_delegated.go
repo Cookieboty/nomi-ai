@@ -92,7 +92,9 @@ func (o *Orchestrator) IsDelegatedSession(backend, sessionID string) bool {
 }
 
 // RebindDelegation：把空闲、没被接手的委派标签交给新的一次委派（同一种任务接着用它的会话）：
-// 换上新的 callId / taskId / goal，审批计数清零；del.permissionMode 给了就按它设权限档。不能接手时返回 false
+// 换上新的 callId / taskId / goal，审批计数清零；del.permissionMode 给了就按它设权限档。不能接手时返回 false。
+// del.expectTaskId 给了时，标签当前的 taskId 必须还是它（挑选与改写之间没被别的任务领走）——
+// 比对和改写在同一次调用里（编排器串行），两个并发任务挑中同一个标签时只有一个能领到。
 func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	if !o.tabs.Has(id) {
 		return false
@@ -100,6 +102,9 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	tab := o.tab(id)
 	d, _ := tab.Get("delegation").(*util.Obj)
 	if d == nil || d.Get("by") != "nomi" || truthy(d.Get("takenOver")) || tab.Get("status") != "idle" {
+		return false
+	}
+	if expect, ok := del.Lookup("expectTaskId"); ok && jsStr(expect) != jsStr(d.Get("taskId")) {
 		return false
 	}
 	for _, k := range []string{"callId", "taskId"} {

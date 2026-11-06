@@ -166,3 +166,14 @@ func TestFindReusableTab(t *testing.T) {
 		t.Fatal("kind defaults to coding")
 	}
 }
+
+func TestReuseOwner(t *testing.T) {
+	tabs := []any{
+		util.NewObj("id", "a", "delegation", util.NewObj("by", "nomi", "taskId", "task_1")),
+		util.NewObj("id", "b", "delegation", util.NewObj("by", "nomi")),
+		util.NewObj("id", "c"),
+	}
+	if ReuseOwner(tabs, "a") != "task_1" || ReuseOwner(tabs, "b") != "" || ReuseOwner(tabs, "c") != "" || ReuseOwner(tabs, "x") != "" {
+		t.Fatal("owner")
+	}
+}
