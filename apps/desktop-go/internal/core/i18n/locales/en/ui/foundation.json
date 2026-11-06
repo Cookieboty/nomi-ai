@@ -239,7 +239,7 @@
   "ui.foundation.getting-started-go-add": "Add one",
   "ui.foundation.getting-started-import-mcp-and-skills": "Import MCP servers and skills",
   "ui.foundation.getting-started-install-a-coding-agent": "Install a coding agent",
-  "ui.foundation.getting-started-install-a-coding-agent-desc": "Use Claude Code, Codex and more in the workbench.",
+  "ui.foundation.getting-started-install-a-coding-agent-desc": "In Workshop, Nomi drives Claude Code, Codex and others to write code.",
   "ui.foundation.getting-started-installing": "Installing…",
   "ui.foundation.getting-started-open-a-coding-session": "Open a coding session",
   "ui.foundation.getting-started-open-a-coding-session-desc": "Pick a project folder and let a coding agent get to work.",

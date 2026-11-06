@@ -185,5 +185,15 @@
   "ui.session-workspace.write-conventional-commits-messages-following-the-repo-conventions": "Write Conventional Commits messages following the repo conventions; split into several commits by topic if needed.",
   "ui.session-workspace.you-added": "You added",
   "ui.session-workspace.you-stopped-this-subtask": "You stopped this subtask.",
-  "ui.session-workspace.your-next-request-goes-to-click-to-cancel": "Your next request goes to {0}; click to cancel"
+  "ui.session-workspace.your-next-request-goes-to-click-to-cancel": "Your next request goes to {0}; click to cancel",
+  "ui.session-workspace.git-error-checkout-dirty": "Uncommitted changes would be overwritten by this switch. Commit or stash them first (nothing was lost)",
+  "ui.session-workspace.git-error-branch-exists": "A branch with that name already exists, pick another name",
+  "ui.session-workspace.git-error-branch-invalid": "Invalid branch name (no spaces, no \"..\", and it cannot start with -)",
+  "ui.session-workspace.search-branches": "Search {0} branches",
+  "ui.session-workspace.branches": "Branches",
+  "ui.session-workspace.no-matching-branches": "No matching branches",
+  "ui.session-workspace.create-and-checkout-branch": "Create and check out a new branch",
+  "ui.session-workspace.create-and-checkout-branch-ellipsis": "Create and check out a new branch…",
+  "ui.session-workspace.new-branch-name": "New branch name",
+  "ui.session-workspace.switch-branch": "Switch branch (current: {0})"
 }

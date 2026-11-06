@@ -129,7 +129,6 @@
   "ui.knowledge-local.model-card": "Model card",
   "ui.knowledge-local.model-name-e-g-qwen3-0-6b": "Model name, e.g. qwen3:0.6b",
   "ui.knowledge-local.more": "More",
-  "ui.knowledge-local.more-knowledge-base-q-a-models-settings": "More: knowledge base Q&A, models, settings (or type /)",
   "ui.knowledge-local.no-conversation-memories-yet": "No conversation memories yet",
   "ui.knowledge-local.no-matching-entries": "No matching entries",
   "ui.knowledge-local.no-matching-memories": "No matching memories",
@@ -258,5 +257,9 @@
   "ui.knowledge-local.when-the-window-closes-a-new-chat-starts": "When the window closes, a new chat starts, or every 10 messages",
   "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "While reading aloud, speaking stops it (barge-in).",
   "ui.knowledge-local.you-re-asked-the-first-time-file-contents": "You're asked the first time file contents are sent to a cloud model.",
-  "ui.knowledge-local.your-data-stays-on-this-device": "Your data stays on this device"
+  "ui.knowledge-local.your-data-stays-on-this-device": "Your data stays on this device",
+  "ui.knowledge-local.add-images-or-files": "Add images or files…",
+  "ui.knowledge-local.reference-a-file-or-folder": "Reference a file or folder",
+  "ui.knowledge-local.composer-add-tip": "Add images or files, reference a file, hand off to a coding agent, knowledge-base Q&A",
+  "ui.knowledge-local.set-up-voice-input": "Set up voice input…"
 }

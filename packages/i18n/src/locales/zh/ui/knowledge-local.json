@@ -129,7 +129,6 @@
   "ui.knowledge-local.model-card": "模型卡",
   "ui.knowledge-local.model-name-e-g-qwen3-0-6b": "模型名，例如 qwen3:0.6b",
   "ui.knowledge-local.more": "更多功能",
-  "ui.knowledge-local.more-knowledge-base-q-a-models-settings": "更多：知识库问答、模型、设置（也可输入 / ）",
   "ui.knowledge-local.no-conversation-memories-yet": "还没有对话记忆",
   "ui.knowledge-local.no-matching-entries": "没有匹配的条目",
   "ui.knowledge-local.no-matching-memories": "没有匹配的记忆",
@@ -258,5 +257,9 @@
   "ui.knowledge-local.when-the-window-closes-a-new-chat-starts": "关闭窗口、新建对话或每 10 条消息时",
   "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "朗读时你一开口，朗读就停下（barge-in）。",
   "ui.knowledge-local.you-re-asked-the-first-time-file-contents": "第一次把文件内容发给某个云端模型时会弹出提示。",
-  "ui.knowledge-local.your-data-stays-on-this-device": "数据都在本机"
+  "ui.knowledge-local.your-data-stays-on-this-device": "数据都在本机",
+  "ui.knowledge-local.add-images-or-files": "添加图片或文件…",
+  "ui.knowledge-local.reference-a-file-or-folder": "引用文件或文件夹",
+  "ui.knowledge-local.composer-add-tip": "添加图片或文件、引用文件、交给编程助手、知识库问答",
+  "ui.knowledge-local.set-up-voice-input": "设置语音输入…"
 }

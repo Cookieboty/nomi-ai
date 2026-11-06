@@ -106,7 +106,6 @@
   "ui.slash-commands.please-complete-the-task-following-the-skill-instructions": "Please complete the task following the skill instructions below.",
   "ui.slash-commands.plugin": "Plugin",
   "ui.slash-commands.plugins-commands": "Plugins / commands",
-  "ui.slash-commands.plugins-commands-commands-skills-plugins-and-mcp-for": "Plugins / commands: commands, Skills, plugins and MCP for this endpoint (or type /)",
   "ui.slash-commands.plugins-commands-detail": "Plugins / commands: {0}",
   "ui.slash-commands.project": "Project",
   "ui.slash-commands.project-commands": "Project commands",

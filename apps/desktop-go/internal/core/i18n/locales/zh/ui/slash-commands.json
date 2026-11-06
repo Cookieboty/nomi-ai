@@ -106,7 +106,6 @@
   "ui.slash-commands.please-complete-the-task-following-the-skill-instructions": "请按下面的技能说明完成任务。",
   "ui.slash-commands.plugin": "插件",
   "ui.slash-commands.plugins-commands": "插件 / 命令",
-  "ui.slash-commands.plugins-commands-commands-skills-plugins-and-mcp-for": "插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）",
   "ui.slash-commands.plugins-commands-detail": "插件 / 命令：{0}",
   "ui.slash-commands.project": "项目",
   "ui.slash-commands.project-commands": "项目命令",
