@@ -65,7 +65,21 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev file
       - name: windows deps (NSIS)
         if: runner.os == 'Windows'
-        run: command -v makensis || [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ] || choco install nsis -y --no-progress
+        # windows-2025-vs2026 镜像不预装 NSIS，choco 源偶尔查不到包：重试几次，再退回 SourceForge 安装包，
+        # 都装不上就在这一步失败（不要拖到 makensis 才报 127）
+        run: |
+          NSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          have() { command -v makensis >/dev/null || [ -x "$NSIS" ]; }
+          have && exit 0
+          for i in 1 2 3; do
+            choco install nsis -y --no-progress || true
+            have && exit 0
+            sleep $((i * 10))
+          done
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/nsis-setup.exe" \
+            "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11-setup.exe"
+          "$RUNNER_TEMP/nsis-setup.exe" //S
+          have || { echo "::error::NSIS install failed (choco and SourceForge)"; exit 1; }
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - id: ver
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
