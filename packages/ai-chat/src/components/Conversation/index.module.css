@@ -16,18 +16,11 @@
   overflow-y: auto;
   padding: var(--cd-space-5) var(--cd-space-4);
 }
-.scroll::-webkit-scrollbar {
-  width: 6px;
-}
-.scroll::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.28);
-  border-radius: var(--cd-radius-full);
-}
 .inner {
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-8);
-  max-width: 820px;
+  max-width: var(--cd-chat-content-w);
   margin: 0 auto;
   padding-bottom: var(--cd-space-5);
 }

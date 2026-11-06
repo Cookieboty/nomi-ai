@@ -10,7 +10,7 @@ import {
   EndpointControls,
   PermissionTip,
   SessionControls,
-  WorkspaceControl,
+  NewChatContext,
 } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -297,7 +297,7 @@ describe('输入栏只留端点与权限模式', () => {
 
     const header = render(
       <HarnessTabsProvider>
-        <WorkspaceControl />
+        <NewChatContext />
       </HarnessTabsProvider>,
     );
     await header.findByTestId('cli-workspace');

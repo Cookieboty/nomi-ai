@@ -3,7 +3,7 @@
  * 受控组件：由调用方决定如何应用（更改正在运行的 CLI 会话 / 新建标签时的初始目录）。
  */
 import { t, Icon } from '@nomi-ai/ui';
-import { Check, Folder, FolderOpen, FolderX } from 'lucide-react';
+import { Check, Folder, FolderOpen, FolderX, Search } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -11,6 +11,12 @@ import { harnessClient } from '../../services/harnessClient';
 import { shortenPath } from '../../utils/workspacePath';
 
 import styles from './index.module.css';
+
+const baseName = (p: string) =>
+  p
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]/)
+    .pop() || p;
 
 export const WorkspacePicker: React.FC<{
   value: string;
@@ -28,6 +34,8 @@ export const WorkspacePicker: React.FC<{
   /** 可以不用工作区（Nomi 对话）：菜单底部多一项「不使用工作区」；没有值时按钮显示 emptyLabel */
   onClear?: () => void;
   emptyLabel?: string;
+  /** 新会话上方的工作区条：菜单顶部可以搜索，每项是「文件夹图标 + 目录名」，当前项右侧打勾 */
+  searchable?: boolean;
 }> = ({
   value,
   onChange,
@@ -40,8 +48,10 @@ export const WorkspacePicker: React.FC<{
   variant = 'outline',
   onClear,
   emptyLabel,
+  searchable = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
   const ref = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +95,12 @@ export const WorkspacePicker: React.FC<{
     };
   }, [open]);
 
+  const q = query.trim().toLowerCase();
+  const shown = q ? recent.filter((p) => p.toLowerCase().includes(q)) : recent;
+  const toggle = () => {
+    setQuery('');
+    setOpen((v) => !v);
+  };
   const apply = (cwd: string) => {
     setOpen(false);
     if (cwd && cwd !== value) void onChange(cwd);
@@ -115,12 +131,14 @@ export const WorkspacePicker: React.FC<{
             : t('ui.cli-monitor.choose-workspace')
         }
         data-testid={`${testId}-button`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
       >
         <Icon icon={Folder} size={14} />
         {label && <span className={styles.label}>{label}</span>}
         <span className={styles.path} data-testid={`${testId}-path`}>
-          {shortenPath(value) || emptyLabel || t('ui.cli-monitor.choose-folder')}
+          {(searchable ? value && baseName(value) : shortenPath(value)) ||
+            emptyLabel ||
+            t('ui.cli-monitor.choose-folder')}
         </span>
       </button>
       {open &&
@@ -132,24 +150,63 @@ export const WorkspacePicker: React.FC<{
             role="menu"
             data-testid={`${testId}-menu`}
           >
-            {recent.length > 0 && <div className={styles.group}>{t('ui.cli-monitor.recent')}</div>}
-            {recent.map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="menuitemradio"
-                aria-checked={p === value}
-                className={styles.item}
-                title={p}
-                data-testid="workspace-recent-item"
-                onClick={() => apply(p)}
-              >
-                <span className={styles.check}>
-                  {p === value ? <Icon icon={Check} size={14} /> : null}
-                </span>
-                <span className={styles.itemPath}>{shortenPath(p, 44)}</span>
-              </button>
-            ))}
+            {searchable && (
+              <label className={styles.search}>
+                <Icon icon={Search} size={14} />
+                <input
+                  className={styles.searchInput}
+                  value={query}
+                  autoFocus
+                  placeholder={t('ui.cli-monitor.search-workspaces')}
+                  aria-label={t('ui.cli-monitor.search-workspaces')}
+                  data-testid={`${testId}-search`}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && shown[0]) apply(shown[0]);
+                  }}
+                />
+              </label>
+            )}
+            {!searchable && recent.length > 0 && (
+              <div className={styles.group}>{t('ui.cli-monitor.recent')}</div>
+            )}
+            {searchable &&
+              shown.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={p === value}
+                  className={styles.item}
+                  title={p}
+                  data-testid="workspace-recent-item"
+                  onClick={() => apply(p)}
+                >
+                  <Icon icon={Folder} size={14} />
+                  <span className={styles.itemPath}>{baseName(p)}</span>
+                  <span className={styles.checkEnd}>
+                    {p === value ? <Icon icon={Check} size={14} /> : null}
+                  </span>
+                </button>
+              ))}
+            {!searchable &&
+              recent.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={p === value}
+                  className={styles.item}
+                  title={p}
+                  data-testid="workspace-recent-item"
+                  onClick={() => apply(p)}
+                >
+                  <span className={styles.check}>
+                    {p === value ? <Icon icon={Check} size={14} /> : null}
+                  </span>
+                  <span className={styles.itemPath}>{shortenPath(p, 44)}</span>
+                </button>
+              ))}
             <button
               type="button"
               role="menuitem"

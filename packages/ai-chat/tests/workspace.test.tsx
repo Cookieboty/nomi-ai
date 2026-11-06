@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 import { t } from '@nomi-ai/ui';
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   EndpointControls,
   SessionControls,
-  WorkspaceControl,
+  NewChatContext,
 } from '../src/components/EndpointControls';
 import { WorkspacePicker } from '../src/components/WorkspacePicker';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
@@ -15,7 +15,7 @@ import { ConversationStore } from '../src/services/conversationStore';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { shortenPath } from '../src/utils/workspacePath';
 
-import { installFakeApi, resetFakeApi, type FakeApi } from './helpers/fakeApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
@@ -57,22 +57,15 @@ function mockIpc(
     if (ch === 'harness.tabMessages') return messages;
     return {};
   });
-  fake = installFakeApi(invoke);
+  installFakeApi(invoke);
   return invoke;
 }
-let fake: FakeApi;
 const state = (cli: Partial<HarnessTabMeta> = {}): HarnessTabsState => ({
   tabs: [tab({ id: 'main', backend: 'nomi', cwd: '/docs' }), tab({ id: 'cx', ...cli })],
   activeTabId: 'cx',
   running: 0,
   queued: 0,
 });
-
-function stubConfirm(v: boolean) {
-  const fn = vi.fn(() => v);
-  (window as unknown as { confirm: unknown }).confirm = fn;
-  return fn;
-}
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
@@ -117,8 +110,8 @@ describe('EndpointControls workspace for CLI tabs', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          {/* 工作目录在对话顶栏（WorkspaceControl），待带入前文在对话区顶部（SessionControls） */}
-          <WorkspaceControl />
+          {/* 工作区在新会话的输入框上方（NewChatContext），待带入前文在对话区顶部（SessionControls） */}
+          <NewChatContext />
           <SessionControls />
         </>
       </HarnessTabsProvider>,
@@ -139,7 +132,7 @@ describe('EndpointControls workspace for CLI tabs', () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabs'));
     expect(r.queryByTestId('cli-workspace')).toBeNull();
     // 还没有会话：显示新会话会用的默认工作区（主标签目录）
-    await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+    await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('w'));
   });
 
   describe('Nomi conversation workspace', () => {
@@ -161,7 +154,7 @@ describe('EndpointControls workspace for CLI tabs', () => {
       const c = store.create({ cwd: '/w' });
       const invoke = mockIpc({ ...state(), activeTabId: 'main' });
       const r = mount();
-      await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+      await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('w'));
       fireEvent.click(r.getByTestId('nomi-workspace-button'));
       await waitFor(() => r.getAllByTestId('workspace-recent-item'));
       fireEvent.click(r.getAllByTestId('workspace-recent-item')[1]!);
@@ -204,49 +197,6 @@ describe('EndpointControls workspace for CLI tabs', () => {
     fireEvent.click(r.getAllByTestId('workspace-recent-item')[idx]!);
   };
 
-  it('换目录时给三个选择：取消 / 开新会话 / 带上当前对话（不再用系统确认框）', async () => {
-    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }), '/picked/dir', history);
-    const confirm = stubConfirm(true);
-    const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
-
-    await pick(r, 0);
-    const dlg = await r.findByTestId('cli-cwd-switch');
-    expect(dlg.textContent).toContain('/recent/one');
-    fireEvent.click(r.getByTestId('cli-cwd-cancel'));
-    await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-    expect(invoke.mock.calls.some((c) => c[0] === 'harness.tabCwd')).toBe(false);
-
-    await pick(r, 0);
-    fireEvent.click(await r.findByTestId('cli-cwd-fresh'));
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
-        id: 'cx',
-        cwd: '/recent/one',
-        carry: false,
-      }),
-    );
-
-    await pick(r, 1);
-    fireEvent.click(await r.findByTestId('cli-cwd-carry'));
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
-        id: 'cx',
-        cwd: '/recent/two',
-        carry: true,
-      }),
-    );
-    expect(confirm).not.toHaveBeenCalled();
-  });
-
-  it('没有对话可带时「带上当前对话」不可点', async () => {
-    mockIpc(state({ cliSessionId: 'sess-1' }));
-    const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
-    await pick(r, 0);
-    expect((await r.findByTestId('cli-cwd-carry')).hasAttribute('disabled')).toBe(true);
-  });
-
   it('全新标签（没有会话也没有对话）直接换，不弹框', async () => {
     const invoke = mockIpc(state());
     const r = mount();
@@ -262,74 +212,29 @@ describe('EndpointControls workspace for CLI tabs', () => {
     );
   });
 
-  describe('确认框绑定发起换目录的标签（#68）', () => {
-    // 同后端两个标签 A / B，各有会话与对话；推送 harness.tabsChanged 模拟切标签
-    const a = tab({ id: 'ta', title: 'A', cwd: '/repo-a', cliSessionId: 'sess-a' });
-    const b = tab({ id: 'tb', title: 'B', cwd: '/repo-b', cliSessionId: 'sess-b' });
-    const st = (activeTabId: string, list = [a, b]): HarnessTabsState => ({
-      tabs: [tab({ id: 'main', backend: 'nomi', cwd: '/docs' }), ...list],
-      activeTabId,
-      running: 0,
-      queued: 0,
-    });
-    function mockTwo() {
-      const invoke = mockIpc(st('ta'), '/picked/dir', history);
-      return {
-        invoke,
-        push: (s: HarnessTabsState) => act(() => fake.emit('harness.tabsChanged', s)),
-      };
-    }
-    const cwdWrites = (invoke: ReturnType<typeof vi.fn>) =>
-      invoke.mock.calls.filter((c) => c[0] === 'harness.tabCwd' || c[0] === 'harness.setCwd');
-    const openSwitch = async (r: ReturnType<typeof mount>) => {
-      await waitFor(() => r.getByTestId('cli-workspace'));
-      await pick(r, 0);
-      await r.findByTestId('cli-cwd-switch');
-    };
+  it('已经有 CLI 会话但还没有对话：也直接换目录开新会话，不弹框', async () => {
+    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }));
+    const r = mount();
+    await waitFor(() => r.getByTestId('cli-workspace'));
+    await pick(r, 0);
+    expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+        id: 'cx',
+        cwd: '/recent/one',
+        carry: false,
+      }),
+    );
+  });
 
-    it('切到 B 后确认框作废，B 的目录与会话不变；切回 A 也不复活', async () => {
-      const m = mockTwo();
-      const r = mount();
-      await openSwitch(r);
-      await m.push(st('tb'));
-      await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-      await m.push(st('ta'));
-      await new Promise((res) => setTimeout(res, 20));
-      expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
-      expect(cwdWrites(m.invoke)).toHaveLength(0);
-    });
-
-    it('切回主对话、原标签被关闭或换了目录：确认框作废，不会改到主对话', async () => {
-      const m = mockTwo();
-      const r = mount();
-      await openSwitch(r);
-      await m.push(st('main'));
-      await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-
-      await m.push(st('ta'));
-      await openSwitch(r);
-      await m.push(st('ta', [{ ...a, cwd: '/moved' }, b]));
-      await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-
-      await m.push(st('ta'));
-      await openSwitch(r);
-      await m.push(st('tb', [b]));
-      await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
-      expect(cwdWrites(m.invoke)).toHaveLength(0);
-    });
-
-    it('不切换时只改发起的标签，并写明标签与原目录', async () => {
-      const m = mockTwo();
-      const r = mount();
-      await openSwitch(r);
-      expect(r.getByTestId('cli-cwd-switch-origin').textContent).toContain('/repo-a');
-      fireEvent.click(r.getByTestId('cli-cwd-carry'));
-      await waitFor(() => expect(cwdWrites(m.invoke)).toHaveLength(1));
-      expect(cwdWrites(m.invoke)[0]).toEqual([
-        'harness.tabCwd',
-        { id: 'ta', cwd: '/recent/one', carry: true },
-      ]);
-    });
+  it('有了对话之后不再显示工作区（只在新会话时选）', async () => {
+    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }), '/picked/dir', history);
+    const r = mount();
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabMessages', expect.anything()),
+    );
+    // 消息到了之后工作区条消失
+    await waitFor(() => expect(r.queryByTestId('cli-workspace')).toBeNull());
   });
 
   it('有待带入的前文时显示按钮，× 放弃', async () => {

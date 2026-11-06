@@ -12,9 +12,10 @@
   align-items: center;
   gap: var(--cd-space-1);
   height: var(--cd-control-h-ms);
-  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-full);
+  padding: 0 var(--cd-space-2);
+  /* 无边框（Codex 式输入栏工具行）：hover 才出底色 */
+  border: 1px solid transparent;
+  border-radius: var(--cd-radius-md);
   /* 透明底：与旁边的端点切换一致，不在输入栏里铺一块灰底 */
   background: transparent;
   color: var(--cd-color-text);
@@ -168,9 +169,9 @@
   align-items: center;
   gap: var(--cd-space-2);
   min-height: var(--cd-control-h-sm);
-  /* 比输入框（max-width 820px、居中）两侧各窄一点 */
+  /* 比输入框（--cd-chat-content-w、居中）两侧各窄一点 */
   box-sizing: border-box;
-  width: calc(min(100%, 820px) - 2 * var(--cd-space-4));
+  width: calc(min(100%, var(--cd-chat-content-w)) - 2 * var(--cd-space-4));
   margin: 0 auto var(--cd-space-1-5);
   padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-3);
   border: 1px solid var(--cd-color-danger);
