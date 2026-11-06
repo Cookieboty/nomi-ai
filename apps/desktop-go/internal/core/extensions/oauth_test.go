@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -144,8 +145,9 @@ func TestNativeOAuthEncryptedRestartAndRefresh(t *testing.T) {
 	if err != nil || !strings.HasPrefix(string(b), "enc:") || strings.Contains(string(b), f.token) {
 		t.Fatal("credentials not encrypted", err)
 	}
+	// Windows has no POSIX mode bits; private files rely on the user-data directory permissions there.
 	st, _ := os.Stat(s.file)
-	if st.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
 		t.Fatal("credential file permissions", st.Mode())
 	}
 	s.cancel()
