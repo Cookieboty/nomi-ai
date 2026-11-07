@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/desktop-go': patch
-'@nomi-ai/i18n': patch
 ---
 
 fix(security): 编程助手沙箱补上几个口子。没授权「SSH 与 Git 凭据」时，编程助手连不上 ssh-agent（借不到里面的私钥）；没授权「云账号凭据」时连不上 Docker；不能通过 osascript 让别的应用替它做事；读不到主目录下的 npm / PyPI 发布令牌、1Password CLI 配置、命令行历史，以及 Chromium、Vivaldi、Opera 的浏览器数据；改不了会在沙箱外执行命令的配置（Claude Code 的设置与钩子、Codex / Gemini 的配置、Gradle 初始化脚本、bun / deno 的命令目录）。设置里的类别说明写清了各自包含什么。/ The coding-agent sandbox closes several gaps. Without the "SSH and Git credentials" grant, coding agents cannot reach ssh-agent (and the keys in it); without "Cloud credentials" they cannot reach Docker; they cannot use osascript to have other apps act for them; they cannot read the npm / PyPI publish tokens in your home folder, the 1Password CLI configuration, shell history, or Chromium, Vivaldi and Opera browser data; and they cannot change configuration that would run commands outside the sandbox (Claude Code settings and hooks, Codex / Gemini configuration, Gradle init scripts, bun / deno command folders). The category descriptions in Settings now say what each one covers.
