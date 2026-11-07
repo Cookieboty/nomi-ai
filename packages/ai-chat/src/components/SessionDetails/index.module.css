@@ -49,14 +49,6 @@
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-xs);
 }
-.path {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-1);
-  padding: 0 var(--cd-space-2) var(--cd-space-1);
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-}
 .ellipsis {
   min-width: 0;
   overflow: hidden;
@@ -67,7 +59,7 @@
 .row {
   display: flex;
   align-items: center;
-  gap: var(--cd-space-2);
+  gap: var(--cd-space-3);
   width: 100%;
   min-height: var(--cd-control-h-ms);
   padding: var(--cd-space-1) var(--cd-space-2);
@@ -92,9 +84,16 @@
 .rowLabel {
   flex: 1;
 }
+.rowIcon {
+  flex-shrink: 0;
+  color: var(--cd-color-text);
+}
+/* 增删行：与标签同字号，绿 + 红 −，等宽数字 */
 .stats {
   display: inline-flex;
   gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
   font-variant-numeric: tabular-nums;
 }
 .added {

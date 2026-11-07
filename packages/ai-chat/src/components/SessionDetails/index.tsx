@@ -6,7 +6,7 @@
  * 开关状态记在本机（下次打开应用保持）。
  */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { Bot, Diff, Folder, GitBranch, LayoutDashboard } from 'lucide-react';
+import { Bot, GitBranch, LayoutDashboard } from 'lucide-react';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -33,6 +33,25 @@ const STATUS_KEY: Record<SessionAgentStatus, string> = {
   error: 'ui.chat-settings.error',
   stopped: 'ui.chat-settings.stopped',
 };
+
+/** 「变更」图标：圆角方框里一个 ±（lucide 没有这个图形；线宽、尺寸与 lucide 图标一致） */
+const ChangesIcon: React.FC = () => (
+  <svg
+    className={styles.rowIcon}
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <path d="M12 7v6M9 10h6M9 16.5h6" />
+  </svg>
+);
 
 const STORE_KEY = 'nomi.sessionDetails.open';
 
@@ -110,25 +129,17 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
         )}
       </div>
       {cwd && (
-        <div className={styles.path} title={cwd}>
-          <Icon icon={Folder} size={12} />
-          <span className={styles.ellipsis}>{cwd}</span>
-        </div>
-      )}
-      {cwd && (
         <button
           type="button"
           className={styles.row}
           data-testid="session-details-changes"
+          title={changes.files > 0 ? t('ui.usage-tools.files', String(changes.files)) : undefined}
           onClick={() => openWorkbench({})}
         >
-          <Icon icon={Diff} size={16} />
+          <ChangesIcon />
           <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
           {changes.files > 0 ? (
             <span className={styles.stats}>
-              <span className={styles.muted}>
-                {t('ui.usage-tools.files', String(changes.files))}
-              </span>
               <span className={styles.added}>+{changes.added.toLocaleString()}</span>
               <span className={styles.removed}>-{changes.removed.toLocaleString()}</span>
             </span>
