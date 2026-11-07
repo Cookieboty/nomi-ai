@@ -365,6 +365,10 @@ export const FleetAgent = loose({
   /** 量不到时没有（Nomi 后台运行跑在内核进程里，单独的内存量不出来） */
   usage: FleetUsage.optional(),
   updatedAt: z.number(),
+  /** 暂停中（已暂停列）：by = memory 内存守护自动暂停 / user 手动暂停；at = 暂停时间 */
+  paused: loose({ by: z.enum(['memory', 'user']), at: z.number() }).optional(),
+  /** 可以手动暂停：纳管、正在跑、有活着的进程、没在等审批的 CLI 标签 */
+  pausable: z.boolean().optional(),
 });
 
 export const FleetSystem = loose({
@@ -372,6 +376,24 @@ export const FleetSystem = loose({
   cores: z.number(),
   /** 整机 CPU 占用：0–100，占全部核的比例（同活动监视器的「系统 + 用户」）；各 agent 的 cpuPercent 是 100 = 一个核 */
   cpuPercent: z.number(),
+  /** 系统内存压力（macOS 取系统给的等级；Linux / Windows 按可用内存与 PSI 划） */
+  pressure: z.enum(['normal', 'warn', 'critical', 'unknown']),
+  /** 可用内存比例（0–100），读不到时没有 */
+  availablePercent: z.number().optional(),
+});
+
+/**
+ * 内存守护：autoPause = 内存紧张时自动处理（告警：回收空闲标签的进程；危险：暂停正在跑的标签，恢复正常后一个个恢复）；
+ * last = 最近一次动作（reclaimed 回收 / paused 暂停 / resumed 恢复）
+ */
+export const FleetGovernor = loose({
+  autoPause: z.boolean(),
+  last: loose({
+    kind: z.enum(['reclaimed', 'paused', 'resumed']),
+    id: z.string().optional(),
+    count: z.number().optional(),
+    at: z.number(),
+  }).optional(),
 });
 
 /** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
@@ -399,6 +421,7 @@ export const FleetState = loose({
   nomi: FleetNomi,
   externalIdle: FleetExternalIdle,
   system: FleetSystem,
+  governor: FleetGovernor,
   /** 这份数据的采样时间（毫秒） */
   sampledAt: z.number(),
 });

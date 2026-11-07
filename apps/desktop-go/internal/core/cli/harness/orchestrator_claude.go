@@ -821,6 +821,7 @@ func (o *Orchestrator) dropRecycledClaude(tabID string, live *claudeLiveSession)
 
 // teardownClaudeLive：同时拆 ACP / Codex（不 reject 当前 turn 以外的东西）。
 func (o *Orchestrator) teardownClaudeLive(tabID string) {
+	o.thawIfFrozen(tabID)
 	o.teardownAcpLive(tabID)
 	o.teardownCodexLive(tabID)
 	delete(o.dormant, tabID)

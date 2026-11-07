@@ -57,12 +57,45 @@ type Agent struct {
 	Cwd            string `json:"cwd,omitempty"`
 	Usage          *Usage `json:"usage,omitempty"`
 	UpdatedAt      int64  `json:"updatedAt"`
+	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（纳管、在跑、有活着的进程、没在等审批）
+	Paused   *Paused `json:"paused,omitempty"`
+	Pausable bool    `json:"pausable,omitempty"`
+}
+
+// 谁暂停的
+const (
+	PausedByMemory = "memory"
+	PausedByUser   = "user"
+)
+
+// Paused：暂停信息（冻结的进程不占 CPU，内存由系统按需压缩换出；恢复后这一轮从原处接着跑）
+type Paused struct {
+	By string `json:"by"`
+	At int64  `json:"at"`
 }
 
 type System struct {
 	TotalMemBytes float64 `json:"totalMemBytes"`
 	Cores         int     `json:"cores"`
 	CPUPercent    float64 `json:"cpuPercent"`
+	// Pressure：系统内存压力 normal / warn / critical / unknown；AvailablePercent 可用内存比例（不知道时没有）
+	Pressure         string   `json:"pressure"`
+	AvailablePercent *float64 `json:"availablePercent,omitempty"`
+}
+
+// Action：内存守护最近做的一件事（看板上一行提示）
+type Action struct {
+	// Kind：reclaimed 回收空闲进程 / paused 暂停 / resumed 恢复
+	Kind  string `json:"kind"`
+	ID    string `json:"id,omitempty"`
+	Count int    `json:"count,omitempty"`
+	At    int64  `json:"at"`
+}
+
+// Governor：内存守护的开关与最近一次动作
+type Governor struct {
+	AutoPause bool    `json:"autoPause"`
+	Last      *Action `json:"last,omitempty"`
 }
 
 // Nomi：Nomi 本体（调度者）的资源占用：自己的进程树减去各标签的树
@@ -89,11 +122,12 @@ type Idle struct {
 
 // State = 契约 FleetState
 type State struct {
-	Agents       []Agent `json:"agents"`
-	Nomi         Nomi    `json:"nomi"`
-	ExternalIdle Idle    `json:"externalIdle"`
-	System       System  `json:"system"`
-	SampledAt    int64   `json:"sampledAt"`
+	Agents       []Agent  `json:"agents"`
+	Nomi         Nomi     `json:"nomi"`
+	ExternalIdle Idle     `json:"externalIdle"`
+	System       System   `json:"system"`
+	Governor     Governor `json:"governor"`
+	SampledAt    int64    `json:"sampledAt"`
 }
 
 // Tab：编排器里一个标签的看板相关信息（wiring 从 ListTabs 与编排器查询里取）
@@ -107,6 +141,7 @@ type Tab struct {
 	Pids           []int
 	PendingPerms   int
 	SandboxPending int
+	Paused         *Paused // 冻结中
 }
 
 // Chat：正在回答的 Nomi 对话（标题由视图从会话列表里取）
@@ -297,7 +332,11 @@ func Build(in Input) State {
 		if need == NeedPermission || need == NeedSandbox {
 			col = ColRunning
 		}
+		if t.Paused != nil {
+			col, a.Paused = ColPaused, t.Paused
+		}
 		a.Column, a.NeedsYou, a.Failed = col, need, failed
+		a.Pausable = t.Paused == nil && col == ColRunning && need == "" && len(t.Pids) > 0
 		roots := make([]float64, len(t.Pids))
 		for i, p := range t.Pids {
 			roots[i] = float64(p)

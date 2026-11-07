@@ -247,5 +247,17 @@
   "ui.cli-monitor.fleet-idle-title": "Idle processes",
   "ui.cli-monitor.fleet-pid": "PID {0}",
   "ui.cli-monitor.fleet-close-idle": "Close {0} (PID {1})",
-  "ui.cli-monitor.fleet-close-idle-confirm": "Close {0} (PID {1})? It is open outside {2} with no session running; closing it quits that assistant in your terminal or IDE."
+  "ui.cli-monitor.fleet-close-idle-confirm": "Close {0} (PID {1})? It is open outside {2} with no session running; closing it quits that assistant in your terminal or IDE.",
+  "ui.cli-monitor.fleet-resume": "Resume",
+  "ui.cli-monitor.fleet-paused-memory": "Paused automatically: memory is low",
+  "ui.cli-monitor.fleet-paused-user": "Paused by you",
+  "ui.cli-monitor.fleet-pressure": "Memory pressure: {0}",
+  "ui.cli-monitor.fleet-available": " ({0}% available)",
+  "ui.cli-monitor.fleet-pressure-normal": "normal",
+  "ui.cli-monitor.fleet-pressure-warn": "elevated",
+  "ui.cli-monitor.fleet-pressure-critical": "high",
+  "ui.cli-monitor.fleet-auto-pause": "Act automatically when memory is low",
+  "ui.cli-monitor.fleet-gov-reclaimed": "Memory is elevated: freed the processes of {0} idle tabs (their sessions are kept and resume when you ask again)",
+  "ui.cli-monitor.fleet-gov-paused": "Memory is low: paused “{0}”; it resumes on its own once memory recovers",
+  "ui.cli-monitor.fleet-gov-resumed": "Memory is back to normal: “{0}” resumed"
 }

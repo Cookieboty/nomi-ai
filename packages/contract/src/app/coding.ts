@@ -526,6 +526,16 @@ const fleetProcedures = {
     output: FleetState,
     dangerous: true,
   },
+  /** 暂停一个纳管的、正在跑的 CLI 标签（冻结它的进程树，不占 CPU；恢复后这一轮从原处接着跑）；不能暂停时 FLEET_NOT_PAUSABLE */
+  'fleet.pause': { kind: 'mutation', input: z.object({ id: z.string() }), output: FleetState },
+  /** 恢复一个暂停中的标签（自动或手动暂停的都行）；不在暂停中时 FLEET_NOT_PAUSABLE */
+  'fleet.resume': { kind: 'mutation', input: z.object({ id: z.string() }), output: FleetState },
+  /** 打开 / 关闭内存紧张时的自动处理（存盘）；关掉时恢复内存守护暂停的标签 */
+  'fleet.setAutoPause': {
+    kind: 'mutation',
+    input: z.object({ enabled: z.boolean() }),
+    output: FleetState,
+  },
 } as const satisfies ProcedureMap;
 
 const historySession = z.object({ backend: z.string(), sessionId: z.string() });
@@ -597,6 +607,8 @@ export const codingErrors = [
   'ACCOUNT_UNKNOWN_LIVE',
   /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
   'FLEET_NOT_IDLE',
+  /** fleet.pause / resume：不能暂停或恢复（外部的、内核里跑的、没在跑、或已经是这个状态） */
+  'FLEET_NOT_PAUSABLE',
 ] as const satisfies readonly string[];
 
 export type CodingProcedureName = keyof typeof codingProcedures & string;

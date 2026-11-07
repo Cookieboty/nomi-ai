@@ -132,6 +132,30 @@ export function useFleetHost(collapsed: boolean) {
     },
     [apply],
   );
+  const pause = useCallback(
+    (id: string) =>
+      void fleetApi
+        .pause(id)
+        .then(apply)
+        .catch(() => reload()),
+    [apply, reload],
+  );
+  const resume = useCallback(
+    (id: string) =>
+      void fleetApi
+        .resume(id)
+        .then(apply)
+        .catch(() => reload()),
+    [apply, reload],
+  );
+  const setAutoPause = useCallback(
+    (on: boolean) =>
+      void fleetApi
+        .setAutoPause(on)
+        .then(apply)
+        .catch(() => reload()),
+    [apply, reload],
+  );
   /** 手动关闭空闲的外部进程：先确认；内核发现它已经不是空闲进程时只刷新列表 */
   const closeIdle = useCallback(
     async (it: FleetIdleItem) => {
@@ -193,6 +217,9 @@ export function useFleetHost(collapsed: boolean) {
         onArchive={archive}
         onCloseTab={(a) => void closeTab(a)}
         onCloseIdle={(it) => void closeIdle(it)}
+        onPause={pause}
+        onResume={resume}
+        onSetAutoPause={setAutoPause}
       />
     </div>
   ) : null;

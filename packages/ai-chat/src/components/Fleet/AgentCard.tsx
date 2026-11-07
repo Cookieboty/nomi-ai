@@ -1,6 +1,6 @@
 import { brand } from '@nomi-ai/types';
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { AlertTriangle, CircleAlert, Folder } from 'lucide-react';
+import { AlertTriangle, CircleAlert, Folder, PauseCircle } from 'lucide-react';
 import React from 'react';
 
 import {
@@ -23,6 +23,8 @@ export interface CardActions {
   onOpenChat?: (conversationId: string) => void;
   onArchive?: (id: string) => void;
   onCloseTab?: (a: FleetAgent) => void;
+  onPause?: (id: string) => void;
+  onResume?: (id: string) => void;
   /** Nomi 对话的名称（视图的会话列表里取）；取不到返回空 */
   chatName?: (conversationId: string) => string;
 }
@@ -63,12 +65,40 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
   onOpenChat,
   onArchive,
   onCloseTab,
+  onPause,
+  onResume,
   chatName,
 }) => {
   const backendName = t(ENDPOINT_NAME[iconBackend(a)]);
   const external = a.scope === 'external';
   const canArchive = a.column === 'done' && !a.needsYou && onArchive;
   const buttons: React.ReactNode[] = [];
+  if (a.paused && onResume) {
+    buttons.push(
+      <Button
+        key="resume"
+        size="sm"
+        variant="ghost"
+        onClick={() => onResume(a.id)}
+        data-testid={`fleet-resume-${a.id}`}
+      >
+        {t('ui.cli-monitor.fleet-resume')}
+      </Button>,
+    );
+  }
+  if (a.pausable && onPause) {
+    buttons.push(
+      <Button
+        key="pause"
+        size="sm"
+        variant="ghost"
+        onClick={() => onPause(a.id)}
+        data-testid={`fleet-pause-${a.id}`}
+      >
+        {t('ui.providers-schedule.task-pause')}
+      </Button>,
+    );
+  }
   if (!external && a.tabId && onOpenTab) {
     buttons.push(
       <Button key="tab" size="sm" variant="ghost" onClick={() => onOpenTab(a.tabId!)}>
@@ -137,6 +167,16 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
         <span className={styles.needs} data-testid={`fleet-needs-${a.id}`}>
           <Icon icon={CircleAlert} size={12} />
           {t(NEEDS_YOU_LABEL[a.needsYou])}
+        </span>
+      )}
+      {a.paused && (
+        <span className={styles.needs} data-testid={`fleet-paused-${a.id}`}>
+          <Icon icon={PauseCircle} size={12} />
+          {t(
+            a.paused.by === 'memory'
+              ? 'ui.cli-monitor.fleet-paused-memory'
+              : 'ui.cli-monitor.fleet-paused-user',
+          )}
         </span>
       )}
       {a.failed && (

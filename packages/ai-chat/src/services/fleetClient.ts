@@ -20,6 +20,10 @@ export const fleetApi = {
   archive: (id: string) => api.fleet.archive({ id }),
   /** 用户手动关闭一个空闲的外部编程助手进程（内核再确认一次，对不上时 FLEET_NOT_IDLE） */
   closeIdle: (item: FleetIdleItem) => api.fleet.closeIdle({ pid: item.pid, backend: item.backend }),
+  /** 暂停 / 恢复一个纳管的 CLI 标签（冻结进程树；恢复后这一轮从原处接着跑） */
+  pause: (id: string) => api.fleet.pause({ id }),
+  resume: (id: string) => api.fleet.resume({ id }),
+  setAutoPause: (enabled: boolean) => api.fleet.setAutoPause({ enabled }),
   onChange: (fn: (s: FleetState) => void) => api.on('fleet.changed', fn),
 };
 
@@ -84,8 +88,8 @@ export interface FleetSummary {
 }
 
 /**
- * 负载等级（内核还没报系统内存压力时的近似）：编程助手与 Nomi 占物理内存的比例、整机 CPU（0–100）的比例，
- * 取大的那个；≥ 50% 告警，≥ 75% 危险。
+ * 负载等级：系统报了内存压力就用它（与内存守护同一个依据）；读不到时近似：编程助手与 Nomi 占物理内存的比例、
+ * 整机 CPU（0–100）的比例取大的，≥ 50% 告警，≥ 75% 危险。CPU 很高时也会把正常的内存压力提成告警。
  */
 export const LOAD_WARN = 0.5;
 export const LOAD_CRITICAL = 0.75;
@@ -113,8 +117,13 @@ export function summarize(s: FleetState | null): FleetSummary {
   const mem = s.system.totalMemBytes
     ? (out.managedBytes + out.externalBytes) / s.system.totalMemBytes
     : 0;
-  const share = Math.max(mem, s.system.cpuPercent / 100);
-  out.level = share >= LOAD_CRITICAL ? 'critical' : share >= LOAD_WARN ? 'warn' : 'normal';
+  const cpu = s.system.cpuPercent / 100;
+  const estimate = (share: number): LoadLevel =>
+    share >= LOAD_CRITICAL ? 'critical' : share >= LOAD_WARN ? 'warn' : 'normal';
+  const p = s.system.pressure;
+  if (p === 'critical' || p === 'warn') out.level = p;
+  else if (p === 'normal') out.level = cpu >= LOAD_CRITICAL ? 'warn' : 'normal';
+  else out.level = estimate(Math.max(mem, cpu));
   return out;
 }
 

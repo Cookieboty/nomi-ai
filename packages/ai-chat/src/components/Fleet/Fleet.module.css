@@ -358,3 +358,18 @@
 .idleRow .cwd {
   flex: 0 1 auto;
 }
+
+/* 内存守护最近做的事：总览下面一行 */
+.governor {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+}
+.governorTime {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}

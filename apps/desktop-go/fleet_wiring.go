@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
@@ -19,7 +20,7 @@ import (
 
 // wireFleet：Agent 看板。标签从编排器取（进 GIL），任务从持续任务服务取（GIL 外），
 // 标签 / 任务变化时推 fleet.changed。
-func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handlers) func() {
+func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chats *airouter.Handlers) func() {
 	o := harnessOrch
 	s := fleet.New(fleet.Deps{
 		SelfPid:   os.Getpid(),
@@ -32,10 +33,15 @@ func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handl
 			}
 			return jsrt.Call(func() []fleet.Tab {
 				out := []fleet.Tab{}
+				frozen := o.FrozenTabs()
 				arr, _ := o.ListTabs().Get("tabs").([]any)
 				for _, x := range arr {
 					if t, ok := x.(*util.Obj); ok {
-						out = append(out, fleetTab(t, o.TabPids, o.PendingPermissions))
+						ft := fleetTab(t, o.TabPids, o.PendingPermissions)
+						if f, ok := frozen[ft.ID]; ok {
+							ft.Paused = &fleet.Paused{By: f.By, At: f.At.UnixMilli()}
+						}
+						out = append(out, ft)
 					}
 				}
 				return out
@@ -73,6 +79,27 @@ func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handl
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
 		// 只给用户手动关闭空闲的外部编程助手进程用（fleet.closeIdle）
 		Kill: nodeproc.KillPid,
+		// 内存守护：只动编排器里的标签（纳管的）
+		Pressure:     agents.SystemMemory,
+		SettingsPath: filepath.Join(userData, "fleet", "settings.json"),
+		Freeze: func(id string, pids []int, by string) bool {
+			if o == nil {
+				return false
+			}
+			return jsrt.Call(func() bool { return o.FreezeTab(id, pids, by) })
+		},
+		Thaw: func(id string) bool {
+			if o == nil {
+				return false
+			}
+			return jsrt.Call(func() bool { return o.ThawTab(id) })
+		},
+		ReclaimIdle: func() []string {
+			if o == nil {
+				return nil
+			}
+			return jsrt.Call(func() []string { return o.ReclaimIdleNow() })
+		},
 	})
 	var offTasks func()
 	if ts != nil {
@@ -88,6 +115,7 @@ func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handl
 		onAgentsChanged = s.Changed
 	})
 	codinghandlers.RegisterFleet(router, func() codinghandlers.Fleet { return s })
+	s.Start()
 	return func() {
 		if offTasks != nil {
 			offTasks()

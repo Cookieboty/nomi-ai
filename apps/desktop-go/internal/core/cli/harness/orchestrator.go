@@ -209,10 +209,12 @@ type Orchestrator struct {
 	pendingPermOrder  map[string][]string
 	// tabProcs：标签起过的 CLI 进程（Agent 看板据此从进程表里找到它的进程树）
 	tabProcs map[string][]clisdk.ChildLike
-	migratedImgTabs   map[string]bool
-	tabBindings       map[string]*tabBinding
-	bgAgents          map[string]*orderedAgents
-	dormant           map[string]bool
+	// frozen：被冻结（暂停）的标签（fleet.go）
+	frozen          map[string]*FrozenTab
+	migratedImgTabs map[string]bool
+	tabBindings     map[string]*tabBinding
+	bgAgents        map[string]*orderedAgents
+	dormant         map[string]bool
 
 	idleReclaimMs   float64
 	idleTimer       *jsrt.Timer

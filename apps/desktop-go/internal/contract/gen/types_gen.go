@@ -3306,6 +3306,19 @@ type FleetArchiveOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
+// FleetArchiveOutputAgentsItemPausedBy 枚举：memory | user
+type FleetArchiveOutputAgentsItemPausedBy = string
+
+const (
+	FleetArchiveOutputAgentsItemPausedByMemory FleetArchiveOutputAgentsItemPausedBy = "memory"
+	FleetArchiveOutputAgentsItemPausedByUser   FleetArchiveOutputAgentsItemPausedBy = "user"
+)
+
+type FleetArchiveOutputAgentsItemPaused struct {
+	By FleetArchiveOutputAgentsItemPausedBy `json:"by"`
+	At float64                              `json:"at"`
+}
+
 type FleetArchiveOutputAgentsItem struct {
 	Id             string                                `json:"id"`
 	Kind           FleetArchiveOutputAgentsItemKind      `json:"kind"`
@@ -3323,6 +3336,8 @@ type FleetArchiveOutputAgentsItem struct {
 	Cwd            *string                               `json:"cwd,omitempty"`
 	Usage          *FleetArchiveOutputAgentsItemUsage    `json:"usage,omitempty"`
 	UpdatedAt      float64                               `json:"updatedAt"`
+	Paused         *FleetArchiveOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                                 `json:"pausable,omitempty"`
 }
 
 type FleetArchiveOutputNomiUsage struct {
@@ -3350,10 +3365,43 @@ type FleetArchiveOutputExternalIdle struct {
 	Items     []FleetArchiveOutputExternalIdleItemsItem `json:"items"`
 }
 
+// FleetArchiveOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetArchiveOutputSystemPressure = string
+
+const (
+	FleetArchiveOutputSystemPressureNormal   FleetArchiveOutputSystemPressure = "normal"
+	FleetArchiveOutputSystemPressureWarn     FleetArchiveOutputSystemPressure = "warn"
+	FleetArchiveOutputSystemPressureCritical FleetArchiveOutputSystemPressure = "critical"
+	FleetArchiveOutputSystemPressureUnknown  FleetArchiveOutputSystemPressure = "unknown"
+)
+
 type FleetArchiveOutputSystem struct {
-	TotalMemBytes float64 `json:"totalMemBytes"`
-	Cores         float64 `json:"cores"`
-	CpuPercent    float64 `json:"cpuPercent"`
+	TotalMemBytes    float64                          `json:"totalMemBytes"`
+	Cores            float64                          `json:"cores"`
+	CpuPercent       float64                          `json:"cpuPercent"`
+	Pressure         FleetArchiveOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                         `json:"availablePercent,omitempty"`
+}
+
+// FleetArchiveOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetArchiveOutputGovernorLastKind = string
+
+const (
+	FleetArchiveOutputGovernorLastKindReclaimed FleetArchiveOutputGovernorLastKind = "reclaimed"
+	FleetArchiveOutputGovernorLastKindPaused    FleetArchiveOutputGovernorLastKind = "paused"
+	FleetArchiveOutputGovernorLastKindResumed   FleetArchiveOutputGovernorLastKind = "resumed"
+)
+
+type FleetArchiveOutputGovernorLast struct {
+	Kind  FleetArchiveOutputGovernorLastKind `json:"kind"`
+	Id    *string                            `json:"id,omitempty"`
+	Count *float64                           `json:"count,omitempty"`
+	At    float64                            `json:"at"`
+}
+
+type FleetArchiveOutputGovernor struct {
+	AutoPause bool                            `json:"autoPause"`
+	Last      *FleetArchiveOutputGovernorLast `json:"last,omitempty"`
 }
 
 type FleetArchiveOutput struct {
@@ -3361,6 +3409,7 @@ type FleetArchiveOutput struct {
 	Nomi         FleetArchiveOutputNomi         `json:"nomi"`
 	ExternalIdle FleetArchiveOutputExternalIdle `json:"externalIdle"`
 	System       FleetArchiveOutputSystem       `json:"system"`
+	Governor     FleetArchiveOutputGovernor     `json:"governor"`
 	SampledAt    float64                        `json:"sampledAt"`
 }
 
@@ -3422,6 +3471,19 @@ type FleetCloseIdleOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
+// FleetCloseIdleOutputAgentsItemPausedBy 枚举：memory | user
+type FleetCloseIdleOutputAgentsItemPausedBy = string
+
+const (
+	FleetCloseIdleOutputAgentsItemPausedByMemory FleetCloseIdleOutputAgentsItemPausedBy = "memory"
+	FleetCloseIdleOutputAgentsItemPausedByUser   FleetCloseIdleOutputAgentsItemPausedBy = "user"
+)
+
+type FleetCloseIdleOutputAgentsItemPaused struct {
+	By FleetCloseIdleOutputAgentsItemPausedBy `json:"by"`
+	At float64                                `json:"at"`
+}
+
 type FleetCloseIdleOutputAgentsItem struct {
 	Id             string                                  `json:"id"`
 	Kind           FleetCloseIdleOutputAgentsItemKind      `json:"kind"`
@@ -3439,6 +3501,8 @@ type FleetCloseIdleOutputAgentsItem struct {
 	Cwd            *string                                 `json:"cwd,omitempty"`
 	Usage          *FleetCloseIdleOutputAgentsItemUsage    `json:"usage,omitempty"`
 	UpdatedAt      float64                                 `json:"updatedAt"`
+	Paused         *FleetCloseIdleOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                                   `json:"pausable,omitempty"`
 }
 
 type FleetCloseIdleOutputNomiUsage struct {
@@ -3466,10 +3530,43 @@ type FleetCloseIdleOutputExternalIdle struct {
 	Items     []FleetCloseIdleOutputExternalIdleItemsItem `json:"items"`
 }
 
+// FleetCloseIdleOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetCloseIdleOutputSystemPressure = string
+
+const (
+	FleetCloseIdleOutputSystemPressureNormal   FleetCloseIdleOutputSystemPressure = "normal"
+	FleetCloseIdleOutputSystemPressureWarn     FleetCloseIdleOutputSystemPressure = "warn"
+	FleetCloseIdleOutputSystemPressureCritical FleetCloseIdleOutputSystemPressure = "critical"
+	FleetCloseIdleOutputSystemPressureUnknown  FleetCloseIdleOutputSystemPressure = "unknown"
+)
+
 type FleetCloseIdleOutputSystem struct {
-	TotalMemBytes float64 `json:"totalMemBytes"`
-	Cores         float64 `json:"cores"`
-	CpuPercent    float64 `json:"cpuPercent"`
+	TotalMemBytes    float64                            `json:"totalMemBytes"`
+	Cores            float64                            `json:"cores"`
+	CpuPercent       float64                            `json:"cpuPercent"`
+	Pressure         FleetCloseIdleOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                           `json:"availablePercent,omitempty"`
+}
+
+// FleetCloseIdleOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetCloseIdleOutputGovernorLastKind = string
+
+const (
+	FleetCloseIdleOutputGovernorLastKindReclaimed FleetCloseIdleOutputGovernorLastKind = "reclaimed"
+	FleetCloseIdleOutputGovernorLastKindPaused    FleetCloseIdleOutputGovernorLastKind = "paused"
+	FleetCloseIdleOutputGovernorLastKindResumed   FleetCloseIdleOutputGovernorLastKind = "resumed"
+)
+
+type FleetCloseIdleOutputGovernorLast struct {
+	Kind  FleetCloseIdleOutputGovernorLastKind `json:"kind"`
+	Id    *string                              `json:"id,omitempty"`
+	Count *float64                             `json:"count,omitempty"`
+	At    float64                              `json:"at"`
+}
+
+type FleetCloseIdleOutputGovernor struct {
+	AutoPause bool                              `json:"autoPause"`
+	Last      *FleetCloseIdleOutputGovernorLast `json:"last,omitempty"`
 }
 
 type FleetCloseIdleOutput struct {
@@ -3477,7 +3574,500 @@ type FleetCloseIdleOutput struct {
 	Nomi         FleetCloseIdleOutputNomi         `json:"nomi"`
 	ExternalIdle FleetCloseIdleOutputExternalIdle `json:"externalIdle"`
 	System       FleetCloseIdleOutputSystem       `json:"system"`
+	Governor     FleetCloseIdleOutputGovernor     `json:"governor"`
 	SampledAt    float64                          `json:"sampledAt"`
+}
+
+type FleetPauseInput struct {
+	Id string `json:"id"`
+}
+
+// FleetPauseOutputAgentsItemKind 枚举：nomi | cli
+type FleetPauseOutputAgentsItemKind = string
+
+const (
+	FleetPauseOutputAgentsItemKindNomi FleetPauseOutputAgentsItemKind = "nomi"
+	FleetPauseOutputAgentsItemKindCli  FleetPauseOutputAgentsItemKind = "cli"
+)
+
+// FleetPauseOutputAgentsItemScope 枚举：managed | external
+type FleetPauseOutputAgentsItemScope = string
+
+const (
+	FleetPauseOutputAgentsItemScopeManaged  FleetPauseOutputAgentsItemScope = "managed"
+	FleetPauseOutputAgentsItemScopeExternal FleetPauseOutputAgentsItemScope = "external"
+)
+
+// FleetPauseOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
+type FleetPauseOutputAgentsItemOrigin = string
+
+const (
+	FleetPauseOutputAgentsItemOriginChat         FleetPauseOutputAgentsItemOrigin = "chat"
+	FleetPauseOutputAgentsItemOriginNomi         FleetPauseOutputAgentsItemOrigin = "nomi"
+	FleetPauseOutputAgentsItemOriginConversation FleetPauseOutputAgentsItemOrigin = "conversation"
+	FleetPauseOutputAgentsItemOriginTask         FleetPauseOutputAgentsItemOrigin = "task"
+	FleetPauseOutputAgentsItemOriginWorkbench    FleetPauseOutputAgentsItemOrigin = "workbench"
+	FleetPauseOutputAgentsItemOriginTerminal     FleetPauseOutputAgentsItemOrigin = "terminal"
+)
+
+// FleetPauseOutputAgentsItemColumn 枚举：todo | paused | running | done
+type FleetPauseOutputAgentsItemColumn = string
+
+const (
+	FleetPauseOutputAgentsItemColumnTodo    FleetPauseOutputAgentsItemColumn = "todo"
+	FleetPauseOutputAgentsItemColumnPaused  FleetPauseOutputAgentsItemColumn = "paused"
+	FleetPauseOutputAgentsItemColumnRunning FleetPauseOutputAgentsItemColumn = "running"
+	FleetPauseOutputAgentsItemColumnDone    FleetPauseOutputAgentsItemColumn = "done"
+)
+
+// FleetPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+type FleetPauseOutputAgentsItemNeedsYou = string
+
+const (
+	FleetPauseOutputAgentsItemNeedsYouPermission FleetPauseOutputAgentsItemNeedsYou = "permission"
+	FleetPauseOutputAgentsItemNeedsYouSandbox    FleetPauseOutputAgentsItemNeedsYou = "sandbox"
+	FleetPauseOutputAgentsItemNeedsYouAccept     FleetPauseOutputAgentsItemNeedsYou = "accept"
+)
+
+type FleetPauseOutputAgentsItemUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+// FleetPauseOutputAgentsItemPausedBy 枚举：memory | user
+type FleetPauseOutputAgentsItemPausedBy = string
+
+const (
+	FleetPauseOutputAgentsItemPausedByMemory FleetPauseOutputAgentsItemPausedBy = "memory"
+	FleetPauseOutputAgentsItemPausedByUser   FleetPauseOutputAgentsItemPausedBy = "user"
+)
+
+type FleetPauseOutputAgentsItemPaused struct {
+	By FleetPauseOutputAgentsItemPausedBy `json:"by"`
+	At float64                            `json:"at"`
+}
+
+type FleetPauseOutputAgentsItem struct {
+	Id             string                              `json:"id"`
+	Kind           FleetPauseOutputAgentsItemKind      `json:"kind"`
+	Backend        string                              `json:"backend"`
+	Scope          FleetPauseOutputAgentsItemScope     `json:"scope"`
+	Origin         FleetPauseOutputAgentsItemOrigin    `json:"origin"`
+	Title          string                              `json:"title"`
+	Column         FleetPauseOutputAgentsItemColumn    `json:"column"`
+	NeedsYou       *FleetPauseOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
+	Failed         *bool                               `json:"failed,omitempty"`
+	ParentId       *string                             `json:"parentId,omitempty"`
+	TaskId         *string                             `json:"taskId,omitempty"`
+	TabId          *string                             `json:"tabId,omitempty"`
+	ConversationId *string                             `json:"conversationId,omitempty"`
+	Cwd            *string                             `json:"cwd,omitempty"`
+	Usage          *FleetPauseOutputAgentsItemUsage    `json:"usage,omitempty"`
+	UpdatedAt      float64                             `json:"updatedAt"`
+	Paused         *FleetPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                               `json:"pausable,omitempty"`
+}
+
+type FleetPauseOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetPauseOutputNomi struct {
+	Usage *FleetPauseOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetPauseOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+}
+
+type FleetPauseOutputExternalIdle struct {
+	Processes float64                                 `json:"processes"`
+	RssBytes  float64                                 `json:"rssBytes"`
+	Items     []FleetPauseOutputExternalIdleItemsItem `json:"items"`
+}
+
+// FleetPauseOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetPauseOutputSystemPressure = string
+
+const (
+	FleetPauseOutputSystemPressureNormal   FleetPauseOutputSystemPressure = "normal"
+	FleetPauseOutputSystemPressureWarn     FleetPauseOutputSystemPressure = "warn"
+	FleetPauseOutputSystemPressureCritical FleetPauseOutputSystemPressure = "critical"
+	FleetPauseOutputSystemPressureUnknown  FleetPauseOutputSystemPressure = "unknown"
+)
+
+type FleetPauseOutputSystem struct {
+	TotalMemBytes    float64                        `json:"totalMemBytes"`
+	Cores            float64                        `json:"cores"`
+	CpuPercent       float64                        `json:"cpuPercent"`
+	Pressure         FleetPauseOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                       `json:"availablePercent,omitempty"`
+}
+
+// FleetPauseOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetPauseOutputGovernorLastKind = string
+
+const (
+	FleetPauseOutputGovernorLastKindReclaimed FleetPauseOutputGovernorLastKind = "reclaimed"
+	FleetPauseOutputGovernorLastKindPaused    FleetPauseOutputGovernorLastKind = "paused"
+	FleetPauseOutputGovernorLastKindResumed   FleetPauseOutputGovernorLastKind = "resumed"
+)
+
+type FleetPauseOutputGovernorLast struct {
+	Kind  FleetPauseOutputGovernorLastKind `json:"kind"`
+	Id    *string                          `json:"id,omitempty"`
+	Count *float64                         `json:"count,omitempty"`
+	At    float64                          `json:"at"`
+}
+
+type FleetPauseOutputGovernor struct {
+	AutoPause bool                          `json:"autoPause"`
+	Last      *FleetPauseOutputGovernorLast `json:"last,omitempty"`
+}
+
+type FleetPauseOutput struct {
+	Agents       []FleetPauseOutputAgentsItem `json:"agents"`
+	Nomi         FleetPauseOutputNomi         `json:"nomi"`
+	ExternalIdle FleetPauseOutputExternalIdle `json:"externalIdle"`
+	System       FleetPauseOutputSystem       `json:"system"`
+	Governor     FleetPauseOutputGovernor     `json:"governor"`
+	SampledAt    float64                      `json:"sampledAt"`
+}
+
+type FleetResumeInput struct {
+	Id string `json:"id"`
+}
+
+// FleetResumeOutputAgentsItemKind 枚举：nomi | cli
+type FleetResumeOutputAgentsItemKind = string
+
+const (
+	FleetResumeOutputAgentsItemKindNomi FleetResumeOutputAgentsItemKind = "nomi"
+	FleetResumeOutputAgentsItemKindCli  FleetResumeOutputAgentsItemKind = "cli"
+)
+
+// FleetResumeOutputAgentsItemScope 枚举：managed | external
+type FleetResumeOutputAgentsItemScope = string
+
+const (
+	FleetResumeOutputAgentsItemScopeManaged  FleetResumeOutputAgentsItemScope = "managed"
+	FleetResumeOutputAgentsItemScopeExternal FleetResumeOutputAgentsItemScope = "external"
+)
+
+// FleetResumeOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
+type FleetResumeOutputAgentsItemOrigin = string
+
+const (
+	FleetResumeOutputAgentsItemOriginChat         FleetResumeOutputAgentsItemOrigin = "chat"
+	FleetResumeOutputAgentsItemOriginNomi         FleetResumeOutputAgentsItemOrigin = "nomi"
+	FleetResumeOutputAgentsItemOriginConversation FleetResumeOutputAgentsItemOrigin = "conversation"
+	FleetResumeOutputAgentsItemOriginTask         FleetResumeOutputAgentsItemOrigin = "task"
+	FleetResumeOutputAgentsItemOriginWorkbench    FleetResumeOutputAgentsItemOrigin = "workbench"
+	FleetResumeOutputAgentsItemOriginTerminal     FleetResumeOutputAgentsItemOrigin = "terminal"
+)
+
+// FleetResumeOutputAgentsItemColumn 枚举：todo | paused | running | done
+type FleetResumeOutputAgentsItemColumn = string
+
+const (
+	FleetResumeOutputAgentsItemColumnTodo    FleetResumeOutputAgentsItemColumn = "todo"
+	FleetResumeOutputAgentsItemColumnPaused  FleetResumeOutputAgentsItemColumn = "paused"
+	FleetResumeOutputAgentsItemColumnRunning FleetResumeOutputAgentsItemColumn = "running"
+	FleetResumeOutputAgentsItemColumnDone    FleetResumeOutputAgentsItemColumn = "done"
+)
+
+// FleetResumeOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+type FleetResumeOutputAgentsItemNeedsYou = string
+
+const (
+	FleetResumeOutputAgentsItemNeedsYouPermission FleetResumeOutputAgentsItemNeedsYou = "permission"
+	FleetResumeOutputAgentsItemNeedsYouSandbox    FleetResumeOutputAgentsItemNeedsYou = "sandbox"
+	FleetResumeOutputAgentsItemNeedsYouAccept     FleetResumeOutputAgentsItemNeedsYou = "accept"
+)
+
+type FleetResumeOutputAgentsItemUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+// FleetResumeOutputAgentsItemPausedBy 枚举：memory | user
+type FleetResumeOutputAgentsItemPausedBy = string
+
+const (
+	FleetResumeOutputAgentsItemPausedByMemory FleetResumeOutputAgentsItemPausedBy = "memory"
+	FleetResumeOutputAgentsItemPausedByUser   FleetResumeOutputAgentsItemPausedBy = "user"
+)
+
+type FleetResumeOutputAgentsItemPaused struct {
+	By FleetResumeOutputAgentsItemPausedBy `json:"by"`
+	At float64                             `json:"at"`
+}
+
+type FleetResumeOutputAgentsItem struct {
+	Id             string                               `json:"id"`
+	Kind           FleetResumeOutputAgentsItemKind      `json:"kind"`
+	Backend        string                               `json:"backend"`
+	Scope          FleetResumeOutputAgentsItemScope     `json:"scope"`
+	Origin         FleetResumeOutputAgentsItemOrigin    `json:"origin"`
+	Title          string                               `json:"title"`
+	Column         FleetResumeOutputAgentsItemColumn    `json:"column"`
+	NeedsYou       *FleetResumeOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
+	Failed         *bool                                `json:"failed,omitempty"`
+	ParentId       *string                              `json:"parentId,omitempty"`
+	TaskId         *string                              `json:"taskId,omitempty"`
+	TabId          *string                              `json:"tabId,omitempty"`
+	ConversationId *string                              `json:"conversationId,omitempty"`
+	Cwd            *string                              `json:"cwd,omitempty"`
+	Usage          *FleetResumeOutputAgentsItemUsage    `json:"usage,omitempty"`
+	UpdatedAt      float64                              `json:"updatedAt"`
+	Paused         *FleetResumeOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                                `json:"pausable,omitempty"`
+}
+
+type FleetResumeOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetResumeOutputNomi struct {
+	Usage *FleetResumeOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetResumeOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+}
+
+type FleetResumeOutputExternalIdle struct {
+	Processes float64                                  `json:"processes"`
+	RssBytes  float64                                  `json:"rssBytes"`
+	Items     []FleetResumeOutputExternalIdleItemsItem `json:"items"`
+}
+
+// FleetResumeOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetResumeOutputSystemPressure = string
+
+const (
+	FleetResumeOutputSystemPressureNormal   FleetResumeOutputSystemPressure = "normal"
+	FleetResumeOutputSystemPressureWarn     FleetResumeOutputSystemPressure = "warn"
+	FleetResumeOutputSystemPressureCritical FleetResumeOutputSystemPressure = "critical"
+	FleetResumeOutputSystemPressureUnknown  FleetResumeOutputSystemPressure = "unknown"
+)
+
+type FleetResumeOutputSystem struct {
+	TotalMemBytes    float64                         `json:"totalMemBytes"`
+	Cores            float64                         `json:"cores"`
+	CpuPercent       float64                         `json:"cpuPercent"`
+	Pressure         FleetResumeOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                        `json:"availablePercent,omitempty"`
+}
+
+// FleetResumeOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetResumeOutputGovernorLastKind = string
+
+const (
+	FleetResumeOutputGovernorLastKindReclaimed FleetResumeOutputGovernorLastKind = "reclaimed"
+	FleetResumeOutputGovernorLastKindPaused    FleetResumeOutputGovernorLastKind = "paused"
+	FleetResumeOutputGovernorLastKindResumed   FleetResumeOutputGovernorLastKind = "resumed"
+)
+
+type FleetResumeOutputGovernorLast struct {
+	Kind  FleetResumeOutputGovernorLastKind `json:"kind"`
+	Id    *string                           `json:"id,omitempty"`
+	Count *float64                          `json:"count,omitempty"`
+	At    float64                           `json:"at"`
+}
+
+type FleetResumeOutputGovernor struct {
+	AutoPause bool                           `json:"autoPause"`
+	Last      *FleetResumeOutputGovernorLast `json:"last,omitempty"`
+}
+
+type FleetResumeOutput struct {
+	Agents       []FleetResumeOutputAgentsItem `json:"agents"`
+	Nomi         FleetResumeOutputNomi         `json:"nomi"`
+	ExternalIdle FleetResumeOutputExternalIdle `json:"externalIdle"`
+	System       FleetResumeOutputSystem       `json:"system"`
+	Governor     FleetResumeOutputGovernor     `json:"governor"`
+	SampledAt    float64                       `json:"sampledAt"`
+}
+
+type FleetSetAutoPauseInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+// FleetSetAutoPauseOutputAgentsItemKind 枚举：nomi | cli
+type FleetSetAutoPauseOutputAgentsItemKind = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemKindNomi FleetSetAutoPauseOutputAgentsItemKind = "nomi"
+	FleetSetAutoPauseOutputAgentsItemKindCli  FleetSetAutoPauseOutputAgentsItemKind = "cli"
+)
+
+// FleetSetAutoPauseOutputAgentsItemScope 枚举：managed | external
+type FleetSetAutoPauseOutputAgentsItemScope = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemScopeManaged  FleetSetAutoPauseOutputAgentsItemScope = "managed"
+	FleetSetAutoPauseOutputAgentsItemScopeExternal FleetSetAutoPauseOutputAgentsItemScope = "external"
+)
+
+// FleetSetAutoPauseOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
+type FleetSetAutoPauseOutputAgentsItemOrigin = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemOriginChat         FleetSetAutoPauseOutputAgentsItemOrigin = "chat"
+	FleetSetAutoPauseOutputAgentsItemOriginNomi         FleetSetAutoPauseOutputAgentsItemOrigin = "nomi"
+	FleetSetAutoPauseOutputAgentsItemOriginConversation FleetSetAutoPauseOutputAgentsItemOrigin = "conversation"
+	FleetSetAutoPauseOutputAgentsItemOriginTask         FleetSetAutoPauseOutputAgentsItemOrigin = "task"
+	FleetSetAutoPauseOutputAgentsItemOriginWorkbench    FleetSetAutoPauseOutputAgentsItemOrigin = "workbench"
+	FleetSetAutoPauseOutputAgentsItemOriginTerminal     FleetSetAutoPauseOutputAgentsItemOrigin = "terminal"
+)
+
+// FleetSetAutoPauseOutputAgentsItemColumn 枚举：todo | paused | running | done
+type FleetSetAutoPauseOutputAgentsItemColumn = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemColumnTodo    FleetSetAutoPauseOutputAgentsItemColumn = "todo"
+	FleetSetAutoPauseOutputAgentsItemColumnPaused  FleetSetAutoPauseOutputAgentsItemColumn = "paused"
+	FleetSetAutoPauseOutputAgentsItemColumnRunning FleetSetAutoPauseOutputAgentsItemColumn = "running"
+	FleetSetAutoPauseOutputAgentsItemColumnDone    FleetSetAutoPauseOutputAgentsItemColumn = "done"
+)
+
+// FleetSetAutoPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+type FleetSetAutoPauseOutputAgentsItemNeedsYou = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemNeedsYouPermission FleetSetAutoPauseOutputAgentsItemNeedsYou = "permission"
+	FleetSetAutoPauseOutputAgentsItemNeedsYouSandbox    FleetSetAutoPauseOutputAgentsItemNeedsYou = "sandbox"
+	FleetSetAutoPauseOutputAgentsItemNeedsYouAccept     FleetSetAutoPauseOutputAgentsItemNeedsYou = "accept"
+)
+
+type FleetSetAutoPauseOutputAgentsItemUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+// FleetSetAutoPauseOutputAgentsItemPausedBy 枚举：memory | user
+type FleetSetAutoPauseOutputAgentsItemPausedBy = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemPausedByMemory FleetSetAutoPauseOutputAgentsItemPausedBy = "memory"
+	FleetSetAutoPauseOutputAgentsItemPausedByUser   FleetSetAutoPauseOutputAgentsItemPausedBy = "user"
+)
+
+type FleetSetAutoPauseOutputAgentsItemPaused struct {
+	By FleetSetAutoPauseOutputAgentsItemPausedBy `json:"by"`
+	At float64                                   `json:"at"`
+}
+
+type FleetSetAutoPauseOutputAgentsItem struct {
+	Id             string                                     `json:"id"`
+	Kind           FleetSetAutoPauseOutputAgentsItemKind      `json:"kind"`
+	Backend        string                                     `json:"backend"`
+	Scope          FleetSetAutoPauseOutputAgentsItemScope     `json:"scope"`
+	Origin         FleetSetAutoPauseOutputAgentsItemOrigin    `json:"origin"`
+	Title          string                                     `json:"title"`
+	Column         FleetSetAutoPauseOutputAgentsItemColumn    `json:"column"`
+	NeedsYou       *FleetSetAutoPauseOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
+	Failed         *bool                                      `json:"failed,omitempty"`
+	ParentId       *string                                    `json:"parentId,omitempty"`
+	TaskId         *string                                    `json:"taskId,omitempty"`
+	TabId          *string                                    `json:"tabId,omitempty"`
+	ConversationId *string                                    `json:"conversationId,omitempty"`
+	Cwd            *string                                    `json:"cwd,omitempty"`
+	Usage          *FleetSetAutoPauseOutputAgentsItemUsage    `json:"usage,omitempty"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	Paused         *FleetSetAutoPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                                      `json:"pausable,omitempty"`
+}
+
+type FleetSetAutoPauseOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetSetAutoPauseOutputNomi struct {
+	Usage *FleetSetAutoPauseOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetSetAutoPauseOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+}
+
+type FleetSetAutoPauseOutputExternalIdle struct {
+	Processes float64                                        `json:"processes"`
+	RssBytes  float64                                        `json:"rssBytes"`
+	Items     []FleetSetAutoPauseOutputExternalIdleItemsItem `json:"items"`
+}
+
+// FleetSetAutoPauseOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetSetAutoPauseOutputSystemPressure = string
+
+const (
+	FleetSetAutoPauseOutputSystemPressureNormal   FleetSetAutoPauseOutputSystemPressure = "normal"
+	FleetSetAutoPauseOutputSystemPressureWarn     FleetSetAutoPauseOutputSystemPressure = "warn"
+	FleetSetAutoPauseOutputSystemPressureCritical FleetSetAutoPauseOutputSystemPressure = "critical"
+	FleetSetAutoPauseOutputSystemPressureUnknown  FleetSetAutoPauseOutputSystemPressure = "unknown"
+)
+
+type FleetSetAutoPauseOutputSystem struct {
+	TotalMemBytes    float64                               `json:"totalMemBytes"`
+	Cores            float64                               `json:"cores"`
+	CpuPercent       float64                               `json:"cpuPercent"`
+	Pressure         FleetSetAutoPauseOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                              `json:"availablePercent,omitempty"`
+}
+
+// FleetSetAutoPauseOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetSetAutoPauseOutputGovernorLastKind = string
+
+const (
+	FleetSetAutoPauseOutputGovernorLastKindReclaimed FleetSetAutoPauseOutputGovernorLastKind = "reclaimed"
+	FleetSetAutoPauseOutputGovernorLastKindPaused    FleetSetAutoPauseOutputGovernorLastKind = "paused"
+	FleetSetAutoPauseOutputGovernorLastKindResumed   FleetSetAutoPauseOutputGovernorLastKind = "resumed"
+)
+
+type FleetSetAutoPauseOutputGovernorLast struct {
+	Kind  FleetSetAutoPauseOutputGovernorLastKind `json:"kind"`
+	Id    *string                                 `json:"id,omitempty"`
+	Count *float64                                `json:"count,omitempty"`
+	At    float64                                 `json:"at"`
+}
+
+type FleetSetAutoPauseOutputGovernor struct {
+	AutoPause bool                                 `json:"autoPause"`
+	Last      *FleetSetAutoPauseOutputGovernorLast `json:"last,omitempty"`
+}
+
+type FleetSetAutoPauseOutput struct {
+	Agents       []FleetSetAutoPauseOutputAgentsItem `json:"agents"`
+	Nomi         FleetSetAutoPauseOutputNomi         `json:"nomi"`
+	ExternalIdle FleetSetAutoPauseOutputExternalIdle `json:"externalIdle"`
+	System       FleetSetAutoPauseOutputSystem       `json:"system"`
+	Governor     FleetSetAutoPauseOutputGovernor     `json:"governor"`
+	SampledAt    float64                             `json:"sampledAt"`
 }
 
 // FleetStateOutputAgentsItemKind 枚举：nomi | cli
@@ -3533,6 +4123,19 @@ type FleetStateOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
+// FleetStateOutputAgentsItemPausedBy 枚举：memory | user
+type FleetStateOutputAgentsItemPausedBy = string
+
+const (
+	FleetStateOutputAgentsItemPausedByMemory FleetStateOutputAgentsItemPausedBy = "memory"
+	FleetStateOutputAgentsItemPausedByUser   FleetStateOutputAgentsItemPausedBy = "user"
+)
+
+type FleetStateOutputAgentsItemPaused struct {
+	By FleetStateOutputAgentsItemPausedBy `json:"by"`
+	At float64                            `json:"at"`
+}
+
 type FleetStateOutputAgentsItem struct {
 	Id             string                              `json:"id"`
 	Kind           FleetStateOutputAgentsItemKind      `json:"kind"`
@@ -3550,6 +4153,8 @@ type FleetStateOutputAgentsItem struct {
 	Cwd            *string                             `json:"cwd,omitempty"`
 	Usage          *FleetStateOutputAgentsItemUsage    `json:"usage,omitempty"`
 	UpdatedAt      float64                             `json:"updatedAt"`
+	Paused         *FleetStateOutputAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                               `json:"pausable,omitempty"`
 }
 
 type FleetStateOutputNomiUsage struct {
@@ -3577,10 +4182,43 @@ type FleetStateOutputExternalIdle struct {
 	Items     []FleetStateOutputExternalIdleItemsItem `json:"items"`
 }
 
+// FleetStateOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetStateOutputSystemPressure = string
+
+const (
+	FleetStateOutputSystemPressureNormal   FleetStateOutputSystemPressure = "normal"
+	FleetStateOutputSystemPressureWarn     FleetStateOutputSystemPressure = "warn"
+	FleetStateOutputSystemPressureCritical FleetStateOutputSystemPressure = "critical"
+	FleetStateOutputSystemPressureUnknown  FleetStateOutputSystemPressure = "unknown"
+)
+
 type FleetStateOutputSystem struct {
-	TotalMemBytes float64 `json:"totalMemBytes"`
-	Cores         float64 `json:"cores"`
-	CpuPercent    float64 `json:"cpuPercent"`
+	TotalMemBytes    float64                        `json:"totalMemBytes"`
+	Cores            float64                        `json:"cores"`
+	CpuPercent       float64                        `json:"cpuPercent"`
+	Pressure         FleetStateOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                       `json:"availablePercent,omitempty"`
+}
+
+// FleetStateOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetStateOutputGovernorLastKind = string
+
+const (
+	FleetStateOutputGovernorLastKindReclaimed FleetStateOutputGovernorLastKind = "reclaimed"
+	FleetStateOutputGovernorLastKindPaused    FleetStateOutputGovernorLastKind = "paused"
+	FleetStateOutputGovernorLastKindResumed   FleetStateOutputGovernorLastKind = "resumed"
+)
+
+type FleetStateOutputGovernorLast struct {
+	Kind  FleetStateOutputGovernorLastKind `json:"kind"`
+	Id    *string                          `json:"id,omitempty"`
+	Count *float64                         `json:"count,omitempty"`
+	At    float64                          `json:"at"`
+}
+
+type FleetStateOutputGovernor struct {
+	AutoPause bool                          `json:"autoPause"`
+	Last      *FleetStateOutputGovernorLast `json:"last,omitempty"`
 }
 
 type FleetStateOutput struct {
@@ -3588,6 +4226,7 @@ type FleetStateOutput struct {
 	Nomi         FleetStateOutputNomi         `json:"nomi"`
 	ExternalIdle FleetStateOutputExternalIdle `json:"externalIdle"`
 	System       FleetStateOutputSystem       `json:"system"`
+	Governor     FleetStateOutputGovernor     `json:"governor"`
 	SampledAt    float64                      `json:"sampledAt"`
 }
 
@@ -9068,6 +9707,19 @@ type EventFleetChangedAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
+// EventFleetChangedAgentsItemPausedBy 枚举：memory | user
+type EventFleetChangedAgentsItemPausedBy = string
+
+const (
+	EventFleetChangedAgentsItemPausedByMemory EventFleetChangedAgentsItemPausedBy = "memory"
+	EventFleetChangedAgentsItemPausedByUser   EventFleetChangedAgentsItemPausedBy = "user"
+)
+
+type EventFleetChangedAgentsItemPaused struct {
+	By EventFleetChangedAgentsItemPausedBy `json:"by"`
+	At float64                             `json:"at"`
+}
+
 type EventFleetChangedAgentsItem struct {
 	Id             string                               `json:"id"`
 	Kind           EventFleetChangedAgentsItemKind      `json:"kind"`
@@ -9085,6 +9737,8 @@ type EventFleetChangedAgentsItem struct {
 	Cwd            *string                              `json:"cwd,omitempty"`
 	Usage          *EventFleetChangedAgentsItemUsage    `json:"usage,omitempty"`
 	UpdatedAt      float64                              `json:"updatedAt"`
+	Paused         *EventFleetChangedAgentsItemPaused   `json:"paused,omitempty"`
+	Pausable       *bool                                `json:"pausable,omitempty"`
 }
 
 type EventFleetChangedNomiUsage struct {
@@ -9112,10 +9766,43 @@ type EventFleetChangedExternalIdle struct {
 	Items     []EventFleetChangedExternalIdleItemsItem `json:"items"`
 }
 
+// EventFleetChangedSystemPressure 枚举：normal | warn | critical | unknown
+type EventFleetChangedSystemPressure = string
+
+const (
+	EventFleetChangedSystemPressureNormal   EventFleetChangedSystemPressure = "normal"
+	EventFleetChangedSystemPressureWarn     EventFleetChangedSystemPressure = "warn"
+	EventFleetChangedSystemPressureCritical EventFleetChangedSystemPressure = "critical"
+	EventFleetChangedSystemPressureUnknown  EventFleetChangedSystemPressure = "unknown"
+)
+
 type EventFleetChangedSystem struct {
-	TotalMemBytes float64 `json:"totalMemBytes"`
-	Cores         float64 `json:"cores"`
-	CpuPercent    float64 `json:"cpuPercent"`
+	TotalMemBytes    float64                         `json:"totalMemBytes"`
+	Cores            float64                         `json:"cores"`
+	CpuPercent       float64                         `json:"cpuPercent"`
+	Pressure         EventFleetChangedSystemPressure `json:"pressure"`
+	AvailablePercent *float64                        `json:"availablePercent,omitempty"`
+}
+
+// EventFleetChangedGovernorLastKind 枚举：reclaimed | paused | resumed
+type EventFleetChangedGovernorLastKind = string
+
+const (
+	EventFleetChangedGovernorLastKindReclaimed EventFleetChangedGovernorLastKind = "reclaimed"
+	EventFleetChangedGovernorLastKindPaused    EventFleetChangedGovernorLastKind = "paused"
+	EventFleetChangedGovernorLastKindResumed   EventFleetChangedGovernorLastKind = "resumed"
+)
+
+type EventFleetChangedGovernorLast struct {
+	Kind  EventFleetChangedGovernorLastKind `json:"kind"`
+	Id    *string                           `json:"id,omitempty"`
+	Count *float64                          `json:"count,omitempty"`
+	At    float64                           `json:"at"`
+}
+
+type EventFleetChangedGovernor struct {
+	AutoPause bool                           `json:"autoPause"`
+	Last      *EventFleetChangedGovernorLast `json:"last,omitempty"`
 }
 
 type EventFleetChanged struct {
@@ -9123,6 +9810,7 @@ type EventFleetChanged struct {
 	Nomi         EventFleetChangedNomi         `json:"nomi"`
 	ExternalIdle EventFleetChangedExternalIdle `json:"externalIdle"`
 	System       EventFleetChangedSystem       `json:"system"`
+	Governor     EventFleetChangedGovernor     `json:"governor"`
 	SampledAt    float64                       `json:"sampledAt"`
 }
 
@@ -10146,6 +10834,18 @@ type FleetArchiveOutputT = FleetArchiveOutput
 // FleetCloseIdleInputT 是 fleet.closeIdle 的入参
 type FleetCloseIdleInputT = FleetCloseIdleInput
 type FleetCloseIdleOutputT = FleetCloseIdleOutput
+
+// FleetPauseInputT 是 fleet.pause 的入参
+type FleetPauseInputT = FleetPauseInput
+type FleetPauseOutputT = FleetPauseOutput
+
+// FleetResumeInputT 是 fleet.resume 的入参
+type FleetResumeInputT = FleetResumeInput
+type FleetResumeOutputT = FleetResumeOutput
+
+// FleetSetAutoPauseInputT 是 fleet.setAutoPause 的入参
+type FleetSetAutoPauseInputT = FleetSetAutoPauseInput
+type FleetSetAutoPauseOutputT = FleetSetAutoPauseOutput
 
 // FleetStateInputT 是 fleet.state 的入参
 type FleetStateInputT = any

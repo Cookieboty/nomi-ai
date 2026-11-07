@@ -42,7 +42,16 @@ func (o *Orchestrator) tabBusy(id string) bool {
 }
 
 // ReclaimIdle = reclaimIdle(now)。
-func (o *Orchestrator) ReclaimIdle(now float64) []string {
+func (o *Orchestrator) ReclaimIdle(now float64) []string { return o.reclaimIdle(now, o.idleReclaimMs) }
+
+// MemoryReclaimIdleMs：内存紧张时空闲多久的标签就回收（刚答完、用户可能马上接着问的不动）
+const MemoryReclaimIdleMs = 60_000
+
+// ReclaimIdleNow：内存紧张时立刻回收空闲的 CLI 进程（会话留着，下一条消息照常接上；与空闲回收同一套条件：
+// 没在跑、没有待审批、没有后台任务、能续上会话），不等设置里的空闲时间。返回回收的标签。
+func (o *Orchestrator) ReclaimIdleNow() []string { return o.reclaimIdle(nowMs(), MemoryReclaimIdleMs) }
+
+func (o *Orchestrator) reclaimIdle(now, idleMs float64) []string {
 	cands := []cli.IdleCandidate{}
 	for _, id := range o.live.acpOrder {
 		gl := o.live.acp[id]
@@ -60,7 +69,7 @@ func (o *Orchestrator) ReclaimIdle(now float64) []string {
 			PermissionPending: len(o.pendingPerms.Get(id)) > 0, TabBusy: o.tabBusy(id),
 			Resumable: truthy(o.tab(id).Get("cliSessionId")) || l.prewarmed, BackgroundActive: claudeBackgroundActive(l)})
 	}
-	picked := cli.PickIdle(cands, now, o.idleReclaimMs)
+	picked := cli.PickIdle(cands, now, idleMs)
 	for _, id := range picked {
 		o.teardownClaudeLive(id)
 		if truthy(o.tab(id).Get("cliSessionId")) {

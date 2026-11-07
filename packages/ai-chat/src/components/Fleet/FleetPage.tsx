@@ -1,6 +1,6 @@
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
-import { Button, Icon, t } from '@nomi-ai/ui';
+import { Button, Icon, Switch, t } from '@nomi-ai/ui';
 import { Folder } from 'lucide-react';
 import React, { useEffect, useMemo } from 'react';
 
@@ -18,7 +18,7 @@ import {
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 
-import { AgentCard, type CardActions } from './AgentCard';
+import { AgentCard, agentTitle, type CardActions } from './AgentCard';
 import styles from './Fleet.module.css';
 
 const backendName = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b);
@@ -88,6 +88,39 @@ const IdleList: React.FC<{
   );
 };
 
+const PRESSURE_LABEL = {
+  normal: 'ui.cli-monitor.fleet-pressure-normal',
+  warn: 'ui.cli-monitor.fleet-pressure-warn',
+  critical: 'ui.cli-monitor.fleet-pressure-critical',
+} as const;
+
+/** 内存守护最近做的事（最近 10 分钟内的才显示） */
+const GOVERNOR_RECENT_MS = 10 * 60_000;
+
+const GovernorNotice: React.FC<{
+  state: FleetState;
+  titleOf: (id: string) => string;
+}> = ({ state, titleOf }) => {
+  const last = state.governor.last;
+  if (!last || state.sampledAt - last.at > GOVERNOR_RECENT_MS) return null;
+  const time = new Date(last.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const text =
+    last.kind === 'reclaimed'
+      ? t('ui.cli-monitor.fleet-gov-reclaimed', last.count ?? 0)
+      : t(
+          last.kind === 'paused'
+            ? 'ui.cli-monitor.fleet-gov-paused'
+            : 'ui.cli-monitor.fleet-gov-resumed',
+          last.id ? titleOf(last.id) : '',
+        );
+  return (
+    <p className={styles.governor} role="status" data-testid="fleet-governor">
+      <span className={styles.governorTime}>{time}</span>
+      {text}
+    </p>
+  );
+};
+
 /** 顶部一条总览：Nomi（调度者）自己的占用 · 各 agent 的占用 · 外部空闲进程 · 整机 */
 const Overview: React.FC<{ state: FleetState | null }> = ({ state }) => {
   const sum = summarize(state);
@@ -119,6 +152,12 @@ const Overview: React.FC<{ state: FleetState | null }> = ({ state }) => {
       <span className={styles.spacer} />
       {state && (
         <span>
+          {state.system.pressure !== 'unknown' &&
+            `${t('ui.cli-monitor.fleet-pressure', t(PRESSURE_LABEL[state.system.pressure]))}${
+              state.system.availablePercent !== undefined
+                ? t('ui.cli-monitor.fleet-available', Math.round(state.system.availablePercent))
+                : ''
+            } · `}
           {state.system.totalMemBytes > 0 &&
             `${t('ui.cli-monitor.fleet-sum-total', formatBytes(state.system.totalMemBytes))} · `}
           {t('ui.cli-monitor.fleet-sum-cpu', formatCpu(state.system.cpuPercent))}
@@ -147,8 +186,9 @@ export const FleetPage: React.FC<
     state: FleetState | null;
     onBack: () => void;
     onCloseIdle?: (item: FleetIdleItem) => void;
+    onSetAutoPause?: (on: boolean) => void;
   } & CardActions
-> = ({ active, state, onBack, onCloseIdle, ...actions }) => {
+> = ({ active, state, onBack, onCloseIdle, onSetAutoPause, ...actions }) => {
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
@@ -157,6 +197,11 @@ export const FleetPage: React.FC<
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [active, onBack]);
+
+  const titleOf = (id: string) => {
+    const a = state?.agents.find((x) => x.id === id);
+    return a ? agentTitle(a, actions.chatName) : '';
+  };
 
   const columns = useMemo(() => {
     const cols = new Map<FleetColumn, FleetAgent[]>(FLEET_COLUMNS.map((c) => [c.key, []]));
@@ -172,9 +217,19 @@ export const FleetPage: React.FC<
     >
       <header className={styles.pageHead}>
         <h2 className={styles.pageTitle}>{t('ui.cli-monitor.fleet-board')}</h2>
+        <span className={styles.spacer} />
+        {state && onSetAutoPause && (
+          <Switch
+            checked={state.governor.autoPause}
+            onChange={onSetAutoPause}
+            label={t('ui.cli-monitor.fleet-auto-pause')}
+            data-testid="fleet-auto-pause"
+          />
+        )}
       </header>
       <p className={styles.hint}>{t('ui.cli-monitor.fleet-hint', brand.appName)}</p>
       <Overview state={state} />
+      {state && <GovernorNotice state={state} titleOf={titleOf} />}
       <div className={styles.board}>
         {FLEET_COLUMNS.map((c) => {
           const items = columns.get(c.key) ?? [];

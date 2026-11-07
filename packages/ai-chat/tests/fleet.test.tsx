@@ -76,6 +76,19 @@ const state: FleetState = {
       updatedAt: T0,
     },
     {
+      id: 'tab:p',
+      kind: 'cli',
+      backend: 'codex',
+      scope: 'managed',
+      origin: 'task',
+      title: '被暂停的',
+      column: 'paused',
+      tabId: 'p',
+      paused: { by: 'memory', at: T0 },
+      usage: usage(900 * MB),
+      updatedAt: T0,
+    },
+    {
       id: 'ext:codex:s1',
       kind: 'cli',
       backend: 'codex',
@@ -118,7 +131,14 @@ const state: FleetState = {
       { pid: 64826, backend: 'grok', processes: 1, rssBytes: 20 * MB, cpuPercent: 0 },
     ],
   },
-  system: { totalMemBytes: 16 * GB, cores: 8, cpuPercent: 12 },
+  system: {
+    totalMemBytes: 16 * GB,
+    cores: 8,
+    cpuPercent: 12,
+    pressure: 'normal',
+    availablePercent: 45,
+  },
+  governor: { autoPause: true, last: { kind: 'paused', id: 'tab:p', at: T0 - 60_000 } },
   sampledAt: T0,
 };
 
@@ -142,21 +162,26 @@ afterEach(() => {
 describe('summarize / format', () => {
   it('counts Nomi with the managed side and idle processes with the external side', () => {
     const s = summarize(state);
-    expect(s.managedBytes).toBe(300 * MB + 1.5 * GB + 200 * MB);
+    expect(s.managedBytes).toBe(300 * MB + 1.5 * GB + 200 * MB + 900 * MB);
     expect(s.externalBytes).toBe(2 * GB + 100 * MB);
-    expect(s.agentsBytes).toBe(1.5 * GB + 200 * MB + 2 * GB);
+    expect(s.agentsBytes).toBe(1.5 * GB + 200 * MB + 900 * MB + 2 * GB);
     // 进行中：正在回答的对话、Nomi 派出的、外部会话都算
     expect(s.running).toBe(3);
     expect(s.needsYou).toBe(1);
     expect(s.level).toBe('normal');
   });
 
-  it('raises the load level from memory share or whole-machine CPU (0–100)', () => {
-    const heavy = { ...state, system: { ...state.system, totalMemBytes: 5 * GB } };
-    // 300 MB + 1.7 GB + 2.1 GB ≈ 4.1 GB / 5 GB > 75%
-    expect(summarize(heavy).level).toBe('critical');
-    const cpu = { ...state, system: { ...state.system, cpuPercent: 60 } };
-    expect(summarize(cpu).level).toBe('warn');
+  it('follows the system memory pressure; estimates only when it is unknown', () => {
+    const at = (pressure: FleetState['system']['pressure'], extra = {}) =>
+      summarize({ ...state, system: { ...state.system, pressure, ...extra } }).level;
+    expect(at('critical')).toBe('critical');
+    expect(at('warn')).toBe('warn');
+    expect(at('normal')).toBe('normal');
+    // 正常的内存压力下 CPU 很高：提成告警
+    expect(at('normal', { cpuPercent: 90 })).toBe('warn');
+    // 读不到压力：按占用比例估（≈ 5 GB / 5 GB）
+    expect(at('unknown', { totalMemBytes: 5 * GB })).toBe('critical');
+    expect(at('unknown', { cpuPercent: 60 })).toBe('warn');
     expect(summarize(null).level).toBe('normal');
   });
 
@@ -249,6 +274,60 @@ describe('FleetPage', () => {
     expect(onOpenChat).toHaveBeenCalledWith('c1');
   });
 
+  it('paused cards say who paused them and can be resumed; running ones can be paused', () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+    const withPausable = {
+      ...state,
+      agents: state.agents.map((a) =>
+        a.id === 'tab:b' ? { ...a, column: 'running' as const, pausable: true } : a,
+      ),
+    };
+    render(
+      <FleetPage
+        active
+        state={withPausable}
+        onBack={() => undefined}
+        onPause={onPause}
+        onResume={onResume}
+      />,
+    );
+    const paused = screen.getByTestId('fleet-col-paused');
+    expect(within(paused).getByText('被暂停的')).toBeTruthy();
+    expect(screen.getByTestId('fleet-paused-tab:p').textContent).toContain('内存紧张');
+    fireEvent.click(screen.getByTestId('fleet-resume-tab:p'));
+    expect(onResume).toHaveBeenCalledWith('tab:p');
+    fireEvent.click(screen.getByTestId('fleet-pause-tab:b'));
+    expect(onPause).toHaveBeenCalledWith('tab:b');
+    // 外部的、不可暂停的没有暂停按钮
+    expect(screen.queryByTestId('fleet-pause-ext:codex:s1')).toBeNull();
+    expect(screen.queryByTestId('fleet-pause-tab:a')).toBeNull();
+  });
+
+  it('shows the auto-pause switch, the memory pressure and what the guard did last', () => {
+    const onSet = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onSetAutoPause={onSet} />);
+    const sw = screen.getByTestId('fleet-auto-pause');
+    fireEvent.click(sw.querySelector('input') ?? sw);
+    expect(onSet).toHaveBeenCalledWith(false);
+    const summary = screen.getByTestId('fleet-summary').textContent ?? '';
+    expect(summary).toContain('正常');
+    expect(summary).toContain('45%');
+    expect(screen.getByTestId('fleet-governor').textContent).toContain('被暂停的');
+  });
+
+  it('hides an old guard notice', () => {
+    const old = {
+      ...state,
+      governor: {
+        autoPause: true,
+        last: { kind: 'reclaimed' as const, count: 2, at: T0 - 3_600_000 },
+      },
+    };
+    render(<FleetPage active state={old} onBack={() => undefined} />);
+    expect(screen.queryByTestId('fleet-governor')).toBeNull();
+  });
+
   it('Esc goes back to the chat', () => {
     const onBack = vi.fn();
     render(<FleetPage active state={state} onBack={onBack} />);
@@ -337,7 +416,7 @@ describe('useFleet', () => {
 
   it('loads once and follows fleet.changed', async () => {
     render(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('probe').textContent).toBe('7'));
+    await waitFor(() => expect(screen.getByTestId('probe').textContent).toBe('8'));
     await act(() => fake.emit('fleet.changed', { ...state, agents: state.agents.slice(0, 2) }));
     expect(screen.getByTestId('probe').textContent).toBe('2');
   });

@@ -12956,6 +12956,29 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13059,12 +13082,64 @@
        },
        "cpuPercent": {
         "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
        }
       },
       "required": [
        "totalMemBytes",
        "cores",
-       "cpuPercent"
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
       ],
       "additionalProperties": {}
      },
@@ -13077,6 +13152,7 @@
      "nomi",
      "externalIdle",
      "system",
+     "governor",
      "sampledAt"
     ],
     "additionalProperties": {}
@@ -13202,6 +13278,29 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13305,12 +13404,64 @@
        },
        "cpuPercent": {
         "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
        }
       },
       "required": [
        "totalMemBytes",
        "cores",
-       "cpuPercent"
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
       ],
       "additionalProperties": {}
      },
@@ -13323,6 +13474,961 @@
      "nomi",
      "externalIdle",
      "system",
+     "governor",
+     "sampledAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "fleet.pause": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "agents": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "nomi",
+          "cli"
+         ]
+        },
+        "backend": {
+         "type": "string"
+        },
+        "scope": {
+         "type": "string",
+         "enum": [
+          "managed",
+          "external"
+         ]
+        },
+        "origin": {
+         "type": "string",
+         "enum": [
+          "chat",
+          "nomi",
+          "conversation",
+          "task",
+          "workbench",
+          "terminal"
+         ]
+        },
+        "title": {
+         "type": "string"
+        },
+        "column": {
+         "type": "string",
+         "enum": [
+          "todo",
+          "paused",
+          "running",
+          "done"
+         ]
+        },
+        "needsYou": {
+         "type": "string",
+         "enum": [
+          "permission",
+          "sandbox",
+          "accept"
+         ]
+        },
+        "failed": {
+         "type": "boolean"
+        },
+        "parentId": {
+         "type": "string"
+        },
+        "taskId": {
+         "type": "string"
+        },
+        "tabId": {
+         "type": "string"
+        },
+        "conversationId": {
+         "type": "string"
+        },
+        "cwd": {
+         "type": "string"
+        },
+        "usage": {
+         "type": "object",
+         "properties": {
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          },
+          "processes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "rssBytes",
+          "cpuPercent",
+          "processes"
+         ],
+         "additionalProperties": {}
+        },
+        "updatedAt": {
+         "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "backend",
+        "scope",
+        "origin",
+        "title",
+        "column",
+        "updatedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "pid": {
+           "type": "number"
+          },
+          "backend": {
+           "type": "string"
+          },
+          "cwd": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "pid",
+          "backend",
+          "processes",
+          "rssBytes",
+          "cpuPercent"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "items"
+      ],
+      "additionalProperties": {}
+     },
+     "system": {
+      "type": "object",
+      "properties": {
+       "totalMemBytes": {
+        "type": "number"
+       },
+       "cores": {
+        "type": "number"
+       },
+       "cpuPercent": {
+        "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "totalMemBytes",
+       "cores",
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
+      ],
+      "additionalProperties": {}
+     },
+     "sampledAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "agents",
+     "nomi",
+     "externalIdle",
+     "system",
+     "governor",
+     "sampledAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "fleet.resume": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "agents": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "nomi",
+          "cli"
+         ]
+        },
+        "backend": {
+         "type": "string"
+        },
+        "scope": {
+         "type": "string",
+         "enum": [
+          "managed",
+          "external"
+         ]
+        },
+        "origin": {
+         "type": "string",
+         "enum": [
+          "chat",
+          "nomi",
+          "conversation",
+          "task",
+          "workbench",
+          "terminal"
+         ]
+        },
+        "title": {
+         "type": "string"
+        },
+        "column": {
+         "type": "string",
+         "enum": [
+          "todo",
+          "paused",
+          "running",
+          "done"
+         ]
+        },
+        "needsYou": {
+         "type": "string",
+         "enum": [
+          "permission",
+          "sandbox",
+          "accept"
+         ]
+        },
+        "failed": {
+         "type": "boolean"
+        },
+        "parentId": {
+         "type": "string"
+        },
+        "taskId": {
+         "type": "string"
+        },
+        "tabId": {
+         "type": "string"
+        },
+        "conversationId": {
+         "type": "string"
+        },
+        "cwd": {
+         "type": "string"
+        },
+        "usage": {
+         "type": "object",
+         "properties": {
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          },
+          "processes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "rssBytes",
+          "cpuPercent",
+          "processes"
+         ],
+         "additionalProperties": {}
+        },
+        "updatedAt": {
+         "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "backend",
+        "scope",
+        "origin",
+        "title",
+        "column",
+        "updatedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "pid": {
+           "type": "number"
+          },
+          "backend": {
+           "type": "string"
+          },
+          "cwd": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "pid",
+          "backend",
+          "processes",
+          "rssBytes",
+          "cpuPercent"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "items"
+      ],
+      "additionalProperties": {}
+     },
+     "system": {
+      "type": "object",
+      "properties": {
+       "totalMemBytes": {
+        "type": "number"
+       },
+       "cores": {
+        "type": "number"
+       },
+       "cpuPercent": {
+        "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "totalMemBytes",
+       "cores",
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
+      ],
+      "additionalProperties": {}
+     },
+     "sampledAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "agents",
+     "nomi",
+     "externalIdle",
+     "system",
+     "governor",
+     "sampledAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "fleet.setAutoPause": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "agents": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "nomi",
+          "cli"
+         ]
+        },
+        "backend": {
+         "type": "string"
+        },
+        "scope": {
+         "type": "string",
+         "enum": [
+          "managed",
+          "external"
+         ]
+        },
+        "origin": {
+         "type": "string",
+         "enum": [
+          "chat",
+          "nomi",
+          "conversation",
+          "task",
+          "workbench",
+          "terminal"
+         ]
+        },
+        "title": {
+         "type": "string"
+        },
+        "column": {
+         "type": "string",
+         "enum": [
+          "todo",
+          "paused",
+          "running",
+          "done"
+         ]
+        },
+        "needsYou": {
+         "type": "string",
+         "enum": [
+          "permission",
+          "sandbox",
+          "accept"
+         ]
+        },
+        "failed": {
+         "type": "boolean"
+        },
+        "parentId": {
+         "type": "string"
+        },
+        "taskId": {
+         "type": "string"
+        },
+        "tabId": {
+         "type": "string"
+        },
+        "conversationId": {
+         "type": "string"
+        },
+        "cwd": {
+         "type": "string"
+        },
+        "usage": {
+         "type": "object",
+         "properties": {
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          },
+          "processes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "rssBytes",
+          "cpuPercent",
+          "processes"
+         ],
+         "additionalProperties": {}
+        },
+        "updatedAt": {
+         "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "backend",
+        "scope",
+        "origin",
+        "title",
+        "column",
+        "updatedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "pid": {
+           "type": "number"
+          },
+          "backend": {
+           "type": "string"
+          },
+          "cwd": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "pid",
+          "backend",
+          "processes",
+          "rssBytes",
+          "cpuPercent"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "items"
+      ],
+      "additionalProperties": {}
+     },
+     "system": {
+      "type": "object",
+      "properties": {
+       "totalMemBytes": {
+        "type": "number"
+       },
+       "cores": {
+        "type": "number"
+       },
+       "cpuPercent": {
+        "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "totalMemBytes",
+       "cores",
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
+      ],
+      "additionalProperties": {}
+     },
+     "sampledAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "agents",
+     "nomi",
+     "externalIdle",
+     "system",
+     "governor",
      "sampledAt"
     ],
     "additionalProperties": {}
@@ -13435,6 +14541,29 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "paused": {
+         "type": "object",
+         "properties": {
+          "by": {
+           "type": "string",
+           "enum": [
+            "memory",
+            "user"
+           ]
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "by",
+          "at"
+         ],
+         "additionalProperties": {}
+        },
+        "pausable": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13538,12 +14667,64 @@
        },
        "cpuPercent": {
         "type": "number"
+       },
+       "pressure": {
+        "type": "string",
+        "enum": [
+         "normal",
+         "warn",
+         "critical",
+         "unknown"
+        ]
+       },
+       "availablePercent": {
+        "type": "number"
        }
       },
       "required": [
        "totalMemBytes",
        "cores",
-       "cpuPercent"
+       "cpuPercent",
+       "pressure"
+      ],
+      "additionalProperties": {}
+     },
+     "governor": {
+      "type": "object",
+      "properties": {
+       "autoPause": {
+        "type": "boolean"
+       },
+       "last": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "reclaimed",
+           "paused",
+           "resumed"
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "count": {
+          "type": "number"
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "at"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "autoPause"
       ],
       "additionalProperties": {}
      },
@@ -13556,6 +14737,7 @@
      "nomi",
      "externalIdle",
      "system",
+     "governor",
      "sampledAt"
     ],
     "additionalProperties": {}
@@ -32513,6 +33695,29 @@
        },
        "updatedAt": {
         "type": "number"
+       },
+       "paused": {
+        "type": "object",
+        "properties": {
+         "by": {
+          "type": "string",
+          "enum": [
+           "memory",
+           "user"
+          ]
+         },
+         "at": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "by",
+         "at"
+        ],
+        "additionalProperties": {}
+       },
+       "pausable": {
+        "type": "boolean"
        }
       },
       "required": [
@@ -32616,12 +33821,64 @@
       },
       "cpuPercent": {
        "type": "number"
+      },
+      "pressure": {
+       "type": "string",
+       "enum": [
+        "normal",
+        "warn",
+        "critical",
+        "unknown"
+       ]
+      },
+      "availablePercent": {
+       "type": "number"
       }
      },
      "required": [
       "totalMemBytes",
       "cores",
-      "cpuPercent"
+      "cpuPercent",
+      "pressure"
+     ],
+     "additionalProperties": {}
+    },
+    "governor": {
+     "type": "object",
+     "properties": {
+      "autoPause": {
+       "type": "boolean"
+      },
+      "last": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "reclaimed",
+          "paused",
+          "resumed"
+         ]
+        },
+        "id": {
+         "type": "string"
+        },
+        "count": {
+         "type": "number"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "kind",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "required": [
+      "autoPause"
      ],
      "additionalProperties": {}
     },
@@ -32634,6 +33891,7 @@
     "nomi",
     "externalIdle",
     "system",
+    "governor",
     "sampledAt"
    ],
    "additionalProperties": {}
@@ -34016,6 +35274,7 @@
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
   "FLEET_NOT_IDLE",
+  "FLEET_NOT_PAUSABLE",
   "KB_DENIED",
   "KB_EMPTY",
   "KB_LOCAL_ONLY",

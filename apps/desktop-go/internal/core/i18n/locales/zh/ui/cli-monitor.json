@@ -247,5 +247,17 @@
   "ui.cli-monitor.fleet-idle-title": "空闲进程",
   "ui.cli-monitor.fleet-pid": "进程 {0}",
   "ui.cli-monitor.fleet-close-idle": "关闭 {0}（进程 {1}）",
-  "ui.cli-monitor.fleet-close-idle-confirm": "关闭 {0}（进程 {1}）？它在 {2} 之外开着、没有会话在跑；关闭后终端或 IDE 里的这个助手会退出。"
+  "ui.cli-monitor.fleet-close-idle-confirm": "关闭 {0}（进程 {1}）？它在 {2} 之外开着、没有会话在跑；关闭后终端或 IDE 里的这个助手会退出。",
+  "ui.cli-monitor.fleet-resume": "继续",
+  "ui.cli-monitor.fleet-paused-memory": "内存紧张，已自动暂停",
+  "ui.cli-monitor.fleet-paused-user": "你暂停的",
+  "ui.cli-monitor.fleet-pressure": "内存压力：{0}",
+  "ui.cli-monitor.fleet-available": "（可用 {0}%）",
+  "ui.cli-monitor.fleet-pressure-normal": "正常",
+  "ui.cli-monitor.fleet-pressure-warn": "偏高",
+  "ui.cli-monitor.fleet-pressure-critical": "紧张",
+  "ui.cli-monitor.fleet-auto-pause": "内存紧张时自动处理",
+  "ui.cli-monitor.fleet-gov-reclaimed": "内存偏高：回收了 {0} 个空闲标签的进程（会话还在，接着问时自动接上）",
+  "ui.cli-monitor.fleet-gov-paused": "内存紧张：暂停了「{0}」，恢复正常后自动继续",
+  "ui.cli-monitor.fleet-gov-resumed": "内存恢复正常：「{0}」已继续"
 }

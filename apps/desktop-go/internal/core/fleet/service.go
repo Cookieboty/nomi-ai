@@ -34,6 +34,17 @@ type Deps struct {
 	Kill func(pid int, signal string) error
 	// KillGrace：SIGTERM 之后等多久还没退出就 SIGKILL；0 = CloseIdleGrace
 	KillGrace time.Duration
+
+	// 内存守护（governor.go）。Pressure：系统内存压力；Freeze / Thaw：冻结 / 恢复标签的进程树（编排器，要进 GIL，
+	// 由 wiring 包好）；ReclaimIdle：立刻回收空闲标签的进程（会话留着）
+	Pressure    func() agents.MemPressure
+	Freeze      func(tabID string, pids []int, by string) bool
+	Thaw        func(tabID string) bool
+	ReclaimIdle func() []string
+	// SettingsPath：自动暂停开关存在这里（JSON）；空 = 不存盘
+	SettingsPath string
+	// GovernEvery：多久看一次内存压力；0 = GovernInterval
+	GovernEvery time.Duration
 }
 
 // CloseIdleGrace：手动关闭空闲进程时，SIGTERM 之后等多久再 SIGKILL
@@ -51,13 +62,17 @@ type Service struct {
 	archived map[string]int64
 	timer    *time.Timer
 	closed   bool
+	gov      govState
 }
 
 func New(d Deps) *Service {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	return &Service{d: d, archived: map[string]int64{}}
+	s := &Service{d: d, archived: map[string]int64{}}
+	s.gov.auto = loadAutoPause(d.SettingsPath)
+	s.gov.thawedAt = map[string]time.Time{}
+	return s
 }
 
 // sample：取进程表（SampleTTL 内复用上一次）；返回本次与上一次
@@ -110,7 +125,15 @@ func (s *Service) State() State {
 		arch[k] = v
 	}
 	s.mu.Unlock()
-	sys := System{Cores: s.d.Cores}
+	sys := System{Cores: s.d.Cores, Pressure: agents.PressureUnknown}
+	if s.d.Pressure != nil {
+		p := s.d.Pressure()
+		sys.Pressure = p.Level
+		if p.AvailablePercent >= 0 {
+			v := p.AvailablePercent
+			sys.AvailablePercent = &v
+		}
+	}
 	if s.d.TotalMem != nil {
 		sys.TotalMemBytes = s.d.TotalMem()
 	}
@@ -127,6 +150,9 @@ func (s *Service) State() State {
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
 		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys})
 	s.prune(st, now)
+	s.mu.Lock()
+	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}
+	s.mu.Unlock()
 	return st
 }
 
@@ -244,13 +270,18 @@ func (s *Service) Changed() {
 	})
 }
 
-// Close：停掉还没推的变化
+// Close：停掉内存守护与还没推的变化（暂停中的标签由编排器退出时（Dispose）一并恢复）
 func (s *Service) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.closed = true
 	if s.timer != nil {
 		s.timer.Stop()
 		s.timer = nil
+	}
+	stop := s.gov.stop
+	s.gov.stop = nil
+	s.mu.Unlock()
+	if stop != nil {
+		close(stop)
 	}
 }

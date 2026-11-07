@@ -41,6 +41,7 @@ func newMsgID() string { return clisdk.RandomUUID() }
 
 // SendTab = sendTab(id, prompt, images?, {userInitiated?})（async）。
 func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bool) *jsrt.Promise[*util.Obj] {
+	o.thawIfFrozen(id)
 	return jsrt.Async(func() (*util.Obj, error) {
 		tab := o.requireTab(id)
 		if tab.Get("backend") == "nomi" {
