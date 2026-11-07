@@ -34,6 +34,7 @@ import { PendingDock } from './components/PendingDock';
 import { PluginPanel } from './components/PluginPanel';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
+import { SessionDetailsDock } from './components/SessionDetails';
 import {
   ChangesWorkbenchHost,
   SessionChangesPanel,
@@ -1050,6 +1051,7 @@ const AiChatContent: React.FC = () => {
               </>
             ) : null}
           </div>
+          {!mainHidden && <SessionDetailsDock messages={railMessages} cwd={railCwd} />}
           {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
           {assetLibrary.page}
           {/* 任务整页：同样替换对话区 */}

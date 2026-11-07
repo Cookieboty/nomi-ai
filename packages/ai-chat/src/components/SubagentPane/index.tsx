@@ -20,6 +20,7 @@ import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
 import { TabSandboxRequests } from '../Conversation/SandboxRequests';
 import { EndpointIcon } from '../EndpointIcon';
+import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
 
 import styles from './SubagentPane.module.css';
@@ -228,10 +229,12 @@ export const SubagentPane: React.FC = () => {
 
 export { useSubagentPane };
 
-/** 对话旁的查看区与子任务面板各自的状态（互不影响） */
+/** 对话旁的查看区、子任务面板、会话详情各自的状态（互不影响） */
 export const WorkspacePanesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <ChangesUiProvider>
-    <SubagentPaneProvider>{children}</SubagentPaneProvider>
+    <SubagentPaneProvider>
+      <SessionDetailsProvider>{children}</SessionDetailsProvider>
+    </SubagentPaneProvider>
   </ChangesUiProvider>
 );
 

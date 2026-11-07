@@ -1,10 +1,11 @@
-/* 会话详情浮层：挂在 body 上（不在标题栏的拖动区里），贴着按钮右对齐 */
+/* 会话详情：对话卡片右侧的一栏（与对话并排，不盖住内容）。上、右、下留空隙，与对话之间也留空隙；
+   高度随内容，最多到卡片底部，超出时自己滚动 */
 .panel {
-  position: fixed;
-  z-index: 80;
-  width: 320px;
-  max-width: calc(100vw - var(--cd-space-4));
-  max-height: min(70vh, 520px);
+  flex: 0 0 300px;
+  align-self: flex-start;
+  min-width: 0;
+  max-height: calc(100% - var(--cd-space-3) * 2);
+  margin: var(--cd-space-3) var(--cd-space-3) var(--cd-space-3) var(--cd-space-2);
   overflow-y: auto;
   padding: var(--cd-space-3);
   border-radius: var(--cd-radius-lg);
@@ -17,12 +18,11 @@
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
 }
-.panel:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 2px;
-}
-.panel:focus:not(:focus-visible) {
-  outline: none;
+/* 窗口很窄时变窄一点，给对话留地方 */
+@media (max-width: 900px) {
+  .panel {
+    flex-basis: 240px;
+  }
 }
 
 .project {

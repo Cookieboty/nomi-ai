@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
-/** 标题栏「会话详情」浮层：项目、本会话变更、用到的智能体与状态；子任务点开进子任务面板 */
+/** 「会话详情」：标题栏按钮开 / 收对话卡片右侧的一栏：项目、本会话变更、用到的智能体与状态；子任务点开进子任务面板 */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { SessionDetailsToggle } from '../src/components/SessionDetails';
+import { SessionDetailsDock, SessionDetailsToggle } from '../src/components/SessionDetails';
 import { collectSessionAgents, countRunning } from '../src/components/SessionDetails/agents';
 import { useChangesUi } from '../src/components/SessionWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
@@ -99,11 +99,12 @@ const Probe: React.FC = () => {
   );
 };
 
-const mount = (cwd: string | null = '/w/app') =>
+const mount = (cwd: string | null = '/w/app', msgs: ConvMessage[] = messages) =>
   render(
     <HarnessTabsProvider>
       <WorkspacePanesProvider>
-        <SessionDetailsToggle messages={messages} cwd={cwd} />
+        <SessionDetailsToggle />
+        <SessionDetailsDock messages={msgs} cwd={cwd} />
         <Probe />
       </WorkspacePanesProvider>
     </HarnessTabsProvider>,
@@ -111,6 +112,7 @@ const mount = (cwd: string | null = '/w/app') =>
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.restoreAllMocks();
   resetFakeApi();
 });
@@ -146,14 +148,16 @@ describe('collectSessionAgents', () => {
 });
 
 describe('SessionDetailsToggle', () => {
-  it('toggles a panel with the project, changes and agents', async () => {
+  it('toggles a docked column with the project, changes and agents', async () => {
     setup();
     mount();
     const btn = screen.getByTestId('session-details-toggle');
-    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('session-details')).toBeNull();
     fireEvent.click(btn);
     const panel = await screen.findByTestId('session-details');
-    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.tagName).toBe('ASIDE');
     expect(panel.textContent).toContain('app');
     await waitFor(() =>
       expect(screen.getByTestId('session-details-branch').textContent).toBe('release/2.3.3'),
@@ -161,35 +165,38 @@ describe('SessionDetailsToggle', () => {
     expect(screen.getByTestId('session-details-changes').textContent).toMatch(/\+2.*-1/);
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     expect(screen.getByTestId('session-details-agent-count').textContent).toMatch(/2.*1/);
-    // 再点一次收起
     fireEvent.click(btn);
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 
-  it('opens the sub-task pane from an agent row and the diff from the changes row', async () => {
+  it('stays open while opening the sub-task pane and the diff; outside clicks do not close it', async () => {
     setup();
     mount();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     fireEvent.click(screen.getAllByTestId('session-details-agent')[0]!.querySelector('button')!);
     expect(screen.getByTestId('probe').textContent).toBe('d1|-');
-    expect(screen.queryByTestId('session-details')).toBeNull();
-    fireEvent.click(screen.getByTestId('session-details-toggle'));
-    fireEvent.click(await screen.findByTestId('session-details-changes'));
+    fireEvent.click(screen.getByTestId('session-details-changes'));
     expect(screen.getByTestId('probe').textContent).toBe('d1|wb');
+    fireEvent.mouseDown(document.body);
+    expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 
-  it('closes on Escape and outside clicks; no workspace hides the changes row', async () => {
+  it('Escape closes it; the choice is remembered; an empty session shows nothing', async () => {
     setup();
-    mount(null);
+    const first = mount(null);
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     const panel = await screen.findByTestId('session-details');
     expect(screen.queryByTestId('session-details-changes')).toBeNull();
     fireEvent.keyDown(panel, { key: 'Escape' });
     expect(screen.queryByTestId('session-details')).toBeNull();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
-    await screen.findByTestId('session-details');
-    fireEvent.mouseDown(document.body);
+    first.unmount();
+    // 重新打开应用：保持开着
+    mount();
+    expect(await screen.findByTestId('session-details')).toBeTruthy();
+    cleanup();
+    mount('/w/app', []);
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 });

@@ -1,16 +1,17 @@
 /**
- * 标题栏右侧「会话详情」：文件栏开关前面的按钮，点开一个浮层（再点 / Esc / 点外面收起）：
+ * 「会话详情」：标题栏里文件栏开关前面的按钮，开 / 收对话卡片右侧的一栏（不盖住对话，对话区相应变窄）：
  * - 项目：工作区名、路径、当前分支；
  * - 变更：本会话改过的文件数与增删行，点开中栏 Diff；
  * - 智能体：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看。
+ * 开关状态记在本机（下次打开应用保持）。
  */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { Bot, Folder, GitBranch, LayoutDashboard, Diff } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Bot, Diff, Folder, GitBranch, LayoutDashboard } from 'lucide-react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
+import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -33,24 +34,47 @@ const STATUS_KEY: Record<SessionAgentStatus, string> = {
   stopped: 'ui.chat-settings.stopped',
 };
 
+const STORE_KEY = 'nomi.sessionDetails.open';
+
+function readOpen(): boolean {
+  try {
+    return localStorage.getItem(STORE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+interface DetailsValue {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const Ctx = createContext<DetailsValue | null>(null);
+
+export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [open, setOpenState] = useState(readOpen);
+  const setOpen = useCallback((v: boolean) => {
+    setOpenState(v);
+    try {
+      localStorage.setItem(STORE_KEY, v ? '1' : '0');
+    } catch {
+      /* 无痕窗口等：只在本次有效 */
+    }
+  }, []);
+  const value = useMemo(() => ({ open, setOpen }), [open, setOpen]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+};
+
 interface Props {
   messages: readonly ConvMessage[];
   /** 当前会话的工作区（没有 = 没选工作区） */
   cwd: string | null;
-  /** 当前停在的编程助手标签（看它这一轮的子代理） */
-  tabId?: string;
-  bubbleClassName?: string;
 }
 
-const DetailsPanel: React.FC<Props & { onClose: () => void; style: React.CSSProperties }> = ({
-  messages,
-  cwd,
-  tabId,
-  onClose,
-  style,
-}) => {
-  const ref = useRef<HTMLDivElement>(null);
+const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd, onClose }) => {
   const tabs = useHarnessTabs();
+  const { isDev } = useChatMode();
+  const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
   const live = useHarnessLive((l) => l);
   const pane = useSubagentPane();
   const { openWorkbench } = useChangesUi();
@@ -62,26 +86,11 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; style: React.CSSProp
   );
   const running = countRunning(agents);
 
-  useEffect(() => {
-    ref.current?.focus();
-    const down = (e: MouseEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (ref.current?.contains(el) || el?.closest?.('[data-testid="session-details-toggle"]'))
-        return;
-      onClose();
-    };
-    window.addEventListener('mousedown', down);
-    return () => window.removeEventListener('mousedown', down);
-  }, [onClose]);
-
   return (
-    <div
-      ref={ref}
-      role="dialog"
-      tabIndex={-1}
+    <aside
+      role="complementary"
       aria-label={t('ui.session-workspace.session-details')}
       className={styles.panel}
-      style={style}
       data-testid="session-details"
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return;
@@ -111,10 +120,7 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; style: React.CSSProp
           type="button"
           className={styles.row}
           data-testid="session-details-changes"
-          onClick={() => {
-            openWorkbench({});
-            onClose();
-          }}
+          onClick={() => openWorkbench({})}
         >
           <Icon icon={Diff} size={16} />
           <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
@@ -169,15 +175,7 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; style: React.CSSProp
             return (
               <li key={a.id} data-testid="session-details-agent">
                 {open ? (
-                  <button
-                    type="button"
-                    className={styles.row}
-                    title={a.detail}
-                    onClick={() => {
-                      open();
-                      onClose();
-                    }}
-                  >
+                  <button type="button" className={styles.row} title={a.detail} onClick={open}>
                     {body}
                   </button>
                 ) : (
@@ -190,44 +188,42 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; style: React.CSSProp
           })}
         </ul>
       )}
-    </div>
+    </aside>
   );
 };
 
-export const SessionDetailsToggle: React.FC<Props> = (props) => {
-  const btn = useRef<HTMLButtonElement>(null);
-  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
-  const close = useCallback(() => {
-    setAt(null);
-    btn.current?.focus();
-  }, []);
-  const label = at
+export const SessionDetailsToggle: React.FC<{ bubbleClassName?: string }> = ({
+  bubbleClassName,
+}) => {
+  const v = useContext(Ctx);
+  if (!v) return null;
+  const label = v.open
     ? t('ui.session-workspace.hide-session-details')
     : t('ui.session-workspace.show-session-details');
   return (
-    <>
-      <Tooltip placement="bottom" content={label} bubbleClassName={props.bubbleClassName}>
-        <button
-          ref={btn}
-          type="button"
-          className="app-titlebar-btn"
-          aria-label={label}
-          aria-haspopup="dialog"
-          aria-expanded={!!at}
-          data-testid="session-details-toggle"
-          onClick={() => {
-            const r = btn.current?.getBoundingClientRect();
-            setAt(at || !r ? null : { top: r.bottom + 6, right: window.innerWidth - r.right });
-          }}
-        >
-          <Icon icon={LayoutDashboard} size={16} />
-        </button>
-      </Tooltip>
-      {at &&
-        createPortal(
-          <DetailsPanel {...props} onClose={close} style={{ top: at.top, right: at.right }} />,
-          document.body,
-        )}
-    </>
+    <Tooltip placement="bottom" content={label} bubbleClassName={bubbleClassName}>
+      <button
+        type="button"
+        className="app-titlebar-btn"
+        aria-label={label}
+        aria-pressed={v.open}
+        aria-expanded={v.open}
+        data-testid="session-details-toggle"
+        onClick={() => v.setOpen(!v.open)}
+      >
+        <Icon icon={LayoutDashboard} size={16} />
+      </button>
+    </Tooltip>
   );
+};
+
+/** 对话卡片右侧的一栏：开着且会话有消息时显示（空会话不占地方） */
+export const SessionDetailsDock: React.FC<Props> = (props) => {
+  const v = useContext(Ctx);
+  const close = useCallback(() => {
+    v?.setOpen(false);
+    document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
+  }, [v]);
+  if (!v?.open || !props.messages.length) return null;
+  return <DetailsPanel {...props} onClose={close} />;
 };
