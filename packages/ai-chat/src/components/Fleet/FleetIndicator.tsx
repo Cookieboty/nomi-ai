@@ -83,7 +83,6 @@ export const FleetIndicator: React.FC<{
         className={styles.indicator}
         data-level={sum.level}
         aria-label={label}
-
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpenBoth(!open)}
