@@ -84,9 +84,15 @@ export interface IPCClient {
     name?: string,
     /**
      * cwd：Nomi 对话的工作区；缺省时 Nomi 对话用主标签当前的目录（默认 文稿/nomi）。
-     * 同一工作区已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话（界面上有消息 / 正在回复）
+     * 同一工作区已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话
+     * （界面上有消息 / 正在准备或生成回复，含切到后台的：这一轮落盘前它们看起来是空的）
      */
-    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string; notReuse?: string },
+    opts?: {
+      backend?: ConversationBackend;
+      tabId?: string;
+      cwd?: string;
+      notReuse?: string | readonly string[];
+    },
   ): Promise<string>;
   switchConversation(id: string): Promise<void>;
   /** 更新会话元信息（标题 / 后端 / tabId / CLI session id） */

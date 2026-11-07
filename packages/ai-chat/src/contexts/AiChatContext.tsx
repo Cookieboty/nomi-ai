@@ -1077,9 +1077,16 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       dispatch({ type: 'SET_ERROR', payload: undefined });
       try {
         ingestCurrent();
-        // 当前会话界面上有消息或正在回复：消息可能还没落盘，不能当空对话复用
-        const { messages, isLoading, ipcClient } = stateRef.current;
-        const notReuse = messages.length || isLoading ? ipcClient.currentConversationId?.() : '';
+        // 不能当空对话复用：当前会话界面上有消息；任何正在准备 / 生成回复的会话（含切到后台的）——
+        // 这一轮结束才落盘，期间存储里它们是零消息，复用会把旧轮的回包写回「新」对话（#276）
+        const { messages, isLoading, busyConvos, ipcClient } = stateRef.current;
+        const current = ipcClient.currentConversationId?.();
+        const notReuse = [
+          ...(busyConvos ?? []),
+          ...inflight.current.keys(),
+          ...activeStream.current.keys(),
+          ...(current && (messages.length || isLoading) ? [current] : []),
+        ].filter(Boolean);
         await ipcClient.newConversation(undefined, { cwd: opts?.cwd, notReuse });
         historySeq.current++;
         dispatch({

@@ -710,13 +710,18 @@ export class ConversationStore {
   /**
    * 同一工作区里还没有消息的 Nomi 对话（新建时复用它，不再堆一个空对话）。
    * cwd 按去掉末尾斜杠比较；没有工作区的只和同样没有工作区的配对。归档的不算。
+   * exclude：不能复用的会话（正在回复的那一轮落盘前它们也是零消息）
    */
-  findEmptyNomi(cwd: string | undefined, exclude?: string): ConversationMeta | undefined {
+  findEmptyNomi(
+    cwd: string | undefined,
+    exclude?: string | readonly string[],
+  ): ConversationMeta | undefined {
     const norm = (p: string | undefined) => (p ?? '').replace(/[\\/]+$/, '');
     const want = norm(cwd);
+    const skip = new Set(typeof exclude === 'string' ? [exclude] : (exclude ?? []));
     return this.index.find(
       (c) =>
-        c.id !== exclude &&
+        !skip.has(c.id) &&
         c.backend === 'nomi' &&
         !c.tabId &&
         !c.archivedAt &&
