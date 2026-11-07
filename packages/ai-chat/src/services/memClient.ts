@@ -116,7 +116,11 @@ export const memClient = {
     call<{ episode?: MemEpisode; skipped?: string }>(() =>
       api.mem.ingest({ conversationId, messages: msgs, force }),
     ),
-  context: (q: string) => call<{ text: string; used: MemUsed[] }>(() => api.mem.context({ q })),
+  /** exclude：这个会话里已经带给模型的条目（不重复召回）；ids：这次返回的 text 里包含的条目 */
+  context: (q: string, exclude?: string[]) =>
+    call<{ text: string; used: MemUsed[]; ids?: string[] }>(() =>
+      api.mem.context(exclude?.length ? { q, exclude } : { q }),
+    ),
   updateEpisode: (id: string, p: Partial<MemEpisode>) =>
     call<MemEpisode>(() => api.mem.updateEpisode({ id, patch: p })),
   upsertFact: (p: Partial<MemFact>) => call<MemFact>(() => api.mem.upsertFact(p)),
@@ -133,12 +137,16 @@ export const memClient = {
 };
 
 /** 取召回片段；失败（未开启 / 主进程旧版本）时静默返回空，不影响对话 */
-export async function memoryContext(q: string): Promise<{ text: string; used: MemUsed[] }> {
-  if (!memClient.available()) return { text: '', used: [] };
+export async function memoryContext(
+  q: string,
+  exclude?: string[],
+): Promise<{ text: string; used: MemUsed[]; ids: string[] }> {
+  if (!memClient.available()) return { text: '', used: [], ids: [] };
   try {
-    return await memClient.context(q);
+    const r = await memClient.context(q, exclude);
+    return { text: r.text, used: r.used, ids: r.ids ?? [] };
   } catch {
-    return { text: '', used: [] };
+    return { text: '', used: [], ids: [] };
   }
 }
 

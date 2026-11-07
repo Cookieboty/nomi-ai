@@ -172,8 +172,14 @@ export const knowledgeProcedures = {
   /** 召回片段（注入对话 system） */
   'mem.context': {
     kind: 'query',
-    input: z.object({ q: z.string() }),
-    output: z.looseObject({ text: z.string(), used: z.array(MemUsed) }),
+    /** exclude：这个会话里已经带给模型、还在上下文里的条目（上次返回的 ids），不再重复召回 */
+    input: z.object({ q: z.string(), exclude: z.array(z.string()).optional() }),
+    /** ids：text 里包含的条目（事实 / 对话记忆的 id，用户档案为 profile:<hash>） */
+    output: z.looseObject({
+      text: z.string(),
+      used: z.array(MemUsed),
+      ids: z.array(z.string()).optional(),
+    }),
   },
   'mem.updateEpisode': {
     kind: 'mutation',

@@ -99,6 +99,8 @@ type TextParams struct {
 	// PrepareStep = prepareStep({messages})：每一步开始前调用（streamText），返回非 nil 时这一步改用它作为消息列表；
 	// 只作用于这一步，下一步收到的仍是未改写的累积列表（与 AI SDK 一致）。
 	PrepareStep func(messages []*u.Obj) []*u.Obj
+	// CacheBreakpoints：Anthropic 协议：每次请求在系统提示和最后一条消息上打缓存断点（不打不缓存）
+	CacheBreakpoints bool
 }
 
 func (p *TextParams) maxSteps() int {

@@ -3,8 +3,10 @@ package desktop
 import (
 	"errors"
 	"regexp"
+	"strings"
 
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // 外发给云端模型前，把附件正文 / 编码助手输出按设置挡下或替换
@@ -76,19 +78,62 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 		if m == nil {
 			continue
 		}
+		scrub := func(content string) string {
+			if reFileBody.MatchString(content) && verdict(fileWhat) != "" {
+				content = reFileBody.ReplaceAllString(content, "<attached-file ${1}>\n"+withheld+"\n</attached-file>")
+			}
+			if reCliOutput.MatchString(content) && verdict(cliWhat) != "" {
+				content = reCliOutput.ReplaceAllLiteralString(content, "<cli-output>\n"+withheld+"\n</cli-output>")
+			}
+			return content
+		}
+		// 上一轮的工具记录（工具结果里也可能有附件正文 / 编程助手输出）：同样处理，没改动时原样保留
+		if steps, ok := m["steps"].(string); ok && steps != "" {
+			m["steps"] = scrubSteps(steps, scrub)
+		}
 		content, ok := m["content"].(string)
 		if !ok {
 			continue
 		}
-		if reFileBody.MatchString(content) && verdict(fileWhat) != "" {
-			content = reFileBody.ReplaceAllString(content, "<attached-file ${1}>\n"+withheld+"\n</attached-file>")
-		}
-		if reCliOutput.MatchString(content) && verdict(cliWhat) != "" {
-			content = reCliOutput.ReplaceAllLiteralString(content, "<cli-output>\n"+withheld+"\n</cli-output>")
-		}
-		m["content"] = content
+		m["content"] = scrub(content)
 	}
 	return nil
+}
+
+// scrubSteps：对工具记录里的每个字符串套用 scrub；有改动才重新序列化（键序不变），解析不了时原样返回
+func scrubSteps(steps string, scrub func(string) string) string {
+	if !strings.Contains(steps, "<attached-file ") && !strings.Contains(steps, "<cli-output>") {
+		return steps
+	}
+	v, err := util.ParseString(steps)
+	if err != nil {
+		return steps
+	}
+	changed := false
+	var walk func(x any) any
+	walk = func(x any) any {
+		switch t := x.(type) {
+		case string:
+			if s := scrub(t); s != t {
+				changed = true
+				return s
+			}
+		case []any:
+			for i := range t {
+				t[i] = walk(t[i])
+			}
+		case *util.Obj:
+			for _, k := range t.Keys() {
+				t.Set(k, walk(t.Get(k)))
+			}
+		}
+		return x
+	}
+	v = walk(v)
+	if !changed {
+		return steps
+	}
+	return util.Stringify(v)
 }
 
 // IslandNotice：灵动岛通知

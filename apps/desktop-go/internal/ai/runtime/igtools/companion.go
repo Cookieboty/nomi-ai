@@ -15,31 +15,15 @@ type Avatar interface {
 	AvatarEmotion(name string, weight *float64) error
 }
 
-// gestureHints = CompanionToolsPlugin GESTURE_HINTS
-var gestureHints = map[string]string{
-	"wave": "挥手", "greet": "打招呼", "nod": "点头", "shakeHead": "摇头", "bow": "鞠躬", "salute": "敬礼",
-	"pray": "双手合十", "okHand": "OK 手势", "think": "托腮思考", "explain": "讲解", "eureka": "灵光一闪",
-	"puzzled": "疑惑歪头", "listen": "倾听", "lookAround": "张望", "lookLeftRight": "左顾右盼", "peek": "偷看",
-	"heart": "比心", "blowKiss": "送飞吻", "shy": "害羞", "coverFace": "捂脸", "apologize": "道歉",
-	"surprise": "惊讶", "startle": "吓一跳", "sigh": "叹气", "smug": "得意", "aggrieved": "委屈",
-	"tears": "流泪", "angry": "生气", "coldSweat": "冷汗", "daze": "发呆", "cheer": "加油握拳",
-	"thumbsUp": "点赞", "peace": "剪刀手", "celebrate": "庆祝", "clap": "鼓掌", "hop": "开心跳动",
-	"wink": "眨眼", "tongue": "吐舌", "cute": "卖萌", "reachOut": "伸手示意", "work": "打字工作",
-	"yawn": "打哈欠", "stretch": "伸懒腰", "goodnight": "晚安", "hum": "哼歌", "random": "随机",
-}
-
 // CompanionTools = CompanionToolsPlugin(autoConfirm)：dangerous = !autoConfirm（显式声明）。
 // available：桌面角色在不在（关掉时这一轮不把手势 / 情绪工具发给模型，省一次只为做动作的往返）；nil = 总是提供
 func CompanionTools(avatar Avatar, autoConfirm bool, available func() bool) []tools.Definition {
-	list := make([]string, len(charcontract.SemanticGestures))
-	for i, g := range charcontract.SemanticGestures {
-		list[i] = g + "（" + gestureHints[g] + "）"
-	}
 	ok := func() *u.Obj { return u.NewObj("ok", true) }
 	return []tools.Definition{
 		{
-			Name:        "avatar_gesture",
-			Description: "让桌面角色做一个手势。name 为语义手势：" + strings.Join(list, "、") + "。" + "当前角色没有对应动作的手势会被忽略。",
+			Name: "avatar_gesture",
+			// 手势名本身就是英文词义（wave / nod / think…），不再在描述里逐个翻译一遍（每次请求都带）
+			Description: "让桌面角色做一个手势，name 按字面意思选（如 wave 挥手、nod 点头、think 思考、cheer 加油）。当前角色没有的手势会被忽略。",
 			Input:       schema(gestureSchemaT, "%E", enumJSON(charcontract.SemanticGestures)),
 			Dangerous:   !autoConfirm,
 			Available:   available,

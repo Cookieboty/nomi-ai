@@ -414,7 +414,12 @@ export interface GitWorktreeList {
   worktrees: GitWorktree[];
 }
 export interface ContextBreakdown {
+  /** 系统提示（没有 toolDefs / memory 时也含工具定义与记忆：CLI 会话记录分不出来） */
   system: number;
+  /** 工具定义（Nomi 对话由内核分开计） */
+  toolDefs?: number;
+  /** 长期记忆（Nomi 对话由内核分开计） */
+  memory?: number;
   user: number;
   assistant: number;
   tools: number;

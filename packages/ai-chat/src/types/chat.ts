@@ -30,6 +30,16 @@ export interface ChatMessage {
   origin?: 'background' | 'compaction';
   /** 回答时参考了哪些长期记忆 */
   memories?: Array<{ id: string; kind: 'episode' | 'fact'; title: string }>;
+  /**
+   * 带给模型的长期记忆（services/history.ts）：用户消息上是这一轮新召回的（放在用户原话前面发），
+   * 压缩消息上是压缩前已经带过的全部（压缩后照样带着，不丢）。ids 用来排除已在上下文里的条目
+   */
+  memory?: { text: string; ids: string[] };
+  /**
+   * Nomi 回复：这一轮工具循环实际发给模型的消息（内核 steps 块，ModelMessage[] 的 JSON），
+   * 下一轮原样发回（含工具调用与结果，前缀不变才能命中提示缓存）；没有工具调用时不存
+   */
+  steps?: string;
   /** 本轮的工具调用 / 思考轨迹（与编程助手同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
   trace?: HarnessTraceEvent[];
   /** 仅流式占位消息：模型的思考阶段是否正在执行。定稿消息不保存该状态。 */

@@ -317,6 +317,12 @@ type RecallItem struct {
 	Score float64 `json:"score"`
 }
 
+// recallMaxNeed：BM25 召回至少要重合的词数上限（长问题按比例算会太严）
+const recallMaxNeed = 6
+
+// episodeSummaryMax：带给模型的每段过往对话摘要最多多少字（全文在记忆面板里）
+const episodeSummaryMax = 160
+
 type RecallOpts struct {
 	TopK   int
 	Qvec   []float32
@@ -344,13 +350,24 @@ func Recall(query string, episodes []Episode, facts []Fact, o RecallOpts) []Reca
 			strong[t] = true
 		}
 	}
+	// 只重合一两个泛词（「当前」「什么」「调用」）不算相关：至少覆盖问题里 1/4 的词（长问题最多要求 6 个）
+	need := (len(strong) + 3) / 4
+	if need > recallMaxNeed {
+		need = recallMaxNeed
+	}
+	if need < 1 {
+		need = 1
+	}
 	bmHits := []knowledge.Scored{}
 	for _, h := range bm.Search(query, 40, nil) {
+		hit := map[string]bool{}
 		for _, t := range knowledge.Tokenize(textOf[h.ID]) {
 			if strong[t] {
-				bmHits = append(bmHits, h)
-				break
+				hit[t] = true
 			}
+		}
+		if len(hit) >= need {
+			bmHits = append(bmHits, h)
 		}
 	}
 	if len(bmHits) > 20 {
@@ -429,7 +446,11 @@ func BuildMemoryContext(persona string, facts []Fact, episodes []Episode) string
 	if len(episodes) > 0 {
 		ls := make([]string, len(episodes))
 		for i, e := range episodes {
-			ls[i] = "- " + fmtDate(e.CreatedAt) + "「" + e.Title + "」：" + e.Summary
+			sum := e.Summary
+			if r := []rune(sum); len(r) > episodeSummaryMax {
+				sum = string(r[:episodeSummaryMax]) + "…"
+			}
+			ls[i] = "- " + fmtDate(e.CreatedAt) + "「" + e.Title + "」：" + sum
 		}
 		parts = append(parts, "【可能相关的过往对话】\n"+strings.Join(ls, "\n"))
 	}

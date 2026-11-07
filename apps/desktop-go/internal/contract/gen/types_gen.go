@@ -137,6 +137,8 @@ type AiChatAgentStreamInputMessagesItem struct {
 	Name       *string                                        `json:"name,omitempty"`
 	ToolCallId *string                                        `json:"toolCallId,omitempty"`
 	Images     []AiChatAgentStreamInputMessagesItemImagesItem `json:"images,omitempty"`
+	Context    *string                                        `json:"context,omitempty"`
+	Steps      *string                                        `json:"steps,omitempty"`
 }
 
 // AiChatAgentStreamInputRole 枚举：chat | agent-tools | summary
@@ -183,6 +185,8 @@ type AiChatRegenerateInputMessagesItem struct {
 	Name       *string                                       `json:"name,omitempty"`
 	ToolCallId *string                                       `json:"toolCallId,omitempty"`
 	Images     []AiChatRegenerateInputMessagesItemImagesItem `json:"images,omitempty"`
+	Context    *string                                       `json:"context,omitempty"`
+	Steps      *string                                       `json:"steps,omitempty"`
 }
 
 // AiChatRegenerateInputRole 枚举：chat | agent-tools | summary
@@ -229,6 +233,8 @@ type AiChatSendMessageInputMessagesItem struct {
 	Name       *string                                        `json:"name,omitempty"`
 	ToolCallId *string                                        `json:"toolCallId,omitempty"`
 	Images     []AiChatSendMessageInputMessagesItemImagesItem `json:"images,omitempty"`
+	Context    *string                                        `json:"context,omitempty"`
+	Steps      *string                                        `json:"steps,omitempty"`
 }
 
 // AiChatSendMessageInputRole 枚举：chat | agent-tools | summary
@@ -271,14 +277,25 @@ const (
 	AiChatSendMessageOutputFinishReasonError         AiChatSendMessageOutputFinishReason = "error"
 )
 
+type AiChatSendMessageOutputUsageBreakdown struct {
+	System    float64 `json:"system"`
+	ToolDefs  float64 `json:"toolDefs"`
+	Memory    float64 `json:"memory"`
+	User      float64 `json:"user"`
+	Assistant float64 `json:"assistant"`
+	Tools     float64 `json:"tools"`
+	Thinking  float64 `json:"thinking"`
+}
+
 type AiChatSendMessageOutputUsage struct {
-	PromptTokens     float64  `json:"promptTokens"`
-	CompletionTokens float64  `json:"completionTokens"`
-	TotalTokens      float64  `json:"totalTokens"`
-	CacheReadTokens  *float64 `json:"cacheReadTokens,omitempty"`
-	CacheWriteTokens *float64 `json:"cacheWriteTokens,omitempty"`
-	ContextTokens    *float64 `json:"contextTokens,omitempty"`
-	Redacted         *float64 `json:"redacted,omitempty"`
+	PromptTokens     float64                                `json:"promptTokens"`
+	CompletionTokens float64                                `json:"completionTokens"`
+	TotalTokens      float64                                `json:"totalTokens"`
+	CacheReadTokens  *float64                               `json:"cacheReadTokens,omitempty"`
+	CacheWriteTokens *float64                               `json:"cacheWriteTokens,omitempty"`
+	ContextTokens    *float64                               `json:"contextTokens,omitempty"`
+	Redacted         *float64                               `json:"redacted,omitempty"`
+	Breakdown        *AiChatSendMessageOutputUsageBreakdown `json:"breakdown,omitempty"`
 }
 
 type AiChatSendMessageOutput struct {
@@ -317,6 +334,8 @@ type AiChatStreamInputMessagesItem struct {
 	Name       *string                                   `json:"name,omitempty"`
 	ToolCallId *string                                   `json:"toolCallId,omitempty"`
 	Images     []AiChatStreamInputMessagesItemImagesItem `json:"images,omitempty"`
+	Context    *string                                   `json:"context,omitempty"`
+	Steps      *string                                   `json:"steps,omitempty"`
 }
 
 // AiChatStreamInputRole 枚举：chat | agent-tools | summary
@@ -5091,7 +5110,8 @@ type MascotSetShapeInput struct {
 }
 
 type MemContextInput struct {
-	Q string `json:"q"`
+	Q       string   `json:"q"`
+	Exclude []string `json:"exclude,omitempty"`
 }
 
 type MemContextOutputUsedItem struct {
@@ -5103,6 +5123,7 @@ type MemContextOutputUsedItem struct {
 type MemContextOutput struct {
 	Text string                     `json:"text"`
 	Used []MemContextOutputUsedItem `json:"used"`
+	Ids  []string                   `json:"ids,omitempty"`
 }
 
 // MemExportInputFormat 枚举：json | md

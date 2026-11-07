@@ -150,6 +150,8 @@
   "ui.session-workspace.switch-to-unified-view": "切换为单列",
   "ui.session-workspace.switch-worktree": "切换 worktree",
   "ui.session-workspace.system-prompt-tool-defs-memory": "系统提示 / 工具定义 / 记忆",
+  "ui.session-workspace.system-prompt": "系统提示",
+  "ui.session-workspace.tool-definitions": "工具定义",
   "ui.session-workspace.the-cli-has-no-image-input-so-images": "{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。",
   "ui.session-workspace.the-current-model-doesn-t-support-images-remove": "当前模型不支持图片，请去掉图片后再发。",
   "ui.session-workspace.the-file-was-changed-afterwards-so-it-cannot": "文件之后又被修改过，无法安全撤销（请用版本控制或手动处理）",

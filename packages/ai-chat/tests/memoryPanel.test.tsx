@@ -131,9 +131,9 @@ describe('memory panel', () => {
   });
 
   it('context / ingest helpers degrade silently', async () => {
-    expect(await memoryContext('x')).toEqual({ text: '', used: [] });
+    expect(await memoryContext('x')).toEqual({ text: '', used: [], ids: [] });
     const invoke = mockIpc({ 'mem.context': new Error('boom') });
-    expect(await memoryContext('x')).toEqual({ text: '', used: [] });
+    expect(await memoryContext('x')).toEqual({ text: '', used: [], ids: [] });
     ingestConversation('c1', [{ role: 'user', content: 'a' }]);
     await new Promise((r) => setTimeout(r, 0));
     expect(invoke).not.toHaveBeenCalledWith('mem.ingest', expect.anything());

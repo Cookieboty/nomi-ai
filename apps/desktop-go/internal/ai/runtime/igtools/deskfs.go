@@ -461,17 +461,25 @@ func deskDef(name, description string, exec func(ctx context.Context, in any, ec
 
 var pathS = func() z { return str(1, 4096) }
 
+// 文件工具的默认读取量：每次结果都留在这一轮（和之后各轮）的上下文里，默认读一小段，
+// 不够时模型按 truncated / totalChars 用 offset 接着读，或调大 maxChars / limit
+const (
+	fsReadDefault   = 4000
+	fsSearchDefault = 20
+	fsListDefault   = 50
+)
+
 var (
 	listIn = aifacade.ObjOf('S', "path", pathS(),
 		"offset", aifacade.Default(num(f(0), nil, true), func() any { return float64(0) }),
-		"limit", aifacade.Default(num(f(1), f(500), true), func() any { return float64(100) }))
+		"limit", aifacade.Default(num(f(1), f(500), true), func() any { return float64(fsListDefault) }))
 	statIn   = aifacade.ObjOf('S', "path", pathS())
 	searchIn = aifacade.ObjOf('S', "root", aifacade.Opt(pathS()), "name", aifacade.Opt(str(0, 200)),
 		"contains", aifacade.Opt(str(1, 200)),
-		"limit", aifacade.Default(num(f(1), f(200), true), func() any { return float64(50) }))
+		"limit", aifacade.Default(num(f(1), f(200), true), func() any { return float64(fsSearchDefault) }))
 	readIn = aifacade.ObjOf('S', "path", pathS(),
 		"offset", aifacade.Default(num(f(0), nil, true), func() any { return float64(0) }),
-		"maxChars", aifacade.Default(num(f(256), f(60000), true), func() any { return float64(12000) }),
+		"maxChars", aifacade.Default(num(f(256), f(60000), true), func() any { return float64(fsReadDefault) }),
 		"pages", aifacade.Opt(func() z {
 			s := aifacade.Str()
 			s.Re = regexp.MustCompile(`^[0-9,\- ]+$`)

@@ -15,7 +15,14 @@ import React, {
 
 import { importChatImages } from '../services/chatImages';
 import { getSmartTitle } from '../services/chatPrefs';
-import { canCompact, compactionRequest, isCompaction, shouldCompact } from '../services/compaction';
+import {
+  canCompact,
+  carriedMemory,
+  compactionRequest,
+  injectedMemoryIds,
+  isCompaction,
+  shouldCompact,
+} from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
   bindNextDelegateConversation,
@@ -365,7 +372,14 @@ export async function compactHistory(
     const budget = (sumCtx ?? chatCtx)?.budget ?? FALLBACK_SUMMARY_BUDGET;
     const summary = await client.summarize(compactionRequest(history, budget));
     if (!summary) throw new Error(t('ui.chat-settings.the-model-returned-an-empty-summary'));
-    const done: ChatMessage = { ...pending, content: summary, timestamp: Date.now() };
+    // 压缩前带过的长期记忆跟着摘要走（之后每轮照样带，召回也排除它们），不随压缩丢失
+    const memory = carriedMemory(history);
+    const done: ChatMessage = {
+      ...pending,
+      content: summary,
+      timestamp: Date.now(),
+      ...(memory ? { memory } : {}),
+    };
     if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [done] });
     await turn.save(done);
     return { next: [...history, done] };
@@ -640,8 +654,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           }
         }
 
-        const mem = await memoryContext(content);
-        const response = await s.ipcClient.sendMessage(content, history, mem.text);
+        const mem = await memoryContext(content, injectedMemoryIds(history));
+        if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
+        const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
 
         const aiMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
@@ -820,7 +835,13 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           }
         }
 
-        const [mem, skills] = await Promise.all([memoryContext(content), extClient.context()]);
+        // 新召回的记忆跟着本轮用户消息走（存进消息、之后每轮原样带），已在上下文里的不再召回；
+        // 技能目录每轮不变，留在 system
+        const [mem, skills] = await Promise.all([
+          memoryContext(content, injectedMemoryIds(history)),
+          extClient.context(),
+        ]);
+        if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
         if (!turn.exists()) return;
         const aiMessageId = (Date.now() + 1).toString();
@@ -855,6 +876,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const startedAt = Date.now();
         const trace: HarnessTraceEvent[] = [];
         let usage: HarnessUsage | undefined;
+        let steps: string | undefined;
         // 流式 UI 更新按帧合批：一帧内到达的文本 / 工具事件只 dispatch 一次（逐 chunk dispatch 会让整条消息列表重渲染）
         let raf = 0;
         let timer = 0;
@@ -912,10 +934,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               scheduleUi();
             },
             history,
-            [mem.text, skills].filter(Boolean).join('\n\n'),
+            skills,
             images?.map((i) => ({ mime: i.mime, data: i.data })),
             {
               reqId,
+              memory: mem.text,
+              onSteps: (s) => {
+                steps = s;
+              },
               signal: controller.signal,
               conversation: { id: turn.convoId, cwd: turn.cwd },
               onThinking: (active) => {
@@ -967,6 +993,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           durationMs: Date.now() - startedAt,
           ...(trace.length ? { trace: [...trace] } : {}),
           ...(usage ? { usage } : {}),
+          ...(steps && !stopped ? { steps } : {}),
           ...(stopped ? { stopped: true } : {}),
         };
         if (turn.isActive()) {

@@ -644,6 +644,12 @@
            "data"
           ]
          }
+        },
+        "context": {
+         "type": "string"
+        },
+        "steps": {
+         "type": "string"
         }
        },
        "required": [
@@ -832,6 +838,42 @@
          },
          "redacted": {
           "type": "number"
+         },
+         "breakdown": {
+          "type": "object",
+          "properties": {
+           "system": {
+            "type": "number"
+           },
+           "toolDefs": {
+            "type": "number"
+           },
+           "memory": {
+            "type": "number"
+           },
+           "user": {
+            "type": "number"
+           },
+           "assistant": {
+            "type": "number"
+           },
+           "tools": {
+            "type": "number"
+           },
+           "thinking": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "system",
+           "toolDefs",
+           "memory",
+           "user",
+           "assistant",
+           "tools",
+           "thinking"
+          ],
+          "additionalProperties": false
          }
         },
         "required": [
@@ -848,6 +890,23 @@
       "required": [
        "type",
        "usage"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string",
+        "const": "steps"
+       },
+       "steps": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "type",
+       "steps"
       ],
       "additionalProperties": {}
      },
@@ -952,6 +1011,12 @@
            "data"
           ]
          }
+        },
+        "context": {
+         "type": "string"
+        },
+        "steps": {
+         "type": "string"
         }
        },
        "required": [
@@ -1140,6 +1205,42 @@
          },
          "redacted": {
           "type": "number"
+         },
+         "breakdown": {
+          "type": "object",
+          "properties": {
+           "system": {
+            "type": "number"
+           },
+           "toolDefs": {
+            "type": "number"
+           },
+           "memory": {
+            "type": "number"
+           },
+           "user": {
+            "type": "number"
+           },
+           "assistant": {
+            "type": "number"
+           },
+           "tools": {
+            "type": "number"
+           },
+           "thinking": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "system",
+           "toolDefs",
+           "memory",
+           "user",
+           "assistant",
+           "tools",
+           "thinking"
+          ],
+          "additionalProperties": false
          }
         },
         "required": [
@@ -1156,6 +1257,23 @@
       "required": [
        "type",
        "usage"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string",
+        "const": "steps"
+       },
+       "steps": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "type",
+       "steps"
       ],
       "additionalProperties": {}
      },
@@ -1260,6 +1378,12 @@
            "data"
           ]
          }
+        },
+        "context": {
+         "type": "string"
+        },
+        "steps": {
+         "type": "string"
         }
        },
        "required": [
@@ -1393,6 +1517,42 @@
        },
        "redacted": {
         "type": "number"
+       },
+       "breakdown": {
+        "type": "object",
+        "properties": {
+         "system": {
+          "type": "number"
+         },
+         "toolDefs": {
+          "type": "number"
+         },
+         "memory": {
+          "type": "number"
+         },
+         "user": {
+          "type": "number"
+         },
+         "assistant": {
+          "type": "number"
+         },
+         "tools": {
+          "type": "number"
+         },
+         "thinking": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "system",
+         "toolDefs",
+         "memory",
+         "user",
+         "assistant",
+         "tools",
+         "thinking"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -1496,6 +1656,12 @@
            "data"
           ]
          }
+        },
+        "context": {
+         "type": "string"
+        },
+        "steps": {
+         "type": "string"
         }
        },
        "required": [
@@ -1684,6 +1850,42 @@
          },
          "redacted": {
           "type": "number"
+         },
+         "breakdown": {
+          "type": "object",
+          "properties": {
+           "system": {
+            "type": "number"
+           },
+           "toolDefs": {
+            "type": "number"
+           },
+           "memory": {
+            "type": "number"
+           },
+           "user": {
+            "type": "number"
+           },
+           "assistant": {
+            "type": "number"
+           },
+           "tools": {
+            "type": "number"
+           },
+           "thinking": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "system",
+           "toolDefs",
+           "memory",
+           "user",
+           "assistant",
+           "tools",
+           "thinking"
+          ],
+          "additionalProperties": false
          }
         },
         "required": [
@@ -1700,6 +1902,23 @@
       "required": [
        "type",
        "usage"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string",
+        "const": "steps"
+       },
+       "steps": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "type",
+       "steps"
       ],
       "additionalProperties": {}
      },
@@ -20126,6 +20345,12 @@
     "properties": {
      "q": {
       "type": "string"
+     },
+     "exclude": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
      }
     },
     "required": [
@@ -20160,6 +20385,12 @@
         "title"
        ],
        "additionalProperties": {}
+      }
+     },
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
       }
      }
     },

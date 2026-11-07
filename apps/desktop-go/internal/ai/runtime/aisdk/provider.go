@@ -75,8 +75,17 @@ func SplitPrompt(messages []llm.ChatMessage) (*string, []*u.Obj) {
 			rest = append(rest, u.NewObj("role", "tool", "content", []any{u.NewObj("type", "tool-result", "toolCallId", id, "toolName", name, "output", u.NewObj("type", "text", "value", m.Content))}))
 			continue
 		case "assistant":
+			// 上一轮工具循环的原样记录（含工具调用与结果）：照发，前缀与上一轮最后一次请求一致
+			if steps := parseSteps(m.Steps); steps != nil {
+				rest = append(rest, steps...)
+				continue
+			}
 			rest = append(rest, u.NewObj("role", "assistant", "content", m.Content))
 			continue
+		}
+		text := m.Content
+		if c := strings.TrimSpace(m.Context); c != "" {
+			text = c + "\n\n" + m.Content
 		}
 		var images []llm.ChatImage
 		for _, i := range m.Images {
@@ -99,17 +108,74 @@ func SplitPrompt(messages []llm.ChatMessage) (*string, []*u.Obj) {
 				budget -= n
 				parts = append(parts, u.NewObj("type", "image", "image", d, "mediaType", i.Mime))
 			}
-			parts = append(parts, u.NewObj("type", "text", "text", m.Content))
+			parts = append(parts, u.NewObj("type", "text", "text", text))
 			rest = append(rest, u.NewObj("role", "user", "content", parts))
 			continue
 		}
-		rest = append(rest, u.NewObj("role", "user", "content", m.Content))
+		rest = append(rest, u.NewObj("role", "user", "content", text))
 	}
 	if len(systems) == 0 {
 		return nil, rest
 	}
 	s := strings.Join(systems, "\n\n")
 	return &s, rest
+}
+
+// parseSteps：ChatMessage.Steps → ModelMessage[]（按键序解析，工具参数原样）；空、坏的或含非法消息时 nil（退回按正文发）
+func parseSteps(raw string) []*u.Obj {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	v, err := u.ParseString(raw)
+	if err != nil {
+		return nil
+	}
+	arr, ok := v.([]any)
+	if !ok || len(arr) == 0 {
+		return nil
+	}
+	out := make([]*u.Obj, 0, len(arr))
+	for _, x := range arr {
+		m, ok := x.(*u.Obj)
+		if !ok {
+			return nil
+		}
+		switch m.Get("role") {
+		case "user", "assistant":
+			switch m.Get("content").(type) {
+			case string, []any:
+			default:
+				return nil
+			}
+		case "tool":
+			if _, ok := m.Get("content").([]any); !ok {
+				return nil
+			}
+		default:
+			return nil
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// StepsJSON：这一轮工具循环发给模型的消息 → ChatMessage.Steps；没有工具调用（只有一条回复）时 ""
+func StepsJSON(msgs []*u.Obj) string {
+	tool := false
+	for _, m := range msgs {
+		if m != nil && m.Get("role") != "assistant" {
+			tool = true
+			break
+		}
+	}
+	if !tool {
+		return ""
+	}
+	arr := make([]any, len(msgs))
+	for i, m := range msgs {
+		arr[i] = m
+	}
+	return u.Stringify(arr)
 }
 
 // usageOf：LanguageModelUsage → ChatUsage（u 恒存在：streamText/generateText 总会给出 usage 对象）
@@ -197,6 +263,37 @@ func (p *Provider) thinkingOptions() *u.Obj {
 		return u.NewObj("openai", u.NewObj("reasoningEffort", "medium"))
 	}
 	return u.NewObj(p.ID, u.NewObj("reasoningEffort", "medium"))
+}
+
+// cacheOptions：同一会话的请求带同一个 prompt_cache_key（OpenAI 系按它把请求落到同一份前缀缓存；
+// 网关也按它认会话）。没有会话 id（后台任务等）不带；上游不认这个参数时网关会学到并去掉
+func (p *Provider) cacheOptions(po *u.Obj, r *llm.ChatRequest) *u.Obj {
+	conv, _ := r.Extra["conversationId"].(string)
+	if conv = strings.TrimSpace(conv); conv == "" {
+		return po
+	}
+	key := "nomi-" + conv
+	ns, field := p.ID, "prompt_cache_key"
+	switch p.protocol() {
+	case "anthropic":
+		return po
+	case "openai-responses":
+		ns, field = "openai", "promptCacheKey"
+	}
+	if po == nil {
+		po = u.NewObj()
+	} else {
+		po = po.Clone()
+	}
+	inner, _ := po.Get(ns).(*u.Obj)
+	if inner == nil {
+		inner = u.NewObj()
+	} else {
+		inner = inner.Clone()
+	}
+	inner.Set(field, key)
+	po.Set(ns, inner)
+	return po
 }
 
 func (p *Provider) protocol() string {
@@ -564,7 +661,8 @@ func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextPar
 	tp := &TextParams{
 		Model: p.modelFactory(p.resolveModel(r)), Instructions: instr, Messages: msgs,
 		Temperature: r.Temperature, TopP: r.TopP, MaxOutputTokens: r.MaxTokens,
-		ProviderOptions: p.thinkingOptions(), MaxRetries: p.opts.MaxRetries,
+		ProviderOptions: p.cacheOptions(p.thinkingOptions(), r), MaxRetries: p.opts.MaxRetries,
+		CacheBreakpoints: p.protocol() == "anthropic",
 	}
 	if hasTools {
 		tp.Tools, tp.HasTools = ts, true
@@ -638,6 +736,8 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	redacted := 0
 	// 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
 	var lastStep *llm.ChatUsage
+	// firstPrompt：这一轮第一次请求的真实输入（校准上下文分项的固定部分，见 breakdown.go）
+	firstPrompt := 0.0
 	// 跨续跑轮次累加的用量
 	var total *llm.ChatUsage
 	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数
@@ -670,6 +770,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 					redacted = n
 				}
 				lastStep = usageOf(part.Usage)
+				if firstPrompt == 0 && lastStep != nil {
+					firstPrompt = lastStep.PromptTokens
+				}
 			case "text-delta":
 				emit(llm.ChatChunk{Type: "delta", Content: part.Text})
 			case "reasoning-start":
@@ -746,11 +849,21 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			if stopReason != "" && c.Err() == nil {
 				emit(llm.ChatChunk{Type: "delta", Content: autoStoppedNotice(stopReason, autoRounds)})
 			}
+			// 这一轮实际发出的消息（含中途插入、换轮缩短过的工具结果）+ 最后的回复
+			all := WithSteerInserts(append(append([]*u.Obj{}, messages...), resMsgs...), inserts)
+			from := len(tp.Messages)
+			if from > len(all) {
+				from = len(all)
+			}
 			uu := total
 			if total != nil && lastStep != nil {
 				cp := *total
 				ct := lastStep.PromptTokens + lastStep.CompletionTokens
 				cp.ContextTokens = &ct
+				growth := breakdown{}
+				growth.addMessages(all[from:])
+				cp.Breakdown = contextBreakdown(inputBreakdown(tp.Instructions, tp.Tools, tp.Messages, memoryTokens(r.Messages)),
+					growth, firstPrompt, ct)
 				uu = &cp
 			}
 			if uu != nil {
@@ -759,6 +872,12 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 					model = *served
 				}
 				emit(llm.ChatChunk{Type: "usage", Usage: withRedacted(uu, redacted), Model: &model})
+			}
+			// 下一轮原样带上
+			if hasTools && c.Err() == nil {
+				if s := StepsJSON(all[from:]); s != "" {
+					emit(llm.ChatChunk{Type: "steps", Steps: s})
+				}
 			}
 			emit(llm.ChatChunk{Type: "done", FinishReason: *finish})
 			break

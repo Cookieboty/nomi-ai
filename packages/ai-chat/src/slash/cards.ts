@@ -127,6 +127,9 @@ export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput 
     tools: t('ui.slash-commands.tool-calls-and-results'),
     thinking: t('ui.voice-mascot.think'),
     system: t('ui.slash-commands.system-prompt-tool-definitions-memory-inferred'),
+    systemPrompt: t('ui.session-workspace.system-prompt'),
+    toolDefs: t('ui.session-workspace.tool-definitions'),
+    memory: t('ui.knowledge-local.long-term-memory'),
   });
   const win = fitContextWindow(baseWin, est.used);
   const notes: string[] = [];

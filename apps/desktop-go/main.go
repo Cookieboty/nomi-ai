@@ -422,7 +422,8 @@ func main() {
 			prep := desktopSvc.ChatPrep()
 			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）
 			prep.AfterWorkspace = func(options map[string]any, method string) error {
-				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil {
+				// 只在对话说到要派出去的事时带（和派出去的工具同一个门槛，见 igtools.DispatchRelevant）
+				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil && igtools.DispatchRelevantFor(options["messages"]) {
 					_, err := delegate.ApplyDispatchHint(options)
 					return err
 				}

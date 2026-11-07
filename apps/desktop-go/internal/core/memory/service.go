@@ -512,18 +512,39 @@ type Used struct {
 type Context struct {
 	Text string `json:"text"`
 	Used []Used `json:"used"`
+	// IDs：Text 里包含的条目（事实 / 对话记忆的 id，用户档案为 ProfileID）；同一会话之后的召回可以排除它们
+	IDs []string `json:"ids"`
+}
+
+// ProfileID：用户档案在 Context.IDs 里的标记（随内容变：改了档案会重新带上）
+func ProfileID(persona string) string {
+	sum := sha1.Sum([]byte(persona))
+	return "profile:" + hex.EncodeToString(sum[:6])
 }
 
 func (s *Service) Context(ctx context.Context, query string) Context {
+	return s.ContextExcluding(ctx, query, nil)
+}
+
+// ContextExcluding：同 Context，但跳过 exclude 里的条目（这个会话里已经带过、还在模型上下文里的）。
+// 都排除掉时 Text 为空。
+func (s *Service) ContextExcluding(ctx context.Context, query string, exclude []string) Context {
 	s.mu.Lock()
 	st := s.settings
 	allEps := append([]Episode{}, s.data.Episodes...)
 	allFacts := append([]Fact{}, s.data.Facts...)
 	s.mu.Unlock()
 	if !st.Enabled {
-		return Context{Text: "", Used: []Used{}}
+		return Context{Text: "", Used: []Used{}, IDs: []string{}}
+	}
+	skip := map[string]bool{}
+	for _, id := range exclude {
+		skip[id] = true
 	}
 	persona := s.Persona()
+	if deps.Trim(persona) != "" && skip[ProfileID(persona)] {
+		persona = ""
+	}
 	facts := []Fact{}
 	eps := []Episode{}
 	if st.Recall && deps.Trim(query) != "" && (len(allEps) > 0 || len(allFacts) > 0) {
@@ -588,14 +609,36 @@ func (s *Service) Context(ctx context.Context, query string) Context {
 		}
 	}
 	facts = uniq
+	if len(skip) > 0 {
+		keptF := facts[:0:0]
+		for _, f := range facts {
+			if !skip[f.ID] {
+				keptF = append(keptF, f)
+			}
+		}
+		facts = keptF
+		keptE := eps[:0:0]
+		for _, e := range eps {
+			if !skip[e.ID] {
+				keptE = append(keptE, e)
+			}
+		}
+		eps = keptE
+	}
 	used := []Used{}
+	ids := []string{}
+	if deps.Trim(persona) != "" {
+		ids = append(ids, ProfileID(persona))
+	}
 	for _, e := range eps {
 		used = append(used, Used{e.ID, "episode", e.Title})
+		ids = append(ids, e.ID)
 	}
 	for _, f := range facts {
 		used = append(used, Used{f.ID, "fact", f.Text})
+		ids = append(ids, f.ID)
 	}
-	return Context{BuildMemoryContext(persona, facts, eps), used}
+	return Context{BuildMemoryContext(persona, facts, eps), used, ids}
 }
 
 // ---------- 浏览 / 编辑 ----------

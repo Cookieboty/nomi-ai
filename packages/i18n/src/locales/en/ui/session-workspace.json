@@ -150,6 +150,8 @@
   "ui.session-workspace.switch-to-unified-view": "Switch to unified view",
   "ui.session-workspace.switch-worktree": "Switch worktree",
   "ui.session-workspace.system-prompt-tool-defs-memory": "System prompt / tool defs / memory",
+  "ui.session-workspace.system-prompt": "System prompt",
+  "ui.session-workspace.tool-definitions": "Tool definitions",
   "ui.session-workspace.the-cli-has-no-image-input-so-images": "The {0} CLI has no image input, so images can’t be sent in this session; remove the images and send again.",
   "ui.session-workspace.the-current-model-doesn-t-support-images-remove": "The current model doesn’t support images; remove the images and send again.",
   "ui.session-workspace.the-file-was-changed-afterwards-so-it-cannot": "The file was changed afterwards, so it cannot be undone safely (use version control or fix it by hand)",

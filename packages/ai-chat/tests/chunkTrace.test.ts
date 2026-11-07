@@ -120,3 +120,19 @@ it('preserves an empty reasoning start timestamp but never treats end as new thi
   });
   expect(chunkToTrace({ type: 'reasoning', content: '', phase: 'end' }, 43)).toBeNull();
 });
+
+describe('chunkToUsage · breakdown', () => {
+  it('带上内核的上下文分项', () => {
+    const bd = { system: 1, toolDefs: 2, memory: 3, user: 4, assistant: 5, tools: 6, thinking: 0 };
+    expect(
+      chunkToUsage({
+        type: 'usage',
+        usage: { promptTokens: 10, contextTokens: 21, breakdown: bd },
+      }),
+    ).toMatchObject({ contextTokens: 21, breakdown: bd });
+    expect(
+      chunkToUsage({ type: 'usage', usage: { promptTokens: 10, breakdown: { system: 'x' } } })
+        ?.breakdown,
+    ).toBeUndefined();
+  });
+});

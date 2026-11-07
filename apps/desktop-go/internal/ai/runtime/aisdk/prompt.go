@@ -77,6 +77,23 @@ func convertPrompt(instructions *string, messages []*u.Obj) ([]any, error) {
 	return out, nil
 }
 
+// markCacheBreakpoints：系统提示末尾 + 最后一条消息各一个 Anthropic 缓存断点（最多 4 个，这里用 2 个）。
+// 断点只影响缓存，不改内容；最后一条每一步都后移，下一步按上一步的断点续上前缀。
+func markCacheBreakpoints(prompt []any) {
+	mark := func(m *u.Obj) {
+		m.Set("providerOptions", u.NewObj("anthropic", u.NewObj("cacheControl", u.NewObj("type", "ephemeral"))))
+	}
+	if len(prompt) == 0 {
+		return
+	}
+	if m, ok := prompt[0].(*u.Obj); ok && m.Get("role") == "system" {
+		mark(m)
+	}
+	if m, ok := prompt[len(prompt)-1].(*u.Obj); ok && m.Get("role") != "system" {
+		mark(m)
+	}
+}
+
 func appendUnique(s []string, v string) []string {
 	for _, x := range s {
 		if x == v {

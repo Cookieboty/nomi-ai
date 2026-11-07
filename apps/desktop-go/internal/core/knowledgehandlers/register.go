@@ -328,12 +328,13 @@ func Handlers(sv Services) map[string]H {
 		}),
 		"mem.context": on(mem, func(ctx context.Context, s *M, raw json.RawMessage) (any, error) {
 			var in struct {
-				Q string `json:"q"`
+				Q       string   `json:"q"`
+				Exclude []string `json:"exclude"`
 			}
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.Context(ctx, sliceUTF16(in.Q, 4000)), nil
+			return s.ContextExcluding(ctx, sliceUTF16(in.Q, 4000), in.Exclude), nil
 		}),
 		"mem.updateEpisode": on(mem, func(ctx context.Context, s *M, raw json.RawMessage) (any, error) {
 			var in struct {
