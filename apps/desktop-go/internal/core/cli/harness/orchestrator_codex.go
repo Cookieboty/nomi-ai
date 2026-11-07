@@ -128,6 +128,7 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 			throw(i18n.T("electron.common.codex-not-found-set-nomi-use-mock-cli"))
 		}
 		useNode := IsScript(bin)
+		o.checkCwd(str(tab, "cwd"))
 		argv := append([]string{"app-server"}, launch.args...)
 		cmd, args := bin, argv
 		if useNode {

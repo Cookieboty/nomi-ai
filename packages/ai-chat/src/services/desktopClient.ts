@@ -25,6 +25,10 @@ export interface DesktopState {
   cloudAcked: string[];
   /** 命令白名单：workspace_run 跑这些前缀的命令不再确认 */
   commandRules?: string[];
+  /** 用户加的受保护文件夹（Nomi 的文件工具与编程助手都不能用） */
+  protectedPaths?: string[];
+  /** 放行给编程助手的环境变量名 */
+  cliEnvAllow?: string[];
   tools: Array<{ name: string; danger: Danger; policy: Policy; locked?: boolean }>;
 }
 
@@ -126,6 +130,14 @@ export const desktopClient = {
   resetCloudAcks: () => call<boolean>(() => api.desktop.resetCloudAcks()),
   removeCommandRule: (rule: string) =>
     call<DesktopState>(() => api.desktop.removeCommandRule({ rule })),
+  /** 系统选择框选一个文件夹加进受保护清单；取消返回 null */
+  protectFolder: () =>
+    call<{ path?: string; error?: string; state: DesktopState } | null>(() =>
+      api.desktop.protectFolder(),
+    ),
+  unprotectPath: (path: string) => call<DesktopState>(() => api.desktop.unprotectPath({ path })),
+  setCliEnvAllow: (names: string[]) =>
+    call<DesktopState>(() => api.desktop.setCliEnvAllow({ names })),
   /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
   audit: (limit = 200, offset = 0) =>
     call<AuditEntryView[]>(() => api.desktop.audit({ limit, offset })),
@@ -172,6 +184,8 @@ export const TOOL_LABELS: Record<string, string> = {
   undo_last: 'ui.chat-settings.undo-last-step',
   grant_scope: 'ui.foundation.granted-folders',
   revoke_scope: 'ui.foundation.revoke',
+  protect_path: 'ui.foundation.add-protected-folder',
+  unprotect_path: 'ui.foundation.unprotect',
   drop_summarize: 'ui.chat-settings.drop-onto-nomi-to-summarize',
   reminder_create: 'ui.chat-settings.set-reminder',
   reminder_list: 'ui.chat-settings.view-reminders',

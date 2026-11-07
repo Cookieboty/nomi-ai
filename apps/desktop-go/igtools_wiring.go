@@ -102,7 +102,8 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	}
 	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true, mascotShown)...)
 	if d != nil {
-		defs = append(defs, igtools.DesktopTools(igtools.DeskDepsFor(d, desktopShellEnv))...)
+		broker := d.Broker
+		defs = append(defs, igtools.DesktopTools(igtools.DeskDepsFor(d, func() []string { return desktopShellEnv(broker) }))...)
 	}
 	defs = append(defs, igtools.KBTools(kbHost{kb: kb, d: d})...)
 	defs = append(defs, igtools.MemTools(memHost{m: mem})...)
@@ -188,9 +189,13 @@ func markExternalReads(defs []tools.Definition, mark func(context.Context)) []to
 	return defs
 }
 
-// desktopShellEnv = cliChildEnv(false)：工作区命令与编程助手标签同一套环境
-func desktopShellEnv() []string {
-	o := harness.CliChildEnv(false, nil)
+// desktopShellEnv = cliChildEnv(false)：工作区命令与编程助手标签同一套环境（凭据类变量同样不继承）
+func desktopShellEnv(b *desktop.PermissionBroker) []string {
+	var allow []string
+	if b != nil {
+		allow = b.CliEnvAllow()
+	}
+	o := harness.CliChildEnv(false, nil, allow)
 	var env []string
 	for _, k := range o.Keys() {
 		if v, ok := o.Get(k).(string); ok {

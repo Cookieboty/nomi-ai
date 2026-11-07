@@ -55,3 +55,13 @@
 .toolsTable td:last-child {
   width: 220px;
 }
+
+/* 一行输入框 + 按钮（放行环境变量） */
+.inlineForm {
+  display: flex;
+  gap: var(--cd-space-2);
+  align-items: center;
+}
+.inlineForm > :first-child {
+  flex: 1;
+}

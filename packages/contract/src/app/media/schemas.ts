@@ -303,6 +303,10 @@ export const DesktopState = z.looseObject({
   cloudAcked: z.array(z.string()),
   /** 命令白名单：workspace_run 跑这些前缀的命令直接执行（读过外部内容的那一轮除外） */
   commandRules: z.array(z.string()).optional(),
+  /** 用户加的受保护文件夹：Nomi 的文件工具与编程助手（工作目录）都不能用，叠加在内置黑名单之上 */
+  protectedPaths: z.array(z.string()).optional(),
+  /** 放行给编程助手的环境变量名：其余令牌 / 密码 / 云凭据类变量不继承（模型服务的凭据照常传） */
+  cliEnvAllow: z.array(z.string()).optional(),
   tools: z.array(
     z.looseObject({
       name: z.string(),
@@ -312,6 +316,13 @@ export const DesktopState = z.looseObject({
     }),
   ),
   pending: z.array(DesktopConfirmRequest).optional(),
+});
+
+/** desktop.protectFolder 的结果：path = 存下的路径（选的是链接时为链接目标）；error = 不能加的原因 */
+export const DesktopProtectResult = z.looseObject({
+  path: z.string().optional(),
+  error: z.string().optional(),
+  state: DesktopState,
 });
 
 export const DesktopAuditEntry = z.looseObject({

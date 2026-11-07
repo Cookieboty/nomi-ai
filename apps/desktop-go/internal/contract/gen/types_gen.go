@@ -1928,6 +1928,81 @@ type DesktopJournalOutputItem struct {
 	Undone  bool    `json:"undone"`
 }
 
+type DesktopProtectFolderOutputStateScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+type DesktopProtectFolderOutputStateToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopProtectFolderOutputStatePendingItemScopeMode 枚举：read | read-write
+type DesktopProtectFolderOutputStatePendingItemScopeMode = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemScopeModeRead      DesktopProtectFolderOutputStatePendingItemScopeMode = "read"
+	DesktopProtectFolderOutputStatePendingItemScopeModeReadWrite DesktopProtectFolderOutputStatePendingItemScopeMode = "read-write"
+)
+
+// DesktopProtectFolderOutputStatePendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopProtectFolderOutputStatePendingItemReviewRisk = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemReviewRiskLow      DesktopProtectFolderOutputStatePendingItemReviewRisk = "low"
+	DesktopProtectFolderOutputStatePendingItemReviewRiskMedium   DesktopProtectFolderOutputStatePendingItemReviewRisk = "medium"
+	DesktopProtectFolderOutputStatePendingItemReviewRiskHigh     DesktopProtectFolderOutputStatePendingItemReviewRisk = "high"
+	DesktopProtectFolderOutputStatePendingItemReviewRiskCritical DesktopProtectFolderOutputStatePendingItemReviewRisk = "critical"
+)
+
+type DesktopProtectFolderOutputStatePendingItemReview struct {
+	Risk      DesktopProtectFolderOutputStatePendingItemReviewRisk `json:"risk"`
+	Rationale *string                                              `json:"rationale,omitempty"`
+}
+
+type DesktopProtectFolderOutputStatePendingItem struct {
+	Id           string                                               `json:"id"`
+	Tool         string                                               `json:"tool"`
+	Danger       string                                               `json:"danger"`
+	Summary      string                                               `json:"summary"`
+	ArgsJson     string                                               `json:"argsJson"`
+	Preview      *string                                              `json:"preview,omitempty"`
+	Dialog       bool                                                 `json:"dialog"`
+	Rememberable bool                                                 `json:"rememberable"`
+	Reason       string                                               `json:"reason"`
+	ExpiresAt    float64                                              `json:"expiresAt"`
+	Kind         *string                                              `json:"kind,omitempty"`
+	ScopePath    *string                                              `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopProtectFolderOutputStatePendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopProtectFolderOutputStatePendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                              `json:"rememberRule,omitempty"`
+}
+
+type DesktopProtectFolderOutputState struct {
+	Scopes         []DesktopProtectFolderOutputStateScopesItem  `json:"scopes"`
+	Policies       map[string]string                            `json:"policies"`
+	LocalOnly      bool                                         `json:"localOnly"`
+	CloudAcked     []string                                     `json:"cloudAcked"`
+	CommandRules   []string                                     `json:"commandRules,omitempty"`
+	ProtectedPaths []string                                     `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                                     `json:"cliEnvAllow,omitempty"`
+	Tools          []DesktopProtectFolderOutputStateToolsItem   `json:"tools"`
+	Pending        []DesktopProtectFolderOutputStatePendingItem `json:"pending,omitempty"`
+}
+
+type DesktopProtectFolderOutput struct {
+	Path  *string                         `json:"path,omitempty"`
+	Error *string                         `json:"error,omitempty"`
+	State DesktopProtectFolderOutputState `json:"state"`
+}
+
 // DesktopReminderActionInputAction 枚举：dismiss | snooze
 type DesktopReminderActionInputAction = string
 
@@ -2089,17 +2164,92 @@ type DesktopRemoveCommandRuleOutputPendingItem struct {
 }
 
 type DesktopRemoveCommandRuleOutput struct {
-	Scopes       []DesktopRemoveCommandRuleOutputScopesItem  `json:"scopes"`
-	Policies     map[string]string                           `json:"policies"`
-	LocalOnly    bool                                        `json:"localOnly"`
-	CloudAcked   []string                                    `json:"cloudAcked"`
-	CommandRules []string                                    `json:"commandRules,omitempty"`
-	Tools        []DesktopRemoveCommandRuleOutputToolsItem   `json:"tools"`
-	Pending      []DesktopRemoveCommandRuleOutputPendingItem `json:"pending,omitempty"`
+	Scopes         []DesktopRemoveCommandRuleOutputScopesItem  `json:"scopes"`
+	Policies       map[string]string                           `json:"policies"`
+	LocalOnly      bool                                        `json:"localOnly"`
+	CloudAcked     []string                                    `json:"cloudAcked"`
+	CommandRules   []string                                    `json:"commandRules,omitempty"`
+	ProtectedPaths []string                                    `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                                    `json:"cliEnvAllow,omitempty"`
+	Tools          []DesktopRemoveCommandRuleOutputToolsItem   `json:"tools"`
+	Pending        []DesktopRemoveCommandRuleOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DesktopRevokeInput struct {
 	Id string `json:"id"`
+}
+
+type DesktopSetCliEnvAllowInput struct {
+	Names []string `json:"names"`
+}
+
+type DesktopSetCliEnvAllowOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+type DesktopSetCliEnvAllowOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopSetCliEnvAllowOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopSetCliEnvAllowOutputPendingItemScopeMode = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemScopeModeRead      DesktopSetCliEnvAllowOutputPendingItemScopeMode = "read"
+	DesktopSetCliEnvAllowOutputPendingItemScopeModeReadWrite DesktopSetCliEnvAllowOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopSetCliEnvAllowOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopSetCliEnvAllowOutputPendingItemReviewRisk = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemReviewRiskLow      DesktopSetCliEnvAllowOutputPendingItemReviewRisk = "low"
+	DesktopSetCliEnvAllowOutputPendingItemReviewRiskMedium   DesktopSetCliEnvAllowOutputPendingItemReviewRisk = "medium"
+	DesktopSetCliEnvAllowOutputPendingItemReviewRiskHigh     DesktopSetCliEnvAllowOutputPendingItemReviewRisk = "high"
+	DesktopSetCliEnvAllowOutputPendingItemReviewRiskCritical DesktopSetCliEnvAllowOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopSetCliEnvAllowOutputPendingItemReview struct {
+	Risk      DesktopSetCliEnvAllowOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                          `json:"rationale,omitempty"`
+}
+
+type DesktopSetCliEnvAllowOutputPendingItem struct {
+	Id           string                                           `json:"id"`
+	Tool         string                                           `json:"tool"`
+	Danger       string                                           `json:"danger"`
+	Summary      string                                           `json:"summary"`
+	ArgsJson     string                                           `json:"argsJson"`
+	Preview      *string                                          `json:"preview,omitempty"`
+	Dialog       bool                                             `json:"dialog"`
+	Rememberable bool                                             `json:"rememberable"`
+	Reason       string                                           `json:"reason"`
+	ExpiresAt    float64                                          `json:"expiresAt"`
+	Kind         *string                                          `json:"kind,omitempty"`
+	ScopePath    *string                                          `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopSetCliEnvAllowOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopSetCliEnvAllowOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                          `json:"rememberRule,omitempty"`
+}
+
+type DesktopSetCliEnvAllowOutput struct {
+	Scopes         []DesktopSetCliEnvAllowOutputScopesItem  `json:"scopes"`
+	Policies       map[string]string                        `json:"policies"`
+	LocalOnly      bool                                     `json:"localOnly"`
+	CloudAcked     []string                                 `json:"cloudAcked"`
+	CommandRules   []string                                 `json:"commandRules,omitempty"`
+	ProtectedPaths []string                                 `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                                 `json:"cliEnvAllow,omitempty"`
+	Tools          []DesktopSetCliEnvAllowOutputToolsItem   `json:"tools"`
+	Pending        []DesktopSetCliEnvAllowOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DesktopSetLocalOnlyInput struct {
@@ -2169,13 +2319,15 @@ type DesktopStateOutputPendingItem struct {
 }
 
 type DesktopStateOutput struct {
-	Scopes       []DesktopStateOutputScopesItem  `json:"scopes"`
-	Policies     map[string]string               `json:"policies"`
-	LocalOnly    bool                            `json:"localOnly"`
-	CloudAcked   []string                        `json:"cloudAcked"`
-	CommandRules []string                        `json:"commandRules,omitempty"`
-	Tools        []DesktopStateOutputToolsItem   `json:"tools"`
-	Pending      []DesktopStateOutputPendingItem `json:"pending,omitempty"`
+	Scopes         []DesktopStateOutputScopesItem  `json:"scopes"`
+	Policies       map[string]string               `json:"policies"`
+	LocalOnly      bool                            `json:"localOnly"`
+	CloudAcked     []string                        `json:"cloudAcked"`
+	CommandRules   []string                        `json:"commandRules,omitempty"`
+	ProtectedPaths []string                        `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                        `json:"cliEnvAllow,omitempty"`
+	Tools          []DesktopStateOutputToolsItem   `json:"tools"`
+	Pending        []DesktopStateOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DesktopTakeMissedRemindersOutputItem struct {
@@ -2196,6 +2348,79 @@ type DesktopUndoLastOutput struct {
 	Ok     bool    `json:"ok"`
 	Undone *string `json:"undone,omitempty"`
 	Error  *string `json:"error,omitempty"`
+}
+
+type DesktopUnprotectPathInput struct {
+	Path string `json:"path"`
+}
+
+type DesktopUnprotectPathOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+type DesktopUnprotectPathOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopUnprotectPathOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopUnprotectPathOutputPendingItemScopeMode = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemScopeModeRead      DesktopUnprotectPathOutputPendingItemScopeMode = "read"
+	DesktopUnprotectPathOutputPendingItemScopeModeReadWrite DesktopUnprotectPathOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopUnprotectPathOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopUnprotectPathOutputPendingItemReviewRisk = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemReviewRiskLow      DesktopUnprotectPathOutputPendingItemReviewRisk = "low"
+	DesktopUnprotectPathOutputPendingItemReviewRiskMedium   DesktopUnprotectPathOutputPendingItemReviewRisk = "medium"
+	DesktopUnprotectPathOutputPendingItemReviewRiskHigh     DesktopUnprotectPathOutputPendingItemReviewRisk = "high"
+	DesktopUnprotectPathOutputPendingItemReviewRiskCritical DesktopUnprotectPathOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopUnprotectPathOutputPendingItemReview struct {
+	Risk      DesktopUnprotectPathOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                         `json:"rationale,omitempty"`
+}
+
+type DesktopUnprotectPathOutputPendingItem struct {
+	Id           string                                          `json:"id"`
+	Tool         string                                          `json:"tool"`
+	Danger       string                                          `json:"danger"`
+	Summary      string                                          `json:"summary"`
+	ArgsJson     string                                          `json:"argsJson"`
+	Preview      *string                                         `json:"preview,omitempty"`
+	Dialog       bool                                            `json:"dialog"`
+	Rememberable bool                                            `json:"rememberable"`
+	Reason       string                                          `json:"reason"`
+	ExpiresAt    float64                                         `json:"expiresAt"`
+	Kind         *string                                         `json:"kind,omitempty"`
+	ScopePath    *string                                         `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopUnprotectPathOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopUnprotectPathOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                         `json:"rememberRule,omitempty"`
+}
+
+type DesktopUnprotectPathOutput struct {
+	Scopes         []DesktopUnprotectPathOutputScopesItem  `json:"scopes"`
+	Policies       map[string]string                       `json:"policies"`
+	LocalOnly      bool                                    `json:"localOnly"`
+	CloudAcked     []string                                `json:"cloudAcked"`
+	CommandRules   []string                                `json:"commandRules,omitempty"`
+	ProtectedPaths []string                                `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                                `json:"cliEnvAllow,omitempty"`
+	Tools          []DesktopUnprotectPathOutputToolsItem   `json:"tools"`
+	Pending        []DesktopUnprotectPathOutputPendingItem `json:"pending,omitempty"`
 }
 
 type DiagnosticsCliRecordsInput struct {
@@ -7466,13 +7691,15 @@ type EventDesktopChangedPendingItem struct {
 }
 
 type EventDesktopChanged struct {
-	Scopes       []EventDesktopChangedScopesItem  `json:"scopes"`
-	Policies     map[string]string                `json:"policies"`
-	LocalOnly    bool                             `json:"localOnly"`
-	CloudAcked   []string                         `json:"cloudAcked"`
-	CommandRules []string                         `json:"commandRules,omitempty"`
-	Tools        []EventDesktopChangedToolsItem   `json:"tools"`
-	Pending      []EventDesktopChangedPendingItem `json:"pending,omitempty"`
+	Scopes         []EventDesktopChangedScopesItem  `json:"scopes"`
+	Policies       map[string]string                `json:"policies"`
+	LocalOnly      bool                             `json:"localOnly"`
+	CloudAcked     []string                         `json:"cloudAcked"`
+	CommandRules   []string                         `json:"commandRules,omitempty"`
+	ProtectedPaths []string                         `json:"protectedPaths,omitempty"`
+	CliEnvAllow    []string                         `json:"cliEnvAllow,omitempty"`
+	Tools          []EventDesktopChangedToolsItem   `json:"tools"`
+	Pending        []EventDesktopChangedPendingItem `json:"pending,omitempty"`
 }
 
 // EventDesktopConfirmRequestScopeMode 枚举：read | read-write
@@ -8324,6 +8551,10 @@ type DesktopGrantOutputT = *DesktopGrantOutput
 type DesktopJournalInputT = any
 type DesktopJournalOutputT = []DesktopJournalOutputItem
 
+// DesktopProtectFolderInputT 是 desktop.protectFolder 的入参
+type DesktopProtectFolderInputT = any
+type DesktopProtectFolderOutputT = *DesktopProtectFolderOutput
+
 // DesktopReminderActionInputT 是 desktop.reminderAction 的入参
 type DesktopReminderActionInputT = DesktopReminderActionInput
 type DesktopReminderActionOutputT = any
@@ -8364,6 +8595,10 @@ type DesktopResetCloudAcksOutputT = bool
 type DesktopRevokeInputT = DesktopRevokeInput
 type DesktopRevokeOutputT = bool
 
+// DesktopSetCliEnvAllowInputT 是 desktop.setCliEnvAllow 的入参
+type DesktopSetCliEnvAllowInputT = DesktopSetCliEnvAllowInput
+type DesktopSetCliEnvAllowOutputT = DesktopSetCliEnvAllowOutput
+
 // DesktopSetLocalOnlyInputT 是 desktop.setLocalOnly 的入参
 type DesktopSetLocalOnlyInputT = DesktopSetLocalOnlyInput
 type DesktopSetLocalOnlyOutputT = bool
@@ -8387,6 +8622,10 @@ type DesktopTakePendingSummaryOutputT = *DesktopTakePendingSummaryOutput
 // DesktopUndoLastInputT 是 desktop.undoLast 的入参
 type DesktopUndoLastInputT = any
 type DesktopUndoLastOutputT = DesktopUndoLastOutput
+
+// DesktopUnprotectPathInputT 是 desktop.unprotectPath 的入参
+type DesktopUnprotectPathInputT = DesktopUnprotectPathInput
+type DesktopUnprotectPathOutputT = DesktopUnprotectPathOutput
 
 // DiagnosticsCliRecordsInputT 是 diagnostics.cliRecords 的入参
 type DiagnosticsCliRecordsInputT = DiagnosticsCliRecordsInput

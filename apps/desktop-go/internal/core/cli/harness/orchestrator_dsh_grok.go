@@ -155,6 +155,9 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		if base == nil {
 			base = officialLaunch
 		}
+		if err := o.cwdErr(str(tab, "cwd")); err != nil {
+			return nil, err
+		}
 		launch, err := jsrt.Await(o.bindTabLaunch(tab, base))
 		if err != nil {
 			return nil, err

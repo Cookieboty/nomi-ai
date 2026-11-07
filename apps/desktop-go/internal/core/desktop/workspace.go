@@ -16,6 +16,7 @@ type WorkspaceEnv struct {
 	Platform  string
 	Realpath  func(string) (string, error)
 	DenyRoots []string
+	UserDeny  []string
 }
 
 // WorkspaceCheck：OK 时 Real，否则 Reason
@@ -78,7 +79,7 @@ func CheckWorkspaceRoot(dir string, env WorkspaceEnv) WorkspaceCheck {
 		return WorkspaceCheck{Reason: "missing"}
 	}
 	for _, p := range []string{dir, real} {
-		if d := DenyReason(p, env.Platform, env.DenyRoots); d != "" {
+		if d := DenyReasonWith(p, env.Platform, env.DenyRoots, env.UserDeny); d != "" {
 			return WorkspaceCheck{Reason: "denied: " + d}
 		}
 		if IsBroadWorkspace(p, env.Home, env.Platform) {

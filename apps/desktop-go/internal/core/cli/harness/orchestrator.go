@@ -69,6 +69,10 @@ type Deps struct {
 	GrokAcp                bool
 	CodexAppServer         bool
 	Complete               CompleteFn
+	// CwdCheck：工作目录策略（不能过宽、不能在受保护文件夹里）；返回不能用的原因，"" = 能用。nil = 只查目录存在
+	CwdCheck func(dir string) string
+	// EnvAllow：用户放行、照样交给 CLI 的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
+	EnvAllow func() []string
 }
 
 const (
@@ -309,7 +313,7 @@ func New(d Deps) *Orchestrator {
 		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
 		dormant: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
-		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: true, tabFileBytes: map[string]int{},
+		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: false, tabFileBytes: map[string]int{},
 		events: &emitter{}, modelCatalogs: map[string]catalogEntry{}, modelCatalogInflight: map[string]*jsrt.Promise[*util.Obj]{},
 		modelCatalogGen: map[string]float64{},
 	}
@@ -656,7 +660,8 @@ func (o *Orchestrator) load() {
 			if cli.IsPermissionMode(dm) && dm != "bypass" {
 				o.defaultPermMode = dm.(string)
 			}
-			if b, ok := raw.Get("codexNetwork").(bool); ok {
+			// 2.3.3 起 Codex 默认不联网：旧的 codexNetwork 是默认值落的盘，不认；用户在设置里开过才是 codexNetworkAllowed
+			if b, ok := raw.Get("codexNetworkAllowed").(bool); ok {
 				o.codexNetwork = b
 			}
 			_, has := raw.Lookup("autoApprove")
@@ -791,7 +796,7 @@ func (o *Orchestrator) tabsSnapshot() *util.Obj {
 		}
 	}
 	snap := util.NewObj("activeTabId", o.activeTabID, "defaultPermissionMode", o.defaultPermMode,
-		"codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove)
+		"codexNetworkAllowed", o.codexNetwork, "autoApprove", o.autoApprove)
 	if o.aiReviewOff {
 		snap.Set("aiReview", false)
 	}

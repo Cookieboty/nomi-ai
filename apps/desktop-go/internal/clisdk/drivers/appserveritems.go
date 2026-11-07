@@ -24,7 +24,8 @@ func CodexTurnPolicy(mode string, network bool) Json {
 	case "bypass":
 		return O("sandboxPolicy", O("type", "dangerFullAccess"), "approvalPolicy", "never", "approvalsReviewer", "user")
 	}
-	return O("sandboxPolicy", workspace(), "approvalPolicy", "never", "approvalsReviewer", "user")
+	// acceptEdits：沙箱里改文件、跑命令不问；要越出沙箱（联网、写工作区外）时由 Codex 发审批，用户在 Nomi 里决定
+	return O("sandboxPolicy", workspace(), "approvalPolicy", "on-request", "approvalsReviewer", "user")
 }
 
 var itemStatus = map[string]string{"inProgress": "in_progress", "completed": "completed", "failed": "failed", "declined": "failed", "interrupted": "failed"}

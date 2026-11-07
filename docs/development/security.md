@@ -17,6 +17,7 @@
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path_guard.go`                      | 授权作用域 + 黑名单 + 路径规范化 + realpath 防符号链接逃逸                                                                                                                                                                                                                      |
 | `workspace.go`                       | 对话工作区作为隐式读写作用域；拒绝过宽的根（家目录、盘符根等）                                                                                                                                                                                                                  |
+| `protected_paths.go`                 | 用户的受保护文件夹（存 realpath）与放行给编程助手的环境变量；`CheckCliWorkspace` 给编程助手标签的工作目录用同一套规则                                                                                                                                                           |
 | `permission_broker.go`、`consent.go` | 授权作用域、工具策略、确认请求、云端外发同意；何时需要用户确认                                                                                                                                                                                                                  |
 | `command_class.go`                   | 命令的确定性分类（读凭据、不可逆操作、对外副作用）                                                                                                                                                                                                                              |
 | `command_review.go`                  | `workspace_run` 的命令先交辅助模型判风险：低风险放行，拿不准 / 高风险交给人确认（卡片带等级与理由）；不替用户拒绝                                                                                                                                                               |
@@ -24,6 +25,20 @@
 | `outbound_guard.go`                  | 发给云端模型前，按设置挡下或替换附件正文与编程助手输出                                                                                                                                                                                                                          |
 | `audit_log.go`                       | 桌面工具调用审计（`desktop-YYYY-MM.jsonl`，参数脱敏）                                                                                                                                                                                                                           |
 | `undo_journal.go`                    | 可撤销操作的逆操作日志                                                                                                                                                                                                                                                          |
+
+## 编程助手（CLI 子进程）
+
+编程助手以用户身份运行，读写边界首先是 CLI 自己的权限与沙箱；Nomi 这层在 `internal/core/cli/harness` 再加三条，与权限档位无关：
+
+- **工作目录**：`Deps.CwdCheck`（接 `desktop.PermissionBroker.CheckCliWorkspace`，与 Nomi 对话工作区同一套：不能过宽、不能在内置或用户的受保护文件夹里）。
+  新建标签、换目录、每次起 CLI 前都查（`spawn.go` 的 `cwdErr`）。
+- **环境变量**：`CliChildEnv` 先用 `cli.ScrubSecretEnv`（`internal/core/cli/envscrub.go`）去掉继承来的凭据类变量（令牌、密码、云账号密钥、
+  连接串），模型服务的凭据与用户放行的变量（`Deps.EnvAllow`）除外；Nomi 自己注入的变量（标签令牌、官方账号目录）不受影响。
+  Nomi 的 `workspace_run` 用同一套环境（`igtools_wiring.go` 的 `desktopShellEnv`）。
+- **Codex 联网**：`codexNetwork` 默认关，落盘键 `codexNetworkAllowed`（只在用户打开过时为真）；「自动改文件」的审批策略是 `on-request`，
+  越出沙箱由 Codex 发审批，进权限队列。
+
+还没有的：系统级沙箱（限制读）与「本会话允许」这类按会话的授权。
 
 ## 代码执行沙箱
 

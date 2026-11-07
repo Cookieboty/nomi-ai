@@ -8105,6 +8105,304 @@
     }
    }
   },
+  "desktop.protectFolder": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "path": {
+        "type": "string"
+       },
+       "error": {
+        "type": "string"
+       },
+       "state": {
+        "type": "object",
+        "properties": {
+         "scopes": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string"
+            },
+            "path": {
+             "type": "string"
+            },
+            "mode": {
+             "anyOf": [
+              {
+               "type": "string",
+               "enum": [
+                "read",
+                "read-write"
+               ]
+              },
+              {
+               "type": "string"
+              }
+             ]
+            },
+            "kind": {
+             "anyOf": [
+              {
+               "type": "string",
+               "enum": [
+                "folder",
+                "file"
+               ]
+              },
+              {
+               "type": "string"
+              }
+             ]
+            },
+            "grantedAt": {
+             "type": "number"
+            },
+            "session": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "id",
+            "path",
+            "mode",
+            "kind",
+            "grantedAt"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "policies": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "anyOf": [
+            {
+             "type": "string",
+             "enum": [
+              "always",
+              "session",
+              "ask"
+             ]
+            },
+            {
+             "type": "string"
+            }
+           ]
+          }
+         },
+         "localOnly": {
+          "type": "boolean"
+         },
+         "cloudAcked": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "commandRules": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "protectedPaths": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "cliEnvAllow": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "tools": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "name": {
+             "type": "string"
+            },
+            "danger": {
+             "anyOf": [
+              {
+               "type": "string",
+               "enum": [
+                "read",
+                "write",
+                "destructive"
+               ]
+              },
+              {
+               "type": "string"
+              }
+             ]
+            },
+            "policy": {
+             "anyOf": [
+              {
+               "type": "string",
+               "enum": [
+                "always",
+                "session",
+                "ask"
+               ]
+              },
+              {
+               "type": "string"
+              }
+             ]
+            },
+            "locked": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "name",
+            "danger",
+            "policy"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "pending": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string"
+            },
+            "tool": {
+             "type": "string"
+            },
+            "danger": {
+             "anyOf": [
+              {
+               "type": "string",
+               "enum": [
+                "read",
+                "write",
+                "destructive"
+               ]
+              },
+              {
+               "type": "string"
+              }
+             ]
+            },
+            "summary": {
+             "type": "string"
+            },
+            "argsJson": {
+             "type": "string"
+            },
+            "preview": {
+             "type": "string"
+            },
+            "dialog": {
+             "type": "boolean"
+            },
+            "rememberable": {
+             "type": "boolean"
+            },
+            "reason": {
+             "type": "string"
+            },
+            "expiresAt": {
+             "type": "number"
+            },
+            "kind": {
+             "type": "string",
+             "const": "scope"
+            },
+            "scopePath": {
+             "type": "string"
+            },
+            "scopeMode": {
+             "type": "string",
+             "enum": [
+              "read",
+              "read-write"
+             ]
+            },
+            "review": {
+             "type": "object",
+             "properties": {
+              "risk": {
+               "type": "string",
+               "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+               ]
+              },
+              "rationale": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "risk"
+             ],
+             "additionalProperties": {}
+            },
+            "rememberRule": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "tool",
+            "danger",
+            "summary",
+            "argsJson",
+            "dialog",
+            "rememberable",
+            "reason",
+            "expiresAt"
+           ],
+           "additionalProperties": {}
+          }
+         }
+        },
+        "required": [
+         "scopes",
+         "policies",
+         "localOnly",
+         "cloudAcked",
+         "tools"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "state"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
   "desktop.reminderAction": {
    "kind": "mutation",
    "dangerous": false,
@@ -8745,6 +9043,18 @@
        "type": "string"
       }
      },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
      "tools": {
       "type": "array",
       "items": {
@@ -8951,6 +9261,294 @@
     "type": "boolean"
    }
   },
+  "desktop.setCliEnvAllow": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "names": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "names"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "mode": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "read-write"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "kind": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "folder",
+            "file"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "grantedAt": {
+         "type": "number"
+        },
+        "session": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "path",
+        "mode",
+        "kind",
+        "grantedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "policies": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "always",
+          "session",
+          "ask"
+         ]
+        },
+        {
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "localOnly": {
+      "type": "boolean"
+     },
+     "cloudAcked": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "policy": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "always",
+            "session",
+            "ask"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "locked": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "danger",
+        "policy"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "pending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsJson": {
+         "type": "string"
+        },
+        "preview": {
+         "type": "string"
+        },
+        "dialog": {
+         "type": "boolean"
+        },
+        "rememberable": {
+         "type": "boolean"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "expiresAt": {
+         "type": "number"
+        },
+        "kind": {
+         "type": "string",
+         "const": "scope"
+        },
+        "scopePath": {
+         "type": "string"
+        },
+        "scopeMode": {
+         "type": "string",
+         "enum": [
+          "read",
+          "read-write"
+         ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "tool",
+        "danger",
+        "summary",
+        "argsJson",
+        "dialog",
+        "rememberable",
+        "reason",
+        "expiresAt"
+       ],
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "scopes",
+     "policies",
+     "localOnly",
+     "cloudAcked",
+     "tools"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "desktop.setLocalOnly": {
    "kind": "mutation",
    "dangerous": true,
@@ -9095,6 +9693,18 @@
       }
      },
      "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
       "type": "array",
       "items": {
        "type": "string"
@@ -9366,6 +9976,291 @@
      "ok"
     ],
     "additionalProperties": false
+   }
+  },
+  "desktop.unprotectPath": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "mode": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "read-write"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "kind": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "folder",
+            "file"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "grantedAt": {
+         "type": "number"
+        },
+        "session": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "path",
+        "mode",
+        "kind",
+        "grantedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "policies": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "always",
+          "session",
+          "ask"
+         ]
+        },
+        {
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "localOnly": {
+      "type": "boolean"
+     },
+     "cloudAcked": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "policy": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "always",
+            "session",
+            "ask"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "locked": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "danger",
+        "policy"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "pending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsJson": {
+         "type": "string"
+        },
+        "preview": {
+         "type": "string"
+        },
+        "dialog": {
+         "type": "boolean"
+        },
+        "rememberable": {
+         "type": "boolean"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "expiresAt": {
+         "type": "number"
+        },
+        "kind": {
+         "type": "string",
+         "const": "scope"
+        },
+        "scopePath": {
+         "type": "string"
+        },
+        "scopeMode": {
+         "type": "string",
+         "enum": [
+          "read",
+          "read-write"
+         ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "tool",
+        "danger",
+        "summary",
+        "argsJson",
+        "dialog",
+        "rememberable",
+        "reason",
+        "expiresAt"
+       ],
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "scopes",
+     "policies",
+     "localOnly",
+     "cloudAcked",
+     "tools"
+    ],
+    "additionalProperties": {}
    }
   },
   "diagnostics.cliRecords": {
@@ -28454,6 +29349,18 @@
      }
     },
     "commandRules": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "protectedPaths": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "cliEnvAllow": {
      "type": "array",
      "items": {
       "type": "string"

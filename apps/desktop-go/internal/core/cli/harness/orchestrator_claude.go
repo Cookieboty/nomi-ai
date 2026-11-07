@@ -398,6 +398,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	if spawnLaunch != nil {
 		sl = spawnLaunch
 	}
+	o.checkCwd(str(tab, "cwd"))
 	cmd, args := bin, argv
 	if useNode {
 		cmd, args = nodeExecPath(), append([]string{bin}, argv...)

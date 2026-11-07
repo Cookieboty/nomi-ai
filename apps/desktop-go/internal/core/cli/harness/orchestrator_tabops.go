@@ -316,6 +316,7 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	var cwd string
 	if truthy(opts.Get("cwd")) {
 		cwd = validDir(jsStr(opts.Get("cwd")))
+		o.checkCwd(cwd)
 		o.rememberCwd(cwd)
 	} else {
 		cwd = o.EnsureDefaultDir(str(o.tab(o.activeTabID), "cwd"))
@@ -768,6 +769,7 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 func (o *Orchestrator) SetTabCwd(id, cwd string, carry bool) *util.Obj {
 	tab := o.requireTab(id)
 	abs := validDir(cwd)
+	o.checkCwd(abs)
 	if abs != str(tab, "cwd") {
 		if tab.Get("status") != "running" {
 			o.teardownClaudeLive(id)

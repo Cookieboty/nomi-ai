@@ -692,6 +692,50 @@ func (s *Service) RemoveCommandRule(rule any) State {
 	return s.State()
 }
 
+// ProtectFolder：系统选择框选一个文件夹加进受保护清单；取消返回 nil，不能加时返回原因
+func (s *Service) ProtectFolder() *ProtectResult {
+	if s.ports.PickDirectory == nil {
+		return nil
+	}
+	picked := s.ports.PickDirectory(tr.T("electron.common.choose-folder-to-protect"), tr.T("electron.common.protect"), "")
+	if picked == "" {
+		return nil
+	}
+	saved, reason := s.Broker.AddProtectedPath(picked)
+	if reason != "" {
+		return &ProtectResult{Error: reason, State: s.State()}
+	}
+	a := NewOMap()
+	a.Set("path", saved)
+	s.userAudit("protect_path", a, "ok")
+	return &ProtectResult{Path: saved, State: s.State()}
+}
+
+// ProtectResult：desktop.protectFolder 的结果
+type ProtectResult struct {
+	Path  string `json:"path,omitempty"`
+	Error string `json:"error,omitempty"`
+	State State  `json:"state"`
+}
+
+// SetCliEnvAllow：替换放行给编程助手的环境变量清单，返回最新状态
+func (s *Service) SetCliEnvAllow(names any) State {
+	if arr, ok := names.([]any); ok {
+		s.Broker.SetCliEnvAllow(arr)
+	}
+	return s.State()
+}
+
+// UnprotectPath：从受保护清单删掉一条，返回最新状态
+func (s *Service) UnprotectPath(p any) State {
+	if v, ok := p.(string); ok && s.Broker.RemoveProtectedPath(v) {
+		a := NewOMap()
+		a.Set("path", v)
+		s.userAudit("unprotect_path", a, "ok")
+	}
+	return s.State()
+}
+
 func (s *Service) AuditList(limit, offset any) []json.RawMessage {
 	n := 200
 	if f, ok := limit.(float64); ok {

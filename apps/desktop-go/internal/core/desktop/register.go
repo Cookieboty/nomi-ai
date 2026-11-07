@@ -43,6 +43,14 @@ func Register(r *contract.Router, s *Service) {
 	call("desktop.resetAll", func(contract.Caller, json.RawMessage) any { return s.ResetAll() })
 	call("desktop.resetCloudAcks", func(contract.Caller, json.RawMessage) any { return s.ResetCloudAcks() })
 	call("desktop.removeCommandRule", func(_ contract.Caller, in json.RawMessage) any { return s.RemoveCommandRule(field(in, "rule")) })
+	call("desktop.protectFolder", func(contract.Caller, json.RawMessage) any {
+		if r := s.ProtectFolder(); r != nil {
+			return r
+		}
+		return nil
+	})
+	call("desktop.setCliEnvAllow", func(_ contract.Caller, in json.RawMessage) any { return s.SetCliEnvAllow(field(in, "names")) })
+	call("desktop.unprotectPath", func(_ contract.Caller, in json.RawMessage) any { return s.UnprotectPath(field(in, "path")) })
 	call("desktop.remindersList", func(_ contract.Caller, in json.RawMessage) any { return s.RemindersList(field(in, "all")) })
 	call("desktop.remindersCreate", func(_ contract.Caller, in json.RawMessage) any {
 		if r := s.CreateReminder(obj(in)); r != nil {

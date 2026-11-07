@@ -73,7 +73,9 @@ var harnessAccounts *accounts.AccountService
 
 // wireHarness：构造 HarnessOrchestrator，注册 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
-func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service) (*cli.CliPluginHost, func()) {
+// cwdCheck / envAllow：编程助手的工作目录策略与放行的环境变量（desktop.PermissionBroker）
+func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service,
+	cwdCheck func(dir string) string, envAllow func() []string) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（CliPluginHost）
@@ -103,7 +105,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				if useNode {
 					command, args = harness.NodeExecPath(), append([]string{command}, args...)
 				}
-				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil), ""), nil
+				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil, envAllow()), ""), nil
 			},
 			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
@@ -183,6 +185,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",
 			GrokAcp:        os.Getenv("NOMI_GROK_ACP") != "0",
 			CodexAppServer: os.Getenv("NOMI_CODEX_APP_SERVER") != "0",
+			CwdCheck:       cwdCheck,
+			EnvAllow:       envAllow,
 		})
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器

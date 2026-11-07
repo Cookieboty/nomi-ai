@@ -584,5 +584,12 @@
   "electron.common.you-were-just-chatting": "你刚刚在聊天",
   "electron.common.auto-continue-stopped-rounds": "（已自动接着做了 {0} 轮，先停在这里。要我继续就说「继续」。）",
   "electron.common.auto-continue-stopped-budget": "（已自动接着做了 {0} 轮，这次用量较大，先停在这里。要我继续就说「继续」。）",
-  "electron.common.auto-continue-stopped-denied": "（有一步被你拒绝了，我先停在这里，没有继续自动往下做。）"
+  "electron.common.auto-continue-stopped-denied": "（有一步被你拒绝了，我先停在这里，没有继续自动往下做。）",
+  "electron.common.protected-by-you": "你设置的受保护文件夹（{0}）",
+  "electron.common.protected-path-too-broad": "不能把根目录或主目录设为受保护文件夹",
+  "electron.common.protected-path-limit": "受保护文件夹最多 {0} 个",
+  "electron.common.workspace-too-broad": "目录范围太大（根目录、主目录、系统目录，或「文稿」「桌面」这类大文件夹）",
+  "electron.common.cli-cwd-blocked": "编程助手不能在 {0} 里工作：{1}。请换一个项目文件夹。",
+  "electron.common.choose-folder-to-protect": "选择要保护的文件夹",
+  "electron.common.protect": "保护"
 }

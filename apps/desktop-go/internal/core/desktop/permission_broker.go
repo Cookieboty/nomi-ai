@@ -23,6 +23,10 @@ type DesktopSettings struct {
 	CloudAcked []string `json:"cloudAcked"`
 	// CommandRules：命令白名单（command_rules.go），workspace_run 跑这些前缀的命令不再确认
 	CommandRules []string `json:"commandRules,omitempty"`
+	// ProtectedPaths：用户加的受保护文件夹（protected_paths.go），Nomi 与编程助手都不能用
+	ProtectedPaths []string `json:"protectedPaths,omitempty"`
+	// CliEnvAllow：放行给编程助手的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
+	CliEnvAllow []string `json:"cliEnvAllow,omitempty"`
 }
 
 type ConfirmRequest struct {
@@ -131,11 +135,13 @@ func (b *PermissionBroker) load() {
 		return
 	}
 	var r struct {
-		Scopes       []json.RawMessage `json:"scopes"`
-		Policies     json.RawMessage   `json:"policies"`
-		LocalOnly    any               `json:"localOnly"`
-		CloudAcked   []any             `json:"cloudAcked"`
-		CommandRules []any             `json:"commandRules"`
+		Scopes         []json.RawMessage `json:"scopes"`
+		Policies       json.RawMessage   `json:"policies"`
+		LocalOnly      any               `json:"localOnly"`
+		CloudAcked     []any             `json:"cloudAcked"`
+		CommandRules   []any             `json:"commandRules"`
+		ProtectedPaths []any             `json:"protectedPaths"`
+		CliEnvAllow    []any             `json:"cliEnvAllow"`
 	}
 	if json.Unmarshal(raw, &r) != nil {
 		return
@@ -164,6 +170,8 @@ func (b *PermissionBroker) load() {
 			b.settings.CloudAcked = append(b.settings.CloudAcked, s)
 		}
 	}
+	b.settings.ProtectedPaths = loadProtectedPaths(r.ProtectedPaths)
+	b.settings.CliEnvAllow = normalizeEnvNames(r.CliEnvAllow)
 	for _, x := range r.CommandRules {
 		if s, ok := x.(string); ok {
 			if n := NormalizeCommandRule(s); n != "" && !slices.Contains(b.settings.CommandRules, n) {
@@ -294,6 +302,7 @@ func (b *PermissionBroker) Revoke(id string) bool {
 func (b *PermissionBroker) env(scopes []Scope) GuardEnv {
 	e := b.envBase
 	e.Scopes = scopes
+	e.UserDeny = b.ProtectedPaths()
 	return e
 }
 
@@ -320,7 +329,7 @@ func (b *PermissionBroker) WorkspaceOf(cwd any) string {
 		b.OnWorkspaceRejected(dir, "not a workspace the user chose")
 		return ""
 	}
-	r := CheckWorkspaceRoot(dir, WorkspaceEnv{Home: b.envBase.Home, Platform: b.envBase.Platform, Realpath: b.envBase.Realpath, DenyRoots: b.envBase.DenyRoots})
+	r := CheckWorkspaceRoot(dir, b.workspaceEnv())
 	if !r.OK {
 		b.OnWorkspaceRejected(dir, r.Reason)
 		return ""
@@ -741,7 +750,7 @@ func (b *PermissionBroker) RequestScope(suggested, mode, reason string, signal c
 
 // scopeCandidate：模型建议授权的文件夹能不能一键授权（工作区根的规则 + 必须是文件夹）
 func (b *PermissionBroker) scopeCandidate(p string) string {
-	r := CheckWorkspaceRoot(p, WorkspaceEnv{Home: b.envBase.Home, Platform: b.envBase.Platform, Realpath: b.envBase.Realpath, DenyRoots: b.envBase.DenyRoots})
+	r := CheckWorkspaceRoot(p, b.workspaceEnv())
 	if !r.OK {
 		return ""
 	}
@@ -888,6 +897,10 @@ type BrokerView struct {
 	LocalOnly    bool     `json:"localOnly"`
 	CloudAcked   []string `json:"cloudAcked"`
 	CommandRules []string `json:"commandRules"`
+	// ProtectedPaths：用户加的受保护文件夹
+	ProtectedPaths []string `json:"protectedPaths"`
+	// CliEnvAllow：放行给编程助手的环境变量名
+	CliEnvAllow []string `json:"cliEnvAllow"`
 }
 
 func (b *PermissionBroker) View() BrokerView {
@@ -898,7 +911,8 @@ func (b *PermissionBroker) View() BrokerView {
 		pol.Set(k, b.settings.Policies.Vals[k])
 	}
 	return BrokerView{Scopes: b.scopesLocked(), Policies: pol, LocalOnly: b.settings.LocalOnly, CloudAcked: append([]string{}, b.settings.CloudAcked...),
-		CommandRules: append([]string{}, b.settings.CommandRules...)}
+		CommandRules: append([]string{}, b.settings.CommandRules...), ProtectedPaths: append([]string{}, b.settings.ProtectedPaths...),
+		CliEnvAllow: append([]string{}, b.settings.CliEnvAllow...)}
 }
 
 func (b *PermissionBroker) ResetAll() {

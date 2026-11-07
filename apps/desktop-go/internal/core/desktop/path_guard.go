@@ -76,6 +76,8 @@ type GuardEnv struct {
 	Platform  string
 	Realpath  func(string) (string, error)
 	DenyRoots []string
+	// UserDeny：用户在设置里加的受保护文件夹（Nomi 与编程助手都不能用）
+	UserDeny []string
 }
 
 // MaxPath 路径最大长度（UTF-16 码元）
@@ -189,6 +191,16 @@ func IsInside(child, parent, platform string) bool {
 
 // DenyReason：黑名单检查；命中返回原因
 func DenyReason(p, platform string, denyRoots []string) string {
+	return DenyReasonWith(p, platform, denyRoots, nil)
+}
+
+// DenyReasonWith：DenyReason 加上用户的受保护文件夹
+func DenyReasonWith(p, platform string, denyRoots, userDeny []string) string {
+	for _, root := range userDeny {
+		if root != "" && IsInside(p, root, platform) {
+			return tr.T("electron.common.protected-by-you", root)
+		}
+	}
 	for _, root := range denyRoots {
 		if root != "" && IsInside(p, root, platform) {
 			return tr.T("electron.common.app-private-data-folder")
@@ -264,7 +276,7 @@ func GuardPath(input any, env GuardEnv, opts GuardOpts) GuardResult {
 	if bad != nil {
 		return *bad
 	}
-	if d := DenyReason(norm, env.Platform, env.DenyRoots); d != "" {
+	if d := DenyReasonWith(norm, env.Platform, env.DenyRoots, env.UserDeny); d != "" {
 		return GuardResult{Code: "denied", Message: tr.T("electron.common.access-denied", d)}
 	}
 	lexical := false
@@ -288,7 +300,7 @@ func GuardPath(input any, env GuardEnv, opts GuardOpts) GuardResult {
 		}
 		return outside
 	}
-	if d := DenyReason(real, env.Platform, env.DenyRoots); d != "" {
+	if d := DenyReasonWith(real, env.Platform, env.DenyRoots, env.UserDeny); d != "" {
 		return GuardResult{Code: "denied", Message: tr.T("electron.common.access-denied", d)}
 	}
 	for _, s := range env.Scopes {

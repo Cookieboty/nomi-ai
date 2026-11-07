@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 428：mutation 299 / query 124 / stream 5
+// 合计 431：mutation 302 / query 124 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -117,6 +117,7 @@ var Procedures = []Procedure{
 	{Name: "desktop.confirmAnswer", Kind: "mutation", Dangerous: true, Surfaces: []string{"mascot", "chat"}},
 	{Name: "desktop.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.journal", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.protectFolder", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.reminderAction", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.remindersCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersCreate", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -127,12 +128,14 @@ var Procedures = []Procedure{
 	{Name: "desktop.resetAll", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.resetCloudAcks", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.setCliEnvAllow", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setLocalOnly", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setPolicy", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.state", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.takeMissedReminders", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.takePendingSummary", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "desktop.undoLast", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.unprotectPath", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "diagnostics.cliRecords", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.export", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.gatewayTrace", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},

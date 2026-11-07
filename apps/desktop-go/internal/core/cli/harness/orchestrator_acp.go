@@ -184,6 +184,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			}
 		}
 		useNode := IsScript(bin)
+		o.checkCwd(str(tab, "cwd"))
 		cmd, args := bin, argv
 		if useNode {
 			cmd, args = nodeExecPath(), append([]string{bin}, argv...)

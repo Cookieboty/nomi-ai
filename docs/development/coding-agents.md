@@ -55,6 +55,10 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
+## 本机保护
+
+工作目录策略、环境变量清理、Codex 联网默认关：见 [security.md「编程助手」](security.md#编程助手cli-子进程)。
+
 ## 测试
 
 - 假 CLI 在 `scripts/mock-cli/mock-<cli>.mjs`（`NOMI_USE_MOCK_CLI=1` 时 `cli.MockCliBin` 从当前目录下的 `scripts/mock-cli` 找它代替真实 CLI）。

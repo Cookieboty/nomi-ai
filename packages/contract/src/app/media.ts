@@ -38,6 +38,7 @@ import {
   DesktopJournalEntry,
   DesktopReminderEvent,
   DesktopScope,
+  DesktopProtectResult,
   DesktopState,
   DesktopSummaryEvent,
   DesktopUndoResult,
@@ -236,6 +237,26 @@ export const mediaProcedures = {
     kind: 'mutation',
     input: z.object({ rule: z.string() }),
     output: DesktopState,
+  },
+  /** 弹出系统选择框，把选的文件夹加进受保护清单；用户取消返回 null */
+  'desktop.protectFolder': {
+    kind: 'mutation',
+    input: z.void(),
+    output: DesktopProtectResult.nullable(),
+  },
+  /** 从受保护清单删掉一条（按清单里的原样匹配），返回最新状态 */
+  'desktop.unprotectPath': {
+    kind: 'mutation',
+    input: z.object({ path: z.string() }),
+    output: DesktopState,
+    dangerous: true,
+  },
+  /** 整体替换放行给编程助手的环境变量名（不合法的名字丢掉），返回最新状态 */
+  'desktop.setCliEnvAllow': {
+    kind: 'mutation',
+    input: z.object({ names: z.array(z.string()) }),
+    output: DesktopState,
+    dangerous: true,
   },
   'desktop.remindersList': {
     kind: 'query',

@@ -263,7 +263,11 @@ func (o *Orchestrator) childEnv(useNode bool, l *tabLaunch, extra *util.Obj) *ut
 	if extra == nil {
 		extra = util.NewObj()
 	}
-	env := CliChildEnv(useNode, extra.Clone().Assign(l.env))
+	var allow []string
+	if o.d.EnvAllow != nil {
+		allow = o.d.EnvAllow()
+	}
+	env := CliChildEnv(useNode, extra.Clone().Assign(l.env), allow)
 	if l.official && o.d.Gateway != nil {
 		env = o.d.Gateway.OfficialEnv(env)
 	}
