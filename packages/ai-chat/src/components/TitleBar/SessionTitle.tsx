@@ -206,7 +206,10 @@ export const SessionTools: React.FC<{
     <>
       <SessionMenuButton onFork={onFork} />
       {s?.hasMessages && (
-        <SessionDetailsToggle bubbleClassName={chatHeaderStyles.actionsTipBubble} />
+        <SessionDetailsToggle
+          railOpen={!!rail?.open}
+          bubbleClassName={chatHeaderStyles.actionsTipBubble}
+        />
       )}
       {rail && (
         <FilesRailToggle

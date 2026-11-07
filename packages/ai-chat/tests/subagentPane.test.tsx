@@ -38,6 +38,12 @@ function setup(meta: HarnessTabMeta, steerOk = true) {
     if (ch === 'harness.tabMessages')
       return [{ id: 'm1', role: 'assistant', content: '修好了', timestamp: 1 }];
     if (ch === 'harness.tabSteer') return steerOk;
+    if (ch === 'harness.modelCatalog')
+      return {
+        backend: 'claude',
+        defaultModel: null,
+        models: [{ id: 'sonnet', label: 'Sonnet 5.5', reasoning: false, efforts: [] }],
+      };
     return true;
   });
   const fake = installFakeApi(invoke);
@@ -79,6 +85,10 @@ describe('SubagentPane', () => {
     await waitFor(() =>
       expect(screen.getByTestId('subagent-pane').textContent).toContain('修好了'),
     );
+    // 子任务的模型 / 思考深度：输入栏里与编程助手标签同一个按钮
+    expect(
+      screen.getByTestId('subagent-pane').querySelector('[data-testid="model-chip"]'),
+    ).toBeTruthy();
     fireEvent.change(screen.getByTestId('subagent-input'), { target: { value: '再加个测试' } });
     fireEvent.keyDown(screen.getByTestId('subagent-input'), { key: 'Enter' });
     await waitFor(() =>

@@ -151,6 +151,11 @@ export const INBOX: readonly TaskStatus[] = [
 
 export const tasksAvailable = () => hasTransport();
 
+/** 别处（如会话详情）请求打开任务页并选中某个任务；任务页宿主（useTasksHost）监听 */
+export const OPEN_TASK_EVENT = 'nomi:open-task';
+export const requestOpenTask = (id: string) =>
+  window.dispatchEvent(new CustomEvent<string>(OPEN_TASK_EVENT, { detail: id }));
+
 export const tasksApi = {
   list: async () => (await api.tasks.list()) as unknown as { tasks: Task[]; legacy: LegacyItem[] },
   get: async (id: string) =>

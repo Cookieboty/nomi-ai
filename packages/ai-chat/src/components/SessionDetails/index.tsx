@@ -1,19 +1,24 @@
 /**
  * 「会话详情」：标题栏里文件栏开关前面的按钮，开 / 收对话卡片右侧的一栏（不盖住对话，对话区相应变窄）：
- * - 项目：工作区名、路径、当前分支；
+ * - 项目：工作区名（悬停看路径）、当前分支；
  * - 变更：本会话改过的文件数与增删行，点开中栏 Diff；
- * - 智能体：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看。
- * 开关状态记在本机（下次打开应用保持）。
+ * - 智能体：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看；
+ * - 任务：从这个会话建的持续任务与状态，点开到任务页。
+ * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { Bot, GitBranch, LayoutDashboard } from 'lucide-react';
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { Bot, ChevronUp, Ellipsis, GitBranch, LayoutDashboard, ListChecks } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 
+import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
+import type { ConversationStore } from '../../services/conversationStore';
+import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
+import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import {
   aggregateSessionChanges,
@@ -22,9 +27,19 @@ import {
 } from '../../utils/sessionChanges';
 import { EndpointIcon } from '../EndpointIcon';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
+import { useTasks } from '../Tasks';
 
-import { collectSessionAgents, countRunning, type SessionAgentStatus } from './agents';
+import {
+  collectSessionAgents,
+  countRunning,
+  type SessionAgent,
+  type SessionAgentStatus,
+} from './agents';
+import { useSessionDetails } from './context';
 import styles from './index.module.css';
+import { countActiveTasks, sessionTasks } from './tasks';
+
+export { SessionDetailsProvider } from './context';
 
 const STATUS_KEY: Record<SessionAgentStatus, string> = {
   running: 'ui.knowledge-local.running',
@@ -33,6 +48,16 @@ const STATUS_KEY: Record<SessionAgentStatus, string> = {
   error: 'ui.chat-settings.error',
   stopped: 'ui.chat-settings.stopped',
 };
+
+const TASK_STATE: Record<TaskGroup, string> = {
+  needs_you: 'waiting',
+  running: 'running',
+  waiting_trigger: 'idle',
+  ended: 'done',
+};
+
+/** 列表先显示几个，其余点「更多」展开 */
+export const DETAILS_LIST_MAX = 5;
 
 /** 「变更」图标：圆角方框里一个 ±（lucide 没有这个图形；线宽、尺寸与 lucide 图标一致） */
 const ChangesIcon: React.FC = () => (
@@ -53,35 +78,94 @@ const ChangesIcon: React.FC = () => (
   </svg>
 );
 
-const STORE_KEY = 'nomi.sessionDetails.open';
-
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(STORE_KEY) === '1';
-  } catch {
-    return false;
-  }
+/** 区块：标题 + 计数 + 「更多 / 收起」图标；超过 DETAILS_LIST_MAX 个才有展开按钮 */
+function Section<T>({
+  id,
+  title,
+  count,
+  empty,
+  items,
+  render,
+}: {
+  id: string;
+  title: string;
+  count: string | null;
+  empty: string;
+  items: readonly T[];
+  render: (item: T) => React.ReactNode;
+}) {
+  const [all, setAll] = useState(false);
+  const more = items.length > DETAILS_LIST_MAX;
+  const shown = all || !more ? items : items.slice(0, DETAILS_LIST_MAX);
+  const moreLabel = all
+    ? t('ui.knowledge-local.collapse')
+    : t('ui.session-workspace.details-show-more', String(items.length - DETAILS_LIST_MAX));
+  return (
+    <section className={styles.section} data-testid={`session-details-${id}`}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionTitle}>{title}</span>
+        {count && (
+          <span className={styles.muted} data-testid={`session-details-${id}-count`}>
+            {count}
+          </span>
+        )}
+        {more && (
+          <button
+            type="button"
+            className={styles.moreBtn}
+            aria-label={moreLabel}
+            title={moreLabel}
+            aria-expanded={all}
+            data-testid={`session-details-${id}-more`}
+            onClick={() => setAll((v) => !v)}
+          >
+            <Icon icon={all ? ChevronUp : Ellipsis} size={14} />
+          </button>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <p className={styles.empty}>{empty}</p>
+      ) : (
+        <ul className={styles.list}>{shown.map(render)}</ul>
+      )}
+    </section>
+  );
 }
 
-interface DetailsValue {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}
-
-const Ctx = createContext<DetailsValue | null>(null);
-
-export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [open, setOpenState] = useState(readOpen);
-  const setOpen = useCallback((v: boolean) => {
-    setOpenState(v);
-    try {
-      localStorage.setItem(STORE_KEY, v ? '1' : '0');
-    } catch {
-      /* 无痕窗口等：只在本次有效 */
-    }
-  }, []);
-  const value = useMemo(() => ({ open, setOpen }), [open, setOpen]);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agent: a, onOpen }) => {
+  const name =
+    a.kind === 'delegate' && a.backend
+      ? t(ENDPOINT_NAME[a.backend] ?? a.backend)
+      : a.label || t('ui.usage-tools.subagent');
+  const body = (
+    <>
+      {a.kind === 'delegate' && a.backend ? (
+        <EndpointIcon backend={a.backend} size={16} decorative />
+      ) : (
+        <Icon icon={Bot} size={16} />
+      )}
+      <span className={styles.itemText}>
+        <span className={styles.itemName}>{name}</span>
+        {a.detail && <span className={styles.itemDetail}>{a.detail}</span>}
+      </span>
+      <span className={styles.itemStatus} data-state={a.status}>
+        {t(STATUS_KEY[a.status])}
+      </span>
+    </>
+  );
+  return (
+    <li data-testid="session-details-agent">
+      {onOpen ? (
+        <button type="button" className={styles.row} title={a.detail} onClick={onOpen}>
+          {body}
+        </button>
+      ) : (
+        <div className={styles.row} data-static title={a.detail}>
+          {body}
+        </div>
+      )}
+    </li>
+  );
 };
 
 interface Props {
@@ -103,7 +187,17 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
     () => collectSessionAgents(messages, tabs.state?.tabs, live, tabId ? live[tabId]?.agents : {}),
     [messages, tabs.state?.tabs, live, tabId],
   );
-  const running = countRunning(agents);
+  // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
+  const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  const store = ipc?.conversationStore?.() as ConversationStore | undefined;
+  const conversationId = tabId
+    ? store?.list().find((c) => c.tabId === tabId)?.id
+    : (ipc?.currentConversationId?.() ?? undefined);
+  const { data } = useTasks(true);
+  const tasks = useMemo(
+    () => sessionTasks(data?.tasks ?? [], conversationId),
+    [data, conversationId],
+  );
 
   return (
     <aside
@@ -149,78 +243,94 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
         </button>
       )}
       <div className={styles.divider} />
-      <div className={styles.sectionHead}>
-        <span>{t('ui.session-workspace.details-agents')}</span>
-        {agents.length > 0 && (
-          <span className={styles.muted} data-testid="session-details-agent-count">
-            {t('ui.session-workspace.details-agents-count', String(agents.length), String(running))}
-          </span>
+      <Section
+        id="agents"
+        title={t('ui.session-workspace.details-agents')}
+        count={
+          agents.length
+            ? t(
+                'ui.session-workspace.details-agents-count',
+                String(agents.length),
+                String(countRunning(agents)),
+              )
+            : null
+        }
+        empty={t('ui.session-workspace.details-no-agents')}
+        items={agents}
+        render={(a) => (
+          <AgentRow
+            key={a.id}
+            agent={a}
+            onOpen={a.tabId && pane ? () => pane.openSubagent(a.tabId!) : undefined}
+          />
         )}
-      </div>
-      {agents.length === 0 ? (
-        <p className={styles.empty}>{t('ui.session-workspace.details-no-agents')}</p>
-      ) : (
-        <ul className={styles.agents}>
-          {agents.map((a) => {
-            const name =
-              a.kind === 'delegate' && a.backend
-                ? t(ENDPOINT_NAME[a.backend] ?? a.backend)
-                : a.label || t('ui.usage-tools.subagent');
-            const body = (
-              <>
-                {a.kind === 'delegate' && a.backend ? (
-                  <EndpointIcon backend={a.backend} size={16} decorative />
-                ) : (
-                  <Icon icon={Bot} size={16} />
+      />
+      <div className={styles.divider} />
+      <Section
+        id="tasks"
+        title={t('ui.providers-schedule.tasks')}
+        count={
+          tasks.length
+            ? t(
+                'ui.session-workspace.details-agents-count',
+                String(tasks.length),
+                String(countActiveTasks(tasks)),
+              )
+            : null
+        }
+        empty={t('ui.session-workspace.details-no-tasks')}
+        items={tasks}
+        render={(task) => (
+          <li key={task.id} data-testid="session-details-task">
+            <button
+              type="button"
+              className={styles.row}
+              title={task.goal}
+              onClick={() => requestOpenTask(task.id)}
+            >
+              <Icon icon={ListChecks} size={16} />
+              <span className={styles.itemText}>
+                <span className={styles.itemName}>{task.title}</span>
+                {task.goal && task.goal !== task.title && (
+                  <span className={styles.itemDetail}>{task.goal}</span>
                 )}
-                <span className={styles.agentText}>
-                  <span className={styles.agentName}>{name}</span>
-                  {a.detail && <span className={styles.agentDetail}>{a.detail}</span>}
-                </span>
-                <span className={styles.agentStatus} data-state={a.status}>
-                  {t(STATUS_KEY[a.status])}
-                </span>
-              </>
-            );
-            const open = a.tabId && pane ? () => pane.openSubagent(a.tabId!) : undefined;
-            return (
-              <li key={a.id} data-testid="session-details-agent">
-                {open ? (
-                  <button type="button" className={styles.row} title={a.detail} onClick={open}>
-                    {body}
-                  </button>
-                ) : (
-                  <div className={styles.row} data-static title={a.detail}>
-                    {body}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+              </span>
+              <span className={styles.itemStatus} data-state={TASK_STATE[groupOf(task)]}>
+                {statusLabel(task)}
+              </span>
+            </button>
+          </li>
+        )}
+      />
     </aside>
   );
 };
 
-export const SessionDetailsToggle: React.FC<{ bubbleClassName?: string }> = ({
-  bubbleClassName,
-}) => {
-  const v = useContext(Ctx);
+export const SessionDetailsToggle: React.FC<{
+  /** 文件栏是否开着（屏幕窄时自动收起会话详情要看它） */
+  railOpen?: boolean;
+  bubbleClassName?: string;
+}> = ({ railOpen = false, bubbleClassName }) => {
+  const v = useSessionDetails();
+  const setRailOpen = v?.setRailOpen;
+  useEffect(() => setRailOpen?.(railOpen), [setRailOpen, railOpen]);
   if (!v) return null;
-  const label = v.open
+  const label = v.visible
     ? t('ui.session-workspace.hide-session-details')
-    : t('ui.session-workspace.show-session-details');
+    : v.autoHidden
+      ? t('ui.session-workspace.session-details-auto-hidden')
+      : t('ui.session-workspace.show-session-details');
   return (
     <Tooltip placement="bottom" content={label} bubbleClassName={bubbleClassName}>
       <button
         type="button"
         className="app-titlebar-btn"
         aria-label={label}
-        aria-pressed={v.open}
-        aria-expanded={v.open}
+        aria-pressed={v.visible}
+        aria-expanded={v.visible}
+        data-auto-hidden={v.autoHidden || undefined}
         data-testid="session-details-toggle"
-        onClick={() => v.setOpen(!v.open)}
+        onClick={v.toggle}
       >
         <Icon icon={LayoutDashboard} size={16} />
       </button>
@@ -228,13 +338,13 @@ export const SessionDetailsToggle: React.FC<{ bubbleClassName?: string }> = ({
   );
 };
 
-/** 对话卡片右侧的一栏：开着且会话有消息时显示（空会话不占地方） */
+/** 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方） */
 export const SessionDetailsDock: React.FC<Props> = (props) => {
-  const v = useContext(Ctx);
-  const close = useCallback(() => {
-    v?.setOpen(false);
+  const v = useSessionDetails();
+  if (!v?.visible || !props.messages.length) return null;
+  const close = () => {
+    v.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
-  }, [v]);
-  if (!v?.open || !props.messages.length) return null;
+  };
   return <DetailsPanel {...props} onClose={close} />;
 };

@@ -3,7 +3,7 @@
  * - 空闲时发送 = 接着这个子任务再做一轮，做完的结果会回到主对话（内核 delegate.completed 带 followUp）；
  * - 运行中发送 = 插话给它（steer）；不支持插话的编程助手先排队，这一轮结束后自动发；
  * - 停止 = 打断这一轮；之后还可以接着发。
- * 审批、沙箱授权、子代理进度都在这里处理，与编程助手标签一致。
+ * 审批、沙箱授权、子代理进度都在这里处理，与编程助手标签一致；输入栏里可以换模型 / 思考深度（下一轮起生效）。
  */
 import { Button, Icon, IconButton, t, Textarea } from '@nomi-ai/ui';
 import { Square, X } from 'lucide-react';
@@ -20,6 +20,7 @@ import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
 import { TabSandboxRequests } from '../Conversation/SandboxRequests';
 import { EndpointIcon } from '../EndpointIcon';
+import { ModelControls } from '../ModelControls';
 import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
 
@@ -207,6 +208,8 @@ export const SubagentPane: React.FC = () => {
           data-testid="subagent-input"
         />
         <div className={styles.composerRow}>
+          {/* 子任务的模型 / 思考深度：与编程助手标签同一个按钮，下一轮起生效 */}
+          {backend !== 'nomi' && <ModelControls key={`model-${backend}`} tab={tab} />}
           <span className={styles.hint}>
             {running
               ? t('ui.session-workspace.subagent-hint-running')
