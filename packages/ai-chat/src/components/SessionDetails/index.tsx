@@ -78,23 +78,22 @@ const ChangesIcon: React.FC = () => (
   </svg>
 );
 
-/** 区块：标题 + 计数 + 「更多 / 收起」图标；超过 DETAILS_LIST_MAX 个才有展开按钮 */
+/** 区块（分隔线 + 标题 + 计数 + 「更多 / 收起」图标）；没有条目时整块不显示，超过 DETAILS_LIST_MAX 个才有展开按钮 */
 function Section<T>({
   id,
   title,
   count,
-  empty,
   items,
   render,
 }: {
   id: string;
   title: string;
-  count: string | null;
-  empty: string;
+  count: string;
   items: readonly T[];
   render: (item: T) => React.ReactNode;
 }) {
   const [all, setAll] = useState(false);
+  if (!items.length) return null;
   const more = items.length > DETAILS_LIST_MAX;
   const shown = all || !more ? items : items.slice(0, DETAILS_LIST_MAX);
   const moreLabel = all
@@ -102,13 +101,12 @@ function Section<T>({
     : t('ui.session-workspace.details-show-more', String(items.length - DETAILS_LIST_MAX));
   return (
     <section className={styles.section} data-testid={`session-details-${id}`}>
+      <div className={styles.divider} />
       <div className={styles.sectionHead}>
         <span className={styles.sectionTitle}>{title}</span>
-        {count && (
-          <span className={styles.muted} data-testid={`session-details-${id}-count`}>
-            {count}
-          </span>
-        )}
+        <span className={styles.muted} data-testid={`session-details-${id}-count`}>
+          {count}
+        </span>
         {more && (
           <button
             type="button"
@@ -123,11 +121,7 @@ function Section<T>({
           </button>
         )}
       </div>
-      {items.length === 0 ? (
-        <p className={styles.empty}>{empty}</p>
-      ) : (
-        <ul className={styles.list}>{shown.map(render)}</ul>
-      )}
+      <ul className={styles.list}>{shown.map(render)}</ul>
     </section>
   );
 }
@@ -242,20 +236,14 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
           )}
         </button>
       )}
-      <div className={styles.divider} />
       <Section
         id="agents"
         title={t('ui.session-workspace.details-agents')}
-        count={
-          agents.length
-            ? t(
-                'ui.session-workspace.details-agents-count',
-                String(agents.length),
-                String(countRunning(agents)),
-              )
-            : null
-        }
-        empty={t('ui.session-workspace.details-no-agents')}
+        count={t(
+          'ui.session-workspace.details-agents-count',
+          String(agents.length),
+          String(countRunning(agents)),
+        )}
         items={agents}
         render={(a) => (
           <AgentRow
@@ -265,20 +253,14 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
           />
         )}
       />
-      <div className={styles.divider} />
       <Section
         id="tasks"
         title={t('ui.providers-schedule.tasks')}
-        count={
-          tasks.length
-            ? t(
-                'ui.session-workspace.details-agents-count',
-                String(tasks.length),
-                String(countActiveTasks(tasks)),
-              )
-            : null
-        }
-        empty={t('ui.session-workspace.details-no-tasks')}
+        count={t(
+          'ui.session-workspace.details-agents-count',
+          String(tasks.length),
+          String(countActiveTasks(tasks)),
+        )}
         items={tasks}
         render={(task) => (
           <li key={task.id} data-testid="session-details-task">

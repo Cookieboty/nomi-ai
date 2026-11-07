@@ -211,8 +211,6 @@
   "ui.session-workspace.details-no-changes": "No changes yet",
   "ui.session-workspace.details-agents": "Agents",
   "ui.session-workspace.details-agents-count": "{0} · {1} active",
-  "ui.session-workspace.details-no-agents": "This session hasn't used any other agents yet",
   "ui.session-workspace.details-show-more": "Show {0} more",
-  "ui.session-workspace.details-no-tasks": "No tasks created from this session yet",
   "ui.session-workspace.session-details-auto-hidden": "Session details hid itself because the window is narrow; click to show"
 }

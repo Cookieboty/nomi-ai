@@ -169,6 +169,27 @@ afterEach(() => {
 });
 
 describe('collectSessionAgents', () => {
+  it('a hand-off to background Nomi is a task, not an agent', () => {
+    const msgs = [
+      {
+        id: 'b',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_nomi',
+            status: 'done',
+            id: 'n1',
+            input: '{"goal":"画 5 张"}',
+          },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+    expect(collectSessionAgents(msgs, [], {})).toEqual([]);
+  });
+
   it('lists delegated sub-tasks and sub-agents with their status', () => {
     const agents = collectSessionAgents(messages, [delegated], {});
     expect(agents.map((a) => [a.kind, a.status, a.tabId ?? a.label])).toEqual([
@@ -275,8 +296,16 @@ describe('session details lists', () => {
       ...Array.from({ length: 6 }, (_, i) => task(`t${i + 1}`)),
       task('t9', { status: 'running' }),
       task('x1', { origin: { conversationId: 'other', createdBy: 'nomi', createdAt: 0 } }),
+      // 后台派给编程助手的：在「智能体」里，不在任务里
       task('d1', {
         origin: { conversationId: 'n1', createdBy: 'nomi', createdAt: 0, via: 'delegate' },
+        executor: { kind: 'cli', cli: 'claude', cwd: '/w', isolation: 'shared' },
+      }),
+      // 派给后台 Nomi 的（delegate_to_nomi）：是任务
+      task('n7', {
+        title: '海边漫画',
+        origin: { conversationId: 'n1', createdBy: 'nomi', createdAt: 0, via: 'delegate' },
+        executor: { kind: 'nomi', tools: [] },
       }),
     ];
     setup();
@@ -285,12 +314,14 @@ describe('session details lists', () => {
     await waitFor(() => expect(screen.getAllByTestId('session-details-task')).toHaveLength(5));
     // 进行中的排最前
     expect(screen.getAllByTestId('session-details-task')[0]!.textContent).toContain('任务 t9');
-    expect(screen.getByTestId('session-details-tasks-count').textContent).toMatch(/7.*1/);
+    expect(screen.getByTestId('session-details-tasks-count').textContent).toMatch(/8.*1/);
     const more = screen.getByTestId('session-details-tasks-more');
     expect(more.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(more);
-    expect(screen.getAllByTestId('session-details-task')).toHaveLength(7);
+    expect(screen.getAllByTestId('session-details-task')).toHaveLength(8);
+    expect(screen.getByText('海边漫画')).toBeTruthy();
     expect(screen.queryByText('任务 x1')).toBeNull();
+    expect(screen.queryByText('任务 d1')).toBeNull();
     fireEvent.click(more);
     expect(screen.getAllByTestId('session-details-task')).toHaveLength(5);
   });
@@ -309,7 +340,7 @@ describe('session details lists', () => {
     expect(seen).toEqual(['t1']);
   });
 
-  it('caps agents at five too; no tasks shows the empty line', async () => {
+  it('caps agents at five too; no tasks hides the tasks block', async () => {
     setup();
     mount('/w/app', subagentCalls(8));
     fireEvent.click(screen.getByTestId('session-details-toggle'));
@@ -317,8 +348,24 @@ describe('session details lists', () => {
     expect(screen.getAllByTestId('session-details-agent')).toHaveLength(5);
     fireEvent.click(screen.getByTestId('session-details-agents-more'));
     expect(screen.getAllByTestId('session-details-agent')).toHaveLength(8);
-    expect(screen.getByTestId('session-details-tasks').textContent).toMatch(/\S/);
+    // 没有任务：整个「任务」区块不显示
+    expect(screen.queryByTestId('session-details-tasks')).toBeNull();
     expect(screen.queryByTestId('session-details-tasks-more')).toBeNull();
+  });
+});
+
+describe('empty blocks', () => {
+  it('a session without agents or tasks shows neither block', async () => {
+    setup();
+    mount('/w/app', [
+      { id: 'u', role: 'user', content: '你好', timestamp: 1 },
+    ] as unknown as ConvMessage[]);
+    await screen.findByTestId('session-details-toggle');
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+    expect(screen.queryByTestId('session-details-agents')).toBeNull();
+    expect(screen.queryByTestId('session-details-tasks')).toBeNull();
+    expect(screen.getByTestId('session-details-changes')).toBeTruthy();
   });
 });
 

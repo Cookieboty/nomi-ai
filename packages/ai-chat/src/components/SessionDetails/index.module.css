@@ -149,12 +149,6 @@
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
-.empty {
-  margin: 0;
-  padding: var(--cd-space-1) var(--cd-space-2);
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-}
 
 .list {
   list-style: none;

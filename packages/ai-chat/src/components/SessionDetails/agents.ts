@@ -1,7 +1,8 @@
 /**
  * 会话详情里的「智能体」：本会话用到的其他智能体与状态（纯函数，便于单测）。
  * - 子任务：Nomi 派给编程助手的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
- * - 子代理：编程助手 / Nomi 自己派生的（Task / Agent / delegate_to_nomi 等），状态以实时状态为准。
+ * - 子代理：编程助手 / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
+ * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算智能体。
  */
 import type { HarnessBackend, HarnessTabMeta } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
@@ -92,7 +93,7 @@ export function collectSessionAgents(
       });
       continue;
     }
-    if (classifyTool(call.name) !== 'subagent') continue;
+    if (name === 'delegate_to_nomi' || classifyTool(call.name) !== 'subagent') continue;
     seen.add(call.id);
     const la = byCall.get(call.id);
     const input = parseInput(call.input);
@@ -100,7 +101,7 @@ export function collectSessionAgents(
     agents.push({
       id: call.id,
       kind: 'subagent',
-      label: la?.label || la?.agentType || type || (name === 'delegate_to_nomi' ? 'Nomi' : ''),
+      label: la?.label || la?.agentType || type || '',
       detail: describeCall(call).target,
       status: la ? LIVE_STATUS[la.status] : callStatus(call),
     });
