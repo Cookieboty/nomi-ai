@@ -50,15 +50,17 @@
 
 ### 3. 专业的活，派给专业的 AI
 
-写代码这类活，Nomi 会委派给 Claude Code、Codex 等编程助手，子任务的完整对话随时可看、可停。你也可以直接打开编程助手会话：五个 CLI 经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区看 Diff、提交、撤销；终端和 IDE 里开的会话也能接着聊。
+写代码这类活，Nomi 会委派给 Claude Code、Codex 等编程助手；子任务在对话旁边单独一栏打开，可以插话、停止、接着再做一轮，结果都回到主对话。你也可以直接打开编程助手会话：五个 CLI 经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区看 Diff、提交、撤销；终端和 IDE 里开的会话也能接着聊。
+**Agent 看板**把所有在干活的放在一处：Nomi 的对话与后台运行、派出的和工坊里的编程助手，以及你在终端或 IDE 里自己开的会话（只读），每张卡片写明内存与 CPU。内存紧张时自动暂停 Nomi 派出的编程助手、缓解后从暂停处接着跑；Nomi 也会看着看板调度。
 编程助手是目前最强的一类「专业 AI」，接入层是插件化的，后续可以接更多。
-→ [编程助手](docs/features/coding-agents.md) · [编程助手接入](docs/development/coding-agents.md)
+→ [编程助手](docs/features/coding-agents.md) · [编程助手接入](docs/development/coding-agents.md) · [Agent 看板](docs/development/agent-board.md)
 
 ### 4. 放手让它干，但边界在你手里
 
 命令执行前先由辅助模型按风险分级：低风险直接跑，高风险交给你确认；**这一轮读过外部内容（网页、MCP 返回、技能文件）后，中风险命令也要你确认**，防止提示注入借 Nomi 的手执行命令。
+macOS 上编程助手在**系统沙箱**里运行（默认开）：读不到 SSH 与 Git 凭据、云账号凭据、浏览器数据和 `.env`，只能写项目文件夹；被挡下时在对话里按本会话或「始终允许（只对这个项目）」授权，允许后自动接着做。工作目录只能是项目文件夹，也不继承环境里的令牌和密钥。开着沙箱，可以放心让编程助手全部自动运行。
 对话、记忆、知识库默认只存在本机；发给第三方模型前自动隐藏密钥；API Key 存系统钥匙串。
-→ [隐私与安全](docs/features/privacy-security.md)
+→ [隐私与安全](docs/features/privacy-security.md) · [编程助手的本机保护](docs/features/coding-agents.md#本机保护)
 
 ### 5. 轻：Go 内核，原生 WebView
 
@@ -108,6 +110,7 @@ flowchart LR
 - **第三方供应商链接接入**：中转站和模型平台用 `nomi://provider/import`（一键导入）或 `nomi://provider/connect`（网页授权）把自己加进 Nomi，兼容 Cherry Studio 的导入格式；接入规则见下方[第三方供应商接入](#第三方供应商接入)
 - **本地模型**：一键下载开源小模型（llama.cpp）或管理 Ollama；可以只用本地模型，也可以只让本地模型读文件
 - **生图**：Nomi 对话里直接画图、改图、以图生图，自动匹配同一厂商的图片模型；素材库统一管理生成的图片
+- **Agent 看板**：看清谁在干活、各占多少内存与 CPU；内存守护自动暂停 / 恢复编程助手，标题栏常驻负载指示
 - **知识库与记忆**：文件夹问答带可点击引用；对话自动整理成长期记忆，可导出
 - **MCP 与技能**：图形化管理 MCP 服务器与 `SKILL.md`；工具调用有审计日志
 - **语音与提醒**：本地 whisper.cpp 或云端语音输入、语音播报；提醒与定时任务
