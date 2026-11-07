@@ -13,6 +13,7 @@ import { ChevronDown, ChevronRight, ExternalLink, Square } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { api } from '../../services/api';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
 import {
@@ -38,6 +39,7 @@ import { buildCliSlots } from './cliSlots';
 import styles from './DelegateCard.module.css';
 import { Markdown } from './Markdown';
 import { PermissionCard } from './PermissionCard';
+import { TabSandboxRequests } from './SandboxRequests';
 
 import { ConversationView } from './index';
 
@@ -95,7 +97,7 @@ export function delegateView(
   if (call.status === 'running' || result?.status === 'running') {
     // 工具已返回但后台仍在跑（P2 异步默认）：跟标签实时状态
     if (!tab) phase = call.status === 'running' ? 'confirming' : 'running';
-    else phase = tl?.permissions?.length ? 'waiting' : 'running';
+    else phase = tl?.permissions?.length || tab.sandboxPending?.length ? 'waiting' : 'running';
   } else if (result) phase = result.status === 'done' ? 'done' : result.status;
   else phase = error || call.status === 'error' ? 'error' : 'done';
   return { call, tab, live: tl, result, error, phase, backend, goal };
@@ -597,7 +599,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
     if (parsed.result?.status !== 'running' && liveResult?.status !== 'running') return;
     let alive = true;
     const apply = (r: DelegateResult) => {
-      if (alive && r.taskId === taskId) setLiveResult(r);
+      // 子任务里后续轮次的结果写进对话，不覆盖卡片上委派本身的汇报
+      if (alive && r.taskId === taskId && !r.followUp) setLiveResult(r);
     };
     const off = delegateClient.onCompleted(apply);
     void delegateClient
@@ -624,6 +627,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const v = delegateView(callForView, tabMeta, tl);
   const [open, setOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
+  // 有子任务面板（主窗口）就在对话旁打开、可以接着对话；没有时退回抽屉
+  const subagentPane = useSubagentPane();
   const [stopping, setStopping] = useState(false);
   const running = v.phase === 'running' || v.phase === 'waiting';
   const elapsed = useElapsed(
@@ -709,7 +714,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
             aria-label={t('ui.session-workspace.view-subtask')}
             title={t('ui.session-workspace.view-the-subtask-s-conversation')}
             data-testid="delegate-view"
-            onClick={() => setDrawer(true)}
+            onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
           >
             <Icon icon={ExternalLink} size={13} />
           </button>
@@ -722,6 +727,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
       )}
       {open && (
         <div className={styles.body}>
+          {tab && <TabSandboxRequests tabId={tab.id} />}
           {tab &&
             (v.live?.permissions ?? []).map((p) =>
               p.kind === 'approve-plan' ? (

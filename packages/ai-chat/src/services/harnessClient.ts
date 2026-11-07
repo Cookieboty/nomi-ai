@@ -38,9 +38,24 @@ export interface HarnessDelegation {
 export const isNomiDelegated = (tab: { delegation?: HarnessDelegation }): boolean =>
   tab.delegation?.by === 'nomi';
 
+/** 沙箱挡下、等用户授权的一项（内核标签状态，不落盘） */
+export interface SandboxPendingItem {
+  id: string;
+  /** category：按类别读写；read：读这一个密钥文件；folder / file：写入；protected：受保护文件夹（只能去设置里取消保护） */
+  kind: 'category' | 'read' | 'folder' | 'file' | 'protected';
+  value: string;
+  op: 'read' | 'write';
+  path: string;
+  at: number;
+}
+
+export type SandboxChoice = 'session' | 'always' | 'deny';
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
+  /** 沙箱挡下、等授权的项 */
+  sandboxPending?: SandboxPendingItem[];
   /** 由 Nomi 委派开的标签 */
   delegation?: HarnessDelegation;
   backend: HarnessBackend;
@@ -105,6 +120,8 @@ export interface HarnessTabsState {
   aiReview?: boolean;
   /** Nomi 工作区文件操作免确认；缺省 = 跟随 autoApprove（只在单独设过时出现） */
   nomiAutoApprove?: boolean;
+  /** 编程助手的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
+  sandbox?: 'on' | 'off' | 'unsupported';
 }
 
 export interface HarnessImageInput {
@@ -414,7 +431,12 @@ export interface GitWorktreeList {
   worktrees: GitWorktree[];
 }
 export interface ContextBreakdown {
+  /** 系统提示（没有 toolDefs / memory 时也含工具定义与记忆：CLI 会话记录分不出来） */
   system: number;
+  /** 工具定义（Nomi 对话由内核分开计） */
+  toolDefs?: number;
+  /** 长期记忆（Nomi 对话由内核分开计） */
+  memory?: number;
   user: number;
   assistant: number;
   tools: number;
@@ -637,6 +659,9 @@ export const harnessClient = {
       api.harness.geminiTrustFolder({ tabId, messageId, confirmed: true }),
     ),
   /** 允许/拒绝工具权限请求；approvePlan 用于 PR3「批准计划」三选一 */
+  /** 回答沙箱挡下的授权请求：本会话允许 / 始终允许 / 不允许 */
+  sandboxReply: (tabId: string, requestId: string, choice: SandboxChoice) =>
+    call<boolean>(() => api.harness.sandboxReply({ tabId, requestId, choice })),
   replyPermission: (
     tabId: string,
     requestId: string,

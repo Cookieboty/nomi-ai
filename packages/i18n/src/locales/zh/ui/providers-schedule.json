@@ -358,5 +358,6 @@
   "ui.providers-schedule.what-should-the-assistant-do-e-g-summarize": "让助手做什么？例如：总结今天的提醒，给我一句鼓励",
   "ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while": "开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。",
   "ui.providers-schedule.write-environment-variable-names-only-such-as-my": "环境变量只写名字（如 MY_TOKEN），不要写值",
-  "ui.providers-schedule.yes": "是"
+  "ui.providers-schedule.yes": "是",
+  "ui.providers-schedule.task-sandbox-pregrant": "编程助手沙箱里预先允许（跑的时候不用再问；有 GitHub 对外动作时自动带上 SSH 与 Git 凭据）"
 }

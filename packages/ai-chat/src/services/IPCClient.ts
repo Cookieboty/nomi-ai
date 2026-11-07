@@ -34,7 +34,7 @@ interface SdkChatOptions {
   reqId?: string;
   provider?: string;
   model?: string;
-  messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>;
+  messages: ProviderMessage[];
   /** 透传至 ChatRequest.extra（如 conversationId，#116） */
   extra?: Record<string, unknown>;
   /** 按角色路由（chat / agent-tools / summary） */
@@ -159,12 +159,13 @@ export class SdkIPCClient implements IPCClient {
     history: ChatMessage[] = [],
     extra?: string,
     images?: Array<{ mime: string; data: string }>,
+    memory?: string,
   ) {
     const { systemPrompt } = await this.getConfig();
     // 没有自定义时每轮现取内核的默认系统提示（换角色包 / 换界面语言即时生效）；用户自填的原样保留（含清空）
     const base = systemPrompt === undefined ? await this.defaultSystemPrompt() : systemPrompt;
     const sys = [base, extra].filter((s) => s && s.trim()).join('\n\n');
-    return buildProviderMessages(history, message, sys, images);
+    return buildProviderMessages(history, message, sys, images, memory);
   }
 
   currentConversationId(): string | undefined {
@@ -193,10 +194,11 @@ export class SdkIPCClient implements IPCClient {
     message: string,
     history?: ChatMessage[],
     extraSystem?: string,
+    memory?: string,
   ): Promise<string> {
     try {
       const resp = await this.chat.sendMessage({
-        messages: await this.buildMessages(message, history, extraSystem),
+        messages: await this.buildMessages(message, history, extraSystem, undefined, memory),
       });
       return typeof resp?.content === 'string' ? resp.content : '';
     } catch (error) {
@@ -234,7 +236,13 @@ export class SdkIPCClient implements IPCClient {
           ? this.store.get(conversationId)?.cwd
           : undefined;
       const opts = {
-        messages: await this.buildMessages(message, history, extraSystem, images),
+        messages: await this.buildMessages(
+          message,
+          history,
+          extraSystem,
+          images,
+          streamOpts?.memory,
+        ),
         ...(reqId ? { reqId } : {}),
         ...(conversationId ? { extra: { conversationId, ...(cwd ? { cwd } : {}) } } : {}),
       };
@@ -275,6 +283,9 @@ export class SdkIPCClient implements IPCClient {
             noteThinking(false);
           if (c.type === 'delta' && typeof (c as { content?: string }).content === 'string') {
             onChunk?.((c as { content: string }).content);
+          } else if (c.type === 'steps') {
+            const steps = (c as { steps?: unknown }).steps;
+            if (typeof steps === 'string' && steps) streamOpts?.onSteps?.(steps);
           } else if (c.type === 'error') {
             throw new Error((c as { error: string }).error);
           } else if (streamOpts?.onTrace || streamOpts?.onUsage) {
@@ -359,12 +370,17 @@ export class SdkIPCClient implements IPCClient {
 
   async newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string; notReuse?: string },
+    opts?: {
+      backend?: ConversationBackend;
+      tabId?: string;
+      cwd?: string;
+      notReuse?: string | readonly string[];
+    },
   ): Promise<string> {
     // 新的 Nomi 对话没给工作区时由 store 用主标签当前的目录（defaultNomiCwd）
     // 这个工作区已经有还没说话的空对话：切过去（挪到最上面），不再新建一个
     if ((opts?.backend ?? 'nomi') === 'nomi' && !opts?.tabId) {
-      // notReuse：界面上有消息 / 正在回复的当前会话（消息可能还没落盘，看起来是空的）
+      // notReuse：界面上有消息 / 正在准备或生成回复的会话（含后台的；这一轮还没落盘，看起来是空的）
       const empty = this.store.findEmptyNomi(
         opts?.cwd ?? this.store.defaultNomiCwd(),
         opts?.notReuse,

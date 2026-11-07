@@ -36,13 +36,27 @@ func Register(r *contract.Router, s *Service) {
 		return s.SetToolPolicy(field(in, "tool"), field(in, "policy"))
 	})
 	call("desktop.setLocalOnly", func(_ contract.Caller, in json.RawMessage) any { return s.SetLocalOnly(field(in, "value")) })
-	call("desktop.audit", func(_ contract.Caller, in json.RawMessage) any { return s.AuditList(field(in, "limit"), field(in, "offset")) })
+	call("desktop.audit", func(_ contract.Caller, in json.RawMessage) any {
+		return s.AuditList(field(in, "limit"), field(in, "offset"))
+	})
 	call("desktop.auditClear", func(contract.Caller, json.RawMessage) any { return s.ClearAudit() })
 	call("desktop.journal", func(contract.Caller, json.RawMessage) any { return s.JournalList() })
 	call("desktop.undoLast", func(contract.Caller, json.RawMessage) any { return s.UndoLast() })
 	call("desktop.resetAll", func(contract.Caller, json.RawMessage) any { return s.ResetAll() })
 	call("desktop.resetCloudAcks", func(contract.Caller, json.RawMessage) any { return s.ResetCloudAcks() })
 	call("desktop.removeCommandRule", func(_ contract.Caller, in json.RawMessage) any { return s.RemoveCommandRule(field(in, "rule")) })
+	call("desktop.protectFolder", func(contract.Caller, json.RawMessage) any {
+		if r := s.ProtectFolder(); r != nil {
+			return r
+		}
+		return nil
+	})
+	call("desktop.setCliEnvAllow", func(_ contract.Caller, in json.RawMessage) any { return s.SetCliEnvAllow(field(in, "names")) })
+	call("desktop.setCliSandbox", func(_ contract.Caller, in json.RawMessage) any { return s.SetCliSandbox(field(in, "enabled")) })
+	call("desktop.removeCliSandboxAllow", func(_ contract.Caller, in json.RawMessage) any {
+		return s.RemoveCliSandboxAllow(field(in, "kind"), field(in, "value"), field(in, "project"))
+	})
+	call("desktop.unprotectPath", func(_ contract.Caller, in json.RawMessage) any { return s.UnprotectPath(field(in, "path")) })
 	call("desktop.remindersList", func(_ contract.Caller, in json.RawMessage) any { return s.RemindersList(field(in, "all")) })
 	call("desktop.remindersCreate", func(_ contract.Caller, in json.RawMessage) any {
 		if r := s.CreateReminder(obj(in)); r != nil {

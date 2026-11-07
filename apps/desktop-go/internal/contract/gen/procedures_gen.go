@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 428：mutation 299 / query 124 / stream 5
+// 合计 440：mutation 310 / query 125 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -117,22 +117,27 @@ var Procedures = []Procedure{
 	{Name: "desktop.confirmAnswer", Kind: "mutation", Dangerous: true, Surfaces: []string{"mascot", "chat"}},
 	{Name: "desktop.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.journal", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.protectFolder", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.reminderAction", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.remindersCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersCreate", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersList", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersSnooze", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersUpdate", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.removeCliSandboxAllow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.removeCommandRule", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.resetAll", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.resetCloudAcks", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.setCliEnvAllow", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "desktop.setCliSandbox", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setLocalOnly", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setPolicy", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.state", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.takeMissedReminders", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "desktop.takePendingSummary", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "desktop.undoLast", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.unprotectPath", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "diagnostics.cliRecords", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.export", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "diagnostics.gatewayTrace", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
@@ -158,6 +163,12 @@ var Procedures = []Procedure{
 	{Name: "ext.skillToggle", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsContext", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "ext.skillsList", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "fleet.archive", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "fleet.closeIdle", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "fleet.pause", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "fleet.resume", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "fleet.setAutoPause", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "fleet.state", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.catalogModels", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.clearLearned", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.confirmPrivateHost", Kind: "mutation", Dangerous: true, Surfaces: nil},
@@ -206,6 +217,7 @@ var Procedures = []Procedure{
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.replyApprovePlan", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.replyPermission", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "harness.sandboxReply", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.send", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.setBackend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.setCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -480,6 +492,7 @@ var Events = []string{
 	"desktop.reminder",
 	"desktop.summary",
 	"ext.changed",
+	"fleet.changed",
 	"gateway.changed",
 	"gateway.retrying",
 	"harness.changed",
@@ -530,4 +543,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "FLEET_NOT_IDLE", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}

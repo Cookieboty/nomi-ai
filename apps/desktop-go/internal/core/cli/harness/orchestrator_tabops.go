@@ -316,6 +316,7 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	var cwd string
 	if truthy(opts.Get("cwd")) {
 		cwd = validDir(jsStr(opts.Get("cwd")))
+		o.checkCwd(cwd)
 		o.rememberCwd(cwd)
 	} else {
 		cwd = o.EnsureDefaultDir(str(o.tab(o.activeTabID), "cwd"))
@@ -369,8 +370,14 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		if truthy(del.Get("taskId")) {
 			d.Set("taskId", del.Get("taskId"))
 		}
+		if truthy(del.Get("parentTaskId")) {
+			d.Set("parentTaskId", del.Get("parentTaskId"))
+		}
 		if truthy(del.Get("githubAccess")) {
 			d.Set("githubAccess", true)
+		}
+		if g := sandboxGrantList(del.Get("sandboxGrants")); len(g) > 0 {
+			d.Set("sandboxGrants", g)
 		}
 		if k, _ := del.Get("reuseKey").(string); k != "" {
 			d.Set("reuseKey", k)
@@ -523,6 +530,7 @@ func (o *Orchestrator) SeedTabMessages(id string, messages []any) *util.Obj {
 
 // CloseTab = closeTab。
 func (o *Orchestrator) CloseTab(id string) *util.Obj {
+	o.thawIfFrozen(id)
 	if id == MainTabID {
 		throw(i18n.T("electron.common.the-main-chat-tab-cannot-be-closed"))
 	}
@@ -530,6 +538,7 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 	o.CancelTab(id)
 	delete(o.live.claudeStarting, id)
 	o.teardownClaudeLive(id)
+	o.forgetSandbox(id)
 	order := o.tabs.Keys()
 	idx := -1
 	for i, k := range order {
@@ -768,6 +777,7 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 func (o *Orchestrator) SetTabCwd(id, cwd string, carry bool) *util.Obj {
 	tab := o.requireTab(id)
 	abs := validDir(cwd)
+	o.checkCwd(abs)
 	if abs != str(tab, "cwd") {
 		if tab.Get("status") != "running" {
 			o.teardownClaudeLive(id)

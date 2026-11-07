@@ -49,6 +49,21 @@ func (a in) list(k string) []any {
 	return l
 }
 
+// viewTabFields：视图建标签能给的字段（契约 harness.tabCreate 声明的）。delegation（委派与沙箱预授权）、source、
+// accountId、cliSessionId、modelOverride 等只由内核自己的委派 / 任务路径设置：视图带来的一律丢掉，
+// 否则建标签时塞一个 delegation.sandboxGrants 就能绕过 harness.sandboxReply 的确认拿到凭据的读权限
+var viewTabFields = []string{"backend", "cwd", "title", "messages", "permissionMode", "pluginId"}
+
+func viewTabOptions(o *util.Obj) *util.Obj {
+	out := util.NewObj()
+	for _, k := range viewTabFields {
+		if v, ok := o.Lookup(k); ok {
+			out.Set(k, v)
+		}
+	}
+	return out
+}
+
 func await[T any](p *jsrt.Promise[T]) T {
 	v, err := jsrt.Await(p)
 	if err != nil {
@@ -120,7 +135,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 
 	// ── 标签 ──
 	call("harness.tabs", func(in) any { return h().ListTabs() })
-	call("harness.tabCreate", func(a in) any { return h().CreateTab(a.o) })
+	call("harness.tabCreate", func(a in) any { return h().CreateTab(viewTabOptions(a.o)) })
 	call("harness.tabSeed", func(a in) any { return h().SeedTabMessages(a.str("id"), a.list("messages")) })
 	call("harness.tabClose", func(a in) any { return h().CloseTab(a.str("id")) })
 	call("harness.tabRename", func(a in) any { return h().RenameTab(a.str("id"), a.any("title")) })
@@ -136,6 +151,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 		}
 		return await(h().ApplyTabPermissionMode(a.str("id"), a.any("mode"), opts))
 	})
+	call("harness.sandboxReply", func(a in) any { return h().SandboxReply(a.str("tabId"), a.str("requestId"), a.str("choice")) })
 	call("harness.permissionDefaults", func(a in) any {
 		return h().SetPermissionDefaults(a.any("defaultPermissionMode"), a.any("codexNetwork"), a.any("autoApprove"), a.any("aiReview"), a.any("nomiAutoApprove"))
 	})

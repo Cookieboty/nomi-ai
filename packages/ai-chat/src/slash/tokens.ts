@@ -148,7 +148,17 @@ export function reportedModel(messages: readonly ConvMessage[]): string | undefi
  */
 export function estimateContext(
   messages: readonly ConvMessage[],
-  labels: { user: string; assistant: string; tools: string; thinking: string; system: string },
+  labels: {
+    user: string;
+    assistant: string;
+    tools: string;
+    thinking: string;
+    system: string;
+    /** 分项里分开计了工具定义 / 记忆时（Nomi 对话）用这三个标签；没给就合成一项 system */
+    systemPrompt?: string;
+    toolDefs?: string;
+    memory?: string;
+  },
   opts?: { windowSize?: number },
 ): ContextEstimate {
   // 压缩过：只看最后一次压缩摘要及之后的消息（压缩前的真实用量已作废）
@@ -191,14 +201,33 @@ export function estimateContext(
     after += s.user + s.assistant + s.tools + s.thinking;
   }
   const used = actual + after;
-  // CLI 会话记录给了分项（总和 = 真实占用）：直接用，比按 Nomi 落盘的消息估算准
+  // 给了分项（CLI 会话记录 / Nomi 内核按实际请求拆、按真实用量校准，总和 = 真实占用）：直接用，
+  // 比按落盘的消息估算准（本地估算对代码 / JSON 偏低，差额会全堆到「系统提示」上）
   const bd = messages[lastActualIdx]!.usage?.breakdown;
   if (bd && !after) {
+    const split =
+      (bd.toolDefs !== undefined || bd.memory !== undefined) &&
+      !!labels.systemPrompt &&
+      !!labels.toolDefs &&
+      !!labels.memory;
+    const head = split
+      ? [
+          { key: 'system', label: labels.systemPrompt!, tokens: bd.system },
+          { key: 'toolDefs', label: labels.toolDefs!, tokens: bd.toolDefs ?? 0 },
+          { key: 'memory', label: labels.memory!, tokens: bd.memory ?? 0 },
+        ]
+      : [
+          {
+            key: 'system',
+            label: labels.system,
+            tokens: bd.system + (bd.toolDefs ?? 0) + (bd.memory ?? 0),
+          },
+        ];
     return {
       used,
       basis: 'actual',
       categories: [
-        { key: 'system', label: labels.system, tokens: bd.system },
+        ...head,
         { key: 'user', label: labels.user, tokens: bd.user },
         { key: 'assistant', label: labels.assistant, tokens: bd.assistant },
         { key: 'tools', label: labels.tools, tokens: bd.tools },

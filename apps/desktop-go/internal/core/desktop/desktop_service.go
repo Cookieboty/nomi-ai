@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"log"
 	"math"
 	"path/filepath"
@@ -523,6 +524,8 @@ type State struct {
 	BrokerView
 	Tools   []ToolState      `json:"tools"`
 	Pending []ConfirmRequest `json:"pending"`
+	// CliSandboxSupported：当前平台能用编程助手的系统沙箱
+	CliSandboxSupported bool `json:"cliSandboxSupported"`
 }
 
 func (s *Service) State() State {
@@ -538,7 +541,7 @@ func (s *Service) State() State {
 	if p == nil {
 		p = []ConfirmRequest{}
 	}
-	return State{s.Broker.View(), tools, p}
+	return State{s.Broker.View(), tools, p, sandbox.Supported()}
 }
 
 type OKCode struct {
@@ -688,6 +691,75 @@ func (s *Service) ResetCloudAcks() bool    { s.Broker.ResetCloudAcks(); return t
 func (s *Service) RemoveCommandRule(rule any) State {
 	if r, ok := rule.(string); ok {
 		s.Broker.RemoveCommandRule(r)
+	}
+	return s.State()
+}
+
+// ProtectFolder：系统选择框选一个文件夹加进受保护清单；取消返回 nil，不能加时返回原因
+func (s *Service) ProtectFolder() *ProtectResult {
+	if s.ports.PickDirectory == nil {
+		return nil
+	}
+	picked := s.ports.PickDirectory(tr.T("electron.common.choose-folder-to-protect"), tr.T("electron.common.protect"), "")
+	if picked == "" {
+		return nil
+	}
+	saved, reason := s.Broker.AddProtectedPath(picked)
+	if reason != "" {
+		return &ProtectResult{Error: reason, State: s.State()}
+	}
+	a := NewOMap()
+	a.Set("path", saved)
+	s.userAudit("protect_path", a, "ok")
+	return &ProtectResult{Path: saved, State: s.State()}
+}
+
+// ProtectResult：desktop.protectFolder 的结果
+type ProtectResult struct {
+	Path  string `json:"path,omitempty"`
+	Error string `json:"error,omitempty"`
+	State State  `json:"state"`
+}
+
+// SetCliEnvAllow：替换放行给编程助手的环境变量清单，返回最新状态
+func (s *Service) SetCliEnvAllow(names any) State {
+	if arr, ok := names.([]any); ok {
+		s.Broker.SetCliEnvAllow(arr)
+	}
+	return s.State()
+}
+
+// SetCliSandbox：开关编程助手的系统沙箱，返回最新状态
+func (s *Service) SetCliSandbox(enabled any) State {
+	if v, ok := enabled.(bool); ok {
+		s.Broker.SetCliSandboxEnabled(v)
+		a := NewOMap()
+		a.Set("enabled", v)
+		s.userAudit("cli_sandbox", a, "ok")
+	}
+	return s.State()
+}
+
+// RemoveCliSandboxAllow：删掉一条「始终允许」，返回最新状态
+func (s *Service) RemoveCliSandboxAllow(kind, value, project any) State {
+	k, _ := kind.(string)
+	v, _ := value.(string)
+	p, _ := project.(string)
+	if s.Broker.RemoveCliSandboxAllow(SandboxAllow{Kind: k, Value: v, Project: p}) {
+		a := NewOMap()
+		a.Set("kind", k)
+		a.Set("value", v)
+		s.userAudit("cli_sandbox_revoke", a, "ok")
+	}
+	return s.State()
+}
+
+// UnprotectPath：从受保护清单删掉一条，返回最新状态
+func (s *Service) UnprotectPath(p any) State {
+	if v, ok := p.(string); ok && s.Broker.RemoveProtectedPath(v) {
+		a := NewOMap()
+		a.Set("path", v)
+		s.userAudit("unprotect_path", a, "ok")
 	}
 	return s.State()
 }

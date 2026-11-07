@@ -60,6 +60,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.workspaceGitCheckout mutation",
   "harness.geminiTrustFolder mutation dangerous",
   "harness.replyPermission mutation dangerous",
+  "harness.sandboxReply mutation dangerous",
   "harness.replyApprovePlan mutation dangerous",
   "cli.registry query",
   "cli.pluginAdd mutation",
@@ -89,6 +90,12 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "agents.state query",
   "agents.scan mutation",
   "agents.setSettings mutation",
+  "fleet.state query",
+  "fleet.archive mutation",
+  "fleet.closeIdle mutation dangerous",
+  "fleet.pause mutation dangerous",
+  "fleet.resume mutation dangerous",
+  "fleet.setAutoPause mutation dangerous",
   "history.list query",
   "history.index query",
   "history.open mutation",
@@ -108,5 +115,6 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "cliUpdate.event",
   "delegate.completed",
   "agents.changed",
+  "fleet.changed",
 ]
 `;

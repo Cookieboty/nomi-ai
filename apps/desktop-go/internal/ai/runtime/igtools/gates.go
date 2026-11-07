@@ -5,6 +5,7 @@ package igtools
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
@@ -23,7 +24,11 @@ var (
 	// 派出去的事（编程助手或后台的 Nomi）：问进度、要停下时也提供查询 / 停止
 	gateFollow = regexp.MustCompile(`后台|派|委派|任务|进度|好了没|好了吗|做完|做好|停下|停止|别做|不用做|取消|background|task|progress|status|stop|cancel`)
 	// 持续任务：以后 / 定期 / 某件事发生时再做（宁可多带：漏掉时用户就建不了任务）
-	gateTask  = regexp.MustCompile(`每天|每日|每周|每月|每晚|每早|每隔|每小时|每次|每当|定期|定时|周期|持续|长期|以后|之后|往后|将来|到时|到点|稍后|晚点|回头|过会|待会|一旦|只要|发生|出现|变化|变动|更新|有新|新邮件|跑完|结束后|完成后|盯|监控|监视|关注|跟进|留意|看着|通知我|告诉我|提醒|订阅|自动|任务|ci\b|rss|cron|daily|weekly|monthly|every|whenever|later|monitor|watch|notify|recurring|subscribe|task`)
+	gateTask = regexp.MustCompile(`每天|每日|每周|每月|每晚|每早|每隔|每小时|每次|每当|定期|定时|周期|持续|长期|以后|之后|往后|将来|到时|到点|稍后|晚点|回头|过会|待会|一旦|只要|发生|出现|变化|变动|更新|有新|新邮件|跑完|结束后|完成后|盯|监控|监视|关注|跟进|留意|看着|通知我|告诉我|提醒|订阅|自动|任务|ci\b|rss|cron|daily|weekly|monthly|every|whenever|later|monitor|watch|notify|recurring|subscribe|task`)
+	// 改动文件：写、改、新建、删、移动……（只读的查看 / 搜索 / 分析不需要写工具）
+	gateWrite = regexp.MustCompile(`改|写入|写到|写个|写一|写成|重写|补上|加上|新建|创建|建一个|生成|删|移动|移到|挪|重命名|改名|复制|拷贝|保存|存到|存成|整理|归档|清理|修复|修一|实现|重构|替换|提交|edit|write|create|delete|remove|move|rename|copy|save|fix|implement|refactor|replace|commit`)
+	// 要做一阵子、适合派给后台的 Nomi 的事
+	gateLong  = regexp.MustCompile(`后台|慢慢|不急|做好叫我|做完叫我|做好了告诉|ppt|幻灯|演示文稿|报告|长文|文档|调研|研究|批量|一批|一组|多张|几张|系列|background`)
 	gateImage = regexp.MustCompile(`图|画|照片|相片|海报|头像|壁纸|插画|配图|封面|logo|表情包|生成|chat-asset:|image|picture|photo|draw|paint|illustrat|poster|avatar|wallpaper`)
 )
 
@@ -31,13 +36,43 @@ func said(re *regexp.Regexp) func(tools.Turn) bool {
 	return func(t tools.Turn) bool { return re.MatchString(t.ConvoText) }
 }
 
-// 选了工作区的 Nomi 对话：文件与委派工具总是提供
+// 选了工作区的 Nomi 对话：查看文件的工具总是提供
 func orCwd(re *regexp.Regexp) func(tools.Turn) bool {
 	return func(t tools.Turn) bool { return t.Cwd != "" || re.MatchString(t.ConvoText) }
 }
 
-// follow：委派的门槛，或对话里问到派出去的事的进度 / 要停下
-func follow(t tools.Turn) bool { return orCwd(gateDelegate)(t) || gateFollow.MatchString(t.ConvoText) }
+// writes：改动文件的工具：能用文件工具（选了工作区或说到文件），并且说到了要改动
+func writes(t tools.Turn) bool {
+	return orCwd(gateFiles)(t) && gateWrite.MatchString(t.ConvoText)
+}
+
+// DispatchRelevant：派出去（编程助手 / 后台的 Nomi）的工具与「做还是派」的规则：说到编程任务、
+// 要做一阵子的事（文档 / 报告 / 一组图……），或问到派出去的事的进度 / 要停下时提供（选了工作区但只是问问题时不带）
+func DispatchRelevant(t tools.Turn) bool {
+	return gateDelegate.MatchString(t.ConvoText) || gateLong.MatchString(t.ConvoText) ||
+		gateFollow.MatchString(t.ConvoText) || gateImage.MatchString(t.ConvoText)
+}
+
+// DispatchRelevantFor：同 DispatchRelevant，按请求里的消息（契约 ChatMessage 解出的 []any）判断；
+// 用来决定系统提示里带不带「做还是派出去」的规则（和派出去的工具同进同出）
+func DispatchRelevantFor(messages any) bool {
+	list, _ := messages.([]any)
+	var b strings.Builder
+	for _, x := range list {
+		m, _ := x.(map[string]any)
+		if m == nil || (m["role"] != "user" && m["role"] != "assistant") {
+			continue
+		}
+		if c, ok := m["content"].(string); ok {
+			b.WriteString(c)
+			b.WriteByte('\n')
+		}
+	}
+	return DispatchRelevant(tools.Turn{ConvoText: strings.ToLower(b.String())})
+}
+
+// follow：查询 / 停止派出去的事
+func follow(t tools.Turn) bool { return DispatchRelevant(t) }
 
 // tasks：起草持续任务；对话里说到以后 / 定期 / 某事发生时、提醒类时间词，或问到派出去的事时提供
 func tasks(t tools.Turn) bool {
@@ -60,12 +95,13 @@ var toolGates = map[string]func(tools.Turn) bool{
 	"undo_last":           said(gateUndo),
 	"desktop_permissions": said(gatePermission),
 	"image_generate":      said(gateImage),
-	"delegate_to_cli":     orCwd(gateDelegate), "delegate_status": follow,
-	"delegate_followup": orCwd(gateDelegate), "delegate_stop": follow,
-	"fs_list": orCwd(gateFiles), "fs_stat": orCwd(gateFiles), "fs_read_text": orCwd(gateFiles),
-	"fs_search": orCwd(gateFiles), "fs_summarize": orCwd(gateFiles), "fs_write_text": orCwd(gateFiles),
-	"fs_edit": orCwd(gateFiles), "fs_mkdir": orCwd(gateFiles), "fs_copy": orCwd(gateFiles),
-	"fs_move": orCwd(gateFiles), "fs_trash": orCwd(gateFiles),
+	"delegate_to_cli":     said(gateDelegate), "delegate_status": follow,
+	"delegate_followup": said(gateDelegate), "delegate_stop": follow,
+	"delegate_to_nomi": DispatchRelevant,
+	"fs_list":          orCwd(gateFiles), "fs_stat": orCwd(gateFiles), "fs_read_text": orCwd(gateFiles),
+	"fs_search": orCwd(gateFiles), "fs_summarize": orCwd(gateFiles), "fs_write_text": writes,
+	"fs_edit": writes, "fs_mkdir": writes, "fs_copy": writes,
+	"fs_move": writes, "fs_trash": writes,
 	"task_propose": tasks, "task_recall": tasks,
 }
 

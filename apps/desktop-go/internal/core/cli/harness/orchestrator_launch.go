@@ -263,7 +263,11 @@ func (o *Orchestrator) childEnv(useNode bool, l *tabLaunch, extra *util.Obj) *ut
 	if extra == nil {
 		extra = util.NewObj()
 	}
-	env := CliChildEnv(useNode, extra.Clone().Assign(l.env))
+	var allow []string
+	if o.d.EnvAllow != nil {
+		allow = o.d.EnvAllow()
+	}
+	env := CliChildEnv(useNode, extra.Clone().Assign(l.env), allow)
 	if l.official && o.d.Gateway != nil {
 		env = o.d.Gateway.OfficialEnv(env)
 	}
@@ -410,6 +414,7 @@ func (o *Orchestrator) PickTabCwd(id string) *jsrt.Promise[*util.Obj] {
 // CLI 在下一个工具 / 模型步骤取走，这一轮不中断。成功后在这一轮的轨迹里记一条 interject（落盘、实时显示）。
 // 没有进行中的轮次、后端不支持（Gemini / dsh / exec 退路）或 CLI 拒绝时 false，视图改为排队。
 func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {
+	o.thawIfFrozen(id)
 	return jsrt.Async(func() (bool, error) {
 		tab := o.tab(id)
 		body := util.JSTrim(text)
@@ -448,6 +453,7 @@ func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {
 
 // CancelTab = cancelTab。
 func (o *Orchestrator) CancelTab(id string) bool {
+	o.thawIfFrozen(id)
 	if o.delegatedUnsent[id] && o.tabs.Has(id) {
 		o.stopBeforeStart[id] = true
 		return true
@@ -501,7 +507,9 @@ func (o *Orchestrator) CancelTab(id string) bool {
 
 // Dispose = dispose。
 func (o *Orchestrator) Dispose() {
+	o.thawAll()
 	o.disposed = true
+	o.disposeSandbox()
 	o.writer.Dispose()
 	o.stopIdleSweep()
 	o.eventBatcher.Dispose()

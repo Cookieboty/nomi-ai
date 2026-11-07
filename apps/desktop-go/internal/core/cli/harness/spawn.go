@@ -1,15 +1,16 @@
 package harness
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // mockDir = mockDir()：候选用 cli.MockCliRoots（前两项 __dirname bundle 目录由宿主接线 prepend）。
@@ -49,16 +50,11 @@ var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID st
 
 // SpawnHarness = spawnHarness。须在 jsrt.Run 内调用（nodeproc 约定）。stdin 'error' 由 nodeproc 吞掉。
 func SpawnHarness(command string, args []string, cwd string, env *util.Obj, tabID string) clisdk.ChildLike {
-	l := cli.ResolveHarnessLaunch(command, args, env, usage.Platform(), nil)
-	ch := clisdk.ProcChild{Child: nodeproc.Spawn(l.File, l.Args, nodeproc.Options{Cwd: cwd, Env: usage.EnvSlice(l.Env), Verbatim: l.Verbatim})}
-	if CliTrap != nil {
-		CliTrap(ch, command, args, tabID)
-	}
-	return ch
+	return spawnHarness(command, args, cwd, env, tabID, nil)
 }
 
-// CliChildEnv = cliChildEnv。
-func CliChildEnv(useNode bool, extra *util.Obj) *util.Obj {
+// CliChildEnv = cliChildEnv：继承的环境去掉凭据变量（allow 里的放行，见 cli.ScrubSecretEnv），再叠上 extra。
+func CliChildEnv(useNode bool, extra *util.Obj, allow []string) *util.Obj {
 	if extra == nil {
 		extra = util.NewObj()
 	}
@@ -69,7 +65,8 @@ func CliChildEnv(useNode bool, extra *util.Obj) *util.Obj {
 		}
 		extra = e
 	}
-	return cli.BuildCliEnv(cli.WithCliPath(usage.ProcessEnv()), extra)
+	base, _ := cli.ScrubSecretEnv(cli.WithCliPath(usage.ProcessEnv()), allow)
+	return cli.BuildCliEnv(base, extra)
 }
 
 // GhTokenVars = GH_TOKEN_VARS：gh 读令牌的环境变量（环境变量优先于已存的登录）
@@ -85,4 +82,22 @@ func IsolateGhEnv(env *util.Obj, emptyConfigDir string) *util.Obj {
 	out.Set("GH_CONFIG_DIR", emptyConfigDir)
 	out.Set("GH_PROMPT_DISABLED", "1")
 	return out
+}
+
+// cwdErr：工作目录不符合策略（Deps.CwdCheck：与 Nomi 对话工作区同一套，不能过宽、不能在受保护文件夹里）
+// 时给用户看的错误。选目录、新建标签、每次起 CLI 前都查。
+func (o *Orchestrator) cwdErr(dir string) error {
+	if o.d.CwdCheck == nil || dir == "" {
+		return nil
+	}
+	if reason := o.d.CwdCheck(dir); reason != "" {
+		return errors.New(i18n.T("electron.common.cli-cwd-blocked", dir, reason))
+	}
+	return nil
+}
+
+func (o *Orchestrator) checkCwd(dir string) {
+	if err := o.cwdErr(dir); err != nil {
+		throw(err.Error())
+	}
 }

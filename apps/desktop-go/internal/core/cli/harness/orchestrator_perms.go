@@ -53,6 +53,7 @@ func (o *Orchestrator) tryWarn(msg string, fn func()) {
 // ReplyPermission = replyPermission(tabId, requestId, allow, reason?, {approvePlan?})；
 // reason "" = 缺省（按 allow），approvePlan "" = undefined。
 func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reason, approvePlan string) bool {
+	o.thawIfFrozen(tabID)
 	if reason == "" {
 		reason = "denied"
 		if allow {

@@ -38,11 +38,65 @@ type Handlers struct {
 	batch  time.Duration
 	mu     sync.Mutex
 	aborts map[string]*aborter
+	// onActive：对话的流开始 / 结束（Agent 看板据此显示正在回答的 Nomi 对话）
+	onActive func()
 }
 
 type aborter struct {
 	once sync.Once
 	ch   chan struct{}
+	// conv：对话的流（extra.conversationId）；标题生成等辅助调用没有
+	conv    string
+	started time.Time
+}
+
+// ActiveChat：一个正在回答的 Nomi 对话
+type ActiveChat struct {
+	ConversationID string
+	StartedAt      time.Time
+}
+
+// ActiveChats：正在回答的对话（同一个对话有多条流时取最早开始的那条）
+func (h *Handlers) ActiveChats() []ActiveChat {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	by := map[string]time.Time{}
+	for _, a := range h.aborts {
+		if a.conv == "" || a.aborted() {
+			continue
+		}
+		if t, ok := by[a.conv]; !ok || a.started.Before(t) {
+			by[a.conv] = a.started
+		}
+	}
+	out := make([]ActiveChat, 0, len(by))
+	for id, t := range by {
+		out = append(out, ActiveChat{ConversationID: id, StartedAt: t})
+	}
+	return out
+}
+
+// OnActiveChange：对话的流开始 / 结束时调用 fn（在另一个 goroutine 里，不阻塞流）
+func (h *Handlers) OnActiveChange(fn func()) {
+	h.mu.Lock()
+	h.onActive = fn
+	h.mu.Unlock()
+}
+
+func (h *Handlers) notifyActive() {
+	h.mu.Lock()
+	fn := h.onActive
+	h.mu.Unlock()
+	if fn != nil {
+		go fn()
+	}
+}
+
+// conversationOf：流的 extra.conversationId（没有 = 不是对话的流）
+func conversationOf(m map[string]any) string {
+	extra, _ := m["extra"].(map[string]any)
+	id, _ := extra["conversationId"].(string)
+	return id
 }
 
 func (a *aborter) abort() { a.once.Do(func() { close(a.ch) }) }
@@ -177,10 +231,14 @@ func (h *Handlers) chatStream(ctx context.Context, method string, raw json.RawMe
 		reqID = uuid.NewString()
 	}
 	m["reqId"] = reqID
-	a := &aborter{ch: make(chan struct{})}
+	a := &aborter{ch: make(chan struct{}), conv: conversationOf(m), started: time.Now()}
 	h.mu.Lock()
 	h.aborts[reqID] = a
 	h.mu.Unlock()
+	if a.conv != "" {
+		h.notifyActive()
+		defer h.notifyActive()
+	}
 	stop := context.AfterFunc(ctx, func() {
 		a.abort()
 		func() {

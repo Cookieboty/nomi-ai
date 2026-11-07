@@ -60,6 +60,8 @@ export interface DelegateResult {
   isolationNote?: string;
   /** 发起委派的 Nomi 会话；完成结果写回该会话（#116） */
   conversationId?: string;
+  /** 委派结束后在子任务里接着跑的一轮（用户接着对话 / 沙箱授权后续跑）的结果 */
+  followUp?: boolean;
 }
 
 export function delegateKindLabel(k: DelegateKind): string {

@@ -29,6 +29,7 @@ describe('appContract · D3 coding', () => {
       'cliUpdate',
       'delegate',
       'agents',
+      'fleet',
       'history',
     ]);
     for (const name of [...Object.keys(codingProcedures), ...Object.keys(codingEvents)]) {
@@ -43,9 +44,14 @@ describe('appContract · D3 coding', () => {
       .map(([n]) => n)
       .sort();
     expect(dangerous).toEqual([
+      'fleet.closeIdle',
+      'fleet.pause',
+      'fleet.resume',
+      'fleet.setAutoPause',
       'harness.geminiTrustFolder',
       'harness.replyApprovePlan',
       'harness.replyPermission',
+      'harness.sandboxReply',
       'harness.tabPermissionMode',
     ]);
   });

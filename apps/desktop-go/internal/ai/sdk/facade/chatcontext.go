@@ -43,8 +43,12 @@ func estimateUnits(s []uint16) float64 {
 func EstimateTokens(text string) float64 { return estimateUnits(utf16.Encode([]rune(text))) }
 
 // EstimateMessageTokens = estimateMessageTokens(m)
+// （带工具记录的助手消息按记录算，带背景的用户消息加上背景）
 func EstimateMessageTokens(m blm.ChatMessage) float64 {
-	return EstimateTokens(m.Content) + messageOverhead
+	if m.Steps != "" {
+		return EstimateTokens(m.Steps) + messageOverhead
+	}
+	return EstimateTokens(m.Context) + EstimateTokens(m.Content) + messageOverhead
 }
 
 func decode(s []uint16) string { return string(utf16.Decode(s)) }
@@ -101,7 +105,7 @@ func FitMessagesToBudget(messages []blm.ChatMessage, b *ContextBudget) []blm.Cha
 	lastKept := last
 	lastCost := EstimateMessageTokens(last)
 	if used+lastCost > maxTokens {
-		lastKept.Content = truncateToTokens(last.Content, maxTokens-used-messageOverhead)
+		lastKept.Content = truncateToTokens(last.Content, maxTokens-used-messageOverhead-EstimateTokens(last.Context))
 		used += EstimateMessageTokens(lastKept)
 	} else {
 		used += lastCost

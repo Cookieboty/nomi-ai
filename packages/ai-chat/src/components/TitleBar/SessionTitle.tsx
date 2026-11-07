@@ -5,7 +5,7 @@
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Ellipsis, Folder } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   selectIpcClient,
@@ -22,10 +22,13 @@ import {
   type ConversationStore,
 } from '../../services/conversationStore';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
+import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
+import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
+import { SessionDetailsToggle } from '../SessionDetails';
 import { FilesRailToggle } from '../SessionWorkspace';
 
 interface CurrentSession {
@@ -190,31 +193,49 @@ export const SessionMenuButton: React.FC<{
   );
 };
 
-/** 标题栏右侧：会话菜单「…」+ 工具栏（改动 · 文件）开关（只在有工作区时） */
+/** 标题栏右侧：会话菜单「…」+ 会话详情浮层 + 工具栏（改动 · 文件）开关（只在有工作区时） */
 export const SessionTools: React.FC<{
   onFork?: (id: string, mode: 'same' | 'cross') => void;
-  rail: { open: boolean; count: number; onToggle: () => void } | null;
-}> = ({ onFork, rail }) => (
-  <>
-    <SessionMenuButton onFork={onFork} />
-    {rail && (
-      <FilesRailToggle
-        open={rail.open}
-        count={rail.count}
-        onToggle={rail.onToggle}
-        bubbleClassName={chatHeaderStyles.actionsTipBubble}
-      />
-    )}
-  </>
-);
+  /** 当前会话的消息（变更统计、用到的智能体） */
+  messages: readonly ConvMessage[];
+  rail: { open: boolean; cwd: string; onToggle: () => void } | null;
+}> = ({ onFork, messages, rail }) => {
+  const s = useCurrentSession();
+  const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
+  return (
+    <>
+      <SessionMenuButton onFork={onFork} />
+      {s?.hasMessages && (
+        <SessionDetailsToggle
+          railOpen={!!rail?.open}
+          bubbleClassName={chatHeaderStyles.actionsTipBubble}
+        />
+      )}
+      {rail && (
+        <FilesRailToggle
+          open={rail.open}
+          count={count}
+          onToggle={rail.onToggle}
+          bubbleClassName={chatHeaderStyles.actionsTipBubble}
+        />
+      )}
+    </>
+  );
+};
 
 /** 标题栏左侧：任务 / 素材库整页打开时显示页名（不放会话的菜单与工具），否则是当前会话 */
-export const TitleBarTitle: React.FC<{ page: 'tasks' | 'assets' | null }> = ({ page }) => {
+const PAGE_TITLE = {
+  tasks: 'ui.providers-schedule.tasks',
+  assets: 'ui.media.asset-library',
+  fleet: 'ui.cli-monitor.fleet-board',
+} as const;
+
+export const TitleBarTitle: React.FC<{ page: keyof typeof PAGE_TITLE | null }> = ({ page }) => {
   useLocale();
   if (!page) return <SessionTitle />;
   return (
     <span className="app-titlebar-session" data-testid="titlebar-page">
-      {page === 'tasks' ? t('ui.providers-schedule.tasks') : t('ui.media.asset-library')}
+      {t(PAGE_TITLE[page])}
     </span>
   );
 };

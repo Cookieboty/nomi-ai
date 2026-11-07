@@ -5,7 +5,7 @@ import { Button, SettingsGroup, t, useLocale } from '@nomi-ai/ui';
 import { Folder } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
-import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
+import { selectIpcClient, useAiChatActions, useAiChatSelector } from '../../contexts/aiChatStore';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   type ConversationMeta,
@@ -27,6 +27,7 @@ const baseName = (p: string) =>
 export const ArchivedChats: React.FC = () => {
   useLocale();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  const { actions } = useAiChatActions();
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
   const read = useCallback(
     () =>
@@ -50,7 +51,11 @@ export const ArchivedChats: React.FC = () => {
       confirmLabel: t('ui.cli-monitor.delete-permanently'),
       danger: true,
     });
-    if (ok) await ipc?.deleteConversation?.(c.id);
+    if (ok) {
+      // 和侧栏的永久删除一样：先中止该会话在途的回复，删除后它不能再跑完、调工具（#277）
+      actions.abortConversation?.(c.id);
+      await ipc?.deleteConversation?.(c.id);
+    }
     setItems(read());
   };
 

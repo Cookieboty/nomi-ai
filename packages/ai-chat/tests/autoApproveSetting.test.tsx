@@ -23,10 +23,14 @@ function setup(autoApprove: boolean) {
   // 与主进程 setPermissionDefaults → changed() → tabsChanged 对齐
   const box: { fake: ReturnType<typeof installFakeApi> | null } = { fake: null };
   const invoke = vi.fn(
-    async (ch: string, input?: { autoApprove?: boolean; aiReview?: boolean }) => {
+    async (
+      ch: string,
+      input?: { autoApprove?: boolean; aiReview?: boolean; codexNetwork?: boolean },
+    ) => {
       if (ch === 'harness.tabs') return { ...state };
       if (ch === 'harness.permissionDefaults') {
         if (typeof input?.autoApprove === 'boolean') state.autoApprove = input.autoApprove;
+        if (typeof input?.codexNetwork === 'boolean') state.codexNetwork = input.codexNetwork;
         // 与内核一致：只在关掉时带 aiReview: false
         if (input?.aiReview === false) state.aiReview = false;
         if (input?.aiReview === true) delete state.aiReview;
@@ -85,6 +89,20 @@ describe('AutoApproveSetting', () => {
     fireEvent.click(r.getByTestId('auto-approve'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('harness.permissionDefaults', { autoApprove: true }),
+    );
+  });
+
+  it('Codex network is off unless the kernel says it was turned on; toggling saves it', async () => {
+    const invoke = setup(false);
+    const r = mount();
+    const sw = await r.findByTestId('codex-network');
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.permissionDefaults', { codexNetwork: true }),
+    );
+    await waitFor(() =>
+      expect(r.getByTestId('codex-network').getAttribute('aria-checked')).toBe('true'),
     );
   });
 });

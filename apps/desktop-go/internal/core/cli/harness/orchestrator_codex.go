@@ -44,12 +44,14 @@ type codexTurn struct {
 
 // codexLiveSession = CodexLiveSession。
 type codexLiveSession struct {
-	child            *gatedChild
-	driver           *drivers.AppServerDriver
-	threadID         *string
-	cwd              string
-	model, effort    *string
-	launchSig        string
+	child         *gatedChild
+	driver        *drivers.AppServerDriver
+	threadID      *string
+	cwd           string
+	model, effort *string
+	launchSig     string
+	// sandboxed：进程包在 Nomi 的沙箱里（Codex 自己的沙箱要关掉，策略用 dangerFullAccess）
+	sandboxed        bool
 	turn             *codexTurn
 	perms            map[string]func(*bool)
 	permOrder        []string
@@ -128,12 +130,14 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 			throw(i18n.T("electron.common.codex-not-found-set-nomi-use-mock-cli"))
 		}
 		useNode := IsScript(bin)
+		o.checkCwd(str(tab, "cwd"))
 		argv := append([]string{"app-server"}, launch.args...)
 		cmd, args := bin, argv
 		if useNode {
 			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
 		}
-		child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil)), id))
+		sandboxed := o.SandboxActive()
+		child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil))))
 		o.watchTabRelease(tab, child)
 		child.OnStderr(func(c string) { o.d.Logger.Warn("harness codex stderr", clisdk.Slice0(c, 500)) })
 		driver := drivers.NewAppServerDriver(drivers.AppServerDriverOptions{
@@ -160,7 +164,7 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 			},
 		})
 		live := &codexLiveSession{
-			child: child, driver: driver, cwd: str(tab, "cwd"), launchSig: spawnLaunch.sig,
+			child: child, driver: driver, cwd: str(tab, "cwd"), launchSig: spawnLaunch.sig, sandboxed: sandboxed,
 			perms: map[string]func(*bool){}, lastActivityAt: nowMs(), ready: jsrt.Resolved(struct{}{}),
 		}
 		driver.On(func(e clisdk.SessionEvent) {
@@ -325,7 +329,7 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		}
 		live.turn = turn
 		params := util.NewObj("cwd", str(tab, "cwd"))
-		params.Assign(drivers.CodexTurnPolicy(str(tab, "permissionMode"), o.codexNetwork))
+		params.Assign(drivers.CodexTurnPolicy(str(tab, "permissionMode"), o.codexNetwork, live.sandboxed))
 		if model != nil && *model != "" {
 			params.Set("model", *model)
 		}
@@ -535,6 +539,9 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 		useNode := IsScript(bin)
 		net := o.codexNetwork
 		sandbox := cli.PermissionLaunchFor("codex", str(tab, "permissionMode"), &net).Args
+		if o.SandboxActive() {
+			sandbox = []string{"-c", `sandbox_mode="danger-full-access"`}
+		}
 		launch := o.launchFor(tab)
 		ov := o.effectiveOverrides(tab)
 		modelArgs := append(append([]string{}, launch.args...), cli.OverrideArgs("codex", ov.model, ptrAny(ov.effort))...)

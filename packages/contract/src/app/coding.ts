@@ -22,6 +22,7 @@ import {
   AgentWatchSettings,
   AgentWatchSettingsPatch,
   AgentWatchState,
+  FleetState,
   ApprovePlanChoice,
   BackendModelCatalog,
   CliAccount,
@@ -344,6 +345,20 @@ const harnessProcedures = {
     }),
     output: z.boolean(),
   },
+  /**
+   * 回答沙箱挡下后挂在标签上的授权请求（标签状态的 sandboxPending）：session = 本会话允许、
+   * always = 始终允许（记进桌面设置）、deny = 不允许（本会话不再问）；允许后这个标签的 CLI 重开并接着做
+   */
+  'harness.sandboxReply': {
+    kind: 'mutation',
+    dangerous: true,
+    input: z.object({
+      tabId: z.string(),
+      requestId: z.string(),
+      choice: z.enum(['session', 'always', 'deny']),
+    }),
+    output: z.boolean(),
+  },
   'harness.replyApprovePlan': {
     kind: 'mutation',
     dangerous: true,
@@ -488,6 +503,52 @@ const agentsProcedures = {
   },
 } as const satisfies ProcedureMap;
 
+const fleetProcedures = {
+  /** 看板数据：资源占用最多 1 秒前采的（打开看板时视图每几秒拉一次刷新占用） */
+  'fleet.state': {
+    kind: 'query',
+    input: z.void(),
+    output: FleetState,
+  },
+  /** 归档已完成的一项：从看板上拿掉（标签与会话不动，再跑起来会重新出现）；不在已完成列时不动 */
+  'fleet.archive': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+  },
+  /**
+   * 用户手动关闭一棵空闲的外部编程助手进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
+   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE。调度从不调用。
+   */
+  'fleet.closeIdle': {
+    kind: 'mutation',
+    input: z.object({ pid: z.number(), backend: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
+  /** 暂停一个纳管的、正在跑的 CLI 标签（冻结它的进程树，不占 CPU；恢复后这一轮从原处接着跑）；不能暂停时 FLEET_NOT_PAUSABLE */
+  'fleet.pause': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
+  /** 恢复一个暂停中的标签（自动或手动暂停的都行）；不在暂停中时 FLEET_NOT_PAUSABLE */
+  'fleet.resume': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
+  /** 打开 / 关闭内存紧张时的自动处理（存盘）；关掉时恢复内存守护暂停的标签 */
+  'fleet.setAutoPause': {
+    kind: 'mutation',
+    input: z.object({ enabled: z.boolean() }),
+    output: FleetState,
+    dangerous: true,
+  },
+} as const satisfies ProcedureMap;
+
 const historySession = z.object({ backend: z.string(), sessionId: z.string() });
 const historyPage = z.object({ backend: z.string(), options: HistoryPageOptions.optional() });
 
@@ -507,6 +568,7 @@ export const codingProcedures = {
   ...cliUpdateProcedures,
   ...delegateProcedures,
   ...agentsProcedures,
+  ...fleetProcedures,
   ...historyProcedures,
 } as const satisfies ProcedureMap;
 
@@ -531,6 +593,8 @@ export const codingEvents = {
   'delegate.completed': DelegateResult,
   /** 监视状态变化，不带数据（ai:agents:changed） */
   'agents.changed': z.null(),
+  /** Agent 看板的成员或状态变了（标签、任务变化时推；资源占用不推，视图打开看板时自己拉） */
+  'fleet.changed': FleetState,
 } as const satisfies EventMap;
 
 /** 事件的订阅白名单：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
@@ -539,6 +603,7 @@ export const codingEventSurfaces = {
   'harness.tabsChanged': ['chat', 'settings'],
   'harness.events': ['chat', 'settings'],
   'harness.tabMessage': ['chat', 'settings'],
+  'fleet.changed': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 
 /**
@@ -551,6 +616,10 @@ export const codingErrors = [
   'ACCOUNT_LOCAL',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
+  /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
+  'FLEET_NOT_IDLE',
+  /** fleet.pause / resume：不能暂停或恢复（外部的、内核里跑的、没在跑、或已经是这个状态） */
+  'FLEET_NOT_PAUSABLE',
 ] as const satisfies readonly string[];
 
 export type CodingProcedureName = keyof typeof codingProcedures & string;

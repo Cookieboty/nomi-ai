@@ -17,6 +17,10 @@ type TabFinished struct {
 	Text       string  `json:"text"`
 	Error      *string `json:"error,omitempty"`
 	Background bool    `json:"background"`
+	// DurationMs：这一轮用时（从这一轮的用户消息算起；找不到时 0）
+	DurationMs float64 `json:"durationMs"`
+	// Origin：谁发起的这一轮：user（用户自己发的）/ sandbox（沙箱授权后的「请继续」）/ ""（委派、任务等程序发的）
+	Origin string `json:"origin,omitempty"`
 }
 
 // StoppedError = HarnessStoppedError（name = 'HarnessStoppedError'）。

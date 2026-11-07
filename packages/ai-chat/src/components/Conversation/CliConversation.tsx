@@ -9,6 +9,8 @@ import { harnessClient } from '../../services/harnessClient';
 import { modelSwitchTipFor, useModelSwitch } from '../../services/modelSwitchTip';
 import { tabLiveToConv } from '../../utils/convAdapters';
 
+import { TabSandboxRequests } from './SandboxRequests';
+
 import { ConversationView } from './index';
 
 type Props = Omit<
@@ -56,9 +58,12 @@ export const CliConversation: React.FC<Props> = (props) => {
     (agentId: string) => void harnessClient.stopAgent(scopeId, agentId).catch(() => undefined),
     [scopeId],
   );
+  // 沙箱授权卡片自己订阅标签状态：元素引用稳定，会话视图不跟着标签状态重渲染
+  const sandboxRequests = useMemo(() => <TabSandboxRequests tabId={scopeId} />, [scopeId]);
   return (
     <ConversationView
       {...props}
+      sandboxRequests={sandboxRequests}
       live={live}
       onPermission={onPermission}
       onRetry={onRetry}

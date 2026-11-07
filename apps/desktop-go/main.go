@@ -422,7 +422,8 @@ func main() {
 			prep := desktopSvc.ChatPrep()
 			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）
 			prep.AfterWorkspace = func(options map[string]any, method string) error {
-				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil {
+				// 只在对话说到要派出去的事时带（和派出去的工具同一个门槛，见 igtools.DispatchRelevant）
+				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil && igtools.DispatchRelevantFor(options["messages"]) {
 					_, err := delegate.ApplyDispatchHint(options)
 					return err
 				}
@@ -607,8 +608,10 @@ func main() {
 	gatewayRequests := wireGatewayRequests(userData, shellP)
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
-	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
+	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
+		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker))
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)
 	// 委派 / 任务直接改同一仓库：按文件、按优先级裁决；启动时清理没人认领的委派 worktree
 	wireDelegateClaims(harnessOrch)
@@ -645,6 +648,7 @@ func main() {
 	}
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
 	defer wireAgents(router, userData, desktopSvc)()
+	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))

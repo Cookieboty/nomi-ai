@@ -107,6 +107,11 @@ export interface ForkConversationOpts {
 /** 会话列表被外部改动（分叉、别的窗口写入等）后在 window 上广播，侧栏据此立即刷新 */
 export const CONVERSATIONS_CHANGED_EVENT = 'nomi:conversations-changed';
 
+/** 别处（如 Agent 看板）请求打开某个会话；侧栏监听，走与点会话行相同的切换 */
+export const OPEN_CONVERSATION_EVENT = 'nomi:open-conversation';
+export const requestOpenConversation = (id: string) =>
+  window.dispatchEvent(new CustomEvent<string>(OPEN_CONVERSATION_EVENT, { detail: id }));
+
 export type ConversationsChangedDetail = {
   /** 删除路径带上被删项，App 可直接 drop 私有草稿（不依赖 prev 快照） */
   removed?: Array<{ id: string; tabId?: string }>;
@@ -705,13 +710,18 @@ export class ConversationStore {
   /**
    * 同一工作区里还没有消息的 Nomi 对话（新建时复用它，不再堆一个空对话）。
    * cwd 按去掉末尾斜杠比较；没有工作区的只和同样没有工作区的配对。归档的不算。
+   * exclude：不能复用的会话（正在回复的那一轮落盘前它们也是零消息）
    */
-  findEmptyNomi(cwd: string | undefined, exclude?: string): ConversationMeta | undefined {
+  findEmptyNomi(
+    cwd: string | undefined,
+    exclude?: string | readonly string[],
+  ): ConversationMeta | undefined {
     const norm = (p: string | undefined) => (p ?? '').replace(/[\\/]+$/, '');
     const want = norm(cwd);
+    const skip = new Set(typeof exclude === 'string' ? [exclude] : (exclude ?? []));
     return this.index.find(
       (c) =>
-        c.id !== exclude &&
+        !skip.has(c.id) &&
         c.backend === 'nomi' &&
         !c.tabId &&
         !c.archivedAt &&

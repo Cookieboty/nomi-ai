@@ -155,6 +155,9 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		if base == nil {
 			base = officialLaunch
 		}
+		if err := o.cwdErr(str(tab, "cwd")); err != nil {
+			return nil, err
+		}
 		launch, err := jsrt.Await(o.bindTabLaunch(tab, base))
 		if err != nil {
 			return nil, err
@@ -166,7 +169,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		aborted := i18n.T("electron.common.aborted")
 		do := drivers.ExecDriverOptions{
 			Spawn: func(cmd string, argv []string, cwd string) clisdk.ChildLike {
-				child := SpawnHarness(cmd, argv, cwd, o.taskEnv(tab, o.childEnv(opts.asNode, launch, opts.env)), id)
+				child := o.spawnCLI(tab, cmd, argv, cwd, o.taskEnv(tab, o.childEnv(opts.asNode, launch, opts.env)))
 				o.watchTabRelease(tab, child)
 				o.children.Set(id, child)
 				return child

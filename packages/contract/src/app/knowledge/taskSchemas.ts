@@ -78,6 +78,8 @@ export const TaskGrantInput = z.object({
   paths: z.array(z.string()),
   connections: z.array(TaskConnectionGrant),
   clis: z.array(z.string()).optional(),
+  /** 编程助手沙箱里预先允许的类别（ssh / cloud / keys / browser / personal / secret-files）；有 GitHub 对外能力时内核自动加 ssh */
+  sandbox: z.array(z.string()).optional(),
   expiresAt: z.number().optional(),
 });
 

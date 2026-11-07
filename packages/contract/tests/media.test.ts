@@ -41,8 +41,11 @@ describe('media 契约', () => {
       'desktop.confirmAnswer',
       'desktop.grant',
       'desktop.resetAll',
+      'desktop.setCliEnvAllow',
+      'desktop.setCliSandbox',
       'desktop.setLocalOnly',
       'desktop.setPolicy',
+      'desktop.unprotectPath',
       'voice.ackCloud',
     ]);
     const only = (surface: string) =>

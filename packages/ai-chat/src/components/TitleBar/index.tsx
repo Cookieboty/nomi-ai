@@ -1,6 +1,6 @@
 import { Icon, t } from '@nomi-ai/ui';
 import { Copy, Minus, PanelLeftClose, PanelLeftOpen, Square, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { isGoHost } from '../../services/api';
 
@@ -101,10 +101,31 @@ export const AppTitleBar: React.FC<{
   title?: React.ReactNode;
   /** 对话卡片上方右侧：会话菜单「…」、工具栏开关 */
   trailing?: React.ReactNode;
-}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing }) => {
+  /** 紧跟在侧栏收起按钮后面、任何页面都显示：Agent 看板的负载指示 */
+  lead?: React.ReactNode;
+}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing, lead }) => {
   const labels = sidebarToggleLabels(sidebarCollapsed);
+  const bar = useRef<HTMLDivElement>(null);
+  const leadRef = useRef<HTMLDivElement>(null);
+  // 侧栏收起时会话名紧跟在收起按钮后面：量出 lead 的宽度，把会话名往右挪，免得被盖住
+  useLayoutEffect(() => {
+    const el = leadRef.current;
+    const host = bar.current;
+    if (!host) return;
+    if (!el) {
+      host.style.removeProperty('--cd-titlebar-lead-w');
+      return;
+    }
+    const sync = () => host.style.setProperty('--cd-titlebar-lead-w', `${el.offsetWidth}px`);
+    sync();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [lead]);
   return (
     <div
+      ref={bar}
       className="app-titlebar"
       data-testid="app-titlebar"
       data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
@@ -121,6 +142,11 @@ export const AppTitleBar: React.FC<{
       >
         <Icon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} size={16} />
       </button>
+      {lead && (
+        <div ref={leadRef} className="app-titlebar-lead">
+          {lead}
+        </div>
+      )}
       {/* 与对话卡片左边对齐：会话名在这里，不再显示产品名 */}
       <div className="app-titlebar-main">
         <div className="app-titlebar-title" data-testid="titlebar-title">

@@ -10,7 +10,20 @@ import (
 )
 
 // CodexTurnPolicy：按权限模式与网络开关给出一轮的沙箱 / 审批策略。
-func CodexTurnPolicy(mode string, network bool) Json {
+// outer：进程包在 Nomi 的沙箱里（Seatbelt 不能嵌套）：Codex 自己不再套沙箱，读写边界由外层管，审批照常
+func CodexTurnPolicy(mode string, network bool, outer bool) Json {
+	if outer {
+		full := O("type", "dangerFullAccess")
+		switch mode {
+		case "plan", "bypass":
+			return O("sandboxPolicy", full, "approvalPolicy", "never", "approvalsReviewer", "user")
+		case "manual":
+			return O("sandboxPolicy", full, "approvalPolicy", "untrusted", "approvalsReviewer", "user")
+		case "auto":
+			return O("sandboxPolicy", full, "approvalPolicy", "on-request", "approvalsReviewer", "auto_review")
+		}
+		return O("sandboxPolicy", full, "approvalPolicy", "on-request", "approvalsReviewer", "user")
+	}
 	workspace := func() Json {
 		return O("type", "workspaceWrite", "writableRoots", []any{}, "networkAccess", network, "excludeTmpdirEnvVar", false, "excludeSlashTmp", false)
 	}
@@ -24,7 +37,8 @@ func CodexTurnPolicy(mode string, network bool) Json {
 	case "bypass":
 		return O("sandboxPolicy", O("type", "dangerFullAccess"), "approvalPolicy", "never", "approvalsReviewer", "user")
 	}
-	return O("sandboxPolicy", workspace(), "approvalPolicy", "never", "approvalsReviewer", "user")
+	// acceptEdits：沙箱里改文件、跑命令不问；要越出沙箱（联网、写工作区外）时由 Codex 发审批，用户在 Nomi 里决定
+	return O("sandboxPolicy", workspace(), "approvalPolicy", "on-request", "approvalsReviewer", "user")
 }
 
 var itemStatus = map[string]string{"inProgress": "in_progress", "completed": "completed", "failed": "failed", "declined": "failed", "interrupted": "failed"}

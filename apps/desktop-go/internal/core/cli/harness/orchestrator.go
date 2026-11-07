@@ -69,6 +69,12 @@ type Deps struct {
 	GrokAcp                bool
 	CodexAppServer         bool
 	Complete               CompleteFn
+	// CwdCheck：工作目录策略（不能过宽、不能在受保护文件夹里）；返回不能用的原因，"" = 能用。nil = 只查目录存在
+	CwdCheck func(dir string) string
+	// EnvAllow：用户放行、照样交给 CLI 的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
+	EnvAllow func() []string
+	// Sandbox：系统级沙箱的设置（sandbox.go）；nil = 不用沙箱
+	Sandbox *SandboxDeps
 }
 
 const (
@@ -201,10 +207,14 @@ type Orchestrator struct {
 	eventBatcher      *cli.EventBatcher
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
-	migratedImgTabs   map[string]bool
-	tabBindings       map[string]*tabBinding
-	bgAgents          map[string]*orderedAgents
-	dormant           map[string]bool
+	// tabProcs：标签起过的 CLI 进程（Agent 看板据此从进程表里找到它的进程树）
+	tabProcs map[string][]clisdk.ChildLike
+	// frozen：被冻结（暂停）的标签（fleet.go）
+	frozen          map[string]*FrozenTab
+	migratedImgTabs map[string]bool
+	tabBindings     map[string]*tabBinding
+	bgAgents        map[string]*orderedAgents
+	dormant         map[string]bool
 
 	idleReclaimMs   float64
 	idleTimer       *jsrt.Timer
@@ -226,12 +236,15 @@ type Orchestrator struct {
 	tabFileBytes                                   map[string]int
 	broadcastQueued                                bool
 	disposed                                       bool
-	events                                         *emitter
-	modelCatalogs                                  map[string]catalogEntry
-	modelCatalogInflight                           map[string]*jsrt.Promise[*util.Obj]
-	modelCatalogGen                                map[string]float64
-	worktreeDirs                                   []string
-	appEvents                                      AppEvents
+	sbx                                            sbxState
+	// turnOrigin：标签当前这一轮是谁发起的（TabFinished.Origin）；nextOrigin：下一次 SendTab 的发起方（沙箱续跑）
+	turnOrigin, nextOrigin map[string]string
+	events                 *emitter
+	modelCatalogs          map[string]catalogEntry
+	modelCatalogInflight   map[string]*jsrt.Promise[*util.Obj]
+	modelCatalogGen        map[string]float64
+	worktreeDirs           []string
+	appEvents              AppEvents
 
 	live liveState // 各后端长驻会话（orchestrator_live*.go）
 }
@@ -309,7 +322,7 @@ func New(d Deps) *Orchestrator {
 		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
 		dormant: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
-		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: true, tabFileBytes: map[string]int{},
+		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: false, tabFileBytes: map[string]int{},
 		events: &emitter{}, modelCatalogs: map[string]catalogEntry{}, modelCatalogInflight: map[string]*jsrt.Promise[*util.Obj]{},
 		modelCatalogGen: map[string]float64{},
 	}
@@ -341,6 +354,8 @@ func New(d Deps) *Orchestrator {
 		"permissionMode", cli.DefaultPermissionMode,
 	))
 	o.load()
+	// 上次崩溃 / 被强杀时还冻着的 CLI 进程：先恢复（只恢复启动时间对得上的）
+	o.recoverFrozen()
 	if b, err := os.ReadFile(o.recentPath); err == nil {
 		if v, err := util.ParseString(string(b)); err == nil {
 			if arr, ok := v.([]any); ok {
@@ -656,7 +671,8 @@ func (o *Orchestrator) load() {
 			if cli.IsPermissionMode(dm) && dm != "bypass" {
 				o.defaultPermMode = dm.(string)
 			}
-			if b, ok := raw.Get("codexNetwork").(bool); ok {
+			// 2.3.3 起 Codex 默认不联网：旧的 codexNetwork 是默认值落的盘，不认；用户在设置里开过才是 codexNetworkAllowed
+			if b, ok := raw.Get("codexNetworkAllowed").(bool); ok {
 				o.codexNetwork = b
 			}
 			_, has := raw.Lookup("autoApprove")
@@ -791,7 +807,7 @@ func (o *Orchestrator) tabsSnapshot() *util.Obj {
 		}
 	}
 	snap := util.NewObj("activeTabId", o.activeTabID, "defaultPermissionMode", o.defaultPermMode,
-		"codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove)
+		"codexNetworkAllowed", o.codexNetwork, "autoApprove", o.autoApprove)
 	if o.aiReviewOff {
 		snap.Set("aiReview", false)
 	}

@@ -18,6 +18,13 @@ export interface ScopeView {
   session?: boolean;
 }
 
+/** 沙箱里「始终允许」的一项；project = 只在这个项目里生效 */
+export interface SandboxAllowView {
+  kind: 'category' | 'read' | 'folder' | 'file';
+  value: string;
+  project?: string;
+}
+
 export interface DesktopState {
   scopes: ScopeView[];
   policies: Record<string, Policy>;
@@ -25,6 +32,16 @@ export interface DesktopState {
   cloudAcked: string[];
   /** 命令白名单：workspace_run 跑这些前缀的命令不再确认 */
   commandRules?: string[];
+  /** 用户加的受保护文件夹（Nomi 的文件工具与编程助手都不能用） */
+  protectedPaths?: string[];
+  /** 放行给编程助手的环境变量名 */
+  cliEnvAllow?: string[];
+  /** 编程助手的系统沙箱开关（缺省开） */
+  cliSandbox?: boolean;
+  /** 当前平台能用系统沙箱 */
+  cliSandboxSupported?: boolean;
+  /** 沙箱里「始终允许」的授权 */
+  cliSandboxAllow?: SandboxAllowView[];
   tools: Array<{ name: string; danger: Danger; policy: Policy; locked?: boolean }>;
 }
 
@@ -126,6 +143,24 @@ export const desktopClient = {
   resetCloudAcks: () => call<boolean>(() => api.desktop.resetCloudAcks()),
   removeCommandRule: (rule: string) =>
     call<DesktopState>(() => api.desktop.removeCommandRule({ rule })),
+  /** 系统选择框选一个文件夹加进受保护清单；取消返回 null */
+  protectFolder: () =>
+    call<{ path?: string; error?: string; state: DesktopState } | null>(() =>
+      api.desktop.protectFolder(),
+    ),
+  unprotectPath: (path: string) => call<DesktopState>(() => api.desktop.unprotectPath({ path })),
+  setCliSandbox: (enabled: boolean) =>
+    call<DesktopState>(() => api.desktop.setCliSandbox({ enabled })),
+  removeCliSandboxAllow: (a: SandboxAllowView) =>
+    call<DesktopState>(() =>
+      api.desktop.removeCliSandboxAllow({
+        kind: a.kind,
+        value: a.value,
+        ...(a.project ? { project: a.project } : {}),
+      }),
+    ),
+  setCliEnvAllow: (names: string[]) =>
+    call<DesktopState>(() => api.desktop.setCliEnvAllow({ names })),
   /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
   audit: (limit = 200, offset = 0) =>
     call<AuditEntryView[]>(() => api.desktop.audit({ limit, offset })),
@@ -172,6 +207,10 @@ export const TOOL_LABELS: Record<string, string> = {
   undo_last: 'ui.chat-settings.undo-last-step',
   grant_scope: 'ui.foundation.granted-folders',
   revoke_scope: 'ui.foundation.revoke',
+  protect_path: 'ui.foundation.add-protected-folder',
+  unprotect_path: 'ui.foundation.unprotect',
+  cli_sandbox: 'ui.foundation.cli-sandbox',
+  cli_sandbox_revoke: 'ui.foundation.sandbox-allow-remove',
   drop_summarize: 'ui.chat-settings.drop-onto-nomi-to-summarize',
   reminder_create: 'ui.chat-settings.set-reminder',
   reminder_list: 'ui.chat-settings.view-reminders',

@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Nomi·诺米：本地运行的桌面 AI 伙伴（Go 内核 + Wails v3）",
   "private": true,
   "type": "module",

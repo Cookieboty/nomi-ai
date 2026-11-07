@@ -21,6 +21,7 @@ import {
   CATEGORY_LABEL,
   categoryOf,
   fmtTime,
+  OPEN_TASK_EVENT,
   groupOf,
   statusLabel,
   tasksApi,
@@ -387,6 +388,14 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
     setOpen(true);
     setMounted(true);
   }, []);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (typeof id === 'string' && id) openTask(id);
+    };
+    window.addEventListener(OPEN_TASK_EVENT, on);
+    return () => window.removeEventListener(OPEN_TASK_EVENT, on);
+  }, [openTask]);
   const first = useAiChatSelector(selectFirstMessageId);
   const tabId = useHarnessTabs().state?.activeTabId;
   const last = useRef({ first, tabId });

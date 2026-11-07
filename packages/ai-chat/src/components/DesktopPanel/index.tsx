@@ -1,6 +1,6 @@
 /**
  * DesktopPanel —— 桌面能力设置：授权文件夹（系统选择框）、工具权限、隐私（仅本地模型 / 云端提示）、
- * 操作记录（审计日志）与撤销。全部数据只保存在本机 userData。
+ * 隐私保护（受保护的文件夹、放行给编程助手的环境变量）、操作记录（审计日志）与撤销。全部数据只保存在本机 userData。
  */
 import { t as tr, Icon } from '@nomi-ai/ui';
 import {
@@ -32,13 +32,14 @@ import { confirmDialog } from '../ConfirmDialog';
 import { Pager } from '../Pager';
 
 import styles from './index.module.css';
+import { PrivacyTab } from './PrivacyTab';
 
 interface Props {
   isVisible: boolean;
   onClose: () => void;
 }
 
-type Tab = 'folders' | 'tools' | 'cloud' | 'log';
+type Tab = 'folders' | 'privacy' | 'tools' | 'cloud' | 'log';
 
 const DECISION_LABEL: Record<string, string> = {
   auto: 'ui.foundation.auto',
@@ -118,6 +119,7 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
           onChange={(v) => setTab(v as Tab)}
           items={[
             { value: 'folders', label: tr('ui.foundation.granted-folders') },
+            { value: 'privacy', label: tr('ui.foundation.privacy-protection') },
             { value: 'tools', label: tr('ui.foundation.tool-permissions') },
             { value: 'cloud', label: tr('ui.chat-settings.cloud-local-only') },
             { value: 'log', label: tr('ui.foundation.activity-log') },
@@ -195,6 +197,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
             )}
           </SettingsGroup>
         )}
+
+        {tab === 'privacy' && state && <PrivacyTab state={state} onMessage={setMsg} />}
 
         {tab === 'tools' && state && (
           <div className={styles.stack}>

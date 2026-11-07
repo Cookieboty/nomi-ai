@@ -37,6 +37,7 @@ import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { useConnections } from '../ConnectionsPanel';
+import { SANDBOX_CATEGORY_LABELS } from '../Conversation/SandboxRequests';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
@@ -83,6 +84,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [cliPick, setCli] = useState('');
   const [cwd, setCwd] = useState('');
   const [cliShell, setCliShell] = useState(false);
+  // 编程助手沙箱里预先允许的类别（grant.sandbox）：跑的时候不用再问
+  const [sandboxPick, setSandboxPick] = useState<string[]>([]);
   // 事件触发：先只记录
   const [source, setSource] = useState<Source>('web');
   const [evUrl, setEvUrl] = useState('');
@@ -355,6 +358,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               : []),
             ...mcpGrants,
           ],
+          ...(who === 'cli' && sandboxPick.length ? { sandbox: sandboxPick } : {}),
           expiresAt: Date.now() + days * 86_400_000,
         },
         ...(priority !== 'none' ? { priority } : {}),
@@ -804,6 +808,34 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   />
                   {t('ui.providers-schedule.task-cli-shell')}
                 </label>
+              )}
+              {who === 'cli' && (
+                <div
+                  className={styles.field}
+                  role="group"
+                  aria-labelledby="task-form-sandbox-label"
+                  data-testid="task-form-sandbox"
+                >
+                  <span id="task-form-sandbox-label">
+                    {t('ui.providers-schedule.task-sandbox-pregrant')}
+                  </span>
+                  <div className={styles.checks}>
+                    {Object.entries(SANDBOX_CATEGORY_LABELS).map(([id, key]) => (
+                      <label key={id} className={styles.check}>
+                        <Checkbox
+                          checked={sandboxPick.includes(id)}
+                          onChange={(e) =>
+                            setSandboxPick((prev) =>
+                              e.target.checked ? [...prev, id] : prev.filter((x) => x !== id),
+                            )
+                          }
+                          data-testid={`task-form-sandbox-${id}`}
+                        />
+                        {t(key)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
               {who === 'nomi' && mcpServers.length > 0 && (
                 <div

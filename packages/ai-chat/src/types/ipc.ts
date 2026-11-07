@@ -26,11 +26,21 @@ export interface StreamSendOptions {
    * 会话已被删除则拒绝发送。缺省时沿用当前会话（旧调用方）。
    */
   conversation?: { id: string | undefined; cwd?: string };
+  /** 这一轮新召回的长期记忆：放在本轮用户原话前面发（不进 system，system 每轮不变才能命中提示缓存） */
+  memory?: string;
+  /** 这一轮工具循环的消息（内核 steps 块）：存进回复的 steps，下一轮原样带回 */
+  onSteps?: (steps: string) => void;
 }
 
 export interface IPCClient {
   // 消息相关：history 为本轮之前的会话消息，与本轮输入一起发给模型（多轮上下文）
-  sendMessage(message: string, history?: ChatMessage[], extraSystem?: string): Promise<string>;
+  /** memory：这一轮新召回的长期记忆（放在本轮用户原话前面发） */
+  sendMessage(
+    message: string,
+    history?: ChatMessage[],
+    extraSystem?: string,
+    memory?: string,
+  ): Promise<string>;
   /** 上下文压缩：用 summary 角色的模型生成摘要（可选：测试桩 / 旧实现没有时不压缩） */
   summarize?(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
@@ -39,7 +49,7 @@ export interface IPCClient {
   completeChatText?(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   ): Promise<string>;
-  /** extraSystem：追加在 system prompt 后的上下文（长期记忆召回等） */
+  /** extraSystem：追加在 system prompt 后的上下文（技能目录等每轮不变的内容） */
   sendStreamMessage(
     message: string,
     onChunk?: (chunk: string) => void,
@@ -74,9 +84,15 @@ export interface IPCClient {
     name?: string,
     /**
      * cwd：Nomi 对话的工作区；缺省时 Nomi 对话用主标签当前的目录（默认 文稿/nomi）。
-     * 同一工作区已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话（界面上有消息 / 正在回复）
+     * 同一工作区已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话
+     * （界面上有消息 / 正在准备或生成回复，含切到后台的：这一轮落盘前它们看起来是空的）
      */
-    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string; notReuse?: string },
+    opts?: {
+      backend?: ConversationBackend;
+      tabId?: string;
+      cwd?: string;
+      notReuse?: string | readonly string[];
+    },
   ): Promise<string>;
   switchConversation(id: string): Promise<void>;
   /** 更新会话元信息（标题 / 后端 / tabId / CLI session id） */

@@ -1,0 +1,191 @@
+/* 会话详情：对话卡片右侧的一栏（与对话并排，不盖住内容）。上、右、下留空隙，与对话之间也留空隙；
+   高度随内容，最多到卡片底部，超出时自己滚动 */
+.panel {
+  flex: 0 0 300px;
+  align-self: flex-start;
+  min-width: 0;
+  max-height: calc(100% - var(--cd-space-3) * 2);
+  margin: var(--cd-space-3) var(--cd-space-3) var(--cd-space-3) var(--cd-space-2);
+  overflow-y: auto;
+  padding: var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  border: 1px solid var(--cd-color-border);
+  box-shadow: var(--cd-shadow-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+}
+/* 窗口很窄时变窄一点，给对话留地方 */
+@media (max-width: 900px) {
+  .panel {
+    flex-basis: 240px;
+  }
+}
+
+.project {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: 0 var(--cd-space-2);
+  min-height: var(--cd-control-h-xs);
+}
+.projectName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  font-weight: var(--cd-font-weight-medium);
+}
+.branch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  max-width: 50%;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  width: 100%;
+  min-height: var(--cd-control-h-ms);
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row[data-static] {
+  cursor: default;
+}
+.row:not([data-static]):hover {
+  background: var(--cd-color-hover);
+}
+.row:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.rowLabel {
+  flex: 1;
+}
+.rowIcon {
+  flex-shrink: 0;
+  color: var(--cd-color-text);
+}
+/* 增删行：与标签同字号，绿 + 红 −，等宽数字 */
+.stats {
+  display: inline-flex;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+.added {
+  color: var(--cd-color-success);
+}
+.removed {
+  color: var(--cd-color-danger);
+}
+.muted {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+
+.divider {
+  height: 1px;
+  margin: var(--cd-space-1) var(--cd-space-2);
+  background: var(--cd-color-border);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: 0 var(--cd-space-2);
+  min-height: var(--cd-control-h-xs);
+  color: var(--cd-color-text-muted);
+}
+.sectionTitle {
+  flex: 1;
+}
+/* 「更多 / 收起」：小号图标按钮（与计数同一行） */
+.moreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.moreBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.moreBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.itemName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itemDetail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.itemStatus {
+  flex-shrink: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.itemStatus[data-state='running'] {
+  color: var(--cd-color-accent-strong);
+}
+.itemStatus[data-state='waiting'] {
+  color: var(--cd-color-warning);
+}
+.itemStatus[data-state='error'] {
+  color: var(--cd-color-danger);
+}

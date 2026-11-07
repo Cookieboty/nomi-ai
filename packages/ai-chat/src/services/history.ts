@@ -4,8 +4,11 @@
  * - 丢弃空内容 / 失败的消息（例如流式中断留下的空 assistant 气泡）；
  * - 编程助手委派的完成汇报重新包上 <cli-output> 边界：仍是不可信的本地输出，主进程据此按实际接收者
  *   做「仅本地 / 云端首次发送」过滤（#117）；
- * - 压缩过的对话只从最近一次摘要开始：摘要作为 system 放在系统提示后面（裁剪时不会被丢），
- *   之前的消息不再发送（services/compaction.ts）；
+ * - 压缩过的对话只从最近一次摘要开始：摘要（连同压缩前带过的长期记忆）作为 system 放在系统提示后面
+ *   （裁剪时不会被丢），之前的消息不再发送（services/compaction.ts）；
+ * - 提示缓存只认前缀：发过的内容下一轮必须原样再发。所以 Nomi 回复有 steps（这一轮工具循环的原样记录）
+ *   时照发 steps；用户消息带过的长期记忆（memory）每轮照样带在原位；每轮新召回的记忆放在本轮用户原话
+ *   前面，不进 system；
  * - 最后追加本轮用户输入。
  * token 预算裁剪由主进程 ChatFacade（ai-sdk `fitMessagesToBudget`）负责，预算按模型的窗口算。
  */
@@ -21,6 +24,10 @@ export interface ProviderMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
   images?: Array<{ mime: string; data: string }>;
+  /** 用户消息：注入的长期记忆（内核放在正文前面发） */
+  context?: string;
+  /** 助手消息：上一轮工具循环的原样记录（内核照发） */
+  steps?: string;
 }
 
 /** 委派完成写进对话的消息（AiChatContext onCompleted）：id 形如 delegate-<taskId>-<durationMs> */
@@ -41,13 +48,19 @@ export function buildProviderMessages(
   userContent: string,
   systemPrompt?: string,
   images?: Array<{ mime: string; data: string }>,
+  memory?: string,
 ): ProviderMessage[] {
   const out: ProviderMessage[] = [];
   if (systemPrompt && systemPrompt.trim())
     out.push({ role: 'system', content: systemPrompt.trim() });
-  const { summary, rest } = sinceCompaction(history);
-  if (summary) out.push({ role: 'system', content: summaryPreamble(summary) });
+  const { summary, memory: carried, rest } = sinceCompaction(history);
+  if (summary) out.push({ role: 'system', content: summaryPreamble(summary, carried) });
   for (const m of rest) {
+    // 上一轮的工具循环记录：原样照发（含最后的回复），不再拼图片地址 / 中途插入（记录里已经有了）
+    if (m.role === 'assistant' && !m.error && m.steps) {
+      out.push({ role: 'assistant', content: m.content, steps: m.steps });
+      continue;
+    }
     if (
       m.error ||
       ((!m.content || !m.content.trim()) &&
@@ -72,15 +85,19 @@ export function buildProviderMessages(
       const added = (m.trace ?? []).flatMap((e) => (e.type === 'interject' ? [e.text] : []));
       if (added.length) out.push({ role: 'user', content: added.join('\n\n') });
     }
+    const mem = m.role === 'user' ? m.memory?.text.trim() : '';
     out.push({
       role: m.role,
       content: tag + content + (links.length ? `\n\n${imageLinksNote(links)}` : ''),
+      ...(mem ? { context: mem } : {}),
     });
   }
-  out.push(
-    images?.length
-      ? { role: 'user', content: userContent, images }
-      : { role: 'user', content: userContent },
-  );
+  const mem = memory?.trim();
+  out.push({
+    role: 'user',
+    content: userContent,
+    ...(images?.length ? { images } : {}),
+    ...(mem ? { context: mem } : {}),
+  });
   return out;
 }

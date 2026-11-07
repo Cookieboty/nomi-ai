@@ -261,6 +261,47 @@ describe('压缩摘要之后（重启后没有实时值）', () => {
     expect(Object.fromEntries(est.categories.map((c) => [c.key, c.tokens]))).toEqual(breakdown);
   });
 
+  it('Nomi 内核分开计了工具定义与记忆：分三项显示；没给这三个标签时合成一项', () => {
+    const msgsBd = [
+      { id: '1', role: 'user', content: 'q', timestamp: 1 },
+      {
+        id: '2',
+        role: 'assistant',
+        content: 'a',
+        timestamp: 2,
+        usage: {
+          contextTokens: 54_400,
+          breakdown: {
+            system: 2_000,
+            toolDefs: 9_000,
+            memory: 1_000,
+            user: 200,
+            assistant: 1_200,
+            tools: 41_000,
+            thinking: 0,
+          },
+        },
+      },
+    ] as never;
+    const split = estimateContext(msgsBd, {
+      ...labels,
+      systemPrompt: 'SP',
+      toolDefs: 'TD',
+      memory: 'MEM',
+    });
+    expect(split.used).toBe(54_400);
+    expect(split.categories.map((c) => [c.label, c.tokens])).toEqual([
+      ['SP', 2_000],
+      ['TD', 9_000],
+      ['MEM', 1_000],
+      [labels.user, 200],
+      [labels.assistant, 1_200],
+      [labels.tools, 41_000],
+    ]);
+    const merged = estimateContext(msgsBd, labels);
+    expect(merged.categories[0]).toEqual({ key: 'system', label: labels.system, tokens: 12_000 });
+  });
+
   it('模型名从用量里取，标签没指定模型也能查到 1M 窗口', () => {
     expect(reportedModel(msgs)).toBe('claude-opus-5-5');
     expect(contextWindowFor(reportedModel(msgs)).size).toBe(1_000_000);

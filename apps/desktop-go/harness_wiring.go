@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -73,7 +75,9 @@ var harnessAccounts *accounts.AccountService
 
 // wireHarness：构造 HarnessOrchestrator，注册 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
-func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service) (*cli.CliPluginHost, func()) {
+// cwdCheck / envAllow：编程助手的工作目录策略与放行的环境变量（desktop.PermissionBroker）
+func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service,
+	cwdCheck func(dir string) string, envAllow func() []string, sbx *harness.SandboxDeps) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（CliPluginHost）
@@ -103,7 +107,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				if useNode {
 					command, args = harness.NodeExecPath(), append([]string{command}, args...)
 				}
-				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil), ""), nil
+				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil, envAllow()), ""), nil
 			},
 			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
@@ -183,6 +187,9 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",
 			GrokAcp:        os.Getenv("NOMI_GROK_ACP") != "0",
 			CodexAppServer: os.Getenv("NOMI_CODEX_APP_SERVER") != "0",
+			CwdCheck:       cwdCheck,
+			EnvAllow:       envAllow,
+			Sandbox:        sbx,
 		})
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
@@ -240,4 +247,42 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 	b.OnWorkspaceRejected = func(dir, reason string) {
 		log.Printf("[desktop] WARN Nomi workspace rejected; tools fall back to granted folders dir=%s reason=%s", dir, reason)
 	}
+}
+
+// sandboxDeps：编程助手的系统沙箱设置来自桌面权限（受保护文件夹、开关、「始终允许」）
+func sandboxDeps(b *desktop.PermissionBroker) *harness.SandboxDeps {
+	return &harness.SandboxDeps{
+		Enabled:   b.CliSandboxEnabled,
+		Protected: b.ProtectedPaths,
+		Always: func() []harness.SandboxGrant {
+			var out []harness.SandboxGrant
+			for _, a := range b.CliSandboxAllow() {
+				out = append(out, harness.SandboxGrant{Kind: a.Kind, Value: a.Value, Project: a.Project})
+			}
+			return out
+		},
+		Persist: func(g harness.SandboxGrant) {
+			b.AddCliSandboxAllow(desktop.SandboxAllow{Kind: g.Kind, Value: g.Value, Project: g.Project})
+		},
+	}
+}
+
+// watchSandboxPolicy：沙箱相关设置（开关、受保护文件夹、「始终允许」）变了：常驻的 CLI 按新配置重开
+func watchSandboxPolicy(b *desktop.PermissionBroker, o *harness.Orchestrator) {
+	sig := func() string {
+		v := b.View()
+		return fmt.Sprint(v.CliSandbox, v.ProtectedPaths, v.CliSandboxAllow)
+	}
+	var mu sync.Mutex
+	last := sig()
+	b.OnChange(func() {
+		next := sig()
+		mu.Lock()
+		changed := next != last
+		last = next
+		mu.Unlock()
+		if changed {
+			jsrt.Go(func() { o.SandboxPolicyChanged() })
+		}
+	})
 }

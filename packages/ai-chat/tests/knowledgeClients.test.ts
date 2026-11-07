@@ -105,7 +105,7 @@ describe('D4 客户端 · 契约', () => {
     await expect(memClient.state()).rejects.toMatchObject({ code: 'unavailable' });
     await expect(schedClient.state()).rejects.toBeInstanceOf(Error);
     expect(await extClient.context()).toBe('');
-    expect(await memoryContext('x')).toEqual({ text: '', used: [] });
+    expect(await memoryContext('x')).toEqual({ text: '', used: [], ids: [] });
     schedClient.activity();
     expect(kbClient.onChanged(() => undefined)()).toBeUndefined();
     await tick();

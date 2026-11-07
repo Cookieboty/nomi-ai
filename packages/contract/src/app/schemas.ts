@@ -41,6 +41,13 @@ export const ChatMessage = z.looseObject({
   toolCallId: z.string().optional(),
   /** 用户消息附带的图片（base64，不含 data: 前缀） */
   images: z.array(z.object({ mime: z.string(), data: z.string() })).optional(),
+  /** 用户消息：这一轮注入的背景（长期记忆），内核放在正文前面发给模型；content 仍是用户原话 */
+  context: z.string().optional(),
+  /**
+   * 助手消息：这一轮工具循环实际发给模型的消息（AI SDK ModelMessage[] 的 JSON 串，含工具调用与结果），
+   * 来自 steps 块，下一轮原样带回（前缀不变，提示缓存才命中）。用字符串是为了键序原样不变
+   */
+  steps: z.string().optional(),
 });
 
 export const LLMRole = z.enum(['chat', 'agent-tools', 'summary']);
@@ -75,6 +82,18 @@ export const ChatUsage = z.object({
   cacheWriteTokens: z.number().optional(),
   contextTokens: z.number().optional(),
   redacted: z.number().optional(),
+  /** contextTokens 的分项（按实际请求估比例、按真实用量校准，加起来等于 contextTokens） */
+  breakdown: z
+    .object({
+      system: z.number(),
+      toolDefs: z.number(),
+      memory: z.number(),
+      user: z.number(),
+      assistant: z.number(),
+      tools: z.number(),
+      thinking: z.number(),
+    })
+    .optional(),
 });
 
 /** `ChatResponse` 去掉 `raw`（上游原始响应，不保证可序列化，视图也不用） */
@@ -112,6 +131,8 @@ export const ChatChunk = z.discriminatedUnion('type', [
     phase: z.enum(['start', 'end']).optional(),
   }),
   z.looseObject({ type: z.literal('usage'), usage: ChatUsage, model: z.string().optional() }),
+  /** 这一轮工具循环的消息（只在有工具调用时发）：存进助手消息的 steps，下一轮原样带回 */
+  z.looseObject({ type: z.literal('steps'), steps: z.string() }),
   z.looseObject({ type: z.literal('done'), finishReason: FinishReason }),
   z.looseObject({ type: z.literal('error'), error: z.string() }),
 ]);

@@ -18,7 +18,10 @@ import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { orderEndpoints, visibleEndpoints } from '../../services/chatPrefs';
-import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  OPEN_CONVERSATION_EVENT,
+} from '../../services/conversationStore';
 import {
   MAIN_TAB_ID,
   harnessClient,
@@ -340,6 +343,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     },
     [ipc, setMode, refresh, actions],
   );
+  // 别处请求打开会话（Agent 看板里正在回答的 Nomi 对话）
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (typeof id === 'string' && id) void open(id);
+    };
+    window.addEventListener(OPEN_CONVERSATION_EVENT, on);
+    return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
+  }, [open]);
 
   /** cwd：在指定工作区里新建（工作区分组上的「新建」）；缺省用新建菜单里选的目录 */
   const createFor = async (backend: ConversationBackend, cwd?: string) => {

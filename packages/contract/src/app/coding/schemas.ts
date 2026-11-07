@@ -38,6 +38,22 @@ export const HarnessTabMeta = loose({
   unread: z.number(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  /**
+   * 沙箱挡下、等用户授权的项（不落盘）：kind = category（按类别读写）/ folder / file（写入）/
+   * protected（受保护文件夹，只能去设置里取消保护）；回答用 harness.sandboxReply
+   */
+  sandboxPending: z
+    .array(
+      z.looseObject({
+        id: z.string(),
+        kind: z.enum(['category', 'read', 'folder', 'file', 'protected']),
+        value: z.string(),
+        op: z.enum(['read', 'write']),
+        path: z.string(),
+        at: z.number(),
+      }),
+    )
+    .optional(),
 });
 
 export const HarnessTabsState = loose({
@@ -49,6 +65,8 @@ export const HarnessTabsState = loose({
   defaultPermissionMode: z.string().optional(),
   /** Codex 在自动改文件档允许联网 */
   codexNetwork: z.boolean().optional(),
+  /** 编程助手的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
+  sandbox: z.enum(['on', 'off', 'unsupported']).optional(),
   /**
    * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
    * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
@@ -259,6 +277,8 @@ export const DelegateResult = loose({
   cli: z.string(),
   status: z.string(),
   summary: z.string(),
+  /** 委派结束后在子任务里接着跑的一轮（用户接着对话 / 沙箱授权后续跑）的结果，同样回到来源对话 */
+  followUp: z.boolean().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -286,6 +306,132 @@ export const AgentWatchSettingsPatch = z.looseObject({
   cooldownMs: z.number().optional(),
   summaryEnabled: z.boolean().optional(),
   tools: z.record(z.string(), z.boolean()).optional(),
+});
+
+// ---------------------------------------------------------------------------
+// fleet：Agent 看板（core/fleet）。Nomi 自己、Nomi 派出的 / 工坊里的 CLI（纳管，可暂停），
+// 用户在自己终端 / IDE 里开的 CLI（外部，只预警，不干扰）
+// ---------------------------------------------------------------------------
+
+/** 看板分列：待进行 / 暂停 / 进行中 / 已完成（不保留历史：已完成的归档后不再出现） */
+export const FleetColumn = z.enum(['todo', 'paused', 'running', 'done']);
+
+/** managed = 在 Nomi 里跑的，可以暂停；external = Nomi 之外启动的，只能预警 */
+export const FleetScope = z.enum(['managed', 'external']);
+
+/**
+ * 来源：chat = 正在回答的 Nomi 对话；nomi = Nomi 的后台运行（agent）；conversation = 对话里委派的 CLI；
+ * task = 任务看板派的 CLI；workbench = 工坊里直接用的 CLI；terminal = 用户自己在终端 / IDE 里开的
+ */
+export const FleetOrigin = z.enum([
+  'chat',
+  'nomi',
+  'conversation',
+  'task',
+  'workbench',
+  'terminal',
+]);
+
+/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
+export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept']);
+
+/** 进程树的资源占用（整棵树：编程助手连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
+export const FleetUsage = loose({
+  rssBytes: z.number(),
+  cpuPercent: z.number(),
+  processes: z.number(),
+});
+
+export const FleetAgent = loose({
+  /** 'chat:<对话 id>' | 'tab:<标签 id>' | 'run:<任务 id>' | 'ext:<外部会话 id>' */
+  id: z.string(),
+  kind: z.enum(['nomi', 'cli']),
+  /** nomi | claude | codex | gemini | dsh | grok | external（插件）… */
+  backend: z.string(),
+  scope: FleetScope,
+  origin: FleetOrigin,
+  /** 标签 / 任务标题；Nomi 本体与外部 CLI 为空，视图自己写 */
+  title: z.string(),
+  column: FleetColumn,
+  needsYou: FleetNeedsYou.optional(),
+  /** 上一轮出错（已完成列里标红） */
+  failed: z.boolean().optional(),
+  /** 调度树的上一级（预留：Nomi 后台运行派出的 CLI 指向那次运行） */
+  parentId: z.string().optional(),
+  taskId: z.string().optional(),
+  tabId: z.string().optional(),
+  conversationId: z.string().optional(),
+  cwd: z.string().optional(),
+  /** 量不到时没有（Nomi 后台运行跑在内核进程里，单独的内存量不出来） */
+  usage: FleetUsage.optional(),
+  updatedAt: z.number(),
+  /** 暂停中（已暂停列）：by = memory 内存守护自动暂停 / user 手动暂停 / nomi Nomi 用 pause_agent 暂停；at = 暂停时间 */
+  paused: loose({ by: z.enum(['memory', 'user', 'nomi']), at: z.number() }).optional(),
+  /** 可以手动暂停：纳管、正在跑、有活着的进程、没在等审批的 CLI 标签 */
+  pausable: z.boolean().optional(),
+  /** 做完时的总结（标签最后一条回复、任务结果摘要、外部会话摘要），只给已完成的，最多 300 字 */
+  summary: z.string().optional(),
+  /**
+   * 在待进行里为什么还没开始：memory 内存紧张被内存守护扣着（缓解后自动开始）/ slot 等前面的任务（并发名额满或
+   * 每小时启动次数到了）/ retry 上次失败、等重试（retryAt 毫秒）
+   */
+  queueReason: z.enum(['memory', 'slot', 'retry']).optional(),
+  retryAt: z.number().optional(),
+});
+
+export const FleetSystem = loose({
+  totalMemBytes: z.number(),
+  cores: z.number(),
+  /** 整机 CPU 占用：0–100，占全部核的比例（同活动监视器的「系统 + 用户」）；各 agent 的 cpuPercent 是 100 = 一个核 */
+  cpuPercent: z.number(),
+  /** 系统内存压力（macOS 取系统给的等级；Linux / Windows 按可用内存与 PSI 划） */
+  pressure: z.enum(['normal', 'warn', 'critical', 'unknown']),
+  /** 可用内存比例（0–100），读不到时没有 */
+  availablePercent: z.number().optional(),
+});
+
+/**
+ * 内存守护：autoPause = 内存紧张时自动处理（告警：回收空闲标签的进程；危险：暂停正在跑的标签，恢复正常后一个个恢复）；
+ * last = 最近一次动作（reclaimed 回收 / paused 暂停 / resumed 恢复）
+ */
+export const FleetGovernor = loose({
+  autoPause: z.boolean(),
+  last: loose({
+    kind: z.enum(['reclaimed', 'paused', 'resumed']),
+    id: z.string().optional(),
+    count: z.number().optional(),
+    at: z.number(),
+  }).optional(),
+});
+
+/** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
+export const FleetNomi = loose({ usage: FleetUsage.optional() });
+
+/** Nomi 之外、对不上正在跑的会话的编程助手进程树（空闲的终端 / IDE 里的助手），按内存大的在前；用户可以手动关掉 */
+export const FleetIdleItem = loose({
+  pid: z.number(),
+  backend: z.string(),
+  cwd: z.string().optional(),
+  processes: z.number(),
+  rssBytes: z.number(),
+  cpuPercent: z.number(),
+});
+
+export const FleetExternalIdle = loose({
+  processes: z.number(),
+  rssBytes: z.number(),
+  items: z.array(FleetIdleItem),
+});
+
+export const FleetState = loose({
+  /** 正在回答的 Nomi 对话、纳管的 agent 与外部会话；Nomi 本体不在这里 */
+  agents: z.array(FleetAgent),
+  nomi: FleetNomi,
+  externalIdle: FleetExternalIdle,
+  system: FleetSystem,
+  governor: FleetGovernor,
+  /** 这份数据的采样时间（毫秒） */
+  sampledAt: z.number(),
 });
 
 // ---------------------------------------------------------------------------
