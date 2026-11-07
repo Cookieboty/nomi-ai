@@ -14,16 +14,22 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// AgentProc：编程助手进程（Cwd "" = undefined）。
+// AgentProc：编程助手进程（Cwd "" = undefined）。Ppid / RSS 0 = 不知道；RSS 是这个进程自己的常驻内存（字节）。
 type AgentProc struct {
 	Pid  float64
 	Kind AgentKind
 	Cwd  string
+	Ppid float64
+	RSS  float64
 }
 
-// RawProc：进程列表里的一项。
+// RawProc：进程列表里的一项。Ppid / RSS / CPU 0 = 不知道；RSS 单位字节；CPU 是累计 CPU 时间（秒，
+// 用户态 + 内核态），两次采样相减才是当下的占用（见 ProcTable.CPUSince）。
 type RawProc struct {
 	Pid       float64
+	Ppid      float64
+	RSS       float64
+	CPU       float64
 	Name, Cmd string
 }
 
@@ -40,20 +46,21 @@ var (
 	reClaudeN    = ri(`^claude(\.exe)?$`)
 	reClaudePkg  = ri(`@anthropic-ai[\\/]claude-code`)
 	reClaudeTok  = tok(`claude(\.exe)?`)
-	reCodexDesk  = ri(`Codex\.app`)
-	reCodexN     = ri(`^codex(\.exe)?$`)
-	reCodexPkg   = ri(`@openai[\\/]codex`)
-	reCodexTok   = tok(`codex(-[a-z0-9_-]+)?(\.exe)?`)
-	reGeminiN    = ri(`^gemini(\.exe)?$`)
-	reGeminiPkg  = ri(`@google[\\/]gemini-cli`)
-	reGeminiTok  = tok(`gemini(\.exe)?`)
-	reDshN       = ri(`^dsh(\.exe)?$`)
-	reDshPkg     = ri(`@deepseek-ai[\\/]dsh[\\/]`)
-	reDshTok     = tok(`dsh(\.exe)?`)
-	reGrokN      = ri(`^grok(\.exe)?$`)
-	reGrokPkg    = ri(`@xai-official[\\/]grok`)
-	reGrokTok    = tok(`grok(\.exe)?`)
-	reSelfTools  = ri(`^(ps|grep|rg|lsof|tasklist)(\.exe)?$`)
+	// ChatGPT 桌面版的辅助进程路径里有「Codex Framework.framework」，不是 codex CLI
+	reCodexDesk = ri(`Codex\.app|Codex Framework\.framework`)
+	reCodexN    = ri(`^codex(\.exe)?$`)
+	reCodexPkg  = ri(`@openai[\\/]codex`)
+	reCodexTok  = tok(`codex(-[a-z0-9_-]+)?(\.exe)?`)
+	reGeminiN   = ri(`^gemini(\.exe)?$`)
+	reGeminiPkg = ri(`@google[\\/]gemini-cli`)
+	reGeminiTok = tok(`gemini(\.exe)?`)
+	reDshN      = ri(`^dsh(\.exe)?$`)
+	reDshPkg    = ri(`@deepseek-ai[\\/]dsh[\\/]`)
+	reDshTok    = tok(`dsh(\.exe)?`)
+	reGrokN     = ri(`^grok(\.exe)?$`)
+	reGrokPkg   = ri(`@xai-official[\\/]grok`)
+	reGrokTok   = tok(`grok(\.exe)?`)
+	reSelfTools = ri(`^(ps|grep|rg|lsof|tasklist)(\.exe)?$`)
 )
 
 var rules = []struct {
@@ -90,7 +97,7 @@ func Classify(procs []RawProc, selfPid float64) []AgentProc {
 		}
 		for _, r := range rules {
 			if r.test(n, c) {
-				out = append(out, AgentProc{Pid: p.Pid, Kind: r.kind})
+				out = append(out, AgentProc{Pid: p.Pid, Kind: r.kind, Ppid: p.Ppid, RSS: p.RSS})
 				break
 			}
 		}
@@ -98,10 +105,40 @@ func Classify(procs []RawProc, selfPid float64) []AgentProc {
 	return out
 }
 
-// JS `.` 不匹配行终止符；\S = 非 JS 空白。
-var rePsLine = regexp.MustCompile(`^` + ws + `*(\d+)` + ws + `+([^` + ws[1:len(ws)-1] + `]+)` + ws + `*([^\n\r\x{2028}\x{2029}]*)$`)
+// psArgs：ps 的列；rss 单位 KB（macOS 与 Linux 一致）；time 是累计 CPU 时间（macOS「分:秒.百分秒」，
+// Linux「[天-]时:分:秒」，只到秒）。不用 %cpu：macOS 是衰减平均、Linux 是整个生命周期的平均。
+// macOS 的 comm 不在最后一列时截到 16 个字符，所以认编程助手主要靠 args。
+var psArgs = []string{"-A", "-o", "pid=,ppid=,rss=,time=,comm=,args="}
 
-// ParsePs：解析 ps 输出。
+// ParseCPUTime：ps 的 time 列 → 秒（认不出 = 0）。
+func ParseCPUTime(s string) float64 {
+	days := 0.0
+	if i := strings.IndexByte(s, '-'); i >= 0 {
+		d, err := strconv.ParseFloat(s[:i], 64)
+		if err != nil {
+			return 0
+		}
+		days, s = d, s[i+1:]
+	}
+	parts := strings.Split(s, ":")
+	if len(parts) > 3 {
+		return 0
+	}
+	sec := 0.0
+	for _, p := range parts {
+		v, err := strconv.ParseFloat(p, 64)
+		if err != nil || v < 0 {
+			return 0
+		}
+		sec = sec*60 + v
+	}
+	return days*86400 + sec
+}
+
+// JS `.` 不匹配行终止符；\S = 非 JS 空白。
+var rePsLine = regexp.MustCompile(`^` + ws + `*(\d+)` + ws + `+(\d+)` + ws + `+(\d+)` + ws + `+([\d:.-]+)` + ws + `+([^` + ws[1:len(ws)-1] + `]+)` + ws + `*([^\n\r\x{2028}\x{2029}]*)$`)
+
+// ParsePs：解析 ps 输出（psArgs 的列）。
 func ParsePs(stdout string) []RawProc {
 	out := []RawProc{}
 	for _, line := range strings.Split(stdout, "\n") {
@@ -109,14 +146,16 @@ func ParsePs(stdout string) []RawProc {
 		if m == nil {
 			continue
 		}
-		parts := strings.Split(m[2], "/")
+		parts := strings.Split(m[5], "/")
 		name := parts[len(parts)-1]
 		pid, _ := strconv.ParseFloat(m[1], 64)
-		cmd := m[3]
+		ppid, _ := strconv.ParseFloat(m[2], 64)
+		rssKB, _ := strconv.ParseFloat(m[3], 64)
+		cmd := m[6]
 		if cmd == "" {
-			cmd = m[2]
+			cmd = m[5]
 		}
-		out = append(out, RawProc{Pid: pid, Name: name, Cmd: cmd})
+		out = append(out, RawProc{Pid: pid, Ppid: ppid, RSS: rssKB * 1024, CPU: ParseCPUTime(m[4]), Name: name, Cmd: cmd})
 	}
 	return out
 }
@@ -154,7 +193,12 @@ func ParseWinJson(stdout string) []RawProc {
 		if cmdV == nil {
 			cmdV = o.Get("Name")
 		}
-		out = append(out, RawProc{Pid: pid, Name: reExe.ReplaceAllString(strOr(o.Get("Name")), ""), Cmd: strOr(cmdV)})
+		ppid, _ := o.Get("ParentProcessId").(float64)
+		rss, _ := o.Get("WorkingSetSize").(float64)
+		// KernelModeTime / UserModeTime：100 纳秒为单位
+		kt, _ := o.Get("KernelModeTime").(float64)
+		ut, _ := o.Get("UserModeTime").(float64)
+		out = append(out, RawProc{Pid: pid, Ppid: ppid, RSS: rss, CPU: (kt + ut) / 1e7, Name: reExe.ReplaceAllString(strOr(o.Get("Name")), ""), Cmd: strOr(cmdV)})
 	}
 	return out
 }
@@ -209,22 +253,33 @@ func jsNumber(s string) float64 {
 
 var nanv = func() float64 { z := 0.0; return z / z }()
 
-// ListAgentProcesses：列出编程助手进程（nil = 整体失败/无法判断）。
-func ListAgentProcesses(platform string) []AgentProc {
-	self := float64(os.Getpid())
+// ReadProcesses：本机全部进程（含父进程与常驻内存；nil = 读不到）。
+func ReadProcesses(platform string) []RawProc {
 	if platform == "win32" {
 		so, err := runCmd(8*time.Second, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-			"Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress")
+			"Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,WorkingSetSize,KernelModeTime,UserModeTime,Name,CommandLine | ConvertTo-Json -Compress")
 		if err != nil {
 			return nil
 		}
-		return Classify(ParseWinJson(so), self)
+		return ParseWinJson(so)
 	}
-	so, err := runCmd(4*time.Second, "ps", "-A", "-o", "pid=,comm=,args=")
+	so, err := runCmd(4*time.Second, "ps", psArgs...)
 	if err != nil {
 		return nil
 	}
-	found := Classify(ParsePs(so), self)
+	return ParsePs(so)
+}
+
+// ListAgentProcesses：列出编程助手进程（nil = 整体失败/无法判断）。
+func ListAgentProcesses(platform string) []AgentProc {
+	procs := ReadProcesses(platform)
+	if procs == nil {
+		return nil
+	}
+	found := Classify(procs, float64(os.Getpid()))
+	if platform == "win32" {
+		return found
+	}
 	switch platform {
 	case "linux":
 		for i := range found {
