@@ -40,15 +40,27 @@
 
 ### 系统级沙箱（macOS）
 
+**威胁模型**：沙箱防的是编程助手**误操作**与**被提示注入后顺手外泄 / 改坏东西**（读凭据、改用户的配置、写到项目外），不防一个铁了心的恶意进程：
+它是「默认放行 + 按位置拒绝」的黑名单，网络不限，进程能做的其余事情（起子进程、连非本机的服务）都照常。能把风险降下来的是拒读敏感内容、
+清理环境变量、只放行少数可写位置，以及下面这些不让借道的口子；更严格的隔离（容器、虚拟机）不在这里。
+
 `internal/core/cli/sandbox` + `harness/sandbox.go`。每个会话进程（Claude 常驻进程、Codex app-server / exec、ACP、每轮一个进程的 CLI）都用
 `/usr/bin/sandbox-exec -p <配置>` 包起来（`spawnCLI` → `spawnHarness`），配置按标签、按启动生成（`sandbox.Profile`）：
 
-- 默认放行，按类别**拒读内容**（`file-read-data`，列目录、stat 不拦）：SSH 与 Git 凭据、云账号凭据、密钥与密码库、浏览器数据、
-  个人数据（邮件 / 信息 / 日历 / 通讯录 / 备忘录 / 照片）、密钥文件（主目录与项目里的 `.env*`（`.env.example` 等除外）、`*.key`、私钥 `.pem` …），
+- 默认放行，按类别**拒读内容**（`file-read-data`，列目录、stat 不拦）：SSH 与 Git 凭据（含 GitHub CLI 令牌）、云账号凭据（含主目录下的
+  `.npmrc` / `.pypirc` / `.gem/credentials` 发布令牌）、密钥与密码库（含 1Password CLI 的 `.config/op`）、浏览器数据（Chrome、Firefox、
+  Edge、Brave、Arc、Chromium、Vivaldi、Opera、Safari）、个人数据（邮件 / 信息 / 日历 / 通讯录 / 备忘录 / 照片，以及 shell 与 REPL 的历史）、密钥文件（主目录与项目里的 `.env*`（`.env.example` 等除外）、`*.key`、私钥 `.pem` …），
   外加用户的受保护文件夹与 Nomi 自己的数据目录（`prompt-images` 与 CLI 的官方账号目录除外）。钥匙串不拦：拒读钥匙串文件会让 CLI 的官方登录失效，
   条目由系统自己的访问控制保护。
 - **写**只放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的配置（`~/.claude`、`~/.claude.json*`、`~/.codex` …与 `*_HOME` 指向的账号目录）、
   包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、用户授权过的文件夹 / 文件；受保护文件夹与 Nomi 数据目录最后再拒一次。
+  可写位置里也再拒一次「改了会在沙箱外执行命令」的东西（`execConfigHome`，规则 `write:config`，不出授权请求）：`~/.claude/settings.json`、
+  `~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、Gradle 的初始化脚本、`~/.bun/bin`、`~/.deno/bin`；
+  `~/.pyenv/shims` 不再默认可写。CLI 自己目录里的会话、日志、缓存照写。
+- **本机的口子**：Unix socket 不受读写规则管，所以单独拒连（`network-outbound` 的 `remote unix-socket`）：ssh-agent
+  （`/private/var/run/com.apple.launchd.*/Listeners`、`agent.sock`、`S.gpg-agent`）没授权 SSH 类别时拒连，同时从环境里去掉 `SSH_AUTH_SOCK`；
+  Docker 的 `docker.sock`（Docker Desktop、Colima、OrbStack）没授权云账号类别时拒连。Apple Events（`appleevent-send`）一律拒：`osascript`
+  能让终端、Finder 在沙箱外替它执行。这几条的拒绝只记日志。
 - Seatbelt 不能嵌套（外层有拒绝规则时内层 `sandbox_apply` 失败），所以包起来时关掉 CLI 自己的沙箱：Claude `--settings {"sandbox":{"enabled":false}}`、
   Codex `dangerFullAccess` / `sandbox_mode="danger-full-access"`（审批策略照常）、Gemini `GEMINI_SANDBOX=false`、dsh `DSH_PERMISSION_MODE=danger-full-access`。
   网络不限（Seatbelt 只能按 IP 过滤，CLI 要连模型服务），靠拒读敏感内容与环境变量清理防外泄。

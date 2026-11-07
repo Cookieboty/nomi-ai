@@ -342,3 +342,16 @@ func TestGrantAppliesRealPath(t *testing.T) {
 		t.Fatal("grants without a project apply everywhere")
 	}
 }
+
+func TestDropAgentEnv(t *testing.T) {
+	env := util.NewObj("SSH_AUTH_SOCK", "/private/var/run/com.apple.launchd.x/Listeners", "PATH", "/bin")
+	dropAgentEnv(&sandbox.Spec{Granted: map[string]bool{}}, env)
+	if _, ok := env.Lookup("SSH_AUTH_SOCK"); ok || env.Get("PATH") != "/bin" {
+		t.Fatalf("without the ssh category the agent socket is dropped: %v", env.Keys())
+	}
+	env = util.NewObj("SSH_AUTH_SOCK", "/x")
+	dropAgentEnv(&sandbox.Spec{Granted: map[string]bool{"ssh": true}}, env)
+	if env.Get("SSH_AUTH_SOCK") != "/x" {
+		t.Fatal("with the ssh category granted it stays")
+	}
+}

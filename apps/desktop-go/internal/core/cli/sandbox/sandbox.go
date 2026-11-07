@@ -49,17 +49,23 @@ type Category struct {
 // 钥匙串条目由系统自己的访问控制保护。
 var Categories = []Category{
 	{ID: "ssh", Dirs: []string{".ssh", ".config/gh"}, Files: []string{`/\.git-credentials$`, `/\.netrc$`}},
-	{ID: "cloud", Dirs: []string{".aws", ".azure", ".config/gcloud", ".kube", ".docker", ".oci", ".terraform.d"}},
-	{ID: "keys", Dirs: []string{".gnupg", ".password-store"}, Files: []string{`\.kdbx?$`}},
+	// 包管理器的发布令牌（主目录下的 .npmrc / .pypirc，项目里的不拦）也算云账号凭据
+	{ID: "cloud", Dirs: []string{".aws", ".azure", ".config/gcloud", ".kube", ".docker", ".oci", ".terraform.d",
+		".npmrc", ".pypirc", ".gem/credentials"}},
+	{ID: "keys", Dirs: []string{".gnupg", ".password-store", ".config/op"}, Files: []string{`\.kdbx?$`}},
 	{ID: "browser", Dirs: []string{
 		"Library/Application Support/Google/Chrome", "Library/Application Support/Firefox",
 		"Library/Application Support/Microsoft Edge", "Library/Application Support/BraveSoftware",
-		"Library/Application Support/Arc", "Library/Safari", "Library/Cookies",
-		".mozilla", ".config/google-chrome", ".config/chromium",
+		"Library/Application Support/Arc", "Library/Application Support/Chromium", "Library/Application Support/Vivaldi",
+		"Library/Application Support/com.operasoftware.Opera", "Library/Safari", "Library/Cookies",
+		".mozilla", ".config/google-chrome", ".config/chromium", ".config/vivaldi", ".config/opera",
 	}},
 	{ID: "personal", Dirs: []string{
 		"Library/Mail", "Library/Messages", "Library/Calendars", "Library/Application Support/AddressBook",
 		"Library/Group Containers/group.com.apple.notes", "Pictures/Photos Library.photoslibrary",
+		// 命令行与 REPL 的历史里常有贴进去的令牌、密码
+		".zsh_history", ".bash_history", ".zsh_sessions", ".local/share/fish/fish_history", ".python_history",
+		".node_repl_history", ".psql_history", ".mysql_history",
 	}},
 	{ID: "secret-files", Files: []string{
 		`/\.env(\.[^/]*)?$`, `\.(key|p12|pfx|keystore|jks)$`, `[-_.](key|private)[^/]*\.pem$`,
@@ -83,7 +89,31 @@ var writableHome = []string{
 	".node-gyp", ".config/configstore", ".config/yarn", ".config/pnpm", ".deno", "go/pkg", ".cargo/registry", ".cargo/git",
 	".rustup", ".gradle", ".m2", ".ivy2", ".sbt", ".gem", ".bundle", ".cocoapods", ".android", ".expo", ".dotnet", ".nuget",
 	".swiftpm", "Library/Developer/Xcode/DerivedData", "Library/Developer/CoreSimulator", ".local/share/virtualenv",
-	".local/share/uv", ".pyenv/shims", ".jupyter", ".ipython", ".matplotlib", ".streamlit", ".vercel", ".turbo",
+	".local/share/uv", ".jupyter", ".ipython", ".matplotlib", ".streamlit", ".vercel", ".turbo",
+}
+
+// execConfigHome：相对主目录、在可写位置里但不让写的东西：改了之后用户在沙箱外运行时会执行命令（CLI 的钩子与配置、
+// 构建工具的初始化脚本、装进 PATH 的可执行目录）。CLI 照样能写自己目录里的会话、日志与缓存
+var execConfigHome = []string{
+	".claude/settings.json", ".claude/hooks", ".codex/config.toml", ".gemini/settings.json",
+	".gradle/init.d", ".gradle/init.gradle", ".gradle/init.gradle.kts", ".bun/bin", ".deno/bin",
+}
+
+// 本机 Unix socket：拿到它们等于绕过拒读（ssh-agent 里的私钥、Docker 守护进程）。没授权对应类别时不让连
+var (
+	agentSockets  = []string{`^/private/(var/run|tmp)/com\.apple\.launchd\.[^/]+/Listeners$`, `/agent\.sock$`, `/S\.gpg-agent(\.ssh)?$`}
+	dockerSockets = []string{`/docker\.sock$`}
+)
+
+func socketDeny(b *strings.Builder, regexes []string, msg string) {
+	if len(regexes) == 0 {
+		return
+	}
+	b.WriteString("(deny network-outbound (with message \"" + esc(msg) + "\")")
+	for _, re := range regexes {
+		b.WriteString(" (remote unix-socket (path-regex #\"" + re + "\"))")
+	}
+	b.WriteString(")\n")
 }
 
 // writableHomeRegex：相对主目录的可写文件（Claude Code 原子写 ~/.claude.json 用同目录临时文件）
@@ -191,6 +221,20 @@ func Profile(s Spec) string {
 		w = append(w, literals(f)...)
 	}
 	allow(&b, "file-write*", w)
+	var execCfg []string
+	for _, d := range execConfigHome {
+		execCfg = append(execCfg, subpaths(filepath.Join(s.Home, d))...)
+	}
+	b.WriteString(denyClause("file-write*", execCfg, ruleMsg(s.Token, "write:config")))
+	// ── 本机 socket 与 Apple Events ──
+	if !s.Granted["ssh"] {
+		socketDeny(&b, agentSockets, ruleMsg(s.Token, "connect:ssh"))
+	}
+	if !s.Granted["cloud"] {
+		socketDeny(&b, dockerSockets, ruleMsg(s.Token, "connect:cloud"))
+	}
+	// osascript 等能让别的应用（终端、Finder）在沙箱外替它做事
+	b.WriteString("(deny appleevent-send (with message \"" + esc(ruleMsg(s.Token, "appleevents")) + "\"))\n")
 	if s.NomiData != "" {
 		b.WriteString(denyClause("file-write*", subpaths(s.NomiData), ruleMsg(s.Token, "write:nomi")))
 		var ok []string

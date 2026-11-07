@@ -222,6 +222,7 @@ func (o *Orchestrator) spawnCLI(tab *util.Obj, command string, args []string, cw
 	spec := o.sandboxSpec(tab, cwd, env)
 	if spec != nil {
 		env = env.Clone()
+		dropAgentEnv(spec, env)
 		switch str(tab, "backend") {
 		case "gemini":
 			env.Set("GEMINI_SANDBOX", "false")
@@ -233,6 +234,13 @@ func (o *Orchestrator) spawnCLI(tab *util.Obj, command string, args []string, cw
 	ch := spawnHarness(command, args, cwd, env, str(tab, "id"), spec)
 	o.trackProc(str(tab, "id"), ch)
 	return ch
+}
+
+// dropAgentEnv：没授权 SSH 凭据时，连 ssh-agent 的路也断掉（沙箱也拒连它的 socket），免得借 agent 里的私钥登录
+func dropAgentEnv(spec *sandbox.Spec, env *util.Obj) {
+	if !spec.Granted["ssh"] {
+		env.Delete("SSH_AUTH_SOCK")
+	}
 }
 
 // spawnHarness：SpawnHarness 加上可选的沙箱
