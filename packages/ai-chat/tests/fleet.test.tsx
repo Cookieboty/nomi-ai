@@ -331,6 +331,23 @@ describe('FleetPage', () => {
     expect(screen.queryByTestId('fleet-governor')).toBeNull();
   });
 
+  it('marks held work, Nomi pauses and who dispatched a CLI', () => {
+    const tree = {
+      ...state,
+      agents: state.agents.map((a) =>
+        a.id === 'run:t2'
+          ? { ...a, held: true }
+          : a.id === 'tab:p'
+            ? { ...a, paused: { by: 'nomi' as const, at: T0 }, parentId: 'run:t2' }
+            : a,
+      ),
+    };
+    render(<FleetPage active state={tree} onBack={() => undefined} />);
+    expect(screen.getByTestId('fleet-held-run:t2').textContent).toContain('排队中');
+    expect(screen.getByTestId('fleet-paused-tab:p').textContent).toContain('Nomi 暂停的');
+    expect(screen.getByTestId('fleet-parent-tab:p').textContent).toContain('写周报');
+  });
+
   it('Esc goes back to the chat', () => {
     const onBack = vi.fn();
     render(<FleetPage active state={state} onBack={onBack} />);

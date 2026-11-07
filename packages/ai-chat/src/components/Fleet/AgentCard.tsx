@@ -1,6 +1,13 @@
 import { brand } from '@nomi-ai/types';
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { AlertTriangle, CircleAlert, Folder, PauseCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  CircleAlert,
+  CornerDownRight,
+  Folder,
+  Hourglass,
+  PauseCircle,
+} from 'lucide-react';
 import React from 'react';
 
 import {
@@ -17,6 +24,12 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import styles from './Fleet.module.css';
 
+const PAUSED_LABEL = {
+  memory: 'ui.cli-monitor.fleet-paused-memory',
+  user: 'ui.cli-monitor.fleet-paused-user',
+  nomi: 'ui.cli-monitor.fleet-paused-nomi',
+} as const;
+
 export interface CardActions {
   onOpenTab?: (tabId: string) => void;
   onOpenTask?: (taskId: string) => void;
@@ -27,6 +40,8 @@ export interface CardActions {
   onResume?: (id: string) => void;
   /** Nomi 对话的名称（视图的会话列表里取）；取不到返回空 */
   chatName?: (conversationId: string) => string;
+  /** 调度树：上一级的标题（后台 Nomi 运行派出的编程助手显示「由「…」派出」） */
+  parentTitle?: (id: string) => string;
 }
 
 /** 卡片标题：Nomi 对话用会话名；没有标题的写助手名 */
@@ -68,6 +83,7 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
   onPause,
   onResume,
   chatName,
+  parentTitle,
 }) => {
   const backendName = t(ENDPOINT_NAME[iconBackend(a)]);
   const external = a.scope === 'external';
@@ -157,6 +173,18 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
         </span>
       </span>
       <span className={styles.cardTitle}>{agentTitle(a, chatName)}</span>
+      {a.parentId && parentTitle?.(a.parentId) && (
+        <span className={styles.cwd} data-testid={`fleet-parent-${a.id}`}>
+          <Icon icon={CornerDownRight} size={12} />
+          {t('ui.cli-monitor.fleet-dispatched-by', parentTitle(a.parentId))}
+        </span>
+      )}
+      {a.held && (
+        <span className={styles.needs} data-testid={`fleet-held-${a.id}`}>
+          <Icon icon={Hourglass} size={12} />
+          {t('ui.cli-monitor.fleet-held')}
+        </span>
+      )}
       {a.summary && (
         <span className={styles.summary} data-testid={`fleet-summary-${a.id}`}>
           {a.summary}
@@ -177,11 +205,7 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
       {a.paused && (
         <span className={styles.needs} data-testid={`fleet-paused-${a.id}`}>
           <Icon icon={PauseCircle} size={12} />
-          {t(
-            a.paused.by === 'memory'
-              ? 'ui.cli-monitor.fleet-paused-memory'
-              : 'ui.cli-monitor.fleet-paused-user',
-          )}
+          {t(PAUSED_LABEL[a.paused.by])}
         </span>
       )}
       {a.failed && (

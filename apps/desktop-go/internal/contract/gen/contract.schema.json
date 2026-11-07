@@ -12964,7 +12964,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -12982,6 +12983,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13289,7 +13293,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -13307,6 +13312,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13610,7 +13618,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -13628,6 +13637,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -13931,7 +13943,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -13949,6 +13962,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -14252,7 +14268,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -14270,6 +14287,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -14564,7 +14584,8 @@
            "type": "string",
            "enum": [
             "memory",
-            "user"
+            "user",
+            "nomi"
            ]
           },
           "at": {
@@ -14582,6 +14603,9 @@
         },
         "summary": {
          "type": "string"
+        },
+        "held": {
+         "type": "boolean"
         }
        },
        "required": [
@@ -33721,7 +33745,8 @@
           "type": "string",
           "enum": [
            "memory",
-           "user"
+           "user",
+           "nomi"
           ]
          },
          "at": {
@@ -33739,6 +33764,9 @@
        },
        "summary": {
         "type": "string"
+       },
+       "held": {
+        "type": "boolean"
        }
       },
       "required": [

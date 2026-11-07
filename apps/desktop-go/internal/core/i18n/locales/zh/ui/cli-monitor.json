@@ -259,5 +259,8 @@
   "ui.cli-monitor.fleet-auto-pause": "内存紧张时自动处理",
   "ui.cli-monitor.fleet-gov-reclaimed": "内存偏高：回收了 {0} 个空闲标签的进程（会话还在，接着问时自动接上）",
   "ui.cli-monitor.fleet-gov-paused": "内存紧张：暂停了「{0}」，恢复正常后自动继续",
-  "ui.cli-monitor.fleet-gov-resumed": "内存恢复正常：「{0}」已继续"
+  "ui.cli-monitor.fleet-gov-resumed": "内存恢复正常：「{0}」已继续",
+  "ui.cli-monitor.fleet-paused-nomi": "Nomi 暂停的，内存恢复后自动继续",
+  "ui.cli-monitor.fleet-held": "内存紧张，排队中，缓解后自动开始",
+  "ui.cli-monitor.fleet-dispatched-by": "由「{0}」派出"
 }

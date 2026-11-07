@@ -116,6 +116,14 @@ type RuntimeDeps struct {
 	MaxStartsPerHour    int
 }
 
+// SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时编程助手与后台 Nomi 的任务先排着）。
+// 不放行的留在队列里、顺序不变，之后 Tick 时再问。在持有者里调用，要快、不能回调 Runtime。
+func (r *Runtime) SetAdmit(fn func(t Task) bool) {
+	r.ownerMu.Lock()
+	r.admit = fn
+	r.ownerMu.Unlock()
+}
+
 // BudgetInput：创建时的预算覆盖，缺省字段取默认值（maxRetries 可以显式给 0）
 type BudgetInput struct {
 	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
@@ -167,6 +175,9 @@ type Runtime struct {
 
 	ownerMu sync.Mutex // 持有者
 	mu      sync.Mutex // 保护下面的字段与 inbox / owning
+
+	// admit：开始执行前的放行判断（SetAdmit；只在持有者里读写）
+	admit func(t Task) bool
 
 	recs        map[string]*Record
 	order       []string // 任务插入顺序（Map 遍历顺序）
@@ -1030,10 +1041,14 @@ func (r *Runtime) pump() {
 	for len(r.slots) < r.max() && len(r.starts) < maxStarts {
 		idx := -1
 		for i, q := range r.queue {
-			if q.notBefore <= now {
-				idx = i
-				break
+			if q.notBefore > now {
+				continue
 			}
+			if rec := r.recs[q.id]; rec != nil && r.admit != nil && !r.admit(rec.Task) {
+				continue
+			}
+			idx = i
+			break
 		}
 		if idx < 0 {
 			return

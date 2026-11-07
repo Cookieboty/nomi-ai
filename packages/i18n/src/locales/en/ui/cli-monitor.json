@@ -259,5 +259,8 @@
   "ui.cli-monitor.fleet-auto-pause": "Act automatically when memory is low",
   "ui.cli-monitor.fleet-gov-reclaimed": "Memory is elevated: freed the processes of {0} idle tabs (their sessions are kept and resume when you ask again)",
   "ui.cli-monitor.fleet-gov-paused": "Memory is low: paused “{0}”; it resumes on its own once memory recovers",
-  "ui.cli-monitor.fleet-gov-resumed": "Memory is back to normal: “{0}” resumed"
+  "ui.cli-monitor.fleet-gov-resumed": "Memory is back to normal: “{0}” resumed",
+  "ui.cli-monitor.fleet-paused-nomi": "Paused by Nomi; resumes once memory recovers",
+  "ui.cli-monitor.fleet-held": "Memory is low: queued, starts on its own once it recovers",
+  "ui.cli-monitor.fleet-dispatched-by": "Dispatched by “{0}”"
 }

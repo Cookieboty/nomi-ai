@@ -4,8 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
@@ -20,7 +23,16 @@ import (
 
 // wireFleet：Agent 看板。标签从编排器取（进 GIL），任务从持续任务服务取（GIL 外），
 // 标签 / 任务变化时推 fleet.changed。
-func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chats *airouter.Handlers) func() {
+// fleetSvc：看板服务（委派的同步路径问「内存是不是正紧张」，coding_wiring.go）
+var fleetSvc atomic.Pointer[fleet.Service]
+
+// fleetHolding：内存守护正扣着新的编程助手（看板还没装好时不扣）
+func fleetHolding() bool {
+	s := fleetSvc.Load()
+	return s != nil && s.Holding()
+}
+
+func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chats *airouter.Handlers, reg tools.Registry) func() {
 	o := harnessOrch
 	s := fleet.New(fleet.Deps{
 		SelfPid:   os.Getpid(),
@@ -134,6 +146,18 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 		onAgentsChanged = s.Changed
 	})
 	codinghandlers.RegisterFleet(router, func() codinghandlers.Fleet { return s })
+	// 内存紧张时，编程助手与后台 Nomi 的任务先排着；不再紧张时马上再排一次队
+	if ts != nil {
+		ts.Runtime.SetAdmit(s.Admit)
+		s.SetOnRelease(func() { go ts.Runtime.Tick() })
+	}
+	// 给 Nomi 的看板工具：list_agents / pause_agent / resume_agent
+	if reg != nil {
+		for _, def := range igtools.WithDangerousUnset(s.Tools()) {
+			reg.Register(def)
+		}
+	}
+	fleetSvc.Store(s)
 	s.Start()
 	return func() {
 		if offTasks != nil {
@@ -179,6 +203,7 @@ func fleetTab(t *util.Obj, pids func(string) []int, perms func(string) int) flee
 	}
 	if d, ok := t.Get("delegation").(*util.Obj); ok && d.Get("by") == "nomi" && d.Get("takenOver") != true {
 		ft.Delegated, ft.CallID, ft.TaskID = true, str(d, "callId"), str(d, "taskId")
+		ft.ParentTaskID = str(d, "parentTaskId")
 	}
 	return ft
 }

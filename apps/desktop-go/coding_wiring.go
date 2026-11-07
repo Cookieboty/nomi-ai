@@ -173,6 +173,8 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router}, Claims: delegateClaims,
+		// 内存守护正扣着新的编程助手时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
+		MemoryCritical: fleetHolding,
 	}
 	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {

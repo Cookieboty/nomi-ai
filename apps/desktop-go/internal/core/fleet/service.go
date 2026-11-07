@@ -47,6 +47,8 @@ type Deps struct {
 	SettingsPath string
 	// GovernEvery：多久看一次内存压力；0 = GovernInterval
 	GovernEvery time.Duration
+	// OnRelease：内存守护不再扣着新任务时调用（wiring：让任务运行时马上再排一次队）
+	OnRelease func()
 }
 
 // CloseIdleGrace：手动关闭空闲进程时，SIGTERM 之后等多久再 SIGKILL
@@ -158,7 +160,7 @@ func (s *Service) State() State {
 		}
 	}
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums})
+		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: s.Holding()})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}

@@ -370,6 +370,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		if truthy(del.Get("taskId")) {
 			d.Set("taskId", del.Get("taskId"))
 		}
+		if truthy(del.Get("parentTaskId")) {
+			d.Set("parentTaskId", del.Get("parentTaskId"))
+		}
 		if truthy(del.Get("githubAccess")) {
 			d.Set("githubAccess", true)
 		}

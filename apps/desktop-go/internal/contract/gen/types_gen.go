@@ -3306,12 +3306,13 @@ type FleetArchiveOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetArchiveOutputAgentsItemPausedBy 枚举：memory | user
+// FleetArchiveOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetArchiveOutputAgentsItemPausedBy = string
 
 const (
 	FleetArchiveOutputAgentsItemPausedByMemory FleetArchiveOutputAgentsItemPausedBy = "memory"
 	FleetArchiveOutputAgentsItemPausedByUser   FleetArchiveOutputAgentsItemPausedBy = "user"
+	FleetArchiveOutputAgentsItemPausedByNomi   FleetArchiveOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetArchiveOutputAgentsItemPaused struct {
@@ -3339,6 +3340,7 @@ type FleetArchiveOutputAgentsItem struct {
 	Paused         *FleetArchiveOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                 `json:"pausable,omitempty"`
 	Summary        *string                               `json:"summary,omitempty"`
+	Held           *bool                                 `json:"held,omitempty"`
 }
 
 type FleetArchiveOutputNomiUsage struct {
@@ -3472,12 +3474,13 @@ type FleetCloseIdleOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetCloseIdleOutputAgentsItemPausedBy 枚举：memory | user
+// FleetCloseIdleOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetCloseIdleOutputAgentsItemPausedBy = string
 
 const (
 	FleetCloseIdleOutputAgentsItemPausedByMemory FleetCloseIdleOutputAgentsItemPausedBy = "memory"
 	FleetCloseIdleOutputAgentsItemPausedByUser   FleetCloseIdleOutputAgentsItemPausedBy = "user"
+	FleetCloseIdleOutputAgentsItemPausedByNomi   FleetCloseIdleOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetCloseIdleOutputAgentsItemPaused struct {
@@ -3505,6 +3508,7 @@ type FleetCloseIdleOutputAgentsItem struct {
 	Paused         *FleetCloseIdleOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                   `json:"pausable,omitempty"`
 	Summary        *string                                 `json:"summary,omitempty"`
+	Held           *bool                                   `json:"held,omitempty"`
 }
 
 type FleetCloseIdleOutputNomiUsage struct {
@@ -3637,12 +3641,13 @@ type FleetPauseOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetPauseOutputAgentsItemPausedBy 枚举：memory | user
+// FleetPauseOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetPauseOutputAgentsItemPausedBy = string
 
 const (
 	FleetPauseOutputAgentsItemPausedByMemory FleetPauseOutputAgentsItemPausedBy = "memory"
 	FleetPauseOutputAgentsItemPausedByUser   FleetPauseOutputAgentsItemPausedBy = "user"
+	FleetPauseOutputAgentsItemPausedByNomi   FleetPauseOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetPauseOutputAgentsItemPaused struct {
@@ -3670,6 +3675,7 @@ type FleetPauseOutputAgentsItem struct {
 	Paused         *FleetPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                               `json:"pausable,omitempty"`
 	Summary        *string                             `json:"summary,omitempty"`
+	Held           *bool                               `json:"held,omitempty"`
 }
 
 type FleetPauseOutputNomiUsage struct {
@@ -3802,12 +3808,13 @@ type FleetResumeOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetResumeOutputAgentsItemPausedBy 枚举：memory | user
+// FleetResumeOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetResumeOutputAgentsItemPausedBy = string
 
 const (
 	FleetResumeOutputAgentsItemPausedByMemory FleetResumeOutputAgentsItemPausedBy = "memory"
 	FleetResumeOutputAgentsItemPausedByUser   FleetResumeOutputAgentsItemPausedBy = "user"
+	FleetResumeOutputAgentsItemPausedByNomi   FleetResumeOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetResumeOutputAgentsItemPaused struct {
@@ -3835,6 +3842,7 @@ type FleetResumeOutputAgentsItem struct {
 	Paused         *FleetResumeOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                `json:"pausable,omitempty"`
 	Summary        *string                              `json:"summary,omitempty"`
+	Held           *bool                                `json:"held,omitempty"`
 }
 
 type FleetResumeOutputNomiUsage struct {
@@ -3967,12 +3975,13 @@ type FleetSetAutoPauseOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetSetAutoPauseOutputAgentsItemPausedBy 枚举：memory | user
+// FleetSetAutoPauseOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetSetAutoPauseOutputAgentsItemPausedBy = string
 
 const (
 	FleetSetAutoPauseOutputAgentsItemPausedByMemory FleetSetAutoPauseOutputAgentsItemPausedBy = "memory"
 	FleetSetAutoPauseOutputAgentsItemPausedByUser   FleetSetAutoPauseOutputAgentsItemPausedBy = "user"
+	FleetSetAutoPauseOutputAgentsItemPausedByNomi   FleetSetAutoPauseOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetSetAutoPauseOutputAgentsItemPaused struct {
@@ -4000,6 +4009,7 @@ type FleetSetAutoPauseOutputAgentsItem struct {
 	Paused         *FleetSetAutoPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                      `json:"pausable,omitempty"`
 	Summary        *string                                    `json:"summary,omitempty"`
+	Held           *bool                                      `json:"held,omitempty"`
 }
 
 type FleetSetAutoPauseOutputNomiUsage struct {
@@ -4128,12 +4138,13 @@ type FleetStateOutputAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// FleetStateOutputAgentsItemPausedBy 枚举：memory | user
+// FleetStateOutputAgentsItemPausedBy 枚举：memory | user | nomi
 type FleetStateOutputAgentsItemPausedBy = string
 
 const (
 	FleetStateOutputAgentsItemPausedByMemory FleetStateOutputAgentsItemPausedBy = "memory"
 	FleetStateOutputAgentsItemPausedByUser   FleetStateOutputAgentsItemPausedBy = "user"
+	FleetStateOutputAgentsItemPausedByNomi   FleetStateOutputAgentsItemPausedBy = "nomi"
 )
 
 type FleetStateOutputAgentsItemPaused struct {
@@ -4161,6 +4172,7 @@ type FleetStateOutputAgentsItem struct {
 	Paused         *FleetStateOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                               `json:"pausable,omitempty"`
 	Summary        *string                             `json:"summary,omitempty"`
+	Held           *bool                               `json:"held,omitempty"`
 }
 
 type FleetStateOutputNomiUsage struct {
@@ -9713,12 +9725,13 @@ type EventFleetChangedAgentsItemUsage struct {
 	Processes  float64 `json:"processes"`
 }
 
-// EventFleetChangedAgentsItemPausedBy 枚举：memory | user
+// EventFleetChangedAgentsItemPausedBy 枚举：memory | user | nomi
 type EventFleetChangedAgentsItemPausedBy = string
 
 const (
 	EventFleetChangedAgentsItemPausedByMemory EventFleetChangedAgentsItemPausedBy = "memory"
 	EventFleetChangedAgentsItemPausedByUser   EventFleetChangedAgentsItemPausedBy = "user"
+	EventFleetChangedAgentsItemPausedByNomi   EventFleetChangedAgentsItemPausedBy = "nomi"
 )
 
 type EventFleetChangedAgentsItemPaused struct {
@@ -9746,6 +9759,7 @@ type EventFleetChangedAgentsItem struct {
 	Paused         *EventFleetChangedAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                `json:"pausable,omitempty"`
 	Summary        *string                              `json:"summary,omitempty"`
+	Held           *bool                                `json:"held,omitempty"`
 }
 
 type EventFleetChangedNomiUsage struct {

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 )
 
 const (
@@ -110,6 +111,38 @@ func (s *Service) Start() {
 	}()
 }
 
+func (s *Service) release() {
+	s.mu.Lock()
+	fn := s.d.OnRelease
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
+}
+
+// SetOnRelease：内存守护不再扣着新任务时调用（装配时设置，避免与 Deps 的构造顺序纠缠）
+func (s *Service) SetOnRelease(fn func()) {
+	s.mu.Lock()
+	s.d.OnRelease = fn
+	s.mu.Unlock()
+}
+
+// autoResumable：内存恢复正常后自动继续的（内存守护与 Nomi 暂停的；用户手动暂停的不动）
+func autoResumable(by string) bool { return by == PausedByMemory || by == PausedByNomi }
+
+// Holding：内存守护正扣着新的编程助手与后台 Nomi（自动处理开着、内存紧张）
+func (s *Service) Holding() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.gov.auto && s.gov.level == agents.PressureCritical
+}
+
+// Admit：任务运行时开始执行前问一次（tasks.Runtime.SetAdmit）：内存紧张时编程助手与后台 Nomi 先排着，
+// 只发通知的照常
+func (s *Service) Admit(t tasks.Task) bool {
+	return t.Executor.Kind == "notify" || !s.Holding()
+}
+
 // Govern：看一次内存压力并按需处理（Start 的定时器调用；测试里直接调）
 func (s *Service) Govern() {
 	if s.d.Pressure == nil {
@@ -118,11 +151,16 @@ func (s *Service) Govern() {
 	now := s.d.Now()
 	p := s.d.Pressure()
 	s.mu.Lock()
+	wasHolding := s.gov.auto && s.gov.level == agents.PressureCritical
 	if p.Level != s.gov.level {
 		s.gov.level, s.gov.levelSince = p.Level, now
 	}
 	auto, since := s.gov.auto, s.gov.levelSince
 	s.mu.Unlock()
+	// 不再紧张：让排着的任务马上开始（不等任务运行时自己的下一次检查）
+	if wasHolding && !s.Holding() {
+		s.release()
+	}
 	if !auto {
 		return
 	}
@@ -265,7 +303,7 @@ func (s *Service) thawOne(now time.Time) {
 	tabs := s.d.Tabs()
 	for i := range tabs {
 		t := &tabs[i]
-		if t.Paused != nil && t.Paused.By == PausedByMemory && (pick == nil || t.Paused.At < pick.Paused.At) {
+		if t.Paused != nil && autoResumable(t.Paused.By) && (pick == nil || t.Paused.At < pick.Paused.At) {
 			pick = t
 		}
 	}
@@ -280,7 +318,10 @@ func (s *Service) thawOne(now time.Time) {
 }
 
 // Pause：用户手动暂停一个纳管的、正在跑的 CLI 标签
-func (s *Service) Pause(id string) (State, error) {
+func (s *Service) Pause(id string) (State, error) { return s.PauseBy(id, PausedByUser) }
+
+// PauseBy：暂停一个纳管的、正在跑的 CLI 标签，记下是谁暂停的（user / nomi）
+func (s *Service) PauseBy(id, by string) (State, error) {
 	s.fresh()
 	st := s.State()
 	for _, a := range st.Agents {
@@ -290,7 +331,7 @@ func (s *Service) Pause(id string) (State, error) {
 		if !a.Pausable || s.d.Freeze == nil {
 			return st, ErrNotPausable
 		}
-		if pids := s.treePids(a.TabID); len(pids) > 0 && s.d.Freeze(a.TabID, pids, PausedByUser) {
+		if pids := s.treePids(a.TabID); len(pids) > 0 && s.d.Freeze(a.TabID, pids, by) {
 			s.fresh()
 			return s.State(), nil
 		}
@@ -315,13 +356,17 @@ func (s *Service) Resume(id string) (State, error) {
 
 // SetAutoPause：打开 / 关闭自动暂停（存盘）；关掉时恢复内存守护暂停的标签
 func (s *Service) SetAutoPause(on bool) State {
+	wasHolding := s.Holding()
 	s.mu.Lock()
 	s.gov.auto = on
 	s.mu.Unlock()
+	if wasHolding && !s.Holding() {
+		s.release()
+	}
 	saveAutoPause(s.d.SettingsPath, on)
 	if !on && s.d.Tabs != nil && s.d.Thaw != nil {
 		for _, t := range s.d.Tabs() {
-			if t.Paused != nil && t.Paused.By == PausedByMemory {
+			if t.Paused != nil && autoResumable(t.Paused.By) {
 				s.d.Thaw(t.ID)
 			}
 		}

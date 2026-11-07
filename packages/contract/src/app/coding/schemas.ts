@@ -365,12 +365,14 @@ export const FleetAgent = loose({
   /** 量不到时没有（Nomi 后台运行跑在内核进程里，单独的内存量不出来） */
   usage: FleetUsage.optional(),
   updatedAt: z.number(),
-  /** 暂停中（已暂停列）：by = memory 内存守护自动暂停 / user 手动暂停；at = 暂停时间 */
-  paused: loose({ by: z.enum(['memory', 'user']), at: z.number() }).optional(),
+  /** 暂停中（已暂停列）：by = memory 内存守护自动暂停 / user 手动暂停 / nomi Nomi 用 pause_agent 暂停；at = 暂停时间 */
+  paused: loose({ by: z.enum(['memory', 'user', 'nomi']), at: z.number() }).optional(),
   /** 可以手动暂停：纳管、正在跑、有活着的进程、没在等审批的 CLI 标签 */
   pausable: z.boolean().optional(),
   /** 做完时的总结（标签最后一条回复、任务结果摘要、外部会话摘要），只给已完成的，最多 300 字 */
   summary: z.string().optional(),
+  /** 在待进行里、因为内存紧张被内存守护扣着（缓解后自动开始） */
+  held: z.boolean().optional(),
 });
 
 export const FleetSystem = loose({

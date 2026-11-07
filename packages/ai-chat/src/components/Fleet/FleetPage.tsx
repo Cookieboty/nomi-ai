@@ -247,7 +247,7 @@ export const FleetPage: React.FC<
               {items.length ? (
                 <ul className={styles.cards}>
                   {items.map((a) => (
-                    <AgentCard key={a.id} a={a} {...actions} />
+                    <AgentCard key={a.id} a={a} {...actions} parentTitle={titleOf} />
                   ))}
                 </ul>
               ) : (

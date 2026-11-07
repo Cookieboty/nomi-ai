@@ -63,6 +63,8 @@ type Agent struct {
 	Pausable bool    `json:"pausable,omitempty"`
 	// Summary：做完时的总结（标签最后一条回复、任务的结果摘要、外部会话的摘要），只给已完成的，截到 SummaryMax 个字
 	Summary string `json:"summary,omitempty"`
+	// Held：在「待进行」里、因为内存紧张被内存守护扣着（缓解后自动开始）
+	Held bool `json:"held,omitempty"`
 }
 
 // SummaryMax：卡片上的总结最多多少个字（视图再按行数截）
@@ -84,6 +86,8 @@ var mdNoise = regexp.MustCompile("(?m)^#{1,6}\\s+|\\*\\*|__|```[a-zA-Z0-9_-]*|`"
 const (
 	PausedByMemory = "memory"
 	PausedByUser   = "user"
+	// PausedByNomi：Nomi 用 pause_agent 暂停的（和内存守护暂停的一样，内存恢复正常后自动继续）
+	PausedByNomi = "nomi"
 )
 
 // Paused：暂停信息（冻结的进程不占 CPU，内存由系统按需压缩换出；恢复后这一轮从原处接着跑）
@@ -161,6 +165,8 @@ type Tab struct {
 	SandboxPending int
 	Paused         *Paused // 冻结中
 	Summary        string  // 最后一条回复（只在没在跑时取）
+	// ParentTaskID：后台 Nomi 运行里派出的：那次运行的任务 id（调度树）
+	ParentTaskID string
 }
 
 // Chat：正在回答的 Nomi 对话（标题由视图从会话列表里取）
@@ -193,7 +199,9 @@ type Input struct {
 	Archived map[string]int64
 	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
 	TaskSummaries map[string]string
-	System        System
+	// Holding：内存守护正扣着新的编程助手与后台 Nomi（排队的任务卡片标 Held）
+	Holding bool
+	System  System
 }
 
 func tabOrigin(t Tab) string {
@@ -332,6 +340,9 @@ func Build(in Input) State {
 		}
 		a := Agent{ID: "tab:" + t.ID, Kind: "cli", Backend: t.Backend, Scope: "managed", Origin: tabOrigin(t),
 			Title: t.Title, TabID: t.ID, Cwd: t.Cwd, UpdatedAt: t.UpdatedAt}
+		if t.ParentTaskID != "" {
+			a.ParentID = "run:" + t.ParentTaskID
+		}
 		if t.Delegated && t.TaskID != "" {
 			a.TaskID = t.TaskID
 			tabTask[t.TaskID] = true
@@ -393,6 +404,7 @@ func Build(in Input) State {
 		}
 		a.Scope, a.Title, a.Column, a.NeedsYou, a.Failed = "managed", t.Title, col, need, failed
 		a.TaskID, a.ConversationID, a.UpdatedAt = t.ID, str(t.Origin.ConversationID), t.UpdatedAt
+		a.Held = in.Holding && col == ColTodo
 		if col == ColDone {
 			a.Summary = clip(in.TaskSummaries[t.ID])
 		}

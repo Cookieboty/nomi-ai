@@ -90,6 +90,35 @@ type Deps struct {
 	Tasks TaskPort
 	// Claims：同一仓库里直接改的并行任务按文件、按优先级裁决（可空）
 	Claims *Claims
+	// MemoryCritical：系统内存紧张、内存守护在扣着新的编程助手（Agent 看板）。后台委派照常建任务（排队，缓解后开始）；
+	// 同步委派：后台 Nomi 里的等缓解，前台对话里的返回 memory_pressure（可空）
+	MemoryCritical func() bool
+}
+
+// MemoryWaitPoll：后台 Nomi 里的同步委派等内存缓解时多久看一次
+var MemoryWaitPoll = 5 * time.Second
+
+// waitMemory：内存紧张时，后台执行里的同步委派等缓解；前台的直接返回错误。ctx 结束时返回它的错误
+func (s *Service) waitMemory(sig context.Context, background bool) error {
+	if s.d.MemoryCritical == nil || !s.d.MemoryCritical() {
+		return nil
+	}
+	if !background {
+		return derr("memory_pressure", "系统内存紧张，现在不开新的编程助手。改用后台委派（background 不填或 true）："+
+			"任务会在 Agent 看板「待进行」里排队，内存缓解后自动开始；或者等一会儿再派")
+	}
+	for s.d.MemoryCritical() {
+		var done <-chan struct{}
+		if sig != nil {
+			done = sig.Done()
+		}
+		select {
+		case <-done:
+			return sig.Err()
+		case <-time.After(MemoryWaitPoll):
+		}
+	}
+	return nil
 }
 
 // TaskPort：委派用到的持续任务能力（tasks.Service 的子集）
@@ -983,6 +1012,10 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		return s.delegateAsTask(in, c, t0, cli, sourceCwd, ws, turnID, settings)
 	}
 
+	// 同步委派：内存紧张时先等缓解（后台 Nomi 里的）或让 Nomi 改成后台委派（前台的）
+	if err := s.waitMemory(c.sig, desktop.BackgroundFrom(c.sig) != nil); err != nil {
+		return nil, err
+	}
 	// 同步委派：先占名额再往下走（准备隔离、等用户确认都要等）；名额满了排队等（#141、2.3）
 	release, err := s.reserveSlot(c.sig, !background)
 	if err != nil {
@@ -1050,6 +1083,10 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		del.Set("callId", c.ec.ToolCallID)
 	}
 	del.Set("goal", goal)
+	// 后台 Nomi 运行里派出的：记下是哪个任务派的（Agent 看板的调度树）
+	if parent := tasks.RunTaskFrom(c.sig); parent != "" {
+		del.Set("parentTaskId", parent)
+	}
 	opts.Set("delegation", del)
 	if m := ov.Get("model"); m != nil {
 		opts.Set("modelOverride", m)

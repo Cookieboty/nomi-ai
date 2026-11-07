@@ -90,6 +90,19 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 退出时（`Dispose`）恢复全部。卡片上可以手动「暂停 / 继续」（`fleet.pause` / `fleet.resume`）。看板总览下面一行显示
 内存守护最近一次动作（10 分钟内）。Nomi 对话与后台 agent 跑在内核进程里，不能冻结。
 
+## Nomi 调度
+
+- 工具（`internal/core/fleet/tools.go`，注册进 Nomi 的工具表，说到 agent / 内存 / 卡 / 暂停 / 派出去的事时才提供）：
+  `list_agents`（压力、可用比例、整机 CPU、Nomi 自己的占用与所有 agent，外部的标 `readOnly`）、`pause_agent` /
+  `resume_agent`（只对纳管的、可暂停的；外部的、内核里跑的、等用户处理的都拒绝并说明原因）。Nomi 暂停的
+  （`paused.by: nomi`）与内存守护暂停的一样，内存恢复正常后自动继续，不会被遗忘在暂停里。
+- 内存紧张（critical）且自动处理开着时，内存守护扣着新的工作：任务运行时开始执行前问 `Admit`
+  （`tasks.Runtime.SetAdmit`），编程助手与后台 Nomi 的任务留在队列里（看板「待进行」标 `held`），只发通知的照常；
+  不再紧张时马上再排一次队（`OnRelease` → `Runtime.Tick`）。同步委派：后台 Nomi 里的等缓解，前台对话里的返回
+  `memory_pressure`，让 Nomi 改成后台委派。派活规则的提示词里有一句：电脑卡 / 一次派好几个时先 `list_agents`。
+- 调度树：后台 Nomi 运行的 ctx 上有任务 id（`tasks.WithRunTask`），它里面委派出去的编程助手标签记下 `parentTaskId`，
+  看板卡片上显示「由「…」派出」（`parentId`）。
+
 ## 线程
 
 `fleet.*` 不进 GIL：持续任务的 `Runtime.List` 在 GIL 外读（运行时的持有者可能在等 GIL），读标签与编程助手监视时才
