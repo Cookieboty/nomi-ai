@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 431：mutation 302 / query 124 / stream 5
+// 合计 434：mutation 305 / query 124 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -124,11 +124,13 @@ var Procedures = []Procedure{
 	{Name: "desktop.remindersList", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersSnooze", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.remindersUpdate", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "desktop.removeCliSandboxAllow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.removeCommandRule", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.resetAll", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.resetCloudAcks", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "desktop.setCliEnvAllow", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "desktop.setCliSandbox", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setLocalOnly", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.setPolicy", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "desktop.state", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -209,6 +211,7 @@ var Procedures = []Procedure{
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.replyApprovePlan", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.replyPermission", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "harness.sandboxReply", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.send", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.setBackend", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.setCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},

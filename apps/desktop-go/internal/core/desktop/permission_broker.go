@@ -27,6 +27,10 @@ type DesktopSettings struct {
 	ProtectedPaths []string `json:"protectedPaths,omitempty"`
 	// CliEnvAllow：放行给编程助手的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
 	CliEnvAllow []string `json:"cliEnvAllow,omitempty"`
+	// CliSandboxOff：用户关掉了编程助手的系统沙箱（缺省 = 开）
+	CliSandboxOff bool `json:"cliSandboxOff,omitempty"`
+	// CliSandboxAllow：沙箱里「始终允许」的授权（类别 / 文件夹 / 文件）
+	CliSandboxAllow []SandboxAllow `json:"cliSandboxAllow,omitempty"`
 }
 
 type ConfirmRequest struct {
@@ -142,6 +146,8 @@ func (b *PermissionBroker) load() {
 		CommandRules   []any             `json:"commandRules"`
 		ProtectedPaths []any             `json:"protectedPaths"`
 		CliEnvAllow    []any             `json:"cliEnvAllow"`
+		CliSandboxOff  any               `json:"cliSandboxOff"`
+		CliSandbox     []SandboxAllow    `json:"cliSandboxAllow"`
 	}
 	if json.Unmarshal(raw, &r) != nil {
 		return
@@ -172,6 +178,8 @@ func (b *PermissionBroker) load() {
 	}
 	b.settings.ProtectedPaths = loadProtectedPaths(r.ProtectedPaths)
 	b.settings.CliEnvAllow = normalizeEnvNames(r.CliEnvAllow)
+	b.settings.CliSandboxOff = r.CliSandboxOff == true
+	b.settings.CliSandboxAllow = normalizeSandboxAllow(r.CliSandbox)
 	for _, x := range r.CommandRules {
 		if s, ok := x.(string); ok {
 			if n := NormalizeCommandRule(s); n != "" && !slices.Contains(b.settings.CommandRules, n) {
@@ -901,6 +909,9 @@ type BrokerView struct {
 	ProtectedPaths []string `json:"protectedPaths"`
 	// CliEnvAllow：放行给编程助手的环境变量名
 	CliEnvAllow []string `json:"cliEnvAllow"`
+	// CliSandbox：编程助手的系统沙箱开关；CliSandboxAllow：沙箱里「始终允许」的授权
+	CliSandbox      bool           `json:"cliSandbox"`
+	CliSandboxAllow []SandboxAllow `json:"cliSandboxAllow"`
 }
 
 func (b *PermissionBroker) View() BrokerView {
@@ -912,7 +923,8 @@ func (b *PermissionBroker) View() BrokerView {
 	}
 	return BrokerView{Scopes: b.scopesLocked(), Policies: pol, LocalOnly: b.settings.LocalOnly, CloudAcked: append([]string{}, b.settings.CloudAcked...),
 		CommandRules: append([]string{}, b.settings.CommandRules...), ProtectedPaths: append([]string{}, b.settings.ProtectedPaths...),
-		CliEnvAllow: append([]string{}, b.settings.CliEnvAllow...)}
+		CliEnvAllow: append([]string{}, b.settings.CliEnvAllow...), CliSandbox: !b.settings.CliSandboxOff,
+		CliSandboxAllow: append([]SandboxAllow{}, b.settings.CliSandboxAllow...)}
 }
 
 func (b *PermissionBroker) ResetAll() {

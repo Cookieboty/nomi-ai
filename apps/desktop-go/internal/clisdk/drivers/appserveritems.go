@@ -10,7 +10,20 @@ import (
 )
 
 // CodexTurnPolicy：按权限模式与网络开关给出一轮的沙箱 / 审批策略。
-func CodexTurnPolicy(mode string, network bool) Json {
+// outer：进程包在 Nomi 的沙箱里（Seatbelt 不能嵌套）：Codex 自己不再套沙箱，读写边界由外层管，审批照常
+func CodexTurnPolicy(mode string, network bool, outer bool) Json {
+	if outer {
+		full := O("type", "dangerFullAccess")
+		switch mode {
+		case "plan", "bypass":
+			return O("sandboxPolicy", full, "approvalPolicy", "never", "approvalsReviewer", "user")
+		case "manual":
+			return O("sandboxPolicy", full, "approvalPolicy", "untrusted", "approvalsReviewer", "user")
+		case "auto":
+			return O("sandboxPolicy", full, "approvalPolicy", "on-request", "approvalsReviewer", "auto_review")
+		}
+		return O("sandboxPolicy", full, "approvalPolicy", "on-request", "approvalsReviewer", "user")
+	}
 	workspace := func() Json {
 		return O("type", "workspaceWrite", "writableRoots", []any{}, "networkAccess", network, "excludeTmpdirEnvVar", false, "excludeSlashTmp", false)
 	}

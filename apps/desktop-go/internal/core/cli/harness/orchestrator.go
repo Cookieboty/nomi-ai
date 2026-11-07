@@ -73,6 +73,8 @@ type Deps struct {
 	CwdCheck func(dir string) string
 	// EnvAllow：用户放行、照样交给 CLI 的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
 	EnvAllow func() []string
+	// Sandbox：系统级沙箱的设置（sandbox.go）；nil = 不用沙箱
+	Sandbox *SandboxDeps
 }
 
 const (
@@ -230,6 +232,7 @@ type Orchestrator struct {
 	tabFileBytes                                   map[string]int
 	broadcastQueued                                bool
 	disposed                                       bool
+	sbx                                            sbxState
 	events                                         *emitter
 	modelCatalogs                                  map[string]catalogEntry
 	modelCatalogInflight                           map[string]*jsrt.Promise[*util.Obj]

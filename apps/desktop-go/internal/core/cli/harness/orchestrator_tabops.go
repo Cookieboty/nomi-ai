@@ -531,6 +531,7 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 	o.CancelTab(id)
 	delete(o.live.claudeStarting, id)
 	o.teardownClaudeLive(id)
+	o.forgetSandbox(id)
 	order := o.tabs.Keys()
 	idx := -1
 	for i, k := range order {

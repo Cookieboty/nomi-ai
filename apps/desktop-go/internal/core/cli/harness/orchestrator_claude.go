@@ -385,6 +385,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	argv = append(argv, cli.PermissionLaunchFor("claude", str(tab, "permissionMode"), nil).Args...)
 	argv = append(argv, cli.OverrideArgs("claude", ov.model, ptrAny(ov.effort))...)
 	argv = append(argv, launch.args...)
+	argv = append(argv, o.claudeSandboxArgs()...)
 	if sid, _ := tab.Get("cliSessionId").(string); sid != "" {
 		argv = append(argv, "--resume", sid)
 		if back := util.AsObj(tab.Get("claudeResumeAt")); back != nil {
@@ -403,7 +404,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	if useNode {
 		cmd, args = nodeExecPath(), append([]string{bin}, argv...)
 	}
-	child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, sl, nil)), id))
+	child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, sl, nil))))
 	if spawnLaunch != nil {
 		o.watchTabRelease(tab, child)
 	}

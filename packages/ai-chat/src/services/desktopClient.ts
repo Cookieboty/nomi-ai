@@ -29,6 +29,12 @@ export interface DesktopState {
   protectedPaths?: string[];
   /** 放行给编程助手的环境变量名 */
   cliEnvAllow?: string[];
+  /** 编程助手的系统沙箱开关（缺省开） */
+  cliSandbox?: boolean;
+  /** 当前平台能用系统沙箱 */
+  cliSandboxSupported?: boolean;
+  /** 沙箱里「始终允许」的授权 */
+  cliSandboxAllow?: Array<{ kind: 'category' | 'folder' | 'file'; value: string }>;
   tools: Array<{ name: string; danger: Danger; policy: Policy; locked?: boolean }>;
 }
 
@@ -136,6 +142,10 @@ export const desktopClient = {
       api.desktop.protectFolder(),
     ),
   unprotectPath: (path: string) => call<DesktopState>(() => api.desktop.unprotectPath({ path })),
+  setCliSandbox: (enabled: boolean) =>
+    call<DesktopState>(() => api.desktop.setCliSandbox({ enabled })),
+  removeCliSandboxAllow: (kind: 'category' | 'folder' | 'file', value: string) =>
+    call<DesktopState>(() => api.desktop.removeCliSandboxAllow({ kind, value })),
   setCliEnvAllow: (names: string[]) =>
     call<DesktopState>(() => api.desktop.setCliEnvAllow({ names })),
   /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
@@ -186,6 +196,8 @@ export const TOOL_LABELS: Record<string, string> = {
   revoke_scope: 'ui.foundation.revoke',
   protect_path: 'ui.foundation.add-protected-folder',
   unprotect_path: 'ui.foundation.unprotect',
+  cli_sandbox: 'ui.foundation.cli-sandbox',
+  cli_sandbox_revoke: 'ui.foundation.sandbox-allow-remove',
   drop_summarize: 'ui.chat-settings.drop-onto-nomi-to-summarize',
   reminder_create: 'ui.chat-settings.set-reminder',
   reminder_list: 'ui.chat-settings.view-reminders',

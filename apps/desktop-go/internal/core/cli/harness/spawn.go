@@ -11,7 +11,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // mockDir = mockDir()：候选用 cli.MockCliRoots（前两项 __dirname bundle 目录由宿主接线 prepend）。
@@ -51,12 +50,7 @@ var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID st
 
 // SpawnHarness = spawnHarness。须在 jsrt.Run 内调用（nodeproc 约定）。stdin 'error' 由 nodeproc 吞掉。
 func SpawnHarness(command string, args []string, cwd string, env *util.Obj, tabID string) clisdk.ChildLike {
-	l := cli.ResolveHarnessLaunch(command, args, env, usage.Platform(), nil)
-	ch := clisdk.ProcChild{Child: nodeproc.Spawn(l.File, l.Args, nodeproc.Options{Cwd: cwd, Env: usage.EnvSlice(l.Env), Verbatim: l.Verbatim})}
-	if CliTrap != nil {
-		CliTrap(ch, command, args, tabID)
-	}
-	return ch
+	return spawnHarness(command, args, cwd, env, tabID, nil)
 }
 
 // CliChildEnv = cliChildEnv：继承的环境去掉凭据变量（allow 里的放行，见 cli.ScrubSecretEnv），再叠上 extra。

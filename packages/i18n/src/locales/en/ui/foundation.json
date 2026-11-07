@@ -315,5 +315,16 @@
   "ui.foundation.env-name-invalid": "Use letters, digits and underscores only, not starting with a digit",
   "ui.foundation.allow-env-title": "Allow this environment variable?",
   "ui.foundation.allow-env-body": "Once allowed, coding agents and workspace commands can read the value of {0}.",
-  "ui.foundation.remove-env-allow": "Stop allowing {0}"
+  "ui.foundation.remove-env-allow": "Stop allowing {0}",
+  "ui.foundation.cli-sandbox": "Coding-agent sandbox",
+  "ui.foundation.cli-sandbox-desc": "Coding agents run in a system sandbox: they can't read sensitive places (SSH, cloud credentials, browsers, personal data, .env files…) or protected folders, and can only write to the project folder and their own config and caches. When something is blocked you're asked in the chat and can allow it for the session or always. With the sandbox on, coding agents can safely run fully automatic.",
+  "ui.foundation.cli-sandbox-unsupported": "Not available on this system yet (macOS only for now); working-folder checks and environment cleanup still apply.",
+  "ui.foundation.cli-sandbox-off-title": "Turn off the coding-agent sandbox?",
+  "ui.foundation.cli-sandbox-off-body": "Coding agents will be able to read and write everything you can. Running agents restart with the new setting after their current turn.",
+  "ui.foundation.cli-sandbox-turn-off": "Turn off",
+  "ui.foundation.sandbox-always-allowed": "Always allowed:",
+  "ui.foundation.sandbox-allow-category": "Reading allowed",
+  "ui.foundation.sandbox-allow-write": "Writing allowed",
+  "ui.foundation.sandbox-allow-remove": "Stop allowing",
+  "ui.foundation.sandbox-allow-remove-aria": "Stop allowing {0}"
 }

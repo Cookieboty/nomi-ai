@@ -8450,6 +8450,36 @@
            "type": "string"
           }
          },
+         "cliSandbox": {
+          "type": "boolean"
+         },
+         "cliSandboxSupported": {
+          "type": "boolean"
+         },
+         "cliSandboxAllow": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "kind": {
+             "type": "string",
+             "enum": [
+              "category",
+              "folder",
+              "file"
+             ]
+            },
+            "value": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "kind",
+            "value"
+           ],
+           "additionalProperties": {}
+          }
+         },
          "tools": {
           "type": "array",
           "items": {
@@ -9150,6 +9180,330 @@
     ]
    }
   },
+  "desktop.removeCliSandboxAllow": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "category",
+       "folder",
+       "file"
+      ]
+     },
+     "value": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "value"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "mode": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "read-write"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "kind": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "folder",
+            "file"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "grantedAt": {
+         "type": "number"
+        },
+        "session": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "path",
+        "mode",
+        "kind",
+        "grantedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "policies": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "always",
+          "session",
+          "ask"
+         ]
+        },
+        {
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "localOnly": {
+      "type": "boolean"
+     },
+     "cloudAcked": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "policy": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "always",
+            "session",
+            "ask"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "locked": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "danger",
+        "policy"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "pending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsJson": {
+         "type": "string"
+        },
+        "preview": {
+         "type": "string"
+        },
+        "dialog": {
+         "type": "boolean"
+        },
+        "rememberable": {
+         "type": "boolean"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "expiresAt": {
+         "type": "number"
+        },
+        "kind": {
+         "type": "string",
+         "const": "scope"
+        },
+        "scopePath": {
+         "type": "string"
+        },
+        "scopeMode": {
+         "type": "string",
+         "enum": [
+          "read",
+          "read-write"
+         ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "tool",
+        "danger",
+        "summary",
+        "argsJson",
+        "dialog",
+        "rememberable",
+        "reason",
+        "expiresAt"
+       ],
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "scopes",
+     "policies",
+     "localOnly",
+     "cloudAcked",
+     "tools"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "desktop.removeCommandRule": {
    "kind": "mutation",
    "dangerous": false,
@@ -9272,6 +9626,36 @@
       "type": "array",
       "items": {
        "type": "string"
+      }
+     },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
       }
      },
      "tools": {
@@ -9607,6 +9991,351 @@
        "type": "string"
       }
      },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "tools": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "policy": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "always",
+            "session",
+            "ask"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "locked": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "name",
+        "danger",
+        "policy"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "pending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "danger": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "write",
+            "destructive"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsJson": {
+         "type": "string"
+        },
+        "preview": {
+         "type": "string"
+        },
+        "dialog": {
+         "type": "boolean"
+        },
+        "rememberable": {
+         "type": "boolean"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "expiresAt": {
+         "type": "number"
+        },
+        "kind": {
+         "type": "string",
+         "const": "scope"
+        },
+        "scopePath": {
+         "type": "string"
+        },
+        "scopeMode": {
+         "type": "string",
+         "enum": [
+          "read",
+          "read-write"
+         ]
+        },
+        "review": {
+         "type": "object",
+         "properties": {
+          "risk": {
+           "type": "string",
+           "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+           ]
+          },
+          "rationale": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "risk"
+         ],
+         "additionalProperties": {}
+        },
+        "rememberRule": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "tool",
+        "danger",
+        "summary",
+        "argsJson",
+        "dialog",
+        "rememberable",
+        "reason",
+        "expiresAt"
+       ],
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "scopes",
+     "policies",
+     "localOnly",
+     "cloudAcked",
+     "tools"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "desktop.setCliSandbox": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "mode": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "read",
+            "read-write"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "kind": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "folder",
+            "file"
+           ]
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "grantedAt": {
+         "type": "number"
+        },
+        "session": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "id",
+        "path",
+        "mode",
+        "kind",
+        "grantedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "policies": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "always",
+          "session",
+          "ask"
+         ]
+        },
+        {
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "localOnly": {
+      "type": "boolean"
+     },
+     "cloudAcked": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "commandRules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "protectedPaths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliEnvAllow": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
+      }
+     },
      "tools": {
       "type": "array",
       "items": {
@@ -9927,6 +10656,36 @@
       "type": "array",
       "items": {
        "type": "string"
+      }
+     },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
       }
      },
      "tools": {
@@ -10319,6 +11078,36 @@
       "type": "array",
       "items": {
        "type": "string"
+      }
+     },
+     "cliSandbox": {
+      "type": "boolean"
+     },
+     "cliSandboxSupported": {
+      "type": "boolean"
+     },
+     "cliSandboxAllow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file"
+         ]
+        },
+        "value": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "value"
+       ],
+       "additionalProperties": {}
       }
      },
      "tools": {
@@ -15137,6 +15926,51 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "sandboxPending": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string",
+            "enum": [
+             "category",
+             "folder",
+             "file",
+             "protected"
+            ]
+           },
+           "value": {
+            "type": "string"
+           },
+           "op": {
+            "type": "string",
+            "enum": [
+             "read",
+             "write"
+            ]
+           },
+           "path": {
+            "type": "string"
+           },
+           "at": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "id",
+           "kind",
+           "value",
+           "op",
+           "path",
+           "at"
+          ],
+          "additionalProperties": {}
+         }
         }
        },
        "required": [
@@ -15167,6 +16001,14 @@
      },
      "codexNetwork": {
       "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string",
+      "enum": [
+       "on",
+       "off",
+       "unsupported"
+      ]
      },
      "autoApprove": {
       "type": "boolean"
@@ -15323,6 +16165,40 @@
      "tabId",
      "requestId",
      "allow"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "harness.sandboxReply": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "tabId": {
+      "type": "string"
+     },
+     "requestId": {
+      "type": "string"
+     },
+     "choice": {
+      "type": "string",
+      "enum": [
+       "session",
+       "always",
+       "deny"
+      ]
+     }
+    },
+    "required": [
+     "tabId",
+     "requestId",
+     "choice"
     ]
    },
    "output": {
@@ -15688,6 +16564,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -15758,6 +16679,51 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "sandboxPending": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string",
+            "enum": [
+             "category",
+             "folder",
+             "file",
+             "protected"
+            ]
+           },
+           "value": {
+            "type": "string"
+           },
+           "op": {
+            "type": "string",
+            "enum": [
+             "read",
+             "write"
+            ]
+           },
+           "path": {
+            "type": "string"
+           },
+           "at": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "id",
+           "kind",
+           "value",
+           "op",
+           "path",
+           "at"
+          ],
+          "additionalProperties": {}
+         }
         }
        },
        "required": [
@@ -15788,6 +16754,14 @@
      },
      "codexNetwork": {
       "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string",
+      "enum": [
+       "on",
+       "off",
+       "unsupported"
+      ]
      },
      "autoApprove": {
       "type": "boolean"
@@ -15863,6 +16837,51 @@
        },
        "updatedAt": {
         "type": "number"
+       },
+       "sandboxPending": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "kind": {
+           "type": "string",
+           "enum": [
+            "category",
+            "folder",
+            "file",
+            "protected"
+           ]
+          },
+          "value": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "read",
+            "write"
+           ]
+          },
+          "path": {
+           "type": "string"
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "id",
+          "kind",
+          "value",
+          "op",
+          "path",
+          "at"
+         ],
+         "additionalProperties": {}
+        }
        }
       },
       "required": [
@@ -15937,6 +16956,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16023,6 +17087,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16093,6 +17202,51 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "sandboxPending": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string",
+            "enum": [
+             "category",
+             "folder",
+             "file",
+             "protected"
+            ]
+           },
+           "value": {
+            "type": "string"
+           },
+           "op": {
+            "type": "string",
+            "enum": [
+             "read",
+             "write"
+            ]
+           },
+           "path": {
+            "type": "string"
+           },
+           "at": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "id",
+           "kind",
+           "value",
+           "op",
+           "path",
+           "at"
+          ],
+          "additionalProperties": {}
+         }
         }
        },
        "required": [
@@ -16123,6 +17277,14 @@
      },
      "codexNetwork": {
       "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string",
+      "enum": [
+       "on",
+       "off",
+       "unsupported"
+      ]
      },
      "autoApprove": {
       "type": "boolean"
@@ -16266,6 +17428,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16338,6 +17545,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16410,6 +17662,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16482,6 +17779,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16603,6 +17945,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16686,6 +18073,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16751,6 +18183,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16820,6 +18297,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -16962,6 +18484,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -17113,6 +18680,51 @@
      },
      "updatedAt": {
       "type": "number"
+     },
+     "sandboxPending": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "category",
+          "folder",
+          "file",
+          "protected"
+         ]
+        },
+        "value": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "read",
+          "write"
+         ]
+        },
+        "path": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "value",
+        "op",
+        "path",
+        "at"
+       ],
+       "additionalProperties": {}
+      }
      }
     },
     "required": [
@@ -17200,6 +18812,51 @@
         },
         "updatedAt": {
          "type": "number"
+        },
+        "sandboxPending": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string",
+            "enum": [
+             "category",
+             "folder",
+             "file",
+             "protected"
+            ]
+           },
+           "value": {
+            "type": "string"
+           },
+           "op": {
+            "type": "string",
+            "enum": [
+             "read",
+             "write"
+            ]
+           },
+           "path": {
+            "type": "string"
+           },
+           "at": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "id",
+           "kind",
+           "value",
+           "op",
+           "path",
+           "at"
+          ],
+          "additionalProperties": {}
+         }
         }
        },
        "required": [
@@ -17230,6 +18887,14 @@
      },
      "codexNetwork": {
       "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string",
+      "enum": [
+       "on",
+       "off",
+       "unsupported"
+      ]
      },
      "autoApprove": {
       "type": "boolean"
@@ -29597,6 +31262,36 @@
       "type": "string"
      }
     },
+    "cliSandbox": {
+     "type": "boolean"
+    },
+    "cliSandboxSupported": {
+     "type": "boolean"
+    },
+    "cliSandboxAllow": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "category",
+         "folder",
+         "file"
+        ]
+       },
+       "value": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "additionalProperties": {}
+     }
+    },
     "tools": {
      "type": "array",
      "items": {
@@ -30084,6 +31779,51 @@
        },
        "updatedAt": {
         "type": "number"
+       },
+       "sandboxPending": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "kind": {
+           "type": "string",
+           "enum": [
+            "category",
+            "folder",
+            "file",
+            "protected"
+           ]
+          },
+          "value": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "read",
+            "write"
+           ]
+          },
+          "path": {
+           "type": "string"
+          },
+          "at": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "id",
+          "kind",
+          "value",
+          "op",
+          "path",
+          "at"
+         ],
+         "additionalProperties": {}
+        }
        }
       },
       "required": [
@@ -30114,6 +31854,14 @@
     },
     "codexNetwork": {
      "type": "boolean"
+    },
+    "sandbox": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off",
+      "unsupported"
+     ]
     },
     "autoApprove": {
      "type": "boolean"

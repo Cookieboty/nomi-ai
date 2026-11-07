@@ -28,7 +28,7 @@
 
 ## 编程助手（CLI 子进程）
 
-编程助手以用户身份运行，读写边界首先是 CLI 自己的权限与沙箱；Nomi 这层在 `internal/core/cli/harness` 再加三条，与权限档位无关：
+编程助手以用户身份运行。Nomi 在 `internal/core/cli/harness` 加下面几条，与权限档位无关：
 
 - **工作目录**：`Deps.CwdCheck`（接 `desktop.PermissionBroker.CheckCliWorkspace`，与 Nomi 对话工作区同一套：不能过宽、不能在内置或用户的受保护文件夹里）。
   新建标签、换目录、每次起 CLI 前都查（`spawn.go` 的 `cwdErr`）。
@@ -36,9 +36,29 @@
   连接串），模型服务的凭据与用户放行的变量（`Deps.EnvAllow`）除外；Nomi 自己注入的变量（标签令牌、官方账号目录）不受影响。
   Nomi 的 `workspace_run` 用同一套环境（`igtools_wiring.go` 的 `desktopShellEnv`）。
 - **Codex 联网**：`codexNetwork` 默认关，落盘键 `codexNetworkAllowed`（只在用户打开过时为真）；「自动改文件」的审批策略是 `on-request`，
-  越出沙箱由 Codex 发审批，进权限队列。
+  越出沙箱由 Codex 发审批，进权限队列。（Nomi 的沙箱开着时 Codex 自己不套沙箱，这一项不起作用，见下。）
 
-还没有的：系统级沙箱（限制读）与「本会话允许」这类按会话的授权。
+### 系统级沙箱（macOS）
+
+`internal/core/cli/sandbox` + `harness/sandbox.go`。每个会话进程（Claude 常驻进程、Codex app-server / exec、ACP、每轮一个进程的 CLI）都用
+`/usr/bin/sandbox-exec -p <配置>` 包起来（`spawnCLI` → `spawnHarness`），配置按标签、按启动生成（`sandbox.Profile`）：
+
+- 默认放行，按类别**拒读内容**（`file-read-data`，列目录、stat 不拦）：SSH 与 Git 凭据、云账号凭据、密钥与密码库、浏览器数据、
+  个人数据（邮件 / 信息 / 日历 / 通讯录 / 备忘录 / 照片）、密钥文件（主目录与项目里的 `.env*`（`.env.example` 等除外）、`*.key`、私钥 `.pem` …），
+  外加用户的受保护文件夹与 Nomi 自己的数据目录（`prompt-images` 与 CLI 的官方账号目录除外）。钥匙串不拦：拒读钥匙串文件会让 CLI 的官方登录失效，
+  条目由系统自己的访问控制保护。
+- **写**只放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的配置（`~/.claude`、`~/.claude.json*`、`~/.codex` …与 `*_HOME` 指向的账号目录）、
+  包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、用户授权过的文件夹 / 文件；受保护文件夹与 Nomi 数据目录最后再拒一次。
+- Seatbelt 不能嵌套（外层有拒绝规则时内层 `sandbox_apply` 失败），所以包起来时关掉 CLI 自己的沙箱：Claude `--settings {"sandbox":{"enabled":false}}`、
+  Codex `dangerFullAccess` / `sandbox_mode="danger-full-access"`（审批策略照常）、Gemini `GEMINI_SANDBOX=false`、dsh `DSH_PERMISSION_MODE=danger-full-access`。
+  网络不限（Seatbelt 只能按 IP 过滤，CLI 要连模型服务），靠拒读敏感内容与环境变量清理防外泄。
+- 每条拒绝带 `(with message "nomi-sbx:<token>:<rule>")`。`sandbox.Monitor` 用 `log stream --predicate 'sender == "Sandbox" AND eventMessage CONTAINS "nomi-sbx:"'`
+  读违规（普通用户可读，带进程、操作与真实路径），token 找回标签，`sandbox.Classify` 归成一项授权：类别、写某个文件夹（从上往下第一个不太宽的上级）、
+  写某个文件（上级都太宽时，如 `~/.zshrc`）、受保护文件夹（不能在对话里授权）。Nomi 数据目录的拒绝只记日志。
+- 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），`harness.sandboxReply` 回答：本会话允许（标签内存里）、始终允许（桌面设置
+  `cliSandboxAllow`）、不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
+- 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
+- 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
 
 ## 代码执行沙箱
 

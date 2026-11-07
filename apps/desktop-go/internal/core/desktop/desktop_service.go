@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"log"
 	"math"
 	"path/filepath"
@@ -523,6 +524,8 @@ type State struct {
 	BrokerView
 	Tools   []ToolState      `json:"tools"`
 	Pending []ConfirmRequest `json:"pending"`
+	// CliSandboxSupported：当前平台能用编程助手的系统沙箱
+	CliSandboxSupported bool `json:"cliSandboxSupported"`
 }
 
 func (s *Service) State() State {
@@ -538,7 +541,7 @@ func (s *Service) State() State {
 	if p == nil {
 		p = []ConfirmRequest{}
 	}
-	return State{s.Broker.View(), tools, p}
+	return State{s.Broker.View(), tools, p, sandbox.Supported()}
 }
 
 type OKCode struct {
@@ -722,6 +725,30 @@ type ProtectResult struct {
 func (s *Service) SetCliEnvAllow(names any) State {
 	if arr, ok := names.([]any); ok {
 		s.Broker.SetCliEnvAllow(arr)
+	}
+	return s.State()
+}
+
+// SetCliSandbox：开关编程助手的系统沙箱，返回最新状态
+func (s *Service) SetCliSandbox(enabled any) State {
+	if v, ok := enabled.(bool); ok {
+		s.Broker.SetCliSandboxEnabled(v)
+		a := NewOMap()
+		a.Set("enabled", v)
+		s.userAudit("cli_sandbox", a, "ok")
+	}
+	return s.State()
+}
+
+// RemoveCliSandboxAllow：删掉一条「始终允许」，返回最新状态
+func (s *Service) RemoveCliSandboxAllow(kind, value any) State {
+	k, _ := kind.(string)
+	v, _ := value.(string)
+	if s.Broker.RemoveCliSandboxAllow(SandboxAllow{Kind: k, Value: v}) {
+		a := NewOMap()
+		a.Set("kind", k)
+		a.Set("value", v)
+		s.userAudit("cli_sandbox_revoke", a, "ok")
 	}
 	return s.State()
 }

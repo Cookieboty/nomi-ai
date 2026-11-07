@@ -344,6 +344,20 @@ const harnessProcedures = {
     }),
     output: z.boolean(),
   },
+  /**
+   * 回答沙箱挡下后挂在标签上的授权请求（标签状态的 sandboxPending）：session = 本会话允许、
+   * always = 始终允许（记进桌面设置）、deny = 不允许（本会话不再问）；允许后这个标签的 CLI 重开并接着做
+   */
+  'harness.sandboxReply': {
+    kind: 'mutation',
+    dangerous: true,
+    input: z.object({
+      tabId: z.string(),
+      requestId: z.string(),
+      choice: z.enum(['session', 'always', 'deny']),
+    }),
+    output: z.boolean(),
+  },
   'harness.replyApprovePlan': {
     kind: 'mutation',
     dangerous: true,

@@ -148,6 +148,7 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			if backend != "claude" {
 				o.clearBackgroundAgents(id)
 			}
+			o.afterTurnSandbox(id)
 		}()
 		result, err := o.runTurn(current, backend, toCli, abort, normalized, stageDir, userMessageID)
 		if err == nil {

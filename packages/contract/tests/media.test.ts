@@ -42,6 +42,7 @@ describe('media 契约', () => {
       'desktop.grant',
       'desktop.resetAll',
       'desktop.setCliEnvAllow',
+      'desktop.setCliSandbox',
       'desktop.setLocalOnly',
       'desktop.setPolicy',
       'desktop.unprotectPath',

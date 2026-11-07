@@ -320,6 +320,8 @@ export interface ConversationViewProps {
   }>;
   backgroundCount?: number;
   onStopAgent?: (agentId: string) => void;
+  /** 沙箱挡下、等授权的卡片（编程助手标签；一轮结束后也还在） */
+  sandboxRequests?: React.ReactNode;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -339,6 +341,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   backgroundAgents,
   backgroundCount,
   onStopAgent,
+  sandboxRequests,
 }) => {
   const fontSize = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -596,6 +599,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               </div>
             ))}
             <BackgroundBar agents={backgroundAgents} count={backgroundCount} onStop={onStopAgent} />
+            {sandboxRequests}
             {modelSwitchTip != null && !running && (
               <div
                 className={styles.modelTip}

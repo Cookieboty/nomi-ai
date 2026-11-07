@@ -189,7 +189,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		if useNode {
 			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
 		}
-		child := gate(SpawnHarness(cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil)), id))
+		child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil))))
 		o.watchTabRelease(tab, child)
 		stderrTail := ""
 		child.OnStderr(func(c string) {

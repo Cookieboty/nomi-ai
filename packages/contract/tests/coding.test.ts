@@ -46,6 +46,7 @@ describe('appContract · D3 coding', () => {
       'harness.geminiTrustFolder',
       'harness.replyApprovePlan',
       'harness.replyPermission',
+      'harness.sandboxReply',
       'harness.tabPermissionMode',
     ]);
   });

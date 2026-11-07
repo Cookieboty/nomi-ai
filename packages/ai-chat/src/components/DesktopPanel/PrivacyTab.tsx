@@ -1,14 +1,16 @@
 /**
- * 桌面能力 →「隐私保护」：受保护的文件夹（Nomi 的文件工具与编程助手都不能用，叠加在内置黑名单之上）
- * 与放行给编程助手的环境变量（其余令牌 / 密码 / 云凭据类变量不继承）。规则都在 Go 内核里执行，这里只编辑清单。
+ * 桌面能力 →「隐私保护」：编程助手的系统沙箱（开关与「始终允许」的授权）、受保护的文件夹（Nomi 的文件工具与
+ * 编程助手都不能用，叠加在内置黑名单之上）与放行给编程助手的环境变量（其余令牌 / 密码 / 云凭据类变量不继承）。
+ * 规则都在 Go 内核里执行，这里只编辑清单。
  */
 import { t as tr, Icon } from '@nomi-ai/ui';
-import { Button, EmptyState, Input, SettingRow, SettingsGroup } from '@nomi-ai/ui';
+import { Badge, Button, EmptyState, Input, SettingRow, SettingsGroup, Switch } from '@nomi-ai/ui';
 import { Plus, ShieldCheck } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { desktopClient, type DesktopState } from '../../services/desktopClient';
 import { confirmDialog } from '../ConfirmDialog';
+import { sandboxItemLabel } from '../Conversation/SandboxRequests';
 
 import styles from './index.module.css';
 
@@ -23,6 +25,23 @@ export const PrivacyTab: React.FC<Props> = ({ state, onMessage }) => {
   const [envName, setEnvName] = useState('');
   const protectedPaths = state.protectedPaths ?? [];
   const envAllow = state.cliEnvAllow ?? [];
+  const sandboxOn = state.cliSandbox !== false;
+  const sandboxAllow = state.cliSandboxAllow ?? [];
+
+  // 关掉沙箱 = 放宽：先确认；打开不用
+  const setSandbox = async (next: boolean) => {
+    if (
+      !next &&
+      !(await confirmDialog({
+        title: tr('ui.foundation.cli-sandbox-off-title'),
+        message: tr('ui.foundation.cli-sandbox-off-body'),
+        confirmLabel: tr('ui.foundation.cli-sandbox-turn-off'),
+        danger: true,
+      }))
+    )
+      return;
+    await desktopClient.setCliSandbox(next);
+  };
 
   const protect = async () => {
     try {
@@ -77,6 +96,61 @@ export const PrivacyTab: React.FC<Props> = ({ state, onMessage }) => {
 
   return (
     <div className={styles.stack} data-testid="desktop-privacy">
+      <SettingsGroup title={tr('ui.foundation.cli-sandbox')}>
+        <SettingRow
+          title={tr('ui.foundation.cli-sandbox')}
+          description={
+            state.cliSandboxSupported === false
+              ? tr('ui.foundation.cli-sandbox-unsupported')
+              : tr('ui.foundation.cli-sandbox-desc')
+          }
+        >
+          {state.cliSandboxSupported === false ? (
+            <Badge>{tr('ui.slash-commands.unavailable')}</Badge>
+          ) : (
+            <Switch
+              checked={sandboxOn}
+              onChange={(v) => void setSandbox(v)}
+              aria-label={tr('ui.foundation.cli-sandbox')}
+              data-testid="desktop-cli-sandbox"
+            />
+          )}
+        </SettingRow>
+        {sandboxAllow.length > 0 && (
+          <p className={styles.hint}>{tr('ui.foundation.sandbox-always-allowed')}</p>
+        )}
+        {sandboxAllow.map((a) => (
+          <SettingRow
+            key={`${a.kind}:${a.value}`}
+            data-testid="desktop-sandbox-allow"
+            title={
+              a.kind === 'category' ? (
+                sandboxItemLabel(a.kind, a.value)
+              ) : (
+                <span className={styles.path}>{a.value}</span>
+              )
+            }
+            description={
+              a.kind === 'category'
+                ? tr('ui.foundation.sandbox-allow-category')
+                : tr('ui.foundation.sandbox-allow-write')
+            }
+          >
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void desktopClient.removeCliSandboxAllow(a.kind, a.value)}
+              aria-label={tr(
+                'ui.foundation.sandbox-allow-remove-aria',
+                sandboxItemLabel(a.kind, a.value),
+              )}
+              data-testid="desktop-sandbox-allow-remove"
+            >
+              {tr('ui.foundation.sandbox-allow-remove')}
+            </Button>
+          </SettingRow>
+        ))}
+      </SettingsGroup>
       <SettingsGroup
         title={tr('ui.foundation.protected-folders')}
         description={tr('ui.foundation.protected-folders-desc')}

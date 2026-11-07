@@ -49,6 +49,8 @@ exports[`media 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "desktop.removeCommandRule mutation *",
   "desktop.protectFolder mutation *",
   "desktop.unprotectPath mutation * dangerous",
+  "desktop.setCliSandbox mutation * dangerous",
+  "desktop.removeCliSandboxAllow mutation *",
   "desktop.setCliEnvAllow mutation * dangerous",
   "desktop.remindersList query *",
   "desktop.remindersCreate mutation *",

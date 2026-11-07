@@ -307,6 +307,14 @@ export const DesktopState = z.looseObject({
   protectedPaths: z.array(z.string()).optional(),
   /** 放行给编程助手的环境变量名：其余令牌 / 密码 / 云凭据类变量不继承（模型服务的凭据照常传） */
   cliEnvAllow: z.array(z.string()).optional(),
+  /** 编程助手的系统沙箱开关（缺省开；当前平台不支持时看 harness 状态里的 sandbox） */
+  cliSandbox: z.boolean().optional(),
+  /** 当前平台能用编程助手的系统沙箱（目前只有 macOS） */
+  cliSandboxSupported: z.boolean().optional(),
+  /** 沙箱里「始终允许」的授权：类别 / 可写文件夹 / 可写文件 */
+  cliSandboxAllow: z
+    .array(z.looseObject({ kind: z.enum(['category', 'folder', 'file']), value: z.string() }))
+    .optional(),
   tools: z.array(
     z.looseObject({
       name: z.string(),

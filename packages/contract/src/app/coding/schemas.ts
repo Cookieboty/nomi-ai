@@ -38,6 +38,22 @@ export const HarnessTabMeta = loose({
   unread: z.number(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  /**
+   * 沙箱挡下、等用户授权的项（不落盘）：kind = category（按类别读写）/ folder / file（写入）/
+   * protected（受保护文件夹，只能去设置里取消保护）；回答用 harness.sandboxReply
+   */
+  sandboxPending: z
+    .array(
+      z.looseObject({
+        id: z.string(),
+        kind: z.enum(['category', 'folder', 'file', 'protected']),
+        value: z.string(),
+        op: z.enum(['read', 'write']),
+        path: z.string(),
+        at: z.number(),
+      }),
+    )
+    .optional(),
 });
 
 export const HarnessTabsState = loose({
@@ -49,6 +65,8 @@ export const HarnessTabsState = loose({
   defaultPermissionMode: z.string().optional(),
   /** Codex 在自动改文件档允许联网 */
   codexNetwork: z.boolean().optional(),
+  /** 编程助手的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
+  sandbox: z.enum(['on', 'off', 'unsupported']).optional(),
   /**
    * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
    * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问

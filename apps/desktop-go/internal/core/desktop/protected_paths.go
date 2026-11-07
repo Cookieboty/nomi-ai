@@ -167,3 +167,83 @@ func (b *PermissionBroker) SetCliEnvAllow(names []any) {
 		b.notify()
 	}
 }
+
+// SandboxAllow：编程助手沙箱里「始终允许」的一项（Kind：category / folder / file）
+type SandboxAllow struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+}
+
+// MaxSandboxAllow：「始终允许」的上限
+const MaxSandboxAllow = 100
+
+func normalizeSandboxAllow(raw []SandboxAllow) []SandboxAllow {
+	out := []SandboxAllow{}
+	for _, a := range raw {
+		if (a.Kind != "category" && a.Kind != "folder" && a.Kind != "file") || a.Value == "" ||
+			slices.Contains(out, a) || len(out) >= MaxSandboxAllow {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
+// CliSandboxEnabled：编程助手的系统沙箱开着（缺省开）
+func (b *PermissionBroker) CliSandboxEnabled() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return !b.settings.CliSandboxOff
+}
+
+// SetCliSandboxEnabled：开关编程助手的系统沙箱
+func (b *PermissionBroker) SetCliSandboxEnabled(on bool) {
+	b.mu.Lock()
+	changed := b.settings.CliSandboxOff == on
+	if changed {
+		b.settings.CliSandboxOff = !on
+		b.saveLocked()
+	}
+	b.mu.Unlock()
+	if changed {
+		b.notify()
+	}
+}
+
+// CliSandboxAllow：「始终允许」的授权
+func (b *PermissionBroker) CliSandboxAllow() []SandboxAllow {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]SandboxAllow{}, b.settings.CliSandboxAllow...)
+}
+
+// AddCliSandboxAllow：记一条「始终允许」（已有的不重复）
+func (b *PermissionBroker) AddCliSandboxAllow(a SandboxAllow) {
+	next := normalizeSandboxAllow(append(b.CliSandboxAllow(), a))
+	b.mu.Lock()
+	changed := !slices.Equal(next, b.settings.CliSandboxAllow)
+	if changed {
+		b.settings.CliSandboxAllow = next
+		b.saveLocked()
+	}
+	b.mu.Unlock()
+	if changed {
+		b.notify()
+	}
+}
+
+// RemoveCliSandboxAllow：删掉一条「始终允许」
+func (b *PermissionBroker) RemoveCliSandboxAllow(a SandboxAllow) bool {
+	b.mu.Lock()
+	before := len(b.settings.CliSandboxAllow)
+	b.settings.CliSandboxAllow = slices.DeleteFunc(b.settings.CliSandboxAllow, func(x SandboxAllow) bool { return x == a })
+	changed := len(b.settings.CliSandboxAllow) != before
+	if changed {
+		b.saveLocked()
+	}
+	b.mu.Unlock()
+	if changed {
+		b.notify()
+	}
+	return changed
+}

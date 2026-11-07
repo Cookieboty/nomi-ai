@@ -251,6 +251,19 @@ export const mediaProcedures = {
     output: DesktopState,
     dangerous: true,
   },
+  /** 开关编程助手的系统沙箱（关掉 = 放宽），返回最新状态 */
+  'desktop.setCliSandbox': {
+    kind: 'mutation',
+    input: z.object({ enabled: z.boolean() }),
+    output: DesktopState,
+    dangerous: true,
+  },
+  /** 删掉一条沙箱「始终允许」的授权，返回最新状态 */
+  'desktop.removeCliSandboxAllow': {
+    kind: 'mutation',
+    input: z.object({ kind: z.enum(['category', 'folder', 'file']), value: z.string() }),
+    output: DesktopState,
+  },
   /** 整体替换放行给编程助手的环境变量名（不合法的名字丢掉），返回最新状态 */
   'desktop.setCliEnvAllow': {
     kind: 'mutation',

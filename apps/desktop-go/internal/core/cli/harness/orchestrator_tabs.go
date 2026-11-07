@@ -74,10 +74,14 @@ func (o *Orchestrator) ListTabs() *util.Obj {
 			}
 			e.Set("backgroundAgents", list)
 		}
+		if p := o.sandboxPendingOf(id); p != nil {
+			e.Set("sandboxPending", p)
+		}
 		tabs = append(tabs, e)
 	}
 	st := util.NewObj("tabs", tabs, "activeTabId", o.activeTabID, "running", running, "queued", queued,
-		"defaultPermissionMode", o.defaultPermMode, "codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove)
+		"defaultPermissionMode", o.defaultPermMode, "codexNetwork", o.codexNetwork, "autoApprove", o.autoApprove,
+		"sandbox", o.SandboxStatus())
 	if o.aiReviewOff {
 		st.Set("aiReview", false)
 	}

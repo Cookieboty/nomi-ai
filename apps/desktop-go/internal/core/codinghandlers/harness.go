@@ -136,6 +136,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 		}
 		return await(h().ApplyTabPermissionMode(a.str("id"), a.any("mode"), opts))
 	})
+	call("harness.sandboxReply", func(a in) any { return h().SandboxReply(a.str("tabId"), a.str("requestId"), a.str("choice")) })
 	call("harness.permissionDefaults", func(a in) any {
 		return h().SetPermissionDefaults(a.any("defaultPermissionMode"), a.any("codexNetwork"), a.any("autoApprove"), a.any("aiReview"), a.any("nomiAutoApprove"))
 	})

@@ -506,6 +506,7 @@ func (o *Orchestrator) CancelTab(id string) bool {
 // Dispose = dispose。
 func (o *Orchestrator) Dispose() {
 	o.disposed = true
+	o.disposeSandbox()
 	o.writer.Dispose()
 	o.stopIdleSweep()
 	o.eventBatcher.Dispose()

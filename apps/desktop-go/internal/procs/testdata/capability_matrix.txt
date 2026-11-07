@@ -2,7 +2,7 @@
 # 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
 # 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
 # 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
-# 合计 431：已实现 431，桩 0。
+# 合计 434：已实现 434，桩 0。
 
 [agents] 已实现 3 / 桩 0
 IMPL	mutation	agents.scan
@@ -125,7 +125,7 @@ IMPL	mutation	delegate.setSettings
 IMPL	query	delegate.settings
 IMPL	query	delegate.status
 
-[desktop] 已实现 24 / 桩 0
+[desktop] 已实现 26 / 桩 0
 IMPL	query	desktop.audit
 IMPL	mutation	desktop.auditClear
 IMPL	mutation	desktop.confirmAnswer
@@ -138,11 +138,13 @@ IMPL	mutation	desktop.remindersCreate
 IMPL	query	desktop.remindersList
 IMPL	mutation	desktop.remindersSnooze
 IMPL	mutation	desktop.remindersUpdate
+IMPL	mutation	desktop.removeCliSandboxAllow
 IMPL	mutation	desktop.removeCommandRule
 IMPL	mutation	desktop.resetAll
 IMPL	mutation	desktop.resetCloudAcks
 IMPL	mutation	desktop.revoke
 IMPL	mutation	desktop.setCliEnvAllow
+IMPL	mutation	desktop.setCliSandbox
 IMPL	mutation	desktop.setLocalOnly
 IMPL	mutation	desktop.setPolicy
 IMPL	query	desktop.state
@@ -206,7 +208,7 @@ IMPL	mutation	gateway.terminalSet
 IMPL	query	gateway.terminalState
 IMPL	mutation	gateway.upsertProvider
 
-[harness] 已实现 59 / 桩 0
+[harness] 已实现 60 / 桩 0
 IMPL	mutation	harness.geminiTrustFolder
 IMPL	query	harness.gitBranch
 IMPL	query	harness.gitBranches
@@ -231,6 +233,7 @@ IMPL	mutation	harness.pickDir
 IMPL	query	harness.recentCwds
 IMPL	mutation	harness.replyApprovePlan
 IMPL	mutation	harness.replyPermission
+IMPL	mutation	harness.sandboxReply
 IMPL	mutation	harness.send
 IMPL	mutation	harness.setBackend
 IMPL	mutation	harness.setCwd

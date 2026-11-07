@@ -1956,6 +1956,20 @@ type DesktopProtectFolderOutputStateScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
+// DesktopProtectFolderOutputStateCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopProtectFolderOutputStateCliSandboxAllowItemKind = string
+
+const (
+	DesktopProtectFolderOutputStateCliSandboxAllowItemKindCategory DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "category"
+	DesktopProtectFolderOutputStateCliSandboxAllowItemKindFolder   DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "folder"
+	DesktopProtectFolderOutputStateCliSandboxAllowItemKindFile     DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "file"
+)
+
+type DesktopProtectFolderOutputStateCliSandboxAllowItem struct {
+	Kind  DesktopProtectFolderOutputStateCliSandboxAllowItemKind `json:"kind"`
+	Value string                                                 `json:"value"`
+}
+
 type DesktopProtectFolderOutputStateToolsItem struct {
 	Name   string `json:"name"`
 	Danger string `json:"danger"`
@@ -2005,15 +2019,18 @@ type DesktopProtectFolderOutputStatePendingItem struct {
 }
 
 type DesktopProtectFolderOutputState struct {
-	Scopes         []DesktopProtectFolderOutputStateScopesItem  `json:"scopes"`
-	Policies       map[string]string                            `json:"policies"`
-	LocalOnly      bool                                         `json:"localOnly"`
-	CloudAcked     []string                                     `json:"cloudAcked"`
-	CommandRules   []string                                     `json:"commandRules,omitempty"`
-	ProtectedPaths []string                                     `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                                     `json:"cliEnvAllow,omitempty"`
-	Tools          []DesktopProtectFolderOutputStateToolsItem   `json:"tools"`
-	Pending        []DesktopProtectFolderOutputStatePendingItem `json:"pending,omitempty"`
+	Scopes              []DesktopProtectFolderOutputStateScopesItem          `json:"scopes"`
+	Policies            map[string]string                                    `json:"policies"`
+	LocalOnly           bool                                                 `json:"localOnly"`
+	CloudAcked          []string                                             `json:"cloudAcked"`
+	CommandRules        []string                                             `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                             `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                             `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                                `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                                `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopProtectFolderOutputStateCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopProtectFolderOutputStateToolsItem           `json:"tools"`
+	Pending             []DesktopProtectFolderOutputStatePendingItem         `json:"pending,omitempty"`
 }
 
 type DesktopProtectFolderOutput struct {
@@ -2121,6 +2138,106 @@ type DesktopRemindersUpdateOutput struct {
 	FireCount *float64                            `json:"fireCount,omitempty"`
 }
 
+// DesktopRemoveCliSandboxAllowInputKind 枚举：category | folder | file
+type DesktopRemoveCliSandboxAllowInputKind = string
+
+const (
+	DesktopRemoveCliSandboxAllowInputKindCategory DesktopRemoveCliSandboxAllowInputKind = "category"
+	DesktopRemoveCliSandboxAllowInputKindFolder   DesktopRemoveCliSandboxAllowInputKind = "folder"
+	DesktopRemoveCliSandboxAllowInputKindFile     DesktopRemoveCliSandboxAllowInputKind = "file"
+)
+
+type DesktopRemoveCliSandboxAllowInput struct {
+	Kind  DesktopRemoveCliSandboxAllowInputKind `json:"kind"`
+	Value string                                `json:"value"`
+}
+
+type DesktopRemoveCliSandboxAllowOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindCategory DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "category"
+	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindFolder   DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "folder"
+	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindFile     DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItem struct {
+	Kind  DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                                    `json:"value"`
+}
+
+type DesktopRemoveCliSandboxAllowOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemScopeModeRead      DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode = "read"
+	DesktopRemoveCliSandboxAllowOutputPendingItemScopeModeReadWrite DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemReviewRiskLow      DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk = "low"
+	DesktopRemoveCliSandboxAllowOutputPendingItemReviewRiskMedium   DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk = "medium"
+	DesktopRemoveCliSandboxAllowOutputPendingItemReviewRiskHigh     DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk = "high"
+	DesktopRemoveCliSandboxAllowOutputPendingItemReviewRiskCritical DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopRemoveCliSandboxAllowOutputPendingItemReview struct {
+	Risk      DesktopRemoveCliSandboxAllowOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                                 `json:"rationale,omitempty"`
+}
+
+type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
+	Id           string                                                  `json:"id"`
+	Tool         string                                                  `json:"tool"`
+	Danger       string                                                  `json:"danger"`
+	Summary      string                                                  `json:"summary"`
+	ArgsJson     string                                                  `json:"argsJson"`
+	Preview      *string                                                 `json:"preview,omitempty"`
+	Dialog       bool                                                    `json:"dialog"`
+	Rememberable bool                                                    `json:"rememberable"`
+	Reason       string                                                  `json:"reason"`
+	ExpiresAt    float64                                                 `json:"expiresAt"`
+	Kind         *string                                                 `json:"kind,omitempty"`
+	ScopePath    *string                                                 `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopRemoveCliSandboxAllowOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                                 `json:"rememberRule,omitempty"`
+}
+
+type DesktopRemoveCliSandboxAllowOutput struct {
+	Scopes              []DesktopRemoveCliSandboxAllowOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                                       `json:"policies"`
+	LocalOnly           bool                                                    `json:"localOnly"`
+	CloudAcked          []string                                                `json:"cloudAcked"`
+	CommandRules        []string                                                `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                                `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                                `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                                   `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                                   `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopRemoveCliSandboxAllowOutputToolsItem           `json:"tools"`
+	Pending             []DesktopRemoveCliSandboxAllowOutputPendingItem         `json:"pending,omitempty"`
+}
+
 type DesktopRemoveCommandRuleInput struct {
 	Rule string `json:"rule"`
 }
@@ -2132,6 +2249,20 @@ type DesktopRemoveCommandRuleOutputScopesItem struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindCategory DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "category"
+	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindFolder   DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "folder"
+	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindFile     DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopRemoveCommandRuleOutputCliSandboxAllowItem struct {
+	Kind  DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                                `json:"value"`
 }
 
 type DesktopRemoveCommandRuleOutputToolsItem struct {
@@ -2183,15 +2314,18 @@ type DesktopRemoveCommandRuleOutputPendingItem struct {
 }
 
 type DesktopRemoveCommandRuleOutput struct {
-	Scopes         []DesktopRemoveCommandRuleOutputScopesItem  `json:"scopes"`
-	Policies       map[string]string                           `json:"policies"`
-	LocalOnly      bool                                        `json:"localOnly"`
-	CloudAcked     []string                                    `json:"cloudAcked"`
-	CommandRules   []string                                    `json:"commandRules,omitempty"`
-	ProtectedPaths []string                                    `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                                    `json:"cliEnvAllow,omitempty"`
-	Tools          []DesktopRemoveCommandRuleOutputToolsItem   `json:"tools"`
-	Pending        []DesktopRemoveCommandRuleOutputPendingItem `json:"pending,omitempty"`
+	Scopes              []DesktopRemoveCommandRuleOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                                   `json:"policies"`
+	LocalOnly           bool                                                `json:"localOnly"`
+	CloudAcked          []string                                            `json:"cloudAcked"`
+	CommandRules        []string                                            `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                            `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                            `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                               `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                               `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopRemoveCommandRuleOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopRemoveCommandRuleOutputToolsItem           `json:"tools"`
+	Pending             []DesktopRemoveCommandRuleOutputPendingItem         `json:"pending,omitempty"`
 }
 
 type DesktopRevokeInput struct {
@@ -2209,6 +2343,20 @@ type DesktopSetCliEnvAllowOutputScopesItem struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindCategory DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "category"
+	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindFolder   DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "folder"
+	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindFile     DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopSetCliEnvAllowOutputCliSandboxAllowItem struct {
+	Kind  DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                             `json:"value"`
 }
 
 type DesktopSetCliEnvAllowOutputToolsItem struct {
@@ -2260,15 +2408,108 @@ type DesktopSetCliEnvAllowOutputPendingItem struct {
 }
 
 type DesktopSetCliEnvAllowOutput struct {
-	Scopes         []DesktopSetCliEnvAllowOutputScopesItem  `json:"scopes"`
-	Policies       map[string]string                        `json:"policies"`
-	LocalOnly      bool                                     `json:"localOnly"`
-	CloudAcked     []string                                 `json:"cloudAcked"`
-	CommandRules   []string                                 `json:"commandRules,omitempty"`
-	ProtectedPaths []string                                 `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                                 `json:"cliEnvAllow,omitempty"`
-	Tools          []DesktopSetCliEnvAllowOutputToolsItem   `json:"tools"`
-	Pending        []DesktopSetCliEnvAllowOutputPendingItem `json:"pending,omitempty"`
+	Scopes              []DesktopSetCliEnvAllowOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                                `json:"policies"`
+	LocalOnly           bool                                             `json:"localOnly"`
+	CloudAcked          []string                                         `json:"cloudAcked"`
+	CommandRules        []string                                         `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                         `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                         `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                            `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                            `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopSetCliEnvAllowOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopSetCliEnvAllowOutputToolsItem           `json:"tools"`
+	Pending             []DesktopSetCliEnvAllowOutputPendingItem         `json:"pending,omitempty"`
+}
+
+type DesktopSetCliSandboxInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+type DesktopSetCliSandboxOutputScopesItem struct {
+	Id        string  `json:"id"`
+	Path      string  `json:"path"`
+	Mode      string  `json:"mode"`
+	Kind      string  `json:"kind"`
+	GrantedAt float64 `json:"grantedAt"`
+	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopSetCliSandboxOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopSetCliSandboxOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopSetCliSandboxOutputCliSandboxAllowItemKindCategory DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "category"
+	DesktopSetCliSandboxOutputCliSandboxAllowItemKindFolder   DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "folder"
+	DesktopSetCliSandboxOutputCliSandboxAllowItemKindFile     DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopSetCliSandboxOutputCliSandboxAllowItem struct {
+	Kind  DesktopSetCliSandboxOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                            `json:"value"`
+}
+
+type DesktopSetCliSandboxOutputToolsItem struct {
+	Name   string `json:"name"`
+	Danger string `json:"danger"`
+	Policy string `json:"policy"`
+	Locked *bool  `json:"locked,omitempty"`
+}
+
+// DesktopSetCliSandboxOutputPendingItemScopeMode 枚举：read | read-write
+type DesktopSetCliSandboxOutputPendingItemScopeMode = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemScopeModeRead      DesktopSetCliSandboxOutputPendingItemScopeMode = "read"
+	DesktopSetCliSandboxOutputPendingItemScopeModeReadWrite DesktopSetCliSandboxOutputPendingItemScopeMode = "read-write"
+)
+
+// DesktopSetCliSandboxOutputPendingItemReviewRisk 枚举：low | medium | high | critical
+type DesktopSetCliSandboxOutputPendingItemReviewRisk = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemReviewRiskLow      DesktopSetCliSandboxOutputPendingItemReviewRisk = "low"
+	DesktopSetCliSandboxOutputPendingItemReviewRiskMedium   DesktopSetCliSandboxOutputPendingItemReviewRisk = "medium"
+	DesktopSetCliSandboxOutputPendingItemReviewRiskHigh     DesktopSetCliSandboxOutputPendingItemReviewRisk = "high"
+	DesktopSetCliSandboxOutputPendingItemReviewRiskCritical DesktopSetCliSandboxOutputPendingItemReviewRisk = "critical"
+)
+
+type DesktopSetCliSandboxOutputPendingItemReview struct {
+	Risk      DesktopSetCliSandboxOutputPendingItemReviewRisk `json:"risk"`
+	Rationale *string                                         `json:"rationale,omitempty"`
+}
+
+type DesktopSetCliSandboxOutputPendingItem struct {
+	Id           string                                          `json:"id"`
+	Tool         string                                          `json:"tool"`
+	Danger       string                                          `json:"danger"`
+	Summary      string                                          `json:"summary"`
+	ArgsJson     string                                          `json:"argsJson"`
+	Preview      *string                                         `json:"preview,omitempty"`
+	Dialog       bool                                            `json:"dialog"`
+	Rememberable bool                                            `json:"rememberable"`
+	Reason       string                                          `json:"reason"`
+	ExpiresAt    float64                                         `json:"expiresAt"`
+	Kind         *string                                         `json:"kind,omitempty"`
+	ScopePath    *string                                         `json:"scopePath,omitempty"`
+	ScopeMode    *DesktopSetCliSandboxOutputPendingItemScopeMode `json:"scopeMode,omitempty"`
+	Review       *DesktopSetCliSandboxOutputPendingItemReview    `json:"review,omitempty"`
+	RememberRule *string                                         `json:"rememberRule,omitempty"`
+}
+
+type DesktopSetCliSandboxOutput struct {
+	Scopes              []DesktopSetCliSandboxOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                               `json:"policies"`
+	LocalOnly           bool                                            `json:"localOnly"`
+	CloudAcked          []string                                        `json:"cloudAcked"`
+	CommandRules        []string                                        `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                        `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                        `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                           `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                           `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopSetCliSandboxOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopSetCliSandboxOutputToolsItem           `json:"tools"`
+	Pending             []DesktopSetCliSandboxOutputPendingItem         `json:"pending,omitempty"`
 }
 
 type DesktopSetLocalOnlyInput struct {
@@ -2287,6 +2528,20 @@ type DesktopStateOutputScopesItem struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopStateOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopStateOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopStateOutputCliSandboxAllowItemKindCategory DesktopStateOutputCliSandboxAllowItemKind = "category"
+	DesktopStateOutputCliSandboxAllowItemKindFolder   DesktopStateOutputCliSandboxAllowItemKind = "folder"
+	DesktopStateOutputCliSandboxAllowItemKindFile     DesktopStateOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopStateOutputCliSandboxAllowItem struct {
+	Kind  DesktopStateOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                    `json:"value"`
 }
 
 type DesktopStateOutputToolsItem struct {
@@ -2338,15 +2593,18 @@ type DesktopStateOutputPendingItem struct {
 }
 
 type DesktopStateOutput struct {
-	Scopes         []DesktopStateOutputScopesItem  `json:"scopes"`
-	Policies       map[string]string               `json:"policies"`
-	LocalOnly      bool                            `json:"localOnly"`
-	CloudAcked     []string                        `json:"cloudAcked"`
-	CommandRules   []string                        `json:"commandRules,omitempty"`
-	ProtectedPaths []string                        `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                        `json:"cliEnvAllow,omitempty"`
-	Tools          []DesktopStateOutputToolsItem   `json:"tools"`
-	Pending        []DesktopStateOutputPendingItem `json:"pending,omitempty"`
+	Scopes              []DesktopStateOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                       `json:"policies"`
+	LocalOnly           bool                                    `json:"localOnly"`
+	CloudAcked          []string                                `json:"cloudAcked"`
+	CommandRules        []string                                `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                   `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                   `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopStateOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopStateOutputToolsItem           `json:"tools"`
+	Pending             []DesktopStateOutputPendingItem         `json:"pending,omitempty"`
 }
 
 type DesktopTakeMissedRemindersOutputItem struct {
@@ -2380,6 +2638,20 @@ type DesktopUnprotectPathOutputScopesItem struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   *bool   `json:"session,omitempty"`
+}
+
+// DesktopUnprotectPathOutputCliSandboxAllowItemKind 枚举：category | folder | file
+type DesktopUnprotectPathOutputCliSandboxAllowItemKind = string
+
+const (
+	DesktopUnprotectPathOutputCliSandboxAllowItemKindCategory DesktopUnprotectPathOutputCliSandboxAllowItemKind = "category"
+	DesktopUnprotectPathOutputCliSandboxAllowItemKindFolder   DesktopUnprotectPathOutputCliSandboxAllowItemKind = "folder"
+	DesktopUnprotectPathOutputCliSandboxAllowItemKindFile     DesktopUnprotectPathOutputCliSandboxAllowItemKind = "file"
+)
+
+type DesktopUnprotectPathOutputCliSandboxAllowItem struct {
+	Kind  DesktopUnprotectPathOutputCliSandboxAllowItemKind `json:"kind"`
+	Value string                                            `json:"value"`
 }
 
 type DesktopUnprotectPathOutputToolsItem struct {
@@ -2431,15 +2703,18 @@ type DesktopUnprotectPathOutputPendingItem struct {
 }
 
 type DesktopUnprotectPathOutput struct {
-	Scopes         []DesktopUnprotectPathOutputScopesItem  `json:"scopes"`
-	Policies       map[string]string                       `json:"policies"`
-	LocalOnly      bool                                    `json:"localOnly"`
-	CloudAcked     []string                                `json:"cloudAcked"`
-	CommandRules   []string                                `json:"commandRules,omitempty"`
-	ProtectedPaths []string                                `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                                `json:"cliEnvAllow,omitempty"`
-	Tools          []DesktopUnprotectPathOutputToolsItem   `json:"tools"`
-	Pending        []DesktopUnprotectPathOutputPendingItem `json:"pending,omitempty"`
+	Scopes              []DesktopUnprotectPathOutputScopesItem          `json:"scopes"`
+	Policies            map[string]string                               `json:"policies"`
+	LocalOnly           bool                                            `json:"localOnly"`
+	CloudAcked          []string                                        `json:"cloudAcked"`
+	CommandRules        []string                                        `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                        `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                        `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                           `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                           `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []DesktopUnprotectPathOutputCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []DesktopUnprotectPathOutputToolsItem           `json:"tools"`
+	Pending             []DesktopUnprotectPathOutputPendingItem         `json:"pending,omitempty"`
 }
 
 type DiagnosticsCliRecordsInput struct {
@@ -3654,17 +3929,54 @@ type HarnessPermissionDefaultsInput struct {
 	NomiAutoApprove       *bool   `json:"nomiAutoApprove,omitempty"`
 }
 
-type HarnessPermissionDefaultsOutputTabsItem struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+// HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = string
+
+const (
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindCategory  HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindFolder    HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "folder"
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindFile      HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "file"
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindProtected HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "protected"
+)
+
+// HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOp 枚举：read | write
+type HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOp = string
+
+const (
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOpRead  HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOp = "read"
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOpWrite HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOp = "write"
+)
+
+type HarnessPermissionDefaultsOutputTabsItemSandboxPendingItem struct {
+	Id    string                                                        `json:"id"`
+	Kind  HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind `json:"kind"`
+	Value string                                                        `json:"value"`
+	Op    HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemOp   `json:"op"`
+	Path  string                                                        `json:"path"`
+	At    float64                                                       `json:"at"`
 }
+
+type HarnessPermissionDefaultsOutputTabsItem struct {
+	Id             string                                                      `json:"id"`
+	Title          string                                                      `json:"title"`
+	Backend        string                                                      `json:"backend"`
+	Cwd            string                                                      `json:"cwd"`
+	CliSessionId   string                                                      `json:"cliSessionId"`
+	Status         string                                                      `json:"status"`
+	Unread         float64                                                     `json:"unread"`
+	CreatedAt      float64                                                     `json:"createdAt"`
+	UpdatedAt      float64                                                     `json:"updatedAt"`
+	SandboxPending []HarnessPermissionDefaultsOutputTabsItemSandboxPendingItem `json:"sandboxPending,omitempty"`
+}
+
+// HarnessPermissionDefaultsOutputSandbox 枚举：on | off | unsupported
+type HarnessPermissionDefaultsOutputSandbox = string
+
+const (
+	HarnessPermissionDefaultsOutputSandboxOn          HarnessPermissionDefaultsOutputSandbox = "on"
+	HarnessPermissionDefaultsOutputSandboxOff         HarnessPermissionDefaultsOutputSandbox = "off"
+	HarnessPermissionDefaultsOutputSandboxUnsupported HarnessPermissionDefaultsOutputSandbox = "unsupported"
+)
 
 type HarnessPermissionDefaultsOutput struct {
 	Tabs                  []HarnessPermissionDefaultsOutputTabsItem `json:"tabs"`
@@ -3673,6 +3985,7 @@ type HarnessPermissionDefaultsOutput struct {
 	Queued                float64                                   `json:"queued"`
 	DefaultPermissionMode *string                                   `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                                     `json:"codexNetwork,omitempty"`
+	Sandbox               *HarnessPermissionDefaultsOutputSandbox   `json:"sandbox,omitempty"`
 	AutoApprove           *bool                                     `json:"autoApprove,omitempty"`
 	AiReview              *bool                                     `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                                     `json:"nomiAutoApprove,omitempty"`
@@ -3718,6 +4031,21 @@ type HarnessReplyPermissionInput struct {
 	RequestId   string                                  `json:"requestId"`
 	Allow       bool                                    `json:"allow"`
 	ApprovePlan *HarnessReplyPermissionInputApprovePlan `json:"approvePlan,omitempty"`
+}
+
+// HarnessSandboxReplyInputChoice 枚举：session | always | deny
+type HarnessSandboxReplyInputChoice = string
+
+const (
+	HarnessSandboxReplyInputChoiceSession HarnessSandboxReplyInputChoice = "session"
+	HarnessSandboxReplyInputChoiceAlways  HarnessSandboxReplyInputChoice = "always"
+	HarnessSandboxReplyInputChoiceDeny    HarnessSandboxReplyInputChoice = "deny"
+)
+
+type HarnessSandboxReplyInput struct {
+	TabId     string                         `json:"tabId"`
+	RequestId string                         `json:"requestId"`
+	Choice    HarnessSandboxReplyInputChoice `json:"choice"`
 }
 
 type HarnessSendInput struct {
@@ -3797,33 +4125,98 @@ type HarnessTabAccountInput struct {
 	AccountId string `json:"accountId"`
 }
 
+// HarnessTabAccountOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabAccountOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabAccountOutputSandboxPendingItemKindCategory  HarnessTabAccountOutputSandboxPendingItemKind = "category"
+	HarnessTabAccountOutputSandboxPendingItemKindFolder    HarnessTabAccountOutputSandboxPendingItemKind = "folder"
+	HarnessTabAccountOutputSandboxPendingItemKindFile      HarnessTabAccountOutputSandboxPendingItemKind = "file"
+	HarnessTabAccountOutputSandboxPendingItemKindProtected HarnessTabAccountOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabAccountOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabAccountOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabAccountOutputSandboxPendingItemOpRead  HarnessTabAccountOutputSandboxPendingItemOp = "read"
+	HarnessTabAccountOutputSandboxPendingItemOpWrite HarnessTabAccountOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabAccountOutputSandboxPendingItem struct {
+	Id    string                                        `json:"id"`
+	Kind  HarnessTabAccountOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                        `json:"value"`
+	Op    HarnessTabAccountOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                        `json:"path"`
+	At    float64                                       `json:"at"`
+}
+
 type HarnessTabAccountOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                      `json:"id"`
+	Title          string                                      `json:"title"`
+	Backend        string                                      `json:"backend"`
+	Cwd            string                                      `json:"cwd"`
+	CliSessionId   string                                      `json:"cliSessionId"`
+	Status         string                                      `json:"status"`
+	Unread         float64                                     `json:"unread"`
+	CreatedAt      float64                                     `json:"createdAt"`
+	UpdatedAt      float64                                     `json:"updatedAt"`
+	SandboxPending []HarnessTabAccountOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabActivateInput struct {
 	Id string `json:"id"`
 }
 
-type HarnessTabActivateOutputTabsItem struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+// HarnessTabActivateOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabActivateOutputTabsItemSandboxPendingItemKind = string
+
+const (
+	HarnessTabActivateOutputTabsItemSandboxPendingItemKindCategory  HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabActivateOutputTabsItemSandboxPendingItemKindFolder    HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "folder"
+	HarnessTabActivateOutputTabsItemSandboxPendingItemKindFile      HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "file"
+	HarnessTabActivateOutputTabsItemSandboxPendingItemKindProtected HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabActivateOutputTabsItemSandboxPendingItemOp 枚举：read | write
+type HarnessTabActivateOutputTabsItemSandboxPendingItemOp = string
+
+const (
+	HarnessTabActivateOutputTabsItemSandboxPendingItemOpRead  HarnessTabActivateOutputTabsItemSandboxPendingItemOp = "read"
+	HarnessTabActivateOutputTabsItemSandboxPendingItemOpWrite HarnessTabActivateOutputTabsItemSandboxPendingItemOp = "write"
+)
+
+type HarnessTabActivateOutputTabsItemSandboxPendingItem struct {
+	Id    string                                                 `json:"id"`
+	Kind  HarnessTabActivateOutputTabsItemSandboxPendingItemKind `json:"kind"`
+	Value string                                                 `json:"value"`
+	Op    HarnessTabActivateOutputTabsItemSandboxPendingItemOp   `json:"op"`
+	Path  string                                                 `json:"path"`
+	At    float64                                                `json:"at"`
 }
+
+type HarnessTabActivateOutputTabsItem struct {
+	Id             string                                               `json:"id"`
+	Title          string                                               `json:"title"`
+	Backend        string                                               `json:"backend"`
+	Cwd            string                                               `json:"cwd"`
+	CliSessionId   string                                               `json:"cliSessionId"`
+	Status         string                                               `json:"status"`
+	Unread         float64                                              `json:"unread"`
+	CreatedAt      float64                                              `json:"createdAt"`
+	UpdatedAt      float64                                              `json:"updatedAt"`
+	SandboxPending []HarnessTabActivateOutputTabsItemSandboxPendingItem `json:"sandboxPending,omitempty"`
+}
+
+// HarnessTabActivateOutputSandbox 枚举：on | off | unsupported
+type HarnessTabActivateOutputSandbox = string
+
+const (
+	HarnessTabActivateOutputSandboxOn          HarnessTabActivateOutputSandbox = "on"
+	HarnessTabActivateOutputSandboxOff         HarnessTabActivateOutputSandbox = "off"
+	HarnessTabActivateOutputSandboxUnsupported HarnessTabActivateOutputSandbox = "unsupported"
+)
 
 type HarnessTabActivateOutput struct {
 	Tabs                  []HarnessTabActivateOutputTabsItem `json:"tabs"`
@@ -3832,6 +4225,7 @@ type HarnessTabActivateOutput struct {
 	Queued                float64                            `json:"queued"`
 	DefaultPermissionMode *string                            `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                              `json:"codexNetwork,omitempty"`
+	Sandbox               *HarnessTabActivateOutputSandbox   `json:"sandbox,omitempty"`
 	AutoApprove           *bool                              `json:"autoApprove,omitempty"`
 	AiReview              *bool                              `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                              `json:"nomiAutoApprove,omitempty"`
@@ -3842,16 +4236,44 @@ type HarnessTabApplyAutoTitleInput struct {
 	Title string `json:"title"`
 }
 
+// HarnessTabApplyAutoTitleOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindCategory  HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "category"
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindFolder    HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "folder"
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindFile      HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "file"
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindProtected HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabApplyAutoTitleOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabApplyAutoTitleOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemOpRead  HarnessTabApplyAutoTitleOutputSandboxPendingItemOp = "read"
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemOpWrite HarnessTabApplyAutoTitleOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabApplyAutoTitleOutputSandboxPendingItem struct {
+	Id    string                                               `json:"id"`
+	Kind  HarnessTabApplyAutoTitleOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                               `json:"value"`
+	Op    HarnessTabApplyAutoTitleOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                               `json:"path"`
+	At    float64                                              `json:"at"`
+}
+
 type HarnessTabApplyAutoTitleOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                             `json:"id"`
+	Title          string                                             `json:"title"`
+	Backend        string                                             `json:"backend"`
+	Cwd            string                                             `json:"cwd"`
+	CliSessionId   string                                             `json:"cliSessionId"`
+	Status         string                                             `json:"status"`
+	Unread         float64                                            `json:"unread"`
+	CreatedAt      float64                                            `json:"createdAt"`
+	UpdatedAt      float64                                            `json:"updatedAt"`
+	SandboxPending []HarnessTabApplyAutoTitleOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabBackendInput struct {
@@ -3859,16 +4281,44 @@ type HarnessTabBackendInput struct {
 	Backend string `json:"backend"`
 }
 
+// HarnessTabBackendOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabBackendOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabBackendOutputSandboxPendingItemKindCategory  HarnessTabBackendOutputSandboxPendingItemKind = "category"
+	HarnessTabBackendOutputSandboxPendingItemKindFolder    HarnessTabBackendOutputSandboxPendingItemKind = "folder"
+	HarnessTabBackendOutputSandboxPendingItemKindFile      HarnessTabBackendOutputSandboxPendingItemKind = "file"
+	HarnessTabBackendOutputSandboxPendingItemKindProtected HarnessTabBackendOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabBackendOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabBackendOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabBackendOutputSandboxPendingItemOpRead  HarnessTabBackendOutputSandboxPendingItemOp = "read"
+	HarnessTabBackendOutputSandboxPendingItemOpWrite HarnessTabBackendOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabBackendOutputSandboxPendingItem struct {
+	Id    string                                        `json:"id"`
+	Kind  HarnessTabBackendOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                        `json:"value"`
+	Op    HarnessTabBackendOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                        `json:"path"`
+	At    float64                                       `json:"at"`
+}
+
 type HarnessTabBackendOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                      `json:"id"`
+	Title          string                                      `json:"title"`
+	Backend        string                                      `json:"backend"`
+	Cwd            string                                      `json:"cwd"`
+	CliSessionId   string                                      `json:"cliSessionId"`
+	Status         string                                      `json:"status"`
+	Unread         float64                                     `json:"unread"`
+	CreatedAt      float64                                     `json:"createdAt"`
+	UpdatedAt      float64                                     `json:"updatedAt"`
+	SandboxPending []HarnessTabBackendOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabCancelInput struct {
@@ -3879,33 +4329,98 @@ type HarnessTabCarryClearInput struct {
 	Id string `json:"id"`
 }
 
+// HarnessTabCarryClearOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabCarryClearOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabCarryClearOutputSandboxPendingItemKindCategory  HarnessTabCarryClearOutputSandboxPendingItemKind = "category"
+	HarnessTabCarryClearOutputSandboxPendingItemKindFolder    HarnessTabCarryClearOutputSandboxPendingItemKind = "folder"
+	HarnessTabCarryClearOutputSandboxPendingItemKindFile      HarnessTabCarryClearOutputSandboxPendingItemKind = "file"
+	HarnessTabCarryClearOutputSandboxPendingItemKindProtected HarnessTabCarryClearOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabCarryClearOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabCarryClearOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabCarryClearOutputSandboxPendingItemOpRead  HarnessTabCarryClearOutputSandboxPendingItemOp = "read"
+	HarnessTabCarryClearOutputSandboxPendingItemOpWrite HarnessTabCarryClearOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabCarryClearOutputSandboxPendingItem struct {
+	Id    string                                           `json:"id"`
+	Kind  HarnessTabCarryClearOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                           `json:"value"`
+	Op    HarnessTabCarryClearOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                           `json:"path"`
+	At    float64                                          `json:"at"`
+}
+
 type HarnessTabCarryClearOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                         `json:"id"`
+	Title          string                                         `json:"title"`
+	Backend        string                                         `json:"backend"`
+	Cwd            string                                         `json:"cwd"`
+	CliSessionId   string                                         `json:"cliSessionId"`
+	Status         string                                         `json:"status"`
+	Unread         float64                                        `json:"unread"`
+	CreatedAt      float64                                        `json:"createdAt"`
+	UpdatedAt      float64                                        `json:"updatedAt"`
+	SandboxPending []HarnessTabCarryClearOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabCloseInput struct {
 	Id string `json:"id"`
 }
 
-type HarnessTabCloseOutputTabsItem struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+// HarnessTabCloseOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabCloseOutputTabsItemSandboxPendingItemKind = string
+
+const (
+	HarnessTabCloseOutputTabsItemSandboxPendingItemKindCategory  HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabCloseOutputTabsItemSandboxPendingItemKindFolder    HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "folder"
+	HarnessTabCloseOutputTabsItemSandboxPendingItemKindFile      HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "file"
+	HarnessTabCloseOutputTabsItemSandboxPendingItemKindProtected HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabCloseOutputTabsItemSandboxPendingItemOp 枚举：read | write
+type HarnessTabCloseOutputTabsItemSandboxPendingItemOp = string
+
+const (
+	HarnessTabCloseOutputTabsItemSandboxPendingItemOpRead  HarnessTabCloseOutputTabsItemSandboxPendingItemOp = "read"
+	HarnessTabCloseOutputTabsItemSandboxPendingItemOpWrite HarnessTabCloseOutputTabsItemSandboxPendingItemOp = "write"
+)
+
+type HarnessTabCloseOutputTabsItemSandboxPendingItem struct {
+	Id    string                                              `json:"id"`
+	Kind  HarnessTabCloseOutputTabsItemSandboxPendingItemKind `json:"kind"`
+	Value string                                              `json:"value"`
+	Op    HarnessTabCloseOutputTabsItemSandboxPendingItemOp   `json:"op"`
+	Path  string                                              `json:"path"`
+	At    float64                                             `json:"at"`
 }
+
+type HarnessTabCloseOutputTabsItem struct {
+	Id             string                                            `json:"id"`
+	Title          string                                            `json:"title"`
+	Backend        string                                            `json:"backend"`
+	Cwd            string                                            `json:"cwd"`
+	CliSessionId   string                                            `json:"cliSessionId"`
+	Status         string                                            `json:"status"`
+	Unread         float64                                           `json:"unread"`
+	CreatedAt      float64                                           `json:"createdAt"`
+	UpdatedAt      float64                                           `json:"updatedAt"`
+	SandboxPending []HarnessTabCloseOutputTabsItemSandboxPendingItem `json:"sandboxPending,omitempty"`
+}
+
+// HarnessTabCloseOutputSandbox 枚举：on | off | unsupported
+type HarnessTabCloseOutputSandbox = string
+
+const (
+	HarnessTabCloseOutputSandboxOn          HarnessTabCloseOutputSandbox = "on"
+	HarnessTabCloseOutputSandboxOff         HarnessTabCloseOutputSandbox = "off"
+	HarnessTabCloseOutputSandboxUnsupported HarnessTabCloseOutputSandbox = "unsupported"
+)
 
 type HarnessTabCloseOutput struct {
 	Tabs                  []HarnessTabCloseOutputTabsItem `json:"tabs"`
@@ -3914,6 +4429,7 @@ type HarnessTabCloseOutput struct {
 	Queued                float64                         `json:"queued"`
 	DefaultPermissionMode *string                         `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                           `json:"codexNetwork,omitempty"`
+	Sandbox               *HarnessTabCloseOutputSandbox   `json:"sandbox,omitempty"`
 	AutoApprove           *bool                           `json:"autoApprove,omitempty"`
 	AiReview              *bool                           `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                           `json:"nomiAutoApprove,omitempty"`
@@ -3943,16 +4459,44 @@ type HarnessTabCreateInput struct {
 	PluginId       *string                             `json:"pluginId,omitempty"`
 }
 
+// HarnessTabCreateOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabCreateOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabCreateOutputSandboxPendingItemKindCategory  HarnessTabCreateOutputSandboxPendingItemKind = "category"
+	HarnessTabCreateOutputSandboxPendingItemKindFolder    HarnessTabCreateOutputSandboxPendingItemKind = "folder"
+	HarnessTabCreateOutputSandboxPendingItemKindFile      HarnessTabCreateOutputSandboxPendingItemKind = "file"
+	HarnessTabCreateOutputSandboxPendingItemKindProtected HarnessTabCreateOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabCreateOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabCreateOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabCreateOutputSandboxPendingItemOpRead  HarnessTabCreateOutputSandboxPendingItemOp = "read"
+	HarnessTabCreateOutputSandboxPendingItemOpWrite HarnessTabCreateOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabCreateOutputSandboxPendingItem struct {
+	Id    string                                       `json:"id"`
+	Kind  HarnessTabCreateOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                       `json:"value"`
+	Op    HarnessTabCreateOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                       `json:"path"`
+	At    float64                                      `json:"at"`
+}
+
 type HarnessTabCreateOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                     `json:"id"`
+	Title          string                                     `json:"title"`
+	Backend        string                                     `json:"backend"`
+	Cwd            string                                     `json:"cwd"`
+	CliSessionId   string                                     `json:"cliSessionId"`
+	Status         string                                     `json:"status"`
+	Unread         float64                                    `json:"unread"`
+	CreatedAt      float64                                    `json:"createdAt"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	SandboxPending []HarnessTabCreateOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabCwdInput struct {
@@ -3961,16 +4505,44 @@ type HarnessTabCwdInput struct {
 	Carry *bool  `json:"carry,omitempty"`
 }
 
+// HarnessTabCwdOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabCwdOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabCwdOutputSandboxPendingItemKindCategory  HarnessTabCwdOutputSandboxPendingItemKind = "category"
+	HarnessTabCwdOutputSandboxPendingItemKindFolder    HarnessTabCwdOutputSandboxPendingItemKind = "folder"
+	HarnessTabCwdOutputSandboxPendingItemKindFile      HarnessTabCwdOutputSandboxPendingItemKind = "file"
+	HarnessTabCwdOutputSandboxPendingItemKindProtected HarnessTabCwdOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabCwdOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabCwdOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabCwdOutputSandboxPendingItemOpRead  HarnessTabCwdOutputSandboxPendingItemOp = "read"
+	HarnessTabCwdOutputSandboxPendingItemOpWrite HarnessTabCwdOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabCwdOutputSandboxPendingItem struct {
+	Id    string                                    `json:"id"`
+	Kind  HarnessTabCwdOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                    `json:"value"`
+	Op    HarnessTabCwdOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                    `json:"path"`
+	At    float64                                   `json:"at"`
+}
+
 type HarnessTabCwdOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                  `json:"id"`
+	Title          string                                  `json:"title"`
+	Backend        string                                  `json:"backend"`
+	Cwd            string                                  `json:"cwd"`
+	CliSessionId   string                                  `json:"cliSessionId"`
+	Status         string                                  `json:"status"`
+	Unread         float64                                 `json:"unread"`
+	CreatedAt      float64                                 `json:"createdAt"`
+	UpdatedAt      float64                                 `json:"updatedAt"`
+	SandboxPending []HarnessTabCwdOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabEffortInput struct {
@@ -3978,16 +4550,44 @@ type HarnessTabEffortInput struct {
 	Effort string `json:"effort"`
 }
 
+// HarnessTabEffortOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabEffortOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabEffortOutputSandboxPendingItemKindCategory  HarnessTabEffortOutputSandboxPendingItemKind = "category"
+	HarnessTabEffortOutputSandboxPendingItemKindFolder    HarnessTabEffortOutputSandboxPendingItemKind = "folder"
+	HarnessTabEffortOutputSandboxPendingItemKindFile      HarnessTabEffortOutputSandboxPendingItemKind = "file"
+	HarnessTabEffortOutputSandboxPendingItemKindProtected HarnessTabEffortOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabEffortOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabEffortOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabEffortOutputSandboxPendingItemOpRead  HarnessTabEffortOutputSandboxPendingItemOp = "read"
+	HarnessTabEffortOutputSandboxPendingItemOpWrite HarnessTabEffortOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabEffortOutputSandboxPendingItem struct {
+	Id    string                                       `json:"id"`
+	Kind  HarnessTabEffortOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                       `json:"value"`
+	Op    HarnessTabEffortOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                       `json:"path"`
+	At    float64                                      `json:"at"`
+}
+
 type HarnessTabEffortOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                     `json:"id"`
+	Title          string                                     `json:"title"`
+	Backend        string                                     `json:"backend"`
+	Cwd            string                                     `json:"cwd"`
+	CliSessionId   string                                     `json:"cliSessionId"`
+	Status         string                                     `json:"status"`
+	Unread         float64                                    `json:"unread"`
+	CreatedAt      float64                                    `json:"createdAt"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	SandboxPending []HarnessTabEffortOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabLongContextInput struct {
@@ -3995,16 +4595,44 @@ type HarnessTabLongContextInput struct {
 	On bool   `json:"on"`
 }
 
+// HarnessTabLongContextOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabLongContextOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabLongContextOutputSandboxPendingItemKindCategory  HarnessTabLongContextOutputSandboxPendingItemKind = "category"
+	HarnessTabLongContextOutputSandboxPendingItemKindFolder    HarnessTabLongContextOutputSandboxPendingItemKind = "folder"
+	HarnessTabLongContextOutputSandboxPendingItemKindFile      HarnessTabLongContextOutputSandboxPendingItemKind = "file"
+	HarnessTabLongContextOutputSandboxPendingItemKindProtected HarnessTabLongContextOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabLongContextOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabLongContextOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabLongContextOutputSandboxPendingItemOpRead  HarnessTabLongContextOutputSandboxPendingItemOp = "read"
+	HarnessTabLongContextOutputSandboxPendingItemOpWrite HarnessTabLongContextOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabLongContextOutputSandboxPendingItem struct {
+	Id    string                                            `json:"id"`
+	Kind  HarnessTabLongContextOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                            `json:"value"`
+	Op    HarnessTabLongContextOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                            `json:"path"`
+	At    float64                                           `json:"at"`
+}
+
 type HarnessTabLongContextOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                          `json:"id"`
+	Title          string                                          `json:"title"`
+	Backend        string                                          `json:"backend"`
+	Cwd            string                                          `json:"cwd"`
+	CliSessionId   string                                          `json:"cliSessionId"`
+	Status         string                                          `json:"status"`
+	Unread         float64                                         `json:"unread"`
+	CreatedAt      float64                                         `json:"createdAt"`
+	UpdatedAt      float64                                         `json:"updatedAt"`
+	SandboxPending []HarnessTabLongContextOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabMessagesInput struct {
@@ -4032,16 +4660,44 @@ type HarnessTabModelInput struct {
 	ExpectSource *HarnessTabModelInputExpectSource `json:"expectSource,omitempty"`
 }
 
+// HarnessTabModelOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabModelOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabModelOutputSandboxPendingItemKindCategory  HarnessTabModelOutputSandboxPendingItemKind = "category"
+	HarnessTabModelOutputSandboxPendingItemKindFolder    HarnessTabModelOutputSandboxPendingItemKind = "folder"
+	HarnessTabModelOutputSandboxPendingItemKindFile      HarnessTabModelOutputSandboxPendingItemKind = "file"
+	HarnessTabModelOutputSandboxPendingItemKindProtected HarnessTabModelOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabModelOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabModelOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabModelOutputSandboxPendingItemOpRead  HarnessTabModelOutputSandboxPendingItemOp = "read"
+	HarnessTabModelOutputSandboxPendingItemOpWrite HarnessTabModelOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabModelOutputSandboxPendingItem struct {
+	Id    string                                      `json:"id"`
+	Kind  HarnessTabModelOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                      `json:"value"`
+	Op    HarnessTabModelOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                      `json:"path"`
+	At    float64                                     `json:"at"`
+}
+
 type HarnessTabModelOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                    `json:"id"`
+	Title          string                                    `json:"title"`
+	Backend        string                                    `json:"backend"`
+	Cwd            string                                    `json:"cwd"`
+	CliSessionId   string                                    `json:"cliSessionId"`
+	Status         string                                    `json:"status"`
+	Unread         float64                                   `json:"unread"`
+	CreatedAt      float64                                   `json:"createdAt"`
+	UpdatedAt      float64                                   `json:"updatedAt"`
+	SandboxPending []HarnessTabModelOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabPermissionModeInputExpect struct {
@@ -4056,32 +4712,88 @@ type HarnessTabPermissionModeInput struct {
 	Expect    *HarnessTabPermissionModeInputExpect `json:"expect,omitempty"`
 }
 
+// HarnessTabPermissionModeOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabPermissionModeOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabPermissionModeOutputSandboxPendingItemKindCategory  HarnessTabPermissionModeOutputSandboxPendingItemKind = "category"
+	HarnessTabPermissionModeOutputSandboxPendingItemKindFolder    HarnessTabPermissionModeOutputSandboxPendingItemKind = "folder"
+	HarnessTabPermissionModeOutputSandboxPendingItemKindFile      HarnessTabPermissionModeOutputSandboxPendingItemKind = "file"
+	HarnessTabPermissionModeOutputSandboxPendingItemKindProtected HarnessTabPermissionModeOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabPermissionModeOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabPermissionModeOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabPermissionModeOutputSandboxPendingItemOpRead  HarnessTabPermissionModeOutputSandboxPendingItemOp = "read"
+	HarnessTabPermissionModeOutputSandboxPendingItemOpWrite HarnessTabPermissionModeOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabPermissionModeOutputSandboxPendingItem struct {
+	Id    string                                               `json:"id"`
+	Kind  HarnessTabPermissionModeOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                               `json:"value"`
+	Op    HarnessTabPermissionModeOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                               `json:"path"`
+	At    float64                                              `json:"at"`
+}
+
 type HarnessTabPermissionModeOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                             `json:"id"`
+	Title          string                                             `json:"title"`
+	Backend        string                                             `json:"backend"`
+	Cwd            string                                             `json:"cwd"`
+	CliSessionId   string                                             `json:"cliSessionId"`
+	Status         string                                             `json:"status"`
+	Unread         float64                                            `json:"unread"`
+	CreatedAt      float64                                            `json:"createdAt"`
+	UpdatedAt      float64                                            `json:"updatedAt"`
+	SandboxPending []HarnessTabPermissionModeOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabPickCwdInput struct {
 	Id string `json:"id"`
 }
 
+// HarnessTabPickCwdOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabPickCwdOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabPickCwdOutputSandboxPendingItemKindCategory  HarnessTabPickCwdOutputSandboxPendingItemKind = "category"
+	HarnessTabPickCwdOutputSandboxPendingItemKindFolder    HarnessTabPickCwdOutputSandboxPendingItemKind = "folder"
+	HarnessTabPickCwdOutputSandboxPendingItemKindFile      HarnessTabPickCwdOutputSandboxPendingItemKind = "file"
+	HarnessTabPickCwdOutputSandboxPendingItemKindProtected HarnessTabPickCwdOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabPickCwdOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabPickCwdOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabPickCwdOutputSandboxPendingItemOpRead  HarnessTabPickCwdOutputSandboxPendingItemOp = "read"
+	HarnessTabPickCwdOutputSandboxPendingItemOpWrite HarnessTabPickCwdOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabPickCwdOutputSandboxPendingItem struct {
+	Id    string                                        `json:"id"`
+	Kind  HarnessTabPickCwdOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                        `json:"value"`
+	Op    HarnessTabPickCwdOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                        `json:"path"`
+	At    float64                                       `json:"at"`
+}
+
 type HarnessTabPickCwdOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                      `json:"id"`
+	Title          string                                      `json:"title"`
+	Backend        string                                      `json:"backend"`
+	Cwd            string                                      `json:"cwd"`
+	CliSessionId   string                                      `json:"cliSessionId"`
+	Status         string                                      `json:"status"`
+	Unread         float64                                     `json:"unread"`
+	CreatedAt      float64                                     `json:"createdAt"`
+	UpdatedAt      float64                                     `json:"updatedAt"`
+	SandboxPending []HarnessTabPickCwdOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabRenameInput struct {
@@ -4089,16 +4801,44 @@ type HarnessTabRenameInput struct {
 	Title string `json:"title"`
 }
 
+// HarnessTabRenameOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabRenameOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabRenameOutputSandboxPendingItemKindCategory  HarnessTabRenameOutputSandboxPendingItemKind = "category"
+	HarnessTabRenameOutputSandboxPendingItemKindFolder    HarnessTabRenameOutputSandboxPendingItemKind = "folder"
+	HarnessTabRenameOutputSandboxPendingItemKindFile      HarnessTabRenameOutputSandboxPendingItemKind = "file"
+	HarnessTabRenameOutputSandboxPendingItemKindProtected HarnessTabRenameOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabRenameOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabRenameOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabRenameOutputSandboxPendingItemOpRead  HarnessTabRenameOutputSandboxPendingItemOp = "read"
+	HarnessTabRenameOutputSandboxPendingItemOpWrite HarnessTabRenameOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabRenameOutputSandboxPendingItem struct {
+	Id    string                                       `json:"id"`
+	Kind  HarnessTabRenameOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                       `json:"value"`
+	Op    HarnessTabRenameOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                       `json:"path"`
+	At    float64                                      `json:"at"`
+}
+
 type HarnessTabRenameOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                     `json:"id"`
+	Title          string                                     `json:"title"`
+	Backend        string                                     `json:"backend"`
+	Cwd            string                                     `json:"cwd"`
+	CliSessionId   string                                     `json:"cliSessionId"`
+	Status         string                                     `json:"status"`
+	Unread         float64                                    `json:"unread"`
+	CreatedAt      float64                                    `json:"createdAt"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	SandboxPending []HarnessTabRenameOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabRewindInput struct {
@@ -4125,16 +4865,44 @@ type HarnessTabSeedInput struct {
 	Messages []HarnessTabSeedInputMessagesItem `json:"messages"`
 }
 
+// HarnessTabSeedOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabSeedOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabSeedOutputSandboxPendingItemKindCategory  HarnessTabSeedOutputSandboxPendingItemKind = "category"
+	HarnessTabSeedOutputSandboxPendingItemKindFolder    HarnessTabSeedOutputSandboxPendingItemKind = "folder"
+	HarnessTabSeedOutputSandboxPendingItemKindFile      HarnessTabSeedOutputSandboxPendingItemKind = "file"
+	HarnessTabSeedOutputSandboxPendingItemKindProtected HarnessTabSeedOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabSeedOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabSeedOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabSeedOutputSandboxPendingItemOpRead  HarnessTabSeedOutputSandboxPendingItemOp = "read"
+	HarnessTabSeedOutputSandboxPendingItemOpWrite HarnessTabSeedOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabSeedOutputSandboxPendingItem struct {
+	Id    string                                     `json:"id"`
+	Kind  HarnessTabSeedOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                     `json:"value"`
+	Op    HarnessTabSeedOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                     `json:"path"`
+	At    float64                                    `json:"at"`
+}
+
 type HarnessTabSeedOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                   `json:"id"`
+	Title          string                                   `json:"title"`
+	Backend        string                                   `json:"backend"`
+	Cwd            string                                   `json:"cwd"`
+	CliSessionId   string                                   `json:"cliSessionId"`
+	Status         string                                   `json:"status"`
+	Unread         float64                                  `json:"unread"`
+	CreatedAt      float64                                  `json:"createdAt"`
+	UpdatedAt      float64                                  `json:"updatedAt"`
+	SandboxPending []HarnessTabSeedOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabSendInputImagesItem struct {
@@ -4172,16 +4940,44 @@ type HarnessTabSourceInput struct {
 	Model  *string                     `json:"model,omitempty"`
 }
 
+// HarnessTabSourceOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabSourceOutputSandboxPendingItemKind = string
+
+const (
+	HarnessTabSourceOutputSandboxPendingItemKindCategory  HarnessTabSourceOutputSandboxPendingItemKind = "category"
+	HarnessTabSourceOutputSandboxPendingItemKindFolder    HarnessTabSourceOutputSandboxPendingItemKind = "folder"
+	HarnessTabSourceOutputSandboxPendingItemKindFile      HarnessTabSourceOutputSandboxPendingItemKind = "file"
+	HarnessTabSourceOutputSandboxPendingItemKindProtected HarnessTabSourceOutputSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabSourceOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabSourceOutputSandboxPendingItemOp = string
+
+const (
+	HarnessTabSourceOutputSandboxPendingItemOpRead  HarnessTabSourceOutputSandboxPendingItemOp = "read"
+	HarnessTabSourceOutputSandboxPendingItemOpWrite HarnessTabSourceOutputSandboxPendingItemOp = "write"
+)
+
+type HarnessTabSourceOutputSandboxPendingItem struct {
+	Id    string                                       `json:"id"`
+	Kind  HarnessTabSourceOutputSandboxPendingItemKind `json:"kind"`
+	Value string                                       `json:"value"`
+	Op    HarnessTabSourceOutputSandboxPendingItemOp   `json:"op"`
+	Path  string                                       `json:"path"`
+	At    float64                                      `json:"at"`
+}
+
 type HarnessTabSourceOutput struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+	Id             string                                     `json:"id"`
+	Title          string                                     `json:"title"`
+	Backend        string                                     `json:"backend"`
+	Cwd            string                                     `json:"cwd"`
+	CliSessionId   string                                     `json:"cliSessionId"`
+	Status         string                                     `json:"status"`
+	Unread         float64                                    `json:"unread"`
+	CreatedAt      float64                                    `json:"createdAt"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	SandboxPending []HarnessTabSourceOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabSteerInput struct {
@@ -4189,17 +4985,54 @@ type HarnessTabSteerInput struct {
 	Text string `json:"text"`
 }
 
-type HarnessTabsOutputTabsItem struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+// HarnessTabsOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+type HarnessTabsOutputTabsItemSandboxPendingItemKind = string
+
+const (
+	HarnessTabsOutputTabsItemSandboxPendingItemKindCategory  HarnessTabsOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabsOutputTabsItemSandboxPendingItemKindFolder    HarnessTabsOutputTabsItemSandboxPendingItemKind = "folder"
+	HarnessTabsOutputTabsItemSandboxPendingItemKindFile      HarnessTabsOutputTabsItemSandboxPendingItemKind = "file"
+	HarnessTabsOutputTabsItemSandboxPendingItemKindProtected HarnessTabsOutputTabsItemSandboxPendingItemKind = "protected"
+)
+
+// HarnessTabsOutputTabsItemSandboxPendingItemOp 枚举：read | write
+type HarnessTabsOutputTabsItemSandboxPendingItemOp = string
+
+const (
+	HarnessTabsOutputTabsItemSandboxPendingItemOpRead  HarnessTabsOutputTabsItemSandboxPendingItemOp = "read"
+	HarnessTabsOutputTabsItemSandboxPendingItemOpWrite HarnessTabsOutputTabsItemSandboxPendingItemOp = "write"
+)
+
+type HarnessTabsOutputTabsItemSandboxPendingItem struct {
+	Id    string                                          `json:"id"`
+	Kind  HarnessTabsOutputTabsItemSandboxPendingItemKind `json:"kind"`
+	Value string                                          `json:"value"`
+	Op    HarnessTabsOutputTabsItemSandboxPendingItemOp   `json:"op"`
+	Path  string                                          `json:"path"`
+	At    float64                                         `json:"at"`
 }
+
+type HarnessTabsOutputTabsItem struct {
+	Id             string                                        `json:"id"`
+	Title          string                                        `json:"title"`
+	Backend        string                                        `json:"backend"`
+	Cwd            string                                        `json:"cwd"`
+	CliSessionId   string                                        `json:"cliSessionId"`
+	Status         string                                        `json:"status"`
+	Unread         float64                                       `json:"unread"`
+	CreatedAt      float64                                       `json:"createdAt"`
+	UpdatedAt      float64                                       `json:"updatedAt"`
+	SandboxPending []HarnessTabsOutputTabsItemSandboxPendingItem `json:"sandboxPending,omitempty"`
+}
+
+// HarnessTabsOutputSandbox 枚举：on | off | unsupported
+type HarnessTabsOutputSandbox = string
+
+const (
+	HarnessTabsOutputSandboxOn          HarnessTabsOutputSandbox = "on"
+	HarnessTabsOutputSandboxOff         HarnessTabsOutputSandbox = "off"
+	HarnessTabsOutputSandboxUnsupported HarnessTabsOutputSandbox = "unsupported"
+)
 
 type HarnessTabsOutput struct {
 	Tabs                  []HarnessTabsOutputTabsItem `json:"tabs"`
@@ -4208,6 +5041,7 @@ type HarnessTabsOutput struct {
 	Queued                float64                     `json:"queued"`
 	DefaultPermissionMode *string                     `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                       `json:"codexNetwork,omitempty"`
+	Sandbox               *HarnessTabsOutputSandbox   `json:"sandbox,omitempty"`
 	AutoApprove           *bool                       `json:"autoApprove,omitempty"`
 	AiReview              *bool                       `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                       `json:"nomiAutoApprove,omitempty"`
@@ -7663,6 +8497,20 @@ type EventDesktopChangedScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
+// EventDesktopChangedCliSandboxAllowItemKind 枚举：category | folder | file
+type EventDesktopChangedCliSandboxAllowItemKind = string
+
+const (
+	EventDesktopChangedCliSandboxAllowItemKindCategory EventDesktopChangedCliSandboxAllowItemKind = "category"
+	EventDesktopChangedCliSandboxAllowItemKindFolder   EventDesktopChangedCliSandboxAllowItemKind = "folder"
+	EventDesktopChangedCliSandboxAllowItemKindFile     EventDesktopChangedCliSandboxAllowItemKind = "file"
+)
+
+type EventDesktopChangedCliSandboxAllowItem struct {
+	Kind  EventDesktopChangedCliSandboxAllowItemKind `json:"kind"`
+	Value string                                     `json:"value"`
+}
+
 type EventDesktopChangedToolsItem struct {
 	Name   string `json:"name"`
 	Danger string `json:"danger"`
@@ -7712,15 +8560,18 @@ type EventDesktopChangedPendingItem struct {
 }
 
 type EventDesktopChanged struct {
-	Scopes         []EventDesktopChangedScopesItem  `json:"scopes"`
-	Policies       map[string]string                `json:"policies"`
-	LocalOnly      bool                             `json:"localOnly"`
-	CloudAcked     []string                         `json:"cloudAcked"`
-	CommandRules   []string                         `json:"commandRules,omitempty"`
-	ProtectedPaths []string                         `json:"protectedPaths,omitempty"`
-	CliEnvAllow    []string                         `json:"cliEnvAllow,omitempty"`
-	Tools          []EventDesktopChangedToolsItem   `json:"tools"`
-	Pending        []EventDesktopChangedPendingItem `json:"pending,omitempty"`
+	Scopes              []EventDesktopChangedScopesItem          `json:"scopes"`
+	Policies            map[string]string                        `json:"policies"`
+	LocalOnly           bool                                     `json:"localOnly"`
+	CloudAcked          []string                                 `json:"cloudAcked"`
+	CommandRules        []string                                 `json:"commandRules,omitempty"`
+	ProtectedPaths      []string                                 `json:"protectedPaths,omitempty"`
+	CliEnvAllow         []string                                 `json:"cliEnvAllow,omitempty"`
+	CliSandbox          *bool                                    `json:"cliSandbox,omitempty"`
+	CliSandboxSupported *bool                                    `json:"cliSandboxSupported,omitempty"`
+	CliSandboxAllow     []EventDesktopChangedCliSandboxAllowItem `json:"cliSandboxAllow,omitempty"`
+	Tools               []EventDesktopChangedToolsItem           `json:"tools"`
+	Pending             []EventDesktopChangedPendingItem         `json:"pending,omitempty"`
 }
 
 // EventDesktopConfirmRequestScopeMode 枚举：read | read-write
@@ -7815,17 +8666,54 @@ type EventHarnessTabMessage struct {
 	Message EventHarnessTabMessageMessage `json:"message"`
 }
 
-type EventHarnessTabsChangedTabsItem struct {
-	Id           string  `json:"id"`
-	Title        string  `json:"title"`
-	Backend      string  `json:"backend"`
-	Cwd          string  `json:"cwd"`
-	CliSessionId string  `json:"cliSessionId"`
-	Status       string  `json:"status"`
-	Unread       float64 `json:"unread"`
-	CreatedAt    float64 `json:"createdAt"`
-	UpdatedAt    float64 `json:"updatedAt"`
+// EventHarnessTabsChangedTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+type EventHarnessTabsChangedTabsItemSandboxPendingItemKind = string
+
+const (
+	EventHarnessTabsChangedTabsItemSandboxPendingItemKindCategory  EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "category"
+	EventHarnessTabsChangedTabsItemSandboxPendingItemKindFolder    EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "folder"
+	EventHarnessTabsChangedTabsItemSandboxPendingItemKindFile      EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "file"
+	EventHarnessTabsChangedTabsItemSandboxPendingItemKindProtected EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "protected"
+)
+
+// EventHarnessTabsChangedTabsItemSandboxPendingItemOp 枚举：read | write
+type EventHarnessTabsChangedTabsItemSandboxPendingItemOp = string
+
+const (
+	EventHarnessTabsChangedTabsItemSandboxPendingItemOpRead  EventHarnessTabsChangedTabsItemSandboxPendingItemOp = "read"
+	EventHarnessTabsChangedTabsItemSandboxPendingItemOpWrite EventHarnessTabsChangedTabsItemSandboxPendingItemOp = "write"
+)
+
+type EventHarnessTabsChangedTabsItemSandboxPendingItem struct {
+	Id    string                                                `json:"id"`
+	Kind  EventHarnessTabsChangedTabsItemSandboxPendingItemKind `json:"kind"`
+	Value string                                                `json:"value"`
+	Op    EventHarnessTabsChangedTabsItemSandboxPendingItemOp   `json:"op"`
+	Path  string                                                `json:"path"`
+	At    float64                                               `json:"at"`
 }
+
+type EventHarnessTabsChangedTabsItem struct {
+	Id             string                                              `json:"id"`
+	Title          string                                              `json:"title"`
+	Backend        string                                              `json:"backend"`
+	Cwd            string                                              `json:"cwd"`
+	CliSessionId   string                                              `json:"cliSessionId"`
+	Status         string                                              `json:"status"`
+	Unread         float64                                             `json:"unread"`
+	CreatedAt      float64                                             `json:"createdAt"`
+	UpdatedAt      float64                                             `json:"updatedAt"`
+	SandboxPending []EventHarnessTabsChangedTabsItemSandboxPendingItem `json:"sandboxPending,omitempty"`
+}
+
+// EventHarnessTabsChangedSandbox 枚举：on | off | unsupported
+type EventHarnessTabsChangedSandbox = string
+
+const (
+	EventHarnessTabsChangedSandboxOn          EventHarnessTabsChangedSandbox = "on"
+	EventHarnessTabsChangedSandboxOff         EventHarnessTabsChangedSandbox = "off"
+	EventHarnessTabsChangedSandboxUnsupported EventHarnessTabsChangedSandbox = "unsupported"
+)
 
 type EventHarnessTabsChanged struct {
 	Tabs                  []EventHarnessTabsChangedTabsItem `json:"tabs"`
@@ -7834,6 +8722,7 @@ type EventHarnessTabsChanged struct {
 	Queued                float64                           `json:"queued"`
 	DefaultPermissionMode *string                           `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool                             `json:"codexNetwork,omitempty"`
+	Sandbox               *EventHarnessTabsChangedSandbox   `json:"sandbox,omitempty"`
 	AutoApprove           *bool                             `json:"autoApprove,omitempty"`
 	AiReview              *bool                             `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                             `json:"nomiAutoApprove,omitempty"`
@@ -8600,6 +9489,10 @@ type DesktopRemindersSnoozeOutputT = bool
 type DesktopRemindersUpdateInputT = DesktopRemindersUpdateInput
 type DesktopRemindersUpdateOutputT = *DesktopRemindersUpdateOutput
 
+// DesktopRemoveCliSandboxAllowInputT 是 desktop.removeCliSandboxAllow 的入参
+type DesktopRemoveCliSandboxAllowInputT = DesktopRemoveCliSandboxAllowInput
+type DesktopRemoveCliSandboxAllowOutputT = DesktopRemoveCliSandboxAllowOutput
+
 // DesktopRemoveCommandRuleInputT 是 desktop.removeCommandRule 的入参
 type DesktopRemoveCommandRuleInputT = DesktopRemoveCommandRuleInput
 type DesktopRemoveCommandRuleOutputT = DesktopRemoveCommandRuleOutput
@@ -8619,6 +9512,10 @@ type DesktopRevokeOutputT = bool
 // DesktopSetCliEnvAllowInputT 是 desktop.setCliEnvAllow 的入参
 type DesktopSetCliEnvAllowInputT = DesktopSetCliEnvAllowInput
 type DesktopSetCliEnvAllowOutputT = DesktopSetCliEnvAllowOutput
+
+// DesktopSetCliSandboxInputT 是 desktop.setCliSandbox 的入参
+type DesktopSetCliSandboxInputT = DesktopSetCliSandboxInput
+type DesktopSetCliSandboxOutputT = DesktopSetCliSandboxOutput
 
 // DesktopSetLocalOnlyInputT 是 desktop.setLocalOnly 的入参
 type DesktopSetLocalOnlyInputT = DesktopSetLocalOnlyInput
@@ -8939,6 +9836,10 @@ type HarnessReplyApprovePlanOutputT = bool
 // HarnessReplyPermissionInputT 是 harness.replyPermission 的入参
 type HarnessReplyPermissionInputT = HarnessReplyPermissionInput
 type HarnessReplyPermissionOutputT = bool
+
+// HarnessSandboxReplyInputT 是 harness.sandboxReply 的入参
+type HarnessSandboxReplyInputT = HarnessSandboxReplyInput
+type HarnessSandboxReplyOutputT = bool
 
 // HarnessSendInputT 是 harness.send 的入参
 type HarnessSendInputT = HarnessSendInput

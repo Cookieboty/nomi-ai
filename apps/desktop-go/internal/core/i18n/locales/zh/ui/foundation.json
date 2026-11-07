@@ -315,5 +315,16 @@
   "ui.foundation.env-name-invalid": "变量名只能有字母、数字和下划线，且不能以数字开头",
   "ui.foundation.allow-env-title": "放行这个环境变量？",
   "ui.foundation.allow-env-body": "放行后，编程助手和工作区命令都能读到 {0} 的值。",
-  "ui.foundation.remove-env-allow": "不再放行 {0}"
+  "ui.foundation.remove-env-allow": "不再放行 {0}",
+  "ui.foundation.cli-sandbox": "编程助手沙箱",
+  "ui.foundation.cli-sandbox-desc": "编程助手在系统沙箱里运行：读不到敏感位置（SSH、云凭据、浏览器、个人数据、.env 等）和受保护的文件夹，只能写项目文件夹、它自己的配置和缓存。被挡下时对话里会问你，可以本会话允许或始终允许。开着沙箱，就可以放心让编程助手全部自动运行。",
+  "ui.foundation.cli-sandbox-unsupported": "当前系统暂不支持（目前只支持 macOS）；工作目录检查和环境变量清理照常生效。",
+  "ui.foundation.cli-sandbox-off-title": "关掉编程助手沙箱？",
+  "ui.foundation.cli-sandbox-off-body": "关掉后编程助手能读写你能读写的所有文件。正在运行的编程助手会在这一轮结束后按新设置重开。",
+  "ui.foundation.cli-sandbox-turn-off": "关掉",
+  "ui.foundation.sandbox-always-allowed": "始终允许：",
+  "ui.foundation.sandbox-allow-category": "允许读取",
+  "ui.foundation.sandbox-allow-write": "允许写入",
+  "ui.foundation.sandbox-allow-remove": "不再允许",
+  "ui.foundation.sandbox-allow-remove-aria": "不再允许 {0}"
 }

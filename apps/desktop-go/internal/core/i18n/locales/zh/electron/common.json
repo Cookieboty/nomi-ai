@@ -591,5 +591,12 @@
   "electron.common.workspace-too-broad": "目录范围太大（根目录、主目录、系统目录，或「文稿」「桌面」这类大文件夹）",
   "electron.common.cli-cwd-blocked": "编程助手不能在 {0} 里工作：{1}。请换一个项目文件夹。",
   "electron.common.choose-folder-to-protect": "选择要保护的文件夹",
-  "electron.common.protect": "保护"
+  "electron.common.protect": "保护",
+  "electron.common.sandbox-granted-continue": "已允许访问「{0}」，沙箱已放开。请继续刚才被挡下的操作。",
+  "electron.common.sandbox-category-ssh": "SSH 与 Git 凭据",
+  "electron.common.sandbox-category-cloud": "云账号凭据",
+  "electron.common.sandbox-category-keys": "密钥与密码库",
+  "electron.common.sandbox-category-browser": "浏览器数据",
+  "electron.common.sandbox-category-personal": "邮件、信息、日历、通讯录、备忘录与照片",
+  "electron.common.sandbox-category-secret-files": "密钥文件（.env、私钥、证书）"
 }
