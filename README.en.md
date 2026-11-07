@@ -50,15 +50,17 @@ Tools are offered on demand: small talk sends about 2K tokens of tool definition
 
 ### 3. Specialist jobs go to specialist AIs
 
-For coding, Nomi delegates to Claude Code, Codex and other coding agents, and you can open or stop each subtask's full conversation. You can also open a coding-agent session directly: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo; sessions started in a terminal or IDE carry on here too.
+For coding, Nomi delegates to Claude Code, Codex and other coding agents; each sub-task opens in its own column beside the chat, where you can interject, stop it or have it run another turn, and every result comes back to the main chat. You can also open a coding-agent session directly: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo; sessions started in a terminal or IDE carry on here too.
+The **agent board** puts everything at work in one place: Nomi's chats and background runs, dispatched and workbench coding agents, and sessions you started yourself in a terminal or IDE (read-only), each card showing memory and CPU. When memory runs low it pauses the coding agents Nomi dispatched and resumes them where they stopped once it recovers; Nomi schedules with the board too.
 Coding agents are the strongest kind of specialist today; the connection layer is a plugin system, so more can join.
-→ [Coding agents](docs/features/coding-agents.md) · [Coding-agent integration](docs/development/coding-agents.md)
+→ [Coding agents](docs/features/coding-agents.md) · [Coding-agent integration](docs/development/coding-agents.md) · [Agent board](docs/development/agent-board.md)
 
 ### 4. Let it work, keep the boundaries
 
 Before a command runs, a helper model rates its risk: low risk runs, high risk asks you, and **once a turn has read external content (web pages, MCP results, skill files), medium-risk commands ask you too**, so a prompt injection can't use Nomi to run commands.
+On macOS coding agents run in a **system sandbox** (on by default): they can't read SSH and Git credentials, cloud credentials, browser data or `.env` files, and can only write to the project folder; when something is blocked you allow it for this session or "always" (this project only) right in the chat, and the agent carries on. The working folder must be a project folder, and agents don't inherit tokens or keys from your environment. With the sandbox on, coding agents can safely run fully automatic.
 Chats, memory and the knowledge base stay on your machine by default; secrets are hidden before anything reaches a third-party model; API keys live in the system keychain.
-→ [Privacy and security](docs/features/privacy-security.md)
+→ [Privacy and security](docs/features/privacy-security.md) · [Local protection for coding agents](docs/features/coding-agents.md#本机保护)
 
 ### 5. Light: a Go core on the native WebView
 
@@ -108,6 +110,7 @@ The view talks to the core through one typed contract instead of ad-hoc IPC chan
 - **Third-party provider links**: relays and model platforms add themselves to Nomi with `nomi://provider/import` (one-click import) or `nomi://provider/connect` (web authorization); Cherry Studio's import format also works. See [Third-party provider integration](#third-party-provider-integration) below
 - **Local models**: one-click open-source models (llama.cpp) or Ollama; run local-only, or let only local models read your files
 - **Images**: draw, edit and use reference images right in a Nomi chat, with an image model matched to the chat model's vendor; an asset library keeps every generated image
+- **Agent board**: see who is working and how much memory and CPU each one uses; a memory guard pauses and resumes coding agents automatically, with a load indicator in the title bar
 - **Knowledge base and memory**: ask questions over a folder with clickable citations; chats turn into exportable long-term memory
 - **MCP and skills**: manage MCP servers and `SKILL.md` skills in the UI; tool calls are audit-logged
 - **Voice and reminders**: local whisper.cpp or cloud speech input, read-aloud replies; reminders and scheduled tasks
