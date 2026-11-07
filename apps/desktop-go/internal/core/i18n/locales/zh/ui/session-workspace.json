@@ -203,5 +203,13 @@
   "ui.session-workspace.subagent-pane-title": "{0} 子任务",
   "ui.session-workspace.subagent-input-placeholder": "接着和 {0} 说…（Enter 发送，Shift+Enter 换行）",
   "ui.session-workspace.subagent-hint-idle": "接着这个子任务再做一轮，做完的结果会回到主对话。",
-  "ui.session-workspace.subagent-hint-running": "正在运行：发送会插话给它（不支持插话时等这一轮结束再发）；点「停止」可以打断。"
+  "ui.session-workspace.subagent-hint-running": "正在运行：发送会插话给它（不支持插话时等这一轮结束再发）；点「停止」可以打断。",
+  "ui.session-workspace.session-details": "会话详情",
+  "ui.session-workspace.show-session-details": "显示会话详情",
+  "ui.session-workspace.hide-session-details": "隐藏会话详情",
+  "ui.session-workspace.details-no-workspace": "没有选工作区",
+  "ui.session-workspace.details-no-changes": "还没有改动",
+  "ui.session-workspace.details-agents": "智能体",
+  "ui.session-workspace.details-agents-count": "{0} 个 · {1} 进行中",
+  "ui.session-workspace.details-no-agents": "这个会话还没有用到其他智能体"
 }

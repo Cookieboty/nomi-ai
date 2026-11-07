@@ -128,7 +128,6 @@ import {
   sameLive,
   settledNomiMessages,
 } from './utils/convAdapters';
-import { aggregateSessionChanges } from './utils/sessionChanges';
 import { startSplitDrag } from './utils/splitDrag';
 import './App.css';
 
@@ -307,10 +306,6 @@ const AiChatContent: React.FC = () => {
   const railBusy = tabs.isCliTab
     ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
     : busyHere;
-  const sessionChangeCount = useMemo(
-    () => aggregateSessionChanges(railMessages).length,
-    [railMessages],
-  );
   // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
   const subagentOpen = !!useSubagentPane()?.tabId; // 子任务面板（独立的一栏，开着时占对话旁）
   const centerOpen = (!!railCwd && (!!workbench || previewOpen)) || subagentOpen;
@@ -832,7 +827,8 @@ const AiChatContent: React.FC = () => {
   const sessionTools = (
     <SessionTools
       onFork={onForkRequest}
-      rail={railCwd ? { open: railOpen, count: sessionChangeCount, onToggle: toggleRail } : null}
+      messages={railMessages}
+      rail={railCwd ? { open: railOpen, cwd: railCwd, onToggle: toggleRail } : null}
     />
   );
 

@@ -203,5 +203,13 @@
   "ui.session-workspace.subagent-pane-title": "{0} sub-task",
   "ui.session-workspace.subagent-input-placeholder": "Keep talking to {0}… (Enter to send, Shift+Enter for a new line)",
   "ui.session-workspace.subagent-hint-idle": "Continues this sub-task; the result comes back to the main chat.",
-  "ui.session-workspace.subagent-hint-running": "Running: sending interjects (or waits for this turn if it can't); Stop interrupts it."
+  "ui.session-workspace.subagent-hint-running": "Running: sending interjects (or waits for this turn if it can't); Stop interrupts it.",
+  "ui.session-workspace.session-details": "Session details",
+  "ui.session-workspace.show-session-details": "Show session details",
+  "ui.session-workspace.hide-session-details": "Hide session details",
+  "ui.session-workspace.details-no-workspace": "No workspace selected",
+  "ui.session-workspace.details-no-changes": "No changes yet",
+  "ui.session-workspace.details-agents": "Agents",
+  "ui.session-workspace.details-agents-count": "{0} · {1} active",
+  "ui.session-workspace.details-no-agents": "This session hasn't used any other agents yet"
 }
