@@ -55,7 +55,7 @@ func grantApplies(g SandboxGrant, cwd string) bool {
 	}
 	// 两边都按真实路径比：工作目录是符号链接时不能借道套上别的项目的授权
 	rel, err := filepath.Rel(realDir(g.Project), realDir(cwd))
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../") && !filepath.IsAbs(rel)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 // SandboxDeps：沙箱设置（宿主接 desktop.PermissionBroker）

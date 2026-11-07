@@ -3,6 +3,8 @@ package fleet
 import (
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -289,21 +291,46 @@ func TestServiceArchive(t *testing.T) {
 	}
 }
 
-func closeIdleService(t *testing.T, kills *[]string) *Service {
+// killLog：CloseIdle 的补刀在计时器 goroutine 里，记录与读取都要加锁（-race）
+type killLog struct {
+	mu   sync.Mutex
+	list []string
+}
+
+func (k *killLog) add(v string) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.list = append(k.list, v)
+}
+
+func (k *killLog) get() []string {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return append([]string(nil), k.list...)
+}
+
+func closeIdleService(t *testing.T, kills *killLog) *Service {
 	t.Helper()
 	in := baseInput()
+	var mu sync.Mutex
 	tick := time.UnixMilli(in.Now)
 	return New(Deps{
 		SelfPid: 100,
 		Now: func() time.Time {
+			mu.Lock()
+			defer mu.Unlock()
 			tick = tick.Add(2 * time.Second) // 每次读进程表都算新的一份
 			return tick
 		},
-		ReadProcs: func() *agents.ProcTable { p := procs(tick, 2); return p },
-		Tabs:      func() []Tab { return in.Tabs },
-		External:  func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		ReadProcs: func() *agents.ProcTable {
+			mu.Lock()
+			defer mu.Unlock()
+			return procs(tick, 2)
+		},
+		Tabs:     func() []Tab { return in.Tabs },
+		External: func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
 		Kill: func(pid int, sig string) error {
-			*kills = append(*kills, sig+":"+strconv.Itoa(pid))
+			kills.add(sig + ":" + strconv.Itoa(pid))
 			return nil
 		},
 		KillGrace: 10 * time.Millisecond,
@@ -311,24 +338,24 @@ func closeIdleService(t *testing.T, kills *[]string) *Service {
 }
 
 func TestCloseIdle(t *testing.T) {
-	var kills []string
-	s := closeIdleService(t, &kills)
+	var log killLog
+	s := closeIdleService(t, &log)
 	if _, err := s.CloseIdle(220, "codex"); err != nil {
 		t.Fatalf("CloseIdle(220) = %v", err)
 	}
-	if len(kills) != 1 || kills[0] != "SIGTERM:220" {
+	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
 		t.Fatalf("kills = %v, want SIGTERM to the idle tree", kills)
 	}
 	// 测试里的进程表一直有 220：过了宽限期补一刀 SIGKILL
 	time.Sleep(100 * time.Millisecond)
-	if len(kills) != 2 || kills[1] != "SIGKILL:220" {
+	if kills := log.get(); len(kills) != 2 || kills[1] != "SIGKILL:220" {
 		t.Fatalf("kills = %v, want SIGKILL after the grace period", kills)
 	}
 }
 
 func TestCloseIdleRefusesAnythingElse(t *testing.T) {
-	var kills []string
-	s := closeIdleService(t, &kills)
+	var log killLog
+	s := closeIdleService(t, &log)
 	for _, c := range []struct {
 		pid     float64
 		backend string
@@ -344,7 +371,7 @@ func TestCloseIdleRefusesAnythingElse(t *testing.T) {
 			t.Errorf("CloseIdle(%v, %s) = %v, want ErrNotIdle", c.pid, c.backend, err)
 		}
 	}
-	if len(kills) != 0 {
+	if kills := log.get(); len(kills) != 0 {
 		t.Fatalf("nothing may be killed, got %v", kills)
 	}
 }
@@ -395,13 +422,13 @@ func TestBuildSummaries(t *testing.T) {
 
 // 关闭空闲进程后的补刀：pid 在宽限期里被别的程序复用（命令行变了）就不动
 func TestCloseIdleSkipsReusedPid(t *testing.T) {
-	var kills []string
-	s := closeIdleService(t, &kills)
-	reused := false
+	var log killLog
+	s := closeIdleService(t, &log)
+	var reused atomic.Bool
 	base := s.d.ReadProcs
 	s.d.ReadProcs = func() *agents.ProcTable {
 		tb := base()
-		if !reused {
+		if !reused.Load() {
 			return tb
 		}
 		// 220 变成了另一个程序
@@ -419,9 +446,9 @@ func TestCloseIdleSkipsReusedPid(t *testing.T) {
 	if _, err := s.CloseIdle(220, "codex"); err != nil {
 		t.Fatal(err)
 	}
-	reused = true
+	reused.Store(true)
 	time.Sleep(100 * time.Millisecond)
-	if len(kills) != 1 || kills[0] != "SIGTERM:220" {
+	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
 		t.Fatalf("kills = %v: a reused pid must not get SIGKILL", kills)
 	}
 }

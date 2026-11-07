@@ -63,7 +63,7 @@ func TestSandboxRequests(t *testing.T) {
 			t.Fatalf("pending = %v", util.Stringify(p))
 		}
 		if p[0].Get("kind") != "category" || p[0].Get("value") != "ssh" || p[1].Get("kind") != "folder" ||
-			p[1].Get("value") != "/Users/me/.ai-usage/logs" || p[1].Get("op") != "write" || p[2].Get("kind") != "protected" {
+			p[1].Get("value") != filepath.FromSlash("/Users/me/.ai-usage/logs") || p[1].Get("op") != "write" || p[2].Get("kind") != "protected" {
 			t.Fatalf("pending = %v", util.Stringify(p))
 		}
 
@@ -75,7 +75,7 @@ func TestSandboxRequests(t *testing.T) {
 		}
 		// 「始终允许」写文件夹也按项目记（只在这个项目里生效），记的是真实路径
 		if !o.SandboxReply(id, util.Str(p[1].Get("id")), "always") || len(persisted) != 1 ||
-			persisted[0] != (SandboxGrant{Kind: "folder", Value: "/Users/me/.ai-usage/logs", Project: realDir(proj)}) {
+			persisted[0] != (SandboxGrant{Kind: "folder", Value: filepath.FromSlash("/Users/me/.ai-usage/logs"), Project: realDir(proj)}) {
 			t.Fatalf("always grant persisted = %v", persisted)
 		}
 		if !o.SandboxReply(id, util.Str(p[2].Get("id")), "deny") {

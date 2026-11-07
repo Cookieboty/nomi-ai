@@ -351,5 +351,5 @@ func realDir(p string) string {
 
 func isInside(child, parent string) bool {
 	rel, err := filepath.Rel(filepath.Clean(parent), filepath.Clean(child))
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../") && !filepath.IsAbs(rel)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }

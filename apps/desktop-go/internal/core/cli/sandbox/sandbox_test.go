@@ -72,6 +72,9 @@ func TestClassify(t *testing.T) {
 		{Denial{Rule: "write", Path: home + "/notes.txt"}, Request{"file", home + "/notes.txt"}, true},
 	}
 	for _, c := range cases {
+		if c.want.Kind == "folder" {
+			c.want.Value = filepath.FromSlash(c.want.Value) // 文件夹是 filepath.Dir 算出来的，Windows 上是反斜杠
+		}
 		got, ok := Classify(c.d, home)
 		if ok != c.ok || got != c.want {
 			t.Errorf("Classify(%+v) = %+v %v, want %+v %v", c.d, got, ok, c.want, c.ok)
