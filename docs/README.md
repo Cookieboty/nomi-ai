@@ -46,6 +46,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：住在桌面，懂你
 - [应用契约](development/contract.md)：视图与内核之间的过程、事件与传输，怎么加一个过程
 - [统一网关](development/gateway.md)：四种协议互转、路由、供应商与模型
 - [编程助手接入](development/coding-agents.md)：插件、会话驱动、编排器、权限档位
+- [Agent 看板](development/agent-board.md)：纳管与外部的边界、分列、内存与 CPU 采样
 - [安全边界](development/security.md)：路径授权、命令审核、代码沙箱、委派隔离、网络与密钥
 - [构建与运行](development/building.md) · [测试](development/testing.md) · [CI](development/ci.md)
 - [多语言](development/i18n.md) · [前端工程规范](development/frontend-standards.md) · [Git LFS](development/git-lfs.md)
@@ -94,7 +95,7 @@ Wails (`apps/desktop-go`); the UI is React (`packages/`). The pages below are wr
 ### Development
 
 - [Architecture](development/architecture.md) · [App contract](development/contract.md) · [Unified gateway](development/gateway.md)
-- [Coding-agent integration](development/coding-agents.md) · [Security boundaries](development/security.md)
+- [Coding-agent integration](development/coding-agents.md) · [Agent board](development/agent-board.md) · [Security boundaries](development/security.md)
 - [Building](development/building.md) · [Testing](development/testing.md) · [CI](development/ci.md)
 - [i18n](development/i18n.md) · [Frontend standards](development/frontend-standards.md) · [Git LFS](development/git-lfs.md)
 - [Release](RELEASE.md) · [Brand](BRAND.md) · [Release notes](releases/)

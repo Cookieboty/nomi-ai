@@ -309,6 +309,79 @@ export const AgentWatchSettingsPatch = z.looseObject({
 });
 
 // ---------------------------------------------------------------------------
+// fleet：Agent 看板（core/fleet）。Nomi 自己、Nomi 派出的 / 工坊里的 CLI（纳管，可暂停），
+// 用户在自己终端 / IDE 里开的 CLI（外部，只预警，不干扰）
+// ---------------------------------------------------------------------------
+
+/** 看板分列：待进行 / 暂停 / 进行中 / 已完成（不保留历史：已完成的归档后不再出现） */
+export const FleetColumn = z.enum(['todo', 'paused', 'running', 'done']);
+
+/** managed = 在 Nomi 里跑的，可以暂停；external = Nomi 之外启动的，只能预警 */
+export const FleetScope = z.enum(['managed', 'external']);
+
+/**
+ * 来源：self = Nomi 本体；nomi = Nomi 的后台运行（agent）；conversation = 对话里委派的 CLI；
+ * task = 任务看板派的 CLI；workbench = 工坊里直接用的 CLI；terminal = 用户自己在终端 / IDE 里开的
+ */
+export const FleetOrigin = z.enum([
+  'self',
+  'nomi',
+  'conversation',
+  'task',
+  'workbench',
+  'terminal',
+]);
+
+/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
+export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept']);
+
+/** 进程树的资源占用（整棵树：编程助手连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
+export const FleetUsage = loose({
+  rssBytes: z.number(),
+  cpuPercent: z.number(),
+  processes: z.number(),
+});
+
+export const FleetAgent = loose({
+  /** 'nomi' | 'tab:<标签 id>' | 'run:<任务 id>' | 'ext:<进程号>' */
+  id: z.string(),
+  kind: z.enum(['nomi', 'cli']),
+  /** nomi | claude | codex | gemini | dsh | grok | external（插件）… */
+  backend: z.string(),
+  scope: FleetScope,
+  origin: FleetOrigin,
+  /** 标签 / 任务标题；Nomi 本体与外部 CLI 为空，视图自己写 */
+  title: z.string(),
+  column: FleetColumn,
+  needsYou: FleetNeedsYou.optional(),
+  /** 上一轮出错（已完成列里标红） */
+  failed: z.boolean().optional(),
+  /** 调度树的上一级（预留：Nomi 后台运行派出的 CLI 指向那次运行） */
+  parentId: z.string().optional(),
+  taskId: z.string().optional(),
+  tabId: z.string().optional(),
+  conversationId: z.string().optional(),
+  cwd: z.string().optional(),
+  /** 量不到时没有（Nomi 后台运行跑在内核进程里，单独的内存量不出来） */
+  usage: FleetUsage.optional(),
+  updatedAt: z.number(),
+});
+
+export const FleetSystem = loose({
+  totalMemBytes: z.number(),
+  cores: z.number(),
+  /** 所有进程加起来的 CPU 占用（100 = 一个核） */
+  cpuPercent: z.number(),
+});
+
+export const FleetState = loose({
+  agents: z.array(FleetAgent),
+  system: FleetSystem,
+  /** 这份数据的采样时间（毫秒） */
+  sampledAt: z.number(),
+});
+
+// ---------------------------------------------------------------------------
 // history：CLI 自己的会话记录（cli/SessionHistoryService.ts）
 // ---------------------------------------------------------------------------
 

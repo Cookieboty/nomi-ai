@@ -207,6 +207,8 @@ type Orchestrator struct {
 	eventBatcher      *cli.EventBatcher
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
+	// tabProcs：标签起过的 CLI 进程（Agent 看板据此从进程表里找到它的进程树）
+	tabProcs map[string][]clisdk.ChildLike
 	migratedImgTabs   map[string]bool
 	tabBindings       map[string]*tabBinding
 	bgAgents          map[string]*orderedAgents

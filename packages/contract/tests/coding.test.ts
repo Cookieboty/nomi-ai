@@ -29,6 +29,7 @@ describe('appContract · D3 coding', () => {
       'cliUpdate',
       'delegate',
       'agents',
+      'fleet',
       'history',
     ]);
     for (const name of [...Object.keys(codingProcedures), ...Object.keys(codingEvents)]) {

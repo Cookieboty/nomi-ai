@@ -175,3 +175,10 @@ func (t *ProcTable) hasMatchedAncestor(pid float64, matched map[float64]AgentPro
 	}
 	return false
 }
+
+// Each：逐个进程（顺序不定）。
+func (t *ProcTable) Each(fn func(RawProc)) {
+	for _, p := range t.procs {
+		fn(p)
+	}
+}

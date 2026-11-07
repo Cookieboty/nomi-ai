@@ -90,6 +90,8 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "agents.state query",
   "agents.scan mutation",
   "agents.setSettings mutation",
+  "fleet.state query",
+  "fleet.archive mutation",
   "history.list query",
   "history.index query",
   "history.open mutation",
@@ -109,5 +111,6 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "cliUpdate.event",
   "delegate.completed",
   "agents.changed",
+  "fleet.changed",
 ]
 `;

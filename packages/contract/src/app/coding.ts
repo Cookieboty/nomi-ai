@@ -22,6 +22,7 @@ import {
   AgentWatchSettings,
   AgentWatchSettingsPatch,
   AgentWatchState,
+  FleetState,
   ApprovePlanChoice,
   BackendModelCatalog,
   CliAccount,
@@ -502,6 +503,21 @@ const agentsProcedures = {
   },
 } as const satisfies ProcedureMap;
 
+const fleetProcedures = {
+  /** 看板数据：资源占用最多 1 秒前采的（打开看板时视图每几秒拉一次刷新占用） */
+  'fleet.state': {
+    kind: 'query',
+    input: z.void(),
+    output: FleetState,
+  },
+  /** 归档已完成的一项：从看板上拿掉（标签与会话不动，再跑起来会重新出现）；不在已完成列时不动 */
+  'fleet.archive': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+  },
+} as const satisfies ProcedureMap;
+
 const historySession = z.object({ backend: z.string(), sessionId: z.string() });
 const historyPage = z.object({ backend: z.string(), options: HistoryPageOptions.optional() });
 
@@ -521,6 +537,7 @@ export const codingProcedures = {
   ...cliUpdateProcedures,
   ...delegateProcedures,
   ...agentsProcedures,
+  ...fleetProcedures,
   ...historyProcedures,
 } as const satisfies ProcedureMap;
 
@@ -545,6 +562,8 @@ export const codingEvents = {
   'delegate.completed': DelegateResult,
   /** 监视状态变化，不带数据（ai:agents:changed） */
   'agents.changed': z.null(),
+  /** Agent 看板的成员或状态变了（标签、任务变化时推；资源占用不推，视图打开看板时自己拉） */
+  'fleet.changed': FleetState,
 } as const satisfies EventMap;
 
 /** 事件的订阅白名单：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
@@ -553,6 +572,7 @@ export const codingEventSurfaces = {
   'harness.tabsChanged': ['chat', 'settings'],
   'harness.events': ['chat', 'settings'],
   'harness.tabMessage': ['chat', 'settings'],
+  'fleet.changed': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 
 /**

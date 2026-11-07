@@ -226,7 +226,9 @@ func (o *Orchestrator) spawnCLI(tab *util.Obj, command string, args []string, cw
 		}
 		o.ensureSandboxMonitor()
 	}
-	return spawnHarness(command, args, cwd, env, str(tab, "id"), spec)
+	ch := spawnHarness(command, args, cwd, env, str(tab, "id"), spec)
+	o.trackProc(str(tab, "id"), ch)
+	return ch
 }
 
 // spawnHarness：SpawnHarness 加上可选的沙箱
