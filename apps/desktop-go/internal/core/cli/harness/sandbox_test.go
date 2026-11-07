@@ -96,7 +96,7 @@ func TestSandboxRequests(t *testing.T) {
 		for _, g := range o.grantedFor(id) {
 			got[g.Kind+":"+g.Value] = true
 		}
-		if !got["category:ssh"] || !got["folder:/Users/me/.ai-usage/logs"] {
+		if !got["category:ssh"] || !got["folder:"+filepath.FromSlash("/Users/me/.ai-usage/logs")] {
 			t.Fatalf("grantedFor = %v", got)
 		}
 		o.CloseTab(id)
