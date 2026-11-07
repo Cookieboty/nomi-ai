@@ -76,6 +76,7 @@ export interface FleetSummary {
   agentsBytes: number;
   /** 进行中（纳管与外部都算） */
   running: number;
+  /** 要你处理的（只算纳管的） */
   needsYou: number;
   level: LoadLevel;
 }
@@ -105,7 +106,8 @@ export function summarize(s: FleetState | null): FleetSummary {
     if (a.scope === 'external') out.externalBytes += bytes;
     else out.managedBytes += bytes;
     if (a.column === 'running') out.running += 1;
-    if (a.needsYou) out.needsYou += 1;
+    // 外部会话（终端里等你回话）只在卡片上标，不算进入口的「要你处理」
+    if (a.needsYou && a.scope === 'managed') out.needsYou += 1;
   }
   const mem = s.system.totalMemBytes
     ? (out.managedBytes + out.externalBytes) / s.system.totalMemBytes

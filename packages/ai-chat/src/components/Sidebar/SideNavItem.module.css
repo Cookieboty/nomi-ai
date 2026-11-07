@@ -79,10 +79,16 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
-.badge[data-collapsed] {
+/* 收起时：图标右上角的小圆点，外圈一道导航栏底色，跟图标隔开 */
+.dot {
   position: absolute;
-  top: calc(var(--cd-space-1) * -1);
-  right: calc(var(--cd-space-1) * -1);
+  top: var(--cd-space-1);
+  right: var(--cd-space-1);
+  width: var(--cd-space-2);
+  height: var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-danger);
+  box-shadow: 0 0 0 2px var(--cd-panel-bg-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

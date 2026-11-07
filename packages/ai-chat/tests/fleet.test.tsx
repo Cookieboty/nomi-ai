@@ -147,7 +147,8 @@ describe('summarize / format', () => {
     expect(s.agentsBytes).toBe(1.5 * GB + 200 * MB + 2 * GB);
     // 进行中：正在回答的对话、Nomi 派出的、外部会话都算
     expect(s.running).toBe(4);
-    expect(s.needsYou).toBe(2);
+    // 外部会话等你回话不算进入口的「要你处理」
+    expect(s.needsYou).toBe(1);
     expect(s.level).toBe('normal');
   });
 
@@ -299,7 +300,10 @@ describe('FleetNav', () => {
       />,
     );
     expect(btn.querySelector('[data-load="critical"]')).toBeTruthy();
-    expect(btn.textContent).toContain('1');
+    // 收起时要你处理的只是一个小圆点，数量在提示与读屏文字里
+    expect(screen.getByTestId('fleet-open-dot')).toBeTruthy();
+    expect(btn.textContent).not.toMatch(/\d/);
+    expect(btn.getAttribute('aria-label')).toContain('1');
   });
 });
 
