@@ -358,5 +358,6 @@
   "ui.providers-schedule.what-should-the-assistant-do-e-g-summarize": "What should the assistant do? e.g. Summarize today's reminders and give me a word of encouragement",
   "ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while": "When on, Nomi occasionally starts a chat while you're idle (using topics from long-term memory). Off by default; never during do-not-disturb hours, right after you've chatted, or while you're away.",
   "ui.providers-schedule.write-environment-variable-names-only-such-as-my": "Write environment variable names only (such as MY_TOKEN), not values",
-  "ui.providers-schedule.yes": "yes"
+  "ui.providers-schedule.yes": "yes",
+  "ui.providers-schedule.task-sandbox-pregrant": "Allow in the coding-agent sandbox up front (no prompts while running; SSH and Git credentials are added automatically for GitHub actions)"
 }

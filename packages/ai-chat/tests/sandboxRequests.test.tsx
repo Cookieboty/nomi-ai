@@ -58,4 +58,22 @@ describe('SandboxRequests', () => {
     fireEvent.click(r.getByTestId('conv-sandbox-dismiss'));
     expect(onReply).toHaveBeenCalledWith('sbx-1', 'deny');
   });
+
+  it('secret files are granted one by one; credentials and files are remembered per project', () => {
+    const r = render(
+      <SandboxRequests
+        items={[
+          item({ id: 'a', kind: 'read', value: '/repo/.env', path: '/repo/.env' }),
+          item({ id: 'b', kind: 'folder', value: '/Users/me/.ai-usage', op: 'write' }),
+        ]}
+        onReply={() => undefined}
+      />,
+    );
+    const always = r.getAllByTestId('conv-sandbox-always').map((b) => b.textContent);
+    expect(always[0]).not.toBe(always[1]);
+    // 有没有装词典都行：带路径的文案，或者「读密钥文件」这条 key
+    expect(r.getAllByTestId('conv-sandbox-card')[0]!.textContent).toMatch(
+      /\/repo\/\.env|sandbox-blocked-read/,
+    );
+  });
 });

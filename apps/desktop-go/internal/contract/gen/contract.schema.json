@@ -8465,11 +8465,15 @@
              "type": "string",
              "enum": [
               "category",
+              "read",
               "folder",
               "file"
              ]
             },
             "value": {
+             "type": "string"
+            },
+            "project": {
              "type": "string"
             }
            },
@@ -9192,11 +9196,15 @@
       "type": "string",
       "enum": [
        "category",
+       "read",
        "folder",
        "file"
       ]
      },
      "value": {
+      "type": "string"
+     },
+     "project": {
       "type": "string"
      }
     },
@@ -9328,11 +9336,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -9643,11 +9655,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -10006,11 +10022,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -10321,11 +10341,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -10673,11 +10697,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -11095,11 +11123,15 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file"
          ]
         },
         "value": {
+         "type": "string"
+        },
+        "project": {
          "type": "string"
         }
        },
@@ -15939,6 +15971,7 @@
             "type": "string",
             "enum": [
              "category",
+             "read",
              "folder",
              "file",
              "protected"
@@ -16577,6 +16610,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -16692,6 +16726,7 @@
             "type": "string",
             "enum": [
              "category",
+             "read",
              "folder",
              "file",
              "protected"
@@ -16850,6 +16885,7 @@
            "type": "string",
            "enum": [
             "category",
+            "read",
             "folder",
             "file",
             "protected"
@@ -16969,6 +17005,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17100,6 +17137,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17215,6 +17253,7 @@
             "type": "string",
             "enum": [
              "category",
+             "read",
              "folder",
              "file",
              "protected"
@@ -17441,6 +17480,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17558,6 +17598,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17675,6 +17716,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17792,6 +17834,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -17958,6 +18001,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18086,6 +18130,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18196,6 +18241,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18310,6 +18356,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18497,6 +18544,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18693,6 +18741,7 @@
          "type": "string",
          "enum": [
           "category",
+          "read",
           "folder",
           "file",
           "protected"
@@ -18825,6 +18874,7 @@
             "type": "string",
             "enum": [
              "category",
+             "read",
              "folder",
              "file",
              "protected"
@@ -25436,6 +25486,12 @@
          "type": "string"
         }
        },
+       "sandbox": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
        "expiresAt": {
         "type": "number"
        }
@@ -25939,6 +25995,12 @@
         }
        },
        "clis": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "sandbox": {
         "type": "array",
         "items": {
          "type": "string"
@@ -31277,11 +31339,15 @@
         "type": "string",
         "enum": [
          "category",
+         "read",
          "folder",
          "file"
         ]
        },
        "value": {
+        "type": "string"
+       },
+       "project": {
         "type": "string"
        }
       },
@@ -31792,6 +31858,7 @@
            "type": "string",
            "enum": [
             "category",
+            "read",
             "folder",
             "file",
             "protected"

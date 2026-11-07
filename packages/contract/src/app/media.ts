@@ -261,7 +261,11 @@ export const mediaProcedures = {
   /** 删掉一条沙箱「始终允许」的授权，返回最新状态 */
   'desktop.removeCliSandboxAllow': {
     kind: 'mutation',
-    input: z.object({ kind: z.enum(['category', 'folder', 'file']), value: z.string() }),
+    input: z.object({
+      kind: z.enum(['category', 'read', 'folder', 'file']),
+      value: z.string(),
+      project: z.string().optional(),
+    }),
     output: DesktopState,
   },
   /** 整体替换放行给编程助手的环境变量名（不合法的名字丢掉），返回最新状态 */

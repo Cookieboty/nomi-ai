@@ -326,5 +326,6 @@
   "ui.foundation.sandbox-allow-category": "允许读取",
   "ui.foundation.sandbox-allow-write": "允许写入",
   "ui.foundation.sandbox-allow-remove": "不再允许",
-  "ui.foundation.sandbox-allow-remove-aria": "不再允许 {0}"
+  "ui.foundation.sandbox-allow-remove-aria": "不再允许 {0}",
+  "ui.foundation.sandbox-allow-project": "只在 {0}"
 }

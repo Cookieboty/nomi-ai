@@ -598,5 +598,6 @@
   "electron.common.sandbox-category-keys": "密钥与密码库",
   "electron.common.sandbox-category-browser": "浏览器数据",
   "electron.common.sandbox-category-personal": "邮件、信息、日历、通讯录、备忘录与照片",
-  "electron.common.sandbox-category-secret-files": "密钥文件（.env、私钥、证书）"
+  "electron.common.sandbox-category-secret-files": "密钥文件（.env、私钥、证书）",
+  "electron.common.sandbox-needs-permission": "沙箱挡下了「{0}」，等你授权"
 }

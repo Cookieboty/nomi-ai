@@ -121,7 +121,7 @@ export const PrivacyTab: React.FC<Props> = ({ state, onMessage }) => {
         )}
         {sandboxAllow.map((a) => (
           <SettingRow
-            key={`${a.kind}:${a.value}`}
+            key={`${a.kind}:${a.value}:${a.project ?? ''}`}
             data-testid="desktop-sandbox-allow"
             title={
               a.kind === 'category' ? (
@@ -131,15 +131,16 @@ export const PrivacyTab: React.FC<Props> = ({ state, onMessage }) => {
               )
             }
             description={
-              a.kind === 'category'
+              (a.kind === 'category' || a.kind === 'read'
                 ? tr('ui.foundation.sandbox-allow-category')
-                : tr('ui.foundation.sandbox-allow-write')
+                : tr('ui.foundation.sandbox-allow-write')) +
+              (a.project ? ` · ${tr('ui.foundation.sandbox-allow-project', a.project)}` : '')
             }
           >
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => void desktopClient.removeCliSandboxAllow(a.kind, a.value)}
+              onClick={() => void desktopClient.removeCliSandboxAllow(a)}
               aria-label={tr(
                 'ui.foundation.sandbox-allow-remove-aria',
                 sandboxItemLabel(a.kind, a.value),

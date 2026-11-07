@@ -334,13 +334,15 @@ describe('任务页', () => {
     await act(() => fake.settle());
     fireEvent.click(screen.getByTestId('workspace-recent-item'));
     await act(() => fake.settle());
+    // 沙箱预授权：勾上「云账号凭据」，跑的时候不用再问
+    fireEvent.click(screen.getByTestId('task-form-sandbox-cloud'));
     window.confirm = vi.fn(() => true);
     fireEvent.click(screen.getByTestId('task-form-submit'));
     await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
     const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
     expect(input).toMatchObject({
       executor: { kind: 'cli', cli: 'claude', cwd: '/repo', isolation: 'worktree' },
-      grant: { level: 2, paths: ['/repo'] },
+      grant: { level: 2, paths: ['/repo'], sandbox: ['cloud'] },
     });
   });
 

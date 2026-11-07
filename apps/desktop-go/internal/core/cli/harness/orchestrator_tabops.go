@@ -373,6 +373,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		if truthy(del.Get("githubAccess")) {
 			d.Set("githubAccess", true)
 		}
+		if g := sandboxGrantList(del.Get("sandboxGrants")); len(g) > 0 {
+			d.Set("sandboxGrants", g)
+		}
 		if k, _ := del.Get("reuseKey").(string); k != "" {
 			d.Set("reuseKey", k)
 		}

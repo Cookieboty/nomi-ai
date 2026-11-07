@@ -30,7 +30,8 @@ func ParseDenial(msg string) (Denial, bool) {
 
 // Request：拒绝归成用户能授权的一项
 type Request struct {
-	// Kind：category（按类别读写）/ folder（写这个文件夹）/ file（写这个文件）/ protected（受保护，只能去设置里取消保护）
+	// Kind：category（按类别读写）/ read（读这一个文件，密钥文件按文件授权）/ folder（写这个文件夹）/ file（写这个文件）/
+	// protected（受保护，只能去设置里取消保护）
 	Kind  string
 	Value string
 }
@@ -41,6 +42,9 @@ func (r Request) Key() string { return r.Kind + ":" + r.Value }
 // Classify：把拒绝归成一项授权请求；Nomi 自己的数据目录不让授权（ok = false）
 func Classify(d Denial, home string) (Request, bool) {
 	switch {
+	case d.Rule == "read:secret-files":
+		// 密钥文件分散在各处，按文件授权（只放开这一个 .env，不是全部）
+		return Request{Kind: "read", Value: d.Path}, true
 	case strings.HasPrefix(d.Rule, "read:") && CategoryByID(strings.TrimPrefix(d.Rule, "read:")) != nil:
 		return Request{Kind: "category", Value: strings.TrimPrefix(d.Rule, "read:")}, true
 	case d.Rule == "read:protected" || d.Rule == "write:protected":

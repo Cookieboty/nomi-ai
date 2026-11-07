@@ -168,10 +168,12 @@ func (b *PermissionBroker) SetCliEnvAllow(names []any) {
 	}
 }
 
-// SandboxAllow：编程助手沙箱里「始终允许」的一项（Kind：category / folder / file）
+// SandboxAllow：编程助手沙箱里「始终允许」的一项（Kind：category / read / folder / file）。
+// Project：只在这个项目里生效（读凭据 / 密钥文件按项目记）；空 = 所有项目
 type SandboxAllow struct {
-	Kind  string `json:"kind"`
-	Value string `json:"value"`
+	Kind    string `json:"kind"`
+	Value   string `json:"value"`
+	Project string `json:"project,omitempty"`
 }
 
 // MaxSandboxAllow：「始终允许」的上限
@@ -180,7 +182,7 @@ const MaxSandboxAllow = 100
 func normalizeSandboxAllow(raw []SandboxAllow) []SandboxAllow {
 	out := []SandboxAllow{}
 	for _, a := range raw {
-		if (a.Kind != "category" && a.Kind != "folder" && a.Kind != "file") || a.Value == "" ||
+		if (a.Kind != "category" && a.Kind != "read" && a.Kind != "folder" && a.Kind != "file") || a.Value == "" ||
 			slices.Contains(out, a) || len(out) >= MaxSandboxAllow {
 			continue
 		}

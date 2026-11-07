@@ -120,6 +120,11 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	} else {
 		d.Delete("githubAccess")
 	}
+	if g := sandboxGrantList(del.Get("sandboxGrants")); len(g) > 0 {
+		d.Set("sandboxGrants", g)
+	} else {
+		d.Delete("sandboxGrants")
+	}
 	d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 	if pm, ok := del.Get("permissionMode").(string); ok && pm != "" && pm != str(tab, "permissionMode") {
 		o.tryWarn("harness rebind permission mode failed", func() { o.SetTabPermissionMode(id, pm, PermOpts{}) })

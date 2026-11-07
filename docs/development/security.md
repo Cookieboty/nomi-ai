@@ -54,9 +54,15 @@
   网络不限（Seatbelt 只能按 IP 过滤，CLI 要连模型服务），靠拒读敏感内容与环境变量清理防外泄。
 - 每条拒绝带 `(with message "nomi-sbx:<token>:<rule>")`。`sandbox.Monitor` 用 `log stream --predicate 'sender == "Sandbox" AND eventMessage CONTAINS "nomi-sbx:"'`
   读违规（普通用户可读，带进程、操作与真实路径），token 找回标签，`sandbox.Classify` 归成一项授权：类别、写某个文件夹（从上往下第一个不太宽的上级）、
-  写某个文件（上级都太宽时，如 `~/.zshrc`）、受保护文件夹（不能在对话里授权）。Nomi 数据目录的拒绝只记日志。
-- 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），`harness.sandboxReply` 回答：本会话允许（标签内存里）、始终允许（桌面设置
-  `cliSandboxAllow`）、不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
+  写某个文件（上级都太宽时，如 `~/.zshrc`）、读某个密钥文件（`.env` 等按文件授权，不放开整类）、受保护文件夹（不能在对话里授权）。
+  Nomi 数据目录的拒绝只记日志。新的请求同时发 `permission-needed`（`background` 时走桌面角色气泡与系统通知）。
+- 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），编程助手标签、委派卡片与任务详情都显示。`harness.sandboxReply` 回答：
+  本会话允许（标签内存里）、始终允许（桌面设置 `cliSandboxAllow`：读凭据类别与密钥文件带 `project` = 工作目录所在的 git 根，只在这个项目里生效；
+  写入位置是全局的）、不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
+- 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
+  `delegation.sandboxGrants`，`grantedFor` 当作已授权。
+- 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
+  被拒时停下说明、结束这一轮，不要绕路。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
 - 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
 

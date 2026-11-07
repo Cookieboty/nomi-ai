@@ -3,6 +3,7 @@ package harness
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,7 +74,7 @@ func TestSandboxRequests(t *testing.T) {
 			t.Fatal("session grant")
 		}
 		if !o.SandboxReply(id, util.Str(p[1].Get("id")), "always") || len(persisted) != 1 ||
-			persisted[0] != (SandboxGrant{"folder", "/Users/me/.ai-usage"}) {
+			persisted[0] != (SandboxGrant{Kind: "folder", Value: "/Users/me/.ai-usage"}) {
 			t.Fatalf("always grant persisted = %v", persisted)
 		}
 		if !o.SandboxReply(id, util.Str(p[2].Get("id")), "deny") {
@@ -121,7 +122,7 @@ func TestSandboxSpec(t *testing.T) {
 			IdleReclaimMs: &idle, Sandbox: &SandboxDeps{
 				Enabled:   func() bool { return on },
 				Protected: func() []string { return []string{filepath.Join(tmp, "finance")} },
-				Always:    func() []SandboxGrant { return []SandboxGrant{{"file", filepath.Join(tmp, ".zshrc")}} },
+				Always:    func() []SandboxGrant { return []SandboxGrant{{Kind: "file", Value: filepath.Join(tmp, ".zshrc")}} },
 			}})
 		defer o.Dispose()
 		tab := o.CreateTab(util.NewObj("backend", "claude", "cwd", proj, "activate", false))
@@ -217,4 +218,99 @@ func TestSandboxDenialReachesTab(t *testing.T) {
 		}
 	}
 	t.Fatal("the denial never reached the tab")
+}
+
+// 「始终允许」读凭据按项目记（另一个项目不生效），写入位置是全局的；任务预授权的类别直接生效；被挡下时发「等权限」通知
+func TestSandboxProjectScopeAndPregrants(t *testing.T) {
+	tmp, _ := filepath.EvalSymlinks(t.TempDir())
+	repo := filepath.Join(tmp, "repo")
+	sub := filepath.Join(repo, "pkg")
+	other := filepath.Join(tmp, "other")
+	for _, d := range []string{filepath.Join(repo, ".git"), sub, other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var persisted []SandboxGrant
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "ud", "h"), Home: tmp, DefaultCwd: repo, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle, Sandbox: &SandboxDeps{
+				Enabled: func() bool { return true },
+				Always:  func() []SandboxGrant { return persisted },
+				Persist: func(g SandboxGrant) { persisted = append(persisted, g) },
+			}})
+		defer o.Dispose()
+		var notices []*util.Obj
+		o.events.On("permission-needed", func(v any) { notices = append(notices, v.(*util.Obj)) })
+
+		a := util.Str(o.CreateTab(util.NewObj("backend", "claude", "cwd", sub, "activate", false)).Get("id"))
+		b := util.Str(o.CreateTab(util.NewObj("backend", "claude", "cwd", other, "activate", false)).Get("id"))
+		o.sbx.tokens = map[string]string{"ta": a, "tb": b}
+		o.onSandboxDeny(sandbox.Denial{Token: "ta", Rule: "read:cloud", Path: filepath.Join(tmp, ".aws", "credentials")})
+		o.onSandboxDeny(sandbox.Denial{Token: "ta", Rule: "read:secret-files", Path: filepath.Join(sub, ".env")})
+		p := pendingOf(o, a)
+		if len(p) != 2 || p[1].Get("kind") != "read" || len(notices) != 2 {
+			t.Fatalf("pending = %v, notices = %d", util.Stringify(p), len(notices))
+		}
+		o.SandboxReply(a, util.Str(p[0].Get("id")), "always")
+		o.SandboxReply(a, util.Str(p[1].Get("id")), "always")
+		if len(persisted) != 2 || persisted[0].Project != repo || persisted[1] != (SandboxGrant{Kind: "read", Value: filepath.Join(sub, ".env"), Project: repo}) {
+			t.Fatalf("persisted = %+v", persisted)
+		}
+		has := func(id string, g SandboxGrant) bool {
+			for _, x := range o.grantedFor(id) {
+				if x.Kind == g.Kind && x.Value == g.Value {
+					return true
+				}
+			}
+			return false
+		}
+		if !has(a, SandboxGrant{Kind: "category", Value: "cloud"}) || has(b, SandboxGrant{Kind: "category", Value: "cloud"}) {
+			t.Fatal("a project-scoped grant applies inside that repo only")
+		}
+		// 另一个项目里同一类还会问
+		o.onSandboxDeny(sandbox.Denial{Token: "tb", Rule: "read:cloud", Path: filepath.Join(tmp, ".aws", "config")})
+		if len(pendingOf(o, b)) != 1 {
+			t.Fatal("another project is asked again")
+		}
+
+		// 任务预授权：委派带来的类别（认不出的丢掉）
+		c := util.Str(o.CreateTab(util.NewObj("backend", "codex", "cwd", other, "activate", false,
+			"delegation", util.NewObj("goal", "g", "taskId", "task_1", "sandboxGrants", []any{"ssh", "bogus"}))).Get("id"))
+		if !has(c, SandboxGrant{Kind: "category", Value: "ssh"}) || has(c, SandboxGrant{Kind: "category", Value: "bogus"}) {
+			t.Fatalf("pregrants = %+v", o.grantedFor(c))
+		}
+		o.sbx.tokens["tc"] = c
+		o.onSandboxDeny(sandbox.Denial{Token: "tc", Rule: "read:ssh", Path: filepath.Join(tmp, ".ssh", "config")})
+		if len(pendingOf(o, c)) != 0 {
+			t.Fatal("pre-granted categories are not asked")
+		}
+	})
+}
+
+// 沙箱说明：Claude 走附加系统提示；别的 CLI 只在 CLI 会话的第一条消息前带上
+func TestSandboxNote(t *testing.T) {
+	if !sandbox.Supported() {
+		t.Skip("sandbox not supported here")
+	}
+	tmp := t.TempDir()
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle, Sandbox: &SandboxDeps{Enabled: func() bool { return true }}})
+		defer o.Dispose()
+		args := o.claudeSandboxArgs()
+		if len(args) != 4 || args[2] != "--append-system-prompt" || !strings.Contains(args[3], "Operation not permitted") {
+			t.Fatalf("claude args = %v", args)
+		}
+		tab := util.NewObj("backend", "codex")
+		if got := o.withSandboxNote(tab, "codex", "hi"); !strings.HasSuffix(got, "\n\nhi") || !strings.Contains(got, "sandbox") {
+			t.Fatalf("first turn = %q", got)
+		}
+		tab.Set("cliSessionId", "s1")
+		if o.withSandboxNote(tab, "codex", "hi") != "hi" || o.withSandboxNote(util.NewObj(), "claude", "hi") != "hi" {
+			t.Fatal("only the first message of a non-Claude session carries the note")
+		}
+	})
 }

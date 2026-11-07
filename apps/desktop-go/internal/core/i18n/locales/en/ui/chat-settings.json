@@ -503,5 +503,7 @@
   "ui.chat-settings.sandbox-blocked-protected": "The coding agent tried to access a protected folder: {0}. To allow it, unprotect it first in Settings → Nomi → Desktop permissions → Privacy.",
   "ui.chat-settings.sandbox-allow-session": "Allow for this session",
   "ui.chat-settings.sandbox-allow-always": "Always allow",
-  "ui.chat-settings.sandbox-deny": "Don't allow"
+  "ui.chat-settings.sandbox-deny": "Don't allow",
+  "ui.chat-settings.sandbox-blocked-read": "The coding agent tried to read the secret file {0}",
+  "ui.chat-settings.sandbox-allow-always-project": "Always allow in this project"
 }

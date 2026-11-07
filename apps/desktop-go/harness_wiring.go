@@ -257,11 +257,13 @@ func sandboxDeps(b *desktop.PermissionBroker) *harness.SandboxDeps {
 		Always: func() []harness.SandboxGrant {
 			var out []harness.SandboxGrant
 			for _, a := range b.CliSandboxAllow() {
-				out = append(out, harness.SandboxGrant{Kind: a.Kind, Value: a.Value})
+				out = append(out, harness.SandboxGrant{Kind: a.Kind, Value: a.Value, Project: a.Project})
 			}
 			return out
 		},
-		Persist: func(g harness.SandboxGrant) { b.AddCliSandboxAllow(desktop.SandboxAllow{Kind: g.Kind, Value: g.Value}) },
+		Persist: func(g harness.SandboxGrant) {
+			b.AddCliSandboxAllow(desktop.SandboxAllow{Kind: g.Kind, Value: g.Value, Project: g.Project})
+		},
 	}
 }
 

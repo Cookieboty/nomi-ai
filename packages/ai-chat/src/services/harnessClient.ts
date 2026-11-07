@@ -41,8 +41,8 @@ export const isNomiDelegated = (tab: { delegation?: HarnessDelegation }): boolea
 /** 沙箱挡下、等用户授权的一项（内核标签状态，不落盘） */
 export interface SandboxPendingItem {
   id: string;
-  /** category：按类别读写；folder / file：写入；protected：受保护文件夹（只能去设置里取消保护） */
-  kind: 'category' | 'folder' | 'file' | 'protected';
+  /** category：按类别读写；read：读这一个密钥文件；folder / file：写入；protected：受保护文件夹（只能去设置里取消保护） */
+  kind: 'category' | 'read' | 'folder' | 'file' | 'protected';
   value: string;
   op: 'read' | 'write';
   path: string;

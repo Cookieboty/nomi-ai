@@ -7,23 +7,51 @@ package harness
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
-// SandboxGrant：一项授权（Kind：category / folder / file）
+// SandboxGrant：一项授权（Kind：category / read / folder / file）。
+// Project：只在这个项目（git 根或工作目录）里生效；空 = 所有项目（写入类授权都是全局的）
 type SandboxGrant struct {
-	Kind  string `json:"kind"`
-	Value string `json:"value"`
+	Kind    string `json:"kind"`
+	Value   string `json:"value"`
+	Project string `json:"project,omitempty"`
+}
+
+// projectScoped：「始终允许」按项目记的授权（读凭据 / 密钥文件）；写入位置（工具缓存、钩子）是全局的
+func projectScoped(kind string) bool { return kind == "category" || kind == "read" }
+
+// projectRoot：工作目录所在的 git 仓库根（往上找 .git，到主目录为止）；不在仓库里就是工作目录本身
+func (o *Orchestrator) projectRoot(cwd string) string {
+	for d := filepath.Clean(cwd); ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
+			return d
+		}
+		if d == o.home || filepath.Dir(d) == d {
+			return filepath.Clean(cwd)
+		}
+	}
+}
+
+func grantApplies(g SandboxGrant, cwd string) bool {
+	if g.Project == "" {
+		return true
+	}
+	rel, err := filepath.Rel(g.Project, cwd)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../")
 }
 
 // SandboxDeps：沙箱设置（宿主接 desktop.PermissionBroker）
@@ -95,15 +123,36 @@ func (o *Orchestrator) SandboxStatus() string {
 	return "off"
 }
 
+// grantedFor：这个标签现在生效的授权：「始终允许」（按项目过滤）、任务预授权的类别、本会话的授权
 func (o *Orchestrator) grantedFor(id string) []SandboxGrant {
 	var out []SandboxGrant
+	tab := o.tab(id)
+	cwd := ""
+	if tab != nil {
+		cwd = str(tab, "cwd")
+	}
 	if o.d.Sandbox != nil && o.d.Sandbox.Always != nil {
-		out = append(out, o.d.Sandbox.Always()...)
+		for _, g := range o.d.Sandbox.Always() {
+			if grantApplies(g, cwd) {
+				out = append(out, g)
+			}
+		}
+	}
+	if tab != nil {
+		if d, _ := tab.Get("delegation").(*util.Obj); d != nil {
+			if list, ok := d.Get("sandboxGrants").([]any); ok {
+				for _, c := range list {
+					if s, ok := c.(string); ok && sandbox.CategoryByID(s) != nil {
+						out = append(out, SandboxGrant{Kind: "category", Value: s})
+					}
+				}
+			}
+		}
 	}
 	if t := o.sbx.tabs[id]; t != nil {
 		for k := range t.granted {
 			kind, value := splitKey(k)
-			out = append(out, SandboxGrant{kind, value})
+			out = append(out, SandboxGrant{Kind: kind, Value: value})
 		}
 	}
 	return out
@@ -153,6 +202,8 @@ func (o *Orchestrator) sandboxSpec(tab *util.Obj, cwd string, env *util.Obj) *sa
 		switch g.Kind {
 		case "category":
 			spec.Granted[g.Value] = true
+		case "read":
+			spec.ReadFiles = append(spec.ReadFiles, g.Value)
 		case "folder":
 			spec.Writable = append(spec.Writable, g.Value)
 		case "file":
@@ -193,12 +244,21 @@ func spawnHarness(command string, args []string, cwd string, env *util.Obj, tabI
 	return ch
 }
 
-// claudeSandboxArgs：包进沙箱时关掉 Claude Code 自己的沙箱（嵌套会让它的 Bash 全部失败）
+// claudeSandboxArgs：包进沙箱时关掉 Claude Code 自己的沙箱（嵌套会让它的 Bash 全部失败），并告诉它在沙箱里
 func (o *Orchestrator) claudeSandboxArgs() []string {
 	if !o.SandboxActive() {
 		return nil
 	}
-	return []string{"--settings", `{"sandbox":{"enabled":false}}`}
+	return []string{"--settings", `{"sandbox":{"enabled":false}}`, "--append-system-prompt", prompts.Text("cli-sandbox")}
+}
+
+// withSandboxNote：别的 CLI 没有附加系统提示的参数：CLI 会话的第一条消息前面带上沙箱说明
+// （被拒时停下说明、等用户授权，不要绕路）
+func (o *Orchestrator) withSandboxNote(tab *util.Obj, backend, toCli string) string {
+	if backend == "claude" || !o.SandboxActive() || truthy(tab.Get("cliSessionId")) {
+		return toCli
+	}
+	return prompts.Text("cli-sandbox") + "\n\n" + toCli
 }
 
 func (o *Orchestrator) ensureSandboxMonitor() {
@@ -214,11 +274,8 @@ func (o *Orchestrator) ensureSandboxMonitor() {
 	o.sbx.monitor.Ensure()
 }
 
-func (o *Orchestrator) alwaysGranted(r sandbox.Request) bool {
-	if o.d.Sandbox == nil || o.d.Sandbox.Always == nil {
-		return false
-	}
-	for _, g := range o.d.Sandbox.Always() {
+func (o *Orchestrator) alwaysGranted(id string, r sandbox.Request) bool {
+	for _, g := range o.grantedFor(id) {
 		if g.Kind == r.Kind && g.Value == r.Value {
 			return true
 		}
@@ -239,7 +296,7 @@ func (o *Orchestrator) onSandboxDeny(d sandbox.Denial) {
 	}
 	t := o.sbxTab(id)
 	key := req.Key()
-	if t.granted[key] || t.dismissed[key] || o.alwaysGranted(req) {
+	if t.granted[key] || t.dismissed[key] || o.alwaysGranted(id, req) {
 		return
 	}
 	for _, p := range t.pending {
@@ -258,6 +315,11 @@ func (o *Orchestrator) onSandboxDeny(d sandbox.Denial) {
 	t.pending = append(t.pending, &sbxPending{id: "sbx-" + strconv.Itoa(o.sbx.seq), req: req, op: op, path: d.Path, at: nowMs()})
 	o.d.Logger.Info("cli sandbox blocked", util.NewObj("tab", id, "rule", d.Rule, "op", d.Op, "proc", d.Proc))
 	o.changed()
+	// 没人看着时（别的标签 / 窗口没在前台 / 委派与任务的标签）走「等权限」的通知：桌面角色气泡与系统通知
+	tab := o.tab(id)
+	o.events.Emit("permission-needed", util.NewObj("tabId", id, "title", tab.Get("title"), "backend", tab.Get("backend"),
+		"summary", i18n.T("electron.common.sandbox-needs-permission", grantLabel(req)),
+		"background", o.activeTabID != id || !o.appFocused()))
 }
 
 // sandboxPendingOf：标签状态里的待授权列表（不落盘）
@@ -301,7 +363,13 @@ func (o *Orchestrator) SandboxReply(tabID, requestID, choice string) bool {
 		}
 		t.granted[key] = true
 		if choice == "always" && o.d.Sandbox != nil && o.d.Sandbox.Persist != nil {
-			o.d.Sandbox.Persist(SandboxGrant{Kind: hit.req.Kind, Value: hit.req.Value})
+			g := SandboxGrant{Kind: hit.req.Kind, Value: hit.req.Value}
+			if projectScoped(g.Kind) {
+				if tab := o.tab(tabID); tab != nil {
+					g.Project = o.projectRoot(str(tab, "cwd"))
+				}
+			}
+			o.d.Sandbox.Persist(g)
 		}
 		o.recycleTab(tabID)
 		o.continueAfterGrant(tabID, hit.req)
@@ -427,4 +495,24 @@ func (o *Orchestrator) disposeSandbox() {
 	if o.sbx.monitor != nil {
 		o.sbx.monitor.Stop()
 	}
+}
+
+// sandboxGrantList：委派 / 任务带来的预授权类别（只留认得的类别 id）
+func sandboxGrantList(v any) []any {
+	out := []any{}
+	switch list := v.(type) {
+	case []any:
+		for _, x := range list {
+			if s, ok := x.(string); ok && sandbox.CategoryByID(s) != nil {
+				out = append(out, s)
+			}
+		}
+	case []string:
+		for _, s := range list {
+			if sandbox.CategoryByID(s) != nil {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
 }

@@ -313,7 +313,14 @@ export const DesktopState = z.looseObject({
   cliSandboxSupported: z.boolean().optional(),
   /** 沙箱里「始终允许」的授权：类别 / 可写文件夹 / 可写文件 */
   cliSandboxAllow: z
-    .array(z.looseObject({ kind: z.enum(['category', 'folder', 'file']), value: z.string() }))
+    .array(
+      z.looseObject({
+        kind: z.enum(['category', 'read', 'folder', 'file']),
+        value: z.string(),
+        /** 只在这个项目里生效；没有 = 所有项目 */
+        project: z.string().optional(),
+      }),
+    )
     .optional(),
   tools: z.array(
     z.looseObject({

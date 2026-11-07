@@ -6,6 +6,7 @@ package tasks
 // 同一种任务接着用上一次的会话；授权等级换算权限档、审批先过确定性命令分类、用户在标签里接手 → takenOver。
 
 import (
+	"slices"
 	"strings"
 	"sync"
 
@@ -35,6 +36,8 @@ type CliCreateTab struct {
 	ReasoningEffort string
 	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
 	GithubAccess bool
+	// SandboxGrants：沙箱里预先允许的类别（SandboxGrants(t)）
+	SandboxGrants []string
 	// ReuseKey：同一种任务的标识（之后同一种任务接着用这个标签的会话）；空 = 不复用
 	ReuseKey string
 	// CallID：委派任务的来源工具调用 id（对话里的子任务卡片据此找到标签）
@@ -185,6 +188,20 @@ func GithubAccess(t Task) bool {
 		}
 	}
 	return false
+}
+
+// SandboxGrants：编程助手沙箱里预先允许的类别：授权里勾的，加上有 GitHub 对外能力时的 SSH 与 Git 凭据（要推代码）
+func SandboxGrants(t Task) []string {
+	out := []string{}
+	for _, c := range t.Grant.Sandbox {
+		if c != "" && !slices.Contains(out, c) {
+			out = append(out, c)
+		}
+	}
+	if GithubAccess(t) && !slices.Contains(out, "ssh") {
+		out = append(out, "ssh")
+	}
+	return out
 }
 
 // DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝。
@@ -365,7 +382,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			var err error
 			id, err = h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
 				PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
-				GithubAccess: GithubAccess(t), CallID: strOr(t.Executor.CallID), ReuseKey: key})
+				GithubAccess: GithubAccess(t), SandboxGrants: SandboxGrants(t), CallID: strOr(t.Executor.CallID), ReuseKey: key})
 			if err != nil {
 				if got.Kind == "worktree" && e.d.ReleaseIsolation != nil {
 					e.d.ReleaseIsolation(got)

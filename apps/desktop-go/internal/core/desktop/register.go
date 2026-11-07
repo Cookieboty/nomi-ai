@@ -54,7 +54,7 @@ func Register(r *contract.Router, s *Service) {
 	call("desktop.setCliEnvAllow", func(_ contract.Caller, in json.RawMessage) any { return s.SetCliEnvAllow(field(in, "names")) })
 	call("desktop.setCliSandbox", func(_ contract.Caller, in json.RawMessage) any { return s.SetCliSandbox(field(in, "enabled")) })
 	call("desktop.removeCliSandboxAllow", func(_ contract.Caller, in json.RawMessage) any {
-		return s.RemoveCliSandboxAllow(field(in, "kind"), field(in, "value"))
+		return s.RemoveCliSandboxAllow(field(in, "kind"), field(in, "value"), field(in, "project"))
 	})
 	call("desktop.unprotectPath", func(_ contract.Caller, in json.RawMessage) any { return s.UnprotectPath(field(in, "path")) })
 	call("desktop.remindersList", func(_ contract.Caller, in json.RawMessage) any { return s.RemindersList(field(in, "all")) })

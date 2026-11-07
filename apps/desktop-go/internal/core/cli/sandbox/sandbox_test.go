@@ -28,6 +28,7 @@ func TestClassify(t *testing.T) {
 		ok   bool
 	}{
 		{Denial{Rule: "read:cloud", Path: home + "/.aws/credentials"}, Request{"category", "cloud"}, true},
+		{Denial{Rule: "read:secret-files", Path: home + "/proj/.env"}, Request{"read", home + "/proj/.env"}, true},
 		{Denial{Rule: "read:protected", Path: home + "/finance/a.pdf"}, Request{"protected", home + "/finance/a.pdf"}, true},
 		{Denial{Rule: "read:nomi", Path: "/x"}, Request{}, false},
 		{Denial{Rule: "write", Path: home + "/.ssh/known_hosts"}, Request{"category", "ssh"}, true},
@@ -99,6 +100,15 @@ func TestProfileEnforced(t *testing.T) {
 	granted.Granted = map[string]bool{"ssh": true}
 	if !canRead(granted, filepath.Join(home, ".ssh", "id_ed25519")) || canRead(granted, filepath.Join(home, ".aws", "credentials")) {
 		t.Error("granting ssh opens .ssh only")
+	}
+	// 单个密钥文件授权：只放开这一个
+	if err := os.WriteFile(filepath.Join(proj, "src", ".env"), []byte("s"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	one := spec
+	one.ReadFiles = []string{filepath.Join(proj, ".env")}
+	if !canRead(one, filepath.Join(proj, ".env")) || canRead(one, filepath.Join(proj, "src", ".env")) {
+		t.Error("a single-file grant opens that file only")
 	}
 	// 写：项目里可以；计划模式（项目只读）不行；主目录（不在临时目录里）不行
 	write := func(s Spec, p string) bool {

@@ -741,10 +741,11 @@ func (s *Service) SetCliSandbox(enabled any) State {
 }
 
 // RemoveCliSandboxAllow：删掉一条「始终允许」，返回最新状态
-func (s *Service) RemoveCliSandboxAllow(kind, value any) State {
+func (s *Service) RemoveCliSandboxAllow(kind, value, project any) State {
 	k, _ := kind.(string)
 	v, _ := value.(string)
-	if s.Broker.RemoveCliSandboxAllow(SandboxAllow{Kind: k, Value: v}) {
+	p, _ := project.(string)
+	if s.Broker.RemoveCliSandboxAllow(SandboxAllow{Kind: k, Value: v, Project: p}) {
 		a := NewOMap()
 		a.Set("kind", k)
 		a.Set("value", v)

@@ -51,6 +51,8 @@ export interface TaskGrant {
   paths: string[];
   connections: { connectionId: string; capabilities: string[]; resources: string[] }[];
   clis?: string[];
+  /** 编程助手沙箱里预先允许的类别 */
+  sandbox?: string[];
   grantedAt: number;
   expiresAt?: number;
   revokedAt?: number;

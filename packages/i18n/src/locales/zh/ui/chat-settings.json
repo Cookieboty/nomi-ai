@@ -503,5 +503,7 @@
   "ui.chat-settings.sandbox-blocked-protected": "编程助手想访问受保护的文件夹：{0}。要用的话，先在「设置 → Nomi → 桌面权限 → 隐私保护」里取消保护。",
   "ui.chat-settings.sandbox-allow-session": "本会话允许",
   "ui.chat-settings.sandbox-allow-always": "始终允许",
-  "ui.chat-settings.sandbox-deny": "不允许"
+  "ui.chat-settings.sandbox-deny": "不允许",
+  "ui.chat-settings.sandbox-blocked-read": "编程助手想读取密钥文件 {0}",
+  "ui.chat-settings.sandbox-allow-always-project": "这个项目始终允许"
 }

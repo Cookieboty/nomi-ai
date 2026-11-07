@@ -38,6 +38,7 @@ import { buildCliSlots } from './cliSlots';
 import styles from './DelegateCard.module.css';
 import { Markdown } from './Markdown';
 import { PermissionCard } from './PermissionCard';
+import { TabSandboxRequests } from './SandboxRequests';
 
 import { ConversationView } from './index';
 
@@ -95,7 +96,7 @@ export function delegateView(
   if (call.status === 'running' || result?.status === 'running') {
     // 工具已返回但后台仍在跑（P2 异步默认）：跟标签实时状态
     if (!tab) phase = call.status === 'running' ? 'confirming' : 'running';
-    else phase = tl?.permissions?.length ? 'waiting' : 'running';
+    else phase = tl?.permissions?.length || tab.sandboxPending?.length ? 'waiting' : 'running';
   } else if (result) phase = result.status === 'done' ? 'done' : result.status;
   else phase = error || call.status === 'error' ? 'error' : 'done';
   return { call, tab, live: tl, result, error, phase, backend, goal };
@@ -722,6 +723,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
       )}
       {open && (
         <div className={styles.body}>
+          {tab && <TabSandboxRequests tabId={tab.id} />}
           {tab &&
             (v.live?.permissions ?? []).map((p) =>
               p.kind === 'approve-plan' ? (

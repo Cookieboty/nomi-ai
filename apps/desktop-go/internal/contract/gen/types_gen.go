@@ -1956,18 +1956,20 @@ type DesktopProtectFolderOutputStateScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopProtectFolderOutputStateCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopProtectFolderOutputStateCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopProtectFolderOutputStateCliSandboxAllowItemKind = string
 
 const (
 	DesktopProtectFolderOutputStateCliSandboxAllowItemKindCategory DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "category"
+	DesktopProtectFolderOutputStateCliSandboxAllowItemKindRead     DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "read"
 	DesktopProtectFolderOutputStateCliSandboxAllowItemKindFolder   DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "folder"
 	DesktopProtectFolderOutputStateCliSandboxAllowItemKindFile     DesktopProtectFolderOutputStateCliSandboxAllowItemKind = "file"
 )
 
 type DesktopProtectFolderOutputStateCliSandboxAllowItem struct {
-	Kind  DesktopProtectFolderOutputStateCliSandboxAllowItemKind `json:"kind"`
-	Value string                                                 `json:"value"`
+	Kind    DesktopProtectFolderOutputStateCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                                 `json:"value"`
+	Project *string                                                `json:"project,omitempty"`
 }
 
 type DesktopProtectFolderOutputStateToolsItem struct {
@@ -2138,18 +2140,20 @@ type DesktopRemindersUpdateOutput struct {
 	FireCount *float64                            `json:"fireCount,omitempty"`
 }
 
-// DesktopRemoveCliSandboxAllowInputKind 枚举：category | folder | file
+// DesktopRemoveCliSandboxAllowInputKind 枚举：category | read | folder | file
 type DesktopRemoveCliSandboxAllowInputKind = string
 
 const (
 	DesktopRemoveCliSandboxAllowInputKindCategory DesktopRemoveCliSandboxAllowInputKind = "category"
+	DesktopRemoveCliSandboxAllowInputKindRead     DesktopRemoveCliSandboxAllowInputKind = "read"
 	DesktopRemoveCliSandboxAllowInputKindFolder   DesktopRemoveCliSandboxAllowInputKind = "folder"
 	DesktopRemoveCliSandboxAllowInputKindFile     DesktopRemoveCliSandboxAllowInputKind = "file"
 )
 
 type DesktopRemoveCliSandboxAllowInput struct {
-	Kind  DesktopRemoveCliSandboxAllowInputKind `json:"kind"`
-	Value string                                `json:"value"`
+	Kind    DesktopRemoveCliSandboxAllowInputKind `json:"kind"`
+	Value   string                                `json:"value"`
+	Project *string                               `json:"project,omitempty"`
 }
 
 type DesktopRemoveCliSandboxAllowOutputScopesItem struct {
@@ -2161,18 +2165,20 @@ type DesktopRemoveCliSandboxAllowOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindCategory DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "category"
+	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindRead     DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "read"
 	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindFolder   DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "folder"
 	DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKindFile     DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItem struct {
-	Kind  DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                                    `json:"value"`
+	Kind    DesktopRemoveCliSandboxAllowOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                                    `json:"value"`
+	Project *string                                                   `json:"project,omitempty"`
 }
 
 type DesktopRemoveCliSandboxAllowOutputToolsItem struct {
@@ -2251,18 +2257,20 @@ type DesktopRemoveCommandRuleOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindCategory DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "category"
+	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindRead     DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "read"
 	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindFolder   DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "folder"
 	DesktopRemoveCommandRuleOutputCliSandboxAllowItemKindFile     DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopRemoveCommandRuleOutputCliSandboxAllowItem struct {
-	Kind  DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                                `json:"value"`
+	Kind    DesktopRemoveCommandRuleOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                                `json:"value"`
+	Project *string                                               `json:"project,omitempty"`
 }
 
 type DesktopRemoveCommandRuleOutputToolsItem struct {
@@ -2345,18 +2353,20 @@ type DesktopSetCliEnvAllowOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindCategory DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "category"
+	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindRead     DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "read"
 	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindFolder   DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "folder"
 	DesktopSetCliEnvAllowOutputCliSandboxAllowItemKindFile     DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopSetCliEnvAllowOutputCliSandboxAllowItem struct {
-	Kind  DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                             `json:"value"`
+	Kind    DesktopSetCliEnvAllowOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                             `json:"value"`
+	Project *string                                            `json:"project,omitempty"`
 }
 
 type DesktopSetCliEnvAllowOutputToolsItem struct {
@@ -2435,18 +2445,20 @@ type DesktopSetCliSandboxOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopSetCliSandboxOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopSetCliSandboxOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopSetCliSandboxOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopSetCliSandboxOutputCliSandboxAllowItemKindCategory DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "category"
+	DesktopSetCliSandboxOutputCliSandboxAllowItemKindRead     DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "read"
 	DesktopSetCliSandboxOutputCliSandboxAllowItemKindFolder   DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "folder"
 	DesktopSetCliSandboxOutputCliSandboxAllowItemKindFile     DesktopSetCliSandboxOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopSetCliSandboxOutputCliSandboxAllowItem struct {
-	Kind  DesktopSetCliSandboxOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                            `json:"value"`
+	Kind    DesktopSetCliSandboxOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                            `json:"value"`
+	Project *string                                           `json:"project,omitempty"`
 }
 
 type DesktopSetCliSandboxOutputToolsItem struct {
@@ -2530,18 +2542,20 @@ type DesktopStateOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopStateOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopStateOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopStateOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopStateOutputCliSandboxAllowItemKindCategory DesktopStateOutputCliSandboxAllowItemKind = "category"
+	DesktopStateOutputCliSandboxAllowItemKindRead     DesktopStateOutputCliSandboxAllowItemKind = "read"
 	DesktopStateOutputCliSandboxAllowItemKindFolder   DesktopStateOutputCliSandboxAllowItemKind = "folder"
 	DesktopStateOutputCliSandboxAllowItemKindFile     DesktopStateOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopStateOutputCliSandboxAllowItem struct {
-	Kind  DesktopStateOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                    `json:"value"`
+	Kind    DesktopStateOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                    `json:"value"`
+	Project *string                                   `json:"project,omitempty"`
 }
 
 type DesktopStateOutputToolsItem struct {
@@ -2640,18 +2654,20 @@ type DesktopUnprotectPathOutputScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// DesktopUnprotectPathOutputCliSandboxAllowItemKind 枚举：category | folder | file
+// DesktopUnprotectPathOutputCliSandboxAllowItemKind 枚举：category | read | folder | file
 type DesktopUnprotectPathOutputCliSandboxAllowItemKind = string
 
 const (
 	DesktopUnprotectPathOutputCliSandboxAllowItemKindCategory DesktopUnprotectPathOutputCliSandboxAllowItemKind = "category"
+	DesktopUnprotectPathOutputCliSandboxAllowItemKindRead     DesktopUnprotectPathOutputCliSandboxAllowItemKind = "read"
 	DesktopUnprotectPathOutputCliSandboxAllowItemKindFolder   DesktopUnprotectPathOutputCliSandboxAllowItemKind = "folder"
 	DesktopUnprotectPathOutputCliSandboxAllowItemKindFile     DesktopUnprotectPathOutputCliSandboxAllowItemKind = "file"
 )
 
 type DesktopUnprotectPathOutputCliSandboxAllowItem struct {
-	Kind  DesktopUnprotectPathOutputCliSandboxAllowItemKind `json:"kind"`
-	Value string                                            `json:"value"`
+	Kind    DesktopUnprotectPathOutputCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                            `json:"value"`
+	Project *string                                           `json:"project,omitempty"`
 }
 
 type DesktopUnprotectPathOutputToolsItem struct {
@@ -3929,11 +3945,12 @@ type HarnessPermissionDefaultsInput struct {
 	NomiAutoApprove       *bool   `json:"nomiAutoApprove,omitempty"`
 }
 
-// HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = string
 
 const (
 	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindCategory  HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindRead      HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "read"
 	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindFolder    HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "folder"
 	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindFile      HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "file"
 	HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKindProtected HarnessPermissionDefaultsOutputTabsItemSandboxPendingItemKind = "protected"
@@ -4125,11 +4142,12 @@ type HarnessTabAccountInput struct {
 	AccountId string `json:"accountId"`
 }
 
-// HarnessTabAccountOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabAccountOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabAccountOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabAccountOutputSandboxPendingItemKindCategory  HarnessTabAccountOutputSandboxPendingItemKind = "category"
+	HarnessTabAccountOutputSandboxPendingItemKindRead      HarnessTabAccountOutputSandboxPendingItemKind = "read"
 	HarnessTabAccountOutputSandboxPendingItemKindFolder    HarnessTabAccountOutputSandboxPendingItemKind = "folder"
 	HarnessTabAccountOutputSandboxPendingItemKindFile      HarnessTabAccountOutputSandboxPendingItemKind = "file"
 	HarnessTabAccountOutputSandboxPendingItemKindProtected HarnessTabAccountOutputSandboxPendingItemKind = "protected"
@@ -4169,11 +4187,12 @@ type HarnessTabActivateInput struct {
 	Id string `json:"id"`
 }
 
-// HarnessTabActivateOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabActivateOutputTabsItemSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabActivateOutputTabsItemSandboxPendingItemKind = string
 
 const (
 	HarnessTabActivateOutputTabsItemSandboxPendingItemKindCategory  HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabActivateOutputTabsItemSandboxPendingItemKindRead      HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "read"
 	HarnessTabActivateOutputTabsItemSandboxPendingItemKindFolder    HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "folder"
 	HarnessTabActivateOutputTabsItemSandboxPendingItemKindFile      HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "file"
 	HarnessTabActivateOutputTabsItemSandboxPendingItemKindProtected HarnessTabActivateOutputTabsItemSandboxPendingItemKind = "protected"
@@ -4236,11 +4255,12 @@ type HarnessTabApplyAutoTitleInput struct {
 	Title string `json:"title"`
 }
 
-// HarnessTabApplyAutoTitleOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabApplyAutoTitleOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindCategory  HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "category"
+	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindRead      HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "read"
 	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindFolder    HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "folder"
 	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindFile      HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "file"
 	HarnessTabApplyAutoTitleOutputSandboxPendingItemKindProtected HarnessTabApplyAutoTitleOutputSandboxPendingItemKind = "protected"
@@ -4281,11 +4301,12 @@ type HarnessTabBackendInput struct {
 	Backend string `json:"backend"`
 }
 
-// HarnessTabBackendOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabBackendOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabBackendOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabBackendOutputSandboxPendingItemKindCategory  HarnessTabBackendOutputSandboxPendingItemKind = "category"
+	HarnessTabBackendOutputSandboxPendingItemKindRead      HarnessTabBackendOutputSandboxPendingItemKind = "read"
 	HarnessTabBackendOutputSandboxPendingItemKindFolder    HarnessTabBackendOutputSandboxPendingItemKind = "folder"
 	HarnessTabBackendOutputSandboxPendingItemKindFile      HarnessTabBackendOutputSandboxPendingItemKind = "file"
 	HarnessTabBackendOutputSandboxPendingItemKindProtected HarnessTabBackendOutputSandboxPendingItemKind = "protected"
@@ -4329,11 +4350,12 @@ type HarnessTabCarryClearInput struct {
 	Id string `json:"id"`
 }
 
-// HarnessTabCarryClearOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabCarryClearOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabCarryClearOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabCarryClearOutputSandboxPendingItemKindCategory  HarnessTabCarryClearOutputSandboxPendingItemKind = "category"
+	HarnessTabCarryClearOutputSandboxPendingItemKindRead      HarnessTabCarryClearOutputSandboxPendingItemKind = "read"
 	HarnessTabCarryClearOutputSandboxPendingItemKindFolder    HarnessTabCarryClearOutputSandboxPendingItemKind = "folder"
 	HarnessTabCarryClearOutputSandboxPendingItemKindFile      HarnessTabCarryClearOutputSandboxPendingItemKind = "file"
 	HarnessTabCarryClearOutputSandboxPendingItemKindProtected HarnessTabCarryClearOutputSandboxPendingItemKind = "protected"
@@ -4373,11 +4395,12 @@ type HarnessTabCloseInput struct {
 	Id string `json:"id"`
 }
 
-// HarnessTabCloseOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabCloseOutputTabsItemSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabCloseOutputTabsItemSandboxPendingItemKind = string
 
 const (
 	HarnessTabCloseOutputTabsItemSandboxPendingItemKindCategory  HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabCloseOutputTabsItemSandboxPendingItemKindRead      HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "read"
 	HarnessTabCloseOutputTabsItemSandboxPendingItemKindFolder    HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "folder"
 	HarnessTabCloseOutputTabsItemSandboxPendingItemKindFile      HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "file"
 	HarnessTabCloseOutputTabsItemSandboxPendingItemKindProtected HarnessTabCloseOutputTabsItemSandboxPendingItemKind = "protected"
@@ -4459,11 +4482,12 @@ type HarnessTabCreateInput struct {
 	PluginId       *string                             `json:"pluginId,omitempty"`
 }
 
-// HarnessTabCreateOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabCreateOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabCreateOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabCreateOutputSandboxPendingItemKindCategory  HarnessTabCreateOutputSandboxPendingItemKind = "category"
+	HarnessTabCreateOutputSandboxPendingItemKindRead      HarnessTabCreateOutputSandboxPendingItemKind = "read"
 	HarnessTabCreateOutputSandboxPendingItemKindFolder    HarnessTabCreateOutputSandboxPendingItemKind = "folder"
 	HarnessTabCreateOutputSandboxPendingItemKindFile      HarnessTabCreateOutputSandboxPendingItemKind = "file"
 	HarnessTabCreateOutputSandboxPendingItemKindProtected HarnessTabCreateOutputSandboxPendingItemKind = "protected"
@@ -4505,11 +4529,12 @@ type HarnessTabCwdInput struct {
 	Carry *bool  `json:"carry,omitempty"`
 }
 
-// HarnessTabCwdOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabCwdOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabCwdOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabCwdOutputSandboxPendingItemKindCategory  HarnessTabCwdOutputSandboxPendingItemKind = "category"
+	HarnessTabCwdOutputSandboxPendingItemKindRead      HarnessTabCwdOutputSandboxPendingItemKind = "read"
 	HarnessTabCwdOutputSandboxPendingItemKindFolder    HarnessTabCwdOutputSandboxPendingItemKind = "folder"
 	HarnessTabCwdOutputSandboxPendingItemKindFile      HarnessTabCwdOutputSandboxPendingItemKind = "file"
 	HarnessTabCwdOutputSandboxPendingItemKindProtected HarnessTabCwdOutputSandboxPendingItemKind = "protected"
@@ -4550,11 +4575,12 @@ type HarnessTabEffortInput struct {
 	Effort string `json:"effort"`
 }
 
-// HarnessTabEffortOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabEffortOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabEffortOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabEffortOutputSandboxPendingItemKindCategory  HarnessTabEffortOutputSandboxPendingItemKind = "category"
+	HarnessTabEffortOutputSandboxPendingItemKindRead      HarnessTabEffortOutputSandboxPendingItemKind = "read"
 	HarnessTabEffortOutputSandboxPendingItemKindFolder    HarnessTabEffortOutputSandboxPendingItemKind = "folder"
 	HarnessTabEffortOutputSandboxPendingItemKindFile      HarnessTabEffortOutputSandboxPendingItemKind = "file"
 	HarnessTabEffortOutputSandboxPendingItemKindProtected HarnessTabEffortOutputSandboxPendingItemKind = "protected"
@@ -4595,11 +4621,12 @@ type HarnessTabLongContextInput struct {
 	On bool   `json:"on"`
 }
 
-// HarnessTabLongContextOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabLongContextOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabLongContextOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabLongContextOutputSandboxPendingItemKindCategory  HarnessTabLongContextOutputSandboxPendingItemKind = "category"
+	HarnessTabLongContextOutputSandboxPendingItemKindRead      HarnessTabLongContextOutputSandboxPendingItemKind = "read"
 	HarnessTabLongContextOutputSandboxPendingItemKindFolder    HarnessTabLongContextOutputSandboxPendingItemKind = "folder"
 	HarnessTabLongContextOutputSandboxPendingItemKindFile      HarnessTabLongContextOutputSandboxPendingItemKind = "file"
 	HarnessTabLongContextOutputSandboxPendingItemKindProtected HarnessTabLongContextOutputSandboxPendingItemKind = "protected"
@@ -4660,11 +4687,12 @@ type HarnessTabModelInput struct {
 	ExpectSource *HarnessTabModelInputExpectSource `json:"expectSource,omitempty"`
 }
 
-// HarnessTabModelOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabModelOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabModelOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabModelOutputSandboxPendingItemKindCategory  HarnessTabModelOutputSandboxPendingItemKind = "category"
+	HarnessTabModelOutputSandboxPendingItemKindRead      HarnessTabModelOutputSandboxPendingItemKind = "read"
 	HarnessTabModelOutputSandboxPendingItemKindFolder    HarnessTabModelOutputSandboxPendingItemKind = "folder"
 	HarnessTabModelOutputSandboxPendingItemKindFile      HarnessTabModelOutputSandboxPendingItemKind = "file"
 	HarnessTabModelOutputSandboxPendingItemKindProtected HarnessTabModelOutputSandboxPendingItemKind = "protected"
@@ -4712,11 +4740,12 @@ type HarnessTabPermissionModeInput struct {
 	Expect    *HarnessTabPermissionModeInputExpect `json:"expect,omitempty"`
 }
 
-// HarnessTabPermissionModeOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabPermissionModeOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabPermissionModeOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabPermissionModeOutputSandboxPendingItemKindCategory  HarnessTabPermissionModeOutputSandboxPendingItemKind = "category"
+	HarnessTabPermissionModeOutputSandboxPendingItemKindRead      HarnessTabPermissionModeOutputSandboxPendingItemKind = "read"
 	HarnessTabPermissionModeOutputSandboxPendingItemKindFolder    HarnessTabPermissionModeOutputSandboxPendingItemKind = "folder"
 	HarnessTabPermissionModeOutputSandboxPendingItemKindFile      HarnessTabPermissionModeOutputSandboxPendingItemKind = "file"
 	HarnessTabPermissionModeOutputSandboxPendingItemKindProtected HarnessTabPermissionModeOutputSandboxPendingItemKind = "protected"
@@ -4756,11 +4785,12 @@ type HarnessTabPickCwdInput struct {
 	Id string `json:"id"`
 }
 
-// HarnessTabPickCwdOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabPickCwdOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabPickCwdOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabPickCwdOutputSandboxPendingItemKindCategory  HarnessTabPickCwdOutputSandboxPendingItemKind = "category"
+	HarnessTabPickCwdOutputSandboxPendingItemKindRead      HarnessTabPickCwdOutputSandboxPendingItemKind = "read"
 	HarnessTabPickCwdOutputSandboxPendingItemKindFolder    HarnessTabPickCwdOutputSandboxPendingItemKind = "folder"
 	HarnessTabPickCwdOutputSandboxPendingItemKindFile      HarnessTabPickCwdOutputSandboxPendingItemKind = "file"
 	HarnessTabPickCwdOutputSandboxPendingItemKindProtected HarnessTabPickCwdOutputSandboxPendingItemKind = "protected"
@@ -4801,11 +4831,12 @@ type HarnessTabRenameInput struct {
 	Title string `json:"title"`
 }
 
-// HarnessTabRenameOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabRenameOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabRenameOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabRenameOutputSandboxPendingItemKindCategory  HarnessTabRenameOutputSandboxPendingItemKind = "category"
+	HarnessTabRenameOutputSandboxPendingItemKindRead      HarnessTabRenameOutputSandboxPendingItemKind = "read"
 	HarnessTabRenameOutputSandboxPendingItemKindFolder    HarnessTabRenameOutputSandboxPendingItemKind = "folder"
 	HarnessTabRenameOutputSandboxPendingItemKindFile      HarnessTabRenameOutputSandboxPendingItemKind = "file"
 	HarnessTabRenameOutputSandboxPendingItemKindProtected HarnessTabRenameOutputSandboxPendingItemKind = "protected"
@@ -4865,11 +4896,12 @@ type HarnessTabSeedInput struct {
 	Messages []HarnessTabSeedInputMessagesItem `json:"messages"`
 }
 
-// HarnessTabSeedOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabSeedOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabSeedOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabSeedOutputSandboxPendingItemKindCategory  HarnessTabSeedOutputSandboxPendingItemKind = "category"
+	HarnessTabSeedOutputSandboxPendingItemKindRead      HarnessTabSeedOutputSandboxPendingItemKind = "read"
 	HarnessTabSeedOutputSandboxPendingItemKindFolder    HarnessTabSeedOutputSandboxPendingItemKind = "folder"
 	HarnessTabSeedOutputSandboxPendingItemKindFile      HarnessTabSeedOutputSandboxPendingItemKind = "file"
 	HarnessTabSeedOutputSandboxPendingItemKindProtected HarnessTabSeedOutputSandboxPendingItemKind = "protected"
@@ -4940,11 +4972,12 @@ type HarnessTabSourceInput struct {
 	Model  *string                     `json:"model,omitempty"`
 }
 
-// HarnessTabSourceOutputSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabSourceOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabSourceOutputSandboxPendingItemKind = string
 
 const (
 	HarnessTabSourceOutputSandboxPendingItemKindCategory  HarnessTabSourceOutputSandboxPendingItemKind = "category"
+	HarnessTabSourceOutputSandboxPendingItemKindRead      HarnessTabSourceOutputSandboxPendingItemKind = "read"
 	HarnessTabSourceOutputSandboxPendingItemKindFolder    HarnessTabSourceOutputSandboxPendingItemKind = "folder"
 	HarnessTabSourceOutputSandboxPendingItemKindFile      HarnessTabSourceOutputSandboxPendingItemKind = "file"
 	HarnessTabSourceOutputSandboxPendingItemKindProtected HarnessTabSourceOutputSandboxPendingItemKind = "protected"
@@ -4985,11 +5018,12 @@ type HarnessTabSteerInput struct {
 	Text string `json:"text"`
 }
 
-// HarnessTabsOutputTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+// HarnessTabsOutputTabsItemSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type HarnessTabsOutputTabsItemSandboxPendingItemKind = string
 
 const (
 	HarnessTabsOutputTabsItemSandboxPendingItemKindCategory  HarnessTabsOutputTabsItemSandboxPendingItemKind = "category"
+	HarnessTabsOutputTabsItemSandboxPendingItemKindRead      HarnessTabsOutputTabsItemSandboxPendingItemKind = "read"
 	HarnessTabsOutputTabsItemSandboxPendingItemKindFolder    HarnessTabsOutputTabsItemSandboxPendingItemKind = "folder"
 	HarnessTabsOutputTabsItemSandboxPendingItemKindFile      HarnessTabsOutputTabsItemSandboxPendingItemKind = "file"
 	HarnessTabsOutputTabsItemSandboxPendingItemKindProtected HarnessTabsOutputTabsItemSandboxPendingItemKind = "protected"
@@ -6818,6 +6852,7 @@ type TasksCreateInputGrant struct {
 	Paths       []string                               `json:"paths"`
 	Connections []TasksCreateInputGrantConnectionsItem `json:"connections"`
 	Clis        []string                               `json:"clis,omitempty"`
+	Sandbox     []string                               `json:"sandbox,omitempty"`
 	ExpiresAt   *float64                               `json:"expiresAt,omitempty"`
 }
 
@@ -7013,6 +7048,7 @@ type TasksGrantInputGrant struct {
 	Paths       []string                              `json:"paths"`
 	Connections []TasksGrantInputGrantConnectionsItem `json:"connections"`
 	Clis        []string                              `json:"clis,omitempty"`
+	Sandbox     []string                              `json:"sandbox,omitempty"`
 	ExpiresAt   *float64                              `json:"expiresAt,omitempty"`
 }
 
@@ -8497,18 +8533,20 @@ type EventDesktopChangedScopesItem struct {
 	Session   *bool   `json:"session,omitempty"`
 }
 
-// EventDesktopChangedCliSandboxAllowItemKind 枚举：category | folder | file
+// EventDesktopChangedCliSandboxAllowItemKind 枚举：category | read | folder | file
 type EventDesktopChangedCliSandboxAllowItemKind = string
 
 const (
 	EventDesktopChangedCliSandboxAllowItemKindCategory EventDesktopChangedCliSandboxAllowItemKind = "category"
+	EventDesktopChangedCliSandboxAllowItemKindRead     EventDesktopChangedCliSandboxAllowItemKind = "read"
 	EventDesktopChangedCliSandboxAllowItemKindFolder   EventDesktopChangedCliSandboxAllowItemKind = "folder"
 	EventDesktopChangedCliSandboxAllowItemKindFile     EventDesktopChangedCliSandboxAllowItemKind = "file"
 )
 
 type EventDesktopChangedCliSandboxAllowItem struct {
-	Kind  EventDesktopChangedCliSandboxAllowItemKind `json:"kind"`
-	Value string                                     `json:"value"`
+	Kind    EventDesktopChangedCliSandboxAllowItemKind `json:"kind"`
+	Value   string                                     `json:"value"`
+	Project *string                                    `json:"project,omitempty"`
 }
 
 type EventDesktopChangedToolsItem struct {
@@ -8666,11 +8704,12 @@ type EventHarnessTabMessage struct {
 	Message EventHarnessTabMessageMessage `json:"message"`
 }
 
-// EventHarnessTabsChangedTabsItemSandboxPendingItemKind 枚举：category | folder | file | protected
+// EventHarnessTabsChangedTabsItemSandboxPendingItemKind 枚举：category | read | folder | file | protected
 type EventHarnessTabsChangedTabsItemSandboxPendingItemKind = string
 
 const (
 	EventHarnessTabsChangedTabsItemSandboxPendingItemKindCategory  EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "category"
+	EventHarnessTabsChangedTabsItemSandboxPendingItemKindRead      EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "read"
 	EventHarnessTabsChangedTabsItemSandboxPendingItemKindFolder    EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "folder"
 	EventHarnessTabsChangedTabsItemSandboxPendingItemKindFile      EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "file"
 	EventHarnessTabsChangedTabsItemSandboxPendingItemKindProtected EventHarnessTabsChangedTabsItemSandboxPendingItemKind = "protected"

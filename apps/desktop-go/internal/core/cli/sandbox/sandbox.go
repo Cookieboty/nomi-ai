@@ -79,8 +79,11 @@ func CategoryByID(id string) *Category {
 // writableHome：相对主目录、默认可写的位置（CLI 自己的配置、包管理器与构建缓存）
 var writableHome = []string{
 	".claude", ".codex", ".gemini", ".grok", ".dsh", ".local/share/claude", ".local/state/claude",
-	".cache", "Library/Caches", ".npm", ".pnpm-store", "Library/pnpm", ".local/share/pnpm", ".yarn", ".bun",
-	".node-gyp", "go/pkg", ".cargo/registry", ".cargo/git", ".rustup", ".gradle", ".m2",
+	".cache", "Library/Caches", "Library/Logs", ".npm", ".pnpm-store", "Library/pnpm", ".local/share/pnpm", ".yarn", ".bun",
+	".node-gyp", ".config/configstore", ".config/yarn", ".config/pnpm", ".deno", "go/pkg", ".cargo/registry", ".cargo/git",
+	".rustup", ".gradle", ".m2", ".ivy2", ".sbt", ".gem", ".bundle", ".cocoapods", ".android", ".expo", ".dotnet", ".nuget",
+	".swiftpm", "Library/Developer/Xcode/DerivedData", "Library/Developer/CoreSimulator", ".local/share/virtualenv",
+	".local/share/uv", ".pyenv/shims", ".jupyter", ".ipython", ".matplotlib", ".streamlit", ".vercel", ".turbo",
 }
 
 // writableHomeRegex：相对主目录的可写文件（Claude Code 原子写 ~/.claude.json 用同目录临时文件）
@@ -105,6 +108,8 @@ type Spec struct {
 	Protected []string
 	// Granted：用户授权过的类别 id（不再拒读）
 	Granted map[string]bool
+	// ReadFiles：单独授权读取的文件（如项目里的某个 .env）
+	ReadFiles []string
 }
 
 // Rule：违规消息里的规则（read:<类别> / read:protected / read:nomi / write / write:protected / write:nomi）
@@ -134,6 +139,11 @@ func Profile(s Spec) string {
 		}
 		allow(&b, "file-read-data", except)
 	}
+	var readFiles []string
+	for _, f := range s.ReadFiles {
+		readFiles = append(readFiles, literals(f)...)
+	}
+	allow(&b, "file-read-data", readFiles)
 	if s.NomiData != "" {
 		denyRead(&b, subpaths(s.NomiData), ruleMsg(s.Token, "read:nomi"))
 		var ok []string

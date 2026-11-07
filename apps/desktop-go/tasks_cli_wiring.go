@@ -56,6 +56,9 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	if c.GithubAccess {
 		opts.Get("delegation").(*util.Obj).Set("githubAccess", true)
 	}
+	if len(c.SandboxGrants) > 0 {
+		opts.Get("delegation").(*util.Obj).Set("sandboxGrants", anyStrings(c.SandboxGrants))
+	}
 	if c.CallID != "" {
 		opts.Get("delegation").(*util.Obj).Set("callId", c.CallID)
 	}
@@ -212,6 +215,9 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 			if tasks.GithubAccess(t) {
 				del.Set("githubAccess", true)
 			}
+			if g := tasks.SandboxGrants(t); len(g) > 0 {
+				del.Set("sandboxGrants", anyStrings(g))
+			}
 			if ok, err := gilErr(func() bool { return o.RebindDelegation(id, del) }); err != nil || !ok {
 				return ""
 			}
@@ -339,5 +345,14 @@ func installedClis() []string {
 		}
 	}
 	sort.Strings(out)
+	return out
+}
+
+// anyStrings：[]string → JS 数组
+func anyStrings(xs []string) []any {
+	out := make([]any, 0, len(xs))
+	for _, x := range xs {
+		out = append(out, x)
+	}
 	return out
 }

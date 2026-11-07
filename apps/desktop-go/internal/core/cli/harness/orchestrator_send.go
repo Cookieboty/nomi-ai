@@ -129,7 +129,7 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			c, _ := cli.FitCarried(*stored, cli.CarriedBudget(backend, usage.Platform()))
 			carried = &c
 		}
-		toCli := cli.WithCarriedContext(carried, text)
+		toCli := o.withSandboxNote(current, backend, cli.WithCarriedContext(carried, text))
 		stageDir := ""
 		if len(normalized) > 0 {
 			stageDir = o.promptImageDir(id)

@@ -97,9 +97,11 @@ type Grant struct {
 	Paths       []string          `json:"paths"`
 	Connections []ConnectionGrant `json:"connections"`
 	Clis        *[]string         `json:"clis,omitempty"`
-	GrantedAt   int64             `json:"grantedAt"`
-	ExpiresAt   *int64            `json:"expiresAt,omitempty"`
-	RevokedAt   *int64            `json:"revokedAt,omitempty"`
+	// Sandbox：编程助手沙箱里预先允许的类别（ssh / cloud / …），跑的时候不用再问
+	Sandbox   []string `json:"sandbox,omitempty"`
+	GrantedAt int64    `json:"grantedAt"`
+	ExpiresAt *int64   `json:"expiresAt,omitempty"`
+	RevokedAt *int64   `json:"revokedAt,omitempty"`
 }
 
 type Budget struct {

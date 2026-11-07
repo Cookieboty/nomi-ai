@@ -46,7 +46,7 @@ export const HarnessTabMeta = loose({
     .array(
       z.looseObject({
         id: z.string(),
-        kind: z.enum(['category', 'folder', 'file', 'protected']),
+        kind: z.enum(['category', 'read', 'folder', 'file', 'protected']),
         value: z.string(),
         op: z.enum(['read', 'write']),
         path: z.string(),

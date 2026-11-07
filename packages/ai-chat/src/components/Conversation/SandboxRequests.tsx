@@ -42,6 +42,8 @@ function describe(p: SandboxPendingItem): string {
         sandboxItemLabel(p.kind, p.value),
         p.path,
       );
+    case 'read':
+      return t('ui.chat-settings.sandbox-blocked-read', p.path);
     case 'folder':
       return t('ui.chat-settings.sandbox-blocked-folder', p.value, p.path);
     case 'file':
@@ -97,7 +99,9 @@ export const SandboxRequests: React.FC<{
                   data-testid="conv-sandbox-always"
                   onClick={() => onReply(p.id, 'always')}
                 >
-                  {t('ui.chat-settings.sandbox-allow-always')}
+                  {p.kind === 'category' || p.kind === 'read'
+                    ? t('ui.chat-settings.sandbox-allow-always-project')
+                    : t('ui.chat-settings.sandbox-allow-always')}
                 </button>
                 <button
                   type="button"
@@ -126,4 +130,14 @@ export const TabSandboxRequests: React.FC<{ tabId: string }> = ({ tabId }) => {
     [tabId],
   );
   return <SandboxRequests items={items} onReply={onReply} />;
+};
+
+/** 某个任务的编程助手标签上挂着的沙箱授权卡片（任务页用：按 delegation.taskId 找标签） */
+export const TaskSandboxRequests: React.FC<{ taskId: string }> = ({ taskId }) => {
+  const tabs = useHarnessTabs();
+  const tab = tabs.state?.tabs.find(
+    (x) => x.delegation?.taskId === taskId && x.sandboxPending?.length,
+  );
+  if (!tab) return null;
+  return <TabSandboxRequests tabId={tab.id} />;
 };

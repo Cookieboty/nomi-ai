@@ -18,6 +18,13 @@ export interface ScopeView {
   session?: boolean;
 }
 
+/** 沙箱里「始终允许」的一项；project = 只在这个项目里生效 */
+export interface SandboxAllowView {
+  kind: 'category' | 'read' | 'folder' | 'file';
+  value: string;
+  project?: string;
+}
+
 export interface DesktopState {
   scopes: ScopeView[];
   policies: Record<string, Policy>;
@@ -34,7 +41,7 @@ export interface DesktopState {
   /** 当前平台能用系统沙箱 */
   cliSandboxSupported?: boolean;
   /** 沙箱里「始终允许」的授权 */
-  cliSandboxAllow?: Array<{ kind: 'category' | 'folder' | 'file'; value: string }>;
+  cliSandboxAllow?: SandboxAllowView[];
   tools: Array<{ name: string; danger: Danger; policy: Policy; locked?: boolean }>;
 }
 
@@ -144,8 +151,14 @@ export const desktopClient = {
   unprotectPath: (path: string) => call<DesktopState>(() => api.desktop.unprotectPath({ path })),
   setCliSandbox: (enabled: boolean) =>
     call<DesktopState>(() => api.desktop.setCliSandbox({ enabled })),
-  removeCliSandboxAllow: (kind: 'category' | 'folder' | 'file', value: string) =>
-    call<DesktopState>(() => api.desktop.removeCliSandboxAllow({ kind, value })),
+  removeCliSandboxAllow: (a: SandboxAllowView) =>
+    call<DesktopState>(() =>
+      api.desktop.removeCliSandboxAllow({
+        kind: a.kind,
+        value: a.value,
+        ...(a.project ? { project: a.project } : {}),
+      }),
+    ),
   setCliEnvAllow: (names: string[]) =>
     call<DesktopState>(() => api.desktop.setCliEnvAllow({ names })),
   /** 审计日志：最新在前，只有 30 天内的；offset 用于分页 */
