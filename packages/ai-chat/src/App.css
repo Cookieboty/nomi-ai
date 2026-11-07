@@ -522,6 +522,22 @@ html[data-platform='darwin'] .app-titlebar-toggle {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
+/* 负载指示的宽度：TitleBar 量出来写到标题栏上（没有指示时为 0） */
+.app-titlebar {
+  --cd-titlebar-lead-w: 0px;
+}
+/* 紧跟在收起按钮后面（Agent 看板的负载指示） */
+.app-titlebar-lead {
+  position: absolute;
+  left: calc(var(--cd-space-2) + var(--cd-control-h-sm) + var(--cd-space-1));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+html[data-platform='darwin'] .app-titlebar-lead {
+  left: calc(78px + var(--cd-control-h-sm) + var(--cd-space-1));
+}
 /* Go 宿主（Windows / Linux）自绘的窗口按钮：占右侧给原生 overlay 留的 140px（3 × 46） */
 .app-window-controls {
   position: absolute;
@@ -578,6 +594,10 @@ html[data-platform='darwin'] .app-window-controls {
 }
 html[data-platform='darwin'] .app-titlebar[data-sidebar='collapsed'] {
   --cd-titlebar-main-left: 116px;
+}
+/* 收起时会话名让出负载指示的宽度（TitleBar 量出来写进 --cd-titlebar-lead-w） */
+.app-titlebar[data-sidebar='collapsed'] .app-titlebar-main {
+  left: calc(var(--cd-titlebar-main-left) + var(--cd-titlebar-lead-w, 0px));
 }
 /* Windows / Linux：右侧给窗口按钮留位 */
 html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {

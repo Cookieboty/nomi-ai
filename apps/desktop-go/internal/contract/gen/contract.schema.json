@@ -12888,7 +12888,7 @@
         "origin": {
          "type": "string",
          "enum": [
-          "self",
+          "chat",
           "nomi",
           "conversation",
           "task",
@@ -12913,7 +12913,8 @@
          "enum": [
           "permission",
           "sandbox",
-          "accept"
+          "accept",
+          "reply"
          ]
         },
         "failed": {
@@ -12971,6 +12972,72 @@
        "additionalProperties": {}
       }
      },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "backends": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "backend": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "backend",
+          "processes",
+          "rssBytes"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "backends"
+      ],
+      "additionalProperties": {}
+     },
      "system": {
       "type": "object",
       "properties": {
@@ -12997,6 +13064,8 @@
     },
     "required": [
      "agents",
+     "nomi",
+     "externalIdle",
      "system",
      "sampledAt"
     ],
@@ -13042,7 +13111,7 @@
         "origin": {
          "type": "string",
          "enum": [
-          "self",
+          "chat",
           "nomi",
           "conversation",
           "task",
@@ -13067,7 +13136,8 @@
          "enum": [
           "permission",
           "sandbox",
-          "accept"
+          "accept",
+          "reply"
          ]
         },
         "failed": {
@@ -13125,6 +13195,72 @@
        "additionalProperties": {}
       }
      },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "backends": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "backend": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "backend",
+          "processes",
+          "rssBytes"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "backends"
+      ],
+      "additionalProperties": {}
+     },
      "system": {
       "type": "object",
       "properties": {
@@ -13151,6 +13287,8 @@
     },
     "required": [
      "agents",
+     "nomi",
+     "externalIdle",
      "system",
      "sampledAt"
     ],
@@ -32041,7 +32179,7 @@
        "origin": {
         "type": "string",
         "enum": [
-         "self",
+         "chat",
          "nomi",
          "conversation",
          "task",
@@ -32066,7 +32204,8 @@
         "enum": [
          "permission",
          "sandbox",
-         "accept"
+         "accept",
+         "reply"
         ]
        },
        "failed": {
@@ -32124,6 +32263,72 @@
       "additionalProperties": {}
      }
     },
+    "nomi": {
+     "type": "object",
+     "properties": {
+      "usage": {
+       "type": "object",
+       "properties": {
+        "rssBytes": {
+         "type": "number"
+        },
+        "cpuPercent": {
+         "type": "number"
+        },
+        "processes": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "rssBytes",
+        "cpuPercent",
+        "processes"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "additionalProperties": {}
+    },
+    "externalIdle": {
+     "type": "object",
+     "properties": {
+      "processes": {
+       "type": "number"
+      },
+      "rssBytes": {
+       "type": "number"
+      },
+      "backends": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "backend": {
+          "type": "string"
+         },
+         "processes": {
+          "type": "number"
+         },
+         "rssBytes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "backend",
+         "processes",
+         "rssBytes"
+        ],
+        "additionalProperties": {}
+       }
+      }
+     },
+     "required": [
+      "processes",
+      "rssBytes",
+      "backends"
+     ],
+     "additionalProperties": {}
+    },
     "system": {
      "type": "object",
      "properties": {
@@ -32150,6 +32355,8 @@
    },
    "required": [
     "agents",
+    "nomi",
+    "externalIdle",
     "system",
     "sampledAt"
    ],

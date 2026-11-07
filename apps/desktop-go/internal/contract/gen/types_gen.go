@@ -3269,11 +3269,11 @@ const (
 	FleetArchiveOutputAgentsItemScopeExternal FleetArchiveOutputAgentsItemScope = "external"
 )
 
-// FleetArchiveOutputAgentsItemOrigin 枚举：self | nomi | conversation | task | workbench | terminal
+// FleetArchiveOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
 type FleetArchiveOutputAgentsItemOrigin = string
 
 const (
-	FleetArchiveOutputAgentsItemOriginSelf         FleetArchiveOutputAgentsItemOrigin = "self"
+	FleetArchiveOutputAgentsItemOriginChat         FleetArchiveOutputAgentsItemOrigin = "chat"
 	FleetArchiveOutputAgentsItemOriginNomi         FleetArchiveOutputAgentsItemOrigin = "nomi"
 	FleetArchiveOutputAgentsItemOriginConversation FleetArchiveOutputAgentsItemOrigin = "conversation"
 	FleetArchiveOutputAgentsItemOriginTask         FleetArchiveOutputAgentsItemOrigin = "task"
@@ -3291,13 +3291,14 @@ const (
 	FleetArchiveOutputAgentsItemColumnDone    FleetArchiveOutputAgentsItemColumn = "done"
 )
 
-// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
 type FleetArchiveOutputAgentsItemNeedsYou = string
 
 const (
 	FleetArchiveOutputAgentsItemNeedsYouPermission FleetArchiveOutputAgentsItemNeedsYou = "permission"
 	FleetArchiveOutputAgentsItemNeedsYouSandbox    FleetArchiveOutputAgentsItemNeedsYou = "sandbox"
 	FleetArchiveOutputAgentsItemNeedsYouAccept     FleetArchiveOutputAgentsItemNeedsYou = "accept"
+	FleetArchiveOutputAgentsItemNeedsYouReply      FleetArchiveOutputAgentsItemNeedsYou = "reply"
 )
 
 type FleetArchiveOutputAgentsItemUsage struct {
@@ -3325,6 +3326,28 @@ type FleetArchiveOutputAgentsItem struct {
 	UpdatedAt      float64                               `json:"updatedAt"`
 }
 
+type FleetArchiveOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetArchiveOutputNomi struct {
+	Usage *FleetArchiveOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetArchiveOutputExternalIdleBackendsItem struct {
+	Backend   string  `json:"backend"`
+	Processes float64 `json:"processes"`
+	RssBytes  float64 `json:"rssBytes"`
+}
+
+type FleetArchiveOutputExternalIdle struct {
+	Processes float64                                      `json:"processes"`
+	RssBytes  float64                                      `json:"rssBytes"`
+	Backends  []FleetArchiveOutputExternalIdleBackendsItem `json:"backends"`
+}
+
 type FleetArchiveOutputSystem struct {
 	TotalMemBytes float64 `json:"totalMemBytes"`
 	Cores         float64 `json:"cores"`
@@ -3332,9 +3355,11 @@ type FleetArchiveOutputSystem struct {
 }
 
 type FleetArchiveOutput struct {
-	Agents    []FleetArchiveOutputAgentsItem `json:"agents"`
-	System    FleetArchiveOutputSystem       `json:"system"`
-	SampledAt float64                        `json:"sampledAt"`
+	Agents       []FleetArchiveOutputAgentsItem `json:"agents"`
+	Nomi         FleetArchiveOutputNomi         `json:"nomi"`
+	ExternalIdle FleetArchiveOutputExternalIdle `json:"externalIdle"`
+	System       FleetArchiveOutputSystem       `json:"system"`
+	SampledAt    float64                        `json:"sampledAt"`
 }
 
 // FleetStateOutputAgentsItemKind 枚举：nomi | cli
@@ -3353,11 +3378,11 @@ const (
 	FleetStateOutputAgentsItemScopeExternal FleetStateOutputAgentsItemScope = "external"
 )
 
-// FleetStateOutputAgentsItemOrigin 枚举：self | nomi | conversation | task | workbench | terminal
+// FleetStateOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
 type FleetStateOutputAgentsItemOrigin = string
 
 const (
-	FleetStateOutputAgentsItemOriginSelf         FleetStateOutputAgentsItemOrigin = "self"
+	FleetStateOutputAgentsItemOriginChat         FleetStateOutputAgentsItemOrigin = "chat"
 	FleetStateOutputAgentsItemOriginNomi         FleetStateOutputAgentsItemOrigin = "nomi"
 	FleetStateOutputAgentsItemOriginConversation FleetStateOutputAgentsItemOrigin = "conversation"
 	FleetStateOutputAgentsItemOriginTask         FleetStateOutputAgentsItemOrigin = "task"
@@ -3375,13 +3400,14 @@ const (
 	FleetStateOutputAgentsItemColumnDone    FleetStateOutputAgentsItemColumn = "done"
 )
 
-// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
 type FleetStateOutputAgentsItemNeedsYou = string
 
 const (
 	FleetStateOutputAgentsItemNeedsYouPermission FleetStateOutputAgentsItemNeedsYou = "permission"
 	FleetStateOutputAgentsItemNeedsYouSandbox    FleetStateOutputAgentsItemNeedsYou = "sandbox"
 	FleetStateOutputAgentsItemNeedsYouAccept     FleetStateOutputAgentsItemNeedsYou = "accept"
+	FleetStateOutputAgentsItemNeedsYouReply      FleetStateOutputAgentsItemNeedsYou = "reply"
 )
 
 type FleetStateOutputAgentsItemUsage struct {
@@ -3409,6 +3435,28 @@ type FleetStateOutputAgentsItem struct {
 	UpdatedAt      float64                             `json:"updatedAt"`
 }
 
+type FleetStateOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetStateOutputNomi struct {
+	Usage *FleetStateOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetStateOutputExternalIdleBackendsItem struct {
+	Backend   string  `json:"backend"`
+	Processes float64 `json:"processes"`
+	RssBytes  float64 `json:"rssBytes"`
+}
+
+type FleetStateOutputExternalIdle struct {
+	Processes float64                                    `json:"processes"`
+	RssBytes  float64                                    `json:"rssBytes"`
+	Backends  []FleetStateOutputExternalIdleBackendsItem `json:"backends"`
+}
+
 type FleetStateOutputSystem struct {
 	TotalMemBytes float64 `json:"totalMemBytes"`
 	Cores         float64 `json:"cores"`
@@ -3416,9 +3464,11 @@ type FleetStateOutputSystem struct {
 }
 
 type FleetStateOutput struct {
-	Agents    []FleetStateOutputAgentsItem `json:"agents"`
-	System    FleetStateOutputSystem       `json:"system"`
-	SampledAt float64                      `json:"sampledAt"`
+	Agents       []FleetStateOutputAgentsItem `json:"agents"`
+	Nomi         FleetStateOutputNomi         `json:"nomi"`
+	ExternalIdle FleetStateOutputExternalIdle `json:"externalIdle"`
+	System       FleetStateOutputSystem       `json:"system"`
+	SampledAt    float64                      `json:"sampledAt"`
 }
 
 type GatewayCatalogModelsOutputItem struct {
@@ -8861,11 +8911,11 @@ const (
 	EventFleetChangedAgentsItemScopeExternal EventFleetChangedAgentsItemScope = "external"
 )
 
-// EventFleetChangedAgentsItemOrigin 枚举：self | nomi | conversation | task | workbench | terminal
+// EventFleetChangedAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
 type EventFleetChangedAgentsItemOrigin = string
 
 const (
-	EventFleetChangedAgentsItemOriginSelf         EventFleetChangedAgentsItemOrigin = "self"
+	EventFleetChangedAgentsItemOriginChat         EventFleetChangedAgentsItemOrigin = "chat"
 	EventFleetChangedAgentsItemOriginNomi         EventFleetChangedAgentsItemOrigin = "nomi"
 	EventFleetChangedAgentsItemOriginConversation EventFleetChangedAgentsItemOrigin = "conversation"
 	EventFleetChangedAgentsItemOriginTask         EventFleetChangedAgentsItemOrigin = "task"
@@ -8883,13 +8933,14 @@ const (
 	EventFleetChangedAgentsItemColumnDone    EventFleetChangedAgentsItemColumn = "done"
 )
 
-// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
 type EventFleetChangedAgentsItemNeedsYou = string
 
 const (
 	EventFleetChangedAgentsItemNeedsYouPermission EventFleetChangedAgentsItemNeedsYou = "permission"
 	EventFleetChangedAgentsItemNeedsYouSandbox    EventFleetChangedAgentsItemNeedsYou = "sandbox"
 	EventFleetChangedAgentsItemNeedsYouAccept     EventFleetChangedAgentsItemNeedsYou = "accept"
+	EventFleetChangedAgentsItemNeedsYouReply      EventFleetChangedAgentsItemNeedsYou = "reply"
 )
 
 type EventFleetChangedAgentsItemUsage struct {
@@ -8917,6 +8968,28 @@ type EventFleetChangedAgentsItem struct {
 	UpdatedAt      float64                              `json:"updatedAt"`
 }
 
+type EventFleetChangedNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type EventFleetChangedNomi struct {
+	Usage *EventFleetChangedNomiUsage `json:"usage,omitempty"`
+}
+
+type EventFleetChangedExternalIdleBackendsItem struct {
+	Backend   string  `json:"backend"`
+	Processes float64 `json:"processes"`
+	RssBytes  float64 `json:"rssBytes"`
+}
+
+type EventFleetChangedExternalIdle struct {
+	Processes float64                                     `json:"processes"`
+	RssBytes  float64                                     `json:"rssBytes"`
+	Backends  []EventFleetChangedExternalIdleBackendsItem `json:"backends"`
+}
+
 type EventFleetChangedSystem struct {
 	TotalMemBytes float64 `json:"totalMemBytes"`
 	Cores         float64 `json:"cores"`
@@ -8924,9 +8997,11 @@ type EventFleetChangedSystem struct {
 }
 
 type EventFleetChanged struct {
-	Agents    []EventFleetChangedAgentsItem `json:"agents"`
-	System    EventFleetChangedSystem       `json:"system"`
-	SampledAt float64                       `json:"sampledAt"`
+	Agents       []EventFleetChangedAgentsItem `json:"agents"`
+	Nomi         EventFleetChangedNomi         `json:"nomi"`
+	ExternalIdle EventFleetChangedExternalIdle `json:"externalIdle"`
+	System       EventFleetChangedSystem       `json:"system"`
+	SampledAt    float64                       `json:"sampledAt"`
 }
 
 type EventGatewayRetrying struct {

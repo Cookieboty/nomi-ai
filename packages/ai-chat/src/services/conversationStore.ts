@@ -107,6 +107,11 @@ export interface ForkConversationOpts {
 /** 会话列表被外部改动（分叉、别的窗口写入等）后在 window 上广播，侧栏据此立即刷新 */
 export const CONVERSATIONS_CHANGED_EVENT = 'nomi:conversations-changed';
 
+/** 别处（如 Agent 看板）请求打开某个会话；侧栏监听，走与点会话行相同的切换 */
+export const OPEN_CONVERSATION_EVENT = 'nomi:open-conversation';
+export const requestOpenConversation = (id: string) =>
+  window.dispatchEvent(new CustomEvent<string>(OPEN_CONVERSATION_EVENT, { detail: id }));
+
 export type ConversationsChangedDetail = {
   /** 删除路径带上被删项，App 可直接 drop 私有草稿（不依赖 prev 快照） */
   removed?: Array<{ id: string; tabId?: string }>;

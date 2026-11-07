@@ -320,11 +320,11 @@ export const FleetColumn = z.enum(['todo', 'paused', 'running', 'done']);
 export const FleetScope = z.enum(['managed', 'external']);
 
 /**
- * 来源：self = Nomi 本体；nomi = Nomi 的后台运行（agent）；conversation = 对话里委派的 CLI；
+ * 来源：chat = 正在回答的 Nomi 对话；nomi = Nomi 的后台运行（agent）；conversation = 对话里委派的 CLI；
  * task = 任务看板派的 CLI；workbench = 工坊里直接用的 CLI；terminal = 用户自己在终端 / IDE 里开的
  */
 export const FleetOrigin = z.enum([
-  'self',
+  'chat',
   'nomi',
   'conversation',
   'task',
@@ -332,8 +332,8 @@ export const FleetOrigin = z.enum([
   'terminal',
 ]);
 
-/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
-export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept']);
+/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 / reply 外部会话在等你回话 */
+export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept', 'reply']);
 
 /** 进程树的资源占用（整棵树：编程助手连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
 export const FleetUsage = loose({
@@ -343,7 +343,7 @@ export const FleetUsage = loose({
 });
 
 export const FleetAgent = loose({
-  /** 'nomi' | 'tab:<标签 id>' | 'run:<任务 id>' | 'ext:<进程号>' */
+  /** 'chat:<对话 id>' | 'tab:<标签 id>' | 'run:<任务 id>' | 'ext:<外部会话 id>' */
   id: z.string(),
   kind: z.enum(['nomi', 'cli']),
   /** nomi | claude | codex | gemini | dsh | grok | external（插件）… */
@@ -370,12 +370,25 @@ export const FleetAgent = loose({
 export const FleetSystem = loose({
   totalMemBytes: z.number(),
   cores: z.number(),
-  /** 所有进程加起来的 CPU 占用（100 = 一个核） */
+  /** 整机 CPU 占用：0–100，占全部核的比例（同活动监视器的「系统 + 用户」）；各 agent 的 cpuPercent 是 100 = 一个核 */
   cpuPercent: z.number(),
 });
 
+/** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
+export const FleetNomi = loose({ usage: FleetUsage.optional() });
+
+/** Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），合并成一行 */
+export const FleetExternalIdle = loose({
+  processes: z.number(),
+  rssBytes: z.number(),
+  backends: z.array(loose({ backend: z.string(), processes: z.number(), rssBytes: z.number() })),
+});
+
 export const FleetState = loose({
+  /** 正在回答的 Nomi 对话、纳管的 agent 与外部会话；Nomi 本体不在这里 */
   agents: z.array(FleetAgent),
+  nomi: FleetNomi,
+  externalIdle: FleetExternalIdle,
   system: FleetSystem,
   /** 这份数据的采样时间（毫秒） */
   sampledAt: z.number(),

@@ -1,13 +1,15 @@
-// Package fleet：Agent 看板（docs/development/agent-board.md）。把 Nomi 本体、Nomi 的后台运行、
-// 编排器里的 CLI 标签（对话委派 / 任务派出 / 工坊里直接用的）和用户在 Nomi 之外开的 CLI 拼成一份看板数据。
+// Package fleet：Agent 看板（docs/development/agent-board.md）。把正在回答的 Nomi 对话、Nomi 的后台运行、
+// 编排器里的 CLI 标签（对话委派 / 任务派出 / 工坊里直接用的）和用户在 Nomi 之外开的编程助手会话
+// 拼成一份看板数据；Nomi 本体不进分列，单独给出它的资源占用。
 //
-// 纳管（managed，可暂停）= 在 Nomi 里跑的；外部（external）= Nomi 进程树之外的编程助手进程，只能预警，
-// 这里只读它的资源占用，任何控制都不经过这里。
+// 纳管（managed，可暂停）= 在 Nomi 里跑的；外部（external）= Nomi 进程树之外的编程助手会话，只能预警，
+// 这里只读它的状态与资源占用，任何控制都不经过这里。
 package fleet
 
 import (
+	"path/filepath"
 	"sort"
-	"strconv"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
@@ -26,13 +28,12 @@ const (
 	NeedPermission = "permission"
 	NeedSandbox    = "sandbox"
 	NeedAccept     = "accept"
+	// NeedReply：外部会话停在那里等用户回话
+	NeedReply = "reply"
 )
 
 // AutoArchiveMs：已完成的多久没动静就不再显示（看板不保留历史）
 const AutoArchiveMs = 2 * 60 * 60_000
-
-// SelfID：Nomi 本体的 id
-const SelfID = "nomi"
 
 type Usage struct {
 	RSSBytes   float64 `json:"rssBytes"`
@@ -66,11 +67,32 @@ type System struct {
 	CPUPercent    float64 `json:"cpuPercent"`
 }
 
+// Nomi：Nomi 本体（调度者）的资源占用：自己的进程树减去各标签的树
+type Nomi struct {
+	Usage *Usage `json:"usage,omitempty"`
+}
+
+// IdleBackend：某种编程助手没在跑会话的进程
+type IdleBackend struct {
+	Backend   string  `json:"backend"`
+	Processes int     `json:"processes"`
+	RSSBytes  float64 `json:"rssBytes"`
+}
+
+// Idle：Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），合并成一行
+type Idle struct {
+	Processes int           `json:"processes"`
+	RSSBytes  float64       `json:"rssBytes"`
+	Backends  []IdleBackend `json:"backends"`
+}
+
 // State = 契约 FleetState
 type State struct {
-	Agents    []Agent `json:"agents"`
-	System    System  `json:"system"`
-	SampledAt int64   `json:"sampledAt"`
+	Agents       []Agent `json:"agents"`
+	Nomi         Nomi    `json:"nomi"`
+	ExternalIdle Idle    `json:"externalIdle"`
+	System       System  `json:"system"`
+	SampledAt    int64   `json:"sampledAt"`
 }
 
 // Tab：编排器里一个标签的看板相关信息（wiring 从 ListTabs 与编排器查询里取）
@@ -86,12 +108,29 @@ type Tab struct {
 	SandboxPending int
 }
 
+// Chat：正在回答的 Nomi 对话（标题由视图从会话列表里取）
+type Chat struct {
+	ConversationID string
+	StartedAt      int64
+}
+
+// ExtSession：编程助手监视（agents）认出的、Nomi 之外的会话（不含 Nomi 标签自己的会话）
+type ExtSession struct {
+	ID, Kind, Title, Cwd, Status string
+	UpdatedAt                    int64
+	Alive                        *bool // nil = 不知道
+}
+
 // Input：拼一份看板数据要的全部输入
 type Input struct {
 	Now      int64
 	SelfPid  float64
 	Tabs     []Tab
 	Tasks    []tasks.Task
+	Chats    []Chat
+	External []ExtSession
+	// ExtCwd：编程助手进程的工作目录（pid → 目录），把外部进程树对到会话上
+	ExtCwd   map[float64]string
 	Procs    *agents.ProcTable // nil = 读不到进程表（只是没有资源占用）
 	PrevProc *agents.ProcTable // 上一次采样（算 CPU）；nil = 第一次
 	// Archived：id → 归档时间；之后没有新动静（UpdatedAt ≤ 归档时间）的已完成项不显示
@@ -128,11 +167,53 @@ func taskColumn(status string) (col, need string, failed, ok bool) {
 	return "", "", false, false
 }
 
+// extColumn：外部会话状态（agents 的 AgentStatus）→ 分列；ok = false 表示不上看板（idle）
+func extColumn(s ExtSession) (col, need string, failed, ok bool) {
+	switch s.Status {
+	case "running", "stalled":
+		col = ColRunning
+	case "waiting":
+		col, need = ColRunning, NeedReply
+	case "completed":
+		col = ColDone
+	case "failed":
+		col, failed = ColDone, true
+	default:
+		return "", "", false, false
+	}
+	// 进程已经没了：不再算在跑
+	if col == ColRunning && s.Alive != nil && !*s.Alive {
+		col, need = ColDone, ""
+	}
+	return col, need, failed, true
+}
+
 func str(p *string) string {
 	if p == nil {
 		return ""
 	}
 	return *p
+}
+
+func normDir(p string) string {
+	if p == "" {
+		return ""
+	}
+	return strings.TrimRight(filepath.Clean(p), `/\`)
+}
+
+// usageOf：一组进程（已去重）的占用
+func usageOf(in Input, pids []float64) *Usage {
+	if in.Procs == nil || len(pids) == 0 {
+		return nil
+	}
+	u := &Usage{Processes: len(pids), CPUPercent: in.Procs.CPUSince(in.PrevProc, pids)}
+	for _, p := range pids {
+		if rp, ok := in.Procs.Get(p); ok {
+			u.RSSBytes += rp.RSS
+		}
+	}
+	return u
 }
 
 // treeUsage：一组根进程的整棵树（去重）的占用；seen 记下用过的进程，避免与 Nomi 本体重复计算
@@ -149,19 +230,20 @@ func treeUsage(in Input, roots []float64, seen map[float64]bool) *Usage {
 			}
 		}
 	}
-	if len(pids) == 0 {
-		return nil
-	}
-	u := &Usage{Processes: len(pids), CPUPercent: in.Procs.CPUSince(in.PrevProc, pids)}
-	for _, p := range pids {
-		if rp, ok := in.Procs.Get(p); ok {
-			u.RSSBytes += rp.RSS
-		}
-	}
-	return u
+	return usageOf(in, pids)
 }
 
-// Build：拼看板数据。顺序：Nomi 本体、纳管（标签与后台运行，按更新时间新的在前）、外部（按内存大的在前）。
+func (in Input) hidden(a Agent) bool {
+	if a.Column != ColDone || a.NeedsYou != "" {
+		return false
+	}
+	if at, ok := in.Archived[a.ID]; ok && a.UpdatedAt <= at {
+		return true
+	}
+	return in.Now-a.UpdatedAt > AutoArchiveMs
+}
+
+// Build：拼看板数据。纳管的按更新时间新的在前，外部的跟在后面（同样新的在前）。
 func Build(in Input) State {
 	byTask := map[string]tasks.Task{}
 	for _, t := range in.Tasks {
@@ -170,6 +252,11 @@ func Build(in Input) State {
 	seen := map[float64]bool{}
 	managed := []Agent{}
 	tabTask := map[string]bool{}
+
+	for _, c := range in.Chats {
+		managed = append(managed, Agent{ID: "chat:" + c.ConversationID, Kind: "nomi", Backend: "nomi", Scope: "managed",
+			Origin: "chat", Column: ColRunning, ConversationID: c.ConversationID, UpdatedAt: c.StartedAt})
+	}
 
 	for _, t := range in.Tabs {
 		col, need, failed := "", "", false
@@ -242,40 +329,84 @@ func Build(in Input) State {
 		managed = append(managed, a)
 	}
 
-	// 已完成的：归档过且之后没动静的、太久没动静的不显示
 	shown := managed[:0]
 	for _, a := range managed {
-		if a.Column == ColDone && a.NeedsYou == "" {
-			if at, ok := in.Archived[a.ID]; ok && a.UpdatedAt <= at {
-				continue
-			}
-			if in.Now-a.UpdatedAt > AutoArchiveMs {
-				continue
-			}
+		if !in.hidden(a) {
+			shown = append(shown, a)
 		}
-		shown = append(shown, a)
 	}
 	managed = shown
 	sort.SliceStable(managed, func(i, j int) bool { return managed[i].UpdatedAt > managed[j].UpdatedAt })
 
 	// Nomi 本体：自己的进程树减去标签的进程树（内核、Nomi 跑的命令、本地模型等）
-	self := Agent{ID: SelfID, Kind: "nomi", Backend: "nomi", Scope: "managed", Origin: "self", Column: ColRunning, UpdatedAt: in.Now}
-	self.Usage = treeUsage(in, []float64{in.SelfPid}, seen)
+	nomi := Nomi{Usage: treeUsage(in, []float64{in.SelfPid}, seen)}
 
-	external := []Agent{}
+	external, idle := buildExternal(in)
+	return State{Agents: append(managed, external...), Nomi: nomi, ExternalIdle: idle, System: in.System, SampledAt: in.Now}
+}
+
+// buildExternal：外部会话按状态分列；在跑的会话认领同种助手、同一目录的进程树（一棵树只归一个会话），
+// 认领不到的进程树合并成「空闲进程」。
+func buildExternal(in Input) ([]Agent, Idle) {
+	type tree struct {
+		t       agents.AgentTree
+		key     string
+		claimed bool
+	}
+	trees := []*tree{}
 	if in.Procs != nil {
 		for _, tr := range agents.AgentTrees(in.Procs, in.SelfPid) {
 			if tr.InNomi {
 				continue
 			}
-			pid := strconv.FormatInt(int64(tr.Root.Pid), 10)
-			external = append(external, Agent{ID: "ext:" + pid, Kind: "cli", Backend: tr.Root.Kind, Scope: "external",
-				Origin: "terminal", Column: ColRunning, UpdatedAt: in.Now,
-				Usage: &Usage{RSSBytes: tr.RSS, CPUPercent: in.Procs.CPUSince(in.PrevProc, tr.Pids), Processes: len(tr.Pids)}})
+			trees = append(trees, &tree{t: tr, key: tr.Root.Kind + "\x1f" + normDir(in.ExtCwd[tr.Root.Pid])})
 		}
-		sort.SliceStable(external, func(i, j int) bool { return external[i].Usage.RSSBytes > external[j].Usage.RSSBytes })
 	}
 
-	out := append([]Agent{self}, managed...)
-	return State{Agents: append(out, external...), System: in.System, SampledAt: in.Now}
+	sessions := append([]ExtSession(nil), in.External...)
+	sort.SliceStable(sessions, func(i, j int) bool { return sessions[i].UpdatedAt > sessions[j].UpdatedAt })
+	out := []Agent{}
+	for _, s := range sessions {
+		col, need, failed, ok := extColumn(s)
+		if !ok {
+			continue
+		}
+		a := Agent{ID: "ext:" + s.ID, Kind: "cli", Backend: s.Kind, Scope: "external", Origin: "terminal",
+			Title: s.Title, Column: col, NeedsYou: need, Failed: failed, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt}
+		if col == ColRunning && s.Cwd != "" {
+			key := s.Kind + "\x1f" + normDir(s.Cwd)
+			for _, tr := range trees {
+				if !tr.claimed && tr.key == key {
+					tr.claimed = true
+					a.Usage = usageOf(in, tr.t.Pids)
+					break
+				}
+			}
+		}
+		if !in.hidden(a) {
+			out = append(out, a)
+		}
+	}
+
+	idle := Idle{Backends: []IdleBackend{}}
+	by := map[string]*IdleBackend{}
+	for _, tr := range trees {
+		if tr.claimed {
+			continue
+		}
+		idle.Processes += len(tr.t.Pids)
+		idle.RSSBytes += tr.t.RSS
+		b := by[tr.t.Root.Kind]
+		if b == nil {
+			b = &IdleBackend{Backend: tr.t.Root.Kind}
+			by[tr.t.Root.Kind] = b
+		}
+		b.Processes += len(tr.t.Pids)
+		b.RSSBytes += tr.t.RSS
+	}
+	for _, b := range by {
+		idle.Backends = append(idle.Backends, *b)
+	}
+	sort.Slice(idle.Backends, func(i, j int) bool { return idle.Backends[i].RSSBytes > idle.Backends[j].RSSBytes })
+	return out, idle
 }

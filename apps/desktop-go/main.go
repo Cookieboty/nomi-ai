@@ -648,7 +648,7 @@ func main() {
 	}
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
 	defer wireAgents(router, userData, desktopSvc)()
-	defer wireFleet(router, b8.Tasks)()
+	defer wireFleet(router, b8.Tasks, chatHandlers)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))

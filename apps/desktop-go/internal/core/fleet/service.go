@@ -24,7 +24,11 @@ type Deps struct {
 	ReadProcs func() *agents.ProcTable // nil 或返回 nil = 没有资源占用
 	Tabs      func() []Tab
 	Tasks     func() []tasks.Task
-	Emit      func(State) // fleet.changed
+	// Chats：正在回答的 Nomi 对话
+	Chats func() []Chat
+	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
+	External func() ([]ExtSession, map[float64]string)
+	Emit     func(State) // fleet.changed
 }
 
 type Service struct {
@@ -78,6 +82,15 @@ func (s *Service) State() State {
 	if s.d.Tabs != nil {
 		tabs = s.d.Tabs()
 	}
+	var chats []Chat
+	if s.d.Chats != nil {
+		chats = s.d.Chats()
+	}
+	var ext []ExtSession
+	var extCwd map[float64]string
+	if s.d.External != nil {
+		ext, extCwd = s.d.External()
+	}
 	cur, prev := s.sample()
 	now := s.d.Now().UnixMilli()
 	s.mu.Lock()
@@ -91,12 +104,17 @@ func (s *Service) State() State {
 		sys.TotalMemBytes = s.d.TotalMem()
 	}
 	if cur != nil && prev != nil {
-		all := make([]float64, 0, cur.Len())
-		cur.Each(func(p agents.RawProc) { all = append(all, p.Pid) })
-		sys.CPUPercent = cur.CPUSince(prev, all)
+		if pct, ok := cur.SystemCPUSince(prev); ok {
+			sys.CPUPercent = pct
+		} else if s.d.Cores > 0 {
+			// 读不到整机计数：退回各进程相加（会漏掉采样间隔里退出的进程），折算成占全部核的比例
+			all := make([]float64, 0, cur.Len())
+			cur.Each(func(p agents.RawProc) { all = append(all, p.Pid) })
+			sys.CPUPercent = min(100, cur.CPUSince(prev, all)/float64(s.d.Cores))
+		}
 	}
-	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Procs: cur, PrevProc: prev,
-		Archived: arch, System: sys})
+	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
+		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys})
 	s.prune(st, now)
 	return st
 }

@@ -36,6 +36,9 @@ func procs(at time.Time, cpu float64) *agents.ProcTable {
 		{Pid: 200, Ppid: 1, RSS: 5 * mb, Name: "zsh", Cmd: "-zsh"},
 		{Pid: 210, Ppid: 200, RSS: 400 * mb, CPU: cpu * 2, Name: "codex", Cmd: "codex"},
 		{Pid: 211, Ppid: 210, RSS: 900 * mb, Name: "cargo", Cmd: "cargo build"},
+		// IDE 里开着、没在跑会话的 codex 与 grok
+		{Pid: 220, Ppid: 1, RSS: 11 * mb, Name: "codex", Cmd: "codex app-server"},
+		{Pid: 230, Ppid: 1, RSS: 9 * mb, Name: "grok", Cmd: "grok"},
 	})
 	t.At = at
 	return t
@@ -71,17 +74,33 @@ func baseInput() Input {
 			{ID: "t-queued-cli", Title: "等开标签", Status: tasks.StatusQueued, Executor: tasks.ExecutorSpec{Kind: "cli", Cli: sp("codex"), Cwd: sp("/repo")}, UpdatedAt: now - 700},
 			{ID: "t-notify", Title: "通知", Status: tasks.StatusRunning, Executor: tasks.ExecutorSpec{Kind: "notify"}, UpdatedAt: now},
 		},
+		Chats: []Chat{{ConversationID: "conv-9", StartedAt: now - 100}},
+		External: []ExtSession{
+			{ID: "codex:s1", Kind: "codex", Title: "终端里修 bug", Cwd: "/proj", Status: "running", UpdatedAt: now - 300, Alive: &yes},
+			{ID: "claude:s2", Kind: "claude", Title: "等我回话", Cwd: "/x", Status: "waiting", UpdatedAt: now - 400},
+			{ID: "codex:s3", Kind: "codex", Title: "做完了", Cwd: "/proj", Status: "completed", UpdatedAt: now - 500},
+			{ID: "codex:s4", Kind: "codex", Title: "闲着", Cwd: "/proj", Status: "idle", UpdatedAt: now - 600},
+			{ID: "grok:s5", Kind: "grok", Title: "进程没了", Cwd: "/g", Status: "running", UpdatedAt: now - 700, Alive: &no},
+		},
+		ExtCwd:   map[float64]string{210: "/proj/", 220: "/other", 230: "/g"},
 		Procs:    procs(t0.Add(2*time.Second), 2),
 		PrevProc: procs(t0, 0),
 	}
 }
 
+var yes, no = true, false
+
 func TestBuildManagedTabsAndRuns(t *testing.T) {
 	st := Build(baseInput())
 	m := byID(st)
 
-	if st.Agents[0].ID != SelfID {
-		t.Fatalf("first agent = %s, want Nomi itself", st.Agents[0].ID)
+	for _, a := range st.Agents {
+		if a.Origin == "self" || a.ID == "nomi" {
+			t.Fatalf("Nomi itself is not a card: %+v", a)
+		}
+	}
+	if a := m["chat:conv-9"]; a.Kind != "nomi" || a.Origin != "chat" || a.Column != ColRunning || a.ConversationID != "conv-9" {
+		t.Errorf("answering conversation = %+v", a)
 	}
 	if _, ok := m["tab:c"]; ok {
 		t.Error("never-run tab must not be on the board")
@@ -139,29 +158,57 @@ func TestBuildUsageIsNotDoubleCounted(t *testing.T) {
 		t.Errorf("tab:b usage = %+v", u)
 	}
 	// Nomi 本体 = 自己的树（100、130）减去标签的树
-	if u := m[SelfID].Usage; u == nil || u.RSSBytes != 310*mb || u.Processes != 2 {
+	if u := Build(baseInput()).Nomi.Usage; u == nil || u.RSSBytes != 310*mb || u.Processes != 2 {
 		t.Errorf("self usage = %+v, want 310MB / 2 procs", u)
 	}
 }
 
-func TestBuildExternal(t *testing.T) {
+func TestBuildExternalSessions(t *testing.T) {
 	st := Build(baseInput())
-	ext := []Agent{}
-	for _, a := range st.Agents {
-		if a.Scope == "external" {
-			ext = append(ext, a)
+	m := byID(st)
+	cases := []struct {
+		id, col, need string
+		failed        bool
+	}{
+		{"ext:codex:s1", ColRunning, "", false},
+		{"ext:claude:s2", ColRunning, NeedReply, false},
+		{"ext:codex:s3", ColDone, "", false},
+		{"ext:grok:s5", ColDone, "", false}, // 标着在跑、进程已经没了
+	}
+	for _, c := range cases {
+		a, ok := m[c.id]
+		if !ok {
+			t.Errorf("%s missing", c.id)
+			continue
+		}
+		if a.Scope != "external" || a.Origin != "terminal" || a.Column != c.col || a.NeedsYou != c.need || a.Failed != c.failed {
+			t.Errorf("%s = %+v, want col %s need %q", c.id, a, c.col, c.need)
 		}
 	}
-	if len(ext) != 1 {
-		t.Fatalf("external = %+v, want only the terminal codex (Nomi's own CLIs are managed)", ext)
+	if _, ok := m["ext:codex:s4"]; ok {
+		t.Error("idle external session is not on the board")
 	}
-	e := ext[0]
-	if e.ID != "ext:210" || e.Backend != "codex" || e.Origin != "terminal" || e.Column != ColRunning ||
-		e.Usage == nil || e.Usage.RSSBytes != 1300*mb || e.Usage.CPUPercent != 200 {
-		t.Errorf("external = %+v usage %+v", e, e.Usage)
+	// 在跑的会话认领同种助手、同一目录（去掉末尾的 /）的进程树
+	if u := m["ext:codex:s1"].Usage; u == nil || u.RSSBytes != 1300*mb || u.CPUPercent != 200 || u.Processes != 2 {
+		t.Errorf("running external usage = %+v, want codex tree 210 (1300MB, 200%%)", u)
 	}
-	if st.Agents[len(st.Agents)-1].ID != "ext:210" {
-		t.Error("external agents come last")
+	if m["ext:claude:s2"].Usage != nil || m["ext:codex:s3"].Usage != nil {
+		t.Error("sessions without a matching process (or not running) have no usage")
+	}
+	// 认领不到的进程合并成一行，按内存大的在前
+	idle := st.ExternalIdle
+	if idle.Processes != 2 || idle.RSSBytes != 20*mb || len(idle.Backends) != 2 ||
+		idle.Backends[0].Backend != "codex" || idle.Backends[1].Backend != "grok" {
+		t.Errorf("idle = %+v", idle)
+	}
+	// Nomi 自己的 CLI（110 里的 claude 与它调的 codex、120）不算外部
+	for _, b := range idle.Backends {
+		if b.Backend == "claude" {
+			t.Error("Nomi's own claude must not be counted as external")
+		}
+	}
+	if last := st.Agents[len(st.Agents)-1]; last.Scope != "external" {
+		t.Error("external sessions come after managed agents")
 	}
 }
 
@@ -202,9 +249,16 @@ func TestBuildWithoutProcessTable(t *testing.T) {
 	in.Procs, in.PrevProc = nil, nil
 	st := Build(in)
 	for _, a := range st.Agents {
-		if a.Usage != nil || a.Scope == "external" {
-			t.Fatalf("without a process table there is no usage and no external agent: %+v", a)
+		if a.Usage != nil {
+			t.Fatalf("without a process table there is no usage: %+v", a)
 		}
+	}
+	if st.Nomi.Usage != nil || st.ExternalIdle.Processes != 0 {
+		t.Fatalf("without a process table: nomi %+v idle %+v", st.Nomi, st.ExternalIdle)
+	}
+	// 外部会话仍然按状态上看板
+	if _, ok := byID(st)["ext:codex:s1"]; !ok {
+		t.Error("external sessions still show without a process table")
 	}
 }
 

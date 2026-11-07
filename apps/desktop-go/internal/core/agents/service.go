@@ -1473,3 +1473,15 @@ func num(v any) float64 {
 	}
 	return n
 }
+
+// ProcCwds：最近一次进程扫描里各编程助手进程的工作目录（pid → 目录；须持 GIL 调用，与 State 一样）。
+// Agent 看板据此把外部的进程树对到会话上。
+func (s *Service) ProcCwds() map[float64]string {
+	out := make(map[float64]string, len(s.procs))
+	for _, p := range s.procs {
+		if p.Cwd != "" {
+			out[p.Pid] = p.Cwd
+		}
+	}
+	return out
+}

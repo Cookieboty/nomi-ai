@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** Agent 看板：四列 + 外部只读、归档、标题栏负载指示与浮层、导航栏负载环 */
+/** Agent 看板：总览（调度者 / 空闲进程）+ 四列（含外部会话、只读）、归档、标题栏负载指示与浮层、导航栏负载环 */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,14 +27,14 @@ const usage = (bytes: number, cpu = 0, processes = 1) => ({
 const state: FleetState = {
   agents: [
     {
-      id: 'nomi',
+      id: 'chat:c1',
       kind: 'nomi',
       backend: 'nomi',
       scope: 'managed',
-      origin: 'self',
+      origin: 'chat',
       title: '',
       column: 'running',
-      usage: usage(300 * MB, 3, 2),
+      conversationId: 'c1',
       updatedAt: T0,
     },
     {
@@ -48,6 +48,7 @@ const state: FleetState = {
       needsYou: 'permission',
       tabId: 'a',
       taskId: 't1',
+      cwd: '/Users/me/repo',
       usage: usage(1.5 * GB, 120, 4),
       updatedAt: T0,
     },
@@ -75,20 +76,53 @@ const state: FleetState = {
       updatedAt: T0,
     },
     {
-      id: 'ext:210',
+      id: 'ext:codex:s1',
       kind: 'cli',
       backend: 'codex',
       scope: 'external',
       origin: 'terminal',
-      title: '',
+      title: '终端里修 bug',
       column: 'running',
+      cwd: '/proj',
       usage: usage(2 * GB, 50, 3),
       updatedAt: T0,
     },
+    {
+      id: 'ext:claude:s2',
+      kind: 'cli',
+      backend: 'claude',
+      scope: 'external',
+      origin: 'terminal',
+      title: '等我回话',
+      column: 'running',
+      needsYou: 'reply',
+      updatedAt: T0,
+    },
+    {
+      id: 'ext:codex:s3',
+      kind: 'cli',
+      backend: 'codex',
+      scope: 'external',
+      origin: 'terminal',
+      title: '做完了',
+      column: 'done',
+      updatedAt: T0,
+    },
   ],
-  system: { totalMemBytes: 8 * GB, cores: 8, cpuPercent: 180 },
+  nomi: { usage: usage(300 * MB, 3, 2) },
+  externalIdle: {
+    processes: 8,
+    rssBytes: 100 * MB,
+    backends: [
+      { backend: 'codex', processes: 6, rssBytes: 80 * MB },
+      { backend: 'grok', processes: 2, rssBytes: 20 * MB },
+    ],
+  },
+  system: { totalMemBytes: 16 * GB, cores: 8, cpuPercent: 12 },
   sampledAt: T0,
 };
+
+const chatName = (id: string) => (id === 'c1' ? '周末计划' : '');
 
 let fake: FakeApi;
 beforeEach(() => {
@@ -106,22 +140,23 @@ afterEach(() => {
 });
 
 describe('summarize / format', () => {
-  it('splits managed and external memory, counts running and needs-you', () => {
+  it('counts Nomi with the managed side and idle processes with the external side', () => {
     const s = summarize(state);
     expect(s.managedBytes).toBe(300 * MB + 1.5 * GB + 200 * MB);
-    expect(s.externalBytes).toBe(2 * GB);
-    // 只数纳管、不含 Nomi 本体的「进行中」
-    expect(s.running).toBe(1);
-    expect(s.needsYou).toBe(1);
+    expect(s.externalBytes).toBe(2 * GB + 100 * MB);
+    expect(s.agentsBytes).toBe(1.5 * GB + 200 * MB + 2 * GB);
+    // 进行中：正在回答的对话、Nomi 派出的、外部会话都算
+    expect(s.running).toBe(4);
+    expect(s.needsYou).toBe(2);
     expect(s.level).toBe('normal');
   });
 
-  it('raises the load level from memory share or CPU share', () => {
+  it('raises the load level from memory share or whole-machine CPU (0–100)', () => {
     const heavy = { ...state, system: { ...state.system, totalMemBytes: 5 * GB } };
-    // 纳管 + 外部共约 4.0 GB / 5 GB = 80%
+    // 300 MB + 1.7 GB + 2.1 GB ≈ 4.1 GB / 5 GB > 75%
     expect(summarize(heavy).level).toBe('critical');
-    const cpu = { ...state, system: { ...state.system, cpuPercent: 450 } };
-    expect(summarize(cpu).level).toBe('warn'); // 450 / 800
+    const cpu = { ...state, system: { ...state.system, cpuPercent: 60 } };
+    expect(summarize(cpu).level).toBe('warn');
     expect(summarize(null).level).toBe('normal');
   });
 
@@ -134,20 +169,45 @@ describe('summarize / format', () => {
 });
 
 describe('FleetPage', () => {
-  it('puts managed agents in columns and external ones in a read-only section', () => {
-    render(<FleetPage active state={state} onBack={() => undefined} onArchive={() => undefined} />);
+  it('shows Nomi as the dispatcher in the overview, not as a card', () => {
+    render(<FleetPage active state={state} onBack={() => undefined} chatName={chatName} />);
+    expect(screen.getByTestId('fleet-dispatcher').textContent).toContain('300 MB');
+    expect(screen.queryByTestId('fleet-card-nomi')).toBeNull();
+    // 空闲进程合并成一行
+    const idle = screen.getByTestId('fleet-idle').textContent ?? '';
+    expect(idle).toContain('Codex 6');
+    expect(idle).toContain('100 MB');
+    expect(screen.getByTestId('fleet-summary').textContent).toContain('12%');
+  });
+
+  it('puts every working agent, managed and external, into the columns', () => {
+    render(<FleetPage active state={state} onBack={() => undefined} chatName={chatName} />);
     const running = screen.getByTestId('fleet-col-running');
+    expect(within(running).getByText('周末计划')).toBeTruthy();
     expect(within(running).getByText('修复流式')).toBeTruthy();
     expect(within(running).getByTestId('fleet-needs-tab:a')).toBeTruthy();
+    expect(within(running).getByText('终端里修 bug')).toBeTruthy();
+    expect(within(running).getByTestId('fleet-needs-ext:claude:s2')).toBeTruthy();
     expect(within(screen.getByTestId('fleet-col-todo')).getByText('写周报')).toBeTruthy();
-    expect(within(screen.getByTestId('fleet-col-done')).getByText('重构 UI')).toBeTruthy();
-    expect(within(screen.getByTestId('fleet-col-paused')).queryAllByRole('listitem')).toHaveLength(
-      0,
+    const done = screen.getByTestId('fleet-col-done');
+    expect(within(done).getByText('重构 UI')).toBeTruthy();
+    expect(within(done).getByText('做完了')).toBeTruthy();
+  });
+
+  it('external cards are read-only: no open / close buttons', () => {
+    render(
+      <FleetPage
+        active
+        state={state}
+        onBack={() => undefined}
+        onOpenTab={() => undefined}
+        onOpenTask={() => undefined}
+        onCloseTab={() => undefined}
+      />,
     );
-    const ext = screen.getByTestId('fleet-external');
-    expect(within(ext).getByTestId('fleet-card-ext:210')).toBeTruthy();
-    // 外部的不给任何操作
-    expect(within(ext).queryAllByRole('button')).toHaveLength(0);
+    const card = screen.getByTestId('fleet-card-ext:codex:s1');
+    expect(card.getAttribute('data-scope')).toBe('external');
+    expect(within(card).queryAllByRole('button')).toHaveLength(0);
   });
 
   it('archives only done items', () => {
@@ -156,6 +216,14 @@ describe('FleetPage', () => {
     expect(screen.queryByTestId('fleet-archive-tab:a')).toBeNull();
     fireEvent.click(screen.getByTestId('fleet-archive-tab:b'));
     expect(onArchive).toHaveBeenCalledWith('tab:b');
+  });
+
+  it('opens the conversation of an answering Nomi chat', () => {
+    const onOpenChat = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onOpenChat={onOpenChat} />);
+    const card = screen.getByTestId('fleet-card-chat:c1');
+    fireEvent.click(within(card).getByRole('button'));
+    expect(onOpenChat).toHaveBeenCalledWith('c1');
   });
 
   it('Esc goes back to the chat', () => {
@@ -169,20 +237,28 @@ describe('FleetPage', () => {
 describe('FleetIndicator', () => {
   it('shows running count and memory, opens a popover, Esc closes it', () => {
     const onOpenChange = vi.fn();
-    const onOpenBoard = vi.fn();
-    render(<FleetIndicator state={state} onOpenBoard={onOpenBoard} onOpenChange={onOpenChange} />);
+    render(
+      <FleetIndicator
+        state={state}
+        onOpenBoard={() => undefined}
+        onOpenChange={onOpenChange}
+        chatName={chatName}
+      />,
+    );
     const btn = screen.getByTestId('fleet-indicator');
-    expect(btn.textContent).toContain('1 · 4.0 GB');
+    expect(btn.textContent).toContain('4 ·');
+    // 整机 CPU（0–100）也在指示里
+    expect(btn.textContent).toContain('12%');
     fireEvent.click(btn);
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
     const pop = screen.getByTestId('fleet-popover');
-    // 正在跑的按内存从大到小；Nomi 本体不列
+    // 正在跑的按内存从大到小
     const titles = within(pop)
       .getAllByRole('listitem')
       .map((li) => li.firstChild?.textContent);
-    expect(titles[0]).toContain('Codex');
+    expect(titles[0]).toBe('终端里修 bug');
     expect(titles[1]).toBe('修复流式');
-    expect(titles).toHaveLength(2);
+    expect(titles).toContain('周末计划');
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByTestId('fleet-popover')).toBeNull();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
@@ -235,7 +311,7 @@ describe('useFleet', () => {
 
   it('loads once and follows fleet.changed', async () => {
     render(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('probe').textContent).toBe('5'));
+    await waitFor(() => expect(screen.getByTestId('probe').textContent).toBe('7'));
     await act(() => fake.emit('fleet.changed', { ...state, agents: state.agents.slice(0, 2) }));
     expect(screen.getByTestId('probe').textContent).toBe('2');
   });

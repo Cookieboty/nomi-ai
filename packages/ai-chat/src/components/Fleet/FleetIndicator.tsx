@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { formatBytes, summarize, type FleetState } from '../../services/fleetClient';
+import { formatBytes, formatCpu, summarize, type FleetState } from '../../services/fleetClient';
 
 import { agentTitle, UsageLine } from './AgentCard';
 import styles from './Fleet.module.css';
@@ -22,7 +22,8 @@ export const FleetIndicator: React.FC<{
   onOpenBoard: () => void;
   /** 浮层开关（开着时宿主加快刷新） */
   onOpenChange: (open: boolean) => void;
-}> = ({ state, onOpenBoard, onOpenChange }) => {
+  chatName?: (conversationId: string) => string;
+}> = ({ state, onOpenBoard, onOpenChange, chatName }) => {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
@@ -68,9 +69,10 @@ export const FleetIndicator: React.FC<{
 
   if (!state) return null;
   const total = sum.managedBytes + sum.externalBytes;
-  const label = t('ui.cli-monitor.fleet-indicator', sum.running, formatBytes(total));
+  const cpu = formatCpu(state.system.cpuPercent);
+  const label = t('ui.cli-monitor.fleet-indicator', sum.running, formatBytes(total), cpu);
   const running = state.agents
-    .filter((a) => a.origin !== 'self' && (a.column === 'running' || a.needsYou))
+    .filter((a) => a.column === 'running' || a.needsYou)
     .sort((a, b) => (b.usage?.rssBytes ?? 0) - (a.usage?.rssBytes ?? 0));
 
   return (
@@ -78,7 +80,7 @@ export const FleetIndicator: React.FC<{
       <button
         ref={btn}
         type="button"
-        className={`app-titlebar-btn ${styles.indicator}`}
+        className={styles.indicator}
         data-level={sum.level}
         aria-label={label}
         title={label}
@@ -89,7 +91,7 @@ export const FleetIndicator: React.FC<{
       >
         <Icon icon={Activity} size={14} />
         <span className={styles.indicatorText}>
-          {sum.running} · {formatBytes(total)}
+          {sum.running} · {formatBytes(total)} · {t('ui.cli-monitor.fleet-cpu', cpu)}
         </span>
         {sum.needsYou > 0 && <span className={styles.indicatorDot} aria-hidden />}
       </button>
@@ -108,7 +110,7 @@ export const FleetIndicator: React.FC<{
               <ul className={styles.popoverList}>
                 {running.slice(0, POPOVER_MAX).map((a) => (
                   <li key={a.id} className={styles.popoverItem}>
-                    <span className={styles.popoverTitle}>{agentTitle(a)}</span>
+                    <span className={styles.popoverTitle}>{agentTitle(a, chatName)}</span>
                     <UsageLine a={a} />
                   </li>
                 ))}

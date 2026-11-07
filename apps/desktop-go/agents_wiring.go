@@ -13,6 +13,13 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
+// agentsSvc：wireAgents 构造的编程助手监视（Agent 看板读它认出的外部会话）；
+// onAgentsChanged：它推 agents.changed 时顺带调用（fleet_wiring.go 设置）。两者都只在 GIL 里读写。
+var (
+	agentsSvc       *agents.Service
+	onAgentsChanged func()
+)
+
 // wireAgents：构造 AgentProgressService 并接到编排器（attachHarness）。
 // usageOf / taskCost 来自 UsageService（usage_wiring.go）。
 func wireAgents(router *contract.Router, userData string, d *desktop.Service) func() {
@@ -20,7 +27,13 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 	var s *agents.Service
 	jsrt.Run(func() {
 		s = agents.New(agents.Deps{
-			Root: filepath.Join(userData, "agents"), Logger: deps.StdLogger{Prefix: "[agents]"}, Events: hostEvents{router},
+			Root: filepath.Join(userData, "agents"), Logger: deps.StdLogger{Prefix: "[agents]"},
+			Events: deps.EventsFunc(func(ev string, p any) {
+				router.Emit(ev, p)
+				if ev == "agents.changed" && onAgentsChanged != nil {
+					onAgentsChanged()
+				}
+			}),
 			Notify: func(n agents.Notice) {
 				d.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status,
 					Endpoint: n.Endpoint, Passive: n.Passive, Bubble: n.Bubble})
@@ -73,6 +86,7 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 		if s.Settings().Enabled {
 			s.Start()
 		}
+		agentsSvc = s
 	})
 	codinghandlers.RegisterAgents(router, func() codinghandlers.Agents { return s })
 	return func() { jsrt.Run(func() { s.Stop() }) }

@@ -15,6 +15,9 @@ type ProcTable struct {
 	At       time.Time
 	procs    map[float64]RawProc
 	children map[float64][]float64
+	// 整机累计 CPU 时间（SystemCPU）；sysOK = false 表示读不到
+	sysBusy, sysTotal float64
+	sysOK             bool
 }
 
 // NewProcTable：从进程列表建表（重复的 pid 以后出现的为准）。
@@ -43,7 +46,22 @@ func ReadProcTable(platform string) *ProcTable {
 	}
 	t := NewProcTable(procs)
 	t.At = at
+	t.sysBusy, t.sysTotal, t.sysOK = SystemCPU()
 	return t
+}
+
+// SystemCPUSince：从 prev 到 t 整机 CPU 忙的比例（0–100，所有核一起算，同活动监视器的「系统 + 用户」）；
+// ok = false 表示两份快照里有一份读不到整机 CPU
+func (t *ProcTable) SystemCPUSince(prev *ProcTable) (pct float64, ok bool) {
+	if prev == nil || !t.sysOK || !prev.sysOK {
+		return 0, false
+	}
+	dt := t.sysTotal - prev.sysTotal
+	if dt <= 0 {
+		return 0, false
+	}
+	pct = (t.sysBusy - prev.sysBusy) / dt * 100
+	return min(100, max(0, pct)), true
 }
 
 // CPUSince：pids 从 prev 到 t 这段时间的 CPU 占用（百分比，100 = 占满一个核，多核可超过 100）。

@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
@@ -17,7 +18,7 @@ import (
 
 // wireFleet：Agent 看板。标签从编排器取（进 GIL），任务从持续任务服务取（GIL 外），
 // 标签 / 任务变化时推 fleet.changed。
-func wireFleet(router *contract.Router, ts *tasks.Service) func() {
+func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handlers) func() {
 	o := harnessOrch
 	s := fleet.New(fleet.Deps{
 		SelfPid:   os.Getpid(),
@@ -45,15 +46,44 @@ func wireFleet(router *contract.Router, ts *tasks.Service) func() {
 			}
 			return ts.Runtime.List()
 		},
+		Chats: func() []fleet.Chat {
+			if chats == nil {
+				return nil
+			}
+			out := []fleet.Chat{}
+			for _, c := range chats.ActiveChats() {
+				out = append(out, fleet.Chat{ConversationID: c.ConversationID, StartedAt: c.StartedAt.UnixMilli()})
+			}
+			return out
+		},
+		External: func() ([]fleet.ExtSession, map[float64]string) {
+			if agentsSvc == nil {
+				return nil, nil
+			}
+			type res struct {
+				s   []fleet.ExtSession
+				cwd map[float64]string
+			}
+			r := jsrt.Call(func() res {
+				return res{fleetExternal(agentsSvc.State()), agentsSvc.ProcCwds()}
+			})
+			return r.s, r.cwd
+		},
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
 	})
 	var offTasks func()
 	if ts != nil {
 		offTasks = ts.OnChange(func(string) { s.Changed() })
 	}
-	if o != nil {
-		jsrt.Run(func() { o.Events().On("tabs", func(any) { s.Changed() }) })
+	if chats != nil {
+		chats.OnActiveChange(s.Changed)
 	}
+	jsrt.Run(func() {
+		if o != nil {
+			o.Events().On("tabs", func(any) { s.Changed() })
+		}
+		onAgentsChanged = s.Changed
+	})
 	codinghandlers.RegisterFleet(router, func() codinghandlers.Fleet { return s })
 	return func() {
 		if offTasks != nil {
@@ -61,6 +91,30 @@ func wireFleet(router *contract.Router, ts *tasks.Service) func() {
 		}
 		s.Close()
 	}
+}
+
+// fleetExternal：编程助手监视的状态 → 外部会话（只要本机会话文件来的；Nomi 标签的会话由标签代表）
+func fleetExternal(st *util.Obj) []fleet.ExtSession {
+	out := []fleet.ExtSession{}
+	arr, _ := st.Get("sessions").([]any)
+	for _, x := range arr {
+		v, ok := x.(*util.Obj)
+		if !ok || v.Get("source") != "file" {
+			continue
+		}
+		str := func(k string) string { s, _ := v.Get(k).(string); return s }
+		at, _ := v.Get("updatedAt").(float64)
+		if at == 0 {
+			at, _ = v.Get("mtime").(float64)
+		}
+		e := fleet.ExtSession{ID: str("id"), Kind: str("kind"), Title: str("title"), Cwd: str("cwd"), Status: str("status"),
+			UpdatedAt: int64(at)}
+		if b, ok := v.Get("alive").(bool); ok {
+			e.Alive = &b
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // fleetTab：ListTabs 的一项 → 看板的标签信息

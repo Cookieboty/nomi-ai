@@ -813,7 +813,7 @@ const AiChatContent: React.FC = () => {
         onToggleSidebar={toggleSidebar}
         title={<TitleBarTitle page={openPage} />}
         trailing={titleBar && !mainHidden ? sessionTools : undefined}
-        status={titleBar ? mainPages.fleetIndicator : undefined}
+        lead={titleBar ? mainPages.fleetIndicator : undefined}
       />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}

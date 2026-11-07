@@ -8,9 +8,14 @@ import { t } from '@nomi-ai/ui';
 import { Gauge } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
+import {
+  selectFirstMessageId,
+  selectIpcClient,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
+import { requestOpenConversation, type ConversationStore } from '../../services/conversationStore';
 import {
   fleetApi,
   fleetAvailable,
@@ -20,6 +25,7 @@ import {
 } from '../../services/fleetClient';
 import { harnessClient } from '../../services/harnessClient';
 import { requestOpenTask } from '../../services/tasksClient';
+import type { IPCClient } from '../../types/ipc';
 import { confirmDialog } from '../ConfirmDialog';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
@@ -69,6 +75,16 @@ export function useFleetHost(collapsed: boolean) {
   const { state, apply } = useFleet(open || popover);
   const sum = summarize(state);
   const { setMode } = useChatMode();
+  const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  /** Nomi 对话的名称（会话列表里的名字是文案 key 或用户起的名字） */
+  const chatName = useCallback(
+    (id: string) => {
+      const store = ipc?.conversationStore?.() as ConversationStore | undefined;
+      const name = store?.get(id)?.name;
+      return name ? t(name) : '';
+    },
+    [ipc],
+  );
 
   const show = useCallback(() => {
     setOpen(true);
@@ -98,6 +114,10 @@ export function useFleetHost(collapsed: boolean) {
   const openTask = useCallback((id: string) => {
     setOpen(false);
     requestOpenTask(id);
+  }, []);
+  const openChat = useCallback((id: string) => {
+    setOpen(false);
+    requestOpenConversation(id);
   }, []);
   const archive = useCallback(
     (id: string) => {
@@ -133,7 +153,12 @@ export function useFleetHost(collapsed: boolean) {
     [available, collapsed, open, sum.needsYou, sum.running, sum.level, show],
   );
   const indicator = available ? (
-    <FleetIndicator state={state} onOpenBoard={show} onOpenChange={setPopover} />
+    <FleetIndicator
+      state={state}
+      onOpenBoard={show}
+      onOpenChange={setPopover}
+      chatName={chatName}
+    />
   ) : null;
   if (!available) return { nav: null, page: null, indicator: null, chatHidden: false, close };
   const page = mounted ? (
@@ -144,6 +169,8 @@ export function useFleetHost(collapsed: boolean) {
         onBack={close}
         onOpenTab={openTab}
         onOpenTask={openTask}
+        onOpenChat={openChat}
+        chatName={chatName}
         onArchive={archive}
         onCloseTab={(a) => void closeTab(a)}
       />

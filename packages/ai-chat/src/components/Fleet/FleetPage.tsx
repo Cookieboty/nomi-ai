@@ -1,3 +1,4 @@
+import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo } from 'react';
@@ -11,13 +12,74 @@ import {
   type FleetColumn,
   type FleetState,
 } from '../../services/fleetClient';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { EndpointIcon } from '../EndpointIcon';
 
 import { AgentCard, type CardActions } from './AgentCard';
 import styles from './Fleet.module.css';
 
+/** 外部空闲进程：「Codex 6 · Grok 5」 */
+function idleText(s: FleetState): string {
+  return s.externalIdle.backends
+    .map(
+      (b) =>
+        `${isBuiltinCliId(b.backend) ? t(ENDPOINT_NAME[b.backend]) : b.backend} ${b.processes}`,
+    )
+    .join(' · ');
+}
+
+/** 顶部一条总览：Nomi（调度者）自己的占用 · 各 agent 的占用 · 外部空闲进程 · 整机 */
+const Overview: React.FC<{ state: FleetState | null }> = ({ state }) => {
+  const sum = summarize(state);
+  const app = brand.appName;
+  const nomi = state?.nomi.usage;
+  return (
+    <div className={styles.summary} data-level={sum.level} data-testid="fleet-summary">
+      <span className={styles.dispatcher} data-testid="fleet-dispatcher">
+        <EndpointIcon backend="nomi" size={16} decorative />
+        <span className={styles.dispatcherName}>{app}</span>
+        <span className={styles.tag}>{t('ui.cli-monitor.fleet-dispatcher')}</span>
+        {nomi && (
+          <span className={styles.usage}>
+            <span>{t('ui.cli-monitor.fleet-memory', formatBytes(nomi.rssBytes))}</span>
+            <span>{t('ui.cli-monitor.fleet-cpu', formatCpu(nomi.cpuPercent))}</span>
+          </span>
+        )}
+      </span>
+      <span>{t('ui.cli-monitor.fleet-sum-agents', formatBytes(sum.agentsBytes))}</span>
+      {state && state.externalIdle.processes > 0 && (
+        <span title={t('ui.cli-monitor.fleet-idle-hint', app)} data-testid="fleet-idle">
+          {t(
+            'ui.cli-monitor.fleet-idle',
+            idleText(state),
+            formatBytes(state.externalIdle.rssBytes),
+          )}
+        </span>
+      )}
+      <span className={styles.spacer} />
+      {state && (
+        <span>
+          {state.system.totalMemBytes > 0 &&
+            `${t('ui.cli-monitor.fleet-sum-total', formatBytes(state.system.totalMemBytes))} · `}
+          {t('ui.cli-monitor.fleet-sum-cpu', formatCpu(state.system.cpuPercent))}
+        </span>
+      )}
+      {sum.level !== 'normal' && (
+        <span className={styles.level}>
+          {t(
+            sum.level === 'critical'
+              ? 'ui.cli-monitor.fleet-load-critical'
+              : 'ui.cli-monitor.fleet-load-warn',
+          )}
+        </span>
+      )}
+    </div>
+  );
+};
+
 /**
- * Agent 看板整页：顶部是资源占用汇总；纳管的（Nomi 本体、后台 agent、Nomi 派出的与工坊里的 CLI）
- * 分四列；Nomi 之外启动的编程助手单独一块，只读。
+ * Agent 看板整页：顶部一条总览；下面四列放所有正在干活的：正在回答的 Nomi 对话、后台 agent、
+ * Nomi 派出的与工坊里的 CLI，以及 Nomi 之外的编程助手会话（只读）。
  */
 export const FleetPage: React.FC<
   {
@@ -35,17 +97,11 @@ export const FleetPage: React.FC<
     return () => window.removeEventListener('keydown', onKey);
   }, [active, onBack]);
 
-  const sum = summarize(state);
-  const { columns, external } = useMemo(() => {
+  const columns = useMemo(() => {
     const cols = new Map<FleetColumn, FleetAgent[]>(FLEET_COLUMNS.map((c) => [c.key, []]));
-    const ext: FleetAgent[] = [];
-    for (const a of state?.agents ?? []) {
-      if (a.scope === 'external') ext.push(a);
-      else cols.get(a.column)?.push(a);
-    }
-    return { columns: cols, external: ext };
+    for (const a of state?.agents ?? []) cols.get(a.column)?.push(a);
+    return cols;
   }, [state]);
-  const app = brand.appName;
 
   return (
     <section
@@ -56,32 +112,8 @@ export const FleetPage: React.FC<
       <header className={styles.pageHead}>
         <h2 className={styles.pageTitle}>{t('ui.cli-monitor.fleet-board')}</h2>
       </header>
-      <p className={styles.hint}>{t('ui.cli-monitor.fleet-hint', app)}</p>
-
-      <div className={styles.summary} data-level={sum.level} data-testid="fleet-summary">
-        <span>{t('ui.cli-monitor.fleet-sum-managed', app, formatBytes(sum.managedBytes))}</span>
-        <span>{t('ui.cli-monitor.fleet-sum-external', formatBytes(sum.externalBytes))}</span>
-        {state && (
-          <>
-            {state.system.totalMemBytes > 0 && (
-              <span>
-                {t('ui.cli-monitor.fleet-sum-total', formatBytes(state.system.totalMemBytes))}
-              </span>
-            )}
-            <span>{t('ui.cli-monitor.fleet-sum-cpu', formatCpu(state.system.cpuPercent))}</span>
-          </>
-        )}
-        {sum.level !== 'normal' && (
-          <span className={styles.level}>
-            {t(
-              sum.level === 'critical'
-                ? 'ui.cli-monitor.fleet-load-critical'
-                : 'ui.cli-monitor.fleet-load-warn',
-            )}
-          </span>
-        )}
-      </div>
-
+      <p className={styles.hint}>{t('ui.cli-monitor.fleet-hint', brand.appName)}</p>
+      <Overview state={state} />
       <div className={styles.board}>
         {FLEET_COLUMNS.map((c) => {
           const items = columns.get(c.key) ?? [];
@@ -109,20 +141,6 @@ export const FleetPage: React.FC<
           );
         })}
       </div>
-
-      <section className={styles.external} aria-label={t('ui.cli-monitor.fleet-external', app)}>
-        <h3 className={styles.sectionTitle}>{t('ui.cli-monitor.fleet-external', app)}</h3>
-        <p className={styles.hint}>{t('ui.cli-monitor.fleet-external-hint', app)}</p>
-        {external.length ? (
-          <ul className={styles.externalGrid} data-testid="fleet-external">
-            {external.map((a) => (
-              <AgentCard key={a.id} a={a} />
-            ))}
-          </ul>
-        ) : (
-          <p className={styles.empty}>{t('ui.cli-monitor.fleet-external-empty', app)}</p>
-        )}
-      </section>
     </section>
   );
 };
