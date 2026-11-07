@@ -61,6 +61,37 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v233">
+          <header class="release-head">
+            <h2 data-i18n="cl.v233.title">v2.3.3 — Agent 看板、内存守护与 macOS 编程助手沙箱</h2>
+            <time datetime="2026-11-07">2026-11-07</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v233.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v233.feat.1">Agent 看板：左侧导航栏的「Agents」按待进行 / 进行中 / 已暂停 / 已完成列出 Nomi 的对话、后台 agent、派出的和工坊里的编程助手，以及你在终端或 IDE 里自己开的编程助手会话（只读）；每张卡片显示内存与 CPU，标题栏的负载指示显示在跑的数量与总占用</li>
+            <li data-i18n="cl.v233.feat.2">内存守护：内存偏高时先回收空闲标签的进程，内存紧张时逐个暂停 Nomi 派出的和工坊里的编程助手，恢复后自动从暂停处继续；可以手动暂停 / 继续，也可以关掉自动处理</li>
+            <li data-i18n="cl.v233.feat.3">Nomi 会看看板调度：说到电脑卡、内存或一次派好几个编程助手时，Nomi 能查看看板、暂停或继续它派出去的编程助手；内存紧张时新派的任务排队，缓解后自动开始</li>
+            <li data-i18n-html="cl.v233.feat.4">macOS 系统沙箱（默认开）：编程助手读不到 SSH 与 Git 凭据、云账号凭据、密钥库、浏览器数据、个人数据、<code>.env</code> 与私钥文件，只能写项目文件夹和自己的配置缓存；被挡下时对话里出现卡片，可以本会话允许、始终允许（只对这个项目）或不允许，允许后自动接着做</li>
+            <li data-i18n="cl.v233.feat.5">子任务在对话旁边单独一栏打开，可以接着和它对话：运行中插话、「停止」打断、空闲时再做一轮，之后的结果都会回到主对话</li>
+            <li data-i18n="cl.v233.feat.6">会话详情：标题栏的按钮在对话右侧开一栏，显示工作区、分支、本会话的变更、子任务与持续任务及状态</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v233.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v233.imp.1">Nomi 对话每轮的固定上下文减半，提示缓存命中率更高：上一轮的工具调用原样带进下一轮，长期记忆不再重复召回</li>
+            <li data-i18n="cl.v233.imp.2">上下文环的分项按实际请求拆分：单独列出系统提示、工具定义和长期记忆</li>
+            <li data-i18n="cl.v233.imp.3">编程助手的工作目录只能是项目文件夹，启动时不再继承环境里的令牌、密码和云账号密钥；Codex 默认不联网，可在「编程助手 → 权限」打开</li>
+            <li data-i18n="cl.v233.imp.4">「桌面权限 → 隐私保护」可以添加受保护的文件夹、放行确实需要的环境变量、开关沙箱和撤销「始终允许」</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v233.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v233.fix.1">沙箱补上几个口子：没授权时连不上 ssh-agent 和 Docker，不能用 osascript 让别的应用代劳，读不到发布令牌和命令行历史，改不了会在沙箱外执行命令的配置；写入授权只放开最小范围</li>
+            <li data-i18n="cl.v233.fix.2">Nomi 意外退出后，被暂停的编程助手会在下次启动时自动恢复</li>
+            <li data-i18n="cl.v233.fix.3">新建对话不再复用还在后台生成首轮回复的对话</li>
+            <li data-i18n="cl.v233.fix.4">在「设置 → 已归档的对话」里永久删除对话时，先停止它正在进行的回复</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.3" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v232">
           <header class="release-head">
             <h2 data-i18n="cl.v232.title">v2.3.2 — 会话按工作区分组、固定导航栏、搜索与分支切换</h2>
@@ -68,10 +99,10 @@
           </header>
           <h3 class="release-group" data-i18n="cl.v232.feat">新功能</h3>
           <ul>
-            <li data-i18n="cl.v232.feat.1">会话按工作区分组：Nomi 对话按会话的工作区、编程助手按标签目录归到同一个文件夹，每个文件夹默认显示 5 条，点「展开显示」每次再多 5 条；文件夹和「工作区」「最近」分区都可以收起 / Chats are grouped by workspace: Nomi chats by their workspace and coding-agent tabs by their folder; each folder shows 5 chats and "Show more" adds 5 at a time; folders and the Workspaces</li>
+            <li data-i18n="cl.v232.feat.1">会话按工作区分组：Nomi 对话按会话的工作区、编程助手按标签目录归到同一个文件夹，每个文件夹默认显示 5 条，点「展开显示」每次再多 5 条；文件夹和「工作区」「最近」分区都可以收起</li>
             <li data-i18n="cl.v232.feat.2">左侧固定导航栏：对话、任务、素材库，工坊模式下竖排列出全部编程助手，设置在最下面；收起会话面板后，鼠标移到「对话」或编程助手图标上会弹出会话浮层</li>
             <li data-i18n="cl.v232.feat.3">两种模式改名：「Nomi 灵伴」主打聊天、知识问答、记忆与日常事务，「Nomi 工坊」由 Nomi 调度 Claude Code、Codex、多模型完成项目与代码任务</li>
-            <li data-i18n="cl.v232.feat.4">搜索窗：放大镜或 <code>Ctrl/⌘+F</code> 打开，搜索对话、本机历史、任务和素材，底部标签切换全部 / 对话 / 任务 / 素材库，素材带缩略图 / A search window (magnifier or <code>Ctrl/⌘+F</code>) finds chats, local history, tasks and assets, with All / Chats / Tasks</li>
+            <li data-i18n-html="cl.v232.feat.4">搜索窗：放大镜或 <code>Ctrl/⌘+F</code> 打开，搜索对话、本机历史、任务和素材，底部标签切换全部 / 对话 / 任务 / 素材库，素材带缩略图</li>
             <li data-i18n="cl.v232.feat.5">置顶与归档：置顶的会话在最上面；归档的会话不在侧栏显示，可在「设置 → 通用 → 已归档的对话」里恢复或永久删除；永久删除会再确认一次</li>
             <li data-i18n="cl.v232.feat.6">分支切换：新会话输入框上方和右栏「改动」顶部的分支名可以点开，搜索本地分支、切换或新建分支；有会被覆盖的未提交改动时不会切换，改动不会丢</li>
             <li data-i18n="cl.v232.feat.7">输入框「+」菜单改成给这条消息加东西：添加图片或文件、引用文件（@）、交给编程助手、知识库问答</li>
