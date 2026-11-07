@@ -27,6 +27,8 @@ type Deps struct {
 	Tasks     func() []tasks.Task
 	// Chats：正在回答的 Nomi 对话
 	Chats func() []Chat
+	// TaskSummary：任务最近一次运行的结果摘要（GIL 外调用；只对最近做完的任务调）
+	TaskSummary func(taskID string) string
 	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
 	External func() ([]ExtSession, map[float64]string)
 	Emit     func(State) // fleet.changed
@@ -147,8 +149,16 @@ func (s *Service) State() State {
 			sys.CPUPercent = min(100, cur.CPUSince(prev, all)/float64(s.d.Cores))
 		}
 	}
+	sums := map[string]string{}
+	if s.d.TaskSummary != nil {
+		for _, t := range tk {
+			if col, _, _, ok := taskColumn(t.Status); ok && col == ColDone && now-t.UpdatedAt <= AutoArchiveMs {
+				sums[t.ID] = s.d.TaskSummary(t.ID)
+			}
+		}
+	}
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys})
+		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}

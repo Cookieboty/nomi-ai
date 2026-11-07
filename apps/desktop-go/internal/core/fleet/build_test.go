@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -345,5 +346,49 @@ func TestCloseIdleRefusesAnythingElse(t *testing.T) {
 	}
 	if len(kills) != 0 {
 		t.Fatalf("nothing may be killed, got %v", kills)
+	}
+}
+
+// 答完了（等你回话）但进程还开着的会话认领它的进程：不算空闲进程，卡片上有占用
+func TestBuildDoneSessionKeepsItsProcess(t *testing.T) {
+	in := baseInput()
+	in.External = append(in.External, ExtSession{ID: "codex:s9", Kind: "codex", Title: "等我回话", Cwd: "/other",
+		Status: "waiting", Summary: "## 改好了\n\n**测试** 都通过了", UpdatedAt: in.Now - 100, Alive: &yes})
+	st := Build(in)
+	a := byID(st)["ext:codex:s9"]
+	if a.Column != ColDone || a.Usage == nil || a.Usage.RSSBytes != 11*mb {
+		t.Fatalf("done session with a live process = %+v usage %+v", a, a.Usage)
+	}
+	if a.Summary != "改好了 测试 都通过了" {
+		t.Errorf("summary = %q", a.Summary)
+	}
+	for _, it := range st.ExternalIdle.Items {
+		if it.Pid == 220 {
+			t.Fatal("a process that belongs to a session is not idle")
+		}
+	}
+	// 进程已经没了的会话不认领
+	in = baseInput()
+	in.External = append(in.External, ExtSession{ID: "codex:s9", Kind: "codex", Cwd: "/other", Status: "completed",
+		UpdatedAt: in.Now - 100, Alive: &no})
+	st = Build(in)
+	if byID(st)["ext:codex:s9"].Usage != nil || len(st.ExternalIdle.Items) != 2 {
+		t.Fatal("a session whose process is gone does not claim anything")
+	}
+}
+
+func TestBuildSummaries(t *testing.T) {
+	in := baseInput()
+	in.Tabs[1].Summary = "重构完成，" + strings.Repeat("很长", 400)
+	in.TaskSummaries = map[string]string{"t-accept": "PPT 写进了工作区", "t-nomi": "还在跑，不该显示"}
+	m := byID(Build(in))
+	if s := m["tab:b"].Summary; !strings.HasPrefix(s, "重构完成") || len([]rune(s)) != SummaryMax+1 {
+		t.Errorf("tab summary = %q (%d runes)", s, len([]rune(s)))
+	}
+	if m["run:t-accept"].Summary != "PPT 写进了工作区" {
+		t.Errorf("task summary = %q", m["run:t-accept"].Summary)
+	}
+	if m["run:t-nomi"].Summary != "" || m["tab:a"].Summary != "" {
+		t.Error("only done cards carry a summary")
 	}
 }

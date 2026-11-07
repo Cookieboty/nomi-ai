@@ -118,6 +118,7 @@ const state: FleetState = {
       origin: 'terminal',
       title: '做完了',
       column: 'done',
+      summary: '修好了流式断开，测试都通过了',
       updatedAt: T0,
     },
   ],
@@ -217,6 +218,8 @@ describe('FleetPage', () => {
     const done = screen.getByTestId('fleet-col-done');
     expect(within(done).getByText('重构 UI')).toBeTruthy();
     expect(within(done).getByText('做完了')).toBeTruthy();
+    // 做完的卡片带上总结
+    expect(screen.getByTestId('fleet-summary-ext:codex:s3').textContent).toContain('测试都通过了');
     // 终端里等你回话 = 这一轮答完了：算已完成，不标「要你处理」
     expect(within(done).getByText('等我回话')).toBeTruthy();
     expect(screen.queryByTestId('fleet-needs-ext:claude:s2')).toBeNull();

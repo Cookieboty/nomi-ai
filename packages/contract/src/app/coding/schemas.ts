@@ -369,6 +369,8 @@ export const FleetAgent = loose({
   paused: loose({ by: z.enum(['memory', 'user']), at: z.number() }).optional(),
   /** 可以手动暂停：纳管、正在跑、有活着的进程、没在等审批的 CLI 标签 */
   pausable: z.boolean().optional(),
+  /** 做完时的总结（标签最后一条回复、任务结果摘要、外部会话摘要），只给已完成的，最多 300 字 */
+  summary: z.string().optional(),
 });
 
 export const FleetSystem = loose({

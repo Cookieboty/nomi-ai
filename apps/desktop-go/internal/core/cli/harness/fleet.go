@@ -131,3 +131,21 @@ func (o *Orchestrator) FrozenTabs() map[string]FrozenTab {
 	}
 	return out
 }
+
+// LastReply：标签最后一条助手回复（Agent 看板「已完成」卡片上的总结用）；没有时空串
+func (o *Orchestrator) LastReply(id string) string {
+	if o.tab(id) == nil || id == MainTabID {
+		return ""
+	}
+	msgs := o.TabMessages(id)
+	for i := len(msgs) - 1; i >= 0; i-- {
+		m := msgs[i]
+		if m == nil || m.Get("role") != "assistant" {
+			continue
+		}
+		if s, _ := m.Get("content").(string); s != "" {
+			return s
+		}
+	}
+	return ""
+}

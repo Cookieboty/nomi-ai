@@ -12979,6 +12979,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -13301,6 +13304,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -13619,6 +13625,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -13937,6 +13946,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -14255,6 +14267,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -14564,6 +14579,9 @@
         },
         "pausable": {
          "type": "boolean"
+        },
+        "summary": {
+         "type": "string"
         }
        },
        "required": [
@@ -33718,6 +33736,9 @@
        },
        "pausable": {
         "type": "boolean"
+       },
+       "summary": {
+        "type": "string"
        }
       },
       "required": [

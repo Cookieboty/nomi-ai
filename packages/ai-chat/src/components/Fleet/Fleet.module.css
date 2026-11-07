@@ -150,6 +150,16 @@
   background: transparent;
   box-shadow: none;
 }
+/* 做完时的总结：最多三行 */
+.summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+}
 .cwd {
   display: inline-flex;
   align-items: center;

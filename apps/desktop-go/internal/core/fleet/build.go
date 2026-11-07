@@ -8,6 +8,7 @@ package fleet
 
 import (
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -60,7 +61,24 @@ type Agent struct {
 	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（纳管、在跑、有活着的进程、没在等审批）
 	Paused   *Paused `json:"paused,omitempty"`
 	Pausable bool    `json:"pausable,omitempty"`
+	// Summary：做完时的总结（标签最后一条回复、任务的结果摘要、外部会话的摘要），只给已完成的，截到 SummaryMax 个字
+	Summary string `json:"summary,omitempty"`
 }
+
+// SummaryMax：卡片上的总结最多多少个字（视图再按行数截）
+const SummaryMax = 300
+
+// clip：压掉多余空白、去掉 Markdown 的标题 / 加粗 / 代码围栏符号，截到 SummaryMax 个字
+func clip(s string) string {
+	s = mdNoise.ReplaceAllString(s, "")
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > SummaryMax {
+		return string(r[:SummaryMax]) + "…"
+	}
+	return s
+}
+
+var mdNoise = regexp.MustCompile("(?m)^#{1,6}\\s+|\\*\\*|__|```[a-zA-Z0-9_-]*|`")
 
 // 谁暂停的
 const (
@@ -142,6 +160,7 @@ type Tab struct {
 	PendingPerms   int
 	SandboxPending int
 	Paused         *Paused // 冻结中
+	Summary        string  // 最后一条回复（只在没在跑时取）
 }
 
 // Chat：正在回答的 Nomi 对话（标题由视图从会话列表里取）
@@ -153,6 +172,7 @@ type Chat struct {
 // ExtSession：编程助手监视（agents）认出的、Nomi 之外的会话（不含 Nomi 标签自己的会话）
 type ExtSession struct {
 	ID, Kind, Title, Cwd, Status string
+	Summary                      string
 	UpdatedAt                    int64
 	Alive                        *bool // nil = 不知道
 }
@@ -171,7 +191,9 @@ type Input struct {
 	PrevProc *agents.ProcTable // 上一次采样（算 CPU）；nil = 第一次
 	// Archived：id → 归档时间；之后没有新动静（UpdatedAt ≤ 归档时间）的已完成项不显示
 	Archived map[string]int64
-	System   System
+	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
+	TaskSummaries map[string]string
+	System        System
 }
 
 func tabOrigin(t Tab) string {
@@ -337,6 +359,12 @@ func Build(in Input) State {
 		}
 		a.Column, a.NeedsYou, a.Failed = col, need, failed
 		a.Pausable = t.Paused == nil && col == ColRunning && need == "" && len(t.Pids) > 0
+		if col == ColDone {
+			a.Summary = clip(t.Summary)
+			if a.Summary == "" && a.TaskID != "" {
+				a.Summary = clip(in.TaskSummaries[a.TaskID])
+			}
+		}
 		roots := make([]float64, len(t.Pids))
 		for i, p := range t.Pids {
 			roots[i] = float64(p)
@@ -365,6 +393,9 @@ func Build(in Input) State {
 		}
 		a.Scope, a.Title, a.Column, a.NeedsYou, a.Failed = "managed", t.Title, col, need, failed
 		a.TaskID, a.ConversationID, a.UpdatedAt = t.ID, str(t.Origin.ConversationID), t.UpdatedAt
+		if col == ColDone {
+			a.Summary = clip(in.TaskSummaries[t.ID])
+		}
 		managed = append(managed, a)
 	}
 
@@ -412,20 +443,46 @@ func buildExternal(in Input) ([]Agent, Idle) {
 		}
 		a := Agent{ID: "ext:" + s.ID, Kind: "cli", Backend: s.Kind, Scope: "external", Origin: "terminal",
 			Title: s.Title, Column: col, NeedsYou: need, Failed: failed, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt}
-		if col == ColRunning && s.Cwd != "" {
-			key := s.Kind + "\x1f" + normDir(s.Cwd)
-			for _, tr := range trees {
-				if !tr.claimed && tr.key == key {
-					tr.claimed = true
-					a.Usage = usageOf(in, tr.t.Pids)
-					break
-				}
+		if col == ColDone {
+			a.Summary = clip(s.Summary)
+		}
+		out = append(out, a)
+	}
+	// 会话认领它的进程树：同种助手、同一目录。先让在跑的认领，再让答完了但进程还开着的认领（会话还在，进程不算空闲）
+	claim := func(a *Agent) {
+		if a.Cwd == "" {
+			return
+		}
+		key := a.Backend + "\x1f" + normDir(a.Cwd)
+		for _, tr := range trees {
+			if !tr.claimed && tr.key == key {
+				tr.claimed = true
+				a.Usage = usageOf(in, tr.t.Pids)
+				return
 			}
 		}
-		if !in.hidden(a) {
-			out = append(out, a)
+	}
+	alive := map[string]bool{}
+	for _, s := range sessions {
+		alive["ext:"+s.ID] = s.Alive == nil || *s.Alive
+	}
+	for i := range out {
+		if out[i].Column == ColRunning {
+			claim(&out[i])
 		}
 	}
+	for i := range out {
+		if out[i].Column == ColDone && alive[out[i].ID] {
+			claim(&out[i])
+		}
+	}
+	shown := out[:0]
+	for _, a := range out {
+		if !in.hidden(a) {
+			shown = append(shown, a)
+		}
+	}
+	out = shown
 
 	idle := Idle{Items: []IdleItem{}}
 	for _, tr := range trees {

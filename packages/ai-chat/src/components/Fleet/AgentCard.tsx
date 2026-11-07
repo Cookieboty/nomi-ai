@@ -157,6 +157,11 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
         </span>
       </span>
       <span className={styles.cardTitle}>{agentTitle(a, chatName)}</span>
+      {a.summary && (
+        <span className={styles.summary} data-testid={`fleet-summary-${a.id}`}>
+          {a.summary}
+        </span>
+      )}
       {a.cwd && (
         <span className={styles.cwd}>
           <Icon icon={Folder} size={12} />

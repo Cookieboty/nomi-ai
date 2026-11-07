@@ -3338,6 +3338,7 @@ type FleetArchiveOutputAgentsItem struct {
 	UpdatedAt      float64                               `json:"updatedAt"`
 	Paused         *FleetArchiveOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                 `json:"pausable,omitempty"`
+	Summary        *string                               `json:"summary,omitempty"`
 }
 
 type FleetArchiveOutputNomiUsage struct {
@@ -3503,6 +3504,7 @@ type FleetCloseIdleOutputAgentsItem struct {
 	UpdatedAt      float64                                 `json:"updatedAt"`
 	Paused         *FleetCloseIdleOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                   `json:"pausable,omitempty"`
+	Summary        *string                                 `json:"summary,omitempty"`
 }
 
 type FleetCloseIdleOutputNomiUsage struct {
@@ -3667,6 +3669,7 @@ type FleetPauseOutputAgentsItem struct {
 	UpdatedAt      float64                             `json:"updatedAt"`
 	Paused         *FleetPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                               `json:"pausable,omitempty"`
+	Summary        *string                             `json:"summary,omitempty"`
 }
 
 type FleetPauseOutputNomiUsage struct {
@@ -3831,6 +3834,7 @@ type FleetResumeOutputAgentsItem struct {
 	UpdatedAt      float64                              `json:"updatedAt"`
 	Paused         *FleetResumeOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                `json:"pausable,omitempty"`
+	Summary        *string                              `json:"summary,omitempty"`
 }
 
 type FleetResumeOutputNomiUsage struct {
@@ -3995,6 +3999,7 @@ type FleetSetAutoPauseOutputAgentsItem struct {
 	UpdatedAt      float64                                    `json:"updatedAt"`
 	Paused         *FleetSetAutoPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                      `json:"pausable,omitempty"`
+	Summary        *string                                    `json:"summary,omitempty"`
 }
 
 type FleetSetAutoPauseOutputNomiUsage struct {
@@ -4155,6 +4160,7 @@ type FleetStateOutputAgentsItem struct {
 	UpdatedAt      float64                             `json:"updatedAt"`
 	Paused         *FleetStateOutputAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                               `json:"pausable,omitempty"`
+	Summary        *string                             `json:"summary,omitempty"`
 }
 
 type FleetStateOutputNomiUsage struct {
@@ -9739,6 +9745,7 @@ type EventFleetChangedAgentsItem struct {
 	UpdatedAt      float64                              `json:"updatedAt"`
 	Paused         *EventFleetChangedAgentsItemPaused   `json:"paused,omitempty"`
 	Pausable       *bool                                `json:"pausable,omitempty"`
+	Summary        *string                              `json:"summary,omitempty"`
 }
 
 type EventFleetChangedNomiUsage struct {

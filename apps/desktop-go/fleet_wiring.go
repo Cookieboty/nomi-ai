@@ -41,6 +41,10 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 						if f, ok := frozen[ft.ID]; ok {
 							ft.Paused = &fleet.Paused{By: f.By, At: f.At.UnixMilli()}
 						}
+						// 已完成卡片上的总结：没在跑的才取（第一次会读一次消息文件，之后在内存里）
+						if ft.HasSession && ft.Status != "running" && ft.Status != "queued" {
+							ft.Summary = o.LastReply(ft.ID)
+						}
 						out = append(out, ft)
 					}
 				}
@@ -52,6 +56,21 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 				return nil
 			}
 			return ts.Runtime.List()
+		},
+		TaskSummary: func(id string) string {
+			if ts == nil {
+				return ""
+			}
+			rec := ts.Runtime.Get(id)
+			if rec == nil {
+				return ""
+			}
+			for i := len(rec.Attempts) - 1; i >= 0; i-- {
+				if r := rec.Attempts[i].Result; r != nil && r.Summary != "" {
+					return r.Summary
+				}
+			}
+			return ""
 		},
 		Chats: func() []fleet.Chat {
 			if chats == nil {
@@ -139,7 +158,7 @@ func fleetExternal(st *util.Obj) []fleet.ExtSession {
 			at, _ = v.Get("mtime").(float64)
 		}
 		e := fleet.ExtSession{ID: str("id"), Kind: str("kind"), Title: str("title"), Cwd: str("cwd"), Status: str("status"),
-			UpdatedAt: int64(at)}
+			Summary: str("summary"), UpdatedAt: int64(at)}
 		if b, ok := v.Get("alive").(bool); ok {
 			e.Alive = &b
 		}
