@@ -200,7 +200,7 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
         </span>
       )}
       {a.summary && (
-        <span className={styles.summary} data-testid={`fleet-summary-${a.id}`}>
+        <span className={styles.cardSummary} data-testid={`fleet-summary-${a.id}`}>
           {a.summary}
         </span>
       )}

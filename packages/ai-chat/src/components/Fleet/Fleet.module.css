@@ -158,8 +158,8 @@
   background: transparent;
   box-shadow: none;
 }
-/* 做完时的总结：最多三行 */
-.summary {
+/* 做完时的总结：最多三行（别和总览的 .summary 重名） */
+.cardSummary {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
