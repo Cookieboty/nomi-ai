@@ -1889,10 +1889,11 @@ type DelegateStatusInput struct {
 }
 
 type DelegateStatusOutput struct {
-	TaskId  string `json:"taskId"`
-	Cli     string `json:"cli"`
-	Status  string `json:"status"`
-	Summary string `json:"summary"`
+	TaskId   string `json:"taskId"`
+	Cli      string `json:"cli"`
+	Status   string `json:"status"`
+	Summary  string `json:"summary"`
+	FollowUp *bool  `json:"followUp,omitempty"`
 }
 
 type DesktopAuditInput struct {
@@ -8512,10 +8513,11 @@ type EventConversationsChanged struct {
 }
 
 type EventDelegateCompleted struct {
-	TaskId  string `json:"taskId"`
-	Cli     string `json:"cli"`
-	Status  string `json:"status"`
-	Summary string `json:"summary"`
+	TaskId   string `json:"taskId"`
+	Cli      string `json:"cli"`
+	Status   string `json:"status"`
+	Summary  string `json:"summary"`
+	FollowUp *bool  `json:"followUp,omitempty"`
 }
 
 type EventDesktopBubble struct {

@@ -233,12 +233,14 @@ type Orchestrator struct {
 	broadcastQueued                                bool
 	disposed                                       bool
 	sbx                                            sbxState
-	events                                         *emitter
-	modelCatalogs                                  map[string]catalogEntry
-	modelCatalogInflight                           map[string]*jsrt.Promise[*util.Obj]
-	modelCatalogGen                                map[string]float64
-	worktreeDirs                                   []string
-	appEvents                                      AppEvents
+	// turnOrigin：标签当前这一轮是谁发起的（TabFinished.Origin）；nextOrigin：下一次 SendTab 的发起方（沙箱续跑）
+	turnOrigin, nextOrigin map[string]string
+	events                 *emitter
+	modelCatalogs          map[string]catalogEntry
+	modelCatalogInflight   map[string]*jsrt.Promise[*util.Obj]
+	modelCatalogGen        map[string]float64
+	worktreeDirs           []string
+	appEvents              AppEvents
 
 	live liveState // 各后端长驻会话（orchestrator_live*.go）
 }

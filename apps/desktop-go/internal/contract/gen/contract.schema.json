@@ -8078,6 +8078,9 @@
        },
        "summary": {
         "type": "string"
+       },
+       "followUp": {
+        "type": "boolean"
        }
       },
       "required": [
@@ -31163,6 +31166,9 @@
     },
     "summary": {
      "type": "string"
+    },
+    "followUp": {
+     "type": "boolean"
     }
    },
    "required": [

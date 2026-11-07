@@ -184,6 +184,26 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		gatewaySession = gw.ServedSession
 	}
 	dlg := delegate.New(dd)
+	// 委派之后在子任务里接着跑的轮次（用户对话、沙箱授权后继续）也回报到来源对话
+	if harnessOrch != nil {
+		jsrt.Run(func() {
+			harnessOrch.Events().On("tab-finished", func(v any) {
+				e, ok := v.(harness.TabFinished)
+				if !ok {
+					return
+				}
+				// 只回报用户自己发的、沙箱授权后续跑的轮次；委派 / 任务自己的轮次由 finalize 回报
+				if e.Origin != "user" && e.Origin != "sandbox" {
+					return
+				}
+				taskID := delegate.NomiTaskOf(harnessOrch.ListTabs(), e.TabID)
+				if taskID == "" {
+					return
+				}
+				go dlg.ReportFollowUp(taskID, e.Ok, e.Text, e.Error, e.DurationMs)
+			})
+		})
+	}
 	// 提示词与工具门控按「现在有没有能委派的编程助手」走（没有时 Nomi 自己写代码、跑命令）
 	codingcli.Set(dlg.CliAvailable)
 	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明

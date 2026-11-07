@@ -35,9 +35,7 @@ import { PluginPanel } from './components/PluginPanel';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import {
-  ChangesUiProvider,
   ChangesWorkbenchHost,
-  CenterChangesHost,
   SessionChangesPanel,
   useChangesUi,
 } from './components/SessionWorkspace';
@@ -47,6 +45,7 @@ import {
   type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
+import { SideColumn, useSubagentPane, WorkspacePanesProvider } from './components/SubagentPane';
 import { useTasksHost } from './components/Tasks';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
@@ -313,7 +312,8 @@ const AiChatContent: React.FC = () => {
     [railMessages],
   );
   // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
-  const centerOpen = !!railCwd && (!!workbench || previewOpen);
+  const subagentOpen = !!useSubagentPane()?.tabId; // 子任务面板（独立的一栏，开着时占对话旁）
+  const centerOpen = (!!railCwd && (!!workbench || previewOpen)) || subagentOpen;
   const railOpen = !!railCwd && railPref;
   const setRailOpen = useCallback((open: boolean) => {
     setRailPref(open);
@@ -1036,7 +1036,7 @@ const AiChatContent: React.FC = () => {
               </footer>
             </div>
 
-            {centerOpen && railCwd ? (
+            {centerOpen ? (
               <>
                 <div
                   className="center-changes-splitter"
@@ -1050,7 +1050,7 @@ const AiChatContent: React.FC = () => {
                   onDoubleClick={onChatColSplitterDbl}
                   title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
                 />
-                <CenterChangesHost messages={railMessages} cwd={railCwd} />
+                <SideColumn messages={railMessages} cwd={railCwd} />
               </>
             ) : null}
           </div>
@@ -1184,9 +1184,9 @@ function App() {
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <ChangesUiProvider>
+          <WorkspacePanesProvider>
             <AiChatContent />
-          </ChangesUiProvider>
+          </WorkspacePanesProvider>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />

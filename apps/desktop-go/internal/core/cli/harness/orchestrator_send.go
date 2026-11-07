@@ -64,12 +64,19 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 				throw(cli.ModelNoVisionMessage(str(v, "model")))
 			}
 		}
-		if d, _ := tab.Get("delegation").(*util.Obj); userInitiated && d != nil && d.Get("by") == "nomi" && !truthy(d.Get("takenOver")) {
+		// 委派标签：在跑时用户发消息 = 接手（打断 Nomi 的这一轮）；空闲时就是接着对话，不算接手，结果照样回到来源对话
+		if d, _ := tab.Get("delegation").(*util.Obj); userInitiated && d != nil && d.Get("by") == "nomi" && !truthy(d.Get("takenOver")) &&
+			(tab.Get("status") == "running" || tab.Get("status") == "queued") {
 			if _, err := jsrt.Await(o.takeOverDelegatedTab(id)); err != nil {
 				return nil, err
 			}
 		}
 		current := o.requireTab(id)
+		origin := o.nextOrigin[id]
+		delete(o.nextOrigin, id)
+		if userInitiated {
+			origin = "user"
+		}
 		delete(o.delegatedUnsent, id)
 		had := o.stopBeforeStart[id]
 		delete(o.stopBeforeStart, id)
@@ -108,6 +115,10 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			throw(i18n.T("electron.common.tab-was-closed"))
 		}
 		current.Set("status", "running")
+		if o.turnOrigin == nil {
+			o.turnOrigin = map[string]string{}
+		}
+		o.turnOrigin[id] = origin
 		abort := jsrt.NewAbortController()
 		o.sendAborts[id] = abort
 		if stopBeforeStart {
@@ -526,7 +537,20 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 		tab.Set("unread", jsToNumber(tab.Get("unread"))+1)
 	}
 	o.changed()
-	o.events.Emit("tab-finished", TabFinished{TabID: id, Title: str(tab, "title"), Backend: str(tab, "backend"), Ok: ok, Text: text, Error: errStr, Background: background})
+	dur := 0.0
+	if msgs := o.messages[id]; len(msgs) > 0 {
+		for i := len(msgs) - 1; i >= 0; i-- {
+			if msgs[i].Get("role") == "user" {
+				if at, ok := msgs[i].Get("timestamp").(float64); ok {
+					dur = nowMs() - at
+				}
+				break
+			}
+		}
+	}
+	o.events.Emit("tab-finished", TabFinished{TabID: id, Title: str(tab, "title"), Backend: str(tab, "backend"), Ok: ok, Text: text,
+		Error: errStr, Background: background, DurationMs: dur, Origin: o.turnOrigin[id]})
+	delete(o.turnOrigin, id)
 	b := str(tab, "backend")
 	if ok && tab.Get("permissionMode") == "plan" && (b == "codex" || b == "dsh" || b == "grok") && util.JSTrim(text) != "" {
 		o.offerExecutePlan(tab)

@@ -456,6 +456,10 @@ func (o *Orchestrator) continueAfterGrant(id string, r sandbox.Request) {
 }
 
 func (o *Orchestrator) sendFollowUp(id, msg string) {
+	if o.nextOrigin == nil {
+		o.nextOrigin = map[string]string{}
+	}
+	o.nextOrigin[id] = "sandbox"
 	p := o.SendTab(id, msg, nil, false)
 	jsrt.Async(func() (struct{}, error) {
 		if _, err := jsrt.Await(p); err != nil {

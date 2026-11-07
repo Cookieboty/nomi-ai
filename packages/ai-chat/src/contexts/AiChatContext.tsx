@@ -32,6 +32,7 @@ import {
   delegateDirective,
   type DelegateResult,
 } from '../services/delegateClient';
+import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import { splitFileAttachments } from '../services/fileAttachments';
@@ -63,12 +64,6 @@ import { closeOpenCalls } from '../utils/toolTrace';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
 import { attachSteer, useNomiSteer, type SteerableStream } from './nomiSteer';
-
-/** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
-function plainSummary(s: string): string {
-  const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
-  return (m ? m[1]! : s).trim();
-}
 
 export interface AiChatState {
   messages: ChatMessage[];
@@ -513,44 +508,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   useEffect(
     () =>
       delegateClient.onCompleted((r: DelegateResult) => {
-        const name = t(ENDPOINT_NAME[r.cli] ?? r.cli);
-        let body: string;
-        if (r.status === 'cancelled') {
-          body =
-            r.cancelledBy === 'nomi'
-              ? t('ui.session-workspace.s-handoff-was-stopped-with-nomi-s-turn', name)
-              : t('ui.session-workspace.s-handoff-was-stopped', name);
-        } else if (r.status === 'error') {
-          body = t('ui.session-workspace.s-handoff-failed', name, r.error ?? '');
-        } else if (r.report) {
-          const bits = [
-            t('ui.session-workspace.completed-the-handoff', name),
-            plainSummary(r.report.done),
-            r.report.unfinished
-              ? t('ui.session-workspace.not-finished-detail', plainSummary(r.report.unfinished))
-              : '',
-            r.report.needsUser
-              ? t(
-                  'ui.session-workspace.needs-your-decision-detail',
-                  plainSummary(r.report.needsUser),
-                )
-              : '',
-          ].filter(Boolean);
-          body = bits.join('\n\n');
-        } else {
-          body = t(
-            'ui.session-workspace.completed-the-handoff-with-body',
-            name,
-            plainSummary(r.summary) || t('ui.session-workspace.no-report'),
-          );
-        }
-        const m: ChatMessage = {
-          id: `delegate-${r.taskId}-${r.durationMs}`,
-          role: 'assistant',
-          content: body,
-          timestamp: Date.now(),
-          origin: 'background',
-        };
+        const m = delegateResultMessage(r);
         const targetId = r.conversationId;
         if (targetId && ipcClient.saveMessageTo) {
           // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）

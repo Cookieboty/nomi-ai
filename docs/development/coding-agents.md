@@ -56,6 +56,14 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
+## 子任务（Nomi 委派的标签）
+
+- 子任务面板（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`，与变更 / 文件查看区独立）：
+  运行中发送走 `harness.tabSteer`（不支持时排队到这一轮结束），空闲时 `harness.tabSend`，停止 `harness.tabCancel`。
+- 接手：只有委派正在跑时用户发消息才算接手（打断 Nomi 的这一轮，`delegation.takenOver`）；空闲时发消息就是接着对话，不标接手。
+- 回报：`TabFinished.Origin` 记这一轮是谁发起的（`user` / `sandbox` / 程序）。用户自己发的、沙箱授权后续跑的轮次，
+  `coding_wiring.go` 交给 `delegate.ReportFollowUp`，经 `delegate.completed`（`followUp: true`）回到来源对话；委派自己的轮次由 `finalize` 回报。
+
 ## 本机保护
 
 工作目录策略、环境变量清理、Codex 联网默认关、系统级沙箱与按会话授权：见 [security.md「编程助手」](security.md#编程助手cli-子进程)。
