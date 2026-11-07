@@ -1,9 +1,12 @@
 package desktop
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
@@ -180,15 +183,45 @@ type SandboxAllow struct {
 const MaxSandboxAllow = 100
 
 func normalizeSandboxAllow(raw []SandboxAllow) []SandboxAllow {
+	home, _ := os.UserHomeDir()
 	out := []SandboxAllow{}
 	for _, a := range raw {
-		if (a.Kind != "category" && a.Kind != "read" && a.Kind != "folder" && a.Kind != "file") || a.Value == "" ||
-			slices.Contains(out, a) || len(out) >= MaxSandboxAllow {
+		if !validSandboxAllow(a, home) || slices.Contains(out, a) || len(out) >= MaxSandboxAllow {
 			continue
 		}
 		out = append(out, a)
 	}
 	return out
+}
+
+// validSandboxAllow：只认界面上能点出来的授权（加载磁盘上的设置、新加一条时都过一遍）：类别要存在；路径是不带控制字符的
+// 绝对路径；文件夹不能太宽，文件夹与文件都不能落在永不授权的位置（开机自启、PATH 可执行目录、shell 配置）
+func validSandboxAllow(a SandboxAllow, home string) bool {
+	if a.Project != "" && (!filepath.IsAbs(a.Project) || hasControlChar(a.Project)) {
+		return false
+	}
+	switch a.Kind {
+	case "category":
+		return sandbox.CategoryByID(a.Value) != nil
+	case "read", "file", "folder":
+		if !filepath.IsAbs(a.Value) || hasControlChar(a.Value) {
+			return false
+		}
+		if a.Kind == "folder" && sandbox.IsBroad(a.Value, home) {
+			return false
+		}
+		return a.Kind == "read" || !sandbox.NeverGrantable(a.Value, home)
+	}
+	return false
+}
+
+func hasControlChar(s string) bool {
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 // CliSandboxEnabled：编程助手的系统沙箱开着（缺省开）

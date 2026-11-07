@@ -18,6 +18,29 @@ func TestParseDenial(t *testing.T) {
 	if _, ok := ParseDenial("Sandbox: imagent(1) deny(1) mach-lookup com.apple.x"); ok {
 		t.Fatal("untagged denials are not ours")
 	}
+	// 沙箱里的进程拿文件名伪造一条：路径里带换行与假标签，后面还有真标签。整条对不上，丢弃
+	forged := "Sandbox: sh(9) deny(1) file-write-create /tmp/a\nnomi-sbx:ab12:write\n/Users/me/.ssh\nnomi-sbx:ab12:write:protected"
+	if d, ok := ParseDenial(forged); ok {
+		t.Fatalf("forged multi-line denial must be dropped, got %+v", d)
+	}
+	if _, ok := ParseDenial("Sandbox: sh(9) deny(1) file-write-create /tmp/a\tb\nnomi-sbx:ab12:write"); ok {
+		t.Fatal("paths with control characters are dropped")
+	}
+}
+
+// 在 git 仓库里：授权到仓库根（不更大）
+func TestGrantFolderStopsAtRepo(t *testing.T) {
+	home := t.TempDir()
+	repo := filepath.Join(home, "Projects", "app")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "src", "deep"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := grantFolder(filepath.Join(repo, "src", "deep", "x.ts"), home); got != repo {
+		t.Fatalf("grantFolder in a repo = %q, want the repo root %q", got, repo)
+	}
 }
 
 func TestClassify(t *testing.T) {
@@ -32,11 +55,21 @@ func TestClassify(t *testing.T) {
 		{Denial{Rule: "read:protected", Path: home + "/finance/a.pdf"}, Request{"protected", home + "/finance/a.pdf"}, true},
 		{Denial{Rule: "read:nomi", Path: "/x"}, Request{}, false},
 		{Denial{Rule: "write", Path: home + "/.ssh/known_hosts"}, Request{"category", "ssh"}, true},
-		{Denial{Rule: "write", Path: home + "/.ai-usage/logs/notify.log"}, Request{"folder", home + "/.ai-usage"}, true},
+		// 只授权最小的范围：文件所在的文件夹（不在 git 仓库里时），不再往上放到 ~/.ai-usage、~/Projects
+		{Denial{Rule: "write", Path: home + "/.ai-usage/logs/notify.log"}, Request{"folder", home + "/.ai-usage/logs"}, true},
+		{Denial{Rule: "write", Path: home + "/Projects/other/foo/x"}, Request{"folder", home + "/Projects/other/foo"}, true},
 		{Denial{Rule: "write", Path: home + "/Documents/other/x.txt"}, Request{"folder", home + "/Documents/other"}, true},
 		{Denial{Rule: "write", Path: home + "/Library/Application Support/Foo/db"}, Request{"folder", home + "/Library/Application Support/Foo"}, true},
-		{Denial{Rule: "write", Path: home + "/.zshrc"}, Request{"file", home + "/.zshrc"}, true},
-		{Denial{Rule: "write", Path: "/opt/homebrew/bin/x"}, Request{"folder", "/opt/homebrew"}, true},
+		// 开机自启、PATH 可执行目录、shell 配置：永不授权
+		{Denial{Rule: "write", Path: home + "/.zshrc"}, Request{}, false},
+		{Denial{Rule: "write", Path: home + "/.gitconfig"}, Request{}, false},
+		{Denial{Rule: "write", Path: "/opt/homebrew/bin/x"}, Request{}, false},
+		{Denial{Rule: "write", Path: home + "/Library/LaunchAgents/com.evil.plist"}, Request{}, false},
+		{Denial{Rule: "write", Path: home + "/.local/bin/python"}, Request{}, false},
+		{Denial{Rule: "write", Path: home + "/bin/ls"}, Request{}, false},
+		{Denial{Rule: "write", Path: home + "/.oh-my-zsh/custom/x.zsh"}, Request{}, false},
+		// 主目录下直接的文件（太宽，不给文件夹）：只授权这一个文件
+		{Denial{Rule: "write", Path: home + "/notes.txt"}, Request{"file", home + "/notes.txt"}, true},
 	}
 	for _, c := range cases {
 		got, ok := Classify(c.d, home)

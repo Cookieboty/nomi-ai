@@ -63,7 +63,7 @@ func TestSandboxRequests(t *testing.T) {
 			t.Fatalf("pending = %v", util.Stringify(p))
 		}
 		if p[0].Get("kind") != "category" || p[0].Get("value") != "ssh" || p[1].Get("kind") != "folder" ||
-			p[1].Get("value") != "/Users/me/.ai-usage" || p[1].Get("op") != "write" || p[2].Get("kind") != "protected" {
+			p[1].Get("value") != "/Users/me/.ai-usage/logs" || p[1].Get("op") != "write" || p[2].Get("kind") != "protected" {
 			t.Fatalf("pending = %v", util.Stringify(p))
 		}
 
@@ -73,8 +73,9 @@ func TestSandboxRequests(t *testing.T) {
 		if !o.SandboxReply(id, util.Str(p[0].Get("id")), "session") {
 			t.Fatal("session grant")
 		}
+		// 「始终允许」写文件夹也按项目记（只在这个项目里生效），记的是真实路径
 		if !o.SandboxReply(id, util.Str(p[1].Get("id")), "always") || len(persisted) != 1 ||
-			persisted[0] != (SandboxGrant{Kind: "folder", Value: "/Users/me/.ai-usage"}) {
+			persisted[0] != (SandboxGrant{Kind: "folder", Value: "/Users/me/.ai-usage/logs", Project: realDir(proj)}) {
 			t.Fatalf("always grant persisted = %v", persisted)
 		}
 		if !o.SandboxReply(id, util.Str(p[2].Get("id")), "deny") {
@@ -85,7 +86,7 @@ func TestSandboxRequests(t *testing.T) {
 		}
 		// 授权过 / 拒绝过的不再问（旧进程迟到的违规也一样）
 		deny("read:ssh", "/Users/me/.ssh/config")
-		deny("write", "/Users/me/.ai-usage/x")
+		deny("write", "/Users/me/.ai-usage/logs/b.log")
 		deny("read:protected", "/Users/me/finance/a.pdf")
 		if got := pendingOf(o, id); len(got) != 0 {
 			t.Fatalf("answered items must not come back, got %v", util.Stringify(got))
@@ -95,7 +96,7 @@ func TestSandboxRequests(t *testing.T) {
 		for _, g := range o.grantedFor(id) {
 			got[g.Kind+":"+g.Value] = true
 		}
-		if !got["category:ssh"] || !got["folder:/Users/me/.ai-usage"] {
+		if !got["category:ssh"] || !got["folder:/Users/me/.ai-usage/logs"] {
 			t.Fatalf("grantedFor = %v", got)
 		}
 		o.CloseTab(id)
@@ -313,4 +314,31 @@ func TestSandboxNote(t *testing.T) {
 			t.Fatal("only the first message of a non-Claude session carries the note")
 		}
 	})
+}
+
+// 按项目的授权按真实路径比：符号链接进项目里的照样生效，链到别处的不算这个项目
+func TestGrantAppliesRealPath(t *testing.T) {
+	tmp := t.TempDir()
+	proj := filepath.Join(tmp, "proj")
+	other := filepath.Join(tmp, "other")
+	for _, d := range []string{filepath.Join(proj, "sub"), other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	into := filepath.Join(tmp, "into")
+	away := filepath.Join(tmp, "away")
+	if os.Symlink(filepath.Join(proj, "sub"), into) != nil || os.Symlink(other, away) != nil {
+		t.Skip("symlinks not available")
+	}
+	g := SandboxGrant{Kind: "folder", Value: "/x", Project: proj}
+	if !grantApplies(g, into) {
+		t.Fatal("a symlinked cwd inside the project gets the project's grants")
+	}
+	if grantApplies(g, away) || grantApplies(g, other) {
+		t.Fatal("a cwd outside the project does not")
+	}
+	if !grantApplies(SandboxGrant{Kind: "folder", Value: "/x"}, other) {
+		t.Fatal("grants without a project apply everywhere")
+	}
 }

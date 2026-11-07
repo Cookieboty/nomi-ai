@@ -32,16 +32,19 @@ type SandboxGrant struct {
 }
 
 // projectScoped：「始终允许」按项目记的授权（读凭据 / 密钥文件）；写入位置（工具缓存、钩子）是全局的
-func projectScoped(kind string) bool { return kind == "category" || kind == "read" }
+// projectScoped：「始终允许」按项目记（类别、读、文件夹、文件都是）：在一个项目里点的，不会放开别的项目
+func projectScoped(kind string) bool {
+	return kind == "category" || kind == "read" || kind == "folder" || kind == "file"
+}
 
 // projectRoot：工作目录所在的 git 仓库根（往上找 .git，到主目录为止）；不在仓库里就是工作目录本身
 func (o *Orchestrator) projectRoot(cwd string) string {
-	for d := filepath.Clean(cwd); ; d = filepath.Dir(d) {
+	for d := realDir(cwd); ; d = filepath.Dir(d) {
 		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
 			return d
 		}
-		if d == o.home || filepath.Dir(d) == d {
-			return filepath.Clean(cwd)
+		if d == o.home || d == realDir(o.home) || filepath.Dir(d) == d {
+			return realDir(cwd)
 		}
 	}
 }
@@ -50,8 +53,9 @@ func grantApplies(g SandboxGrant, cwd string) bool {
 	if g.Project == "" {
 		return true
 	}
-	rel, err := filepath.Rel(g.Project, cwd)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../")
+	// 两边都按真实路径比：工作目录是符号链接时不能借道套上别的项目的授权
+	rel, err := filepath.Rel(realDir(g.Project), realDir(cwd))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../") && !filepath.IsAbs(rel)
 }
 
 // SandboxDeps：沙箱设置（宿主接 desktop.PermissionBroker）

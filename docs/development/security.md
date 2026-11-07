@@ -53,14 +53,21 @@
   Codex `dangerFullAccess` / `sandbox_mode="danger-full-access"`（审批策略照常）、Gemini `GEMINI_SANDBOX=false`、dsh `DSH_PERMISSION_MODE=danger-full-access`。
   网络不限（Seatbelt 只能按 IP 过滤，CLI 要连模型服务），靠拒读敏感内容与环境变量清理防外泄。
 - 每条拒绝带 `(with message "nomi-sbx:<token>:<rule>")`。`sandbox.Monitor` 用 `log stream --predicate 'sender == "Sandbox" AND eventMessage CONTAINS "nomi-sbx:"'`
-  读违规（普通用户可读，带进程、操作与真实路径），token 找回标签，`sandbox.Classify` 归成一项授权：类别、写某个文件夹（从上往下第一个不太宽的上级）、
-  写某个文件（上级都太宽时，如 `~/.zshrc`）、读某个密钥文件（`.env` 等按文件授权，不放开整类）、受保护文件夹（不能在对话里授权）。
+  读违规（普通用户可读，带进程、操作与真实路径），token 找回标签，`sandbox.Classify` 归成一项授权：类别、写某个文件夹（最小的范围：
+  文件所在的文件夹，在 git 仓库里时到仓库根为止，不会放开 `~/Projects` 这类大文件夹）、写某个文件（所在文件夹太宽时，如主目录下的文件）、
+  读某个密钥文件（`.env` 等按文件授权，不放开整类）、受保护文件夹（不能在对话里授权）。永不授权写入（`sandbox.NeverGrantable`，
+  不出授权请求）：开机自启（`~/Library/LaunchAgents`、`/Library/LaunchAgents`、`/Library/LaunchDaemons`）、PATH 里的可执行目录
+  （`~/.local/bin`、`~/bin`、`/usr/local/bin`、`/opt/homebrew/bin`、`~/go/bin`、`~/.cargo/bin`、`~/.bun/bin`、`~/.deno/bin`）、
+  shell 配置（`~/.oh-my-zsh`、`~/.zsh`、fish / zsh 配置目录、`~/.zshrc` 等启动脚本、`~/.gitconfig`）。
+  解析违规时整条消息只能是「拒绝一行 + 标签一行」、路径不能带控制字符，沙箱里的进程拿文件名伪造的标签对不上就丢弃。
   Nomi 数据目录的拒绝只记日志。新的请求同时发 `permission-needed`（`background` 时走桌面角色气泡与系统通知）。
 - 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），编程助手标签、委派卡片与任务详情都显示。`harness.sandboxReply` 回答：
-  本会话允许（标签内存里）、始终允许（桌面设置 `cliSandboxAllow`：读凭据类别与密钥文件带 `project` = 工作目录所在的 git 根，只在这个项目里生效；
-  写入位置是全局的）、不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
+  本会话允许（标签内存里）、始终允许（桌面设置 `cliSandboxAllow`：每一条都带 `project` = 工作目录所在 git 根的真实路径，只在这个项目里生效，
+  按真实路径比对，符号链接的工作目录借不到别的项目的授权；加载与新增时都校验：类别存在、绝对路径、文件夹不太宽、不在永不授权的位置）、
+  不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
 - 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
-  `delegation.sandboxGrants`，`grantedFor` 当作已授权。
+  `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
+  只收视图能给的字段（backend、cwd、title、messages、permissionMode、pluginId），视图带来的 `delegation` 等内部字段一律丢掉。
 - 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
   被拒时停下说明、结束这一轮，不要绕路。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
