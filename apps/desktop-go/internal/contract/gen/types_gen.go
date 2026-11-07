@@ -3320,27 +3320,37 @@ type FleetArchiveOutputAgentsItemPaused struct {
 	At float64                              `json:"at"`
 }
 
+// FleetArchiveOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetArchiveOutputAgentsItemQueueReason = string
+
+const (
+	FleetArchiveOutputAgentsItemQueueReasonMemory FleetArchiveOutputAgentsItemQueueReason = "memory"
+	FleetArchiveOutputAgentsItemQueueReasonSlot   FleetArchiveOutputAgentsItemQueueReason = "slot"
+	FleetArchiveOutputAgentsItemQueueReasonRetry  FleetArchiveOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetArchiveOutputAgentsItem struct {
-	Id             string                                `json:"id"`
-	Kind           FleetArchiveOutputAgentsItemKind      `json:"kind"`
-	Backend        string                                `json:"backend"`
-	Scope          FleetArchiveOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetArchiveOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                                `json:"title"`
-	Column         FleetArchiveOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetArchiveOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                                 `json:"failed,omitempty"`
-	ParentId       *string                               `json:"parentId,omitempty"`
-	TaskId         *string                               `json:"taskId,omitempty"`
-	TabId          *string                               `json:"tabId,omitempty"`
-	ConversationId *string                               `json:"conversationId,omitempty"`
-	Cwd            *string                               `json:"cwd,omitempty"`
-	Usage          *FleetArchiveOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                               `json:"updatedAt"`
-	Paused         *FleetArchiveOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                                 `json:"pausable,omitempty"`
-	Summary        *string                               `json:"summary,omitempty"`
-	Held           *bool                                 `json:"held,omitempty"`
+	Id             string                                   `json:"id"`
+	Kind           FleetArchiveOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                   `json:"backend"`
+	Scope          FleetArchiveOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetArchiveOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                   `json:"title"`
+	Column         FleetArchiveOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetArchiveOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                    `json:"failed,omitempty"`
+	ParentId       *string                                  `json:"parentId,omitempty"`
+	TaskId         *string                                  `json:"taskId,omitempty"`
+	TabId          *string                                  `json:"tabId,omitempty"`
+	ConversationId *string                                  `json:"conversationId,omitempty"`
+	Cwd            *string                                  `json:"cwd,omitempty"`
+	Usage          *FleetArchiveOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                  `json:"updatedAt"`
+	Paused         *FleetArchiveOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                    `json:"pausable,omitempty"`
+	Summary        *string                                  `json:"summary,omitempty"`
+	QueueReason    *FleetArchiveOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                 `json:"retryAt,omitempty"`
 }
 
 type FleetArchiveOutputNomiUsage struct {
@@ -3488,27 +3498,37 @@ type FleetCloseIdleOutputAgentsItemPaused struct {
 	At float64                                `json:"at"`
 }
 
+// FleetCloseIdleOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetCloseIdleOutputAgentsItemQueueReason = string
+
+const (
+	FleetCloseIdleOutputAgentsItemQueueReasonMemory FleetCloseIdleOutputAgentsItemQueueReason = "memory"
+	FleetCloseIdleOutputAgentsItemQueueReasonSlot   FleetCloseIdleOutputAgentsItemQueueReason = "slot"
+	FleetCloseIdleOutputAgentsItemQueueReasonRetry  FleetCloseIdleOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetCloseIdleOutputAgentsItem struct {
-	Id             string                                  `json:"id"`
-	Kind           FleetCloseIdleOutputAgentsItemKind      `json:"kind"`
-	Backend        string                                  `json:"backend"`
-	Scope          FleetCloseIdleOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetCloseIdleOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                                  `json:"title"`
-	Column         FleetCloseIdleOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetCloseIdleOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                                   `json:"failed,omitempty"`
-	ParentId       *string                                 `json:"parentId,omitempty"`
-	TaskId         *string                                 `json:"taskId,omitempty"`
-	TabId          *string                                 `json:"tabId,omitempty"`
-	ConversationId *string                                 `json:"conversationId,omitempty"`
-	Cwd            *string                                 `json:"cwd,omitempty"`
-	Usage          *FleetCloseIdleOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                                 `json:"updatedAt"`
-	Paused         *FleetCloseIdleOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                                   `json:"pausable,omitempty"`
-	Summary        *string                                 `json:"summary,omitempty"`
-	Held           *bool                                   `json:"held,omitempty"`
+	Id             string                                     `json:"id"`
+	Kind           FleetCloseIdleOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                     `json:"backend"`
+	Scope          FleetCloseIdleOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetCloseIdleOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                     `json:"title"`
+	Column         FleetCloseIdleOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetCloseIdleOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                      `json:"failed,omitempty"`
+	ParentId       *string                                    `json:"parentId,omitempty"`
+	TaskId         *string                                    `json:"taskId,omitempty"`
+	TabId          *string                                    `json:"tabId,omitempty"`
+	ConversationId *string                                    `json:"conversationId,omitempty"`
+	Cwd            *string                                    `json:"cwd,omitempty"`
+	Usage          *FleetCloseIdleOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	Paused         *FleetCloseIdleOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                      `json:"pausable,omitempty"`
+	Summary        *string                                    `json:"summary,omitempty"`
+	QueueReason    *FleetCloseIdleOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                   `json:"retryAt,omitempty"`
 }
 
 type FleetCloseIdleOutputNomiUsage struct {
@@ -3655,27 +3675,37 @@ type FleetPauseOutputAgentsItemPaused struct {
 	At float64                            `json:"at"`
 }
 
+// FleetPauseOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetPauseOutputAgentsItemQueueReason = string
+
+const (
+	FleetPauseOutputAgentsItemQueueReasonMemory FleetPauseOutputAgentsItemQueueReason = "memory"
+	FleetPauseOutputAgentsItemQueueReasonSlot   FleetPauseOutputAgentsItemQueueReason = "slot"
+	FleetPauseOutputAgentsItemQueueReasonRetry  FleetPauseOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetPauseOutputAgentsItem struct {
-	Id             string                              `json:"id"`
-	Kind           FleetPauseOutputAgentsItemKind      `json:"kind"`
-	Backend        string                              `json:"backend"`
-	Scope          FleetPauseOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetPauseOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                              `json:"title"`
-	Column         FleetPauseOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetPauseOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                               `json:"failed,omitempty"`
-	ParentId       *string                             `json:"parentId,omitempty"`
-	TaskId         *string                             `json:"taskId,omitempty"`
-	TabId          *string                             `json:"tabId,omitempty"`
-	ConversationId *string                             `json:"conversationId,omitempty"`
-	Cwd            *string                             `json:"cwd,omitempty"`
-	Usage          *FleetPauseOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                             `json:"updatedAt"`
-	Paused         *FleetPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                               `json:"pausable,omitempty"`
-	Summary        *string                             `json:"summary,omitempty"`
-	Held           *bool                               `json:"held,omitempty"`
+	Id             string                                 `json:"id"`
+	Kind           FleetPauseOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                 `json:"backend"`
+	Scope          FleetPauseOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetPauseOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                 `json:"title"`
+	Column         FleetPauseOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetPauseOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                  `json:"failed,omitempty"`
+	ParentId       *string                                `json:"parentId,omitempty"`
+	TaskId         *string                                `json:"taskId,omitempty"`
+	TabId          *string                                `json:"tabId,omitempty"`
+	ConversationId *string                                `json:"conversationId,omitempty"`
+	Cwd            *string                                `json:"cwd,omitempty"`
+	Usage          *FleetPauseOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                `json:"updatedAt"`
+	Paused         *FleetPauseOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                  `json:"pausable,omitempty"`
+	Summary        *string                                `json:"summary,omitempty"`
+	QueueReason    *FleetPauseOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                               `json:"retryAt,omitempty"`
 }
 
 type FleetPauseOutputNomiUsage struct {
@@ -3822,27 +3852,37 @@ type FleetResumeOutputAgentsItemPaused struct {
 	At float64                             `json:"at"`
 }
 
+// FleetResumeOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetResumeOutputAgentsItemQueueReason = string
+
+const (
+	FleetResumeOutputAgentsItemQueueReasonMemory FleetResumeOutputAgentsItemQueueReason = "memory"
+	FleetResumeOutputAgentsItemQueueReasonSlot   FleetResumeOutputAgentsItemQueueReason = "slot"
+	FleetResumeOutputAgentsItemQueueReasonRetry  FleetResumeOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetResumeOutputAgentsItem struct {
-	Id             string                               `json:"id"`
-	Kind           FleetResumeOutputAgentsItemKind      `json:"kind"`
-	Backend        string                               `json:"backend"`
-	Scope          FleetResumeOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetResumeOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                               `json:"title"`
-	Column         FleetResumeOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetResumeOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                                `json:"failed,omitempty"`
-	ParentId       *string                              `json:"parentId,omitempty"`
-	TaskId         *string                              `json:"taskId,omitempty"`
-	TabId          *string                              `json:"tabId,omitempty"`
-	ConversationId *string                              `json:"conversationId,omitempty"`
-	Cwd            *string                              `json:"cwd,omitempty"`
-	Usage          *FleetResumeOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                              `json:"updatedAt"`
-	Paused         *FleetResumeOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                                `json:"pausable,omitempty"`
-	Summary        *string                              `json:"summary,omitempty"`
-	Held           *bool                                `json:"held,omitempty"`
+	Id             string                                  `json:"id"`
+	Kind           FleetResumeOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                  `json:"backend"`
+	Scope          FleetResumeOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetResumeOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                  `json:"title"`
+	Column         FleetResumeOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetResumeOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                   `json:"failed,omitempty"`
+	ParentId       *string                                 `json:"parentId,omitempty"`
+	TaskId         *string                                 `json:"taskId,omitempty"`
+	TabId          *string                                 `json:"tabId,omitempty"`
+	ConversationId *string                                 `json:"conversationId,omitempty"`
+	Cwd            *string                                 `json:"cwd,omitempty"`
+	Usage          *FleetResumeOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                 `json:"updatedAt"`
+	Paused         *FleetResumeOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                   `json:"pausable,omitempty"`
+	Summary        *string                                 `json:"summary,omitempty"`
+	QueueReason    *FleetResumeOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                `json:"retryAt,omitempty"`
 }
 
 type FleetResumeOutputNomiUsage struct {
@@ -3989,27 +4029,37 @@ type FleetSetAutoPauseOutputAgentsItemPaused struct {
 	At float64                                   `json:"at"`
 }
 
+// FleetSetAutoPauseOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetSetAutoPauseOutputAgentsItemQueueReason = string
+
+const (
+	FleetSetAutoPauseOutputAgentsItemQueueReasonMemory FleetSetAutoPauseOutputAgentsItemQueueReason = "memory"
+	FleetSetAutoPauseOutputAgentsItemQueueReasonSlot   FleetSetAutoPauseOutputAgentsItemQueueReason = "slot"
+	FleetSetAutoPauseOutputAgentsItemQueueReasonRetry  FleetSetAutoPauseOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetSetAutoPauseOutputAgentsItem struct {
-	Id             string                                     `json:"id"`
-	Kind           FleetSetAutoPauseOutputAgentsItemKind      `json:"kind"`
-	Backend        string                                     `json:"backend"`
-	Scope          FleetSetAutoPauseOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetSetAutoPauseOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                                     `json:"title"`
-	Column         FleetSetAutoPauseOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetSetAutoPauseOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                                      `json:"failed,omitempty"`
-	ParentId       *string                                    `json:"parentId,omitempty"`
-	TaskId         *string                                    `json:"taskId,omitempty"`
-	TabId          *string                                    `json:"tabId,omitempty"`
-	ConversationId *string                                    `json:"conversationId,omitempty"`
-	Cwd            *string                                    `json:"cwd,omitempty"`
-	Usage          *FleetSetAutoPauseOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                                    `json:"updatedAt"`
-	Paused         *FleetSetAutoPauseOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                                      `json:"pausable,omitempty"`
-	Summary        *string                                    `json:"summary,omitempty"`
-	Held           *bool                                      `json:"held,omitempty"`
+	Id             string                                        `json:"id"`
+	Kind           FleetSetAutoPauseOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                        `json:"backend"`
+	Scope          FleetSetAutoPauseOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetSetAutoPauseOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                        `json:"title"`
+	Column         FleetSetAutoPauseOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetSetAutoPauseOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                         `json:"failed,omitempty"`
+	ParentId       *string                                       `json:"parentId,omitempty"`
+	TaskId         *string                                       `json:"taskId,omitempty"`
+	TabId          *string                                       `json:"tabId,omitempty"`
+	ConversationId *string                                       `json:"conversationId,omitempty"`
+	Cwd            *string                                       `json:"cwd,omitempty"`
+	Usage          *FleetSetAutoPauseOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                       `json:"updatedAt"`
+	Paused         *FleetSetAutoPauseOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                         `json:"pausable,omitempty"`
+	Summary        *string                                       `json:"summary,omitempty"`
+	QueueReason    *FleetSetAutoPauseOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                      `json:"retryAt,omitempty"`
 }
 
 type FleetSetAutoPauseOutputNomiUsage struct {
@@ -4152,27 +4202,37 @@ type FleetStateOutputAgentsItemPaused struct {
 	At float64                            `json:"at"`
 }
 
+// FleetStateOutputAgentsItemQueueReason 枚举：memory | slot | retry
+type FleetStateOutputAgentsItemQueueReason = string
+
+const (
+	FleetStateOutputAgentsItemQueueReasonMemory FleetStateOutputAgentsItemQueueReason = "memory"
+	FleetStateOutputAgentsItemQueueReasonSlot   FleetStateOutputAgentsItemQueueReason = "slot"
+	FleetStateOutputAgentsItemQueueReasonRetry  FleetStateOutputAgentsItemQueueReason = "retry"
+)
+
 type FleetStateOutputAgentsItem struct {
-	Id             string                              `json:"id"`
-	Kind           FleetStateOutputAgentsItemKind      `json:"kind"`
-	Backend        string                              `json:"backend"`
-	Scope          FleetStateOutputAgentsItemScope     `json:"scope"`
-	Origin         FleetStateOutputAgentsItemOrigin    `json:"origin"`
-	Title          string                              `json:"title"`
-	Column         FleetStateOutputAgentsItemColumn    `json:"column"`
-	NeedsYou       *FleetStateOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                               `json:"failed,omitempty"`
-	ParentId       *string                             `json:"parentId,omitempty"`
-	TaskId         *string                             `json:"taskId,omitempty"`
-	TabId          *string                             `json:"tabId,omitempty"`
-	ConversationId *string                             `json:"conversationId,omitempty"`
-	Cwd            *string                             `json:"cwd,omitempty"`
-	Usage          *FleetStateOutputAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                             `json:"updatedAt"`
-	Paused         *FleetStateOutputAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                               `json:"pausable,omitempty"`
-	Summary        *string                             `json:"summary,omitempty"`
-	Held           *bool                               `json:"held,omitempty"`
+	Id             string                                 `json:"id"`
+	Kind           FleetStateOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                 `json:"backend"`
+	Scope          FleetStateOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetStateOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                 `json:"title"`
+	Column         FleetStateOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetStateOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                  `json:"failed,omitempty"`
+	ParentId       *string                                `json:"parentId,omitempty"`
+	TaskId         *string                                `json:"taskId,omitempty"`
+	TabId          *string                                `json:"tabId,omitempty"`
+	ConversationId *string                                `json:"conversationId,omitempty"`
+	Cwd            *string                                `json:"cwd,omitempty"`
+	Usage          *FleetStateOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                `json:"updatedAt"`
+	Paused         *FleetStateOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                  `json:"pausable,omitempty"`
+	Summary        *string                                `json:"summary,omitempty"`
+	QueueReason    *FleetStateOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                               `json:"retryAt,omitempty"`
 }
 
 type FleetStateOutputNomiUsage struct {
@@ -9739,27 +9799,37 @@ type EventFleetChangedAgentsItemPaused struct {
 	At float64                             `json:"at"`
 }
 
+// EventFleetChangedAgentsItemQueueReason 枚举：memory | slot | retry
+type EventFleetChangedAgentsItemQueueReason = string
+
+const (
+	EventFleetChangedAgentsItemQueueReasonMemory EventFleetChangedAgentsItemQueueReason = "memory"
+	EventFleetChangedAgentsItemQueueReasonSlot   EventFleetChangedAgentsItemQueueReason = "slot"
+	EventFleetChangedAgentsItemQueueReasonRetry  EventFleetChangedAgentsItemQueueReason = "retry"
+)
+
 type EventFleetChangedAgentsItem struct {
-	Id             string                               `json:"id"`
-	Kind           EventFleetChangedAgentsItemKind      `json:"kind"`
-	Backend        string                               `json:"backend"`
-	Scope          EventFleetChangedAgentsItemScope     `json:"scope"`
-	Origin         EventFleetChangedAgentsItemOrigin    `json:"origin"`
-	Title          string                               `json:"title"`
-	Column         EventFleetChangedAgentsItemColumn    `json:"column"`
-	NeedsYou       *EventFleetChangedAgentsItemNeedsYou `json:"needsYou,omitempty"`
-	Failed         *bool                                `json:"failed,omitempty"`
-	ParentId       *string                              `json:"parentId,omitempty"`
-	TaskId         *string                              `json:"taskId,omitempty"`
-	TabId          *string                              `json:"tabId,omitempty"`
-	ConversationId *string                              `json:"conversationId,omitempty"`
-	Cwd            *string                              `json:"cwd,omitempty"`
-	Usage          *EventFleetChangedAgentsItemUsage    `json:"usage,omitempty"`
-	UpdatedAt      float64                              `json:"updatedAt"`
-	Paused         *EventFleetChangedAgentsItemPaused   `json:"paused,omitempty"`
-	Pausable       *bool                                `json:"pausable,omitempty"`
-	Summary        *string                              `json:"summary,omitempty"`
-	Held           *bool                                `json:"held,omitempty"`
+	Id             string                                  `json:"id"`
+	Kind           EventFleetChangedAgentsItemKind         `json:"kind"`
+	Backend        string                                  `json:"backend"`
+	Scope          EventFleetChangedAgentsItemScope        `json:"scope"`
+	Origin         EventFleetChangedAgentsItemOrigin       `json:"origin"`
+	Title          string                                  `json:"title"`
+	Column         EventFleetChangedAgentsItemColumn       `json:"column"`
+	NeedsYou       *EventFleetChangedAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                   `json:"failed,omitempty"`
+	ParentId       *string                                 `json:"parentId,omitempty"`
+	TaskId         *string                                 `json:"taskId,omitempty"`
+	TabId          *string                                 `json:"tabId,omitempty"`
+	ConversationId *string                                 `json:"conversationId,omitempty"`
+	Cwd            *string                                 `json:"cwd,omitempty"`
+	Usage          *EventFleetChangedAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                 `json:"updatedAt"`
+	Paused         *EventFleetChangedAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                   `json:"pausable,omitempty"`
+	Summary        *string                                 `json:"summary,omitempty"`
+	QueueReason    *EventFleetChangedAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                `json:"retryAt,omitempty"`
 }
 
 type EventFleetChangedNomiUsage struct {

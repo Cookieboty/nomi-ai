@@ -30,6 +30,12 @@ const PAUSED_LABEL = {
   nomi: 'ui.cli-monitor.fleet-paused-nomi',
 } as const;
 
+const QUEUE_LABEL = {
+  memory: 'ui.cli-monitor.fleet-held',
+  slot: 'ui.cli-monitor.fleet-queue-slot',
+  retry: 'ui.cli-monitor.fleet-queue-retry-soon',
+} as const;
+
 export interface CardActions {
   onOpenTab?: (tabId: string) => void;
   onOpenTask?: (taskId: string) => void;
@@ -179,10 +185,18 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
           {t('ui.cli-monitor.fleet-dispatched-by', parentTitle(a.parentId))}
         </span>
       )}
-      {a.held && (
-        <span className={styles.needs} data-testid={`fleet-held-${a.id}`}>
+      {a.queueReason && (
+        <span
+          className={a.queueReason === 'memory' ? styles.needs : styles.cwd}
+          data-testid={`fleet-queue-${a.id}`}
+        >
           <Icon icon={Hourglass} size={12} />
-          {t('ui.cli-monitor.fleet-held')}
+          {a.queueReason === 'retry' && a.retryAt
+            ? t(
+                'ui.cli-monitor.fleet-queue-retry',
+                new Date(a.retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              )
+            : t(QUEUE_LABEL[a.queueReason])}
         </span>
       )}
       {a.summary && (

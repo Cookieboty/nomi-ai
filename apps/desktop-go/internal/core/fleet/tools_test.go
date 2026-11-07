@@ -120,16 +120,30 @@ func TestHoldingAdmitAndRelease(t *testing.T) {
 	}
 }
 
-func TestBuildHeldAndParent(t *testing.T) {
+func TestBuildQueueReasonAndParent(t *testing.T) {
 	in := baseInput()
-	in.Holding = true
+	retryAt := in.Now + 60_000
+	in.Tasks = append(in.Tasks, tasks.Task{ID: "t-retry", Title: "等重试", Status: tasks.StatusQueued,
+		Executor: tasks.ExecutorSpec{Kind: "nomi"}, Pending: &tasks.PendingRun{Cause: "retry", NotBefore: &retryAt}, UpdatedAt: in.Now})
 	in.Tabs = append(in.Tabs, Tab{ID: "child", Backend: "claude", Status: "running", HasSession: true, UpdatedAt: in.Now,
 		Delegated: true, TaskID: "t-child", ParentTaskID: "t-nomi"})
 	m := byID(Build(in))
-	if !m["run:t-queued-cli"].Held || m["run:t-nomi"].Held || m["tab:d"].Held {
-		t.Errorf("held: queued task %v, running %v, queued tab %v", m["run:t-queued-cli"].Held, m["run:t-nomi"].Held, m["tab:d"].Held)
+	if m["run:t-queued-cli"].QueueReason != QueueSlot || m["tab:d"].QueueReason != QueueSlot {
+		t.Errorf("waiting for a slot: %q / %q", m["run:t-queued-cli"].QueueReason, m["tab:d"].QueueReason)
+	}
+	if a := m["run:t-retry"]; a.QueueReason != QueueRetry || a.RetryAt != retryAt {
+		t.Errorf("retry = %+v", a)
+	}
+	if m["run:t-nomi"].QueueReason != "" {
+		t.Error("running items have no queue reason")
 	}
 	if m["tab:child"].ParentID != "run:t-nomi" {
 		t.Errorf("parent = %q", m["tab:child"].ParentID)
+	}
+	// 内存紧张：排着的都算被扣着（等重试的仍写重试时间）
+	in.Holding = true
+	m = byID(Build(in))
+	if m["run:t-queued-cli"].QueueReason != QueueMemory || m["run:t-retry"].QueueReason != QueueRetry {
+		t.Errorf("holding: %q / %q", m["run:t-queued-cli"].QueueReason, m["run:t-retry"].QueueReason)
 	}
 }

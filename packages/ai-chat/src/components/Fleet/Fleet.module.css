@@ -97,6 +97,14 @@
   border-radius: var(--cd-radius-lg);
   background: var(--cd-panel-surface-sunken);
 }
+/* 空列收窄：只留列头，把地方让给有东西的列（有东西就恢复） */
+.column[data-empty] {
+  flex: 0 0 calc(var(--cd-space-8) * 4);
+}
+.column[data-empty] .empty {
+  padding: 0 var(--cd-space-3) var(--cd-space-3);
+  text-align: left;
+}
 .columnHead {
   display: flex;
   align-items: center;

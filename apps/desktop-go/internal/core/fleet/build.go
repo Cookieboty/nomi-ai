@@ -63,9 +63,18 @@ type Agent struct {
 	Pausable bool    `json:"pausable,omitempty"`
 	// Summary：做完时的总结（标签最后一条回复、任务的结果摘要、外部会话的摘要），只给已完成的，截到 SummaryMax 个字
 	Summary string `json:"summary,omitempty"`
-	// Held：在「待进行」里、因为内存紧张被内存守护扣着（缓解后自动开始）
-	Held bool `json:"held,omitempty"`
+	// QueueReason：在「待进行」里为什么还没开始：memory 内存紧张被内存守护扣着 / slot 等前面的任务（并发名额满或
+	// 每小时启动次数到了）/ retry 上次失败、等重试（RetryAt）
+	QueueReason string `json:"queueReason,omitempty"`
+	RetryAt     int64  `json:"retryAt,omitempty"`
 }
+
+// 排队原因（Agent.QueueReason）
+const (
+	QueueMemory = "memory"
+	QueueSlot   = "slot"
+	QueueRetry  = "retry"
+)
 
 // SummaryMax：卡片上的总结最多多少个字（视图再按行数截）
 const SummaryMax = 300
@@ -199,7 +208,7 @@ type Input struct {
 	Archived map[string]int64
 	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
 	TaskSummaries map[string]string
-	// Holding：内存守护正扣着新的编程助手与后台 Nomi（排队的任务卡片标 Held）
+	// Holding：内存守护正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory）
 	Holding bool
 	System  System
 }
@@ -370,6 +379,10 @@ func Build(in Input) State {
 		}
 		a.Column, a.NeedsYou, a.Failed = col, need, failed
 		a.Pausable = t.Paused == nil && col == ColRunning && need == "" && len(t.Pids) > 0
+		// 编排器里排队的标签：同时运行的标签数满了
+		if col == ColTodo {
+			a.QueueReason = QueueSlot
+		}
 		if col == ColDone {
 			a.Summary = clip(t.Summary)
 			if a.Summary == "" && a.TaskID != "" {
@@ -404,7 +417,16 @@ func Build(in Input) State {
 		}
 		a.Scope, a.Title, a.Column, a.NeedsYou, a.Failed = "managed", t.Title, col, need, failed
 		a.TaskID, a.ConversationID, a.UpdatedAt = t.ID, str(t.Origin.ConversationID), t.UpdatedAt
-		a.Held = in.Holding && col == ColTodo
+		if col == ColTodo {
+			switch {
+			case t.Pending != nil && t.Pending.NotBefore != nil && *t.Pending.NotBefore > in.Now:
+				a.QueueReason, a.RetryAt = QueueRetry, *t.Pending.NotBefore
+			case in.Holding:
+				a.QueueReason = QueueMemory
+			default:
+				a.QueueReason = QueueSlot
+			}
+		}
 		if col == ColDone {
 			a.Summary = clip(in.TaskSummaries[t.ID])
 		}

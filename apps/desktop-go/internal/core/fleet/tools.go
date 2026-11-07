@@ -59,8 +59,8 @@ func toolAgent(a Agent) map[string]any {
 	if a.Pausable {
 		o["pausable"] = true
 	}
-	if a.Held {
-		o["heldForMemory"] = true
+	if a.QueueReason != "" {
+		o["queueReason"] = a.QueueReason
 	}
 	if a.ParentID != "" {
 		o["parentId"] = a.ParentID

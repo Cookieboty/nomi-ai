@@ -371,8 +371,12 @@ export const FleetAgent = loose({
   pausable: z.boolean().optional(),
   /** 做完时的总结（标签最后一条回复、任务结果摘要、外部会话摘要），只给已完成的，最多 300 字 */
   summary: z.string().optional(),
-  /** 在待进行里、因为内存紧张被内存守护扣着（缓解后自动开始） */
-  held: z.boolean().optional(),
+  /**
+   * 在待进行里为什么还没开始：memory 内存紧张被内存守护扣着（缓解后自动开始）/ slot 等前面的任务（并发名额满或
+   * 每小时启动次数到了）/ retry 上次失败、等重试（retryAt 毫秒）
+   */
+  queueReason: z.enum(['memory', 'slot', 'retry']).optional(),
+  retryAt: z.number().optional(),
 });
 
 export const FleetSystem = loose({

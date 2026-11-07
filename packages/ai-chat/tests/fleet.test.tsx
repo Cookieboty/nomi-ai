@@ -336,16 +336,37 @@ describe('FleetPage', () => {
       ...state,
       agents: state.agents.map((a) =>
         a.id === 'run:t2'
-          ? { ...a, held: true }
+          ? { ...a, queueReason: 'memory' as const }
           : a.id === 'tab:p'
             ? { ...a, paused: { by: 'nomi' as const, at: T0 }, parentId: 'run:t2' }
             : a,
       ),
     };
     render(<FleetPage active state={tree} onBack={() => undefined} />);
-    expect(screen.getByTestId('fleet-held-run:t2').textContent).toContain('排队中');
+    expect(screen.getByTestId('fleet-queue-run:t2').textContent).toContain('排队中');
     expect(screen.getByTestId('fleet-paused-tab:p').textContent).toContain('Nomi 暂停的');
     expect(screen.getByTestId('fleet-parent-tab:p').textContent).toContain('写周报');
+  });
+
+  it('collapses empty columns and says why queued work is waiting', () => {
+    const queued = {
+      ...state,
+      agents: state.agents.map((a) =>
+        a.id === 'run:t2' ? { ...a, queueReason: 'retry' as const, retryAt: T0 + 3_600_000 } : a,
+      ),
+    };
+    const { rerender } = render(<FleetPage active state={queued} onBack={() => undefined} />);
+    expect(screen.getByTestId('fleet-queue-run:t2').textContent).toContain('重试');
+    expect(screen.getByTestId('fleet-col-todo').hasAttribute('data-empty')).toBe(false);
+    rerender(
+      <FleetPage
+        active
+        state={{ ...state, agents: state.agents.filter((a) => a.column !== 'todo') }}
+        onBack={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId('fleet-col-todo').hasAttribute('data-empty')).toBe(true);
+    expect(screen.getByTestId('fleet-col-running').hasAttribute('data-empty')).toBe(false);
   });
 
   it('Esc goes back to the chat', () => {

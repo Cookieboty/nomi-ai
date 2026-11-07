@@ -12984,8 +12984,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -13313,8 +13321,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -13638,8 +13654,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -13963,8 +13987,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -14288,8 +14320,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -14604,8 +14644,16 @@
         "summary": {
          "type": "string"
         },
-        "held": {
-         "type": "boolean"
+        "queueReason": {
+         "type": "string",
+         "enum": [
+          "memory",
+          "slot",
+          "retry"
+         ]
+        },
+        "retryAt": {
+         "type": "number"
         }
        },
        "required": [
@@ -33765,8 +33813,16 @@
        "summary": {
         "type": "string"
        },
-       "held": {
-        "type": "boolean"
+       "queueReason": {
+        "type": "string",
+        "enum": [
+         "memory",
+         "slot",
+         "retry"
+        ]
+       },
+       "retryAt": {
+        "type": "number"
        }
       },
       "required": [

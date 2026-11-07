@@ -237,6 +237,7 @@ export const FleetPage: React.FC<
             <section
               key={c.key}
               className={styles.column}
+              data-empty={items.length ? undefined : ''}
               aria-label={t(c.label)}
               data-testid={`fleet-col-${c.key}`}
             >
