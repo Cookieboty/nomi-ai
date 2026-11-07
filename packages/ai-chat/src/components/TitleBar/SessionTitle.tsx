@@ -224,12 +224,18 @@ export const SessionTools: React.FC<{
 };
 
 /** 标题栏左侧：任务 / 素材库整页打开时显示页名（不放会话的菜单与工具），否则是当前会话 */
-export const TitleBarTitle: React.FC<{ page: 'tasks' | 'assets' | null }> = ({ page }) => {
+const PAGE_TITLE = {
+  tasks: 'ui.providers-schedule.tasks',
+  assets: 'ui.media.asset-library',
+  fleet: 'ui.cli-monitor.fleet-board',
+} as const;
+
+export const TitleBarTitle: React.FC<{ page: keyof typeof PAGE_TITLE | null }> = ({ page }) => {
   useLocale();
   if (!page) return <SessionTitle />;
   return (
     <span className="app-titlebar-session" data-testid="titlebar-page">
-      {page === 'tasks' ? t('ui.providers-schedule.tasks') : t('ui.media.asset-library')}
+      {t(PAGE_TITLE[page])}
     </span>
   );
 };

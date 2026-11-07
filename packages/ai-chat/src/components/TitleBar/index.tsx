@@ -101,7 +101,9 @@ export const AppTitleBar: React.FC<{
   title?: React.ReactNode;
   /** 对话卡片上方右侧：会话菜单「…」、工具栏开关 */
   trailing?: React.ReactNode;
-}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing }) => {
+  /** 最右侧、任何页面都显示：Agent 看板的负载指示 */
+  status?: React.ReactNode;
+}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing, status }) => {
   const labels = sidebarToggleLabels(sidebarCollapsed);
   return (
     <div
@@ -126,7 +128,12 @@ export const AppTitleBar: React.FC<{
         <div className="app-titlebar-title" data-testid="titlebar-title">
           {title}
         </div>
-        {trailing && <div className="app-titlebar-actions">{trailing}</div>}
+        {(trailing || status) && (
+          <div className="app-titlebar-actions">
+            {trailing}
+            {status}
+          </div>
+        )}
       </div>
       {isGoHost() && <WindowControls />}
     </div>

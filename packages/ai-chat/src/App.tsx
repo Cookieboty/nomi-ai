@@ -5,7 +5,6 @@ import { Button, ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AppEntries } from './components/AppEntries';
-import { useAssetLibraryHost } from './components/AssetLibrary';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
@@ -47,7 +46,6 @@ import {
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
 import { SideColumn, useSubagentPane, WorkspacePanesProvider } from './components/SubagentPane';
-import { useTasksHost } from './components/Tasks';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
 import { AiChatContextProvider } from './contexts/AiChatContext';
@@ -72,6 +70,7 @@ import { useComposerPending } from './hooks/useComposerPending';
 import { useConversationWriteNotice } from './hooks/useConversationWriteNotice';
 import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useMainPages } from './hooks/useMainPages';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useNomiWorkspace } from './hooks/useNomiWorkspace';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
@@ -677,47 +676,16 @@ const AiChatContent: React.FC = () => {
     };
   }, [openSettings]);
 
-  // 素材库：侧栏入口 + 主区整页（切到别的会话 / 标签时自动回到对话）
-  // 入口在左侧固定导航栏里：始终只显示图标
-  const assetLibrary = useAssetLibraryHost(true);
-  const closeAssetLibrary = assetLibrary.close;
-  // 任务页（持续任务）：与素材库并列的入口；旧的提醒 / 定时点开进日程面板
-  const tasksHost = useTasksHost(true, () => openSettings('knowledge', 'schedule'));
-  const closeTasks = tasksHost.close;
-  // 两个整页互斥：打开一个就关掉另一个
-  useEffect(() => {
-    if (tasksHost.chatHidden) closeAssetLibrary();
-  }, [tasksHost.chatHidden, closeAssetLibrary]);
-  useEffect(() => {
-    if (assetLibrary.chatHidden) closeTasks();
-  }, [assetLibrary.chatHidden, closeTasks]);
-  const openPage = tasksHost.chatHidden ? 'tasks' : assetLibrary.chatHidden ? 'assets' : null;
+  // 主区整页（任务 / Agent 看板 / 素材库）：入口在左侧导航栏，三个互斥
+  const mainPages = useMainPages(() => openSettings('knowledge', 'schedule'));
+  const { openPage, leave: leavePage } = mainPages;
   const mainHidden = openPage !== null;
-  // 侧栏是 React.memo：入口元素记住，流式生成时根组件重渲染不带着侧栏重渲染
-  const tasksNav = tasksHost.nav;
-  const assetNav = assetLibrary.nav;
-  const sidebarTopNav = useMemo(
-    () =>
-      assetNav || tasksNav ? (
-        <div className="side-top-nav">
-          {tasksNav}
-          {assetNav}
-        </div>
-      ) : null,
-    [tasksNav, assetNav],
-  );
-  // 侧栏里点会话 / 新建 / 打开历史：关掉任务页与素材库，直接回到对话
-  const leavePage = useCallback(() => {
-    closeAssetLibrary();
-    closeTasks();
-  }, [closeAssetLibrary, closeTasks]);
   const handleNewChat = useCallback(
     (opts?: { cwd?: string }) => {
-      closeAssetLibrary();
-      closeTasks();
+      leavePage();
       return actions.newConversation(opts);
     },
-    [actions, closeAssetLibrary, closeTasks],
+    [actions, leavePage],
   );
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
@@ -845,6 +813,7 @@ const AiChatContent: React.FC = () => {
         onToggleSidebar={toggleSidebar}
         title={<TitleBarTitle page={openPage} />}
         trailing={titleBar && !mainHidden ? sessionTools : undefined}
+        status={titleBar ? mainPages.fleetIndicator : undefined}
       />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
@@ -860,9 +829,9 @@ const AiChatContent: React.FC = () => {
           footer={sidebarFooter}
           pageOpen={mainHidden}
           onLeavePage={leavePage}
-          topNav={sidebarTopNav}
-          onOpenTask={tasksHost.openTask}
-          onOpenAsset={assetLibrary.openAsset}
+          topNav={mainPages.topNav}
+          onOpenTask={mainPages.openTask}
+          onOpenAsset={mainPages.openAsset}
         />
 
         {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
@@ -1052,10 +1021,8 @@ const AiChatContent: React.FC = () => {
             ) : null}
           </div>
           {!mainHidden && <SessionDetailsDock messages={railMessages} cwd={railCwd} />}
-          {/* 素材库整页：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
-          {assetLibrary.page}
-          {/* 任务整页：同样替换对话区 */}
-          {tasksHost.page}
+          {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
+          {mainPages.pages}
 
           {railOpen && railCwd && !mainHidden ? (
             <>

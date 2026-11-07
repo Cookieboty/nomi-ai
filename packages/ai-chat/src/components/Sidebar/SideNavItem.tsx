@@ -7,7 +7,7 @@ import styles from './SideNavItem.module.css';
 /**
  * 侧栏会话列表上方的页面入口（任务、素材库）：与会话行同一套形态——无边框、悬停浅底，
  * 打开时用选中底色 + 左侧强调条；收起侧栏时只剩图标。
- * `badge` 是要你处理的数量（醒目），`count` 是普通计数（弱化）。
+ * `badge` 是要你处理的数量（醒目），`count` 是普通计数（弱化）；`load` 给图标加一圈负载色（Agent 看板）。
  */
 export const SideNavItem: React.FC<{
   icon: LucideIcon;
@@ -18,9 +18,10 @@ export const SideNavItem: React.FC<{
   active: boolean;
   count?: number;
   badge?: number;
+  load?: 'warn' | 'critical';
   onOpen: () => void;
   testId: string;
-}> = ({ icon, label, title, collapsed, active, count, badge, onOpen, testId }) => (
+}> = ({ icon, label, title, collapsed, active, count, badge, load, onOpen, testId }) => (
   <button
     type="button"
     className={styles.item}
@@ -31,7 +32,9 @@ export const SideNavItem: React.FC<{
     onClick={onOpen}
     data-testid={testId}
   >
-    <Icon icon={icon} size={16} className={styles.icon} />
+    <span className={styles.iconWrap} data-load={load}>
+      <Icon icon={icon} size={16} className={styles.icon} />
+    </span>
     {!collapsed && <span className={styles.label}>{label}</span>}
     {badge ? (
       <span className={styles.badge} data-collapsed={collapsed || undefined}>
