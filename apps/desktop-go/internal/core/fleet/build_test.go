@@ -392,3 +392,36 @@ func TestBuildSummaries(t *testing.T) {
 		t.Error("only done cards carry a summary")
 	}
 }
+
+// 关闭空闲进程后的补刀：pid 在宽限期里被别的程序复用（命令行变了）就不动
+func TestCloseIdleSkipsReusedPid(t *testing.T) {
+	var kills []string
+	s := closeIdleService(t, &kills)
+	reused := false
+	base := s.d.ReadProcs
+	s.d.ReadProcs = func() *agents.ProcTable {
+		tb := base()
+		if !reused {
+			return tb
+		}
+		// 220 变成了另一个程序
+		procs := []agents.RawProc{}
+		tb.Each(func(p agents.RawProc) {
+			if p.Pid == 220 {
+				p.Cmd = "/Applications/Other.app/Contents/MacOS/Other"
+			}
+			procs = append(procs, p)
+		})
+		out := agents.NewProcTable(procs)
+		out.At = tb.At
+		return out
+	}
+	if _, err := s.CloseIdle(220, "codex"); err != nil {
+		t.Fatal(err)
+	}
+	reused = true
+	time.Sleep(100 * time.Millisecond)
+	if len(kills) != 1 || kills[0] != "SIGTERM:220" {
+		t.Fatalf("kills = %v: a reused pid must not get SIGKILL", kills)
+	}
+}

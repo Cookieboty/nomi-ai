@@ -45,6 +45,9 @@ describe('appContract · D3 coding', () => {
       .sort();
     expect(dangerous).toEqual([
       'fleet.closeIdle',
+      'fleet.pause',
+      'fleet.resume',
+      'fleet.setAutoPause',
       'harness.geminiTrustFolder',
       'harness.replyApprovePlan',
       'harness.replyPermission',

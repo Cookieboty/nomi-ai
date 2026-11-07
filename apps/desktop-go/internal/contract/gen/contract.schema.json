@@ -13512,7 +13512,7 @@
   },
   "fleet.pause": {
    "kind": "mutation",
-   "dangerous": false,
+   "dangerous": true,
    "surfaces": [],
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13845,7 +13845,7 @@
   },
   "fleet.resume": {
    "kind": "mutation",
-   "dangerous": false,
+   "dangerous": true,
    "surfaces": [],
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14178,7 +14178,7 @@
   },
   "fleet.setAutoPause": {
    "kind": "mutation",
-   "dangerous": false,
+   "dangerous": true,
    "surfaces": [],
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

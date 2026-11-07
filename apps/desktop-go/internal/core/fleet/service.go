@@ -233,6 +233,13 @@ func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 		return st, ErrNotIdle
 	}
 	tree := table.Subtree(pid)
+	// 记下每个进程的命令行：补刀前比对，pid 在这几秒里被别的程序复用了就不动
+	cmds := make(map[float64]string, len(tree))
+	for _, p := range tree {
+		if rp, ok := table.Get(p); ok {
+			cmds[p] = rp.Cmd
+		}
+	}
 	for i := len(tree) - 1; i >= 0; i-- {
 		_ = s.d.Kill(int(tree[i]), "SIGTERM")
 	}
@@ -249,10 +256,11 @@ func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 		if now == nil {
 			return
 		}
-		// 只补刀还在原来那棵树里的进程（pid 复用的不动）
+		// 只补刀还在原来那棵树里、命令行也没变的进程（根进程对自己的 IsUnder 恒为真，所以必须比对命令行）
 		for i := len(tree) - 1; i >= 0; i-- {
-			if _, ok := now.Get(tree[i]); ok && now.IsUnder(tree[i], pid) {
-				_ = s.d.Kill(int(tree[i]), "SIGKILL")
+			p := tree[i]
+			if rp, ok := now.Get(p); ok && rp.Cmd == cmds[p] && now.IsUnder(p, pid) {
+				_ = s.d.Kill(int(p), "SIGKILL")
 			}
 		}
 		s.Changed()

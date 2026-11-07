@@ -3,6 +3,7 @@
 package harness
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -95,4 +96,44 @@ func TestFreezeTabAndAutoThaw(t *testing.T) {
 			t.Fatalf("Dispose must thaw every frozen tab, state = %q", st)
 		}
 	})
+}
+
+// 崩溃 / 被强杀（没走 Dispose）后，下次启动恢复还冻着的进程；启动时间对不上的（pid 被复用）不碰
+func TestFreezeRecoveredAfterCrash(t *testing.T) {
+	tmp := t.TempDir()
+	root := filepath.Join(tmp, "h")
+	idle := 0.0
+	deps := Deps{Root: root, Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{}, IdleReclaimMs: &idle}
+	cmd := startSleep(t)
+	other := startSleep(t)
+	jsrt.Run(func() {
+		o := New(deps)
+		id := util.Str(o.CreateTab(util.NewObj("backend", "claude", "activate", false)).Get("id"))
+		o.trackProc(id, fakeChild{cmd.Process.Pid})
+		if !o.FreezeTab(id, []int{cmd.Process.Pid}, "memory") {
+			t.Fatal("FreezeTab failed")
+		}
+		// 不调 Dispose：模拟崩溃
+	})
+	if st := procState(t, cmd.Process.Pid); !strings.HasPrefix(st, "T") {
+		t.Fatalf("still frozen before restart, state = %q", st)
+	}
+	// 记录里再塞一个启动时间对不上的（像 pid 被复用了）：它是另一个被冻住的无关进程，恢复时不能碰
+	_ = suspendPid(other.Process.Pid)
+	t.Cleanup(func() { _ = resumePid(other.Process.Pid) })
+	b, _ := os.ReadFile(filepath.Join(root, "frozen.json"))
+	b = []byte(strings.Replace(string(b), "]", `,{"pid":`+strconv.Itoa(other.Process.Pid)+`,"start":"not the same process"}]`, 1))
+	if err := os.WriteFile(filepath.Join(root, "frozen.json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	jsrt.Run(func() { New(deps) })
+	if st := procState(t, cmd.Process.Pid); strings.HasPrefix(st, "T") {
+		t.Fatalf("restart must resume the process left frozen, state = %q", st)
+	}
+	if st := procState(t, other.Process.Pid); !strings.HasPrefix(st, "T") {
+		t.Fatalf("a process whose start time does not match must not be touched, state = %q", st)
+	}
+	if _, err := os.Stat(filepath.Join(root, "frozen.json")); err == nil {
+		t.Fatal("record is removed after recovery")
+	}
 }

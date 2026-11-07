@@ -190,3 +190,23 @@ func TestGovernorRespectsUserPauseAndSwitch(t *testing.T) {
 		t.Fatal("auto-pause defaults to on")
 	}
 }
+
+// 自动处理关着时：不回收、不冻结，但 Nomi 暂停的在内存正常后照样自动继续（工具描述就是这么承诺的）
+func TestGovernorResumesNomiPausesWithAutoOff(t *testing.T) {
+	s, h := newGov(t, t.TempDir())
+	s.SetAutoPause(false)
+	if _, err := s.PauseBy("tab:a", PausedByNomi); err != nil {
+		t.Fatal(err)
+	}
+	h.pressure = agents.PressureCritical
+	h.step(s, 20*time.Second)
+	if len(h.frozen) != 1 || h.reclaims != 0 {
+		t.Fatalf("auto off: no reclaim or automatic freeze (frozen %v reclaims %d)", h.frozen, h.reclaims)
+	}
+	h.pressure = agents.PressureNormal
+	h.step(s, time.Second)
+	h.step(s, 40*time.Second)
+	if h.tab("a").Paused != nil {
+		t.Fatal("a tab Nomi paused resumes once memory is normal, even with auto handling off")
+	}
+}

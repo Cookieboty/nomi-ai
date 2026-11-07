@@ -354,6 +354,8 @@ func New(d Deps) *Orchestrator {
 		"permissionMode", cli.DefaultPermissionMode,
 	))
 	o.load()
+	// 上次崩溃 / 被强杀时还冻着的 CLI 进程：先恢复（只恢复启动时间对得上的）
+	o.recoverFrozen()
 	if b, err := os.ReadFile(o.recentPath); err == nil {
 		if v, err := util.ParseString(string(b)); err == nil {
 			if arr, ok := v.([]any); ok {

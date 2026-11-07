@@ -527,14 +527,25 @@ const fleetProcedures = {
     dangerous: true,
   },
   /** 暂停一个纳管的、正在跑的 CLI 标签（冻结它的进程树，不占 CPU；恢复后这一轮从原处接着跑）；不能暂停时 FLEET_NOT_PAUSABLE */
-  'fleet.pause': { kind: 'mutation', input: z.object({ id: z.string() }), output: FleetState },
+  'fleet.pause': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
   /** 恢复一个暂停中的标签（自动或手动暂停的都行）；不在暂停中时 FLEET_NOT_PAUSABLE */
-  'fleet.resume': { kind: 'mutation', input: z.object({ id: z.string() }), output: FleetState },
+  'fleet.resume': {
+    kind: 'mutation',
+    input: z.object({ id: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
   /** 打开 / 关闭内存紧张时的自动处理（存盘）；关掉时恢复内存守护暂停的标签 */
   'fleet.setAutoPause': {
     kind: 'mutation',
     input: z.object({ enabled: z.boolean() }),
     output: FleetState,
+    dangerous: true,
   },
 } as const satisfies ProcedureMap;
 

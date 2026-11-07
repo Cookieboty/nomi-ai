@@ -161,18 +161,18 @@ func (s *Service) Govern() {
 	if wasHolding && !s.Holding() {
 		s.release()
 	}
+	// 恢复不看开关：Nomi 用 pause_agent 暂停的、关开关前没来得及恢复的，内存正常后都要接着跑
+	if p.Level == agents.PressureNormal && now.Sub(since) >= CalmBefore {
+		s.thawOne(now)
+	}
+	// 回收与冻结只在自动处理开着时做
 	if !auto {
 		return
 	}
-	switch p.Level {
-	case agents.PressureWarn, agents.PressureCritical:
+	if p.Level == agents.PressureWarn || p.Level == agents.PressureCritical {
 		s.reclaim(now)
 		if p.Level == agents.PressureCritical {
 			s.freezeOne(now)
-		}
-	case agents.PressureNormal:
-		if now.Sub(since) >= CalmBefore {
-			s.thawOne(now)
 		}
 	}
 }

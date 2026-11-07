@@ -5,6 +5,9 @@ package harness
 // 与编排器的其余方法一样，须持 jsrt GIL 调用。
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -57,11 +60,74 @@ func (o *Orchestrator) PendingPermissions(tabID string) int {
 	return len(o.pendingPerms.Get(tabID))
 }
 
-// FrozenTab：被冻结的标签（By：memory = 内存守护自动暂停；user = 用户手动暂停）
+// FrozenTab：被冻结的标签（By：memory = 内存守护自动暂停；user = 用户手动暂停；nomi = Nomi 暂停的）。
+// Starts：冻结时各进程的启动时间，恢复前比对，pid 被复用的不碰
 type FrozenTab struct {
-	Pids []int
-	By   string
-	At   time.Time
+	Pids   []int
+	Starts map[int]string
+	By     string
+	At     time.Time
+}
+
+// frozenRecord：落盘的冻结记录（Nomi 崩溃 / 被强杀后，下次启动据此把还停着的进程恢复）
+type frozenRecord struct {
+	Pid   int    `json:"pid"`
+	Start string `json:"start"`
+}
+
+func (o *Orchestrator) frozenPath() string { return filepath.Join(o.d.Root, "frozen.json") }
+
+// saveFrozen：把当前冻结的进程写盘（没有冻结的就删掉文件）
+func (o *Orchestrator) saveFrozen() {
+	if o.d.Root == "" {
+		return
+	}
+	recs := []frozenRecord{}
+	for _, f := range o.frozen {
+		for _, p := range f.Pids {
+			recs = append(recs, frozenRecord{Pid: p, Start: f.Starts[p]})
+		}
+	}
+	if len(recs) == 0 {
+		_ = os.Remove(o.frozenPath())
+		return
+	}
+	b, _ := json.Marshal(recs)
+	_ = os.MkdirAll(o.d.Root, 0o755)
+	if err := os.WriteFile(o.frozenPath(), b, 0o600); err != nil {
+		o.d.Logger.Warn("harness frozen record write failed", util.NewObj("error", err.Error()))
+	}
+}
+
+// recoverFrozen：启动时恢复上次没来得及恢复的进程（崩溃 / 强杀）：只恢复启动时间对得上的，pid 被复用的不碰
+func (o *Orchestrator) recoverFrozen() {
+	if o.d.Root == "" {
+		return
+	}
+	b, err := os.ReadFile(o.frozenPath())
+	if err != nil {
+		return
+	}
+	_ = os.Remove(o.frozenPath())
+	var recs []frozenRecord
+	if json.Unmarshal(b, &recs) != nil {
+		return
+	}
+	pids := make([]int, 0, len(recs))
+	for _, r := range recs {
+		pids = append(pids, r.Pid)
+	}
+	now := procStarts(pids)
+	n := 0
+	for i := len(recs) - 1; i >= 0; i-- {
+		r := recs[i]
+		if r.Pid > 1 && r.Start != "" && now[r.Pid] == r.Start && resumePid(r.Pid) == nil {
+			n++
+		}
+	}
+	if n > 0 {
+		o.d.Logger.Info("harness resumed processes left frozen by the last run", util.NewObj("count", float64(n)))
+	}
 }
 
 // FreezeTab：冻结标签的进程树（pids 由调用方从进程表里展开，含根进程；父进程在前）。
@@ -76,16 +142,19 @@ func (o *Orchestrator) FreezeTab(id string, pids []int, by string) bool {
 	if o.frozen == nil {
 		o.frozen = map[string]*FrozenTab{}
 	}
+	starts := procStarts(pids)
 	done := []int{}
 	for _, p := range pids {
-		if p > 1 && suspendPid(p) == nil {
+		// 读不到启动时间的不冻：之后没法确认还是它，宁可不动
+		if p > 1 && starts[p] != "" && suspendPid(p) == nil {
 			done = append(done, p)
 		}
 	}
 	if len(done) == 0 {
 		return false
 	}
-	o.frozen[id] = &FrozenTab{Pids: done, By: by, At: time.Now()}
+	o.frozen[id] = &FrozenTab{Pids: done, Starts: starts, By: by, At: time.Now()}
+	o.saveFrozen()
 	o.d.Logger.Info("harness tab frozen", util.NewObj("tabId", id, "by", by, "processes", float64(len(done))))
 	o.changed()
 	return true
@@ -98,9 +167,14 @@ func (o *Orchestrator) ThawTab(id string) bool {
 		return false
 	}
 	delete(o.frozen, id)
+	now := procStarts(f.Pids)
 	for i := len(f.Pids) - 1; i >= 0; i-- {
-		_ = resumePid(f.Pids[i])
+		// 只恢复还是当初那个的进程（期间退出、pid 被别的程序复用的不碰）
+		if p := f.Pids[i]; now[p] == f.Starts[p] {
+			_ = resumePid(p)
+		}
 	}
+	o.saveFrozen()
 	o.d.Logger.Info("harness tab thawed", util.NewObj("tabId", id))
 	if o.tab(id) != nil {
 		o.changed()
