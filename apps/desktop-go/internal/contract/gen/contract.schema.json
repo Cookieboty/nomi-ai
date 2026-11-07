@@ -12913,8 +12913,7 @@
          "enum": [
           "permission",
           "sandbox",
-          "accept",
-          "reply"
+          "accept"
          ]
         },
         "failed": {
@@ -13007,12 +13006,18 @@
        "rssBytes": {
         "type": "number"
        },
-       "backends": {
+       "items": {
         "type": "array",
         "items": {
          "type": "object",
          "properties": {
+          "pid": {
+           "type": "number"
+          },
           "backend": {
+           "type": "string"
+          },
+          "cwd": {
            "type": "string"
           },
           "processes": {
@@ -13020,12 +13025,17 @@
           },
           "rssBytes": {
            "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
           }
          },
          "required": [
+          "pid",
           "backend",
           "processes",
-          "rssBytes"
+          "rssBytes",
+          "cpuPercent"
          ],
          "additionalProperties": {}
         }
@@ -13034,7 +13044,253 @@
       "required": [
        "processes",
        "rssBytes",
-       "backends"
+       "items"
+      ],
+      "additionalProperties": {}
+     },
+     "system": {
+      "type": "object",
+      "properties": {
+       "totalMemBytes": {
+        "type": "number"
+       },
+       "cores": {
+        "type": "number"
+       },
+       "cpuPercent": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "totalMemBytes",
+       "cores",
+       "cpuPercent"
+      ],
+      "additionalProperties": {}
+     },
+     "sampledAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "agents",
+     "nomi",
+     "externalIdle",
+     "system",
+     "sampledAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "fleet.closeIdle": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "pid": {
+      "type": "number"
+     },
+     "backend": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "pid",
+     "backend"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "agents": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "nomi",
+          "cli"
+         ]
+        },
+        "backend": {
+         "type": "string"
+        },
+        "scope": {
+         "type": "string",
+         "enum": [
+          "managed",
+          "external"
+         ]
+        },
+        "origin": {
+         "type": "string",
+         "enum": [
+          "chat",
+          "nomi",
+          "conversation",
+          "task",
+          "workbench",
+          "terminal"
+         ]
+        },
+        "title": {
+         "type": "string"
+        },
+        "column": {
+         "type": "string",
+         "enum": [
+          "todo",
+          "paused",
+          "running",
+          "done"
+         ]
+        },
+        "needsYou": {
+         "type": "string",
+         "enum": [
+          "permission",
+          "sandbox",
+          "accept"
+         ]
+        },
+        "failed": {
+         "type": "boolean"
+        },
+        "parentId": {
+         "type": "string"
+        },
+        "taskId": {
+         "type": "string"
+        },
+        "tabId": {
+         "type": "string"
+        },
+        "conversationId": {
+         "type": "string"
+        },
+        "cwd": {
+         "type": "string"
+        },
+        "usage": {
+         "type": "object",
+         "properties": {
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          },
+          "processes": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "rssBytes",
+          "cpuPercent",
+          "processes"
+         ],
+         "additionalProperties": {}
+        },
+        "updatedAt": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "backend",
+        "scope",
+        "origin",
+        "title",
+        "column",
+        "updatedAt"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "nomi": {
+      "type": "object",
+      "properties": {
+       "usage": {
+        "type": "object",
+        "properties": {
+         "rssBytes": {
+          "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
+         },
+         "processes": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "rssBytes",
+         "cpuPercent",
+         "processes"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "additionalProperties": {}
+     },
+     "externalIdle": {
+      "type": "object",
+      "properties": {
+       "processes": {
+        "type": "number"
+       },
+       "rssBytes": {
+        "type": "number"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "pid": {
+           "type": "number"
+          },
+          "backend": {
+           "type": "string"
+          },
+          "cwd": {
+           "type": "string"
+          },
+          "processes": {
+           "type": "number"
+          },
+          "rssBytes": {
+           "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "pid",
+          "backend",
+          "processes",
+          "rssBytes",
+          "cpuPercent"
+         ],
+         "additionalProperties": {}
+        }
+       }
+      },
+      "required": [
+       "processes",
+       "rssBytes",
+       "items"
       ],
       "additionalProperties": {}
      },
@@ -13136,8 +13392,7 @@
          "enum": [
           "permission",
           "sandbox",
-          "accept",
-          "reply"
+          "accept"
          ]
         },
         "failed": {
@@ -13230,12 +13485,18 @@
        "rssBytes": {
         "type": "number"
        },
-       "backends": {
+       "items": {
         "type": "array",
         "items": {
          "type": "object",
          "properties": {
+          "pid": {
+           "type": "number"
+          },
           "backend": {
+           "type": "string"
+          },
+          "cwd": {
            "type": "string"
           },
           "processes": {
@@ -13243,12 +13504,17 @@
           },
           "rssBytes": {
            "type": "number"
+          },
+          "cpuPercent": {
+           "type": "number"
           }
          },
          "required": [
+          "pid",
           "backend",
           "processes",
-          "rssBytes"
+          "rssBytes",
+          "cpuPercent"
          ],
          "additionalProperties": {}
         }
@@ -13257,7 +13523,7 @@
       "required": [
        "processes",
        "rssBytes",
-       "backends"
+       "items"
       ],
       "additionalProperties": {}
      },
@@ -32204,8 +32470,7 @@
         "enum": [
          "permission",
          "sandbox",
-         "accept",
-         "reply"
+         "accept"
         ]
        },
        "failed": {
@@ -32298,12 +32563,18 @@
       "rssBytes": {
        "type": "number"
       },
-      "backends": {
+      "items": {
        "type": "array",
        "items": {
         "type": "object",
         "properties": {
+         "pid": {
+          "type": "number"
+         },
          "backend": {
+          "type": "string"
+         },
+         "cwd": {
           "type": "string"
          },
          "processes": {
@@ -32311,12 +32582,17 @@
          },
          "rssBytes": {
           "type": "number"
+         },
+         "cpuPercent": {
+          "type": "number"
          }
         },
         "required": [
+         "pid",
          "backend",
          "processes",
-         "rssBytes"
+         "rssBytes",
+         "cpuPercent"
         ],
         "additionalProperties": {}
        }
@@ -32325,7 +32601,7 @@
      "required": [
       "processes",
       "rssBytes",
-      "backends"
+      "items"
      ],
      "additionalProperties": {}
     },
@@ -33739,6 +34015,7 @@
   "ACCOUNT_LOCAL",
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
+  "FLEET_NOT_IDLE",
   "KB_DENIED",
   "KB_EMPTY",
   "KB_LOCAL_ONLY",

@@ -306,3 +306,55 @@
   white-space: nowrap;
   font-size: var(--cd-font-size-sm);
 }
+
+/* 空闲进程：看板下面单独一个列表，每个一行 */
+.idle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  margin-top: var(--cd-space-3);
+}
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-medium);
+}
+.idleRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-panel-surface-sunken);
+}
+.idleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  min-width: 0;
+  height: var(--cd-control-h-lg);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  font-size: var(--cd-font-size-sm);
+}
+.idleRow + .idleRow {
+  border-top: 1px solid var(--cd-panel-border);
+}
+.idleName {
+  flex: none;
+  color: var(--cd-color-text);
+}
+.idlePid {
+  flex: none;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.idleRow .usage {
+  flex: 1;
+  min-width: 0;
+}
+.idleRow .cwd {
+  flex: 0 1 auto;
+}

@@ -126,11 +126,9 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
             : t(ORIGIN_LABEL[a.origin])}
         </span>
       </span>
-      <span className={styles.cardTitle} title={a.cwd || undefined}>
-        {agentTitle(a, chatName)}
-      </span>
+      <span className={styles.cardTitle}>{agentTitle(a, chatName)}</span>
       {a.cwd && (
-        <span className={styles.cwd} title={a.cwd}>
+        <span className={styles.cwd}>
           <Icon icon={Folder} size={12} />
           {dirName(a.cwd)}
         </span>

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -171,7 +172,7 @@ func TestBuildExternalSessions(t *testing.T) {
 		failed        bool
 	}{
 		{"ext:codex:s1", ColRunning, "", false},
-		{"ext:claude:s2", ColRunning, NeedReply, false},
+		{"ext:claude:s2", ColDone, "", false}, // 等你回话 = 这一轮答完了
 		{"ext:codex:s3", ColDone, "", false},
 		{"ext:grok:s5", ColDone, "", false}, // 标着在跑、进程已经没了
 	}
@@ -195,16 +196,21 @@ func TestBuildExternalSessions(t *testing.T) {
 	if m["ext:claude:s2"].Usage != nil || m["ext:codex:s3"].Usage != nil {
 		t.Error("sessions without a matching process (or not running) have no usage")
 	}
-	// 认领不到的进程合并成一行，按内存大的在前
+	// 认领不到的进程树逐个列出，按内存大的在前，带上工作目录
 	idle := st.ExternalIdle
-	if idle.Processes != 2 || idle.RSSBytes != 20*mb || len(idle.Backends) != 2 ||
-		idle.Backends[0].Backend != "codex" || idle.Backends[1].Backend != "grok" {
-		t.Errorf("idle = %+v", idle)
+	if idle.Processes != 2 || idle.RSSBytes != 20*mb || len(idle.Items) != 2 {
+		t.Fatalf("idle = %+v", idle)
+	}
+	if it := idle.Items[0]; it.Pid != 220 || it.Backend != "codex" || it.Cwd != "/other" || it.RSSBytes != 11*mb {
+		t.Errorf("idle[0] = %+v", it)
+	}
+	if it := idle.Items[1]; it.Pid != 230 || it.Backend != "grok" {
+		t.Errorf("idle[1] = %+v", it)
 	}
 	// Nomi 自己的 CLI（110 里的 claude 与它调的 codex、120）不算外部
-	for _, b := range idle.Backends {
-		if b.Backend == "claude" {
-			t.Error("Nomi's own claude must not be counted as external")
+	for _, it := range idle.Items {
+		if it.Pid == 110 || it.Pid == 112 || it.Pid == 120 {
+			t.Errorf("Nomi's own CLI must not be listed as external idle: %+v", it)
 		}
 	}
 	if last := st.Agents[len(st.Agents)-1]; last.Scope != "external" {
@@ -279,5 +285,65 @@ func TestServiceArchive(t *testing.T) {
 	}
 	if _, ok := byID(s.State())["tab:b"]; ok {
 		t.Error("archive must persist across State calls")
+	}
+}
+
+func closeIdleService(t *testing.T, kills *[]string) *Service {
+	t.Helper()
+	in := baseInput()
+	tick := time.UnixMilli(in.Now)
+	return New(Deps{
+		SelfPid: 100,
+		Now: func() time.Time {
+			tick = tick.Add(2 * time.Second) // 每次读进程表都算新的一份
+			return tick
+		},
+		ReadProcs: func() *agents.ProcTable { p := procs(tick, 2); return p },
+		Tabs:      func() []Tab { return in.Tabs },
+		External:  func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		Kill: func(pid int, sig string) error {
+			*kills = append(*kills, sig+":"+strconv.Itoa(pid))
+			return nil
+		},
+		KillGrace: 10 * time.Millisecond,
+	})
+}
+
+func TestCloseIdle(t *testing.T) {
+	var kills []string
+	s := closeIdleService(t, &kills)
+	if _, err := s.CloseIdle(220, "codex"); err != nil {
+		t.Fatalf("CloseIdle(220) = %v", err)
+	}
+	if len(kills) != 1 || kills[0] != "SIGTERM:220" {
+		t.Fatalf("kills = %v, want SIGTERM to the idle tree", kills)
+	}
+	// 测试里的进程表一直有 220：过了宽限期补一刀 SIGKILL
+	time.Sleep(100 * time.Millisecond)
+	if len(kills) != 2 || kills[1] != "SIGKILL:220" {
+		t.Fatalf("kills = %v, want SIGKILL after the grace period", kills)
+	}
+}
+
+func TestCloseIdleRefusesAnythingElse(t *testing.T) {
+	var kills []string
+	s := closeIdleService(t, &kills)
+	for _, c := range []struct {
+		pid     float64
+		backend string
+	}{
+		{210, "codex"},  // 有会话在跑
+		{110, "claude"}, // Nomi 自己的标签
+		{100, "codex"},  // Nomi 本体
+		{230, "codex"},  // 种类对不上（pid 被别的程序复用）
+		{999, "grok"},   // 不存在
+		{1, "codex"},
+	} {
+		if _, err := s.CloseIdle(c.pid, c.backend); err != ErrNotIdle {
+			t.Errorf("CloseIdle(%v, %s) = %v, want ErrNotIdle", c.pid, c.backend, err)
+		}
+	}
+	if len(kills) != 0 {
+		t.Fatalf("nothing may be killed, got %v", kills)
 	}
 }

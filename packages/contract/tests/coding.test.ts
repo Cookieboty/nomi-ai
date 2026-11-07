@@ -44,6 +44,7 @@ describe('appContract · D3 coding', () => {
       .map(([n]) => n)
       .sort();
     expect(dangerous).toEqual([
+      'fleet.closeIdle',
       'harness.geminiTrustFolder',
       'harness.replyApprovePlan',
       'harness.replyPermission',

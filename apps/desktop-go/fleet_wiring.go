@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // wireFleet：Agent 看板。标签从编排器取（进 GIL），任务从持续任务服务取（GIL 外），
@@ -70,6 +71,8 @@ func wireFleet(router *contract.Router, ts *tasks.Service, chats *airouter.Handl
 			return r.s, r.cwd
 		},
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
+		// 只给用户手动关闭空闲的外部编程助手进程用（fleet.closeIdle）
+		Kill: nodeproc.KillPid,
 	})
 	var offTasks func()
 	if ts != nil {

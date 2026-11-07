@@ -92,6 +92,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "agents.setSettings mutation",
   "fleet.state query",
   "fleet.archive mutation",
+  "fleet.closeIdle mutation dangerous",
   "history.list query",
   "history.index query",
   "history.open mutation",

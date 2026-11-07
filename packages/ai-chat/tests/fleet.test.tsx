@@ -94,8 +94,7 @@ const state: FleetState = {
       scope: 'external',
       origin: 'terminal',
       title: '等我回话',
-      column: 'running',
-      needsYou: 'reply',
+      column: 'done',
       updatedAt: T0,
     },
     {
@@ -111,11 +110,12 @@ const state: FleetState = {
   ],
   nomi: { usage: usage(300 * MB, 3, 2) },
   externalIdle: {
-    processes: 8,
+    processes: 4,
     rssBytes: 100 * MB,
-    backends: [
-      { backend: 'codex', processes: 6, rssBytes: 80 * MB },
-      { backend: 'grok', processes: 2, rssBytes: 20 * MB },
+    items: [
+      { pid: 3076, backend: 'codex', cwd: '/w/a', processes: 1, rssBytes: 60 * MB, cpuPercent: 0 },
+      { pid: 3199, backend: 'codex', processes: 2, rssBytes: 20 * MB, cpuPercent: 0.5 },
+      { pid: 64826, backend: 'grok', processes: 1, rssBytes: 20 * MB, cpuPercent: 0 },
     ],
   },
   system: { totalMemBytes: 16 * GB, cores: 8, cpuPercent: 12 },
@@ -146,8 +146,7 @@ describe('summarize / format', () => {
     expect(s.externalBytes).toBe(2 * GB + 100 * MB);
     expect(s.agentsBytes).toBe(1.5 * GB + 200 * MB + 2 * GB);
     // 进行中：正在回答的对话、Nomi 派出的、外部会话都算
-    expect(s.running).toBe(4);
-    // 外部会话等你回话不算进入口的「要你处理」
+    expect(s.running).toBe(3);
     expect(s.needsYou).toBe(1);
     expect(s.level).toBe('normal');
   });
@@ -176,7 +175,8 @@ describe('FleetPage', () => {
     expect(screen.queryByTestId('fleet-card-nomi')).toBeNull();
     // 空闲进程合并成一行
     const idle = screen.getByTestId('fleet-idle').textContent ?? '';
-    expect(idle).toContain('Codex 6');
+    expect(idle).toContain('Codex 2');
+    expect(idle).toContain('Grok 1');
     expect(idle).toContain('100 MB');
     expect(screen.getByTestId('fleet-summary').textContent).toContain('12%');
   });
@@ -188,11 +188,33 @@ describe('FleetPage', () => {
     expect(within(running).getByText('修复流式')).toBeTruthy();
     expect(within(running).getByTestId('fleet-needs-tab:a')).toBeTruthy();
     expect(within(running).getByText('终端里修 bug')).toBeTruthy();
-    expect(within(running).getByTestId('fleet-needs-ext:claude:s2')).toBeTruthy();
     expect(within(screen.getByTestId('fleet-col-todo')).getByText('写周报')).toBeTruthy();
     const done = screen.getByTestId('fleet-col-done');
     expect(within(done).getByText('重构 UI')).toBeTruthy();
     expect(within(done).getByText('做完了')).toBeTruthy();
+    // 终端里等你回话 = 这一轮答完了：算已完成，不标「要你处理」
+    expect(within(done).getByText('等我回话')).toBeTruthy();
+    expect(screen.queryByTestId('fleet-needs-ext:claude:s2')).toBeNull();
+  });
+
+  it('lists idle processes separately, one row each, closable by hand', () => {
+    const onCloseIdle = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onCloseIdle={onCloseIdle} />);
+    const list = screen.getByTestId('fleet-idle-list');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+    const row = screen.getByTestId('fleet-idle-3076');
+    expect(row.textContent).toContain('3076');
+    expect(row.textContent).toContain('60 MB');
+    expect(row.textContent).toContain('a');
+    fireEvent.click(screen.getByTestId('fleet-close-idle-64826'));
+    expect(onCloseIdle).toHaveBeenCalledWith(state.externalIdle.items[2]);
+  });
+
+  it('has no idle list when there are no idle processes', () => {
+    const none = { ...state, externalIdle: { processes: 0, rssBytes: 0, items: [] } };
+    render(<FleetPage active state={none} onBack={() => undefined} />);
+    expect(screen.queryByTestId('fleet-idle-list')).toBeNull();
+    expect(screen.queryByTestId('fleet-idle')).toBeNull();
   });
 
   it('external cards are read-only: no open / close buttons', () => {
@@ -247,7 +269,7 @@ describe('FleetIndicator', () => {
       />,
     );
     const btn = screen.getByTestId('fleet-indicator');
-    expect(btn.textContent).toContain('4 ·');
+    expect(btn.textContent).toContain('3 ·');
     // 整机 CPU（0–100）也在指示里
     expect(btn.textContent).toContain('12%');
     fireEvent.click(btn);

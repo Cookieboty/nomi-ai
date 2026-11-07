@@ -4,6 +4,8 @@
  * - 标题栏右侧的负载指示，点开小浮层看正在跑的，再进完整看板。
  * 两个入口共用一份数据（useFleet）：看板或浮层开着时 3 秒刷新占用，平时 15 秒，窗口隐藏时不刷新。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { Gauge } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,11 +23,13 @@ import {
   fleetAvailable,
   summarize,
   type FleetAgent,
+  type FleetIdleItem,
   type LoadLevel,
 } from '../../services/fleetClient';
 import { harnessClient } from '../../services/harnessClient';
 import { requestOpenTask } from '../../services/tasksClient';
 import type { IPCClient } from '../../types/ipc';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
@@ -72,7 +76,7 @@ export function useFleetHost(collapsed: boolean) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [popover, setPopover] = useState(false);
-  const { state, apply } = useFleet(open || popover);
+  const { state, apply, reload } = useFleet(open || popover);
   const sum = summarize(state);
   const { setMode } = useChatMode();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
@@ -128,6 +132,21 @@ export function useFleetHost(collapsed: boolean) {
     },
     [apply],
   );
+  /** 手动关闭空闲的外部进程：先确认；内核发现它已经不是空闲进程时只刷新列表 */
+  const closeIdle = useCallback(
+    async (it: FleetIdleItem) => {
+      const name = isBuiltinCliId(it.backend) ? t(ENDPOINT_NAME[it.backend]) : it.backend;
+      const ok = await confirmDialog({
+        message: t('ui.cli-monitor.fleet-close-idle-confirm', name, it.pid, brand.appName),
+      });
+      if (!ok) return;
+      await fleetApi
+        .closeIdle(it)
+        .then(apply)
+        .catch(() => reload());
+    },
+    [apply, reload],
+  );
   const closeTab = useCallback(async (a: FleetAgent) => {
     if (!a.tabId) return;
     const ok = await confirmDialog({
@@ -173,6 +192,7 @@ export function useFleetHost(collapsed: boolean) {
         chatName={chatName}
         onArchive={archive}
         onCloseTab={(a) => void closeTab(a)}
+        onCloseIdle={(it) => void closeIdle(it)}
       />
     </div>
   ) : null;

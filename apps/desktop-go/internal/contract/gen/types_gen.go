@@ -3291,14 +3291,13 @@ const (
 	FleetArchiveOutputAgentsItemColumnDone    FleetArchiveOutputAgentsItemColumn = "done"
 )
 
-// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
+// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
 type FleetArchiveOutputAgentsItemNeedsYou = string
 
 const (
 	FleetArchiveOutputAgentsItemNeedsYouPermission FleetArchiveOutputAgentsItemNeedsYou = "permission"
 	FleetArchiveOutputAgentsItemNeedsYouSandbox    FleetArchiveOutputAgentsItemNeedsYou = "sandbox"
 	FleetArchiveOutputAgentsItemNeedsYouAccept     FleetArchiveOutputAgentsItemNeedsYou = "accept"
-	FleetArchiveOutputAgentsItemNeedsYouReply      FleetArchiveOutputAgentsItemNeedsYou = "reply"
 )
 
 type FleetArchiveOutputAgentsItemUsage struct {
@@ -3336,16 +3335,19 @@ type FleetArchiveOutputNomi struct {
 	Usage *FleetArchiveOutputNomiUsage `json:"usage,omitempty"`
 }
 
-type FleetArchiveOutputExternalIdleBackendsItem struct {
-	Backend   string  `json:"backend"`
-	Processes float64 `json:"processes"`
-	RssBytes  float64 `json:"rssBytes"`
+type FleetArchiveOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
 }
 
 type FleetArchiveOutputExternalIdle struct {
-	Processes float64                                      `json:"processes"`
-	RssBytes  float64                                      `json:"rssBytes"`
-	Backends  []FleetArchiveOutputExternalIdleBackendsItem `json:"backends"`
+	Processes float64                                   `json:"processes"`
+	RssBytes  float64                                   `json:"rssBytes"`
+	Items     []FleetArchiveOutputExternalIdleItemsItem `json:"items"`
 }
 
 type FleetArchiveOutputSystem struct {
@@ -3360,6 +3362,122 @@ type FleetArchiveOutput struct {
 	ExternalIdle FleetArchiveOutputExternalIdle `json:"externalIdle"`
 	System       FleetArchiveOutputSystem       `json:"system"`
 	SampledAt    float64                        `json:"sampledAt"`
+}
+
+type FleetCloseIdleInput struct {
+	Pid     float64 `json:"pid"`
+	Backend string  `json:"backend"`
+}
+
+// FleetCloseIdleOutputAgentsItemKind 枚举：nomi | cli
+type FleetCloseIdleOutputAgentsItemKind = string
+
+const (
+	FleetCloseIdleOutputAgentsItemKindNomi FleetCloseIdleOutputAgentsItemKind = "nomi"
+	FleetCloseIdleOutputAgentsItemKindCli  FleetCloseIdleOutputAgentsItemKind = "cli"
+)
+
+// FleetCloseIdleOutputAgentsItemScope 枚举：managed | external
+type FleetCloseIdleOutputAgentsItemScope = string
+
+const (
+	FleetCloseIdleOutputAgentsItemScopeManaged  FleetCloseIdleOutputAgentsItemScope = "managed"
+	FleetCloseIdleOutputAgentsItemScopeExternal FleetCloseIdleOutputAgentsItemScope = "external"
+)
+
+// FleetCloseIdleOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
+type FleetCloseIdleOutputAgentsItemOrigin = string
+
+const (
+	FleetCloseIdleOutputAgentsItemOriginChat         FleetCloseIdleOutputAgentsItemOrigin = "chat"
+	FleetCloseIdleOutputAgentsItemOriginNomi         FleetCloseIdleOutputAgentsItemOrigin = "nomi"
+	FleetCloseIdleOutputAgentsItemOriginConversation FleetCloseIdleOutputAgentsItemOrigin = "conversation"
+	FleetCloseIdleOutputAgentsItemOriginTask         FleetCloseIdleOutputAgentsItemOrigin = "task"
+	FleetCloseIdleOutputAgentsItemOriginWorkbench    FleetCloseIdleOutputAgentsItemOrigin = "workbench"
+	FleetCloseIdleOutputAgentsItemOriginTerminal     FleetCloseIdleOutputAgentsItemOrigin = "terminal"
+)
+
+// FleetCloseIdleOutputAgentsItemColumn 枚举：todo | paused | running | done
+type FleetCloseIdleOutputAgentsItemColumn = string
+
+const (
+	FleetCloseIdleOutputAgentsItemColumnTodo    FleetCloseIdleOutputAgentsItemColumn = "todo"
+	FleetCloseIdleOutputAgentsItemColumnPaused  FleetCloseIdleOutputAgentsItemColumn = "paused"
+	FleetCloseIdleOutputAgentsItemColumnRunning FleetCloseIdleOutputAgentsItemColumn = "running"
+	FleetCloseIdleOutputAgentsItemColumnDone    FleetCloseIdleOutputAgentsItemColumn = "done"
+)
+
+// FleetCloseIdleOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+type FleetCloseIdleOutputAgentsItemNeedsYou = string
+
+const (
+	FleetCloseIdleOutputAgentsItemNeedsYouPermission FleetCloseIdleOutputAgentsItemNeedsYou = "permission"
+	FleetCloseIdleOutputAgentsItemNeedsYouSandbox    FleetCloseIdleOutputAgentsItemNeedsYou = "sandbox"
+	FleetCloseIdleOutputAgentsItemNeedsYouAccept     FleetCloseIdleOutputAgentsItemNeedsYou = "accept"
+)
+
+type FleetCloseIdleOutputAgentsItemUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetCloseIdleOutputAgentsItem struct {
+	Id             string                                  `json:"id"`
+	Kind           FleetCloseIdleOutputAgentsItemKind      `json:"kind"`
+	Backend        string                                  `json:"backend"`
+	Scope          FleetCloseIdleOutputAgentsItemScope     `json:"scope"`
+	Origin         FleetCloseIdleOutputAgentsItemOrigin    `json:"origin"`
+	Title          string                                  `json:"title"`
+	Column         FleetCloseIdleOutputAgentsItemColumn    `json:"column"`
+	NeedsYou       *FleetCloseIdleOutputAgentsItemNeedsYou `json:"needsYou,omitempty"`
+	Failed         *bool                                   `json:"failed,omitempty"`
+	ParentId       *string                                 `json:"parentId,omitempty"`
+	TaskId         *string                                 `json:"taskId,omitempty"`
+	TabId          *string                                 `json:"tabId,omitempty"`
+	ConversationId *string                                 `json:"conversationId,omitempty"`
+	Cwd            *string                                 `json:"cwd,omitempty"`
+	Usage          *FleetCloseIdleOutputAgentsItemUsage    `json:"usage,omitempty"`
+	UpdatedAt      float64                                 `json:"updatedAt"`
+}
+
+type FleetCloseIdleOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetCloseIdleOutputNomi struct {
+	Usage *FleetCloseIdleOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetCloseIdleOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+}
+
+type FleetCloseIdleOutputExternalIdle struct {
+	Processes float64                                     `json:"processes"`
+	RssBytes  float64                                     `json:"rssBytes"`
+	Items     []FleetCloseIdleOutputExternalIdleItemsItem `json:"items"`
+}
+
+type FleetCloseIdleOutputSystem struct {
+	TotalMemBytes float64 `json:"totalMemBytes"`
+	Cores         float64 `json:"cores"`
+	CpuPercent    float64 `json:"cpuPercent"`
+}
+
+type FleetCloseIdleOutput struct {
+	Agents       []FleetCloseIdleOutputAgentsItem `json:"agents"`
+	Nomi         FleetCloseIdleOutputNomi         `json:"nomi"`
+	ExternalIdle FleetCloseIdleOutputExternalIdle `json:"externalIdle"`
+	System       FleetCloseIdleOutputSystem       `json:"system"`
+	SampledAt    float64                          `json:"sampledAt"`
 }
 
 // FleetStateOutputAgentsItemKind 枚举：nomi | cli
@@ -3400,14 +3518,13 @@ const (
 	FleetStateOutputAgentsItemColumnDone    FleetStateOutputAgentsItemColumn = "done"
 )
 
-// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
+// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
 type FleetStateOutputAgentsItemNeedsYou = string
 
 const (
 	FleetStateOutputAgentsItemNeedsYouPermission FleetStateOutputAgentsItemNeedsYou = "permission"
 	FleetStateOutputAgentsItemNeedsYouSandbox    FleetStateOutputAgentsItemNeedsYou = "sandbox"
 	FleetStateOutputAgentsItemNeedsYouAccept     FleetStateOutputAgentsItemNeedsYou = "accept"
-	FleetStateOutputAgentsItemNeedsYouReply      FleetStateOutputAgentsItemNeedsYou = "reply"
 )
 
 type FleetStateOutputAgentsItemUsage struct {
@@ -3445,16 +3562,19 @@ type FleetStateOutputNomi struct {
 	Usage *FleetStateOutputNomiUsage `json:"usage,omitempty"`
 }
 
-type FleetStateOutputExternalIdleBackendsItem struct {
-	Backend   string  `json:"backend"`
-	Processes float64 `json:"processes"`
-	RssBytes  float64 `json:"rssBytes"`
+type FleetStateOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
 }
 
 type FleetStateOutputExternalIdle struct {
-	Processes float64                                    `json:"processes"`
-	RssBytes  float64                                    `json:"rssBytes"`
-	Backends  []FleetStateOutputExternalIdleBackendsItem `json:"backends"`
+	Processes float64                                 `json:"processes"`
+	RssBytes  float64                                 `json:"rssBytes"`
+	Items     []FleetStateOutputExternalIdleItemsItem `json:"items"`
 }
 
 type FleetStateOutputSystem struct {
@@ -8933,14 +9053,13 @@ const (
 	EventFleetChangedAgentsItemColumnDone    EventFleetChangedAgentsItemColumn = "done"
 )
 
-// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept | reply
+// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept
 type EventFleetChangedAgentsItemNeedsYou = string
 
 const (
 	EventFleetChangedAgentsItemNeedsYouPermission EventFleetChangedAgentsItemNeedsYou = "permission"
 	EventFleetChangedAgentsItemNeedsYouSandbox    EventFleetChangedAgentsItemNeedsYou = "sandbox"
 	EventFleetChangedAgentsItemNeedsYouAccept     EventFleetChangedAgentsItemNeedsYou = "accept"
-	EventFleetChangedAgentsItemNeedsYouReply      EventFleetChangedAgentsItemNeedsYou = "reply"
 )
 
 type EventFleetChangedAgentsItemUsage struct {
@@ -8978,16 +9097,19 @@ type EventFleetChangedNomi struct {
 	Usage *EventFleetChangedNomiUsage `json:"usage,omitempty"`
 }
 
-type EventFleetChangedExternalIdleBackendsItem struct {
-	Backend   string  `json:"backend"`
-	Processes float64 `json:"processes"`
-	RssBytes  float64 `json:"rssBytes"`
+type EventFleetChangedExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
 }
 
 type EventFleetChangedExternalIdle struct {
-	Processes float64                                     `json:"processes"`
-	RssBytes  float64                                     `json:"rssBytes"`
-	Backends  []EventFleetChangedExternalIdleBackendsItem `json:"backends"`
+	Processes float64                                  `json:"processes"`
+	RssBytes  float64                                  `json:"rssBytes"`
+	Items     []EventFleetChangedExternalIdleItemsItem `json:"items"`
 }
 
 type EventFleetChangedSystem struct {
@@ -10020,6 +10142,10 @@ type ExtSkillsListOutputT = []ExtSkillsListOutputItem
 // FleetArchiveInputT 是 fleet.archive 的入参
 type FleetArchiveInputT = FleetArchiveInput
 type FleetArchiveOutputT = FleetArchiveOutput
+
+// FleetCloseIdleInputT 是 fleet.closeIdle 的入参
+type FleetCloseIdleInputT = FleetCloseIdleInput
+type FleetCloseIdleOutputT = FleetCloseIdleOutput
 
 // FleetStateInputT 是 fleet.state 的入参
 type FleetStateInputT = any

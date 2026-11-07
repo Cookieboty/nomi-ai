@@ -1,15 +1,18 @@
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
+import { Button, Icon, t } from '@nomi-ai/ui';
+import { Folder } from 'lucide-react';
 import React, { useEffect, useMemo } from 'react';
 
 import {
+  dirName,
   FLEET_COLUMNS,
   formatBytes,
   formatCpu,
   summarize,
   type FleetAgent,
   type FleetColumn,
+  type FleetIdleItem,
   type FleetState,
 } from '../../services/fleetClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -18,15 +21,72 @@ import { EndpointIcon } from '../EndpointIcon';
 import { AgentCard, type CardActions } from './AgentCard';
 import styles from './Fleet.module.css';
 
-/** 外部空闲进程：「Codex 6 · Grok 5」 */
+const backendName = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b);
+
+/** 外部空闲进程按助手合计：「Codex 6 · Grok 5」 */
 function idleText(s: FleetState): string {
-  return s.externalIdle.backends
-    .map(
-      (b) =>
-        `${isBuiltinCliId(b.backend) ? t(ENDPOINT_NAME[b.backend]) : b.backend} ${b.processes}`,
-    )
-    .join(' · ');
+  const by = new Map<string, number>();
+  for (const it of s.externalIdle.items) by.set(it.backend, (by.get(it.backend) ?? 0) + 1);
+  return [...by].map(([b, n]) => `${backendName(b)} ${n}`).join(' · ');
 }
+
+/** 空闲进程单独一个列表：每个一行，可以手动关闭（只读之外唯一的操作，用户点了才做） */
+const IdleList: React.FC<{
+  state: FleetState;
+  onCloseIdle?: (item: FleetIdleItem) => void;
+}> = ({ state, onCloseIdle }) => {
+  const items = state.externalIdle.items;
+  if (!items.length) return null;
+  const app = brand.appName;
+  return (
+    <section
+      className={styles.idle}
+      aria-label={t('ui.cli-monitor.fleet-idle-title')}
+      data-testid="fleet-idle-list"
+    >
+      <h3 className={styles.sectionTitle}>
+        {t('ui.cli-monitor.fleet-idle-title')}
+        <span className={styles.columnCount}>{items.length}</span>
+      </h3>
+      <p className={styles.hint}>{t('ui.cli-monitor.fleet-idle-hint', app)}</p>
+      <ul className={styles.idleRows}>
+        {items.map((it) => (
+          <li key={it.pid} className={styles.idleRow} data-testid={`fleet-idle-${it.pid}`}>
+            <EndpointIcon
+              backend={isBuiltinCliId(it.backend) ? it.backend : 'external'}
+              size={14}
+              decorative
+            />
+            <span className={styles.idleName}>{backendName(it.backend)}</span>
+            {it.cwd && (
+              <span className={styles.cwd}>
+                <Icon icon={Folder} size={12} />
+                {dirName(it.cwd)}
+              </span>
+            )}
+            <span className={styles.idlePid}>{t('ui.cli-monitor.fleet-pid', it.pid)}</span>
+            <span className={styles.usage}>
+              <span>{t('ui.cli-monitor.fleet-memory', formatBytes(it.rssBytes))}</span>
+              <span>{t('ui.cli-monitor.fleet-cpu', formatCpu(it.cpuPercent))}</span>
+              {it.processes > 1 && <span>{t('ui.cli-monitor.fleet-processes', it.processes)}</span>}
+            </span>
+            {onCloseIdle && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onCloseIdle(it)}
+                aria-label={t('ui.cli-monitor.fleet-close-idle', backendName(it.backend), it.pid)}
+                data-testid={`fleet-close-idle-${it.pid}`}
+              >
+                {t('ui.providers-schedule.close')}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
 
 /** 顶部一条总览：Nomi（调度者）自己的占用 · 各 agent 的占用 · 外部空闲进程 · 整机 */
 const Overview: React.FC<{ state: FleetState | null }> = ({ state }) => {
@@ -48,7 +108,7 @@ const Overview: React.FC<{ state: FleetState | null }> = ({ state }) => {
       </span>
       <span>{t('ui.cli-monitor.fleet-sum-agents', formatBytes(sum.agentsBytes))}</span>
       {state && state.externalIdle.processes > 0 && (
-        <span title={t('ui.cli-monitor.fleet-idle-hint', app)} data-testid="fleet-idle">
+        <span data-testid="fleet-idle">
           {t(
             'ui.cli-monitor.fleet-idle',
             idleText(state),
@@ -86,8 +146,9 @@ export const FleetPage: React.FC<
     active: boolean;
     state: FleetState | null;
     onBack: () => void;
+    onCloseIdle?: (item: FleetIdleItem) => void;
   } & CardActions
-> = ({ active, state, onBack, ...actions }) => {
+> = ({ active, state, onBack, onCloseIdle, ...actions }) => {
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
@@ -141,6 +202,7 @@ export const FleetPage: React.FC<
           );
         })}
       </div>
+      {state && <IdleList state={state} onCloseIdle={onCloseIdle} />}
     </section>
   );
 };

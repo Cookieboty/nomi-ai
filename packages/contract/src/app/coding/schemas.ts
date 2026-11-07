@@ -332,8 +332,8 @@ export const FleetOrigin = z.enum([
   'terminal',
 ]);
 
-/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 / reply 外部会话在等你回话 */
-export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept', 'reply']);
+/** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
+export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept']);
 
 /** 进程树的资源占用（整棵树：编程助手连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
 export const FleetUsage = loose({
@@ -377,11 +377,20 @@ export const FleetSystem = loose({
 /** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
 export const FleetNomi = loose({ usage: FleetUsage.optional() });
 
-/** Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），合并成一行 */
+/** Nomi 之外、对不上正在跑的会话的编程助手进程树（空闲的终端 / IDE 里的助手），按内存大的在前；用户可以手动关掉 */
+export const FleetIdleItem = loose({
+  pid: z.number(),
+  backend: z.string(),
+  cwd: z.string().optional(),
+  processes: z.number(),
+  rssBytes: z.number(),
+  cpuPercent: z.number(),
+});
+
 export const FleetExternalIdle = loose({
   processes: z.number(),
   rssBytes: z.number(),
-  backends: z.array(loose({ backend: z.string(), processes: z.number(), rssBytes: z.number() })),
+  items: z.array(FleetIdleItem),
 });
 
 export const FleetState = loose({

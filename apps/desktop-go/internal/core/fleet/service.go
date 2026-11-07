@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -29,7 +30,17 @@ type Deps struct {
 	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
 	External func() ([]ExtSession, map[float64]string)
 	Emit     func(State) // fleet.changed
+	// Kill：给进程发信号（"SIGTERM" / "SIGKILL"）；只用于用户手动关闭空闲的外部进程（CloseIdle）
+	Kill func(pid int, signal string) error
+	// KillGrace：SIGTERM 之后等多久还没退出就 SIGKILL；0 = CloseIdleGrace
+	KillGrace time.Duration
 }
+
+// CloseIdleGrace：手动关闭空闲进程时，SIGTERM 之后等多久再 SIGKILL
+const CloseIdleGrace = 3 * time.Second
+
+// ErrNotIdle：要关的进程已经不是空闲的外部编程助手（退出了、开始跑会话了、pid 被别的程序复用了）
+var ErrNotIdle = errors.New("FLEET_NOT_IDLE")
 
 type Service struct {
 	d Deps
@@ -150,6 +161,66 @@ func (s *Service) Archive(id string) State {
 		}
 	}
 	return st
+}
+
+// fresh：丢掉采样缓存，下一次 State 重新读进程表
+func (s *Service) fresh() {
+	s.mu.Lock()
+	if s.cur != nil {
+		s.prev, s.cur = s.cur, nil
+	}
+	s.mu.Unlock()
+}
+
+// CloseIdle：用户手动关闭一棵空闲的外部编程助手进程树（只有用户点了才调用，调度从不调用）。
+// 先重新读进程表，确认 pid 此刻仍是同一种助手的空闲树的根、不在 Nomi 的进程树里，才对整棵树发 SIGTERM
+// （子进程在前），过 KillGrace 还在的再 SIGKILL。返回关闭后的看板数据。
+func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
+	if s.d.Kill == nil {
+		return State{}, ErrNotIdle
+	}
+	s.fresh()
+	st := s.State()
+	var item *IdleItem
+	for i := range st.ExternalIdle.Items {
+		if it := &st.ExternalIdle.Items[i]; it.Pid == pid && it.Backend == backend {
+			item = it
+			break
+		}
+	}
+	s.mu.Lock()
+	table := s.cur
+	s.mu.Unlock()
+	if item == nil || table == nil || pid <= 1 || int(pid) == s.d.SelfPid || table.IsUnder(pid, float64(s.d.SelfPid)) {
+		return st, ErrNotIdle
+	}
+	tree := table.Subtree(pid)
+	for i := len(tree) - 1; i >= 0; i-- {
+		_ = s.d.Kill(int(tree[i]), "SIGTERM")
+	}
+	grace := s.d.KillGrace
+	if grace == 0 {
+		grace = CloseIdleGrace
+	}
+	time.AfterFunc(grace, func() {
+		s.fresh()
+		var now *agents.ProcTable
+		if s.d.ReadProcs != nil {
+			now = s.d.ReadProcs()
+		}
+		if now == nil {
+			return
+		}
+		// 只补刀还在原来那棵树里的进程（pid 复用的不动）
+		for i := len(tree) - 1; i >= 0; i-- {
+			if _, ok := now.Get(tree[i]); ok && now.IsUnder(tree[i], pid) {
+				_ = s.d.Kill(int(tree[i]), "SIGKILL")
+			}
+		}
+		s.Changed()
+	})
+	s.fresh()
+	return s.State(), nil
 }
 
 // Changed：标签或任务变了：合并一小段时间后推一次 fleet.changed

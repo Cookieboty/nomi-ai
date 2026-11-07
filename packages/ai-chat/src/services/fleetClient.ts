@@ -11,12 +11,15 @@ import { api, hasTransport } from './api';
 export type FleetState = Awaited<ReturnType<typeof api.fleet.state>>;
 export type FleetAgent = FleetState['agents'][number];
 export type FleetColumn = FleetAgent['column'];
+export type FleetIdleItem = FleetState['externalIdle']['items'][number];
 
 export const fleetAvailable = () => hasTransport();
 
 export const fleetApi = {
   state: () => api.fleet.state(),
   archive: (id: string) => api.fleet.archive({ id }),
+  /** 用户手动关闭一个空闲的外部编程助手进程（内核再确认一次，对不上时 FLEET_NOT_IDLE） */
+  closeIdle: (item: FleetIdleItem) => api.fleet.closeIdle({ pid: item.pid, backend: item.backend }),
   onChange: (fn: (s: FleetState) => void) => api.on('fleet.changed', fn),
 };
 
@@ -41,7 +44,6 @@ export const NEEDS_YOU_LABEL: Record<NonNullable<FleetAgent['needsYou']>, string
   permission: 'ui.cli-monitor.fleet-needs-permission',
   sandbox: 'ui.cli-monitor.fleet-needs-sandbox',
   accept: 'ui.providers-schedule.task-awaiting-accept',
-  reply: 'ui.cli-monitor.fleet-needs-reply',
 };
 
 /** 端点图标用的后端：内核报来的插件 / 未知后端按「外部插件」画 */
@@ -106,7 +108,6 @@ export function summarize(s: FleetState | null): FleetSummary {
     if (a.scope === 'external') out.externalBytes += bytes;
     else out.managedBytes += bytes;
     if (a.column === 'running') out.running += 1;
-    // 外部会话（终端里等你回话）只在卡片上标，不算进入口的「要你处理」
     if (a.needsYou && a.scope === 'managed') out.needsYou += 1;
   }
   const mem = s.system.totalMemBytes

@@ -28,8 +28,6 @@ const (
 	NeedPermission = "permission"
 	NeedSandbox    = "sandbox"
 	NeedAccept     = "accept"
-	// NeedReply：外部会话停在那里等用户回话
-	NeedReply = "reply"
 )
 
 // AutoArchiveMs：已完成的多久没动静就不再显示（看板不保留历史）
@@ -72,18 +70,21 @@ type Nomi struct {
 	Usage *Usage `json:"usage,omitempty"`
 }
 
-// IdleBackend：某种编程助手没在跑会话的进程
-type IdleBackend struct {
-	Backend   string  `json:"backend"`
-	Processes int     `json:"processes"`
-	RSSBytes  float64 `json:"rssBytes"`
+// IdleItem：一棵没在跑会话的外部编程助手进程树（用户可以手动关掉，见 Service.CloseIdle）
+type IdleItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        string  `json:"cwd,omitempty"`
+	Processes  int     `json:"processes"`
+	RSSBytes   float64 `json:"rssBytes"`
+	CPUPercent float64 `json:"cpuPercent"`
 }
 
-// Idle：Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），合并成一行
+// Idle：Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），按内存大的在前
 type Idle struct {
-	Processes int           `json:"processes"`
-	RSSBytes  float64       `json:"rssBytes"`
-	Backends  []IdleBackend `json:"backends"`
+	Processes int        `json:"processes"`
+	RSSBytes  float64    `json:"rssBytes"`
+	Items     []IdleItem `json:"items"`
 }
 
 // State = 契约 FleetState
@@ -167,14 +168,13 @@ func taskColumn(status string) (col, need string, failed, ok bool) {
 	return "", "", false, false
 }
 
-// extColumn：外部会话状态（agents 的 AgentStatus）→ 分列；ok = false 表示不上看板（idle）
+// extColumn：外部会话状态（agents 的 AgentStatus）→ 分列；ok = false 表示不上看板（idle）。
+// 等用户回话（waiting）= 这一轮已经答完，算已完成。
 func extColumn(s ExtSession) (col, need string, failed, ok bool) {
 	switch s.Status {
 	case "running", "stalled":
 		col = ColRunning
-	case "waiting":
-		col, need = ColRunning, NeedReply
-	case "completed":
+	case "waiting", "completed":
 		col = ColDone
 	case "failed":
 		col, failed = ColDone, true
@@ -183,7 +183,7 @@ func extColumn(s ExtSession) (col, need string, failed, ok bool) {
 	}
 	// 进程已经没了：不再算在跑
 	if col == ColRunning && s.Alive != nil && !*s.Alive {
-		col, need = ColDone, ""
+		col = ColDone
 	}
 	return col, need, failed, true
 }
@@ -388,25 +388,16 @@ func buildExternal(in Input) ([]Agent, Idle) {
 		}
 	}
 
-	idle := Idle{Backends: []IdleBackend{}}
-	by := map[string]*IdleBackend{}
+	idle := Idle{Items: []IdleItem{}}
 	for _, tr := range trees {
 		if tr.claimed {
 			continue
 		}
 		idle.Processes += len(tr.t.Pids)
 		idle.RSSBytes += tr.t.RSS
-		b := by[tr.t.Root.Kind]
-		if b == nil {
-			b = &IdleBackend{Backend: tr.t.Root.Kind}
-			by[tr.t.Root.Kind] = b
-		}
-		b.Processes += len(tr.t.Pids)
-		b.RSSBytes += tr.t.RSS
+		idle.Items = append(idle.Items, IdleItem{Pid: tr.t.Root.Pid, Backend: tr.t.Root.Kind, Cwd: in.ExtCwd[tr.t.Root.Pid],
+			Processes: len(tr.t.Pids), RSSBytes: tr.t.RSS, CPUPercent: in.Procs.CPUSince(in.PrevProc, tr.t.Pids)})
 	}
-	for _, b := range by {
-		idle.Backends = append(idle.Backends, *b)
-	}
-	sort.Slice(idle.Backends, func(i, j int) bool { return idle.Backends[i].RSSBytes > idle.Backends[j].RSSBytes })
+	sort.SliceStable(idle.Items, func(i, j int) bool { return idle.Items[i].RSSBytes > idle.Items[j].RSSBytes })
 	return out, idle
 }

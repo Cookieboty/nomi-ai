@@ -516,6 +516,16 @@ const fleetProcedures = {
     input: z.object({ id: z.string() }),
     output: FleetState,
   },
+  /**
+   * 用户手动关闭一棵空闲的外部编程助手进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
+   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE。调度从不调用。
+   */
+  'fleet.closeIdle': {
+    kind: 'mutation',
+    input: z.object({ pid: z.number(), backend: z.string() }),
+    output: FleetState,
+    dangerous: true,
+  },
 } as const satisfies ProcedureMap;
 
 const historySession = z.object({ backend: z.string(), sessionId: z.string() });
@@ -585,6 +595,8 @@ export const codingErrors = [
   'ACCOUNT_LOCAL',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
+  /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
+  'FLEET_NOT_IDLE',
 ] as const satisfies readonly string[];
 
 export type CodingProcedureName = keyof typeof codingProcedures & string;
