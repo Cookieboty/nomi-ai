@@ -13,7 +13,12 @@ export type SettingsSection =
   | 'ext'
   | 'connections'
   | 'privacy'
-  | 'about';
+  | 'about'
+  /** 调试：只在开发版（pnpm dev）出现，看灵动岛的各种样式等（DebugSection） */
+  | 'debug';
+
+/** 开发版才有的分区（Vite 开发服务器提供视图时 import.meta.env.DEV 为 true；打包版里整段被去掉） */
+const DEV = import.meta.env.DEV && import.meta.env.MODE !== 'test';
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;
@@ -87,17 +92,27 @@ export const SETTINGS_SECTIONS: Array<{
     label: 'ui.chat-settings.about-section',
     intro: 'ui.chat-settings.about-section-intro',
   },
+  ...(DEV
+    ? [
+        {
+          id: 'debug' as const,
+          icon: SETTINGS_ICONS.debug,
+          label: 'ui.mascot-theme.island-debug-section',
+          intro: 'ui.mascot-theme.island-debug-section-intro',
+        },
+      ]
+    : []),
 ];
 
 /**
- * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展 / 关于。
+ * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展 / 关于（开发版下面多一个调试）。
  * 每个分区恰好出现一次，顺序与 SETTINGS_SECTIONS 一致。
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
   ['models', 'usage', 'coding'],
   ['knowledge', 'ext', 'connections', 'privacy'],
-  ['about'],
+  DEV ? ['about', 'debug'] : ['about'],
 ];
 
 /** 有标签页的分区：标签 id 与显示文案（文案作 i18n key，渲染时过 t()）。 */

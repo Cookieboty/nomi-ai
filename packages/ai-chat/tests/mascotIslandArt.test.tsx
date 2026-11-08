@@ -22,7 +22,7 @@ afterEach(() => {
 const settings = {
   enabled: true,
   style: 'auto' as const,
-  kinds: { message: true, agent: true, reminder: true },
+  kinds: { message: true, agent: true, reminder: true, approval: true },
 };
 
 describe('Settings → 灵动岛', () => {
@@ -53,6 +53,11 @@ describe('Settings → 灵动岛', () => {
     expect(set.mock.calls[0]![0]).toMatchObject({ kinds: { agent: false } });
     // 写入后重新读取（原 island:set → island:get）
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    // 等你处理的事：单独一个开关
+    fireEvent.click(view.getByTestId('island-kind-approval'));
+    await waitFor(() =>
+      expect(set.mock.calls[1]![0]).toMatchObject({ kinds: { approval: false } }),
+    );
     fireEvent.click(view.getByTestId('island-test'));
     await waitFor(() => expect(test).toHaveBeenCalledTimes(1));
   });

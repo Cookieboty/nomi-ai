@@ -37,6 +37,7 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -216,6 +217,7 @@ func main() {
 		},
 	})
 	mascotCtl := mascothandlers.Install(mascothandlers.Deps{
+		Dev:        os.Getenv(devviews.Env) != "",
 		ChatAssets: chatAssetsLib,
 		Assets:     assetsSvc,
 		Persona:    personaSvc,
@@ -664,6 +666,7 @@ func main() {
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
+	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc, open: func() { sh.Show(shell.Chat) }})()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
@@ -847,6 +850,8 @@ func main() {
 				isl.Hidden()
 			case "nomi:island:open":
 				isl.Opened()
+			default:
+				islandPageMessage(isl, msg)
 			}
 		},
 		OnFilesDropped: func(k shell.WindowKind, paths []string) {
@@ -1110,22 +1115,44 @@ func firstWindowShown() <-chan struct{} {
 	return out
 }
 
-// islandBridge：灵动岛页面收起时设 document.title = 'hidden:…'、点击时设 location.hash =
-// '#open-…'；Wails 没有页面标题 / 页内导航事件，这里转成消息。
-// 插在 </body> 前，执行时页面自己的脚本已经跑完
+// islandBridge：插在 </body> 前（页面脚本已经跑完）。页面自己用 postMessage 发 nomi:island:* 信号（island.html）；
+// Wails 的 ExecJS 要等页面报 wails:runtime:ready 才执行（平时由 /wails/runtime.js 发）；岛页面的 CSP 是
+// default-src 'none'，不加载运行时，这里在页面脚本（__island）就绪后自己报，否则 show 永远排在队列里
 const islandBridge = `<script>(() => {
-  const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
-  let last = document.title;
-  new MutationObserver(() => {
-    const t = document.title;
-    if (t !== last && t.startsWith('hidden:')) post('nomi:island:hidden');
-    last = t;
-  }).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
-  addEventListener('hashchange', () => { if (/^#open-/.test(location.hash)) post('nomi:island:open'); });
-  // Wails 的 ExecJS 要等页面报 wails:runtime:ready 才执行（平时由 /wails/runtime.js 发）；岛页面的 CSP 是
-  // default-src 'none'，不加载运行时，这里在页面脚本（__island）就绪后自己报，否则 show 永远排在队列里
-  post('wails:runtime:ready');
+  try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage('wails:runtime:ready'); } catch (e) {}
 })();</script>`
+
+// islandListsEndpoint：等你处理的列表里有这个编程助手的条目
+func islandListsEndpoint(isl *island.Service, endpoint string) bool {
+	for _, p := range isl.Pending() {
+		if p.Endpoint == endpoint && endpoint != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// islandPageMessage：岛页面的 nomi:island:size:<高度> / nomi:island:act:{id, action}
+func islandPageMessage(isl *island.Service, msg string) {
+	if v, ok := strings.CutPrefix(msg, "nomi:island:size:"); ok {
+		if h, err := strconv.ParseFloat(v, 64); err == nil {
+			isl.Resized(h)
+		}
+		return
+	}
+	if v, ok := strings.CutPrefix(msg, "nomi:island:act:"); ok {
+		var a struct{ ID, Action string }
+		if json.Unmarshal([]byte(v), &a) != nil || a.ID == "" {
+			return
+		}
+		// 处理要进 GIL、可能要等，不在页面消息回调里做
+		go func() {
+			if err := isl.Act(a.ID, a.Action); err != nil {
+				log.Printf("[island] act %s/%s: %v", a.ID, a.Action, err)
+			}
+		}()
+	}
+}
 
 // shellNotifier：外壳的系统通知（wailsshell notify.go）
 type shellNotifier interface {
@@ -1163,7 +1190,51 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
 				hider.Hide(shell.Island)
 			}
 		},
-		Destroy:  func() { sh.Destroy(shell.Island) },
+		Destroy: func() { sh.Destroy(shell.Island) },
+		// 等你处理的事：有的时候确保窗口在（同 Present）；清空时只告诉已经在的页面（页面收起后发 hidden）
+		ShowPending: func(list []island.Pending, l island.Labels) error {
+			if execJS == nil {
+				return errors.New("no ExecJS")
+			}
+			b, _ := json.Marshal(list)
+			lb, _ := json.Marshal(l)
+			run := func() {
+				execJS.ExecJS(shell.Island, "window.__island && window.__island.setPending("+string(b)+","+string(lb)+")")
+			}
+			if len(list) == 0 {
+				run()
+				return nil
+			}
+			loader, ok := sh.(interface {
+				ShowOnceLoaded(shell.WindowKind) func(func())
+			})
+			if !ok {
+				return errors.New("no ShowOnceLoaded")
+			}
+			if after := loader.ShowOnceLoaded(shell.Island); after != nil {
+				after(run)
+			} else {
+				run()
+			}
+			return nil
+		},
+		Resize: func(r island.WinRect) {
+			if b, ok := sh.(interface {
+				SetBounds(shell.WindowKind, shell.Rect)
+			}); ok {
+				b.SetBounds(shell.Island, shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)})
+			}
+		},
+		ActFailed: func(id string) {
+			if execJS != nil {
+				b, _ := json.Marshal(id)
+				execJS.ExecJS(shell.Island, "window.__island && window.__island.actFailed("+string(b)+")")
+			}
+		},
+		Labels: func() island.Labels {
+			return island.Labels{Count: i18n.T("ui.mascot-theme.island-pending-count"), More: i18n.T("ui.mascot-theme.island-pending-more"),
+				Close: i18n.T("ui.providers-schedule.close")}
+		},
 		OpenChat: func() { sh.Show(shell.Chat) },
 		IsQuiet:  func() bool { return desktopSvc.NotifyPolicy != nil && desktopSvc.NotifyPolicy.Quiet() },
 		Warn:     func(msg string, err error) { log.Printf("[island] %s: %v", msg, err) },
@@ -1216,8 +1287,20 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 			}
 		},
 		Island: func(n desktop.IslandNotice) bool {
-			return isl.Notify(island.Notice{Kind: n.Kind, Title: n.Title, Body: n.Body, DurationMs: n.DurationMs,
-				Endpoint: n.Endpoint, Status: n.Status}, false)
+			notice := island.Notice{Kind: n.Kind, Title: n.Title, Body: n.Body, DurationMs: n.DurationMs,
+				Endpoint: n.Endpoint, Status: n.Status}
+			// 编程助手要权限：岛上「等你处理」的列表里会有这一条（带允许 / 拒绝），不再弹一条提醒。
+			// 列表稍后才刷新（合并 150ms），等一下再看
+			if n.Kind == "agent" && n.Status == "attention" && n.Endpoint != "" && isl.Accepts(notice, false) {
+				go func() {
+					time.Sleep(400 * time.Millisecond)
+					if !islandListsEndpoint(isl, n.Endpoint) {
+						isl.Notify(notice, false)
+					}
+				}()
+				return true
+			}
+			return isl.Notify(notice, false)
 		},
 	}
 }

@@ -25,6 +25,7 @@ import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
 import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
+import { DebugSection } from './DebugSection';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
@@ -115,7 +116,10 @@ export const SettingsView: React.FC<Props> = ({
   const noop = () => undefined;
   const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
   // 右侧「配置说明」：通用 / 关于没有
-  const help = section === 'general' || section === 'about' ? null : SECTION_HELP[section];
+  const help =
+    section === 'general' || section === 'about' || section === 'debug'
+      ? null
+      : SECTION_HELP[section];
   const body = (() => {
     switch (section) {
       case 'general': {
@@ -252,6 +256,8 @@ export const SettingsView: React.FC<Props> = ({
         );
       case 'about':
         return <AboutSection />;
+      case 'debug':
+        return <DebugSection />;
     }
   })();
 

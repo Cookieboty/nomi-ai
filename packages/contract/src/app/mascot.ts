@@ -244,6 +244,8 @@ const IslandKinds = z.object({
   message: z.boolean(),
   agent: z.boolean(),
   reminder: z.boolean(),
+  /** 等你处理的事（授权、批准、验收…）列在岛上，可以直接处理 */
+  approval: z.boolean(),
 });
 
 /** 灵动岛设置（写入后的值）—— electron `IslandSettings` */
@@ -258,6 +260,42 @@ export const IslandState = IslandSettings.extend({
   mode: z.enum(['notch', 'pill']),
   platform: z.string(),
 });
+
+const IslandDebugAction = z.object({
+  id: z.string(),
+  label: z.string(),
+  primary: z.boolean().optional(),
+  danger: z.boolean().optional(),
+});
+
+/** 灵动岛调试样例（island.debug，开发版） */
+export const IslandDebugInput = z.discriminatedUnion('op', [
+  z.object({
+    op: z.literal('notice'),
+    notice: z.object({
+      kind: z.enum(['message', 'agent', 'reminder', 'info']),
+      title: z.string(),
+      body: z.string().optional(),
+      status: z.enum(['running', 'done', 'failed', 'attention']).optional(),
+      endpoint: z.string().optional(),
+      durationMs: z.number().optional(),
+    }),
+  }),
+  z.object({
+    op: z.literal('pending'),
+    items: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        title: z.string(),
+        body: z.string().optional(),
+        endpoint: z.string().optional(),
+        actions: z.array(IslandDebugAction),
+      }),
+    ),
+  }),
+  z.object({ op: z.literal('clear') }),
+]);
 
 /** 灵动岛设置补丁 —— `Partial<IslandSettings>`（主进程 sanitizeIsland 再校验一遍） */
 export const IslandPatch = z.looseObject({
@@ -469,6 +507,18 @@ export const mascotProcedures = {
     output: IslandSettings,
     surfaces: CHAT,
     description: 'island:set',
+  },
+  /**
+   * 开发版调试页（设置 → 调试）：在真的灵动岛上看各种样式。notice = 弹一条通知（不论开关与免打扰）；
+   * pending = 把样例放进「等你处理」（整份替换，点按钮只是拿掉样例）；clear = 清掉样例。
+   * 只在开发版（pnpm dev，设置了 NOMI_DEV_VIEWS）可用，打包版返回 FORBIDDEN。
+   */
+  'island.debug': {
+    kind: 'mutation',
+    input: IslandDebugInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+    description: 'island:debug — 开发版调试页的样例',
   },
   'island.test': {
     kind: 'mutation',

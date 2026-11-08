@@ -12,7 +12,7 @@ import styles from './index.module.css';
 interface IslandState {
   enabled: boolean;
   style: 'auto' | 'pill';
-  kinds: { message: boolean; agent: boolean; reminder: boolean };
+  kinds: { message: boolean; agent: boolean; reminder: boolean; approval: boolean };
   mode: 'notch' | 'pill';
   platform: string;
 }
@@ -35,6 +35,11 @@ export const IslandSettings: React.FC = () => {
   if (!s) return null;
   const mac = s.platform === 'darwin';
   const KINDS = [
+    [
+      'approval',
+      t('ui.mascot-theme.island-kind-approval'),
+      t('ui.mascot-theme.island-kind-approval-desc'),
+    ],
     [
       'message',
       t('ui.mascot-theme.proactive-ai-messages'),

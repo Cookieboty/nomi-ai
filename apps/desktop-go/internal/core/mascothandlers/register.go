@@ -28,6 +28,8 @@ import (
 )
 
 type Deps struct {
+	// Dev：开发版（pnpm dev）。只有开发版能用 island.debug
+	Dev       bool
 	Router    *contract.Router
 	Config    *services.ConfigService
 	Settings  *settings.Store
@@ -596,6 +598,28 @@ func Install(d Deps) *Controller {
 			return nil, bad(err)
 		}
 		return d.Island.Set(patch)
+	})
+	call("island.debug", func(raw json.RawMessage) (any, error) {
+		if !d.Dev {
+			return nil, &contract.Error{Code: "FORBIDDEN", Message: "island.debug is only available in dev builds"}
+		}
+		var in struct {
+			Op     string           `json:"op"`
+			Notice island.Notice    `json:"notice"`
+			Items  []island.Pending `json:"items"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		switch in.Op {
+		case "notice":
+			return d.Island.Notify(in.Notice, true), nil
+		case "pending":
+			d.Island.DebugPending(in.Items)
+		default:
+			d.Island.DebugPending(nil)
+		}
+		return true, nil
 	})
 	call("island.test", func(json.RawMessage) (any, error) {
 		body := "electron.common.this-is-what-an-island-notification-looks-like"

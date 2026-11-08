@@ -848,6 +848,14 @@ func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) boo
 	return true
 }
 
+// HasPending：这条确认请求还在等（没被答复、超时、取消）
+func (b *PermissionBroker) HasPending(id string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, ok := b.pending[id]
+	return ok
+}
+
 func (b *PermissionBroker) PendingRequests() []ConfirmRequest {
 	b.mu.Lock()
 	defer b.mu.Unlock()

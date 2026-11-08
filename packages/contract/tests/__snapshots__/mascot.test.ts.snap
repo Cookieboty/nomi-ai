@@ -23,6 +23,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "persona.systemPrompt query chat",
   "island.get query chat",
   "island.set mutation chat",
+  "island.debug mutation chat",
   "island.test mutation chat",
   "chatBg.get query chat",
   "chatBg.set mutation chat",

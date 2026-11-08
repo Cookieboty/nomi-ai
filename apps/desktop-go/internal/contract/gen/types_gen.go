@@ -6681,6 +6681,7 @@ type IslandGetOutputKinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
 	Reminder bool `json:"reminder"`
+	Approval bool `json:"approval"`
 }
 
 // IslandGetOutputMode 枚举：notch | pill
@@ -6711,6 +6712,7 @@ type IslandSetInputKinds struct {
 	Message  *bool `json:"message,omitempty"`
 	Agent    *bool `json:"agent,omitempty"`
 	Reminder *bool `json:"reminder,omitempty"`
+	Approval *bool `json:"approval,omitempty"`
 }
 
 type IslandSetInput struct {
@@ -6731,6 +6733,7 @@ type IslandSetOutputKinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
 	Reminder bool `json:"reminder"`
+	Approval bool `json:"approval"`
 }
 
 type IslandSetOutput struct {
@@ -11735,6 +11738,10 @@ type HistoryOpenOutputT = HistoryOpenOutput
 // HubExportInputT 是 hub.export 的入参
 type HubExportInputT = HubExportInput
 type HubExportOutputT = *HubExportOutput
+
+// IslandDebugInputT 是 island.debug 的入参
+type IslandDebugInputT = json.RawMessage
+type IslandDebugOutputT = bool
 
 // IslandGetInputT 是 island.get 的入参
 type IslandGetInputT = any

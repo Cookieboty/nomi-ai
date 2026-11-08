@@ -674,3 +674,11 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* 调试页：一行按钮，换行排 */
+.debugButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cd-space-2);
+}

@@ -8,6 +8,7 @@
  */
 import { Icon, type ICON_SIZE } from '@nomi-ai/ui';
 import {
+  Bug,
   AudioLines,
   Bell,
   Blocks,
@@ -69,6 +70,8 @@ export const SETTINGS_ICONS = {
   privacy: ShieldCheck,
   /** 关于：版本、更新与项目信息 */
   about: Info,
+  /** 调试（只在开发版）：虫子 */
+  debug: Bug,
 } as const;
 
 /** 输入框「更多」菜单等功能入口 */

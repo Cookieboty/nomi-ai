@@ -684,6 +684,9 @@ func (o *Orchestrator) emitEvent(tabID string, ev *util.Obj) {
 	b := outgoing.Clone()
 	b.Set("tabId", tabID)
 	o.eventBatcher.Push(b)
+	if outgoing.Get("type") == "permission" {
+		o.rememberPermission(tabID, outgoing)
+	}
 	o.events.Emit("event", util.NewObj("tabId", tabID, "event", outgoing))
 	if outgoing.Get("type") == "agent" {
 		o.trackBackgroundAgent(tabID, outgoing)

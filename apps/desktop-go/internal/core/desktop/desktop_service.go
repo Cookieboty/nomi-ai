@@ -82,6 +82,10 @@ type MissedItem struct {
 }
 
 type Service struct {
+	// 确认请求出现 / 收起时的回调（OnConfirmChange）
+	confirmMu    sync.Mutex
+	confirmHooks []func()
+
 	Broker    *PermissionBroker
 	Audit     *AuditLog
 	Trash     *AppTrash
@@ -164,10 +168,30 @@ func NewService(root string, ports Ports, emit Emitter, denyRoots []string) *Ser
 
 type brokerUI struct{ s *Service }
 
-func (u brokerUI) Request(req ConfirmRequest) { u.s.sendConfirm(req) }
+func (u brokerUI) Request(req ConfirmRequest) {
+	u.s.sendConfirm(req)
+	u.s.confirmsChanged()
+}
 func (u brokerUI) Cancel(id string) {
 	u.s.cancelConfirm(id)
 	u.s.rehideMascotIfIdle()
+	u.s.confirmsChanged()
+}
+
+// OnConfirmChange：有确认请求出现或收起（答复 / 超时 / 取消）时调用（灵动岛据此刷新等你处理的事）
+func (s *Service) OnConfirmChange(fn func()) {
+	s.confirmMu.Lock()
+	s.confirmHooks = append(s.confirmHooks, fn)
+	s.confirmMu.Unlock()
+}
+
+func (s *Service) confirmsChanged() {
+	s.confirmMu.Lock()
+	hooks := append([]func(){}, s.confirmHooks...)
+	s.confirmMu.Unlock()
+	for _, fn := range hooks {
+		fn()
+	}
 }
 
 func (s *Service) chatOpen() bool {

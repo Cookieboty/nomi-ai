@@ -22087,6 +22087,152 @@
     ]
    }
   },
+  "island.debug": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+     {
+      "type": "object",
+      "properties": {
+       "op": {
+        "type": "string",
+        "const": "notice"
+       },
+       "notice": {
+        "type": "object",
+        "properties": {
+         "kind": {
+          "type": "string",
+          "enum": [
+           "message",
+           "agent",
+           "reminder",
+           "info"
+          ]
+         },
+         "title": {
+          "type": "string"
+         },
+         "body": {
+          "type": "string"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "running",
+           "done",
+           "failed",
+           "attention"
+          ]
+         },
+         "endpoint": {
+          "type": "string"
+         },
+         "durationMs": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "kind",
+         "title"
+        ]
+       }
+      },
+      "required": [
+       "op",
+       "notice"
+      ]
+     },
+     {
+      "type": "object",
+      "properties": {
+       "op": {
+        "type": "string",
+        "const": "pending"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "kind": {
+           "type": "string"
+          },
+          "title": {
+           "type": "string"
+          },
+          "body": {
+           "type": "string"
+          },
+          "endpoint": {
+           "type": "string"
+          },
+          "actions": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string"
+             },
+             "label": {
+              "type": "string"
+             },
+             "primary": {
+              "type": "boolean"
+             },
+             "danger": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "id",
+             "label"
+            ]
+           }
+          }
+         },
+         "required": [
+          "id",
+          "kind",
+          "title",
+          "actions"
+         ]
+        }
+       }
+      },
+      "required": [
+       "op",
+       "items"
+      ]
+     },
+     {
+      "type": "object",
+      "properties": {
+       "op": {
+        "type": "string",
+        "const": "clear"
+       }
+      },
+      "required": [
+       "op"
+      ]
+     }
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "island.get": {
    "kind": "query",
    "dangerous": false,
@@ -22121,12 +22267,16 @@
        },
        "reminder": {
         "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
        }
       },
       "required": [
        "message",
        "agent",
-       "reminder"
+       "reminder",
+       "approval"
       ],
       "additionalProperties": false
      },
@@ -22182,6 +22332,9 @@
        },
        "reminder": {
         "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
        }
       }
      }
@@ -22213,12 +22366,16 @@
        },
        "reminder": {
         "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
        }
       },
       "required": [
        "message",
        "agent",
-       "reminder"
+       "reminder",
+       "approval"
       ],
       "additionalProperties": false
      }
