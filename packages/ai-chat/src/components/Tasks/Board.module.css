@@ -63,7 +63,7 @@
   color: var(--cd-color-danger);
 }
 .columnIcon[data-column='medium'] {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .columnLabel {
   color: var(--cd-color-text);
@@ -124,7 +124,7 @@
   outline-offset: 2px;
 }
 .card[aria-current='true'] {
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
   box-shadow: 0 0 0 1px var(--cd-color-accent);
 }
 .card[data-stage='needs_you'] {
@@ -156,7 +156,7 @@
   height: var(--cd-control-h-sm);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .cardTitle {
   flex: 1;
@@ -304,7 +304,7 @@
 }
 .priority[data-priority='medium'] {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 
 @media (prefers-reduced-motion: no-preference) {

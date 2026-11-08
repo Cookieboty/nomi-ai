@@ -86,7 +86,7 @@
 }
 .status[data-tone='running'] {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .status[data-tone='paused'],
 .status[data-tone='attention'] {
@@ -222,7 +222,7 @@
   position: relative;
 }
 .card[aria-current='true'] {
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
   box-shadow: 0 0 0 1px var(--cd-color-accent);
 }
 .open {
@@ -259,5 +259,5 @@
   height: var(--cd-control-h-ms);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }

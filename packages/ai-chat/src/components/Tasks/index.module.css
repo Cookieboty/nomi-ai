@@ -38,7 +38,7 @@
   height: var(--cd-control-h-lg);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .headText {
   min-width: 0;

@@ -34,7 +34,7 @@
   height: var(--cd-control-h-lg);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .headText {
   min-width: 0;
@@ -255,7 +255,7 @@
 }
 .status[data-tone='running'] {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .status[data-tone='paused'],
 .status[data-tone='attention'] {
@@ -478,7 +478,7 @@
   height: var(--cd-control-h-ms);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .policyText {
   min-width: 0;
@@ -526,11 +526,11 @@
   cursor: default;
 }
 .policyOption[aria-checked='true'] {
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
   background: var(--cd-color-accent-soft);
 }
 .policyOption[aria-checked='true'] .policyName {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .policyName {
   font-size: var(--cd-font-size-sm);
