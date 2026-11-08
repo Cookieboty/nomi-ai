@@ -1,6 +1,12 @@
-<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-<!--
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    />
+    <!--
   灵动岛页面（geometry.go 的 IslandHTML 替换 ⟦…⟧ 几何数值）。
   两种内容叠在一起显示：
   - 通知（show）：一条，几秒后自动收起，可以手动关掉；
@@ -9,316 +15,617 @@
   与内核的信号（postMessage）：nomi:island:size:<高度> 改窗口高度、nomi:island:act:<json> 操作、
   nomi:island:open 点岛打开对话、nomi:island:hidden 收起完成。
 -->
-<style>
-  :root { color-scheme: dark; --w: ⟦width⟧px; --cw: ⟦cw⟧px; --ch: ⟦ch⟧px; --h: ⟦ch⟧px;
-    --inset: ⟦inset⟧px; --padT: ⟦padT⟧px; --padB: ⟦padB⟧px; --mx: ⟦mx⟧px;
-    --accent: #f08a5d; --accent-2: #fb9466; --ok: #4cc38a; --warn: #f5a742; --bad: #f26b5b;
-    --bg: rgba(24, 19, 16, .94); --fg: #f7f1ec; --fg2: rgba(247, 241, 236, .62);
-    --line: rgba(255, 196, 160, .14); --btn: rgba(255, 255, 255, .09); --btn-h: rgba(255, 255, 255, .15);
-    --shadow: 0 10px 28px rgba(0, 0, 0, .38), 0 2px 6px rgba(0, 0, 0, .28); }
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
-    font: 500 13px/1.35 -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI',
-      'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
-  /* 岛贴窗口顶部；窗口高度 = 岛高度（+ 胶囊投影留白），随内容由内核调整 */
-  #island { position: absolute; top: 0; left: var(--mx); width: var(--cw); height: var(--ch);
-    margin-left: calc((var(--w) - var(--cw)) / 2); color: var(--fg); overflow: hidden; cursor: pointer;
-    background: radial-gradient(120% 140% at 0% 0%, rgba(240, 138, 93, .16), transparent 55%), var(--bg);
-    border-radius: calc(var(--ch) / 2); box-shadow: var(--shadow), 0 0 0 1px var(--line) inset;
-    -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3);
-    transition: width .36s cubic-bezier(.22,.9,.3,1), height .36s cubic-bezier(.22,.9,.3,1),
-      margin-left .36s cubic-bezier(.22,.9,.3,1), border-radius .36s ease, opacity .2s ease;
-    opacity: 0; }
-  #island.on { opacity: 1; }
-  #island.open { width: var(--w); height: var(--h); margin-left: 0; border-radius: 30px; }
-  #island.open.list { border-radius: 26px; }
-  /* 刘海屏：从刘海里长出来，上沿贴屏幕顶、只圆下角 */
-  #island.notch { border-radius: 0 0 14px 14px; background: #000; box-shadow: none; }
-  #island.notch.open { border-radius: 0 0 26px 26px; }
-  #content { position: absolute; top: 0; left: 50%; width: var(--w); margin-left: calc(var(--w) / -2);
-    box-sizing: border-box; padding: calc(var(--inset) + var(--padT)) 14px var(--padB);
-    opacity: 0; transform: translateY(-4px); transition: opacity .2s ease .08s, transform .28s ease .06s; }
-  #island.open #content { opacity: 1; transform: none; }
-  #island.list #content { padding: calc(var(--inset) + var(--padT) + 6px) 12px calc(var(--padB) + 6px); }
-
-  /* 列表头：多条时才有 */
-  #head { display: none; align-items: center; gap: 8px; padding: 2px 4px 8px; color: var(--fg2);
-    font-size: 12px; font-weight: 600; letter-spacing: .01em; }
-  #island.list #head { display: flex; }
-  #head .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
-    box-shadow: 0 0 0 3px rgba(240, 138, 93, .2); }
-  #rows { display: flex; flex-direction: column; gap: 6px; max-height: ⟦listMax⟧px; overflow-y: auto;
-    scrollbar-width: none; }
-  #rows::-webkit-scrollbar { display: none; }
-
-  /* 上下各留 5px：图标右下角的角标伸出图标块，不被列表的滚动区裁掉 */
-  .row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 5px 0; border-radius: 18px; }
-  #island.list .row { padding: 6px 8px; background: rgba(255, 255, 255, .045); min-height: 40px; }
-  #island.list .row:hover { background: rgba(255, 255, 255, .075); }
-  .row.flash { animation: flash 1.2s ease; }
-  @keyframes flash { 30% { background: rgba(240, 138, 93, .16); } }
-
-  /* 左侧：Nomi 图标块 + 状态角标 */
-  .av { position: relative; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 14px;
-    display: grid; place-items: center; background: #fcefe1;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .12) inset, 0 4px 12px rgba(240, 138, 93, .22); }
-  #island.list .av { flex-basis: 34px; width: 34px; height: 34px; border-radius: 11px; }
-  .av > svg.nomi { width: 30px; height: 30px; display: block; }
-  #island.list .av > svg.nomi { width: 23px; height: 23px; }
-  .av > svg.ep { width: 100%; height: 100%; border-radius: inherit; display: block; }
-  .badge { position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%;
-    display: grid; place-items: center; color: #fff; background: var(--accent);
-    box-shadow: 0 0 0 2px #1a1411; }
-  #island.list .badge { width: 15px; height: 15px; right: -4px; bottom: -4px; }
-  .badge svg { width: 11px; height: 11px; display: block; }
-  #island.list .badge svg { width: 9px; height: 9px; }
-  .badge[data-tone='done'] { background: var(--ok); }
-  .badge[data-tone='failed'] { background: var(--bad); }
-  .badge[data-tone='attention'] { background: var(--warn); }
-  .badge[data-tone='running'] { background: #1a1411; color: var(--accent); }
-  .badge[data-tone='running'] svg { animation: spin 1s linear infinite; width: 13px; height: 13px; }
-  .badge[data-tone='message'] { background: #f2657a; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .text { min-width: 0; flex: 1; }
-  .title { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #island.list .title { font-size: 13px; }
-  .body { color: var(--fg2); font-weight: 450; font-size: 12.5px; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; margin-top: 2px; }
-  .body:empty { display: none; }
-
-  /* 右侧：操作按钮 / 关闭 / 进行中的脉冲点 */
-  .acts { flex: none; display: flex; align-items: center; gap: 6px; }
-  .btn { height: 30px; padding: 0 14px; border: 0; border-radius: 15px; font: inherit; font-size: 12.5px;
-    font-weight: 650; color: var(--fg); background: var(--btn); cursor: pointer; white-space: nowrap;
-    transition: background .15s ease, transform .1s ease; }
-  #island.list .btn { height: 26px; padding: 0 11px; border-radius: 13px; font-size: 12px; }
-  .btn:hover { background: var(--btn-h); }
-  .btn:active { transform: scale(.96); }
-  .btn.primary { color: #2a160c; background: linear-gradient(180deg, var(--accent-2), var(--accent)); }
-  .btn.primary:hover { filter: brightness(1.06); }
-  .btn.danger { color: #ffd9d3; }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn:focus-visible, .x:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-  .x { width: 28px; height: 28px; border: 0; border-radius: 50%; display: grid; place-items: center;
-    color: var(--fg2); background: transparent; cursor: pointer; }
-  .x:hover { color: var(--fg); background: var(--btn); }
-  .x svg { width: 15px; height: 15px; display: block; }
-  .pulse { width: 10px; height: 10px; margin: 0 8px; border-radius: 50%; background: var(--accent);
-    box-shadow: 0 0 0 0 rgba(240, 138, 93, .5); animation: pulse 1.6s ease-out infinite; }
-  @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(240, 138, 93, 0); } 100% { box-shadow: 0 0 0 0 rgba(240, 138, 93, 0); } }
-  #more { display: none; padding: 6px 4px 0; color: var(--fg2); font-size: 11.5px; text-align: center; }
-  #more.on { display: block; }
-  @media (prefers-reduced-motion: reduce) {
-    #island, #content { transition: none; }
-    .pulse, .badge svg, .row.flash { animation: none !important; }
-  }
-</style></head><body>
-<div id="island" class="⟦mode⟧" data-mode="⟦mode⟧" role="status" aria-live="polite">
-  <div id="content">
-    <div id="head"><span class="dot" aria-hidden="true"></span><span id="headText"></span></div>
-    <div id="rows"></div>
-    <div id="more"></div>
-  </div>
-</div>
-<script>
-  const el = document.getElementById('island');
-  const $ = (id) => document.getElementById(id);
-  const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
-  const SVGNS = 'http://www.w3.org/2000/svg';
-  const svgEl = (name, attrs) => {
-    const n = document.createElementNS(SVGNS, name);
-    for (const k in attrs) n.setAttribute(k, attrs[k]);
-    return n;
-  };
-  const h = (tag, cls, text) => {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text !== undefined) n.textContent = text;
-    return n;
-  };
-  // 角标图标（lucide，ISC）
-  const ICON = {
-    done: [['path', { d: 'M20 6 9 17l-5-5' }]],
-    failed: [['path', { d: 'M12 7v6' }], ['path', { d: 'M12 17h.01' }]],
-    attention: [['path', { d: 'M12 8v4' }], ['path', { d: 'M12 16h.01' }]],
-    approval: [['path', { d: 'M12 7v6' }], ['path', { d: 'M12 17h.01' }]],
-    running: [['path', { d: 'M21 12a9 9 0 1 1-6.219-8.56' }]],
-    message: [['path', { d: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z' }]],
-    reminder: [['path', { d: 'M12 6v6l4 2' }]],
-    close: [['path', { d: 'M18 6 6 18' }], ['path', { d: 'm6 6 12 12' }]],
-  };
-  function icon(key, sw) {
-    const s = svgEl('svg', { viewBox: '0 0 24 24', fill: key === 'message' ? 'currentColor' : 'none', stroke: 'currentColor',
-      'stroke-width': sw || 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' });
-    for (const [tag, a] of ICON[key] || []) s.append(svgEl(tag, a));
-    return s;
-  }
-  // Nomi 应用图标（packages/ui/src/brand/endpointGlyphs.ts 的 nomi，16×16）
-  function nomiGlyph() {
-    const s = svgEl('svg', { class: 'nomi', viewBox: '0 0 16 16', 'aria-hidden': 'true' });
-    const tf = 'translate(-0.69 0.81) scale(0.0625)';
-    s.append(
-      svgEl('path', { d: 'M84 104 C96 96 112 104 120 128 C128 154 138 188 156 196', fill: 'none', stroke: '#F7A67C', 'stroke-width': 30, 'stroke-linecap': 'round', transform: tf }),
-      svgEl('path', { d: 'M48 200 C48 120 64 70 100 70 C140 70 142 196 180 196 C204 196 214 176 214 150', fill: 'none', stroke: '#33291F', 'stroke-width': 40, 'stroke-linecap': 'round', transform: tf }),
-      svgEl('path', { d: 'M200 30 C203 50 210 57 230 60 C210 63 203 70 200 90 C197 70 190 63 170 60 C190 57 197 50 200 30 Z', fill: '#FB9466', transform: tf }),
-    );
-    return s;
-  }
-  // 编程助手的图标块（同 ai-chat EndpointIcon；lobe-icons MIT）
-  const EP = {
-    claude: { fill: '#d97757', g: [{ d: 'M8 3v10M3 8h10M4.5 4.5l7 7M11.5 4.5l-7 7', stroke: '#fff', sw: 1.5 }] },
-    codex: { fill: '#111111', stroke: 'rgba(255,255,255,.22)', g: [{ d: 'M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z', fill: '#fff', tf: 'translate(3 3) scale(0.4167)' }] },
-    grok: { fill: '#111111', stroke: 'rgba(255,255,255,.22)', g: [{ d: 'M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47zm-.004 7.9l2.233 3.164L6.467 23H2l4.465-6.324zM22 2.582V23h-3.659V7.764L22 2.582zM22 1l-9.952 14.095-2.233-3.163L17.533 1H22z', fill: '#fff', tf: 'translate(3 3) scale(0.4167)' }] },
-    gemini: { fill: '#2f5bd3', g: [{ d: 'M8 2.5c.5 2.9 2.6 5 5.5 5.5-2.9.5-5 2.6-5.5 5.5-.5-2.9-2.6-5-5.5-5.5 2.9-.5 5-2.6 5.5-5.5z', fill: '#fff' }] },
-    dsh: { fill: '#ffffff', stroke: 'rgba(77,107,254,.35)', g: [{ d: 'M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z', fill: '#4D6BFE', tf: 'translate(2.4 2.4) scale(0.4667)' }] },
-  };
-  function epTile(ep) {
-    const t = EP[ep];
-    const s = svgEl('svg', { class: 'ep', viewBox: '0 0 16 16', 'aria-hidden': 'true' });
-    s.append(svgEl('rect', t.stroke ? { x: .3, y: .3, width: 15.4, height: 15.4, rx: 4, fill: t.fill, stroke: t.stroke, 'stroke-width': .6 }
-      : { width: 16, height: 16, rx: 4, fill: t.fill }));
-    for (const g of t.g) {
-      const a = { d: g.d, fill: g.fill || 'none' };
-      if (g.stroke) Object.assign(a, { stroke: g.stroke, 'stroke-width': g.sw, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
-      if (g.tf) a.transform = g.tf;
-      s.append(svgEl('path', a));
-    }
-    return s;
-  }
-  // 角标：等你处理的 → approval；其余按状态 / 类型
-  function badgeOf(it) {
-    if (it.actions && it.actions.length) return 'approval';
-    if (it.status) return it.status;
-    if (it.kind === 'message') return 'message';
-    if (it.kind === 'reminder') return 'reminder';
-    return '';
-  }
-  const TONE = { approval: 'attention', running: 'running', done: 'done', failed: 'failed', attention: 'attention', message: 'message', reminder: 'attention' };
-
-  let labels = { count: '{0}', more: '+{0}', close: 'Close' };
-  let pending = [];   // 等你处理的事（内核推来，处理完之前一直在）
-  let notice = null;  // 当前通知（几秒后收起）
-  let timer = 0, hovered = false, shownH = 0, busy = new Set();
-  const fmt = (s, n) => String(s).replace('{0}', n);
-
-  function rowOf(it, isNotice) {
-    const r = h('div', 'row');
-    r.dataset.id = it.id || '';
-    const av = h('div', 'av');
-    av.append(it.endpoint && EP[it.endpoint] ? epTile(it.endpoint) : nomiGlyph());
-    const b = badgeOf(it);
-    if (b) {
-      const badge = h('span', 'badge');
-      badge.dataset.tone = TONE[b] || '';
-      badge.append(icon(b, b === 'running' ? 2.6 : 3));
-      av.append(badge);
-    }
-    const text = h('div', 'text');
-    text.append(h('div', 'title', String(it.title || '')), h('div', 'body', String(it.body || '')));
-    r.append(av, text);
-    const acts = h('div', 'acts');
-    if (it.actions && it.actions.length) {
-      for (const a of it.actions) {
-        const btn = h('button', 'btn' + (a.primary ? ' primary' : '') + (a.danger ? ' danger' : ''), String(a.label));
-        btn.type = 'button';
-        btn.disabled = busy.has(it.id);
-        btn.setAttribute('aria-label', a.label + ' · ' + (it.title || ''));
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          busy.add(it.id);
-          for (const x of acts.querySelectorAll('button')) x.disabled = true;
-          post('nomi:island:act:' + JSON.stringify({ id: it.id, action: a.id }));
-        });
-        acts.append(btn);
+    <style>
+      :root {
+        color-scheme: dark;
+        --w: ⟦width⟧px;
+        --cw: ⟦cw⟧px;
+        --ch: ⟦ch⟧px;
+        --h: ⟦ch⟧px;
+        --inset: ⟦inset⟧px;
+        --padT: ⟦padT⟧px;
+        --padB: ⟦padB⟧px;
+        --mx: ⟦mx⟧px;
+        --accent: #f08a5d;
+        --accent-2: #fb9466;
+        --ok: #4cc38a;
+        --warn: #f5a742;
+        --bad: #f26b5b;
+        --bg: rgba(24, 19, 16, 0.94);
+        --fg: #f7f1ec;
+        --fg2: rgba(247, 241, 236, 0.62);
+        --line: rgba(255, 196, 160, 0.14);
+        --btn: rgba(255, 255, 255, 0.09);
+        --btn-h: rgba(255, 255, 255, 0.15);
+        --shadow: 0 10px 28px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.28);
       }
-    } else if (it.status === 'running' && !isNotice) {
-      acts.append(h('span', 'pulse'));
-    } else {
-      const x = h('button', 'x');
-      x.type = 'button';
-      x.setAttribute('aria-label', labels.close);
-      x.append(icon('close', 2));
-      x.addEventListener('click', (e) => { e.stopPropagation(); dismissNotice(); });
-      acts.append(x);
-    }
-    r.append(acts);
-    return r;
-  }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        font:
+          500 13px/1.35 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI Variable Text',
+          'Segoe UI',
+          'PingFang SC',
+          'Microsoft YaHei UI',
+          system-ui,
+          sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      /* 岛贴窗口顶部；窗口高度 = 岛高度（+ 胶囊投影留白），随内容由内核调整 */
+      #island {
+        position: absolute;
+        top: 0;
+        left: var(--mx);
+        width: var(--cw);
+        height: var(--ch);
+        margin-left: calc((var(--w) - var(--cw)) / 2);
+        color: var(--fg);
+        overflow: hidden;
+        cursor: pointer;
+        background:
+          radial-gradient(120% 140% at 0% 0%, rgba(240, 138, 93, 0.16), transparent 55%), var(--bg);
+        border-radius: calc(var(--ch) / 2);
+        box-shadow:
+          var(--shadow),
+          0 0 0 1px var(--line) inset;
+        -webkit-backdrop-filter: blur(24px) saturate(1.3);
+        backdrop-filter: blur(24px) saturate(1.3);
+        transition:
+          width 0.36s cubic-bezier(0.22, 0.9, 0.3, 1),
+          height 0.36s cubic-bezier(0.22, 0.9, 0.3, 1),
+          margin-left 0.36s cubic-bezier(0.22, 0.9, 0.3, 1),
+          border-radius 0.36s ease,
+          opacity 0.2s ease;
+        opacity: 0;
+      }
+      #island.on {
+        opacity: 1;
+      }
+      #island.open {
+        width: var(--w);
+        height: var(--h);
+        margin-left: 0;
+        border-radius: 30px;
+      }
+      #island.open.list {
+        border-radius: 26px;
+      }
+      /* 刘海屏：从刘海里长出来，上沿贴屏幕顶、只圆下角 */
+      #island.notch {
+        border-radius: 0 0 14px 14px;
+        background: #000;
+        box-shadow: none;
+      }
+      #island.notch.open {
+        border-radius: 0 0 26px 26px;
+      }
+      #content {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: var(--w);
+        margin-left: calc(var(--w) / -2);
+        box-sizing: border-box;
+        padding: calc(var(--inset) + var(--padT)) 14px var(--padB);
+        opacity: 0;
+        transform: translateY(-4px);
+        transition:
+          opacity 0.2s ease 0.08s,
+          transform 0.28s ease 0.06s;
+      }
+      #island.open #content {
+        opacity: 1;
+        transform: none;
+      }
+      #island.list #content {
+        padding: calc(var(--inset) + var(--padT) + 6px) 12px calc(var(--padB) + 6px);
+      }
 
-  const measure = () => Math.ceil($('content').getBoundingClientRect().height);
+      /* 列表头：多条时才有 */
+      #head {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 4px 8px;
+        color: var(--fg2);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      #island.list #head {
+        display: flex;
+      }
+      #head .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px rgba(240, 138, 93, 0.2);
+      }
+      #rows {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: ⟦listMax⟧px;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+      #rows::-webkit-scrollbar {
+        display: none;
+      }
 
-  function render() {
-    const items = notice ? [Object.assign({ id: '__notice' }, notice)].concat(pending) : pending.slice();
-    if (!items.length) return collapse();
-    const list = items.length > 1;
-    el.classList.toggle('list', list);
-    $('headText').textContent = pending.length ? fmt(labels.count, pending.length) : '';
-    const rows = $('rows');
-    rows.replaceChildren(...items.map((it) => rowOf(it, it.id === '__notice')));
-    if (notice && list) rows.firstChild.classList.add('flash');
-    const hidden = Math.max(0, items.length - ⟦listRows⟧);
-    $('more').textContent = hidden ? fmt(labels.more, hidden) : '';
-    $('more').classList.toggle('on', hidden > 0);
-    const target = Math.max(⟦ch⟧, measure());
-    setHeight(target);
-    open();
-  }
+      /* 上下各留 5px：图标右下角的角标伸出图标块，不被列表的滚动区裁掉 */
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 44px;
+        padding: 5px 0;
+        border-radius: 18px;
+      }
+      #island.list .row {
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.045);
+        min-height: 40px;
+      }
+      #island.list .row:hover {
+        background: rgba(255, 255, 255, 0.075);
+      }
+      .row.flash {
+        animation: flash 1.2s ease;
+      }
+      @keyframes flash {
+        30% {
+          background: rgba(240, 138, 93, 0.16);
+        }
+      }
 
-  // 窗口高度：长高时先改窗口再展开；变矮时等收缩动画做完再改窗口（不裁掉动画）
-  function setHeight(target) {
-    document.documentElement.style.setProperty('--h', target + 'px');
-    if (target > shownH) { shownH = target; post('nomi:island:size:' + target); }
-    else if (target < shownH) {
-      const t = target;
-      setTimeout(() => { if (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--h')) === t) { shownH = t; post('nomi:island:size:' + t); } }, 400);
-    }
-  }
+      /* 左侧：Nomi 图标块 + 状态角标 */
+      .av {
+        position: relative;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: #fcefe1;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+          0 4px 12px rgba(240, 138, 93, 0.22);
+      }
+      #island.list .av {
+        flex-basis: 34px;
+        width: 34px;
+        height: 34px;
+        border-radius: 11px;
+      }
+      .av > svg.nomi {
+        width: 30px;
+        height: 30px;
+        display: block;
+      }
+      #island.list .av > svg.nomi {
+        width: 23px;
+        height: 23px;
+      }
+      .av > svg.ep {
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        display: block;
+      }
+      .badge {
+        position: absolute;
+        right: -5px;
+        bottom: -5px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: var(--accent);
+        box-shadow: 0 0 0 2px #1a1411;
+      }
+      #island.list .badge {
+        width: 15px;
+        height: 15px;
+        right: -4px;
+        bottom: -4px;
+      }
+      .badge svg {
+        width: 11px;
+        height: 11px;
+        display: block;
+      }
+      #island.list .badge svg {
+        width: 9px;
+        height: 9px;
+      }
+      .badge[data-tone='done'] {
+        background: var(--ok);
+      }
+      .badge[data-tone='failed'] {
+        background: var(--bad);
+      }
+      .badge[data-tone='attention'] {
+        background: var(--warn);
+      }
+      .badge[data-tone='running'] {
+        background: #1a1411;
+        color: var(--accent);
+      }
+      .badge[data-tone='running'] svg {
+        animation: spin 1s linear infinite;
+        width: 13px;
+        height: 13px;
+      }
+      .badge[data-tone='message'] {
+        background: #f2657a;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
-  function open() {
-    el.classList.add('on');
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
-  }
+      .text {
+        min-width: 0;
+        flex: 1;
+      }
+      .title {
+        font-weight: 650;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #island.list .title {
+        font-size: 13px;
+      }
+      .body {
+        color: var(--fg2);
+        font-weight: 450;
+        font-size: 12.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+      }
+      .body:empty {
+        display: none;
+      }
 
-  function collapse() {
-    clearTimeout(timer);
-    el.classList.remove('open');
-    setTimeout(() => {
-      if (notice || pending.length) return;
-      el.classList.remove('on', 'list');
-      $('rows').replaceChildren();
-      post('nomi:island:hidden');
-    }, 400);
-  }
+      /* 右侧：操作按钮 / 关闭 / 进行中的脉冲点 */
+      .acts {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn {
+        height: 30px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 15px;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 650;
+        color: var(--fg);
+        background: var(--btn);
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background 0.15s ease,
+          transform 0.1s ease;
+      }
+      #island.list .btn {
+        height: 26px;
+        padding: 0 11px;
+        border-radius: 13px;
+        font-size: 12px;
+      }
+      .btn:hover {
+        background: var(--btn-h);
+      }
+      .btn:active {
+        transform: scale(0.96);
+      }
+      .btn.primary {
+        color: #2a160c;
+        background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      }
+      .btn.primary:hover {
+        filter: brightness(1.06);
+      }
+      .btn.danger {
+        color: #ffd9d3;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .btn:focus-visible,
+      .x:focus-visible {
+        outline: 2px solid var(--accent-2);
+        outline-offset: 2px;
+      }
+      .x {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: var(--fg2);
+        background: transparent;
+        cursor: pointer;
+      }
+      .x:hover {
+        color: var(--fg);
+        background: var(--btn);
+      }
+      .x svg {
+        width: 15px;
+        height: 15px;
+        display: block;
+      }
+      .pulse {
+        width: 10px;
+        height: 10px;
+        margin: 0 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 0 rgba(240, 138, 93, 0.5);
+        animation: pulse 1.6s ease-out infinite;
+      }
+      @keyframes pulse {
+        70% {
+          box-shadow: 0 0 0 8px rgba(240, 138, 93, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(240, 138, 93, 0);
+        }
+      }
+      #more {
+        display: none;
+        padding: 6px 4px 0;
+        color: var(--fg2);
+        font-size: 11.5px;
+        text-align: center;
+      }
+      #more.on {
+        display: block;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #island,
+        #content {
+          transition: none;
+        }
+        .pulse,
+        .badge svg,
+        .row.flash {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="island" class="⟦mode⟧" data-mode="⟦mode⟧" role="status" aria-live="polite">
+      <div id="content">
+        <div id="head"><span class="dot" aria-hidden="true"></span><span id="headText"></span></div>
+        <div id="rows"></div>
+        <div id="more"></div>
+      </div>
+    </div>
+    <script>
+      const el = document.getElementById('island');
+      const $ = (id) => document.getElementById(id);
+      const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
+      const SVGNS = 'http://www.w3.org/2000/svg';
+      const svgEl = (name, attrs) => {
+        const n = document.createElementNS(SVGNS, name);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        return n;
+      };
+      const h = (tag, cls, text) => {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined) n.textContent = text;
+        return n;
+      };
+      // 角标图标（lucide，ISC）
+      const ICON = {
+        done: [['path', { d: 'M20 6 9 17l-5-5' }]],
+        failed: [['path', { d: 'M12 7v6' }], ['path', { d: 'M12 17h.01' }]],
+        attention: [['path', { d: 'M12 8v4' }], ['path', { d: 'M12 16h.01' }]],
+        approval: [['path', { d: 'M12 7v6' }], ['path', { d: 'M12 17h.01' }]],
+        running: [['path', { d: 'M21 12a9 9 0 1 1-6.219-8.56' }]],
+        message: [['path', { d: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z' }]],
+        reminder: [['path', { d: 'M12 6v6l4 2' }]],
+        close: [['path', { d: 'M18 6 6 18' }], ['path', { d: 'm6 6 12 12' }]],
+      };
+      function icon(key, sw) {
+        const s = svgEl('svg', { viewBox: '0 0 24 24', fill: key === 'message' ? 'currentColor' : 'none', stroke: 'currentColor',
+          'stroke-width': sw || 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' });
+        for (const [tag, a] of ICON[key] || []) s.append(svgEl(tag, a));
+        return s;
+      }
+      // Nomi 应用图标（packages/ui/src/brand/endpointGlyphs.ts 的 nomi，16×16）
+      function nomiGlyph() {
+        const s = svgEl('svg', { class: 'nomi', viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+        const tf = 'translate(-0.69 0.81) scale(0.0625)';
+        s.append(
+          svgEl('path', { d: 'M84 104 C96 96 112 104 120 128 C128 154 138 188 156 196', fill: 'none', stroke: '#F7A67C', 'stroke-width': 30, 'stroke-linecap': 'round', transform: tf }),
+          svgEl('path', { d: 'M48 200 C48 120 64 70 100 70 C140 70 142 196 180 196 C204 196 214 176 214 150', fill: 'none', stroke: '#33291F', 'stroke-width': 40, 'stroke-linecap': 'round', transform: tf }),
+          svgEl('path', { d: 'M200 30 C203 50 210 57 230 60 C210 63 203 70 200 90 C197 70 190 63 170 60 C190 57 197 50 200 30 Z', fill: '#FB9466', transform: tf }),
+        );
+        return s;
+      }
+      // 编程助手的图标块（同 ai-chat EndpointIcon；lobe-icons MIT）
+      const EP = {
+        claude: { fill: '#d97757', g: [{ d: 'M8 3v10M3 8h10M4.5 4.5l7 7M11.5 4.5l-7 7', stroke: '#fff', sw: 1.5 }] },
+        codex: { fill: '#111111', stroke: 'rgba(255,255,255,.22)', g: [{ d: 'M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z', fill: '#fff', tf: 'translate(3 3) scale(0.4167)' }] },
+        grok: { fill: '#111111', stroke: 'rgba(255,255,255,.22)', g: [{ d: 'M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47zm-.004 7.9l2.233 3.164L6.467 23H2l4.465-6.324zM22 2.582V23h-3.659V7.764L22 2.582zM22 1l-9.952 14.095-2.233-3.163L17.533 1H22z', fill: '#fff', tf: 'translate(3 3) scale(0.4167)' }] },
+        gemini: { fill: '#2f5bd3', g: [{ d: 'M8 2.5c.5 2.9 2.6 5 5.5 5.5-2.9.5-5 2.6-5.5 5.5-.5-2.9-2.6-5-5.5-5.5 2.9-.5 5-2.6 5.5-5.5z', fill: '#fff' }] },
+        dsh: { fill: '#ffffff', stroke: 'rgba(77,107,254,.35)', g: [{ d: 'M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z', fill: '#4D6BFE', tf: 'translate(2.4 2.4) scale(0.4667)' }] },
+      };
+      function epTile(ep) {
+        const t = EP[ep];
+        const s = svgEl('svg', { class: 'ep', viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+        s.append(svgEl('rect', t.stroke ? { x: .3, y: .3, width: 15.4, height: 15.4, rx: 4, fill: t.fill, stroke: t.stroke, 'stroke-width': .6 }
+          : { width: 16, height: 16, rx: 4, fill: t.fill }));
+        for (const g of t.g) {
+          const a = { d: g.d, fill: g.fill || 'none' };
+          if (g.stroke) Object.assign(a, { stroke: g.stroke, 'stroke-width': g.sw, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+          if (g.tf) a.transform = g.tf;
+          s.append(svgEl('path', a));
+        }
+        return s;
+      }
+      // 角标：等你处理的 → approval；其余按状态 / 类型
+      function badgeOf(it) {
+        if (it.actions && it.actions.length) return 'approval';
+        if (it.status) return it.status;
+        if (it.kind === 'message') return 'message';
+        if (it.kind === 'reminder') return 'reminder';
+        return '';
+      }
+      const TONE = { approval: 'attention', running: 'running', done: 'done', failed: 'failed', attention: 'attention', message: 'message', reminder: 'attention' };
 
-  function armTimer() {
-    clearTimeout(timer);
-    if (!notice || hovered) return;
-    timer = setTimeout(dismissNotice, Math.max(1500, notice.durationMs || 4500));
-  }
+      let labels = { count: '{0}', more: '+{0}', close: 'Close' };
+      let pending = [];   // 等你处理的事（内核推来，处理完之前一直在）
+      let notice = null;  // 当前通知（几秒后收起）
+      let timer = 0, hovered = false, shownH = 0, busy = new Set();
+      const fmt = (s, n) => String(s).replace('{0}', n);
 
-  function dismissNotice() {
-    clearTimeout(timer);
-    if (!notice) return;
-    notice = null;
-    if (pending.length) { render(); post('nomi:island:hidden'); } else collapse();
-  }
+      function rowOf(it, isNotice) {
+        const r = h('div', 'row');
+        r.dataset.id = it.id || '';
+        const av = h('div', 'av');
+        av.append(it.endpoint && EP[it.endpoint] ? epTile(it.endpoint) : nomiGlyph());
+        const b = badgeOf(it);
+        if (b) {
+          const badge = h('span', 'badge');
+          badge.dataset.tone = TONE[b] || '';
+          badge.append(icon(b, b === 'running' ? 2.6 : 3));
+          av.append(badge);
+        }
+        const text = h('div', 'text');
+        text.append(h('div', 'title', String(it.title || '')), h('div', 'body', String(it.body || '')));
+        r.append(av, text);
+        const acts = h('div', 'acts');
+        if (it.actions && it.actions.length) {
+          for (const a of it.actions) {
+            const btn = h('button', 'btn' + (a.primary ? ' primary' : '') + (a.danger ? ' danger' : ''), String(a.label));
+            btn.type = 'button';
+            btn.disabled = busy.has(it.id);
+            btn.setAttribute('aria-label', a.label + ' · ' + (it.title || ''));
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              busy.add(it.id);
+              for (const x of acts.querySelectorAll('button')) x.disabled = true;
+              post('nomi:island:act:' + JSON.stringify({ id: it.id, action: a.id }));
+            });
+            acts.append(btn);
+          }
+        } else if (it.status === 'running' && !isNotice) {
+          acts.append(h('span', 'pulse'));
+        } else {
+          const x = h('button', 'x');
+          x.type = 'button';
+          x.setAttribute('aria-label', labels.close);
+          x.append(icon('close', 2));
+          x.addEventListener('click', (e) => { e.stopPropagation(); dismissNotice(); });
+          acts.append(x);
+        }
+        r.append(acts);
+        return r;
+      }
 
-  window.__island = {
-    /** 一条通知：显示几秒后收起（有等你处理的事时，叠在列表最上面） */
-    show(n) { notice = n || null; render(); armTimer(); return shownH; },
-    /** 等你处理的事（整份替换）；labels：列表头、更多、关闭的文案 */
-    setPending(list, l) {
-      if (l) labels = Object.assign(labels, l);
-      pending = Array.isArray(list) ? list : [];
-      const live = new Set(pending.map((x) => x.id));
-      for (const id of [...busy]) if (!live.has(id)) busy.delete(id);
-      if (pending.length || notice) render(); else collapse();
-    },
-    /** 操作被内核拒绝（已经处理过、过期）：恢复按钮 */
-    actFailed(id) { busy.delete(id); render(); },
-    hide() { notice = null; pending = []; collapse(); },
-  };
-  el.addEventListener('click', () => { post('nomi:island:open'); if (!pending.length) dismissNotice(); });
-  el.addEventListener('mouseenter', () => { hovered = true; clearTimeout(timer); });
-  el.addEventListener('mouseleave', () => { hovered = false; if (notice) timer = setTimeout(dismissNotice, 1500); });
-</script></body></html>
+      const measure = () => Math.ceil($('content').getBoundingClientRect().height);
+
+      function render() {
+        const items = notice ? [Object.assign({ id: '__notice' }, notice)].concat(pending) : pending.slice();
+        if (!items.length) return collapse();
+        const list = items.length > 1;
+        el.classList.toggle('list', list);
+        $('headText').textContent = pending.length ? fmt(labels.count, pending.length) : '';
+        const rows = $('rows');
+        rows.replaceChildren(...items.map((it) => rowOf(it, it.id === '__notice')));
+        if (notice && list) rows.firstChild.classList.add('flash');
+        const hidden = Math.max(0, items.length - ⟦listRows⟧);
+        $('more').textContent = hidden ? fmt(labels.more, hidden) : '';
+        $('more').classList.toggle('on', hidden > 0);
+        const target = Math.max(⟦ch⟧, measure());
+        setHeight(target);
+        open();
+      }
+
+      // 窗口高度：长高时先改窗口再展开；变矮时等收缩动画做完再改窗口（不裁掉动画）
+      function setHeight(target) {
+        document.documentElement.style.setProperty('--h', target + 'px');
+        if (target > shownH) { shownH = target; post('nomi:island:size:' + target); }
+        else if (target < shownH) {
+          const t = target;
+          setTimeout(() => { if (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--h')) === t) { shownH = t; post('nomi:island:size:' + t); } }, 400);
+        }
+      }
+
+      function open() {
+        el.classList.add('on');
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
+      }
+
+      function collapse() {
+        clearTimeout(timer);
+        el.classList.remove('open');
+        setTimeout(() => {
+          if (notice || pending.length) return;
+          el.classList.remove('on', 'list');
+          $('rows').replaceChildren();
+          post('nomi:island:hidden');
+        }, 400);
+      }
+
+      function armTimer() {
+        clearTimeout(timer);
+        if (!notice || hovered) return;
+        timer = setTimeout(dismissNotice, Math.max(1500, notice.durationMs || 4500));
+      }
+
+      function dismissNotice() {
+        clearTimeout(timer);
+        if (!notice) return;
+        notice = null;
+        if (pending.length) { render(); post('nomi:island:hidden'); } else collapse();
+      }
+
+      window.__island = {
+        /** 一条通知：显示几秒后收起（有等你处理的事时，叠在列表最上面） */
+        show(n) { notice = n || null; render(); armTimer(); return shownH; },
+        /** 等你处理的事（整份替换）；labels：列表头、更多、关闭的文案 */
+        setPending(list, l) {
+          if (l) labels = Object.assign(labels, l);
+          pending = Array.isArray(list) ? list : [];
+          const live = new Set(pending.map((x) => x.id));
+          for (const id of [...busy]) if (!live.has(id)) busy.delete(id);
+          if (pending.length || notice) render(); else collapse();
+        },
+        /** 操作被内核拒绝（已经处理过、过期）：恢复按钮 */
+        actFailed(id) { busy.delete(id); render(); },
+        hide() { notice = null; pending = []; collapse(); },
+      };
+      el.addEventListener('click', () => { post('nomi:island:open'); if (!pending.length) dismissNotice(); });
+      el.addEventListener('mouseenter', () => { hovered = true; clearTimeout(timer); });
+      el.addEventListener('mouseleave', () => { hovered = false; if (notice) timer = setTimeout(dismissNotice, 1500); });
+    </script>
+  </body>
+</html>

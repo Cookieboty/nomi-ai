@@ -278,7 +278,7 @@
   "ui.mascot-theme.island-debug-p-sandbox": "Sandbox",
   "ui.mascot-theme.island-debug-p-open": "Open only",
   "ui.mascot-theme.island-debug-message-body": "You have a new message~",
-  "ui.mascot-theme.island-debug-running-title": "Nomi is generating images…",
+  "ui.mascot-theme.island-debug-running-title": "Generating images…",
   "ui.mascot-theme.island-debug-running-body": "About 10 seconds",
   "ui.mascot-theme.island-debug-done-title": "Task done",
   "ui.mascot-theme.island-debug-done-body": "4 images generated and saved to the asset library",

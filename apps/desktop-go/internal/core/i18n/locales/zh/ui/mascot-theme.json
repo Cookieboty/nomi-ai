@@ -278,7 +278,7 @@
   "ui.mascot-theme.island-debug-p-sandbox": "沙箱拦下",
   "ui.mascot-theme.island-debug-p-open": "只能打开",
   "ui.mascot-theme.island-debug-message-body": "有新的消息啦～",
-  "ui.mascot-theme.island-debug-running-title": "Nomi 正在生成图片…",
+  "ui.mascot-theme.island-debug-running-title": "正在生成图片…",
   "ui.mascot-theme.island-debug-running-body": "约需 10 秒",
   "ui.mascot-theme.island-debug-done-title": "任务已完成",
   "ui.mascot-theme.island-debug-done-body": "已生成 4 张图片，存入素材库",
