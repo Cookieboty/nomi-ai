@@ -267,6 +267,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		"Progress":     "",
 		"Events":       EventsSection(events),
 		"HasCli":       codingcli.Available(),
+		"Lang":         ReplyLanguage(t.Goal, t.Title),
 	}
 	if ex.Cwd != nil {
 		d["Cwd"] = *ex.Cwd
