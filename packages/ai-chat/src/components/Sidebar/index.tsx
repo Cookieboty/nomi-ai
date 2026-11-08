@@ -46,9 +46,7 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { GettingStarted } from '../GettingStarted';
 import { NewChatMenu } from '../NewChatMenu';
-import { NomiMark } from '../SettingsView/NomiMark';
 import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
-import { sidebarToggleLabels } from '../TitleBar';
 
 import { AnchoredPopover } from './AnchoredPopover';
 import { EndpointRail } from './EndpointRail';
@@ -229,7 +227,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
-    // 归档的对话不在侧栏显示（设置 → 通用 → 已归档的对话 里找回）
+    // 归档的对话不在侧栏显示（设置 → Nomi → 已归档的对话 里找回）
     const shown = list.filter((x) => !x.archivedAt);
     const source = isNormal ? shown.filter((x) => x.backend === 'nomi') : shown;
     // 标签状态是 CLI 标题的即时来源。同步落盘在 useCliTabSync 的 effect 中完成，
@@ -836,17 +834,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     >
       {/* 左侧固定导航：对话 · 任务 · 素材库；工作台模式下端点竖排挂在下面；底部是应用级入口 */}
       <div className={styles.rail} data-testid="app-rail">
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={onToggle}
-          title={sidebarToggleLabels(collapsed).title}
-          aria-label={sidebarToggleLabels(collapsed).label}
-          aria-expanded={!collapsed}
-          data-testid="sidebar-toggle"
-        >
-          <NomiMark className={styles.brandMark} size={24} testId="sidebar-brand-mark" />
-        </button>
         <nav className={styles.railNav} aria-label={t('ui.foundation.app-shortcuts')}>
           {/* 收起时悬停 / 聚焦「对话」弹出会话浮层 */}
           <span

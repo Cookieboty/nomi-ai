@@ -1,6 +1,9 @@
 package fleet
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"strconv"
 	"strings"
 	"sync"
@@ -327,8 +330,10 @@ func closeIdleService(t *testing.T, kills *killLog) *Service {
 			defer mu.Unlock()
 			return procs(tick, 2)
 		},
-		Tabs:     func() []Tab { return in.Tabs },
-		External: func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		Tabs: func() []Tab { return in.Tabs },
+		External: func() ([]ExtSession, map[float64]string, map[float64]string) {
+			return in.External, in.ExtCwd, in.ExtSession
+		},
 		Kill: func(pid int, sig string) error {
 			kills.add(sig + ":" + strconv.Itoa(pid))
 			return nil
@@ -450,5 +455,95 @@ func TestCloseIdleSkipsReusedPid(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
 		t.Fatalf("kills = %v: a reused pid must not get SIGKILL", kills)
+	}
+}
+
+// Windows：读进程表要跑 PowerShell，可能超时。关闭前重新读失败时用上一份核对，照样能关
+func TestCloseIdleWhenTheRereadFails(t *testing.T) {
+	var log killLog
+	in := baseInput()
+	tick := time.UnixMilli(in.Now)
+	var mu sync.Mutex
+	reads := 0
+	s := New(Deps{
+		SelfPid: 100,
+		Now: func() time.Time {
+			mu.Lock()
+			defer mu.Unlock()
+			tick = tick.Add(2 * time.Second)
+			return tick
+		},
+		ReadProcs: func() *agents.ProcTable {
+			mu.Lock()
+			defer mu.Unlock()
+			reads++
+			if reads > 1 {
+				return nil // 第一次之后都读不到
+			}
+			return procs(tick, 2)
+		},
+		Tabs: func() []Tab { return in.Tabs },
+		External: func() ([]ExtSession, map[float64]string, map[float64]string) {
+			return in.External, in.ExtCwd, in.ExtSession
+		},
+		Kill:      func(pid int, sig string) error { log.add(sig + ":" + strconv.Itoa(pid)); return nil },
+		KillGrace: time.Hour,
+	})
+	if len(s.State().ExternalIdle.Items) == 0 {
+		t.Fatal("setup: no idle items")
+	}
+	if _, err := s.CloseIdle(220, "codex"); err != nil {
+		t.Fatalf("CloseIdle with a failed re-read = %v", err)
+	}
+	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
+		t.Fatalf("kills = %v", kills)
+	}
+}
+
+// 结束不了根进程（Windows 上以管理员身份运行的）：告诉用户没有权限，而不是当成「已经不是空闲进程」
+func TestCloseIdleReportsAccessDenied(t *testing.T) {
+	var log killLog
+	s := closeIdleService(t, &log)
+	s.d.Kill = func(pid int, sig string) error {
+		log.add(sig + ":" + strconv.Itoa(pid))
+		return fmt.Errorf("OpenProcess: %w", fs.ErrPermission)
+	}
+	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseDenied) {
+		t.Fatalf("CloseIdle = %v, want ErrCloseDenied", err)
+	}
+	s.d.Kill = func(int, string) error { return errors.New("boom") }
+	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseFailed) {
+		t.Fatalf("CloseIdle = %v, want ErrCloseFailed", err)
+	}
+}
+
+// 同一目录开着三个 claude：登记了会话的进程只归自己的会话；刚开、还没会话文件的算空闲，不去认领别的旧会话
+func TestBuildExternalPinsRegisteredSessions(t *testing.T) {
+	at := time.Unix(10_000, 0)
+	tbl := agents.NewProcTable([]agents.RawProc{
+		{Pid: 1, Ppid: 0, Name: "launchd", Cmd: "/sbin/launchd"},
+		{Pid: 300, Ppid: 1, RSS: 10 * mb, Name: "claude", Cmd: "claude"},
+		{Pid: 310, Ppid: 1, RSS: 20 * mb, Name: "claude", Cmd: "claude"},
+		{Pid: 320, Ppid: 1, RSS: 30 * mb, Name: "claude", Cmd: "claude"},
+	})
+	tbl.At = at
+	in := Input{Now: at.UnixMilli(), SelfPid: 100, Procs: tbl,
+		ExtCwd: map[float64]string{300: "/p", 310: "/p", 320: "/p"},
+		// 300 是旧会话 old 的进程；320 刚开（会话 fresh 还没写文件）；310 没登记
+		ExtSession: map[float64]string{300: "claude:old", 320: "claude:fresh"},
+		External: []ExtSession{
+			{ID: "claude:newer", Kind: "claude", Cwd: "/p", Status: "waiting", UpdatedAt: at.UnixMilli() - 10, Alive: &yes},
+			{ID: "claude:old", Kind: "claude", Cwd: "/p", Status: "waiting", UpdatedAt: at.UnixMilli() - 100, Alive: &yes},
+		}}
+	st := Build(in)
+	m := byID(st)
+	if u := m["ext:claude:old"].Usage; u == nil || u.RSSBytes != 10*mb {
+		t.Fatalf("old session should own pid 300, usage = %+v", u)
+	}
+	if u := m["ext:claude:newer"].Usage; u == nil || u.RSSBytes != 20*mb {
+		t.Fatalf("unregistered pid 310 falls back to the cwd match, usage = %+v", u)
+	}
+	if len(st.ExternalIdle.Items) != 1 || st.ExternalIdle.Items[0].Pid != 320 {
+		t.Fatalf("the freshly opened process is idle, got %+v", st.ExternalIdle.Items)
 	}
 }

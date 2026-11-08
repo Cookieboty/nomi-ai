@@ -32,12 +32,15 @@ import { useTasks } from '../Tasks';
 import {
   collectSessionAgents,
   countRunning,
+  pendingDelegateTaskIds,
   type SessionAgent,
   type SessionAgentStatus,
 } from './agents';
 import { useSessionDetails } from './context';
 import styles from './index.module.css';
 import { countActiveTasks, sessionTasks } from './tasks';
+import { useDelegateResults } from './useDelegateResults';
+import { useWorkspaceChanges } from './useWorkspaceChanges';
 
 export { SessionDetailsProvider } from './context';
 
@@ -176,10 +179,25 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
   const pane = useSubagentPane();
   const { openWorkbench } = useChangesUi();
   const branch = useGitBranch(cwd);
-  const changes = useMemo(() => summarizeChanges(aggregateSessionChanges(messages)), [messages]);
+  const sessionChanges = useMemo(
+    () => summarizeChanges(aggregateSessionChanges(messages)),
+    [messages],
+  );
+  // git 仓库里以工作区改动为准（委派出去的编程助手改的也算）；不是 git 仓库时退回本会话的改动
+  const gitChanges = useWorkspaceChanges(cwd, messages.length);
+  const changes = gitChanges ?? sessionChanges;
+  const pending = useMemo(() => pendingDelegateTaskIds(messages), [messages]);
+  const results = useDelegateResults(pending);
   const agents = useMemo(
-    () => collectSessionAgents(messages, tabs.state?.tabs, live, tabId ? live[tabId]?.agents : {}),
-    [messages, tabs.state?.tabs, live, tabId],
+    () =>
+      collectSessionAgents(
+        messages,
+        tabs.state?.tabs,
+        live,
+        tabId ? live[tabId]?.agents : {},
+        results,
+      ),
+    [messages, tabs.state?.tabs, live, tabId, results],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
@@ -228,6 +246,9 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
           <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
           {changes.files > 0 ? (
             <span className={styles.stats}>
+              <span className={styles.muted}>
+                {t('ui.usage-tools.files', String(changes.files))}
+              </span>
               <span className={styles.added}>+{changes.added.toLocaleString()}</span>
               <span className={styles.removed}>-{changes.removed.toLocaleString()}</span>
             </span>

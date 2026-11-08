@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
@@ -52,6 +53,8 @@ type ConfirmRequest struct {
 	Review *ConfirmReview `json:"review,omitempty"`
 	// RememberRule：命令能记进白名单时的前缀（卡片上「以后 xxx 不再问」）；Rememberable 同时为 true
 	RememberRule string `json:"rememberRule,omitempty"`
+	// RememberGroup：勾「记住」= 这个对话里这类操作不再问（files 改文件 / delegate 委派与追问 / tool 这个工具）
+	RememberGroup string `json:"rememberGroup,omitempty"`
 }
 
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
@@ -86,10 +89,15 @@ type PermissionBroker struct {
 	sessionScopes  []*Scope
 	persisted      []*Scope
 	sessionAllowed map[string]bool
-	taint          map[context.Context]bool
-	taintUntil     float64
-	// rulesSuspendedUntil：读过外部内容后写过文件 → 命令白名单暂停到这个时间（用户亲手确认一次命令就清零）
+	// taint：按取消信号（ctx.Done()）记「本轮读过外部内容」；只加值的子 context（如带上对话 id）共用同一条
+	taint      map[<-chan struct{}]bool
+	taintUntil float64
+	// convGrants：对话里勾过「这个对话里不再询问」的操作类别（对话 id → ToolGroup），只在内存里，重启清空
+	convGrants map[string]map[string]bool
+	// rulesSuspendedUntil：读过外部内容后写过文件 → 命令白名单暂停到这个时间（用户亲手确认一次命令就清零）。
+	// 按对话记（convRulesSuspended）；没有对话的（桌面角色窗口等）记在 rulesSuspendedUntil
 	rulesSuspendedUntil float64
+	convRulesSuspended  map[string]float64
 	pending             map[string]*pendingConfirm
 	listeners           []*func()
 
@@ -112,7 +120,8 @@ type BrokerOpts struct {
 }
 
 func NewPermissionBroker(file string, envBase GuardEnv, opts BrokerOpts) *PermissionBroker {
-	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[context.Context]bool{}, pending: map[string]*pendingConfirm{}}
+	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[<-chan struct{}]bool{}, convGrants: map[string]map[string]bool{},
+		convRulesSuspended: map[string]float64{}, pending: map[string]*pendingConfirm{}}
 	if b.nowFn == nil {
 		b.nowFn = nowMs
 	}
@@ -382,6 +391,9 @@ type AuthorizeInput struct {
 	UserText string
 	// McpReadOnly：MCP 工具标了 readOnlyHint（后台任务按 mcp.read / mcp.call 授权）
 	McpReadOnly bool
+	// Approved：用户已经同意过的那件事的延续（如向已同意的委派追问），不再问；
+	// 「计划」照样拦、「逐项确认」与给这个工具设了「每次都询问」照样问
+	Approved bool
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
@@ -466,12 +478,13 @@ func (b *PermissionBroker) MarkRead(signal context.Context) {
 		b.taintUntil = b.nowFn() + taintFallbackMs
 		return
 	}
-	if !b.taint[signal] {
-		b.taint[signal] = true
+	done := signal.Done()
+	if !b.taint[done] {
+		b.taint[done] = true
 		go func() {
-			<-signal.Done()
+			<-done
 			b.mu.Lock()
-			delete(b.taint, signal)
+			delete(b.taint, done)
 			b.mu.Unlock()
 		}()
 	}
@@ -481,7 +494,7 @@ func (b *PermissionBroker) IsTainted(signal context.Context) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if signal != nil && signal.Done() != nil {
-		return b.taint[signal]
+		return b.taint[signal.Done()]
 	}
 	return b.nowFn() < b.taintUntil
 }
@@ -490,7 +503,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	// （前台与后台任务都算）
 	// 读过外部内容的一轮里写了文件：脚本 / 测试 / 构建配置可能被改过，之后的轮次也先不认白名单
 	if i.Danger != "read" && !ReviewedTools[i.Tool] && b.IsTainted(i.Signal) {
-		b.suspendCommandRules()
+		b.suspendCommandRules(tools.ConversationFrom(i.Signal))
 	}
 	if run := BackgroundFrom(i.Signal); run != nil && !i.IgnoreMode {
 		return b.authorizeBackground(run, i)
@@ -507,6 +520,13 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if rule := b.commandRuleFor(i); rule != "" && b.commandRulesApply(i, mode) {
 		return "auto"
 	}
+	conv := tools.ConversationFrom(i.Signal)
+	if i.Approved && i.Force == nil && mode != "manual" && !b.asksAlways(i) {
+		return "auto"
+	}
+	// 能不能按对话记住：普通的修改操作（不含删除等破坏性操作、强制确认的、「逐项确认」、每次都询问的工具）
+	grantable := conv != "" && i.Danger == "write" && i.Force == nil && mode != "manual" && !b.asksAlways(i)
+	group := ToolGroup(i.Tool)
 	var d ConsentDecision
 	if i.Force != nil {
 		d = ConsentDecision{Confirm: true, Dialog: i.Force.Dialog, Reason: "policy"}
@@ -521,6 +541,10 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		return "blocked"
 	}
 	if !d.Confirm {
+		return "auto"
+	}
+	// 这个对话里同意过这类操作（勾了「这个对话里不再询问」）：读过外部内容也不再问
+	if grantable && b.convGranted(conv, group) {
 		return "auto"
 	}
 	if b.UI == nil {
@@ -545,6 +569,9 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		args = map[string]any{}
 	}
 	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
+	if grantable {
+		req.Rememberable, req.RememberGroup = true, publicGroup(group)
+	}
 	if ReviewedTools[i.Tool] {
 		// 跑命令的工具：「记住」= 把这类命令记进白名单，不是整个工具这次会话都放行
 		req.Rememberable = false
@@ -565,12 +592,23 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	// 用户亲手放行了一条命令：污染导致的白名单暂停到此为止
 	if decision == "allowed" && ReviewedTools[i.Tool] {
 		b.mu.Lock()
-		b.rulesSuspendedUntil = 0
+		if conv != "" {
+			delete(b.convRulesSuspended, conv)
+		} else {
+			b.rulesSuspendedUntil = 0
+		}
 		b.mu.Unlock()
 	}
 	if decision == "allowed" && remember && req.Rememberable {
 		if req.RememberRule != "" {
 			b.AddCommandRule(req.RememberRule)
+		} else if req.RememberGroup != "" {
+			b.mu.Lock()
+			if b.convGrants[conv] == nil {
+				b.convGrants[conv] = map[string]bool{}
+			}
+			b.convGrants[conv][group] = true
+			b.mu.Unlock()
 		} else {
 			b.mu.Lock()
 			b.sessionAllowed[i.Tool] = true
@@ -586,10 +624,49 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 // commandRulesSuspendMs：污染后白名单暂停多久（用户亲手确认一次命令就提前恢复）
 const commandRulesSuspendMs = 24 * 60 * 60 * 1000
 
-func (b *PermissionBroker) suspendCommandRules() {
+// suspendCommandRules：只停这个对话的白名单（没有对话的停全局的）
+func (b *PermissionBroker) suspendCommandRules(conv string) {
 	b.mu.Lock()
-	b.rulesSuspendedUntil = b.nowFn() + commandRulesSuspendMs
+	until := b.nowFn() + commandRulesSuspendMs
+	if conv != "" {
+		b.convRulesSuspended[conv] = until
+	} else {
+		b.rulesSuspendedUntil = until
+	}
 	b.mu.Unlock()
+}
+
+// asksAlways：这个工具的设置是「每次都询问」（用户设的，或浏览器操作这类默认如此的）
+func (b *PermissionBroker) asksAlways(i AuthorizeInput) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	raw := b.policyRaw(i.Tool)
+	return raw != nil && SanitizePolicy(i.Danger, raw) == "ask"
+}
+
+func (b *PermissionBroker) convGranted(conv, group string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.convGrants[conv][group]
+}
+
+// ToolGroup：按对话记授权的类别。改文件的工具一类、委派与追问一类，其余各自一类
+func ToolGroup(tool string) string {
+	switch {
+	case strings.HasPrefix(tool, "fs_") || tool == "undo_last":
+		return "files"
+	case strings.HasPrefix(tool, "delegate_"):
+		return "delegate"
+	}
+	return "tool:" + tool
+}
+
+// publicGroup：卡片上显示用的类别（files / delegate / tool）
+func publicGroup(g string) string {
+	if strings.HasPrefix(g, "tool:") {
+		return "tool"
+	}
+	return g
 }
 
 // commandRulesApply：这次能不能按白名单直接放行
@@ -600,6 +677,9 @@ func (b *PermissionBroker) commandRulesApply(i AuthorizeInput, mode PermMode) bo
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.nowFn() < b.rulesSuspendedUntil {
+		return false
+	}
+	if conv := tools.ConversationFrom(i.Signal); conv != "" && b.nowFn() < b.convRulesSuspended[conv] {
 		return false
 	}
 	if raw := b.policyRaw(i.Tool); raw != nil && SanitizePolicy(i.Danger, raw) == "ask" {
@@ -848,6 +928,14 @@ func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) boo
 	return true
 }
 
+// HasPending：这条确认请求还在等（没被答复、超时、取消）
+func (b *PermissionBroker) HasPending(id string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, ok := b.pending[id]
+	return ok
+}
+
 func (b *PermissionBroker) PendingRequests() []ConfirmRequest {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -933,6 +1021,8 @@ func (b *PermissionBroker) ResetAll() {
 	b.settings = DesktopSettings{Policies: NewOMap(), CloudAcked: []string{}}
 	b.sessionScopes = nil
 	b.sessionAllowed = map[string]bool{}
+	b.convGrants = map[string]map[string]bool{}
+	b.convRulesSuspended = map[string]float64{}
 	b.saveLocked()
 	b.mu.Unlock()
 	b.notify()

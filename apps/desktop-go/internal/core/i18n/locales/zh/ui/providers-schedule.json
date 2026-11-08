@@ -335,7 +335,7 @@
   "ui.providers-schedule.task-waiting-trigger": "等触发",
   "ui.providers-schedule.tasks": "任务",
   "ui.providers-schedule.tasks-empty": "还没有任务。在对话里对 Nomi 说「每天 9 点帮我……」，或点「新建任务」。",
-  "ui.providers-schedule.tasks-group-needs-you": "需要你",
+  "ui.providers-schedule.tasks-group-needs-you": "待处理",
   "ui.providers-schedule.tasks-group-scheduled": "定时",
   "ui.providers-schedule.tasks-hint": "交代一次，Nomi 一直记着：按时间推进，需要你的时候来找你。",
   "ui.providers-schedule.tasks-nav-needs-you": "任务：{0} 件需要你处理",
@@ -359,5 +359,7 @@
   "ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while": "开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。",
   "ui.providers-schedule.write-environment-variable-names-only-such-as-my": "环境变量只写名字（如 MY_TOKEN），不要写值",
   "ui.providers-schedule.yes": "是",
-  "ui.providers-schedule.task-sandbox-pregrant": "编程助手沙箱里预先允许（跑的时候不用再问；有 GitHub 对外动作时自动带上 SSH 与 Git 凭据）"
+  "ui.providers-schedule.task-sandbox-pregrant": "编程助手沙箱里预先允许（跑的时候不用再问；有 GitHub 对外动作时自动带上 SSH 与 Git 凭据）",
+  "ui.providers-schedule.task-search": "搜索任务…",
+  "ui.providers-schedule.task-stage-filter": "按进度筛选"
 }

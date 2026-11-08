@@ -11,6 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/fleet"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
@@ -26,6 +27,9 @@ import (
 // fleetSvc：看板服务（委派的同步路径问「内存是不是正紧张」，coding_wiring.go）
 var fleetSvc atomic.Pointer[fleet.Service]
 
+// delegateSvc：委派服务（调度策略调大上限后放行排队的委派）
+var delegateSvc atomic.Pointer[delegate.Service]
+
 // fleetHolding：内存守护正扣着新的编程助手（看板还没装好时不扣）
 func fleetHolding() bool {
 	s := fleetSvc.Load()
@@ -34,7 +38,30 @@ func fleetHolding() bool {
 
 func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chats *airouter.Handlers, reg tools.Registry) func() {
 	o := harnessOrch
+	// 调度策略：持续任务与委派的同时运行上限（装配时先设一次，之后换策略时马上再排一次队）
+	var policyLive atomic.Bool
 	s := fleet.New(fleet.Deps{
+		SystemCPU: agents.SystemCPU,
+		ApplyPolicy: func(p fleet.Policy) {
+			// 0 = 「全速」不设个数上限（按 CPU 与内存放行，由内存守护的 Holding 扣着）
+			n := p.MaxParallel
+			if n == 0 {
+				n = 1 << 30
+			}
+			delegate.SetMaxParallel(n)
+			if ts != nil {
+				ts.Runtime.SetMaxConcurrent(n)
+			}
+			if !policyLive.Load() {
+				return
+			}
+			if ts != nil {
+				go ts.Runtime.Tick()
+			}
+			if d := delegateSvc.Load(); d != nil {
+				d.WakeSlots()
+			}
+		},
 		SelfPid:   os.Getpid(),
 		Cores:     runtime.NumCPU(),
 		TotalMem:  func() float64 { return float64(local.TotalMem()) },
@@ -94,18 +121,19 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 			return out
 		},
-		External: func() ([]fleet.ExtSession, map[float64]string) {
+		External: func() ([]fleet.ExtSession, map[float64]string, map[float64]string) {
 			if agentsSvc == nil {
-				return nil, nil
+				return nil, nil, nil
 			}
 			type res struct {
-				s   []fleet.ExtSession
-				cwd map[float64]string
+				s    []fleet.ExtSession
+				cwd  map[float64]string
+				sess map[float64]string
 			}
 			r := jsrt.Call(func() res {
-				return res{fleetExternal(agentsSvc.State()), agentsSvc.ProcCwds()}
+				return res{fleetExternal(agentsSvc.State()), agentsSvc.ProcCwds(), agentsSvc.ProcSessions()}
 			})
-			return r.s, r.cwd
+			return r.s, r.cwd, r.sess
 		},
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
 		// 只给用户手动关闭空闲的外部编程助手进程用（fleet.closeIdle）
@@ -157,6 +185,8 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			reg.Register(def)
 		}
 	}
+	s.ApplyPolicy()
+	policyLive.Store(true)
 	fleetSvc.Store(s)
 	s.Start()
 	return func() {

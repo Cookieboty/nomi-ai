@@ -657,6 +657,8 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 				if !callerSet {
 					caller, _ = tools.GetToolCallerTabID(ctx)
 				}
+				// 权限按对话记授权（desktop.PermissionBroker）：把对话 id 带进 ctx
+				ctx = tools.WithConversation(ctx, conv)
 				res, err := d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
 				if err != nil {
 					return res, err
@@ -667,7 +669,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		})
 	}
 	if len(out) > 0 {
-		out = append(out, outputReadTool(spillKey))
+		out = append(out, outputReadTool(spillKey, recv))
 	}
 	return out
 }
@@ -809,6 +811,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			guard.turnBase = len(tp.Messages)
 			if r.Summarize != nil {
 				guard.summarize = func(system, transcript string) (string, error) { return r.Summarize(c, system, transcript) }
+				guard.sendCheck = func() error { return tools.CheckDataSend(c, nil, "summary") }
 			}
 		}
 	}

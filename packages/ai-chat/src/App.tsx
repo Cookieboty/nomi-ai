@@ -95,6 +95,7 @@ import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { derivedSwitchTip } from './services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
+import { openProjectTerminal } from './services/openProjectTerminal';
 import { providerClient } from './services/providerClient';
 import { QUICK_PROMPT_TEXT, recommend } from './services/recommendations';
 import type { ImageAttachment } from './services/screenClient';
@@ -633,8 +634,10 @@ const AiChatContent: React.FC = () => {
         if (!isDev) return;
         window.dispatchEvent(new Event(RENAME_CHAT_EVENT));
       },
+      // 在终端打开当前会话的项目目录（services/openProjectTerminal）
+      openTerminal: () => openProjectTerminal(railCwd, setToast),
     }),
-    [newChat, focusInput, tabs, isDev, openSettings],
+    [newChat, focusInput, tabs, isDev, openSettings, railCwd],
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

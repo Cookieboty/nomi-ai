@@ -89,3 +89,20 @@ describe('shortcuts', () => {
     expect(getBindings().focusInput).toBe('Mod+L');
   });
 });
+
+describe('在终端打开当前项目', () => {
+  it('macOS 是 ⇧⌘C，其他平台 Ctrl+Shift+C；不和系统 / 编辑快捷键冲突', () => {
+    expect(getBindings().openTerminal).toBe('Mod+Shift+C');
+    const mac = ev({ key: 'C', code: 'KeyC', metaKey: true, shiftKey: true });
+    expect(matchShortcut(mac, 'Mod+Shift+C', true)).toBe(true);
+    expect(formatCombo('Mod+Shift+C', true)).toBe('⌘⇧C');
+    // 只按 ⌘C（复制）不触发
+    expect(matchShortcut(ev({ key: 'c', code: 'KeyC', metaKey: true }), 'Mod+Shift+C', true)).toBe(
+      false,
+    );
+    const win = ev({ key: 'C', code: 'KeyC', ctrlKey: true, shiftKey: true });
+    expect(matchShortcut(win, 'Mod+Shift+C', false)).toBe(true);
+    expect(formatCombo('Mod+Shift+C', false)).toBe('Ctrl+Shift+C');
+    expect(findConflicts(getBindings()).openTerminal).toBeUndefined();
+  });
+});

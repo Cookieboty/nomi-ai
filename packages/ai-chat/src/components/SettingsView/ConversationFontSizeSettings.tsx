@@ -2,23 +2,19 @@ import { Select, SettingRow, t } from '@nomi-ai/ui';
 import React, { useSyncExternalStore } from 'react';
 
 import {
-  DEFAULT_CONVERSATION_FONT_SIZE,
-  MAX_CONVERSATION_FONT_SIZE,
-  MIN_CONVERSATION_FONT_SIZE,
+  CONVERSATION_FONT_SIZES,
   getConversationFontSize,
   setConversationFontSize,
   subscribeConversationFontSize,
 } from '../../services/conversationFontSize';
 
+/** 会话正文字号：三档，只写「普通 / 较大 / 特大」，不写像素 */
 export function ConversationFontSizeSettings() {
   const size = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
   return (
     <SettingRow
       title={t('ui.chat-settings.conversation-font-size')}
-      description={t(
-        'ui.chat-settings.conversation-font-size-description',
-        DEFAULT_CONVERSATION_FONT_SIZE,
-      )}
+      description={t('ui.chat-settings.conversation-font-size-description')}
     >
       <Select
         size="sm"
@@ -26,13 +22,7 @@ export function ConversationFontSizeSettings() {
         aria-label={t('ui.chat-settings.conversation-font-size')}
         data-testid="conversation-font-size"
         onChange={(e) => setConversationFontSize(Number(e.target.value))}
-        options={Array.from(
-          { length: MAX_CONVERSATION_FONT_SIZE - MIN_CONVERSATION_FONT_SIZE + 1 },
-          (_, i) => {
-            const value = MIN_CONVERSATION_FONT_SIZE + i;
-            return { value: String(value), label: `${value}px` };
-          },
-        )}
+        options={CONVERSATION_FONT_SIZES.map((o) => ({ value: String(o.size), label: t(o.label) }))}
       />
     </SettingRow>
   );

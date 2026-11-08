@@ -162,6 +162,10 @@ export const tasksApi = {
     (await api.tasks.get({ id })) as unknown as { task: Task; attempts: Attempt[] } | null,
   journal: async (id: string) => (await api.tasks.journal({ id })) as unknown as JournalEntry[],
   onChange: (fn: () => void) => api.on('tasks.changed', fn),
+  /** 看板卡片上的快捷操作（结果随 tasks.changed 刷新） */
+  runNow: (id: string) => api.tasks.runNow({ id }),
+  pause: (id: string) => api.tasks.pause({ id }),
+  resume: (id: string) => api.tasks.resume({ id }),
 };
 
 export type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
@@ -202,11 +206,11 @@ export function categoryOf(task: Task): TaskCategory {
 }
 
 /**
- * 看板的进度列：待开始（等触发 / 暂停）→ 进行中（排队、运行）→ 需要你（等批准、核对、失败）→
- * 待验收 → 已结束（完成、取消）
+ * 进度（看板的列、列表的筛选）：待开始（等触发 / 暂停）→ 进行中（排队、运行）→ 需要你（等批准、补充、验收、核对、失败：
+ * 都是等人处理）→ 已结束（完成、取消）
  */
-export type TaskStage = 'todo' | 'in_progress' | 'needs_you' | 'review' | 'done';
-export const STAGES: readonly TaskStage[] = ['todo', 'in_progress', 'needs_you', 'review', 'done'];
+export type TaskStage = 'todo' | 'in_progress' | 'needs_you' | 'done';
+export const STAGES: readonly TaskStage[] = ['todo', 'in_progress', 'needs_you', 'done'];
 export function stageOf(task: Task): TaskStage {
   switch (task.status) {
     case 'idle':
@@ -214,8 +218,6 @@ export function stageOf(task: Task): TaskStage {
     case 'queued':
     case 'running':
       return 'in_progress';
-    case 'awaiting_accept':
-      return 'review';
     case 'done':
     case 'cancelled':
       return 'done';
@@ -228,7 +230,6 @@ export const STAGE_LABEL: Record<TaskStage, string> = {
   todo: 'ui.providers-schedule.task-stage-todo',
   in_progress: 'ui.chat-settings.in-progress',
   needs_you: 'ui.providers-schedule.tasks-group-needs-you',
-  review: 'ui.providers-schedule.task-awaiting-accept',
   done: 'ui.mascot-theme.ended',
 };
 

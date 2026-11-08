@@ -231,6 +231,7 @@ func DefaultRunGh(ctx context.Context, args []string) ([]byte, int) {
 	ctx, cancel := context.WithTimeout(ctx, ghTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "gh", args...)
+	hideWindow(cmd)
 	cmd.Env = GhEnv(os.Environ())
 	var out bytes.Buffer
 	cmd.Stdout = &out

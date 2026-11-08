@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 )
@@ -195,6 +196,35 @@ type Runtime struct {
 	prepFailed  map[string]TaskError
 	cancelTimer func()
 	started     bool
+	// 调度策略（SetMaxConcurrent，Agent 看板）：> 0 时覆盖 RuntimeDeps 里的上限
+	limitConcurrent atomic.Int32
+	// running：占着名额的任务数（len(slots)），给委派那边合计上限用（不用拿锁）
+	running atomic.Int32
+	// sharedLoad：同一个上限里别处在跑的（同步委派）；onFreed：名额空出来时通知别处再排一次队
+	sharedLoad atomic.Pointer[func() int]
+	onFreed    atomic.Pointer[func()]
+}
+
+// SetSharedLoad：持续任务与委派共用一个同时运行上限（调度策略）；f 返回委派那边在跑的个数，须不拿锁
+func (r *Runtime) SetSharedLoad(f func() int) { r.sharedLoad.Store(&f) }
+
+// SetOnFreed：任务的名额空出来时调（放行委派那边排队的）；在新的 goroutine 里调
+func (r *Runtime) SetOnFreed(f func()) { r.onFreed.Store(&f) }
+
+// Load：占着名额的任务数（不拿锁）
+func (r *Runtime) Load() int { return int(r.running.Load()) }
+
+func (r *Runtime) shared() int {
+	if f := r.sharedLoad.Load(); f != nil {
+		return (*f)()
+	}
+	return 0
+}
+
+// SetMaxConcurrent：改同时运行的任务数上限（Agent 看板的调度策略）；<= 0 = 用默认。
+// 只改上限，调大后由调用方 Tick 再排一次队。
+func (r *Runtime) SetMaxConcurrent(n int) {
+	r.limitConcurrent.Store(int32(min(max(0, n), 1<<30)))
 }
 
 func NewRuntime(d RuntimeDeps) *Runtime {
@@ -203,6 +233,9 @@ func NewRuntime(d RuntimeDeps) *Runtime {
 }
 
 func (r *Runtime) max() int {
+	if n := r.limitConcurrent.Load(); n > 0 {
+		return int(n)
+	}
 	if r.d.MaxConcurrent > 0 {
 		return r.d.MaxConcurrent
 	}
@@ -287,6 +320,7 @@ func (r *Runtime) addSlot(id string) {
 	if !r.slots[id] {
 		r.slots[id] = true
 		r.slotOrder = append(r.slotOrder, id)
+		r.running.Store(int32(len(r.slots)))
 	}
 }
 
@@ -294,6 +328,10 @@ func (r *Runtime) delSlot(id string) {
 	if r.slots[id] {
 		delete(r.slots, id)
 		r.slotOrder = without(r.slotOrder, id)
+		r.running.Store(int32(len(r.slots)))
+		if f := r.onFreed.Load(); f != nil {
+			go (*f)()
+		}
 	}
 }
 
@@ -1038,7 +1076,8 @@ func (r *Runtime) pump() {
 		}
 		return r.queue[i].seq < r.queue[j].seq
 	})
-	for len(r.slots) < r.max() && len(r.starts) < maxStarts {
+	// 调度策略的上限是持续任务与同步委派合计
+	for len(r.slots)+r.shared() < r.max() && len(r.starts) < maxStarts {
 		idx := -1
 		for i, q := range r.queue {
 			if q.notBefore > now {

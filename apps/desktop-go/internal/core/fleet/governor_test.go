@@ -183,10 +183,10 @@ func TestGovernorRespectsUserPauseAndSwitch(t *testing.T) {
 	if len(h.frozen) != 2 {
 		t.Fatal("auto-pause off: no more automatic freezing")
 	}
-	if loadAutoPause(filepath.Join(dir, "fleet.json")) {
+	if f := loadSettings(filepath.Join(dir, "fleet.json")); f.AutoPause == nil || *f.AutoPause {
 		t.Fatal("switch must be saved")
 	}
-	if !loadAutoPause(filepath.Join(dir, "missing.json")) {
+	if New(Deps{SettingsPath: filepath.Join(dir, "missing.json")}).State().Governor.AutoPause != true {
 		t.Fatal("auto-pause defaults to on")
 	}
 }

@@ -30,7 +30,11 @@ func CleanTitle(raw string, max int) *string {
 		}
 		a := ""
 		if am := reCmdArgs.FindStringSubmatch(s); am != nil {
-			a = am[1]
+			a = JSTrim(am[1])
+		}
+		// 不带参数的斜杠命令（/clear、/model…）说明不了会话在干什么，不当标题，让调用方往后找真正的提问
+		if a == "" {
+			return nil
 		}
 		s = m[1] + " " + a
 	}

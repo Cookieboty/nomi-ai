@@ -153,6 +153,9 @@ type contextGuard struct {
 	// keepFrom = 摘要之后保留原样的第一条助手消息（按对象认，中途插入不影响）；summary = 之前那些步骤的摘要
 	turnBase  int
 	summarize func(system, transcript string) (string, error)
+	// sendCheck：摘要过程记录里有本地数据（文件 / 命令输出 / 网页）时，能不能交给摘要模型（tools.CheckDataSend）；
+	// 不允许时这些正文换成占位再摘要。nil = 不检查
+	sendCheck func() error
 	keepFrom  *u.Obj
 	summary   string
 	// summaries：这一轮做过几次摘要（上限 maxTurnSummaries，防止原地打转）
@@ -225,13 +228,23 @@ func (g *contextGuard) trySummarize(step []*u.Obj) bool {
 			}
 		}
 	}
+	// 工具读出的本地数据先按摘要模型检查（读的时候查的是对话模型，摘要模型可能是另一个，比如云端）
+	withhold := false
+	if g.sendCheck != nil {
+		for i := from; i < len(step) && step[i] != keep; i++ {
+			if hasLocalData(step[i]) {
+				withhold = g.sendCheck() != nil
+				break
+			}
+		}
+	}
 	var b strings.Builder
 	if g.summary != "" {
 		b.WriteString("<previous_summary>\n" + g.summary + "\n</previous_summary>\n\n")
 	}
 	b.WriteString("<steps>\n")
 	for i := from; i < len(step) && step[i] != keep; i++ {
-		b.WriteString(stepDigest(step[i]))
+		b.WriteString(stepDigest(step[i], withhold))
 	}
 	b.WriteString("</steps>")
 	transcript := []rune(b.String())
@@ -249,8 +262,15 @@ func (g *contextGuard) trySummarize(step []*u.Obj) bool {
 	return true
 }
 
-// stepDigest：一条消息给摘要模型看的几行（工具调用参数、结果各截一段，原文已在工具记录里）
-func stepDigest(m *u.Obj) string {
+// stepDigest：一条消息给摘要模型看的几行（工具调用参数、结果各截一段，原文已在工具记录里）。
+// withhold：本地数据的正文换成占位（在截断之前换，截断剪掉闭合标记也挡得住）
+func stepDigest(m *u.Obj, withhold bool) string {
+	clip := func(s string, n int) string {
+		if withhold {
+			s = withholdLocalData(s)
+		}
+		return clipRunes(s, n)
+	}
 	if m == nil {
 		return ""
 	}
@@ -258,7 +278,7 @@ func stepDigest(m *u.Obj) string {
 	parts, ok := m.Get("content").([]any)
 	if !ok {
 		if s, ok := m.Get("content").(string); ok {
-			return role + ": " + clipRunes(s, 2000) + "\n"
+			return role + ": " + clip(s, 2000) + "\n"
 		}
 		return ""
 	}
@@ -271,10 +291,10 @@ func stepDigest(m *u.Obj) string {
 		switch p.Get("type") {
 		case "text":
 			if t, _ := p.Get("text").(string); t != "" {
-				b.WriteString(role + ": " + clipRunes(t, 2000) + "\n")
+				b.WriteString(role + ": " + clip(t, 2000) + "\n")
 			}
 		case "tool-call":
-			b.WriteString(fmt.Sprintf("[tool call %v] %s\n", p.Get("toolName"), clipRunes(u.Stringify(p.Get("input")), 400)))
+			b.WriteString(fmt.Sprintf("[tool call %v] %s\n", p.Get("toolName"), clip(u.Stringify(p.Get("input")), 400)))
 		case "tool-result":
 			out, _ := p.Get("output").(*u.Obj)
 			v := ""
@@ -285,10 +305,34 @@ func stepDigest(m *u.Obj) string {
 					v = u.Stringify(out.Get("value"))
 				}
 			}
-			b.WriteString(fmt.Sprintf("[tool result %v] %s\n", p.Get("toolName"), clipRunes(v, 1500)))
+			b.WriteString(fmt.Sprintf("[tool result %v] %s\n", p.Get("toolName"), clip(v, 1500)))
 		}
 	}
 	return b.String()
+}
+
+// 工具读出的本地数据的标记（desktop.WrapUntrusted / WrapCommandOutput / WrapWeb；与 desktop/outbound_guard.go 一致）
+var localDataRes = []*regexp.Regexp{localDataRe("file_content"), localDataRe("command_output"), localDataRe("web_content")}
+
+func localDataRe(tag string) *regexp.Regexp {
+	return regexp.MustCompile(`(<` + tag + `\b[^\n>]*>?)[\s\S]*?(?:</` + tag + `>|$)`)
+}
+
+const localDataWithheld = "\n(Content withheld: shown only on this device; it is not sent to the summary model.)\n"
+
+// withholdLocalData：本地数据正文换成占位；没闭合时挡到结尾
+func withholdLocalData(s string) string {
+	for i, re := range localDataRes {
+		tag := []string{"file_content", "command_output", "web_content"}[i]
+		s = re.ReplaceAllString(s, "${1}"+localDataWithheld+"</"+tag+">")
+	}
+	return s
+}
+
+// hasLocalData：消息里有没有工具读出的本地数据
+func hasLocalData(m *u.Obj) bool {
+	s := u.Stringify(m)
+	return strings.Contains(s, "<file_content") || strings.Contains(s, "<command_output") || strings.Contains(s, "<web_content")
 }
 
 func clipRunes(s string, n int) string {

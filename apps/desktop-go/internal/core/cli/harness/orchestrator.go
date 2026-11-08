@@ -207,6 +207,8 @@ type Orchestrator struct {
 	eventBatcher      *cli.EventBatcher
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
+	// permDetail：还在等的权限请求的详情（pending_perms.go，灵动岛列出用）
+	permDetail map[string]PendingPerm
 	// tabProcs：标签起过的 CLI 进程（Agent 看板据此从进程表里找到它的进程树）
 	tabProcs map[string][]clisdk.ChildLike
 	// frozen：被冻结（暂停）的标签（fleet.go）

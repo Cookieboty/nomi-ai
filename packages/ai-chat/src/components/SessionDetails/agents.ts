@@ -4,6 +4,7 @@
  * - 子代理：编程助手 / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
  * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算智能体。
  */
+import type { DelegateResult } from '../../services/delegateClient';
 import type { HarnessBackend, HarnessTabMeta } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
@@ -15,7 +16,12 @@ import {
   reduceTraceCached,
   type ToolCall,
 } from '../../utils/toolTrace';
-import { delegateTab, delegateView } from '../Conversation/DelegateCard';
+import {
+  delegateTab,
+  delegateView,
+  parseOutput,
+  withDelegateResult,
+} from '../Conversation/DelegateCard';
 
 export type SessionAgentStatus = 'running' | 'waiting' | 'done' | 'error' | 'stopped';
 
@@ -62,15 +68,28 @@ function toolCalls(messages: readonly ConvMessage[]): ToolCall[] {
   return out;
 }
 
+/** 工具输出还是 running 占位的异步委派：要去查 / 等最终结果的任务 id */
+export function pendingDelegateTaskIds(messages: readonly ConvMessage[]): string[] {
+  const out: string[] = [];
+  for (const call of toolCalls(messages)) {
+    if (baseToolName(call.name) !== 'delegate_to_cli') continue;
+    const r = parseOutput(call.output).result;
+    if (r?.status === 'running' && r.taskId && !out.includes(r.taskId)) out.push(r.taskId);
+  }
+  return out;
+}
+
 /**
  * messages：当前会话（含进行中的一轮）；tabs：编程助手标签；live：标签实时状态；
- * liveAgents：当前标签这一轮的子代理（还没出现在消息里的也算）
+ * liveAgents：当前标签这一轮的子代理（还没出现在消息里的也算）；
+ * results：异步委派的最终结果（taskId → 结果；工具输出只是 running 占位，与子任务卡片同一来源）
  */
 export function collectSessionAgents(
   messages: readonly ConvMessage[],
   tabs: readonly HarnessTabMeta[] | undefined,
   live: Record<string, TabLive>,
   liveAgents?: Record<string, LiveAgent>,
+  results?: Record<string, DelegateResult>,
 ): SessionAgent[] {
   const agents: SessionAgent[] = [];
   const seen = new Set<string>();
@@ -82,7 +101,12 @@ export function collectSessionAgents(
     if (name === 'delegate_to_cli') {
       seen.add(call.id);
       const tab = delegateTab(call, tabs);
-      const v = delegateView(call, tab, tab ? live[tab.id] : undefined);
+      const taskId = parseOutput(call.output).result?.taskId;
+      const v = delegateView(
+        withDelegateResult(call, taskId ? results?.[taskId] : undefined),
+        tab,
+        tab ? live[tab.id] : undefined,
+      );
       agents.push({
         id: call.id,
         kind: 'delegate',

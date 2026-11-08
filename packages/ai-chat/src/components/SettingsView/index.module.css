@@ -268,8 +268,32 @@
 }
 .themes {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* 一行 5 个：默认只显示这一行，其余点「更多主题」展开（ThemeSettings THEMES_FIRST_ROW） */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--cd-space-2);
+}
+.themeMore {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.themeMore:hover {
+  background: var(--cd-chat-hover-overlay);
+  color: var(--cd-color-text);
+}
+.themeMore:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
 }
 @media (max-width: 1100px) {
   .themes {
@@ -495,6 +519,23 @@
   flex-direction: column;
   gap: var(--cd-space-4);
 }
+/*
+ * 通用页：速览与外观（主题一行 5 个）占满整行；下面左右两张卡：启动与窗口（含新手引导）| 桌面角色。
+ * 只有窗口很窄时退回一列
+ */
+.generalGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .generalGroups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.generalGroups > :nth-child(-n + 2) {
+  grid-column: 1 / -1;
+}
 
 .sizeRow {
   display: flex;
@@ -557,7 +598,7 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
-/* 宽分区（宽表格）：没有右侧说明栏，用满内容区 */
+/* 宽分区（宽表格）与没有说明栏的分区（通用、关于…）：用满内容区 */
 .mainColWide {
   max-width: none;
 }
@@ -673,4 +714,12 @@
   font-size: var(--cd-font-size-xs);
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* 调试页：一行按钮，换行排 */
+.debugButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cd-space-2);
 }

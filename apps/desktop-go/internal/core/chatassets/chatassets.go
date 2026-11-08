@@ -38,6 +38,13 @@ type Meta struct {
 	EditedFrom     string   `json:"editedFrom,omitempty"`
 	References     []string `json:"references,omitempty"`
 	ConversationID string   `json:"conversationId,omitempty"`
+	// Category：分类（catalog.go 的 Categories）；生成后自动分，用户可以改。CategoryBy = ai | rule | user
+	Category   string   `json:"category,omitempty"`
+	CategoryBy string   `json:"categoryBy,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
+	// Width / Height：读文件头得到的真实像素尺寸（第一次列出时补上）
+	Width  int `json:"width,omitempty"`
+	Height int `json:"height,omitempty"`
 }
 
 type Item struct {
@@ -52,6 +59,11 @@ type Item struct {
 	EditedFrom     string   `json:"editedFrom,omitempty"`
 	References     []string `json:"references,omitempty"`
 	ConversationID string   `json:"conversationId,omitempty"`
+	Category       string   `json:"category"`
+	CategoryBy     string   `json:"categoryBy,omitempty"`
+	Tags           []string `json:"tags"`
+	Width          int      `json:"width,omitempty"`
+	Height         int      `json:"height,omitempty"`
 }
 
 // GenerateReq：重新生成要的参数（沿用原图的提示词 / 模型 / 画幅 / 改图来源 / 参考图）
@@ -69,6 +81,9 @@ type Deps struct {
 	SaveFile func(defaultName string) string
 	// Generate：重新生成（主程序注入 igtools.ImageDeps.GenerateAsset），返回新图的文件名
 	Generate func(req GenerateReq) (string, error)
+	// Classify：按提示词给新生成的图分类（辅助模型；返回 Categories 之一，""/出错 = 用关键词规则）。
+	// 在后台 goroutine 里调用，可以慢
+	Classify func(prompt string) (string, error)
 }
 
 type Library struct {
@@ -129,6 +144,9 @@ func (l *Library) Record(file string, meta Meta) {
 	if len(meta.References) > 8 {
 		meta.References = meta.References[:8]
 	}
+	if meta.Category == "" {
+		meta.Category, meta.CategoryBy = ClassifyByKeywords(meta.Prompt), "rule"
+	}
 	l.mu.Lock()
 	m := l.readMeta()
 	m[file] = meta
@@ -136,6 +154,10 @@ func (l *Library) Record(file string, meta Meta) {
 	l.mu.Unlock()
 	if l.d.OnChanged != nil {
 		l.d.OnChanged()
+	}
+	// 有提示词的新图：后台让辅助模型再分一次（用户没手动改过时才覆盖）
+	if meta.Prompt != "" && meta.CategoryBy == "rule" && l.d.Classify != nil {
+		go l.classifyAsync(file, meta.Prompt)
 	}
 }
 
@@ -146,8 +168,9 @@ func (l *Library) List() []Item {
 		return []Item{}
 	}
 	l.mu.Lock()
+	defer l.mu.Unlock()
 	meta := l.readMeta()
-	l.mu.Unlock()
+	dirty := false
 	out := []Item{}
 	for _, e := range ents {
 		src := SourceOf(e.Name())
@@ -159,9 +182,30 @@ func (l *Library) List() []Item {
 			continue
 		}
 		mt := meta[e.Name()]
+		// 真实尺寸：读一次文件头，记进 assets.json
+		if mt.Width == 0 || mt.Height == 0 {
+			if w, h, ok := imageSize(filepath.Join(l.imagesDir(), e.Name())); ok {
+				mt.Width, mt.Height = w, h
+				meta[e.Name()] = mt
+				dirty = true
+			}
+		}
+		cat, by := mt.Category, mt.CategoryBy
+		if !isCategory(cat) {
+			// 以前的图没分过：按提示词的关键词显示（不写回，之后用户改了才记）
+			cat, by = ClassifyByKeywords(mt.Prompt), "rule"
+		}
+		tags := mt.Tags
+		if tags == nil {
+			tags = []string{}
+		}
 		out = append(out, Item{File: e.Name(), URL: "chat-asset://images/" + e.Name(), Source: src,
 			CreatedAt: createdAt(info), Bytes: info.Size(), Model: mt.Model, Prompt: mt.Prompt, Aspect: mt.Aspect,
-			EditedFrom: mt.EditedFrom, References: mt.References, ConversationID: mt.ConversationID})
+			EditedFrom: mt.EditedFrom, References: mt.References, ConversationID: mt.ConversationID,
+			Category: cat, CategoryBy: by, Tags: tags, Width: mt.Width, Height: mt.Height})
+	}
+	if dirty {
+		l.writeMeta(meta)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].CreatedAt != out[j].CreatedAt {
@@ -216,6 +260,9 @@ func (l *Library) Remove(files []string) []string {
 }
 
 // SetGenerate：主程序在生图依赖就绪后注入「重新生成」（素材库先于工具注册创建）
+// SetClassify：辅助模型分类（装配时设一次）
+func (l *Library) SetClassify(f func(prompt string) (string, error)) { l.d.Classify = f }
+
 func (l *Library) SetGenerate(f func(req GenerateReq) (string, error)) { l.d.Generate = f }
 
 // Regenerate：沿用原图记下的提示词 / 模型 / 画幅 / 改图来源 / 参考图再生成一张；返回新图

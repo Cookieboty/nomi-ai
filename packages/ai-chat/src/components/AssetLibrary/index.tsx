@@ -1,12 +1,13 @@
 /**
  * 素材库：所有生成的图片——Nomi 的生图、编程助手（如 Grok）生成后复制过来的——统一在这里管理。
  * 入口在侧栏会话列表上方（醒目的一行）；打开后在主区整页显示，替换对话区（侧栏保持，对话区只隐藏不卸载），
- * 点一张图在右侧看大图、提示词、模型，在文件夹中显示或删除（移到废纸篓）。
+ * 顶部按分类（插画 / 人物 / 风景 / 动物 / 其他，生成后自动分、可在查看器里改）、来源与搜索筛选，右边是已用空间；
+ * 瀑布流里信息收在图片里；点一张图在查看器里看大图、提示词、标签与素材信息，左右切换，在文件夹中显示或删除。
  * 在侧栏切到别的会话 / 标签、新建对话时自动回到对话（参考 feat/2.1.0-image-gen-p0 的 useMediaHost）。
  * 数据来自内核 media/AssetLibrary.ts（契约 chatAssets.*）；生成 / 删除后内核推 chatAssets.changed。
  */
-import { t } from '@nomi-ai/ui';
-import { Images } from 'lucide-react';
+import { Icon, Select, t } from '@nomi-ai/ui';
+import { Database, Images, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -15,7 +16,8 @@ import { api, hasTransport, hostAssetUrl } from '../../services/api';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
-import { fmtTime, ImageViewer, SourceBadge, sourceName, type AssetItem } from './ImageViewer';
+import { ASSET_CATEGORIES, CATEGORY_LABEL, formatBytes, type AssetCategory } from './categories';
+import { ImageViewer, SourceBadge, sourceName, type AssetItem } from './ImageViewer';
 import styles from './index.module.css';
 import { layoutMasonry, ratioOf } from './masonry';
 
@@ -59,10 +61,11 @@ export const AssetLibraryNav: React.FC<{
 
 /** 图片间距（px），与 --cd-space-3 一致 */
 const GAP = 12;
-/** 图下说明行的高度（px），与 --cd-control-h-sm 一致 */
-const CAPTION = 28;
 
-/** 瀑布流：每张图按真实分辨率的宽高比显示；加载前先用生成时记下的比例占位 */
+/**
+ * 瀑布流：每张图按真实分辨率的宽高比显示（内核读过文件头就直接用，没有时用加载后的、再没有用画幅占位）。
+ * 信息收在图片里：左上分类，底部渐变里是来源与分辨率（提示词在查看器里看）
+ */
 const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => void }> = ({
   items,
   onOpen,
@@ -79,11 +82,13 @@ const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => voi
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const sizeOf = (x: AssetItem) =>
+    x.width && x.height ? { w: x.width, h: x.height } : sizes[x.file];
   const ratios = items.map((x) => {
-    const s = sizes[x.file];
+    const s = sizeOf(x);
     return s ? s.w / s.h : (ratioOf(x.aspect) ?? 1);
   });
-  const layout = layoutMasonry(ratios, width, GAP, CAPTION);
+  const layout = layoutMasonry(ratios, width, GAP, 0);
   const onLoad = (file: string, img: HTMLImageElement) => {
     const { naturalWidth: w, naturalHeight: h } = img;
     if (w > 0 && h > 0 && (sizes[file]?.w !== w || sizes[file]?.h !== h))
@@ -98,7 +103,7 @@ const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => voi
     >
       {items.map((x, i) => {
         const pos = layout.items[i]!;
-        const size = sizes[x.file];
+        const size = sizeOf(x);
         const label = x.prompt ?? x.file;
         return (
           <button
@@ -107,7 +112,6 @@ const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => voi
             className={styles.tile}
             style={{ left: pos.left, top: pos.top, width: pos.width, height: pos.height }}
             onClick={() => onOpen(x)}
-            title={`${label}\n${fmtTime(x.createdAt)}`}
             aria-label={label}
             data-testid={`asset-${x.file}`}
           >
@@ -119,11 +123,16 @@ const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => voi
                 referrerPolicy="no-referrer"
                 onLoad={(e) => onLoad(x.file, e.currentTarget)}
               />
-            </span>
-            <span className={styles.tileMeta}>
-              <SourceBadge source={x.source} />
-              <span className={styles.res} data-testid="asset-resolution">
-                {size ? `${size.w} × ${size.h}` : (x.aspect ?? '')}
+              {x.category && (
+                <span className={styles.catChip}>{t(CATEGORY_LABEL[x.category])}</span>
+              )}
+              <span className={styles.overlay}>
+                <span className={styles.overlayMeta}>
+                  <SourceBadge source={x.source} />
+                  <span className={styles.res} data-testid="asset-resolution">
+                    {size ? `${size.w} × ${size.h}` : (x.aspect ?? '')}
+                  </span>
+                </span>
               </span>
             </span>
           </button>
@@ -132,6 +141,8 @@ const AssetMasonry: React.FC<{ items: AssetItem[]; onOpen: (x: AssetItem) => voi
     </div>
   );
 };
+
+type CategoryFilter = AssetCategory | 'all';
 
 /** 主区整页 */
 export const AssetLibraryPage: React.FC<{
@@ -143,7 +154,9 @@ export const AssetLibraryPage: React.FC<{
   focus?: { file: string; nonce: number } | null;
 }> = ({ active, onBack, onCompose, focus }) => {
   const { items, reload } = useAssets(active);
-  const [filter, setFilter] = useState<string | null>(null);
+  const [source, setSource] = useState<string>('all');
+  const [category, setCategory] = useState<CategoryFilter>('all');
+  const [query, setQuery] = useState('');
   const [current, setCurrent] = useState<AssetItem | null>(null);
   // 从搜索打开某张图：列表到了之后在查看器里打开它
   const [focusSeen, setFocusSeen] = useState<number | undefined>(undefined);
@@ -152,8 +165,28 @@ export const AssetLibraryPage: React.FC<{
     setFocusSeen(focus.nonce);
     setCurrent(focused);
   }
-  const sources = useMemo(() => [...new Set((items ?? []).map((x) => x.source))], [items]);
-  const shown = (items ?? []).filter((x) => filter === null || x.source === filter);
+  const all = useMemo(() => items ?? [], [items]);
+  const sources = useMemo(() => [...new Set(all.map((x) => x.source))], [all]);
+  // 来源与搜索先筛，分类标签上的数字按筛过的算
+  const base = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter(
+      (x) =>
+        (source === 'all' || x.source === source) &&
+        (!q ||
+          [x.prompt ?? '', x.file, x.model ?? '', ...(x.tags ?? [])]
+            .join('\n')
+            .toLowerCase()
+            .includes(q)),
+    );
+  }, [all, source, query]);
+  const counts = useMemo(() => {
+    const m = new Map<CategoryFilter, number>([['all', base.length]]);
+    for (const x of base) if (x.category) m.set(x.category, (m.get(x.category) ?? 0) + 1);
+    return m;
+  }, [base]);
+  const shown = category === 'all' ? base : base.filter((x) => x.category === category);
+  const usedBytes = useMemo(() => all.reduce((n, x) => n + (x.bytes || 0), 0), [all]);
   // 回对话：导航栏的「对话」，或者没开查看器时按 Esc
   useEffect(() => {
     if (!active || current) return;
@@ -170,34 +203,71 @@ export const AssetLibraryPage: React.FC<{
       data-testid="asset-library"
     >
       <header className={styles.pageHead}>
-        <h2 className={styles.pageTitle}>{t('ui.media.asset-library')}</h2>
-        {items && <span className={styles.pageCount}>{shown.length}</span>}
+        <span className={styles.headIcon} aria-hidden>
+          <Icon icon={Images} size={22} />
+        </span>
+        <div className={styles.headText}>
+          <h2 className={styles.pageTitle}>{t('ui.media.asset-library')}</h2>
+          <p className={styles.subtitle}>{t('ui.media.asset-library-subtitle')}</p>
+        </div>
+        <span className={styles.spacer} />
+        <label className={styles.search}>
+          <Icon icon={Search} size={15} />
+          <input
+            className={styles.searchInput}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('ui.media.search-assets')}
+            aria-label={t('ui.media.search-assets')}
+            data-testid="asset-search"
+          />
+        </label>
+        {sources.length > 1 && (
+          <Select
+            size="sm"
+            className={styles.sourceSelect}
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            aria-label={t('ui.usage-tools.filter-by-source')}
+            options={[
+              { value: 'all', label: t('ui.usage-tools.all-sources') },
+              ...sources.map((s) => ({ value: s, label: sourceName(s) })),
+            ]}
+            data-testid="asset-source-filter"
+          />
+        )}
       </header>
-      {sources.length > 1 && (
-        <div
-          className={styles.filters}
-          role="group"
-          aria-label={t('ui.usage-tools.filter-by-source')}
-        >
-          {[null, ...sources].map((s) => (
+      <div className={styles.toolbar}>
+        <div className={styles.chips} role="group" aria-label={t('ui.media.category')}>
+          {(['all', ...ASSET_CATEGORIES] as CategoryFilter[]).map((c) => (
             <button
-              key={s ?? '*'}
+              key={c}
               type="button"
               className={styles.chip}
-              aria-pressed={filter === s}
-              onClick={() => setFilter(s)}
-              data-testid={`asset-filter-${s ?? 'all'}`}
+              aria-pressed={category === c}
+              onClick={() => setCategory(c)}
+              data-testid={`asset-category-${c}`}
             >
-              {s === null ? t('ui.providers-schedule.all') : sourceName(s)}
+              {c === 'all' ? t('ui.providers-schedule.all') : t(CATEGORY_LABEL[c])}
+              <span className={styles.chipCount}>{counts.get(c) ?? 0}</span>
             </button>
           ))}
         </div>
-      )}
+        <span className={styles.spacer} />
+        {items && (
+          <span className={styles.usage} data-testid="asset-usage">
+            <Icon icon={Database} size={15} />
+            {t('ui.media.used-space')}
+            <strong className={styles.usageValue}>{formatBytes(usedBytes)}</strong>
+          </span>
+        )}
+      </div>
       <div className={styles.pageBody}>
         <div className={styles.gridWrap}>
           {items !== null && !shown.length ? (
             <p className={styles.empty} data-testid="asset-empty">
-              {t('ui.media.no-images-yet')}
+              {all.length ? t('ui.media.no-matching-images') : t('ui.media.no-images-yet')}
             </p>
           ) : (
             <AssetMasonry items={shown} onOpen={setCurrent} />
@@ -207,6 +277,12 @@ export const AssetLibraryPage: React.FC<{
       {current && (
         <ImageViewer
           item={current}
+          items={shown}
+          onNavigate={setCurrent}
+          onShowCategory={(c) => {
+            setCurrent(null);
+            setCategory(c);
+          }}
           onClose={() => setCurrent(null)}
           onChange={(next) => {
             setCurrent(next);

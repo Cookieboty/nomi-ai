@@ -28,6 +28,14 @@ type Host struct {
 	IsQuiet func() bool
 	// Warn 记录失败
 	Warn func(msg string, err error)
+	// ShowPending 确保岛窗口在，把等你处理的事整份交给页面（空列表 = 页面收起后发 hidden）
+	ShowPending func(list []Pending, labels Labels) error
+	// Resize 页面报来的岛高度（已按 ContentHeight 收好）换算成的窗口矩形 → 改窗口
+	Resize func(r WinRect)
+	// ActFailed 操作没成功（已经处理过、过期）：页面恢复按钮
+	ActFailed func(id string)
+	// Labels 列表头 / 更多 / 关闭的文案（跟界面语言）
+	Labels func() Labels
 }
 
 // SetHost 注入岛窗口能力；未注入时通知一律不显示
@@ -131,12 +139,14 @@ func (s *Service) pump() {
 }
 
 // Hidden：页面收起动画结束（document.title = 'hidden:…'）→ 隐藏窗口、显示下一条
+// 有等你处理的事时窗口留着（只是通知那一行收掉了）
 func (s *Service) Hidden() {
 	s.mu.Lock()
 	hide := s.host.Hide
 	s.showing = false
+	keep := len(s.pending) > 0
 	s.mu.Unlock()
-	if hide != nil {
+	if hide != nil && !keep {
 		hide()
 	}
 	go s.pump()

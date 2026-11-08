@@ -13,7 +13,13 @@ export type SettingsSection =
   | 'ext'
   | 'connections'
   | 'privacy'
-  | 'about';
+  | 'about'
+  /** 调试：只在开发版（pnpm dev）出现，看灵动岛的各种样式等（DebugSection） */
+  | 'debug';
+
+/** 开发版才有的分区（Vite 开发服务器提供视图时 import.meta.env.DEV 为 true；打包版里整段被去掉） */
+export const DEV_SECTIONS = import.meta.env.DEV && import.meta.env.MODE !== 'test';
+const DEV = DEV_SECTIONS;
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;
@@ -87,17 +93,27 @@ export const SETTINGS_SECTIONS: Array<{
     label: 'ui.chat-settings.about-section',
     intro: 'ui.chat-settings.about-section-intro',
   },
+  ...(DEV
+    ? [
+        {
+          id: 'debug' as const,
+          icon: SETTINGS_ICONS.debug,
+          label: 'ui.mascot-theme.island-debug-section',
+          intro: 'ui.mascot-theme.island-debug-section-intro',
+        },
+      ]
+    : []),
 ];
 
 /**
- * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展 / 关于。
+ * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展 / 关于（开发版下面多一个调试）。
  * 每个分区恰好出现一次，顺序与 SETTINGS_SECTIONS 一致。
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
   ['models', 'usage', 'coding'],
   ['knowledge', 'ext', 'connections', 'privacy'],
-  ['about'],
+  DEV ? ['about', 'debug'] : ['about'],
 ];
 
 /** 有标签页的分区：标签 id 与显示文案（文案作 i18n key，渲染时过 t()）。 */
@@ -107,12 +123,13 @@ export const SECTION_TABS = {
     { id: 'shortcuts', label: 'ui.chat-settings.shortcuts' },
     { id: 'voice', label: 'ui.chat-settings.voice' },
     { id: 'notify', label: 'ui.mascot-theme.notifications-island' },
-    { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
   nomi: [
-    { id: 'permissions', label: 'ui.chat-settings.permissions' },
-    { id: 'delegate', label: 'ui.chat-settings.handoff' },
+    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给编程助手怎么派）
+    { id: 'permissions', label: 'ui.chat-settings.permissions-and-handoff' },
     { id: 'tools', label: 'ui.chat-settings.desktop-permissions' },
+    // 归档的是 Nomi 对话：放在「Nomi」里（以前在「通用」）
+    { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
   models: [
     { id: 'providers', label: 'ui.models.third-party-providers' },

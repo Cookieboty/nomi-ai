@@ -40,6 +40,8 @@ type Kinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
 	Reminder bool `json:"reminder"`
+	// Approval：等你处理的事（HITL）在岛上列出并可以直接处理（pending.go）
+	Approval bool `json:"approval"`
 }
 
 type Settings struct {
@@ -71,7 +73,8 @@ func Sanitize(raw any, platform string) Settings {
 	return Settings{
 		Enabled: b(o["enabled"], platform == "darwin"),
 		Style:   style,
-		Kinds:   Kinds{Message: b(k["message"], true), Agent: b(k["agent"], true), Reminder: b(k["reminder"], true)},
+		Kinds: Kinds{Message: b(k["message"], true), Agent: b(k["agent"], true), Reminder: b(k["reminder"], true),
+			Approval: b(k["approval"], true)},
 	}
 }
 
@@ -84,6 +87,11 @@ type Service struct {
 	host    Host
 	queue   []Notice
 	showing bool
+	// 等你处理的事（pending.go）：最近一次的完整列表与处理它们的函数
+	pending  []Pending
+	raw      []Pending // 装配层推来的原样（开关打开时据此恢复）
+	debug    []Pending // 开发版调试页的样例（DebugPending）
+	resolver func(id, action string) error
 	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill
 	PrimaryDisplay func() (Display, bool)
 }
@@ -123,6 +131,11 @@ func (s *Service) Set(patch map[string]any) (Settings, error) {
 	if !st.Enabled {
 		s.destroyWindow()
 	}
+	// 开关变了：等你处理的事按新设置重新显示 / 收起
+	s.mu.Lock()
+	raw := s.raw
+	s.mu.Unlock()
+	s.SetPending(raw)
 	return st, err
 }
 

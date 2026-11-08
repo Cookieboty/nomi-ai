@@ -303,6 +303,22 @@ func (k *deskKit) beforeSend(ctx context.Context, p *tools.ToolCallProvider, pro
 		targets = append(targets, k.receiversOf(nil, []string{r})...)
 	}
 	targets = append(targets, k.receiversOf(p, []string{"chat", "agent-tools"})...)
+	return k.checkSend(ctx, targets)
+}
+
+// dataSendCheck：tools.CheckDataSend 的实现。recv 非 nil 只查它；否则只查 roles 路由到的模型
+func (k *deskKit) dataSendCheck(ctx context.Context, recv *tools.ToolCallProvider, roles ...string) error {
+	if recv != nil {
+		return k.checkSend(ctx, k.receiversOf(recv, nil))
+	}
+	var targets []*desktop.Provider
+	for _, r := range roles {
+		targets = append(targets, k.receiversOf(nil, []string{r})...)
+	}
+	return k.checkSend(ctx, targets)
+}
+
+func (k *deskKit) checkSend(ctx context.Context, targets []*desktop.Provider) error {
 	for _, t := range targets {
 		switch k.d.Broker.CheckSend(t, sig(ctx), "") {
 		case "local_only":
@@ -428,6 +444,10 @@ func DesktopTools(d DeskDeps) []tools.Definition {
 	k := &deskKit{d}
 	if k.d.Platform == "" {
 		k.d.Platform = desktop.Platform()
+	}
+	// 分页读长输出、工具循环摘要再交出本地数据前，按那一次的接收者重新检查（tools/datasend.go）
+	if d.Broker != nil {
+		tools.SetDataSendCheck(k.dataSendCheck)
 	}
 	out := k.baseTools()
 	// 补充的文件工具排在 fs_trash 前
@@ -655,7 +675,8 @@ func (k *deskKit) baseTools() []tools.Definition {
 					}
 					off := num0(i, "offset")
 					slice := u16slice(text, off, off+num0(i, "maxChars"))
-					k.markRead(ctx)
+					// 工作区与授权过的文件夹里的文件不算外部内容：读了之后改文件、委派不再因此每次都问
+					// （网页、MCP、剪贴板、命令输出、委派结果仍然算，见 docs/features/privacy-security.md）
 					meta := u.NewObj()
 					if r.Pages != nil {
 						meta.Set("pages", float64(*r.Pages))
@@ -690,7 +711,6 @@ func (k *deskKit) baseTools() []tools.Definition {
 					if err != nil {
 						return nil, "", err
 					}
-					k.markRead(ctx)
 					o := u.NewObj("path", g.Real, "summary", desktop.WrapUntrusted(g.Real, sum), "totalChars", float64(u.UTF16Len(r.Text)))
 					if r.Pages != nil {
 						o.Set("pages", float64(*r.Pages))

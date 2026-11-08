@@ -15,7 +15,11 @@ import {
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ThemeSettings } from '../src/components/SettingsView/ThemeSettings';
+import {
+  orderThemes,
+  ThemeSettings,
+  THEMES_FIRST_ROW,
+} from '../src/components/SettingsView/ThemeSettings';
 import { CHAT_BG_PRESET_URL, setChatBackground } from '../src/services/chatBackground';
 import { installShellBackends } from '../src/services/hostBackends/shell';
 
@@ -68,6 +72,10 @@ describe('themes', () => {
     applyTheme(DEFAULT_THEME);
     await setChatBackground({ imageUrl: CHAT_BG_PRESET_URL });
     const view = render(<ThemeSettings />);
+    // 默认一行 5 个，其余点「更多主题」展开
+    expect(view.getAllByRole('radio')).toHaveLength(5);
+    expect(view.getByTestId('theme-more').textContent).toContain('4');
+    fireEvent.click(view.getByTestId('theme-more'));
     expect(view.getAllByRole('radio')).toHaveLength(9);
     expect(
       (view.getByTestId('theme-system').firstElementChild as HTMLElement).style.backgroundImage,
@@ -97,6 +105,7 @@ describe('themes', () => {
     installShellBackends(api);
     try {
       const r = render(<ThemeSettings />);
+      fireEvent.click(r.getByTestId('theme-more'));
       fireEvent.click(r.getByTestId('theme-cream'));
       expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
       await waitFor(() => expect(set).toHaveBeenCalledWith({ pref: 'cream' }, expect.anything()));
@@ -111,5 +120,19 @@ describe('themes', () => {
       setLocaleBackend(null);
       close();
     }
+  });
+});
+
+describe('主题排序', () => {
+  it('跟随系统在最前；当前主题不在第一行时挪到第二个，在第一行时不动', () => {
+    const ids = (pref: Parameters<typeof orderThemes>[0]) => orderThemes(pref).map((x) => x.id);
+    const base = ids('light');
+    expect(base[0]).toBe('system');
+    expect(ids(base[2]!)).toEqual(base);
+    const far = base[base.length - 1]!;
+    const moved = ids(far);
+    expect(moved.slice(0, 2)).toEqual(['system', far]);
+    expect(moved.slice(0, THEMES_FIRST_ROW)).toContain(far);
+    expect([...moved].sort()).toEqual([...base].sort());
   });
 });

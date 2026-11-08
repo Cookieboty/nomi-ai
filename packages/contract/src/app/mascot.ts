@@ -244,6 +244,8 @@ const IslandKinds = z.object({
   message: z.boolean(),
   agent: z.boolean(),
   reminder: z.boolean(),
+  /** 等你处理的事（授权、批准、验收…）列在岛上，可以直接处理 */
+  approval: z.boolean(),
 });
 
 /** 灵动岛设置（写入后的值）—— electron `IslandSettings` */
@@ -259,6 +261,42 @@ export const IslandState = IslandSettings.extend({
   platform: z.string(),
 });
 
+const IslandDebugAction = z.object({
+  id: z.string(),
+  label: z.string(),
+  primary: z.boolean().optional(),
+  danger: z.boolean().optional(),
+});
+
+/** 灵动岛调试样例（island.debug，开发版） */
+export const IslandDebugInput = z.discriminatedUnion('op', [
+  z.object({
+    op: z.literal('notice'),
+    notice: z.object({
+      kind: z.enum(['message', 'agent', 'reminder', 'info']),
+      title: z.string(),
+      body: z.string().optional(),
+      status: z.enum(['running', 'done', 'failed', 'attention']).optional(),
+      endpoint: z.string().optional(),
+      durationMs: z.number().optional(),
+    }),
+  }),
+  z.object({
+    op: z.literal('pending'),
+    items: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        title: z.string(),
+        body: z.string().optional(),
+        endpoint: z.string().optional(),
+        actions: z.array(IslandDebugAction),
+      }),
+    ),
+  }),
+  z.object({ op: z.literal('clear') }),
+]);
+
 /** 灵动岛设置补丁 —— `Partial<IslandSettings>`（主进程 sanitizeIsland 再校验一遍） */
 export const IslandPatch = z.looseObject({
   enabled: z.boolean().optional(),
@@ -266,7 +304,10 @@ export const IslandPatch = z.looseObject({
   kinds: IslandKinds.partial().optional(),
 });
 
-/** 素材库里的一张生成图片（内核 media/AssetLibrary.ts） */
+/** 素材库的分类：插画 / 人物 / 风景 / 动物 / 其他（生成后自动分，用户可以改） */
+export const ChatAssetCategory = z.enum(['illustration', 'people', 'landscape', 'animal', 'other']);
+
+/** 素材库里的一张生成图片（内核 internal/core/chatassets） */
 export const ChatAssetItem = z.looseObject({
   /** 文件名（也是 id） */
   file: z.string(),
@@ -284,6 +325,14 @@ export const ChatAssetItem = z.looseObject({
   /** 参考图生成：参考了素材库里的哪几张 */
   references: z.array(z.string()).optional(),
   conversationId: z.string().optional(),
+  category: ChatAssetCategory,
+  /** 分类是谁定的：ai 辅助模型 / rule 提示词关键词 / user 用户改的 */
+  categoryBy: z.enum(['ai', 'rule', 'user']).optional(),
+  /** 用户加的标签（最多 12 个，每个最长 20 字） */
+  tags: z.array(z.string()),
+  /** 真实像素尺寸（读文件头；读不出时没有） */
+  width: z.number().optional(),
+  height: z.number().optional(),
 });
 
 /** 聊天主面板背景 —— types `ChatBackgroundState` */
@@ -470,6 +519,18 @@ export const mascotProcedures = {
     surfaces: CHAT,
     description: 'island:set',
   },
+  /**
+   * 开发版调试页（设置 → 调试）：在真的灵动岛上看各种样式。notice = 弹一条通知（不论开关与免打扰）；
+   * pending = 把样例放进「等你处理」（整份替换，点按钮只是拿掉样例）；clear = 清掉样例。
+   * 只在开发版（pnpm dev，设置了 NOMI_DEV_VIEWS）可用，打包版返回 FORBIDDEN。
+   */
+  'island.debug': {
+    kind: 'mutation',
+    input: IslandDebugInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+    description: 'island:debug — 开发版调试页的样例',
+  },
   'island.test': {
     kind: 'mutation',
     input: z.void(),
@@ -521,6 +582,18 @@ export const mascotProcedures = {
     output: ChatAssetItem,
     surfaces: CHAT,
     description: '素材库：用原图的提示词 / 模型 / 画幅 / 改图来源 / 参考图再生成一张，返回新图',
+  },
+  'chatAssets.update': {
+    kind: 'mutation',
+    input: z.object({
+      file: z.string(),
+      category: ChatAssetCategory.optional(),
+      tags: z.array(z.string().max(40)).max(30).optional(),
+    }),
+    output: ChatAssetItem,
+    surfaces: CHAT,
+    description:
+      '素材库：改一张图的分类 / 标签（标签由内核去重、截断到 12 个）；没有这个文件时 ASSET_NOT_FOUND',
   },
   'chatAssets.import': {
     kind: 'mutation',
@@ -705,6 +778,8 @@ export const mascotErrors = [
   'CHAT_BG_TOO_LARGE',
   /** 背景图格式不支持（types `CHAT_BG_ERROR.unsupported`） */
   'CHAT_BG_UNSUPPORTED',
+  /** chatAssets.update：素材库里没有这个文件 */
+  'ASSET_NOT_FOUND',
 ] as const satisfies readonly string[];
 
 export type MascotProcedureName = keyof typeof mascotProcedures & string;

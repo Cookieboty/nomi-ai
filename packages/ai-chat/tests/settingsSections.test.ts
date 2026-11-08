@@ -43,13 +43,14 @@ describe('设置分区：合并后的菜单', () => {
       'shortcuts',
       'voice',
       'notify',
-      'archived',
     ]);
     expect(SECTION_TABS.models.map((t) => t.id)).toEqual(['providers', 'local']);
     expect(SECTION_TABS.usage.map((t) => t.id)).toEqual(['cost', 'compare', 'trend', 'requests']);
     expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'schedule']);
     // 桌面权限从「隐私与权限」挪到「Nomi」（Nomi 自己的工具权限）
-    expect(SECTION_TABS.nomi.map((t) => t.id)).toEqual(['permissions', 'delegate', 'tools']);
+    // 已归档的对话从「通用」挪到「Nomi」（归档的是 Nomi 对话）
+    // 权限与委派合在「permissions」一个标签下
+    expect(SECTION_TABS.nomi.map((t) => t.id)).toEqual(['permissions', 'tools', 'archived']);
     expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'outbound', 'export']);
     expect(tabOf('usage', 'requests')).toBe('requests');
     expect(tabOf('knowledge', 'schedule')).toBe('schedule');

@@ -1,6 +1,6 @@
 /*
  * 任务看板：横向分列（宽屏时列平分铺满，窄屏横向滚动），列内纵向滚动。
- * 列是中性泳道；颜色只放在列头图标与「紧急」上。
+ * 列是中性泳道；颜色只放在列头色点、类型图标块（主题色）、重要程度与已结束卡片的左边线上。
  */
 .board {
   flex: 1;
@@ -15,13 +15,13 @@
   scrollbar-width: thin;
 }
 .column {
-  flex: 1 0 calc(var(--cd-space-8) * 7);
-  max-width: calc(var(--cd-space-8) * 11);
+  flex: 1 0 calc(var(--cd-space-8) * 8);
+  max-width: calc(var(--cd-space-8) * 12);
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* 白色卡片上的浅灰泳道：靠底色分列，不画边框（Codex 式） */
-  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-xl);
   background: var(--cd-panel-surface-sunken);
 }
 /* 空列收窄：只有一两个任务时，有任务的列都在屏内（不让「已结束」挤到屏外，用户以为任务丢了） */
@@ -33,27 +33,37 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  height: var(--cd-control-h-md);
-  padding: 0 var(--cd-space-3);
+  height: var(--cd-control-h-lg);
+  padding: 0 var(--cd-space-4);
+}
+.columnDot {
+  flex: none;
+  width: var(--cd-space-2);
+  height: var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-text-subtle);
+}
+.columnDot[data-column='in_progress'] {
+  background: var(--cd-color-accent);
+}
+.columnDot[data-column='needs_you'] {
+  background: var(--cd-color-warning);
+}
+.columnDot[data-column='done'] {
+  background: var(--cd-color-success);
 }
 .columnIcon {
   display: inline-flex;
   color: var(--cd-color-text-subtle);
 }
-.columnIcon[data-column='in_progress'],
 .columnIcon[data-column='high'] {
   color: var(--cd-color-warning);
 }
-.columnIcon[data-column='needs_you'],
 .columnIcon[data-column='urgent'] {
   color: var(--cd-color-danger);
 }
-.columnIcon[data-column='review'] {
-  color: var(--cd-color-success);
-}
-.columnIcon[data-column='done'],
 .columnIcon[data-column='medium'] {
-  color: var(--cd-color-info);
+  color: var(--cd-color-accent-strong);
 }
 .columnLabel {
   color: var(--cd-color-text);
@@ -62,16 +72,15 @@
 }
 .count {
   color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--cd-font-size-sm);
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 .cards {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 0 var(--cd-space-2) var(--cd-space-2);
+  padding: 0 var(--cd-space-3) var(--cd-space-3);
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -87,11 +96,15 @@
   font-size: var(--cd-font-size-xs);
 }
 
+/* 卡片：整张是按钮（打开详情），快捷操作按钮叠在右下角（不嵌套在按钮里） */
+.item {
+  position: relative;
+}
 .card {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-1-5);
+  gap: var(--cd-space-2);
   padding: var(--cd-space-3);
   border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
@@ -111,13 +124,57 @@
   outline-offset: 2px;
 }
 .card[aria-current='true'] {
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
   box-shadow: 0 0 0 1px var(--cd-color-accent);
 }
-/* 已结束的淡一点 */
-.card[data-stage='done'] .cardTitle,
-.card[data-stage='done'] .cardGoal {
+.card[data-stage='needs_you'] {
+  border-color: var(--cd-color-warning-border);
+}
+/* 已结束：紧凑一行，左侧一条 success；取消 / 失败的不带颜色 */
+.card[data-compact] {
+  gap: var(--cd-space-1-5);
+  border-left: 3px solid var(--cd-color-success);
+}
+.card[data-compact][data-status='cancelled'] {
+  border-left-color: var(--cd-color-border-strong);
+}
+.card[data-compact] .cardTitle {
   color: var(--cd-color-text-muted);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+.tile {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+}
+.cardTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.cardGoal {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
 }
 .cardMeta {
   display: flex;
@@ -134,45 +191,87 @@
   color: var(--cd-color-text-muted);
   line-height: var(--cd-line-height-sm);
 }
-.executor {
+.trigger {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cd-color-text-subtle);
 }
-.cardTitle {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+/* 进行中：一段流动的主题色，表示「在跑」（内核没有完成度，不画百分比） */
+.track {
+  position: relative;
+  height: var(--cd-space-1);
   overflow: hidden;
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-  line-height: var(--cd-line-height-sm);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-neutral-soft);
 }
-.cardGoal {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-  line-height: var(--cd-line-height-xs);
+.track::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--cd-color-accent), transparent);
 }
 .cardFoot {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
   min-width: 0;
-  margin-top: var(--cd-space-0-5);
+  min-height: var(--cd-control-h-sm);
+}
+/* 右下角留给快捷操作按钮 */
+.cardFoot[data-has-action] {
+  padding-right: calc(var(--cd-control-h-sm) + var(--cd-space-2));
+}
+.executor {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  max-width: 50%;
+  overflow: hidden;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  white-space: nowrap;
 }
 .cardStatus {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
+  text-align: right;
+}
+.ago {
+  flex: 1;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.pill {
+  flex: none;
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-success-soft);
+  color: var(--cd-color-success);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-sm);
+}
+.pill[data-status='cancelled'] {
+  background: var(--cd-color-neutral-soft);
+  color: var(--cd-color-text-muted);
+}
+.action {
+  position: absolute;
+  right: var(--cd-space-3);
+  bottom: var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
 }
 
 /* 重要程度：图标 + 字，只有「紧急」带底色 */
@@ -181,26 +280,31 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-neutral-soft);
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-medium);
+  line-height: var(--cd-line-height-sm);
 }
 .priority[data-quiet] {
+  padding: 0;
+  background: transparent;
   color: var(--cd-color-text-subtle);
   font-weight: var(--cd-font-weight-regular);
 }
 .priority[data-priority='urgent'] {
-  padding: 0 var(--cd-space-1-5);
-  border-radius: var(--cd-radius-sm);
   background: var(--cd-color-danger-soft);
   color: var(--cd-color-danger);
-  line-height: var(--cd-line-height-sm);
 }
 .priority[data-priority='high'] {
+  background: var(--cd-color-warning-soft);
   color: var(--cd-color-warning);
 }
 .priority[data-priority='medium'] {
-  color: var(--cd-color-info);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -208,5 +312,23 @@
     transition:
       border-color 0.12s ease,
       box-shadow 0.12s ease;
+  }
+  .track::after {
+    animation: flow 1.6s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track::after {
+    width: 100%;
+    background: var(--cd-color-accent);
+    opacity: 0.6;
+  }
+}
+@keyframes flow {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
   }
 }

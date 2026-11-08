@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -21,8 +22,21 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodepath"
 )
 
-// MaxParallelDelegates：同时处于 running 的委派上限（含 worktree / shared-cwd）
+// MaxParallelDelegates：同时处于 running 的委派上限的默认值（含 worktree / shared-cwd）
 const MaxParallelDelegates = 3
+
+// parallelLimit：调度策略改过的上限（SetMaxParallel，Agent 看板）；0 = 默认
+var parallelLimit atomic.Int32
+
+// SetMaxParallel：改同时运行的委派上限（<= 0 = 默认）；调大后由调用方 WakeSlots 放行排队的
+func SetMaxParallel(n int) { parallelLimit.Store(int32(max(0, n))) }
+
+func maxParallel() int {
+	if n := parallelLimit.Load(); n > 0 {
+		return int(n)
+	}
+	return MaxParallelDelegates
+}
 
 var pth = nodepath.Lib(nodepath.Platform())
 

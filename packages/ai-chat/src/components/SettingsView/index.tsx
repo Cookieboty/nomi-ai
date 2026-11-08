@@ -23,7 +23,6 @@ import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
-import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
@@ -38,6 +37,7 @@ import { PrivacySection } from './PrivacySection';
 import { SECTION_HELP } from './sectionHelp';
 import { SectionPage } from './SectionPage';
 import {
+  DEV_SECTIONS,
   SECTION_TABS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
@@ -51,6 +51,14 @@ import { ThemeSettings } from './ThemeSettings';
 import { VoiceSection } from './VoiceSection';
 
 export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+
+/**
+ * 调试页只在开发版：生产构建里 import.meta.env.DEV 是常量 false，这个动态 import 连同 DebugSection 整段被去掉；
+ * 就算分区被记成了 debug（开发时留下的），打包版也什么都不渲染
+ */
+const DebugSection = import.meta.env.DEV
+  ? React.lazy(() => import('./DebugSection').then((m) => ({ default: m.DebugSection })))
+  : null;
 
 /** 「模型」页懒加载 */
 const ModelsPage = React.lazy(() =>
@@ -115,7 +123,10 @@ export const SettingsView: React.FC<Props> = ({
   const noop = () => undefined;
   const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
   // 右侧「配置说明」：通用 / 关于没有
-  const help = section === 'general' || section === 'about' ? null : SECTION_HELP[section];
+  const help =
+    section === 'general' || section === 'about' || section === 'debug'
+      ? null
+      : SECTION_HELP[section];
   const body = (() => {
     switch (section) {
       case 'general': {
@@ -129,7 +140,7 @@ export const SettingsView: React.FC<Props> = ({
             onChange={(x) => setTab('general', x)}
           >
             {g === 'basics' && (
-              <div className={styles.groups}>
+              <div className={`${styles.groups} ${styles.generalGroups}`}>
                 <GeneralHero onOpenAbout={() => onSection('about')} />
                 <SettingsGroup
                   title={t('ui.chat-settings.appearance')}
@@ -151,37 +162,34 @@ export const SettingsView: React.FC<Props> = ({
                       <MascotRendererSettings disabled={!shown} />
                     </>
                   )}
-                />
-                <SettingsGroup
-                  title={t('ui.mascot-theme.getting-started-guide')}
-                  data-testid="settings-onboarding"
-                >
-                  <SettingRow
-                    title={t('ui.mascot-theme.getting-started-guide')}
-                    description={t(
-                      'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
-                    )}
-                  >
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      data-testid="settings-reopen-onboarding"
-                      onClick={() => {
-                        onClose();
-                        void onboardingClient.reopen();
-                      }}
+                  footer={
+                    <SettingRow
+                      data-testid="settings-onboarding"
+                      title={t('ui.mascot-theme.getting-started-guide')}
+                      description={t(
+                        'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
+                      )}
                     >
-                      {t('ui.chat-settings.reopen')}
-                    </Button>
-                  </SettingRow>
-                </SettingsGroup>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        data-testid="settings-reopen-onboarding"
+                        onClick={() => {
+                          onClose();
+                          void onboardingClient.reopen();
+                        }}
+                      >
+                        {t('ui.chat-settings.reopen')}
+                      </Button>
+                    </SettingRow>
+                  }
+                />
               </div>
             )}
             {g === 'shortcuts' && <ShortcutSettings />}
             {g === 'voice' && <VoiceSection />}
             {g === 'notify' && <IslandSettings />}
-            {g === 'archived' && <ArchivedChats />}
           </SectionPage>
         );
       }
@@ -252,6 +260,12 @@ export const SettingsView: React.FC<Props> = ({
         );
       case 'about':
         return <AboutSection />;
+      case 'debug':
+        return DEV_SECTIONS && DebugSection ? (
+          <Suspense fallback={null}>
+            <DebugSection />
+          </Suspense>
+        ) : null;
     }
   })();
 
@@ -358,7 +372,10 @@ export const SettingsView: React.FC<Props> = ({
           )}
           <div className={styles.columns}>
             <div
-              className={current.wide ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol}
+              // 宽分区、或没有右侧说明栏的分区（通用、关于…）：用满内容区，不在右边空出说明栏的位置
+              className={
+                current.wide || !help ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol
+              }
               data-testid="settings-main-col"
             >
               <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>

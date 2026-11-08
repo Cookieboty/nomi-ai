@@ -474,8 +474,13 @@ func UsageOf(u Json) Json {
 // TitleFromMessages：从消息里取会话标题。
 func TitleFromMessages(msgs []Json) *string {
 	for _, m := range msgs {
-		if m.Get("role") == "user" {
-			return CleanTitle(m.Get("content").(string), 80)
+		if m.Get("role") != "user" {
+			continue
+		}
+		if c, ok := m.Get("content").(string); ok {
+			if t := CleanTitle(c, 80); t != nil {
+				return t
+			}
 		}
 	}
 	return nil

@@ -105,6 +105,7 @@ describe('chatBackground', () => {
 
   it('settings UI only exposes global blur and opacity sliders', async () => {
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     expect(view.queryByTestId('chat-bg-pick')).toBeNull();
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getAllByRole('slider')).toHaveLength(2));
@@ -185,6 +186,7 @@ describe('chatBackground', () => {
     localStorage.setItem('cd.chatBackground', JSON.stringify(saved));
     const unsubscribe = initChatBackground();
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     const preview = view.getByTestId('theme-bg-preview');
     expect(preview.style.getPropertyValue('--cd-chat-bg-blur')).toBe('13px');
     expect(preview.style.getPropertyValue('--cd-chat-bg-opacity')).toBe('0.57');
@@ -231,6 +233,7 @@ describe('chatBackground', () => {
   it('image theme settings reset without leaving the selected theme', async () => {
     await setChatBackground({ imageUrl: 'chat-asset://images/a.png', blur: 12 });
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getByTestId('chat-bg-image-set')).toBeTruthy());
     fireEvent.click(view.getByTestId('chat-bg-reset'));
@@ -299,6 +302,7 @@ describe('chatBackground', () => {
         <ChatBackgroundLayer />
       </>,
     );
+    fireEvent.click(view.getByTestId('theme-more'));
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() =>
       expect(view.getByTestId('chat-bg-image-set').textContent).toContain('预设图片'),
@@ -328,6 +332,7 @@ describe('chatBackground', () => {
       .mockResolvedValueOnce({ ...DEFAULT_CHAT_BG, imageUrl: 'chat-asset://images/new.png' });
     stubChatBg({ pickImage });
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(pickImage).toHaveBeenCalledTimes(1));
     expect(currentTheme().pref).toBe(DEFAULT_THEME);
@@ -354,6 +359,7 @@ describe('chatBackground', () => {
     });
     applyTheme('image');
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     fireEvent.click(view.getByTestId('chat-bg-pick'));
     await waitFor(() =>
       expect(view.getByTestId('chat-bg-pick-error').textContent).toContain('15 MB'),
@@ -368,6 +374,7 @@ describe('chatBackground', () => {
       },
     });
     const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-more'));
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getByTestId('theme-image-error').textContent).toContain('PNG'));
     expect(currentTheme().pref).toBe(DEFAULT_THEME);

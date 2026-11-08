@@ -1,7 +1,7 @@
 /** 设置 → 通用 → 外观 → 主题：配色与图片主题，点选即时生效。 */
 import { Icon, SettingRow, t as tr } from '@nomi-ai/ui';
 import { THEMES, currentTheme, setTheme, type ThemePref, type ThemeState } from '@nomi-ai/ui';
-import { Check, Image } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -16,11 +16,24 @@ import {
 import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import styles from './index.module.css';
 
-/** 跟随系统放最前，其余按 THEMES 顺序 */
-const ORDERED = [
-  ...THEMES.filter((x) => x.id === 'system'),
-  ...THEMES.filter((x) => x.id !== 'system'),
-];
+/** 默认只显示一行（5 个），其余点「更多主题」展开 */
+export const THEMES_FIRST_ROW = 5;
+
+/**
+ * 排序：跟随系统放最前，其余按 THEMES 顺序；当前选的不在第一行（前 THEMES_FIRST_ROW 个）时挪到第二个，
+ * 这样收起时也看得到选中的是哪个。打开时定一次，点选时不重排（不让卡片在手下跳）
+ */
+export function orderThemes(pref: ThemePref) {
+  const base = [
+    ...THEMES.filter((x) => x.id === 'system'),
+    ...THEMES.filter((x) => x.id !== 'system'),
+  ];
+  const i = base.findIndex((x) => x.id === pref);
+  if (i < THEMES_FIRST_ROW) return base;
+  const [picked] = base.splice(i, 1);
+  base.splice(1, 0, picked!);
+  return base;
+}
 
 /** 当前主题的显示名（品牌卡速览也用） */
 export function themeLabel(cur: ThemeState): string {
@@ -72,6 +85,10 @@ export const ThemeSettings: React.FC = () => {
   useEffect(() => subscribeChatBackground(setBackground), []);
   const [pickError, setPickError] = useState<string | null>(null);
   const sel = THEMES.find((x) => x.id === cur.pref);
+  const [ordered] = useState(() => orderThemes(cur.pref));
+  const [expanded, setExpanded] = useState(false);
+  const hiddenCount = Math.max(0, ordered.length - THEMES_FIRST_ROW);
+  const shown = expanded ? ordered : ordered.slice(0, THEMES_FIRST_ROW);
   return (
     <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
       <SettingRow
@@ -90,8 +107,13 @@ export const ThemeSettings: React.FC = () => {
             : undefined
         }
       />
-      <div className={styles.themes} role="radiogroup" aria-label={tr('ui.chat-settings.theme')}>
-        {ORDERED.map((t) => {
+      <div
+        className={styles.themes}
+        role="radiogroup"
+        aria-label={tr('ui.chat-settings.theme')}
+        id="settings-theme-options"
+      >
+        {shown.map((t) => {
           const on = cur.pref === t.id;
           const sys = t.id === 'system';
           const image = t.id === 'image';
@@ -157,6 +179,21 @@ export const ThemeSettings: React.FC = () => {
           );
         })}
       </div>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className={styles.themeMore}
+          aria-expanded={expanded}
+          aria-controls="settings-theme-options"
+          onClick={() => setExpanded((v) => !v)}
+          data-testid="theme-more"
+        >
+          {expanded
+            ? tr('ui.knowledge-local.collapse')
+            : tr('ui.chat-settings.more-themes', String(hiddenCount))}
+          <Icon icon={expanded ? ChevronUp : ChevronDown} size={14} />
+        </button>
+      )}
       {pickError && cur.pref !== 'image' && (
         <div className={styles.warn} role="alert" data-testid="theme-image-error">
           {pickError}

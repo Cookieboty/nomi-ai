@@ -8,6 +8,8 @@ import React from 'react';
 import { DesktopPanel } from '../lazyPanels';
 import { DelegateSettings } from '../ProvidersPage/DelegateSettings';
 
+import { ArchivedChats } from './ArchivedChats';
+import styles from './index.module.css';
 import { NomiPermissionSettings } from './NomiPermissionSettings';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type NomiTab } from './sections';
@@ -25,8 +27,13 @@ export const NomiSection: React.FC<{ tab: NomiTab; onTab: (tab: NomiTab) => void
     value={tab}
     onChange={onTab}
   >
-    {tab === 'permissions' && <NomiPermissionSettings />}
-    {tab === 'delegate' && <DelegateSettings />}
+    {tab === 'permissions' && (
+      <div className={styles.groups}>
+        <NomiPermissionSettings />
+        <DelegateSettings />
+      </div>
+    )}
     {tab === 'tools' && <DesktopPanel key="desktop" isVisible onClose={noop} />}
+    {tab === 'archived' && <ArchivedChats />}
   </SectionPage>
 );

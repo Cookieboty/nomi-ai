@@ -34,27 +34,17 @@ afterEach(() => {
 });
 
 describe('Sidebar rows', () => {
-  it('puts the Nomi mark at the top of the rail as the toggle; the panel has the mode menu', () => {
-    const onToggle = vi.fn();
-    const props = { onToggle, onNewChat: () => undefined };
+  it('the rail starts with 对话 (no logo; the title bar has the sidebar toggle); the panel has the mode menu', () => {
+    const props = { onToggle: vi.fn(), onNewChat: () => undefined };
     const view = render(<Sidebar {...props} collapsed={false} />);
-    const rail = view.getByTestId('app-rail');
-    const toggle = view.getByTestId('sidebar-toggle');
-    expect(rail.firstElementChild).toBe(toggle);
-    expect(toggle.getAttribute('aria-label')).toBe('收起侧边栏');
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(view.queryByTestId('sidebar-toggle')).toBeNull();
+    expect(view.queryByTestId('sidebar-brand-mark')).toBeNull();
     expect(view.getByTestId('chat-mode-trigger').textContent).toContain('Nomi');
     expect(view.getByTestId('nav-chats').getAttribute('aria-current')).toBe('page');
-    fireEvent.click(view.getByTestId('sidebar-brand-mark'));
-    expect(onToggle).toHaveBeenCalledTimes(1);
 
     view.rerender(<Sidebar {...props} collapsed />);
     expect(view.queryByTestId('chat-mode-switch')).toBeNull();
     expect(view.getByTestId('nav-chats')).toBeTruthy();
-    expect(view.getByTestId('sidebar-toggle').getAttribute('aria-label')).toBe('展开侧边栏');
-    expect(view.getByTestId('sidebar-toggle').getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(view.getByTestId('sidebar-toggle'));
-    expect(onToggle).toHaveBeenCalledTimes(2);
   });
 
   it('collapsed: hovering 对话 on the rail floats the chat panel; leaving or Esc hides it', async () => {

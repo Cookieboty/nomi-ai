@@ -512,6 +512,11 @@ export const harnessClient = {
   gitDiscardUndo: (cwd: string, stashes: string[]) =>
     call<GitOpResult>(() => api.harness.gitDiscardUndo({ cwd, stashes })),
   /** 同一仓库的 worktree；列出来的目录之后也能传给上面这些接口 */
+  /**
+   * 在 cwd 打开终端（快捷键「在终端打开当前项目」）。不经 call()：调用方要按错误码区分
+   * TERMINAL_CWD_DENIED（目录不认）与 TERMINAL_NOT_FOUND（找不到终端）
+   */
+  openTerminal: (cwd: string) => api.harness.openTerminal({ cwd }),
   gitWorktrees: (cwd: string) =>
     call<GitWorktreeList | null>(() => api.harness.gitWorktrees({ cwd })),
   workspaceRead: (cwd: string, filePath: string) =>

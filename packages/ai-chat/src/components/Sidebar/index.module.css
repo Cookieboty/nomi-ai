@@ -30,6 +30,8 @@
   align-items: center;
   gap: 2px;
   width: 100%;
+  /* 第一个图标与右边面板顶行（.top，高 44）居中对齐：两边同样的上内边距，再让出 (44 − 图标高) / 2 */
+  margin-top: calc((44px - var(--cd-control-h-ms)) / 2);
 }
 .railSpacer {
   flex: 1;
@@ -114,11 +116,6 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
   white-space: nowrap;
-}
-/* 品牌标与设置页侧栏同一个（无底板）：N 跟随文字色，飘带与星光保持品牌色 */
-.brandMark {
-  flex: none;
-  color: var(--cd-color-text);
 }
 .brandWrap {
   display: inline-flex;

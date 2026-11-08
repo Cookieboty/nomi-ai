@@ -1,6 +1,7 @@
 package island
 
 import (
+	_ "embed"
 	"math"
 	"os"
 	"strings"
@@ -8,16 +9,26 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 灵动岛的几何常量
+// 灵动岛的几何常量：一条时是一个 64 高的胶囊（44 的图标块 + 行内上下 5 + 岛上下 5）；多条时列表往下长，
+// 最多显示 ListRows 行，再多的在列表里滚动
 const (
-	IslandPadY       = 11
-	IslandRowMin     = 36
-	NotchRowMin      = 18
+	IslandPadY       = 5
+	IslandRowMin     = 54
+	NotchRowMin      = 54
 	IslandRowMax     = 64
-	IslandRowDefault = 38
-	IslandGap        = 5
+	IslandRowDefault = 54
+	IslandGap        = 6
 	NotchWidth       = 196
+	IslandWidth      = 440
+	ListRows         = 4
+	// ListMax：列表区最高（4 行 × 52 + 3 个间隔）
+	ListMax = 4*52 + 3*6
+	// MaxContent：内容最高（列表模式多出的上下 6 + 列表头 + 列表 + 「还有 N 项」）
+	MaxContent = 12 + 28 + ListMax + 24
 )
+
+//go:embed island.html
+var islandPage string
 
 type Size struct {
 	Width  float64 `json:"width"`
@@ -91,7 +102,7 @@ func IslandGeometry(platform string, d Display, pref string) Geometry {
 		menuBar = math.Max(0, d.WorkArea.Y-d.Bounds.Y)
 	}
 	notch := pref == "auto" && HasNotch(platform, d)
-	g := Geometry{Mode: "pill", MenuBarHeight: menuBar, Width: math.Min(400, d.Bounds.Width-32)}
+	g := Geometry{Mode: "pill", MenuBarHeight: menuBar, Width: math.Min(IslandWidth, d.Bounds.Width-32)}
 	g.X = jsRound(d.Bounds.X + float64((d.Bounds.Width-g.Width)/2))
 	if notch {
 		g.Mode, g.Inset, g.Pad, g.RowMin = "notch", menuBar, NotchPad, NotchRowMin
@@ -100,20 +111,27 @@ func IslandGeometry(platform string, d Display, pref string) Geometry {
 	} else {
 		g.Pad, g.RowMin = Pad{IslandPadY, IslandPadY}, IslandRowMin
 		g.Y = d.WorkArea.Y + IslandGap
-		g.Collapsed = Size{132, 30}
+		g.Collapsed = Size{160, 36}
 		g.Margin = ShadowMargin
 	}
 	g.Height = IslandHeight(g, IslandRowDefault)
 	return g
 }
 
-// IslandHTML：灵动岛页面（生成的逐字模板 islandpage_tpl.go 替换数值哨兵）
+// ContentHeight：页面报来的岛高度（nomi:island:size）收进合理范围：不低于一条的高度，不高于列表的上限
+func ContentHeight(g Geometry, h float64) float64 {
+	if math.IsNaN(h) || math.IsInf(h, 0) {
+		return g.Height
+	}
+	return math.Min(g.Inset+g.Pad.Top+g.Pad.Bottom+MaxContent, math.Max(g.Height, math.Ceil(h)))
+}
+
+// IslandHTML：灵动岛页面（island.html，替换几何数值哨兵）
 func IslandHTML(g Geometry) string {
 	n := util.FormatNumber
 	return strings.NewReplacer(
-		"⟦base⟧", n(g.Inset+g.Pad.Top+g.Pad.Bottom),
-		"⟦width⟧", n(g.Width), "⟦height⟧", n(g.Height), "⟦cw⟧", n(g.Collapsed.Width), "⟦ch⟧", n(g.Collapsed.Height),
+		"⟦mode⟧", g.Mode, "⟦width⟧", n(g.Width), "⟦cw⟧", n(g.Collapsed.Width), "⟦ch⟧", n(g.Collapsed.Height),
 		"⟦inset⟧", n(g.Inset), "⟦padT⟧", n(g.Pad.Top), "⟦padB⟧", n(g.Pad.Bottom), "⟦mx⟧", n(g.Margin.X),
-		"⟦rowMin⟧", n(g.RowMin),
-	).Replace(islandPageTpl[g.Mode])
+		"⟦listMax⟧", n(ListMax), "⟦listRows⟧", n(ListRows),
+	).Replace(islandPage)
 }

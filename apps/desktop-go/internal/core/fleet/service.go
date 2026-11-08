@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"errors"
+	"fmt"
+	"io/fs"
 	"sync"
 	"time"
 
@@ -30,7 +32,8 @@ type Deps struct {
 	// TaskSummary：任务最近一次运行的结果摘要（GIL 外调用；只对最近做完的任务调）
 	TaskSummary func(taskID string) string
 	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
-	External func() ([]ExtSession, map[float64]string)
+	// External：外部会话、编程助手进程的工作目录（pid → 目录）、登记了会话的进程（pid → 会话 id）
+	External func() ([]ExtSession, map[float64]string, map[float64]string)
 	Emit     func(State) // fleet.changed
 	// Kill：给进程发信号（"SIGTERM" / "SIGKILL"）；只用于用户手动关闭空闲的外部进程（CloseIdle）
 	Kill func(pid int, signal string) error
@@ -43,7 +46,11 @@ type Deps struct {
 	Freeze      func(tabID string, pids []int, by string) bool
 	Thaw        func(tabID string) bool
 	ReclaimIdle func() []string
-	// SettingsPath：自动暂停开关存在这里（JSON）；空 = 不存盘
+	// SystemCPU：整机 CPU 的累计计数（agents.SystemCPU）；「全速」档按它放行。nil = 不看 CPU
+	SystemCPU func() (busy, total float64, ok bool)
+	// ApplyPolicy：调度策略交给执行方（持续任务运行时、委派的上限）；SetPolicy 与装配后的 ApplyPolicy 调
+	ApplyPolicy func(Policy)
+	// SettingsPath：自动暂停开关与调度策略存在这里（JSON）；空 = 不存盘
 	SettingsPath string
 	// GovernEvery：多久看一次内存压力；0 = GovernInterval
 	GovernEvery time.Duration
@@ -57,16 +64,27 @@ const CloseIdleGrace = 3 * time.Second
 // ErrNotIdle：要关的进程已经不是空闲的外部编程助手（退出了、开始跑会话了、pid 被别的程序复用了）
 var ErrNotIdle = errors.New("FLEET_NOT_IDLE")
 
+// ErrCloseDenied：没有权限结束它（Windows：以管理员身份运行的终端里开的）；ErrCloseFailed：其他原因结束不了
+var (
+	ErrCloseDenied = errors.New("FLEET_CLOSE_DENIED")
+	ErrCloseFailed = errors.New("FLEET_CLOSE_FAILED")
+)
+
 type Service struct {
 	d Deps
 
-	mu       sync.Mutex
-	cur      *agents.ProcTable
-	prev     *agents.ProcTable
+	mu   sync.Mutex
+	cur  *agents.ProcTable
+	prev *agents.ProcTable
+	// readMu：同一时间只读一次进程表（Windows 上要跑一次 PowerShell，几秒；看板 3 秒刷新时不叠着起好几个）
+	readMu sync.Mutex
+	// force：下次 sample 必须重新读（fresh）；读不到时仍用上一份，不把缓存清空
+	force    bool
 	archived map[string]int64
 	timer    *time.Timer
 	closed   bool
 	gov      govState
+	policy   string // 调度策略（policy.go）
 }
 
 func New(d Deps) *Service {
@@ -74,15 +92,30 @@ func New(d Deps) *Service {
 		d.Now = time.Now
 	}
 	s := &Service{d: d, archived: map[string]int64{}}
-	s.gov.auto = loadAutoPause(d.SettingsPath)
+	f := loadSettings(d.SettingsPath)
+	s.gov.auto = f.AutoPause == nil || *f.AutoPause
+	s.policy = PolicyOf(f.Policy).Mode
 	s.gov.thawedAt = map[string]time.Time{}
 	return s
 }
 
 // sample：取进程表（SampleTTL 内复用上一次）；返回本次与上一次
 func (s *Service) sample() (cur, prev *agents.ProcTable) {
+	fresh := func() bool {
+		return s.cur != nil && !s.force && s.d.Now().Sub(s.cur.At) < SampleTTL
+	}
 	s.mu.Lock()
-	if s.cur != nil && s.d.Now().Sub(s.cur.At) < SampleTTL {
+	if fresh() {
+		cur, prev = s.cur, s.prev
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	// 等别人读完时，那一份可能已经够新了
+	s.mu.Lock()
+	if fresh() {
 		cur, prev = s.cur, s.prev
 		s.mu.Unlock()
 		return
@@ -95,6 +128,7 @@ func (s *Service) sample() (cur, prev *agents.ProcTable) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if t != nil {
+		s.force = false
 		if s.cur == nil || t.At.After(s.cur.At) {
 			s.prev, s.cur = s.cur, t
 		}
@@ -117,9 +151,9 @@ func (s *Service) State() State {
 		chats = s.d.Chats()
 	}
 	var ext []ExtSession
-	var extCwd map[float64]string
+	var extCwd, extSess map[float64]string
 	if s.d.External != nil {
-		ext, extCwd = s.d.External()
+		ext, extCwd, extSess = s.d.External()
 	}
 	cur, prev := s.sample()
 	now := s.d.Now().UnixMilli()
@@ -159,11 +193,14 @@ func (s *Service) State() State {
 			}
 		}
 	}
+	hold := s.HoldReason()
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: s.Holding()})
+		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}
+	st.Policy = PolicyOf(s.policy)
+	st.PolicyOptions = Policies
 	s.mu.Unlock()
 	return st
 }
@@ -202,11 +239,11 @@ func (s *Service) Archive(id string) State {
 }
 
 // fresh：丢掉采样缓存，下一次 State 重新读进程表
+// 读不到新的（Windows 上 PowerShell 超时等）时仍用上一份：关闭时照样能核对 pid 与命令行，不会因为一次读失败就
+// 当成「已经不是空闲进程」
 func (s *Service) fresh() {
 	s.mu.Lock()
-	if s.cur != nil {
-		s.prev, s.cur = s.cur, nil
-	}
+	s.force = true
 	s.mu.Unlock()
 }
 
@@ -240,8 +277,20 @@ func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 			cmds[p] = rp.Cmd
 		}
 	}
+	var rootErr error
 	for i := len(tree) - 1; i >= 0; i-- {
-		_ = s.d.Kill(int(tree[i]), "SIGTERM")
+		if err := s.d.Kill(int(tree[i]), "SIGTERM"); err != nil && tree[i] == pid {
+			rootErr = err
+		}
+	}
+	// 根进程都结束不了（Windows 上多半是它以管理员身份运行，Nomi 没有权限）：直接告诉用户，不再补刀
+	if rootErr != nil {
+		s.fresh()
+		st := s.State()
+		if errors.Is(rootErr, fs.ErrPermission) {
+			return st, fmt.Errorf("%w: %v", ErrCloseDenied, rootErr)
+		}
+		return st, fmt.Errorf("%w: %v", ErrCloseFailed, rootErr)
 	}
 	grace := s.d.KillGrace
 	if grace == 0 {

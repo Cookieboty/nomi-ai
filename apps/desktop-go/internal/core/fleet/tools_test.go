@@ -35,7 +35,9 @@ func TestToolsListPauseResume(t *testing.T) {
 	s, h := newGov(t, t.TempDir())
 	in := baseInput()
 	s.d.Tasks = func() []tasks.Task { return in.Tasks }
-	s.d.External = func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd }
+	s.d.External = func() ([]ExtSession, map[float64]string, map[float64]string) {
+		return in.External, in.ExtCwd, in.ExtSession
+	}
 
 	view := run(t, toolByName(t, s, "list_agents"), util.NewObj())
 	if view["system"].(map[string]any)["pressure"] != "normal" || view["autoPause"] != true {

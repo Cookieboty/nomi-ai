@@ -22,6 +22,7 @@ import {
   AgentWatchSettings,
   AgentWatchSettingsPatch,
   AgentWatchState,
+  FleetPolicyMode,
   FleetState,
   ApprovePlanChoice,
   BackendModelCatalog,
@@ -349,6 +350,16 @@ const harnessProcedures = {
    * 回答沙箱挡下后挂在标签上的授权请求（标签状态的 sandboxPending）：session = 本会话允许、
    * always = 始终允许（记进桌面设置）、deny = 不允许（本会话不再问）；允许后这个标签的 CLI 重开并接着做
    */
+  /**
+   * 在 cwd 打开一个新的终端窗口（会话里的「在终端打开当前项目」快捷键）。cwd 由视图带来，内核按编程助手工作目录
+   * 同一套规则再校验（不能过宽、不能在受保护文件夹里），不认时 TERMINAL_CWD_DENIED；本机找不到终端程序时
+   * TERMINAL_NOT_FOUND。只启动终端，不在里面执行任何命令
+   */
+  'harness.openTerminal': {
+    kind: 'mutation',
+    input: z.object({ cwd: z.string() }),
+    output: z.boolean(),
+  },
   'harness.sandboxReply': {
     kind: 'mutation',
     dangerous: true,
@@ -518,7 +529,8 @@ const fleetProcedures = {
   },
   /**
    * 用户手动关闭一棵空闲的外部编程助手进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
-   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE。调度从不调用。
+   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE，没有权限结束时
+   * FLEET_CLOSE_DENIED，其他原因结束不了时 FLEET_CLOSE_FAILED。调度从不调用。
    */
   'fleet.closeIdle': {
     kind: 'mutation',
@@ -544,6 +556,13 @@ const fleetProcedures = {
   'fleet.setAutoPause': {
     kind: 'mutation',
     input: z.object({ enabled: z.boolean() }),
+    output: FleetState,
+    dangerous: true,
+  },
+  /** 换调度策略（存盘，立即生效：调大后排队的马上开始，调小后正在跑的不打断，新的排队） */
+  'fleet.setPolicy': {
+    kind: 'mutation',
+    input: z.object({ mode: FleetPolicyMode }),
     output: FleetState,
     dangerous: true,
   },
@@ -618,6 +637,14 @@ export const codingErrors = [
   'ACCOUNT_UNKNOWN_LIVE',
   /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
   'FLEET_NOT_IDLE',
+  /** harness.openTerminal：目录不符合工作目录规则（过宽、受保护、不存在） */
+  'TERMINAL_CWD_DENIED',
+  /** harness.openTerminal：本机找不到能打开的终端程序 */
+  'TERMINAL_NOT_FOUND',
+  /** fleet.closeIdle：没有权限结束它（Windows 上多半是在以管理员身份运行的终端里开的） */
+  'FLEET_CLOSE_DENIED',
+  /** fleet.closeIdle：其他原因结束不了（message 里是系统给的原因） */
+  'FLEET_CLOSE_FAILED',
   /** fleet.pause / resume：不能暂停或恢复（外部的、内核里跑的、没在跑、或已经是这个状态） */
   'FLEET_NOT_PAUSABLE',
 ] as const satisfies readonly string[];

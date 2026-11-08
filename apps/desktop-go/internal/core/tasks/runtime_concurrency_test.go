@@ -114,3 +114,34 @@ func TestRuntimeConcurrentReports(t *testing.T) {
 		rt.Tick()
 	}
 }
+
+// 调度策略的上限是持续任务与同步委派合计：委派那边占着的名额也算进来
+func TestRuntimeSharedLoad(t *testing.T) {
+	ex := &fakeExec{reporters: map[string]Reporter{}, prepErr: map[string]TaskError{}}
+	rt := newTestRuntime(ex) // 上限 2
+	var other atomic.Int32
+	other.Store(1)
+	rt.SetSharedLoad(func() int { return int(other.Load()) })
+	rt.Start()
+	for i := 0; i < 3; i++ {
+		id := rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}).ID
+		rt.Command(id, Command{Type: "runNow"})
+	}
+	running := func() int {
+		n := 0
+		for _, task := range rt.List() {
+			if task.Status == StatusRunning {
+				n++
+			}
+		}
+		return n
+	}
+	if running() != 1 || rt.Load() != 1 {
+		t.Fatalf("with one delegate running only 1 task may start, got %d (load %d)", running(), rt.Load())
+	}
+	other.Store(0)
+	rt.Tick()
+	if running() != 2 || rt.Load() != 2 {
+		t.Fatalf("after the delegate finished 2 tasks run, got %d (load %d)", running(), rt.Load())
+	}
+}

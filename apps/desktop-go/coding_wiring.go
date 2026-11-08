@@ -186,6 +186,16 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		gatewaySession = gw.ServedSession
 	}
 	dlg := delegate.New(dd)
+	delegateSvc.Store(dlg)
+	// 调度策略的上限是同步委派与持续任务（含后台委派）合计：两边判断时都把对方在跑的算进来，
+	// 一边空出名额就让另一边再排一次队
+	if taskSvc != nil {
+		rt := taskSvc.Runtime
+		dlg.SetSharedLoad(rt.Load)
+		rt.SetSharedLoad(dlg.Load)
+		dlg.SetOnFreed(rt.Tick)
+		rt.SetOnFreed(dlg.WakeSlots)
+	}
 	// 委派之后在子任务里接着跑的轮次（用户对话、沙箱授权后继续）也回报到来源对话
 	if harnessOrch != nil {
 		jsrt.Run(func() {
