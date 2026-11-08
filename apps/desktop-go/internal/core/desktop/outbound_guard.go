@@ -18,29 +18,47 @@ type OutboundCheck func(what string) SendVerdict
 var (
 	reFileBody  = regexp.MustCompile(`<attached-file (name="[^"]*"(?: path="[^"]*")?)>\n[\s\S]*?\n</attached-file>`)
 	reCliOutput = regexp.MustCompile(`<cli-output>[\s\S]*?</cli-output>`)
-	// 本地文件工具（fs_read_text / fs_summarize）结果里的文件正文（WrapUntrusted）；没闭合（被截断）时挡到结尾
-	reToolFile = regexp.MustCompile(`<file_content\b([^\n>]*)>?([\s\S]*?)(?:</file_content>|$)`)
+	// 本地数据工具结果里的正文：fs_read_text / fs_summarize 的文件（WrapUntrusted）、workspace_run / code_run 的
+	// 命令输出（WrapCommandOutput）、browser_read 的网页（WrapWeb）。调用时都按当时的接收者做过 beforeSend，
+	// 回放给别的接收者时要重新判断；没闭合（被截断）时挡到结尾。RE2 没有反向引用，一种标签一条
+	reToolData = []*regexp.Regexp{
+		toolDataRe("file_content"),
+		toolDataRe("command_output"),
+		toolDataRe("web_content"),
+	}
 )
+
+func toolDataRe(tag string) *regexp.Regexp {
+	return regexp.MustCompile(`<` + tag + `\b([^\n>]*)>?([\s\S]*?)(?:</` + tag + `>|$)`)
+}
+
+var toolDataTags = []string{"<file_content", "<command_output", "<web_content"}
 
 const withheld = `(Content withheld: shown only on this device. Per the "only local models can read files" setting or the user's choice, it was not sent to the current model.)`
 
 const withheldBody = "\n" + withheld + "\n"
 
-// hasToolFile：有没有还没换成占位的 <file_content> 正文（只剩占位的不再问接收者）
-func hasToolFile(s string) bool {
-	for _, m := range reToolFile.FindAllStringSubmatch(s, -1) {
-		if m[2] != withheldBody {
-			return true
+// hasToolData：有没有还没换成占位的工具正文（只剩占位的不再问接收者）
+func hasToolData(s string) bool {
+	for _, re := range reToolData {
+		for _, m := range re.FindAllStringSubmatch(s, -1) {
+			if m[2] != withheldBody {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func withholdToolFile(s string) string {
-	return reToolFile.ReplaceAllStringFunc(s, func(m string) string {
-		g := reToolFile.FindStringSubmatch(m)
-		return "<file_content" + g[1] + ">" + withheldBody + "</file_content>"
-	})
+func withholdToolData(s string) string {
+	for i, re := range reToolData {
+		tag := toolDataTags[i][1:]
+		s = re.ReplaceAllStringFunc(s, func(m string) string {
+			g := re.FindStringSubmatch(m)
+			return "<" + tag + g[1] + ">" + withheldBody + "</" + tag + ">"
+		})
+	}
+	return s
 }
 
 // GuardOutboundMessages 原地改写 messages（[]map[string]any，content 为字符串的才处理）
@@ -106,13 +124,13 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 			if reCliOutput.MatchString(content) && verdict(cliWhat) != "" {
 				content = reCliOutput.ReplaceAllLiteralString(content, "<cli-output>\n"+withheld+"\n</cli-output>")
 			}
-			// 之前用本地模型读的文件，会话换到云端模型后按本轮接收者重新判断（同一请求和附件共用一次确认）
-			if hasToolFile(content) && verdict(fileWhat) != "" {
-				content = withholdToolFile(content)
+			// 之前用本地模型读的文件 / 跑的命令 / 读的网页，会话换到云端模型后按本轮接收者重新判断（同一请求和附件共用一次确认）
+			if hasToolData(content) && verdict(fileWhat) != "" {
+				content = withholdToolData(content)
 			}
 			return content
 		}
-		// 上一轮的工具记录（工具结果里也可能有附件正文 / 编程助手输出 / 读过的文件）：同样处理，没改动时原样保留
+		// 上一轮的工具记录（工具结果里也可能有附件正文 / 编程助手输出 / 读过的文件、命令输出、网页）：同样处理，没改动时原样保留
 		if steps, ok := m["steps"].(string); ok && steps != "" {
 			m["steps"] = scrubSteps(steps, scrub)
 		}
@@ -127,7 +145,7 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 
 // scrubSteps：对工具记录里的每个字符串套用 scrub；有改动才重新序列化（键序不变），解析不了时原样返回
 func scrubSteps(steps string, scrub func(string) string) string {
-	if !strings.Contains(steps, "<attached-file ") && !strings.Contains(steps, "<cli-output>") && !strings.Contains(steps, "<file_content") {
+	if !strings.Contains(steps, "<attached-file ") && !strings.Contains(steps, "<cli-output>") && !containsAny(steps, toolDataTags) {
 		return steps
 	}
 	v, err := util.ParseString(steps)
@@ -159,6 +177,15 @@ func scrubSteps(steps string, scrub func(string) string) string {
 		return steps
 	}
 	return util.Stringify(v)
+}
+
+func containsAny(s string, subs []string) bool {
+	for _, x := range subs {
+		if strings.Contains(s, x) {
+			return true
+		}
+	}
+	return false
 }
 
 // IslandNotice：灵动岛通知

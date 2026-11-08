@@ -239,3 +239,36 @@ func TestPrepareChatFileContentLocalReceiver(t *testing.T) {
 		t.Fatalf("local receiver asked: %d", n)
 	}
 }
+
+// workspace_run / code_run 的命令输出（可能是 cat 出来的文件）、browser_read 的网页：调用时同样过了 beforeSend，
+// 回放给不允许的接收者时一样挡下；放行时字节不变
+func TestGuardOutboundWithholdsCommandAndWebOutput(t *testing.T) {
+	cmd := "<command_output trust=\"untrusted\">\n" + fileSecret + "\n</command_output>"
+	web := "<web_content url=\"https://intranet.example/doc\" trust=\"untrusted\">\n" + fileSecret + "-web\n</web_content>\n（以上是网页内容）"
+	for _, body := range []string{cmd, web} {
+		steps := fileSteps(body)
+		msgs := fileHistory(steps)
+		asked := 0
+		if err := GuardOutboundMessages(msgs, func(string) SendVerdict { asked++; return "local_only" }); err != nil {
+			t.Fatal(err)
+		}
+		got := stepsOf(msgs)
+		if strings.Contains(got, fileSecret) || !strings.Contains(got, "Content withheld") || asked != 1 {
+			t.Fatalf("tool output not withheld (asked %d): %s", asked, got)
+		}
+		// 再过一遍：只剩占位，不再问
+		again := 0
+		_ = GuardOutboundMessages([]any{map[string]any{"role": "assistant", "content": "a", "steps": got},
+			map[string]any{"role": "user", "content": "n"}}, func(string) SendVerdict { again++; return "local_only" })
+		if again != 0 {
+			t.Fatalf("placeholder-only record asked again")
+		}
+		allowed := fileHistory(steps)
+		if err := GuardOutboundMessages(allowed, func(string) SendVerdict { return "" }); err != nil {
+			t.Fatal(err)
+		}
+		if stepsOf(allowed) != steps {
+			t.Fatal("allowed steps must stay byte-identical")
+		}
+	}
+}

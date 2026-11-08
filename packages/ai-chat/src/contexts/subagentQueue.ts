@@ -2,6 +2,7 @@
  * 子任务面板的待发消息（#281）：按子任务标签 id 分区，放在面板外，切换 / 关掉面板都不串、不丢。
  * - 每条带目标标签与代次（标签关掉后再出现同 id 也不认旧的）；入队、插话返回、发送结果、出错恢复都先核对身份；
  * - 插话（steer）返回前占着位置，返回 false / 出错只回到原标签的队列，true 就此结束、不再发送；
+ *   前面还有没送达的就不插话、排在后面，消息按发送顺序到达；
  * - 每个标签同一时间只发一条：等 sendTab 结束再发下一条；没被接收的留在队首、队列暂停（不自动重试），
  *   用户再发一条或这个标签跑完一轮后接着发；被接收后才失败的（消息已进历史）不重发。
  * 面板只是展示当前标签的那一份。
@@ -173,12 +174,15 @@ export function createSubagentQueue(deps: SubagentQueueDeps): SubagentQueue {
       s.error = null;
       // 用户又发了一条：之前没发出去的跟着按顺序重试
       if (s.paused) resume(s);
+      // 前面还有没送达的（在插话 / 排队 / 失败待重试）：跟在后面排队，不抢先插话，保证按发送顺序到达；
+      // 正在发的那条已经进了这一轮，可以插话进去
+      const behind = s.items.some((i) => i.state !== 'sending');
       const item: SubagentQueueItem = {
         id: `sq-${++seq}`,
         tabId,
         gen: s.gen,
         text,
-        state: running.get(tabId) ? 'steering' : 'queued',
+        state: running.get(tabId) && !behind ? 'steering' : 'queued',
       };
       s.items = [...s.items, item];
       refresh(s);

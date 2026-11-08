@@ -259,6 +259,39 @@ describe('createSubagentQueue', () => {
   };
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
+  it('while an earlier message is still undelivered, a later one queues behind it instead of steering ahead', async () => {
+    const steered: string[] = [];
+    const sent: string[] = [];
+    const first = deferred();
+    const q = createSubagentQueue({
+      send: async (_id, text) => {
+        sent.push(text);
+      },
+      steer: async (_id, text) => {
+        steered.push(text);
+        if (text === 'one') {
+          await first.promise;
+          return false;
+        }
+        return true;
+      },
+      accepted: async () => false,
+    });
+    q.sync([{ id: 'A', status: 'running' }]);
+    q.setDraft('A', 'one');
+    const p1 = q.submit('A');
+    q.setDraft('A', 'two');
+    await q.submit('A');
+    expect(steered).toEqual(['one']);
+    first.resolve();
+    await p1;
+    expect(q.view('A').queued).toEqual(['one', 'two']);
+    q.sync([{ id: 'A', status: 'idle' }]);
+    await flush();
+    await flush();
+    expect(sent).toEqual(['one', 'two']);
+  });
+
   it('a rejected send that never reached the tab stays at the head and is retried later', async () => {
     const turns: ReturnType<typeof deferred>[] = [];
     const send = vi.fn(() => {
