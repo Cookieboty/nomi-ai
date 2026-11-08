@@ -200,7 +200,7 @@
   "ui.cli-monitor.archive-chat": "Archive",
   "ui.cli-monitor.delete-permanently": "Delete permanently",
   "ui.cli-monitor.delete-chat-permanently-confirm": "Delete “{0}” permanently? This can’t be undone. To just hide it from the sidebar, archive it instead.",
-  "ui.cli-monitor.chat-archived": "Archived “{0}”. Find it in Settings → General → Archived chats",
+  "ui.cli-monitor.chat-archived": "Archived “{0}”. Find it in Settings → Nomi → Archived chats",
   "ui.cli-monitor.search-workspaces": "Search workspaces",
   "ui.cli-monitor.organize-sidebar": "Organize sidebar",
   "ui.cli-monitor.merged-list": "Single list",

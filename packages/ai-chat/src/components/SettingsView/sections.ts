@@ -123,12 +123,13 @@ export const SECTION_TABS = {
     { id: 'shortcuts', label: 'ui.chat-settings.shortcuts' },
     { id: 'voice', label: 'ui.chat-settings.voice' },
     { id: 'notify', label: 'ui.mascot-theme.notifications-island' },
-    { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
   nomi: [
-    { id: 'permissions', label: 'ui.chat-settings.permissions' },
-    { id: 'delegate', label: 'ui.chat-settings.handoff' },
+    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给编程助手怎么派）
+    { id: 'permissions', label: 'ui.chat-settings.permissions-and-handoff' },
     { id: 'tools', label: 'ui.chat-settings.desktop-permissions' },
+    // 归档的是 Nomi 对话：放在「Nomi」里（以前在「通用」）
+    { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
   models: [
     { id: 'providers', label: 'ui.models.third-party-providers' },

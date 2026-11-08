@@ -23,7 +23,6 @@ import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
-import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
@@ -141,7 +140,7 @@ export const SettingsView: React.FC<Props> = ({
             onChange={(x) => setTab('general', x)}
           >
             {g === 'basics' && (
-              <div className={styles.groups}>
+              <div className={`${styles.groups} ${styles.generalGroups}`}>
                 <GeneralHero onOpenAbout={() => onSection('about')} />
                 <SettingsGroup
                   title={t('ui.chat-settings.appearance')}
@@ -163,37 +162,34 @@ export const SettingsView: React.FC<Props> = ({
                       <MascotRendererSettings disabled={!shown} />
                     </>
                   )}
-                />
-                <SettingsGroup
-                  title={t('ui.mascot-theme.getting-started-guide')}
-                  data-testid="settings-onboarding"
-                >
-                  <SettingRow
-                    title={t('ui.mascot-theme.getting-started-guide')}
-                    description={t(
-                      'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
-                    )}
-                  >
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      data-testid="settings-reopen-onboarding"
-                      onClick={() => {
-                        onClose();
-                        void onboardingClient.reopen();
-                      }}
+                  footer={
+                    <SettingRow
+                      data-testid="settings-onboarding"
+                      title={t('ui.mascot-theme.getting-started-guide')}
+                      description={t(
+                        'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
+                      )}
                     >
-                      {t('ui.chat-settings.reopen')}
-                    </Button>
-                  </SettingRow>
-                </SettingsGroup>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        data-testid="settings-reopen-onboarding"
+                        onClick={() => {
+                          onClose();
+                          void onboardingClient.reopen();
+                        }}
+                      >
+                        {t('ui.chat-settings.reopen')}
+                      </Button>
+                    </SettingRow>
+                  }
+                />
               </div>
             )}
             {g === 'shortcuts' && <ShortcutSettings />}
             {g === 'voice' && <VoiceSection />}
             {g === 'notify' && <IslandSettings />}
-            {g === 'archived' && <ArchivedChats />}
           </SectionPage>
         );
       }

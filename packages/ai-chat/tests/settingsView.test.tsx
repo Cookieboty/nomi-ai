@@ -102,11 +102,15 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-nomi-tab-tools').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('Nomi：默认「权限」，还有「委派」「工具权限」标签', () => {
+  it('Nomi：默认「权限与委派」（两组在一个标签下），还有「桌面权限」「已归档的对话」', () => {
     const r = render(<Harness onClose={() => undefined} start="nomi" />);
     const page = 'settings-nomi';
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('permissions');
-    expect([...tabs(r, page)].map((x) => x.textContent)).toEqual(['权限', '委派', '桌面权限']);
+    expect([...tabs(r, page)].map((x) => x.textContent)).toEqual([
+      '权限与委派',
+      '桌面权限',
+      '已归档的对话',
+    ]);
   });
 
   it('外发保护单独一个标签：数据页只留入口，点「去设置」切过去', () => {
@@ -122,7 +126,7 @@ describe('SettingsView 合并后的标签页分区', () => {
   it('深链接标签：desktop / export / memory / schedule / local / requests 分别落在对应标签', () => {
     const cases: Array<[SettingsSection, SettingsTab, string]> = [
       ['nomi', 'tools', 'settings-nomi'],
-      ['nomi', 'delegate', 'settings-nomi'],
+      ['nomi', 'archived', 'settings-nomi'],
       ['privacy', 'outbound', 'settings-privacy-page'],
       ['privacy', 'export', 'settings-privacy-page'],
       ['knowledge', 'memory', 'settings-knowledge'],
@@ -211,10 +215,12 @@ describe('SettingsView 合并后的标签页分区', () => {
     const appearance = r.getByTestId('settings-appearance');
     expect(appearance.querySelector('[data-testid="theme-settings"]')).toBeTruthy();
     expect(appearance.querySelector('[data-testid="settings-chat-bg"]')).toBeNull();
+    fireEvent.click(r.getByTestId('theme-more'));
     expect(appearance.querySelector('[data-testid="theme-image"]')).toBeTruthy();
-    // 没有桌面桥时「启动与窗口」只有语言一行
+    // 没有桌面桥时「启动与窗口」只有语言一行，外加并进来的「新手引导」（左右两张卡：启动与窗口 | 桌面 Nomi）
     const g = r.getByTestId('settings-basic-group');
     expect(g.querySelector('[data-testid="language-settings"]')).toBeTruthy();
+    expect(g.querySelector('[data-testid="settings-onboarding"]')).toBeTruthy();
     const order = [...r.container.querySelectorAll('[data-testid]')]
       .map((e) => e.getAttribute('data-testid'))
       .filter((id) =>
@@ -278,7 +284,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     ]);
   });
 
-  it('通用：默认「通用」，还有快捷键 / 语音 / 通知 / 已归档的对话标签', () => {
+  it('通用：默认「通用」，还有快捷键 / 语音 / 通知标签（已归档的对话挪到了 Nomi）', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     const page = 'settings-general-page';
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('basics');
@@ -287,7 +293,6 @@ describe('SettingsView 合并后的标签页分区', () => {
       '快捷键',
       '语音',
       '通知 / 灵动岛',
-      '已归档的对话',
     ]);
     fireEvent.click(r.getByTestId(`${page}-tab-notify`));
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('notify');

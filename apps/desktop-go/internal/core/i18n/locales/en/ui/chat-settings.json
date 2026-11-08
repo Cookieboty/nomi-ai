@@ -519,5 +519,7 @@
   "ui.chat-settings.sandbox-allow-always-project": "Always allow in this project",
   "ui.chat-settings.conversation-font-normal": "Normal",
   "ui.chat-settings.conversation-font-large": "Large",
-  "ui.chat-settings.conversation-font-xlarge": "Extra large"
+  "ui.chat-settings.conversation-font-xlarge": "Extra large",
+  "ui.chat-settings.more-themes": "More themes ({0})",
+  "ui.chat-settings.permissions-and-handoff": "Permissions & handoff"
 }

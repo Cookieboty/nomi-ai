@@ -200,7 +200,7 @@
   "ui.cli-monitor.archive-chat": "归档",
   "ui.cli-monitor.delete-permanently": "永久删除",
   "ui.cli-monitor.delete-chat-permanently-confirm": "永久删除「{0}」？删除后无法恢复；只是不想在侧栏看到的话可以归档。",
-  "ui.cli-monitor.chat-archived": "已归档「{0}」，可在 设置 → 通用 → 已归档的对话 里找回",
+  "ui.cli-monitor.chat-archived": "已归档「{0}」，可在 设置 → Nomi → 已归档的对话 里找回",
   "ui.cli-monitor.search-workspaces": "搜索工作区",
   "ui.cli-monitor.organize-sidebar": "整理侧栏",
   "ui.cli-monitor.merged-list": "合并显示",

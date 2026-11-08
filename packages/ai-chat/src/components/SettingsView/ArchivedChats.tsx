@@ -1,5 +1,5 @@
 /**
- * 设置 → 通用 → 已归档的对话：侧栏里归档的 Nomi 对话都在这里，可以取消归档（回到侧栏）或永久删除。
+ * 设置 → Nomi → 已归档的对话：侧栏里归档的 Nomi 对话都在这里，可以取消归档（回到侧栏）或永久删除。
  */
 import { Button, SettingsGroup, t, useLocale } from '@nomi-ai/ui';
 import { Folder } from 'lucide-react';

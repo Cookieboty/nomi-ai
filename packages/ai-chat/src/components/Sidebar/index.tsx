@@ -227,7 +227,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
-    // 归档的对话不在侧栏显示（设置 → 通用 → 已归档的对话 里找回）
+    // 归档的对话不在侧栏显示（设置 → Nomi → 已归档的对话 里找回）
     const shown = list.filter((x) => !x.archivedAt);
     const source = isNormal ? shown.filter((x) => x.backend === 'nomi') : shown;
     // 标签状态是 CLI 标题的即时来源。同步落盘在 useCliTabSync 的 effect 中完成，

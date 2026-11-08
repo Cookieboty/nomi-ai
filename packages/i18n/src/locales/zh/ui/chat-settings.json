@@ -519,5 +519,7 @@
   "ui.chat-settings.sandbox-allow-always-project": "这个项目始终允许",
   "ui.chat-settings.conversation-font-normal": "普通",
   "ui.chat-settings.conversation-font-large": "较大",
-  "ui.chat-settings.conversation-font-xlarge": "特大"
+  "ui.chat-settings.conversation-font-xlarge": "特大",
+  "ui.chat-settings.more-themes": "更多主题（{0}）",
+  "ui.chat-settings.permissions-and-handoff": "权限与委派"
 }

@@ -65,7 +65,9 @@ export const StartupSettings: React.FC<{
   language?: React.ReactNode;
   /** 「桌面<角色名>」组里开关下面的行（大小）；参数为桌面角色当前是否显示 */
   mascotSize?: (shown: boolean) => React.ReactNode;
-}> = ({ language, mascotSize }) => {
+  /** 接在「启动与窗口」最后的行（通用页把「新手引导」并进来，左右两张卡） */
+  footer?: React.ReactNode;
+}> = ({ language, mascotSize, footer }) => {
   // 中文句子之间不加空格，英文要
   const sep = useLocale() === 'zh-CN' ? '' : ' ';
   const name = useCharacterName();
@@ -101,6 +103,7 @@ export const StartupSettings: React.FC<{
         id="settings-basic"
       >
         {language}
+        {footer}
       </SettingsGroup>
     ) : null;
 
@@ -185,6 +188,7 @@ export const StartupSettings: React.FC<{
             }))}
           />
         </SettingRow>
+        {footer}
       </SettingsGroup>
 
       <SettingsGroup
