@@ -866,8 +866,9 @@
 }
 .cd-srow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cd-space-4);
+  gap: var(--cd-space-2) var(--cd-space-4);
   min-height: var(--cd-control-h-md);
   padding: var(--cd-space-2) 0;
 }
@@ -881,7 +882,8 @@
 }
 .cd-srow__text {
   display: flex;
-  flex: 1;
+  /* 文字至少留 200px：卡片窄、控件宽（滑块等）时控件换到下一行，不把标题和说明挤成一个字一行 */
+  flex: 1 1 calc(var(--cd-space-8) * 6 + var(--cd-space-2));
   flex-direction: column;
   gap: var(--cd-space-0-5);
   min-width: 0;
@@ -901,6 +903,8 @@
 .cd-srow__ctrl {
   display: flex;
   flex: none;
+  /* 换到下一行时仍靠右 */
+  margin-left: auto;
   align-items: center;
   gap: var(--cd-space-2);
 }
