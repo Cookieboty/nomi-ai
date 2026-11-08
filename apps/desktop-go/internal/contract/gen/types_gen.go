@@ -3320,11 +3320,12 @@ type FleetArchiveOutputAgentsItemPaused struct {
 	At float64                              `json:"at"`
 }
 
-// FleetArchiveOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetArchiveOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetArchiveOutputAgentsItemQueueReason = string
 
 const (
 	FleetArchiveOutputAgentsItemQueueReasonMemory FleetArchiveOutputAgentsItemQueueReason = "memory"
+	FleetArchiveOutputAgentsItemQueueReasonCpu    FleetArchiveOutputAgentsItemQueueReason = "cpu"
 	FleetArchiveOutputAgentsItemQueueReasonSlot   FleetArchiveOutputAgentsItemQueueReason = "slot"
 	FleetArchiveOutputAgentsItemQueueReasonRetry  FleetArchiveOutputAgentsItemQueueReason = "retry"
 )
@@ -3417,13 +3418,43 @@ type FleetArchiveOutputGovernor struct {
 	Last      *FleetArchiveOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetArchiveOutputPolicyMode 枚举：saver | balanced | max
+type FleetArchiveOutputPolicyMode = string
+
+const (
+	FleetArchiveOutputPolicyModeSaver    FleetArchiveOutputPolicyMode = "saver"
+	FleetArchiveOutputPolicyModeBalanced FleetArchiveOutputPolicyMode = "balanced"
+	FleetArchiveOutputPolicyModeMax      FleetArchiveOutputPolicyMode = "max"
+)
+
+type FleetArchiveOutputPolicy struct {
+	Mode        FleetArchiveOutputPolicyMode `json:"mode"`
+	MaxParallel float64                      `json:"maxParallel"`
+}
+
+// FleetArchiveOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetArchiveOutputPolicyOptionsItemMode = string
+
+const (
+	FleetArchiveOutputPolicyOptionsItemModeSaver    FleetArchiveOutputPolicyOptionsItemMode = "saver"
+	FleetArchiveOutputPolicyOptionsItemModeBalanced FleetArchiveOutputPolicyOptionsItemMode = "balanced"
+	FleetArchiveOutputPolicyOptionsItemModeMax      FleetArchiveOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetArchiveOutputPolicyOptionsItem struct {
+	Mode        FleetArchiveOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                 `json:"maxParallel"`
+}
+
 type FleetArchiveOutput struct {
-	Agents       []FleetArchiveOutputAgentsItem `json:"agents"`
-	Nomi         FleetArchiveOutputNomi         `json:"nomi"`
-	ExternalIdle FleetArchiveOutputExternalIdle `json:"externalIdle"`
-	System       FleetArchiveOutputSystem       `json:"system"`
-	Governor     FleetArchiveOutputGovernor     `json:"governor"`
-	SampledAt    float64                        `json:"sampledAt"`
+	Agents        []FleetArchiveOutputAgentsItem        `json:"agents"`
+	Nomi          FleetArchiveOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetArchiveOutputExternalIdle        `json:"externalIdle"`
+	System        FleetArchiveOutputSystem              `json:"system"`
+	Governor      FleetArchiveOutputGovernor            `json:"governor"`
+	Policy        FleetArchiveOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetArchiveOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                               `json:"sampledAt"`
 }
 
 type FleetCloseIdleInput struct {
@@ -3498,11 +3529,12 @@ type FleetCloseIdleOutputAgentsItemPaused struct {
 	At float64                                `json:"at"`
 }
 
-// FleetCloseIdleOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetCloseIdleOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetCloseIdleOutputAgentsItemQueueReason = string
 
 const (
 	FleetCloseIdleOutputAgentsItemQueueReasonMemory FleetCloseIdleOutputAgentsItemQueueReason = "memory"
+	FleetCloseIdleOutputAgentsItemQueueReasonCpu    FleetCloseIdleOutputAgentsItemQueueReason = "cpu"
 	FleetCloseIdleOutputAgentsItemQueueReasonSlot   FleetCloseIdleOutputAgentsItemQueueReason = "slot"
 	FleetCloseIdleOutputAgentsItemQueueReasonRetry  FleetCloseIdleOutputAgentsItemQueueReason = "retry"
 )
@@ -3595,13 +3627,43 @@ type FleetCloseIdleOutputGovernor struct {
 	Last      *FleetCloseIdleOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetCloseIdleOutputPolicyMode 枚举：saver | balanced | max
+type FleetCloseIdleOutputPolicyMode = string
+
+const (
+	FleetCloseIdleOutputPolicyModeSaver    FleetCloseIdleOutputPolicyMode = "saver"
+	FleetCloseIdleOutputPolicyModeBalanced FleetCloseIdleOutputPolicyMode = "balanced"
+	FleetCloseIdleOutputPolicyModeMax      FleetCloseIdleOutputPolicyMode = "max"
+)
+
+type FleetCloseIdleOutputPolicy struct {
+	Mode        FleetCloseIdleOutputPolicyMode `json:"mode"`
+	MaxParallel float64                        `json:"maxParallel"`
+}
+
+// FleetCloseIdleOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetCloseIdleOutputPolicyOptionsItemMode = string
+
+const (
+	FleetCloseIdleOutputPolicyOptionsItemModeSaver    FleetCloseIdleOutputPolicyOptionsItemMode = "saver"
+	FleetCloseIdleOutputPolicyOptionsItemModeBalanced FleetCloseIdleOutputPolicyOptionsItemMode = "balanced"
+	FleetCloseIdleOutputPolicyOptionsItemModeMax      FleetCloseIdleOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetCloseIdleOutputPolicyOptionsItem struct {
+	Mode        FleetCloseIdleOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                   `json:"maxParallel"`
+}
+
 type FleetCloseIdleOutput struct {
-	Agents       []FleetCloseIdleOutputAgentsItem `json:"agents"`
-	Nomi         FleetCloseIdleOutputNomi         `json:"nomi"`
-	ExternalIdle FleetCloseIdleOutputExternalIdle `json:"externalIdle"`
-	System       FleetCloseIdleOutputSystem       `json:"system"`
-	Governor     FleetCloseIdleOutputGovernor     `json:"governor"`
-	SampledAt    float64                          `json:"sampledAt"`
+	Agents        []FleetCloseIdleOutputAgentsItem        `json:"agents"`
+	Nomi          FleetCloseIdleOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetCloseIdleOutputExternalIdle        `json:"externalIdle"`
+	System        FleetCloseIdleOutputSystem              `json:"system"`
+	Governor      FleetCloseIdleOutputGovernor            `json:"governor"`
+	Policy        FleetCloseIdleOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetCloseIdleOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                                 `json:"sampledAt"`
 }
 
 type FleetPauseInput struct {
@@ -3675,11 +3737,12 @@ type FleetPauseOutputAgentsItemPaused struct {
 	At float64                            `json:"at"`
 }
 
-// FleetPauseOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetPauseOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetPauseOutputAgentsItemQueueReason = string
 
 const (
 	FleetPauseOutputAgentsItemQueueReasonMemory FleetPauseOutputAgentsItemQueueReason = "memory"
+	FleetPauseOutputAgentsItemQueueReasonCpu    FleetPauseOutputAgentsItemQueueReason = "cpu"
 	FleetPauseOutputAgentsItemQueueReasonSlot   FleetPauseOutputAgentsItemQueueReason = "slot"
 	FleetPauseOutputAgentsItemQueueReasonRetry  FleetPauseOutputAgentsItemQueueReason = "retry"
 )
@@ -3772,13 +3835,43 @@ type FleetPauseOutputGovernor struct {
 	Last      *FleetPauseOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetPauseOutputPolicyMode 枚举：saver | balanced | max
+type FleetPauseOutputPolicyMode = string
+
+const (
+	FleetPauseOutputPolicyModeSaver    FleetPauseOutputPolicyMode = "saver"
+	FleetPauseOutputPolicyModeBalanced FleetPauseOutputPolicyMode = "balanced"
+	FleetPauseOutputPolicyModeMax      FleetPauseOutputPolicyMode = "max"
+)
+
+type FleetPauseOutputPolicy struct {
+	Mode        FleetPauseOutputPolicyMode `json:"mode"`
+	MaxParallel float64                    `json:"maxParallel"`
+}
+
+// FleetPauseOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetPauseOutputPolicyOptionsItemMode = string
+
+const (
+	FleetPauseOutputPolicyOptionsItemModeSaver    FleetPauseOutputPolicyOptionsItemMode = "saver"
+	FleetPauseOutputPolicyOptionsItemModeBalanced FleetPauseOutputPolicyOptionsItemMode = "balanced"
+	FleetPauseOutputPolicyOptionsItemModeMax      FleetPauseOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetPauseOutputPolicyOptionsItem struct {
+	Mode        FleetPauseOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                               `json:"maxParallel"`
+}
+
 type FleetPauseOutput struct {
-	Agents       []FleetPauseOutputAgentsItem `json:"agents"`
-	Nomi         FleetPauseOutputNomi         `json:"nomi"`
-	ExternalIdle FleetPauseOutputExternalIdle `json:"externalIdle"`
-	System       FleetPauseOutputSystem       `json:"system"`
-	Governor     FleetPauseOutputGovernor     `json:"governor"`
-	SampledAt    float64                      `json:"sampledAt"`
+	Agents        []FleetPauseOutputAgentsItem        `json:"agents"`
+	Nomi          FleetPauseOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetPauseOutputExternalIdle        `json:"externalIdle"`
+	System        FleetPauseOutputSystem              `json:"system"`
+	Governor      FleetPauseOutputGovernor            `json:"governor"`
+	Policy        FleetPauseOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetPauseOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                             `json:"sampledAt"`
 }
 
 type FleetResumeInput struct {
@@ -3852,11 +3945,12 @@ type FleetResumeOutputAgentsItemPaused struct {
 	At float64                             `json:"at"`
 }
 
-// FleetResumeOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetResumeOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetResumeOutputAgentsItemQueueReason = string
 
 const (
 	FleetResumeOutputAgentsItemQueueReasonMemory FleetResumeOutputAgentsItemQueueReason = "memory"
+	FleetResumeOutputAgentsItemQueueReasonCpu    FleetResumeOutputAgentsItemQueueReason = "cpu"
 	FleetResumeOutputAgentsItemQueueReasonSlot   FleetResumeOutputAgentsItemQueueReason = "slot"
 	FleetResumeOutputAgentsItemQueueReasonRetry  FleetResumeOutputAgentsItemQueueReason = "retry"
 )
@@ -3949,13 +4043,43 @@ type FleetResumeOutputGovernor struct {
 	Last      *FleetResumeOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetResumeOutputPolicyMode 枚举：saver | balanced | max
+type FleetResumeOutputPolicyMode = string
+
+const (
+	FleetResumeOutputPolicyModeSaver    FleetResumeOutputPolicyMode = "saver"
+	FleetResumeOutputPolicyModeBalanced FleetResumeOutputPolicyMode = "balanced"
+	FleetResumeOutputPolicyModeMax      FleetResumeOutputPolicyMode = "max"
+)
+
+type FleetResumeOutputPolicy struct {
+	Mode        FleetResumeOutputPolicyMode `json:"mode"`
+	MaxParallel float64                     `json:"maxParallel"`
+}
+
+// FleetResumeOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetResumeOutputPolicyOptionsItemMode = string
+
+const (
+	FleetResumeOutputPolicyOptionsItemModeSaver    FleetResumeOutputPolicyOptionsItemMode = "saver"
+	FleetResumeOutputPolicyOptionsItemModeBalanced FleetResumeOutputPolicyOptionsItemMode = "balanced"
+	FleetResumeOutputPolicyOptionsItemModeMax      FleetResumeOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetResumeOutputPolicyOptionsItem struct {
+	Mode        FleetResumeOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                `json:"maxParallel"`
+}
+
 type FleetResumeOutput struct {
-	Agents       []FleetResumeOutputAgentsItem `json:"agents"`
-	Nomi         FleetResumeOutputNomi         `json:"nomi"`
-	ExternalIdle FleetResumeOutputExternalIdle `json:"externalIdle"`
-	System       FleetResumeOutputSystem       `json:"system"`
-	Governor     FleetResumeOutputGovernor     `json:"governor"`
-	SampledAt    float64                       `json:"sampledAt"`
+	Agents        []FleetResumeOutputAgentsItem        `json:"agents"`
+	Nomi          FleetResumeOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetResumeOutputExternalIdle        `json:"externalIdle"`
+	System        FleetResumeOutputSystem              `json:"system"`
+	Governor      FleetResumeOutputGovernor            `json:"governor"`
+	Policy        FleetResumeOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetResumeOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                              `json:"sampledAt"`
 }
 
 type FleetSetAutoPauseInput struct {
@@ -4029,11 +4153,12 @@ type FleetSetAutoPauseOutputAgentsItemPaused struct {
 	At float64                                   `json:"at"`
 }
 
-// FleetSetAutoPauseOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetSetAutoPauseOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetSetAutoPauseOutputAgentsItemQueueReason = string
 
 const (
 	FleetSetAutoPauseOutputAgentsItemQueueReasonMemory FleetSetAutoPauseOutputAgentsItemQueueReason = "memory"
+	FleetSetAutoPauseOutputAgentsItemQueueReasonCpu    FleetSetAutoPauseOutputAgentsItemQueueReason = "cpu"
 	FleetSetAutoPauseOutputAgentsItemQueueReasonSlot   FleetSetAutoPauseOutputAgentsItemQueueReason = "slot"
 	FleetSetAutoPauseOutputAgentsItemQueueReasonRetry  FleetSetAutoPauseOutputAgentsItemQueueReason = "retry"
 )
@@ -4126,13 +4251,260 @@ type FleetSetAutoPauseOutputGovernor struct {
 	Last      *FleetSetAutoPauseOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetSetAutoPauseOutputPolicyMode 枚举：saver | balanced | max
+type FleetSetAutoPauseOutputPolicyMode = string
+
+const (
+	FleetSetAutoPauseOutputPolicyModeSaver    FleetSetAutoPauseOutputPolicyMode = "saver"
+	FleetSetAutoPauseOutputPolicyModeBalanced FleetSetAutoPauseOutputPolicyMode = "balanced"
+	FleetSetAutoPauseOutputPolicyModeMax      FleetSetAutoPauseOutputPolicyMode = "max"
+)
+
+type FleetSetAutoPauseOutputPolicy struct {
+	Mode        FleetSetAutoPauseOutputPolicyMode `json:"mode"`
+	MaxParallel float64                           `json:"maxParallel"`
+}
+
+// FleetSetAutoPauseOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetSetAutoPauseOutputPolicyOptionsItemMode = string
+
+const (
+	FleetSetAutoPauseOutputPolicyOptionsItemModeSaver    FleetSetAutoPauseOutputPolicyOptionsItemMode = "saver"
+	FleetSetAutoPauseOutputPolicyOptionsItemModeBalanced FleetSetAutoPauseOutputPolicyOptionsItemMode = "balanced"
+	FleetSetAutoPauseOutputPolicyOptionsItemModeMax      FleetSetAutoPauseOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetSetAutoPauseOutputPolicyOptionsItem struct {
+	Mode        FleetSetAutoPauseOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                      `json:"maxParallel"`
+}
+
 type FleetSetAutoPauseOutput struct {
-	Agents       []FleetSetAutoPauseOutputAgentsItem `json:"agents"`
-	Nomi         FleetSetAutoPauseOutputNomi         `json:"nomi"`
-	ExternalIdle FleetSetAutoPauseOutputExternalIdle `json:"externalIdle"`
-	System       FleetSetAutoPauseOutputSystem       `json:"system"`
-	Governor     FleetSetAutoPauseOutputGovernor     `json:"governor"`
-	SampledAt    float64                             `json:"sampledAt"`
+	Agents        []FleetSetAutoPauseOutputAgentsItem        `json:"agents"`
+	Nomi          FleetSetAutoPauseOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetSetAutoPauseOutputExternalIdle        `json:"externalIdle"`
+	System        FleetSetAutoPauseOutputSystem              `json:"system"`
+	Governor      FleetSetAutoPauseOutputGovernor            `json:"governor"`
+	Policy        FleetSetAutoPauseOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetSetAutoPauseOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                                    `json:"sampledAt"`
+}
+
+// FleetSetPolicyInputMode 枚举：saver | balanced | max
+type FleetSetPolicyInputMode = string
+
+const (
+	FleetSetPolicyInputModeSaver    FleetSetPolicyInputMode = "saver"
+	FleetSetPolicyInputModeBalanced FleetSetPolicyInputMode = "balanced"
+	FleetSetPolicyInputModeMax      FleetSetPolicyInputMode = "max"
+)
+
+type FleetSetPolicyInput struct {
+	Mode FleetSetPolicyInputMode `json:"mode"`
+}
+
+// FleetSetPolicyOutputAgentsItemKind 枚举：nomi | cli
+type FleetSetPolicyOutputAgentsItemKind = string
+
+const (
+	FleetSetPolicyOutputAgentsItemKindNomi FleetSetPolicyOutputAgentsItemKind = "nomi"
+	FleetSetPolicyOutputAgentsItemKindCli  FleetSetPolicyOutputAgentsItemKind = "cli"
+)
+
+// FleetSetPolicyOutputAgentsItemScope 枚举：managed | external
+type FleetSetPolicyOutputAgentsItemScope = string
+
+const (
+	FleetSetPolicyOutputAgentsItemScopeManaged  FleetSetPolicyOutputAgentsItemScope = "managed"
+	FleetSetPolicyOutputAgentsItemScopeExternal FleetSetPolicyOutputAgentsItemScope = "external"
+)
+
+// FleetSetPolicyOutputAgentsItemOrigin 枚举：chat | nomi | conversation | task | workbench | terminal
+type FleetSetPolicyOutputAgentsItemOrigin = string
+
+const (
+	FleetSetPolicyOutputAgentsItemOriginChat         FleetSetPolicyOutputAgentsItemOrigin = "chat"
+	FleetSetPolicyOutputAgentsItemOriginNomi         FleetSetPolicyOutputAgentsItemOrigin = "nomi"
+	FleetSetPolicyOutputAgentsItemOriginConversation FleetSetPolicyOutputAgentsItemOrigin = "conversation"
+	FleetSetPolicyOutputAgentsItemOriginTask         FleetSetPolicyOutputAgentsItemOrigin = "task"
+	FleetSetPolicyOutputAgentsItemOriginWorkbench    FleetSetPolicyOutputAgentsItemOrigin = "workbench"
+	FleetSetPolicyOutputAgentsItemOriginTerminal     FleetSetPolicyOutputAgentsItemOrigin = "terminal"
+)
+
+// FleetSetPolicyOutputAgentsItemColumn 枚举：todo | paused | running | done
+type FleetSetPolicyOutputAgentsItemColumn = string
+
+const (
+	FleetSetPolicyOutputAgentsItemColumnTodo    FleetSetPolicyOutputAgentsItemColumn = "todo"
+	FleetSetPolicyOutputAgentsItemColumnPaused  FleetSetPolicyOutputAgentsItemColumn = "paused"
+	FleetSetPolicyOutputAgentsItemColumnRunning FleetSetPolicyOutputAgentsItemColumn = "running"
+	FleetSetPolicyOutputAgentsItemColumnDone    FleetSetPolicyOutputAgentsItemColumn = "done"
+)
+
+// FleetSetPolicyOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+type FleetSetPolicyOutputAgentsItemNeedsYou = string
+
+const (
+	FleetSetPolicyOutputAgentsItemNeedsYouPermission FleetSetPolicyOutputAgentsItemNeedsYou = "permission"
+	FleetSetPolicyOutputAgentsItemNeedsYouSandbox    FleetSetPolicyOutputAgentsItemNeedsYou = "sandbox"
+	FleetSetPolicyOutputAgentsItemNeedsYouAccept     FleetSetPolicyOutputAgentsItemNeedsYou = "accept"
+)
+
+type FleetSetPolicyOutputAgentsItemUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+// FleetSetPolicyOutputAgentsItemPausedBy 枚举：memory | user | nomi
+type FleetSetPolicyOutputAgentsItemPausedBy = string
+
+const (
+	FleetSetPolicyOutputAgentsItemPausedByMemory FleetSetPolicyOutputAgentsItemPausedBy = "memory"
+	FleetSetPolicyOutputAgentsItemPausedByUser   FleetSetPolicyOutputAgentsItemPausedBy = "user"
+	FleetSetPolicyOutputAgentsItemPausedByNomi   FleetSetPolicyOutputAgentsItemPausedBy = "nomi"
+)
+
+type FleetSetPolicyOutputAgentsItemPaused struct {
+	By FleetSetPolicyOutputAgentsItemPausedBy `json:"by"`
+	At float64                                `json:"at"`
+}
+
+// FleetSetPolicyOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
+type FleetSetPolicyOutputAgentsItemQueueReason = string
+
+const (
+	FleetSetPolicyOutputAgentsItemQueueReasonMemory FleetSetPolicyOutputAgentsItemQueueReason = "memory"
+	FleetSetPolicyOutputAgentsItemQueueReasonCpu    FleetSetPolicyOutputAgentsItemQueueReason = "cpu"
+	FleetSetPolicyOutputAgentsItemQueueReasonSlot   FleetSetPolicyOutputAgentsItemQueueReason = "slot"
+	FleetSetPolicyOutputAgentsItemQueueReasonRetry  FleetSetPolicyOutputAgentsItemQueueReason = "retry"
+)
+
+type FleetSetPolicyOutputAgentsItem struct {
+	Id             string                                     `json:"id"`
+	Kind           FleetSetPolicyOutputAgentsItemKind         `json:"kind"`
+	Backend        string                                     `json:"backend"`
+	Scope          FleetSetPolicyOutputAgentsItemScope        `json:"scope"`
+	Origin         FleetSetPolicyOutputAgentsItemOrigin       `json:"origin"`
+	Title          string                                     `json:"title"`
+	Column         FleetSetPolicyOutputAgentsItemColumn       `json:"column"`
+	NeedsYou       *FleetSetPolicyOutputAgentsItemNeedsYou    `json:"needsYou,omitempty"`
+	Failed         *bool                                      `json:"failed,omitempty"`
+	ParentId       *string                                    `json:"parentId,omitempty"`
+	TaskId         *string                                    `json:"taskId,omitempty"`
+	TabId          *string                                    `json:"tabId,omitempty"`
+	ConversationId *string                                    `json:"conversationId,omitempty"`
+	Cwd            *string                                    `json:"cwd,omitempty"`
+	Usage          *FleetSetPolicyOutputAgentsItemUsage       `json:"usage,omitempty"`
+	UpdatedAt      float64                                    `json:"updatedAt"`
+	Paused         *FleetSetPolicyOutputAgentsItemPaused      `json:"paused,omitempty"`
+	Pausable       *bool                                      `json:"pausable,omitempty"`
+	Summary        *string                                    `json:"summary,omitempty"`
+	QueueReason    *FleetSetPolicyOutputAgentsItemQueueReason `json:"queueReason,omitempty"`
+	RetryAt        *float64                                   `json:"retryAt,omitempty"`
+}
+
+type FleetSetPolicyOutputNomiUsage struct {
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+	Processes  float64 `json:"processes"`
+}
+
+type FleetSetPolicyOutputNomi struct {
+	Usage *FleetSetPolicyOutputNomiUsage `json:"usage,omitempty"`
+}
+
+type FleetSetPolicyOutputExternalIdleItemsItem struct {
+	Pid        float64 `json:"pid"`
+	Backend    string  `json:"backend"`
+	Cwd        *string `json:"cwd,omitempty"`
+	Processes  float64 `json:"processes"`
+	RssBytes   float64 `json:"rssBytes"`
+	CpuPercent float64 `json:"cpuPercent"`
+}
+
+type FleetSetPolicyOutputExternalIdle struct {
+	Processes float64                                     `json:"processes"`
+	RssBytes  float64                                     `json:"rssBytes"`
+	Items     []FleetSetPolicyOutputExternalIdleItemsItem `json:"items"`
+}
+
+// FleetSetPolicyOutputSystemPressure 枚举：normal | warn | critical | unknown
+type FleetSetPolicyOutputSystemPressure = string
+
+const (
+	FleetSetPolicyOutputSystemPressureNormal   FleetSetPolicyOutputSystemPressure = "normal"
+	FleetSetPolicyOutputSystemPressureWarn     FleetSetPolicyOutputSystemPressure = "warn"
+	FleetSetPolicyOutputSystemPressureCritical FleetSetPolicyOutputSystemPressure = "critical"
+	FleetSetPolicyOutputSystemPressureUnknown  FleetSetPolicyOutputSystemPressure = "unknown"
+)
+
+type FleetSetPolicyOutputSystem struct {
+	TotalMemBytes    float64                            `json:"totalMemBytes"`
+	Cores            float64                            `json:"cores"`
+	CpuPercent       float64                            `json:"cpuPercent"`
+	Pressure         FleetSetPolicyOutputSystemPressure `json:"pressure"`
+	AvailablePercent *float64                           `json:"availablePercent,omitempty"`
+}
+
+// FleetSetPolicyOutputGovernorLastKind 枚举：reclaimed | paused | resumed
+type FleetSetPolicyOutputGovernorLastKind = string
+
+const (
+	FleetSetPolicyOutputGovernorLastKindReclaimed FleetSetPolicyOutputGovernorLastKind = "reclaimed"
+	FleetSetPolicyOutputGovernorLastKindPaused    FleetSetPolicyOutputGovernorLastKind = "paused"
+	FleetSetPolicyOutputGovernorLastKindResumed   FleetSetPolicyOutputGovernorLastKind = "resumed"
+)
+
+type FleetSetPolicyOutputGovernorLast struct {
+	Kind  FleetSetPolicyOutputGovernorLastKind `json:"kind"`
+	Id    *string                              `json:"id,omitempty"`
+	Count *float64                             `json:"count,omitempty"`
+	At    float64                              `json:"at"`
+}
+
+type FleetSetPolicyOutputGovernor struct {
+	AutoPause bool                              `json:"autoPause"`
+	Last      *FleetSetPolicyOutputGovernorLast `json:"last,omitempty"`
+}
+
+// FleetSetPolicyOutputPolicyMode 枚举：saver | balanced | max
+type FleetSetPolicyOutputPolicyMode = string
+
+const (
+	FleetSetPolicyOutputPolicyModeSaver    FleetSetPolicyOutputPolicyMode = "saver"
+	FleetSetPolicyOutputPolicyModeBalanced FleetSetPolicyOutputPolicyMode = "balanced"
+	FleetSetPolicyOutputPolicyModeMax      FleetSetPolicyOutputPolicyMode = "max"
+)
+
+type FleetSetPolicyOutputPolicy struct {
+	Mode        FleetSetPolicyOutputPolicyMode `json:"mode"`
+	MaxParallel float64                        `json:"maxParallel"`
+}
+
+// FleetSetPolicyOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetSetPolicyOutputPolicyOptionsItemMode = string
+
+const (
+	FleetSetPolicyOutputPolicyOptionsItemModeSaver    FleetSetPolicyOutputPolicyOptionsItemMode = "saver"
+	FleetSetPolicyOutputPolicyOptionsItemModeBalanced FleetSetPolicyOutputPolicyOptionsItemMode = "balanced"
+	FleetSetPolicyOutputPolicyOptionsItemModeMax      FleetSetPolicyOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetSetPolicyOutputPolicyOptionsItem struct {
+	Mode        FleetSetPolicyOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                   `json:"maxParallel"`
+}
+
+type FleetSetPolicyOutput struct {
+	Agents        []FleetSetPolicyOutputAgentsItem        `json:"agents"`
+	Nomi          FleetSetPolicyOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetSetPolicyOutputExternalIdle        `json:"externalIdle"`
+	System        FleetSetPolicyOutputSystem              `json:"system"`
+	Governor      FleetSetPolicyOutputGovernor            `json:"governor"`
+	Policy        FleetSetPolicyOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetSetPolicyOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                                 `json:"sampledAt"`
 }
 
 // FleetStateOutputAgentsItemKind 枚举：nomi | cli
@@ -4202,11 +4574,12 @@ type FleetStateOutputAgentsItemPaused struct {
 	At float64                            `json:"at"`
 }
 
-// FleetStateOutputAgentsItemQueueReason 枚举：memory | slot | retry
+// FleetStateOutputAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type FleetStateOutputAgentsItemQueueReason = string
 
 const (
 	FleetStateOutputAgentsItemQueueReasonMemory FleetStateOutputAgentsItemQueueReason = "memory"
+	FleetStateOutputAgentsItemQueueReasonCpu    FleetStateOutputAgentsItemQueueReason = "cpu"
 	FleetStateOutputAgentsItemQueueReasonSlot   FleetStateOutputAgentsItemQueueReason = "slot"
 	FleetStateOutputAgentsItemQueueReasonRetry  FleetStateOutputAgentsItemQueueReason = "retry"
 )
@@ -4299,13 +4672,43 @@ type FleetStateOutputGovernor struct {
 	Last      *FleetStateOutputGovernorLast `json:"last,omitempty"`
 }
 
+// FleetStateOutputPolicyMode 枚举：saver | balanced | max
+type FleetStateOutputPolicyMode = string
+
+const (
+	FleetStateOutputPolicyModeSaver    FleetStateOutputPolicyMode = "saver"
+	FleetStateOutputPolicyModeBalanced FleetStateOutputPolicyMode = "balanced"
+	FleetStateOutputPolicyModeMax      FleetStateOutputPolicyMode = "max"
+)
+
+type FleetStateOutputPolicy struct {
+	Mode        FleetStateOutputPolicyMode `json:"mode"`
+	MaxParallel float64                    `json:"maxParallel"`
+}
+
+// FleetStateOutputPolicyOptionsItemMode 枚举：saver | balanced | max
+type FleetStateOutputPolicyOptionsItemMode = string
+
+const (
+	FleetStateOutputPolicyOptionsItemModeSaver    FleetStateOutputPolicyOptionsItemMode = "saver"
+	FleetStateOutputPolicyOptionsItemModeBalanced FleetStateOutputPolicyOptionsItemMode = "balanced"
+	FleetStateOutputPolicyOptionsItemModeMax      FleetStateOutputPolicyOptionsItemMode = "max"
+)
+
+type FleetStateOutputPolicyOptionsItem struct {
+	Mode        FleetStateOutputPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                               `json:"maxParallel"`
+}
+
 type FleetStateOutput struct {
-	Agents       []FleetStateOutputAgentsItem `json:"agents"`
-	Nomi         FleetStateOutputNomi         `json:"nomi"`
-	ExternalIdle FleetStateOutputExternalIdle `json:"externalIdle"`
-	System       FleetStateOutputSystem       `json:"system"`
-	Governor     FleetStateOutputGovernor     `json:"governor"`
-	SampledAt    float64                      `json:"sampledAt"`
+	Agents        []FleetStateOutputAgentsItem        `json:"agents"`
+	Nomi          FleetStateOutputNomi                `json:"nomi"`
+	ExternalIdle  FleetStateOutputExternalIdle        `json:"externalIdle"`
+	System        FleetStateOutputSystem              `json:"system"`
+	Governor      FleetStateOutputGovernor            `json:"governor"`
+	Policy        FleetStateOutputPolicy              `json:"policy"`
+	PolicyOptions []FleetStateOutputPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                             `json:"sampledAt"`
 }
 
 type GatewayCatalogModelsOutputItem struct {
@@ -9799,11 +10202,12 @@ type EventFleetChangedAgentsItemPaused struct {
 	At float64                             `json:"at"`
 }
 
-// EventFleetChangedAgentsItemQueueReason 枚举：memory | slot | retry
+// EventFleetChangedAgentsItemQueueReason 枚举：memory | cpu | slot | retry
 type EventFleetChangedAgentsItemQueueReason = string
 
 const (
 	EventFleetChangedAgentsItemQueueReasonMemory EventFleetChangedAgentsItemQueueReason = "memory"
+	EventFleetChangedAgentsItemQueueReasonCpu    EventFleetChangedAgentsItemQueueReason = "cpu"
 	EventFleetChangedAgentsItemQueueReasonSlot   EventFleetChangedAgentsItemQueueReason = "slot"
 	EventFleetChangedAgentsItemQueueReasonRetry  EventFleetChangedAgentsItemQueueReason = "retry"
 )
@@ -9896,13 +10300,43 @@ type EventFleetChangedGovernor struct {
 	Last      *EventFleetChangedGovernorLast `json:"last,omitempty"`
 }
 
+// EventFleetChangedPolicyMode 枚举：saver | balanced | max
+type EventFleetChangedPolicyMode = string
+
+const (
+	EventFleetChangedPolicyModeSaver    EventFleetChangedPolicyMode = "saver"
+	EventFleetChangedPolicyModeBalanced EventFleetChangedPolicyMode = "balanced"
+	EventFleetChangedPolicyModeMax      EventFleetChangedPolicyMode = "max"
+)
+
+type EventFleetChangedPolicy struct {
+	Mode        EventFleetChangedPolicyMode `json:"mode"`
+	MaxParallel float64                     `json:"maxParallel"`
+}
+
+// EventFleetChangedPolicyOptionsItemMode 枚举：saver | balanced | max
+type EventFleetChangedPolicyOptionsItemMode = string
+
+const (
+	EventFleetChangedPolicyOptionsItemModeSaver    EventFleetChangedPolicyOptionsItemMode = "saver"
+	EventFleetChangedPolicyOptionsItemModeBalanced EventFleetChangedPolicyOptionsItemMode = "balanced"
+	EventFleetChangedPolicyOptionsItemModeMax      EventFleetChangedPolicyOptionsItemMode = "max"
+)
+
+type EventFleetChangedPolicyOptionsItem struct {
+	Mode        EventFleetChangedPolicyOptionsItemMode `json:"mode"`
+	MaxParallel float64                                `json:"maxParallel"`
+}
+
 type EventFleetChanged struct {
-	Agents       []EventFleetChangedAgentsItem `json:"agents"`
-	Nomi         EventFleetChangedNomi         `json:"nomi"`
-	ExternalIdle EventFleetChangedExternalIdle `json:"externalIdle"`
-	System       EventFleetChangedSystem       `json:"system"`
-	Governor     EventFleetChangedGovernor     `json:"governor"`
-	SampledAt    float64                       `json:"sampledAt"`
+	Agents        []EventFleetChangedAgentsItem        `json:"agents"`
+	Nomi          EventFleetChangedNomi                `json:"nomi"`
+	ExternalIdle  EventFleetChangedExternalIdle        `json:"externalIdle"`
+	System        EventFleetChangedSystem              `json:"system"`
+	Governor      EventFleetChangedGovernor            `json:"governor"`
+	Policy        EventFleetChangedPolicy              `json:"policy"`
+	PolicyOptions []EventFleetChangedPolicyOptionsItem `json:"policyOptions"`
+	SampledAt     float64                              `json:"sampledAt"`
 }
 
 type EventGatewayRetrying struct {
@@ -10937,6 +11371,10 @@ type FleetResumeOutputT = FleetResumeOutput
 // FleetSetAutoPauseInputT 是 fleet.setAutoPause 的入参
 type FleetSetAutoPauseInputT = FleetSetAutoPauseInput
 type FleetSetAutoPauseOutputT = FleetSetAutoPauseOutput
+
+// FleetSetPolicyInputT 是 fleet.setPolicy 的入参
+type FleetSetPolicyInputT = FleetSetPolicyInput
+type FleetSetPolicyOutputT = FleetSetPolicyOutput
 
 // FleetStateInputT 是 fleet.state 的入参
 type FleetStateInputT = any

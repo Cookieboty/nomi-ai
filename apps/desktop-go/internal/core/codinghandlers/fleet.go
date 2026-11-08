@@ -18,11 +18,12 @@ type Fleet interface {
 	Pause(id string) (fleet.State, error)
 	Resume(id string) (fleet.State, error)
 	SetAutoPause(on bool) fleet.State
+	SetPolicy(mode string) fleet.State
 }
 
 var _ Fleet = (*fleet.Service)(nil)
 
-// RegisterFleet 挂上 fleet.state / archive / closeIdle / pause / resume / setAutoPause（getter 返回 nil = UNAVAILABLE）
+// RegisterFleet 挂上 fleet.state / archive / closeIdle / pause / resume / setAutoPause / setPolicy（getter 返回 nil = UNAVAILABLE）
 func RegisterFleet(r *contract.Router, get func() Fleet) {
 	fl := func() Fleet { return need(get, "fleet") }
 	plain(r, "fleet.state", func(in) any { return fl().State() })
@@ -46,4 +47,5 @@ func RegisterFleet(r *contract.Router, get func() Fleet) {
 	plain(r, "fleet.pause", func(a in) any { return notPausable(fl().Pause(util.Str(a.o.Get("id")))) })
 	plain(r, "fleet.resume", func(a in) any { return notPausable(fl().Resume(util.Str(a.o.Get("id")))) })
 	plain(r, "fleet.setAutoPause", func(a in) any { return fl().SetAutoPause(a.o.Get("enabled") == true) })
+	plain(r, "fleet.setPolicy", func(a in) any { return fl().SetPolicy(util.Str(a.o.Get("mode"))) })
 }

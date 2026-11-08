@@ -24,6 +24,7 @@ import {
   summarize,
   type FleetAgent,
   type FleetIdleItem,
+  type FleetPolicyMode,
   type LoadLevel,
 } from '../../services/fleetClient';
 import { harnessClient } from '../../services/harnessClient';
@@ -156,6 +157,14 @@ export function useFleetHost(collapsed: boolean) {
         .catch(() => reload()),
     [apply, reload],
   );
+  const setPolicy = useCallback(
+    (mode: FleetPolicyMode) =>
+      void fleetApi
+        .setPolicy(mode)
+        .then(apply)
+        .catch(() => reload()),
+    [apply, reload],
+  );
   /** 手动关闭空闲的外部进程：先确认；内核发现它已经不是空闲进程时只刷新列表 */
   const closeIdle = useCallback(
     async (it: FleetIdleItem) => {
@@ -220,6 +229,7 @@ export function useFleetHost(collapsed: boolean) {
         onPause={pause}
         onResume={resume}
         onSetAutoPause={setAutoPause}
+        onSetPolicy={setPolicy}
       />
     </div>
   ) : null;

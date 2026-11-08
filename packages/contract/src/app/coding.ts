@@ -22,6 +22,7 @@ import {
   AgentWatchSettings,
   AgentWatchSettingsPatch,
   AgentWatchState,
+  FleetPolicyMode,
   FleetState,
   ApprovePlanChoice,
   BackendModelCatalog,
@@ -544,6 +545,13 @@ const fleetProcedures = {
   'fleet.setAutoPause': {
     kind: 'mutation',
     input: z.object({ enabled: z.boolean() }),
+    output: FleetState,
+    dangerous: true,
+  },
+  /** 换调度策略（存盘，立即生效：调大后排队的马上开始，调小后正在跑的不打断，新的排队） */
+  'fleet.setPolicy': {
+    kind: 'mutation',
+    input: z.object({ mode: FleetPolicyMode }),
     output: FleetState,
     dangerous: true,
   },

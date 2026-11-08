@@ -49,35 +49,41 @@ type govState struct {
 	thawedAt    map[string]time.Time
 	last        *Action
 	stop        chan struct{}
+	// 整机 CPU（0–100，两次 Govern 之间的系统计数差；cpuOK = 已经有一次有效的采样）
+	cpu, cpuBusy, cpuTotal float64
+	cpuOK                  bool
 }
 
 type settingsFile struct {
+	// AutoPause：内存紧张时自动处理（读不到默认开）
 	AutoPause *bool `json:"autoPause,omitempty"`
+	// Policy：调度策略的模式（policy.go；读不到默认 balanced）
+	Policy string `json:"policy,omitempty"`
 }
 
-// loadAutoPause：读开关（读不到默认开）
-func loadAutoPause(path string) bool {
-	if path == "" {
-		return true
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
+func loadSettings(path string) settingsFile {
 	var f settingsFile
-	if json.Unmarshal(b, &f) != nil || f.AutoPause == nil {
-		return true
+	if path == "" {
+		return f
 	}
-	return *f.AutoPause
+	if b, err := os.ReadFile(path); err == nil && json.Unmarshal(b, &f) != nil {
+		return settingsFile{}
+	}
+	return f
 }
 
-func saveAutoPause(path string, on bool) {
-	if path == "" {
+// saveSettings：开关与调度策略一起存盘
+func (s *Service) saveSettings() {
+	if s.d.SettingsPath == "" {
 		return
 	}
-	b, _ := json.Marshal(settingsFile{AutoPause: &on})
-	_ = os.MkdirAll(filepath.Dir(path), 0o755)
-	_ = os.WriteFile(path, b, 0o600)
+	s.mu.Lock()
+	on := s.gov.auto
+	f := settingsFile{AutoPause: &on, Policy: s.policy}
+	s.mu.Unlock()
+	b, _ := json.Marshal(f)
+	_ = os.MkdirAll(filepath.Dir(s.d.SettingsPath), 0o755)
+	_ = os.WriteFile(s.d.SettingsPath, b, 0o600)
 }
 
 // Start：开始按 GovernEvery 看内存压力（没有 Pressure 依赖时不开）
@@ -131,10 +137,33 @@ func (s *Service) SetOnRelease(fn func()) {
 func autoResumable(by string) bool { return by == PausedByMemory || by == PausedByNomi }
 
 // Holding：内存守护正扣着新的编程助手与后台 Nomi（自动处理开着、内存紧张）
-func (s *Service) Holding() bool {
+func (s *Service) Holding() bool { return s.HoldReason() != "" }
+
+// HoldReason：为什么扣着（QueueMemory / QueueCPU）；空 = 不扣
+func (s *Service) HoldReason() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.gov.auto && s.gov.level == agents.PressureCritical
+	return s.holdReasonLocked()
+}
+
+func (s *Service) holdingLocked() bool { return s.holdReasonLocked() != "" }
+
+// holdReasonLocked：自动处理开着且内存紧张；或调度策略是「全速」（不设个数上限，policy.go）且内存偏高 / 紧张、
+// 或整机 CPU 到了 FullSpeedCPUHold。调用方持有 s.mu。
+func (s *Service) holdReasonLocked() string {
+	if s.gov.auto && s.gov.level == agents.PressureCritical {
+		return QueueMemory
+	}
+	if PolicyOf(s.policy).MaxParallel > 0 {
+		return ""
+	}
+	if s.gov.level == agents.PressureWarn || s.gov.level == agents.PressureCritical {
+		return QueueMemory
+	}
+	if s.gov.cpuOK && s.gov.cpu >= FullSpeedCPUHold {
+		return QueueCPU
+	}
+	return ""
 }
 
 // Admit：任务运行时开始执行前问一次（tasks.Runtime.SetAdmit）：内存紧张时编程助手与后台 Nomi 先排着，
@@ -150,10 +179,21 @@ func (s *Service) Govern() {
 	}
 	now := s.d.Now()
 	p := s.d.Pressure()
+	var busy, total float64
+	var cpuOK bool
+	if s.d.SystemCPU != nil {
+		busy, total, cpuOK = s.d.SystemCPU()
+	}
 	s.mu.Lock()
-	wasHolding := s.gov.auto && s.gov.level == agents.PressureCritical
+	wasHolding := s.holdingLocked()
 	if p.Level != s.gov.level {
 		s.gov.level, s.gov.levelSince = p.Level, now
+	}
+	if cpuOK {
+		if dt := total - s.gov.cpuTotal; s.gov.cpuTotal > 0 && dt > 0 {
+			s.gov.cpu, s.gov.cpuOK = min(100, max(0, (busy-s.gov.cpuBusy)/dt*100)), true
+		}
+		s.gov.cpuBusy, s.gov.cpuTotal = busy, total
 	}
 	auto, since := s.gov.auto, s.gov.levelSince
 	s.mu.Unlock()
@@ -363,7 +403,7 @@ func (s *Service) SetAutoPause(on bool) State {
 	if wasHolding && !s.Holding() {
 		s.release()
 	}
-	saveAutoPause(s.d.SettingsPath, on)
+	s.saveSettings()
 	if !on && s.d.Tabs != nil && s.d.Thaw != nil {
 		for _, t := range s.d.Tabs() {
 			if t.Paused != nil && autoResumable(t.Paused.By) {

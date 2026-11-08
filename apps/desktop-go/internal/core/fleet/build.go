@@ -72,8 +72,10 @@ type Agent struct {
 // 排队原因（Agent.QueueReason）
 const (
 	QueueMemory = "memory"
-	QueueSlot   = "slot"
-	QueueRetry  = "retry"
+	// QueueCPU：「全速」档里整机 CPU 太忙，先排着（policy.go）
+	QueueCPU   = "cpu"
+	QueueSlot  = "slot"
+	QueueRetry = "retry"
 )
 
 // SummaryMax：卡片上的总结最多多少个字（视图再按行数截）
@@ -158,7 +160,10 @@ type State struct {
 	ExternalIdle Idle     `json:"externalIdle"`
 	System       System   `json:"system"`
 	Governor     Governor `json:"governor"`
-	SampledAt    int64    `json:"sampledAt"`
+	Policy       Policy   `json:"policy"`
+	// PolicyOptions：可选的三档（视图照着列，不自己写数值）
+	PolicyOptions []Policy `json:"policyOptions"`
+	SampledAt     int64    `json:"sampledAt"`
 }
 
 // Tab：编排器里一个标签的看板相关信息（wiring 从 ListTabs 与编排器查询里取）
@@ -208,9 +213,11 @@ type Input struct {
 	Archived map[string]int64
 	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
 	TaskSummaries map[string]string
-	// Holding：内存守护正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory）
+	// Holding：正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory / cpu）
 	Holding bool
-	System  System
+	// HoldReason：扣着的原因（memory 内存 / cpu 整机 CPU，「全速」档才看 CPU）；空 = memory
+	HoldReason string
+	System     System
 }
 
 func tabOrigin(t Tab) string {
@@ -421,6 +428,8 @@ func Build(in Input) State {
 			switch {
 			case t.Pending != nil && t.Pending.NotBefore != nil && *t.Pending.NotBefore > in.Now:
 				a.QueueReason, a.RetryAt = QueueRetry, *t.Pending.NotBefore
+			case in.Holding && in.HoldReason == QueueCPU:
+				a.QueueReason = QueueCPU
 			case in.Holding:
 				a.QueueReason = QueueMemory
 			default:

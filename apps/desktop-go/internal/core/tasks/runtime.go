@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
 )
@@ -195,6 +196,14 @@ type Runtime struct {
 	prepFailed  map[string]TaskError
 	cancelTimer func()
 	started     bool
+	// 调度策略（SetMaxConcurrent，Agent 看板）：> 0 时覆盖 RuntimeDeps 里的上限
+	limitConcurrent atomic.Int32
+}
+
+// SetMaxConcurrent：改同时运行的任务数上限（Agent 看板的调度策略）；<= 0 = 用默认。
+// 只改上限，调大后由调用方 Tick 再排一次队。
+func (r *Runtime) SetMaxConcurrent(n int) {
+	r.limitConcurrent.Store(int32(min(max(0, n), 1<<30)))
 }
 
 func NewRuntime(d RuntimeDeps) *Runtime {
@@ -203,6 +212,9 @@ func NewRuntime(d RuntimeDeps) *Runtime {
 }
 
 func (r *Runtime) max() int {
+	if n := r.limitConcurrent.Load(); n > 0 {
+		return int(n)
+	}
 	if r.d.MaxConcurrent > 0 {
 		return r.d.MaxConcurrent
 	}

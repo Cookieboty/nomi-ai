@@ -154,17 +154,24 @@ async function open(onOpenSchedule = vi.fn()) {
 }
 
 describe('任务页', () => {
-  it('按需要你 / 运行中 / 等触发 / 已结束分组；旧提醒与定时并入并打开日程', async () => {
+  it('列表：卡片铺开，按进度筛选（等批准与待验收都在「待处理」）；旧提醒与定时并入并打开日程', async () => {
     const onOpenSchedule = await open();
-    expect(screen.getByTestId('tasks-group-needs_you').textContent).toContain('要批准的');
-    expect(screen.getByTestId('tasks-group-needs_you').textContent).toContain('待验收');
-    expect(screen.getByTestId('tasks-group-running').textContent).toContain('在跑的');
-    expect(screen.getByTestId('tasks-group-waiting_trigger').textContent).toContain('定时的');
-    expect(screen.getByTestId('tasks-group-ended').textContent).toContain('做完的');
-    expect(screen.getByTestId('task-task_a').textContent).toContain('等你批准');
+    const card = (id: string) => screen.getByTestId(`task-${id}`).closest('li')!;
+    expect(card('task_a').textContent).toContain('等你批准');
+    const list = () => screen.getByTestId('tasks-list').textContent ?? '';
+    expect(list()).toContain('喝水');
+    fireEvent.click(screen.getByTestId('tasks-stage-needs_you'));
+    expect(list()).toContain('要批准的');
+    expect(list()).toContain('待验收');
+    expect(list()).not.toContain('在跑的');
+    expect(list()).not.toContain('喝水');
+    fireEvent.click(screen.getByTestId('tasks-stage-all'));
     fireEvent.click(screen.getByTestId('legacy-s1'));
     expect(onOpenSchedule).toHaveBeenCalled();
-    expect(screen.getByTestId('tasks-group-reminders').textContent).toContain('喝水');
+    // 点卡片打开详情
+    fireEvent.click(screen.getByTestId('task-task_a'));
+    await act(() => fake.settle());
+    expect(screen.getByTestId('task-detail')).toBeTruthy();
   });
 
   it('侧栏入口：有需要你处理的时显示角标', () => {
@@ -279,7 +286,9 @@ describe('任务页', () => {
     expect(col('needs_you')).toContain('要批准的');
     expect(col('in_progress')).toContain('在跑的');
     expect(col('todo')).toContain('定时的');
-    expect(col('review')).toContain('待验收');
+    // 等你验收与等批准一样是等人处理：同在「待处理」
+    expect(col('needs_you')).toContain('待验收');
+    expect(screen.queryByTestId('board-column-review')).toBeNull();
     expect(col('done')).toContain('做完的');
     expect(screen.getByTestId('tasks-list').hidden).toBe(true);
 
@@ -305,6 +314,32 @@ describe('任务页', () => {
     fireEvent.change(screen.getByTestId('task-priority'), { target: { value: 'none' } });
     await act(() => fake.settle());
     expect(fake.calls).toContainEqual(['tasks.update', { id: 'task_f', priority: null }]);
+    localStorage.clear();
+  });
+
+  it('看板：按进度筛选、搜索；卡片上的快捷操作', async () => {
+    localStorage.clear();
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-view-board'));
+    // 计数是真实条数
+    expect(screen.getByTestId('tasks-stage-in_progress').textContent).toContain('1');
+    fireEvent.click(screen.getByTestId('tasks-stage-in_progress'));
+    expect(screen.queryByTestId('board-column-todo')).toBeNull();
+    expect(screen.getByTestId('board-column-in_progress').textContent).toContain('在跑的');
+    fireEvent.click(screen.getByTestId('tasks-stage-all'));
+
+    fireEvent.change(screen.getByTestId('tasks-search'), { target: { value: '定时' } });
+    expect(screen.getByTestId('board-card-task_c')).toBeTruthy();
+    expect(screen.queryByTestId('board-card-task_b')).toBeNull();
+    fireEvent.change(screen.getByTestId('tasks-search'), { target: { value: '' } });
+
+    // 待开始的立即运行、在跑的暂停；要你处理的没有快捷操作（在详情里处理）
+    fireEvent.click(screen.getByTestId('board-action-task_c'));
+    fireEvent.click(screen.getByTestId('board-action-task_b'));
+    await act(() => fake.settle());
+    expect(fake.calls).toContainEqual(['tasks.runNow', { id: 'task_c' }]);
+    expect(fake.calls).toContainEqual(['tasks.pause', { id: 'task_b' }]);
+    expect(screen.queryByTestId('board-action-task_a')).toBeNull();
     localStorage.clear();
   });
 

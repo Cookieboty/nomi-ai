@@ -10,34 +10,34 @@
  * 数据来自契约 tasks.*；内核在任务变化时推 tasks.changed。
  */
 import { Button, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
-import { ListChecks, Plus } from 'lucide-react';
+import { ListChecks, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
-import { describeRepeat } from '../../services/desktopClient';
 import {
   CATEGORIES,
   CATEGORY_LABEL,
   categoryOf,
-  fmtTime,
   OPEN_TASK_EVENT,
   groupOf,
-  statusLabel,
+  STAGE_LABEL,
+  STAGES,
+  stageOf,
   tasksApi,
   tasksAvailable,
-  triggerLabel,
   type LegacyItem,
   type Task,
   type TaskCategory,
-  type TaskGroup,
+  type TaskStage,
 } from '../../services/tasksClient';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
-import { PriorityBadge, TaskBoard, type BoardGroup } from './Board';
+import { TaskBoard, type BoardGroup } from './Board';
 import styles from './index.module.css';
 import { TaskDetail } from './TaskDetail';
 import { TaskForm } from './TaskForm';
+import { TaskList } from './TaskList';
 
 /** 任务列表：拉一次并跟着 tasks.changed 刷新 */
 export function useTasks(enabled = true) {
@@ -112,13 +112,6 @@ function saveView(v: { view: View; group: BoardGroup }): void {
   }
 }
 
-const GROUPS: { key: TaskGroup; label: string }[] = [
-  { key: 'needs_you', label: 'ui.providers-schedule.tasks-group-needs-you' },
-  { key: 'running', label: 'ui.knowledge-local.running' },
-  { key: 'waiting_trigger', label: 'ui.providers-schedule.task-waiting-trigger' },
-  { key: 'ended', label: 'ui.mascot-theme.ended' },
-];
-
 export const TasksPage: React.FC<{
   active: boolean;
   onBack: () => void;
@@ -137,27 +130,36 @@ export const TasksPage: React.FC<{
   const [creating, setCreating] = useState(false);
   const [layout, setLayout] = useState(loadView);
   const [category, setCategory] = useState<TaskCategory | 'all'>('all');
+  const [query, setQuery] = useState('');
+  /** 进度筛选（列表与看板共用）：all 或某一档 */
+  const [stage, setStage] = useState<TaskStage | 'all'>('all');
   const changeLayout = (patch: Partial<typeof layout>) => {
     const next = { ...layout, ...patch };
     setLayout(next);
     saveView(next);
   };
   const allTasks = useMemo(() => data?.tasks ?? [], [data]);
-  const tasks = useMemo(
-    () => (category === 'all' ? allTasks : allTasks.filter((x) => categoryOf(x) === category)),
-    [allTasks, category],
-  );
-  const grouped = useMemo(() => {
-    const m = new Map<TaskGroup, Task[]>();
-    for (const task of tasks) {
-      const g = groupOf(task);
-      m.set(g, [...(m.get(g) ?? []), task]);
-    }
+  /** 类型与搜索（标题、目标）筛过的；列表与看板共用 */
+  const tasks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allTasks.filter(
+      (x) =>
+        (category === 'all' || categoryOf(x) === category) &&
+        (!q || `${x.title} ${x.goal}`.toLowerCase().includes(q)),
+    );
+  }, [allTasks, category, query]);
+  const stageCounts = useMemo(() => {
+    const m = new Map<TaskStage, number>();
+    for (const x of tasks) m.set(stageOf(x), (m.get(stageOf(x)) ?? 0) + 1);
     return m;
   }, [tasks]);
+  const boardTasks = useMemo(
+    () => (stage === 'all' ? tasks : tasks.filter((x) => stageOf(x) === stage)),
+    [tasks, stage],
+  );
   const legacy = data?.legacy ?? [];
-  const reminders = legacy.filter((x) => x.source === 'reminder');
-  const scheduled = legacy.filter((x) => x.source === 'schedule');
+  // 旧的提醒 / 定时：只在「全部」与「待开始」里列出（只读，点开进日程面板）
+  const shownLegacy = stage === 'all' || stage === 'todo' ? legacy : [];
   const current = allTasks.find((x) => x.id === selected) ?? null;
 
   useEffect(() => {
@@ -180,8 +182,26 @@ export const TasksPage: React.FC<{
       data-testid="tasks"
     >
       <header className={styles.pageHead}>
-        <h2 className={styles.pageTitle}>{t('ui.providers-schedule.tasks')}</h2>
+        <span className={styles.headIcon} aria-hidden>
+          <Icon icon={ListChecks} size={20} />
+        </span>
+        <div className={styles.headText}>
+          <h2 className={styles.pageTitle}>{t('ui.providers-schedule.tasks')}</h2>
+          <p className={styles.hint}>{t('ui.providers-schedule.tasks-hint')}</p>
+        </div>
         <span className={styles.spacer} />
+        <label className={styles.search}>
+          <Icon icon={Search} size={14} />
+          <input
+            className={styles.searchInput}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('ui.providers-schedule.task-search')}
+            aria-label={t('ui.providers-schedule.task-search')}
+            data-testid="tasks-search"
+          />
+        </label>
         <Button
           size="sm"
           variant="primary"
@@ -192,7 +212,6 @@ export const TasksPage: React.FC<{
           {t('ui.providers-schedule.new-task')}
         </Button>
       </header>
-      <p className={styles.hint}>{t('ui.providers-schedule.tasks-hint')}</p>
       <div className={styles.toolbar}>
         <Tabs
           items={[
@@ -211,6 +230,27 @@ export const TasksPage: React.FC<{
           onChange={(view) => changeLayout({ view })}
           aria-label={t('ui.model-quality.view')}
         />
+        <div
+          className={styles.chips}
+          role="group"
+          aria-label={t('ui.providers-schedule.task-stage-filter')}
+        >
+          {(['all', ...STAGES] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={styles.chip}
+              aria-pressed={stage === k}
+              onClick={() => setStage(k)}
+              data-testid={`tasks-stage-${k}`}
+            >
+              {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
+              <span className={styles.chipCount}>
+                {k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0)}
+              </span>
+            </button>
+          ))}
+        </div>
         {layout.view === 'board' && (
           <Select
             size="sm"
@@ -259,97 +299,23 @@ export const TasksPage: React.FC<{
         )}
         {layout.view === 'board' && allTasks.length > 0 && (
           <TaskBoard
-            tasks={tasks}
+            tasks={boardTasks}
             group={layout.group}
+            stages={stage === 'all' ? undefined : [stage]}
             selected={selected}
             onSelect={setSelected}
           />
         )}
         <div className={styles.list} data-testid="tasks-list" hidden={layout.view === 'board'}>
-          {data && !tasks.length && !legacy.length && (
-            <p className={styles.empty} data-testid="tasks-empty">
-              {t('ui.providers-schedule.tasks-empty')}
-            </p>
-          )}
-          {GROUPS.map(({ key, label }) => {
-            const rows = grouped.get(key);
-            if (!rows?.length) return null;
-            return (
-              <div key={key} className={styles.group} data-testid={`tasks-group-${key}`}>
-                <h3 className={styles.groupTitle}>
-                  {t(label)} <span className={styles.groupCount}>{rows.length}</span>
-                </h3>
-                <ul className={styles.rows}>
-                  {rows.map((task) => (
-                    <li key={task.id}>
-                      <button
-                        type="button"
-                        className={styles.row}
-                        aria-current={selected === task.id ? 'true' : undefined}
-                        data-attention={key === 'needs_you' || undefined}
-                        onClick={() => setSelected(task.id)}
-                        data-testid={`task-${task.id}`}
-                      >
-                        <span className={styles.rowTitle}>{task.title}</span>
-                        <span className={styles.rowStatus}>{statusLabel(task)}</span>
-                        <span className={styles.rowMeta}>
-                          {task.priority && <PriorityBadge priority={task.priority} />}
-                          {triggerLabel(task.trigger)}
-                          {task.nextRunAt && task.status === 'idle' && task.enabled
-                            ? ` · ${t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))}`
-                            : ''}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-          {[
-            {
-              rows: reminders,
-              label: 'ui.foundation.reminders',
-              key: 'reminders',
-            },
-            {
-              rows: scheduled,
-              label: 'ui.providers-schedule.tasks-group-scheduled',
-              key: 'scheduled',
-            },
-          ].map(
-            ({ rows, label, key }) =>
-              rows.length > 0 && (
-                <div key={key} className={styles.group} data-testid={`tasks-group-${key}`}>
-                  <h3 className={styles.groupTitle}>
-                    {t(label)} <span className={styles.groupCount}>{rows.length}</span>
-                  </h3>
-                  <ul className={styles.rows}>
-                    {rows.map((x) => (
-                      <li key={`${x.source}:${x.id}`}>
-                        <button
-                          type="button"
-                          className={styles.row}
-                          data-disabled={!x.enabled || undefined}
-                          onClick={onOpenSchedule}
-                          title={t('ui.providers-schedule.tasks-open-schedule')}
-                          data-testid={`legacy-${x.id}`}
-                        >
-                          <span className={styles.rowTitle}>{x.title}</span>
-                          <span className={styles.rowStatus}>
-                            {x.enabled
-                              ? x.repeat
-                                ? describeRepeat(x.repeat)
-                                : t('ui.providers-schedule.task-once')
-                              : t('ui.providers-schedule.task-paused')}
-                          </span>
-                          <span className={styles.rowMeta}>{fmtTime(x.nextRunAt)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ),
+          {data && (
+            <TaskList
+              tasks={boardTasks}
+              legacy={shownLegacy}
+              selected={selected}
+              onSelect={setSelected}
+              onOpenSchedule={onOpenSchedule}
+              empty={t('ui.providers-schedule.tasks-empty')}
+            />
           )}
         </div>
         {current && (

@@ -96,6 +96,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "fleet.pause mutation dangerous",
   "fleet.resume mutation dangerous",
   "fleet.setAutoPause mutation dangerous",
+  "fleet.setPolicy mutation dangerous",
   "history.list query",
   "history.index query",
   "history.open mutation",

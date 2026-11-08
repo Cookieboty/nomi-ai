@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 440：mutation 310 / query 125 / stream 5
+// 合计 441：mutation 311 / query 125 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -168,6 +168,7 @@ var Procedures = []Procedure{
 	{Name: "fleet.pause", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "fleet.resume", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "fleet.setAutoPause", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "fleet.setPolicy", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "fleet.state", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.catalogModels", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "gateway.clearLearned", Kind: "mutation", Dangerous: false, Surfaces: nil},

@@ -456,6 +456,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Other
 
 - ACP / JSON-RPC 连接监听子进程 stdin 的错误：对端先退出时写入报的 EPIPE 按「进程已退出」让未完成的请求失败（和 close 同一原因，Codex 起不来 app-server 时照常回退 exec），不再变成进程级未捕获错误（外部插件试运行时命令立刻退出的情况）。 (`@nomi-ai/desktop-go` patch)
+- Agent 看板与任务看板改版：Agent 看板按状态筛选、可搜索和按助手类型筛选，卡片两列铺开，写清状态、来源、目录与 CPU / 内存，底部一栏显示 Nomi 自己的占用与内存守护最近做的事；任务看板列头用色点、卡片带类型图标与执行者，可按进度筛选和搜索，卡片上可直接立即运行或暂停，已结束的收成紧凑一行。配色统一跟随主题色，只显示真实数据（内核没有完成度，不画百分比）。 (`@nomi-ai/desktop-go` patch)
 - Async CLI delegation by default (background return + status/followup) and RoutePlan active by default (NOMI_ROUTE_PLAN=shadow rollback). (`@nomi-ai/ai-chat` minor)
 - Async CLI delegation by default (background return + status/followup) and RoutePlan active by default (NOMI_ROUTE_PLAN=shadow rollback). (`@nomi-ai/desktop-go` minor)
 - CLI-plugin review P0/P1: mapTools/AiSdkLlmProvider plumb `callerTabId` (ALS + ChatRequest.extra) so nested `delegate_to_cli` depth checks work on the production tool path; re-export `runWithToolCaller` / `getToolCallerTabId`. (`@nomi-ai/ai-sdk-client` patch)
@@ -544,6 +545,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 从 Claude Code 导入 MCP 服务器时，自定义 `CLAUDE_CONFIG_DIR` 与默认 `~/.claude.json` 里的同名条目不再互相覆盖（#74）：每个候选项的标识带上来源文件（只用路径哈希，不暴露路径），选中哪一行就导入哪个文件里的配置。 (`@nomi-ai/desktop-go` patch)
 - 从历史会话继续 Claude Code 会话时，经第三方网关跑过的会话（网关会话归属表里有记录）按第三方续接，不再跟随「新标签默认来源」用官方账号续接（#90）。 (`@nomi-ai/desktop-go` patch)
 - 任务停在「配置变了」时，详情里可以选「已处理，继续」或「放弃这个任务」。 (`@nomi-ai/ai-chat` minor)
+- 任务的进度合并成四档（待开始 / 进行中 / 待处理 / 已结束，等批准与等验收都归「待处理」），列表改成与 Agent 看板同样的两列卡片、也能按进度筛选；Agent 看板底部改成「调度策略」：省资源（同时最多 3 个）/ 均衡（5 个）/ 全速（不限个数，按 CPU 与内存放行），选了立即生效。修复会话详情里委派出去的子任务结束后仍显示「运行中」、出错不显示；「变更」改按工作区的 git 改动统计（派出去的编程助手改的也算）；Nomi 派出去的会话在标签关掉后又以「终端 · 只读」出现在 Agent 看板；Windows 上切换文件时闪出控制台窗口。 (`@nomi-ai/desktop-go` patch)
 - 任务看板里空的列收窄，只有少量任务时都在屏内；任务详情里的时间跟界面语言走，执行状态显示成文字（不再出现 succeeded 这类原文）。对话里的委派卡片又能「查看」「停止」了（后台委派改成任务后丢了），审批也经任务回应。 (`@nomi-ai/ai-chat` patch)
 - 任务页多了看板视图：按进度（待开始 / 进行中 / 需要你 / 待验收 / 已结束）或按重要程度分列，可按类型筛选。任务可以设重要程度（紧急 / 高 / 中 / 低）和类型（编程、审查、调研、写作、盯着某处、杂事），新建时选，也能在详情里改；没选类型时按执行者自动判断。 (`@nomi-ai/contract` minor)
 - 任务页新增看板视图：按进度或重要程度分列、按类型筛选；新建与详情里可以设置重要程度和类型。 (`@nomi-ai/ai-chat` minor)

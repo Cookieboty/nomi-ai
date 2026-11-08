@@ -12,6 +12,7 @@ export type FleetState = Awaited<ReturnType<typeof api.fleet.state>>;
 export type FleetAgent = FleetState['agents'][number];
 export type FleetColumn = FleetAgent['column'];
 export type FleetIdleItem = FleetState['externalIdle']['items'][number];
+export type FleetPolicyMode = FleetState['policy']['mode'];
 
 export const fleetAvailable = () => hasTransport();
 
@@ -24,6 +25,8 @@ export const fleetApi = {
   pause: (id: string) => api.fleet.pause({ id }),
   resume: (id: string) => api.fleet.resume({ id }),
   setAutoPause: (enabled: boolean) => api.fleet.setAutoPause({ enabled }),
+  /** 调度策略：同时跑几个编程助手 / 后台任务（存盘，立即生效） */
+  setPolicy: (mode: FleetPolicyMode) => api.fleet.setPolicy({ mode }),
   onChange: (fn: (s: FleetState) => void) => api.on('fleet.changed', fn),
 };
 

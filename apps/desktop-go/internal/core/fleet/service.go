@@ -43,7 +43,11 @@ type Deps struct {
 	Freeze      func(tabID string, pids []int, by string) bool
 	Thaw        func(tabID string) bool
 	ReclaimIdle func() []string
-	// SettingsPath：自动暂停开关存在这里（JSON）；空 = 不存盘
+	// SystemCPU：整机 CPU 的累计计数（agents.SystemCPU）；「全速」档按它放行。nil = 不看 CPU
+	SystemCPU func() (busy, total float64, ok bool)
+	// ApplyPolicy：调度策略交给执行方（持续任务运行时、委派的上限）；SetPolicy 与装配后的 ApplyPolicy 调
+	ApplyPolicy func(Policy)
+	// SettingsPath：自动暂停开关与调度策略存在这里（JSON）；空 = 不存盘
 	SettingsPath string
 	// GovernEvery：多久看一次内存压力；0 = GovernInterval
 	GovernEvery time.Duration
@@ -67,6 +71,7 @@ type Service struct {
 	timer    *time.Timer
 	closed   bool
 	gov      govState
+	policy   string // 调度策略（policy.go）
 }
 
 func New(d Deps) *Service {
@@ -74,7 +79,9 @@ func New(d Deps) *Service {
 		d.Now = time.Now
 	}
 	s := &Service{d: d, archived: map[string]int64{}}
-	s.gov.auto = loadAutoPause(d.SettingsPath)
+	f := loadSettings(d.SettingsPath)
+	s.gov.auto = f.AutoPause == nil || *f.AutoPause
+	s.policy = PolicyOf(f.Policy).Mode
 	s.gov.thawedAt = map[string]time.Time{}
 	return s
 }
@@ -159,11 +166,14 @@ func (s *Service) State() State {
 			}
 		}
 	}
+	hold := s.HoldReason()
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: s.Holding()})
+		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}
+	st.Policy = PolicyOf(s.policy)
+	st.PolicyOptions = Policies
 	s.mu.Unlock()
 	return st
 }

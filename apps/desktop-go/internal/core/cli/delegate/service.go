@@ -90,7 +90,7 @@ type Deps struct {
 	Tasks TaskPort
 	// Claims：同一仓库里直接改的并行任务按文件、按优先级裁决（可空）
 	Claims *Claims
-	// MemoryCritical：系统内存紧张、内存守护在扣着新的编程助手（Agent 看板）。后台委派照常建任务（排队，缓解后开始）；
+	// MemoryCritical：系统内存紧张（或「全速」调度策略下 CPU 太忙）、看板在扣着新的编程助手（Agent 看板）。后台委派照常建任务（排队，缓解后开始）；
 	// 同步委派：后台 Nomi 里的等缓解，前台对话里的返回 memory_pressure（可空）
 	MemoryCritical func() bool
 }
@@ -104,8 +104,8 @@ func (s *Service) waitMemory(sig context.Context, background bool) error {
 		return nil
 	}
 	if !background {
-		return derr("memory_pressure", "系统内存紧张，现在不开新的编程助手。改用后台委派（background 不填或 true）："+
-			"任务会在 Agent 看板「待进行」里排队，内存缓解后自动开始；或者等一会儿再派")
+		return derr("memory_pressure", "系统内存紧张（或「全速」调度策略下 CPU 太忙），现在不开新的编程助手。"+
+			"改用后台委派（background 不填或 true）：任务会在 Agent 看板「待进行」里排队，资源缓解后自动开始；或者等一会儿再派")
 	}
 	for s.d.MemoryCritical() {
 		var done <-chan struct{}
@@ -1600,7 +1600,14 @@ func (s *Service) slotFreeLocked() bool {
 			running++
 		}
 	}
-	return running+s.reserved < MaxParallelDelegates
+	return running+s.reserved < maxParallel()
+}
+
+// WakeSlots：上限调大后放行排队的委派
+func (s *Service) WakeSlots() {
+	s.mu.Lock()
+	s.wakeSlotWaitersLocked()
+	s.mu.Unlock()
 }
 
 // wakeSlotWaitersLocked：有空名额就按先来先得放行排队的；名额在这里就替它占上（不会一次放行多个抢同一个名额）
@@ -1631,7 +1638,7 @@ func (s *Service) reserveSlot(sig context.Context, wait bool) (func(), error) {
 	s.mu.Lock()
 	if !wait && !s.slotFreeLocked() {
 		s.mu.Unlock()
-		return nil, derr("concurrency_limit", "同时运行的委派已达上限（"+strconv.Itoa(MaxParallelDelegates)+"）。等其中一个完成后再派，或用 delegate_status 查看进度")
+		return nil, derr("concurrency_limit", "同时运行的委派已达上限（"+strconv.Itoa(maxParallel())+"）。等其中一个完成后再派，或用 delegate_status 查看进度")
 	}
 	if s.slotFreeLocked() && len(s.waiters) == 0 {
 		s.reserved++

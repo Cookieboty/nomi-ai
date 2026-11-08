@@ -13,7 +13,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
+  gap: var(--cd-space-3);
   /* 整页就在白色对话卡片里：不再自带底色，四周留白与对话区一致 */
   padding: var(--cd-space-5) var(--cd-space-6);
   background: transparent;
@@ -24,8 +24,99 @@
 }
 .pageHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cd-space-2);
+  gap: var(--cd-space-2) var(--cd-space-3);
+}
+/* 标题前的图标块：主题色（与 Agent 看板同一套） */
+.headIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-lg);
+  height: var(--cd-control-h-lg);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent);
+}
+.headText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+/* 搜索：与「新建任务」同高（sm），外层画边框与焦点环，里面是不带边框的原生输入框 */
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  width: calc(var(--cd-space-8) * 7);
+  max-width: 100%;
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-panel-surface-raised);
+  color: var(--cd-color-text-subtle);
+}
+.search:focus-within {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -1px;
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  outline: none;
+}
+.searchInput::placeholder {
+  color: var(--cd-color-text-subtle);
+}
+/* 看板的进度筛选：胶囊，选中的用主题色 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1-5);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-panel-surface-raised);
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--cd-color-accent);
+  color: var(--cd-color-text-on-accent);
+  font-weight: var(--cd-font-weight-medium);
+}
+.chipCount {
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 .pageTitle {
   margin: 0;
@@ -88,84 +179,6 @@
   flex-direction: column;
   gap: var(--cd-space-4);
 }
-.empty {
-  margin: var(--cd-space-6) 0;
-  color: var(--cd-color-text-muted);
-  text-align: center;
-}
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-}
-.groupTitle {
-  margin: 0;
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-  font-weight: var(--cd-font-weight-medium);
-}
-.groupCount {
-  font-variant-numeric: tabular-nums;
-}
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-}
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cd-space-0-5) var(--cd-space-3);
-  width: 100%;
-  padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-panel-border);
-  border-radius: var(--cd-radius-md);
-  background: var(--cd-panel-surface);
-  color: var(--cd-color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.row:hover {
-  background: var(--cd-color-hover);
-}
-.row:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 2px;
-}
-.row[aria-current='true'] {
-  border-color: var(--cd-color-accent);
-}
-.row[data-attention] {
-  border-color: var(--cd-color-warning-border);
-  background: var(--cd-color-warning-soft);
-}
-.row[data-disabled] {
-  color: var(--cd-color-text-muted);
-}
-.rowTitle {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: var(--cd-font-weight-medium);
-}
-.rowStatus {
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-}
-.rowMeta {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-xs);
-}
-
 /* 右侧详情 */
 .detail {
   flex: 0 0 auto;

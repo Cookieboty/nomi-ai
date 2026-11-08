@@ -140,6 +140,12 @@ const state: FleetState = {
     availablePercent: 45,
   },
   governor: { autoPause: true, last: { kind: 'paused', id: 'tab:p', at: T0 - 60_000 } },
+  policy: { mode: 'balanced', maxParallel: 5 },
+  policyOptions: [
+    { mode: 'saver', maxParallel: 3 },
+    { mode: 'balanced', maxParallel: 5 },
+    { mode: 'max', maxParallel: 0 },
+  ],
   sampledAt: T0,
 };
 
@@ -195,34 +201,55 @@ describe('summarize / format', () => {
 });
 
 describe('FleetPage', () => {
-  it('shows Nomi as the dispatcher in the overview, not as a card', () => {
-    render(<FleetPage active state={state} onBack={() => undefined} chatName={chatName} />);
-    expect(screen.getByTestId('fleet-dispatcher').textContent).toContain('300 MB');
+  it('shows the dispatch policy the kernel reports and lets the user pick one', () => {
+    const onSetPolicy = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onSetPolicy={onSetPolicy} />);
     expect(screen.queryByTestId('fleet-card-nomi')).toBeNull();
-    // 空闲进程合并成一行
-    const idle = screen.getByTestId('fleet-idle').textContent ?? '';
-    expect(idle).toContain('Codex 2');
-    expect(idle).toContain('Grok 1');
-    expect(idle).toContain('100 MB');
     expect(screen.getByTestId('fleet-summary').textContent).toContain('12%');
+    const balanced = screen.getByTestId('fleet-policy-balanced');
+    expect(balanced.getAttribute('aria-checked')).toBe('true');
+    // 数值照内核给的写
+    expect(screen.getByTestId('fleet-policy-saver').textContent).toContain('3');
+    expect(screen.getByTestId('fleet-policy-balanced').textContent).toContain('5');
+    // 全速不设个数上限：写按 CPU 与内存放行
+    expect(screen.getByTestId('fleet-policy-max').textContent).toContain('CPU');
+    fireEvent.click(balanced);
+    expect(onSetPolicy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('fleet-policy-saver'));
+    expect(onSetPolicy).toHaveBeenCalledWith('saver');
   });
 
-  it('puts every working agent, managed and external, into the columns', () => {
+  it('shows every working agent, managed and external, filterable by status', () => {
     render(<FleetPage active state={state} onBack={() => undefined} chatName={chatName} />);
-    const running = screen.getByTestId('fleet-col-running');
-    expect(within(running).getByText('周末计划')).toBeTruthy();
-    expect(within(running).getByText('修复流式')).toBeTruthy();
-    expect(within(running).getByTestId('fleet-needs-tab:a')).toBeTruthy();
-    expect(within(running).getByText('终端里修 bug')).toBeTruthy();
-    expect(within(screen.getByTestId('fleet-col-todo')).getByText('写周报')).toBeTruthy();
-    const done = screen.getByTestId('fleet-col-done');
-    expect(within(done).getByText('重构 UI')).toBeTruthy();
-    expect(within(done).getByText('做完了')).toBeTruthy();
+    const grid = () => screen.getByTestId('fleet-grid');
+    const columnOf = (text: string) =>
+      within(grid()).getByText(text).closest('li')?.getAttribute('data-column');
+    expect(columnOf('周末计划')).toBe('running');
+    expect(columnOf('修复流式')).toBe('running');
+    expect(screen.getByTestId('fleet-needs-tab:a')).toBeTruthy();
+    expect(columnOf('终端里修 bug')).toBe('running');
+    expect(columnOf('写周报')).toBe('todo');
+    expect(columnOf('重构 UI')).toBe('done');
+    expect(columnOf('做完了')).toBe('done');
     // 做完的卡片带上总结
     expect(screen.getByTestId('fleet-summary-ext:codex:s3').textContent).toContain('测试都通过了');
     // 终端里等你回话 = 这一轮答完了：算已完成，不标「要你处理」
-    expect(within(done).getByText('等我回话')).toBeTruthy();
+    expect(columnOf('等我回话')).toBe('done');
     expect(screen.queryByTestId('fleet-needs-ext:claude:s2')).toBeNull();
+    // 状态筛选：只剩那一类，计数是真实的条数
+    const running = state.agents.filter((a) => a.column === 'running').length;
+    expect(screen.getByTestId('fleet-filter-running').textContent).toContain(String(running));
+    fireEvent.click(screen.getByTestId('fleet-filter-done'));
+    expect(within(grid()).queryByText('周末计划')).toBeNull();
+    expect(within(grid()).getByText('重构 UI')).toBeTruthy();
+  });
+
+  it('searches by title', () => {
+    render(<FleetPage active state={state} onBack={() => undefined} chatName={chatName} />);
+    fireEvent.change(screen.getByTestId('fleet-search'), { target: { value: '周报' } });
+    expect(within(screen.getByTestId('fleet-grid')).getAllByRole('listitem')).toHaveLength(1);
+    fireEvent.change(screen.getByTestId('fleet-search'), { target: { value: '没有这个' } });
+    expect(screen.getByTestId('fleet-empty')).toBeTruthy();
   });
 
   it('lists idle processes separately, one row each, closable by hand', () => {
@@ -264,7 +291,8 @@ describe('FleetPage', () => {
   it('archives only done items', () => {
     const onArchive = vi.fn();
     render(<FleetPage active state={state} onBack={() => undefined} onArchive={onArchive} />);
-    expect(screen.queryByTestId('fleet-archive-tab:a')).toBeNull();
+    expect(screen.queryByTestId('fleet-more-tab:a')).toBeNull();
+    fireEvent.click(screen.getByTestId('fleet-more-tab:b'));
     fireEvent.click(screen.getByTestId('fleet-archive-tab:b'));
     expect(onArchive).toHaveBeenCalledWith('tab:b');
   });
@@ -272,8 +300,8 @@ describe('FleetPage', () => {
   it('opens the conversation of an answering Nomi chat', () => {
     const onOpenChat = vi.fn();
     render(<FleetPage active state={state} onBack={() => undefined} onOpenChat={onOpenChat} />);
-    const card = screen.getByTestId('fleet-card-chat:c1');
-    fireEvent.click(within(card).getByRole('button'));
+    fireEvent.click(screen.getByTestId('fleet-more-chat:c1'));
+    fireEvent.click(screen.getByTestId('fleet-open-chat-chat:c1'));
     expect(onOpenChat).toHaveBeenCalledWith('c1');
   });
 
@@ -295,8 +323,7 @@ describe('FleetPage', () => {
         onResume={onResume}
       />,
     );
-    const paused = screen.getByTestId('fleet-col-paused');
-    expect(within(paused).getByText('被暂停的')).toBeTruthy();
+    expect(screen.getByText('被暂停的').closest('li')?.getAttribute('data-column')).toBe('paused');
     expect(screen.getByTestId('fleet-paused-tab:p').textContent).toContain('内存紧张');
     fireEvent.click(screen.getByTestId('fleet-resume-tab:p'));
     expect(onResume).toHaveBeenCalledWith('tab:p');
@@ -348,25 +375,15 @@ describe('FleetPage', () => {
     expect(screen.getByTestId('fleet-parent-tab:p').textContent).toContain('写周报');
   });
 
-  it('collapses empty columns and says why queued work is waiting', () => {
+  it('says why queued work is waiting', () => {
     const queued = {
       ...state,
       agents: state.agents.map((a) =>
         a.id === 'run:t2' ? { ...a, queueReason: 'retry' as const, retryAt: T0 + 3_600_000 } : a,
       ),
     };
-    const { rerender } = render(<FleetPage active state={queued} onBack={() => undefined} />);
+    render(<FleetPage active state={queued} onBack={() => undefined} />);
     expect(screen.getByTestId('fleet-queue-run:t2').textContent).toContain('重试');
-    expect(screen.getByTestId('fleet-col-todo').hasAttribute('data-empty')).toBe(false);
-    rerender(
-      <FleetPage
-        active
-        state={{ ...state, agents: state.agents.filter((a) => a.column !== 'todo') }}
-        onBack={() => undefined}
-      />,
-    );
-    expect(screen.getByTestId('fleet-col-todo').hasAttribute('data-empty')).toBe(true);
-    expect(screen.getByTestId('fleet-col-running').hasAttribute('data-empty')).toBe(false);
   });
 
   it('Esc goes back to the chat', () => {

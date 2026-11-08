@@ -372,10 +372,10 @@ export const FleetAgent = loose({
   /** 做完时的总结（标签最后一条回复、任务结果摘要、外部会话摘要），只给已完成的，最多 300 字 */
   summary: z.string().optional(),
   /**
-   * 在待进行里为什么还没开始：memory 内存紧张被内存守护扣着（缓解后自动开始）/ slot 等前面的任务（并发名额满或
+   * 在待进行里为什么还没开始：memory 内存紧张被扣着（缓解后自动开始）/ cpu 「全速」调度策略下整机 CPU 太忙 / slot 等前面的任务（并发名额满或
    * 每小时启动次数到了）/ retry 上次失败、等重试（retryAt 毫秒）
    */
-  queueReason: z.enum(['memory', 'slot', 'retry']).optional(),
+  queueReason: z.enum(['memory', 'cpu', 'slot', 'retry']).optional(),
   retryAt: z.number().optional(),
 });
 
@@ -404,6 +404,17 @@ export const FleetGovernor = loose({
   }).optional(),
 });
 
+/**
+ * 调度策略：Nomi 同时派出去跑的编程助手 / 后台任务的上限（用户在看板里选，存盘）。saver 省资源 / balanced 均衡（默认）/
+ * max 全速；maxParallel = 委派与持续任务各自同时运行的上限，超出的排队；0 = 不设上限，按 CPU 与内存放行
+ * （内存偏高或整机 CPU 很忙时新的排队，queueReason: memory / cpu）。
+ */
+export const FleetPolicyMode = z.enum(['saver', 'balanced', 'max']);
+export const FleetPolicy = loose({
+  mode: FleetPolicyMode,
+  maxParallel: z.number(),
+});
+
 /** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
 export const FleetNomi = loose({ usage: FleetUsage.optional() });
 
@@ -430,6 +441,9 @@ export const FleetState = loose({
   externalIdle: FleetExternalIdle,
   system: FleetSystem,
   governor: FleetGovernor,
+  policy: FleetPolicy,
+  /** 可选的几档（视图照着列） */
+  policyOptions: z.array(FleetPolicy),
   /** 这份数据的采样时间（毫秒） */
   sampledAt: z.number(),
 });

@@ -186,6 +186,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		gatewaySession = gw.ServedSession
 	}
 	dlg := delegate.New(dd)
+	delegateSvc.Store(dlg)
 	// 委派之后在子任务里接着跑的轮次（用户对话、沙箱授权后继续）也回报到来源对话
 	if harnessOrch != nil {
 		jsrt.Run(func() {

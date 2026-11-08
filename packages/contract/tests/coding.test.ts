@@ -48,6 +48,7 @@ describe('appContract · D3 coding', () => {
       'fleet.pause',
       'fleet.resume',
       'fleet.setAutoPause',
+      'fleet.setPolicy',
       'harness.geminiTrustFolder',
       'harness.replyApprovePlan',
       'harness.replyPermission',
