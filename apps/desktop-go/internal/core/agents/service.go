@@ -236,6 +236,8 @@ type Service struct {
 	tickAgain         *bool
 	tabs              func() []*util.Obj
 	tabProgress       func(string) string
+	// owned：Nomi 标签用过的 CLI 会话（owned.go）
+	owned map[string]float64
 }
 
 func nodePlatform() string {
@@ -287,6 +289,7 @@ func New(d Deps) *Service {
 	s.settingsPath = filepath.Join(d.Root, "settings.json")
 	_ = os.MkdirAll(d.Root, 0o777)
 	s.load()
+	s.loadOwned()
 	return s
 }
 
@@ -326,12 +329,7 @@ func truthy(v any) bool { return util.Truthy(v) }
 // State：当前状态快照。
 func (s *Service) State() *util.Obj {
 	tabs := s.safeTabs()
-	owned := map[string]bool{}
-	for _, t := range tabs {
-		if truthy(t.Get("cliSessionId")) {
-			owned[util.JSString(t.Get("backend"))+":"+util.JSString(t.Get("cliSessionId"))] = true
-		}
-	}
+	s.rememberOwned(tabs)
 	type row struct {
 		v      *util.Obj
 		status string
@@ -340,7 +338,7 @@ func (s *Service) State() *util.Obj {
 	rows := []row{}
 	for _, k := range s.trackedKeys {
 		t := s.tracked[k]
-		if owned[t.id] {
+		if s.ownedBy(t.id) {
 			continue
 		}
 		v := t.view(true)
@@ -1045,7 +1043,10 @@ func (s *Service) AttachHarness(h Harness) {
 	}
 	h.OnTabs(func() {
 		now := s.now()
-		for _, t := range s.safeTabs() {
+		tabs := s.safeTabs()
+		// 标签一换会话 id 就记下（不等下一次读状态：出错重开的会话 id 可能只存在一小会儿）
+		s.rememberOwned(tabs)
+		for _, t := range tabs {
 			st := t.Get("status")
 			if st == "running" || st == "queued" {
 				k := "tab:" + util.JSString(t.Get("id"))
