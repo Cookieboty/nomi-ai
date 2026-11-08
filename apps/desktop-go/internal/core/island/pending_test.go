@@ -107,3 +107,74 @@ func TestResizedClampsHeight(t *testing.T) {
 		t.Fatalf("one row is a 440×64 pill: %+v", g)
 	}
 }
+
+// Esc / 关闭：现有的先不显示（岛收起），仍算在 Pending() 里；来了新的连同它们一起显示；关掉的不能在岛上处理
+func TestPendingDismiss(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "island.json"), "darwin")
+	h := &pendHost{}
+	s.SetHost(h.host())
+	s.SetResolver(func(string, string) error { return nil })
+	a := Pending{ID: "a", Title: "A", Actions: allow, At: 1}
+	b := Pending{ID: "b", Title: "B", Actions: allow, At: 2}
+	s.SetPending([]Pending{a})
+	s.Dismiss()
+	last := func() []Pending { h.mu.Lock(); defer h.mu.Unlock(); return h.lists[len(h.lists)-1] }
+	if len(last()) != 0 || len(s.Pending()) != 1 {
+		t.Fatalf("dismissed: shown %+v all %+v", last(), s.Pending())
+	}
+	if err := s.Act("a", "allow"); !errors.Is(err, ErrUnknownPending) {
+		t.Fatalf("act on a dismissed item: %v", err)
+	}
+	// 同样的列表再推：仍不显示
+	n := len(h.lists)
+	s.SetPending([]Pending{a})
+	if len(h.lists) != n {
+		t.Fatal("dismissed list shown again")
+	}
+	// 来了新的一条：连同关掉的一起显示
+	s.SetPending([]Pending{a, b})
+	if got := last(); len(got) != 2 {
+		t.Fatalf("new item: %+v", got)
+	}
+	// 关掉后处理完一部分（列表变短）也不再弹出
+	s.Dismiss()
+	n = len(h.lists)
+	s.SetPending([]Pending{b})
+	if len(h.lists) != n && len(last()) != 0 {
+		t.Fatalf("shrunk list popped up: %+v", last())
+	}
+}
+
+// 点某一条 / 「打开」：交给 opener（跳到它）；不认识的、调试样例只打开对话窗口
+func TestPendingOpenItem(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "island.json"), "darwin")
+	h := &pendHost{}
+	chat := 0
+	host := h.host()
+	host.OpenChat = func() { chat++ }
+	s.SetHost(host)
+	var opened []string
+	s.SetOpener(func(id string) { opened = append(opened, id) })
+	s.SetPending([]Pending{{ID: "task\x1fT1", Title: "T", Actions: allow}})
+	s.OpenItem("task\x1fT1")
+	s.OpenItem("nope")
+	if len(opened) != 1 || opened[0] != "task\x1fT1" || chat != 1 {
+		t.Fatalf("opened %v chat %d", opened, chat)
+	}
+}
+
+// 调试页重新放样例：按 Esc 关掉过也照样显示（样例 id 每次相同）
+func TestDebugPendingAfterDismiss(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "island.json"), "darwin")
+	h := &pendHost{}
+	s.SetHost(h.host())
+	sample := []Pending{{ID: "perm", Title: "样例", Actions: allow}}
+	s.DebugPending(sample)
+	s.Dismiss()
+	s.DebugPending(sample)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if got := h.lists[len(h.lists)-1]; len(got) != 1 {
+		t.Fatalf("debug samples hidden after Esc: %+v", got)
+	}
+}

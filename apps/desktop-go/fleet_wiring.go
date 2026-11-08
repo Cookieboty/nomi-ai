@@ -111,6 +111,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 			return ""
 		},
+		ConversationOwns: func(t tasks.Task) bool { return ts != nil && ts.ConversationOwns(t) },
 		Chats: func() []fleet.Chat {
 			if chats == nil {
 				return nil

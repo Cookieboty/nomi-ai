@@ -86,10 +86,12 @@ describe('SubagentPane', () => {
     await waitFor(() =>
       expect(screen.getByTestId('subagent-pane').textContent).toContain('修好了'),
     );
-    // 子任务的模型 / 思考深度：输入栏里与编程助手标签同一个按钮
-    expect(
-      screen.getByTestId('subagent-pane').querySelector('[data-testid="model-chip"]'),
-    ).toBeTruthy();
+    // 子任务的模型 / 思考深度：输入栏里与编程助手标签同一个按钮（模型列表异步取到后才渲染，CI 上可能晚于正文）
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('subagent-pane').querySelector('[data-testid="model-chip"]'),
+      ).toBeTruthy(),
+    );
     fireEvent.change(screen.getByTestId('subagent-input'), { target: { value: '再加个测试' } });
     fireEvent.keyDown(screen.getByTestId('subagent-input'), { key: 'Enter' });
     await waitFor(() =>

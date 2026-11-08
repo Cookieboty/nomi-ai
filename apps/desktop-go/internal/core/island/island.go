@@ -91,7 +91,12 @@ type Service struct {
 	pending  []Pending
 	raw      []Pending // 装配层推来的原样（开关打开时据此恢复）
 	debug    []Pending // 开发版调试页的样例（DebugPending）
+	all      []Pending // 整理好的完整列表（pending = 去掉用户关掉的之后实际显示的）
 	resolver func(id, action string) error
+	// opener：点「打开」/ 点某一条 → 打开对话窗口并跳到它（装配层按 id 前缀定去处）
+	opener func(id string)
+	// dismissed：用户按 Esc / 点关闭时在列表里的条目：这些不再弹出，来了新的才连同它们一起再显示
+	dismissed map[string]bool
 	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill
 	PrimaryDisplay func() (Display, bool)
 }

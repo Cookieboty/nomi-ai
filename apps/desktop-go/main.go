@@ -686,7 +686,8 @@ func main() {
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
-	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc, open: func() { sh.Show(shell.Chat) }})()
+	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc,
+		open: func(target, id string) { islandOpenItem(sh, router, target, id) }})()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
@@ -870,6 +871,8 @@ func main() {
 				isl.Hidden()
 			case "nomi:island:open":
 				isl.Opened()
+			case "nomi:island:dismiss":
+				isl.Dismiss()
 			default:
 				islandPageMessage(isl, msg)
 			}
@@ -1160,6 +1163,13 @@ func islandPageMessage(isl *island.Service, msg string) {
 		}
 		return
 	}
+	if v, ok := strings.CutPrefix(msg, "nomi:island:open:"); ok {
+		var id string
+		if json.Unmarshal([]byte(v), &id) == nil && id != "" {
+			isl.OpenItem(id)
+		}
+		return
+	}
 	if v, ok := strings.CutPrefix(msg, "nomi:island:act:"); ok {
 		var a struct{ ID, Action string }
 		if json.Unmarshal([]byte(v), &a) != nil || a.ID == "" {
@@ -1167,11 +1177,38 @@ func islandPageMessage(isl *island.Service, msg string) {
 		}
 		// 处理要进 GIL、可能要等，不在页面消息回调里做
 		go func() {
-			if err := isl.Act(a.ID, a.Action); err != nil {
-				log.Printf("[island] act %s/%s: %v", a.ID, a.Action, err)
-			}
+			// 每次都记（含耗时）：岛上点了没反应时，从日志看是没送到、被拒还是卡在处理里
+			t0 := time.Now()
+			err := isl.Act(a.ID, a.Action)
+			log.Printf("[island] act %q/%s: err=%v (%s)", a.ID, a.Action, err, time.Since(t0).Round(time.Millisecond))
 		}()
 	}
+}
+
+// revealChat：显示并激活对话窗口。只 Show 的话，开着的对话窗口不会被提到前面（Windows），应用不在前台时也不激活（mac），
+// 从灵动岛点过来看起来就是没反应
+func revealChat(sh shell.Shell) {
+	if r, ok := sh.(interface{ Reveal(shell.WindowKind) }); ok {
+		r.Reveal(shell.Chat)
+		return
+	}
+	sh.Show(shell.Chat)
+}
+
+// islandOpenItem：灵动岛上点「打开」/ 点某一条：激活对话窗口，页面加载好后跳到那一条（nav.openItemRequested）
+func islandOpenItem(sh shell.Shell, router *contract.Router, target, id string) {
+	revealChat(sh)
+	emit := func() { router.EmitTo("nav.openItemRequested", map[string]any{"target": target, "id": id}, "chat") }
+	if l, ok := sh.(interface {
+		ShowOnceLoaded(shell.WindowKind) func(func())
+	}); ok {
+		if after := l.ShowOnceLoaded(shell.Chat); after != nil {
+			// 刚建的窗口：页面加载完还要等视图订阅上，晚一点再发
+			after(func() { time.Sleep(800 * time.Millisecond); emit() })
+			return
+		}
+	}
+	emit()
 }
 
 // shellNotifier：外壳的系统通知（wailsshell notify.go）
@@ -1255,7 +1292,7 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
 			return island.Labels{Count: i18n.T("ui.mascot-theme.island-pending-count"), More: i18n.T("ui.mascot-theme.island-pending-more"),
 				Close: i18n.T("ui.providers-schedule.close")}
 		},
-		OpenChat: func() { sh.Show(shell.Chat) },
+		OpenChat: func() { revealChat(sh) },
 		IsQuiet:  func() bool { return desktopSvc.NotifyPolicy != nil && desktopSvc.NotifyPolicy.Quiet() },
 		Warn:     func(msg string, err error) { log.Printf("[island] %s: %v", msg, err) },
 	}

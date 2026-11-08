@@ -216,6 +216,8 @@ type Input struct {
 	Archived map[string]int64
 	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
 	TaskSummaries map[string]string
+	// ConversationOwned：已经交回来源对话处理的「等你验收」任务（对话里委派的、结果已回到对话）：放在已完成，不标要你处理
+	ConversationOwned map[string]bool
 	// Holding：正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory / cpu）
 	Holding bool
 	// HoldReason：扣着的原因（memory 内存 / cpu 整机 CPU，「全速」档才看 CPU）；空 = memory
@@ -370,6 +372,9 @@ func Build(in Input) State {
 				switch task.Status {
 				case tasks.StatusAwaitingAccept:
 					col, need = ColDone, NeedAccept
+					if in.ConversationOwned[t.TaskID] {
+						need = ""
+					}
 				case tasks.StatusWaitingUser:
 					need = NeedPermission
 				}
@@ -411,6 +416,9 @@ func Build(in Input) State {
 		col, need, failed, ok := taskColumn(t.Status)
 		if !ok {
 			continue
+		}
+		if need == NeedAccept && in.ConversationOwned[t.ID] {
+			need = ""
 		}
 		var a Agent
 		switch t.Executor.Kind {

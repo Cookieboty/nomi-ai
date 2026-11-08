@@ -408,6 +408,16 @@ func (s *Service) Announced(id, attemptID string) bool {
 	return false
 }
 
+// ConversationOwns：对话里委派出去的任务做完、这次结果已经回报到来源对话：之后由对话处理（追问 = 退回重做、
+// 收下结果接着做、在结果卡片里应用改动），灵动岛与 Agent 看板不再把它当成「等你验收」
+func (s *Service) ConversationOwns(t Task) bool {
+	if t.Status != StatusAwaitingAccept || t.Origin.Via == nil || *t.Origin.Via != "delegate" ||
+		t.Origin.ConversationID == nil || *t.Origin.ConversationID == "" || t.LastAttemptID == nil {
+		return false
+	}
+	return s.Announced(t.ID, *t.LastAttemptID)
+}
+
 func (s *Service) MarkAnnounced(id, attemptID string) {
 	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), Msg: delegateAnnouncedMsg(attemptID), AttemptID: attemptID})
 }

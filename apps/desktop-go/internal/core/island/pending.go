@@ -48,11 +48,43 @@ func (s *Service) SetResolver(fn func(id, action string) error) {
 	s.mu.Unlock()
 }
 
-// Pending：当前列表（关着「等你处理」时为空）
+// SetOpener：打开某一条的函数（装配层：打开对话窗口并跳到它）
+func (s *Service) SetOpener(fn func(id string)) {
+	s.mu.Lock()
+	s.opener = fn
+	s.mu.Unlock()
+}
+
+// Pending：当前列表（关着「等你处理」时为空；用户关掉的也算在内，它们仍在等你）
 func (s *Service) Pending() []Pending {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return slices.Clone(s.pending)
+	return slices.Clone(s.all)
+}
+
+// Dismiss：用户按 Esc / 点关闭（nomi:island:dismiss）：现在列表里的先不显示，岛收起；有新的一条进来时再连同它们一起显示。
+// 这些事没有被处理，对话里、任务页里照样能处理
+func (s *Service) Dismiss() {
+	s.mu.Lock()
+	s.dismissed = map[string]bool{}
+	for _, p := range s.all {
+		s.dismissed[p.ID] = true
+	}
+	s.mu.Unlock()
+	s.push()
+}
+
+// OpenItem：点了某一条（nomi:island:open:<id>）或它的「打开」：打开对话窗口并跳到它；不认识的只打开对话窗口
+func (s *Service) OpenItem(id string) {
+	s.mu.Lock()
+	open := s.opener
+	known := slices.ContainsFunc(s.all, func(p Pending) bool { return p.ID == id })
+	s.mu.Unlock()
+	if open != nil && known && !strings.HasPrefix(id, DebugPrefix) {
+		open(id)
+		return
+	}
+	s.Opened()
 }
 
 // SetPending：整份替换等你处理的事。关着灵动岛或「等你处理」时当作空列表（已经显示的会收起）。
@@ -68,6 +100,8 @@ func (s *Service) SetPending(list []Pending) {
 func (s *Service) DebugPending(list []Pending) {
 	s.mu.Lock()
 	s.debug = nil
+	// 调试页主动放样例 = 要看：之前按 Esc 关掉的不再拦着（样例的 id 每次都一样）
+	s.dismissed = nil
 	for i, p := range list {
 		if !strings.HasPrefix(p.ID, DebugPrefix) {
 			p.ID = DebugPrefix + p.ID
@@ -108,9 +142,31 @@ func (s *Service) push() {
 		return 0
 	})
 	clean = append(clean, s.debug...)
-	same := samePending(s.pending, clean)
+	s.all = clean
+	// 用户关掉过：只剩关掉时就有的（或更少）就不显示；来了新的，连同关掉的一起显示
+	shown := clean
+	if len(clean) == 0 {
+		// 都处理完了：关掉的记录作废
+		s.dismissed = nil
+	}
+	if len(s.dismissed) > 0 {
+		fresh := false
+		for _, p := range clean {
+			if !s.dismissed[p.ID] {
+				fresh = true
+				break
+			}
+		}
+		if fresh {
+			s.dismissed = nil
+		} else {
+			shown = nil
+		}
+	}
+	same := samePending(s.pending, shown)
 	wasEmpty := len(s.pending) == 0
-	s.pending = clean
+	s.pending = shown
+	clean = shown
 	show, labels := s.host.ShowPending, s.host.Labels
 	s.mu.Unlock()
 	if same || show == nil || (wasEmpty && len(clean) == 0) {

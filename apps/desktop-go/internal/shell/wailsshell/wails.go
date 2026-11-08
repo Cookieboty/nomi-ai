@@ -672,6 +672,18 @@ func (w *Wails) reactivate() {
 func (w *Wails) IsDarkMode() bool { return w.app.Env.IsDarkMode() }
 
 // Hide 隐藏窗口但不销毁
+// Reveal：显示并激活窗口（提到最前、拿到键盘焦点）。Show 对已经开着的窗口什么也不做（Windows 上不提到前面，
+// mac 上应用不在前台时也不激活），从灵动岛「打开」时要用这个
+func (w *Wails) Reveal(k shell.WindowKind) {
+	w.Show(k)
+	if win := w.win(k); win != nil {
+		if win.IsMinimised() {
+			win.Restore()
+		}
+		win.Focus()
+	}
+}
+
 func (w *Wails) Hide(k shell.WindowKind) {
 	if win := w.win(k); win != nil {
 		win.Hide()

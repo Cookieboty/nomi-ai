@@ -10777,6 +10777,20 @@ type EventMemStatus struct {
 	Busy []string `json:"busy"`
 }
 
+// EventNavOpenItemRequestedTarget 枚举：task | tab | nomi
+type EventNavOpenItemRequestedTarget = string
+
+const (
+	EventNavOpenItemRequestedTargetTask EventNavOpenItemRequestedTarget = "task"
+	EventNavOpenItemRequestedTargetTab  EventNavOpenItemRequestedTarget = "tab"
+	EventNavOpenItemRequestedTargetNomi EventNavOpenItemRequestedTarget = "nomi"
+)
+
+type EventNavOpenItemRequested struct {
+	Target EventNavOpenItemRequestedTarget `json:"target"`
+	Id     string                          `json:"id"`
+}
+
 type EventOnboardingProfileChanged struct {
 	Role      string   `json:"role"`
 	Interests []string `json:"interests"`
@@ -12819,6 +12833,7 @@ type EventMascotScreenT = EventMascotScreen
 type EventMemChangedT = any
 type EventMemStatusT = EventMemStatus
 type EventNavDesktopPanelRequestedT = map[string]any
+type EventNavOpenItemRequestedT = EventNavOpenItemRequested
 type EventNavScheduleRequestedT = map[string]any
 type EventNavVoiceSettingsRequestedT = map[string]any
 type EventOnboardingProfileChangedT = EventOnboardingProfileChanged

@@ -13,7 +13,8 @@
   - 等你处理的事（setPending，HITL）：一直显示到处理完；每条带操作按钮（允许 / 拒绝 / 验收…），点了发给内核。
   只有一条时是一个大胶囊；多条时上面一行「N 项等你处理」，下面逐条列出（超出可滚动）。
   与内核的信号（postMessage）：nomi:island:size:<高度> 改窗口高度、nomi:island:act:<json> 操作、
-  nomi:island:open 点岛打开对话、nomi:island:hidden 收起完成。
+  nomi:island:open 点岛打开对话、nomi:island:open:<json id> 点某一条（跳到它）、nomi:island:hidden 收起完成、
+  nomi:island:dismiss 用户关掉（Esc / 关闭按钮：等你处理的事先不显示，来了新的再一起显示）。
 -->
     <style>
       :root {
@@ -377,6 +378,15 @@
         height: 15px;
         display: block;
       }
+      #head .x {
+        width: 22px;
+        height: 22px;
+        margin: -4px 0 -4px auto;
+      }
+      #head .x svg {
+        width: 13px;
+        height: 13px;
+      }
       .pulse {
         width: 10px;
         height: 10px;
@@ -420,7 +430,10 @@
   <body>
     <div id="island" class="⟦mode⟧" data-mode="⟦mode⟧" role="status" aria-live="polite">
       <div id="content">
-        <div id="head"><span class="dot" aria-hidden="true"></span><span id="headText"></span></div>
+        <div id="head">
+          <span class="dot" aria-hidden="true"></span><span id="headText"></span
+          ><button id="headClose" class="x" type="button"></button>
+        </div>
         <div id="rows"></div>
         <div id="more"></div>
       </div>
@@ -506,6 +519,30 @@
       let timer = 0, hovered = false, shownH = 0, busy = new Set();
       const fmt = (s, n) => String(s).replace('{0}', n);
 
+      // 关闭按钮：默认关掉整个岛（通知 + 等你处理的事，同 Esc）
+      function closeBtn(fn) {
+        const x = h('button', 'x');
+        x.type = 'button';
+        x.setAttribute('aria-label', labels.close);
+        x.title = labels.close;
+        x.append(icon('close', 2));
+        x.addEventListener('click', (e) => { e.stopPropagation(); (fn || closeAll)(); });
+        return x;
+      }
+
+      // 关掉整个岛（Esc / 关闭按钮）：通知收起；等你处理的事告诉内核先不显示（没有处理，对话里照样能处理）
+      function closeAll() {
+        clearTimeout(timer);
+        notice = null;
+        if (pending.length) {
+          pending = [];
+          busy.clear();
+          post('nomi:island:dismiss');
+        }
+        collapse();
+      }
+
+      let single = false;
       function rowOf(it, isNotice) {
         const r = h('div', 'row');
         r.dataset.id = it.id || '';
@@ -521,6 +558,13 @@
         const text = h('div', 'text');
         text.append(h('div', 'title', String(it.title || '')), h('div', 'body', String(it.body || '')));
         r.append(av, text);
+        // 等你处理的一条：点这一行（按钮以外）= 打开对话窗口并跳到它
+        if (!isNotice && it.id) {
+          r.addEventListener('click', (e) => {
+            e.stopPropagation();
+            post('nomi:island:open:' + JSON.stringify(it.id));
+          });
+        }
         const acts = h('div', 'acts');
         if (it.actions && it.actions.length) {
           for (const a of it.actions) {
@@ -533,18 +577,17 @@
               busy.add(it.id);
               for (const x of acts.querySelectorAll('button')) x.disabled = true;
               post('nomi:island:act:' + JSON.stringify({ id: it.id, action: a.id }));
+              // 内核一直没回（列表没变、也没报失败）：按钮恢复可点，不会一直灰着
+              setTimeout(() => { if (busy.delete(it.id)) render(); }, 8000);
             });
             acts.append(btn);
           }
+          // 只有这一条时没有列表头：关闭按钮放在这一行
+          if (!isNotice && single) acts.append(closeBtn());
         } else if (it.status === 'running' && !isNotice) {
           acts.append(h('span', 'pulse'));
         } else {
-          const x = h('button', 'x');
-          x.type = 'button';
-          x.setAttribute('aria-label', labels.close);
-          x.append(icon('close', 2));
-          x.addEventListener('click', (e) => { e.stopPropagation(); dismissNotice(); });
-          acts.append(x);
+          acts.append(closeBtn(dismissNotice));
         }
         r.append(acts);
         return r;
@@ -556,6 +599,7 @@
         const items = notice ? [Object.assign({ id: '__notice' }, notice)].concat(pending) : pending.slice();
         if (!items.length) return collapse();
         const list = items.length > 1;
+        single = !list;
         el.classList.toggle('list', list);
         $('headText').textContent = pending.length ? fmt(labels.count, pending.length) : '';
         const rows = $('rows');
@@ -614,6 +658,8 @@
         /** 等你处理的事（整份替换）；labels：列表头、更多、关闭的文案 */
         setPending(list, l) {
           if (l) labels = Object.assign(labels, l);
+          hc.setAttribute('aria-label', labels.close);
+          hc.title = labels.close;
           pending = Array.isArray(list) ? list : [];
           const live = new Set(pending.map((x) => x.id));
           for (const id of [...busy]) if (!live.has(id)) busy.delete(id);
@@ -623,6 +669,12 @@
         actFailed(id) { busy.delete(id); render(); },
         hide() { notice = null; pending = []; collapse(); },
       };
+      const hc = $('headClose');
+      hc.append(icon('close', 2));
+      hc.addEventListener('click', (e) => { e.stopPropagation(); closeAll(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); closeAll(); }
+      });
       el.addEventListener('click', () => { post('nomi:island:open'); if (!pending.length) dismissNotice(); });
       el.addEventListener('mouseenter', () => { hovered = true; clearTimeout(timer); });
       el.addEventListener('mouseleave', () => { hovered = false; if (notice) timer = setTimeout(dismissNotice, 1500); });
