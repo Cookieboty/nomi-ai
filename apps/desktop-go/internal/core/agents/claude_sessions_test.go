@@ -50,3 +50,19 @@ func TestMatchAliveUsesRegisteredSessions(t *testing.T) {
 		t.Fatalf("fallback: old=%v newest=%v", *res["claude:old"], *res["claude:newest"])
 	}
 }
+
+// /clear 开头的会话：标题取后面真正的提问，不是「/clear」（看板卡片与灵动岛都用这个标题）
+func TestParseClaudeSessionSkipsBareCommandTitle(t *testing.T) {
+	head := `{"type":"user","isMeta":true,"message":{"role":"user","content":"<local-command-caveat>x</local-command-caveat>"}}
+{"type":"user","message":{"role":"user","content":"<command-name>/clear</command-name>\n  <command-message>clear</command-message>\n  <command-args></command-args>"}}
+{"type":"user","message":{"role":"user","content":"<local-command-stdout></local-command-stdout>"}}
+{"type":"user","message":{"role":"user","content":"准备2.3.5的发布流程"}}
+`
+	if got := ParseClaudeSession(head, head).Title; got != "准备2.3.5的发布流程" {
+		t.Fatalf("title = %q", got)
+	}
+	cmd := `{"type":"user","message":{"role":"user","content":"<command-name>/review</command-name><command-args>pr 3</command-args>"}}` + "\n"
+	if got := ParseClaudeSession(cmd, cmd).Title; got != "/review pr 3" {
+		t.Fatalf("command with args = %q", got)
+	}
+}
