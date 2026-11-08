@@ -37,3 +37,38 @@ func TestNormalizeSandboxAllowValidates(t *testing.T) {
 		}
 	}
 }
+
+// 撤销「始终允许」：只删那一条、落盘、通知（编程助手据此按当前记录重开）；删不存在的不通知
+func TestRemoveCliSandboxAllowNotifies(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home")
+	}
+	root := t.TempDir()
+	file := filepath.Join(root, "settings.json")
+	b := NewPermissionBroker(file, GuardEnv{Home: home, Platform: Platform()}, BrokerOpts{})
+	proj := filepath.Join(home, "Projects", "app")
+	cloud := SandboxAllow{Kind: "category", Value: "cloud", Project: proj}
+	logs := SandboxAllow{Kind: "folder", Value: filepath.Join(proj, "logs"), Project: proj}
+	b.AddCliSandboxAllow(cloud)
+	b.AddCliSandboxAllow(logs)
+	b.AddCliSandboxAllow(cloud)
+	if got := b.CliSandboxAllow(); len(got) != 2 {
+		t.Fatalf("CliSandboxAllow = %v", got)
+	}
+	notices := 0
+	b.OnChange(func() { notices++ })
+	if !b.RemoveCliSandboxAllow(cloud) || notices != 1 {
+		t.Fatalf("remove = notices %d", notices)
+	}
+	if got := b.CliSandboxAllow(); len(got) != 1 || got[0] != logs {
+		t.Fatalf("after removing, CliSandboxAllow = %v", got)
+	}
+	if b.RemoveCliSandboxAllow(cloud) || notices != 1 {
+		t.Fatal("removing a missing entry changes nothing")
+	}
+	reloaded := NewPermissionBroker(file, GuardEnv{Home: home, Platform: Platform()}, BrokerOpts{})
+	if got := reloaded.CliSandboxAllow(); len(got) != 1 || got[0] != logs {
+		t.Fatalf("reloaded CliSandboxAllow = %v", got)
+	}
+}

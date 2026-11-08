@@ -85,6 +85,8 @@ type sbxPending struct {
 }
 
 type tabSandbox struct {
+	// granted：本会话的授权（Request.Key()）。「始终允许」不在这里留副本，只由当前的持久记录提供，
+	// 设置里撤销后下一次启动就不再带上；只有没记下来（记录被拒）时才退回本会话授权
 	granted   map[string]bool
 	dismissed map[string]bool
 	pending   []*sbxPending
@@ -182,6 +184,11 @@ func (o *Orchestrator) sandboxSpec(tab *util.Obj, cwd string, env *util.Obj) *sa
 	if !o.SandboxActive() {
 		return nil
 	}
+	return o.buildSandboxSpec(tab, cwd, env)
+}
+
+// buildSandboxSpec：按当前授权算沙箱配置（不看开关与平台，测试在不支持的平台上也能检查）
+func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj) *sandbox.Spec {
 	id := str(tab, "id")
 	token := newToken()
 	if o.sbx.tokens == nil {
@@ -194,7 +201,7 @@ func (o *Orchestrator) sandboxSpec(tab *util.Obj, cwd string, env *util.Obj) *sa
 		ReadAllow: []string{filepath.Join(o.d.Root, "prompt-images")},
 		Granted:   map[string]bool{},
 	}
-	if o.d.Sandbox.Protected != nil {
+	if o.d.Sandbox != nil && o.d.Sandbox.Protected != nil {
 		spec.Protected = o.d.Sandbox.Protected()
 	}
 	for _, k := range cliHomeEnvs {
@@ -297,6 +304,23 @@ func (o *Orchestrator) alwaysGranted(id string, r sandbox.Request) bool {
 	return false
 }
 
+// persistedCovers：当前的「始终允许」记录里有没有对这个标签生效的这一项
+func (o *Orchestrator) persistedCovers(id string, r sandbox.Request) bool {
+	if o.d.Sandbox == nil || o.d.Sandbox.Always == nil {
+		return false
+	}
+	cwd := ""
+	if tab := o.tab(id); tab != nil {
+		cwd = str(tab, "cwd")
+	}
+	for _, g := range o.d.Sandbox.Always() {
+		if g.Kind == r.Kind && g.Value == r.Value && grantApplies(g, cwd) {
+			return true
+		}
+	}
+	return false
+}
+
 // onSandboxDeny：一条违规 → 标签上的授权请求（同一项只挂一次；授权过 / 拒绝过的不再问）
 func (o *Orchestrator) onSandboxDeny(d sandbox.Denial) {
 	id := o.sbx.tokens[d.Token]
@@ -375,7 +399,6 @@ func (o *Orchestrator) SandboxReply(tabID, requestID, choice string) bool {
 		if hit.req.Kind == "protected" {
 			return false // 受保护的文件夹只能在设置里取消保护
 		}
-		t.granted[key] = true
 		if choice == "always" && o.d.Sandbox != nil && o.d.Sandbox.Persist != nil {
 			g := SandboxGrant{Kind: hit.req.Kind, Value: hit.req.Value}
 			if projectScoped(g.Kind) {
@@ -384,6 +407,10 @@ func (o *Orchestrator) SandboxReply(tabID, requestID, choice string) bool {
 				}
 			}
 			o.d.Sandbox.Persist(g)
+		}
+		// 「始终允许」记下来了就只靠持久记录（撤销即失效）；没记下来（不能记 / 被拒）按本会话授权
+		if choice == "session" || !o.persistedCovers(tabID, hit.req) {
+			t.granted[key] = true
 		}
 		o.recycleTab(tabID)
 		o.continueAfterGrant(tabID, hit.req)
@@ -420,7 +447,8 @@ func (o *Orchestrator) recycleTab(id string) {
 	}
 }
 
-// SandboxPolicyChanged：沙箱开关、受保护文件夹、「始终允许」变了：所有常驻 CLI 按新配置重开
+// SandboxPolicyChanged：沙箱开关、受保护文件夹、「始终允许」变了：所有常驻 CLI 按新配置重开。
+// 标签上不留「始终允许」的副本（见 tabSandbox.granted），重开时 grantedFor 读的就是当前记录
 func (o *Orchestrator) SandboxPolicyChanged() {
 	ids := map[string]bool{}
 	for _, id := range o.live.claudeOrder {
