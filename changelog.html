@@ -61,6 +61,41 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v234">
+          <header class="release-head">
+            <h2 data-i18n="cl.v234.title">v2.3.4 — 长任务更稳、子任务产出回到对话、记忆真的忘记</h2>
+            <time datetime="2026-11-08">2026-11-08</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v234.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v234.feat.1">设置新增「关于」页：版本与检查更新、项目主页、更新历史、近期更新和问题反馈；更新相关的开关收进「更新设置」弹窗</li>
+            <li data-i18n-html="cl.v234.feat.2">「知识 · 记忆 · 日程」（侧栏底部、输入框「+」菜单、<code>Ctrl/⌘+Shift+M</code>）改为从右侧抽屉打开，不再跳到设置页</li>
+            <li data-i18n-html="cl.v234.feat.3"><code>/compact</code> 后面可以写要优先保留的重点，如 <code>/compact 重点保留接口设计</code></li>
+            <li data-i18n-html="cl.v234.feat.4">执行轨迹和 <code>/context</code> 里能看到上一轮的提示缓存命中率</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v234.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v234.imp.1">长任务不再因为上下文撑满中途失败：一轮里连续调工具时每一步按实际用量检查，快满时先缩短较早的大段工具输出，还不够就把较早的步骤压成摘要接着做；模型仍提示超长时自动压短重试一次</li>
+            <li data-i18n="cl.v234.imp.2">对话接近一半时，较早几轮的大段工具输出只留开头和结尾，对话原文能保留得更久、晚一些才需要压缩</li>
+            <li data-i18n="cl.v234.imp.3">自动压缩按上一轮实际用掉的上下文判断；摘要分节写，并补上最近读过或改过的文件、最近的计划和用过的技能</li>
+            <li data-i18n="cl.v234.imp.4">更省钱、更快：按需提供的工具在一个对话里开过就一直提供，前几轮的思考内容不再随历史重发，提示缓存不容易被打断</li>
+            <li data-i18n="cl.v234.imp.5">计划没做完就不收尾：这一轮的计划还有没做完的步骤时，Nomi 会接着做，或者说明哪步做不了；自动续做时没有实际进展就停下，不再空转</li>
+            <li data-i18n="cl.v234.imp.6">工具输出很长时 Nomi 先看开头和结尾，需要时再分页读中间；命令输出超过上限时保留结尾，报错和失败的测试不会被截掉</li>
+            <li data-i18n="cl.v234.imp.7">生图服务暂时出错（网络、超时、限流、服务端错误）时自动重试两次，图已生成只是下载失败时只重新下载</li>
+            <li data-i18n="cl.v234.imp.8">后台的 Nomi 任务按所用模型的上下文窗口计算预算，不再固定 8K</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v234.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v234.fix.1">子任务做完后，它改动的文件和生成的图片会随结果回到对话，Nomi 下一轮也能读到；派给后台 Nomi 的生图任务只出图、没写总结时不再判为失败</li>
+            <li data-i18n="cl.v234.fix.2">后台的 Nomi 和知识库问答用你提问的语言回复，不再固定用中文</li>
+            <li data-i18n="cl.v234.fix.3">忘记记忆是真的忘记：删掉一段对话摘要时，从它整理出的「关于我」条目一起删掉，之后也不会再被整理回来</li>
+            <li data-i18n="cl.v234.fix.4">对话中途换成云端模型时，之前本地模型读到的文件内容、命令输出和网页内容会按「仅本地模型可读文件」重新判断，不再随历史发给云端</li>
+            <li data-i18n="cl.v234.fix.5">在「桌面权限 → 隐私保护」撤销「始终允许」后，原来授权的标签下一轮不再带着这项沙箱授权</li>
+            <li data-i18n="cl.v234.fix.6">子任务栏里排队的消息只发给它自己的子任务，按发送顺序送达，切换子任务时不再发错</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.4" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v233">
           <header class="release-head">
             <h2 data-i18n="cl.v233.title">v2.3.3 — Agent 看板、内存守护与 macOS 编程助手沙箱</h2>
