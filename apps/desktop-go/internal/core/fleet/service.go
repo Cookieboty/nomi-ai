@@ -31,6 +31,8 @@ type Deps struct {
 	Chats func() []Chat
 	// TaskSummary：任务最近一次运行的结果摘要（GIL 外调用；只对最近做完的任务调）
 	TaskSummary func(taskID string) string
+	// ConversationOwns：这个「等你验收」的任务是不是已经交回来源对话处理（tasks.Service.ConversationOwns）；nil = 都不是
+	ConversationOwns func(t tasks.Task) bool
 	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
 	// External：外部会话、编程助手进程的工作目录（pid → 目录）、登记了会话的进程（pid → 会话 id）
 	External func() ([]ExtSession, map[float64]string, map[float64]string)
@@ -193,9 +195,17 @@ func (s *Service) State() State {
 			}
 		}
 	}
+	owned := map[string]bool{}
+	if s.d.ConversationOwns != nil {
+		for _, t := range tk {
+			if t.Status == tasks.StatusAwaitingAccept && s.d.ConversationOwns(t) {
+				owned[t.ID] = true
+			}
+		}
+	}
 	hold := s.HoldReason()
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: hold != "", HoldReason: hold})
+		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, ConversationOwned: owned, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}

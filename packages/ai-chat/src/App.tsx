@@ -71,6 +71,7 @@ import { useComposerPending } from './hooks/useComposerPending';
 import { useConversationWriteNotice } from './hooks/useConversationWriteNotice';
 import { useLiveWithGatewayRetry } from './hooks/useGatewayRetry';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useIslandOpenItem } from './hooks/useIslandOpenItem';
 import { useMainPages } from './hooks/useMainPages';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useNomiWorkspace } from './hooks/useNomiWorkspace';
@@ -692,25 +693,8 @@ const AiChatContent: React.FC = () => {
   const mainPages = useMainPages(() => openSettings('knowledge', 'schedule'));
   const { openPage, leave: leavePage } = mainPages;
   const mainHidden = openPage !== null;
-  // 灵动岛上点「打开」/ 点某一条：任务 → 任务详情；编程助手的请求 → 切到工坊里那个标签；Nomi 的确认 → 主对话
-  const openTaskPage = mainPages.openTask;
-  useEffect(
-    () =>
-      desktopClient.onOpenItem(({ target, id }) => {
-        if (target === 'task') {
-          if (openTaskPage) openTaskPage(id);
-          return;
-        }
-        leavePage();
-        if (target === 'tab' && tabs.available) {
-          setMode('dev');
-          void tabs.activate(id);
-        } else if (tabs.isCliTab) {
-          void tabs.activate('main');
-        }
-      }),
-    [openTaskPage, leavePage, tabs, setMode],
-  );
+  // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / 编程助手标签 / 主对话
+  useIslandOpenItem(mainPages.openTask, leavePage);
   const handleNewChat = useCallback(
     (opts?: { cwd?: string }) => {
       leavePage();

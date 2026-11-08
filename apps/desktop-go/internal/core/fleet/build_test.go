@@ -547,3 +547,30 @@ func TestBuildExternalPinsRegisteredSessions(t *testing.T) {
 		t.Fatalf("the freshly opened process is idle, got %+v", st.ExternalIdle.Items)
 	}
 }
+
+// 已经交回来源对话处理的「等你验收」：仍在已完成，不标要你处理（标签代表的与单独的运行都一样）
+func TestBuildConversationOwnedAccept(t *testing.T) {
+	in := baseInput()
+	for i := range in.Tasks {
+		if in.Tasks[i].ID == "t-cli" {
+			in.Tasks[i].Status = tasks.StatusAwaitingAccept
+		}
+	}
+	for i := range in.Tabs {
+		if in.Tabs[i].ID == "a" {
+			in.Tabs[i].Status, in.Tabs[i].PendingPerms = "idle", 0
+		}
+	}
+	in.ConversationOwned = map[string]bool{"t-cli": true, "t-accept": true}
+	m := byID(Build(in))
+	for _, id := range []string{"tab:a", "run:t-accept"} {
+		if a := m[id]; a.Column != ColDone || a.NeedsYou != "" {
+			t.Errorf("%s = col %s need %q, want done without needs-you", id, a.Column, a.NeedsYou)
+		}
+	}
+	// 没交回对话的照旧要你验收
+	in.ConversationOwned = nil
+	if a := byID(Build(in))["run:t-accept"]; a.NeedsYou != NeedAccept {
+		t.Errorf("not owned: need %q", a.NeedsYou)
+	}
+}

@@ -30,21 +30,21 @@ func TestIslandConversationOwns(t *testing.T) {
 	task.Status = tasks.StatusAwaitingAccept
 	task.Origin = tasks.Origin{ConversationID: &conv, Via: &via}
 	task.LastAttemptID = &att
-	if islandConversationOwns(svc, task) {
+	if svc.ConversationOwns(task) {
 		t.Fatal("not announced yet: should stay on the island")
 	}
 	svc.MarkAnnounced(task.ID, att)
-	if !islandConversationOwns(svc, task) {
+	if !svc.ConversationOwns(task) {
 		t.Fatal("announced to its conversation: the conversation owns it")
 	}
 	user := task
 	user.Origin = tasks.Origin{}
-	if islandConversationOwns(svc, user) {
+	if svc.ConversationOwns(user) {
 		t.Fatal("a task the user created stays on the island")
 	}
 	running := task
 	running.Status = tasks.StatusWaitingUser
-	if islandConversationOwns(svc, running) {
+	if svc.ConversationOwns(running) {
 		t.Fatal("waiting for the user (approval) stays on the island")
 	}
 }

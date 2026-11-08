@@ -329,7 +329,7 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 		return
 	}
 	for _, t := range ts.Inbox() {
-		if islandConversationOwns(ts, t) {
+		if ts.ConversationOwns(t) {
 			continue
 		}
 		id, gen := t.ID, t.Gen
@@ -413,16 +413,6 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 		}
 		add(item, fns)
 	}
-}
-
-// islandConversationOwns：对话里委派出去的任务做完、结果已经回报到来源对话：之后由对话处理（追问 = 退回重做、
-// 收下结果接着做、在结果卡片里应用改动），不再作为「等你验收」上岛
-func islandConversationOwns(ts *tasks.Service, t tasks.Task) bool {
-	if t.Status != tasks.StatusAwaitingAccept || t.Origin.Via == nil || *t.Origin.Via != "delegate" ||
-		t.Origin.ConversationID == nil || *t.Origin.ConversationID == "" || t.LastAttemptID == nil {
-		return false
-	}
-	return ts.Announced(t.ID, *t.LastAttemptID)
 }
 
 // collectConfirms：Nomi 自己的工具确认（桌面、命令、MCP、委派交接、文件夹授权）
