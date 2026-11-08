@@ -18,6 +18,7 @@ import {
 } from '../../services/diagnosticsClient';
 import { qualityClient, type QualityRequestItem } from '../../services/qualityClient';
 import type { ConvMessage } from '../../types/conversation';
+import { cacheHitRate, formatHitRate } from '../../utils/cacheHit';
 import { callDuration, formatDuration } from '../../utils/toolTrace';
 import { formatMs, outcomeLabel, outcomeTone } from '../QualityPanel/format';
 import { formatTokens } from '../UsagePanel/format';
@@ -462,6 +463,11 @@ export const TraceDrawer: React.FC<{
   const [proc, setProc] = useState<CliRecordsResult | null>(null);
   const [procError, setProcError] = useState<string | null>(null);
   const tabId = source.kind === 'cli' ? source.tabId : null;
+  // 缓存命中率：只算 Nomi 自己的（编程助手各家输入口径不一，见 utils/cacheHit）
+  const hitRate =
+    source.kind === 'cli'
+      ? undefined
+      : cacheHitRate(message.usage?.inputTokens, message.usage?.cacheReadTokens);
 
   useEffect(() => {
     let alive = true;
@@ -553,6 +559,16 @@ export const TraceDrawer: React.FC<{
               <Fact
                 label={t('ui.devtools.tokens')}
                 value={`${formatTokens(message.usage.inputTokens)} / ${formatTokens(message.usage.outputTokens ?? 0)}`}
+              />
+            )}
+            {hitRate !== undefined && (
+              <Fact
+                label={t('ui.model-quality.cache-hit')}
+                value={t(
+                  'ui.devtools.cache-hit-rate-value',
+                  formatHitRate(hitRate),
+                  formatTokens(message.usage!.cacheReadTokens!),
+                )}
               />
             )}
           </dl>

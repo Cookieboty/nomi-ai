@@ -2,7 +2,7 @@ package aisdk
 
 // compact.go：工具循环自动续轮时缩短较早的工具输出。
 // 长任务里读文件、跑测试的输出会越积越多，把上下文撑满；换轮时只留最近几次工具结果的全文，
-// 更早的大段输出保留开头一截并注明省略了多少——模型需要时可以再读一次。
+// 更早的大段输出保留开头和结尾各一截并注明省略了多少——模型需要时可以再读一次。
 // 只改这一轮循环里新产生的消息（from 之后），不动用户的历史；不改原对象（返回新列表）。
 
 import (
@@ -14,10 +14,12 @@ import (
 // compactKeepRecent：换轮时保留全文的最近几条工具消息（每条 = 一步里的全部工具结果）
 const compactKeepRecent = 6
 
-// compactMaxRunes：较早的工具输出超过这个长度就缩短；compactHeadRunes：缩短后保留的开头
+// compactMaxRunes：较早的工具输出超过这个长度就缩短；缩短后保留开头 compactHeadRunes 与结尾 compactTailRunes
+// （命令 / 测试输出的要紧处常在结尾：报错、失败的用例、退出码）
 const (
 	compactMaxRunes  = 1500
-	compactHeadRunes = 600
+	compactHeadRunes = 400
+	compactTailRunes = 400
 )
 
 // CompactToolResults：messages[from:] 里除最近 keep 条之外的工具消息，超长的输出缩短
@@ -79,7 +81,8 @@ func compactToolMessage(m *u.Obj) *u.Obj {
 			kind = "error-text"
 		}
 		short := string(r[:compactHeadRunes]) +
-			fmt.Sprintf("\n…[较早的工具输出已省略 %d 字；需要时重新读取]", len(r)-compactHeadRunes)
+			fmt.Sprintf("\n…[较早的工具输出中间已省略 %d 字；需要时重新读取]…\n", len(r)-compactHeadRunes-compactTailRunes) +
+			string(r[len(r)-compactTailRunes:])
 		cp := part.Clone()
 		cp.Set("output", u.NewObj("type", kind, "value", short))
 		next[j] = cp

@@ -183,6 +183,18 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 		}
 		opts := p.callOptions(prompt, true)
 		resp, err := llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
+		// 超出上下文长度：缩短后重发这一步（守护决定能不能、只重试一次）
+		if err != nil && ctx.Err() == nil && p.RetryOverflow != nil {
+			if next := p.RetryOverflow(err, stepMessages); next != nil {
+				if prompt, perr := convertPrompt(p.Instructions, next); perr == nil {
+					if p.CacheBreakpoints {
+						markCacheBreakpoints(prompt)
+					}
+					opts = p.callOptions(prompt, true)
+					resp, err = llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
+				}
+			}
+		}
 		if err != nil {
 			if ctx.Err() != nil {
 				return

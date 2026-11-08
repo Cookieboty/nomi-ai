@@ -423,7 +423,13 @@ func main() {
 			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）
 			prep.AfterWorkspace = func(options map[string]any, method string) error {
 				// 只在对话说到要派出去的事时带（和派出去的工具同一个门槛，见 igtools.DispatchRelevant）
-				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil && igtools.DispatchRelevantFor(options["messages"]) {
+				// 带过一次就一直带（tools.Sticky）：系统提示不变，前缀缓存不断
+				conv := ""
+				if extra, ok := options["extra"].(map[string]any); ok {
+					conv, _ = extra["conversationId"].(string)
+				}
+				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil &&
+					tools.Sticky(conv, "dispatch-hint", igtools.DispatchRelevantFor(options["messages"])) {
 					_, err := delegate.ApplyDispatchHint(options)
 					return err
 				}
@@ -441,8 +447,17 @@ func main() {
 	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
-			return chatFacade.AgentStream(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(),
-				Tools: toolNames, Quiet: true, Extra: extra}, emit)
+			o := &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(), Tools: toolNames, Quiet: true, Extra: extra}
+			// 上下文预算按路由到的模型的窗口算（同对话的 PrepareChat）：裁历史，也让工具循环按真实用量守护上下文
+			if gatewaySvc != nil {
+				if info := gatewaySvc.NomiContext(role); info != nil {
+					if b, ok := info.Get("budget").(float64); ok && b > 0 {
+						mm := float64(gwstore.NomiMaxMessages)
+						o.Context = &facade.ContextBudget{MaxTokens: &b, MaxMessages: &mm}
+					}
+				}
+			}
+			return chatFacade.AgentStream(ctx, o, emit)
 		},
 		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context {
 			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external}

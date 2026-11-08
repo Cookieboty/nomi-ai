@@ -194,12 +194,31 @@ func (c *Chat) buildRequest(o *ChatStreamOptions, p *picked) *blm.ChatRequest {
 		model = *p.model
 	}
 	msgs := o.Messages
+	budget := 0.0
 	if !o.NoContext {
 		msgs = FitMessagesToBudget(o.Messages, o.Context)
+		// 显式给了预算（按模型窗口算的）才守护工具循环；默认的 8K 只是裁历史的兜底，不代表模型窗口
+		if o.Context != nil && o.Context.MaxTokens != nil {
+			budget = *o.Context.MaxTokens
+		}
 	}
 	f := false
-	return &blm.ChatRequest{ReqID: id, Provider: p.provider.ProviderID(), Model: model, Messages: msgs,
-		Temperature: o.Temperature, TopP: o.TopP, MaxTokens: o.MaxTokens, Stream: &f, Signal: o.Signal, Extra: o.Extra}
+	req := &blm.ChatRequest{ReqID: id, Provider: p.provider.ProviderID(), Model: model, Messages: msgs,
+		Temperature: o.Temperature, TopP: o.TopP, MaxTokens: o.MaxTokens, Stream: &f, Signal: o.Signal, Extra: o.Extra,
+		ContextBudget: budget}
+	if budget > 0 {
+		// 工具循环里的摘要走 summary 角色的模型（同视图的对话压缩）；过程记录已按预算截好，不再裁
+		req.Summarize = func(ctx context.Context, system, transcript string) (string, error) {
+			role := "summary"
+			resp, err := c.SendMessage(ctx, &ChatStreamOptions{Role: &role, NoContext: true, Signal: ctx.Done(),
+				Messages: []blm.ChatMessage{{Role: "system", Content: system}, {Role: "user", Content: transcript}}})
+			if err != nil {
+				return "", err
+			}
+			return resp.Content, nil
+		}
+	}
+	return req
 }
 
 func (c *Chat) listTools() []tools.Definition {

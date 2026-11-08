@@ -217,6 +217,10 @@ describe('各端命令集', () => {
   it('Nomi /compact：压缩当前对话，没有可压缩的 / 正在回复时给提示', async () => {
     const a = await run('nomi', '/compact');
     expect(a.actions.compactNomi).toHaveBeenCalledTimes(1);
+    expect(a.actions.compactNomi).toHaveBeenCalledWith(undefined);
+    // 带说明：交给摘要
+    const b = await run('nomi', '/compact 重点保留接口设计');
+    expect(b.actions.compactNomi).toHaveBeenCalledWith('重点保留接口设计');
     expect(a.r.handled && a.r.outcome.type).toBe('noop');
     for (const status of ['nothing', 'busy', 'failed'] as const) {
       const { ctx, commands, actions } = makeCtx('nomi');
@@ -674,6 +678,26 @@ describe('/status /context /cost', () => {
     expect(c.basis).toBe('estimate');
     expect(c.windowSource).toBe('default');
     expect(c.used).toBeGreaterThan(0);
+  });
+  it('/context：Nomi 对话显示上一轮回复的缓存命中率，编程助手不算', async () => {
+    const msgs = [
+      user('1', 'hi'),
+      asst('2', 'ok', { inputTokens: 10_000, cacheReadTokens: 7_500, contextTokens: 10_200 }),
+    ];
+    const nomi = cardOf((await run('nomi', '/context', { messages: msgs })).r);
+    if (nomi.kind !== 'context') throw new Error('context');
+    expect(nomi.notes.some((n) => n.includes('75%'))).toBe(true);
+    // 编程助手各家输入口径不一：不算命中率
+    const cli = cardOf(
+      (
+        await run('claude', '/context', {
+          messages: msgs,
+          data: { cliTab: { id: 't', modelOverride: 'claude-sonnet-4-5' } as HarnessTabMeta },
+        })
+      ).r,
+    );
+    if (cli.kind !== 'context') throw new Error('context');
+    expect(cli.notes.some((n) => n.includes('75%'))).toBe(false);
   });
   it('/cost：会话合计 + 缺失轮数 + 今日 / 近 7 天', async () => {
     const { r } = await run('codex', '/cost', {

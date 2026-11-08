@@ -55,6 +55,35 @@ const (
 
 var imageMime = regexp.MustCompile(`^image/(png|jpeg|webp|gif)$`)
 
+// DropHistoryReasoning：历史消息（都是之前几轮的）里助手消息的 reasoning 部分去掉；不改原对象，没有时原样返回
+func DropHistoryReasoning(msgs []*u.Obj) []*u.Obj {
+	var out []*u.Obj
+	for i, m := range msgs {
+		parts, ok := m.Get("content").([]any)
+		if !ok || m.Get("role") != "assistant" {
+			continue
+		}
+		kept := make([]any, 0, len(parts))
+		for _, x := range parts {
+			if o, ok := x.(*u.Obj); ok && o.Get("type") == "reasoning" {
+				continue
+			}
+			kept = append(kept, x)
+		}
+		if len(kept) == len(parts) {
+			continue
+		}
+		if out == nil {
+			out = append([]*u.Obj{}, msgs...)
+		}
+		out[i] = m.Clone().Set("content", kept)
+	}
+	if out == nil {
+		return msgs
+	}
+	return out
+}
+
 // SplitPrompt：splitPrompt
 func SplitPrompt(messages []llm.ChatMessage) (*string, []*u.Obj) {
 	var systems []string
@@ -602,8 +631,9 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		if !tools.IsAvailable(d) {
 			continue
 		}
-		// 后台任务的执行（extra.taskId）：工具已按任务授权给出白名单，不再按对话文字做按需门控
-		if str("taskId") == "" && !tools.IsRelevant(d, turn) {
+		// 后台任务的执行（extra.taskId）：工具已按任务授权给出白名单，不再按对话文字做按需门控。
+		// 对话里开过的工具一直提供（tools.Sticky）：对话文字滑出 2 万字窗口、压缩后，工具定义不变，前缀缓存不断
+		if str("taskId") == "" && !tools.Sticky(conv, d.Name, tools.IsRelevant(d, turn)) {
 			continue
 		}
 		d := d
@@ -658,6 +688,12 @@ func (p *Provider) Stream(ctx context.Context, r *llm.ChatRequest, emit func(llm
 
 func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextParams {
 	instr, msgs := SplitPrompt(r.Messages)
+	// 前几轮工具记录里的思考内容：OpenAI 兼容协议会作为 reasoning_content 每轮全量重发、按输入计费，
+	// 对这一轮没有用（DeepSeek / Kimi 等只要求同一轮工具循环里带回）。Anthropic 由上游自己剥掉、不计入上下文，
+	// 原样保留（剥了反而改变前缀、断缓存）
+	if p.protocol() != "anthropic" {
+		msgs = DropHistoryReasoning(msgs)
+	}
 	tp := &TextParams{
 		Model: p.modelFactory(p.resolveModel(r)), Instructions: instr, Messages: msgs,
 		Temperature: r.Temperature, TopP: r.TopP, MaxOutputTokens: r.MaxTokens,
@@ -742,6 +778,23 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	var total *llm.ChatUsage
 	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数
 	steerRounds, autoRounds := 0, 0
+	// 上下文守护（contextguard.go）：跨续跑轮次共用，按上一步的真实输入用量判断
+	var guard *contextGuard
+	if hasTools {
+		// 跨轮状态按对话记；后台任务按任务记（同一来源对话里的多个任务互不影响）
+		key, _ := r.Extra["taskId"].(string)
+		if key == "" {
+			key, _ = r.Extra["conversationId"].(string)
+		}
+		guard = newContextGuard(r.ContextBudget, key)
+		defer guard.finish()
+		if guard != nil {
+			guard.turnBase = len(tp.Messages)
+			if r.Summarize != nil {
+				guard.summarize = func(system, transcript string) (string, error) { return r.Summarize(c, system, transcript) }
+			}
+		}
+	}
 	for {
 		var inserts []SteerInsert
 		rp := *tp
@@ -751,10 +804,22 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				if q := p.takeInbox(r.ReqID); len(q) > 0 {
 					inserts = append(inserts, SteerInsert{At: len(step), Text: strings.Join(q, "\n\n")})
 				}
-				if len(inserts) == 0 {
+				if len(inserts) == 0 && guard == nil {
 					return nil
 				}
-				return WithSteerInserts(step, inserts)
+				out := step
+				if len(inserts) > 0 {
+					out = WithSteerInserts(step, inserts)
+				}
+				return guard.prepare(out)
+			}
+			if guard != nil {
+				rp.RetryOverflow = func(err error, sent []*u.Obj) []*u.Obj {
+					if !IsContextOverflow(err) {
+						return nil
+					}
+					return guard.overflow(sent)
+				}
 			}
 		}
 		var finish *string
@@ -770,6 +835,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 					redacted = n
 				}
 				lastStep = usageOf(part.Usage)
+				if lastStep != nil {
+					guard.observe(lastStep.PromptTokens)
+				}
 				if firstPrompt == 0 && lastStep != nil {
 					firstPrompt = lastStep.PromptTokens
 				}
@@ -875,7 +943,8 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			}
 			// 下一轮原样带上
 			if hasTools && c.Err() == nil {
-				if s := StepsJSON(all[from:]); s != "" {
+				// 这一轮里做过摘要的：记录与最后一次请求一致（摘要 + 之后的步骤），下一轮照发不会又撑满
+				if s := StepsJSON(guard.condense(all)[from:]); s != "" {
 					emit(llm.ChatChunk{Type: "steps", Steps: s})
 				}
 			}

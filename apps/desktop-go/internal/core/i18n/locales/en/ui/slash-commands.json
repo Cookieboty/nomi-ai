@@ -176,5 +176,7 @@
   "ui.slash-commands.no-matching-model": "No matching model",
   "ui.slash-commands.summarize-earlier-messages-to-free-up-context": "Summarize earlier messages to free up context (also happens automatically when it's nearly full)",
   "ui.slash-commands.wait-for-the-current-reply-to-finish-then": "Wait for the current reply to finish, then compact.",
-  "ui.slash-commands.nothing-to-compact-yet": "There's nothing to compact yet."
+  "ui.slash-commands.nothing-to-compact-yet": "There's nothing to compact yet.",
+  "ui.slash-commands.last-reply-cache-hit-rate": "Cache hits on the last reply: {0} ({1} read from cache). Higher is cheaper and faster.",
+  "ui.slash-commands.compact-hint": "[optional: what to focus on]"
 }

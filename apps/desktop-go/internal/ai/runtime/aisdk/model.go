@@ -99,6 +99,9 @@ type TextParams struct {
 	// PrepareStep = prepareStep({messages})：每一步开始前调用（streamText），返回非 nil 时这一步改用它作为消息列表；
 	// 只作用于这一步，下一步收到的仍是未改写的累积列表（与 AI SDK 一致）。
 	PrepareStep func(messages []*u.Obj) []*u.Obj
+	// RetryOverflow：这一步的请求被上游以超出上下文长度拒绝时调用（sent = 这一步实际发出的消息）；
+	// 返回非 nil 时改用它重发这一步，nil 照常报错（contextguard.go）
+	RetryOverflow func(err error, sent []*u.Obj) []*u.Obj
 	// CacheBreakpoints：Anthropic 协议：每次请求在系统提示和最后一条消息上打缓存断点（不打不缓存）
 	CacheBreakpoints bool
 }
