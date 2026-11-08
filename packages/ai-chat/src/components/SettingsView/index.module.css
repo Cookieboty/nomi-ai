@@ -598,7 +598,7 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
-/* 宽分区（宽表格）：没有右侧说明栏，用满内容区 */
+/* 宽分区（宽表格）与没有说明栏的分区（通用、关于…）：用满内容区 */
 .mainColWide {
   max-width: none;
 }

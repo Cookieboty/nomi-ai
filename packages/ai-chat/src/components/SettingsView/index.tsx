@@ -372,7 +372,10 @@ export const SettingsView: React.FC<Props> = ({
           )}
           <div className={styles.columns}>
             <div
-              className={current.wide ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol}
+              // 宽分区、或没有右侧说明栏的分区（通用、关于…）：用满内容区，不在右边空出说明栏的位置
+              className={
+                current.wide || !help ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol
+              }
               data-testid="settings-main-col"
             >
               <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
