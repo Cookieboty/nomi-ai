@@ -209,10 +209,11 @@ func DeleteWorkspaceFile(cwd, filePath string) *util.Obj {
 }
 
 // rawGit = execFile('git', args, {cwd, timeout, maxBuffer})（无 --no-pager 前缀，继承 process.env）。
+// Windows 上不建控制台窗口：文件栏每次刷新目录树都会跑一次，不隐藏会闪出一个黑窗口。
 func rawGit(cwd string, args []string, timeoutMs, maxBuf int) gitExecResult {
 	jsrt.Leave()
 	defer jsrt.Enter()
-	return execFileGit(cwd, args, timeoutMs, "", maxBuf, usage.ProcessEnv(), false)
+	return execFileGit(cwd, args, timeoutMs, "", maxBuf, usage.ProcessEnv(), true)
 }
 
 // GitCheckoutWorkspaceFile = gitCheckoutWorkspaceFile。
