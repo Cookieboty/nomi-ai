@@ -225,6 +225,7 @@ type Service struct {
 	runStart          map[string]float64
 	settingsPath      string
 	procs             []AgentProc
+	procSess          map[float64]string // pid → Claude Code 会话键（claude:<sessionId>），见 ClaudePidSessions
 	procsAt           float64
 	procRefreshing    bool
 	dshHome, grokHome string
@@ -682,7 +683,10 @@ func strp(p *string) string {
 	return *p
 }
 
-func (s *Service) matchAlive(cands []candidate, procs []AgentProc) map[string]*bool {
+// matchAlive：会话文件 ↔ 进程。procSess 里登记了会话的进程（Claude Code 的 ~/.claude/sessions/<pid>.json）
+// 按会话 ID 精确对上；登记了但还没有会话文件的（刚开、还没发消息）不按目录去认领别的旧会话。
+// 其余进程退回按「同种助手、同一目录、最近写过」认领。
+func (s *Service) matchAlive(cands []candidate, procs []AgentProc, procSess map[float64]string) map[string]*bool {
 	res := map[string]*bool{}
 	if procs == nil {
 		for _, c := range cands {
@@ -698,8 +702,20 @@ func (s *Service) matchAlive(cands []candidate, procs []AgentProc) map[string]*b
 	sorted := append([]candidate(nil), cands...)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].mtime > sorted[j].mtime })
 	claimed := map[string]bool{}
+	byKey := map[string]bool{}
+	for _, c := range cands {
+		byKey[c.key] = true
+	}
+	for _, p := range procs {
+		if key, ok := procSess[p.Pid]; ok && byKey[key] {
+			claimed[key] = true
+		}
+	}
 	pending := []AgentProc{}
 	for _, p := range procs {
+		if _, ok := procSess[p.Pid]; ok {
+			continue
+		}
 		pc := norm(p.Cwd)
 		found := false
 		if pc != "" {
@@ -737,6 +753,7 @@ func (s *Service) matchAlive(cands []candidate, procs []AgentProc) map[string]*b
 func (s *Service) refreshProcs() {
 	if s.d.Processes != nil {
 		s.procs = s.d.Processes()
+		s.procSess = ClaudePidSessions(s.home, s.procs)
 		s.procsAt = s.now()
 		return
 	}
@@ -747,9 +764,11 @@ func (s *Service) refreshProcs() {
 	plat := s.d.Platform
 	go func() {
 		p := ListAgentProcesses(plat)
+		ps := ClaudePidSessions(s.home, p)
 		jsrt.Run(func() {
 			first := s.procsAt == 0
 			s.procs = p
+			s.procSess = ps
 			s.procsAt = s.now()
 			if first {
 				s.catchTick(s.Tick(false))
@@ -885,7 +904,7 @@ func (s *Service) tickOnce(refresh bool) (err error) {
 	if s.procsAt != 0 {
 		procs = s.procs
 	}
-	alive := s.matchAlive(res.cands, procs)
+	alive := s.matchAlive(res.cands, procs, s.procSess)
 	seen := map[string]bool{}
 	for _, c := range res.cands {
 		isAlive := alive[c.key]
@@ -1473,6 +1492,16 @@ func num(v any) float64 {
 		return math.NaN()
 	}
 	return n
+}
+
+// ProcSessions：最近一次进程扫描里登记了会话的进程（pid → 会话键，与 State 里会话的 id 一致；须持 GIL 调用）。
+// Agent 看板据此把进程树精确对到会话上，对不上的不按目录猜。
+func (s *Service) ProcSessions() map[float64]string {
+	out := make(map[float64]string, len(s.procSess))
+	for k, v := range s.procSess {
+		out[k] = v
+	}
+	return out
 }
 
 // ProcCwds：最近一次进程扫描里各编程助手进程的工作目录（pid → 目录；须持 GIL 调用，与 State 一样）。

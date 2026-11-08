@@ -32,7 +32,8 @@ type Deps struct {
 	// TaskSummary：任务最近一次运行的结果摘要（GIL 外调用；只对最近做完的任务调）
 	TaskSummary func(taskID string) string
 	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
-	External func() ([]ExtSession, map[float64]string)
+	// External：外部会话、编程助手进程的工作目录（pid → 目录）、登记了会话的进程（pid → 会话 id）
+	External func() ([]ExtSession, map[float64]string, map[float64]string)
 	Emit     func(State) // fleet.changed
 	// Kill：给进程发信号（"SIGTERM" / "SIGKILL"）；只用于用户手动关闭空闲的外部进程（CloseIdle）
 	Kill func(pid int, signal string) error
@@ -150,9 +151,9 @@ func (s *Service) State() State {
 		chats = s.d.Chats()
 	}
 	var ext []ExtSession
-	var extCwd map[float64]string
+	var extCwd, extSess map[float64]string
 	if s.d.External != nil {
-		ext, extCwd = s.d.External()
+		ext, extCwd, extSess = s.d.External()
 	}
 	cur, prev := s.sample()
 	now := s.d.Now().UnixMilli()
@@ -194,7 +195,7 @@ func (s *Service) State() State {
 	}
 	hold := s.HoldReason()
 	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
-		ExtCwd: extCwd, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: hold != "", HoldReason: hold})
+		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()
 	st.Governor = Governor{AutoPause: s.gov.auto, Last: s.gov.last}

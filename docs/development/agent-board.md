@@ -69,8 +69,10 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
   除以核数，会漏掉采样间隔里退出的进程与 `kernel_task`。
 - 标签的进程：编排器在 `spawnCLI` 里记下每个标签起的进程（`Orchestrator.TabPids`），从进程表展开整棵树；同一个进程只算一次。
 - Nomi 本体 = Nomi 自己的进程树减去各标签的树。Nomi 对话与后台运行跑在内核进程里，单独的占用量不出来，所以没有 `usage`。
-- 外部：编程助手进程按进程树归并（`agents.AgentTrees`，一个助手里又起的助手算进同一棵树）；在跑的外部会话认领同种助手、
-  同一工作目录（`agents.Service.ProcCwds`）的一棵树。认领不到的（终端 / IDE 里开着但没在跑会话的）放进 `externalIdle.items`，
+- 外部：编程助手进程按进程树归并（`agents.AgentTrees`，一个助手里又起的助手算进同一棵树）；登记了当前会话的进程
+  （Claude Code 的 `~/.claude/sessions/<pid>.json`，`agents.Service.ProcSessions`）只归自己的会话，会话还没有会话文件
+  （刚开、没发消息）就算空闲，不按目录去认领别的旧会话；其余的由外部会话认领同种助手、
+  同一工作目录（`agents.Service.ProcCwds`）的一棵树，在跑的先认领。认领不到的（终端 / IDE 里开着但没在跑会话的）放进 `externalIdle.items`，
   面板下面单独一个「空闲进程」列表，每个一行。
 
 ## 手动关闭空闲进程

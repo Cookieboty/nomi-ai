@@ -121,18 +121,19 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 			return out
 		},
-		External: func() ([]fleet.ExtSession, map[float64]string) {
+		External: func() ([]fleet.ExtSession, map[float64]string, map[float64]string) {
 			if agentsSvc == nil {
-				return nil, nil
+				return nil, nil, nil
 			}
 			type res struct {
-				s   []fleet.ExtSession
-				cwd map[float64]string
+				s    []fleet.ExtSession
+				cwd  map[float64]string
+				sess map[float64]string
 			}
 			r := jsrt.Call(func() res {
-				return res{fleetExternal(agentsSvc.State()), agentsSvc.ProcCwds()}
+				return res{fleetExternal(agentsSvc.State()), agentsSvc.ProcCwds(), agentsSvc.ProcSessions()}
 			})
-			return r.s, r.cwd
+			return r.s, r.cwd, r.sess
 		},
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
 		// 只给用户手动关闭空闲的外部编程助手进程用（fleet.closeIdle）

@@ -206,9 +206,12 @@ type Input struct {
 	Chats    []Chat
 	External []ExtSession
 	// ExtCwd：编程助手进程的工作目录（pid → 目录），把外部进程树对到会话上
-	ExtCwd   map[float64]string
-	Procs    *agents.ProcTable // nil = 读不到进程表（只是没有资源占用）
-	PrevProc *agents.ProcTable // 上一次采样（算 CPU）；nil = 第一次
+	ExtCwd map[float64]string
+	// ExtSession：登记了当前会话的编程助手进程（pid → 外部会话 id，如 Claude Code 的 ~/.claude/sessions/<pid>.json）。
+	// 这些进程树只归对应的会话，不按目录分给别的会话；会话还没出现（刚开、没发消息）就算空闲
+	ExtSession map[float64]string
+	Procs      *agents.ProcTable // nil = 读不到进程表（只是没有资源占用）
+	PrevProc   *agents.ProcTable // 上一次采样（算 CPU）；nil = 第一次
 	// Archived：id → 归档时间；之后没有新动静（UpdatedAt ≤ 归档时间）的已完成项不显示
 	Archived map[string]int64
 	// TaskSummaries：任务 id → 最近一次运行的结果摘要（只有做完的）
@@ -458,12 +461,26 @@ func Build(in Input) State {
 	return State{Agents: append(managed, external...), Nomi: nomi, ExternalIdle: idle, System: in.System, SampledAt: in.Now}
 }
 
+// treeSession：进程树里登记的会话（先看根进程，再看子孙）
+func treeSession(m map[float64]string, tr agents.AgentTree) string {
+	if id := m[tr.Root.Pid]; id != "" {
+		return id
+	}
+	for _, p := range tr.Pids {
+		if id := m[p]; id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
 // buildExternal：外部会话按状态分列；在跑的会话认领同种助手、同一目录的进程树（一棵树只归一个会话），
 // 认领不到的进程树合并成「空闲进程」。
 func buildExternal(in Input) ([]Agent, Idle) {
 	type tree struct {
 		t       agents.AgentTree
 		key     string
+		sess    string // 登记的会话 id（"" = 不知道）
 		claimed bool
 	}
 	trees := []*tree{}
@@ -472,7 +489,7 @@ func buildExternal(in Input) ([]Agent, Idle) {
 			if tr.InNomi {
 				continue
 			}
-			trees = append(trees, &tree{t: tr, key: tr.Root.Kind + "\x1f" + normDir(in.ExtCwd[tr.Root.Pid])})
+			trees = append(trees, &tree{t: tr, key: tr.Root.Kind + "\x1f" + normDir(in.ExtCwd[tr.Root.Pid]), sess: treeSession(in.ExtSession, tr)})
 		}
 	}
 
@@ -492,13 +509,24 @@ func buildExternal(in Input) ([]Agent, Idle) {
 		out = append(out, a)
 	}
 	// 会话认领它的进程树：同种助手、同一目录。先让在跑的认领，再让答完了但进程还开着的认领（会话还在，进程不算空闲）
+	// 登记了会话的进程树先精确归到自己的会话
+	for i := range out {
+		id := strings.TrimPrefix(out[i].ID, "ext:")
+		for _, tr := range trees {
+			if !tr.claimed && tr.sess != "" && tr.sess == id {
+				tr.claimed = true
+				out[i].Usage = usageOf(in, tr.t.Pids)
+				break
+			}
+		}
+	}
 	claim := func(a *Agent) {
-		if a.Cwd == "" {
+		if a.Cwd == "" || a.Usage != nil {
 			return
 		}
 		key := a.Backend + "\x1f" + normDir(a.Cwd)
 		for _, tr := range trees {
-			if !tr.claimed && tr.key == key {
+			if !tr.claimed && tr.sess == "" && tr.key == key {
 				tr.claimed = true
 				a.Usage = usageOf(in, tr.t.Pids)
 				return

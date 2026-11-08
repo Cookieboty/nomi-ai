@@ -330,8 +330,10 @@ func closeIdleService(t *testing.T, kills *killLog) *Service {
 			defer mu.Unlock()
 			return procs(tick, 2)
 		},
-		Tabs:     func() []Tab { return in.Tabs },
-		External: func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		Tabs: func() []Tab { return in.Tabs },
+		External: func() ([]ExtSession, map[float64]string, map[float64]string) {
+			return in.External, in.ExtCwd, in.ExtSession
+		},
 		Kill: func(pid int, sig string) error {
 			kills.add(sig + ":" + strconv.Itoa(pid))
 			return nil
@@ -480,8 +482,10 @@ func TestCloseIdleWhenTheRereadFails(t *testing.T) {
 			}
 			return procs(tick, 2)
 		},
-		Tabs:      func() []Tab { return in.Tabs },
-		External:  func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		Tabs: func() []Tab { return in.Tabs },
+		External: func() ([]ExtSession, map[float64]string, map[float64]string) {
+			return in.External, in.ExtCwd, in.ExtSession
+		},
 		Kill:      func(pid int, sig string) error { log.add(sig + ":" + strconv.Itoa(pid)); return nil },
 		KillGrace: time.Hour,
 	})
@@ -510,5 +514,36 @@ func TestCloseIdleReportsAccessDenied(t *testing.T) {
 	s.d.Kill = func(int, string) error { return errors.New("boom") }
 	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseFailed) {
 		t.Fatalf("CloseIdle = %v, want ErrCloseFailed", err)
+	}
+}
+
+// 同一目录开着三个 claude：登记了会话的进程只归自己的会话；刚开、还没会话文件的算空闲，不去认领别的旧会话
+func TestBuildExternalPinsRegisteredSessions(t *testing.T) {
+	at := time.Unix(10_000, 0)
+	tbl := agents.NewProcTable([]agents.RawProc{
+		{Pid: 1, Ppid: 0, Name: "launchd", Cmd: "/sbin/launchd"},
+		{Pid: 300, Ppid: 1, RSS: 10 * mb, Name: "claude", Cmd: "claude"},
+		{Pid: 310, Ppid: 1, RSS: 20 * mb, Name: "claude", Cmd: "claude"},
+		{Pid: 320, Ppid: 1, RSS: 30 * mb, Name: "claude", Cmd: "claude"},
+	})
+	tbl.At = at
+	in := Input{Now: at.UnixMilli(), SelfPid: 100, Procs: tbl,
+		ExtCwd: map[float64]string{300: "/p", 310: "/p", 320: "/p"},
+		// 300 是旧会话 old 的进程；320 刚开（会话 fresh 还没写文件）；310 没登记
+		ExtSession: map[float64]string{300: "claude:old", 320: "claude:fresh"},
+		External: []ExtSession{
+			{ID: "claude:newer", Kind: "claude", Cwd: "/p", Status: "waiting", UpdatedAt: at.UnixMilli() - 10, Alive: &yes},
+			{ID: "claude:old", Kind: "claude", Cwd: "/p", Status: "waiting", UpdatedAt: at.UnixMilli() - 100, Alive: &yes},
+		}}
+	st := Build(in)
+	m := byID(st)
+	if u := m["ext:claude:old"].Usage; u == nil || u.RSSBytes != 10*mb {
+		t.Fatalf("old session should own pid 300, usage = %+v", u)
+	}
+	if u := m["ext:claude:newer"].Usage; u == nil || u.RSSBytes != 20*mb {
+		t.Fatalf("unregistered pid 310 falls back to the cwd match, usage = %+v", u)
+	}
+	if len(st.ExternalIdle.Items) != 1 || st.ExternalIdle.Items[0].Pid != 320 {
+		t.Fatalf("the freshly opened process is idle, got %+v", st.ExternalIdle.Items)
 	}
 }
