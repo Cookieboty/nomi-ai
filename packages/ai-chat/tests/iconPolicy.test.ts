@@ -43,7 +43,10 @@ describe('设置左侧导航图标', () => {
     const icons = SETTINGS_SECTIONS.map((s) => s.icon);
     expect(icons.every(Boolean)).toBe(true);
     expect(new Set(icons).size).toBe(icons.length);
-    // 图标表 = 菜单分区
-    expect(Object.keys(SETTINGS_ICONS).sort()).toEqual(SETTINGS_SECTIONS.map((s) => s.id).sort());
+    // 图标表 = 菜单分区 + 只在开发版出现的「调试」（测试与打包版里没有这个分区）
+    expect(Object.keys(SETTINGS_ICONS).sort()).toEqual(
+      [...SETTINGS_SECTIONS.map((s) => s.id), 'debug'].sort(),
+    );
+    expect(new Set(Object.values(SETTINGS_ICONS)).size).toBe(Object.keys(SETTINGS_ICONS).length);
   });
 });

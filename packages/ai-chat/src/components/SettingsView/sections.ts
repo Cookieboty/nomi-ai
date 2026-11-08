@@ -18,7 +18,8 @@ export type SettingsSection =
   | 'debug';
 
 /** 开发版才有的分区（Vite 开发服务器提供视图时 import.meta.env.DEV 为 true；打包版里整段被去掉） */
-const DEV = import.meta.env.DEV && import.meta.env.MODE !== 'test';
+export const DEV_SECTIONS = import.meta.env.DEV && import.meta.env.MODE !== 'test';
+const DEV = DEV_SECTIONS;
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;

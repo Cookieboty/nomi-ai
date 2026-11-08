@@ -25,7 +25,6 @@ import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
 import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
-import { DebugSection } from './DebugSection';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
@@ -39,6 +38,7 @@ import { PrivacySection } from './PrivacySection';
 import { SECTION_HELP } from './sectionHelp';
 import { SectionPage } from './SectionPage';
 import {
+  DEV_SECTIONS,
   SECTION_TABS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
@@ -52,6 +52,14 @@ import { ThemeSettings } from './ThemeSettings';
 import { VoiceSection } from './VoiceSection';
 
 export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+
+/**
+ * 调试页只在开发版：生产构建里 import.meta.env.DEV 是常量 false，这个动态 import 连同 DebugSection 整段被去掉；
+ * 就算分区被记成了 debug（开发时留下的），打包版也什么都不渲染
+ */
+const DebugSection = import.meta.env.DEV
+  ? React.lazy(() => import('./DebugSection').then((m) => ({ default: m.DebugSection })))
+  : null;
 
 /** 「模型」页懒加载 */
 const ModelsPage = React.lazy(() =>
@@ -257,7 +265,11 @@ export const SettingsView: React.FC<Props> = ({
       case 'about':
         return <AboutSection />;
       case 'debug':
-        return <DebugSection />;
+        return DEV_SECTIONS && DebugSection ? (
+          <Suspense fallback={null}>
+            <DebugSection />
+          </Suspense>
+        ) : null;
     }
   })();
 
