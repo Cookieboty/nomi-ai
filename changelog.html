@@ -61,6 +61,43 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v235">
+          <header class="release-head">
+            <h2 data-i18n="cl.v235.title">v2.3.5 — 灵动岛、Agent 看板、任务看板与素材库改版</h2>
+            <time datetime="2026-11-08">2026-11-08</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v235.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v235.feat.1">灵动岛改版：深色胶囊，Nomi 图标带状态角标；编程助手要权限、批准计划、沙箱拦下、Nomi 要你确认的操作等一直留在岛上，可以直接允许或拒绝，多条时按列表展示；可在「设置 → 通知」里单独关掉</li>
+            <li data-i18n="cl.v235.feat.2">Agent 看板改版：按状态、助手类型筛选和搜索，卡片写清状态、来源、目录与 CPU / 内存，底部显示 Nomi 自己的占用与内存守护最近做的事</li>
+            <li data-i18n="cl.v235.feat.3">新增「调度策略」：委派与后台任务合计，省资源（同时最多 5 个）/ 均衡（10 个）/ 全速（不限个数，按 CPU 与内存放行），选了立即生效</li>
+            <li data-i18n="cl.v235.feat.4">任务看板改版：进度合并成待开始 / 进行中 / 待处理 / 已结束四档，可按进度筛选和搜索，卡片上直接立即运行或暂停</li>
+            <li data-i18n="cl.v235.feat.5">素材库改版：按分类、来源和搜索筛选，显示已用空间；生成的图片自动分类，可以自己改分类、加标签；图片详情支持全屏查看、左右切换、缩略图和相关推荐</li>
+            <li data-i18n="cl.v235.feat.6">新快捷键「在终端打开当前项目」：macOS ⇧⌘C，Windows / Linux Ctrl+Shift+C，可在设置里改</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v235.imp">改进</h3>
+          <ul>
+            <li data-i18n="cl.v235.imp.1">Nomi 对话里的确认少弹很多：读工作区里的文件不再触发「读过外部内容」的确认；确认卡片上能勾「这个对话里不再询问」；同意过的委派，追问不再逐次确认</li>
+            <li data-i18n="cl.v235.imp.2">设置页整理：通用页改成左右两张卡，「已归档的对话」挪到「Nomi」，「权限」与「委派」合成「权限与委派」；没有说明栏的分区用满宽度，窄卡片里控件换到下一行</li>
+            <li data-i18n="cl.v235.imp.3">会话正文字号改成三档：普通、较大（默认）、特大</li>
+            <li data-i18n="cl.v235.imp.4">主题选择默认只显示一行，其余点「更多主题」展开，当前主题始终看得到</li>
+            <li data-i18n="cl.v235.imp.5">侧栏顶部更简洁：去掉 Nomi 标志，展开 / 收起用标题栏的按钮</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v235.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v235.fix.1">会话详情里委派出去的子任务结束后不再一直显示「运行中」，出错会显示；「变更」按工作区的 git 改动统计，派出去的编程助手改的也算</li>
+            <li data-i18n="cl.v235.fix.2">Nomi 派出去的会话在标签关掉后不再以「终端 · 只读」出现在 Agent 看板</li>
+            <li data-i18n="cl.v235.fix.3">同一目录开着多个 Claude Code 时，Agent 看板不再把进程对错会话：刚开、还没发消息的显示在「空闲进程」里，正在用的不会被列成空闲</li>
+            <li data-i18n="cl.v235.fix.4">Agent 看板卡片与灵动岛里的会话标题不再显示「/clear」这类斜杠命令，改用第一句真正的提问</li>
+            <li data-i18n="cl.v235.fix.5">Windows 上 Agent 看板能关掉空闲进程了，关不掉时会写明原因</li>
+            <li data-i18n="cl.v235.fix.6">Windows 上切换文件时不再闪出控制台窗口</li>
+            <li data-i18n="cl.v235.fix.7">macOS 刘海屏上灵动岛不再被挤到菜单栏下面</li>
+            <li data-i18n="cl.v235.fix.8">开启「仅本地模型可读文件」时，对话换成云端模型后不能再分页读出之前本地模型读到的长文件、命令输出和网页；长任务里交给云端摘要模型的较早步骤也不再带这些内容</li>
+            <li data-i18n="cl.v235.fix.9">删除对话摘要或清空记忆时，正在进行的整理不会再把删除前的内容写回来</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.5" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v234">
           <header class="release-head">
             <h2 data-i18n="cl.v234.title">v2.3.4 — 长任务更稳、子任务产出回到对话、记忆真的忘记</h2>
