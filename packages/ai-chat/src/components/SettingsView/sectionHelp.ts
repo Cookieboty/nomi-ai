@@ -30,7 +30,7 @@ export interface HelpItem {
   desc: string;
 }
 
-export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[]> = {
+export const SECTION_HELP: Record<Exclude<SettingsSection, 'general' | 'about'>, HelpItem[]> = {
   nomi: [
     {
       icon: Shield,

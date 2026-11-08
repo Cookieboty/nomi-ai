@@ -19,6 +19,7 @@ import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu, type ForkPick } from './components/ForkMenu';
+import { HubDrawer } from './components/HubDrawer';
 import {
   DesktopPanel,
   ExtensionsPanel,
@@ -402,6 +403,7 @@ const AiChatContent: React.FC = () => {
   // 托盘「桌面能力…」→ 打开桌面能力面板
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
   const [showExt, setShowExt] = useState(false);
+  const [showHub, setShowHub] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 720);
   // 窗口变窄时自动收起侧栏，避免挤压对话区
   useEffect(() => {
@@ -422,6 +424,7 @@ const AiChatContent: React.FC = () => {
     setSettingsLink(tab ? { tab } : undefined);
     setShowExt(false);
     setShowDesktop(false);
+    setShowHub(false);
     setSettings(sec);
   }, []);
   // 托盘「模型设置…」→ 设置 →「模型与供应商」
@@ -596,8 +599,14 @@ const AiChatContent: React.FC = () => {
       focusInput,
       settings: () => setSettings((s) => (s ? null : 'general')),
       sidebar: () => setSidebarCollapsed((v) => !v),
-      hub: () => openSettings('knowledge'),
-      ext: () => setShowExt((v) => !v),
+      hub: () => {
+        setShowExt(false);
+        setShowHub((v) => !v);
+      },
+      ext: () => {
+        setShowHub(false);
+        setShowExt((v) => !v);
+      },
       local: () => openSettings('models', 'local'),
       newTab: () => {
         if (!isDev) return;
@@ -773,9 +782,21 @@ const AiChatContent: React.FC = () => {
   );
   const openDesktop = useCallback(() => setShowDesktop(true), []);
   const closeDesktop = useCallback(() => setShowDesktop(false), []);
-  // 知识 · 记忆 · 日程、截图提问、本机模型都只在设置里有一个入口
-  const openHub = useCallback(() => openSettings('knowledge'), [openSettings]);
-  const openExt = useCallback(() => setShowExt(true), []);
+  // 知识 · 记忆 · 日程：右侧抽屉（与设置 → 知识与记忆同一套标签），抽屉头部可再跳到设置
+  // 右侧抽屉一次只开一个
+  const openHub = useCallback(() => {
+    setShowExt(false);
+    setShowHub(true);
+  }, []);
+  const closeHub = useCallback(() => setShowHub(false), []);
+  const hubToSettings = useCallback(
+    (tab: SettingsTab) => openSettings('knowledge', tab),
+    [openSettings],
+  );
+  const openExt = useCallback(() => {
+    setShowHub(false);
+    setShowExt(true);
+  }, []);
   const closeExt = useCallback(() => setShowExt(false), []);
   const openLocal = useCallback(() => openSettings('models', 'local'), [openSettings]);
   const closeSettings = useCallback(() => setSettings(null), []);
@@ -1095,6 +1116,7 @@ const AiChatContent: React.FC = () => {
       <ModalHostContext.Provider value={drawerHost.ext}>
         <ExtensionsPanel isVisible={showExt} onClose={closeExt} />
       </ModalHostContext.Provider>
+      <HubDrawer open={showHub} onClose={closeHub} onOpenSettings={hubToSettings} />
       <ForkTargetMenu
         open={!!forkCross}
         mode={forkCross?.mode}

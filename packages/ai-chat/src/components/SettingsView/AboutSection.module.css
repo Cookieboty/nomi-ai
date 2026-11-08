@@ -1,0 +1,125 @@
+/* 设置 → 关于：一张卡片（品牌与版本 / 入口按钮 / Star 提示），三段之间细分隔线 */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  padding-bottom: var(--cd-space-6);
+}
+.card {
+  overflow: hidden;
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-panel-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-4);
+  padding: var(--cd-space-5);
+}
+.mark {
+  flex: none;
+  color: var(--cd-color-text);
+}
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+.name {
+  margin: 0;
+  font-size: var(--cd-font-size-xl);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+.version {
+  margin: var(--cd-space-1) 0 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.version strong {
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+.status {
+  margin: var(--cd-space-1) 0 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.headActions {
+  display: flex;
+  flex: none;
+  gap: var(--cd-space-2);
+}
+.bar {
+  height: 6px;
+  margin: 0 var(--cd-space-5) var(--cd-space-4);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-panel-border);
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  background: var(--cd-color-accent);
+  transition: width 0.2s ease;
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-4) var(--cd-space-5);
+  border-top: 1px solid var(--cd-panel-border);
+}
+.links a {
+  text-decoration: none;
+}
+.star {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3) var(--cd-space-4) var(--cd-space-3) var(--cd-space-5);
+  border-top: 1px solid var(--cd-panel-border);
+  background: var(--cd-color-accent-soft);
+}
+.star a {
+  flex: none;
+  text-decoration: none;
+}
+.starIcon {
+  flex: none;
+  color: var(--cd-color-warning);
+  fill: currentColor;
+}
+.starText {
+  flex: 1;
+  min-width: 0;
+}
+.starLine {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.starSub {
+  margin: var(--cd-space-0-5) 0 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.starActions {
+  display: flex;
+  flex: none;
+  gap: var(--cd-space-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .barFill {
+    transition: none;
+  }
+}
+@media (max-width: 640px) {
+  .head {
+    flex-wrap: wrap;
+  }
+  .star {
+    flex-wrap: wrap;
+  }
+}

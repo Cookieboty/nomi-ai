@@ -12,7 +12,8 @@ export type SettingsSection =
   | 'knowledge'
   | 'ext'
   | 'connections'
-  | 'privacy';
+  | 'privacy'
+  | 'about';
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;
@@ -80,16 +81,23 @@ export const SETTINGS_SECTIONS: Array<{
     label: 'ui.chat-settings.privacy-permissions',
     intro: 'ui.chat-settings.how-your-data-is-stored-exported-and-cleared',
   },
+  {
+    id: 'about',
+    icon: SETTINGS_ICONS.about,
+    label: 'ui.chat-settings.about-section',
+    intro: 'ui.chat-settings.about-section-intro',
+  },
 ];
 
 /**
- * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展。
+ * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 数据与扩展 / 关于。
  * 每个分区恰好出现一次，顺序与 SETTINGS_SECTIONS 一致。
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
   ['models', 'usage', 'coding'],
   ['knowledge', 'ext', 'connections', 'privacy'],
+  ['about'],
 ];
 
 /** 有标签页的分区：标签 id 与显示文案（文案作 i18n key，渲染时过 t()）。 */

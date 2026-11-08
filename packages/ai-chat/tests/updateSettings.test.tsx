@@ -2,11 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  UpdateSettings,
-  statusLabel,
-  type UpdateState,
-} from '../src/components/SettingsView/UpdateSettings';
+import { AboutSection } from '../src/components/SettingsView/AboutSection';
+import { statusLabel, type UpdateState } from '../src/components/SettingsView/UpdateSettings';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -23,7 +20,7 @@ const mount = (state: UpdateState, next: UpdateState) => {
     'updates.install': () => state,
     'updates.setAutoCheck': () => state,
   });
-  return { r: render(<UpdateSettings />), check };
+  return { r: render(<AboutSection />), check };
 };
 
 afterEach(() => {
@@ -59,5 +56,22 @@ describe('自动更新失败后能重试', () => {
     await waitFor(() => expect(check).toHaveBeenCalledTimes(1));
     await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(true));
     expect(btn.textContent).toBe('检查更新');
+  });
+});
+
+describe('关于页', () => {
+  it('Star 提示可关掉且记住；更新设置在二次弹窗里，不在页面上展开', async () => {
+    localStorage.removeItem('ai-chat:about:starDismissed');
+    mount(base, base);
+    expect(screen.getByTestId('about-star').textContent).toContain('Star');
+    expect(screen.queryByTestId('updates-auto-check')).toBeNull();
+    fireEvent.click(screen.getByTestId('updates-open-prefs'));
+    expect(await screen.findByTestId('updates-auto-check')).toBeTruthy();
+    expect(screen.getByTestId('updates-show-release-notes')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('about-star-dismiss'));
+    expect(screen.queryByTestId('about-star')).toBeNull();
+    cleanup();
+    mount(base, base);
+    expect(screen.queryByTestId('about-star')).toBeNull();
   });
 });

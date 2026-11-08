@@ -45,7 +45,7 @@
 | `Ctrl/⌘+B`       | 收起 / 展开侧栏                            |
 | `Ctrl/⌘+Shift+K` | 知识库问答开关                             |
 | `Ctrl/⌘+Shift+H` | 免按键对话开关                             |
-| `Ctrl/⌘+Shift+M` | 知识 · 记忆 · 日程（设置 → 知识与记忆）    |
+| `Ctrl/⌘+Shift+M` | 知识 · 记忆 · 日程抽屉                     |
 | `Ctrl/⌘+Shift+E` | 扩展 / MCP                                 |
 | `Ctrl/⌘+Shift+J` | 本机模型（设置 → 模型与供应商 → 本机模型） |
 | `Ctrl/⌘+T`       | 新建编程助手标签                           |
