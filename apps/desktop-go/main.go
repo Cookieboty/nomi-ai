@@ -660,6 +660,26 @@ func main() {
 			return resp.Content, nil
 		}, 0)
 	}
+	// 素材库：新生成的图按提示词让辅助模型（摘要角色）分类；同命令审核一样，没配模型、或模型在云端而用户还没同意
+	// 发送时不分（留着关键词规则的结果）
+	chatAssetsLib.SetClassify(func(prompt string) (string, error) {
+		chatFacade := chatFacadeRef.Load()
+		if chatFacade == nil || !desktopSvc.Broker.CanSendQuietly(desktopSvc.ProviderFor("summary")) {
+			return "", nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		role := "summary"
+		resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Signal: ctx.Done(),
+			Messages: []blm.ChatMessage{
+				{Role: "system", Content: chatassets.ClassifyInstruction},
+				{Role: "user", Content: prompt},
+			}})
+		if err != nil {
+			return "", err
+		}
+		return chatassets.ParseCategory(resp.Content), nil
+	})
 	desktopSvc.Broker.OnReviewed = func(tool string, r *desktop.CommandReview) {
 		log.Printf("[desktop] command reviewed tool=%s risk=%s authorization=%s outcome=%s", tool, r.Risk, r.Authorization, r.Outcome)
 	}

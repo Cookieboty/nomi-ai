@@ -1264,32 +1264,82 @@ type ChatAssetsImportInput struct {
 	ConversationId *string                   `json:"conversationId,omitempty"`
 }
 
+// ChatAssetsImportOutputCategory 枚举：illustration | people | landscape | animal | other
+type ChatAssetsImportOutputCategory = string
+
+const (
+	ChatAssetsImportOutputCategoryIllustration ChatAssetsImportOutputCategory = "illustration"
+	ChatAssetsImportOutputCategoryPeople       ChatAssetsImportOutputCategory = "people"
+	ChatAssetsImportOutputCategoryLandscape    ChatAssetsImportOutputCategory = "landscape"
+	ChatAssetsImportOutputCategoryAnimal       ChatAssetsImportOutputCategory = "animal"
+	ChatAssetsImportOutputCategoryOther        ChatAssetsImportOutputCategory = "other"
+)
+
+// ChatAssetsImportOutputCategoryBy 枚举：ai | rule | user
+type ChatAssetsImportOutputCategoryBy = string
+
+const (
+	ChatAssetsImportOutputCategoryByAi   ChatAssetsImportOutputCategoryBy = "ai"
+	ChatAssetsImportOutputCategoryByRule ChatAssetsImportOutputCategoryBy = "rule"
+	ChatAssetsImportOutputCategoryByUser ChatAssetsImportOutputCategoryBy = "user"
+)
+
 type ChatAssetsImportOutput struct {
-	File           string   `json:"file"`
-	Url            string   `json:"url"`
-	Source         string   `json:"source"`
-	CreatedAt      float64  `json:"createdAt"`
-	Bytes          float64  `json:"bytes"`
-	Model          *string  `json:"model,omitempty"`
-	Prompt         *string  `json:"prompt,omitempty"`
-	Aspect         *string  `json:"aspect,omitempty"`
-	EditedFrom     *string  `json:"editedFrom,omitempty"`
-	References     []string `json:"references,omitempty"`
-	ConversationId *string  `json:"conversationId,omitempty"`
+	File           string                            `json:"file"`
+	Url            string                            `json:"url"`
+	Source         string                            `json:"source"`
+	CreatedAt      float64                           `json:"createdAt"`
+	Bytes          float64                           `json:"bytes"`
+	Model          *string                           `json:"model,omitempty"`
+	Prompt         *string                           `json:"prompt,omitempty"`
+	Aspect         *string                           `json:"aspect,omitempty"`
+	EditedFrom     *string                           `json:"editedFrom,omitempty"`
+	References     []string                          `json:"references,omitempty"`
+	ConversationId *string                           `json:"conversationId,omitempty"`
+	Category       ChatAssetsImportOutputCategory    `json:"category"`
+	CategoryBy     *ChatAssetsImportOutputCategoryBy `json:"categoryBy,omitempty"`
+	Tags           []string                          `json:"tags"`
+	Width          *float64                          `json:"width,omitempty"`
+	Height         *float64                          `json:"height,omitempty"`
 }
 
+// ChatAssetsListOutputItemCategory 枚举：illustration | people | landscape | animal | other
+type ChatAssetsListOutputItemCategory = string
+
+const (
+	ChatAssetsListOutputItemCategoryIllustration ChatAssetsListOutputItemCategory = "illustration"
+	ChatAssetsListOutputItemCategoryPeople       ChatAssetsListOutputItemCategory = "people"
+	ChatAssetsListOutputItemCategoryLandscape    ChatAssetsListOutputItemCategory = "landscape"
+	ChatAssetsListOutputItemCategoryAnimal       ChatAssetsListOutputItemCategory = "animal"
+	ChatAssetsListOutputItemCategoryOther        ChatAssetsListOutputItemCategory = "other"
+)
+
+// ChatAssetsListOutputItemCategoryBy 枚举：ai | rule | user
+type ChatAssetsListOutputItemCategoryBy = string
+
+const (
+	ChatAssetsListOutputItemCategoryByAi   ChatAssetsListOutputItemCategoryBy = "ai"
+	ChatAssetsListOutputItemCategoryByRule ChatAssetsListOutputItemCategoryBy = "rule"
+	ChatAssetsListOutputItemCategoryByUser ChatAssetsListOutputItemCategoryBy = "user"
+)
+
 type ChatAssetsListOutputItem struct {
-	File           string   `json:"file"`
-	Url            string   `json:"url"`
-	Source         string   `json:"source"`
-	CreatedAt      float64  `json:"createdAt"`
-	Bytes          float64  `json:"bytes"`
-	Model          *string  `json:"model,omitempty"`
-	Prompt         *string  `json:"prompt,omitempty"`
-	Aspect         *string  `json:"aspect,omitempty"`
-	EditedFrom     *string  `json:"editedFrom,omitempty"`
-	References     []string `json:"references,omitempty"`
-	ConversationId *string  `json:"conversationId,omitempty"`
+	File           string                              `json:"file"`
+	Url            string                              `json:"url"`
+	Source         string                              `json:"source"`
+	CreatedAt      float64                             `json:"createdAt"`
+	Bytes          float64                             `json:"bytes"`
+	Model          *string                             `json:"model,omitempty"`
+	Prompt         *string                             `json:"prompt,omitempty"`
+	Aspect         *string                             `json:"aspect,omitempty"`
+	EditedFrom     *string                             `json:"editedFrom,omitempty"`
+	References     []string                            `json:"references,omitempty"`
+	ConversationId *string                             `json:"conversationId,omitempty"`
+	Category       ChatAssetsListOutputItemCategory    `json:"category"`
+	CategoryBy     *ChatAssetsListOutputItemCategoryBy `json:"categoryBy,omitempty"`
+	Tags           []string                            `json:"tags"`
+	Width          *float64                            `json:"width,omitempty"`
+	Height         *float64                            `json:"height,omitempty"`
 }
 
 type ChatAssetsLocalImageInput struct {
@@ -1304,18 +1354,43 @@ type ChatAssetsRegenerateInput struct {
 	File string `json:"file"`
 }
 
+// ChatAssetsRegenerateOutputCategory 枚举：illustration | people | landscape | animal | other
+type ChatAssetsRegenerateOutputCategory = string
+
+const (
+	ChatAssetsRegenerateOutputCategoryIllustration ChatAssetsRegenerateOutputCategory = "illustration"
+	ChatAssetsRegenerateOutputCategoryPeople       ChatAssetsRegenerateOutputCategory = "people"
+	ChatAssetsRegenerateOutputCategoryLandscape    ChatAssetsRegenerateOutputCategory = "landscape"
+	ChatAssetsRegenerateOutputCategoryAnimal       ChatAssetsRegenerateOutputCategory = "animal"
+	ChatAssetsRegenerateOutputCategoryOther        ChatAssetsRegenerateOutputCategory = "other"
+)
+
+// ChatAssetsRegenerateOutputCategoryBy 枚举：ai | rule | user
+type ChatAssetsRegenerateOutputCategoryBy = string
+
+const (
+	ChatAssetsRegenerateOutputCategoryByAi   ChatAssetsRegenerateOutputCategoryBy = "ai"
+	ChatAssetsRegenerateOutputCategoryByRule ChatAssetsRegenerateOutputCategoryBy = "rule"
+	ChatAssetsRegenerateOutputCategoryByUser ChatAssetsRegenerateOutputCategoryBy = "user"
+)
+
 type ChatAssetsRegenerateOutput struct {
-	File           string   `json:"file"`
-	Url            string   `json:"url"`
-	Source         string   `json:"source"`
-	CreatedAt      float64  `json:"createdAt"`
-	Bytes          float64  `json:"bytes"`
-	Model          *string  `json:"model,omitempty"`
-	Prompt         *string  `json:"prompt,omitempty"`
-	Aspect         *string  `json:"aspect,omitempty"`
-	EditedFrom     *string  `json:"editedFrom,omitempty"`
-	References     []string `json:"references,omitempty"`
-	ConversationId *string  `json:"conversationId,omitempty"`
+	File           string                                `json:"file"`
+	Url            string                                `json:"url"`
+	Source         string                                `json:"source"`
+	CreatedAt      float64                               `json:"createdAt"`
+	Bytes          float64                               `json:"bytes"`
+	Model          *string                               `json:"model,omitempty"`
+	Prompt         *string                               `json:"prompt,omitempty"`
+	Aspect         *string                               `json:"aspect,omitempty"`
+	EditedFrom     *string                               `json:"editedFrom,omitempty"`
+	References     []string                              `json:"references,omitempty"`
+	ConversationId *string                               `json:"conversationId,omitempty"`
+	Category       ChatAssetsRegenerateOutputCategory    `json:"category"`
+	CategoryBy     *ChatAssetsRegenerateOutputCategoryBy `json:"categoryBy,omitempty"`
+	Tags           []string                              `json:"tags"`
+	Width          *float64                              `json:"width,omitempty"`
+	Height         *float64                              `json:"height,omitempty"`
 }
 
 type ChatAssetsRemoveInput struct {
@@ -1332,6 +1407,62 @@ type ChatAssetsRevealInput struct {
 
 type ChatAssetsSaveAsInput struct {
 	File string `json:"file"`
+}
+
+// ChatAssetsUpdateInputCategory 枚举：illustration | people | landscape | animal | other
+type ChatAssetsUpdateInputCategory = string
+
+const (
+	ChatAssetsUpdateInputCategoryIllustration ChatAssetsUpdateInputCategory = "illustration"
+	ChatAssetsUpdateInputCategoryPeople       ChatAssetsUpdateInputCategory = "people"
+	ChatAssetsUpdateInputCategoryLandscape    ChatAssetsUpdateInputCategory = "landscape"
+	ChatAssetsUpdateInputCategoryAnimal       ChatAssetsUpdateInputCategory = "animal"
+	ChatAssetsUpdateInputCategoryOther        ChatAssetsUpdateInputCategory = "other"
+)
+
+type ChatAssetsUpdateInput struct {
+	File     string                         `json:"file"`
+	Category *ChatAssetsUpdateInputCategory `json:"category,omitempty"`
+	Tags     []string                       `json:"tags,omitempty"`
+}
+
+// ChatAssetsUpdateOutputCategory 枚举：illustration | people | landscape | animal | other
+type ChatAssetsUpdateOutputCategory = string
+
+const (
+	ChatAssetsUpdateOutputCategoryIllustration ChatAssetsUpdateOutputCategory = "illustration"
+	ChatAssetsUpdateOutputCategoryPeople       ChatAssetsUpdateOutputCategory = "people"
+	ChatAssetsUpdateOutputCategoryLandscape    ChatAssetsUpdateOutputCategory = "landscape"
+	ChatAssetsUpdateOutputCategoryAnimal       ChatAssetsUpdateOutputCategory = "animal"
+	ChatAssetsUpdateOutputCategoryOther        ChatAssetsUpdateOutputCategory = "other"
+)
+
+// ChatAssetsUpdateOutputCategoryBy 枚举：ai | rule | user
+type ChatAssetsUpdateOutputCategoryBy = string
+
+const (
+	ChatAssetsUpdateOutputCategoryByAi   ChatAssetsUpdateOutputCategoryBy = "ai"
+	ChatAssetsUpdateOutputCategoryByRule ChatAssetsUpdateOutputCategoryBy = "rule"
+	ChatAssetsUpdateOutputCategoryByUser ChatAssetsUpdateOutputCategoryBy = "user"
+)
+
+type ChatAssetsUpdateOutput struct {
+	File           string                            `json:"file"`
+	Url            string                            `json:"url"`
+	Source         string                            `json:"source"`
+	CreatedAt      float64                           `json:"createdAt"`
+	Bytes          float64                           `json:"bytes"`
+	Model          *string                           `json:"model,omitempty"`
+	Prompt         *string                           `json:"prompt,omitempty"`
+	Aspect         *string                           `json:"aspect,omitempty"`
+	EditedFrom     *string                           `json:"editedFrom,omitempty"`
+	References     []string                          `json:"references,omitempty"`
+	ConversationId *string                           `json:"conversationId,omitempty"`
+	Category       ChatAssetsUpdateOutputCategory    `json:"category"`
+	CategoryBy     *ChatAssetsUpdateOutputCategoryBy `json:"categoryBy,omitempty"`
+	Tags           []string                          `json:"tags"`
+	Width          *float64                          `json:"width,omitempty"`
+	Height         *float64                          `json:"height,omitempty"`
 }
 
 type ChatBgGetOutput struct {
@@ -10978,6 +11109,10 @@ type ChatAssetsRevealOutputT = bool
 // ChatAssetsSaveAsInputT 是 chatAssets.saveAs 的入参
 type ChatAssetsSaveAsInputT = ChatAssetsSaveAsInput
 type ChatAssetsSaveAsOutputT = bool
+
+// ChatAssetsUpdateInputT 是 chatAssets.update 的入参
+type ChatAssetsUpdateInputT = ChatAssetsUpdateInput
+type ChatAssetsUpdateOutputT = ChatAssetsUpdateOutput
 
 // ChatBgGetInputT 是 chatBg.get 的入参
 type ChatBgGetInputT = any

@@ -5,6 +5,7 @@ package mascothandlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"math"
 	"math/rand"
@@ -482,6 +483,30 @@ func Install(d Deps) *Controller {
 			return nil, err
 		}
 		return d.ChatAssets.Regenerate(f)
+	})
+	call("chatAssets.update", func(raw json.RawMessage) (any, error) {
+		if d.ChatAssets == nil {
+			return nil, unavailableSvc("chatAssets")
+		}
+		var in struct {
+			File     string   `json:"file"`
+			Category *string  `json:"category"`
+			Tags     []string `json:"tags"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err)
+		}
+		var probe map[string]json.RawMessage
+		_ = json.Unmarshal(raw, &probe)
+		_, setTags := probe["tags"]
+		it, err := d.ChatAssets.Update(in.File, chatassets.Patch{Category: in.Category, Tags: in.Tags, SetTags: setTags})
+		switch {
+		case errors.Is(err, chatassets.ErrUnknownAsset):
+			return nil, &contract.Error{Code: "ASSET_NOT_FOUND", Message: "no such image in the asset library"}
+		case errors.Is(err, chatassets.ErrBadCategory):
+			return nil, bad(err)
+		}
+		return it, err
 	})
 	call("chatAssets.import", func(raw json.RawMessage) (any, error) {
 		if d.ChatAssets == nil {

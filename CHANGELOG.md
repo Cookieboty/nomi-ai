@@ -813,6 +813,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 精简输入栏：工作目录和供应商 / 账号切换挪到对话区右上角，输入栏只保留端点切换与权限模式；权限模式按钮改为透明底，不再在输入栏里铺出一块灰色。 (`@nomi-ai/ai-chat` minor)
 - 系统开启「减少动态效果」时，所有加载转圈、录制红点、进度条和过渡动画都会停下；编程助手监视只在会话状态有变化时才通知界面，不再每 8 秒空刷一次，「最后活动」时间由面板自己走时。 (`@nomi-ai/ai-chat` patch)
 - 系统开启「减少动态效果」时，所有加载转圈、录制红点、进度条和过渡动画都会停下；编程助手监视只在会话状态有变化时才通知界面，不再每 8 秒空刷一次，「最后活动」时间由面板自己走时。 (`@nomi-ai/ui` patch)
+- 素材库改版：按分类（插画 / 人物 / 风景 / 动物 / 其他）、来源和搜索筛选，显示已用空间；生成后自动分类（关键词 + 辅助模型），可以自己改分类、加标签；瀑布流的信息收进图片里。图片详情重做：真实分辨率、全屏查看、左右切换与缩略图、标签、素材信息和同一分类的相关推荐。 (`@nomi-ai/desktop-go` patch)
 - 纠正误删：恢复 Codex 思考档 ultra/「极限」。API 有 max；Codex CLI/Desktop 另有 client 档 ultra（推理侧映射 max + multi-agent）。normalizeEfforts 保留 CLI 返回的 ultra；传 CLI 时原样传 model_reasoning_effort="ultra"。取代错误的 v120-drop-ultra-reasoning。 (`@nomi-ai/ai-chat` patch)
 - 纠正误删：恢复 Codex 思考档 ultra/「极限」。API 有 max；Codex CLI/Desktop 另有 client 档 ultra（推理侧映射 max + multi-agent）。normalizeEfforts 保留 CLI 返回的 ultra；传 CLI 时原样传 model_reasoning_effort="ultra"。取代错误的 v120-drop-ultra-reasoning。 (`@nomi-ai/ui` patch)
 - 编程助手 CLI 升级后（在 Nomi 里更新，或在终端里自己升级），正在用它的会话在空闲时自动用新版本重启并续接，不打断进行中的这一轮；Windows 上运行中的程序不能被替换，更新前会先关掉空闲的进程，还有会话在进行时提示等它结束后再更新。 (`@nomi-ai/desktop-go` patch)

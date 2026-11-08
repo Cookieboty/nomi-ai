@@ -22,6 +22,10 @@ const items = [
     prompt: 'a red fox',
     aspect: '3:2',
     editedFrom: 'grok-a.png',
+    category: 'animal',
+    tags: ['狐狸'],
+    width: 1536,
+    height: 1024,
   },
   {
     file: 'grok-a.png',
@@ -29,6 +33,8 @@ const items = [
     source: 'grok',
     createdAt: 1_700_000_000_000,
     bytes: 10,
+    category: 'other',
+    tags: [],
   },
 ];
 
@@ -43,6 +49,10 @@ beforeEach(() => {
       return { removed: files };
     },
     'chatAssets.reveal': () => true,
+    'chatAssets.update': (patch: { file: string; category?: string; tags?: string[] }) => {
+      list = list.map((x) => (x.file === patch.file ? { ...x, ...patch } : x));
+      return list.find((x) => x.file === patch.file);
+    },
     'chatAssets.saveAs': () => true,
     'chatAssets.regenerate': () => ({
       file: 'nomi-c.png',
@@ -67,14 +77,58 @@ async function open() {
 }
 
 describe('素材库', () => {
-  it('列出全部生成的图片，标出来源；按来源筛选', async () => {
+  it('列出全部生成的图片，标出来源与分类（在图片里）；按来源、分类、搜索筛选；已用空间', async () => {
     await open();
     expect(screen.getByTestId('asset-nomi-b.png')).toBeTruthy();
     expect(screen.getByTestId('asset-grok-a.png').textContent).toContain('Grok');
-    fireEvent.click(screen.getByTestId('asset-filter-grok'));
+    expect(screen.getByTestId('asset-nomi-b.png').textContent).toContain('动物');
+    // 分类标签上的数字是真实条数
+    expect(screen.getByTestId('asset-category-all').textContent).toContain('2');
+    expect(screen.getByTestId('asset-category-animal').textContent).toContain('1');
+    expect(screen.getByTestId('asset-category-people').textContent).toContain('0');
+    fireEvent.click(screen.getByTestId('asset-category-animal'));
+    expect(screen.queryByTestId('asset-grok-a.png')).toBeNull();
+    fireEvent.click(screen.getByTestId('asset-category-all'));
+    fireEvent.change(screen.getByTestId('asset-source-filter'), { target: { value: 'grok' } });
     expect(screen.queryByTestId('asset-nomi-b.png')).toBeNull();
-    fireEvent.click(screen.getByTestId('asset-filter-all'));
+    fireEvent.change(screen.getByTestId('asset-source-filter'), { target: { value: 'all' } });
+    // 搜索提示词与标签
+    fireEvent.change(screen.getByTestId('asset-search'), { target: { value: '狐狸' } });
+    expect(screen.queryByTestId('asset-grok-a.png')).toBeNull();
     expect(screen.getByTestId('asset-nomi-b.png')).toBeTruthy();
+    expect(screen.getByTestId('asset-usage').textContent).toContain('20 B');
+  });
+
+  it('查看器：左右切换；改分类、加标签都交给内核；相关推荐的「查看更多」按分类筛选', async () => {
+    list = [
+      items[0]!,
+      { ...items[0]!, file: 'nomi-d.png', url: 'chat-asset://images/nomi-d.png', tags: [] },
+      items[1]!,
+    ];
+    await open();
+    fireEvent.click(screen.getByTestId('asset-nomi-b.png'));
+    // 同一分类（动物）的相关推荐；「查看更多」回到素材库按这个分类筛选
+    expect(screen.getByTestId('viewer-related')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('viewer-related-more'));
+    expect(screen.queryByTestId('image-viewer')).toBeNull();
+    expect(screen.getByTestId('asset-category-animal').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByTestId('asset-category-all'));
+    fireEvent.click(screen.getByTestId('asset-nomi-b.png'));
+    expect(screen.getByTestId('viewer-resolution').textContent).toContain('1536 × 1024');
+    fireEvent.click(screen.getByTestId('viewer-next'));
+    expect(screen.getByTestId('viewer-prompt').textContent).toBe('a red fox');
+    expect(screen.getByTestId('viewer-strip')).toBeTruthy();
+    fireEvent.change(screen.getByTestId('viewer-category'), { target: { value: 'people' } });
+    await act(() => fake.settle());
+    expect(fake.inputs('chatAssets.update').at(-1)).toMatchObject({ category: 'people' });
+    fireEvent.click(screen.getByTestId('viewer-tag-add'));
+    const input = screen.getByTestId('viewer-tag-input');
+    fireEvent.change(input, { target: { value: '红色' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await act(() => fake.settle());
+    expect(fake.inputs('chatAssets.update').at(-1)).toMatchObject({ tags: ['红色'] });
+    fireEvent.click(screen.getByTestId('viewer-prev'));
+    expect(screen.getByTestId('viewer-prompt').textContent).toBe('a red fox');
   });
 
   it('侧栏入口：醒目的一行，带数量；打开时标为当前页', () => {
@@ -104,10 +158,12 @@ describe('素材库', () => {
     expect(screen.getByTestId('viewer-details').textContent).toContain('3:2');
     expect(screen.getByTestId('viewer-edited-from')).toBeTruthy();
     expect(viewer).toBeTruthy();
+    fireEvent.click(screen.getByTestId('viewer-more'));
     fireEvent.click(screen.getByTestId('asset-reveal'));
     await act(() => fake.settle());
     expect(fake.inputs('chatAssets.reveal')).toEqual([{ file: 'nomi-b.png' }]);
     (window as unknown as { confirm: unknown }).confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('viewer-more'));
     fireEvent.click(screen.getByTestId('asset-delete'));
     await waitFor(() =>
       expect(fake.inputs('chatAssets.remove')).toEqual([{ files: ['nomi-b.png'] }]),
@@ -135,6 +191,7 @@ describe('素材库', () => {
     await waitFor(() =>
       expect(screen.getByTestId('viewer-prompt').textContent).toBe('a red fox again'),
     );
+    fireEvent.click(screen.getByTestId('viewer-more'));
     fireEvent.click(screen.getByTestId('viewer-download'));
     await act(() => fake.settle());
     expect(fake.inputs('chatAssets.saveAs')).toEqual([{ file: 'nomi-c.png' }]);

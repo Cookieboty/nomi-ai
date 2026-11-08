@@ -5569,6 +5569,36 @@
      },
      "conversationId": {
       "type": "string"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "illustration",
+       "people",
+       "landscape",
+       "animal",
+       "other"
+      ]
+     },
+     "categoryBy": {
+      "type": "string",
+      "enum": [
+       "ai",
+       "rule",
+       "user"
+      ]
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "width": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
      }
     },
     "required": [
@@ -5576,7 +5606,9 @@
      "url",
      "source",
      "createdAt",
-     "bytes"
+     "bytes",
+     "category",
+     "tags"
     ],
     "additionalProperties": {}
    }
@@ -5631,6 +5663,36 @@
       },
       "conversationId": {
        "type": "string"
+      },
+      "category": {
+       "type": "string",
+       "enum": [
+        "illustration",
+        "people",
+        "landscape",
+        "animal",
+        "other"
+       ]
+      },
+      "categoryBy": {
+       "type": "string",
+       "enum": [
+        "ai",
+        "rule",
+        "user"
+       ]
+      },
+      "tags": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "width": {
+       "type": "number"
+      },
+      "height": {
+       "type": "number"
       }
      },
      "required": [
@@ -5638,7 +5700,9 @@
       "url",
       "source",
       "createdAt",
-      "bytes"
+      "bytes",
+      "category",
+      "tags"
      ],
      "additionalProperties": {}
     }
@@ -5742,6 +5806,36 @@
      },
      "conversationId": {
       "type": "string"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "illustration",
+       "people",
+       "landscape",
+       "animal",
+       "other"
+      ]
+     },
+     "categoryBy": {
+      "type": "string",
+      "enum": [
+       "ai",
+       "rule",
+       "user"
+      ]
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "width": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
      }
     },
     "required": [
@@ -5749,7 +5843,9 @@
      "url",
      "source",
      "createdAt",
-     "bytes"
+     "bytes",
+     "category",
+     "tags"
     ],
     "additionalProperties": {}
    }
@@ -5837,6 +5933,125 @@
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "boolean"
+   }
+  },
+  "chatAssets.update": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "illustration",
+       "people",
+       "landscape",
+       "animal",
+       "other"
+      ]
+     },
+     "tags": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+       "type": "string",
+       "maxLength": 40
+      }
+     }
+    },
+    "required": [
+     "file"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "source": {
+      "type": "string"
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "bytes": {
+      "type": "number"
+     },
+     "model": {
+      "type": "string"
+     },
+     "prompt": {
+      "type": "string"
+     },
+     "aspect": {
+      "type": "string"
+     },
+     "editedFrom": {
+      "type": "string"
+     },
+     "references": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "conversationId": {
+      "type": "string"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "illustration",
+       "people",
+       "landscape",
+       "animal",
+       "other"
+      ]
+     },
+     "categoryBy": {
+      "type": "string",
+      "enum": [
+       "ai",
+       "rule",
+       "user"
+      ]
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "width": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "file",
+     "url",
+     "source",
+     "createdAt",
+     "bytes",
+     "category",
+     "tags"
+    ],
+    "additionalProperties": {}
    }
   },
   "chatBg.get": {
@@ -36307,6 +36522,7 @@
   "CONNECTIONS_FAILED",
   "CONNECTIONS_DUPLICATE",
   "CHAT_BG_TOO_LARGE",
-  "CHAT_BG_UNSUPPORTED"
+  "CHAT_BG_UNSUPPORTED",
+  "ASSET_NOT_FOUND"
  ]
 }
