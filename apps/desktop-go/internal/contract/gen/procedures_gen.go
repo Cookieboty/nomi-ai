@@ -519,6 +519,7 @@ var Events = []string{
 	"mem.changed",
 	"mem.status",
 	"nav.desktopPanelRequested",
+	"nav.openItemRequested",
 	"nav.scheduleRequested",
 	"nav.voiceSettingsRequested",
 	"onboarding.profileChanged",

@@ -43,6 +43,7 @@ import {
   DesktopSummaryEvent,
   DesktopUndoResult,
   MascotVoiceSettings,
+  NavOpenItem,
   NavRequest,
   Reminder,
   ReminderCreateInput,
@@ -391,6 +392,8 @@ export const mediaEvents = {
   'nav.desktopPanelRequested': NavRequest,
   'nav.scheduleRequested': NavRequest,
   'nav.voiceSettingsRequested': NavRequest,
+  /** 灵动岛上点「打开」：对话窗口跳到那一条（任务详情 / 编程助手标签 / Nomi 主对话） */
+  'nav.openItemRequested': NavOpenItem,
 } as const satisfies EventMap;
 
 /**
@@ -406,6 +409,7 @@ export const mediaEventSurfaces = {
   'nav.desktopPanelRequested': ['chat', 'settings'],
   'nav.scheduleRequested': ['chat', 'settings'],
   'nav.voiceSettingsRequested': ['chat', 'settings'],
+  'nav.openItemRequested': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof mediaEvents, readonly Surface[]>>;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */

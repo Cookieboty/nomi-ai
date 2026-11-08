@@ -46,8 +46,8 @@ type islandPendingSources struct {
 	orch    *harness.Orchestrator
 	tasks   *tasks.Service
 	desktop *desktop.Service
-	// open：「打开」= 打开对话窗口（要写字、要看详情的在那里处理）
-	open func()
+	// open：「打开」= 打开对话窗口并跳到这一条（target：task / tab / nomi，见 islandNavOf）
+	open func(target, id string)
 }
 
 type islandPendingHub struct {
@@ -64,6 +64,7 @@ type islandPendingHub struct {
 func wireIslandPending(isl *island.Service, src islandPendingSources) func() {
 	h := &islandPendingHub{isl: isl, src: src, actions: map[string]map[string]func() error{}, stopTick: make(chan struct{})}
 	isl.SetResolver(h.act)
+	isl.SetOpener(h.openItem)
 	var offs []func()
 	if src.orch != nil {
 		o := src.orch
@@ -131,6 +132,31 @@ func (h *islandPendingHub) refresh() {
 	h.isl.SetPending(list)
 }
 
+// openItem：打开对话窗口并跳到这一条所在的地方（「打开」按钮、点这一行）
+func (h *islandPendingHub) openItem(id string) {
+	if h.src.open == nil {
+		return
+	}
+	target, ref := islandNavOf(id)
+	h.src.open(target, ref)
+}
+
+// islandNavOf：条目 id → 对话窗口里的去处。编程助手的请求在它的标签里，任务在任务详情，Nomi 的确认在主对话
+func islandNavOf(id string) (target, ref string) {
+	parts := strings.Split(id, "\x1f")
+	switch parts[0] {
+	case "perm", "sbx":
+		if len(parts) > 1 {
+			return "tab", parts[1]
+		}
+	case "task":
+		if len(parts) > 1 {
+			return "task", parts[1]
+		}
+	}
+	return "nomi", ""
+}
+
 // act：岛上点了按钮（island.Service.Act → resolver）
 func (h *islandPendingHub) act(id, action string) error {
 	h.mu.Lock()
@@ -169,7 +195,8 @@ func (h *islandPendingHub) collect() ([]island.Pending, map[string]map[string]fu
 	add := func(p island.Pending, fns map[string]func() error) {
 		if h.src.open != nil {
 			if _, has := fns["open"]; has {
-				fns["open"] = func() error { h.src.open(); return nil }
+				id := p.ID
+				fns["open"] = func() error { h.openItem(id); return nil }
 			}
 		}
 		out = append(out, p)

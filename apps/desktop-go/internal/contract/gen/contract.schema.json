@@ -35942,6 +35942,28 @@
    "properties": {},
    "additionalProperties": {}
   },
+  "nav.openItemRequested": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "target": {
+     "type": "string",
+     "enum": [
+      "task",
+      "tab",
+      "nomi"
+     ]
+    },
+    "id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "target",
+    "id"
+   ],
+   "additionalProperties": false
+  },
   "nav.scheduleRequested": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",

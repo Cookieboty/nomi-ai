@@ -189,6 +189,9 @@ export const desktopClient = {
   /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
   onOpenVoiceSettings: (fn: () => void) => onChatNav('nav.voiceSettingsRequested', fn),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) => onDesktopSummary(fn),
+  /** 灵动岛上点「打开」/ 点某一条：跳到任务详情、编程助手标签或 Nomi 主对话 */
+  onOpenItem: (fn: (e: { target: 'task' | 'tab' | 'nomi'; id: string }) => void) =>
+    on(() => api.on('nav.openItemRequested', (p) => fn(p))),
 };
 
 export const TOOL_LABELS: Record<string, string> = {

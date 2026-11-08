@@ -85,5 +85,6 @@ exports[`media 契约 > 过程名 / kind / surfaces / dangerous 2`] = `
   "nav.desktopPanelRequested",
   "nav.scheduleRequested",
   "nav.voiceSettingsRequested",
+  "nav.openItemRequested",
 ]
 `;

@@ -429,6 +429,15 @@ export const SendCheck = z.enum(['ok', 'local_only', 'user_denied']);
 /** 导航事件：对话窗口切到某个面板（payload 目前是空对象） */
 export const NavRequest = z.looseObject({});
 
+/**
+ * 灵动岛上点「打开」/ 点岛：对话窗口跳到这一条所在的地方。target：task = 任务详情（id = 任务 id），
+ * tab = 编程助手标签（id = 标签 id），nomi = Nomi 主对话（Nomi 自己的确认卡片在那里）
+ */
+export const NavOpenItem = z.object({
+  target: z.enum(['task', 'tab', 'nomi']),
+  id: z.string(),
+});
+
 /** 对话窗口的面板导航事件名（`nav.takePending` 返回其中之一） */
 export const ChatNavEvent = z.enum([
   'providers.openPanel',
