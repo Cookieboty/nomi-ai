@@ -493,7 +493,7 @@
   "ui.chat-settings.boot-history-unavailable-detail": "记录还在，没有丢失。稍后重试一下；一直不行的话重启应用。",
   "ui.chat-settings.history-save-failed": "对话记录暂时没能保存，正在自动重试，请先不要退出应用",
   "ui.chat-settings.conversation-font-size": "会话正文字号",
-  "ui.chat-settings.conversation-font-size-description": "仅调整会话正文，默认 {0}px；不影响输入框、侧栏和按钮。",
+  "ui.chat-settings.conversation-font-size-description": "仅调整会话正文；不影响输入框、侧栏和按钮。",
   "ui.chat-settings.archived-chats": "已归档的对话",
   "ui.chat-settings.archived-chats-hint": "归档的对话不在侧栏显示。取消归档后回到侧栏原来的位置。",
   "ui.chat-settings.no-archived-chats": "没有归档的对话",
@@ -516,5 +516,8 @@
   "ui.chat-settings.sandbox-allow-always": "始终允许",
   "ui.chat-settings.sandbox-deny": "不允许",
   "ui.chat-settings.sandbox-blocked-read": "编程助手想读取密钥文件 {0}",
-  "ui.chat-settings.sandbox-allow-always-project": "这个项目始终允许"
+  "ui.chat-settings.sandbox-allow-always-project": "这个项目始终允许",
+  "ui.chat-settings.conversation-font-normal": "普通",
+  "ui.chat-settings.conversation-font-large": "较大",
+  "ui.chat-settings.conversation-font-xlarge": "特大"
 }

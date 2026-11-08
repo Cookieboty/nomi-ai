@@ -23,13 +23,13 @@ vi.mock('../src/contexts/AiChatContext', () => ({
 
 beforeEach(() => {
   localStorage.clear();
-  setConversationFontSize(14);
+  setConversationFontSize(12);
 });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  setConversationFontSize(14);
+  setConversationFontSize(12);
   localStorage.clear();
 });
 
@@ -61,16 +61,26 @@ describe('conversation-only font size', () => {
     expect(conversationCss).toContain('--conv-meta: 13px');
   });
 
-  it('defaults to 14, persists and clamps invalid values to 10–20px', () => {
+  it('defaults to large (14), persists, and snaps any value to 12 / 14 / 16', () => {
     localStorage.clear();
     expect(getConversationFontSize()).toBe(14);
     setConversationFontSize(16);
     expect(getConversationFontSize()).toBe(16);
     expect(localStorage.getItem('ai-chat:conversationFontSize')).toBe('16');
     setConversationFontSize(100);
-    expect(getConversationFontSize()).toBe(20);
+    expect(getConversationFontSize()).toBe(16);
     setConversationFontSize(1);
-    expect(getConversationFontSize()).toBe(10);
+    expect(getConversationFontSize()).toBe(12);
+    // 以前存的任意值：就近落到一档，正好在中间取大的
+    for (const [saved, size] of [
+      ['10', 12],
+      ['13', 14],
+      ['15', 16],
+      ['18', 16],
+    ] as const) {
+      localStorage.setItem('ai-chat:conversationFontSize', saved);
+      expect(getConversationFontSize()).toBe(size);
+    }
     setConversationFontSize(NaN);
     expect(getConversationFontSize()).toBe(14);
     for (const invalid of ['garbage', '']) {
@@ -95,16 +105,19 @@ describe('conversation-only font size', () => {
       </>,
     );
     for (const root of r.getAllByTestId('conversation')) {
-      expect(root.style.getPropertyValue('--conv-text')).toBe('14px');
-      expect(root.style.getPropertyValue('--conv-leading')).toBe('22px');
+      expect(root.style.getPropertyValue('--conv-text')).toBe('12px');
     }
-    fireEvent.change(r.getByTestId('conversation-font-size'), { target: { value: '18' } });
+    // 三档，只写名字不写像素
+    const select = r.getByTestId('conversation-font-size');
+    expect(select.textContent).toContain('普通');
+    expect(select.textContent).toContain('较大');
+    expect(select.textContent).toContain('特大');
+    expect(select.textContent).not.toContain('px');
+    fireEvent.change(select, { target: { value: '16' } });
     for (const root of r.getAllByTestId('conversation')) {
-      expect(root.style.getPropertyValue('--conv-text')).toBe('18px');
-      expect(root.style.getPropertyValue('--conv-leading')).toBe('26px');
+      expect(root.style.getPropertyValue('--conv-text')).toBe('16px');
     }
-    expect(localStorage.getItem('ai-chat:conversationFontSize')).toBe('18');
-    expect(r.getByTestId('conversation-font-size').textContent).toContain('18px');
+    expect(localStorage.getItem('ai-chat:conversationFontSize')).toBe('16');
     const input = r.getByTestId('chat-input');
     expect(input.style.getPropertyValue('--composer-text')).toBe('');
     expect(input.style.getPropertyValue('--conv-text')).toBe('');
@@ -120,14 +133,14 @@ describe('conversation-only font size', () => {
       throw new Error('denied');
     });
     const r = render(conversation());
-    act(() => setConversationFontSize(15));
-    expect(r.getByTestId('conversation').style.getPropertyValue('--conv-text')).toBe('15px');
+    act(() => setConversationFontSize(14));
+    expect(r.getByTestId('conversation').style.getPropertyValue('--conv-text')).toBe('14px');
   });
 
   it('accepts a saved size from another window', () => {
     const r = render(conversation());
-    localStorage.setItem('ai-chat:conversationFontSize', '17');
+    localStorage.setItem('ai-chat:conversationFontSize', '16');
     fireEvent(window, new StorageEvent('storage', { key: 'ai-chat:conversationFontSize' }));
-    expect(r.getByTestId('conversation').style.getPropertyValue('--conv-text')).toBe('17px');
+    expect(r.getByTestId('conversation').style.getPropertyValue('--conv-text')).toBe('16px');
   });
 });

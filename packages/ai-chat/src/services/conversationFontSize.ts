@@ -1,16 +1,25 @@
-/** 会话正文字号；不改变输入框、侧栏或控件的设计令牌。 */
+/**
+ * 会话正文字号：三档（普通 / 较大 / 特大），默认较大（14，与原来的默认一样）；不改变输入框、侧栏或控件的设计令牌。
+ * 以前存的任意值（10–20px）就近落到一档（正好在两档中间时取大的）。
+ */
+export const CONVERSATION_FONT_SIZES = [
+  { size: 12, label: 'ui.chat-settings.conversation-font-normal' },
+  { size: 14, label: 'ui.chat-settings.conversation-font-large' },
+  { size: 16, label: 'ui.chat-settings.conversation-font-xlarge' },
+] as const;
 export const DEFAULT_CONVERSATION_FONT_SIZE = 14;
-export const MIN_CONVERSATION_FONT_SIZE = 10;
-export const MAX_CONVERSATION_FONT_SIZE = 20;
 const KEY = 'ai-chat:conversationFontSize';
 const listeners = new Set<() => void>();
 let fallback = DEFAULT_CONVERSATION_FONT_SIZE;
 let volatile = false;
 
 function normalize(value: number): number {
-  return Number.isFinite(value)
-    ? Math.min(MAX_CONVERSATION_FONT_SIZE, Math.max(MIN_CONVERSATION_FONT_SIZE, Math.round(value)))
-    : DEFAULT_CONVERSATION_FONT_SIZE;
+  if (!Number.isFinite(value)) return DEFAULT_CONVERSATION_FONT_SIZE;
+  let best: number = CONVERSATION_FONT_SIZES[0].size;
+  for (const { size } of CONVERSATION_FONT_SIZES) {
+    if (Math.abs(size - value) <= Math.abs(best - value)) best = size;
+  }
+  return best;
 }
 
 export function getConversationFontSize(): number {
