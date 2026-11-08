@@ -272,13 +272,16 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	case tasks.StatusFailed, tasks.StatusExpired:
 		status = "error"
 	}
-	changed := []string{}
+	changed, images := []string{}, []string{}
 	worktree, inGit := "", false
 	if attempt != nil {
 		if attempt.Result != nil {
 			for _, a := range attempt.Result.Artifacts {
-				if a.Kind == "file" {
+				switch a.Kind {
+				case tasks.ArtifactFile:
 					changed = append(changed, a.Ref)
+				case tasks.ArtifactImage:
+					images = append(images, a.Ref)
 				}
 			}
 		}
@@ -314,6 +317,10 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	res.Set("summary", summary)
 	if len(changed) > 0 {
 		res.Set("changedFiles", toAnyList(changed))
+	}
+	// 后台 Nomi 生成的图片（chat-asset:// 地址）：回到来源对话里显示，Nomi 下一轮也能引用
+	if len(images) > 0 {
+		res.Set("images", toAnyList(head(images, 20)))
 	}
 	res.Set("filesVerified", false)
 	res.Set("approvals", approvalsZero())

@@ -212,5 +212,7 @@
   "ui.session-workspace.details-agents": "Agents",
   "ui.session-workspace.details-agents-count": "{0} · {1} active",
   "ui.session-workspace.details-show-more": "Show {0} more",
-  "ui.session-workspace.session-details-auto-hidden": "Session details hid itself because the window is narrow; click to show"
+  "ui.session-workspace.session-details-auto-hidden": "Session details hid itself because the window is narrow; click to show",
+  "ui.session-workspace.handoff-changed-files": "Changed files ({0}):\n{1}",
+  "ui.session-workspace.handoff-changed-files-more": "…and {0} more"
 }

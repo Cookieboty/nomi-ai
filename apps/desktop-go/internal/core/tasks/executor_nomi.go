@@ -387,6 +387,8 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string, progress string) {
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var text strings.Builder
+	// 这一轮产出的图片 / 写过的文件：做完时记进结果，回到来源对话
+	arts := []Artifact{}
 	var lastIn, lastOut int64
 	model := ""
 	var streamErr error
@@ -434,6 +436,11 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 				if c.ID != nil {
 					pmu.Lock()
 					delete(pending, *c.ID)
+					pmu.Unlock()
+				}
+				if c.Name != nil && c.Error == nil && c.Output != nil {
+					pmu.Lock()
+					arts = addArtifacts(arts, nomiArtifacts(*c.Name, *c.Output))
 					pmu.Unlock()
 				}
 				rep.Heartbeat()
@@ -499,14 +506,18 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		return
 	}
 	summary := strings.TrimSpace(text.String())
-	if summary == "" {
+	pmu.Lock()
+	produced := slices.Clone(arts)
+	pmu.Unlock()
+	// 只出了图 / 写了文件、最后没说话的也算做完（东西已经在了，结果里带回去）
+	if summary == "" && len(produced) == 0 {
 		rep.Failed(TaskError{Code: "executor_failed", Message: "empty_result"})
 		return
 	}
 	if e.d.Trace != nil {
 		e.d.Trace(t.ID, a.ID, map[string]any{"at": e.d.Now(), "done": shortN(summary, 2000)})
 	}
-	rep.Completed(AttemptResult{Summary: summary, Artifacts: []Artifact{}})
+	rep.Completed(AttemptResult{Summary: summary, Artifacts: produced})
 }
 
 func (e *nomiExecutor) costOf(model string, in, out int64) (float64, bool) {

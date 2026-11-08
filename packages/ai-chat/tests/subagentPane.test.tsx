@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { t } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { useEffect, useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -10,7 +11,7 @@ import {
 } from '../src/components/SubagentPane';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { DelegateResult } from '../src/services/delegateClient';
-import { delegateResultMessage } from '../src/services/delegateMessage';
+import { CHANGED_FILES_SHOWN, delegateResultMessage } from '../src/services/delegateMessage';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -146,5 +147,45 @@ describe('delegateResultMessage', () => {
     expect(a.id).not.toBe(b.id);
     expect(a.id.startsWith('delegate-t1-')).toBe(true);
     expect(a.origin).toBe('background');
+  });
+
+  it('lists the changed files so the chat and the next Nomi turn see them', () => {
+    // 持续任务的结果没有汇报，只有内核核对出的 changedFiles
+    const m = delegateResultMessage({ ...base, changedFiles: ['src/a.ts', 'src/b.ts'] });
+    expect(m.content).toContain('`src/a.ts`');
+    expect(m.content).toContain('`src/b.ts`');
+    // 有汇报时用汇报里的
+    const r = delegateResultMessage({
+      ...base,
+      changedFiles: ['x.ts'],
+      report: { done: '改好了', changedFiles: ['y.ts'] },
+    });
+    expect(r.content).toContain('`y.ts`');
+    expect(r.content).not.toContain('`x.ts`');
+    // 失败但已经改了的也列出来
+    expect(
+      delegateResultMessage({ ...base, status: 'error', error: 'boom', changedFiles: ['z.ts'] })
+        .content,
+    ).toContain('`z.ts`');
+    // 太多时只列前面的，其余报数量
+    const many = Array.from({ length: CHANGED_FILES_SHOWN + 3 }, (_, i) => `f${i}.ts`);
+    const big = delegateResultMessage({ ...base, changedFiles: many }).content;
+    expect(big).toContain('`f0.ts`');
+    expect(big).not.toContain(`\`f${CHANGED_FILES_SHOWN}.ts\``);
+    expect(big).toMatch(/3/);
+    // 没改文件：不加这一段
+    expect(delegateResultMessage(base).content).not.toContain('- `');
+  });
+
+  it('shows images a Nomi task generated, even with no written report', () => {
+    const m = delegateResultMessage({
+      ...base,
+      cli: 'nomi',
+      summary: '',
+      images: ['chat-asset://images/gen-1.png', 'https://evil.example/x.png'],
+    });
+    expect(m.content).toContain('](chat-asset://images/gen-1.png)');
+    expect(m.content).not.toContain('evil.example');
+    expect(m.content).not.toContain(t('ui.session-workspace.no-report'));
   });
 });

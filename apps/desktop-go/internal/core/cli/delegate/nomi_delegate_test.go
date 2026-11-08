@@ -143,6 +143,26 @@ func TestDelegateToNomiAnnounceNotFollowable(t *testing.T) {
 	}
 }
 
+// 后台 Nomi 生成的图片、写过的文件随结果回到来源对话
+func TestDelegateToNomiAnnounceCarriesProducts(t *testing.T) {
+	ft := newFakeTasks()
+	e := newTaskEnv(t, util.NewObj(), ft)
+	id := util.Str(dataOf(e.call(nil, "delegate_to_nomi", nomiRaw(), tools.ExecContext{ConversationID: "c"})).Get("taskId"))
+	end := int64(10)
+	ft.advance(id, tasks.StatusDone, &tasks.Attempt{EndedAt: &end,
+		Result: &tasks.AttemptResult{Summary: "", Artifacts: []tasks.Artifact{
+			{Kind: tasks.ArtifactImage, Ref: "chat-asset://images/gen-1.png"},
+			{Kind: tasks.ArtifactFile, Ref: "/w/notes.md"},
+		}}}, nil)
+	waitUntil(t, func() bool { return len(e.completed()) == 1 })
+	p := e.completed()[0]
+	imgs, _ := p.Get("images").([]any)
+	files, _ := p.Get("changedFiles").([]any)
+	if len(imgs) != 1 || imgs[0] != "chat-asset://images/gen-1.png" || len(files) != 1 || files[0] != "/w/notes.md" {
+		t.Fatal(util.Stringify(p))
+	}
+}
+
 func TestDelegateFromBackgroundForcesSync(t *testing.T) {
 	ft := newFakeTasks()
 	e := newTaskEnv(t, util.NewObj("sends", []any{util.NewObj("text", "改好了")}), ft)
