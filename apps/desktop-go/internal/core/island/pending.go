@@ -100,6 +100,8 @@ func (s *Service) SetPending(list []Pending) {
 func (s *Service) DebugPending(list []Pending) {
 	s.mu.Lock()
 	s.debug = nil
+	// 调试页主动放样例 = 要看：之前按 Esc 关掉的不再拦着（样例的 id 每次都一样）
+	s.dismissed = nil
 	for i, p := range list {
 		if !strings.HasPrefix(p.ID, DebugPrefix) {
 			p.ID = DebugPrefix + p.ID
@@ -143,6 +145,10 @@ func (s *Service) push() {
 	s.all = clean
 	// 用户关掉过：只剩关掉时就有的（或更少）就不显示；来了新的，连同关掉的一起显示
 	shown := clean
+	if len(clean) == 0 {
+		// 都处理完了：关掉的记录作废
+		s.dismissed = nil
+	}
 	if len(s.dismissed) > 0 {
 		fresh := false
 		for _, p := range clean {

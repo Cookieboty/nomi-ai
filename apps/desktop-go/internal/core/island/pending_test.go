@@ -162,3 +162,19 @@ func TestPendingOpenItem(t *testing.T) {
 		t.Fatalf("opened %v chat %d", opened, chat)
 	}
 }
+
+// 调试页重新放样例：按 Esc 关掉过也照样显示（样例 id 每次相同）
+func TestDebugPendingAfterDismiss(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "island.json"), "darwin")
+	h := &pendHost{}
+	s.SetHost(h.host())
+	sample := []Pending{{ID: "perm", Title: "样例", Actions: allow}}
+	s.DebugPending(sample)
+	s.Dismiss()
+	s.DebugPending(sample)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if got := h.lists[len(h.lists)-1]; len(got) != 1 {
+		t.Fatalf("debug samples hidden after Esc: %+v", got)
+	}
+}

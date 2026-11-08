@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
+)
 
 // 灵动岛条目 → 对话窗口里的去处
 func TestIslandNavOf(t *testing.T) {
@@ -15,3 +19,37 @@ func TestIslandNavOf(t *testing.T) {
 		}
 	}
 }
+
+// 对话里委派出去、结果已回报到来源对话的「等你验收」：归对话处理，不上岛；没回报过、不是对话委派的照常上岛
+func TestIslandConversationOwns(t *testing.T) {
+	svc := tasks.NewService(tasks.ServiceDeps{Root: t.TempDir(), Log: islandNopLog{}, Notify: func(string, string) {}})
+	created := svc.Runtime.Create(tasks.CreateInput{Title: "t", Goal: "g", Trigger: tasks.Trigger{Kind: "manual"},
+		Executor: tasks.ExecutorSpec{Kind: "notify"}, Grant: tasks.Grant{Paths: []string{}, Connections: []tasks.ConnectionGrant{}}})
+	via, conv, att := "delegate", "c1", "a1"
+	task := created
+	task.Status = tasks.StatusAwaitingAccept
+	task.Origin = tasks.Origin{ConversationID: &conv, Via: &via}
+	task.LastAttemptID = &att
+	if islandConversationOwns(svc, task) {
+		t.Fatal("not announced yet: should stay on the island")
+	}
+	svc.MarkAnnounced(task.ID, att)
+	if !islandConversationOwns(svc, task) {
+		t.Fatal("announced to its conversation: the conversation owns it")
+	}
+	user := task
+	user.Origin = tasks.Origin{}
+	if islandConversationOwns(svc, user) {
+		t.Fatal("a task the user created stays on the island")
+	}
+	running := task
+	running.Status = tasks.StatusWaitingUser
+	if islandConversationOwns(svc, running) {
+		t.Fatal("waiting for the user (approval) stays on the island")
+	}
+}
+
+type islandNopLog struct{}
+
+func (islandNopLog) Info(string, ...any) {}
+func (islandNopLog) Warn(string, ...any) {}
