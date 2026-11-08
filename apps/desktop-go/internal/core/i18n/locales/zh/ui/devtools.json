@@ -30,5 +30,6 @@
   "ui.devtools.total-time": "总耗时",
   "ui.devtools.unfinished": "未结束",
   "ui.devtools.upstream-model": "上游模型",
-  "ui.devtools.view-request-and-response-body": "查看请求与响应正文"
+  "ui.devtools.view-request-and-response-body": "查看请求与响应正文",
+  "ui.devtools.cache-hit-rate-value": "{0}（缓存读 {1}）"
 }

@@ -15,6 +15,7 @@ import {
 import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
+import { cacheHitRate, formatHitRate } from '../utils/cacheHit';
 import { hasOfficialAccount } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
@@ -23,6 +24,7 @@ import {
   contextWindowFor,
   estimateContext,
   fitContextWindow,
+  formatTokens,
   reportedContextWindow,
 } from './tokens';
 import type {
@@ -149,6 +151,19 @@ export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput 
   );
   if (ctx.backend !== 'nomi')
     notes.push(t('ui.slash-commands.this-is-computed-by-nomi-from-the-session'));
+  else {
+    // 上一轮回复的前缀缓存命中率（只算 Nomi 自己的，见 utils/cacheHit）
+    const last = [...ctx.messages].reverse().find((x) => x.role === 'assistant' && x.usage);
+    const rate = cacheHitRate(last?.usage?.inputTokens, last?.usage?.cacheReadTokens);
+    if (rate !== undefined)
+      notes.push(
+        t(
+          'ui.slash-commands.last-reply-cache-hit-rate',
+          formatHitRate(rate),
+          formatTokens(last!.usage!.cacheReadTokens!),
+        ),
+      );
+  }
   return {
     kind: 'context',
     title: t('ui.slash-commands.context-usage'),

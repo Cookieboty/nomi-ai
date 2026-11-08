@@ -3,6 +3,7 @@ package harness
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -286,6 +287,178 @@ func TestSandboxProjectScopeAndPregrants(t *testing.T) {
 		o.onSandboxDeny(sandbox.Denial{Token: "tc", Rule: "read:ssh", Path: filepath.Join(tmp, ".ssh", "config")})
 		if len(pendingOf(o, c)) != 0 {
 			t.Fatal("pre-granted categories are not asked")
+		}
+	})
+}
+
+// 撤销「始终允许」：删掉持久记录后，原标签、同项目的别的标签、空闲回收后的下一轮都不再带上它（不等策略通知）；
+// 本会话授权不受影响；记录被拒时退回本会话授权；受保护文件夹照样拒
+func TestSandboxAlwaysRevoked(t *testing.T) {
+	tmp, _ := filepath.EvalSymlinks(t.TempDir())
+	repo := filepath.Join(tmp, "repo")
+	sub := filepath.Join(repo, "pkg")
+	other := filepath.Join(tmp, "other")
+	finance := filepath.Join(tmp, "finance")
+	for _, d := range []string{filepath.Join(repo, ".git"), sub, other, finance} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 假的持久记录：同一项不重复记（同 AddCliSandboxAllow）；reject 时不记（同 normalizeSandboxAllow 丢掉）
+	var persisted []SandboxGrant
+	reject := false
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "ud", "h"), Home: tmp, DefaultCwd: repo, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle, Sandbox: &SandboxDeps{
+				Enabled:   func() bool { return true },
+				Protected: func() []string { return []string{finance} },
+				Always:    func() []SandboxGrant { return append([]SandboxGrant{}, persisted...) },
+				Persist: func(g SandboxGrant) {
+					if !reject && !slices.Contains(persisted, g) {
+						persisted = append(persisted, g)
+					}
+				},
+			}})
+		defer o.Dispose()
+		revoke := func(kind, value string) {
+			persisted = slices.DeleteFunc(persisted, func(g SandboxGrant) bool { return g.Kind == kind && g.Value == value })
+		}
+		mk := func(cwd string) string {
+			return util.Str(o.CreateTab(util.NewObj("backend", "claude", "cwd", cwd, "activate", false)).Get("id"))
+		}
+		a, b, c := mk(repo), mk(sub), mk(other)
+		o.sbx.tokens = map[string]string{"ta": a, "tb": b, "tc": c}
+		deny := func(tok, rule, path string) {
+			o.onSandboxDeny(sandbox.Denial{Token: tok, Rule: rule, Op: "file-read-data", Path: path, Proc: "cat"})
+		}
+		reply := func(id, kind, value, choice string) {
+			t.Helper()
+			for _, p := range pendingOf(o, id) {
+				if p.Get("kind") == kind && p.Get("value") == value {
+					if !o.SandboxReply(id, util.Str(p.Get("id")), choice) {
+						t.Fatalf("reply %s %s:%s", choice, kind, value)
+					}
+					return
+				}
+			}
+			t.Fatalf("no pending %s:%s on %s: %v", kind, value, id, util.Stringify(pendingOf(o, id)))
+		}
+		has := func(id, kind, value string) bool {
+			for _, g := range o.grantedFor(id) {
+				if g.Kind == kind && g.Value == value {
+					return true
+				}
+			}
+			return false
+		}
+		folder := filepath.Join(tmp, "cache-dir")
+		file := filepath.Join(tmp, "Documents", "notes.txt") // 所在文件夹太宽，只授权这一个文件
+		env := filepath.Join(repo, ".env")
+
+		// 四类「始终允许」各点一次；a、b 同时被拦下 cloud，两边都点「始终」（重复授权只记一条）。
+		// 一个标签最多挂 5 条，分两批
+		deny("ta", "read:cloud", filepath.Join(tmp, ".aws", "credentials"))
+		deny("tb", "read:cloud", filepath.Join(tmp, ".aws", "config"))
+		deny("ta", "write", filepath.Join(folder, "a.log"))
+		deny("ta", "write", file)
+		deny("ta", "read:secret-files", env)
+		deny("ta", "read:ssh", filepath.Join(tmp, ".ssh", "config"))
+		deny("tb", "read:keys", filepath.Join(tmp, ".gnupg", "x"))
+		deny("tc", "read:cloud", filepath.Join(tmp, ".aws", "credentials"))
+		reply(a, "category", "cloud", "always")
+		reply(b, "category", "cloud", "always")
+		reply(a, "folder", folder, "always")
+		reply(a, "file", file, "always")
+		reply(a, "read", env, "always")
+		reply(a, "category", "ssh", "session")
+		reply(c, "category", "cloud", "session")
+		deny("ta", "read:keys", filepath.Join(tmp, ".gnupg", "y"))
+		deny("ta", "read:protected", filepath.Join(finance, "a.pdf"))
+		reply(a, "category", "keys", "session")
+		reply(b, "category", "keys", "always")
+		for _, p := range pendingOf(o, a) {
+			if p.Get("kind") == "protected" && o.SandboxReply(a, util.Str(p.Get("id")), "always") {
+				t.Fatal("protected folders can't be granted from a chat")
+			}
+		}
+		reply(a, "protected", filepath.Join(finance, "a.pdf"), "deny")
+		if len(persisted) != 5 {
+			t.Fatalf("persisted = %+v", persisted)
+		}
+		for _, k := range []string{"cloud", "ssh", "keys"} {
+			if !has(a, "category", k) {
+				t.Fatalf("before revoking, a has %s: %+v", k, o.grantedFor(a))
+			}
+		}
+		if !has(a, "folder", folder) || !has(a, "file", file) || !has(a, "read", env) || !has(b, "category", "cloud") {
+			t.Fatalf("before revoking: a = %+v, b = %+v", o.grantedFor(a), o.grantedFor(b))
+		}
+		if p := sandbox.Profile(*o.buildSandboxSpec(o.tab(a), repo, util.NewObj())); strings.Contains(p, "read:cloud") {
+			t.Fatal("granted category is not denied in the profile")
+		}
+
+		// 撤销：只删持久记录；策略通知还没到（异步）时新算的配置就已经不带了
+		for _, g := range []SandboxGrant{{Kind: "category", Value: "cloud"}, {Kind: "folder", Value: folder},
+			{Kind: "file", Value: file}, {Kind: "read", Value: env}, {Kind: "category", Value: "keys"}} {
+			revoke(g.Kind, g.Value)
+		}
+		check := func(when string) {
+			t.Helper()
+			for _, id := range []string{a, b} {
+				if has(id, "category", "cloud") {
+					t.Fatalf("%s: revoked category still granted to %s: %+v", when, id, o.grantedFor(id))
+				}
+				s := o.buildSandboxSpec(o.tab(id), str(o.tab(id), "cwd"), util.NewObj())
+				if s.Granted["cloud"] || slices.Contains(s.Writable, folder) || slices.Contains(s.WritableFiles, file) ||
+					slices.Contains(s.ReadFiles, env) {
+					t.Fatalf("%s: revoked grants still in %s's spec: %+v", when, id, s)
+				}
+				p := sandbox.Profile(*s)
+				if !strings.Contains(p, "read:cloud") {
+					t.Fatalf("%s: revoked category is denied again in the profile", when)
+				}
+				// 受保护文件夹：配置里还在，且拒写排在所有放行之后
+				if !slices.Contains(s.Protected, finance) ||
+					strings.LastIndex(p, "write:protected") < strings.LastIndex(p, "(allow file-write*") {
+					t.Fatalf("%s: protected folder is no longer the final deny", when)
+				}
+			}
+			if has(b, "category", "keys") {
+				t.Fatalf("%s: b's revoked always-grant came back", when)
+			}
+			// 本会话授权：a 的 ssh、keys（同一项 b 点过「始终」又撤销）、c 的 cloud（同一项 a 撤销过）都还在
+			if !has(a, "category", "ssh") || !has(a, "category", "keys") || !has(c, "category", "cloud") {
+				t.Fatalf("%s: session grants were cleared: a = %+v, c = %+v", when, o.grantedFor(a), o.grantedFor(c))
+			}
+			if s := o.buildSandboxSpec(o.tab(a), repo, util.NewObj()); !s.Granted["ssh"] || !s.Granted["keys"] {
+				t.Fatalf("%s: session grants missing from a's spec: %+v", when, s.Granted)
+			}
+		}
+		check("before the notice")
+		o.SandboxPolicyChanged()
+		check("after the notice")
+		// 空闲回收后的下一轮、新开的同项目标签：一样按当前记录算
+		o.ReclaimIdleNow()
+		check("after idle reclaim")
+		if d := mk(sub); has(d, "category", "cloud") || has(d, "folder", folder) {
+			t.Fatalf("a new tab in the project got a revoked grant: %+v", o.grantedFor(d))
+		}
+
+		// 撤销后再被拦下会重新问
+		deny("ta", "read:cloud", filepath.Join(tmp, ".aws", "credentials"))
+		if p := pendingOf(o, a); len(p) != 1 || p[0].Get("value") != "cloud" {
+			t.Fatalf("a revoked grant is asked again, pending = %v", util.Stringify(p))
+		}
+		// 记录被拒（存不下）：这一次按本会话授权，撤销不了也不会丢
+		reject = true
+		reply(a, "category", "cloud", "always")
+		if len(persisted) != 0 || !has(a, "category", "cloud") || has(b, "category", "cloud") {
+			t.Fatalf("refused always-grant falls back to this session only: a = %+v, persisted = %+v", o.grantedFor(a), persisted)
+		}
+		o.SandboxPolicyChanged()
+		if !has(a, "category", "cloud") {
+			t.Fatal("a policy notice does not clear session grants")
 		}
 	})
 }

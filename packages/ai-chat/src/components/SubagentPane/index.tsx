@@ -7,7 +7,7 @@
  */
 import { Button, Icon, IconButton, t, Textarea } from '@nomi-ai/ui';
 import { Square, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { SubagentPaneProvider, useSubagentPane } from '../../contexts/SubagentPaneContext';
@@ -42,12 +42,20 @@ function useTabMessages(tabId: string, updatedAt: number | undefined, running: b
   return messages;
 }
 
+/** 按标签挂载面板内容：换标签时输入法 / 消息等本地状态从头来，草稿与待发消息在 pane.queue 里按标签保存 */
 export const SubagentPane: React.FC = () => {
   const pane = useSubagentPane();
+  if (!pane?.tabId) return null;
+  return <SubagentPaneBody key={pane.tabId} pane={pane} tabId={pane.tabId} />;
+};
+
+const SubagentPaneBody: React.FC<{
+  pane: NonNullable<ReturnType<typeof useSubagentPane>>;
+  tabId: string;
+}> = ({ pane, tabId }) => {
   const tabs = useHarnessTabs();
-  const tabId = pane?.tabId ?? '';
   const tab = tabs.state?.tabs.find((x) => x.id === tabId) ?? null;
-  const tl = useHarnessLive((l) => (tabId ? l[tabId] : undefined));
+  const tl = useHarnessLive((l) => l[tabId]);
   const running = tab?.status === 'running' || tab?.status === 'queued';
   const messages = useTabMessages(tabId, tab?.updatedAt, running);
   const backend = tab?.backend ?? 'claude';
@@ -57,46 +65,30 @@ export const SubagentPane: React.FC = () => {
   );
   const live = useMemo(() => tabLiveToConv(tl), [tl]);
   const slots = useMemo(() => buildCliSlots({ cwd: tab?.cwd ?? null }), [tab?.cwd]);
-  const [draft, setDraft] = useState('');
-  const [queued, setQueued] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const queue = pane.queue;
+  const view = useSyncExternalStore(
+    queue.subscribe,
+    () => queue.view(tabId),
+    () => queue.view(tabId),
+  );
+  const { draft, queued, error } = view;
   const [composing, setComposing] = useState(false);
-  const close = pane?.closeSubagent;
+  const close = pane.closeSubagent;
 
   // 标签没了（关掉 / 清理）：面板跟着关
   useEffect(() => {
-    if (tabId && tabs.state && !tab) close?.();
-  }, [tabId, tab, tabs.state, close]);
+    if (tabs.state && !tab) close();
+  }, [tab, tabs.state, close]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || shouldIgnoreEscape(e)) return;
       e.preventDefault();
-      close?.();
+      close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
-
-  const sendNow = useCallback(
-    (text: string) => {
-      setError(null);
-      void harnessClient
-        .sendTab(tabId, text)
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-    },
-    [tabId],
-  );
-
-  // 排队的消息：这一轮结束后按顺序发
-  useEffect(() => {
-    if (running || !queued.length) return;
-    const [head, ...rest] = queued;
-    // 外部状态（这一轮结束）驱动的发送：豁免 set-state-in-effect
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setQueued(rest);
-    sendNow(head!);
-  }, [running, queued, sendNow]);
 
   const onPermission = useCallback(
     (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
@@ -113,19 +105,12 @@ export const SubagentPane: React.FC = () => {
 
   const sandboxRequests = useMemo(() => <TabSandboxRequests tabId={tabId} />, [tabId]);
 
-  if (!pane?.tabId || !tab) return null;
+  if (!tab) return null;
   const name = t(ENDPOINT_NAME[backend] ?? backend);
   const waiting = !!(tl?.permissions?.length || tab.sandboxPending?.length);
 
-  const submit = async () => {
-    const text = draft.trim();
-    if (!text) return;
-    setDraft('');
-    if (!running) return sendNow(text);
-    // 运行中：先试插话，不支持就排队到这一轮结束
-    const ok = await harnessClient.steerTab(tabId, text);
-    if (!ok) setQueued((q) => [...q, text]);
-  };
+  // 空闲时发送、运行中先试插话、不支持就排队到这一轮结束：都按这个标签记账（见 subagentQueue）
+  const submit = () => queue.submit(tabId);
 
   return (
     <section
@@ -179,7 +164,7 @@ export const SubagentPane: React.FC = () => {
           live={live}
           phase={running ? 'running' : 'idle'}
           queued={queued}
-          onRemoveQueued={(i) => setQueued((q) => q.filter((_, k) => k !== i))}
+          onRemoveQueued={(i) => queue.removeQueued(tabId, i)}
           onPermission={onPermission}
           slots={slots}
           sandboxRequests={sandboxRequests}
@@ -196,7 +181,7 @@ export const SubagentPane: React.FC = () => {
           rows={2}
           placeholder={t('ui.session-workspace.subagent-input-placeholder', name)}
           aria-label={t('ui.session-workspace.subagent-input-placeholder', name)}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => queue.setDraft(tabId, e.target.value)}
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {

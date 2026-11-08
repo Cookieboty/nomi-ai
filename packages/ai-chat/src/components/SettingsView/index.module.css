@@ -481,54 +481,6 @@
   line-height: 1.6;
   color: var(--cd-color-text-muted);
 }
-/* 「通用」页顶部横幅：宽度与内容区一致；高度封顶，宽屏时裁掉上下而不是无限变高 */
-.banner {
-  flex: none;
-  display: block;
-  width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
-  height: clamp(200px, 28vw, 340px);
-  object-fit: cover;
-  /* 裁切时保住 logo 与人物的脸 */
-  object-position: center 40%;
-  pointer-events: none;
-  user-select: none;
-  /* 无边框：左右与底部渐隐，融进页面底色 */
-  -webkit-mask-image:
-    linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
-    linear-gradient(to bottom, #000 72%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
-    linear-gradient(to bottom, #000 72%, transparent 100%);
-  mask-composite: intersect;
-}
-/* 「通用」页横幅很高：整页一起滚，但横幅钉在原位当背景，标签与卡片从它上面滚过，
-   标签滚到顶部后吸顶（见 SectionPage stickyHead） */
-.contentGeneral {
-  overflow-y: auto;
-}
-.contentGeneral .inner,
-.contentGeneral .columns {
-  flex: none;
-}
-.contentGeneral .mainCol {
-  overflow: visible;
-}
-.contentGeneral .banner {
-  position: sticky;
-  top: 0;
-  z-index: 0;
-}
-.contentGeneral .inner {
-  position: relative;
-  z-index: 1;
-}
-/* 横幅下方内容：顶部留白收小，卡片紧跟横幅 */
-.innerAfterBanner {
-  padding-top: var(--cd-space-2);
-}
 @media (max-width: 760px) {
   .nav {
     width: 200px;

@@ -44,13 +44,16 @@ export interface DelegateSettingsView extends DelegateSettings {
 /** 主进程 delegate_to_cli 交回 Nomi 的结果（工具调用的 output） */
 export interface DelegateResult {
   taskId: string;
-  cli: DelegateCli;
+  /** 派给 Nomi 的任务是 'nomi' */
+  cli: DelegateCli | 'nomi';
   status: 'running' | 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi';
   report?: { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string };
   /** 汇报缺失时 git 核对到的改动文件（相对 cwd） */
   changedFiles?: string[];
   conflictedFiles?: string[];
+  /** 派给 Nomi 的任务生成的图片（chat-asset:// 地址） */
+  images?: string[];
   summary: string;
   filesVerified: boolean;
   approvals: { asked: number; denied: number; timedOut: number };

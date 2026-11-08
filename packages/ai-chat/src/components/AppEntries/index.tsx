@@ -19,7 +19,7 @@ import styles from './index.module.css';
 export interface AppEntriesProps {
   /** 侧栏收起：竖排、只显示图标 */
   collapsed: boolean;
-  /** 设置 → 知识与记忆（知识库 / 长期记忆 / 日程） */
+  /** 知识 · 记忆 · 日程抽屉（知识库 / 长期记忆 / 日程） */
   onHub: () => void;
   onExt: () => void;
   onSettings: () => void;

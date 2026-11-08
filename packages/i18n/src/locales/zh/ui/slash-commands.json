@@ -176,5 +176,7 @@
   "ui.slash-commands.no-matching-model": "没有匹配的模型",
   "ui.slash-commands.summarize-earlier-messages-to-free-up-context": "把较早的对话总结成摘要，腾出上下文（快满时也会自动压缩）",
   "ui.slash-commands.wait-for-the-current-reply-to-finish-then": "等当前回复结束后再压缩。",
-  "ui.slash-commands.nothing-to-compact-yet": "还没有可以压缩的对话。"
+  "ui.slash-commands.nothing-to-compact-yet": "还没有可以压缩的对话。",
+  "ui.slash-commands.last-reply-cache-hit-rate": "上一轮回复的缓存命中 {0}（缓存读 {1}）：命中越高，越省钱、越快。",
+  "ui.slash-commands.compact-hint": "[可选：重点保留什么]"
 }

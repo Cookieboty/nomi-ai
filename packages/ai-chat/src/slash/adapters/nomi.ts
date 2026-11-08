@@ -67,9 +67,9 @@ async function runAgent(raw: string): Promise<SlashOutcome> {
 }
 
 /** `/compact`：把较早的对话压缩成摘要（到 95% 时发送前也会自动压缩，见 services/compaction.ts） */
-async function runCompact(actions: SlashActions): Promise<SlashOutcome> {
+async function runCompact(actions: SlashActions, instructions: string): Promise<SlashOutcome> {
   const title = t('ui.slash-commands.compact-context');
-  const r = await actions.compactNomi();
+  const r = await actions.compactNomi(instructions.trim() || undefined);
   if (r.status === 'done') return { type: 'noop' };
   const text =
     r.status === 'busy'
@@ -125,7 +125,8 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
       description: t('ui.slash-commands.summarize-earlier-messages-to-free-up-context'),
       source: 'builtin',
       kind: 'native',
-      run: (_a, ctx) => runCompact(ctx.actions),
+      hint: t('ui.slash-commands.compact-hint'),
+      run: (a, ctx) => runCompact(ctx.actions, a),
     }),
     ...skills,
   ];

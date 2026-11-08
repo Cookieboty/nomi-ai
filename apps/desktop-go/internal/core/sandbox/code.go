@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/outcap"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 
 	"bytes"
@@ -116,24 +117,28 @@ func (s *CodeSandbox) Available() []string {
 }
 
 // 按 JS 字符串（UTF-16 码元）计长的输出缓冲
+// capBuf：超过 maxOut 时保留开头与结尾（报错常在结尾），中间省略（outcap）
 type capBuf struct {
-	units     []uint16
+	buf       *outcap.Buf
 	truncated *bool
 }
 
 func (c *capBuf) add(chunk []byte) {
-	if len(c.units) >= maxOut {
-		*c.truncated = true
-		return
+	if c.buf == nil {
+		c.buf = outcap.New(maxOut)
 	}
-	c.units = append(c.units, utf16.Encode([]rune(decodeUTF8(chunk)))...)
-	if len(c.units) > maxOut {
+	c.buf.Add(decodeUTF8(chunk))
+	if c.buf.Truncated {
 		*c.truncated = true
-		c.units = c.units[:maxOut]
 	}
 }
 
-func (c *capBuf) String() string { return jsString(c.units) }
+func (c *capBuf) String() string {
+	if c.buf == nil {
+		return ""
+	}
+	return c.buf.String()
+}
 
 // jsString 把 UTF-16 码元转回 Go 字符串；孤立代理项按 WTF-8 之外的 U+FFFD 处理（与 JSON 序列化后一致的可见文本）
 func jsString(u []uint16) string { return string(utf16.Decode(u)) }

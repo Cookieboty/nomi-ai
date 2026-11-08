@@ -467,6 +467,13 @@ func (f *Facade) DeleteFact(id string) bool {
 
 func (f *Facade) PutSummary(o *u.Obj) { _, _ = f.summariesPut(o) }
 
+// DeleteSummary：记忆里删掉了这段对话的情景摘要
+func (f *Facade) DeleteSummary(sessionID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.summaries.Delete(sessionID)
+}
+
 // ---- avatar（SemanticAvatarService）----
 
 func inVocab(name string, vocab []string) bool {

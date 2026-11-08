@@ -21,6 +21,7 @@ import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
 import { RestartUpdateButton } from '../RestartUpdateButton';
 
+import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
 import { ArchivedChats } from './ArchivedChats';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
@@ -47,7 +48,6 @@ import {
 import { ShortcutSettings } from './ShortcutSettings';
 import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
-import { UpdateSettings } from './UpdateSettings';
 import { VoiceSection } from './VoiceSection';
 
 export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
@@ -114,6 +114,8 @@ export const SettingsView: React.FC<Props> = ({
 
   const noop = () => undefined;
   const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
+  // 右侧「配置说明」：通用 / 关于没有
+  const help = section === 'general' || section === 'about' ? null : SECTION_HELP[section];
   const body = (() => {
     switch (section) {
       case 'general': {
@@ -121,7 +123,6 @@ export const SettingsView: React.FC<Props> = ({
         return (
           <SectionPage
             testId="settings-general-page"
-            stickyHead
             tabsLabel="ui.chat-settings.general-sections"
             tabs={SECTION_TABS.general}
             value={g}
@@ -129,7 +130,7 @@ export const SettingsView: React.FC<Props> = ({
           >
             {g === 'basics' && (
               <div className={styles.groups}>
-                <GeneralHero />
+                <GeneralHero onOpenAbout={() => onSection('about')} />
                 <SettingsGroup
                   title={t('ui.chat-settings.appearance')}
                   description={t(
@@ -151,7 +152,10 @@ export const SettingsView: React.FC<Props> = ({
                     </>
                   )}
                 />
-                <UpdateSettings>
+                <SettingsGroup
+                  title={t('ui.mascot-theme.getting-started-guide')}
+                  data-testid="settings-onboarding"
+                >
                   <SettingRow
                     title={t('ui.mascot-theme.getting-started-guide')}
                     description={t(
@@ -171,7 +175,7 @@ export const SettingsView: React.FC<Props> = ({
                       {t('ui.chat-settings.reopen')}
                     </Button>
                   </SettingRow>
-                </UpdateSettings>
+                </SettingsGroup>
               </div>
             )}
             {g === 'shortcuts' && <ShortcutSettings />}
@@ -246,6 +250,8 @@ export const SettingsView: React.FC<Props> = ({
         return (
           <PrivacySection tab={tabOf('privacy')} onTab={(x) => setTab('privacy', x)} go={go} />
         );
+      case 'about':
+        return <AboutSection />;
     }
   })();
 
@@ -302,61 +308,33 @@ export const SettingsView: React.FC<Props> = ({
         ))}
         <RestartUpdateButton placement="settings-nav" collapsed={collapsed} />
       </nav>
-      <main
-        className={
-          section === 'general' ? `${styles.content} ${styles.contentGeneral}` : styles.content
-        }
-        aria-label={t(current.label)}
-      >
-        {section === 'general' && (
-          // 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色
-          <img
-            src="./brand/nomi-banner.webp"
-            alt=""
-            aria-hidden="true"
-            className={styles.banner}
-            data-testid="settings-banner"
-            draggable={false}
-          />
-        )}
-        <div
-          className={[styles.inner, section === 'general' ? styles.innerAfterBanner : '']
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {section === 'general' ? (
-            <>
-              <h1 className={styles.srOnly} data-testid="settings-section-title">
+      <main className={styles.content} aria-label={t(current.label)}>
+        <div className={styles.inner}>
+          <header className={styles.pageHead} data-testid="settings-page-head">
+            <span className={styles.pageBadge} aria-hidden="true">
+              <AppIcon icon={current.icon} size={22} />
+            </span>
+            <div className={styles.pageHeadText}>
+              <h1 className={styles.pageTitle} data-testid="settings-section-title">
                 {t(current.label)}
               </h1>
-            </>
-          ) : (
-            <header className={styles.pageHead} data-testid="settings-page-head">
-              <span className={styles.pageBadge} aria-hidden="true">
-                <AppIcon icon={current.icon} size={22} />
-              </span>
-              <div className={styles.pageHeadText}>
-                <h1 className={styles.pageTitle} data-testid="settings-section-title">
-                  {t(current.label)}
-                </h1>
-                <p className={styles.pageIntro}>{t(current.intro)}</p>
-              </div>
-              {current.wide && (
-                <button
-                  type="button"
-                  className={styles.helpToggle}
-                  aria-expanded={helpOpen}
-                  aria-controls="settings-help-inline"
-                  onClick={() => setHelpOpen((o) => !o)}
-                  data-testid="settings-help-toggle"
-                >
-                  <Icon icon={Lightbulb} size={14} />
-                  {t('ui.chat-settings.about')}
-                </button>
-              )}
-            </header>
-          )}
-          {current.wide && helpOpen && section !== 'general' && (
+              <p className={styles.pageIntro}>{t(current.intro)}</p>
+            </div>
+            {current.wide && help && (
+              <button
+                type="button"
+                className={styles.helpToggle}
+                aria-expanded={helpOpen}
+                aria-controls="settings-help-inline"
+                onClick={() => setHelpOpen((o) => !o)}
+                data-testid="settings-help-toggle"
+              >
+                <Icon icon={Lightbulb} size={14} />
+                {t('ui.chat-settings.about')}
+              </button>
+            )}
+          </header>
+          {current.wide && helpOpen && help && (
             <aside
               id="settings-help-inline"
               className={styles.helpInline}
@@ -364,7 +342,7 @@ export const SettingsView: React.FC<Props> = ({
               data-testid="settings-help-inline"
             >
               <ul className={styles.helpList}>
-                {SECTION_HELP[section].map((h) => (
+                {help.map((h) => (
                   <li key={h.title} className={styles.helpItem}>
                     <span className={styles.helpIcon} aria-hidden="true">
                       <Icon icon={h.icon} size={15} />
@@ -385,7 +363,7 @@ export const SettingsView: React.FC<Props> = ({
             >
               <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
             </div>
-            {section !== 'general' && !current.wide && (
+            {help && !current.wide && (
               <aside
                 className={styles.help}
                 aria-label={t('ui.chat-settings.about-these-settings')}
@@ -396,7 +374,7 @@ export const SettingsView: React.FC<Props> = ({
                   {t('ui.chat-settings.about-these-settings')}
                 </h2>
                 <ul className={styles.helpList}>
-                  {SECTION_HELP[section].map((h) => (
+                  {help.map((h) => (
                     <li key={h.title} className={styles.helpItem}>
                       <span className={styles.helpIcon} aria-hidden="true">
                         <Icon icon={h.icon} size={15} />

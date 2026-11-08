@@ -1,5 +1,5 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
-import { createLogger, t } from '@nomi-ai/ui';
+import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
   useCallback,
@@ -15,14 +15,7 @@ import React, {
 
 import { importChatImages } from '../services/chatImages';
 import { getSmartTitle } from '../services/chatPrefs';
-import {
-  canCompact,
-  carriedMemory,
-  compactionRequest,
-  injectedMemoryIds,
-  isCompaction,
-  shouldCompact,
-} from '../services/compaction';
+import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
   bindNextDelegateConversation,
@@ -36,7 +29,6 @@ import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import { splitFileAttachments } from '../services/fileAttachments';
-import { gatewayClient } from '../services/gatewayClient';
 import {
   harnessClient,
   MAIN_TAB_ID,
@@ -63,6 +55,7 @@ import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+import { compactHistory } from './compactHistory';
 import { attachSteer, useNomiSteer, type SteerableStream } from './nomiSteer';
 
 export interface AiChatState {
@@ -97,7 +90,7 @@ export type AiChatAction =
   | { type: 'SET_IPC_CLIENT'; payload: IPCClient }
   | { type: 'CLEAR_MESSAGES'; convoId?: string };
 
-const logger = createLogger('AiChat');
+export { compactHistory, type CompactResult } from './compactHistory';
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -234,7 +227,7 @@ export interface AiChatActions {
    * `/compact`：把当前 Nomi 对话较早的部分压缩成摘要。
    * 返回 done / nothing（没有可压缩的）/ busy（正在回复）/ failed（附原因）
    */
-  compactConversation: () => Promise<{
+  compactConversation: (instructions?: string) => Promise<{
     status: 'done' | 'nothing' | 'busy' | 'failed';
     error?: string;
   }>;
@@ -326,64 +319,6 @@ function maybeStartNomiSmartTitle(
       notify: notifyConversationsChanged,
     });
   });
-}
-
-/** 摘要模型的预算查不到时（旧主进程）按这个算摘要请求的大小 */
-const FALLBACK_SUMMARY_BUDGET = 96_000;
-
-export type CompactResult =
-  { next: ChatMessage[]; error?: undefined } | { next: null; error?: string };
-
-/**
- * 上下文压缩（services/compaction.ts）：把最近一次摘要之后的对话总结成摘要，作为一条
- * origin: 'compaction' 的消息存进这一轮的会话。force = `/compact`（不看阈值）。
- * 压缩了返回新的历史（含摘要消息）；不需要 / 不能压缩返回 next: null。
- * 失败只留一条提示（不保存），这一轮照常发送，由内核按预算裁掉最早的历史。
- */
-export async function compactHistory(
-  client: IPCClient,
-  history: ChatMessage[],
-  nextContent: string,
-  turn: ConversationTurn,
-  force: boolean,
-  dispatch: React.Dispatch<AiChatAction>,
-): Promise<CompactResult> {
-  if (!client.summarize) return { next: null };
-  const [chatCtx, sumCtx] = await Promise.all([
-    gatewayClient.nomiContext('chat'),
-    gatewayClient.nomiContext('summary'),
-  ]);
-  if (force ? !canCompact(history) : !chatCtx || !shouldCompact(history, nextContent, chatCtx))
-    return { next: null };
-  const pending: ChatMessage = {
-    id: `compact-${Date.now().toString(36)}`,
-    role: 'assistant',
-    origin: 'compaction',
-    content: '',
-    timestamp: Date.now(),
-  };
-  if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: pending });
-  try {
-    const budget = (sumCtx ?? chatCtx)?.budget ?? FALLBACK_SUMMARY_BUDGET;
-    const summary = await client.summarize(compactionRequest(history, budget));
-    if (!summary) throw new Error(t('ui.chat-settings.the-model-returned-an-empty-summary'));
-    // 压缩前带过的长期记忆跟着摘要走（之后每轮照样带，召回也排除它们），不随压缩丢失
-    const memory = carriedMemory(history);
-    const done: ChatMessage = {
-      ...pending,
-      content: summary,
-      timestamp: Date.now(),
-      ...(memory ? { memory } : {}),
-    };
-    if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [done] });
-    await turn.save(done);
-    return { next: [...history, done] };
-  } catch (e) {
-    const error = errorMessage(e);
-    logger.warn('compaction failed', { error });
-    if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [{ ...pending, error }] });
-    return { next: null, error };
-  }
 }
 
 /** 按 id 覆盖，不存在则追加（顺序保持：新的追加在末尾） */
@@ -1001,13 +936,21 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [sendStreamMessage, askKnowledge],
   );
 
-  const compactConversation = useCallback(async () => {
+  const compactConversation = useCallback(async (instructions?: string) => {
     const s = stateRef.current;
     if (busyIn(s, s.ipcClient.currentConversationId?.())) return { status: 'busy' as const };
     const turn = openTurn(s.ipcClient);
     dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
     try {
-      const r = await compactHistory(s.ipcClient, s.messages, '', turn, true, dispatch);
+      const r = await compactHistory(
+        s.ipcClient,
+        s.messages,
+        '',
+        turn,
+        true,
+        dispatch,
+        instructions,
+      );
       if (r.error) return { status: 'failed' as const, error: r.error };
       return { status: r.next ? ('done' as const) : ('nothing' as const) };
     } finally {

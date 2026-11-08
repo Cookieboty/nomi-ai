@@ -1,6 +1,8 @@
 package llm
 
 import (
+	"context"
+
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -33,6 +35,10 @@ type ChatRequest struct {
 	MaxTokens   *float64
 	Stream      *bool
 	Extra       map[string]any
+	// ContextBudget：模型输入预算（token，窗口减输出预留）：工具循环按真实用量守护上下文（aisdk/contextguard.go）；0 = 不守护
+	ContextBudget float64
+	// Summarize：工具循环里缩短工具结果后仍然快满时，用摘要模型把这一轮较早的步骤压成摘要；nil = 不做
+	Summarize func(ctx context.Context, system, transcript string) (string, error)
 	// Signal：abortSignal（Done 关闭 = aborted）；nil = 无
 	Signal <-chan struct{}
 }

@@ -12,11 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/outcap"
 )
 
-// RunOutputCap = RUN_OUTPUT_CAP
-const RunOutputCap = 64_000
+// RunOutputCap：stdout / stderr 各自最多留多少字给模型（超出时保留开头与结尾，中间省略）。
+// 每次调用的输出都进上下文、之后每一步都带着：30k 字约 1 万 token，与 Claude Code 的 Bash 输出上限相当
+const RunOutputCap = 30_000
 
 type RunShellOpts struct {
 	Cwd       string
@@ -52,26 +53,24 @@ func defaultShell() ShellSpec {
 	return ShellSpec{File: sh, Args: func(c string) []string { return []string{"-c", c} }}
 }
 
+// capBuf：超过上限时保留开头与结尾（报错、失败的用例常在结尾），中间省略（outcap）
 type capBuf struct {
 	mu        *sync.Mutex
-	s         string
-	cap       int
+	buf       *outcap.Buf
 	truncated *bool
+}
+
+func newCapBuf(mu *sync.Mutex, capN int, truncated *bool) *capBuf {
+	return &capBuf{mu: mu, buf: outcap.New(capN), truncated: truncated}
 }
 
 func (b *capBuf) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if u.UTF16Len(b.s) >= b.cap {
+	b.buf.Add(string(p))
+	if b.buf.Truncated {
 		*b.truncated = true
-		return len(p), nil
 	}
-	next := b.s + string(p)
-	if u.UTF16Len(next) > b.cap {
-		*b.truncated = true
-		next = u.UTF16Slice0(next, b.cap)
-	}
-	b.s = next
 	return len(p), nil
 }
 
@@ -89,15 +88,15 @@ func RunShellCommand(command string, o RunShellOpts) RunOutcome {
 	t0 := time.Now()
 	var mu sync.Mutex
 	var out RunOutcome
-	so := &capBuf{mu: &mu, cap: capN, truncated: &out.Truncated}
-	se := &capBuf{mu: &mu, cap: capN, truncated: &out.Truncated}
+	so := newCapBuf(&mu, capN, &out.Truncated)
+	se := newCapBuf(&mu, capN, &out.Truncated)
 	cmd := exec.Command(sh.File, sh.Args(command)...)
 	cmd.Dir, cmd.Env, cmd.Stdout, cmd.Stderr, cmd.Stdin = o.Cwd, o.Env, so, se, nil
 	setProcAttrs(cmd, sh, command)
 	finish := func(err error) RunOutcome {
 		mu.Lock()
 		defer mu.Unlock()
-		out.Stdout, out.Stderr = so.s, se.s
+		out.Stdout, out.Stderr = so.buf.String(), se.buf.String()
 		if err != nil {
 			if out.Stderr != "" {
 				out.Stderr += "\n"

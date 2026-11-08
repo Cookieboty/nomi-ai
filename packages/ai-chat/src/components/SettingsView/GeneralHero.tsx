@@ -1,5 +1,5 @@
 /**
- * 「通用」页横幅下方的速览卡：版本 / 主题 / 语言三格，点一格滚到对应设置。
+ * 「通用」页顶部的速览卡：版本 / 主题 / 语言三格。版本跳到「关于」，其余滚到本页对应设置。
  */
 import { getLocalePref, Icon, t, useLocale, type LocalePref } from '@nomi-ai/ui';
 import { Globe, Palette, Sparkles } from 'lucide-react';
@@ -106,15 +106,15 @@ const Cell: React.FC<{
   value: string;
   sub: string;
   tone?: Tone;
-  target: string;
+  onClick: () => void;
   testId: string;
-}> = ({ icon, label, value, sub, tone, target, testId }) => (
+}> = ({ icon, label, value, sub, tone, onClick, testId }) => (
   <button
     type="button"
     className={styles.cell}
     data-tone={tone}
     data-testid={testId}
-    onClick={() => jump(target)}
+    onClick={onClick}
   >
     <span className={styles.label}>
       <Icon icon={icon} size={14} />
@@ -125,7 +125,7 @@ const Cell: React.FC<{
   </button>
 );
 
-export const GeneralHero: React.FC = () => {
+export const GeneralHero: React.FC<{ onOpenAbout: () => void }> = ({ onOpenAbout }) => {
   const locale = useLocale();
   const pref = usePref();
   const [update] = useUpdateState();
@@ -147,7 +147,7 @@ export const GeneralHero: React.FC = () => {
           value={ver.value}
           sub={ver.sub}
           tone={ver.tone}
-          target="settings-updates"
+          onClick={onOpenAbout}
           testId="settings-hero-version"
         />
         <Cell
@@ -155,7 +155,7 @@ export const GeneralHero: React.FC = () => {
           label={t('ui.chat-settings.theme')}
           value={themeLabel(theme)}
           sub={t('ui.chat-settings.appearance-theme-icon-and-chat-background')}
-          target="settings-appearance"
+          onClick={() => jump('settings-appearance')}
           testId="settings-hero-theme"
         />
         <Cell
@@ -167,7 +167,7 @@ export const GeneralHero: React.FC = () => {
               ? t('ui.chat-settings.currently', langName)
               : t('ui.chat-settings.chat-nomi-and-notifications-follow-it')
           }
-          target="settings-basic"
+          onClick={() => jump('settings-basic')}
           testId="settings-hero-language"
         />
       </div>

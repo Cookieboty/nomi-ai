@@ -30,5 +30,6 @@
   "ui.devtools.total-time": "Total time",
   "ui.devtools.unfinished": "Unfinished",
   "ui.devtools.upstream-model": "Upstream model",
-  "ui.devtools.view-request-and-response-body": "View request and response body"
+  "ui.devtools.view-request-and-response-body": "View request and response body",
+  "ui.devtools.cache-hit-rate-value": "{0} ({1} read from cache)"
 }

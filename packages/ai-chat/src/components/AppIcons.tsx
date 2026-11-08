@@ -18,6 +18,7 @@ import {
   Brain,
   Coins,
   Cpu,
+  Info,
   LibraryBig,
   Settings,
   ShieldCheck,
@@ -66,6 +67,8 @@ export const SETTINGS_ICONS = {
   connections: Link2,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,
+  /** 关于：版本、更新与项目信息 */
+  about: Info,
 } as const;
 
 /** 输入框「更多」菜单等功能入口 */

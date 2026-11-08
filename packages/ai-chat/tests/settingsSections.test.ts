@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('9 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
+  it('10 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
       'nomi',
@@ -14,6 +14,7 @@ describe('设置分区：合并后的菜单', () => {
       'ext',
       'connections',
       'privacy',
+      'about',
     ]);
     // 命令面板的设置条目由分区生成：不再有单独的「快捷键」入口
     expect(SETTINGS_SECTIONS.some((s) => (s.id as string) === 'shortcuts')).toBe(false);
@@ -27,6 +28,7 @@ describe('设置分区：合并后的菜单', () => {
       'ui.foundation.extensions-mcp',
       'ui.providers-schedule.connections',
       'ui.chat-settings.privacy-permissions',
+      'ui.chat-settings.about-section',
     ]);
   });
 

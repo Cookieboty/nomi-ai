@@ -1,20 +1,16 @@
 /**
- * Settings → General → 关于与更新: version + check / download / install (with consent) + auto-check,
- * plus extra rows passed as children (onboarding). Talks to main-process UpdateService over the
- * app contract (`updates.*`). `useUpdateState` is shared with the hero card's version cell.
+ * 更新相关的共享部分：主进程更新服务（`updates.*`）、状态文案、订阅 hook，以及「关于」页里
+ * 「更新设置」二次弹窗（启动时检查更新、更新后显示更新日志）。版本卡与检查 / 安装在 AboutSection。
  */
-import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { Modal, ModalHostContext, SettingRow, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
 import {
   getShowReleaseNotesAfterUpdate,
-  openReleaseNotes,
   setShowReleaseNotesAfterUpdate,
   subscribeShowReleaseNotesAfterUpdate,
 } from '../../services/releaseNotesPrefs';
-
-import styles from './index.module.css';
 
 type UpdateStatus =
   | 'idle'
@@ -42,7 +38,7 @@ export interface UpdateState {
   releasePending?: boolean;
 }
 
-interface UpdatesApi {
+export interface UpdatesApi {
   get: () => Promise<UpdateState>;
   check: () => Promise<UpdateState>;
   download: () => Promise<UpdateState>;
@@ -52,7 +48,7 @@ interface UpdatesApi {
 }
 
 /** 主进程更新服务；没有契约传输（浏览器预览）时为 null */
-function updatesApi(): UpdatesApi | null {
+export function updatesApi(): UpdatesApi | null {
   if (!hasTransport()) return null;
   const u = api.updates;
   return {
@@ -109,19 +105,9 @@ export function useUpdateState(): [UpdateState | null, (s: UpdateState) => void]
   return [state, setState];
 }
 
-export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useUpdateState();
+/** 主动操作（检查 / 安装 / 切换自动检查）：忙碌时禁用按钮，返回值写回状态 */
+export function useUpdateRunner(setState: (s: UpdateState) => void) {
   const [busy, setBusy] = useState(false);
-  const [confirmInstall, setConfirmInstall] = useState(false);
-  const [showReleaseNotes, setShowReleaseNotes] = useState(getShowReleaseNotesAfterUpdate);
-  useEffect(
-    () =>
-      subscribeShowReleaseNotesAfterUpdate(() =>
-        setShowReleaseNotes(getShowReleaseNotesAfterUpdate()),
-      ),
-    [],
-  );
-
   const run = useCallback(
     async (fn: () => Promise<UpdateState>) => {
       setBusy(true);
@@ -133,13 +119,48 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
     },
     [setState],
   );
+  return [busy, run] as const;
+}
 
-  if (!updatesApi()) {
-    return (
-      <SettingsGroup title={t('ui.chat-settings.about-updates')} data-testid="settings-updates">
-        <p className={styles.muted}>
-          {t('ui.mascot-theme.updates-are-only-available-in-the-desktop-app')}
-        </p>
+/** 「更新设置」二次弹窗：设置页内嵌的 ModalHost 在这里清掉，让它真的弹出来 */
+export const UpdatePrefsModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  state: UpdateState | null;
+  setState: (s: UpdateState) => void;
+}> = ({ open, onClose, state, setState }) => {
+  const [, run] = useUpdateRunner(setState);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(getShowReleaseNotesAfterUpdate);
+  useEffect(
+    () =>
+      subscribeShowReleaseNotesAfterUpdate(() =>
+        setShowReleaseNotes(getShowReleaseNotesAfterUpdate()),
+      ),
+    [],
+  );
+  const u = updatesApi();
+  return (
+    <ModalHostContext.Provider value={null}>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title={t('ui.chat-settings.about-update-settings')}
+        data-testid="updates-prefs-modal"
+      >
+        {u && (
+          <SettingRow
+            data-testid="updates-auto-check"
+            title={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
+            description={t('ui.mascot-theme.updates-come-from-github-releases-cookieboty-nomi-ai')}
+          >
+            <Switch
+              checked={state?.autoCheck ?? true}
+              disabled={!state || state.status === 'unavailable'}
+              onChange={(on) => void run(() => u.setAutoCheck(on))}
+              aria-label={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
+            />
+          </SettingRow>
+        )}
         <SettingRow
           data-testid="updates-show-release-notes"
           title={t('ui.mascot-theme.show-release-notes-after-update')}
@@ -154,169 +175,7 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
             aria-label={t('ui.mascot-theme.show-release-notes-after-update')}
           />
         </SettingRow>
-        <SettingRow
-          data-testid="updates-view-release-notes"
-          title={t('ui.mascot-theme.release-notes')}
-          description={t('ui.mascot-theme.view-this-versions-release-notes')}
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            data-testid="updates-open-release-notes"
-            onClick={() => openReleaseNotes()}
-          >
-            {t('ui.mascot-theme.view-release-notes')}
-          </Button>
-        </SettingRow>
-        {children}
-      </SettingsGroup>
-    );
-  }
-
-  const s = state;
-  const canCheck = !busy && s && s.status !== 'checking' && s.status !== 'downloading';
-  const canInstall = !busy && s?.status === 'downloaded';
-
-  return (
-    <SettingsGroup
-      title={t('ui.chat-settings.about-updates')}
-      data-testid="settings-updates"
-      id="settings-updates"
-    >
-      <SettingRow
-        title={
-          <>
-            {t('ui.mascot-theme.current-version')}{' '}
-            <strong data-testid="updates-current-version">{s?.currentVersion ?? '…'}</strong>
-            {s?.availableVersion ? (
-              <>
-                {' · '}
-                {t('ui.mascot-theme.latest')}{' '}
-                <strong data-testid="updates-available-version">{s.availableVersion}</strong>
-              </>
-            ) : null}
-          </>
-        }
-        description={
-          <span data-testid="updates-status">
-            {s ? statusLabel(s) : t('ui.mascot-theme.loading')}
-          </span>
-        }
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={!canCheck}
-          data-testid="updates-check"
-          onClick={() => void run(() => updatesApi()!.check())}
-        >
-          {/* 失败后重新检查会接着重新下载（主进程先取消卡住的下载） */}
-          {s?.status === 'error'
-            ? t('ui.mascot-theme.retry')
-            : t('ui.mascot-theme.check-for-updates')}
-        </Button>
-        {canInstall && !confirmInstall && (
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            data-testid="updates-install"
-            onClick={() => setConfirmInstall(true)}
-          >
-            {t('ui.mascot-theme.restart-and-install')}
-          </Button>
-        )}
-      </SettingRow>
-      {s?.status === 'downloading' && (
-        <div
-          className={styles.updateBar}
-          role="progressbar"
-          aria-valuenow={Math.round(s.percent ?? 0)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          data-testid="updates-progress"
-        >
-          <div className={styles.updateBarFill} style={{ width: `${s.percent ?? 0}%` }} />
-        </div>
-      )}
-      {confirmInstall && (
-        <div className={styles.confirm} data-testid="updates-install-confirm">
-          <p className={styles.note}>
-            {t('ui.mascot-theme.nomi-will-quit-and-install-conversations-stay-on').replace(
-              '{0}',
-              s?.availableVersion ?? '',
-            )}
-          </p>
-          <div className={styles.actions}>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              data-testid="updates-install-yes"
-              onClick={() => {
-                setConfirmInstall(false);
-                void run(() => updatesApi()!.install());
-              }}
-            >
-              {t('ui.mascot-theme.install-now')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              data-testid="updates-install-no"
-              onClick={() => setConfirmInstall(false)}
-            >
-              {t('ui.foundation.cancel')}
-            </Button>
-          </div>
-        </div>
-      )}
-      <SettingRow
-        data-testid="updates-auto-check"
-        title={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
-        description={t('ui.mascot-theme.updates-come-from-github-releases-cookieboty-nomi-ai')}
-      >
-        <Switch
-          checked={s?.autoCheck ?? true}
-          disabled={!s || s.status === 'unavailable'}
-          onChange={(on) => void run(() => updatesApi()!.setAutoCheck(on))}
-          aria-label={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
-        />
-      </SettingRow>
-
-      <SettingRow
-        data-testid="updates-show-release-notes"
-        title={t('ui.mascot-theme.show-release-notes-after-update')}
-        description={t('ui.mascot-theme.show-release-notes-after-update-hint')}
-      >
-        <Switch
-          checked={showReleaseNotes}
-          onChange={(on) => {
-            setShowReleaseNotesAfterUpdate(on);
-            setShowReleaseNotes(on);
-          }}
-          aria-label={t('ui.mascot-theme.show-release-notes-after-update')}
-        />
-      </SettingRow>
-      <SettingRow
-        data-testid="updates-view-release-notes"
-        title={t('ui.mascot-theme.release-notes')}
-        description={t('ui.mascot-theme.view-this-versions-release-notes')}
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          data-testid="updates-open-release-notes"
-          onClick={() => openReleaseNotes()}
-        >
-          {t('ui.mascot-theme.view-release-notes')}
-        </Button>
-      </SettingRow>
-      {children}
-    </SettingsGroup>
+      </Modal>
+    </ModalHostContext.Provider>
   );
 };

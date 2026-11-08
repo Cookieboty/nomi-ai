@@ -78,6 +78,8 @@ func (m memoryFacade) PutSummary(x map[string]any) {
 	m.f.PutSummary(ordered(x, "sessionId", "summary", "updatedAt", "stepCount"))
 }
 
+func (m memoryFacade) DeleteSummary(sessionID string) { m.f.DeleteSummary(sessionID) }
+
 func (m memoryFacade) Profile() any { return m.f.Profile().Get() }
 
 func (m memoryFacade) ResetProfile(context.Context) error {

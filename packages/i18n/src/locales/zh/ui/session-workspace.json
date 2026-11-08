@@ -212,5 +212,7 @@
   "ui.session-workspace.details-agents": "智能体",
   "ui.session-workspace.details-agents-count": "{0} 个 · {1} 进行中",
   "ui.session-workspace.details-show-more": "展开其余 {0} 个",
-  "ui.session-workspace.session-details-auto-hidden": "窗口较窄，会话详情已自动收起；点击显示"
+  "ui.session-workspace.session-details-auto-hidden": "窗口较窄，会话详情已自动收起；点击显示",
+  "ui.session-workspace.handoff-changed-files": "改动的文件（{0} 个）：\n{1}",
+  "ui.session-workspace.handoff-changed-files-more": "…另外还有 {0} 个"
 }

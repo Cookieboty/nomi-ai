@@ -169,7 +169,13 @@ func TestCompactToolResults(t *testing.T) {
 	if value(out[0]) != long || value(out[3]) != long || value(out[2]) != "short" {
 		t.Fatal("history, the most recent and short outputs stay")
 	}
-	if v := value(out[1]); len([]rune(v)) > compactHeadRunes+60 || !strings.Contains(v, "已省略 1400 字") {
+	if v := value(out[1]); len([]rune(v)) > compactHeadRunes+compactTailRunes+60 || !strings.Contains(v, "已省略 1200 字") {
+		t.Fatal(v)
+	}
+	// 结尾也留着（命令 / 测试输出的报错、失败用例常在最后）
+	tail := tool("t", strings.Repeat("x", 3000)+"FAILED: TestFoo")
+	got := CompactToolResults([]*u.Obj{tail, tool("z", "short")}, 0, 1)
+	if v := value(got[0]); !strings.HasSuffix(v, "FAILED: TestFoo") || !strings.HasPrefix(v, "xxx") {
 		t.Fatal(v)
 	}
 	if value(msgs[1]) != long {

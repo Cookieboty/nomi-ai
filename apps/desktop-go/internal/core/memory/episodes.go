@@ -41,6 +41,8 @@ type Episode struct {
 	Pinned         bool     `json:"pinned"`
 	Edited         bool     `json:"edited"`
 	Vec            string   `json:"vec,omitempty"`
+	// Since：用户删过这段对话之前的摘要时，从第几条消息开始算（forgotten.go）
+	Since int `json:"since,omitempty"`
 }
 
 type Fact struct {

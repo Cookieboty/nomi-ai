@@ -234,7 +234,8 @@ export interface SlashActions {
   /** 把一段文本当作普通消息发出（卡片里的「作为普通文字发送」） */
   sendPlain: (text: string) => void;
   /** Nomi：`/compact` 把当前对话较早的部分压缩成摘要 */
-  compactNomi: () => Promise<{
+  /** instructions：`/compact` 后面带的说明（摘要优先照做） */
+  compactNomi: (instructions?: string) => Promise<{
     status: 'done' | 'nothing' | 'busy' | 'failed';
     error?: string;
   }>;

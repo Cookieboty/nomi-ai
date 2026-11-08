@@ -23,6 +23,9 @@ func TestToolsForRelevanceAndSchema(t *testing.T) {
 	names := func(msgs ...llm.ChatMessage) []string {
 		out := []string{}
 		for _, x := range p.toolsFor(defs, &llm.ChatRequest{Messages: msgs}) {
+			if x.Name == OutputReadTool {
+				continue // 分页读暂存输出的工具：有工具时总在
+			}
 			out = append(out, x.Name)
 			if s, _ := x.InputSchema.(*u.Obj); s == nil || s.Has("$schema") {
 				t.Errorf("%s: $schema 没去掉", x.Name)
@@ -44,5 +47,32 @@ func TestToolsForRelevanceAndSchema(t *testing.T) {
 	if c := ConversationText([]llm.ChatMessage{{Role: "system", Content: "提醒"}, {Role: "user", Content: "Open URL"},
 		{Role: "tool", Content: "x"}, {Role: "assistant", Content: "好"}}); c != "open url\n好" {
 		t.Fatalf("ConversationText = %q", c)
+	}
+}
+
+// 对话里开过的工具一直提供：提到的那句滑出窗口 / 被压缩成摘要后，工具定义不变（前缀缓存不断）
+func TestToolsForStickyPerConversation(t *testing.T) {
+	p := &Provider{ID: "p"}
+	defs := []tools.Definition{{Name: "reminder_create", Relevant: func(tt tools.Turn) bool {
+		return strings.Contains(tt.ConvoText, "提醒")
+	}}}
+	has := func(conv string, msgs ...llm.ChatMessage) bool {
+		for _, x := range p.toolsFor(defs, &llm.ChatRequest{Messages: msgs, Extra: map[string]any{"conversationId": conv}}) {
+			if x.Name == "reminder_create" {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("sticky-c1", llm.ChatMessage{Role: "user", Content: "明早提醒我"}) {
+		t.Fatal("mentioned")
+	}
+	// 压缩后：提醒那句只在摘要（system）里了
+	if !has("sticky-c1", llm.ChatMessage{Role: "system", Content: "摘要"}, llm.ChatMessage{Role: "user", Content: "嗯"}) {
+		t.Fatal("tool dropped after the mention left the conversation text")
+	}
+	// 别的对话不受影响
+	if has("sticky-c2", llm.ChatMessage{Role: "user", Content: "嗯"}) {
+		t.Fatal("leaked to another conversation")
 	}
 }

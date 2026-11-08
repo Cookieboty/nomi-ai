@@ -38,8 +38,8 @@ describe('图标规范：界面里不用 emoji 当图标', () => {
 });
 
 describe('设置左侧导航图标', () => {
-  it('9 个分区各有一个 lucide 图标，且互不重复', () => {
-    expect(SETTINGS_SECTIONS).toHaveLength(9);
+  it('10 个分区各有一个 lucide 图标，且互不重复', () => {
+    expect(SETTINGS_SECTIONS).toHaveLength(10);
     const icons = SETTINGS_SECTIONS.map((s) => s.icon);
     expect(icons.every(Boolean)).toBe(true);
     expect(new Set(icons).size).toBe(icons.length);

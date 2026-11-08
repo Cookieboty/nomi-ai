@@ -88,6 +88,8 @@ type GenerateReq struct {
 // GenerateResult = generateImageAsset 的返回
 type GenerateResult struct {
 	File, URL, Model, Provider, Adapter, RevisedPrompt string
+	// Retries：失败后自动重试了几次才成功（image_retry.go）
+	Retries int
 }
 
 // SplitImageRef：`供应商/模型` → 供应商 id 与模型 id（模型 id 自己可以含 `/`）
@@ -211,10 +213,11 @@ func (d ImageDeps) send(ctx context.Context, r media.HTTPRequest, headers map[st
 		if msg == "" {
 			msg = string(text)
 		}
-		return nil, errors.New(i18n.T("electron.image.service-returned", res.StatusCode, clip(msg, 300)))
+		return nil, &imageHTTPError{Status: res.StatusCode, RetryAfter: retryAfterOf(res.Header),
+			msg: i18n.T("electron.image.service-returned", res.StatusCode, clip(msg, 300))}
 	}
 	if jsonErr != nil {
-		return nil, errors.New(i18n.T("electron.image.no-image-in-response", clip(string(text), 200)))
+		return nil, &imageTransient{i18n.T("electron.image.no-image-in-response", clip(string(text), 200))}
 	}
 	return parsed, nil
 }
@@ -257,17 +260,17 @@ func (d ImageDeps) run(ctx context.Context, t *imageTarget, prompt, aspect strin
 		p := a.Parse(body, in)
 		switch p.Kind {
 		case "failed":
-			return media.Image{}, "", errors.New(i18n.T("electron.image.task-failed", p.Message))
+			return media.Image{}, "", &imageTransient{i18n.T("electron.image.task-failed", p.Message)}
 		case "images":
 			if len(p.Images) == 0 {
 				raw, _ := json.Marshal(body)
-				return media.Image{}, "", errors.New(i18n.T("electron.image.no-image-in-response", clip(string(raw), 200)))
+				return media.Image{}, "", &imageTransient{i18n.T("electron.image.no-image-in-response", clip(string(raw), 200))}
 			}
 			return p.Images[0], p.RevisedPrompt, nil
 		}
 		wait := time.Duration(p.AfterMs) * time.Millisecond
 		if now().Add(wait).After(deadline) {
-			return media.Image{}, "", errors.New(i18n.T("electron.image.task-timeout"))
+			return media.Image{}, "", &imageTransient{i18n.T("electron.image.task-timeout")}
 		}
 		sleep(wait)
 		body, err = d.send(ctx, *p.Next, headers)
@@ -299,7 +302,8 @@ func (d ImageDeps) bytesOf(ctx context.Context, img media.Image) ([]byte, error)
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, errors.New(i18n.T("electron.image.download-failed", res.StatusCode))
+		return nil, &imageHTTPError{Status: res.StatusCode, RetryAfter: retryAfterOf(res.Header),
+			msg: i18n.T("electron.image.download-failed", res.StatusCode)}
 	}
 	if res.ContentLength > maxImageBytes {
 		return nil, errors.New(i18n.T("electron.image.too-large"))
@@ -387,11 +391,22 @@ func (d ImageDeps) GenerateAsset(ctx context.Context, req GenerateReq) (Generate
 	if aspect == "" {
 		aspect = "auto"
 	}
-	img, revised, err := d.run(ctx, t, req.Prompt, aspect, refs, refMode)
+	// 失败时自动重试（image_retry.go）：生成失败重新生成；图生成好了只是下载失败就只重试下载
+	var img media.Image
+	var revised string
+	retries, err := d.withImageRetry(ctx, func() (e error) {
+		img, revised, e = d.run(ctx, t, req.Prompt, aspect, refs, refMode)
+		return e
+	})
 	if err != nil {
 		return GenerateResult{}, err
 	}
-	b, err := d.bytesOf(ctx, img)
+	var b []byte
+	n, err := d.withImageRetry(ctx, func() (e error) {
+		b, e = d.bytesOf(ctx, img)
+		return e
+	})
+	retries += n
 	if err != nil {
 		return GenerateResult{}, err
 	}
@@ -413,7 +428,7 @@ func (d ImageDeps) GenerateAsset(ctx context.Context, req GenerateReq) (Generate
 		d.OnGenerated(file, meta)
 	}
 	return GenerateResult{File: file, URL: "chat-asset://images/" + file, Model: t.model, Provider: t.access.Info.ID,
-		Adapter: t.endpoint.Adapter.ID, RevisedPrompt: revised}, nil
+		Adapter: t.endpoint.Adapter.ID, RevisedPrompt: revised, Retries: retries}, nil
 }
 
 // ImageTools = createImageTools
@@ -459,6 +474,9 @@ func ImageTools(d ImageDeps) []tools.Definition {
 			}
 			if r.RevisedPrompt != "" {
 				out.Set("revisedPrompt", r.RevisedPrompt)
+			}
+			if r.Retries > 0 {
+				out.Set("retries", float64(r.Retries))
 			}
 			return out, nil
 		},

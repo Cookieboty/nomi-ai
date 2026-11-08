@@ -148,30 +148,20 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(k.getByTestId('settings-schedule')).toBeTruthy();
   });
 
-  it('侧栏品牌头；「通用」顶部是横幅且无可见页头；其余分区有标题 + 说明、无横幅', () => {
+  it('侧栏品牌头；每个分区都有标题 + 说明，没有横幅', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     // 品牌头只写产品名（brand.appName），不带角色名
     expect(r.getByTestId('settings-brand').textContent).toContain('Nomi');
     expect(r.getByTestId('settings-brand').textContent).not.toMatch(/诺米|·/);
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
-    const banner = r.getByTestId('settings-banner');
-    expect(banner.tagName).toBe('IMG');
-    expect(banner.getAttribute('aria-hidden')).toBe('true');
-    expect(banner.getAttribute('alt')).toBe('');
-    expect(banner.getAttribute('src')).toContain('nomi-banner.webp');
+    expect(r.queryByTestId('settings-banner')).toBeNull();
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
       expect(r.getByTestId('settings-section-title').textContent).toBe(t(s.label));
       expect(r.getByRole('main').getAttribute('aria-label')).toBe(t(s.label));
-      const general = s.id === 'general';
-      expect(r.queryAllByTestId('settings-banner')).toHaveLength(general ? 1 : 0);
-      if (general) {
-        expect(r.queryByTestId('settings-page-head')).toBeNull();
-      } else {
-        const head = r.getByTestId('settings-page-head');
-        expect(head.querySelector('h1')!.textContent).toBe(t(s.label));
-        expect(head.querySelector('p')!.textContent).toBe(t(s.intro));
-      }
+      const head = r.getByTestId('settings-page-head');
+      expect(head.querySelector('h1')!.textContent).toBe(t(s.label));
+      expect(head.querySelector('p')!.textContent).toBe(t(s.intro));
     }
   });
 
@@ -186,7 +176,8 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(items).toHaveLength(SECTION_HELP.models.length);
     expect(help.textContent).toContain('第三方供应商');
     for (const s of SETTINGS_SECTIONS)
-      if (s.id !== 'general') expect(SECTION_HELP[s.id].length).toBeGreaterThan(0);
+      if (s.id !== 'general' && s.id !== 'about')
+        expect(SECTION_HELP[s.id].length).toBeGreaterThan(0);
   });
 
   it('快捷键：只有应用内快捷键一张表，没有内层标签', () => {
@@ -212,7 +203,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('shortcut-conflict-banner')).toBeNull();
   });
 
-  it('通用：横幅下是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、关于与更新', () => {
+  it('通用：顶部是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、入门引导；版本格跳到关于', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     for (const id of ['version', 'theme', 'language'])
       expect(r.getByTestId(`settings-hero-${id}`)).toBeTruthy();
@@ -227,10 +218,14 @@ describe('SettingsView 合并后的标签页分区', () => {
     const order = [...r.container.querySelectorAll('[data-testid]')]
       .map((e) => e.getAttribute('data-testid'))
       .filter((id) =>
-        ['settings-appearance', 'settings-basic-group', 'settings-updates'].includes(id!),
+        ['settings-appearance', 'settings-basic-group', 'settings-onboarding'].includes(id!),
       );
-    expect(order).toEqual(['settings-appearance', 'settings-basic-group', 'settings-updates']);
+    expect(order).toEqual(['settings-appearance', 'settings-basic-group', 'settings-onboarding']);
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
+    expect(r.queryByTestId('settings-updates')).toBeNull();
+    fireEvent.click(r.getByTestId('settings-hero-version'));
+    expect(r.getByTestId('settings-section-title').textContent).toBe('关于');
+    expect(r.getByTestId('settings-about')).toBeTruthy();
   });
 
   it('「用量与分析」：默认用量与费用，切到「对比」懒加载质量面板（不再有自己的标签条）', async () => {
@@ -264,7 +259,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-help')).toBeTruthy();
   });
 
-  it('菜单有 9 个分区：Nomi 紧跟通用', () => {
+  it('菜单有 10 个分区：Nomi 紧跟通用，关于在最后', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -279,6 +274,7 @@ describe('SettingsView 合并后的标签页分区', () => {
       'ext',
       'connections',
       'privacy',
+      'about',
     ]);
   });
 
