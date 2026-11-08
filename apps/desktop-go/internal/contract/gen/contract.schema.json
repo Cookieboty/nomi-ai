@@ -8836,6 +8836,14 @@
             },
             "rememberRule": {
              "type": "string"
+            },
+            "rememberGroup": {
+             "type": "string",
+             "enum": [
+              "files",
+              "delegate",
+              "tool"
+             ]
             }
            },
            "required": [
@@ -9707,6 +9715,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -10026,6 +10042,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -10393,6 +10417,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -10712,6 +10744,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -11068,6 +11108,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -11494,6 +11542,14 @@
         },
         "rememberRule": {
          "type": "string"
+        },
+        "rememberGroup": {
+         "type": "string",
+         "enum": [
+          "files",
+          "delegate",
+          "tool"
+         ]
         }
        },
        "required": [
@@ -34558,6 +34614,14 @@
        },
        "rememberRule": {
         "type": "string"
+       },
+       "rememberGroup": {
+        "type": "string",
+        "enum": [
+         "files",
+         "delegate",
+         "tool"
+        ]
        }
       },
       "required": [
@@ -34671,6 +34735,14 @@
     },
     "rememberRule": {
      "type": "string"
+    },
+    "rememberGroup": {
+     "type": "string",
+     "enum": [
+      "files",
+      "delegate",
+      "tool"
+     ]
     }
    },
    "required": [

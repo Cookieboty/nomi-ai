@@ -657,6 +657,8 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 				if !callerSet {
 					caller, _ = tools.GetToolCallerTabID(ctx)
 				}
+				// 权限按对话记授权（desktop.PermissionBroker）：把对话 id 带进 ctx
+				ctx = tools.WithConversation(ctx, conv)
 				res, err := d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
 				if err != nil {
 					return res, err

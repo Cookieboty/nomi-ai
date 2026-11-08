@@ -1747,7 +1747,8 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 		Tool: "delegate_followup", Danger: "write",
 		Summary: "向 " + cliName[task.cli()] + " 追问：" + slice(message, 80),
 		Args:    util.NewObj("taskId", taskID, "message", message),
-		Preview: &preview, Signal: c.sig,
+		// 追问的是用户同意过的那个委派（同一个编程助手、同一个目录）：不再逐次确认
+		Preview: &preview, Signal: c.sig, Approved: true,
 	})
 	switch decision {
 	case "blocked":
@@ -1793,7 +1794,8 @@ func (s *Service) followupTask(rec *tasks.Record, message string, c *execCtx, t0
 		Tool: "delegate_followup", Danger: "write",
 		Summary: "向 " + cliName[cli] + " 追问：" + slice(message, 80),
 		Args:    util.NewObj("taskId", task.ID, "message", message),
-		Preview: &preview, Signal: c.sig,
+		// 追问的是用户同意过的那个委派（同一个编程助手、同一个目录）：不再逐次确认
+		Preview: &preview, Signal: c.sig, Approved: true,
 	})
 	switch decision {
 	case "blocked":

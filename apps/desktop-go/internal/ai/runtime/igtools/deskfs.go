@@ -655,7 +655,8 @@ func (k *deskKit) baseTools() []tools.Definition {
 					}
 					off := num0(i, "offset")
 					slice := u16slice(text, off, off+num0(i, "maxChars"))
-					k.markRead(ctx)
+					// 工作区与授权过的文件夹里的文件不算外部内容：读了之后改文件、委派不再因此每次都问
+					// （网页、MCP、剪贴板、命令输出、委派结果仍然算，见 docs/features/privacy-security.md）
 					meta := u.NewObj()
 					if r.Pages != nil {
 						meta.Set("pages", float64(*r.Pages))
@@ -690,7 +691,6 @@ func (k *deskKit) baseTools() []tools.Definition {
 					if err != nil {
 						return nil, "", err
 					}
-					k.markRead(ctx)
 					o := u.NewObj("path", g.Real, "summary", desktop.WrapUntrusted(g.Real, sum), "totalChars", float64(u.UTF16Len(r.Text)))
 					if r.Pages != nil {
 						o.Set("pages", float64(*r.Pages))

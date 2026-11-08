@@ -22,6 +22,13 @@ const DANGER: Record<
   destructive: { label: 'ui.foundation.destructive', tone: 'danger' },
 };
 
+/** 勾「记住」= 这个对话里这类操作不再问（rememberGroup） */
+const REMEMBER_GROUP: Record<NonNullable<DesktopConfirmRequest['rememberGroup']>, string> = {
+  files: 'ui.chat-settings.dont-ask-files-in-conversation',
+  delegate: 'ui.chat-settings.dont-ask-delegate-in-conversation',
+  tool: 'ui.chat-settings.dont-ask-tool-in-conversation',
+};
+
 const REASON: Record<string, string> = {
   tainted: 'ui.chat-settings.file-contents-were-just-read-this-turn-to',
   destructive: 'ui.chat-settings.destructive-actions-must-be-confirmed-here-moved-to',
@@ -215,6 +222,8 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
               {t('ui.chat-settings.always-allow-command-prefix')}{' '}
               <code className={styles.tool}>{req.rememberRule}</code>
             </span>
+          ) : req.rememberGroup ? (
+            t(REMEMBER_GROUP[req.rememberGroup])
           ) : (
             t('ui.chat-settings.don-t-ask-again-for-this-tool-this')
           )}

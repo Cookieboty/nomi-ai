@@ -294,6 +294,8 @@ export const DesktopConfirmRequest = z.looseObject({
     .optional(),
   /** 命令能记进白名单时的前缀（如 `pnpm test`）：勾「记住」= 以后这类命令不再问 */
   rememberRule: z.string().optional(),
+  /** 勾「记住」= 这个对话里这类操作不再问：files 改文件 / delegate 委派与追问 / tool 这个工具 */
+  rememberGroup: z.enum(['files', 'delegate', 'tool']).optional(),
 });
 
 export const DesktopState = z.looseObject({
