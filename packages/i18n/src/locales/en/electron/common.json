@@ -599,5 +599,6 @@
   "electron.common.sandbox-category-browser": "Browser data",
   "electron.common.sandbox-category-personal": "Mail, Messages, Calendar, Contacts, Notes and Photos",
   "electron.common.sandbox-category-secret-files": "Secret files (.env, private keys, certificates)",
-  "electron.common.sandbox-needs-permission": "Blocked by the sandbox: {0}. Waiting for your permission"
+  "electron.common.sandbox-needs-permission": "Blocked by the sandbox: {0}. Waiting for your permission",
+  "electron.common.auto-continue-stopped-no-progress": "(The last automatic round made no real progress, so I stopped here. Say \"continue\" if you want me to keep going.)"
 }

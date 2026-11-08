@@ -272,3 +272,23 @@ func TestGuardOutboundWithholdsCommandAndWebOutput(t *testing.T) {
 		}
 	}
 }
+
+// 大段输出暂存后的预览（开头、结尾各自包在标记里，aisdk/spill.go）与分页读出的段落：回放时同样挡下
+func TestGuardOutboundWithholdsSpilledPreview(t *testing.T) {
+	wrap := func(s string) string {
+		return "<file_content path=\"(earlier tool output)\" trust=\"untrusted\">\n" + s + "\n</file_content>"
+	}
+	preview := wrap("<file_content path=\"/w/a\" trust=\"untrusted\">\n"+fileSecret+"-head") +
+		"\n…[output too long: 80000 characters, the middle is omitted here. Read any part with tool_output_read(id=\"out_1\", offset, limit)]…\n" +
+		wrap(fileSecret+"-tail\n</file_content>")
+	page := "[characters 100–200 of 80000]\n" + wrap(fileSecret+"-page")
+	for _, body := range []string{preview, page} {
+		msgs := fileHistory(fileSteps(body))
+		if err := GuardOutboundMessages(msgs, func(string) SendVerdict { return "local_only" }); err != nil {
+			t.Fatal(err)
+		}
+		if got := stepsOf(msgs); strings.Contains(got, fileSecret) {
+			t.Fatalf("spilled content leaked: %s", got)
+		}
+	}
+}

@@ -23,6 +23,9 @@ func TestToolsForRelevanceAndSchema(t *testing.T) {
 	names := func(msgs ...llm.ChatMessage) []string {
 		out := []string{}
 		for _, x := range p.toolsFor(defs, &llm.ChatRequest{Messages: msgs}) {
+			if x.Name == OutputReadTool {
+				continue // 分页读暂存输出的工具：有工具时总在
+			}
 			out = append(out, x.Name)
 			if s, _ := x.InputSchema.(*u.Obj); s == nil || s.Has("$schema") {
 				t.Errorf("%s: $schema 没去掉", x.Name)
@@ -54,7 +57,12 @@ func TestToolsForStickyPerConversation(t *testing.T) {
 		return strings.Contains(tt.ConvoText, "提醒")
 	}}}
 	has := func(conv string, msgs ...llm.ChatMessage) bool {
-		return len(p.toolsFor(defs, &llm.ChatRequest{Messages: msgs, Extra: map[string]any{"conversationId": conv}})) == 1
+		for _, x := range p.toolsFor(defs, &llm.ChatRequest{Messages: msgs, Extra: map[string]any{"conversationId": conv}}) {
+			if x.Name == "reminder_create" {
+				return true
+			}
+		}
+		return false
 	}
 	if !has("sticky-c1", llm.ChatMessage{Role: "user", Content: "明早提醒我"}) {
 		t.Fatal("mentioned")

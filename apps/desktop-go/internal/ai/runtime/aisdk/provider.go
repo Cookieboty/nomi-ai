@@ -495,6 +495,8 @@ func autoStoppedNotice(reason string, rounds int) string {
 		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-denied")
 	case "tokens":
 		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-budget", rounds)
+	case "no-progress":
+		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-no-progress")
 	}
 	return "\n\n" + i18n.T("electron.common.auto-continue-stopped-rounds", rounds)
 }
@@ -621,6 +623,11 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		callerSet = true
 	}
 	caller, conv, cwd := str("callerTabId"), str("conversationId"), str("cwd")
+	// 暂存的大段输出按对话隔离；后台任务按任务
+	spillKey := conv
+	if t := str("taskId"); t != "" {
+		spillKey = "task:" + t
+	}
 	userText := LastUserText(r.Messages)
 	turn := tools.Turn{UserText: userText, ConvoText: ConversationText(r.Messages), Cwd: cwd}
 	out := []Tool{}
@@ -650,9 +657,17 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 				if !callerSet {
 					caller, _ = tools.GetToolCallerTabID(ctx)
 				}
-				return d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
+				res, err := d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
+				if err != nil {
+					return res, err
+				}
+				// 大段输出先暂存，模型看开头和结尾、需要时分页读（spill.go）
+				return spillOutput(d.Name, spillKey, res), nil
 			},
 		})
+	}
+	if len(out) > 0 {
+		out = append(out, outputReadTool(spillKey))
 	}
 	return out
 }
@@ -776,8 +791,10 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	firstPrompt := 0.0
 	// 跨续跑轮次累加的用量
 	var total *llm.ChatUsage
-	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数
-	steerRounds, autoRounds := 0, 0
+	// steerRounds：为最后一步才到的插入消息续跑的轮数；autoRounds：步数用完自动续跑的轮数；
+	// planNudges：计划没做完就收尾时提醒的次数（autoprogress.go）；sinceNudge：上次提醒之后有没有实际动作
+	steerRounds, autoRounds, planNudges := 0, 0, 0
+	sinceNudge := true
 	// 上下文守护（contextguard.go）：跨续跑轮次共用，按上一步的真实输入用量判断
 	var guard *contextGuard
 	if hasTools {
@@ -896,6 +913,8 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		}
 		// 步数用完时最后一步的工具已经执行、结果模型还没看到：接着跑一轮
 		auto := hasTools && stepLimit && autoRounds < MaxAutoRounds
+		progress := madeProgress(messages[len(tp.Messages):], resMsgs)
+		sinceNudge = sinceNudge || progress
 		stopReason := ""
 		if hasTools && stepLimit {
 			switch {
@@ -905,10 +924,20 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				auto, stopReason = false, "tokens"
 			case autoRounds >= MaxAutoRounds:
 				stopReason = "rounds"
+			case !progress:
+				// 这一轮除了改计划什么也没做：不再空转
+				auto, stopReason = false, "no-progress"
 			}
 		}
 		steer := len(left) > 0 && steerRounds < MaxSteerRounds
-		stop := c.Err() != nil || (!auto && !steer)
+		// 计划没做完就收尾：提醒接着做（autoprogress.go）
+		var nudge string
+		if hasTools && !stepLimit && !denied && !steer && *finish == "stop" && planNudges < MaxPlanNudges && sinceNudge {
+			if open := unfinishedPlan(append(append([]*u.Obj{}, messages[len(tp.Messages):]...), resMsgs...)); len(open) > 0 {
+				nudge = planNudge(open)
+			}
+		}
+		stop := c.Err() != nil || (!auto && !steer && nudge == "")
 		if stop {
 			delete(p.inbox, r.ReqID)
 		}
@@ -954,9 +983,14 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		full := append(append([]*u.Obj{}, messages...), resMsgs...)
 		if len(left) > 0 {
 			inserts = append(inserts, SteerInsert{At: len(full), Text: strings.Join(left, "\n\n")})
+		} else if nudge != "" {
+			inserts = append(inserts, SteerInsert{At: len(full), Text: nudge})
 		}
 		messages = WithSteerInserts(full, inserts)
-		if auto {
+		if nudge != "" && len(left) == 0 {
+			planNudges++
+			sinceNudge = false
+		} else if auto {
 			autoRounds++
 			// 换轮时把这一轮里较早的大段工具输出缩短（只在换轮时改一次，前缀缓存每轮只断一次）
 			messages = CompactToolResults(messages, len(tp.Messages), compactKeepRecent)
