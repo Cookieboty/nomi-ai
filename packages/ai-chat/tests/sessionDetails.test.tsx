@@ -8,7 +8,12 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SessionDetailsDock, SessionDetailsToggle } from '../src/components/SessionDetails';
-import { collectSessionAgents, countRunning } from '../src/components/SessionDetails/agents';
+import {
+  collectSessionAgents,
+  countRunning,
+  pendingDelegateTaskIds,
+} from '../src/components/SessionDetails/agents';
+import { summarizeGit } from '../src/components/SessionDetails/useWorkspaceChanges';
 import { useChangesUi } from '../src/components/SessionWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
@@ -402,5 +407,70 @@ describe('auto-hide on small screens', () => {
     setup();
     mount('/w/app', messages, true);
     expect(await screen.findByTestId('session-details')).toBeTruthy();
+  });
+});
+
+describe('会话详情：异步委派的状态与工作区改动', () => {
+  // 异步委派：工具已返回，输出是 running 占位
+  const asyncMessages = (output: unknown) =>
+    [
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'start',
+            id: 'c1',
+            input: JSON.stringify({ goal: '修复登录 bug' }),
+          },
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'done',
+            id: 'c1',
+            output: JSON.stringify(output),
+          },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+  const running = { ok: true, data: { taskId: 't1', cli: 'codex', status: 'running' } };
+
+  it('最终结果到了就按结果显示，不再一直「运行中」', () => {
+    const msgs = asyncMessages(running);
+    expect(pendingDelegateTaskIds(msgs)).toEqual(['t1']);
+    const tabs = [{ ...delegated, status: 'idle' as const }];
+    expect(collectSessionAgents(msgs, tabs, {})[0]?.status).toBe('running');
+    const done = { taskId: 't1', cli: 'codex', status: 'done' } as never;
+    expect(collectSessionAgents(msgs, tabs, {}, {}, { t1: done })[0]?.status).toBe('done');
+    const failed = { taskId: 't1', cli: 'codex', status: 'error', error: '400' } as never;
+    expect(collectSessionAgents(msgs, tabs, {}, {}, { t1: failed })[0]?.status).toBe('error');
+    // 子任务里后续轮次的结果不算委派本身
+    const follow = { taskId: 't1', cli: 'codex', status: 'done', followUp: true } as never;
+    expect(collectSessionAgents(msgs, tabs, {}, {}, { t1: follow })[0]?.status).toBe('running');
+  });
+
+  it('标签已经出错停下、结果还没到：显示出错', () => {
+    const tabs = [{ ...delegated, status: 'error' as const }];
+    expect(collectSessionAgents(asyncMessages(running), tabs, {})[0]?.status).toBe('error');
+  });
+
+  it('工作区改动按 git 统计（未跟踪的只计文件数）', () => {
+    expect(
+      summarizeGit({
+        ok: true,
+        status: ' M a.ts\n?? b.ts\n',
+        stat: '',
+        diff: '',
+        truncated: false,
+        numstat: { head: { 'a.ts': { added: 3, removed: 1 } }, staged: {}, unstaged: {} },
+      }),
+    ).toEqual({ files: 2, added: 3, removed: 1 });
+    expect(
+      summarizeGit({ ok: false, status: '', stat: '', diff: '', truncated: false }),
+    ).toBeNull();
   });
 });

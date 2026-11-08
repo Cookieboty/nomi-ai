@@ -46,7 +46,7 @@ import { ConversationView } from './index';
 type Phase = 'confirming' | 'running' | 'waiting' | 'done' | 'error' | 'cancelled';
 
 /** 工具输出：`{ ok, data }` / `{ ok: false, error }`（主进程 DelegateService） */
-function parseOutput(output: string | undefined): {
+export function parseOutput(output: string | undefined): {
   result?: DelegateResult;
   error?: { code: string; message: string };
 } {
@@ -76,6 +76,15 @@ export interface DelegateView {
   goal: string;
 }
 
+/**
+ * 异步委派结束后的工具调用：工具输出是 running 占位，主进程广播 / 查到的最终结果替换进去（卡片与会话详情共用）。
+ * 子任务里后续轮次的结果（followUp）不算委派本身的结果。
+ */
+export function withDelegateResult(call: ToolCall, r: DelegateResult | undefined): ToolCall {
+  if (!r || r.status === 'running' || r.followUp) return call;
+  return { ...call, status: 'done', output: JSON.stringify({ ok: true, data: r }) };
+}
+
 /** 由工具调用 + 标签状态推出卡片要显示的东西（纯函数，任务组头部也用它汇总） */
 export function delegateTab(
   call: ToolCall,
@@ -97,6 +106,8 @@ export function delegateView(
   if (call.status === 'running' || result?.status === 'running') {
     // 工具已返回但后台仍在跑（P2 异步默认）：跟标签实时状态
     if (!tab) phase = call.status === 'running' ? 'confirming' : 'running';
+    // 标签已经出错停下（最终结果还没到）：按出错显示，不再一直「运行中」
+    else if (tab.status === 'error') phase = 'error';
     else phase = tl?.permissions?.length || tab.sandboxPending?.length ? 'waiting' : 'running';
   } else if (result) phase = result.status === 'done' ? 'done' : result.status;
   else phase = error || call.status === 'error' ? 'error' : 'done';
@@ -616,14 +627,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
     // liveResult 故意不进依赖：只在工具输出仍为 running 时挂订阅
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, parsed.result?.status]);
-  const callForView =
-    liveResult && liveResult.status !== 'running'
-      ? {
-          ...call,
-          status: 'done' as const,
-          output: JSON.stringify({ ok: true, data: liveResult }),
-        }
-      : call;
+  const callForView = withDelegateResult(call, liveResult);
   const v = delegateView(callForView, tabMeta, tl);
   const [open, setOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
