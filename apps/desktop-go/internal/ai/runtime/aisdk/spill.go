@@ -4,7 +4,8 @@ package aisdk
 // 每次调用的输出都进上下文、之后每一步都带着：一次读出几万字，后面每一步都为它付费。
 // - 只在内存里存（进程重启后失效，模型重新执行原工具即可），按对话隔离：别的对话读不到。
 // - 原输出带着外发保护认的标记（<file_content> / <command_output> / <web_content>）时，分页读出的每一段也包上
-//   同样的标记：会话换到不允许读文件的模型时，回放保护照样能挡下（desktop/outbound_guard.go）。
+//   同样的标记：会话换到不允许读文件的模型时，回放保护照样能挡下（desktop/outbound_guard.go）；读之前还按这一次的
+//   实际接收者重新检查（tools.CheckDataSend）：换成云端模型后，没被历史保护挡到的分页 id 也读不出正文。
 // - 视图要解析结构的工具（委派结果、生图、计划）不暂存。
 
 import (
@@ -16,6 +17,7 @@ import (
 	"sync"
 	"unicode/utf16"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -136,17 +138,23 @@ const outputReadSchema = `{"type":"object","properties":{` +
 	`"limit":{"type":"integer","minimum":1,"maximum":20000,"description":"how many characters to read (default 8000)"}},` +
 	`"required":["id"],"additionalProperties":false}`
 
-// outputReadTool：分页读暂存的输出（只能读这个对话里的）
-func outputReadTool(conv string) Tool {
+// outputReadTool：分页读暂存的输出（只能读这个对话里的）。recv：这一次实际接收结果的模型
+func outputReadTool(conv string, recv *tools.ToolCallProvider) Tool {
 	desc := "Read part of an earlier tool output that was too long and was cut down; the id and total length are in the truncation note."
 	schema, _ := u.ParseString(outputReadSchema)
 	return Tool{Name: OutputReadTool, Description: &desc, InputSchema: schema,
-		Execute: func(_ context.Context, input any, _ string) (any, error) {
+		Execute: func(ctx context.Context, input any, _ string) (any, error) {
 			in, _ := input.(*u.Obj)
 			id, _ := in.Get("id").(string)
 			e := spills.get(id)
 			if e == nil || (e.conv != "" && e.conv != conv) {
 				return nil, fmt.Errorf("output %q is no longer available (outputs are kept only until Nomi restarts); run the original tool again", id)
+			}
+			// 本地数据（文件 / 命令输出 / 网页）：暂存时的接收者检查过，不代表现在这个接收者也可以读
+			if e.tag != "" {
+				if err := tools.CheckDataSend(ctx, recv); err != nil {
+					return nil, err
+				}
 			}
 			off, limit := 0, spillPageDefault
 			if f, ok := in.Get("offset").(float64); ok && f > 0 {

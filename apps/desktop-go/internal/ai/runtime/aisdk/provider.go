@@ -669,7 +669,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		})
 	}
 	if len(out) > 0 {
-		out = append(out, outputReadTool(spillKey))
+		out = append(out, outputReadTool(spillKey, recv))
 	}
 	return out
 }
@@ -811,6 +811,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			guard.turnBase = len(tp.Messages)
 			if r.Summarize != nil {
 				guard.summarize = func(system, transcript string) (string, error) { return r.Summarize(c, system, transcript) }
+				guard.sendCheck = func() error { return tools.CheckDataSend(c, nil, "summary") }
 			}
 		}
 	}

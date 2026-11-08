@@ -66,11 +66,15 @@ type store struct {
 }
 
 type Service struct {
-	d         Deps
-	mu        sync.Mutex
-	settings  Settings
-	data      store
-	busy      []string
+	d        Deps
+	mu       sync.Mutex
+	settings Settings
+	data     store
+	busy     []string
+	// 删除 / 清空的版本：在途的摘要（Ingest 等模型、等向量时不持锁）提交前比对，变了就整批丢弃，
+	// 删除之前读到的旧内容不会再写回来。clearGen：清空全部；convGen：删掉某段对话的摘要
+	clearGen  int
+	convGen   map[string]int
 	saveTimer *time.Timer
 	lastError string
 }
@@ -314,6 +318,7 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 	}
 	s.busy = append(s.busy, conversationID)
 	busy := append([]string{}, s.busy...)
+	gen := s.genLocked(conversationID)
 	s.mu.Unlock()
 	s.broadcast("mem.status", map[string]any{"busy": busy})
 	t0 := time.Now()
@@ -361,6 +366,10 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 			Keywords: p.Keywords, CreatedAt: now, UpdatedAt: now, MessageCount: total, WindowSig: sig, Since: since}
 	}
 	s.mu.Lock()
+	if s.genLocked(conversationID) != gen {
+		s.mu.Unlock()
+		return s.staleIngest(conversationID)
+	}
 	newFacts := []Fact{}
 	for _, f := range p.Facts {
 		dup := false
@@ -381,6 +390,19 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 	s.embedItems(ctx, eps, newFacts)
 	ep = eps[0]
 	s.mu.Lock()
+	// 等向量期间用户删了这段对话的摘要或清空了记忆：这批结果来自删除之前的内容，丢弃
+	if s.genLocked(conversationID) != gen {
+		s.mu.Unlock()
+		return s.staleIngest(conversationID)
+	}
+	// 等向量期间用户删掉的单条事实：不加回
+	kept := newFacts[:0]
+	for _, f := range newFacts {
+		if !s.data.Forgotten.hasFact(f.Text) {
+			kept = append(kept, f)
+		}
+	}
+	newFacts = kept
 	replaced := false
 	if prev != nil {
 		for i := range s.data.Episodes {
@@ -404,6 +426,24 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 	deps.AvatarGesture(s.d.Events, "nod")
 	v := viewEp(ep)
 	return IngestResult{Episode: &v}, nil
+}
+
+// genLocked：这段对话当前的删除版本（清空全部 + 删摘要）
+func (s *Service) genLocked(conversationID string) [2]int {
+	return [2]int{s.clearGen, s.convGen[conversationID]}
+}
+
+func (s *Service) bumpConvLocked(conversationID string) {
+	if s.convGen == nil {
+		s.convGen = map[string]int{}
+	}
+	s.convGen[conversationID]++
+}
+
+// staleIngest：摘要期间被删除 / 清空，结果不写入
+func (s *Service) staleIngest(conversationID string) (IngestResult, error) {
+	s.audit("memory_summarize", deps.O("conversation", conversationID), "discarded", nil)
+	return IngestResult{Skipped: "forgotten"}, nil
 }
 
 func (s *Service) trimLocked() {
@@ -819,8 +859,9 @@ func (s *Service) Remove(kind, id string) bool {
 				out = append(out, e)
 				continue
 			}
-			// 从这段摘要提炼出的事实一起删、之后不再找回（forgotten.go）
+			// 从这段摘要提炼出的事实一起删、之后不再找回（forgotten.go）；这段对话在途的摘要作废
 			removedFacts = s.forgetEpisodeLocked(e)
+			s.bumpConvLocked(e.ConversationID)
 			if fc != nil {
 				func() { defer func() { _ = recover() }(); fc.DeleteSummary(e.ConversationID) }()
 			}
@@ -874,6 +915,8 @@ func (s *Service) ClearAll() bool {
 		s.data.Forgotten.addFact(f.Text)
 	}
 	s.data = store{V: 1, Episodes: []Episode{}, Facts: []Fact{}, Forgotten: s.data.Forgotten}
+	// 在途的摘要（包括还没有摘要的对话的第一次）作废
+	s.clearGen++
 	s.persistLocked(true)
 	s.mu.Unlock()
 	s.audit("memory_clear", deps.O(), "ok", nil)
