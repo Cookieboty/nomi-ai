@@ -22,6 +22,7 @@ type Facade interface {
 	PutFact(f map[string]any)
 	DeleteFact(id string) bool
 	PutSummary(s map[string]any)
+	DeleteSummary(sessionID string)
 	Profile() any
 	ResetProfile(ctx context.Context) error
 }
@@ -60,6 +61,8 @@ type store struct {
 	V        int       `json:"v"`
 	Episodes []Episode `json:"episodes"`
 	Facts    []Fact    `json:"facts"`
+	// Forgotten：用户删掉的记忆（forgotten.go）：之后从同一段对话再提炼时不再找回来
+	Forgotten Forgotten `json:"forgotten"`
 }
 
 type Service struct {
@@ -96,8 +99,9 @@ func New(d Deps) *Service {
 	}
 	if b, err := os.ReadFile(s.file("memory.json")); err == nil {
 		var raw struct {
-			Episodes any `json:"episodes"`
-			Facts    any `json:"facts"`
+			Episodes  any       `json:"episodes"`
+			Facts     any       `json:"facts"`
+			Forgotten Forgotten `json:"forgotten"`
 		}
 		if deps.UnmarshalLoose(b, &raw) == nil {
 			if arr, ok := raw.Episodes.([]any); ok {
@@ -106,6 +110,7 @@ func New(d Deps) *Service {
 			if arr, ok := raw.Facts.([]any); ok {
 				s.data.Facts = decodeArr[Fact](arr)
 			}
+			s.data.Forgotten = raw.Forgotten
 		}
 	}
 	// 早期没合并的重复事实：加载时并掉，有变化才写回
@@ -269,6 +274,8 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 			all = append(all, m)
 		}
 	}
+	// 用户删过这段对话的摘要：只从删除之后的新消息提炼（forgotten.go）
+	all, since := s.data.Forgotten.since(conversationID, all)
 	total := len(all)
 	clean := all
 	if len(clean) > summaryWindow {
@@ -348,10 +355,10 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 	if prev != nil {
 		ep = *prev
 		ep.Title, ep.Summary, ep.Keywords = p.Title, p.Summary, p.Keywords
-		ep.UpdatedAt, ep.MessageCount, ep.WindowSig, ep.Edited, ep.Vec = now, total, sig, false, ""
+		ep.UpdatedAt, ep.MessageCount, ep.WindowSig, ep.Edited, ep.Vec, ep.Since = now, total, sig, false, "", since
 	} else {
 		ep = Episode{ID: s.d.NewID(), ConversationID: conversationID, Title: p.Title, Summary: p.Summary,
-			Keywords: p.Keywords, CreatedAt: now, UpdatedAt: now, MessageCount: total, WindowSig: sig}
+			Keywords: p.Keywords, CreatedAt: now, UpdatedAt: now, MessageCount: total, WindowSig: sig, Since: since}
 	}
 	s.mu.Lock()
 	newFacts := []Fact{}
@@ -363,7 +370,8 @@ func (s *Service) Ingest(ctx context.Context, conversationID string, msgs []Turn
 				break
 			}
 		}
-		if dup {
+		// 用户删掉过的不再加回
+		if dup || s.data.Forgotten.hasFact(f.Text) {
 			continue
 		}
 		newFacts = append(newFacts, Fact{ID: s.d.NewID(), Kind: f.Kind, Text: f.Text, Source: "distilled", CreatedAt: now, UpdatedAt: now, EpisodeID: ep.ID})
@@ -774,6 +782,8 @@ func (s *Service) UpsertFact(ctx context.Context, input any) (Fact, error) {
 			}
 		}
 	}
+	// 用户自己写的以用户为准：从「已忘记」里拿掉
+	s.data.Forgotten.unforgetFact(text)
 	if found {
 		f.Text, f.Kind, f.Source, f.UpdatedAt, f.Vec = text, kind, "user", now, ""
 	} else {
@@ -800,23 +810,38 @@ func (s *Service) UpsertFact(ctx context.Context, input any) (Fact, error) {
 func (s *Service) Remove(kind, id string) bool {
 	s.mu.Lock()
 	before := len(s.data.Episodes) + len(s.data.Facts)
+	fc := s.d.Facade()
 	if kind == "episode" {
 		out := []Episode{}
+		var removedFacts []string
 		for _, e := range s.data.Episodes {
 			if e.ID != id {
 				out = append(out, e)
+				continue
+			}
+			// 从这段摘要提炼出的事实一起删、之后不再找回（forgotten.go）
+			removedFacts = s.forgetEpisodeLocked(e)
+			if fc != nil {
+				func() { defer func() { _ = recover() }(); fc.DeleteSummary(e.ConversationID) }()
 			}
 		}
 		s.data.Episodes = out
+		if fc != nil {
+			for _, fid := range removedFacts {
+				func() { defer func() { _ = recover() }(); fc.DeleteFact(fid) }()
+			}
+		}
 	} else {
 		out := []Fact{}
 		for _, f := range s.data.Facts {
 			if f.ID != id {
 				out = append(out, f)
+				continue
 			}
+			s.data.Forgotten.addFact(f.Text)
 		}
 		s.data.Facts = out
-		if fc := s.d.Facade(); fc != nil {
+		if fc != nil {
 			func() { defer func() { _ = recover() }(); fc.DeleteFact(id) }()
 		}
 	}
@@ -838,7 +863,17 @@ func (s *Service) ClearAll() bool {
 			func() { defer func() { _ = recover() }(); fc.DeleteFact(f.ID) }()
 		}
 	}
-	s.data = store{V: 1, Episodes: []Episode{}, Facts: []Fact{}}
+	// 清空：已有的对话之后只从新消息提炼，删掉的事实不再找回
+	for _, e := range s.data.Episodes {
+		s.forgetEpisodeLocked(e)
+		if fc := s.d.Facade(); fc != nil {
+			func() { defer func() { _ = recover() }(); fc.DeleteSummary(e.ConversationID) }()
+		}
+	}
+	for _, f := range s.data.Facts {
+		s.data.Forgotten.addFact(f.Text)
+	}
+	s.data = store{V: 1, Episodes: []Episode{}, Facts: []Fact{}, Forgotten: s.data.Forgotten}
 	s.persistLocked(true)
 	s.mu.Unlock()
 	s.audit("memory_clear", deps.O(), "ok", nil)
