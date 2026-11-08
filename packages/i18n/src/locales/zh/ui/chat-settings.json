@@ -521,5 +521,9 @@
   "ui.chat-settings.conversation-font-large": "较大",
   "ui.chat-settings.conversation-font-xlarge": "特大",
   "ui.chat-settings.more-themes": "更多主题（{0}）",
-  "ui.chat-settings.permissions-and-handoff": "权限与委派"
+  "ui.chat-settings.permissions-and-handoff": "权限与委派",
+  "ui.chat-settings.open-project-in-terminal": "在终端打开当前项目",
+  "ui.chat-settings.open-terminal-no-project": "这个会话没有项目目录，先选一个工作区",
+  "ui.chat-settings.open-terminal-not-found": "没找到可以打开的终端程序",
+  "ui.chat-settings.open-terminal-denied": "这个目录不能在终端里打开（{0}）"
 }

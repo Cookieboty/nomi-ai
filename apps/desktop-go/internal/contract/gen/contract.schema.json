@@ -18565,6 +18565,27 @@
     ]
    }
   },
+  "harness.openTerminal": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cwd"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "harness.permissionDefaults": {
    "kind": "mutation",
    "dangerous": false,
@@ -36258,6 +36279,8 @@
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
   "FLEET_NOT_IDLE",
+  "TERMINAL_CWD_DENIED",
+  "TERMINAL_NOT_FOUND",
   "FLEET_CLOSE_DENIED",
   "FLEET_CLOSE_FAILED",
   "FLEET_NOT_PAUSABLE",

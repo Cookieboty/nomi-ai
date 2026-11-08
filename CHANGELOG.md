@@ -745,6 +745,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 新增「设置 → 隐私与权限 → 诊断日志」：打开后记录编程助手子进程的收发原文（按标签分组）和网关的请求 / 响应正文，全部脱敏、只存在本机（收发记录 7 天、网关正文 24 小时后删除），开发版始终记录。用量面板原来的「调试模式」并入这个开关（升级时沿用原状态），「最近请求」里显示每个请求的追踪 id，可与网关响应头 `x-nomi-trace-id` 和追踪文件对应。可以一键打开日志文件夹，或把最近 24 小时的日志导出成诊断包（导出前再脱敏一遍；包含对话内容）。 (`@nomi-ai/ai-chat` minor)
 - 新增「豆包流式语音识别 2.0（云端，自带 API Key）」识别引擎（#61），与本地 whisper.cpp、OpenAI 兼容服务并存，默认仍为离线。主进程按官方 WebSocket 二进制协议（bigmodel_async，X-Api-Key + 2.0 资源 ID）流式识别：临时结果只回给发起窗口，最终结果只交付一次；建连阶段对断网 / 5xx / 限流 / 繁忙有限重试，发出音频后不重连不重发；鉴权、未开通、额度、超时等错误给出可操作提示。API Key 用 safeStorage 加密单独保存（不可用时拒绝保存，不进 settings.json / 导出 / 日志）；单独的云端同意，「仅本地模型」在建连前和每次推音频时检查；可选失败后回退到已安装的本地模型。用户主动的「测试连接」只鉴权不发音频。ASR seam 的 VolcAsrProvider 同步改为真实实现。新增依赖 ws（MIT）。真实接口未验证，仅 mock WebSocket 测试。 (`@nomi-ai/desktop-go` minor)
 - 新增契约 `chatAssets.import`：对话里用户发的图片原图存进素材库（`user-…`，来源「你发送的」），返回 chat-asset 地址，可交给 image_generate 的 edit_image / reference_images；超过 20 MB 或文件头与格式不符的拒绝。Node 版与 Go 版同步。 (`@nomi-ai/desktop-go` patch)
+- 新增快捷键「在终端打开当前项目」：macOS ⇧⌘C，Windows / Linux Ctrl+Shift+C（可在设置里改）。在当前会话的项目目录打开终端（macOS 终端、Windows Terminal 或 PowerShell、Linux 常见终端）；没有项目目录或目录不符合工作区规则时给出提示。 (`@nomi-ai/desktop-go` patch)
 - 新增本地统一网关进程（为一个第三方供应商同时服务 Nomi 对话和各编程助手做准备）：随应用在独立进程里启动，只监听本机；首次启动时把已有的 Nomi 供应商和编程助手第三方供应商复制到新的网关存储（Key 加密保存），原有配置文件不改动，现有功能照旧使用原配置。 (`@nomi-ai/desktop-go` minor)
 - 新增界面模式「精简 / 全量」（设置 → 通用 → 外观，新手引导里也能选）：精简模式隐藏工作台顶部的对话标签条与侧栏底部的编程助手信息卡，顶栏只显示当前会话标题，在侧栏里切换会话；全量模式与之前一致（默认）。助手模式不受影响。 (`@nomi-ai/ai-chat` minor)
 - 新增知识库引用按钮无障碍标签的英文翻译（#65）。 (`@nomi-ai/ui` patch)

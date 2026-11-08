@@ -521,5 +521,9 @@
   "ui.chat-settings.conversation-font-large": "Large",
   "ui.chat-settings.conversation-font-xlarge": "Extra large",
   "ui.chat-settings.more-themes": "More themes ({0})",
-  "ui.chat-settings.permissions-and-handoff": "Permissions & handoff"
+  "ui.chat-settings.permissions-and-handoff": "Permissions & handoff",
+  "ui.chat-settings.open-project-in-terminal": "Open project in terminal",
+  "ui.chat-settings.open-terminal-no-project": "This conversation has no project folder; pick a workspace first",
+  "ui.chat-settings.open-terminal-not-found": "No terminal app found to open",
+  "ui.chat-settings.open-terminal-denied": "This folder can't be opened in a terminal ({0})"
 }

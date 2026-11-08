@@ -35,7 +35,8 @@ export type ShortcutId =
   | 'closeTab'
   | 'nextTab'
   | 'prevTab'
-  | 'renameTab';
+  | 'renameTab'
+  | 'openTerminal';
 
 export interface ShortcutDef {
   id: ShortcutId;
@@ -43,6 +44,10 @@ export interface ShortcutDef {
   label: string;
   combo: string;
 }
+
+export const isMac = (): boolean =>
+  typeof navigator !== 'undefined' &&
+  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'palette', label: 'ui.mascot-theme.command-palette', combo: 'Mod+K' },
@@ -61,6 +66,8 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'nextTab', label: 'ui.mascot-theme.next-tab', combo: 'Ctrl+Tab' },
   { id: 'prevTab', label: 'ui.cli-monitor.previous-tab', combo: 'Ctrl+Shift+Tab' },
   { id: 'renameTab', label: 'ui.cli-monitor.rename-tab', combo: 'Mod+Shift+R' },
+  // macOS ⇧⌘C，其他平台 Ctrl+Shift+C
+  { id: 'openTerminal', label: 'ui.chat-settings.open-project-in-terminal', combo: 'Mod+Shift+C' },
 ];
 
 /** 不可改绑、仅展示的按键 */
@@ -92,10 +99,6 @@ export const RESERVED: Record<string, string> = {
 
 const STORE_KEY = 'nomi.shortcuts.v1';
 const EVT = 'nomi:shortcuts-changed';
-
-export const isMac = (): boolean =>
-  typeof navigator !== 'undefined' &&
-  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 function loadOverrides(): Partial<Record<ShortcutId, string>> {
   try {

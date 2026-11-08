@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 442：mutation 312 / query 125 / stream 5
+// 合计 443：mutation 313 / query 125 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -212,6 +212,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.pickCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.pickDir", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -545,4 +546,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "FLEET_NOT_IDLE", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED"}

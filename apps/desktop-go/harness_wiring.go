@@ -21,6 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -194,6 +195,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
+	codinghandlers.RegisterOpenTerminal(router, cwdCheck, terminal.OpenAt)
 	jsrt.Go(func() { plugins.Start() })
 	return plugins, func() {
 		jsrt.Run(func() {

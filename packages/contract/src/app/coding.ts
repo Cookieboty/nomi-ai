@@ -350,6 +350,16 @@ const harnessProcedures = {
    * 回答沙箱挡下后挂在标签上的授权请求（标签状态的 sandboxPending）：session = 本会话允许、
    * always = 始终允许（记进桌面设置）、deny = 不允许（本会话不再问）；允许后这个标签的 CLI 重开并接着做
    */
+  /**
+   * 在 cwd 打开一个新的终端窗口（会话里的「在终端打开当前项目」快捷键）。cwd 由视图带来，内核按编程助手工作目录
+   * 同一套规则再校验（不能过宽、不能在受保护文件夹里），不认时 TERMINAL_CWD_DENIED；本机找不到终端程序时
+   * TERMINAL_NOT_FOUND。只启动终端，不在里面执行任何命令
+   */
+  'harness.openTerminal': {
+    kind: 'mutation',
+    input: z.object({ cwd: z.string() }),
+    output: z.boolean(),
+  },
   'harness.sandboxReply': {
     kind: 'mutation',
     dangerous: true,
@@ -627,6 +637,10 @@ export const codingErrors = [
   'ACCOUNT_UNKNOWN_LIVE',
   /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
   'FLEET_NOT_IDLE',
+  /** harness.openTerminal：目录不符合工作目录规则（过宽、受保护、不存在） */
+  'TERMINAL_CWD_DENIED',
+  /** harness.openTerminal：本机找不到能打开的终端程序 */
+  'TERMINAL_NOT_FOUND',
   /** fleet.closeIdle：没有权限结束它（Windows 上多半是在以管理员身份运行的终端里开的） */
   'FLEET_CLOSE_DENIED',
   /** fleet.closeIdle：其他原因结束不了（message 里是系统给的原因） */

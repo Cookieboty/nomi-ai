@@ -5400,6 +5400,10 @@ type HarnessModelCatalogOutput struct {
 	Models  []HarnessModelCatalogOutputModelsItem `json:"models"`
 }
 
+type HarnessOpenTerminalInput struct {
+	Cwd string `json:"cwd"`
+}
+
 type HarnessPermissionDefaultsInput struct {
 	DefaultPermissionMode *string `json:"defaultPermissionMode,omitempty"`
 	CodexNetwork          *bool   `json:"codexNetwork,omitempty"`
@@ -11550,6 +11554,10 @@ type HarnessGitWorktreesOutputT = *HarnessGitWorktreesOutput
 // HarnessModelCatalogInputT 是 harness.modelCatalog 的入参
 type HarnessModelCatalogInputT = HarnessModelCatalogInput
 type HarnessModelCatalogOutputT = *HarnessModelCatalogOutput
+
+// HarnessOpenTerminalInputT 是 harness.openTerminal 的入参
+type HarnessOpenTerminalInputT = HarnessOpenTerminalInput
+type HarnessOpenTerminalOutputT = bool
 
 // HarnessPermissionDefaultsInputT 是 harness.permissionDefaults 的入参
 type HarnessPermissionDefaultsInputT = HarnessPermissionDefaultsInput
