@@ -12,12 +12,12 @@ func TestPolicy(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fleet.json")
 	var applied []Policy
 	s := New(Deps{SettingsPath: path, ApplyPolicy: func(p Policy) { applied = append(applied, p) }})
-	if p := s.Policy(); p.Mode != "balanced" || p.MaxParallel != 5 {
+	if p := s.Policy(); p.Mode != "balanced" || p.MaxParallel != 10 {
 		t.Fatalf("default %+v", p)
 	}
 	s.SetAutoPause(false)
 	st := s.SetPolicy("saver")
-	if st.Policy.Mode != "saver" || st.Policy.MaxParallel != 3 {
+	if st.Policy.Mode != "saver" || st.Policy.MaxParallel != 5 {
 		t.Fatalf("state %+v", st.Policy)
 	}
 	if len(applied) != 1 || applied[0].Mode != "saver" {

@@ -270,7 +270,7 @@
   "ui.cli-monitor.fleet-updated": "Active {0}",
   "ui.cli-monitor.fleet-usage-in-kernel": "Runs inside {0}",
   "ui.cli-monitor.fleet-policy": "Dispatch policy",
-  "ui.cli-monitor.fleet-policy-hint": "How many coding agents and background tasks {0} runs at once; extra work waits in line",
+  "ui.cli-monitor.fleet-policy-hint": "How many coding agents and background tasks {0} runs at once in total; extra work waits in line. Your own tabs and terminal sessions don't count",
   "ui.cli-monitor.fleet-policy-saver": "Save resources",
   "ui.cli-monitor.fleet-policy-balanced": "Balanced",
   "ui.cli-monitor.fleet-policy-max": "Full speed",

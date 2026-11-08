@@ -89,16 +89,18 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 
 ## 调度策略
 
-`internal/core/fleet/policy.go`。Nomi 同时派出去跑的编程助手 / 后台任务的上限，用户在看板底部三选一（`fleet.setPolicy`，
+`internal/core/fleet/policy.go`。Nomi 派出去的编程助手与后台任务合计同时运行的上限，用户在看板底部三选一（`fleet.setPolicy`，
 和自动处理开关一起存在 `fleet/settings.json`），立即生效：
 
 | 档位            | 同时运行                                                                   |
 | --------------- | -------------------------------------------------------------------------- |
-| 省资源 `saver`  | 最多 3 个                                                                  |
-| 均衡 `balanced` | 最多 5 个（默认）                                                          |
+| 省资源 `saver`  | 合计最多 5 个                                                              |
+| 均衡 `balanced` | 合计最多 10 个（默认）                                                     |
 | 全速 `max`      | 不限个数：内存压力偏高 / 紧张、或整机 CPU ≥ 85% 时新的排队，缓下来自动开始 |
 
-「同时运行」同时管委派（`delegate.SetMaxParallel`）与持续任务（`tasks.Runtime.SetMaxConcurrent`）。固定上限的两档超出的排队
+「同时运行」是同步委派与持续任务（含后台委派）的合计：两边都设成这个数（`delegate.SetMaxParallel` /
+`tasks.Runtime.SetMaxConcurrent`），各自判断时把对方在跑的算进来（`SetSharedLoad`，读对方的原子计数，不拿对方的锁），
+一边空出名额就让另一边再排一次队（`SetOnFreed`）。用户自己开的标签、外部终端 / IDE 里的会话不算。固定上限的两档超出的排队
 （看板「待进行」标 `queueReason: slot`），不拒绝；调小时正在跑的不打断，调大时排队的马上开始。全速档按资源扣着
 （`Holding`，不看自动处理开关；整机 CPU 由内存守护每 5 秒用 `agents.SystemCPU` 的计数差算），排队原因写 `memory` / `cpu`；
 前台对话里的同步委派这时返回 `memory_pressure`。持续任务每小时最多启动 30 次的防失控上限不随档位变。档位与数值由内核在

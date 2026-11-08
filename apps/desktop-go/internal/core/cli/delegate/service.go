@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
@@ -170,6 +171,11 @@ type Service struct {
 	order    []string
 	tasks    map[string]*bgTask
 	reserved int
+	// running：正在跑的同步委派 + 已占的名额（running + reserved），给持续任务那边合计上限用（不用拿 mu）
+	running atomic.Int32
+	// sharedLoad：同一个上限里别处在跑的（持续任务）；onFreed：名额空出来时通知别处再排一次队
+	sharedLoad atomic.Pointer[func() int]
+	onFreed    atomic.Pointer[func()]
 	// waiters：排队等名额的同步委派 / 追问（先来先得）；放行时名额已经替它占好
 	waiters []chan struct{}
 	persist sync.Mutex
@@ -365,6 +371,38 @@ func (s *Service) setTask(t *bgTask) {
 		s.order = append(s.order, t.id())
 	}
 	s.tasks[t.id()] = t
+	s.noteLoadLocked()
+}
+
+// SetSharedLoad：委派与持续任务共用一个同时运行上限（调度策略）；f 返回持续任务那边在跑的个数，须不拿锁
+func (s *Service) SetSharedLoad(f func() int) { s.sharedLoad.Store(&f) }
+
+// SetOnFreed：委派的名额空出来时调（放行持续任务那边排队的）；在新的 goroutine 里调
+func (s *Service) SetOnFreed(f func()) { s.onFreed.Store(&f) }
+
+// Load：正在跑的同步委派 + 已占的名额（不拿锁）
+func (s *Service) Load() int { return int(s.running.Load()) }
+
+func (s *Service) shared() int {
+	if f := s.sharedLoad.Load(); f != nil {
+		return (*f)()
+	}
+	return 0
+}
+
+// noteLoadLocked：重算 load；变少了就通知别处。调用方持有 s.mu。
+func (s *Service) noteLoadLocked() {
+	n := s.reserved
+	for _, t := range s.tasks {
+		if t.status() == "running" {
+			n++
+		}
+	}
+	if old := s.running.Swap(int32(n)); int32(n) < old {
+		if f := s.onFreed.Load(); f != nil {
+			go (*f)()
+		}
+	}
 }
 
 func isPersistedBgTask(v any) bool {
@@ -1592,15 +1630,10 @@ func (s *Service) approvalsOf(taskID string) *util.Obj {
 	return approvalsZero()
 }
 
-// slotFreeLocked：running 任务 + 已占名额还没到上限。调用方持有 s.mu。
+// slotFreeLocked：running 任务 + 已占名额 + 持续任务那边在跑的，还没到上限（调度策略是两边合计）。调用方持有 s.mu。
 func (s *Service) slotFreeLocked() bool {
-	running := 0
-	for _, t := range s.tasks {
-		if t.status() == "running" {
-			running++
-		}
-	}
-	return running+s.reserved < maxParallel()
+	s.noteLoadLocked()
+	return int(s.running.Load())+s.shared() < maxParallel()
 }
 
 // WakeSlots：上限调大后放行排队的委派
@@ -1616,6 +1649,7 @@ func (s *Service) wakeSlotWaitersLocked() {
 		ch := s.waiters[0]
 		s.waiters = s.waiters[1:]
 		s.reserved++
+		s.noteLoadLocked()
 		close(ch)
 	}
 }
@@ -1626,6 +1660,7 @@ func (s *Service) slotReleaser() func() {
 		once.Do(func() {
 			s.mu.Lock()
 			s.reserved--
+			s.noteLoadLocked()
 			s.wakeSlotWaitersLocked()
 			s.mu.Unlock()
 		})
@@ -1638,10 +1673,11 @@ func (s *Service) reserveSlot(sig context.Context, wait bool) (func(), error) {
 	s.mu.Lock()
 	if !wait && !s.slotFreeLocked() {
 		s.mu.Unlock()
-		return nil, derr("concurrency_limit", "同时运行的委派已达上限（"+strconv.Itoa(maxParallel())+"）。等其中一个完成后再派，或用 delegate_status 查看进度")
+		return nil, derr("concurrency_limit", "同时运行的委派与后台任务已达上限（合计 "+strconv.Itoa(maxParallel())+" 个，见 Agent 看板的调度策略）。等其中一个完成后再派，或用 delegate_status 查看进度")
 	}
 	if s.slotFreeLocked() && len(s.waiters) == 0 {
 		s.reserved++
+		s.noteLoadLocked()
 		s.mu.Unlock()
 		return s.slotReleaser(), nil
 	}
@@ -1669,6 +1705,7 @@ func (s *Service) reserveSlot(sig context.Context, wait bool) (func(), error) {
 	if !queued {
 		// 刚好被放行：把替它占的名额还回去
 		s.reserved--
+		s.noteLoadLocked()
 		s.wakeSlotWaitersLocked()
 	}
 	s.mu.Unlock()
@@ -1725,6 +1762,7 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	task.o.Set("result", util.Undefined)
 	task.ctx = c
 	task.o.Set("startedAt", t0)
+	s.noteLoadLocked()
 	s.persistTasks()
 	s.mu.Unlock()
 	// 记成 running 后由它自己计数，占的名额还回去（不重复计）

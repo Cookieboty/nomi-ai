@@ -270,7 +270,7 @@
   "ui.cli-monitor.fleet-updated": "{0}有动静",
   "ui.cli-monitor.fleet-usage-in-kernel": "跑在 {0} 内核里",
   "ui.cli-monitor.fleet-policy": "调度策略",
-  "ui.cli-monitor.fleet-policy-hint": "{0} 同时派出去跑的编程助手与后台任务数，超出的排队等候",
+  "ui.cli-monitor.fleet-policy-hint": "{0} 派出去的编程助手与后台任务合计同时运行的上限，超出的排队等候；你自己开的标签、终端里的会话不算",
   "ui.cli-monitor.fleet-policy-saver": "省资源",
   "ui.cli-monitor.fleet-policy-balanced": "均衡",
   "ui.cli-monitor.fleet-policy-max": "全速",
