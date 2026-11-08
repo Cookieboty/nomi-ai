@@ -5,6 +5,7 @@
  * 两个入口共用一份数据（useFleet）：看板或浮层开着时 3 秒刷新占用，平时 15 秒，窗口隐藏时不刷新。
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { isContractError } from '@nomi-ai/contract';
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { Gauge } from 'lucide-react';
@@ -37,7 +38,7 @@ import { SideNavItem } from '../Sidebar/SideNavItem';
 import { agentTitle } from './AgentCard';
 import styles from './Fleet.module.css';
 import { FleetIndicator } from './FleetIndicator';
-import { FleetPage } from './FleetPage';
+import { FleetPage, type IdleCloseError } from './FleetPage';
 import { useFleet } from './useFleet';
 
 export const FleetNav: React.FC<{
@@ -165,7 +166,11 @@ export function useFleetHost(collapsed: boolean) {
         .catch(() => reload()),
     [apply, reload],
   );
-  /** 手动关闭空闲的外部进程：先确认；内核发现它已经不是空闲进程时只刷新列表 */
+  /**
+   * 手动关闭空闲的外部进程：先确认；没关掉时在列表下面写清楚为什么（没有权限、已经不是空闲进程、其他原因），
+   * 不再只是静默刷新
+   */
+  const [idleError, setIdleError] = useState<IdleCloseError | null>(null);
   const closeIdle = useCallback(
     async (it: FleetIdleItem) => {
       const name = isBuiltinCliId(it.backend) ? t(ENDPOINT_NAME[it.backend]) : it.backend;
@@ -173,10 +178,24 @@ export function useFleetHost(collapsed: boolean) {
         message: t('ui.cli-monitor.fleet-close-idle-confirm', name, it.pid, brand.appName),
       });
       if (!ok) return;
+      setIdleError(null);
       await fleetApi
         .closeIdle(it)
         .then(apply)
-        .catch(() => reload());
+        .catch((e: unknown) => {
+          const reason = isContractError(e, 'FLEET_CLOSE_DENIED')
+            ? 'denied'
+            : isContractError(e, 'FLEET_NOT_IDLE')
+              ? 'gone'
+              : 'failed';
+          setIdleError({
+            pid: it.pid,
+            backend: it.backend,
+            reason,
+            detail: e instanceof Error ? e.message : String(e),
+          });
+          reload();
+        });
     },
     [apply, reload],
   );
@@ -226,6 +245,7 @@ export function useFleetHost(collapsed: boolean) {
         onArchive={archive}
         onCloseTab={(a) => void closeTab(a)}
         onCloseIdle={(it) => void closeIdle(it)}
+        idleError={idleError}
         onPause={pause}
         onResume={resume}
         onSetAutoPause={setAutoPause}

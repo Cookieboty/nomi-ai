@@ -519,7 +519,8 @@ const fleetProcedures = {
   },
   /**
    * 用户手动关闭一棵空闲的外部编程助手进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
-   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE。调度从不调用。
+   * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE，没有权限结束时
+   * FLEET_CLOSE_DENIED，其他原因结束不了时 FLEET_CLOSE_FAILED。调度从不调用。
    */
   'fleet.closeIdle': {
     kind: 'mutation',
@@ -626,6 +627,10 @@ export const codingErrors = [
   'ACCOUNT_UNKNOWN_LIVE',
   /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
   'FLEET_NOT_IDLE',
+  /** fleet.closeIdle：没有权限结束它（Windows 上多半是在以管理员身份运行的终端里开的） */
+  'FLEET_CLOSE_DENIED',
+  /** fleet.closeIdle：其他原因结束不了（message 里是系统给的原因） */
+  'FLEET_CLOSE_FAILED',
   /** fleet.pause / resume：不能暂停或恢复（外部的、内核里跑的、没在跑、或已经是这个状态） */
   'FLEET_NOT_PAUSABLE',
 ] as const satisfies readonly string[];

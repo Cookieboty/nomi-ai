@@ -265,6 +265,30 @@ describe('FleetPage', () => {
     expect(onCloseIdle).toHaveBeenCalledWith(state.externalIdle.items[2]);
   });
 
+  it('says why an idle process was not closed (no permission on Windows, no longer idle)', () => {
+    const view = render(
+      <FleetPage
+        active
+        state={state}
+        onBack={() => undefined}
+        onCloseIdle={() => undefined}
+        idleError={{ pid: 3076, backend: 'codex', reason: 'denied' }}
+      />,
+    );
+    const msg = screen.getByTestId('fleet-close-idle-error').textContent ?? '';
+    expect(msg).toContain('3076');
+    expect(msg).toContain('管理员');
+    view.rerender(
+      <FleetPage
+        active
+        state={state}
+        onBack={() => undefined}
+        idleError={{ pid: 3076, backend: 'codex', reason: 'gone' }}
+      />,
+    );
+    expect(screen.getByTestId('fleet-close-idle-error').textContent).toContain('已经不是空闲进程');
+  });
+
   it('has no idle list when there are no idle processes', () => {
     const none = { ...state, externalIdle: { processes: 0, rssBytes: 0, items: [] } };
     render(<FleetPage active state={none} onBack={() => undefined} />);

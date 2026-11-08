@@ -1,6 +1,9 @@
 package fleet
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"strconv"
 	"strings"
 	"sync"
@@ -450,5 +453,62 @@ func TestCloseIdleSkipsReusedPid(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
 		t.Fatalf("kills = %v: a reused pid must not get SIGKILL", kills)
+	}
+}
+
+// Windows：读进程表要跑 PowerShell，可能超时。关闭前重新读失败时用上一份核对，照样能关
+func TestCloseIdleWhenTheRereadFails(t *testing.T) {
+	var log killLog
+	in := baseInput()
+	tick := time.UnixMilli(in.Now)
+	var mu sync.Mutex
+	reads := 0
+	s := New(Deps{
+		SelfPid: 100,
+		Now: func() time.Time {
+			mu.Lock()
+			defer mu.Unlock()
+			tick = tick.Add(2 * time.Second)
+			return tick
+		},
+		ReadProcs: func() *agents.ProcTable {
+			mu.Lock()
+			defer mu.Unlock()
+			reads++
+			if reads > 1 {
+				return nil // 第一次之后都读不到
+			}
+			return procs(tick, 2)
+		},
+		Tabs:      func() []Tab { return in.Tabs },
+		External:  func() ([]ExtSession, map[float64]string) { return in.External, in.ExtCwd },
+		Kill:      func(pid int, sig string) error { log.add(sig + ":" + strconv.Itoa(pid)); return nil },
+		KillGrace: time.Hour,
+	})
+	if len(s.State().ExternalIdle.Items) == 0 {
+		t.Fatal("setup: no idle items")
+	}
+	if _, err := s.CloseIdle(220, "codex"); err != nil {
+		t.Fatalf("CloseIdle with a failed re-read = %v", err)
+	}
+	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
+		t.Fatalf("kills = %v", kills)
+	}
+}
+
+// 结束不了根进程（Windows 上以管理员身份运行的）：告诉用户没有权限，而不是当成「已经不是空闲进程」
+func TestCloseIdleReportsAccessDenied(t *testing.T) {
+	var log killLog
+	s := closeIdleService(t, &log)
+	s.d.Kill = func(pid int, sig string) error {
+		log.add(sig + ":" + strconv.Itoa(pid))
+		return fmt.Errorf("OpenProcess: %w", fs.ErrPermission)
+	}
+	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseDenied) {
+		t.Fatalf("CloseIdle = %v, want ErrCloseDenied", err)
+	}
+	s.d.Kill = func(int, string) error { return errors.New("boom") }
+	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseFailed) {
+		t.Fatalf("CloseIdle = %v, want ErrCloseFailed", err)
 	}
 }

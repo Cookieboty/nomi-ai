@@ -276,5 +276,8 @@
   "ui.cli-monitor.fleet-policy-max": "Full speed",
   "ui.cli-monitor.fleet-policy-cap": "Up to {0} at once",
   "ui.cli-monitor.fleet-policy-auto": "No limit; starts work as CPU and memory allow",
-  "ui.cli-monitor.fleet-held-cpu": "CPU is busy; queued, starts when it calms down"
+  "ui.cli-monitor.fleet-held-cpu": "CPU is busy; queued, starts when it calms down",
+  "ui.cli-monitor.fleet-close-idle-denied": "Couldn't close {0} (process {1}): no permission. It was probably started from a terminal running as administrator; quit it from that terminal.",
+  "ui.cli-monitor.fleet-close-idle-gone": "{0} (process {1}) is no longer idle: it may have just exited or started a session. The list has been refreshed.",
+  "ui.cli-monitor.fleet-close-idle-failed": "Couldn't close {0} (process {1})"
 }

@@ -615,3 +615,10 @@
   flex: 1;
   min-width: 0;
 }
+
+/* 关闭空闲进程没成功：列表下面一行说明 */
+.idleError {
+  margin: 0;
+  color: var(--cd-color-warning);
+  font-size: var(--cd-font-size-sm);
+}

@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"errors"
+	"fmt"
+	"io/fs"
 	"sync"
 	"time"
 
@@ -61,12 +63,22 @@ const CloseIdleGrace = 3 * time.Second
 // ErrNotIdle：要关的进程已经不是空闲的外部编程助手（退出了、开始跑会话了、pid 被别的程序复用了）
 var ErrNotIdle = errors.New("FLEET_NOT_IDLE")
 
+// ErrCloseDenied：没有权限结束它（Windows：以管理员身份运行的终端里开的）；ErrCloseFailed：其他原因结束不了
+var (
+	ErrCloseDenied = errors.New("FLEET_CLOSE_DENIED")
+	ErrCloseFailed = errors.New("FLEET_CLOSE_FAILED")
+)
+
 type Service struct {
 	d Deps
 
-	mu       sync.Mutex
-	cur      *agents.ProcTable
-	prev     *agents.ProcTable
+	mu   sync.Mutex
+	cur  *agents.ProcTable
+	prev *agents.ProcTable
+	// readMu：同一时间只读一次进程表（Windows 上要跑一次 PowerShell，几秒；看板 3 秒刷新时不叠着起好几个）
+	readMu sync.Mutex
+	// force：下次 sample 必须重新读（fresh）；读不到时仍用上一份，不把缓存清空
+	force    bool
 	archived map[string]int64
 	timer    *time.Timer
 	closed   bool
@@ -88,8 +100,21 @@ func New(d Deps) *Service {
 
 // sample：取进程表（SampleTTL 内复用上一次）；返回本次与上一次
 func (s *Service) sample() (cur, prev *agents.ProcTable) {
+	fresh := func() bool {
+		return s.cur != nil && !s.force && s.d.Now().Sub(s.cur.At) < SampleTTL
+	}
 	s.mu.Lock()
-	if s.cur != nil && s.d.Now().Sub(s.cur.At) < SampleTTL {
+	if fresh() {
+		cur, prev = s.cur, s.prev
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	// 等别人读完时，那一份可能已经够新了
+	s.mu.Lock()
+	if fresh() {
 		cur, prev = s.cur, s.prev
 		s.mu.Unlock()
 		return
@@ -102,6 +127,7 @@ func (s *Service) sample() (cur, prev *agents.ProcTable) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if t != nil {
+		s.force = false
 		if s.cur == nil || t.At.After(s.cur.At) {
 			s.prev, s.cur = s.cur, t
 		}
@@ -212,11 +238,11 @@ func (s *Service) Archive(id string) State {
 }
 
 // fresh：丢掉采样缓存，下一次 State 重新读进程表
+// 读不到新的（Windows 上 PowerShell 超时等）时仍用上一份：关闭时照样能核对 pid 与命令行，不会因为一次读失败就
+// 当成「已经不是空闲进程」
 func (s *Service) fresh() {
 	s.mu.Lock()
-	if s.cur != nil {
-		s.prev, s.cur = s.cur, nil
-	}
+	s.force = true
 	s.mu.Unlock()
 }
 
@@ -250,8 +276,20 @@ func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 			cmds[p] = rp.Cmd
 		}
 	}
+	var rootErr error
 	for i := len(tree) - 1; i >= 0; i-- {
-		_ = s.d.Kill(int(tree[i]), "SIGTERM")
+		if err := s.d.Kill(int(tree[i]), "SIGTERM"); err != nil && tree[i] == pid {
+			rootErr = err
+		}
+	}
+	// 根进程都结束不了（Windows 上多半是它以管理员身份运行，Nomi 没有权限）：直接告诉用户，不再补刀
+	if rootErr != nil {
+		s.fresh()
+		st := s.State()
+		if errors.Is(rootErr, fs.ErrPermission) {
+			return st, fmt.Errorf("%w: %v", ErrCloseDenied, rootErr)
+		}
+		return st, fmt.Errorf("%w: %v", ErrCloseFailed, rootErr)
 	}
 	grace := s.d.KillGrace
 	if grace == 0 {

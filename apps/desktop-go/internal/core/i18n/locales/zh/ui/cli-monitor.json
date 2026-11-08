@@ -276,5 +276,8 @@
   "ui.cli-monitor.fleet-policy-max": "全速",
   "ui.cli-monitor.fleet-policy-cap": "同时最多 {0} 个",
   "ui.cli-monitor.fleet-policy-auto": "不限个数，按 CPU 与内存放行",
-  "ui.cli-monitor.fleet-held-cpu": "CPU 很忙，排队中，缓下来后自动开始"
+  "ui.cli-monitor.fleet-held-cpu": "CPU 很忙，排队中，缓下来后自动开始",
+  "ui.cli-monitor.fleet-close-idle-denied": "没关掉 {0}（进程 {1}）：没有权限结束它。它可能是在以管理员身份运行的终端里开的，请在那个终端里退出它。",
+  "ui.cli-monitor.fleet-close-idle-gone": "{0}（进程 {1}）已经不是空闲进程了：可能刚退出，或者开始跑会话了。列表已刷新。",
+  "ui.cli-monitor.fleet-close-idle-failed": "没关掉 {0}（进程 {1}）"
 }

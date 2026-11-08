@@ -27,10 +27,25 @@ import styles from './Fleet.module.css';
 const backendName = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b);
 
 /** 空闲进程单独一个列表：每个一行，可以手动关闭（只读之外唯一的操作，用户点了才做） */
+/** 关闭空闲进程没成功：哪一个、为什么（denied 没有权限 / gone 已经不是空闲进程 / failed 其他） */
+export interface IdleCloseError {
+  pid: number;
+  backend: string;
+  reason: 'denied' | 'gone' | 'failed';
+  detail?: string;
+}
+
+const IDLE_ERROR_LABEL: Record<IdleCloseError['reason'], string> = {
+  denied: 'ui.cli-monitor.fleet-close-idle-denied',
+  gone: 'ui.cli-monitor.fleet-close-idle-gone',
+  failed: 'ui.cli-monitor.fleet-close-idle-failed',
+};
+
 const IdleList: React.FC<{
   state: FleetState;
   onCloseIdle?: (item: FleetIdleItem) => void;
-}> = ({ state, onCloseIdle }) => {
+  error?: IdleCloseError | null;
+}> = ({ state, onCloseIdle, error }) => {
   const items = state.externalIdle.items;
   if (!items.length) return null;
   const app = brand.appName;
@@ -80,6 +95,12 @@ const IdleList: React.FC<{
           </li>
         ))}
       </ul>
+      {error && (
+        <p className={board.idleError} role="alert" data-testid="fleet-close-idle-error">
+          {t(IDLE_ERROR_LABEL[error.reason], backendName(error.backend), error.pid)}
+          {error.reason === 'failed' && error.detail ? `（${error.detail}）` : ''}
+        </p>
+      )}
     </section>
   );
 };
@@ -221,10 +242,21 @@ export const FleetPage: React.FC<
     state: FleetState | null;
     onBack: () => void;
     onCloseIdle?: (item: FleetIdleItem) => void;
+    /** 上一次关闭空闲进程没成功的原因（关掉了或换了一个再关时清掉） */
+    idleError?: IdleCloseError | null;
     onSetAutoPause?: (on: boolean) => void;
     onSetPolicy?: (mode: FleetPolicyMode) => void;
   } & CardActions
-> = ({ active, state, onBack, onCloseIdle, onSetAutoPause, onSetPolicy, ...actions }) => {
+> = ({
+  active,
+  state,
+  onBack,
+  onCloseIdle,
+  idleError,
+  onSetAutoPause,
+  onSetPolicy,
+  ...actions
+}) => {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [backend, setBackend] = useState('all');
@@ -368,7 +400,7 @@ export const FleetPage: React.FC<
         {state && <PolicyBar state={state} onSetPolicy={onSetPolicy} />}
       </div>
 
-      {state && <IdleList state={state} onCloseIdle={onCloseIdle} />}
+      {state && <IdleList state={state} onCloseIdle={onCloseIdle} error={idleError} />}
     </section>
   );
 };
