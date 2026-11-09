@@ -31,13 +31,14 @@ const backendName = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b)
 export interface IdleCloseError {
   pid: number;
   backend: string;
-  reason: 'denied' | 'gone' | 'failed';
+  reason: 'denied' | 'gone' | 'unverified' | 'failed';
   detail?: string;
 }
 
 const IDLE_ERROR_LABEL: Record<IdleCloseError['reason'], string> = {
   denied: 'ui.cli-monitor.fleet-close-idle-denied',
   gone: 'ui.cli-monitor.fleet-close-idle-gone',
+  unverified: 'ui.cli-monitor.fleet-close-idle-unverified',
   failed: 'ui.cli-monitor.fleet-close-idle-failed',
 };
 

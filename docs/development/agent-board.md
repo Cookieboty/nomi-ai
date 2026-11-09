@@ -79,7 +79,9 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 
 外部的一律只读，唯一的例外是用户自己点「关闭」关掉一个空闲进程（`fleet.closeIdle`，`dangerous`）：先确认对话框；内核重新读
 进程表，确认这个 pid 此刻仍是同一种助手的空闲树的根、不在 Nomi 的进程树里（开始跑会话了、退出了、pid 被别的程序复用了都返回
-`FLEET_NOT_IDLE`），再对整棵树发 SIGTERM（子进程在前），过 3 秒还在的发 SIGKILL。调度与内存守护从不调用它。
+`FLEET_NOT_IDLE`），再对整棵树发 SIGTERM（子进程在前），过 3 秒还在的发 SIGKILL。核对只认点关闭之后读到的进程表：读失败
+（Windows 上 PowerShell 超时等）再读一次，仍读不到就返回 `FLEET_CLOSE_UNVERIFIED`，一个信号都不发，不拿看板缓存的旧表去核对。
+调度与内存守护从不调用它。
 
 ## 采样
 

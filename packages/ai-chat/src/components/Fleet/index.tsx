@@ -187,7 +187,9 @@ export function useFleetHost(collapsed: boolean) {
             ? 'denied'
             : isContractError(e, 'FLEET_NOT_IDLE')
               ? 'gone'
-              : 'failed';
+              : isContractError(e, 'FLEET_CLOSE_UNVERIFIED')
+                ? 'unverified'
+                : 'failed';
           setIdleError({
             pid: it.pid,
             backend: it.backend,

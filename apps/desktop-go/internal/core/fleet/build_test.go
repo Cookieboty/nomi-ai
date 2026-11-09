@@ -459,8 +459,10 @@ func TestCloseIdleSkipsReusedPid(t *testing.T) {
 }
 
 // Windows：读进程表要跑 PowerShell，可能超时。关闭前重新读失败时用上一份核对，照样能关
-func TestCloseIdleWhenTheRereadFails(t *testing.T) {
-	var log killLog
+// closeIdleWithReads：第一次读成功（看板上出现空闲项），之后按 ok(n) 决定第 n 次读成不成功
+func closeIdleWithReads(t *testing.T, ok func(n int) bool) (*Service, *killLog) {
+	t.Helper()
+	log := &killLog{}
 	in := baseInput()
 	tick := time.UnixMilli(in.Now)
 	var mu sync.Mutex
@@ -477,8 +479,8 @@ func TestCloseIdleWhenTheRereadFails(t *testing.T) {
 			mu.Lock()
 			defer mu.Unlock()
 			reads++
-			if reads > 1 {
-				return nil // 第一次之后都读不到
+			if reads > 1 && !ok(reads) {
+				return nil
 			}
 			return procs(tick, 2)
 		},
@@ -492,8 +494,25 @@ func TestCloseIdleWhenTheRereadFails(t *testing.T) {
 	if len(s.State().ExternalIdle.Items) == 0 {
 		t.Fatal("setup: no idle items")
 	}
+	return s, log
+}
+
+// 关闭前读不到新的进程表：不拿旧表去核对，一个信号都不发（那时它可能已经开始跑会话、或 pid 被复用了）
+func TestCloseIdleRefusesWhenTheRereadFails(t *testing.T) {
+	s, log := closeIdleWithReads(t, func(int) bool { return false })
+	if _, err := s.CloseIdle(220, "codex"); !errors.Is(err, ErrCloseUnverified) {
+		t.Fatalf("CloseIdle with a failed re-read = %v, want ErrCloseUnverified", err)
+	}
+	if kills := log.get(); len(kills) != 0 {
+		t.Fatalf("kills = %v, want none", kills)
+	}
+}
+
+// 读失败一次（Windows 上 PowerShell 偶尔超时）：再读一次成功就照常关
+func TestCloseIdleRetriesAFailedReread(t *testing.T) {
+	s, log := closeIdleWithReads(t, func(n int) bool { return n != 2 })
 	if _, err := s.CloseIdle(220, "codex"); err != nil {
-		t.Fatalf("CloseIdle with a failed re-read = %v", err)
+		t.Fatalf("CloseIdle after one failed re-read = %v", err)
 	}
 	if kills := log.get(); len(kills) != 1 || kills[0] != "SIGTERM:220" {
 		t.Fatalf("kills = %v", kills)

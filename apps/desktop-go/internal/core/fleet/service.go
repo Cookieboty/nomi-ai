@@ -70,6 +70,9 @@ var ErrNotIdle = errors.New("FLEET_NOT_IDLE")
 var (
 	ErrCloseDenied = errors.New("FLEET_CLOSE_DENIED")
 	ErrCloseFailed = errors.New("FLEET_CLOSE_FAILED")
+	// ErrCloseUnverified：这会儿读不到进程表（Windows 上 PowerShell 超时等），没法确认它此刻还是那个空闲进程：
+	// 一个信号都不发，让用户稍后再试
+	ErrCloseUnverified = errors.New("FLEET_CLOSE_UNVERIFIED")
 )
 
 type Service struct {
@@ -81,12 +84,14 @@ type Service struct {
 	// readMu：同一时间只读一次进程表（Windows 上要跑一次 PowerShell，几秒；看板 3 秒刷新时不叠着起好几个）
 	readMu sync.Mutex
 	// force：下次 sample 必须重新读（fresh）；读不到时仍用上一份，不把缓存清空
-	force    bool
-	archived map[string]int64
-	timer    *time.Timer
-	closed   bool
-	gov      govState
-	policy   string // 调度策略（policy.go）
+	force bool
+	// readSeq：开始过几次读进程表；okSeq：最近一次读成功的那次的序号（CloseIdle 用来确认表是点关闭之后读的）
+	readSeq, okSeq uint64
+	archived       map[string]int64
+	timer          *time.Timer
+	closed         bool
+	gov            govState
+	policy         string // 调度策略（policy.go）
 }
 
 func New(d Deps) *Service {
@@ -122,6 +127,8 @@ func (s *Service) sample() (cur, prev *agents.ProcTable) {
 		s.mu.Unlock()
 		return
 	}
+	s.readSeq++
+	seq := s.readSeq
 	s.mu.Unlock()
 	var t *agents.ProcTable
 	if s.d.ReadProcs != nil {
@@ -131,6 +138,7 @@ func (s *Service) sample() (cur, prev *agents.ProcTable) {
 	defer s.mu.Unlock()
 	if t != nil {
 		s.force = false
+		s.okSeq = max(s.okSeq, seq)
 		if s.cur == nil || t.At.After(s.cur.At) {
 			s.prev, s.cur = s.cur, t
 		}
@@ -248,24 +256,42 @@ func (s *Service) Archive(id string) State {
 	return st
 }
 
-// fresh：丢掉采样缓存，下一次 State 重新读进程表
-// 读不到新的（Windows 上 PowerShell 超时等）时仍用上一份：关闭时照样能核对 pid 与命令行，不会因为一次读失败就
-// 当成「已经不是空闲进程」
-func (s *Service) fresh() {
+// fresh：丢掉采样缓存，下一次 State 重新读进程表；读不到新的（Windows 上 PowerShell 超时等）时看板仍用上一份。
+// 返回此刻的读序号：之后 okSeq 比它大，说明有一次在这之后开始的读成功了
+func (s *Service) fresh() uint64 {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.force = true
-	s.mu.Unlock()
+	return s.readSeq
+}
+
+// freshState：重新读进程表后的看板数据；ok = 这份数据来自 fresh 之后开始的一次成功读取（读失败会再试一次）
+func (s *Service) freshState() (st State, table *agents.ProcTable, ok bool) {
+	for range 2 {
+		mark := s.fresh()
+		st = s.State()
+		s.mu.Lock()
+		table, ok = s.cur, s.okSeq > mark
+		s.mu.Unlock()
+		if ok {
+			return
+		}
+	}
+	return
 }
 
 // CloseIdle：用户手动关闭一棵空闲的外部编程助手进程树（只有用户点了才调用，调度从不调用）。
 // 先重新读进程表，确认 pid 此刻仍是同一种助手的空闲树的根、不在 Nomi 的进程树里，才对整棵树发 SIGTERM
-// （子进程在前），过 KillGrace 还在的再 SIGKILL。返回关闭后的看板数据。
+// （子进程在前），过 KillGrace 还在的再 SIGKILL。读不到新的进程表时不拿旧的那份去核对（那时它可能已经开始跑会话、
+// 或者退出后 pid 被别的程序复用了），返回 ErrCloseUnverified。返回关闭后的看板数据。
 func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 	if s.d.Kill == nil {
 		return State{}, ErrNotIdle
 	}
-	s.fresh()
-	st := s.State()
+	st, table, ok := s.freshState()
+	if !ok {
+		return st, ErrCloseUnverified
+	}
 	var item *IdleItem
 	for i := range st.ExternalIdle.Items {
 		if it := &st.ExternalIdle.Items[i]; it.Pid == pid && it.Backend == backend {
@@ -273,9 +299,6 @@ func (s *Service) CloseIdle(pid float64, backend string) (State, error) {
 			break
 		}
 	}
-	s.mu.Lock()
-	table := s.cur
-	s.mu.Unlock()
 	if item == nil || table == nil || pid <= 1 || int(pid) == s.d.SelfPid || table.IsUnder(pid, float64(s.d.SelfPid)) {
 		return st, ErrNotIdle
 	}
