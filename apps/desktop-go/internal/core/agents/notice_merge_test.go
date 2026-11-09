@@ -3,6 +3,8 @@ package agents
 import (
 	"strings"
 	"testing"
+
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // 只有 <session_context> 的 Gemini 会话文件（Nomi 预热 / 探测留下的）不算会话；有用户的话就照常
@@ -32,8 +34,19 @@ func TestMergeNotices(t *testing.T) {
 		{Kind: "agent", Endpoint: "gemini", Status: "attention", Title: "Gemini CLI", Text: "Gemini 在等你", Passive: true},
 		{Kind: "agent", Endpoint: "codex", Status: "done", Title: "Codex", Text: "Codex 又做完了"},
 	})
-	if got.Status != "attention" || got.Endpoint != "gemini" || got.Title != "Codex、Gemini CLI" ||
+	if got.Status != "attention" || got.Endpoint != "gemini" || got.Title != "Codex"+tr.T("electron.common.list-separator")+"Gemini CLI" ||
 		strings.Count(got.Text, "\n") != 2 || got.Passive {
+		t.Fatalf("merged = %+v", got)
+	}
+}
+
+// 状态不认识的（空的等）排在最后，不会压过「完成」
+func TestMergeNoticesUnknownStatusRanksLast(t *testing.T) {
+	got := MergeNotices([]Notice{
+		{Kind: "agent", Endpoint: "grok", Title: "Grok", Text: "?"},
+		{Kind: "agent", Endpoint: "codex", Status: "done", Title: "Codex", Text: "Codex 做完了"},
+	})
+	if got.Status != "done" || got.Endpoint != "codex" {
 		t.Fatalf("merged = %+v", got)
 	}
 }

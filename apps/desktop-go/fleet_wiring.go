@@ -154,6 +154,12 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 			return jsrt.Call(func() bool { return o.ThawTab(id) })
 		},
+		Foreground: func() string {
+			if o == nil {
+				return ""
+			}
+			return jsrt.Call(func() string { return o.ForegroundTab() })
+		},
 		ReclaimIdle: func() []string {
 			if o == nil {
 				return nil

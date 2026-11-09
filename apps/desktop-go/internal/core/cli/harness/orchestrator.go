@@ -616,6 +616,14 @@ func (o *Orchestrator) showDirectoryPicker(defaultPath string) *string {
 	return r
 }
 
+// ForegroundTab：用户正看着的标签（应用窗口在前台时的当前标签）；窗口不在前台返回 ""
+func (o *Orchestrator) ForegroundTab() string {
+	if o.activeTabID != "" && o.appFocused() {
+		return o.activeTabID
+	}
+	return ""
+}
+
 func (o *Orchestrator) appFocused() (f bool) {
 	defer func() {
 		if recover() != nil {

@@ -1142,8 +1142,9 @@ func (s *Service) notify(n Notice) {
 	if s.d.Notify == nil {
 		return
 	}
-	// 编程助手的提醒先攒一下：几个客户端前后脚结束 / 等你时合成一条，不连着打扰好几次
-	if n.Kind != "agent" {
+	// 编程助手做完 / 出错的提醒先攒一下：几个客户端前后脚结束时合成一条，不连着打扰好几次。
+	// 「等你处理」不合并、马上发：岛上按端点判断它是不是已经在待处理列表里（在就不再弹），合进别家的提醒会连带被吞掉
+	if n.Kind != "agent" || n.Status == "attention" {
 		s.d.Notify(n)
 		return
 	}
@@ -1166,18 +1167,28 @@ func (s *Service) flushNotices() {
 	s.d.Notify(MergeNotices(list))
 }
 
-// MergeNotices：几条编程助手提醒合成一条：标题列出各家，正文逐条接上，状态取最要紧的（出错 > 要你看 > 完成），
+// MergeNotices：几条编程助手提醒合成一条：标题列出各家，正文逐条接上，状态取最要紧的（出错 > 要你看 > 完成 > 其他），
 // 图标、气泡跟最要紧的那条；一条时原样返回
 func MergeNotices(list []Notice) Notice {
 	if len(list) == 1 {
 		return list[0]
 	}
-	rank := map[string]int{"failed": 0, "attention": 1, "done": 2}
+	rank := func(status string) int {
+		switch status {
+		case "failed":
+			return 0
+		case "attention":
+			return 1
+		case "done":
+			return 2
+		}
+		return 3
+	}
 	top := list[0]
 	titles, texts, bodies := []string{}, []string{}, []string{}
 	passive := true
 	for _, n := range list {
-		if r, ok := rank[n.Status]; ok && r < rank[top.Status] {
+		if rank(n.Status) < rank(top.Status) {
 			top = n
 		}
 		if n.Title != "" && !slices.Contains(titles, n.Title) {
@@ -1192,7 +1203,7 @@ func MergeNotices(list []Notice) Notice {
 		passive = passive && n.Passive
 	}
 	out := top
-	out.Title = strings.Join(titles, "、")
+	out.Title = strings.Join(titles, tr.T("electron.common.list-separator"))
 	out.Text = strings.Join(texts, "\n")
 	out.Body = strings.Join(bodies, " · ")
 	out.Passive = passive

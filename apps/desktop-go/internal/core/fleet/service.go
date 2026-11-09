@@ -48,6 +48,8 @@ type Deps struct {
 	Freeze      func(tabID string, pids []int, by string) bool
 	Thaw        func(tabID string) bool
 	ReclaimIdle func() []string
+	// Foreground：用户正看着的标签（窗口在前台时的当前标签；没有返回 ""）。内存守护挑冻结对象时跳过它
+	Foreground func() string
 	// SystemCPU：整机 CPU 的累计计数（agents.SystemCPU）；「全速」档按它放行。nil = 不看 CPU
 	SystemCPU func() (busy, total float64, ok bool)
 	// ApplyPolicy：调度策略交给执行方（持续任务运行时、委派的上限）；SetPolicy 与装配后的 ApplyPolicy 调

@@ -79,13 +79,13 @@ var Renderers = func() *util.Obj {
 
 func Manifest(id string) *util.Obj { return catalog.Manifest(id) }
 
-// Plugins：内置插件（插件宿主用）。
+// Plugins：内置插件（插件宿主用）。Main 返回 Impl(id) 那一份：宿主和直接调 Impl 的地方（账号、权限、模型参数、
+// 历史、斜杠命令……）用的是同一个实例，不会各建一份、状态分叉
 var Plugins = func() map[string]clisdk.CliPlugin {
 	out := map[string]clisdk.CliPlugin{}
 	for _, id := range IDs {
-		create := entries[id].CreateMain
 		out[id] = clisdk.CliPlugin{Manifest: catalog.Manifest(id),
-			Main: func(clisdk.CliMainHost) (*clisdk.CliMainImpl, error) { return create(), nil }}
+			Main: func(clisdk.CliMainHost) (*clisdk.CliMainImpl, error) { return Impl(id), nil }}
 	}
 	return out
 }()

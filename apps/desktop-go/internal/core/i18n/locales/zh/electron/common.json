@@ -600,5 +600,6 @@
   "electron.common.sandbox-needs-permission": "沙箱挡下了「{0}」，等你授权",
   "electron.common.auto-continue-stopped-no-progress": "（接着做的这一轮没有实际进展，先停在这里。要我继续就说「继续」。）",
   "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} 没有确认权限模式切换（{1}），已停止当前会话，下一轮会按新模式重新开始",
-  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} 没有确认权限模式（{1}），这条消息没有发送"
+  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} 没有确认权限模式（{1}），这条消息没有发送",
+  "electron.common.list-separator": "、"
 }

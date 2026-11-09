@@ -600,5 +600,6 @@
   "electron.common.sandbox-needs-permission": "Blocked by the sandbox: {0}. Waiting for your permission",
   "electron.common.auto-continue-stopped-no-progress": "(The last automatic round made no real progress, so I stopped here. Say \"continue\" if you want me to keep going.)",
   "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} did not confirm the permission mode change ({1}). The current session was stopped; the next turn starts with the new mode",
-  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} did not confirm the permission mode ({1}), so this message was not sent"
+  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} did not confirm the permission mode ({1}), so this message was not sent",
+  "electron.common.list-separator": ", "
 }

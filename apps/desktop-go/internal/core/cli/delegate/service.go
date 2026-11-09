@@ -1680,15 +1680,15 @@ func (s *Service) slotReleaser() func() {
 	}
 }
 
-// slotFor：同步委派 / 追问要的运行名额。后台 Nomi（持续任务）里的：借父任务自己的名额（lent = true），
-// 不去共享上限里排队——父任务占着名额、同步等子委派的结果，全部名额都被这样的父任务占满时谁也等不到（#294）；
-// 前台的照常 reserveSlot。
-func (s *Service) slotFor(sig context.Context, wait bool) (release func(), lent bool, err error) {
-	if run := desktop.BackgroundFrom(sig); run != nil {
+// slotFor：同步委派 / 追问要的运行名额（sync = 调用方停在这里等结果）。后台 Nomi（持续任务）里的同步委派：
+// 借父任务自己的名额（lent = true），不去共享上限里排队——父任务占着名额、同步等子委派的结果，全部名额都被这样的
+// 父任务占满时谁也等不到（#294）。异步的不借：父任务不等它，它要自己占一个名额、算进上限；前台的照常 reserveSlot。
+func (s *Service) slotFor(sig context.Context, sync bool) (release func(), lent bool, err error) {
+	if run := desktop.BackgroundFrom(sig); run != nil && sync {
 		release, err = s.borrowSlot(sig, run)
 		return release, err == nil, err
 	}
-	release, err = s.reserveSlot(sig, wait)
+	release, err = s.reserveSlot(sig, sync)
 	return release, false, err
 }
 

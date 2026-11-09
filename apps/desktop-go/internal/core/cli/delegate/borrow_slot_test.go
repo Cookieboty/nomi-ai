@@ -96,3 +96,23 @@ func TestBorrowSlotOnePerParent(t *testing.T) {
 		t.Fatal("a stopped turn should leave the wait")
 	}
 }
+
+// 后台 Nomi 里的异步委派不借名额：父任务不等它，它要自己占名额、算进上限（不然 lent 的任务不计数，能绕过上限）
+func TestAsyncDelegationInBackgroundDoesNotBorrow(t *testing.T) {
+	SetMaxParallel(1)
+	defer SetMaxParallel(0)
+	s := &Service{tasks: map[string]*bgTask{}}
+	ctx := desktop.WithBackground(context.Background(), &desktop.BackgroundRun{})
+	rel, lent, err := s.slotFor(ctx, false)
+	if err != nil || lent {
+		t.Fatalf("async delegation: lent=%v err=%v", lent, err)
+	}
+	defer rel()
+	if len(s.lending) != 0 {
+		t.Fatal("an async delegation borrowed its parent's slot")
+	}
+	// 名额已被它占满：再来一个异步的直接被拒（concurrency_limit），不会借父任务的名额溜过去
+	if _, lent, err := s.slotFor(ctx, false); err == nil || lent {
+		t.Fatalf("second async delegation got past the limit (lent=%v)", lent)
+	}
+}

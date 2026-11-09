@@ -210,3 +210,21 @@ func TestGovernorResumesNomiPausesWithAutoOff(t *testing.T) {
 		t.Fatal("a tab Nomi paused resumes once memory is normal, even with auto handling off")
 	}
 }
+
+// 用户正看着的标签不被内存守护挑中：跳过它冻下一个；切走之后照常可以冻
+func TestGovernorSkipsForegroundTab(t *testing.T) {
+	s, h := newGov(t, t.TempDir())
+	fg := "a"
+	s.d.Foreground = func() string { return fg }
+	h.pressure = agents.PressureCritical
+	h.step(s, time.Second)
+	h.step(s, 5*time.Second)
+	if len(h.frozen) != 1 || h.frozen[0] != "w" {
+		t.Fatalf("critical with a in front: frozen %v, want [w]", h.frozen)
+	}
+	fg = ""
+	h.step(s, 11*time.Second)
+	if len(h.frozen) != 2 || h.frozen[1] != "a" {
+		t.Fatalf("after switching away: frozen %v, want [w a]", h.frozen)
+	}
+}
