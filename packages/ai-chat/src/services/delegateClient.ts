@@ -1,4 +1,4 @@
-import { BUILTIN_CLI_ORDER, type BuiltinCliId } from '@nomi-ai/cli-catalog';
+import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli } from '@nomi-ai/cli-catalog';
 /**
  * Nomi 把编程助手当子代理调用（docs/development/coding-agents.md）：
  * - 设置：总开关 + 按任务类型的默认编程助手；
@@ -82,14 +82,10 @@ export function delegateKindLabel(k: DelegateKind): string {
 }
 
 const ALIASES: Record<string, DelegateCli> = {
-  claude: 'claude',
+  ...byCli((id) => id),
   'claude-code': 'claude',
   claudecode: 'claude',
   cc: 'claude',
-  codex: 'codex',
-  grok: 'grok',
-  gemini: 'gemini',
-  dsh: 'dsh',
 };
 
 /** `/agent` 后面的名字 → 编程助手 id（不区分大小写，接受别名）；认不出返回 null */

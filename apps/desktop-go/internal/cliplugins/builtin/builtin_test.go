@@ -18,7 +18,7 @@ func TestOrderedCoversAll(t *testing.T) {
 func TestDerivedLists(t *testing.T) {
 	for name, c := range map[string]struct{ got, want []string }{
 		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "gemini", "kimi", "minimax"}},
-		"history":  {Where(WithHistory), []string{"claude", "codex", "grok", "gemini", "dsh"}},
+		"history":  {Where(WithHistory), []string{"claude", "codex", "dsh", "grok", "gemini"}},
 		"quota":    {Where(WithQuota), []string{"claude", "codex", "grok"}},
 	} {
 		if !slices.Equal(c.got, c.want) {

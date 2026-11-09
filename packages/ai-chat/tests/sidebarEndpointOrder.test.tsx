@@ -124,7 +124,15 @@ describe('端点排序与「更多」', () => {
       dataTransfer: { dropEffect: '' },
     });
     fireEvent.drop(r.getByTestId('endpoint-order-codex'));
-    expect(getEndpointOrder()).toEqual(['gemini', 'codex', 'claude', 'dsh', 'grok']);
+    expect(getEndpointOrder()).toEqual([
+      'gemini',
+      'codex',
+      'claude',
+      'dsh',
+      'grok',
+      'kimi',
+      'minimax',
+    ]);
     await waitFor(() =>
       expect(shownIds(r)).toEqual(['nomi', 'gemini', 'codex', 'claude', 'dsh', 'grok']),
     );
@@ -133,7 +141,15 @@ describe('端点排序与「更多」', () => {
       key: 'ArrowUp',
       altKey: true,
     });
-    expect(getEndpointOrder()).toEqual(['gemini', 'claude', 'codex', 'dsh', 'grok']);
+    expect(getEndpointOrder()).toEqual([
+      'gemini',
+      'claude',
+      'codex',
+      'dsh',
+      'grok',
+      'kimi',
+      'minimax',
+    ]);
     fireEvent.click(r.getByTestId('endpoint-order-reset'));
     expect(getEndpointOrder()).toBeNull();
     await waitFor(() =>

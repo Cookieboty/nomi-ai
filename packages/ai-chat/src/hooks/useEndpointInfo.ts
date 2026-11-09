@@ -52,6 +52,8 @@ const CONFIG_PATHS: Partial<Record<ConversationBackend, { label: string; path: s
   codex: { label: 'config.toml', path: '~/.codex/config.toml' },
   grok: { label: 'config.toml', path: '~/.grok/config.toml' },
   gemini: { label: 'settings.json', path: '~/.gemini/settings.json' },
+  kimi: { label: 'config.toml', path: '~/.kimi-code/config.toml' },
+  minimax: { label: 'config.yaml', path: '~/.minimax/config.yaml' },
 };
 
 export function configPathsOf(

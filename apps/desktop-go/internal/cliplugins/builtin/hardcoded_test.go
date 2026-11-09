@@ -30,6 +30,14 @@ var hardcodedAllow = map[string]map[string]string{
 
 var builtinLit = regexp.MustCompile(`"(` + strings.Join(IDs, "|") + `)"`)
 
+// lineID：分成多行、每行一个 id 的名单（切片元素、map 键）
+var lineID = regexp.MustCompile(`^\s*"(` + strings.Join(IDs, "|") + `)"\s*[:,]`)
+
+// multilineAllow：有意按 CLI 分行写的（各自的实现）
+var multilineAllow = map[string]string{
+	"internal/core/gwstore/agents/agents.go": "STRIP：五个 CLI 各自网关启动要去掉的环境变量",
+}
+
 // 内置 CLI 的名单只在注册表里：插件包以外不再写 3 个及以上内置 id 的列表（加一个内置助手不用到处登记）
 func TestNoHardcodedBuiltinLists(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
@@ -58,9 +66,29 @@ func TestNoHardcodedBuiltinLists(t *testing.T) {
 		sc := bufio.NewScanner(f)
 		sc.Buffer(make([]byte, 1<<20), 1<<20)
 		n := 0
+		var run []string
+		start := 0
+		flush := func() {
+			seen := map[string]bool{}
+			for _, x := range run {
+				seen[x] = true
+			}
+			if len(seen) >= 3 && multilineAllow[rel] == "" {
+				bad = append(bad, rel+":"+itoa(start)+": "+strings.Join(run, ", ")+"（分行的名单）")
+			}
+			run = nil
+		}
 		for sc.Scan() {
 			n++
 			line := sc.Text()
+			if m := lineID.FindStringSubmatch(line); m != nil {
+				if len(run) == 0 {
+					start = n
+				}
+				run = append(run, m[1])
+			} else {
+				flush()
+			}
 			seen := map[string]bool{}
 			for _, m := range builtinLit.FindAllStringSubmatch(line, -1) {
 				seen[m[1]] = true
@@ -79,6 +107,7 @@ func TestNoHardcodedBuiltinLists(t *testing.T) {
 				bad = append(bad, rel+":"+itoa(n)+": "+strings.TrimSpace(line))
 			}
 		}
+		flush()
 		return nil
 	})
 	if len(bad) > 0 {

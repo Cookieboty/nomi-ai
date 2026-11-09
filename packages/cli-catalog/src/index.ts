@@ -55,9 +55,9 @@ export const BUILTIN_MANIFESTS: Readonly<Record<BuiltinCliId, CliManifest>> = {
 export const BUILTIN_CLI_ORDER: readonly BuiltinCliId[] = [
   'claude',
   'codex',
+  'dsh',
   'grok',
   'gemini',
-  'dsh',
   'kimi',
   'minimax',
 ];

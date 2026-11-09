@@ -1,3 +1,4 @@
+import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
@@ -66,14 +67,7 @@ export interface ChatMessage {
 /** 'external'：用户添加的外部 CLI，具体是哪个插件看标签 / 对话的 pluginId */
 export type ConversationBackend = 'nomi' | BuiltinCliId | 'external';
 
-export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = [
-  'nomi',
-  'claude',
-  'codex',
-  'dsh',
-  'grok',
-  'gemini',
-] as const;
+export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = ['nomi', ...BUILTIN_CLI_ORDER];
 
 export function isConversationBackend(v: unknown): v is ConversationBackend {
   // 'external'（外部 CLI）不在固定端点列表里（它要带 pluginId），但它的对话也是合法的

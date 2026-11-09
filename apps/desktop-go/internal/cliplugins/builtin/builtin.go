@@ -75,7 +75,7 @@ var IDs = func() []string {
 }()
 
 // Ordered：界面与名单里的顺序（先来的在前，新加的接在后面）；IDs 是按 id 排序的
-var Ordered = []string{"claude", "codex", "grok", "gemini", "dsh", "kimi", "minimax"}
+var Ordered = []string{"claude", "codex", "dsh", "grok", "gemini", "kimi", "minimax"}
 
 // IsBuiltinCliID：v 是否内置 CLI 的 id。
 func IsBuiltinCliID(v any) bool {

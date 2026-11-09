@@ -17,7 +17,16 @@ const ALLOW: Record<string, string[]> = {
   'packages/ai-chat/src/components/ModelControls/index.tsx': ['NO_REASONING_BACKENDS'],
 };
 
+/** 分成多行、每行一个 id 的名单（数组元素、对象键、联合类型）也算；这些文件是有意按 CLI 写的 */
+const ALLOW_MULTILINE = new Set([
+  'packages/ai-chat/src/services/historyClient.ts', // 历史会话：每个 CLI 各有解析实现
+  'packages/ai-chat/src/components/UsagePanel/quotaNote.ts', // 额度：每个 CLI 的额度来源不同
+  'packages/ui/src/brand/endpointGlyphs.ts', // 品牌图标：每个都要画
+  'packages/ai-chat/src/hooks/useEndpointInfo.ts', // 各 CLI 配置文件的路径（只用于展示，缺了不影响）
+]);
+
 const lit = new RegExp(`['"](${BUILTIN_CLI_IDS.join('|')})['"]`, 'g');
+const lineId = new RegExp(`^\\s*['"]?(${BUILTIN_CLI_IDS.join('|')})['"]?\\s*[:,|]`);
 
 function* sources(dir: string): Generator<string> {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -42,14 +51,26 @@ describe('内置 CLI 的名单只在 cli-catalog 里', () => {
       if (!fs.existsSync(src)) continue;
       for (const file of sources(src)) {
         const rel = path.relative(root, file).split(path.sep).join('/');
-        fs.readFileSync(file, 'utf8')
-          .split('\n')
-          .forEach((line, i) => {
-            const ids = new Set([...line.matchAll(lit)].map((m) => m[1]));
-            if (ids.size < 3) return;
-            if ((ALLOW[rel] ?? []).some((frag) => line.includes(frag))) return;
-            bad.push(`${rel}:${i + 1}: ${line.trim()}`);
-          });
+        const lines = fs.readFileSync(file, 'utf8').split('\n');
+        lines.forEach((line, i) => {
+          const ids = new Set([...line.matchAll(lit)].map((m) => m[1]));
+          if (ids.size < 3) return;
+          if ((ALLOW[rel] ?? []).some((frag) => line.includes(frag))) return;
+          bad.push(`${rel}:${i + 1}: ${line.trim()}`);
+        });
+        if (ALLOW_MULTILINE.has(rel)) continue;
+        let run: string[] = [];
+        let start = 0;
+        [...lines, ''].forEach((line, i) => {
+          const m = lineId.exec(line);
+          if (m) {
+            if (run.length === 0) start = i + 1;
+            run.push(m[1]!);
+            return;
+          }
+          if (new Set(run).size >= 3) bad.push(`${rel}:${start}: ${run.join(', ')}（分行的名单）`);
+          run = [];
+        });
       }
     }
     expect(bad).toEqual([]);
