@@ -20,7 +20,7 @@ type Action struct {
 
 // Pending：一条等你处理的事
 type Pending struct {
-	// ID：来源前缀 + 来源里的 id（perm:<标签>:<请求>、task:<任务>…），Act 原样带回
+	// ID：来源前缀 + 来源里的 id（perm:<标签>:<请求>、task:<任务>:<代次>:<等待>…），Act 原样带回
 	ID       string   `json:"id"`
 	Kind     string   `json:"kind"`
 	Title    string   `json:"title"`

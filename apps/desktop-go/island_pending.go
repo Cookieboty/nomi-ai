@@ -337,7 +337,7 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 		if t.Executor.Kind == "cli" && t.Executor.Cli != nil {
 			endpoint = *t.Executor.Cli
 		}
-		item := island.Pending{ID: "task\x1f" + id, Kind: "task", Endpoint: endpoint, Title: t.Title, At: t.UpdatedAt}
+		item := island.Pending{ID: islandTaskItemID(t), Kind: "task", Endpoint: endpoint, Title: t.Title, At: t.UpdatedAt}
 		cmd := func(c tasks.Command) func() error {
 			return func() error {
 				r, err := ts.Command(id, c)
@@ -396,7 +396,8 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 			// 退回要写意见：岛上只能通过，退回去任务页
 			item.Body = islandJoin(i18n.T("ui.providers-schedule.task-awaiting-accept"), detail)
 			item.Actions = []island.Action{{ID: "accept", Label: i18n.T("ui.mascot-theme.island-accept"), Primary: true}, islandOpen()}
-			fns["accept"], fns["open"] = cmd(tasks.Command{Type: "accept"}), nil
+			g := gen
+			fns["accept"], fns["open"] = cmd(tasks.Command{Type: "accept", Gen: &g}), nil
 		case "needs_reconcile":
 			item.Body = i18n.T("ui.providers-schedule.task-needs-reconcile")
 			item.Actions = []island.Action{
@@ -404,8 +405,9 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 				{ID: "not_applied", Label: i18n.T("ui.mascot-theme.island-reconcile-not-applied")},
 				islandOpen(),
 			}
-			fns["applied"] = cmd(tasks.Command{Type: "reconcile", Outcome: "applied"})
-			fns["not_applied"] = cmd(tasks.Command{Type: "reconcile", Outcome: "not_applied"})
+			g := gen
+			fns["applied"] = cmd(tasks.Command{Type: "reconcile", Gen: &g, Outcome: "applied"})
+			fns["not_applied"] = cmd(tasks.Command{Type: "reconcile", Gen: &g, Outcome: "not_applied"})
 			fns["open"] = nil
 		default:
 			// 出错、过期：不是等你拍板的事，不上岛
@@ -413,6 +415,19 @@ func (h *islandPendingHub) collectTasks(add func(island.Pending, map[string]func
 		}
 		add(item, fns)
 	}
+}
+
+// islandTaskItemID：任务条目的 id 带上这一次等待的身份（代次、等的是哪个请求）。同一个任务换了一次等待（批准完 p1
+// 又来 p2、验收退回后又来一次）就是另一条：岛上晚到的旧按钮查不到新等待的处理函数，不会被当成对新请求的决定
+func islandTaskItemID(t tasks.Task) string {
+	id := "task\x1f" + t.ID + "\x1f" + fmt.Sprint(t.Gen)
+	if t.Wait != nil {
+		id += "\x1f" + t.Wait.Kind
+		if t.Wait.RequestID != nil {
+			id += "\x1f" + *t.Wait.RequestID
+		}
+	}
+	return id
 }
 
 // collectConfirms：Nomi 自己的工具确认（桌面、命令、MCP、委派交接、文件夹授权）

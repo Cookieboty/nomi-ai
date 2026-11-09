@@ -169,6 +169,14 @@ func checkGen(t Task, a *Attempt, ev Event) (Result, bool) {
 	return Result{}, false
 }
 
+// checkUserGen：用户的决定带了代次（灵动岛上的按钮）时，只认看到的那一代；不带的（任务页）照旧
+func checkUserGen(t Task, a *Attempt, ev Event) (Result, bool) {
+	if ev.Gen != nil && *ev.Gen != t.Gen {
+		return reject(t, a, "stale", Effect{Kind: "drop_stale", Gen: ev.Gen, Event: ev.Type}), true
+	}
+	return Result{}, false
+}
+
 func stopActive(t *Task, a *Attempt, at int64, reason string, fx *[]Effect, e *TaskError) *Attempt {
 	*fx = append(*fx, Effect{Kind: "stop_attempt", Gen: ptr(a.Gen), Reason: reason})
 	releaseIfHeld(t, a.Gen, fx)
@@ -414,6 +422,9 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		if task.Status != StatusAwaitingAccept || attempt == nil {
 			return reject(task, attempt, "illegal")
 		}
+		if r, bad := checkUserGen(task, attempt, ev); bad {
+			return r
+		}
 		a := copyAttempt(attempt)
 		a.Status = "succeeded"
 		return ok(settle(t, at, &fx), a, fx)
@@ -421,6 +432,9 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 	case "reject":
 		if task.Status != StatusAwaitingAccept || attempt == nil {
 			return reject(task, attempt, "illegal")
+		}
+		if r, bad := checkUserGen(task, attempt, ev); bad {
+			return r
 		}
 		a := copyAttempt(attempt)
 		a.Status = "rejected"
@@ -472,6 +486,9 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 	case "reconcile":
 		if task.Status != StatusNeedsReconcile {
 			return reject(task, attempt, "illegal")
+		}
+		if r, bad := checkUserGen(task, attempt, ev); bad {
+			return r
 		}
 		if ev.Outcome == "abandon" {
 			e := TaskError{Code: "reconcile_abandoned", Message: "reconcile_abandoned"}
