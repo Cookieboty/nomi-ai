@@ -63,5 +63,7 @@ export const manifest: CliManifest = {
     acpArgs: ['agent', 'stdio'],
     planFollowUp: true,
     nomiCommand: true,
+    homeEnv: 'GROK_HOME',
+    homeDirs: ['.grok'],
   },
 };

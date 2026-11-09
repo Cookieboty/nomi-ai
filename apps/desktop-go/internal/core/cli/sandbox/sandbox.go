@@ -17,6 +17,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/catalog"
 )
 
 // Exec：sandbox-exec 的位置
@@ -82,22 +84,21 @@ func CategoryByID(id string) *Category {
 	return nil
 }
 
-// writableHome：相对主目录、默认可写的位置（CLI 自己的配置、包管理器与构建缓存）
-var writableHome = []string{
-	".claude", ".codex", ".gemini", ".grok", ".dsh", ".local/share/claude", ".local/state/claude",
+// writableHome：相对主目录、默认可写的位置：内置 CLI 自己的目录（清单 host.homeDirs）、包管理器与构建缓存
+var writableHome = append(catalog.HostListAll("homeDirs"),
 	".cache", "Library/Caches", "Library/Logs", ".npm", ".pnpm-store", "Library/pnpm", ".local/share/pnpm", ".yarn", ".bun",
 	".node-gyp", ".config/configstore", ".config/yarn", ".config/pnpm", ".deno", "go/pkg", ".cargo/registry", ".cargo/git",
 	".rustup", ".gradle", ".m2", ".ivy2", ".sbt", ".gem", ".bundle", ".cocoapods", ".android", ".expo", ".dotnet", ".nuget",
 	".swiftpm", "Library/Developer/Xcode/DerivedData", "Library/Developer/CoreSimulator", ".local/share/virtualenv",
 	".local/share/uv", ".jupyter", ".ipython", ".matplotlib", ".streamlit", ".vercel", ".turbo",
-}
+)
 
 // execConfigHome：相对主目录、在可写位置里但不让写的东西：改了之后用户在沙箱外运行时会执行命令（CLI 的钩子与配置、
 // 构建工具的初始化脚本、装进 PATH 的可执行目录）。CLI 照样能写自己目录里的会话、日志与缓存
-var execConfigHome = []string{
-	".claude/settings.json", ".claude/hooks", ".codex/config.toml", ".gemini/settings.json",
+// （内置 CLI 的在清单 host.execConfig）
+var execConfigHome = append(catalog.HostListAll("execConfig"),
 	".gradle/init.d", ".gradle/init.gradle", ".gradle/init.gradle.kts", ".bun/bin", ".deno/bin",
-}
+)
 
 // 本机 Unix socket：拿到它们等于绕过拒读（ssh-agent 里的私钥、Docker 守护进程）。没授权对应类别时不让连
 var (

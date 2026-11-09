@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
@@ -71,7 +72,15 @@ type SandboxDeps struct {
 }
 
 // CLI 自己的主目录变量：值是这个 CLI 要写的地方（官方账号目录等）
-var cliHomeEnvs = []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "GROK_HOME", "DSH_HOME"}
+var cliHomeEnvs = func() []string {
+	out := []string{}
+	for _, id := range builtin.Ordered {
+		if e := builtin.HomeEnv(id); e != "" {
+			out = append(out, e)
+		}
+	}
+	return out
+}()
 
 // maxSandboxPending：一个标签同时挂着的授权请求上限
 const maxSandboxPending = 5

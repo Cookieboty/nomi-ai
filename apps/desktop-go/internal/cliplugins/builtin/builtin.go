@@ -141,15 +141,10 @@ func SelfUpdate(id string) string { return util.Str(catalog.Host(id).Get("selfUp
 func Vendor(id string) string { return util.Str(catalog.Host(id).Get("vendor")) }
 
 // AcpArgs：以 ACP 长驻会话启动时的参数
-func AcpArgs(id string) []string {
-	out := []string{}
-	if a, ok := catalog.Host(id).Get("acpArgs").([]any); ok {
-		for _, x := range a {
-			out = append(out, util.Str(x))
-		}
-	}
-	return out
-}
+func AcpArgs(id string) []string { return catalog.HostList(id, "acpArgs") }
+
+// HomeEnv：指定 CLI 主目录的环境变量（账号目录 / 第三方私有目录经它传入）
+func HomeEnv(id string) string { return util.Str(catalog.Host(id).Get("homeEnv")) }
 
 // PlanFollowUp：计划模式一轮做完后由 Nomi 提供「执行这个计划」
 func PlanFollowUp(id string) bool { b, _ := catalog.Host(id).Get("planFollowUp").(bool); return b }

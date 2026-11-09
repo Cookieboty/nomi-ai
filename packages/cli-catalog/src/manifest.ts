@@ -107,6 +107,12 @@ export interface CliHostSpec {
   planFollowUp?: boolean;
   /** 有 ~/.nomi/bin 下的 nomi-<id> 命令（终端里经网关用第三方模型；启动脚本按 CLI 写过） */
   nomiCommand?: boolean;
+  /** 指定 CLI 主目录的环境变量（账号目录 / 第三方私有目录经它传入；沙箱里放行它指向的目录） */
+  homeEnv?: string;
+  /** CLI 自己的目录，相对用户主目录（沙箱里可写：会话、日志、缓存） */
+  homeDirs?: string[];
+  /** homeDirs 里沙箱不让写的配置，相对用户主目录（改了之后在沙箱外运行会执行命令：钩子、MCP、插件） */
+  execConfig?: string[];
 }
 
 export const CLI_API_VERSION = 1;
@@ -216,8 +222,14 @@ export function validateManifest(m: unknown): string[] {
         errors.push('host.minNode must be a number');
       if (h.selfUpdate !== undefined && h.selfUpdate !== 'native' && h.selfUpdate !== 'always')
         errors.push('host.selfUpdate must be native or always');
-      if (h.acpArgs !== undefined && !isStrArr(h.acpArgs))
-        errors.push('host.acpArgs must be string[]');
+      for (const k of ['acpArgs', 'homeDirs', 'execConfig'] as const)
+        if (h[k] !== undefined && !isStrArr(h[k])) errors.push(`host.${k} must be string[]`);
+      if (h.homeEnv !== undefined && typeof h.homeEnv !== 'string')
+        errors.push('host.homeEnv must be a string');
+      const homePaths = [h.homeDirs, h.execConfig].flatMap((v) => (isStrArr(v) ? v : []));
+      for (const d of homePaths)
+        if (d.startsWith('/') || d.startsWith('~') || d.includes('..'))
+          errors.push(`host home path must be relative to the user home: ${d}`);
       for (const k of ['planFollowUp', 'nomiCommand'] as const)
         if (h[k] !== undefined && typeof h[k] !== 'boolean')
           errors.push(`host.${k} must be a boolean`);

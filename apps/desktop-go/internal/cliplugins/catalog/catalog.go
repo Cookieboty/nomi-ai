@@ -52,3 +52,23 @@ func Host(id string) *util.Obj {
 	}
 	return util.NewObj()
 }
+
+// HostList：清单 host 段里的字符串数组（homeDirs、execConfig、acpArgs）；没有的返回空
+func HostList(id, key string) []string {
+	out := []string{}
+	if a, ok := Host(id).Get(key).([]any); ok {
+		for _, x := range a {
+			out = append(out, util.Str(x))
+		}
+	}
+	return out
+}
+
+// HostListAll：所有内置 CLI 的 HostList 拼在一起（按 Order）
+func HostListAll(key string) []string {
+	out := []string{}
+	for _, id := range Order {
+		out = append(out, HostList(id, key)...)
+	}
+	return out
+}

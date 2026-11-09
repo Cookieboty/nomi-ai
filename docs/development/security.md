@@ -52,10 +52,11 @@
   Edge、Brave、Arc、Chromium、Vivaldi、Opera、Safari）、个人数据（邮件 / 信息 / 日历 / 通讯录 / 备忘录 / 照片，以及 shell 与 REPL 的历史）、密钥文件（主目录与项目里的 `.env*`（`.env.example` 等除外）、`*.key`、私钥 `.pem` …），
   外加用户的受保护文件夹与 Nomi 自己的数据目录（`prompt-images` 与 CLI 的官方账号目录除外）。钥匙串不拦：拒读钥匙串文件会让 CLI 的官方登录失效，
   条目由系统自己的访问控制保护。
-- **写**只放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的配置（`~/.claude`、`~/.claude.json*`、`~/.codex` …与 `*_HOME` 指向的账号目录）、
+- **写**只放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的目录（清单 `host.homeDirs`：`~/.claude`、`~/.codex`、`~/.kimi-code`、`~/.minimax` …，加 `~/.claude.json*`）
+  与 `host.homeEnv` 指向的账号目录 / 第三方私有目录、
   包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、用户授权过的文件夹 / 文件；受保护文件夹与 Nomi 数据目录最后再拒一次。
   可写位置里也再拒一次「改了会在沙箱外执行命令」的东西（`execConfigHome`，规则 `write:config`，不出授权请求）：`~/.claude/settings.json`、
-  `~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、Gradle 的初始化脚本、`~/.bun/bin`、`~/.deno/bin`；
+  `~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、`~/.kimi-code/config.toml`、`~/.minimax/config.yaml`（清单 `host.execConfig`）、Gradle 的初始化脚本、`~/.bun/bin`、`~/.deno/bin`；
   `~/.pyenv/shims` 不再默认可写。CLI 自己目录里的会话、日志、缓存照写。
 - **本机的口子**：Unix socket 不受读写规则管，所以单独拒连（`network-outbound` 的 `remote unix-socket`）：ssh-agent
   （`/private/var/run/com.apple.launchd.*/Listeners`、`agent.sock`、`S.gpg-agent`）没授权 SSH 类别时拒连，同时从环境里去掉 `SSH_AUTH_SOCK`；

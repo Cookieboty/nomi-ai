@@ -38,5 +38,13 @@ export const manifest: CliManifest = {
   modelSwitch: 'restart',
   clientSpec: { client: 'minimax' },
   configPath: '~/.minimax/config.yaml',
-  host: { minNode: 22, selfUpdate: 'always', vendor: 'minimax', acpArgs: ['acp'] },
+  host: {
+    minNode: 22,
+    selfUpdate: 'always',
+    vendor: 'minimax',
+    acpArgs: ['acp'],
+    homeEnv: 'MINIMAX_DATA_DIR',
+    homeDirs: ['.minimax'],
+    execConfig: ['.minimax/config.yaml'],
+  },
 };

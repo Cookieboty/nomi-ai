@@ -69,7 +69,10 @@
         "minNode": 22,
         "selfUpdate": "native",
         "vendor": "anthropic",
-        "nomiCommand": true
+        "nomiCommand": true,
+        "homeEnv": "CLAUDE_CONFIG_DIR",
+        "homeDirs": [".claude", ".local/share/claude", ".local/state/claude"],
+        "execConfig": [".claude/settings.json", ".claude/hooks"]
       }
     },
     "codex": {
@@ -130,7 +133,10 @@
         "selfUpdate": "native",
         "vendor": "openai",
         "planFollowUp": true,
-        "nomiCommand": true
+        "nomiCommand": true,
+        "homeEnv": "CODEX_HOME",
+        "homeDirs": [".codex"],
+        "execConfig": [".codex/config.toml"]
       }
     },
     "dsh": {
@@ -180,7 +186,9 @@
         "minNode": 24,
         "vendor": "deepseek",
         "planFollowUp": true,
-        "nomiCommand": true
+        "nomiCommand": true,
+        "homeEnv": "DSH_HOME",
+        "homeDirs": [".dsh"]
       }
     },
     "gemini": {
@@ -240,7 +248,10 @@
         "minNode": 20,
         "vendor": "google",
         "acpArgs": ["--acp"],
-        "nomiCommand": true
+        "nomiCommand": true,
+        "homeEnv": "GEMINI_CLI_HOME",
+        "homeDirs": [".gemini"],
+        "execConfig": [".gemini/settings.json"]
       }
     },
     "grok": {
@@ -308,7 +319,9 @@
         "vendor": "xai",
         "acpArgs": ["agent", "stdio"],
         "planFollowUp": true,
-        "nomiCommand": true
+        "nomiCommand": true,
+        "homeEnv": "GROK_HOME",
+        "homeDirs": [".grok"]
       }
     },
     "kimi": {
@@ -366,7 +379,10 @@
       "host": {
         "minNode": 22,
         "vendor": "moonshot",
-        "acpArgs": ["acp"]
+        "acpArgs": ["acp"],
+        "homeEnv": "KIMI_CODE_HOME",
+        "homeDirs": [".kimi-code"],
+        "execConfig": [".kimi-code/config.toml"]
       }
     },
     "minimax": {
@@ -417,7 +433,10 @@
         "minNode": 22,
         "selfUpdate": "always",
         "vendor": "minimax",
-        "acpArgs": ["acp"]
+        "acpArgs": ["acp"],
+        "homeEnv": "MINIMAX_DATA_DIR",
+        "homeDirs": [".minimax"],
+        "execConfig": [".minimax/config.yaml"]
       }
     }
   }

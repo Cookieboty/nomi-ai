@@ -51,5 +51,13 @@ export const manifest: CliManifest = {
   clientSpec: { client: 'gemini' },
   fullName: 'Gemini CLI',
   configPath: '~/.gemini/settings.json',
-  host: { minNode: 20, vendor: 'google', acpArgs: ['--acp'], nomiCommand: true },
+  host: {
+    minNode: 20,
+    vendor: 'google',
+    acpArgs: ['--acp'],
+    nomiCommand: true,
+    homeEnv: 'GEMINI_CLI_HOME',
+    homeDirs: ['.gemini'],
+    execConfig: ['.gemini/settings.json'],
+  },
 };

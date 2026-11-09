@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/catalog"
 	"slices"
 	"testing"
 )
@@ -67,5 +68,21 @@ func TestAcpPermissionsFromManifest(t *testing.T) {
 	m := Impl("minimax").Permissions
 	if !slices.Equal(m.Supported, []string{"plan", "manual"}) || m.ModeID("bypass") != "default" {
 		t.Errorf("minimax %v %s", m.Supported, m.ModeID("bypass"))
+	}
+}
+
+// 清单 host.homeEnv 与插件账号能力的 HomeEnv 一致（沙箱按清单放行这个变量指向的目录）；每个内置 CLI 都要有
+func TestHomeEnvMatchesPlugin(t *testing.T) {
+	for _, id := range IDs {
+		env := HomeEnv(id)
+		if env == "" {
+			t.Errorf("%s: manifest host.homeEnv missing", id)
+		}
+		if a := Impl(id).Accounts; a != nil && a.HomeEnv != env {
+			t.Errorf("%s: plugin HomeEnv %q != manifest host.homeEnv %q", id, a.HomeEnv, env)
+		}
+		if len(catalog.HostList(id, "homeDirs")) == 0 {
+			t.Errorf("%s: manifest host.homeDirs missing", id)
+		}
 	}
 }

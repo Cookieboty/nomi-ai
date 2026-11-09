@@ -39,5 +39,13 @@ export const manifest: CliManifest = {
   modelSwitch: 'inplace',
   clientSpec: { client: 'claude' },
   configPath: '~/.claude/settings.json',
-  host: { minNode: 22, selfUpdate: 'native', vendor: 'anthropic', nomiCommand: true },
+  host: {
+    minNode: 22,
+    selfUpdate: 'native',
+    vendor: 'anthropic',
+    nomiCommand: true,
+    homeEnv: 'CLAUDE_CONFIG_DIR',
+    homeDirs: ['.claude', '.local/share/claude', '.local/state/claude'],
+    execConfig: ['.claude/settings.json', '.claude/hooks'],
+  },
 };

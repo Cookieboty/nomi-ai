@@ -45,5 +45,8 @@ export const manifest: CliManifest = {
     vendor: 'openai',
     planFollowUp: true,
     nomiCommand: true,
+    homeEnv: 'CODEX_HOME',
+    homeDirs: ['.codex'],
+    execConfig: ['.codex/config.toml'],
   },
 };
