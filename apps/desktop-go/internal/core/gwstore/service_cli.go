@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -62,20 +63,9 @@ func objList(v any) []*u.Obj {
 	return out
 }
 
-// AgentDir = agentDir(kind, tabId)：/[^\w-]/g 按 UTF-16 码元替换
+// AgentDir = agentDir(kind, tabId)（路径规则在 cli.GatewayAgentDir，沙箱也按它放行）
 func (s *Service) AgentDir(kind, tabID string) string {
-	var b strings.Builder
-	for _, r := range tabID {
-		switch {
-		case r == '_' || r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'):
-			b.WriteRune(r)
-		case r > 0xFFFF:
-			b.WriteString("__")
-		default:
-			b.WriteByte('_')
-		}
-	}
-	return filepath.Join(filepath.Dir(s.Store.file), "agents", kind, b.String())
+	return cli.GatewayAgentDir(filepath.Dir(s.Store.file), kind, tabID)
 }
 
 // placeholderModelOf

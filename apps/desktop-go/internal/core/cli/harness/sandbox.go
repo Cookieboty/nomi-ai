@@ -213,6 +213,10 @@ func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj
 	if o.d.Sandbox != nil && o.d.Sandbox.Protected != nil {
 		spec.Protected = o.d.Sandbox.Protected()
 	}
+	// 第三方模型下这个标签的私有目录（Nomi 写的配置、私有主目录）：CLI 要读要写。dsh 经 --patch 传文件，不走主目录变量
+	if b := str(tab, "backend"); isBuiltin(b) {
+		spec.Writable = append(spec.Writable, cli.GatewayAgentDir(filepath.Join(spec.NomiData, "gateway"), b, id))
+	}
 	for _, k := range cliHomeEnvs {
 		if v, ok := env.Get(k).(string); ok && filepath.IsAbs(v) {
 			spec.Writable = append(spec.Writable, v)
