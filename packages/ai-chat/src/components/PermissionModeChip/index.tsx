@@ -242,7 +242,7 @@ export const PermissionModeChip: React.FC<{
         data-mode={mode}
         onClick={() => setOpen((o) => !o)}
       >
-        <Icon icon={ICON[mode]} size={14} />
+        <Icon icon={ICON[mode]} />
         <span className={styles.label}>{modeLabel(mode)}</span>
         <Icon icon={ChevronDown} size={12} />
       </button>

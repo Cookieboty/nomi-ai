@@ -27,7 +27,8 @@ import type { ConvMessage } from '../../types/conversation';
 
 import styles from './SessionWorkspace.module.css';
 
-const R = 9;
+// 与输入栏里的图标同大（16px，圆环留 1.5px 边距，和 lucide 图标的留白一致）
+const R = 6.5;
 const C = 2 * Math.PI * R;
 
 /**
@@ -147,31 +148,31 @@ export const ContextUsageBar: React.FC<{
       >
         <svg
           className={styles.contextRingSvg}
-          width={22}
-          height={22}
-          viewBox="0 0 22 22"
+          width={16}
+          height={16}
+          viewBox="0 0 16 16"
           aria-hidden
         >
           <circle
             className={styles.contextRingTrack}
-            cx={11}
-            cy={11}
+            cx={8}
+            cy={8}
             r={R}
             fill="none"
-            strokeWidth={2.2}
-            strokeDasharray="1.6 2.2"
+            strokeWidth={1.75}
+            strokeDasharray="1.3 1.8"
           />
           <circle
             className={styles.contextRingProg}
             data-level={level}
-            cx={11}
-            cy={11}
+            cx={8}
+            cy={8}
             r={R}
             fill="none"
-            strokeWidth={2.4}
+            strokeWidth={2}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${C}`}
-            transform="rotate(-90 11 11)"
+            transform="rotate(-90 8 8)"
           />
         </svg>
         {/* 默认不显示百分比；仅供读屏 / 测试属性 */}

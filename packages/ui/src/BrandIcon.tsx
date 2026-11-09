@@ -14,6 +14,12 @@ export interface BrandIconProps {
   className?: string;
   /** 没有品牌图标时用 lucide 图标代替首字母（如「自定义」） */
   fallbackIcon?: LucideIcon;
+  /**
+   * 跟文字 / lucide 图标排在一起的小图标（按钮里的「图标 + 模型名」、厂商栏）：不画白底方块，图形与同尺寸的
+   * lucide 图标一样大；默认（方块头像）在小尺寸下图形只剩 6 成，看着偏小、和文字对不齐。原色里有黑 / 白的
+   * 品牌（inlineMono）按单色跟随文字颜色，换主题也看得见
+   */
+  inline?: boolean;
 }
 
 function initials(name: string): string {
@@ -33,18 +39,25 @@ export function hasBrandIcon(brand?: string): boolean {
  * 供应商品牌图标。SVG 来自 @lobehub/icons-static-svg（MIT），以 data URI 渲染（不使用 innerHTML）；
  * 单色图标用 CSS mask 跟随 currentColor。没有图标时显示首字母头像。
  */
-export function BrandIcon({ brand, name, size = 28, className, fallbackIcon }: BrandIconProps) {
+export function BrandIcon({
+  brand,
+  name,
+  size = 28,
+  className,
+  fallbackIcon,
+  inline,
+}: BrandIconProps) {
   const icon = brand ? BRAND_ICONS[brand] : undefined;
   const box: React.CSSProperties = { width: size, height: size };
   if (!icon && fallbackIcon) {
     return (
       <span
-        className={cx('cd-brand cd-brand--initials', className)}
+        className={cx('cd-brand', inline ? 'cd-brand--inline' : 'cd-brand--initials', className)}
         style={box}
         aria-hidden
         data-brand="fallback-icon"
       >
-        <Icon icon={fallbackIcon} size={Math.round(size * 0.55)} />
+        <Icon icon={fallbackIcon} size={inline ? size : Math.round(size * 0.55)} />
       </span>
     );
   }
@@ -52,7 +65,7 @@ export function BrandIcon({ brand, name, size = 28, className, fallbackIcon }: B
     return (
       <span
         className={cx('cd-brand cd-brand--initials', className)}
-        style={{ ...box, fontSize: Math.round(size * 0.42) }}
+        style={{ ...box, fontSize: Math.round(size * (inline ? 0.56 : 0.42)) }}
         aria-hidden
         data-brand="initials"
       >
@@ -61,13 +74,20 @@ export function BrandIcon({ brand, name, size = 28, className, fallbackIcon }: B
     );
   }
   const uri = `url("data:image/svg+xml;utf8,${encodeURIComponent(icon.svg)}")`;
-  const inner = Math.round(size * 0.62);
+  // 行内：与 lucide 图标同样的留白（24 格里画 20 格），同尺寸时看起来一样大
+  const inner = Math.round(size * (inline ? 20 / 24 : 0.62));
+  const mono = icon.mono || (inline && icon.inlineMono);
   return (
-    <span className={cx('cd-brand', className)} style={box} aria-hidden data-brand={brand}>
+    <span
+      className={cx('cd-brand', inline && 'cd-brand--inline', className)}
+      style={box}
+      aria-hidden
+      data-brand={brand}
+    >
       <span
         className="cd-brand__glyph"
         style={
-          icon.mono
+          mono
             ? { width: inner, height: inner, maskImage: uri, WebkitMaskImage: uri }
             : { width: inner, height: inner, backgroundImage: uri, backgroundColor: 'transparent' }
         }

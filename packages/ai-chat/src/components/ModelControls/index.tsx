@@ -720,9 +720,9 @@ const ModelChip: React.FC<{
         onClick={toggle}
       >
         {chipBrand ? (
-          <BrandIcon brand={chipBrand} name={modelLabel} size={14} />
+          <BrandIcon brand={chipBrand} name={modelLabel} size={16} inline />
         ) : (
-          <Icon icon={Cpu} size={14} />
+          <Icon icon={Cpu} />
         )}
         <span className={styles.label}>{shortLabel}</span>
         {long?.on && (
@@ -987,7 +987,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         )}
         data-testid="model-chip-loading"
       >
-        <Icon icon={Cpu} size={14} />
+        <Icon icon={Cpu} />
         <span className={styles.label}>{label}</span>
         <span className={styles.spin}>
           <Icon icon={RefreshCw} size={12} />

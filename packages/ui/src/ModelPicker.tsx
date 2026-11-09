@@ -347,7 +347,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       valueIcon={(o) => {
         const brand = brands.get(o.value);
         return brand ? (
-          <BrandIcon brand={brand} name={display.get(o.value) ?? o.value} size={14} />
+          <BrandIcon brand={brand} name={display.get(o.value) ?? o.value} size={16} inline />
         ) : null;
       }}
       onChange={(e) => onChange(e.target.value)}

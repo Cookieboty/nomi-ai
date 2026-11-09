@@ -2,11 +2,14 @@
  * 品牌图标（自动生成，勿手改）。来源：@lobehub/icons-static-svg v1.95.1 · MIT License
  * Copyright (c) 2023 LobeHub. Logo 商标归各自所有者，仅作指示性使用。
  * mono=true 的图标用 currentColor 单色渲染（CSS mask），否则按原色渲染。
- * 例外（手改）：kimi 的 K 原是白色（给深色底用），图标底是浅色，改成黑色；claude 取自 claude-color.svg。
+ * 例外（手改）：kimi 的 K 原是白色（给深色底用），图标底是浅色，改成黑色；claude 取自 claude-color.svg；
+ * kimi 标了 inlineMono（黑色的 K 在透明底的深色主题里看不见）。
  */
 export interface BrandSvg {
   svg: string;
   mono: boolean;
+  /** 和文字排在一行（透明底）时按单色渲染：原色里有黑 / 白部分，换到深色 / 浅色主题会看不见 */
+  inlineMono?: boolean;
 }
 
 export const BRAND_ICONS: Readonly<Record<string, BrandSvg>> = {
@@ -32,6 +35,7 @@ export const BRAND_ICONS: Readonly<Record<string, BrandSvg>> = {
   },
   kimi: {
     mono: false,
+    inlineMono: true,
     svg: '<svg   viewBox="0 0 24 24"  xmlns="http://www.w3.org/2000/svg"><path d="M21.846 0a1.923 1.923 0 110 3.846H20.15a.226.226 0 01-.227-.226V1.923C19.923.861 20.784 0 21.846 0z" fill="#1783FF"></path><path d="M11.065 11.199l7.257-7.2c.137-.136.06-.41-.116-.41H14.3a.164.164 0 00-.117.051l-7.82 7.756c-.122.12-.302.013-.302-.179V3.82c0-.127-.083-.23-.185-.23H3.186c-.103 0-.186.103-.186.23V19.77c0 .128.083.23.186.23h2.69c.103 0 .186-.102.186-.23v-3.25c0-.069.025-.135.069-.178l2.424-2.406a.158.158 0 01.205-.023l6.484 4.772a7.677 7.677 0 003.453 1.283c.108.012.2-.095.2-.23v-3.06c0-.117-.07-.212-.164-.227a5.028 5.028 0 01-2.027-.807l-5.613-4.064c-.117-.078-.132-.279-.028-.381z" fill="#000"></path></svg>',
   },
   zhipu: {
