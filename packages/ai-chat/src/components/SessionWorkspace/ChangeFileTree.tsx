@@ -43,7 +43,7 @@ export const ChangeFileTree: React.FC<{
               return c.kind === 'file' ? match(c.path) : c.children.some(walk);
             });
           if (!any) return null;
-          const isOpen = open[n.path] ?? (defaultOpen || !!q);
+          const isOpen = open[n.path] ?? (n.open || defaultOpen || !!q);
           return (
             <div
               key={n.path || n.name}
@@ -57,7 +57,7 @@ export const ChangeFileTree: React.FC<{
                 onClick={() => setOpen((o) => ({ ...o, [n.path]: !isOpen }))}
               >
                 {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <span className={styles.wbFileName} title={n.path}>
+                <span className={styles.wbFileName} title={n.title ?? n.path}>
                   {n.name || '/'}
                 </span>
               </button>

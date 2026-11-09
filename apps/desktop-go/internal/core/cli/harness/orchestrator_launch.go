@@ -399,18 +399,6 @@ func (o *Orchestrator) prewarm(id string) {
 // jsErrString = String(e)（Error → "Error: msg"）。
 func jsErrString(err error) string { return "Error: " + errMsg(err) }
 
-// PickTabCwd = pickTabCwd（async）。
-func (o *Orchestrator) PickTabCwd(id string) *jsrt.Promise[*util.Obj] {
-	return jsrt.Async(func() (*util.Obj, error) {
-		tab := o.requireTab(id)
-		picked, _ := jsrt.Await(jsrt.Resolved(o.showDirectoryPicker(str(tab, "cwd"))))
-		if picked == nil || *picked == "" {
-			return tab.Clone(), nil
-		}
-		return o.SetTabCwd(id, *picked, false), nil
-	})
-}
-
 // SteerTab = steerTab：一轮进行中插入一条用户消息（工作台 Enter 插入，docs/development/coding-agents.md），交给长驻进程，
 // CLI 在下一个工具 / 模型步骤取走，这一轮不中断。成功后在这一轮的轨迹里记一条 interject（落盘、实时显示）。
 // 没有进行中的轮次、后端不支持（Gemini / dsh / exec 退路）或 CLI 拒绝时 false，视图改为排队。

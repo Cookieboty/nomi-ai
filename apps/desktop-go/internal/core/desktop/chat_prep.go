@@ -57,46 +57,53 @@ func (s *Service) CheckSendAll(receivers []*Provider, signal context.Context, wh
 	return CheckSendAll(receivers, signal, what, s.Broker.CheckSend)
 }
 
-// WorkspaceSystemHint = workspaceSystemHint（prompts/text/workspace.md）
-func WorkspaceSystemHint(ws string, autoApprove bool) string {
-	return prompts.Render("workspace", map[string]any{"Workspace": ws, "AutoApprove": autoApprove, "HasCli": codingcli.Available()})
+// WorkspaceSystemHint：项目提示（prompts/text/workspace.md）
+func WorkspaceSystemHint(name string, ws Workspace, autoApprove bool) string {
+	return prompts.Render("workspace", map[string]any{"Name": name, "Workspace": ws.Primary, "Extra": ws.Extra, "AutoApprove": autoApprove, "HasCli": codingcli.Available()})
 }
 
-// WorkspaceBroker = Pick<PermissionBroker, 'workspaceOf' | 'autoApprove'>
+// WorkspaceBroker：PrepareChat 用到的 PermissionBroker 能力
 type WorkspaceBroker struct {
-	WorkspaceOf func(cwd any) string // "" = null
+	WorkspaceOf func(projectID any) Workspace
+	ProjectName func(id string) string
 	AutoApprove func() bool
 }
 
-// ApplyConversationWorkspace = applyConversationWorkspace（就地改写 options；返回 "" = null）
-func ApplyConversationWorkspace(options map[string]any, b WorkspaceBroker) (string, error) {
+// ApplyConversationWorkspace：按 extra.projectId 取这一轮的项目目录（就地改写 options）。
+// 视图只能带 projectId；extra.cwd 由这里按项目的主文件夹重写（视图带来的一律丢掉），工具的工作目录与门控用它。
+func ApplyConversationWorkspace(options map[string]any, b WorkspaceBroker) (Workspace, error) {
 	rawExtra := options["extra"]
 	if !jsTruthy(rawExtra) {
-		return "", nil
+		return Workspace{}, nil
 	}
 	extra, isObj := rawExtra.(map[string]any)
 	if !isObj {
 		if _, isArr := rawExtra.([]any); isArr {
-			return "", nil
+			return Workspace{}, nil
 		}
-		// 'cwd' in <primitive> 抛 TypeError
-		return "", errors.New("Cannot use 'in' operator to search for 'cwd' in " + jsString(rawExtra))
+		return Workspace{}, errors.New("Cannot use 'in' operator to search for 'projectId' in " + jsString(rawExtra))
 	}
-	cwd, has := extra["cwd"]
+	delete(extra, "cwd")
+	pid, has := extra["projectId"]
 	if !has {
-		return "", nil
+		return Workspace{}, nil
 	}
-	ws := b.WorkspaceOf(cwd)
-	if ws == "" {
-		delete(extra, "cwd")
-		return "", nil
+	ws := b.WorkspaceOf(pid)
+	if ws.Empty() {
+		delete(extra, "projectId")
+		return Workspace{}, nil
 	}
-	extra["cwd"] = ws
-	hint := WorkspaceSystemHint(ws, b.AutoApprove())
+	extra["projectId"] = ws.ProjectID
+	extra["cwd"] = ws.Primary
+	name := ""
+	if b.ProjectName != nil {
+		name = b.ProjectName(ws.ProjectID)
+	}
+	hint := WorkspaceSystemHint(name, ws, b.AutoApprove())
 	if msgs, ok := options["messages"].([]any); ok {
 		for _, x := range msgs {
 			if x == nil {
-				return "", errors.New("Cannot read properties of null (reading 'role')")
+				return Workspace{}, errors.New("Cannot read properties of null (reading 'role')")
 			}
 			m, _ := x.(map[string]any)
 			if m == nil {
@@ -152,7 +159,9 @@ type ChatPrep struct {
 // ChatPrep 取本服务的依赖
 func (s *Service) ChatPrep() ChatPrep {
 	return ChatPrep{
-		Broker:      WorkspaceBroker{WorkspaceOf: s.Broker.WorkspaceOf, AutoApprove: func() bool { return s.Broker.AutoApprove() }},
+		Broker: WorkspaceBroker{WorkspaceOf: s.Broker.WorkspaceOf,
+			ProjectName: func(id string) string { return s.Broker.ProjectName(id) },
+			AutoApprove: func() bool { return s.Broker.AutoApprove() }},
 		ProviderFor: s.ProviderFor,
 		CheckSend:   s.Broker.CheckSend,
 	}

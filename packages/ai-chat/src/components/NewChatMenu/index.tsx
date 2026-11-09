@@ -1,6 +1,6 @@
 /**
  * 唯一的「新建」菜单：侧栏「新对话」与标签栏「+」共用。
- * 端点（图标 + 名称，未安装置灰）+ 工作目录（CLI 标签的目录 / Nomi 对话的工作区）。
+ * 端点（图标 + 名称，未安装置灰）+ 项目（新会话放进哪个项目）。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';
@@ -8,7 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import type { ConversationBackend } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
-import { WorkspacePicker } from '../WorkspacePicker';
+import { ProjectPicker } from '../ProjectPicker';
 
 import styles from './index.module.css';
 
@@ -19,7 +19,8 @@ export interface NewChatMenuProps {
   /** 把「未探测」也当作未安装（侧栏用） */
   strictBins?: boolean;
   lastBackend?: ConversationBackend | null;
-  workspace: { cwd: string; set: (cwd: string) => void };
+  /** 新会话的项目（没选 = 不指定） */
+  project: { chosen: string | undefined; set: (projectId: string) => void };
   onPick: (b: ConversationBackend) => void;
   testId?: string;
   itemTestId?: (b: ConversationBackend) => string;
@@ -32,11 +33,11 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
   bins,
   strictBins,
   lastBackend,
-  workspace,
+  project,
   onPick,
   testId = 'new-chat-menu',
   itemTestId = (b) => `new-chat-${b}`,
-  workspaceTestId = 'new-chat-workspace',
+  workspaceTestId = 'new-chat-project',
   className,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -92,12 +93,7 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
         </button>
       ))}
       <div className={styles.ws}>
-        <WorkspacePicker
-          value={workspace.cwd}
-          onChange={workspace.set}
-          testId={workspaceTestId}
-          label={t('ui.mascot-theme.folder')}
-        />
+        <ProjectPicker value={project.chosen} onChange={project.set} testId={workspaceTestId} />
       </div>
     </div>
   );

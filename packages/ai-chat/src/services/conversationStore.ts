@@ -87,8 +87,8 @@ export interface CreateConversationOpts {
   name?: string;
   backend?: ConversationBackend;
   tabId?: string;
-  /** Nomi 对话的工作区（见 ChatSession.cwd） */
-  cwd?: string;
+  /** Nomi 对话的项目（见 ChatSession.projectId）；null = 不放进项目，不给 = 沿用当前 Nomi 对话的 */
+  projectId?: string | null;
   /** 创建后是否设为当前会话，默认 true */
   activate?: boolean;
 }
@@ -98,8 +98,8 @@ export interface ForkConversationOpts {
   backend?: ConversationBackend;
   tabId?: string;
   name?: string;
-  /** 工作区；默认沿用源会话的（只对 Nomi 对话有意义） */
-  cwd?: string;
+  /** 项目；默认沿用源会话的（只对 Nomi 对话有意义） */
+  projectId?: string;
   /** 覆盖要复制的消息；默认复制源会话全部消息（源会话须已加载：先 await loadMessages） */
   messages?: ChatMessage[];
 }
@@ -192,7 +192,11 @@ export class ConversationStore {
   private readonly offKernel: () => void;
   private disposed = false;
   /** 新 Nomi 对话没指定工作区时用的目录（IPCClient 注入主标签当前的目录；缺省没有） */
-  defaultNomiCwd: () => string | undefined = () => undefined;
+  /** 新 Nomi 对话没指定项目时用哪个：当前 Nomi 对话的项目（接着在同一个项目里聊） */
+  defaultNomiProject = (): string | undefined => {
+    const cur = this.current ? this.get(this.current) : undefined;
+    return cur?.backend === 'nomi' && !cur.tabId ? cur.projectId : undefined;
+  };
 
   constructor(opts: ConversationStoreOptions = {}) {
     this.kernel = opts.kernel;
@@ -383,8 +387,13 @@ export class ConversationStore {
       ...(opts.tabId ? { tabId: opts.tabId } : {}),
     };
     const backend = meta.backend;
-    const cwd = opts.cwd ?? (backend === 'nomi' && !opts.tabId ? this.defaultNomiCwd() : undefined);
-    if (cwd) meta.cwd = cwd;
+    const projectId =
+      backend === 'nomi' && !opts.tabId
+        ? opts.projectId === undefined
+          ? this.defaultNomiProject()
+          : (opts.projectId ?? undefined)
+        : undefined;
+    if (projectId) meta.projectId = projectId;
     this.index = [...this.index, meta];
     this.counts.set(meta.id, 0);
     this.previews[meta.id] = '';
@@ -666,12 +675,12 @@ export class ConversationStore {
     const msgs = opts.messages ?? this.getMessages(sourceId);
     const name = opts.name ?? t('ui.cli-monitor.copy', src.name);
     const backend = opts.backend ?? src.backend;
-    const cwd = backend === 'nomi' ? (opts.cwd ?? src.cwd) : undefined;
+    const projectId = backend === 'nomi' ? (opts.projectId ?? src.projectId) : undefined;
     const meta = this.create({
       name,
       backend,
       tabId: opts.tabId,
-      ...(cwd ? { cwd } : {}),
+      ...(projectId ? { projectId } : {}),
       activate: true,
     });
     if (msgs.length) {
@@ -708,16 +717,15 @@ export class ConversationStore {
   }
 
   /**
-   * 同一工作区里还没有消息的 Nomi 对话（新建时复用它，不再堆一个空对话）。
-   * cwd 按去掉末尾斜杠比较；没有工作区的只和同样没有工作区的配对。归档的不算。
+   * 同一项目里还没有消息的 Nomi 对话（新建时复用它，不再堆一个空对话）。
+   * 没有项目的只和同样没有项目的配对。归档的不算。
    * exclude：不能复用的会话（正在回复的那一轮落盘前它们也是零消息）
    */
   findEmptyNomi(
-    cwd: string | undefined,
+    projectId: string | undefined,
     exclude?: string | readonly string[],
   ): ConversationMeta | undefined {
-    const norm = (p: string | undefined) => (p ?? '').replace(/[\\/]+$/, '');
-    const want = norm(cwd);
+    const want = projectId ?? '';
     const skip = new Set(typeof exclude === 'string' ? [exclude] : (exclude ?? []));
     return this.index.find(
       (c) =>
@@ -725,7 +733,7 @@ export class ConversationStore {
         c.backend === 'nomi' &&
         !c.tabId &&
         !c.archivedAt &&
-        norm(c.cwd) === want &&
+        (c.projectId ?? '') === want &&
         !this.hasMessages(c.id),
     );
   }

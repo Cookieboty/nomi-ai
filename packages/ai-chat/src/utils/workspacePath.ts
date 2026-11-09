@@ -22,3 +22,20 @@ export function workspaceRelPath(cwd: string | null | undefined, filePath: strin
   if (f.startsWith(`${c}/`)) return f.slice(c.length + 1);
   return filePath;
 }
+
+/** 路径比较键：统一分隔符、去掉末尾斜杠；Windows 盘符路径大小写不敏感 */
+export function workspaceKey(path: string): string {
+  const p = path.replace(/\\/g, '/').replace(/\/+$/, '') || '/';
+  return /^[A-Za-z]:\//.test(p) || /^[A-Za-z]:$/.test(p) ? p.toLowerCase() : p;
+}
+
+/** p 落在哪个文件夹里（最长的那个）；都不在时 undefined */
+export function rootOf(roots: readonly string[], p: string): string | undefined {
+  const k = workspaceKey(p);
+  let best: string | undefined;
+  for (const r of roots) {
+    const rk = workspaceKey(r);
+    if ((k === rk || k.startsWith(`${rk}/`)) && (!best || r.length > best.length)) best = r;
+  }
+  return best;
+}

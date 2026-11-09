@@ -4,19 +4,19 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { AnchoredPopover } from './AnchoredPopover';
 import styles from './index.module.css';
+import type { ProjectGroup } from './projectGrouping';
 import { SectionHeader } from './SectionHeader';
 import { ThreadItem, type VirtualProps } from './SidebarRows';
 import type { Meta } from './types';
-import type { WorkspaceGroup } from './workspaceGrouping';
 
-/** 「工作区」「最近」整个分区收起时记在折叠记录里的键（与工作区路径不会重名） */
+/** 「项目」「最近」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
 export const SECTION_WORKSPACES = '\u0000section:workspaces';
 export const SECTION_RECENT = '\u0000section:recent';
 export const SECTION_PINNED = '\u0000section:pinned';
 
-/** 每个工作区默认显示的会话数，其余点「展开显示」才出现 */
+/** 每个项目默认显示的会话数，其余点「展开显示」才出现 */
 export const WORKSPACE_PREVIEW = 5;
-/** 「最近」（没有工作区的会话）默认显示的条数 */
+/** 「最近」（没有项目的会话）默认显示的条数 */
 export const RECENT_PREVIEW = 20;
 
 const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualProps }> = ({
@@ -85,7 +85,7 @@ function usePaging() {
   return { countOf, more, less };
 }
 
-/** 最上面的「置顶」：置顶的会话不进工作区分组，按置顶先后排 */
+/** 最上面的「置顶」：置顶的会话不进项目分组，按置顶先后排 */
 export const PinnedSection: React.FC<{
   items: readonly Meta[];
   open: boolean;
@@ -108,21 +108,35 @@ export const PinnedSection: React.FC<{
 };
 
 /**
- * 侧栏「按工作区」：每个工作区一个可折叠的文件夹，默认显示最近 5 条，其余自己展开；
- * 文件夹行上的「新建」在该工作区里开新会话。没有工作区的会话列在下面的「最近」里。
+ * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在），默认显示最近 5 条，其余自己展开；
+ * 项目行上的「…」编辑项目，「新建」在该项目里开新会话。没有项目的会话列在下面的「最近」里。
  */
-export const WorkspaceGroups: React.FC<{
-  groups: readonly WorkspaceGroup[];
+export const ProjectGroups: React.FC<{
+  groups: readonly ProjectGroup[];
   rest: readonly Meta[];
   collapsed: readonly string[];
   onToggleCollapsed: (key: string, collapsed: boolean) => void;
-  onNewIn: (group: WorkspaceGroup) => void;
+  onNewIn: (group: ProjectGroup) => void;
+  onEdit: (group: ProjectGroup) => void;
   activeId: string | undefined;
   /** 与平铺列表共用的行回调（items / current 不用） */
   rows: VirtualProps;
-  /** 「工作区」标题右侧：整理「…」+ 新建「+」 */
+  /** 「项目」标题右侧：整理「…」+ 新建项目 */
   headerActions?: React.ReactNode;
-}> = ({ groups, rest, collapsed, onToggleCollapsed, onNewIn, activeId, rows, headerActions }) => {
+  /** 「最近」标题右侧：新建对话（不在项目里） */
+  recentActions?: React.ReactNode;
+}> = ({
+  groups,
+  rest,
+  collapsed,
+  onToggleCollapsed,
+  onNewIn,
+  onEdit,
+  activeId,
+  rows,
+  headerActions,
+  recentActions,
+}) => {
   useLocale();
   // 「展开显示」每次多显示一页，只在本次打开期间记住；折叠状态才持久化
   const paging = usePaging();
@@ -133,32 +147,38 @@ export const WorkspaceGroups: React.FC<{
   const recentOpen = !collapsed.includes(SECTION_RECENT);
   return (
     <>
-      {groups.length > 0 && (
-        <SectionHeader
-          label={t('ui.cli-monitor.workspaces')}
-          open={wsOpen}
-          onToggle={() => onToggleCollapsed(SECTION_WORKSPACES, wsOpen)}
-          testId="workspace-section-toggle"
-          actions={headerActions}
-        />
+      <SectionHeader
+        label={t('ui.slash-commands.project')}
+        open={wsOpen}
+        onToggle={() => onToggleCollapsed(SECTION_WORKSPACES, wsOpen)}
+        testId="workspace-section-toggle"
+        actions={headerActions}
+      />
+      {wsOpen && groups.length === 0 && (
+        <div className={styles.wsEmpty} data-testid="projects-empty">
+          {t('ui.cli-monitor.project-none-yet')}
+        </div>
       )}
       {wsOpen &&
         groups.map((g) => {
           const isCollapsed = collapsed.includes(g.key);
           const count = paging.countOf(g.key, WORKSPACE_PREVIEW);
           const shown = g.items.slice(0, count);
+          const name = g.project.name;
           const toggleLabel = isCollapsed
-            ? t('ui.cli-monitor.expand-workspace', g.label)
-            : t('ui.cli-monitor.collapse-workspace', g.label);
-          const newLabel = t('ui.cli-monitor.new-chat-in-workspace', g.label);
+            ? t('ui.cli-monitor.expand-workspace', name)
+            : t('ui.cli-monitor.collapse-workspace', name);
+          const newLabel = t('ui.cli-monitor.new-chat-in-project', name);
+          const editLabel = t('ui.cli-monitor.project-edit', name);
           return (
             <div
               key={g.key}
               className={styles.wsGroup}
               role="group"
-              aria-label={g.label}
+              aria-label={name}
               data-testid="workspace-group"
-              data-workspace={g.key}
+              data-project={g.key}
+              data-missing={g.project.missing?.length ? true : undefined}
             >
               <div className={styles.wsHead}>
                 <button
@@ -166,13 +186,23 @@ export const WorkspaceGroups: React.FC<{
                   className={styles.wsToggle}
                   aria-expanded={!isCollapsed}
                   aria-label={toggleLabel}
-                  title={g.path}
+                  title={g.title}
                   onClick={() => onToggleCollapsed(g.key, !isCollapsed)}
                   data-testid="workspace-toggle"
                 >
                   <Icon icon={isCollapsed ? Folder : FolderOpen} size={16} />
-                  <span className={styles.wsLabel}>{g.label}</span>
+                  <span className={styles.wsLabel}>{name}</span>
                   {isCollapsed && <span className={styles.listCount}>{g.items.length}</span>}
+                </button>
+                <button
+                  type="button"
+                  className={styles.wsNew}
+                  title={editLabel}
+                  aria-label={editLabel}
+                  onClick={() => onEdit(g)}
+                  data-testid="project-edit"
+                >
+                  <Icon icon={Ellipsis} size={14} />
                 </button>
                 <button
                   type="button"
@@ -202,21 +232,18 @@ export const WorkspaceGroups: React.FC<{
             </div>
           );
         })}
-      {rest.length > 0 && (
+      {/* 「最近」一直在：标题右侧是不在项目里的「新建对话」 */}
+      {
         <div className={styles.wsRecent} data-testid="workspace-recent">
-          {/* 没有工作区分组时「最近」就是整张列表，不加标题、不能收起 */}
-          {groups.length > 0 && (
-            <SectionHeader
-              label={t('ui.cli-monitor.recent-chats')}
-              open={recentOpen}
-              onToggle={() => onToggleCollapsed(SECTION_RECENT, recentOpen)}
-              testId="recent-section-toggle"
-            />
-          )}
-          {(recentOpen || groups.length === 0) && (
-            <Rows items={rest.slice(0, restCount)} activeId={activeId} rows={rows} />
-          )}
-          {(recentOpen || groups.length === 0) && rest.length > RECENT_PREVIEW && (
+          <SectionHeader
+            label={t('ui.cli-monitor.recent-chats')}
+            open={recentOpen}
+            onToggle={() => onToggleCollapsed(SECTION_RECENT, recentOpen)}
+            testId="recent-section-toggle"
+            actions={recentActions}
+          />
+          {recentOpen && <Rows items={rest.slice(0, restCount)} activeId={activeId} rows={rows} />}
+          {recentOpen && rest.length > RECENT_PREVIEW && (
             <MoreToggle
               shown={restCount}
               total={rest.length}
@@ -226,12 +253,12 @@ export const WorkspaceGroups: React.FC<{
             />
           )}
         </div>
-      )}
+      }
     </>
   );
 };
 
-/** 「工作区」标题右侧的「…」：整理侧栏——按工作区分组 / 合并成一张列表 */
+/** 「项目」标题右侧的「…」：整理侧栏——按项目分组 / 合并成一张列表 */
 export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) => void }> = ({
   grouped,
   onChange,
@@ -296,7 +323,7 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
             aria-label={t('ui.cli-monitor.organize-sidebar')}
           >
             <div className={styles.orgTitle}>{t('ui.cli-monitor.organize-sidebar')}</div>
-            {item(true, FolderTree, t('ui.cli-monitor.group-by-workspace'), 'group-by-workspace')}
+            {item(true, FolderTree, t('ui.cli-monitor.group-by-project'), 'group-by-workspace')}
             {item(false, List, t('ui.cli-monitor.merged-list'), 'merged-list')}
           </div>
         </AnchoredPopover>

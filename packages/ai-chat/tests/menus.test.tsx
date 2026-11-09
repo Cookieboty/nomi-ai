@@ -8,6 +8,7 @@ import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
+import { __setProjectsForTest } from '../src/services/projects';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -263,7 +264,10 @@ describe('one conversation context menu', () => {
     ).toBeTruthy();
   });
 
-  it('新建 Nomi 对话带上新建菜单里选的工作区；没选时交给默认（主标签目录）', async () => {
+  it('新建 Nomi 对话带上新建菜单里选的项目；没选时不放进项目', async () => {
+    __setProjectsForTest([
+      { id: 'p_one', name: 'one', primary: '/proj/one', folders: [], createdAt: 1, updatedAt: 1 },
+    ]);
     const invoke = mockIpc();
     invoke.mockImplementation(async (ch: string) => {
       if (ch === 'harness.tabs') return tabsState;
@@ -282,12 +286,12 @@ describe('one conversation context menu', () => {
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
     fireEvent.click(r.getByTestId('new-chat'));
     fireEvent.click(r.getByTestId('new-chat-nomi'));
-    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith(undefined));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: null }));
     fireEvent.click(r.getByTestId('new-chat'));
-    fireEvent.click(r.getByTestId('new-chat-workspace-button'));
-    fireEvent.click(await r.findByTestId('workspace-recent-item'));
+    fireEvent.click(r.getByTestId('new-chat-project-button'));
+    fireEvent.click(await r.findByTestId('project-picker-item'));
     fireEvent.click(r.getByTestId('new-chat-nomi'));
-    await waitFor(() => expect(onNewChat).toHaveBeenLastCalledWith({ cwd: '/proj/one' }));
+    await waitFor(() => expect(onNewChat).toHaveBeenLastCalledWith({ projectId: 'p_one' }));
   });
 
   it('deleting the last Nomi conversation clears the pane without creating a new one', async () => {
@@ -367,6 +371,6 @@ describe('one "new" menu', () => {
     expect(r.getByTestId('new-chat-codex').textContent).toBe('Codex');
     expect((r.getByTestId('new-chat-dsh') as HTMLButtonElement).disabled).toBe(true);
     expect(r.getByTestId('new-chat-dsh').textContent).toContain('未安装');
-    expect(r.getByTestId('new-chat-workspace')).toBeTruthy();
+    expect(r.getByTestId('new-chat-project')).toBeTruthy();
   });
 });

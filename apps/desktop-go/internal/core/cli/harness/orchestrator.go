@@ -75,6 +75,11 @@ type Deps struct {
 	EnvAllow func() []string
 	// Sandbox：系统级沙箱的设置（sandbox.go）；nil = 不用沙箱
 	Sandbox *SandboxDeps
+	// ProjectRoots：项目此刻的主文件夹与其余文件夹（core/projects，realpath）；项目不在 / 不能用时 primary 为空。
+	// 标签只记 projectId，每次启动 CLI 时按它实时取其余文件夹（--add-dir 等）
+	ProjectRoots func(id string) (primary string, extra []string)
+	// InProject：dir 是否在用户某个项目的某个文件夹里（右栏 git / 文件浏览认的目录）
+	InProject func(dir string) bool
 }
 
 const (
@@ -433,6 +438,9 @@ func (o *Orchestrator) KnownDir(cwd any) string {
 		if winKey(p) == want {
 			return abs
 		}
+	}
+	if o.d.InProject != nil && o.d.InProject(abs) {
+		return abs
 	}
 	throw(i18n.T("electron.common.invalid-working-directory"))
 	return ""

@@ -84,12 +84,14 @@ func (h delegateHarness) CloseTab(id string) error {
 // delegateDesktop：delegate.Desktop ← DesktopService（broker / audit / receiversFor）
 type delegateDesktop struct{ s *desktop.Service }
 
-func (d delegateDesktop) WorkspaceOf(cwd any) string { return d.s.Broker.WorkspaceOf(cwd) }
+func (d delegateDesktop) WorkspaceOf(projectID any) desktop.Workspace {
+	return d.s.Broker.WorkspaceOf(projectID)
+}
 func (d delegateDesktop) Guard(p any, need string, allowMissing bool) desktop.GuardResult {
 	return d.s.Broker.Guard(p, need, allowMissing)
 }
-func (d delegateDesktop) GuardIn(root string, p any, need string, allowMissing bool) desktop.GuardResult {
-	return d.s.Broker.GuardIn(root, p, need, allowMissing)
+func (d delegateDesktop) GuardIn(ws desktop.Workspace, p any, need string, allowMissing bool) desktop.GuardResult {
+	return d.s.Broker.GuardIn(ws, p, need, allowMissing)
 }
 func (d delegateDesktop) Authorize(i desktop.AuthorizeInput) desktop.Decision {
 	return d.s.Broker.Authorize(i)

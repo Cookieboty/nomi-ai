@@ -17,7 +17,7 @@ import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
-import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { useNewProject } from '../../hooks/useNewProject';
 import { orderEndpoints, visibleEndpoints } from '../../services/chatPrefs';
 import { cliUpdateClient } from '../../services/cliUpdateClient';
 import {
@@ -36,6 +36,7 @@ import {
   type HistoryBackend,
   type HistorySession,
 } from '../../services/historyClient';
+import { useProjects, type Project } from '../../services/projects';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
@@ -48,6 +49,7 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { GettingStarted } from '../GettingStarted';
 import { NewChatMenu } from '../NewChatMenu';
+import { ProjectDialog } from '../ProjectDialog';
 import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
 
 import { AnchoredPopover } from './AnchoredPopover';
@@ -55,6 +57,14 @@ import { EndpointRail } from './EndpointRail';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import { LocalHistorySection } from './LocalHistorySection';
+import { useProjectGrouping, projectBackend } from './projectGrouping';
+import {
+  OrganizeMenu,
+  PinnedSection,
+  ProjectGroups,
+  SECTION_PINNED,
+  SECTION_WORKSPACES,
+} from './ProjectGroups';
 import { SearchDialog } from './SearchDialog';
 import {
   firstUserMessageCache,
@@ -71,19 +81,12 @@ import type { Meta } from './types';
 import { useFloatingPanel } from './useFloatingPanel';
 import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
-import { useWorkspaceGrouping, workspaceBackend } from './workspaceGrouping';
-import {
-  OrganizeMenu,
-  PinnedSection,
-  SECTION_PINNED,
-  SECTION_WORKSPACES,
-  WorkspaceGroups,
-} from './WorkspaceGroups';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  onNewChat: (opts?: { cwd?: string }) => void | Promise<void>; // cwd：新建菜单里选的工作区
+  /** projectId：新 Nomi 对话放进哪个项目（null = 不放进项目；不给 = 沿用当前对话的） */
+  onNewChat: (opts?: { projectId?: string | null }) => void | Promise<void>;
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -151,7 +154,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const [histMenu, setHistMenu] = useState<{ h: HistorySession; x: number; y: number } | null>(
     null,
   );
-  const ws = useNewWorkspace();
+  const ws = useNewProject();
+  const projects = useProjects();
+  // 创建 / 编辑项目的弹窗：'new' = 新建
+  const [projectDialog, setProjectDialog] = useState<Project | 'new' | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const newPopRef = useRef<HTMLDivElement | null>(null);
@@ -291,7 +297,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     p.sort((a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0));
     return { pinned: p, unpinned: p.length ? visible.filter((c) => !c.pinnedAt) : visible };
   }, [visible]);
-  const wsGroups = useWorkspaceGrouping(unpinned, tabById, groupByWorkspace);
+  const wsGroups = useProjectGrouping(unpinned, projects, tabById, groupByWorkspace);
 
   // 行回调读最新的 list / current / tabs（经 ref），回调本身保持稳定：
   // 否则每次渲染换引用，ThreadItem 的 React.memo 全部失效
@@ -356,23 +362,26 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
 
-  /** cwd：在指定工作区里新建（工作区分组上的「新建」）；缺省用新建菜单里选的目录 */
-  const createFor = async (backend: ConversationBackend, cwd?: string) => {
+  /**
+   * projectId：在指定项目里新建（项目行上的「新建」）；null = 不放进项目（「最近」上的新建）；
+   * 缺省用新建菜单里选的项目
+   */
+  const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
     setNewMenu(false);
     leaveRef.current?.();
-    const dir = cwd ?? ws.chosen;
+    const pid = projectId === undefined ? (ws.chosen ?? null) : projectId;
     if (backend === 'nomi') {
       if (tabs.available) await tabs.activate(MAIN_TAB_ID);
       if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
       // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
       // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-      await onNewChat(dir ? { cwd: dir } : undefined);
+      await onNewChat({ projectId: pid });
       refresh();
       return;
     }
     if (!isDev) setMode('dev');
     if (!tabs.available) return;
-    await tabs.create(backend, dir);
+    await tabs.create(backend, pid ?? undefined);
     refresh();
   };
 
@@ -784,7 +793,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             backends={CONVERSATION_BACKENDS}
             bins={bins}
             strictBins
-            workspace={ws}
+            project={ws}
             onPick={(b) => void createFor(b)}
           />
         </AnchoredPopover>
@@ -792,11 +801,31 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     </div>
   );
 
-  // 「工作区」（不分组时是「对话」）标题右侧：整理侧栏「…」+ 新建「+」（Codex 式）
+  // 新建项目（不开对话）：打开「创建项目」弹窗
+  const newProjectBtn = (
+    <button
+      type="button"
+      className={styles.headBtn}
+      onClick={() => setProjectDialog('new')}
+      title={t('ui.cli-monitor.project-create-title')}
+      aria-label={t('ui.cli-monitor.project-create-title')}
+      data-testid="new-project"
+    >
+      <Icon icon={SquarePen} />
+    </button>
+  );
+  // 「项目」标题右侧：整理侧栏「…」+ 新建项目（Codex 式）；新建对话在「最近」标题右侧。
+  // 不分组时（「对话」）：整理 + 新建对话
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
-  const listActions = (
+  const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;
+  const listActions = wsGroups.grouped ? (
     <>
-      <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />
+      {organize}
+      {newProjectBtn}
+    </>
+  ) : (
+    <>
+      {organize}
       {newBtn}
     </>
   );
@@ -946,17 +975,19 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               />
             )}
             {wsGroups.grouped && (
-              <WorkspaceGroups
+              <ProjectGroups
                 groups={wsGroups.groups}
                 rest={wsGroups.rest}
                 collapsed={collapsedWorkspaces}
                 onToggleCollapsed={setWorkspaceCollapsed}
                 onNewIn={(g) =>
-                  void createFor(workspaceBackend(g, isNormal, view, endpointFilter), g.path)
+                  void createFor(projectBackend(g, isNormal, view, endpointFilter), g.project.id)
                 }
+                onEdit={(g) => setProjectDialog(g.project)}
                 activeId={rowActiveId}
                 rows={rowProps}
                 headerActions={listActions}
+                recentActions={newBtn}
               />
             )}
             {!wsGroups.grouped && (
@@ -1088,6 +1119,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           );
         })()}
 
+      {projectDialog && (
+        <ProjectDialog
+          project={projectDialog === 'new' ? undefined : projectDialog}
+          onClose={() => setProjectDialog(null)}
+        />
+      )}
       {searchOpen && (
         <SearchDialog
           query={query}

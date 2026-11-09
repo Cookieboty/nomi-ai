@@ -5472,11 +5472,12 @@ type HarnessGitDiffInput struct {
 }
 
 type HarnessGitDiffOutput struct {
-	Ok        bool   `json:"ok"`
-	Status    string `json:"status"`
-	Stat      string `json:"stat"`
-	Diff      string `json:"diff"`
-	Truncated bool   `json:"truncated"`
+	Ok        bool    `json:"ok"`
+	Status    string  `json:"status"`
+	Stat      string  `json:"stat"`
+	Diff      string  `json:"diff"`
+	Truncated bool    `json:"truncated"`
+	GitRoot   *string `json:"gitRoot,omitempty"`
 }
 
 type HarnessGitDiscardInput struct {
@@ -5648,6 +5649,7 @@ type HarnessPermissionDefaultsOutputTabsItem struct {
 	Title          string                                                      `json:"title"`
 	Backend        string                                                      `json:"backend"`
 	Cwd            string                                                      `json:"cwd"`
+	ProjectId      *string                                                     `json:"projectId,omitempty"`
 	CliSessionId   string                                                      `json:"cliSessionId"`
 	Status         string                                                      `json:"status"`
 	Unread         float64                                                     `json:"unread"`
@@ -5676,13 +5678,6 @@ type HarnessPermissionDefaultsOutput struct {
 	AutoApprove           *bool                                     `json:"autoApprove,omitempty"`
 	AiReview              *bool                                     `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                                     `json:"nomiAutoApprove,omitempty"`
-}
-
-type HarnessPickCwdOutput struct {
-	Backend      string `json:"backend"`
-	Cwd          string `json:"cwd"`
-	CliSessionId string `json:"cliSessionId"`
-	Busy         bool   `json:"busy"`
 }
 
 type HarnessPickDirInput struct {
@@ -5749,18 +5744,6 @@ type HarnessSetBackendInput struct {
 }
 
 type HarnessSetBackendOutput struct {
-	Backend      string `json:"backend"`
-	Cwd          string `json:"cwd"`
-	CliSessionId string `json:"cliSessionId"`
-	Busy         bool   `json:"busy"`
-}
-
-type HarnessSetCwdInput struct {
-	Cwd   string `json:"cwd"`
-	Carry *bool  `json:"carry,omitempty"`
-}
-
-type HarnessSetCwdOutput struct {
 	Backend      string `json:"backend"`
 	Cwd          string `json:"cwd"`
 	CliSessionId string `json:"cliSessionId"`
@@ -5845,6 +5828,7 @@ type HarnessTabAccountOutput struct {
 	Title          string                                      `json:"title"`
 	Backend        string                                      `json:"backend"`
 	Cwd            string                                      `json:"cwd"`
+	ProjectId      *string                                     `json:"projectId,omitempty"`
 	CliSessionId   string                                      `json:"cliSessionId"`
 	Status         string                                      `json:"status"`
 	Unread         float64                                     `json:"unread"`
@@ -5890,6 +5874,7 @@ type HarnessTabActivateOutputTabsItem struct {
 	Title          string                                               `json:"title"`
 	Backend        string                                               `json:"backend"`
 	Cwd            string                                               `json:"cwd"`
+	ProjectId      *string                                              `json:"projectId,omitempty"`
 	CliSessionId   string                                               `json:"cliSessionId"`
 	Status         string                                               `json:"status"`
 	Unread         float64                                              `json:"unread"`
@@ -5958,6 +5943,7 @@ type HarnessTabApplyAutoTitleOutput struct {
 	Title          string                                             `json:"title"`
 	Backend        string                                             `json:"backend"`
 	Cwd            string                                             `json:"cwd"`
+	ProjectId      *string                                            `json:"projectId,omitempty"`
 	CliSessionId   string                                             `json:"cliSessionId"`
 	Status         string                                             `json:"status"`
 	Unread         float64                                            `json:"unread"`
@@ -6004,6 +5990,7 @@ type HarnessTabBackendOutput struct {
 	Title          string                                      `json:"title"`
 	Backend        string                                      `json:"backend"`
 	Cwd            string                                      `json:"cwd"`
+	ProjectId      *string                                     `json:"projectId,omitempty"`
 	CliSessionId   string                                      `json:"cliSessionId"`
 	Status         string                                      `json:"status"`
 	Unread         float64                                     `json:"unread"`
@@ -6053,6 +6040,7 @@ type HarnessTabCarryClearOutput struct {
 	Title          string                                         `json:"title"`
 	Backend        string                                         `json:"backend"`
 	Cwd            string                                         `json:"cwd"`
+	ProjectId      *string                                        `json:"projectId,omitempty"`
 	CliSessionId   string                                         `json:"cliSessionId"`
 	Status         string                                         `json:"status"`
 	Unread         float64                                        `json:"unread"`
@@ -6098,6 +6086,7 @@ type HarnessTabCloseOutputTabsItem struct {
 	Title          string                                            `json:"title"`
 	Backend        string                                            `json:"backend"`
 	Cwd            string                                            `json:"cwd"`
+	ProjectId      *string                                           `json:"projectId,omitempty"`
 	CliSessionId   string                                            `json:"cliSessionId"`
 	Status         string                                            `json:"status"`
 	Unread         float64                                           `json:"unread"`
@@ -6145,7 +6134,7 @@ type HarnessTabCreateInputMessagesItem struct {
 
 type HarnessTabCreateInput struct {
 	Backend        *string                             `json:"backend,omitempty"`
-	Cwd            *string                             `json:"cwd,omitempty"`
+	ProjectId      *string                             `json:"projectId,omitempty"`
 	Title          *string                             `json:"title,omitempty"`
 	Messages       []HarnessTabCreateInputMessagesItem `json:"messages,omitempty"`
 	PermissionMode *string                             `json:"permissionMode,omitempty"`
@@ -6185,59 +6174,13 @@ type HarnessTabCreateOutput struct {
 	Title          string                                     `json:"title"`
 	Backend        string                                     `json:"backend"`
 	Cwd            string                                     `json:"cwd"`
+	ProjectId      *string                                    `json:"projectId,omitempty"`
 	CliSessionId   string                                     `json:"cliSessionId"`
 	Status         string                                     `json:"status"`
 	Unread         float64                                    `json:"unread"`
 	CreatedAt      float64                                    `json:"createdAt"`
 	UpdatedAt      float64                                    `json:"updatedAt"`
 	SandboxPending []HarnessTabCreateOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
-}
-
-type HarnessTabCwdInput struct {
-	Id    string `json:"id"`
-	Cwd   string `json:"cwd"`
-	Carry *bool  `json:"carry,omitempty"`
-}
-
-// HarnessTabCwdOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
-type HarnessTabCwdOutputSandboxPendingItemKind = string
-
-const (
-	HarnessTabCwdOutputSandboxPendingItemKindCategory  HarnessTabCwdOutputSandboxPendingItemKind = "category"
-	HarnessTabCwdOutputSandboxPendingItemKindRead      HarnessTabCwdOutputSandboxPendingItemKind = "read"
-	HarnessTabCwdOutputSandboxPendingItemKindFolder    HarnessTabCwdOutputSandboxPendingItemKind = "folder"
-	HarnessTabCwdOutputSandboxPendingItemKindFile      HarnessTabCwdOutputSandboxPendingItemKind = "file"
-	HarnessTabCwdOutputSandboxPendingItemKindProtected HarnessTabCwdOutputSandboxPendingItemKind = "protected"
-)
-
-// HarnessTabCwdOutputSandboxPendingItemOp 枚举：read | write
-type HarnessTabCwdOutputSandboxPendingItemOp = string
-
-const (
-	HarnessTabCwdOutputSandboxPendingItemOpRead  HarnessTabCwdOutputSandboxPendingItemOp = "read"
-	HarnessTabCwdOutputSandboxPendingItemOpWrite HarnessTabCwdOutputSandboxPendingItemOp = "write"
-)
-
-type HarnessTabCwdOutputSandboxPendingItem struct {
-	Id    string                                    `json:"id"`
-	Kind  HarnessTabCwdOutputSandboxPendingItemKind `json:"kind"`
-	Value string                                    `json:"value"`
-	Op    HarnessTabCwdOutputSandboxPendingItemOp   `json:"op"`
-	Path  string                                    `json:"path"`
-	At    float64                                   `json:"at"`
-}
-
-type HarnessTabCwdOutput struct {
-	Id             string                                  `json:"id"`
-	Title          string                                  `json:"title"`
-	Backend        string                                  `json:"backend"`
-	Cwd            string                                  `json:"cwd"`
-	CliSessionId   string                                  `json:"cliSessionId"`
-	Status         string                                  `json:"status"`
-	Unread         float64                                 `json:"unread"`
-	CreatedAt      float64                                 `json:"createdAt"`
-	UpdatedAt      float64                                 `json:"updatedAt"`
-	SandboxPending []HarnessTabCwdOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabEffortInput struct {
@@ -6278,6 +6221,7 @@ type HarnessTabEffortOutput struct {
 	Title          string                                     `json:"title"`
 	Backend        string                                     `json:"backend"`
 	Cwd            string                                     `json:"cwd"`
+	ProjectId      *string                                    `json:"projectId,omitempty"`
 	CliSessionId   string                                     `json:"cliSessionId"`
 	Status         string                                     `json:"status"`
 	Unread         float64                                    `json:"unread"`
@@ -6324,6 +6268,7 @@ type HarnessTabLongContextOutput struct {
 	Title          string                                          `json:"title"`
 	Backend        string                                          `json:"backend"`
 	Cwd            string                                          `json:"cwd"`
+	ProjectId      *string                                         `json:"projectId,omitempty"`
 	CliSessionId   string                                          `json:"cliSessionId"`
 	Status         string                                          `json:"status"`
 	Unread         float64                                         `json:"unread"`
@@ -6390,6 +6335,7 @@ type HarnessTabModelOutput struct {
 	Title          string                                    `json:"title"`
 	Backend        string                                    `json:"backend"`
 	Cwd            string                                    `json:"cwd"`
+	ProjectId      *string                                   `json:"projectId,omitempty"`
 	CliSessionId   string                                    `json:"cliSessionId"`
 	Status         string                                    `json:"status"`
 	Unread         float64                                   `json:"unread"`
@@ -6443,6 +6389,7 @@ type HarnessTabPermissionModeOutput struct {
 	Title          string                                             `json:"title"`
 	Backend        string                                             `json:"backend"`
 	Cwd            string                                             `json:"cwd"`
+	ProjectId      *string                                            `json:"projectId,omitempty"`
 	CliSessionId   string                                             `json:"cliSessionId"`
 	Status         string                                             `json:"status"`
 	Unread         float64                                            `json:"unread"`
@@ -6451,49 +6398,52 @@ type HarnessTabPermissionModeOutput struct {
 	SandboxPending []HarnessTabPermissionModeOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
-type HarnessTabPickCwdInput struct {
-	Id string `json:"id"`
+type HarnessTabProjectInput struct {
+	Id        string `json:"id"`
+	ProjectId string `json:"projectId"`
+	Carry     *bool  `json:"carry,omitempty"`
 }
 
-// HarnessTabPickCwdOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
-type HarnessTabPickCwdOutputSandboxPendingItemKind = string
+// HarnessTabProjectOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
+type HarnessTabProjectOutputSandboxPendingItemKind = string
 
 const (
-	HarnessTabPickCwdOutputSandboxPendingItemKindCategory  HarnessTabPickCwdOutputSandboxPendingItemKind = "category"
-	HarnessTabPickCwdOutputSandboxPendingItemKindRead      HarnessTabPickCwdOutputSandboxPendingItemKind = "read"
-	HarnessTabPickCwdOutputSandboxPendingItemKindFolder    HarnessTabPickCwdOutputSandboxPendingItemKind = "folder"
-	HarnessTabPickCwdOutputSandboxPendingItemKindFile      HarnessTabPickCwdOutputSandboxPendingItemKind = "file"
-	HarnessTabPickCwdOutputSandboxPendingItemKindProtected HarnessTabPickCwdOutputSandboxPendingItemKind = "protected"
+	HarnessTabProjectOutputSandboxPendingItemKindCategory  HarnessTabProjectOutputSandboxPendingItemKind = "category"
+	HarnessTabProjectOutputSandboxPendingItemKindRead      HarnessTabProjectOutputSandboxPendingItemKind = "read"
+	HarnessTabProjectOutputSandboxPendingItemKindFolder    HarnessTabProjectOutputSandboxPendingItemKind = "folder"
+	HarnessTabProjectOutputSandboxPendingItemKindFile      HarnessTabProjectOutputSandboxPendingItemKind = "file"
+	HarnessTabProjectOutputSandboxPendingItemKindProtected HarnessTabProjectOutputSandboxPendingItemKind = "protected"
 )
 
-// HarnessTabPickCwdOutputSandboxPendingItemOp 枚举：read | write
-type HarnessTabPickCwdOutputSandboxPendingItemOp = string
+// HarnessTabProjectOutputSandboxPendingItemOp 枚举：read | write
+type HarnessTabProjectOutputSandboxPendingItemOp = string
 
 const (
-	HarnessTabPickCwdOutputSandboxPendingItemOpRead  HarnessTabPickCwdOutputSandboxPendingItemOp = "read"
-	HarnessTabPickCwdOutputSandboxPendingItemOpWrite HarnessTabPickCwdOutputSandboxPendingItemOp = "write"
+	HarnessTabProjectOutputSandboxPendingItemOpRead  HarnessTabProjectOutputSandboxPendingItemOp = "read"
+	HarnessTabProjectOutputSandboxPendingItemOpWrite HarnessTabProjectOutputSandboxPendingItemOp = "write"
 )
 
-type HarnessTabPickCwdOutputSandboxPendingItem struct {
+type HarnessTabProjectOutputSandboxPendingItem struct {
 	Id    string                                        `json:"id"`
-	Kind  HarnessTabPickCwdOutputSandboxPendingItemKind `json:"kind"`
+	Kind  HarnessTabProjectOutputSandboxPendingItemKind `json:"kind"`
 	Value string                                        `json:"value"`
-	Op    HarnessTabPickCwdOutputSandboxPendingItemOp   `json:"op"`
+	Op    HarnessTabProjectOutputSandboxPendingItemOp   `json:"op"`
 	Path  string                                        `json:"path"`
 	At    float64                                       `json:"at"`
 }
 
-type HarnessTabPickCwdOutput struct {
+type HarnessTabProjectOutput struct {
 	Id             string                                      `json:"id"`
 	Title          string                                      `json:"title"`
 	Backend        string                                      `json:"backend"`
 	Cwd            string                                      `json:"cwd"`
+	ProjectId      *string                                     `json:"projectId,omitempty"`
 	CliSessionId   string                                      `json:"cliSessionId"`
 	Status         string                                      `json:"status"`
 	Unread         float64                                     `json:"unread"`
 	CreatedAt      float64                                     `json:"createdAt"`
 	UpdatedAt      float64                                     `json:"updatedAt"`
-	SandboxPending []HarnessTabPickCwdOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
+	SandboxPending []HarnessTabProjectOutputSandboxPendingItem `json:"sandboxPending,omitempty"`
 }
 
 type HarnessTabRenameInput struct {
@@ -6534,6 +6484,7 @@ type HarnessTabRenameOutput struct {
 	Title          string                                     `json:"title"`
 	Backend        string                                     `json:"backend"`
 	Cwd            string                                     `json:"cwd"`
+	ProjectId      *string                                    `json:"projectId,omitempty"`
 	CliSessionId   string                                     `json:"cliSessionId"`
 	Status         string                                     `json:"status"`
 	Unread         float64                                    `json:"unread"`
@@ -6599,6 +6550,7 @@ type HarnessTabSeedOutput struct {
 	Title          string                                   `json:"title"`
 	Backend        string                                   `json:"backend"`
 	Cwd            string                                   `json:"cwd"`
+	ProjectId      *string                                  `json:"projectId,omitempty"`
 	CliSessionId   string                                   `json:"cliSessionId"`
 	Status         string                                   `json:"status"`
 	Unread         float64                                  `json:"unread"`
@@ -6675,6 +6627,7 @@ type HarnessTabSourceOutput struct {
 	Title          string                                     `json:"title"`
 	Backend        string                                     `json:"backend"`
 	Cwd            string                                     `json:"cwd"`
+	ProjectId      *string                                    `json:"projectId,omitempty"`
 	CliSessionId   string                                     `json:"cliSessionId"`
 	Status         string                                     `json:"status"`
 	Unread         float64                                    `json:"unread"`
@@ -6721,6 +6674,7 @@ type HarnessTabsOutputTabsItem struct {
 	Title          string                                        `json:"title"`
 	Backend        string                                        `json:"backend"`
 	Cwd            string                                        `json:"cwd"`
+	ProjectId      *string                                       `json:"projectId,omitempty"`
 	CliSessionId   string                                        `json:"cliSessionId"`
 	Status         string                                        `json:"status"`
 	Unread         float64                                       `json:"unread"`
@@ -7976,6 +7930,53 @@ type PersonaGetOutput struct {
 	Pronoun              *string  `json:"pronoun,omitempty"`
 	AddressUser          *string  `json:"addressUser,omitempty"`
 	Greetings            []string `json:"greetings"`
+}
+
+type ProjectCreateInput struct {
+	Name    *string  `json:"name,omitempty"`
+	Primary string   `json:"primary"`
+	Folders []string `json:"folders,omitempty"`
+}
+
+type ProjectCreateOutput struct {
+	Id        string   `json:"id"`
+	Name      string   `json:"name"`
+	Primary   string   `json:"primary"`
+	Folders   []string `json:"folders"`
+	Missing   []string `json:"missing,omitempty"`
+	CreatedAt float64  `json:"createdAt"`
+	UpdatedAt float64  `json:"updatedAt"`
+}
+
+type ProjectListOutputItem struct {
+	Id        string   `json:"id"`
+	Name      string   `json:"name"`
+	Primary   string   `json:"primary"`
+	Folders   []string `json:"folders"`
+	Missing   []string `json:"missing,omitempty"`
+	CreatedAt float64  `json:"createdAt"`
+	UpdatedAt float64  `json:"updatedAt"`
+}
+
+type ProjectRemoveInput struct {
+	Id string `json:"id"`
+}
+
+type ProjectUpdateInput struct {
+	Id      string   `json:"id"`
+	Name    *string  `json:"name,omitempty"`
+	Primary *string  `json:"primary,omitempty"`
+	Folders []string `json:"folders,omitempty"`
+}
+
+type ProjectUpdateOutput struct {
+	Id        string   `json:"id"`
+	Name      string   `json:"name"`
+	Primary   string   `json:"primary"`
+	Folders   []string `json:"folders"`
+	Missing   []string `json:"missing,omitempty"`
+	CreatedAt float64  `json:"createdAt"`
+	UpdatedAt float64  `json:"updatedAt"`
 }
 
 type ProviderLinkAcceptInput struct {
@@ -10635,6 +10636,7 @@ type EventHarnessTabsChangedTabsItem struct {
 	Title          string                                              `json:"title"`
 	Backend        string                                              `json:"backend"`
 	Cwd            string                                              `json:"cwd"`
+	ProjectId      *string                                             `json:"projectId,omitempty"`
 	CliSessionId   string                                              `json:"cliSessionId"`
 	Status         string                                              `json:"status"`
 	Unread         float64                                             `json:"unread"`
@@ -10818,6 +10820,16 @@ type EventPersonaChanged struct {
 	Pronoun              *string  `json:"pronoun,omitempty"`
 	AddressUser          *string  `json:"addressUser,omitempty"`
 	Greetings            []string `json:"greetings"`
+}
+
+type EventProjectChangedItem struct {
+	Id        string   `json:"id"`
+	Name      string   `json:"name"`
+	Primary   string   `json:"primary"`
+	Folders   []string `json:"folders"`
+	Missing   []string `json:"missing,omitempty"`
+	CreatedAt float64  `json:"createdAt"`
+	UpdatedAt float64  `json:"updatedAt"`
 }
 
 // EventProviderLinkChangedItemStage 枚举：authorize | save | error
@@ -11804,10 +11816,6 @@ type HarnessOpenTerminalOutputT = bool
 type HarnessPermissionDefaultsInputT = HarnessPermissionDefaultsInput
 type HarnessPermissionDefaultsOutputT = HarnessPermissionDefaultsOutput
 
-// HarnessPickCwdInputT 是 harness.pickCwd 的入参
-type HarnessPickCwdInputT = any
-type HarnessPickCwdOutputT = HarnessPickCwdOutput
-
 // HarnessPickDirInputT 是 harness.pickDir 的入参
 type HarnessPickDirInputT = HarnessPickDirInput
 type HarnessPickDirOutputT = string
@@ -11835,10 +11843,6 @@ type HarnessSendOutputT = HarnessSendOutput
 // HarnessSetBackendInputT 是 harness.setBackend 的入参
 type HarnessSetBackendInputT = HarnessSetBackendInput
 type HarnessSetBackendOutputT = HarnessSetBackendOutput
-
-// HarnessSetCwdInputT 是 harness.setCwd 的入参
-type HarnessSetCwdInputT = HarnessSetCwdInput
-type HarnessSetCwdOutputT = HarnessSetCwdOutput
 
 // HarnessSlashDiscoverInputT 是 harness.slashDiscover 的入参
 type HarnessSlashDiscoverInputT = HarnessSlashDiscoverInput
@@ -11892,10 +11896,6 @@ type HarnessTabContextOutputT = *HarnessTabContextOutput
 type HarnessTabCreateInputT = HarnessTabCreateInput
 type HarnessTabCreateOutputT = HarnessTabCreateOutput
 
-// HarnessTabCwdInputT 是 harness.tabCwd 的入参
-type HarnessTabCwdInputT = HarnessTabCwdInput
-type HarnessTabCwdOutputT = HarnessTabCwdOutput
-
 // HarnessTabEffortInputT 是 harness.tabEffort 的入参
 type HarnessTabEffortInputT = HarnessTabEffortInput
 type HarnessTabEffortOutputT = HarnessTabEffortOutput
@@ -11916,9 +11916,9 @@ type HarnessTabModelOutputT = HarnessTabModelOutput
 type HarnessTabPermissionModeInputT = HarnessTabPermissionModeInput
 type HarnessTabPermissionModeOutputT = HarnessTabPermissionModeOutput
 
-// HarnessTabPickCwdInputT 是 harness.tabPickCwd 的入参
-type HarnessTabPickCwdInputT = HarnessTabPickCwdInput
-type HarnessTabPickCwdOutputT = HarnessTabPickCwdOutput
+// HarnessTabProjectInputT 是 harness.tabProject 的入参
+type HarnessTabProjectInputT = HarnessTabProjectInput
+type HarnessTabProjectOutputT = HarnessTabProjectOutput
 
 // HarnessTabRenameInputT 是 harness.tabRename 的入参
 type HarnessTabRenameInputT = HarnessTabRenameInput
@@ -12319,6 +12319,22 @@ type PersonaGetOutputT = PersonaGetOutput
 // PersonaSystemPromptInputT 是 persona.systemPrompt 的入参
 type PersonaSystemPromptInputT = any
 type PersonaSystemPromptOutputT = string
+
+// ProjectCreateInputT 是 project.create 的入参
+type ProjectCreateInputT = ProjectCreateInput
+type ProjectCreateOutputT = ProjectCreateOutput
+
+// ProjectListInputT 是 project.list 的入参
+type ProjectListInputT = any
+type ProjectListOutputT = []ProjectListOutputItem
+
+// ProjectRemoveInputT 是 project.remove 的入参
+type ProjectRemoveInputT = ProjectRemoveInput
+type ProjectRemoveOutputT = any
+
+// ProjectUpdateInputT 是 project.update 的入参
+type ProjectUpdateInputT = ProjectUpdateInput
+type ProjectUpdateOutputT = ProjectUpdateOutput
 
 // ProviderLinkAcceptInputT 是 providerLink.accept 的入参
 type ProviderLinkAcceptInputT = ProviderLinkAcceptInput
@@ -12841,6 +12857,7 @@ type EventNavVoiceSettingsRequestedT = map[string]any
 type EventOnboardingProfileChangedT = EventOnboardingProfileChanged
 type EventOnboardingShowT = EventOnboardingShow
 type EventPersonaChangedT = EventPersonaChanged
+type EventProjectChangedT = []EventProjectChangedItem
 type EventProviderLinkChangedT = []EventProviderLinkChangedItem
 type EventProvidersChangedT = EventProvidersChanged
 type EventProvidersOpenPanelT = any

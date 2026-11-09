@@ -74,7 +74,8 @@ import { useHarnessState } from './hooks/useHarnessState';
 import { useIslandOpenItem } from './hooks/useIslandOpenItem';
 import { useMainPages } from './hooks/useMainPages';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
-import { useNomiWorkspace } from './hooks/useNomiWorkspace';
+import { useNomiProject } from './hooks/useNomiProject';
+import { useRailRoots } from './hooks/useRailRoots';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useUserProfile } from './hooks/useUserProfile';
@@ -97,6 +98,7 @@ import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { derivedSwitchTip } from './services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
 import { openProjectTerminal } from './services/openProjectTerminal';
+import { useProject } from './services/projects';
 import { providerClient } from './services/providerClient';
 import { QUICK_PROMPT_TEXT, recommend } from './services/recommendations';
 import type { ImageAttachment } from './services/screenClient';
@@ -295,16 +297,19 @@ const AiChatContent: React.FC = () => {
     [cliConvMessages, liveContext],
   );
   const harness = useHarnessState();
-  // Nomi 对话（主标签在 Nomi 后端）选了工作区时也有右栏：看的是顶栏显示的那个工作区
+  // Nomi 对话（主标签在 Nomi 后端）选了项目时也有右栏：看的是项目的主文件夹
   const nomiOnMain = !tabs.isCliTab && harness?.backend === 'nomi' && harnessClient.available();
-  const nomiWorkspace = useNomiWorkspace(harness?.cwd, { syncMain: false });
-  // 右栏 / 中栏看的目录：编程助手标签用标签目录，Nomi 对话用会话工作区；没有时不显示右栏
+  const nomiProject = useProject(useNomiProject().projectId);
+  // 右栏 / 中栏看的目录：编程助手标签用标签的工作目录，Nomi 对话用项目的主文件夹；没有时不显示右栏
   const railCwd =
     isDev && tabs.isCliTab
       ? (tabs.activeTab?.cwd ?? null)
-      : nomiOnMain && nomiWorkspace.cwd
-        ? nomiWorkspace.cwd
+      : nomiOnMain && nomiProject
+        ? nomiProject.primary
         : null;
+  const cliProject = useProject(isDev && tabs.isCliTab ? tabs.activeTab?.projectId : undefined);
+  const railProject = isDev && tabs.isCliTab ? cliProject : nomiOnMain ? nomiProject : undefined;
+  const railRoots = useRailRoots(railCwd, railProject);
   const railMessages = tabs.isCliTab ? cliConvMessages : nomiMessages;
   const railBusy = tabs.isCliTab
     ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
@@ -493,7 +498,7 @@ const AiChatContent: React.FC = () => {
     },
     tabExists: tabs.hasTab,
     newSession: () => {
-      if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
+      if (slashTab) void tabs.create(slashTab.backend, slashTab.projectId);
       else void actions.newConversation();
     },
     compactNomi: (instructions?: string) => actions.compactConversation(instructions),
@@ -615,7 +620,7 @@ const AiChatContent: React.FC = () => {
         // 按当前会话的端和目录直接新开；Nomi 会话则新开对话（其它端从侧栏的新建菜单选）
         const cur = tabs.activeTab;
         if (cur && cur.backend !== 'nomi')
-          void tabs.create(cur.backend, cur.cwd).catch(() => undefined);
+          void tabs.create(cur.backend, cur.projectId).catch(() => undefined);
         else newChat();
       },
       closeTab: () => {
@@ -696,7 +701,7 @@ const AiChatContent: React.FC = () => {
   // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / 编程助手标签 / 主对话
   useIslandOpenItem(mainPages.openTask, leavePage);
   const handleNewChat = useCallback(
-    (opts?: { cwd?: string }) => {
+    (opts?: { projectId?: string | null }) => {
       leavePage();
       return actions.newConversation(opts);
     },
@@ -1003,6 +1008,7 @@ const AiChatContent: React.FC = () => {
                 <MessageInput
                   {...inputModeProps}
                   cwd={railCwd ?? undefined}
+                  roots={railRoots}
                   delegate={slashBackend === 'nomi'}
                   contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
                   contextModel={
@@ -1043,7 +1049,7 @@ const AiChatContent: React.FC = () => {
                   onDoubleClick={onChatColSplitterDbl}
                   title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
                 />
-                <SideColumn messages={railMessages} cwd={railCwd} />
+                <SideColumn messages={railMessages} cwd={railCwd} roots={railRoots} />
               </>
             ) : null}
           </div>
@@ -1079,10 +1085,11 @@ const AiChatContent: React.FC = () => {
                   rail
                   messages={railMessages}
                   cwd={railCwd}
+                  roots={railRoots}
                   busy={railBusy}
                   onClose={closeRail}
                 />
-                <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} />
+                <ChangesWorkbenchHost messages={railMessages} cwd={railCwd} roots={railRoots} />
               </aside>
             </>
           ) : null}

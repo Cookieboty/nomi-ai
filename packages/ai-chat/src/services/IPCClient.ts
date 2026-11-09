@@ -13,7 +13,6 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { api, hasTransport } from './api';
 import { createConversationStore } from './conversationBoot';
-import { harnessClient } from './harnessClient';
 import { buildProviderMessages, type ProviderMessage } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
 
@@ -114,20 +113,9 @@ export class SdkIPCClient implements IPCClient {
   private readonly owned: boolean;
   private readonly store = createConversationStore();
   private readonly defaultSystemPrompt: SystemPromptGetter;
-  /** 主标签（Nomi 对话）当前的目录：新 Nomi 对话的默认工作区（默认 文稿/nomi） */
-  private mainCwd: string | undefined;
-  private offHarness: (() => void) | undefined;
 
   constructor(client?: ClientAIClient, opts: { defaultSystemPrompt?: SystemPromptGetter } = {}) {
     this.defaultSystemPrompt = opts.defaultSystemPrompt ?? systemPromptFromCore;
-    this.store.defaultNomiCwd = () => this.mainCwd;
-    if (harnessClient.available()) {
-      void harnessClient
-        .state()
-        .then((s) => (this.mainCwd = s.cwd || undefined))
-        .catch(() => undefined);
-      this.offHarness = harnessClient.onChanged((s) => (this.mainCwd = s.cwd || this.mainCwd));
-    }
     if (client) {
       this.client = client;
       this.owned = false;
@@ -138,7 +126,6 @@ export class SdkIPCClient implements IPCClient {
   }
 
   async dispose(): Promise<void> {
-    this.offHarness?.();
     // 会话存储：等排着的写入写进内核，再停掉变更通知、释放消息缓存
     await this.store.flush();
     this.store.dispose();
@@ -229,11 +216,11 @@ export class SdkIPCClient implements IPCClient {
       // 固定会话在准备期间被删了：不发送，更不能落到别的会话上
       if (fixed?.id && !this.store.get(fixed.id))
         throw new Error(t('ui.chat-settings.conversation-deleted-message-not-sent'));
-      // Nomi 对话的工作区：内核校验后才生效（文件工具限在这里，命令与委派的编程助手从这里启动）
-      const cwd = fixed
-        ? fixed.cwd
+      // Nomi 对话的项目：内核按它实时取文件夹（文件工具限在里面，命令与委派的编程助手从主文件夹启动）
+      const projectId = fixed
+        ? fixed.projectId
         : conversationId
-          ? this.store.get(conversationId)?.cwd
+          ? this.store.get(conversationId)?.projectId
           : undefined;
       const opts = {
         messages: await this.buildMessages(
@@ -244,7 +231,9 @@ export class SdkIPCClient implements IPCClient {
           streamOpts?.memory,
         ),
         ...(reqId ? { reqId } : {}),
-        ...(conversationId ? { extra: { conversationId, ...(cwd ? { cwd } : {}) } } : {}),
+        ...(conversationId
+          ? { extra: { conversationId, ...(projectId ? { projectId } : {}) } }
+          : {}),
       };
       if (signal?.aborted) return;
       // 对话走工具循环（role 仍是 chat，按 chat 路由选 provider）
@@ -373,16 +362,18 @@ export class SdkIPCClient implements IPCClient {
     opts?: {
       backend?: ConversationBackend;
       tabId?: string;
-      cwd?: string;
+      projectId?: string | null;
       notReuse?: string | readonly string[];
     },
   ): Promise<string> {
-    // 新的 Nomi 对话没给工作区时由 store 用主标签当前的目录（defaultNomiCwd）
-    // 这个工作区已经有还没说话的空对话：切过去（挪到最上面），不再新建一个
+    // 新的 Nomi 对话没给项目时沿用当前 Nomi 对话的项目（defaultNomiProject）
+    // 这个项目已经有还没说话的空对话：切过去（挪到最上面），不再新建一个
     if ((opts?.backend ?? 'nomi') === 'nomi' && !opts?.tabId) {
       // notReuse：界面上有消息 / 正在准备或生成回复的会话（含后台的；这一轮还没落盘，看起来是空的）
       const empty = this.store.findEmptyNomi(
-        opts?.cwd ?? this.store.defaultNomiCwd(),
+        opts?.projectId === undefined
+          ? this.store.defaultNomiProject()
+          : (opts.projectId ?? undefined),
         opts?.notReuse,
       );
       if (empty) {
@@ -395,7 +386,7 @@ export class SdkIPCClient implements IPCClient {
       name,
       backend: opts?.backend,
       tabId: opts?.tabId,
-      ...(opts?.cwd ? { cwd: opts.cwd } : {}),
+      ...(opts?.projectId !== undefined ? { projectId: opts.projectId } : {}),
     }).id;
   }
 
@@ -407,7 +398,7 @@ export class SdkIPCClient implements IPCClient {
   async updateConversation(
     id: string,
     patch: Partial<
-      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'projectId'>
     >,
   ) {
     return this.store.updateMeta(id, patch);
@@ -419,7 +410,7 @@ export class SdkIPCClient implements IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
-      cwd?: string;
+      projectId?: string;
       messages?: ChatMessage[];
     },
   ) {

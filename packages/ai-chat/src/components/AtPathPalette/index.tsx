@@ -23,7 +23,7 @@ export interface AtPathPaletteProps {
 }
 
 function visiblePath(option: AtPathOption): string {
-  const p = option.path.replace(/\\/g, '/');
+  const p = (option.display ?? option.path).replace(/\\/g, '/');
   if (option.kind === 'dir' && !p.endsWith('/')) return `${p}/`;
   return p;
 }

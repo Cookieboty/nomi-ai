@@ -39,6 +39,8 @@ type Bundle struct {
 	OnStartupChange []func(startup.State)
 	// ConversationWrites：会话写入的进行情况（退出前等对话窗口排着的写入写完）
 	ConversationWrites *ConversationWrites
+	// Conversations：会话存储（首启迁移改元信息用；与契约过程共用同一个实例）
+	Conversations *convstore.Store
 }
 
 func Install(d Deps) *Bundle {
@@ -70,7 +72,8 @@ func Install(d Deps) *Bundle {
 	b.Onboarding.SetMascotPorts(onboarding.MascotPorts{Publish: r.Emit, LiveWindows: d.LiveWindows})
 
 	InstallMigration(r, d.UserData)
-	b.ConversationWrites = InstallConversations(r, convstore.New(d.UserData))
+	b.Conversations = convstore.New(d.UserData)
+	b.ConversationWrites = InstallConversations(r, b.Conversations)
 
 	r.Call("theme.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return b.Theme.Get(), nil

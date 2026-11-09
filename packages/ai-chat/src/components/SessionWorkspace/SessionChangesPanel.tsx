@@ -1,43 +1,17 @@
 /**
  * Codex 右栏：「改动 · 文件」两视图。
- * 改动：git 仓库里以 `git status` / `git diff` 为准，本会话助手改过的文件带标记；
- * 不是 git 仓库（或读不到）时退回本会话变更树。中栏 Diff 见 CenterChangesHost。
+ * 改动：git 仓库里以 `git status` / `git diff` 为准，本会话助手改过的文件带标记；项目有多个文件夹时每个仓库一段
+ * （RepoGitSection；同一个仓库的多个文件夹合成一段）。都不是 git 仓库（或读不到）时退回本会话变更树。
+ * 文件：一个文件夹时就是它的目录树；多个时每个文件夹一个顶层节点（主文件夹默认展开）。中栏 Diff 见 CenterChangesHost。
  */
-import { Select, t } from '@nomi-ai/ui';
-import {
-  Bot,
-  Expand,
-  FolderGit2,
-  FolderTree,
-  LocateFixed,
-  Minus,
-  PanelRightClose,
-  Plus,
-  RotateCcw,
-  RefreshCw,
-  Search,
-} from 'lucide-react';
+import { t } from '@nomi-ai/ui';
+import { Bot, Expand, FolderTree, PanelRightClose, RefreshCw, Search } from 'lucide-react';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useGitBranch } from '../../hooks/useGitBranch';
-import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
-import {
-  harnessClient,
-  type GitDiffResult,
-  type WorkspaceTreeNode,
-} from '../../services/harnessClient';
+import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
-import { buildCommitPrompt } from '../../utils/commitPrompt';
-import {
-  isNotGitRepoError,
-  parseGitStatus,
-  splitUnifiedDiff,
-  type GitFileEntry,
-  type ParsedDiffFile,
-} from '../../utils/gitStatusParse';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
-import { parsePatch } from '../../utils/lineDiff';
 import {
   aggregateSessionChanges,
   buildChangeFileTree,
@@ -46,174 +20,47 @@ import {
   projectNameFromCwd,
   summarizeChanges,
   type ChangeEntry,
+  type ChangeTreeNode,
 } from '../../utils/sessionChanges';
-import type { FileDiff as ToolFileDiff } from '../../utils/toolTrace';
-import { workspaceRelPath } from '../../utils/workspacePath';
-import { editsElsewhere, samePath, worktreeLabel } from '../../utils/worktrees';
-import { BranchPicker } from '../BranchPicker';
+import { rootOf, workspaceKey } from '../../utils/workspacePath';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
 import { FilePreview, type PreviewFile } from './FilePreview';
-import { GitCommitBox, GitSyncButtons, useGitOps } from './GitCommitBox';
+import { RepoGitSection, type RepoReport } from './RepoGitSection';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
 
-/** 自动触发的 git diff 刷新合并窗口 */
-const GIT_REFRESH_DEBOUNCE_MS = 300;
-
 type View = 'changes' | 'workspace';
 
-const relOf = (cwd: string | null | undefined, file: string) =>
-  workspaceRelPath(cwd, file).replace(/\\/g, '/').replace(/^\.\//, '');
+const sep = (root: string) => (root.includes('\\') && !root.includes('/') ? '\\' : '/');
+const joinPath = (root: string, rel: string) =>
+  `${root.replace(/[\\/]+$/, '')}${sep(root)}${rel.replace(/^[\\/]+/, '')}`;
 
-type GitArea = 'staged' | 'unstaged';
-
-/** 一个文件在某个区（已暂存 / 未暂存）里的一行；部分暂存的文件两区各一行 */
-interface GitItem {
-  entry: GitFileEntry;
-  area: GitArea;
-  letter: GitFileEntry['letter'];
-  diff?: ParsedDiffFile;
-  /** 增删行数：numstat 优先（diff 文本过大被截断时也完整），没有时取解析出的 diff */
-  added?: number;
-  removed?: number;
-  key: string;
-}
-
-const GitRow: React.FC<{
-  entry: GitFileEntry;
-  letter: GitFileEntry['letter'];
-  area: GitArea;
-  added?: number;
-  removed?: number;
-  /** 本会话助手改过这个文件 */
-  session?: ChangeEntry;
-  selected: boolean;
-  onSelect: () => void;
-  /** 暂存（未暂存区）/ 取消暂存（已暂存区）；没有时不显示按钮 */
-  onStage?: () => void;
-  stageDisabled?: boolean;
-  /** 放弃未暂存的改动（只在未暂存区） */
-  onDiscard?: () => void;
-}> = ({
-  entry,
-  letter,
-  area,
-  added,
-  removed,
-  session,
-  selected,
-  onSelect,
-  onStage,
-  stageDisabled,
-  onDiscard,
-}) => (
-  <div
-    className={styles.row}
-    data-testid="git-row"
-    data-area={area}
-    data-selected={selected || undefined}
-    data-session={session ? true : undefined}
-    data-file={entry.path}
-  >
-    <button type="button" className={styles.rowHead} onClick={onSelect}>
-      <span className={styles.letter} data-letter={letter} title={`${entry.index}${entry.work}`}>
-        {letter}
-      </span>
-      <span className={pane.gitName} title={entry.path}>
-        {entry.path.split('/').pop()}
-      </span>
-      <span className={pane.gitDir} aria-hidden>
-        {entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : ''}
-      </span>
-      {session ? (
-        <span
-          className={pane.sessionMark}
-          title={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
-          aria-label={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
-          data-testid="git-row-session"
-        >
-          <Bot size={12} />
-        </span>
-      ) : null}
-      {entry.untracked ? (
-        <span className={styles.badge}>{t('ui.session-workspace.untracked')}</span>
-      ) : null}
-      {(added != null || removed != null) && (
-        <span className={styles.stat}>
-          {added != null ? <span className={styles.add}>+{added}</span> : null}
-          {removed != null ? <span className={styles.del}>−{removed}</span> : null}
-        </span>
-      )}
-    </button>
-    {session?.messageId ? (
-      <button
-        type="button"
-        className={styles.iconBtn}
-        data-testid="change-locate"
-        title={t('ui.session-workspace.show-in-conversation')}
-        aria-label={t('ui.session-workspace.show-in-conversation')}
-        onClick={() => locateChangeMessage(session.messageId)}
-      >
-        <LocateFixed size={12} />
-      </button>
-    ) : null}
-    {onDiscard ? (
-      <button
-        type="button"
-        className={`${styles.iconBtn} ${pane.stageBtn}`}
-        data-testid="git-row-discard"
-        disabled={stageDisabled}
-        title={t('ui.session-workspace.discard-changes')}
-        aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
-        onClick={onDiscard}
-      >
-        <RotateCcw size={12} />
-      </button>
-    ) : null}
-    {onStage ? (
-      <button
-        type="button"
-        className={`${styles.iconBtn} ${pane.stageBtn}`}
-        data-testid={area === 'staged' ? 'git-row-unstage' : 'git-row-stage'}
-        disabled={stageDisabled}
-        title={
-          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
-        }
-        aria-label={`${
-          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
-        } ${entry.path}`}
-        onClick={onStage}
-      >
-        {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
-      </button>
-    ) : null}
-  </div>
-);
-
-/** 取消暂存时改名的旧路径也要一起，否则旧路径的删除还留在暂存区 */
-const stagePaths = (rows: readonly GitItem[], area: GitArea) => [
-  ...new Set(
-    rows.flatMap((r) =>
-      area === 'staged' && r.entry.from ? [r.entry.path, r.entry.from] : [r.entry.path],
-    ),
-  ),
-];
+/** 磁盘树（相对路径）的路径换成绝对路径：多个文件夹时节点要能区分是哪个文件夹的 */
+const absTree = (nodes: readonly ChangeTreeNode[], root: string): ChangeTreeNode[] =>
+  nodes.map((n) =>
+    n.kind === 'dir'
+      ? { ...n, path: joinPath(root, n.path), children: absTree(n.children, root) }
+      : n.entry
+        ? n
+        : { ...n, path: joinPath(root, n.path) },
+  );
 
 export const SessionChangesPanel: React.FC<{
   messages: readonly ConvMessage[];
+  /** 工作目录（项目的主文件夹 / 编程助手标签的目录） */
   cwd?: string | null;
+  /** 项目的全部文件夹（工作目录在前）；不给 = 只有 cwd */
+  roots?: readonly string[] | null;
   /** 整页右栏全高模式 */
   rail?: boolean;
   /** 当前标签正在跑：跑完后自动刷新 git 状态 */
   busy?: boolean;
   /** 收起右栏（与顶栏开关同一状态） */
   onClose?: () => void;
-}> = ({ messages, cwd, rail = false, busy = false, onClose }) => {
+}> = ({ messages, cwd, roots: rootsProp, rail = false, busy = false, onClose }) => {
   const [view, setView] = useState<View>('changes');
-  const [git, setGit] = useState<GitDiffResult | null>(null);
-  const [gitBusy, setGitBusy] = useState(false);
   const [onlySession, setOnlySession] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -221,138 +68,121 @@ export const SessionChangesPanel: React.FC<{
   /** 全树可能有上万个文件：过滤用延迟值，输入框不被整树重渲染卡住 */
   const treeFilter = useDeferredValue(filter);
   const [badgePulse, setBadgePulse] = useState(false);
-  const [diskTree, setDiskTree] = useState<WorkspaceTreeNode[]>([]);
+  /** 每个文件夹的磁盘树（相对路径） */
+  const [diskTrees, setDiskTrees] = useState<Record<string, WorkspaceTreeNode[]>>({});
   const [diskBusy, setDiskBusy] = useState(false);
   const [diskErr, setDiskErr] = useState<string | null>(null);
   const [openDiskPaths, setOpenDiskPaths] = useState<string[]>([]);
-  /** 手动刷新时连同分支一起重读 */
-  const [branchNonce, setBranchNonce] = useState(0);
-  /** 切到同一仓库的另一个 worktree 看改动（null = 标签自己的目录）；换目录时回到标签目录 */
-  const [wtCwd, setWtCwd] = useState<string | null>(null);
-  const [wtFor, setWtFor] = useState(cwd);
-  if (wtFor !== cwd) {
-    setWtFor(cwd);
-    setWtCwd(null);
-  }
-  /** 改动 / 提交 / 同步针对的目录 */
-  const gitCwd = wtCwd ?? cwd;
-  const worktreeList = useGitWorktrees(cwd, busy, branchNonce);
-  const worktrees = useMemo(() => worktreeList?.worktrees ?? [], [worktreeList]);
-  const branch = useGitBranch(gitCwd, busy, branchNonce);
-  const sync = useGitSync(gitCwd, busy, branchNonce);
+  /** 标题栏「刷新」：各仓库段据此重读 git 与分支 */
+  const [nonce, setNonce] = useState(0);
+  /** 各仓库段报上来的状态 */
+  const [reports, setReports] = useState<Record<string, RepoReport>>({});
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
-  const {
-    workbench,
-    closeWorkbench,
-    openDetail,
-    openWorkbench,
-    setPreviewOpen,
-    previewSlot,
-    fillComposer,
-  } = useChangesUi();
+  const { workbench, closeWorkbench, openDetail, openWorkbench, setPreviewOpen, previewSlot } =
+    useChangesUi();
+
+  const roots = useMemo(() => {
+    const list = (rootsProp?.length ? [...rootsProp] : cwd ? [cwd] : []).filter(Boolean);
+    return list.filter((r, i) => list.findIndex((x) => workspaceKey(x) === workspaceKey(r)) === i);
+  }, [rootsProp, cwd]);
+  const rootsKey = roots.join('\0');
+  const multi = roots.length > 1;
+  const primary = roots[0] ?? null;
+  // 文件夹变了：旧的状态不带过来
+  const [reportsFor, setReportsFor] = useState(rootsKey);
+  if (reportsFor !== rootsKey) {
+    setReportsFor(rootsKey);
+    setReports({});
+    setDiskTrees({});
+  }
+  const onReport = useCallback(
+    (root: string, r: RepoReport) => setReports((m) => (m[root] === r ? m : { ...m, [root]: r })),
+    [],
+  );
 
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const changeByFile = useMemo(() => new Map(changes.map((c) => [c.file, c])), [changes]);
-  /** git 给的是相对 cwd 的路径，工具调用里多是绝对路径：统一换成相对路径再对 */
-  const changeByRel = useMemo(
-    () => new Map(changes.map((c) => [relOf(gitCwd, c.file), c])),
-    [changes, gitCwd],
-  );
+  /** 多个文件夹：本会话变更按所在文件夹分开（都不在的算主文件夹的） */
+  const changesByRoot = useMemo(() => {
+    const m = new Map<string, ChangeEntry[]>(roots.map((r) => [r, []]));
+    for (const c of changes) {
+      const r = rootOf(roots, c.file) ?? primary;
+      if (r) m.get(r)!.push(c);
+    }
+    return m;
+  }, [changes, roots, primary]);
+  const label = (r: string) => projectNameFromCwd(r);
+  const wrapRoots = (build: (root: string) => ChangeTreeNode[]): ChangeTreeNode[] =>
+    roots.map((r, i) => ({
+      kind: 'dir' as const,
+      name: label(r),
+      path: r,
+      title: r,
+      open: i === 0,
+      children: build(r),
+    }));
   const changedTree = useMemo(
-    () => buildChangeFileTree(changes, { cwd, compact: true }),
-    [changes, cwd],
+    () =>
+      multi
+        ? wrapRoots((r) =>
+            buildChangeFileTree(changesByRoot.get(r) ?? [], { cwd: r, compact: true }),
+          )
+        : buildChangeFileTree(changes, { cwd, compact: true }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- wrapRoots 只读 roots
+    [changes, cwd, multi, changesByRoot, rootsKey],
   );
   const workspaceTree = useMemo(
-    () => mergeWorkspaceAndChanges(diskTree, changes, cwd),
-    [diskTree, changes, cwd],
+    () =>
+      multi
+        ? wrapRoots((r) =>
+            absTree(mergeWorkspaceAndChanges(diskTrees[r] ?? [], changesByRoot.get(r) ?? [], r), r),
+          )
+        : mergeWorkspaceAndChanges(diskTrees[primary ?? ''] ?? [], changes, cwd),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- wrapRoots 只读 roots
+    [diskTrees, changes, cwd, multi, changesByRoot, primary, rootsKey],
   );
   const project = projectNameFromCwd(cwd);
 
   const refreshDisk = useCallback(async () => {
-    if (!cwd) {
-      setDiskTree([]);
+    if (!roots.length) {
+      setDiskTrees({});
       setDiskErr(null);
       return;
     }
     setDiskBusy(true);
     try {
-      const r = await harnessClient.workspaceList(cwd);
-      if (!r.ok) {
-        setDiskTree([]);
-        setDiskErr(r.error || t('ui.slash-commands.failed-to-read'));
-        return;
+      const got = await Promise.all(
+        roots.map(async (r) => {
+          try {
+            const res = await harnessClient.workspaceList(r);
+            return [r, res] as const;
+          } catch (e) {
+            return [
+              r,
+              { ok: false, error: e instanceof Error ? e.message : String(e) } as {
+                ok: false;
+                error: string;
+                entries?: WorkspaceTreeNode[];
+              },
+            ] as const;
+          }
+        }),
+      );
+      const next: Record<string, WorkspaceTreeNode[]> = {};
+      let err: string | null = null;
+      for (const [r, res] of got) {
+        if (res.ok) next[r] = res.entries ?? [];
+        // 只有一个文件夹时读不出来就显示原因；多个时读不出来的那个文件夹是空的
+        else if (!multi) err = res.error || t('ui.slash-commands.failed-to-read');
+        else next[r] = [];
       }
-      setDiskTree(r.entries ?? []);
-      setDiskErr(null);
-    } catch (e) {
-      setDiskTree([]);
-      setDiskErr(e instanceof Error ? e.message : String(e));
+      setDiskTrees(next);
+      setDiskErr(err);
     } finally {
       setDiskBusy(false);
     }
-  }, [cwd]);
-
-  // 只认最后一次请求的结果（换目录时旧请求晚到不覆盖）
-  const gitReq = useRef(0);
-  const refreshGit = useCallback(async () => {
-    const id = ++gitReq.current;
-    if (!gitCwd) {
-      setGit(null);
-      return;
-    }
-    setGitBusy(true);
-    let next: GitDiffResult;
-    try {
-      next = await harnessClient.gitDiff(gitCwd);
-    } catch (e) {
-      next = {
-        ok: false,
-        status: '',
-        stat: '',
-        diff: '',
-        truncated: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
-    }
-    if (id !== gitReq.current) return;
-    setGit(next);
-    setGitBusy(false);
-  }, [gitCwd]);
-
-  const refreshAll = useCallback(() => {
-    setBranchNonce((n) => n + 1);
-    void refreshGit();
-  }, [refreshGit]);
-  const ops = useGitOps(gitCwd, refreshAll);
-
-  // 换目录：立即刷新。助手又改了文件、一轮跑完、窗口重新拿到焦点：常在同一刻接连发生
-  // （一轮结束时新消息落地 + busy 下降沿），合并成一次 git diff
-  useEffect(() => setGit(null), [gitCwd]);
-  useEffect(() => {
-    void refreshGit();
-  }, [refreshGit]);
-  const gitTimer = useRef(0);
-  const scheduleGit = useCallback(() => {
-    window.clearTimeout(gitTimer.current);
-    gitTimer.current = window.setTimeout(() => void refreshGit(), GIT_REFRESH_DEBOUNCE_MS);
-  }, [refreshGit]);
-  useEffect(() => () => window.clearTimeout(gitTimer.current), []);
-  const prevChangeCount = useRef(changes.length);
-  useEffect(() => {
-    if (prevChangeCount.current === changes.length) return;
-    prevChangeCount.current = changes.length;
-    scheduleGit();
-  }, [changes.length, scheduleGit]);
-  const wasBusy = useRef(busy);
-  useEffect(() => {
-    if (wasBusy.current && !busy) scheduleGit();
-    wasBusy.current = busy;
-  }, [busy, scheduleGit]);
-  useEffect(() => {
-    window.addEventListener('focus', scheduleGit);
-    return () => window.removeEventListener('focus', scheduleGit);
-  }, [scheduleGit]);
+  }, [rootsKey, multi]); // eslint-disable-line react-hooks/exhaustive-deps -- roots 由 rootsKey 决定
 
   useEffect(() => {
     if (view === 'workspace') void refreshDisk();
@@ -369,83 +199,35 @@ export const SessionChangesPanel: React.FC<{
     prevCount.current = changes.length;
   }, [changes.length]);
 
-  const gitReady = git?.ok === true;
-  /** 改动视图的数据源：git 仓库用 git，否则退回本会话变更 */
-  const source: 'git' | 'session' | 'loading' = gitReady
-    ? 'git'
-    : cwd && !git
-      ? 'loading'
-      : 'session';
-
-  const gitFiles = useMemo(() => parseGitStatus(git?.status ?? ''), [git?.status]);
-  const gitDiffs = useMemo(() => splitUnifiedDiff(git?.diff ?? ''), [git?.diff]);
-  /** 每个区各自的 diff；老版本主进程没有分开给时退回相对 HEAD 的整份 */
-  const gitItems = useMemo(() => {
-    const byPath = (raw: string | undefined) => {
-      const m = new Map<string, ParsedDiffFile>();
-      for (const d of raw == null ? gitDiffs : splitUnifiedDiff(raw)) m.set(d.file, d);
-      return m;
-    };
-    const staged = byPath(git?.staged);
-    const unstaged = byPath(git?.unstaged);
-    const ns = git?.numstat;
-    const counts = (n: { added: number; removed: number } | undefined, d?: ParsedDiffFile) =>
-      n ? { added: n.added, removed: n.removed } : { added: d?.added, removed: d?.removed };
-    const out: GitItem[] = [];
-    for (const g of gitFiles) {
-      if (g.staged) {
-        const diff = staged.get(g.path);
-        out.push({
-          entry: g,
-          area: 'staged',
-          letter: g.index,
-          diff,
-          ...counts(ns?.staged[g.path], diff),
-          key: `g:s:${g.path}`,
-        });
-      }
-      if (g.unstaged) {
-        const letter = g.untracked ? '?' : g.work;
-        const diff = unstaged.get(g.path);
-        out.push({
-          entry: g,
-          area: 'unstaged',
-          letter,
-          diff,
-          ...counts(ns?.unstaged[g.path], diff),
-          key: `g:u:${g.path}`,
-        });
-      }
-    }
-    return out;
-  }, [gitFiles, gitDiffs, git?.staged, git?.unstaged, git?.numstat]);
-  const sessionInGit = useMemo(
-    () => gitFiles.filter((g) => changeByRel.has(g.path)).length,
-    [gitFiles, changeByRel],
+  // 各段的状态：有一个是 git 仓库就按 git 显示；同一个仓库（gitRoot 相同）只留第一段
+  const repoStates = roots.map((r) => reports[r]);
+  const gitRepos = roots.filter((r) => reports[r]?.state === 'git');
+  const dupOf = (r: string) => {
+    const root = reports[r]?.gitRoot;
+    if (!root) return false;
+    const first = gitRepos.find((x) => reports[x]?.gitRoot === root);
+    return first !== undefined && first !== r;
+  };
+  const shownRepos = gitRepos.filter((r) => !dupOf(r));
+  const source: 'git' | 'session' | 'loading' =
+    shownRepos.length > 0
+      ? 'git'
+      : roots.length && repoStates.some((x) => !x || x.state === 'loading')
+        ? 'loading'
+        : 'session';
+  const gitTotals = shownRepos.reduce(
+    (a, r) => {
+      const x = reports[r]!;
+      return {
+        files: a.files + x.files,
+        added: a.added + x.added,
+        removed: a.removed + x.removed,
+        sessionInGit: a.sessionInGit + x.sessionInGit,
+      };
+    },
+    { files: 0, added: 0, removed: 0, sessionInGit: 0 },
   );
-  const q = filter.trim().toLowerCase();
-  const gitRows = useMemo(
-    () =>
-      gitItems.filter(
-        ({ entry: g }) =>
-          (!onlySession || changeByRel.has(g.path)) && (!q || g.path.toLowerCase().includes(q)),
-      ),
-    [gitItems, onlySession, changeByRel, q],
-  );
-  const stagedRows = gitRows.filter((r) => r.area === 'staged');
-  const unstagedRows = gitRows.filter((r) => r.area === 'unstaged');
-
-  const summary = useMemo(() => {
-    if (source !== 'git') return summarizeChanges(changes);
-    let added = 0;
-    let removed = 0;
-    // 合计也用 numstat（diff 文本被截断时只能算出前半截）
-    for (const d of git?.numstat ? Object.values(git.numstat.head) : gitDiffs) {
-      added += d.added;
-      removed += d.removed;
-    }
-    return { files: gitFiles.length, added, removed };
-  }, [source, changes, gitDiffs, gitFiles.length, git?.numstat]);
+  const summary = source === 'git' ? gitTotals : summarizeChanges(changes);
 
   // 未提交 / 磁盘文件的预览显示在中栏（右栏只导航）；本会话变更走 workbench
   const previewing =
@@ -471,15 +253,9 @@ export const SessionChangesPanel: React.FC<{
     panelRef.current?.focus({ preventScroll: true });
   }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
 
+  /** 本会话变更与磁盘文件的预览（git 的由各仓库段自己画） */
   const previewFiles: PreviewFile[] = useMemo(() => {
-    if (view === 'changes' && source === 'git') {
-      return gitItems.map(({ entry: g, letter, diff: d, added, removed, key }) => {
-        const gitDiff: ToolFileDiff | undefined = d
-          ? { file: d.file, diff: parsePatch(d.body) }
-          : undefined;
-        return { key, path: g.path, letter, added, removed, gitDiff };
-      });
-    }
+    const where = (p: string) => (multi ? { cwds: [rootOf(roots, p) ?? primary!] } : {});
     const fromChanges = changes.map((c) => ({
       key: `c:${c.file}`,
       path: c.file,
@@ -487,12 +263,13 @@ export const SessionChangesPanel: React.FC<{
       added: c.added,
       removed: c.removed,
       change: c,
+      ...where(c.file),
     }));
     const extra = openDiskPaths
       .filter((p) => !changeByFile.has(p))
-      .map((p) => ({ key: `d:${p}`, path: p }));
+      .map((p) => ({ key: `d:${p}`, path: p, ...where(p) }));
     return [...fromChanges, ...extra];
-  }, [view, source, changes, gitItems, openDiskPaths, changeByFile]);
+  }, [changes, openDiskPaths, changeByFile, multi, rootsKey, primary]); // eslint-disable-line react-hooks/exhaustive-deps -- roots 由 rootsKey 决定
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -529,8 +306,9 @@ export const SessionChangesPanel: React.FC<{
   if (!changes.length && !cwd) return null;
 
   const gitNote = (() => {
-    if (!git || git.ok || isNotGitRepoError(git.error)) return null;
-    return git.error || t('ui.session-workspace.could-not-read-git-status');
+    if (source === 'git') return null;
+    const bad = roots.map((r) => reports[r]).find((x) => x?.state === 'error');
+    return bad ? bad.error || t('ui.session-workspace.could-not-read-git-status') : null;
   })();
 
   const pickFile = (file: string) => {
@@ -552,12 +330,6 @@ export const SessionChangesPanel: React.FC<{
     }
   };
 
-  const pickGit = (item: GitItem) => {
-    setSelectedFile(item.entry.path);
-    setPreviewKey(item.key);
-    closeWorkbench();
-  };
-
   const openFullscreen = () =>
     openDetail({
       entries: changes,
@@ -566,61 +338,25 @@ export const SessionChangesPanel: React.FC<{
       messageId: changes[0]?.messageId,
     });
 
-  /** 「提交」与「让助手提交」针对的文件：有过滤 / 只看本会话时是过滤后的 */
-  const pickedRows = onlySession || q ? gitRows : gitItems;
-  const stagedCount = gitFiles.filter((g) => g.staged).length;
-  const commitPaths = [...new Set(pickedRows.map((r) => r.entry.path))];
-
-  /** 交给当前助手提交：只填进输入框，用户看过再发 */
-  const askCommit = (push: boolean) => {
-    const paths = new Set(commitPaths);
-    const files = gitFiles
-      .filter((g) => paths.has(g.path))
-      .map((g) => ({ path: g.path, staged: g.staged, unstaged: g.unstaged }));
-    if (files.length) fillComposer(buildCommitPrompt(files, push, wtCwd ?? undefined));
-  };
-
-  // worktree：正在看的那个（标签目录所在的，或切过去的）；助手改的文件落在别的 worktree 时提示
-  const liveWorktrees = worktrees.filter((w) => !w.prunable);
-  const viewing =
-    (wtCwd
-      ? liveWorktrees.find((w) => samePath(w.path, wtCwd))
-      : liveWorktrees.find((w) => w.current)) ?? null;
-  const elsewhere = viewing
-    ? editsElsewhere(
-        changes.map((c) => c.file),
-        liveWorktrees,
-        viewing.path,
-      ).sort((a, b) => b.count - a.count)[0]
-    : undefined;
-  const pickWorktree = (p: string) => {
-    const home = liveWorktrees.find((w) => w.current);
-    setWtCwd(home && samePath(home.path, p) ? null : p);
-    setPreviewKey(null);
-    setSelectedFile(null);
-    setOnlySession(false);
-  };
-
-  const selectedRel = selectedFile ? relOf(gitCwd, selectedFile) : null;
-  // 中栏预览只在同一来源（未提交 g: / 磁盘 d:）的文件间前后切换
+  // 中栏预览只在同一来源（磁盘 d: / 本会话 c:）的文件间前后切换
   const portalFiles = previewKey
     ? previewFiles.filter((f) => f.key[0] === previewKey[0])
     : previewFiles;
   const changesActive = view === 'changes';
   const workspaceActive = view === 'workspace';
-  const changesCount = source === 'git' ? gitFiles.length : changes.length;
+  const changesCount = source === 'git' ? gitTotals.files : changes.length;
   const openWorkspace = () => {
     setView('workspace');
     void refreshDisk();
   };
-  const refresh = workspaceActive ? refreshDisk : refreshGit;
-  const refreshing = workspaceActive ? diskBusy : gitBusy;
+  const refreshing = workspaceActive ? diskBusy : source === 'loading';
+  const diskEmpty = !Object.values(diskTrees).some((l) => l.length);
   // 只有真有内容可筛时才显示筛选框
   const showFilter = changesActive
     ? source === 'git'
-      ? gitFiles.length > 0
+      ? gitTotals.files > 0
       : changes.length > 0
-    : !diskErr && (diskTree.length > 0 || changes.length > 0);
+    : !diskErr && (!diskEmpty || changes.length > 0);
 
   const filterBox = showFilter ? (
     <div className={pane.toolRow}>
@@ -634,7 +370,7 @@ export const SessionChangesPanel: React.FC<{
           data-testid="files-rail-filter"
         />
       </label>
-      {changesActive && source === 'git' && sessionInGit > 0 ? (
+      {changesActive && source === 'git' && gitTotals.sessionInGit > 0 ? (
         <button
           type="button"
           className={pane.chip}
@@ -646,7 +382,7 @@ export const SessionChangesPanel: React.FC<{
         >
           <Bot size={12} />
           {t('ui.slash-commands.this-session')}
-          <span className={styles.count}>{sessionInGit}</span>
+          <span className={styles.count}>{gitTotals.sessionInGit}</span>
         </button>
       ) : null}
     </div>
@@ -669,6 +405,30 @@ export const SessionChangesPanel: React.FC<{
     </div>
   );
 
+  // 各仓库段一直挂着（报状态、跟着助手的改动刷新）；不在「改动」视图或不是 git 时不画
+  const q = filter.trim().toLowerCase();
+  const sections = roots.map((r, i) => (
+    <RepoGitSection
+      key={r}
+      cwd={r}
+      keyPrefix={multi ? `g:${i}|` : 'g:'}
+      label={multi ? label(r) : undefined}
+      primary={multi && i === 0}
+      show={dupOf(r) ? 'none' : changesActive ? 'all' : multi ? 'none' : 'branch'}
+      busy={busy}
+      changes={multi ? (changesByRoot.get(r) ?? []) : changes}
+      query={q}
+      onlySession={onlySession}
+      setOnlySession={setOnlySession}
+      previewKey={previewKey}
+      setPreviewKey={setPreviewKey}
+      selectedFile={selectedFile}
+      setSelectedFile={setSelectedFile}
+      nonce={nonce}
+      onReport={onReport}
+    />
+  ));
+
   return (
     <section
       ref={panelRef}
@@ -679,6 +439,7 @@ export const SessionChangesPanel: React.FC<{
       data-layout="tree"
       data-view={view}
       data-source={changesActive ? source : undefined}
+      data-multi={multi || undefined}
       tabIndex={-1}
     >
       {/* 一行：左侧「改动 · 文件」分段，右侧统计与操作；与 ChatHeader 同高 */}
@@ -716,7 +477,7 @@ export const SessionChangesPanel: React.FC<{
             className={pane.segBtn}
             data-active={workspaceActive || undefined}
             data-testid="rail-tab-workspace"
-            title={cwd ? `${project} · ${cwd}` : undefined}
+            title={multi ? roots.join('\n') : cwd ? `${project} · ${cwd}` : undefined}
             onClick={openWorkspace}
           >
             {t('ui.knowledge-local.files')}
@@ -738,8 +499,8 @@ export const SessionChangesPanel: React.FC<{
             type="button"
             className={styles.iconBtn}
             onClick={() => {
-              setBranchNonce((n) => n + 1);
-              void refresh();
+              setNonce((n) => n + 1);
+              if (workspaceActive) void refreshDisk();
             }}
             disabled={refreshing}
             aria-label={t('ui.knowledge-local.refresh')}
@@ -774,237 +535,89 @@ export const SessionChangesPanel: React.FC<{
           </button>
         ) : null}
       </header>
-      {/* 当前分支：改动和文件说的都是这个分支上的工作区 */}
-      {branch && gitCwd ? (
-        <div
-          className={styles.branchBar}
-          title={t('ui.session-workspace.current-branch', branch)}
-          data-testid="rail-git-branch"
-        >
-          {/* 点开切换 / 新建分支；助手正在跑时不让切（它可能正在改这个仓库） */}
-          <BranchPicker
-            cwd={gitCwd}
-            branch={branch}
-            disabled={busy}
-            className={styles.branchPicker}
-            testId="rail-branch-picker"
-            onSwitched={() => setBranchNonce((n) => n + 1)}
-          />
-          <GitSyncButtons sync={sync} ops={ops} />
-        </div>
-      ) : null}
-      {/* 同一仓库有多个 worktree（委派任务、编程助手的 --worktree、自己 git worktree add 的）：可以切过去看 */}
-      {liveWorktrees.length > 1 && viewing ? (
-        <div className={styles.branchBar} data-testid="rail-worktree">
-          <FolderGit2 size={13} aria-hidden />
-          <Select
-            size="sm"
-            variant="ghost"
-            value={viewing.path}
-            options={liveWorktrees.map((w) => ({
-              value: w.path,
-              label: w.main
-                ? `${worktreeLabel(w)} · ${t('ui.session-workspace.main-worktree')}`
-                : w.delegate
-                  ? `${worktreeLabel(w)} · ${t('ui.session-workspace.delegated-task')}`
-                  : worktreeLabel(w),
-            }))}
-            menuMinWidth={220}
-            title={viewing.path}
-            aria-label={t('ui.session-workspace.switch-worktree')}
-            data-testid="rail-worktree-select"
-            onChange={(e) => pickWorktree(e.target.value)}
-          />
-        </div>
-      ) : null}
-      {changesActive && elsewhere ? (
-        <p className={pane.worktreeHint} data-testid="rail-worktree-hint">
-          {t(
-            'ui.session-workspace.assistant-changed-n-files-in-worktree',
-            worktreeLabel(elsewhere.worktree),
-            String(elsewhere.count),
-          )}
-          <button
-            type="button"
-            className={pane.link}
-            data-testid="rail-worktree-hint-switch"
-            onClick={() => pickWorktree(elsewhere.worktree.path)}
-          >
-            {t('ui.session-workspace.switch-to-it')}
-          </button>
-        </p>
-      ) : null}
 
-      {changesActive && source === 'git' ? (
+      {/* 各仓库段一直挂在同一个位置（换视图 / 数据源时不重新挂载）；不在「改动 · git」时不画，但仍报状态 */}
+      {changesActive && source === 'git' ? filterBox : null}
+      <div
+        className={multi && changesActive && source === 'git' ? pane.repoStack : pane.repoSingle}
+        data-testid={multi ? 'repo-stack' : undefined}
+      >
+        {sections}
+      </div>
+      {changesActive && source === 'git' ? null : (
         <>
-          {filterBox}
-          <div className={styles.body} data-testid="git-list">
-            {!gitFiles.length ? (
-              <p className={styles.empty} data-testid="git-clean">
-                {t('ui.session-workspace.working-tree-clean-nothing-to-commit')}
-              </p>
-            ) : !gitRows.length ? (
-              <p className={styles.empty}>{t('ui.foundation.no-matching-files')}</p>
-            ) : (
-              (
-                [
-                  ['staged', t('ui.session-workspace.staged'), stagedRows],
-                  ['unstaged', t('ui.session-workspace.unstaged'), unstagedRows],
-                ] as const
-              ).map(([area, label, list]) =>
-                // 没有暂存内容时不分组，和普通列表一样
-                !list.length ? null : (
-                  <div key={area} className={pane.gitGroup} data-testid={`git-group-${area}`}>
-                    {stagedRows.length ? (
-                      <div className={pane.gitGroupHead}>
-                        <span>{label}</span>
-                        <span className={styles.count}>{list.length}</span>
-                        <span className={styles.wbSpacer} />
-                        {area === 'unstaged' ? (
-                          <button
-                            type="button"
-                            className={styles.iconBtn}
-                            disabled={ops.op !== null}
-                            data-testid="git-group-unstaged-discard"
-                            title={t('ui.session-workspace.discard-all-unstaged-changes')}
-                            aria-label={t('ui.session-workspace.discard-all-unstaged-changes')}
-                            onClick={() => void ops.discard(stagePaths(list, area))}
-                          >
-                            <RotateCcw size={12} />
-                          </button>
+          {changesActive ? (
+            <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
+              <div
+                className={styles.railTreePane}
+                data-testid="rail-tree-pane"
+                style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
+              >
+                {source === 'loading' ? (
+                  <p className={styles.empty}>{t('ui.session-workspace.reading-git')}</p>
+                ) : (
+                  <>
+                    {gitNote ? (
+                      <p className={styles.hint} data-testid="git-friendly-error">
+                        {gitNote}
+                      </p>
+                    ) : null}
+                    {filterBox}
+                    {!changes.length ? (
+                      <div className={pane.empty} data-testid="files-rail-no-changes">
+                        <p>{t('ui.session-workspace.no-file-changes-in-this-session-yet')}</p>
+                        {cwd ? (
+                          <div className={pane.emptyActions}>
+                            <button type="button" className={pane.link} onClick={openWorkspace}>
+                              <FolderTree size={12} />
+                              {t('ui.session-workspace.browse-workspace-files')}
+                            </button>
+                          </div>
                         ) : null}
-                        <button
-                          type="button"
-                          className={styles.iconBtn}
-                          disabled={ops.op !== null}
-                          data-testid={`git-group-${area}-toggle`}
-                          title={
-                            area === 'staged'
-                              ? t('ui.session-workspace.unstage-all')
-                              : t('ui.session-workspace.stage-all')
-                          }
-                          aria-label={
-                            area === 'staged'
-                              ? t('ui.session-workspace.unstage-all')
-                              : t('ui.session-workspace.stage-all')
-                          }
-                          onClick={() => void ops.stage(stagePaths(list, area), area !== 'staged')}
-                        >
-                          {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
-                        </button>
                       </div>
-                    ) : null}
-                    {list.map((r) => (
-                      <GitRow
-                        key={r.key}
-                        entry={r.entry}
-                        letter={r.letter}
-                        area={r.area}
-                        added={r.added}
-                        removed={r.removed}
-                        session={changeByRel.get(r.entry.path)}
-                        selected={
-                          previewKey?.startsWith('g:')
-                            ? previewKey === r.key
-                            : selectedRel === r.entry.path
-                        }
-                        onSelect={() => pickGit(r)}
-                        onStage={() => void ops.stage(stagePaths([r], r.area), r.area !== 'staged')}
-                        stageDisabled={ops.op !== null}
-                        onDiscard={
-                          r.area === 'unstaged'
-                            ? () => void ops.discard(stagePaths([r], r.area))
-                            : undefined
-                        }
-                      />
-                    ))}
-                  </div>
-                ),
-              )
-            )}
-            {git?.truncated ? (
-              <p className={styles.empty}>{t('ui.session-workspace.diff-truncated')}</p>
-            ) : null}
-          </div>
-          <GitCommitBox
-            ops={ops}
-            sync={sync}
-            hasChanges={gitRows.length > 0}
-            stagedCount={stagedCount}
-            paths={commitPaths}
-            onAskAssistant={askCommit}
-          />
-        </>
-      ) : changesActive ? (
-        <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
-          <div
-            className={styles.railTreePane}
-            data-testid="rail-tree-pane"
-            style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
-          >
-            {source === 'loading' ? (
-              <p className={styles.empty}>{t('ui.session-workspace.reading-git')}</p>
-            ) : (
-              <>
-                {gitNote ? (
-                  <p className={styles.hint} data-testid="git-friendly-error">
-                    {gitNote}
-                  </p>
-                ) : null}
+                    ) : (
+                      sessionTree
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
+              <div
+                className={styles.railTreePane}
+                data-testid="rail-tree-pane"
+                style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
+              >
                 {filterBox}
-                {!changes.length ? (
-                  <div className={pane.empty} data-testid="files-rail-no-changes">
-                    <p>{t('ui.session-workspace.no-file-changes-in-this-session-yet')}</p>
-                    {cwd ? (
-                      <div className={pane.emptyActions}>
-                        <button type="button" className={pane.link} onClick={openWorkspace}>
-                          <FolderTree size={12} />
-                          {t('ui.session-workspace.browse-workspace-files')}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+                {diskErr ? (
+                  <p className={styles.empty} data-testid="files-rail-disk-error">
+                    {diskErr}
+                  </p>
+                ) : diskEmpty && !changes.length && !diskBusy && !multi ? (
+                  <p className={styles.empty}>
+                    {cwd
+                      ? t('ui.session-workspace.workspace-is-empty')
+                      : t('ui.session-workspace.this-session-has-no-working-directory')}
+                  </p>
                 ) : (
                   sessionTree
                 )}
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
-          <div
-            className={styles.railTreePane}
-            data-testid="rail-tree-pane"
-            style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
-          >
-            {filterBox}
-            {diskErr ? (
-              <p className={styles.empty} data-testid="files-rail-disk-error">
-                {diskErr}
-              </p>
-            ) : !diskTree.length && !changes.length && !diskBusy ? (
-              <p className={styles.empty}>
-                {cwd
-                  ? t('ui.session-workspace.workspace-is-empty')
-                  : t('ui.session-workspace.this-session-has-no-working-directory')}
-              </p>
-            ) : (
-              sessionTree
-            )}
-          </div>
-        </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
-      {previewing && previewSlot && portalFiles.length > 0
+      {previewing && !previewKey!.startsWith('g:') && previewSlot && portalFiles.length > 0
         ? createPortal(
             <FilePreview
               hideFileTabs
               files={portalFiles}
               activeKey={previewKey!}
-              cwd={previewKey?.startsWith('g:') ? gitCwd : cwd}
+              cwd={cwd}
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
-              onSaved={() => void refreshGit()}
+              onSaved={() => setNonce((n) => n + 1)}
             />,
             previewSlot,
           )

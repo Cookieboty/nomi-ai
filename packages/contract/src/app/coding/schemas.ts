@@ -32,7 +32,10 @@ export const HarnessTabMeta = loose({
   id: z.string(),
   title: z.string(),
   backend: z.string(),
+  /** 工作目录：项目的主文件夹（委派开的 worktree 标签是 worktree） */
   cwd: z.string(),
+  /** 标签所在的项目 */
+  projectId: z.string().optional(),
   cliSessionId: z.string().nullable(),
   status: z.string(),
   unread: z.number(),
@@ -125,6 +128,8 @@ export const GitDiffResult = loose({
   stat: z.string(),
   diff: z.string(),
   truncated: z.boolean(),
+  /** 仓库根目录（项目里多个文件夹同属一个仓库时，右栏按它合成一段） */
+  gitRoot: z.string().optional(),
 });
 
 export const GitBranchResult = loose({ branch: z.string().nullable() });
@@ -153,6 +158,40 @@ export const GitWorktreeList = loose({
 
 export const WorkspaceFileResult = loose({ ok: z.boolean(), code: z.string().optional() });
 export const WorkspaceTreeResult = loose({ ok: z.boolean(), code: z.string().optional() });
+
+// ---------------------------------------------------------------------------
+// 项目（core/projects）：有名字的一组文件夹，会话只引用 projectId，目录由内核实时解析
+// ---------------------------------------------------------------------------
+
+/**
+ * 项目。primary 是主文件夹：会话的工作目录、相对路径的基准、git / worktree / AGENTS.md 的来源；
+ * folders 是其余文件夹（顺序即显示顺序，不含 primary），Nomi 与编程助手在里面同样能读写。
+ * missing：此刻不存在或不再允许当项目目录的文件夹（内核每次列出时重新检查），视图标红。
+ */
+export const Project = loose({
+  id: z.string(),
+  name: z.string(),
+  primary: z.string(),
+  folders: z.array(z.string()),
+  missing: z.array(z.string()).optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+/** 新建项目：primary 必填，其余文件夹可选；name 为空时用主文件夹的目录名 */
+export const ProjectCreateInput = z.object({
+  name: z.string().optional(),
+  primary: z.string(),
+  folders: z.array(z.string()).optional(),
+});
+
+/** 编辑项目：给了哪项改哪项；folders 是完整的新列表（不含 primary） */
+export const ProjectUpdateInput = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  primary: z.string().optional(),
+  folders: z.array(z.string()).optional(),
+});
 
 export const TabContext = loose({ contextTokens: z.number() });
 

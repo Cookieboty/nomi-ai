@@ -895,6 +895,11 @@ func GitDiff(cwd string) *util.Obj {
 		return s
 	}
 	f, c, w := capd(full), capd(cached), capd(work)
-	return util.NewObj("ok", true, "status", status, "stat", stat, "diff", f, "staged", c, "unstaged", w, "truncated", truncated,
+	out := util.NewObj("ok", true, "status", status, "stat", stat, "diff", f, "staged", c, "unstaged", w, "truncated", truncated,
 		"numstat", util.NewObj("head", ParseNumstat(nsHead), "staged", ParseNumstat(nsStaged), "unstaged", ParseNumstat(nsWork)))
+	// 仓库根：项目里两个文件夹在同一个仓库时，右栏按它合成一段
+	if root := util.JSTrim(gitOr(cwd, []string{"rev-parse", "--show-toplevel"})); root != "" {
+		out.Set("gitRoot", filepath.Clean(root))
+	}
+	return out
 }

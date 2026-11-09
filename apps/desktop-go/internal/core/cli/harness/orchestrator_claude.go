@@ -386,6 +386,10 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	argv = append(argv, cli.OverrideArgs("claude", ov.model, ptrAny(ov.effort))...)
 	argv = append(argv, launch.args...)
 	argv = append(argv, o.claudeSandboxArgs()...)
+	// 项目的其余文件夹（进程常驻：项目改了由 ProjectChanged 断开，下一轮按新的文件夹重启）
+	for _, d := range o.extraDirs(tab) {
+		argv = append(argv, "--add-dir", d)
+	}
 	if sid, _ := tab.Get("cliSessionId").(string); sid != "" {
 		argv = append(argv, "--resume", sid)
 		if back := util.AsObj(tab.Get("claudeResumeAt")); back != nil {

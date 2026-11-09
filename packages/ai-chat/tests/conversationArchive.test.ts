@@ -35,15 +35,16 @@ describe('ConversationStore.setArchived', () => {
 });
 
 describe('ConversationStore.findEmptyNomi', () => {
-  it('同一工作区里还没有消息的 Nomi 对话可以复用；有消息 / 归档 / 别的工作区的不算', () => {
+  it('同一项目里还没有消息的 Nomi 对话可以复用；有消息 / 归档 / 别的项目的不算', () => {
     const store = new ConversationStore();
-    const a = store.create({ name: 'a', cwd: '/w/app' }).id;
-    expect(store.findEmptyNomi('/w/app/')?.id).toBe(a);
-    expect(store.findEmptyNomi('/w/other')).toBeUndefined();
+    const a = store.create({ name: 'a', projectId: 'p_app' }).id;
+    expect(store.findEmptyNomi('p_app')?.id).toBe(a);
+    expect(store.findEmptyNomi('p_other')).toBeUndefined();
+    expect(store.findEmptyNomi(undefined)).toBeUndefined();
     store.append({ id: 'm', role: 'user', content: 'hi', timestamp: 1 } as never, a);
-    expect(store.findEmptyNomi('/w/app')).toBeUndefined();
-    const b = store.create({ name: 'b', cwd: '/w/app' }).id;
+    expect(store.findEmptyNomi('p_app')).toBeUndefined();
+    const b = store.create({ name: 'b', projectId: 'p_app' }).id;
     store.setArchived(b, true);
-    expect(store.findEmptyNomi('/w/app')).toBeUndefined();
+    expect(store.findEmptyNomi('p_app')).toBeUndefined();
   });
 });

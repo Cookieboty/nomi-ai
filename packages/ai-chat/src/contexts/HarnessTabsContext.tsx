@@ -57,7 +57,8 @@ interface HarnessTabsCore {
   /** 当前标签是独立的 CLI 标签（非 main） */
   isCliTab: boolean;
   messages: HarnessTabMessage[];
-  create: (backend: HarnessBackend, cwd?: string) => Promise<void>;
+  /** projectId：在哪个项目里开；不给 = 默认目录 */
+  create: (backend: HarnessBackend, projectId?: string) => Promise<void>;
   close: (id: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   activate: (id: string) => Promise<void>;
@@ -362,8 +363,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     });
   }, [activeId, cache]);
 
-  const create = useCallback(async (backend: HarnessBackend, cwd?: string) => {
-    const tab = await harnessClient.createTab(cwd ? { backend, cwd } : { backend });
+  const create = useCallback(async (backend: HarnessBackend, projectId?: string) => {
+    const tab = await harnessClient.createTab(projectId ? { backend, projectId } : { backend });
     setCache((cur) => ({ ...cur, [tab.id]: [] }));
     setLastBackend(backend);
     try {

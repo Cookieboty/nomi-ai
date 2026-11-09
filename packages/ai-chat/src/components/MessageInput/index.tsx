@@ -32,7 +32,6 @@ import {
   joinFileAttachments,
   type FileAttachment,
 } from '../../services/fileAttachments';
-import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
@@ -53,7 +52,6 @@ import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agent
 import {
   atPathToken,
   filterAtPathOptions,
-  flattenWorkspacePaths,
   formatAtPathInsert,
   replaceAtPathToken,
   type AtPathOption,
@@ -62,6 +60,7 @@ import { filterModelOptions, modelArgQuery } from '../../slash/modelComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { ModelArgOption, SlashBridge, SlashCommand } from '../../slash/types';
+import { useAtPathOptions } from '../../slash/useAtPathOptions';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { isImeComposing, moveTextareaToLineBoundary } from '../../utils/keyboard';
@@ -110,6 +109,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   contextModel,
   fill,
   cwd,
+  roots,
   delegate,
   draftStore,
   draftKey,
@@ -147,8 +147,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [caret, setCaret] = useState(0);
   const [atIdx, setAtIdx] = useState(0);
   const [atClosed, setAtClosed] = useState<string | null>(null);
-  const [atNodes, setAtNodes] = useState<WorkspaceTreeNode[]>([]);
-  const [atLoadedCwd, setAtLoadedCwd] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
   useAutoHeight(textareaRef, message, COMPOSER_MIN_HEIGHT_PX, COMPOSER_MAX_HEIGHT_PX);
@@ -592,7 +590,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setAtIdx(0);
     // 刚敲下一个新的 `@`：重新读工作区树（文件可能刚被助手改过）
     const tok = atPathToken(e.target.value, e.target.selectionStart ?? e.target.value.length);
-    if (tok && tok.query === '' && e.target.value.length > message.length) setAtLoadedCwd(null);
+    if (tok && tok.query === '' && e.target.value.length > message.length) atPaths.reload();
     // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
     if (e.target.value === '/') slash?.refresh();
   };
@@ -852,10 +850,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     };
   }, [modelPhase, loadModelOptions]);
   const atToken = atPathToken(message, caret);
-  const atAll = cwd && atLoadedCwd === cwd ? flattenWorkspacePaths(atNodes) : [];
-  const atOptions = atToken ? filterAtPathOptions(atAll, atToken.query) : [];
   const atOpen =
     !!cwd && atToken !== null && !slashOpen && !agentOpen && !modelOpen && atClosed !== message;
+  const atPaths = useAtPathOptions(atOpen, cwd, roots);
+  const atOptions = atToken ? filterAtPathOptions(atPaths.options, atToken.query) : [];
 
   function pickAtPath(o: AtPathOption) {
     const token = atPathToken(message, caret);
@@ -875,27 +873,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     });
   }
 
-  useEffect(() => {
-    if (!atOpen || !cwd) return;
-    if (atLoadedCwd === cwd) return;
-    let live = true;
-    void harnessClient
-      .workspaceList(cwd)
-      .then((r) => {
-        if (!live) return;
-        setAtNodes(r.ok && r.entries ? r.entries : []);
-        setAtLoadedCwd(cwd);
-      })
-      .catch(() => {
-        if (!live) return;
-        setAtNodes([]);
-        setAtLoadedCwd(cwd);
-      });
-    return () => {
-      live = false;
-    };
-  }, [atOpen, cwd, atLoadedCwd]);
-
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
@@ -912,7 +889,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setMessage(next);
     setCaret(pos);
     setAtIdx(0);
-    setAtLoadedCwd(null);
+    atPaths.reload();
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(pos, pos);

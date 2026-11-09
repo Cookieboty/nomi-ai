@@ -4,8 +4,8 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
-import { groupByWorkspace, workspaceKey } from '../src/components/Sidebar/workspaceGrouping';
-import { SECTION_WORKSPACES } from '../src/components/Sidebar/WorkspaceGroups';
+import { groupByProject } from '../src/components/Sidebar/projectGrouping';
+import { SECTION_WORKSPACES } from '../src/components/Sidebar/ProjectGroups';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import {
   getCollapsedWorkspaces,
@@ -13,12 +13,26 @@ import {
   setGroupByWorkspace,
 } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
+import { __setProjectsForTest, type Project } from '../src/services/projects';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const now = Date.now();
+const proj = (id: string, name: string, primary: string, folders: string[] = []): Project => ({
+  id,
+  name,
+  primary,
+  folders,
+  createdAt: 1,
+  updatedAt: 1,
+});
+const PROJECTS = [
+  proj('p_app', 'app', '/work/app', ['/work/server']),
+  proj('p_api', 'api', '/work/api'),
+  proj('p_empty', 'empty', '/work/empty'),
+];
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
   id,
   name,
@@ -90,7 +104,16 @@ function mockIpc() {
     calls.push([ch, input ?? {}]);
     if (ch === 'harness.tabs')
       return {
-        tabs: [{ id: 't1', backend: 'claude', cwd: '/work/api', status: tabStatus, unread: 0 }],
+        tabs: [
+          {
+            id: 't1',
+            backend: 'claude',
+            cwd: '/work/api',
+            projectId: 'p_api',
+            status: tabStatus,
+            unread: 0,
+          },
+        ],
         activeTabId: 'main',
         running: 0,
         queued: 0,
@@ -126,12 +149,13 @@ beforeEach(() => {
   deleteConversation.mockClear();
   convs = [
     ...Array.from({ length: 7 }, (_, i) =>
-      conv(`a${i}`, `app chat ${i}`, 'nomi', i + 1, { cwd: '/work/app' }),
+      conv(`a${i}`, `app chat ${i}`, 'nomi', i + 1, { projectId: 'p_app' }),
     ),
     conv('c1', 'api via claude', 'claude', 3, { tabId: 't1' }),
     conv('n9', 'loose chat', 'nomi', 30),
   ];
   mockIpc();
+  __setProjectsForTest(PROJECTS);
 });
 afterEach(() => {
   cleanup();
@@ -140,33 +164,35 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('groupByWorkspace', () => {
-  const m = (id: string, updatedAt: number, cwd?: string) =>
-    ({ id, name: id, backend: 'nomi', createdAt: 0, updatedAt, cwd }) as never;
+describe('groupByProject', () => {
+  const m = (id: string, updatedAt: number, projectId?: string) =>
+    ({ id, name: id, backend: 'nomi', createdAt: 0, updatedAt, projectId }) as never;
 
-  it('按最近活动排序分组，没有工作区的进 rest，同名目录带上父目录', () => {
-    const { groups, rest } = groupByWorkspace(
-      [m('1', 9, '/a/app/'), m('2', 8, '/b/app'), m('3', 7), m('4', 6, '/a/app')],
-      (x) => (x as { cwd?: string }).cwd,
+  it('分组来自项目列表（空项目也在），按最近活动排序；没有项目或项目已移除的进 rest', () => {
+    const { groups, rest } = groupByProject(
+      [m('1', 9, 'p_api'), m('2', 8, 'p_app'), m('3', 7), m('4', 6, 'p_gone'), m('5', 5, 'p_api')],
+      PROJECTS,
+      (x) => (x as { projectId?: string }).projectId,
     );
-    expect(groups.map((g) => [g.key, g.label, g.items.length])).toEqual([
-      ['/a/app', 'a/app', 2],
-      ['/b/app', 'b/app', 1],
+    expect(groups.map((g) => [g.key, g.project.name, g.items.length])).toEqual([
+      ['p_api', 'api', 2],
+      ['p_app', 'app', 1],
+      ['p_empty', 'empty', 0],
     ]);
-    expect(rest.map((x) => (x as { id: string }).id)).toEqual(['3']);
-  });
-
-  it('Windows 路径不分大小写与分隔符', () => {
-    expect(workspaceKey('C:\\Users\\Me\\App\\')).toBe('c:/users/me/app');
-    expect(workspaceKey('/Users/Me/App')).toBe('/Users/Me/App');
+    expect(groups[1]!.title).toContain('/work/server');
+    expect(rest.map((x) => (x as { id: string }).id)).toEqual(['3', '4']);
   });
 });
 
-describe('sidebar workspace groups', () => {
-  it('Nomi 工作区与 CLI 标签目录分别成组，每组默认 5 条，展开后显示全部', async () => {
+describe('sidebar project groups', () => {
+  it('Nomi 对话按会话的项目、CLI 会话按标签的项目成组，每组默认 5 条，展开后显示全部', async () => {
     const r = mount();
     const groups = await r.findAllByTestId('workspace-group');
-    expect(groups.map((g) => g.getAttribute('data-workspace'))).toEqual(['/work/app', '/work/api']);
+    expect(groups.map((g) => g.getAttribute('data-project'))).toEqual([
+      'p_app',
+      'p_api',
+      'p_empty',
+    ]);
     const app = groups[0]!;
     expect(names(app)).toHaveLength(5);
     expect(names(groups[1]!)).toEqual([expect.stringContaining('api via claude')]);
@@ -176,17 +202,17 @@ describe('sidebar workspace groups', () => {
     expect(within(app).getByTestId('workspace-show-more').textContent).toBe('收起');
     fireEvent.click(within(app).getByTestId('workspace-show-more'));
     expect(names(app)).toHaveLength(5);
-    // 没有工作区的会话在「最近」里
+    // 没有项目的会话在「最近」里
     expect(names(r.getByTestId('workspace-recent'))).toEqual([
       expect.stringContaining('loose chat'),
     ]);
   });
 
-  it('折叠工作区会记住；关掉分组回到平铺列表', async () => {
+  it('折叠项目会记住；关掉分组回到平铺列表', async () => {
     const r = mount();
     const app = (await r.findAllByTestId('workspace-group'))[0]!;
     fireEvent.click(within(app).getByTestId('workspace-toggle'));
-    expect(getCollapsedWorkspaces()).toEqual(['/work/app']);
+    expect(getCollapsedWorkspaces()).toEqual(['p_app']);
     await waitFor(() => expect(names(r.getAllByTestId('workspace-group')[0]!)).toHaveLength(0));
 
     fireEvent.click(r.getByTestId('organize-sidebar'));
@@ -213,7 +239,7 @@ describe('sidebar workspace groups', () => {
     expect(claudeRow.querySelector('[data-testid="thread-endpoint"]')).toBeTruthy();
   });
 
-  it('「工作区」「最近」分区标题可以收起整个分区，并记住', async () => {
+  it('「项目」「最近」分区标题可以收起整个分区，并记住', async () => {
     const r = mount();
     const ws = await r.findByTestId('workspace-section-toggle');
     expect(ws.getAttribute('aria-expanded')).toBe('true');
@@ -234,11 +260,34 @@ describe('sidebar workspace groups', () => {
     await waitFor(() => expect(again.getAllByTestId('workspace-group').length).toBeGreaterThan(0));
   });
 
-  it('文件夹上的「新建」在该工作区里新建', async () => {
+  it('项目上的「新建」在该项目里新建；「最近」上的新建不放进项目', async () => {
     setChatMode('normal');
     const r = mount();
     const app = (await r.findAllByTestId('workspace-group'))[0]!;
     fireEvent.click(within(app).getByTestId('workspace-new-chat'));
-    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ cwd: '/work/app' }));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: 'p_app' }));
+    onNewChat.mockClear();
+    fireEvent.click(within(r.getByTestId('workspace-recent')).getByTestId('new-chat'));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: null }));
+  });
+
+  it('「项目」标题上的按钮打开「创建项目」，不开对话；项目上的「…」打开「编辑项目」', async () => {
+    const r = mount();
+    fireEvent.click(await r.findByTestId('new-project'));
+    const dialog = await r.findByTestId('project-dialog');
+    expect(dialog.textContent).toContain('创建项目');
+    expect(onNewChat).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByText('取消'));
+    await waitFor(() => expect(r.queryByTestId('project-dialog')).toBeNull());
+    const app = (await r.findAllByTestId('workspace-group'))[0]!;
+    fireEvent.click(within(app).getByTestId('project-edit'));
+    const edit = await r.findByTestId('project-dialog');
+    expect(edit.textContent).toContain('编辑项目');
+    expect(
+      within(edit)
+        .getAllByTestId('project-folder')
+        .map((x) => x.title || x.textContent),
+    ).toHaveLength(2);
+    expect(within(edit).getByTestId('project-remove')).toBeTruthy();
   });
 });

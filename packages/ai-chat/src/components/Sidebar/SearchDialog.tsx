@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { hostAssetUrl } from '../../services/api';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
+import { sessionPlace } from '../../services/projects';
 import { rankItems, type Ranked } from '../../utils/fuzzy';
 import { useAssets } from '../AssetLibrary';
 import { sourceName, type AssetItem } from '../AssetLibrary/ImageViewer';
@@ -114,7 +115,7 @@ export const SearchDialog: React.FC<{
     p.inputRef.current?.focus();
   }, [p.inputRef]);
   const sel = Math.min(p.activeIdx, Math.max(p.shown.length - 1, 0));
-  const cwdOf = (m: Meta) => m.cwd || (m.tabId ? p.tabById.get(m.tabId)?.cwd : '') || '';
+  const placeOf = (m: Meta) => sessionPlace(m, m.tabId ? p.tabById.get(m.tabId) : undefined);
 
   return createPortal(
     <div
@@ -200,7 +201,7 @@ export const SearchDialog: React.FC<{
                   <span className={styles.threadName}>
                     {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
                   </span>
-                  <span className={styles.threadTime}>{baseName(cwdOf(c))}</span>
+                  <span className={styles.threadTime}>{placeOf(c).label}</span>
                 </button>
               ))}
             </>

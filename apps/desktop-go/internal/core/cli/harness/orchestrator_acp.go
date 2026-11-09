@@ -176,6 +176,12 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			}
 			bin = found
 			argv = builtin.AcpArgs(backend)
+			// Gemini：项目的其余文件夹用 --include-directories（ACP 的 additionalDirectories 它不一定声明）
+			if backend == "gemini" {
+				for _, d := range o.extraDirs(tab) {
+					argv = append(argv, "--include-directories", d)
+				}
+			}
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
@@ -260,7 +266,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if s, ok := tab.Get("cliSessionId").(string); ok {
 				resume = &s
 			}
-			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: str(tab, "cwd"), ResumeID: resume, Signal: signal}))
+			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: str(tab, "cwd"), ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab)}))
 			if err == nil {
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s

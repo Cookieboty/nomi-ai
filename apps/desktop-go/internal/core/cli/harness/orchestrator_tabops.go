@@ -213,22 +213,6 @@ func (o *Orchestrator) launchEnvOf(tab *util.Obj) (env *util.Obj) {
 	return o.launchFor(tab).env
 }
 
-// SetCwd = setCwd。
-func (o *Orchestrator) SetCwd(cwd string, carry bool) *util.Obj {
-	o.SetTabCwd(MainTabID, cwd, carry)
-	return o.State()
-}
-
-// PickCwd = pickCwd。
-func (o *Orchestrator) PickCwd() *jsrt.Promise[*util.Obj] {
-	return jsrt.Async(func() (*util.Obj, error) {
-		if _, err := jsrt.Await(o.PickTabCwd(MainTabID)); err != nil {
-			return nil, err
-		}
-		return o.State(), nil
-	})
-}
-
 // Send = send。
 func (o *Orchestrator) Send(prompt string) *jsrt.Promise[*util.Obj] {
 	return o.SendTab(MainTabID, prompt, nil, false)
@@ -314,12 +298,25 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		pid, _ := opts.Get("pluginId").(string)
 		ext = o.externalSpecOf(pid)
 	}
+	// 项目：工作目录默认是它的主文件夹（委派的 worktree 标签会另给 cwd）
+	projectID, _ := opts.Get("projectId").(string)
+	projectPrimary := ""
+	if projectID != "" {
+		if projectPrimary, _ = o.projectRoots(projectID); projectPrimary == "" {
+			throw(i18n.T("electron.common.invalid-working-directory"))
+		}
+	}
 	var cwd string
-	if truthy(opts.Get("cwd")) {
+	switch {
+	case truthy(opts.Get("cwd")):
 		cwd = validDir(jsStr(opts.Get("cwd")))
 		o.checkCwd(cwd)
 		o.rememberCwd(cwd)
-	} else {
+	case projectPrimary != "":
+		cwd = validDir(projectPrimary)
+		o.checkCwd(cwd)
+		o.rememberCwd(cwd)
+	default:
 		cwd = o.EnsureDefaultDir(str(o.tab(o.activeTabID), "cwd"))
 	}
 	now := nowMs()
@@ -355,6 +352,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	tab := util.NewObj("id", clisdk.RandomUUID(), "title", title, "backend", backend)
 	if ext != nil {
 		tab.Set("pluginId", ext.Get("id"))
+	}
+	if projectID != "" {
+		tab.Set("projectId", projectID)
 	}
 	tab.Set("cwd", cwd).Set("cliSessionId", anyOf(trimOrNil(opts.Get("cliSessionId")))).
 		Set("status", "idle").Set("unread", 0.0).Set("createdAt", now).Set("updatedAt", now).

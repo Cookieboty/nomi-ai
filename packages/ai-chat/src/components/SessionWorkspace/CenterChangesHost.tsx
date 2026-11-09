@@ -16,6 +16,7 @@ import {
   summarizeChanges,
   type ChangeEntry,
 } from '../../utils/sessionChanges';
+import { rootOf } from '../../utils/workspacePath';
 
 import { useChangesUi } from './ChangesUiContext';
 import { LazyDiffBlock } from './LazyDiffBlock';
@@ -25,7 +26,10 @@ import pane from './WorkspacePane.module.css';
 export const CenterChangesHost: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
-}> = ({ messages, cwd }) => {
+  /** 项目的全部文件夹：Diff 按各自的文件夹显示相对路径 */
+  roots?: readonly string[] | null;
+}> = ({ messages, cwd, roots }) => {
+  const cwdOf = (file: string) => (roots?.length ? (rootOf(roots, file) ?? cwd) : cwd);
   const { workbench, closeWorkbench, previewOpen, setPreviewSlot } = useChangesUi();
   const [scopeAll, setScopeAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -154,7 +158,7 @@ export const CenterChangesHost: React.FC<{
                 key={e.file}
                 diff={e.diff}
                 active={e.file === activeFile}
-                cwd={cwd}
+                cwd={cwdOf(e.file)}
                 testId="center-diff-block"
                 root={bodyRef}
               />

@@ -64,7 +64,10 @@ export interface HarnessTabMeta {
    * 插件被删除后标签保留，发消息时报错。
    */
   pluginId?: string;
+  /** 工作目录：项目的主文件夹（委派开的 worktree 标签是 worktree） */
   cwd: string;
+  /** 标签所在的项目 */
+  projectId?: string;
   cliSessionId: string | null;
   status: HarnessTabStatus;
   unread: number;
@@ -353,6 +356,8 @@ export interface GitDiffResult {
   truncated: boolean;
   /** 每个文件的增删行数（`git diff --numstat`，不受 diff 文本上限影响）；老版本主进程没有 */
   numstat?: { head: GitNumstat; staged: GitNumstat; unstaged: GitNumstat };
+  /** 仓库根目录（项目里多个文件夹同属一个仓库时合成一段） */
+  gitRoot?: string;
   error?: string;
 }
 export type GitNumstat = Record<string, { added: number; removed: number }>;
@@ -540,9 +545,6 @@ export const harnessClient = {
   setBackend: (b: HarnessBackend) =>
     call<HarnessState>(() => api.harness.setBackend({ backend: b })),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
-  setCwd: (c: string, opts: { carry?: boolean } = {}) =>
-    call<HarnessState>(() => api.harness.setCwd({ cwd: c, carry: opts.carry })),
-  pickCwd: () => call<HarnessState>(() => api.harness.pickCwd()),
   send: (prompt: string) => call<HarnessSendResult>(() => api.harness.send({ prompt })),
   onChanged: (fn: (s: HarnessState) => void) =>
     on(() => api.on('harness.changed', (p) => fn(p as unknown as HarnessState))),
@@ -561,7 +563,8 @@ export const harnessClient = {
   tabs: () => call<HarnessTabsState>(() => api.harness.tabs()),
   createTab: (o: {
     backend: HarnessBackend;
-    cwd?: string;
+    /** 在哪个项目里开；不给 = 默认目录 */
+    projectId?: string;
     title?: string;
     messages?: HarnessTabMessage[];
     /** backend = 'external' 时：外部插件 id（「添加 CLI」） */
@@ -630,8 +633,9 @@ export const harnessClient = {
   activateTab: (id: string) => call<HarnessTabsState>(() => api.harness.tabActivate({ id })),
   setTabBackend: (id: string, b: HarnessBackend) =>
     call<HarnessTabMeta>(() => api.harness.tabBackend({ id, backend: b })),
-  setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>
-    call<HarnessTabMeta>(() => api.harness.tabCwd({ id, cwd, carry: opts.carry })),
+  /** 把标签换到另一个项目（null = 不用项目）；工作目录换成主文件夹、开新会话，carry = 带上前文 */
+  setTabProject: (id: string, projectId: string | null, opts: { carry?: boolean } = {}) =>
+    call<HarnessTabMeta>(() => api.harness.tabProject({ id, projectId, carry: opts.carry })),
   clearTabCarry: (id: string) => call<HarnessTabMeta>(() => api.harness.tabCarryClear({ id })),
   /** 删掉这条用户消息及之后的全部消息并丢弃 CLI 会话（重试 / 编辑前）；返回截断后的消息 */
   rewindTab: (id: string, messageId: string) =>
@@ -640,7 +644,6 @@ export const harnessClient = {
   pickDir: (defaultPath?: string) =>
     call<string | null>(() => api.harness.pickDir({ defaultPath })),
   recentCwds: () => call<string[]>(() => api.harness.recentCwds()),
-  pickTabCwd: (id: string) => call<HarnessTabMeta>(() => api.harness.tabPickCwd({ id })),
   tabMessages: (id: string) => call<HarnessTabMessage[]>(() => api.harness.tabMessages({ id })),
   sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) => {
     clearModelSwitch(id);

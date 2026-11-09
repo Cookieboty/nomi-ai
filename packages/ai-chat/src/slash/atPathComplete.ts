@@ -32,16 +32,37 @@ export function replaceAtPathToken(
 }
 
 export interface AtPathOption {
+  /** 插入的路径：工作目录里的是相对路径，项目其余文件夹里的是绝对路径 */
   path: string;
   kind: 'file' | 'dir';
   label: string;
+  /** 面板里显示的路径（其余文件夹：「文件夹名/相对路径」）；缺省 = path */
+  display?: string;
 }
 
-export function flattenWorkspacePaths(nodes: readonly WorkspaceTreeNode[]): AtPathOption[] {
+/**
+ * 目录树摊平成候选。folder：项目里工作目录之外的文件夹——插入绝对路径（工作目录里的相对路径对不上它），
+ * 显示成「文件夹名/相对路径」
+ */
+export function flattenWorkspacePaths(
+  nodes: readonly WorkspaceTreeNode[],
+  folder?: { root: string; name: string },
+): AtPathOption[] {
   const out: AtPathOption[] = [];
+  const root = folder?.root.replace(/\\/g, '/').replace(/\/+$/, '');
   const walk = (list: readonly WorkspaceTreeNode[]) => {
     for (const n of list) {
-      out.push({ path: n.path.replace(/\\/g, '/'), kind: n.kind, label: n.name });
+      const rel = n.path.replace(/\\/g, '/');
+      out.push(
+        folder
+          ? {
+              path: `${root}/${rel}`,
+              kind: n.kind,
+              label: n.name,
+              display: `${folder.name}/${rel}`,
+            }
+          : { path: rel, kind: n.kind, label: n.name },
+      );
       if (n.kind === 'dir' && n.children?.length) walk(n.children);
     }
   };
@@ -57,7 +78,7 @@ export function filterAtPathOptions(
   const q = query.trim().toLowerCase();
   const scored = options
     .map((o) => {
-      const path = o.path.toLowerCase();
+      const path = (o.display ?? o.path).toLowerCase();
       const base = o.label.toLowerCase();
       if (!q) return { o, score: 1 };
       if (base.includes(q)) return { o, score: 2 };

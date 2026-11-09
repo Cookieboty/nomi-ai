@@ -622,7 +622,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 	if v, ok := r.Extra["callerTabId"]; ok && v != nil {
 		callerSet = true
 	}
-	caller, conv, cwd := str("callerTabId"), str("conversationId"), str("cwd")
+	caller, conv, cwd, project := str("callerTabId"), str("conversationId"), str("cwd"), str("projectId")
 	// 暂存的大段输出按对话隔离；后台任务按任务
 	spillKey := conv
 	if t := str("taskId"); t != "" {
@@ -659,7 +659,7 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 				}
 				// 权限按对话记授权（desktop.PermissionBroker）：把对话 id 带进 ctx
 				ctx = tools.WithConversation(ctx, conv)
-				res, err := d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, UserText: userText})
+				res, err := d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd, ProjectID: project, UserText: userText})
 				if err != nil {
 					return res, err
 				}

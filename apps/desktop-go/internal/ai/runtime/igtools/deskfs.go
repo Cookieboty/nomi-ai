@@ -211,10 +211,10 @@ type guarded struct {
 	inWorkspace bool
 }
 
-func (k *deskKit) guard(ctx context.Context, p any, need string, allowMissing bool, ws string) (guarded, error) {
+func (k *deskKit) guard(ctx context.Context, p any, need string, allowMissing bool, ws desktop.Workspace) (guarded, error) {
 	var g desktop.GuardResult
 	in := false
-	if ws != "" {
+	if !ws.Empty() {
 		g, in = k.d.Broker.GuardWorkspaceOrGranted(ws, p, need, allowMissing)
 	} else {
 		g = k.d.Broker.Guard(p, need, allowMissing)
@@ -236,26 +236,26 @@ func (k *deskKit) assertTaskPath(ctx context.Context, real string) error {
 	return nil
 }
 
-func wsFor(ws string, g guarded) string {
+func wsFor(ws desktop.Workspace, g guarded) desktop.Workspace {
 	if g.inWorkspace {
 		return ws
 	}
-	return ""
+	return desktop.Workspace{}
 }
 
-func (k *deskKit) confirm(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws string) (string, error) {
+func (k *deskKit) confirm(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws desktop.Workspace) (string, error) {
 	return k.confirmFor(ctx, tool, summary, args, preview, force, ws, "")
 }
 
 // confirmFor：confirm 带上本轮用户说的话（命令自动审核判断授权用）
-func (k *deskKit) confirmFor(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws, userText string) (string, error) {
+func (k *deskKit) confirmFor(ctx context.Context, tool, summary string, args any, preview *string, force *struct{ Dialog bool }, ws desktop.Workspace, userText string) (string, error) {
 	danger, ok := desktop.ToolDanger[tool]
 	if !ok {
 		danger = "write"
 	}
 	req := desktop.AuthorizeInput{Tool: tool, Danger: danger, Summary: summary, Args: rawArgs(args), Preview: preview, Signal: sig(ctx), Force: force, UserText: userText}
 	var d string
-	if ws != "" {
+	if !ws.Empty() {
 		d = k.d.Broker.AuthorizeIn(req)
 	} else {
 		d = k.d.Broker.Authorize(req)
@@ -429,11 +429,12 @@ func parsePages(spec string, total int) []int {
 	return out
 }
 
-func (k *deskKit) cwd(ec tools.ExecContext) any {
-	if ec.Cwd == "" {
+// project：这一轮的项目 id（没有时 nil，WorkspaceOf 返回空）
+func (k *deskKit) project(ec tools.ExecContext) any {
+	if ec.ProjectID == "" {
 		return nil
 	}
-	return ec.Cwd
+	return ec.ProjectID
 }
 
 func num0(o *u.Obj, key string) int    { f, _ := o.Get(key).(float64); return int(f) }
@@ -527,10 +528,10 @@ func (k *deskKit) baseTools() []tools.Definition {
 	return []tools.Definition{
 		deskDef("desktop_permissions", "查看你目前被授权访问的文件夹（只读 / 读写）以及隐私设置。访问文件前如果不确定，先调用这个。",
 			func(ctx context.Context, _ any, ec tools.ExecContext) (any, error) {
-				ws := b.WorkspaceOf(k.cwd(ec))
+				ws := b.WorkspaceOf(k.project(ec))
 				return k.run("desktop_permissions", u.NewObj(), func() (any, string, error) {
 					o := u.NewObj()
-					if ws != "" {
+					if !ws.Empty() {
 						o.Set("workspace", ws)
 						o.Set("workspaceAutoApprove", b.AutoApprove != nil && b.AutoApprove())
 					}
@@ -574,7 +575,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_list", i, func() (any, string, error) {
-					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.project(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -621,7 +622,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_stat", i, func() (any, string, error) {
-					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.project(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -652,7 +653,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_read_text", i, func() (any, string, error) {
-					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.project(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -693,7 +694,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 					return nil, err
 				}
 				return k.run("fs_summarize", i, func() (any, string, error) {
-					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.cwd(ec)))
+					g, err := k.guard(ctx, i.Get("path"), "read", false, b.WorkspaceOf(k.project(ec)))
 					if err != nil {
 						return nil, "", err
 					}
@@ -764,7 +765,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 						return nil, "", toolErr("conflict", p)
 					}
 					dec, err := k.confirm(ctx, "undo_last", "撤销「"+e.Summary+"」？", u.NewObj("id", e.ID),
-						strp(jsjson.Pretty(e.Inverse)), &struct{ Dialog bool }{false}, "")
+						strp(jsjson.Pretty(e.Inverse)), &struct{ Dialog bool }{false}, desktop.Workspace{})
 					if err != nil {
 						return nil, "", err
 					}
@@ -779,7 +780,7 @@ func (k *deskKit) baseTools() []tools.Definition {
 
 func (k *deskKit) search(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
 	b := k.d.Broker
-	ws := b.WorkspaceOf(k.cwd(ec))
+	ws := b.WorkspaceOf(k.project(ec))
 	var roots []string
 	switch {
 	case i.Has("root"):
@@ -788,8 +789,8 @@ func (k *deskKit) search(ctx context.Context, i *u.Obj, ec tools.ExecContext) (a
 			return nil, "", err
 		}
 		roots = []string{g.Real}
-	case ws != "":
-		roots = []string{ws}
+	case !ws.Empty():
+		roots = ws.Roots()
 	default:
 		for _, s := range b.Scopes() {
 			if s.Kind == "folder" {
@@ -836,7 +837,7 @@ func (k *deskKit) search(ctx context.Context, i *u.Obj, ec tools.ExecContext) (a
 				continue
 			}
 			var g desktop.GuardResult
-			if ws != "" {
+			if !ws.Empty() {
 				g, _ = b.GuardWorkspaceOrGranted(ws, full, "read", false)
 			} else {
 				g = b.Guard(full, "read", false)
@@ -881,7 +882,7 @@ func (k *deskKit) write(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 	if mode == "overwrite" {
 		tool = "fs_trash"
 	}
-	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
+	ws := k.d.Broker.WorkspaceOf(k.project(ec))
 	var t target
 	var err error
 	if mode == "create" {
@@ -987,7 +988,7 @@ func writeExcl(p, text string) error {
 
 func (k *deskKit) trash(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
 	b := k.d.Broker
-	ws := b.WorkspaceOf(k.cwd(ec))
+	ws := b.WorkspaceOf(k.project(ec))
 	g, err := k.guard(ctx, i.Get("path"), "write", false, ws)
 	if err != nil {
 		return nil, "", err

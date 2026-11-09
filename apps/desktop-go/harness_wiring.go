@@ -20,6 +20,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/projects"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -78,7 +79,7 @@ var harnessAccounts *accounts.AccountService
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
 // cwdCheck / envAllow：编程助手的工作目录策略与放行的环境变量（desktop.PermissionBroker）
 func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service,
-	cwdCheck func(dir string) string, envAllow func() []string, sbx *harness.SandboxDeps) (*cli.CliPluginHost, func()) {
+	cwdCheck func(dir string) string, envAllow func() []string, sbx *harness.SandboxDeps, projs *projects.Store) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（CliPluginHost）
@@ -191,9 +192,15 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			CwdCheck:       cwdCheck,
 			EnvAllow:       envAllow,
 			Sandbox:        sbx,
+			ProjectRoots: func(id string) (string, []string) {
+				r := projs.Roots(id)
+				return r.Primary, r.Extra
+			},
+			InProject: projs.Contains,
 		})
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
+	projs.OnChange(func(id string) { jsrt.Run(func() { o.ProjectChanged(id) }) })
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	codinghandlers.RegisterOpenTerminal(router, cwdCheck, terminal.OpenAt)
 	jsrt.Go(func() { plugins.Start() })

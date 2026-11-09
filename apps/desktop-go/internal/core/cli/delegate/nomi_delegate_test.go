@@ -30,7 +30,7 @@ func TestDelegateToNomiCreatesTask(t *testing.T) {
 	ft := newFakeTasks()
 	e := newTaskEnv(t, util.NewObj("ws", "/work/deck"), ft)
 	r := e.call(nil, "delegate_to_nomi", nomiRaw("context", "蓝色调", "kind", "writing"),
-		tools.ExecContext{ConversationID: "c1", Cwd: "/work/deck", ToolCallID: "call-1"})
+		tools.ExecContext{ConversationID: "c1", Cwd: "/work/deck", ProjectID: "p_test", ToolCallID: "call-1"})
 	d := dataOf(r)
 	if r.Get("ok") != true || d.Get("taskId") != "task_1" || d.Get("cli") != "nomi" || d.Get("status") != "running" {
 		t.Fatal(util.Stringify(r))
@@ -44,7 +44,7 @@ func TestDelegateToNomiCreatesTask(t *testing.T) {
 	c := ft.created[0]
 	ex := c.Executor
 	if *c.ConversationID != "c1" || c.Level != 4 || len(c.Paths) != 1 || c.Paths[0] != "/work/deck" || c.Category != "writing" ||
-		ex.Kind != "nomi" || ex.Tools == nil || len(*ex.Tools) != 0 || *ex.Toolset != "conversation" || *ex.Cwd != "/work/deck" ||
+		ex.Kind != "nomi" || ex.Tools == nil || len(*ex.Tools) != 0 || *ex.Toolset != "conversation" || *ex.Cwd != "/work/deck" || ex.Project == nil || *ex.Project != "p_test" ||
 		ex.Brief.DoneWhen != "deck.pptx 写进工作区" || *ex.Brief.Context != "蓝色调" || *ex.CallID != "call-1" ||
 		c.Title != "Nomi · 做一套 10 页的 PPT" {
 		t.Fatalf("%+v %+v", c, ex)

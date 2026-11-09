@@ -1,23 +1,23 @@
 /**
- * 分叉对话：选带入几轮上下文；跨端分叉（mode=cross）再选目标后端与工作目录。
+ * 分叉对话：选带入几轮上下文；跨端分叉（mode=cross）再选目标后端与项目。
  */
 import { Button, Select, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
-import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { useNewProject } from '../../hooks/useNewProject';
 import { harnessClient } from '../../services/harnessClient';
 import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { DEFAULT_FORK_TURNS, FORK_TURN_CHOICES } from '../../utils/forkTranscript';
 import { EndpointIcon } from '../EndpointIcon';
-import { WorkspacePicker } from '../WorkspacePicker';
+import { ProjectPicker } from '../ProjectPicker';
 
 import styles from './index.module.css';
 
 export interface ForkPick {
-  /** 用户为 CLI 目标选的工作目录（未选 / 同端分叉为 undefined） */
-  cwd?: string;
+  /** 用户为跨端分叉选的项目（未选 / 同端分叉为 undefined：沿用源会话的） */
+  projectId?: string;
   /** 只带最近几轮（undefined = 全部） */
   turns?: number;
 }
@@ -33,7 +33,7 @@ export const ForkTargetMenu: React.FC<{
   const [bins, setBins] = useState<Record<string, string | null>>({});
   // 默认带最近 20 轮；空字符串 = 全部
   const [turns, setTurns] = useState(String(DEFAULT_FORK_TURNS));
-  const ws = useNewWorkspace();
+  const ws = useNewProject();
   const cross = mode === 'cross';
   useEffect(() => {
     if (!open) return;
@@ -101,7 +101,7 @@ export const ForkTargetMenu: React.FC<{
                   data-testid={`fork-target-${b}`}
                   onClick={() =>
                     onPick(b, {
-                      ...(ws.chosen ? { cwd: ws.chosen } : {}),
+                      ...(ws.chosen ? { projectId: ws.chosen } : {}),
                       turns: pickedTurns,
                     })
                   }
@@ -119,9 +119,9 @@ export const ForkTargetMenu: React.FC<{
         {cross && (
           <div className={styles.ws}>
             <span className={styles.wsLabel}>
-              {t('ui.cli-monitor.workspace-for-the-new-conversation')}
+              {t('ui.cli-monitor.project-for-the-new-conversation')}
             </span>
-            <WorkspacePicker value={ws.cwd} onChange={ws.set} testId="fork-workspace" />
+            <ProjectPicker value={ws.chosen} onChange={ws.set} testId="fork-project" />
           </div>
         )}
         <div className={styles.actions}>

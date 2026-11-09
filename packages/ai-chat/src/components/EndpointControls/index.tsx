@@ -3,7 +3,7 @@
  *
  * - `EndpointControls`（输入栏左侧）：模型（编程助手还有权限模式），只留发消息时要用的。
  *   端点在新建对话时选定，之后不在输入栏切换。
- * - `NewChatContext`（新会话时输入框上方）：工作区 · 本地 · 分支，工作区可以自由切换。
+ * - `NewChatContext`（新会话时输入框上方）：项目 · 分支，项目可以自由切换。
  * - `SessionControls`（对话区顶部）：「带上前文」标记。
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
  */
@@ -16,14 +16,15 @@ import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import { useHarnessState } from '../../hooks/useHarnessState';
-import { useNomiWorkspace } from '../../hooks/useNomiWorkspace';
+import { useNomiProject } from '../../hooks/useNomiProject';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
+import { useProject } from '../../services/projects';
 import { BranchPicker } from '../BranchPicker';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
 import { BypassTip, PermissionModeChip, type PermissionTab } from '../PermissionModeChip';
-import { WorkspacePicker } from '../WorkspacePicker';
+import { ProjectPicker } from '../ProjectPicker';
 
 import styles from './index.module.css';
 
@@ -84,25 +85,24 @@ export const PermissionTip: React.FC = () => {
 };
 
 /**
- * 当前 CLI 标签的工作目录。工作区只在新会话（还没有消息）时能换，没有对话可带：
- * cwd 是 CLI 会话身份的一部分，换目录直接开新会话，不再弹确认框。
+ * 当前 CLI 标签的项目。项目只在新会话（还没有消息）时能换，没有对话可带：
+ * 工作目录是 CLI 会话身份的一部分，换项目直接开新会话，不再弹确认框。
  */
-function useCwdSwitch() {
-  const { harness, cli, tab } = useEndpoint();
-  const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
-  const changeCwd = async (next: string) => {
-    if (next === cwd) return;
-    const opts = { carry: false };
-    if (tab) await harnessClient.setTabCwd(tab.id, next, opts).catch(() => undefined);
-    else await harnessClient.setCwd(next, opts).catch(() => undefined);
+function useProjectSwitch() {
+  const { cli, tab, tabs } = useEndpoint();
+  // 主标签切到 CLI 后端时它不在标签列表的 activeTab 里
+  const target = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
+  const changeProject = async (next: string) => {
+    if (!target || next === target.projectId) return;
+    await harnessClient.setTabProject(target.id, next, { carry: false }).catch(() => undefined);
   };
-  return { cli, cwd, changeCwd };
+  return { cli, cwd: target?.cwd ?? '', projectId: target?.projectId, changeProject };
 }
 
 /**
- * 新会话（还没有消息）时贴在输入框上方的一条：工作区（可搜索、可换、可不使用）· 当前分支（Nomi 只在本机运行，不再标「本地」）。
- * Nomi 对话的工作区存在会话上，下一轮起生效；CLI 标签的目录是会话身份的一部分，空标签换目录直接开新会话。
- * 有了消息之后不再显示，顶栏也不再放工作区。
+ * 新会话（还没有消息）时贴在输入框上方的一条：项目（可搜索、可换、可新建；Nomi 对话可不使用）· 当前分支。
+ * Nomi 对话的项目存在会话上，下一轮起生效；CLI 标签的工作目录是会话身份的一部分，空标签换项目直接开新会话。
+ * 有了消息之后不再显示。
  */
 const ContextBar: React.FC<{
   cwd: string;
@@ -112,28 +112,28 @@ const ContextBar: React.FC<{
   return (
     <div className={styles.contextBar} data-testid="new-chat-context">
       {picker}
-      {/* 当前分支：点开可以搜索、切换或新建分支（与右栏「改动」顶部同一个切换器） */}
+      {/* 主文件夹的当前分支：点开可以搜索、切换或新建分支（与右栏「改动」顶部同一个切换器） */}
       {branch && cwd && <BranchPicker cwd={cwd} branch={branch} up testId="new-chat-branch" />}
     </div>
   );
 };
 
-const NomiContextBar: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) => {
-  const ws = useNomiWorkspace(mainCwd);
+const NomiContextBar: React.FC = () => {
+  const ws = useNomiProject();
+  const project = useProject(ws.projectId);
   return (
     <ContextBar
-      cwd={ws.cwd}
+      cwd={project?.primary ?? ''}
       picker={
-        <WorkspacePicker
-          value={ws.cwd}
+        <ProjectPicker
+          value={ws.projectId}
           onChange={ws.set}
           onClear={ws.clear}
-          emptyLabel={t('ui.cli-monitor.no-workspace')}
+          emptyLabel={t('ui.cli-monitor.no-project')}
           size="ms"
           variant="ghost"
           up
-          searchable
-          testId="nomi-workspace"
+          testId="nomi-project"
         />
       }
     />
@@ -141,27 +141,26 @@ const NomiContextBar: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) 
 };
 
 const NewChatContextImpl: React.FC = () => {
-  const { cli, cwd, changeCwd } = useCwdSwitch();
+  const { cli, cwd, projectId, changeProject } = useProjectSwitch();
   const { tabs, harness } = useEndpoint();
   const nomiCount = useAiChatSelector(selectMessageCount);
   if (!cli) {
     const onMain = !tabs.isCliTab && harness?.backend === 'nomi';
     if (!onMain || !harnessClient.available() || nomiCount > 0) return null;
-    return <NomiContextBar mainCwd={harness.cwd} />;
+    return <NomiContextBar />;
   }
   if ((tabs.messages ?? []).length > 0) return null;
   return (
     <ContextBar
       cwd={cwd}
       picker={
-        <WorkspacePicker
-          value={cwd}
-          onChange={changeCwd}
+        <ProjectPicker
+          value={projectId}
+          onChange={changeProject}
           size="ms"
           variant="ghost"
           up
-          searchable
-          testId="cli-workspace"
+          testId="cli-project"
         />
       }
     />

@@ -52,7 +52,7 @@ func (a in) list(k string) []any {
 // viewTabFields：视图建标签能给的字段（契约 harness.tabCreate 声明的）。delegation（委派与沙箱预授权）、source、
 // accountId、cliSessionId、modelOverride 等只由内核自己的委派 / 任务路径设置：视图带来的一律丢掉，
 // 否则建标签时塞一个 delegation.sandboxGrants 就能绕过 harness.sandboxReply 的确认拿到凭据的读权限
-var viewTabFields = []string{"backend", "cwd", "title", "messages", "permissionMode", "pluginId"}
+var viewTabFields = []string{"backend", "projectId", "title", "messages", "permissionMode", "pluginId"}
 
 func viewTabOptions(o *util.Obj) *util.Obj {
 	out := util.NewObj()
@@ -129,8 +129,6 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	// ── 主标签 ──
 	call("harness.state", func(in) any { return h().StateFresh() })
 	call("harness.setBackend", func(a in) any { return h().SetBackend(a.any("backend")) })
-	call("harness.setCwd", func(a in) any { return h().SetCwd(a.str("cwd"), a.is("carry")) })
-	call("harness.pickCwd", func(in) any { return await(h().PickCwd()) })
 	call("harness.send", func(a in) any { return await(h().SendReply(a.str("prompt"))) })
 
 	// ── 标签 ──
@@ -142,7 +140,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.tabApplyAutoTitle", func(a in) any { return h().ApplyAutoTitle(a.str("id"), a.any("title")) })
 	call("harness.tabActivate", func(a in) any { return h().SetActiveTab(a.str("id")) })
 	call("harness.tabBackend", func(a in) any { return h().SetTabBackend(a.str("id"), a.any("backend")) })
-	call("harness.tabCwd", func(a in) any { return h().SetTabCwd(a.str("id"), a.str("cwd"), a.is("carry")) })
+	call("harness.tabProject", func(a in) any { return h().SetTabProject(a.str("id"), a.str("projectId"), a.is("carry")) })
 	call("harness.tabPermissionMode", func(a in) any {
 		opts := harness.PermOpts{Confirmed: a.is("confirmed")}
 		if e := util.AsObj(a.any("expect")); e != nil {
@@ -179,7 +177,6 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 		return h().SetTabLongContext(a.str("id"), on)
 	})
 	call("harness.tabEffort", func(a in) any { return h().SetTabReasoningEffort(a.str("id"), a.any("effort")) })
-	call("harness.tabPickCwd", func(a in) any { return await(h().PickTabCwd(a.str("id"))) })
 	call("harness.tabCarryClear", func(a in) any { return h().ClearTabCarry(a.str("id")) })
 	call("harness.tabRewind", func(a in) any { return await(h().RewindTab(a.str("id"), a.str("messageId"))) })
 	call("harness.pickDir", func(a in) any { return h().PickDirectory(a.str("defaultPath")) })

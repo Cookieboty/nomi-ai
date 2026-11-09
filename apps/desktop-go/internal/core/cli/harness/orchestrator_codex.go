@@ -3,6 +3,7 @@ package harness
 // Codex（app-server 长驻会话 / exec 每轮一个进程）。
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"regexp"
@@ -329,7 +330,7 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		}
 		live.turn = turn
 		params := util.NewObj("cwd", str(tab, "cwd"))
-		params.Assign(drivers.CodexTurnPolicy(str(tab, "permissionMode"), o.codexNetwork, live.sandboxed))
+		params.Assign(drivers.CodexTurnPolicy(str(tab, "permissionMode"), o.codexNetwork, live.sandboxed, o.extraDirs(tab)))
 		if model != nil && *model != "" {
 			params.Set("model", *model)
 		}
@@ -541,6 +542,10 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 		sandbox := cli.PermissionLaunchFor("codex", str(tab, "permissionMode"), &net).Args
 		if o.SandboxActive() {
 			sandbox = []string{"-c", `sandbox_mode="danger-full-access"`}
+		} else if extra := o.extraDirs(tab); len(extra) > 0 {
+			// 项目的其余文件夹：exec / exec resume 都认的配置覆盖（exec resume 没有 --add-dir）
+			roots, _ := json.Marshal(extra)
+			sandbox = append(sandbox, "-c", "sandbox_workspace_write.writable_roots="+string(roots))
 		}
 		launch := o.launchFor(tab)
 		ov := o.effectiveOverrides(tab)

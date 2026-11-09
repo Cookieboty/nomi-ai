@@ -101,9 +101,14 @@ type PermissionBroker struct {
 	pending             map[string]*pendingConfirm
 	listeners           []*func()
 
-	UI                  ConfirmUI
-	PermissionMode      func() PermMode
-	IsKnownWorkspace    func(dir string) bool
+	UI             ConfirmUI
+	PermissionMode func() PermMode
+	// IsKnownWorkspace：dir 在用户的某个项目里（或是编程助手标签正在用的目录）
+	IsKnownWorkspace func(dir string) bool
+	// ProjectRoots：项目此刻的主文件夹与其余文件夹；项目不在 / 不能用时 primary 为空
+	ProjectRoots func(id string) (primary string, extra []string)
+	// ProjectName：项目的名字（提示词用）
+	ProjectName         func(id string) string
 	AutoApprove         func() bool
 	OnWorkspaceRejected func(dir, reason string)
 	// AIReview：命令自动审核开关（编程助手服务的权限设置）
@@ -132,6 +137,8 @@ func NewPermissionBroker(file string, envBase GuardEnv, opts BrokerOpts) *Permis
 	b.timeout = time.Duration(ms) * time.Millisecond
 	b.PermissionMode = func() PermMode { return "acceptEdits" }
 	b.IsKnownWorkspace = func(string) bool { return false }
+	b.ProjectRoots = func(string) (string, []string) { return "", nil }
+	b.ProjectName = func(string) string { return "" }
 	b.AutoApprove = func() bool { return false }
 	b.AIReview = func() bool { return false }
 	b.OnReviewed = func(string, *CommandReview) {}
@@ -327,50 +334,55 @@ func (b *PermissionBroker) Guard(p any, need string, allowMissing bool) GuardRes
 	return GuardPath(p, b.env(b.Scopes()), GuardOpts{Need: need, AllowMissing: allowMissing})
 }
 
-// WorkspaceOf：cwd 必须是用户选过的工作区且通过 checkWorkspaceRoot
-func (b *PermissionBroker) WorkspaceOf(cwd any) string {
-	s, ok := cwd.(string)
-	if !ok || jsTrim(s) == "" {
-		return ""
+// WorkspaceOf：Nomi 对话这一轮的项目目录。projectID 由视图带来，目录由 ProjectRoots 实时取
+// （项目里的文件夹建 / 改时已过 CheckWorkspaceRoot，取的时候再查一遍）；不认 = 空
+func (b *PermissionBroker) WorkspaceOf(projectID any) Workspace {
+	id, ok := projectID.(string)
+	if !ok || jsTrim(id) == "" {
+		return Workspace{}
 	}
-	dir := jsTrim(s)
-	known := func() (k bool) {
-		defer func() {
-			if recover() != nil {
-				k = false
-			}
-		}()
-		return b.IsKnownWorkspace(dir)
-	}()
-	if !known {
-		b.OnWorkspaceRejected(dir, "not a workspace the user chose")
-		return ""
+	id = jsTrim(id)
+	primary, extra := b.ProjectRoots(id)
+	if primary == "" {
+		b.OnWorkspaceRejected(id, "not a project the user created")
+		return Workspace{}
 	}
-	r := CheckWorkspaceRoot(dir, b.workspaceEnv())
+	env := b.workspaceEnv()
+	r := CheckWorkspaceRoot(primary, env)
 	if !r.OK {
-		b.OnWorkspaceRejected(dir, r.Reason)
-		return ""
+		b.OnWorkspaceRejected(primary, r.Reason)
+		return Workspace{}
 	}
-	return r.Real
+	ws := Workspace{ProjectID: id, Primary: r.Real}
+	for _, d := range extra {
+		if x := CheckWorkspaceRoot(d, env); x.OK {
+			ws.Extra = append(ws.Extra, x.Real)
+		} else {
+			b.OnWorkspaceRejected(d, x.Reason)
+		}
+	}
+	return ws
 }
 
-func (b *PermissionBroker) GuardIn(root string, p any, need string, allowMissing bool) GuardResult {
-	g := GuardPath(ResolveInWorkspace(p, root, b.envBase.Platform), b.env([]Scope{WorkspaceScope(root)}), GuardOpts{Need: need, AllowMissing: allowMissing})
+// GuardIn：p 必须落在项目的某个文件夹里（相对路径按主文件夹解析）
+func (b *PermissionBroker) GuardIn(ws Workspace, p any, need string, allowMissing bool) GuardResult {
+	g := GuardPath(ResolveInWorkspace(p, ws.Primary, b.envBase.Platform), b.env(ws.Scopes()), GuardOpts{Need: need, AllowMissing: allowMissing})
 	if !g.OK && g.Code == "outside_scope" {
-		return GuardResult{Code: "outside_scope", Message: tr.T("electron.common.path-is-outside-the-conversation-workspace", root)}
+		return GuardResult{Code: "outside_scope", Message: tr.T("electron.common.path-is-outside-the-conversation-workspace", strings.Join(ws.Roots(), ", "))}
 	}
 	return g
 }
 
-func (b *PermissionBroker) GuardWorkspaceOrGranted(root string, p any, need string, allowMissing bool) (GuardResult, bool) {
-	g := b.GuardIn(root, p, need, allowMissing)
+// GuardWorkspaceOrGranted：先按项目判，不在项目里再按已授权的文件夹判；第二个返回值 = 在项目里
+func (b *PermissionBroker) GuardWorkspaceOrGranted(ws Workspace, p any, need string, allowMissing bool) (GuardResult, bool) {
+	g := b.GuardIn(ws, p, need, allowMissing)
 	if g.OK {
 		return g, true
 	}
 	if g.Code != "outside_scope" && g.Code != "symlink_escape" {
 		return g, false
 	}
-	granted := b.Guard(ResolveInWorkspace(p, root, b.envBase.Platform), need, allowMissing)
+	granted := b.Guard(ResolveInWorkspace(p, ws.Primary, b.envBase.Platform), need, allowMissing)
 	if !granted.OK && granted.Code == "outside_scope" {
 		return g, false
 	}

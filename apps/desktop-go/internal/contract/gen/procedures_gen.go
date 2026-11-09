@@ -3,7 +3,7 @@
 package gen
 
 // ContractVersion 与 appContract.version 一致
-var ContractVersion = struct{ Major, Minor int }{2, 4}
+var ContractVersion = struct{ Major, Minor int }{3, 0}
 
 // Procedure 是契约里一个过程的元数据
 type Procedure struct {
@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 444：mutation 314 / query 125 / stream 5
+// 合计 445：mutation 314 / query 126 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -215,7 +215,6 @@ var Procedures = []Procedure{
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "harness.pickCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.pickDir", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.replyApprovePlan", Kind: "mutation", Dangerous: true, Surfaces: nil},
@@ -223,7 +222,6 @@ var Procedures = []Procedure{
 	{Name: "harness.sandboxReply", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.send", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.setBackend", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "harness.setCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.slashDiscover", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.slashExpand", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.state", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -237,13 +235,12 @@ var Procedures = []Procedure{
 	{Name: "harness.tabClose", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabContext", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabCreate", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "harness.tabCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabEffort", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabLongContext", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabMessages", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabModel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabPermissionMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
-	{Name: "harness.tabPickCwd", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.tabProject", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabRename", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabRewind", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabSeed", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -344,6 +341,10 @@ var Procedures = []Procedure{
 	{Name: "onboarding.setProfile", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "persona.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "persona.systemPrompt", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "project.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "project.list", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "project.remove", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "project.update", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "providerLink.accept", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "providerLink.connect", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "providerLink.list", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
@@ -525,6 +526,7 @@ var Events = []string{
 	"onboarding.profileChanged",
 	"onboarding.show",
 	"persona.changed",
+	"project.changed",
 	"providerLink.changed",
 	"providers.changed",
 	"providers.openPanel",
@@ -548,4 +550,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "PROJECT_NOT_FOUND", "PROJECT_FOLDER_DENIED", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}

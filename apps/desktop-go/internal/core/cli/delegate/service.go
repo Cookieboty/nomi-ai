@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -66,9 +67,9 @@ type Harness interface {
 
 // Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
 type Desktop interface {
-	WorkspaceOf(cwd any) string
+	WorkspaceOf(projectID any) desktop.Workspace
 	Guard(p any, need string, allowMissing bool) desktop.GuardResult
-	GuardIn(root string, p any, need string, allowMissing bool) desktop.GuardResult
+	GuardIn(ws desktop.Workspace, p any, need string, allowMissing bool) desktop.GuardResult
 	Authorize(i desktop.AuthorizeInput) desktop.Decision
 	AuthorizeIn(i desktop.AuthorizeInput) desktop.Decision
 	PermissionMode() string
@@ -914,20 +915,20 @@ func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Ob
 	if mode == "plan" {
 		return nil, derr("mode_blocked", nomiPlanBlocked)
 	}
-	var ctxCwd any
-	if c.ec.Cwd != "" {
-		ctxCwd = c.ec.Cwd
+	var ctxProject any
+	if c.ec.ProjectID != "" {
+		ctxProject = c.ec.ProjectID
 	}
-	ws := b.WorkspaceOf(ctxCwd)
+	ws := b.WorkspaceOf(ctxProject)
 	authorize := b.Authorize
-	if ws != "" {
+	if !ws.Empty() {
 		authorize = b.AuthorizeIn
 	}
 	goal := util.Str(in.Get("goal"))
 	doneWhen := util.Str(in.Get("done_when"))
 	args := util.NewObj("goal", goal)
-	if ws != "" {
-		args.Set("cwd", ws)
+	if !ws.Empty() {
+		args.Set("cwd", ws.Primary)
 	}
 	preview := goal + "\n\n完成标准：" + doneWhen
 	decision := authorize(desktop.AuthorizeInput{
@@ -946,9 +947,9 @@ func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Ob
 	toolset := "conversation"
 	ex := tasks.ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: &toolset,
 		Brief: &tasks.Brief{DoneWhen: doneWhen}}
-	if ws != "" {
-		v := ws
-		ex.Cwd = &v
+	if !ws.Empty() {
+		cwd, pid := ws.Primary, ws.ProjectID
+		ex.Cwd, ex.Project = &cwd, &pid
 	}
 	if ctxText := optStr(in, "context"); ctxText != "" {
 		ex.Brief.Context = &ctxText
@@ -958,8 +959,8 @@ func (s *Service) delegateToNomi(in *util.Obj, c *execCtx, t0 float64) (*util.Ob
 		ex.CallID = &v
 	}
 	paths := []string{}
-	if ws != "" {
-		paths = []string{ws}
+	if !ws.Empty() {
+		paths = ws.Roots()
 	}
 	category := optStr(in, "kind")
 	if category == "" {
@@ -1027,21 +1028,21 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	}
 	cli := picked.Cli
 
-	var ctxCwd any
-	if c.ec.Cwd != "" {
-		ctxCwd = c.ec.Cwd
+	var ctxProject any
+	if c.ec.ProjectID != "" {
+		ctxProject = c.ec.ProjectID
 	}
-	ws := b.WorkspaceOf(ctxCwd)
+	ws := b.WorkspaceOf(ctxProject)
 	var sourceCwd string
 	reqCwd := trim(optStr(in, "cwd"))
-	if ws != "" {
+	if !ws.Empty() {
 		target := reqCwd
 		if target == "" {
-			target = ws
+			target = ws.Primary
 		}
 		g := b.GuardIn(ws, target, "write", false)
 		if !g.OK {
-			return nil, derr("cwd_outside_workspace", "工作目录不可用："+g.Message+"。这次对话的工作区是 "+ws+"，不填 cwd 就在工作区里做")
+			return nil, derr("cwd_outside_workspace", "工作目录不可用："+g.Message+"。这次对话的项目文件夹是 "+strings.Join(ws.Roots(), "、")+"，不填 cwd 就在主文件夹里做")
 		}
 		sourceCwd = g.Real
 	} else {
@@ -1085,7 +1086,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		return nil, derr("isolation_failed", err.Error())
 	}
 	cwd := iso.Cwd
-	if iso.Kind == "worktree" && iso.Cwd != sourceCwd && ws == "" {
+	if iso.Kind == "worktree" && iso.Cwd != sourceCwd && ws.Empty() {
 		gw := b.Guard(iso.Cwd, "write", false)
 		if !gw.OK {
 			ReleaseIsolation(iso, nil)
@@ -1101,7 +1102,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
 	preview := BuildDelegatePrompt(brief)
 	authorize := b.Authorize
-	if ws != "" {
+	if !ws.Empty() {
 		authorize = b.AuthorizeIn
 	}
 	decision := authorize(desktop.AuthorizeInput{
@@ -1130,6 +1131,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 
 	nomiMode := b.PermissionMode()
 	opts := util.NewObj("backend", cli, "cwd", cwd, "title", "Nomi · "+slice(trim(goal), 40))
+	if !ws.Empty() {
+		opts.Set("projectId", ws.ProjectID)
+	}
 	if !(h.AutoApproveEnabled() && nomiMode != "plan" && nomiMode != "manual") {
 		opts.Set("permissionMode", ChildPermissionMode(nomiMode, util.Str(h.ListTabs().Get("defaultPermissionMode"))))
 	}
@@ -1263,14 +1267,14 @@ func (s *Service) overridesFor(cli string, in, settings *util.Obj) (*util.Obj, e
 
 // delegateAsTask：后台委派 = 持续任务（2.2）：用户在对话里确认这次委派，就等于给了这个任务的授权
 // （L3，路径 = 工作目录，编程助手 = 这一个）。命令按 Nomi 的权限：没开「全部自动」时每条都问人（任务收件箱）。
-func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sourceCwd, ws, turnID string, settings *util.Obj) (*util.Obj, error) {
+func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sourceCwd string, ws desktop.Workspace, turnID string, settings *util.Obj) (*util.Obj, error) {
 	b := s.d.Desktop
 	h := s.d.Harness
 	goal := util.Str(in.Get("goal"))
 	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
 	preview := BuildDelegatePrompt(brief)
 	authorize := b.Authorize
-	if ws != "" {
+	if !ws.Empty() {
 		authorize = b.AuthorizeIn
 	}
 	decision := authorize(desktop.AuthorizeInput{
@@ -1297,6 +1301,10 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 	cliV, cwdV, isoV := cli, sourceCwd, "worktree"
 	ex := tasks.ExecutorSpec{Kind: "cli", Cli: &cliV, Cwd: &cwdV, Isolation: &isoV,
 		Brief: &tasks.Brief{DoneWhen: brief.DoneWhen}}
+	if !ws.Empty() {
+		pid := ws.ProjectID
+		ex.Project = &pid
+	}
 	if base := trim(optStr(in, "base_branch")); base != "" {
 		ex.BaseBranch = &base
 	}

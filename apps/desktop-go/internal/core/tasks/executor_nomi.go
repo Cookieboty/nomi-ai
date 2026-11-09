@@ -401,8 +401,8 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if t.Origin.ConversationID != nil && *t.Origin.ConversationID != "" {
 		extra["conversationId"] = *t.Origin.ConversationID
 	}
-	if t.Executor.Kind == "nomi" && t.Executor.Cwd != nil && *t.Executor.Cwd != "" {
-		extra["cwd"] = *t.Executor.Cwd
+	if t.Executor.Kind == "nomi" && t.Executor.Project != nil && *t.Executor.Project != "" {
+		extra["projectId"] = *t.Executor.Project
 	}
 	// 工具调用进行中（生图、同步等编程助手）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex

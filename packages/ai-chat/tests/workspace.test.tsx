@@ -13,13 +13,14 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import { ConversationStore } from '../src/services/conversationStore';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
+import { __setProjectsForTest, type Project } from '../src/services/projects';
 import { shortenPath } from '../src/utils/workspacePath';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
-/** Nomi 对话的会话存储（Nomi 工作区用）；缺省没有 */
+/** Nomi 对话的会话存储（Nomi 项目用）；缺省没有 */
 let chatIpc: unknown;
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
@@ -27,6 +28,15 @@ vi.mock('../src/contexts/AiChatContext', () => ({
     actions: { newConversation: async () => undefined },
   }),
 }));
+
+const proj = (id: string, name: string, primary: string, folders: string[] = []): Project => ({
+  id,
+  name,
+  primary,
+  folders,
+  createdAt: 1,
+  updatedAt: 1,
+});
 
 const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   id: 'x',
@@ -104,38 +114,47 @@ describe('WorkspacePicker', () => {
   });
 });
 
-describe('EndpointControls workspace for CLI tabs', () => {
+describe('EndpointControls project for new chats', () => {
   const mount = () =>
     render(
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          {/* 工作区在新会话的输入框上方（NewChatContext），待带入前文在对话区顶部（SessionControls） */}
+          {/* 项目在新会话的输入框上方（NewChatContext），待带入前文在对话区顶部（SessionControls） */}
           <NewChatContext />
           <SessionControls />
         </>
       </HarnessTabsProvider>,
     );
 
-  it('is shown for a CLI tab, with the tab cwd', async () => {
-    mockIpc(state());
+  beforeEach(() =>
+    __setProjectsForTest([
+      proj('p_repo', 'my-awesome-repo', '/Users/me/projects/very/long/path/to/my-awesome-repo'),
+      proj('p_two', 'two', '/recent/two', ['/recent/shared']),
+    ]),
+  );
+
+  it('is shown for a CLI tab with the tab project (all folders in the tooltip)', async () => {
+    mockIpc(state({ projectId: 'p_two' }));
     const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
-    expect(r.getByTestId('cli-workspace-button').getAttribute('title')).toContain(
-      '/Users/me/projects/very/long/path/to/my-awesome-repo',
+    await waitFor(() => r.getByTestId('cli-project'));
+    expect(r.getByTestId('cli-project-name').textContent).toBe('two');
+    expect(r.getByTestId('cli-project-button').textContent).toContain('+1');
+    expect(r.getByTestId('cli-project-button').getAttribute('title')).toContain('/recent/shared');
+  });
+
+  it('shows the Nomi conversation project (not the CLI one) on the Nomi main tab', async () => {
+    const invoke = mockIpc({ ...state({ projectId: 'p_two' }), activeTabId: 'main' });
+    const r = mount();
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabs'));
+    expect(r.queryByTestId('cli-project')).toBeNull();
+    // 还没有会话、也没有当前项目：显示「不使用项目」
+    await waitFor(() =>
+      expect(r.getByTestId('nomi-project-name').textContent).toBe(t('ui.cli-monitor.no-project')),
     );
   });
 
-  it('shows the Nomi conversation workspace (not the CLI one) on the Nomi main tab', async () => {
-    const invoke = mockIpc({ ...state(), activeTabId: 'main' });
-    const r = mount();
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabs'));
-    expect(r.queryByTestId('cli-workspace')).toBeNull();
-    // 还没有会话：显示新会话会用的默认工作区（主标签目录）
-    await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('w'));
-  });
-
-  describe('Nomi conversation workspace', () => {
+  describe('Nomi conversation project', () => {
     const nomiStore = () => {
       const store = new ConversationStore();
       chatIpc = {
@@ -149,41 +168,42 @@ describe('EndpointControls workspace for CLI tabs', () => {
       chatIpc = undefined;
     });
 
-    it('is stored per conversation; picking one also moves the main tab there', async () => {
+    it('is stored per conversation (only the id; no main-tab cwd sync)', async () => {
       const store = nomiStore();
-      const c = store.create({ cwd: '/w' });
+      const c = store.create({ projectId: 'p_repo' });
       const invoke = mockIpc({ ...state(), activeTabId: 'main' });
       const r = mount();
-      await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('w'));
-      fireEvent.click(r.getByTestId('nomi-workspace-button'));
-      await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-      fireEvent.click(r.getAllByTestId('workspace-recent-item')[1]!);
       await waitFor(() =>
-        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/recent/two' }),
+        expect(r.getByTestId('nomi-project-name').textContent).toBe('my-awesome-repo'),
       );
-      expect(store.get(c.id)?.cwd).toBe('/recent/two');
-      // 没有 CLI 会话要续接：不弹换目录确认
-      expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
+      fireEvent.click(r.getByTestId('nomi-project-button'));
+      const items = await r.findAllByTestId('project-picker-item');
+      expect(items).toHaveLength(2);
+      fireEvent.click(items[1]!);
+      await waitFor(() => expect(store.get(c.id)?.projectId).toBe('p_two'));
+      expect(invoke.mock.calls.some(([ch]) => String(ch).startsWith('harness.setCwd'))).toBe(false);
     });
 
-    it('can be cleared (back to granted folders) and syncs the main tab when switching', async () => {
+    it('can be cleared (back to granted folders)', async () => {
       const store = nomiStore();
-      store.create({ cwd: '/w' });
-      const other = store.create({ cwd: '/elsewhere' });
-      const invoke = mockIpc({ ...state(), activeTabId: 'main' });
+      const c = store.create({ projectId: 'p_two' });
+      mockIpc({ ...state(), activeTabId: 'main' });
       const r = mount();
-      // 当前会话的工作区与主标签目录不同：主标签跟上
+      fireEvent.click(await r.findByTestId('nomi-project-button'));
+      fireEvent.click(await r.findByTestId('nomi-project-clear'));
+      await waitFor(() => expect(store.get(c.id)?.projectId).toBeUndefined());
       await waitFor(() =>
-        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/elsewhere' }),
+        expect(r.getByTestId('nomi-project-name').textContent).toBe(t('ui.cli-monitor.no-project')),
       );
-      fireEvent.click(r.getByTestId('nomi-workspace-button'));
-      fireEvent.click(await r.findByTestId('workspace-clear'));
-      await waitFor(() => expect(store.get(other.id)?.cwd).toBeUndefined());
-      await waitFor(() =>
-        expect(r.getByTestId('nomi-workspace-path').textContent).toBe(
-          t('ui.cli-monitor.no-workspace'),
-        ),
-      );
+    });
+
+    it('「新建项目…」opens the create dialog', async () => {
+      nomiStore();
+      mockIpc({ ...state(), activeTabId: 'main' });
+      const r = mount();
+      fireEvent.click(await r.findByTestId('nomi-project-button'));
+      fireEvent.click(await r.findByTestId('nomi-project-new'));
+      expect(await r.findByTestId('project-dialog')).toBeTruthy();
     });
   });
 
@@ -192,49 +212,47 @@ describe('EndpointControls workspace for CLI tabs', () => {
     { id: 'a', role: 'assistant', content: '好的', timestamp: 2 },
   ];
   const pick = async (r: ReturnType<typeof mount>, idx: number) => {
-    fireEvent.click(r.getByTestId('cli-workspace-button'));
-    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-    fireEvent.click(r.getAllByTestId('workspace-recent-item')[idx]!);
+    fireEvent.click(r.getByTestId('cli-project-button'));
+    const items = await r.findAllByTestId('project-picker-item');
+    fireEvent.click(items[idx]!);
   };
 
-  it('全新标签（没有会话也没有对话）直接换，不弹框', async () => {
+  it('全新标签（没有会话也没有对话）直接换项目，不弹框', async () => {
     const invoke = mockIpc(state());
     const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
+    await waitFor(() => r.getByTestId('cli-project'));
     await pick(r, 1);
     expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabProject', {
         id: 'cx',
-        cwd: '/recent/two',
+        projectId: 'p_two',
         carry: false,
       }),
     );
   });
 
-  it('已经有 CLI 会话但还没有对话：也直接换目录开新会话，不弹框', async () => {
-    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }));
+  it('已经有 CLI 会话但还没有对话：也直接换项目开新会话，不弹框', async () => {
+    const invoke = mockIpc(state({ cliSessionId: 'sess-1', projectId: 'p_two' }));
     const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
+    await waitFor(() => r.getByTestId('cli-project'));
     await pick(r, 0);
-    expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabCwd', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabProject', {
         id: 'cx',
-        cwd: '/recent/one',
+        projectId: 'p_repo',
         carry: false,
       }),
     );
   });
 
-  it('有了对话之后不再显示工作区（只在新会话时选）', async () => {
+  it('有了对话之后不再显示项目（只在新会话时选）', async () => {
     const invoke = mockIpc(state({ cliSessionId: 'sess-1' }), '/picked/dir', history);
     const r = mount();
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('harness.tabMessages', expect.anything()),
     );
-    // 消息到了之后工作区条消失
-    await waitFor(() => expect(r.queryByTestId('cli-workspace')).toBeNull());
+    await waitFor(() => expect(r.queryByTestId('cli-project')).toBeNull());
   });
 
   it('有待带入的前文时显示按钮，× 放弃', async () => {

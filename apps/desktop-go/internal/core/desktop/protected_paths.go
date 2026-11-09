@@ -100,6 +100,20 @@ func (b *PermissionBroker) CheckCliWorkspace(dir string) string {
 	return WorkspaceReasonText(r.Reason)
 }
 
+// CheckProjectFolder：能不能当项目文件夹（与工作区根同一套规则）。可以时返回 realpath，否则给用户看的原因
+func (b *PermissionBroker) CheckProjectFolder(dir string) (real string, reason string) {
+	r := CheckWorkspaceRoot(dir, b.workspaceEnv())
+	if r.OK {
+		return r.Real, ""
+	}
+	return "", WorkspaceReasonText(r.Reason)
+}
+
+// InsideDir：child 是否在 parent 里（含相等；按本机平台的大小写规则）
+func (b *PermissionBroker) InsideDir(child, parent string) bool {
+	return IsInside(child, parent, b.envBase.Platform)
+}
+
 // WorkspaceReasonText：CheckWorkspaceRoot 的原因 → 界面文案
 func WorkspaceReasonText(reason string) string {
 	if d, ok := strings.CutPrefix(reason, "denied: "); ok {

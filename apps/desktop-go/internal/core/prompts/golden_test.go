@@ -113,9 +113,12 @@ func TestDelegateBrief(t *testing.T) {
 }
 
 func TestDesktop(t *testing.T) {
-	golden(t, "workspace", desktop.WorkspaceSystemHint("/work", false)+"\n---\n"+desktop.WorkspaceSystemHint("/work", true))
+	one := desktop.Workspace{Primary: "/work"}
+	multi := desktop.Workspace{Primary: "/work/app", Extra: []string{"/work/server", "/work/docs"}}
+	golden(t, "workspace", desktop.WorkspaceSystemHint("", one, false)+"\n---\n"+desktop.WorkspaceSystemHint("", one, true))
+	golden(t, "workspace-multi", desktop.WorkspaceSystemHint("跨端", multi, false))
 	codingcli.Set(func() bool { return false })
-	golden(t, "workspace-nocli", desktop.WorkspaceSystemHint("/work", false))
+	golden(t, "workspace-nocli", desktop.WorkspaceSystemHint("", one, false))
 	codingcli.Set(nil)
 	var got []string
 	sum := func(text, instr string) (string, error) { got = append(got, instr); return "ok", nil }

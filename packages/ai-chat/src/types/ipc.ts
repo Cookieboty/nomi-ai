@@ -25,7 +25,7 @@ export interface StreamSendOptions {
    * 发送前的准备（压缩 / 记忆召回等）期间用户可能切到别的会话，请求不能带上那个会话的 id 与工作区。
    * 会话已被删除则拒绝发送。缺省时沿用当前会话（旧调用方）。
    */
-  conversation?: { id: string | undefined; cwd?: string };
+  conversation?: { id: string | undefined; projectId?: string };
   /** 这一轮新召回的长期记忆：放在本轮用户原话前面发（不进 system，system 每轮不变才能命中提示缓存） */
   memory?: string;
   /** 这一轮工具循环的消息（内核 steps 块）：存进回复的 steps，下一轮原样带回 */
@@ -83,14 +83,15 @@ export interface IPCClient {
   newConversation(
     name?: string,
     /**
-     * cwd：Nomi 对话的工作区；缺省时 Nomi 对话用主标签当前的目录（默认 文稿/nomi）。
-     * 同一工作区已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话
+     * projectId：Nomi 对话的项目；缺省时沿用当前 Nomi 对话的项目。
+     * 同一项目已有空的 Nomi 对话时切过去不新建；notReuse 是不能复用的会话
      * （界面上有消息 / 正在准备或生成回复，含切到后台的：这一轮落盘前它们看起来是空的）
      */
     opts?: {
       backend?: ConversationBackend;
       tabId?: string;
-      cwd?: string;
+      /** null = 不放进项目 */
+      projectId?: string | null;
       notReuse?: string | readonly string[];
     },
   ): Promise<string>;
@@ -99,7 +100,7 @@ export interface IPCClient {
   updateConversation?(
     id: string,
     patch: Partial<
-      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'projectId'>
     >,
   ): Promise<Omit<ChatSession, 'messages'>>;
   /** 同端或跨端分叉（复制可见消息） */
@@ -109,7 +110,7 @@ export interface IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
-      cwd?: string;
+      projectId?: string;
       messages?: ChatMessage[];
     },
   ): Promise<Omit<ChatSession, 'messages'>>;

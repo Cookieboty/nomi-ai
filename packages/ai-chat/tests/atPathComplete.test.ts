@@ -84,3 +84,17 @@ describe('formatAtPathInsert', () => {
     expect(formatAtPathInsert({ path: 'src', kind: 'dir', label: 'src' })).toBe('@src/');
   });
 });
+
+describe('multi-folder projects', () => {
+  it('other folders insert absolute paths and show “folder/rel”; filtering matches the shown path', () => {
+    const nodes = [
+      { kind: 'file', name: 'main.go', path: 'cmd/main.go' },
+    ] as unknown as WorkspaceTreeNode[];
+    const opts = flattenWorkspacePaths(nodes, { root: '/w/api/', name: 'api' });
+    expect(opts).toEqual([
+      { path: '/w/api/cmd/main.go', kind: 'file', label: 'main.go', display: 'api/cmd/main.go' },
+    ]);
+    expect(filterAtPathOptions(opts, 'api/cmd')).toHaveLength(1);
+    expect(formatAtPathInsert(opts[0]!)).toBe('@/w/api/cmd/main.go');
+  });
+});

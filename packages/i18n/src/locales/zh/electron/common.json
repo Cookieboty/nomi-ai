@@ -601,5 +601,7 @@
   "electron.common.auto-continue-stopped-no-progress": "（接着做的这一轮没有实际进展，先停在这里。要我继续就说「继续」。）",
   "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} 没有确认权限模式切换（{1}），已停止当前会话，下一轮会按新模式重新开始",
   "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} 没有确认权限模式（{1}），这条消息没有发送",
-  "electron.common.list-separator": "、"
+  "electron.common.list-separator": "、",
+  "electron.common.project-folder-denied": "「{0}」不能放进项目：{1}",
+  "electron.common.project-folder-nested": "「{0}」和「{1}」互相包含，同一个项目里的文件夹不能嵌套"
 }

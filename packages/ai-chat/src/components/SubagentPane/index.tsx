@@ -230,5 +230,10 @@ export const WorkspacePanesProvider: React.FC<{ children: React.ReactNode }> = (
 export const SideColumn: React.FC<{
   messages: React.ComponentProps<typeof CenterChangesHost>['messages'];
   cwd?: string | null;
-}> = ({ messages, cwd }) =>
-  useSubagentPane()?.tabId ? <SubagentPane /> : <CenterChangesHost messages={messages} cwd={cwd} />;
+  roots?: readonly string[] | null;
+}> = ({ messages, cwd, roots }) =>
+  useSubagentPane()?.tabId ? (
+    <SubagentPane />
+  ) : (
+    <CenterChangesHost messages={messages} cwd={cwd} roots={roots} />
+  );

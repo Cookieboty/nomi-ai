@@ -91,10 +91,11 @@ export interface ChatSession {
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
   cliSessionId?: string;
   /**
-   * Nomi 对话的工作区（只用于 backend 'nomi'）：选了之后 Nomi 的文件工具只能在这里面用、命令在这里启动，
-   * 委派的编程助手也在这里开工。缺省 = 没有工作区（按已授权文件夹，原有行为）。
+   * Nomi 对话所在的项目（只用于 backend 'nomi'；CLI 会话的项目记在标签上）。项目的文件夹由内核实时取：
+   * Nomi 的文件工具在这些文件夹里用、命令在主文件夹里启动，委派的编程助手也在这个项目里开工。
+   * 缺省 = 没有项目（按已授权文件夹）。
    */
-  cwd?: string;
+  projectId?: string;
   /** 归档时间：归档的对话不在侧栏显示，可在「设置 → Nomi → 已归档的对话」里恢复或删除 */
   archivedAt?: number;
   /** 置顶时间：置顶的会话在侧栏最上面的「置顶」里，按置顶先后排 */
