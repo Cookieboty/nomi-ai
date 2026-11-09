@@ -271,7 +271,10 @@ describe('Codex four-column changes layout', () => {
       .find((r) => r.getAttribute('data-file') === 'zz/locales/en.json')!;
     expect(json.textContent).toContain('+40');
     expect(json.textContent).toContain('−7');
-    expect(screen.getByTestId('changes-summary').textContent).toMatch(/\+41\s*−8/);
+    // 合计由各仓库段报给右栏，比行晚一次渲染
+    await waitFor(() =>
+      expect(screen.getByTestId('changes-summary').textContent).toMatch(/\+41\s*−8/),
+    );
     await waitFor(() =>
       expect(screen.getByTestId('rail-git-branch').textContent).toContain('merge/202610'),
     );

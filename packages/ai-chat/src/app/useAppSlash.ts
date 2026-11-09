@@ -22,7 +22,7 @@ export function useAppSlash(opts: {
   firstMessageId: string | undefined;
   actions: AiChatActions;
   busyHere: boolean;
-  /** Nomi 正在回复时把消息排进待发列表 */
+  /** 主对话正在回复时把消息排进待发列表 */
   enqueue: (text: string) => void;
   cliContextMessages: readonly ConvMessage[];
   nomiMessages: readonly ConvMessage[];

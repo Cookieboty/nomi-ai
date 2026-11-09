@@ -13,6 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/projects"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
@@ -52,8 +53,8 @@ func seedProjects(s *projects.Store, dirs []string) map[string]string {
 }
 
 // migrateToProjects：首启迁移。以前侧栏按会话的目录分组（Nomi 对话 meta.cwd、编程助手标签的 cwd）：
-// 每个目录建一个单文件夹项目，Nomi 对话的 meta 改成 projectId（去掉 cwd），标签补上 projectId
-func migrateToProjects(s *projects.Store, conv *convstore.Store, o *harness.Orchestrator) {
+// 每个目录建一个单文件夹项目，Nomi 对话的 meta 改成 projectId（去掉 cwd），标签与后台任务补上 projectId
+func migrateToProjects(s *projects.Store, conv *convstore.Store, o *harness.Orchestrator, rt *tasks.Runtime) {
 	if s.Existed() {
 		return
 	}
@@ -72,6 +73,9 @@ func migrateToProjects(s *projects.Store, conv *convstore.Store, o *harness.Orch
 	}
 	if o != nil {
 		dirs = append(dirs, jsrt.Call(o.TabCwds)...)
+	}
+	if rt != nil {
+		dirs = append(dirs, rt.ProjectCwds()...)
 	}
 	byDir := seedProjects(s, dirs)
 	if byDir == nil {
@@ -98,4 +102,17 @@ func migrateToProjects(s *projects.Store, conv *convstore.Store, o *harness.Orch
 	if o != nil {
 		jsrt.Run(func() { o.AdoptProjects(byDir) })
 	}
+	if rt != nil {
+		if n := rt.AdoptProjects(byDir); n > 0 {
+			log.Printf("[projects] %d tasks now reference projects", n)
+		}
+	}
+}
+
+// taskRuntime：任务服务没起来时为 nil
+func taskRuntime(s *tasks.Service) *tasks.Runtime {
+	if s == nil {
+		return nil
+	}
+	return s.Runtime
 }
