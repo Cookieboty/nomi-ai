@@ -1,0 +1,424 @@
+{
+  "order": ["claude", "codex", "dsh", "grok", "gemini", "kimi", "minimax"],
+  "manifests": {
+    "claude": {
+      "id": "claude",
+      "apiVersion": 1,
+      "displayName": "Claude Code",
+      "icon": "claude",
+      "binary": {
+        "names": ["claude"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@anthropic-ai/claude-code",
+          "url": "https://docs.claude.com/claude-code"
+        }
+      },
+      "transport": "stream-json",
+      "fallbackTransport": "exec",
+      "ingress": "messages",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "args": ["--permission-mode", "plan"],
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "args": ["--permission-mode", "default"],
+            "modeId": "default"
+          },
+          {
+            "mode": "acceptEdits",
+            "args": ["--permission-mode", "acceptEdits"],
+            "modeId": "acceptEdits"
+          },
+          {
+            "mode": "auto",
+            "args": ["--permission-mode", "auto"],
+            "modeId": "auto"
+          },
+          {
+            "mode": "bypass",
+            "args": ["--permission-mode", "bypassPermissions"],
+            "modeId": "bypassPermissions"
+          }
+        ],
+        "subagents": true,
+        "subagentStop": true,
+        "slashCommands": true,
+        "resume": true,
+        "history": true,
+        "fork": false,
+        "usageQuota": true,
+        "progressMonitor": true,
+        "terminalCommand": true,
+        "steer": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+        "client": "claude"
+      },
+      "configPath": "~/.claude/settings.json",
+      "host": {
+        "minNode": 22,
+        "selfUpdate": "native",
+        "vendor": "anthropic",
+        "nomiCommand": true
+      }
+    },
+    "codex": {
+      "id": "codex",
+      "apiVersion": 1,
+      "displayName": "Codex",
+      "icon": "codex",
+      "binary": {
+        "names": ["codex"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@openai/codex",
+          "url": "https://github.com/openai/codex"
+        }
+      },
+      "transport": "app-server",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "path",
+        "permissionModes": [
+          {
+            "mode": "plan"
+          },
+          {
+            "mode": "manual"
+          },
+          {
+            "mode": "acceptEdits"
+          },
+          {
+            "mode": "auto"
+          },
+          {
+            "mode": "bypass"
+          }
+        ],
+        "subagents": true,
+        "slashCommands": true,
+        "resume": true,
+        "history": true,
+        "fork": false,
+        "usageQuota": true,
+        "progressMonitor": true,
+        "terminalCommand": true,
+        "steer": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+        "client": "codex"
+      },
+      "configPath": "~/.codex/config.toml",
+      "host": {
+        "minNode": 16,
+        "selfUpdate": "native",
+        "vendor": "openai",
+        "planFollowUp": true,
+        "nomiCommand": true
+      }
+    },
+    "dsh": {
+      "id": "dsh",
+      "apiVersion": 1,
+      "displayName": "dsh",
+      "icon": "dsh",
+      "binary": {
+        "names": ["dsh"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@deepseek-ai/dsh"
+        }
+      },
+      "transport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+        "officialAccount": false,
+        "thirdParty": true,
+        "images": "none",
+        "permissionModes": [
+          {
+            "mode": "plan"
+          },
+          {
+            "mode": "acceptEdits"
+          },
+          {
+            "mode": "bypass"
+          }
+        ],
+        "subagents": true,
+        "slashCommands": false,
+        "resume": true,
+        "history": true,
+        "fork": false,
+        "usageQuota": false,
+        "progressMonitor": true,
+        "terminalCommand": false
+      },
+      "modelSwitch": "restart",
+      "clientSpec": {
+        "client": "dsh"
+      },
+      "host": {
+        "minNode": 24,
+        "vendor": "deepseek",
+        "planFollowUp": true,
+        "nomiCommand": true
+      }
+    },
+    "gemini": {
+      "id": "gemini",
+      "apiVersion": 1,
+      "displayName": "Gemini",
+      "icon": "gemini",
+      "binary": {
+        "names": ["gemini"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@google/gemini-cli",
+          "url": "https://github.com/google-gemini/gemini-cli"
+        }
+      },
+      "transport": "acp",
+      "ingress": "gemini",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "modeId": "default"
+          },
+          {
+            "mode": "acceptEdits",
+            "modeId": "autoEdit"
+          },
+          {
+            "mode": "bypass",
+            "modeId": "yolo"
+          }
+        ],
+        "subagents": false,
+        "slashCommands": true,
+        "resume": true,
+        "history": true,
+        "fork": false,
+        "usageQuota": false,
+        "progressMonitor": true,
+        "terminalCommand": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+        "client": "gemini"
+      },
+      "fullName": "Gemini CLI",
+      "configPath": "~/.gemini/settings.json",
+      "host": {
+        "minNode": 20,
+        "vendor": "google",
+        "acpArgs": ["--acp"],
+        "nomiCommand": true
+      }
+    },
+    "grok": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+        "names": ["grok"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@xai-official/grok",
+          "url": "https://docs.x.ai/build/cli"
+        }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "args": ["--permission-mode", "plan"],
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "args": ["--permission-mode", "default"],
+            "modeId": "default"
+          },
+          {
+            "mode": "acceptEdits",
+            "args": ["--permission-mode", "acceptEdits"],
+            "modeId": "acceptEdits"
+          },
+          {
+            "mode": "bypass",
+            "args": ["--yolo"],
+            "modeId": "bypassPermissions"
+          }
+        ],
+        "subagents": false,
+        "slashCommands": true,
+        "resume": true,
+        "history": true,
+        "fork": false,
+        "usageQuota": true,
+        "progressMonitor": true,
+        "terminalCommand": true,
+        "steer": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+        "client": "grok",
+        "placeholderModel": "nomi"
+      },
+      "configPath": "~/.grok/config.toml",
+      "host": {
+        "minNode": 18,
+        "selfUpdate": "always",
+        "vendor": "xai",
+        "acpArgs": ["agent", "stdio"],
+        "planFollowUp": true,
+        "nomiCommand": true
+      }
+    },
+    "kimi": {
+      "id": "kimi",
+      "apiVersion": 1,
+      "displayName": "Kimi Code",
+      "icon": "kimi",
+      "binary": {
+        "names": ["kimi"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@moonshot-ai/kimi-code",
+          "url": "https://github.com/MoonshotAI/kimi-code"
+        }
+      },
+      "transport": "acp",
+      "ingress": "chat",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "modeId": "default"
+          },
+          {
+            "mode": "auto",
+            "modeId": "yolo"
+          },
+          {
+            "mode": "bypass",
+            "modeId": "auto"
+          }
+        ],
+        "subagents": false,
+        "slashCommands": false,
+        "resume": true,
+        "history": false,
+        "fork": false,
+        "usageQuota": false,
+        "progressMonitor": false,
+        "terminalCommand": true
+      },
+      "modelSwitch": "restart",
+      "clientSpec": {
+        "client": "kimi"
+      },
+      "configPath": "~/.kimi-code/config.toml",
+      "host": {
+        "minNode": 22,
+        "vendor": "moonshot",
+        "acpArgs": ["acp"]
+      }
+    },
+    "minimax": {
+      "id": "minimax",
+      "apiVersion": 1,
+      "displayName": "MiniMax Code",
+      "icon": "minimax",
+      "binary": {
+        "names": ["mcode"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "npm": "@minimax-ai/code",
+          "url": "https://agent.minimax.io/docs/cli/quick-start"
+        }
+      },
+      "transport": "acp",
+      "ingress": "chat",
+      "capabilities": {
+        "officialAccount": true,
+        "thirdParty": true,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "modeId": "default"
+          }
+        ],
+        "subagents": false,
+        "slashCommands": false,
+        "resume": true,
+        "history": false,
+        "fork": false,
+        "usageQuota": false,
+        "progressMonitor": false,
+        "terminalCommand": true
+      },
+      "modelSwitch": "restart",
+      "clientSpec": {
+        "client": "minimax"
+      },
+      "configPath": "~/.minimax/config.yaml",
+      "host": {
+        "minNode": 22,
+        "selfUpdate": "always",
+        "vendor": "minimax",
+        "acpArgs": ["acp"]
+      }
+    }
+  }
+}

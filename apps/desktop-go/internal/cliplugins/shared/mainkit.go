@@ -73,3 +73,41 @@ func ModelArgsFn(f func(ModelArgsIn) []string) func(clisdk.ModelArgsOpts) []stri
 func FromModeID(supported []string, onRequest string) func(string) string {
 	return func(id string) string { return ModeFromNative(supported, id, onRequest) }
 }
+
+// AcpPermissions：ACP 助手的权限能力，全部从清单 capabilities.permissionModes（档位 → modeId）推出，
+// 不在 Go 里再写一份映射。清单里没有的档位按「逐项确认」的 modeId（没有就第一个）。
+func AcpPermissions(m *util.Obj) *clisdk.PermissionCapability {
+	modes, ids := []string{}, map[string]string{}
+	if caps, ok := m.Get("capabilities").(*util.Obj); ok {
+		if pm, ok := caps.Get("permissionModes").([]any); ok {
+			for _, x := range pm {
+				o := x.(*util.Obj)
+				mode := util.Str(o.Get("mode"))
+				modes = append(modes, mode)
+				ids[mode] = util.Str(o.Get("modeId"))
+			}
+		}
+	}
+	fallback := ids["manual"]
+	if fallback == "" && len(modes) > 0 {
+		fallback = ids[modes[0]]
+	}
+	return &clisdk.PermissionCapability{
+		Supported: modes,
+		Launch:    func(string, *bool) ([]string, *util.Obj) { return []string{}, util.NewObj() },
+		ModeID: func(mode string) string {
+			if id, ok := ids[mode]; ok {
+				return id
+			}
+			return fallback
+		},
+		FromModeID: func(id string) string {
+			for _, mode := range modes {
+				if ids[mode] == id {
+					return mode
+				}
+			}
+			return ""
+		},
+	}
+}

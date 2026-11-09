@@ -45,6 +45,7 @@ export const manifest: CliManifest = {
     subagents: false,
     slashCommands: true,
     resume: true,
+    history: true,
     fork: false,
     usageQuota: true,
     progressMonitor: true,
@@ -54,4 +55,13 @@ export const manifest: CliManifest = {
   // 占位模型名 nomi：第三方换模型只改绑定；官方仍按 ACP set_model 原地切
   modelSwitch: 'gateway',
   clientSpec: { client: 'grok', placeholderModel: 'nomi' },
+  configPath: '~/.grok/config.toml',
+  host: {
+    minNode: 18,
+    selfUpdate: 'always',
+    vendor: 'xai',
+    acpArgs: ['agent', 'stdio'],
+    planFollowUp: true,
+    nomiCommand: true,
+  },
 };

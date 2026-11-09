@@ -19,10 +19,8 @@ const ALLOW: Record<string, string[]> = {
 
 /** 分成多行、每行一个 id 的名单（数组元素、对象键、联合类型）也算；这些文件是有意按 CLI 写的 */
 const ALLOW_MULTILINE = new Set([
-  'packages/ai-chat/src/services/historyClient.ts', // 历史会话：每个 CLI 各有解析实现
   'packages/ai-chat/src/components/UsagePanel/quotaNote.ts', // 额度：每个 CLI 的额度来源不同
   'packages/ui/src/brand/endpointGlyphs.ts', // 品牌图标：每个都要画
-  'packages/ai-chat/src/hooks/useEndpointInfo.ts', // 各 CLI 配置文件的路径（只用于展示，缺了不影响）
 ]);
 
 const lit = new RegExp(`['"](${BUILTIN_CLI_IDS.join('|')})['"]`, 'g');

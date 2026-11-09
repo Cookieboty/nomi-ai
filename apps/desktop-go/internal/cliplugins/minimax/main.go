@@ -15,34 +15,10 @@ import (
 
 const HomeEnv = "MINIMAX_DATA_DIR"
 
-// Modes：ACP 会话模式只有 plan 与 default（逐项确认）
-var Modes = []string{"plan", "manual"}
-
-func ModeID(mode string) string {
-	if mode == "plan" {
-		return "plan"
-	}
-	return "default"
-}
-
-func FromModeID(id string) string {
-	switch id {
-	case "plan":
-		return "plan"
-	case "default":
-		return "manual"
-	}
-	return ""
-}
-
+// 档位 → ACP 会话模式在清单里（packages/cli-catalog/src/minimax/manifest.ts）：只有 plan 与 default（逐项确认）
 func UserHome(env clisdk.Env, home string) string { return sh.CliHome(HomeEnv, ".minimax", env, home) }
 
-var Permissions = &clisdk.PermissionCapability{
-	Supported:  Modes,
-	Launch:     func(string, *bool) ([]string, *util.Obj) { return []string{}, util.NewObj() },
-	ModeID:     ModeID,
-	FromModeID: FromModeID,
-}
+var Permissions = sh.AcpPermissions(Manifest)
 
 // Accounts：每个账号一个 MINIMAX_DATA_DIR；只有登录凭据（auth/）按账号分开，会话、运行状态与配置共用
 var Accounts = &clisdk.AccountCapability{

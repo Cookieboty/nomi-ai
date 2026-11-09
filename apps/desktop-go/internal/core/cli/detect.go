@@ -716,8 +716,7 @@ var NpmPkg = func() map[string]string {
 var CliMinNodeMajor = func() map[string]int {
 	m := map[string]int{}
 	for _, id := range builtin.Ordered {
-		e, _ := builtin.Get(id)
-		m[id] = e.MinNode
+		m[id] = builtin.MinNode(id)
 	}
 	return m
 }()

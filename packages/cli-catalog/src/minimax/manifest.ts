@@ -29,6 +29,7 @@ export const manifest: CliManifest = {
     subagents: false,
     slashCommands: false,
     resume: true,
+    history: false,
     fork: false,
     usageQuota: false,
     progressMonitor: false,
@@ -36,4 +37,6 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'restart',
   clientSpec: { client: 'minimax' },
+  configPath: '~/.minimax/config.yaml',
+  host: { minNode: 22, selfUpdate: 'always', vendor: 'minimax', acpArgs: ['acp'] },
 };

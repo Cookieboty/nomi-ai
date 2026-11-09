@@ -424,8 +424,8 @@ func (o *Orchestrator) qualityBase(tab *util.Obj) *util.Obj {
 		}
 		return b
 	}
-	e, _ := builtin.Get(str(tab, "backend"))
-	prov, ok := e.Vendor, e.Vendor != ""
+	prov := builtin.Vendor(str(tab, "backend"))
+	ok := prov != ""
 	if !ok {
 		prov = client
 	}
@@ -557,7 +557,7 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 		Error: errStr, Background: background, DurationMs: dur, Origin: o.turnOrigin[id]})
 	delete(o.turnOrigin, id)
 	b := str(tab, "backend")
-	if e, _ := builtin.Get(b); ok && tab.Get("permissionMode") == "plan" && e.PlanFollowUp && util.JSTrim(text) != "" {
+	if ok && tab.Get("permissionMode") == "plan" && builtin.PlanFollowUp(b) && util.JSTrim(text) != "" {
 		o.offerExecutePlan(tab)
 	}
 }

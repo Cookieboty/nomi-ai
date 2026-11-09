@@ -22,8 +22,8 @@ import (
 //go:embed nomi-runner.cjs
 var WindowsRunner string
 
-// Kinds：有 nomi-<cli> 命令的（经网关启动；启动脚本按 CLI 写过，见 builtin.Entry.TerminalCommand）
-var Kinds = builtin.Where(func(id string) bool { e, _ := builtin.Get(id); return e.TerminalCommand && builtin.WithThirdParty(id) })
+// Kinds：有 nomi-<cli> 命令的（清单 host.nomiCommand；经网关启动，所以也要能接第三方模型）
+var Kinds = builtin.Where(func(id string) bool { return builtin.NomiCommand(id) && builtin.WithThirdParty(id) })
 
 const (
 	tokenMark = "__NOMI_TOKEN__"

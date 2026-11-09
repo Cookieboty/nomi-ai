@@ -12,4 +12,5 @@
 | 内置 id                                                                                                 | `src/generated/ids.ts`，由 `pnpm -F @nomi-ai/cli-catalog gen:ids` 按目录生成（`typecheck` 会检查是否最新） |
 | 界面与名单的顺序、按能力位筛选（`BUILTIN_CLI_ORDER`、`cliCapability`；其它包不写死 CLI 名单，测试会拦） | `src/index.ts`                                                                                             |
 
-内核实现（启动、权限、账号、历史等）在 `apps/desktop-go/internal/cliplugins`。ESLint 规则保证本包不依赖 `node:*`、electron 与其它包。
+清单只写在这里：Go 内核读由它生成的 `apps/desktop-go/internal/cliplugins/catalog/catalog.json`（`pnpm -F @nomi-ai/cli-catalog gen:go`，
+测试会查它是否最新）。内核实现（启动、权限、账号、历史等）在 `apps/desktop-go/internal/cliplugins`。ESLint 规则保证本包不依赖 `node:*`、electron 与其它包。

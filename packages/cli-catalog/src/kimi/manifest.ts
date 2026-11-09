@@ -32,6 +32,7 @@ export const manifest: CliManifest = {
     subagents: false,
     slashCommands: false,
     resume: true,
+    history: false,
     fork: false,
     usageQuota: false,
     progressMonitor: false,
@@ -39,4 +40,6 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'restart',
   clientSpec: { client: 'kimi' },
+  configPath: '~/.kimi-code/config.toml',
+  host: { minNode: 22, vendor: 'moonshot', acpArgs: ['acp'] },
 };

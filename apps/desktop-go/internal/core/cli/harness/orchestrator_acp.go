@@ -175,8 +175,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				throw(i18n.T("electron.common.cli-not-found-set-nomi-use-mock", builtin.FullName(backend)))
 			}
 			bin = found
-			e, _ := builtin.Get(backend)
-			argv = append([]string{}, e.AcpArgs...)
+			argv = builtin.AcpArgs(backend)
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))

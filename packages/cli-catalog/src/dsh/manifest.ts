@@ -27,6 +27,7 @@ export const manifest: CliManifest = {
     subagents: true,
     slashCommands: false,
     resume: true,
+    history: true,
     fork: false,
     usageQuota: false,
     progressMonitor: true,
@@ -35,4 +36,5 @@ export const manifest: CliManifest = {
   // 模型写在只给这个进程用的叠加配置里（--patch），换模型要重启
   modelSwitch: 'restart',
   clientSpec: { client: 'dsh' },
+  host: { minNode: 24, vendor: 'deepseek', planFollowUp: true, nomiCommand: true },
 };

@@ -29,6 +29,7 @@ export const manifest: CliManifest = {
     subagentStop: true,
     slashCommands: true,
     resume: true,
+    history: true,
     fork: false,
     usageQuota: true,
     progressMonitor: true,
@@ -37,4 +38,6 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'claude' },
+  configPath: '~/.claude/settings.json',
+  host: { minNode: 22, selfUpdate: 'native', vendor: 'anthropic', nomiCommand: true },
 };

@@ -67,10 +67,25 @@ export function cliName(id: string): string {
   return isBuiltinCliId(id) ? BUILTIN_MANIFESTS[id].displayName : id;
 }
 
-/** 完整名称（看板、用量、灵动岛：「Gemini CLI」）；与 Go 内核 builtin.Entry.FullName 一致 */
-const FULL_NAME: Partial<Record<BuiltinCliId, string>> = { gemini: 'Gemini CLI' };
+/** 完整名称（看板、用量、灵动岛：「Gemini CLI」；清单 fullName，缺省 = 显示名） */
 export function cliFullName(id: string): string {
-  return (isBuiltinCliId(id) && FULL_NAME[id]) || cliName(id);
+  return (isBuiltinCliId(id) && BUILTIN_MANIFESTS[id].fullName) || cliName(id);
+}
+
+/** 各 CLI 自己的配置文件路径（只用于展示）；没有的返回 undefined */
+export function cliConfigPath(id: string): string | undefined {
+  return isBuiltinCliId(id) ? BUILTIN_MANIFESTS[id].configPath : undefined;
+}
+
+/**
+ * Go 内核用的目录（生成到 apps/desktop-go/internal/cliplugins/catalog/catalog.json）：顺序与全部清单。
+ * 清单只在本包写一次，内核读这份生成的文件（`pnpm -F @nomi-ai/cli-catalog gen:go`）。
+ */
+export function goCatalog(): {
+  order: readonly BuiltinCliId[];
+  manifests: Record<string, CliManifest>;
+} {
+  return { order: BUILTIN_CLI_ORDER, manifests: { ...BUILTIN_MANIFESTS } };
 }
 
 /** 按内置 id 建一张表（顺序同 BUILTIN_CLI_ORDER） */

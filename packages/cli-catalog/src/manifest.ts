@@ -37,6 +37,8 @@ export interface CliCapabilities {
   subagentStop?: boolean;
   slashCommands?: boolean;
   resume?: boolean;
+  /** 能列出、打开以前的会话（内核有它的会话记录解析） */
+  history?: boolean;
   fork?: boolean;
   usageQuota?: boolean;
   progressMonitor?: boolean;
@@ -83,6 +85,28 @@ export interface CliManifest {
   /** 按版本开关的能力（semver 范围 → 能力位覆盖） */
   versionGates?: Array<{ range: string; capabilities: Partial<CliCapabilities> }>;
   clientSpec: ClientSpecData;
+  /** 完整名称（看板、用量、灵动岛）；缺省 = displayName */
+  fullName?: string;
+  /** CLI 自己的配置文件（只用于展示，Nomi 不读不写），如 `~/.claude/settings.json` */
+  configPath?: string;
+  /** 内核运行它要知道的事（视图不用） */
+  host?: CliHostSpec;
+}
+
+/** 内核运行 CLI 要知道的事（清单之外的声明式信息；Go 侧由生成的 catalog.json 读） */
+export interface CliHostSpec {
+  /** 要求的最低 Node 主版本（npm 装的 CLI） */
+  minNode?: number;
+  /** 能不能用 `<bin> update` 自己更新：native = 原生安装 / 来源不明时；always = 总是；缺省 = 只走 npm */
+  selfUpdate?: 'native' | 'always';
+  /** 官方账号的模型厂商（网关 provider id） */
+  vendor?: string;
+  /** 以 ACP 长驻会话启动时的参数（transport 为 acp 的） */
+  acpArgs?: string[];
+  /** 计划模式一轮做完后由 Nomi 提供「执行这个计划」（CLI 自己没有批准计划的环节） */
+  planFollowUp?: boolean;
+  /** 有 ~/.nomi/bin 下的 nomi-<id> 命令（终端里经网关用第三方模型；启动脚本按 CLI 写过） */
+  nomiCommand?: boolean;
 }
 
 export const CLI_API_VERSION = 1;
@@ -98,6 +122,7 @@ const BOOL_CAPS = [
   'subagents',
   'slashCommands',
   'resume',
+  'history',
   'fork',
   'usageQuota',
   'progressMonitor',
@@ -181,6 +206,23 @@ export function validateManifest(m: unknown): string[] {
       });
   }
   if (!isObj(m.clientSpec)) errors.push('clientSpec must be an object');
+  for (const k of ['fullName', 'configPath'] as const)
+    if (m[k] !== undefined && typeof m[k] !== 'string') errors.push(`${k} must be a string`);
+  if (m.host !== undefined) {
+    const h = m.host;
+    if (!isObj(h)) errors.push('host must be an object');
+    else {
+      if (h.minNode !== undefined && typeof h.minNode !== 'number')
+        errors.push('host.minNode must be a number');
+      if (h.selfUpdate !== undefined && h.selfUpdate !== 'native' && h.selfUpdate !== 'always')
+        errors.push('host.selfUpdate must be native or always');
+      if (h.acpArgs !== undefined && !isStrArr(h.acpArgs))
+        errors.push('host.acpArgs must be string[]');
+      for (const k of ['planFollowUp', 'nomiCommand'] as const)
+        if (h[k] !== undefined && typeof h[k] !== 'boolean')
+          errors.push(`host.${k} must be a boolean`);
+    }
+  }
   return errors;
 }
 

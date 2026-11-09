@@ -14,39 +14,13 @@ import (
 
 const HomeEnv = "KIMI_CODE_HOME"
 
-// Modes：ACP 会话模式只有 plan / default / yolo / auto，没有「只自动改文件」
-var Modes = []string{"plan", "manual", "auto", "bypass"}
-
-// modeIDs：Nomi 档位 → ACP 会话模式。yolo = 日常改动与命令自动、危险操作仍询问；auto = 全部自动（不是 Nomi 的 auto）
-var modeIDs = map[string]string{"plan": "plan", "manual": "default", "auto": "yolo", "bypass": "auto"}
-
-func ModeID(mode string) string {
-	if id, ok := modeIDs[mode]; ok {
-		return id
-	}
-	return "default"
-}
-
-// FromModeID：ACP 会话模式 → Nomi 档位（"" = 认不出）
-func FromModeID(id string) string {
-	for m, x := range modeIDs {
-		if x == id {
-			return m
-		}
-	}
-	return ""
-}
-
+// 档位 → ACP 会话模式在清单里（packages/cli-catalog/src/kimi/manifest.ts）：plan / default / yolo（日常改动自动、
+// 危险操作仍询问）/ auto（全部自动，不是 Nomi 的「自动」）；没有「只自动改文件」
 func UserHome(env clisdk.Env, home string) string {
 	return sh.CliHome(HomeEnv, ".kimi-code", env, home)
 }
 
-var Permissions = &clisdk.PermissionCapability{
-	Supported:  Modes,
-	Launch:     func(string, *bool) ([]string, *util.Obj) { return []string{}, util.NewObj() },
-	ModeID:     ModeID,
-	FromModeID: FromModeID,
-}
+var Permissions = sh.AcpPermissions(Manifest)
 
 // Accounts：每个账号一个 KIMI_CODE_HOME；只有登录凭据（credentials/）按账号分开，会话与配置共用
 var Accounts = &clisdk.AccountCapability{

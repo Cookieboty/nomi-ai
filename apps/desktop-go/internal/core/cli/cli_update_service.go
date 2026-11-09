@@ -52,8 +52,8 @@ func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
 		scope = "global"
 	}
 	var recipes []UpdateRecipe
-	e, _ := builtin.Get(kind)
-	if bin != "" && (e.SelfUpdate == "always" || e.SelfUpdate == "native" && (method == "native" || method == "unknown")) {
+	su := builtin.SelfUpdate(kind)
+	if bin != "" && (su == "always" || su == "native" && (method == "native" || method == "unknown")) {
 		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "self", Argv: []string{bin, "update"}})
 	}
 	argv := []string{npmCommand(), "install", "-g", NpmPkg[kind] + "@latest"}
@@ -79,7 +79,7 @@ var allowedPkgs = func() map[string]bool {
 // selfUpdating：能 `<bin> update` 自己更新的命令名
 func selfUpdating(cmd, base string) bool {
 	for _, id := range builtin.Ordered {
-		if e, _ := builtin.Get(id); e.SelfUpdate == "" {
+		if builtin.SelfUpdate(id) == "" {
 			continue
 		}
 		for _, b := range builtin.Binaries(id) {

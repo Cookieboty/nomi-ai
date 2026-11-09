@@ -35,3 +35,37 @@ func TestDerivedLists(t *testing.T) {
 		}
 	}
 }
+
+// 代码条目与清单（catalog）一一对应；清单说能读历史的，插件确实有 History 与会话记录解析
+func TestEntriesMatchCatalog(t *testing.T) {
+	if len(entries) != len(IDs) {
+		t.Fatalf("entries %d vs catalog %d", len(entries), len(IDs))
+	}
+	for _, id := range IDs {
+		e, ok := entries[id]
+		if !ok || e.CreateMain == nil {
+			t.Fatalf("%s is in the catalog but has no CreateMain in builtin.entries", id)
+		}
+		has := e.Transcript != nil && Impl(id).History != nil
+		if has != WithHistory(id) {
+			t.Errorf("%s: manifest history=%v but implementation=%v", id, WithHistory(id), has)
+		}
+	}
+}
+
+// Kimi / MiniMax 的档位映射来自清单
+func TestAcpPermissionsFromManifest(t *testing.T) {
+	k := Impl("kimi").Permissions
+	for mode, id := range map[string]string{"plan": "plan", "manual": "default", "auto": "yolo", "bypass": "auto", "acceptEdits": "default"} {
+		if got := k.ModeID(mode); got != id {
+			t.Errorf("kimi %s → %s, want %s", mode, got, id)
+		}
+	}
+	if k.FromModeID("auto") != "bypass" || k.FromModeID("yolo") != "auto" || k.FromModeID("x") != "" {
+		t.Error("kimi FromModeID")
+	}
+	m := Impl("minimax").Permissions
+	if !slices.Equal(m.Supported, []string{"plan", "manual"}) || m.ModeID("bypass") != "default" {
+		t.Errorf("minimax %v %s", m.Supported, m.ModeID("bypass"))
+	}
+}

@@ -65,7 +65,8 @@
     "typecheck": "node scripts/gen-ids.mjs --check && node ../../scripts/run-bin.mjs tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "node ../../scripts/run-bin.mjs vitest run",
-    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo",
+    "gen:go": "node scripts/gen-go.mjs"
   },
   "devDependencies": {
     "@nomi-ai/repo-paths": "workspace:*",
