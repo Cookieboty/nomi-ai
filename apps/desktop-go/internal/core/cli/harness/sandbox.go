@@ -336,6 +336,9 @@ func (o *Orchestrator) onSandboxDeny(d sandbox.Denial) {
 	if id == "" || o.tab(id) == nil {
 		return
 	}
+	if sandbox.RoutineRead(d, o.home) {
+		return
+	}
 	req, ok := sandbox.Classify(d, o.home)
 	if !ok {
 		o.d.Logger.Info("cli sandbox blocked nomi data", util.NewObj("tab", id, "op", d.Op, "proc", d.Proc))
