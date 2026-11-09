@@ -13,7 +13,7 @@ import { BUILTIN_CLI_IDS, BUILTIN_CLI_ORDER } from '../src';
 const ALLOW: Record<string, string[]> = {
   'packages/ai-chat/src/services/usageClient.ts': ['UsageQuotaTool'], // 额度：只有实现了额度查询的
   'packages/contract/src/app/shell/schemas.ts': ['UsageQuotaTool'],
-  'packages/ui/src/brand/endpointGlyphs.ts': ['EndpointGlyphKey'], // 品牌图标：每个都要画
+  'packages/ui/src/brand/endpointGlyphs.ts': ['EndpointGlyphKey', "'nomi' | 'claude'"], // 品牌图标：每个都要画
   'packages/ai-chat/src/components/ModelControls/index.tsx': ['NO_REASONING_BACKENDS'],
 };
 

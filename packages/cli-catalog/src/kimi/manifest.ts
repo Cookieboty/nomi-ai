@@ -21,12 +21,12 @@ export const manifest: CliManifest = {
     versionPattern: '(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)',
     install: { npm: '@moonshot-ai/kimi-code', url: 'https://github.com/MoonshotAI/kimi-code' },
   },
-  // 只有 ACP（kimi acp）；档位经 session/set_mode 设置
+  // 只有 ACP（kimi acp）；档位经 session/set_mode 设置。第三方模型写在私有 config.toml 里，换模型要重启后续接会话
   transport: 'acp',
   ingress: 'chat',
   capabilities: {
     officialAccount: true,
-    thirdParty: false,
+    thirdParty: true,
     images: 'native',
     permissionModes: KIMI_MODES.map((mode) => ({ mode, modeId: kimiModeId(mode) })),
     subagents: false,
@@ -37,6 +37,6 @@ export const manifest: CliManifest = {
     progressMonitor: false,
     terminalCommand: true,
   },
-  modelSwitch: 'inplace',
+  modelSwitch: 'restart',
   clientSpec: { client: 'kimi' },
 };

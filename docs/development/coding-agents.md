@@ -72,8 +72,12 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
    没有的能力留空）；在 `builtin.entries` 登记一条，`builtin.Ordered` 末尾加上它。
 3. 更新 `testdata/b7s2-plugins.json`，补中英文文案、品牌图标与文档。
 
-之后名单、显示名、检测、安装与更新、看板认进程、委派、ACP 启动都自动带上它；额度查询、用量日志、第三方模型（网关）
-要用时再在各自的地方补实现。
+之后名单、显示名、检测、安装与更新、看板认进程、委派、ACP 启动都自动带上它；额度查询、用量日志要用时再在各自的地方补实现。
+
+第三方模型：清单 `thirdParty: true`，插件实现 `Launch.ThirdParty`，返回私有主目录（`PrivateHome`：环境变量、不链的条目）
+与要写的配置文件（`Files`）；`gwstore/agents.AgentLaunchFor` 对没有专门实现的 CLI 调它，建私有主目录、写文件（0600）。
+网关里没有专门条目的用通用条目（`clients.GenericSpec`：宽松校验、不认识的模型名映射到主模型）。模型写在配置里，
+换模型时重启进程并用 `session/load` 续接。终端里的 `nomi-<cli>` 命令要启动脚本支持，见 `builtin.Entry.TerminalCommand`。
 
 ## 权限档位
 

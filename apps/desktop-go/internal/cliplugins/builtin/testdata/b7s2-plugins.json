@@ -344,7 +344,7 @@
    "ingress": "chat",
    "capabilities": {
     "officialAccount": true,
-    "thirdParty": false,
+    "thirdParty": true,
     "images": "native",
     "permissionModes": [
      {
@@ -372,7 +372,7 @@
     "progressMonitor": false,
     "terminalCommand": true
    },
-   "modelSwitch": "inplace",
+   "modelSwitch": "restart",
    "clientSpec": {
     "client": "kimi"
    }
@@ -399,7 +399,7 @@
    "ingress": "chat",
    "capabilities": {
     "officialAccount": true,
-    "thirdParty": false,
+    "thirdParty": true,
     "images": "native",
     "permissionModes": [
      {
@@ -419,7 +419,7 @@
     "progressMonitor": false,
     "terminalCommand": true
    },
-   "modelSwitch": "inplace",
+   "modelSwitch": "restart",
    "clientSpec": {
     "client": "minimax"
    }
@@ -678,7 +678,7 @@
    "icon": "kimi",
    "capabilities": {
     "officialAccount": true,
-    "thirdParty": false,
+    "thirdParty": true,
     "images": "native",
     "permissionModes": [
      {
@@ -712,7 +712,7 @@
     "auto",
     "bypass"
    ],
-   "modelSwitch": "inplace"
+   "modelSwitch": "restart"
   },
   "minimax": {
    "id": "minimax",
@@ -720,7 +720,7 @@
    "icon": "minimax",
    "capabilities": {
     "officialAccount": true,
-    "thirdParty": false,
+    "thirdParty": true,
     "images": "native",
     "permissionModes": [
      {
@@ -744,7 +744,7 @@
     "plan",
     "manual"
    ],
-   "modelSwitch": "inplace"
+   "modelSwitch": "restart"
   }
  },
  "gatewayEntries": [

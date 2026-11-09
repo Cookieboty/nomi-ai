@@ -20,11 +20,14 @@ type CliMainHost struct {
 	Platform string
 }
 
+// LaunchFile：启动前要写的文件；Path 是相对路径时相对会话目录（RunDir / 私有主目录）
 type LaunchFile struct {
 	Path, Content string
 	Mode          *int
 }
 
+// PrivateHome：给这个会话一个私有主目录（EnvVar 指向 RunDir）：Shared 里的条目软链进来（Shared 空 = CLI 自己的
+// 用户主目录），名字匹配 KeepPrivate（正则）的不链（配置、凭据），由 Files 写私有的
 type PrivateHome struct {
 	EnvVar, Shared string
 	KeepPrivate    []string
@@ -51,6 +54,7 @@ type LaunchContext struct {
 type ModelMeta struct {
 	ContextWindow, MaxOutput *float64
 	Images                   *bool
+	Reasoning                *bool
 }
 
 type ThirdPartyLaunchContext struct {

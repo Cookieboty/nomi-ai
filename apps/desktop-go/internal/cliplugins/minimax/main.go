@@ -5,6 +5,8 @@ package minimax
 import (
 	"io/fs"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -76,9 +78,54 @@ func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 		Strip: sh.StripFor(Accounts.Strip, ctx.AccountDir, HomeEnv)}
 }
 
+// ThirdPartyLaunch：第三方模型经 Nomi 网关（OpenAI chat 协议）。私有 MINIMAX_DATA_DIR：会话与运行状态链回用户目录，
+// config.yaml 写一个指向网关的自定义供应商并设为默认模型；不链登录凭据（auth/）。MiniMax 的自定义供应商只认
+// 写在配置里的 apiKey，所以网关令牌会落在这份私有配置里（0600，会话目录随标签清理）。
+func ThirdPartyLaunch(ctx clisdk.ThirdPartyLaunchContext) clisdk.AgentLaunch {
+	model := ""
+	if ctx.Model != nil {
+		model = *ctx.Model
+	}
+	q := sh.JSONString // YAML 接受 JSON 风格的带引号字符串（模型名里可能有 / 与 :）
+	lines := []string{
+		"# Private config for a Nomi third-party session (does not affect ~/.minimax)",
+		"defaultModel: " + q("custom_provider:nomi/"+model),
+		"custom_provider:",
+		"  nomi:",
+		"    name: Nomi",
+		"    api: openai-completions",
+		"    options:",
+		"      baseURL: " + q(ctx.GatewayURL+"/v1"),
+		"      apiKey: " + q(ctx.Token),
+		"    models:",
+		"      " + q(model) + ":",
+	}
+	if m := ctx.ModelMeta; m != nil {
+		if m.ContextWindow != nil || m.MaxOutput != nil {
+			lines = append(lines, "        limit:")
+			if m.ContextWindow != nil {
+				lines = append(lines, "          context: "+util.FormatNumber(*m.ContextWindow))
+			}
+			if m.MaxOutput != nil {
+				lines = append(lines, "          output: "+util.FormatNumber(*m.MaxOutput))
+			}
+		}
+		if m.Images != nil {
+			lines = append(lines, "        capabilities:", "          support_image: "+strconv.FormatBool(*m.Images))
+		}
+	}
+	return clisdk.AgentLaunch{
+		Env:         util.NewObj(),
+		Args:        []string{},
+		Strip:       Accounts.Strip,
+		PrivateHome: &clisdk.PrivateHome{EnvVar: HomeEnv, KeepPrivate: []string{`^(config\.yaml|auth)$`, `\.lock$`}},
+		Files:       []clisdk.LaunchFile{{Path: "config.yaml", Content: strings.Join(lines, "\n") + "\n"}},
+	}
+}
+
 func CreateMain() *clisdk.CliMainImpl {
 	return &clisdk.CliMainImpl{
-		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch},
+		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch, ThirdParty: ThirdPartyLaunch},
 		Permissions: Permissions,
 		Accounts:    Accounts,
 		Terminal:    sh.ResumeTerminal("mcode", "--session"),

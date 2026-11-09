@@ -37,6 +37,8 @@ type Entry struct {
 	AcpArgs []string
 	// Vendor：官方账号的模型厂商（网关 provider id：anthropic / openai / xai / google / deepseek）
 	Vendor string
+	// TerminalCommand：有 ~/.nomi/bin 下的 nomi-<cli> 命令（终端里经网关用第三方模型；启动脚本按 CLI 写过）
+	TerminalCommand bool
 	// PlanFollowUp：计划模式这一轮做完后，由 Nomi 提供「执行这个计划」（CLI 自己没有批准计划的环节）
 	PlanFollowUp bool
 	// SelfUpdate：能不能用 `<bin> update` 自己更新：""（不能，只走 npm）、"native"（原生安装 / 来源不明时）、"always"
@@ -45,15 +47,15 @@ type Entry struct {
 
 // entries：注册顺序即 IDs 的顺序（按 id 排序，与 packages/cli-catalog/src/generated/ids.ts 一致）
 var entries = map[string]Entry{
-	"claude": {Manifest: claude.Manifest, Renderer: claude.Renderer, Gateway: claude.Gateway, CreateMain: claude.CreateMain,
+	"claude": {Manifest: claude.Manifest, TerminalCommand: true, Renderer: claude.Renderer, Gateway: claude.Gateway, CreateMain: claude.CreateMain,
 		Transcript: claude.ParseTranscript, MinNode: 22, SelfUpdate: "native", Vendor: "anthropic"},
-	"codex": {Manifest: codex.Manifest, Renderer: codex.Renderer, Gateway: codex.Gateway, CreateMain: codex.CreateMain,
+	"codex": {Manifest: codex.Manifest, TerminalCommand: true, Renderer: codex.Renderer, Gateway: codex.Gateway, CreateMain: codex.CreateMain,
 		Transcript: codex.ParseTranscript, MinNode: 16, SelfUpdate: "native", Vendor: "openai", PlanFollowUp: true},
-	"dsh": {Manifest: dsh.Manifest, Renderer: dsh.Renderer, Gateway: dsh.Gateway, CreateMain: dsh.CreateMain,
+	"dsh": {Manifest: dsh.Manifest, TerminalCommand: true, Renderer: dsh.Renderer, Gateway: dsh.Gateway, CreateMain: dsh.CreateMain,
 		Transcript: dsh.ParseTranscript, MinNode: 24, Vendor: "deepseek", PlanFollowUp: true},
-	"gemini": {Manifest: gemini.Manifest, Renderer: gemini.Renderer, Gateway: gemini.Gateway, CreateMain: gemini.CreateMain,
+	"gemini": {Manifest: gemini.Manifest, TerminalCommand: true, Renderer: gemini.Renderer, Gateway: gemini.Gateway, CreateMain: gemini.CreateMain,
 		FullName: "Gemini CLI", Transcript: gemini.ParseTranscript, MinNode: 20, Vendor: "google", AcpArgs: []string{"--acp"}},
-	"grok": {Manifest: grok.Manifest, Renderer: grok.Renderer, Gateway: grok.Gateway, CreateMain: grok.CreateMain,
+	"grok": {Manifest: grok.Manifest, TerminalCommand: true, Renderer: grok.Renderer, Gateway: grok.Gateway, CreateMain: grok.CreateMain,
 		Transcript: grok.ParseTranscript, MinNode: 18, SelfUpdate: "always", Vendor: "xai", PlanFollowUp: true, AcpArgs: []string{"agent", "stdio"}},
 	// ACP 助手：不能读历史会话（Transcript nil），只用官方账号；会话在标签里用 session/load 接着聊
 	"kimi": {Manifest: kimi.Manifest, Renderer: kimi.Renderer, CreateMain: kimi.CreateMain,

@@ -16,7 +16,7 @@ var Manifest = util.NewObj(
 	"ingress", "chat",
 	"capabilities", util.NewObj(
 		"officialAccount", true,
-		"thirdParty", false,
+		"thirdParty", true,
 		"images", "native",
 		"permissionModes", sh.ModeEntries(Modes, func(mode string, o *util.Obj) { o.Set("modeId", ModeID(mode)) }),
 		"subagents", false,
@@ -27,7 +27,7 @@ var Manifest = util.NewObj(
 		"progressMonitor", false,
 		"terminalCommand", true,
 	),
-	"modelSwitch", "inplace",
+	"modelSwitch", "restart",
 	"clientSpec", util.NewObj("client", "kimi"),
 )
 

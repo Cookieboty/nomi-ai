@@ -18,12 +18,12 @@ export const manifest: CliManifest = {
     versionPattern: '(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)',
     install: { npm: '@minimax-ai/code', url: 'https://agent.minimax.io/docs/cli/quick-start' },
   },
-  // 只有 ACP（mcode acp）；档位经 session/set_mode 设置
+  // 只有 ACP（mcode acp）；档位经 session/set_mode 设置。第三方模型写在私有 config.yaml 里，换模型要重启后续接会话
   transport: 'acp',
   ingress: 'chat',
   capabilities: {
     officialAccount: true,
-    thirdParty: false,
+    thirdParty: true,
     images: 'native',
     permissionModes: MINIMAX_MODES.map((mode) => ({ mode, modeId: minimaxModeId(mode) })),
     subagents: false,
@@ -34,6 +34,6 @@ export const manifest: CliManifest = {
     progressMonitor: false,
     terminalCommand: true,
   },
-  modelSwitch: 'inplace',
+  modelSwitch: 'restart',
   clientSpec: { client: 'minimax' },
 };
