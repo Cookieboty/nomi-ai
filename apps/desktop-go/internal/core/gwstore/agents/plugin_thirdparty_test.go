@@ -22,7 +22,7 @@ func TestPluginThirdPartyLaunch(t *testing.T) {
 			want:   []string{`base_url = "http://127.0.0.1:9/v1"`, `api_key_env = "NOMI_KIMI_API_KEY"`, `model = "openai/gpt-x"`, `"image_in"`, "max_context_size = 200000"},
 			keyEnv: "NOMI_KIMI_API_KEY"},
 		{kind: "minimax", homeEnv: "MINIMAX_DATA_DIR", userDir: ".minimax", config: "config.yaml",
-			linked: []string{"v2", "plugins"}, private: []string{"auth", "config.yaml"},
+			linked: []string{"skills", "plugins"}, private: []string{"auth", "config.yaml", "v2"},
 			want: []string{`defaultModel: "custom_provider:nomi/openai/gpt-x"`, `baseURL: "http://127.0.0.1:9/v1"`,
 				`apiKey: "tok-1"`, `"openai/gpt-x":`, "context: 200000", "support_image: true"}},
 	} {

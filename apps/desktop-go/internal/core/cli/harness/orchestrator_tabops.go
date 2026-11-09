@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -940,11 +941,11 @@ func (o *Orchestrator) switchAcpMode(id string, gl *acpLiveSession, mode string)
 			o.teardownAcpLive(id)
 		}
 		why := rpc.InnermostMessage(errMsg(err))
-		key := "electron.common.gemini-did-not-confirm-the-permission-mode-change"
-		if gl.backend == "grok" {
-			key = "electron.common.grok-did-not-confirm-the-permission-mode-change"
+		if gl.backend == "gemini" && gemini.IsUntrustedModeError(why) {
+			return struct{}{}, gemini.NewUntrustedError(str(o.tab(id), "cwd"), err)
 		}
-		return struct{}{}, fmt.Errorf("%s", i18n.T(key, why))
+		return struct{}{}, fmt.Errorf("%s", i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-change",
+			acpDisplayName(gl.backend, nil), why))
 	})
 	gl.modeChange = change
 }

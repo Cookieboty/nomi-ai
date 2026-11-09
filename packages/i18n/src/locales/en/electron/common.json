@@ -143,8 +143,6 @@
   "electron.common.gemini-cli-couldn-t-start-an-acp-session": "Gemini CLI couldn't start an ACP session; it may be too old. Update it under Coding assistants → Gemini and try again.",
   "electron.common.gemini-cli-does-not-trust-the-current-folder": "Gemini CLI does not trust the current folder ({0}) and refused to run here. Click “Trust this folder” below, or run `gemini` once in that folder from a terminal and choose to trust it, then try again.",
   "electron.common.gemini-cli-not-found-set-nomi-use-mock": "Gemini CLI not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
-  "electron.common.gemini-did-not-confirm-the-permission-mode-change": "Gemini did not confirm the permission mode change ({0}). The current session was stopped; the next turn starts with the new mode",
-  "electron.common.gemini-did-not-confirm-the-permission-mode-this": "Gemini did not confirm the permission mode ({0}); this message was not sent",
   "electron.common.gemini-did-not-respond-for-seconds-so-the": "Gemini did not respond for {0} seconds, so the request was cancelled. Please try again; if it keeps happening, check your network or restart the session.",
   "electron.common.gemini-didn-t-return-a-session": "Gemini didn't return a session",
   "electron.common.gemini-has-encrypted-credential-storage-turned-on-gemini": "Gemini has encrypted credential storage turned on (GEMINI_FORCE_ENCRYPTED_FILE_STORAGE), which doesn’t separate account folders, so multiple accounts aren’t supported",
@@ -156,8 +154,6 @@
   "electron.common.grant": "Grant",
   "electron.common.grant-nomi-access-to-this-folder": "Grant Nomi access to this folder",
   "electron.common.grok-could-not-start-an-acp-session": "Grok could not start an ACP session",
-  "electron.common.grok-did-not-confirm-the-permission-mode-change": "Grok did not confirm the permission mode change ({0}). The current session was stopped; the next turn starts again in the new mode.",
-  "electron.common.grok-did-not-confirm-the-permission-mode-so": "Grok did not confirm the permission mode ({0}), so this message was not sent",
   "electron.common.grok-did-not-return-a-session": "Grok did not return a session",
   "electron.common.grok-did-not-switch-the": "Grok did not switch the {0} ({1})",
   "electron.common.grok-error": "Grok error",
@@ -602,5 +598,7 @@
   "electron.common.sandbox-category-personal": "Mail, Messages, Calendar, Contacts, Notes and Photos",
   "electron.common.sandbox-category-secret-files": "Secret files (.env, private keys, certificates)",
   "electron.common.sandbox-needs-permission": "Blocked by the sandbox: {0}. Waiting for your permission",
-  "electron.common.auto-continue-stopped-no-progress": "(The last automatic round made no real progress, so I stopped here. Say \"continue\" if you want me to keep going.)"
+  "electron.common.auto-continue-stopped-no-progress": "(The last automatic round made no real progress, so I stopped here. Say \"continue\" if you want me to keep going.)",
+  "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} did not confirm the permission mode change ({1}). The current session was stopped; the next turn starts with the new mode",
+  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} did not confirm the permission mode ({1}), so this message was not sent"
 }

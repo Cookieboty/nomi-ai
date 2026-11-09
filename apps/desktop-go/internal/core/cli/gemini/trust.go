@@ -40,3 +40,8 @@ func NewUntrustedError(folder string, cause error) error {
 func GeminiLoginEnv(stagingDir string) [][2]string {
 	return [][2]string{{"GEMINI_CLI_HOME", stagingDir}, {"GEMINI_CLI_TRUST_WORKSPACE", "true"}}
 }
+
+var untrustedModeRe = regexp.MustCompile(`(?i)approval modes? in an untrusted folder`)
+
+// IsUntrustedModeError：Gemini 拒绝在没信任的文件夹里切到「自动编辑 / 完全放开」
+func IsUntrustedModeError(msg string) bool { return untrustedModeRe.MatchString(msg) }

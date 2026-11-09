@@ -188,6 +188,17 @@ func EnsurePrivateHome(dir, userDir, shared string, keepPrivate []string, platfo
 		}
 		keep = append(keep, k)
 	}
+	// 以前链过、现在要私有的条目（插件改了 keepPrivate）：去掉旧软链，让 CLI 在这里建自己的
+	for _, name := range readdirNames(dir) {
+		for _, k := range keep {
+			if k.Test(name) {
+				if st, err := os.Lstat(jsJoin(dir, name)); err == nil && isLink(st) {
+					_ = os.Remove(jsJoin(dir, name))
+				}
+				break
+			}
+		}
+	}
 	names := readdirNames(userDir)
 	entries := []clisdk.SharedEntry{}
 	for _, name := range names {

@@ -313,10 +313,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if want != "" && !adoptedHistoryMode && modeNow != want {
 				if _, e := jsrt.Await(driver.SetPermissionModeSignal(want, signal)); e != nil {
 					why := rpc.InnermostMessage(e.Error())
-					if backend == "grok" {
-						return struct{}{}, withCause(i18n.T("electron.common.grok-did-not-confirm-the-permission-mode-so", why), e)
+					if backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
+						return struct{}{}, gemini.NewUntrustedError(str(tab, "cwd"), e)
 					}
-					return struct{}{}, withCause(i18n.T("electron.common.gemini-did-not-confirm-the-permission-mode-this", why), e)
+					return struct{}{}, withCause(i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-so", name, why), e)
 				}
 			}
 			live.permissionMode = initMode
@@ -331,7 +331,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if backend == "grok" && exited {
 				return nil, &acpUnavailableError{i18n.T("electron.common.grok-could-not-start-an-acp-session"), e}
 			}
-			if ext != nil && exited {
+			// 外部 CLI 与 Gemini 以外的内置 CLI：报它自己的名字和最后的错误输出（不套 Gemini 的「版本过旧」提示）
+			if exited && (ext != nil || backend != "gemini") {
 				tail := clisdk.SliceFrom(util.JSTrim(stderrTail), -300)
 				if tail == "" {
 					tail = i18n.T("electron.common.the-process-exited")

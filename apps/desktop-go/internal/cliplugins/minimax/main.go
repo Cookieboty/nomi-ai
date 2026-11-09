@@ -24,8 +24,10 @@ var Permissions = sh.AcpPermissions(Manifest)
 var Accounts = &clisdk.AccountCapability{
 	HomeEnv: HomeEnv,
 	Strip:   []string{"MINIMAX_DATA_DIR", "MAVIS_DATA_DIR", "MCODE_PROVIDER_API_KEY"},
+	// v2（会话库与迁移锁）不链：MiniMax 发现它是符号链接就拒绝启动（Unsafe migration lock symlink path），
+	// 每个账号 / 第三方标签用自己的 v2
 	Shared: []clisdk.SharedEntry{
-		{Name: "v2", Dir: true, CreateIfMissing: true}, {Name: "config.yaml"}, {Name: "plugins", Dir: true},
+		{Name: "config.yaml"}, {Name: "plugins", Dir: true},
 		{Name: "agents", Dir: true}, {Name: "skills", Dir: true}, {Name: "integrations", Dir: true},
 	},
 	LoginArgs:  []string{"login"},
@@ -94,7 +96,7 @@ func ThirdPartyLaunch(ctx clisdk.ThirdPartyLaunchContext) clisdk.AgentLaunch {
 		Env:         util.NewObj(),
 		Args:        []string{},
 		Strip:       Accounts.Strip,
-		PrivateHome: &clisdk.PrivateHome{EnvVar: HomeEnv, KeepPrivate: []string{`^(config\.yaml|auth)$`, `\.lock$`}},
+		PrivateHome: &clisdk.PrivateHome{EnvVar: HomeEnv, KeepPrivate: []string{`^(config\.yaml|auth|v2)$`, `\.lock$`}},
 		Files:       []clisdk.LaunchFile{{Path: "config.yaml", Content: strings.Join(lines, "\n") + "\n"}},
 	}
 }

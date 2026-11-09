@@ -253,7 +253,12 @@ func (c *Connection) dispatch(msg Json) {
 			if m == nil {
 				m = "error"
 			}
-			p.p.Reject(&Error{Code: code, Msg: InnermostMessage(util.JSString(m))})
+			msg := InnermostMessage(util.JSString(m))
+			// 「Internal error」这类笼统的 message 说明不了原因，具体的在 data.details（Gemini 就这样报）
+			if d, ok := propOf(propOf(e, "data"), "details").(string); ok && clisdk.JSTrim(d) != "" && !strings.Contains(msg, d) {
+				msg += ": " + clisdk.JSTrim(d)
+			}
+			p.p.Reject(&Error{Code: code, Msg: msg})
 		} else {
 			if msg.Has("result") {
 				p.p.Resolve(msg.Get("result"))
