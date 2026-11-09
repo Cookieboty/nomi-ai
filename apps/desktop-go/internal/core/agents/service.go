@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -161,6 +162,7 @@ type EndpointPermissionNeeded struct {
 
 type cinfo struct {
 	sessionID, parentID, title, phase, detail string
+	setupOnly                                 bool
 	cwd                                       *string
 	lastAt                                    *float64
 }
@@ -215,12 +217,15 @@ type inspectedHit struct {
 
 // Service：编程助手进度服务。
 type Service struct {
-	d                 Deps
-	settings          Settings
-	trackedKeys       []string
-	tracked           map[string]*trackedT
-	trackedSig        string
-	timer, digestT    *jsrt.Timer
+	d              Deps
+	settings       Settings
+	trackedKeys    []string
+	tracked        map[string]*trackedT
+	trackedSig     string
+	timer, digestT *jsrt.Timer
+	// 攒着待合并的编程助手提醒（notify）
+	pendingNotices    []Notice
+	noticeTimer       *jsrt.Timer
 	lastRemindAt      float64
 	home              string
 	now               func() float64
@@ -527,7 +532,7 @@ func jsBaseExt(p, ext string) string {
 
 func fromSession(si SessionInfo) cinfo {
 	return cinfo{sessionID: si.SessionID, parentID: si.ParentID, title: si.Title, phase: si.Phase, detail: si.Detail,
-		cwd: sp(si.Cwd), lastAt: si.LastAt}
+		cwd: sp(si.Cwd), lastAt: si.LastAt, setupOnly: si.SetupOnly}
 }
 
 func (s *Service) inspectCached(kind, fp string, mtime float64) candidate {
@@ -876,9 +881,12 @@ func (s *Service) tickOnce(refresh bool) (err error) {
 				files = append(files, f)
 			}
 		}
-		cands := make([]candidate, len(files))
-		for i, f := range files {
-			cands[i] = s.inspectCached(f.kind, f.path, f.mtime)
+		cands := make([]candidate, 0, len(files))
+		for _, f := range files {
+			// 只有 CLI 自己建会话时的上下文、用户还没说过话的会话文件不算（Nomi 预热 / 探测时留下的）
+			if c := s.inspectCached(f.kind, f.path, f.mtime); !c.info.setupOnly {
+				cands = append(cands, c)
+			}
 		}
 		job.Resolve(scanResult{files, dedupe(cands)})
 	}()
@@ -955,7 +963,10 @@ func (s *Service) tickOnce(refresh bool) (err error) {
 				s.runStart[c.key] = now - 2*s.pollMs
 			}
 		}
-		s.maybeRemind(prev, next)
+		// Nomi 标签自己的会话：结束时标签那边（OnEndpointFinished）已经提醒过，这里不再提醒一次
+		if !s.ownedBy(c.key) {
+			s.maybeRemind(prev, next)
+		}
 		if next.status != "running" {
 			delete(s.runStart, c.key)
 		}
@@ -1000,6 +1011,10 @@ func (s *Service) maybeRemind(prev, next *trackedT) {
 		return
 	}
 	if next.status == "waiting" && prev.status != "running" {
+		return
+	}
+	// 完成 / 出错只在刚才还在干活时提醒：空闲的会话文件被 CLI 碰一下（退出、回收）不算又完成了一次
+	if (next.status == "completed" || next.status == "failed") && prev.status == "idle" {
 		return
 	}
 	changed := prev.status != next.status
@@ -1124,9 +1139,64 @@ func (s *Service) OnPermissionNeeded(e EndpointPermissionNeeded) {
 }
 
 func (s *Service) notify(n Notice) {
-	if s.d.Notify != nil {
-		s.d.Notify(n)
+	if s.d.Notify == nil {
+		return
 	}
+	// 编程助手的提醒先攒一下：几个客户端前后脚结束 / 等你时合成一条，不连着打扰好几次
+	if n.Kind != "agent" {
+		s.d.Notify(n)
+		return
+	}
+	s.pendingNotices = append(s.pendingNotices, n)
+	if s.noticeTimer == nil {
+		s.noticeTimer = jsrt.SetTimeout(noticeMergeMs*time.Millisecond, s.flushNotices)
+	}
+}
+
+// noticeMergeMs：多久之内的编程助手提醒合成一条
+const noticeMergeMs = 1500
+
+func (s *Service) flushNotices() {
+	s.noticeTimer = nil
+	list := s.pendingNotices
+	s.pendingNotices = nil
+	if len(list) == 0 || s.d.Notify == nil {
+		return
+	}
+	s.d.Notify(MergeNotices(list))
+}
+
+// MergeNotices：几条编程助手提醒合成一条：标题列出各家，正文逐条接上，状态取最要紧的（出错 > 要你看 > 完成），
+// 图标、气泡跟最要紧的那条；一条时原样返回
+func MergeNotices(list []Notice) Notice {
+	if len(list) == 1 {
+		return list[0]
+	}
+	rank := map[string]int{"failed": 0, "attention": 1, "done": 2}
+	top := list[0]
+	titles, texts, bodies := []string{}, []string{}, []string{}
+	passive := true
+	for _, n := range list {
+		if r, ok := rank[n.Status]; ok && r < rank[top.Status] {
+			top = n
+		}
+		if n.Title != "" && !slices.Contains(titles, n.Title) {
+			titles = append(titles, n.Title)
+		}
+		if n.Text != "" {
+			texts = append(texts, n.Text)
+		}
+		if n.Body != "" {
+			bodies = append(bodies, n.Body)
+		}
+		passive = passive && n.Passive
+	}
+	out := top
+	out.Title = strings.Join(titles, "、")
+	out.Text = strings.Join(texts, "\n")
+	out.Body = strings.Join(bodies, " · ")
+	out.Passive = passive
+	return out
 }
 
 // OnEndpointFinished：端点一轮结束。
@@ -1271,6 +1341,10 @@ func (s *Service) Start() {
 func (s *Service) Stop() {
 	jsrt.ClearTimeout(s.timer)
 	s.timer = nil
+	if s.noticeTimer != nil {
+		jsrt.ClearTimeout(s.noticeTimer)
+		s.flushNotices()
+	}
 	jsrt.ClearTimeout(s.digestT)
 	s.digestT = nil
 }
