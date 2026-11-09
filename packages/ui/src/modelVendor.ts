@@ -17,7 +17,7 @@ const VENDORS: Array<[RegExp, ModelVendor]> = [
     /^(gpt|chatgpt|o\d|codex|davinci|text-embedding)/,
     { id: 'openai', name: 'OpenAI', brand: 'openai' },
   ],
-  [/^claude/, { id: 'anthropic', name: 'Anthropic', brand: 'anthropic' }],
+  [/^claude/, { id: 'anthropic', name: 'Anthropic', brand: 'claude' }],
   [/^(gemini|gemma)/, { id: 'google', name: 'Google', brand: 'gemini' }],
   [/^deepseek/, { id: 'deepseek', name: 'DeepSeek', brand: 'deepseek' }],
   [/^(glm|chatglm|codegeex)/, { id: 'zai', name: 'Z.ai', brand: 'zhipu' }],
